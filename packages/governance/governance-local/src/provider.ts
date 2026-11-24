@@ -14,8 +14,7 @@ import type {
   StandingReservations,
 } from '@omne-harness/identity'
 import type { SqlStorage, DomainRef } from '@omne-harness/sql-contract'
-import { GovernanceAdmission } from './admission.ts'
-import type { AdmissionGrant } from './admission-schema.ts'
+import { GovernanceAdmission, type AdmissionGrants } from './admission.ts'
 import { SqlOperationCoordinator } from './sql-coordinator.ts'
 import {
   GovernanceStandingCoordinator,
@@ -52,7 +51,7 @@ export type GovernanceLocalOptions = GovernanceLocalCoordination &
       standing: TenantStandingSource
       reservations: StandingReservations
     }>
-    grants: readonly AdmissionGrant[]
+    grants: AdmissionGrants
     definitions: GovernanceDefinitionSource
     combinations: Readonly<{
       mutation: MutationCombination

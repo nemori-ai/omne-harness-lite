@@ -16,7 +16,6 @@
 
 - `ActionAdmissionService` · `cordis.d.ts`
 - `AgentAccessCheckService` · `cordis.d.ts`
-- `AgentAccountOutletService` · `cordis.d.ts`
 - `AgentAdoptionsService` · `cordis.d.ts`
 - `AgentClockService` · `cordis.d.ts`
 - `AgentExecutionControlService` · `cordis.d.ts`
@@ -40,14 +39,12 @@
 - `DecisionCardsService` · `cordis.d.ts`
 - `ExtensionImplementationsService` · `cordis.d.ts`
 - `MessageHandoffService` · `cordis.d.ts`
-- `ModelContextReaderService` · `cordis.d.ts`
 - `ModelReceptionTargetsService` · `cordis.d.ts`
 - `ModelSelectionService` · `cordis.d.ts`
 - `RegisteredReadsService` · `cordis.d.ts`
 - `RequestPreparationService` · `cordis.d.ts`
 - `ToolReceptionTargetsService` · `cordis.d.ts`
 - `agentAccessCheckKey` · `cordis.d.ts`
-- `agentAccountOutletKey` · `cordis.d.ts`
 - `agentActionAdmissionKey` · `cordis.d.ts`
 - `agentAdoptionsKey` · `cordis.d.ts`
 - `agentClockKey` · `cordis.d.ts`
@@ -55,6 +52,7 @@
 - `agentCompactionKey` · `cordis.d.ts`
 - `agentConditionsKey` · `cordis.d.ts`
 - `agentDecisionCardsKey` · `cordis.d.ts`
+- `agentDefinitionsPoint` · `cordis.d.ts`
 - `agentExecutionControlKey` · `cordis.d.ts`
 - `agentExecutionRecoveryKey` · `cordis.d.ts`
 - `agentExtensionsKey` · `cordis.d.ts`
@@ -66,7 +64,6 @@
 - `agentJournalKey` · `cordis.d.ts`
 - `agentMaterialsKey` · `cordis.d.ts`
 - `agentMessageHandoffKey` · `cordis.d.ts`
-- `agentModelContextKey` · `cordis.d.ts`
 - `agentModelReceptionTargetsKey` · `cordis.d.ts`
 - `agentModelSelectionKey` · `cordis.d.ts`
 - `agentPublicationAuthorityKey` · `cordis.d.ts`
@@ -92,7 +89,7 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import { type ActionAdmission, type AgentAccessCheck, type AgentAccountOutlet, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type AgentReceivedRecords, type CurrentConditions, type CompactionInputStore, type ContextCompaction, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelContextReader, type ModelReceptionTargets, type ToolReceptionTargets, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
+import { type ActionAdmission, type AgentAccessCheck, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type AgentReceivedRecords, type CurrentConditions, type CompactionInputStore, type ContextCompaction, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelReceptionTargets, type ToolReceptionTargets, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
@@ -140,12 +137,6 @@ export declare abstract class ModelSelectionService<P> extends Service implement
     abstract readonly select: ModelSelection<P>['select'];
 }
 export declare const agentModelSelectionKey = "agentModelSelection";
-export declare abstract class ModelContextReaderService<P> extends Service implements ModelContextReader<P> {
-    static readonly provide = "agentModelContext";
-    constructor(ctx: Context);
-    abstract readonly read: ModelContextReader<P>['read'];
-}
-export declare const agentModelContextKey = "agentModelContext";
 export declare abstract class ActionAdmissionService<P> extends Service implements ActionAdmission<P> {
     static readonly provide = "agentActionAdmission";
     constructor(ctx: Context);
@@ -159,6 +150,7 @@ export declare abstract class DecisionCardsService<P> extends Service implements
     abstract readonly lookup: DecisionCards<P>['lookup'];
     abstract readonly read: DecisionCards<P>['read'];
     abstract readonly invalidate: DecisionCards<P>['invalidate'];
+    abstract readonly changes: DecisionCards<P>['changes'];
 }
 export declare const agentDecisionCardsKey = "agentDecisionCards";
 export declare abstract class MessageHandoffService<P> extends Service implements MessageHandoff<P> {
@@ -295,12 +287,6 @@ export declare abstract class ToolReceptionTargetsService<P> extends Service imp
     abstract readonly resolve: ToolReceptionTargets<P>['resolve'];
 }
 export declare const agentToolReceptionTargetsKey = "agentToolReceptionTargets";
-export declare abstract class AgentAccountOutletService<P> extends Service implements AgentAccountOutlet<P> {
-    static readonly provide = "agentAccountOutlet";
-    constructor(ctx: Context);
-    abstract readonly deliver: AgentAccountOutlet<P>['deliver'];
-}
-export declare const agentAccountOutletKey = "agentAccountOutlet";
 export declare abstract class AgentExecutionControlService<P> extends Service implements AgentExecutionControl<P> {
     static readonly provide = "agentExecutionControl";
     constructor(ctx: Context);
@@ -347,7 +333,6 @@ declare module '@deepseek-ai/cordis' {
         agentJournal: AgentJournalService<unknown>;
         agentAccessCheck: AgentAccessCheckService<unknown>;
         agentModelSelection: ModelSelectionService<unknown>;
-        agentModelContext: ModelContextReaderService<unknown>;
         agentActionAdmission: ActionAdmissionService<unknown>;
         agentDecisionCards: DecisionCardsService<unknown>;
         agentMessageHandoff: MessageHandoffService<unknown>;
@@ -364,7 +349,6 @@ declare module '@deepseek-ai/cordis' {
         agentPublicationAuthority: AgentPublicationAuthorityService<unknown>;
         agentExecutionRecovery: AgentExecutionRecoveryService<unknown>;
         agentJournalEntries: AgentJournalEntriesService<unknown>;
-        agentAccountOutlet: AgentAccountOutletService<unknown>;
         agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>;
         agentReceivedRecords: AgentReceivedRecordsService<unknown>;
         agentModelReceptionTargets: ModelReceptionTargetsService<unknown>;
@@ -377,6 +361,26 @@ declare module '@deepseek-ai/cordis' {
         'agent-cordis-contract/instance-retired'(tenant: TenantId, instance: AgentInstanceId, generation: number, reason: 'withdrawn' | 'contributor-removed' | 'superseded'): void;
     }
 }
+export declare const agentDefinitionsPoint: Readonly<{
+    name: string;
+    tree: 'server';
+    arity: 'keyed-one';
+    keyFrom: null;
+    key: string;
+    gives: string;
+    item: Readonly<{
+        kind: 'data';
+        fields: Readonly<Record<Exclude<keyof import("@omne-harness/assets").HeldItem, 'within'>, 'string' | 'boolean'>>;
+    }>;
+    resolve: 'most-specific';
+    binding: 'run';
+    onError: string;
+    version: number;
+    revision: number;
+    keys: 'private' | 'public';
+    conformance: null;
+    summary: string;
+}>;
 ```
 
 ## 声明文件 `index.d.ts`

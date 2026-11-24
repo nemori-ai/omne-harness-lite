@@ -72,7 +72,7 @@ function taskContent(
         })
         const result = committed.kind === 'unknown' ? await storage.query(identity) : committed
         if (result.kind === 'committed') return succeed(undefined)
-        if (result.kind === 'unknown' || result.kind === 'not_recallable')
+        if (result.kind === 'unknown' || result.kind === 'settled')
           return fail({ kind: 'commit-unknown', ref, operation: identity.operationKey })
         return unavailable(`content write ${result.kind}`)
       },
@@ -164,7 +164,7 @@ export async function createCompactionSqlStore(
         })
         const result = committed.kind === 'unknown' ? await storage.query(identity) : committed
         if (result.kind === 'committed') return succeed(value)
-        if (result.kind === 'unknown' || result.kind === 'not_recallable')
+        if (result.kind === 'unknown' || result.kind === 'settled')
           return fail({ kind: 'commit-unknown', ref, operation: identity.operationKey })
         if (result.kind === 'rolled_back' && result.responses.at(-1)?.reply.kind === 'conflict')
           continue

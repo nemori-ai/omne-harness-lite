@@ -3,6 +3,7 @@ import { expect, it } from 'vitest'
 it('exports the agent-host plugin with its static inject list', async () => {
   const cordis = (await import('@omne-harness/agent-host-local/cordis')) as Record<string, unknown>
   expect(Object.keys(cordis).sort()).toEqual([
+    'agentDefinitionCategory',
     'agentDefinitionCategoryPlugin',
     'agentHostPlugin',
     'createAgentHostLocalPlugin',
@@ -18,7 +19,6 @@ it('exports the agent-host plugin with its static inject list', async () => {
     'agentCompaction',
     'agentCompactionInputs',
     'agentModelSelection',
-    'agentModelContext',
     'agentMessageHandoff',
     'agentClock',
     'modelRuntime',
@@ -26,7 +26,6 @@ it('exports the agent-host plugin with its static inject list', async () => {
     'agentMaterials',
     'agentReceivedCommits',
     'agentModelReceptionTargets',
-    'agentAccountOutlet',
     'agentHostPrincipal',
   ])
 })

@@ -4,14 +4,14 @@ import { loginAccess } from '../../model/public-stream-support.ts'
 import { onReleaseTreeRuns, pollUntil, toolCallsThenText } from '../../support/release-tree.ts'
 import { SHELL, faceOf, settledSession } from '../../governance/tenant-settings-support.ts'
 
-it('a login principal sets the Shell invoke permission to deny on the release tree and reads it back after a restart', async () => {
+it('a login principal sets the Shell run permission to deny on the release tree and reads it back after a restart', async () => {
   const seen: unknown[] = []
   const exits = await onReleaseTreeRuns({ script: toolCallsThenText(() => []) }, [
     async tree => {
       const face = faceOf(tree)
       await settledSession(tree, 'hello')
       const { principal, tenant } = await loginAccess(tree)
-      const item = { principal, tenant, owner: SHELL, item: 'invoke' }
+      const item = { principal, tenant, owner: SHELL, item: 'run' }
       const listed = await face.list({
         principal,
         tenant,
@@ -24,28 +24,48 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
       const permissions = listed.items.filter(value => value.kind === 'permission')
       const nameOf = (owner: (typeof permissions)[number]['owner']) =>
         owner.kind === 'asset' ? owner.name : owner.definitionId
-      expect(permissions.map(value => `${nameOf(value.owner)}/${value.item}`).sort()).toEqual(
-        [
-          'Ask',
-          'BkgToolCalls',
-          'Calendar',
-          'Files',
-          'Schedules',
-          'Shell',
-          'Skills',
-          'TodoItems',
-          'Tools',
-          'Web',
-        ].map(name => `${name}/invoke`),
-      )
+      expect(
+        permissions.map(value => `${nameOf(value.owner)}/${value.item}:${value.default}`).sort(),
+      ).toEqual([
+        'Agents/dispatch:auto',
+        'Agents/message:auto',
+        'Agents/read:auto',
+        'Agents/report:auto',
+        'BkgToolCalls/invoke:auto',
+        'Calendar/invoke:auto',
+        'Files/read:auto',
+        'Files/write:ask',
+        'Notifications/read:auto',
+        'Notifications/send:ask',
+        'Notifications/subscribe:auto',
+        'Notifications/triage:auto',
+        'OmneExtensionPoints/read:auto',
+        'OmneExtensions/change:auto',
+        'OmneExtensions/export:auto',
+        'OmneExtensions/read:auto',
+        'Schedules/activate:auto',
+        'Schedules/draft:auto',
+        'Schedules/read:auto',
+        'Screen/observe:ask',
+        'Screen/read:auto',
+        'Sessions/invoke:auto',
+        'Shell/read:auto',
+        'Shell/run:ask',
+        'Skills/invoke:auto',
+        'SwitchWorkspace/invoke:ask',
+        'TodoItems/invoke:auto',
+        'Tools/discover:auto',
+        'Tools/forward:auto',
+        'Web/fetch:ask',
+        'Web/read:auto',
+      ])
       for (const value of permissions)
         expect(value).toMatchObject({
           kind: 'permission',
           revision: '0',
           declaration: { title: expect.any(String), appliesAt: expect.any(String) },
           own: null,
-          default: 'ask',
-          effective: { kind: 'value', value: 'ask', source: 'default' },
+          effective: { kind: 'value', value: value.default, source: 'default' },
           bound: null,
           editable: { kind: 'yes' },
         })
@@ -79,7 +99,7 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
       const { principal, tenant } = await loginAccess(tree)
       const reread = await pollUntil(
         'the tenant settings to open after the restart',
-        () => face.describe({ principal, tenant, owner: SHELL, item: 'invoke' }),
+        () => face.describe({ principal, tenant, owner: SHELL, item: 'run' }),
         value => value.kind !== 'unavailable',
       )
       expect(reread).toEqual(seen[0])

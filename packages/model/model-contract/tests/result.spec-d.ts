@@ -4,9 +4,13 @@ import { expectTypeOf, it } from 'vitest'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ToolCallPart } from '@omne-harness/message'
 import type {
+  AbandonBasis,
+  AbandonInput,
+  AbandonReceipt,
   AckInput,
   AckReceipt,
   Admission,
+  CleanupStage,
   CallState,
   ControlState,
   CustodyState,
@@ -19,6 +23,7 @@ import type {
   ModelFaultCause,
   OverLimitMetric,
   Reply,
+  SettledReplay,
   Settlement,
   Termination,
   ToolSuggestion,
@@ -90,6 +95,13 @@ it('ModelFault, Termination and Settlement describe the single end of a call', (
   // @ts-expect-error an interruption names its control operation
   const noControl: Termination = { kind: 'interrupted' }
   void [ends, settlement, cause, noControl]
+})
+
+it('a settled replay names the scope and format of its reasoning state, the prefix only when bound, and the call that produced it', () => {
+  expectTypeOf<SettledReplay>().toEqualTypeOf<
+    Readonly<{ scope: string; format: string; prefix?: string; call?: string }>
+  >()
+  expectTypeOf<Settlement['replay']>().toEqualTypeOf<SettledReplay | undefined>()
 })
 
 it('an input-over-limit fault reports only what the upstream gave, and no other cause carries a report', () => {
@@ -202,6 +214,29 @@ it('Handoff and AckInput carry evidence, never a bare saved flag', () => {
   >()
   const receipt: AckReceipt = { call, result, custody: acknowledged }
   void receipt
+})
+
+it('AbandonInput carries a refusal or an unreadable result as its basis, never an unknown outcome', () => {
+  const refused: AbandonBasis = { kind: 'refused', refusal: 'denied' }
+  const unreadable: AbandonBasis = { kind: 'unreadable', reason: 'gone' }
+  // @ts-expect-error an unknown outcome is not a refusal
+  const unknown: AbandonBasis = { kind: 'refused', refusal: 'outcome-unknown' }
+  const input: AbandonInput<string> = {
+    principal: 'p',
+    tenant,
+    call,
+    operation,
+    result,
+    basis: refused,
+  }
+  void [unreadable, unknown, input]
+  expectTypeOf<AbandonReceipt['custody']>().toEqualTypeOf<
+    Extract<CustodyState, { kind: 'abandoned' }>
+  >()
+  expectTypeOf<AbandonReceipt['custody']['cleanup']>().toEqualTypeOf<CleanupStage>()
+  expectTypeOf<
+    Extract<CustodyState, { kind: 'acknowledged' }>['cleanup']
+  >().toEqualTypeOf<CleanupStage>()
 })
 
 it('ToolSuggestion is the shared whole tool call and nothing of its own', () => {

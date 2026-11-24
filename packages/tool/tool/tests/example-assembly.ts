@@ -24,6 +24,7 @@ import {
 import { type ToolHandle } from '@omne-harness/tool-contract/provider'
 import {
   defaultResultPolicy,
+  toolAvailabilityReference,
   type ToolDriver,
   type ToolInstanceHost,
 } from '@omne-harness/tool-contract/provider'
@@ -97,8 +98,12 @@ export function createDemo() {
       : { kind: 'denied', reason: 'Unknown tutorial principal or tenant' }
   const scopeGrant = evidence('slot-grant', access)
   const identities = createTestToolIdentities()
+  const report = createReportTool()
+  let registeredTools: ReaderFixture<string> | undefined
   const source = createTestInvocationSource<string>({
     snapshotPrincipal: principal => principal,
+    definition: reference =>
+      reference.name === report.definition.name ? report.definition : registeredTools?.definition,
     authority: {
       qualify: async input => qualify(input),
       samePrincipal: async input =>
@@ -107,8 +112,6 @@ export function createDemo() {
           : { kind: 'denied', reason: 'Principal changed' },
     },
   })
-  const report = createReportTool()
-  let registeredTools: ReaderFixture<string> | undefined
   let driver: ToolDriver<string> | null = null
   const scheduled = new Set<ToolCallId>()
   const instances = new Map<ToolCallId, Awaited<ReturnType<typeof instanceFor>>>()
@@ -191,6 +194,12 @@ export function createDemo() {
     },
     catalog: {
       inspect: async () =>
+        fail({
+          kind: 'unsupported',
+          adoption: adoption('catalog'),
+          reason: 'Tutorial supplies fixed definitions',
+        }),
+      inspectEach: async () =>
         fail({
           kind: 'unsupported',
           adoption: adoption('catalog'),
@@ -393,19 +402,18 @@ export function createDemo() {
     command: string | null,
     argumentsText: string,
   ): ToolInvokeRequest => ({
-    availability: {
+    availability: toolAvailabilityReference({
       kind: 'available',
       definition: command === null ? report.definition : tools.definition,
       executor: adoption(command === null ? 'report-executor' : 'Tools-executor'),
       layer: { kind: 'official' },
-    },
+    }),
     command,
     arguments: { original: argumentsText, effective: argumentsText, complete: true },
     label: testingCallLabel(command === null ? report.definition : tools.definition, command),
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'tool-tutorial', key: 'tutorial-slot', grant: scopeGrant },

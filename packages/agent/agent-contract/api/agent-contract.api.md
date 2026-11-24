@@ -9,6 +9,7 @@
 - `ACTION_ADMISSION_DECLARATION` · `extensions.d.ts`
 - `ACTION_ADMISSION_IMPLEMENTATION` · `extensions.d.ts`
 - `AGENT_IDENTITY_MAX_LENGTH` · `identity.d.ts`
+- `AGENT_TYPES` · `definition.d.ts`
 - `ATTRIBUTE_ITEMS` · `definition.d.ts`
 - `AcceptedInput` · `execution.d.ts`
 - `Access` · 包 `@omne-harness/legal-identity`
@@ -32,15 +33,13 @@
 - `AgentAccessDecision` · `execution.d.ts`
 - `AgentAccessOperation` · `execution.d.ts`
 - `AgentAccessTarget` · `execution.d.ts`
-- `AgentAccountHandoff` · `receiving.d.ts`
-- `AgentAccountOutcome` · `receiving.d.ts`
-- `AgentAccountOutlet` · `receiving.d.ts`
 - `AgentActionQualification` · `action-qualification.d.ts`
 - `AgentAdoptions` · `execution.d.ts`
 - `AgentCheckpoint` · `evaluation.d.ts`
 - `AgentClock` · `execution.d.ts`
 - `AgentConclusion` · `evaluation.d.ts`
 - `AgentDefinition` · `definition.d.ts`
+- `AgentDefinitionListing` · `definition.d.ts`
 - `AgentDirectory` · `execution.d.ts`
 - `AgentEvaluator` · `evaluation.d.ts`
 - `AgentEvent` · `execution.d.ts`
@@ -75,7 +74,7 @@
 - `AgentRuntime` · `execution.d.ts`
 - `AgentRuntimeControl` · `execution.d.ts`
 - `AgentState` · `execution.d.ts`
-- `AgentToolQualification` · `tool-qualification.d.ts`
+- `AgentType` · `definition.d.ts`
 - `AssetReference` · `definition.d.ts`
 - `AttributeDeclaration` · `definition.d.ts`
 - `AttributeItem` · `definition.d.ts`
@@ -128,7 +127,6 @@
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ConsumptionId` · `identity.d.ts`
 - `ContextCompaction` · `compaction.d.ts`
-- `ContextContent` · `request.d.ts`
 - `Continuation` · `identity.d.ts`
 - `ContinuationRequest` · `finishing.d.ts`
 - `ControlRecord` · `execution.d.ts`
@@ -139,6 +137,8 @@
 - `DECISION_CARD_DRAFT_SCHEMA` · `judge-output.d.ts`
 - `DecisionCardDraft` · `extensions.d.ts`
 - `DecisionCards` · `passages.d.ts`
+- `DefinitionFacts` · `effect.d.ts`
+- `DenialCategory` · `passages.d.ts`
 - `Dimension` · `extensions.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectIntent` · `journal.d.ts`
@@ -216,11 +216,10 @@
 - `LoopFacts` · `evaluation.d.ts`
 - `Material` · `passages.d.ts`
 - `MaterialDescription` · `passages.d.ts`
+- `MaterialReaders` · `passages.d.ts`
 - `MessageHandoff` · `passages.d.ts`
 - `MessageSource` · `passages.d.ts`
 - `MigrationRecord` · `finishing.d.ts`
-- `ModelContextRead` · `request.d.ts`
-- `ModelContextReader` · `request.d.ts`
 - `ModelPurpose` · `evaluation.d.ts`
 - `ModelReceptionTarget` · `receiving.d.ts`
 - `ModelReceptionTargets` · `receiving.d.ts`
@@ -263,6 +262,7 @@
 - `ReceivedCommitValue` · `receiving.d.ts`
 - `ReceivedDelivery` · `receiving.d.ts`
 - `ReceivedEntry` · `receiving.d.ts`
+- `ReceptionSettled` · `receiving.d.ts`
 - `RecoveryAction` · `finishing.d.ts`
 - `RecoveryContinuation` · `finishing.d.ts`
 - `RefusalReason` · `judgment.d.ts`
@@ -281,9 +281,11 @@
 - `ReplyAdmissionRead` · `evaluation.d.ts`
 - `ReplyAdmissionSequence` · `identity.d.ts`
 - `RequestPreparation` · `request.d.ts`
+- `ResidentTool` · `effect.d.ts`
 - `ResponsibilityCoverage` · `finishing.d.ts`
 - `ResultResponsibility` · `execution.d.ts`
 - `RuntimeConditions` · `evaluation.d.ts`
+- `SUMMARY_LIMITS` · `definition.d.ts`
 - `SavedPreparation` · `request.d.ts`
 - `SelectedModel` · `request.d.ts`
 - `SettlementRequest` · `finishing.d.ts`
@@ -296,10 +298,9 @@
 - `TerminalObservation` · `execution.d.ts`
 - `TerminalParticipantFact` · `finishing.d.ts`
 - `TerminalParticipantFacts` · `finishing.d.ts`
+- `ToolAcceptance` · `evaluation.d.ts`
 - `ToolAssociationRecord` · `finishing.d.ts`
 - `ToolIntentKey` · `finishing.d.ts`
-- `ToolQualification` · `tool-qualification.d.ts`
-- `ToolQualificationRequest` · `tool-qualification.d.ts`
 - `ToolReceptionTarget` · `receiving.d.ts`
 - `ToolReceptionTargets` · `receiving.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
@@ -341,6 +342,9 @@
 - `decodeReplyAdmissionPageCursor` · `identity.d.ts`
 - `decodeReplyAdmissionSequence` · `identity.d.ts`
 - `decodeStepId` · `identity.d.ts`
+- `definitionImpact` · `effect.d.ts`
+- `definitionListing` · `definition.d.ts`
+- `definitionPlaces` · `effect.d.ts`
 - `encodeCompactionInput` · `compaction-codec.d.ts`
 - `encodeCompactionRequest` · `compaction-codec.d.ts`
 - `encodeCompactionTaskRef` · `compaction-codec.d.ts`
@@ -359,7 +363,6 @@
 
 ## 入口 `./testing` · `testing.d.ts`
 
-- `AgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `AgentJournalCoreFixture` · `testing-journal-helpers.d.ts`
 - `AgentJournalCoreOpenOptions` · `testing-journal-helpers.d.ts`
 - `AgentJournalCoreOpened` · `testing-journal-helpers.d.ts`
@@ -369,7 +372,6 @@
 - `JournalReplayState` · `testing-journal-replay.d.ts`
 - `JournalReplayStep` · `testing-journal-replay.d.ts`
 - `JournalReplayTrace` · `testing-journal-replay.d.ts`
-- `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `MemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `ReceivedCommitFixture` · `testing-received-fixture.d.ts`
 - `RecordFault` · `testing-journal-entries.d.ts`
@@ -381,24 +383,20 @@
 - `TEST_CANCELLATION_INPUT_SCHEMA` · `testing-cancellation.d.ts`
 - `TEST_CANCELLATION_POLICY` · `testing-cancellation.d.ts`
 - `TestHostRecord` · `testing-cancellation.d.ts`
-- `agentAccountOutletConformance` · `testing-account-outlet.d.ts`
 - `agentJournalCoreConformance` · `testing-journal-core.d.ts`
 - `agentJournalEntriesConformance` · `testing-journal-entries.d.ts`
 - `agentJournalReplayConformance` · `testing-journal-replay.d.ts`
 - `agentJournalReplayTraces` · `testing-journal-replay.d.ts`
 - `agentJournalViolatingTraces` · `testing-journal-replay.d.ts`
-- `createMemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `createMemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `createTestCancellationPolicy` · `testing-cancellation.d.ts`
 - `describeMaterial` · `testing-journal-reads.d.ts`
 - `entryPage` · `testing-journal-reads.d.ts`
 - `materialDigest` · `testing-journal-reads.d.ts`
-- `memoryAgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `memoryAgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `memoryReceivedCommitFixture` · `testing-received-memory.d.ts`
 - `receivedEntriesOf` · `testing-journal-reads.d.ts`
 - `replayJournalTrace` · `testing-journal-replay.d.ts`
-- `sampleAccountHandoff` · `testing-account-outlet.d.ts`
 - `sampleCompactionAdoption` · `testing-compaction.d.ts`
 - `sampleCompactionInput` · `testing-compaction.d.ts`
 - `sampleReceivedModelAccount` · `testing-journal-samples.d.ts`
@@ -551,8 +549,6 @@ export type CompactionTarget = Readonly<{
 export type CompactionFrame = Readonly<{
     system: M.AssembledModelInput['system'];
     tools: M.AssembledModelInput['tools'];
-    snapshotReminder: Message | null;
-    tailFacts: Message | null;
 }>;
 export type CompactionInput = Readonly<{
     outputMessageId: MessageId;
@@ -743,15 +739,57 @@ export declare const INSTRUCTION_LIMITS: Readonly<{
     maxSectionBytes: 10000;
     idPattern: RegExp;
 }>;
+export declare const AGENT_TYPES: readonly [
+    'master',
+    'non-master'
+];
+export type AgentType = (typeof AGENT_TYPES)[number];
+export declare const SUMMARY_LIMITS: Readonly<{
+    maxBytes: 1000;
+}>;
 export type AgentDefinition = {
     readonly category: 'AgentDefinition';
     readonly name: string;
+    readonly type: AgentType;
+    readonly summary: string;
     readonly references: readonly AssetReference[];
     readonly attributes: readonly AttributeDeclaration[];
     readonly instructions?: readonly InstructionSection[];
     readonly permissionBounds?: readonly PermissionUpperBound[];
 };
+export type AgentDefinitionListing = Readonly<{
+    name: string;
+    type: AgentType;
+    summary: string;
+}>;
+export declare function definitionListing(definition: AgentDefinition): AgentDefinitionListing;
 export declare function attributeItem(text: string | undefined): AttributeItem | undefined;
+```
+
+## 声明文件 `effect.d.ts`
+
+```ts
+import type { AssetStanding, ImpactLine, PlacedLine } from '@omne-harness/assets';
+export type ResidentTool = Readonly<{
+    name: string;
+    there: boolean | null;
+}>;
+export type DefinitionFacts = Readonly<{
+    name: string;
+    official: boolean;
+    refused: string | null;
+    residents: readonly ResidentTool[];
+    inert: readonly string[];
+}>;
+export type DefinitionTold<Line> = Readonly<{
+    lines: readonly Line[];
+    advice: string | null;
+}>;
+export declare function definitionImpact(point: string, toolPoint: string, facts: DefinitionFacts): DefinitionTold<ImpactLine>;
+export declare function definitionPlaces(point: string, toolPoint: string, standing: AssetStanding | undefined, facts: DefinitionFacts): Readonly<{
+    places: readonly PlacedLine[];
+    advice: string | null;
+}>;
 ```
 
 ## 声明文件 `evaluation.d.ts`
@@ -880,7 +918,7 @@ export type Failure = Readonly<{
     owner: string;
     diagnostic: string;
 }> | Readonly<{
-    kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported';
+    kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported' | 'reclaimed';
 }> | Readonly<{
     kind: 'commit-unknown';
     operation: AgentOperationId;
@@ -890,6 +928,7 @@ export type Failure = Readonly<{
 }>;
 export type Reply<A> = Promise<Outcome<A, Failure>>;
 export type ModelPurpose = 'main' | 'extension';
+export type ToolAcceptance = 'accepted' | 'unknown';
 type PendingCommon = Readonly<{
     action: ActionId;
     consumption: ConsumptionId;
@@ -908,9 +947,11 @@ export type PendingCall = PendingCommon & (Readonly<{
 }> & (Readonly<{
     association: 'intent';
     reference?: never;
+    acceptance?: never;
 }> | Readonly<{
     association: 'associated';
     reference: T.ToolInvocationRef;
+    acceptance: ToolAcceptance;
 }>)));
 export type ActionJudgment = Readonly<{
     kind: 'pending';
@@ -923,10 +964,12 @@ export type ActionJudgment = Readonly<{
     kind: 'denied';
     evidence: DurableEvidence;
     answer?: DurableEvidence;
+    notice?: string;
 }> | Readonly<{
     kind: 'allowed';
     evidence: DurableEvidence;
     request: DurableEvidence;
+    notice?: string;
 }>;
 export type ActionToolCall = ToolCallPart;
 export type Action = Readonly<{
@@ -1788,6 +1831,7 @@ export type DecisionCardDraft = Readonly<{
         option: CardOption['id'];
         effectiveArguments: string;
     }>;
+    detail?: JsonValue;
 }>;
 export type CardOption = Readonly<{
     id: string;
@@ -2569,14 +2613,14 @@ export declare function judgeAuthority(value: unknown): Outcome<Authority, Struc
 ```ts
 export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts';
 export { obligationCategoryOf } from './finishing.ts';
-export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts';
+export { AGENT_TYPES, ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS, SUMMARY_LIMITS, definitionListing, } from './definition.ts';
 export { ACTION_ADMISSION_DECLARATION, ACTION_ADMISSION_IMPLEMENTATION, POSITIONS, POWERS, } from './extensions.ts';
 export { judgeAgentDefinition } from './judge-definition.ts';
 export { judgeLoopExtensions } from './judge-extensions.ts';
 export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
 export { DECISION_CARD_DRAFT_SCHEMA, POSITION_OUTPUTS, cardDraftOf, cardRequestOf, judgeExtensionOutput, } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
-export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
+export type { AgentDefinition, AgentDefinitionListing, AgentType, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
 export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, admissionPassageOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeCompactionOperationId, decodeCompactionTaskId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './compaction.ts';
@@ -2593,7 +2637,7 @@ export type * from './receiving.ts';
 export type * from './request.ts';
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts';
 export type * from './action-qualification.ts';
-export type * from './tool-qualification.ts';
+export { definitionImpact, definitionPlaces, type DefinitionFacts, type ResidentTool, } from './effect.ts';
 ```
 
 ## 声明文件 `journal.d.ts`
@@ -2872,6 +2916,7 @@ export declare function instructionsProblem(sections: readonly Readonly<{
     id: string;
     text: string;
 }>[]): string | undefined;
+export declare function summaryProblem(summary: string): string | undefined;
 export declare function judgeAgentDefinition(value: unknown): Promise<Judgment<AgentDefinition>>;
 ```
 
@@ -2954,6 +2999,14 @@ export type BatchJudgment<T> = {
     readonly index: number;
 };
 export declare function refused<T>(reason: RefusalReason, detail?: string): Judgment<T>;
+```
+
+## 声明文件 `layout.d.ts`
+
+```ts
+import { type PackageLayout } from '@omne-harness/assets';
+export declare const AGENT_FILE = "AGENT.md";
+export declare const agentDefinitionLayout: PackageLayout;
 ```
 
 ## 声明文件 `passages.d.ts`
@@ -3196,6 +3249,7 @@ export interface DecisionCards<P> {
     }>): Reply<CardReply>;
     invalidate(input: Access<P> & Readonly<{
         operation: AgentOperationId;
+        execution: AgentExecutionId;
         passage: PassageId;
         round: CardRoundId;
         cards: readonly DurableEvidence[];
@@ -3206,14 +3260,21 @@ export interface DecisionCards<P> {
             kind: 'pending';
         }>;
     }>[]>;
+    changes(input: Access<P> & Readonly<{
+        signal: AbortSignal;
+    }>): AsyncIterable<void>;
 }
+export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance';
 export type AdmissionDecision = Readonly<{
     kind: 'allow';
     evidence: DurableEvidence;
+    notice?: string;
 }> | Readonly<{
     kind: 'deny';
+    category: DenialCategory;
     reason: string;
     evidence: DurableEvidence;
+    notice?: string;
 }> | Readonly<{
     kind: 'need-decision';
     card: DecisionCardDraft;
@@ -3239,6 +3300,10 @@ export interface ActionAdmission<P> {
             card: DurableEvidence;
             answer: CardAnswer | CardRemark;
         }> | null;
+        batch?: Readonly<{
+            id: ActionBatchId;
+            pass: string;
+        }>;
     }>): Reply<AdmissionDecision>;
 }
 export type MessageSource = Readonly<{
@@ -3428,12 +3493,14 @@ export type MaterialDescription = Readonly<{
     size: number;
     kind: Material<ContentBlock>['kind'];
 }>;
+export type MaterialReaders = 'after-release' | 'until-release';
 export interface AgentMaterials<P, B extends ContentBlock> {
     preserve(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
         identity: string;
         consumer: ConsumerRef;
         value: Material<B>;
+        readers?: MaterialReaders;
     }>): Reply<DurableEvidence>;
     read(input: Access<P> & Readonly<{
         source: DurableEvidence;
@@ -3602,6 +3669,10 @@ export type ModelReceptionTarget = Readonly<{
         kind: 'model';
     }>;
 }>;
+export type ReceptionSettled = Readonly<{
+    kind: 'settled';
+    evidence: DurableEvidence;
+}>;
 export interface ModelReceptionTargets<P> {
     forExecution(input: Readonly<{
         access: Access<P>;
@@ -3612,7 +3683,7 @@ export interface ModelReceptionTargets<P> {
         consumer: ConsumerRef;
         reference: M.ModelInvocationRef;
         execution?: AgentExecutionId;
-    }>): Reply<ModelReceptionTarget>;
+    }>): Reply<ModelReceptionTarget | ReceptionSettled>;
 }
 export type ToolReceptionTarget = Readonly<{
     execution: AgentExecutionId;
@@ -3629,7 +3700,7 @@ export interface ToolReceptionTargets<P> {
         consumer: ConsumerRef;
         reference: T.ToolInvocationRef;
         execution?: AgentExecutionId;
-    }>): Reply<ToolReceptionTarget | null>;
+    }>): Reply<ToolReceptionTarget | ReceptionSettled | null>;
     forExecution(input: Readonly<{
         access: Access<P>;
         execution: AgentExecutionId;
@@ -3641,35 +3712,6 @@ export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
     materials: AgentMaterials<P, B>;
     received: AgentReceivedCommits<P, B> | null;
 }>;
-export type AgentAccountHandoff = Readonly<{
-    call: M.ModelInvocationRef;
-    dispatch: M.DispatchId;
-    account: CallAccount;
-    resultVersion: M.ResultVersion | null;
-    committed: DurableEvidence;
-}>;
-export type AgentAccountOutcome = Readonly<{
-    kind: 'received';
-}> | Readonly<{
-    kind: 'denied';
-}> | Readonly<{
-    kind: 'conflict';
-}> | Readonly<{
-    kind: 'invalid';
-    field: string;
-    reason: string;
-}> | Readonly<{
-    kind: 'unknown';
-}> | Readonly<{
-    kind: 'unavailable';
-    diagnostic: string;
-}>;
-export interface AgentAccountOutlet<P> {
-    deliver(input: Readonly<{
-        access: Access<P>;
-        handoff: AgentAccountHandoff;
-    }>): Promise<AgentAccountOutcome>;
-}
 ```
 
 ## 声明文件 `request.d.ts`
@@ -3706,23 +3748,6 @@ export interface ModelSelection<P> {
         conditions: RuntimeConditions;
         alterations: readonly DurableEvidence[];
     }>): Reply<SelectedModel>;
-}
-export type ContextContent = 'full' | 'incremental';
-export type ModelContextRead = Readonly<{
-    recipient: ModelRecipient;
-    content: ContextContent;
-    source: DurableEvidence;
-    coverage: DurableEvidence;
-}>;
-export interface ModelContextReader<P> {
-    read(input: Access<P> & Readonly<{
-        advance: Authority;
-        position: ConsumerRef;
-        recipient: ModelRecipient;
-        history: DurableEvidence;
-        adopted: DurableEvidence | null;
-        transition: DurableEvidence | null;
-    }>): Reply<ModelContextRead>;
 }
 export type Preparation = Readonly<{
     id: ActionId;
@@ -3795,7 +3820,6 @@ export interface RequestPreparation<P> {
         inputs: InputBatch;
         conditions: RuntimeConditions;
         selection: SelectedModel;
-        context: ModelContextRead;
         previous: Preparation | null;
         alterations: readonly DurableEvidence[];
         beforeModelCall: readonly PassageId[] | null;
@@ -3818,8 +3842,8 @@ export interface RequestPreparation<P> {
             kind: 'needs-compaction';
         }>;
         transition: DurableEvidence;
+        history: DurableEvidence;
         selection: SelectedModel;
-        context: ModelContextRead;
     }>): Reply<Exclude<Preparation, {
         kind: 'needs-compaction';
     }>>;
@@ -3871,31 +3895,6 @@ export declare const refusal: (field: string, reason: StructureFailure['reason']
 export declare function textMember(members: OwnMembers, name: string): Outcome<string, StructureFailure>;
 export declare function unknownMember(members: OwnMembers, known: readonly string[]): string | undefined;
 export declare function identityMember<T extends AgentIdentity<string>>(members: OwnMembers, name: string, decode: (value: unknown) => Outcome<T, IdentityFailure>): Outcome<T, StructureFailure>;
-```
-
-## 声明文件 `testing-account-outlet.d.ts`
-
-```ts
-import type { TenantId } from '@omne-harness/legal-identity';
-import type { Access } from './identity.ts';
-import type { AgentAccountHandoff, AgentAccountOutlet } from './receiving.ts';
-import { type ConformanceCase } from './testing-case.ts';
-export interface MemoryAgentAccountOutlet<P> extends AgentAccountOutlet<P> {
-    readonly durability: 'none';
-    received(tenant: TenantId): readonly AgentAccountHandoff[];
-}
-export declare function createMemoryAgentAccountOutlet<P>(): MemoryAgentAccountOutlet<P>;
-export interface AgentAccountOutletFixture<P> {
-    readonly outlet: AgentAccountOutlet<P>;
-    readonly access: Access<P>;
-    readonly otherAccess: Access<P>;
-    current(access: Access<P>, handoff: AgentAccountHandoff): Promise<string | null>;
-}
-export declare function sampleAccountHandoff(tenant: TenantId, name: string, revision?: string, lexeme?: string): AgentAccountHandoff;
-export declare function agentAccountOutletConformance<P>(fixture: AgentAccountOutletFixture<P>): readonly ConformanceCase[];
-export declare function memoryAgentAccountOutletFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentAccountOutletFixture<P> & Readonly<{
-    double: MemoryAgentAccountOutlet<P>;
-}>;
 ```
 
 ## 声明文件 `testing-cancellation.d.ts`
@@ -4574,7 +4573,6 @@ export declare function receivedFailure<P, B extends ContentBlock>(input: Receiv
 ```ts
 export type { ConformanceCase } from './testing-case.ts';
 export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, type RecordFault, } from './testing-journal-entries.ts';
-export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
 export { agentJournalCoreConformance, type AgentJournalCoreFixture, type AgentJournalCoreOpenOptions, type AgentJournalCoreOpened, type AgentJournalReplyAdmissionControls, type ReplyAdmissionDamage, type ReplyAdmissionReadStatistics, type SettlementQualification, } from './testing-journal-core.ts';
 export { createTestCancellationPolicy, TEST_CANCELLATION_IMPLEMENTATION, TEST_CANCELLATION_INPUT_SCHEMA, TEST_CANCELLATION_POLICY, testCancellationPolicyInstallation, type TestHostRecord, } from './testing-cancellation.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
@@ -4582,29 +4580,4 @@ export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-r
 export { agentJournalReplayConformance, agentJournalReplayTraces, agentJournalViolatingTraces, replayJournalTrace, type JournalReplayState, type JournalReplayStep, type JournalReplayTrace, } from './testing-journal-replay.ts';
 export { describeMaterial, entryPage, materialDigest, receivedEntriesOf, } from './testing-journal-reads.ts';
 export { sampleCompactionInput, sampleCompactionAdoption } from './testing-compaction.ts';
-```
-
-## 声明文件 `tool-qualification.d.ts`
-
-```ts
-import type { ToolCallId, ToolInvokeRequest, ToolOperationId } from '@omne-harness/tool-contract';
-import type { Access, Adoption, AgentExecutionId, DurableEvidence, ExecutionRevision } from './identity.ts';
-import type { Reply } from './evaluation.ts';
-export type ToolQualificationRequest<P> = Access<P> & Readonly<{
-    call: ToolCallId;
-    admission: ToolOperationId;
-    request: ToolInvokeRequest;
-}>;
-export type ToolQualification = Readonly<{
-    version: 1;
-    request: Omit<ToolQualificationRequest<unknown>, 'principal'>;
-    execution: AgentExecutionId;
-    association: 'intent' | 'associated';
-    agentDefinition: Adoption;
-    revision: ExecutionRevision;
-    history: DurableEvidence;
-}>;
-export interface AgentToolQualification<P> {
-    qualify(input: ToolQualificationRequest<P>): Reply<ToolQualification>;
-}
 ```

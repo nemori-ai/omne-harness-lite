@@ -12,6 +12,8 @@ import {
 import {
   requestHead,
   type MaterializedTransport,
+  type ModelMedia,
+  type ModelMediaSource,
   type SendDemand,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
@@ -55,8 +57,13 @@ const LIMITS = {
 }
 const ROUTES = {
   openrouter: {
-    url: 'https://gateway.invalid/api/v1/chat/completions',
-    endMarker: '[DONE]',
+    endpoints: {
+      'chat-completions': {
+        url: 'https://gateway.invalid/api/v1/chat/completions',
+        endMarker: '[DONE]',
+      },
+      responses: { url: 'https://gateway.invalid/api/v1/responses', endMarker: '[DONE]' },
+    },
     accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
     auth: { kind: 'bearer' as const, item: 'apiKey' },
   },
@@ -70,6 +77,7 @@ type Observed = {
   reads: (ReadonlyMap<string, string> | undefined)[]
   closes: number
   preparedCloses: number
+  looked?: Readonly<{ request: string; secrets: ReadonlyMap<string, string> | undefined }>
 }
 
 type Faults = {
@@ -94,6 +102,10 @@ function observingFactory() {
     const fault = faults.get(transports.length) ?? {}
     transports.push(observed)
     return {
+      lookupCost: (_supplier, request) => {
+        observed.looked = { request, secrets: config.credential.read() }
+        return Promise.resolve({ kind: 'missed' as const })
+      },
       transport: {
         async prepare(request) {
           observed.prepares += 1
@@ -211,6 +223,7 @@ function observed(
   faults: readonly (readonly [number, Faults])[] = [],
   onConnectRetry?: PiSendResourcesConfig['onConnectRetry'],
   requestDisclosure?: (request: FixedModelRequest) => TransportFailure | null,
+  media?: PiSendResourcesConfig<Principal>['media'],
 ) {
   network = createNetworkResources({ maxConnections: 2, idleConnectionTimeoutMs: 1_000 })
   const factory = observingFactory()
@@ -224,6 +237,7 @@ function observed(
       materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
       ...(onConnectRetry === undefined ? {} : { onConnectRetry }),
       ...(requestDisclosure === undefined ? {} : { requestDisclosure }),
+      ...(media === undefined ? {} : { media }),
     },
     createTransport: factory.createTransport,
   })
@@ -322,6 +336,98 @@ describe('the report of a connect retry', () => {
     await acquired(without.resources)
     expect(without.factory.acquired()[0]?.config.onConnectRetry).toBeUndefined()
     await without.resources.close()
+  })
+})
+
+describe('the media source of a resource', () => {
+  const PICTURE = { storage: 's', key: 'k', mediaType: 'image/png', bytes: '3', digest: 'd' }
+  const MEDIA_LIMITS = { mediaTypes: ['image/png'], maxBytes: 9, image: null }
+  const READ: ModelMedia = {
+    mediaType: 'image/png',
+    bytes: new Uint8Array([1, 2, 3]),
+    measurement: {
+      reference: PICTURE,
+      bytes: '3',
+      mediaType: 'image/png',
+      kind: 'image',
+      widthPixels: '1',
+      heightPixels: '1',
+    },
+  }
+  type Opened = Parameters<ModelMediaSource<Principal>['open']>
+  function sourceOf(seen: Opened[]): ModelMediaSource<Principal> {
+    return {
+      open: async (...opened) => {
+        seen.push(opened)
+        return { ok: READ }
+      },
+    }
+  }
+  const readOf = (transport: Observed | undefined) => {
+    const read = transport?.config.media
+    if (read === undefined) throw new Error('the transport of the resource reads no media')
+    return read
+  }
+
+  it('reads with the access of its own send, and asks for the source at every read', async () => {
+    const seen: Opened[] = []
+    let current: ModelMediaSource<Principal> | null = sourceOf(seen)
+    const { factory, resources } = observed([], undefined, undefined, () => current)
+    const stranger = { ...DEMAND, principal: { subject: 'another' } }
+    await acquired(resources)
+    await acquired(resources, stranger)
+    const [first, second] = factory.acquired()
+    const signal = new AbortController().signal
+    expect(await readOf(first)(PICTURE, MEDIA_LIMITS, signal)).toEqual({ ok: READ })
+    await readOf(second)(PICTURE, MEDIA_LIMITS, signal)
+    expect(seen).toEqual([
+      [
+        {
+          principal: DEMAND.principal,
+          tenant: DEMAND.tenant,
+          reference: PICTURE,
+          limits: MEDIA_LIMITS,
+        },
+        signal,
+      ],
+      [
+        {
+          principal: stranger.principal,
+          tenant: DEMAND.tenant,
+          reference: PICTURE,
+          limits: MEDIA_LIMITS,
+        },
+        signal,
+      ],
+    ])
+    current = null
+    expect(await readOf(first)(PICTURE, MEDIA_LIMITS, signal)).toEqual({
+      failure: { kind: 'unavailable', diagnostic: 'media-source-absent' },
+    })
+    const later: Opened[] = []
+    current = sourceOf(later)
+    await readOf(first)(PICTURE, MEDIA_LIMITS, signal)
+    expect([seen.length, later.length]).toEqual([2, 1])
+  })
+
+  it('is given to no transport that sends nothing, and to none when the assembly names no source', async () => {
+    const withSource = observed([], undefined, undefined, () => null)
+    await acquired(withSource.resources)
+    await withSource.resources.lookupCost?.(
+      { supplier: REQUEST.suppliers[0], request: 'request-1', secrets: secretsOf('s') },
+      new AbortController().signal,
+    )
+    expect(withSource.factory.transports.map(each => each.config.media !== undefined)).toEqual([
+      false,
+      true,
+      false,
+    ])
+    const without = observed()
+    await acquired(without.resources)
+    expect(without.factory.transports.map(each => each.config.media)).toEqual([
+      undefined,
+      undefined,
+    ])
   })
 })
 
@@ -451,7 +557,21 @@ describe('the ownership of a materialized transport', () => {
     const resources = createPiSendResources<Principal>({
       network,
       families: composeFamilies([family]),
-      routes: { openrouter: { ...ROUTES.openrouter, endMarker: GATEWAY_END_MARKER } },
+      routes: {
+        openrouter: {
+          ...ROUTES.openrouter,
+          endpoints: {
+            'chat-completions': {
+              url: ROUTES.openrouter.endpoints['chat-completions'].url,
+              endMarker: GATEWAY_END_MARKER,
+            },
+            responses: {
+              url: ROUTES.openrouter.endpoints.responses.url,
+              endMarker: GATEWAY_END_MARKER,
+            },
+          },
+        },
+      },
       limits: LIMITS,
       materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
     })
@@ -567,6 +687,23 @@ describe('release and close', () => {
     })
   })
 
+  it('looks a cost up on a transport of its own that reads the secrets given, closes it, and refuses once closed', async () => {
+    const { factory, resources } = observed()
+    const secrets = new Map([['apiKey', 'lookup-secret']])
+    const ask = () =>
+      resources.lookupCost?.(
+        { supplier: DEMAND.supplier, request: 'gen-1', secrets },
+        new AbortController().signal,
+      )
+    expect(await ask()).toEqual({ kind: 'missed' })
+    const [, lookup] = factory.transports
+    expect(lookup?.looked).toEqual({ request: 'gen-1', secrets })
+    expect(lookup?.closes).toBe(1)
+    await resources.close()
+    expect(await ask()).toEqual({ kind: 'unavailable', diagnostic: 'send-resources-closed' })
+    expect(factory.transports).toHaveLength(2)
+  })
+
   it('refuses a configuration that the transport refuses when it is built', () => {
     const shared = createNetworkResources({ maxConnections: 2, idleConnectionTimeoutMs: 1_000 })
     network = shared
@@ -576,8 +713,7 @@ describe('release and close', () => {
         families: composeFamilies([]),
         routes: {
           openrouter: {
-            url: 'http://gateway.invalid/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'http://gateway.invalid/', endMarker: null } },
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },

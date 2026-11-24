@@ -8,6 +8,8 @@ import {
 
 const definition = (extra: Record<string, unknown> = {}) => ({
   category: 'AgentDefinition',
+  type: 'master',
+  summary: 'Works on what the person asks for.',
   name: 'coding',
   references: [],
   attributes: [],

@@ -6,7 +6,6 @@ import type {
   ScheduleView,
 } from '@omne-harness/schedule-contract'
 import { createIndependentToolScope } from '@omne-harness/tool'
-import type { ToolDecision } from '@omne-harness/tool-contract'
 import {
   attachSchedules,
   bindSchedules,
@@ -54,7 +53,12 @@ export const view = (control = 'active', extra: object = {}) =>
   ({
     scheduleId: ID,
     owner: context.owner,
-    author: { kind: 'agent', actorRef: 'principal/1/p', originatingSessionRef: 'session-1' },
+    author: {
+      kind: 'agent',
+      actorRef: 'principal/1/p',
+      originatingSessionRef: 'session-1',
+      originatingCallRef: CALL,
+    },
     definition: {
       ...DEFINITION,
       binding: { kind: 'followUserEnvironment' },
@@ -64,7 +68,6 @@ export const view = (control = 'active', extra: object = {}) =>
     control,
     standing: { kind: 'ready' },
     nextOccurrence: null,
-    consentAdoption: null,
     createdAt: NOW,
     ...extra,
   }) as unknown as ScheduleView
@@ -111,6 +114,7 @@ export function services(writes: readonly (ScheduleCommandResult<ScheduleView> |
             basis: { calendarId: 'cn-legal-holidays', calendarVersionId: 'v1' },
           },
         ],
+        basis: { timezone: 'Asia/Shanghai' },
         complete: true,
       },
     }),
@@ -163,32 +167,7 @@ export function parse(command: SchedulesCommandName, params: unknown): Schedules
   return parsed.ok
 }
 
-const segment = (execution: ReturnType<typeof scope>) => ({
-  emit: () => undefined,
-  signal: execution.context.signal,
-})
-
-export async function first(args: SchedulesArguments, execution: ReturnType<typeof scope>) {
-  const answer = await schedulesExecutor.initial(args, null, segment(execution) as never)
-  if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
-  return answer.ok
+/** Runs one call; its result is the one line or the done text the agent reads. */
+export function run(args: SchedulesArguments, execution: ReturnType<typeof scope>) {
+  return schedulesExecutor.execute(args, null, execution.context)
 }
-
-export async function second(
-  state: Uint8Array,
-  decision: ToolDecision<unknown>,
-  execution: ReturnType<typeof scope>,
-) {
-  const answer = await schedulesExecutor.resume(
-    { checkpoint: state, response: decision },
-    null,
-    segment(execution) as never,
-  )
-  if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
-  return answer.ok
-}
-
-export const selected = (cardId: string, optionId: string): ToolDecision<unknown> => ({
-  kind: 'answer',
-  value: { answers: [{ cardId, kind: 'selection', optionId }] },
-})

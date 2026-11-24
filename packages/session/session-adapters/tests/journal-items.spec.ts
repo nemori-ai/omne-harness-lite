@@ -3,6 +3,7 @@ import { canonical } from '../src/testing/canonical.ts'
 import {
   emptySessionView,
   foldItems,
+  refOf,
   viewItems,
   viewOfItems,
   viewText,
@@ -10,7 +11,7 @@ import {
   type SessionJournalView,
 } from '../src/journal/index.ts'
 import { evidence, scene } from './fixtures/journal-facts.ts'
-import { forAll } from './fixtures/property.ts'
+import { forAll, random } from './fixtures/property.ts'
 
 type Held = { open: boolean; body: string }
 
@@ -66,6 +67,49 @@ describe('the items of the journal view', () => {
     })
   })
 
+  it('a batch that writes two obligations and two lists reports each of them', () => {
+    const { log } = scene(random(7), { rounds: 2, executions: 1, finish: false })
+    const last = log.at(-1)!
+    const evidenceOf = (name: string) => evidence(`${last.execution}/${name}`)
+    const batch: PublishedBatch = {
+      ...last,
+      pub: last.pub + 1,
+      envelope: { ...last.envelope, op: 'two-obligations' as never, kinds: [] },
+      facts: [
+        {
+          kind: 'finish.obligation',
+          id: 'call/first',
+          category: 'call',
+          item: null,
+          settled: false,
+        },
+        {
+          kind: 'finish.obligation',
+          id: 'call/second',
+          category: 'call',
+          item: null,
+          settled: false,
+        },
+        ...[1, 2].map(list => ({
+          kind: 'finish.obligations' as const,
+          candidate: 'candidate' as never,
+          list,
+          count: 0,
+          evidence: evidenceOf(`list-${String(list)}`),
+          coverage: refOf({ coverage: list }),
+          listed: refOf({ listed: list }),
+        })),
+      ],
+    }
+    const replayed = replay(log)
+    if (typeof replayed === 'string') throw new Error(replayed)
+    const { changes } = foldItems(replayed.view, batch)
+    const opened = (family: string) =>
+      changes.filter(change => change.family === family).map(change => change.item)
+    expect(opened('obligation')).toEqual(['call/first', 'call/second'])
+    expect(opened('list')).toHaveLength(2)
+  })
+
   it('the open rows of the store rebuild the view the fold holds, execution by execution', () => {
     forAll('rebuild', {
       runs: 60,
@@ -99,6 +143,58 @@ describe('the items of the journal view', () => {
         return null
       },
     })
+  })
+
+  it('a custody attempt recorded after its hand-off closed changes no closed item', () => {
+    const execution = 'exe_custody' as never
+    const handoff = { kind: 'execution' as const, execution, operation: 'h-1' as never }
+    const ref = { digest: 'c'.repeat(64), size: 2 }
+    const batch = (pub: number, facts: PublishedBatch['facts']): PublishedBatch => ({
+      execution,
+      envelope: {
+        op: `op-${String(pub)}` as never,
+        digest: `d-${String(pub)}`,
+        rev: 0,
+        gen: '1',
+        kinds: [],
+      },
+      facts,
+      pub,
+    })
+    const at = (n: number) => `step-${String(n)}` as never
+    const log = [
+      batch(1, [
+        { kind: 'cursor.moved', step: at(1), members: { step: at(1), currentHandoff: handoff } },
+        { kind: 'handoff.prepared', handoff, step: at(1), request: ref, prepared: evidence('p') },
+      ]),
+      batch(2, [
+        {
+          kind: 'handoff.resolved',
+          handoff,
+          resolution: 'recorded',
+          outcome: ref,
+          history: evidence('history'),
+        },
+        { kind: 'cursor.moved', step: at(2), members: { step: at(2), currentHandoff: null } },
+      ]),
+      // The step moved on: the hand-off is closed. Its custody may still be recorded.
+      batch(3, [
+        {
+          kind: 'handoff.recorded',
+          handoff,
+          resolution: 'recorded',
+          outcome: ref,
+          predecessor: null,
+          custody: null,
+        },
+      ]),
+    ]
+    const closed = replay(log.slice(0, 2))
+    if (typeof closed === 'string') throw new Error(closed)
+    expect([...closed.store].filter(([key]) => key.includes('"handoff"'))).toEqual([
+      [expect.any(String), expect.objectContaining({ open: false })],
+    ])
+    expect(replay(log)).toEqual(expect.objectContaining({ store: expect.any(Map) }))
   })
 
   it('a later step that takes the same batch closes the earlier one', () => {

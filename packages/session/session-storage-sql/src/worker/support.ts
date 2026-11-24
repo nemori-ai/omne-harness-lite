@@ -14,6 +14,8 @@ import { StoredEntryMalformed } from '../entry-codec.ts'
 import { PROTOCOL } from './schema.ts'
 
 export const PAGE_ROWS = 200
+// The bytes of one page of content: a page holds what fits, and always its first row.
+export const PAGE_BYTES = 4 * 1024 * 1024
 
 export function handler(
   name: string,
@@ -127,10 +129,13 @@ export function assignPositions(
   revision: string,
   entries: readonly object[],
 ): HistoryEntry[] {
+  const key = [scope.tenant, scope.session]
+  // A session without an entry of its own goes on after the position it forked at.
   const last = oneRow(
     port,
-    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ? LIMIT 1',
-    [scope.tenant, scope.session],
+    `SELECT COALESCE((SELECT MAX(position) FROM sl_entry WHERE tenant = ? AND session = ?),
+      (SELECT position FROM sl_fork WHERE tenant = ? AND session = ?), 0) AS p LIMIT 1`,
+    [...key, ...key],
   )
   const first = big(last?.['p'] ?? 0n) + 1n
   return entries.map((entry, index) => ({

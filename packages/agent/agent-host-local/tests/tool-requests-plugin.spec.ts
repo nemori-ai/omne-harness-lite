@@ -1,4 +1,3 @@
-import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { agentEvaluator } from '@omne-harness/agent'
 import { testAdoption, testToolDefinition } from '@omne-harness/agent/testing'
 import {
@@ -117,30 +116,10 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
   const judged = judgeToolInvokeRequest({
     availability: {
       kind: 'available',
+      definition: adoption('read_file'),
+      name: 'read_file',
       executor: adoption('executor'),
       layer: { kind: 'official' },
-      definition: {
-        adoption: adoption('read_file'),
-        name: 'read_file',
-        description: 'Read a file.',
-        requiredCapabilities: [],
-        backgroundAllowed: false,
-        declarations: {
-          adoption: adoption('tool-declarations'),
-          environment: null,
-          attachments: [],
-          inputModalities: [],
-          outputModalities: [],
-          settings: null,
-        },
-        kind: 'function',
-        parameters: {
-          schema: { kind: 'object', entries: [] },
-          vocabulary: adoption('json-schema'),
-          descriptions: [],
-        },
-        returns: ordinaryReturnFixture(adoption('codec')),
-      },
     },
     command: null,
     arguments: { original: '{}', effective: '{}', complete: true },
@@ -148,7 +127,6 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: { ref: 'tool-scope' },
     resources: [],
     scope: { owner: 'test-scope', key: 'one', grant: evidence('scope-grant') },
@@ -156,8 +134,8 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     batchDecision: null,
     mode: 'foreground',
     limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
-  } as never)
-  return ok(judged as never)
+  })
+  return ok(judged)
 }
 
 function countingSource() {
@@ -217,7 +195,14 @@ async function suggestTool(
   })
   opened.push(host)
   host.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'tool', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'tool',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })

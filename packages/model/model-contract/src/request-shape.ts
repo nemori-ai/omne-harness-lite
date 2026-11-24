@@ -1,3 +1,4 @@
+import { isReasoningEffort } from './root.ts'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { judgeMessage } from '@omne-harness/message'
 import { judgeJsonValue } from '@omne-harness/json-text'
@@ -130,8 +131,16 @@ function stopParameter(item: unknown, at: string): Checked<Parameter> {
   if (new Set(parsed.ok).size !== parsed.ok.length) return rejected(at, 'duplicate')
   return succeed({ kind: 'stop', value: parsed.ok })
 }
-function reasoningParameter(item: unknown, at: string): Checked<Parameter> {
-  return item === 'none' || item === 'low' || item === 'medium' || item === 'high' || item === 'max'
+function reasoningParameter(record: Record<string, unknown>, field: string): Checked<Parameter> {
+  const item = record.value
+  const at = `${field}/value`
+  if (Object.hasOwn(record, 'scale')) {
+    if (record.scale !== 'unified') return rejected(`${field}/scale`, 'value')
+    return isReasoningEffort(item)
+      ? succeed({ kind: 'reasoning-effort', scale: 'unified', value: item })
+      : rejected(at, 'value')
+  }
+  return isReasoningEffort(item) || item === 'none' || item === 'max'
     ? succeed({ kind: 'reasoning-effort', value: item })
     : rejected(at, 'value')
 }
@@ -159,7 +168,7 @@ function parameterValue(record: Record<string, unknown>, field: string): Checked
     case 'stop':
       return stopParameter(item, at)
     case 'reasoning-effort':
-      return reasoningParameter(item, at)
+      return reasoningParameter(record, field)
     case 'extension':
       return extensionParameter(record, field)
     default:
@@ -172,6 +181,7 @@ export function parameter(value: unknown, field: string): Checked<Parameter> {
     value,
     value.kind === 'extension' ? ['kind', 'definition', 'value'] : ['kind', 'value'],
     field,
+    value.kind === 'reasoning-effort' ? ['scale'] : [],
   )
   return 'failure' in record ? record : parameterValue(record.ok, field)
 }
@@ -393,9 +403,11 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
       'source',
     ],
     field,
-    ['replay'],
+    ['replay', 'contextWindow'],
   )
   if ('failure' in record) return record
+  const window = contextWindowOf(record.ok, field)
+  if ('failure' in window) return window
   const routing = requestRouting(record.ok, field)
   if ('failure' in routing) return routing
   const content = requestContent(record.ok, field)
@@ -404,7 +416,22 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
   if ('failure' in provenance) return provenance
   const replay = requestReplay(record.ok, field, routing.ok.suppliers)
   if ('failure' in replay) return replay
-  return succeed({ ...routing.ok, ...content.ok, ...replay.ok, ...provenance.ok })
+  return succeed({ ...routing.ok, ...window.ok, ...content.ok, ...replay.ok, ...provenance.ok })
+}
+function contextWindowOf(
+  input: Record<string, unknown>,
+  field: string,
+): Checked<Pick<FixedModelRequest, 'contextWindow'>> {
+  if (!Object.hasOwn(input, 'contextWindow')) return succeed({})
+  const at = `${field}/contextWindow`
+  const record = closed(input.contextWindow, ['tokens', 'compactionTriggerPercent'], at)
+  if ('failure' in record) return record
+  const tokens = integer(record.ok.tokens, `${at}/tokens`, true)
+  if ('failure' in tokens) return tokens
+  const percent = record.ok.compactionTriggerPercent
+  if (typeof percent !== 'string' || !/^(?:[1-9][0-9]?|100)$/u.test(percent))
+    return rejected(`${at}/compactionTriggerPercent`, 'value')
+  return succeed({ contextWindow: { tokens: tokens.ok, compactionTriggerPercent: percent } })
 }
 export function consumerShape(value: unknown): Checked<ConsumerRef> {
   const record = closed(value, ['owner', 'work', 'position', 'purpose'], '/consumer')

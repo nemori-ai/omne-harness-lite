@@ -1,5 +1,4 @@
 import { UNMAPPED_PERMISSION_SNAPSHOT } from './unmapped-permission-snapshot.ts'
-import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 import {
   SETTINGS_CHECKPOINT_PARTICIPANTS,
   SETTINGS_COMMIT_PARTICIPANTS,
@@ -12,20 +11,22 @@ import {
   manifestDigest,
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
+import { GOVERNED_PARTICIPANT } from './governed-capabilities.ts'
 import { SUPPORT_PARTICIPANT } from './permission-protocol.ts'
 import { ADOPTION_CURRENT_PARTICIPANT } from './adoption-current.ts'
 import { CATALOG_CURRENT_PARTICIPANT } from './catalog-current.ts'
 import { TARGET_SNAPSHOT } from './target-snapshot.ts'
-import { PERMISSION_BASIS, PERMISSION_BASIS_GUARD } from './permission-basis.ts'
+import { PERMISSION_BASIS } from './permission-basis.ts'
 import { sessionPermissionBasisProducer } from './session-permission-basis.ts'
 import { tenantSettingsCurrentParticipant } from './tenant-settings-current.ts'
+import { heldSettingsCurrentParticipant } from './held-settings-current.ts'
 
 const publications = [
   'assets.settings',
   'settings.targets',
   'settings.target-projection',
   ...SETTINGS_RECOVERY_PARTICIPANTS,
-  'harness.tool-permission-release',
+  GOVERNED_PARTICIPANT,
   SUPPORT_PARTICIPANT.participant,
 ]
 const snapshot = [
@@ -34,16 +35,6 @@ const snapshot = [
   'governance.target-projection',
   'settings.value-projection',
   TARGET_SNAPSHOT.participant,
-]
-const basisRead = [...snapshot, ...SESSION_LOG_PARTICIPANTS, 'session-permission-guard']
-const unmappedBasisRead = [
-  'assets.settings',
-  'harness.tool-permission-release',
-  SUPPORT_PARTICIPANT.participant,
-  'governance.selected-definition-projection',
-  UNMAPPED_PERMISSION_SNAPSHOT.participant,
-  ...SESSION_LOG_PARTICIPANTS,
-  'session-permission-guard',
 ]
 export const PROJECTION_READ_MEMBERS = [
   ...snapshot,
@@ -54,14 +45,6 @@ export const PROJECTION_READ_MEMBERS = [
   CATALOG_CURRENT_PARTICIPANT.participant,
   'governance.catalog-snapshot',
 ]
-const startCondition = (read: readonly string[]) => [
-  ...read,
-  'governance.activation',
-  'governance.metadata-plan',
-  PERMISSION_BASIS.participant,
-  PERMISSION_BASIS_GUARD.participant,
-  'tool',
-]
 const permissionWrite = (mode: 'clear' | 'unmapped' | 'mapped') => [
   'execution-record',
   'session',
@@ -70,6 +53,12 @@ const permissionWrite = (mode: 'clear' | 'unmapped' | 'mapped') => [
 const settingsWriteRead = [...snapshot, 'governance.metadata-plan', 'governance.activation'].filter(
   value => !SETTINGS_RECOVERY_PARTICIPANTS.includes(value),
 )
+const heldRead = [
+  'assets.settings',
+  'settings.targets',
+  'settings.target-projection',
+  'settings.value-projection',
+]
 const definitionProjection = [
   'governance.definition-projection',
   'governance.activation',
@@ -80,8 +69,6 @@ export const VERSION_DIGEST_LENGTH = 16
 
 export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
   const definitions = {
-    toolStart: startCondition(basisRead),
-    toolStartUnmapped: startCondition(unmappedBasisRead),
     metadata: ['governance.metadata-plan', 'governance.activation'],
     mutation: ['governance.mutation-plan', 'governance.activation'],
     assets: [...publications, ADOPTION_CURRENT_PARTICIPANT.participant],
@@ -114,6 +101,17 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
       tenantSettingsCurrentParticipant('commit'),
     ],
     tenantSettingsRecovery: [...SETTINGS_RECOVERY_PARTICIPANTS],
+    heldSettingsSnapshot: [...heldRead, ...SETTINGS_RECOVERY_PARTICIPANTS],
+    heldSettingsReady: [
+      ...heldRead,
+      ...SETTINGS_READY_PARTICIPANTS,
+      heldSettingsCurrentParticipant('ready'),
+    ],
+    heldSettingsCommit: [
+      ...heldRead,
+      ...SETTINGS_COMMIT_PARTICIPANTS,
+      heldSettingsCurrentParticipant('commit'),
+    ],
     independentTargets: [
       ...SETTINGS_RECOVERY_PARTICIPANTS.filter(name => name !== 'settings.source-finalization'),
       'settings.source-snapshot',
@@ -150,8 +148,6 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     }
   }
   return {
-    toolStart: build('toolStart'),
-    toolStartUnmapped: build('toolStartUnmapped'),
     metadata: build('metadata'),
     mutation: build('mutation'),
     assets: build('assets'),
@@ -165,6 +161,9 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     tenantSettingsReady: build('tenantSettingsReady'),
     tenantSettingsCommit: build('tenantSettingsCommit'),
     tenantSettingsRecovery: build('tenantSettingsRecovery'),
+    heldSettingsSnapshot: build('heldSettingsSnapshot'),
+    heldSettingsReady: build('heldSettingsReady'),
+    heldSettingsCommit: build('heldSettingsCommit'),
     independentTargets: build('independentTargets'),
     independentCapture: build('independentCapture'),
     independentReady: build('independentReady'),

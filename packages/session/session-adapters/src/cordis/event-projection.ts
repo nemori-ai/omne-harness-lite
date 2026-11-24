@@ -7,7 +7,6 @@ import { HistoryFailure } from '../testing/history-failure.ts'
 import { captureEventOriginal, normalizeAgentEvent } from '../testing/history.ts'
 import type { MemoryExecution } from '../testing/journal.ts'
 import type { CommonRoot } from '../testing/root.ts'
-import { JOURNAL_PROVIDER } from './journal-publication.ts'
 import type { EventProjection } from './journal-batch.ts'
 
 // What a write records for each event it appended: Session's reading of it, and the boundaries of
@@ -51,15 +50,6 @@ function deferredOf(
   )
 }
 
-function placeholderHead(execution: MemoryExecution): DurableEvidence {
-  return {
-    owner: JOURNAL_PROVIDER,
-    record: `${execution.id}/head`,
-    revision: String(execution.revision),
-    digest: 'unknown',
-  }
-}
-
 const projected = (value: unknown): JsonValue =>
   value === null || value === undefined ? null : (JSON.parse(JSON.stringify(value)) as JsonValue)
 
@@ -81,23 +71,29 @@ export function projectionOf(
   }
 }
 
+// The boundary of every execution a write moved, headed by the batch that moved it. A write that
+// moves none (a preserved material, a recognition) leaves the boundary of the last move.
 export function boundariesOf(
   changed: readonly MemoryExecution[],
-  receipt: CommandReceipt | null,
+  heads: ReadonlyMap<string, DurableEvidence>,
 ): ExecutionBoundaryRecord[] {
-  return changed.map(execution => {
-    const head = receipt?.execution === execution.id ? receipt.evidence : null
+  return changed.flatMap(execution => {
+    const receipt = heads.get(execution.id)
+    if (receipt === undefined) return []
     const last = execution.events.at(-1)
-    return {
-      execution: execution.id,
-      revision: String(execution.revision),
-      receipt: head ?? placeholderHead(execution),
-      emittedThrough: String(execution.events.length),
-      ended:
-        last !== undefined && last.body.kind === 'ended'
-          ? { sequence: last.sequence, source: last.cause }
-          : null,
-    }
+    return [
+      {
+        execution: execution.id,
+        revision: String(execution.revision),
+        receipt,
+        emittedThrough: String(execution.events.length),
+        acknowledged: String(execution.acknowledged),
+        ended:
+          last !== undefined && last.body.kind === 'ended'
+            ? { sequence: last.sequence, source: last.cause }
+            : null,
+      },
+    ]
   })
 }
 

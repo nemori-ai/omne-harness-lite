@@ -66,11 +66,27 @@ function setup(
     admit?: TenantActing<Principal>['admit']
     publisherOf?: (tenant: string) => Promise<TenantPublisher | undefined>
     answer?: TenantPublishOutcome
+    /** A second contribution of `note`: it is a conflict and gives no contract. */
+    rival?: true
   } = {},
 ) {
   const categories = createCategoryPoint()
-  categories.contribute({ contract: contract('note', false), display })
-  categories.contribute({ contract: contract('bundle', true), display })
+  categories.contribute({ contract: contract('note', false), display, point: 'note.items' })
+  if (options.rival === true)
+    categories.contribute({ contract: contract('note', false), display, point: 'note.rival' })
+  categories.contribute({ contract: contract('bundle', true), display, point: 'bundle.items' })
+  categories.contribute({
+    contract: contract('tool', false),
+    display,
+    generalCreation: 'closed',
+    point: 'tool.items',
+  })
+  categories.contribute({
+    contract: contract('closed-bundle', true),
+    display,
+    generalCreation: 'closed',
+    point: 'closed-bundle.items',
+  })
   const asked: string[] = []
   const published: string[] = []
   const answer: TenantPublishOutcome = options.answer ?? {
@@ -149,6 +165,12 @@ describe('the publish service: the cells of table three', () => {
     expect(published).toEqual([])
   })
 
+  it('类别有两份贡献在抢：unavailable，不答没登记，不调本机资产', async () => {
+    const { publishing, published } = setup({ rival: true })
+    expect(await publishing.publish(request())).toEqual({ kind: 'unavailable' })
+    expect(published).toEqual([])
+  })
+
   it('内容的种类与类别不合：invalid，带原因', async () => {
     const { publishing, published } = setup()
     expect(
@@ -158,6 +180,23 @@ describe('the publish service: the cells of table three', () => {
       kind: 'invalid',
       reason: 'a-directory-category',
     })
+    expect(published).toEqual([])
+  })
+
+  it('类别声明了不经通用入口新建：invalid、creation-closed，不论内容是哪一种，不调本机资产', async () => {
+    const { publishing, published } = setup()
+    expect(await publishing.publish(request({ capability: id('tool', 'a') }))).toEqual({
+      kind: 'invalid',
+      reason: 'creation-closed',
+    })
+    expect(
+      await publishing.publish(
+        request({
+          capability: id('closed-bundle', 'a'),
+          content: { kind: 'directory', from: reader },
+        }),
+      ),
+    ).toEqual({ kind: 'invalid', reason: 'creation-closed' })
     expect(published).toEqual([])
   })
 
@@ -191,7 +230,6 @@ describe('the publish service: the cells of table three', () => {
     [{ kind: 'published', version: 'sha256:1', holdingRef: 'note/a', changed: false }],
     [{ kind: 'conflict' }],
     [{ kind: 'operation-conflict' }],
-    [{ kind: 'removed' }],
     [{ kind: 'invalid', reason: 'invalid-input' }],
     [{ kind: 'unknown', operationId: 'publish-1' }],
   ] as const)('本机资产的结局原样交出：%o', async answer => {
@@ -226,19 +264,23 @@ describe('the display of a category says how to make one', () => {
     categories.contribute({
       contract: contract('bundle', true),
       display: { ...display, creation: 'A directory with a README at its root.' },
+      point: 'bundle.items',
     })
-    categories.contribute({ contract: contract('note', false), display })
+    categories.contribute({ contract: contract('note', false), display, point: 'note.items' })
     expect(categories.list()).toEqual([
       {
         category: 'bundle',
         display: { ...display, creation: 'A directory with a README at its root.' },
+        creation: 'directory',
+        point: 'bundle.items',
       },
-      { category: 'note', display },
+      { category: 'note', display, creation: 'data', point: 'note.items' },
     ])
     expect(() =>
       categories.contribute({
         contract: contract('other', false),
         display: { ...display, creation: '' },
+        point: 'other.items',
       }),
     ).toThrow('category display is incomplete')
   })

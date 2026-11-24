@@ -18,8 +18,9 @@ export type AfterDispatch =
 type RetryRecord = Pick<RecoveryRecord, 'state' | 'retry' | 'retryPosition' | 'retrySource'>
 type Failed = Extract<Termination, { kind: 'failed' }>
 
+/** `now` is read only when a decided retry has to be held until its time. */
 export function afterDispatch(
-  input: Readonly<{ recovery: RetryRecord; termination: Termination; now: string }>,
+  input: Readonly<{ recovery: RetryRecord; termination: Termination; now: () => string }>,
 ): AfterDispatch {
   const { recovery, termination, now } = input
   if (recovery.state.phase === 'settled' || termination.kind !== 'failed')
@@ -30,11 +31,14 @@ export function afterDispatch(
   return decidedDispatch(recovery, now) ?? undecided(recovery, termination)
 }
 
-function decidedDispatch(recovery: RetryRecord, now: string): AfterDispatch | null {
+function decidedDispatch(recovery: RetryRecord, now: () => string): AfterDispatch | null {
   const { retry } = recovery
   const decision = recovery.retrySource ?? null
-  if (retry?.kind !== 'retry' || decision === null) return null
-  return Date.parse(now) < Date.parse(retry.notBefore)
+  if (retry === null || retry.kind === 'stop' || decision === null) return null
+  // The resend after a refusal of reasoning state goes out at once.
+  if (retry.kind === 'resend-without-replay')
+    return { kind: 'redispatch', supplier: retry.supplier, decision }
+  return Date.parse(now()) < Date.parse(retry.notBefore)
     ? { kind: 'wait', until: retry.notBefore }
     : { kind: 'redispatch', supplier: retry.supplier, decision }
 }

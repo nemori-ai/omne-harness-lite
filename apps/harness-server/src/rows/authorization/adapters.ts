@@ -10,16 +10,28 @@ import {
   type SystemActionDecision,
   type SystemActionRequest,
 } from '@omne-harness/authorization'
-import type { AgentAccessCheck, AgentAccessDecision } from '@omne-harness/agent-contract'
+import type {
+  AgentAccessCheck,
+  AgentAccessDecision,
+  DecisionCards,
+  DurableEvidence,
+} from '@omne-harness/agent-contract'
 import type { ActingForTenantPrincipal, SystemPrincipal } from '@omne-harness/identity'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type {
+  IntakeSubject,
   MutationName,
   SessionAccessCheck,
   SessionAccessDecision,
   SessionAccessRequest,
 } from '@omne-harness/session-contract'
-import { resolveCell, type BranchInput, type ResolvedCell, type SystemPurpose } from './cells.ts'
+import {
+  readsAcrossTenant,
+  resolveCell,
+  type BranchInput,
+  type ResolvedCell,
+  type SystemPurpose,
+} from './cells.ts'
 import { AGENT_POLICY } from './agent-policy.ts'
 import { SESSION_POLICY } from './session-policy.ts'
 import {
@@ -28,15 +40,19 @@ import {
   type PreparedPermissionWrite,
   type SessionPermissionLogin,
 } from './session-permission-write.ts'
+import type { AskedGate } from './current-tool-permission.ts'
+import { gateOfAnswer } from './release-asking.ts'
 
 import { classOf } from '../../model/principals.ts'
 import { classify, SESSION_WORK_OWNER } from './principals.ts'
 export { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from './principals.ts'
 export { createActionAdmission } from './action-admission.ts'
-export { createToolAccessGuard } from './tool-access.ts'
+export { createToolAccessGuard, createToolAccountsGuard } from './tool-access.ts'
 
 export type AccessPorts = Readonly<{
   admission: AdmissionCheck
+  /** Where the answers people gave on cards are read back; absent, no authorization is written. */
+  cards?: () => DecisionCards<unknown> | undefined
   systemActions: SystemActionAuthorization
   login: SessionPermissionLogin
 }>
@@ -46,10 +62,23 @@ type Verdict = SessionAccessDecision & AgentAccessDecision
 type Plan =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-  | Readonly<{ kind: 'member'; input: AdmissionInput; permissionWrite?: PreparedPermissionWrite }>
+  | Readonly<{
+      kind: 'member'
+      input: AdmissionInput
+      permissionWrite?: PreparedPermissionWrite
+      cardDecision?: CardDecision
+    }>
   | Readonly<{ kind: 'matrix'; request: SystemActionRequest }>
 
 const DENIED: Plan = Object.freeze({ kind: 'denied' })
+
+/** The card answer an authorization expression claims: the write stands only on that answer. */
+type CardDecision = Readonly<{
+  card: DurableEvidence
+  source: DurableEvidence
+  options: readonly string[]
+  gate: AskedGate | null
+}>
 
 function tenantText(tenant: TenantId): string {
   const encoded = tenantCodec.encode(tenant)
@@ -111,18 +140,26 @@ function fromDecision(decision: AdmissionDecision | SystemActionDecision): Verdi
   }
 }
 
+type MemberPlan = Extract<Plan, { kind: 'member' }>
+
+async function executeMember(plan: MemberPlan, ports: AccessPorts): Promise<Verdict> {
+  const decision = fromDecision(await ports.admission.check(plan.input))
+  if (decision.kind !== 'allowed') return decision
+  if (plan.cardDecision !== undefined)
+    return answeredOnCard(plan.cardDecision, plan.input, decision, ports.cards?.())
+  return plan.permissionWrite !== undefined
+    ? qualifyPermissionWrite(plan.permissionWrite, decision.evidence, ports.login)
+    : decision
+}
+
 async function execute(plan: Plan, ports: AccessPorts): Promise<Verdict> {
   switch (plan.kind) {
     case 'denied':
       return Object.freeze({ kind: 'denied' })
     case 'unavailable':
       return unavailable(plan.diagnostic)
-    case 'member': {
-      const decision = fromDecision(await ports.admission.check(plan.input))
-      return decision.kind === 'allowed' && plan.permissionWrite !== undefined
-        ? qualifyPermissionWrite(plan.permissionWrite, decision.evidence, ports.login)
-        : decision
-    }
+    case 'member':
+      return executeMember(plan, ports)
     case 'matrix':
       return fromDecision(await ports.systemActions.check(plan.request))
     default:
@@ -163,7 +200,7 @@ const MUTATIONS = {
   create: true,
   completeInitialization: true,
   change: true,
-  setRelation: true,
+  setResident: true,
   configureAutoArchive: true,
   considerAutoArchive: true,
   recordIdle: true,
@@ -223,9 +260,130 @@ function commandFacts(
         branch: { fact: command.input.fact.kind },
         fact: command.input.fact,
       }
+    case 'change':
+      return {
+        arguments: args,
+        branch: { declaration: command.input.declaration.kind },
+        fact: null,
+      }
     default:
       return { arguments: args, branch: {}, fact: null }
   }
+}
+
+// The answer the person gave on the card is read back where it was recorded, not taken from the command.
+async function answeredOnCard(
+  claimed: CardDecision,
+  input: AdmissionInput,
+  allowed: Verdict,
+  cards: DecisionCards<unknown> | undefined,
+): Promise<Verdict> {
+  if (cards === undefined) return unavailable('the decision cards are not installed')
+  const read = await cards.read({ ...input.access, card: claimed.card })
+  if ('failure' in read) return unavailable('the card answer could not be read now')
+  const reply = read.ok
+  const answered =
+    reply.kind === 'chosen' &&
+    claimed.options.includes(reply.option) &&
+    canonicalText(reply.evidence) === canonicalText(claimed.source)
+  // A lasting authorization names the gate of its card, with the basis the card holds.
+  const sameGate =
+    claimed.gate === null ||
+    (reply.kind === 'chosen' &&
+      canonicalText(gateOfAnswer(reply.value)) === canonicalText(claimed.gate))
+  return answered && sameGate ? allowed : Object.freeze({ kind: 'denied' })
+}
+
+// The answers each expression may stand on; an answer for always also releases this once when unwritten.
+const OPTIONS_OF: Readonly<Record<string, readonly string[]>> = {
+  'once/grant': ['allow-once', 'allow-always'],
+  'session/grant': ['allow-session'],
+  'session/revoke': ['deny-always'],
+}
+
+function cardDecisionOf(target: SessionAccessRequest<unknown>['target']): CardDecision | null {
+  if (!('command' in target) || target.command.kind !== 'change') return null
+  const { declaration } = target.command.input
+  if (declaration.kind !== 'authorization-expression') return null
+  const { scope, direction, source } = declaration.expression
+  const options = OPTIONS_OF[`${scope.kind}/${direction}`]
+  if (options === undefined) return null
+  const gate =
+    scope.kind === 'session'
+      ? {
+          capabilityId: scope.capabilityId,
+          enforcementKey: scope.enforcementKey,
+          basis: scope.basis,
+        }
+      : null
+  return { card: declaration.authorization, source, options, gate }
+}
+
+type SessionTarget = SessionAccessRequest<unknown>['target']
+
+function factsOf(
+  operation: keyof typeof SESSION_POLICY,
+  target: SessionTarget,
+  tenant: TenantId | null,
+): CommandFacts | null {
+  if (!('command' in target)) return isMutation(operation) ? null : NO_COMMAND
+  const { command } = target
+  const names =
+    isMutation(operation) &&
+    command.kind === operation &&
+    tenant !== null &&
+    tenantEquals(command.input.tenant, tenant) &&
+    command.input.session === target.session
+  return names ? commandFacts(command) : null
+}
+
+type ChangeCommand = Extract<
+  Extract<SessionTarget, { command: unknown }>['command'],
+  { kind: 'change' }
+>
+
+function withCardDecision(planned: MemberPlan, target: SessionTarget): Plan {
+  const cardDecision = cardDecisionOf(target)
+  return cardDecision === null ? DENIED : { ...planned, cardDecision }
+}
+
+function withPermissionWrite(
+  planned: MemberPlan,
+  command: ChangeCommand,
+  who: NonNullable<ReturnType<typeof classify>>,
+): Plan {
+  if (who.column !== 'login') return DENIED
+  const permissionWrite = preparePermissionWrite(command, who.principal)
+  return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
+}
+
+// Two declarations need more than the cell: each carries the qualification its write stands on.
+function qualifiedWrite(
+  planned: Plan,
+  target: SessionTarget,
+  who: NonNullable<ReturnType<typeof classify>>,
+): Plan {
+  if (planned.kind !== 'member' || !('command' in target) || target.command.kind !== 'change')
+    return planned
+  switch (target.command.input.declaration.kind) {
+    case 'authorization-expression':
+      return withCardDecision(planned, target)
+    case 'permission-assignment':
+      return withPermissionWrite(planned, target.command, who)
+    default:
+      return planned
+  }
+}
+
+function reachesTarget(
+  who: NonNullable<ReturnType<typeof classify>>,
+  target: SessionAccessRequest<unknown>['target'],
+  operation: keyof typeof SESSION_POLICY,
+): boolean {
+  if (who.column !== 'work' || target.kind !== 'session') return true
+  return (
+    who.principal.work.work === target.session || readsAcrossTenant(SESSION_POLICY[operation].work)
+  )
 }
 
 function planSession(input: SessionAccessRequest<unknown>): Plan {
@@ -234,32 +392,13 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
   const tenant = 'tenant' in access ? access.tenant : null
   if (target.kind !== targetKindOf(operation)) return DENIED
 
-  let facts = NO_COMMAND
-  if ('command' in target) {
-    const { command } = target
-    if (
-      !isMutation(operation) ||
-      command.kind !== operation ||
-      tenant === null ||
-      !tenantEquals(command.input.tenant, tenant) ||
-      command.input.session !== target.session
-    )
-      return DENIED
-    facts = commandFacts(command)
-  } else if (isMutation(operation)) {
-    return DENIED
-  }
+  const facts = factsOf(operation, target, tenant)
+  if (facts === null) return DENIED
   if (target.kind === 'tenant' && (tenant === null || !tenantEquals(target.tenant, tenant)))
     return DENIED
 
   const who = classify(access.principal)
-  if (who === null || !actsFor(who, tenant)) return DENIED
-  if (
-    who.column === 'work' &&
-    target.kind === 'session' &&
-    who.principal.work.work !== target.session
-  )
-    return DENIED
+  if (who === null || !actsFor(who, tenant) || !reachesTarget(who, target, operation)) return DENIED
 
   const cell = resolveCell(SESSION_POLICY[operation][who.column], facts.branch)
   const planned = planCell(cell, who, {
@@ -275,18 +414,12 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
         permit: null,
       }
     },
-    matrix: (purpose, principal) => sessionMatrixRequest(purpose, principal, target, tenant, facts),
+    matrix: (purpose, principal) =>
+      isPartPurpose(purpose)
+        ? sessionPartRequest(purpose, principal, target, tenant, facts)
+        : sessionMatrixRequest(purpose, principal, target, tenant, facts),
   })
-  if (
-    planned.kind !== 'member' ||
-    !('command' in target) ||
-    target.command.kind !== 'change' ||
-    target.command.input.declaration.kind !== 'permission-assignment'
-  )
-    return planned
-  if (who.column !== 'login') return DENIED
-  const permissionWrite = preparePermissionWrite(target.command, who.principal)
-  return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
+  return qualifiedWrite(planned, target, who)
 }
 
 function sessionResource(
@@ -299,6 +432,37 @@ function sessionResource(
       return { kind: 'tenant', key: tenantText(target.tenant) }
     default:
       return null
+  }
+}
+
+const SESSION_PART_OPERATIONS = {
+  'session-create': 'create',
+  'session-input': 'accept',
+  'input-fate': 'readInputFate',
+} as const
+
+type PartPurpose = keyof typeof SESSION_PART_OPERATIONS
+const isPartPurpose = (purpose: SystemPurpose): purpose is PartPurpose =>
+  Object.hasOwn(SESSION_PART_OPERATIONS, purpose)
+
+function sessionPartRequest(
+  purpose: PartPurpose,
+  principal: SystemPrincipal,
+  target: SessionAccessRequest<unknown>['target'],
+  tenant: TenantId | null,
+  facts: CommandFacts,
+): SystemActionRequest | null {
+  if (target.kind !== 'session' || tenant === null) return null
+  return {
+    principal,
+    scope: 'system',
+    operation: { owner: 'session', name: SESSION_PART_OPERATIONS[purpose] },
+    arguments: facts.arguments,
+    target: {
+      kind: 'tenant',
+      tenant,
+      resource: { owner: 'session', kind: 'session', key: target.session },
+    },
   }
 }
 
@@ -359,9 +523,20 @@ function sessionMatrixRequest(
   }
 }
 
+function intakeSubjectOf(principal: unknown): IntakeSubject | undefined {
+  const who = classify(principal)
+  if (who?.column === 'login') return { kind: 'member' }
+  if (who?.column === 'system') return { kind: 'system', component: who.principal.component }
+  return undefined
+}
+
 export function createSessionAccessCheck(ports: AccessPorts): SessionAccessCheck<unknown> {
-  const check: SessionAccessCheck<unknown>['check'] = input =>
-    answer(() => planSession(input), ports)
+  const check: SessionAccessCheck<unknown>['check'] = async input => {
+    const decision = await answer(() => planSession(input), ports)
+    const subject =
+      decision.kind === 'allowed' ? intakeSubjectOf(input.access.principal) : undefined
+    return subject === undefined ? decision : Object.freeze({ ...decision, subject })
+  }
   return Object.freeze({ check })
 }
 

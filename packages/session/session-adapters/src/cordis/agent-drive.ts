@@ -603,6 +603,8 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
         return fail({ kind: 'commit-unknown', operation: failure.operation })
       case 'not-ready':
         return unavailable(`${operation}: Agent is not ready`)
+      case 'reclaimed':
+        return this.defect(operation, 'Agent read a material whose content was reclaimed')
       default: {
         const unknown: never = failure
         return this.defect(operation, `Agent answered ${describe(unknown)}`)

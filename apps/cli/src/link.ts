@@ -1,10 +1,16 @@
-import type { OperationContract, ProtocolContract } from '@omne-harness/public-contract'
+import {
+  accessProtocol,
+  type AvailabilityFrame,
+  type OperationContract,
+  type ProtocolContract,
+} from '@omne-harness/public-contract'
 import {
   ClientRequestError,
   createClient,
   type BodyOf,
   type CallReport,
   type Credentials,
+  type OpenOf,
   type Transport,
 } from '@omne-harness/sdk/core'
 import type { CommandEnvironment } from './cli-types.ts'
@@ -12,9 +18,11 @@ import type { CommandEnvironment } from './cli-types.ts'
 export type CallResult =
   | { readonly kind: 'response'; readonly outcome: string; readonly body: unknown }
   | { readonly kind: 'uncertain' }
-  | { readonly kind: 'unavailable' }
+  | { readonly kind: 'unavailable'; readonly reason?: string }
 
 export type Login = { readonly proof: string; readonly tenant: string }
+
+export type WatchEnd = Readonly<{ kind: string; reason?: string; outcome?: string }>
 
 export interface Link {
   readonly origin: string
@@ -25,12 +33,23 @@ export interface Link {
     body: BodyOf<P['operations'][K]>,
     messageId: string,
   ): Promise<CallResult | undefined>
+  /** The frames of an observation as plain values, until it ends; the end is the return value. */
+  observe<P extends ProtocolContract, K extends keyof P['observations'] & string>(
+    protocol: P,
+    observation: K,
+    open: OpenOf<P['observations'][K]>,
+    messageId: string,
+  ): AsyncGenerator<unknown, WatchEnd>
 }
 
 export type Opened = { readonly kind: 'link'; readonly link: Link } | { readonly kind: 'refused' }
 
 type Wire = Extract<CallReport, { kind: 'answered' }>['body']
 type Invoke = (body: unknown, options: { messageId: string }) => Promise<{ outcome: string }>
+type Watch = (
+  open: unknown,
+  options: { signal: AbortSignal; messageId: string },
+) => AsyncGenerator<unknown, WatchEnd>
 
 const loopbackHosts: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost'])
 
@@ -68,6 +87,22 @@ function plain(value: Wire): unknown {
   }
 }
 
+type Served = Extract<AvailabilityFrame, { kind: 'snapshot' }>
+
+/** Why the server did not run a call of this protocol, by what it tells it serves; nothing when it serves it. */
+export function unservedReason(frame: Served, protocol: ProtocolContract): string | undefined {
+  const { name, major } = protocol
+  const same = (other: { name: string; major: number }): boolean =>
+    other.name === name && other.major === major
+  if ((frame.conflicts ?? []).some(same))
+    return `two parts of the server claim ${name}/v${major}, neither is served`
+  if (frame.protocols.some(same)) return undefined
+  const others = frame.protocols.filter(other => other.name === name).map(other => other.major)
+  if (others.length === 0) return `the server does not serve ${name}/v${major}`
+  const served = others.sort((left, right) => left - right).map(other => `${name}/v${other}`)
+  return `the server serves ${served.join(', ')}, this command speaks ${name}/v${major}`
+}
+
 function credentialsOf(
   identity: OperationContract['identity'],
   login: Login | undefined,
@@ -97,6 +132,33 @@ export function openLink(environment: CommandEnvironment, origin: string, login?
     observe: request => inner.observe(request),
   }
 
+  let told: Promise<Served | undefined> | undefined
+  /** What the server serves, asked at most once a run: the first frame, then the subscription is left. */
+  const serves = (): Promise<Served | undefined> => {
+    told ??= (async () => {
+      credentials = {}
+      const leave = new AbortController()
+      const frames = createClient(accessProtocol, transport).observe.availability(
+        {},
+        { signal: leave.signal, messageId: environment.services.newId() },
+      )
+      try {
+        const first = await frames.next()
+        return first.done !== true && first.value.kind === 'snapshot' ? first.value : undefined
+      } catch {
+        return undefined
+      } finally {
+        leave.abort()
+      }
+    })()
+    return told
+  }
+  const unavailable = async (protocol: ProtocolContract): Promise<CallResult> => {
+    const frame = await serves()
+    const reason = frame === undefined ? undefined : unservedReason(frame, protocol)
+    return reason === undefined ? { kind: 'unavailable' } : { kind: 'unavailable', reason }
+  }
+
   const link: Link = {
     origin: new URL(origin).origin,
     async call(protocol, operation, body, messageId) {
@@ -110,9 +172,24 @@ export function openLink(environment: CommandEnvironment, origin: string, login?
         if (error instanceof ClientRequestError) return undefined
         throw error
       }
-      if (answer.outcome === 'unavailable') return { kind: 'unavailable' }
+      if (answer.outcome === 'unavailable') return unavailable(protocol)
       if (answer.outcome === 'uncertain' || answered === undefined) return { kind: 'uncertain' }
       return { kind: 'response', outcome: answer.outcome, body: plain(answered) }
+    },
+    async *observe(protocol, observation, open, messageId) {
+      credentials = credentialsOf(protocol.observations[observation]!.identity, login)
+      const client = createClient(protocol, transport) as unknown as {
+        observe: Record<string, Watch>
+      }
+      const frames = client.observe[observation]!(open, {
+        signal: new AbortController().signal,
+        messageId,
+      })
+      for (;;) {
+        const next = await frames.next()
+        if (next.done === true) return next.value
+        yield next.value
+      }
     },
   }
   return { kind: 'link', link }

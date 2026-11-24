@@ -21,8 +21,8 @@ function cells(table: Readonly<Record<string, PolicyRow>>) {
 const allows = (cell: PolicyCell) => cell.verdict === 'member' || cell.verdict === 'matrix'
 
 describe('row coverage', () => {
-  it('has the 50 Session rows and the 30 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_POLICY)).toHaveLength(50)
+  it('has the 54 Session rows and the 30 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_POLICY)).toHaveLength(54)
     expect(Object.keys(AGENT_POLICY)).toHaveLength(30)
   })
 
@@ -36,7 +36,7 @@ describe('row coverage', () => {
   it('passes the audit with no findings', () => {
     const audit = auditPolicy()
     expect(audit.findings).toEqual([])
-    expect(audit.session.rows).toBe(50)
+    expect(audit.session.rows).toBe(54)
     expect(audit.agent.rows).toBe(30)
   })
 })
@@ -53,8 +53,8 @@ describe('sources', () => {
     }
   })
 
-  it('counts 64 allowing cells in the Session table and 19 in the Agent table', () => {
-    expect(auditPolicy().session.allowedCells).toBe(64)
+  it('counts 75 allowing cells in the Session table and 19 in the Agent table', () => {
+    expect(auditPolicy().session.allowedCells).toBe(75)
     expect(auditPolicy().agent.allowedCells).toBe(19)
   })
 
@@ -134,8 +134,8 @@ describe('system column and the matrix', () => {
 })
 
 describe('the cells R2-D204 decided', () => {
-  it('makes the login cells of setRelation and configureAutoArchive member cells that cite R2-D204', () => {
-    for (const operation of ['setRelation', 'configureAutoArchive'] as const) {
+  it('makes the login cells of setResident and configureAutoArchive member cells that cite R2-D204', () => {
+    for (const operation of ['setResident', 'configureAutoArchive'] as const) {
       const cell = SESSION_POLICY[operation].login
       expect(cell.verdict).toBe('member')
       expect(cell.verdict === 'member' && cell.source).toContain('R2-D204')
@@ -169,13 +169,39 @@ describe('accept is judged by the RoutedInput branch', () => {
     expect(resolveCell(cell, { routed: 'card-decision' }).verdict).toBe('deny')
   })
 
+  it('lets the session work principal declare an answered authorization and its workspace, and nothing else', () => {
+    const cell = SESSION_POLICY.change.work
+    expect(resolveCell(cell, { declaration: 'authorization-expression' }).verdict).toBe('member')
+    expect(resolveCell(cell, { declaration: 'workspace' }).verdict).toBe('member')
+    for (const declaration of ['permission-mode', 'collaboration-mode', 'model'] as const)
+      expect(resolveCell(cell, { declaration }).verdict).toBe('deny')
+  })
+
   it('denies a branched cell when the request carries no branch', () => {
     expect(resolveCell(SESSION_POLICY.accept.work, {}).verdict).toBe('deny')
     expect(resolveCell(SESSION_POLICY.accept.login, {}).verdict).toBe('deny')
   })
 
-  it('denies accept to any system principal', () => {
-    expect(SESSION_POLICY.accept.system.verdict).toBe('deny')
+  it('lets a system principal send only an ordinary input, through the matrix', () => {
+    const cell = SESSION_POLICY.accept.system
+    expect(resolveCell(cell, { routed: 'ordinary' })).toMatchObject({
+      verdict: 'matrix',
+      purpose: 'session-input',
+    })
+    expect(resolveCell(cell, { routed: 'business' }).verdict).toBe('deny')
+    expect(resolveCell(cell, { routed: 'card-decision' }).verdict).toBe('deny')
+  })
+
+  it('opens exactly three Session operations to the parts of other domains (ID-56)', () => {
+    const PARTS = ['session-create', 'session-input', 'input-fate']
+    const opened = Object.entries(SESSION_POLICY)
+      .filter(([, row]) => row.system.verdict === 'matrix' && PARTS.includes(row.system.purpose))
+      .map(([operation, row]) => [operation, row.system.verdict === 'matrix' && row.system.purpose])
+    expect(opened).toEqual([
+      ['accept', 'session-input'],
+      ['create', 'session-create'],
+      ['readInputFate', 'input-fate'],
+    ])
   })
 })
 

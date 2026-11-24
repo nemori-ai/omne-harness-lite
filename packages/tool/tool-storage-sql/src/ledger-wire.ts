@@ -4,12 +4,15 @@ import {
   type JsonValue,
 } from '@omne-harness/sql-contract'
 import {
+  canonicalDigest,
+  canonicalJson,
   recordKey,
   type LedgerCommit,
   type LedgerCommitInput,
   type LedgerDomain,
   type LedgerRecord,
 } from '@omne-harness/tool'
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { toJson, type NotJsonError } from './json.ts'
 import type { SqlToolStorageOptions } from './options.ts'
@@ -43,44 +46,98 @@ export function assertsOf(input: LedgerCommitInput): readonly LedgerAssertionFac
 
 export type FixedMode = 'given' | 'kept'
 
-function partsOf(record: LedgerRecord): Readonly<{ record: unknown; fixed?: unknown }> {
-  if (record.kind !== 'call') return { record }
-  const { request, ...state } = record.call
-  return { record: { kind: record.kind, call: state }, fixed: request }
+export type DefinitionText = Readonly<{ digest: string; adoption: string; text: string }>
+
+function partsOf(record: LedgerRecord): Readonly<{ record: unknown; fixed?: FixedToolRequest }> {
+  if (record.kind === 'call') {
+    const { request, ...state } = record.call
+    return { record: { kind: record.kind, call: state }, fixed: request }
+  }
+  if (record.kind !== 'host' || record.host.request === undefined) return { record }
+  const { request, ...host } = record.host
+  return { record: { kind: record.kind, host }, fixed: request }
 }
 
-export function joined(record: JsonValue, fixed: JsonValue | undefined): JsonValue {
-  if (fixed === undefined || !isObject(record) || !isObject(record['call'])) return record
-  return { ...record, call: { ...record['call'], request: fixed } }
+function namedDefinition(fixed: JsonValue, definitions: ReadonlyMap<string, JsonValue>) {
+  if (!isObject(fixed) || !isObject(fixed['availability'])) return null
+  const availability = fixed['availability']
+  const digest = availability['definition']
+  const definition = typeof digest === 'string' ? definitions.get(digest) : undefined
+  return definition === undefined
+    ? null
+    : { ...fixed, availability: { ...availability, definition } }
 }
 
-function putOf(record: LedgerRecord, path: string, mode: FixedMode): LedgerWriteFact {
+export function joined(
+  record: JsonValue,
+  fixed: JsonValue | undefined,
+  definitions: ReadonlyMap<string, JsonValue>,
+): JsonValue | null {
+  if (fixed === undefined || !isObject(record)) return record
+  const call = record['call']
+  const host = record['host']
+  if (!isObject(call) && !isObject(host)) return record
+  const request = namedDefinition(fixed, definitions)
+  if (request === null) return null
+  return isObject(call)
+    ? { ...record, call: { ...call, request } }
+    : { ...record, host: { ...(host as JsonValue & object), request } }
+}
+
+function putOf(
+  record: LedgerRecord,
+  path: string,
+  mode: FixedMode,
+  definitions: Map<string, DefinitionText>,
+): LedgerWriteFact {
   const parts = partsOf(record)
   const put = { op: 'put', key: recordKey(record), record: toJson(parts.record, path) } as const
   if (parts.fixed === undefined) return put
   if (mode === 'kept') return { ...put, fixed: { kind: 'kept' } }
-  return { ...put, fixed: { kind: 'given', value: toJson(parts.fixed, path) } }
+  const { definition } = parts.fixed.availability
+  const text = canonicalJson(toJson(definition, `${path}.request.availability.definition`))
+  const digest = canonicalDigest(definition)
+  definitions.set(digest, { digest, adoption: canonicalDigest(definition.adoption), text })
+  const referenced = {
+    ...parts.fixed,
+    availability: { ...parts.fixed.availability, definition: digest },
+  }
+  return { ...put, fixed: { kind: 'given', value: toJson(referenced, path) }, definition: digest }
 }
 
-export function writesOf(input: LedgerCommitInput, mode: FixedMode): readonly LedgerWriteFact[] {
-  return input.writes.map((write, index): LedgerWriteFact => {
+export function writesOf(
+  input: LedgerCommitInput,
+  mode: FixedMode,
+): Readonly<{ writes: readonly LedgerWriteFact[]; definitions: readonly DefinitionText[] }> {
+  const definitions = new Map<string, DefinitionText>()
+  const writes = input.writes.map((write, index): LedgerWriteFact => {
     switch (write.kind) {
       case 'drop':
         return { op: 'drop' }
       case 'put':
-        return putOf(write.record, `writes[${index}]`, mode)
+        return putOf(write.record, `writes[${index}]`, mode, definitions)
       case 'delete':
         return { op: 'delete', key: write.key }
       case 'schedule':
         return { op: 'schedule', key: write.key, dueAt: write.dueAt }
       case 'unschedule':
         return { op: 'unschedule', key: write.key }
+      case 'usage':
+        return {
+          op: 'usage',
+          call: write.fact.call,
+          start: write.fact.start,
+          owner: write.fact.consumer.owner,
+          work: write.fact.consumer.work,
+          fact: toJson(write.fact, `writes[${index}].fact`),
+        }
       default: {
         const exhaustive: never = write
         return exhaustive
       }
     }
   })
+  return { writes, definitions: [...definitions.values()] }
 }
 
 function stopOf(basis: JsonValue): StopBasis | null {
@@ -93,12 +150,18 @@ function stopOf(basis: JsonValue): StopBasis | null {
 
 export type CommitAnswer = Awaited<ReturnType<SqlToolStorageOptions['storage']['commit']>>
 
-export function lacksFixed(answer: CommitAnswer): boolean {
+function stoppedFor(answer: CommitAnswer, reason: string): boolean {
   if (answer.kind !== 'rolled_back') return false
   const stop = answer.responses[answer.responses.length - 1]?.reply
-  return (
-    stop?.kind === 'conflict' && isObject(stop.basis) && stop.basis['reason'] === 'fixed-missing'
-  )
+  return stop?.kind === 'conflict' && isObject(stop.basis) && stop.basis['reason'] === reason
+}
+
+export function lacksFixed(answer: CommitAnswer): boolean {
+  return stoppedFor(answer, 'fixed-missing')
+}
+
+export function lacksDefinition(answer: CommitAnswer): boolean {
+  return stoppedFor(answer, 'definition-missing')
 }
 
 export function isDefiniteRejection(reason: CommitRejectReason): boolean {

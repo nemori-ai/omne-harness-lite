@@ -75,7 +75,7 @@ const commandKinds = {
   create: true,
   completeInitialization: true,
   change: true,
-  setRelation: true,
+  setResident: true,
   configureAutoArchive: true,
   considerAutoArchive: true,
   recordIdle: true,
@@ -87,6 +87,7 @@ const commandKinds = {
   receive: true,
 } satisfies Record<MutationName, true>
 const declarationKinds = {
+  'authorization-expression': true,
   'permission-mode': true,
   'collaboration-mode': true,
   'environment-mode': true,

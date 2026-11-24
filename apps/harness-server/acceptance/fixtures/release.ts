@@ -104,6 +104,12 @@ export function textOf(entry: Entry | undefined): string {
   return JSON.stringify(entry?.payload ?? null)
 }
 
+/** A system reminder some producer other than the runtime context wrote, such as a call's outcome. */
+export function producedReminder(entry: Entry): boolean {
+  const source = (entry.payload as { source?: { owner?: unknown } } | null)?.source
+  return entry.kind === 'message.system_reminder' && source?.owner !== 'runtime-context'
+}
+
 export async function omne(tree: ReleaseTree, args: readonly string[]) {
   const run = await tree.cli(args)
   return {

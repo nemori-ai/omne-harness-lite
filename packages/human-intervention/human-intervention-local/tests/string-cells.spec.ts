@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { expect, it } from 'vitest'
 import { z } from 'zod'
 import type { MigrationPort } from '@omne-harness/sql-contract/worker'
-import { requestDdl } from '../src/relational-ddl.ts'
+import { askedAtDdl, requestDdl } from '../src/relational-ddl.ts'
 import { RequestRecordSchema } from '../src/request-schema.ts'
 import { insertRequest } from '../src/request-store.ts'
 import { readRequest } from '../src/request-record.ts'
@@ -41,6 +41,7 @@ it.each(['unanswered', 'pending', 'accepted', 'superseded', 'invalidated'])(
     }
     try {
       for (const ddl of requestDdl) db.exec(ddl)
+      db.exec(askedAtDdl)
       const tenantRef = 'tenant\0scope',
         actor = 'actor\0reader'
       db.prepare('INSERT INTO hi_request_versions_v2(tenant_ref,revision) VALUES (?,?)').run(
@@ -67,7 +68,7 @@ it.each(['unanswered', 'pending', 'accepted', 'superseded', 'invalidated'])(
           ref,
           revision: '1',
           origin: {
-            kind: 'independent',
+            kind: 'agent-extension',
             originRef: 'origin\0',
             wait,
             positionRef: 'position\0',

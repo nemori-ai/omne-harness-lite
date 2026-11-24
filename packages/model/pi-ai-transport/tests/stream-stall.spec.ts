@@ -80,8 +80,7 @@ describe('the configuration of the stall timeout', () => {
       families: createTestFamily().families,
       routes: {
         [SUPPLIER.provider]: {
-          url: 'https://127.0.0.1:9/',
-          endMarker: END_MARKER,
+          endpoints: { 'chat-completions': { url: 'https://127.0.0.1:9/', endMarker: END_MARKER } },
           accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
           auth: { kind: 'bearer' as const, item: 'apiKey' },
         },
@@ -604,7 +603,9 @@ function failedWith(
   }
 }
 
+const RESPONSE: TransportFact = { kind: 'response', request: null }
 const HEL: readonly TransportFact[] = [
+  RESPONSE,
   { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
   { kind: 'block-delta', index: '0', delta: 'hel' },
 ]
@@ -689,6 +690,8 @@ describe('the termination of a stalled send', () => {
         }
         await take()
         await take()
+        await take()
+        expect(facts[0]).toEqual(RESPONSE)
         for (const piece of ['b', 'c', 'd']) {
           vi.advanceTimersByTime(STALL - 100)
           opened.response().write(`data: ${TEXT(piece)}\n\n`)
@@ -720,6 +723,7 @@ describe('a stall racing a cancel', () => {
       await withStalledTransport(stage, async ({ stream, abort }) => {
         const iterator = stream[Symbol.asyncIterator]()
         if (stage === 'after the response began') {
+          expect((await iterator.next()).value).toEqual(RESPONSE)
           await iterator.next()
           await iterator.next()
         }
@@ -759,6 +763,7 @@ describe('a stall racing a cancel', () => {
       await withStalledTransport(stage, async ({ stream, abort }) => {
         const iterator = stream[Symbol.asyncIterator]()
         if (stage === 'after the response began') {
+          expect((await iterator.next()).value).toEqual(RESPONSE)
           await iterator.next()
           await iterator.next()
         }
@@ -771,7 +776,7 @@ describe('a stall racing a cancel', () => {
         vi.advanceTimersByTime(STALL)
         abort()
         await rest
-        expect(facts).toEqual([ended])
+        expect(facts).toEqual(stage === 'in the error body' ? [RESPONSE, ended] : [ended])
       })
     },
   )

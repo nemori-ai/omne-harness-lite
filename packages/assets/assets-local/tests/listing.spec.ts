@@ -6,7 +6,6 @@ import {
   readBodyText,
   type CapabilityId,
 } from '@omne-harness/assets'
-import { tenantLayerSource } from '../src/index.ts'
 import { ownerSources } from './sources.ts'
 import { lookupOf } from './lookup.ts'
 import { grants, openWorld, type World } from './world.ts'
@@ -27,7 +26,7 @@ afterEach(async () => {
 })
 
 async function open(options: Parameters<typeof openWorld>[0] = {}) {
-  const world = await openWorld({ categories, ...options })
+  const world = await openWorld({ categories, withBook: true, ...options })
   worlds.push(world)
   return world
 }
@@ -123,8 +122,11 @@ function listed(
     name,
     assetRef: `${category}/${name}`,
     version: extra.version ?? '1',
+    holdingRef: `holding-${category}-${name}`,
     selection: extra.selection ?? 'follow',
     enabled: extra.enabled ?? true,
+    origin: 'official',
+    summary: null,
   }
 }
 
@@ -259,11 +261,11 @@ describe('listHeld: one category of the held assets, page by page', () => {
   })
 })
 
-describe('tenantLayerSource: the tenant layer of the asset layers', () => {
+describe('the tenant layer without a registry: what the store told, and its listing', () => {
   it('a held asset is one candidate that is not disabled', async () => {
     const world = await open()
     await held(world, 'service', ['alpha'])
-    expect(await tenantLayerSource(world.owner).candidates(id('service', 'alpha'))).toEqual({
+    expect(await world.tenantLayer.candidates(id('service', 'alpha'))).toEqual({
       layer: 'tenant',
       state: 'read',
       candidates: [
@@ -282,7 +284,7 @@ describe('tenantLayerSource: the tenant layer of the asset layers', () => {
     const world = await open()
     await held(world, 'service', ['alpha'])
     await change(world, 'holding-service-alpha', { kind: 'setEnabled', enabled: false })
-    expect(await tenantLayerSource(world.owner).candidates(id('service', 'alpha'))).toEqual({
+    expect(await world.tenantLayer.candidates(id('service', 'alpha'))).toEqual({
       layer: 'tenant',
       state: 'read',
       candidates: [
@@ -301,7 +303,7 @@ describe('tenantLayerSource: the tenant layer of the asset layers', () => {
     const world = await open()
     await held(world, 'service', ['alpha'])
     await publish(world, 'service', 'bravo')
-    const source = tenantLayerSource(world.owner)
+    const source = world.tenantLayer
     for (const name of ['bravo', 'charlie'])
       expect(await source.candidates(id('service', name))).toEqual({
         layer: 'tenant',
@@ -322,20 +324,21 @@ describe('tenantLayerSource: the tenant layer of the asset layers', () => {
         read: () => Promise.reject(new Error('named read transport failure')),
       }),
     })
-    expect(await tenantLayerSource(world.owner).candidates(id('service', 'alpha'))).toEqual({
+    expect(await world.tenantLayer.candidates(id('service', 'alpha'))).toEqual({
       layer: 'tenant',
       state: 'unavailable',
     })
-    expect(
-      await tenantLayerSource(world.owner).list({ category: 'service', after: null, limit: 10 }),
-    ).toEqual({ layer: 'tenant', state: 'unavailable' })
+    expect(await world.tenantLayer.list({ category: 'service', after: null, limit: 10 })).toEqual({
+      layer: 'tenant',
+      state: 'unavailable',
+    })
   })
 
   it('lists the tenant layer as asset entries, and an invalid request as invalid', async () => {
     const world = await open()
     await held(world, 'service', ['alpha', 'bravo'])
     await change(world, 'holding-service-bravo', { kind: 'setEnabled', enabled: false })
-    const source = tenantLayerSource(world.owner)
+    const source = world.tenantLayer
     expect(source.layer).toBe('tenant')
     expect(await source.list({ category: 'service', after: null, limit: 1 })).toEqual({
       layer: 'tenant',
@@ -363,7 +366,7 @@ describe('tenantLayerSource: the tenant layer of the asset layers', () => {
   it('the asset contract pages across the tenant layer to the end', async () => {
     const world = await open()
     await held(world, 'service', ['alpha', 'bravo', 'charlie'])
-    const source = tenantLayerSource(world.owner)
+    const source = world.tenantLayer
     const names: string[] = []
     let after: string | null = null
     do {
@@ -396,5 +399,57 @@ describe('listHeld: the count has no hard ceiling', () => {
     } while (after !== null)
     expect(pages).toEqual([100, 100, 50])
     expect(seen).toEqual(names)
+  })
+})
+
+describe('listVersions: the versions of one asset, page by page', () => {
+  it('reads every version of the asset across pages, in version order, and none of another asset', async () => {
+    const world = await open()
+    for (const version of ['3', '1', '2']) await publish(world, 'service', 'alpha', version)
+    await publish(world, 'service', 'alphabet', '0')
+    await publish(world, 'gadget', 'alpha', '9')
+    const first = await world.owner.listVersions({
+      assetRef: 'service/alpha',
+      after: null,
+      limit: 2,
+    })
+    expect(first).toEqual({ kind: 'page', versions: ['1', '2'], next: '2' })
+    expect(
+      await world.owner.listVersions({ assetRef: 'service/alpha', after: '2', limit: 2 }),
+    ).toEqual({ kind: 'page', versions: ['3'], next: null })
+    expect(
+      await world.owner.listVersions({ assetRef: 'service/alpha', after: null, limit: 3 }),
+    ).toEqual({ kind: 'page', versions: ['1', '2', '3'], next: null })
+  })
+
+  it('an asset with no version answers an empty last page', async () => {
+    const world = await open()
+    expect(
+      await world.owner.listVersions({ assetRef: 'service/none', after: null, limit: 10 }),
+    ).toEqual({ kind: 'page', versions: [], next: null })
+  })
+
+  it('a storage that cannot be read answers unavailable, not an empty page', async () => {
+    const world = await open({
+      ownerWrap: storage => ({
+        ...storage,
+        read: () => Promise.reject(new Error('named read transport failure')),
+      }),
+    })
+    expect(
+      await world.owner.listVersions({ assetRef: 'service/alpha', after: null, limit: 10 }),
+    ).toEqual({ kind: 'rejected', reason: 'unavailable' })
+  })
+
+  it.each([
+    ['limit 0', { assetRef: 'service/alpha', after: null, limit: 0 }],
+    ['limit 101', { assetRef: 'service/alpha', after: null, limit: 101 }],
+    ['an empty asset', { assetRef: '', after: null, limit: 10 }],
+  ])('%s is invalid input', async (_what, request) => {
+    const world = await open()
+    expect(await world.owner.listVersions(request)).toEqual({
+      kind: 'rejected',
+      reason: 'invalid_input',
+    })
   })
 })

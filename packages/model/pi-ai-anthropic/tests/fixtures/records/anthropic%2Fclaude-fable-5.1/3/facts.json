@@ -1,0 +1,320 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "I'm coun"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ting the num"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "bers below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 100 that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are divisible by 3 "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "33 "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "of them), by 7 ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "14), and by 21 ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "4), then"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " appl"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ying in"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "clusion-exclusion"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to get the "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ones divisible by ex"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "actly one of "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3 or 7,"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which com"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "es to 39 "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "— an"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ", so Lima."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\n"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "Count: multiples of 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " (33) + multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " of 7 (14) −"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " 2×multiples of "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "21 (4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ") = 39,"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " which is odd → Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "2",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "{\"city\": \"L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "I'm counting the numbers below 100 that are divisible by 3 (33 of them), by 7 (14), and by 21 (4), then applying inclusion-exclusion to get the ones divisible by exactly one of 3 or 7, which comes to 39 — an odd count, so Lima.\n\n"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "text",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "Count: multiples of 3 (33) + multiples of 7 (14) − 2×multiples of 21 (4) = 39, which is odd → Lima."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "tool_call",
+      "id": "b2",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "toolu_01KbaEKZ8Ed1MubWtUPiDs36",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "3",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b3",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"signature\":\"CAQSnwYKEAgTGAI4AUIIdGhpbmtpbmcSDD6pMNuLRI58U93VJhoMViviCNrOq+x3/qDfIjCrjD6sYdevquxw4FX79rm2zN2VTBT5tufpyuGiNFy23M+P7sp2He9CjGsFC1dOvTYqvAXjMdhAf4YA/4ciStC8aq2ublUmDSuqyYzLgg3zdnJgINmYNN4fKPYLIiE9adgQWK/DrM9QS86GcC7xGit2tGrNqmyCvooJv5cRA5VotPK2eOKFyMWElDDaaoeUtj96S/jFGvlUealVO1g8wyp6XVg8LXGiJrXcq1iBRMpBzQDUIKV0k3uz4RR5DuOzXpByyYLgALwcIgDXb3TYCNNUFUmKjaxiS2By9qD3gaGa5IvDs7gd3rDi2SAl0/kUatff0LR9g58JCuJtMclVL6eH1HyjAcnXTIJI6eiVILknGgOUVqpa8x9ufIsMq90eWlX4WiRQH0mSqp4/oPVLoFCN5Tvv0EGrYZXLydDspQSqBhIc/tnynHgRn2kbUOiifoUtWJaU16GldGFB+zhyTGYKVeEmxNvvu8hBkZX+hiO/w6WJ7QbFUJ4ONBTS36RPP7rgnfDY8uZqDwuk7114UmOcj/1xm0ImFdyVMHZCEMVANIpzFGHrEKdtwb1eaQLMOOnkyCtFytb5BhQzvpD5XjuuCr0df70BzXjhNxFn6+MXhv+tCnDB0ZxfseQUgrpl9rj/uMNuiMMJjBuu6ubfonkzXbYYZQ3UIcOw8QdQqQ7Npo4IAbGm/tP776eS6fUgg0ZFyV6ejvaL51lCNmNDvSeYxAp5aUxfSD9IiSxqUl6RAScz45g7epyt1p6mXJh4K0wSpw6jgNh+bqoZt1VkD1ymOV7aem1c4jJH5yVEOAo725OZvnsLGi1ybXGUPx/MAw2OBBzFjYClf99Ysg3ImAnfHe/wE7cdXzaGGgMJYhb9q3M4uSFZmKZX43gYwEKQ+J07UPuf4y53iEblvf+vQZqvInr2gzXw5vsbn/nCpcaC+pp26F3xszjvJ71iP2GrexCqi2NipB75LPS+O6HS4b6Pmi9vgtdN7y+TEyhGDA0yGAE=.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1mYWJsZS01LjEtMjAyNjA4MzF8YW50aHJvcGljIn0\",\"thinking\":\"I'm counting the numbers below 100 that are divisible by 3 (33 of them), by 7 (14), and by 21 (4), then applying inclusion-exclusion to get the ones divisible by exactly one of 3 or 7, which comes to 39 — an odd count, so Lima.\\n\\n\",\"type\":\"thinking\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "445",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "181",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "79",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.0135",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Anthropic",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

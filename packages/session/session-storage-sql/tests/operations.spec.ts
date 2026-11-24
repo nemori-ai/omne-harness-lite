@@ -5,6 +5,7 @@ import { app, TENANT_A, textOf, type App } from './fixtures/app.ts'
 import { kindOf } from './fixtures/entries.ts'
 
 const base = { tenant: TENANT_A, session: sessionId('session-1') }
+const SQLITE_IOERR = 10
 const ok = <T>(value: unknown): T => {
   expect(value, JSON.stringify(value)).toHaveProperty('ok')
   return (value as { ok: T }).ok
@@ -66,6 +67,7 @@ const identityOf = (operation: string, attempt: number) =>
     operation: operationId(operation),
     protocolVersion: '2',
     operationKey: JSON.stringify(['session-1', operationId(operation), attempt]),
+    recall: 'never',
   }) as const
 
 async function started() {
@@ -234,11 +236,11 @@ describe('control answers', () => {
 })
 
 describe('commit response evidence', () => {
-  it('a refused commit keeps the original failure basis in the rolled back receipt', async () => {
+  it('a refused commit answers the original failure basis in its rolled back reply and leaves no receipt', async () => {
     const a = await started()
     const refused = failureOf(await cancel(a, 'bad', ''))
-    const receipt = await a.provider.storage.query(identityOf('bad', 1))
-    expect(receipt.kind).toBe('rolled_back')
+    const receipt = a.provider.ran(identityOf('bad', 1))
+    expect(receipt?.kind).toBe('rolled_back')
     const stop = (
       receipt as unknown as {
         responses: { reply: { kind: string; basis: { failure: unknown } } }[]
@@ -246,6 +248,7 @@ describe('commit response evidence', () => {
     ).responses.at(-1)?.reply
     expect(stop?.kind).toBe('conflict')
     expect(stop?.basis.failure).toEqual(refused)
+    expect((await a.provider.storage.query(identityOf('bad', 1))).kind).toBe('settled')
   })
 
   it('the next call of a rejected identity runs a later attempt generation and is refused the same way', async () => {
@@ -253,7 +256,7 @@ describe('commit response evidence', () => {
     const first = failureOf(await cancel(a, 'bad', ''))
     const second = failureOf(await cancel(a, 'bad', ''))
     expect(second).toEqual(first)
-    expect((await a.provider.storage.query(identityOf('bad', 2))).kind).toBe('rolled_back')
+    expect(a.provider.ran(identityOf('bad', 2))?.kind).toBe('rolled_back')
   })
 
   it('a reply lost after the commit ran is commit-unknown, and the recall is the original receipt', async () => {
@@ -312,13 +315,82 @@ describe('queryOperation', () => {
     ])
   })
 
-  it('a rolled back attempt answers attempt-rejected, which does not prove the original was not committed', async () => {
+  it('a rolled back attempt leaves no receipt, so the operation is unknown, not attempt-rejected', async () => {
     const a = await started()
     await cancel(a, 'bad', '')
-    const resolved = ok<{ kind: string; original: string }>(
+    const resolved = ok<{ kind: string }>(
       await a.port.queryOperation({ ...a.access(TENANT_A), operation: operationId('bad') }),
     )
-    expect(resolved).toMatchObject({ kind: 'attempt-rejected', original: 'unknown' })
+    expect(resolved).toEqual({ kind: 'unknown' })
+  })
+
+  it('reads its own record again after the storage settles, and finds a commit that landed in between', async () => {
+    const a = await started()
+    const { storage } = a.provider
+    const query = storage.query.bind(storage)
+    const asked = identityOf('accept-between', 1)
+    storage.query = async identity => {
+      if (identity.operationKey === asked.operationKey) {
+        storage.query = query
+        a.provider.loseNextReply()
+        expect(failureOf(await a.accept(TENANT_A, 'session-1', 'between'))).toEqual({
+          kind: 'commit-unknown',
+          operation: operationId('accept-between'),
+        })
+      }
+      return query(identity)
+    }
+    const mark = a.provider.calls.length
+    const resolved = ok(
+      await a.port.queryOperation({
+        ...a.access(TENANT_A),
+        operation: operationId('accept-between'),
+      }),
+    )
+    expect(resolved).toMatchObject({ kind: 'committed', receipt: { revision: '2' } })
+    const order = a.provider.calls
+      .slice(mark)
+      .flatMap(call =>
+        call.kind === 'read'
+          ? []
+          : call.kind === 'query'
+            ? [`query ${call.identity.recall ?? 'recallable'}`]
+            : [`commit ${call.identity.operation}`],
+      )
+    expect(order).toEqual([
+      'commit session.lookup',
+      `commit ${operationId('accept-between')}`,
+      'query never',
+      'commit session.lookup',
+    ])
+  })
+
+  it('answers unknown for a commit that did not land once the storage settles, and the retry writes once', async () => {
+    const a = await started()
+    a.provider.failWrite(/INSERT/, 1, SQLITE_IOERR)
+    expect(failureOf(await a.accept(TENANT_A, 'session-1', 'dropped'))).toEqual({
+      kind: 'commit-unknown',
+      operation: operationId('accept-dropped'),
+    })
+    a.provider.failWrite(null)
+    const mark = a.provider.calls.length
+    expect(
+      ok(
+        await a.port.queryOperation({
+          ...a.access(TENANT_A),
+          operation: operationId('accept-dropped'),
+        }),
+      ),
+    ).toEqual({ kind: 'unknown' })
+    const seen = a.provider.calls.slice(mark).filter(call => call.kind !== 'read')
+    expect(seen.map(call => call.kind)).toEqual(['commit', 'query', 'commit'])
+    expect(await a.provider.storage.query(identityOf('accept-dropped', 1))).toMatchObject({
+      kind: 'settled',
+    })
+    const retried = ok<{ recovered: boolean; revision: string }>(
+      await a.accept(TENANT_A, 'session-1', 'dropped'),
+    )
+    expect(retried).toMatchObject({ recovered: false, revision: '2' })
   })
 
   it('is denied for a session the tenant does not have, before any attempt is asked', async () => {

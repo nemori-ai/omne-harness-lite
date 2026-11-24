@@ -24,7 +24,7 @@ describe('the block of the enabled loop extensions', () => {
       key: 'loop-extension.enabled',
       consumers: ['coordinator'],
       required: true,
-      volatility: 'per-request',
+      volatility: 'per-read',
       kind: 'supplied',
       recovery: 'recompute',
       carriesPrevious: false,

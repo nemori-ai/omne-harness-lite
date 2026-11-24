@@ -33,13 +33,32 @@ export const INSTRUCTION_LIMITS = Object.freeze({
   idPattern: /^[a-z][a-z0-9-]{0,63}$/u,
 })
 
+export const AGENT_TYPES = ['master', 'non-master'] as const
+export type AgentType = (typeof AGENT_TYPES)[number]
+
+export const SUMMARY_LIMITS = Object.freeze({ maxBytes: 1000 })
+
 export type AgentDefinition = {
   readonly category: 'AgentDefinition'
   readonly name: string
+  readonly type: AgentType
+  /** What this agent is fit for, written for the model that chooses whom to hand work to. */
+  readonly summary: string
   readonly references: readonly AssetReference[]
   readonly attributes: readonly AttributeDeclaration[]
   readonly instructions?: readonly InstructionSection[]
   readonly permissionBounds?: readonly PermissionUpperBound[]
+}
+
+export type AgentDefinitionListing = Readonly<{ name: string; type: AgentType; summary: string }>
+
+/** What the catalog of definitions says about one definition: its name, its type, its summary. */
+export function definitionListing(definition: AgentDefinition): AgentDefinitionListing {
+  return Object.freeze({
+    name: definition.name,
+    type: definition.type,
+    summary: definition.summary,
+  })
 }
 
 export function attributeItem(text: string | undefined): AttributeItem | undefined {

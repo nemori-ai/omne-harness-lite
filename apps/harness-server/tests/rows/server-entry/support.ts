@@ -9,6 +9,7 @@ import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
 import { stubPlugin } from '../../../src/cordis.ts'
 import { entryObjects } from '../../../src/entry/index.ts'
 import { defineRow } from '../../../src/row.ts'
+import { dynamisRow } from '../../../src/rows/dynamis/index.ts'
 import { serverEntryRow } from '../../../src/rows/server-entry/index.ts'
 import { serveOnce, type ServeRun } from '../../fixtures/serve/harness.ts'
 import { TELEMETRY_ROW_CONFIG, connectable, until } from '../../support/listening.ts'
@@ -71,6 +72,7 @@ export function startTree(options: TreeOptions): LiveTree {
       ? []
       : [{ id: 'telemetry', plugin: 'telemetry', config: TELEMETRY_ROW_CONFIG }]),
     { id: 'identity', plugin: 'identityDouble', config: {} },
+    { id: 'dynamis', plugin: 'dynamisRow', config: {} },
     { id: 'server-entry', plugin: 'serverEntryRow', config: options.config },
     ...(options.extraRows ?? []).map(row => ({ config: {}, ...row })),
   ]
@@ -79,6 +81,7 @@ export function startTree(options: TreeOptions): LiveTree {
     plugins: {
       stubPlugin,
       identityDouble: identityDoubleRow,
+      dynamisRow,
       serverEntryRow,
       ...options.extraPlugins,
     },

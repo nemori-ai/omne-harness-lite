@@ -200,6 +200,7 @@ export async function openIdentityWorld() {
   return {
     authority,
     identity,
+    root,
     principal,
     principalRef: standingPrincipalRef(principal),
     scopeRef,

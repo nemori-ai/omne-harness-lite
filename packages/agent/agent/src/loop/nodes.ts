@@ -254,6 +254,7 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'T2', on: 'try-finish', to: 'F1' },
   { from: 'T2', on: 'cancel', to: 'F0' },
   { from: 'T3', on: 'wait', to: 'W0' },
+  { from: 'T3', on: 'received', to: 'T1' },
   { from: 'T3', on: 'batch', to: 'T4' },
   { from: 'T3', on: 'admit', to: 'T5' },
   { from: 'T3', on: 'dispatch', to: 'A2' },

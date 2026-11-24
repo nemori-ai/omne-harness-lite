@@ -17,9 +17,14 @@ it('requires the public RC scope independently of resource scope and workspace',
   expectTypeOf<ToolInvokeRequest['scope']>().not.toExtend<ScopeRef>()
 })
 
-it('carries the same declaration slot through author facts and the fixed request', () => {
+it('carries the declaration only inside the definition, never as a copy in the request', () => {
   expectTypeOf<ToolDeclarations['environment']>().toEqualTypeOf<ToolEnvironmentDeclaration | null>()
-  expectTypeOf<FixedToolRequest['environment']>().toEqualTypeOf<ToolDeclarations['environment']>()
+  expectTypeOf<
+    FixedToolRequest['availability']['definition']['declarations']
+  >().toEqualTypeOf<ToolDeclarations>()
+  expectTypeOf<FixedToolRequest>().not.toHaveProperty('environment')
+  expectTypeOf<ToolInvokeRequest>().not.toHaveProperty('environment')
+  expectTypeOf<ToolInvokeRequest['availability']['definition']>().toEqualTypeOf<Adoption>()
   expectTypeOf<Adoption>().not.toExtend<ToolEnvironmentDeclaration>()
 })
 

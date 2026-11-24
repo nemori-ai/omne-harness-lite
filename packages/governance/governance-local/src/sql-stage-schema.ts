@@ -13,6 +13,7 @@ export const sqlStageSchema = z.enum([
   'standing-settled',
 ])
 export type SqlStage = z.infer<typeof sqlStageSchema>
+export const ENDED_STAGES = sqlStageSchema.exclude(['standing-seal', 'standing-settled']).options
 export const sqlEnvelopeSchema = z.strictObject({
   identity: recordSchema.shape.sqlIdentity,
   combinationVersion: GovernanceIdSchema,

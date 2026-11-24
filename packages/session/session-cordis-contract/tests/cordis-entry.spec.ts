@@ -37,6 +37,14 @@ const documentedPairs = {
   sessionReplayFactsKey: 'SessionReplayFactsService',
   sessionScopeLookupKey: 'SessionScopeLookupService',
   sessionAdoptedRequestsKey: 'SessionAdoptedRequestsService',
+  sessionExecutionLogKey: 'SessionExecutionLogService',
+  sessionInputSourcesKey: 'SessionInputSourcesService',
+  sessionBeforeIntakeKey: 'SessionBeforeIntakeService',
+  sessionDerivedInputsKey: 'SessionDerivedInputsService',
+  sessionHistoryIndexKey: 'SessionHistoryIndexService',
+  sessionHistoryLogKey: 'SessionHistoryLogService',
+  sessionSearchCursorsKey: 'SessionSearchCursorsService',
+  sessionSearchKey: 'SessionSearchService',
 } as const
 
 const documentedKeys = {
@@ -66,12 +74,25 @@ const documentedKeys = {
   sessionReplayFactsKey: 'sessionReplayFacts',
   sessionScopeLookupKey: 'sessionScopeLookup',
   sessionAdoptedRequestsKey: 'sessionAdoptedRequests',
+  sessionExecutionLogKey: 'sessionExecutionLog',
+  sessionInputSourcesKey: 'sessionInputSources',
+  sessionBeforeIntakeKey: 'sessionBeforeIntake',
+  sessionDerivedInputsKey: 'sessionDerivedInputs',
+  sessionHistoryIndexKey: 'sessionHistoryIndex',
+  sessionHistoryLogKey: 'sessionHistoryLog',
+  sessionSearchCursorsKey: 'sessionSearchCursors',
+  sessionSearchKey: 'sessionSearch',
 } as const
 
 describe('the ./cordis entry', () => {
-  it('exports exactly the twenty-four classes and their keys', () => {
+  it('exports exactly the documented classes and their keys, and the plugins of the two registration points', () => {
     expect(Object.keys(cordis).sort()).toEqual(
-      [...Object.keys(documentedPairs), ...Object.values(documentedPairs)].sort(),
+      [
+        ...Object.keys(documentedPairs),
+        ...Object.values(documentedPairs),
+        'sessionInputSourcesPlugin',
+        'sessionBeforeIntakePlugin',
+      ].sort(),
     )
   })
 
@@ -119,6 +140,8 @@ describe('the ./cordis entry', () => {
         undefined) as unknown as SessionTransactionPortService<string>['readWork']
       readonly readCurrentScope = (() =>
         undefined) as unknown as SessionTransactionPortService<string>['readCurrentScope']
+      readonly readCall = (() =>
+        undefined) as unknown as SessionTransactionPortService<string>['readCall']
       readonly readInput = (() =>
         undefined) as unknown as SessionTransactionPortService<string>['readInput']
       readonly queryOperation = (() =>

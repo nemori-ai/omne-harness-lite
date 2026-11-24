@@ -14,6 +14,8 @@ import {
   initializationFixtureGuard,
   initializationFixtureFacts,
   adoptedInitializationFixture,
+  testingDerivedInputs,
+  testingInputSources,
 } from '@omne-harness/session-contract/testing'
 import type { SessionCommand } from '@omne-harness/session-contract'
 import type { settingsPreparationWorld } from './settings-preparation-world.ts'
@@ -34,9 +36,15 @@ export async function createCaptureSession(
       snapshot: async () => ({ kind: 'ready', value: { revision: '1', entries: [entry] } }),
     },
     accessCheck: {
-      check: async () => ({ kind: 'allowed', evidence: evidence('capture-session-fixture') }),
+      check: async () => ({
+        kind: 'allowed',
+        evidence: evidence('capture-session-fixture'),
+        subject: { kind: 'member' },
+      }),
     },
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
   })
   const access = {
     principal: w.principal,
@@ -109,6 +117,7 @@ export async function createCaptureSession(
             operation: operationId('capture-session-mode'),
             declaration: {
               kind: 'permission-mode',
+              expectedRevision: '0',
               value: 'never',
               authorization: evidence('capture-mode-fixture'),
             },

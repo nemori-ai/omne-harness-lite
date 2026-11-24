@@ -1,319 +1,1022 @@
-.omne-session-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--omne-space-inline);
-  min-width: 0;
-}
-.omne-sessions {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.omne-session-items {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.omne-session-item {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-  width: 100%;
-  padding: var(--omne-row-padding);
-  border: 0;
-  border-radius: var(--omne-radius-control);
-  background: transparent;
-  color: var(--omne-ink-primary);
-  text-align: left;
-  cursor: pointer;
-}
-.omne-session-item:hover {
-  background: var(--omne-hover);
-}
-.omne-session-item[aria-current='true'] {
-  background: var(--omne-surface-panel-soft);
-}
-.omne-session-item:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-.omne-session-item-title {
-  display: block;
-  overflow: hidden;
-  font-size: var(--omne-text-ui);
-  font-weight: var(--omne-weight-strong);
-  line-height: var(--omne-leading-wrapped);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.omne-session-item-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-.omne-session-item-meta time {
-  color: var(--omne-ink-faint);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.omne-sessions-note {
-  margin: var(--omne-space-inline) 0 0;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
+@import '@omne-harness/ui-kit/layers.css';
 
-.omne-session-page {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  padding: 0 40px 32px;
-}
-.omne-session-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 64px;
-  min-width: 0;
-  border-bottom: 1px solid var(--omne-line-subtle);
-}
-.omne-session-heading {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.omne-session-title {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  font-size: var(--omne-text-ui);
-  font-weight: var(--omne-weight-strong);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.omne-session-id {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-.omne-session-body {
-  display: flex;
-  gap: 24px;
-  min-width: 0;
-  min-height: 0;
-}
-.omne-session-side {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: var(--omne-space-inline);
-  width: 320px;
-  min-height: 0;
-  padding: var(--omne-space-inline) 0 0 16px;
-  border-left: 1px solid var(--omne-line-subtle);
-}
-.omne-session-side[data-folded='true'] {
-  width: auto;
-}
-.omne-session-side-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-}
-.omne-session-side-title {
-  overflow: hidden;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.omne-session-side-body {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.omne-session-main {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--omne-space-inline);
-  width: 100%;
-  max-width: 740px;
-  min-height: 0;
-  margin: 0 auto;
-  padding-top: var(--omne-space-inline);
-}
-.omne-conversation {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 0;
-  min-height: 160px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 8px 0 24px;
-}
-.omne-session-dock {
-  flex: none;
-  max-height: 70%;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.omne-session-dock:empty {
-  display: none;
-}
-.omne-conversation > * + * {
-  margin-top: var(--omne-space-block);
-}
-.omne-empty {
-  display: flex;
-  flex-direction: column;
-  gap: var(--omne-space-inline);
-  color: var(--omne-ink-muted);
-}
+@layer omne-builtin {
+  .omne-session-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+  }
+  /* 新建会话 is a row of the navigation's column (the shell's `.shell-nav-link`): the same inline padding, icon column,
+   gap and row height, in muted ink that turns strong under the pointer. */
+  .omne-sessions-new {
+    justify-content: flex-start;
+    gap: calc((var(--omne-nav-row-height) - var(--omne-icon-label)) / 2);
+    width: 100%;
+    height: auto;
+    min-height: var(--omne-nav-row-height);
+    padding: 0 calc((var(--omne-nav-row-height) - var(--omne-icon-label)) / 2);
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-ui);
+    font-weight: var(--omne-weight-regular);
+    line-height: var(--omne-leading-ui);
+  }
+  .omne-sessions-new:hover {
+    color: var(--omne-ink-primary);
+  }
+  .omne-sessions-new > svg {
+    width: var(--omne-icon-label);
+    height: var(--omne-icon-label);
+  }
+  .omne-sessions {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .omne-session-items,
+  .omne-archived-rows,
+  .omne-search-hits {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  /* A row of the list: the title, then the age of its last activity (directory.css in the source). The glide menu
+   draws the hover and the selected ground behind it. */
+  .omne-session-item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    padding: var(--omne-row-padding);
+    border: 0;
+    border-radius: var(--omne-radius-control);
+    background: transparent;
+    color: var(--omne-ink-primary);
+    text-align: left;
+  }
+  .omne-session-item:disabled {
+    opacity: 0.6;
+  }
+  .omne-session-item-title,
+  .omne-archived-title {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    font-size: var(--omne-text-ui);
+    font-weight: var(--omne-weight-strong);
+    line-height: var(--omne-leading-wrapped);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .omne-session-item-meta,
+  .omne-archived-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--omne-space-inline);
+    color: var(--omne-ink-faint);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
+  }
+  .omne-session-item-meta time,
+  .omne-archived-meta time {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .omne-sessions-end,
+  .omne-archived-end {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--omne-space-inline);
+    padding-inline: var(--omne-space-inline);
+  }
+  .omne-sessions-note,
+  .omne-archived-note {
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+  /* The archived sessions open in place under their row; a row cannot be opened, so it has no pointer and no hover. */
+  .omne-archived {
+    min-width: 0;
+  }
+  .omne-archived-find {
+    margin-bottom: var(--omne-space-inline);
+  }
+  .omne-archived-row {
+    display: flex;
+    align-items: center;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+    padding: var(--omne-row-padding);
+  }
+  .omne-archived-text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .omne-archived-receipt {
+    padding-inline: var(--omne-space-inline);
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
 
-.omne-message {
-  width: 100%;
-  min-width: 0;
-}
-.omne-message[data-role='user'] {
-  align-self: flex-end;
-  width: fit-content;
-  max-width: 88%;
-}
-.omne-message-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0 0 5px 2px;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-.omne-message[data-role='user'] > .omne-message-head {
-  justify-content: flex-end;
-}
-.omne-message-body {
-  width: fit-content;
-  max-width: min(100%, var(--omne-measure-reading));
-  padding: var(--omne-bubble-padding);
-  border-radius: var(--omne-radius-card);
-  background: var(--omne-bubble-assistant);
-  font-family: var(--omne-font-reading);
-  font-size: var(--omne-text-body);
-  line-height: var(--omne-leading-reading);
-  overflow-wrap: anywhere;
-}
-.omne-message-body:has(pre, table) {
-  width: 100%;
-}
-.omne-message[data-role='user'] > .omne-message-body {
-  background: var(--omne-bubble-user);
-  color: var(--omne-bubble-ink);
-  white-space: pre-wrap;
-}
-.omne-marker {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--omne-ink-faint);
-  font-size: var(--omne-text-caption);
-}
-.omne-marker::before,
-.omne-marker::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--omne-line-subtle);
-}
-.omne-placeholder {
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-.omne-pre {
-  margin: 0;
-  overflow-x: auto;
-  font-family: var(--omne-font-mono);
-  font-size: var(--omne-text-caption);
-  white-space: pre-wrap;
-}
-.omne-arguments {
-  margin: 0;
-  padding: 0 0 0 12px;
-  list-style: none;
-  font-size: var(--omne-text-caption);
-}
-.omne-arguments > li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-}
-.omne-arguments > li > .omne-arguments {
-  flex-basis: 100%;
-}
-.omne-argument-name {
-  color: var(--omne-ink-muted);
-  font-family: var(--omne-font-mono);
-}
-.omne-argument-value {
-  font-family: var(--omne-font-mono);
-  overflow-wrap: anywhere;
-}
-.omne-composer {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: var(--omne-radius-window);
-  background: var(--omne-surface-overlay);
-  box-shadow: 0 0 0 1px var(--omne-line);
-  transition: box-shadow var(--omne-motion-feedback) var(--omne-motion-ease);
-}
-.omne-composer:has([data-slot='textarea']:focus-visible) {
-  box-shadow: 0 0 0 1px var(--omne-line-focus);
-}
-.omne-composer [data-slot='textarea'] {
-  min-height: 38px;
-  max-height: min(40dvh, 320px);
-  padding: 2px 2px 0;
-  overflow-y: auto;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  font-size: var(--omne-text-body);
-  line-height: var(--omne-leading-reading);
-  resize: none;
-}
-.omne-composer [data-slot='textarea']:focus-visible {
-  outline: none;
-  box-shadow: none;
-}
-.omne-composer-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 2px;
-}
-.omne-live-status {
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-.omne-card-label {
-  margin: 8px 0 4px;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
+  .omne-session-page {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    /* conversation.css `.conversation-page`: 0 40 32 at the standard size, drawn at the size step. */
+    padding: 0 calc(var(--spacing) * 10) calc(var(--spacing) * 8);
+  }
+  /* The page's backdrop (`session.backdrop`) counts only when a plugin drew into it: it covers the whole page, padding
+   included, under everything on it, and takes no room, no pointer and no reading. Only then is the page its containing
+   block and its own stacking context, so with nothing drawn the page is as it was. */
+  /* The companion floats where the shell keeps it: its figure is the one thing pressed and dragged, as large as what
+   is drawn in it and round, so the hover wash of the button sits behind the figure and not in a box. */
+  .omne-companion {
+    display: flex;
+  }
+  .omne-companion-figure {
+    width: auto;
+    height: auto;
+    padding: 0;
+    border-radius: var(--omne-radius-pill);
+  }
+  /* A drawing put on the figure keeps the size it gives itself: the button does not size it as an icon. */
+  .omne-companion-figure svg[width],
+  .omne-companion-figure svg[height] {
+    width: auto;
+    height: auto;
+  }
+  /* The panel is an ink bubble written out of the figure: a field, whom the words go to and send in one row under it,
+   and one line for how the words ended. */
+  .omne-companion-panel {
+    position: fixed;
+    z-index: 1;
+    width: min(22em, calc(100vw - var(--omne-space-page) * 2));
+    padding: var(--omne-space-block);
+  }
+  .omne-companion-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+  }
+  .omne-companion-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+  }
+  .omne-companion-receipt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--omne-space-inline);
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-ui);
+  }
+  .omne-session-page:has(> .omne-session-backdrop:not(:empty)) {
+    position: relative;
+    isolation: isolate;
+  }
+  .omne-session-backdrop:empty {
+    display: none;
+  }
+  .omne-session-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    place-self: stretch;
+    overflow: clip;
+    overflow-clip-margin: var(--omne-ring-room);
+    pointer-events: none;
+  }
+  /* The heading is 84 high at the standard size (`--spacing` is 4 there and moves with the size step, as the shell's
+   rows do), over one hairline, in three columns with 12 between (conversation.css `.conversation-header`, and
+   `[data-assistant-home='true']` for the columns): the title at the start, the figure's seat and the agent's name in
+   the middle, and at the end only the model and the permissions as two quiet dropdowns, then the `⋯`. The two side
+   columns share what the middle leaves, so the seat and the name stay on the heading's middle line. */
+  .omne-session-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: calc(var(--spacing) * 3);
+    height: calc(var(--spacing) * 21);
+    min-width: 0;
+    border-bottom: 1px solid var(--omne-line-subtle);
+  }
+  /* The title is written as the source's topic switcher writes its words (topic-switcher.css `.topic-switcher`): the
+   interface size, the regular weight, weak ink. It is no control and opens nothing. */
+  .omne-session-title {
+    grid-column: 1;
+    justify-self: start;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-ui);
+    font-weight: var(--omne-weight-regular);
+    line-height: var(--omne-leading-ui);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* 12 between the end's controls (conversation.css `.conversation-header-controls`). */
+  .omne-session-bar-end {
+    position: relative;
+    display: flex;
+    grid-column: 3;
+    justify-self: end;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+    min-width: 0;
+  }
+  /* Below 768 the shell's corner stands over the heading's top right: the home beside the drawer's toggle (OD-19), each
+   a space from the next and from the window's edge. The end keeps one control space clear of it, as the source's
+   heading kept its 42 beside a toggle 10 from the edge (conversation.css at 767). The page's own edge is the same on
+   both sides, so it is half of what the window has that the heading does not. */
+  @media (max-width: 767px) {
+    .omne-session-bar {
+      container-type: inline-size;
+    }
+    .omne-session-bar-end {
+      margin-inline-end: max(
+        0px,
+        4 * var(--omne-space-inline) + var(--omne-control-height) +
+          var(--omne-control-height-touch) - (100vw - 100cqw) / 2
+      );
+    }
+  }
+  /* Short of room, the choices fold into the `⋯`, the workspace first, then permissions: the end has only its own
+   column. A folded choice keeps its box out of the flow and unseen, so its width is known for when the room comes
+   back. */
+  .omne-session-choice {
+    display: inline-flex;
+    min-width: 0;
+  }
+  .omne-session-choice[data-folded] {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .omne-session-folded-value {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--omne-ink-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .omne-session-model,
+  .omne-session-mode,
+  .omne-session-workspace {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+  /* Quiet: the face is the value in force, with no field edge until the pointer or the menu is on it. */
+  .omne-session-bar-end [data-slot='select-trigger'] {
+    border-color: transparent;
+    background: transparent;
+    color: var(--omne-ink-muted);
+  }
+  .omne-session-bar-end [data-slot='select-trigger']:hover,
+  .omne-session-bar-end [data-slot='select-trigger'][data-state='open'] {
+    background: var(--omne-hover);
+    color: var(--omne-ink-primary);
+  }
+  .omne-session-model-option,
+  .omne-session-workspace-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+  }
+  .omne-session-model-note {
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+  /* The directory is the longest thing the end could hold: cut short, the whole of it in the title. */
+  .omne-session-workspace-place {
+    min-width: 0;
+    max-width: 20em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .omne-session-workspace-note {
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+  .omne-session-receipt {
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    white-space: nowrap;
+  }
+  /* The `⋯`: what the session is, above its verbs (conversation.css `.conversation-details`). */
+  .omne-session-more {
+    width: min(calc(var(--spacing) * 80), calc(100vw - var(--omne-space-page)));
+  }
+  .omne-session-facts dl {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--omne-space-inline) var(--omne-space-block);
+    margin: 0;
+    font-size: var(--omne-text-caption);
+    font-weight: var(--omne-weight-regular);
+    line-height: var(--omne-leading-ui);
+  }
+  .omne-session-facts dt {
+    color: var(--omne-ink-muted);
+  }
+  .omne-session-facts dd {
+    min-width: 0;
+    margin: 0;
+  }
+  /* A broken observation is said once, under the heading; connecting and live say nothing. */
+  .omne-session-connection {
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
+  }
+  /* The heading's middle: the figure's seat and the agent's name, one control. Laid out as the source's assistant in
+   the heading (agent-work-panel.css `.agent-work-trigger[data-presentation='hero']`): 60 high, 6 16 6 6 inside, 12
+   between, at most 320; the seat as large as its portrait, 48; the name in the reading face at the lead size,
+   regular. */
+  .omne-session-figure {
+    display: inline-flex;
+    grid-column: 2;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+    max-width: calc(var(--spacing) * 80);
+    height: calc(var(--spacing) * 15);
+    padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 4) calc(var(--spacing) * 1.5)
+      calc(var(--spacing) * 1.5);
+  }
+  /* Open, the figure keeps no fill at rest: the bubble or the column is the open state (agent-work-panel.css line 5). */
+  .omne-session-figure[aria-expanded='true']:not(:hover) {
+    background: transparent;
+  }
+  .omne-session-figure-seat {
+    width: calc(var(--spacing) * 12);
+    height: calc(var(--spacing) * 12);
+  }
+  .omne-session-figure-name {
+    min-width: 0;
+    overflow: hidden;
+    font-family: var(--omne-font-reading);
+    font-size: var(--omne-text-lead);
+    font-weight: var(--omne-weight-regular);
+    line-height: var(--omne-leading-title);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .omne-session-body {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+  }
+  /* Docked, the side content is the body's second grid track (agent-work-panel.css in the source): only the person's
+   own fold or unfold moves the reading column, the track sliding between 0 and the column's width on `layout`. The
+   sheet keeps its width inside the track's clip, so nothing in it reflows; it slides in from the edge it attaches
+   to and leaves over `exit`. Side content that is docked from its first frame does not slide. */
+  .omne-session-body:has(> .omne-session-side[data-presentation='docked']) {
+    grid-template-columns: minmax(0, 1fr) 0;
+    column-gap: 0;
+    transition:
+      grid-template-columns var(--omne-motion-layout) var(--omne-motion-ease-enter),
+      column-gap var(--omne-motion-layout) var(--omne-motion-ease-enter);
+  }
+  .omne-session-body:has(> .omne-session-side[data-presentation='docked'][data-open='true']) {
+    grid-template-columns: minmax(0, 1fr) calc(var(--spacing) * 80);
+    column-gap: var(--omne-space-page);
+  }
+  .omne-session-side[data-presentation='docked'] {
+    min-width: 0;
+    min-height: 0;
+    overflow: clip;
+    overflow-clip-margin: var(--omne-ring-room);
+  }
+  .omne-session-side-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    width: calc(var(--spacing) * 80);
+    height: 100%;
+    padding: var(--omne-space-inline) 0 0 var(--omne-space-block);
+    border-left: 1px solid var(--omne-line-subtle);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(calc(var(--spacing) * 3));
+    transition:
+      opacity var(--omne-motion-exit) var(--omne-motion-ease-exit),
+      transform var(--omne-motion-exit) var(--omne-motion-ease-exit),
+      visibility 0s var(--omne-motion-exit);
+  }
+  .omne-session-side[data-open='true'] > .omne-session-side-sheet {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+    transition:
+      opacity var(--omne-motion-layout) var(--omne-motion-ease-enter),
+      transform var(--omne-motion-layout) var(--omne-motion-ease-enter),
+      visibility 0s;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .omne-session-body:has(> .omne-session-side[data-presentation='docked']),
+    .omne-session-side-sheet,
+    .omne-session-side[data-open='true'] > .omne-session-side-sheet {
+      transition: none;
+    }
+  }
+  /* Over the page the side content is the agent's light ink bubble (ink-bubble.tsx): it gives the paper, edge and
+   lift; nothing clips it, so the tail up to the figure's gap stays whole. Its width is the source's 600. */
+  .omne-session-side[data-presentation='bubble'] {
+    position: fixed;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    width: var(--omne-measure-decision);
+    padding: var(--omne-space-block) var(--omne-space-block) var(--omne-space-inline);
+  }
+  .omne-session-side[data-presentation='bubble'] .omne-session-side-body {
+    flex: 1 1 auto;
+  }
+  .omne-session-side-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+  .omne-session-side-title {
+    display: flex;
+    align-items: baseline;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    font-weight: var(--omne-weight-strong);
+    white-space: nowrap;
+  }
+  .omne-session-side-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .omne-session-side-number {
+    font-variant-numeric: tabular-nums;
+  }
+  /* The side body's scroller reaches out by the ring room and takes it back as its padding (S15, K1): a raised control
+   at a pane's edge keeps its edge and ring, and nothing in the panes moves. */
+  .omne-session-side-body {
+    flex: 1 1 0;
+    min-height: 0;
+    margin: calc(-1 * var(--omne-ring-room));
+    padding: var(--omne-ring-room);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* 后台: each call a process row that folds open (agent-work-panel.css `.agent-work-item`), inside the side body's
+   scroller with room for the rings; the detail reads under the row's words, past the chevron. */
+  .omne-background-pane {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+    padding: var(--omne-ring-room);
+  }
+  .omne-background-pane .empty-state {
+    padding: 0;
+  }
+  .omne-background-calls {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .omne-background-call {
+    min-width: 0;
+  }
+  .omne-background-call-row {
+    display: flex;
+    align-items: center;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+  }
+  .omne-background-call-trigger {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-left: 0;
+  }
+  .omne-background-call-id {
+    flex: none;
+    color: var(--omne-ink-muted);
+    font-family: var(--omne-font-mono);
+    font-size: var(--omne-text-caption);
+    font-variant-numeric: tabular-nums;
+  }
+  .omne-background-call-trigger > .omne-background-call-intent {
+    flex: 1 1 auto;
+    overflow: hidden;
+    color: var(--omne-ink-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .omne-background-call-trigger > [data-state-word] {
+    flex: none;
+    font-size: var(--omne-text-caption);
+  }
+  .omne-background-call-said,
+  .omne-background-call-detail {
+    margin: 0;
+    padding-left: calc(var(--omne-icon-label) + var(--spacing) * 3);
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-reading);
+    overflow-wrap: anywhere;
+  }
+  .omne-background-call-detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    padding-bottom: var(--omne-space-block);
+  }
+  .omne-background-call-detail .fact-list {
+    font-size: var(--omne-text-caption);
+  }
+  .omne-background-call-action,
+  .omne-background-call-last {
+    margin: 0;
+    font-family: var(--omne-font-mono);
+  }
+  /* The hint at the end of the transcript is a receipt-weight line: caption size, muted, no frame; pressing it opens 后台. */
+  .omne-background-hint {
+    align-self: flex-start;
+    padding-inline: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    font-weight: var(--omne-weight-regular);
+  }
+  /* The reading column: at most 740 at the standard size, drawn at the size step, centred in what the side content
+   leaves (conversation.css `.conversation-main`). What leads it under the heading's hairline, when it is not the
+   transcript, stands as far below the line as the transcript's first row does. */
+  .omne-session-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    width: 100%;
+    max-width: calc(var(--spacing) * 185);
+    min-height: 0;
+    margin: 0 auto;
+  }
+  .omne-session-main > :first-child:not(.omne-conversation) {
+    margin-top: calc(var(--spacing) * 2);
+  }
+  /* The page's one scrolling face. Its scroller reaches out past the column by the bar's gutter and by the room a
+   hover fill and a focus ring need, and takes that room back as its padding, so rows land on the column's edges
+   where the composer stands (conversation.css `.conversation-transcript-frame`, `.conversation-transcript`: inset
+   6, top 8, bottom 24, floor 160, drawn at the size step). In a short window its floor gives way first, so the
+   whole composer keeps its room. */
+  .omne-conversation {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: min(calc(var(--spacing) * 40), 15dvh);
+    margin-inline: calc(-1 * (var(--omne-scrollbar-size) + var(--spacing) * 1.5));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 1.5) calc(var(--spacing) * 6);
+  }
+  /* What waits at the end of the transcript (the cards, the background line): in the column, scrolling with the
+   transcript, never inside itself. The transcript's own padding is the room a raised edge and its ring need (S15). */
+  .omne-session-dock {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+  }
+  .omne-session-dock:empty {
+    display: none;
+  }
+  /* Above the composer, the inputs still in line: one line at receipt weight that unfolds in place into the list, no
+   frame. The box reaches out by the fold's pulled-out hover fill and the focus ring's room, so neither is cut. */
+  .omne-session-work {
+    flex: none;
+    max-height: 30%;
+    margin: calc(-1 * var(--omne-ring-room)) 0 calc(-1 * var(--omne-ring-room))
+      calc(var(--spacing) * -1.5);
+    padding: var(--omne-ring-room) 0 var(--omne-ring-room) calc(var(--spacing) * 1.5);
+    overflow-y: auto;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
+  }
+  .omne-session-work-line {
+    margin: 0;
+  }
+  .omne-session-work-list {
+    margin: 0;
+    padding-left: 1.25em;
+  }
+  /* A failed run's notice stands under its line and is never squeezed by the transcript's scrolling column. */
+  .omne-waiting {
+    flex-shrink: 0;
+  }
+  /* Only the sentence that states the failure is in its colour; what follows (how many are left, what to do) is in
+   the body's ink. The shared notice draws all of it in the tone's ink, as the source's does, so this is the
+   session's own rule. */
+  .omne-waiting-body {
+    color: var(--omne-ink-primary);
+  }
+  /* What came of a retry that is not a failure (not known, not sent, refused): neutral ink inside the notice. */
+  .omne-waiting-note {
+    color: var(--omne-ink-muted);
+  }
+  /* What the domain that knows the reason puts under it: its sentence, then the way to set it right. */
+  .omne-waiting-remedy {
+    display: grid;
+    justify-items: start;
+    gap: var(--omne-space-inline);
+    margin-top: var(--omne-space-inline);
+  }
+  .omne-transcript-row {
+    flex-shrink: 0;
+    min-width: 0;
+  }
+  .omne-conversation > * + * {
+    margin-top: var(--omne-space-block);
+  }
+  /* One speaker's blocks sit a block apart; a change of speaker is a section. */
+  .omne-conversation > [data-speaker='user'] + [data-speaker='agent'],
+  .omne-conversation > [data-speaker='agent'] + [data-speaker='user'] {
+    margin-top: var(--omne-space-section);
+  }
+  .omne-empty {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    color: var(--omne-ink-muted);
+  }
+  /* No session: no header, and the one quiet line in the middle of the page (OD-42). */
+  .omne-session-page[data-empty] {
+    grid-template-rows: minmax(0, 1fr);
+    place-items: center;
+  }
+  .omne-empty[data-empty='none'] {
+    align-items: center;
+    text-align: center;
+  }
+  .omne-empty[data-empty='none'] > p {
+    margin: 0;
+  }
+
+  /* A message: its words in bubbles, its reasoning and tool calls as process lines between them (C9: no card holds
+   another). */
+  .omne-message {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    width: 100%;
+    min-width: 0;
+  }
+  .omne-message[data-role='user'] {
+    width: fit-content;
+    max-width: 88%;
+    margin-left: auto;
+  }
+  /* Who speaks is not drawn; screen readers still say it. */
+  .omne-message-speaker {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .omne-message-body {
+    width: fit-content;
+    max-width: 100%;
+    padding: var(--omne-bubble-padding);
+    border-radius: var(--omne-radius-card);
+    background: var(--omne-bubble-assistant);
+    font-family: var(--omne-font-reading);
+    font-size: var(--omne-text-body);
+    line-height: var(--omne-leading-reading);
+    letter-spacing: var(--omne-reading-tracking);
+    overflow-wrap: anywhere;
+  }
+  .omne-message-body:not([data-role='user']) {
+    max-width: min(100%, var(--omne-measure-reading));
+  }
+  .omne-message-body:not([data-role='user']):has(pre, table) {
+    width: 100%;
+  }
+  .omne-message-body[data-role='user'] {
+    margin-left: auto;
+    background: var(--omne-bubble-user);
+    color: var(--omne-bubble-ink);
+    white-space: pre-wrap;
+  }
+  /* Under a message on its way: not known yet is neutral, not sent is in the failure colour. */
+  .omne-message-note {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0 var(--omne-space-inline);
+    margin: var(--omne-space-inline) 0 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
+  }
+  .omne-message-note[data-tone='danger'] {
+    color: var(--omne-danger-ink);
+  }
+  /* A compaction, a cancelled or a failed run: one centred line of caption between two hairlines. */
+  .omne-marker {
+    display: flex;
+    align-items: center;
+    gap: var(--omne-space-block);
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
+  }
+  .omne-marker[data-tone='danger'] {
+    color: var(--omne-danger-ink);
+  }
+  .omne-marker::before,
+  .omne-marker::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--omne-line-subtle);
+  }
+  .omne-placeholder {
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+  /* A process line (run-line.tsx in the source): the shared trace header on the column's own left edge, its label at
+   the interface size in weak ink, one line on a desk-sized window that wraps rather than being cut
+   (conversation.css `.conversation-run-line`). Machine strings in it are mono at the caption size, as the source's
+   tool names are (`font-mono text-xs`); the lightest line (a reminder) has no icon and no word. */
+  .omne-process {
+    min-width: 0;
+  }
+  .omne-process [data-trace-label] > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .omne-process-label {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--omne-space-inline);
+    min-width: 0;
+  }
+  .omne-process[data-weight='light'] .omne-process-label {
+    font-size: var(--omne-text-caption);
+    font-weight: var(--omne-weight-regular);
+  }
+  .omne-process-name {
+    font-family: var(--omne-font-mono);
+    font-size: var(--omne-text-caption);
+    font-weight: var(--omne-weight-regular);
+  }
+  .omne-process-word {
+    color: var(--omne-ink-muted);
+    font-weight: var(--omne-weight-regular);
+  }
+  /* What a line unfolds reads under its words, past the chevron; it never widens the column, whatever it holds. */
+  .omne-process [data-expand-content] {
+    min-width: 0;
+  }
+  .omne-process-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+    padding: var(--spacing) 0 var(--omne-space-inline) calc(var(--spacing) * 5.5);
+  }
+  /* Reasoning: the reading face at the interface size in weak ink, no bubble, its own measure; headings inside it are
+   not raised (conversation.css `.conversation-run-reasoning`: 62ch in the source's face, which is 33em). */
+  .omne-process-reading {
+    min-width: 0;
+    max-width: 33em;
+    color: var(--omne-ink-muted);
+    font-family: var(--omne-font-reading);
+    font-size: var(--omne-text-ui);
+    line-height: var(--omne-leading-reading);
+    letter-spacing: var(--omne-reading-tracking);
+    overflow-wrap: anywhere;
+  }
+  .omne-process-reading .omne-prose :is(h1, h2, h3, h4) {
+    margin-block: 1em 0.3em;
+    font-size: 1em;
+  }
+  /* A reminder unfolds into a few lines of name and value in weak ink, never the text it gave the model. */
+  .omne-process-facts {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
+    list-style: none;
+    overflow-wrap: anywhere;
+  }
+  .omne-process-fact {
+    display: flex;
+    min-width: 0;
+  }
+  .omne-process-fact > .omne-process-term {
+    flex: none;
+    max-width: 50%;
+  }
+  .omne-process-fact > .omne-process-value {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .omne-process-term,
+  .omne-process-value {
+    font-family: var(--omne-font-mono);
+  }
+  .omne-process-value {
+    white-space: pre-wrap;
+  }
+  /* A nested value is one line; the whole of it is in the hint. */
+  .omne-process-value[data-nested] {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .omne-process-note {
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+  /* The page's one raised sheet: the window radius, the composer's own light hairline and the field's paper. Focus
+   deepens the hairline and draws no ring. It never grows past its cap; inside it only the words scroll
+   (conversation-patterns.css `.assistant-composer`, conversation.css `.conversation-composer`). The source's px are
+   drawn at the size (its size-lengths step), so here they are steps of `--spacing`. */
+  /* The source keeps 12 (at the size step) between the transcript and the composer (conversation.css
+   `.conversation-composer` margin-top); the column's gap gives part of it. */
+  .omne-composer {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 2);
+    margin-top: calc(var(--spacing) * 3 - var(--omne-space-inline));
+    max-height: min(46dvh, calc(var(--spacing) * 100));
+    padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+    border-radius: var(--omne-radius-window);
+    background: var(--omne-surface-field);
+    box-shadow: 0 0 0 1px var(--omne-line-subtle);
+    transition: box-shadow var(--omne-motion-feedback) var(--omne-motion-ease);
+  }
+  .omne-composer:has([data-slot='textarea']:focus-visible) {
+    box-shadow: 0 0 0 1px var(--omne-line-focus);
+  }
+  .omne-composer [data-slot='textarea'] {
+    flex: 0 1 auto;
+    min-height: calc(var(--spacing) * 9.5);
+    padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 0.5) 0;
+    overflow-y: auto;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    font-size: var(--omne-text-body);
+    line-height: var(--omne-leading-reading);
+    resize: none;
+  }
+  .omne-composer [data-slot='textarea']::placeholder {
+    color: var(--omne-ink-faint);
+  }
+  .omne-composer [data-slot='textarea']:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
+  /* The one row under the words: the icon actions at the left when there are any; at the right what other domains
+   read out, then the one action (conversation.css `.composer-send-pair`). */
+  .omne-composer-actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--omne-space-inline);
+  }
+  .omne-session-status {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0 var(--omne-space-block);
+    min-width: 0;
+    margin-left: auto;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+  .omne-live-status {
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+  /* The search over the history is a single-column page whose one column is the list column of a list page
+   (list-reading.css in the source), on the reading measure in the middle: no reading pane, a hit opens its session. */
+  .omne-search {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .omne-search-column {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: var(--omne-measure-reading);
+    min-width: 0;
+    margin-inline: auto;
+  }
+  /* The search, then the filters, each 12 above what follows (.list-reading-search, .list-reading-filters). */
+  .omne-search-form {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 3);
+    margin-bottom: calc(var(--spacing) * 3);
+  }
+  .omne-search-ways {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--omne-space-inline) var(--omne-space-block);
+  }
+  .omne-search-option {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--omne-space-inline);
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+  /* A row fills the column, as in the list column, where the rows stand in a stretched column. */
+  .omne-search-hits > li {
+    display: flex;
+    flex-direction: column;
+  }
+  /* What the list says when nothing matches stands where a row would, as in the list column. */
+  .omne-search-column .empty-state {
+    padding: calc(var(--spacing) * 3.5) 0 var(--omne-space-section);
+  }
+  .omne-search-snippet {
+    font-family: var(--omne-font-reading);
+    letter-spacing: var(--omne-reading-tracking);
+  }
+  .omne-search-snippet mark {
+    border-radius: var(--omne-radius-chip);
+    background: var(--omne-accent-tint);
+    color: inherit;
+  }
+  .omne-search-end {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing);
+  }
+  .omne-search-note {
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
+  }
+  .omne-search-detail {
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
 }

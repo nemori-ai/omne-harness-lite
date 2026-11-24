@@ -4,15 +4,12 @@ import type { EntryObjectModule } from '../types.ts'
 import { agentClock } from './agent-clock.ts'
 import { agentHostPrincipal } from './agent-host-principal.ts'
 import { cursorSigning } from './cursor-signing.ts'
+import { dispatchPrincipal } from './dispatch-principal.ts'
 import { executionAuthorities, scopedRuntimeContextTrust } from './execution-wiring.ts'
 import { identityClock } from './identity-clock.ts'
 import { governanceInstallationPrincipals } from './governance-installation-principals.ts'
 import { governanceDirectoryPrincipals } from './governance-directory-principals.ts'
-import {
-  modelConverterAuthority,
-  modelHostAuthority,
-  modelPublicationAuthority,
-} from './model-authorities.ts'
+import { modelHostAuthority, modelPublicationAuthority } from './model-authorities.ts'
 import { modelClock } from './model-clock.ts'
 import { principalIssuer, principalVerifier, sessionPrincipals } from './principals.ts'
 import { requestContextTrust } from './request-context-trust.ts'
@@ -24,6 +21,7 @@ import { storageHost } from './storage-host.ts'
 import { toolContributionAuthority, toolReleaseRegistrant } from './tool-release.ts'
 import { toolResidencyPrincipal } from './tool-residency-principal.ts'
 import { tenantDomainScannerPrincipal } from './tenant-domain-scanner.ts'
+import { tenantScopePrincipals } from './tenant-scope-principals.ts'
 import { toolClock, toolPublicationAuthority } from './tool-runtime-objects.ts'
 
 export const entryObjects: readonly EntryObjectModule[] = [
@@ -34,6 +32,7 @@ export const entryObjects: readonly EntryObjectModule[] = [
   agentHostPrincipal,
   toolResidencyPrincipal,
   tenantDomainScannerPrincipal,
+  dispatchPrincipal,
   toolReleaseRegistrant,
   toolContributionAuthority,
   toolClock,
@@ -41,6 +40,7 @@ export const entryObjects: readonly EntryObjectModule[] = [
   sessionPrincipals,
   sessionWorkPrincipals,
   sessionModesPrincipals,
+  tenantScopePrincipals,
   requestContextTrust,
   scopedRuntimeContextTrust,
   ...executionAuthorities,
@@ -51,7 +51,6 @@ export const entryObjects: readonly EntryObjectModule[] = [
   identityClock,
   modelClock,
   modelPublicationAuthority,
-  modelConverterAuthority,
   modelHostAuthority,
   storageHost,
   cursorSigning,

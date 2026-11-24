@@ -7,13 +7,6 @@
 ## 入口 `.` · `index.d.ts`
 
 - `Access` · 包 `@omne-harness/legal-identity`
-- `AccountReceipt` · `accounting.d.ts`
-- `AccountReplay` · `accounting.d.ts`
-- `AccountingGeneration` · `refs.d.ts`
-- `AccountingLimits` · `accounting.d.ts`
-- `AccountingOptions` · `accounting.d.ts`
-- `AccountingOrigin` · `accounting.d.ts`
-- `AccountingSourceAuthority` · `accounting.d.ts`
 - `AdoptedRead` · `sources.d.ts`
 - `AdoptedRequestFact` · `values.d.ts`
 - `AdoptedRequestSource` · `sources.d.ts`
@@ -30,7 +23,7 @@
 - `AssemblyReuse` · `reuse.d.ts`
 - `AssemblyUnknown` · `values.d.ts`
 - `BatchRef` · `refs.d.ts`
-- `BlockMaterial` · `values.d.ts`
+- `BlockPosition` · `representation.d.ts`
 - `BudgetBreach` · `values.d.ts`
 - `BudgetInput` · `budget.d.ts`
 - `CachedAssemblyMaterial` · `reuse.d.ts`
@@ -43,25 +36,19 @@
 - `CompactionSettingsValue` · `blocks.d.ts`
 - `ConditionsEvidence` · `values.d.ts`
 - `ContentControl` · `reuse.d.ts`
-- `ContextAccountingInbox` · `accounting.d.ts`
-- `ContextAccountingInput` · `accounting.d.ts`
 - `ContextBlockKey` · 包 `@omne-harness/runtime-context-contract`
 - `ContextGroupSources` · `sources.d.ts`
 - `ContextReadEligibility` · `sources.d.ts`
-- `ContextReadGroup` · `values.d.ts`
-- `ContextRecovery` · `accounting.d.ts`
 - `ContextRegistration` · `sources.d.ts`
 - `ContextRegistryOptions` · `sources.d.ts`
 - `ContextSourceRegistry` · `sources.d.ts`
 - `ContextSources` · `sources.d.ts`
 - `ContextTarget` · `refs.d.ts`
 - `ContinuationBasis` · `values.d.ts`
+- `ContinuationPrefix` · `values.d.ts`
 - `ContributionRejection` · `registry.d.ts`
 - `ContributionResult` · `registry.d.ts`
 - `ContributionsResult` · `registry.d.ts`
-- `ConversionIndex` · `values.d.ts`
-- `ConversionIndexResult` · `ports.d.ts`
-- `ConversionResultSource` · `ports.d.ts`
 - `Coverage` · `values.d.ts`
 - `Decoded` · `schema-primitives.d.ts`
 - `Decoder` · `schema-primitives.d.ts`
@@ -88,13 +75,12 @@
 - `InvalidReason` · `values.d.ts`
 - `LAYER_ORDER` · `values.d.ts`
 - `Layer` · `values.d.ts`
-- `LayerAnchor` · `values.d.ts`
+- `NativeCapability` · `representation.d.ts`
+- `NativeRequirement` · `representation.d.ts`
 - `NewInputBatch` · `values.d.ts`
 - `PREFIX_BREAK_REASONS` · `values.d.ts`
 - `PassageRef` · `refs.d.ts`
 - `Path` · `schema-primitives.d.ts`
-- `Placement` · `placement.d.ts`
-- `PlacementInput` · `placement.d.ts`
 - `PositionRef` · `refs.d.ts`
 - `PrefixBreakReason` · `values.d.ts`
 - `PreparedInputKey` · `values.d.ts`
@@ -110,29 +96,22 @@
 - `PromptSection` · `values.d.ts`
 - `PromptVariable` · `values.d.ts`
 - `REQUEST_CONTEXT_REF_MAX_LENGTH` · `refs.d.ts`
-- `ReceivedAccountFact` · `accounting.d.ts`
-- `RecoveryAuthority` · `accounting.d.ts`
-- `RecoveryGrantRef` · `refs.d.ts`
-- `RecoveryResult` · `accounting.d.ts`
 - `RefKind` · `refs.d.ts`
 - `RefRejection` · `refs.d.ts`
 - `RegistrationRef` · `refs.d.ts`
 - `RegistrationResult` · `sources.d.ts`
 - `RepresentationChoice` · `values.d.ts`
+- `RepresentationOption` · `values.d.ts`
 - `RepresentationPolicyConfig` · `ports.d.ts`
 - `RepresentationPolicyPort` · `ports.d.ts`
 - `RepresentationResult` · `representation.d.ts`
+- `RepresentationSource` · `values.d.ts`
 - `RequestCandidate` · `values.d.ts`
 - `RequestContextRef` · `refs.d.ts`
 - `RequestLayers` · `values.d.ts`
 - `RequestPurpose` · `values.d.ts`
-- `SNAPSHOT_ANCHOR_RULE` · `placement.d.ts`
 - `ScopeRef` · 包 `@omne-harness/runtime-context-contract`
 - `SelectedModel` · `values.d.ts`
-- `SnapshotAnchor` · `values.d.ts`
-- `SnapshotIdentity` · `reuse.d.ts`
-- `SnapshotMaterial` · `values.d.ts`
-- `SnapshotReminder` · `values.d.ts`
 - `SourceDecision` · `sources.d.ts`
 - `SourceGeneration` · `refs.d.ts`
 - `SourceGroupValue` · `sources.d.ts`
@@ -141,8 +120,6 @@
 - `SourceSettlement` · `sources.d.ts`
 - `SourcedMessage` · `values.d.ts`
 - `SystemPromptResult` · `prompt.d.ts`
-- `SystemRecoveryAccess` · `accounting.d.ts`
-- `TailFacts` · `values.d.ts`
 - `TenantModelCall` · `values.d.ts`
 - `ToolAdoption` · `values.d.ts`
 - `ToolCommandSelection` · `values.d.ts`
@@ -150,7 +127,6 @@
 - `ToolRoute` · `values.d.ts`
 - `TransitionEvidence` · `values.d.ts`
 - `UnavailableOwner` · `values.d.ts`
-- `WindowUsageValue` · `blocks.d.ts`
 - `assembleSystemPrompt` · `prompt.d.ts`
 - `callIdentity` · `values.d.ts`
 - `chooseRepresentations` · `representation.d.ts`
@@ -161,7 +137,6 @@
 - `coverageSchema` · `schema.d.ts`
 - `createAssemblyOperations` · `operations.d.ts`
 - `declareTools` · `declare-tools.d.ts`
-- `decodeAccountingGeneration` · `refs.d.ts`
 - `decodeBatchRef` · `refs.d.ts`
 - `decodeCandidateRef` · `refs.d.ts`
 - `decodeCommitOrder` · `refs.d.ts`
@@ -172,22 +147,19 @@
 - `decodePassageRef` · `refs.d.ts`
 - `decodePositionRef` · `refs.d.ts`
 - `decodePrincipalKey` · `refs.d.ts`
-- `decodeRecoveryGrantRef` · `refs.d.ts`
 - `decodeRegistrationRef` · `refs.d.ts`
 - `decodeSourceGeneration` · `refs.d.ts`
 - `encodeFixedRequestRecord` · `fixed-request.d.ts`
-- `forecastOf` · `fixed-request.d.ts`
 - `judgeBudget` · `budget.d.ts`
 - `measureCandidate` · `measurement.d.ts`
-- `placeContext` · `placement.d.ts`
+- `modalityOfBlock` · `representation.d.ts`
+- `nativeRequirement` · `representation.d.ts`
 - `project` · `projection.d.ts`
 - `projectForHuman` · `projection.d.ts`
 - `projectMessageForModel` · `projection.d.ts`
 - `representationPolicyConfigSchema` · `schema.d.ts`
 - `standardSchema` · `schema-primitives.d.ts`
-- `windowRatio` · `blocks.d.ts`
-- `windowUsageBlock` · `blocks.d.ts`
-- `windowUsageSchema` · `blocks.d.ts`
+- `unmetBy` · `representation.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
@@ -210,7 +182,6 @@
 - `MemoryAdoptedSource` · `testing/sources.d.ts`
 - `MemoryContextSources` · `testing/sources.d.ts`
 - `MemoryContextSourcesInput` · `testing/sources.d.ts`
-- `MemoryConversionResults` · `testing/doubles.d.ts`
 - `MemoryHistorySource` · `testing/history-source.d.ts`
 - `MemoryReadEligibility` · `testing/sources.d.ts`
 - `MeterScript` · `testing/doubles.d.ts`
@@ -230,7 +201,6 @@
 - `createAssemblyGroups` · `testing/fixtures.d.ts`
 - `createMemoryAdoptedSource` · `testing/sources.d.ts`
 - `createMemoryContextSources` · `testing/sources.d.ts`
-- `createMemoryConversionResults` · `testing/doubles.d.ts`
 - `createMemoryHistorySource` · `testing/history-source.d.ts`
 - `createMemoryReadEligibility` · `testing/sources.d.ts`
 - `createScriptedCompactionPolicy` · `testing/doubles.d.ts`
@@ -245,137 +215,16 @@
 - `runConformanceCase` · `testing/case.d.ts`
 - `testingAccess` · `testing/fixtures.d.ts`
 
-## 声明文件 `accounting.d.ts`
-
-```ts
-import type * as M from '@omne-harness/model-contract';
-import type { CallAccount } from '@omne-harness/call-account';
-import type { Access, AccountingGeneration, Adoption, ContextTarget, DurableEvidence, RecoveryGrantRef } from './refs.js';
-import type { InvalidReason, TenantModelCall } from './values.js';
-import type { WindowUsageValue } from './blocks.js';
-import type { AdoptedRequestSource, ContextReadEligibility, SourceDecision, SourceRead } from './sources.js';
-export type AccountingOrigin = Readonly<{
-    producer: 'model';
-    sender: Adoption;
-    resultVersion: M.ResultVersion | null;
-}>;
-export type ReceivedAccountFact = Readonly<{
-    kind: 'account';
-    origin: AccountingOrigin;
-    target: ContextTarget;
-    call: TenantModelCall;
-    dispatch: M.DispatchId;
-    account: CallAccount;
-    committed: DurableEvidence;
-}>;
-export type ContextAccountingInput = ReceivedAccountFact;
-export type AccountReceipt = Readonly<{
-    kind: 'received';
-    generation: AccountingGeneration;
-    change: 'inserted' | 'duplicate' | 'superseded';
-}> | Readonly<{
-    kind: 'denied';
-}> | Readonly<{
-    kind: 'conflict';
-    field: string;
-}> | Readonly<{
-    kind: 'invalid';
-    field: string;
-    reason: InvalidReason;
-}> | Readonly<{
-    kind: 'unknown';
-}> | Readonly<{
-    kind: 'unavailable';
-    diagnostic: string;
-}>;
-export interface ContextAccountingInbox<P> {
-    receive(input: Readonly<{
-        access: Access<P>;
-        input: ContextAccountingInput;
-    }>): Promise<AccountReceipt>;
-    usage(input: Readonly<{
-        access: Access<P>;
-        target: ContextTarget;
-    }>): Promise<SourceRead<WindowUsageValue>>;
-}
-export type SystemRecoveryAccess<P> = Readonly<{
-    scope: 'system';
-    principal: P;
-    grant: RecoveryGrantRef;
-}>;
-export type AccountReplay = Readonly<{
-    snapshot: DurableEvidence;
-    facts: AsyncIterable<ContextAccountingInput>;
-}>;
-export type RecoveryResult = Readonly<{
-    kind: 'rebuilt';
-    generation: AccountingGeneration;
-}> | Readonly<{
-    kind: 'denied';
-}> | Readonly<{
-    kind: 'conflict';
-    field: string;
-}> | Readonly<{
-    kind: 'invalid';
-    field: string;
-    reason: InvalidReason;
-}> | Readonly<{
-    kind: 'unknown';
-}> | Readonly<{
-    kind: 'unavailable';
-    diagnostic: string;
-}>;
-export interface ContextRecovery<P> {
-    rebuildAccounts(input: Readonly<{
-        access: SystemRecoveryAccess<P>;
-        target: ContextTarget;
-        replay: AccountReplay;
-    }>): Promise<RecoveryResult>;
-}
-export interface AccountingSourceAuthority<P> {
-    check(input: Readonly<{
-        access: Access<P>;
-        input: ReceivedAccountFact;
-    }>): Promise<SourceDecision>;
-}
-export interface RecoveryAuthority<P> {
-    check(input: Readonly<{
-        access: SystemRecoveryAccess<P>;
-        target: ContextTarget;
-        snapshot: DurableEvidence;
-        operation: 'rebuild-accounts';
-    }>): Promise<SourceDecision>;
-    checkFact(input: Readonly<{
-        access: SystemRecoveryAccess<P>;
-        target: ContextTarget;
-        snapshot: DurableEvidence;
-        input: ReceivedAccountFact;
-    }>): Promise<SourceDecision>;
-}
-export type AccountingLimits = Readonly<{
-    maxTargets: number;
-    maxFactsPerTarget: number;
-    maxRevisionsPerDispatch: number;
-}>;
-export type AccountingOptions<P> = Readonly<{
-    sourceAuthority: AccountingSourceAuthority<P>;
-    readEligibility: ContextReadEligibility<P>;
-    adoptedSource: AdoptedRequestSource<P>;
-    recoveryAuthority: RecoveryAuthority<P>;
-    limits: AccountingLimits;
-}>;
-```
-
 ## 声明文件 `assembly-budget.d.ts`
 
 ```ts
 import type * as M from '@omne-harness/model-contract';
-import type { AssemblyInput, AssemblyFailure, AssemblyUnknown, RequestLayers, FitVerdict } from './values.js';
+import type { AssemblyInput, AssemblyFailure, AssemblyUnknown, FitVerdict } from './values.js';
 import type { StablePreparation } from './preparation.js';
 import type { RepresentationResult } from './representation.js';
 import type { OperationContext } from './operation-context.js';
 import { type ContinuationFacts } from './model-input.js';
-export declare function measureLayers<P>(input: AssemblyInput<P>, context: OperationContext<P>, prepared: StablePreparation, layers: RequestLayers, represented: Extract<RepresentationResult, {
+export declare function measureLayers<P>(input: AssemblyInput<P>, context: OperationContext<P>, prepared: StablePreparation, represented: Extract<RepresentationResult, {
     kind: 'chosen';
 }>, assembled: M.AssembledModelInput, facts: ContinuationFacts): Promise<Readonly<{
     kind: 'measured';
@@ -389,11 +238,10 @@ export declare function measureLayers<P>(input: AssemblyInput<P>, context: Opera
 ```ts
 import type * as M from '@omne-harness/model-contract';
 import type { StablePreparation } from './preparation.js';
-import type { LayeredRequest } from './assembly-layers.js';
 import type { RepresentationResult } from './representation.js';
 import type { AssemblyInput, Coverage, PrefixBreakReason } from './values.js';
 export declare function prefix(coverage: Omit<Coverage, 'prefixBreak'>, previous: Coverage | null, input: AssemblyInput<unknown>): PrefixBreakReason;
-export declare function assemblyCoverage(input: AssemblyInput<unknown>, prepared: StablePreparation, dynamic: LayeredRequest, represented: Extract<RepresentationResult, {
+export declare function assemblyCoverage(input: AssemblyInput<unknown>, prepared: StablePreparation, represented: Extract<RepresentationResult, {
     kind: 'chosen';
 }>, whole: M.RequestBudget): Coverage;
 ```
@@ -401,25 +249,12 @@ export declare function assemblyCoverage(input: AssemblyInput<unknown>, prepared
 ## 声明文件 `assembly-layers.d.ts`
 
 ```ts
-import { type Placement } from './placement.js';
 import type { StablePreparation } from './preparation.js';
-import type { AssemblyFailure } from './values.js';
 import type * as M from '@omne-harness/model-contract';
 import type { Message } from '@omne-harness/message';
 import type { AssemblyInput, RequestLayers } from './values.js';
-import type { SnapshotIdentity, CachedAssemblyMaterial } from './reuse.js';
 export declare function assembledInput<P>(input: AssemblyInput<P>, layers: RequestLayers, messages: readonly Message[]): M.AssembledModelInput;
-export type LayeredRequest = Readonly<{
-    kind: 'layers';
-    layers: RequestLayers;
-    messages: readonly Message[];
-    anchorSource: Placement['anchorSource'];
-    stable: Readonly<{
-        identity: SnapshotIdentity;
-        split: NonNullable<CachedAssemblyMaterial['split']>;
-    }>;
-}>;
-export declare function placeLayers<P>(input: AssemblyInput<P>, prepared: StablePreparation): LayeredRequest | AssemblyFailure;
+export declare function layersOf(prepared: StablePreparation): RequestLayers;
 ```
 
 ## 声明文件 `assembly-outcome.d.ts`
@@ -435,12 +270,12 @@ export declare function assemblyOutcome(input: AssemblyInput<unknown>, candidate
 
 ```ts
 import type { Message } from '@omne-harness/message';
-import type { AssemblyInput, AssemblyFailure, AssemblyUnknown } from './values.js';
+import type { AssemblyInput, AssemblyFailure } from './values.js';
 import type { OperationContext } from './operation-context.js';
 import { type RepresentationResult } from './representation.js';
-export declare function representLayers<P>(input: AssemblyInput<P>, context: OperationContext<P>, messages: readonly Message[]): Promise<Extract<RepresentationResult, {
+export declare function representLayers<P>(input: AssemblyInput<P>, context: OperationContext<P>, messages: readonly Message[]): Extract<RepresentationResult, {
     kind: 'chosen';
-}> | AssemblyFailure | AssemblyUnknown>;
+}> | AssemblyFailure;
 ```
 
 ## 声明文件 `assembly.d.ts`
@@ -460,35 +295,18 @@ export declare function assembleInputs<P>(input: AssemblyInput<P>, key: Prepared
 
 ```ts
 import type { SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract';
-import type { Adoption, CandidateRef } from './refs.js';
+import type { Adoption } from './refs.js';
 import type { CompactionPolicy } from './ports.js';
 export type CompactionSettingsValue = CompactionPolicy & Readonly<{
     policy: Adoption;
 }>;
-export type WindowUsageValue = Readonly<{
-    kind: 'not-fixed';
-}> | Readonly<{
-    kind: 'unmeasured';
-    candidate: CandidateRef;
-    windowTokens: string;
-}> | Readonly<{
-    kind: 'actual' | 'estimate';
-    candidate: CandidateRef;
-    usedTokens: string;
-    windowTokens: string;
-    ratio: string;
-}>;
 declare module '@omne-harness/runtime-context-contract' {
     interface ContextBlocks {
         'context.compaction-settings': CompactionSettingsValue;
-        'context.window-usage': WindowUsageValue;
     }
 }
 export declare const compactionSettingsSchema: import("@standard-schema/spec").StandardSchemaV1<unknown, CompactionSettingsValue>;
-export declare function windowRatio(usedTokens: string, windowTokens: string): string;
-export declare const windowUsageSchema: import("@standard-schema/spec").StandardSchemaV1<unknown, WindowUsageValue>;
 export declare const compactionSettingsBlock: SuppliedBlockDescriptor<'context.compaction-settings', CompactionSettingsValue>;
-export declare const windowUsageBlock: SuppliedBlockDescriptor<'context.window-usage', WindowUsageValue>;
 ```
 
 ## 声明文件 `budget.d.ts`
@@ -529,28 +347,21 @@ export declare function declareTools(tools: readonly ToolAdoption[]): ToolDeclar
 ## 声明文件 `fixed-request.d.ts`
 
 ```ts
-import type * as M from '@omne-harness/model-contract';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { Outcome } from '@omne-harness/operation-result';
 import { type CandidateRef, type ContextTarget } from './refs.js';
-import type { ContinuationBasis, Coverage } from './values.js';
+import type { ContinuationPrefix, Coverage } from './values.js';
 export type FixedRequestRecord = Readonly<{
     schema: 'request-context/fixed-request/1';
     target: ContextTarget;
     candidate: CandidateRef;
     coverage: Coverage;
-    windowTokens: string;
-    forecast: Readonly<{
-        kind: 'estimate';
-        usedTokens: string;
-    }> | null;
-    continuation: ContinuationBasis | null;
+    continuation: ContinuationPrefix | null;
 }>;
 export type FixedRequestRecordRejection = Readonly<{
     field: string;
     reason: 'unsupported-format';
 }>;
-export declare function forecastOf(report: M.RequestBudget): FixedRequestRecord['forecast'];
 export declare function encodeFixedRequestRecord(value: FixedRequestRecord): JsonValue;
 export declare function decodeFixedRequestRecord(value: unknown): Outcome<FixedRequestRecord, FixedRequestRecordRejection>;
 ```
@@ -602,34 +413,31 @@ export type { Path, Decoded, Decoder } from './schema.js';
 export { standardSchema, compactionPolicySchema, representationPolicyConfigSchema, coverageSchema, } from './schema.js';
 export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './declare-tools.js';
 export { declareTools } from './declare-tools.js';
-export type { ConversionIndex, RepresentationResult } from './representation.js';
-export { chooseRepresentations } from './representation.js';
+export type { BlockPosition, NativeCapability, NativeRequirement, RepresentationResult, } from './representation.js';
+export { chooseRepresentations, modalityOfBlock, nativeRequirement, unmetBy, } from './representation.js';
 export type { ProjectedMessage, ProjectedHistory, HumanProjection } from './projection.js';
 export { project, projectForHuman, projectMessageForModel } from './projection.js';
-export type { CompactionSettingsValue, WindowUsageValue } from './blocks.js';
-export { windowRatio, compactionSettingsSchema, windowUsageSchema, compactionSettingsBlock, windowUsageBlock, } from './blocks.js';
+export type { CompactionSettingsValue } from './blocks.js';
+export { compactionSettingsSchema, compactionSettingsBlock } from './blocks.js';
 export type { SystemPromptResult } from './prompt.js';
 export { assembleSystemPrompt } from './prompt.js';
-export type { Placement, PlacementInput } from './placement.js';
-export { SNAPSHOT_ANCHOR_RULE, placeContext } from './placement.js';
-export type { Access, Adoption, DurableEvidence, RequestContextRef, CandidateRef, PositionRef, EpochId, BatchRef, PassageRef, RegistrationRef, SourceGeneration, GroupToken, CommitOrder, AccountingGeneration, RecoveryGrantRef, PrincipalKey, HistorySequence, ContextTarget, RefKind, RefRejection, } from './refs.js';
-export { REQUEST_CONTEXT_REF_MAX_LENGTH, decodeCandidateRef, decodePositionRef, decodeEpochId, decodeBatchRef, decodePassageRef, decodeRegistrationRef, decodeSourceGeneration, decodeGroupToken, decodeCommitOrder, decodeAccountingGeneration, decodeRecoveryGrantRef, decodePrincipalKey, decodeHistorySequence, compareHistorySequence, } from './refs.js';
+export type { Access, Adoption, DurableEvidence, RequestContextRef, CandidateRef, PositionRef, EpochId, BatchRef, PassageRef, RegistrationRef, SourceGeneration, GroupToken, CommitOrder, PrincipalKey, HistorySequence, ContextTarget, RefKind, RefRejection, } from './refs.js';
+export { REQUEST_CONTEXT_REF_MAX_LENGTH, decodeCandidateRef, decodePositionRef, decodeEpochId, decodeBatchRef, decodePassageRef, decodeRegistrationRef, decodeSourceGeneration, decodeGroupToken, decodeCommitOrder, decodePrincipalKey, decodeHistorySequence, compareHistorySequence, } from './refs.js';
 export type { AssemblyPolicies, AssemblyOperations } from './ports.js';
 export type { PreparedInputKey } from './values.js';
 export type { AssemblyOperationsInput } from './operations.js';
 export { createAssemblyOperations } from './operations.js';
-export type { AssemblyReuse, CachedAssemblyMaterial, ContentControl, SnapshotIdentity, } from './reuse.js';
+export type { AssemblyReuse, CachedAssemblyMaterial, ContentControl } from './reuse.js';
 export type { SourceRead, SourceGroupValue, GroupSource, ContextGroupSources, AdoptedRead, AdoptedRequestSource, SourceDecision, ContextReadEligibility, PrincipalBinding, ContextSources, SourceRegistrationAuthority, SourceSettlement, ContextRegistration, RegistrationResult, ContextSourceRegistry, ContextRegistryOptions, } from './sources.js';
 export type { HistoryResolution, HistoryEvidenceResolver } from './history-resolution.js';
-export type { AccountingOrigin, ReceivedAccountFact, ContextAccountingInput, AccountReceipt, ContextAccountingInbox, SystemRecoveryAccess, AccountReplay, RecoveryResult, ContextRecovery, AccountingSourceAuthority, RecoveryAuthority, AccountingLimits, AccountingOptions, } from './accounting.js';
-export type { HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResult, HistorySource, ConversionIndexResult, ConversionResultSource, CompactionPolicy, CompactionPolicyPort, RepresentationPolicyConfig, RepresentationPolicyPort, } from './ports.js';
+export type { HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResult, HistorySource, CompactionPolicy, CompactionPolicyPort, RepresentationPolicyConfig, RepresentationPolicyPort, } from './ports.js';
 export type { BudgetInput } from './budget.js';
 export { judgeBudget } from './budget.js';
 export type { ContributionRejection, ContributionResult, ContributionsResult, PromptContributionRegistry, } from './registry.js';
-export type { RequestPurpose, AssemblyCall, CallIdentity, InputGroups, GroupName, HistoryUpper, HistoryCursor, TenantModelCall, SourcedMessage, ContinuationBasis, AdoptedRequestFact, HistoryEvidence, NewInputBatch, BlockMaterial, SnapshotMaterial, ContextReadGroup, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, LayerAnchor, SnapshotAnchor, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, SnapshotReminder, TailFacts, RequestLayers, RequestCandidate, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, } from './values.js';
+export type { RequestPurpose, AssemblyCall, CallIdentity, InputGroups, GroupName, HistoryUpper, HistoryCursor, TenantModelCall, SourcedMessage, ContinuationBasis, ContinuationPrefix, AdoptedRequestFact, HistoryEvidence, NewInputBatch, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, RepresentationOption, RepresentationSource, RequestLayers, RequestCandidate, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, } from './values.js';
 export { LAYER_ORDER, PREFIX_BREAK_REASONS, callIdentity } from './values.js';
 export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js';
-export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js';
+export { encodeFixedRequestRecord, decodeFixedRequestRecord } from './fixed-request.js';
 export { measureCandidate } from './measurement.js';
 ```
 
@@ -684,9 +492,8 @@ export {};
 ## 声明文件 `input-validation.d.ts`
 
 ```ts
-import type { AssemblyUnknown } from './values.js';
 import type { AssemblyInput, AssemblyFailure } from './values.js';
-export declare function validateInput<P>(input: AssemblyInput<P>): AssemblyFailure | AssemblyUnknown | null;
+export declare function validateInput<P>(input: AssemblyInput<P>): AssemblyFailure | null;
 ```
 
 ## 声明文件 `internal.d.ts`
@@ -698,6 +505,10 @@ export declare function canonical(value: unknown): string;
 export declare function digest(value: unknown): string;
 export declare function adoptionDigest(value: unknown): string;
 export declare function messageId(value: unknown): MessageId;
+export declare function blockIdentity(identity: unknown): {
+    readonly id: import("@omne-harness/content-block").BlockId;
+    readonly visibility: import("@omne-harness/content-block").Visibility;
+};
 export declare function textBlock(text: string, identity: unknown): TextContentBlock;
 export declare function reminder(text: string, identity: unknown): SystemReminderMessage;
 export declare function nonEmpty<T>(xs: readonly T[]): xs is readonly [
@@ -790,51 +601,14 @@ export type AssemblyOperationsInput<P> = Readonly<{
 export declare function createAssemblyOperations<P>(input: AssemblyOperationsInput<P>): AssemblyOperations<P>;
 ```
 
-## 声明文件 `placement.d.ts`
-
-```ts
-import type { ContextReadGroup, Coverage, TransitionEvidence, NewInputBatch, SnapshotReminder, TailFacts, AssemblyFailure } from './values.js';
-import type { ProjectedHistory } from './projection.js';
-import type { SnapshotIdentity } from './reuse.js';
-export declare const SNAPSHOT_ANCHOR_RULE: Readonly<{
-    readonly owner: 'request-context-contract';
-    readonly name: 'snapshot-anchor';
-    readonly revision: '1';
-    readonly at: 'model-visible-history-tail-at-full-read';
-    readonly excludes: 'new-inputs-of-this-request';
-    readonly afterCompaction: 'history-tail-at-resume; after-compaction-record-when-range-reaches-point';
-}>;
-export type Placement = Readonly<{
-    snapshot: SnapshotReminder;
-    identity: SnapshotIdentity;
-    tail: TailFacts;
-    anchorSource: 'new-full-read' | 'adopted' | 'after-compaction';
-}>;
-export type PlacementInput = Readonly<{
-    candidate: import('./refs.js').CandidateRef;
-    contextRead: ContextReadGroup;
-    adopted: Coverage | null;
-    transition: TransitionEvidence | null;
-    view: ProjectedHistory;
-    newInputs: NewInputBatch;
-    cachedSnapshot?: Readonly<{
-        identity: SnapshotIdentity;
-        reminder: SnapshotReminder;
-    }> | null;
-}>;
-export declare function placeContext(input: PlacementInput): Placement | Extract<AssemblyFailure, {
-    kind: 'invalid';
-}>;
-```
-
 ## 声明文件 `ports.d.ts`
 
 ```ts
 import type * as M from '@omne-harness/model-contract';
 import type { CompactionContext, RecordEntryRef } from '@omne-harness/message';
-import type { ContentBlock, BlockId } from '@omne-harness/content-block';
-import type { Access, Adoption, ContextTarget } from './refs.js';
-import type { AssemblyCall, AssemblyResult, HistoryCursor, HistoryEvidence, InvalidReason, ConversionIndex, RepresentationChoice } from './values.js';
+import type { ContentBlock } from '@omne-harness/content-block';
+import type { Access, Adoption } from './refs.js';
+import type { AssemblyCall, AssemblyResult, HistoryCursor, HistoryEvidence, InvalidReason, RepresentationOption } from './values.js';
 export type { HistoryRow } from './values.js';
 import type { HistoryRow } from './values.js';
 export type HistoryPage = Readonly<{
@@ -888,24 +662,6 @@ export interface HistorySource<P> {
         coverTo: RecordEntryRef | null;
     }>): Promise<CompactionContextResult>;
 }
-export type ConversionIndexResult = Readonly<{
-    kind: 'index';
-    entries: ConversionIndex;
-}> | Readonly<{
-    kind: 'denied';
-}> | PortInvalid | Readonly<{
-    kind: 'unknown';
-}> | Readonly<{
-    kind: 'unavailable';
-    diagnostic: string;
-}>;
-export interface ConversionResultSource<P> {
-    read(input: Readonly<{
-        access: Access<P>;
-        target: ContextTarget;
-        blocks: readonly BlockId[];
-    }>): Promise<ConversionIndexResult>;
-}
 export type CompactionPolicy = Readonly<{
     triggerPercent: string | null;
     headroomTokens: string | null;
@@ -923,9 +679,8 @@ export interface RepresentationPolicyPort {
     readonly config: RepresentationPolicyConfig;
     choose(input: Readonly<{
         block: ContentBlock;
-        conversion: M.ConversionResult | null;
-        modalities: readonly M.ModelModality[];
-    }>): RepresentationChoice['choice'] | 'none';
+        available: readonly RepresentationOption[];
+    }>): RepresentationOption | 'none';
 }
 export type AssemblyPolicies = Readonly<{
     compaction: CompactionPolicyPort;
@@ -1005,7 +760,7 @@ export type SystemPromptResult = Readonly<{
     digest: string;
 }> | Readonly<{
     kind: 'invalid';
-    reason: 'per-request-variable' | 'duplicate-name' | 'unknown-variable';
+    reason: 'duplicate-name' | 'unknown-variable';
     name: string;
     scope: ScopeRef | null;
 }>;
@@ -1033,15 +788,13 @@ export type RegistrationRef = RequestContextRef<'RegistrationRef'>;
 export type SourceGeneration = RequestContextRef<'SourceGeneration'>;
 export type GroupToken = RequestContextRef<'GroupToken'>;
 export type CommitOrder = RequestContextRef<'CommitOrder'>;
-export type AccountingGeneration = RequestContextRef<'AccountingGeneration'>;
-export type RecoveryGrantRef = RequestContextRef<'RecoveryGrantRef'>;
 export type PrincipalKey = RequestContextRef<'PrincipalKey'>;
 export type HistorySequence = RequestContextRef<'HistorySequence'>;
 export type ContextTarget = Readonly<{
     tenant: TenantId;
     scope: ScopeRef;
 }>;
-export type RefKind = 'CandidateRef' | 'PositionRef' | 'EpochId' | 'BatchRef' | 'PassageRef' | 'RegistrationRef' | 'SourceGeneration' | 'GroupToken' | 'CommitOrder' | 'AccountingGeneration' | 'RecoveryGrantRef' | 'PrincipalKey' | 'HistorySequence';
+export type RefKind = 'CandidateRef' | 'PositionRef' | 'EpochId' | 'BatchRef' | 'PassageRef' | 'RegistrationRef' | 'SourceGeneration' | 'GroupToken' | 'CommitOrder' | 'PrincipalKey' | 'HistorySequence';
 export type RefRejection = Readonly<{
     field: RefKind;
     reason: 'type' | 'empty' | 'length' | 'character';
@@ -1083,14 +836,6 @@ export declare const decodeCommitOrder: (v: unknown) => Outcome<RequestContextRe
     field: RefKind;
     reason: 'type' | 'empty' | 'length' | 'character';
 }>>;
-export declare const decodeAccountingGeneration: (v: unknown) => Outcome<RequestContextRef<"AccountingGeneration">, Readonly<{
-    field: RefKind;
-    reason: 'type' | 'empty' | 'length' | 'character';
-}>>;
-export declare const decodeRecoveryGrantRef: (v: unknown) => Outcome<RequestContextRef<"RecoveryGrantRef">, Readonly<{
-    field: RefKind;
-    reason: 'type' | 'empty' | 'length' | 'character';
-}>>;
 export declare const decodePrincipalKey: (v: unknown) => Outcome<RequestContextRef<"PrincipalKey">, Readonly<{
     field: RefKind;
     reason: 'type' | 'empty' | 'length' | 'character';
@@ -1107,7 +852,7 @@ export declare function compareHistorySequence(left: HistorySequence, right: His
 ```ts
 import type { ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { PromptSection, PromptVariable, PromptContributionSet } from './values.js';
-export type ContributionRejection = 'no-scope' | 'duplicate-name' | 'per-request-variable' | 'unknown-variable' | 'closed';
+export type ContributionRejection = 'no-scope' | 'duplicate-name' | 'unknown-variable' | 'closed';
 export type ContributionResult = Readonly<{
     kind: 'registered';
     name: string;
@@ -1137,12 +882,12 @@ export interface PromptContributionRegistry {
 
 ```ts
 import type * as M from '@omne-harness/model-contract';
-import { type BlockId, type ContentReference } from '@omne-harness/content-block';
+import { type ContentBlock, type BlockId, type ContentReference } from '@omne-harness/content-block';
 import { type Message, type MessageId } from '@omne-harness/message';
+import { type Modality } from '@omne-harness/modality';
 import type { RepresentationChoice } from './values.js';
 import type { RepresentationPolicyPort } from './ports.js';
-export type { ConversionIndex } from './values.js';
-import type { ConversionIndex } from './values.js';
+export type NativeCapability = Pick<M.ModelProfileDefinition, 'input' | 'fileTypes'>;
 export type RepresentationResult = Readonly<{
     kind: 'chosen';
     choices: readonly RepresentationChoice[];
@@ -1151,17 +896,35 @@ export type RepresentationResult = Readonly<{
     deferred: readonly ContentReference[];
 }> | Readonly<{
     kind: 'unavailable';
+    reason: 'modality';
     block: BlockId;
     message: MessageId;
-    original: M.ConversionResult;
 }>;
+type Need = Readonly<{
+    modality: Modality;
+}> | Readonly<{
+    fileType: string;
+}>;
+export type BlockPosition = Readonly<{
+    message: MessageId;
+    block: BlockId;
+    needs: Need;
+}>;
+export type NativeRequirement = Readonly<{
+    modalities: readonly Modality[];
+    fileTypes: readonly string[];
+    blocks: readonly BlockPosition[];
+}>;
+export declare function modalityOfBlock(block: ContentBlock): Modality | null;
 type RepresentationInput = Readonly<{
     messages: readonly Message[];
-    conversions: ConversionIndex;
-    modalities: readonly M.ModelModality[];
+    capability: NativeCapability;
     policy: RepresentationPolicyPort;
 }>;
 export declare function chooseRepresentations(input: RepresentationInput): RepresentationResult;
+export declare function nativeRequirement(messages: readonly Message[]): NativeRequirement;
+export declare function unmetBy(requirement: NativeRequirement, capability: NativeCapability): readonly BlockPosition[];
+export {};
 ```
 
 ## 声明文件 `resume.d.ts`
@@ -1185,8 +948,7 @@ import type { ProjectedHistory } from './projection.js';
 import type { SystemPromptResult } from './prompt.js';
 import type { ContextTarget, GroupToken, PassageRef, PositionRef, PrincipalKey } from './refs.js';
 import type { HistoryRow } from './ports.js';
-import type { AlterationEvidence, AssemblyContext, ConditionsEvidence, HistoryEvidence, PreparedInputKey, ProjectedMessage, RequestPurpose, SnapshotAnchor, SnapshotReminder } from './values.js';
-import type { EligibilityId, ScopeRef, ViewRevision } from '@omne-harness/runtime-context-contract';
+import type { AlterationEvidence, AssemblyContext, ConditionsEvidence, HistoryEvidence, PreparedInputKey, RequestPurpose } from './values.js';
 export type CachedAssemblyMaterial = Readonly<{
     target: ContextTarget;
     key: PreparedInputKey;
@@ -1207,22 +969,7 @@ export type CachedAssemblyMaterial = Readonly<{
         token: GroupToken;
         declarations: ToolDeclarationSet;
     }>;
-    snapshot: Readonly<{
-        identity: SnapshotIdentity;
-        reminder: SnapshotReminder;
-    }> | null;
-    split: Readonly<{
-        anchor: SnapshotAnchor;
-        head: readonly ProjectedMessage[];
-        body: readonly ProjectedMessage[];
-    }>;
     contentControl: ContentControl;
-}>;
-export type SnapshotIdentity = Readonly<{
-    scope: ScopeRef['ref'];
-    eligibility: EligibilityId;
-    viewRevision: ViewRevision;
-    anchor: SnapshotAnchor;
 }>;
 export type ContentControl = Readonly<{
     conditions: ConditionsEvidence;
@@ -1297,7 +1044,7 @@ export declare const coverageSchema: import("@standard-schema/spec").StandardSch
     history: Readonly<{
         epoch: import("./refs.ts").EpochId;
         upper: import("./values.js").HistoryUpper;
-        anchors: readonly import("./values.js").LayerAnchor[];
+        prefixDigest: string | null;
     }>;
     compactions: Readonly<{
         record: import("@omne-harness/message").RecordEntryRef | null;
@@ -1306,13 +1053,6 @@ export declare const coverageSchema: import("@standard-schema/spec").StandardSch
     inputs: Readonly<{
         batch: import("./refs.ts").BatchRef;
         saved: import("@omne-harness/exchange-refs").DurableEvidence | null;
-    }>;
-    snapshot: Readonly<{
-        scope: import("@omne-harness/runtime-context-contract").ScopeRef;
-        eligibility: import("@omne-harness/runtime-context-contract").EligibilityId;
-        revision: import("@omne-harness/runtime-context-contract").ViewRevision;
-        anchor: import("./values.js").SnapshotAnchor;
-        content: 'full' | 'incremental';
     }>;
     prompt: Readonly<{
         sections: readonly Readonly<{
@@ -1355,7 +1095,7 @@ export declare const coverageSchema: import("@standard-schema/spec").StandardSch
 import type * as M from '@omne-harness/model-contract';
 import type { Access, Adoption, ContextTarget, GroupToken, PrincipalKey, RegistrationRef, SourceGeneration } from './refs.js';
 import type { AdoptedRequestFact, AssemblyCall, GroupName, InputGroups, InvalidReason } from './values.js';
-import type { AssemblyOperations, AssemblyPolicies, ConversionResultSource, HistorySource } from './ports.js';
+import type { AssemblyOperations, AssemblyPolicies, HistorySource } from './ports.js';
 export type SourceRead<T> = Readonly<{
     kind: 'value';
     value: T;
@@ -1371,7 +1111,7 @@ export type SourceRead<T> = Readonly<{
     kind: 'unavailable';
     diagnostic: string;
 }>;
-export type SourceGroupValue<P, K extends GroupName> = K extends 'context' ? Omit<InputGroups<P>['context'], 'adopted'> : InputGroups<P>[K];
+export type SourceGroupValue<P, K extends GroupName> = K extends 'history' ? Omit<InputGroups<P>['history'], 'adopted'> : InputGroups<P>[K];
 export interface GroupSource<P, K extends GroupName> {
     readCount(call: AssemblyCall<P>): Promise<SourceRead<GroupToken>>;
     readSource(call: AssemblyCall<P>): Promise<SourceRead<SourceGroupValue<P, K>>>;
@@ -1402,7 +1142,7 @@ export interface ContextReadEligibility<P> {
     check(input: Readonly<{
         access: Access<P>;
         target: ContextTarget;
-        operation: 'history' | 'conversions' | 'assembly' | 'accounts';
+        operation: 'history' | 'assembly';
     }>): Promise<Readonly<{
         kind: 'allowed';
         revision: GroupToken;
@@ -1422,7 +1162,6 @@ export type ContextSources<P> = Readonly<{
     groups: ContextGroupSources<P>;
     adopted: AdoptedRequestSource<P>;
     history: HistorySource<P>;
-    conversions: ConversionResultSource<P>;
     eligibility: ContextReadEligibility<P>;
     preparation: M.ModelPreparationResources<P>;
 }>;
@@ -1545,11 +1284,8 @@ export declare const REQUEST_CONTEXT_OBLIGATIONS: readonly [
     'same-input-is-deterministic',
     'fixed-overflow-is-outcome',
     'unknown-limits-remain-candidates',
-    'resume-full-snapshot-required',
-    'incremental-material-required',
     'carried-content-reuses-history',
     'entered-plan-changes-outcome',
-    'tail-facts-never-enter-snapshot',
     'pages-share-evidence',
     'unknown-source-not-empty',
     'unstable-group-is-unavailable',
@@ -1589,8 +1325,7 @@ export {};
 ```ts
 import type * as M from '@omne-harness/model-contract';
 import type { Outcome } from '@omne-harness/operation-result';
-import type { BlockId } from '@omne-harness/content-block';
-import type { ConversionResultSource, CompactionPolicyPort, RepresentationPolicyPort, CompactionPolicy, RepresentationPolicyConfig } from '../ports.js';
+import type { CompactionPolicyPort, RepresentationPolicyPort, CompactionPolicy, RepresentationPolicyConfig } from '../ports.js';
 export type MeterScript = (input: Parameters<M.ModelInputMeter['measure']>[0]) => Outcome<M.RequestBudget, M.TransportFailure> | Promise<Outcome<M.RequestBudget, M.TransportFailure>>;
 export interface ScriptedInputMeter extends M.ModelInputMeter {
     readonly durability: 'none';
@@ -1618,11 +1353,6 @@ export interface ScriptedPreparationResources<P> extends M.ModelPreparationResou
     outstanding(): number;
 }
 export declare function createScriptedPreparationResources<P>(script: PreparationScript): ScriptedPreparationResources<P>;
-export interface MemoryConversionResults<P> extends ConversionResultSource<P> {
-    readonly durability: 'none';
-    set(block: BlockId, result: M.ConversionResult): void;
-}
-export declare function createMemoryConversionResults<P>(initial?: ReadonlyMap<BlockId, M.ConversionResult>): MemoryConversionResults<P>;
 export declare const FIXTURE_COMPACTION_POLICY: CompactionPolicy;
 export declare const FIXTURE_REPRESENTATION_CONFIG: RepresentationPolicyConfig;
 export declare function createScriptedCompactionPolicy(config?: CompactionPolicy): CompactionPolicyPort & Readonly<{
@@ -1744,8 +1474,8 @@ export {};
 ```ts
 export { createMemoryHistorySource } from './history-source.js';
 export type { MemoryHistorySource, HistoryFixture, HistoryFixtureRow } from './history-source.js';
-export { createScriptedInputMeter, createScriptedPreparationResources, createMemoryConversionResults, createScriptedCompactionPolicy, createScriptedRepresentationPolicy, FIXTURE_COMPACTION_POLICY, FIXTURE_REPRESENTATION_CONFIG, } from './doubles.js';
-export type { MeterScript, ScriptedInputMeter, MemoryConversionResults, PreparationCall, PreparationScript, ScriptedPreparationResources, } from './doubles.js';
+export { createScriptedInputMeter, createScriptedPreparationResources, createScriptedCompactionPolicy, createScriptedRepresentationPolicy, FIXTURE_COMPACTION_POLICY, FIXTURE_REPRESENTATION_CONFIG, } from './doubles.js';
+export type { MeterScript, ScriptedInputMeter, PreparationCall, PreparationScript, ScriptedPreparationResources, } from './doubles.js';
 export { createMemoryContextSources, createMemoryAdoptedSource, createMemoryReadEligibility, createTestingPrincipalBinding, } from './sources.js';
 export type { AssemblyGroupValues, MemoryContextSources, MemoryContextSourcesInput, MemoryAdoptedSource, MemoryReadEligibility, } from './sources.js';
 export type { AssemblyFixture, AssemblyFixtureOptions } from './fixtures.js';
@@ -1765,7 +1495,7 @@ export { NotApplicable } from './case.js';
 import type * as M from '@omne-harness/model-contract';
 import { type Adoption, type ContextTarget } from '../refs.js';
 import type { AdoptedRequestFact, GroupName } from '../values.js';
-import type { ConversionResultSource, HistorySource } from '../ports.js';
+import type { HistorySource } from '../ports.js';
 import type { AdoptedRequestSource, ContextReadEligibility, ContextSources, PrincipalBinding, SourceGroupValue, SourceRead } from '../sources.js';
 type SourceGroup = Exclude<GroupName, 'identity'>;
 type Failed = Exclude<SourceRead<never>, {
@@ -1803,7 +1533,6 @@ export type MemoryContextSourcesInput<P> = Readonly<{
     target: ContextTarget;
     values: AssemblyGroupValues<P>;
     history: HistorySource<P>;
-    conversions: ConversionResultSource<P>;
     preparation: M.ModelPreparationResources<P>;
     adopted?: AdoptedRequestSource<P>;
     eligibility?: ContextReadEligibility<P>;
@@ -1816,11 +1545,11 @@ export {};
 
 ```ts
 import type { Access, Adoption, DurableEvidence, EpochId, BatchRef, CandidateRef, PositionRef, PassageRef, ContextTarget, HistorySequence, CommitOrder, PrincipalKey, GroupToken, SourceGeneration } from './refs.js';
-import type { ScopeRef, ContextBlockKey, SnapshotResult, ChangesResult, BlockRevision, ViewRevision, EligibilityId, BlockValue, BlockDescriptorBase } from '@omne-harness/runtime-context-contract';
+import type { ScopeRef } from '@omne-harness/runtime-context-contract';
 import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
 import type { Message, RecordEntryRef } from '@omne-harness/message';
-import type { ContentBlock, BlockId, ContentReference } from '@omne-harness/content-block';
+import type { ContentBlock, BlockId, ContentReference, RepresentationSnapshot } from '@omne-harness/content-block';
 export type RequestPurpose = 'main' | 'extension';
 export type HistoryUpper = Readonly<{
     kind: 'empty';
@@ -1857,28 +1586,6 @@ export type NewInputBatch = Readonly<{
     entries: readonly RecordEntryRef[];
     saved: DurableEvidence | null;
 }>;
-export type BlockMaterial<K extends ContextBlockKey = ContextBlockKey> = Readonly<{
-    key: K;
-    revision: BlockRevision;
-    value: BlockValue<K>;
-    previous: unknown | null;
-    volatility: BlockDescriptorBase<K, BlockValue<K>>['volatility'];
-}>;
-export type SnapshotMaterial = Readonly<{
-    scope: ScopeRef;
-    eligibility: EligibilityId;
-    revision: ViewRevision;
-    blocks: readonly BlockMaterial[];
-}>;
-export type ContextReadGroup = Readonly<{
-    scope: ScopeRef;
-    recipient: string;
-    read: SnapshotResult | ChangesResult;
-    snapshot: SnapshotMaterial | null;
-    perRequest: readonly BlockMaterial[];
-    source: DurableEvidence;
-    coverage: DurableEvidence;
-}>;
 export type AssemblyContext = Readonly<{
     scope: ScopeRef;
     definition: string | null;
@@ -1900,7 +1607,6 @@ export type PromptSection = PromptContributionBase & Readonly<{
 export type PromptVariable = PromptContributionBase & Readonly<{
     kind: 'variable';
     value: string;
-    volatility: 'stable' | 'per-request';
 }>;
 export type PromptContribution = PromptSection | PromptVariable;
 export type PromptContributionSet = Readonly<{
@@ -1955,7 +1661,6 @@ export type AssemblyInput<P> = Readonly<{
     }>;
     history: HistoryEvidence;
     inputs: NewInputBatch;
-    contextRead: ContextReadGroup;
     adopted: AdoptedRequestFact | null;
     transition: TransitionEvidence | null;
     promptContributions: PromptContributionSet | null;
@@ -1972,9 +1677,6 @@ export type InputGroups<P> = Readonly<{
     history: Readonly<{
         evidence: HistoryEvidence;
         inputs: NewInputBatch;
-    }>;
-    context: Readonly<{
-        contextRead: ContextReadGroup;
         adopted: AdoptedRequestFact | null;
         transition: TransitionEvidence | null;
     }>;
@@ -2004,6 +1706,7 @@ export type ContinuationBasis = Readonly<{
     replay: DurableEvidence;
     visibility: DurableEvidence;
 }>;
+export type ContinuationPrefix = Omit<ContinuationBasis, 'call' | 'fixed'>;
 export type AdoptedRequestFact = Readonly<{
     coverage: Coverage;
     target: ContextTarget;
@@ -2011,17 +1714,6 @@ export type AdoptedRequestFact = Readonly<{
     candidate: CandidateRef;
     order: CommitOrder;
     committed: DurableEvidence;
-    windowTokens: string;
-    accounting: Readonly<{
-        kind: 'unique';
-        dispatch: M.DispatchId;
-    }> | Readonly<{
-        kind: 'unsettled' | 'multiple';
-    }>;
-    forecast: Readonly<{
-        kind: 'estimate';
-        usedTokens: string;
-    }> | null;
     continuation: ContinuationBasis | null;
 }>;
 export type TransitionEvidence = Readonly<{
@@ -2032,14 +1724,10 @@ export type TransitionEvidence = Readonly<{
 export declare const LAYER_ORDER: readonly [
     "system-prompt",
     "tool-declarations",
-    "history-head",
-    "snapshot-reminder",
-    "history-body",
-    "tail-facts"
+    "history"
 ];
 export type Layer = (typeof LAYER_ORDER)[number];
 export declare const PREFIX_BREAK_REASONS: readonly [
-    "new-full-read",
     "system-prompt-changed",
     "tool-set-changed",
     "compaction",
@@ -2048,21 +1736,11 @@ export declare const PREFIX_BREAK_REASONS: readonly [
     "unchanged"
 ];
 export type PrefixBreakReason = (typeof PREFIX_BREAK_REASONS)[number];
-export type LayerAnchor = Readonly<{
-    layer: Extract<Layer, 'history-head' | 'snapshot-reminder' | 'history-body'>;
-    seq: HistorySequence;
-    prefixDigest: string;
-}>;
-export type SnapshotAnchor = Readonly<{
-    epoch: EpochId;
-    position: HistoryUpper;
-    prefixDigest: string | null;
-}>;
 export type Coverage = Readonly<{
     history: Readonly<{
         epoch: EpochId;
         upper: HistoryUpper;
-        anchors: readonly LayerAnchor[];
+        prefixDigest: string | null;
     }>;
     compactions: Readonly<{
         record: RecordEntryRef | null;
@@ -2071,13 +1749,6 @@ export type Coverage = Readonly<{
     inputs: Readonly<{
         batch: BatchRef;
         saved: DurableEvidence | null;
-    }>;
-    snapshot: Readonly<{
-        scope: ScopeRef;
-        eligibility: EligibilityId;
-        revision: ViewRevision;
-        anchor: SnapshotAnchor;
-        content: 'full' | 'incremental';
     }>;
     prompt: Readonly<{
         sections: readonly Readonly<{
@@ -2141,32 +1812,19 @@ export type FitVerdict = Readonly<{
         ...M.BudgetCheck[]
     ];
 }>;
+export type RepresentationOption = 'original' | 'derived' | 'transcript';
+export type RepresentationSource = Pick<RepresentationSnapshot, 'definition' | 'engine'>;
 export type RepresentationChoice = Readonly<{
     message: import('@omne-harness/message').MessageId;
     block: BlockId;
-    choice: 'original' | 'derived' | 'transcript' | 'pending-load';
-    converter: Adoption | null;
+    choice: RepresentationOption;
+    source: RepresentationSource | null;
     mediaType: string | null;
-}>;
-export type SnapshotReminder = Readonly<{
-    scope: ScopeRef;
-    eligibility: EligibilityId;
-    revision: ViewRevision;
-    anchor: SnapshotAnchor;
-    blocks: readonly BlockMaterial[];
-    message: import('@omne-harness/message').SystemReminderMessage | null;
-}>;
-export type TailFacts = Readonly<{
-    blocks: readonly BlockMaterial[];
-    message: import('@omne-harness/message').SystemReminderMessage | null;
 }>;
 export type RequestLayers = Readonly<{
     systemPrompt: readonly ContentBlock[];
     toolDeclarations: ToolDeclarationSet;
-    historyHead: readonly Message[];
-    snapshotReminder: SnapshotReminder;
-    historyBody: readonly Message[];
-    tailFacts: TailFacts;
+    history: readonly Message[];
 }>;
 export type RequestCandidate = Readonly<{
     preparation: Readonly<{
@@ -2183,11 +1841,11 @@ export type RequestCandidate = Readonly<{
     representations: readonly RepresentationChoice[];
     assembled: M.AssembledModelInput;
     modality: M.ModalityRequirement | null;
-    continuation: Omit<ContinuationBasis, 'call' | 'fixed'>;
+    continuation: ContinuationPrefix;
 }>;
 export type AssemblyFailure = Readonly<{
     kind: 'denied';
-    action: 'read-history' | 'read-conversions' | 'assemble' | 'read-inputs' | 'read-accounts';
+    action: 'read-history' | 'assemble' | 'read-inputs' | 'read-accounts';
     diagnostic: string;
 }> | Readonly<{
     kind: 'invalid';
@@ -2197,10 +1855,13 @@ export type AssemblyFailure = Readonly<{
     kind: 'unavailable';
     owner: UnavailableOwner;
     diagnostic: string;
-    original?: M.ConversionResult;
+    block?: Readonly<{
+        message: import('@omne-harness/message').MessageId;
+        block: BlockId;
+    }>;
 }>;
-export type InvalidReason = 'missing-input' | 'missing-access' | 'missing-scope' | 'inputs-not-saved' | 'missing-snapshot-material' | 'missing-assembly-context' | 'unsupported-format' | 'compaction-purpose' | 'per-request-variable' | 'profile-binding-conflict' | 'resume-without-full-snapshot' | 'scope-mismatch' | 'contradictory-retry' | 'contributions-not-accepted' | 'cursor-invalidated' | 'transition-mismatch' | 'tenant-mismatch' | 'unknown-epoch' | 'upper-out-of-range' | 'source-evidence-conflict' | 'invalid-account';
-export type UnavailableOwner = 'history-source' | 'meter' | 'conversion-results' | 'runtime-context' | 'representation' | 'compaction-policy' | 'instance' | 'source-registry' | 'input-source' | 'principal-binding' | 'read-eligibility' | 'preparation' | 'accounting';
+export type InvalidReason = 'missing-input' | 'missing-access' | 'missing-scope' | 'inputs-not-saved' | 'missing-assembly-context' | 'unsupported-format' | 'compaction-purpose' | 'profile-binding-conflict' | 'scope-mismatch' | 'contradictory-retry' | 'contributions-not-accepted' | 'cursor-invalidated' | 'transition-mismatch' | 'tenant-mismatch' | 'unknown-epoch' | 'upper-out-of-range' | 'source-evidence-conflict';
+export type UnavailableOwner = 'history-source' | 'meter' | 'representation' | 'compaction-policy' | 'instance' | 'source-registry' | 'input-source' | 'principal-binding' | 'read-eligibility' | 'preparation';
 export type AssemblyUnknown = Readonly<{
     kind: 'unknown';
     source: 'read' | 'commit';
@@ -2278,5 +1939,4 @@ export type ProjectedHistory = Readonly<{
         entry: RecordEntryRef;
     }> | null;
 }>;
-export type ConversionIndex = ReadonlyMap<BlockId, M.ConversionResult>;
 ```

@@ -11,9 +11,11 @@ import {
   type ExecutionBatch,
   type ExecutionEvent,
   type ExecutionFact,
+  type ExecutionTombstone,
 } from '@omne-harness/session-storage-sql/participants'
 import type { DomainRef, JsonValue, ReadRequest, SqlStorage } from '@omne-harness/sql-contract'
 import { decodeRows, type FactRow, type PublishedBatch } from '../journal/index.ts'
+import { standingOf, type GenerationStanding } from '../journal-commit.ts'
 
 export const READ_ATTEMPTS = 3
 
@@ -126,6 +128,7 @@ export async function readTouched(read: Reader, scope: Scope, after: number): Pr
       published = page.published
       for (const stored of page.batches)
         for (const fact of stored.facts) executions.add(fact.execution)
+      for (const reclaimed of page.reclaimed ?? []) executions.add(reclaimed.execution)
       if (page.next === null) return { kind: 'read', published: Number(published), executions }
       from = page.next
     }
@@ -171,7 +174,7 @@ export type EventsRead =
   | Readonly<{
       kind: 'read'
       revision: string
-      receipt: JsonValue
+      receipt: NonNullable<JsonValue>
       emittedThrough: string
       ended: JsonValue
       events: readonly ExecutionEvent[]
@@ -228,6 +231,7 @@ export async function readEvents(
           return unread(
             `the events of the execution end at sequence ${String(through)}, before ${head.emittedThrough}`,
           )
+        if (head.receipt === null) return unread('the execution has no head receipt')
         return {
           kind: 'read',
           revision: head.revision,
@@ -246,6 +250,13 @@ export async function readEvents(
 
 export type OperationRead =
   | Readonly<{ kind: 'read'; session: string; execution: AgentExecutionId; batch: ReadBatch }>
+  | Readonly<{
+      kind: 'reclaimed'
+      session: string
+      execution: AgentExecutionId
+      published: string
+      tombstone: ExecutionTombstone
+    }>
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
@@ -264,6 +275,14 @@ export async function readOperation(
   if (decoded === null) return { kind: 'none' }
   if (decoded === 'malformed')
     return { kind: 'unavailable', diagnostic: 'the batch of the operation does not decode' }
+  if (decoded.reclaimed !== undefined)
+    return {
+      kind: 'reclaimed',
+      session: decoded.session,
+      execution: decoded.execution as AgentExecutionId,
+      published: decoded.published,
+      tombstone: decoded.reclaimed,
+    }
   const split = splitBatch(
     { tenant, session: decoded.session },
     { published: decoded.published, operation, facts: decoded.facts },
@@ -278,13 +297,32 @@ export async function readOperation(
   }
 }
 
+export async function recordedStanding(
+  storage: SqlStorage,
+  domain: DomainRef,
+  tenant: string,
+  held: Readonly<{ storageOperation: string; attempt: number }>,
+): Promise<GenerationStanding> {
+  const { storageOperation, attempt } = held
+  const standing = await standingOf(storage, domain, storageOperation, attempt, 'never')
+  if (standing !== 'settled') return standing
+  const found = await readOperation(
+    readerOf(storage, domain),
+    tenant,
+    storageOperation as AgentOperationId,
+  )
+  if (found.kind === 'read' || found.kind === 'reclaimed') return 'committed'
+  return found.kind === 'none' ? 'not-run' : 'unknown'
+}
+
 // The payload of a block; null when the store does not hold it or does not answer.
 export async function readBlob(
   read: Reader,
   tenant: string,
+  execution: string,
   digest: string,
 ): Promise<string | null> {
-  const output = await read(EXECUTION_RECORD_HANDLERS.blob, { tenant, digest })
+  const output = await read(EXECUTION_RECORD_HANDLERS.blob, { tenant, execution, digest })
   if (output.kind === 'unread') return null
   const decoded = decodeExecutionRecordBlob(output.output)
   return decoded?.kind === 'blob' ? decoded.payload : null

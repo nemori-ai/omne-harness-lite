@@ -21,9 +21,10 @@ import {
   operationId,
   succeeded,
   userMessage,
+  TESTING_SOURCES,
 } from '@omne-harness/session-contract/testing'
 import {
-  BACKGROUND_INPUT_OWNER,
+  BACKGROUND_OUTCOME_EVIDENCE_OWNER,
   backgroundInputId,
   judgeBackgroundOutcome,
 } from '../src/background-outcome.ts'
@@ -43,6 +44,7 @@ import {
   observation,
   outcome,
   producer,
+  acceptedReminder,
   reminder,
   type Scene,
 } from './background-scene.ts'
@@ -200,14 +202,14 @@ describe('a backgrounded call: the outcome becomes one input', () => {
       input,
       destination: 'current-run',
       run: c.run,
-      origin: { owner: BACKGROUND_INPUT_OWNER },
+      origin: { owner: BACKGROUND_OUTCOME_EVIDENCE_OWNER },
     })
     const after = await c.s.read()
     expect(after.backgroundPlaceholders).toEqual([])
     expect(after.pending).toContain(input)
-    expect(after.backgroundInputs).toEqual([input])
+    expect(after.uncountedInputs).toEqual([input])
     const stored = succeeded(await c.s.port.readInput({ ...c.s.access, input }), 'readInput')
-    expect(stored.message).toEqual(reminder())
+    expect(stored.message).toEqual(acceptedReminder())
   })
 
   it('takes the placeholder and the outcome from one batch', async () => {
@@ -306,6 +308,16 @@ describe('a backgrounded call: the outcome with no Run', () => {
     succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'outcome')
     return c
   }
+
+  it('the call is no longer open work once its outcome came, though the Agent never processed the placeholder', async () => {
+    const c = await cancelled()
+    const snapshot = await c.s.read()
+    expect(snapshot.run.kind).toBe('terminal')
+    expect(snapshot.consumptions.map(item => item.id)).not.toContain(c.consumption)
+    expect((snapshot.callRegistrations ?? []).map(item => item.consumption)).not.toContain(
+      c.consumption,
+    )
+  })
 
   it('routes the reminder to the next Run', async () => {
     const c = await cancelled()
@@ -441,7 +453,7 @@ describe('system inputs and the pending budget', () => {
     const user = 'in-user' as InputId
     const system = 'in-system' as InputId
     expect(
-      pendingIntakeCount({ pending: [user, system], handed: [], backgroundInputs: [system] }),
+      pendingIntakeCount({ pending: [user, system], handed: [], uncountedInputs: [system] }),
     ).toBe(1)
     expect(pendingIntakeCount({ pending: [user, system], handed: [] })).toBe(2)
   })
@@ -452,7 +464,7 @@ describe('system inputs and the pending budget', () => {
     succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'outcome')
     const snapshot = await c.s.read()
     expect(pendingIntakeCount(snapshot)).toBe(1)
-    expect(pendingIntakeCount({ ...snapshot, backgroundInputs: [] })).toBe(2)
+    expect(pendingIntakeCount({ ...snapshot, uncountedInputs: [] })).toBe(2)
     await c.s.accept('after-reminder')
   })
 })
@@ -596,7 +608,8 @@ describe('the background outcome: what the accepted input is and what a kept out
     expect(succeeded(await c.s.port.readInput({ ...c.s.access, input }), 'readInput')).toEqual({
       kind: 'ordinary',
       input,
-      message: reminder(),
+      message: acceptedReminder(),
+      source: TESTING_SOURCES.outcome,
       origin: {
         owner: 'background-tool-execution',
         record: CALL,
@@ -877,7 +890,7 @@ describe('background inputs leave the list once they leave the pending inputs', 
     succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'placeholder')
     succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'outcome')
     const input = backgroundInputId(producer, 'rv-1')
-    expect((await c.s.read()).backgroundInputs).toEqual([input])
+    expect((await c.s.read()).uncountedInputs).toEqual([input])
     for (const id of ['first' as InputId, input])
       succeeded(
         await c.s.commit({
@@ -928,7 +941,7 @@ describe('background inputs leave the list once they leave the pending inputs', 
     )
     const after = await c.s.read()
     expect(after.pending).toEqual([])
-    expect(after.backgroundInputs).toEqual([])
+    expect(after.uncountedInputs).toEqual([])
   })
 })
 

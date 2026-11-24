@@ -254,26 +254,28 @@
 ### UL-tenant-workspace-relation · 租户—工作区关系 · Tenant–Workspace Relation
 
 > **中**：记录一个[租户](#ul-tenant--租户--tenant)与一个[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)之间当前关系的对象。
-> 它区分仅 Omne Host 托管工作区具有的治理所有者关系与参与者关系；登记外部仓库时，包括首次登记者在内的所有接入租户都是参与者，登记不取得外部资源所有权或额外写权限。关系另带有效能力、来源和状态；治理中心用有效关系列出该租户当前可感知的工作区。
+> 它区分治理所有者关系与参与者关系。Omne Host 托管的工作区和租户在所在节点上登记目录得到的工作区有治理所有者；登记外部仓库时，包括首次登记者在内的所有接入租户都是参与者，登记不取得外部资源所有权或额外写权限。关系另带有效能力、来源和状态；治理中心用有效关系列出该租户当前可感知的工作区。
 > 公开地址的发现不会自动产生这条关系。解除关系即删除该关系条目，中心托管工作区确认销毁后删除指向它的全部租户关系；在未重新显式登记前，该租户的会话使用原本地目录时，只按普通目录处理，不从其中加载工作区装配来源。
 
-> **EN**: A durable object recording the current relationship between a tenant and a workspace. Governance ownership exists only for Omne Host workspaces; every tenant registering an external repository, including its first registrant, is a participant, without acquiring external-resource ownership or additional write permission. The relation carries effective capabilities, origin, and status. A governance center lists a tenant's workspaces from its active relations; discovering a public address does not create one automatically. Unlinking deletes this relation entry; confirmed destruction of the centrally hosted workspace deletes all tenant relations pointing to it. Until explicitly registered again, subsequent sessions of that tenant treat the former local directory as an ordinary directory, without loading workspace assembly sources from it.
+> **EN**: A durable object recording the current relationship between a tenant and a workspace. Omne Host workspaces and workspaces that a tenant registers from a directory on its node have a governance owner; every tenant registering an external repository, including its first registrant, is a participant, without acquiring external-resource ownership or additional write permission. The relation carries effective capabilities, origin, and status. A governance center lists a tenant's workspaces from its active relations; discovering a public address does not create one automatically. Unlinking deletes this relation entry; confirmed destruction of the centrally hosted workspace deletes all tenant relations pointing to it. Until explicitly registered again, subsequent sessions of that tenant treat the former local directory as an ordinary directory, without loading workspace assembly sources from it.
 
 - **形态**：对象
 - **出处**：[PF-020 租户—工作区关系](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#租户工作区关系)（rev 22）
+- **出处补充**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 8）
 - **别混**：不是工作区实例，也不是一次会话的选择；实例是关系生效后在部署节点上的装载结果。
 - **参与边界**：有效关系不替代所属组织的[工作区参与限制](scope-and-resolution.md#ul-workspace-participation-restriction--工作区参与限制--workspace-participation-restriction)；该限制针对开发、维护与写入，不撤销原有只读资格。启用限制时，登记外部仓库不作为该租户的工作区附着或装配来源，只读沿普通目录或底层资源路径；策略变化不自动删除关系或热重判正在运行的会话。
 
 ### UL-workspace-super-administrator · 工作区超级管理员 · Workspace Super Administrator
 
-> **中**：由某个 Omne Host 托管工作区的创建者租户明确授予该工作区超管级别权限的租户。它是该租户相对于此工作区的授权角色，具有销毁该工作区、解除参与租户关系以及退出自身参与关系的资格；退出后失去该工作区的授权。它不是组织超级管理员身份，也不因获授权限而变更工作区的治理归属。创建者自身具有销毁资格，不要求先给自己授予此角色。仅创建者可以授予或撤回该角色，工作区超管不能转授；撤回角色保留参与关系，其余权限依已有授权。
+> **中**：由一个工作区的治理所有者明确授予该工作区超管级别权限的参与者租户。它是该租户相对于此工作区的授权角色，具有授予其他租户参与、解除参与者的关系、销毁该工作区以及退出自身参与关系的资格；它不能解除另一个超管的关系；退出后失去该工作区的授权。它不是组织超级管理员身份，也不因获授权限而变更工作区的治理归属。治理所有者自身具有销毁资格，不要求先给自己授予此角色。只有治理所有者可以授予或撤回该角色，工作区超管不能转授；撤回角色保留参与关系，其余权限依已有授权。
 
-> **EN**: A tenant explicitly granted super-administrator privileges for a particular Omne Host workspace by that workspace's creator tenant. This workspace-scoped authorization role permits destruction of that workspace, removal of participant relations, and withdrawal of its own participation. Withdrawal ends its authorization for that workspace. It is distinct from an organization super administrator and does not change the workspace's governance ownership. The creator may destroy the workspace without a separate self-grant. Only the creator may grant or revoke this role; its holder cannot delegate it. Revocation preserves the participation relation and other independently granted permissions.
+> **EN**: A participant tenant that the governance owner of a workspace explicitly grants super-administrator privileges for that workspace. This workspace-scoped authorization role permits granting participation to other tenants, removal of participant relations, destruction of that workspace, and withdrawal of its own participation. It does not permit removal of the relation of another super administrator. Withdrawal ends its authorization for that workspace. It is distinct from an organization super administrator and does not change the workspace's governance ownership. The governance owner may destroy the workspace without a separate self-grant. Only the governance owner may grant or revoke this role; its holder cannot delegate it. Revocation preserves the participation relation and other independently granted permissions.
 
 - **形态**：属性
 - **出处**：[PF-020 治理关系解除与中心销毁](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#治理关系解除与中心销毁)（rev 22）
-- **边界**：不能单独删除仍存在的工作区的唯一治理所有者关系；本版不提供所有权移交。仅创建者授予和撤回，工作区超管不可转授；其余管理能力沿既有授权，不因名称推定全平台权限。
-- **适用范围**：上述角色与唯一所有者保护只适用于 Omne Host 托管工作区。登记外部仓库的首次参与者不因此取得授予此角色、移除他人关系或销毁外部资源的特权。
+- **边界**：不能单独删除仍存在的工作区的唯一治理所有者关系；本版不提供所有权移交。只有治理所有者授予和撤回，工作区超管不可转授；其余管理能力沿既有授权，不因名称推定全平台权限。
+- **出处补充**：[工作区：J-WS07](../../product/workspaces/design.md#j-ws07-分别管理参与关系与工作区超管授权)（rev 8）
+- **适用范围**：上述角色与唯一所有者保护适用于有治理所有者的工作区：Omne Host 托管的，和租户在所在节点上登记目录得到的。登记外部仓库的首次参与者不因此取得授予此角色、移除他人关系或销毁外部资源的特权。
 
 ### UL-membership-standing · 成员资格效力 · Membership Standing
 

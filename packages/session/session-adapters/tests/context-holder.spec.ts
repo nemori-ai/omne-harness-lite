@@ -224,7 +224,12 @@ type Scripted =
 const sessionKey = (access: { tenant: TenantId; session: SessionId }) =>
   JSON.stringify([textOf(access.tenant), access.session])
 
-async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}) {
+type Assembly = {
+  mount?: readonly ('rc' | 'session')[]
+  parentScope?: (tenant: TenantId) => ScopeRef | undefined
+}
+
+async function assembled(options: Assembly = {}) {
   const ctx = new Context()
   const logged: { name: string; type: string }[] = []
   ctx.logger.exporter({
@@ -292,6 +297,7 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
     registrationApplied: async event => {
       applied.push(event)
     },
+    ...(options.parentScope === undefined ? {} : { parentScope: options.parentScope }),
   })
   const ports = createTestAuthorityPorts<unknown>()
   ports.bind(scopeA, A.tenant)
@@ -378,6 +384,7 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
       push: (call: Omit<SessionCall, 'plugin'>) => sessionCalls.push({ plugin, ...call }),
     }
     return {
+      readForkPoint: async () => succeed({ kind: 'none' }),
       begin: async input => {
         calls.push({ method: 'begin', input, caller })
         if (!reader || !owns(input)) return fail({ kind: 'denied', action: 'history.begin' })
@@ -704,6 +711,38 @@ describe('a scope seen for the first time is recovered with the complete materia
     ])
     const begins = f.rcCalls.filter(call => call.method === 'beginReplay')
     expect((begins[1]!.input as { supersedes: unknown }).supersedes).not.toBeNull()
+  })
+})
+
+describe('a Session scope hangs under the scope its tenant has above it', () => {
+  const scopesOf = (f: Awaited<ReturnType<typeof assembled>>, method: string) =>
+    f.rcCalls
+      .filter(call => call.method === method)
+      .map(call => (call.input as { scope: ScopeRef }).scope)
+
+  it('recovers and issues with the parent the assembly names for the tenant', async () => {
+    const parents = new Map([[textOf(A.tenant), scopeRef('tenant-scope:a')]])
+    const f = await assembled({ parentScope: tenant => parents.get(textOf(tenant)) })
+    seedA(f)
+    f.append(B, REGISTRATION, add(atB, 'b1', NOTES, 0, 'checkpointed'))
+    await f.committed(A, [REGISTRATION, STEP])
+    expect(await f.handoff()!.current(modelRequest)).toMatchObject({ kind: 'current' })
+    const under = { ref: scopeA.ref, parent: { ref: 'tenant-scope:a' } }
+    expect(scopesOf(f, 'beginReplay')).toEqual([under])
+    expect(scopesOf(f, 'issueEligibility')).toEqual([under])
+    expect(await f.holder.recoverSession({ ...B, scope: scopeB })).toEqual({ kind: 'ready' })
+    expect(scopesOf(f, 'beginReplay')[1]).toEqual({ ref: scopeB.ref })
+    await f.ctx.fiber.dispose()
+  })
+
+  it('keeps a Session scope without a parent when the assembly names none', async () => {
+    const f = await assembled()
+    seedA(f)
+    await f.committed(A, [REGISTRATION, STEP])
+    expect(await f.handoff()!.current(modelRequest)).toMatchObject({ kind: 'current' })
+    expect(scopesOf(f, 'beginReplay')).toEqual([{ ref: scopeA.ref }])
+    expect(scopesOf(f, 'issueEligibility')).toEqual([{ ref: scopeA.ref }])
+    await f.ctx.fiber.dispose()
   })
 })
 

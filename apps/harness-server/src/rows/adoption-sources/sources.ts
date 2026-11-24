@@ -1,13 +1,19 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
-import { fail, succeed } from '@omne-harness/operation-result'
-import { SessionAdoptionSourceService } from '@omne-harness/session-cordis-contract/cordis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
+import {
+  SessionAdoptionSourceService,
+  sessionKey,
+} from '@omne-harness/session-cordis-contract/cordis'
+import { workspaceSourcesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import {
   canonicalText,
   contentDigest,
   modesAdoptionOf,
   type DefinitionMappingEntry,
   type DefinitionMappings,
+  type DefinitionReading,
 } from '../agent-adoptions/definition-mappings.ts'
 import {
   INITIALIZATION_PROTOCOL,
@@ -19,18 +25,24 @@ import {
   type InitializationPlanItem,
   type InitializationRequirement,
   type ResidentAdoption,
+  type RunAdoption,
+  type RunAdoptionInput,
   type SessionAccess,
   type SessionAdoptionSource,
   type SessionCreation,
+  type SessionFailure,
+  type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
-  modesInitialization,
-  type ModesPreparationRecord,
-} from '../../assembly/session-modes-initialization.ts'
-import { prepareInitialModes } from './modes.ts'
+  contextInitialization,
+  type ContextPreparationRecord,
+} from '../../assembly/session-context-initialization.ts'
+import { prepareInitialContext, type PreparedBlock } from './initial-context.ts'
 import { jsonOf } from './json.ts'
-import { recallInitialModes } from './recall-modes.ts'
+import { recallInitialContext } from './recall-context.ts'
+import { lastTurnOf, madeFrom, type Turn } from '../tenant-assets/turn.ts'
 import { plannedResidents } from './residents.ts'
+import { adoptForStartedRun, adoptWorkspace, type RunSourcesPorts } from './run-sources.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
@@ -92,12 +104,12 @@ function undeclaredByMapping(
     (initialization.sources.length > 0 || initialization.results.length > 0) &&
     !same(
       initialization,
-      modesInitialization({ ...command.input, principal: undefined }).initialization,
+      contextInitialization({ ...command.input, principal: undefined }).initialization,
     )
   )
     return invalid(
       'initialization',
-      'the initialization does not match the application modes adoption',
+      'the initialization does not match the application context adoption',
     )
   const declared = creation.residentAdoption
   if (declared === undefined) return undefined
@@ -149,7 +161,7 @@ function initialAdoptionOf(
   mappings: DefinitionMappings,
   entry: DefinitionMappingEntry,
   residents: ResidentAdoption,
-  preparations: readonly ModesPreparationRecord[] | undefined,
+  preparations: readonly ContextPreparationRecord[],
 ): InitialAdoption {
   return {
     definitionName: entry.name,
@@ -162,7 +174,7 @@ function initialAdoptionOf(
       schema: MAPPING_ENTRY_SCHEMA,
       value: jsonOf({
         ...entry,
-        contextPreparations: (preparations ?? []).map(canonicalText),
+        contextPreparations: preparations.map(canonicalText),
       }),
     },
     residentBindings: residents.keys,
@@ -172,7 +184,7 @@ function initialAdoptionOf(
 
 function planOf(
   entry: DefinitionMappingEntry,
-  preparations: readonly ModesPreparationRecord[] | undefined,
+  preparations: readonly ContextPreparationRecord[],
 ): readonly InitializationPlanItem[] {
   const identity: InitializationPlanItem[] = entry.requiredIdentities.map(
     ({ capability, name }) => ({
@@ -185,7 +197,7 @@ function planOf(
   )
   return [
     ...identity,
-    ...(preparations ?? []).map(({ source }): InitializationPlanItem => ({
+    ...preparations.map(({ source }): InitializationPlanItem => ({
       kind: 'context-registration',
       owner: source.owner,
       item: source.item,
@@ -228,7 +240,7 @@ function initializationGuardOf(
   command: CreateCommand,
   entry: DefinitionMappingEntry,
   residents: ResidentAdoption,
-  preparations: readonly ModesPreparationRecord[] | undefined,
+  blocks: readonly PreparedBlock[],
 ): Prepared {
   const { creation } = command.input
   const tenant = tenantCodec.encode(command.input.tenant)
@@ -236,6 +248,7 @@ function initializationGuardOf(
   const workspace = creation.workspace === null ? null : workspaceCodec.encode(creation.workspace)
   if (workspace !== null && !workspace.ok)
     return invalid('workspace', 'the workspace is not minted by its codec')
+  const preparations = blocks.map(block => block.record)
   const plan = planOf(entry, preparations)
   const facts: InitializationGuardFacts = {
     version: 1,
@@ -250,10 +263,7 @@ function initializationGuardOf(
     initialAdoption: initialAdoptionOf(mappings, entry, residents, preparations),
     requirements: requirementsOf(entry, plan),
     plan,
-    results:
-      preparations === undefined
-        ? []
-        : modesInitialization({ ...command.input, principal: undefined }).outcomes,
+    results: blocks.map(block => block.outcome),
   }
   return initializationMaterial(facts)
 }
@@ -269,39 +279,131 @@ function initializationMaterial(facts: InitializationGuardFacts): Prepared {
   ])
 }
 
+function runSourcesOf(ctx: Context): RunSourcesPorts {
+  const coordinator = ctx.intercept(sessionKey, { caller: 'coordinator' })
+  const logger = ctx.logger('adoption-sources')
+  return {
+    readWork: access => coordinator.get(sessionKey)?.work.readWork(access),
+    sources: () => ctx.get(workspaceSourcesKey),
+    categories: () => ctx.get(assetCategoriesKey)?.view,
+    report: reason => logger.warn('the run starts without a workspace layer: %s', reason),
+  }
+}
+
+type Mappings = DefinitionMappings & DefinitionReading
+
+const unreadable = (diagnostic: string) =>
+  fail({ kind: 'unavailable' as const, owner: OWNER, diagnostic })
+
+async function definitionEvidence<P>(
+  runSources: RunSourcesPorts,
+  mappings: Mappings,
+  command: Extract<AdoptionEvidenceCommand, { kind: 'startRun' | 'reload' }>,
+  access: SessionAccess<P> | undefined,
+): Promise<Prepared> {
+  const given = access as SessionAccess<unknown> | undefined
+  const key =
+    command.kind === 'startRun' ? await adoptForStartedRun(runSources, command, given) : null
+  const turn = given === undefined || key === null ? {} : { turn: { access: given, key } }
+  const read = await mappings.adopted(
+    { tenant: command.input.tenant, ...turn },
+    command.input.candidate,
+  )
+  if (read.kind === 'unavailable') return unreadable(read.diagnostic)
+  if (read.kind === 'absent') return invalid('candidate', read.reason)
+  return succeed([materialOf(mappings, command.kind, read.entry)])
+}
+
+/** The residents a changed definition adds, planned over the ones the session already keeps. */
+async function addedResidents<P>(
+  ctx: Context,
+  work: WorkSnapshot,
+  entry: DefinitionMappingEntry,
+  access: SessionAccess<P>,
+  turn: Turn | null,
+): Promise<Outcome<ResidentAdoption | undefined, SessionFailure>> {
+  const kept = new Set(work.residents.map(resident => resident.capability))
+  const added = (entry.residentCapabilities ?? []).filter(capability => !kept.has(capability))
+  if (added.length === 0) return succeed(undefined)
+  const planned = await plannedResidents(ctx, added, access, turn)
+  if ('failure' in planned) return planned
+  return succeed({
+    residents: planned.ok.residents,
+    keys: [...(work.residentKeys ?? []), ...planned.ok.keys],
+  })
+}
+
+/** What a run that starts now adopts: the version in force under the name of its definition. */
+async function runAdoption<P>(
+  ctx: Context,
+  runSources: RunSourcesPorts,
+  mappings: Mappings,
+  access: SessionAccess<P>,
+  { work, run }: RunAdoptionInput,
+): Promise<Outcome<RunAdoption, SessionFailure>> {
+  const { name, adopted: pinned } = work.definition
+  let entry = mappings.byName(name)
+  let turn: Turn | null = null
+  if (entry === undefined) {
+    const given = access as SessionAccess<unknown>
+    const failed = await adoptWorkspace(runSources, given, work, run)
+    if (failed !== null) runSources.report(failed)
+    turn = { access: given, key: run }
+    const read = await mappings.named({ tenant: access.tenant, turn }, name)
+    if (read.kind !== 'found')
+      return unreadable(
+        read.kind === 'absent'
+          ? `the definition of the session cannot be adopted: ${read.reason}`
+          : read.diagnostic,
+      )
+    entry = read.entry
+  }
+  if (same(entry.candidate, pinned)) return succeed({ candidate: pinned })
+  const residents = await addedResidents(ctx, work, entry, access, turn)
+  if ('failure' in residents) return residents
+  return succeed({
+    candidate: entry.candidate,
+    ...(residents.ok === undefined ? {} : { residentAdoption: residents.ok }),
+  })
+}
+
 async function prepareFrom<P>(
   ctx: Context,
-  mappings: DefinitionMappings,
+  runSources: RunSourcesPorts,
+  mappings: Mappings,
   command: AdoptionEvidenceCommand,
   access: SessionAccess<P> | undefined,
 ): Promise<Prepared> {
   switch (command.kind) {
     case 'create': {
-      const recalled = await recallInitialModes(ctx, command, access, MAPPING_ENTRY_SCHEMA)
+      const recalled = await recallInitialContext(ctx, command, access, MAPPING_ENTRY_SCHEMA)
       if ('failure' in recalled) return recalled
       if (recalled.ok !== undefined) return initializationMaterial(recalled.ok)
-      const { creation } = command.input
-      const entry = mappings.byName(creation.definition.name)
-      if (entry === undefined)
+      const { creation, tenant } = command.input
+      // A session made from another is made as that one's turn saw things: its workspace is read too.
+      const from = madeFrom(creation.relation)
+      const turn = from === null ? null : await lastTurnOf(ctx, tenant, from)
+      if (turn === undefined) return unreadable('the session this one is made from cannot be read')
+      const asker = turn === null ? { tenant } : { tenant, turn }
+      const read = await mappings.named(asker, creation.definition.name)
+      if (read.kind === 'unavailable') return unreadable(read.diagnostic)
+      if (read.kind === 'absent')
         return invalid('definition', 'the definition name is not in the deployment mapping')
+      const { entry } = read
       const mismatch = creationMismatch(entry, creation)
       if (mismatch !== undefined)
         return invalid(mismatch, 'the creation does not match the mapping entry of its definition')
       const undeclared = undeclaredByMapping(entry, command)
       if (undeclared !== undefined) return undeclared
-      const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access)
+      const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access, turn)
       if ('failure' in residents) return residents
-      const preparation = await prepareInitialModes(ctx, command, access)
+      const preparation = await prepareInitialContext(ctx, command, access)
       if ('failure' in preparation) return preparation
       return initializationGuardOf(mappings, command, entry, residents.ok, preparation.ok)
     }
     case 'startRun':
-    case 'reload': {
-      const entry = mappings.byCandidate(command.input.candidate)
-      if (entry === undefined)
-        return invalid('candidate', 'the candidate is not a definition adoption of this deployment')
-      return succeed([materialOf(mappings, command.kind, entry)])
-    }
+    case 'reload':
+      return definitionEvidence(runSources, mappings, command, access)
     case 'completeInitialization':
     case 'change':
     case 'freeze':
@@ -310,13 +412,16 @@ async function prepareFrom<P>(
 }
 
 export class AdoptionSourcesImpl extends SessionAdoptionSourceService {
-  readonly mappings: DefinitionMappings
+  readonly mappings: Mappings
 
   readonly prepare: SessionAdoptionSource['prepare']
+  readonly forRun: NonNullable<SessionAdoptionSource['forRun']>
 
-  constructor(ctx: Context, mappings: DefinitionMappings) {
+  constructor(ctx: Context, mappings: Mappings) {
     super(ctx)
     this.mappings = mappings
-    this.prepare = (command, access) => prepareFrom(ctx, mappings, command, access)
+    const runSources = runSourcesOf(ctx)
+    this.prepare = (command, access) => prepareFrom(ctx, runSources, mappings, command, access)
+    this.forRun = (access, input) => runAdoption(ctx, runSources, mappings, access, input)
   }
 }

@@ -3,16 +3,17 @@ import { randomUUID } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
   DomainRef,
-  FactCommandV2,
   JsonValue,
   SqlStorage,
   TenantDomainListing,
 } from '@omne-harness/sql-contract'
 import {
+  canonicalDigest,
   recordKey,
   type DueEntry,
   type LedgerCommit,
   type LedgerCommitInput,
+  type LedgerDefinitionRead,
   type LedgerDomain,
   type LedgerDueRead,
   type LedgerPendingScan,
@@ -24,18 +25,21 @@ import {
   type TenantId,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
-import { decodeToolCallId } from '@omne-harness/tool-contract'
+import { decodeToolCallId, type Adoption } from '@omne-harness/tool-contract'
 import {
   decodeToolInstant,
   decodeToolRevision,
+  judgeToolDefinition,
   type ToolInstant,
 } from '@omne-harness/tool-contract/provider'
+import { commandBytes, definitionsByAdoption, stageDefinitions } from './definition-writes.ts'
 import { NotJsonError } from './json.ts'
 import { keeping, LedgerKeeper } from './ledger-keeper.ts'
 import {
   addressOf,
   assertsOf,
   joined,
+  lacksDefinition,
   lacksFixed,
   ledgerAnswer,
   notJson,
@@ -47,6 +51,7 @@ import {
 } from './ledger-wire.ts'
 import type { SqlToolLedgerStoreOptions, SqlToolStorageOptions } from './options.ts'
 import { requestOf, resolveTenant, tenantText } from './tenant.ts'
+import { usageReadOver } from './usage-store.ts'
 import type { LedgerFacts, PendingReadInput, PendingReadOutput } from './worker/facts.ts'
 import {
   DUE_READ_ENTRIES,
@@ -63,12 +68,28 @@ type Listed = Readonly<{ calls: readonly string[]; more: boolean }>
 
 type StoredRecord = Readonly<{ key: string; record: unknown }>
 
-function storedRecordsOf(rows: JsonValue | undefined): StoredRecord[] | null {
+function storedDefinitionsOf(rows: JsonValue | undefined): Map<string, JsonValue> | null {
+  if (!Array.isArray(rows)) return null
+  const definitions = new Map<string, JsonValue>()
+  for (const row of rows) {
+    if (!isObject(row) || typeof row['digest'] !== 'string' || row['definition'] === undefined)
+      return null
+    definitions.set(row['digest'], row['definition'])
+  }
+  return definitions
+}
+
+function storedRecordsOf(
+  rows: JsonValue | undefined,
+  definitions: ReadonlyMap<string, JsonValue>,
+): StoredRecord[] | 'definition-missing' | null {
   if (!Array.isArray(rows)) return null
   const records: StoredRecord[] = []
   for (const row of rows) {
     if (!isObject(row) || typeof row['key'] !== 'string' || row['record'] === undefined) return null
-    records.push({ key: row['key'], record: joined(row['record'], row['fixed']) })
+    const record = joined(row['record'], row['fixed'], definitions)
+    if (record === null) return 'definition-missing'
+    records.push({ key: row['key'], record })
   }
   return records
 }
@@ -101,8 +122,14 @@ async function readStored(
     return unavailable(`ledger read: ${answer.kind === 'cancelled' ? 'cancelled' : answer.reason}`)
   const output = answer.output
   const revisionText = isObject(output) ? (output['revision'] ?? null) : undefined
-  const records = isObject(output) ? storedRecordsOf(output['records']) : null
+  const definitions = isObject(output) ? storedDefinitionsOf(output['definitions']) : null
+  const records =
+    isObject(output) && definitions !== null
+      ? storedRecordsOf(output['records'], definitions)
+      : null
   const revision = decodeToolRevision(revisionText === null ? '0' : revisionText)
+  if (records === 'definition-missing')
+    return unavailable('ledger read: a request names a definition the store does not hold')
   if (records === null || !('ok' in revision))
     return unavailable('ledger read: invalid stored domain')
   return { kind: 'read', revision: revision.ok, rows: records } as const
@@ -124,6 +151,12 @@ function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
 
 const INITIAL_REVISION = '0'
 
+const DEFINITION_ATTEMPTS = 3
+
+type Sent =
+  | Readonly<{ kind: 'answered'; answer: CommitAnswer }>
+  | Readonly<{ kind: 'failed'; commit: LedgerCommit }>
+
 const keepers = new WeakMap<object, LedgerKeeper>()
 
 function keeperOf(storage: SqlStorage): LedgerKeeper {
@@ -136,17 +169,7 @@ function keeperOf(storage: SqlStorage): LedgerKeeper {
   return keeper
 }
 
-export type LedgerCommitCondition = Readonly<{
-  combinationVersion: string
-  manifestDigest: string
-  commands: readonly FactCommandV2[]
-}>
-
-function ledgerCommitOver(
-  options: SqlToolStorageOptions,
-  condition?: LedgerCommitCondition,
-  answerOf: (answer: CommitAnswer) => LedgerCommit = ledgerAnswer,
-) {
+function ledgerCommitOver(options: SqlToolStorageOptions) {
   return async (input: LedgerCommitInput): Promise<LedgerCommit> => {
     if (!(input.asserts ?? []).every(assertion => sameTenant(input.domain, assertion.domain)))
       return { kind: 'rejected', reason: 'an assertion names a domain of another tenant' }
@@ -157,33 +180,42 @@ function ledgerCommitOver(
       return { kind: 'rejected', reason: 'a drop is the only write and names the initial revision' }
     const resolved = await resolveTenant(options, input.domain.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
-    const sent = (fixed: FixedMode) => {
+    const sent = async (fixed: FixedMode): Promise<Sent> => {
+      const prepared = writesOf(input, fixed)
       const facts: LedgerFacts = {
         ...addressOf(resolved.at.tenant, input.domain),
         intent: 'ledger',
         expected: input.expected,
         revision: input.revision,
-        writes: writesOf(input, fixed),
+        writes: prepared.writes,
         asserts: assertsOf(input),
+        definitions: [],
         ...(input.domain.kind === 'call' && input.pending !== undefined
           ? { pending: input.pending }
           : {}),
       }
-      const request = requestOf(options, resolved.at, facts)
-      return options.storage.commit(
-        condition === undefined
-          ? request
-          : {
-              ...request,
-              combinationVersion: condition.combinationVersion,
-              manifestDigest: condition.manifestDigest,
-              commands: [...condition.commands, ...request.commands],
-            },
-      )
+      for (let attempt = 1; ; attempt += 1) {
+        const staged = await stageDefinitions(
+          options,
+          resolved.at,
+          prepared.definitions,
+          commandBytes(facts),
+        )
+        if (staged.kind === 'failed')
+          return { kind: 'failed', commit: unavailable(staged.diagnostic) }
+        const answer = await options.storage.commit(
+          requestOf(options, resolved.at, { ...facts, definitions: staged.facts }),
+        )
+        if (!lacksDefinition(answer) || attempt >= DEFINITION_ATTEMPTS)
+          return { kind: 'answered', answer }
+      }
     }
     try {
-      const answer = await sent(input.expected === INITIAL_REVISION ? 'given' : 'kept')
-      return answerOf(lacksFixed(answer) ? await sent('given') : answer)
+      const first = await sent(input.expected === INITIAL_REVISION ? 'given' : 'kept')
+      if (first.kind === 'failed') return first.commit
+      if (!lacksFixed(first.answer)) return ledgerAnswer(first.answer)
+      const given = await sent('given')
+      return given.kind === 'failed' ? given.commit : ledgerAnswer(given.answer)
     } catch (error) {
       if (error instanceof NotJsonError) return notJson(error)
       throw error
@@ -191,22 +223,18 @@ function ledgerCommitOver(
   }
 }
 
-export function conditionalLedgerCommit(
-  options: SqlToolStorageOptions,
-  condition: LedgerCommitCondition,
-  answerOf: (answer: CommitAnswer) => LedgerCommit,
-): (input: LedgerCommitInput) => Promise<LedgerCommit> {
-  return storeOver(options, ledgerCommitOver(options, condition, answerOf)).commit
-}
-
 export function createSqlToolLedgerStore(options: SqlToolLedgerStoreOptions): SqlToolLedgerStore {
-  return { ...storeOver(options, ledgerCommitOver(options)), scanPending: pendingScanOver(options) }
+  return {
+    ...storeOver(options, ledgerCommitOver(options)),
+    scanPending: pendingScanOver(options),
+    usage: usageReadOver(options),
+  }
 }
 
 function storeOver(
   options: SqlToolStorageOptions,
   commit: (input: LedgerCommitInput) => Promise<LedgerCommit>,
-): Omit<SqlToolLedgerStore, 'scanPending'> {
+): Omit<SqlToolLedgerStore, 'scanPending' | 'usage'> {
   const read = async (domain: LedgerDomain): Promise<LedgerRead> => {
     const answer = await readStored(options, domain, null)
     if (answer.kind !== 'read') return answer
@@ -245,8 +273,23 @@ function storeOver(
     }
     return { kind: 'complete', entries }
   }
+  const definition = async (
+    tenant: TenantId,
+    adoption: Adoption,
+  ): Promise<LedgerDefinitionRead> => {
+    const resolved = await resolveTenant(options, tenant)
+    if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
+    const read = await definitionsByAdoption(options, resolved.at, canonicalDigest(adoption))
+    if (read.kind !== 'read') return read
+    const [only, other] = read.value
+    if (only === undefined || other !== undefined) return { kind: 'complete', definition: null }
+    const judged = judgeToolDefinition(only.definition)
+    return 'ok' in judged
+      ? { kind: 'complete', definition: judged.ok }
+      : unavailable('definition read: the stored definition does not judge')
+  }
   const kept = keeping(keeperOf(options.storage), { read, readRecord, commit })
-  return { durability: 'durable', ...kept, due }
+  return { durability: 'durable', ...kept, due, definition }
 }
 
 function pendingScanOver(

@@ -1,18 +1,26 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { projectAssetSettings, type AssetSettingsProjection } from '@omne-harness/assets'
-import { SettingsIdSchema, createChangeSignal } from '@omne-harness/settings'
+import {
+  MAX_ASSET_PAGE,
+  projectAssetSettings,
+  summarizeVersion,
+  type AssetSettingsProjection,
+  type HeldHolding,
+  type HeldPort,
+} from '@omne-harness/assets'
+import { SettingsIdSchema } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
   type SettingsProjectionBinding,
 } from '@omne-harness/settings-local'
-import type { DomainRef, FactCommandV2 } from '@omne-harness/sql-contract'
+import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import { digest, equal, identity, json, withinBudget } from './encoding.ts'
 import {
   assetLookupSchema,
   assetResultSchema,
   captureExcludedSchema,
   heldCapabilityLookupSchema,
+  heldResultSchema,
   changeHoldingSchema,
   domainSchema,
   HANDLER,
@@ -26,15 +34,23 @@ import {
   PARTICIPANT,
   PROTOCOL,
   publishMetadataSchema,
-  failureSchema,
-  revisionSchema,
+  summaryResultSchema,
+  domainResultSchema,
   versionLookupSchema,
   versionResultSchema,
+  versionsLookupSchema,
+  versionsResultSchema,
   type Failure,
   type Mutation,
 } from './schema.ts'
 import { createPublishedPackages, type PackageRecords } from './packages.ts'
-import { receiptResult, type SameOperation } from './results.ts'
+import {
+  freshDomainRevision,
+  publicationRecall,
+  receiptResult,
+  type SameOperation,
+} from './results.ts'
+import { createLocalUploads } from './uploads.ts'
 import type {
   AssetsLocal,
   AssetsLocalOptions,
@@ -121,6 +137,7 @@ function publishCommand(
     source: input.pinned.source,
     body: input.pinned.body,
     declaration,
+    summary: summarizeVersion(options.categories, input.pinned),
     ...(holding === undefined ? {} : { holding }),
   })
   return command.success ? command.data : fail('invalid_input')
@@ -134,18 +151,24 @@ function samePublication(command: Mutation): SameOperation {
     'expectedRevision' in mutation ? { ...mutation, expectedRevision: 0 } : mutation
   return recorded => equal(input(recorded), input(command))
 }
-type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'list' | 'domain'
+type ReadKind =
+  | 'asset'
+  | 'holding'
+  | 'version'
+  | 'heldCapability'
+  | 'held'
+  | 'summary'
+  | 'domain'
+  | 'list'
+  | 'versions'
 
-const domainRevisionSchema = z.union([
-  z.strictObject({ kind: z.literal('revision'), revision: revisionSchema }),
-  failureSchema,
-])
+const LISTED: readonly ReadKind[] = ['list', 'versions', 'held']
 
 function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
   return async (kind: ReadKind, lookup: unknown) => {
     const result = await options.storage.read({
       domain: options.domain,
-      handler: kind === 'list' ? LIST_HANDLER : HANDLER,
+      handler: LISTED.includes(kind) ? LIST_HANDLER : HANDLER,
       protocol: PROTOCOL,
       requestKey: randomUUID(),
       input: json({ kind, domain: options.domain, lookup }),
@@ -160,13 +183,75 @@ function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
 
 type Store = Pick<
   AssetsLocalOptions,
-  'storage' | 'domain' | 'combinationVersion' | 'manifestDigest'
+  'storage' | 'domain' | 'combinationVersion' | 'manifestDigest' | 'onCommitted'
 >
+
+function signal(options: Store, revision: number | undefined): void {
+  if (revision === undefined) return
+  try {
+    options.onCommitted?.({ domain: options.domain, revision })
+  } catch {
+    return
+  }
+}
+
+type Read = ReturnType<typeof storageRead>
+type HeldSync = () => Promise<'synced' | 'missed'>
+
+function missed(held: HeldPort, reason: 'unread' | 'failed'): 'missed' {
+  try {
+    held.missed(reason)
+  } catch {
+    return 'missed'
+  }
+  return 'missed'
+}
+
+const heldItemOf = (asset: string, version: string, enabled: boolean) => ({
+  asset,
+  version,
+  disabled: !enabled,
+  immutable: false,
+  replaceLocked: false,
+})
+
+async function tellHeld(held: HeldPort, read: Read): Promise<'synced' | 'missed'> {
+  const holdings: HeldHolding[] = []
+  try {
+    let after: string | null = null
+    do {
+      const page = heldResultSchema.parse(await read('held', { after, limit: MAX_ASSET_PAGE }))
+      if (page.kind !== 'held') return missed(held, 'unread')
+      for (const { category, name, assetRef, version, enabled } of page.items)
+        holdings.push({ category, name, item: heldItemOf(assetRef, version, enabled) })
+      after = page.next
+    } while (after !== null)
+  } catch {
+    return missed(held, 'unread')
+  }
+  try {
+    held.sync(holdings)
+    return 'synced'
+  } catch {
+    return missed(held, 'failed')
+  }
+}
+
+/** One read and one sync at a time, in the order asked: a later sync never carries an older reading. */
+function heldSyncOf(held: HeldPort | undefined, read: Read): HeldSync {
+  let last: Promise<unknown> = Promise.resolve()
+  return () => {
+    const next = last.then(() => (held === undefined ? 'synced' : tellHeld(held, read)))
+    last = next
+    return next
+  }
+}
 
 async function commitMutation(
   options: Store,
   command: Mutation,
-  same: SameOperation = sameCommand(command),
+  same: SameOperation,
+  syncHeld: HeldSync,
 ): Promise<AssetsMutationResult> {
   try {
     const result = await options.storage.commit({
@@ -181,6 +266,10 @@ async function commitMutation(
       ],
     })
     const mapped = receiptResult(result, options.domain, command.operationId, same)
+    if (mapped.kind === 'committed' && mapped.changed) {
+      await syncHeld()
+      signal(options, freshDomainRevision(result, options.domain, command.operationId))
+    }
     return mapped.kind === 'not_found'
       ? { kind: 'unknown', operationId: command.operationId }
       : mapped
@@ -189,13 +278,22 @@ async function commitMutation(
   }
 }
 
-async function recallOperation(options: Store, operationId: string) {
+/** A recall that finds a commit whose reply was lost is where its change is first known: it syncs. */
+async function recallOperation(
+  options: Store,
+  operationId: string,
+  syncHeld: HeldSync,
+  same?: SameOperation,
+) {
   try {
-    return receiptResult(
+    const recalled = receiptResult(
       await options.storage.query(identity(options.domain, operationId)),
       options.domain,
       operationId,
+      same,
     )
+    if (recalled.kind === 'committed' && recalled.changed) await syncHeld()
+    return recalled
   } catch {
     return { kind: 'unknown' as const, operationId }
   }
@@ -221,22 +319,22 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     return promise
   }
   const read = storageRead(options)
-  const changes = createChangeSignal<DomainRef>()
-  const domainRevision = async () => domainRevisionSchema.parse(await read('domain', null))
-  async function commit(command: Mutation, same?: SameOperation): Promise<AssetsMutationResult> {
-    const mapped = await commitMutation(options, command, same)
-    if (mapped.kind === 'committed' && mapped.changed)
-      changes.emit({ domain: options.domain, revision: mapped.domainRevision })
-    return mapped
-  }
+  const syncHeld = heldSyncOf(options.held, read)
+  const commit = (command: Mutation, same: SameOperation = sameCommand(command)) =>
+    commitMutation(options, command, same, syncHeld)
   async function change(value: unknown): Promise<AssetsMutationResult> {
     if (!withinBudget(value)) return fail('limit_exceeded')
     const parsed = mutationSchema.safeParse(value)
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
-  const local: Omit<AssetsLocal, 'packages'> = {
-    changes: { subscribe: changes.subscribe },
-    readDomainRevision: () => run(domainRevision),
+  function lookup<T>(kind: ReadKind, schema: z.ZodType, result: z.ZodType<T>) {
+    return (input: unknown) =>
+      run(async () => {
+        const parsed = schema.safeParse(input)
+        return parsed.success ? result.parse(await read(kind, parsed.data)) : fail('invalid_input')
+      })
+  }
+  const local: Omit<AssetsLocal, 'packages' | 'uploads'> = {
     readAsset: input =>
       run(async () => {
         const parsed = assetLookupSchema.safeParse(input)
@@ -275,20 +373,8 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
           ? change({ kind: 'changeHolding', ...parsed.data })
           : fail('invalid_input')
       }),
-    readHolding: input =>
-      run(async () => {
-        const parsed = holdingLookupSchema.safeParse(input)
-        return parsed.success
-          ? holdingResultSchema.parse(await read('holding', parsed.data))
-          : fail('invalid_input')
-      }),
-    readVersion: input =>
-      run(async () => {
-        const parsed = versionLookupSchema.safeParse(input)
-        return parsed.success
-          ? versionResultSchema.parse(await read('version', parsed.data))
-          : fail('invalid_input')
-      }),
+    readHolding: lookup('holding', holdingLookupSchema, holdingResultSchema),
+    readVersion: lookup('version', versionLookupSchema, versionResultSchema),
     readHeldCapability: input =>
       run(async () => {
         const parsed = heldCapabilityLookupSchema.safeParse({
@@ -299,18 +385,55 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
           ? holdingResultSchema.parse(await read('heldCapability', parsed.data))
           : fail('invalid_input')
       }),
-    listHeld: input =>
-      run(async () => {
-        const parsed = listLookupSchema.safeParse(input)
-        return parsed.success
-          ? listResultSchema.parse(await read('list', parsed.data))
-          : fail('invalid_input')
-      }),
+    listHeld: lookup('list', listLookupSchema, listResultSchema),
+    listVersions: lookup('versions', versionsLookupSchema, versionsResultSchema),
+    readSummary: lookup('summary', versionLookupSchema, summaryResultSchema),
+    domainRevision: () => run(async () => domainResultSchema.parse(await read('domain', null))),
     getOperation: operationId =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
-        return recallOperation(options, operationId)
+        return recallOperation(options, operationId, syncHeld)
       }),
+    readOperation: operationId =>
+      run(async () => {
+        if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
+        let command: Mutation | undefined
+        const result = await recallOperation(options, operationId, syncHeld, recorded => {
+          command = recorded
+          return true
+        })
+        if (result.kind !== 'committed' && (result.kind !== 'rejected' || command === undefined))
+          return result
+        return command === undefined
+          ? { kind: 'unknown' as const, operationId }
+          : { kind: 'recorded' as const, command, result }
+      }),
+    recallPublication: operationId =>
+      run(async () => {
+        if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
+        try {
+          const queried = await options.storage.query(identity(options.domain, operationId))
+          const recalled = publicationRecall(queried, options.domain, operationId)
+          if (recalled.kind === 'published' && recalled.changed) await syncHeld()
+          return recalled
+        } catch {
+          return { kind: 'unknown' as const, operationId }
+        }
+      }),
+    recallChange: ({ operationId, holdingRef, change }) =>
+      run(async () => {
+        if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
+        return recallOperation(
+          options,
+          operationId,
+          syncHeld,
+          recorded =>
+            recorded.kind === 'changeHolding' &&
+            recorded.holdingRef === holdingRef &&
+            equal(recorded.change, change),
+        )
+      }),
+    syncHeld,
     close() {
       return (closed ??= Promise.allSettled(active).then(() => undefined))
     },
@@ -323,10 +446,19 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     durability: options.packageDurability,
     records: packageRecordsOf(local),
   })
-  return { ...local, packages }
+  return { ...local, packages, uploads: uploadsOf(options) }
 }
 
-function packageRecordsOf(local: Omit<AssetsLocal, 'packages'>): PackageRecords {
+function uploadsOf(options: AssetsLocalOptions) {
+  return createLocalUploads({
+    root: options.uploads === undefined ? undefined : options.packageRoot,
+    categories: options.categories,
+    policy: options.uploads ?? { idleMs: 0, maxOpen: 0, partBytes: 0 },
+    clock: options.clock,
+  })
+}
+
+function packageRecordsOf(local: Omit<AssetsLocal, 'packages' | 'uploads'>): PackageRecords {
   return {
     publishAndHold: local.publishAndHold,
     async readAssetRevision(assetRef) {

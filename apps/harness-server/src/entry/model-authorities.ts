@@ -14,13 +14,10 @@ import type {
   ModelHostAuthority,
 } from '@omne-harness/model-contract/provider'
 import {
-  ModelConverterAuthorityService,
   ModelHostAuthorityService,
   ModelPublicationAuthorityService,
-  modelConverterAuthorityKey,
   modelHostAuthorityKey,
   modelPublicationAuthorityKey,
-  type ModelConverterAuthority,
   type ModelPublicationAuthority,
   type ModelRegistrationFailure,
 } from '@omne-harness/model-cordis-contract/cordis'
@@ -34,9 +31,10 @@ import {
   createModelRunComposition,
   type ModelRecordsAttachment,
   type ModelRunComposition,
+  type ModelScanIssue,
 } from '../model/composition.ts'
 import { registerModelRowPorts } from '../model/ports.ts'
-import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../model/principals.ts'
+import { MODEL_HOST_COMPONENT, MODEL_SCAN_OWNER, MODEL_WORK_OWNER } from '../model/principals.ts'
 import { ACTOR_OWNER, readSubject } from '../model/qualification.ts'
 import { sameTenant } from '../model/tenant-call.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
@@ -44,10 +42,6 @@ import type { EntryEnv, EntryObjectModule } from '../types.ts'
 const DENIED: ModelRegistrationFailure = Object.freeze({ kind: 'denied' })
 
 export function createModelPublicationAuthority(): ModelPublicationAuthority<unknown> {
-  return Object.freeze({ check: () => fail(DENIED) })
-}
-
-export function createModelConverterAuthority(): ModelConverterAuthority<unknown> {
   return Object.freeze({ check: () => fail(DENIED) })
 }
 
@@ -188,14 +182,6 @@ class EntryModelPublicationAuthority extends ModelPublicationAuthorityService<un
   }
 }
 
-class EntryModelConverterAuthority extends ModelConverterAuthorityService<unknown> {
-  readonly check: ModelConverterAuthority<unknown>['check']
-  constructor(ctx: Context, authority: ModelConverterAuthority<unknown>) {
-    super(ctx)
-    this.check = input => authority.check(input)
-  }
-}
-
 class EntryModelHostAuthority extends ModelHostAuthorityService<unknown> {
   readonly resolve: ModelHostAuthority<unknown>['resolve']
   constructor(ctx: Context, authority: ModelHostAuthority<unknown>) {
@@ -204,7 +190,8 @@ class EntryModelHostAuthority extends ModelHostAuthorityService<unknown> {
   }
 }
 
-function modelWorkIssuerOf(env: EntryEnv): ModelWorkIssue | undefined {
+/** The host's one system principal issues M for a call and the start scan for a tenant. */
+function modelIssuersOf(env: EntryEnv): { work: ModelWorkIssue; scan: ModelScanIssue } | undefined {
   const issuer: PrincipalIssuer | undefined = env
     .readTrusted(principalIssuerKey)
     .get(principalIssuerKey)
@@ -212,12 +199,20 @@ function modelWorkIssuerOf(env: EntryEnv): ModelWorkIssue | undefined {
   const actor = issuer.issueSystem({ component: MODEL_HOST_COMPONENT })
   if ('failure' in actor) return undefined
   const system: SystemPrincipal = actor.ok
-  return ({ tenant, call }) =>
-    issuer.issueActingForTenant({
-      actor: system,
-      tenant,
-      work: { owner: MODEL_WORK_OWNER, work: call },
-    })
+  return {
+    work: ({ tenant, call }) =>
+      issuer.issueActingForTenant({
+        actor: system,
+        tenant,
+        work: { owner: MODEL_WORK_OWNER, work: call },
+      }),
+    scan: tenant =>
+      issuer.issueActingForTenant({
+        actor: system,
+        tenant,
+        work: { owner: MODEL_SCAN_OWNER, work: 'start-scan' },
+      }),
+  }
 }
 
 const COMPOSITION = Symbol('harness-server/model-run-composition')
@@ -230,21 +225,19 @@ export const modelPublicationAuthority: EntryObjectModule = {
   },
 }
 
-export const modelConverterAuthority: EntryObjectModule = {
-  name: modelConverterAuthorityKey,
-  implementation: 'real',
-  install(scope) {
-    new EntryModelConverterAuthority(scope, createModelConverterAuthority())
-  },
-}
-
 export const modelHostAuthority: EntryObjectModule = {
   name: modelHostAuthorityKey,
   implementation: 'real',
   install(scope, env) {
     const composition = env.once(COMPOSITION, createModelRunComposition)
-    registerModelRowPorts(scope, { records: composition.records, host: composition.host })
-    const issue = modelWorkIssuerOf(env)
+    registerModelRowPorts(scope, {
+      records: composition.records,
+      host: composition.host,
+      readers: composition.readers,
+    })
+    const issuers = modelIssuersOf(env)
+    composition.useScanIssue(issuers?.scan)
+    const issue = issuers?.work
     if (issue === undefined)
       scope
         .logger('model-host-authority')

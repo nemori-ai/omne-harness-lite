@@ -46,21 +46,16 @@ const prepare = (
     },
   }).success
 
-it('prepares an independent origin without session lifecycle, and the tool and agent origins of a run', () => {
+it('prepares the tool and agent origins of a run', () => {
   const run = { sessionRef: 's', runRef: 'r' }
-  expect(prepare({ ...base, kind: 'independent' })).toBe(true)
   expect(prepare({ ...base, ...run, kind: 'tool', toolCallRef: 'call-1' })).toBe(true)
   expect(prepare({ ...base, ...run, kind: 'agent-extension' })).toBe(true)
   expect(prepare({ ...base, ...run, kind: 'admission' })).toBe(true)
   expect(prepare({ ...base, ...run, kind: 'admission', toolCallRef: 'call-1' })).toBe(true)
 })
 
-it('refuses an independent origin that names a session', () => {
-  expect(prepare({ ...base, kind: 'independent', sessionRef: 'session-1' })).toBe(false)
-})
-
 it('requires the preparing actor among the readers, and every responder among the readers', () => {
-  const origin = { ...base, kind: 'independent' }
+  const origin = { ...base, kind: 'agent-extension' }
   expect(prepare(origin, { readers: ['owner', 'human'], responders: ['human'] })).toBe(true)
   expect(prepare(origin, { readers: ['human'], responders: ['human'] })).toBe(false)
   expect(prepare(origin, { readers: ['owner', 'human'], responders: ['human', 'stranger'] })).toBe(

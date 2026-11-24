@@ -30,7 +30,7 @@ import {
   type FileStorage,
   type LineTree,
 } from './support/line-assembly.ts'
-import { PLACEHOLDER, ROUTE_PATH, decoded } from './support/local-host.ts'
+import { PLACEHOLDER, decoded, isGatewayPath } from './support/local-host.ts'
 import { RECORD_CASES, firstRoundRequest, readRecording } from './support/recording-cases.ts'
 
 const CASE = 'openai-tool-call'
@@ -66,7 +66,7 @@ beforeAll(async () => {
   directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-line-')))
   storage = await openFileStorage(join(directory, 'line.sqlite'))
   server = await startHttpsServer(certificate, (res: ServerResponse, received) => {
-    if (received.path !== ROUTE_PATH) {
+    if (!isGatewayPath(received.path)) {
       res.writeHead(404).end()
       return
     }

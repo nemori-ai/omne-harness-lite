@@ -13,26 +13,44 @@ const options = { script, permission: 'bypass-permissions' }
 
 const sorted = (kinds: readonly string[]) => [...kinds].sort()
 
+const REPORT = 'call.execution-fact, history.annotated'
+
+// The producer of a call reports its fact on its own, and the turn does not wait for the report:
+// its commit lands anywhere after the call is bound, so the turn is compared without those commits.
+function everyCallIsReported(lines: readonly string[]): boolean {
+  let unreported = 0
+  for (const line of lines) {
+    if (line.startsWith('call.bound')) unreported += 1
+    if (line !== REPORT) continue
+    unreported -= 1
+    if (unreported < 0) return false
+  }
+  return unreported === 0
+}
+
 const TURN = [
   'session.created, session.adoption, session.tool-resident-admitted, session.context-registration-changed, session.initialization-item',
   'message.user, intake.routed',
   'run.started, run.attempt-started',
+  // Before the first step the working directory in force is committed at the step boundary.
+  'session.recovery-input-adopted',
+  // Before the first step the model is told the runtime context, in a commit of its own.
+  'message.system_reminder',
   // The first step takes the input: the Session delivers it to the model view in that commit.
   'message.delivered',
   'run.batch-taken, history.annotated',
   'call.bound, extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
-  'call.execution-fact, history.annotated',
   'message.assistant',
   'call.result-processed',
   'call.bound, extension.passage, history.annotated',
+  // The commit that records which call the tool action became tells what the step waits for.
+  'extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
-  'call.execution-fact, history.annotated',
   'message.tool',
   'call.result-processed',
   'call.bound, extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
-  'call.execution-fact, history.annotated',
   'message.assistant',
   'call.result-processed',
   'run.attempt-released, run.terminal, history.annotated',
@@ -48,7 +66,9 @@ describe('the commit notices of one turn with a tool call', () => {
         const notices = recorder.notices().filter(notice => notice.session === session)
         const rows = noticeTable(batches, notices, session)
         process.stdout.write(`${tableLines(rows).join('\n')}\n`)
-        expect(batches.map(batch => batch.kinds.join(', '))).toEqual(TURN)
+        const kinds = batches.map(batch => batch.kinds.join(', '))
+        expect(kinds.filter(line => line !== REPORT)).toEqual(TURN)
+        expect(everyCallIsReported(kinds)).toBe(true)
         expect(rows.filter(row => row.notices !== 1)).toEqual([])
         for (const batch of batches) {
           const notice = notices.find(item => item.revision === batch.revision)

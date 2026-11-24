@@ -12,9 +12,11 @@ import { createWorld, fixtureLogin } from './fixtures/world.ts'
 
 class RecordingRegistry extends AccessRegistryService {
   readonly mounted: AccessContribution<HumanInterventionProtocol>[] = []
-  protected attach(contribution: never) {
-    this.mounted.push(contribution)
-    return async () => {}
+  mount(contribution: never): void {
+    this.ctx.effect(() => {
+      this.mounted.push(contribution)
+      return () => undefined
+    }, 'test.mount')
   }
 }
 

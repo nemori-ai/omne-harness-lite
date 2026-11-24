@@ -131,9 +131,21 @@ describe('the receipt of a dispatch', () => {
     representation: request.representation,
     payloadDigest: 'a'.repeat(64),
   }
+  const reference = { storage: 's', key: 'k', mediaType: 'image/png', bytes: '9', digest: 'd' }
+  const medium = { reference, mediaType: 'image/webp', bytes: '4' }
 
   it.each([
     ['names another supplier adoption', { ...bound, supplier: second.adoption }],
+    ['names an empty list of encoded media', { ...bound, media: [] }],
+    [
+      'names an encoded medium whose byte count is not decimal',
+      { ...bound, media: [{ ...medium, bytes: '04' }] },
+    ],
+    ['names an encoded medium without a type', { ...bound, media: [{ ...medium, mediaType: '' }] }],
+    [
+      'names a good encoded medium and then a bad one',
+      { ...bound, media: [medium, { ...medium, bytes: '04' }] },
+    ],
     ['names another representation', { ...bound, representation: second.adoption }],
     [
       'has a payload digest with a leading character too many',
@@ -160,6 +172,24 @@ describe('the receipt of a dispatch', () => {
       unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w' }))
     },
   )
+
+  it('keeps the encoded media the receipt names on the dispatch record', async () => {
+    const f = await prepared()
+    const receipt = {
+      ...bound,
+      media: [medium, { ...medium, reference: { ...reference, key: 'v' } }],
+    }
+    unbox(
+      await f.commands.recordMaterialization({
+        ...(await f.write()),
+        dispatch,
+        receipt,
+        window: 'w',
+      }),
+    )
+    const [record] = unbox(await f.commands.dispatches(f.admit))
+    expect(record?.materialization?.receipt).toEqual(receipt)
+  })
 
   it('is recorded when it names the dispatch supplier, the request representation and a digest', async () => {
     const f = await prepared()

@@ -46,7 +46,7 @@ flowchart TB
 
 三种 runtime 各为独立协程。每个在场实例由本域执行宿主创建贡献 fiber；fiber 管理登记和本实例资源，业务身份及未完责任继续保存在领域提供者。Session 是工作治理服务，不被画成拥有三种执行寿命的父协程。
 
-Cordis 4.0.4 的 Service 方法 `this.ctx` 是调用方 Context。Model/Tool 的 schedule 若直接在此处 `this.ctx.plugin(...)`，从 Agent 调用时会生成 Agent 子 fiber，违反独立寿命。采用的宿主设计在构造时捕获执行宿主自己的 Context，schedule 将显式业务身份交入该宿主，由其在自己 Context 上建立实例贡献 fiber。实际注册在该实例插件内调用目录 Service.register，继续遵守 IC-13 的 caller-fiber 归属。捕获宿主只用于生命周期，不用于推断租户或绕过当前资格。
+Cordis 4.1.0 的 Service 方法 `this.ctx` 是调用方 Context。Model/Tool 的 schedule 若直接在此处 `this.ctx.plugin(...)`，从 Agent 调用时会生成 Agent 子 fiber，违反独立寿命。采用的宿主设计在构造时捕获执行宿主自己的 Context，schedule 将显式业务身份交入该宿主，由其在自己 Context 上建立实例贡献 fiber。实际注册在该实例插件内调用目录 Service.register，继续遵守 IC-13 的 caller-fiber 归属。捕获宿主只用于生命周期，不用于推断租户或绕过当前资格。
 
 注册表用 `this.ctx.effect` 配对登记与条件撤除。登记项带目录键（Model/Tool 为稳定工作键，Agent 为租户加实例身份）、实例身份、代次及 contribution token。受信宿主必须先证明该实例合法在场；冲突登记拒绝，仅同一 fiber 的原贡献同值认回；新贡献先等旧贡献明确撤除（Agent 的后继登记按其 SPEC 原子取代旧登记）。精确 register 输入、资格依赖、回执和撤除方式归三份成员集成页。旧撤除仅在 token 与当前项一致时移除，不能撤新实例。查询核当前身份/tenant/资源动作，返回受限句柄或无活体路由；无活体不证明事实不存在。除 IC-13 允许的目录写法外，注册表不另记贡献者清单或等待用户手动注销。
 
@@ -106,8 +106,8 @@ Agent 独立装配只要求本域输入受理与终结的条件提交，不依�
 
 | 参与者 | 必须承接的条件 |
 | --- | --- |
-| 身份/权限、Session工作资格、Agent推进资格 | 身份/权限的撤权不经invalidate进入，由Tool在consume的同一排序内（启动线性化点之前）[再核](../../../packages/tool/SPEC.md#启动围栏)，远端效果可能晚于撤权实际发生（残余窗口）。工作资格与推进资格实际启动的 guard 失效进入同一 ToolStartAuthority 排序域；确认新发起已阻止之前取得失效回执。保存业务取消与宣称启动围栏已生效分别表达 |
-| Tool与受信执行边界 | 启动意图、queue名额与待办先提交；唯一待发胶囊由共同围栏消费，不把授权查询后任意函数调用当原子开始 |
+| 身份、Session工作资格、Agent推进资格 | 动作许不许在调用方交出调用之前由放行判断判过，Tool 不再判；权限与会话授权的撤回只影响之后的放行判断。主体身份资格由Tool在consume的同一排序内（启动线性化点之前）[核](../../../packages/tool/SPEC.md#启动围栏)，远端效果可能晚于资格失效实际发生（残余窗口）。工作资格与推进资格实际启动的 guard 失效进入同一 ToolStartAuthority 排序域；确认新发起已阻止之前取得失效回执。保存业务取消与宣称启动围栏已生效分别表达 |
+| Tool与受信执行边界 | 启动意图、queue名额与待办先提交；唯一待发胶囊由共同围栏消费，不把资格查询后任意函数调用当原子开始 |
 | Code协调者 | 父屏障按真实原因和子范围纳入start/resume守卫；Run取消保留已合法受理后台子的自身启动/接续资格，normal returned只封新预留。父状态与child/program-fence任务同提交，由长期宿主扫描 |
 | HITL或资源响应拥有者 | 原卡/原响应可认回，决定来源可验证，失效有具名回执；实现可自行选择可靠通知方法，不强制复制Tool存储结构 |
 | 环境和执行提供者 | 准备、释放、停止、答复、暂停均有原操作身份与查询；未知不冒充排除，原采用保留受限恢复路由 |

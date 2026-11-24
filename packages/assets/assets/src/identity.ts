@@ -1,6 +1,7 @@
 import type { SettingDefinitions } from '@omne-harness/settings'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { PackageLayout } from './package.ts'
+import type { AssetSummary } from './summary.ts'
 
 export type { JsonLimits, JsonRead, JsonValue } from '@omne-harness/json-text'
 
@@ -29,6 +30,7 @@ export type BodyContract = {
   readonly deriveDeclarations: (body: JsonValue, context?: JudgeContext) => Declarations
   readonly settings?: (body: JsonValue, context?: JudgeContext) => SettingDefinitions | null
   readonly references: (body: JsonValue, context?: JudgeContext) => readonly CapabilityId[]
+  readonly summarize?: (body: JsonValue, context?: JudgeContext) => AssetSummary
   readonly layout?: PackageLayout
 }
 

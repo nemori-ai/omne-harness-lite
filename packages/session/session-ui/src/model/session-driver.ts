@@ -2,7 +2,8 @@ import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import {
   userMessageId,
-  userTextMessage,
+  userMessage,
+  type UserAttachment,
   type SessionProtocol,
 } from '@omne-harness/session-protocol'
 import {
@@ -12,6 +13,8 @@ import {
   type WorkspaceEffect,
   type WorkspaceEvent,
 } from './workspace.ts'
+import { BUSY, GONE, NO_WORDS, sayFate, type Said, type SayAnswer, type SayTarget } from './say.ts'
+import { sayBlocked, type CreateChoice, type SayTo } from './session-machine.ts'
 
 export type SessionDriverDeps = Readonly<{
   client: ClientOf<SessionProtocol>
@@ -68,8 +71,15 @@ const CALLS: Calls = {
       token,
       answer,
     })),
-  'create-session': ({ createCallId }, { client }) =>
-    notSent(() => client['create-session']({ createCallId, purpose: '' })).then(answer => ({
+  'create-session': ({ createCallId, model, workspace }, { client }) =>
+    notSent(() =>
+      client['create-session']({
+        createCallId,
+        purpose: '',
+        ...(model === undefined ? {} : { model }),
+        ...(workspace === undefined ? {} : { workspace }),
+      }),
+    ).then(answer => ({
       kind: 'create-answered',
       createCallId,
       answer,
@@ -80,14 +90,14 @@ const CALLS: Calls = {
       createCallId,
       answer,
     })),
-  'send-input': ({ session, acceptId, inputId, text }, { client, tenant }) =>
+  'send-input': ({ session, acceptId, inputId, text, attachments }, { client, tenant }) =>
     notSent(async () =>
       client['send-input']({
         tenant,
         session,
         acceptId,
         inputId,
-        message: await userTextMessage(text, inputId),
+        message: await userMessage({ inputId, text, attachments }),
       }),
     ).then(answer => ({ kind: 'send-answered', session, acceptId, answer })),
   'query-send-input': ({ session, acceptId }, { client, tenant }) =>
@@ -130,6 +140,7 @@ export class SessionDriver {
   readonly #observations = new Map<number, AbortController>()
   readonly #timers = new Set<() => void>()
   readonly #deps: Required<SessionDriverDeps>
+  readonly #saying = new Set<() => void>()
   #disposed = false
 
   constructor(deps: SessionDriverDeps) {
@@ -162,19 +173,50 @@ export class SessionDriver {
     this.dispatch({ kind: 'open-session', session })
   }
 
-  createSession(): void {
-    this.dispatch({ kind: 'create', createCallId: this.#deps.newId() })
+  createSession(choice: CreateChoice = {}): void {
+    const createCallId = this.#deps.newId()
+    this.dispatch({ kind: 'create', createCallId, ...choice })
   }
 
   confirmCreate(): void {
     this.dispatch({ kind: 'create-confirm' })
   }
 
-  async send(text: string): Promise<void> {
-    if (text.trim().length === 0) return
+  async send(text: string, attachments: readonly UserAttachment[] = []): Promise<void> {
+    if (text.trim().length === 0 && attachments.length === 0) return
     const inputId = this.#deps.newId()
     const messageId = await userMessageId(inputId)
-    this.dispatch({ kind: 'send', text, inputId, acceptId: this.#deps.newId(), messageId })
+    const acceptId = this.#deps.newId()
+    this.dispatch({ kind: 'send', text, attachments, inputId, acceptId, messageId })
+  }
+
+  /** Hands words to a session in one step, and answers once with how they ended. */
+  async say(target: SayTarget, text: string): Promise<SayAnswer> {
+    if (text.trim().length === 0) return { kind: 'failed', reason: NO_WORDS }
+    const inputId = this.#deps.newId()
+    const messageId = await userMessageId(inputId)
+    if (this.#disposed) return { kind: 'failed', reason: GONE }
+    const to: SayTo =
+      target.kind === 'new' ? { kind: 'new', createCallId: this.#deps.newId() } : target
+    if (sayBlocked(this.#state.session, to)) return { kind: 'failed', reason: BUSY }
+    const said: Said = { to, acceptId: this.#deps.newId(), messageId }
+    this.dispatch({ kind: 'say', to, words: { text, acceptId: said.acceptId, inputId, messageId } })
+    return this.#fateOf(said)
+  }
+
+  #fateOf(said: Said): Promise<SayAnswer> {
+    return new Promise(resolve => {
+      const look = (): void => {
+        const fate = this.#disposed
+          ? { kind: 'unknown' as const }
+          : sayFate(this.#state.session, said)
+        if (fate === null) return
+        this.#saying.delete(look)
+        resolve(fate)
+      }
+      this.#saying.add(look)
+      look()
+    })
   }
 
   confirmSend(acceptId: string): void {
@@ -191,6 +233,7 @@ export class SessionDriver {
 
   dispose(): void {
     this.#disposed = true
+    for (const look of Array.from(this.#saying)) look()
     for (const controller of this.#observations.values()) controller.abort()
     this.#observations.clear()
     for (const cancel of this.#timers) cancel()
@@ -204,7 +247,9 @@ export class SessionDriver {
     const changed = next.workspace !== this.#state
     this.#state = next.workspace
     for (const effect of next.effects) this.#run(effect)
-    if (changed) for (const listener of this.#listeners) listener()
+    if (!changed) return
+    for (const listener of this.#listeners) listener()
+    for (const look of Array.from(this.#saying)) look()
   }
 
   #run(effect: WorkspaceEffect): void {

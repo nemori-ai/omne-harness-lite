@@ -11,15 +11,16 @@ import type {
   ObserveRequest,
   ProtocolKey,
 } from '@omne-harness/sdk/core'
-import type { LoginState } from '@omne-harness/client-assembly/cordis'
-import type { LoginCredentials, LoginResult, LogoutResult } from './host-bridge.ts'
+import type { LoginCredentials, LoginResult, LogoutResult } from './channel.ts'
 
 export const BRIDGE = {
   call: '/bridge/call',
   observe: '/bridge/observe',
+  unobserve: '/bridge/unobserve',
+  events: '/bridge/events',
   login: '/bridge/login',
   logout: '/bridge/logout',
-  loginState: '/bridge/login-state',
+  loginStanding: '/bridge/login-standing',
 } as const
 
 export const WIRE_LIMITS: JsonLimits = {
@@ -61,6 +62,19 @@ function protocolOf(value: JsonValue | undefined): ProtocolKey | undefined {
   return Number.isSafeInteger(parsed) && parsed > 0 ? { name, major: parsed } : undefined
 }
 
+/** The contract revision the page's client was built with. It rides in the message: the forwarding
+ * layer is a client of its own, so no header of the page reaches the server. */
+const revisionValue = (revision: number | undefined): Readonly<Record<string, JsonValue>> =>
+  revision === undefined ? {} : { revision: number(revision) }
+
+type Revision = Readonly<{ ok: true; revision?: number }> | Readonly<{ ok: false }>
+
+function revisionOf(value: JsonValue | undefined): Revision {
+  if (value === undefined) return { ok: true }
+  const parsed = value.kind === 'number' ? Number(value.lexeme) : Number.NaN
+  return Number.isSafeInteger(parsed) && parsed > 0 ? { ok: true, revision: parsed } : { ok: false }
+}
+
 export type CallMessage = Omit<CallRequest, 'signal'>
 
 export function writeCall(request: CallMessage): string {
@@ -69,6 +83,7 @@ export function writeCall(request: CallMessage): string {
       protocol: protocolValue(request.protocol),
       operation: string(request.operation),
       messageId: string(request.messageId),
+      ...revisionValue(request.revision),
       body: request.body,
     }),
   )
@@ -80,8 +95,11 @@ export function readCall(text: string): CallMessage | undefined {
   const operation = textOf(member(value, 'operation'))
   const messageId = textOf(member(value, 'messageId'))
   const body = member(value, 'body')
+  const revision = revisionOf(member(value, 'revision'))
   if (protocol === undefined || operation === undefined || messageId === undefined) return undefined
-  return body === undefined ? undefined : { protocol, operation, messageId, body }
+  if (body === undefined || !revision.ok) return undefined
+  const { ok: _, ...carried } = revision
+  return { protocol, operation, messageId, ...carried, body }
 }
 
 export function writeReport(report: CallReport): string {
@@ -112,6 +130,7 @@ export function writeObserve(request: ObserveMessage): string {
       protocol: protocolValue(request.protocol),
       observation: string(request.observation),
       messageId: string(request.messageId),
+      ...revisionValue(request.revision),
       open: request.open,
     }),
   )
@@ -123,9 +142,12 @@ export function readObserve(text: string): ObserveMessage | undefined {
   const observation = textOf(member(value, 'observation'))
   const messageId = textOf(member(value, 'messageId'))
   const open = member(value, 'open')
+  const revision = revisionOf(member(value, 'revision'))
   if (protocol === undefined || observation === undefined || messageId === undefined)
     return undefined
-  return open === undefined ? undefined : { protocol, observation, messageId, open }
+  if (open === undefined || !revision.ok) return undefined
+  const { ok: _, ...carried } = revision
+  return { protocol, observation, messageId, ...carried, open }
 }
 
 export type ObserveEvent = { readonly frame: JsonValue } | { readonly end: ObserveEnd }
@@ -157,6 +179,55 @@ export function readObserveEvent(text: string): ObserveEvent {
   return { end: { kind: 'uncertain' } }
 }
 
+/** An observation put on a page's one event stream, under an identifier the page chose. */
+export type Attach = {
+  readonly page: string
+  readonly id: string
+  readonly request: ObserveMessage
+}
+
+export function writeAttach(page: string, id: string, request: string): string {
+  return writeJsonText(object({ page: string(page), id: string(id), request: string(request) }))
+}
+
+export function readAttach(text: string): Attach | undefined {
+  const value = read(text)
+  const page = textOf(member(value, 'page'))
+  const id = textOf(member(value, 'id'))
+  const request = readObserve(textOf(member(value, 'request')) ?? '')
+  return page === undefined || id === undefined || request === undefined
+    ? undefined
+    : { page, id, request }
+}
+
+export type Detach = { readonly page: string; readonly id: string }
+
+export function writeDetach(page: string, id: string): string {
+  return writeJsonText(object({ page: string(page), id: string(id) }))
+}
+
+export function readDetach(text: string): Detach | undefined {
+  const value = read(text)
+  const page = textOf(member(value, 'page'))
+  const id = textOf(member(value, 'id'))
+  return page === undefined || id === undefined ? undefined : { page, id }
+}
+
+export function writePageEvent(id: string, event: ObserveEvent): string {
+  return writeJsonText(object({ id: string(id), event: string(writeObserveEvent(event)) }))
+}
+
+/** One event of one observation on the page's stream; `last` when it says how it ended. */
+export type PageEvent = { readonly id: string; readonly event: string; readonly last: boolean }
+
+export function readPageEvent(text: string): PageEvent | undefined {
+  const value = read(text)
+  const id = textOf(member(value, 'id'))
+  const event = textOf(member(value, 'event'))
+  if (id === undefined || event === undefined) return undefined
+  return { id, event, last: 'end' in readObserveEvent(event) }
+}
+
 export function writeCredentials(credentials: LoginCredentials): string {
   return writeJsonText(
     object({
@@ -183,22 +254,37 @@ export function readResult<R extends string>(text: string, allowed: readonly R[]
   return allowed.find(item => item === result)
 }
 
-const LOGIN_STATES: readonly LoginState[] = ['signed-out', 'signing-in', 'signed-in', 'signing-out']
+export type LoginStandingAnswer = Readonly<{
+  state: 'signed-in' | 'signed-out'
+  note?: 'expired' | 'unverified'
+}>
 
-export const writeLoginState = (state: LoginState, protocols: readonly ProtocolKey[]): string =>
+const STANDING_STATES = ['signed-in', 'signed-out'] as const
+const STANDING_NOTES = ['expired', 'unverified'] as const
+
+export const writeLoginStanding = (
+  standing: LoginStandingAnswer,
+  protocols: readonly ProtocolKey[],
+): string =>
   writeJsonText(
     object({
-      state: string(state),
+      state: string(standing.state),
+      ...(standing.note === undefined ? {} : { note: string(standing.note) }),
       protocols: { kind: 'array', items: protocols.map(protocolValue) },
     }),
   )
 
-export function readLoginState(text: string): LoginState | undefined {
-  const state = textOf(member(read(text), 'state'))
-  return LOGIN_STATES.find(item => item === state)
+export function readLoginStanding(text: string): LoginStandingAnswer | undefined {
+  const value = read(text)
+  const state = textOf(member(value, 'state'))
+  const found = STANDING_STATES.find(item => item === state)
+  if (found === undefined) return undefined
+  const note = textOf(member(value, 'note'))
+  const known = STANDING_NOTES.find(item => item === note)
+  return known === undefined ? { state: found } : { state: found, note: known }
 }
 
-export function readHostProtocols(text: string): readonly ProtocolKey[] | null {
+export function readForwardingProtocols(text: string): readonly ProtocolKey[] | null {
   const list = member(read(text), 'protocols')
   if (list?.kind !== 'array') return null
   return list.items.flatMap(item => {
@@ -207,12 +293,12 @@ export function readHostProtocols(text: string): readonly ProtocolKey[] | null {
   })
 }
 
-export function missingAtHost(
+export function missingAtForwarding(
   page: readonly ProtocolKey[],
-  host: readonly ProtocolKey[] | null,
+  forwarding: readonly ProtocolKey[] | null,
 ): readonly ProtocolKey[] {
-  if (host === null) return page
+  if (forwarding === null) return page
   return page.filter(
-    key => !host.some(known => known.name === key.name && known.major === key.major),
+    key => !forwarding.some(known => known.name === key.name && known.major === key.major),
   )
 }

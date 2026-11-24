@@ -42,6 +42,7 @@ describe('officialOpenAiProfiles', () => {
         suppliers: [{ adoption: supplier, provider: 'openrouter', model: record.name, replay: {} }],
         fallback: false,
         input: ['text', 'image'],
+        ...(record.name === 'openai/gpt-5.6-luna' ? { fileTypes: ['application/pdf'] } : {}),
         output: ['text'],
         context: {
           window: { provided: '1050000', upstream: finite('1050000') },
@@ -57,6 +58,12 @@ describe('officialOpenAiProfiles', () => {
           },
         ],
         parameters: [],
+        reasoningEfforts: {
+          low: 'low',
+          medium: 'medium',
+          high: 'high',
+          ...('engine' in record && record.engine === 'responses' ? { xhigh: 'xhigh' } : {}),
+        },
         representation: componentAdoption(record, 'representation'),
         meter: componentAdoption(record, 'meter'),
         retryPolicy: RETRY,

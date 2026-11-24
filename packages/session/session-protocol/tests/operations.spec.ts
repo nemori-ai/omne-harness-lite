@@ -9,6 +9,10 @@ const table = {
   'query-send-input': { identity: 'login', effect: 'read', limit: 'small' },
   'read-history': { identity: 'login', effect: 'read', limit: 'small' },
   'read-waiting': { identity: 'login', effect: 'read', limit: 'small' },
+  'read-pending': { identity: 'login', effect: 'read', limit: 'small' },
+  'read-waiting-calls': { identity: 'login', effect: 'read', limit: 'small' },
+  'read-input-fate': { identity: 'login', effect: 'read', limit: 'small' },
+  'search-history': { identity: 'login', effect: 'read', limit: 'small' },
   'list-sessions': { identity: 'login', effect: 'read', limit: 'small' },
   'list-archived-sessions': { identity: 'login', effect: 'read', limit: 'small' },
   'archive-session': { identity: 'login', effect: 'commit', limit: 'small' },
@@ -18,6 +22,12 @@ const table = {
   'retry-run': { identity: 'login', effect: 'commit', limit: 'small' },
   'background-call': { identity: 'login', effect: 'commit', limit: 'small' },
   'list-background-calls': { identity: 'login', effect: 'read', limit: 'small' },
+  'select-model': { identity: 'login', effect: 'commit', limit: 'small' },
+  'read-model-selection': { identity: 'login', effect: 'read', limit: 'small' },
+  'read-workspace-selection': { identity: 'login', effect: 'read', limit: 'small' },
+  'select-workspace': { identity: 'login', effect: 'commit', limit: 'small' },
+  'read-permission-mode': { identity: 'login', effect: 'read', limit: 'small' },
+  'change-permission-mode': { identity: 'login', effect: 'commit', limit: 'small' },
 } as const
 
 const outcomes = {
@@ -28,6 +38,10 @@ const outcomes = {
   'query-send-input': ['not-committed', 'unknown'],
   'read-history': ['invalid'],
   'read-waiting': ['invalid'],
+  'read-pending': ['invalid'],
+  'read-waiting-calls': ['invalid'],
+  'read-input-fate': ['invalid'],
+  'search-history': ['invalid', 'limited'],
   'list-sessions': ['invalid'],
   'list-archived-sessions': ['invalid'],
   'archive-session': ['invalid', 'conflict', 'unknown'],
@@ -37,13 +51,19 @@ const outcomes = {
   'retry-run': ['invalid', 'archived', 'frozen', 'not-found', 'no-change', 'conflict', 'unknown'],
   'background-call': ['invalid', 'conflict', 'unknown'],
   'list-background-calls': ['invalid'],
+  'select-model': ['invalid', 'archived', 'frozen', 'conflict', 'not-found', 'unknown'],
+  'read-model-selection': ['invalid'],
+  'read-workspace-selection': ['not-found'],
+  'select-workspace': ['invalid', 'archived', 'frozen', 'conflict', 'not-found', 'unknown'],
+  'read-permission-mode': ['invalid'],
+  'change-permission-mode': ['invalid', 'no-change', 'conflict', 'unknown'],
 } as const
 const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 
 const operations = sessionProtocol.operations
 
 describe('session/v1', () => {
-  it('is session major 1 with exactly the sixteen operations and one observation', () => {
+  it('is session major 1 with exactly the twenty-six operations and one observation', () => {
     expect(sessionProtocol.name).toBe('session')
     expect(sessionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())

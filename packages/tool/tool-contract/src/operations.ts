@@ -4,7 +4,7 @@ import type { StreamId, StreamObserver, StreamRef } from '@omne-harness/stream-a
 import type { ToolCatalog, ToolInspection } from './authoring.ts'
 import type { CallOutput, ToolOutputReadRequest } from './body-reads.ts'
 import type { ContentPage, DiagnosticPage, ProcessSnapshot } from './custody.ts'
-import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
+import type { ToolAvailability, ToolInvokeRequest } from './definitions.ts'
 import type {
   Access,
   CallAccess,
@@ -105,7 +105,7 @@ export type Handoff =
   | Readonly<{ kind: 'retained'; custody: DurableEvidence }>
   | Readonly<{ kind: 'processed'; completion: DurableEvidence }>
 
-export type ToolInvokeRequest = Omit<FixedToolRequest, 'invocation'>
+export type { ToolInvokeRequest }
 
 export type InvocationAccess<P> = Access<P> & Readonly<{ reference: ToolInvocationRef }>
 

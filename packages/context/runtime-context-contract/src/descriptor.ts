@@ -9,7 +9,7 @@ export interface BlockDescriptorBase<K extends ContextBlockKey, V> {
   readonly required: boolean
   readonly disclosure: 'plain' | 'eligibility-checked'
   readonly carriesPrevious: boolean
-  readonly volatility: 'stable' | 'per-step' | 'per-request'
+  readonly volatility: 'stable' | 'per-step' | 'per-read'
   readonly parameterSchema?: StandardSchemaV1<unknown, unknown>
 }
 
@@ -28,6 +28,8 @@ export interface StatefulBlockDescriptor<
 > extends BlockDescriptorBase<K, V> {
   readonly updateSchema?: StandardSchemaV1<unknown, U>
   readonly kind: 'stateful'
+  /** A stateful value comes from step commits, never from a source on each read. */
+  readonly volatility: 'stable' | 'per-step'
   readonly writers: readonly ConsumerClass[]
   readonly reduce: (current: V | undefined, update: U) => V
   readonly persistence: 'checkpointed' | 'untracked'

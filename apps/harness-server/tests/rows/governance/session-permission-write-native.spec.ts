@@ -28,6 +28,9 @@ import {
   initializationFixtureGuard,
   initializationFixtureFacts,
   adoptedInitializationFixture,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import {
@@ -154,7 +157,7 @@ it.each([
     const storage: SqlStorage = {
       ...w.activation.storage,
       commit: request => {
-        commits.push(request)
+        if (request.identity.operation !== 'session.lookup') commits.push(request)
         return w.activation.storage.commit(request)
       },
     }
@@ -174,8 +177,10 @@ it.each([
         resolve: async () => ({ kind: 'ready', entry }),
         snapshot: async () => ({ kind: 'ready', value: { revision: '1', entries: [entry] } }),
       },
-      accessCheck,
+      accessCheck: withMemberSubject(accessCheck),
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       protectedBasis: async commit => {
         if (source === undefined) throw new Error('source not installed')
         plans += 1
@@ -247,7 +252,7 @@ it.each([
       ...options,
       identity: { ...options.identity, verifier: authority.verifier },
       grants: [
-        ...options.grants
+        ...(typeof options.grants === 'function' ? options.grants() : options.grants)
           .filter(grant => grant.action !== 'catalog-management')
           .map(grant => ({ ...grant, principalRef })),
         {

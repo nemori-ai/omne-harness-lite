@@ -1,6 +1,8 @@
 export { createAgentRuntime } from './runtime.ts'
 export { agentCheckpointSchema, agentEvaluator } from './loop/evaluator.ts'
 export { advanceControl } from './control.ts'
+export { askingMessageOf } from './loop/identities.ts'
+export { toolRequestMaterial } from './loop/tools.ts'
 export { DEFAULT_MAX_RUN_STEPS } from './configuration.ts'
 export type {
   AgentConfiguration,
@@ -79,5 +81,3 @@ export {
 
 export { createAgentActionQualification } from './action-qualification.ts'
 export type { AgentActionQualificationSources } from './action-qualification.ts'
-export { createAgentToolQualification } from './tool-qualification.ts'
-export type { AgentToolQualificationSources } from './tool-qualification.ts'

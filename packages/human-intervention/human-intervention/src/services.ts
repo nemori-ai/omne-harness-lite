@@ -70,6 +70,8 @@ export type OperationInspection =
   | (HitlConflict & Readonly<{ operationRef: OperationRef }>)
   | HitlReadFailure
 
+/** When the batch was registered, an ISO 8601 UTC instant; absent when no clock read was kept. */
+type AskedAt = Readonly<{ askedAt?: string }>
 export type RequestSnapshot = Readonly<{
   ref: RequestRef
   revision: Revision
@@ -77,8 +79,9 @@ export type RequestSnapshot = Readonly<{
   displayContext: string
   actionBasis?: ActionBasis
   cards: readonly Card[]
-}>
-export type PoolItem = Readonly<{ card: Card; origin: Origin; displayContext: string }>
+}> &
+  AskedAt
+export type PoolItem = Readonly<{ card: Card; origin: Origin; displayContext: string }> & AskedAt
 export type PoolPage = Readonly<{
   kind: 'page'
   items: readonly PoolItem[]

@@ -72,7 +72,6 @@ export async function sendFixture(
     observerCheckIntervalMs: 25,
     resultPageTargetBytes: 128,
     readIdleMs: 1000,
-    cleanupRetryMs: 0,
   })
   unbox(await provider.runtime.calls.admit(admit))
   expect(

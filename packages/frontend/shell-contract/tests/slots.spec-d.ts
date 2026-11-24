@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import {
   defineKeyedPoint,
   definePoint,
+  needPoint,
   type KeyedPointSink,
   type PointCodec,
   type PointContributor,
@@ -15,11 +16,17 @@ import type {
   AttachedItem,
   AttachedLayout,
   AttachedProps,
+  FigureReport,
+  FloatCorner,
+  FloatItem,
+  FloatProps,
   GateItem,
   GateProps,
   ItemOf,
   PageItem,
+  PageProps,
   ScopedProps,
+  Toast,
   ShellLogin,
   ShellLoginState,
   ShellSlots,
@@ -29,11 +36,24 @@ import type {
 import { ShellService, defineUiModule } from '@omne-harness/shell-contract/cordis'
 
 test('each slot takes its own item', () => {
-  expectTypeOf<SlotName>().toEqualTypeOf<'gate' | 'pages' | 'sidebar' | 'attached'>()
+  expectTypeOf<SlotName>().toEqualTypeOf<'gate' | 'pages' | 'sidebar' | 'float' | 'attached'>()
   expectTypeOf<ItemOf<'gate'>>().toEqualTypeOf<GateItem>()
   expectTypeOf<ItemOf<'pages'>>().toEqualTypeOf<PageItem>()
   expectTypeOf<ItemOf<'sidebar'>>().toEqualTypeOf<SidebarItem>()
+  expectTypeOf<ItemOf<'float'>>().toEqualTypeOf<FloatItem>()
   expectTypeOf<ItemOf<'attached'>>().toEqualTypeOf<AttachedItem>()
+  expectTypeOf<FloatItem>().toEqualTypeOf<
+    Readonly<{ id: string; order: number; render: (props: FloatProps) => ReactNode }>
+  >()
+  expectTypeOf<FloatProps>().toEqualTypeOf<
+    Readonly<{
+      scope: string | undefined
+      grip: Readonly<{ 'data-omne-float-grip': '' }>
+      corner: FloatCorner
+      dragging: boolean
+    }>
+  >()
+  expectTypeOf<FloatCorner>().toEqualTypeOf<Readonly<{ x: 'start' | 'end'; y: 'start' | 'end' }>>()
   expectTypeOf<AttachedItem>().toEqualTypeOf<
     Readonly<{
       id: string
@@ -56,19 +76,63 @@ test('each slot takes its own item', () => {
       id: string
       title: string
       order: number
-      icon?: string
+      icon: string
+      group?: 'primary' | 'utility'
       badge?: (props: ScopedProps) => ReactNode
-      render: (props: ScopedProps) => ReactNode
+      render: (props: PageProps) => ReactNode
     }>
   >()
   expectTypeOf<SidebarItem>().toEqualTypeOf<
-    Readonly<{ id: string; order: number; render: (props: ScopedProps) => ReactNode }>
+    Readonly<{
+      id: string
+      order: number
+      group?: 'primary' | 'utility'
+      rail?: (props: ScopedProps) => ReactNode
+      render: (props: ScopedProps) => ReactNode
+    }>
   >()
+})
+
+test('a page always names its icon; a page and a sidebar item may name their group, and a sidebar item its rail', () => {
+  const shell = null as unknown as ShellService
+  const render = (): null => null
+  shell.contribute('pages', { id: 'p', title: 'P', order: 0, icon: 'settings', render })
+  shell.contribute('pages', {
+    id: 'u',
+    title: 'U',
+    order: 0,
+    icon: 'settings',
+    group: 'utility',
+    render,
+  })
+  shell.contribute('sidebar', { id: 's', order: 0, group: 'primary', render })
+  shell.contribute('sidebar', { id: 'a', order: 0, group: 'utility', rail: render, render })
+  // @ts-expect-error a page item needs an icon
+  shell.contribute('pages', { id: 'p', title: 'P', order: 0, render })
+  shell.contribute('pages', {
+    id: 'p',
+    title: 'P',
+    order: 0,
+    icon: 'settings',
+    // @ts-expect-error there is no third group
+    group: 'footer',
+    render,
+  })
+  shell.contribute('sidebar', {
+    id: 's',
+    order: 0,
+    // @ts-expect-error a rail gets the tenant text like the item it folds
+    rail: (props: { subject: string }) => props.subject,
+    render,
+  })
 })
 
 test('the render properties: the gate gets no tenant, the others get the tenant text', () => {
   expectTypeOf<keyof GateProps>().toBeNever()
   expectTypeOf<ScopedProps>().toEqualTypeOf<Readonly<{ scope: string | undefined }>>()
+  expectTypeOf<PageProps>().toEqualTypeOf<
+    Readonly<{ scope: string | undefined; subject?: string }>
+  >()
   expectTypeOf<AttachedProps>().toEqualTypeOf<
     Readonly<{ scope: string | undefined; subject: string }>
   >()
@@ -78,22 +142,44 @@ test('contribute refuses an item that belongs to another slot', () => {
   const shell = null as unknown as ShellService
   const render = (): null => null
   shell.contribute('gate', { id: 'g', render })
-  shell.contribute('pages', { id: 'p', title: 'P', order: 0, render })
+  shell.contribute('pages', { id: 'p', title: 'P', order: 0, icon: 'topics', render })
   shell.contribute('sidebar', { id: 's', order: 0, render })
-  shell.contribute('attached', { id: 'a', order: 0, anchor: 'x', render })
+  shell.contribute('attached', { id: 'a', order: 0, anchor: 'test.x', render })
   // @ts-expect-error an attached item needs an anchor
   shell.contribute('attached', { id: 'a', order: 0, render })
   // @ts-expect-error a gate item has no title and order
   shell.contribute('pages', { id: 'g', render })
   // @ts-expect-error a page item does not belong in the gate
-  shell.contribute('gate', { id: 'p', title: 'P', order: 0, render })
+  shell.contribute('gate', { id: 'p', title: 'P', order: 0, icon: 'topics', render })
   // @ts-expect-error there is no fifth slot
   shell.contribute('footer', { id: 'f', render })
 })
 
 test('the slots reader and the service members', () => {
   expectTypeOf<ShellSlots['items']>().toBeCallableWith('pages')
-  expectTypeOf<ShellService['navigate']>().toEqualTypeOf<(pageId: string) => void>()
+  expectTypeOf<ShellService['navigate']>().toEqualTypeOf<
+    (pageId: string, subject?: string) => void
+  >()
+  expectTypeOf<ShellService['toast']>().toEqualTypeOf<(toast: Toast) => void>()
+  expectTypeOf<ShellService['figure']>().toEqualTypeOf<(report: FigureReport) => void>()
+  expectTypeOf<FigureReport>().toEqualTypeOf<
+    Readonly<{
+      doing: 'idle' | 'thinking' | 'looking' | 'writing' | 'background'
+      moment?: Readonly<{ kind: 'received' | 'landed' | 'could-not'; serial: number }>
+      subject?: string
+      waiting?: number
+      waitingPage?: string
+    }>
+  >()
+  expectTypeOf<Toast>().toEqualTypeOf<
+    Readonly<{
+      id: string
+      tone: 'info' | 'attention'
+      title: string
+      body?: string
+      action?: Readonly<{ label: string; page: string; subject?: string }>
+    }>
+  >()
   expectTypeOf<ShellService['attached']>().toEqualTypeOf<
     (anchor: string, subject: string) => ReactNode
   >()
@@ -116,16 +202,14 @@ test('the login port is self-contained and states the client assembly login stat
   >()
 })
 
-test('defineUiModule hands the listed services with their types', () => {
-  defineUiModule<{ clock: { now: number } }>({
+test('defineUiModule hands the declared point needs with their types', () => {
+  defineUiModule({
     name: 'clock-ui',
-    inject: ['clock'],
-    apply(_shell, services) {
-      expectTypeOf(services.clock.now).toBeNumber()
+    needs: { clock: needPoint<{ now: number }>('host.clock') },
+    apply(_shell, bound) {
+      expectTypeOf(bound.clock.get()).toEqualTypeOf<{ now: number } | undefined>()
     },
   })
-  // @ts-expect-error a name outside the declared services cannot be listed
-  defineUiModule<{ clock: { now: number } }>({ name: 'x', inject: ['other'], apply() {} })
 })
 
 type Session = Readonly<{ session: string }>

@@ -145,13 +145,20 @@ describe('Skills in a real coding session', () => {
       )
       expect(exits).toEqual([0, 0, 0])
       expect([...declared].sort()).toEqual([
+        'Agents',
         'Ask',
         'BkgToolCalls',
         'Calendar',
         'Files',
+        'Notifications',
+        'OmneExtensionPoints',
+        'OmneExtensions',
         'Schedules',
+        'Screen',
+        'Sessions',
         'Shell',
         'Skills',
+        'SwitchWorkspace',
         'TodoItems',
         'Tools',
         'Web',

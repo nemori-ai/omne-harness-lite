@@ -15,14 +15,32 @@ const cards = {
   admission: {
     origin: { kind: 'admission', toolCallRef: 'call-1' },
     question: {
-      kind: 'admission',
+      kind: 'release',
       cardId: 'admit',
       title: 'Run the command?',
       description: 'The agent wants to run `rm notes.txt`',
       declineConsequence: 'The action is not admitted this time',
+      target: { tool: 'Shell', command: 'execute', preview: 'rm notes.txt' },
+      arguments: { text: '{"script":"rm notes.txt"}', truncated: false, digest: 'digest-1' },
+      origin: { session: 'session-1', agent: 'agent-1' },
+      gateTitle: '执行',
+      detail: {
+        state: 'given',
+        rows: [
+          { label: '命令', value: 'rm notes.txt' },
+          { label: '删除', value: ['notes.txt'] },
+        ],
+        typed: { kind: 'test.release@1', value: '{"paths":["notes.txt"]}' },
+      },
       options: [
-        { id: 'once', label: 'This time', description: 'This time', effectRef: 'grant/once' },
-        { id: 'no', label: 'No', description: 'No' },
+        {
+          id: 'allow-once',
+          label: 'This time',
+          description: 'This time',
+          offered: true,
+          lasting: false,
+        },
+        { id: 'deny-once', label: 'No', description: 'No', offered: true, lasting: false },
       ],
     },
   },
@@ -70,10 +88,11 @@ it.each(['admission', 'agent-extension'] as const)(
     expect(listed).toMatchObject([
       { origin: w.request.origin, card: { kind: 'pending', question: cards[kind].question } },
     ])
+    expect(listed[0]!.card.question).toEqual(cards[kind].question)
     expect(await pool(w, { sessionRef: SESSION })).toEqual(listed)
     expect(await pool(w, { sessionRef: SESSION, originKind: kind })).toEqual(listed)
     expect(await pool(w)).toEqual(listed)
-    for (const other of ['tool', 'independent', 'admission', 'agent-extension'] as const)
+    for (const other of ['tool', 'admission', 'agent-extension'] as const)
       if (other !== kind) expect(await pool(w, { originKind: other })).toEqual([])
     expect(await pool(w, { sessionRef: 'session-2', originKind: kind })).toEqual([])
 

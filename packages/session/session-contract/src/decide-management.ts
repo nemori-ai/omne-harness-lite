@@ -17,10 +17,12 @@ import {
   invalid,
   originOf,
   rejected,
+  controlSource,
   sourceOf,
   terminalEntries,
 } from './decision-support.ts'
 import type { SessionOperationId } from './identity.ts'
+import { standingOf } from './standing.ts'
 
 export function scopeBinding(
   snapshot: Pick<WorkSnapshot, 'tenant' | 'session' | 'contextScopes'>,
@@ -47,16 +49,27 @@ function settlesAtOnce(intent: ControlIntent, pending: readonly ProducerRef[]): 
   )
 }
 
+/** An archive that names a parent is taken only by a child of that parent. */
+function followsItsParent(snapshot: WorkSnapshot, intent: ControlIntent): boolean {
+  const cascade =
+    intent.kind === 'control' && intent.value.kind === 'archive' ? intent.value.cascade : undefined
+  if (cascade === undefined) return true
+  const { relation } = standingOf(snapshot)
+  return relation.kind === 'child' && relation.parent === cascade.parent
+}
+
 export function decideControl(
   snapshot: WorkSnapshot,
   intent: ControlIntent,
   operation: SessionOperationId,
   reads: DecideReads,
 ): Decision {
+  if (!followsItsParent(snapshot, intent))
+    return invalid('intent.cascade', 'the session is not a child of the session the archive names')
   const scope = resolveControlScope(snapshot, intent)
   if (scope.kind === 'invalid') return invalid('intent', scope.reason)
   if (scope.kind === 'terminal') return rejected(scope)
-  const source = sourceOf(operation, 'control')
+  const source = controlSource(operation)
   const archive =
     intent.kind === 'auto-archive' || (intent.kind === 'control' && intent.value.kind === 'archive')
   const unarchive = intent.kind === 'control' && intent.value.kind === 'unarchive'
@@ -88,6 +101,12 @@ export function decideControl(
         snapshot,
         { run: scope.cancelsRun, outcome: 'cancelled', evidence: source },
         source,
+        {
+          sequence: null,
+          cause: null,
+          disposition: source,
+          end: { conclusion: 'cancelled', failure: null },
+        },
       ),
     )
   if (archive) {
@@ -102,8 +121,15 @@ export function decideControl(
         last: [],
       },
     ]
+    const follows = { parent: snapshot.session, control: operation }
     const cascade = tasks.map(task =>
-      task.kind === 'cascade' ? { ...task, parentControl: operation } : task,
+      task.kind === 'cascade'
+        ? {
+            ...task,
+            parentControl: operation,
+            intent: { kind: 'archive' as const, cascade: follows },
+          }
+        : task,
     )
     out.push(
       encodeEntry(
@@ -158,25 +184,12 @@ export function decideManagement(
           ? [encodeEntry({ kind: 'intake.released', inputs: snapshot.pending }, origin)]
           : []),
       ])
-    case 'setRelation': {
-      const relation = command.input.relation
-      if (relation.kind === 'main' && relation.resident && snapshot.relation?.kind === 'child')
-        return invalid('relation', 'a child cannot become resident')
-      if (
-        relation.kind === 'child' &&
-        (relation.parent === snapshot.session ||
-          (snapshot.relation?.kind === 'child' && relation.parent !== snapshot.relation.parent))
-      )
-        return invalid('relation', 'self parenting or changing the parent')
-      if (relation.kind !== 'main' && !completeEvidence(relation.basis))
-        return invalid('relation.basis', 'incomplete evidence')
+    case 'setResident':
+      if (command.input.resident && snapshot.relation?.kind === 'child')
+        return invalid('resident', 'a child cannot become resident')
       return entries([
-        encodeEntry(
-          { kind: relation.kind === 'main' ? 'session.resident' : 'session.relation', relation },
-          origin,
-        ),
+        encodeEntry({ kind: 'session.resident', resident: command.input.resident }, origin),
       ])
-    }
     case 'configureAutoArchive':
       if (command.input.policy.kind === 'enabled' && !/^\d+$/u.test(command.input.policy.idleMs))
         return invalid('policy.idleMs', 'not a nonnegative duration')
@@ -195,11 +208,7 @@ export function decideManagement(
         ),
       ])
     case 'considerAutoArchive': {
-      if (
-        snapshot.autoArchive?.kind !== 'enabled' ||
-        (snapshot.relation?.kind === 'main' && snapshot.relation.resident)
-      )
-        return entries([])
+      if (snapshot.autoArchive?.kind !== 'enabled' || snapshot.resident === true) return entries([])
       const observation = reads.idleObservation ?? snapshot.idle?.observation
       if (observation === undefined)
         return rejected({

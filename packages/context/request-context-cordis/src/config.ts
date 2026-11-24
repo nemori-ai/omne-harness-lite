@@ -8,7 +8,6 @@ import {
   compactionPolicySchema,
   representationPolicyConfigSchema,
   standardSchema,
-  type AccountingOptions,
   type AssemblyPolicies,
   type CompactionPolicy,
   type CompactionPolicyPort,
@@ -19,7 +18,6 @@ import {
 import type { RequestContextPolicySelection } from '@omne-harness/request-context-cordis-contract/cordis'
 
 export type RequestContextProviderOptions = Readonly<{
-  accounting: AccountingOptions<unknown>
   policies?: AssemblyPolicies
   selection?: RequestContextPolicySelection
 }>
@@ -80,7 +78,6 @@ function chosen<C, T>(
 }
 
 export function selectPolicies(options: RequestContextProviderOptions): AssemblyPolicies {
-  if (!isRecord(options.accounting)) throw new TypeError('accounting must be an object')
   const { policies, selection } = options
   if (policies !== undefined && selection !== undefined)
     throw new TypeError('policies and selection exclude each other')

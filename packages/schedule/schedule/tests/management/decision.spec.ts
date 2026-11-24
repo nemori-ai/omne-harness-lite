@@ -299,6 +299,48 @@ it('rejects mismatched owner, author scope, operation binding and total revision
   expect(context.actor.kind).toBe('human')
 })
 
+it('an agent manages what it created from a later call of its session, not from another session', () => {
+  const base = decisionInput('pause', 'active')
+  const author = (session: string, call: string) =>
+    ({
+      kind: 'agent',
+      actorRef: 'agent-1',
+      originatingSessionRef: session,
+      originatingCallRef: call,
+    }) as const
+  const current = record('active')
+  const created = { ...current, view: { ...current.view, author: author('session-1', 'call-a') } }
+  const asAgentOf = (session: string) => {
+    const agentScope = {
+      ...scope,
+      actor: { kind: 'agent', actorRef: 'agent-1' },
+      originatingSessionRef: session,
+    } as const
+    return {
+      ...base,
+      operation: createScheduleManagementIdentity(agentScope, base.request),
+      current: created,
+      access: {
+        ...base.access,
+        authority: {
+          ...base.access.authority,
+          scope: agentScope,
+          role: 'author',
+          authorOnCreate: author(session, 'call-b'),
+        },
+      },
+    } as const
+  }
+  expect(decide(asAgentOf('session-1'))).toMatchObject({
+    kind: 'save',
+    result: { control: 'paused', author: author('session-1', 'call-a') },
+  })
+  expect(decide(asAgentOf('session-2'))).toMatchObject({
+    kind: 'rejected',
+    error: { code: 'forbidden' },
+  })
+})
+
 it('draft text changes preserve the time axis; actual rule changes advance it', () => {
   const input = decisionInput('reviseDraft', 'draft')
   expect(decide(input)).toMatchObject({

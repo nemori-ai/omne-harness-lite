@@ -246,8 +246,10 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
+        definition: (tenant, adoption) => memory.definition(tenant, adoption),
         read: domain => memory.read(domain),
         commit: async input => {
           if (conflict) {
@@ -285,8 +287,10 @@ describe('start permit requirements', () => {
         wrap: memory => ({
           durability: 'none',
           scanPending: input => memory.scanPending(input),
+          usage: query => memory.usage(query),
           readRecord: (domain, key) => memory.readRecord(domain, key),
           due: (tenant, now, limit) => memory.due(tenant, now, limit),
+          definition: (tenant, adoption) => memory.definition(tenant, adoption),
           read: domain => memory.read(domain),
           commit: async input => {
             if (conflict) {
@@ -343,8 +347,10 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
+        definition: (tenant, adoption) => memory.definition(tenant, adoption),
         read: async domain => {
           if (block) {
             block = false
@@ -518,8 +524,10 @@ describe('start permit requirements', () => {
         wrap: memory => ({
           durability: 'none',
           scanPending: input => memory.scanPending(input),
+          usage: query => memory.usage(query),
           readRecord: (domain, key) => memory.readRecord(domain, key),
           due: (tenant, now, limit) => memory.due(tenant, now, limit),
+          definition: (tenant, adoption) => memory.definition(tenant, adoption),
           commit: input => memory.commit(input),
           read: async domain => {
             const read = await memory.read(domain)
@@ -561,8 +569,10 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
+        definition: (tenant, adoption) => memory.definition(tenant, adoption),
         commit: input => memory.commit(input),
         read: async domain => {
           const read = await memory.read(domain)
@@ -602,8 +612,10 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
+        definition: (tenant, adoption) => memory.definition(tenant, adoption),
         read: domain => memory.read(domain),
         commit: async input => {
           const result = await memory.commit(input)
@@ -635,8 +647,10 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
+        definition: (tenant, adoption) => memory.definition(tenant, adoption),
         read: domain => memory.read(domain),
         commit: async input => {
           if (lose) {

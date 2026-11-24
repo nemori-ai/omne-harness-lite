@@ -5,7 +5,7 @@ import { encodeEntry } from './entries.ts'
 import type { HistoryEntry, SessionFailure } from './faces.ts'
 import type { ConsumptionId, InputId } from './identity.ts'
 import type { SessionEntriesInterpretation } from './interpretation-values.ts'
-import type { EncodedEntry } from './judgments.ts'
+import type { Decision, EncodedEntry } from './judgments.ts'
 import { digestOf } from './operations.ts'
 import type {
   BackgroundDisposition,
@@ -16,16 +16,24 @@ import type {
 } from './values.ts'
 import { settledControls } from './call-control.ts'
 import { equalValue } from './session-validation.ts'
-import { stopReminderInput, stoppedText } from './stop-reminder.ts'
-import { originOf, sourceOf } from './decision-support.ts'
+import { namedText, stopReminderInput, stoppedText } from './stop-reminder.ts'
+import { controlSource, originOf } from './decision-support.ts'
+import {
+  INTAKE_GUARD_OWNER,
+  admitDerivedOf,
+  type AdmittedSource,
+  type InputSourceName,
+  type IntakeTerms,
+} from './input-sources.ts'
 
-/** The origin owner of an input that a background tool execution's outcome became. */
-export const BACKGROUND_INPUT_OWNER = 'background-tool-execution'
+/** The evidence owner of an outcome's record: where the content came from. It decides nothing. */
+export const BACKGROUND_OUTCOME_EVIDENCE_OWNER = 'background-tool-execution'
 
 type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
 type Ordinary = Extract<RoutedInput, { kind: 'ordinary' }>
 type Backgrounded = Extract<SessionEntriesInterpretation, { kind: 'backgrounded' }>
 type Outcome = Extract<SessionEntriesInterpretation, { kind: 'background-outcome' }>
+type EntriesDecided = Extract<Decision, { kind: 'entries' }>
 
 export type BackgroundOutcomeJudgment =
   | Readonly<{ kind: 'refused' }>
@@ -110,18 +118,28 @@ function decideBackgrounded(
   }
 }
 
-function reminderInput(fact: Outcome, stop: BackgroundCallStop | null): Ordinary {
+function reminderInput(
+  fact: Outcome,
+  record: BackgroundCallRecord | null,
+  stop: BackgroundCallStop | null,
+  name: InputSourceName,
+): Ordinary {
   const { producer, result, reminder, source } = fact
+  const named =
+    record === null
+      ? reminder
+      : ({ ...reminder, blocks: [namedText(reminder.id, record), ...reminder.blocks] } as Message)
   const message =
     stop === null
-      ? reminder
-      : ({ ...reminder, blocks: [...reminder.blocks, stoppedText(reminder.id, stop)] } as Message)
+      ? named
+      : ({ ...named, blocks: [...named.blocks, stoppedText(reminder.id, stop)] } as Message)
   return {
     kind: 'ordinary',
     input: backgroundInputId(producer, result),
     message,
+    source: name,
     origin: {
-      owner: BACKGROUND_INPUT_OWNER,
+      owner: BACKGROUND_OUTCOME_EVIDENCE_OWNER,
       record: producer.call,
       revision: result,
       digest: `sha256:${digestOf({ producer, result, source })}`,
@@ -132,7 +150,7 @@ function reminderInput(fact: Outcome, stop: BackgroundCallStop | null): Ordinary
 function reminderEntries(
   snapshot: WorkSnapshot,
   input: Ordinary,
-  wakes: boolean,
+  source: AdmittedSource,
   origin: HistoryEntry['origin'],
 ): readonly EncodedEntry[] {
   const run = snapshot.run.kind === 'active' ? snapshot.run.run : null
@@ -155,34 +173,58 @@ function reminderEntries(
         destination: run === null ? 'next-run' : 'current-run',
         run,
         origin: input.origin,
-        ...(wakes || run !== null ? {} : { wakes: false as const }),
+        source,
       },
       origin,
     ),
   ]
 }
 
+const noTerms = (what: string): Extract<SessionFailure, { kind: 'unavailable' }> => ({
+  kind: 'unavailable',
+  owner: INTAKE_GUARD_OWNER,
+  diagnostic: `the source of ${what} is not registered, or refuses Session`,
+})
+
 // A person's stop of a call in the background leaves one reminder; it never starts a Run itself.
-export function stopReminderEntries(
+export function withStopReminder(
+  decision: EntriesDecided,
   snapshot: WorkSnapshot,
   record: BackgroundCallRecord,
   stop: BackgroundCallStop,
-): Readonly<{ entries: readonly EncodedEntry[]; input: Ordinary }> {
-  const input = stopReminderInput(record, stop)
-  const origin = originOf(sourceOf(stop.operation, 'control'))
-  return { entries: reminderEntries(snapshot, input, false, origin), input }
+  terms: IntakeTerms | undefined,
+): Decision {
+  const source = admitDerivedOf(terms?.derived, 'background-stop', {})
+  if (source === null) return { kind: 'rejected', failure: noTerms('a stop reminder') }
+  const input = stopReminderInput(record, stop, source.name)
+  const origin = originOf(controlSource(stop.operation))
+  return {
+    ...decision,
+    entries: [...decision.entries, ...reminderEntries(snapshot, input, source, origin)],
+    admitted: [...(decision.admitted ?? []), input],
+  }
+}
+
+type BoundOutcome = Readonly<{ consumption: ConsumptionId }>
+
+function outcomeBinding(snapshot: WorkSnapshot, fact: Outcome): BoundOutcome | BackgroundStep {
+  const consumption = consumptionOf(snapshot, fact.producer)
+  if (consumption === null) return invalid('producer', 'no original binding')
+  if (fact.result.length === 0) return invalid('result', 'empty')
+  if (fact.reminder.role !== 'system_reminder' || fact.reminder.blocks.length === 0)
+    return invalid('reminder', 'not a system reminder with content')
+  return { consumption }
 }
 
 function decideOutcome(
   snapshot: WorkSnapshot,
   fact: Outcome,
   origin: HistoryEntry['origin'],
+  derived: IntakeTerms['derived'],
 ): BackgroundStep {
-  const consumption = consumptionOf(snapshot, fact.producer)
-  if (consumption === null) return invalid('producer', 'no original binding')
-  if (fact.result.length === 0) return invalid('result', 'empty')
-  if (fact.reminder.role !== 'system_reminder' || fact.reminder.blocks.length === 0)
-    return invalid('reminder', 'not a system reminder with content')
+  const bound = outcomeBinding(snapshot, fact)
+  if ('kind' in bound) return bound
+  const { consumption } = bound
   const judged = judgeBackgroundOutcome(snapshot, consumption)
   if (judged.kind === 'refused') return invalid('producer', 'the call is not backgrounded')
   const placeholders = (snapshot.backgroundPlaceholders ?? []).filter(item => item !== consumption)
@@ -207,12 +249,19 @@ function decideOutcome(
       placeholders,
       controls,
     }
-  const input = reminderInput(fact, judged.stop)
+  const source = admitDerivedOf(derived, 'background-outcome', { wake: judged.stop === null })
+  if (source === null) return { kind: 'rejected', failure: noTerms('a background outcome') }
+  const input = reminderInput(
+    fact,
+    backgroundRecordOf(snapshot, consumption),
+    judged.stop,
+    source.name,
+  )
   return {
     kind: 'entries',
     entries: [
       ...settled({ kind: 'input', input: input.input }),
-      ...reminderEntries(snapshot, input, judged.stop === null, origin),
+      ...reminderEntries(snapshot, input, source, origin),
     ],
     admitted: [input],
     placeholders,
@@ -224,10 +273,11 @@ export function decideBackground(
   snapshot: WorkSnapshot,
   fact: Backgrounded | Outcome,
   origin: HistoryEntry['origin'],
+  derived: IntakeTerms['derived'],
 ): BackgroundStep {
   return fact.kind === 'backgrounded'
     ? decideBackgrounded(snapshot, fact, origin)
-    : decideOutcome(snapshot, fact, origin)
+    : decideOutcome(snapshot, fact, origin, derived)
 }
 
 export function applyBackgrounded(
@@ -277,16 +327,14 @@ export function applyBackgroundSettled(
   draft.backgroundCalls = (draft.backgroundCalls ?? []).map(item =>
     item.consumption === entry.consumption ? { ...item, settled } : item,
   )
-  if (entry.disposition.kind === 'input')
-    draft.backgroundInputs = [...(draft.backgroundInputs ?? []), entry.disposition.input]
   return null
 }
 
 /** An input keeps what it was accepted as while it is pending or its bracket is open. */
 export function pruneInputLists(draft: Draft): void {
   const alive = new Set([...draft.pending, ...(draft.unanswered ?? [])])
-  if (draft.backgroundInputs !== undefined)
-    draft.backgroundInputs = draft.backgroundInputs.filter(input => alive.has(input))
+  if (draft.uncountedInputs !== undefined)
+    draft.uncountedInputs = draft.uncountedInputs.filter(input => alive.has(input))
   if (draft.quietInputs !== undefined)
     draft.quietInputs = draft.quietInputs.filter(input => alive.has(input))
 }

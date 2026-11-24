@@ -2,7 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { render, startShell } from './reference-shell.ts'
 
-const page = (id: string, order = 0) => ({ id, title: id, order, render })
+const page = (id: string, order = 0) => ({ id, title: id, order, icon: 'topics', render })
 
 describe('unloading the caller', () => {
   it('takes down what the caller placed and leaves what others placed', async () => {
@@ -13,7 +13,7 @@ describe('unloading the caller', () => {
       apply(ctx: Context) {
         ctx.shell.contribute('pages', page('a'))
         ctx.shell.contribute('sidebar', { id: 'a', order: 0, render })
-        ctx.shell.contribute('attached', { id: 'a', order: 0, anchor: 'x', render })
+        ctx.shell.contribute('attached', { id: 'a', order: 0, anchor: 'test.x', render })
       },
     })
     await first
@@ -22,7 +22,7 @@ describe('unloading the caller', () => {
       inject: ['shell'],
       apply(ctx: Context) {
         ctx.shell.contribute('pages', page('b'))
-        ctx.shell.contribute('attached', { id: 'b', order: 1, anchor: 'x', render })
+        ctx.shell.contribute('attached', { id: 'b', order: 1, anchor: 'test.x', render })
       },
     })
     expect(shell.items('pages').map(item => item.id)).toEqual(['a', 'b'])
@@ -45,6 +45,7 @@ describe('unloading the caller', () => {
     await first
     await first.dispose()
     expect(shell.items('gate')).toEqual([])
+    expect(shell.conflicts('gate')).toEqual([])
     await root.plugin({
       name: 'second',
       inject: ['shell'],

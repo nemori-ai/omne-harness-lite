@@ -1,6 +1,5 @@
 import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import type { FinishIntent } from '@omne-harness/agent-contract'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import type { JsonValue } from '@omne-harness/json-text'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -16,7 +15,7 @@ import type {
   SessionFailure,
   SessionHistory,
 } from '@omne-harness/session-contract'
-import type { DiagnosticPage, ToolLookup } from '@omne-harness/tool-contract'
+import type { DiagnosticPage, ToolState } from '@omne-harness/tool-contract'
 import {
   createDiagnosticsCursors,
   projectSessionDiagnostics,
@@ -27,7 +26,6 @@ import { collectRuns } from '../src/session-view/project.ts'
 import type { CallAccount } from '../src/session-view/sources.ts'
 
 type P = ActingForTenantPrincipal
-type Fail<T> = Promise<Outcome<T, { kind: string }>>
 
 const parsedTenant = tenantCodec.parse(
   JSON.stringify({
@@ -119,6 +117,7 @@ const terminal = (
   run: string,
   outcome: 'completed' | 'failed' | 'cancelled',
   record: string | null = null,
+  end: unknown = null,
 ) =>
   entry(id, 'run.terminal', {
     terminal: { run, outcome, evidence: evidence('t') },
@@ -126,7 +125,9 @@ const terminal = (
     cause: record === null ? null : evidence(record),
     disposition: null,
     bounded: null,
+    end,
   })
+const failedWith = (failure: unknown, conclusion = 'fail') => ({ conclusion, failure })
 const message = (id: string, role: string, text: string) =>
   entry(id, `message.${role}`, { message: { role, blocks: [{ kind: 'text', text }] } })
 
@@ -218,21 +219,41 @@ function modelDouble(
 }
 
 function toolDouble(
-  lookups: Record<string, Outcome<ToolLookup, { kind: string }> | 'throw'>,
+  states: Record<string, Outcome<ToolState, { kind: string }> | 'throw'>,
   accounts: Record<string, Outcome<CallAccount, { kind: string }>> = {},
   diagnostics: Record<string, Outcome<DiagnosticPage, { kind: string }>> = {},
 ) {
-  const calls: Writes & { looked: string[]; diagnosed: unknown[] } = {
+  const calls: Writes & {
+    looked: string[]
+    read: unknown[]
+    lookups: string[]
+    diagnosed: unknown[]
+  } = {
     writes: 0,
     looked: [],
+    read: [],
+    lookups: [],
     diagnosed: [],
   }
+  const stateOf = (reference: string) => {
+    const answer = states[reference]
+    if (answer === 'throw') throw new Error('tool exploded')
+    return answer ?? fail({ kind: 'invalid', field: 'reference', reason: 'unknown' })
+  }
   const toolQueries = {
-    lookup: async (input: { reference: string }) => {
+    current: async (input: { access: unknown; reference: string }) => {
       calls.looked.push(input.reference)
-      const answer = lookups[input.reference]
-      if (answer === 'throw') throw new Error('tool exploded')
-      return answer ?? fail({ kind: 'invalid', field: 'reference', reason: 'unknown' })
+      calls.read.push(input)
+      const answer = stateOf(input.reference)
+      return 'ok' in answer ? succeed({ state: answer.ok, current: null }) : answer
+    },
+    lookup: async (input: { reference: string }) => {
+      calls.lookups.push(input.reference)
+      const answer = stateOf(input.reference)
+      if ('ok' in answer) return succeed({ kind: 'found', state: answer.ok })
+      if (Reflect.get(answer.failure, 'field') !== 'reference') return answer
+      calls.writes += 1
+      return succeed({ kind: 'not-accepted', operation: 'op' })
     },
     account: async (input: { reference: string }) =>
       accounts[input.reference] ?? fail({ kind: 'denied', action: 'account' }),
@@ -252,34 +273,11 @@ function toolDouble(
   return { calls, toolQueries: toolQueries as never }
 }
 
-function agentDouble(answers: Record<string, Outcome<FinishIntent | null, { kind: string }>>) {
-  const reads: string[] = []
-  return {
-    reads,
-    agentJournal: {
-      readFinish: async (input: { execution: string }): Fail<FinishIntent | null> => {
-        reads.push(input.execution)
-        return answers[input.execution] ?? fail({ kind: 'denied', action: 'readFinish' })
-      },
-    } as never,
-  }
-}
-
-function intent(failure: unknown, conclusion: unknown = { kind: 'fail', cause: evidence('c') }) {
-  return {
-    candidate: 'op-f1',
-    conclusion,
-    inputWatermark: evidence('w'),
-    obligations: null,
-    beforeTerminal: null,
-    failure,
-  } as unknown as FinishIntent
-}
-
-const settledCall = (call: string): Outcome<Lookup, never> =>
+const settledCall = (call: string, attempts?: unknown): Outcome<Lookup, never> =>
   succeed({
     kind: 'found',
     state: {
+      ...(attempts === undefined ? {} : { attempts }),
       call,
       revision: '1',
       consumer: { owner: 'agent', id: 'x' },
@@ -294,6 +292,21 @@ const settledCall = (call: string): Outcome<Lookup, never> =>
       },
     },
   } as never)
+
+const NO_MOMENTS = {
+  prepared: null,
+  sent: null,
+  responseStarted: null,
+  firstContent: null,
+  ended: null,
+}
+const UNKNOWN_MOMENTS = {
+  prepared: { kind: 'unknown' },
+  sent: { kind: 'unknown' },
+  responseStarted: { kind: 'unknown' },
+  firstContent: { kind: 'unknown' },
+  ended: { kind: 'unknown' },
+}
 
 const dispatchPage = (
   outcome: unknown,
@@ -310,11 +323,14 @@ const dispatchPage = (
         send: 'sent',
         firstContent: 'none-proven',
         outcome,
+        instants: NO_MOMENTS,
         timing: {
           materialize: { kind: 'unknown' },
+          sendToResponse: { kind: 'unknown' },
           sendToFirstContent: { kind: 'unknown' },
           execution: { kind: 'unknown' },
         },
+        connectRetries: [],
       },
     ],
     next: null,
@@ -326,27 +342,24 @@ const dispatchPage = (
 const settledTool = (
   call: string,
   diagnostic = 'SECRET-TOOL-DIAGNOSTIC',
-): Outcome<ToolLookup, never> =>
+): Outcome<ToolState, never> =>
   succeed({
-    kind: 'found',
-    state: {
-      call,
-      revision: '1',
-      source: evidence('s'),
-      foreground: null,
-      effect: { kind: 'none' },
-      execution: { kind: 'none' },
-      timing: {},
-      queue: { kind: 'none' },
-      controls: [],
-      delivery: null,
-      supplements: [],
-      phase: 'settled',
-      wait: { kind: 'none' },
-      result: 'r1',
-      relation: 'foreground',
-      terminal: { kind: 'failed', cause: 'executor', diagnostic },
-    },
+    call,
+    revision: '1',
+    source: evidence('s'),
+    foreground: null,
+    effect: { kind: 'none' },
+    execution: { kind: 'none' },
+    timing: {},
+    queue: { kind: 'none' },
+    controls: [],
+    delivery: null,
+    supplements: [],
+    phase: 'settled',
+    wait: { kind: 'none' },
+    result: 'r1',
+    relation: 'foreground',
+    terminal: { kind: 'failed', cause: 'executor', diagnostic },
   } as never)
 
 const toolAccount = (): Outcome<CallAccount, never> =>
@@ -372,7 +385,11 @@ const modelAccount = (): CallAccount => ({
   revision: '1',
 })
 
-const dispatchRecord = (dispatch: string, account: CallAccount | null): DispatchRecord =>
+const dispatchRecord = (
+  dispatch: string,
+  account: CallAccount | null,
+  replay: 'carried' | 'not-carried' | 'not-materialized' = 'not-materialized',
+): DispatchRecord =>
   ({
     dispatch,
     supplier: { owner: 'fixture', id: 's' },
@@ -381,7 +398,20 @@ const dispatchRecord = (dispatch: string, account: CallAccount | null): Dispatch
     firstContent: 'observed',
     terminal: null,
     account,
-    materialization: null,
+    materialization:
+      replay === 'not-materialized'
+        ? null
+        : {
+            receipt: {
+              supplier: adoption,
+              representation: adoption,
+              payloadDigest: 'a'.repeat(64),
+              replayFormat: 'fixture-format',
+              replayPrefix: 'h:1',
+              ...(replay === 'carried' ? { replayCarried: true } : {}),
+            },
+            source: evidence('materialized'),
+          },
   }) as never
 
 const attemptsPage = (dispatches: readonly string[]): Outcome<ModelDiagnosticsPage, never> =>
@@ -395,11 +425,14 @@ const attemptsPage = (dispatches: readonly string[]): Outcome<ModelDiagnosticsPa
       send: 'sent',
       firstContent: 'none-proven',
       outcome: { kind: 'pending' },
+      instants: NO_MOMENTS,
       timing: {
         materialize: { kind: 'unknown' },
+        sendToResponse: { kind: 'unknown' },
         sendToFirstContent: { kind: 'unknown' },
         execution: { kind: 'unknown' },
       },
+      connectRetries: [],
     })),
     next: null,
     snapshot: evidence('snap'),
@@ -453,14 +486,18 @@ type Options = Readonly<{
   run?: string | null
   from?: string | null
   perPage?: number
+  choices?: false
 }>
+
+const noChoices = { readChoices: async () => succeed([]) }
 
 async function project(options: Options) {
   const history = historyOf(options.entries, options.perPage)
   const result = await projectSessionDiagnostics({
     access,
     history,
-    ports: options.ports,
+    ports:
+      options.choices === false ? options.ports : { modelRequests: noChoices, ...options.ports },
     kinds: options.kinds ?? ALL_KINDS,
     limits: { maxRuns: options.maxRuns ?? 10, maxCallsPerRun: options.maxCallsPerRun ?? 10 },
     run: options.run ?? null,
@@ -498,10 +535,9 @@ describe('the Run skeleton and the call branches', () => {
       { t1: toolAccount() },
       { t1: diagnostics },
     )
-    const agent = agentDouble({})
     const page = await project({
       entries: completedRun,
-      ports: { ...model, ...tool, ...agent },
+      ports: { ...model, ...tool },
     })
     expect(page.runs).toHaveLength(1)
     const run = page.runs[0]!
@@ -533,11 +569,14 @@ describe('the Run skeleton and the call branches', () => {
             send: 'sent',
             firstContent: 'none-proven',
             outcome: { kind: 'completed', reason: 'stop' },
+            instants: UNKNOWN_MOMENTS,
             timing: {
               materialize: { kind: 'unknown' },
+              sendToResponse: { kind: 'unknown' },
               sendToFirstContent: { kind: 'unknown' },
               execution: { kind: 'unknown' },
             },
+            connectRetries: [],
             account: {
               kind: 'account',
               usage: [{ name: 'input_tokens', unit: 'token', state: 'known', lexeme: '120' }],
@@ -545,9 +584,11 @@ describe('the Run skeleton and the call branches', () => {
               duration: { kind: 'known', value: '900' },
               receipt: 'received',
             },
+            reasoning: 'unknown',
           },
         ],
         coverage: 'complete-through-snapshot',
+        reads: [],
         facts: [],
       },
     ])
@@ -576,7 +617,6 @@ describe('the Run skeleton and the call branches', () => {
     expect(page.upper).toBe('9')
     expect(page.exhausted).toBe(true)
     expect(page.continueFrom).toBeNull()
-    expect(agent.reads).toEqual([])
     expect(model.calls.listed).toEqual(['c1'])
     expect(model.calls.dispatched).toEqual(['c1'])
     expect(tool.calls.diagnosed).toEqual([{ reference: 't1', after: null }])
@@ -613,7 +653,7 @@ describe('the Run skeleton and the call branches', () => {
         registered,
         terminal('e8', 'r1', 'completed'),
       ],
-      ports: { ...model, ...toolDouble({}, {}), ...agentDouble({}) },
+      ports: { ...model, ...toolDouble({}, {}) },
     })
     const run = page.runs[0]!
     expect(run.calls).toEqual({ registered: '1', projected: '1' })
@@ -741,22 +781,16 @@ describe('the Run skeleton and the call branches', () => {
     const entries = [
       started('e1', 'r1'),
       bound('e2', 'model', 'm2'),
-      terminal('e3', 'r1', 'failed', 'model-refused: denied'),
+      terminal(
+        'e3',
+        'r1',
+        'failed',
+        'model-refused: denied',
+        failedWith({ kind: 'model-refused', failure: 'denied' }),
+      ),
     ]
     const model = modelDouble({ m2: succeed({ kind: 'not-accepted', operation: 'op' }) as never })
-    const agent = agentDouble({
-      'exec-r1': succeed(
-        intent({
-          kind: 'model-refused',
-          call: 'c2',
-          failure: { kind: 'denied', action: 'admit' },
-          step: null,
-          at: '0',
-          source: evidence('f'),
-        }),
-      ),
-    })
-    const page = await project({ entries, ports: { ...model, ...agent } })
+    const page = await project({ entries, ports: { ...model } })
     const run = page.runs[0]!
     expect(run.terminal).toEqual({
       outcome: 'failed',
@@ -779,38 +813,26 @@ describe('the Run skeleton and the call branches', () => {
     const entries = [
       started('e1', 'r1'),
       bound('e2', 'model', 'm3'),
-      terminal('e3', 'r1', 'failed', 'no-reply'),
+      terminal(
+        'e3',
+        'r1',
+        'failed',
+        'no-reply',
+        failedWith({
+          kind: 'no-reply',
+          cause: 'upstream-unavailable',
+          upstreamStatus: '504',
+          diagnostic: 'in-band-error',
+        }),
+      ),
     ]
-    const fault = {
-      cause: 'upstream-unavailable',
-      diagnostic: 'in-band-error',
-      upstreamStatus: '504',
-    }
     const model = modelDouble(
       { m3: settledCall('c3') },
       {
         c3: dispatchPage({ kind: 'failed', cause: 'upstream-unavailable', upstreamStatus: '504' }),
       },
     )
-    const agent = agentDouble({
-      'exec-r1': succeed(
-        intent({
-          kind: 'no-reply',
-          call: 'c3',
-          result: {
-            producer: { kind: 'model', call: 'c3' },
-            version: 'v',
-            delivery: null,
-            source: evidence('r'),
-          },
-          fault,
-          step: null,
-          at: '0',
-          source: evidence('f'),
-        }),
-      ),
-    })
-    const page = await project({ entries, ports: { ...model, ...agent } })
+    const page = await project({ entries, ports: { ...model } })
     const run = page.runs[0]!
     const structured = run.terminal?.cause.structured
     expect(structured).toEqual({
@@ -831,17 +853,17 @@ describe('the Run skeleton and the call branches', () => {
     expect(JSON.stringify(page)).not.toContain('in-band-error')
   })
 
-  it('reads the finish of a cancelled Run and writes no-failure with the conclusion', async () => {
-    const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'cancelled', 'cancelled by user')]
-    const agent = agentDouble({
-      'exec-r1': succeed(intent(null, { kind: 'cancelled', cause: evidence('x') })),
-    })
-    const page = await project({ entries, ports: { ...agent } })
+  it('reads the end of a cancelled Run from its terminal entry and writes no-failure with the conclusion', async () => {
+    const entries = [
+      started('e1', 'r1'),
+      terminal('e2', 'r1', 'cancelled', 'cancelled by user', failedWith(null, 'cancelled')),
+    ]
+    const page = await project({ entries, ports: {} })
     expect(page.runs[0]!.terminal?.cause.structured).toEqual({
       kind: 'no-failure',
       conclusion: 'cancelled',
     })
-    expect(agent.reads).toEqual(['exec-r1'])
+    expect(page.gaps).toEqual([])
   })
 })
 
@@ -864,15 +886,14 @@ describe('gaps', () => {
       },
       { 't-unavailable': toolAccount() },
     )
-    const agent = agentDouble({ 'exec-r1': fail({ kind: 'unsupported' }) })
-    const page = await project({ entries, ports: { ...model, ...tool, ...agent } })
+    const page = await project({ entries, ports: { ...model, ...tool } })
     expect(page.gaps).toEqual([
-      { source: 'agent', subject: 'exec-r1', reason: 'unsupported' },
+      { source: 'session', subject: 'r1', reason: 'not-recorded' },
       { source: 'model', subject: 'm-denied', reason: 'denied' },
       { source: 'tool', subject: 't-unavailable', reason: 'unavailable' },
     ])
     const run = page.runs[0]!
-    expect(run.terminal?.cause.structured).toEqual({ kind: 'unknown', reason: 'unsupported' })
+    expect(run.terminal?.cause.structured).toEqual({ kind: 'unknown', reason: 'not-recorded' })
     expect(run.modelCalls[0]!.call).toEqual({ kind: 'unknown', reason: 'denied' })
     expect(run.toolCalls[0]!.state).toEqual({ kind: 'unknown', reason: 'unavailable' })
     expect(run.toolCalls[0]!.account).toMatchObject({ kind: 'account', receipt: 'received' })
@@ -914,7 +935,7 @@ describe('gaps', () => {
     })
 
     it.each([
-      [{ kind: 'invalid', field: 'reference', reason: 'not a reference' }, 'not-found'],
+      [{ kind: 'invalid', field: 'tenant', reason: 'x' }, 'unavailable'],
       [{ kind: 'invalid-cursor', reason: 'x' }, 'unavailable'],
       [{ kind: 'stale-revision', current: '2' }, 'unavailable'],
       [{ kind: 'stale-instance', instance: 'i' }, 'unavailable'],
@@ -923,7 +944,7 @@ describe('gaps', () => {
       [{ kind: 'not-settled' }, 'not-recorded'],
       [{ kind: 'not-found', target: 'result', reason: 'missing' }, 'not-found'],
       [{ kind: 'not-found', target: 'body', reason: 'expired' }, 'not-found'],
-    ] as const)('Tool lookup, account and readDiagnostics %j -> %s', async (failure, reason) => {
+    ] as const)('Tool current, account and readDiagnostics %j -> %s', async (failure, reason) => {
       const entries = [started('e1', 'r1'), bound('e2', 'tool', 't1', 'action')]
       const tool = toolDouble({ t1: fail(failure) }, { t1: fail(failure) }, { t1: fail(failure) })
       const page = await project({ entries, ports: { ...tool } })
@@ -933,24 +954,6 @@ describe('gaps', () => {
         diagnostics: { kind: 'unknown', reason },
       })
       expect(page.gaps).toEqual([{ source: 'tool', subject: 't1', reason }])
-    })
-
-    it.each([
-      [{ kind: 'invalid', field: 'execution', reason: 'not an execution' }, 'not-found'],
-      [{ kind: 'invalid', field: 'tenant', reason: 'x' }, 'unavailable'],
-      [{ kind: 'stale-advance' }, 'unavailable'],
-      [{ kind: 'not-ready' }, 'unavailable'],
-      [{ kind: 'terminal' }, 'unavailable'],
-      [{ kind: 'busy' }, 'unavailable'],
-      [{ kind: 'changed' }, 'unavailable'],
-      [{ kind: 'commit-unknown', operation: 'op' }, 'unavailable'],
-      [{ kind: 'conflict', operation: 'op' }, 'unavailable'],
-    ] as const)('Agent readFinish %j -> %s', async (failure, reason) => {
-      const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x')]
-      const agent = agentDouble({ 'exec-r1': fail(failure) })
-      const page = await project({ entries, ports: { ...agent } })
-      expect(page.runs[0]!.terminal?.cause.structured).toEqual({ kind: 'unknown', reason })
-      expect(page.gaps).toEqual([{ source: 'agent', subject: 'exec-r1', reason }])
     })
   })
 
@@ -970,17 +973,17 @@ describe('gaps', () => {
     expect(page.runs[0]!.terminal).toBeNull()
   })
 
-  it.each([
-    ['no agent port', {}],
-    ['an agent port without readFinish', { agentJournal: {} as never }],
-  ])('writes an unknown cause with reason unsupported given %s', async (_name, ports) => {
-    const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x')]
-    const page = await project({ entries, ports })
+  it('writes an end the terminal entry names in no known form as unknown unsupported', async () => {
+    const entries = [
+      started('e1', 'r1'),
+      terminal('e2', 'r1', 'failed', 'x', failedWith({ kind: 'exotic' })),
+    ]
+    const page = await project({ entries, ports: {} })
     expect(page.runs[0]!.terminal?.cause.structured).toEqual({
       kind: 'unknown',
       reason: 'unsupported',
     })
-    expect(page.gaps).toEqual([{ source: 'agent', subject: 'exec-r1', reason: 'unsupported' }])
+    expect(page.gaps).toEqual([])
   })
 
   it('writes unsupported gaps for the Model and Tool branches when their ports are absent', async () => {
@@ -1052,36 +1055,22 @@ describe('gaps', () => {
 
 describe('what never reaches the view', () => {
   it('carries no fault diagnostic, message body, tool argument or account place', async () => {
-    const entries = [...completedRun.slice(0, 7), terminal('e8', 'r1', 'failed', 'no-reply')]
-    const fault = {
+    const failure = {
+      kind: 'no-reply',
       cause: 'stream-lost',
       diagnostic: 'SECRET-FAULT-DIAGNOSTIC',
       upstreamStatus: null,
     }
+    const entries = [
+      ...completedRun.slice(0, 7),
+      terminal('e8', 'r1', 'failed', 'no-reply', failedWith(failure)),
+    ]
     const model = modelDouble(
       { m1: settledCall('c1') },
       { c1: dispatchPage({ kind: 'failed', cause: 'stream-lost', upstreamStatus: null }) },
     )
     const tool = toolDouble({ t1: settledTool('tool-1') }, { t1: toolAccount() })
-    const agent = agentDouble({
-      'exec-r1': succeed(
-        intent({
-          kind: 'no-reply',
-          call: 'c1',
-          result: {
-            producer: { kind: 'model', call: 'c1' },
-            version: 'v',
-            delivery: null,
-            source: evidence('r'),
-          },
-          fault,
-          step: null,
-          at: '0',
-          source: evidence('f'),
-        }),
-      ),
-    })
-    const page = await project({ entries, ports: { ...model, ...tool, ...agent } })
+    const page = await project({ entries, ports: { ...model, ...tool } })
     const text = JSON.stringify({ runs: page.runs, gaps: page.gaps })
     for (const secret of [
       'SECRET-FAULT-DIAGNOSTIC',
@@ -1170,30 +1159,47 @@ describe('read only', () => {
     expect(model.calls.writes).toBe(0)
     expect(tool.calls.writes).toBe(0)
   })
+
+  it('reads the state of a Tool call through current, never through lookup', async () => {
+    const tool = toolDouble({
+      t1: settledTool('tool-1'),
+      t2: fail({ kind: 'invalid', field: 'reference', reason: 'gone' }),
+    })
+    const entries = [
+      started('e1', 'r1'),
+      bound('e2', 'tool', 't1', 'action'),
+      bound('e3', 'tool', 't2', 'action'),
+      terminal('e4', 'r1', 'completed'),
+    ]
+    await project({ entries, ports: { ...tool } })
+    expect(tool.calls.lookups).toEqual([])
+    expect(tool.calls.read).toEqual([
+      { access: { principal, tenant }, reference: 't1' },
+      { access: { principal, tenant }, reference: 't2' },
+    ])
+    expect(tool.calls.writes).toBe(0)
+  })
 })
 
 describe('the values the owners give', () => {
-  it('writes a finish Agent has not recorded as unknown not-recorded, with the gap', async () => {
+  it('writes a terminal entry without the end as unknown not-recorded, with the gap', async () => {
     const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x')]
-    const agent = agentDouble({ 'exec-r1': succeed(null) })
-    const page = await project({ entries, ports: { ...agent } })
+    const page = await project({ entries, ports: {} })
     expect(page.runs[0]!.terminal?.cause.structured).toEqual({
       kind: 'unknown',
       reason: 'not-recorded',
     })
-    expect(page.gaps).toEqual([{ source: 'agent', subject: 'exec-r1', reason: 'not-recorded' }])
+    expect(page.gaps).toEqual([{ source: 'session', subject: 'r1', reason: 'not-recorded' }])
   })
 
   it.each([
     [
-      {
-        kind: 'node-failed',
-        node: 'E4',
-        category: 'invariant',
-        failureKind: 'unavailable',
-        diagnostic: 'secret raw exception',
-      },
       { kind: 'node-failed', node: 'E4', category: 'invariant', failureKind: 'unavailable' },
+      { kind: 'node-failed', node: 'E4', category: 'invariant', failureKind: 'unavailable' },
+    ],
+    [
+      { kind: 'node-failed', node: 'E4', category: 'elsewhere', failureKind: 'unavailable' },
+      { kind: 'unknown', reason: 'unsupported' },
     ],
     [
       { kind: 'cannot-fit', reason: 'after-compaction' },
@@ -1226,21 +1232,20 @@ describe('the values the owners give', () => {
     ],
     [{ kind: 'extension-stop', diagnostic: 'private-failure-text' }, { kind: 'extension-stop' }],
     [
-      { kind: 'model-refused', call: 'c1', failure: { kind: 'exotic' } },
+      { kind: 'model-refused', failure: 'exotic' },
       { kind: 'model-refused', failure: { kind: 'unknown', reason: 'unsupported' } },
     ],
     [
-      { kind: 'model-refused', call: 'c1', failure: { kind: 'denied', action: 'admit' } },
+      { kind: 'model-refused', failure: 'denied' },
       { kind: 'model-refused', failure: 'denied' },
     ],
     [
-      { kind: 'no-reply', call: 'c1' },
+      { kind: 'no-reply', cause: null, upstreamStatus: null, diagnostic: null },
       { kind: 'no-reply', cause: null, upstreamStatus: null },
     ],
   ])('writes the closed fields of the failure %j as %j', async (failure, structured) => {
-    const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x')]
-    const agent = agentDouble({ 'exec-r1': succeed(intent(failure)) })
-    const page = await project({ entries, ports: { ...agent } })
+    const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x', failedWith(failure))]
+    const page = await project({ entries, ports: {} })
     expect(page.runs[0]!.terminal?.cause.structured).toEqual(structured)
     expect(page.gaps).toEqual([])
   })
@@ -1285,6 +1290,7 @@ describe('the values the owners give', () => {
   it('reads a dispatch page with more pages as a truncated gap and keeps the known timing', async () => {
     const timing = {
       materialize: { kind: 'known', milliseconds: '12' },
+      sendToResponse: { kind: 'known', milliseconds: '300' },
       sendToFirstContent: { kind: 'unknown' },
       execution: { kind: 'known', milliseconds: '1500' },
     }
@@ -1299,7 +1305,9 @@ describe('the values the owners give', () => {
           send: 'sent',
           firstContent: 'observed',
           outcome: { kind: 'completed', reason: 'stop' },
+          instants: { ...NO_MOMENTS, sent: '2026-11-19T08:00:00.000Z' },
           timing,
+          connectRetries: ['connect-timeout'],
         },
       ],
       next: 'more',
@@ -1313,9 +1321,49 @@ describe('the values the owners give', () => {
       ports: { ...model },
     })
     expect(page.runs[0]!.modelCalls[0]!.dispatches).toEqual([
-      expect.objectContaining({ dispatch: 'd1', send: 'sent', firstContent: 'observed', timing }),
+      expect.objectContaining({
+        dispatch: 'd1',
+        send: 'sent',
+        firstContent: 'observed',
+        instants: {
+          ...UNKNOWN_MOMENTS,
+          sent: { kind: 'known', instant: '2026-11-19T08:00:00.000Z' },
+        },
+        timing,
+        connectRetries: ['connect-timeout'],
+      }),
     ])
     expect(page.gaps).toEqual([{ source: 'model', subject: 'm1', reason: 'truncated' }])
+  })
+
+  it('carries the dispatch progress of the call as Model keeps it, and leaves it out where Model keeps none', async () => {
+    const fault = {
+      cause: 'upstream-unavailable',
+      diagnostic: 'SECRET-FAULT',
+      upstreamStatus: '504',
+    }
+    const attempts = { allowed: 2, made: 2, last: fault, notBefore: null }
+    const model = modelDouble(
+      { m1: settledCall('c1', attempts), m2: settledCall('c2') },
+      { c1: attemptsPage(['d1', 'd2']), c2: attemptsPage(['d3']) },
+    )
+    const page = await project({
+      entries: [started('e1', 'r1'), bound('e2', 'model', 'm1'), bound('e3', 'model', 'm2')],
+      ports: { ...model },
+    })
+    const [first, second] = page.runs[0]!.modelCalls
+    expect(first?.call).toEqual({
+      kind: 'found',
+      call: 'c1',
+      phase: 'settled',
+      progress: {
+        allowed: '2',
+        made: '2',
+        last: { cause: 'upstream-unavailable', upstreamStatus: '504' },
+      },
+    })
+    expect(second?.call).toEqual({ kind: 'found', call: 'c2', phase: 'settled' })
+    expect(JSON.stringify(page)).not.toContain('SECRET-FAULT')
   })
 
   it('lists no attempts when only the inspect port is present: the call resolves, the dispatches are an unsupported gap', async () => {
@@ -1334,35 +1382,31 @@ describe('the values the owners give', () => {
 
   const toolState = (call: string, patch: Record<string, unknown>) =>
     succeed({
-      kind: 'found',
-      state: {
-        call,
-        revision: '1',
-        source: evidence('s'),
-        foreground: null,
-        effect: { kind: 'none' },
-        execution: { kind: 'none' },
-        timing: {},
-        queue: { kind: 'none' },
-        controls: [],
-        delivery: null,
-        supplements: [],
-        phase: 'settled',
-        wait: { kind: 'none' },
-        result: 'r1',
-        relation: 'background',
-        terminal: null,
-        ...patch,
-      },
-    } as never) as Outcome<ToolLookup, never>
+      call,
+      revision: '1',
+      source: evidence('s'),
+      foreground: null,
+      effect: { kind: 'none' },
+      execution: { kind: 'none' },
+      timing: {},
+      queue: { kind: 'none' },
+      controls: [],
+      delivery: null,
+      supplements: [],
+      phase: 'settled',
+      wait: { kind: 'none' },
+      result: 'r1',
+      relation: 'background',
+      terminal: null,
+      ...patch,
+    } as never) as Outcome<ToolState, never>
 
-  it('writes the Tool states: running without a terminal, a terminal only once settled, a completed terminal without a cause, a call Tool did not accept, and an account Tool refused', async () => {
+  it('writes the Tool states: running without a terminal, a terminal only once settled, a completed terminal without a cause, and an account Tool refused', async () => {
     const entries = [
       started('e1', 'r1'),
       bound('e2', 'tool', 't-running', 'action'),
       bound('e3', 'tool', 't-early', 'action'),
       bound('e4', 'tool', 't-done', 'action'),
-      bound('e5', 'tool', 't-refused', 'action'),
     ]
     const tool = toolDouble(
       {
@@ -1372,9 +1416,8 @@ describe('the values the owners give', () => {
           terminal: { kind: 'failed', cause: 'executor', diagnostic: 'SECRET' },
         }),
         't-done': toolState('tool-d', { terminal: { kind: 'completed' } }),
-        't-refused': succeed({ kind: 'not-accepted', operation: 'op' }) as never,
       },
-      { 't-early': toolAccount(), 't-done': toolAccount(), 't-refused': toolAccount() },
+      { 't-early': toolAccount(), 't-done': toolAccount() },
     )
     const page = await project({ entries, ports: { ...tool } })
     expect(page.runs[0]!.toolCalls.map(call => call.state)).toEqual([
@@ -1387,14 +1430,32 @@ describe('the values the owners give', () => {
         relation: 'background',
         terminal: { kind: 'completed', cause: null },
       },
-      { kind: 'unknown', reason: 'not-accepted' },
     ])
     expect(page.runs[0]!.toolCalls[0]!.account).toEqual({ kind: 'unknown', reason: 'denied' })
-    expect(page.gaps).toEqual([
-      { source: 'tool', subject: 't-running', reason: 'denied' },
-      { source: 'tool', subject: 't-refused', reason: 'not-accepted' },
-    ])
+    expect(page.gaps).toEqual([{ source: 'tool', subject: 't-running', reason: 'denied' }])
     expect(JSON.stringify(page)).not.toContain('SECRET')
+  })
+
+  it('writes a registered call Tool no longer keeps as not recorded, never as not accepted', async () => {
+    const gone = fail({
+      kind: 'invalid',
+      field: 'reference',
+      reason: 'the admission of the reference was not accepted; the call has no state',
+    })
+    const entries = [started('e1', 'r1'), bound('e2', 'tool', 't-gone', 'action')]
+    const tool = toolDouble({ 't-gone': gone }, { 't-gone': gone }, { 't-gone': gone })
+    const page = await project({ entries, ports: { ...tool } })
+    expect(page.runs[0]!.toolCalls[0]).toMatchObject({
+      reference: 't-gone',
+      state: { kind: 'unknown', reason: 'not-recorded' },
+      account: { kind: 'unknown', reason: 'not-found' },
+      diagnostics: { kind: 'unknown', reason: 'not-found' },
+    })
+    expect(page.gaps).toEqual([
+      { source: 'tool', subject: 't-gone', reason: 'not-recorded' },
+      { source: 'tool', subject: 't-gone', reason: 'not-found' },
+    ])
+    expect(JSON.stringify(page)).not.toContain('not-accepted')
   })
 
   it('shows the account items as the owner states them: a lexeme only outside the unknown state, the duration when given', async () => {
@@ -1536,6 +1597,40 @@ describe('the account of each dispatch', () => {
     expect(model.calls.dispatched).toEqual(['c1'])
   })
 
+  it('says whether each attempt carried reasoning back, from the receipt of its materialization', async () => {
+    const model = modelDouble(
+      twoAttempts,
+      { c1: attemptsPage(['d1', 'd2', 'd3', 'd4']) },
+      {
+        c1: succeed([
+          dispatchRecord('d1', null, 'carried'),
+          dispatchRecord('d2', null, 'not-carried'),
+          dispatchRecord('d3', null),
+        ]),
+      },
+    )
+    const page = await project({
+      entries: [started('e1', 'r1'), bound('e2', 'model', 'm1')],
+      ports: { ...model },
+    })
+    const dispatches = page.runs[0]!.modelCalls[0]!.dispatches
+    expect(dispatches.map(dispatch => [dispatch.dispatch, dispatch.reasoning])).toEqual([
+      ['d1', 'carried'],
+      ['d2', 'not-carried'],
+      ['d3', 'unknown'],
+      ['d4', 'unknown'],
+    ])
+  })
+
+  it('says unknown of the reasoning of every attempt when the dispatch read fails', async () => {
+    const model = modelDouble(twoAttempts, { c1: attemptsPage(['d1']) }, { c1: 'throw' })
+    const page = await project({
+      entries: [started('e1', 'r1'), bound('e2', 'model', 'm1')],
+      ports: { ...model },
+    })
+    expect(page.runs[0]!.modelCalls[0]!.dispatches[0]!.reasoning).toBe('unknown')
+  })
+
   it.each([
     ['refused', fail({ kind: 'denied', action: 'dispatches' }), 'denied'],
     ['throwing', 'throw', 'unavailable'],
@@ -1568,6 +1663,336 @@ describe('the account of each dispatch', () => {
     })
     expect(page.runs[0]!.modelCalls.map(call => call.dispatches)).toEqual([[], []])
     expect(model.calls.dispatched).toEqual([])
+  })
+})
+
+describe('what the model read of each block', () => {
+  const ref = (key: string) => ({
+    storage: 'media',
+    key,
+    mediaType: 'image/png',
+    bytes: '4000',
+    digest: `sha256:${key}`,
+  })
+  const uploaded = entry('e0', 'message.user', {
+    message: {
+      id: 'msg-1',
+      role: 'user',
+      blocks: [
+        ...['b1', 'b2', 'b3'].map(id => ({ kind: 'image', id, ref: ref(id) })),
+        { kind: 'voice', id: 'b4', ref: { ...ref('b4'), mediaType: 'audio/wav' } },
+        { kind: 'image', id: 'inline', mediaType: 'image/png', inline: 'AAAA' },
+        { kind: 'text', id: 't1', text: 'SECRET-USER-TEXT' },
+      ],
+    },
+  })
+  const oneCall = [uploaded, started('e1', 'r1'), bound('e2', 'model', 'm1')]
+  const choice = (
+    block: string,
+    kind: 'original' | 'derived' | 'transcript',
+    mediaType: string | null = 'image/png',
+    message = 'msg-1',
+  ) => ({ message, block, choice: kind, mediaType })
+  const sentRecord = (
+    dispatch: string,
+    terminal: 'completed' | 'failed' | null,
+    media: readonly unknown[] | null,
+  ): DispatchRecord =>
+    ({
+      ...dispatchRecord(dispatch, null),
+      terminal:
+        terminal === null
+          ? null
+          : terminal === 'completed'
+            ? { kind: 'completed', reason: 'stop' }
+            : { kind: 'failed', failure: { kind: 'unavailable' } },
+      materialization:
+        media === null
+          ? null
+          : {
+              receipt: {
+                supplier: adoption,
+                representation: adoption,
+                payloadDigest: 'a'.repeat(64),
+                ...(media.length === 0 ? {} : { media }),
+              },
+              source: evidence('materialized'),
+            },
+    }) as never
+  function requestsOf(answer: Outcome<readonly unknown[], { reason: string }> | 'throw') {
+    const asked: unknown[] = []
+    return {
+      asked,
+      modelRequests: {
+        readChoices: async (input: Record<string, unknown>) => {
+          const { principal: _principal, ...rest } = input
+          asked.push(rest)
+          if (answer === 'throw') throw new Error('request store lost')
+          return answer
+        },
+      } as never,
+    }
+  }
+  async function readsWith(
+    records: DispatchRecords[string],
+    answer: Parameters<typeof requestsOf>[0],
+    options: Readonly<{
+      attempts?: readonly string[] | 'unavailable'
+      kinds?: readonly string[]
+      entries?: readonly HistoryEntry[]
+    }> = {},
+  ) {
+    const listed =
+      options.attempts === 'unavailable'
+        ? { failure: { kind: 'unavailable' } }
+        : attemptsPage(options.attempts ?? ['d1', 'd2'])
+    const model = modelDouble({ m1: settledCall('c1') }, { c1: listed }, { c1: records })
+    const requests = requestsOf(answer)
+    const page = await project({
+      entries: options.entries ?? oneCall,
+      ports: { ...model, ...requests },
+      ...(options.kinds === undefined ? {} : { kinds: options.kinds }),
+    })
+    return { page, asked: requests.asked, call: page.runs[0]!.modelCalls[0]! }
+  }
+
+  it('reads original, a smaller version, another form and a transcript, from the choices, the history and the receipt of the last completed dispatch', async () => {
+    const fitted = { reference: ref('b2'), mediaType: 'image/webp', bytes: '900' }
+    const { call, asked, page } = await readsWith(
+      succeed([
+        sentRecord('d1', 'completed', [
+          { reference: ref('b1'), mediaType: 'image/png', bytes: '4000' },
+          fitted,
+        ]),
+        sentRecord('d2', 'failed', null),
+      ]),
+      succeed([
+        choice('b1', 'original'),
+        choice('b2', 'original'),
+        choice('b3', 'derived'),
+        choice('b4', 'transcript', 'audio/wav'),
+        choice('t1', 'original', null),
+        choice('inline', 'original'),
+      ]),
+    )
+    expect(call.reads).toEqual([
+      { message: 'msg-1', block: 'b1', read: 'original' },
+      { message: 'msg-1', block: 'b2', read: 'fitted' },
+      { message: 'msg-1', block: 'b3', read: 'derived' },
+      { message: 'msg-1', block: 'b4', read: 'transcript' },
+    ])
+    expect(asked).toEqual([{ tenant, session: access.session, reference: 'm1' }])
+    expect(page.history.begins.at(-1)).toEqual({
+      kinds: ALL_KINDS.filter(kind => kind.startsWith('message.')),
+      from: null,
+      direction: 'backward',
+    })
+    expect(page.gaps).toEqual([])
+  })
+
+  it('the attempts of a call that cannot be listed leave an original unread: no reads, and the gap says so', async () => {
+    const { call, page } = await readsWith(
+      succeed([]),
+      succeed([choice('b1', 'original'), choice('b3', 'derived')]),
+      {
+        attempts: 'unavailable',
+      },
+    )
+    expect(call.reads).toEqual([])
+    expect(page.gaps.length).toBeGreaterThan(0)
+  })
+
+  it('reads back past newer messages whose media were not chosen, and tells media apart by storage and key', async () => {
+    const newer = (id: string, message: string) =>
+      entry(id, 'message.user', {
+        message: { id: message, role: 'user', blocks: [{ kind: 'image', id: 'x', ref: ref('x') }] },
+      })
+    const entries = [uploaded, newer('e0b', 'msg-2'), newer('e0c', 'msg-3'), ...oneCall.slice(1)]
+    const elsewhere = { ...ref('b1'), storage: 'other' }
+    const { call, page } = await readsWith(
+      succeed([
+        sentRecord('d1', 'completed', [
+          { reference: elsewhere, mediaType: 'image/webp', bytes: '10' },
+          { reference: ref('x'), mediaType: 'image/webp', bytes: '10' },
+          { reference: ref('b1'), mediaType: 'image/png', bytes: '4000' },
+        ]),
+      ]),
+      succeed([choice('b1', 'original')]),
+      { entries },
+    )
+    expect(call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
+    expect(page.gaps).toEqual([])
+  })
+
+  it.each([
+    ['a smaller byte count', { mediaType: 'image/png', bytes: '3999' }, 'fitted'],
+    ['another media type', { mediaType: 'image/jpeg', bytes: '4000' }, 'fitted'],
+    ['the same type and byte count', { mediaType: 'image/png', bytes: '4000' }, 'original'],
+  ] as const)(
+    'takes the last dispatch when none completed: %s is %s',
+    async (_name, sent, read) => {
+      const { call } = await readsWith(
+        succeed([
+          sentRecord('d1', 'failed', [{ reference: ref('b1'), mediaType: 'x/y', bytes: '1' }]),
+          sentRecord('d2', null, [{ reference: ref('b1'), ...sent }]),
+        ]),
+        succeed([choice('b1', 'original')]),
+      )
+      expect(call.reads).toEqual([{ message: 'msg-1', block: 'b1', read }])
+    },
+  )
+
+  it('matches the receipt by storage, key and digest of the reference in the history', async () => {
+    const { call } = await readsWith(
+      succeed([
+        sentRecord('d1', 'completed', [
+          { reference: { ...ref('b1'), digest: 'sha256:other' }, mediaType: 'x/y', bytes: '1' },
+        ]),
+      ]),
+      succeed([choice('b1', 'original')]),
+    )
+    expect(call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
+  })
+
+  it('reads original when the receipt names no such medium or the dispatch was not materialized', async () => {
+    const named = await readsWith(
+      succeed([sentRecord('d1', 'completed', [])]),
+      succeed([choice('b1', 'original')]),
+    )
+    expect(named.call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
+    const none = await readsWith(
+      succeed([sentRecord('d1', null, null)]),
+      succeed([choice('b1', 'original')]),
+    )
+    expect(none.call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
+    const unlisted = await readsWith(succeed([]), succeed([choice('b1', 'original')]), {
+      attempts: [],
+    })
+    expect(unlisted.call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
+  })
+
+  it('reads the history only for original media, and not at all when no block needs it', async () => {
+    const { call, page } = await readsWith(
+      succeed([sentRecord('d1', 'completed', [])]),
+      succeed([choice('b3', 'derived'), choice('t1', 'original', null)]),
+    )
+    expect(call.reads).toEqual([{ message: 'msg-1', block: 'b3', read: 'derived' }])
+    expect(page.history.begins).toHaveLength(1)
+  })
+
+  it.each([
+    ['a block the history does not have', [choice('b9', 'original')], 'not-found'],
+    [
+      'a message the history does not have',
+      [choice('b1', 'original', 'image/png', 'msg-2')],
+      'not-found',
+    ],
+  ] as const)(
+    'writes no reads and a Session gap of the call for %s',
+    async (_name, choices, reason) => {
+      const { call, page } = await readsWith(
+        succeed([sentRecord('d1', 'completed', [])]),
+        succeed([choice('b3', 'derived'), ...choices]),
+      )
+      expect(call.reads).toEqual([])
+      expect(page.gaps).toEqual([{ source: 'session', subject: 'm1', reason }])
+    },
+  )
+
+  it('writes no reads and a not-disclosed gap when the deployment discloses no message kind', async () => {
+    const kinds = ALL_KINDS.filter(kind => !kind.startsWith('message.'))
+    const { call, page } = await readsWith(
+      succeed([sentRecord('d1', 'completed', [])]),
+      succeed([choice('b1', 'original')]),
+      { kinds },
+    )
+    expect(call.reads).toEqual([])
+    expect(page.gaps).toContainEqual({ source: 'session', subject: 'm1', reason: 'not-disclosed' })
+    expect(page.history.begins).toHaveLength(1)
+  })
+
+  it.each([
+    ['refused', fail({ kind: 'denied', action: 'history' }), 'denied'],
+    ['failing', fail({ kind: 'unavailable', diagnostic: 'down' }), 'unavailable'],
+    ['throwing', 'throw', 'unavailable'],
+  ] as const)(
+    'writes no reads and a Session gap when the read of the history for the blocks is %s',
+    async (_name, refusal, reason) => {
+      const history = historyOf(oneCall)
+      const scanRuns = history.begin.bind(history)
+      const failing: typeof history = {
+        ...history,
+        async begin(input) {
+          if (!input.kinds.every(kind => kind.startsWith('message.'))) return scanRuns(input)
+          if (refusal === 'throw') throw new Error('history lost')
+          return refusal as never
+        },
+      }
+      const model = modelDouble(
+        { m1: settledCall('c1') },
+        { c1: attemptsPage(['d1']) },
+        { c1: succeed([sentRecord('d1', 'completed', [])]) },
+      )
+      const result = await projectSessionDiagnostics({
+        access,
+        history: failing,
+        ports: { ...model, ...requestsOf(succeed([choice('b1', 'original')])) },
+        kinds: ALL_KINDS,
+        limits: { maxRuns: 10, maxCallsPerRun: 10 },
+        run: null,
+        pageBytes: 4096,
+        from: null,
+      })
+      if (result.kind !== 'page') throw new Error('expected a page')
+      expect(result.page.runs[0]!.modelCalls[0]!.reads).toEqual([])
+      expect(result.page.gaps).toEqual([{ source: 'session', subject: 'm1', reason }])
+    },
+  )
+
+  it.each([
+    ['refused', fail({ reason: 'denied' }), 'denied'],
+    ['not recorded', fail({ reason: 'not-recorded' }), 'not-recorded'],
+    ['throwing', 'throw', 'unavailable'],
+  ] as const)(
+    'writes no reads and a gap of the call when the choices read is %s',
+    async (_name, answer, reason) => {
+      const { call, page } = await readsWith(succeed([sentRecord('d1', 'completed', [])]), answer)
+      expect(call.reads).toEqual([])
+      expect(page.gaps).toEqual([{ source: 'agent', subject: 'm1', reason }])
+    },
+  )
+
+  it('writes no reads and an unsupported gap when the deployment serves no choices', async () => {
+    const model = modelDouble({ m1: settledCall('c1') }, { c1: attemptsPage([]) })
+    const page = await project({
+      entries: oneCall,
+      ports: { ...model },
+      choices: false,
+    })
+    expect(page.runs[0]!.modelCalls[0]!.reads).toEqual([])
+    expect(page.gaps).toEqual([{ source: 'agent', subject: 'm1', reason: 'unsupported' }])
+  })
+
+  it('writes no reads when an original block is read but the dispatches are not known, keeping their gap', async () => {
+    const { call, page } = await readsWith(
+      fail({ kind: 'denied', action: 'dispatches' }),
+      succeed([choice('b4', 'transcript', 'audio/wav'), choice('b2', 'original')]),
+    )
+    expect(call.reads).toEqual([])
+    expect(page.gaps).toEqual([{ source: 'model', subject: 'm1', reason: 'denied' }])
+    const known = await readsWith(
+      fail({ kind: 'denied', action: 'dispatches' }),
+      succeed([choice('b4', 'transcript', 'audio/wav'), choice('inline', 'original')]),
+    )
+    expect(known.call.reads).toEqual([{ message: 'msg-1', block: 'b4', read: 'transcript' }])
+  })
+
+  it('reads no choices for a call Model did not accept or could not say', async () => {
+    const requests = requestsOf(succeed([choice('b1', 'original')]))
+    const model = modelDouble({ m1: succeed({ kind: 'not-accepted', operation: 'op' } as never) })
+    const page = await project({ entries: oneCall, ports: { ...model, ...requests } })
+    expect(page.runs[0]!.modelCalls[0]!.reads).toEqual([])
+    expect(requests.asked).toEqual([])
   })
 })
 

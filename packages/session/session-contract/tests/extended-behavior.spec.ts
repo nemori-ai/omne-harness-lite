@@ -153,7 +153,13 @@ describe('Session governance beyond the first path', () => {
       source: evidence('ended'),
       sequence: '1',
       consequences: [
-        { kind: 'ended', outcome: 'completed', cause: null, disposition: evidence('complete') },
+        {
+          kind: 'ended',
+          outcome: 'completed',
+          cause: null,
+          disposition: evidence('complete'),
+          end: null,
+        },
       ] satisfies readonly SessionLogConsequence[],
     }
     expect((await s.read()).run.kind).toBe('active')
@@ -199,7 +205,13 @@ describe('Session governance beyond the first path', () => {
           sequence: '1',
           source: evidence('ended'),
           consequences: [
-            { kind: 'ended', outcome: 'completed', cause: null, disposition: evidence('complete') },
+            {
+              kind: 'ended',
+              outcome: 'completed',
+              cause: null,
+              disposition: evidence('complete'),
+              end: null,
+            },
           ],
         },
         operationId('project'),
@@ -477,7 +489,7 @@ describe('Session governance beyond the first path', () => {
       }),
       'release',
     )
-    expect((await s.read()).consumptions[0]?.results[0]?.release).toBe('confirmed')
+    expect(s.call(bound.consumption)?.consumed?.results[0]?.release).toBe('confirmed')
     expect(
       refused(
         await s.commit({
@@ -575,12 +587,8 @@ describe('Session governance beyond the first path', () => {
     expect(await s.read()).toEqual(before)
     succeeded(
       await s.commit({
-        kind: 'setRelation',
-        input: {
-          ...s.base,
-          operation: operationId('resident'),
-          relation: { kind: 'main', resident: true },
-        },
+        kind: 'setResident',
+        input: { ...s.base, operation: operationId('resident'), resident: true },
       }),
       'resident',
     )

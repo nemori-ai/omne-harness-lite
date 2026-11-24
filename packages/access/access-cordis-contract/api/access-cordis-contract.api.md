@@ -6,13 +6,15 @@
 
 ## 入口 `.` · `index.d.ts`
 
-- `AccessAssemblyError` · `contribution.d.ts`
 - `AccessContribution` · `contribution.d.ts`
 - `AccessIdentity` · `identity.d.ts`
 - `ActForResult` · `identity.d.ts`
 - `AnswerOf` · `contribution.d.ts`
 - `BodyOf` · `contribution.d.ts`
 - `CallContext` · `contribution.d.ts`
+- `ChangeAdmission` · `change-observation.d.ts`
+- `ChangeListener` · `change-observation.d.ts`
+- `ChangeObservationInput` · `change-observation.d.ts`
 - `EndOf` · `contribution.d.ts`
 - `FrameOf` · `contribution.d.ts`
 - `FrameSource` · `contribution.d.ts`
@@ -25,6 +27,7 @@
 - `Principal` · `contribution.d.ts`
 - `PrincipalFor` · `contribution.d.ts`
 - `ProtocolKey` · `contribution.d.ts`
+- `createChangeObservation` · `change-observation.d.ts`
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
@@ -34,6 +37,24 @@
 - `ServiceKey` · `cordis.d.ts`
 - `accessRegistryKey` · `cordis.d.ts`
 - `defineAccessPlugin` · `cordis.d.ts`
+
+## 声明文件 `change-observation.d.ts`
+
+```ts
+import type { ObservationContract } from '@omne-harness/public-contract';
+import type { FrameOf, FrameSource, OpenOf, PrincipalFor } from './contribution.ts';
+export type ChangeAdmission = 'admitted' | 'denied' | 'basis-unavailable';
+export type ChangeListener = Readonly<{
+    changed(): void;
+    closed(): void;
+}>;
+export type ChangeObservationInput<O extends ObservationContract> = Readonly<{
+    admits(principal: PrincipalFor<O['identity']>, open: OpenOf<O>): Promise<ChangeAdmission>;
+    subscribe(open: OpenOf<O>, listener: ChangeListener): (() => void) | undefined;
+    frame: FrameOf<O>;
+}>;
+export declare function createChangeObservation<O extends ObservationContract>(input: ChangeObservationInput<O>): FrameSource<O>;
+```
 
 ## 声明文件 `contribution.d.ts`
 
@@ -71,6 +92,7 @@ export type OperationHandler<O extends OperationContract> = (call: CallContext<O
 export type ObservationContext<O extends ObservationContract> = {
     readonly principal: PrincipalFor<O['identity']>;
     readonly messageId: string;
+    readonly revision: number;
     readonly signal: AbortSignal;
 };
 export type OpenOf<O extends ObservationContract> = ValueOf<O['open']>;
@@ -91,10 +113,6 @@ export type AccessContribution<P extends ProtocolContract> = {
         readonly [K in keyof P['observations']]: FrameSource<P['observations'][K]>;
     };
 };
-export declare class AccessAssemblyError extends Error {
-    readonly protocol: ProtocolKey;
-    constructor(protocol: ProtocolKey);
-}
 export {};
 ```
 
@@ -107,8 +125,7 @@ import type { AccessContribution } from './contribution.ts';
 export declare abstract class AccessRegistryService extends Service {
     static readonly provide = "accessRegistry";
     constructor(ctx: Context);
-    mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void;
-    protected abstract attach(contribution: AccessContribution<ProtocolContract>): () => Promise<void>;
+    abstract mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void;
 }
 export declare const accessRegistryKey = "accessRegistry";
 declare module '@deepseek-ai/cordis' {
@@ -151,7 +168,7 @@ export type AccessIdentity = {
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { AccessAssemblyError } from './contribution.ts';
+export { createChangeObservation, type ChangeAdmission, type ChangeListener, type ChangeObservationInput, } from './change-observation.ts';
 export type { AccessContribution, AnswerOf, BodyOf, CallContext, EndOf, FrameOf, FrameSource, LoginIdentity, ObservationContext, OpenOf, OperationHandler, Principal, PrincipalFor, ProtocolKey, } from './contribution.ts';
 export type { AccessIdentity, ActForResult, IdentityFailure, LoginResult } from './identity.ts';
 ```

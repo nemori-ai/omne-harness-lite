@@ -42,12 +42,12 @@ import {
 import {
   callHandler,
   createSqlModelCommands,
+  dispatchFactsMigration,
   modelMigration,
   pendingHandler,
   requestHandler,
   type SqlModelCommandsOptions,
 } from '@omne-harness/model-storage-sql'
-import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import {
   ModelProfilesLocalPlugin,
   createMemoryResultPushLedger,
@@ -57,7 +57,7 @@ import {
   type ResultPushLimits,
 } from '../../src/cordis.ts'
 import { vaultCredentialPlugin } from './credentials.ts'
-import { FAMILIES, PLACEHOLDER, ROUTE_PATH, TRANSPORT_LIMITS, decoded } from './local-host.ts'
+import { FAMILIES, PLACEHOLDER, TRANSPORT_LIMITS, decoded, gatewayEndpoints } from './local-host.ts'
 import { factorySupplier } from './profiles.ts'
 import type { RequestDisclosure } from '@omne-harness/model-host-local'
 
@@ -92,7 +92,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 const HOST_SETTINGS = {
   concurrencyLimit: 4,
@@ -106,6 +105,8 @@ const PUSH_LIMITS: ResultPushLimits = {
   maxCleanupSteps: 8,
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  maxCostMisses: 3,
+  delaysMs: [1000, 5000, 30000],
 }
 const DOMAIN = 'line'
 
@@ -190,6 +191,7 @@ function openDatabase(file: string): DatabaseSync {
   const db = new DatabaseSync(file)
   const port: ReadPort = { execute: (sql, params) => rowsOf(db, sql, params) }
   if (modelMigration.verify(port).kind !== 'verified') modelMigration.up(port)
+  if (dispatchFactsMigration.verify(port).kind !== 'verified') dispatchFactsMigration.up(port)
   db.exec('CREATE TABLE IF NOT EXISTS e2e_receipt (key TEXT PRIMARY KEY, receipt TEXT NOT NULL)')
   return db
 }
@@ -224,6 +226,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       manifestDigest: request.manifestDigest,
     }
     const key = keyOf(request.identity)
+    const keeps = request.identity.recall !== 'never'
     db.exec('BEGIN IMMEDIATE')
     const port = {
       execute: (sql: string, params: readonly SqlValue[]) => rowsOf(db, sql, params),
@@ -240,7 +243,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
     const entry = { participant: command.participant, protocol: '1' }
     if (kind === 'participated') {
       const receipt = { kind: 'committed', ...head, responses: [{ ...entry, reply }] } as Receipt
-      saveReceipt(key, receipt)
+      if (keeps) saveReceipt(key, receipt)
       db.exec('COMMIT')
       return receipt
     }
@@ -258,7 +261,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       ...head,
       responses: [{ ...entry, reply: stopping }],
     } as Receipt
-    saveReceipt(key, receipt)
+    if (keeps) saveReceipt(key, receipt)
     return receipt
   }
   const storage: Storage = {
@@ -266,7 +269,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request) {
       const key = keyOf(request.identity)
-      const existing = receiptOf(key)
+      const existing = request.identity.recall === 'never' ? undefined : receiptOf(key)
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === digestOf(request.commands)
@@ -287,6 +290,8 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       return Promise.resolve({ ...executeCommit(request), recalled: false })
     },
     query(identity) {
+      if (identity.recall === 'never')
+        return Promise.resolve({ kind: 'settled', identity, proofs: NOT_COMMITTED_PROOFS })
       const found = receiptOf(keyOf(identity))
       return Promise.resolve(
         found ?? { kind: 'not_committed', identity, proofs: NOT_COMMITTED_PROOFS },
@@ -514,6 +519,8 @@ function commandsServiceOver(commands: ModelCommands<Principal>) {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -640,8 +647,7 @@ export async function assembleLine(input: LineInput) {
     },
     routes: {
       openrouter: {
-        url: new URL(ROUTE_PATH, input.gateway.url).href,
-        endMarker: GATEWAY_END_MARKER,
+        endpoints: gatewayEndpoints(input.gateway.url),
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },

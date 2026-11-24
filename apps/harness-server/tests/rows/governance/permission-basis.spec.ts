@@ -10,17 +10,13 @@ import {
   type SessionPermissionCurrent,
 } from '@omne-harness/session-storage-sql/participants'
 import type { FactKey, JsonValue } from '@omne-harness/sql-contract'
-import { canonicalDigest } from '@omne-harness/tool'
 import {
   PERMISSION_BASIS,
-  PERMISSION_BASIS_GUARD,
   permissionBasisCommands,
   permissionBasisFact,
-  permissionBasisGuardCommand,
   permissionBasisSchema,
 } from '../../../src/rows/governance/permission-basis.ts'
 import basisParticipant from '../../../src/rows/governance/permission-basis-participant.ts'
-import guardParticipant from '../../../src/rows/governance/permission-basis-guard-participant.ts'
 import { targetSnapshotFact } from '../../../src/rows/governance/target-snapshot.ts'
 import { settingsSnapshotFixture } from './settings-snapshot-fixture.ts'
 
@@ -148,29 +144,6 @@ it('does not participate for another snapshot binding or another Session observa
     basis: { reason: 'permission-basis-session' },
   })
   expect(w.facts.has(permissionBasisFact.key)).toBe(false)
-})
-
-it('guards the basis by its digest', () => {
-  const w = world()
-  const reply = w.run()
-  if (reply.kind !== 'participated') throw new Error(JSON.stringify(reply))
-  const basis = permissionBasisSchema.parse(reply.response)
-  const command = permissionBasisGuardCommand(basis)
-  expect(command).toEqual({
-    participant: PERMISSION_BASIS_GUARD.participant,
-    facts: { digest: canonicalDigest(basis) },
-  })
-  expect(guardParticipant.execute(command.facts, w.port)).toEqual({
-    kind: 'participated',
-    response: null,
-  })
-  basis.evaluation.adoptionRevision = 'changed'
-  w.facts.set(permissionBasisFact.key, basis as unknown as JsonValue)
-  expect(guardParticipant.execute(command.facts, w.port)).toEqual({
-    kind: 'conflict',
-    basis: { reason: 'permission-basis-changed' },
-  })
-  expect(guardParticipant.execute({}, w.port)).toMatchObject({ kind: 'unsupported' })
 })
 
 it('ends both command lists with the Session guard and the basis command', () => {

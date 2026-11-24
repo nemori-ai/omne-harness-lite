@@ -18,10 +18,7 @@ import {
   createModelReceiverState,
   type AgentModelReceiver,
 } from '../receiving.ts'
-import {
-  createMemoryAgentAccountOutlet,
-  sampleReceivedModelAccount,
-} from '@omne-harness/agent-contract/testing'
+import { sampleReceivedModelAccount } from '@omne-harness/agent-contract/testing'
 import type { AgentInstant, Access, AgentExecutionId } from '@omne-harness/agent-contract'
 import type { AgentDependencies } from '../construction.ts'
 import { createManualAgentClock, type ManualAgentClock } from './clock.ts'
@@ -32,7 +29,6 @@ import {
   createScriptedExtensions,
   createScriptedMaterials,
   createScriptedMessageHandoff,
-  createScriptedModelContext,
   createScriptedModelSelection,
   createScriptedReads,
   createScriptedRequestPreparation,
@@ -44,7 +40,6 @@ import {
   type ScriptedExtensions,
   type ScriptedMaterials,
   type ScriptedMessageHandoff,
-  type ScriptedModelContext,
   type ScriptedModelSelection,
   type ScriptedReads,
   type ScriptedRequestPreparation,
@@ -84,7 +79,6 @@ export {
   createScriptedExtensions,
   createScriptedMaterials,
   createScriptedMessageHandoff,
-  createScriptedModelContext,
   createScriptedModelSelection,
   createScriptedReads,
   createScriptedRequestPreparation,
@@ -102,7 +96,6 @@ export type {
   ScriptedExtensions,
   ScriptedMaterials,
   ScriptedMessageHandoff,
-  ScriptedModelContext,
   ScriptedModelSelection,
   ScriptedReads,
   ScriptedRequestPreparation,
@@ -148,7 +141,6 @@ export type TestAgentControls<P> = Readonly<{
   conditions: TableConditions<P>
   requests: ScriptedRequestPreparation<P>
   selection: ScriptedModelSelection<P>
-  modelContext: ScriptedModelContext<P>
   extensions: ScriptedExtensions<P>
   cards: ScriptedDecisionCards<P>
   admission: ScriptedActionAdmission<P>
@@ -184,7 +176,6 @@ export function createTestAgentDependencies<P>(
             provider: journal.provider,
             access: access.port,
             targets: journal.targets,
-            outlet: createMemoryAgentAccountOutlet<P>(),
             models: models.provider.runtime.calls,
             capacity: () => ({
               records: 10000,
@@ -218,7 +209,6 @@ export function createTestAgentDependencies<P>(
     conditions: createTableConditions<P>(),
     requests: createScriptedRequestPreparation<P>(),
     selection: createScriptedModelSelection<P>(),
-    modelContext: createScriptedModelContext<P>(),
     extensions: createScriptedExtensions<P>(),
     cards: createScriptedDecisionCards<P>(),
     admission: createScriptedActionAdmission<P>(),
@@ -260,7 +250,6 @@ export function createTestAgentDependencies<P>(
       },
       received,
       selection: controls.selection.port,
-      modelContext: controls.modelContext.port,
       extensions: controls.extensions.port,
       cards: controls.cards.port,
       admission: controls.admission.port,
@@ -321,6 +310,7 @@ export async function createToolReceiverFixture(): Promise<ToolReceiverFixture> 
     association: 'associated',
     purpose: 'action',
     reference,
+    acceptance: 'accepted',
     action: value(decodeActionId('receiver-tool-action')),
     consumption: value(decodeConsumptionId('receiver-tool-consumption')),
     position: { owner: 'agent', work: 'opaque-tool-work', position: 'tool', purpose: 'result' },

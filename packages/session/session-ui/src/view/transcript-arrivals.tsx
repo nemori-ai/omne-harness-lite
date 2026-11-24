@@ -1,4 +1,4 @@
-import { useArrival } from '@omne-harness/ui-kit'
+import { useArrival, useSettleCue } from '@omne-harness/ui-kit'
 import { useRef, useState, type ReactNode } from 'react'
 
 export interface Publication {
@@ -45,15 +45,31 @@ export function usePublication(
 
 export function TranscriptRow({
   arriving,
+  speaker,
+  entry,
+  found = false,
   children,
 }: {
   readonly arriving: boolean
+  /** Whose turn the row belongs to; a change of speaker is a wider gap. */
+  readonly speaker?: 'user' | 'agent' | undefined
+  /** The history entry this row shows, and whether it is the one a jump asked for. */
+  readonly entry?: string
+  readonly found?: boolean
   readonly children: ReactNode
 }) {
   const node = useRef<HTMLDivElement>(null)
   useArrival(node, { still: !arriving })
+  // The row a jump asked for settles once when it is found; no frame stays on it.
+  useSettleCue(node, found, { disabled: !found })
   return (
-    <div ref={node} className="omne-transcript-row">
+    <div
+      ref={node}
+      className="omne-transcript-row"
+      data-speaker={speaker}
+      data-entry={entry}
+      data-found={found}
+    >
       {children}
     </div>
   )

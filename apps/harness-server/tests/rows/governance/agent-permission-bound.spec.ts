@@ -16,6 +16,8 @@ function config(permissionBounds?: readonly object[]) {
     entryConfig('alpha', {
       definition: {
         category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
         name: 'alpha',
         references: [],
         attributes: [],

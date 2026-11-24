@@ -43,17 +43,53 @@ export {
   type PackageRejection,
   type PackageSourceFailure,
 } from './package.ts'
+export { packageBody } from './package-body.ts'
+export {
+  declarationRejection,
+  judgePackageContent,
+  withinDirectory,
+  type JudgedPackage,
+} from './package-content.ts'
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export {
+  admitCategory,
+  categoryViewOf,
   createCategoryPoint,
   unknownCategory,
   type CategoryContribution,
   type CategoryDisplay,
   type CategoryListing,
   type CategoryPoint,
+  type CategoryReading,
+  type CategoryUnusable,
   type CategoryView,
+  type CreationMode,
 } from './category-point.ts'
+export {
+  SUMMARY_LIMITS,
+  admitSummary,
+  summarizeVersion,
+  type AssetSummary,
+  type AssetSummaryFact,
+} from './summary.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'
+export {
+  createHeldBook,
+  heldLayerSource,
+  heldPoint,
+  layerInputsOf,
+  layerOfScope,
+  scopeOfLayer,
+  type HeldBook,
+  type HeldEntry,
+  type HeldHolding,
+  type HeldItem,
+  type HeldPoint,
+  type HeldPort,
+  type HeldLayer,
+  type HeldReading,
+  type HeldScope,
+} from './held.ts'
 export {
   createTenantPublishing,
   type PublishContent,
@@ -65,9 +101,47 @@ export {
 } from './publishing.ts'
 export { projectAssetSettings, type AssetSettingsProjection } from './settings.ts'
 export {
+  createTenantManagement,
+  type AssetContent,
+  type AssetOrigin,
+  type AssetRow,
+  type AssetRowPage,
+  type AssetStanding,
+  type HeldFiles,
+  type HoldingChange,
+  type HoldingOutcome,
+  type ManagedAsset,
+  type ManagedList,
+  type ManagedRequest,
+  type OperationRecall,
+  type RecalledOperation,
+  type RecallOutcome,
+  type StoreChange,
+  type StoreOperation,
+  type StorePublication,
+  type StoreUploads,
+  type TenantLayerStore,
+  type TenantManagement,
+  type UploadAppend,
+  type UploadBegin,
+  type UploadCommit,
+  type UploadEntry,
+} from './management.ts'
+export { type OfficialAsset, type OfficialAssets } from './official.ts'
+export {
   decideAssetHoldingChange,
   type AssetHolding,
   type AssetHoldingChange,
   type AssetHoldingDecision,
   type AssetVersionSelection,
 } from './holding.ts'
+export {
+  heldEffect,
+  type CategoryEffect,
+  type ChangeImpact,
+  type ClientLine,
+  type HeldEffectPorts,
+  type ImpactLine,
+  type PlacedLine,
+  type Placement,
+} from './effect.ts'

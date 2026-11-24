@@ -1,6 +1,8 @@
 import { pendingCalls } from './pending.ts'
 export { pendingCalls } from './pending.ts'
 import { corrupt, unavailable } from './history-failure.ts'
+import { itemText, peekClosed } from './closed-items.ts'
+import { ASSOCIATION_FAMILY, ORIGIN_FAMILY } from './closed-rows.ts'
 export { HistoryFailure, corrupt, unavailable } from './history-failure.ts'
 import { normalizeControl } from './control.ts'
 import { captureHuman, humanWaiting } from './human.ts'
@@ -8,9 +10,11 @@ import type {
   AgentEvent,
   Authority,
   CommandReceipt,
+  FailureCandidate,
   PendingCall,
   ProducedResult as AgentResult,
 } from '@omne-harness/agent-contract'
+import { intentOf } from './journal-finishing.ts'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { uninterpretedCalls } from '@omne-harness/session-contract'
@@ -26,6 +30,8 @@ import type {
   SessionCallRegistration,
   CallBinding,
   ProducedResult,
+  RunEnd,
+  RunFailure,
   WorkSnapshot,
   DurableEvidence,
   SessionBatchRecord,
@@ -204,8 +210,7 @@ function callConsequences(
   event: AgentEvent,
   pending: PendingCall,
 ): SessionLogConsequence[] {
-  const key = `${execution.id}\0${pending.consumption}`,
-    origin = root.agent.callOrigins.get(key)
+  const origin = originOf(root, execution, pending.consumption)
   if (!origin) unavailable('original call event registration')
   const result: SessionLogConsequence[] = [],
     consumption = String(pending.consumption) as ConsumptionId
@@ -243,6 +248,49 @@ function takenConsequences(
   ]
 }
 
+function runFailureOf(failure: FailureCandidate): RunFailure {
+  switch (failure.kind) {
+    case 'node-failed':
+      return {
+        kind: failure.kind,
+        node: failure.node,
+        category: failure.category,
+        failureKind: failure.failureKind,
+      }
+    case 'model-refused':
+      return { kind: failure.kind, failure: failure.failure.kind }
+    case 'no-reply':
+      return {
+        kind: failure.kind,
+        cause: failure.fault?.cause ?? null,
+        upstreamStatus: failure.fault?.upstreamStatus ?? null,
+        diagnostic: failure.fault?.diagnostic ?? null,
+      }
+    case 'cannot-fit':
+      return { kind: failure.kind, reason: failure.reason }
+    case 'request-rejected':
+    case 'compaction-invalid':
+    case 'compaction-failed':
+    case 'message-rejected':
+    case 'extension-stop':
+    case 'guard':
+      return { kind: failure.kind }
+    default: {
+      const exhaustive: never = failure
+      return exhaustive
+    }
+  }
+}
+
+function runEndOf(execution: MemoryExecution): RunEnd | null {
+  const intent = intentOf(execution.finishing)
+  if (intent === undefined) return null
+  return {
+    conclusion: intent.conclusion.kind,
+    failure: intent.failure === null ? null : runFailureOf(intent.failure),
+  }
+}
+
 export function normalizeAgentEvent(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -271,6 +319,7 @@ export function normalizeAgentEvent(
                 : 'cancelled',
           cause: body.conclusion.kind === 'complete' ? null : body.conclusion.cause,
           disposition: body.disposition,
+          end: runEndOf(execution),
         },
       ]
     case 'waiting': {
@@ -353,9 +402,13 @@ function rememberCallOrigin(
 ): void {
   registration(root, execution, value)
   const key = `${execution.id}\0${value.consumption}`,
-    prior = root.agent.callOrigins.get(key)
+    prior = originOf(root, execution, value.consumption),
+    refOf = (family: string) => ({ execution: execution.id, family, item: value.consumption })
+  if (prior && !root.agent.callOrigins.has(key)) root.agent.callOrigins.set(key, prior)
   if (!prior) {
-    root.agent.callOrigins.set(key, { first: event.sequence, pending: value, association: null })
+    const origin = { first: event.sequence, pending: value }
+    root.agent.callOrigins.set(key, { ...origin, association: null })
+    root.agent.closed.set(itemText(refOf(ORIGIN_FAMILY)), origin)
     return
   }
   if (
@@ -364,11 +417,29 @@ function rememberCallOrigin(
     value.kind === 'tool' &&
     value.association === 'associated' &&
     prior.association === null
-  )
-    root.agent.callOrigins.set(key, {
-      ...prior,
-      association: { sequence: event.sequence, pending: value, source: event.cause },
-    })
+  ) {
+    const association = { sequence: event.sequence, pending: value, source: event.cause }
+    root.agent.callOrigins.set(key, { ...prior, association })
+    root.agent.closed.set(itemText(refOf(ASSOCIATION_FAMILY)), association)
+  }
+}
+
+type CallOrigin = CommonRoot['agent']['callOrigins'] extends Map<string, infer V> ? V : never
+
+// The origin of a call: what the record remembers, else the two items it was written as. A core
+// that has neither takes the call for new; the store refuses a second origin and names the first.
+function originOf(
+  root: CommonRoot,
+  execution: MemoryExecution,
+  consumption: string,
+): CallOrigin | undefined {
+  const held = root.agent.callOrigins.get(`${execution.id}\0${consumption}`)
+  if (held !== undefined) return held
+  const at = (family: string) =>
+    peekClosed(root.agent, { execution: execution.id, family, item: consumption })
+  const first = at(ORIGIN_FAMILY) as Pick<CallOrigin, 'first' | 'pending'> | null
+  if (first === null) return undefined
+  return { ...first, association: (at(ASSOCIATION_FAMILY) as CallOrigin['association']) ?? null }
 }
 
 export function captureEventOriginal(

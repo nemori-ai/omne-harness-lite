@@ -12,16 +12,14 @@ import { ScheduleDefinitionSchema } from './definition.ts'
 import { ScheduleCandidateSchema } from './candidates.ts'
 export const ScheduleAuthorSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('human'), actorRef: ref }),
-  z.strictObject({ kind: z.literal('agent'), actorRef: ref, originatingSessionRef: ref }),
+  z.strictObject({
+    kind: z.literal('agent'),
+    actorRef: ref,
+    originatingSessionRef: ref,
+    originatingCallRef: ref,
+  }),
   z.strictObject({ kind: z.literal('system'), principalRef: ref }),
 ])
-export const ScheduleConsentAdoptionSchema = z.strictObject({
-  grantRef: ref,
-  generation: z.int().nonnegative(),
-  adoptionKind: z.enum(['granular', 'blanket']),
-  scope: z.enum(['session', 'standing']),
-  adoptedAt: ScheduleInstantSchema,
-})
 export const ScheduleAuthorityEvidenceSchema = z.strictObject({
   authorityRef: ref,
   subjectRef: ref,
@@ -75,7 +73,6 @@ export const ScheduleViewSchema = z.strictObject({
   discardedBy: ref.nullable(),
   discardedAt: ScheduleInstantSchema.nullable(),
   sourceScheduleKey: ref.nullable(),
-  consentAdoption: ScheduleConsentAdoptionSchema.nullable(),
   eligibleConsumed: z.int().nonnegative(),
   acceptedJobCount: z.int().nonnegative(),
   observedAt: ScheduleInstantSchema,
@@ -105,8 +102,14 @@ export const ScheduleRevisionViewSchema = z.strictObject({
 })
 export type ScheduleView = z.infer<typeof ScheduleViewSchema>
 export type ScheduleRevisionView = z.infer<typeof ScheduleRevisionViewSchema>
-export type ScheduleConsentAdoption = z.infer<typeof ScheduleConsentAdoptionSchema>
 export type ScheduleAuthorityEvidence = z.infer<typeof ScheduleAuthorityEvidenceSchema>
 export type ScheduleAuthor = z.infer<typeof ScheduleAuthorSchema>
 export type ScheduleStanding = z.infer<typeof ScheduleStandingSchema>
 export type ScheduleControl = z.infer<typeof ScheduleControlSchema>
+
+/** Who an author is, without the call it created in: an agent in one session is one author. */
+export function scheduleAuthorIdentity(author: ScheduleAuthor) {
+  if (author.kind !== 'agent') return author
+  const { kind, actorRef, originatingSessionRef } = author
+  return { kind, actorRef, originatingSessionRef }
+}

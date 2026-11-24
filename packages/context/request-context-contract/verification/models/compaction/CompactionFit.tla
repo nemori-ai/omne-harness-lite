@@ -6,7 +6,7 @@
 (* most one compaction plan, runs bounded summary steps, commits one        *)
 (* compaction record by appending it, and resumes.  Token counts are        *)
 (* abstract weights.  SysW stands for every part of the request that is not *)
-(* history: system prompt, tools, layer 4 and layer 6.                      *)
+(* history: the system prompt and the tool declarations.                    *)
 (*                                                                          *)
 (* The model checks that compaction never rewrites history, keeps retained  *)
 (* and open entries, never splits a call from its result, keeps the        *)

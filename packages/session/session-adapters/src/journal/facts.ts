@@ -23,6 +23,7 @@ import type {
   InputBatch,
   InputId,
   LoopExtensionDeclaration,
+  MaterialReaders,
   ModelReplyAdmission,
   Passage,
   PassageId,
@@ -45,6 +46,9 @@ import { EXECUTION_BATCH_MAX_FACTS } from '@omne-harness/session-storage-sql/par
 import { canonical } from '../testing/canonical.ts'
 
 export const FACT_MAX_BYTES = 4096
+
+export const materialHold = (key: string): string =>
+  createHash('sha256').update(key).digest('hex').slice(0, 16)
 export const BATCH_OVERHEAD_BYTES = 512
 export const BATCH_MAX_FACTS = EXECUTION_BATCH_MAX_FACTS - 1
 
@@ -122,16 +126,14 @@ export type CursorMembers = Readonly<{
   definition: Adoption
   adoptedRequest: Ref | null
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
-  // What the checkpoint holds open that its blocks name: the fold reads it without the blocks.
-  // null: it names more than a fact carries, so every item is held until the checkpoint shrinks.
-  holds: null | Readonly<{
-    actions: readonly ActionId[]
-    consumptions: readonly ConsumptionId[]
-    handoffs: readonly string[]
-    // The sequence of the reply admission prefix the checkpoint has verified (0: none).
-    admissionsFrom: number
-  }>
+  // The sequence of the reply admission prefix the checkpoint has verified (0: none).
+  admissionsFrom: number
 }>
+
+// One thing a checkpoint holds open, by its kind and identity: the fold reads holds, not blocks.
+export type HoldKind = 'action' | 'consumption' | 'handoff' | 'material'
+export type HoldRef = readonly [kind: HoldKind, id: string]
+export const holdText = ([kind, id]: HoldRef): string => `${kind}/${id}`
 export type CursorMember = keyof CursorMembers
 
 export type ResultStage = 'recorded' | 'custody' | 'processed' | 'released'
@@ -141,6 +143,9 @@ export type ResultKey = string & { readonly resultKey: unique symbol }
 
 export const resultKey = (consumption: ConsumptionId, version: string): ResultKey =>
   JSON.stringify([consumption, version]) as ResultKey
+
+export const resultsUnder = (consumption: ConsumptionId): string =>
+  `${JSON.stringify([consumption]).slice(0, -1)},`
 
 export type FactBody =
   | Readonly<{
@@ -246,6 +251,8 @@ export type FactBody =
   | Readonly<{
       kind: 'handoff.prepared'
       handoff: HandoffReference
+      // The step of the position it hands back to: the step still reads it.
+      step: StepId
       request: Ref
       prepared: DurableEvidence
     }>
@@ -355,6 +362,7 @@ export type FactBody =
       source: DurableEvidence
       value: Ref
       consumer: ConsumerRef
+      readers: MaterialReaders
     }>
   | Readonly<{
       kind: 'op.excluded'
@@ -375,6 +383,13 @@ export type FactBody =
       fence: DurableEvidence
     }>
   | Readonly<{ kind: 'cursor.moved'; step: StepId; members: Partial<CursorMembers> }>
+  // What a commit's checkpoint newly holds and what it let go: the change only, so no bound.
+  | Readonly<{
+      kind: 'hold.changed'
+      step: StepId
+      held: readonly HoldRef[]
+      released: readonly HoldRef[]
+    }>
 
 export type FactKind = FactBody['kind']
 export type FactOf<K extends FactKind> = Extract<FactBody, { kind: K }>
@@ -411,6 +426,7 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'op.excluded',
   'fence.started',
   'cursor.moved',
+  'hold.changed',
   'material.preserved',
   'target.bound',
 ])
@@ -540,7 +556,6 @@ export function factKey(fact: FactBody): string {
       return `call/${fact.action}`
     case 'result.received':
       if (fact.result.delivery === 'account') return `account/${fact.delivery}`
-      if (fact.result.delivery === 'placeholder') return `placeholder/${fact.consumption}`
       return `received/${resultKey(fact.consumption, fact.result.version)}`
     case 'result.handled':
       return `handled/${resultKey(fact.consumption, fact.result.version)}/${fact.stage}`
@@ -587,6 +602,8 @@ export function factKey(fact: FactBody): string {
       return `fence/${fact.operation}`
     case 'cursor.moved':
       return `cursor/${fact.step}/${digestOf(fact.members)}`
+    case 'hold.changed':
+      return `hold/${fact.step}/${digestOf([fact.held, fact.released])}`
   }
 }
 

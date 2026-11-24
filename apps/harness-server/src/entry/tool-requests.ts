@@ -5,7 +5,12 @@ import type { AgentHostLocalPluginInput } from '@omne-harness/agent-host-local/c
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import {
+  tenantEquals,
+  workspaceCodec,
+  type Access,
+  type TenantId,
+} from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeScopeRef,
@@ -18,9 +23,10 @@ import type {
   SessionId,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
+import type { WorkingDirectory } from '@omne-harness/session-adapters'
 import {
-  sessionInquiryBinding,
   sessionInteractionBinding,
+  workingDirectoryCallBinding,
 } from '@omne-harness/session-adapters/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
@@ -31,20 +37,31 @@ import {
   selectCommandText,
   type ToolAvailability,
   type ToolCallLabel,
+  type ToolCallDirectory,
   type ToolCatalog,
   type ToolConsumerProfile,
   type ToolInvokeRequest,
+  type ToolDefinition,
 } from '@omne-harness/tool-contract'
+import {
+  commandAddedModalities,
+  toolAvailabilityReference,
+} from '@omne-harness/tool-contract/provider'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import type { FilesScope } from '@omne-harness/execution-environment-contract'
+import type { OutsideFiles } from '@omne-harness/workspace-local'
+import { workspaceOutsideFilesKey } from '../rows/workspace-outside-files/service.ts'
+import { currentHeldTool, type CurrentHeldTool } from '../rows/tool-host/held-current.ts'
+import { HELD_TOOL_SETTINGS, ownLayer } from '../rows/tool-host/held-tools.ts'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
 import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scope.ts'
 import { verifySessionWork } from '../rows/tool-runtime/session-work.ts'
-import { publishedViewPortsOf, readPublishedView } from '../rows/session-ad03/published-view.ts'
 import {
-  judgeMetaCommand,
-  type SessionInquiryRead,
-  type SessionInteractionRead,
-} from './meta-capabilities.ts'
+  publishedViewPortsOf,
+  readHeldNeed,
+  readPublishedView,
+} from '../rows/session-ad03/published-view.ts'
+import { judgeCallConditions, type SessionInteractionRead } from './meta-capabilities.ts'
 import { toolOperatorSettingsKey } from '../rows/tool-host/operator-settings.ts'
 import { toolLimitsOf } from './tool-limits.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
@@ -66,7 +83,11 @@ export type ToolRequestPorts = Readonly<{
   /** The operator's values for the settings a release tool declares; undefined when absent. */
   operatorSettings(tool: string): Readonly<Record<string, unknown>> | undefined
   interaction: SessionInteractionRead
-  inquiry: SessionInquiryRead
+  workingDirectory(
+    access: SessionAccess<unknown>,
+  ): Promise<Outcome<WorkingDirectory | null, string>>
+  outsideFiles(tenant: TenantId): Promise<Outcome<OutsideFiles, string>>
+  held?(access: Access<unknown>, name: string): Promise<CurrentHeldTool>
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -93,7 +114,7 @@ function objectOf(text: string): JsonObject {
 
 // A call naming no known command, or lacking a needed intent, is answered here and never runs;
 // other malformed calls are judged when they run, labelled with the intent decoding checked.
-function callOf(
+export function callOf(
   definition: ToolAvailability['definition'],
   effectiveArguments: string,
 ): Readonly<{ command: string | null; label: ToolCallLabel }> | Readonly<{ answer: string }> {
@@ -122,12 +143,19 @@ function callOf(
   return { command, label: callLabel(definition, { command, intent, params: EMPTY_PARAMS }) }
 }
 
-// The model asks for the wait mode with run_in_background; admission judges whether this call may.
+// The wait mode: run_in_background, or a command that starts in the background; admission judges.
 function modeOf(
   definition: ToolAvailability['definition'],
   effectiveArguments: string,
 ): ToolInvokeRequest['mode'] {
   if (definition.kind === 'function') return 'foreground'
+  const selected = selectCommandText(
+    definition.commands.map(command => command.name),
+    effectiveArguments,
+  )
+  const declared =
+    'ok' in selected ? definition.commands.find(command => command.name === selected.ok) : undefined
+  if (definition.backgroundAllowed && declared?.background?.start === 'launch') return 'background'
   const call = decodeCommandCallText(definition, effectiveArguments)
   if ('failure' in call) return 'foreground'
   const flag = call.ok.params.entries.find(entry => entry.key === 'run_in_background')?.value
@@ -162,10 +190,11 @@ async function availabilityOf(
   session: SessionId,
 ): Promise<
   Outcome<
-    | (Extract<ToolAvailability, { kind: 'available' }> & {
-        command: string | null
-        label: ToolCallLabel
-      })
+    | (Extract<ToolAvailability, { kind: 'available' }> &
+        Pinned & {
+          command: string | null
+          label: ToolCallLabel
+        })
     | ToolCallAnswer,
     Failure
   >
@@ -173,8 +202,10 @@ async function availabilityOf(
   const catalog = ports.catalog()
   if (catalog === undefined) return unavailable('tool catalog absent')
   const name = input.original.name
-  if (!release.manifest.entries.some(entry => entry.asset.name === name))
-    return unavailable(`${name} is not a release tool`)
+  const access = { principal: input.principal, tenant: input.tenant, session }
+  const released = release.manifest.entries.some(entry => entry.asset.name === name)
+  const held = released ? undefined : await ports.held?.(access, name)
+  if (held?.kind === 'unavailable') return unavailable(held.diagnostic)
   let answer: Awaited<ReturnType<ToolCatalog<unknown>['inspect']>>
   try {
     answer = await catalog.inspect({
@@ -192,23 +223,101 @@ async function availabilityOf(
       ? denied('tool-request')
       : unavailable(`tool catalog answered ${answer.failure.kind}`)
   const availability = answer.ok
-  if (availability.kind !== 'available' || availability.layer.kind !== 'official')
+  if (availability.kind === 'known-unavailable')
+    return succeed({
+      kind: 'answered',
+      text: `${name} is not available now (${availability.reason}). Continue without it.`,
+    })
+  const own =
+    held?.kind === 'held' &&
+    ownLayer(availability.layer, input.tenant) &&
+    canonicalDigest(availability.definition.adoption) ===
+      canonicalDigest(held.authority.asset.adoption)
+  if (released ? availability.layer.kind !== 'official' : !own)
     return unavailable(`${name} is not available`)
   const selected = callOf(availability.definition, input.effectiveArguments)
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
-  const closed = await closedBySession(ports, input, session, selected.command)
+  const asked = { catalog, release, input, definition: availability.definition }
+  const closed = await answeredInstead(ports, asked, session, selected.command)
   if ('failure' in closed) return closed
-  return succeed(closed.ok ?? { ...availability, ...selected })
+  return closed.ok === null
+    ? placedCall(ports, access, { ...availability, ...selected })
+    : succeed(closed.ok)
+}
+
+const WHY_UNAVAILABLE: Readonly<Record<string, string>> = Object.freeze({
+  'products-unstorable': ' This deployment has nowhere to store what the command produces.',
+  'output-incompatible': ' The model of this session does not take what the command returns.',
+})
+
+type CommandQuestion = Readonly<{
+  catalog: ToolCatalog<unknown>
+  release: Trusted
+  input: DescribeInput
+  definition: ToolAvailability['definition']
+}>
+
+async function answeredInstead(
+  ports: ToolRequestPorts,
+  asked: CommandQuestion,
+  session: SessionId,
+  command: string | null,
+): Promise<Outcome<ToolCallAnswer | null, Failure>> {
+  const products = await unavailableByProducts(asked, command)
+  if ('failure' in products || products.ok !== null) return products
+  return closedBySession(ports, asked.input, session, { definition: asked.definition, command })
+}
+
+async function unavailableByProducts(
+  { catalog, release, input, definition }: CommandQuestion,
+  command: string | null,
+): Promise<Outcome<ToolCallAnswer | null, Failure>> {
+  if (commandAddedModalities(definition, command).length === 0) return succeed(null)
+  const name = definition.name
+  let answer: Awaited<ReturnType<ToolCatalog<unknown>['inspect']>>
+  try {
+    answer = await catalog.inspect({
+      principal: input.principal,
+      tenant: input.tenant,
+      name,
+      command,
+      consumer: consumerOf(release),
+    })
+  } catch {
+    return unavailable('tool catalog threw')
+  }
+  if ('failure' in answer)
+    return answer.failure.kind === 'denied'
+      ? denied('tool-request')
+      : unavailable(`tool catalog answered ${answer.failure.kind} for ${command}`)
+  if (answer.ok.kind === 'available') return succeed(null)
+  const { reason } = answer.ok
+  return succeed({
+    kind: 'answered',
+    text: `${name}: the command "${command}" is not available now (${reason}).${WHY_UNAVAILABLE[reason] ?? ''} Continue without it.`,
+  })
+}
+
+async function placedCall<C extends Pick<ToolAvailability, 'definition'>>(
+  ports: ToolRequestPorts,
+  access: SessionAccess<unknown>,
+  call: C,
+): Promise<Outcome<(C & Pinned) | ToolCallAnswer, Failure>> {
+  const placed = await directoryOf(ports, access, call.definition)
+  if ('failure' in placed) return placed
+  return succeed(
+    placed.ok.kind === 'answered' ? placed.ok : { ...call, ...pinned(placed.ok.directory) },
+  )
 }
 
 async function closedBySession(
   ports: ToolRequestPorts,
   input: DescribeInput,
   session: SessionId,
-  command: string | null,
+  call: Readonly<{ definition: ToolDefinition; command: string | null }>,
 ): Promise<Outcome<ToolCallAnswer | null, Failure>> {
   const access = { principal: input.principal, tenant: input.tenant, session }
-  const verdict = await judgeMetaCommand(ports, access, input.original.name, command)
+  const verdict = await judgeCallConditions(ports, access, call.definition, call.command)
   switch (verdict.kind) {
     case 'unreadable':
       return unavailable(verdict.diagnostic)
@@ -276,6 +385,79 @@ export async function currentScope(
   return 'failure' in scope ? scope : tenantScope(ports, tenant, scope.ok)
 }
 
+// A call that waits here would wait for ever: a session without the block never gets a value.
+export const NO_WORKING_DIRECTORY =
+  'unavailable: this session has no working directory to use, so file and command tools cannot run in it. Nothing ran. Tell the user: a session created now has one.'
+export const unusableDirectory = (reason: string): string =>
+  `unavailable: the workspace selected for this session cannot be used now (reason: ${reason}). Nothing ran, and no other directory was used in its place. Tell the user. The call works again when the workspace can be used or when the session selects another one.`
+
+type Pinned = Readonly<{ directory?: ToolCallDirectory }>
+const pinned = (directory: ToolCallDirectory | undefined): Pinned =>
+  directory === undefined ? {} : { directory }
+type Placed = Readonly<{ kind: 'pinned' }> & Pinned
+const pinnedTo = (directory: ToolCallDirectory): Placed => ({ kind: 'pinned', directory })
+
+const UNBOUNDED: FilesScope = Object.freeze({})
+
+export function filesScopeOf(outside: OutsideFiles, root: string): FilesScope {
+  switch (outside) {
+    case 'none':
+      return { read: root, write: root }
+    case 'read':
+      return { write: root }
+    case 'read-write':
+      return {}
+  }
+}
+
+export async function pinnedDirectory(
+  value: WorkingDirectory | null,
+  outsideFiles: () => Promise<Outcome<OutsideFiles, string>>,
+): Promise<Outcome<Placed | ToolCallAnswer, Failure>> {
+  if (value === null) return succeed({ kind: 'answered', text: NO_WORKING_DIRECTORY })
+  if (value.state === 'unusable')
+    return succeed({ kind: 'answered', text: unusableDirectory(value.reason) })
+  if (value.state === 'default')
+    return succeed(pinnedTo({ path: value.directory, workspace: null, files: UNBOUNDED }))
+  const id = workspaceCodec.parse(value.workspace)
+  if (!id.ok) return unavailable('the working directory names a workspace that is not one')
+  const outside = await outsideFiles()
+  if ('failure' in outside)
+    return unavailable(
+      `the setting for files outside the workspace is not readable: ${outside.failure}`,
+    )
+  return succeed(
+    pinnedTo({
+      path: value.directory,
+      workspace: { id: id.value, instance: value.instance },
+      files: filesScopeOf(outside.ok, value.directory),
+    }),
+  )
+}
+
+const CARRIES_DIRECTORY: ReadonlySet<string> = new Set([
+  'Tools',
+  'SwitchWorkspace',
+  'OmneExtensions',
+])
+
+async function directoryOf(
+  ports: ToolRequestPorts,
+  access: SessionAccess<unknown>,
+  definition: ToolAvailability['definition'],
+): Promise<Outcome<Placed | ToolCallAnswer, Failure>> {
+  const needed = definition.declarations.environment !== null
+  if (!needed && !CARRIES_DIRECTORY.has(definition.name)) return succeed({ kind: 'pinned' })
+  const read = await ports.workingDirectory(access)
+  const placed: Outcome<Placed | ToolCallAnswer, Failure> =
+    'failure' in read
+      ? unavailable(`the working directory of the session is not readable: ${read.failure}`)
+      : await pinnedDirectory(read.ok, () => ports.outsideFiles(access.tenant))
+  // Such a tool needs no directory itself: without one it carries none.
+  const usable = 'ok' in placed && placed.ok.kind === 'pinned'
+  return needed || usable ? placed : succeed({ kind: 'pinned' })
+}
+
 export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolRequests {
   const trusted = (): Outcome<Trusted, Failure> => {
     const release = ports.release()
@@ -306,13 +488,14 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     const found = await availabilityOf(ports, release.ok, input, session.ok)
     if ('failure' in found) return found
     if (found.ok.kind === 'answered') return unavailable('the call is answered, not run')
-    const { command, label, ...availability } = found.ok
+    const { command, label, directory, ...availability } = found.ok
     if (canonicalDigest(availability.definition.adoption) !== canonicalDigest(input.definition))
       return unavailable('the current definition differs from the described one')
     const entry = release.ok.manifest.entries.find(
       candidate => candidate.asset.name === availability.definition.name,
     )
-    if (entry === undefined) return unavailable('release entry absent')
+    if (entry === undefined && availability.layer.kind !== 'tenant')
+      return unavailable('release entry absent')
     const scope = await currentScope(ports, input.tenant, input.principal, session.ok)
     if ('failure' in scope) return scope
     let original: string
@@ -327,14 +510,14 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     )
     if ('failure' in limits) return unavailable(limits.failure)
     const request: ToolInvokeRequest = {
-      availability,
+      availability: toolAvailabilityReference(availability),
       command,
       arguments: args,
       label,
-      settings: entry.settings,
+      settings: entry?.settings ?? HELD_TOOL_SETTINGS,
       context: RELEASE_REQUEST_CONTEXT,
       workspace: null,
-      environment: availability.definition.declarations.environment,
+      ...pinned(directory),
       requesterScope: scope.ok,
       resources: [],
       scope: runToolScope(input.tenant, input.consumer),
@@ -368,11 +551,14 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
       const view = await readPublishedView(ports, access, sessionInteractionBinding)
       return 'failure' in view ? view : succeed(view.ok.interaction)
     },
-    inquiry: async access => {
+    workingDirectory: async access => {
       const ports = publishedViewPortsOf(ctx)
       if (ports === null) return fail('the Session or Runtime Context services are absent')
-      const view = await readPublishedView(ports, access, sessionInquiryBinding)
-      return 'failure' in view ? view : succeed(view.ok.inquiry.policy.onAsk)
+      return readHeldNeed(ports, access, workingDirectoryCallBinding)
     },
+    outsideFiles: async tenant =>
+      (await ctx.get(workspaceOutsideFilesKey)?.read(tenant)) ??
+      fail('the row that reads the setting through Runtime Context is not there'),
+    held: (access, name) => currentHeldTool(ctx, access, name),
   })
 }

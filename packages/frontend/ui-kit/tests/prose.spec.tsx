@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
-import { Prose } from '../src/index.ts'
+import { PROSE_TRANSLATIONS, Prose } from '../src/index.ts'
 
 afterEach(cleanup)
 
@@ -65,6 +65,15 @@ it('draws a table with its header and body cells', async () => {
   ])
 })
 
+it('a long table is drawn whole: its box sets no height to cut the rows at, so only the transcript scrolls it', async () => {
+  const rows = Array.from({ length: 40 }, (_, index) => `| ${index + 1} | 做 |`).join('\n')
+  const { container } = await renderProse(`| 项目 | 你的决定 |\n| --- | --- |\n${rows}`)
+  const box = container.querySelector('[data-streamdown="table"]')?.parentElement
+  expect(box).not.toBeNull()
+  expect(box?.style.maxHeight).toBe('')
+  expect(container.querySelectorAll('td')).toHaveLength(80)
+})
+
 it('draws a fenced block as a code block carrying its language and its text', async () => {
   const { container } = await renderProse('```ts\nconst x = 1\n```')
   const block = container.querySelector('[data-streamdown="code-block"]')
@@ -125,4 +134,21 @@ it('shows the words the owner typed as they are unless they are Markdown shaped'
   cleanup()
   const markdown = await renderProse('# 标题', { ownWords: true })
   expect(markdown.container.querySelector('h1')?.textContent).toBe('标题')
+})
+
+it('names its Markdown controls in Chinese unless the caller gives its own words', async () => {
+  const { container, rerender } = await renderProse('```ts\nconst x = 1\n```')
+  const labels = () =>
+    [...container.querySelectorAll('[data-streamdown="code-block"] button')].map(
+      button => button.getAttribute('title') ?? button.getAttribute('aria-label'),
+    )
+  expect(labels()).toContain(PROSE_TRANSLATIONS.copyCode)
+  rerender(
+    <Prose
+      text={'```ts\nconst x = 1\n```'}
+      translations={{ ...PROSE_TRANSLATIONS, copyCode: 'Copy code' }}
+    />,
+  )
+  await settle()
+  expect(labels()).toContain('Copy code')
 })

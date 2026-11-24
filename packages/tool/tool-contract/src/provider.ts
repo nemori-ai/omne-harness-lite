@@ -83,11 +83,19 @@ export type {
   ResidentTool,
   ToolReloadResult,
 } from './dynamics.ts'
-export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.ts'
+export { judgeFixedToolRequest, judgeToolCall, judgeToolInvokeRequest } from './judge-request.ts'
+export {
+  fixToolRequest,
+  fixedRequestReference,
+  namesDefinition,
+  toolAvailabilityOf,
+  toolAvailabilityReference,
+  toolInvokeRequestOf,
+} from './request-reference.ts'
 export { judgePreparationFact } from './judge-preparation.ts'
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'
-export { evaluateToolAvailability, presentTool } from './catalog.ts'
+export { commandAddedModalities, evaluateToolAvailability, presentTool } from './catalog.ts'
 export {
   TOOL_REFERENCE_MAX_LENGTH,
   decodeToolInvocationRef,
@@ -120,6 +128,8 @@ export type {
   ToolEmitReceipt,
   ToolExecutionContext,
   ToolExecutionScope,
+  ToolMediaProduct,
+  ToolMediaSink,
   ToolPrimitiveFailure,
   ToolProcessEmitter,
   ToolProcessReceiver,
@@ -164,6 +174,7 @@ export type {
   ToolExecutorBinding,
   ToolInstanceHost,
   ToolInstanceIdentities,
+  ToolMediaStore,
   ToolInvocationSourceIssuer,
   ToolInvocationSourceOutcome,
   ToolLiveExecution,
@@ -226,15 +237,13 @@ export type {
   ToolStartAuthority,
   ToolTask,
 } from './records.ts'
+export type { ToolStartAcceptance, ToolStartFence } from './records.ts'
 export type {
-  ToolPermitConsumption,
-  ToolPermitRef,
-  ToolStartAcceptance,
-  ToolStartFence,
-} from './records.ts'
-export type {
-  AccountScope,
   ToolAccounts,
+  ToolUsageFact,
+  ToolUsageOutcome,
+  ToolUsagePage,
+  ToolUsageQuery,
   ToolContentReader,
   ToolOffloader,
   ToolReads,
@@ -279,3 +288,36 @@ export type {
   ToolForwardRuntime,
 } from './forwarding.ts'
 export { returnGuide } from './return-description.ts'
+export {
+  TOOL_ENTRY_SOURCES_POINT,
+  isToolSourcePrefix,
+  judgeToolSourceListing,
+  type ToolCapabilityIdentity,
+  type ToolEntrySource,
+  type ToolSourceBreach,
+  type ToolSourceCall,
+  type ToolSourceEntry,
+  type ToolSourceListing,
+  type ToolSourceWithheld,
+} from './entry-source.ts'
+export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts'
+export {
+  SCRIPT_EXECUTOR,
+  SCRIPT_MODULE,
+  SCRIPT_TOOL_FILE,
+  checkScriptArguments,
+  readScriptConstruction,
+  scriptConstructionOf,
+  scriptParametersSchema,
+  scriptToolAuthoring,
+  scriptToolLayout,
+  type ScriptConstruction,
+  type ScriptParameters,
+  type ScriptProperty,
+} from './script-tool.ts'
+export {
+  scriptToolImpact,
+  scriptToolPlace,
+  type ScriptToolLoad,
+  type ScriptToolPublishFacts,
+} from './script-tool-effect.ts'

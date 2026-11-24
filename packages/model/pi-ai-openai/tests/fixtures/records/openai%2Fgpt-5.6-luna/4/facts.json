@@ -1,0 +1,724 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating values**\n\nI"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " do"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " some"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculations"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "!"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " First"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " want"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " look"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " at"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " numbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 100"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " positive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " specifically"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " from"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " find"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " those"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " amount"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " those"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " make"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " For"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " numbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " their"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " least"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " common"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiple"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " when"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " how"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " many"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " times"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " fits"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " into"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " get"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Now"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " using"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " XOR"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " can"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " find"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " result"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " +"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 2"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " times"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " gives"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Now"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " should"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " use"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " tool"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " further"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculations"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\":\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating values**\n\nI need to do some calculations! First, I want to look at the numbers below 100 that are positive, specifically from 1 to 99. I find that those divisible by 3 amount to 33, and those divisible by 7 make 14. For numbers divisible by both, their least common multiple is 21, and when I calculate how many times that fits into 99, I get 4. Now, using XOR, I can find the result: 33 + 14 - 2 times 4 gives me 39, which is odd. Now, I should use the tool for further calculations."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_775e34e74325440f8afeaa40e9c452ba",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"item\":{\"encrypted_content\":\"gAAAAABrAUpXegSoM_7CdgO0fM7OY_h9PPJUedyMacvuSKFypJxlA2v-5XcexPc0NNRf_E9xMwQA0oiFDLoXACSD25AklL7hZClICgV6lUX8TqTtse-VKH6m3Fqbwmm4LgKvw5_84_Wxd8xHaL-lnbDb4uIu_gJKW1QsuExvtrwcTAb36e204ytbgGK3mdi3LIZuPaFQz03yFWQLUvOXOMgt3caQ9yGeKq-NpA3_cmxLKi_6e6A5pDBy7OnGRB6WTtEnrcWwT-PN4brtPdeB-si5TrmdQyoI-12lUdbgLWrkvblD1f0tH_BpWwlOtFrKUONt-B67gBydqPvJFZ1JhaNUBe1nongXjRl_ECr-_iCr4QEVoajUUgjl9i-YHC5PrkKdzd5_Wmq4O_p2re4Az0yX-Lfor5MnJURE8hti0Ot_SVcZAGQifRgvpUHMbZJe_I_JKmmIaKmtY5hpq5B4wjlAO_BVTP_ZbUdjcVhTQa6jpAnmERhty9NnYLZd5KnQqRiaB-qs2Lkquts4XQSySNtbhE2GG7GpSgn9XakOWGZWKG4XJNgL6jMxHpUbgFC7fCCwrO0XuTbkhukhQIzewup-1LLvY5rndBdtxtl-oEHL8A8Afld3r2bgL-vvN4lUfgCibCLg3utw-Z5AVpOYlc2J2zXjOTEAZX7u205rHwL0ucHkM4nHmxFJNLjOQwLdY5K2h2vvRmYuoLWruBytErOtCameK44lmYyGReMm2njBQ1Q8uPA3SK0DLRPZiueqqWc9YsayLXmHIVVm4RKhxUdyoDEYuL0Nf50tm6EpFBhE6Qq2R_4OjmN-V_8Lcnmko_yQaF1z8SrtmhUjf0-Gp_D0r17iBmjlgLy1Fx9oSNJBLt7AWviXSuiDXHjtc61VsyyK7aKGRnOQF8_PN4MBN3X15w1O5EZqWbO2NgVsCpGbTh1CK5C2CNzbZ_rQUsQGdyVQSf2nenuZ-pQ5Mpy2ve8kcllvcrMB6iU21Fgqx2GsBdZ0S-QpsdhHGSydZDmDdPA2VScQBh9Ct2IISfwvalDfXxmKgzVU0UBZmi8iIcLesZERn4gtPsbD72vypNoBckUtO4kZ2_RaqLWg_obDngMbbIkvCK5kaN5U0sWMXyUtbZehRO0J4KrDQDl3Mk-Xcys23wHP4vLGnXnJNLe2ToILM7P3MbhVAe5RClbNtMqdqkFg91cHzEE8WssDrWX3x4pOZYBYLPDcLqFlG8eVYHXkVgywG4KtzDoO7KzsbFlRrxuovGVIBBztEHmXvVkhTG_6TTF2zY0LOX_ZjN_ZhKGWYE-n_H13BJq-aLYjNsFlSS5u-6NvGuiWNAazSxFGuP33wrvY2Q7e7X8fdd3d-9XjWV80h9DSk3VHNoMMQjfSbaA9WlF4PIH9g2b9fMY4h6Pg3O_2Z146a52DVpu_3R9yaQNtTtObs9YgQz4hnv-r-joqfH3GpGxYgpbxQXXT2vihmyrT9S4Y3GFEeuTMYtzoNVR-HLANUurZQ96h6XPZiMQv4o2IYYz4GwLPt0oqOQ_pGCf6RzohP23Sg5tpW-Q8UuAvabo5TU8M8O8d6qK7_kfzFQGjwOGUch7k52tUb1bBLy6ArGHI827QshB9eJm0luLi-wJSPN7_aaMoGhZyBJpexq4LqxaKxCoYDys30iehnxfX34BwWc5sIf8hOADC7wvdLrCSnREpwSpNXj9Wjm34SvfX9vxUKu98T6rFgKKxo8_C3SNGa-mFLtvyQvOCW5-uTQ_XfqMgZc8egwj_yq4iJ9Cwev6-DwbJ-cfDQodIB3iFthjzkRDyFCAMXPS3FcqOU3Hgg8-tyzHN1OCEnxzQhuoMVJaQgObOgawA6ktEPOfO5ET3SjWhl2i8HrSnOw7Kj2sKmO0CziGJJDM3NcMVKISwcDe6weVKjIUjv0J1W1vlIsU1jlb4BzcglxzZ6R9TgbHtdTd7ISNfV43EvyOsloqVuqHyAzhRI_1Gsd4PNpirnXpwI1V_NKDNegvOplvev89glO4VV8-AQ0HUTpHWpKJAqUVMDddvQlFUKqegq0yb35CmujLUJ-eW5e7GMZ2wVuwVwaplKOojE_wITq-PmUJeWDFVuVglKvik-3nriZPDeHfkr2-KrwUxzPJAtcqPIguHmg-vuUm2X8oElp3Bz_ghxigpX4GQE_PBF52p3rkUjp_7xRv4lk7svBS6-eLSnQBW3Nb8mK5nAv06txWsCYv7P_S5zHPF1Fc39jtaYkajvFNns95VGBf1Rp84FmSpj3a0VsOKJP5Yx-jCxtcw289XsvKZ8kSrUZAnBPeib8ajwL__.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC01LjYtbHVuYS0yMDI2MDcwOXxvcGVuYWkifQ\",\"format\":\"openai-responses-v1\",\"id\":\"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77\",\"summary\":[{\"text\":\"**Calculating values**\\n\\nI need to do some calculations! First, I want to look at the numbers below 100 that are positive, specifically from 1 to 99. I find that those divisible by 3 amount to 33, and those divisible by 7 make 14. For numbers divisible by both, their least common multiple is 21, and when I calculate how many times that fits into 99, I get 4. Now, using XOR, I can find the result: 33 + 14 - 2 times 4 gives me 39, which is odd. Now, I should use the tool for further calculations.\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"type\":\"reasoning\"},{\"call_id\":\"call_775e34e74325440f8afeaa40e9c452ba\",\"id\":\"fc_tmp_3mm0zwzqm7y\",\"type\":\"function_call\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "80",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "59",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.0001162",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

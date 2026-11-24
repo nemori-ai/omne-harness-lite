@@ -1,4 +1,5 @@
 export { createFilesAuthor, filesToolModule } from './files.ts'
+export { createScreenAuthor, screenToolModule } from './screen.ts'
 export {
   SHELL_BACKGROUND_AFTER_DEFAULT_MS,
   SHELL_BACKGROUND_AFTER_SETTING,
@@ -6,6 +7,8 @@ export {
   createShellAuthor,
   shellToolModule,
 } from './shell.ts'
+export { createScriptAuthor, scriptToolModule } from './script.ts'
+export { attachScriptHost, scriptHostOf, type ScriptHost, type ScriptPlace } from './script-port.ts'
 export { createSkillsAuthor, skillsToolModule } from './skills.ts'
 export { attachSkillsAccess, skillsAccessOf } from './skills-port.ts'
 export type {
@@ -18,7 +21,11 @@ export type {
   SkillsText,
 } from './skills-port.ts'
 export { createToolsAuthor, toolsToolModule } from './tools.ts'
-export type { FilesAuthorEnvironment, ShellAuthorEnvironment } from './environment.ts'
+export type {
+  FilesAuthorEnvironment,
+  ScreenAuthorEnvironment,
+  ShellAuthorEnvironment,
+} from './environment.ts'
 export { createTodoItemsAuthor, todoItemsToolModule } from './todo-items.ts'
 export { attachTodoItems, todoItemsOf } from './todo-items-port.ts'
 export {

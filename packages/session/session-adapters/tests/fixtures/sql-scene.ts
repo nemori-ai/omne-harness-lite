@@ -11,6 +11,7 @@ import {
 } from '@omne-harness/agent-contract'
 import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { judgeMessage } from '@omne-harness/message'
 import { fail } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
@@ -19,6 +20,7 @@ import type {
   SessionCommand,
   SessionFaces,
   SessionTransactionPort,
+  WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
@@ -30,6 +32,8 @@ import {
   memoryAccess,
   operationId,
   ordinaryInput,
+  testingDerivedInputs,
+  testingInputSources,
 } from '@omne-harness/session-contract/testing'
 import {
   SessionAccessCheckService,
@@ -219,7 +223,8 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
           diagnostic: 'dropped',
         })
       }
-      const existing = receipts.get(key(request.identity))
+      const keeps = request.identity.recall !== 'never'
+      const existing = keeps ? receipts.get(key(request.identity)) : undefined
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
@@ -227,27 +232,26 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       const receipt = execute(request)
-      receipts.set(key(request.identity), receipt)
+      if (keeps) receipts.set(key(request.identity), receipt)
       if (lose) {
         lose = false
         return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: 'lost' })
       }
       return Promise.resolve({ ...receipt, recalled: false })
     },
-    query: identity =>
-      Promise.resolve(
-        receipts.get(key(identity)) ?? {
-          kind: 'not_committed',
-          identity,
-          proofs: {
-            writerGenerationExcluded: true,
-            oldTransactionTerminated: true,
-            databaseRecoveryFinished: true,
-            authoritativeReadSucceeded: true,
-            operationNotQueued: true,
-          },
-        },
-      ),
+    query: identity => {
+      const proofs = {
+        writerGenerationExcluded: true,
+        oldTransactionTerminated: true,
+        databaseRecoveryFinished: true,
+        authoritativeReadSucceeded: true,
+        operationNotQueued: true,
+      } as const
+      if (identity.recall === 'never') return Promise.resolve({ kind: 'settled', identity, proofs })
+      return Promise.resolve(
+        receipts.get(key(identity)) ?? { kind: 'not_committed', identity, proofs },
+      )
+    },
     read(request) {
       reads.push(request.handler)
       const module = handlers.get(request.handler)
@@ -305,6 +309,8 @@ export type SqlSceneOptions = Readonly<{
   cancellation?: 'installed'
   manifest?: string
   instance?: 'slot'
+  /** The session of the scene is forked from the whole view of another session made first. */
+  forked?: true
 }>
 
 export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = {}) {
@@ -345,7 +351,7 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   const commits: string[][] = []
   const inner = storage
   const rewriteReads: {
-    current: ((request: ReadRequest, answer: ReadResult) => ReadResult) | null
+    current: ((request: ReadRequest, answer: ReadResult) => ReadResult | Promise<ReadResult>) | null
   } = { current: null }
   storage = {
     database: inner.database,
@@ -405,9 +411,15 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
     },
     accessCheck: {
       check: request =>
-        Promise.resolve({ kind: 'allowed', evidence: evidence(`session/${request.operation}`) }),
+        Promise.resolve({
+          kind: 'allowed',
+          evidence: evidence(`session/${request.operation}`),
+          subject: { kind: 'member' },
+        }),
     },
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination,
   })
   const journalOptions = {
@@ -431,7 +443,8 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   const view = journals.forSession(access)
   const fresh = () => createSessionLogJournal<string>(journalOptions).forSession(access)
 
-  const value = creation({ initial: ordinaryInput('input-1') })
+  const source = options.forked === true ? await forkSource(port, access) : null
+  const value = creation({ initial: ordinaryInput('input-1'), ...source?.standing })
   const create: SessionCommand = {
     kind: 'create',
     input: {
@@ -517,6 +530,76 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
     decided,
     close,
     tenantText,
+    source,
+  }
+}
+
+type ScenePort = ReturnType<typeof createSessionStorage<string>>
+
+/** A session with one row in its view, and the standing of a child forked from that whole view. */
+async function forkSource(port: ScenePort, child: SessionAccess<string>) {
+  const access = memoryAccess('tester', `${child.session}-source`)
+  const at = { tenant: access.tenant, session: access.session }
+  const create: SessionCommand = {
+    kind: 'create',
+    input: { ...at, operation: operationId('create-source'), creation: creation() },
+  }
+  const fixture = initializationFixtureFacts(create, null, adoptedInitializationFixture(create))
+  ok(await port.commit({ access, command: create, guards: [initializationFixtureGuard(fixture)] }))
+  const reminder = judgeMessage({
+    id: 'msg_abcdefghijklmnopqrstuv',
+    role: 'system_reminder',
+    blocks: [
+      {
+        kind: 'text',
+        id: 'said',
+        text: 'said before',
+        visibility: { toHuman: false, toModel: true },
+      },
+    ],
+  })
+  if (!('ok' in reminder)) throw new Error('the reminder fixture is invalid')
+  const told: SessionCommand = {
+    kind: 'commitDerived',
+    input: {
+      ...at,
+      operation: operationId('remind-source'),
+      expected: ok(await port.readWork(access)).revision,
+      value: { kind: 'context-reminder', message: reminder.ok, source: evidence('source-row') },
+    },
+  }
+  ok(await port.commit({ access, command: told, guards: [] }))
+  const view = async () => {
+    const page = ok(
+      await port.history.readModelView({ ...access, basis: null, after: null, pageBytes: 100000 }),
+    )
+    if (page.kind !== 'page') throw new Error('the view of the source is expected')
+    return page
+  }
+  const page = await view()
+  const history = ok(
+    await port.history.begin({
+      ...access,
+      kinds: [],
+      from: null,
+      direction: 'forward',
+      pageBytes: 10_000_000,
+    }),
+  )
+  const [first, last] = [history.entries[0], history.entries.at(-1)]
+  if (first === undefined || last === undefined) throw new Error('the source has no entry')
+  const point = { ...page.basis, position: last.id }
+  const relation = { kind: 'child', parent: access.session, basis: evidence('dispatch') } as const
+  return {
+    access,
+    origin: first.id,
+    rows: page.rows,
+    view,
+    standing: {
+      relation,
+      attendance: 'unattended' as const,
+      fork: { source: access.session, point },
+    },
   }
 }
 
@@ -579,22 +662,22 @@ export async function takeInputs(
 
 export async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
   const snapshot = ok(await s.port.readWork(s.sessionAccess))
-  if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
-  ok(
-    await s.port.commit({
-      access: s.sessionAccess,
-      command: {
-        kind: 'control',
-        input: {
-          tenant: s.access.tenant,
-          session: s.access.session,
-          operation: operationId(`cancel-${n}`),
-          intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+  if (snapshot.run.kind === 'active')
+    ok(
+      await s.port.commit({
+        access: s.sessionAccess,
+        command: {
+          kind: 'control',
+          input: {
+            tenant: s.access.tenant,
+            session: s.access.session,
+            operation: operationId(`cancel-${n}`),
+            intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+          },
         },
-      },
-      guards: [],
-    }),
-  )
+        guards: [],
+      }),
+    )
   const value = ordinaryInput(`input-${n}`)
   ok(
     await s.port.commit({
@@ -661,6 +744,10 @@ export type CordisSceneOptions = Readonly<{
     inner: NonNullable<SessionTransactionPort<string>['commitLog']>,
   ) => NonNullable<SessionTransactionPort<string>['commitLog']>
   transactions?: 'absent'
+  acknowledge?: (
+    inner: AgentJournal<unknown>['acknowledge'],
+  ) => AgentJournal<unknown>['acknowledge']
+  work?: (snapshot: WorkSnapshot) => WorkSnapshot
 }>
 
 export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {}) {
@@ -704,9 +791,17 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
         typeof caller === 'string' && !admitted[operation].includes(caller)
           ? (Promise.resolve(fail({ kind: 'denied', action: operation })) as Promise<T>)
           : read(input)
+    const shown = options.work
     return {
-      readWork: gate('readWork', s.port.readWork),
+      readWork: gate('readWork', (input: Parameters<typeof s.port.readWork>[0]) =>
+        s.port
+          .readWork(input)
+          .then(answer =>
+            'ok' in answer && shown !== undefined ? { ok: shown(answer.ok) } : answer,
+          ),
+      ),
       readCurrentScope: gate('readCurrentScope', s.port.readCurrentScope),
+      readCall: gate('readWork', s.port.readCall),
       readModelSelection: gate('readModelSelection', s.port.readModelSelection),
     }
   }
@@ -738,6 +833,7 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
     }
     readonly readWork = port.readWork
     readonly readCurrentScope = port.readCurrentScope
+    readonly readCall = port.readCall
     readonly commitEntries = port.commitEntries
     readonly commitLog = commitLog
   }
@@ -746,7 +842,18 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
   await mount(Access)
   await mount(Session)
   if (options.transactions !== 'absent') await mount(Transactions)
-  const journal = await mount(SessionLogAgentJournalProvider, s.combination)
+  const acknowledging = options.acknowledge
+  class Journal extends SessionLogAgentJournalProvider {
+    constructor(
+      scope: Context,
+      config: ConstructorParameters<typeof SessionLogAgentJournalProvider>[1],
+    ) {
+      super(scope, config)
+      if (acknowledging !== undefined)
+        Object.defineProperty(this, 'acknowledge', { value: acknowledging(this.acknowledge) })
+    }
+  }
+  const journal = await mount(Journal, s.combination)
   const face = <T>(key: string) => {
     const found: unknown = ctx.get(key)
     if (found === undefined) throw new Error(`${key} is not provided`)

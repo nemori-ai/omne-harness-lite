@@ -2,7 +2,6 @@ import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
 import { describe, expect, it } from 'vitest'
 import { serveProfile } from '../../../src/profile.ts'
 import { rowDeclarationOf } from '../../../src/row.ts'
-import { modelConvertersRow } from '../../../src/rows/model-converters/index.ts'
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
 import { modelInstancesRow } from '../../../src/rows/model-instances/index.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
@@ -10,7 +9,6 @@ import { modelRequestPreparationRow } from '../../../src/rows/model-request-prep
 
 const rows = {
   'model-tokenizers': modelTokenizersRow,
-  'model-converters': modelConvertersRow,
   'model-credential': modelCredentialRow,
   'model-instances': modelInstancesRow,
   'model-profiles': modelProfilesRow,

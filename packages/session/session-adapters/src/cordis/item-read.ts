@@ -7,6 +7,7 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import {
+  callHeld,
   finishing,
   foldItems,
   viewOfItems,
@@ -20,9 +21,10 @@ import type { Prepared } from './journal-publication.ts'
 import { READ_ATTEMPTS, type Reader } from './journal-read.ts'
 import { refsIn } from './content-refs.ts'
 import { fetchBlobClosure } from './block-read.ts'
-import { blobRowDigest, factDigestOf } from './journal-batch.ts'
-import { itemText, type ItemRef } from '../testing/closed-items.ts'
-import type { JournalCell } from '../testing/root.ts'
+import { blobRef, blobRowDigest, factDigestOf } from './journal-batch.ts'
+import { itemText, underText, type ItemRef } from '../testing/closed-items.ts'
+import type { CommonRoot, JournalCell } from '../testing/root.ts'
+import type { ProjectedRecords } from '../testing/journal-records.ts'
 
 export type ItemScope = Readonly<{ tenant: string; session: string; execution: string }>
 
@@ -31,15 +33,28 @@ export type ItemsRead =
   | Readonly<{ kind: 'read'; published: number; items: readonly ExecutionItem[] }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+export type OpenItemsRead = ItemsRead | Readonly<{ kind: 'settled'; published: number }>
+
 const unread = (diagnostic: string): ItemsRead => ({ kind: 'unavailable', diagnostic })
 
-// The open items of one execution (of the named families, or all), every page at one head.
+export function contentsOf(items: readonly ExecutionItem[], into: Map<string, string>): void {
+  for (const { content } of items)
+    if (content !== undefined) into.set(blobRef(content).digest, content)
+}
+
+const released = (item: ExecutionItem): boolean =>
+  item.family === 'material' &&
+  (item.body as Readonly<{ readers?: unknown }> | null)?.readers === 'until-release' &&
+  item.content === undefined
+
+// The open items of one execution (named families or all; `under`: a key prefix), at one head.
 export async function readOpenItems(
   read: Reader,
   scope: ItemScope,
   families: readonly string[] | null,
   all = false,
-): Promise<ItemsRead> {
+  under: string | null = null,
+): Promise<OpenItemsRead> {
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     let after: ExecutionItemKey | null = null
     let published: string | null = null
@@ -50,6 +65,7 @@ export async function readOpenItems(
         after,
         ...(families === null ? {} : { families: [...families] }),
         ...(all ? { all } : {}),
+        ...(under === null ? {} : { under }),
       })
       if (output.kind === 'unread')
         return unread(`the open items of the execution are not readable: ${output.reason}`)
@@ -57,6 +73,7 @@ export async function readOpenItems(
       if (page === null) return unread('the open items of the execution do not decode')
       if (page.kind === 'denied') return { kind: 'read', published: 0, items: [] }
       if (page.kind === 'missing') return unread('the Agent records of the session are older')
+      if (page.kind === 'settled') return { kind: 'settled', published: Number(page.published) }
       if (published !== null && page.published !== published) break
       published = page.published
       items.push(...page.items)
@@ -67,20 +84,62 @@ export async function readOpenItems(
   return unread('the open items of the execution kept changing while they were read')
 }
 
-// Items of one execution by original key, open or closed; keys the store never held are left out.
-export async function readItems(
+type ItemsPage =
+  | Readonly<{
+      kind: 'page'
+      published: string
+      items: readonly ExecutionItem[]
+      rest: readonly ExecutionItemKey[]
+    }>
+  | ItemsRead
+
+async function readItemsPage(
   read: Reader,
   scope: ItemScope,
-  keys: readonly ExecutionItemKey[],
-): Promise<ItemsRead> {
-  const output = await read(EXECUTION_RECORD_HANDLERS.items, { ...scope, keys: [...keys] })
+  rest: readonly ExecutionItemKey[],
+): Promise<ItemsPage> {
+  const output = await read(EXECUTION_RECORD_HANDLERS.items, { ...scope, keys: [...rest] })
   if (output.kind === 'unread')
     return unread(`the items of the execution are not readable: ${output.reason}`)
   const found = decodeExecutionRecordItems(output.output)
   if (found === null) return unread('the items of the execution do not decode')
   if (found.kind === 'denied') return { kind: 'read', published: 0, items: [] }
   if (found.kind === 'missing') return unread('the Agent records of the session are older')
-  return { kind: 'read', published: Number(found.published), items: found.items }
+  if (found.kind === 'settled') return { kind: 'read', published: 0, items: [] }
+  return { kind: 'page', published: found.published, items: found.items, rest: found.rest }
+}
+
+async function readItemsOnce(
+  read: Reader,
+  scope: ItemScope,
+  keys: readonly ExecutionItemKey[],
+): Promise<ItemsRead | null> {
+  let rest = keys
+  let published: string | null = null
+  const items: ExecutionItem[] = []
+  while (rest.length > 0) {
+    const page = await readItemsPage(read, scope, rest)
+    if (page.kind !== 'page') return page
+    if (published !== null && page.published !== published) return null
+    if (page.rest.length >= rest.length) return unread('a page of items read none of its keys')
+    published = page.published
+    items.push(...page.items)
+    rest = page.rest
+  }
+  return { kind: 'read', published: Number(published ?? 0), items }
+}
+
+// Items of one execution by original key, open or closed; keys the store never held are left out.
+export async function readItems(
+  read: Reader,
+  scope: ItemScope,
+  keys: readonly ExecutionItemKey[],
+): Promise<ItemsRead> {
+  for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
+    const once = await readItemsOnce(read, scope, keys)
+    if (once !== null) return once
+  }
+  return unread('the items of the execution kept changing while they were read')
 }
 
 // What a call read back by original key (null: not held at that head), with the blocks they name.
@@ -91,25 +150,55 @@ type Lender = Readonly<{
   lentBlocks: Map<string, string>
 }>
 
+async function readAsked(
+  read: Reader,
+  lender: Lender,
+  execution: AgentExecutionId,
+  wanted: readonly ItemRef[],
+): Promise<readonly ExecutionItem[] | string> {
+  const scope = { tenant: lender.tenantText, session: lender.session, execution }
+  const keyed = wanted.filter(ref => ref.under !== true)
+  const items: ExecutionItem[] = []
+  if (keyed.length > 0) {
+    const keys = keyed.map(ref => ({ family: ref.family, item: ref.item }))
+    const found = await readItems(read, scope, keys)
+    if (found.kind === 'unavailable') return found.diagnostic
+    items.push(...found.items)
+  }
+  for (const ref of keyed) lender.fetched.set(itemText(ref), null)
+  for (const ref of wanted.filter(ref => ref.under === true)) {
+    const found = await readOpenItems(read, scope, [ref.family], true, ref.item)
+    if (found.kind === 'unavailable') return found.diagnostic
+    const held = found.kind === 'settled' ? [] : found.items
+    items.push(...held)
+    lender.fetched.set(
+      underText(ref),
+      held.map(item => item.item),
+    )
+  }
+  return items
+}
+
 export async function fetchClosed(
   read: Reader,
   lender: Lender,
-  refs: readonly ItemRef[],
+  asked: readonly ItemRef[],
 ): Promise<string | null> {
-  const byExecution = Map.groupBy(refs, ref => ref.execution)
-  for (const [execution, wanted] of byExecution) {
-    const scope = { tenant: lender.tenantText, session: lender.session, execution }
-    const found = await readItems(
-      read,
-      scope,
-      wanted.map(ref => ({ family: ref.family, item: ref.item })),
-    )
-    if (found.kind === 'unavailable') return found.diagnostic
-    for (const ref of wanted) lender.fetched.set(itemText(ref), null)
-    for (const item of found.items)
+  const alreadyRead = (ref: ItemRef) =>
+    lender.fetched.has(ref.under === true ? underText(ref) : itemText(ref))
+  const refs = asked.filter(ref => !alreadyRead(ref))
+  if (refs.length === 0) return 'a round needs closed items the call has already read'
+  for (const [execution, wanted] of Map.groupBy(refs, ref => ref.execution)) {
+    const items = await readAsked(read, lender, execution, wanted)
+    if (typeof items === 'string') return items
+    for (const item of items)
       lender.fetched.set(itemText({ execution, family: item.family, item: item.item }), item.body)
-    const rows = found.items.flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
-    const missing = await fetchBlobClosure(read, lender.tenantText, rows, lender.lentBlocks)
+    contentsOf(items, lender.lentBlocks)
+    const rows = items
+      .filter(item => !released(item))
+      .flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
+    const scope = { tenant: lender.tenantText, execution }
+    const missing = await fetchBlobClosure(read, scope, rows, lender.lentBlocks)
     if (missing !== null) return `the content block ${missing} of a closed item is not readable`
   }
   return null
@@ -191,6 +280,8 @@ export type OpenViewRead =
       published: number
       views: readonly ExecutionView[]
       full: readonly ExecutionView[]
+      settled: readonly string[]
+      contents: ReadonlyMap<string, string>
     }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
@@ -204,17 +295,27 @@ export async function readOpenView(
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     const views: ExecutionView[] = []
     const full: ExecutionView[] = []
+    const settled: string[] = []
+    const contents = new Map<string, string>()
     let head: number | null = null
     let moved = false
     for (const execution of executions) {
       let found = await readOpenItems(read, { ...scope, execution }, null)
       if (found.kind === 'unavailable') return found
+      if (found.kind === 'settled') {
+        settled.push(execution)
+        continue
+      }
       if (found.items.length === 0) continue
       const id = execution as AgentExecutionId
       let finishes = finishing(viewOfItems(id, found.items))
       if (finishes) {
         found = await readOpenItems(read, { ...scope, execution }, null, true)
         if (found.kind === 'unavailable') return found
+        if (found.kind === 'settled') {
+          settled.push(execution)
+          continue
+        }
         finishes = finishing(viewOfItems(id, found.items))
       }
       if (head !== null && found.published !== head) {
@@ -222,6 +323,7 @@ export async function readOpenView(
         break
       }
       head = found.published
+      contentsOf(found.items, contents)
       views.push(
         viewOfItems(
           id,
@@ -230,10 +332,59 @@ export async function readOpenView(
       )
       if (finishes) full.push(viewOfItems(id, found.items))
     }
-    if (!moved) return { kind: 'read', published: head ?? published, views, full }
+    if (!moved)
+      return { kind: 'read', published: head ?? published, views, full, settled, contents }
   }
   return {
     kind: 'unavailable',
     diagnostic: 'the open items of the session kept changing while they were read',
   }
+}
+
+export function heldOrigins<V>(
+  origins: ReadonlyMap<string, V>,
+  view: SessionJournalView,
+): SharedMap<string, V> {
+  const kept = new SharedMap<string, V>()
+  for (const [key, origin] of origins) {
+    const at = key.indexOf('\0')
+    const execution = view.executions.get(key.slice(0, at) as AgentExecutionId)
+    if (execution !== undefined && callHeld(key.slice(at + 1), execution)) kept.set(key, origin)
+  }
+  return kept
+}
+
+export function restoreRecords<P>(
+  book: Readonly<{
+    view: SessionJournalView
+    parsed: ReadonlyMap<string, unknown>
+    origins: CommonRoot['agent']['callOrigins']
+  }>,
+  cell: JournalCell<P>,
+  records: ProjectedRecords,
+): void {
+  cell.mutate(() => {
+    const root = cell.state()
+    const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
+      for (const [key, value] of source) target.set(key, value)
+    }
+    root.agent.view = book.view
+    root.agent.log = []
+    root.agent.closedComplete = false
+    for (const [digest, value] of book.parsed) root.agent.blobs.set(digest, value)
+    into(root.agent.executions, records.executions)
+    into(root.agent.operations, records.operations)
+    into(root.agent.eventReceipts, records.fragments.eventReceipts)
+    into(root.agent.pendingEvents, records.fragments.pendingEvents)
+    into(root.agent.callOrigins, records.fragments.callOrigins)
+    into(root.agent.callOrigins, book.origins)
+    into(root.agent.human, records.fragments.human)
+    into(root.agent.indexedEvents, records.fragments.indexedEvents)
+    for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[])
+      into(
+        root.receiving[name] as Map<unknown, unknown>,
+        records.receiving[name] as Map<unknown, unknown>,
+      )
+    cell.touch()
+  })
 }

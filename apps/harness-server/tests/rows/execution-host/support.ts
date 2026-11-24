@@ -15,7 +15,12 @@ import { createExecutionHostBinding } from '../../../src/rows/execution-host/ind
 import { rowDeclarationOf } from '../../../src/row.ts'
 import type { LoadedRow } from '../../../src/readiness.ts'
 
-export function providerInput(provider: EnvironmentProvider, key: string): ProviderAcquireInput {
+/** An acquisition on the host; with `filesRoot` its placement reads and writes only in that directory. */
+export function providerInput(
+  provider: EnvironmentProvider,
+  key: string,
+  filesRoot?: string,
+): ProviderAcquireInput {
   const parsed = tenantCodec.parse(
     JSON.stringify({
       organization: 'org_0123456789abcdefghjkmnpqrs',
@@ -44,6 +49,7 @@ export function providerInput(provider: EnvironmentProvider, key: string): Provi
       provider: { name: provider.name, generation: provider.generation, version: provider.version },
       continuity: { kind: 'not_guaranteed' },
       quotaDomain: provider.quotaDomain,
+      ...(filesRoot === undefined ? {} : { filesScope: { read: filesRoot, write: filesRoot } }),
     },
     ledger: {
       closed: new AbortController().signal,
@@ -77,7 +83,7 @@ export async function hostFixture(
   if (declaration === undefined) throw new Error('missing declaration')
   const { row: id, manifest } = declaration
   async function load() {
-    const fiber = await root.plugin(plugin, { filesRoot, stateDirectory, drainBoundMs: 1 })
+    const fiber = await root.plugin(plugin, { stateDirectory, drainBoundMs: 1 })
     const provider = providers.at(-1)
     if (provider === undefined) throw new Error('missing provider')
     const row: LoadedRow = { id, ctx: root, fiber, manifest, visible: [] }

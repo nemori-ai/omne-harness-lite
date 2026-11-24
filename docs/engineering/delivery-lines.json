@@ -24,11 +24,15 @@
       "contracts": [
         "packages/model/model-contract",
         "packages/model/model-cordis-contract",
+        "packages/model/model-protocol",
         "packages/common/message",
         "packages/common/content-block",
         "packages/common/modality",
         "packages/common/stream-arrival",
-        "packages/common/exchange-refs"
+        "packages/common/exchange-refs",
+        "packages/usage/usage-contract",
+        "packages/usage/usage-cordis-contract",
+        "packages/usage/usage-protocol"
       ]
     },
     {
@@ -56,8 +60,13 @@
         "packages/identity/authorization",
         "packages/assets/assets-protocol",
         "packages/assets/assets-cordis-contract",
+        "packages/plugin/plugin-protocol",
+        "packages/mcp/mcp-protocol",
         "packages/human-intervention/human-intervention-protocol",
         "packages/calendar/calendar-protocol",
+        "packages/notification/notification-protocol",
+        "packages/media/media-protocol",
+        "packages/workspace/workspace-protocol",
         "packages/schedule/schedule-protocol"
       ]
     },

@@ -25,6 +25,7 @@ const allowed = {
   inputCompatible: true,
   outputCompatible: true,
   attachmentsReadable: true,
+  productsStorable: true,
 } as const
 const search = { k1: 1.2, b: 0.75, maxCachedCorpora: 2 }
 function row(name: string, description: string, revision = '1', programmable = true) {
@@ -544,7 +545,7 @@ describe('currently disclosed known definitions after contribution retirement', 
     })
   })
 
-  it('keeps live selection and invalidates cursors on retirement or retained metadata changes', async () => {
+  it('keeps live selection and cursors over same-adoption metadata, and invalidates cursors on retirement or a retained adoption change', async () => {
     const w = knownWorld()
     const first = await page(w.catalog, { limit: 1 })
     if ('failure' in first || first.ok.next === null) throw new Error('missing cursor')
@@ -554,27 +555,38 @@ describe('currently disclosed known definitions after contribution retirement', 
     })
     const retired = await page(w.catalog, { limit: 1 })
     if ('failure' in retired || retired.ok.next === null) throw new Error('missing retired cursor')
+    const original = w.view
     w.view = {
-      ...w.view,
-      entries: w.view.entries.map(entry => ({
-        ...entry,
-        ...(entry.key.asset.name !== 'bravo' || entry.knownDefinition === undefined
-          ? {}
+      ...original,
+      entries: original.entries.map(entry =>
+        entry.key.asset.name !== 'bravo' || entry.knownDefinition === undefined
+          ? entry
           : {
-              knownDefinition: {
-                ...entry.knownDefinition,
-                description: 'changed retained metadata',
-              },
-            }),
-      })),
+              ...entry,
+              knownDefinition: { ...entry.knownDefinition, description: 'changed metadata' },
+            },
+      ),
     }
-    expect(await page(w.catalog, { limit: 1, after: retired.ok.next })).toMatchObject({
-      failure: { kind: 'invalid-cursor' },
-    })
+    expect(await page(w.catalog, { limit: 1, after: retired.ok.next })).toHaveProperty('ok')
     expect(
       await w.catalog.inspect({ ...access, consumer, name: 'bravo', command: null }),
     ).toMatchObject({
       ok: { kind: 'available', definition: { description: 'pear pear pear' } },
+    })
+    w.view = {
+      ...original,
+      entries: original.entries.map(entry => {
+        if (entry.key.asset.name !== 'alpha' || entry.knownDefinition === undefined) return entry
+        const adoption = { ...entry.knownDefinition.adoption, revision: '2' }
+        return {
+          ...entry,
+          key: { ...entry.key, asset: { ...entry.key.asset, adoption } },
+          knownDefinition: { ...entry.knownDefinition, adoption, description: 'changed metadata' },
+        }
+      }),
+    }
+    expect(await page(w.catalog, { limit: 1, after: retired.ok.next })).toMatchObject({
+      failure: { kind: 'invalid-cursor' },
     })
   })
 

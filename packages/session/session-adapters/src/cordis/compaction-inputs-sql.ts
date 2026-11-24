@@ -288,6 +288,7 @@ export function createSqlCompactionInputs<P>(
           domain: scope.ok.domain,
           combination: options.combination,
           operation,
+          recall: undefined,
           commands,
           generations,
         })
@@ -301,6 +302,7 @@ export function createSqlCompactionInputs<P>(
           scope.ok.domain,
           operation,
           result.attempt,
+          undefined,
         )
         return standing === 'committed'
           ? succeed(source)

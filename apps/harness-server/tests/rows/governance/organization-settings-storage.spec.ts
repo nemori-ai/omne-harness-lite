@@ -193,7 +193,7 @@ it('installs one shared organization target concurrently without rewriting it or
   })
 })
 
-it('preserves revoked source grants on version adoption and refuses a rebound definition identity', async () => {
+it('moves the organization target to the definition the current release declares, keeps revoked grants, and refuses a rebound definition identity', async () => {
   const w = await world()
   const input = { owner: w.owner, definition: w.definition, organizationId: w.organizationId }
   const installed = await installToolOrganizationSource(input)
@@ -216,51 +216,37 @@ it('preserves revoked source grants on version adoption and refuses a rebound de
     }),
   ).toMatchObject({ kind: 'committed' })
   const nextDefinition = { ...w.definition, version: 'installation-test-v2' }
-  expect(await installToolOrganizationSource({ ...input, definition: nextDefinition })).toEqual({
-    kind: 'unavailable',
-  })
-  expect(await w.owner.readTarget(installed.source.target)).toMatchObject({
-    kind: 'found',
-    projection: { ownerRevision: 2, grants: [], definition: w.definition },
-  })
-  expect(
-    await w.owner.mutate({
-      kind: 'provision',
-      operationId: 'explicit-definition-adoption',
-      expectedRevision: 2,
-      record: { ...record, definition: nextDefinition },
-    }),
-  ).toMatchObject({ kind: 'committed' })
+  const read = () => w.owner.readTarget(installed.source.target)
   expect(await installToolOrganizationSource({ ...input, definition: nextDefinition })).toEqual(
     installed,
   )
-  expect(await installToolOrganizationSource(input)).toEqual({ kind: 'unavailable' })
-  const updated = await w.owner.readTarget(installed.source.target)
-  expect(updated).toMatchObject({
+  expect(await read()).toMatchObject({
     kind: 'found',
-    projection: {
-      ownerRevision: 3,
-      grants: [],
-      definition: nextDefinition,
-    },
+    projection: { ownerRevision: 3, grants: [], definition: nextDefinition },
+  })
+  expect(await installToolOrganizationSource({ ...input, definition: nextDefinition })).toEqual(
+    installed,
+  )
+  expect(await read()).toMatchObject({ projection: { ownerRevision: 3 } })
+  expect(await installToolOrganizationSource(input)).toEqual(installed)
+  expect(await read()).toMatchObject({
+    kind: 'found',
+    projection: { ownerRevision: 4, grants: [], definition: w.definition },
   })
   expect(
     await w.owner.mutate({
       kind: 'provision',
       operationId: 'rebind-identity',
-      expectedRevision: 3,
+      expectedRevision: 4,
       record: { ...record, definition: { ...nextDefinition, providerId: 'another-owner' } },
     }),
   ).toMatchObject({ kind: 'committed' })
   expect(await installToolOrganizationSource({ ...input, definition: nextDefinition })).toEqual({
     kind: 'unavailable',
   })
-  expect(await w.owner.readTarget(installed.source.target)).toMatchObject({
+  expect(await read()).toMatchObject({
     kind: 'found',
-    projection: {
-      ownerRevision: 4,
-      definition: { providerId: 'another-owner' },
-    },
+    projection: { ownerRevision: 5, definition: { providerId: 'another-owner' } },
   })
 })
 

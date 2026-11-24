@@ -1,6 +1,7 @@
 import { applyPermissionEvent } from './permission-state.ts'
+import { reduceAuthorizations } from './authorizations.ts'
 import type { SessionEntry } from './entries.ts'
-import type { WorkSnapshot } from './values.ts'
+import type { RecoveryTask, WorkSnapshot } from './values.ts'
 import type { DurableEvidence } from './identity.ts'
 import type { SessionEntriesProgress } from './interpretation-values.ts'
 import { applyResult, applyProducerFact } from './reduce-results.ts'
@@ -114,11 +115,12 @@ function applyWorkspaceChanged(
   return null
 }
 
-function applyRelation(
+function applyChildRecorded(
   draft: Draft,
-  entry: Extract<SessionEntry, { kind: 'session.relation' | 'session.resident' }>,
+  entry: Extract<SessionEntry, { kind: 'session.child-recorded' }>,
 ): string | null {
-  draft.relation = entry.relation
+  const children = draft.children ?? []
+  if (!children.includes(entry.child)) draft.children = [...children, entry.child]
   return null
 }
 
@@ -272,13 +274,16 @@ function applyControlProgress(
   }
   const fact = entry.fact
   if (fact === null) return null
-  if (fact.kind === 'cascade')
-    draft.tasks = draft.tasks.filter(
-      task =>
-        task.kind !== 'cascade' ||
-        task.child !== fact.child ||
-        task.childOperation !== fact.childOperation,
-    )
+  if (fact.kind === 'cascade') {
+    const answered = (task: RecoveryTask): task is Extract<RecoveryTask, { kind: 'cascade' }> =>
+      task.kind === 'cascade' &&
+      task.child === fact.child &&
+      task.childOperation === fact.childOperation
+    draft.tasks =
+      fact.refusal === undefined
+        ? draft.tasks.filter(task => !answered(task))
+        : draft.tasks.map(task => (answered(task) ? { ...task, state: 'denied' } : task))
+  }
   if (fact.kind === 'routed-input')
     draft.tasks = draft.tasks.filter(
       task => task.kind !== 'routed-input' || task.originalOperation !== fact.originalOperation,
@@ -341,6 +346,9 @@ export function applyExtended(
   switch (entry.kind) {
     case 'session.permission-assigned':
       return null
+    case 'session.authorization-expressed':
+      draft.authorizations = reduceAuthorizations(draft.authorizations, entry.expression)
+      return null
     case 'session.tool-resident-admitted':
       return applyResidentAdmitted(draft, entry)
     case 'session.mode-changed':
@@ -351,9 +359,11 @@ export function applyExtended(
       return applyDeclaration(draft, entry, source)
     case 'session.workspace-changed':
       return applyWorkspaceChanged(draft, entry)
-    case 'session.relation':
     case 'session.resident':
-      return applyRelation(draft, entry)
+      draft.resident = entry.resident
+      return null
+    case 'session.child-recorded':
+      return applyChildRecorded(draft, entry)
     case 'session.idle-evidence':
       return applyIdleEvidence(draft, entry, source)
     case 'session.frozen':

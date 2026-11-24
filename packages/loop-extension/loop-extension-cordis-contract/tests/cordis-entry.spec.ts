@@ -21,7 +21,7 @@ it('writes each service key once, on its abstract Service, and exports a constan
   expect(loopExtensionRunLocationsKey).toBe(RunLocationsService.provide)
 })
 
-it('exports exactly the four abstract Service classes and the four key constants', async () => {
+it('exports exactly the four abstract Service classes, the four key constants and the point of the category', async () => {
   const cordis: Record<string, unknown> =
     await import('@omne-harness/loop-extension-cordis-contract/cordis')
   expect(Object.keys(cordis).sort()).toEqual([
@@ -33,5 +33,6 @@ it('exports exactly the four abstract Service classes and the four key constants
     'loopExtensionRunLocationsKey',
     'loopExtensionSourcesKey',
     'loopExtensionViewsKey',
+    'loopExtensionsPoint',
   ])
 })

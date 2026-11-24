@@ -12,6 +12,7 @@ const { evaluatePermission } = await pkg('permissions')
 const { loadProductionRelease, TOOL_RELEASE_TENANT } = await src('entry/tool-release.ts')
 const { inProcessPrincipalAuthority } = await pkg('identity')
 const { tenantCodec } = await pkg('legal-identity')
+const { releasedDeclaration } = await src('entry/permission-declarations.ts')
 const { createPermissionReadMapping } = await src('rows/governance/permission-read-mapping.ts')
 const { toolAssetPublication } = await src('rows/governance/tool-assets.ts')
 const { targetCapture } = await src('rows/governance/target-snapshot.ts')
@@ -72,14 +73,17 @@ const action = {
   principal,
   tenant: TOOL_RELEASE_TENANT,
   operation: { owner: 'agent', operationId: 'action-1' },
+  capability: { category: 'tool', name: entry.asset.name },
   definition: entry.asset.adoption,
   effectiveArguments: '{}',
+  gate: { id: 'run', title: '执行', default: 'ask' },
   origin: { kind: 'agent-action' },
 }
 let settingsReads = 0
 const map = createPermissionReadMapping({
   scope,
-  release: () => release,
+  declarations: () =>
+    release.kind === 'trusted' ? release.manifest.entries.map(releasedDeclaration) : [],
   settings: async () => {
     settingsReads++
     throw Error('No Settings source exists')
@@ -255,9 +259,10 @@ checked('unmapped material retains Session and Agent missing-basis requirements'
 })
 checked('unmapped material rejects a declaration with Settings mapping', () => {
   const wrong = structuredClone(valid.output)
-  wrong.declaration.permissions[0].settings = real.manifest.entries.find(
-    e => e.asset.name === 'Shell',
-  ).governance.declaration.permissions[0].settings
+  const gated = p => p.enforcementKey === mapped.permission.enforcementKey
+  wrong.declaration.permissions.find(gated).settings = real.manifest.entries
+    .find(e => e.asset.name === 'Shell')
+    .governance.declaration.permissions.find(gated).settings
   assert.equal(permissionCurrentMaterial(wrong, mapped.permission, []), undefined)
 })
 checked('mapped material rejects a declaration without Settings mapping', () => {
@@ -307,7 +312,10 @@ checked('runtime material refuses management mode', () => {
 })
 checked('material requires exactly one definition', () => {
   const value = structuredClone(valid.output)
-  value.declaration.permissions.push(structuredClone(value.declaration.permissions[0]))
+  const gated = value.declaration.permissions.find(
+    p => p.enforcementKey === mapped.permission.enforcementKey,
+  )
+  value.declaration.permissions.push(structuredClone(gated))
   assert.equal(permissionCurrentMaterial(value, mapped.permission, []), undefined)
 })
 for (const [name, change] of [
@@ -336,7 +344,8 @@ checked('snapshot only publishes runtime material', () => {
 })
 const foreignMap = createPermissionReadMapping({
   scope: { ...scope, tenantRef: 'foreign' },
-  release: () => release,
+  declarations: () =>
+    release.kind === 'trusted' ? release.manifest.entries.map(releasedDeclaration) : [],
   settings: async () => {
     throw Error('must not read Settings')
   },

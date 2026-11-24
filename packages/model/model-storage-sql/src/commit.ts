@@ -32,11 +32,9 @@ import {
   type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import {
-  packText,
   type ParticipantModule,
   type ParticipantPort,
   type ParticipantReply,
-  type SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import {
   comparePartKeys,
@@ -65,6 +63,9 @@ import {
   type PendingPage,
 } from './reads.ts'
 import { requestChunks } from './request-body.ts'
+import { DISPATCH_FACT_KEPT_COLUMNS, dispatchFactRows } from './dispatch-facts.ts'
+import { DISPATCH_FACT } from './fact-schema.ts'
+import { columnNames, cellValue, insert, upsertRows } from './rows.ts'
 import { MODEL_PARTICIPANT, PROTOCOL, TABLES, type Table } from './schema.ts'
 
 export const BODY_READ_RESERVE_BYTES = 64 * 1024
@@ -400,6 +401,7 @@ function factsOf(
   const { expected } = staged
   const before = read.record?.document.dispatches ?? []
   const plan = planParts(read.record?.parts ?? [], before, call?.dispatches ?? [])
+  const dispatches = changedDispatches(tenant, callId, before, call?.dispatches ?? [])
   return {
     intent: 'write',
     tenant,
@@ -409,7 +411,8 @@ function factsOf(
       call === undefined
         ? null
         : must(encodeCallRow(tenant, nextVersion(expected), call, hasRecoveryWork(call))),
-    dispatches: changedDispatches(tenant, callId, before, call?.dispatches ?? []),
+    dispatches,
+    dispatchFacts: dispatchFactRows(tenant, call, dispatches),
     removeParts: plan.remove.map(part => ({
       seq: part.seq,
       block: part.position,
@@ -574,15 +577,16 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     return current
   }
 
-  const identityOf = (domain: DomainRef, operation: string, key: string): SqlIdentity => ({
+  const withoutReceipt = (domain: DomainRef, operation: string, key: string): SqlIdentity => ({
     scope: domain.scope,
     transactionDomain: domain.transactionDomain,
     operation,
     protocolVersion: '2',
     operationKey: key,
+    recall: 'never',
   })
-  const generation = (domain: DomainRef, operation: ModelOperationId, at: number) =>
-    identityOf(domain, operation, `${operation}#${at}`)
+  const generation = (domain: DomainRef, operation: ModelOperationId, at: number): SqlIdentity =>
+    withoutReceipt(domain, operation, `${operation}#${at}`)
   const generationsKey = (domain: DomainRef, operation: ModelOperationId): string =>
     JSON.stringify([
       domain.scope.kind === 'tenant' ? domain.scope.tenant : null,
@@ -590,28 +594,15 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       operation,
     ])
 
-  async function freeGeneration(
-    domain: DomainRef,
-    operation: ModelOperationId,
-  ): Promise<number | 'unknown' | 'committed'> {
-    const key = generationsKey(domain, operation)
-    let at = generations.first(key)
-    let found = await storage.query(generation(domain, operation, at))
-    while (found.kind === 'rolled_back') {
-      generations.saw(key, at, found.kind)
-      at += 1
-      found = await storage.query(generation(domain, operation, at))
-    }
-    generations.saw(key, at, found.kind)
-    if (found.kind === 'not_committed') return at
-    return found.kind === 'not_recallable' ? 'unknown' : found.kind
+  async function settled(domain: DomainRef, operation: ModelOperationId): Promise<boolean> {
+    const at = generations.first(generationsKey(domain, operation))
+    return (await storage.query(generation(domain, operation, at))).kind === 'settled'
   }
 
   async function settleUnresolved(domain: DomainRef, scope: CallScope): Promise<void> {
     for (const [operation, binding] of unresolved.of(scope.tenant)) {
       if (binding.call !== scope.call) continue
-      if ((await freeGeneration(domain, operation)) !== 'unknown')
-        unresolved.remove(scope.tenant, operation)
+      if (await settled(domain, operation)) unresolved.remove(scope.tenant, operation)
     }
   }
 
@@ -641,7 +632,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   function identityFor(domain: DomainRef, tenant: string, staged: Staged): Target | Step {
     if (staged.kind === 'publish') {
       const operation = `${staged.call.state.call}#read`
-      return { identity: identityOf(domain, operation, `${operation}@${staged.expected}`) }
+      return { identity: withoutReceipt(domain, operation, `${operation}@${staged.expected}`) }
     }
     const { operation } = staged.write
     if (unresolved.full(tenant, operation))
@@ -751,7 +742,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   ): Promise<CommitResultV2> {
     const operation = `${call}#body`
     return storage.commit({
-      identity: identityOf(domain, operation, `${operation}@${randomUUID()}`),
+      identity: withoutReceipt(domain, operation, `${operation}@${randomUUID()}`),
       ...combination,
       commands: [{ participant: MODEL_PARTICIPANT, facts }],
     })
@@ -862,23 +853,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
 
 class FactError extends Error {}
 
-const columnNames = (table: Table): readonly string[] => table.columns.map(item => item.name)
-
-function cellValue(table: Table, row: Row, name: string): SqlValue {
-  const cell = row[name] ?? null
-  const kind = table.columns.find(item => item.name === name)?.kind
-  if (kind === 'int' && typeof cell === 'number') return BigInt(cell)
-  return kind === 'json' && typeof cell === 'string' ? packText(cell) : cell
-}
-
-function insert(port: ParticipantPort, table: Table, row: Row, onConflict: string): bigint {
-  const names = columnNames(table)
-  return port.execute(
-    `INSERT INTO ${table.name} (${names.join(', ')}) VALUES (${names.map(() => '?').join(', ')}) ${onConflict}`,
-    names.map(name => cellValue(table, row, name)),
-  ).changes
-}
-
 function checkedRow(table: Table, raw: unknown, tenant: string, call: string): Row {
   const row = parseRow(table, raw)
   if ('failure' in row) throw new FactError(`${table.name} row`)
@@ -960,6 +934,7 @@ function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
     row,
     binding,
     dispatches: rowList(facts['dispatches'], TABLES.dispatch, tenant, call),
+    dispatchFacts: rowList(facts['dispatchFacts'], DISPATCH_FACT, tenant, call),
     removeParts: partKeys(facts['removeParts']),
     parts: rowList(facts['parts'], TABLES.part, tenant, call),
     share: shareOf(facts['share']),
@@ -996,13 +971,8 @@ function writeCall(port: ParticipantPort, facts: WriteFacts): string | null {
 
 function writeChildren(port: ParticipantPort, facts: WriteFacts): void {
   const { tenant, call } = facts
-  const kept = columnNames(TABLES.dispatch).filter(
-    name => !['tenant', 'call', 'seq'].includes(name),
-  )
-  const upsert = `ON CONFLICT (tenant, call, seq) DO UPDATE SET ${kept
-    .map(name => `${name} = excluded.${name}`)
-    .join(', ')}`
-  for (const item of facts.dispatches) insert(port, TABLES.dispatch, item, upsert)
+  upsertRows(port, TABLES.dispatch, facts.dispatches)
+  upsertRows(port, DISPATCH_FACT, facts.dispatchFacts, DISPATCH_FACT_KEPT_COLUMNS)
   for (const key of facts.removeParts)
     port.execute(
       'DELETE FROM md_part WHERE tenant = ? AND call = ? AND seq = ? AND block = ? AND part = ?',

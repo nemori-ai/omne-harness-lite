@@ -7,14 +7,14 @@
     {
       "path": "src/official-models/anthropic.ts",
       "sha256": "193662a915eea0b9fc18ebe096d5d38cb3545c6cd714c720636d7d1c97188a88",
-      "migrated": "the 4 models, the parameter subset (drops become unsupported, efforts low to max), the user reminder role, the 1h last-message cache, capabilities and limits with every upstream value unknown, and the 4194304-byte image limit",
+      "migrated": "the 4 models, the parameter subset (drops become unsupported, efforts low to max), the user reminder role (the Messages interface has only user and assistant turns), the 1h last-message cache, capabilities and limits with every upstream value unknown, and the 4194304-byte image limit",
       "target": "src/records.ts"
     },
     {
       "path": "src/input-meters/anthropic-replay.ts",
       "sha256": "a68c83cf70aa24aaeefaf43dd16c2927f3f0850e6dcc19b10319b2d91b4593a9",
-      "migrated": "the whole-group item rule: format anthropic-claude-v1, signed reasoning.text, reasoning.encrypted data not empty and not [REDACTED]; the signed-prefix models (claude-opus-5.5 and claude-fable-5.1) are not migrated: by the project convention no record turns reasoning off, and live on 2026-10-22 the gateway took a foreign tool turn with reasoning on, and both models refused reasoning off; the frozen original meter is not migrated; the sealed method name `anthropic-complete-signed-encrypted-output-zero-framing-estimated/1` (ANTHROPIC_REPLAY_REVISION, lines 13-14) and the whole-group condition of classifyAnthropicReasoning (lines 157-196), which the meter sees as the units the codec wrote `reasoning_details` for",
-      "target": "src/records.ts, src/rules.ts"
+      "migrated": "the whole-group item rule: format anthropic-claude-v1, signed reasoning.text, reasoning.encrypted data not empty and not [REDACTED]; the signed-prefix models (claude-opus-5.5 and claude-fable-5.1) are not migrated: by the project convention no record turns reasoning off, and live on 2026-10-22 the gateway took a foreign tool turn with reasoning on, and both models refused reasoning off; the frozen original meter is not migrated; the sealed method name `anthropic-complete-signed-encrypted-output-zero-framing-estimated/1` (ANTHROPIC_REPLAY_REVISION, lines 13-14) and the whole-group condition of classifyAnthropicReasoning (lines 157-196), which the meter sees as the units the codec wrote `reasoning_details` for. The item rule and the format anthropic-claude-v1 left with the chat-completions path on 2026-11-18, when the records moved to the Messages engine of pi-ai-transport; the method name and the whole-group condition stay in the meter",
+      "target": "src/meter.ts"
     },
     {
       "path": "src/input-meters/anthropic.ts",
@@ -25,14 +25,14 @@
     {
       "path": "src/accounts.ts",
       "sha256": "4b1210c21355ecdd7e486d97b93ff8a5a68626feaf057282df9832d1f9180717",
-      "migrated": "the cache read and write deduction from the prompt and the unknown negative remainder with its diagnostic; cost is not migrated",
-      "target": "src/rules.ts"
+      "migrated": "the cache read and write deduction from the prompt and the unknown negative remainder with its diagnostic; cost is not migrated. All of it left with the chat-completions path on 2026-11-18: the Messages engine of pi-ai-transport reads the usage members of that interface itself",
+      "target": "none"
     },
     {
       "path": "src/input-meters/wire-validation.ts",
       "sha256": "7c686576c0de7fdc5efc677dbb423569e043acf6ff2a67c75aadd870fd8279d0",
-      "migrated": "the function tool subset: the parameters schema is an object",
-      "target": "src/rules.ts"
+      "migrated": "the function tool subset: the parameters schema is an object. It left with the chat-completions path on 2026-11-18: the Messages engine of pi-ai-transport refuses a schema root that is not an object itself (tests/plan.spec.ts)",
+      "target": "none"
     },
     {
       "path": "src/anthropic-cache.ts",
@@ -75,22 +75,22 @@
     {
       "path": "tests/anthropic-family-current.spec.ts",
       "sha256": "875c8428be9131b93738ed68b6ba6198f244e3d0afaa408e43784aaea4440a0c",
-      "target": "tests/support/legacy-cases.ts, tests/fixtures, tests/cross-family-replay.spec.ts, tests/plan.spec.ts, tests/meter.spec.ts"
+      "target": "tests/fixtures/records (captured on the Messages interface), tests/cross-family-replay.spec.ts, tests/plan.spec.ts, tests/meter.spec.ts"
     },
     {
       "path": "tests/anthropic-stream-late-signature.spec.ts",
       "sha256": "f7fe5b963a221c1ed88f27b5d298525bfb7e7a941ab7434b30e464fa92687e7b",
-      "target": "tests/support/legacy-cases.ts, tests/fixtures"
+      "target": "none: it left with the chat-completions path; on Messages a signature arrives as signature_delta inside its own block"
     },
     {
       "path": "tests/usage-anthropic-public.spec.ts",
       "sha256": "d4d128ee871d638b519cf31914b9f9eb879387810b0fd420ef341aab6cf7ebf2",
-      "target": "tests/support/legacy-cases.ts, tests/fixtures"
+      "target": "none: it left with the chat-completions path; the Messages engine reads usage itself"
     },
     {
       "path": "tests/https.spec.ts",
       "sha256": "f7bc22e6907e8cd99c2871fc8c485a34ec1028a5a87f50e1a677c28048d4991f",
-      "target": "tests/support/legacy-cases.ts, tests/fixtures (the negative input remainder only)"
+      "target": "none: it left with the chat-completions path (the negative input remainder only)"
     },
     {
       "path": "tests/anthropic-input-meter.spec.ts",
@@ -100,7 +100,7 @@
     {
       "path": "tests/anthropic-replay-policy.spec.ts",
       "sha256": "31056f39d2eb83ba33732b4660b11c0dfdd3d6d3acd5378ef4aa1d560edc41bd",
-      "target": "tests/records.spec.ts, tests/rules.spec.ts"
+      "target": "tests/records.spec.ts"
     },
     {
       "path": "tests/fixtures/anthropic/reference-input.json",

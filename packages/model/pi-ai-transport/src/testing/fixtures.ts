@@ -1,4 +1,7 @@
-import { OPENROUTER_ACCOUNTING } from '../chat-completions/openrouter.ts'
+import {
+  OPENROUTER_ACCOUNTING,
+  OPENROUTER_PROVIDER_BODY_TEXT,
+} from '../chat-completions/openrouter.ts'
 import type { RouteAccounting } from '../config.ts'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -14,6 +17,13 @@ import { terminationOf } from '../termination.ts'
 
 export const GATEWAY_END_MARKER = '[DONE]'
 
+// The gateway's own body says which interface ends its stream with a marker.
+const GATEWAY_ENDPOINTS: readonly Readonly<{ protocol: string; endMarker?: string }>[] =
+  Reflect.get(JSON.parse(OPENROUTER_PROVIDER_BODY_TEXT), 'endpoints')
+function endMarkerOf(endpoint: PiFamilyBinding['endpoint']): string | null {
+  return GATEWAY_ENDPOINTS.find(item => item.protocol === endpoint)?.endMarker ?? null
+}
+
 export const FIXTURE_FILES = ['request.json', 'stream.sse', 'facts.json'] as const
 
 export type FixtureReport = Readonly<{ problems: readonly string[] }>
@@ -22,10 +32,8 @@ export function fixtureDirectory(record: Readonly<{ name: string; revision: stri
   return join(encodeURIComponent(record.name), encodeURIComponent(record.revision))
 }
 
-export async function checkChatCompletionsFixtures(
-  family: PiFamily,
-  root: string,
-): Promise<FixtureReport> {
+/** Checks each record of the family against its fixture directory, whatever engine it binds. */
+export async function checkRecordFixtures(family: PiFamily, root: string): Promise<FixtureReport> {
   const records = familyRecords(family)
   const contributions = composeFamilies([family])
   const problems: string[] = []
@@ -202,7 +210,7 @@ export async function replayStream(
   const decoding = decodeBody({
     body: oneChunk(stream),
     decoder: binding.createDecoder({ request, accounting }),
-    endMarker: GATEWAY_END_MARKER,
+    endMarker: endMarkerOf(binding.endpoint),
     limits: { maxEventBytes: Math.max(1, stream.length), json: budgetsOf(stream.length) },
     received: () => true,
     progress,

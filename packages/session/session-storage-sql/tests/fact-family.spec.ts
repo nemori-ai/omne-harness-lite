@@ -13,15 +13,19 @@ import {
   decodeExecutionRecordOpen,
   decodeExecutionRecordOperation,
   decodeExecutionRecordReply,
+  decodeExecutionRecordRetired,
+  decodeExecutionSweepReply,
   EXECUTION_BATCH_MAX_FACTS,
   EXECUTION_FACT_MAX_BYTES,
   executionRecordBlobFacts,
   executionRecordFacts,
+  executionRecordSweepFacts,
   type ExecutionBlobRecord,
   type ExecutionFactRecord,
   type ExecutionRecordWrite,
 } from '../src/participants.ts'
 import { canonicalText } from '../src/codec.ts'
+import { preadmissionFacts } from '../src/preadmission.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
 import factBlobMigration from '../src/worker/fact-blob-migration.ts'
 import executionRecord from '../src/worker/execution-record.ts'
@@ -98,6 +102,7 @@ function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionReco
     tenant: TENANT_A,
     session: sessionId(SESSION),
     execution,
+    settledBy: null,
     expected: n === 1 ? null : String(n - 1),
     revision: String(n),
     published: String(n - 1),
@@ -112,6 +117,7 @@ function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionReco
         revision: String(n),
         receipt: evidence(`agent/${execution}/${String(n)}`),
         emittedThrough: String(n),
+        acknowledged: '0',
         ended: null,
       },
     ],
@@ -162,7 +168,7 @@ const count = (a: App, table: string, domain = 'dom_0'): number =>
 
 const agentRows = (a: App) => ({
   facts: count(a, 'er_fact'),
-  blobs: count(a, 'sl_blob'),
+  blobs: count(a, 'er_block'),
   operations: count(a, 'er_operation'),
   roots: count(a, 'er_root'),
   heads: count(a, 'er_execution'),
@@ -274,17 +280,21 @@ describe('one publication appends one batch', () => {
     expect(a.provider.select('dom_0', 'SELECT * FROM er_operation').rows).toEqual([
       [textOf(TENANT_A), 'aop_1', SESSION, 'exe_1', 'sha256:op-1', 1n],
     ])
-    expect(count(a, 'sl_blob')).toBe(1)
+    expect(a.provider.select('dom_0', 'SELECT execution FROM er_block').rows).toEqual([['exe_1']])
+    expect(count(a, 'sl_blob')).toBe(0)
     expect(a.provider.select('dom_0', 'SELECT published FROM er_root').rows).toEqual([[1n]])
   })
 
-  it('the participant only appends facts: no statement updates, replaces or deletes a fact row', () => {
+  it('the participant only appends facts and deletes them only with their settled execution', () => {
     const source = readFileSync(
       new URL('../src/worker/execution-record.ts', import.meta.url),
       'utf8',
     )
     expect(source).toMatch(/'INSERT INTO er_fact \(/u)
-    expect(source).not.toMatch(/(UPDATE|DELETE FROM|REPLACE INTO|OR IGNORE INTO) er_fact\b/u)
+    expect(source).not.toMatch(/(UPDATE|REPLACE INTO|OR IGNORE INTO) er_fact\b/u)
+    expect(source.match(/DELETE FROM er_fact\b[^']*/gu)).toEqual([
+      'DELETE FROM er_fact WHERE tenant = ? AND execution = ?',
+    ])
   })
 
   it('the statements of a later publication carry as many bytes as an earlier one: nothing is rewritten', () => {
@@ -314,7 +324,7 @@ describe('one publication appends one batch', () => {
   })
 
   it.each([
-    ['no fact', { facts: [] }],
+    ['no fact', { facts: [] }, 'no fact'],
     [
       'more facts than a batch holds',
       {
@@ -323,22 +333,32 @@ describe('one publication appends one batch', () => {
           body: index,
         })),
       },
+      `${String(EXECUTION_BATCH_MAX_FACTS + 1)} facts in one batch`,
     ],
     [
       'a body past the bound',
       { facts: [{ kind: 'batch', body: 'x'.repeat(EXECUTION_FACT_MAX_BYTES) }] },
+      'a fact',
     ],
     [
       'two events of one sequence',
       { facts: [...factsOf(1, 'exe_1'), ...factsOf(1, 'exe_1').slice(1)] },
+      'two facts emit one event',
     ],
-    ['a block whose digest is not its payload', { blobs: [{ ...block('a'), payload: 'b' }] }],
-  ] satisfies readonly (readonly [string, Partial<ExecutionRecordWrite>])[])(
-    'refuses %s as unsupported and writes nothing',
-    async (_, over) => {
+    [
+      'a block whose digest is not its payload',
+      { blobs: [{ ...block('a'), payload: 'b' }] },
+      'a blob',
+    ],
+  ] satisfies readonly (readonly [string, Partial<ExecutionRecordWrite>, string])[])(
+    'refuses %s as unsupported, names the rule it breaks, and writes nothing',
+    async (_, over, rule) => {
       const a = await session()
       const result = await commit(a, nth(1, over))
-      expect(result).toMatchObject({ kind: 'rolled_back', reply: { kind: 'unsupported' } })
+      expect(result).toMatchObject({
+        kind: 'rolled_back',
+        reply: { kind: 'unsupported', reason: `the publication is malformed: ${rule}` },
+      })
       expect(agentRows(a)).toEqual({ facts: 0, blobs: 0, operations: 0, roots: 0, heads: 0 })
     },
   )
@@ -466,7 +486,7 @@ describe('the two gates of a concurrent write', () => {
 describe('a failure inside the commit leaves neither the batch nor its blocks', () => {
   it.each([
     ['the second fact row', /INSERT INTO er_fact/u, 2],
-    ['the block', /INSERT OR IGNORE INTO sl_blob/u, 1],
+    ['the block', /INSERT OR IGNORE INTO er_block/u, 1],
     ['the operation key', /INSERT INTO er_operation/u, 1],
     ['the head row', /INTO er_execution/u, 1],
     ['the publication count', /INTO er_root/u, 1],
@@ -513,7 +533,7 @@ describe('the stored form of facts and blocks (sql-contract §10.1)', () => {
     ])
     const blobs = new Map(
       a.provider
-        .select('dom_0', 'SELECT digest, payload FROM sl_blob')
+        .select('dom_0', 'SELECT digest, payload FROM er_block')
         .rows.map(([digest, payload]) => [String(digest), payload as Uint8Array]),
     )
     expect(blobs.get(short.digest)?.[0]).toBe(0)
@@ -527,18 +547,23 @@ describe('the stored form of facts and blocks (sql-contract §10.1)', () => {
     for (const one of [short, long])
       expect(
         decodeExecutionRecordBlob(
-          await read(a, 'execution-record.blob', { tenant: textOf(TENANT_A), digest: one.digest }),
+          await read(a, 'execution-record.blob', {
+            tenant: textOf(TENANT_A),
+            execution: 'exe_1',
+            digest: one.digest,
+          }),
         ),
       ).toMatchObject({ kind: 'blob', payload: one.payload })
   })
 })
 
 describe('content blocks', () => {
-  it('a tenant holds one row per digest: twice in one write, again later, and by the blocks intent', async () => {
+  it('an execution holds one row per digest: twice in one write and again later; the blocks intent without an execution writes the shared table', async () => {
     const a = await session()
     const one = block('{"content":"same"}')
     expect((await commit(a, nth(1, { blobs: [one, one] }))).kind).toBe('committed')
     expect((await commit(a, nth(2, { blobs: [one] }))).kind).toBe('committed')
+    expect(count(a, 'er_block')).toBe(1)
     const stored = await a.provider.storage.commit({
       identity: identity('aop_blocks'),
       combinationVersion: 'c1',
@@ -562,6 +587,30 @@ describe('content blocks', () => {
       size: String(Buffer.byteLength(one.payload)),
       payload: one.payload,
     })
+    const ahead = await a.provider.storage.commit({
+      identity: identity('aop_blocks_ahead'),
+      combinationVersion: 'c1',
+      manifestDigest: 'a'.repeat(64),
+      commands: [
+        executionRecordBlobFacts({
+          tenant: TENANT_A,
+          execution: 'exe_1',
+          blobs: [block('third'), { ...block('fourth'), shared: true }],
+        }),
+      ],
+    })
+    expect(ahead.kind).toBe('committed')
+    expect(
+      a.provider
+        .select('dom_0', 'SELECT execution, digest FROM er_block ORDER BY digest')
+        .rows.map(row => row.map(String)),
+    ).toEqual(
+      [
+        ['exe_1', one.digest],
+        ['exe_1', blobDigest('third')],
+      ].sort((left, right) => left[1]!.localeCompare(right[1]!)),
+    )
+    expect(count(a, 'sl_blob')).toBe(3)
   })
 
   it('blocks alone without a valid block are refused and write nothing', async () => {
@@ -695,6 +744,7 @@ describe('the reads of the fact family', () => {
             revision: '1',
             receipt: evidence('agent/exe_2/1'),
             emittedThrough: '1',
+            acknowledged: '0',
             ended: null,
           },
         ],
@@ -711,6 +761,7 @@ describe('the reads of the fact family', () => {
             revision: '2',
             receipt: evidence('agent/exe_1/2'),
             emittedThrough: '3',
+            acknowledged: '0',
             ended: { sequence: '3', source: evidence('agent/exe_1/event/3') },
           },
         ],
@@ -911,7 +962,11 @@ describe('another tenant in the same tables', () => {
         owner: textOf(tenant),
       })
       const found = decodeExecutionRecordBlob(
-        handlerRead(port, readBlob, { tenant: textOf(tenant), digest: one.digest }),
+        handlerRead(port, readBlob, {
+          tenant: textOf(tenant),
+          execution: 'exe_1',
+          digest: one.digest,
+        }),
       )
       expect(found).toMatchObject({ media: `text/${textOf(tenant).slice(0, 7)}` })
       const operation = decodeExecutionRecordOperation(
@@ -934,7 +989,7 @@ describe('another tenant in the same tables', () => {
         { event: textOf(tenant) },
       ])
       expect(
-        port.execute('SELECT COUNT(*) FROM sl_blob WHERE tenant = ?', [textOf(tenant)]).rows,
+        port.execute('SELECT COUNT(*) FROM er_block WHERE tenant = ?', [textOf(tenant)]).rows,
       ).toEqual([[1n]])
     }
   })
@@ -956,7 +1011,9 @@ describe('another tenant in the same tables', () => {
         after: '0',
       }),
     ).toEqual({ kind: 'denied' })
-    expect(handlerRead(port, readBlob, { tenant: c, digest: one.digest })).toEqual({
+    expect(
+      handlerRead(port, readBlob, { tenant: c, execution: 'exe_1', digest: one.digest }),
+    ).toEqual({
       kind: 'denied',
     })
     expect(handlerRead(port, readExecutionOperation, { tenant: c, operation: 'aop_1' })).toBeNull()
@@ -990,7 +1047,9 @@ describe('another tenant in the same tables', () => {
         after: '0',
       }),
     ).toEqual({ kind: 'denied' })
-    expect(handlerRead(port, readBlob, { tenant: c, digest: one.digest })).toEqual({
+    expect(
+      handlerRead(port, readBlob, { tenant: c, execution: 'exe_1', digest: one.digest }),
+    ).toEqual({
       kind: 'denied',
     })
   })
@@ -1007,5 +1066,179 @@ describe('another tenant in the same tables', () => {
         [textOf(TENANT_B), 2n],
       ]),
     )
+  })
+})
+
+describe('the two phases of the reclaim', () => {
+  // A publication that ends the execution and settles it, by the writer generation it names.
+  const settling = (n: number, execution: string, generation: string, revision = 1) =>
+    nth(n, {
+      execution,
+      expected: revision === 1 ? null : String(revision - 1),
+      revision: String(revision),
+      operation: `aop_${execution}`,
+      facts: factsOf(revision, execution),
+      boundaries: [
+        {
+          execution,
+          revision: String(revision),
+          receipt: evidence(`agent/${execution}/${String(revision)}`),
+          emittedThrough: String(revision),
+          acknowledged: String(revision),
+          ended: { sequence: String(revision), source: evidence(`agent/${execution}/ended`) },
+        },
+      ],
+      settledBy: generation,
+    })
+
+  async function sweep(a: App, generation: string) {
+    const result = await a.provider.storage.commit({
+      identity: identity(`sweep-${generation}`),
+      combinationVersion: 'c1',
+      manifestDigest: 'a'.repeat(64),
+      commands: [executionRecordSweepFacts(TENANT_A, generation)],
+    })
+    if (result.kind !== 'committed') throw new Error(`the sweep did not commit: ${result.kind}`)
+    return decodeExecutionSweepReply(result.responses[0]!.reply)
+  }
+
+  const rows = (a: App, table: string) =>
+    a.provider
+      .select('dom_0', `SELECT execution FROM ${table} ORDER BY execution`)
+      .rows.map(row => String(row[0]))
+
+  it('a sweep deletes the tombstones and operation records an earlier writer generation settled, and keeps those of its own generation', async () => {
+    const a = await session()
+    expect((await commit(a, settling(1, 'exe_old', 'gen_old'))).reply.kind).toBe('published')
+    expect((await commit(a, settling(2, 'exe_now', 'gen_now'))).reply.kind).toBe('published')
+    expect(rows(a, 'er_execution')).toEqual(['exe_now', 'exe_old'])
+    expect(rows(a, 'er_fact')).toEqual([])
+
+    expect(await sweep(a, 'gen_now')).toEqual({ kind: 'swept', swept: '1' })
+    expect(rows(a, 'er_execution')).toEqual(['exe_now'])
+    expect(rows(a, 'er_operation')).toEqual(['exe_now'])
+    expect(
+      decodeExecutionRecordRetired(
+        await read(a, 'execution-record.retired', {
+          tenant: textOf(TENANT_A),
+          generation: 'gen_now',
+        }),
+      ),
+    ).toEqual({ kind: 'retired', settled: false, waiting: [] })
+
+    expect(await sweep(a, 'gen_next')).toEqual({ kind: 'swept', swept: '1' })
+    expect(rows(a, 'er_execution')).toEqual([])
+    expect(rows(a, 'er_operation')).toEqual([])
+  })
+
+  const blockRead = async (a: App, execution: string | null, digest: string) =>
+    decodeExecutionRecordBlob(
+      await read(a, 'execution-record.blob', {
+        tenant: textOf(TENANT_A),
+        ...(execution === null ? {} : { execution }),
+        digest,
+      }),
+    )
+
+  it('the settling publication deletes the blocks its execution wrote, and keeps the shared bodies and the same block of another execution', async () => {
+    const a = await session()
+    const own = block('{"checkpoint":"own"}')
+    const message = { role: 'compaction', blocks: [{ kind: 'text', text: 'one kept summary' }] }
+    const custody = {
+      ...block(canonicalText({ outcome: { kind: 'completed', message } })),
+      shared: true,
+    }
+    expect(
+      (await commit(a, nth(1, { execution: 'exe_old', blobs: [own, custody] }))).reply.kind,
+    ).toBe('published')
+    expect(
+      (
+        await commit(
+          a,
+          nth(2, { execution: 'exe_other', expected: null, revision: '1', blobs: [own] }),
+        )
+      ).reply.kind,
+    ).toBe('published')
+    expect(rows(a, 'er_block')).toEqual(['exe_old', 'exe_other'])
+    const shared = count(a, 'sl_blob')
+    expect(shared).toBe(2)
+
+    expect((await commit(a, settling(3, 'exe_old', 'gen_now', 2))).reply.kind).toBe('published')
+    expect(rows(a, 'er_block')).toEqual(['exe_other'])
+    expect(count(a, 'sl_blob')).toBe(shared)
+    expect(await blockRead(a, 'exe_old', own.digest)).toEqual({ kind: 'denied' })
+    expect(await blockRead(a, 'exe_other', own.digest)).toMatchObject({ payload: own.payload })
+    expect(await blockRead(a, 'exe_old', custody.digest)).toMatchObject({
+      payload: custody.payload,
+    })
+    expect(await blockRead(a, null, custody.digest)).toMatchObject({ payload: custody.payload })
+  })
+
+  it('after the settle and the sweep of the next writer generation no er_ table with an execution column holds a row of the execution, but the admission index', async () => {
+    const a = await session()
+    const prepared = await a.provider.storage.commit({
+      identity: identity('preadmission-gone'),
+      combinationVersion: 'c1',
+      manifestDigest: 'a'.repeat(64),
+      commands: [
+        preadmissionFacts({
+          phase: 'intent',
+          tenant: TENANT_A,
+          handoff: 'handoff-gone',
+          entry: null,
+          session: sessionId(SESSION),
+          execution: 'exe_gone',
+          intent: {
+            request: 'r',
+            origin: null,
+            principal: null,
+            qualification: null,
+            adoption: null,
+            materials: null,
+          },
+        }),
+      ],
+    })
+    expect(prepared.kind).toBe('committed')
+    const opened = nth(1, {
+      execution: 'exe_gone',
+      blobs: [block('{"checkpoint":"gone"}')],
+      items: [{ family: 'exec', item: '', change: 'opened', open: true, body: { opened: 1 } }],
+      contents: [{ family: 'material', item: 'kept-until-release', payload: '{"held":1}' }],
+      admissions: [
+        {
+          input: 'input-gone',
+          execution: 'exe_gone',
+          operation: 'aop_1',
+          accepted: evidence('accepted-gone'),
+          grant: evidence('grant-gone'),
+          attachment: 'attachment-gone',
+        },
+      ],
+    })
+    expect((await commit(a, opened)).reply.kind).toBe('published')
+    expect((await commit(a, settling(2, 'exe_gone', 'gen_old', 2))).reply.kind).toBe('published')
+    expect(await sweep(a, 'gen_new')).toEqual({ kind: 'swept', swept: '1' })
+
+    const tables = a.provider
+      .select(
+        'dom_0',
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND substr(name, 1, 3) = 'er_' ORDER BY name",
+      )
+      .rows.map(row => String(row[0]))
+      .filter(name =>
+        a.provider
+          .select('dom_0', `SELECT name FROM pragma_table_info('${name}')`)
+          .rows.some(row => row[0] === 'execution'),
+      )
+    expect(tables).toEqual(expect.arrayContaining(['er_block', 'er_fact', 'er_item']))
+    const held = (table: string) =>
+      Number(
+        a.provider.select('dom_0', `SELECT COUNT(*) FROM ${table} WHERE execution = 'exe_gone'`)
+          .rows[0]?.[0],
+      )
+    for (const table of tables.filter(name => name !== 'er_admission_idx'))
+      expect(held(table), table).toBe(0)
+    expect(held('er_admission_idx')).toBe(1)
   })
 })

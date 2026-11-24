@@ -4,7 +4,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { unpackText } from '@omne-harness/sql-contract/worker'
 import { expect, onTestFailed, onTestFinished } from 'vitest'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { ListPoolSchema, type PoolItem } from '@omne-harness/human-intervention'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -39,6 +39,7 @@ import {
   savedTenant,
 } from '../r9/support.ts'
 import {
+  readHistoryFrom,
   readHistoryPage,
   savedClients,
   type HistoryEntry,
@@ -49,7 +50,14 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   const distribution = JSON.parse(
     readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
   ) as { rows: Array<{ id: string; config: unknown }> }
-  if (modes.permission === undefined && modes.collaboration === undefined) return distribution
+  const nonresident = modes.nonresident ?? []
+  if (
+    modes.permission === undefined &&
+    modes.collaboration === undefined &&
+    modes.model === undefined &&
+    nonresident.length === 0
+  )
+    return distribution
   const adoptionRow = distribution.rows.find(row => row.id === 'agent-adoptions')
   if (adoptionRow === undefined) throw new Error('No Agent mappings')
   const mappings = agentAdoptionsConfig.parse(adoptionRow.config)
@@ -58,11 +66,28 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   if (modes.permission !== undefined)
     coding.modes.permission = modes.permission as typeof coding.modes.permission
   if (modes.collaboration !== undefined) coding.modes.collaboration = modes.collaboration
+  if (modes.model !== undefined) {
+    if (coding.initialModelSelection === undefined) throw new Error('No coding model selection')
+    coding.initialModelSelection.name = modes.model
+  }
+  const references = coding.definition['references'] as {
+    capability: { name: string }
+    resident: boolean
+  }[]
+  for (const reference of references)
+    if (nonresident.includes(reference.capability.name)) reference.resident = false
   adoptionRow.config = mappings
   return distribution
 }
 
-type ReleaseModes = Readonly<{ permission?: string; collaboration?: 'co-work' | 'auto-drive' }>
+type ReleaseModes = Readonly<{
+  permission?: string
+  collaboration?: 'co-work' | 'auto-drive'
+  /** The model a coding session starts on, in place of the distribution's. */
+  model?: string
+  /** Release tools the coding Agent reaches only through Tools in this tree. */
+  nonresident?: readonly string[]
+}>
 
 export const sse = (events: readonly unknown[]): string =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
@@ -208,12 +233,12 @@ function withObservationPolicy(
   return { ops: [...ops, { kind: 'replace', id: 'session-observation', config: { policy } }] }
 }
 
-function withAgentWaitInterval(layer: unknown): unknown {
+function withAgentWaitInterval(layer: unknown, delays: readonly number[] = [50]): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
       op.id === 'agent-host'
-        ? { ...op, config: { ...op.config, reconciliationDelaysMs: [50] } }
+        ? { ...op, config: { ...op.config, reconciliationDelaysMs: delays } }
         : op,
     ),
   }
@@ -259,16 +284,25 @@ function withCompaction(layer: unknown, options: ReleaseTreeOptions): unknown {
 
 export type Entry = HistoryEntry
 
+// The whole history of a session, page after page: one page holds only its first 256 KB.
 export async function history(
   port: number,
   home: string,
   session: string,
 ): Promise<readonly Entry[]> {
-  const answer = await readHistoryPage(savedClients(port, home), savedTenant(home), session)
-  return answer.outcome === 'succeeded' ? answer.body.entries : []
+  const clients = savedClients(port, home)
+  const tenant = savedTenant(home)
+  const entries: Entry[] = []
+  let page = await readHistoryPage(clients, tenant, session)
+  while (page.outcome === 'succeeded') {
+    entries.push(...page.body.entries)
+    if (page.body.exhausted || page.body.next === null) return entries
+    page = await readHistoryFrom(clients, tenant, session, page.body.next)
+  }
+  return []
 }
 
-function sqliteFiles(storageRoot: string): string[] {
+export function sqliteFiles(storageRoot: string): string[] {
   const files: string[] = []
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -279,6 +313,32 @@ function sqliteFiles(storageRoot: string): string[] {
   }
   walk(storageRoot)
   return files
+}
+
+/** Agent executions, of one session or of all, whose record is not settled yet: a Run that ended logically may still be closing. */
+export function unsettledExecutions(storageRoot: string, session?: string): number {
+  let open = 0
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const held = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'er_execution'")
+        .get()
+      if (held === undefined) continue
+      const row =
+        session === undefined
+          ? db.prepare('SELECT COUNT(*) AS n FROM er_execution WHERE settled IS NULL').get()
+          : db
+              .prepare(
+                'SELECT COUNT(*) AS n FROM er_execution WHERE settled IS NULL AND session = ?',
+              )
+              .get(session)
+      open += Number(row?.['n'] ?? 0)
+    } finally {
+      db.close()
+    }
+  }
+  return open
 }
 
 type LedgerRow = Readonly<{ kind: string; name: string; record: Record<string, unknown> }>
@@ -295,7 +355,7 @@ export function executionFailures(storageRoot: string): readonly unknown[] {
       )
         continue
       for (const row of db
-        .prepare('SELECT tenant, body FROM er_fact ORDER BY pub DESC, ord DESC LIMIT 12')
+        .prepare('SELECT tenant, execution, body FROM er_fact ORDER BY pub DESC, ord DESC LIMIT 12')
         .all()) {
         const text = unpackText(row['body'] as Uint8Array)
         if (!text.includes('node-failed') && !text.includes('compaction-failed')) continue
@@ -305,9 +365,16 @@ export function executionFailures(storageRoot: string): readonly unknown[] {
           const digest = detail.digest.startsWith('sha256:')
             ? detail.digest
             : `sha256:${detail.digest}`
-          const blob = db
-            .prepare('SELECT payload FROM sl_blob WHERE tenant = ? AND digest = ?')
-            .get(String(row['tenant']), digest)
+          const tenant = String(row['tenant'])
+          const blob =
+            db
+              .prepare(
+                'SELECT payload FROM er_block WHERE tenant = ? AND execution = ? AND digest = ?',
+              )
+              .get(tenant, String(row['execution']), digest) ??
+            db
+              .prepare('SELECT payload FROM sl_blob WHERE tenant = ? AND digest = ?')
+              .get(tenant, digest)
           if (blob !== undefined)
             failures.push(JSON.parse(unpackText(blob['payload'] as Uint8Array)))
         }
@@ -329,16 +396,35 @@ function ledgerRows(storageRoot: string): readonly LedgerRow[] {
         .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tl_record'`)
         .get()
       if (table === undefined) continue
-      for (const row of db.prepare(`SELECT kind, name, record, fixed FROM tl_record`).all()) {
+      const definitions = new Map<string, unknown>()
+      for (const row of db.prepare(`SELECT tenant, digest, body FROM tl_definition`).all())
+        definitions.set(`${String(row['tenant'])} ${String(row['digest'])}`, unpacked(row['body']))
+      const joined = (tenant: string, request: unknown): unknown => {
+        const fixed = request as { availability: { definition: unknown } }
+        const digest = fixed.availability.definition
+        return typeof digest !== 'string'
+          ? fixed
+          : {
+              ...fixed,
+              availability: {
+                ...fixed.availability,
+                definition: definitions.get(`${tenant} ${digest}`),
+              },
+            }
+      }
+      for (const row of db
+        .prepare(`SELECT tenant, kind, name, record, fixed FROM tl_record`)
+        .all()) {
         const record = unpacked(row['record']) as Record<string, unknown>
         const call = record['call']
+        const tenant = String(row['tenant'])
         rows.push({
           kind: String(row['kind']),
           name: String(row['name']),
           record:
             row['fixed'] === null || typeof call !== 'object' || call === null
               ? record
-              : { ...record, call: { ...call, request: unpacked(row['fixed']) } },
+              : { ...record, call: { ...call, request: joined(tenant, unpacked(row['fixed'])) } },
         })
       }
     } finally {
@@ -379,6 +465,25 @@ export type ToolCallRow = Readonly<{
   }> | null
 }>
 
+/** What the local Tool host recorded: permits, acceptances, rejections and the rest, as stored. */
+export function hostRecords(storageRoot: string): readonly Readonly<Record<string, unknown>>[] {
+  return ledgerRows(storageRoot).flatMap(row => {
+    const record = row.record as {
+      kind?: string
+      host?: { value?: Record<string, unknown> | null }
+    }
+    const value = record.host?.value
+    return record.kind === 'host' && value != null ? [value] : []
+  })
+}
+
+/** The acceptance records of Tool starts: each start has one, with what it consumed. */
+export function startAcceptances(
+  storageRoot: string,
+): readonly Readonly<Record<string, unknown>>[] {
+  return hostRecords(storageRoot).filter(value => value['kind'] === 'acceptance')
+}
+
 export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
   const calls = new Map<string, { tool: string; phase: string; delivery: string | null }>()
   const entries = new Map<string, NonNullable<ToolCallRow['entry']>>()
@@ -417,20 +522,31 @@ export type ToolCallFacts = Readonly<{
   accounts: readonly string[]
   /** The duration of each account the ledger holds for the call, as stored. */
   durations: readonly unknown[]
+  /** The receipt of each account: `received`, or `late` once a late version took the next revision. */
+  receipts: readonly string[]
+  /** The relation of each result version: `original`, or `late` for a real end after the logical one. */
+  results: readonly string[]
 }>
 
-/** Per call of the Tool ledger: its admitted effective arguments, its start operations and its account events. */
+/** Per call of the Tool ledger: its admitted effective arguments, its start operations, its accounts and its result versions. */
 export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCallFacts> {
   const args = new Map<string, string>()
   const starts = new Map<string, number>()
   const accounts = new Map<string, string[]>()
   const durations = new Map<string, unknown[]>()
+  const receipts = new Map<string, string[]>()
+  const results = new Map<string, string[]>()
   for (const row of ledgerRows(storageRoot)) {
     const record = row.record as {
       kind: string
       call?: { call: string; request: { arguments: { effective: string } } }
       operation?: { call: string; operation: string }
-      account?: { call: string; event: string; value?: { duration?: unknown } }
+      account?: {
+        call: string
+        event: string
+        value?: { duration?: unknown; receipt?: string }
+      }
+      result?: { call: string; relation: string }
     }
     if (record.kind === 'call' && record.call !== undefined)
       args.set(record.call.call, record.call.request.arguments.effective)
@@ -445,7 +561,16 @@ export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCall
         ...(durations.get(record.account.call) ?? []),
         record.account.value?.duration,
       ])
+      receipts.set(record.account.call, [
+        ...(receipts.get(record.account.call) ?? []),
+        String(record.account.value?.receipt),
+      ])
     }
+    if (record.kind === 'result' && record.result !== undefined)
+      results.set(record.result.call, [
+        ...(results.get(record.result.call) ?? []),
+        record.result.relation,
+      ])
   }
   return new Map(
     [...args].map(([call, value]) => [
@@ -455,6 +580,8 @@ export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCall
         starts: starts.get(call) ?? 0,
         accounts: accounts.get(call) ?? [],
         durations: durations.get(call) ?? [],
+        receipts: receipts.get(call) ?? [],
+        results: results.get(call) ?? [],
       },
     ]),
   )
@@ -470,6 +597,13 @@ export type ToolCallLedger = Readonly<{
   tasks: readonly string[]
   released: boolean
 }>
+
+/** Every record of the Tool ledger as text: for a result a test must find, whatever session history shows. */
+export function toolLedgerText(storageRoot: string): string {
+  return ledgerRows(storageRoot)
+    .map(row => JSON.stringify(row.record))
+    .join('\n')
+}
 
 export function toolLedger(storageRoot: string): readonly ToolCallLedger[] {
   const rows = ledgerRows(storageRoot)
@@ -542,6 +676,8 @@ export type ReleaseTreeOptions = Readonly<{
   script: GatewayScript
   permission?: string
   collaboration?: 'co-work' | 'auto-drive'
+  model?: string
+  nonresident?: readonly string[]
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number
   observationPolicy?: Readonly<Record<string, number>>
@@ -553,7 +689,52 @@ export type ReleaseTreeOptions = Readonly<{
   beforeRun?: (run: number, storageRoot: string) => Promise<void>
   /** The operator's values for the settings release tools declare, by tool name and item id. */
   toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  /** Rows left out of the release, together with the operator's values for them. */
+  /** The rows left out of every run, or of each run by its index. */
+  withoutRows?: readonly string[] | ((run: number) => readonly string[])
+  /** Rows a test adds to the release, each with the row plugin that serves it. */
+  addedRows?: readonly AddedRow[]
+  /** Configuration a test adds to rows of the release, by row id. */
+  rowConfig?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  /** The screen backend the host row is given; absent: the one of the machine the test runs on. */
+  hostScreen?: NonNullable<Parameters<typeof runServe>[0]['hostScreen']>
+  /** The fallback checks of a waiting Agent; absent: every 50 ms, so no test waits on the clock. */
+  reconciliationDelaysMs?: readonly number[]
 }>
+
+export type AddedRow = Readonly<{
+  id: string
+  plugin: string
+  config: unknown
+  definition: Plugin.Object
+}>
+
+const rowsLeftOut = (left: ReleaseTreeOptions['withoutRows'], run: number): readonly string[] =>
+  typeof left === 'function' ? left(run) : (left ?? [])
+
+function withoutRows<T>(layered: T, key: 'rows' | 'ops', left: readonly string[] = []): T {
+  const list = (layered as Record<string, readonly { id: string }[]>)[key] ?? []
+  return { ...layered, [key]: list.filter(entry => !left.includes(entry.id)) }
+}
+
+function withAddedRows(distribution: unknown, added: readonly AddedRow[] = []): unknown {
+  const { rows } = distribution as { rows: readonly object[] }
+  return {
+    ...(distribution as object),
+    rows: [...rows, ...added.map(({ id, plugin, config }) => ({ id, plugin, config }))],
+  }
+}
+
+function withRowConfig(distribution: unknown, added: ReleaseTreeOptions['rowConfig']): unknown {
+  if (added === undefined) return distribution
+  const { rows } = distribution as { rows: readonly { id: string; config: object }[] }
+  return {
+    ...(distribution as object),
+    rows: rows.map(row =>
+      added[row.id] === undefined ? row : { ...row, config: { ...row.config, ...added[row.id] } },
+    ),
+  }
+}
 
 export async function onReleaseTree(
   options: ReleaseTreeOptions,
@@ -577,7 +758,8 @@ export async function onReleaseTreeRuns(
     await options.beforeRun?.(run, dir.storageRoot)
     for (let attempt = 1; ; attempt += 1) {
       const state = { dir, port, home, modelRoute: gateway.url }
-      const outcome = await serveOnce(options, state, run === 0, body)
+      const left = rowsLeftOut(options.withoutRows, run)
+      const outcome = await serveOnce({ ...options, withoutRows: left }, state, run === 0, body)
       if (outcome !== PORT_TAKEN) return outcome
       if (attempt === PORT_ATTEMPTS)
         throw new Error(`port ${String(port)} was taken on ${String(PORT_ATTEMPTS)} starts`)
@@ -656,27 +838,45 @@ async function serveOnce(
       : object,
   )
   const finished = runServe({
-    distribution: releaseDistribution(options),
-    operator: withToolSettings(
-      withObservationPolicy(
-        withAgentWaitInterval(
-          withQueueCapacity(
-            withHistoryKinds(
-              withCompaction(
-                operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
-                options,
-              ),
-              options.extraHistoryKinds,
-            ),
-            options.queueCapacity,
-          ),
-        ),
-        options.observationPolicy,
+    ...(options.hostScreen === undefined ? {} : { hostScreen: options.hostScreen }),
+    distribution: withAddedRows(
+      withoutRows(
+        withRowConfig(releaseDistribution(options), options.rowConfig),
+        'rows',
+        rowsLeftOut(options.withoutRows, 0),
       ),
-      options.toolSettings,
+      options.addedRows,
+    ),
+    operator: withoutRows(
+      withToolSettings(
+        withObservationPolicy(
+          withAgentWaitInterval(
+            withQueueCapacity(
+              withHistoryKinds(
+                withCompaction(
+                  operatorLayer({
+                    storageRoot: dir.storageRoot,
+                    port,
+                    modelRoute: state.modelRoute,
+                  }),
+                  options,
+                ),
+                options.extraHistoryKinds,
+              ),
+              options.queueCapacity,
+            ),
+            options.reconciliationDelaysMs,
+          ),
+          options.observationPolicy,
+        ),
+        options.toolSettings,
+      ),
+      'ops',
+      rowsLeftOut(options.withoutRows, 0),
     ),
     plugins: {
       ...cordis,
+      ...Object.fromEntries((options.addedRows ?? []).map(row => [row.plugin, row.definition])),
       ...(options.compactionProvider === undefined
         ? {}
         : {
@@ -809,8 +1009,37 @@ async function serveOnce(
   } finally {
     controller.abort('test: stop')
     exitCode = (await finished.catch(() => undefined))?.exitCode
+    if (exitCode !== undefined && exitCode !== 0)
+      process.stderr.write(
+        `release tree, server exit ${String(exitCode)}: ${unsettled(records)}${warnings(records)}\n`,
+      )
   }
   return exitCode
+}
+
+function warnings(records: readonly S0Record[]): string {
+  const lines = records
+    .filter(
+      record => record['signal'] === 'log' && ['warn', 'error'].includes(String(record['level'])),
+    )
+    .map(
+      record =>
+        `${String(record['time'])} ${String(record['component'])}: ${String((record['fields'] as { text?: unknown } | undefined)?.text)}`,
+    )
+  return lines.length === 0
+    ? ''
+    : `\nserver warnings, last ${Math.min(lines.length, STDERR_TAIL_LINES)} of ${lines.length}:\n${lines.slice(-STDERR_TAIL_LINES).join('\n')}`
+}
+
+// What a shutdown left unsettled, row by row: a server that exits non-zero names its own cause.
+function unsettled(records: readonly S0Record[]): string {
+  const result = records.findLast(record => record['kind'] === 'shutdown-result')
+  if (result === undefined) return 'no shutdown result was written'
+  const outcomes = result['outcomes'] as readonly Readonly<{ result: { kind: string } }>[]
+  return JSON.stringify({
+    ...result,
+    outcomes: outcomes.filter(outcome => outcome.result.kind !== 'settled'),
+  })
 }
 
 export async function pollUntil<T>(
@@ -835,7 +1064,7 @@ export async function pollUntil<T>(
   return value
 }
 
-function textsOf(value: unknown): string[] {
+export function textsOf(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(textsOf)
   if (typeof value !== 'object' || value === null) return []
   const record = value as Record<string, unknown>

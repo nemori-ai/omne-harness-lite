@@ -49,6 +49,7 @@ export type {
 export {
   mcpCategoryDisplay,
   mcpEndpointBodyContract,
+  mcpEndpointGates,
   parseEndpointBody,
   type EndpointBodyRejection,
 } from './endpoint.ts'
@@ -61,7 +62,6 @@ export {
   type ListingRead,
 } from './listing.ts'
 export {
-  actionPermissionItems,
   markUnavailable,
   mergeListing,
   type ActionCatalogRecord,

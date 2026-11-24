@@ -15,6 +15,7 @@ import { contentDigest } from '../../src/rows/agent-adoptions/definition-mapping
 import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
 import { AgentAdoptionsImpl } from '../../src/rows/agent-adoptions/services.ts'
 import { buildTable } from '../../src/rows/agent-adoptions/table.ts'
+import { tableReading } from '../../src/rows/agent-adoptions/held-definitions.ts'
 import { TENANT_A } from '../rows/storage/fixtures/tree.ts'
 
 type Distribution = Readonly<{ rows: readonly Readonly<{ id: string; config: unknown }>[] }>
@@ -35,26 +36,33 @@ const access = { principal: 'tester', tenant: TENANT_A }
 
 async function adoptionsFace() {
   const table = await buildTable(config)
-  return new AgentAdoptionsImpl(new Context(), table)
+  return new AgentAdoptionsImpl(new Context(), table, tableReading(table))
 }
 
 describe('the coding entry of the release mapping', () => {
-  it('is a legal definition: the release tools resident, the model attribute, ten ordered sections, no extension', async () => {
+  it('is a legal definition: the release tools resident, the model attribute, eleven ordered sections, no extension', async () => {
     const table = await buildTable(config)
     expect(table.mappings.byName('coding')?.candidate).toEqual(entry.candidate)
     const judged = await judgeAgentDefinition(entry.definition)
     expect(judged.kind).toBe('accepted')
     expect(configured.references).toEqual([
-      { capability: { category: 'Tool', name: 'Files' }, resident: true },
-      { capability: { category: 'Tool', name: 'Shell' }, resident: true },
-      { capability: { category: 'Tool', name: 'Tools' }, resident: true },
-      { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
-      { capability: { category: 'Tool', name: 'BkgToolCalls' }, resident: true },
-      { capability: { category: 'Tool', name: 'Ask' }, resident: true },
-      { capability: { category: 'Tool', name: 'Web' }, resident: true },
-      { capability: { category: 'Tool', name: 'Calendar' }, resident: true },
-      { capability: { category: 'Tool', name: 'Schedules' }, resident: true },
-      { capability: { category: 'Tool', name: 'Skills' }, resident: true },
+      { capability: { category: 'tool', name: 'Files' }, resident: true },
+      { capability: { category: 'tool', name: 'Shell' }, resident: true },
+      { capability: { category: 'tool', name: 'Tools' }, resident: true },
+      { capability: { category: 'tool', name: 'TodoItems' }, resident: true },
+      { capability: { category: 'tool', name: 'BkgToolCalls' }, resident: true },
+      { capability: { category: 'tool', name: 'Ask' }, resident: true },
+      { capability: { category: 'tool', name: 'Web' }, resident: true },
+      { capability: { category: 'tool', name: 'Calendar' }, resident: true },
+      { capability: { category: 'tool', name: 'Schedules' }, resident: true },
+      { capability: { category: 'tool', name: 'Notifications' }, resident: true },
+      { capability: { category: 'tool', name: 'Sessions' }, resident: true },
+      { capability: { category: 'tool', name: 'Agents' }, resident: true },
+      { capability: { category: 'tool', name: 'SwitchWorkspace' }, resident: true },
+      { capability: { category: 'tool', name: 'OmneExtensionPoints' }, resident: true },
+      { capability: { category: 'tool', name: 'OmneExtensions' }, resident: true },
+      { capability: { category: 'tool', name: 'Screen' }, resident: true },
+      { capability: { category: 'tool', name: 'Skills' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])
     expect(instructions.map(section => section.id)).toEqual([
@@ -63,6 +71,8 @@ describe('the coding entry of the release mapping', () => {
       'autonomy',
       'method',
       'tools',
+      'extensions',
+      'agents',
       'reporting',
       'safety',
       'git',
@@ -71,6 +81,10 @@ describe('the coding entry of the release mapping', () => {
     ])
     expect(entry.extensions).toEqual([])
     expect(entry.requiredIdentities).toEqual([])
+  })
+
+  it('says nothing of a tool a row brings: the tool describes itself, and the prompt holds without the row', () => {
+    for (const section of instructions) expect(section.text).not.toMatch(/SwitchWorkspace/u)
   })
 
   it('the adoption digest is the content digest of the definition, prompt included', () => {
@@ -106,16 +120,21 @@ describe('the coding entry of the release mapping', () => {
       expect(mapping.initialModelSelection?.name, mapping.name).toBeTruthy()
   })
 
-  it('the prompt names no model vendor, the ten resident tools, and carries the guardrails and the state words', () => {
+  it('the prompt names no model vendor, the resident tools, and carries the guardrails and the state words', () => {
     for (const forbidden of ['Claude', 'Anthropic', 'OpenAI', 'GPT', 'Gemini', 'Codex'])
       expect(fullText, forbidden).not.toContain(forbidden)
     for (const word of ['Verified', 'Partly verified', 'Not verified', 'Failed'])
       expect(fullText).toContain(word)
     for (const word of ['已验证', '部分验证', '未验证', '失败']) expect(fullText).toContain(word)
     expect(fullText).toContain(
-      'You have ten resident tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar, Schedules and Skills.',
+      'You have thirteen resident command tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar, Schedules, Notifications, Sessions, Agents and Skills.',
     )
     expect(fullText).toContain('## BkgToolCalls')
+    const extending = instructions.find(section => section.id === 'extensions')?.text ?? ''
+    for (const word of ['OmneExtensionPoints', 'OmneExtensions', 'Files', 'impact', 'disable'])
+      expect(extending, word).toContain(word)
+    for (const named of ['shell.', 'plugin', 'skill.', 'session.'])
+      expect(extending, named).not.toContain(named)
     expect(fullText).toContain('Do not poll: you are woken when a background call ends.')
     expect(fullText).toContain('## Web')
     expect(fullText).toContain('exa.apiKey')
@@ -126,6 +145,18 @@ describe('the coding entry of the release mapping', () => {
       expect(Buffer.byteLength(section.text, 'utf8')).toBeLessThanOrEqual(
         INSTRUCTION_LIMITS.maxSectionBytes,
       )
+  })
+
+  it('tells the model how far its files reach by the state of the working directory, and does not call the directory an authorized workspace', () => {
+    const environment = instructions.find(section => section.id === 'environment')?.text ?? ''
+    expect(environment).toContain('session.working-directory')
+    for (const state of ['"default"', '"attached"', '"unusable"'])
+      expect(environment).toContain(state)
+    expect(environment).toContain('nothing limits the paths that you read or write')
+    expect(environment).toContain(
+      'Do not tell the user that a path is out of reach before a call has refused it.',
+    )
+    expect(fullText).not.toContain('one workspace that the harness authorized')
   })
 
   it('the adoption face resolves the candidate to the definition with its instructions, and a digest off by one is invalid', async () => {

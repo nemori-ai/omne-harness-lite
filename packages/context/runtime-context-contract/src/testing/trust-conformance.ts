@@ -267,7 +267,7 @@ async function staleDuringRead<P>(fixture: Fixture<P>, control: keyof RuntimeCon
       key: 'suite.value',
       tenant: fixture.tenant,
       producer: { producer: 'late' },
-      declaration: declaration({ volatility: 'per-request' }),
+      declaration: declaration({ volatility: 'per-read', consumers: ['tool'] }),
       scoped: true,
       supply: () => {
         calls++
@@ -299,7 +299,7 @@ async function staleDuringRead<P>(fixture: Fixture<P>, control: keyof RuntimeCon
       scope: target,
       tenant: fixture.tenant,
       principal: fixture.principal,
-      consumer: 'model',
+      consumer: 'tool',
       keys: ['suite.value'],
       bindings: [],
       registrationRevision: 1,
@@ -316,7 +316,7 @@ async function staleDuringRead<P>(fixture: Fixture<P>, control: keyof RuntimeCon
     assert.deepEqual(await reading, { kind: 'refused', reason: 'unauthorized' })
     const later = await bound.reader.snapshot()
     assert.ok(later.kind === 'success', `later snapshot: ${later.kind}`)
-    const entry = later.value.perRequest[0]
+    const entry = later.value.perRead[0]
     assert.ok(entry?.kind === 'value')
     assert.equal(entry.value, 1)
   } finally {

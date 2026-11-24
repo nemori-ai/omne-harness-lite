@@ -1,5 +1,5 @@
 import type { MigrationModule } from '@omne-harness/sql-contract/worker'
-import { MIGRATION } from './schema.ts'
+import { MIGRATION, TABLES } from './schema.ts'
 
 export default {
   ...MIGRATION,
@@ -9,11 +9,12 @@ export default {
       [],
     )
     port.execute(
-      'CREATE TABLE ca_versions (calendar_id TEXT NOT NULL, version_id TEXT NOT NULL, snapshot TEXT NOT NULL, version_info TEXT NOT NULL, operation_ref TEXT NOT NULL, PRIMARY KEY (calendar_id, version_id))',
+      'CREATE TABLE ca_versions (calendar_id TEXT NOT NULL, version_id TEXT NOT NULL, snapshot_digest TEXT NOT NULL, version_info TEXT NOT NULL, operation_ref TEXT NOT NULL, PRIMARY KEY (calendar_id, version_id))',
       [],
     )
+    port.execute('CREATE TABLE ca_snapshots (digest TEXT PRIMARY KEY, snapshot TEXT NOT NULL)', [])
     port.execute(
-      'CREATE TABLE ca_candidates (sequence INTEGER PRIMARY KEY AUTOINCREMENT, operation_ref TEXT NOT NULL UNIQUE, calendar_id TEXT NOT NULL, fingerprint TEXT NOT NULL, canonical_command TEXT NOT NULL, record TEXT NOT NULL)',
+      'CREATE TABLE ca_candidates (sequence INTEGER PRIMARY KEY AUTOINCREMENT, operation_ref TEXT NOT NULL UNIQUE, calendar_id TEXT NOT NULL, fingerprint TEXT NOT NULL, snapshot_digest TEXT, canonical_command TEXT NOT NULL, record TEXT NOT NULL)',
       [],
     )
     port.execute('CREATE INDEX ca_candidates_calendar ON ca_candidates(calendar_id, sequence)', [])
@@ -27,7 +28,7 @@ export default {
     )
   },
   verify(port) {
-    for (const table of ['ca_current', 'ca_versions', 'ca_candidates', 'ca_outbox']) {
+    for (const table of TABLES) {
       port.execute(`SELECT * FROM ${table} LIMIT 0`, [])
     }
     return { kind: 'verified' }

@@ -3,7 +3,9 @@ import { join } from 'node:path'
 import {
   capabilityId,
   createCategoryPoint,
+  createHeldBook,
   createTenantPublishing,
+  heldLayerSource,
   type CapabilityId,
   type PackageReader,
 } from '@omne-harness/assets'
@@ -11,8 +13,8 @@ import {
   assetsSqlMaterials,
   createAssetsLocal,
   createTenantPublisher,
-  publishedRef,
-  tenantLayerSource,
+  publishedAssetRef,
+  tenantListing,
   type AssetsLocal,
   type PackageLocation,
 } from '@omne-harness/assets-local'
@@ -164,7 +166,12 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
   await mkdir(options.stateDir, { recursive: true })
   const opened = await openStorage(options.stateDir, tenantRef)
   const categories = createCategoryPoint()
-  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
+  categories.contribute({
+    contract: skillBodyContract(),
+    display: skillCategoryDisplay,
+    point: 'skill.skills',
+  })
+  const book = createHeldBook(tenantRef)
   const assets: AssetsLocal = createAssetsLocal({
     storage: opened.storage,
     domain: opened.domain,
@@ -172,6 +179,7 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     manifestDigest: opened.combination.manifestDigest,
     categories,
     packageRoot: join(options.stateDir, 'packages'),
+    held: book,
   })
   try {
     await assets.packages.recover()
@@ -179,7 +187,7 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     const made = capabilityId('skill', 'sample-skill')
     if (!made.ok) throw new Error('not a capability identity')
     const capability = made.id
-    const assetRef = publishedRef(capability)
+    const assetRef = publishedAssetRef(capability)
 
     const publishing = createTenantPublishing<Readonly<{ tenant: string }>>({
       acting: {
@@ -232,7 +240,14 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
       return { layer: 'official', state: 'read', candidates: [candidate] }
     }
     const fromAssets = skillInputsFromAssets<string, Scope>({
-      sources: [tenantLayerSource(assets)],
+      sources: [
+        heldLayerSource({
+          layer: 'tenant',
+          tenant: tenantRef,
+          read: book.read,
+          list: tenantListing(assets),
+        }),
+      ],
       body: versionBodyOf(assets),
     })
     const sameTenant = (who: Access<string>) =>

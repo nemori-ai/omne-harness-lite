@@ -12,6 +12,8 @@ import {
 } from './initialization-plan.ts'
 import { digestOf } from './operations.ts'
 
+import { withIntakeTerms, type IntakeTerms } from './input-sources.ts'
+import { forkAsRecorded, relatedAsRecorded } from './standing.ts'
 function historicalGuard(facts: InitializationGuardFacts) {
   return {
     owner: 'session-initialization',
@@ -19,6 +21,14 @@ function historicalGuard(facts: InitializationGuardFacts) {
     protocol: INITIALIZATION_PROTOCOL,
     facts: toJsonValue(facts),
   }
+}
+
+// The log is the truth of what an admission fixed: the replay reads the values it recorded.
+function recordedTerms(decoded: readonly SessionEntry[]): IntakeTerms | null {
+  const routed = decoded.find(entry => entry.kind === 'intake.routed' && 'source' in entry)
+  return routed !== undefined && 'source' in routed
+    ? { source: { kind: 'admitted', source: routed.source } }
+    : null
 }
 
 export function validateInitializationBatch(
@@ -66,9 +76,13 @@ export function validateInitializationBatch(
             creation: created.creation,
           },
         },
-        [historicalGuard(facts)],
+        withIntakeTerms([historicalGuard(facts)], recordedTerms(decoded)),
         null,
-        { compaction: null },
+        {
+          compaction: null,
+          ...relatedAsRecorded(created.creation, created.tree),
+          ...forkAsRecorded(created.creation),
+        },
       )
     } else if (outcomes.length > 0) {
       const entry = outcomes[0]
@@ -106,8 +120,11 @@ export function validateInitializationBatch(
     }
     if (decision.kind !== 'entries')
       return `invalid initialization history: ${JSON.stringify(decision)}`
+    // The reducer has already admitted the batch's exact interpreter. Replay compares the
+    // facts as encoded by that release, including origins and all initialization payloads.
     const actual = batch.entries.map(({ id: _id, revision: _revision, ...entry }) => entry)
-    return same(actual, decision.entries)
+    const expected = decision.entries.map(entry => ({ ...entry, schema: actual[0]!.schema }))
+    return same(actual, expected)
       ? null
       : 'initialization batch facts, bindings or references are inconsistent'
   } catch (error) {

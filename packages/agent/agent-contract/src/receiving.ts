@@ -121,6 +121,8 @@ export type ModelReceptionTarget = Readonly<{
   pending: Extract<PendingCall, { kind: 'model' }>
 }>
 
+export type ReceptionSettled = Readonly<{ kind: 'settled'; evidence: DurableEvidence }>
+
 export interface ModelReceptionTargets<P> {
   forExecution(
     input: Readonly<{ access: Access<P>; execution: AgentExecutionId }>,
@@ -132,7 +134,7 @@ export interface ModelReceptionTargets<P> {
       reference: M.ModelInvocationRef
       execution?: AgentExecutionId
     }>,
-  ): Reply<ModelReceptionTarget>
+  ): Reply<ModelReceptionTarget | ReceptionSettled>
 }
 
 export type ToolReceptionTarget = Readonly<{
@@ -150,7 +152,7 @@ export interface ToolReceptionTargets<P> {
       reference: T.ToolInvocationRef
       execution?: AgentExecutionId
     }>,
-  ): Reply<ToolReceptionTarget | null>
+  ): Reply<ToolReceptionTarget | ReceptionSettled | null>
   forExecution(
     input: Readonly<{ access: Access<P>; execution: AgentExecutionId }>,
   ): Reply<readonly ToolReceptionTarget[]>
@@ -162,25 +164,3 @@ export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
   materials: AgentMaterials<P, B>
   received: AgentReceivedCommits<P, B> | null
 }>
-
-export type AgentAccountHandoff = Readonly<{
-  call: M.ModelInvocationRef
-  dispatch: M.DispatchId
-  account: CallAccount
-  resultVersion: M.ResultVersion | null
-  committed: DurableEvidence
-}>
-
-export type AgentAccountOutcome =
-  | Readonly<{ kind: 'received' }>
-  | Readonly<{ kind: 'denied' }>
-  | Readonly<{ kind: 'conflict' }>
-  | Readonly<{ kind: 'invalid'; field: string; reason: string }>
-  | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
-export interface AgentAccountOutlet<P> {
-  deliver(
-    input: Readonly<{ access: Access<P>; handoff: AgentAccountHandoff }>,
-  ): Promise<AgentAccountOutcome>
-}

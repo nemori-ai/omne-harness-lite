@@ -1,6 +1,7 @@
 import type { SessionEntry } from './entries.ts'
 import type { RunId } from './identity.ts'
 import { associated, validateBinding, validateRegistration } from './call-state.ts'
+import { boundConsumptions, committedBindings, withoutCommitted } from './committed-bindings.ts'
 import type { HistoryEntry } from './faces.ts'
 import { isDeferredFact, type SessionHistoryReads } from './history-values.ts'
 import type { WorkSnapshot } from './values.ts'
@@ -263,7 +264,18 @@ export function validateReplayHistory(
           inconsistent('interpretation of a deferred control fact writes other consequences')
         continue
       }
-      const required = fact.kinds.filter(kind => kind !== 'observed')
+      const processed = entries.flatMap((candidate, index) =>
+        candidate.kind === 'call.execution-fact' &&
+        candidate.consumption !== undefined &&
+        equalValue(rows[index]?.origin.source, fact.source)
+          ? [candidate.consumption]
+          : [],
+      )
+      const required = withoutCommitted(
+        fact.kinds.filter(kind => kind !== 'observed'),
+        committedBindings(boundConsumptions(snapshot, processed)),
+        kind => kind,
+      )
       const normalize = (kind: string) =>
         kind === 'call' ? 'call-registration' : kind === 'waiting' ? 'registered-waiting' : kind
       if (!equalValue(actual.map(normalize), required.map(normalize)))

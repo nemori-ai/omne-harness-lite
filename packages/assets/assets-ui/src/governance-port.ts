@@ -1,7 +1,12 @@
 import { readTenantText } from '@omne-harness/public-contract'
 import { serviceKey } from '@omne-harness/shell-contract'
 import type { ComponentType } from 'react'
-import type { CategoryGovernance, CategorySnapshot, GovernanceModel } from './model/governance.ts'
+import {
+  NO_ASSET_ACTIONS,
+  type CategoryGovernance,
+  type CategorySnapshot,
+  type GovernanceModel,
+} from './model/governance.ts'
 
 export type CategoryView = CategoryGovernance & Readonly<{ Row: ComponentType<{ rowKey: string }> }>
 
@@ -9,7 +14,7 @@ export type AssetGovernance = Readonly<{
   open: (tenantText: string, category: string) => CategoryView
 }>
 
-export const assetGovernanceKey = serviceKey<AssetGovernance>('asset-governance')
+export const assetGovernanceKey = serviceKey<AssetGovernance>('assets.governance')
 
 const UNREADABLE_TENANT: CategorySnapshot = {
   kind: 'unreadable',
@@ -29,6 +34,7 @@ const unreadableTenant: CategoryGovernance = {
   confirm: nothing,
   retryRow: nothing,
   close: nothing,
+  ...NO_ASSET_ACTIONS,
 }
 
 export function governancePort(

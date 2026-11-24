@@ -90,11 +90,32 @@ async function referenced(a: App): Promise<string[]> {
   return out.ok.sessions.map(row => `${row.session}/${row.capability}`)
 }
 
+async function referencedShapes(a: App) {
+  const out = await a.port.references({
+    principal: 'tester',
+    scope: 'system',
+    key: KEY,
+    after: null,
+    limit: 100,
+  })
+  if (!('ok' in out)) throw new Error(`references failed: ${JSON.stringify(out)}`)
+  return out.ok.sessions.map(row => ({
+    session: row.session,
+    capability: row.capability,
+    shape: row.shape,
+  }))
+}
+
+const storedShapes = (a: App): unknown[] =>
+  a.provider
+    .select('dom_0', 'SELECT shape FROM sl_resident_shape ORDER BY shape')
+    .rows.map(row => JSON.parse(String(row[0])))
+
 const indexWrites = (a: App, from = 0): string[] =>
   a.provider.participantWrites
     .slice(from)
     .map(write => write.sql)
-    .filter(sql => sql.includes('sl_resident_idx'))
+    .filter(sql => sql.includes('sl_resident_'))
 
 function planOf(statement: string): string {
   const params = Array.from(statement.matchAll(/\?/g), () => 'x')
@@ -130,6 +151,48 @@ describe('the resident index over the commits of a session', () => {
     expect(a.provider.participantWrites.length).toBeGreaterThan(from)
     expect(indexWrites(a, from)).toEqual([])
     expect(indexed(a)).toEqual(['one/fs', 'one/shell'])
+  })
+
+  it('seven sessions holding the same twelve capabilities store twelve shapes and read every one back', async () => {
+    const a = await app()
+    const capabilities = Array.from({ length: 12 }, (_, index) => `cap-${index}`)
+    const sessions = Array.from({ length: 7 }, (_, index) => `s${index}`)
+    for (const session of sessions) await createResident(a, session, capabilities)
+    expect(indexed(a)).toHaveLength(84)
+    expect(storedShapes(a)).toHaveLength(12)
+    expect(await referencedShapes(a)).toEqual(
+      sessions.flatMap(session =>
+        [...capabilities]
+          .sort()
+          .map(capability => ({ session, capability, shape: resident(capability).shape })),
+      ),
+    )
+  })
+
+  it('the last row that holds a shape takes the shape with it; a shape another row holds stays', async () => {
+    const a = await app()
+    await createResident(a, 'one', ['fs', 'shell'])
+    await createResident(a, 'two', ['fs'])
+    expect(storedShapes(a)).toEqual([resident('fs').shape, resident('shell').shape])
+    await control(a, 'one', 'archive')
+    expect(storedShapes(a)).toEqual([resident('fs').shape])
+    await control(a, 'two', 'archive')
+    expect(storedShapes(a)).toEqual([])
+  })
+
+  it('a row whose shape is missing reads as a storage failure, not as a missing capability', async () => {
+    const a = await app()
+    await createResident(a, 'one', ['fs'])
+    a.provider.seed('dom_0', 'DELETE FROM sl_resident_shape', [])
+    const out = await a.port.references({
+      principal: 'tester',
+      scope: 'system',
+      key: KEY,
+      after: null,
+      limit: 100,
+    })
+    expect(out).not.toHaveProperty('ok')
+    expect(kindOf(out)).toBe('unavailable')
   })
 
   it('no statement on the index scans the table', async () => {
@@ -170,23 +233,32 @@ describe('the resident index between two snapshots', () => {
     const recording = {
       ...port,
       execute: (sql: string, params: Parameters<typeof port.execute>[1] = []) => {
-        if (sql.includes('sl_resident_idx')) statements.push(sql)
+        const written = /^(?:INSERT(?: OR \w+)? INTO|DELETE FROM) (sl_resident_\w+)/.exec(sql)?.[1]
+        if (written !== undefined) statements.push(written)
         return port.execute(sql, params)
       },
     }
     const rows = () =>
       port
         .execute(
-          'SELECT resident_key, session, capability, shape FROM sl_resident_idx ORDER BY resident_key, session, capability',
+          `SELECT i.resident_key, i.session, i.capability, s.shape FROM sl_resident_idx i
+            LEFT JOIN sl_resident_shape s ON s.tenant = i.tenant AND s.digest = i.shape_digest
+            ORDER BY i.resident_key, i.session, i.capability`,
         )
         .rows.map(row => `${String(row[0])}/${String(row[1])}/${String(row[2])}=${String(row[3])}`)
+    const shapes = () =>
+      port
+        .execute('SELECT shape FROM sl_resident_shape ORDER BY shape')
+        .rows.map(row => String(row[0]))
     const step = (session: string, previous: WorkSnapshot | null, next: WorkSnapshot) => {
       statements.length = 0
       maintainDerived(recording, tenant, session, previous, next)
       return [...statements]
     }
-    return { rows, step }
+    return { rows, shapes, step }
   }
+  const indexRows = (written: readonly string[]) =>
+    written.filter(table => table === 'sl_resident_idx')
   const shapeText = (value: string) => JSON.stringify({ kind: 'string', value })
 
   it('a replaced key moves the row of its capability and leaves the other rows alone', () => {
@@ -214,7 +286,8 @@ describe('the resident index between two snapshots', () => {
       `k1/two/fs=${shapeText('other')}`,
       `k2/one/fs=${shapeText('f')}`,
     ])
-    expect(ran).toHaveLength(2)
+    expect(indexRows(ran)).toHaveLength(2)
+    expect(s.shapes()).toEqual([shapeText('f'), shapeText('other'), shapeText('s')])
   })
 
   it('a new definition of a capability rewrites only the row of that capability', () => {
@@ -228,7 +301,19 @@ describe('the resident index between two snapshots', () => {
     s.step('one', null, first)
     const ran = s.step('one', first, snapshot(keys, [resident('fs', 'f2'), shell]))
     expect(s.rows()).toEqual([`k1/one/fs=${shapeText('f2')}`, `k1/one/shell=${shapeText('s')}`])
-    expect(ran).toHaveLength(1)
+    expect(indexRows(ran)).toHaveLength(1)
+    expect(s.shapes()).toEqual([shapeText('f2'), shapeText('s')])
+  })
+
+  it('a new definition keeps the old shape while a row of another session holds it', () => {
+    const s = scene()
+    const keys = [['fs', 'k1']] as const
+    const first = snapshot(keys, [resident('fs', 'f')])
+    s.step('one', null, first)
+    s.step('two', null, snapshot(keys, [resident('fs', 'f')]))
+    s.step('one', first, snapshot(keys, [resident('fs', 'f2')]))
+    expect(s.rows()).toEqual([`k1/one/fs=${shapeText('f2')}`, `k1/two/fs=${shapeText('f')}`])
+    expect(s.shapes()).toEqual([shapeText('f'), shapeText('f2')])
   })
 
   it('a key whose capability has no definition has no row', () => {

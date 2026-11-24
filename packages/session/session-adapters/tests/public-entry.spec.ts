@@ -6,6 +6,7 @@ it('root entry exports the pure functions that have landed', async () => {
     'SESSION_COLLABORATION_MODE_TRANSLATION',
     'SESSION_MODES_PUBLICATION',
     'SESSION_PERMISSION_MODE_TRANSLATION',
+    'SESSION_WORKING_DIRECTORY',
     'createSessionModesPublication',
     'createSessionRuntimeContextTrust',
     'decodeSessionSlotRef',
@@ -13,6 +14,7 @@ it('root entry exports the pure functions that have landed', async () => {
     'historySessionOf',
     'projectSessionCollaborationMode',
     'projectSessionPermissionMode',
+    'workingDirectorySchema',
   ])
   expect(typeof root['createSessionRuntimeContextTrust']).toBe('function')
 })

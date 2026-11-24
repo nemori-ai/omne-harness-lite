@@ -4,9 +4,9 @@ import { dirname, join } from 'node:path'
 import {
   capabilityId,
   digestBytes,
+  judgePackageContent,
   packageDigest,
   pinBody,
-  readBodyText,
   type CapabilityId,
   type CategoryView,
   type JsonValue,
@@ -17,7 +17,6 @@ import {
   type PackageRejection,
   type PackageSourceFailure,
 } from '@omne-harness/assets'
-import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { digest } from './encoding.ts'
 import type { AssetsMutationResult, AssetsPublishAndHold } from './types.ts'
@@ -62,7 +61,7 @@ export type PackageRecovery = Readonly<{
   mismatched: readonly CapabilityId[]
 }>
 
-export type PackageHolding = Omit<AssetsPublishAndHold['holding'], 'holdingRef' | 'scopeRef'>
+export type PackageHolding = Omit<AssetsPublishAndHold['holding'], 'scopeRef'>
 
 export interface PublishedPackages {
   publish(input: {
@@ -106,7 +105,7 @@ function versionOfDirectory(name: string): string | undefined {
   return hex === undefined ? undefined : `sha256:${hex}`
 }
 
-export function publishedRef(capability: CapabilityId): string {
+export function publishedAssetRef(capability: CapabilityId): string {
   return `${capability.category}/${capability.name}`
 }
 
@@ -114,76 +113,11 @@ const CATEGORY_FILE = '.category'
 
 const STAGING = '.staging'
 const SOURCE = 'published-package'
-const BODY_LIMITS = Object.freeze({
-  maxBytes: 1024 * 1024,
-  maxDepth: 32,
-  maxItems: 50_000,
-  maxMembers: 1024,
-  maxStringLength: 65_536,
-  maxNumberLength: 32,
-})
 
 const rejected = (rejection: PackageRejection): PackagePublishResult => ({
   kind: 'rejected',
   rejection,
 })
-
-function isSafePath(path: string): boolean {
-  if (path === '' || path.includes('\\') || path.includes('\0')) return false
-  return path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
-}
-
-function pathRejection(manifest: PackageManifest): PackageRejection | undefined {
-  const paths = new Set<string>()
-  for (const entry of manifest.entries) {
-    if (!isSafePath(entry.path) || paths.has(entry.path))
-      return { kind: 'invalid-package', reason: 'manifest-path' }
-    paths.add(entry.path)
-  }
-  for (const path of paths) {
-    const segments = path.split('/')
-    for (let depth = 1; depth < segments.length; depth += 1)
-      if (paths.has(segments.slice(0, depth).join('/')))
-        return { kind: 'invalid-package', reason: 'manifest-path' }
-  }
-  return undefined
-}
-
-function limitRejection(
-  manifest: PackageManifest,
-  limits: PackageLayout['limits'],
-): PackageRejection | undefined {
-  if (manifest.entries.length > limits.files) return { kind: 'limit-exceeded', limit: 'files' }
-  if (manifest.entries.some(entry => entry.bytes > limits.fileBytes))
-    return { kind: 'limit-exceeded', limit: 'fileBytes' }
-  const total = manifest.entries.reduce((sum, entry) => sum + entry.bytes, 0)
-  if (total > limits.totalBytes) return { kind: 'limit-exceeded', limit: 'totalBytes' }
-  return undefined
-}
-
-const text = (value: string): JsonValue => ({ kind: 'string', value })
-
-function manifestTree(manifest: PackageManifest): JsonValue {
-  return {
-    kind: 'object',
-    entries: [
-      {
-        key: 'entries',
-        value: {
-          kind: 'array',
-          items: manifest.entries.map(entry => ({
-            kind: 'object',
-            entries: [
-              { key: 'path', value: text(entry.path) },
-              { key: 'bytes', value: { kind: 'number', lexeme: String(entry.bytes) } },
-              { key: 'digest', value: text(entry.digest) },
-            ],
-          })),
-        },
-      },
-    ],
-  }
-}
 
 function field(value: JsonValue | undefined, key: string): JsonValue | undefined {
   return value?.kind === 'object'
@@ -191,7 +125,7 @@ function field(value: JsonValue | undefined, key: string): JsonValue | undefined
     : undefined
 }
 
-function manifestOf(body: JsonValue): PackageManifest | undefined {
+export function manifestOf(body: JsonValue): PackageManifest | undefined {
   const items = field(field(body, 'manifest'), 'entries')
   if (items?.kind !== 'array') return undefined
   const entries = items.items.map(entryOf)
@@ -249,24 +183,6 @@ type PackageDisk = Readonly<{
   ): Promise<PackageSourceFailure | undefined>
   swap(staging: string, final: string, category: string): Promise<void>
 }>
-
-function recordBody(
-  declaration: JsonValue,
-  manifest: PackageManifest,
-): Outcome<JsonValue, PackageRejection> {
-  if (declaration.kind !== 'object' || field(declaration, 'manifest') !== undefined)
-    return fail({ kind: 'invalid-package', reason: 'declaration-shape' })
-  const body = readBodyText(
-    writeJsonText({
-      kind: 'object',
-      entries: [...declaration.entries, { key: 'manifest', value: manifestTree(manifest) }],
-    }),
-    BODY_LIMITS,
-  )
-  return body.kind === 'ok'
-    ? succeed(body.value)
-    : fail({ kind: 'record-rejected', reason: 'limit_exceeded' })
-}
 
 function finalOf(root: string, layout: PackageLayout, name: string, version: string): string {
   return join(root, layout.namespace, name, versionDirectoryName(version))
@@ -342,23 +258,14 @@ function packagePublisher(
     if (contract === undefined) return fail({ kind: 'unknown-category' })
     const layout = contract.layout
     if (layout === undefined) return fail({ kind: 'not-a-directory-category' })
-    const listed = await from.manifest()
-    if (!('ok' in listed)) return fail({ kind: 'source-failed', failure: listed.failure })
-    const manifest = listed.ok
-    const invalid = pathRejection(manifest) ?? limitRejection(manifest, layout.limits)
-    if (invalid !== undefined) return fail(invalid)
-    const inspected = await layout.inspect(from)
-    if (!('ok' in inspected)) return inspected
-    const body = recordBody(inspected.ok, manifest)
-    if (!('ok' in body)) return body
-    const version = packageDigest(manifest.entries)
-    const judged = contract.judge(body.ok, { capabilityName: capability.name, definition: version })
-    if (!judged.ok) return fail({ kind: 'invalid-package', reason: judged.rejected })
+    const judged = await judgePackageContent(contract, from, capability.name)
+    if (!('ok' in judged)) return judged
+    const { manifest, version, body } = judged.ok
     return succeed({
       staging: join(root, STAGING, digest(request.operationId)),
       manifest,
       version,
-      body: body.ok,
+      body,
       final: finalOf(root, layout, capability.name, version),
     })
   }
@@ -385,7 +292,7 @@ function packagePublisher(
     const prepared = await validate(request)
     if (!('ok' in prepared)) return rejected(prepared.failure)
     const { capability, operationId } = request
-    const ref = publishedRef(capability)
+    const ref = publishedAssetRef(capability)
     const revision = await records.readAssetRevision(ref)
     if (!('ok' in revision)) return rejected({ kind: 'record-rejected', reason: revision.failure })
     const failed = await swapIn(prepared.ok, request)
@@ -396,7 +303,7 @@ function packagePublisher(
       assetRef: ref,
       expectedRevision: revision.ok,
       pinned: pinBody({ identity: capability, version, source: SOURCE, body }),
-      holding: { holdingRef: ref, scopeRef: holdingScope, ...request.holding },
+      holding: { scopeRef: holdingScope, ...request.holding },
     })
     if (recorded.kind === 'unknown') return { kind: 'unknown', operationId }
     if (recorded.kind === 'rejected') return recordRejected(recorded.reason)
@@ -488,7 +395,7 @@ function packageRecovery(shared: Shared): () => Promise<PackageRecovery> {
     const version = versionOfDirectory(dir)
     const id = capabilityId(category, name)
     if (version === undefined || !id.ok) return undefined
-    const record = await records.readVersionRecord(publishedRef(id.id), version)
+    const record = await records.readVersionRecord(publishedAssetRef(id.id), version)
     if (!('ok' in record)) throw new Error(record.failure)
     return record.ok === undefined ? id.id : undefined
   }

@@ -115,17 +115,21 @@ const available = (definition: Definition): ToolAvailabilityRead => ({
 })
 
 function lookupOf(
-  table: Readonly<Record<string, SourceRead<ToolAvailabilityRead>>>,
-): ToolLookup<string> & { calls: Adoption[] } {
-  const calls: Adoption[] = []
-  const lookup = async ({ binding: asked }: Parameters<ToolLookup<string>>[0]) => {
-    calls.push(asked)
-    return (
-      table[asked.name] ?? {
+  table: Readonly<Record<string, SourceRead<ToolAvailabilityRead | null>>>,
+): ToolLookup<string> & { calls: (readonly Adoption[])[] } {
+  const calls: (readonly Adoption[])[] = []
+  const lookup: ToolLookup<string> = async ({ bindings }) => {
+    calls.push(bindings)
+    const values: (ToolAvailabilityRead | null)[] = []
+    for (const asked of bindings) {
+      const read = table[asked.name] ?? {
         kind: 'unavailable' as const,
         diagnostic: `tool-unknown: ${asked.name}`,
       }
-    )
+      if (read.kind !== 'value') return read
+      values.push(read.value)
+    }
+    return { kind: 'value', value: values }
   }
   return Object.assign(lookup, { calls })
 }
@@ -157,7 +161,28 @@ describe('toolsSourceOf: the sixth group from the bindings of the conditions', (
         { resident: true, availability: available(SHELL), binding: bindings[1] },
       ],
     })
-    expect(lookup.calls).toEqual(bindings)
+    expect(lookup.calls).toEqual([bindings])
+  })
+
+  it('makes one lookup for the whole table, whatever the number of bindings', async () => {
+    const lookup = lookupOf({ ...KNOWN, Ask: { kind: 'value', value: null } })
+    const bindings = [binding('Files'), binding('Ask'), binding('Shell')]
+    const read = await toolsSourceOf(lookup)({ access, conditions: conditionsWith(bindings) })
+    expect(read.kind === 'value' && read.value.map(tool => tool.binding)).toEqual([
+      bindings[0],
+      bindings[2],
+    ])
+    expect(lookup.calls).toEqual([bindings])
+  })
+
+  it('closes when the lookup answers another number of positions than there are bindings', async () => {
+    const bindings = [binding('Files'), binding('Shell')]
+    for (const value of [[available(FILES)], [available(FILES), available(SHELL), null]]) {
+      const lookup: ToolLookup<string> = async () => ({ kind: 'value', value })
+      expect(await toolsSourceOf(lookup)({ access, conditions: conditionsWith(bindings) })).toEqual(
+        { kind: 'unavailable', diagnostic: 'tool-lookup-mismatch' },
+      )
+    }
   })
 
   it('gives no tool for an empty set of bindings, and makes no lookup', async () => {
@@ -167,6 +192,15 @@ describe('toolsSourceOf: the sixth group from the bindings of the conditions', (
       value: [],
     })
     expect(lookup.calls).toEqual([])
+  })
+
+  it('leaves out a bound tool that the lookup answers is not offered, and keeps the rest', async () => {
+    const lookup = lookupOf({ ...KNOWN, Shell: { kind: 'value', value: null } })
+    const bindings = [binding('Files'), binding('Shell')]
+    expect(await toolsSourceOf(lookup)({ access, conditions: conditionsWith(bindings) })).toEqual({
+      kind: 'value',
+      value: [{ resident: true, availability: available(FILES), binding: bindings[0] }],
+    })
   })
 
   it('closes the whole group for a binding that the lookup does not know', async () => {
@@ -231,10 +265,7 @@ describe('toolsSourceOf: the sixth group from the bindings of the conditions', (
 
 describe('the sixth group through the real Request Context', () => {
   async function preparedWith(w: World, bindings: readonly Adoption[]) {
-    const context = await w.read()
-    return w.requests.prepare(
-      w.prepareInput(context, { conditions: { ...w.conditions, bindings } }),
-    )
+    return w.requests.prepare(w.prepareInput({ conditions: { ...w.conditions, bindings } }))
   }
 
   it('declares to the model one tool per bound definition, with its command menu and call schema', async () => {

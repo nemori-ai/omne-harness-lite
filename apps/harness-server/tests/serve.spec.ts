@@ -80,7 +80,7 @@ afterEach(() => {
 })
 
 describe('serve: the release tree of doubles', () => {
-  it('the release tree of 70 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 103 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
@@ -103,11 +103,32 @@ describe('serve: the release tree of doubles', () => {
         'identity:real',
         'authorization:real',
         'session-storage:real',
+        'session-input-sources:real',
+        'session-before-intake:real',
+        'session-history-index:real',
+        'session-search:real',
+        'dynamis:real',
         'asset-categories:real',
         'tenant-assets:real',
         'governance:real',
         'calendar:real',
         'schedule:real',
+        'notification:real',
+        'calendar-notification:real',
+        'media-storage-sql:real',
+        'media-image:real',
+        'media:real',
+        'media-storage-local:real',
+        'media-sweep:real',
+        'media-intake:real',
+        'media-model-source:real',
+        'media-tool-store:real',
+        'media-converters:real',
+        'media-engine-transcribe:real',
+        'media-engine-pdf:real',
+        'workspace:real',
+        'usage:real',
+        'usage-adapters:real',
         'session-provider:real',
         'session-ad02:real',
         'session-ad03:real',
@@ -130,7 +151,6 @@ describe('serve: the release tree of doubles', () => {
         'agent-instances:real',
         'model-host:real',
         'model-instances:real',
-        'model-converters:real',
         'model-tokenizers:real',
         'model-profiles:real',
         'model-request-preparation:real',
@@ -140,6 +160,8 @@ describe('serve: the release tree of doubles', () => {
         'model-records:real',
         'tool-records:real',
         'tool-body-sweep:real',
+        'tool-entry-sources:real',
+        'mcp:real',
         'tool-bindings:real',
         'skills:real',
         'tool-runtime:real',
@@ -156,18 +178,33 @@ describe('serve: the release tree of doubles', () => {
         'agent-context:real',
         'context-compaction:real',
         'loop-extension:real',
-        'agent-account-outlet:real',
         'runtime-context:real',
+        'runtime-context-tenant-scope:real',
+        'session-intake-budget:real',
+        'workspace-outside-files:real',
         'session-observation:real',
+        'dispatch:real',
+        'dispatch-session:real',
+        'dispatch-tool:real',
         'server-entry:real',
         'identity-access:real',
         'session-access:real',
         'assets-access:real',
         'human-intervention-access:real',
         'session-diagnostics-access:real',
+        'mcp-access:real',
         'calendar-access:real',
         'schedule-access:real',
+        'notification-access:real',
+        'media-access:real',
+        'workspace-access:real',
         'tool-access:real',
+        'model-access:real',
+        'usage-access:real',
+        'plugin-access:real',
+        'plugin-host:real',
+        'plugin-notification:real',
+        'plugin-server:real',
       ])
       expect(run.of('row-state').every(r => r['state'] === 'ACTIVE')).toBe(true)
       expect(run.startup).toMatchObject({
@@ -175,9 +212,9 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 72,
+        enabledRows: 109,
         barrierCalls: 1,
-        implementations: { real: 70, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 107, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
@@ -186,13 +223,45 @@ describe('serve: the release tree of doubles', () => {
     }
   })
 
+  it('the release gives the notification row no policy; without one from the operator the tree is not ready and the log names the policy', async () => {
+    expect(release.rows.find(r => r.id === 'notification')).toEqual({
+      id: 'notification',
+      plugin: 'notificationRow',
+      config: {},
+    })
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
+    try {
+      const { ops } = withTelemetry(
+        operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() }),
+      ) as { ops: { id: string }[] }
+      const run = await serveOnce({
+        distribution: release,
+        operator: { ops: ops.filter(op => op.id !== 'notification') },
+        readinessTimeoutMs: 15_000,
+        shutdownDeadlineMs: 5000,
+      })
+      expect(run.result).toMatchObject({ exitCode: 3, accepting: false })
+      const said = run.records
+        .filter(r => r['component'] === 'notification' && r['level'] === 'error')
+        .map(r => String((r['fields'] as { text?: unknown }).text))
+      expect(said.join('\n')).toMatch(/invalid config[^]*at policy/)
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
+  })
+
   it.each([
     ['agent-journal', 'agentJournalRow'],
     ['session-handoff', 'sessionHandoffRow'],
-  ])('the release gives %s the combination that session-storage registers', (id, plugin) => {
-    const row = release.rows.find(r => r.id === id)
-    expect(row).toMatchObject({ plugin, config: agentJournalCombination() })
-  })
+  ])(
+    'the release gives %s the combination version alone; the row takes the digest from the catalog',
+    (id, plugin) => {
+      const row = release.rows.find(r => r.id === id)
+      const { combinationVersion } = agentJournalCombination()
+      expect(row).toMatchObject({ plugin })
+      expect(row?.config).toEqual({ combinationVersion })
+    },
+  )
 
   it('only s0.assemblyLifecycle carries the s0. prefix', async () => {
     const run = await serveOnce({ distribution: release, operator: await releaseOperator() })

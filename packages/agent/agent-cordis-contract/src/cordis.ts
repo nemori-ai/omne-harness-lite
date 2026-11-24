@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { randomBytes } from 'node:crypto'
 import { type Context, CordisError, Service } from '@deepseek-ai/cordis'
 import {
@@ -7,7 +8,6 @@ import {
   judgeEvidence,
   type ActionAdmission,
   type AgentAccessCheck,
-  type AgentAccountOutlet,
   type AgentAccessOperation,
   type AgentAdoptions,
   type AgentClock,
@@ -29,7 +29,6 @@ import {
   type ExtensionImplementations,
   type Failure,
   type MessageHandoff,
-  type ModelContextReader,
   type ModelReceptionTargets,
   type ToolReceptionTargets,
   type ModelSelection,
@@ -110,19 +109,6 @@ export abstract class ModelSelectionService<P> extends Service implements ModelS
 export const agentModelSelectionKey = ModelSelectionService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
-export abstract class ModelContextReaderService<P>
-  extends Service
-  implements ModelContextReader<P>
-{
-  static readonly provide = 'agentModelContext'
-  constructor(ctx: Context) {
-    super(ctx, ModelContextReaderService.provide)
-  }
-  abstract readonly read: ModelContextReader<P>['read']
-}
-export const agentModelContextKey = ModelContextReaderService.provide
-
-/** @owner packages/agent/agent-cordis-contract */
 export abstract class ActionAdmissionService<P> extends Service implements ActionAdmission<P> {
   static readonly provide = 'agentActionAdmission'
   constructor(ctx: Context) {
@@ -142,6 +128,7 @@ export abstract class DecisionCardsService<P> extends Service implements Decisio
   abstract readonly lookup: DecisionCards<P>['lookup']
   abstract readonly read: DecisionCards<P>['read']
   abstract readonly invalidate: DecisionCards<P>['invalidate']
+  abstract readonly changes: DecisionCards<P>['changes']
 }
 export const agentDecisionCardsKey = DecisionCardsService.provide
 
@@ -383,19 +370,6 @@ export abstract class ToolReceptionTargetsService<P>
   abstract readonly resolve: ToolReceptionTargets<P>['resolve']
 }
 export const agentToolReceptionTargetsKey = ToolReceptionTargetsService.provide
-
-/** @owner packages/agent/agent-cordis-contract */
-export abstract class AgentAccountOutletService<P>
-  extends Service
-  implements AgentAccountOutlet<P>
-{
-  static readonly provide = 'agentAccountOutlet'
-  constructor(ctx: Context) {
-    super(ctx, AgentAccountOutletService.provide)
-  }
-  abstract readonly deliver: AgentAccountOutlet<P>['deliver']
-}
-export const agentAccountOutletKey = AgentAccountOutletService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentExecutionControlService<P>
@@ -862,7 +836,6 @@ declare module '@deepseek-ai/cordis' {
     agentJournal: AgentJournalService<unknown>
     agentAccessCheck: AgentAccessCheckService<unknown>
     agentModelSelection: ModelSelectionService<unknown>
-    agentModelContext: ModelContextReaderService<unknown>
     agentActionAdmission: ActionAdmissionService<unknown>
     agentDecisionCards: DecisionCardsService<unknown>
     agentMessageHandoff: MessageHandoffService<unknown>
@@ -879,7 +852,6 @@ declare module '@deepseek-ai/cordis' {
     agentPublicationAuthority: AgentPublicationAuthorityService<unknown>
     agentExecutionRecovery: AgentExecutionRecoveryService<unknown>
     agentJournalEntries: AgentJournalEntriesService<unknown>
-    agentAccountOutlet: AgentAccountOutletService<unknown>
     agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>
     agentReceivedRecords: AgentReceivedRecordsService<unknown>
     agentModelReceptionTargets: ModelReceptionTargetsService<unknown>
@@ -907,3 +879,10 @@ declare module '@deepseek-ai/cordis' {
     ): void
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const agentDefinitionsPoint = heldPoint({
+  name: 'agent.definitions',
+  key: 'the definition name',
+  summary: 'The Agent definitions each layer holds, by name.',
+})

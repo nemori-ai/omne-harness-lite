@@ -26,6 +26,7 @@ const TONE_ICON: Record<Tone, Icon> = {
 export interface NoticeAction {
   readonly label: string
   readonly onClick: () => void
+  readonly icon?: Icon
 }
 
 export interface InlineNoticeProps {
@@ -79,7 +80,7 @@ export function InlineNotice({
     >
       <ToneIcon aria-hidden="true" className="mt-px size-4 shrink-0" />
       <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-        {title !== undefined && <p className="font-medium">{title}</p>}
+        {title !== undefined && <p>{title}</p>}
         {children}
         {detail !== undefined && detail !== '' && (
           <Disclosure label={detailLabel}>
@@ -88,6 +89,7 @@ export function InlineNotice({
         )}
         {action !== undefined && (
           <Button type="button" variant="ghost" className="-ml-2 mt-1" onClick={action.onClick}>
+            {action.icon !== undefined && <action.icon aria-hidden="true" />}
             {action.label}
           </Button>
         )}

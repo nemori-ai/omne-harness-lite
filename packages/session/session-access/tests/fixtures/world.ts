@@ -1,3 +1,4 @@
+import type { HistorySearch } from '@omne-harness/session-search'
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import { inProcessPrincipalAuthority, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import {
@@ -18,6 +19,11 @@ import type { SessionAccess } from '@omne-harness/session-contract'
 import { createSessionContribution } from '../../src/contribution.ts'
 import type {
   DefinitionResolver,
+  ModelTargetCheck,
+  ModelTargets,
+  WorkspaceTargetCheck,
+  WorkspaceTargets,
+  PermissionModeReading,
   PrincipalFacts,
   RequestJournal,
   ResolvedDefinition,
@@ -26,7 +32,10 @@ import type {
   SessionAccessSettings,
   SessionListing,
   SessionListPage,
+  SessionPermissionModes,
   TargetTenantPrincipals,
+  WorkspaceSelectionReading,
+  WorkspaceSelections,
 } from '../../src/ports.ts'
 import { createRequestDrain, type RequestDrain } from '../../src/request-drain.ts'
 import type { QueuedRequest } from '../../src/request-queue.ts'
@@ -58,7 +67,7 @@ function definitionOf(name: string): ResolvedDefinition {
   }
 }
 
-export const resolveDefinition: DefinitionResolver = name =>
+export const resolveDefinition = (name: string) =>
   name === DEFINITION || name === DEFAULT_DEFINITION ? definitionOf(name) : undefined
 
 export type FixtureLogin = Readonly<{
@@ -106,6 +115,8 @@ export type CauseScript = RunFailureReading | 'throw'
 
 export type CauseCall = Parameters<RunFailureCauses['read']>[0]
 
+export type ModeScript = PermissionModeReading | 'throw'
+
 export type ObservationScript =
   | Readonly<{
       kind: 'opened'
@@ -115,16 +126,60 @@ export type ObservationScript =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable' }>
 
+type Port =
+  | 'faces'
+  | 'observation'
+  | 'definitions'
+  | 'listing'
+  | 'searching'
+  | 'causes'
+  | 'permissionModes'
+  | 'modelTargets'
+  | 'workspaceTargets'
+  | 'workspaceSelections'
+
+type SearchCall = Parameters<HistorySearch<Principal>['search']>[0]
+type SearchScript = Awaited<ReturnType<HistorySearch<Principal>['search']>> | 'throw'
+
+export type TargetScript = ModelTargetCheck | 'throw'
+export type TargetCall = Parameters<ModelTargets['check']>[0]
+export type WorkspaceScript = WorkspaceTargetCheck | 'throw'
+export type WorkspaceCall = Parameters<WorkspaceTargets['check']>[0]
+
+/** The basis a selectable target answers with in these tests. */
+export const WORKSPACE = 'wsp_00000000000000000000000001'
+export const WORKSPACE_INSTANCE = 'wsi_00000000000000000000000001'
+export const WORKSPACE_DIRECTORY = '/srv/blog'
+export const WORKSPACE_ATTACHMENT = { instance: WORKSPACE_INSTANCE, basis: 'unpinned' }
+export const WORKSPACE_BASIS = {
+  owner: 'workspace',
+  record: `${WORKSPACE}/${WORKSPACE_INSTANCE}`,
+  revision: '1',
+  digest: 'b'.repeat(64),
+}
+export const TARGET_BASIS = {
+  owner: 'model-profiles',
+  record: 'anthropic/claude-sonnet-5',
+  revision: '1',
+  digest: 'a'.repeat(64),
+}
+
+export type SelectionScript = WorkspaceSelectionReading | 'throw'
+
 export type World = Readonly<{
   session: SessionDouble
+  /** What the workspace selection port answers from now on. */
+  holdSelection(next: SelectionScript): void
+  /** Who asked the workspace selection port, in order. */
+  selectionReads(): readonly SessionAccess<Principal>[]
   issue(login: FixtureLogin, target?: TenantId): Principal
   refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
   refuseResumes(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
   breakFacts(fault: 'throw' | 'undescribed' | undefined): void
   useDefinitions(resolver: DefinitionResolver): void
   resumes(): readonly Readonly<{ tenant: string; login: string }>[]
-  remove(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
-  put(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
+  remove(port: Port): void
+  put(port: Port): void
   journal: JournalDouble
   requests: RequestDrain
   admissions(): readonly QueuedRequest[]
@@ -133,9 +188,25 @@ export type World = Readonly<{
     calls(): readonly ListingCall[]
     answer(script: ListingScript): void
   }>
+  searching: Readonly<{
+    calls(): readonly SearchCall[]
+    answer(script: SearchScript): void
+  }>
   causes: Readonly<{
     calls(): readonly CauseCall[]
     answer(script: CauseScript): void
+  }>
+  targets: Readonly<{
+    calls(): readonly TargetCall[]
+    answer(script: TargetScript): void
+  }>
+  workspaces: Readonly<{
+    calls(): readonly WorkspaceCall[]
+    answer(script: WorkspaceScript): void
+  }>
+  modes: Readonly<{
+    calls(): readonly SessionAccess<Principal>[]
+    answer(script: ModeScript): void
   }>
   script(script: ObservationScript): void
   opens(): readonly SessionAccess<Principal>[]
@@ -167,6 +238,8 @@ export function createWorld(
   let listed: ListingScript = { ok: { items: [], next: null, completeness: 'complete' } }
   const causeCalls: CauseCall[] = []
   let caused: CauseScript = { kind: 'none' }
+  const targetCalls: TargetCall[] = []
+  let targeted: TargetScript = { kind: 'selectable', credential: 'available', basis: TARGET_BASIS }
 
   const issue = (login: FixtureLogin, target: TenantId = login.tenant): Principal => {
     const key = memberKey(target)
@@ -244,11 +317,69 @@ export function createWorld(
   }
   const listing: SessionListing = { list: read, listArchived: read }
 
+  const searchCalls: SearchCall[] = []
+  let searched: SearchScript = { ok: { hits: [], next: null, complete: true, incomplete: null } }
+  const searching: HistorySearch<Principal> = {
+    async search(call) {
+      searchCalls.push(call)
+      if (searched === 'throw') throw new Error('search fault')
+      return searched
+    },
+  }
+
   const causes: RunFailureCauses = {
     async read(call) {
       causeCalls.push(call)
       if (caused === 'throw') throw new Error('agent journal fault')
       return caused
+    },
+  }
+
+  const modelTargets: ModelTargets = {
+    async check(call) {
+      targetCalls.push(call)
+      if (targeted === 'throw') throw new Error('model profiles fault')
+      return targeted
+    },
+  }
+
+  const workspaceCalls: WorkspaceCall[] = []
+  let attached: WorkspaceScript = {
+    kind: 'attachable',
+    directory: WORKSPACE_DIRECTORY,
+    attachment: WORKSPACE_ATTACHMENT,
+    basis: WORKSPACE_BASIS,
+  }
+  const workspaceTargets: WorkspaceTargets = {
+    async check(call) {
+      workspaceCalls.push(call)
+      if (attached === 'throw') throw new Error('workspace fault')
+      return attached
+    },
+  }
+
+  const modeCalls: SessionAccess<Principal>[] = []
+  const selectionCalls: SessionAccess<Principal>[] = []
+  let held: SelectionScript = {
+    kind: 'read',
+    selection: null,
+    directory: { state: 'default', directory: '/srv/default' },
+    revision: '1',
+  }
+  const workspaceSelections: WorkspaceSelections = {
+    async read(access) {
+      selectionCalls.push(access)
+      if (held === 'throw') throw new Error('selections fault')
+      return held
+    },
+  }
+
+  let moded: ModeScript = { kind: 'read', mode: 'bypass-permissions', revision: '0' }
+  const permissionModes: SessionPermissionModes = {
+    async read(access) {
+      modeCalls.push(access)
+      if (moded === 'throw') throw new Error('modes fault')
+      return moded
     },
   }
 
@@ -278,7 +409,13 @@ export function createWorld(
       observation: () => (removed.has('observation') ? undefined : observation),
       definitions: () => (removed.has('definitions') ? undefined : resolver),
       listing: () => (removed.has('listing') ? undefined : listing),
+      searching: () => (removed.has('searching') ? undefined : searching),
       causes: () => (removed.has('causes') ? undefined : causes),
+      modelTargets: () => (removed.has('modelTargets') ? undefined : modelTargets),
+      workspaceTargets: () => (removed.has('workspaceTargets') ? undefined : workspaceTargets),
+      workspaceSelections: () =>
+        removed.has('workspaceSelections') ? undefined : workspaceSelections,
+      permissionModes: () => (removed.has('permissionModes') ? undefined : permissionModes),
       principals,
       facts,
       settings: complete,
@@ -294,6 +431,10 @@ export function createWorld(
     refuseTargets: next => {
       refusal = next
     },
+    holdSelection: next => {
+      held = next
+    },
+    selectionReads: () => [...selectionCalls],
     refuseResumes: next => {
       resumeRefusal = next
     },
@@ -325,10 +466,34 @@ export function createWorld(
         listed = next
       },
     },
+    searching: {
+      calls: () => [...searchCalls],
+      answer: next => {
+        searched = next
+      },
+    },
     causes: {
       calls: () => [...causeCalls],
       answer: next => {
         caused = next
+      },
+    },
+    targets: {
+      calls: () => [...targetCalls],
+      answer: next => {
+        targeted = next
+      },
+    },
+    workspaces: {
+      calls: () => [...workspaceCalls],
+      answer: next => {
+        attached = next
+      },
+    },
+    modes: {
+      calls: () => [...modeCalls],
+      answer: next => {
+        moded = next
       },
     },
     script: next => {

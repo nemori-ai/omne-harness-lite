@@ -33,7 +33,7 @@ const ACTIONS: Readonly<Record<CommandAction, readonly PrincipalClass[]>> = Obje
   control: ['work'],
   handoff: ['work', 'host'],
   account: ['work', 'host'],
-  recovery: ['host'],
+  recovery: ['host', 'scan'],
   observe: ['login', 'work', 'host'],
   send: ['host'],
 })
@@ -58,9 +58,19 @@ type Capture =
       actor: ActorRef
       current: () => boolean
     }>
+  | Readonly<{ kind: 'scan'; tenant: TenantId; actor: ActorRef; current: () => boolean }>
   | Readonly<{ kind: 'refused'; refusal: Refusal }>
 
 type Held = { capture: Capture; holds: number }
+/** The entry's own captures last until withdrawn, and only the withdrawal of this one removes it. */
+function hold(held: WeakMap<object, Held>, principal: object, capture: Capture): () => void {
+  held.set(principal, { capture, holds: 1 })
+  return () => {
+    if (held.get(principal)?.capture === capture) held.delete(principal)
+  }
+}
+const byEntry = (capture: Capture | undefined): boolean =>
+  capture?.kind === 'host' || capture?.kind === 'scan'
 
 export type HostBinding = Readonly<{
   tenant: TenantId
@@ -138,6 +148,15 @@ export type ModelQualification = Readonly<{
       current: () => boolean
     }>,
   ): () => void
+  /** The start scan of the host reads what this tenant's calls left; only `recovery`. */
+  captureScan(
+    input: Readonly<{
+      principal: object
+      tenant: TenantId
+      actor: ActorRef
+      current: () => boolean
+    }>,
+  ): () => void
   recordHostBinding(binding: HostBinding): void
   dropHostBindings(): void
   authority: ModelCommandsAuthority<unknown>
@@ -170,8 +189,9 @@ export function createModelQualification(
       })
     if (verification.kind === 'rejected') return refused({ kind: 'rejected' })
     const who = classOf(verification.principal)
-    // Host work is captured only by the entry after its binding is verified.
-    if (who === null || who.kind === 'host') return refused({ kind: 'rejected' })
+    // Host work and the start scan are captured only by the entry.
+    if (who === null || who.kind === 'host' || who.kind === 'scan')
+      return refused({ kind: 'rejected' })
     if (!sameTenant(who.principal.tenant, access.tenant))
       return refused({ kind: 'tenant-mismatch' })
     const subject = await readSubject(input.standing, who.principal.tenant)
@@ -188,10 +208,10 @@ export function createModelQualification(
   const qualify: ModelQualification['qualify'] = async (access, current) => {
     const principal: unknown = access.principal
     if (typeof principal !== 'object' || principal === null) return () => {}
-    if (held.get(principal)?.capture.kind === 'host') return () => {}
+    if (byEntry(held.get(principal)?.capture)) return () => {}
     const capture = await judge(access, current)
     const entry = held.get(principal)
-    if (entry === undefined || entry.capture.kind === 'host') {
+    if (entry === undefined || byEntry(entry.capture)) {
       held.set(principal, { capture, holds: 1 })
     } else {
       entry.capture = capture
@@ -202,25 +222,16 @@ export function createModelQualification(
       if (released) return
       released = true
       const current = held.get(principal)
-      if (current === undefined || current.capture.kind === 'host') return
+      if (current === undefined || byEntry(current.capture)) return
       current.holds -= 1
       if (current.holds <= 0) held.delete(principal)
     }
   }
 
-  const captureHost: ModelQualification['captureHost'] = given => {
-    const capture: Capture = {
-      kind: 'host',
-      tenant: given.tenant,
-      call: given.call,
-      actor: given.actor,
-      current: given.current,
-    }
-    held.set(given.principal, { capture, holds: 1 })
-    return () => {
-      if (held.get(given.principal)?.capture === capture) held.delete(given.principal)
-    }
-  }
+  const captureHost: ModelQualification['captureHost'] = ({ principal, ...given }) =>
+    hold(held, principal, { kind: 'host', ...given })
+  const captureScan: ModelQualification['captureScan'] = ({ principal, ...given }) =>
+    hold(held, principal, { kind: 'scan', ...given })
 
   const recordHostBinding: ModelQualification['recordHostBinding'] = binding => {
     for (const [key, bound] of bindings) if (!bound.current()) bindings.delete(key)
@@ -323,6 +334,7 @@ export function createModelQualification(
     qualify,
     qualifyRead,
     captureHost,
+    captureScan,
     recordHostBinding,
     dropHostBindings,
     authority: Object.freeze({ authorize, execution }),

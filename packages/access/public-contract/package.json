@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./snapshot": {
+      "source": "./src/snapshot.ts",
+      "types": "./dist/snapshot.d.ts",
+      "import": "./dist/snapshot.js"
     }
   },
   "files": [

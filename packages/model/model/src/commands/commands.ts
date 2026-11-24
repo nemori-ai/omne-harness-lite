@@ -10,7 +10,6 @@ import {
 } from '@omne-harness/model-contract'
 import type {
   AckReceipt,
-  CustodyState,
   DispatchId,
   Lookup,
   ModelCallId,
@@ -18,7 +17,6 @@ import type {
   ModelOperationId,
   ReadStart,
   Revision,
-  Settlement,
   Snapshot,
 } from '@omne-harness/model-contract'
 import {
@@ -56,29 +54,31 @@ import {
   receiptBinds,
   retryable,
   retryChoiceFailure,
-  executionFailed,
   settlementFailure,
   tasks,
   unresolved,
+  settlementOf,
 } from './judge.ts'
 import {
   accountFact,
   completesNotSentWindow,
   bump,
-  expireReads,
-  hasDispatchContent,
+  recordSendState,
   lateTerminal,
-  abandonReceiveWindows,
+  costMiss,
+  closeForSettlement,
   mergeReceiveWindow,
   reduceFacts,
-  releaseMaterial,
   type ModelCommandCore,
 } from './state.ts'
-import { beginAttempt, initialAttempts, positionRetry, recordRetryDecision } from './attempts.ts'
+import { beginDispatch, initialAttempts, positionRetry, recordRetryDecision } from './attempts.ts'
+import { readInstant } from './instants.ts'
 import type { ModelCommandStorage } from './storage.ts'
 import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
+import { custodyCommands } from './custody.ts'
+import { lateFactProof } from './late-evidence.ts'
 
 function shareRefusal(share: number, storage: Pick<ModelCommandStorage, 'held'>) {
   return storage.held() < share
@@ -314,19 +314,8 @@ export function callCommands<P>(
                 }
               const legality = settlementFailure(call, input.termination)
               if (legality) return { failure: legality }
-              if (executionFailed(input.termination)) abandonReceiveWindows(call)
-              const version = resultVersion()
-              const settlement: Settlement = {
-                version,
-                termination: structuredClone(input.termination),
-                cursor: call.cursor,
-                source: {
-                  owner: 'model-memory',
-                  record: `${input.call}/${version}`,
-                  revision: String(BigInt(call.state.revision) + 1n),
-                  digest: digest(input.termination),
-                },
-              }
+              closeForSettlement(call, input.termination)
+              const settlement = settlementOf(call, input, resultVersion())
               if (encodedBytes(settlement) > MAX_SETTLEMENT_BYTES)
                 return { failure: invalid('settlement', 'encoded-byte-limit') }
               call.state = { ...call.state, phase: 'settled', settlement }
@@ -404,6 +393,7 @@ export function recoveryCommands<P>(
               retry: structuredClone(call.retry),
               retryPosition: structuredClone(call.retryPosition),
               retrySource: structuredClone(call.retrySource),
+              logicalTerminal: structuredClone(call.dispatches.at(-1)?.logicalTerminal ?? null),
               unresolved: pending,
               tasks: tasks(call, pending),
             },
@@ -601,28 +591,6 @@ export function dispatchCommands<P>(
       complete.ok.noPrefetch === true
     return { ok: proven }
   }
-  function lateFactProof(
-    call: CallDocument,
-    dispatch: DispatchDocument,
-    input: Parameters<ModelCommands<P>['recordLateFact']>[0],
-  ) {
-    if (input.fact.kind === 'terminal' && encodedBytes(input.fact.actual) > MAX_TERMINATION_BYTES)
-      return { failure: invalid('termination', 'encoded-byte-limit') }
-    const adapter = core.adapter(call)
-    if ('kind' in adapter) return { failure: adapter }
-    return checkedEvidence(
-      adapter.lateFact({
-        tenant: input.tenant,
-        call: input.call,
-        consumer: structuredClone(call.state.consumer),
-        execution: call.execution,
-        dispatch: input.dispatch,
-        supplier: structuredClone(dispatch.record.supplier),
-        source: structuredClone(input.source),
-        fact: structuredClone(input.fact),
-      }),
-    )
-  }
   function retryProof(call: CallDocument, input: Parameters<ModelCommands<P>['decideRetry']>[0]) {
     const adapter = core.adapter(call)
     if ('kind' in adapter) return { failure: adapter }
@@ -661,35 +629,7 @@ export function dispatchCommands<P>(
           if (call.request === null) return invalid('supplier', 'outside-request')
           const supplier = prepareSupplierFailure(call, call.request, input)
           if (supplier) return supplier
-          call.dispatches.push({
-            record: {
-              dispatch: input.dispatch,
-              supplier: structuredClone(input.supplier),
-              intent: input.operation,
-              send: 'prepared',
-              firstContent: 'none-proven',
-              terminal: null,
-              account: null,
-              materialization: null,
-              messages: [...call.request.messageIds],
-            },
-            logicalTerminal: null,
-            windows: new Map(),
-            events: new Map(),
-            assembly: null,
-            blocks: [],
-            nextSeq: new Map(),
-            trims: new Map(),
-            hadContent: new Set(),
-            diagnostics: [],
-          })
-          beginAttempt(call)
-          call.state = {
-            ...call.state,
-            phase: 'running',
-            dispatch: input.dispatch,
-            firstContent: 'none-proven',
-          }
+          beginDispatch(call, input, call.request.messageIds, readInstant(core.options.clock))
           return null
         },
       ),
@@ -748,14 +688,7 @@ export function dispatchCommands<P>(
         call => {
           const dispatch = dispatchOf(call, input.dispatch)
           if ('kind' in dispatch) return dispatch
-          if (dispatch.record.send === 'started' && input.state !== 'started')
-            return invalid('state', 'started-cannot-regress')
-          if (input.state === 'not-sent' && hasDispatchContent(dispatch))
-            return invalid('state', 'not-sent-content')
-          if (input.state === 'started' && dispatch.record.materialization === null)
-            return invalid('dispatch', 'not-materialized')
-          dispatch.record = { ...dispatch.record, send: input.state }
-          return null
+          return recordSendState(dispatch, input.state, readInstant(core.options.clock))
         },
       ),
     openReceiveWindow: input =>
@@ -787,13 +720,14 @@ export function dispatchCommands<P>(
             dispatch: input.dispatch,
             window: input.window,
             facts: input.facts,
+            ...(input.arrivals === undefined ? {} : { arrivals: input.arrivals }),
           },
           check: call => core.execution(input, call, bound),
           apply: draft =>
             atDispatch(draft, input, (call, dispatch) => {
               if (dispatch.windows.get(input.window) !== 'open')
                 return { failure: invalid('window', 'not-open') }
-              const failure = reduceFacts(call, dispatch, input.facts)
+              const failure = reduceFacts(call, dispatch, input.facts, input.arrivals)
               if (failure) return { failure }
               const completed = receiveCompletion(call, dispatch, input)
               if ('failure' in completed) return completed
@@ -840,7 +774,7 @@ export function dispatchCommands<P>(
             if (!call) return { failure: invalid('call', 'not-found') }
             const dispatch = dispatchOf(call, input.dispatch)
             if ('kind' in dispatch) return { failure: dispatch }
-            const proof = lateFactProof(call, dispatch, input)
+            const proof = lateFactProof(core, call, dispatch, input)
             if ('failure' in proof) return proof
             const event = `late:${input.fact.kind}:${input.fact.event}`
             const fingerprint = digest(input.fact)
@@ -860,7 +794,11 @@ export function dispatchCommands<P>(
               })
               if (failure) return { failure }
             } else {
-              const failure = lateTerminal(call, dispatch, input.fact.actual)
+              const fact = input.fact
+              const failure =
+                fact.kind === 'terminal'
+                  ? lateTerminal(call, dispatch, fact.actual)
+                  : costMiss(dispatch, fact)
               if (failure) return { failure }
             }
             dispatch.events.set(event, fingerprint)
@@ -944,7 +882,8 @@ export function dispatchCommands<P>(
           if ('failure' in proof) return proof.failure
           if (call.retry && digest(call.retry) !== digest(input.decision))
             return { kind: 'conflict', operation: input.operation, revision: call.state.revision }
-          const choice = retryChoiceFailure(positioned.ok, call.dispatches.length, input.decision)
+          const { request, dispatch } = positioned.ok
+          const choice = retryChoiceFailure(call, request, dispatch, input.decision)
           if (choice) return choice
           recordRetryDecision(call, input.decision, proof.ok)
           return null
@@ -955,8 +894,7 @@ export function dispatchCommands<P>(
 
 export function consumptionCommands<P>(
   core: ModelCommandCore<P>,
-  bound?: BoundCommandAccess<P>,
-): Pick<ModelCommands<P>, 'acquireRead' | 'nextRead' | 'endRead' | 'handoff' | 'advanceCleanup'> {
+): Pick<ModelCommands<P>, 'acquireRead' | 'nextRead' | 'endRead' | 'handoff'> {
   return {
     acquireRead: input =>
       core.runWrite(input, () =>
@@ -981,6 +919,8 @@ export function consumptionCommands<P>(
             if (call.state.phase !== 'settled') return { failure: { kind: 'not-settled' } }
             if (call.state.settlement.version !== input.result)
               return { failure: invalid('result', 'not-original') }
+            if (call.state.custody.kind === 'abandoned')
+              return { failure: invalid('custody', 'abandoned') }
             if (call.state.custody.kind === 'acknowledged')
               return {
                 ok: {
@@ -1048,6 +988,8 @@ export function consumptionCommands<P>(
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
+            if (call.state.custody.kind === 'abandoned')
+              return { failure: invalid('custody', 'abandoned') }
             const question = handoffQuestion(core, input, call)
             if ('failure' in question) return question
             const proof = provenHandoff(question.ok, read)
@@ -1095,43 +1037,6 @@ export function consumptionCommands<P>(
         }),
       )
     },
-    advanceCleanup: input =>
-      core.runWrite(input, () =>
-        core.write<CustodyState>({
-          input,
-          method: 'advanceCleanup',
-          fields: { instance: input.instance, generation: input.generation },
-          check: call => core.execution(input, call, bound),
-          apply: draft => {
-            const call = draft.call
-            if (!call) return { failure: invalid('call', 'not-found') }
-            if (call.state.custody.kind !== 'acknowledged')
-              return { failure: invalid('custody', 'not-acknowledged') }
-            if (call.state.custody.cleanup === 'released')
-              return {
-                ok: { value: structuredClone(call.state.custody), receipt: { kind: 'cleanup' } },
-              }
-            expireReads(call, () => core.options.clock.now(), core.options.limits.readIdleMs)
-            const active = [...call.reads.values()].some(r => r.state.kind === 'reading')
-            const pending =
-              unresolved(draft.tenant, input.call).length > 0 ||
-              call.dispatches.some(
-                d => d.record.send === 'unknown' || [...d.windows.values()].includes('open'),
-              )
-            const diagnostic =
-              call.cleanupFailure ??
-              (active ? 'active-read' : pending ? 'unresolved-write-or-receive' : null)
-            const cleanup = diagnostic === null ? 'released' : 'blocked'
-            call.state = { ...call.state, custody: { ...call.state.custody, cleanup, diagnostic } }
-            if (cleanup === 'released') releaseMaterial(call)
-            bump(call)
-            return {
-              ok: { value: structuredClone(call.state.custody), receipt: { kind: 'cleanup' } },
-            }
-          },
-          replay: call => (call ? { ok: structuredClone(call.state.custody) } : missingReceipt()),
-        }),
-      ),
   }
 }
 
@@ -1143,6 +1048,7 @@ export function modelCommands<P>(
     ...callCommands(core, bound),
     ...recoveryCommands(core, bound),
     ...dispatchCommands(core, bound),
-    ...consumptionCommands(core, bound),
+    ...consumptionCommands(core),
+    ...custodyCommands(core, bound),
   } satisfies ModelCommands<P>
 }

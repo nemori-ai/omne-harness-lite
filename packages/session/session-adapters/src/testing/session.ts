@@ -1,5 +1,6 @@
+import { admittedGuards, derivedTerms } from './intake.ts'
 import { commandScope, runStartInputs } from './frontier.ts'
-import { compactionContextForView } from '@omne-harness/session-contract'
+import { boundCall, compactionContextForView } from '@omne-harness/session-contract'
 import type { ToolRelease } from './result-release.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -28,8 +29,6 @@ import type {
   SessionId,
   SessionOperationId,
   SessionRevision,
-  RoutedInput,
-  InputId,
   WorkSnapshot,
   CommitReceipt,
   HistoryEntry,
@@ -64,6 +63,8 @@ import {
   rowData,
   materializeModelView,
   compactionReads,
+  forkPointRead,
+  modelViewPage,
 } from './session-values.ts'
 import type { SessionState } from './root.ts'
 import { admittedInputs, withInputs } from './inputs.ts'
@@ -186,7 +187,7 @@ export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason
   else if (
     snapshot.lifecycle !== 'archived' &&
     snapshot.autoArchive?.kind === 'enabled' &&
-    !(snapshot.relation?.kind === 'main' && snapshot.relation.resident)
+    snapshot.resident !== true
   )
     reasons.push('idle-armed')
   if (snapshot.consumptions.some(item => item.results.some(result => result.release === 'pending')))
@@ -281,14 +282,6 @@ const mint = (record: string, content: unknown): DurableEvidence => ({
   revision: '1',
   digest: `sha256:${digestOf(content)}`,
 })
-
-function firstInputOf(
-  inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>,
-  first: InputId | undefined,
-) {
-  const stored = first === undefined ? undefined : inputs.get(first)
-  return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
-}
 
 function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   const history = snapshot.executions?.find(item => item.run === run)
@@ -428,7 +421,7 @@ export function createSessionTransactions<P>(
       store === undefined
         ? null
         : { ...store.snapshot, ...(material === undefined ? {} : { historyIndex: material.index }) }
-    const decision = decide(prepared, command, input.guards, null, {
+    const decision = decide(prepared, command, admittedGuards(command, input.guards), null, {
       ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
       ...(material === undefined ? {} : { history: material.reads }),
       compaction:
@@ -443,9 +436,6 @@ export function createSessionTransactions<P>(
         : {}),
       ...(command.kind === 'stopCall' && store !== undefined
         ? { calls: [callLookup(store.snapshot, command.input.producer)] }
-        : {}),
-      ...(command.kind === 'startRun' && store !== undefined
-        ? firstInputOf(store.inputs, runStartInputs(store.snapshot)[0])
         : {}),
       initializationReceipts: [
         ...(command.kind === 'completeInitialization' ? (store?.operations.values() ?? []) : []),
@@ -498,7 +488,7 @@ export function createSessionTransactions<P>(
       const result =
         snapshot.autoArchive?.kind !== 'enabled'
           ? 'disabled'
-          : snapshot.relation?.kind === 'main' && snapshot.relation.resident
+          : snapshot.resident === true
             ? 'exempt'
             : observation === undefined
               ? 'not-due'
@@ -610,6 +600,7 @@ export function createSessionTransactions<P>(
       start,
       saved: store.snapshot.entriesProgress ?? [],
       record: held?.record ?? null,
+      derived: derivedTerms(),
     })
     if (decision.kind === 'rejected') return fail(decision.failure)
     if (decision.kind === 'recovered') {
@@ -751,43 +742,14 @@ export function createSessionTransactions<P>(
         }),
       )
     },
+    readForkPoint: async input => {
+      const store = await storeOf(input, 'history.readModelView')
+      return forkPointRead(store, keyOf(input.tenant, input.session), input.asking)
+    },
     readModelView: async input => {
       const store = await storeOf(input, 'history.readModelView')
       if ('failure' in store) return store
-      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
-        return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
-      const view = store.ok.modelView
-      const key = keyOf(input.tenant, input.session)
-      if ('failure' in key) return key
-      const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
-      if (input.basis !== null && !input.basis.epoch.startsWith(`${key.ok}/`))
-        return fail({ kind: 'invalid', field: 'basis', reason: 'another session' })
-      if (input.basis !== null && input.basis.epoch !== current.epoch)
-        return succeed({ kind: 'epoch-changed', current })
-      const basis = input.basis ?? current
-      const after = input.after === null ? 0 : Number(input.after)
-      const upper = Number(basis.upper)
-      if (
-        !Number.isInteger(after) ||
-        !Number.isInteger(upper) ||
-        after < 0 ||
-        upper > view.rows.length ||
-        after > upper
-      )
-        return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
-      const rows = []
-      let bytes = 0
-      for (const row of view.rows.slice(after, upper)) {
-        if (rows.length > 0 && bytes + row.bytes > input.pageBytes) break
-        rows.push(row)
-        bytes += row.bytes
-      }
-      return succeed({
-        kind: 'page',
-        basis,
-        rows,
-        next: after + rows.length < upper ? String(after + rows.length) : null,
-      })
+      return modelViewPage(store.ok.modelView, keyOf(input.tenant, input.session), input)
     },
   }
 
@@ -805,18 +767,19 @@ export function createSessionTransactions<P>(
     readWork: async input => {
       const store = await storeOf(input, 'readWork')
       if ('failure' in store) return store
-      const material = options.history?.read(store.ok.snapshot, store.ok.entries, {
-        kind: 'pending',
-        inputs: store.ok.snapshot.pending,
-      })
-      return succeed({
-        ...store.ok.snapshot,
-        ...(material === undefined ? {} : { historyIndex: material.index }),
-      })
+      const { snapshot, entries } = store.ok
+      const scope = { kind: 'pending', inputs: snapshot.pending } as const
+      const material = options.history?.read(snapshot, entries, scope)
+      const index = material === undefined ? {} : { historyIndex: material.index }
+      return succeed({ ...snapshot, ...index })
     },
     readCurrentScope: async input => {
       const store = await storeOf(input, 'readCurrentScope')
       return 'failure' in store ? store : succeed(store.ok.snapshot.contextScopes?.at(-1) ?? null)
+    },
+    readCall: async input => {
+      const store = await storeOf(input, 'readWork')
+      return 'failure' in store ? store : succeed(boundCall(store.ok.snapshot, input.producer))
     },
     readInput: async input => {
       const store = await storeOf(input, 'readInput')
@@ -832,11 +795,10 @@ export function createSessionTransactions<P>(
       const held = store.ok.operations.get(input.operation)
       if (held?.form === 'control' || store.ok.answers.has(input.operation))
         return fail({ kind: 'conflict', operation: input.operation })
-      const resolution: OperationResolution =
-        held === undefined
-          ? { kind: 'unknown' }
-          : { kind: 'committed', receipt: held.record.receipt }
-      return succeed(resolution)
+      const receipt = held?.record.receipt
+      return succeed<OperationResolution>(
+        receipt === undefined ? { kind: 'unknown' } : { kind: 'committed', receipt },
+      )
     },
     queryControlOperation: async input => {
       const store = await storeOf(input, 'queryControlOperation')
@@ -861,17 +823,16 @@ export function createSessionTransactions<P>(
       for (const row of store.ok.entries) {
         if (row.kind !== 'session.model-selected') continue
         const declaration = rowData(row)['declaration'] as
-          | { kind?: string; name?: string; basis?: DurableEvidence }
+          | ({ kind: 'model' } & SavedModelSelection)
           | undefined
         if (
           declaration?.kind === 'model' &&
           declaration.name !== undefined &&
           declaration.basis !== undefined
-        )
-          saved = {
-            selection: { name: declaration.name, basis: declaration.basis },
-            at: row.revision,
-          }
+        ) {
+          const { kind: _kind, ...selection } = declaration
+          saved = { selection, at: row.revision }
+        }
       }
       const initial = store.ok.snapshot.creation.initialModelSelection
       const first = store.ok.entries[0]

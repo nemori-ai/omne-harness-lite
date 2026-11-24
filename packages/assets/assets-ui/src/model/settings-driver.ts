@@ -49,6 +49,11 @@ export class SettingsDriver {
     this.dispatch({ kind: 'read-list' })
   }
 
+  /** Something may have changed elsewhere: read the list again, keeping what is shown meanwhile. */
+  refresh(): void {
+    this.dispatch({ kind: 'changed' })
+  }
+
   set(key: string, pick: string): void {
     this.dispatch({ kind: 'set', key, pick, operation: this.#newId() })
   }

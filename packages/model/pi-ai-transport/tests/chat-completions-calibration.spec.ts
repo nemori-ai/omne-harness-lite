@@ -109,6 +109,20 @@ function messagesOf(body: JsonValue): readonly JsonValue[] {
 const items = messagesOf(tokenInput)
 
 describe('full metering', () => {
+  it('adds a cold request allowance before rounding the margin', async () => {
+    const input = harness(() => 17n).input({
+      reasoning: [false, false, false, false],
+      coldRequestTokens: '6',
+    })
+    expect(await calibratedAmount(input)).toMatchObject({ ok: { amount: 23n, margin: 3n } })
+  })
+
+  it.each(['-1', '01', '1.5', ''])('rejects the malformed cold allowance %j', async value => {
+    await expect(calibratedAmount(harness().input({ coldRequestTokens: value }))).rejects.toThrow(
+      'coldRequestTokens must be a non-negative decimal integer',
+    )
+  })
+
   it('without a calibration and without a reasoning unit counts the token input itself once, with the margin on the whole', async () => {
     const plain = obj({ messages: arr([items[0]!, items[1]!, items[3]!]), tools: arr([]) })
     const h = harness()

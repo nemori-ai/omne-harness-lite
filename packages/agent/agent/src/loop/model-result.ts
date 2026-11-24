@@ -17,7 +17,7 @@ import { agentEvidence, replyMessageId } from './identities.ts'
 type Message = LoopFacts['inputs'][number]
 export type ModelOutcome = Readonly<{
   produced: ProducedResult
-  settlement: Pick<M.Settlement, 'termination' | 'source'>
+  settlement: Pick<M.Settlement, 'termination' | 'source' | 'replay'>
 }> &
   (
     | Readonly<{ kind: 'reply'; reply: Extract<Message, { role: 'assistant' }> }>
@@ -40,11 +40,15 @@ function truncated(parts: readonly M.ResultPart[]): boolean {
   return parts.some(part => part.kind === 'partial')
 }
 
+// A result that carries a replay range keeps its reasoning state, so the next request can carry it
+// back; without one the reasoning is left out, as no request could carry it.
 export function consumeModelResult(
   input: Parameters<typeof replyMessageId>,
   value: Omit<ModelResult, 'kind'>,
 ): Outcome<ModelResult, Failure> {
-  const content = value.parts.filter(part => !sealedReasoning(part))
+  const range = value.settlement.replay
+  const content =
+    range === undefined ? value.parts.filter(part => !sealedReasoning(part)) : value.parts
   const terminal = value.settlement.termination
   if (terminal.kind === 'interrupted') return succeed({ ...value, kind: 'interrupted' })
   if (terminal.kind === 'failed') return succeed({ ...value, kind: 'unusable' })
@@ -54,10 +58,17 @@ export function consumeModelResult(
   }
   const [first, ...rest] = blocks
   if (first === undefined || truncated(content)) return succeed({ ...value, kind: 'unusable' })
+  const all = [first, ...rest]
+  const at = all.flatMap((block, index) => (block.kind === 'reasoning_state' ? [index] : []))
   return succeed({
     ...value,
     kind: 'reply',
-    reply: { id: replyMessageId(...input), role: 'assistant', blocks: [first, ...rest] },
+    reply: {
+      id: replyMessageId(...input),
+      role: 'assistant',
+      blocks: [first, ...rest],
+      ...(range === undefined ? {} : { replay: { ...range, at } }),
+    },
   })
 }
 

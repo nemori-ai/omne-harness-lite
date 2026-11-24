@@ -1,6 +1,7 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { EnvironmentBinding, EnvironmentContinuity } from './binding.ts'
 import type { EnvironmentFacilities, FacilityKey } from './facility.ts'
+import type { FilesScope } from './files-scope.ts'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { AcquisitionRef, OriginRef } from './identity.ts'
@@ -41,6 +42,8 @@ export type Placement = Readonly<{
   continuity: EnvironmentContinuity
   /** The trusted capacity domain of the chosen provider; it routes the original acquisition after a rebuild. */
   quotaDomain: string
+  /** Where the file requests of the acquisition may read and write. Left out: they are not limited. */
+  filesScope?: FilesScope
 }>
 
 export type RegistryInvalidationReason =

@@ -38,7 +38,7 @@ async function serve() {
   const service = await startFakeService((seen: Seen) =>
     seen.operation === 'answer'
       ? answered
-      : seen.operation === 'list-calendars'
+      : seen.operation === 'list-calendars' || seen.operation === 'read-supply-health'
         ? { outcome: 'succeeded', body: { calendars: [] } }
         : seen.operation === 'read-environment'
           ? {
@@ -101,6 +101,49 @@ describe('omne calendar', () => {
     },
   )
 
+  it('names the calendar and version a question asks about, as given', async () => {
+    const service = await serve()
+    expect(
+      (await cli(['calendar', 'day', '--date', '2026-11-03', '--calendar', 'jp-legal-holidays']))
+        .code,
+    ).toBe(0)
+    expect(
+      (
+        await cli([
+          'calendar',
+          'day',
+          '--date',
+          '2026-11-03',
+          '--calendar',
+          'jp-legal-holidays',
+          '--version',
+          'v-0',
+        ])
+      ).code,
+    ).toBe(0)
+    expect(sent(service, 'answer').map(seen => seen.body)).toEqual([
+      {
+        tenant: tenantText,
+        question: { kind: 'day', date: '2026-11-03' },
+        calendar: 'jp-legal-holidays',
+      },
+      {
+        tenant: tenantText,
+        question: { kind: 'day', date: '2026-11-03' },
+        calendar: 'jp-legal-holidays',
+        version: 'v-0',
+      },
+    ])
+  })
+
+  it('reads the supply health of the calendars', async () => {
+    const service = await serve()
+    expect((await cli(['calendar', 'health'])).code).toBe(0)
+    expect(sent(service, 'read-supply-health').map(seen => seen.body)).toEqual([
+      { tenant: tenantText },
+    ])
+  })
+
   it('lists the calendars and reads the environment', async () => {
     const service = await serve()
     expect((await cli(['calendar', 'list'])).code).toBe(0)
@@ -114,7 +157,6 @@ describe('omne calendar', () => {
   it.each([
     [['day']],
     [['day', '--date', '2026-02-30']],
-    [['day', '--date', '2026-10-10', '--calendar', 'jp-legal-holidays']],
     [['shift', '--date', '2026-09-30', '--days', '-1']],
     [['next', '--after', '2026-09-30', '--count', '0']],
     [['nth', '--start', '2026-10-01', '--end', '2026-10-31', '--ordinal', 'first']],

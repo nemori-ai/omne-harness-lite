@@ -1,8 +1,8 @@
 import type { DurableEvidence, RunId, SessionOperationId } from './identity.ts'
-import type { WorkSnapshot, ResidentAdoption, RunTerminal } from './values.ts'
+import type { WorkSnapshot, ResidentAdoption, RunEnd, RunTerminal } from './values.ts'
 import type { HistoryEntry, SessionFailure } from './faces.ts'
 import { encodeEntry } from './entries.ts'
-import { digestOf } from './operations.ts'
+import { deriveDriveOperation, digestOf } from './operations.ts'
 import type { Decision, EncodedEntry } from './judgments.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
@@ -20,20 +20,30 @@ export const sourceOf = (operation: SessionOperationId, what: string): DurableEv
   revision: '1',
   digest: `sha256:${digestOf({ operation, what })}`,
 })
+const CONTROL = 'control'
+export const controlSource = (operation: SessionOperationId): DurableEvidence =>
+  sourceOf(operation, CONTROL)
+
+// A control writes the terminal of the Run it cancels with its own source as the evidence: the terminal names its control.
+function cancellingControlOf(terminal: RunTerminal): SessionOperationId | null {
+  if (terminal.outcome !== 'cancelled') return null
+  const operation = terminal.evidence.record.slice(0, -`/${CONTROL}`.length) as SessionOperationId
+  return digestOf(terminal.evidence) === digestOf(controlSource(operation)) ? operation : null
+}
+
+/** The drive operation under which the Agent of `execution` was told of the control that ended this Run as cancelled; null for any other terminal. */
+export function cancellationDriveOf(terminal: RunTerminal, execution: string): string | null {
+  const control = cancellingControlOf(terminal)
+  return control === null ? null : deriveDriveOperation({ kind: 'control', execution, control })
+}
+
 export function runCancelledBy(
   snapshot: WorkSnapshot,
   operation: SessionOperationId,
 ): RunId | null {
   if (snapshot.run.kind !== 'terminal') return null
   const { terminal } = snapshot.run
-  const source = sourceOf(operation, 'control')
-  return terminal.outcome === 'cancelled' &&
-    terminal.evidence.owner === source.owner &&
-    terminal.evidence.record === source.record &&
-    terminal.evidence.revision === source.revision &&
-    terminal.evidence.digest === source.digest
-    ? terminal.run
-    : null
+  return cancellingControlOf(terminal) === operation ? terminal.run : null
 }
 
 export const originOf = (source: DurableEvidence): HistoryEntry['origin'] => ({
@@ -91,6 +101,7 @@ export function terminalEntries(
     sequence: string | null
     cause: DurableEvidence | null
     disposition: DurableEvidence
+    end: RunEnd | null
   }>,
 ): EncodedEntry[] {
   const out: EncodedEntry[] = closingEntries(snapshot, terminal, source, originOf(source))
@@ -115,6 +126,7 @@ export function terminalEntries(
         cause: interpretation?.cause ?? null,
         disposition: interpretation?.disposition ?? source,
         bounded: null,
+        end: interpretation?.end ?? null,
       },
       originOf(source),
     ),

@@ -1,12 +1,28 @@
 import type { SessionAccessOperation } from '@omne-harness/session-contract'
-import { cell, row, type PolicyRow } from './cells.ts'
+import { cell, row, type DeclarationKind, type PolicyRow } from './cells.ts'
 
-const { member, matrix, deny } = cell
+const { member, tenantRead, matrix, deny } = cell
 
 const OUTSIDE_MATRIX = '矩阵外（AU-12 第 2 步）'
 const NO_SOURCE = '无放行出处'
 const NO_SYSTEM_READ = 'DA4 §5.6 普通读取没有系统分支'
 const SYSTEM_ONLY = 'DA4 §4.7 第 1 步只接受系统主体'
+// What a login declares about its own session; an authorization expression is not among them.
+const LOGIN_DECLARATIONS = [
+  'permission-assignment',
+  'permission-mode',
+  'collaboration-mode',
+  'environment-mode',
+  'workspace',
+  'model',
+  'declaration',
+  'context-registration',
+  'context-step-commit',
+  'recovery-input',
+] as const satisfies readonly Exclude<DeclarationKind, 'authorization-expression'>[]
+
+const SYSTEM_PARTS =
+  'packages/identity/SPEC.md「系统动作授权」：别的领域的系统部件在一个租户的分区里办自己已经成立的事，ID-56'
 const NOT_IN_MATRIX_A2 = '矩阵没有这一行，见候选第 7 节 A-2'
 
 export const SESSION_POLICY = Object.freeze({
@@ -39,7 +55,10 @@ export const SESSION_POLICY = Object.freeze({
       'SS:551 业务输入分支，DA4 §4.1、§4.7。`ordinary` 与 `card-decision` 分支拒绝：SS:551 对它们只列 intake',
       { kind: 'routed', kinds: ['business'] },
     ),
-    deny(OUTSIDE_MATRIX),
+    matrix('session-input', `${SYSTEM_PARTS}。只有 \`ordinary\` 分支`, {
+      kind: 'routed',
+      kinds: ['ordinary'],
+    }),
   ),
   startRun: row(
     deny(`${NO_SOURCE}。登录门由 Session 核对首条输入保存的 origin，不经主体（SS:554，R2-D198）`),
@@ -90,7 +109,7 @@ export const SESSION_POLICY = Object.freeze({
       'SW:211 J-SW01，PC:448、485 `create-session`，SS:607，DA4 §4.1「首次 create 使用本次登录请求的 identity-login 工作关系」',
     ),
     deny('DA4 §4.1：create 之前没有 Session 记录，`forSession` 答 denied，不签发 W'),
-    deny(OUTSIDE_MATRIX),
+    matrix('session-create', SYSTEM_PARTS),
   ),
   completeInitialization: row(
     deny(`用户不是初始化项的负责方，${NO_SOURCE}`),
@@ -99,14 +118,16 @@ export const SESSION_POLICY = Object.freeze({
   ),
   change: row(
     member(
-      'SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。逐权限配值还需具名登录写资格，见会话逐权限配值的直接登录政策',
+      'SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。逐权限配值还需具名登录写资格，见会话逐权限配值的直接登录政策。授权表达不在内：它只由人在卡上的答复产生',
+      { kind: 'declaration', kinds: LOGIN_DECLARATIONS },
     ),
-    deny(
-      'SW:129：Agent 不能直接写模式。SS:609 只列 intake。Agent 经 HITL 改模式的证据没有解释形状（AU-11「首批不覆盖的部分」）',
+    member(
+      'packages/session/SPEC.md「权限配值与待办」：会话授权上下文的追加要专属的写资格。只有这个会话的这一轮能写，并且只凭卡上那一个答复（准入的适配在答复之后写，访问检查回读卡）。工作区的更换见 apps/harness-server/SPEC.md「SwitchWorkspace 的绑定」：这个会话的这一轮用切换工具提交，目标先由工作区核验，不取得会话租户本来没有的资格。别的声明照 SW:129：Agent 不能直接写模式',
+      { kind: 'declaration', kinds: ['authorization-expression', 'workspace'] },
     ),
     deny(OUTSIDE_MATRIX),
   ),
-  setRelation: row(
+  setResident: row(
     member(
       'R2-D204（P-1，qiwei.pan 裁定）：租户是（组织，账号），只有该账号的登录能取得代该租户行事的主体，「只有本人」由主体的签发保证，不需要具名资格。SW:187、SS:610 至 611',
     ),
@@ -160,12 +181,33 @@ export const SESSION_POLICY = Object.freeze({
       { kind: 'fact', kinds: ['scope-release'] },
     ),
   ),
-  readWork: row(deny(NO_SOURCE), member('SS:552，DA4 §4.1'), deny(NO_SYSTEM_READ)),
+  readWork: row(
+    member(
+      '`session/v1` 的 `read-permission-mode` 与 `change-permission-mode`：本人读本会话的当前模式与权限修订，packages/session/SPEC.md「协议、接入与界面」',
+    ),
+    member('SS:552，DA4 §4.1'),
+    deny(NO_SYSTEM_READ),
+  ),
   readCurrentScope: row(deny(NO_SOURCE), member('SS:95，当前作用域窄读'), deny(NO_SYSTEM_READ)),
   readWaiting: row(
     member('`session/v1` 的 `read-waiting`，packages/session/SPEC.md「等人」'),
     deny(NO_SOURCE),
     deny(NO_SYSTEM_READ),
+  ),
+  readPending: row(
+    member('`session/v1` 的 `read-pending`，packages/session/SPEC.md「读取与投影」'),
+    deny(NO_SOURCE),
+    deny(NO_SYSTEM_READ),
+  ),
+  readWaitingCalls: row(
+    member('`session/v1` 的 `read-waiting-calls`，packages/session/SPEC.md「读取与投影」'),
+    deny(NO_SOURCE),
+    deny(NO_SYSTEM_READ),
+  ),
+  readInputFate: row(
+    member('`session/v1` 的 `read-input-fate`，packages/session/SPEC.md「读取与投影」，SE-33'),
+    deny(NO_SOURCE),
+    matrix('input-fate', SYSTEM_PARTS),
   ),
   readBackgroundCalls: row(
     member('`session/v1` 的 `list-background-calls`，packages/session/SPEC.md「协议、接入与界面」'),
@@ -205,12 +247,14 @@ export const SESSION_POLICY = Object.freeze({
   ),
   'history.begin': row(
     member('SW:297、299 J-SW09，PC:631 观察的日志读取，PC「结果」表 `read-history`，SS:651'),
-    member('SS:651，SCC reader「Request Context 的历史源对接插件」，DA4 §4.1'),
+    tenantRead(
+      'SS:651，SCC reader「Request Context 的历史源对接插件」，DA4 §4.1；工具 `Sessions` 读同租户别的会话，发行应用规格「授权」，#1427 C9',
+    ),
     deny(NO_SYSTEM_READ),
   ),
   'history.next': row(
     member('SW:299 每页核对当前资格，PC「结果」表 `read-history`，SS:652'),
-    member('SS:652，SCC reader，DA4 §4.1'),
+    tenantRead('SS:652，SCC reader，DA4 §4.1；工具 `Sessions` 续读同租户别的会话，#1427 C9'),
     deny(NO_SYSTEM_READ),
   ),
   'history.since': row(
@@ -220,6 +264,13 @@ export const SESSION_POLICY = Object.freeze({
   ),
   'history.readModelView': row(
     deny(`模型视图不是用户的阅读面，${NO_SOURCE}`),
+    member('SS:654，SCC reader「含 epoch 视图读取 readModelView」，DA4 §4.1'),
+    deny(NO_SYSTEM_READ),
+  ),
+  'history.readAdoptedRequest': row(
+    member(
+      '#1450 C36，设计稿 I-9：诊断页逐块说明模型读的是哪一份；记录只有引用、摘要与表示的选择，不含内容；登录的人本就能读这个会话的历史（history.begin）',
+    ),
     member('SS:654，SCC reader「含 epoch 视图读取 readModelView」，DA4 §4.1'),
     deny(NO_SYSTEM_READ),
   ),
@@ -235,7 +286,7 @@ export const SESSION_POLICY = Object.freeze({
   ),
   'directory.list': row(
     member('RFC-0015 §8「列出会话」：登录的人按租户成员放行，不看租户角色。目标为租户分支'),
-    deny('RFC-0015 §8「列出会话」：工作主体拒绝'),
+    member('工具 `Sessions` 列同租户的会话，发行应用规格「授权」，#1427 C9。目标为租户分支'),
     deny(NO_SYSTEM_READ),
   ),
   references: row(

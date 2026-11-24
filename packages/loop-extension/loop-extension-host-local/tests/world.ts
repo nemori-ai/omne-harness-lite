@@ -6,15 +6,19 @@ import type { LoopExtensionDeclaration, Passage } from '@omne-harness/agent-cont
 import {
   capabilityId,
   createCategoryPoint,
+  createHeldBook,
+  heldLayerSource,
   type AssetLayerSource,
   type PackageReader,
 } from '@omne-harness/assets'
 import {
   assetsSqlMaterials,
   createAssetsLocal,
-  publishedRef,
-  tenantLayerSource,
+  createTenantPublisher,
+  publishedAssetRef,
+  tenantListing,
 } from '@omne-harness/assets-local'
+import { loopExtensionsPoint } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import {
   access,
   tenantCodec,
@@ -195,7 +199,10 @@ export async function openTenant(tenant: TenantId) {
   categories.contribute({
     contract: loopExtensionBodyContract(),
     display: loopExtensionCategoryDisplay,
+    point: loopExtensionsPoint.name,
   })
+  const listeners = new Set<() => void>()
+  const book = createHeldBook(tenantRef)
   const assets = createAssetsLocal({
     storage: opened.storage,
     domain: opened.domain,
@@ -203,22 +210,28 @@ export async function openTenant(tenant: TenantId) {
     manifestDigest: opened.combination.manifestDigest,
     categories,
     packageRoot: join(root, 'packages'),
+    held: book,
+    onCommitted: () => listeners.forEach(listener => listener()),
   })
   await assets.packages.recover()
+  await assets.syncHeld()
+  const publisher = createTenantPublisher(assets, tenantRef)
+  const held = new Map<string, string>()
   const runs = new Map<string, RunSetting>()
-  const listeners = new Set<() => void>()
   const reads = { list: 0, basis: 0 }
   const broken = { basis: false, body: null as (() => Promise<void>) | null }
   let settingsRevision = 0
   let operations = 0
-  const tenantLayer = tenantLayerSource(assets)
-  const layer: AssetLayerSource = {
-    ...tenantLayer,
+  const listed = tenantListing(assets)
+  const layer: AssetLayerSource = heldLayerSource({
+    layer: 'tenant',
+    tenant: tenantRef,
+    read: book.read,
     list(request) {
       reads.list += 1
-      return tenantLayer.list(request)
+      return listed(request)
     },
-  }
+  })
   const sources: TenantExtensionSources = {
     layers: [layer],
     async body({ asset, version }) {
@@ -235,50 +248,44 @@ export async function openTenant(tenant: TenantId) {
     },
     async basis() {
       reads.basis += 1
-      const revision = await assets.readDomainRevision()
-      return broken.basis || revision.kind !== 'revision'
+      const revision = await assets.domainRevision()
+      return broken.basis || revision.kind !== 'domain'
         ? undefined
         : { assets: String(revision.revision), settings: String(settingsRevision) }
     },
     changes: {
       subscribe(listener) {
-        const stop = assets.changes.subscribe(listener)
         listeners.add(listener)
-        return () => {
-          stop()
-          listeners.delete(listener)
-        }
+        return () => void listeners.delete(listener)
       },
     },
   }
   const refOf = (name: string) => {
     const made = capabilityId(LOOP_EXTENSION_CATEGORY, name)
     if (!made.ok) throw new Error('not a capability identity')
-    return { capability: made.id, ref: publishedRef(made.id) }
+    return { capability: made.id, ref: publishedAssetRef(made.id) }
   }
   const assetRef = (name: string) => refOf(name).ref
-  const holdingRef = (name: string) => refOf(name).ref
+  const holdingRef = (name: string) => {
+    const ref = held.get(name)
+    if (ref === undefined) throw new Error(`${name} is not held`)
+    return ref
+  }
   /** Publishes a version and holds it in the same commit; a later version of a held asset is pinned in its place. */
   async function publish(
     declaration: LoopExtensionDeclaration,
     files: Readonly<Record<string, string>> = {},
   ): Promise<string> {
-    const published = await assets.packages.publish({
+    const published = await publisher.publish({
       capability: refOf(declaration.name).capability,
-      from: packageOf({ ...files, 'extension.json': JSON.stringify(declaration) }),
       operationId: `publish-${(operations += 1)}`,
-      holding: {
-        sources: [
-          {
-            sourceId: 'tenant',
-            ownerRef: tenantRef,
-            scope: { kind: 'owner', subjectRef: 'loop-extensions' },
-          },
-        ],
-        grants: [],
+      content: {
+        kind: 'directory',
+        from: packageOf({ ...files, 'extension.json': JSON.stringify(declaration) }),
       },
     })
     if (published.kind !== 'published') throw new Error(JSON.stringify(published))
+    held.set(declaration.name, published.holdingRef)
     return published.version
   }
   async function setEnabled(name: string, enabled: boolean): Promise<void> {

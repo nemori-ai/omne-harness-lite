@@ -11,6 +11,7 @@ export type LeafKind =
   | 'plain-date'
   | 'session'
   | 'page-bytes'
+  | 'bytes'
   | 'revision'
   | 'positive-integer'
   | 'count'
@@ -23,7 +24,7 @@ export type Rule =
   | { readonly kind: 'literal'; readonly values: readonly (string | boolean)[] }
   | {
       readonly kind: 'object'
-      readonly fields: Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
+      readonly fields: Readonly<Record<string, FieldRule>>
     }
   | {
       readonly kind: 'array'
@@ -32,6 +33,10 @@ export type Rule =
       readonly max?: number
     }
   | { readonly kind: 'one-of'; readonly rules: readonly Rule[] }
+/** A field with `since` came at that revision of its protocol; such a field is optional. */
+export type FieldRule =
+  | { readonly rule: Rule; readonly optional?: true; readonly since?: 1 }
+  | { readonly rule: Rule; readonly optional: true; readonly since: number }
 export type RequestRule = { readonly body: Rule; readonly proof: boolean; readonly tenant: boolean }
 export type Family<V extends string, P extends string, S extends string> = {
   readonly version: V

@@ -28,9 +28,9 @@ export function createCardDesk<P>(
   ports: Readonly<{ cards: DecisionCards<P> }>,
   access: Access<P>,
   execution: AgentExecutionId,
+  unsent: Set<CardRoundId>,
   authority: () => Authority,
 ): CardDesk {
-  const unsent = new Set<CardRoundId>()
   async function present(request: Request): Promise<Outcome<RoundCards, Failure>> {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       if (unsent.delete(request.round)) {

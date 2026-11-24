@@ -1,12 +1,14 @@
 import type {
   CalendarCallContext,
+  CalendarHealth,
   CalendarId,
   CalendarOwner,
   CalendarInfo,
+  CalendarQueryResult,
 } from '@omne-harness/calendar-contract'
 import type { CalendarRepository } from '../persistence.ts'
 
-export type CalendarQueryAction = 'list' | 'get' | 'effective' | 'resolve'
+export type CalendarQueryAction = 'list' | 'get' | 'effective' | 'resolve' | 'health'
 export interface CalendarAuthorityReader {
   check(
     input: Readonly<{
@@ -49,4 +51,9 @@ export type CalendarQueriesDependencies = Readonly<{
   authority: CalendarAuthorityReader
   clock: CalendarQueryClock
   catalog: readonly CalendarCatalogEntry[]
+  /** Reads the supply health of one calendar; the assembly wires it to supply. Absent: health is unavailable. */
+  healthProjection?: CalendarHealthProjection
 }>
+export type CalendarHealthProjection = (
+  calendarId: CalendarId,
+) => Promise<CalendarQueryResult<CalendarHealth>>

@@ -1,8 +1,9 @@
 import { canonicalText } from '../../src/rows/agent-adoptions/definition-mappings.ts'
 import { decide } from '@omne-harness/session-contract'
-import { modesInitialization } from '../../src/assembly/session-modes-initialization.ts'
+import { contextInitialization } from '../../src/assembly/session-context-initialization.ts'
 import { AdoptionSourcesImpl } from '../../src/rows/adoption-sources/sources.ts'
 import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
+import { tableMappings } from '../../src/rows/agent-adoptions/held-definitions.ts'
 import { buildTable } from '../../src/rows/agent-adoptions/table.ts'
 import { createCommand, mappingConfig, plainOf } from '../rows/adoptions/support.ts'
 import { Service, type Context } from '@deepseek-ai/cordis'
@@ -16,7 +17,7 @@ import {
 } from '../../src/entry/session-modes-principals.ts'
 import { createRuntimeContextTrustModule } from '../../src/entry/runtime-context-trust.ts'
 import { SessionModesInstallation } from '../../src/rows/session-ad03/modes.ts'
-import { verifierOf } from '../../src/entry/principals.ts'
+import { dispatchPrincipalOf, verifierOf } from '../../src/entry/principals.ts'
 import { fixtureEnv, fixtureTenant, got } from './support.ts'
 
 it('mounts one real producer per tenant through the production authority and withdraws with its fiber', async () => {
@@ -81,8 +82,13 @@ it('mounts one real producer per tenant through the production authority and wit
     expect(registrations).toHaveBeenCalledTimes(4)
     const original = createCommand('alpha')
     const input = { ...original.input, tenant, principal: principals.forTenant(tenant) }
-    const initial = modesInitialization(input)
-    expect(modesInitialization(input)).toEqual(initial)
+    const initial = contextInitialization(input)
+    expect(contextInitialization(input)).toEqual(initial)
+    expect(initial.blocks.map(item => item.block.item)).toEqual([
+      'session.modes',
+      'session.working-directory',
+      'loop-extension.enabled',
+    ])
     const command = {
       ...original,
       input: {
@@ -95,7 +101,7 @@ it('mounts one real producer per tenant through the production authority and wit
       },
     }
     const table = await buildTable(agentAdoptionsConfig.parse(mappingConfig()))
-    const source = new AdoptionSourcesImpl(fixture.root, table.mappings)
+    const source = new AdoptionSourcesImpl(fixture.root, tableMappings(table))
     const access = { tenant, session: input.session, principal: input.principal }
     const guarded = await source.prepare(command, access)
     expect(guarded).toHaveProperty('ok')
@@ -109,17 +115,32 @@ it('mounts one real producer per tenant through the production authority and wit
     const adoption = createdBody['initialAdoption'] as Record<string, unknown>
     const capabilitiesMaterial = adoption['capabilities'] as Record<string, unknown>
     const capabilities = plainOf(capabilitiesMaterial['value']) as Record<string, unknown>
-    expect(capabilities['contextPreparations']).toEqual(initial.preparations.map(canonicalText))
-    expect(
-      decision.entries.filter(entry => entry.kind === 'session.context-registration-changed'),
-    ).toHaveLength(2)
+    expect(capabilities['contextPreparations']).toEqual(
+      initial.blocks.map(item => canonicalText(item.preparation)),
+    )
+    const registered = decision.entries
+      .filter(entry => entry.kind === 'session.context-registration-changed')
+      .map(entry => (plainOf(entry.payload) as { initialization: unknown }).initialization)
+    expect(registered).toMatchObject(
+      initial.blocks.map(item => ({ decision: item.preparation.decision })),
+    )
     const outcomes = decision.entries.filter(entry => entry.kind === 'session.initialization-item')
     expect(outcomes.map(entry => plainOf(entry.payload))).toMatchObject(
-      initial.outcomes.map(outcome => ({ outcome })),
+      initial.blocks.map(item => ({ outcome: item.outcome })),
     )
     expect(
-      await modes.prepareInitial({ ...input, principal: structuredClone(input.principal) }),
+      await modes.prepareInitial(
+        { ...input, principal: structuredClone(input.principal) },
+        initial.blocks[0]!.block,
+      ),
     ).toHaveProperty('failure')
+    const part = dispatchPrincipalOf(fixture.env)
+    const asPart = (principal: unknown) =>
+      modes.prepareInitial({ ...input, principal }, initial.blocks[0]!.block)
+    expect(await asPart(part)).toHaveProperty('ok')
+    expect(await asPart(structuredClone(part))).toHaveProperty('failure')
+    // A verified principal that acts for another tenant is not a system part: it prepares as itself and is refused.
+    expect(await asPart(principals.forTenant(fixtureTenant('b')))).toHaveProperty('failure')
     const tampered = {
       ...command,
       input: {
@@ -143,6 +164,10 @@ it('mounts one real producer per tenant through the production authority and wit
       })
     await fiber.dispose()
     expect(await modes.ensure(tenant)).toEqual({ kind: 'unavailable' })
+    // Without the installation, or without the caller's access, no block can be prepared.
+    const down = { failure: { kind: 'unavailable', owner: 'session.context' } }
+    expect(await source.prepare(command, access)).toMatchObject(down)
+    expect(await source.prepare(command, undefined)).toMatchObject(down)
     const replacement = await duplicate()
     expect(replacement).toMatchObject({ kind: 'registered' })
     if (replacement.kind === 'registered') await replacement.handle.dispose()

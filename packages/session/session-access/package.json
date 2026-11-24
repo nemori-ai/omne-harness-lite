@@ -38,9 +38,12 @@
     "@omne-harness/session-contract": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
     "@omne-harness/session-observation": "workspace:*",
-    "@omne-harness/session-protocol": "workspace:*"
+    "@omne-harness/session-protocol": "workspace:*",
+    "@omne-harness/session-search": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/dynamis-cordis": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",

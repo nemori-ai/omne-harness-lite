@@ -9,14 +9,9 @@ export abstract class AccessRegistryService extends Service {
     super(ctx, AccessRegistryService.provide)
   }
 
-  mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void {
-    this.ctx.effect(
-      () => this.attach(contribution as unknown as AccessContribution<ProtocolContract>),
-      'accessRegistry.mount',
-    )
-  }
-
-  protected abstract attach(contribution: AccessContribution<ProtocolContract>): () => Promise<void>
+  /** Puts the protocol as an effect of the calling plugin: served once it is ready, withdrawn when it leaves. */
+  // Two plugins with one protocol are a conflict the entry answers, not an error thrown here.
+  abstract mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void
 }
 export const accessRegistryKey = AccessRegistryService.provide
 

@@ -9,12 +9,15 @@ import {
   toolBindingsKey,
   toolCatalogKey,
   toolContributionAuthorityKey,
+  toolReleaseDetailsKey,
   toolStartAuthorityKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
   createLocalToolBindingsPlugin,
   type LocalToolBindingsPluginInput,
 } from '@omne-harness/tool-host-local/cordis'
+import { createToolMessageResultCodec } from '@omne-harness/tool'
+import { DEFAULT_ENTRY_SOURCE_POLICY } from '@omne-harness/tool-host-local'
 import { defineRow } from '../../row.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
@@ -30,17 +33,52 @@ import { bindReleaseTodoItems } from './todo-items.ts'
 import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 import { bindReleaseCalendar } from './calendar.ts'
-import { bindReleaseSchedules } from './schedules.ts'
+import { attachReleaseScheduleReads, bindReleaseSchedules } from './schedules.ts'
+import { bindReleaseNotifications } from './notifications.ts'
+import { bindReleaseSessions } from './sessions.ts'
+import { bindReleaseAgents } from './agents.ts'
+import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
+import { bindReleaseExtensionPoints } from './extension-points.ts'
+import { bindReleaseExtensions } from './extensions.ts'
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
+import type { ToolBindingKey } from '@omne-harness/tool-contract/provider'
+import { attachScriptHost } from '@omne-harness/tool-definitions'
+import { heldScriptHost } from '../tool-host/script-host.ts'
 
+const positive = z.number().int().positive().max(2_147_483_647)
 export const toolBindingsConfig = z
-  .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
+  .strictObject({
+    tools: toolsCapabilityConfig.optional(),
+    web: webBindingConfig.optional(),
+    sources: z.strictObject({ resultMaxBytes: positive, listTimeoutMs: positive }).optional(),
+  })
   .default({})
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
+
+/** The tools a domain brings: each call of one gets that domain's services attached, read per call. */
+const DOMAIN_TOOLS = [
+  ['Calendar', bindReleaseCalendar],
+  ['Schedules', bindReleaseSchedules],
+  ['Notifications', bindReleaseNotifications],
+  ['Sessions', bindReleaseSessions],
+  ['Agents', bindReleaseAgents],
+  ['SwitchWorkspace', bindReleaseSwitchWorkspace],
+  ['OmneExtensionPoints', bindReleaseExtensionPoints],
+  ['OmneExtensions', bindReleaseExtensions],
+] as const
 type Attachments = Readonly<{
   tools: ReturnType<typeof createReleaseToolsCapability> | null
   web: WebBindingConfig | null
 }>
+
+/** The key of the tool a request calls, when a tenant holds that tool; a tool of the release has none here. */
+function heldKeyOfRequest(request: FixedToolRequest): ToolBindingKey | undefined {
+  const { availability } = request
+  if (availability.kind !== 'available' || availability.layer.kind !== 'tenant') return undefined
+  const { name, adoption } = availability.definition
+  return { layer: availability.layer, asset: { name, adoption } }
+}
 
 export function releaseCapability(
   ctx: Context,
@@ -70,11 +108,15 @@ export function releaseCapability(
       attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
         ? bindReleaseWeb(input, withSkills, attachments.web, custody)
         : withSkills
-    if (isReleaseToolRequest(release, input.request, 'Calendar'))
-      return bindReleaseCalendar(ctx, input, withWeb)
-    return isReleaseToolRequest(release, input.request, 'Schedules')
-      ? bindReleaseSchedules(ctx, input, withWeb)
-      : withWeb
+    const domain = DOMAIN_TOOLS.find(([name]) => isReleaseToolRequest(release, input.request, name))
+    if (domain !== undefined) return domain[1](ctx, input, withWeb)
+    const held = heldKeyOfRequest(input.request)
+    return held === undefined
+      ? withWeb
+      : attachScriptHost(
+          withWeb,
+          heldScriptHost(ctx, { principal: input.principal, tenant: input.tenant }, held),
+        )
   }
 }
 
@@ -156,6 +198,18 @@ const bindingsPlugin: Plugin.Object = {
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
       capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
+      releaseDetails: { attach: input => attachReleaseScheduleReads(ctx, input) },
+      ...(config.sources === undefined
+        ? {}
+        : {
+            entrySources: {
+              codec: createToolMessageResultCodec(config.sources.resultMaxBytes),
+              policy: {
+                ...DEFAULT_ENTRY_SOURCE_POLICY,
+                listTimeoutMs: config.sources.listTimeoutMs,
+              },
+            },
+          }),
     })
     new Bindings(ctx)
   },
@@ -165,7 +219,7 @@ export const toolBindingsRow = defineRow({
   row: 'tool-bindings',
   implementation: 'real',
   manifest: {
-    provides: [toolBindingsKey, toolCatalogKey],
+    provides: [toolBindingsKey, toolCatalogKey, toolReleaseDetailsKey],
     injects: [toolContributionAuthorityKey],
     sameProviderGroup: null,
   },

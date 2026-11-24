@@ -8,13 +8,30 @@ export type DomainAddress = Readonly<{ tenant: string; kind: DomainKind; name: s
 export type FixedPart = Readonly<{ kind: 'given'; value: JsonValue }> | Readonly<{ kind: 'kept' }>
 
 export type LedgerWriteFact =
-  | Readonly<{ op: 'put'; key: string; record: JsonValue; fixed?: FixedPart }>
+  | Readonly<{
+      op: 'put'
+      key: string
+      record: JsonValue
+      fixed?: FixedPart
+      definition?: string
+    }>
   | Readonly<{ op: 'delete'; key: string }>
   | Readonly<{ op: 'schedule'; key: string; dueAt: string }>
   | Readonly<{ op: 'unschedule'; key: string }>
   | Readonly<{ op: 'drop' }>
+  | Readonly<{
+      op: 'usage'
+      call: string
+      start: string | null
+      owner: string
+      work: string
+      fact: JsonValue
+    }>
 
 export type LedgerAssertionFact = Readonly<{ kind: DomainKind; name: string; revision: string }>
+
+export type DefinitionFact = Readonly<{ digest: string; adoption: string }> &
+  (Readonly<{ text: string }> | Readonly<{ chunks: number }>)
 
 export type LedgerFacts = DomainAddress &
   Readonly<{
@@ -23,8 +40,17 @@ export type LedgerFacts = DomainAddress &
     revision: string
     writes: readonly LedgerWriteFact[]
     asserts: readonly LedgerAssertionFact[]
+    definitions: readonly DefinitionFact[]
     pending?: boolean
   }>
+
+export type DefinitionPutFacts = Readonly<{
+  intent: 'definition-put'
+  tenant: string
+  digest: string
+  seq: number
+  text: string
+}>
 
 export type BodyAddress = Readonly<{ tenant: string; call: string; body: string }>
 
@@ -37,33 +63,62 @@ export type BodyDeleteFacts = BodyAddress & Readonly<{ intent: 'body-delete' }>
 
 export type BodyFacts = BodyPutFacts | BodySealFacts | BodyDeleteFacts
 
-export type ToolFacts = LedgerFacts | BodyFacts
+export type ToolFacts = LedgerFacts | BodyFacts | DefinitionPutFacts
 
 export type StopBasis =
   | Readonly<{ reason: 'revision'; current: string }>
   | Readonly<{ reason: 'assertion'; current: string }>
   | Readonly<{ reason: 'fixed-missing' }>
+  | Readonly<{ reason: 'definition-missing' }>
   | Readonly<{ reason: 'body-conflict' }>
   | Readonly<{ reason: 'body-not-ready'; diagnostic: string }>
 
 export type ParticipantAnswer =
   | Readonly<{ kind: 'committed' }>
+  | Readonly<{ kind: 'definition-kept' }>
   | Readonly<{ kind: 'body-kept' }>
   | Readonly<{ kind: 'body-sealed' }>
   | Readonly<{ kind: 'body-deleted' }>
 
 export type StoredRecord = Readonly<{ key: string; record: JsonValue; fixed?: JsonValue }>
 
+export type StoredDefinition = Readonly<{ digest: string; definition: JsonValue }>
+
 export type LedgerReadOutput = Readonly<{
   revision: string | null
   records: readonly StoredRecord[]
+  definitions: readonly StoredDefinition[]
 }>
+
+export type DefinitionReadInput =
+  | Readonly<{ tenant: string; adoption: string }>
+  | Readonly<{ tenant: string; digests: readonly string[] }>
+
+export type DefinitionReadOutput =
+  | Readonly<{ definitions: readonly StoredDefinition[] }>
+  | Readonly<{ held: readonly string[] }>
 
 export type PendingReadInput = Readonly<{ tenant: string; after: string | null; limit: number }>
 
 export type PendingReadOutput = Readonly<{ calls: readonly string[]; more: boolean }>
 
 export const PENDING_READ_LIMIT = 1000
+
+export type UsageReadInput = Readonly<{
+  tenant: string
+  from: string | null
+  to: string | null
+  owner: string | null
+  works: readonly string[]
+  order: 'ascending' | 'descending'
+  afterStart: string | null
+  afterCall: string | null
+  limit: number
+}>
+
+export type UsageReadOutput = Readonly<{ undated: number; facts: readonly string[] }>
+
+export const USAGE_READ_LIMIT = 500
 
 export type BodyReadInput = BodyAddress & Readonly<{ first: number; count: number }>
 
@@ -98,9 +153,22 @@ function fixedOf(value: JsonValue | undefined): FixedPart | null {
   return value['kind'] === 'given' && given !== undefined ? { kind: 'given', value: given } : null
 }
 
+function usageWriteOf(value: Readonly<Record<string, JsonValue>>): LedgerWriteFact | null {
+  const call = textOf(value, 'call')
+  const start = value['start'] === null ? null : textOf(value, 'start')
+  const owner = textOf(value, 'owner')
+  const work = textOf(value, 'work')
+  const fact = value['fact']
+  if (call === null || owner === null || work === null || fact === undefined) return null
+  return start === null && value['start'] !== null
+    ? null
+    : { op: 'usage', call, start, owner, work, fact }
+}
+
 function writeOf(value: JsonValue): LedgerWriteFact | null {
   if (!isObject(value)) return null
   if (value['op'] === 'drop') return { op: 'drop' }
+  if (value['op'] === 'usage') return usageWriteOf(value)
   const key = textOf(value, 'key')
   if (key === null) return null
   switch (value['op']) {
@@ -117,7 +185,12 @@ function writeOf(value: JsonValue): LedgerWriteFact | null {
       if (record === undefined) return null
       if (value['fixed'] === undefined) return { op: 'put', key, record }
       const fixed = fixedOf(value['fixed'])
-      return fixed === null ? null : { op: 'put', key, record, fixed }
+      if (fixed === null) return null
+      if (value['definition'] === undefined) return { op: 'put', key, record, fixed }
+      const definition = textOf(value, 'definition')
+      return definition === null || fixed.kind !== 'given'
+        ? null
+        : { op: 'put', key, record, fixed, definition }
     }
     default:
       return null
@@ -158,6 +231,27 @@ function bodyOf(value: JsonObject): BodyFacts | null {
   }
 }
 
+function definitionOf(value: JsonValue): DefinitionFact | null {
+  if (!isObject(value)) return null
+  const digest = textOf(value, 'digest')
+  const adoption = textOf(value, 'adoption')
+  if (digest === null || adoption === null) return null
+  const text = value['text']
+  if (typeof text === 'string' && value['chunks'] === undefined) return { digest, adoption, text }
+  const chunks = countOf(value, 'chunks')
+  return chunks === null || chunks < 1 || text !== undefined ? null : { digest, adoption, chunks }
+}
+
+function definitionPutOf(value: JsonObject): DefinitionPutFacts | null {
+  const tenant = textOf(value, 'tenant')
+  const digest = textOf(value, 'digest')
+  const seq = countOf(value, 'seq')
+  const text = value['text']
+  return tenant === null || digest === null || seq === null || typeof text !== 'string'
+    ? null
+    : { intent: 'definition-put', tenant, digest, seq, text }
+}
+
 function assertionOf(value: JsonValue): LedgerAssertionFact | null {
   if (!isObject(value)) return null
   const kind = value['kind']
@@ -184,17 +278,31 @@ function ledgerOf(value: JsonObject): LedgerFacts | null {
   if (!parsed.every((write): write is LedgerWriteFact => write !== null)) return null
   const assertions = asserts.map(assertionOf)
   if (!assertions.every((item): item is LedgerAssertionFact => item !== null)) return null
-  const facts = { ...domain, intent: 'ledger', expected, revision, writes: parsed } as const
+  const listed = value['definitions'] ?? []
+  if (!Array.isArray(listed)) return null
+  const definitions = listed.map(definitionOf)
+  if (!definitions.every((item): item is DefinitionFact => item !== null)) return null
+  const facts = {
+    ...domain,
+    intent: 'ledger',
+    expected,
+    revision,
+    writes: parsed,
+    asserts: assertions,
+    definitions,
+  } as const
   const pending = value['pending']
-  if (pending === undefined) return { ...facts, asserts: assertions }
+  if (pending === undefined) return facts
   if (typeof pending !== 'boolean' || domain.kind !== 'call') return null
-  return { ...facts, asserts: assertions, pending }
+  return { ...facts, pending }
 }
 
 export function parseFacts(facts: JsonObject): ToolFacts | null {
   switch (facts['intent']) {
     case 'ledger':
       return ledgerOf(facts)
+    case 'definition-put':
+      return definitionPutOf(facts)
     case 'body-put':
     case 'body-seal':
     case 'body-delete':
@@ -225,10 +333,59 @@ export function parseBodyReadInput(value: JsonValue): BodyReadInput | null {
   return first === null || count === null ? null : { ...address, first, count }
 }
 
+export function parseDefinitionReadInput(value: JsonValue): DefinitionReadInput | null {
+  if (!isObject(value)) return null
+  const tenant = textOf(value, 'tenant')
+  if (tenant === null) return null
+  const adoption = textOf(value, 'adoption')
+  if (adoption !== null) return { tenant, adoption }
+  const digests = value['digests']
+  return Array.isArray(digests) &&
+    digests.length > 0 &&
+    digests.every((digest): digest is string => typeof digest === 'string' && digest !== '')
+    ? { tenant, digests }
+    : null
+}
+
 export function parseDueReadInput(value: JsonValue): DueReadInput | null {
   if (!isObject(value)) return null
   const tenant = textOf(value, 'tenant')
   const now = textOf(value, 'now')
   const limit = countOf(value, 'limit')
   return tenant === null || now === null || limit === null ? null : { tenant, now, limit }
+}
+
+export function parseUsageInput(value: JsonValue): UsageReadInput | null {
+  if (!isObject(value)) return null
+  const nullable = (name: string): string | null | undefined =>
+    value[name] === null ? null : (textOf(value, name) ?? undefined)
+  const tenant = textOf(value, 'tenant')
+  const [from, to, owner, afterStart, afterCall] = [
+    'from',
+    'to',
+    'owner',
+    'afterStart',
+    'afterCall',
+  ].map(nullable)
+  const works = value['works']
+  const order = value['order']
+  const limit = countOf(value, 'limit')
+  if (
+    tenant === null ||
+    from === undefined ||
+    to === undefined ||
+    owner === undefined ||
+    afterStart === undefined ||
+    afterCall === undefined ||
+    (from === null) !== (to === null) ||
+    (afterStart === null) !== (afterCall === null) ||
+    !Array.isArray(works) ||
+    !works.every(work => typeof work === 'string') ||
+    (order !== 'ascending' && order !== 'descending') ||
+    limit === null ||
+    limit < 1 ||
+    limit > USAGE_READ_LIMIT
+  )
+    return null
+  return { tenant, from, to, owner, works, order, afterStart, afterCall, limit }
 }

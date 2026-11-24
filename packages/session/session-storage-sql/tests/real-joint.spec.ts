@@ -12,6 +12,7 @@ import {
   operationId,
   ordinaryInput,
   sessionId,
+  testingIntakeGuards,
 } from '@omne-harness/session-contract/testing'
 import type { SessionCommand } from '@omne-harness/session-contract'
 import {
@@ -90,7 +91,7 @@ describe('the joint commit on the real write Worker', () => {
       ...app.combination,
       commands: sessionCommitCommands([
         executionRecordFacts(jointWrite()),
-        sessionCommandFacts(accept('joint'), login),
+        sessionCommandFacts(accept('joint'), [...login, ...testingIntakeGuards(accept('joint'))]),
       ]),
     })
     expect(result.kind).toBe('committed')
@@ -163,14 +164,17 @@ describe('the size of the content blocks of one session', () => {
     })
     expect(accepted.kind).toBe('committed')
     const found = decodeExecutionRecordBlob(
-      await read(app, 'execution-record.blob', { digest: block(room).digest }),
+      await read(app, 'execution-record.blob', {
+        execution: 'exe_1',
+        digest: block(room).digest,
+      }),
     )
     expect(found?.kind === 'blob' ? found.payload.length : null).toBe(room)
   })
 })
 
 describe('the process is killed after the joint receipt came back', () => {
-  it('a new provider on the same files answers committed for the original identity, and both sides are there', async () => {
+  it('a new provider on the same files answers settled for the original identity, and both sides are there', async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'session-joint-kill-')))
     roots.push(root)
     const child = spawn(
@@ -193,13 +197,7 @@ describe('the process is killed after the joint receipt came back', () => {
 
     const app = await open(root)
     const found = await app.storage.query(identityOf(TENANT_A, 'dom_0', 'aop_joint'))
-    expect(queryKindOf(found)).toBe('committed')
-    if (found.kind !== 'committed') return
-    expect(found.responses.map(item => item.participant)).toEqual([
-      'execution-record',
-      'session-ordinary-basis',
-      'session',
-    ])
+    expect(queryKindOf(found)).toBe('settled')
     expect(await stateOf(app)).toEqual({ published: '1', state: { receipt: 'joint' } })
     const input = await app.port.readInput({ ...app.access(TENANT_A), input: 'joint' as never })
     expect('ok' in input).toBe(true)

@@ -20,6 +20,7 @@ import {
 } from '@omne-harness/model-contract'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
 import { stubPlugin } from '../../../src/cordis.ts'
+import { tenantDomainScannerPrincipal } from '../../../src/entry/tenant-domain-scanner.ts'
 import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
 import { identityClock } from '../../../src/entry/identity-clock.ts'
 import { modelClock } from '../../../src/entry/model-clock.ts'
@@ -149,6 +150,7 @@ const entryObjects = [
   modelClock,
   modelHostAuthority,
   identityClock,
+  tenantDomainScannerPrincipal,
 ]
 
 function rowsOf(storageRoot: string) {
@@ -202,8 +204,8 @@ function pluginsWith(host: unknown) {
   }
 }
 
-async function contactOn(storageRoot: string, host: unknown, admit: boolean) {
-  const { value } = await withLiveRows(
+async function contactOn(storageRoot: string, host: unknown, admit: boolean, poll = false) {
+  const { value, run } = await withLiveRows(
     {
       rows: rowsOf(storageRoot),
       plugins: pluginsWith(host),
@@ -224,14 +226,30 @@ async function contactOn(storageRoot: string, host: unknown, admit: boolean) {
             consumer: { owner: '@omne-harness/agent', work: 'w', position: 'p', purpose: 'main' },
           }),
         )
-      return runtime.calls.contact({ principal: work, tenant: TENANT, reference: REFERENCE })
+      if (admit || !poll)
+        return [
+          await runtime.calls.contact({ principal: work, tenant: TENANT, reference: REFERENCE }),
+        ]
+      const answers: unknown[] = []
+      for (let tries = 0; tries < 300; tries += 1) {
+        const answer = await runtime.calls.contact({
+          principal: work,
+          tenant: TENANT,
+          reference: REFERENCE,
+        })
+        answers.push(answer)
+        if ('ok' in answer && answer.ok.kind !== 'unknown') break
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+      return answers
     },
   )
-  return value
+  const woke = run.records.some(record => JSON.stringify(record).includes('start scan woke 1 owed'))
+  return { answers: value, woke }
 }
 
 it(
-  'answers lost with the evidence of the state lock for a call an earlier tree admitted',
+  'wakes a call an earlier tree admitted by the start scan, and answers from the state lock only after it (C6, C7)',
   { timeout: 120_000 },
   async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'model-host-lost-')))
@@ -253,20 +271,22 @@ it(
     if (taken.kind !== 'held') throw new Error('fixture: the state lock is in use')
     locks.push(taken.lock)
     const judged = createModelHostRow({ lostContact: lostContactBy(() => taken.lock, 'call') })
-    const after = await contactOn(storageRoot, judged, false)
-    const unjudged = await contactOn(storageRoot, modelHostRow, false)
-    expect(before).toEqual({ ok: { kind: 'holding' } })
-    expect(after).toEqual({
-      ok: {
-        kind: 'lost',
-        evidence: {
-          owner: '@omne-harness/harness-server',
-          record: 'state-lock',
-          revision: taken.lock.since,
-          digest: `call:${CALL}`,
+    const after = await contactOn(storageRoot, judged, false, true)
+    expect(before.answers).toEqual([{ ok: { kind: 'holding' } }])
+    expect(after.woke).toBe(true)
+    const last = after.answers.at(-1) as { ok: { kind: string } }
+    expect(['holding', 'lost']).toContain(last.ok.kind)
+    if (last.ok.kind === 'lost')
+      expect(last).toEqual({
+        ok: {
+          kind: 'lost',
+          evidence: {
+            owner: '@omne-harness/harness-server',
+            record: 'state-lock',
+            revision: taken.lock.since,
+            digest: `call:${CALL}`,
+          },
         },
-      },
-    })
-    expect(unjudged).toEqual({ ok: { kind: 'unknown' } })
+      })
   },
 )

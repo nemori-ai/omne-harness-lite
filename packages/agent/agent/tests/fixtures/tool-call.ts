@@ -1,4 +1,3 @@
-import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { testToolDefinition } from '@omne-harness/agent/testing'
 import { judgeBlockIdentity, type ContentBlock } from '@omne-harness/content-block'
 import type { ActionToolCall, ExecutionSnapshot, PendingCall } from '@omne-harness/agent-contract'
@@ -54,28 +53,8 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
         kind: 'available',
         executor: adoption('executor'),
         layer: { kind: 'official' },
-        definition: {
-          adoption: adoption('read_file'),
-          name: 'read_file',
-          description: 'Read a file.',
-          requiredCapabilities: [],
-          backgroundAllowed: false,
-          declarations: {
-            adoption: adoption('tool-declarations'),
-            environment: null,
-            attachments: [],
-            inputModalities: [],
-            outputModalities: [],
-            settings: null,
-          },
-          kind: 'function',
-          parameters: {
-            schema: { kind: 'object', entries: [] },
-            vocabulary: adoption('json-schema'),
-            descriptions: [],
-          },
-          returns: ordinaryReturnFixture(adoption('codec')),
-        },
+        definition: adoption('read_file'),
+        name: 'read_file',
       },
       command: null,
       arguments: { original: '{}', effective: '{}', complete: true },
@@ -83,7 +62,6 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
       settings: adoption('settings'),
       context: adoption('context'),
       workspace: null,
-      environment: null,
       requesterScope: { ref: 'tool-scope' },
       resources: [],
       scope: { owner: 'test-scope', key: 'one', grant: evidence('scope-grant') },

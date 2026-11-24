@@ -1,7 +1,9 @@
+import { validSelectionEffort } from './control-values.ts'
+import { originalContent } from './before-intake.ts'
 import { decidePermissionAssignment } from './permission-state.ts'
+import { incompleteAuthorization } from './authorizations.ts'
 import {
   DEFAULT_SESSION_INTAKE_LIMITS,
-  judgeSessionIntake,
   pendingIntakeCount,
   type SessionIntakeLimits,
 } from './intake.ts'
@@ -22,8 +24,15 @@ import type {
 } from './identity.ts'
 import type { Adoption } from './identity.ts'
 import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
-import type { BoundedClose, RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
-import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
+import type {
+  BoundedClose,
+  DeclarationChange,
+  RoutedInput,
+  RunTerminal,
+  WorkSnapshot,
+  WorkspaceAttachment,
+} from './values.ts'
+import type { HistoryEntry, ProducerFact, StartAdoption } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
 import {
@@ -49,8 +58,16 @@ import { decideManagement, decideControl } from './decide-management.ts'
 import { closeControlFailure, decideNamedControl } from './decide-control.ts'
 import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
-import { BACKGROUND_INPUT_OWNER } from './background-outcome.ts'
-import { residentEntries, completeEvidence } from './decision-support.ts'
+import { admitInput, readsWithTerms } from './decide-intake.ts'
+import type { AdmittedSource } from './input-sources.ts'
+import {
+  rejected,
+  invalid,
+  entries,
+  residentEntries,
+  completeEvidence,
+} from './decision-support.ts'
+import { judgeFork, judgeStanding } from './standing.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
 import { digestOf } from './operations.ts'
@@ -68,18 +85,6 @@ export const PATH_MUTATIONS = Object.freeze([
 ] as const satisfies readonly SessionCommand['kind'][])
 
 type Origin = HistoryEntry['origin']
-
-function rejected(failure: SessionFailure): Decision {
-  return { kind: 'rejected', failure }
-}
-
-function invalid(field: string, reason: string): Decision {
-  return rejected({ kind: 'invalid', field, reason })
-}
-
-function entries(list: readonly EncodedEntry[]): Decision {
-  return { kind: 'entries', entries: list }
-}
 
 function emptyAdoption(adoption: Adoption): boolean {
   return [adoption.owner, adoption.name, adoption.revision, adoption.digest].some(
@@ -152,6 +157,7 @@ function decideCreate(
   command: Extract<SessionCommand, { kind: 'create' }>,
   guards: readonly GuardCommand[],
   limits: SessionIntakeLimits,
+  reads: DecideReads,
 ): Decision {
   if (previous !== null) return invalid('session', 'the session already exists')
   const { creation } = command.input
@@ -164,6 +170,8 @@ function decideCreate(
   const initialModel = creation.initialModelSelection
   if (initialModel !== undefined && (!initialModel.name || !completeEvidence(initialModel.basis)))
     return invalid('creation.initialModelSelection', 'empty name or incomplete evidence')
+  if (!validSelectionEffort(initialModel?.reasoningEffort))
+    return invalid('creation.initialModelSelection.reasoningEffort', 'invalid reasoning effort')
   const workspace = judgeWorkspace(creation.workspace, creation.workspaceAttachment, {
     workspace: 'creation.workspace',
     attachment: 'creation.workspaceAttachment',
@@ -173,23 +181,30 @@ function decideCreate(
     return invalid('creation.modes.value.environment', 'incomplete adoption')
   if (creation.modes.kind === 'tenant-default' && emptyAdoption(creation.modes.source))
     return invalid('creation.modes.source', 'incomplete adoption')
-  const initialized = decideInitializationCreate(command, guards)
+  const standing = judgeStanding(command.input.session, creation, reads.related)
+  if ('kind' in standing) return standing
+  const forked = judgeFork(creation, reads.fork)
+  if (forked !== null) return forked
+  const initialized = decideInitializationCreate(command, guards, standing.tree)
   if (initialized.kind !== 'entries') return initialized
   const out = [...initialized.entries]
   if (creation.initial !== null) {
     if (creation.initial.input.length === 0 || creation.initial.message.blocks.length === 0)
       return invalid('creation.initial', 'the initial input has no identity or no content')
-    const limited = judgeSessionIntake(0, creation.initial, limits)
-    if (limited !== null) return rejected(limited)
-    out.push(...acceptedOrdinary(creation.initial, 'next-run', null))
+    const admitted = admitInput(creation.initial, 0, { reads, limits }, 'creation.initial')
+    if ('kind' in admitted) return admitted
+    out.push(...acceptedOrdinary(creation.initial, 'next-run', null, admitted.source))
   }
   return entries(out)
 }
 
+type Ordinary = Extract<RoutedInput, { kind: 'ordinary' }>
+
 function acceptedOrdinary(
-  input: Extract<SessionCommand, { kind: 'accept' }>['input']['value'] & { kind: 'ordinary' },
+  input: Ordinary,
   destination: 'current-run' | 'next-run',
   run: RunId | null,
+  source: AdmittedSource,
 ): EncodedEntry[] {
   return [
     encodeEntry(
@@ -204,7 +219,7 @@ function acceptedOrdinary(
       { owner: 'user', via: 'intake', source: input.origin },
     ),
     encodeEntry(
-      { kind: 'intake.routed', input: input.input, destination, run, origin: input.origin },
+      { kind: 'intake.routed', input: input.input, destination, run, origin: input.origin, source },
       sessionOrigin(input.origin, 'intake'),
     ),
   ]
@@ -214,6 +229,7 @@ function decideAccept(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'accept' }>,
   limits: SessionIntakeLimits,
+  reads: DecideReads,
 ): Decision {
   const { value } = command.input
   const route = routeInput(snapshot, value)
@@ -256,15 +272,13 @@ function decideAccept(
       if (value.kind !== 'ordinary') return invalid('value', 'not an ordinary input')
       if (snapshot.pending.includes(value.input))
         return invalid('value.input', 'an input of that identity was already accepted')
-      const limited = judgeSessionIntake(pendingIntakeCount(snapshot), value, limits)
-      if (limited !== null) return rejected(limited)
+      const admitted = admitInput(value, pendingIntakeCount(snapshot), { reads, limits }, 'value')
+      if ('kind' in admitted) return admitted
       const run = snapshot.run.kind === 'active' ? snapshot.run.run : null
-      return entries(acceptedOrdinary(value, route.destination, run))
+      return entries(acceptedOrdinary(value, route.destination, run, admitted.source))
     }
   }
 }
-
-export const LOGIN_ENTRY_OWNER = 'login-entry'
 
 function adoptionEntries(
   snapshot: WorkSnapshot,
@@ -285,19 +299,9 @@ function adoptionEntries(
   ])
 }
 
-function loggedIn(reads: DecideReads, first: InputId): boolean {
-  const stored = reads.firstInput
-  return (
-    stored !== undefined &&
-    stored.input === first &&
-    (stored.origin.owner === LOGIN_ENTRY_OWNER || stored.origin.owner === BACKGROUND_INPUT_OWNER)
-  )
-}
-
 function decideStartRun(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'startRun' }>,
-  reads: DecideReads,
 ): Decision {
   const judgment = judgeRunStart(snapshot, command.input.entry)
   if (judgment.kind !== 'eligible') {
@@ -305,8 +309,6 @@ function decideStartRun(
     if (judgment.kind === 'awaiting-person') return rejected({ kind: 'no-input' })
     return rejected({ kind: judgment.kind })
   }
-  if (command.input.entry === 'interactive' && !loggedIn(reads, judgment.first))
-    return rejected({ kind: 'login-required' })
   const { candidate, instance } = command.input
   if (emptyAdoption(candidate)) return invalid('candidate', 'incomplete adoption')
   if (instance.owner !== 'agent' || instance.id.length === 0)
@@ -438,6 +440,7 @@ function decideFinishRun(
         cause: bounded.kind === 'drive-refused' ? basis.evidence : null,
         disposition: null,
         bounded,
+        end: null,
       },
       sessionOrigin(source),
     ),
@@ -540,7 +543,38 @@ function decideDeclarationChange(
       basis: reads.permissionChange,
       source: commandEvidence(command.input.operation, 'change'),
     })
+  if (declaration.kind === 'authorization-expression')
+    return decideAuthorization(command, declaration)
   return decideChange(snapshot, command)
+}
+
+// Session keeps the person's expression and reduces it; whether it counts is Authorization's to say.
+function decideAuthorization(
+  command: Extract<SessionCommand, { kind: 'change' }>,
+  declaration: Extract<DeclarationChange, { kind: 'authorization-expression' }>,
+): Decision {
+  const missing = incompleteAuthorization(declaration.expression)
+  if (missing !== null) return invalid(`declaration.expression.${missing}`, 'incomplete expression')
+  if (!completeEvidence(declaration.authorization))
+    return invalid('declaration.authorization', 'incomplete evidence')
+  const entry = {
+    kind: 'session.authorization-expressed',
+    expression: declaration.expression,
+    authority: declaration.authorization,
+  } as const
+  return entries([
+    encodeEntry(entry, sessionOrigin(commandEvidence(command.input.operation, 'change'))),
+  ])
+}
+
+// A mode change names the permission revision it was read at; the commit checks it in the same transaction.
+function modeRevisionRefusal(
+  snapshot: WorkSnapshot,
+  change: Extract<DeclarationChange, { kind: 'permission-mode' }>,
+): Decision | null {
+  return change.expectedRevision === snapshot.permissions.revision
+    ? null
+    : { kind: 'rejected', failure: { kind: 'changed', revision: snapshot.revision } }
 }
 
 function decideChange(
@@ -555,8 +589,14 @@ function decideChange(
         ? declaration.basis
         : declaration.registration
   if (!completeEvidence(proof)) return invalid('declaration', 'incomplete evidence')
-  if (declaration.kind === 'model' && !declaration.name)
-    return invalid('declaration.name', 'empty model selection')
+  const moved =
+    declaration.kind === 'permission-mode' ? modeRevisionRefusal(snapshot, declaration) : null
+  if (moved !== null) return moved
+  if (declaration.kind === 'model') {
+    if (!declaration.name) return invalid('declaration.name', 'empty model selection')
+    if (!validSelectionEffort(declaration.reasoningEffort))
+      return invalid('declaration.reasoningEffort', 'invalid reasoning effort')
+  }
   if (
     declaration.kind === 'environment-mode' &&
     (emptyAdoption(declaration.value) || !completeEvidence(declaration.setting))
@@ -743,10 +783,22 @@ function decideDerived(
   ])
 }
 
+/** A replay is compared by what its sender brought: the facts an intake adds are not part of it. */
+function asBrought(input: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...input }
+  for (const key of ['value', 'urgent']) {
+    const routed = out[key] as Partial<Extract<RoutedInput, { kind: 'ordinary' }>> | undefined
+    if (routed?.kind === 'ordinary' && Array.isArray(routed.message?.blocks))
+      out[key] = { ...routed, message: originalContent(routed.message) }
+  }
+  return out
+}
+
 export function commandDigest(command: SessionCommand): string {
-  const { operation: _operation, ...rest } = command.input as Record<string, unknown> & {
+  const { operation: _operation, ...given } = command.input as Record<string, unknown> & {
     operation: SessionOperationId
   }
+  const rest = asBrought(given)
   const input =
     command.kind === 'create'
       ? {
@@ -805,8 +857,10 @@ function decideInterrupt(
     previous.pending.includes(command.input.urgent.input)
   )
     return invalid('urgent', 'empty or duplicate input')
-  const limited = judgeSessionIntake(pendingIntakeCount(previous), command.input.urgent, limits)
-  if (limited !== null) return rejected(limited)
+  const pending = pendingIntakeCount(previous)
+  const admitted = admitInput(command.input.urgent, pending, { reads, limits }, 'urgent')
+  if ('kind' in admitted) return admitted
+  const { source } = admitted
   const { urgent, decision, operation } = command.input
   const run = command.input.run ?? (previous.run.kind === 'active' ? previous.run.run : null)
   if (run === null) {
@@ -815,6 +869,7 @@ function decideInterrupt(
       previous,
       { kind: 'accept', input: { tenant, session, operation, value: urgent } },
       limits,
+      reads,
     )
   }
   const control = decideControl(
@@ -824,7 +879,7 @@ function decideInterrupt(
     reads,
   )
   return control.kind === 'entries'
-    ? entries([...acceptedOrdinary(urgent, 'current-run', run), ...control.entries])
+    ? entries([...acceptedOrdinary(urgent, 'current-run', run, source), ...control.entries])
     : control
 }
 
@@ -860,7 +915,7 @@ function decideCommand(
   const recalled = recallOperation(previous, command, guards, record)
   if (recalled !== null) return recalled
   const limits = reads.intakeLimits ?? DEFAULT_SESSION_INTAKE_LIMITS
-  if (command.kind === 'create') return decideCreate(previous, command, guards, limits)
+  if (command.kind === 'create') return decideCreate(previous, command, guards, limits, reads)
   if (previous === null) return rejected({ kind: 'denied', action: command.kind })
   switch (command.kind) {
     case 'addTodo':
@@ -870,9 +925,9 @@ function decideCommand(
     case 'completeInitialization':
       return decideInitializationComplete(previous, command, guards, reads)
     case 'accept':
-      return decideAccept(previous, command, limits)
+      return decideAccept(previous, command, limits, reads)
     case 'startRun':
-      return decideStartRun(previous, command, reads)
+      return decideStartRun(previous, command)
     case 'recordMessage':
       return decideRecordMessage(previous, command)
     case 'receive':
@@ -901,7 +956,7 @@ function decideCommand(
     case 'freeze':
       return decideFreeze(previous, command, reads)
     case 'control':
-    case 'setRelation':
+    case 'setResident':
     case 'configureAutoArchive':
     case 'considerAutoArchive':
     case 'recordIdle':
@@ -922,7 +977,7 @@ export function decide(
 ): Decision {
   try {
     const decision = closeControlFailure(
-      decideCommand(previous, command, guards, record, reads),
+      decideCommand(previous, command, guards, record, readsWithTerms(reads, guards)),
       command,
     )
     if (decision.kind === 'entries' && previous !== null && decision.entries.length > 0) {

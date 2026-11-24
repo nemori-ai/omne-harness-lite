@@ -224,6 +224,84 @@ describe('supply failure and interleaving boundaries', () => {
     expect(w.calls.handoff).toBe(1)
     expect(w.pending.size).toBe(1)
   })
+  describe('a definite persistence rejection settles the run, a missing provider does not', () => {
+    const rejecting = (
+      w: ReturnType<typeof world>,
+      reason: 'generationConflict' | 'providerUnavailable',
+    ) =>
+      createCalendarSupplyApplication({
+        ...w.deps,
+        persistence: {
+          ...w.deps.persistence,
+          async commitDisposition() {
+            w.calls.commit++
+            return { kind: 'rejected', reason, message: 'injected' }
+          },
+        },
+      })
+    it('completes a run refused with generationConflict and never resends it', async () => {
+      const w = world()
+      expect(await rejecting(w, 'generationConflict').refresh(context, intent)).toMatchObject({
+        kind: 'ok',
+        value: { kind: 'rejected', reason: 'generationConflict' },
+      })
+      const completions = [...w.completions.values()]
+      expect(completions).toMatchObject([{ kind: 'refused', reason: 'generationConflict' }])
+      expect(await w.deps.journal.pending({ systemScopeRef: 'test-scope', limit: 10 })).toEqual({
+        kind: 'ok',
+        value: [],
+      })
+      expect(
+        await w.app().health(context, {
+          calendarId: intent.calendarId,
+          policyVersion: intent.policyVersion,
+        }),
+      ).toMatchObject({
+        kind: 'ok',
+        value: { pendingRuns: 0, consecutiveFailures: 1 },
+      })
+      expect(await rejecting(w, 'generationConflict').recover(context, { limit: 10 })).toEqual({
+        kind: 'ok',
+        value: [],
+      })
+      expect(w.calls.commit).toBe(1)
+    })
+    it('keeps a run pending when the provider is unavailable and resends it on recovery', async () => {
+      const w = world()
+      const app = rejecting(w, 'providerUnavailable')
+      expect(await app.refresh(context, intent)).toMatchObject({
+        kind: 'ok',
+        value: { kind: 'rejected', reason: 'providerUnavailable' },
+      })
+      expect(w.completions.size).toBe(0)
+      expect(await app.recover(context, { limit: 10 })).toMatchObject({
+        kind: 'ok',
+        value: [{ kind: 'ok', value: { kind: 'rejected', reason: 'providerUnavailable' } }],
+      })
+      expect(w.calls.commit).toBe(2)
+      expect(w.completions.size).toBe(0)
+    })
+    it('follows the winner recorded under the same key instead of refusing the run', async () => {
+      const w = world()
+      const app = createCalendarSupplyApplication({
+        ...w.deps,
+        persistence: {
+          ...w.deps.persistence,
+          async commitDisposition(command) {
+            await w.deps.persistence.commitDisposition(command)
+            return { kind: 'rejected', reason: 'operationKeyConflict', message: 'lost the race' }
+          },
+        },
+      })
+      expect(await app.refresh(context, intent)).toMatchObject({
+        kind: 'ok',
+        value: { kind: 'recorded', receipt: { disposition: 'published' } },
+      })
+      expect([...w.completions.values()]).toMatchObject([
+        { kind: 'recorded', disposition: 'published' },
+      ])
+    })
+  })
   it('unknown fixed policy never appears as healthy', async () => {
     const w = world()
     expect(

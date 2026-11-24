@@ -7,13 +7,14 @@ import {
   decodeValue,
   EXECUTION_BATCH_MAX_FACTS,
   EXECUTION_FACT_MAX_BYTES,
-  EXECUTION_ITEM_MAX_BYTES,
   sha256,
 } from '../codec.ts'
 import { findPreadmission, preadmissionRecord } from './read-preadmission.ts'
 import { packText } from '@omne-harness/sql-contract/worker'
 import { big, oneRow, text, type Executor, type Row } from './support.ts'
 import { storeSharedBlob } from './shared-blobs.ts'
+import { storeExecutionBlock } from './execution-blocks.ts'
+import { parseAdoption, writeAdoption, type AdoptionWrite } from './adoption.ts'
 
 const PROTOCOL = '1'
 
@@ -33,11 +34,12 @@ type Boundary = Readonly<{
   revision: string
   receipt: JsonValue
   emittedThrough: string
+  acknowledged: string
   ended: JsonValue
 }>
 type Event = Readonly<{ sequence: string; kinds: readonly string[]; projection: Json }>
 type Fact = Readonly<{ execution: string; kind: string; event: Event | null; body: string }>
-type Blob = Readonly<{ digest: string; media: string; payload: string }>
+type Blob = Readonly<{ digest: string; media: string; payload: string; shared: boolean }>
 // One item of an execution view this publication opens or changes; `open` is its state after it.
 type Item = Readonly<{
   execution: string
@@ -47,6 +49,8 @@ type Item = Readonly<{
   open: boolean
   body: string
 }>
+type ItemKey = Readonly<{ execution: string; family: string; item: string }>
+type Content = ItemKey & Readonly<{ payload: string }>
 type Admission = Readonly<{
   input: string
   execution: string
@@ -68,8 +72,12 @@ type Write = Readonly<{
   facts: readonly Fact[]
   blobs: readonly Blob[]
   items: readonly Item[]
+  contents: readonly Content[]
+  discards: readonly ItemKey[]
   boundaries: readonly Boundary[]
   admissions: readonly Admission[]
+  settledBy: string | null
+  adoption: AdoptionWrite
 }>
 
 const INTEGER = /^(0|[1-9][0-9]{0,17})$/
@@ -100,13 +108,17 @@ function tenantOf(raw: JsonValue | undefined): string | null {
 }
 
 function parseBoundary(item: Json): Boundary | null {
-  const { execution, revision, emittedThrough } = item
-  return isText(execution) && isInteger(revision) && isInteger(emittedThrough)
+  const { execution, revision, emittedThrough, acknowledged } = item
+  return isText(execution) &&
+    isInteger(revision) &&
+    isInteger(emittedThrough) &&
+    isInteger(acknowledged)
     ? {
         execution,
         revision,
         receipt: item['receipt'] ?? null,
         emittedThrough,
+        acknowledged,
         ended: item['ended'] ?? null,
       }
     : null
@@ -139,12 +151,13 @@ function parseFact(execution: string): (item: Json) => Fact | null {
 }
 
 function parseBlob(item: Json): Blob | null {
-  const { digest, media, payload } = item
+  const { digest, media, payload, shared } = item
   return isText(digest) &&
     isText(media) &&
     typeof payload === 'string' &&
+    (shared === undefined || typeof shared === 'boolean') &&
     blobDigest(payload) === digest
-    ? { digest, media, payload }
+    ? { digest, media, payload, shared: shared === true }
     : null
 }
 
@@ -155,10 +168,33 @@ function parseItem(execution: string): (item: Json) => Item | null {
     if (!isText(owner) || !isText(family) || typeof item !== 'string' || !('body' in raw))
       return null
     if ((change !== 'opened' && change !== 'changed') || typeof open !== 'boolean') return null
-    const body = JSON.stringify(raw['body'] ?? null)
-    return utf8(body) > EXECUTION_ITEM_MAX_BYTES
-      ? null
-      : { execution: owner, family, item, change, open, body }
+    return {
+      execution: owner,
+      family,
+      item,
+      change,
+      open,
+      body: JSON.stringify(raw['body'] ?? null),
+    }
+  }
+}
+
+function parseItemKey(execution: string): (item: Json) => ItemKey | null {
+  return raw => {
+    const owner = raw['execution'] ?? execution
+    const { family, item } = raw
+    return isText(owner) && isText(family) && typeof item === 'string'
+      ? { execution: owner, family, item }
+      : null
+  }
+}
+
+function parseContent(execution: string): (item: Json) => Content | null {
+  const key = parseItemKey(execution)
+  return raw => {
+    const found = key(raw)
+    const { payload } = raw
+    return found !== null && typeof payload === 'string' ? { ...found, payload } : null
   }
 }
 
@@ -207,25 +243,60 @@ function parseHead(raw: Json): Head | null {
   return { tenant, session, execution, expected, revision, published, operation, digest }
 }
 
-function parseWrite(raw: JsonValue | undefined): Write | null {
-  if (!isJson(raw)) return null
+function brokenItem(raw: JsonValue | undefined, execution: string): string {
+  if (!Array.isArray(raw)) return 'the items are not a list'
+  const parse = parseItem(execution)
+  const found = (raw as readonly JsonValue[]).find(item => !isJson(item) || parse(item) === null)
+  if (!isJson(found)) return 'an item is not an object'
+  const bytes = utf8(JSON.stringify(found['body'] ?? null))
+  return `the item ${String(found['family'])}/${String(found['item'])} of ${String(bytes)} bytes`
+}
+
+// A publication, or the first rule it breaks: a refusal that does not name its rule cannot be told
+// from any other.
+function parseWrite(raw: JsonValue | undefined): Write | string {
+  if (!isJson(raw)) return 'not an object'
   const head = parseHead(raw)
-  if (head === null) return null
+  if (head === null) return 'the head'
   const facts = listOf(raw['facts'], parseFact(head.execution))
   const blobs = listOf(raw['blobs'] ?? [], parseBlob)
   const items = listOf(raw['items'] ?? [], parseItem(head.execution))
+  const contents = listOf(raw['contents'] ?? [], parseContent(head.execution))
+  const discards = listOf(raw['discards'] ?? [], parseItemKey(head.execution))
   const boundaries = listOf(raw['boundaries'], parseBoundary)
   const admissions = listOf(raw['admissions'], parseAdmission)
-  if (facts === null || blobs === null || items === null) return null
-  if (boundaries === null || admissions === null) return null
-  if (facts.length === 0 || facts.length > EXECUTION_BATCH_MAX_FACTS) return null
+  if (facts === null) return 'a fact'
+  if (blobs === null) return 'a blob'
+  if (items === null) return brokenItem(raw['items'], head.execution)
+  if (contents === null) return 'an item content'
+  if (discards === null) return 'an item content discard'
+  if (boundaries === null) return 'a boundary'
+  if (admissions === null) return 'an admission'
+  if (facts.length === 0) return 'no fact'
+  if (facts.length > EXECUTION_BATCH_MAX_FACTS) return `${String(facts.length)} facts in one batch`
   const events = facts.flatMap(fact =>
     fact.event === null ? [] : [JSON.stringify([fact.execution, fact.event.sequence])],
   )
-  if (new Set(events).size !== events.length) return null
+  if (new Set(events).size !== events.length) return 'two facts emit one event'
   const keys = items.map(item => JSON.stringify([item.execution, item.family, item.item]))
-  if (new Set(keys).size !== keys.length) return null
-  return { ...head, facts, blobs, items, boundaries, admissions }
+  const twice = keys.find((key, at) => keys.indexOf(key) !== at)
+  if (twice !== undefined) return `the item ${twice} is written twice`
+  const settledBy = raw['settledBy'] ?? null
+  if (settledBy !== null && !isText(settledBy)) return 'the settling writer generation'
+  const adoption = parseAdoption(raw, settledBy !== null)
+  if (typeof adoption === 'string') return adoption
+  return {
+    ...head,
+    facts,
+    blobs,
+    items,
+    contents,
+    discards,
+    boundaries,
+    admissions,
+    settledBy,
+    adoption,
+  }
 }
 
 const json = (value: JsonValue): string => JSON.stringify(value)
@@ -299,15 +370,37 @@ function writeItems(port: Executor, write: Write, pub: bigint): void {
   }
 }
 
-function storeBlobs(port: Executor, tenant: string, blobs: readonly Blob[]): void {
-  for (const blob of blobs) storeSharedBlob(port, tenant, blob)
+function storeBlobs(
+  port: Executor,
+  tenant: string,
+  execution: string | null,
+  blobs: readonly Blob[],
+): void {
+  for (const { shared, ...blob } of blobs)
+    if (shared || execution === null) storeSharedBlob(port, tenant, blob)
+    else storeExecutionBlock(port, tenant, execution, blob)
+}
+
+function writeContents(port: Executor, write: Write): void {
+  for (const content of write.contents)
+    port.execute(
+      'INSERT INTO er_item_content (tenant, execution, family, item, payload) VALUES (?, ?, ?, ?, ?)',
+      [write.tenant, content.execution, content.family, content.item, packText(content.payload)],
+    )
+  for (const key of write.discards)
+    port.execute(`DELETE FROM er_item_content WHERE ${ITEM_KEY}`, [
+      write.tenant,
+      key.execution,
+      key.family,
+      key.item,
+    ])
 }
 
 function writeIndex(port: Executor, write: Write): void {
   const { tenant, session } = write
   for (const boundary of write.boundaries)
     port.execute(
-      'INSERT OR REPLACE INTO er_execution (tenant, execution, session, revision, receipt, emitted_through, ended) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT OR REPLACE INTO er_execution (tenant, execution, session, revision, receipt, emitted_through, ended, acknowledged) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         tenant,
         boundary.execution,
@@ -316,6 +409,7 @@ function writeIndex(port: Executor, write: Write): void {
         json(boundary.receipt),
         BigInt(boundary.emittedThrough),
         boundary.ended === null ? null : json(boundary.ended),
+        BigInt(boundary.acknowledged),
       ],
     )
   for (const admission of write.admissions) {
@@ -371,14 +465,14 @@ function publish(port: Executor, write: Write): ParticipantReply {
   const published = root === undefined ? 0n : big(root['published'])
   const head = oneRow(
     port,
-    'SELECT session, revision FROM er_execution WHERE tenant = ? AND execution = ? LIMIT 1',
+    'SELECT session, revision, settled FROM er_execution WHERE tenant = ? AND execution = ? LIMIT 1',
     [tenant, execution],
   )
   const current = head === undefined ? null : text(head['revision'])
   if (
     published !== BigInt(write.published) ||
     current !== write.expected ||
-    (head !== undefined && text(head['session']) !== session)
+    (head !== undefined && (text(head['session']) !== session || head['settled'] !== null))
   )
     return {
       kind: 'conflict',
@@ -389,7 +483,8 @@ function publish(port: Executor, write: Write): ParticipantReply {
   const next = published + 1n
   appendBatch(port, write, next)
   writeItems(port, write, next)
-  storeBlobs(port, tenant, write.blobs)
+  writeContents(port, write)
+  storeBlobs(port, tenant, execution, write.blobs)
   port.execute(
     'INSERT INTO er_operation (tenant, operation, session, execution, digest, published) VALUES (?, ?, ?, ?, ?, ?)',
     [tenant, write.operation, session, execution, write.digest, next],
@@ -400,15 +495,57 @@ function publish(port: Executor, write: Write): ParticipantReply {
     session,
     next,
   ])
+  const broken = writeAdoption(port, { tenant, session, execution }, write.adoption)
+  if (broken !== null) return { kind: 'failed', diagnostic: broken }
+  if (write.settledBy !== null) reclaim(port, tenant, execution, next, write.settledBy)
   return { kind: 'participated', response: { published: String(next), digest: write.digest } }
+}
+
+function reclaim(
+  port: Executor,
+  tenant: string,
+  execution: string,
+  pub: bigint,
+  generation: string,
+): void {
+  const key = [tenant, execution]
+  port.execute('DELETE FROM er_fact WHERE tenant = ? AND execution = ?', key)
+  port.execute('DELETE FROM er_item WHERE tenant = ? AND execution = ?', key)
+  port.execute('DELETE FROM er_item_content WHERE tenant = ? AND execution = ?', key)
+  port.execute('DELETE FROM er_preadmission WHERE tenant = ? AND execution = ?', key)
+  port.execute('DELETE FROM er_block WHERE tenant = ? AND execution = ?', key)
+  const marked = port.execute(
+    'UPDATE er_execution SET settled = ?, settled_by = ? WHERE tenant = ? AND execution = ? AND ended IS NOT NULL',
+    [pub, generation, ...key],
+  )
+  if (marked.changes !== 1n) throw new Error('a settling publication names no ended execution')
+}
+
+// One writer generation writes at a time, so a generation other than the sweeping one is earlier.
+function sweep(port: Executor, raw: JsonValue | undefined): ParticipantReply {
+  const tenant = isJson(raw) ? tenantOf(raw['tenant']) : null
+  const generation = isJson(raw) ? raw['generation'] : undefined
+  if (tenant === null || !isText(generation)) return unsupported('the sweep is malformed')
+  port.execute(
+    `DELETE FROM er_operation WHERE tenant = ? AND execution IN
+      (SELECT execution FROM er_execution
+        WHERE tenant = ? AND settled IS NOT NULL AND settled_by <> ?)`,
+    [tenant, tenant, generation],
+  )
+  const swept = port.execute(
+    'DELETE FROM er_execution WHERE tenant = ? AND settled IS NOT NULL AND settled_by <> ?',
+    [tenant, generation],
+  )
+  return { kind: 'participated', response: { swept: String(swept.changes) } }
 }
 
 function blobs(port: Executor, raw: JsonValue | undefined): ParticipantReply {
   const tenant = isJson(raw) ? tenantOf(raw['tenant']) : null
   const list = isJson(raw) ? listOf(raw['blobs'], parseBlob) : null
-  if (tenant === null || list === null || list.length === 0)
+  const execution = isJson(raw) ? (raw['execution'] ?? null) : null
+  if (tenant === null || list === null || list.length === 0 || !optionalText(execution))
     return unsupported('the blocks are malformed')
-  storeBlobs(port, tenant, list)
+  storeBlobs(port, tenant, execution, list)
   return { kind: 'participated', response: { stored: list.map(blob => blob.digest) } }
 }
 
@@ -539,10 +676,11 @@ const participant: ParticipantModule = {
   execute(facts, port) {
     if (facts['intent'] === 'preadmission') return preadmission(port, facts)
     if (facts['intent'] === 'blobs') return blobs(port, facts['write'])
+    if (facts['intent'] === 'sweep') return sweep(port, facts['write'])
     if (facts['intent'] !== 'publish')
-      return unsupported('the facts are neither a publication, blocks nor a preadmission')
+      return unsupported('the facts are neither a publication, blocks, a sweep nor a preadmission')
     const write = parseWrite(facts['write'])
-    if (write === null) return unsupported('the publication is malformed')
+    if (typeof write === 'string') return unsupported(`the publication is malformed: ${write}`)
     return publish(port, write)
   },
 }

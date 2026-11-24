@@ -17,20 +17,30 @@ import type { SessionCursorSigning } from '@omne-harness/session-cordis-contract
 import {
   SessionDelegatedTransactionsService,
   SessionPrincipalBindingsService,
+  SessionHistoryLogService,
   SessionScopeOwnersService,
+  SessionSearchCursorsService,
   SessionTransactionPortService,
   sessionAccessCheckKey,
   sessionClockKey,
   sessionCursorSigningKey,
   sessionDelegatedTransactionsKey,
   sessionPrincipalBindingsKey,
+  sessionHistoryLogKey,
   sessionScopeOwnersKey,
+  sessionSearchCursorsKey,
   sessionTransactionsKey,
+  sessionDerivedInputsKey,
+  sessionInputSourcesKey,
 } from '@omne-harness/session-cordis-contract/cordis'
+import { runtimeContextTenantScopeKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
+import { createIntakeBudgetReader } from '@omne-harness/session-adapters/cordis'
 import { createSessionCommitNotifier } from '@omne-harness/session-cordis/cordis'
 import {
   createSessionPrincipalBindings,
+  createSearchCursorSeal,
   createSessionScopeOwners,
+  createSessionSearchLog,
   createSessionStorage,
   registerSessionNotifier,
   type SessionStorageOptions,
@@ -49,6 +59,7 @@ import {
   tenantDomainLookupKey,
   tenantDomainsKey,
 } from '@omne-harness/sql-contract/cordis'
+import { tenantScopePrincipalsKey } from '../../entry/tenant-scope-principals.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { storageCatalog } from '../storage/catalog.ts'
@@ -65,6 +76,18 @@ import { openTenantDirectory, type RegisterOutcome, type TenantDirectory } from 
 import { createTenantEnumeration } from './enumeration.ts'
 
 export const OWNER = 'apps/harness-server/session-storage'
+
+// The pending limit is the tenant's setting, read through the tenant-level scope when an input
+// already waits; the size limit stays this row's. While the scope is away that input is unavailable.
+function tenantBudgetOf(ctx: Context, config: SessionStorageRowConfig) {
+  return createIntakeBudgetReader<unknown>({
+    scope: () => ctx.get(runtimeContextTenantScopeKey),
+    principal: async tenant => ctx.get(tenantScopePrincipalsKey)?.forTenant(tenant) ?? null,
+    maxInputBytes: config.intakeLimits.maxInputBytes,
+    report: diagnostic =>
+      ctx.logger('session-storage').warn('the intake budget cannot be read: %s', diagnostic),
+  })
+}
 
 const unavailable = (diagnostic: string): Outcome<never, SessionFailure> =>
   fail<SessionFailure>({ kind: 'unavailable', owner: OWNER, diagnostic })
@@ -191,6 +214,7 @@ function unregisteredTenantIsAbsent<P>(
     commit: commit as SessionTransactionPort<P>['commit'],
     readWork: guard('readWork', view.readWork),
     readCurrentScope: guard('readCurrentScope', view.readCurrentScope),
+    readCall: guard('readWork', view.readCall),
     readInput: guard('readInput', view.readInput),
     queryOperation: guard('queryOperation', view.queryOperation),
     queryControlOperation: guard('queryControlOperation', view.queryControlOperation),
@@ -200,6 +224,7 @@ function unregisteredTenantIsAbsent<P>(
       next: guard('history.next', view.history.next),
       since: guard('history.since', view.history.since),
       readModelView: guard('history.readModelView', view.history.readModelView),
+      readForkPoint: guard('history.readModelView', view.history.readForkPoint),
       readCompactionContext: guard(
         'history.readCompactionContext',
         view.history.readCompactionContext,
@@ -266,6 +291,7 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
   readonly commit: SessionTransactionPort<unknown>['commit']
   readonly readWork: SessionTransactionPort<unknown>['readWork']
   readonly readCurrentScope: SessionTransactionPort<unknown>['readCurrentScope']
+  readonly readCall: SessionTransactionPort<unknown>['readCall']
   readonly readInput: SessionTransactionPort<unknown>['readInput']
   readonly queryOperation: SessionTransactionPort<unknown>['queryOperation']
   readonly queryControlOperation: SessionTransactionPort<unknown>['queryControlOperation']
@@ -283,6 +309,7 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
     this.commit = port.commit
     this.readWork = port.readWork
     this.readCurrentScope = port.readCurrentScope
+    this.readCall = port.readCall
     this.readInput = port.readInput
     this.queryOperation = port.queryOperation
     this.queryControlOperation = port.queryControlOperation
@@ -340,6 +367,22 @@ class TenantDomainRegistrationImpl extends TenantDomainRegistrationService {
       const registered = await directory.ensureRegistered(input.tenant)
       return registered.kind === 'ready' ? { kind: 'ready' } : registered
     }
+  }
+}
+
+class HistoryLogImpl extends SessionHistoryLogService {
+  readonly log: SessionHistoryLogService['log']
+  constructor(ctx: Context, log: SessionHistoryLogService['log']) {
+    super(ctx)
+    this.log = log
+  }
+}
+
+class SearchCursorsImpl extends SessionSearchCursorsService {
+  readonly seal: SessionSearchCursorsService['seal']
+  constructor(ctx: Context, seal: SessionSearchCursorsService['seal']) {
+    super(ctx)
+    this.seal = seal
   }
 }
 
@@ -407,6 +450,14 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     domains: directory.access,
     accessCheck,
     cursorSigning: lateBoundCursorSigning(ctx),
+    // Both are taken at each commit: while one is away, the intake that needs it is unavailable.
+    sources: {
+      lookup: name => ctx.get(sessionInputSourcesKey)?.lookup(name) ?? { kind: 'absent' },
+    },
+    derived: {
+      admission: kind => ctx.get(sessionDerivedInputsKey)?.admission(kind) ?? null,
+    },
+    ...(config.tenantBudget ? { budget: tenantBudgetOf(ctx, config) } : {}),
     // Without the service the commit has no time; it is never the wall clock of this process.
     clock: {
       sample: () =>
@@ -449,6 +500,9 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   new PrincipalBindingsImpl(ctx, bindings)
   const scopeOwners = createSessionScopeOwners({ storage, domains: directory.access })
   new ScopeOwnersImpl(ctx, input => scopeOwners.lookup(input))
+  // The history search reads the logs through the read handlers, and seals its cursors as the others are.
+  new HistoryLogImpl(ctx, createSessionSearchLog({ storage, domains: directory.access }))
+  new SearchCursorsImpl(ctx, createSearchCursorSeal({ signing: lateBoundCursorSigning(ctx) }))
   return {
     stop: deadline => {
       active = false
@@ -472,6 +526,8 @@ export const sessionStorageRow = defineRow({
       tenantDomainRegistrationKey,
       sessionPrincipalBindingsKey,
       sessionScopeOwnersKey,
+      sessionHistoryLogKey,
+      sessionSearchCursorsKey,
     ],
     injects: [storageKey, sessionAccessCheckKey],
     sameProviderGroup: null,

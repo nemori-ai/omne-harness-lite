@@ -3,7 +3,12 @@ import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { createPolicySessionAccessCheck, evidence } from '@omne-harness/session-contract/testing'
+import {
+  createPolicySessionAccessCheck,
+  evidence,
+  testingDerivedInputs,
+  testingInputSources,
+} from '@omne-harness/session-contract/testing'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import type { SqlStorage, TenantDomain, TenantDomainAccess } from '@omne-harness/sql-contract'
 import { createSessionStorage } from '../../src/index.ts'
@@ -36,17 +41,17 @@ function writeRows(
 ) {
   const db = new DatabaseSync(file)
   try {
-    const resident = db.prepare(
-      'INSERT INTO sl_resident_idx (resident_key, tenant, session, capability, shape) VALUES (?, ?, ?, ?, ?)',
+    const shape = db.prepare(
+      'INSERT OR IGNORE INTO sl_resident_shape (tenant, digest, shape) VALUES (?, ?, ?)',
     )
-    for (const row of residents)
-      resident.run(
-        row.key,
-        textOf(row.tenant ?? row.domain),
-        row.session,
-        row.capability,
-        JSON.stringify({ capability: row.capability }),
-      )
+    const resident = db.prepare(
+      'INSERT INTO sl_resident_idx (resident_key, tenant, session, capability, shape_digest) VALUES (?, ?, ?, ?, ?)',
+    )
+    for (const row of residents) {
+      const tenant = textOf(row.tenant ?? row.domain)
+      shape.run(tenant, `shape-${row.capability}`, JSON.stringify({ capability: row.capability }))
+      resident.run(row.key, tenant, row.session, row.capability, `shape-${row.capability}`)
+    }
     const scope = db.prepare(
       'INSERT INTO sl_released_scope_idx (tenant, session, scope, data) VALUES (?, ?, ?, ?)',
     )
@@ -124,9 +129,15 @@ export async function openSystemReads(rows: SystemRows) {
     accessCheck: createPolicySessionAccessCheck<string>(request =>
       denied.has(request.operation)
         ? { kind: 'denied' }
-        : { kind: 'allowed', evidence: evidence(`access/${request.operation}`) },
+        : {
+            kind: 'allowed',
+            evidence: evidence(`access/${request.operation}`),
+            subject: { kind: 'member' },
+          },
     ),
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination: real.combination,
   })
 

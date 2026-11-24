@@ -24,6 +24,9 @@ describe('Windows', () => {
       hostFilesDir: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\host-files',
       defaultWorkspace: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\workspace',
       assetsRoot: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\assets',
+      historyIndexRoot: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\history-index',
+      mediaRoot: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\media',
+      pluginFloorDir: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\plugin-floor',
     })
   })
 

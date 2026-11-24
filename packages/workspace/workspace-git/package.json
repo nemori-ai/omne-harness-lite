@@ -1,0 +1,38 @@
+{
+  "name": "@omne-harness/workspace-git",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Git management type: a directory that is a working copy; reads the repository and the commit from files, and starts no program",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/workspace-contract": "workspace:*",
+    "@omne-harness/workspace-filesystem": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/workspace": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

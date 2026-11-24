@@ -7,6 +7,7 @@ import {
   ModelSendBoundaryService,
   modelCommandsKey,
   modelCredentialKey,
+  modelMediaSourceKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { assembleLocalModel, type LocalModel, type LocalModelConfig } from '../assembly.ts'
 import { fieldOf, isIntegerAtLeast } from '../fields.ts'
@@ -16,7 +17,7 @@ import type { ModelReceiveEvidenceReader } from '../receive-evidence.ts'
 export type ModelSendStagePluginOptions<P = unknown> = Readonly<
   Omit<
     LocalModelConfig<P>,
-    'credentials' | 'commands' | 'maxRetainedAttempts' | 'onConnectRetry'
+    'credentials' | 'commands' | 'maxRetainedAttempts' | 'onConnectRetry' | 'media'
   > & {
     executionChannel?(): ReturnType<ModelInitialExecution<P>['openHost']>
     installMaterialization?(reader: ModelMaterializationEvidenceReader): () => void
@@ -97,6 +98,7 @@ export function sendStagePluginOver<P>(
     static readonly Config = modelSendStageConfigSchema
 
     readonly send: ModelSendBoundary<P>['send']
+    readonly lookupCost: NonNullable<ModelSendBoundary<P>['lookupCost']>
 
     constructor(ctx: Context, settings: ModelSendStageSettings) {
       super(ctx)
@@ -122,6 +124,8 @@ export function sendStagePluginOver<P>(
           execution: channel?.qualifyExecution ?? options.materialization.execution,
         },
         maxRetainedAttempts: settings.maxRetainedAttempts,
+        // Asked at every read: the source may come and go while the send stage lives.
+        media: () => ctx.get(modelMediaSourceKey) ?? null,
         onConnectRetry: retry =>
           ctx.logger.warn(
             `model send: connect retry (call ${retry.call}, dispatch ${retry.dispatch}, retry ${retry.attempt}, delay ${retry.delayMs} ms, reason ${retry.reason})`,
@@ -139,6 +143,8 @@ export function sendStagePluginOver<P>(
         throw error
       }
       this.send = (demand, signal) => local.send.send(demand, signal)
+      this.lookupCost = (input, signal) =>
+        local.send.lookupCost?.(input, signal) ?? Promise.resolve({ kind: 'unsupported' })
       ctx.fiber.effect(() => async () => {
         credentials.withdraw()
         withdrawEvidence(ctx, withdrawals)

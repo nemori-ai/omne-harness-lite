@@ -1,6 +1,9 @@
 import { afterEach, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import canonicalize from 'canonicalize'
+import type { SettingsTarget } from '@omne-harness/settings'
 import { openCatalogWorld } from './catalog-world.ts'
 import { definition, sibling } from './world.ts'
 const opened: Awaited<ReturnType<typeof openCatalogWorld>>[] = []
@@ -60,6 +63,18 @@ it('aggregates real target state, retains values across declaration unload and d
     }),
   ).toEqual({ kind: 'rejected', reason: 'forbidden' })
 })
+it('reads a target the registry does not name without its provider, and reports a named one whose provider is unloaded', async () => {
+  let named: readonly SettingsTarget[] = []
+  const w = await openCatalogWorld({ registryTargets: () => named })
+  opened.push(w)
+  expect(await w.write(w.principal, w.change)).toMatchObject({ kind: 'committed' })
+  w.registry.releaseContribution(w.registration.registrationId)
+  const read = () => w.service.queries.readCatalog(w.principal, request(w.view))
+  expect(await read()).toMatchObject({ kind: 'catalog', completeness: 'complete' })
+  named = [{ ...w.change.target, scopeRef: `${w.change.target.scopeRef}-other` }, w.change.target]
+  expect(await read()).toMatchObject({ kind: 'catalog', completeness: 'partial' })
+})
+
 it('requires validated runtime selection and rechecks real membership before every read', async () => {
   const w = await open()
   const runtime = { ...w.view, mode: 'runtime', targets: [w.change.target] }
@@ -309,3 +324,91 @@ it.each(['before', 'after'] as const)(
     })
   },
 )
+
+function counted(file: string, queries: Record<string, string>) {
+  const db = new DatabaseSync(file, { readOnly: true })
+  try {
+    return Object.fromEntries(
+      Object.entries(queries).map(([name, sql]) => [
+        name,
+        Number((db.prepare(sql).get() as { n: number }).n),
+      ]),
+    )
+  } finally {
+    db.close()
+  }
+}
+const domainFile = (root: string, transactionDomain: string) =>
+  join(root, 'domains', `${Buffer.from(transactionDomain).toString('hex')}.sqlite`)
+function captureLeftovers(w: Awaited<ReturnType<typeof openCatalogWorld>>) {
+  const receipts = (operation: string) =>
+    `SELECT count(*) AS n FROM _sql_receipt WHERE operation = '${operation}'`
+  return {
+    ...counted(domainFile(w.world.root, w.world.domain.transactionDomain), {
+      terminals: 'SELECT count(*) AS n FROM st_catalog_terminals',
+      captures: receipts('settings.capture'),
+      seals: receipts('settings.catalog-seal'),
+    }),
+    ...counted(domainFile(w.identityRoot, 'system.identity'), {
+      reservations: 'SELECT count(*) AS n FROM id_standing_reservation',
+      coordination: receipts('identity.coordination'),
+    }),
+  }
+}
+
+it('leaves no capture terminal, capture receipts or reservation once a management read settles', async () => {
+  const w = await open()
+  const before = captureLeftovers(w)
+  const first = await w.catalog.read(w.principal, w.view)
+  expect(first).toMatchObject({ completeness: 'complete' })
+  const settled = { ...before, terminals: 0, captures: 0, seals: 0, reservations: 0 }
+  expect(captureLeftovers(w)).toEqual(settled)
+  expect(await w.catalog.read(w.principal, w.view)).toEqual(first)
+  expect(captureLeftovers(w)).toEqual(settled)
+})
+
+it('keeps a successful read when the capture cleanup fails, and the next catalog clears what it kept', async () => {
+  const warnings: string[] = []
+  const w = await openCatalogWorld({
+    warn: message => warnings.push(message),
+    wrapCatalog: storage => ({
+      ...storage,
+      async commit(input) {
+        return input.identity.operation === 'settings.catalog-release'
+          ? { kind: 'unknown', identity: input.identity, diagnostic: 'fixture-lost' }
+          : storage.commit(input)
+      },
+    }),
+  })
+  opened.push(w)
+  const before = captureLeftovers(w)
+  const first = await w.catalog.read(w.principal, w.view)
+  expect(first).toMatchObject({ completeness: 'complete' })
+  expect(warnings).toEqual(['settings catalog capture kept its records: unknown'])
+  expect(captureLeftovers(w)).toEqual({ ...before, terminals: 1, captures: 1, seals: 1 })
+  expect(await w.reopenCatalog().read(w.principal, w.view)).toMatchObject({
+    completeness: 'complete',
+    views: 'views' in first ? first.views : [],
+  })
+  expect(captureLeftovers(w)).toEqual({ ...before, terminals: 0, captures: 0, seals: 0 })
+})
+
+it('settles and clears an interrupted capture on the next catalog first read', async () => {
+  const w = await openCatalogWorld({
+    wrapReservations: reservations => ({
+      ...reservations,
+      settle: async () => ({ kind: 'unavailable', diagnostic: 'fixture-interrupted' }),
+    }),
+  })
+  opened.push(w)
+  const before = captureLeftovers(w)
+  expect(await w.catalog.read(w.principal, w.view)).toEqual({
+    kind: 'rejected',
+    reason: 'basis_changed',
+  })
+  expect(captureLeftovers(w)).toEqual({ ...before, terminals: 1, captures: 1, reservations: 1 })
+  expect(await w.reopenCatalog().read(w.principal, w.view)).toMatchObject({
+    completeness: 'complete',
+  })
+  expect(captureLeftovers(w)).toEqual({ ...before, terminals: 0, captures: 0, seals: 0 })
+})

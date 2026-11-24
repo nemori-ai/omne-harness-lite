@@ -6,7 +6,7 @@ import {
   type ObserveEnd,
   type ObserveRequest,
 } from '@omne-harness/sdk/core'
-import type { ServerConnector } from '../../src/main-core/index.ts'
+import type { ServerConnector } from '../../src/forwarding/rules.ts'
 
 export const TENANT_TEXT = JSON.stringify({
   organization: 'org_00000000000000000000000000',
@@ -49,6 +49,7 @@ export type Seen = {
   readonly target: string
   readonly credentials: Credentials
   readonly body: unknown
+  readonly revision?: number
 }
 
 type Answer = (seen: Seen) => CallReport | Promise<CallReport>
@@ -70,6 +71,9 @@ const DEFAULTS: Readonly<Record<string, Answer>> = {
   'identity/v1 query-current-tenant': () => answered('succeeded', { tenantId: TENANT_TEXT }),
 }
 
+const revised = (request: { readonly revision?: number }): { revision?: number } =>
+  request.revision === undefined ? {} : { revision: request.revision }
+
 export function fakeServer(): FakeServer {
   const seen: Seen[] = []
   const answers = new Map<string, Answer>()
@@ -78,14 +82,14 @@ export function fakeServer(): FakeServer {
     createInProcessTransport({
       async call(request) {
         const target = `${request.protocol.name}/v${request.protocol.major} ${request.operation}`
-        const record = { target, credentials, body: plain(request.body) }
+        const record = { target, credentials, body: plain(request.body), ...revised(request) }
         seen.push(record)
         const answer = answers.get(target) ?? DEFAULTS[target] ?? (() => answered('succeeded'))
         return answer(record)
       },
       async *observe(request) {
         const target = `${request.protocol.name}/v${request.protocol.major} ${request.observation}`
-        const record = { target, credentials, body: plain(request.open) }
+        const record = { target, credentials, body: plain(request.open), ...revised(request) }
         seen.push(record)
         const stream = streams.get(target)
         if (stream === undefined) return { kind: 'refused', outcome: 'basis-unavailable' }

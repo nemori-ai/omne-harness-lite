@@ -1,13 +1,20 @@
 import type { CategoryView } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
+import type { GovernanceDefinitionSource } from '@omne-harness/governance-contract'
+import type { GovernanceAdmissionGrant } from '@omne-harness/governance-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
-import type { SettingDefinitions, createSettingsRegistry } from '@omne-harness/settings'
+import { organizationCodec } from '@omne-harness/legal-identity'
+import type { SettingDefinitions } from '@omne-harness/settings'
 import { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
+import type { ReadUnavailableReason } from '@omne-harness/sql-contract'
+import type { CategoryGateTemplate } from '../../entry/category-gates.ts'
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
+import { createCategoryCapabilities } from './category-capabilities.ts'
 import { governedCapture } from './governed-capture.ts'
-import { heldDefinitionsOf } from './held-definitions.ts'
 import { independentTargetsOf } from './independent-settings.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
+import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
 import { installToolGovernance, toolInstallationGrants } from './tool-installation.ts'
 import type {
   TenantAssetsAccess,
@@ -20,14 +27,33 @@ export type InstalledTenantOptions = Omit<
   Parameters<typeof prepareTenantGovernanceWithSettings>[0],
   'capture'
 > & {
+  categoryGates?: readonly CategoryGateTemplate[]
+  declarePermission?(declaration: PermissionDeclaration): () => void
+  assetsChanged?(listener: () => void): () => void
   installationPrincipal: ActingForTenantPrincipal
   release: Extract<ToolRelease, { kind: 'trusted' }>
+  installationConcurrency: number
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
   categories: Pick<CategoryView, 'list' | 'lookup'>
   tenantAssets(): Promise<AssetsLocal | undefined>
   independentSettings(): readonly SettingDefinitions[]
-  /** The registry the catalog reads: the definitions of held versions are registered in it before a read. */
-  registry: ReturnType<typeof createSettingsRegistry>
+  warn(message: string): void
+}
+
+// A catalog that could not be read names the closed reason the store gave, never its diagnostic.
+const faultOf = (phase: string, refusal: ReadUnavailableReason | null): string =>
+  `tool installation ${phase}${phase === 'catalog' && refusal !== null ? ` (${refusal})` : ''}`
+
+function eitherSource(
+  first: GovernanceDefinitionSource,
+  second: GovernanceDefinitionSource,
+): GovernanceDefinitionSource {
+  return {
+    async resolve(identity) {
+      const found = await first.resolve(identity)
+      return found.kind === 'unavailable' ? second.resolve(identity) : found
+    },
+  }
 }
 
 export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) {
@@ -36,16 +62,37 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
     scope: structuredClone(input.scope),
     domain: structuredClone(input.domain),
   }
-  const assembly = prepareTenantGovernanceWithSettings({
+  const given = input.grants
+  const grants: () => readonly GovernanceAdmissionGrant[] =
+    typeof given === 'function' ? given : () => given
+  const organization = organizationCodec.encode(options.installationPrincipal.tenant.organization)
+  if (!organization.ok) throw new Error('governance organization unavailable')
+  const capture = governedCapture(options.categories)
+  const capabilities = createCategoryCapabilities({
+    templates: options.categoryGates ?? [],
+    scope: options.scope,
+    domain: options.domain,
+    storage: options.storage,
+    read: options.materials.readHandlers.find(item => item.handler === GOVERNANCE_PROJECTION_READ),
+    capture,
+    principal: options.installationPrincipal,
+    organizationId: organization.value,
+    organizationTargets: options.organizationTargets,
+    declare: options.declarePermission ?? (() => () => {}),
+    warn: options.warn,
+  })
+  const { releaseSettings, ...assembly } = prepareTenantGovernanceWithSettings({
     ...options,
-    capture: governedCapture(options.categories),
+    capture,
     permissionRelease: () => options.release,
-    grants: [
-      ...options.grants,
+    definitions: eitherSource(options.definitions, capabilities.definitions),
+    grants: () => [
+      ...grants(),
       ...toolInstallationGrants({
         principal: options.installationPrincipal,
         scope: options.scope,
         release: options.release,
+        owners: capabilities.owners(),
       }),
     ],
   })
@@ -64,8 +111,12 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
       await targetsOwner.close()
       return runtime
     }
+    const unsubscribe = options.assetsChanged?.(() => capabilities.changed()) ?? (() => {})
     const closeRuntime = runtime.close
     async function close() {
+      unsubscribe()
+      capabilities.close()
+      await capabilities.settled()
       const result = await closeRuntime()
       if (result.kind === 'closed') await targetsOwner.close()
       return result
@@ -79,11 +130,17 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         scope: options.scope,
         epoch: runtime.epoch,
         release: options.release,
+        concurrency: options.installationConcurrency,
         service: runtime.service,
         assets,
         organizationTargets: options.organizationTargets,
+        releaseSettings,
+        warn: options.warn,
+        adoptCollection: tools =>
+          capabilities.open({ epoch: runtime.epoch, service: runtime.service, tools }),
       })
-      fault = installed.kind === 'installed' ? undefined : `tool installation ${installed.phase}`
+      fault =
+        installed.kind === 'installed' ? undefined : faultOf(installed.phase, runtime.readRefusal())
     } catch {
       fault = 'tool installation threw'
     } finally {
@@ -108,10 +165,8 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         : assets.readHolding(input)
     },
   }
-  const heldDefinitions = heldDefinitionsOf(options)
   const readSettings: TenantSettingsAccess['read'] = async request => {
     await independentTargets.ensure(options.independentSettings())
-    await heldDefinitions.ensure(await options.tenantAssets())
     return assembly.readSettings(request)
   }
   return {

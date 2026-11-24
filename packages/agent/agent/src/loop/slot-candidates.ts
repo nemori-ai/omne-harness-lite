@@ -11,7 +11,7 @@ import type {
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Message } from '@omne-harness/message'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { guidanceOf } from './admission-chain.ts'
+import { denialOf } from './admission-chain.ts'
 import { rewrittenCandidate } from './extension-positions.ts'
 import { localFailure } from './node-failure.ts'
 import {
@@ -19,7 +19,6 @@ import {
   candidateDigest,
   deniedCandidate,
   deniedUnchecked,
-  guidedCandidate,
   placeholderCandidate,
   toolCallAnswerOf,
   toolCallOf,
@@ -72,12 +71,8 @@ export function createSlotCandidates<P>(host: SlotCandidatesHost<P>) {
     if (answer === undefined) {
       if (deniedUnchecked(execution, host.batch(), action))
         return succeed(uncheckedCandidate(execution, action))
-      const words = guidanceOf(host.passages(), action.id)
-      return succeed(
-        words === null
-          ? deniedCandidate(execution, action)
-          : guidedCandidate(execution, action, words),
-      )
+      const denial = denialOf(host.passages(), action.id)
+      return succeed(deniedCandidate(execution, action, denial))
     }
     const material = await host.materials.read({ ...access, source: answer })
     if ('failure' in material) return material

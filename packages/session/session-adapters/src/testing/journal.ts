@@ -1,10 +1,12 @@
-import { acceptanceIn, compactionGeneration } from '@omne-harness/agent-contract'
+import { compactionGeneration } from '@omne-harness/agent-contract'
 import { pendingCalls } from './pending.ts'
 import { controlStageOf, controlTarget, type ToolControlRecord } from './journal-controls.ts'
 import { canonical, canonicalOfKept } from './canonical.ts'
 import { openEffectsAt, openSnapshotItems } from './execution-open-set.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
-import { closedObligations, landClosed } from './closed-items.ts'
+import { closedObligations, landClosed, landOnce } from './closed-items.ts'
+import { landEntry } from './closed-rows.ts'
+import { eventPage } from './event-pages.ts'
 import {
   admissionCounters,
   admissionProjectionOf,
@@ -26,15 +28,18 @@ import {
 import { closedBindingOf } from './binding-targets.ts'
 import { createInputRanges } from './input-ranges.ts'
 import { issueFacts, LEDGER_KINDS, obligationChanges, touchedBy } from './obligation-ledger.ts'
-import { closedReceived } from './received-records.ts'
+import { acknowledgedFacts } from './obligation-ledger.ts'
 import {
   fixAnswer,
+  keptAnswer,
   operationAnswer,
   reachedStamp,
   receiptIn,
   recognitionBatch,
   recognitionOf,
   recognizedAnswer,
+  restoredAnswer,
+  type AnswerKeeping,
 } from './operation-answers.ts'
 import type {
   AcceptedInput,
@@ -49,10 +54,11 @@ import type {
   CallerCommit,
   CommandReceipt,
   ConsumerRef,
+  ConsumptionId,
   ControlRecord,
   ControlStage,
   EffectIntent,
-  EventPage,
+  ReceivedEntry,
   DurableEvidence,
   ExecutionControl,
   ExecutionHandoff,
@@ -139,7 +145,8 @@ import {
   blobsOf,
   checkpointOf,
   cursorMoved,
-  cursorOf as cursorMembersOf,
+  holdsMoved,
+  cursorPlaced,
   emptyExecutionView,
   modelAttempt,
   receiptOf as batchReceiptOf,
@@ -188,19 +195,27 @@ import {
   supersessionOf,
   type RecordedSettlement,
 } from './journal-finishing.ts'
+import { settlementKeeping } from './settlement-answers.ts'
 import {
   type CandidateRequest,
   type CustodyRequest,
   type HandoffApply,
   copy,
   custodyTargetFailure,
+  custodyBasis,
+  custodyChain,
+  custodyGroups,
   handoffRecord,
+  heldHandoff,
+  acceptedInput,
+  inputAcceptanceOf,
   invalid,
   preparedHandoff,
   retiredHandoff,
   sameEvidence,
   sameValue,
   undetermined,
+  validatedCustody,
 } from './journal-handoff-checks.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
@@ -409,6 +424,8 @@ export type MemoryExecution = {
   admissions: (AdmissionRecord | undefined)[]
   admissionLedger: AdmissionLedger
   entries: AgentJournalEntry[]
+  // Every entry each consumption it still holds received, in order.
+  deliveries: Map<ConsumptionId, readonly ReceivedEntry[]>
   handoffs: HandoffRecord[]
   custodyAttempts: Map<AgentOperationId, CustodyAttempt>
   finishing: FinishingRecords
@@ -468,7 +485,6 @@ export type OperationRecord = Committed | Rejected | Excluded | Pending
 export type Attempt<R> =
   | Readonly<{ kind: 'answer'; value: Outcome<R, Failure> }>
   | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'write'; value: R; receipt: CommandReceipt; apply: () => void }>
   | Readonly<{
       kind: 'batch'
       facts: readonly FactBody[]
@@ -911,11 +927,17 @@ export function createJournal<P>(
     prepare: () => Attempt<R>,
     beforeRecognition?: () => Failure | undefined,
     onDropped?: () => void,
+    keeping?: AnswerKeeping<R>,
   ): Promise<Outcome<R, Failure>> {
     const entered = enter(method, input)
     if ('failure' in entered) return entered
     await cell.wait(input, method)
     let decision: JointDecision | null = null
+    const { fault } = entered.ok
+    const transacted = () =>
+      cell.transact(input, method, () =>
+        run(method, fault, input, key, prepare, beforeRecognition, decision, onDropped, keeping),
+      )
     if (method === 'commit' || method === 'recordResult') {
       const caller =
         method === 'commit'
@@ -944,28 +966,14 @@ export function createJournal<P>(
         const refused = beforeRecognition?.()
         if (refused) return fail(refused)
         const preview = prepare()
-        if (preview.kind === 'answer')
-          return cell.transact(input, method, () =>
-            run(
-              method,
-              entered.ok.fault,
-              input,
-              key,
-              prepare,
-              beforeRecognition,
-              decision,
-              onDropped,
-            ),
-          )
+        if (preview.kind === 'answer') return transacted()
         if (preview.kind === 'unknown')
           return fail({ kind: 'commit-unknown', operation: input.operation })
         const failure = await options.prepareResult(input, method)
         if (failure) return fail(failure)
       }
     }
-    return cell.transact(input, method, () =>
-      run(method, entered.ok.fault, input, key, prepare, beforeRecognition, decision, onDropped),
-    )
+    return transacted()
   }
 
   function enter(
@@ -993,6 +1001,7 @@ export function createJournal<P>(
     beforeRecognition?: () => Failure | undefined,
     decision: JointDecision | null = null,
     onDropped?: () => void,
+    keeping?: AnswerKeeping<R>,
   ): TransactionAnswer<R> {
     const answered = (outcome: Outcome<R, Failure>): TransactionAnswer<R> => ({
       kind: 'answered',
@@ -1052,7 +1061,7 @@ export function createJournal<P>(
               kind: 'answered',
               value:
                 original.kind === 'committed'
-                  ? succeed(copy(original.value) as R)
+                  ? succeed(restoredAnswer(original.value, keeping))
                   : fail(copy(original.failure)),
             }
         }
@@ -1095,27 +1104,14 @@ export function createJournal<P>(
         fixAnswer(state(), at, input, {
           kind: 'committed',
           key,
-          value: copy(value),
+          value: keptAnswer(value, keeping),
           receipt,
           ...(prepared.match === undefined ? {} : { match: prepared.match }),
         })
         return { kind: 'wrote', value }
       }
-      prepared.apply()
-      const captured = cell.committed(input, method, prepared.receipt)
-      if (captured) return { kind: 'answered', value: fail(captured) }
-      if (method !== 'tryFinish') {
-        const participation = cell.participate(input, method, prepared.receipt, decision)
-        if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
-      }
-      cell.touch()
-      fixAnswer(state(), at, input, {
-        kind: 'committed',
-        key,
-        value: copy(prepared.value),
-        receipt: prepared.receipt,
-      })
-      return { kind: 'wrote', value: prepared.value }
+      const _exhaustive: never = prepared
+      return _exhaustive
     }
 
     const decide = (run: Run) => {
@@ -1197,11 +1193,13 @@ export function createJournal<P>(
     const advanced = advances({ ...built, pub })
     const rev = advanced ? current + 1 : current
     const batch: PublishedBatch = { ...built, envelope: { ...envelope, rev }, pub }
+    const prior = agent.view
+    const landed = landOnce(agent, prior, batch)
+    if (landed === null) return fail(conflict(input.operation))
     for (const [digest, value] of prepared.blobs)
       if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
     agent.log = [...agent.log, batch]
-    const prior = agent.view
-    agent.view = landClosed(agent, agent.view, batch)
+    agent.view = landed
     const folded = agent.view.executions.get(input.execution)
     if (folded === undefined || folded.revision !== rev)
       throw new TypeError('the fold did not reach the revision the envelope names')
@@ -1430,42 +1428,14 @@ export function createJournal<P>(
     })
   }
 
-  function readPage(
-    execution: Execution,
-    after: string | null,
-    limit: number,
-  ): Outcome<EventPage, Failure> {
-    const position = sequenceOf(after)
-    if (position === undefined || position > execution.events.length) {
-      return fail(invalid('after', 'not a sequence of this execution'))
-    }
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > readLimit) {
-      return fail(invalid('limit', `not a positive integer up to ${readLimit}`))
-    }
-    if (position + 1 < execution.retainedFrom) {
-      return succeed({
-        kind: 'gap',
-        retainedFrom: String(execution.retainedFrom),
-        recovery: journalEvidence(`${cell.namespace}/${execution.id}/recovery`, execution.revision),
-      })
-    }
-    const events = execution.events.slice(position, position + limit)
-    if (events.some(event => !event) || Array.from(events).some(event => !event)) {
-      cell.quarantine('confirmed original event gap')
-      return fail({
-        kind: 'unavailable',
-        owner: 'session-history',
-        diagnostic: 'confirmed original event gap',
-      })
-    }
-    const next = position + events.length
-    return succeed({
-      kind: 'page',
-      events: copy(events),
-      next: String(next),
-      caughtUp: next === execution.events.length,
-    })
-  }
+  const readPage = (execution: Execution, after: string | null, limit: number) =>
+    eventPage(
+      { table: state(), namespace: cell.namespace, readLimit, mint, eventSchema },
+      execution,
+      after,
+      limit,
+      () => cell.quarantine('confirmed original event gap'),
+    )
 
   function stateOf(execution: Execution): ExecutionState {
     if (execution.state.kind !== 'settling') return execution.state
@@ -1491,7 +1461,7 @@ export function createJournal<P>(
       revision: execution.revision,
       checkpoint: execution.checkpoint,
       results: execution.results,
-      entries: execution.entries,
+      entries: [...execution.deliveries.values()].flatMap(list => list.slice(0, 1)),
       effects: execution.effects,
       interruptionsOf: (effect: EffectIntent) =>
         interruptionsOf(effect, execution.controls, execution.tenant),
@@ -1551,7 +1521,7 @@ export function createJournal<P>(
         },
         controls: execution.controls,
         results: execution.results,
-        entries: execution.entries,
+        entries: [...execution.deliveries.values()].flatMap(list => list.slice(0, 1)),
         effects: execution.effects,
         interruptionsOf: effect => interruptionsOf(effect, execution.controls, execution.tenant),
         modelCallOf: effect => {
@@ -1655,7 +1625,7 @@ export function createJournal<P>(
     }
     switch (change.kind) {
       case 'prepare':
-        return preparedHandoff(execution, input, change.request)
+        return preparedHandoff(execution, input, change.request, state())
       case 'resolve':
         return resolvedHandoff(execution, input, change.outcome)
       case 'retire':
@@ -1743,31 +1713,12 @@ export function createJournal<P>(
     })
   }
 
-  function custodyGroups(
-    execution: Execution,
-  ): ReadonlyMap<string, readonly (readonly [AgentOperationId, CustodyAttempt])[]> {
-    const groups = new Map<string, (readonly [AgentOperationId, CustodyAttempt])[]>()
-    for (const entry of execution.custodyAttempts.entries()) {
-      const key = canonicalOfKept(entry[1].handoff)
-      const group = groups.get(key)
-      if (group === undefined) groups.set(key, [entry])
-      else group.push(entry)
-    }
-    return groups
-  }
-
   function custodyOf(
     execution: Execution,
     handoff: HandoffReference,
-    groups: ReadonlyMap<
-      string,
-      readonly (readonly [AgentOperationId, CustodyAttempt])[]
-    > = custodyGroups(execution),
+    groups: ReturnType<typeof custodyGroups> = custodyGroups(execution),
   ): Exclude<ExecutionHandoff['custody'], null> | null {
-    const attempts = groups.get(canonicalOfKept(handoff)) ?? []
-    const root = attempts.find(([, attempt]) => attempt.custody === null)
-    if (root === undefined) return null
-    const stateOf = (operation: AgentOperationId): 'committed' | 'excluded' | undefined => {
+    return custodyChain(groups.get(canonicalOfKept(handoff)) ?? [], operation => {
       const at = operationKey(execution.tenant, execution.id, operation)
       const held = at === undefined ? undefined : state().operations.get(at)
       // The log decides: an exclusion folded into the view holds over a write still held pending.
@@ -1779,23 +1730,7 @@ export function createJournal<P>(
         true,
       )
       return answer?.kind === 'committed' ? 'committed' : undefined
-    }
-    const chain: Exclude<ExecutionHandoff['custody'], null>['chain'][number][] = []
-    let committed: AgentOperationId | null = null
-    let current: AgentOperationId | null = root[0]
-    let predecessor: AgentOperationId | null = null
-    while (current !== null) {
-      const fixed = stateOf(current)
-      if (fixed === undefined) break
-      chain.push({ operation: current, predecessor, state: fixed })
-      if (fixed === 'committed') committed = current
-      const next = attempts.find(
-        ([, attempt]) => attempt.custody?.predecessor.operation === current,
-      )
-      predecessor = current
-      current = next?.[0] ?? null
-    }
-    return { root: root[0], chain, committed }
+    })
   }
 
   type CandidateVariant = CandidateRequest<P>
@@ -2398,11 +2333,7 @@ export function createJournal<P>(
             outcome: refOf(outcome),
             history: outcome.record,
           },
-          {
-            kind: 'cursor.moved',
-            step: checkpoint.step,
-            members: cursorMembersOf(checkpoint, { kind: 'advancing' }),
-          },
+          ...cursorPlaced(checkpoint, { kind: 'advancing' }),
           ...bound.facts,
         ]
         const blobs: Blob[] = [
@@ -2456,6 +2387,7 @@ export function createJournal<P>(
                 view.revision,
               ),
               entries: [],
+              deliveries: new Map(),
               handoffs: [inputHandoff(acceptance, input.operation, view.revision)],
               custodyAttempts: new Map(),
               finishing: emptyFinishing(),
@@ -2916,6 +2848,7 @@ export function createJournal<P>(
           facts.push({
             kind: 'handoff.prepared',
             handoff: copy(handoff.request.reference),
+            step: handoff.request.position.step,
             request: refOf(handoff.request),
             prepared: evidence,
           })
@@ -2979,7 +2912,7 @@ export function createJournal<P>(
         const moved = cursorMoved(view, input.checkpoint, input.state)
         if (moved !== null) {
           blobs.push(...blobsOf(input.checkpoint))
-          facts.push(moved)
+          facts.push(moved, ...holdsMoved(view, input.checkpoint))
         }
         const bound = receiving.newBindings(
           {
@@ -3085,7 +3018,8 @@ export function createJournal<P>(
           return answer(fail(invalid('lineage', 'a recognizing operation is not the original one')))
         }
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        const known = execution.inputs.find(accepted => accepted.id === input.value.id)
+        const accepted = acceptedInput(state(), execution, input.value.id, lineage.kind)
+        const known = accepted?.value
         if (lineage.kind === 'recognize-input') {
           const entry = lineage.original.entry
           const record = operationAnswer(state(), { ...input, operation: entry.operation }, true)
@@ -3100,7 +3034,7 @@ export function createJournal<P>(
             )
           if (semanticKey('input', known) !== semanticKey('input', input.value))
             return answer(fail(conflict(input.operation)))
-          const stored = handoffRecord(execution, lineage.original.handoff)
+          const stored = heldHandoff(state(), execution, lineage.original.handoff)
           if (
             stored === undefined ||
             !sameValue(stored.request, lineage.original.outcome.request) ||
@@ -3108,9 +3042,7 @@ export function createJournal<P>(
             !sameValue(stored.resolution.outcome.origin, lineage.original.outcome.origin)
           )
             return answer(fail(invalid('lineage', 'the original lineage is not the one on record')))
-          const at = execution.inputRevisions.get(known.id)
-          if (at === undefined)
-            throw new Error('session Journal defect: an accepted input has no revision')
+          const at = accepted!.revision
           const reached = reachedStamp(state(), execution.id, at)
           return recognitionBatch(
             reached?.op === entry.operation ? reached : undefined,
@@ -3217,9 +3149,8 @@ export function createJournal<P>(
         const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const through = sequenceOf(input.through)
-        if (through === undefined || through < 1 || through > execution.events.length) {
+        if (through === undefined || through < 1 || through > execution.events.length)
           return answer(fail(invalid('through', 'beyond the emitted events')))
-        }
         if (through <= execution.acknowledged)
           return recognitionBatch(
             reachedStamp(state(), execution.id, execution.acknowledgedAt),
@@ -3228,7 +3159,7 @@ export function createJournal<P>(
           )
         return {
           kind: 'batch',
-          facts: [{ kind: 'ack.through', sequence: through }],
+          facts: acknowledgedFacts(viewOf(execution.id).finish.obligations, through),
           blobs: [],
           kinds: [],
           derive: receiptIn,
@@ -3490,45 +3421,10 @@ export function createJournal<P>(
       const request =
         input.original.kind === 'recorded' ? input.original.outcome.request : input.original.request
       const reference = request.reference
-      const validated = (execution: Execution): Outcome<CustodyAttempt, Failure> => {
-        const record = handoffRecord(execution, reference)
-        if (record === undefined || !sameValue(record.request, request))
-          return fail(invalid('original', 'the request is not on the authoritative record'))
-        if (record.resolution !== null && !sameValue(record.resolution, input.original))
-          return fail(conflict(input.operation))
-        const attempt: CustodyAttempt = {
-          handoff: copy(reference),
-          original: copy(input.original),
-          custody: input.custody === null ? null : copy(input.custody),
-        }
-        const chain = custodyOf(execution, reference)
-        const custody = input.custody
-        if (custody === null) {
-          if (chain !== null && chain.root !== input.operation)
-            return fail(invalid('operation', 'the H already has its custody root'))
-          return succeed(attempt)
-        }
-        if (chain === null || custody.custodyRoot !== chain.root)
-          return fail(invalid('operation', 'the custody root is not the root of this H'))
-        const rootAttempt = execution.custodyAttempts.get(chain.root)
-        if (rootAttempt === undefined || !sameValue(rootAttempt.original, input.original))
-          return fail(conflict(input.operation))
-        const last = chain.chain.at(-1)
-        if (last === undefined || last.operation !== custody.predecessor.operation)
-          return fail(invalid('operation', 'the predecessor is not the last attempt'))
-        if (last.state !== 'excluded')
-          return fail(invalid('operation', 'the predecessor is not permanently excluded'))
-        const excludedChain = chain.chain.map(item => item.operation)
-        if (
-          custody.priorExcluded.length !== excludedChain.length ||
-          custody.priorExcluded.some(
-            (item, index) =>
-              item.operation !== excludedChain[index] ||
-              item.predecessor !== (index === 0 ? null : excludedChain[index - 1]),
-          )
-        )
-          return fail(invalid('operation', 'the exclusion chain is not the chain of the root'))
-        return succeed(attempt)
+      const validated = (execution: Execution, need: boolean) => {
+        const basis = custodyBasis(state(), execution, reference, need)
+        const chain = custodyOf(execution, reference, basis.groups)
+        return { record: basis.record, checked: validatedCustody(basis, input, request, chain) }
       }
       const prepare = (): Attempt<CommandReceipt> => {
         const found = owned(input, 'recordHandoff')
@@ -3540,9 +3436,8 @@ export function createJournal<P>(
         const fixed = at === undefined ? undefined : state().operations.get(at)
         if (fixed?.kind === 'excluded')
           return answer(fail(invalid('operation', 'operation-permanently-excluded')))
-        const checked = validated(execution)
+        const { record, checked } = validated(execution, true)
         if ('failure' in checked) return answer(checked)
-        const record = handoffRecord(execution, reference)
         if (record === undefined) throw new Error('recordHandoff: the validated record is missing')
         execution.custodyAttempts.set(input.operation, checked.ok)
         const custody = input.custody
@@ -3585,7 +3480,7 @@ export function createJournal<P>(
         if ('failure' in found) return
         const execution = found.ok
         if (execution.custodyAttempts.has(input.operation)) return
-        const checked = validated(execution)
+        const { checked } = validated(execution, false)
         if (!('failure' in checked)) execution.custodyAttempts.set(input.operation, checked.ok)
       }
       return write('recordHandoff', input, key, prepare, undefined, dropped)
@@ -3794,11 +3689,16 @@ export function createJournal<P>(
 
     commitSettlement(input) {
       const key = semanticKey('commitSettlement', input)
-      return write('commitSettlement', input, key, () => {
+      const keeping = settlementKeeping(() => ({
+        records: state().executions.get(executionKey(input.tenant, input.execution))?.finishing,
+        view: viewOf(input.execution),
+        blobs: state().blobs,
+      }))
+      const prepare = (): Attempt<SettlementResult> => {
         const found = owned(input, 'commitSettlement')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognizedAnswer<SettlementResult>(state(), input, key)
+        const original = recognizedAnswer(state(), input, key, keeping)
         if (original !== undefined) return answer(original)
         switch (input.kind) {
           case 'establish-cancellation':
@@ -3814,7 +3714,8 @@ export function createJournal<P>(
             return _exhaustive
           }
         }
-      })
+      }
+      return write('commitSettlement', input, key, prepare, undefined, undefined, keeping)
     },
 
     recordTerminalObservation(input) {
@@ -3903,7 +3804,7 @@ export function createJournal<P>(
     async inputAcceptance(input) {
       const found = owned(input, 'inputAcceptance')
       if ('failure' in found) return found
-      return succeed(copy(acceptanceIn(found.ok.handoffs, input.input)))
+      return succeed(copy(inputAcceptanceOf(state(), found.ok, viewOf(found.ok.id), input.input)))
     },
 
     async readFinish(input) {
@@ -4056,7 +3957,8 @@ export function createJournal<P>(
     operations: () => state().operations,
     answered: (input, need) => operationAnswer(state(), input, need),
     closedBinding: (input, reference) => closedBindingOf(state(), input.execution, reference),
-    closedResult: (input, result, need) => closedReceived(state(), mint, input, result, need),
+    closed: state,
+    viewOf,
     authorize: cell.authorize,
     gate: cell.gate,
     state: () => cell.state().receiving,
@@ -4068,8 +3970,10 @@ export function createJournal<P>(
     holds,
     receiptOf,
     ownEvidence,
-    projectEntry: (execution, entry, cause) =>
-      appendEvents(execution, [{ kind: 'entry', entry }], cause),
+    projectEntry: (execution, entry, cause) => {
+      appendEvents(execution, [{ kind: 'entry', entry }], cause)
+      landEntry(state(), execution, entry)
+    },
     ...(options.custodian === undefined ? {} : { custodian: options.custodian }),
   })
   return {

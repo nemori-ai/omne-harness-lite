@@ -89,6 +89,8 @@ export function createFakeClient(): FakeClient {
     'query-send-input',
     'read-history',
     'read-waiting',
+    'read-pending',
+    'read-waiting-calls',
     'list-sessions',
     'cancel-run',
     'retry-run',
@@ -96,6 +98,13 @@ export function createFakeClient(): FakeClient {
     'archive-session',
     'unarchive-session',
     'list-archived-sessions',
+    'search-history',
+    'read-model-selection',
+    'select-model',
+    'read-permission-mode',
+    'change-permission-mode',
+    'read-workspace-selection',
+    'select-workspace',
   ]
   const client = Object.fromEntries(names.map(name => [name, operation(name)])) as Record<
     string,

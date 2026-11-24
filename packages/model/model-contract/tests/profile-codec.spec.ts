@@ -3,8 +3,10 @@ import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import {
   decodeProviderName,
   decodeRevision,
+  profileCovers,
   profileResolutionValue,
   readProfileResolution,
+  supportedReasoningEfforts,
   type ProfileResolution,
 } from '@omne-harness/model-contract'
 
@@ -60,6 +62,20 @@ it('round trips a frozen profile through JSON and restores legal identity', () =
   expect(Object.isFrozen(restored.profile.definition)).toBe(true)
 })
 
+it('retains exactly the selectable effort keys and their native values', () => {
+  const value = JSON.parse(JSON.stringify(ok(profileResolutionValue(resolution))))
+  value.profile.definition.reasoningEfforts = { high: 'max', low: 'low', medium: 'high' }
+  const decoded = ok(readProfileResolution(value))
+  if (decoded.kind !== 'resolved') throw new Error('not resolved')
+  expect(supportedReasoningEfforts(decoded.profile.definition)).toEqual(['low', 'medium', 'high'])
+  expect(ok(profileResolutionValue(decoded))).toEqual(value)
+  expect(supportedReasoningEfforts({})).toEqual([])
+  for (const invalid of [{ max: 'max' }, { xhigh: 'none' }, ['low']]) {
+    value.profile.definition.reasoningEfforts = invalid
+    expect(readProfileResolution(value)).toHaveProperty('failure')
+  }
+})
+
 it('rejects invalid parameters, forged scope and unknown profile fields', () => {
   const value = JSON.parse(JSON.stringify(ok(profileResolutionValue(resolution))))
   value.profile.definition.parameters[0].value = 3
@@ -83,4 +99,53 @@ it('does not execute accessors while decoding external values', () => {
   }
   expect(readProfileResolution(value)).toHaveProperty('failure')
   expect(calls).toBe(0)
+})
+
+const withFileTypes = (fileTypes: unknown): unknown => {
+  const value = JSON.parse(JSON.stringify(ok(profileResolutionValue(resolution))))
+  value.profile.definition.fileTypes = fileTypes
+  return value
+}
+
+it('round trips the file types a profile takes natively, and leaves the member out when none are declared', () => {
+  const restored = ok(readProfileResolution(withFileTypes(['application/pdf', 'application/json'])))
+  if (restored.kind !== 'resolved') throw new Error('not resolved')
+  expect(restored.profile.definition.fileTypes).toEqual(['application/pdf', 'application/json'])
+  expect(ok(profileResolutionValue(restored))).toEqual(
+    withFileTypes(['application/pdf', 'application/json']),
+  )
+  const plain = ok(readProfileResolution(ok(profileResolutionValue(resolution))))
+  expect(plain.kind === 'resolved' && Object.hasOwn(plain.profile.definition, 'fileTypes')).toBe(
+    false,
+  )
+})
+
+it.each([
+  ['a media type of a modality', ['image/png']],
+  ['a media type that is not canonical', ['Application/PDF']],
+  ['a media type with parameters', ['application/pdf; v=1']],
+  ['something that is no media type', ['pdf']],
+  ['a list that is no list', 'application/pdf'],
+])('rejects file types with %s', (_, fileTypes) => {
+  expect(readProfileResolution(withFileTypes(fileTypes))).toHaveProperty('failure')
+})
+
+const definition = { input: ['text', 'image'], fileTypes: ['application/pdf'] } as const
+
+it.each([
+  [{ modalities: ['text'] }, true],
+  [{ modalities: ['text', 'image'] }, true],
+  [{ modalities: ['text', 'voice'] }, false],
+  [{ modalities: ['text', 'video'] }, false],
+  [{ modalities: ['text'], fileTypes: [] }, true],
+  [{ modalities: ['text'], fileTypes: ['application/pdf'] }, true],
+  [{ modalities: ['text'], fileTypes: ['application/pdf', 'application/zip'] }, false],
+  [{ modalities: ['voice'], fileTypes: ['application/pdf'] }, false],
+] as const)('a profile of text, image and PDF covers %j: %s', (required, covered) => {
+  expect(profileCovers(definition, required)).toBe(covered)
+})
+
+it('a profile that declares no file types covers no file type', () => {
+  const required = { modalities: ['text'], fileTypes: ['application/pdf'] } as const
+  expect(profileCovers({ input: ['text'] }, required)).toBe(false)
 })

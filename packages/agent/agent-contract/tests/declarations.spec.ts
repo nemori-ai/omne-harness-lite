@@ -3,6 +3,8 @@ import { judgeAgentDefinition, judgeLoopExtensions } from '@omne-harness/agent-c
 
 const definition = (extra: Record<string, unknown> = {}) => ({
   category: 'AgentDefinition',
+  type: 'master',
+  summary: 'Works on what the person asks for.',
   name: 'coding',
   references: [],
   attributes: [],
@@ -36,6 +38,8 @@ describe('the value of an accepted definition', () => {
       kind: 'accepted',
       value: {
         category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
         name: 'coding',
         references: [],
         attributes: [{ item: 'model' }, { item: 'first_token_wait_limit' }],
@@ -57,6 +61,8 @@ describe('the value of an accepted definition', () => {
       kind: 'accepted',
       value: {
         category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
         name: 'coding',
         references: [
           { capability: { category: 'Tool', name: 'plain' } },

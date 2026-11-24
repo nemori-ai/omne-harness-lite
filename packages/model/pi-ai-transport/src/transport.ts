@@ -5,17 +5,28 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type {
+  MaterializeFailure,
+  CostLookupAnswer,
   ModelTransport,
   PreparedTransport,
   TransportDispatch,
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
-import { checkConfig, type CheckedConfig, type PiTransportConfig } from './config.ts'
+import {
+  checkConfig,
+  routeFor,
+  type CheckedConfig,
+  type CheckedRoute,
+  type PiTransportConfig,
+} from './config.ts'
 import type { PiFamilyBinding } from './family.ts'
+import { lookupGenerationCost } from './cost-lookup.ts'
 import { materialize, type MaterializedHandle } from './materialized.ts'
 
 export type PiTransport = Readonly<{
   transport: ModelTransport
+  /** Asks the route what one earlier request cost; only an OpenRouter route can answer. */
+  lookupCost(supplier: Supplier, request: string, signal: AbortSignal): Promise<CostLookupAnswer>
   close(): Promise<void>
 }>
 
@@ -46,7 +57,8 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     dispatch: TransportDispatch,
   ): Promise<Outcome<PreparedTransport, TransportFailure>> {
     if (phase.kind !== 'open') return { failure: TRANSPORT_CLOSED }
-    if (!checked.routes.has(supplier.provider))
+    const provider = checked.routes.get(supplier.provider)
+    if (provider === undefined)
       return {
         failure: { kind: 'unsupported', field: 'supplier.provider', adapter: supplier.adoption },
       }
@@ -58,8 +70,15 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
       await acquired.ok.release()
       return { failure: TRANSPORT_CLOSED }
     }
+    const route = routeFor(provider, acquired.ok.endpoint)
+    if (route === undefined) {
+      await acquired.ok.release()
+      const adapter = acquired.ok.adoption
+      return { failure: { kind: 'unsupported', field: 'route.endpoint', adapter } }
+    }
     const prepared = createPrepared({
       config: checked,
+      route,
       request,
       supplier,
       declaration,
@@ -78,8 +97,38 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     if (failed !== undefined) throw failed.reason
   }
 
+  function lookupCost(
+    supplier: Supplier,
+    request: string,
+    signal: AbortSignal,
+  ): Promise<CostLookupAnswer> {
+    const provider = checked.routes.get(supplier.provider)
+    const endpoint = provider?.endpoints.values().next().value
+    if (
+      provider === undefined ||
+      endpoint === undefined ||
+      provider.accounting.place !== 'openrouter'
+    )
+      return Promise.resolve({ kind: 'unsupported' })
+    const secret =
+      provider.auth === null ? undefined : checked.credential.read()?.get(provider.auth.item)
+    if (phase.kind !== 'open' || secret === undefined)
+      return Promise.resolve({ kind: 'unavailable', diagnostic: 'credential-missing' })
+    const input = {
+      url: new URL('/api/v1/generation', endpoint.url.origin),
+      request,
+      secret,
+      place: provider.accounting.place,
+      costUnit: provider.accounting.costUnit,
+      timeoutMs: checked.limits.connectTimeoutMs ?? 30_000,
+      maxBodyBytes: checked.limits.maxErrorBodyBytes,
+    }
+    return lookupGenerationCost(checked.network, input, signal)
+  }
+
   return {
     transport: { prepare },
+    lookupCost,
     close() {
       if (phase.kind === 'open') phase = { kind: 'closing', done: drain() }
       return phase.done
@@ -131,6 +180,7 @@ const REPEATED_MATERIALIZE: TransportFailure = Object.freeze({
 function createPrepared(
   input: Readonly<{
     config: CheckedConfig
+    route: CheckedRoute
     request: FixedModelRequest
     supplier: Supplier
     declaration: ReplayDeclaration
@@ -139,16 +189,14 @@ function createPrepared(
     onClosed: () => void
   }>,
 ): PreparedTransport {
-  const { config, request, supplier, declaration, resent, onClosed } = input
+  const { config, route, request, supplier, declaration, resent, onClosed } = input
   const closing = new AbortController()
   let phase: PreparedPhase = { kind: 'open', binding: input.binding }
 
   async function runMaterialize(
     binding: PiFamilyBinding,
     signal: AbortSignal,
-  ): Promise<Outcome<MaterializedHandle, TransportFailure>> {
-    const route = config.routes.get(supplier.provider)
-    if (route === undefined) throw new Error('the route of a prepared transport is missing')
+  ): Promise<Outcome<MaterializedHandle, MaterializeFailure>> {
     return materialize({
       config,
       route,

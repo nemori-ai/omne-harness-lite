@@ -56,11 +56,13 @@ describe('the wake-up after a reply', () => {
   it('a decided reply to a card of a Tool call schedules that call in the tenant of the person', async () => {
     const { app, reads } = application()
     const { host, scheduled } = instanceHost()
-    const wrapped = withDecided(app, wakeOnDecision(host))
+    const warn = vi.fn()
+    const wrapped = withDecided(app, wakeOnDecision(host, warn))
     expect(await wrapped.submitReply(access, command)).toEqual({ kind: 'decided' })
     await settle()
     expect(reads).toEqual([{ protocol: 'hitl/1', requestRef: cardRef.request }])
     expect(scheduled).toEqual([{ tenant, call: 'call-1' }])
+    expect(warn).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -77,7 +79,7 @@ describe('the wake-up after a reply', () => {
   })
 
   it('a card from another origin wakes no Tool call', async () => {
-    const { app } = application({ origin: { kind: 'independent', originRef: 'work-1' } })
+    const { app } = application({ origin: { kind: 'agent-extension', originRef: 'work-1' } })
     const { host, scheduled } = instanceHost()
     await withDecided(app, wakeOnDecision(host)).submitReply(access, command)
     await settle()
@@ -128,6 +130,41 @@ describe('the wake-up after a reply', () => {
     expect(throwing.mock.calls[0]?.[0]).toContain('the host is gone')
     expect(absent).toHaveBeenCalledTimes(1)
     expect(absent.mock.calls[0]?.[0]).toContain('no Tool instance host')
+  })
+
+  it('says so when the host answers that it cannot take the call, with the reason the host gave', async () => {
+    const { app } = application()
+    const refusing = () =>
+      ({
+        schedule: async () => ({
+          failure: {
+            kind: 'unavailable',
+            owner: 'tool-instance-host',
+            diagnostic: 'The Tool instance host queue is full.',
+          },
+        }),
+      }) as never
+    const warn = vi.fn()
+    expect(
+      await withDecided(app, wakeOnDecision(refusing, warn)).submitReply(access, command),
+    ).toEqual({ kind: 'decided' })
+    await settle()
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]?.[0]).toContain('scheduling the call')
+    expect(warn.mock.calls[0]?.[0]).toContain('unavailable')
+    expect(warn.mock.calls[0]?.[0]).toContain('queue is full')
+  })
+
+  it('names only the kind when the host refused without a diagnostic', async () => {
+    const { app } = application()
+    const refusing = () =>
+      ({ schedule: async () => ({ failure: { kind: 'unavailable' } }) }) as never
+    const warn = vi.fn()
+    await withDecided(app, wakeOnDecision(refusing, warn)).submitReply(access, command)
+    await settle()
+    expect(warn.mock.calls.map(call => String(call[0]).split(': ')[2])).toEqual([
+      'unavailable; the call waits for the next wake-up',
+    ])
   })
 
   it('a wake-up hook that throws does not change the answer of the reply', async () => {

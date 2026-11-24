@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
+import type { AssetLayerSource } from '@omne-harness/assets'
+import type { AssetsLocal } from '@omne-harness/assets-local'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   RUN_SETTING,
@@ -20,6 +21,8 @@ export function tenantExtensionSources(
     Readonly<{
       tenantRef: string
       deploymentRef: string
+      layers: readonly AssetLayerSource[]
+      assetsChanged(listener: () => void): () => void
     }>,
 ): TenantExtensionSources {
   const { assets, settings, tenantRef } = input
@@ -48,7 +51,7 @@ export function tenantExtensionSources(
       : { kind: 'absent' }
   }
   return {
-    layers: [tenantLayerSource(assets)],
+    layers: input.layers,
     async body({ asset, version }) {
       const read = await assets.readVersion({ assetRef: asset, version })
       return read.kind === 'version' ? read.version.body : undefined
@@ -64,14 +67,14 @@ export function tenantExtensionSources(
       return run(held.holding.holdingRef)
     },
     async basis() {
-      const revision = await assets.readDomainRevision()
-      return revision.kind === 'revision'
+      const revision = await assets.domainRevision()
+      return revision.kind === 'domain'
         ? { assets: String(revision.revision), settings: `seen:${settingsChanges}` }
         : undefined
     },
     changes: {
       subscribe(listener) {
-        const leaveAssets = assets.changes.subscribe(listener)
+        const leaveAssets = input.assetsChanged(listener)
         const leaveSettings = settings.changes.subscribe(listener)
         return () => {
           leaveAssets()
@@ -84,6 +87,8 @@ export function tenantExtensionSources(
 
 type SourcesInput = Readonly<{
   holdings(tenantRef: string): Promise<Holdings | undefined>
+  layers(tenantRef: string): readonly AssetLayerSource[]
+  assetsChanged(tenantRef: string, listener: () => void): () => void
   deploymentRef: string
 }>
 
@@ -109,8 +114,29 @@ export class GovernanceExtensionSources extends ExtensionSourcesService<unknown>
       ...holdings,
       tenantRef: tenant.value,
       deploymentRef: this.input.deploymentRef,
+      layers: this.input.layers(tenant.value),
+      assetsChanged: listener => this.input.assetsChanged(tenant.value, listener),
     })
     this.known.set(tenant.value, { holdings, sources })
     return sources
   }
+}
+
+/** Provides the tenant sources over the assets row and the settings of the governance of each tenant. */
+export function provideExtensionSources(
+  ctx: Context,
+  settingsOf: (tenantRef: string) => Promise<TenantSettingsAccess | undefined>,
+  deploymentRef: string,
+) {
+  return new GovernanceExtensionSources(ctx, {
+    async holdings(tenantRef) {
+      const settings = await settingsOf(tenantRef)
+      const assets = settings === undefined ? undefined : await ctx.tenantAssets.open(tenantRef)
+      return assets === undefined || settings === undefined ? undefined : { assets, settings }
+    },
+    layers: tenantRef => ctx.tenantAssets.layerSources(tenantRef),
+    assetsChanged: (tenantRef, listener) =>
+      ctx.assetChanges.subscribe(tenantRef, { changed: listener, closed() {} }),
+    deploymentRef,
+  })
 }

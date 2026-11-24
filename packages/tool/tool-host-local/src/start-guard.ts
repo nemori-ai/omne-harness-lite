@@ -1,39 +1,35 @@
 import type { AccessVerdict, StartVerdict, ToolStartGuard } from '@omne-harness/tool'
 import type { StartCoordinatorAccess } from './start-coordinator.ts'
-import type { RequestAccessVerdict, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
+import { z } from 'zod'
+import type { ToolTargetAvailability } from './ledger-guards.ts'
 
 export const PROGRAMMATIC_NOT_IN_M2 = 'programmatic-not-in-m2'
 
 export type LocalStartGuardInput<P> = Readonly<{
   access: StartCoordinatorAccess<P>
-  requestAccess?: ToolRequestAccess<P>
+  target?: ToolTargetAvailability<P>
 }>
 
-export async function qualifyRequestAccess<P>(
-  provider: ToolRequestAccess<P> | undefined,
-  input: Parameters<ToolRequestAccess<P>['qualify']>[0],
-): Promise<RequestAccessVerdict> {
-  if (provider === undefined) return { kind: 'allowed', condition: null }
-  try {
-    const result: unknown = await provider.qualify(input)
-    if (typeof result === 'object' && result !== null && 'kind' in result) {
-      if (
-        result.kind === 'allowed' &&
-        'condition' in result &&
-        typeof result.condition === 'object'
-      )
-        return { kind: 'allowed', condition: result.condition as StartCondition | null }
-      if (result.kind === 'denied' && 'reason' in result && typeof result.reason === 'string')
-        return { kind: 'denied', reason: result.reason }
-      if (
-        result.kind === 'unavailable' &&
-        'diagnostic' in result &&
-        typeof result.diagnostic === 'string'
-      )
-        return { kind: 'unavailable', diagnostic: result.diagnostic }
-    }
-  } catch {}
-  return { kind: 'unavailable', diagnostic: 'request-access unavailable' }
+const answered = z.union([
+  z.object({ kind: z.literal('allowed') }),
+  z.object({ kind: z.literal('denied'), reason: z.string() }),
+  z.object({ kind: z.literal('unavailable'), diagnostic: z.string() }),
+])
+
+export async function qualifyTargetAvailability<P>(
+  provider: ToolTargetAvailability<P> | undefined,
+  input: Parameters<ToolTargetAvailability<P>['qualify']>[0],
+): Promise<AccessVerdict> {
+  if (provider === undefined) return { kind: 'allowed' }
+  const result = await Promise.resolve(input)
+    .then(asked => provider.qualify(asked))
+    .then(
+      value => answered.safeParse(value),
+      () => undefined,
+    )
+  return result?.success === true
+    ? result.data
+    : { kind: 'unavailable', diagnostic: 'target availability unavailable' }
 }
 
 export function createLocalStartGuard<P>(input: LocalStartGuardInput<P>): ToolStartGuard<P> {
@@ -54,14 +50,13 @@ export function createLocalStartGuard<P>(input: LocalStartGuardInput<P>): ToolSt
         }
       }
       if (verdict.kind === 'allowed') {
-        const policy = await qualifyRequestAccess(input.requestAccess, {
+        const target = await qualifyTargetAvailability(input.target, {
           principal,
           tenant,
           call,
           request,
         })
-        if (policy.kind === 'denied') return { kind: 'refused', reason: policy.reason }
-        return policy.kind === 'allowed' ? { kind: 'allowed' } : policy
+        return target.kind === 'denied' ? { kind: 'refused', reason: target.reason } : target
       }
       if (verdict.kind === 'denied') return { kind: 'refused', reason: 'qualification-denied' }
       return { kind: 'unavailable', diagnostic: verdict.diagnostic }

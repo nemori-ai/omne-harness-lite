@@ -38,6 +38,7 @@ import {
   type ToolAuthority,
   type ToolLoader,
 } from '@omne-harness/tool-contract/provider'
+import { captureToolCaller } from '../../src/cordis-host.ts'
 
 const emptyReader: ToolResidencyReader = {
   referencing: async () => succeed({ items: [], next: null }),
@@ -143,12 +144,8 @@ describe('production Cordis tool host', () => {
       })
       await entered.promise
       expect(author.state).toBe(1)
-      const removed = Promise.withResolvers<void>()
-      root.on('internal/service', (name, value) => {
-        if (name === 'testAuthorDependency' && value === undefined) removed.resolve()
-      })
       const retiring = dependency.dispose()
-      await removed.promise
+      await expect.poll(() => root.get('testAuthorDependency')).toBeUndefined()
       expect(host.state).toBe(2)
       expect(author.state).toBe(1)
       release.resolve()
@@ -222,6 +219,46 @@ describe('production Cordis tool host', () => {
       delayed.resolve(
         fail({ kind: 'unavailable', dependency: 'fixture', diagnostic: 'test ended' }),
       )
+      await root.fiber.dispose()
+    }
+  })
+
+  it('refuses a load while the caller unloads and its own dependents still hold it', async () => {
+    const { root } = await assembly()
+    const hold = Promise.withResolvers<void>()
+    const loaders: ToolLoader<unknown, unknown, ContentBlock>[] = []
+    try {
+      const caller = root.plugin({
+        inject: ['toolGenerations'],
+        apply(ctx: Context) {
+          ctx.provide('testCallerOffer', {})
+          loaders.push(ctx.toolGenerations.loaderFor(authorAuthority))
+        },
+      })
+      await caller
+      await root.plugin({
+        inject: ['testCallerOffer'],
+        apply(ctx: Context) {
+          ctx.effect(() => () => hold.promise)
+        },
+      })
+      const loader = loaders[0]
+      if (loader === undefined) throw new Error('missing caller loader')
+      const retiring = caller.dispose()
+      await expect.poll(() => caller.state).toBe(5)
+      expect(
+        await loader.load({
+          ...authorAccess,
+          asset: { asset: authorAuthority.asset, requiredCapabilities: [] },
+          settings,
+          module: authorModule(async () => 'unused'),
+          services: {},
+        }),
+      ).toHaveProperty('failure.kind', 'unavailable')
+      hold.resolve()
+      await retiring
+    } finally {
+      hold.resolve()
       await root.fiber.dispose()
     }
   })
@@ -442,6 +479,58 @@ describe('production Cordis tool host', () => {
       )
       expect(unbox(root.toolBindings.snapshot({ scope: 'system' }))[0]?.state).toBe('live')
     } finally {
+      await root.fiber.dispose()
+    }
+  })
+})
+
+describe('the capture of a tool caller', () => {
+  it('says no for an earlier activation once the caller restarts on the same dependencies', async () => {
+    const root = new Context()
+    const captures: (() => boolean)[] = []
+    try {
+      await root.plugin({ apply: (ctx: Context) => void ctx.provide('testCapturedOffer', {}) })
+      const caller = root.plugin({
+        inject: ['testCapturedOffer'],
+        apply: (ctx: Context) => void captures.push(captureToolCaller(ctx)),
+      })
+      await caller
+      expect(captures.map(current => current())).toEqual([true])
+      await caller.restart()
+      expect(captures.map(current => current())).toEqual([false, true])
+    } finally {
+      await root.fiber.dispose()
+    }
+  })
+
+  it('says no while the caller still loads once its provider withdrew the service and stayed active', async () => {
+    const root = new Context()
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    let withdraw: (() => unknown) | undefined
+    let current: (() => boolean) | undefined
+    try {
+      const provider = await root.plugin({
+        apply(ctx: Context) {
+          withdraw = ctx.provide('testCapturedOffer', {})
+        },
+      })
+      const caller = root.plugin({
+        inject: ['testCapturedOffer'],
+        async apply(ctx: Context) {
+          current = captureToolCaller(ctx)
+          entered.resolve()
+          await release.promise
+        },
+      })
+      await entered.promise
+      expect(current?.()).toBe(true)
+      void withdraw?.()
+      expect(provider.state).toBe(2)
+      expect(caller.state).toBe(1)
+      expect(current?.()).toBe(false)
+    } finally {
+      release.resolve()
       await root.fiber.dispose()
     }
   })

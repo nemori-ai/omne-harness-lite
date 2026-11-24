@@ -1,19 +1,24 @@
 import { createHash } from 'node:crypto'
-import { readBodyText } from '@omne-harness/assets'
+import { readBodyText, type JsonValue } from '@omne-harness/assets'
 import {
+  modelProviderBodyContract,
   parseModelProviderBody,
   type ModelProviderBody,
 } from '@omne-harness/model-contract/provider-asset'
 import type { ProviderName } from '@omne-harness/model-contract'
 import type { CredentialProviderSource } from '@omne-harness/model-host-local'
-import type { PiRoute } from '@omne-harness/pi-ai-transport'
+import {
+  isEngineEndpoint,
+  type EngineEndpoint,
+  type PiRoute,
+  type PiRouteEndpoint,
+} from '@omne-harness/pi-ai-transport'
 import { OPENROUTER_PROVIDER_BODY_TEXT } from '@omne-harness/pi-ai-transport/chat-completions'
 import type { SecretBindingKey, SecretScope, SettingsHolding } from '@omne-harness/settings'
 import { holdingKey, officialHolding, type OfficialHolding } from './official-holdings.ts'
 
 const RELEASE_PROVIDER_TEXTS: readonly string[] = [OPENROUTER_PROVIDER_BODY_TEXT]
-
-const SENDABLE_PROTOCOL = 'chat-completions'
+const PROVIDER_CONTRACT = modelProviderBodyContract()
 
 const BODY_LIMITS = {
   maxBytes: 16_384,
@@ -26,6 +31,9 @@ const BODY_LIMITS = {
 
 export type ReleaseProvider = Readonly<{
   body: ModelProviderBody
+  /** The body as the document its official asset holds. */
+  document: JsonValue
+  version: string
   holding: Extract<OfficialHolding, { kind: 'declared' }> | null
 }>
 
@@ -35,15 +43,16 @@ function readProvider(text: string): ReleaseProvider {
   const parsed = parseModelProviderBody(read.value)
   if ('failure' in parsed) throw new Error(`a release provider body is refused: ${parsed.failure}`)
   const body = parsed.ok
+  const version = createHash('sha256').update(text, 'utf8').digest('hex')
   const held = officialHolding({
-    category: 'model-provider',
+    contract: PROVIDER_CONTRACT,
     name: body.name,
-    version: createHash('sha256').update(text, 'utf8').digest('hex'),
+    version,
     body: read.value,
   })
   if (held.kind === 'rejected')
     throw new Error(`the provider ${body.name} declares no valid settings: ${held.reason}`)
-  return { body, holding: held.kind === 'declared' ? held : null }
+  return { body, document: read.value, version, holding: held.kind === 'declared' ? held : null }
 }
 
 let providers: readonly ReleaseProvider[] | undefined
@@ -84,18 +93,25 @@ export function credentialProviders(): ReadonlyMap<ProviderName, CredentialProvi
   )
 }
 
+// An operator address replaces the address of every endpoint of the provider.
 function routeOf(provider: ReleaseProvider, url: string | undefined): PiRoute {
   const { body } = provider
-  if (body.protocol !== SENDABLE_PROTOCOL)
-    throw new Error(
-      `the provider ${body.name} speaks ${body.protocol}, which this release cannot send`,
-    )
+  const endpoints: Partial<Record<EngineEndpoint, PiRouteEndpoint>> = {}
+  for (const endpoint of body.endpoints) {
+    if (!isEngineEndpoint(endpoint.protocol))
+      throw new Error(
+        `the provider ${body.name} speaks ${endpoint.protocol}, which this release cannot send`,
+      )
+    endpoints[endpoint.protocol] = {
+      url: url ?? endpoint.url,
+      endMarker: endpoint.endMarker ?? null,
+    }
+  }
   if (body.credentials.length > 1)
     throw new Error(`the provider ${body.name} declares several credential items and no bearer`)
   const [credential] = body.credentials
   return {
-    url: url ?? body.endpoint.url,
-    endMarker: body.endpoint.endMarker ?? null,
+    endpoints,
     accounting: body.accounting,
     auth: credential === undefined ? null : { kind: 'bearer', item: credential.item },
   }

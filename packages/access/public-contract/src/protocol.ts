@@ -1,4 +1,5 @@
 import type { FixedOutcome, Outcome } from './outcome.ts'
+import { isRevision } from './revision.ts'
 import type { Codec } from './rule-codec.ts'
 
 type Identity = 'none' | 'login' | 'acting-tenant'
@@ -15,6 +16,7 @@ export type OperationContract<Body = any, Results extends OutcomeBodies = Outcom
   readonly outcomes: Results
   readonly carriesCredential?: true
   readonly countsAsAccess?: true
+  readonly since?: number
 }
 
 export type ObservationContract<Open = any, Frame = any, End extends string = string> = {
@@ -24,6 +26,7 @@ export type ObservationContract<Open = any, Frame = any, End extends string = st
   readonly frame: Codec<Frame>
   readonly ends: readonly End[]
   readonly countsAsAccess?: true
+  readonly since?: number
 }
 
 export type ProtocolContract = {
@@ -88,6 +91,14 @@ export function defineProtocol<const P extends ProtocolContract>(
     throw new TypeError(
       `${protocol.name}/v${protocol.major}: no operation may be named "${RESERVED_OPERATION_NAME}"`,
     )
+  for (const [name, part] of [
+    ...Object.entries(protocol.operations),
+    ...Object.entries(protocol.observations),
+  ])
+    if (part.since !== undefined && !isRevision(part.since))
+      throw new TypeError(
+        `${protocol.name}/v${protocol.major}: the since of ${name} is not a positive integer`,
+      )
   const operations = Object.fromEntries(
     Object.entries(protocol.operations).map(([name, operation]) => [
       name,

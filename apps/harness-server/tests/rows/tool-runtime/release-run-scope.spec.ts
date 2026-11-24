@@ -216,7 +216,7 @@ describe('the slots of the concurrency scope of one run', () => {
         const parkedAt: (string | undefined)[] = []
         Object.assign(runtime, {
           invoke: async (input: Parameters<typeof invoke>[0]) => {
-            if (input.request.availability.definition.name !== 'Shell') return invoke(input)
+            if (input.request.availability.name !== 'Shell') return invoke(input)
             if (parkedAt.length === 0) {
               await callsUntil(world, 'A parked', calls => stageOf(calls, 'Ask') === 'parked')
               parkedAt.push(stageOf(toolCalls(world.storageRoot), 'Ask'))

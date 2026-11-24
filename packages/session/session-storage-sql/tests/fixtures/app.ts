@@ -1,6 +1,11 @@
 import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { RoutedInput, SessionCommand, SessionAccess } from '@omne-harness/session-contract'
+import type {
+  RoutedInput,
+  SessionAccess,
+  SessionCommand,
+  SessionCreation,
+} from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
   createPolicySessionAccessCheck,
@@ -13,6 +18,9 @@ import {
   sessionId,
   testingTenant,
   type ScriptedSessionAccessCheck,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import {
   createFixedSessionCursorSigning,
@@ -107,9 +115,11 @@ export async function app(
   const storageOptions: SessionStorageOptions<string> = {
     storage: provider.storage,
     domains,
-    accessCheck,
+    accessCheck: withMemberSubject(accessCheck),
     ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     cursorSigning: signing,
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
     now: options.now ?? (() => clock),
     ...(options.workCache === undefined ? {} : { workCache: options.workCache }),
@@ -123,14 +133,18 @@ export async function app(
     tenant,
     session: sessionId(session),
   })
-  const create = async (tenant: TenantId, session = 'session-1') => {
+  const create = async (
+    tenant: TenantId,
+    session = 'session-1',
+    standing: Pick<SessionCreation, 'relation' | 'attendance'> = {},
+  ) => {
     const command: SessionCommand = {
       kind: 'create',
       input: {
         tenant,
         session: sessionId(session),
         operation: operationId(`create-${session}`),
-        creation: creation(),
+        creation: creation(standing),
       },
     }
     const guards = [

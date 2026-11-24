@@ -138,26 +138,20 @@ it.each(['unavailable', 'backpressured'] as const)(
   },
 )
 
-it('leaves a result that was refused or given up to its caller', async () => {
-  const refused = await started()
-  refused.scripted.state.next = ['foreign-key']
-  const unknown = await started()
-  unknown.scripted.state.next = Array.from({ length: 20 }, () => 'unknown' as const)
-  vi.useFakeTimers({ shouldAdvanceTime: true })
-  await refused.w.admit('one')
-  await unknown.w.admit('one')
-  await until(
-    () => refused.w.record('one')?.result?.standing.status === 'failed',
-    'the refused receipt',
-  )
-  await until(
-    () => unknown.w.record('one')?.result?.standing.status === 'unknown',
-    'the given-up push',
-  )
-  await vi.advanceTimersByTimeAsync(120000)
-  expect(refused.scripted.pushes).toHaveLength(1)
-  expect(unknown.scripted.pushes).toHaveLength(1 + LIMITS.maxRedeliveries)
-})
+it.each(['foreign-key', 'unknown'] as const)(
+  'keeps pushing, with the same key and payload, a result whose every answer is %s',
+  async answer => {
+    const { w, scripted } = await started()
+    scripted.state.next = Array.from({ length: 20 }, () => answer)
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await w.admit('one')
+    await until(() => w.record('one')?.result?.standing.status === 'unknown', 'the unknown outcome')
+    await vi.advanceTimersByTimeAsync(120000)
+    expect(scripted.pushes.length).toBeGreaterThan(1 + LIMITS.maxRedeliveries)
+    for (const delivery of scripted.pushes) expect(delivery).toEqual(scripted.pushes[0])
+    expect(await w.custody('one')).toEqual({ kind: 'producer' })
+  },
+)
 
 it('acknowledges in the same life once the consumer evidence is back', async () => {
   const { w, scripted } = await started({ share: 1, custodyEvidence: 'unavailable' })

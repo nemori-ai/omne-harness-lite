@@ -3,6 +3,7 @@ import type {
   Access,
   AgentExecutionId,
   AgentOperationId,
+  ReceptionSettled,
   Reply,
 } from '@omne-harness/agent-contract'
 import { decodeAgentOperationId } from '@omne-harness/agent-contract'
@@ -24,7 +25,6 @@ import {
 } from './receiving-material.ts'
 import type { ModelReceiverDependencies, ModelReceptionTarget } from './receiving-types.ts'
 
-import { createReceptionOutlet } from './receiving-outlet.ts'
 import { createReceptionMaintenance } from './receiving-maintenance.ts'
 import {
   bindingKey,
@@ -90,6 +90,18 @@ export function receptionOperation<P>(
   return operation.ok
 }
 
+const admissionFailure =
+  <P>(state: ModelReceiverState<P>, access: Access<P>, key: string) =>
+  (dependency: string, error: unknown, target?: ModelReceptionTarget) => {
+    recordDiagnostic(
+      state,
+      `admission:${dependency}:${key}`,
+      String(error),
+      target ? bindingKey(access, target) : null,
+    )
+    return unavailable(dependency)
+  }
+
 export function createAgentModelReceiver<P>(
   dependencies: ModelReceiverDependencies<P>,
   state: ModelReceiverState<P>,
@@ -104,7 +116,6 @@ export function createAgentModelReceiver<P>(
       reason,
       reception ? bindingKey(reception.access, reception.target) : null,
     )
-  const outlet = createReceptionOutlet(dependencies, state)
   async function finish(
     reception: Reception<P>,
     query: boolean,
@@ -180,7 +191,6 @@ export function createAgentModelReceiver<P>(
     }
     reception.commit = { kind: 'saved', value }
     state.diagnostics.delete(reception.operation)
-    outlet.enqueue(reception, value)
     return succeed(structuredClone({ key: reception.delivery.key, evidence: value.saved }))
   }
   async function recognise(
@@ -216,17 +226,8 @@ export function createAgentModelReceiver<P>(
     access: Access<P>,
     delivery: ModelDelivery,
     stopped?: AbortSignal,
-  ): Promise<Outcome<ModelReceptionTarget, ModelDeliveryFailure>> {
-    const key = receptionKey(access, delivery)
-    const failed = (dependency: string, error: unknown, target?: ModelReceptionTarget) => {
-      recordDiagnostic(
-        state,
-        `admission:${dependency}:${key}`,
-        String(error),
-        target ? bindingKey(access, target) : null,
-      )
-      return unavailable(dependency)
-    }
+  ): Promise<Outcome<ModelReceptionTarget | ReceptionSettled, ModelDeliveryFailure>> {
+    const failed = admissionFailure(state, access, receptionKey(access, delivery))
     if (stopped?.aborted) return fail({ kind: 'cancelled-before-accept' })
     let resolved
     try {
@@ -236,6 +237,7 @@ export function createAgentModelReceiver<P>(
     }
     if ('failure' in resolved)
       return resolved.failure.kind === 'denied' ? fail({ kind: 'denied' }) : unavailable('targets')
+    if ('kind' in resolved.ok) return succeed(resolved.ok)
     const target = resolved.ok
     if (stopped?.aborted) return fail({ kind: 'cancelled-before-accept' })
     let allowed
@@ -306,6 +308,8 @@ export function createAgentModelReceiver<P>(
         : fail({ kind: 'denied' })
     const before = await admit(input.access, delivery, maintenance ? input.signal : undefined)
     if ('failure' in before) return before
+    if ('kind' in before.ok)
+      return succeed(structuredClone({ key: delivery.key, evidence: before.ok.evidence }))
     if (maintenance && input.signal.aborted) return unknown()
     const target = before.ok
     const key = receptionKey(input.access, delivery),
@@ -364,8 +368,6 @@ export function createAgentModelReceiver<P>(
           maintenance || current.commit.kind === 'unknown',
           maintenance ? input.signal : undefined,
         )
-        if ('ok' in outcome)
-          outlet.drain(input.access, new Set([bindingKey(input.access, target)]), input.signal)
         return outcome
       } catch (error) {
         current.commit = { kind: 'unknown' }
@@ -409,11 +411,6 @@ export function createAgentModelReceiver<P>(
     retry: input => maintenance.retry(input),
     recover: input => maintenance.recover(input),
   }
-  const maintenance = createReceptionMaintenance(
-    dependencies,
-    state,
-    input => push(input, true),
-    outlet,
-  )
+  const maintenance = createReceptionMaintenance(dependencies, state, input => push(input, true))
   return succeed(receiver)
 }

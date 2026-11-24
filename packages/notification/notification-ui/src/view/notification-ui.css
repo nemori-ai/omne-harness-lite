@@ -1,0 +1,180 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
+.notification-page {
+  min-height: 0;
+  overflow-y: auto;
+  font-size: var(--omne-text-ui);
+}
+
+/* Everything under the header is one reading column (rules index S7): as wide as the reading measure counted at the
+   body size, not the page's width. What is in it keeps the interface size. */
+.notification-column {
+  display: grid;
+  gap: var(--omne-space-block);
+  width: 100%;
+  max-width: var(--omne-measure-reading);
+  min-width: 0;
+  font-size: var(--omne-text-body);
+}
+
+.notification-column > * {
+  font-size: var(--omne-text-ui);
+}
+
+.notification-scope {
+  display: flex;
+}
+
+.notification-section {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.notification-section-title {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  font-weight: var(--omne-weight-strong);
+}
+
+.notification-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-row {
+  min-width: 0;
+}
+
+/* A row of the source's list (list-reading.css `.list-reading-row`): the mark, the copy and the actions in three
+   cells, 10 apart, on the row padding; the glide menu draws its hover ground. The title's press reaches over the
+   whole row (directory.css `.conversation-row-title::after`); the actions and the time sit above it. */
+.notification-head {
+  display: grid;
+  grid-template-columns: var(--omne-icon-label) minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: calc(var(--spacing) * 2.5);
+  padding: var(--omne-row-padding);
+  border-radius: var(--omne-radius-control);
+}
+
+/* The mark cell and the actions are as tall as the title's first line, so the dot and the buttons sit on its middle. */
+.notification-mark,
+.notification-actions {
+  display: flex;
+  align-items: center;
+  height: calc(var(--omne-text-body) * var(--omne-leading-reading));
+}
+
+.notification-mark {
+  justify-content: center;
+}
+
+/* A strong notification not yet seen and still open: the source's quiet dot for something not yet seen
+   (conversation.css `.conversation-jump[data-unseen='true']::after`, 9px, pill), in strong ink. */
+.notification-dot {
+  width: calc(var(--spacing) * 2.25);
+  height: calc(var(--spacing) * 2.25);
+  border-radius: var(--omne-radius-pill);
+  background: var(--omne-ink-primary);
+}
+
+/* The title above its one line of source and time, 3 apart (`.list-reading-row-body`). */
+.notification-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  row-gap: calc(var(--spacing) * 0.75);
+  min-width: 0;
+}
+
+/* Strong ink in the reading face at the body size, wrapping in its own cell: words, not an accent link. */
+.notification-title {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  color: var(--omne-ink-primary);
+  font-family: var(--omne-font-reading);
+  font-size: var(--omne-text-body);
+  font-weight: var(--omne-weight-strong);
+  line-height: var(--omne-leading-reading);
+  letter-spacing: var(--omne-reading-tracking);
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.notification-title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--omne-radius-control);
+}
+
+/* The row's ground is the glide menu's; the title draws none of its own under the pointer. */
+.notification-list .notification-title[data-control]:is(:hover, :active) {
+  background-color: transparent;
+}
+
+.notification-meta {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
+}
+
+.notification-meta time {
+  position: relative;
+  z-index: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.notification-actions {
+  position: relative;
+  z-index: 1;
+  gap: var(--omne-space-inline);
+}
+
+/* What opens under a row starts where its copy does: the row's inline padding, the mark and the gap. */
+.notification-more {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+  padding: 0 calc(var(--spacing) * 3) var(--omne-space-inline)
+    calc(var(--spacing) * 5.5 + var(--omne-icon-label));
+}
+
+.notification-detail {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.notification-code {
+  font-family: var(--omne-font-mono);
+}
+
+.notification-quiet {
+  margin: 0;
+  color: var(--omne-ink-muted);
+}
+
+.notification-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notification-extra {
+  display: grid;
+  gap: var(--omne-space-block);
+  min-width: 0;
+}
+}

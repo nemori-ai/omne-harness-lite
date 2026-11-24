@@ -18,7 +18,6 @@ import {
   type AssemblyCall,
   type AssemblyPolicies,
   type ContextReadEligibility,
-  type ConversionResultSource,
   type HistoryRow,
   type HistorySequence,
   type HistorySource,
@@ -26,7 +25,6 @@ import {
   type ContextTarget,
 } from '@omne-harness/request-context-contract'
 import {
-  createAssemblyGroups,
   createMemoryAdoptedSource,
   createMemoryContextSources,
   createScriptedPreparationResources,
@@ -92,9 +90,8 @@ export type Snapshot = Readonly<{
   identity: AssemblyCall<string>
   history: InputGroups<string>['history']['evidence']
   inputs: InputGroups<string>['history']['inputs']
-  contextRead: InputGroups<string>['context']['contextRead']
   adopted: AdoptedRequestFact | null
-  transition: InputGroups<string>['context']['transition']
+  transition: InputGroups<string>['history']['transition']
   promptContributions: InputGroups<string>['prompt']['promptContributions']
   assembleContext: InputGroups<string>['prompt']['assembleContext']
   selection: InputGroups<string>['model']
@@ -106,7 +103,6 @@ export type Snapshot = Readonly<{
 }>
 export type Ports = {
   history: HistorySource<string>
-  conversions: ConversionResultSource<string>
   meter: M.ModelInputMeter
   plan?: PreparationScript['plan']
   release?: PreparationScript['release']
@@ -161,7 +157,6 @@ export function policiesFixture(): AssemblyPolicies {
   }
 }
 export function fixture() {
-  const groups = createAssemblyGroups(target)
   const input: Snapshot = {
     identity: {
       access: { principal: 'p', tenant },
@@ -171,7 +166,6 @@ export function fixture() {
     },
     history: { target, epoch, upper: upper(0) },
     inputs: { batch: must(decodeBatchRef('batch:1')), entries: [], saved: evidence },
-    contextRead: groups.context.contextRead,
     adopted: null,
     transition: null,
     promptContributions: { contributions: [], digest: 'empty', generation: null },
@@ -212,11 +206,6 @@ export function fixture() {
         }
       },
     },
-    conversions: {
-      async read() {
-        return { kind: 'index', entries: new Map() }
-      },
-    },
     meter: {
       basis,
       async measure() {
@@ -236,8 +225,7 @@ type Bound = {
 const bound = new WeakMap<Ports, Bound>()
 function groupsOf(input: Snapshot) {
   return {
-    history: { evidence: input.history, inputs: input.inputs },
-    context: { contextRead: input.contextRead, transition: input.transition },
+    history: { evidence: input.history, inputs: input.inputs, transition: input.transition },
     prompt: {
       promptContributions: input.promptContributions,
       assembleContext: input.assembleContext,
@@ -264,7 +252,6 @@ export function sourcesFor(input: Snapshot, ports: Ports): MemoryContextSources<
       },
       values: groups,
       history: ports.history,
-      conversions: ports.conversions,
       preparation: createScriptedPreparationResources<string>({
         meter: ports.meter,
         ...(ports.plan === undefined ? {} : { plan: ports.plan }),
@@ -319,9 +306,6 @@ export function adoptedOf(
     candidate: candidate.candidate,
     order: must(decodeCommitOrder('1')),
     committed: evidence,
-    windowTokens: '1000',
-    accounting: { kind: 'unsettled' },
-    forecast: null,
     continuation: null,
     ...extra,
   }

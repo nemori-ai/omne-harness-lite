@@ -58,7 +58,6 @@ export {
   memoryOtherAccess,
   mintEvidence,
   operationId,
-  intakeInput,
   ordinaryInput,
   sessionId,
   testingTenant,
@@ -99,3 +98,13 @@ export {
   type ScriptedSessionAccessCheck,
   type SessionAccessScript,
 } from './testing-access.ts'
+
+export {
+  TESTING_DECLARATIONS,
+  TESTING_SOURCES,
+  TESTING_SYSTEM_COMPONENT,
+  testingDerivedInputs,
+  testingInputSources,
+  testingIntakeGuards,
+} from './testing-sources.ts'
+export { withMemberSubject } from './testing-access.ts'

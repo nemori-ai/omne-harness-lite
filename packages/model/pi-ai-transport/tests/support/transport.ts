@@ -45,6 +45,7 @@ export function transportOver(
     url: string
     credential?: PiCredentialSlot
     auth?: PiRouteAuth
+    accounting?: Readonly<{ place: string; costUnit: string }>
     limits?: PiTransportLimits
     onConnectRetry?: PiTransportConfig['onConnectRetry']
     onResponseBody?: PiTransportConfig['onResponseBody']
@@ -57,9 +58,8 @@ export function transportOver(
     families: family.families,
     routes: {
       [SUPPLIER.provider]: {
-        url: options.url,
-        endMarker: END_MARKER,
-        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        endpoints: { 'chat-completions': { url: options.url, endMarker: END_MARKER } },
+        accounting: options.accounting ?? { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: options.auth === undefined ? { kind: 'bearer', item: 'apiKey' } : options.auth,
       },
     },

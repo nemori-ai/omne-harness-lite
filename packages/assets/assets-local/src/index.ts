@@ -5,7 +5,7 @@ export {
   type CaptureScope,
 } from './provider.ts'
 export { assetsSqlMaterials } from './materials.ts'
-export { tenantLayerSource } from './layer.ts'
+export { tenantListing } from './layer.ts'
 export type * from './types.ts'
 export type {
   LocalPackages,
@@ -17,8 +17,11 @@ export type {
   PackageStep,
   PublishedPackages,
 } from './packages.ts'
-export { publishedRef } from './packages.ts'
-export { createTenantPublisher } from './tenant-publisher.ts'
+export { publishedAssetRef } from './packages.ts'
+export { createTenantPublisher, newHoldingRef } from './tenant-publisher.ts'
+export { originOf, TENANT_PUBLISHING_OWNER } from './origin.ts'
+export { createTenantLayerStore } from './layer-store.ts'
+export type { LocalUploads, UploadPolicy } from './uploads.ts'
 export {
   assetsPublicationFact,
   AssetPublicationRefSchema,

@@ -15,11 +15,15 @@ import {
   principalVerifier,
   sessionWorkIssuerOf,
 } from '../../../src/entry/principals.ts'
+import { succeed } from '@omne-harness/operation-result'
+import type { WorkSnapshot } from '@omne-harness/session-contract'
 import {
   createBoundSkills,
+  turnScopeOf,
   type SkillsBindingPorts,
 } from '../../../src/rows/tool-bindings/skills.ts'
 import { fixtureEnv, fixtureTenant, okOf } from '../../entry/support.ts'
+import { readWorkNowhere } from '../../skills/support.ts'
 
 const signal = new AbortController().signal
 
@@ -49,6 +53,7 @@ async function setup(
     catalog: SkillCatalog<unknown, unknown> | undefined
     access: SkillAccess<unknown, unknown> | undefined
     verifierAbsent: boolean
+    readWork: SkillsBindingPorts['readWork']
     callerTenant: 'a' | 'b'
     results: CatalogEntry[][]
   }> = {},
@@ -110,6 +115,7 @@ async function setup(
   const ports: SkillsBindingPorts = {
     verifier: () =>
       overrides.verifierAbsent === true ? undefined : fixture.root.get('principalVerifier'),
+    readWork: overrides.readWork ?? readWorkNowhere,
     catalog: () => ('catalog' in overrides ? overrides.catalog : catalog),
     access: () => ('access' in overrides ? overrides.access : access),
   }
@@ -228,6 +234,46 @@ describe('Skills binding: Skill answers become tool answers (table 2)', () => {
     expect(await bound.search({ query: '', after: null, limit: 5 }, signal)).toStrictEqual({
       failure: { kind: 'unavailable', reason: 'the Skill store cannot be read now' },
     })
+  })
+
+  it('answers unavailable when the session cannot be read, and asks no Skill service', async () => {
+    const asked: unknown[] = []
+    const catalog = {
+      summaries: async () => ({ failure: 'unknown' as const }),
+      search: async (...args: unknown[]) => void asked.push(args) as never,
+    }
+    for (const readWork of [() => undefined, async () => ({ failure: { kind: 'unavailable' } })]) {
+      const { bound } = await setup({ catalog, readWork: readWork as never })
+      expect(await bound.search({ query: '', after: null, limit: 5 }, signal)).toStrictEqual({
+        failure: { kind: 'unavailable', reason: 'the session cannot be read now' },
+      })
+    }
+    expect(asked).toEqual([])
+  })
+
+  it('names the turn it runs in to the Skill services, once the session has stood at a workspace', async () => {
+    const scopes: unknown[] = []
+    const catalog = {
+      summaries: async () => ({ failure: 'unknown' as const }),
+      search: async (_: unknown, scope: unknown) => {
+        scopes.push(scope)
+        return { ok: [] }
+      },
+    }
+    const read: unknown[] = []
+    const standing = async (access: unknown) => {
+      read.push(access)
+      return succeed({
+        creation: { workspace: 'somewhere' },
+        changes: [],
+        run: { kind: 'active', run: 'run_1' },
+      } as unknown as WorkSnapshot)
+    }
+    const { bound } = await setup({ catalog, readWork: standing })
+    await bound.search({ query: '', after: null, limit: 5 }, signal)
+    expect(scopes).toEqual([{ key: 'run_1' }])
+    expect(read).toEqual([expect.objectContaining({ session: expect.any(String) })])
+    expect(Object.keys(read[0] as object).sort()).toEqual(['principal', 'session', 'tenant'])
   })
 
   it('refuses a name that is not a Skill name before it asks anyone', async () => {
@@ -403,5 +449,28 @@ describe('Skills binding: search pages (table 3)', () => {
         next: null,
       },
     })
+  })
+})
+
+describe('the scope a Skills call names', () => {
+  const snapshot = (over: Record<string, unknown>) =>
+    ({
+      creation: { workspace: null },
+      changes: [],
+      run: { kind: 'active', run: 'run_1' },
+      ...over,
+    }) as unknown as WorkSnapshot
+  const at = { kind: 'workspace', value: 'somewhere' }
+  const away = { kind: 'workspace', value: null }
+
+  it('is the key of the running turn once the session has stood at a workspace, and none before', () => {
+    expect(turnScopeOf(snapshot({}))).toBeNull()
+    expect(turnScopeOf(snapshot({ changes: [away] }))).toBeNull()
+    expect(turnScopeOf(snapshot({ changes: [{ kind: 'model', value: 'x' }] }))).toBeNull()
+    expect(turnScopeOf(snapshot({ creation: { workspace: 'somewhere' } }))).toEqual({
+      key: 'run_1',
+    })
+    expect(turnScopeOf(snapshot({ changes: [at, away] }))).toEqual({ key: 'run_1' })
+    expect(turnScopeOf(snapshot({ changes: [at], run: { kind: 'none' } }))).toBeNull()
   })
 })

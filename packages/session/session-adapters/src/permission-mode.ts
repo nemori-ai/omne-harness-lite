@@ -2,21 +2,33 @@ import { createHash } from 'node:crypto'
 import type { InquiryPolicy } from '@omne-harness/authorization'
 import type {
   Adoption,
+  Attendance,
   DurableEvidence,
   Modes,
   SessionCreation,
 } from '@omne-harness/session-contract'
 
-const policies = {
+const attended = {
   never: Object.freeze({ onAsk: 'deny' }),
   auto_permission: Object.freeze({ onAsk: 'ask-human' }),
   'bypass-permissions': Object.freeze({ onAsk: 'skip-ask' }),
 } as const satisfies Readonly<Record<Modes['permission'], InquiryPolicy>>
 
+// Where nobody attends, an action a person would have to decide is refused: not let through, not awaited.
+const policies = {
+  attended,
+  unattended: {
+    ...attended,
+    auto_permission: Object.freeze({ onAsk: 'deny', denial: 'nobody-to-ask' }),
+  },
+} as const satisfies Readonly<
+  Record<Attendance, Readonly<Record<Modes['permission'], InquiryPolicy>>>
+>
+
 export const SESSION_PERMISSION_MODE_TRANSLATION: Adoption = Object.freeze({
   owner: '@omne-harness/session-adapters',
   name: 'permission-mode',
-  revision: '1',
+  revision: '2',
   digest: `sha256:${createHash('sha256').update(JSON.stringify(policies)).digest('hex')}`,
 })
 
@@ -34,6 +46,7 @@ export type SessionPermissionModeInput = Readonly<{
   creationSource: DurableEvidence
   override: Readonly<{ value: Modes['permission']; source: DurableEvidence }> | null
   defaultMode: DefaultPermissionMode
+  attendance: Attendance
 }>
 
 export type SessionPermissionModeProjection = Readonly<{
@@ -47,13 +60,14 @@ export type SessionPermissionModeResult =
   | Readonly<{ kind: 'unavailable'; reason: 'default-mode-missing' | 'default-mode-mismatch' }>
 
 function projected(
+  attendance: Attendance,
   value: Modes['permission'],
   source: DurableEvidence,
 ): SessionPermissionModeResult {
   return Object.freeze({
     kind: 'projected',
     value: Object.freeze({
-      policy: policies[value],
+      policy: policies[attendance][value],
       source: Object.freeze({ ...source }),
       translation: SESSION_PERMISSION_MODE_TRANSLATION,
     }),
@@ -63,9 +77,11 @@ function projected(
 export function projectSessionPermissionMode(
   input: SessionPermissionModeInput,
 ): SessionPermissionModeResult {
-  if (input.override !== null) return projected(input.override.value, input.override.source)
+  const { attendance } = input
+  if (input.override !== null)
+    return projected(attendance, input.override.value, input.override.source)
   if (input.adopted.kind === 'explicit')
-    return projected(input.adopted.value.permission, input.creationSource)
+    return projected(attendance, input.adopted.value.permission, input.creationSource)
   const observed = input.defaultMode
   if (observed.kind === 'unavailable')
     return { kind: 'unavailable', reason: 'default-mode-missing' }
@@ -78,5 +94,5 @@ export function projectSessionPermissionMode(
     expected.digest !== actual.digest
   )
     return { kind: 'unavailable', reason: 'default-mode-mismatch' }
-  return projected(observed.value, observed.source)
+  return projected(attendance, observed.value, observed.source)
 }

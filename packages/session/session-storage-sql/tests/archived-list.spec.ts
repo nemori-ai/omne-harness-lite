@@ -135,7 +135,10 @@ describe('the materials', () => {
     expect(session?.ownedTables).toContain('sl_session_archive')
     const read = materials.readHandlers.find(item => item.handler === 'session.list-archived')
     expect(read?.readTables).toEqual(['sl_session_list', 'sl_session_archive'])
-    expect(read?.requiresMigrations).toEqual([{ owner: 'session', id: '010-session-archive' }])
+    expect(read?.requiresMigrations).toEqual([
+      { owner: 'session', id: '010-session-archive' },
+      { owner: 'session', id: '013-session-standing' },
+    ])
   })
 })
 
@@ -197,6 +200,12 @@ describe('who archived and when', () => {
             title: null,
             archivedAt: T(2),
             archivedBy: 'person',
+            relation: { kind: 'main' },
+            root: 'session-1',
+            depth: 0,
+            attendance: 'attended',
+            definition: 'assistant',
+            toReference: null,
           },
         ],
         next: null,
@@ -214,6 +223,40 @@ describe('who archived and when', () => {
     expect(await listed(a)).toEqual(['session-1'])
     expect(await control(a, 'archive', 'archive-2')).toHaveProperty('ok')
     expect(await archived(a)).toMatchObject({ ok: { items: [{ archivedAt: T(4) }] } })
+  })
+
+  it('an archive that follows the archive of the parent is by parent, and the list filters by it', async () => {
+    const a = await app({ clock: clockOf([T(1), T(2), T(3), T(4)]) })
+    expect(await a.create(TENANT_A)).toHaveProperty('ok')
+    const child = {
+      relation: { kind: 'child', parent: SESSION, basis: evidence('dispatch') },
+      attendance: 'unattended',
+    } as const
+    expect(await a.create(TENANT_A, 'session-2', child)).toHaveProperty('ok')
+    expect(await control(a, 'archive', 'archive-parent')).toHaveProperty('ok')
+    const follows = { parent: SESSION, control: operationId('archive-parent') }
+    const cascaded = await a.port.commit({
+      access: a.access(TENANT_A, 'session-2'),
+      command: {
+        kind: 'control',
+        input: {
+          tenant: TENANT_A,
+          session: sessionId('session-2'),
+          operation: operationId('archive-child'),
+          intent: { kind: 'archive', cascade: follows },
+        },
+      },
+      guards: [],
+    })
+    expect(cascaded).toHaveProperty('ok')
+    const page = await archived(a)
+    if (!('ok' in page)) throw new Error(JSON.stringify(page))
+    expect(page.ok.items.map(item => [item.session, item.archivedBy]).sort()).toEqual([
+      ['session-1', 'person'],
+      ['session-2', 'parent'],
+    ])
+    expect(await sessionsOf(a, { by: 'parent' })).toEqual(['session-2'])
+    expect(await sessionsOf(a, { by: 'person' })).toEqual(['session-1'])
   })
 
   it('the idle rule archives: by auto', async () => {

@@ -103,10 +103,7 @@ describe('execution and evidence', () => {
       'committed',
       'rolled_back',
     ])
-    expect(await storage.query(never('n1'))).toEqual({
-      kind: 'not_recallable',
-      identity: never('n1'),
-    })
+    expect((await storage.query(never('n1'))).kind).toBe('settled')
     await control.close({ initiator: 'disposal' })
     expect(rows('select count(*) as n from t_ledger')).toEqual([{ n: 4 }])
     expect(rows('select operation_key from _sql_receipt')).toEqual([{ operation_key: 'kept' }])

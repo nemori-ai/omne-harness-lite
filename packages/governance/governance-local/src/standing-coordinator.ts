@@ -178,6 +178,14 @@ export class GovernanceStandingCoordinator {
     return this.store(operation, reply.data)
   }
 
+  async release(request: StandingRequest): Promise<boolean> {
+    try {
+      return (await this.identity.release(structuredClone(request))).kind === 'released'
+    } catch {
+      return false
+    }
+  }
+
   async settle(raw: OperationBinding): Promise<StandingProgress> {
     const operation = bindingSchema.parse(structuredClone(raw))
     const current = await this.sql.observe(operation)

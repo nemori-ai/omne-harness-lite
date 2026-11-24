@@ -40,6 +40,7 @@ describe('missing controls are independent and checked before any IO', () => {
         store: {
           durability: 'none',
           scanPending: input => original.store.scanPending(input),
+          usage: query => original.store.usage(query),
           readRecord: (domain, key) => {
             io += 1
             return original.store.readRecord(domain, key)
@@ -47,6 +48,10 @@ describe('missing controls are independent and checked before any IO', () => {
           due: (tenant, now, limit) => {
             io += 1
             return original.store.due(tenant, now, limit)
+          },
+          definition: (tenant, adoption) => {
+            io += 1
+            return original.store.definition(tenant, adoption)
           },
           read: domain => {
             io += 1

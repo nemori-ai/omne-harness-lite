@@ -143,7 +143,7 @@ async function world() {
     resolve: asset => registry.holdings(asset),
   })
   const port: SecretSettings = createSecretSettings({
-    items,
+    items: async () => items,
     qualify: input => guard.qualify(input),
     now: readSystemInstant,
   })

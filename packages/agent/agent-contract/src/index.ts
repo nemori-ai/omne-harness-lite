@@ -1,6 +1,12 @@
 export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts'
 export { endsWithUntakenInput, obligationCategoryOf } from './finishing.ts'
-export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts'
+export {
+  AGENT_TYPES,
+  ATTRIBUTE_ITEMS,
+  INSTRUCTION_LIMITS,
+  SUMMARY_LIMITS,
+  definitionListing,
+} from './definition.ts'
 export {
   ACTION_ADMISSION_DECLARATION,
   ACTION_ADMISSION_IMPLEMENTATION,
@@ -24,6 +30,8 @@ export type {
 } from './judge-output.ts'
 export type {
   AgentDefinition,
+  AgentDefinitionListing,
+  AgentType,
   AssetReference,
   AttributeDeclaration,
   AttributeItem,
@@ -84,4 +92,9 @@ export type * from './request.ts'
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts'
 
 export type * from './action-qualification.ts'
-export type * from './tool-qualification.ts'
+export {
+  definitionImpact,
+  definitionPlaces,
+  type DefinitionFacts,
+  type ResidentTool,
+} from './effect.ts'

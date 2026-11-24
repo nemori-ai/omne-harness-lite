@@ -1,7 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   AgentExecutionId,
-  AgentJournal,
   AgentJournalEntries,
   AgentJournalEntry,
   AgentMaterials,
@@ -35,12 +34,15 @@ import type {
   SessionId,
   SessionTransactionPort,
   WorkSnapshot,
+  ProducerRef,
+  SessionCallBinding,
 } from '@omne-harness/session-contract'
 import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 import { entriesAfter, entriesBatch, progressOf, savedProgress } from './entries-window.ts'
-import { subscribePublished } from './published-queue.ts'
+import { announce, subscribePublished } from './published-queue.ts'
+import { acknowledgeReceived, type ReceivedAllPorts } from './received-all.ts'
 
 const OWNER = 'session-adapters/model-log'
 const CHANNEL = 'model-received'
@@ -71,14 +73,15 @@ export type SessionModelLogConsumptionInput<P> = Readonly<{
   ): Promise<Outcome<P, SessionCoordinatorPrincipalFailure>>
 }>
 
-type Ports<P> = Readonly<{
-  readWork(access: SessionAccess<P>): Reply<WorkSnapshot>
-  load: AgentJournal<P>['load']
-  entries: AgentJournalEntries<P>['read']
-  read: AgentMaterials<P, ContentBlock>['read']
-  commitEntries: SessionTransactionPort<P>['commitEntries']
-  stopped(): boolean
-}>
+type Ports<P> = ReceivedAllPorts<P> &
+  Readonly<{
+    readCall(access: SessionAccess<P>, producer: ProducerRef): Reply<SessionCallBinding | null>
+    entries: AgentJournalEntries<P>['read']
+    read: AgentMaterials<P, ContentBlock>['read']
+    commitEntries: SessionTransactionPort<P>['commitEntries']
+    consumed(target: ModelLogTarget): void
+    stopped(): boolean
+  }>
 
 type Answer<T> = Outcome<T, SessionFailure>
 type ModelEntry = ReceivedEntry &
@@ -211,12 +214,11 @@ function createModelLogConsumption<P>(
       return call.failure.kind === 'malformed'
         ? invalid(`${field}.delivery.key.reference`, 'not a Model invocation reference')
         : denied()
-    const bound = work.consumptions.find(
-      item =>
-        item.binding.producer.kind === 'model' && item.binding.producer.call === key.reference,
-    )
-    if (bound === undefined) return succeed({ kind: 'unbound' })
-    if (!sameText(bound.id, entry.consumption))
+    const asked = await ports.readCall(access, { kind: 'model', call: key.reference })
+    if ('failure' in asked) return asked
+    const bound = asked.ok
+    if (bound === null) return succeed({ kind: 'unbound' })
+    if (!sameText(bound.consumption, entry.consumption))
       return invalid(`${field}.consumption`, 'not the consumption Session bound to the call')
     if (canonical(bound.binding.consumer) !== canonical(entry.consumer))
       return invalid(`${field}.consumer`, 'not the consumer Session bound to the call')
@@ -276,9 +278,9 @@ function createModelLogConsumption<P>(
     if ('failure' in read) return agentFailure('load', read.failure)
     const again = await ports.load(reading)
     if ('failure' in again) return agentFailure('load', again.failure)
-    if (again.ok.revision !== revision)
-      return unavailable('the execution changed while its entries were read')
     const window = read.ok.filter(isModelItem)
+    if (again.ok.revision !== revision)
+      return succeed({ progress: progressOf(saved), committed: false, waiting: window.length })
     const after = BigInt(saved?.through ?? '0')
     const items: SessionEntriesItem[] = []
     for (const [at, { entry }] of window.entries()) {
@@ -334,6 +336,11 @@ function createModelLogConsumption<P>(
     const access = { principal: principal.ok, tenant: target.tenant, session: target.session }
     for (let left = ROUNDS; ; left -= 1) {
       const answer = await round(access, tenantText.value, target)
+      if ('ok' in answer && answer.ok.committed) {
+        ports.consumed(target)
+        const received = { tenantText: tenantText.value, execution: target.execution }
+        await acknowledgeReceived(ports, access, received)
+      }
       if ('ok' in answer || answer.failure.kind !== 'changed' || left <= 1) return answer
     }
   }
@@ -371,12 +378,17 @@ export function createSessionModelLogConsumptionPlugin<P>(
         const materials = ctx[agentMaterialsKey]
         const transactions = ctx[sessionTransactionsKey]
         const logger = ctx.logger(OWNER)
+        const warn = (line: string) => logger.warn(line)
         const consume = createModelLogConsumption<P>(input, {
           readWork: access => session.work.readWork(access),
+          readCall: (access, producer) => session.work.readCall({ ...access, producer }),
           load: value => journal.load(value),
+          acknowledge: value => journal.acknowledge(value),
+          warn,
           entries: value => entries.read(value),
           read: value => materials.read(value),
           commitEntries: value => transactions.commitEntries(value),
+          consumed: target => announce(ctx, warn, 'consumed', target),
           stopped: () => stopped,
         })
         const guarded = async (target: ModelLogTarget): Reply<ModelLogConsumed> => {
@@ -400,6 +412,7 @@ export function createSessionModelLogConsumptionPlugin<P>(
               logger.warn(`the consumption of ${target.execution} answered ${said}`)
             } else failing.delete(target.execution)
           },
+          ['interpreted'],
         )
         ctx.effect(() => {
           current = guarded

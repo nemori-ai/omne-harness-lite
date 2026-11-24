@@ -1,3 +1,4 @@
+export { mcpParts } from './parts.ts'
 export { createMcpUiModule, type McpUiOptions } from './module.tsx'
 export type {
   McpEndpoint,

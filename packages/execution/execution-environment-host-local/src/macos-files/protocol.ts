@@ -36,6 +36,7 @@ export type NativeInput = Endpoint &
     targetRoot?: string
     expectedTargetRoot?: string
     targetSegments?: readonly string[]
+    targetRooted?: boolean
     targetNamed?: string
     entryBudget?: number
     byteBudget?: number

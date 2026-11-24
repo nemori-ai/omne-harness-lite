@@ -13,6 +13,7 @@ import {
 } from '@omne-harness/legal-identity'
 import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
 import type { LeafKind, Rule } from './rule.ts'
+import { livesAt } from './revision.ts'
 
 export type Fields = Readonly<Record<string, unknown>>
 export type Converted = { readonly local: unknown; readonly wire: JsonValue }
@@ -297,6 +298,75 @@ function count(input: unknown, direction: Direction, limits: JsonLimits): Conver
   return withinCount(input, direction, limits)
 }
 
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+const CHUNK = 0x8000
+
+type FromBase64 = (text: string, options: { lastChunkHandling: 'strict' }) => Uint8Array
+type Platform = Readonly<{ from: FromBase64 | undefined; to: (() => string) | undefined }>
+
+/** The base64 of the platform, where it has one: looked up at each use, a megabyte takes it a millisecond. */
+const platform = (value?: Uint8Array): Platform => ({
+  from: (Uint8Array as unknown as { fromBase64?: FromBase64 }).fromBase64,
+  to: (value as unknown as { toBase64?: () => string } | undefined)?.toBase64,
+})
+
+function base64Of(value: Uint8Array): string {
+  const own = platform(value).to
+  if (own !== undefined) return own.call(value)
+  let binary = ''
+  for (let start = 0; start < value.length; start += CHUNK)
+    binary += String.fromCharCode(...value.subarray(start, start + CHUNK))
+  return btoa(binary)
+}
+
+/** How many bytes the one canonical spelling of this length holds; none when no canonical spelling has this length. */
+function sizeOf(text: string): number | undefined {
+  if (text.length % 4 !== 0) return undefined
+  const padding = text.endsWith('==') ? 2 : text.endsWith('=') ? 1 : 0
+  return (text.length / 4) * 3 - padding
+}
+
+/** Whether the bits a padded last group does not use are clear: with them set, the text is a second spelling. */
+function tailClear(text: string): boolean {
+  if (!text.endsWith('=')) return true
+  const two = text.endsWith('==')
+  const last = ALPHABET.indexOf(text.charAt(text.length - (two ? 3 : 2)))
+  return last >= 0 && (last & (two ? 0b1111 : 0b11)) === 0
+}
+
+function decoded(text: string): Uint8Array {
+  const own = platform().from
+  if (own !== undefined) return own.call(Uint8Array, text, { lastChunkHandling: 'strict' })
+  const binary = atob(text)
+  const local = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) local[index] = binary.charCodeAt(index)
+  return local
+}
+
+/** The bytes of a base64 text, or none when it is not the one canonical spelling of them. A decoder that skips or forgives anything gives another size than the text says. */
+function bytesOf(text: string): Uint8Array | undefined {
+  const size = sizeOf(text)
+  if (size === undefined || !tailClear(text)) return undefined
+  try {
+    const local = decoded(text)
+    return local.byteLength === size ? local : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Bytes on the wire are base64 text; only the one canonical spelling of a value is read. */
+function bytes(input: unknown, direction: Direction): Converted | undefined {
+  if (direction === 'encode')
+    return input instanceof Uint8Array
+      ? { local: input, wire: stringWire(base64Of(input)) }
+      : undefined
+  const node = nodeOf(input)
+  if (node?.kind !== 'string') return undefined
+  const local = bytesOf(node.value)
+  return local === undefined ? undefined : { local, wire: node }
+}
+
 const leaves: { readonly [K in LeafKind]: Leaf } = {
   'positive-integer': boundedInteger(Number.MAX_SAFE_INTEGER),
   count,
@@ -305,6 +375,7 @@ const leaves: { readonly [K in LeafKind]: Leaf } = {
   string: textLeaf(() => true),
   session: textLeaf(value => /^[0-9a-f]{64}$/.test(value)),
   'page-bytes': textLeaf(value => /^[1-9][0-9]*$/.test(value)),
+  bytes,
   revision: textLeaf(value => /^(0|[1-9][0-9]*)$/.test(value)),
   boolean: onPrimitive(value =>
     typeof value === 'boolean' ? { local: value, wire: { kind: 'boolean', value } } : undefined,
@@ -338,15 +409,19 @@ function convertObject(
   data: Fields | undefined,
   direction: Direction,
   limits: JsonLimits,
+  revision: number | undefined,
 ): Converted | undefined {
-  if (data === undefined || Object.keys(data).some(key => !Object.hasOwn(rule.fields, key)))
-    return undefined
+  const later = (key: string): boolean => !livesAt(rule.fields[key]?.since, revision)
+  const unknown = (key: string): boolean =>
+    !Object.hasOwn(rule.fields, key) || (direction === 'decode' && later(key))
+  if (data === undefined || Object.keys(data).some(unknown)) return undefined
   const local: Record<string, unknown> = {}
   const wire: Record<string, JsonValue> = {}
   for (const [key, field] of Object.entries(rule.fields)) {
     if (!Object.hasOwn(data, key) && field.optional) continue
-    const converted = convert(field.rule, data[key], direction, limits)
+    const converted = convert(field.rule, data[key], direction, limits, revision)
     if (converted === undefined) return undefined
+    if (later(key)) continue
     local[key] = converted.local
     wire[key] = converted.wire
   }
@@ -358,6 +433,7 @@ function convertList(
   data: readonly unknown[] | undefined,
   direction: Direction,
   limits: JsonLimits,
+  revision: number | undefined,
 ): Converted | undefined {
   if (
     data === undefined ||
@@ -368,7 +444,7 @@ function convertList(
     return undefined
   const values: Converted[] = []
   for (const item of data) {
-    const converted = convert(rule.item, item, direction, limits)
+    const converted = convert(rule.item, item, direction, limits, revision)
     if (converted === undefined) return undefined
     values.push(converted)
   }
@@ -383,9 +459,10 @@ function firstMatch(
   input: unknown,
   direction: Direction,
   limits: JsonLimits,
+  revision: number | undefined,
 ): Converted | undefined {
   for (const option of rules) {
-    const converted = convert(option, input, direction, limits)
+    const converted = convert(option, input, direction, limits, revision)
     if (converted !== undefined) return converted
   }
   return undefined
@@ -402,6 +479,7 @@ export function convert(
   input: unknown,
   direction: Direction,
   limits: JsonLimits,
+  revision?: number,
 ): Converted | undefined {
   if (isLeaf(rule)) return leaves[rule.kind](input, direction, limits)
   switch (rule.kind) {
@@ -413,11 +491,12 @@ export function convert(
         direction === 'decode' ? objectWire(nodeOf(input)) : fields(input),
         direction,
         limits,
+        revision,
       )
     case 'array':
-      return convertList(rule, itemsOf(input, direction), direction, limits)
+      return convertList(rule, itemsOf(input, direction), direction, limits, revision)
     case 'one-of':
-      return firstMatch(rule.rules, input, direction, limits)
+      return firstMatch(rule.rules, input, direction, limits, revision)
     default: {
       const unreachable: never = rule
       return unreachable

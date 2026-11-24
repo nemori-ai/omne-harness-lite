@@ -1,9 +1,8 @@
 import {
   createToolFactAcknowledgementGuard,
   type AccessVerdict,
-  type LedgerCommit,
-  type LedgerCommitInput,
   type ToolAccessGuard,
+  type ToolAccountsGuard,
   type ToolGrantVerifier,
   type ToolLedgerBudgets,
   type ToolLedgerGuards,
@@ -28,28 +27,16 @@ export const localArgumentLimits: ToolLedgerBudgets['arguments'] = Object.freeze
   maxNumberLength: 32,
 })
 
-export type StartCondition = Readonly<Record<string, unknown>>
-
-export type RequestAccessVerdict =
-  | Readonly<{ kind: 'allowed'; condition: StartCondition | null }>
-  | Exclude<AccessVerdict, { kind: 'allowed' }>
-
-export interface ToolRequestAccess<P> {
-  qualify(
-    input: CallAccess<P> & Readonly<{ request: FixedToolRequest }>,
-  ): Promise<RequestAccessVerdict>
-}
-
-export interface ConditionalLedgerCommit {
-  commit(
-    input: Readonly<{ condition: StartCondition; ledger: LedgerCommitInput }>,
-  ): Promise<LedgerCommit | Readonly<{ kind: 'condition-failed' }>>
+export interface ToolTargetAvailability<P> {
+  qualify(input: CallAccess<P> & Readonly<{ request: FixedToolRequest }>): Promise<AccessVerdict>
 }
 
 export type ToolHostAccess<P> = Readonly<{
   guard: ToolAccessGuard<P>
   start: StartCoordinatorAccess<P>
-  request?: ToolRequestAccess<P>
+  target?: ToolTargetAvailability<P>
+  /** Who may list the usage of a tenant; without it the list answers unavailable. */
+  accounts?: ToolAccountsGuard<P>
 }>
 
 export type LocalToolLedgerGuardsInput<P, E = unknown> = Readonly<{
@@ -98,7 +85,7 @@ export function createLocalToolLedgerGuards<P, E = unknown>(
     grants,
     starts: createLocalStartGuard<P>({
       access: access.start,
-      ...(access.request === undefined ? {} : { requestAccess: access.request }),
+      ...(access.target === undefined ? {} : { target: access.target }),
     }),
     results: createLocalTextResults(),
     policy: defaultResultPolicy,

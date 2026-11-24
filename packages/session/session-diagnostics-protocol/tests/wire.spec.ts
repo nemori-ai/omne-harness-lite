@@ -26,6 +26,7 @@ const attempt = {
     execution: { kind: 'known', milliseconds: '99' },
   },
   account,
+  reasoning: 'carried',
 }
 const counted = [{ kind: 'run.started', count: '1' }]
 const run = {
@@ -58,9 +59,16 @@ const run = {
           ...attempt,
           outcome: { kind: 'failed', cause: 'x', upstreamStatus: null },
           account: unknownValue,
+          reasoning: 'not-carried',
         },
       ],
       coverage: 'expired-prefix',
+      reads: [
+        { message: 'msg-1', block: 'b-1', read: 'original' },
+        { message: 'msg-1', block: 'b-2', read: 'fitted' },
+        { message: 'msg-2', block: 'b-1', read: 'derived' },
+        { message: 'msg-2', block: 'b-2', read: 'transcript' },
+      ],
       facts: counted,
     },
     {
@@ -69,6 +77,7 @@ const run = {
       call: unknownValue,
       dispatches: [],
       coverage: 'unknown',
+      reads: [],
       facts: [],
     },
   ],
@@ -166,6 +175,59 @@ describe('read-session-diagnostics outcome bodies', () => {
     expectRoundTrip(operation.outcomes.succeeded, withCause(structured))
   })
 
+  it('takes an attempt without the reasoning member, as a recording made before it, and refuses a value outside the three', () => {
+    const { reasoning: _omitted, ...older } = attempt
+    const withAttempt = (dispatch: unknown) => ({
+      ...page,
+      runs: [{ ...run, modelCalls: [{ ...run.modelCalls[0], dispatches: [dispatch] }] }],
+    })
+    expectRoundTrip(operation.outcomes.succeeded, withAttempt(older))
+    expectRoundTrip(operation.outcomes.succeeded, withAttempt({ ...attempt, reasoning: 'unknown' }))
+    expect(
+      readSample(operation.outcomes.succeeded, withAttempt({ ...attempt, reasoning: 'maybe' })),
+    ).toEqual({ ok: false })
+  })
+
+  it('carries the moments, the span to the response, the connect retries and the dispatch progress, and takes a recording without them', () => {
+    const moment = (instant: string) => ({ kind: 'known', instant })
+    const withMoments = {
+      ...attempt,
+      instants: {
+        prepared: moment('2026-11-19T08:00:00.000Z'),
+        sent: moment('2026-11-19T08:00:00.040Z'),
+        responseStarted: moment('2026-11-19T08:00:00.340Z'),
+        firstContent: { kind: 'unknown' },
+        ended: moment('2026-11-19T08:00:04.040Z'),
+      },
+      timing: { ...attempt.timing, sendToResponse: { kind: 'known', milliseconds: '300' } },
+      connectRetries: ['connect-failed', 'connect-timeout'],
+    }
+    const progress = {
+      allowed: '2',
+      made: '2',
+      last: { cause: 'upstream-unavailable', upstreamStatus: '504' },
+    }
+    const withCall = (call: unknown, dispatch: unknown) => ({
+      ...page,
+      runs: [{ ...run, modelCalls: [{ ...run.modelCalls[0], call, dispatches: [dispatch] }] }],
+    })
+    const found = { kind: 'found', call: 'c-1', phase: 'settled' }
+    expectRoundTrip(operation.outcomes.succeeded, withCall({ ...found, progress }, withMoments))
+    expectRoundTrip(
+      operation.outcomes.succeeded,
+      withCall({ ...found, progress: { ...progress, last: null } }, attempt),
+    )
+    for (const broken of [
+      withCall(found, { ...withMoments, connectRetries: ['dns'] }),
+      withCall(found, {
+        ...withMoments,
+        instants: { ...withMoments.instants, sent: { kind: 'known', instant: 40 } },
+      }),
+      withCall({ ...found, progress: { ...progress, made: 2 } }, attempt),
+    ])
+      expect(readSample(operation.outcomes.succeeded, broken)).toEqual({ ok: false })
+  })
+
   it('round-trips a page of no runs and a run without a terminal', () => {
     expectRoundTrip(operation.outcomes.succeeded, {
       ...page,
@@ -198,6 +260,27 @@ describe('read-session-diagnostics outcome bodies', () => {
       { ...page, gaps: [{ source: 'agent', subject: 's', reason: 'gone' }] },
     ],
     ['with another entry class', { ...page, runs: [{ ...run, entry: 'batch' }] }],
+    [
+      'with a model call that does not say what each block was read as',
+      {
+        ...page,
+        runs: [{ ...run, modelCalls: [{ ...run.modelCalls[1], reads: undefined }] }],
+      },
+    ],
+    [
+      'with a block read as something other than the four',
+      {
+        ...page,
+        runs: [
+          {
+            ...run,
+            modelCalls: [
+              { ...run.modelCalls[1], reads: [{ message: 'm', block: 'b', read: 'resized' }] },
+            ],
+          },
+        ],
+      },
+    ],
     [
       'with an unknown that cannot say not-disclosed',
       {

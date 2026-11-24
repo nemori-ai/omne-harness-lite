@@ -117,10 +117,17 @@ describe('Session permission assignments through decide and reduce', () => {
         },
       ],
     })
-    expect(reduce(snapshot, saved.batch)).toEqual({ kind: 'reduced', snapshot: saved.snapshot })
+    expect(reduce(snapshot, saved.batch)).toEqual({
+      kind: 'reduced',
+      snapshot: saved.snapshot,
+      settled: [],
+      late: [],
+    })
     expect(reduce(saved.snapshot, saved.batch)).toEqual({
       kind: 'reduced',
       snapshot: saved.snapshot,
+      settled: [],
+      late: [],
     })
   })
   it('invalidates a prepared assignment when the permission mode changes', () => {
@@ -135,6 +142,7 @@ describe('Session permission assignments through decide and reduce', () => {
         operation: operationId('mode-change'),
         declaration: {
           kind: 'permission-mode',
+          expectedRevision: '0',
           value: 'never',
           authorization: evidence('mode-authority'),
         },

@@ -15,7 +15,6 @@ import type {
   ModelCallId,
   ModelInstanceId,
   ModelOperationId,
-  ProviderName,
   Mutation,
   ReadId,
   ResultVersion,
@@ -24,6 +23,8 @@ import type {
   ToolDeclaration,
 } from './root.ts'
 import type {
+  AbandonInput,
+  AbandonReceipt,
   AckInput,
   AckReceipt,
   Admission,
@@ -40,6 +41,7 @@ import type {
   Termination,
 } from './result.ts'
 import type {
+  ConnectRetryReason,
   DispatchRecord,
   GrowingContentKind,
   LiveRoute,
@@ -50,6 +52,7 @@ import type {
   Snapshot,
 } from './call-surface.ts'
 import type { CallAccount } from '@omne-harness/call-account'
+import type { MediaMeasurementFact, ReplayOmission } from './profile.ts'
 
 export type TransportFailure = Extract<
   ModelFailure,
@@ -58,25 +61,29 @@ export type TransportFailure = Extract<
 export interface ModelToolPayloadAdapter<TPayload> {
   convertToModelPayload(declaration: ToolDeclaration): Outcome<TPayload, TransportFailure>
 }
-export interface ModelMediaLease {
-  readonly bytes: AsyncIterable<Uint8Array>
-  close(): Promise<void>
-}
-export interface ModelMediaReader<P> {
+export type ModelMediaLimits = Readonly<{
+  mediaTypes: readonly string[]
+  maxBytes: number
+  image: Readonly<{ maxWidth: number; maxHeight: number }> | null
+}>
+export type ModelMedia = Readonly<{
+  mediaType: string
+  bytes: Uint8Array
+  measurement: MediaMeasurementFact
+}>
+export type ModelMediaFailure =
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  | Readonly<{ kind: 'material-unavailable' }>
+  | Readonly<{ kind: 'too-large' }>
+export interface ModelMediaSource<P> {
   open(
-    input: Access<P> &
-      Readonly<{
-        invocation:
-          | Readonly<{ kind: 'managed'; call: ModelCallId; dispatch: DispatchId }>
-          | Readonly<{ kind: 'independent' }>
-        request: FixedModelRequest
-        source: DurableEvidence
-        reference: ContentReference
-        provider: ProviderName
-      }>,
+    input: Access<P> & Readonly<{ reference: ContentReference; limits: ModelMediaLimits }>,
     signal: AbortSignal,
-  ): Promise<Outcome<ModelMediaLease, TransportFailure>>
+  ): Promise<Outcome<ModelMedia, ModelMediaFailure>>
 }
+export type MediaRefusal = Readonly<{ kind: 'media'; reference: ContentReference }> &
+  (Readonly<{ reason: 'material-unavailable' }> | Readonly<{ reason: 'over-limit'; limit: string }>)
+export type MaterializeFailure = TransportFailure | MediaRefusal
 export type CallAccountReport = Omit<CallAccount, 'subject' | 'receipt'>
 export type ProviderDiagnostic =
   | Readonly<{
@@ -85,10 +92,13 @@ export type ProviderDiagnostic =
       scope: string
       format: string
       omittedParts: number
+      reason: ReplayOmission
     }>
   | Readonly<{ kind: 'reasoning-disabled'; reason: 'foreign-prefix' }>
   | Readonly<{ kind: 'reasoning-state-dropped'; reason: 'payload-too-long'; length: number }>
   | Readonly<{ kind: 'usage-inconsistent'; field: string }>
+  /** The upstream changed the request before it ran: what it did, where, and why; never content. */
+  | Readonly<{ kind: 'upstream-transformed'; type: string; path: string; reason: string }>
 export type TransportTermination =
   | Exclude<Termination, { kind: 'interrupted' }>
   | Readonly<{ kind: 'interrupted'; stop: 'confirmed' }>
@@ -105,16 +115,28 @@ export type TransportFact =
   | Readonly<{ kind: 'trim'; index: string; removed: string; reason: string }>
   | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
   | Readonly<{ kind: 'diagnostic'; value: ProviderDiagnostic }>
+  | Readonly<{ kind: 'response'; request: string | null }>
+  | Readonly<{ kind: 'connect-retry'; reason: ConnectRetryReason }>
   | Readonly<{ kind: 'ended'; termination: TransportTermination }>
 export type IndependentModelFact =
   | TransportFact
   | Readonly<{ kind: 'not-started'; reason: 'cancelled' }>
   | Readonly<{ kind: 'not-started'; reason: 'rejected'; failure: TransportFailure }>
+export type MaterializedMedium = Readonly<{
+  reference: ContentReference
+  mediaType: string
+  bytes: string
+}>
 export type MaterializationReceipt = Readonly<{
   supplier: Adoption
   representation: Adoption
   payloadDigest: string
+  media?: readonly MaterializedMedium[]
   replayFormat?: string
+  /** The prefix the request was encoded on; present with a replay format. */
+  replayPrefix?: string
+  /** The request carried reasoning state back; present, with a replay format, only when it did. */
+  replayCarried?: true
 }>
 export interface MaterializedTransport {
   readonly receipt: MaterializationReceipt
@@ -122,7 +144,7 @@ export interface MaterializedTransport {
   close(): Promise<void>
 }
 export interface PreparedTransport {
-  materialize(signal: AbortSignal): Promise<Outcome<MaterializedTransport, TransportFailure>>
+  materialize(signal: AbortSignal): Promise<Outcome<MaterializedTransport, MaterializeFailure>>
   close(): Promise<void>
 }
 export type TransportDispatch = Readonly<{
@@ -159,6 +181,8 @@ export type DispatchPlan = Readonly<{
 export type RetryDecision =
   | Readonly<{ kind: 'stop'; fault: ModelFault }>
   | Readonly<{ kind: 'retry'; supplier: Supplier; notBefore: string; basis: Adoption }>
+  /** At once, to the supplier that refused the reasoning state, without any reasoning state. */
+  | Readonly<{ kind: 'resend-without-replay'; supplier: Supplier }>
 export type RetryPosition = Readonly<{
   operation: ModelOperationId
   dispatch: DispatchId
@@ -182,12 +206,20 @@ export type RecoveryRecord = Readonly<{
   retry: RetryDecision | null
   retryPosition: RetryPosition | null
   retrySource?: DurableEvidence | null
+  /** The ending the store holds the latest dispatch to; a settlement carries it. Null before one. */
+  logicalTerminal: Termination | null
   unresolved: readonly ModelOperationId[]
   tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[]
 }>
 export type LateDispatchFact =
   | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
   | Readonly<{ kind: 'terminal'; event: string; actual: Termination }>
+  | Readonly<{ kind: 'cost-miss'; event: string; final: boolean }>
+export type CostLookupAnswer =
+  | Readonly<{ kind: 'found'; cost: CallAccountReport['cost']; place: string }>
+  | Readonly<{ kind: 'missed' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  | Readonly<{ kind: 'unsupported' }>
 export interface ModelCommands<P> {
   admit(input: Admit<P>): Reply<Admission>
   recall(input: CallAccess<P> & Readonly<{ admission: ModelOperationId }>): Reply<Lookup>
@@ -218,7 +250,13 @@ export interface ModelCommands<P> {
   ): Reply<Revision>
   preserve(
     input: WriteContext &
-      Readonly<{ dispatch: DispatchId; window: string; facts: readonly TransportFact[] }>,
+      Readonly<{
+        dispatch: DispatchId
+        window: string
+        facts: readonly TransportFact[]
+        /** When each fact reached Model, aligned with `facts`; null where the clock could not be read. */
+        arrivals?: readonly (string | null)[]
+      }>,
   ): Reply<Snapshot>
   recordLateFact(
     input: Access<P> &
@@ -241,6 +279,16 @@ export interface ModelCommands<P> {
   nextRead(input: CallAccess<P> & Readonly<{ read: ReadId; after: string }>): Reply<ReadState>
   endRead(input: CallAccess<P> & Readonly<{ read: ReadId }>): Reply<ReadState>
   handoff(input: AckInput<P>): Reply<AckReceipt>
+  abandon(input: AbandonInput<P>): Reply<AbandonReceipt>
+  confirmAccount(
+    input: CallAccess<P> &
+      Readonly<{
+        operation: ModelOperationId
+        dispatch: DispatchId
+        revision: string
+        receipt: DurableEvidence
+      }>,
+  ): Reply<Revision>
   advanceCleanup(
     input: ExecutionRef & Readonly<{ operation: ModelOperationId }>,
   ): Reply<CustodyState>
@@ -264,6 +312,10 @@ export type SendResult =
   | Readonly<{ kind: 'unknown'; dispatch: DispatchId; diagnostic: string }>
 export interface ModelSendBoundary<P> {
   send(input: SendDemand<P>, signal: AbortSignal): Promise<SendResult>
+  lookupCost?(
+    input: CallAccess<P> & Readonly<{ dispatch: DispatchId }>,
+    signal: AbortSignal,
+  ): Promise<CostLookupAnswer>
 }
 export interface ModelRetryPolicy<P> {
   decide(

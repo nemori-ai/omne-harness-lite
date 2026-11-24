@@ -21,6 +21,7 @@
 - `ToolContributionAuthority` · `cordis.d.ts`
 - `ToolContributionAuthorityService` · `cordis.d.ts`
 - `ToolDecisionBridgeService` · `cordis.d.ts`
+- `ToolEntrySourcesService` · `cordis.d.ts`
 - `ToolEnvironmentService` · `cordis.d.ts`
 - `ToolGenerations` · `cordis.d.ts`
 - `ToolGenerationsFailure` · `cordis.d.ts`
@@ -29,6 +30,7 @@
 - `ToolInstancesService` · `cordis.d.ts`
 - `ToolLoadFailure` · `cordis.d.ts`
 - `ToolLoadState` · `cordis.d.ts`
+- `ToolMediaStoreService` · `cordis.d.ts`
 - `ToolOffloaderService` · `cordis.d.ts`
 - `ToolPublication` · `cordis.d.ts`
 - `ToolPublicationAuthority` · `cordis.d.ts`
@@ -37,6 +39,7 @@
 - `ToolRegistration` · `cordis.d.ts`
 - `ToolRegistrationFailure` · `cordis.d.ts`
 - `ToolRegistrationInput` · `cordis.d.ts`
+- `ToolReleaseDetailsService` · `cordis.d.ts`
 - `ToolResidencyPage` · `cordis.d.ts`
 - `ToolResidencyReader` · `cordis.d.ts`
 - `ToolResidencyReaderService` · `cordis.d.ts`
@@ -56,19 +59,24 @@
 - `toolCommandsKey` · `cordis.d.ts`
 - `toolContributionAuthorityKey` · `cordis.d.ts`
 - `toolDecisionsKey` · `cordis.d.ts`
+- `toolEntrySourcesKey` · `cordis.d.ts`
+- `toolEntrySourcesPlugin` · `cordis.d.ts`
 - `toolEnvironmentsKey` · `cordis.d.ts`
 - `toolGenerationsKey` · `cordis.d.ts`
 - `toolInstanceHostKey` · `cordis.d.ts`
 - `toolInstancesKey` · `cordis.d.ts`
+- `toolMediaStoreKey` · `cordis.d.ts`
 - `toolOffloaderKey` · `cordis.d.ts`
 - `toolPublicationAuthorityKey` · `cordis.d.ts`
 - `toolReadsKey` · `cordis.d.ts`
+- `toolReleaseDetailsKey` · `cordis.d.ts`
 - `toolResidencyReaderKey` · `cordis.d.ts`
 - `toolResourceResponsesKey` · `cordis.d.ts`
 - `toolResultPolicyKey` · `cordis.d.ts`
 - `toolRuntimeKey` · `cordis.d.ts`
 - `toolStartAuthorityKey` · `cordis.d.ts`
 - `toolStartFenceKey` · `cordis.d.ts`
+- `toolToolsPoint` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -124,8 +132,10 @@ import { type Context, Service } from '@deepseek-ai/cordis';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
-import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
-import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
+import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolReleaseDetails, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
+import { type DynamisService } from '@omne-harness/dynamis-cordis/cordis';
+import type { Plugin } from '@deepseek-ai/cordis';
+import { type ToolEntrySource, type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolMediaStore, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
     private readonly resultReceivers;
@@ -327,6 +337,12 @@ export declare abstract class ToolDecisionBridgeService<P> extends Service imple
     abstract readonly resolve: ToolDecisionBridge<P>['resolve'];
 }
 export declare const toolDecisionsKey = "toolDecisions";
+export declare abstract class ToolMediaStoreService<P> extends Service implements ToolMediaStore<P> {
+    static readonly provide = "toolMediaStore";
+    constructor(ctx: Context);
+    abstract readonly put: ToolMediaStore<P>['put'];
+}
+export declare const toolMediaStoreKey = "toolMediaStore";
 export type ToolPublication = Extract<Awaited<ReturnType<ToolInstanceHost<never>['publish']>>, {
     ok: unknown;
 }>['ok'];
@@ -412,10 +428,29 @@ export declare abstract class ToolCatalogService<P> extends Service implements T
     static readonly provide = "toolCatalog";
     constructor(ctx: Context);
     abstract readonly inspect: ToolCatalog<P>['inspect'];
+    abstract readonly inspectEach: ToolCatalog<P>['inspectEach'];
     abstract readonly usage: ToolCatalog<P>['usage'];
     abstract readonly search: ToolCatalog<P>['search'];
 }
 export declare const toolCatalogKey = "toolCatalog";
+export declare class ToolEntrySourcesService<P, B extends ContentBlock> extends Service {
+    static readonly provide = "toolEntrySources";
+    protected readonly tree: DynamisService;
+    private readonly inflight;
+    private readonly idle;
+    constructor(ctx: Context);
+    sources(): readonly ToolEntrySource<P, B>[];
+    hold(prefix: string): () => void;
+    contribute(source: ToolEntrySource<P, B>): void;
+}
+export declare const toolEntrySourcesKey = "toolEntrySources";
+export declare const toolEntrySourcesPlugin: Plugin.Object;
+export declare abstract class ToolReleaseDetailsService<P> extends Service implements ToolReleaseDetails<P> {
+    static readonly provide = "toolReleaseDetails";
+    constructor(ctx: Context);
+    abstract readonly describe: ToolReleaseDetails<P>['describe'];
+}
+export declare const toolReleaseDetailsKey = "toolReleaseDetails";
 export declare abstract class ToolStartAuthorityService<P> extends Service implements ToolStartAuthority<P> {
     static readonly provide = "toolStartAuthority";
     constructor(ctx: Context);
@@ -478,6 +513,7 @@ declare module '@deepseek-ai/cordis' {
         toolGenerations: ToolGenerationsService<unknown, unknown, ContentBlock>;
         toolEnvironments: ToolEnvironmentService<unknown, unknown>;
         toolDecisions: ToolDecisionBridgeService<unknown>;
+        toolMediaStore: ToolMediaStoreService<unknown>;
         toolInstances: ToolInstancesService<unknown>;
         toolPublicationAuthority: ToolPublicationAuthorityService<unknown>;
         toolInstanceHost: ToolInstanceHostService<unknown>;
@@ -485,6 +521,8 @@ declare module '@deepseek-ai/cordis' {
         toolResultPolicy: ResultPolicyService<ContentBlock>;
         toolReads: ToolReadsService<unknown, ContentBlock>;
         toolCatalog: ToolCatalogService<unknown>;
+        toolEntrySources: ToolEntrySourcesService<unknown, ContentBlock>;
+        toolReleaseDetails: ToolReleaseDetailsService<unknown>;
         toolStartAuthority: ToolStartAuthorityService<unknown>;
         toolStartFence: ToolStartFenceService<unknown>;
         toolResourceResponses: ToolResourceResponsesService<unknown>;
@@ -497,6 +535,26 @@ declare module '@deepseek-ai/cordis' {
         'tool-cordis-contract/binding-changed'(key: ToolBindingKey, change: 'registered' | 'draining' | 'released'): void;
     }
 }
+export declare const toolToolsPoint: Readonly<{
+    name: string;
+    tree: 'server';
+    arity: 'keyed-one';
+    keyFrom: null;
+    key: string;
+    gives: string;
+    item: Readonly<{
+        kind: 'data';
+        fields: Readonly<Record<Exclude<keyof import("@omne-harness/assets").HeldItem, 'within'>, 'string' | 'boolean'>>;
+    }>;
+    resolve: 'most-specific';
+    binding: 'run';
+    onError: string;
+    version: number;
+    revision: number;
+    keys: 'private' | 'public';
+    conformance: null;
+    summary: string;
+}>;
 export {};
 ```
 
@@ -584,7 +642,7 @@ export type MemoryToolResidencyReader = Readonly<{
     reader: ToolResidencyReader;
     set(key: ToolBindingKey, holders: readonly Readonly<{
         tenant: TenantId;
-        session: string;
+        holder: string;
         shape: ToolShape;
     }>[]): void;
     interrupt(diagnostic?: string): void;
@@ -613,7 +671,7 @@ export interface ResidentKeyRoundTripFixture {
     writeRaw?(input: Readonly<{
         tenant: TenantId;
         key: ToolBindingKey;
-        shape: ResidentReferencesPage['sessions'][number]['shape'];
+        shape: ResidentReferencesPage['references'][number]['shape'];
     }>): Promise<void>;
 }
 export type ResidentKeyCaseDependencies = Readonly<{

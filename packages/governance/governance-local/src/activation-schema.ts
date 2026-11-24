@@ -1,4 +1,5 @@
 import { closeScopeSchema } from './scope.ts'
+import { RELEASE_PAGE, releasedKeySchema } from './release-read.ts'
 import { z } from 'zod'
 import { GovernanceDigestSchema, GovernanceIdSchema } from '@omne-harness/governance-contract'
 import {
@@ -24,7 +25,11 @@ export const ACTIVATION_PROTOCOL = 'governance-activation/1'
 export const controlRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('persist-stage'), input: persistStageSchema }),
   z.strictObject({ kind: z.literal('bootstrap'), input: bootstrapSchema }),
-  z.strictObject({ kind: z.literal('close-scope'), input: closeScopeSchema }),
+  z.strictObject({
+    kind: z.literal('close-scope'),
+    input: closeScopeSchema,
+    released: z.array(releasedKeySchema).max(RELEASE_PAGE),
+  }),
   z.strictObject({ kind: z.literal('retire-contribution'), binding: bindingSchema }),
   z.strictObject({ kind: z.literal('accept'), input: acceptSchema }),
   z.strictObject({ kind: z.literal('standing-prepare'), input: standingPlanSchema }),

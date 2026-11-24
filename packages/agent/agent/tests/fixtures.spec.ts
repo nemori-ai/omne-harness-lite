@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { succeed } from '@omne-harness/operation-result'
 import {
   createManualAgentClock,
   createScriptedAccessCheck,
@@ -8,7 +8,6 @@ import {
   createScriptedExtensions,
   createScriptedMaterials,
   createScriptedMessageHandoff,
-  createScriptedModelContext,
   createScriptedModelSelection,
   createScriptedReads,
   createScriptedRequestPreparation,
@@ -83,7 +82,7 @@ describe('action admission', () => {
     })
     expect(ok(await admission.port.admit(input)).kind).toBe('allow')
     const answers: AdmissionDecision[] = [
-      { kind: 'deny', reason: 'policy', evidence: testEvidence('deny') },
+      { kind: 'deny', category: 'rule', reason: 'policy', evidence: testEvidence('deny') },
       {
         kind: 'need-decision',
         card: stub({ title: 'ask' }),
@@ -109,7 +108,6 @@ describe('request preparation', () => {
         recipient: { route: 'route-1', profile: testAdoption('profile') },
         parameters: [{ kind: 'temperature', value: 0 }],
       },
-      context: { coverage: testEvidence('coverage') },
     })
     const prepared = ok(await requests.port.prepare(input))
     expect(prepared).toEqual(readyPreparation(input))
@@ -117,7 +115,7 @@ describe('request preparation', () => {
       kind: 'ready',
       id: 'action-1',
       recipient: { route: 'route-1' },
-      coverage: testEvidence('coverage'),
+      coverage: testEvidence('coverage/w'),
     })
     expect(failure(await requests.port.assessCompaction(stub({ ...access })))).toEqual({
       kind: 'unsupported',
@@ -170,7 +168,7 @@ describe('adoptions and conditions tables', () => {
   })
 })
 
-describe('selection, model context and handoff', () => {
+describe('selection and handoff', () => {
   it('selection is unavailable until scripted', async () => {
     const selection = createScriptedModelSelection<string>()
     const input = stub<Parameters<typeof selection.port.select>[0]>({ ...access })
@@ -180,37 +178,6 @@ describe('selection, model context and handoff', () => {
     )
     selection.select.always(() => selected)
     expect(await selection.port.select(input)).toBe(selected)
-  })
-
-  it('model context reads full for the recipient of the input by default', async () => {
-    const context = createScriptedModelContext<string>()
-    const recipient = { route: 'route-1', profile: testAdoption('profile') }
-    const read = ok(
-      await context.port.read({
-        ...access,
-        advance: authority,
-        position: { owner: 'agent', work: 'w', position: 'M0', purpose: 'main' },
-        recipient,
-        history: testEvidence('history'),
-        adopted: null,
-        transition: null,
-      }),
-    )
-    expect(read).toMatchObject({ recipient, content: 'full' })
-    context.read.once(() => fail({ kind: 'unavailable', owner: 'context', diagnostic: 'down' }))
-    expect(
-      failure(
-        await context.port.read({
-          ...access,
-          advance: authority,
-          position: { owner: 'agent', work: 'w', position: 'M0', purpose: 'main' },
-          recipient,
-          history: testEvidence('history'),
-          adopted: null,
-          transition: null,
-        }),
-      ).kind,
-    ).toBe('unavailable')
   })
 
   it('handoff prepares the candidate by default and rejects as scripted', async () => {

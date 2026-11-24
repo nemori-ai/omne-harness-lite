@@ -76,7 +76,6 @@ export function createScheduleOperationIntent(input: ScheduleOperationIntentInpu
       aggregateRef: null,
       payload: { definition: parsed.input.definition, initial: parsed.input.initial },
       expectedRevision: meta.expectedRevision,
-      consentRef: meta.consentRef,
     }
     return {
       address: ScheduleOperationAddressSchema.parse({
@@ -97,7 +96,6 @@ export function createScheduleOperationIntent(input: ScheduleOperationIntentInpu
     aggregateRef: scheduleId,
     payload,
     expectedRevision: meta.expectedRevision,
-    consentRef: meta.consentRef,
   }
   return {
     address: ScheduleOperationAddressSchema.parse({

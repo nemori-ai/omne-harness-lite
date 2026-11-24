@@ -43,11 +43,11 @@ const CONFIG = {
     observerCheckIntervalMs: 25,
     readIdleMs: 1000,
     resultPageTargetBytes: 4096,
-    cleanupRetryMs: 0,
   },
   retry: {
     adoption: ADOPTION,
     policy: { maxAttempts: 2, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+    replayResend: { max: 1 },
   },
   results: {
     maxConcurrentCalls: 4,
@@ -55,6 +55,8 @@ const CONFIG = {
     maxCleanupSteps: 8,
     maxPendingAccountsPerTenant: 4,
     maxPendingAccounts: 8,
+    maxCostMisses: 3,
+    delaysMs: [1000, 5000, 30000],
   },
 }
 const REQUEST: FixedModelRequest = {
@@ -139,6 +141,8 @@ function fixture() {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -205,6 +209,25 @@ function fixture() {
   }
 }
 
+it('rejects a result push interval table that is empty or lists anything but integers of at least 1 (C9)', async () => {
+  const f = fixture()
+  await f.services()
+  try {
+    for (const delaysMs of [[], [0], [1.5], ['1'], [1, -1]] as unknown as number[][]) {
+      const fiber = f.ctx.plugin(f.Plugin, { ...CONFIG, results: { ...CONFIG.results, delaysMs } })
+      await expect(
+        (async () => {
+          await fiber
+        })(),
+        `results.delaysMs=${JSON.stringify(delaysMs)}`,
+      ).rejects.toThrow()
+      expect(f.ctx.modelRuntime).toBeUndefined()
+    }
+  } finally {
+    await f.ctx.fiber.dispose()
+  }
+})
+
 it('rejects every missing or invalid numeric setting through the Cordis configuration boundary', async () => {
   const f = fixture()
   await f.services()
@@ -220,12 +243,7 @@ it('rejects every missing or invalid numeric setting through the Cordis configur
         ).rejects.toThrow()
       }
       for (const field of Object.keys(values)) {
-        const lower = [
-          'scanIntervalMs',
-          'outputBatchDelayMs',
-          'cleanupRetryMs',
-          'maxRedeliveries',
-        ].includes(field)
+        const lower = ['scanIntervalMs', 'outputBatchDelayMs', 'maxRedeliveries'].includes(field)
           ? 0
           : 1
         for (const value of [
@@ -262,7 +280,7 @@ it('rejects every missing or invalid numeric setting through the Cordis configur
 it('the schema gives the retry settings as they are, and names what is wrong with them', () => {
   const f = fixture()
   const validate = (config: unknown) => f.Plugin.Config['~standard'].validate(config)
-  const { adoption, policy } = CONFIG.retry
+  const { adoption, policy, replayResend } = CONFIG.retry
   expect(validate(CONFIG)).toMatchObject({ value: { retry: CONFIG.retry } })
   const unnamed = {
     issues: [{ message: 'retry.adoption must name owner, name, revision and digest' }],
@@ -270,17 +288,34 @@ it('the schema gives the retry settings as they are, and names what is wrong wit
   for (const field of ['owner', 'name', 'revision', 'digest'] as const)
     for (const value of ['', 1, undefined])
       expect(
-        validate({ ...CONFIG, retry: { adoption: { ...adoption, [field]: value }, policy } }),
+        validate({
+          ...CONFIG,
+          retry: { adoption: { ...adoption, [field]: value }, policy, replayResend },
+        }),
         `${field}=${String(value)}`,
       ).toEqual(unnamed)
-  expect(validate({ ...CONFIG, retry: { adoption, policy: { ...policy, delaysMs: [] } } })).toEqual(
-    {
-      issues: [{ message: 'retry.policy: retry policy field delaysMs is missing or out of range' }],
-    },
-  )
-  expect(validate({ ...CONFIG, retry: { adoption, policy: 1 } })).toEqual({
+  expect(
+    validate({ ...CONFIG, retry: { adoption, policy: { ...policy, delaysMs: [] }, replayResend } }),
+  ).toEqual({
+    issues: [{ message: 'retry.policy: retry policy field delaysMs is missing or out of range' }],
+  })
+  expect(validate({ ...CONFIG, retry: { adoption, policy: 1, replayResend } })).toEqual({
     issues: [{ message: 'retry.policy: retry policy is not an object' }],
   })
+  expect(validate({ ...CONFIG, retry: { adoption, policy } })).toEqual({
+    issues: [{ message: 'retry.replayResend must be an object' }],
+  })
+  for (const max of [-1, 1.5, '1'])
+    expect(validate({ ...CONFIG, retry: { adoption, policy, replayResend: { max } } })).toEqual({
+      issues: [
+        {
+          message: 'retry.replayResend.max must be an integer of at least 0 within the safe range',
+        },
+      ],
+    })
+  expect(
+    validate({ ...CONFIG, retry: { adoption, policy, replayResend: { max: 0 } } }),
+  ).toMatchObject({ value: { retry: { replayResend: { max: 0 } } } })
   void f.ctx.fiber.dispose()
 })
 
@@ -288,15 +323,15 @@ it('rejects a retry policy out of range and an adoption without a name', async (
   const f = fixture()
   await f.services()
   try {
-    const { adoption, policy } = CONFIG.retry
+    const { adoption, policy, replayResend } = CONFIG.retry
     for (const retry of [
-      { adoption, policy: { ...policy, maxAttempts: 0 } },
-      { adoption, policy: { ...policy, delaysMs: [] } },
-      { adoption, policy: { ...policy, delaysMs: [-1] } },
-      { adoption, policy: { ...policy, jitter: 2 } },
-      { adoption, policy: { ...policy, maxElapsedMs: -1 } },
-      { adoption: { ...adoption, name: '' }, policy },
-      { adoption: { ...adoption, digest: undefined }, policy },
+      { adoption, policy: { ...policy, maxAttempts: 0 }, replayResend },
+      { adoption, policy: { ...policy, delaysMs: [] }, replayResend },
+      { adoption, policy: { ...policy, delaysMs: [-1] }, replayResend },
+      { adoption, policy: { ...policy, jitter: 2 }, replayResend },
+      { adoption, policy: { ...policy, maxElapsedMs: -1 }, replayResend },
+      { adoption: { ...adoption, name: '' }, policy, replayResend },
+      { adoption: { ...adoption, digest: undefined }, policy, replayResend },
     ]) {
       const fiber = f.ctx.plugin(f.Plugin, { ...CONFIG, retry: retry as typeof CONFIG.retry })
       await expect(

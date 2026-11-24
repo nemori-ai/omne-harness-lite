@@ -17,7 +17,6 @@ export const modelHostConfig = z.strictObject({
     observerCheckIntervalMs: count(1),
     readIdleMs: count(1),
     resultPageTargetBytes: count(1),
-    cleanupRetryMs: count(0),
   }),
   retry: z.strictObject({
     adoption: z.strictObject({ owner: text, name: text, revision: text, digest: text }),
@@ -27,6 +26,7 @@ export const modelHostConfig = z.strictObject({
       delaysMs: z.array(count(0)).min(1),
       jitter: z.number().min(0).max(1),
     }),
+    replayResend: z.strictObject({ max: count(0) }),
   }),
   results: z.strictObject({
     maxConcurrentCalls: count(1),
@@ -34,6 +34,8 @@ export const modelHostConfig = z.strictObject({
     maxCleanupSteps: count(1),
     maxPendingAccountsPerTenant: count(1),
     maxPendingAccounts: count(1),
+    maxCostMisses: count(1),
+    delaysMs: z.array(count(1)).min(1),
   }),
 })
 

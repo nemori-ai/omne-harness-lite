@@ -7,6 +7,8 @@ import canonicalize from 'canonicalize'
 import {
   capabilityId,
   createCategoryPoint,
+  createHeldBook,
+  heldLayerSource,
   pinBody,
   readBodyText,
   type CategoryContribution,
@@ -26,6 +28,7 @@ import {
   assetsSettingsProjectionCommand,
   assetsSqlMaterials,
   createAssetsLocal,
+  tenantListing,
 } from '../src/index.ts'
 import { config } from './config.ts'
 
@@ -80,6 +83,7 @@ export const service: CategoryContribution = {
       return definition(context?.definition, enabled)
     },
   },
+  point: 'service.items',
 }
 export const categories = createCategoryPoint()
 categories.contribute(service)
@@ -135,6 +139,12 @@ export async function openWorld(
     packageRoot?: string
     afterPackageStep?: Parameters<typeof createAssetsLocal>[0]['afterPackageStep']
     packageDurability?: Parameters<typeof createAssetsLocal>[0]['packageDurability']
+    uploads?: Parameters<typeof createAssetsLocal>[0]['uploads']
+    clock?: () => number
+    onCommitted?: Parameters<typeof createAssetsLocal>[0]['onCommitted']
+    held?: Parameters<typeof createAssetsLocal>[0]['held']
+    /** Keeps what the store holds in a book, so `tenantLayer` has candidates. */
+    withBook?: boolean
   } = {},
 ) {
   const parent = fileURLToPath(
@@ -176,6 +186,7 @@ export async function openWorld(
   const storage = result.storage
   const registered = await storage.registerCombination(combination)
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
+  const book = createHeldBook('tenant-a')
   const owner = createAssetsLocal({
     ...combination,
     domain,
@@ -188,6 +199,21 @@ export async function openWorld(
     ...(options.packageDurability === undefined
       ? {}
       : { packageDurability: options.packageDurability }),
+    ...(options.uploads === undefined ? {} : { uploads: options.uploads }),
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+    ...(options.onCommitted === undefined ? {} : { onCommitted: options.onCommitted }),
+    ...(options.held !== undefined
+      ? { held: options.held }
+      : options.withBook === true
+        ? { held: book }
+        : {}),
+  })
+  if (options.withBook === true) await owner.syncHeld()
+  const tenantLayer = heldLayerSource({
+    layer: 'tenant',
+    tenant: 'tenant-a',
+    read: book.read,
+    list: tenantListing(owner),
   })
   async function setup() {
     const published = await owner.publish({
@@ -242,6 +268,7 @@ export async function openWorld(
     domain,
     storage,
     owner,
+    tenantLayer,
     combination,
     setup,
     capture,

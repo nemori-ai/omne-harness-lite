@@ -1,0 +1,2 @@
+data: {"model":"openai/gpt-6-astra-pro","provider":"OpenAI","choices":[{"delta":{"refusal":"delivered refusal"}}]}
+

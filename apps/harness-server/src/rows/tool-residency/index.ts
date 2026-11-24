@@ -78,7 +78,10 @@ class ToolResidencyBridge extends ToolResidencyReaderService {
         limit,
       })
       if ('failure' in read) return unavailable('references failed')
-      const page = projectResidentReferences(read.ok)
+      const page = projectResidentReferences({
+        references: read.ok.sessions.map(({ session, ...rest }) => ({ ...rest, holder: session })),
+        next: read.ok.next,
+      })
       return 'failure' in page ? unavailable('invalid stored shape') : succeed(page.ok)
     } catch {
       return unavailable('read failed')

@@ -41,6 +41,7 @@ export type Entry = Readonly<{ key: string; item: HumanInterventionCardItem; sub
 export type Choice =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'option'; optionId: string }>
+  | Readonly<{ kind: 'words' }>
   | Readonly<{ kind: 'decline' }>
 
 export type Draft = Readonly<{ choice: Choice; text: string }>
@@ -80,6 +81,9 @@ export type State = Readonly<{
   batches: Readonly<Record<string, Batch>>
   closed: readonly Closed[]
 }>
+
+/** The awaiting-answer count: the cards listed as waiting for the person to answer. */
+export const awaitingCount = (state: State): number => state.entries.length
 
 export type Event =
   | Readonly<{ kind: 'read-list' }>
@@ -128,7 +132,8 @@ export function replyOf(draft: Draft | undefined): Reply | null {
   if (draft === undefined) return null
   if (draft.choice.kind === 'option') return { kind: 'selection', optionId: draft.choice.optionId }
   if (draft.choice.kind === 'decline') return { kind: 'decline' }
-  return draft.text.trim() === '' ? null : { kind: 'text', text: draft.text }
+  if (draft.choice.kind === 'none' || draft.text.trim() === '') return null
+  return { kind: 'text', text: draft.text }
 }
 
 export const busy = (submit: Submit): boolean =>
@@ -139,6 +144,7 @@ export type Sheet = Readonly<{
   closed: readonly Closed[]
   running: boolean
   missing: readonly string[]
+  open: readonly string[]
   ready: boolean
 }>
 
@@ -150,21 +156,28 @@ function sendableOf(state: State, group: string): readonly Sendable[] {
     .map(entry => ({ entry, reply: replyOf(state.drafts[entry.key]) }))
 }
 
+const leavable = (entry: Entry): boolean => entry.item.card.question.kind === 'release'
+
+const answeredOf = (state: State, group: string): readonly Sendable[] =>
+  sendableOf(state, group).filter(item => item.reply !== null)
+
 export function sheetOf(state: State, group: string): Sheet {
-  const sendable = sendableOf(state, group)
-  const missing = sendable.filter(item => item.reply === null).map(item => item.entry.key)
+  const unanswered = sendableOf(state, group).filter(item => item.reply === null)
+  const keysOf = (items: readonly Sendable[]) => items.map(item => item.entry.key)
+  const missing = keysOf(unanswered.filter(item => !leavable(item.entry)))
   const running = state.batches[group] !== undefined
   return {
     entries: state.entries.filter(entry => groupOf(entry.item) === group),
     closed: state.closed.filter(closed => groupOf(closed.item) === group),
     running,
     missing,
-    ready: !running && sendable.length > 0 && missing.length === 0,
+    open: keysOf(unanswered.filter(item => leavable(item.entry))),
+    ready: !running && answeredOf(state, group).length > 0 && missing.length === 0,
   }
 }
 
 export function submittable(state: State, group: string): readonly string[] {
-  return sheetOf(state, group).ready ? sendableOf(state, group).map(item => item.entry.key) : []
+  return sheetOf(state, group).ready ? answeredOf(state, group).map(item => item.entry.key) : []
 }
 
 const same = (state: State): Step => ({ state, effects: [] })
@@ -322,7 +335,7 @@ function proceed(state: State, group: string, queue: readonly Queued[]): Step {
 
 function submitGroup(state: State, group: string, plan: readonly Planned[]): Step {
   if (!sheetOf(state, group).ready) return same(state)
-  const sendable = sendableOf(state, group)
+  const sendable = answeredOf(state, group)
   const queue = sendable.flatMap(({ entry, reply }, at) => {
     const planned = plan[at]
     if (reply === null || planned?.key !== entry.key) return []

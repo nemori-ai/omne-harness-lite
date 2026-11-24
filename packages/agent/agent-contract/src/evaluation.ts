@@ -110,12 +110,20 @@ export type Failure =
   | Readonly<{ kind: 'invalid'; field: string; reason: string }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
   | Readonly<{
-      kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported'
+      kind:
+        | 'stale-advance'
+        | 'not-ready'
+        | 'terminal'
+        | 'busy'
+        | 'changed'
+        | 'unsupported'
+        | 'reclaimed'
     }>
   | Readonly<{ kind: 'commit-unknown'; operation: AgentOperationId }>
   | Readonly<{ kind: 'conflict'; operation: AgentOperationId }>
 export type Reply<A> = Promise<Outcome<A, Failure>>
 export type ModelPurpose = 'main' | 'extension'
+export type ToolAcceptance = 'accepted' | 'unknown'
 type PendingCommon = Readonly<{
   action: ActionId
   consumption: ConsumptionId
@@ -136,15 +144,29 @@ export type PendingCall = PendingCommon &
         admission?: never
       }> &
         (
-          | Readonly<{ association: 'intent'; reference?: never }>
-          | Readonly<{ association: 'associated'; reference: T.ToolInvocationRef }>
+          | Readonly<{ association: 'intent'; reference?: never; acceptance?: never }>
+          | Readonly<{
+              association: 'associated'
+              reference: T.ToolInvocationRef
+              acceptance: ToolAcceptance
+            }>
         ))
   )
 export type ActionJudgment =
   | Readonly<{ kind: 'pending'; passage: PassageId }>
   | Readonly<{ kind: 'waiting'; passage: PassageId; cards: readonly DurableEvidence[] }>
-  | Readonly<{ kind: 'denied'; evidence: DurableEvidence; answer?: DurableEvidence }>
-  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence; request: DurableEvidence }>
+  | Readonly<{
+      kind: 'denied'
+      evidence: DurableEvidence
+      answer?: DurableEvidence
+      notice?: string
+    }>
+  | Readonly<{
+      kind: 'allowed'
+      evidence: DurableEvidence
+      request: DurableEvidence
+      notice?: string
+    }>
 export type ActionToolCall = ToolCallPart
 export type Action = Readonly<{
   id: ActionId

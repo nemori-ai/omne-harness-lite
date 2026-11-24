@@ -1,12 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { decisionEvidence, referenceAdmissionCheck } from '@omne-harness/authorization'
+import {
+  canonicalText,
+  decisionEvidence,
+  referenceAdmissionCheck,
+} from '@omne-harness/authorization'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
 import { loadTree } from '../../../src/plugin-tree.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { createActionAdmission } from '../../../src/rows/authorization/adapters.ts'
 import { authorizationConfig } from '../../../src/rows/authorization/action-rules.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
+import { ownResolution } from './own-resolution.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 const tenant = fixtureTenant('a')
 const distribution: unknown = JSON.parse(
@@ -46,6 +52,7 @@ function admissionFor(config: unknown, currentPermission = true) {
   })
   const { actionRules } = authorizationConfig.parse(config)
   const admission = createActionAdmission({
+    readResolution: ownResolution,
     actionRules,
     readAdmission: () => identity,
     readPermission: () =>
@@ -53,7 +60,7 @@ function admissionFor(config: unknown, currentPermission = true) {
         ? {
             check: async input => ({
               kind: 'allow',
-              condition: null,
+              release: VERDICT_RELEASE,
               evidence: decisionEvidence('current-permission-fixture', '1', input.operation),
             }),
           }
@@ -92,12 +99,13 @@ describe('release action rules', () => {
 
   it('matches a multi-command call by its tool: the release rules cover every command of Shell and Files', async () => {
     const admit = admissionFor(configOf(undefined))
+    const record = canonicalText({ decision: 'action-current-permission', ...VERDICT_RELEASE })
     expect(await admit('Shell.info')).toMatchObject({
-      ok: { kind: 'allow', evidence: { record: 'action-current-permission' } },
+      ok: { kind: 'allow', evidence: { record } },
     })
     expect(await admit('Shell.run')).toMatchObject({ ok: { kind: 'allow' } })
     expect(await admit('Files.read')).toMatchObject({
-      ok: { kind: 'allow', evidence: { record: 'action-current-permission' } },
+      ok: { kind: 'allow', evidence: { record } },
     })
     expect(await admit('Other.run')).toMatchObject({ ok: { kind: 'undecidable' } })
   })

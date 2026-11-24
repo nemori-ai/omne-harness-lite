@@ -18,22 +18,25 @@ catalog:
   # 检查器与配置预设：仓库检查运行 npm 上的这两个精确版本，不运行工作区 tools/ 下的同名成员。
   # 升级先发新版本，再开只改这两行的 PR，见 omne-card 技能的 references/toolchain-upgrade.md。
   '@omne-harness/repo-toolchain': 0.0.20
-  '@omne-harness/repo-config': 0.0.7
+  '@omne-harness/repo-config': 0.0.8
   '@babel/helper-validator-identifier': 8.0.6
   validate-npm-package-name: 8.0.0
   '@types/validate-npm-package-name': 4.0.2
   '@earendil-works/pi-tui': 1.0.0
-  '@deepseek-ai/cordis': 4.0.4
+  '@deepseek-ai/cordis': 4.1.0
   '@huggingface/tokenizers': 0.2.0
   js-tiktoken: 1.0.21
   image-size: 2.0.4
   immutable: 5.1.9
   sharp: 0.35.3
+  unpdf: 2.2.1
+  node-screenshots: 0.2.8
   diff: 9.0.0
   node-pty: 1.1.0
   '@types/node': 24.13.6
   ajv: 8.20.0
   kysely: 0.29.6
+  re2js: 2.10.0
   pg: 8.23.0
   '@types/pg': 8.15.6
   typescript: 7.0.2
@@ -61,6 +64,8 @@ catalog:
   elkjs: 0.12.0
   react: 19.3.0
   react-dom: 19.3.0
+  react-is: 19.3.0
+  recharts: 3.11.0
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
   # session-ui：流式 Markdown、组件测试与它的 DOM 环境。
@@ -81,6 +86,7 @@ catalog:
   '@testing-library/react': 16.3.3
   '@testing-library/dom': 10.4.2
   happy-dom: 21.0.4
+  hono: 4.13.19
   '@xyflow/react': 12.12.0
   # 桌面应用页面的构建与界面测试（apps/desktop）。vite 取 vitest 已经装着的同一个版本，不另起一份。
   vite: 8.3.0
@@ -88,6 +94,11 @@ catalog:
   antd: 6.6.5
   # 桌面应用的 Electron 外壳（apps/desktop）。这个版本的包没有安装脚本：二进制在第一次起窗口时下载。
   electron: 45.3.2
+  # 桌面应用的打包（apps/desktop）：安装包与打包后翻 Electron 的 fuses。
+  electron-builder: 26.18.0
+  '@electron/fuses': 2.1.3
+  # 桌面应用的端到端用例：Playwright 的 Electron 驱动，不下载浏览器。
+  '@playwright/test': 1.64.1
   esbuild: 0.28.2
   '@eslint-community/regexpp': 4.12.2
   '@jscpd/core': 4.0.1
@@ -101,9 +112,13 @@ catalog:
 allowBuilds:
   node-pty@1.1.0: true
   esbuild@0.28.2: false
+  # electron-builder 带进来的 Squirrel 安装器；桌面应用的 Windows 安装包用 NSIS，不用它。
+  electron-winstaller@5.4.0: false
 
 # node-pty 的 spawn-helper 执行位由 scripts/prepare-native.mjs 补，不经 pnpm 补丁（pnpm 12 应用只改模式的补丁会损坏文件）。
+# app-builder-lib 的补丁：NSIS 安装包初始化时不在安装目录里建东西，并在选定安装范围、完成提权之后才调用 apps/desktop/nsis/installer.nsh 的安装目录检查。
 patchedDependencies:
+  app-builder-lib@26.18.0: patches/app-builder-lib-nsis-destination.patch
   rrule@2.8.1: patches/rrule@2.8.1.patch
 
 # pnpm 12 默认拒绝发布不满一天的版本。本项目自己的两个钉子按「先发新版本，再改钉子」升级，豁免这条；其余依赖照旧。

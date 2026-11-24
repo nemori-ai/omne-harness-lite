@@ -1,7 +1,6 @@
 import {
   agentAdoptionsKey,
   agentCompactionInputsKey,
-  agentModelContextKey,
   agentRequestsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import {
@@ -13,10 +12,6 @@ import {
   contextHolderSourcesKey,
   requestContextKey,
 } from '@omne-harness/request-context-cordis-contract/cordis'
-import {
-  runtimeContextKey,
-  runtimeContextReaderEligibilityKey,
-} from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { AGENT_CONTEXT_OWNER } from '../../assembly/agent-context-owner.ts'
 import { defineRow } from '../../row.ts'
 import { catalogToolLookup } from './tools.ts'
@@ -55,12 +50,10 @@ export const agentContextRow = defineRow({
   row: 'agent-context',
   implementation: 'real',
   manifest: {
-    provides: [agentRequestsKey, agentModelContextKey],
+    provides: [agentRequestsKey],
     injects: [
       requestContextKey,
       contextHolderSourcesKey,
-      runtimeContextReaderEligibilityKey,
-      runtimeContextKey,
       modelRequestPreparationKey,
       MODEL_PREPARATION_RESOURCES,
       agentAdoptionsKey,

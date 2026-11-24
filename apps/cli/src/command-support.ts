@@ -1,4 +1,10 @@
-import { encodeTenantText, readTenantText, type TenantId } from '@omne-harness/public-contract'
+import {
+  encodeTenantText,
+  readTenantText,
+  ruleCodec,
+  type RuleValue,
+  type TenantId,
+} from '@omne-harness/public-contract'
 import type { CliOutput, CommandEnvironment, ExitCode } from './cli-types.ts'
 import { openLink, type Link } from './link.ts'
 import { readLoginState, type LoginState } from './login-state.ts'
@@ -57,6 +63,25 @@ export function tenantOption(values: Option): TenantId | undefined | null {
   const given = values.get('--tenant')
   if (given === undefined) return undefined
   return readTenantText(given) ?? null
+}
+
+export type Instant = RuleValue<{ readonly kind: 'instant' }>
+const instantRule = ruleCodec({ kind: 'instant' })
+const LEAF_LIMITS = {
+  maxBytes: 1024,
+  maxDepth: 1,
+  maxItems: 1,
+  maxMembers: 1,
+  maxStringLength: 1024,
+  maxNumberLength: 1,
+}
+
+/** An instant given as an option: null when absent, undefined when it is not an instant. */
+export function instantOption(values: Option, option: string): Instant | null | undefined {
+  const given = values.get(option)
+  if (given === undefined) return null
+  const read = instantRule.read({ kind: 'string', value: given }, LEAF_LIMITS)
+  return read.ok ? (read.value as Instant) : undefined
 }
 
 export type OwnerResolution =

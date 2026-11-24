@@ -34,7 +34,7 @@ function Rendered(props: { render: () => ReactNode }): ReactNode {
 }
 
 const failedNotice = (
-  <InlineNotice tone="caution" role="status" className="shell-item-failed" still>
+  <InlineNotice tone="danger" role="status" className="shell-item-failed" still>
     {ITEM_FAILED_TEXT}
   </InlineNotice>
 )

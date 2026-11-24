@@ -3,7 +3,10 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import type { SettingView } from '@omne-harness/assets-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
+import type { KeyRender, RenderDrawer } from '@omne-harness/shell-contract'
 import { SettingsPage } from '../src/index.ts'
+import { assetsControl, type AssetsControlSubject } from '../src/model/points.ts'
+import { ControlDrawContext } from '../src/view/control-draw.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 
@@ -168,4 +171,133 @@ it('读不了时一句话与「重试」，重试从头再读；没有一项时�
   again.answer({ outcome: 'succeeded', body: { items: [], next: null, completeness: 'complete' } })
   await settle()
   expect(screen.getByText('这一层还没有不属于资产的设置。')).toBeTruthy()
+})
+
+it('P0 the settings page, its groups and its rows carry their parts', async () => {
+  await opened()
+  const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+  expect(on('assets.settings-page')[0]?.classList.contains('assets-settings')).toBe(true)
+  expect(on('assets.settings-page.group')).toHaveLength(2)
+  expect(on('assets.setting')[0]?.tagName).toBe('LI')
+  expect(on('assets.setting.control')[0]?.classList.contains('assets-setting-control')).toBe(true)
+})
+
+const TINT = ordinary(
+  CALENDAR,
+  CALENDAR_GROUP,
+  'tint',
+  '主色',
+  schema({ type: text('string'), format: text('color') }),
+  { kind: 'set', value: text('#111111') },
+)
+
+/** A shell that draws what is put on a key, and the generic drawing when nothing is or it throws. */
+function drawerOf(
+  drawings: Readonly<Record<string, KeyRender<AssetsControlSubject>>>,
+): RenderDrawer {
+  return {
+    drawnAt: (point, key, subject, generic, frame = drawn => drawn) => {
+      const render = point === assetsControl.name ? drawings[key] : undefined
+      if (render === undefined) return generic()
+      try {
+        return frame(
+          render({ scope: TENANT_TEXT, subject: subject as AssetsControlSubject, generic }),
+        )
+      } catch {
+        return generic()
+      }
+    },
+  }
+}
+
+async function openedWith(
+  drawings: Readonly<Record<string, KeyRender<AssetsControlSubject>>>,
+  items: readonly SettingView[],
+): Promise<FakeClient> {
+  const fake = createFakeClient()
+  render(
+    <ControlDrawContext.Provider value={drawerOf(drawings)}>
+      <SettingsPage client={fake.client} tenant={TENANT_TEXT} newId={() => 'op-1'} />
+    </ControlDrawContext.Provider>,
+  )
+  const list = await fake.next('list-settings')
+  list.answer({ outcome: 'succeeded', body: { items, next: null, completeness: 'complete' } })
+  await settle()
+  return fake
+}
+
+const controlsOf = (title: string) => row(title).querySelector('.assets-setting-control')!.innerHTML
+
+it('放了一个新种类的控件：带这个种类的设置项用它，收到标题、声明、这一层的值；别的设置项照旧', async () => {
+  await openedWith({}, [TIMEZONE, WHICH, MODE])
+  const plain = ['时区', '生效的日历', '管理方式'].map(controlsOf)
+  cleanup()
+  const seen: unknown[] = []
+  await openedWith(
+    {
+      color: ({ subject }) => {
+        seen.push([subject.title, subject.schema, subject.value, subject.disabled])
+        return <button type="button">取色</button>
+      },
+    },
+    [TIMEZONE, WHICH, MODE, TINT],
+  )
+  expect(['时区', '生效的日历', '管理方式'].map(controlsOf)).toEqual(plain)
+  const tint = within(row('主色'))
+  expect(tint.getByRole('button', { name: '取色' })).toBeTruthy()
+  expect(tint.queryByRole('textbox')).toBeNull()
+  expect(seen.at(-1)).toEqual([
+    '主色',
+    TINT.kind === 'ordinary' && TINT.valueSchema,
+    text('#111111'),
+    false,
+  ])
+})
+
+it('新种类的控件改了值再点「设置」：写的是它给的值；没改时不能交；「清除」还在', async () => {
+  const fake = await openedWith(
+    {
+      color: ({ subject }) => (
+        <button type="button" onClick={() => subject.change(text('#0a7a4a'))}>
+          取色
+        </button>
+      ),
+    },
+    [TINT],
+  )
+  const tint = within(row('主色'))
+  const set = tint.getByRole('button', { name: '设置' }) as HTMLButtonElement
+  expect(set.disabled).toBe(true)
+  expect((tint.getByRole('button', { name: '清除' }) as HTMLButtonElement).disabled).toBe(false)
+  fireEvent.click(tint.getByRole('button', { name: '取色' }))
+  expect(set.disabled).toBe(false)
+  fireEvent.click(set)
+  const write = await fake.next('set-setting')
+  expect(write.body).toMatchObject({
+    owner: CALENDAR,
+    item: 'tint',
+    value: { kind: 'ordinary', value: text('#0a7a4a') },
+  })
+})
+
+it('没有放控件的种类、放的控件抛出，都画自带的：有格式的文本仍是输入框', async () => {
+  await openedWith({}, [TINT])
+  expect(within(row('主色')).getByRole('textbox', { name: '主色：填一个值' })).toBeTruthy()
+  cleanup()
+  await openedWith(
+    {
+      color: () => {
+        throw new Error('this control is broken')
+      },
+    },
+    [TINT],
+  )
+  expect(within(row('主色')).getByRole('textbox', { name: '主色：填一个值' })).toBeTruthy()
+})
+
+it('给已有的种类放控件，这个种类的设置项都换成它', async () => {
+  await openedWith({ enum: () => <span>自己的单选</span> }, [WHICH, MODE, TIMEZONE])
+  expect(within(row('生效的日历')).queryAllByRole('radio')).toEqual([])
+  expect(within(row('管理方式')).getByText('自己的单选')).toBeTruthy()
+  expect(within(row('时区')).getByRole('textbox')).toBeTruthy()
 })

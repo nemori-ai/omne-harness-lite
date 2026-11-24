@@ -14,7 +14,7 @@ it('S1 the member draws no base controls of its own: no native button, input, se
     expect(text, file).not.toMatch(/<(button|input|select|textarea)[\s>]/)
 })
 
-it('S2 the member styles are layout only: one sheet, no custom property of its own', () => {
+it('S2 the member styles are one sheet that declares no custom property of its own', () => {
   const styles = code.filter(({ file }) => file.endsWith('.css'))
   expect(styles).toHaveLength(1)
   for (const { file, text } of styles) expect(text, file).not.toMatch(/^\s*--[\w-]+\s*:/m)
@@ -27,8 +27,10 @@ it('S3 the member reads only its own protocol, the client side of access, the fr
     '@omne-harness/client-assembly/cordis',
     '@omne-harness/public-contract',
     '@omne-harness/sdk/core',
+    '@omne-harness/shell-contract',
     '@omne-harness/shell-contract/cordis',
     '@omne-harness/ui-kit',
+    '@omne-harness/ui-kit/layers.css',
     '@omne-harness/utc-instant',
   ])
   const imports = code.flatMap(({ text }) =>

@@ -18,7 +18,6 @@ import {
   principalA,
   principalB,
   referenceFor,
-  request,
   tenantA,
   tenantB,
 } from './runtime-values.ts'
@@ -28,7 +27,7 @@ const access = { principal: principalA, tenant: tenantA, call: callId('call-1') 
 function resolvingAssembly() {
   return testAssembly({
     bindingsFor: executor => ({
-      inspect: () => Promise.resolve(succeed(request().availability)),
+      inspect: () => Promise.resolve(succeed(fixedRequestForNamedSourceGuard().availability)),
       resolve: () => Promise.resolve(succeed(executor)),
       recover: () => {
         throw new Error('not on this path')
@@ -68,7 +67,7 @@ describe('18 testing dependency assembly', () => {
   it('18 constructs bindings once and passes the same recovery owner to the runtime assembly', () => {
     let constructions = 0
     const bindings = {
-      inspect: () => Promise.resolve(succeed(request().availability)),
+      inspect: () => Promise.resolve(succeed(fixedRequestForNamedSourceGuard().availability)),
       resolve: () => Promise.reject(new Error('unused')),
       recover: () => Promise.reject(new Error('unused')),
     }

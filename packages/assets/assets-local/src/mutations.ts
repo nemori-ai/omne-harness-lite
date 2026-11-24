@@ -16,6 +16,8 @@ import {
   type Mutation,
   type MutationBinding,
   type Failure,
+  type Summary,
+  type Version,
 } from './schema.ts'
 
 function rejected(reason: Failure['reason']): Failure {
@@ -30,6 +32,20 @@ function nextRevision(port: ParticipantPort, domain: DomainRef): number {
     [canonical({ domain, revision })],
   )
   return revision
+}
+/** A version and its asset summary are written by the same command, so in the same transaction. */
+function writeVersion(port: ParticipantPort, version: Version, summary: Summary | null) {
+  const { domain, assetRef } = version
+  const key = canonical([domain, assetRef, version.version])
+  port.execute('INSERT INTO al_versions (version_key, record) VALUES (?, ?)', [
+    key,
+    canonical(version),
+  ])
+  if (summary === null) return
+  port.execute('INSERT INTO al_summaries (version_key, record) VALUES (?, ?)', [
+    key,
+    canonical({ domain, assetRef, version: version.version, summary }),
+  ])
 }
 function publish(
   port: ParticipantPort,
@@ -59,10 +75,7 @@ function publish(
   if (!withinBudget({ ...value, ownerRevision: Number.MAX_SAFE_INTEGER }))
     return rejected('limit_exceeded')
   const ownerRevision = nextRevision(port, domain)
-  port.execute('INSERT INTO al_versions (version_key, record) VALUES (?, ?)', [
-    canonical([domain, command.assetRef, command.version]),
-    canonical({ ...value, ownerRevision }),
-  ])
+  writeVersion(port, { ...value, ownerRevision }, command.summary)
   const asset = {
     domain,
     assetRef: command.assetRef,
@@ -233,7 +246,7 @@ export function mutate(port: ParticipantPort, binding: MutationBinding) {
     return rejected('forbidden')
   if (current?.revision === Number.MAX_SAFE_INTEGER - 1) return rejected('limit_exceeded')
   const result = apply(port, domain, command)
-  if ('kind' in result) return result
-  const domainRevision = readDomain(port)?.revision ?? 0
-  return { kind: 'committed' as const, operationId: command.operationId, ...result, domainRevision }
+  return 'kind' in result
+    ? result
+    : { kind: 'committed' as const, operationId: command.operationId, ...result }
 }

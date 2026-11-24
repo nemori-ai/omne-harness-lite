@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
+import type { DomainRef, SqlIdentity, SqlStorage } from '@omne-harness/sql-contract'
 import {
   GovernanceScopeSchema,
   GovernanceIdSchema,
@@ -13,6 +13,8 @@ import { digest, equal, json } from './encoding.ts'
 import { submitSql } from './sql-submission.ts'
 import { mutationCombinationSchema, type MutationCombination } from './registrar-execution.ts'
 import { RECOVERY_HANDLER, recoveryPageSchema, recoveryPageRequestSchema } from './recovery-read.ts'
+import { RELEASE_HANDLER, releasePageRequestSchema, releasePageSchema } from './release-read.ts'
+import { operationReceipts } from './sql-stage-binding.ts'
 import type { SqlOperationCoordinator } from './sql-coordinator.ts'
 import type { GovernanceStandingCoordinator } from './standing-coordinator.ts'
 import { isTerminal } from './registrar-results.ts'
@@ -42,7 +44,11 @@ export class GovernanceScopeLifecycle {
       metadata: mutationCombinationSchema.parse(input.metadata),
     }
   }
-  private command(operation: string, request: ControlRequest) {
+  private command(
+    operation: string,
+    request: ControlRequest,
+    releases: readonly SqlIdentity[] = [],
+  ) {
     const { domain, metadata, scope, epoch } = this.options
     return submitSql(this.options.storage, {
       identity: {
@@ -50,12 +56,14 @@ export class GovernanceScopeLifecycle {
         operation,
         protocolVersion: '2',
         operationKey: digest({ scope, epoch }),
+        recall: 'never',
       },
       ...metadata,
       commands: [
         { participant: METADATA_PLANNER, facts: { request: json(request) } },
         { participant: GOVERNANCE_OWNER, facts: { requestDigest: digest(request) } },
       ],
+      releases,
     })
   }
   async open(previousEpoch: Bootstrap['previousEpoch']) {
@@ -65,7 +73,7 @@ export class GovernanceScopeLifecycle {
       previousEpoch,
     })
     const result = await this.command('governance.scope-open', { kind: 'bootstrap', input })
-    if (result.kind !== 'applied') return unavailable()
+    if (result.kind !== 'applied') return this.currentlyOpen()
     const parsed = z
       .union([
         z.strictObject({
@@ -120,16 +128,69 @@ export class GovernanceScopeLifecycle {
       ? { kind: 'opened' as const }
       : unavailable()
   }
-  async isolate() {
-    const input = { scope: this.options.scope, epoch: this.options.epoch }
-    const result = await this.command('governance.scope-close', { kind: 'close-scope', input })
-    if (result.kind !== 'applied') return unavailable()
-    const parsed = closeScopeSchema
-      .extend({ kind: z.enum(['closed', 'obsolete']) })
-      .safeParse(result.response)
-    return parsed.success && equal({ scope: parsed.data.scope, epoch: parsed.data.epoch }, input)
+  private async isolation() {
+    const found = await this.currentScope()
+    if (found.kind !== 'scope') return found
+    const { current } = found
+    return current === null || current.epoch !== this.options.epoch || current.state === 'closed'
       ? { kind: 'isolated' as const }
-      : unavailable()
+      : { kind: 'open' as const }
+  }
+  async isolate() {
+    const before = await this.isolation()
+    if (before.kind !== 'open') return before
+    const pages = await this.releasable()
+    if (pages === undefined) return unavailable()
+    const input = { scope: this.options.scope, epoch: this.options.epoch }
+    for (const listed of pages) {
+      const page = await this.releaseStanding(listed)
+      const released = page.map(item => item.key)
+      const releases = page.flatMap(item =>
+        operationReceipts(item.sqlIdentity.transactionDomain, { scope: input.scope, ...item.key }),
+      )
+      const result = await this.command(
+        'governance.scope-close',
+        { kind: 'close-scope', input, released },
+        releases,
+      )
+      if (result.kind !== 'applied') {
+        const after = await this.isolation()
+        return after.kind === 'isolated' ? after : unavailable()
+      }
+      const parsed = closeScopeSchema
+        .extend({ kind: z.enum(['closed', 'obsolete']) })
+        .safeParse(result.response)
+      if (!parsed.success || !equal({ scope: parsed.data.scope, epoch: parsed.data.epoch }, input))
+        return unavailable()
+    }
+    return { kind: 'isolated' as const }
+  }
+  private async releaseStanding(page: z.infer<typeof releasePageSchema>['items']) {
+    const kept: typeof page = []
+    for (const item of page)
+      if (item.standing === null || (await this.options.standing.release(item.standing)))
+        kept.push(item)
+    return kept
+  }
+  private async releasable() {
+    const { scope, storage, domain, epoch } = this.options
+    const pages: z.infer<typeof releasePageSchema>['items'][] = []
+    let after: z.infer<typeof releasePageRequestSchema>['after'] = null
+    do {
+      const input = releasePageRequestSchema.parse({ scope, after })
+      const response = await storage.read({
+        domain,
+        ...RELEASE_HANDLER,
+        requestKey: digest({ input, epoch }),
+        input: json(input),
+      })
+      if (response.kind !== 'read') return undefined
+      const parsed = releasePageSchema.safeParse(response.output)
+      if (!parsed.success || !equal(parsed.data, response.output)) return undefined
+      pages.push(parsed.data.items)
+      after = parsed.data.next
+    } while (after !== null)
+    return pages
   }
   recoverPage(after: z.infer<typeof recoveryPageRequestSchema>['after'] = null) {
     return this.recover('own', after)

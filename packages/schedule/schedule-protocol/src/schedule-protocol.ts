@@ -55,17 +55,8 @@ const card = object({
   revision: { rule: count },
 })
 
-/** Why a schedule is in effect: the owner's own act, standing consent, or one answer of the owner. */
-const basis = oneOf(
-  object({ kind: { rule: literal('owner') } }),
-  object({ kind: { rule: literal('blanket') }, generation: { rule: count } }),
-  object({ kind: { rule: literal('granular') }, decision: { rule: text } }),
-  object({ kind: { rule: literal('none') } }),
-)
-
 const detail = object({
   ...card.fields,
-  basis: { rule: basis },
   createdAt: { rule: instant },
   definition: { rule: json },
 })
@@ -132,7 +123,7 @@ const write = { identity: 'login', effect: 'commit', limit: 'small', countsAsAcc
 
 export const scheduleProtocol = defineProtocol({
   name: 'schedule',
-  major: 1,
+  major: 2,
   operations: {
     'list-schedules': {
       ...read,

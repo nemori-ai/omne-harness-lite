@@ -22,6 +22,7 @@ import {
   supplierOf,
   textBlock,
   thinkingBlock,
+  thinkingPayload,
   type RequestParts,
 } from './support/anthropic.ts'
 
@@ -196,14 +197,8 @@ describe('measure', () => {
   })
 
   it('has no estimate for a carried signed group and never tokenizes it', async () => {
-    const payload = JSON.stringify([
-      {
-        format: 'anthropic-claude-v1',
-        index: 0,
-        signature: 'fixture-only-signature',
-        text: 'signed thinking',
-        type: 'reasoning.text',
-      },
+    const payload = thinkingPayload([
+      { thinking: 'signed thinking', signature: 'fixture-only-signature' },
     ])
     const { measured, tokenInput } = await planAndMeasure(SONNET, {
       messages: [
@@ -219,7 +214,7 @@ describe('measure', () => {
           {
             replay: {
               scope: 'openrouter/anthropic/claude-sonnet-5',
-              format: 'anthropic-claude-v1',
+              format: 'anthropic-messages-v1',
               at: [2],
             },
           },
@@ -325,7 +320,7 @@ describe('measure', () => {
     }
   })
 
-  it('refuses a representation of another adoption or with media still pending', async () => {
+  it('refuses a representation of another adoption', async () => {
     const parts = { messages: [message('u1', 'user', [textBlock('b1', 'hi')])] }
     const opus = recordNamed('anthropic/claude-opus-5')
     const other = await planAndMeasure(SONNET, parts, value => ({
@@ -339,19 +334,31 @@ describe('measure', () => {
         adapter: componentAdoption(SONNET, 'meter'),
       },
     })
-    const pending = await planAndMeasure(SONNET, parts, value => ({
-      adoption: value.adoption,
-      tokenInput: value.tokenInput,
-      media: [],
-      kind: 'pending-media',
-      references: [reference],
-    }))
-    expect(pending.measured).toEqual({
-      failure: {
-        kind: 'unsupported',
-        field: 'representation.kind',
-        adapter: componentAdoption(SONNET, 'meter'),
-      },
+  })
+
+  it('counts an image by reference from the facts on its block, and leaves its bytes to the read', async () => {
+    const referred = {
+      kind: 'image',
+      id: 'i1',
+      visibility: { toHuman: true, toModel: true },
+      ref: { ...reference, bytes: '9000000' },
+      transcript: null,
+      facts: { kind: 'image', widthPixels: 1920, heightPixels: 1080 },
+    }
+    const parts = { messages: [message('u1', 'user', [textBlock('b1', 'look'), referred])] }
+    const { measured, tokenInput } = await planAndMeasure(SONNET, parts)
+    if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
+    expect(measured.ok).toMatchObject({
+      kind: 'deferred-media',
+      references: [{ ...reference, bytes: '9000000' }],
     })
+    const [input, image] = measured.ok.checks
+    expect(input?.measurement).toMatchObject({
+      kind: 'estimate',
+      amount: String((await tokensOf(tokenInput)) + 2691),
+    })
+    // What is sent is read later and may be a smaller version: its bytes are not checked here.
+    expect(image).toBeUndefined()
+    expect(measured.ok.checks.map(check => check.metric)).toEqual(['input-tokens'])
   })
 })

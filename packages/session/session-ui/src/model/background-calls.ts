@@ -1,6 +1,7 @@
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
+import { refused } from './notices.ts'
 import { notSent } from './session-driver.ts'
 
 type Client = Pick<ClientOf<SessionProtocol>, 'list-background-calls' | 'stop-call'>
@@ -16,30 +17,14 @@ export type BackgroundCallsView =
   | Readonly<{ kind: 'listed'; calls: readonly BackgroundCallItem[] }>
   | Readonly<{ kind: 'unreadable'; reason: string }>
 
-const STATUS: Readonly<Record<BackgroundCallItem['status'], string>> = {
-  queued: '排队中',
-  running: '在跑',
-  'ended-pending': '已结束，结局在路上',
-  stopping: '停止中',
-  unknown: '状态未知',
-}
-const WHO: Readonly<Record<string, string>> = { user: '你', agent: 'agent', system: '系统' }
+/** Calls of the session are in the background, as the list was last read. */
+export const hasCalls = (view: BackgroundCallsView): boolean =>
+  view.kind === 'listed' && view.calls.length > 0
 
-export const statusText = (call: BackgroundCallItem): string => STATUS[call.status]
-
-// The three steps of a stop stay apart: asked, taken by Tool, proven by Tool (I-3).
-export function stopText(call: BackgroundCallItem): string | null {
-  const { stop } = call
-  if (stop === null) return null
-  const why = stop.reason === null ? '' : `：${stop.reason}`
-  const who = WHO[stop.initiator] ?? stop.initiator
-  if (stop.progress === 'requested') return `${who}已请求停止${why}`
-  return stop.progress === 'accepted' ? `停止已受理${why}` : `已证实停下${why}`
-}
-
-export function actionText(call: BackgroundCallItem): string {
-  const { tool, command, preview } = call.label
-  return `${tool}${command === null ? '' : ` ${command}`}${preview === '' ? '' : ` · ${preview}`}`
+// What a stop that did not land says, in words: a result nobody knows is said as such, never as a stop.
+const STOP_SAID: Readonly<Record<string, string>> = {
+  unknown: '停止的结果不知道。',
+  unavailable: '连不上服务，停止没有发出去。',
 }
 
 type Entry = { view: BackgroundCallsView; listeners: Set<() => void>; timer: number | null }
@@ -107,6 +92,7 @@ export class BackgroundCallsStore {
       }),
     )
     await this.refresh(tenant, session)
-    return answer.outcome === 'succeeded' ? '已请求停止' : `停止没有送达：${answer.outcome}`
+    if (answer.outcome === 'succeeded') return '已请求停止'
+    return STOP_SAID[answer.outcome] ?? refused(answer.outcome, '停止没有送达：').text
   }
 }

@@ -57,6 +57,7 @@ C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3
 | **C-36** | 共享实例与本地目录的归属 | 旧投影与最新裁决不一致 | PF-001/PF-002 仍将本地定制与租户私有资源混述，PF-020 已确认实例可跨租户共用 | **已同步 PF-001/PF-002 产品投影**，见下方 C-36 |
 
 | **C-37** | 工作区规则在其他 PF 的旧投影 | 跨 topic 规则冲突 | PF-002 的本地私有验收、PF-015 的仅所有者附着、PF-016 的默认挂载与本机清单边界未对齐 PF-020 | **现行产品投影已对齐并升 rev**（产品负责人 2026-09-27 明确授权），处置见下方 C-37 |
+| **C-38** | **`spawn` 是不是 fork** | 最新裁决推翻旧裁决 | C-22 在 2026-09-22 闭合为「`spawn` 交出去的是上下文的副本，父的日志不被指向、不被拷贝」，现行词义并写「不同会话在会话日志、投影、runtime context 快照三处存储上都不共享」。实现照此做了之后量到：副本是转写的文字，丢了工具调用的结构，并且超过 20 万字节的对话派不出 `spawn` | **已闭合（2026-11-21，产品负责人直接裁决）**：「做真 fork，而且得是高性能和存储友好的，从 session log 根上就是真 fork，注意 fork 不是 deep copy」。`spawn` 的子会话从派发者的会话[分叉](terms/agent-runtime-loop.md#ul-session-fork--会话分叉--session-fork)，分叉点之前的对话按引用共享。C-22 的结论作废；「存储上不共享」收窄为：除分叉共享的那段只追加的前缀之外不共享，runtime context 快照仍不共享，一个会话仍只有一个写入者。落在 [元能力 rev 15](../product/meta-capabilities/design.md#三种派发模式)、[子会话](terms/agent-runtime-loop.md#ul-child-session--子会话--child-session)、[派发](terms/interaction-and-dispatch.md) |
 
 ### C-36：共享实例与本地目录的归属
 
@@ -306,6 +307,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **反例与影响**：按词条，档案消费者会认为发送前有一道限额与精确字节检查，并会认为档案不带窗口与压缩百分比。按 SPEC，请求前的计量与限额判断归压缩方或请求组装方，发送前没有这道检查。读词条的人会把发前检查当作 Model 的义务，或找不到压缩方读取窗口的出处。
 - **负责与闭合条件**：负责人 PanQiWei。由词条拥有者修订 UL-model-profile，使词条与 Model 契约 SPEC 一致，并同步英文段与消费者。闭合前，不能把词条里的发前检查读作 Model 的发送条件，也不能据词条断言档案没有窗口与压缩百分比。
 - **状态**：打开。词条未改。
+- **同一件的产品一侧**：[模型调用：档案提供范围与上游能力](../product/model-invocation/design.md#档案提供范围与上游能力)（rev 6）写「字节与图片数精确校验」，[运行感知 §6](../product/runtime-context/design.md#6-一次模型请求采用合法完整输入)（rev 11）写「精确字节、图片数等限制实际检查」；[Model 规格的计量](../../../packages/model/SPEC.md#计量)写「计量不按字节数拒绝输入」，超过单图字节上限的原件改取合规的请求版本。这与本项是同一件：词条的那句话出自产品正文，差别仍在「谁在发出之前按字节拒绝」。不另登记，随本项一并裁。
 
 ### C-56：Agent runtime 是否空闲后复用
 
@@ -453,7 +455,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-72：附着（动作）与工作区附着（值）
 
 - **类型**：同名不同义。2026-10-27 评审 #837 的文档时发现。
-- **来源**：[工作区附着](terms/scope-and-resolution.md#ul-workspace-attachment--工作区附着--workspace-attachment)按 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)指一个引用值：实例标识加装载依据。[工作区产品正文 J-WS01](../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)（rev 5）写「报告附着成功」「不报告已附着」，J-WS06 写「为同一会话附着、更换、解除工作区」。[租户—工作区关系](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界写「不作为该租户的工作区附着或装配来源」，[工作区实例](terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)写「不用时可不再附着」。这些地方的「附着」都是把工作区接到会话上的动作或其结果。
+- **来源**：[工作区附着](terms/scope-and-resolution.md#ul-workspace-attachment--工作区附着--workspace-attachment)按 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)指一个引用值：实例标识加装载依据。[工作区产品正文 J-WS01](../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)（rev 6）写「报告附着成功」「不报告已附着」，J-WS06 写「为同一会话附着、更换、解除工作区」。[租户—工作区关系](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界写「不作为该租户的工作区附着或装配来源」，[工作区实例](terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)写「不用时可不再附着」。这些地方的「附着」都是把工作区接到会话上的动作或其结果。
 - **差别**：一个是会话里保存的值，一个是会话与工作区之间的动作。下游读到「附着成功」时，可能把它读成「`workspaceAttachment` 已写入」，而产品正文的意思是「选择已正式采用」。
 - **处置**：词条保留引用值的含义，「别混」写明动作用法不是本词。产品正文与其他词条暂不回改。
 - **负责与闭合条件**：工作区契约卡（[#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) 剩余责任）在发布工作区契约成员时收敛两种用法：为动作或值另定说法，或给裸用加限定。产品正文与相关词条按结论回改后闭合。
@@ -571,3 +573,75 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 
 同名不同义，两处都是本系统自己的设计。会话的包组规格用「通知」「通知者」指提交之后的唤醒；人工介入的包组规格用「原等待的收件箱」指决定交到原等待的交接位置。它们不是[通知](terms/interaction-and-dispatch.md#ul-notification--通知--notification)与[收件箱](terms/interaction-and-dispatch.md#ul-notification-inbox--收件箱--notification-inbox)。处置：这两个词裸用时指通知领域的对象；会话与人工介入的规格各自改用「叫醒」与别的名字，由它们的维护者在下一次修订时改，改完本项闭合。改名会牵到源码里的名字，不在通知的落盘里做。
 
+2026-11-19 闭合：会话规格与引用它的架构、领域正文把提交之后的唤醒改称「提交叫醒」「叫醒者」「叫醒总线」；人工介入规格把「原等待的收件箱」改称「原等待的答复箱」。源码里的名字（如 `notifier`、`inbox`）没有改，它们不进正文，不影响这两个词裸用时指通知领域的对象。
+
+- **状态**：已闭合。
+
+### C-89：入站到达与输入受理的范围
+
+定义打架，本系统自己的两处。[UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) 的定义出自封存的 PF-014，把卡片答复与控制指令也算作被受理的到达。会话的[产品正文](../product/sessions-and-work/design.md#提交输入后知道系统是否已经接下工作)与[包组规格](../../../packages/session/SPEC.md#受理与输入)把输入受理只留给会成为会话消息的到达：卡片答复回等待的拥有者，控制指令是对一个操作的请求，都不取得待处理资格。产品负责人 2026-11-17 裁定取后一种，并定输入受理的英文名为 Intake。词条上已加注意；它的定义与出处、[UL-control-command](terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) 与 [UL-queue-jump](terms/interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump) 的父词条还没有照此改写。闭合条件：这三条词条的定义改写并把出处指到现行的会话产品正文。
+
+
+### C-90：内容块是八类还是五种
+
+- **类型**：定义打架。媒体落盘时普查发现。
+- **两处原文**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block)：「块分八类：文本 · 思考 · 语音 · 图 · 文件 · 工具调用 · 工具结果 · 推理续接状态」，并说「工具调用、工具结果和推理续接状态也是内容块的种类」。[Common 规格的内容块](../../../packages/common/SPEC.md#内容块)：「已封闭的内容块只有文本、思考、语音、图、文件五种……工具调用、工具结果与仍在增长的块不是内容块。」
+- **差别**：按词条读，工具调用与工具结果是内容块，块上的标注、引用与表示规则对它们同样适用；按规格读，它们是消息里的部件，不受内容块的规则约束。[C-66](#c-66内容块的种类是否含推理续接状态) 闭合时定的八类，与规格的现行写法不再一致。
+- **负责与闭合条件**：负责人 PanQiWei。由模型调用产品 topic 的拥有者与 Common 规格的拥有者裁定一种：词条改成「内容块五种，另有调用、结果与推理续接状态三种部件」，或规格改回八类。裁定之后改词条或规格的一边，本项闭合。
+- **状态**：打开。
+
+### C-91：不属于任何模态的文件，模型读不读得了
+
+- **类型**：定义打架。
+- **两处原文**：[UL-media-type](terms/record-and-context.md#ul-media-type--媒体类型--media-type) 与 [UL-modality](terms/record-and-context.md#ul-modality--模态--modality) 原写「落在四种之外……装的只是一个附件的引用，任何模型都读得了」。[模型调用：多模态内容及转换](../product/model-invocation/design.md#多模态内容及转换)（rev 5）写「媒体类型不属于模型模态的附件引用只表示引用，不宣称模型已理解附件正文」。
+- **差别**：按词条，一份 PDF 原件可以交给任何模型；按产品正文，引用不等于模型读懂了它。
+- **处置**：模型调用 rev 6 补写「模型档案另写明它原生读得了的文件类型；档案写了的文件类型，原件可以直接交给这个模型」。两个词条已照此改写：这样的文件只有档案写明读得了它的模型拿到原件，别的模型读派生表示或 transcript，都没有就读不了。[模态投影](terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection)同时累积没有 transcript 的文件的媒体类型。
+- **状态**：已闭合（模型调用 rev 6）。
+
+### C-92：派生表示的写入时点与工具内容引用的转换时点
+
+- **类型**：定义打架。
+- **两处原文**：[UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering) 与 [UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) 写「在落盘之前写好，之后不变」。[模型调用：多模态内容及转换](../product/model-invocation/design.md#多模态内容及转换)（rev 5）写工具结果里的模型可见引用「在 Model 真正请求时才加载二进制及完成必要转换」。
+- **差别**：按后者，工具产出的媒体在每次请求时才转，表示不在日志里，同一段历史两次请求可能读到不同的表示。
+- **处置**：模型调用 rev 6 与运行感知 rev 11 改为：工具产出的媒体只在当前有效模型原生读不了它、而这种媒体有生效的转换件时，由采用工具结果的一方在采用时取得表示，表示随结果记入历史；Model 的发送阶段不做转换。两个词条已写明两条路径，都在进入会话日志之前写好。
+- **状态**：已闭合（模型调用 rev 6、运行感知 rev 11）。
+
+### C-93：转换件站不站在扩展位置上
+
+- **类型**：定义打架。
+- **两处原文**：[模型调用领域的架构页](../../../docs/domains/model-invocation/architecture.md)的转换契约一行原写「Agent 消息前扩展运行」。[Loop 扩展的系统扩展表](../../../docs/architecture/runtime/loop-extensions.md#不可用报错与系统扩展)与 [UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) 写转换件「不在扩展位置上」。
+- **差别**：按前者，转换件是 Agent 在消息成立之前运行的一件扩展；按后者，它不挂在任何拓展点上。
+- **处置**：两处都已改为转换件归[媒体](../product/media/design.md#转换件可以换)（rev 1），不在扩展位置上。转换件也不再由系统装配选择：转换件定义是资产，转换引擎是登记进媒体的部件。[C-58](#c-58模态转换件的执行时点) 闭合时留下的形态「变体（父：拓展件）」随之作废，UL-modality-converter 改为「总称」，新立[转换件定义](terms/capabilities-and-composition.md#ul-converter-definition--转换件定义--converter-definition)（变体，父：资产）与[转换引擎](terms/capabilities-and-composition.md#ul-converter-engine--转换引擎--converter-engine)（对象）。
+- **状态**：已闭合（媒体 rev 1、模型调用 rev 6）。
+
+### C-94：产品引用的 RQ 编号在 Context 规格里不存在
+
+- **类型**：引用失效。
+- **两处原文**：[模型调用：多模态内容及转换](../product/model-invocation/design.md#多模态内容及转换)（rev 5）写「请求上下文的 RQ-04（`packages/context/SPEC.md`「三层布局与前缀」）负责实际表示选择」。[Context 规格](../../../packages/context/SPEC.md)里没有 RQ 编号。
+- **处置**：模型调用 rev 6 去掉了编号，只指向 Context 规格。
+- **仍未闭合的部分**：[运行感知与一次模型请求](../product/runtime-context/design.md#关键用户旅程)（rev 11）的 RC-J01 至 RC-J09 仍写 RQ-02、RQ-04、RQ-07、RQ-08 与「六层布局与前缀」「七组稳定读取与来源登记」；Context 规格里没有这些编号，布局一节叫「三层布局与前缀」。改写归运行感知 topic 的拥有者，改完本项闭合。
+- **状态**：部分闭合。
+
+### C-95：Files 的 open 结果带不带图片这个模态
+
+- **类型**：缺定义。
+- **原况**：产品与规格都没写 `Files` 的 `open` 结果是否带图片这个模态，工具的可用性因此无从按模态判。
+- **处置**：[Tool 规格的执行事实、收场与结果](../../../packages/tool/SPEC.md#执行事实收场与结果)写明作者在声明里写结果带哪些模态，`open` 的结果是一行文字说明加一个图片的引用块；模型原生读不了而又没有可用的转换时，工具在原位不可用。
+- **留意**：[元能力 Files](../product/meta-capabilities/design.md#meta-files)（rev 16）与规格一致：`open` 返回一行文字说明加一个引用图片的图片块，不叫附件（[UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) 指只给地址、不进模态约束的产出）。
+- **状态**：已闭合（Tool 规格）。
+
+### C-96：表示决定还有没有留到发送时再加载
+
+- **类型**：定义打架（同一份正文内）。
+- **两处原文**：[运行感知 §6.1](../product/runtime-context/design.md#61-request-context-的派生计算)原写：「表示决定：每个内容块用原件、派生表示、transcript，还是留到发送时再加载。」同一份正文 [§6](../product/runtime-context/design.md#6-一次模型请求采用合法完整输入)（rev 11）：「受理时把这份内容当时的表示写进消息，请求只从历史读取，不在组装时另行查询。」[Context 规格](../../../packages/context/SPEC.md#三层布局与前缀)：「工具消息里带内容引用的块与别的消息里的同样处理」，选择只有原件、别的模态的表示与文字兜底三样；[请求上下文的架构页](../../../docs/architecture/runtime/request-context.md)也已去掉「待加载」。
+- **差别**：按 §6.1，工具内容引用的块可以被标成一种单独的「待加载」；按 §6 与规格，它与别的块一样从快照里选，取原件时字节由 Model 在发出时读取，不另成一种选择。
+- **处置**：[UL-representation-choice](terms/record-and-context.md#ul-representation-choice--表示决定--representation-choice) 按 §6 与规格写三种，并在「待裁决」里写明 §6.1 的第四种。运行感知 §6.1 已删去第四种，写明取原件的块由 Model 在发送时加载字节；两处一致。
+- **状态**：已闭合（运行感知 rev 11）。
+
+### C-97：观感偏好由谁承载
+
+- **类型**：定义打架。
+- **两处原文**：[UL-look-and-feel-preference](terms/interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference) 写「它是个人 context 的一部分，由账号承载、跟着人走」。[桌面应用「应用拥有什么，不拥有什么」](../product/desktop-application/design.md#应用拥有什么不拥有什么)（rev 5）写「人对观感的选择：明暗主题与字号档。它们是观感偏好，只影响好不好看，存在本机」。
+- **差别**：按词条，人换一台机器登录，主题与字号档跟着账号过去；按桌面应用，每台机器各存一份，换机器回到缺省。
+- **处置**：待产品负责人裁决。桌面应用的正文暂按存本机写，这是对词条的偏离。裁定存本机时，改词条的承载说法或给桌面应用的选择另立词；裁定跟着账号时，改桌面应用的正文与它的规格。
+- **状态**：待裁决。

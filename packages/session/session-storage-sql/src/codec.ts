@@ -100,5 +100,36 @@ export const EXECUTION_BATCH_MAX_FACTS = 256
 
 export const EXECUTION_FACT_MAX_BYTES = 4096
 
-// The value of one journal item: one entry of an execution view, its content held by reference.
-export const EXECUTION_ITEM_MAX_BYTES = 65536
+export type ExecutionItemKeyRecord = Readonly<{ execution?: string; family: string; item: string }>
+
+export type ExecutionItemContentRecord = ExecutionItemKeyRecord & Readonly<{ payload: string }>
+
+const keyFields = ({ execution, family, item }: ExecutionItemKeyRecord) => ({
+  ...(execution === undefined ? {} : { execution }),
+  family,
+  item,
+})
+
+export const itemContent = Object.freeze({
+  facts(
+    contents: readonly ExecutionItemContentRecord[],
+    discards: readonly ExecutionItemKeyRecord[],
+  ): Readonly<Record<string, JsonValue>> {
+    return {
+      ...(contents.length === 0
+        ? {}
+        : {
+            contents: contents.map(content => ({
+              ...keyFields(content),
+              payload: content.payload,
+            })),
+          }),
+      ...(discards.length === 0 ? {} : { discards: discards.map(keyFields) }),
+    }
+  },
+  of(item: Readonly<Record<string, JsonValue>> | null): Readonly<{ content?: string }> | null {
+    const content = item?.['content']
+    if (content === undefined) return {}
+    return typeof content === 'string' ? { content } : null
+  },
+})

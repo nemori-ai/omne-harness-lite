@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { startModelGateway } from '../../harness-server/tests/fixtures/model-gateway.ts'
@@ -12,13 +13,14 @@ import {
 } from '../../harness-server/tests/r9/support.ts'
 import { accessProtocol } from '@omne-harness/public-contract'
 import { createClient } from '@omne-harness/sdk/core'
-import { httpServer, memoryCredentialStore, openLoginSession } from '../dist/main-core/index.js'
+import { createForwarding } from '../dist/forwarding/app.js'
+import { createForwardingRules, httpServer } from '../dist/forwarding/rules.js'
 import { domainProtocols } from '../dist/shared/protocols.js'
-import { createWebHost } from '../dist/web-host/server.js'
+import { createStandalone } from '../dist/standalone/server.js'
 
 const USAGE = `usage: node apps/desktop/demo/page-walk.mjs [--shots <dir>]
 
-Starts a server on a fresh state directory, the local host and a headless Chromium, then walks the page.
+Starts a server on a fresh state directory, the standalone forwarding process and a headless Chromium, then walks the page.
 Needs \`pnpm run build\` in apps/desktop and apps/harness-server first. The Chromium is the newest
 chrome-headless-shell under ~/.cache/ms-playwright, or OMNE_WALK_CHROME.`
 
@@ -50,6 +52,8 @@ const held = new Promise(resolve => {
 })
 
 let phase = 'walk'
+/** What the host and the model gateway saw, with times; printed when a step fails. */
+const hostLog = []
 const AFTER_RETRY = 'answered after the retry'
 const TOOL_ARGUMENTS = JSON.stringify({ command: 'execute', params: { script: 'echo walk-args' } })
 const ASK_TITLE = 'Which port should the dev server use?'
@@ -57,7 +61,8 @@ const ASK_PICK = '8081 (Recommended)'
 const AFTER_ASK = 'the port is settled'
 const ASK_SECOND_TITLE = 'What should the new branch be called?'
 const ASK_OWN_WORDS = 'walk/asset-page'
-const APPROVAL_ACTION = 'Delete the build cache under ./dist'
+const THIRD_TITLE = 'Should the build cache under ./dist be kept?'
+const THIRD_PICK = 'Keep it'
 const POOL_TITLE = 'Should the walk keep the screenshots?'
 const POOL_PICK = 'Keep them'
 const AFTER_POOL = 'the screenshots are kept'
@@ -84,14 +89,19 @@ const ASK_ARGUMENTS = JSON.stringify({
     ],
   },
 })
-const APPROVAL_ARGUMENTS = JSON.stringify({
-  command: 'request_approval',
+const THIRD_ARGUMENTS = JSON.stringify({
+  command: 'ask',
   params: {
-    action: APPROVAL_ACTION,
-    reason: 'The cache holds a stale build of the page.',
-    impact: 'The next build takes longer.',
-    reversibility: 'The cache is rebuilt by the next build.',
-    fallback: 'Keep the cache and build on top of it.',
+    questions: [
+      {
+        title: THIRD_TITLE,
+        description: 'The cache holds a stale build of the page.',
+        options: [
+          { label: THIRD_PICK, description: 'Build on top of it.' },
+          { label: 'Clear it', description: 'The next build takes longer.' },
+        ],
+      },
+    ],
   },
 })
 const POOL_ARGUMENTS = JSON.stringify({
@@ -119,6 +129,7 @@ const askCall = (index, id, args) => ({
 const final = (body, content) => `${sse([piece(body, content), STOP])}data: [DONE]\n\n`
 
 function answer({ index, body }) {
+  hostLog.push(`${new Date().toISOString()} model request ${index} (phase ${phase})`)
   const reply = { status: 200, contentType: 'text/event-stream' }
   if (phase === 'fail')
     return {
@@ -131,10 +142,7 @@ function answer({ index, body }) {
   if (phase === 'pooled') return { ...reply, body: final(body, AFTER_POOL) }
   const calls =
     phase === 'ask'
-      ? [
-          askCall(0, 'call_ask_walk', ASK_ARGUMENTS),
-          askCall(1, 'call_approval_walk', APPROVAL_ARGUMENTS),
-        ]
+      ? [askCall(0, 'call_ask_walk', ASK_ARGUMENTS), askCall(1, 'call_third_walk', THIRD_ARGUMENTS)]
       : phase === 'pool'
         ? [askCall(0, 'call_pool_walk', POOL_ARGUMENTS)]
         : []
@@ -259,6 +267,16 @@ const HELPERS = `
     })
     button.click()
   }
+  // An icon button writes no words: it is found by its accessible name.
+  const byName = (selector, name) =>
+    [...document.querySelectorAll(selector)].find(element => element.getAttribute('aria-label') === name)
+  const pressNamed = async (selector, name) => {
+    const button = await wait('an enabled ' + name, () => {
+      const found = byName(selector, name)
+      return found && !found.disabled ? found : undefined
+    })
+    button.click()
+  }
   const signIn = async (mode, account) => {
     await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))
     await press('button', mode)
@@ -268,43 +286,96 @@ const HELPERS = `
     await wait('the sidebar', () => document.querySelector('.shell-sidebar'))
   }
   const sidebar = () => [...document.querySelectorAll('.shell-sidebar-item')].map(item => item.dataset.item)
+  const goHome = async () => (await wait('the home', () => document.querySelector('.shell-home'))).click()
+  const openAppearance = async () => {
+    const trigger = await wait('the appearance control', () => document.querySelector('[data-appearance]'))
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+    return await wait('the appearance menu', () => document.querySelector('[role=menu]'))
+  }
   const nav = () => [...document.querySelectorAll('.shell-nav-link')].map(link => link.textContent.trim())
   const transcript = () => document.querySelector('section[data-page=conversation]')?.innerText ?? ''
   const assetsPage = () => document.querySelector('section[data-page=assets]')
   const assetTabs = () => [...assetsPage().querySelectorAll('[role=tablist][aria-label="资产的类别"] [role=tab]')]
   const shownPanel = () => assetsPage().querySelector('[role=tabpanel]:not([hidden])')
+  const assetPageOpen = () => shownPanel()?.querySelector('.assets-asset')
+  const backToList = async () => {
+    const back = assetPageOpen()?.querySelector('button[aria-label="回到列表"]')
+    if (!back) return
+    back.click()
+    await wait('the list again', () => !assetPageOpen())
+  }
   const openTab = async tab => {
     if (tab.getAttribute('aria-selected') !== 'true') tab.click()
     await wait('the panel of ' + tab.textContent, () => tab.getAttribute('aria-selected') === 'true' && shownPanel())
+    await backToList()
     await sleep(50)
     return shownPanel()
   }
-  const inAssetTabs = async (what, find) => {
+  const listedRow = name => shownPanel()?.querySelector('li.assets-item[aria-label="' + name + '"]')
+  const marksOf = item => [...item.querySelectorAll('.assets-item-marks > *')].map(mark => mark.textContent)
+  const enterAsset = async name => {
+    const row = await wait('the row of ' + name, () => listedRow(name))
+    row.querySelector('[data-asset-row]').click()
+    return await wait('the page of ' + name, () => assetPageOpen())
+  }
+  const openDetails = async page => {
+    const toggle = [...page.querySelectorAll('button')].find(button => button.textContent.trim() === '详情')
+    if (toggle.getAttribute('aria-expanded') !== 'true') toggle.click()
+    await wait('the details', () => page.innerText.includes('现在能不能用'))
+  }
+  const fromMenu = async (page, label) => {
+    // A menu that is still closing takes no clicks: open the next one only once the last is gone.
+    await wait('no menu left open', () => !document.querySelector('[role=menu]'))
+    const more = await wait('an enabled more button', () => {
+      const button = page.querySelector('button[aria-label="更多"]')
+      return button && !button.disabled ? button : undefined
+    })
+    more.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+    const menu = await wait('the more menu', () => document.querySelector('[role=menu]'))
+    const item = await wait('the menu item ' + label, () =>
+      [...menu.querySelectorAll('[role=menuitem]')].find(each => each.textContent.trim() === label))
+    item.click()
+  }
+  // Every asset of every tab, one page at a time; leaves the page that holds what is found open.
+  const inAssetPages = async (what, find) => {
     for (let round = 0; round < 60; round += 1) {
       for (const tab of assetTabs()) {
-        const found = find(await openTab(tab))
-        if (found) return found
+        const panel = await openTab(tab)
+        const names = [...panel.querySelectorAll('li.assets-item')].map(item => item.getAttribute('aria-label'))
+        for (const name of names) {
+          const page = await enterAsset(name)
+          await sleep(50)
+          const found = find(page)
+          if (found) return found
+          await backToList()
+        }
       }
       await sleep(100)
     }
-    throw new Error('timed out waiting for ' + what + ' on any asset tab')
+    throw new Error('timed out waiting for ' + what + ' on any asset page')
   }
   const dock = () => document.querySelector('section[data-page=conversation] .hitl-session-cards')
-  const marks = area => [...area.querySelectorAll('.hitl-strip-item')].map(item => item.dataset.mark)
-  const shownCard = area => area.querySelector('.hitl-card')
+  const sections = area => [...area.querySelectorAll('.hitl-section')]
+  const sectionTitled = (area, title) => sections(area).find(item => item.querySelector('.hitl-title')?.textContent === title)
+  const answered = section =>
+    section.querySelector('[role=radio][aria-checked=true]') !== null
+  const submitOf = area => [...area.querySelectorAll('.hitl-actions button')].find(button => button.textContent.trim().startsWith('提交'))
+  const footLink = area => area.querySelector('.hitl-missing')?.textContent.trim()
+  const answerRow = (section, label) => [...section.querySelectorAll('[role=radio]')].find(item => item.textContent.includes(label))
 `
 
-async function walk(browser, origin, proofs) {
+async function walk(browser, origin, proofs, elsewhere) {
   const { send } = browser
   await send('Page.enable')
   await send('Page.navigate', { url: origin })
   let number = 0
   const step = async (name, ...stages) => {
     number += 1
+    hostLog.push(`${new Date().toISOString()} step ${number} ${name}`)
     let result
     for (const stage of stages) {
       if (typeof stage === 'function') {
-        stage()
+        await stage()
         continue
       }
       result = await send('Runtime.evaluate', {
@@ -342,13 +413,13 @@ async function walk(browser, origin, proofs) {
   await step(
     '侧栏：页面导航、会话列表与账号块',
     `
-    await wait('the account block', () => /租户 /.test(document.querySelector('.identity-account')?.textContent ?? ''))
-    return { nav: nav(), sidebar: sidebar(), tenant: document.querySelector('.identity-account-tenant').textContent }`,
+    const short = await wait('the account block', () => document.querySelector('.identity-account-short')?.textContent.trim())
+    return { nav: nav(), sidebar: sidebar(), tenant: short }`,
   )
   await step(
-    '空的会话列表',
+    '没有会话时主区的一句',
     `
-    return await wait('the empty list', () => byText('.omne-sessions-note', '还没有会话。')?.textContent)`,
+    return await wait('the empty line', () => document.querySelector('.omne-empty[data-empty="none"]')?.textContent.trim())`,
   )
   await step(
     '新建会话',
@@ -369,20 +440,36 @@ async function walk(browser, origin, proofs) {
     '发消息，看到流式回复',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'say hello')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     await wait('the reply', () => transcript().includes(${JSON.stringify(REPLY[0])}))
     return transcript().slice(-120)`,
+  )
+  await step(
+    '转写里绝对定位的东西都在转写区里：不撑出外层页的滚动',
+    `
+    const scroller = document.querySelector('section[data-page=conversation] .omne-conversation')
+    const escaped = []
+    for (const element of scroller.querySelectorAll('*')) {
+      if (getComputedStyle(element).position !== 'absolute') continue
+      let block = element.parentElement
+      while (block && getComputedStyle(block).position === 'static') block = block.parentElement
+      if (block === null || !scroller.contains(block)) escaped.push(element.className)
+    }
+    if (escaped.length > 0) throw new Error('positioned inside the transcript but held by a box outside it: ' + JSON.stringify(escaped))
+    const page = scroller.closest('.shell-page')
+    if (page.scrollHeight > page.clientHeight + 1) throw new Error('the page around the conversation scrolls: ' + page.scrollHeight + ' > ' + page.clientHeight)
+    return { contained: true, page: page.scrollHeight + '/' + page.clientHeight }`,
   )
   await step(
     '再发一条，回复停在半路时停止这一轮',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'hold on')
-    await press('button[type=submit]', '发送')
-    await wait('the held run', () => transcript().includes('正在生成'))
-    await press('button', '停止')
-    const confirm = await wait('the stop to settle', () => byText('button', '再确认停止') ?? byText('button[type=submit]', '发送'))
-    if (confirm.textContent.trim() === '再确认停止') confirm.click()
-    await wait('the send button back', () => byText('button[type=submit]', '发送'))
+    await pressNamed('button[type=submit]', '发送')
+    await wait('the held run', () => transcript().includes(${JSON.stringify(REPLY[1].slice(0, 8))}) && document.querySelector('button[data-action=stop]'))
+    await pressNamed('.omne-composer button', '停止')
+    const confirm = await wait('the stop to settle', () => byName('.omne-composer button', '再确认停止') ?? byName('button[type=submit]', '发送'))
+    if (confirm.getAttribute('aria-label') === '再确认停止') confirm.click()
+    await wait('the send button back', () => byName('button[type=submit]', '发送'))
     return 'stopped'`,
   )
   releaseHeld()
@@ -390,7 +477,7 @@ async function walk(browser, origin, proofs) {
     '停止之后再发一条',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'once more')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     await wait('the third reply', () => transcript().includes(${JSON.stringify(REPLY[2])}))
     return transcript().slice(-120)`,
   )
@@ -416,10 +503,113 @@ async function walk(browser, origin, proofs) {
     return { nav: order, current: document.querySelector('[aria-current=page]').textContent.trim(), tabs }`,
   )
   await step(
+    '资产的列表与详情',
+    `
+    const page = await inAssetPages('a listed asset', page => page)
+    const where = page.querySelector('.list-reading-toolbar-name').textContent
+    await openDetails(page)
+    const standing = [...page.querySelectorAll('.fact-list-row')]
+      .find(row => row.querySelector('dt').textContent === '现在能不能用').querySelector('dd').textContent
+    await backToList()
+    return { asset: where, standing }`,
+  )
+  let madeElsewhere = Promise.resolve()
+  await step(
+    '别处新建一份技能：页面不用人动就列出它',
+    `
+    const tab = await wait('the skill tab', () => assetTabs().find(item => item.textContent === '技能'))
+    await openTab(tab)
+    if (shownPanel().querySelector('li.assets-item[aria-label="walk-made"]')) throw new Error('walk-made is listed before it is made')
+    return 'watching the skill tab'`,
+    () => {
+      madeElsewhere = elsewhere.createSkill('walk-made').then(
+        () => print('made walk-made outside the page'),
+        failure => print(`making walk-made outside the page failed: ${failure.message}`),
+      )
+    },
+    `
+    const item = await wait('the new skill, without touching the page', () =>
+      shownPanel().querySelector('li.assets-item[aria-label="walk-made"]'))
+    return { listed: item.getAttribute('aria-label'), marks: marksOf(item) }`,
+  )
+  await madeElsewhere
+  const skillDirectory = mkdtempSync(join(tmpdir(), 'page-walk-skill-'))
+  writeFileSync(
+    join(skillDirectory, 'SKILL.md'),
+    '---\nname: walk-page\ndescription: Made in the page by the walk.\n---\n\n# walk-page\n',
+  )
+  await step(
+    '在页面里新建一份技能：选目录、提交，列表里出现它',
+    `
+    const tab = await wait('the skill tab', () => assetTabs().find(item => item.textContent === '技能'))
+    await openTab(tab)
+    await press('button', '新建')
+    const form = await wait('the form', () => shownPanel().querySelector('form[aria-label="新建"]'))
+    fill(form.querySelector('input:not([type=file])'), 'walk-page')
+    return 'the form is open'`,
+    async () => {
+      const found = await send('Runtime.evaluate', {
+        expression: `document.querySelector('form[aria-label="新建"] input[type=file]')`,
+      })
+      await send('DOM.setFileInputFiles', {
+        objectId: found.result.objectId,
+        files: [skillDirectory],
+      })
+    },
+    `
+    const form = shownPanel().querySelector('form[aria-label="新建"]')
+    await wait('the file count', () => form.innerText.includes('1 个文件'))
+    await press('form[aria-label="新建"] button', '提交')
+    await wait('the creation', () => form.innerText.includes('已新建 walk-page。'))
+    const item = await wait('the new row', () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]'))
+    return { created: item.getAttribute('aria-label'), note: form.innerText.split('\\n').filter(line => line.includes('文件')) }`,
+  )
+  await step(
+    '新建的这一份：列表里有它的简介；进它的页禁用、启用、移除，移除后回到列表',
+    `
+    const row = await wait('the row', () => listedRow('walk-page'))
+    if (!row.innerText.includes('Made in the page by the walk.')) throw new Error('the row shows no summary: ' + row.innerText)
+    const page = await enterAsset('walk-page')
+    const button = text => [...page.querySelectorAll('button')].find(each => each.textContent.trim() === text && !each.disabled)
+    await fromMenu(page, '禁用')
+    await wait('the page to read disabled', () => page.querySelector('.list-reading-document').innerText.includes('已禁用'))
+    await fromMenu(page, '启用')
+    await wait('the page to read enabled', () => !page.querySelector('.list-reading-document').innerText.includes('已禁用'))
+    ;(await wait('a remove button', () => page.querySelector('button[aria-label="移除"]:not([disabled])'))).click()
+    ;(await wait('the confirmation', () => button('确认移除'))).click()
+    await wait('back on the list, without the row', () => !assetPageOpen() && !listedRow('walk-page'))
+    return { summary: 'Made in the page by the walk.', disabled: true, enabled: true, removed: true }`,
+  )
+  await step(
+    '同名再新建：选同一个目录提交，列表里又有它',
+    `
+    if (shownPanel().querySelector('form[aria-label="新建"]') === null) await press('button', '新建')
+    const form = await wait('the form', () => shownPanel().querySelector('form[aria-label="新建"]'))
+    fill(form.querySelector('input:not([type=file])'), 'walk-page')
+    return 'the form is open'`,
+    async () => {
+      const found = await send('Runtime.evaluate', {
+        expression: `document.querySelector('form[aria-label="新建"] input[type=file]')`,
+      })
+      await send('DOM.setFileInputFiles', {
+        objectId: found.result.objectId,
+        files: [skillDirectory],
+      })
+    },
+    `
+    const form = shownPanel().querySelector('form[aria-label="新建"]')
+    await wait('the file count', () => form.innerText.includes('1 个文件'))
+    await press('form[aria-label="新建"] button', '提交')
+    const item = await wait('the row again', () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]'))
+    await wait('the creation', () => form.innerText.includes('已新建 walk-page。'))
+    return { again: item.getAttribute('aria-label'), enabled: !marksOf(item).includes('已禁用') }`,
+  )
+  rmSync(skillDirectory, { recursive: true, force: true })
+  await step(
     '改一项设置，再清除它',
     `
-    const row = await inAssetTabs('an editable permission with no pick on this layer', panel =>
-      [...panel.querySelectorAll('li.assets-setting')].find(item =>
+    const row = await inAssetPages('an editable permission with no pick on this layer', page =>
+      [...page.querySelectorAll('li.assets-setting')].find(item =>
         item.innerText.includes('没有挑选') &&
         item.querySelector('[role=radio][aria-checked=false]') &&
         [...item.querySelectorAll('button')].some(button => button.textContent.trim() === '设置')))
@@ -436,8 +626,8 @@ async function walk(browser, origin, proofs) {
   await step(
     '设一个秘密项，再清除它',
     `
-    const row = await inAssetTabs('an editable secret', panel =>
-      [...panel.querySelectorAll('li.assets-setting[data-kind=secret]')].find(item => item.querySelector('input[type=password]')))
+    const row = await inAssetPages('an editable secret', page =>
+      [...page.querySelectorAll('li.assets-setting[data-kind=secret]')].find(item => item.querySelector('input[type=password]')))
     const own = () => row.querySelector('.fact-list-row:nth-child(1) dd')?.textContent
     const input = row.querySelector('input[type=password]')
     if (own() !== '未配置') throw new Error('the secret already had a value on this layer: ' + own())
@@ -458,10 +648,16 @@ async function walk(browser, origin, proofs) {
     let locked = 0
     for (const tab of assetTabs()) {
       const panel = await openTab(tab)
-      const rows = [...panel.querySelectorAll('li.assets-setting')].filter(item => item.innerText.includes('被上层锁定'))
-      locked += rows.length
-      if (rows.some(item => [...item.querySelectorAll('button')].some(button => ['设置', '清除'].includes(button.textContent.trim()))))
-        throw new Error('a locked setting shows controls on the tab ' + tab.textContent)
+      const names = [...panel.querySelectorAll('li.assets-item')].map(item => item.getAttribute('aria-label'))
+      for (const name of names) {
+        const page = await enterAsset(name)
+        await sleep(50)
+        const rows = [...page.querySelectorAll('li.assets-setting')].filter(item => item.innerText.includes('被上层锁定'))
+        locked += rows.length
+        if (rows.some(item => [...item.querySelectorAll('button')].some(button => ['设置', '清除'].includes(button.textContent.trim()))))
+          throw new Error('a locked setting shows controls on ' + tab.textContent + ' › ' + name)
+        await backToList()
+      }
     }
     if (locked === 0) return 'no locked setting in this deployment; not walked'
     return { locked, controls: 0 }`,
@@ -472,8 +668,8 @@ async function walk(browser, origin, proofs) {
     const tab = await wait('the MCP tab', () => assetTabs().find(item => item.textContent === 'MCP'))
     const panel = await openTab(tab)
     const page = await wait('the MCP page', () => panel.querySelector('.mcp-page'))
-    const text = await wait('the statement of the MCP page', () =>
-      page.innerText.includes('MCP 还没有接进这个应用') ? page.innerText.trim() : undefined)
+    const text = await wait('the empty list of the MCP page', () =>
+      page.innerText.includes('接进来的 MCP 接入点会列在这里。') ? page.innerText.trim() : undefined)
     if (panel.querySelector('.assets-category') !== null) throw new Error('the MCP tab draws the generic page')
     return { text }`,
   )
@@ -485,14 +681,14 @@ async function walk(browser, origin, proofs) {
       const section = document.querySelector('section[data-page=settings]')
       if (!section || section.hidden) return undefined
       const groups = [...section.querySelectorAll('section.assets-group')].map(group => group.getAttribute('aria-label'))
-      return groups.includes('日历与时区') && groups.includes('agent 管理日程') ? section : undefined
+      return groups.includes('日历与时区') && !groups.includes('agent 管理日程') ? section : undefined
     })
     const groups = [...page.querySelectorAll('section.assets-group')].map(group => group.getAttribute('aria-label'))
     const row = [...page.querySelectorAll('li.assets-setting')].find(item =>
       item.querySelector('.assets-setting-title').textContent === '时区')
     if (!row) throw new Error('no timezone on the settings page')
     const picks = [...page.querySelectorAll('li.assets-setting')].filter(item => item.querySelector('[role=radio]')).length
-    if (picks < 2) throw new Error('the two enum settings show no choices: ' + picks)
+    if (picks < 1) throw new Error('the enum setting shows no choices: ' + picks)
     fill(row.querySelector('.assets-setting-value input'), 'Europe/Paris')
     const set = await wait('an enabled set', () => [...row.querySelectorAll('button')].find(button => button.textContent.trim() === '设置' && !button.disabled))
     set.click()
@@ -506,8 +702,13 @@ async function walk(browser, origin, proofs) {
     '明暗切换',
     `
     const before = document.documentElement.dataset.theme
-    await press('button', before === 'dark' ? '换成浅色' : '换成深色')
+    const menu = await openAppearance()
+    const other = [...menu.querySelectorAll('[role=menuitemradio]')].find(item =>
+      item.textContent.trim() === (before === 'dark' ? '浅色' : '深色'))
+    if (!other) throw new Error('the appearance menu has no ' + (before === 'dark' ? '浅色' : '深色'))
+    other.click()
     await wait('the other theme', () => document.documentElement.dataset.theme !== before)
+    await wait('the menu to close', () => document.querySelector('[role=menu]') === null)
     return { before, after: document.documentElement.dataset.theme, stored: localStorage.getItem('omne.theme') }`,
   )
   await step(
@@ -517,17 +718,20 @@ async function walk(browser, origin, proofs) {
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
     const settled = await wait('the list to settle', () => {
       if ([...page.querySelectorAll('button')].some(button => button.textContent.trim() === '重试')) return 'failed'
-      if (page.querySelector('.hitl-cards') !== null) return 'cards'
-      return page.textContent.includes('现在没有要你决定的事') ? 'empty' : undefined
+      if (page.querySelector('.hitl-paper') !== null) return 'cards'
+      return page.textContent.includes('待答的问题会在这里等你。') ? 'empty' : undefined
     })
     if (settled === 'failed') throw new Error('the pending decisions did not read: ' + page.innerText)
-    return { state: settled, cards: page.querySelectorAll('.hitl-cards > li').length }`,
+    return { state: settled, cards: page.querySelectorAll('.hitl-section').length }`,
   )
   await step(
     '切回对话，退出登录',
     `
-    await press('.shell-nav-link', '对话')
-    await press('button', '退出登录')
+    await goHome()
+    const account = await wait('the account control', () => document.querySelector('.identity-account-control'))
+    account.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+    const out = await wait('the account menu', () => [...document.querySelectorAll('[role=menu] [role=menuitem]')].find(item => item.textContent.trim() === '退出登录'))
+    out.click()
     await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))
     return { sidebar: document.querySelector('.shell-sidebar') === null ? 'gone' : 'still there' }`,
   )
@@ -564,7 +768,7 @@ async function walk(browser, origin, proofs) {
     await press('button', '新建会话')
     const box = await wait('the composer', () => document.querySelector('textarea[aria-label="输入消息"]'))
     fill(box, 'this one will fail')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     const notice = await wait('the failure notice', () => document.querySelector('section.omne-waiting[aria-label="这一轮失败了"]'))
     await wait('the cause and the pending count', () => notice.innerText.includes('模型没有给出有效的回复。') && /还有 [1-9][0-9]* 条消息没有处理/.test(notice.innerText))
     await wait('the retry button', () => byText('section.omne-waiting button', '重试'))
@@ -580,84 +784,76 @@ async function walk(browser, origin, proofs) {
   )
   phase = 'tool'
   await step(
-    '工具卡的参数是人读的样子',
+    '工具调用是一行过程行，展开后参数是人读的名与值',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'run the tool')
-    await press('button[type=submit]', '发送')
-    await wait('the tool card', () =>
-      [...document.querySelectorAll('section[data-page=conversation] .omne-card')].find(item => item.querySelector('code')?.textContent === 'Shell'))
-    await wait('the run to settle', () => transcript().includes('done') && byText('button[type=submit]', '发送'))
-    const live = () => [...document.querySelectorAll('section[data-page=conversation] .omne-card')].find(item => item.querySelector('code')?.textContent === 'Shell')
-    const trigger = await wait('the card trigger', () => live().querySelector('button[aria-expanded]'))
+    await pressNamed('button[type=submit]', '发送')
+    const live = () => [...document.querySelectorAll('section[data-page=conversation] .omne-process')].find(item => item.querySelector('code.omne-process-name')?.textContent === 'Shell')
+    await wait('the tool call line', live)
+    await wait('the run to settle', () => transcript().includes('done') && byName('button[type=submit]', '发送'))
+    const trigger = await wait('the line trigger', () => live().querySelector('button[aria-expanded]'))
     if (trigger.getAttribute('aria-expanded') === 'false') trigger.click()
-    await wait('the card open', () => live().querySelector('button[aria-expanded=true]'))
-    const card = live()
+    await wait('the line open', () => live().querySelector('button[aria-expanded=true]'))
+    const line = live()
     const list = await wait('the visible arguments list', () => {
-      const found = card.querySelector('ul.omne-arguments')
+      const found = line.querySelector('dl[aria-label="参数"]')
       return found && found.innerText.includes('echo walk-args') ? found : undefined
     })
-    const pairs = [...list.querySelectorAll('.omne-argument-name, .omne-argument-value')].map(item => item.textContent)
-    for (const expected of ['command', 'execute', 'params', 'script', 'echo walk-args'])
-      if (!pairs.includes(expected)) throw new Error('the card does not show ' + expected + ' as its own element: ' + JSON.stringify(pairs))
-    const label = [...card.querySelectorAll('.omne-card-label')].find(item => item.textContent === '参数')
-    if (label?.nextElementSibling !== list) throw new Error('the arguments are not a key/value list: ' + label?.nextElementSibling?.outerHTML)
-    if (/[{}"]/.test(list.innerText)) throw new Error('the arguments show raw JSON: ' + list.innerText)
-    return { pairs, arguments: list.innerText }`,
+    const rows = Object.fromEntries([...list.querySelectorAll('.fact-list-row')].map(row => [row.querySelector('dt').textContent, row.querySelector('dd')]))
+    for (const name of ['command', 'params'])
+      if (!(name in rows)) throw new Error('the arguments do not name ' + name + ': ' + JSON.stringify(Object.keys(rows)))
+    if (rows.command.textContent !== 'execute') throw new Error('a plain value is not shown as itself: ' + rows.command.textContent)
+    const nested = rows.params.querySelector('[data-nested]')
+    if (!nested || nested.textContent.includes('\\n') || !nested.textContent.includes('echo walk-args')) throw new Error('a nested value is not one summary line: ' + rows.params.innerHTML)
+    if (line.querySelector('pre:not(.code-surface pre)')) throw new Error('the line shows a bare pre')
+    return { names: Object.keys(rows), params: nested.textContent }`,
   )
   await step(
-    '卡片展开之后才送达的滚动事件，不让转写区停止跟随',
+    '过程行展开之后才送达的滚动事件，不让转写区停止跟随',
     `
     const scroller = document.querySelector('section[data-page=conversation] .omne-conversation')
     const gap = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
     const before = gap()
-    if (before <= 32) throw new Error('the open card does not push the end out of view, so this step cannot tell: gap ' + before)
+    if (before <= 32) throw new Error('the open line does not push the end out of view, so this step cannot tell: gap ' + before)
     scroller.dispatchEvent(new Event('scroll'))
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'one more message')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     await wait('the message in the transcript', () => transcript().includes('one more message'))
     await wait('the reply to the message', () =>
-      transcript().split('one more message').at(-1).includes('done') && byText('button[type=submit]', '发送'))
+      transcript().split('one more message').at(-1).includes('done') && byName('button[type=submit]', '发送'))
     await wait('the end of the transcript in view', () => gap() <= 32)
     return { before, after: gap() }`,
   )
   phase = 'ask'
   await step(
-    '一轮里并行的两次 Ask：对话页出现三张卡，两张问询一张请示，题号、等待提示与导航上的张数',
+    '一轮里并行的两次 Ask：对话页的一张纸上叠着三节问询，纸底的链接与导航上的张数',
     `
+    // The row of this session is selected only while its conversation shows; remember which row it is.
+    window.walkAskRow = document.querySelector('.omne-session-item[aria-current=true] .omne-session-item-title')?.textContent
+    if (!window.walkAskRow) throw new Error('no session row is selected while the conversation shows')
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'ask me')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     const area = await wait('the cards of this session', () => dock())
-    await wait('three numbers above the cards', () => marks(area).length === 3)
-    const seen = []
-    for (let at = 1; at <= 3; at += 1) {
-      const card = await wait('card ' + at, () => {
-        const found = shownCard(area)
-        return found && found.getAttribute('aria-label') === '第 ' + at + ' 题' ? found : undefined
-      })
-      seen.push({
-        kind: card.dataset.kind,
-        title: card.querySelector('.hitl-card-title').textContent,
-        head: card.querySelector('.hitl-card-head').innerText,
-        source: card.querySelector('.hitl-card-source').textContent,
-      })
-      if (at < 3) area.querySelector('button[aria-label="下一题"]').click()
-    }
+    await wait('three sections on one sheet', () => sections(area).length === 3 && area.querySelectorAll('.hitl-paper').length === 1)
+    const seen = sections(area).map(section => ({
+      kind: section.dataset.kind,
+      title: section.querySelector('.hitl-title').textContent,
+      head: section.querySelector('.hitl-kind').innerText,
+      who: section.querySelector('.hitl-who').textContent,
+    }))
     const titles = seen.map(card => card.title).sort()
-    const expected = ${JSON.stringify([ASK_TITLE, ASK_SECOND_TITLE, APPROVAL_ACTION].sort())}
+    const expected = ${JSON.stringify([ASK_TITLE, ASK_SECOND_TITLE, THIRD_TITLE].sort())}
     if (JSON.stringify(titles) !== JSON.stringify(expected)) throw new Error('the cards ask something else: ' + JSON.stringify(seen))
-    if (seen.filter(card => card.kind === 'approval').length !== 1) throw new Error('not one approval card: ' + JSON.stringify(seen))
-    if (!seen.every(card => card.source.endsWith(' · Ask'))) throw new Error('a card source does not name the tool: ' + JSON.stringify(seen))
-    const hint = await wait('the waiting hint', () => document.querySelector('section[data-page=conversation] .hitl-wait-hint')?.textContent)
-    if (!hint.includes('Agent 在等你回答 3 个问题')) throw new Error('the hint says ' + hint)
-    const submit = area.querySelector('.hitl-area-submit')
-    if (!submit.disabled) throw new Error('the submit is open before any answer')
-    const missing = [...area.querySelectorAll('.hitl-area-foot button')].map(button => button.textContent.trim())
-    if (!missing.includes('还差 3 题')) throw new Error('the foot says ' + JSON.stringify(missing))
+    if (!seen.every(card => card.kind === 'question')) throw new Error('a card is not a question: ' + JSON.stringify(seen))
+    if (!seen.every(card => card.head.startsWith('需要你回答'))) throw new Error('a kind line does not say whose move it is: ' + JSON.stringify(seen))
+    if (area.querySelector('[role=tablist], button[aria-label="下一题"]')) throw new Error('the sheet still pages its questions')
+    if (!submitOf(area).disabled) throw new Error('the submit is open before any answer')
+    if (footLink(area) !== '还差 3 题') throw new Error('the foot says ' + footLink(area))
     const badge = await wait('the count in the navigation', () => {
       const found = document.querySelector('.shell-nav-link[data-page=decisions] .shell-nav-badge')
       return found && found.textContent.trim() === '3' ? found : undefined
     })
-    return { cards: seen, hint, badge: badge.textContent.trim() }`,
+    return { cards: seen, badge: badge.textContent.trim() }`,
   )
   await step(
     '「待你决定」页按会话分组，是同一组卡',
@@ -666,61 +862,60 @@ async function walk(browser, origin, proofs) {
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
     const groups = await wait('the group of this session', () => {
       const found = [...page.querySelectorAll('.hitl-group')]
-      return found.length > 0 && marks(found[0]).length === 3 ? found : undefined
+      return found.length > 0 && sections(found[0]).length === 3 ? found : undefined
     })
     if (groups.length !== 1) throw new Error('the pool has ' + groups.length + ' groups')
-    return { groups: groups.length, title: groups[0].querySelector('.hitl-group-title').innerText, marks: marks(groups[0]) }`,
+    return { groups: groups.length, title: groups[0].querySelector('.hitl-group-title').innerText, sections: sections(groups[0]).length }`,
   )
   await step(
-    '左右切换、答齐、一次提交：三张卡都收起，两次 Ask 各自走完，这一轮接着走完',
+    '照纸底的链接逐节答齐、一次提交：纸收走，两次 Ask 各自走完，这一轮接着走完',
     () => {
       phase = 'asked'
     },
     `
-    document.querySelector('.shell-nav-link[data-page=conversation]').click()
+    const shown = id => document.querySelector('section[data-page=' + id + ']')?.hidden === false
+    await goHome()
+    await wait('the home to go to the decisions page while answers wait', () => shown('decisions'))
+    if (document.querySelector('.omne-session-item[aria-current=true]')) throw new Error('a session row stays selected while the decisions page shows')
+    ;(await wait('the asking session in the list', () => [...document.querySelectorAll('.omne-session-item')].find(row => row.querySelector('.omne-session-item-title')?.textContent === window.walkAskRow))).click()
+    await wait('its row selected again', () => document.querySelector('.omne-session-item[aria-current=true] .omne-session-item-title')?.textContent === window.walkAskRow)
+    await wait('the conversation page', () => shown('conversation'))
     const area = await wait('the cards of this session', () => dock())
-    const showing = () => shownCard(area)?.getAttribute('aria-label')
-    const stage = area.querySelector('.hitl-area')
-    const key = name => stage.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true }))
-    const first = showing()
-    key('ArrowRight')
-    await wait('the right arrow to move on', () => showing() !== first)
-    key('ArrowLeft')
-    await wait('the left arrow to come back', () => showing() === first)
     const steps = []
     for (let left = 3; left > 0; left -= 1) {
-      const link = await wait('the link to the first unanswered', () =>
-        [...area.querySelectorAll('.hitl-area-foot button')].find(button => button.textContent.trim() === '还差 ' + left + ' 题'))
-      if (!area.querySelector('.hitl-area-submit').disabled) throw new Error('the submit is open with ' + left + ' left')
-      link.click()
+      await wait('the link to the first unanswered', () => footLink(area) === '还差 ' + left + ' 题')
+      if (!submitOf(area).disabled) throw new Error('the submit is open with ' + left + ' left')
+      area.querySelector('.hitl-missing').click()
       await sleep(50)
-      const card = shownCard(area)
-      const title = card.querySelector('.hitl-card-title').textContent
+      const section = document.activeElement?.closest('.hitl-section')
+      if (!section) throw new Error('the link did not bring focus to an unanswered section')
+      const title = section.querySelector('.hitl-title').textContent
       if (title === ${JSON.stringify(ASK_SECOND_TITLE)}) {
-        fill(card.querySelector('textarea.hitl-card-words'), ${JSON.stringify(ASK_OWN_WORDS)})
+        answerRow(section, '用自己的话回答').click()
+        const field = await wait('the field under 用自己的话回答', () => section.querySelector('.hitl-field textarea'))
+        fill(field, ${JSON.stringify(ASK_OWN_WORDS)})
       } else {
-        const label = title === ${JSON.stringify(ASK_TITLE)} ? ${JSON.stringify(ASK_PICK)} : '同意'
-        const choice = [...card.querySelectorAll('.hitl-card-choice')].find(item =>
-          item.querySelector('.hitl-card-choice-label').textContent === label)
-        choice.querySelector('[role=radio]').click()
+        const label = title === ${JSON.stringify(ASK_TITLE)} ? ${JSON.stringify(ASK_PICK)} : ${JSON.stringify(THIRD_PICK)}
+        answerRow(section, label).click()
       }
-      await wait('the card counted as answered', () => marks(area).filter(mark => mark === 'answered').length === 4 - left)
+      await wait('the section counted as answered', () => sections(area).filter(answered).length === 4 - left)
       steps.push(title)
     }
     const submit = await wait('the submit button', () => {
-      const found = area.querySelector('.hitl-area-submit')
+      const found = submitOf(area)
       return found && !found.disabled ? found : undefined
     })
     submit.click()
     await wait('the cards gone from the conversation', () => dock() === null)
     await wait('the reply after the answers', () => transcript().includes(${JSON.stringify(AFTER_ASK)}))
-    await wait('the run to settle', () => byText('button[type=submit]', '发送'))
+    await wait('the run to settle', () => byName('button[type=submit]', '发送'))
     await wait('the count gone', () =>
       document.querySelector('.shell-nav-link[data-page=decisions] .shell-nav-badge').textContent.trim() === '')
     await press('.shell-nav-link', '待你决定')
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
-    await wait('the pool empty', () => page.textContent.includes('现在没有要你决定的事'))
-    await press('.shell-nav-link', '对话')
+    await wait('the pool empty', () => page.textContent.includes('待答的问题会在这里等你。'))
+    await goHome()
+    await wait('the home to go to the conversation once nothing waits', () => shown('conversation'))
     return { answered: steps, transcript: transcript().slice(-160) }`,
   )
   phase = 'pool'
@@ -728,8 +923,8 @@ async function walk(browser, origin, proofs) {
     '另一轮在「待你决定」页里答：对话页的卡随之收起，会话自己接着走完',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'ask once more')
-    await press('button[type=submit]', '发送')
-    await wait('the card in the conversation', () => dock()?.querySelector('.hitl-card'))
+    await pressNamed('button[type=submit]', '发送')
+    await wait('the card in the conversation', () => dock()?.querySelector('.hitl-section'))
     return 'asked'`,
     () => {
       phase = 'pooled'
@@ -737,18 +932,15 @@ async function walk(browser, origin, proofs) {
     `
     document.querySelector('.shell-nav-link[data-page=decisions]').click()
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
-    const card = await wait('the card in the pool', () =>
-      [...page.querySelectorAll('.hitl-card')].find(item => item.querySelector('.hitl-card-title').textContent === ${JSON.stringify(POOL_TITLE)}))
-    const choice = [...card.querySelectorAll('.hitl-card-choice')].find(item =>
-      item.querySelector('.hitl-card-choice-label').textContent === ${JSON.stringify(POOL_PICK)})
-    choice.querySelector('[role=radio]').click()
-    const submit = await wait('the submit in the pool', () => {
-      const found = page.querySelector('.hitl-area-submit')
-      return found && !found.disabled ? found : undefined
-    })
-    submit.click()
-    await wait('the pool empty', () => page.textContent.includes('现在没有要你决定的事'))
-    await press('.shell-nav-link', '对话')
+    await wait('the card in the pool', () => sectionTitled(page, ${JSON.stringify(POOL_TITLE)}))
+    const pick = await wait('the option button in the pool', () =>
+      [...page.querySelectorAll('.hitl-actions button')].find(
+        button => button.textContent.trim() === ${JSON.stringify(POOL_PICK)} && !button.disabled,
+      ),
+    )
+    pick.click()
+    await wait('the pool empty', () => page.textContent.includes('待答的问题会在这里等你。'))
+    await goHome()
     await wait('the reply after the answer', () => transcript().includes(${JSON.stringify(AFTER_POOL)}))
     if (dock() !== null) throw new Error('the conversation still shows the card')
     return transcript().slice(-160)`,
@@ -756,10 +948,50 @@ async function walk(browser, origin, proofs) {
 }
 
 const CATEGORIES = [
+  ['AgentDefinition', '智能体'],
+  ['converter', '转换件'],
+  ['mcp', 'MCP'],
   ['model-provider', '模型供应商'],
+  ['plugin', 'Plugin'],
   ['skill', '技能'],
   ['tool', '工具'],
 ]
+
+/** A Skill made by the walk's own login outside the page, while the page is open. */
+async function createSkill(session, name) {
+  const client = protocol =>
+    createClient(
+      domainProtocols.find(item => item.name === protocol),
+      session.transport,
+    )
+  const current = await client('identity')['query-current-tenant']({})
+  const tenant = current.outcome === 'succeeded' ? current.body.tenantId : undefined
+  if (tenant === undefined)
+    throw new Error('query-current-tenant answered ' + JSON.stringify(current))
+  const assets = client('assets')
+  const bytes = new TextEncoder().encode(
+    `---\nname: ${name}\ndescription: Made by the page walk.\n---\n\n# ${name}\n`,
+  )
+  const upload = `walk-${name}`
+  const begun = await assets['begin-asset-upload']({
+    tenant,
+    operation: upload,
+    category: 'skill',
+    name,
+    manifest: [{ path: 'SKILL.md', bytes: bytes.length }],
+  })
+  if (begun.outcome !== 'succeeded') throw new Error('begin-asset-upload answered ' + begun.outcome)
+  const sent = await assets['append-asset-upload']({
+    tenant,
+    upload,
+    path: 'SKILL.md',
+    offset: 0,
+    bytes,
+  })
+  if (sent.outcome !== 'succeeded') throw new Error('append-asset-upload answered ' + sent.outcome)
+  const made = await assets['commit-asset-upload']({ tenant, upload })
+  if (made.outcome !== 'succeeded') throw new Error('commit-asset-upload answered ' + made.outcome)
+}
 
 async function listCategories(session) {
   const assets = domainProtocols.find(protocol => protocol.name === 'assets')
@@ -798,35 +1030,76 @@ try {
   })
   print(`server: 127.0.0.1:${port}, state ${scratch.stateRoot}`)
   const proofs = new Set()
-  const store = memoryCredentialStore()
-  const session = await openLoginSession({
+  const inner = createForwardingRules({
     connect: httpServer(`http://127.0.0.1:${port}`),
-    store: {
-      read: () => store.read(),
-      write: login => {
-        proofs.add(login.proof)
-        return store.write(login)
-      },
-      erase: () => store.erase(),
-    },
     contracts: [accessProtocol, ...domainProtocols],
   })
-  host = createWebHost({
-    session,
-    pageRoot: new URL('../dist/page/', import.meta.url).pathname,
+  // The forwarding layer keeps no login; the walk keeps the last one the page got, to search the
+  // page for its proof and to act as the same login outside the page.
+  let lastLogin
+  const rules = {
+    ...inner,
+    async login(credentials) {
+      const answer = await inner.login(credentials)
+      if (answer.result === 'signed-in') {
+        lastLogin = answer.login
+        proofs.add(answer.login.proof)
+      }
+      return answer
+    },
+    async call(request, login) {
+      const started = Date.now()
+      const report = await inner.call(request, login)
+      const name = `${request.protocol.name}/v${request.protocol.major} ${request.operation}`
+      hostLog.push(
+        `${new Date().toISOString()} call ${name}: ${report.outcome ?? report.kind} in ${Date.now() - started} ms`,
+      )
+      return report
+    },
+  }
+  const session = {
+    transport: {
+      call: request => inner.call(request, lastLogin),
+      observe: request => inner.observe(request, lastLogin),
+    },
+  }
+  const pageRoot = new URL('../dist/release/page/', import.meta.url).pathname
+  const log = line => hostLog.push(`${new Date().toISOString()} ${line}`)
+  host = createStandalone({
+    forwarding: createForwarding({
+      rules,
+      readPageFile: segments =>
+        readFile(join(pageRoot, ...segments)).then(
+          content => new Uint8Array(content),
+          () => undefined,
+        ),
+      log,
+    }),
+    log,
   })
   const hostPort = await host.listen(0)
   print(`host: http://127.0.0.1:${hostPort}/`)
   chrome = await startChrome(profile)
   browser = await devtools(chrome.port)
-  await walk(browser, `http://127.0.0.1:${hostPort}/`, proofs)
+  await walk(browser, `http://127.0.0.1:${hostPort}/`, proofs, {
+    createSkill: name => createSkill(session, name),
+  })
   print(`walk: all steps passed; ${proofs.size} login proof(s) were searched for`)
   await listCategories(session)
   code = 0
 } catch (failure) {
   print(`failed: ${failure instanceof Error ? failure.message : String(failure)}`)
+  if (server !== undefined) writeFileSync(join(shots, 'server-stderr.log'), server.stderr())
   const errors = server?.stderr().slice(-2000) ?? ''
   if (errors !== '') print(`server stderr (tail):\n${errors}`)
+  if (hostLog.length > 0) writeFileSync(join(shots, 'host.log'), `${hostLog.join('\n')}\n`)
+  if (hostLog.length > 0)
+    print(`host log (tail; all of it in host.log):\n${hostLog.slice(-30).join('\n')}`)
+  const startup = server
+    ?.stdout()
+    .split('\n')
+    .find(line => line.includes('"kind":"startup-result"'))
+  if (startup !== undefined) print(`server startup: ${startup.slice(0, 600)}`)
 } finally {
   releaseHeld()
   browser?.close()

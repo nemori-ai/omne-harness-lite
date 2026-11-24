@@ -38,16 +38,23 @@ export async function finishRun(
   outcome: CalendarOperationObservation,
   now: Instant,
 ): Promise<CalendarSupplyOutcome> {
-  if (outcome.kind === 'recorded') {
-    try {
+  try {
+    if (outcome.kind === 'recorded')
       await deps.journal.completeRun({
         ...query,
+        kind: 'recorded',
         operationRef: outcome.receipt.operationRef,
         completedAt: now,
         disposition: outcome.receipt.disposition,
       })
-    } catch {}
-  }
+    else if (outcome.kind === 'rejected' && outcome.reason !== 'providerUnavailable')
+      await deps.journal.completeRun({
+        ...query,
+        kind: 'refused',
+        completedAt: now,
+        reason: outcome.reason,
+      })
+  } catch {}
   return outcome
 }
 export async function commitPrepared(
@@ -215,7 +222,9 @@ export async function refreshCalendar(
   const existing = await deps.journal.readRun(query)
   if (existing.kind !== 'ok')
     return supplyError(context, 'provider_failure', `Prepared run ${existing.kind}`)
-  if (existing.value) return commitPrepared(deps, context, existing.value, control, signal)
+  if (existing.value?.state === 'completed')
+    return supplyError(context, 'provider_failure', 'Prepared run completed before its operation')
+  if (existing.value) return commitPrepared(deps, context, existing.value.run, control, signal)
   if (signal?.aborted || control.stopped())
     return { kind: 'ok', value: { kind: 'cancelled', phase: 'beforeCommit' } }
   return prepareRefresh(deps, context, query, policy, guards, control, signal)

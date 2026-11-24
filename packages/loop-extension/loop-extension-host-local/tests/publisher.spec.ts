@@ -81,7 +81,7 @@ async function context(tenant: TenantId, ref: string) {
     if (bound.kind !== 'bound') throw new Error(JSON.stringify(bound))
     const snapshot = await bound.reader.snapshot()
     if (snapshot.kind !== 'success') return snapshot
-    return snapshot.value.perRequest.find(entry => entry.key === ENABLED_EXTENSIONS_BLOCK)
+    return snapshot.value.perRead.find(entry => entry.key === ENABLED_EXTENSIONS_BLOCK)
   }
   return { rc, register, read }
 }

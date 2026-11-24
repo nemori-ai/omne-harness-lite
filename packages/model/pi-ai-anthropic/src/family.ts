@@ -1,21 +1,18 @@
 import type { Adoption, TokenizerDefinition, TransportFailure } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { defineFamily, type PiFamily, type PiFamilyBinding } from '@omne-harness/pi-ai-transport'
-import {
-  bindChatCompletions,
-  type ChatCompletionsLimits,
-} from '@omne-harness/pi-ai-transport/chat-completions'
+import { bindMessages, type MessagesLimits } from '@omne-harness/pi-ai-transport/messages'
 import type { TiktokenExecutor, TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
 import { createAnthropicMeter, type MeterMargin } from './meter.ts'
 import { ANTHROPIC_OWNER } from './owner.ts'
 import type { AnthropicRecord } from './record.ts'
+import { effortMapping } from './profiles.ts'
 import { ANTHROPIC_RECORDS } from './records.ts'
-import { hooksOf } from './rules.ts'
 
 export type AnthropicFamilyConfig = Readonly<{
   tokenizer: TiktokenResources
   executor: Pick<TiktokenExecutor, 'acquire'>
-  limits: ChatCompletionsLimits
+  limits: MessagesLimits
   margin: MeterMargin
 }>
 
@@ -62,6 +59,14 @@ function checkConfig(config: AnthropicFamilyConfig): void {
     throw new RangeError('config.margin.percent must be a non-negative decimal integer')
 }
 
+/** The byte limit of one image, as the profile of this record declares it. */
+function imageBytesOf(record: {
+  profile: { limits: readonly { metric: string; provided: string }[] }
+}) {
+  const limit = record.profile.limits.find(each => each.metric === 'image-bytes')
+  return limit === undefined ? {} : { imageBytes: Number(limit.provided) }
+}
+
 export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily {
   checkConfig(config)
   return defineFamily<AnthropicRecord>({
@@ -75,12 +80,13 @@ export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily {
       if (!('ok' in tokenizer)) return unavailable(`tokenizer-${tokenizer.failure.kind}`)
       try {
         return {
-          ok: bindChatCompletions({
+          ok: bindMessages({
             record,
+            bindingEfforts: effortMapping(record),
             supplier,
-            hooks: hooksOf(record),
             meter: createAnthropicMeter(record, tokenizer.ok.tokenizer, config.margin),
             limits: config.limits,
+            ...imageBytesOf(record),
             release: async () => {
               const released = await tokenizer.ok.release()
               if ('failure' in released) throw new Error(`tokenizer-${released.failure.kind}`)

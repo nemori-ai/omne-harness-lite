@@ -12,7 +12,9 @@ const round = (value: number): string => String(Math.round(value * 100) / 100)
 const at = ([x, y]: Point): string => `${round(x)} ${round(y)}`
 const mid = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
 
-function handPressure(drawn: number): number {
+export type Pressure = (drawn: number) => number
+
+export function handPressure(drawn: number): number {
   if (drawn < HAND.swellLength)
     return (
       HAND.landingWidth +
@@ -96,6 +98,22 @@ export function brush(through: readonly Point[], weight = 1): Stroke {
   const last = points.length - 1
   const half = points.map((_, i) => (HAND.width * weight * handPressure(i / last)) / 2)
   return outline(points, half, HAND.width * weight)
+}
+
+export interface Fineness {
+  readonly spacing: number
+  readonly most: number
+}
+
+export function strokeSpine(
+  through: readonly Point[],
+  weight = 1,
+  fineness?: Fineness,
+  press: Pressure = handPressure,
+): { points: Point[]; half: number[] } {
+  const points = resample(catmullRom(through), fineness?.spacing, fineness?.most)
+  const last = points.length - 1
+  return { points, half: points.map((_, i) => (HAND.width * weight * press(i / last)) / 2) }
 }
 
 function outline(

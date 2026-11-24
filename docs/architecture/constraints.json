@@ -70,6 +70,31 @@
       "id": "mcp",
       "label": "MCP 接入",
       "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "notification",
+      "label": "订阅、通知与推送",
+      "source": "docs/domains/boundaries.md#责任地图"
+    },
+    {
+      "id": "usage",
+      "label": "用量与花费",
+      "source": "docs/domains/usage-and-cost/README.md"
+    },
+    {
+      "id": "media",
+      "label": "媒体",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "dispatch",
+      "label": "派发与 agent 间消息",
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "plugin",
+      "label": "Plugin 的清单与送达",
+      "source": "packages/plugin/SPEC.md"
     }
   ],
   "roles": [
@@ -362,6 +387,30 @@
       "source": "packages/model/SPEC.md"
     },
     {
+      "id": "packages/model/model-protocol",
+      "paths": ["packages/model/model-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-access",
+      "paths": ["packages/model/model-access/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-ui",
+      "paths": ["packages/model/model-ui/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
       "id": "packages/tool/tool-contract",
       "paths": ["packages/tool/tool-contract/src/**"],
       "layer": "contract",
@@ -400,6 +449,62 @@
       "domains": [],
       "status": "candidate",
       "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool",
+      "paths": ["packages/tool/tool/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-definitions",
+      "paths": ["packages/tool/tool-definitions/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-host-local",
+      "paths": ["packages/tool/tool-host-local/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-storage-sql",
+      "paths": ["packages/tool/tool-storage-sql/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/assets/permissions",
+      "paths": ["packages/assets/permissions/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
+      "id": "packages/governance/governance-contract",
+      "paths": ["packages/governance/governance-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/governance/SPEC.md"
+    },
+    {
+      "id": "packages/governance/governance-local",
+      "paths": ["packages/governance/governance-local/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/governance/SPEC.md"
     },
     {
       "id": "packages/session/session-contract",
@@ -508,6 +613,14 @@
     {
       "id": "packages/assets/assets-ui",
       "paths": ["packages/assets/assets-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
+      "id": "packages/assets/assets-tools",
+      "paths": ["packages/assets/assets-tools/src/**"],
       "layer": "unknown",
       "domains": ["assets"],
       "status": "candidate",
@@ -650,6 +763,22 @@
       "source": "packages/session/SPEC.md"
     },
     {
+      "id": "packages/session/session-search",
+      "paths": ["packages/session/session-search/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-search-sqlite",
+      "paths": ["packages/session/session-search-sqlite/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/SPEC.md"
+    },
+    {
       "id": "packages/access/sdk",
       "paths": ["packages/access/sdk/src/**"],
       "layer": "interaction",
@@ -664,6 +793,126 @@
       "domains": [],
       "status": "candidate",
       "source": "packages/access/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-contract",
+      "paths": ["packages/notification/notification-contract/src/**"],
+      "layer": "contract",
+      "domains": ["notification"],
+      "status": "adopted",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-cordis-contract",
+      "paths": ["packages/notification/notification-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-local",
+      "paths": ["packages/notification/notification-local/src/**"],
+      "layer": "assembly",
+      "domains": ["notification"],
+      "status": "adopted",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification",
+      "paths": ["packages/notification/notification/src/**"],
+      "layer": "unknown",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-ui",
+      "paths": ["packages/notification/notification-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-tools",
+      "paths": ["packages/notification/notification-tools/src/**"],
+      "layer": "unknown",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "packages/usage/usage-contract",
+      "paths": ["packages/usage/usage-contract/src/**"],
+      "layer": "contract",
+      "domains": ["usage"],
+      "status": "adopted",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "packages/usage/usage-cordis-contract",
+      "paths": ["packages/usage/usage-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "packages/usage/usage",
+      "paths": ["packages/usage/usage/src/**"],
+      "layer": "unknown",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "packages/usage/usage-adapters",
+      "paths": ["packages/usage/usage-adapters/src/**"],
+      "layer": "unknown",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "packages/usage/usage-protocol",
+      "paths": ["packages/usage/usage-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "packages/usage/usage-ui",
+      "paths": ["packages/usage/usage-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "packages/usage/usage-access",
+      "paths": ["packages/usage/usage-access/src/**"],
+      "layer": "unknown",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-protocol",
+      "paths": ["packages/notification/notification-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-access",
+      "paths": ["packages/notification/notification-access/src/**"],
+      "layer": "unknown",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
     },
     {
       "id": "packages/calendar/calendar-contract",
@@ -850,12 +1099,372 @@
       "source": "packages/mcp/SPEC.md"
     },
     {
+      "id": "packages/mcp/mcp-bridge",
+      "paths": ["packages/mcp/mcp-bridge/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
       "id": "packages/mcp/mcp-host-local",
       "paths": ["packages/mcp/mcp-host-local/src/**"],
       "layer": "assembly",
       "domains": ["mcp"],
       "status": "adopted",
       "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "packages/mcp/mcp-protocol",
+      "paths": ["packages/mcp/mcp-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "packages/mcp/mcp-access",
+      "paths": ["packages/mcp/mcp-access/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-contract",
+      "paths": ["packages/workspace/workspace-contract/src/**"],
+      "layer": "contract",
+      "domains": ["workspace"],
+      "status": "adopted",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace",
+      "paths": ["packages/workspace/workspace/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-filesystem",
+      "paths": ["packages/workspace/workspace-filesystem/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-git",
+      "paths": ["packages/workspace/workspace-git/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-tools",
+      "paths": ["packages/workspace/workspace-tools/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-cordis-contract",
+      "paths": ["packages/workspace/workspace-cordis-contract/src/**"],
+      "layer": "contract",
+      "domains": ["workspace"],
+      "status": "adopted",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-local",
+      "paths": ["packages/workspace/workspace-local/src/**"],
+      "layer": "assembly",
+      "domains": ["workspace"],
+      "status": "adopted",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-protocol",
+      "paths": ["packages/workspace/workspace-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-access",
+      "paths": ["packages/workspace/workspace-access/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-asset-source",
+      "paths": ["packages/workspace/workspace-asset-source/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/assets/assets",
+      "paths": ["packages/assets/assets/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
+      "id": "packages/assets/assets-cordis-contract",
+      "paths": ["packages/assets/assets-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
+      "id": "packages/assets/assets-local",
+      "paths": ["packages/assets/assets-local/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
+      "id": "packages/mcp/mcp-ui",
+      "paths": ["packages/mcp/mcp-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "packages/agent/agent",
+      "paths": ["packages/agent/agent/src/**"],
+      "layer": "unknown",
+      "domains": ["agent"],
+      "status": "candidate",
+      "source": "packages/agent/SPEC.md"
+    },
+    {
+      "id": "packages/model/model",
+      "paths": ["packages/model/model/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-host-local",
+      "paths": ["packages/model/model-host-local/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-storage-sql",
+      "paths": ["packages/model/model-storage-sql/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-contract",
+      "paths": ["packages/media/media-contract/src/**"],
+      "layer": "contract",
+      "domains": ["media"],
+      "status": "adopted",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-cordis-contract",
+      "paths": ["packages/media/media-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media",
+      "paths": ["packages/media/media/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-storage-local",
+      "paths": ["packages/media/media-storage-local/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "adopted",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-storage-sql",
+      "paths": ["packages/media/media-storage-sql/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "adopted",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-image",
+      "paths": ["packages/media/media-image/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "adopted",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-engine-transcribe",
+      "paths": ["packages/media/media-engine-transcribe/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-engine-pdf",
+      "paths": ["packages/media/media-engine-pdf/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-protocol",
+      "paths": ["packages/media/media-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-access",
+      "paths": ["packages/media/media-access/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-adapters",
+      "paths": ["packages/media/media-adapters/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-ui",
+      "paths": ["packages/media/media-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-protocol",
+      "paths": ["packages/plugin/plugin-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-access",
+      "paths": ["packages/plugin/plugin-access/src/**"],
+      "layer": "unknown",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-host-local",
+      "paths": ["packages/plugin/plugin-host-local/src/**"],
+      "layer": "unknown",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-tools",
+      "paths": ["packages/plugin/plugin-tools/src/**"],
+      "layer": "unknown",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-ui",
+      "paths": ["packages/plugin/plugin-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "packages/dispatch/dispatch-contract",
+      "paths": ["packages/dispatch/dispatch-contract/src/**"],
+      "layer": "contract",
+      "domains": ["dispatch"],
+      "status": "adopted",
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "packages/dispatch/dispatch-cordis-contract",
+      "paths": ["packages/dispatch/dispatch-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["dispatch"],
+      "status": "candidate",
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "packages/dispatch/dispatch-local",
+      "paths": ["packages/dispatch/dispatch-local/src/**"],
+      "layer": "assembly",
+      "domains": ["dispatch"],
+      "status": "adopted",
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "packages/dispatch/dispatch",
+      "paths": ["packages/dispatch/dispatch/src/**"],
+      "layer": "unknown",
+      "domains": ["dispatch"],
+      "status": "candidate",
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "packages/dispatch/dispatch-tool",
+      "paths": ["packages/dispatch/dispatch-tool/src/**"],
+      "layer": "contract",
+      "domains": ["dispatch"],
+      "status": "candidate",
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "packages/dispatch/dispatch-session",
+      "paths": ["packages/dispatch/dispatch-session/src/**"],
+      "layer": "contract",
+      "domains": ["dispatch"],
+      "status": "candidate",
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "packages/dispatch/dispatch-tools",
+      "paths": ["packages/dispatch/dispatch-tools/src/**"],
+      "layer": "contract",
+      "domains": ["dispatch"],
+      "status": "candidate",
+      "source": "packages/dispatch/SPEC.md"
     }
   ],
   "rules": [
@@ -936,6 +1545,27 @@
       "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
+      "id": "DIR-TOOL-AUTHORIZATION",
+      "from": [
+        "packages/tool/tool",
+        "packages/tool/tool-access",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-definitions",
+        "packages/tool/tool-host-local",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-storage-sql",
+        "packages/tool/tool-ui"
+      ],
+      "to": [
+        "packages/identity/authorization",
+        "packages/assets/permissions",
+        "packages/governance/governance-contract",
+        "packages/governance/governance-local"
+      ],
+      "source": "packages/tool/SPEC.md#不变式"
+    },
+    {
       "id": "DIR-SESSION-MODEL",
       "from": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
       "to": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
@@ -969,6 +1599,8 @@
         "packages/identity/identity-sql",
         "packages/session/session",
         "packages/session/session-cordis",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
         "packages/session/session-storage-sql"
       ],
       "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
@@ -1006,6 +1638,205 @@
       ],
       "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-CORE-NOTIFICATION",
+      "from": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/pi-ai-transport",
+        "packages/tool/tool-access",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-ui"
+      ],
+      "to": [
+        "packages/notification/notification",
+        "packages/notification/notification-access",
+        "packages/notification/notification-contract",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-CORE-USAGE",
+      "from": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/pi-ai-transport",
+        "packages/tool/tool-access",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-ui"
+      ],
+      "to": [
+        "packages/usage/usage",
+        "packages/usage/usage-access",
+        "packages/usage/usage-adapters",
+        "packages/usage/usage-contract",
+        "packages/usage/usage-cordis-contract",
+        "packages/usage/usage-protocol",
+        "packages/usage/usage-ui"
+      ],
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-OUTWARD",
+      "from": ["packages/notification/notification-contract", "packages/notification/notification"],
+      "to": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/schedule/schedule",
+        "packages/schedule/schedule-access",
+        "packages/schedule/schedule-contract",
+        "packages/schedule/schedule-cordis-contract",
+        "packages/schedule/schedule-local",
+        "packages/schedule/schedule-protocol",
+        "packages/schedule/schedule-tools",
+        "packages/schedule/schedule-ui",
+        "packages/calendar/calendar",
+        "packages/calendar/calendar-access",
+        "packages/calendar/calendar-contract",
+        "packages/calendar/calendar-cordis-contract",
+        "packages/calendar/calendar-local",
+        "packages/calendar/calendar-protocol",
+        "packages/calendar/calendar-tools",
+        "packages/calendar/calendar-ui",
+        "packages/human-intervention/human-intervention-access",
+        "packages/human-intervention/human-intervention-protocol",
+        "packages/human-intervention/human-intervention-tool",
+        "packages/human-intervention/human-intervention-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-PURE",
+      "from": ["packages/notification/notification-contract", "packages/notification/notification"],
+      "to": [
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-access",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-DEFINITION",
+      "from": ["packages/notification/notification-cordis-contract"],
+      "to": [
+        "packages/notification/notification",
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-access",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-TOOLS",
+      "from": ["packages/notification/notification-tools"],
+      "to": [
+        "packages/notification/notification",
+        "packages/notification/notification-local",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-access",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-PROTOCOL",
+      "from": ["packages/notification/notification-protocol"],
+      "to": [
+        "packages/notification/notification-contract",
+        "packages/notification/notification",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-access",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-ACCESS",
+      "from": ["packages/notification/notification-access"],
+      "to": [
+        "packages/notification/notification",
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-UI",
+      "from": ["packages/notification/notification-ui"],
+      "to": [
+        "packages/notification/notification-contract",
+        "packages/notification/notification",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-access"
+      ],
+      "source": "packages/notification/SPEC.md"
     },
     {
       "id": "DIR-CALENDAR-PURE",
@@ -1074,7 +1905,11 @@
     {
       "id": "DIR-MCP-PURE",
       "from": ["packages/mcp/mcp-contract", "packages/mcp/mcp"],
-      "to": ["packages/mcp/mcp-cordis-contract", "packages/mcp/mcp-host-local"],
+      "to": [
+        "packages/mcp/mcp-cordis-contract",
+        "packages/mcp/mcp-host-local",
+        "packages/mcp/mcp-bridge"
+      ],
       "source": "packages/mcp/SPEC.md"
     },
     {
@@ -1103,6 +1938,445 @@
         "packages/loop-extension/loop-extension-host-local"
       ],
       "source": "packages/loop-extension/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-OUTWARD",
+      "from": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access"
+      ],
+      "to": [
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-access",
+        "packages/tool/tool-ui",
+        "packages/session/session-contract",
+        "packages/session/session-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/session/session-cordis",
+        "packages/session/session-adapters",
+        "packages/session/session-observation",
+        "packages/session/session-access",
+        "packages/session/session-ui",
+        "packages/session/session-protocol",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session",
+        "packages/session/session-storage-sql",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite"
+      ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-GOVERNANCE",
+      "from": ["packages/workspace/workspace-contract", "packages/workspace/workspace"],
+      "to": [
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access",
+        "packages/workspace/workspace-tools"
+      ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-ASSETS",
+      "from": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access",
+        "packages/workspace/workspace-tools"
+      ],
+      "to": [
+        "packages/assets/assets",
+        "packages/assets/assets-cordis-contract",
+        "packages/assets/assets-local",
+        "packages/assets/assets-access",
+        "packages/assets/assets-protocol",
+        "packages/assets/assets-ui"
+      ],
+      "source": "packages/workspace/SPEC.md#来源采用记录与交给求值"
+    },
+    {
+      "id": "DIR-WORKSPACE-CATEGORIES",
+      "from": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access",
+        "packages/workspace/workspace-tools",
+        "packages/workspace/workspace-asset-source"
+      ],
+      "to": [
+        "packages/skills/skill-contract",
+        "packages/skills/skill-cordis-contract",
+        "packages/skills/skill-host-local",
+        "packages/skills/skill",
+        "packages/mcp/mcp-contract",
+        "packages/mcp/mcp-cordis-contract",
+        "packages/mcp/mcp-host-local",
+        "packages/mcp/mcp",
+        "packages/mcp/mcp-ui",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/agent/agent",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/model-host-local",
+        "packages/model/model",
+        "packages/model/model-access",
+        "packages/model/model-protocol",
+        "packages/model/model-storage-sql",
+        "packages/model/model-ui"
+      ],
+      "source": "packages/workspace/SPEC.md#来源采用记录与交给求值"
+    },
+    {
+      "id": "DIR-WORKSPACE-TYPES",
+      "from": ["packages/workspace/workspace-filesystem"],
+      "to": ["packages/workspace/workspace-git"],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-PROTOCOL",
+      "from": ["packages/workspace/workspace-protocol"],
+      "to": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-access",
+        "packages/workspace/workspace-tools"
+      ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-ACCESS",
+      "from": ["packages/workspace/workspace-access"],
+      "to": [
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-tools"
+      ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-TOOLS",
+      "from": ["packages/workspace/workspace-tools"],
+      "to": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access"
+      ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-CORE-MEDIA",
+      "from": [
+        "packages/model/pi-ai-transport",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/model-protocol",
+        "packages/model/model-access",
+        "packages/model/model-ui",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-access",
+        "packages/tool/tool-ui",
+        "packages/session/session-contract",
+        "packages/session/session-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/session/session-cordis",
+        "packages/session/session-adapters",
+        "packages/session/session-observation",
+        "packages/session/session-access",
+        "packages/session/session-ui",
+        "packages/session/session-protocol",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session",
+        "packages/session/session-storage-sql",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite"
+      ],
+      "to": [
+        "packages/media/media-contract",
+        "packages/media/media-cordis-contract",
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
+        "packages/media/media-protocol",
+        "packages/media/media-access",
+        "packages/media/media-adapters",
+        "packages/media/media-ui"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-PURE",
+      "from": [
+        "packages/media/media-contract",
+        "packages/media/media"
+      ],
+      "to": [
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
+        "packages/media/media-protocol",
+        "packages/media/media-access",
+        "packages/media/media-adapters"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-CONTRACT",
+      "from": [
+        "packages/media/media-contract"
+      ],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-cordis-contract",
+        "packages/media/media-protocol",
+        "packages/media/media-access",
+        "packages/media/media-adapters"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-DEFINITION",
+      "from": [
+        "packages/media/media-cordis-contract"
+      ],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
+        "packages/media/media-protocol",
+        "packages/media/media-access",
+        "packages/media/media-adapters"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-PROTOCOL",
+      "from": ["packages/media/media-protocol"],
+      "to": [
+        "packages/media/media-contract",
+        "packages/media/media-cordis-contract",
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
+        "packages/media/media-access",
+        "packages/media/media-adapters"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-ACCESS",
+      "from": ["packages/media/media-access"],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
+        "packages/media/media-adapters"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-ADAPTERS",
+      "from": ["packages/media/media-adapters"],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
+        "packages/media/media-protocol",
+        "packages/media/media-access",
+        "packages/session/session",
+        "packages/session/session-cordis",
+        "packages/session/session-storage-sql",
+        "packages/session/session-adapters",
+        "packages/session/session-observation",
+        "packages/session/session-access",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-ENGINE",
+      "from": [
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf"
+      ],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-cordis-contract",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-protocol",
+        "packages/media/media-access",
+        "packages/media/media-adapters"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-CORE-DISPATCH",
+      "from": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/pi-ai-transport",
+        "packages/tool/tool-access",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-ui"
+      ],
+      "to": [
+        "packages/dispatch/dispatch-contract",
+        "packages/dispatch/dispatch",
+        "packages/dispatch/dispatch-cordis-contract",
+        "packages/dispatch/dispatch-local",
+        "packages/dispatch/dispatch-tool",
+        "packages/dispatch/dispatch-session",
+        "packages/dispatch/dispatch-tools"
+      ],
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "DIR-DISPATCH-OUTWARD",
+      "from": ["packages/dispatch/dispatch-contract", "packages/dispatch/dispatch"],
+      "to": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/schedule/schedule",
+        "packages/schedule/schedule-access",
+        "packages/schedule/schedule-contract",
+        "packages/schedule/schedule-cordis-contract",
+        "packages/schedule/schedule-local",
+        "packages/schedule/schedule-protocol",
+        "packages/schedule/schedule-tools",
+        "packages/schedule/schedule-ui",
+        "packages/calendar/calendar",
+        "packages/calendar/calendar-access",
+        "packages/calendar/calendar-contract",
+        "packages/calendar/calendar-cordis-contract",
+        "packages/calendar/calendar-local",
+        "packages/calendar/calendar-protocol",
+        "packages/calendar/calendar-tools",
+        "packages/calendar/calendar-ui",
+        "packages/human-intervention/human-intervention-access",
+        "packages/human-intervention/human-intervention-protocol",
+        "packages/human-intervention/human-intervention-tool",
+        "packages/human-intervention/human-intervention-ui",
+        "packages/notification/notification-contract",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local",
+        "packages/notification/notification",
+        "packages/notification/notification-ui",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-access"
+      ],
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "DIR-DISPATCH-PURE",
+      "from": ["packages/dispatch/dispatch-contract", "packages/dispatch/dispatch"],
+      "to": [
+        "packages/dispatch/dispatch-cordis-contract",
+        "packages/dispatch/dispatch-local",
+        "packages/dispatch/dispatch-tool",
+        "packages/dispatch/dispatch-session",
+        "packages/dispatch/dispatch-tools"
+      ],
+      "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "DIR-DISPATCH-DEFINITION",
+      "from": ["packages/dispatch/dispatch-cordis-contract"],
+      "to": ["packages/dispatch/dispatch", "packages/dispatch/dispatch-local"],
+      "source": "packages/dispatch/SPEC.md"
     }
   ]
 }

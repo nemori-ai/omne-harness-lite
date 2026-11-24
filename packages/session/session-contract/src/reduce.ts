@@ -14,7 +14,12 @@ import { CallConflict } from './call-state.ts'
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
 import type { RecoveryTask, RunTerminal, WorkSnapshot } from './values.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
-import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
+import {
+  SESSION_INTERPRETER,
+  readsSessionInterpreter,
+  decodeEntries,
+  type SessionEntry,
+} from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
 import { pruneInputLists } from './background-outcome.ts'
@@ -22,10 +27,21 @@ import { hasUnansweredCalls, trackCalls } from './run-closure.ts'
 import { scopeBinding } from './decide-management.ts'
 import { batchEvidence } from './batch-evidence.ts'
 import { digestOf } from './operations.ts'
+import { EMPTY_AUTHORIZATIONS, retireOnce } from './authorizations.ts'
 import { applyParticipation } from './result-state.ts'
 import { initializationProjection, validateInitializationBatch } from './reduce-initialization.ts'
 import { sameInitializationValue } from './initialization-plan.ts'
 import { adoption, InitializationInvalid } from './initialization-parse.ts'
+import {
+  callKeysIn,
+  callKeysOutside,
+  lendCalls,
+  settleCalls,
+  type CallSettlement,
+  type SessionCall,
+  type SessionCallKeys,
+  type SettledCallLookup,
+} from './call-settlement.ts'
 
 const RUN_LAYER_KINDS: ReadonlySet<string> = new Set([
   'run.started',
@@ -137,7 +153,9 @@ function applyIntakeRouted(
   }
   if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
   draft.pending = [...draft.pending, entry.input]
-  if (entry.wakes === false) {
+  if (!entry.source.countsTowardCapacity)
+    draft.uncountedInputs = [...(draft.uncountedInputs ?? []), entry.input]
+  if (!entry.source.wakes) {
     draft.quietInputs = [...(draft.quietInputs ?? []), entry.input]
     return null
   }
@@ -234,6 +252,8 @@ function applyRunTerminal(
     item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
   )
   draft.run = { kind: 'terminal', terminal: entry.terminal }
+  // No action of an ended Run starts any more: none holds a once authorization.
+  draft.authorizations = retireOnce(draft.authorizations)
   draft.handed = []
   draft.taken = []
   draft.waiting = []
@@ -305,6 +325,7 @@ function created(
     execution: entry.creation.execution,
     declarations: origin,
     permissions: { revision: '0', assignments: [] },
+    authorizations: EMPTY_AUTHORIZATIONS,
     revisions: { workspace: '0', declarations: '0' },
     run: { kind: 'none' },
     pending: [],
@@ -317,6 +338,9 @@ function created(
     controls: [],
     unresolved: [],
     creation: entry.creation,
+    ...(entry.creation.relation === undefined ? {} : { relation: entry.creation.relation }),
+    ...(entry.creation.attendance === undefined ? {} : { attendance: entry.creation.attendance }),
+    ...(entry.tree === undefined ? {} : { tree: entry.tree }),
     initialization: {
       protocol: 1,
       createOperation: entry.operation,
@@ -345,10 +369,12 @@ function created(
 }
 
 function reduceBatch(
-  previous: WorkSnapshot | null,
+  held: WorkSnapshot | null,
   batch: CommittedBatch,
   reads?: SessionHistoryReads,
+  lookup?: SettledCallLookup,
 ): ReduceResult {
+  let previous = held
   if (batch.entries.length === 0) return quarantined(`batch ${batch.revision} has no entries`)
   try {
     for (const row of batch.entries) adoption(row.schema)
@@ -361,18 +387,16 @@ function reduceBatch(
   const firstSchema = batch.entries[0]?.schema
   if (batch.entries.some(row => !sameInitializationValue(row.schema, firstSchema)))
     return quarantined('missing interpretation basis: conflicting batch interpreter adoptions')
-  const unsupported = batch.entries.find(
-    entry => !sameInitializationValue(entry.schema, SESSION_INTERPRETER),
-  )
+  const unsupported = batch.entries.find(entry => !readsSessionInterpreter(entry.schema))
   if (unsupported !== undefined)
     return quarantined(`unsupported interpreter adoption: ${JSON.stringify(unsupported.schema)}`)
-  if (previous !== null && !sameInitializationValue(previous.interpreter, SESSION_INTERPRETER))
+  if (previous !== null && !readsSessionInterpreter(previous.interpreter))
     return quarantined(
       `unsupported snapshot interpreter adoption: ${JSON.stringify(previous.interpreter)}`,
     )
   if (previous !== null && batch.revision === previous.revision)
     return sameInitializationValue(previous.source, batchEvidence(batch, previous.session))
-      ? { kind: 'reduced', snapshot: previous }
+      ? { kind: 'reduced', snapshot: previous, settled: [], late: [] }
       : quarantined('the repeated batch contradicts the committed snapshot')
   if (
     previous !== null &&
@@ -407,7 +431,6 @@ function reduceBatch(
   }
   if (batch.entries.some(entry => entry.revision !== batch.revision))
     return quarantined(`batch ${batch.revision} holds an entry of another revision`)
-  let draft: Draft | null = previous === null ? null : { ...previous }
   const decodedEntries: SessionEntry[] = []
   for (const decoded of decodeEntries(
     batch.entries,
@@ -417,6 +440,9 @@ function reduceBatch(
     if ('malformed' in decoded) return quarantined(decoded.malformed)
     decodedEntries.push(decoded.ok)
   }
+  const lent = lentTo(held, decodedEntries, lookup)
+  previous = withLent(previous, lent)
+  let draft: Draft | null = previous === null ? null : { ...previous }
   const interpretationRuns =
     previous === null
       ? undefined
@@ -461,7 +487,9 @@ function reduceBatch(
         draft.controls.some(control => control.operation === item.operation && unsettled(control)),
       ),
     }
+  const { settled, late } = settlementOf(draft, lent, lookup)
   pruneInputLists(draft)
+  draft.interpreter = SESSION_INTERPRETER
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
   draft.lifecycle = lifecycleOf(draft)
@@ -478,16 +506,53 @@ function reduceBatch(
     if (typeof progress === 'string') return quarantined(progress)
     draft.entriesProgress = progress
   }
-  return { kind: 'reduced', snapshot: draft }
+  return { kind: 'reduced', snapshot: draft, settled, late }
 }
 
+function lentTo(
+  held: WorkSnapshot | null,
+  entries: readonly SessionEntry[],
+  lookup: SettledCallLookup | undefined,
+): readonly SessionCall[] {
+  if (held === null || lookup === undefined) return []
+  return lookup(callKeysIn(entries))
+}
+
+const withLent = (snapshot: WorkSnapshot | null, lent: readonly SessionCall[]) =>
+  snapshot === null ? null : lendCalls(snapshot, lent)
+
+// A call leaves only when someone keeps what left: the store behind `lookup`.
+const settlementOf = (
+  draft: Draft,
+  lent: readonly SessionCall[],
+  lookup: SettledCallLookup | undefined,
+): CallSettlement => (lookup === undefined ? { settled: [], late: [] } : settleCalls(draft, lent))
+
+/** The calls a batch names that the snapshot does not hold; null when the batch does not decode. */
+export function batchCallKeys(
+  previous: WorkSnapshot,
+  batch: CommittedBatch,
+): SessionCallKeys | null {
+  const entries: SessionEntry[] = []
+  for (const decoded of decodeEntries(
+    batch.entries,
+    previous.initialization?.initialAdoption ?? null,
+  )) {
+    if (!('ok' in decoded)) return null
+    entries.push(decoded.ok)
+  }
+  return callKeysOutside(previous, callKeysIn(entries))
+}
+
+/** `lookup` answers the calls that left the snapshot. Without it no call leaves: nobody would keep it. */
 export function reduce(
   previous: WorkSnapshot | null,
   batch: CommittedBatch,
   reads?: SessionHistoryReads,
+  lookup?: SettledCallLookup,
 ): ReduceResult {
   try {
-    return reduceBatch(previous, batch, reads)
+    return reduceBatch(previous, batch, reads, lookup)
   } catch (error) {
     if (
       error instanceof SessionValidationFailure ||

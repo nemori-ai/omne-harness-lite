@@ -50,7 +50,7 @@ async function bodyOf(record: AnthropicRecord, parts: RequestParts): Promise<unk
 }
 
 describe('parameters', () => {
-  it.each(['low', 'medium', 'high', 'max'] as const)(
+  it.each(['low', 'medium', 'high', 'xhigh', 'max'] as const)(
     'passes the effort %s and writes it as itself',
     async value => {
       const effort: Parameter = { kind: 'reasoning-effort', value }
@@ -58,7 +58,7 @@ describe('parameters', () => {
       if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
       expect(outcome.ok.parameters.map(item => item.applied)).toEqual([effort])
       expect(await bodyOf(SONNET, { parameters: [effort] })).toMatchObject({
-        reasoning: { effort: value },
+        output_config: { effort: value },
       })
     },
   )
@@ -84,7 +84,7 @@ describe('parameters', () => {
     expect(outcome.ok.parameters.every(item => item.origin.kind === 'explicit')).toBe(true)
     expect(await bodyOf(SONNET, { parameters })).toMatchObject({
       max_tokens: 4096,
-      stop: ['END', 'STOP'],
+      stop_sequences: ['END', 'STOP'],
     })
   })
 
@@ -123,7 +123,7 @@ describe('parameters', () => {
 })
 
 describe('the 1h cache marker', () => {
-  it('marks the last text part of the last message, with text mixed with images', async () => {
+  it('marks the last part of the last message, an image after text, and nothing else', async () => {
     const body = await bodyOf(SONNET, {
       messages: [message('u1', 'user', [textBlock('b1', 'question'), imageBlock('i1')])],
     })
@@ -132,12 +132,17 @@ describe('the 1h cache marker', () => {
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'question', cache_control: CACHE },
-            { type: 'image_url', image_url: { detail: 'auto' } },
+            { type: 'text', text: 'question' },
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: 'image/png' },
+              cache_control: CACHE,
+            },
           ],
         },
       ],
     })
+    expect(JSON.stringify(body).split('cache_control')).toHaveLength(2)
   })
 
   it('marks the last image of a last user message of images only', async () => {
@@ -155,10 +160,10 @@ describe('the 1h cache marker', () => {
         {
           role: 'user',
           content: [
-            { type: 'image_url' },
+            { type: 'image', source: { media_type: 'image/png' } },
             {
-              type: 'image_url',
-              image_url: { url: 'data:image/jpeg;base64,iVBORw0KGgo=' },
+              type: 'image',
+              source: { type: 'base64', media_type: 'image/jpeg', data: 'iVBORw0KGgo=' },
               cache_control: CACHE,
             },
           ],
@@ -169,37 +174,49 @@ describe('the 1h cache marker', () => {
     expect(text.split('cache_control')).toHaveLength(2)
   })
 
-  it('refuses a last user message of images and only empty text, in either order', async () => {
-    for (const blocks of [
-      [textBlock('b1', ''), imageBlock('i1')],
-      [imageBlock('i1'), textBlock('b1', '')],
-    ])
-      expect(await encode(SONNET, { messages: [message('u1', 'user', blocks)] })).toEqual({
-        failure: {
-          kind: 'unsupported',
-          field: 'no-cache-target',
-          adapter: recordAdoption(ANTHROPIC_OWNER, SONNET),
-        },
+  // The gateway took an empty text block, and a cache mark on it, in one request on 2026-11-18.
+  it('sends a last user message of images and empty text as it is, marking its last block', async () => {
+    for (const [blocks, last] of [
+      [[textBlock('b1', ''), imageBlock('i1')], 'image'],
+      [[imageBlock('i1'), textBlock('b1', '')], 'text'],
+    ] as const) {
+      const body = await bodyOf(SONNET, { messages: [message('u1', 'user', blocks)] })
+      const messages = Reflect.get(Object(body), 'messages') as readonly {
+        content: readonly { type: string }[]
+      }[]
+      const content = messages[0]?.content
+      expect(content?.map(part => part.type)).toEqual(
+        last === 'image' ? ['text', 'image'] : ['image', 'text'],
+      )
+      expect(content?.at(-1)).toMatchObject({
+        type: last,
+        cache_control: { type: 'ephemeral', ttl: '1h' },
       })
+    }
   })
 
-  it('refuses a request whose last message has no text and is not a user image message', async () => {
-    expect(
-      await encode(SONNET, {
-        messages: [
-          message('u1', 'user', [textBlock('b1', 'look up x')]),
-          message('a1', 'assistant', [callBlock('c1', 'call_1')]),
-          message('t1', 'tool', [resultBlock('r1', 'call_1')]),
-        ],
-        tools: [tool('lookup')],
-      }),
-    ).toEqual({
-      failure: {
-        kind: 'unsupported',
-        field: 'no-cache-target',
-        adapter: recordAdoption(ANTHROPIC_OWNER, SONNET),
-      },
+  it('marks the tool result of a last message that has no text', async () => {
+    const body = await bodyOf(SONNET, {
+      messages: [
+        message('u1', 'user', [textBlock('b1', 'look up x')]),
+        message('a1', 'assistant', [callBlock('c1', 'call_1')]),
+        message('t1', 'tool', [resultBlock('r1', 'call_1')]),
+      ],
+      tools: [tool('lookup')],
     })
+    expect(body).toMatchObject({
+      messages: [
+        { role: 'user', content: [{ type: 'text', text: 'look up x' }] },
+        { role: 'assistant', content: [{ type: 'tool_use', id: 'call_1' }] },
+        {
+          role: 'user',
+          content: [
+            { type: 'tool_result', tool_use_id: 'call_1', content: [], cache_control: CACHE },
+          ],
+        },
+      ],
+    })
+    expect(JSON.stringify(body).split('cache_control')).toHaveLength(2)
   })
 })
 
@@ -222,30 +239,42 @@ describe('request body', () => {
         { role: 'user', content: [{ type: 'text', text: 'look up x' }] },
         {
           role: 'assistant',
-          content: [],
-          tool_calls: [{ type: 'function', function: { name: 'lookup', arguments: '{"q":"x"}' } }],
+          content: [{ type: 'tool_use', name: 'lookup', input: { q: 'x' } }],
         },
-        { role: 'tool', content: [{ type: 'text', text: 'found' }] },
         {
           role: 'user',
           content: [
             {
-              type: 'image_url',
-              image_url: { url: 'data:image/png;base64,iVBORw0KGgo=', detail: 'auto' },
+              type: 'tool_result',
+              content: [
+                { type: 'text', text: 'found' },
+                {
+                  type: 'image',
+                  source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgo=' },
+                },
+              ],
               cache_control: CACHE,
             },
           ],
         },
       ],
-      tools: [
-        {
-          type: 'function',
-          function: { name: 'lookup', description: 'lookup tool', parameters: { type: 'object' } },
-        },
-      ],
-      tool_choice: 'auto',
-      store: false,
+      tools: [{ name: 'lookup', description: 'lookup tool', input_schema: { type: 'object' } }],
+      tool_choice: { type: 'auto' },
     })
+    const { messages } = body as {
+      messages: [unknown, { content: [{ id: string }] }, { content: [{ tool_use_id: string }] }]
+    }
+    expect(messages[2].content[0].tool_use_id).toBe(messages[1].content[0].id)
+    expect(Object.keys(body as object).toSorted()).toEqual([
+      'max_tokens',
+      'messages',
+      'model',
+      'provider',
+      'stream',
+      'thinking',
+      'tool_choice',
+      'tools',
+    ])
   })
 
   it('refuses an image media type outside png, jpeg, webp and gif', async () => {

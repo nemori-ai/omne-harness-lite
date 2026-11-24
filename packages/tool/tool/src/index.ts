@@ -19,6 +19,11 @@ export {
   type ToolBodyScope,
   type ToolBodyScopeInput,
 } from './body-write-scope.ts'
+export {
+  routeToolDecisions,
+  type ToolDecisionRoute,
+  type ToolDecisionRoutesInput,
+} from './decision-routes.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { backgroundAllowed } from './ledger-background.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
@@ -43,6 +48,7 @@ export type {
   LedgerCommit,
   LedgerAssertion,
   LedgerCommitInput,
+  LedgerDefinitionRead,
   LedgerDomain,
   LedgerPendingScan,
   LedgerPendingScanInput,
@@ -67,12 +73,21 @@ export type {
   ToolLedgerStore,
 } from './ledger-store.ts'
 export { recordKey, hostKey, CALL_RECORD_KEY } from './ledger-store.ts'
+export type { LedgerUsageQuery, LedgerUsageRead } from './ledger-store.ts'
+export {
+  USAGE_PAGE_MAX,
+  USAGE_WORKS_MAX,
+  createToolAccounts,
+  inConsumerScope,
+  usageFactOf,
+} from './ledger-usage.ts'
 export type {
   AccessVerdict,
   GrantVerdict,
   SourceVerdict,
   StartVerdict,
   ToolAccessGuard,
+  ToolAccountsGuard,
   ToolFactAcknowledgementGuard,
   ToolInvokeAuthority,
   ToolGrantVerifier,
@@ -83,7 +98,7 @@ export type {
   ToolStartGuard,
 } from './ledger-guards.ts'
 export { isTenantShape } from './boundary.ts'
-export { digestOf as canonicalDigest, INITIAL_REVISION } from './evidence.ts'
+export { digestOf as canonicalDigest, canonicalJson, INITIAL_REVISION } from './evidence.ts'
 export { encodeToolCanonical, type EncodedToolCanonical } from './canonical-codec.ts'
 export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from './runtime.ts'
 export {

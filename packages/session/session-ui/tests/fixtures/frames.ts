@@ -143,8 +143,28 @@ export function listed(
   lastActivityAt: Instant | null
   lifecycle: Lifecycle
   title: string | null
+  relation: 'main' | 'child' | 'handoff'
+  parent: string | null
+  origin: string | null
+  root: string
+  depth: number
+  attendance: 'attended' | 'unattended'
+  definition: string
 } {
-  return { session, createdAt: null, lastActivityAt: null, lifecycle, title }
+  return {
+    session,
+    createdAt: null,
+    lastActivityAt: null,
+    lifecycle,
+    title,
+    relation: 'main',
+    parent: null,
+    origin: null,
+    root: session,
+    depth: 0,
+    attendance: 'attended',
+    definition: 'coding',
+  }
 }
 
 export function listPage(

@@ -1,5 +1,7 @@
+import type { FilesScope } from '@omne-harness/execution-environment-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
+import type { Modality } from '@omne-harness/modality'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { SchemaRef } from '@omne-harness/schema-provider'
 import type { ToolDeclarations } from './authoring.ts'
@@ -68,8 +70,17 @@ export type ToolGovernance = Readonly<{
   requiredCapabilities: readonly string[]
   programmable?: boolean
 }>
-/** The command may go to the background unless the call gives one of these parameters. */
-export type ToolCommandBackground = Readonly<{ unless: readonly string[] }>
+/** Background unless the call gives one of `unless`; with `start: 'launch'` every call starts there. */
+export type ToolCommandBackground = Readonly<{ unless: readonly string[]; start?: 'launch' }>
+export type ToolGateDefault = 'deny' | 'ask' | 'auto'
+export type ToolGate = Readonly<{ id: string; title: string; default: ToolGateDefault }>
+/** The kind of a typed release detail, with its major version, and the JSON Schema of its value. */
+export type ToolCommandReleaseDetail = Readonly<{ kind: string; schema: JsonValue }>
+/** `null` declares the command ungated. */
+export type ToolCommandRelease = Readonly<{
+  gate: string | null
+  detail?: ToolCommandReleaseDetail
+}>
 export type ToolCommandDeclaration = Readonly<{
   name: string
   summary: string
@@ -78,14 +89,24 @@ export type ToolCommandDeclaration = Readonly<{
     | Readonly<{ kind: 'executor-owned' }>
   returns: ToolReturnDeclaration
   background?: ToolCommandBackground
+  release?: ToolCommandRelease
+  modalities?: readonly Modality[]
+  conditions?: ToolCallConditions
 }>
+export type ToolCallConditions = readonly string[]
 export type ToolImplementationShape =
-  | Readonly<{ kind: 'function'; parameters: ParameterContract; returns: ToolReturnDeclaration }>
+  | Readonly<{
+      kind: 'function'
+      parameters: ParameterContract
+      returns: ToolReturnDeclaration
+      conditions?: ToolCallConditions
+    }>
   | Readonly<{
       kind: 'commands'
       encoding: CommandCallEncoding
       commands: readonly ToolCommandDeclaration[]
       guide?: string
+      gates?: readonly ToolGate[]
     }>
 export type ToolImplementationFacts = Readonly<{
   implements: ToolImplementationShape
@@ -116,6 +137,15 @@ export type ToolAvailability =
       layer: SourceLayer
     }>
   | Readonly<{ kind: 'known-unavailable'; definition: ToolDefinition; reason: string }>
+export type ToolAvailabilityReference =
+  | Readonly<{
+      kind: 'available'
+      definition: Adoption
+      name: string
+      executor: Adoption
+      layer: SourceLayer
+    }>
+  | Readonly<{ kind: 'known-unavailable'; definition: Adoption; name: string; reason: string }>
 export type ToolArguments = Readonly<{
   original: string
   effective: string
@@ -127,9 +157,13 @@ export type ToolInvocation = Readonly<{
   source: DurableEvidence
 }>
 export type ToolEnvironmentDeclaration = Readonly<{ adoption: Adoption; value: JsonValue }>
-export type FixedToolRequest = Readonly<{
-  availability: ToolAvailability
-  invocation: ToolInvocation
+/** Where a call works by default, its workspace instance, and the files it may touch (see `pinnedFiles`). */
+export type ToolCallDirectory = Readonly<{
+  path: string
+  workspace: Readonly<{ id: WorkspaceId; instance: string }> | null
+  files?: FilesScope
+}>
+export type ToolCallFields = Readonly<{
   command: string | null
   arguments: ToolArguments
   /** How a person and the model recognise the call. No admission, permission or approval reads it. */
@@ -137,7 +171,8 @@ export type FixedToolRequest = Readonly<{
   settings: Adoption
   context: Adoption
   workspace: WorkspaceId | null
-  environment: ToolEnvironmentDeclaration | null
+  /** Given by the request source when the call is accepted; it does not change afterwards. */
+  directory?: ToolCallDirectory
   requesterScope: ScopeRef
   resources: readonly Adoption[]
   scope: ResourceScope
@@ -151,3 +186,7 @@ export type FixedToolRequest = Readonly<{
     backgroundAfterMs: number | null
   }>
 }>
+export type FixedToolRequest = ToolCallFields &
+  Readonly<{ availability: ToolAvailability; invocation: ToolInvocation }>
+export type ToolInvokeRequest = ToolCallFields &
+  Readonly<{ availability: ToolAvailabilityReference }>

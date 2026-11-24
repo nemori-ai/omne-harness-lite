@@ -196,7 +196,7 @@ describe('management and derived history behavior', () => {
         kind,
       )
     }
-    expect((await s.read()).consumptions[0]?.results[0]?.release).toBe('pending')
+    expect(s.call(s.consumption)?.consumed?.results[0]?.release).toBe('pending')
     expect(
       refused(
         await s.commit({
@@ -269,6 +269,114 @@ describe('management and derived history behavior', () => {
     expect(reconciled.snapshot.tasks.filter(item => item.kind === 'cascade')).toMatchObject([
       { child: 'child-2' },
     ])
+  })
+  it('an archive names itself in the task of each child, and a refused child keeps its task as denied', async () => {
+    const s = scene()
+    await s.create()
+    const snapshot = { ...(await s.read()), children: [sessionId('child-1'), sessionId('child-2')] }
+    const archive = decide(
+      snapshot,
+      {
+        kind: 'control',
+        input: { ...s.base, operation: operationId('archive'), intent: { kind: 'archive' } },
+      },
+      [],
+      null,
+      { compaction: null },
+    )
+    if (archive.kind !== 'entries') throw new Error('archive refused')
+    const step = (from: typeof snapshot, rows: typeof archive.entries, at: number) => {
+      const revision = String(BigInt(from.revision) + 1n) as SessionRevision
+      const next = reduce(from, {
+        revision,
+        entries: rows.map((row, i) => ({ ...row, id: String(at + i) as EntryId, revision })),
+      })
+      if (next.kind !== 'reduced') throw new Error('quarantined')
+      return next.snapshot as typeof snapshot
+    }
+    const archived = step(snapshot, archive.entries, 100)
+    const tasks = archived.tasks.filter(item => item.kind === 'cascade')
+    expect(tasks.map(task => task.intent)).toEqual([
+      { kind: 'archive', cascade: { parent: snapshot.session, control: operationId('archive') } },
+      { kind: 'archive', cascade: { parent: snapshot.session, control: operationId('archive') } },
+    ])
+    const release = archived.tasks.find(item => item.kind === 'scope-release')
+    expect(release).not.toHaveProperty('intent')
+    expect(release).not.toHaveProperty('parentControl')
+    const [first] = tasks
+    if (first === undefined) throw new Error('no cascade task')
+    const fact = {
+      kind: 'cascade',
+      child: first.child,
+      childOperation: first.childOperation,
+    } as const
+    const reply = (from: typeof snapshot, name: string, refusal?: { reason: string }) => {
+      const decision = decide(
+        from,
+        {
+          kind: 'receive',
+          input: {
+            ...s.base,
+            operation: operationId(name),
+            fact: {
+              ...fact,
+              source: evidence(name),
+              ...(refusal === undefined ? {} : { refusal }),
+            },
+          },
+        },
+        [],
+        null,
+        { compaction: null },
+      )
+      if (decision.kind !== 'entries') throw new Error(`${name} refused`)
+      return decision.entries
+    }
+    const denied = step(archived, reply(archived, 'child-refused', { reason: 'denied' }), 200)
+    expect(denied.tasks.filter(item => item.kind === 'cascade')).toMatchObject([
+      { child: 'child-1', state: 'denied' },
+      { child: 'child-2', state: 'pending' },
+    ])
+    const done = step(denied, reply(denied, 'child-archived'), 300)
+    expect(done.tasks.filter(item => item.kind === 'cascade')).toMatchObject([{ child: 'child-2' }])
+  })
+  it('takes an archive that names a parent only in a child of that parent', async () => {
+    const s = scene()
+    await s.create()
+    const main = await s.read()
+    const child = {
+      ...main,
+      relation: { kind: 'child', parent: sessionId('parent-1'), basis: evidence('created') },
+      tree: { root: sessionId('parent-1'), depth: 1 },
+    } as typeof main
+    const archiveBy = (snapshot: typeof main, parent: string) =>
+      decide(
+        snapshot,
+        {
+          kind: 'control',
+          input: {
+            ...s.base,
+            operation: operationId('child-archive'),
+            intent: {
+              kind: 'archive',
+              cascade: { parent: sessionId(parent), control: operationId('parent-archive') },
+            },
+          },
+        },
+        [],
+        null,
+        { compaction: null },
+      )
+    expect(archiveBy(child, 'parent-1').kind).toBe('entries')
+    const reason = 'the session is not a child of the session the archive names'
+    expect(archiveBy(child, 'parent-2')).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'intent.cascade', reason },
+    })
+    expect(archiveBy(main, 'parent-1')).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'intent.cascade', reason },
+    })
   })
   it('confirmed continuous idle can archive, while stale evidence cannot', async () => {
     const s = scene()

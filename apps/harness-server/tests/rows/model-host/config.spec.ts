@@ -13,7 +13,21 @@ describe('the config of the model-host row', () => {
     const policy = { maxAttempts: 3, maxElapsedMs: 1000, delaysMs: [100, 200], jitter: 0.5 }
     const parsed = modelHostConfig.safeParse({ ...base, retry: { ...base.retry, policy } })
     expect(parsed.success).toBe(true)
-    expect(parsed.data?.retry).toEqual({ adoption: base.retry.adoption, policy })
+    expect(parsed.data?.retry).toEqual({
+      adoption: base.retry.adoption,
+      policy,
+      replayResend: base.retry.replayResend,
+    })
+  })
+
+  it.each([
+    ['without the bound', undefined, false],
+    ['with a negative bound', { max: -1 }, false],
+    ['with a bound that is not whole', { max: 0.5 }, false],
+    ['with a bound of zero', { max: 0 }, true],
+  ])('takes the resend after a refusal of reasoning state %s: %s', (_name, replayResend, ok) => {
+    const config = { ...base, retry: { ...base.retry, replayResend } }
+    expect(modelHostConfig.safeParse(config).success).toBe(ok)
   })
 
   it.each(['owner', 'name', 'revision', 'digest'] as const)(
@@ -42,6 +56,20 @@ describe('the config of the model-host row', () => {
       ...base,
       retry: { ...base.retry, policy: { ...base.retry.policy, ...change } },
     }
+    expect(modelHostConfig.safeParse(config).success).toBe(false)
+  })
+
+  it('takes the result push intervals as a table and refuses one that is empty or lists anything but integers of at least 1 (C9)', () => {
+    const withDelays = (delaysMs: unknown) =>
+      modelHostConfig.safeParse({ ...base, results: { ...base.results, delaysMs } })
+    const parsed = withDelays([5, 50])
+    expect(parsed.success && parsed.data.results.delaysMs).toEqual([5, 50])
+    for (const delaysMs of [undefined, [], [0], [1.5], ['1']])
+      expect(withDelays(delaysMs).success, JSON.stringify(delaysMs)).toBe(false)
+  })
+
+  it('refuses the removed cleanupRetryMs, which nothing read (C9)', () => {
+    const config = { ...base, runtime: { ...base.runtime, cleanupRetryMs: 0 } }
     expect(modelHostConfig.safeParse(config).success).toBe(false)
   })
 

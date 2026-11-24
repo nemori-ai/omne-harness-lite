@@ -1,9 +1,11 @@
+import { callsLeft, lentTo, type CallsLeft } from './call-left.ts'
 import {
   digestSessionEntries,
   projectSessionEntries,
   reduce,
   type CommitReceipt,
   type HistoryEntry,
+  type IntakeTerms,
   type OperationRecord,
   type RoutedInput,
   type SessionEntriesObservation,
@@ -30,6 +32,7 @@ export type EntriesBatch = Readonly<{
   previous: WorkSnapshot
   snapshot: WorkSnapshot
   entries: readonly HistoryEntry[]
+  left: CallsLeft
   answer: SessionEntriesReceipt
   /** System inputs the interpretation accepted; written to `sl_input` in the same transaction. */
   admitted: readonly Extract<RoutedInput, { kind: 'ordinary' }>[]
@@ -43,7 +46,15 @@ export type EntriesJudgment =
   | Readonly<{ kind: 'recovered'; result: unknown; digest: string }>
   | Readonly<{ kind: 'publish'; batch: EntriesBatch }>
 
-type Input = Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>
+type Input = Readonly<{
+  observation: SessionEntriesObservation
+  start: SessionEntriesStart
+  derived: IntakeTerms['derived']
+}>
+
+function derivedOf(value: JsonValue | undefined): IntakeTerms['derived'] {
+  return value === undefined ? {} : (decodeValue(value) as IntakeTerms['derived'])
+}
 
 function inputOf(facts: Readonly<Record<string, JsonValue>>): Input | string {
   if (typeof facts['observation'] !== 'object' || typeof facts['start'] !== 'object')
@@ -52,6 +63,7 @@ function inputOf(facts: Readonly<Record<string, JsonValue>>): Input | string {
     return {
       observation: decodeValue(facts['observation'] as JsonValue) as SessionEntriesObservation,
       start: decodeValue(facts['start'] as JsonValue) as SessionEntriesStart,
+      derived: derivedOf(facts['derived']),
     }
   } catch (error) {
     return error instanceof Error ? error.message : 'undecodable facts'
@@ -103,11 +115,12 @@ export function judgeEntries(
           digest: text(held['input_digest']),
           receipt: JSON.parse(packed(held['receipt'])) as CommitReceipt,
         }
-  const decision = projectSessionEntries(previous, {
+  const decision = projectSessionEntries(lentTo(port, { tenant, session }, previous, observation), {
     observation,
     start,
     saved: previous.entriesProgress ?? [],
     record,
+    derived: input.derived,
   })
   const digest = digestSessionEntries(observation)
   if (decision.kind === 'rejected') return { kind: 'stopped', failure: decision.failure }
@@ -133,7 +146,8 @@ export function judgeEntries(
 
   const revision = String(journal.tail + 1n)
   const entries = assignPositions(port, { tenant, session }, revision, decision.entries)
-  const reduced = reduce(previous, { revision, entries } as never)
+  const left = callsLeft(port, { tenant, session })
+  const reduced = reduce(previous, { revision, entries } as never, undefined, left)
   if (reduced.kind === 'quarantined')
     return {
       kind: 'stopped',
@@ -150,6 +164,7 @@ export function judgeEntries(
       previous,
       snapshot: reduced.snapshot,
       entries,
+      left: reduced,
       answer: {
         operation: observation.operation,
         through: decision.progress.through,

@@ -52,6 +52,7 @@
 - `FileBatchOutcome` · `facilities/files.d.ts`
 - `FileBatchRecognition` · `facilities/files.d.ts`
 - `FileBatchRef` · `facilities/files.d.ts`
+- `FileEffect` · `files-scope.d.ts`
 - `FileEntry` · `facilities/files.d.ts`
 - `FileIdentity` · `facilities/files.d.ts`
 - `FileInformation` · `facilities/files.d.ts`
@@ -60,6 +61,7 @@
 - `FileTarget` · `facilities/files.d.ts`
 - `FileVersion` · `facilities/files.d.ts`
 - `FileWriteResult` · `facilities/files.d.ts`
+- `FilesScope` · `files-scope.d.ts`
 - `HandleGeneration` · `facilities/files.d.ts`
 - `HostDate` · `blocks.d.ts`
 - `InstanceIdentity` · `lease.d.ts`
@@ -116,7 +118,15 @@
 - `RetainedStreamTail` · `facilities/command.d.ts`
 - `RetainedTerminalLedger` · `ports.d.ts`
 - `Retirement` · `environment.d.ts`
-- `SessionTerminalRetention` · `ports.d.ts`
+- `ScopeTerminalRetention` · `ports.d.ts`
+- `ScopedFileOperation` · `files-scope.d.ts`
+- `ScreenFacility` · `facilities/screen.d.ts`
+- `ScreenFrame` · `facilities/screen.d.ts`
+- `ScreenId` · `facilities/screen.d.ts`
+- `ScreenInfo` · `facilities/screen.d.ts`
+- `ScreenPoint` · `facilities/screen.d.ts`
+- `ScreenRegion` · `facilities/screen.d.ts`
+- `ScreenSize` · `facilities/screen.d.ts`
 - `TerminalFacility` · `facilities/terminal.d.ts`
 - `TerminalInformation` · `facilities/terminal.d.ts`
 - `TerminalRef` · `facilities/terminal.d.ts`
@@ -124,6 +134,7 @@
 - `TerminalRetentionOperation` · `facilities/terminal.d.ts`
 - `UnknownAcquisition` · `lease.d.ts`
 - `UnsupportedRecovery` · `environment.d.ts`
+- `WindowsPathRefusal` · `files-scope.d.ts`
 - `acquireParamsSchema` · `operation-schemas.d.ts`
 - `acquireResultSchema` · `operation-schemas.d.ts`
 - `acquisitionRef` · `identity.d.ts`
@@ -139,7 +150,9 @@
 - `environmentNeedSchemaRef` · `need-schema-ref.d.ts`
 - `executionHostFactsBlock` · `blocks.d.ts`
 - `executionPlacementBlock` · `blocks.d.ts`
+- `fileEffects` · `files-scope.d.ts`
 - `filesFacility` · `facilities/files.d.ts`
+- `imagePointOnScreen` · `facilities/screen.d.ts`
 - `inspectAcquisitionParamsSchema` · `operation-schemas.d.ts`
 - `inspectAcquisitionResultSchema` · `operation-schemas.d.ts`
 - `inspectRecoveryAcquisitionParamsSchema` · `operation-schemas.d.ts`
@@ -163,7 +176,12 @@
 - `releaseScopeResultSchema` · `operation-schemas.d.ts`
 - `resolvePlacementParamsSchema` · `operation-schemas.d.ts`
 - `resolvePlacementResultSchema` · `operation-schemas.d.ts`
+- `screenFacility` · `facilities/screen.d.ts`
+- `screenPointOnDesktop` · `facilities/screen.d.ts`
+- `segmentsBelow` · `files-scope.d.ts`
 - `terminalFacility` · `facilities/terminal.d.ts`
+- `windowsPathSegments` · `files-scope.d.ts`
+- `withinScope` · `files-scope.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
@@ -185,6 +203,9 @@
 - `ProviderConformanceOptions` · `testing/provider-conformance.d.ts`
 - `ProviderConformanceSubject` · `testing/provider-conformance.d.ts`
 - `ProviderScript` · `testing/doubles.d.ts`
+- `ScreenConformanceOptions` · `testing/screen-conformance.d.ts`
+- `ScreenConformanceSubject` · `testing/screen-conformance.d.ts`
+- `ScreenScript` · `testing/scripted-screen.d.ts`
 - `ScriptedCommandAnswer` · `testing/scripted-command.d.ts`
 - `ScriptedCommandFacility` · `testing/scripted-command.d.ts`
 - `ScriptedCommandOptions` · `testing/scripted-command.d.ts`
@@ -194,6 +215,7 @@
 - `ScriptedRecoveryAuthority` · `testing/doubles.d.ts`
 - `ScriptedRetentionStore` · `testing/scripted-command.d.ts`
 - `ScriptedScopeBindings` · `testing/doubles.d.ts`
+- `ScriptedScreenFacility` · `testing/scripted-screen.d.ts`
 - `ScriptedTerminalAnswer` · `testing/scripted-terminal.d.ts`
 - `ScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
 - `TerminalConformanceAcquisition` · `testing/terminal-conformance.d.ts`
@@ -210,10 +232,13 @@
 - `createScriptedRecoveryAuthority` · `testing/doubles.d.ts`
 - `createScriptedRetentionStore` · `testing/scripted-command.d.ts`
 - `createScriptedScopeBindings` · `testing/doubles.d.ts`
+- `createScriptedScreenFacility` · `testing/scripted-screen.d.ts`
 - `createScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
 - `environmentProviderConformance` · `testing/provider-conformance.d.ts`
 - `executionEnvironmentConformance` · `testing/environment-conformance.d.ts`
 - `runConformanceCase` · `testing/case.d.ts`
+- `screenFacilityConformance` · `testing/screen-conformance.d.ts`
+- `scriptedScreenPng` · `testing/scripted-screen.d.ts`
 - `terminalFacilityConformance` · `testing/terminal-conformance.d.ts`
 
 ## 声明文件 `binding.d.ts`
@@ -342,6 +367,7 @@ export declare function standardSchema<T>(decode: Decoder<T>): StandardSchemaV1<
 
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
+import type { FilesScope } from './files-scope.ts';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { AuthorityDecision, ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './binding.ts';
@@ -349,7 +375,7 @@ import type { FacilityDescriptor, FacilityKey } from './facility.ts';
 import type { RetainedProcessInformation } from './facilities/command.ts';
 import type { Access, AcquisitionRef, OriginRef } from './identity.ts';
 import type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationFailed, EnvironmentLease, InstanceIdentity, LookupUnknown, OriginalAcquisition, Pending, Placement, ProviderIdentity, RecoveryInspection, Rejected, UnknownAcquisition } from './lease.ts';
-import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger, SessionTerminalRetention } from './ports.ts';
+import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger, ScopeTerminalRetention } from './ports.ts';
 import type { EnvironmentRequirement, IsolationClaim } from './requirement.ts';
 export type PlatformFacts = Readonly<{
     os: string;
@@ -371,7 +397,7 @@ export type ProviderAcquireInput = Readonly<{
     placement: Placement;
     tenant: TenantId;
     ledger: ResourceLedger;
-    retention?: SessionTerminalRetention & {
+    retention?: ScopeTerminalRetention & {
         readonly released: AbortSignal;
     };
 }>;
@@ -520,6 +546,7 @@ export type OwnedRecovery = Readonly<{
 export type PlacementInput = Readonly<{
     scope: ScopeRef;
     requirement: EnvironmentRequirement;
+    filesScope?: FilesScope;
 }>;
 export type AcquireInput<P> = Readonly<{
     acquisition: AcquisitionRef;
@@ -528,7 +555,7 @@ export type AcquireInput<P> = Readonly<{
     placement: Placement;
     ledger: ResourceLedger;
     guard: FacilityGuard<P>;
-    retention?: SessionTerminalRetention;
+    retention?: ScopeTerminalRetention;
 }>;
 export type EnvironmentAction = Readonly<{
     kind: 'resolve';
@@ -865,6 +892,59 @@ declare module '../facility.ts' {
 export declare const filesFacility: FacilityDescriptor<'files'>;
 ```
 
+## 声明文件 `facilities/screen.d.ts`
+
+```ts
+import { type FacilityDescriptor, type FacilityRequest, type FacilityResult } from '../facility.ts';
+export type ScreenId = string;
+export type ScreenPoint = {
+    readonly x: number;
+    readonly y: number;
+};
+export type ScreenSize = {
+    readonly width: number;
+    readonly height: number;
+};
+export type ScreenRegion = ScreenPoint & ScreenSize;
+export type ScreenInfo = {
+    readonly id: ScreenId;
+    readonly name: string;
+    readonly primary: boolean;
+    readonly pixels: ScreenSize;
+    readonly scale: number;
+    readonly origin: ScreenPoint;
+};
+export type ScreenFrame = {
+    readonly screen: ScreenInfo;
+    readonly region: ScreenRegion;
+    readonly image: ScreenSize & {
+        readonly mediaType: 'image/png';
+        readonly bytes: Uint8Array;
+    };
+    readonly takenAt: string;
+};
+export interface ScreenFacility<P> {
+    list(request: FacilityRequest<P>): Promise<FacilityResult<readonly ScreenInfo[]>>;
+    capture(request: FacilityRequest<P> & {
+        readonly screen: ScreenId | null;
+        readonly region: ScreenRegion | null;
+    }): Promise<FacilityResult<ScreenFrame>>;
+}
+declare module '../facility.ts' {
+    interface EnvironmentFacilities {
+        screen: ScreenFacility<unknown>;
+    }
+}
+export declare const screenFacility: FacilityDescriptor<'screen'>;
+type FrameGeometry = Readonly<{
+    image: ScreenSize;
+    region: ScreenRegion;
+}>;
+export declare function imagePointOnScreen(frame: FrameGeometry, point: ScreenPoint): ScreenPoint;
+export declare function screenPointOnDesktop(screen: Pick<ScreenInfo, 'scale' | 'origin'>, point: ScreenPoint): ScreenPoint;
+export {};
+```
+
 ## 声明文件 `facilities/terminal.d.ts`
 
 ```ts
@@ -901,7 +981,7 @@ export interface TerminalFacility<P> {
             readonly columns: number;
             readonly rows: number;
         };
-        readonly retain?: 'session';
+        readonly retain?: 'scope';
     }): Promise<FacilityResult<{
         readonly terminal: TerminalRef;
     }>>;
@@ -968,6 +1048,66 @@ export declare function describeFacility<K extends FacilityKey>(key: K, operatio
 }): FacilityDescriptor<K>;
 ```
 
+## 声明文件 `files-scope.d.ts`
+
+```ts
+import type { FileSystemFacility } from './facilities/files.ts';
+export type FilesScope = Readonly<{
+    read?: string;
+    write?: string;
+}>;
+export type FileEffect = 'read' | 'write';
+export type ScopedFileOperation = Exclude<keyof FileSystemFacility<unknown>, 'close'>;
+export declare const fileEffects: Readonly<{
+    read: Readonly<{
+        path: 'read';
+    }>;
+    stat: Readonly<{
+        path: 'read';
+    }>;
+    list: Readonly<{
+        path: 'read';
+    }>;
+    search: Readonly<{
+        path: 'read';
+    }>;
+    recoverBatch: Readonly<{
+        path: 'read';
+    }>;
+    write: Readonly<{
+        path: 'write';
+    }>;
+    mkdir: Readonly<{
+        path: 'write';
+    }>;
+    remove: Readonly<{
+        path: 'write';
+    }>;
+    commitBatch: Readonly<{
+        path: 'write';
+    }>;
+    move: Readonly<{
+        path: 'write';
+        target: 'write';
+    }>;
+    copy: Readonly<{
+        path: 'read';
+        target: 'write';
+    }>;
+}>;
+export type WindowsPathRefusal = 'form' | 'parent';
+export declare function windowsPathSegments(path: string): Readonly<{
+    ok: true;
+    drive: string;
+    segments: readonly string[];
+}> | Readonly<{
+    ok: false;
+    refusal: WindowsPathRefusal;
+}>;
+export declare function segmentsBelow(root: string, path: string, platform?: NodeJS.Platform): readonly string[] | undefined;
+export declare function withinScope(scope: FilesScope, effect: FileEffect, path: string, platform?: NodeJS.Platform): boolean;
+```
+
 ## 声明文件 `identity.d.ts`
 
 ```ts
@@ -992,14 +1132,18 @@ export type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './b
 export type { EnvironmentRequirement, IsolationClaim, IsolationClaims } from './requirement.ts';
 export { describeFacility } from './facility.ts';
 export type { EnvironmentFacilities, FacilityDescriptor, FacilityKey, FacilityOperation, FacilityReason, FacilityRequest, FacilityResult, } from './facility.ts';
+export { fileEffects, segmentsBelow, windowsPathSegments, withinScope } from './files-scope.ts';
+export type { FileEffect, FilesScope, ScopedFileOperation, WindowsPathRefusal, } from './files-scope.ts';
 export { filesFacility } from './facilities/files.ts';
 export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, FileWriteResult, HandleGeneration, ObjectToken, } from './facilities/files.ts';
 export { commandFacility } from './facilities/command.ts';
 export type { BetweenSegments, CommandFacility, CommandOutcome, CommandRetention, CommandRetentionOperation, Containment, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, ResidueReport, ResidueStopReason, RetainedOutput, RetainedOutputFrom, RetainedProcessInformation, RetainedProcessRef, RetainedStreamTail, } from './facilities/command.ts';
 export { terminalFacility } from './facilities/terminal.ts';
 export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetention, TerminalRetentionOperation, } from './facilities/terminal.ts';
+export { imagePointOnScreen, screenFacility, screenPointOnDesktop } from './facilities/screen.ts';
+export type { ScreenFacility, ScreenFrame, ScreenId, ScreenInfo, ScreenPoint, ScreenRegion, ScreenSize, } from './facilities/screen.ts';
 export { createRecoveryAccess } from './ports.ts';
-export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedProcessLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
+export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedProcessLedger, RetainedTerminalLedger, ScopeTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
 export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, ResourcesRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts';
@@ -1045,6 +1189,7 @@ export declare function judgeRequirement(value: unknown): Outcome<EnvironmentReq
 import type { JsonValue } from '@omne-harness/json-text';
 import type { EnvironmentBinding, EnvironmentContinuity } from './binding.ts';
 import type { EnvironmentFacilities, FacilityKey } from './facility.ts';
+import type { FilesScope } from './files-scope.ts';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { AcquisitionRef, OriginRef } from './identity.ts';
@@ -1071,6 +1216,7 @@ export type Placement = Readonly<{
     provider: ProviderIdentity;
     continuity: EnvironmentContinuity;
     quotaDomain: string;
+    filesScope?: FilesScope;
 }>;
 export type RegistryInvalidationReason = 'providerRetired' | 'scopeReleased' | 'registryClosed' | 'released' | 'providerInvalidated';
 export type LeaseInvalidation = {
@@ -1381,7 +1527,7 @@ export type RetainedTerminalLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'p
 export type RetainedProcessLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'adopt' | 'stopped'> & {
     ended?(key: string): Promise<'confirmed' | 'none' | 'unavailable'>;
 };
-export type SessionTerminalRetention = Readonly<{
+export type ScopeTerminalRetention = Readonly<{
     scope: ScopeRef;
     ledger: RetainedTerminalLedger;
     processes?: RetainedProcessLedger;
@@ -1610,6 +1756,8 @@ export { createMemoryFileSystem, type MemoryFileSystem, type MemoryFileSystemOpt
 export { createScriptedCommandFacility, createScriptedRetentionStore, type CommandScript, type ScriptedCommandAnswer, type ScriptedCommandFacility, type ScriptedCommandOptions, type ScriptedRetentionStore, } from './scripted-command.ts';
 export { createScriptedTerminalFacility, type TerminalScript, type ScriptedTerminalAnswer, type ScriptedTerminalFacility, } from './scripted-terminal.ts';
 export { terminalFacilityConformance, type TerminalConformanceAcquisition, type TerminalConformanceSubject, type TerminalConformanceOptions, } from './terminal-conformance.ts';
+export { createScriptedScreenFacility, scriptedScreenPng, type ScreenScript, type ScriptedScreenFacility, } from './scripted-screen.ts';
+export { screenFacilityConformance, type ScreenConformanceSubject, type ScreenConformanceOptions, } from './screen-conformance.ts';
 export { commandRetentionConformance, type CommandRetentionAcquisition, type CommandRetentionBody, type CommandRetentionOptions, type CommandRetentionSubject, } from './command-retention-conformance.ts';
 ```
 
@@ -1667,6 +1815,26 @@ export type ProviderConformanceOptions = Readonly<{
     waitMs?: number;
 }>;
 export declare function environmentProviderConformance(options: ProviderConformanceOptions): readonly ConformanceCase[];
+```
+
+## 声明文件 `testing/screen-conformance.d.ts`
+
+```ts
+import type { FacilityRequest, ScreenFacility } from '../index.ts';
+import { type ConformanceCase } from './case.ts';
+export type ScreenConformanceSubject = Readonly<{
+    facility: ScreenFacility<unknown>;
+    request(): FacilityRequest<unknown>;
+    control?: {
+        revoke(): void | Promise<void>;
+    };
+    dispose?(): Promise<void>;
+}>;
+export type ScreenConformanceOptions = Readonly<{
+    subject(): ScreenConformanceSubject | Promise<ScreenConformanceSubject>;
+    waitMs?: number;
+}>;
+export declare function screenFacilityConformance(options: ScreenConformanceOptions): readonly ConformanceCase[];
 ```
 
 ## 声明文件 `testing/scripted-command.d.ts`
@@ -1751,6 +1919,22 @@ export declare function createScriptedProcess({ mode, answer, identity, onStop, 
     onStop(record: ScriptedStopRecord): void;
 }): ScriptedProcess;
 export {};
+```
+
+## 声明文件 `testing/scripted-screen.d.ts`
+
+```ts
+import type { ScreenFacility, ScreenInfo } from '../index.ts';
+export type ScreenScript = Readonly<{
+    screens: readonly ScreenInfo[];
+    takenAt?: string;
+}>;
+export type ScriptedScreenFacility = Readonly<{
+    facility: ScreenFacility<unknown>;
+    revoke(): void;
+}>;
+export declare function scriptedScreenPng(width: number, height: number): Uint8Array;
+export declare function createScriptedScreenFacility(script: ScreenScript): ScriptedScreenFacility;
 ```
 
 ## 声明文件 `testing/scripted-terminal.d.ts`

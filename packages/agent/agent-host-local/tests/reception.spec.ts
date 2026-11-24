@@ -5,8 +5,6 @@ import {
   decodeAgentOperationId,
   decodeInputId,
   type AcceptedInput,
-  type AgentAccountOutcome,
-  type AgentAccountOutlet,
   type AgentClock,
   type AgentExecutionId,
   type AgentJournalEntries,
@@ -35,7 +33,6 @@ import {
   ok,
   openWorld,
   slotOf,
-  type Principal,
   type World,
   entriesOf,
 } from './host-support.ts'
@@ -109,18 +106,15 @@ async function until(probe: () => boolean | Promise<boolean>, ms = 10_000): Prom
 }
 
 type HostOptions = Readonly<{
-  outlet?: AgentAccountOutlet<Principal>
   clock?: (port: AgentClock) => AgentClock
   reception?: Partial<typeof RECEPTION>
 }>
 
-async function waitingAtM1(options: HostOptions | AgentAccountOutlet<Principal> = {}) {
-  const given: HostOptions = 'deliver' in options ? { outlet: options } : options
+async function waitingAtM1(given: HostOptions = {}) {
   const host = await openWorld({
     stages: true,
     pushTo: 'host',
     config: { ...hostConfig, reception: { ...RECEPTION, ...given.reception } },
-    ...(given.outlet === undefined ? {} : { outlet: given.outlet }),
     ...(given.clock === undefined ? {} : { clock: given.clock }),
     dependencies: {
       journal: {
@@ -135,7 +129,14 @@ async function waitingAtM1(options: HostOptions | AgentAccountOutlet<Principal> 
   opened.push(host)
   await host.host
   host.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'reception', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'reception',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })
@@ -300,55 +301,24 @@ describe('the Model result receiver of the host plugin', () => {
     expect((await pusher.redeliver(record.key)).status).toBe('saved')
     expect(receivedResults(await entries(host))).toHaveLength(1)
   })
-
-  it('answers saved while the outlet is unavailable, and the driven retry delivers the account later', async () => {
-    const answers: AgentAccountOutcome[] = [
-      { kind: 'unavailable', diagnostic: 'scope-unresolved' },
-      { kind: 'received' },
-    ]
-    const delivered: unknown[] = []
-    const outlet: AgentAccountOutlet<Principal> = {
-      async deliver(given) {
-        delivered.push(given.handoff)
-        return answers.shift() ?? { kind: 'received' }
-      },
-    }
-    const { host, load } = await waitingAtM1(outlet)
-    const { record } = await settleReply(host, await load())
-    expect(record.status).toBe('saved')
-    await until(() => delivered.length === 1)
-    host.advance(RETRY_MS - 1)
-    await new Promise(resolve => setTimeout(resolve, 50))
-    expect(delivered).toHaveLength(1)
-    host.advance(1)
-    await until(() => delivered.length === 2)
-    expect(delivered[1]).toEqual(delivered[0])
-    const receiver = host.receivers.resolve(AGENT_CONSUMER_OWNER) as unknown as {
-      inspect(): { pending: number }
-    }
-    await until(() => receiver.inspect().pending === 0)
-  })
 })
 
-function gatedOutlet() {
-  let opened = false
-  const delivered: unknown[] = []
-  const outlet: AgentAccountOutlet<Principal> = {
-    async deliver(given) {
-      delivered.push(given.handoff)
-      return opened ? { kind: 'received' } : { kind: 'unavailable', diagnostic: 'scope-unresolved' }
-    },
-  }
-  return {
-    outlet,
-    delivered,
-    open() {
-      opened = true
-    },
-  }
+// The next commit of a received result answers unknown and stays pending in the journal, so one
+// reception stays pending in the host receiver, through pushes and retries, until it is settled.
+function leaveCommitUnknown(host: World) {
+  host.controls.journal.failNext('received', { kind: 'commit-unknown', outcome: 'pending' })
 }
 
-type Inspectable = { inspect(): { pending: number }; push: (input: never) => Promise<unknown> }
+// The journal finishes the commit that was left unknown; the next retry then finds it saved.
+function settleUnknownCommit(host: World) {
+  for (const { operation } of receiverOf(host).inspect().diagnostics)
+    host.controls.journal.settle(EXECUTION, ok(decodeAgentOperationId(operation)), 'applied')
+}
+
+type Inspectable = {
+  inspect(): { pending: number; diagnostics: readonly { operation: string }[] }
+  push: (input: never) => Promise<unknown>
+}
 const receiverOf = (host: World) =>
   host.receivers.resolve(AGENT_CONSUMER_OWNER) as unknown as Inspectable
 
@@ -359,10 +329,8 @@ const waitsFor = (host: World, instant: string) =>
 
 describe('the maintenance driver of the host receiver', () => {
   it('goes on after agentClock gave no reading once', async () => {
-    const gate = gatedOutlet()
     let failNext = false
     const { host, load } = await waitingAtM1({
-      outlet: gate.outlet,
       reception: { retryMs: 20, retryMaxMs: 160 },
       clock: port => ({
         async now() {
@@ -373,26 +341,26 @@ describe('the maintenance driver of the host receiver', () => {
         waitUntil: (instant, signal) => port.waitUntil(instant, signal),
       }),
     })
+    leaveCommitUnknown(host)
     const start = host.controls.clock.now()
     await settleReply(host, await load())
-    await until(async () => (await load()).state.kind === 'ended')
     await waitsFor(host, plus(start, 20))
     failNext = true
     ok(host.controls.clock.advanceTo(plus(start, 20)))
-    await until(() => gate.delivered.length >= 2)
     await until(() => host.errors.some(text => text.includes('agentClock gave no reading')))
     await waitsFor(host, plus(start, 100))
-    gate.open()
+    settleUnknownCommit(host)
     ok(host.controls.clock.advanceTo(plus(start, 100)))
     await until(() => receiverOf(host).inspect().pending === 0)
+    expect(receiverOf(host).inspect().pending).toBe(0)
+    expect(host.errors.some(text => text.includes('agentClock gave no reading'))).toBe(true)
   })
 
   it('doubles the wait after each run with pending work, up to retryMaxMs', async () => {
-    const gate = gatedOutlet()
     const { host, load } = await waitingAtM1({
-      outlet: gate.outlet,
       reception: { retryMs: 1000, retryMaxMs: 4000 },
     })
+    leaveCommitUnknown(host)
     const start = host.controls.clock.now()
     await settleReply(host, await load())
     let at = start
@@ -402,12 +370,12 @@ describe('the maintenance driver of the host receiver', () => {
       ok(host.controls.clock.advanceTo(at))
     }
     await waitsFor(host, plus(at, 4000))
-    expect(gate.delivered.length).toBeGreaterThanOrEqual(5)
+    expect(receiverOf(host).inspect().pending).toBe(1)
   })
 
   it('stops driving an execution whose maintenance is denied, with a warning', async () => {
-    const gate = gatedOutlet()
-    const { host, load } = await waitingAtM1({ outlet: gate.outlet })
+    const { host, load } = await waitingAtM1()
+    leaveCommitUnknown(host)
     const start = host.controls.clock.now()
     await settleReply(host, await load())
     await waitsFor(host, plus(start, RETRY_MS))
@@ -425,8 +393,8 @@ describe('the maintenance driver of the host receiver', () => {
   })
 
   it('a body that runs again drives the pending work it found in the state', async () => {
-    const gate = gatedOutlet()
-    const { host, load } = await waitingAtM1({ outlet: gate.outlet })
+    const { host, load } = await waitingAtM1()
+    leaveCommitUnknown(host)
     await settleReply(host, await load())
     expect(receiverOf(host).inspect().pending).toBe(1)
     await host.host.dispose()
@@ -434,15 +402,14 @@ describe('the maintenance driver of the host receiver', () => {
     await again
     const now = host.controls.clock.now()
     await waitsFor(host, plus(now, RETRY_MS))
-    gate.open()
+    settleUnknownCommit(host)
     ok(host.controls.clock.advanceTo(plus(now, RETRY_MS)))
     await until(() => receiverOf(host).inspect().pending === 0)
-    expect(gate.delivered.length).toBeGreaterThanOrEqual(2)
   })
 
   it('keeps the access of the admitted push when a later push is refused', async () => {
-    const gate = gatedOutlet()
-    const { host, load } = await waitingAtM1({ outlet: gate.outlet })
+    const { host, load } = await waitingAtM1()
+    leaveCommitUnknown(host)
     const start = host.controls.clock.now()
     const { record } = await settleReply(host, await load())
     await waitsFor(host, plus(start, RETRY_MS))
@@ -457,7 +424,7 @@ describe('the maintenance driver of the host receiver', () => {
       signal: new AbortController().signal,
     } as never)
     expect(refused).toMatchObject({ failure: { kind: 'denied' } })
-    gate.open()
+    settleUnknownCommit(host)
     ok(host.controls.clock.advanceTo(plus(start, RETRY_MS)))
     await until(() => receiverOf(host).inspect().pending === 0)
   })

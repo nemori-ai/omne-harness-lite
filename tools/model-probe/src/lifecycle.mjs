@@ -102,7 +102,7 @@ export async function probeLifecycle(Context) {
   assert.equal(second.entry.disposed, true)
   observations.push({ scenario: 'cancel_then_actual_stop', result: 'pass' })
   return {
-    adoptedCordis: '4.0.4',
+    adoptedCordis: '4.1.0',
     observations,
     scope:
       'Real Cordis disposal with simulated invocation owners. No HTTP, persistence, timeout policy, distributed protocol or production registry verified.',

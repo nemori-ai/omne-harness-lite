@@ -41,10 +41,15 @@
 - `RuntimeContextIntercept` · `cordis.d.ts`
 - `RuntimeContextReaderEligibilityService` · `cordis.d.ts`
 - `RuntimeContextService` · `cordis.d.ts`
+- `RuntimeContextTenantBlocksService` · `cordis.d.ts`
+- `RuntimeContextTenantScopeService` · `cordis.d.ts`
 - `RuntimeContextTrustService` · `cordis.d.ts`
 - `runtimeContextKey` · `cordis.d.ts`
 - `runtimeContextReaderEligibilityKey` · `cordis.d.ts`
 - `runtimeContextScopeKey` · `cordis.d.ts`
+- `runtimeContextTenantBlocksKey` · `cordis.d.ts`
+- `runtimeContextTenantBlocksPlugin` · `cordis.d.ts`
+- `runtimeContextTenantScopeKey` · `cordis.d.ts`
 - `runtimeContextTrustKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
@@ -58,8 +63,8 @@
 ## 声明文件 `cordis.d.ts`
 
 ```ts
-import { type Context, Service } from '@deepseek-ai/cordis';
-import type { ConsumerClass, ContextBlockKey, ReaderEligibilityHandoff, RuntimeContextOperations, RuntimeContextTrust, ScopeRef, ViewRevision } from '@omne-harness/runtime-context-contract';
+import { type Context, type Plugin, Service } from '@deepseek-ai/cordis';
+import type { StaticContribution, StaticRegistration, StaticScopeHolder, ConsumerClass, ContextBlockKey, ReaderEligibilityHandoff, RuntimeContextOperations, RuntimeContextTrust, ScopeRef, ViewRevision } from '@omne-harness/runtime-context-contract';
 type Operation<P, O extends keyof RuntimeContextOperations<P>> = {
     args: Parameters<RuntimeContextOperations<P>[O]>;
     result: ReturnType<RuntimeContextOperations<P>[O]>;
@@ -98,6 +103,24 @@ export declare abstract class RuntimeContextReaderEligibilityService<P = unknown
     abstract current(...args: Parameters<ReaderEligibilityHandoff<P>['current']>): ReturnType<ReaderEligibilityHandoff<P>['current']>;
 }
 export declare const runtimeContextReaderEligibilityKey = "runtimeContextReaderEligibility";
+export declare class RuntimeContextTenantBlocksService extends Service {
+    static readonly provide = "runtimeContextTenantBlocks";
+    private readonly registry;
+    constructor(ctx: Context);
+    register(contribution: StaticContribution): void;
+    current(): StaticRegistration;
+}
+export declare const runtimeContextTenantBlocksKey = "runtimeContextTenantBlocks";
+export declare const runtimeContextTenantBlocksPlugin: Plugin.Object;
+export declare abstract class RuntimeContextTenantScopeService<P = unknown> extends Service implements StaticScopeHolder<P> {
+    static readonly provide = "runtimeContextTenantScope";
+    constructor(ctx: Context);
+    abstract scopeOf(...args: Parameters<StaticScopeHolder<P>['scopeOf']>): ScopeRef;
+    abstract ensure(...args: Parameters<StaticScopeHolder<P>['ensure']>): ReturnType<StaticScopeHolder<P>['ensure']>;
+    abstract issue(...args: Parameters<StaticScopeHolder<P>['issue']>): ReturnType<StaticScopeHolder<P>['issue']>;
+    abstract read(...args: Parameters<StaticScopeHolder<P>['read']>): ReturnType<StaticScopeHolder<P>['read']>;
+}
+export declare const runtimeContextTenantScopeKey = "runtimeContextTenantScope";
 export declare const runtimeContextScopeKey: 'scope';
 export type RuntimeContextChangedPayload = Readonly<{
     scope: ScopeRef;
@@ -108,6 +131,8 @@ declare module '@deepseek-ai/cordis' {
         runtimeContext: RuntimeContextService<unknown>;
         runtimeContextTrust: RuntimeContextTrustService<unknown>;
         runtimeContextReaderEligibility: RuntimeContextReaderEligibilityService<unknown>;
+        runtimeContextTenantBlocks: RuntimeContextTenantBlocksService;
+        runtimeContextTenantScope: RuntimeContextTenantScopeService<unknown>;
         [runtimeContextScopeKey]?: ScopeRef;
     }
     interface Events {
@@ -121,6 +146,17 @@ export {};
 
 ```ts
 export type { ScopeRef, ScopeText, ContextBlockKey, ConsumerClass, ContextBlocks, ContextBlockDescriptor, SuppliedBlockDescriptor, StatefulBlockDescriptor, ViewRevision, RegistrationRevision, EligibilityId, ProducerRegistration, RegisterProducerResult, ProducerHandle, RegistrationChange, PrepareRegistrationResult, EligibilityMaterial, Eligibility, IssueEligibilityResult, RevokeEligibilityResult, CommitInput, ApplyCommitResult, BindResult, ContextReader, RuntimeContextOperations, ReaderEligibilityRequest, ReaderEligibilityResult, ReaderEligibilityHandoff, } from '@omne-harness/runtime-context-contract';
+```
+
+## 声明文件 `tenant-blocks.d.ts`
+
+```ts
+import { type StaticContribution, type StaticRegistration } from '@omne-harness/runtime-context-contract';
+export interface StaticRegistry {
+    register(contribution: StaticContribution): () => void;
+    current(): StaticRegistration;
+}
+export declare function createStaticRegistry(): StaticRegistry;
 ```
 
 ## 声明文件 `testing/index.d.ts`

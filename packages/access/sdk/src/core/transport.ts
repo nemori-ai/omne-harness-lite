@@ -6,6 +6,8 @@ export type CallRequest = {
   readonly protocol: ProtocolKey
   readonly operation: string
   readonly messageId: string
+  /** The revision of the protocol contract the caller was built with; absent means 1. */
+  readonly revision?: number
   readonly body: JsonValue
   readonly signal?: AbortSignal
 }
@@ -19,6 +21,7 @@ export type ObserveRequest = {
   readonly protocol: ProtocolKey
   readonly observation: string
   readonly messageId: string
+  readonly revision?: number
   readonly open: JsonValue
   readonly signal: AbortSignal
 }

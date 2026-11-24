@@ -1,20 +1,29 @@
-import type { AgentExecutionId, CommandReceipt, Failure } from '@omne-harness/agent-contract'
+import type { AgentExecutionId, DurableEvidence, Failure } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   EXECUTION_BATCH_MAX_FACTS,
   type ExecutionBlobRecord,
   type ExecutionFactRecord,
+  type ExecutionItemContentRecord,
+  type ExecutionItemKeyRecord,
   type ExecutionItemRecord,
 } from '@omne-harness/session-storage-sql/participants'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import {
   FACT_MAX_BYTES,
+  advances,
   batchBytes,
   contentPath,
   foldItems,
+  materialHeld,
+  receiptOf,
   type BatchEnvelope,
+  type ExecutionView,
+  type FactBody,
+  type FactOf,
   type ItemChange,
   type EventView,
+  type Mint,
   type ParticipationKind,
   type PublishedBatch,
   type SessionJournalView,
@@ -23,7 +32,15 @@ import { canonical } from '../testing/canonical.ts'
 import type { MemoryExecution } from '../testing/journal.ts'
 import type { CommonRoot } from '../testing/root.ts'
 import { ANSWER_FAMILY } from '../testing/closed-items.ts'
-import { coreBlobRows, type DerivedFact, type EventProjection } from './journal-batch.ts'
+import { ASSOCIATION_FAMILY, ENTRY_FAMILY, ORIGIN_FAMILY } from '../testing/closed-rows.ts'
+import { refsIn } from './content-refs.ts'
+import {
+  blobRef,
+  blobRowDigest,
+  coreBlobRows,
+  type DerivedFact,
+  type EventProjection,
+} from './journal-batch.ts'
 
 export const JOURNAL_PROVIDER = 'session-log-journal'
 
@@ -33,27 +50,17 @@ export const unavailable = (diagnostic: string): Failure => ({
   diagnostic,
 })
 
-const fieldOf = (value: unknown, key: string): unknown =>
-  typeof value === 'object' && value !== null && key in value
-    ? (value as Record<string, unknown>)[key]
-    : undefined
-
-const isReceipt = (value: unknown): value is CommandReceipt =>
-  typeof value === 'object' && value !== null && 'evidence' in value && 'revision' in value
-
-// A write's receipt (the answer, its `receipt`, or a received commit's) heads its execution.
-export function answeredReceipt(answer: Outcome<unknown, Failure>): CommandReceipt | null {
-  if (!('ok' in answer)) return null
-  const committed = fieldOf(answer.ok, 'value')
-  const candidates = [answer.ok, fieldOf(answer.ok, 'receipt'), fieldOf(committed, 'receipt')]
-  return candidates.find(isReceipt) ?? null
-}
-
-// The events of the appended batches are the tail of the folded view: walk back only over them.
-function eventsFrom(events: readonly EventView[], pub: number): readonly EventView[] {
-  let at = events.length
-  while (at > 0 && events[at - 1]!.pub >= pub) at -= 1
-  return events.slice(at)
+// The head of each execution a write moved: the receipt of the batch, not of the method's answer.
+export function headsOf(
+  mint: Mint,
+  view: SessionJournalView,
+  appended: readonly PublishedBatch[],
+): ReadonlyMap<string, DurableEvidence> {
+  return new Map(
+    appended
+      .filter(advances)
+      .map(batch => [batch.execution as string, receiptOf(mint, view, batch).evidence]),
+  )
 }
 
 export type PublicationInput = Readonly<{
@@ -61,7 +68,7 @@ export type PublicationInput = Readonly<{
   published: number
   // The core's closed items before the write: read back, so not published again unless changed.
   closedBefore: ReadonlyMap<string, unknown>
-  stored: (row: string) => boolean
+  held: (row: string) => 'shared' | 'owned' | null
   after: CommonRoot
   own: MemoryExecution | undefined
   appended: readonly PublishedBatch[]
@@ -79,11 +86,22 @@ export type Prepared = Readonly<{
   // The published view once this batch lands, and the items the batch opens or changes in it.
   pub: number
   view: SessionJournalView
-  items: readonly ExecutionItemRecord[]
+  itemRows: Readonly<{
+    items: readonly ExecutionItemRecord[]
+    contents: readonly ExecutionItemContentRecord[]
+    discards: readonly ExecutionItemKeyRecord[]
+  }>
   changes: readonly ItemChange[]
 }>
 
-// What the write's operations answered, as items closed at birth; a repeat reads them back as JSON.
+const BORN_CLOSED: ReadonlySet<string> = new Set([
+  ANSWER_FAMILY,
+  ENTRY_FAMILY,
+  ORIGIN_FAMILY,
+  ASSOCIATION_FAMILY,
+])
+
+// What the write answered and the entries it took, as items closed at birth: read back as JSON.
 function answersOf(
   before: ReadonlyMap<string, unknown>,
   after: CommonRoot,
@@ -93,7 +111,7 @@ function answersOf(
   for (const [text, body] of after.agent.closed) {
     if (before.get(text) === body) continue
     const [owner, family, item] = JSON.parse(text) as [string, string, string]
-    if (family !== ANSWER_FAMILY) continue
+    if (!BORN_CLOSED.has(family)) continue
     if (owner !== execution)
       return fail(unavailable(`the write answered ${item} of another execution ${owner}`))
     const json = JSON.parse(JSON.stringify(body)) as JsonValue
@@ -104,38 +122,108 @@ function answersOf(
   return succeed(out)
 }
 
+const ownedBy = (fact: FactBody): fact is FactOf<'material.preserved'> =>
+  fact.kind === 'material.preserved' && fact.readers === 'until-release'
+
+function readMaterials(facts: readonly FactBody[]): ReadonlySet<string> {
+  const out = new Set<string>()
+  for (const fact of facts)
+    if (fact.kind === 'material.preserved' && fact.readers !== 'until-release')
+      out.add(blobRowDigest(fact.value.digest))
+    else if (fact.kind === 'result.received' && fact.material !== null)
+      out.add(blobRowDigest(fact.material.digest))
+  return out
+}
+
+function ownedContents(
+  execution: string,
+  facts: readonly FactBody[],
+  blobs: ReadonlyMap<string, unknown>,
+): Readonly<{
+  contents: ExecutionItemContentRecord[]
+  only: ReadonlySet<string>
+  shared: ReadonlySet<string>
+}> {
+  const owned = facts.filter(ownedBy)
+  const shared = new Set<string>()
+  for (const fact of facts) if (!ownedBy(fact)) refsIn(fact, shared)
+  const contents = owned.map(fact => {
+    const value = blobs.get(fact.value.digest)
+    if (value === undefined)
+      throw new TypeError(`the core holds no content of the material ${fact.source.record}`)
+    const payload = canonical(value)
+    if (blobRef(payload).digest !== blobRowDigest(fact.value.digest))
+      throw new TypeError(`the material ${fact.source.record} does not hash to its digest`)
+    return { execution, family: 'material', item: canonical(fact.source), payload }
+  })
+  const only = new Set(owned.map(fact => fact.value.digest).filter(digest => !shared.has(digest)))
+  return { contents, only, shared }
+}
+
+function discardsOf(
+  execution: string,
+  before: ExecutionView | undefined,
+  after: ExecutionView | undefined,
+): ExecutionItemKeyRecord[] {
+  if (before === undefined) return []
+  const out: ExecutionItemKeyRecord[] = []
+  for (const [key, item] of before.materials) {
+    if (item.readers !== 'until-release' || !materialHeld(item, before, key)) continue
+    const now = after?.materials.get(key)
+    if (after === undefined || now === undefined || !materialHeld(now, after, key))
+      out.push({ execution, family: 'material', item: key })
+  }
+  return out
+}
+
 // One write's batch: envelope, facts with projections, new blocks, the view and items after it.
 export function preparePublication(input: PublicationInput): Outcome<Prepared, Failure> {
   const { after, own, appended, method, kinds, project } = input
-  const blobs = new Map<string, ExecutionBlobRecord>()
-  coreBlobRows(after.agent.blobs, after.agent.blobs.written(), input.stored, blobs)
   const execution = appended[0]!.execution
+  const facts = appended.flatMap(batch => batch.facts)
+  const { contents, only, shared } = ownedContents(execution, facts, after.agent.blobs)
+  const blobs = new Map<string, ExecutionBlobRecord>()
+  const written = [
+    ...[...after.agent.blobs.written()].filter(digest => !only.has(digest)),
+    ...[...shared].filter(digest => input.held(blobRowDigest(digest)) !== 'shared'),
+  ]
+  coreBlobRows(after.agent.blobs, written, row => input.held(row) === 'shared', blobs)
+  const envelope: BatchEnvelope = { ...appended.at(-1)!.envelope, kinds: [...kinds] }
+  const pub = input.published + 1
+  const landed = foldItems(input.view, {
+    execution: execution as AgentExecutionId,
+    envelope,
+    facts,
+    pub,
+  })
+  // The events of this batch by the place of their fact: they close at birth, so only the changes hold them.
   const events = new Map(
-    eventsFrom(after.agent.view.executions.get(execution)?.events ?? [], appended[0]!.pub).map(
-      event => [`${String(event.pub)}/${String(event.ord)}`, event] as const,
+    landed.changes.flatMap(change =>
+      change.family === 'event' && change.change === 'opened'
+        ? [[(change.body as EventView).ord, change.body as EventView] as const]
+        : [],
     ),
   )
   const derived: DerivedFact[] = []
-  for (const batch of appended)
-    for (const [index, fact] of batch.facts.entries()) {
-      const folded = events.get(`${String(batch.pub)}/${String(index + 1)}`)
-      if (folded === undefined) {
-        derived.push({ fact, event: null })
-        continue
-      }
-      const event = own?.events[folded.eseq - 1]
-      if (own === undefined || event === undefined || event.body.kind !== folded.kind) {
-        const first = [...events.values()][0]?.eseq ?? folded.eseq
-        const appended = (own?.events ?? []).slice(first - 1).map(item => item.body.kind)
-        const projected = [...events.values()].map(item => item.kind)
-        return fail(
-          unavailable(
-            `the facts of ${method} do not name the events it appended (fact ${fact.kind} at ${String(folded.eseq)}; the facts project [${projected.join(', ')}], the write appended [${appended.join(', ')}])`,
-          ),
-        )
-      }
-      derived.push({ fact, event: project(own, event) })
+  for (const [index, fact] of facts.entries()) {
+    const folded = events.get(index + 1)
+    if (folded === undefined) {
+      derived.push({ fact, event: null })
+      continue
     }
+    const event = own?.events[folded.eseq - 1]
+    if (own === undefined || event === undefined || event.body.kind !== folded.kind) {
+      const first = [...events.values()][0]?.eseq ?? folded.eseq
+      const written = (own?.events ?? []).slice(first - 1).map(item => item.body.kind)
+      const projected = [...events.values()].map(item => item.kind)
+      return fail(
+        unavailable(
+          `the facts of ${method} do not name the events it appended (fact ${fact.kind} at ${String(folded.eseq)}; the facts project [${projected.join(', ')}], the write appended [${written.join(', ')}])`,
+        ),
+      )
+    }
+    derived.push({ fact, event: project(own, event) })
+  }
   for (const [index, item] of derived.entries()) {
     const found = contentPath(item.fact)
     if (found !== null)
@@ -147,7 +235,6 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
     if (Buffer.byteLength(canonical(item.fact), 'utf8') > FACT_MAX_BYTES)
       return fail({ kind: 'invalid', field: `facts[${String(index)}]`, reason: 'oversize' })
   }
-  const envelope: BatchEnvelope = { ...appended.at(-1)!.envelope, kinds: [...kinds] }
   const records: ExecutionFactRecord[] = [
     { execution, kind: 'batch', body: envelope as unknown as JsonValue },
     ...derived.map(item => ({
@@ -165,30 +252,34 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
     )
   const answers = answersOf(input.closedBefore, after, execution as AgentExecutionId)
   if ('failure' in answers) return answers
-  const pub = input.published + 1
-  const landed = foldItems(input.view, {
-    execution: execution as AgentExecutionId,
-    envelope,
-    facts: derived.map(item => item.fact),
-    pub,
-  })
+  const materials = readMaterials(facts)
   return succeed({
     envelope,
     derived,
     records,
-    blobs: [...blobs.values()],
+    blobs: [...blobs.values()].map(blob =>
+      materials.has(blob.digest) ? { ...blob, shared: true } : blob,
+    ),
     pub,
     view: landed.view,
-    items: [
-      ...landed.changes.map(({ family, item, change, open, body }) => ({
-        family,
-        item,
-        change,
-        open,
-        body: body as JsonValue,
-      })),
-      ...answers.ok,
-    ],
+    itemRows: {
+      items: [
+        ...landed.changes.map(({ family, item, change, open, body }) => ({
+          family,
+          item,
+          change,
+          open,
+          body: body as JsonValue,
+        })),
+        ...answers.ok,
+      ],
+      contents,
+      discards: discardsOf(
+        execution,
+        input.view.executions.get(execution as AgentExecutionId),
+        landed.view.executions.get(execution as AgentExecutionId),
+      ),
+    },
     changes: landed.changes,
     batchBytes: batchBytes({
       execution: execution as AgentExecutionId,

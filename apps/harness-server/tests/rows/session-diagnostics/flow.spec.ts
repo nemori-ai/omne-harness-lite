@@ -11,7 +11,6 @@ import {
 } from '../../../src/local/operator-defaults.ts'
 import { captureShellEnvironment } from '../../../src/local/settings.ts'
 import {
-  bodyOf,
   distributionPath,
   freePort,
   killTree,
@@ -27,13 +26,19 @@ import {
   type ServerHandle,
   type ServerOutcome,
 } from '../../r9/support.ts'
+import { executionRecords } from '../../support/execution-records.ts'
+import { pollUntil } from '../../support/release-tree.ts'
 import { readFileSync } from 'node:fs'
 import {
   answer504,
+  createSession,
   diagnosticsBodyOf,
   modelCallsOf,
+  registerAndLogin,
+  sendInput,
   startScenarioGateway,
   structuredCauseOf,
+  until,
   untilRunEnded,
   type Cli,
   type ScenarioGateway,
@@ -64,33 +69,6 @@ const PROJECTED_KINDS = [
 ]
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
-async function until(ready: () => boolean, what: string, ms: number): Promise<void> {
-  const deadline = Date.now() + ms
-  while (!ready()) {
-    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`)
-    await sleep(50)
-  }
-}
-
-async function registerAndLogin(cli: Cli, who: string, credential: string): Promise<void> {
-  for (const step of [
-    await cli(['register', '--login-identifier', who], credential),
-    await cli(['login', '--login-identifier', who], credential),
-  ])
-    expect(step.status, step.stderr).toBe(0)
-}
-
-async function createSession(cli: Cli): Promise<string> {
-  const created = await cli(['create-session', '--definition', 'assistant'])
-  expect(created.status, created.stderr).toBe(0)
-  return String(bodyOf(created)['session'])
-}
-
-async function sendInput(cli: Cli, session: string, text: string): Promise<void> {
-  const sent = await cli(['send-input', '--session', session, '--text', text])
-  expect(sent.status, sent.stderr).toBe(0)
-}
 
 describe('session diagnostics over real processes: the two smoke failures', () => {
   let scratch: Scratch
@@ -194,6 +172,12 @@ describe('session diagnostics over real processes: the two smoke failures', () =
       sessions.upstream = await createSession(bob)
       await sendInput(bob, sessions.upstream, 'the upstream answers 504')
 
+      await untilRunEnded(bob, sessions.upstream, RUN_END_TIMEOUT_MS)
+      await pollUntil(
+        'every ended execution to settle and leave its records',
+        () => executionRecords(scratch.storageRoot),
+        records => records.settled >= 1 && records.unsettled === 0 && records.facts === 0,
+      )
       const { run, body } = await untilRunEnded(bob, sessions.upstream, RUN_END_TIMEOUT_MS)
       expect(run['terminal']).toMatchObject({ outcome: 'failed' })
       expect(structuredCauseOf(run)).toEqual({
@@ -202,6 +186,12 @@ describe('session diagnostics over real processes: the two smoke failures', () =
         upstreamStatus: '504',
       })
       expect(body.gaps.filter(gap => gap.reason === 'unsupported')).toEqual([])
+      const calls = modelCallsOf(run)
+      const references = calls.map(call => call['reference'])
+      expect(calls.map(call => call['reads'])).toEqual(calls.map(() => []))
+      expect(
+        body.gaps.filter(gap => gap.source !== 'model' && references.includes(gap.subject)),
+      ).toEqual([])
 
       const text = await bob(['read-session-diagnostics', '--session', sessions.upstream])
       expect(text.status, text.stderr).toBe(0)

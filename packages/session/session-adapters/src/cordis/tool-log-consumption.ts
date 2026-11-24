@@ -31,6 +31,8 @@ import type {
   SessionId,
   SessionTransactionPort,
   WorkSnapshot,
+  ProducerRef,
+  SessionCallBinding,
 } from '@omne-harness/session-contract'
 import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
 import {
@@ -43,7 +45,8 @@ import { backgroundReminder } from './background-reminder.ts'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 import { entriesAfter, entriesBatch, progressOf, savedProgress } from './entries-window.ts'
-import { subscribePublished } from './published-queue.ts'
+import { announce, subscribePublished } from './published-queue.ts'
+import { acknowledgeReceived, type ReceivedAllPorts } from './received-all.ts'
 
 const OWNER = 'session-adapters/tool-log'
 const CHANNEL = 'tool-received'
@@ -91,6 +94,7 @@ type Step = Readonly<{ kind: 'item'; item: SessionEntriesItem }> | Readonly<{ ki
 
 type Ports = Readonly<{
   readWork(access: SessionAccess<unknown>): Reply<WorkSnapshot>
+  readCall(access: SessionAccess<unknown>, producer: ProducerRef): Reply<SessionCallBinding | null>
   load: AgentJournal<unknown>['load']
   entries: AgentJournalEntries<unknown>['read']
   receivedOf: AgentJournalEntries<unknown>['receivedOf']
@@ -296,11 +300,11 @@ function createToolLogConsumption(
       return call.failure.kind === 'malformed'
         ? invalid(`${field}.delivery.key.reference`, 'not a Tool invocation reference')
         : denied()
-    const bound = work.consumptions.find(
-      item => item.binding.producer.kind === 'tool' && item.binding.producer.call === key.reference,
-    )
-    if (bound === undefined) return succeed({ kind: 'unbound' })
-    if (!sameText(bound.id, entry.consumption))
+    const asked = await ports.readCall(access, { kind: 'tool', call: key.reference })
+    if ('failure' in asked) return asked
+    const bound = asked.ok
+    if (bound === null) return succeed({ kind: 'unbound' })
+    if (!sameText(bound.consumption, entry.consumption))
       return invalid(`${field}.consumption`, 'not the consumption Session bound to the call')
     if (canonical(bound.binding.consumer) !== canonical(entry.consumer))
       return invalid(`${field}.consumer`, 'not the consumer Session bound to the call')
@@ -373,9 +377,9 @@ function createToolLogConsumption(
     const again = await bounded('agentJournal.load', () => ports.load(reading))
     if ('failure' in again) return again
     if ('failure' in again.ok) return agentFailure('load', again.ok.failure)
-    if (again.ok.ok.revision !== revision)
-      return unavailable('the execution changed while its entries were read')
     const window = read.ok.ok.filter(isToolItem)
+    if (again.ok.ok.revision !== revision)
+      return succeed({ progress: progressOf(saved), committed: false, waiting: window.length })
     const after = BigInt(saved?.through ?? '0')
     const items: SessionEntriesItem[] = []
     for (const [at, { entry }] of window.entries()) {
@@ -441,6 +445,26 @@ function createToolLogConsumption(
   }
 }
 
+// After a commit the journal interpretation reads again: an event may have waited for these deliveries.
+function acknowledgingCommitted(
+  consume: (target: ToolLogTarget) => Reply<ToolLogConsumed>,
+  ports: ReceivedAllPorts<unknown>,
+  consumed: (target: ToolLogTarget) => void,
+): (target: ToolLogTarget) => Reply<ToolLogConsumed> {
+  return async target => {
+    const answer = await consume(target)
+    const tenantText = tenantCodec.encode(target.tenant)
+    if ('ok' in answer && answer.ok.committed) consumed(target)
+    if ('ok' in answer && answer.ok.committed && tenantText.ok)
+      await acknowledgeReceived(
+        ports,
+        { principal: target.principal, tenant: target.tenant, session: target.session },
+        { tenantText: tenantText.value, execution: target.execution },
+      )
+    return answer
+  }
+}
+
 type Issue = Readonly<{ message: string; path: readonly string[] }>
 
 function parseConfig(
@@ -491,21 +515,25 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
         const materials = ctx[agentMaterialsKey]
         const transactions = ctx[sessionTransactionsKey]
         const logger = ctx.logger(OWNER)
-        const consume = createToolLogConsumption(
-          input,
-          {
-            readWork: access => session.work.readWork(access),
-            load: value => journal.load(value),
-            entries: value => entries.read(value),
-            receivedOf: value => entries.receivedOf(value),
-            read: value => materials.read(value),
-            commitEntries: value => transactions.commitEntries(value),
-            stopped: () => stopped,
-          },
-          {
+        const ports: Ports & ReceivedAllPorts<unknown> = {
+          readWork: access => session.work.readWork(access),
+          readCall: (access, producer) => session.work.readCall({ ...access, producer }),
+          load: value => journal.load(value),
+          acknowledge: value => journal.acknowledge(value),
+          warn: line => logger.warn(line),
+          entries: value => entries.read(value),
+          receivedOf: value => entries.receivedOf(value),
+          read: value => materials.read(value),
+          commitEntries: value => transactions.commitEntries(value),
+          stopped: () => stopped,
+        }
+        const consume = acknowledgingCommitted(
+          createToolLogConsumption(input, ports, {
             timeoutMs: config?.timeoutMs ?? TIMEOUT_MS,
             retryBackoffMs: config?.retryBackoffMs ?? RETRY_BACKOFF_MS,
-          },
+          }),
+          ports,
+          target => announce(ctx, ports.warn, 'consumed', target),
         )
         const guarded = async (target: ToolLogTarget): Reply<ToolLogConsumed> => {
           try {
@@ -545,6 +573,7 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
                 logger.error(`trigger: the coordinator threw: ${describe(cause)}`)
               }
             },
+            ['interpreted'],
           )
         ctx.effect(() => {
           current = guarded

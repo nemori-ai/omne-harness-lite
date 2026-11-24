@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore, type FormEvent } from 'react'
 import { Button, Field, InlineNotice, Input, PageHeader, Segmented } from '@omne-harness/ui-kit'
+import { identityLogin, identityLoginForm, identityLoginSubmit } from '../parts.ts'
 import type { LoginMode, LoginModel } from '../model/login.ts'
 
 const MODES = [
@@ -28,7 +29,11 @@ export function LoginCard(props: { model: LoginModel }) {
 
   const ready = loginIdentifier.trim() !== '' && credential !== '' && !form.pending
   return (
-    <section className="identity-login" aria-labelledby="identity-login-title">
+    <section
+      className="identity-login"
+      {...identityLogin.props}
+      aria-labelledby="identity-login-title"
+    >
       <PageHeader title={TITLE[form.mode]} titleId="identity-login-title" />
       <Segmented
         label="登录方式"
@@ -36,7 +41,12 @@ export function LoginCard(props: { model: LoginModel }) {
         onValueChange={mode => model.choose(mode)}
         options={MODES}
       />
-      <form className="identity-login-form" onSubmit={submit} autoComplete="off">
+      <form
+        className="identity-login-form"
+        {...identityLoginForm.props}
+        onSubmit={submit}
+        autoComplete="off"
+      >
         <Field id="identity-login-identifier" label="登录名">
           <Input
             id="identity-login-identifier"
@@ -63,7 +73,7 @@ export function LoginCard(props: { model: LoginModel }) {
             {form.error}
           </InlineNotice>
         ) : null}
-        <Button type="submit" size="large" disabled={!ready}>
+        <Button type="submit" size="large" {...identityLoginSubmit.props} disabled={!ready}>
           {form.pending ? '请稍候……' : TITLE[form.mode]}
         </Button>
       </form>

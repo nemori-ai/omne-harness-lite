@@ -12,6 +12,7 @@ import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 import { ToolOperatorSettingsImpl, toolOperatorSettingsKey } from './operator-settings.ts'
+import { setScriptSetting } from './script-host.ts'
 import { releaseAuthorInput, type ReleaseAuthorOptions } from './release-author.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -25,7 +26,6 @@ export const toolHostConfig = z
             resultMaxBytes: positive,
             executable: z.string().min(1),
             argsPrefix: z.array(z.string()),
-            cwd: z.string().min(1),
             env: z.record(z.string(), z.string()),
           })
           .optional(),
@@ -36,6 +36,12 @@ export const toolHostConfig = z
         Skills: z.strictObject({ resultMaxBytes: positive }).optional(),
         Calendar: z.strictObject({ resultMaxBytes: positive }).optional(),
         Schedules: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Notifications: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Sessions: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Agents: z.strictObject({ resultMaxBytes: positive }).optional(),
+        SwitchWorkspace: z.strictObject({ resultMaxBytes: positive }).optional(),
+        OmneExtensions: z.strictObject({ resultMaxBytes: positive }).optional(),
+        OmneExtensionPoints: z.strictObject({ resultMaxBytes: positive }).optional(),
         Tools: z
           .strictObject({
             resultMaxBytes: positive,
@@ -43,7 +49,24 @@ export const toolHostConfig = z
           })
           .optional(),
         Files: z
-          .strictObject({ resultMaxBytes: positive, cwd: z.string().min(1).optional() })
+          .strictObject({
+            resultMaxBytes: positive,
+            openMaxBytes: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
+          .optional(),
+        Screen: z
+          .strictObject({
+            resultMaxBytes: positive,
+            captureMaxLongSide: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
           .optional(),
       })
       .optional(),
@@ -117,6 +140,9 @@ export function createToolHostPlugin(
     apply(ctx: Context, config: unknown) {
       const { construction, settings } = toolHostConfig.parse(config)
       new ToolOperatorSettingsImpl(ctx, settings ?? {})
+      const shell = construction?.Shell
+      if (shell !== undefined)
+        setScriptSetting(ctx, { env: shell.env, resultMaxBytes: shell.resultMaxBytes })
       const Host = createLocalToolHostPlugin<unknown, unknown, ToolMessageContentBlock>(
         releaseAuthorInput(ctx, construction ?? {}, options),
       )

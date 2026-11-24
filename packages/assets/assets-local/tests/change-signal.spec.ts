@@ -1,150 +1,164 @@
-import { afterEach, expect, it } from 'vitest'
-import type { DomainChange } from '@omne-harness/settings'
-import { openWorld, pinned, target, type World } from './world.ts'
+import { mkdtempSync, realpathSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import {
+  capabilityId,
+  createCategoryPoint,
+  digestBytes,
+  type CategoryContribution,
+  type PackageReader,
+} from '@omne-harness/assets'
+import type { AssetsCommitted } from '../src/index.ts'
+import { createTenantPublisher } from '../src/tenant-publisher.ts'
+import { openWorld, pinned, type World } from './world.ts'
 
 const worlds: World[] = []
 afterEach(async () => {
   await Promise.all(worlds.splice(0).map(world => world.close()))
 })
 
-async function listening() {
-  const world = await openWorld()
+async function open(options: Parameters<typeof openWorld>[0] & { throwing?: boolean } = {}) {
+  const signals: AssetsCommitted[] = []
+  const world = await openWorld({
+    ...options,
+    onCommitted(signal) {
+      signals.push(signal)
+      if (options.throwing) throw new Error('a listener failed')
+    },
+  })
   worlds.push(world)
-  const changes: DomainChange<unknown>[] = []
-  const stop = world.owner.changes.subscribe(change => changes.push(change))
-  return { world, changes, stop }
+  return { world, signals }
 }
 
-it('a committed publish, hold, disable and enable each give one signal with the domain and its revision, in order', async () => {
-  const { world, changes } = await listening()
-  await world.setup()
-  const holding = { holdingRef: target.holdingRef, scopeRef: target.scopeRef }
-  const disabled = await world.owner.changeHolding({
-    ...holding,
-    operationId: 'disable',
-    expectedRevision: 1,
-    change: { kind: 'setEnabled', enabled: false },
-  })
-  const enabled = await world.owner.changeHolding({
-    ...holding,
-    operationId: 'enable',
-    expectedRevision: 2,
-    change: { kind: 'setEnabled', enabled: true },
-  })
-  expect([disabled.kind, enabled.kind]).toEqual(['committed', 'committed'])
-  expect(changes.map(change => change.revision)).toEqual([1, 2, 3, 4])
-  expect(new Set(changes.map(change => JSON.stringify(change.domain))).size).toBe(1)
-  expect(changes[0]?.domain).toMatchObject({ scope: { kind: 'tenant', tenant: 'tenant-a' } })
-  expect(await world.owner.readDomainRevision()).toEqual({ kind: 'revision', revision: 4 })
+const publishInput = (operationId: string, version = '1', expectedRevision = 0) => ({
+  operationId,
+  assetRef: 'asset-a',
+  pinned: pinned(version),
+  expectedRevision,
 })
 
-it('a rejected change and a change that changes nothing give no signal', async () => {
-  const { world, changes } = await listening()
-  await world.setup()
-  const before = changes.length
-  const holding = { holdingRef: target.holdingRef, scopeRef: target.scopeRef }
-  const stale = await world.owner.changeHolding({
-    ...holding,
-    operationId: 'stale',
-    expectedRevision: 9,
-    change: { kind: 'setEnabled', enabled: false },
-  })
-  const same = await world.owner.changeHolding({
-    ...holding,
-    operationId: 'same',
-    expectedRevision: 1,
-    change: { kind: 'setEnabled', enabled: true },
-  })
-  const refused = await world.owner.publish({
-    operationId: 'publish-conflict',
-    assetRef: 'asset-a',
-    pinned: pinned('1', true),
-    expectedRevision: 0,
-  })
-  expect(stale).toEqual({ kind: 'rejected', reason: 'revision_conflict' })
-  expect(same).toMatchObject({ kind: 'committed', changed: false })
-  expect(refused.kind).toBe('rejected')
-  expect(changes).toHaveLength(before)
-})
-
-it('the signal comes with the reply of the commit and does not wait for a read', async () => {
-  const release = Promise.withResolvers<void>()
-  const world = await openWorld({
-    ownerWrap: storage => ({
-      ...storage,
-      async read(input) {
-        await release.promise
-        return storage.read(input)
-      },
-    }),
-  })
-  worlds.push(world)
-  const changes: DomainChange<unknown>[] = []
-  world.owner.changes.subscribe(change => changes.push(change))
-  try {
-    const published = await world.owner.publish({
-      operationId: 'publish-1',
-      assetRef: 'asset-a',
-      pinned: pinned(),
-      expectedRevision: 0,
+describe('the change signal of the local assets', () => {
+  it('a commit that changed something gives exactly one signal with the domain and its revision', async () => {
+    const { world, signals } = await open()
+    expect(await world.owner.domainRevision()).toEqual({ kind: 'domain', revision: 0 })
+    expect(await world.owner.publish(publishInput('p-1'))).toMatchObject({
+      kind: 'committed',
+      changed: true,
     })
-    expect(published).toMatchObject({ kind: 'committed', domainRevision: 1 })
-    expect(changes.map(change => change.revision)).toEqual([1])
-  } finally {
-    release.resolve()
-  }
-})
-
-it('repeating a committed operation gives its signal again with the revision of the original commit', async () => {
-  const { world, changes } = await listening()
-  await world.setup()
-  const again = await world.owner.publish({
-    operationId: 'publish-1',
-    assetRef: 'asset-a',
-    pinned: pinned(),
-    expectedRevision: 0,
+    expect(signals).toEqual([{ domain: world.domain, revision: 1 }])
+    expect(await world.owner.domainRevision()).toEqual({ kind: 'domain', revision: 1 })
   })
-  expect(again).toMatchObject({ kind: 'committed', changed: true, domainRevision: 1 })
-  expect(changes.map(change => change.revision)).toEqual([1, 2, 1])
-})
 
-it('a commit whose result is unknown gives no signal', async () => {
-  const world = await openWorld({
-    ownerWrap: storage => ({
-      ...storage,
-      commit: async input => {
-        await storage.commit(input)
-        throw new Error('the reply was lost')
+  it('a commit that changed nothing gives none', async () => {
+    const { world, signals } = await open()
+    await world.owner.publish(publishInput('p-1'))
+    expect(await world.owner.publish(publishInput('p-2', '1', 1))).toMatchObject({
+      kind: 'committed',
+      changed: false,
+    })
+    expect(signals).toHaveLength(1)
+  })
+
+  it('a refused commit gives none', async () => {
+    const { world, signals } = await open()
+    expect(await world.owner.publish(publishInput('p-1', '1', 5))).toEqual({
+      kind: 'rejected',
+      reason: 'revision_conflict',
+    })
+    expect(signals).toEqual([])
+  })
+
+  it('the same operation sent again answers the old receipt and gives none', async () => {
+    const { world, signals } = await open()
+    const first = await world.owner.publish(publishInput('p-1'))
+    expect(await world.owner.publish(publishInput('p-1'))).toEqual(first)
+    expect(signals).toHaveLength(1)
+  })
+
+  it('a commit whose reply is lost is unknown and gives none', async () => {
+    const { world, signals } = await open({
+      ownerWrap: storage => ({
+        ...storage,
+        async commit(input) {
+          await storage.commit(input)
+          throw new Error('reply lost')
+        },
+      }),
+    })
+    expect(await world.owner.publish(publishInput('p-1'))).toEqual({
+      kind: 'unknown',
+      operationId: 'p-1',
+    })
+    expect(signals).toEqual([])
+  })
+
+  it('a listener that throws does not change the outcome', async () => {
+    const { world, signals } = await open({ throwing: true })
+    expect(await world.owner.publish(publishInput('p-1'))).toMatchObject({
+      kind: 'committed',
+      changed: true,
+    })
+    expect(signals).toHaveLength(1)
+  })
+
+  it('a published package and a change of its holding each give one signal, the last at the readable revision', async () => {
+    const bundle: CategoryContribution = {
+      display: { title: 'B', summary: 'S.' },
+      contract: {
+        category: 'bundle',
+        schema: { kind: 'null' },
+        judge: () => ({ ok: true }) as const,
+        deriveDeclarations: () => ({ entries: [] }),
+        references: () => [],
+        layout: {
+          namespace: 'bundles',
+          limits: { files: 2, fileBytes: 16, totalBytes: 32 },
+          inspect: async () => ({ ok: { kind: 'object', entries: [] } }),
+        },
       },
-    }),
+      point: 'bundle.items',
+    }
+    const categories = createCategoryPoint()
+    categories.contribute(bundle)
+    const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-signal-')))
+    const { world, signals } = await open({ categories, packageRoot })
+    const bytes = new TextEncoder().encode('hello')
+    const from: PackageReader = {
+      manifest: async () => ({
+        ok: { entries: [{ path: 'a.txt', bytes: bytes.length, digest: digestBytes(bytes) }] },
+      }),
+      open: async () => ({ ok: bytes }),
+    }
+    const id = capabilityId('bundle', 'docs')
+    if (!id.ok) throw new Error('id')
+    const publisher = createTenantPublisher(world.owner, 'tenant-a')
+    const published = await publisher.publish({
+      operationId: 'pkg-1',
+      capability: id.id,
+      content: { kind: 'directory', from },
+    })
+    if (published.kind !== 'published') throw new Error(JSON.stringify(published))
+    const read = await world.owner.readHolding({
+      holdingRef: published.holdingRef,
+      scopeRef: 'tenant-a',
+    })
+    if (read.kind !== 'holding') throw new Error(read.kind)
+    await world.owner.changeHolding({
+      operationId: 'off-1',
+      holdingRef: published.holdingRef,
+      scopeRef: 'tenant-a',
+      expectedRevision: read.holding.revision,
+      change: { kind: 'setEnabled', enabled: false },
+    })
+    expect(signals).toHaveLength(2)
+    const [first, second] = signals
+    expect(first !== undefined && second !== undefined && first.revision < second.revision).toBe(
+      true,
+    )
+    expect(await world.owner.domainRevision()).toEqual({
+      kind: 'domain',
+      revision: second?.revision,
+    })
   })
-  worlds.push(world)
-  const changes: unknown[] = []
-  world.owner.changes.subscribe(change => changes.push(change))
-  const published = await world.owner.publish({
-    operationId: 'publish-1',
-    assetRef: 'asset-a',
-    pinned: pinned(),
-    expectedRevision: 0,
-  })
-  expect(published).toEqual({ kind: 'unknown', operationId: 'publish-1' })
-  expect(changes).toEqual([])
-})
-
-it('a listener that left gets nothing more, and a listener that throws does not stop the others or the commit', async () => {
-  const { world, changes, stop } = await listening()
-  const others: unknown[] = []
-  world.owner.changes.subscribe(() => {
-    throw new Error('a consumer failed')
-  })
-  world.owner.changes.subscribe(change => others.push(change))
-  stop()
-  await world.setup()
-  expect(changes).toEqual([])
-  expect(others).toHaveLength(2)
-})
-
-it('the revision of a domain nothing was committed to is zero', async () => {
-  const { world } = await listening()
-  expect(await world.owner.readDomainRevision()).toEqual({ kind: 'revision', revision: 0 })
 })

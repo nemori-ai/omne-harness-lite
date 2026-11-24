@@ -40,8 +40,7 @@ function configWith(overrides: Partial<PiTransportConfig> = {}): PiTransportConf
     families: createTestFamily().families,
     routes: {
       [SUPPLIER.provider]: {
-        url: ROUTE_URL,
-        endMarker: END_MARKER,
+        endpoints: { 'chat-completions': { url: ROUTE_URL, endMarker: END_MARKER } },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },
@@ -66,8 +65,7 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'not a url',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'not a url', endMarker: null } },
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
@@ -79,8 +77,7 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'http://127.0.0.1/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'http://127.0.0.1/', endMarker: null } },
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
@@ -92,8 +89,9 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'https://user:pass@127.0.0.1/',
-            endMarker: null,
+            endpoints: {
+              'chat-completions': { url: 'https://user:pass@127.0.0.1/', endMarker: null },
+            },
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
@@ -105,8 +103,7 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'https://127.0.0.1/?a=1',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'https://127.0.0.1/?a=1', endMarker: null } },
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
@@ -124,8 +121,7 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'https://127.0.0.1/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'https://127.0.0.1/', endMarker: null } },
             accounting: { place: 'p', costUnit: '' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
@@ -137,8 +133,7 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'https://127.0.0.1/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'https://127.0.0.1/', endMarker: null } },
             accounting: { place: '', costUnit: 'c' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
@@ -150,8 +145,7 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'https://127.0.0.1/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'https://127.0.0.1/', endMarker: null } },
             accounting: { place: 'p', costUnit: 'c' },
             auth: { kind: 'basic', item: 'apiKey' },
           },
@@ -163,8 +157,7 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'https://127.0.0.1/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'https://127.0.0.1/', endMarker: null } },
             accounting: { costUnit: 'c' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
@@ -176,8 +169,7 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'https://127.0.0.1/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'https://127.0.0.1/', endMarker: null } },
             accounting: { place: 'p' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
@@ -189,8 +181,7 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'https://127.0.0.1/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'https://127.0.0.1/', endMarker: null } },
             accounting: { place: 'p', costUnit: 'c' },
             auth: { kind: 'bearer' },
           },
@@ -202,10 +193,29 @@ describe('constructing the transport', () => {
       {
         routes: {
           r: {
-            url: 'https://127.0.0.1/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'https://127.0.0.1/', endMarker: null } },
             accounting: { place: 'p', costUnit: 'c' },
             auth: { kind: 'bearer', item: '' },
+          },
+        },
+      },
+    ],
+    [
+      'a route without endpoints',
+      {
+        routes: {
+          r: { endpoints: {}, accounting: { place: 'p', costUnit: 'c' }, auth: null },
+        },
+      },
+    ],
+    [
+      'a route that names an interface no engine speaks',
+      {
+        routes: {
+          r: {
+            endpoints: JSON.parse('{"completions":{"url":"https://127.0.0.1/","endMarker":null}}'),
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: null,
           },
         },
       },
@@ -240,8 +250,7 @@ describe('constructing the transport', () => {
       build({
         routes: {
           r: {
-            url: ROUTE_URL,
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: ROUTE_URL, endMarker: null } },
             accounting: { place: 'p', costUnit: 'c' },
             auth: null,
           },
@@ -265,8 +274,7 @@ describe('constructing the transport', () => {
         configWith({
           routes: {
             r: {
-              url: secretUrl,
-              endMarker: null,
+              endpoints: { 'chat-completions': { url: secretUrl, endMarker: null } },
               accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
               auth: { kind: 'bearer', item: 'apiKey' },
             },
@@ -279,8 +287,7 @@ describe('constructing the transport', () => {
         configWith({
           routes: {
             r: {
-              url: secretUrl,
-              endMarker: null,
+              endpoints: { 'chat-completions': { url: secretUrl, endMarker: null } },
               accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
               auth: { kind: 'bearer', item: 'apiKey' },
             },
@@ -309,7 +316,20 @@ describe('constructing the transport', () => {
     const onConnectRetry = 'not a function' as unknown as NonNullable<
       PiTransportConfig['onConnectRetry']
     >
-    expect(() => createPiTransport(configWith({ onConnectRetry }))).toThrow(RangeError)
+    expect(() => createPiTransport(configWith({ onConnectRetry }))).toThrow(
+      new RangeError('onConnectRetry must be absent or a function'),
+    )
+  })
+
+  it('refuses a media reader that is not a function, and accepts a function or none', () => {
+    const media = 'not a function' as unknown as NonNullable<PiTransportConfig['media']>
+    expect(() => createPiTransport(configWith({ media }))).toThrow(
+      new RangeError('media must be absent or a function'),
+    )
+    const read: PiTransportConfig['media'] = async () => ({
+      failure: { kind: 'material-unavailable' },
+    })
+    expect(() => createPiTransport(configWith({ media: read }))).not.toThrow()
   })
 
   it('refuses an onResponseBody that is not a function, and accepts a function or none', () => {
@@ -353,6 +373,23 @@ describe('prepare', () => {
       failure: { kind: 'unsupported', field: 'supplier.provider', adapter: SUPPLIER.adoption },
     })
     expect(probe.acquired).toBe(0)
+  })
+
+  it('answers unsupported for a binding whose interface the route has no endpoint for, and releases the binding', async () => {
+    const { transport, probe } = build({
+      routes: {
+        [SUPPLIER.provider]: {
+          endpoints: { messages: { url: ROUTE_URL, endMarker: null } },
+          accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+          auth: { kind: 'bearer', item: 'apiKey' },
+        },
+      },
+    })
+    const outcome = await transport.prepare(REQUEST, SUPPLIER, { resent: [] })
+    expect(outcome).toEqual({
+      failure: { kind: 'unsupported', field: 'route.endpoint', adapter: expect.anything() },
+    })
+    expect([probe.acquired, probe.released]).toEqual([1, 1])
   })
 
   it('answers invalid for a supplier that the request does not name, without acquiring a binding', async () => {

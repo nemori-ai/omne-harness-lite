@@ -1,1 +1,7 @@
-export { scheduleUiModule, SCHEDULE_PAGE_ID, SCHEDULE_PAGE_ORDER } from './module.tsx'
+export {
+  createScheduleUiModule,
+  SCHEDULE_PAGE_ID,
+  SCHEDULE_PAGE_ORDER,
+  type ScheduleUiOptions,
+} from './module.tsx'
+export { scheduleParts } from './parts.ts'

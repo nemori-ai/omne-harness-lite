@@ -33,7 +33,6 @@ import type {
   ExtensionImplementations,
   JournalCapabilities,
   MessageHandoff,
-  ModelContextReader,
   ModelSelection,
   RegisteredReads,
   Reply,
@@ -74,7 +73,7 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   toolRequests?: Readonly<{
     describe(input: ToolRequestInput<P>): Reply<ToolCallDescription>
     prepare(
-      input: ToolRequestInput<P> & Readonly<{ definition: Adoption; admission: DurableEvidence }>,
+      input: ToolRequestInput<P> & Readonly<{ definition: Adoption }>,
     ): Reply<T.ToolInvokeRequest>
   }>
   adoptions: AgentAdoptions<P>
@@ -84,7 +83,6 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   compactionInputs: CompactionInputReader<P>
   received: AgentReceivedCommits<P, B>
   selection: ModelSelection<P>
-  modelContext: ModelContextReader<P>
   extensions: ExtensionImplementations<P>
   /** The extensions the tenant has enabled; an assembly without this port has no tenant source. */
   enabledExtensions?: EnabledExtensions<P>

@@ -6,6 +6,8 @@ const implementation = { kind: 'builtin', builtinName: 'format' } as const
 
 const legalDefinition = {
   category: 'AgentDefinition',
+  type: 'master',
+  summary: 'Works on what the person asks for.',
   name: 'coding',
   references: [],
   attributes: [],
@@ -17,6 +19,8 @@ it('accepts an empty definition, and its value carries no version', async () => 
     kind: 'accepted',
     value: {
       category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
       name: 'coding',
       references: [],
       attributes: [],
@@ -204,6 +208,8 @@ it('refuses a non-array extension batch and reports the failing index', async ()
 it('lets an assembly caller and an asset caller share the public entry', async () => {
   const declaration = {
     category: 'AgentDefinition',
+    type: 'master',
+    summary: 'Works on what the person asks for.',
     name: 'coding',
     references: [{ capability: { category: 'Tool', name: 'read_file' } }],
     attributes: [],
@@ -224,7 +230,14 @@ it('lets an assembly caller and an asset caller share the public entry', async (
 })
 
 it('refuses host objects, hidden functions, and colliding capability text', async () => {
-  const base = { category: 'AgentDefinition', name: 'coding', references: [], attributes: [] }
+  const base = {
+    category: 'AgentDefinition',
+    type: 'master',
+    summary: 'Works on what the person asks for.',
+    name: 'coding',
+    references: [],
+    attributes: [],
+  }
   const proto = Object.create({ toJSON: () => base }) as object
   expect(await judgeAgentDefinition(proto)).toMatchObject({ kind: 'refused', reason: 'malformed' })
   const hidden = Object.defineProperty({ ...base }, 'run', { value() {}, enumerable: false })
@@ -299,6 +312,8 @@ it('rejects an own __proto__ member and accepts a shared empty array', async () 
   expect(
     await judgeAgentDefinition({
       category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
       name: 'coding',
       references: [],
       attributes: [attribute],
@@ -308,6 +323,8 @@ it('rejects an own __proto__ member and accepts a shared empty array', async () 
   expect(
     await judgeAgentDefinition({
       category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
       name: 'coding',
       references: shared,
       attributes: shared,
@@ -320,6 +337,8 @@ it('refuses a very deep extra field instead of throwing', async () => {
   for (let index = 0; index < 20_000; index += 1) nested = { x: nested }
   const judged = await judgeAgentDefinition({
     category: 'AgentDefinition',
+    type: 'master',
+    summary: 'Works on what the person asks for.',
     name: 'coding',
     references: [],
     attributes: [],
@@ -354,6 +373,8 @@ it('reports a shared capability as a duplicate and ignores later mutation of the
   expect(
     await judgeAgentDefinition({
       category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
       name: 'coding',
       references: [{ capability: shared }, { capability: shared }],
       attributes: [],
@@ -417,16 +438,18 @@ it('applies the JSON value count and UTF-8 byte budget to a whole extension batc
 
 it('accepts a definition of 200 JSON values and refuses 49 capabilities', async () => {
   const references = [
-    ...Array.from({ length: 45 }, (_, index) => ({
+    ...Array.from({ length: 47 }, (_, index) => ({
       capability: { category: 'Tool', name: `t${index}` },
     })),
-    ...Array.from({ length: 3 }, (_, index) => ({
+    ...Array.from({ length: 1 }, (_, index) => ({
       capability: { category: 'Tool', name: `r${index}` },
       resident: true,
     })),
   ]
   const accepted = await judgeAgentDefinition({
     category: 'AgentDefinition',
+    type: 'master',
+    summary: 'Works on what the person asks for.',
     name: 'coding',
     references,
     attributes: [],
@@ -435,7 +458,7 @@ it('accepts a definition of 200 JSON values and refuses 49 capabilities', async 
   if (accepted.kind === 'accepted') {
     expect(accepted.value.references).toHaveLength(48)
     expect(accepted.value.references[0]).toEqual({ capability: { category: 'Tool', name: 't0' } })
-    expect(accepted.value.references[45]).toEqual({
+    expect(accepted.value.references[47]).toEqual({
       capability: { category: 'Tool', name: 'r0' },
       resident: true,
     })
@@ -443,6 +466,8 @@ it('accepts a definition of 200 JSON values and refuses 49 capabilities', async 
   expect(
     await judgeAgentDefinition({
       category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
       name: 'coding',
       references: Array.from({ length: 49 }, (_, index) => ({
         capability: { category: 'Tool', name: `t${index}` },

@@ -20,7 +20,7 @@ import {
   SessionInternalPrincipalsService,
   sessionPrincipalsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import { SESSION_MAINTAINER_COMPONENT } from '../rows/authorization/grants.ts'
+import { DISPATCH_COMPONENT, SESSION_MAINTAINER_COMPONENT } from '../rows/authorization/grants.ts'
 import { SESSION_WORK_OWNER } from '../rows/authorization/principals.ts'
 import { SESSION_WORK_COMPONENT } from '../rows/tool-runtime/session-work.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
@@ -33,6 +33,8 @@ export const ENTRY_COMPONENTS = Object.freeze({
   governanceInstallation: 'governanceInstallationPrincipals',
   sessionModes: 'sessionModesPrincipals',
   toolDecisions: 'toolDecisions',
+  tenantScope: 'tenantScopePrincipals',
+  dispatch: DISPATCH_COMPONENT,
 })
 
 type EntryPrincipals = Readonly<{
@@ -45,6 +47,8 @@ type EntryPrincipals = Readonly<{
   governanceInstallationActor: SystemPrincipal
   sessionModesActor: SystemPrincipal
   toolDecisionsActor: SystemPrincipal
+  tenantScopeActor: SystemPrincipal
+  dispatchActor: SystemPrincipal
 }>
 
 function issueSystem(issuer: PrincipalIssuer, component: string): SystemPrincipal {
@@ -68,6 +72,8 @@ function createEntryPrincipals(): EntryPrincipals {
     governanceInstallationActor: issueSystem(issuer, ENTRY_COMPONENTS.governanceInstallation),
     sessionModesActor: issueSystem(issuer, ENTRY_COMPONENTS.sessionModes),
     toolDecisionsActor: issueSystem(issuer, ENTRY_COMPONENTS.toolDecisions),
+    tenantScopeActor: issueSystem(issuer, ENTRY_COMPONENTS.tenantScope),
+    dispatchActor: issueSystem(issuer, ENTRY_COMPONENTS.dispatch),
   })
 }
 
@@ -119,6 +125,24 @@ export function sessionModesIssuerOf(env: EntryEnv) {
   }
 }
 
+export const TENANT_SCOPE_WORK = Object.freeze({
+  owner: 'harness.runtime-context',
+  work: 'tenant-scope',
+})
+
+/** The principal the tenant-level scope of Runtime Context is held, supplied and read as. */
+export function tenantScopeIssuerOf(env: EntryEnv) {
+  const { issuer, tenantScopeActor } = principalsOf(env)
+  return (tenant: TenantId): ActingForTenantPrincipal | undefined => {
+    const result = issuer.issueActingForTenant({
+      actor: tenantScopeActor,
+      tenant,
+      work: TENANT_SCOPE_WORK,
+    })
+    return 'ok' in result ? result.ok : undefined
+  }
+}
+
 export const TOOL_DECISIONS_WORK = Object.freeze({ owner: 'harness.tool-decisions', work: 'ask' })
 
 export function toolDecisionsIssuerOf(env: EntryEnv) {
@@ -131,6 +155,11 @@ export function toolDecisionsIssuerOf(env: EntryEnv) {
     })
     return 'ok' in result ? result.ok : undefined
   }
+}
+
+/** The system principal dispatch works as: it holds the three purposes of a part of another domain. */
+export function dispatchPrincipalOf(env: EntryEnv): SystemPrincipal {
+  return principalsOf(env).dispatchActor
 }
 
 export type SessionWorkIssue = (

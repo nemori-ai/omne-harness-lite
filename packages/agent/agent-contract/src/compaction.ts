@@ -71,8 +71,6 @@ export type CompactionTarget = Readonly<{
 export type CompactionFrame = Readonly<{
   system: M.AssembledModelInput['system']
   tools: M.AssembledModelInput['tools']
-  snapshotReminder: Message | null
-  tailFacts: Message | null
 }>
 
 export type CompactionInput = Readonly<{

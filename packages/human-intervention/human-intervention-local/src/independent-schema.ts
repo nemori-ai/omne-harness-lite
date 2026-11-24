@@ -12,7 +12,7 @@ import {
   RequestRefSchema,
   WaitRefSchema,
 } from '@omne-harness/human-intervention'
-import { SqlCommandSchema } from './request-schema.ts'
+import { AskedAtSchema, SqlCommandSchema } from './request-schema.ts'
 
 export const WAIT_PROTOCOL = 'independent-wait/2'
 export const WAIT_HANDLER = 'hitl.independent-read'
@@ -25,15 +25,9 @@ export const IndependentPreparationSchema = z
     compatibleImplementations: z.array(HitlIdentifierSchema).min(1).max(64).readonly(),
   })
   .refine(
-    ({ registration: { origin, operation }, readers, responders }) =>
-      (origin.kind !== 'independent' ||
-        (origin.sessionRef === undefined && origin.runRef === undefined)) &&
-      readers.includes(operation.actorRef) &&
-      responders.every(actor => readers.includes(actor)),
-    {
-      message:
-        'A preparation owns its audience, and an independent origin has no session lifecycle',
-    },
+    ({ registration: { operation }, readers, responders }) =>
+      readers.includes(operation.actorRef) && responders.every(actor => readers.includes(actor)),
+    { message: 'A preparation owns its audience' },
   )
   .readonly()
 export const InboxEntrySchema = z
@@ -51,7 +45,12 @@ export const IndependentCommandSchema = z
       operation: OperationRefSchema,
       preparation: IndependentPreparationSchema,
     }),
-    z.strictObject({ kind: z.literal('request'), input: SqlCommandSchema, waitRef: WaitRefSchema }),
+    z.strictObject({
+      kind: z.literal('request'),
+      input: SqlCommandSchema,
+      waitRef: WaitRefSchema,
+      askedAt: AskedAtSchema.exactOptional(),
+    }),
     z.strictObject({ kind: z.literal('bind'), command: BindReceiverSchema }),
     z.strictObject({ kind: z.literal('consume'), command: ConsumeDecisionSchema }),
   ])

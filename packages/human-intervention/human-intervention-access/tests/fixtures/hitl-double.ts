@@ -44,6 +44,8 @@ export type HitlDouble = Readonly<{
       cardId: string
       sessionRef?: string
       readers: readonly string[]
+      question?: Readonly<Record<string, unknown>>
+      askedAt?: string
     }>,
   ): PoolItem
   failNext(
@@ -193,7 +195,7 @@ export function createHitlDouble(): HitlDouble {
   return {
     faces,
     calls,
-    addCard({ tenant, cardId, sessionRef, readers }) {
+    addCard({ tenant, cardId, sessionRef, readers, question, askedAt }) {
       const tenantRef = tenantText(tenant)
       const item: PoolItem = {
         card: CardSchema.parse({
@@ -204,8 +206,9 @@ export function createHitlDouble(): HitlDouble {
             title: '要删除这些文件吗',
             description: '工具要删除 3 个文件',
             declineConsequence: '跳过时工具不执行',
-            kind: 'approval',
-            options: [{ id: 'yes', label: '同意', description: '删除', effectRef: 'effect-1' }],
+            kind: 'question',
+            options: [{ id: 'yes', label: '删除', description: '删除这 3 个文件' }],
+            ...question,
           },
           kind: 'pending',
         }),
@@ -219,6 +222,7 @@ export function createHitlDouble(): HitlDouble {
           ...(sessionRef === undefined ? {} : { sessionRef, runRef: 'run-1' }),
         }),
         displayContext: '会话里的一次工具调用',
+        ...(askedAt === undefined ? {} : { askedAt }),
       }
       cards.push({ item, readers })
       return item

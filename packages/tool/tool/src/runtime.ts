@@ -6,6 +6,7 @@ import {
   encodeToolInvocationRef,
   encodeToolOperationRef,
   type Adoption,
+  type FixedToolRequest,
   type ToolDefiniteFailure,
   type ToolFailure,
   type ToolInvocationCommands,
@@ -23,7 +24,10 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   describedAdoption,
+  judgeToolCall,
   judgeToolInvokeRequest,
+  type ToolInvocationSourceIssuer,
+  type ToolInvocationSourceOutcome,
   type ToolProvider,
   type ToolOperationIdentities,
 } from '@omne-harness/tool-contract/provider'
@@ -143,21 +147,46 @@ function rejected(failure: ToolDefiniteFailure): ToolInvokeOutcome {
   return { kind: 'rejected', failure }
 }
 
-function admittedRequest(
-  supplied: unknown,
-  configuration: ToolConfiguration,
-): Outcome<ToolInvokeRequest, ToolDefiniteFailure> {
+function admittedRequest(supplied: unknown): Outcome<ToolInvokeRequest, ToolDefiniteFailure> {
   const judged = judgeToolInvokeRequest(supplied)
+  return 'failure' in judged
+    ? fail({
+        kind: 'invalid',
+        field: `request.${judged.failure.field}`,
+        reason: judged.failure.reason,
+      })
+    : judged
+}
+
+function callRefusal(
+  request: Omit<FixedToolRequest, 'invocation'>,
+  configuration: ToolConfiguration,
+): ToolDefiniteFailure | null {
+  const judged = judgeToolCall(request)
   if ('failure' in judged)
-    return fail({
+    return {
       kind: 'invalid',
       field: `request.${judged.failure.field}`,
       reason: judged.failure.reason,
-    })
+    }
   const refusal = callOffloadingRefusal(judged.ok, configuration.offloading)
   return refusal === null
-    ? judged
-    : fail({ kind: 'invalid', field: 'request.returns.offloading', reason: refusal })
+    ? null
+    : { kind: 'invalid', field: 'request.returns.offloading', reason: refusal }
+}
+
+async function resolveSource<P>(
+  issuer: ToolInvocationSourceIssuer<P>,
+  configuration: ToolConfiguration,
+  access: Omit<Parameters<ToolInvocationSourceIssuer<P>['resolve']>[0], 'request' | 'refusal'>,
+  request: ToolInvokeRequest,
+): Promise<ToolInvocationSourceOutcome> {
+  const refusal = (fixed: Omit<FixedToolRequest, 'invocation'>) => callRefusal(fixed, configuration)
+  try {
+    return await issuer.resolve({ ...access, request, refusal })
+  } catch {
+    return { kind: 'association-unknown' }
+  }
 }
 
 function resolvedIdentity(
@@ -261,23 +290,18 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
   const { commands, reads, instances, catalog, operationIdentities, sourceIssuer } = dependencies
   const stream = createStreamFacade<P, B>({ directory: instances.directory, reads })
 
-  const resolveSource = async (
-    input: Parameters<typeof sourceIssuer.resolve>[0],
-  ): Promise<Awaited<ReturnType<typeof sourceIssuer.resolve>>> => {
-    try {
-      return await sourceIssuer.resolve(input)
-    } catch {
-      return { kind: 'association-unknown' }
-    }
-  }
-
   const invoke: ToolRuntime<P, B>['invoke'] = async input => {
     if (typeof input !== 'object' || input === null || !('principal' in input))
       return rejected({ kind: 'denied', action: 'admit' })
-    const request = admittedRequest(Reflect.get(input, 'request'), configuration)
+    const request = admittedRequest(Reflect.get(input, 'request'))
     if ('failure' in request) return rejected(request.failure)
     const { principal, tenant } = input
-    const bound = await resolveSource({ principal, tenant, request: request.ok })
+    const bound = await resolveSource(
+      sourceIssuer,
+      configuration,
+      { principal, tenant },
+      request.ok,
+    )
     if (bound.kind === 'association-unknown' || bound.kind === 'rejected') return bound
     const identity = resolvedIdentity(tenant, bound)
     if (identity === null) return { kind: 'association-unknown' }
@@ -288,7 +312,7 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
       tenant,
       call: identity.call,
       admission: identity.admission,
-      request: { ...request.ok, invocation: bound.invocation },
+      request: bound.request,
       recovered: bound.recovered,
     })
   }

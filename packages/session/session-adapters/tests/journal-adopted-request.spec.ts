@@ -92,7 +92,7 @@ function rowsWritten(s: SqlScene): number {
 
 function blobHeld(s: SqlScene, digest: string): boolean {
   const rows = s.controls?.select(
-    `SELECT digest FROM sl_blob WHERE digest = 'sha256:${digest}'`,
+    `SELECT digest FROM er_block WHERE execution = '${s.execution}' AND digest = 'sha256:${digest}'`,
   ).rows
   return (rows?.length ?? 0) > 0
 }
@@ -111,7 +111,7 @@ describe('a main-purpose M0 appends the request.adopted fact in the same batch a
     let factsWritten = false
     s.controls?.failWriteWhen(sql => {
       if (/INSERT INTO er_fact/.test(sql)) factsWritten = true
-      if (!/INTO sl_blob/.test(sql)) return false
+      if (!/INTO er_block/.test(sql)) return false
       fired = true
       return true
     })

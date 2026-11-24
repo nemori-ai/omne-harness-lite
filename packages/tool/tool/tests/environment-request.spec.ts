@@ -2,7 +2,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import type { PreparationRecord } from '@omne-harness/tool-contract/provider'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
-import { adoption, admission, fixedOf, functionDefinition, ok } from './runtime-values.ts'
+import {
+  adoption,
+  admission,
+  available,
+  fixedOf,
+  functionDefinition,
+  ok,
+} from './runtime-values.ts'
 import { admitCall, auditQueues, startHarness, writeContext } from './start-values.ts'
 
 afterEach(auditQueues)
@@ -33,20 +40,17 @@ describe('fixed environment request through the real ledger and driver', () => {
       }),
     })
     await admitCall(harness, 'scope-call', {
-      availability: {
-        kind: 'available',
-        layer: { kind: 'official' },
-        executor: adoption('executor'),
-        definition,
-      },
-      environment,
+      availability: available(definition, adoption('executor')),
       requesterScope: scope.ok,
     })
     await harness.drive('scope-call')
     expect(prepared).toHaveLength(1)
     expect(prepared[0]).toMatchObject({
       preparation: { adoption: adapter },
-      request: { requesterScope: scope.ok, environment },
+      request: {
+        requesterScope: scope.ok,
+        availability: { definition: { declarations: { environment } } },
+      },
     })
     expect(harness.binding.executions).toEqual(['scope-call'])
   })

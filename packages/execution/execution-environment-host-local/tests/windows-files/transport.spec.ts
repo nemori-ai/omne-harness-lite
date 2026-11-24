@@ -122,7 +122,7 @@ it('shares one helper between engines', async () => {
   await withFiles(async ({ files, input, root }) => {
     expect((await files.stat(input)).kind).toBe('done')
     const before = spawned.children.length
-    const other = createHostFilesEngine({ root }).facilityFor('other')
+    const other = createHostFilesEngine({ scope: { read: root, write: root } }).facilityFor('other')
     expect((await other.stat(input)).kind).toBe('done')
     expect(spawned.children.length).toBe(before)
   })

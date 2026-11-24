@@ -2,10 +2,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Adoption, ModelFailure } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { parseInstant } from '@omne-harness/utc-instant'
+import { modelCredentialKey } from '@omne-harness/model-cordis-contract/cordis'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { createModelProfiles } from '@omne-harness/model'
-import { officialOpenAiProfiles } from '@omne-harness/pi-ai-openai'
 import { fieldOf, isRecord } from '../fields.ts'
+import { officialProfiles } from '../official-profiles.ts'
 import { createOfficialProfileSource } from '../profile-source.ts'
 
 type PluginConfig = Readonly<{
@@ -69,13 +70,16 @@ export class ModelProfilesLocalPlugin extends ModelProfilesService<unknown> {
 
   constructor(ctx: Context, config: PluginConfig) {
     super(ctx)
-    const source = createOfficialProfileSource({
-      definitions: officialOpenAiProfiles({
-        retryPolicy: config.retryPolicy,
-        compactionTriggerPercent: config.compactionTriggerPercent,
-      }),
-      updatedAt: config.updatedAt,
-    })
+    const source = createOfficialProfileSource(
+      {
+        definitions: officialProfiles({
+          retryPolicy: config.retryPolicy,
+          compactionTriggerPercent: config.compactionTriggerPercent,
+        }),
+        updatedAt: config.updatedAt,
+      },
+      () => ctx.get(modelCredentialKey, false),
+    )
     const profiles = createModelProfiles(source)
     let removed = false
     this.list = async input => (removed ? { failure: removedFailure() } : profiles.list(input))

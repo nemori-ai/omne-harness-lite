@@ -10,21 +10,22 @@ import {
   type PreparationBindingSource,
   type SupplierPort,
 } from '@omne-harness/model'
-import type {
-  FixedModelRequest,
-  ModalityRequirement,
-  ModelFailure,
-  ModelPreparationLease,
-  ModelPreparationResources,
-  ModelProfile,
-  ParameterAdoption,
-  ProfileScope,
-  ReplayDeclaration,
-  Reply,
+import {
+  profileCovers,
+  type FixedModelRequest,
+  type ModelFailure,
+  type ModelPreparationLease,
+  type ModelPreparationResources,
+  type ModelProfile,
+  type ParameterAdoption,
+  type ProfileScope,
+  type ReplayDeclaration,
+  type Reply,
 } from '@omne-harness/model-contract'
 import {
   judgeFixedModelRequest,
   judgeReplayDeclaration,
+  type ModelCommands,
   type ModelRequestPreparation,
 } from '@omne-harness/model-contract/provider'
 import {
@@ -58,18 +59,13 @@ function scopeFailure(scope: ProfileScope, tenant: TenantId): ModelFailure | nul
   }
 }
 
-function covers(profile: ModelProfile, required: ModalityRequirement): boolean {
-  const input: readonly string[] = profile.definition.input
-  return required.modalities.every(modality => input.includes(modality))
-}
-
 function qualify(input: PrepareInput): ModelFailure | null {
   if (!tenantCodec.encode(input.tenant).ok) return { kind: 'denied', action: 'tenant' }
   const scope = scopeFailure(input.profile.identity.scope, input.tenant)
   if (scope !== null) return scope
   if (input.profile.availability === 'withdrawn')
     return { kind: 'invalid', field: 'profile', reason: 'withdrawn' }
-  if (!covers(input.profile, input.required))
+  if (!profileCovers(input.profile.definition, input.required))
     return { kind: 'invalid', field: 'required.modalities', reason: 'modality' }
   return null
 }
@@ -104,6 +100,10 @@ function requestOf(
   if (!('ok' in declarations)) return declarations
   const judged = judgeFixedModelRequest({
     profile: profile.adoption,
+    contextWindow: {
+      tokens: profile.definition.context.window.provided,
+      compactionTriggerPercent: profile.definition.context.compactionTriggerPercent,
+    },
     suppliers: lease.bindings.map(binding => binding.supplier),
     fallback: profile.definition.fallback,
     retryPolicy: profile.definition.retryPolicy,
@@ -127,6 +127,8 @@ function requestOf(
 export type ModelPreparationPluginOptions = Readonly<{
   bindings: PreparationBindingSource
   supplierOf: SupplierPort<unknown>
+  /** How the assembly reads the facts of earlier calls, for one that qualifies every reader. */
+  readFacts?: (commands: ModelCommands<unknown>) => Pick<ModelCommands<unknown>, 'dispatches'>
 }>
 
 export type ModelRequestPreparationPluginClass = {
@@ -192,7 +194,7 @@ function createPluginClass(
     constructor(ctx: Context, settings: ModelPreparationSettings) {
       super(ctx)
       const resources = createModelPreparationResources<unknown>({
-        commands: ctx.modelCommands,
+        commands: options.readFacts?.(ctx.modelCommands) ?? ctx.modelCommands,
         bindings: options.bindings,
         supplierOf: options.supplierOf,
         maxCitedCalls: settings.maxCitedCalls,

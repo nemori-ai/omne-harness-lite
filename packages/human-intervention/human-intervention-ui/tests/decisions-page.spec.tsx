@@ -4,7 +4,7 @@ import { afterEach, beforeAll, expect, it } from 'vitest'
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import { CardsHub, DecisionsPage } from '../src/index.ts'
-import { approvalItem, page, questionItem } from './fixtures/cards.ts'
+import { extensionItem, page, questionItem, releaseItem, rowedItem } from './fixtures/cards.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 
@@ -37,7 +37,7 @@ async function answer(
 }
 
 async function listed(
-  items: readonly HumanInterventionCardItem[] = [questionItem()],
+  items: readonly HumanInterventionCardItem[] = [rowedItem()],
 ): Promise<FakeClient> {
   const fake = createFakeClient()
   render(<DecisionsPage hub={hubOf(fake)} tenant={TENANT} />)
@@ -49,16 +49,29 @@ type Scope = ReturnType<typeof within>
 
 const shownCard = (): Scope => within(screen.getByRole('article'))
 
-const choose = (scope: Scope, label: string) =>
-  fireEvent.click(scope.getByText(label).closest('label')!.querySelector('[role="radio"]')!)
+const section = (title: string): Scope => within(screen.getByRole('article', { name: title }))
+
+const OWN = new Set(['用自己的话回答', '不回答这一题'])
+
+/** Chooses a row; the person's own words and no answer are behind the fold 自己写，或不回答, opened first. */
+const choose = (scope: Scope, label: string) => {
+  const fold = scope.getByRole('button', { name: '自己写，或不回答' })
+  if (OWN.has(label) && fold.getAttribute('aria-expanded') !== 'true') fireEvent.click(fold)
+  fireEvent.click(scope.getByRole('radio', { name: label }))
+}
 
 const write = (scope: Scope, text: string) =>
   fireEvent.change(scope.getByRole('textbox'), { target: { value: text } })
 
+const words = (scope: Scope, text: string) => {
+  choose(scope, '用自己的话回答')
+  write(scope, text)
+}
+
 const submitButton = () => screen.getByRole('button', { name: '提交' }) as HTMLButtonElement
 
 const titled = (title: string, cardId: string): HumanInterventionCardItem => {
-  const item = questionItem(cardId)
+  const item = rowedItem(cardId)
   return { ...item, card: { ...item.card, question: { ...item.card.question, title } } }
 }
 
@@ -89,42 +102,96 @@ it('V1 打开时只列当前租户待定的卡：一页一百张', async () => {
   expect(screen.getByText('正在读取……')).toBeTruthy()
 })
 
-it('V2 问题卡：卡头写谁在问，来源另起一行，选项、常在的文本框、「不回答这一题」按钮与后果', async () => {
+it('P0 部位都在各自的元素上：页、组、纸、卡、标题、作答、纸底、提交', async () => {
   await listed()
-  const question = shownCard()
-  expect(question.getByText('Agent 在问你')).toBeTruthy()
-  expect(question.getByText('来源：工具 · Ask')).toBeTruthy()
-  expect(question.getByRole('heading', { name: '用哪个分支发布？' })).toBeTruthy()
-  expect(question.getByText('有两个候选分支。')).toBeTruthy()
-  expect(question.getByText('从主干发布。')).toBeTruthy()
-  expect(question.getAllByRole('radio')).toHaveLength(2)
-  expect(question.getByText('或者用你自己的话回答：')).toBeTruthy()
-  expect(question.getByRole('textbox')).toBeTruthy()
-  expect(question.getByRole('button', { name: '不回答这一题' })).toBeTruthy()
-  expect(question.getByText('跳过之后这一轮按没有回答继续。')).toBeTruthy()
-  expect(submitButton().disabled).toBe(true)
-  expect(screen.getByRole('button', { name: '还差 1 题' })).toBeTruthy()
-  expect(screen.queryByRole('tablist')).toBeNull()
+  const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+  expect(on('human-intervention.page')).toHaveLength(1)
+  expect(on('human-intervention.page')[0]?.classList.contains('hitl-decisions')).toBe(true)
+  expect(on('human-intervention.page.group')[0]?.classList.contains('hitl-group')).toBe(true)
+  expect(on('human-intervention.paper')[0]?.classList.contains('hitl-paper')).toBe(true)
+  expect(on('human-intervention.paper.card')[0]?.tagName).toBe('ARTICLE')
+  expect(on('human-intervention.paper.card.title')[0]?.textContent).toBe('用哪个分支发布？')
+  expect(on('human-intervention.paper.card.answer')[0]?.classList.contains('hitl-answer')).toBe(
+    true,
+  )
+  expect(on('human-intervention.paper.foot')[0]?.classList.contains('hitl-foot')).toBe(true)
+  expect(on('human-intervention.paper.foot.submit')[0]?.textContent).toBe('提交')
+  expect(on('human-intervention.paper.foot.actions')[0]?.classList.contains('hitl-actions')).toBe(
+    true,
+  )
 })
 
-it('V3 四种卡的卡头：问询、请示、放行、扩展；请示的文本框写「用你自己的话说」', async () => {
-  const base = approvalItem()
-  const kindOf = (kind: 'admission' | 'extension', cardId: string): HumanInterventionCardItem => {
-    const item = approvalItem(cardId)
-    return { ...item, card: { ...item.card, question: { ...item.card.question, kind } } }
-  }
-  const fake = await listed([base, kindOf('admission', 'card-4'), kindOf('extension', 'card-6')])
-  const heads = ['Agent 想先问你批不批准', '系统要你放行', '拓展件在问你']
-  for (const [at, head] of heads.entries()) {
-    fireEvent.click(screen.getAllByRole('tab')[at]!)
-    expect(shownCard().getByText(head)).toBeTruthy()
-    expect(shownCard().getByText('来源：系统放行')).toBeTruthy()
-    expect(shownCard().getByText('或者用你自己的话说：')).toBeTruthy()
-  }
-  for (const tab of screen.getAllByRole('tab')) {
-    fireEvent.click(tab)
-    fireEvent.click(shownCard().getByRole('button', { name: '不回答这一题' }))
-  }
+it('P0 读不懂租户的那一页也带页的部位', async () => {
+  const fake = createFakeClient()
+  render(<DecisionsPage hub={hubOf(fake)} tenant="not-a-tenant" />)
+  await settle()
+  expect(document.querySelectorAll('[data-omne-part="human-intervention.page"]')).toHaveLength(1)
+})
+
+it('V2 问题卡是纸上的一节：种类行、标题、说明、谁在问，作答是一组选择行，自己写与不回答收在折叠里；没有题号条', async () => {
+  await listed()
+  const question = shownCard()
+  const kind = question.getByText('需要你回答').closest('.hitl-kind') as HTMLElement
+  expect(kind.dataset['waiting']).toBe('true')
+  expect(kind.textContent).toBe('需要你回答')
+  expect(question.getByRole('heading', { name: '用哪个分支发布？' }).dataset['face']).toBe(
+    'reading',
+  )
+  expect(question.getByText('有两个候选分支。')).toBeTruthy()
+  expect(question.getByText('Agent 在问你 · Ask')).toBeTruthy()
+  expect(question.getByRole('radiogroup', { name: '作答' })).toBeTruthy()
+  expect(
+    question.getAllByRole('radio').map((radio: HTMLElement) => radio.getAttribute('aria-checked')),
+  ).toEqual(['false', 'false'])
+  for (const label of ['主干', '下一版'])
+    expect(question.getByRole('radio', { name: label })).toBeTruthy()
+  expect(
+    question.getByRole('button', { name: '自己写，或不回答' }).getAttribute('aria-expanded'),
+  ).toBe('false')
+  for (const label of ['用自己的话回答', '不回答这一题'])
+    expect(question.getByRole('radio', { name: label, hidden: true })).toBeTruthy()
+  expect(
+    question.getByRole('radio', { name: '主干' }).getAttribute('aria-describedby'),
+  ).toBeTruthy()
+  expect(question.queryByRole('textbox')).toBeNull()
+  expect(submitButton().disabled).toBe(true)
+  expect(screen.queryByRole('button', { name: /还差|另有/ })).toBeNull()
+  expect(screen.queryByRole('tablist')).toBeNull()
+  expect(document.querySelectorAll('.hitl-paper')).toHaveLength(1)
+})
+
+it('V2b 选中「不回答这一题」时它下面写卡写明的跳过后果；没有选项的卡文本框直接在，「不回答这一题」是链接钮', async () => {
+  const bare = questionItem('card-bare')
+  const fake = await listed([
+    questionItem(),
+    {
+      ...bare,
+      card: {
+        ...bare.card,
+        question: { ...bare.card.question, title: '没有选项', options: [] },
+      },
+    },
+  ])
+  const question = section('用哪个分支发布？')
+  const consequence = () =>
+    question.getByText('跳过之后这一轮按没有回答继续。').closest('[data-expand]')
+  expect(consequence()?.getAttribute('data-open')).toBe('false')
+  choose(question, '不回答这一题')
+  expect(consequence()?.getAttribute('data-open')).toBe('true')
+  const open = section('没有选项')
+  expect(open.queryByRole('radio', { hidden: true })).toBeNull()
+  expect(open.getByRole('button', { name: '不回答这一题' }).dataset['variant']).toBe('link')
+  write(open, '自己写')
+  fireEvent.click(submitButton())
+  expect((await fake.next('submit-reply')).body).toMatchObject({ reply: { kind: 'decline' } })
+})
+
+it('V3 扩展卡：种类行「需要你回答」，谁在问写「拓展件在问你」；选「不回答这一题」交 decline', async () => {
+  const base = extensionItem()
+  const fake = await listed([base])
+  expect(shownCard().getByText('需要你回答')).toBeTruthy()
+  expect(shownCard().getByText('拓展件在问你')).toBeTruthy()
+  choose(shownCard(), '不回答这一题')
   fireEvent.click(submitButton())
   expect((await fake.next('submit-reply')).body).toMatchObject({
     reply: { kind: 'decline' },
@@ -148,21 +215,39 @@ it('V4 选一个选项提交：带修订号；决定了就去掉卡，这一组�
   call.answer(DECIDED(questionItem()))
   await settle()
   expect(screen.queryByRole('heading', { name: '用哪个分支发布？' })).toBeNull()
+  expect(document.querySelector('.hitl-paper')).toBeNull()
   await answer(fake, 'list-cards', page([]))
-  expect(screen.getByText('现在没有要你决定的事')).toBeTruthy()
+  expect(screen.getByText('待答的问题会在这里等你。')).toBeTruthy()
 })
 
-it('V5 用自己的话：打字就取消选中，写了字才算答；只写空白不算', async () => {
+it('V5 用自己的话：选中这一行才展开文本框，写了字才算答，只写空白不算', async () => {
   const fake = await listed()
   const question = shownCard()
   choose(question, '主干')
-  write(question, '   ')
-  expect(question.queryByRole('radio', { checked: true })).toBeNull()
+  words(question, '   ')
+  expect(question.getByRole('radio', { checked: true }).getAttribute('aria-labelledby')).toBe(
+    question.getByText('用自己的话回答').id,
+  )
   expect(submitButton().disabled).toBe(true)
   write(question, '先发主干')
   fireEvent.click(submitButton())
   expect((await fake.next('submit-reply')).body).toMatchObject({
     reply: { kind: 'text', text: '先发主干' },
+  })
+})
+
+it('V5b 选了别的行，文本框收起、写下的字留着，只发选中的那一行', async () => {
+  const fake = await listed()
+  const question = shownCard()
+  words(question, '先发主干')
+  choose(question, '主干')
+  expect(question.queryByRole('textbox')).toBeNull()
+  choose(question, '用自己的话回答')
+  expect((question.getByRole('textbox') as HTMLTextAreaElement).value).toBe('先发主干')
+  choose(question, '下一版')
+  fireEvent.click(submitButton())
+  expect((await fake.next('submit-reply')).body).toMatchObject({
+    reply: { kind: 'selection', optionId: 'next' },
   })
 })
 
@@ -174,6 +259,15 @@ it('V6 结果未知：同一份正文认回，认回之前这一题不能再交�
   const query = await fake.next('query-submit-reply')
   expect(query.body).toEqual(submit.body)
   expect(screen.getByText('结果未知，正在确认。')).toBeTruthy()
+  const kind = shownCard().getByText('未确认').closest('.hitl-kind') as HTMLElement
+  expect(kind.dataset['waiting']).toBe('false')
+  expect(shownCard().queryByText('需要你回答')).toBeNull()
+  expect(
+    screen
+      .getByText('结果未知，正在确认。')
+      .closest('[data-inline-notice]')
+      ?.getAttribute('data-tone'),
+  ).toBe('neutral')
   expect(submitButton().disabled).toBe(true)
   query.answer({ outcome: 'unknown' })
   await settle()
@@ -200,16 +294,14 @@ it('V8 读不出：显示原因与「重试」，重试再取一次', async () =
   expect(screen.getByText('服务端暂时读不出需要的依据，稍后再试。')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: '重试' }))
   await answer(fake, 'list-cards', page([]))
-  expect(screen.getByText('现在没有要你决定的事')).toBeTruthy()
+  expect(screen.getByText('待答的问题会在这里等你。')).toBeTruthy()
 })
 
-it('V9 点「刷新」再取一次；不点就不再取', async () => {
+it('V9 页上没有「刷新」：列表随观察自己更新，没有帧就不再取', async () => {
   const fake = await listed([])
   await settle()
+  expect(screen.queryByRole('button', { name: '刷新' })).toBeNull()
   expect(fake.calls.filter(call => call.operation === 'list-cards')).toHaveLength(1)
-  fireEvent.click(screen.getByRole('button', { name: '刷新' }))
-  await answer(fake, 'list-cards', page([questionItem()]))
-  expect(screen.getByRole('heading', { name: '用哪个分支发布？' })).toBeTruthy()
 })
 
 it('V10 列表不全时说出来', async () => {
@@ -250,49 +342,47 @@ it('V13 更新断了：说正在重连；被拒：说没有权限接收更新', 
   expect(screen.queryByText('更新暂时连不上，列表可能不是最新的，正在重连。')).toBeNull()
 })
 
-it('V14 按会话分组：每组一个标题、一个提交；不属于会话的卡单独一组', async () => {
+it('V14 按会话分组：每组一个标题、一张纸、一个纸底；不属于会话的卡单独一组', async () => {
   const elsewhere: HumanInterventionCardItem = {
     ...questionItem('card-9'),
     origin: { kind: 'tool', sessionRef: OTHER_SESSION, toolCallRef: 'call-9' },
   }
-  await listed([questionItem(), elsewhere, approvalItem()])
+  await listed([questionItem(), elsewhere, extensionItem()])
   const groups = screen.getAllByRole('region')
   expect(groups.map(group => group.getAttribute('aria-label'))).toEqual([
     '会话 ses_01234567…',
     '会话 ses_fedcba98…',
     '不属于会话的问题',
   ])
-  for (const group of groups)
-    expect(within(group).getAllByRole('button', { name: '提交' })).toHaveLength(1)
+  for (const group of groups) {
+    expect(group.querySelectorAll('.hitl-paper')).toHaveLength(1)
+    expect(group.querySelectorAll('.hitl-foot')).toHaveLength(1)
+  }
 })
 
-it('V15 一组三题：题号条、左右切换三种办法、选了跳到下一张没答的、还差 n 题跳到第一张没答的', async () => {
+it('V15 一组三题叠在一张纸上：节间一条细线，种类行尾写 n / m；没有题号条与左右箭头；选了不跳', async () => {
   await listed([titled('第一问', 'card-a'), titled('第二问', 'card-b'), titled('第三问', 'card-c')])
-  const tabs = () => screen.getAllByRole('tab')
-  expect(tabs().map(tab => tab.textContent)).toEqual(['1未答', '2未答', '3未答'])
-  expect(shownCard().getByText('第 1 题，共 3 题')).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: '下一题' }))
-  expect(shownCard().getByRole('heading', { name: '第二问' })).toBeTruthy()
-  fireEvent.keyDown(screen.getByRole('button', { name: '上一题' }), { key: 'ArrowLeft' })
-  expect(shownCard().getByRole('heading', { name: '第一问' })).toBeTruthy()
-  fireEvent.click(tabs()[2]!)
-  expect(shownCard().getByRole('heading', { name: '第三问' })).toBeTruthy()
-  fireEvent.keyDown(screen.getByRole('textbox'), { key: 'ArrowRight' })
-  expect(shownCard().getByRole('heading', { name: '第三问' })).toBeTruthy()
-  choose(shownCard(), '主干')
-  expect(shownCard().getByRole('heading', { name: '第一问' })).toBeTruthy()
-  expect(tabs()[2]!.textContent).toBe('3已答：主干')
-  write(shownCard(), '再说')
-  expect(shownCard().getByRole('heading', { name: '第一问' })).toBeTruthy()
+  const papers = document.querySelectorAll('.hitl-paper')
+  expect(papers).toHaveLength(1)
+  expect(within(papers[0] as HTMLElement).getAllByRole('article')).toHaveLength(3)
+  expect(screen.queryByRole('tablist')).toBeNull()
+  expect(screen.queryByRole('button', { name: '上一题' })).toBeNull()
+  expect(screen.queryByRole('button', { name: '下一题' })).toBeNull()
+  expect(
+    [...document.querySelectorAll('.hitl-kind-trail')].map(trail => trail.textContent),
+  ).toEqual(['1 / 3', '2 / 3', '3 / 3'])
+  const third = section('第三问')
+  third.getByRole('radio', { name: '主干' }).focus()
+  choose(third, '主干')
+  expect(document.activeElement).toBe(third.getByRole('radio', { name: '主干' }))
+  expect(screen.getAllByRole('article')).toHaveLength(3)
+  words(section('第一问'), '再说')
+  expect(document.activeElement).not.toBe(section('第二问').getAllByRole('radio')[0])
   fireEvent.click(screen.getByRole('button', { name: '还差 1 题' }))
-  expect(shownCard().getByRole('heading', { name: '第二问' })).toBeTruthy()
-  fireEvent.click(shownCard().getByRole('button', { name: '不回答这一题' }))
-  expect(tabs().map(tab => tab.textContent)).toEqual([
-    '1已答：再说',
-    '2已答：不回答',
-    '3已答：主干',
-  ])
+  expect(document.activeElement).toBe(section('第二问').getByRole('radio', { name: '主干' }))
+  choose(section('第二问'), '不回答这一题')
   expect(submitButton().disabled).toBe(false)
+  expect(screen.queryByRole('button', { name: /还差/ })).toBeNull()
 })
 
 it('V16 一组三题一次提交：每题各交一次、依次发出；结局逐题，没记上的留着人填的，点「知道了」去掉', async () => {
@@ -302,15 +392,24 @@ it('V16 一组三题一次提交：每题各交一次、依次发出；结局逐
     titled('第三问', 'card-c'),
   ]
   const fake = await listed([a, b, c])
-  choose(shownCard(), '主干')
-  choose(shownCard(), '下一版')
-  write(shownCard(), '第三题我自己说')
+  choose(section('第一问'), '主干')
+  choose(section('第二问'), '下一版')
+  words(section('第三问'), '第三题我自己说')
   fireEvent.click(submitButton())
   const first = await fake.next('submit-reply')
   await settle()
   expect(fake.calls.filter(call => call.operation === 'submit-reply')).toHaveLength(1)
   expect(screen.getByText('正在提交……')).toBeTruthy()
-  expect((screen.getByRole('textbox') as HTMLTextAreaElement).disabled).toBe(true)
+  expect(submitButton().getAttribute('aria-busy')).toBe('true')
+  expect(submitButton().textContent).toBe('提交')
+  expect(section('第一问').getByText('正在提交')).toBeTruthy()
+  expect(section('第二问').queryByText('正在提交')).toBeNull()
+  expect((section('第三问').getByRole('textbox') as HTMLTextAreaElement).disabled).toBe(true)
+  expect(
+    section('第二问')
+      .getAllByRole('radio')
+      .every((radio: HTMLElement) => (radio as HTMLButtonElement).disabled),
+  ).toBe(true)
   first.answer({
     outcome: 'succeeded',
     body: {
@@ -343,11 +442,38 @@ it('V16 一组三题一次提交：每题各交一次、依次发出；结局逐
     { kind: 'selection', optionId: 'next' },
     { kind: 'text', text: '第三题我自己说' },
   ])
-  expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['1被关掉', '2被关掉'])
-  expect(shownCard().getByText('已在别处答了，这次的答复没有采用。')).toBeTruthy()
-  expect(shownCard().getByRole('radio', { checked: true })).toBeTruthy()
-  fireEvent.click(shownCard().getByRole('button', { name: '知道了' }))
+  expect(screen.getAllByRole('article')).toHaveLength(2)
+  const closed = section('第一问')
+  const kind = closed.getByText('已关闭').closest('.hitl-kind') as HTMLElement
+  expect(kind.dataset['waiting']).toBe('false')
+  expect(closed.getByText('已在别处答了，这次的答复没有采用。')).toBeTruthy()
+  expect(
+    closed.getByText('已在别处答了，这次的答复没有采用。').closest('[data-inline-notice]'),
+  ).toBeNull()
+  expect(closed.getByText('已在别处答了，这次的答复没有采用。').className).toBe('hitl-closed-line')
+  expect(closed.getByRole('button', { name: '知道了' }).textContent).toBe('')
+  expect(closed.queryByRole('radio')).toBeNull()
+  expect(closed.getByRole('radio', { checked: true, hidden: true })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: '提交' })).toBeNull()
+  fireEvent.click(closed.getByRole('button', { name: '知道了' }))
   expect(shownCard().getByText('这次提问已经关掉：那一轮被取消了。')).toBeTruthy()
   fireEvent.click(shownCard().getByRole('button', { name: '知道了' }))
   expect(screen.queryByRole('article')).toBeNull()
+})
+
+it('V17 被关掉的一节留在它原来的位置，指针下的东西不动；新来的卡接在最后', async () => {
+  const [a, b] = [titled('第一问', 'card-a'), releaseItem('card-r')]
+  const fake = await listed([a, b])
+  const titles = () =>
+    screen.getAllByRole('article').map(article => article.querySelector('h3')?.textContent)
+  expect(titles()).toEqual(['第一问', '要执行 Shell run，放行吗？'])
+  choose(section('第一问'), '主干')
+  fireEvent.click(submitButton())
+  await answer(fake, 'submit-reply', {
+    outcome: 'succeeded',
+    body: { kind: 'invalidated', reason: 'archived' },
+  })
+  await answer(fake, 'list-cards', page([b, titled('第三问', 'card-c')]))
+  expect(titles()).toEqual(['第一问', '要执行 Shell run，放行吗？', '第三问'])
+  expect(section('第一问').getByText('这次提问已经关掉：会话已归档。')).toBeTruthy()
 })

@@ -7,6 +7,7 @@ import {
   type ActionBatch,
   type ActionId,
   type ActionSlot,
+  type ActionBatchId,
   type ActionToolCall,
   type AdmissionDecision,
   type Adoption,
@@ -17,10 +18,12 @@ import {
   type CardRemark,
   type ConsumerRef,
   type DecisionCardDraft,
+  type DenialCategory,
   type DurableEvidence,
   type Failure,
   type Material,
   type PendingCall,
+  type Waiting,
   type ProducedResult,
   type ReceivedEntry,
   type StepId,
@@ -30,6 +33,7 @@ import {
   resolveToolInvocationRef,
   type BackgroundSource,
   type ToolCallId,
+  type ToolInvokeOutcome,
   type ToolInvokeRequest,
   type ToolDelivery,
 } from '@omne-harness/tool-contract'
@@ -40,6 +44,7 @@ import { canonical } from '../canonical.ts'
 import { json, plain } from '../receiving-values.ts'
 import { agentEvidence, toolConsumption, type Message } from './identities.ts'
 import { localFailure } from './node-failure.ts'
+import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
 
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'admission' | 'toolRequests' | 'materials'>
 
@@ -49,6 +54,12 @@ export const fixedToolRequestSchema = {
   revision: '1',
   digest: 'agent:fixed-tool-request/1',
 } as const
+
+export function toolRequestMaterial(
+  request: ToolInvokeRequest,
+): Extract<Material<ContentBlock>, { kind: 'facts' }> {
+  return { kind: 'facts', schema: fixedToolRequestSchema, value: json(request) }
+}
 
 export const toolCallAnswerSchema = {
   owner: 'agent',
@@ -96,12 +107,13 @@ export function toolConsumer(execution: AgentExecutionId, action: Action): Consu
 
 export type ToolAdmission =
   | Readonly<{ kind: 'judged'; action: Action }>
-  | Readonly<{ kind: 'denied'; action: Action; reason: string }>
+  | Readonly<{ kind: 'denied'; action: Action; category: DenialCategory }>
   | Readonly<{
       kind: 'allowed'
       action: Action
       evidence: DurableEvidence
       request: ToolInvokeRequest
+      notice?: string
     }>
   | Readonly<{ kind: 'asked'; action: Action; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
@@ -122,6 +134,9 @@ function notAnswered(owner: string, failure: Failure): Outcome<ToolAdmission, Fa
   return fail(failure)
 }
 
+const noticed = (notice: string | undefined): Readonly<{ notice?: string }> =>
+  notice === undefined ? {} : { notice }
+
 function notAllowed(
   action: Action,
   decision: Exclude<AdmissionDecision, { kind: 'allow' }>,
@@ -129,8 +144,11 @@ function notAllowed(
   if (decision.kind === 'deny')
     return succeed({
       kind: 'denied',
-      action: { ...action, judgment: { kind: 'denied', evidence: decision.evidence } },
-      reason: decision.reason,
+      action: {
+        ...action,
+        judgment: { kind: 'denied', evidence: decision.evidence, ...noticed(decision.notice) },
+      },
+      category: decision.category,
     })
   if (decision.kind === 'unavailable')
     return unavailableAdmission('agentActionAdmission', decision.diagnostic)
@@ -151,6 +169,7 @@ export async function admitToolAction<P>(
   action: Action,
   original: ActionToolCall,
   handBack: HandBack | null,
+  batch?: Readonly<{ id: ActionBatchId; pass: string }>,
 ): Promise<Outcome<ToolAdmission, Failure>> {
   if (action.judgment.kind !== 'pending') return judged(action)
   if (original.callId !== action.original.callId)
@@ -181,18 +200,21 @@ export async function admitToolAction<P>(
     definition,
     permissions: [],
     decision: handBack,
+    ...(batch === undefined ? {} : { batch }),
   })
   if ('failure' in admitted) return notAnswered('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
-  const prepared = await ports.toolRequests.prepare({
-    ...input,
-    definition,
-    admission: admitted.ok.evidence,
-  })
+  const prepared = await ports.toolRequests.prepare({ ...input, definition })
   if ('failure' in prepared) return notAnswered('agentToolRequests', prepared.failure)
   const request = checkedRequest(prepared.ok, definition, input.consumer, action, original)
   if ('failure' in request) return request
-  return succeed({ kind: 'allowed', action, evidence: admitted.ok.evidence, request: request.ok })
+  return succeed({
+    kind: 'allowed',
+    action,
+    evidence: admitted.ok.evidence,
+    request: request.ok,
+    ...noticed(admitted.ok.notice),
+  })
 }
 
 async function answered<P>(
@@ -234,10 +256,14 @@ export async function preserveAllowedRequest<P>(
     execution,
     identity: `${execution}/${action.id}/request`,
     consumer: request.consumer,
-    value: { kind: 'facts', schema: fixedToolRequestSchema, value: json(request) },
+    value: toolRequestMaterial(request),
+    readers: 'until-release',
   })
   if ('failure' in stored) return stored
-  return succeed({ ...action, judgment: { kind: 'allowed', evidence, request: stored.ok } })
+  return succeed({
+    ...action,
+    judgment: { kind: 'allowed', evidence, request: stored.ok, ...noticed(allowed.notice) },
+  })
 }
 
 function uncheckedRecord(execution: AgentExecutionId, batch: ActionBatch): string {
@@ -289,7 +315,7 @@ function checkedRequest(
     })
   const request = checked.ok
   const same =
-    canonical(request.availability.definition.adoption) === canonical(definition) &&
+    canonical(request.availability.definition) === canonical(definition) &&
     canonical(request.consumer) === canonical(consumer) &&
     request.arguments.original === argumentsText(original.arguments) &&
     request.arguments.effective === action.effectiveArguments
@@ -359,6 +385,13 @@ export function fixedRequestOf(material: Material<ContentBlock>): ToolInvokeRequ
 
 export type AssociatedToolCall = Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
 
+export const associationOf = (
+  invoked: Extract<ToolInvokeOutcome, { kind: 'accepted' | 'commit-unknown' }>,
+): Pick<AssociatedToolCall, 'reference' | 'acceptance'> => ({
+  reference: invoked.reference,
+  acceptance: invoked.kind === 'accepted' ? 'accepted' : 'unknown',
+})
+
 export function slotOf(batch: ActionBatch, action: ActionId): ActionSlot | undefined {
   return batch.slots.find(slot => slot.action === action)
 }
@@ -383,6 +416,10 @@ export function openToolCalls(batch: ActionBatch): readonly PendingCall[] {
       ? [action.call]
       : []
   })
+}
+
+export function producerWaits(calls: readonly PendingCall[]): Waiting[] {
+  return calls.map(pending => ({ kind: 'producer', pending }))
 }
 
 export function toolCallOf<P>(access: Access<P>, pending: AssociatedToolCall): ToolCallId {
@@ -427,6 +464,54 @@ export function isToolReturnOf<K extends ReturnKind>(
     delivery.kind === entry.delivery.key.kind &&
     (kinds as readonly string[]).includes(delivery.kind)
   )
+}
+
+export const RETURN_KINDS = ['placeholder', 'result'] as const
+
+type DeliveryPorts<P> = Pick<AgentDependencies<P, ContentBlock>, 'entries' | 'materials'>
+
+/** The kept delivery of the action's call, of one of the kinds and checked against its binding; null when none is kept. */
+export async function toolDeliveryOf<P, K extends ReturnKind>(
+  ports: DeliveryPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  action: Action,
+  kinds: readonly K[],
+): Promise<Outcome<ReceivedToolDelivery<K> | null, Failure>> {
+  const pending = toolCall(action)
+  if (pending === null) return succeed(null)
+  const consumption = pending.consumption
+  const received = await ports.entries.receivedOf({ ...access, execution, consumption })
+  if ('failure' in received) return received
+  const found = toolReceivedOf(received.ok, pending, kinds)
+  if (found === undefined) return succeed(null)
+  const { material: source, ...expected } = found
+  const material = await ports.materials.read({ ...access, source })
+  if ('failure' in material) return material
+  const delivery = readToolDeliveryMaterial(access, material.ok, expected)
+  if (!isToolReturnOf(delivery, kinds, found))
+    return fail({
+      kind: 'invalid',
+      field: 'received.material',
+      reason: 'invalid schema or original binding',
+    })
+  return succeed({ entry: found, delivery, pending })
+}
+
+/** Whether a call the batch still waits on already has its placeholder or result kept. */
+export async function anyToolReceived<P>(
+  ports: DeliveryPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  batch: ActionBatch,
+): Promise<Outcome<boolean, Failure>> {
+  for (const action of batch.actions) {
+    if (slotOf(batch, action.id)?.kind !== 'dispatched') continue
+    const received = await toolDeliveryOf(ports, access, execution, action, RETURN_KINDS)
+    if ('failure' in received) return received
+    if (received.ok !== null) return succeed(true)
+  }
+  return succeed(false)
 }
 
 /** The slot a kept placeholder or result fills, and the produced result it records. */
@@ -511,6 +596,20 @@ function toolMessageId(execution: AgentExecutionId, action: Action): Message['id
   return `msg_${body.slice(0, 40)}_tool` as Message['id']
 }
 
+function noticeOf(action: Action): readonly MessageBlock[] {
+  const { judgment } = action
+  const settled = judgment.kind === 'allowed' || judgment.kind === 'denied'
+  if (!settled || judgment.notice === undefined) return []
+  return [
+    {
+      kind: 'text',
+      id: `${action.id}/notice` as BlockId,
+      visibility: VISIBLE,
+      text: judgment.notice,
+    },
+  ]
+}
+
 function toolMessage(
   execution: AgentExecutionId,
   action: Action,
@@ -522,7 +621,11 @@ function toolMessage(
     visibility: VISIBLE,
     callId: action.original.callId,
   }
-  return { id: toolMessageId(execution, action), role: 'tool', blocks: [marker, ...body] }
+  return {
+    id: toolMessageId(execution, action),
+    role: 'tool',
+    blocks: [marker, ...body, ...noticeOf(action)],
+  }
 }
 
 export function toolResultCandidate(
@@ -566,30 +669,42 @@ export function uncheckedCandidate(execution: AgentExecutionId, action: Action):
   ])
 }
 
-export function deniedCandidate(execution: AgentExecutionId, action: Action): Message {
-  return toolMessage(execution, action, [
-    {
-      kind: 'text',
-      id: `${action.id}/denied` as BlockId,
-      visibility: VISIBLE,
-      text: 'The tool call was denied and did not run.',
-    },
-  ])
+const DENIALS: Readonly<Record<DenialCategory, string>> = {
+  rule: 'The tool call was denied by a rule or a prohibition and did not run.',
+  'not-released': 'The tool call did not run: the person did not allow it this time.',
+  prohibited:
+    'The tool call did not run: the person prohibited this capability, so later calls to it are denied too.',
+  'card-closed':
+    'The tool call did not run: its approval card was closed before the person answered.',
+  guidance:
+    'The tool call did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
 }
 
-export function guidedCandidate(
+/** The fixed message of a denial category; the person's own words follow only guidance. */
+export function deniedCandidate(
   execution: AgentExecutionId,
   action: Action,
-  words: string,
+  denial: Readonly<{ category: DenialCategory; words: string | null }>,
 ): Message {
+  const words =
+    denial.words !== null
+      ? [
+          {
+            kind: 'text' as const,
+            id: `${action.id}/guidance` as BlockId,
+            visibility: VISIBLE,
+            text: denial.words,
+          },
+        ]
+      : []
   return toolMessage(execution, action, [
     {
       kind: 'text',
       id: `${action.id}/denied` as BlockId,
       visibility: VISIBLE,
-      text: 'The tool call was denied and did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
+      text: DENIALS[denial.category],
     },
-    { kind: 'text', id: `${action.id}/guidance` as BlockId, visibility: VISIBLE, text: words },
+    ...words,
   ])
 }
 
@@ -615,6 +730,16 @@ export function refusedTool(
   }
 }
 
+export function dispatchedSlot(action: Action) {
+  return {
+    kind: 'dispatched' as const,
+    action: action.id,
+    each: null,
+    candidateDigest: null,
+    handoff: null,
+  }
+}
+
 export function deniedSlot(action: Action, evidence: DurableEvidence) {
   return {
     kind: 'denied' as const,
@@ -632,7 +757,6 @@ export function candidateDigest(message: Message): string {
 
 export type AdmittedAction = Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>
 
-/** An allowed call keeps its request before the batch is judged; a judged action stays as it is. */
 export async function preserveAllowed<P>(
   ports: Ports<P>,
   access: Access<P>,

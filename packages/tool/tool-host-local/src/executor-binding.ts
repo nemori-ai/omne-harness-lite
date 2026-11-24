@@ -32,6 +32,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration, type ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingRegistry, ToolBindingSelection } from './bindings.ts'
+import { noteCallFacts } from './entry-sources.ts'
 import {
   createLiveAuthorExecution,
   localAuthorEvidence,
@@ -128,6 +129,18 @@ function argumentsOf<P, E>(input: StartInput<P, E>, operation: ToolOperationSlot
   return argumentsValue.ok
 }
 
+function waitSchemasOf(contract: AuthorWait['contract']) {
+  return {
+    contract: contract.adoption,
+    request: contract.request.identity,
+    response: contract.response.identity,
+    requestMaxBytes: contract.request.maxBytes,
+    responseMaxBytes: contract.response.maxBytes,
+    expiry: 'forbidden' as const,
+    ...(contract.background === undefined ? {} : { background: contract.background }),
+  }
+}
+
 function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
   return (
     wait.kind === 'ask' &&
@@ -137,6 +150,12 @@ function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
         canonicalDigest(declared.adoption) === canonicalDigest(wait.contract.adoption),
     )
   )
+}
+
+// The executor of a source entry reads who calls from the context, in the first segment and in each resumed one.
+function noted<P>(scope: ToolExecutionScope, facts: CallAccess<P>): ToolExecutionScope {
+  noteCallFacts(scope.context, facts)
+  return scope
 }
 
 export function createLocalToolBindings<P, E, B extends ContentBlock>(
@@ -229,7 +248,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     fail({ kind: 'unavailable' as const, dependency: 'toolBindings', diagnostic })
 
   const withCapability = (input: StartInput<P, E>, scope: ToolExecutionScope) =>
-    dependencies.capability?.(input, scope) ?? scope
+    noted(dependencies.capability?.(input, scope) ?? scope, input)
 
   const launch = async (
     input: StartInput<P, E>,
@@ -289,14 +308,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     if (Buffer.byteLength(request) > contract.request.maxBytes)
       return 'the request of the segment wait exceeds the declared size'
     const key = startKey(input, input.start)
-    const schemas = {
-      contract: contract.adoption,
-      request: contract.request.identity,
-      response: contract.response.identity,
-      requestMaxBytes: contract.request.maxBytes,
-      responseMaxBytes: contract.response.maxBytes,
-      expiry: 'forbidden' as const,
-    }
+    const schemas = waitSchemasOf(contract)
     const waitId = segmentWait(input.start.operation)
     if ('failure' in waitId) return 'the start cannot name the wait of its segment'
     const kept = Buffer.from(state).toString('base64')

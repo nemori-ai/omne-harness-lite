@@ -33,6 +33,7 @@ function nth(n: number, items: readonly ExecutionItemRecord[]): ExecutionRecordW
     tenant: TENANT_A,
     session: sessionId(SESSION),
     execution: EXECUTION,
+    settledBy: null,
     expected: n === 1 ? null : String(n - 1),
     revision: String(n),
     published: String(n - 1),
@@ -47,6 +48,7 @@ function nth(n: number, items: readonly ExecutionItemRecord[]): ExecutionRecordW
         revision: String(n),
         receipt: evidence(`agent/${EXECUTION}/${String(n)}`),
         emittedThrough: '0',
+        acknowledged: '0',
         ended: null,
       },
     ],
@@ -121,6 +123,7 @@ describe('the migration execution-record/007-item', () => {
     expect(descriptor?.requires).toEqual([{ owner: 'execution-record', id: '006-fact-blob' }])
     const owner = materials.participants.find(item => item.participant === 'execution-record')
     expect(owner?.ownedTables).toContain('er_item')
+    expect(owner?.ownedTables).toContain('er_item_content')
   })
 })
 
@@ -159,7 +162,37 @@ describe('the items of an execution', () => {
       kind: 'items',
       published: '2',
       items: [{ family: 'intent', item: 'a1', open: false, pub: '2', body: { closed: true } }],
+      rest: [],
     })
+  })
+
+  it('takes an item of any size its publication carries, and reads it back whole', async () => {
+    const a = await session()
+    const text = 'x'.repeat(200_000)
+    expect(await publish(a, nth(1, [opened('answer', 'judge', { text })]))).toMatchObject({
+      kind: 'committed',
+    })
+    const found = await itemsOf(a, [{ family: 'answer', item: 'judge' }])
+    expect(found?.kind === 'items' ? found.items[0]?.body : null).toEqual({ text })
+  })
+
+  it('gives a page the items that fit its bytes, always the first, and names the rest', async () => {
+    const a = await session()
+    const big = (item: string) => opened('answer', item, { text: 'x'.repeat(2_200_000) })
+    await publish(a, nth(1, [big('a'), big('b'), big('c')]))
+    const keys = ['a', 'b', 'c', 'never'].map(item => ({ family: 'answer', item }))
+    const first = await itemsOf(a, keys)
+    if (first?.kind !== 'items') throw new Error('no page')
+    expect(first.items.map(item => item.item)).toEqual(['a', 'b'])
+    expect(first.rest).toEqual(keys.slice(2))
+    const second = await itemsOf(a, first.rest)
+    expect(second).toMatchObject({ kind: 'items', items: [{ item: 'c' }], rest: [] })
+
+    const page = await openItems(a)
+    if (page?.kind !== 'open') throw new Error('no page')
+    expect(page.items.map(item => item.item)).toEqual(['a', 'b'])
+    expect(page.next).toEqual({ family: 'answer', item: 'b' })
+    expect(await openItems(a, page.next)).toMatchObject({ items: [{ item: 'c' }], next: null })
   })
 
   it('refuses the whole publication when it opens a key the execution already holds, open or closed', async () => {
@@ -265,6 +298,39 @@ describe('the items of an execution', () => {
     ])
   })
 
+  it('reads the items under a key prefix, closed ones too, and no item of another prefix', async () => {
+    const a = await session()
+    const key = (consumption: string, version: string) => JSON.stringify([consumption, version])
+    await publish(
+      a,
+      nth(1, [
+        opened('result', key('c1', 'placeholder')),
+        opened('result', key('c1', 'v1')),
+        opened('result', key('c10', 'v1')),
+        opened('result', key('c2', 'v1')),
+        opened('intent', key('c1', 'v1')),
+      ]),
+    )
+    await publish(a, nth(2, [changed('result', key('c1', 'placeholder'), false)]))
+    const under = async (prefix: string) => {
+      const page = decodeExecutionRecordOpenItems(
+        await read(a, 'execution-record.open-items', {
+          ...scope,
+          after: null,
+          families: ['result'],
+          all: true,
+          under: prefix,
+        }),
+      )
+      return page?.kind === 'open' ? page.items.map(item => [item.item, item.open]) : null
+    }
+    expect(await under('["c1",')).toEqual([
+      [key('c1', 'placeholder'), false],
+      [key('c1', 'v1'), true],
+    ])
+    expect(await under('["c3",')).toEqual([])
+  })
+
   it('answers an execution of another session as denied', async () => {
     const a = await session()
     await publish(a, nth(1, [opened('intent', 'a1')]))
@@ -319,6 +385,34 @@ describe('the content blocks by digest', () => {
       })),
       missing: [absent],
       rest: [],
+    })
+  })
+
+  it('keeps the content of an item by its key, outside the shared blocks, until a publication discards it', async () => {
+    const a = await session()
+    const payload = '{"request":"r1"}'
+    const content = { family: 'material', item: 'm1', payload }
+    await publish(a, { ...nth(1, [opened('material', 'm1')]), contents: [content] })
+    const rows = (sql: string) => Number(a.provider.select('dom_0', sql).rows[0]?.[0] ?? -1)
+    expect(rows('SELECT COUNT(*) FROM er_item_content')).toBe(1)
+    expect(rows(`SELECT COUNT(*) FROM sl_blob WHERE digest = '${blobDigest(payload)}'`)).toBe(0)
+    expect(await itemsOf(a, [{ family: 'material', item: 'm1' }])).toMatchObject({
+      items: [{ family: 'material', item: 'm1', open: true, content: payload }],
+    })
+    expect(await openItems(a)).toMatchObject({ items: [{ item: 'm1', content: payload }] })
+    await publish(a, {
+      ...nth(2, [changed('material', 'm1', false)]),
+      discards: [{ family: 'material', item: 'm1' }],
+    })
+    expect(rows('SELECT COUNT(*) FROM er_item_content')).toBe(0)
+    expect(rows(`SELECT COUNT(*) FROM er_item WHERE item = 'm1'`)).toBe(1)
+    const read = await itemsOf(a, [{ family: 'material', item: 'm1' }])
+    expect(read?.kind === 'items' ? read.items[0] : null).toEqual({
+      family: 'material',
+      item: 'm1',
+      open: false,
+      pub: '2',
+      body: { item: 'm1', open: false },
     })
   })
 })

@@ -2,12 +2,7 @@ import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { it, expect } from 'vitest'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import { judgeMessage } from '@omne-harness/message'
-import {
-  declareTools,
-  project,
-  chooseRepresentations,
-  coverageSchema,
-} from '@omne-harness/request-context-contract'
+import { declareTools, project, coverageSchema } from '@omne-harness/request-context-contract'
 import type { ToolAdoption } from '@omne-harness/request-context-contract'
 import { createMemoryHistorySource } from '@omne-harness/request-context-contract/testing'
 import {
@@ -163,39 +158,6 @@ it('projection preserves reasoning payload, rewrites at indices and removes dang
     })
   }
 })
-it('tool media references remain deferred without reading or converting content', () => {
-  const r = row()
-  const marker = judgeBlockIdentity({ id: 'marker', visibility: { toModel: true, toHuman: true } })
-  if ('rejected' in marker) throw new Error('Fixture')
-  const message = judgeMessage({
-    role: 'tool',
-    id: r.message.id,
-    blocks: [
-      { kind: 'tool_result', ...marker.ok, callId: 'c' },
-      {
-        kind: 'image',
-        id: 'media',
-        visibility: { toModel: true, toHuman: true },
-        ref: { storage: 's', key: 'k', mediaType: 'image/png', bytes: '123', digest: 'original' },
-        transcript: null,
-      },
-    ],
-  })
-  if ('rejected' in message) throw new Error(message.rejected)
-  const f = fixture()
-  const result = chooseRepresentations({
-    messages: [message.ok],
-    conversions: new Map(),
-    modalities: ['text'],
-    policy: f.policies.representation,
-  })
-  expect(result.kind).toBe('chosen')
-  if (result.kind === 'chosen') {
-    expect(result.choices[0]?.choice).toBe('pending-load')
-    expect(result.deferred).toHaveLength(1)
-    expect(result.messages[0]).toEqual(message.ok)
-  }
-})
 it('pagination retains the identical evidence and never concatenates old epoch pages', async () => {
   const f = fixture()
   const seen: unknown[] = []
@@ -220,64 +182,6 @@ it('pagination retains the identical evidence and never concatenates old epoch p
   expect(result.kind).toBe('candidate-before-extension')
   expect(seen).toHaveLength(2)
   expect(seen[0]).toBe(seen[1])
-})
-it('snapshot reminder is byte-identical and anchored across incremental reads', async () => {
-  const f = fixture()
-  const material = {
-    scope,
-    eligibility: { eligibility: 'e' },
-    revision: 1,
-    blocks: [
-      {
-        key: 'context.test' as const,
-        revision: 1,
-        value: { z: 1, a: 2 },
-        previous: null,
-        volatility: 'stable' as const,
-      },
-    ],
-  }
-  const first = await assemble(
-    { ...f.input, contextRead: { ...f.input.contextRead, snapshot: material } },
-    f.ports,
-    f.policies,
-  )
-  if (first.kind !== 'candidate-before-extension') throw new Error(first.kind)
-  const second = await assemble(
-    {
-      ...f.input,
-      adopted: adoptedOf(first.candidate),
-      contextRead: {
-        ...f.input.contextRead,
-        snapshot: material,
-        read: {
-          kind: 'success',
-          registration: { issued: 0, current: 0 },
-          value: {
-            scope,
-            from: 1,
-            to: 2,
-            cursor: { cursor: 'c' },
-            entries: [],
-            missing: [],
-            perRequest: [],
-          },
-        },
-      },
-    },
-    f.ports,
-    f.policies,
-  )
-  if (second.kind !== 'candidate-before-extension') throw new Error(second.kind)
-  expect(second.candidate.layers.snapshotReminder.message).toEqual(
-    first.candidate.layers.snapshotReminder.message,
-  )
-  expect(second.candidate.layers.snapshotReminder.anchor).toEqual(
-    first.candidate.layers.snapshotReminder.anchor,
-  )
-  expect(second.candidate.layers.snapshotReminder.message?.blocks[0]).toMatchObject({
-    text: '[{"key":"context.test","revision":1,"value":{"a":2,"z":1}}]',
-  })
 })
 it('new prompt and existing-layer extension immediately record prefix break reasons', async () => {
   const f = fixture()
@@ -369,36 +273,6 @@ it('history chained digest changes all later prefixes when an earlier row change
   expect(a.page.rows[1]?.prefixDigest).not.toBe(b.page.rows[1]?.prefixDigest)
 })
 
-it('runtime refusal distinguishes unauthorized from missing registration, closed, an ended scope and an unfinished replay', async () => {
-  const f = fixture()
-  for (const reason of [
-    'unauthorized',
-    'no-registration',
-    'closed',
-    'scope-ended',
-    'replay-incomplete',
-  ] as const) {
-    const result = await assemble(
-      { ...f.input, contextRead: { ...f.input.contextRead, read: { kind: 'refused', reason } } },
-      f.ports,
-      f.policies,
-    )
-    if (reason === 'unauthorized') expect(result).toMatchObject({ kind: 'denied' })
-    else
-      expect(result).toEqual({ kind: 'unavailable', owner: 'runtime-context', diagnostic: reason })
-  }
-})
-it('an unknown runtime read stays unknown with its cause, including the binding and replay causes', async () => {
-  const f = fixture()
-  for (const cause of ['scope-binding-unknown', 'replay-unknown', 'source-unknown'] as const) {
-    const result = await assemble(
-      { ...f.input, contextRead: { ...f.input.contextRead, read: { kind: 'unknown', cause } } },
-      f.ports,
-      f.policies,
-    )
-    expect(result).toEqual({ kind: 'unknown', source: 'read', diagnostic: cause })
-  }
-})
 it('headroom and fractional token margins are conservative and exact', async () => {
   const f = fixture()
   const b = f.budget('1.1')

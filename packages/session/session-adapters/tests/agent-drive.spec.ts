@@ -48,6 +48,7 @@ import {
   operationId,
   sessionId,
   userMessage,
+  TESTING_SOURCES,
 } from '@omne-harness/session-contract/testing'
 import { SessionService, sessionAgentDriveKey } from '@omne-harness/session-cordis-contract/cordis'
 import {
@@ -299,6 +300,7 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
         input: input.input,
         message: userMessage(`text of ${input.input}`),
         origin: evidence('origin'),
+        source: TESTING_SOURCES.person,
       })
     },
   }
@@ -1243,7 +1245,7 @@ describe('the two operations that have no Agent entry', () => {
   })
 })
 
-describe('loading and stopping on real Cordis 4.0.4', () => {
+describe('loading and stopping on real Cordis 4.1.0', () => {
   it('provides sessionAgentDrive with all five dependencies and removes it when it stops', async () => {
     const f = await assembled()
     expect(sessionAgentDriveKey).toBe('sessionAgentDrive')

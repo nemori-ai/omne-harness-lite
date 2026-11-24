@@ -1,4 +1,4 @@
-import type { ProducerFact, RoutedInput } from '@omne-harness/session-contract'
+import type { DeclarationChange, ProducerFact, RoutedInput } from '@omne-harness/session-contract'
 
 export type Citation = string & { readonly __citation: 'non-empty' }
 
@@ -13,18 +13,29 @@ export type SystemPurpose =
   | 'released-scopes'
   | 'pending-sessions'
   | 'scope-release-receive'
+  | 'session-create'
+  | 'session-input'
+  | 'input-fate'
   | 'agent-instance-publish'
   | 'agent-instance-quiesce'
   | 'agent-instance-withdraw'
 
 export type RoutedKind = RoutedInput['kind']
 export type ReceivedFactKind = ProducerFact['kind']
+export type DeclarationKind = DeclarationChange['kind']
 
 export type Branch =
   | Readonly<{ kind: 'routed'; kinds: readonly RoutedKind[] }>
   | Readonly<{ kind: 'fact'; kinds: readonly ReceivedFactKind[] }>
+  | Readonly<{ kind: 'declaration'; kinds: readonly DeclarationKind[] }>
 
-export type MemberCell = Readonly<{ verdict: 'member'; source: Citation; when?: Branch }>
+/** `reach: 'tenant'`: a work principal may target any session of its tenant, not only its own. */
+export type MemberCell = Readonly<{
+  verdict: 'member'
+  source: Citation
+  when?: Branch
+  reach?: 'tenant'
+}>
 export type MatrixCell = Readonly<{
   verdict: 'matrix'
   purpose: SystemPurpose
@@ -40,7 +51,11 @@ export type PolicyRow = Readonly<Record<PrincipalColumn, PolicyCell>>
 
 export type ResolvedCell = Omit<MemberCell, 'when'> | Omit<MatrixCell, 'when'> | DenyCell
 
-export type BranchInput = Readonly<{ routed?: RoutedKind; fact?: ReceivedFactKind }>
+export type BranchInput = Readonly<{
+  routed?: RoutedKind
+  fact?: ReceivedFactKind
+  declaration?: DeclarationKind
+}>
 
 function fits(branch: Branch, input: BranchInput): boolean {
   switch (branch.kind) {
@@ -48,6 +63,8 @@ function fits(branch: Branch, input: BranchInput): boolean {
       return input.routed !== undefined && branch.kinds.includes(input.routed)
     case 'fact':
       return input.fact !== undefined && branch.kinds.includes(input.fact)
+    case 'declaration':
+      return input.declaration !== undefined && branch.kinds.includes(input.declaration)
     default: {
       const _exhaustive: never = branch
       return _exhaustive
@@ -60,7 +77,7 @@ export function resolveCell(cell: PolicyCell, input: BranchInput): ResolvedCell 
   const { when, ...plain } = cell
   if (when === undefined) return cell
   if (fits(when, input)) return Object.freeze(plain)
-  const given = when.kind === 'routed' ? input.routed : input.fact
+  const given = input[when.kind]
   return Object.freeze({
     verdict: 'deny',
     basis: `the ${when.kind} branch ${given ?? '(absent)'} is outside the allowed kinds ${when.kinds.join(', ')}`,
@@ -81,15 +98,20 @@ const matrix = (purpose: SystemPurpose, source: string, when?: Branch): MatrixCe
       : { verdict: 'matrix', purpose, source: cite(source), when: freezeBranch(when) },
   )
 
+const tenantRead = (source: string): MemberCell =>
+  Object.freeze({ verdict: 'member', source: cite(source), reach: 'tenant' })
+
 const deny = (basis: string): DenyCell => Object.freeze({ verdict: 'deny', basis })
 
 function freezeBranch(branch: Branch): Branch {
-  return branch.kind === 'routed'
-    ? Object.freeze({ kind: 'routed', kinds: Object.freeze([...branch.kinds]) })
-    : Object.freeze({ kind: 'fact', kinds: Object.freeze([...branch.kinds]) })
+  return Object.freeze({ ...branch, kinds: Object.freeze([...branch.kinds]) }) as Branch
 }
 
-export const cell = Object.freeze({ member, matrix, deny })
+export const cell = Object.freeze({ member, tenantRead, matrix, deny })
+
+export function readsAcrossTenant(cell: PolicyCell): boolean {
+  return cell.verdict === 'member' && cell.reach === 'tenant'
+}
 
 export function row(login: PolicyCell, work: PolicyCell, system: PolicyCell): PolicyRow {
   return Object.freeze({ login, work, system })

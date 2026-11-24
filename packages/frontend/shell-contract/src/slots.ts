@@ -4,6 +4,7 @@ export const slots = {
   gate: { kind: 'one' },
   pages: { kind: 'list' },
   sidebar: { kind: 'list' },
+  float: { kind: 'list' },
   attached: { kind: 'list' },
 } as const
 
@@ -13,6 +14,9 @@ export type GateProps = Readonly<Record<never, never>>
 
 export type ScopedProps = Readonly<{ scope: string | undefined }>
 
+/** A page may be brought up on one object of its own, as a toast's action names it. */
+export type PageProps = Readonly<{ scope: string | undefined; subject?: string }>
+
 export type AttachedProps = Readonly<{ scope: string | undefined; subject: string }>
 
 export type GateItem = Readonly<{
@@ -20,19 +24,44 @@ export type GateItem = Readonly<{
   render: (props: GateProps) => ReactNode
 }>
 
+/** The part of the sidebar an item sits in: `primary` at the top, `utility` at the foot. */
+type SidebarGroup = 'primary' | 'utility'
+
 export type PageItem = Readonly<{
   id: string
   title: string
   order: number
-  icon?: string
+  /** A name in the icon set: all a page keeps when the sidebar folds to a rail. */
+  icon: string
+  group?: SidebarGroup
   badge?: (props: ScopedProps) => ReactNode
-  render: (props: ScopedProps) => ReactNode
+  render: (props: PageProps) => ReactNode
 }>
 
 export type SidebarItem = Readonly<{
   id: string
   order: number
+  group?: SidebarGroup
+  /** What the item draws when the sidebar folds to a rail; without it the rail leaves it out. */
+  rail?: (props: ScopedProps) => ReactNode
   render: (props: ScopedProps) => ReactNode
+}>
+
+export const FLOAT_GRIP_ATTRIBUTE = 'data-omne-float-grip'
+
+export type FloatCorner = Readonly<{ x: 'start' | 'end'; y: 'start' | 'end' }>
+
+export type FloatProps = Readonly<{
+  scope: string | undefined
+  grip: Readonly<{ [FLOAT_GRIP_ATTRIBUTE]: '' }>
+  corner: FloatCorner
+  dragging: boolean
+}>
+
+export type FloatItem = Readonly<{
+  id: string
+  order: number
+  render: (props: FloatProps) => ReactNode
 }>
 
 export type AttachedItem = Readonly<{
@@ -51,28 +80,39 @@ export type SlotItems = {
   gate: GateItem
   pages: PageItem
   sidebar: SidebarItem
+  float: FloatItem
   attached: AttachedItem
 }
 
 export type ItemOf<K extends SlotName> = SlotItems[K]
 
+/** One spot where two modules put different things: neither is drawn until one of them leaves. */
+export type SlotConflict = Readonly<{
+  slot: SlotName
+  anchor: string | undefined
+  id: string
+  by: readonly string[]
+}>
+
 export interface ShellSlots {
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[]
+  conflicts(slot: SlotName): readonly SlotConflict[]
   subscribe(slot: SlotName, listener: () => void): () => void
 }
 
-export type ShellAssemblyReason = 'occupied' | 'duplicate'
+export type ShellAssemblyReason = 'duplicate' | 'invalid'
+
+const SAID: Readonly<Record<ShellAssemblyReason, string>> = {
+  duplicate: 'this module already put an item there',
+  invalid: 'the item cannot be put there',
+}
 
 export class ShellAssemblyError extends Error {
   readonly slot: SlotName
   readonly id: string
   readonly reason: ShellAssemblyReason
-  constructor(slot: SlotName, id: string, reason: ShellAssemblyReason) {
-    super(
-      reason === 'occupied'
-        ? `slot ${slot} already holds an item; cannot place ${id}`
-        : `slot ${slot} already holds an item with id ${id}`,
-    )
+  constructor(slot: SlotName, id: string, reason: ShellAssemblyReason, detail: string) {
+    super(`slot ${slot}, item ${id}: ${SAID[reason]} (${detail})`)
     this.name = 'ShellAssemblyError'
     this.slot = slot
     this.id = id

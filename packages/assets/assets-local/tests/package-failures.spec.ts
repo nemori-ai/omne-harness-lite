@@ -101,13 +101,7 @@ function reader(
 function records(overrides: Partial<PackageRecords> = {}): PackageRecords {
   return {
     async publishAndHold(input) {
-      return {
-        kind: 'committed',
-        operationId: input.operationId,
-        revision: 1,
-        changed: true,
-        domainRevision: 1,
-      }
+      return { kind: 'committed', operationId: input.operationId, revision: 1, changed: true }
     },
     async readAssetRevision() {
       return { ok: 0 }
@@ -148,7 +142,12 @@ const publish = (
   from: PackageReader = reader(),
   operationId = 'publish-1',
 ) =>
-  packages.publish({ capability: report, from, operationId, holding: { sources: [], grants: [] } })
+  packages.publish({
+    capability: report,
+    from,
+    operationId,
+    holding: { holdingRef: 'held-report', sources: [], grants: [] },
+  })
 
 const placeOf = (root: string, version = VERSION) =>
   join(root, 'bundles', 'report', versionDirectoryName(version))
@@ -344,13 +343,7 @@ describe('publish while it stages and records', () => {
         },
         async publishAndHold(input) {
           asked.push(input)
-          return {
-            kind: 'committed',
-            operationId: input.operationId,
-            revision: 5,
-            changed: true,
-            domainRevision: 1,
-          }
+          return { kind: 'committed', operationId: input.operationId, revision: 5, changed: true }
         },
       },
       afterStep(step) {
@@ -363,7 +356,7 @@ describe('publish while it stages and records', () => {
       operationId: 'publish-1',
       assetRef: 'bundle/report',
       expectedRevision: 4,
-      holding: { holdingRef: 'bundle/report', scopeRef: 'tenant-a', sources: [], grants: [] },
+      holding: { holdingRef: 'held-report', scopeRef: 'tenant-a', sources: [], grants: [] },
     })
   })
 })

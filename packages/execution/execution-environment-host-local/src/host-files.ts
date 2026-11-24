@@ -6,7 +6,9 @@ import { dirname, isAbsolute } from 'node:path'
 import type {
   EnvironmentBinding,
   FacilityResult,
+  FileEffect,
   FileIdentity,
+  FilesScope,
   FileSystemFacility,
   FileVersion,
   HandleGeneration,
@@ -23,7 +25,11 @@ import {
 import { windowsSegmentsBelow } from './root-segments.ts'
 import { createMacosFiles } from './macos-files/facility.ts'
 import { createMacosBatch } from './macos-files/batch.ts'
-import { createMacosPaths, createMacosRootIdentity } from './macos-files/paths.ts'
+import {
+  createMacosPaths,
+  createMacosRootIdentity,
+  type RootIdentity as MacosIdentity,
+} from './macos-files/paths.ts'
 import { macosFilesPrerequisite } from './macos-files/prerequisite.ts'
 import {
   createCodes,
@@ -41,7 +47,10 @@ import {
   unknown,
   versionOf,
   type FileStats,
+  type CloseHandle,
+  type HostPathsCore,
   type Located,
+  type ScopedPaths,
 } from './host-paths.ts'
 
 export type { HostFilesLimits } from './host-file-tree.ts'
@@ -120,12 +129,12 @@ export type HostFilesEngine = Readonly<{
   facilityFor(owner: string): FileSystemFacility<unknown>
   closeOwned(owner: string): Promise<number>
   openCount(owner: string): number
-  readonly hasRoot: boolean
+  readonly scope: FilesScope
   seal(owner: string): void
 }>
 
 export type HostFilesEngineOptions = Readonly<{
-  root?: string
+  scope?: FilesScope
   stateDirectory?: string
   diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
 }>
@@ -139,25 +148,99 @@ function absolutePath(name: string, value: string | undefined): void {
     throw new TypeError(`${name} must be an absolute path`)
 }
 
+/** One value per effect, made once when both sides name the same root, so that root is recorded once. */
+function perEffect<T>(
+  scope: FilesScope,
+  make: (root: string | undefined) => T,
+): Readonly<Record<FileEffect, T>> {
+  const read = make(scope.read)
+  return { read, write: scope.write === scope.read ? read : make(scope.write) }
+}
+
+type CloseCheck = Readonly<{
+  paths: ScopedPaths
+  scope: FilesScope
+  macosRootIdentity: Readonly<
+    Record<FileEffect, (() => Promise<MacosIdentity | undefined>) | undefined>
+  >
+  macosPrerequisite(): Promise<boolean>
+}>
+
+type Below = (
+  check: CloseCheck,
+  requestId: string,
+  path: string,
+  effect: FileEffect,
+  root: string,
+) => Promise<FacilityResult<never> | undefined>
+
+const macosBelow: Below = async (check, requestId, path, effect) => {
+  const located = await createMacosPaths(check.macosRootIdentity[effect])(path)
+  if (!located.ok) return failed(requestId, located.failure, 'unresolved')
+  return (await check.macosPrerequisite()) ? undefined : reject(requestId, 'unavailable')
+}
+
+const windowsBelow: Below = async (_check, requestId, path, _effect, root) =>
+  (await windowsSegmentsBelow(root, path)) === undefined
+    ? reject(requestId, 'notAuthorized')
+    : undefined
+
+const descriptorBelow: Below = (check, requestId, path, effect) =>
+  gate(check.paths, requestId, [{ path, effect }])
+
+/** A handle is closed below either root of the scope: it was issued by a read or a write. */
+function createCloseCheck(check: CloseCheck) {
+  const platform =
+    process.platform === 'darwin'
+      ? macosBelow
+      : process.platform === 'win32'
+        ? windowsBelow
+        : descriptorBelow
+  const below = (requestId: string, path: string, effect: FileEffect) => {
+    const root = check.scope[effect]
+    return root === undefined ? undefined : platform(check, requestId, path, effect, root)
+  }
+  return async (requestId: string, path: string): Promise<FacilityResult<never> | undefined> => {
+    const refusal = await below(requestId, path, 'read')
+    return refusal === undefined || (await below(requestId, path, 'write')) === undefined
+      ? undefined
+      : refusal
+  }
+}
+
+/** The paths of each effect for one owner; a scope with one root binds it once. */
+function bindScoped(cores: Readonly<Record<FileEffect, HostPathsCore>>, close: CloseHandle) {
+  const read = cores.read.bind(close)
+  const write = cores.write === cores.read ? read : cores.write.bind(close)
+  const paths: ScopedPaths = effect => (effect === 'read' ? read : write)
+  return paths
+}
+
+/** The roots of a scope, checked and bound once per effect: the path cores and each platform's identities. */
+function scopedRoots(options: HostFilesEngineOptions) {
+  const scope: FilesScope = Object.freeze({ ...options.scope })
+  absolutePath('scope.read', scope.read)
+  absolutePath('scope.write', scope.write)
+  absolutePath('stateDirectory', options.stateDirectory)
+  const identities = <T>(make: (root: string) => T) =>
+    perEffect(scope, root => (root === undefined ? undefined : make(root)))
+  return {
+    scope,
+    cores: perEffect(scope, root =>
+      createHostPathsCore({ root, probeDirectory: options.stateDirectory }),
+    ),
+    // Lazy: an identity is taken only when the platform's backend first asks for it.
+    windowsRootIdentity: identities(createWindowsRootIdentity),
+    macosRootIdentity: identities(createMacosRootIdentity),
+  }
+}
+
 export function createHostFilesEngine(
   options: HostFilesEngineOptions = {},
   limits?: Partial<HostFilesLimits>,
 ): HostFilesEngine {
-  absolutePath('root', options.root)
-  absolutePath('stateDirectory', options.stateDirectory)
+  const { scope, cores, windowsRootIdentity, macosRootIdentity } = scopedRoots(options)
   const bounds = hostFilesLimits(limits)
-  const windowsRootIdentity =
-    process.platform === 'win32' && options.root !== undefined
-      ? createWindowsRootIdentity(options.root)
-      : undefined
-  const macosRootIdentity =
-    process.platform === 'darwin' && options.root !== undefined
-      ? createMacosRootIdentity(options.root)
-      : undefined
-  const core = createHostPathsCore({
-    root: options.root,
-    probeDirectory: options.stateDirectory,
-  })
   const macosPrerequisite = macosFilesPrerequisite(options.stateDirectory)
   const generation = randomUUID()
   const running = new Set<string>()
@@ -228,7 +311,8 @@ export function createHostFilesEngine(
       }
     }
 
-    const paths = core.bind(closeOrTrack)
+    const paths = bindScoped(cores, closeOrTrack)
+    const closeCheck = createCloseCheck({ paths, scope, macosRootIdentity, macosPrerequisite })
     const tree = createHostFileTree({
       paths,
       limits: bounds,
@@ -278,8 +362,9 @@ export function createHostFilesEngine(
       requestId: string,
       opening: string,
       flags: number,
+      effect: FileEffect,
     ): Promise<FileHandle | FacilityResult<never>> {
-      const located = await paths.locate(opening)
+      const located = await paths(effect).locate(opening)
       if (!located.ok) return failed(requestId, located.failure, 'unresolved')
       try {
         return await openLastSegment(requestId, located.value, flags)
@@ -303,18 +388,19 @@ export function createHostFilesEngine(
       requestId: string,
       path: string,
       flags: number,
+      effect: FileEffect,
     ): Promise<FileHandle | FacilityResult<never>> {
       const opening = pathWithoutTrailingSlash(path)
-      if (!paths.rooted) {
+      if (!paths(effect).rooted) {
         try {
           return await open(opening, flags | (noFollow ?? 0))
         } catch (error) {
           return openFailure(requestId, error)
         }
       }
-      const refusal = await gate(paths, requestId, [path])
+      const refusal = await gate(paths, requestId, [{ path, effect }])
       if (refusal !== undefined) return refusal
-      return openBelowRoot(requestId, opening, flags)
+      return openBelowRoot(requestId, opening, flags, effect)
     }
 
     function slashOnNonDirectory(path: string, stat: FileStats): boolean {
@@ -323,8 +409,8 @@ export function createHostFilesEngine(
 
     /** A file with a second name may be one outside the root. The count is read from the open
      *  descriptor, so the check cannot race with the open. */
-    function sharedBelowRoot(content: boolean, stat: FileStats): boolean {
-      return paths.rooted && content && stat.isFile() && stat.nlink > 1n
+    function sharedBelowRoot(content: boolean, stat: FileStats, effect: FileEffect): boolean {
+      return paths(effect).rooted && content && stat.isFile() && stat.nlink > 1n
     }
 
     async function checkOpened(
@@ -333,6 +419,7 @@ export function createHostFilesEngine(
       path: string,
       namedToken: string,
       content: boolean,
+      effect: FileEffect,
     ): Promise<OpenedNamed | Refusal> {
       const stat = await handle.stat({ bigint: true })
       const object = tokenOf(stat)
@@ -340,7 +427,7 @@ export function createHostFilesEngine(
       if (refused !== undefined) return refused
       if (slashOnNonDirectory(path, stat)) return { kind: 'unresolved', requestId }
       if (object.token !== namedToken) return reject(requestId, 'conflict')
-      if (sharedBelowRoot(content, stat)) return reject(requestId, 'notAuthorized')
+      if (sharedBelowRoot(content, stat, effect)) return reject(requestId, 'notAuthorized')
       return { kind: 'handle', handle, object, stat }
     }
 
@@ -350,15 +437,16 @@ export function createHostFilesEngine(
       namedToken: string,
       bindingKind: EnvironmentBinding['kind'],
       flags: number,
+      effect: FileEffect,
       content = false,
     ): Promise<OpenedNamed | FacilityResult<never>> {
       const early = namedRefusal(requestId, path, namedToken, bindingKind)
       if (early !== undefined) return early
-      const handle = await openPath(requestId, path, flags)
+      const handle = await openPath(requestId, path, flags, effect)
       if ('kind' in handle) return handle
       let checked: OpenedNamed | Refusal
       try {
-        checked = await checkOpened(requestId, handle, path, namedToken, content)
+        checked = await checkOpened(requestId, handle, path, namedToken, content, effect)
       } catch {
         checked = unknown(requestId)
       }
@@ -421,6 +509,7 @@ export function createHostFilesEngine(
         namedToken,
         bindingKind,
         constants.O_RDWR,
+        'write',
         true,
       )
       if (opened.kind !== 'handle') return opened
@@ -477,9 +566,9 @@ export function createHostFilesEngine(
       namedToken: string,
       bytes: Uint8Array,
     ): Promise<FacilityResult<FileIdentity>> {
-      const refusal = await gate(paths, requestId, [path])
+      const refusal = await gate(paths, requestId, [{ path, effect: 'write' }])
       if (refusal !== undefined) return refusal
-      const located = await paths.locate(path)
+      const located = await paths('write').locate(path)
       if (!located.ok) return failed(requestId, located.failure, 'notFound')
       const { parent, name, isRoot } = located.value
       let created: FileHandle
@@ -513,7 +602,7 @@ export function createHostFilesEngine(
       if (namedToken === '') return reject(requestId, 'notAuthorized')
       if (path.length > 1 && path.endsWith('/')) return reject(requestId, 'invalidInput')
 
-      if (paths.rooted) return createBelowRoot(requestId, path, namedToken, bytes)
+      if (paths('write').rooted) return createBelowRoot(requestId, path, namedToken, bytes)
 
       const parentPath = dirname(path)
       const parent = await openNamed(
@@ -522,6 +611,7 @@ export function createHostFilesEngine(
         namedToken,
         bindingKind,
         constants.O_RDONLY | constants.O_DIRECTORY,
+        'write',
       )
       if (parent.kind === 'unresolved') return reject(requestId, 'notFound')
       if (parent.kind !== 'handle') return parent
@@ -562,6 +652,7 @@ export function createHostFilesEngine(
           namedToken,
           bindingKind,
           constants.O_RDONLY,
+          'read',
           true,
         )
         if (opened.kind !== 'handle') return opened
@@ -600,7 +691,14 @@ export function createHostFilesEngine(
         const namedToken = request.named === null ? '' : request.named.token
         const bindingKind = request.binding.kind
         await drainPendingClose()
-        const opened = await openNamed(requestId, path, namedToken, bindingKind, constants.O_RDONLY)
+        const opened = await openNamed(
+          requestId,
+          path,
+          namedToken,
+          bindingKind,
+          constants.O_RDONLY,
+          'read',
+        )
         if (opened.kind !== 'handle') return opened
 
         const handle = issue(opened.object)
@@ -653,21 +751,8 @@ export function createHostFilesEngine(
         if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
         if (!isHostPath(path)) return reject(requestId, 'invalidInput')
         if (named === null) return reject(requestId, 'notAuthorized')
-        if (paths.rooted) {
-          if (process.platform === 'darwin') {
-            const located = await createMacosPaths(macosRootIdentity)(path)
-            if (!located.ok) return failed(requestId, located.failure, 'unresolved')
-            if (!(await macosPrerequisite())) return reject(requestId, 'unavailable')
-          } else {
-            const refusal =
-              process.platform === 'win32' && options.root !== undefined
-                ? (await windowsSegmentsBelow(options.root, path)) === undefined
-                  ? reject(requestId, 'notAuthorized')
-                  : undefined
-                : await gate(paths, requestId, [path])
-            if (refusal !== undefined) return refusal
-          }
-        }
+        const refusal = await closeCheck(requestId, path)
+        if (refusal !== undefined) return refusal
         if (handleObject.token !== namedToken) return unknown(requestId)
 
         const key = issuedKey(returnedHandle)
@@ -698,8 +783,8 @@ export function createHostFilesEngine(
 
     if (process.platform === 'win32') {
       const windows = createWindowsFiles({
-        ...options,
-        ...(windowsRootIdentity === undefined ? {} : { rootIdentity: windowsRootIdentity }),
+        scope,
+        rootIdentity: windowsRootIdentity,
         limits: bounds,
         issue,
       })
@@ -726,7 +811,7 @@ export function createHostFilesEngine(
 
     if (process.platform === 'darwin') {
       const macos = createMacosFiles({
-        ...(macosRootIdentity === undefined ? {} : { rootIdentity: macosRootIdentity }),
+        rootIdentity: macosRootIdentity,
         limits: bounds,
         prerequisite: macosPrerequisite,
         issue,
@@ -740,7 +825,7 @@ export function createHostFilesEngine(
       const macosBatch = createMacosBatch({
         files: macos,
         prerequisite: macosPrerequisite,
-        ...(macosRootIdentity === undefined ? {} : { rootIdentity: macosRootIdentity }),
+        ...(macosRootIdentity.write === undefined ? {} : { rootIdentity: macosRootIdentity.write }),
         ...(options.stateDirectory === undefined ? {} : { stateDirectory: options.stateDirectory }),
         generation,
         running,
@@ -749,11 +834,11 @@ export function createHostFilesEngine(
       })
       operations.commitBatch = macosBatch.commitBatch
       operations.recoverBatch = macosBatch.recoverBatch
-      if (options.root !== undefined) {
+      if (scope.read !== undefined) {
         operations.read = macos.read
         operations.stat = macos.stat
-        operations.write = macos.write
       }
+      if (scope.write !== undefined) operations.write = macos.write
     }
 
     const unlessSealed =
@@ -787,7 +872,7 @@ export function createHostFilesEngine(
     facilityFor,
     closeOwned,
     openCount,
-    hasRoot: core.rooted,
+    scope,
     seal: (owner: string) => {
       sealed.add(owner)
     },

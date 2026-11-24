@@ -1,6 +1,7 @@
-import type { FinishIntent } from '@omne-harness/agent-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
+  DispatchInstants,
+  DispatchProgress,
   DispatchRecord,
   Lookup,
   ModelAttemptDiagnostic,
@@ -21,8 +22,11 @@ import type {
   SessionToolCallDiagnostic,
 } from '../view-types.ts'
 import type { HistoryEntry } from '@omne-harness/session-contract'
-import type { DiagnosticPage, ToolLookup } from '@omne-harness/tool-contract'
-import type { CallAccount, SourceAnswer } from './sources.ts'
+import type { DiagnosticPage, ToolStreamSelection } from '@omne-harness/tool-contract'
+import type { BlockAnswer } from './blocks.ts'
+import { member, textAt } from './json-tree.ts'
+import { readsOf } from './reads.ts'
+import type { CallAccount, RequestBlockChoice, SourceAnswer } from './sources.ts'
 
 export const PROJECTED_KINDS: readonly string[] = Object.freeze([
   'run.started',
@@ -50,18 +54,17 @@ const CONTROL_STATES = ['committed', 'propagating', 'reconciled'] as const
 const CALL_KINDS = ['model', 'tool'] as const
 const REFUSALS = ['denied', 'invalid', 'unsupported', 'capacity'] as const
 const FIT_REASONS = ['fixed', 'protected-floor', 'after-compaction'] as const
+const NODE_CATEGORIES = ['exception', 'invariant', 'unsupported-path', 'rejected'] as const
+const CONCLUSIONS = ['complete', 'fail', 'cancelled'] as const
+const PLAIN_FAILURES = [
+  'request-rejected',
+  'compaction-invalid',
+  'compaction-failed',
+  'message-rejected',
+  'extension-stop',
+  'guard',
+] as const
 const RELEASE_REASONS = ['ended', 'bounded', 'cancelled', 'released', 'superseded'] as const
-
-function member(value: JsonValue | undefined, key: string): JsonValue | undefined {
-  return value?.kind === 'object'
-    ? value.entries.find(entry => entry.key === key)?.value
-    : undefined
-}
-
-function textAt(value: JsonValue | undefined, ...path: readonly string[]): string | undefined {
-  const found = path.reduce<JsonValue | undefined>(member, value)
-  return found?.kind === 'string' ? found.value : undefined
-}
 
 function oneOf<T extends string>(value: string | undefined, set: readonly T[]): T | undefined {
   return set.find(item => item === value)
@@ -101,6 +104,7 @@ export type RunSkeleton = Readonly<{
   terminal: Readonly<{
     outcome: 'completed' | 'failed' | 'cancelled'
     record: string | null
+    end: JsonValue | null
   }> | null
   calls: readonly CallRegistration[]
   messages: ReadonlyMap<string, number>
@@ -192,8 +196,13 @@ const FOLDERS: Readonly<Record<string, Folder>> = {
   },
   'run.terminal': (draft, entry) => {
     const outcome = oneOf(textAt(entry.payload, 'terminal', 'outcome'), RUN_OUTCOMES)
-    if (outcome !== undefined)
-      draft.terminal = { outcome, record: textAt(entry.payload, 'cause', 'record') ?? null }
+    if (outcome === undefined) return
+    const end = member(entry.payload, 'end')
+    draft.terminal = {
+      outcome,
+      record: textAt(entry.payload, 'cause', 'record') ?? null,
+      end: end === undefined || end.kind === 'null' ? null : end,
+    }
   },
   'control.requested': (draft, entry) => {
     draft.controls.push(controlOf(entry, 'requested'))
@@ -276,16 +285,17 @@ export type ModelAnswers = Readonly<{
   lookup: SourceAnswer<Lookup>
   attempts: SourceAnswer<ModelDiagnosticsPage> | null
   dispatches: SourceAnswer<readonly DispatchRecord[]> | null
+  choices: SourceAnswer<readonly RequestBlockChoice[]> | null
 }>
 export type ToolAnswers = Readonly<{
-  lookup: SourceAnswer<ToolLookup>
+  current: SourceAnswer<ToolStreamSelection>
   account: SourceAnswer<CallAccount>
   diagnostics: SourceAnswer<DiagnosticPage>
 }>
 export type RunAnswers = Readonly<{
-  finish: SourceAnswer<FinishIntent | null> | null
   models: ReadonlyMap<string, ModelAnswers>
   tools: ReadonlyMap<string, ToolAnswers>
+  blocks: BlockAnswer | null
 }>
 export type Projected<T> = Readonly<{ value: T; gaps: readonly SessionDiagnosticGap[] }>
 
@@ -294,49 +304,53 @@ const unknown = (reason: SessionDiagnosticUnknown['reason']): SessionDiagnosticU
   reason,
 })
 
-function causeOf(finish: RunAnswers['finish']): SessionRunCause {
-  if (finish === null) return { kind: 'none' }
-  if (finish.kind === 'gap') return unknown(finish.reason)
-  const intent = finish.value
-  if (intent === null) return unknown('not-recorded')
-  const { failure } = intent
-  if (failure === null) return { kind: 'no-failure', conclusion: intent.conclusion.kind }
-  switch (failure.kind) {
-    case 'node-failed':
-      return {
-        kind: 'node-failed',
-        node: failure.node,
-        category: failure.category,
-        failureKind: failure.failureKind,
-      }
+const textOrNull = (value: JsonValue | undefined, key: string): string | null =>
+  textAt(value, key) ?? null
+
+function failureOf(failure: JsonValue): SessionRunCause {
+  const kind = textAt(failure, 'kind')
+  switch (kind) {
+    case 'node-failed': {
+      const category = oneOf(textAt(failure, 'category'), NODE_CATEGORIES)
+      const node = textAt(failure, 'node')
+      const failureKind = textAt(failure, 'failureKind')
+      return category === undefined || node === undefined || failureKind === undefined
+        ? unknown('unsupported')
+        : { kind, node, category, failureKind }
+    }
     case 'model-refused':
       return {
-        kind: 'model-refused',
-        failure: oneOf(failure.failure.kind, REFUSALS) ?? unknown('unsupported'),
+        kind,
+        failure: oneOf(textAt(failure, 'failure'), REFUSALS) ?? unknown('unsupported'),
       }
     case 'no-reply':
       return {
-        kind: 'no-reply',
-        cause: failure.fault?.cause ?? null,
-        upstreamStatus: failure.fault?.upstreamStatus ?? null,
+        kind,
+        cause: textOrNull(failure, 'cause'),
+        upstreamStatus: textOrNull(failure, 'upstreamStatus'),
       }
     case 'cannot-fit':
       return {
-        kind: 'cannot-fit',
-        reason: oneOf(failure.reason, FIT_REASONS) ?? unknown('unsupported'),
+        kind,
+        reason: oneOf(textAt(failure, 'reason'), FIT_REASONS) ?? unknown('unsupported'),
       }
-    case 'request-rejected':
-    case 'compaction-invalid':
-    case 'compaction-failed':
-    case 'message-rejected':
-    case 'extension-stop':
-    case 'guard':
-      return { kind: failure.kind }
     default: {
-      const exhaustive: never = failure
-      return exhaustive
+      const plain = oneOf(kind, PLAIN_FAILURES)
+      return plain === undefined ? unknown('unsupported') : { kind: plain }
     }
   }
+}
+
+function causeOf(terminal: NonNullable<RunSkeleton['terminal']>): SessionRunCause {
+  if (terminal.outcome === 'completed') return { kind: 'none' }
+  const { end } = terminal
+  if (end === null) return unknown('not-recorded')
+  const failure = member(end, 'failure')
+  if (failure === undefined || failure.kind === 'null') {
+    const conclusion = oneOf(textAt(end, 'conclusion'), CONCLUSIONS)
+    return conclusion === undefined ? unknown('unsupported') : { kind: 'no-failure', conclusion }
+  }
+  return failureOf(failure)
 }
 
 const millisecondsOf = (
@@ -345,6 +359,34 @@ const millisecondsOf = (
   duration.kind === 'known'
     ? { kind: 'known', milliseconds: duration.milliseconds }
     : { kind: 'unknown' }
+
+type SessionInstants = NonNullable<SessionModelAttemptDiagnostic['instants']>
+
+const instantOf = (instant: string | null): SessionInstants['sent'] =>
+  instant === null ? { kind: 'unknown' } : { kind: 'known', instant }
+
+function instantsOf(instants: DispatchInstants): SessionInstants {
+  return {
+    prepared: instantOf(instants.prepared),
+    sent: instantOf(instants.sent),
+    responseStarted: instantOf(instants.responseStarted),
+    firstContent: instantOf(instants.firstContent),
+    ended: instantOf(instants.ended),
+  }
+}
+
+type SessionProgress = NonNullable<
+  Extract<SessionModelCallDiagnostic['call'], { kind: 'found' }>['progress']
+>
+
+const progressOf = (progress: DispatchProgress): SessionProgress => ({
+  allowed: String(progress.allowed),
+  made: String(progress.made),
+  last:
+    progress.last === null
+      ? null
+      : { cause: progress.last.cause, upstreamStatus: progress.last.upstreamStatus },
+})
 
 type DispatchAccounts = (dispatch: string) => SessionModelAttemptDiagnostic['account']
 
@@ -370,9 +412,27 @@ function dispatchAccountsOf(
   }
 }
 
+type Reasoning = NonNullable<SessionModelAttemptDiagnostic['reasoning']>
+
+// The receipt says whether the request carried reasoning back; no receipt is not knowing.
+function dispatchReasoningOf(
+  dispatches: ModelAnswers['dispatches'],
+): (dispatch: string) => Reasoning {
+  if (dispatches === null || dispatches.kind === 'gap') return () => 'unknown'
+  const receipts = new Map(
+    dispatches.value.map(record => [record.dispatch as string, record.materialization?.receipt]),
+  )
+  return dispatch => {
+    const receipt = receipts.get(dispatch)
+    if (receipt === undefined) return 'unknown'
+    return receipt.replayCarried === true ? 'carried' : 'not-carried'
+  }
+}
+
 function attemptOf(
   attempt: ModelAttemptDiagnostic,
   accounts: DispatchAccounts,
+  reasoning: (dispatch: string) => Reasoning,
 ): SessionModelAttemptDiagnostic {
   const { adapter, outcome } = attempt
   return {
@@ -390,12 +450,16 @@ function attemptOf(
       outcome.kind === 'failed'
         ? { kind: 'failed', cause: outcome.cause, upstreamStatus: outcome.upstreamStatus }
         : outcome,
+    instants: instantsOf(attempt.instants),
     timing: {
       materialize: millisecondsOf(attempt.timing.materialize),
+      sendToResponse: millisecondsOf(attempt.timing.sendToResponse),
       sendToFirstContent: millisecondsOf(attempt.timing.sendToFirstContent),
       execution: millisecondsOf(attempt.timing.execution),
     },
+    connectRetries: [...attempt.connectRetries],
     account: accounts(attempt.dispatch),
+    reasoning: reasoning(attempt.dispatch),
   }
 }
 
@@ -416,10 +480,11 @@ function attemptsOf(
     gaps.push({ source: 'model', subject: reference, reason: 'retention-expired' })
   if (page.next !== null) gaps.push({ source: 'model', subject: reference, reason: 'truncated' })
   const accounts = dispatchAccountsOf(reference, answers.dispatches)
+  const reasoning = dispatchReasoningOf(answers.dispatches)
   gaps.push(...accounts.gaps)
   return {
     value: {
-      dispatches: page.entries.map(attempt => attemptOf(attempt, accounts.value)),
+      dispatches: page.entries.map(attempt => attemptOf(attempt, accounts.value, reasoning)),
       coverage: page.coverage,
     },
     gaps,
@@ -430,29 +495,39 @@ function modelCallOf(
   call: CallRegistration,
   answers: ModelAnswers | undefined,
   facts: readonly SessionFactCount[],
+  blocks: BlockAnswer | null,
 ): Projected<SessionModelCallDiagnostic> {
   const reference = call.reference ?? call.position
   const base = { reference, purpose: call.purpose, facts } as const
   const lookup = answers?.lookup ?? { kind: 'gap', reason: 'not-recorded' }
+  const none = { dispatches: [], coverage: 'unknown', reads: [] } as const
   if (lookup.kind === 'gap')
     return {
-      value: { ...base, call: unknown(lookup.reason), dispatches: [], coverage: 'unknown' },
+      value: { ...base, call: unknown(lookup.reason), ...none },
       gaps: [{ source: 'model', subject: reference, reason: lookup.reason }],
     }
   if (lookup.value.kind === 'not-accepted')
     return {
-      value: { ...base, call: unknown('not-accepted'), dispatches: [], coverage: 'unknown' },
+      value: { ...base, call: unknown('not-accepted'), ...none },
       gaps: [{ source: 'model', subject: reference, reason: 'not-accepted' }],
     }
   const { state } = lookup.value
-  const attempts = attemptsOf(reference, answers ?? { attempts: null, dispatches: null })
+  const given = answers ?? { attempts: null, dispatches: null, choices: null }
+  const attempts = attemptsOf(reference, given)
+  const reads = readsOf(reference, given, blocks)
   return {
     value: {
       ...base,
-      call: { kind: 'found', call: state.call, phase: state.phase },
+      call: {
+        kind: 'found',
+        call: state.call,
+        phase: state.phase,
+        ...(state.attempts === undefined ? {} : { progress: progressOf(state.attempts) }),
+      },
       ...attempts.value,
+      reads: reads.value,
     },
-    gaps: attempts.gaps,
+    gaps: [...attempts.gaps, ...reads.gaps],
   }
 }
 
@@ -479,10 +554,9 @@ function accountViewOf(account: CallAccount): SessionCallAccountView {
   }
 }
 
-function toolStateOf(lookup: ToolAnswers['lookup']): SessionToolCallDiagnostic['state'] {
-  if (lookup.kind === 'gap') return unknown(lookup.reason)
-  if (lookup.value.kind === 'not-accepted') return unknown('not-accepted')
-  const { state } = lookup.value
+function toolStateOf(current: ToolAnswers['current']): SessionToolCallDiagnostic['state'] {
+  if (current.kind === 'gap') return unknown(current.reason)
+  const { state } = current.value
   const terminal = state.phase === 'settled' ? state.terminal : null
   return {
     kind: 'found',
@@ -518,24 +592,22 @@ function toolCallOf(
   facts: readonly SessionFactCount[],
 ): Projected<SessionToolCallDiagnostic> {
   const reference = call.reference ?? call.position
-  const lookup = answers?.lookup ?? { kind: 'gap', reason: 'not-recorded' }
+  const current = answers?.current ?? { kind: 'gap', reason: 'not-recorded' }
   const account = answers?.account ?? { kind: 'gap', reason: 'not-recorded' }
   const diagnostics = toolDiagnosticsOf(
     reference,
     answers?.diagnostics ?? { kind: 'gap', reason: 'not-recorded' },
   )
   const gaps: SessionDiagnosticGap[] = []
-  if (lookup.kind === 'gap')
-    gaps.push({ source: 'tool', subject: reference, reason: lookup.reason })
-  else if (lookup.value.kind === 'not-accepted')
-    gaps.push({ source: 'tool', subject: reference, reason: 'not-accepted' })
+  if (current.kind === 'gap')
+    gaps.push({ source: 'tool', subject: reference, reason: current.reason })
   if (account.kind === 'gap')
     gaps.push({ source: 'tool', subject: reference, reason: account.reason })
   gaps.push(...diagnostics.gaps)
   return {
     value: {
       reference,
-      state: toolStateOf(lookup),
+      state: toolStateOf(current),
       account: account.kind === 'gap' ? unknown(account.reason) : accountViewOf(account.value),
       facts,
       diagnostics: diagnostics.value,
@@ -600,10 +672,9 @@ export function projectRun(
   answers: RunAnswers,
 ): Projected<SessionRunDiagnostic> {
   const gaps: SessionDiagnosticGap[] = []
-  if (answers.finish?.kind === 'gap')
-    gaps.push({ source: 'agent', subject: skeleton.execution, reason: answers.finish.reason })
-  else if (answers.finish?.kind === 'value' && answers.finish.value === null)
-    gaps.push({ source: 'agent', subject: skeleton.execution, reason: 'not-recorded' })
+  const ending = skeleton.terminal
+  if (ending !== null && ending.outcome !== 'completed' && ending.end === null)
+    gaps.push({ source: 'session', subject: skeleton.run, reason: 'not-recorded' })
   const calls = skeleton.calls.slice(0, projected)
   const facts = attributeFacts(skeleton, calls)
   const modelCalls: SessionModelCallDiagnostic[] = []
@@ -611,7 +682,7 @@ export function projectRun(
   for (const call of calls) {
     const own = facts.byCall.get(call.position) ?? []
     if (call.kind === 'model') {
-      const one = modelCallOf(call, answers.models.get(call.position), own)
+      const one = modelCallOf(call, answers.models.get(call.position), own, answers.blocks)
       modelCalls.push(one.value)
       gaps.push(...one.gaps)
     } else {
@@ -636,7 +707,7 @@ export function projectRun(
           ? null
           : {
               outcome: terminal.outcome,
-              cause: { record: terminal.record, structured: causeOf(answers.finish) },
+              cause: { record: terminal.record, structured: causeOf(terminal) },
             },
       calls: { registered: String(skeleton.calls.length), projected: String(projected) },
       modelCalls,

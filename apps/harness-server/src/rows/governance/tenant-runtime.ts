@@ -1,4 +1,5 @@
 import type { AssetsLocal } from '@omne-harness/assets-local'
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createPermissionBasisRead, type PermissionOrigins } from './permission-basis-read.ts'
 import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
@@ -7,7 +8,7 @@ import type { SessionPermissionLogin } from '../authorization/session-permission
 import type { ActingForTenantPrincipal, StandingDestinationResolver } from '@omne-harness/identity'
 import { access, tenantCodec } from '@omne-harness/legal-identity'
 import { GovernanceScopeSchema } from '@omne-harness/governance-contract'
-import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import type { ReadUnavailableReason, SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import type {
   ChangeSignal,
   SettingsBasis,
@@ -36,6 +37,8 @@ export type TenantGovernanceOptions = Omit<
     materials: SqlMaterialCatalog
     catalogPrincipal: ActingForTenantPrincipal
     permissionRelease?: () => ToolRelease
+    permissionDeclarations?: () => readonly PermissionDeclaration[]
+    permissionDeclared?: () => readonly PermissionDeclaration[]
     permissionOrigins?: () => PermissionOrigins | undefined
     login?: () => SessionPermissionLogin | undefined
     settings?: SessionPermissionSettingsResolver
@@ -97,6 +100,7 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     const handler = options.materials.readHandlers.find(
       item => item.handler === GOVERNANCE_PROJECTION_READ,
     )
+    let refused: ReadUnavailableReason | null = null
     const runtime = await createGovernanceLocal({
       ...options,
       metadata: reference(combinations.metadata),
@@ -108,6 +112,7 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
         read: async commands => {
           if (handler === undefined) return { kind: 'unavailable' }
           const read = await readProjection(options.storage, options.domain, handler, commands)
+          refused = read.kind === 'unavailable' ? read.reason : null
           return read.kind === 'completed' ? read : { kind: 'unavailable' }
         },
       },
@@ -120,20 +125,16 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     const { service } = runtime
     let closed = false
     const permissionBasis =
-      options.permissionRelease === undefined || handler === undefined
+      options.permissionDeclarations === undefined || handler === undefined
         ? undefined
         : createPermissionBasisRead({
             scope: options.scope,
-            release: options.permissionRelease,
+            declarations: options.permissionDeclarations,
             storage: options.storage,
             domain: options.domain,
             epoch: runtime.epoch,
             identity: options.identity,
             read: handler,
-            conditions: {
-              mapped: reference(combinations.toolStart),
-              unmapped: reference(combinations.toolStartUnmapped),
-            },
             origins: options.permissionOrigins ?? (() => undefined),
             accepting: () => !closed,
           })
@@ -160,6 +161,8 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
           mapped: reference(combinations.sessionMapped),
         },
       }),
+      /** Why the store refused the latest projection read; null when it answered. */
+      readRefusal: () => refused,
       close: () => {
         closed = true
         return runtime.close()
@@ -201,7 +204,7 @@ export function prepareTenantGovernance(input: TenantGovernanceOptions): TenantG
     ...input,
     scope: GovernanceScopeSchema.parse(input.scope),
     domain: structuredClone(input.domain),
-    grants: structuredClone(input.grants),
+    grants: typeof input.grants === 'function' ? input.grants : structuredClone(input.grants),
     identity: { ...input.identity },
   }
   const combinations = governanceStorageCombinations(input.materials)

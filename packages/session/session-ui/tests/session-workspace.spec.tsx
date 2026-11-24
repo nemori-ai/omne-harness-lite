@@ -1,10 +1,12 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { parseInstant } from '@omne-harness/utc-instant'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { createFakeClient } from './fixtures/fake-client.ts'
+import { iconButton } from './fixtures/icon-button.ts'
+import { stubInView } from './fixtures/in-view.ts'
 import { mountModule } from './fixtures/shell.tsx'
-import { formatMoment } from '../src/view/moment.ts'
+import { formatInstant, formatRelative } from '@omne-harness/ui-kit'
 import {
   assistantEntry,
   deltaTree,
@@ -20,7 +22,10 @@ const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const SESSION = 'ses_main'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -57,11 +62,17 @@ it('主场景：新建会话、发一句话、流式回复、被历史替换、�
     message: { entries: { key: string; value: unknown }[] }
   }
   expect(body).toMatchObject({ session: SESSION })
-  expect(screen.getByText('发送中')).toBeTruthy()
+  const bubble = () => document.querySelector('article[data-pending]')
+  expect(bubble()?.getAttribute('data-pending')).toBe('sending')
+  expect(bubble()?.querySelector('.omne-message-body')?.textContent).toBe('你好')
+  expect(bubble()?.querySelector('.omne-message-note')).toBeNull()
+  expect(screen.queryByText('发送中')).toBeNull()
   expect((input as HTMLTextAreaElement).value).toBe('')
   send.answer({ outcome: 'succeeded', body: { recovered: false } })
   await settle()
-  expect(screen.getByText('已受理，等待写入会话')).toBeTruthy()
+  expect(bubble()?.getAttribute('data-pending')).toBe('accepted')
+  expect(bubble()?.querySelector('.omne-message-note')).toBeNull()
+  expect(screen.queryByText(/已受理/)).toBeNull()
 
   const idNode = body.message.entries.find(entry => entry.key === 'id')?.value as
     | { value: string }
@@ -75,7 +86,7 @@ it('主场景：新建会话、发一句话、流式回复、被历史替换、�
     body: page([userEntry('1', '2', '你好', messageId)], '3'),
   })
   await settle()
-  expect(screen.queryByText('已受理，等待写入会话')).toBeNull()
+  expect(bubble()).toBeNull()
 
   act(() => {
     observation.push({
@@ -90,8 +101,9 @@ it('主场景：新建会话、发一句话、流式回复、被历史替换、�
     })
   })
   await settle()
-  expect(screen.getByText('正在生成')).toBeTruthy()
-  expect(screen.getByText('正在生成').closest('article')?.textContent).toContain('正在回答你')
+  const reply = () => document.querySelector('article[data-live="true"]')
+  expect(reply()?.querySelector('.omne-message-body')?.textContent).toBe('正在回答你')
+  expect(screen.queryByText('正在生成')).toBeNull()
 
   fireEvent.change(input, { target: { value: '再说一句' } })
   expect((input as HTMLTextAreaElement).value).toBe('再说一句')
@@ -107,12 +119,13 @@ it('主场景：新建会话、发一句话、流式回复、被历史替换、�
     ),
   })
   await settle()
-  expect(screen.queryByText('正在生成')).toBeNull()
+  expect(reply()).toBeNull()
   expect(screen.getByText('正在回答你。')).toBeTruthy()
 
-  expect(screen.getByRole('button', { name: '停止' }).getAttribute('title')).toBe(
-    '停止这一轮。还没答的问题会一起关掉。',
-  )
+  const stopButton = screen.getByRole('button', { name: '停止' })
+  expect(
+    document.getElementById(stopButton.getAttribute('aria-describedby') ?? '')?.textContent,
+  ).toBe('停止这一轮。还没答的问题会一起关掉。')
   fireEvent.click(screen.getByRole('button', { name: '停止' }))
   const cancel = await fake.next('cancel-run')
   expect(cancel.body).toMatchObject({ session: SESSION, run: 'run_1', urgency: 'graceful' })
@@ -124,7 +137,7 @@ it('主场景：新建会话、发一句话、流式回复、被历史替换、�
   expect(screen.queryByRole('button', { name: /停止/ })).toBeNull()
 })
 
-it('发送结果未知：显示未知，用同一个受理编号认回，不重发', async () => {
+it('发送结果未知：气泡下一行中性的字，用同一个受理编号认回，不重发；仍未知时带「再确认一次」', async () => {
   const fake = createFakeClient()
   await mountModule(fake.client, TENANT)
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
@@ -141,7 +154,9 @@ it('发送结果未知：显示未知，用同一个受理编号认回，不重�
   const send = await fake.next('send-input')
   send.answer({ outcome: 'uncertain' })
   await settle()
-  expect(screen.getByText('未知，正在确认')).toBeTruthy()
+  const note = () => document.querySelector('article[data-pending] .omne-message-note')
+  expect(note()?.textContent).toBe('发送的结果未知，正在确认。')
+  expect(note()?.getAttribute('data-tone')).toBeNull()
   const query = await fake.next('query-send-input')
   expect((query.body as { acceptId: string }).acceptId).toBe(
     (send.body as { acceptId: string }).acceptId,
@@ -149,7 +164,14 @@ it('发送结果未知：显示未知，用同一个受理编号认回，不重�
   expect(fake.calls.filter(call => call.operation === 'send-input')).toHaveLength(1)
   query.answer({ outcome: 'unknown' })
   await settle()
-  expect(screen.getByText('发送的结果仍然未知。可以再确认一次。')).toBeTruthy()
+  expect(note()?.textContent).toBe('发送的结果仍然未知。可以再确认一次。')
+  expect(note()?.getAttribute('data-tone')).toBeNull()
+  fireEvent.click(iconButton(note() as HTMLElement, '再确认一次', 'retry'))
+  const again = await fake.next('query-send-input')
+  expect((again.body as { acceptId: string }).acceptId).toBe(
+    (send.body as { acceptId: string }).acceptId,
+  )
+  expect(fake.calls.filter(call => call.operation === 'send-input')).toHaveLength(1)
 })
 
 it('StrictMode 下挂上、收掉、再挂上之后仍能用，只发一次建会话', async () => {
@@ -219,12 +241,12 @@ it('回复增长时，已提交的那几条在 DOM 里一点不变', async () =>
   }
   await settle()
   watcher.disconnect()
-  expect(screen.getByText('正在生成').closest('article')?.textContent).toContain(text)
+  expect(document.querySelector('article[data-live="true"]')?.textContent).toContain(text)
   expect(committed.isConnected).toBe(true)
   expect(mutations).toEqual([])
 })
 
-it('列表项有最近活动时刻时显示它，机读的值是那个 UTC 时刻', async () => {
+it('列表项有最近活动时刻时写成相对时间，机读的值是那个 UTC 时刻，精确的时刻在提示里', async () => {
   const fake = createFakeClient()
   await mountModule(fake.client, TENANT)
   const at = parseInstant('2026-11-13T07:00:00Z')
@@ -235,10 +257,12 @@ it('列表项有最近活动时刻时显示它，机读的值是那个 UTC 时�
   await settle()
   const time = screen.getByRole('navigation', { name: '会话列表' }).querySelector('time')
   expect(time?.getAttribute('datetime')).toBe('2026-11-13T07:00:00Z')
-  expect(time?.textContent).toBe(formatMoment(at.value))
+  expect(time?.textContent).toBe(formatRelative('2026-11-13T07:00:00Z', Date.now()))
+  expect(time?.getAttribute('title')).toBe(formatInstant('2026-11-13T07:00:00Z'))
 })
 
-it('列表项：无标题写「未命名的会话」与标识前 8 位，无时刻不显示，已冻结标出；更多接在后面', async () => {
+it('列表项：无标题写「未命名的会话」与标识前 8 位，无时刻不显示，已冻结标出；末尾进了视野就接着读', async () => {
+  const view = stubInView()
   const fake = createFakeClient()
   await mountModule(fake.client, TENANT)
   const first = await fake.next('list-sessions')
@@ -263,7 +287,8 @@ it('列表项：无标题写「未命名的会话」与标识前 8 位，无时�
   expect(list.querySelector('time')).toBeNull()
   expect(list.textContent).toContain('列表可能不全')
 
-  fireEvent.click(screen.getByRole('button', { name: '更多' }))
+  expect(screen.queryByRole('button', { name: '更多' })).toBeNull()
+  act(() => view.enter())
   const more = await fake.next('list-sessions')
   expect(more.body).toEqual({ tenant: expect.anything(), cursor: 'cur-2' })
   more.answer(listPage([listed('ses_c', '平常的'), listed('ses_d', '更早的')]))
@@ -271,7 +296,7 @@ it('列表项：无标题写「未命名的会话」与标识前 8 位，无时�
   expect(
     [...list.querySelectorAll('.omne-session-item-title')].map(node => node.textContent),
   ).toEqual(['未命名的会话 ses_1234', '冻住的', '平常的', '更早的'])
-  expect(screen.queryByRole('button', { name: '更多' })).toBeNull()
+  expect(view.watched()).toEqual([])
 })
 
 it('刷新之后：列表里点一个旧会话，看得到历史，能接着发消息，受理后列表重读', async () => {

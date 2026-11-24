@@ -12,8 +12,14 @@ import {
   type StopBasis,
 } from './facts.ts'
 import { commitBody } from './participant-body.ts'
-import { PARTICIPANT, PROTOCOL } from './schema.ts'
-import { oneRow, text } from './support.ts'
+import {
+  commitDefinitionPut,
+  definitionHeld,
+  ensureDefinitions,
+  releaseDefinitions,
+} from './participant-definitions.ts'
+import { LEDGER_READ_ROWS, PARTICIPANT, PROTOCOL } from './schema.ts'
+import { oneRow, rowsOf, text } from './support.ts'
 
 const participated = (answer: ParticipantAnswer): ParticipantReply => ({
   kind: 'participated',
@@ -34,10 +40,37 @@ function revisionOf(port: ParticipantPort, domain: readonly [string, string, str
 
 type Domain = readonly [tenant: string, kind: string, name: string]
 
+function unused(port: ParticipantPort, domain: Domain, key: string | null): string[] {
+  const rows =
+    key === null
+      ? rowsOf(
+          port,
+          `SELECT digest FROM tl_definition_use WHERE tenant = ? AND kind = ? AND name = ? LIMIT ?`,
+          [...domain, BigInt(LEDGER_READ_ROWS + 1)],
+        )
+      : rowsOf(
+          port,
+          `SELECT digest FROM tl_definition_use
+           WHERE tenant = ? AND kind = ? AND name = ? AND key = ? LIMIT 1`,
+          [...domain, key],
+        )
+  if (key === null)
+    port.execute('DELETE FROM tl_definition_use WHERE tenant = ? AND kind = ? AND name = ?', [
+      ...domain,
+    ])
+  else
+    port.execute(
+      'DELETE FROM tl_definition_use WHERE tenant = ? AND kind = ? AND name = ? AND key = ?',
+      [...domain, key],
+    )
+  return rows.map(row => text(row['digest']))
+}
+
 function put(
   port: ParticipantPort,
   domain: Domain,
   write: Extract<LedgerWriteFact, { op: 'put' }>,
+  released: string[],
 ): StopBasis | null {
   const record = packText(JSON.stringify(write.record))
   if (write.fixed?.kind === 'kept') {
@@ -54,6 +87,10 @@ function put(
     )
     return null
   }
+  const { definition } = write
+  if (definition !== undefined && !definitionHeld(port, domain[0], definition))
+    return { reason: 'definition-missing' }
+  released.push(...unused(port, domain, write.key))
   const fixed = write.fixed === undefined ? null : packText(JSON.stringify(write.fixed.value))
   port.execute(
     `INSERT INTO tl_record (tenant, kind, name, key, record, fixed) VALUES (?, ?, ?, ?, ?, ?)
@@ -61,7 +98,24 @@ function put(
      DO UPDATE SET record = excluded.record, fixed = excluded.fixed`,
     [...domain, write.key, record, fixed],
   )
+  if (definition !== undefined)
+    port.execute(
+      'INSERT INTO tl_definition_use (tenant, kind, name, key, digest) VALUES (?, ?, ?, ?, ?)',
+      [...domain, write.key, definition],
+    )
   return null
+}
+
+function drop(facts: LedgerFacts, port: ParticipantPort, domain: Domain): ParticipantReply {
+  if (facts.writes.length !== 1 || facts.revision !== INITIAL_REVISION)
+    return { kind: 'unsupported', basis: { reason: 'facts' } }
+  const released = unused(port, domain, null)
+  for (const table of ['tl_record', 'tl_due', 'tl_domain'])
+    port.execute(`DELETE FROM ${table} WHERE tenant = ? AND kind = ? AND name = ?`, [...domain])
+  if (facts.kind === 'call')
+    port.execute('DELETE FROM tl_pending WHERE tenant = ? AND call = ?', [facts.tenant, facts.name])
+  releaseDefinitions(port, facts.tenant, released)
+  return participated({ kind: 'committed' })
 }
 
 function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantReply {
@@ -71,28 +125,22 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
   for (const assertion of facts.asserts)
     if (revisionOf(port, [facts.tenant, assertion.kind, assertion.name]) !== assertion.revision)
       return stopped({ reason: 'assertion', current })
-  if (facts.writes.some(write => write.op === 'drop')) {
-    if (facts.writes.length !== 1 || facts.revision !== INITIAL_REVISION)
-      return { kind: 'unsupported', basis: { reason: 'facts' } }
-    for (const table of ['tl_record', 'tl_due', 'tl_domain'])
-      port.execute(`DELETE FROM ${table} WHERE tenant = ? AND kind = ? AND name = ?`, [...domain])
-    if (facts.kind === 'call')
-      port.execute('DELETE FROM tl_pending WHERE tenant = ? AND call = ?', [
-        facts.tenant,
-        facts.name,
-      ])
-    return participated({ kind: 'committed' })
-  }
+  if (facts.writes.some(write => write.op === 'drop')) return drop(facts, port, domain)
+  const ensured = ensureDefinitions(port, facts.tenant, facts.definitions)
+  if (ensured.kind === 'stopped') return stopped(ensured.basis)
+  if (ensured.kind === 'failed') return { kind: 'failed', diagnostic: ensured.diagnostic }
+  const released: string[] = []
   for (const write of facts.writes)
     switch (write.op) {
       case 'drop':
         throw new Error('a drop is handled before the other writes')
       case 'put': {
-        const stop = put(port, domain, write)
+        const stop = put(port, domain, write, released)
         if (stop !== null) return stopped(stop)
         break
       }
       case 'delete':
+        released.push(...unused(port, domain, write.key))
         port.execute(
           'DELETE FROM tl_record WHERE tenant = ? AND kind = ? AND name = ? AND key = ?',
           [...domain, write.key],
@@ -111,6 +159,23 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
           write.key,
         ])
         break
+      case 'usage':
+        port.execute(
+          `INSERT INTO tl_usage (tenant, call, started_at, consumer_owner, consumer_work, fact)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT (tenant, call) DO UPDATE SET started_at = excluded.started_at,
+             consumer_owner = excluded.consumer_owner, consumer_work = excluded.consumer_work,
+             fact = excluded.fact`,
+          [
+            facts.tenant,
+            write.call,
+            write.start,
+            write.owner,
+            write.work,
+            JSON.stringify(write.fact),
+          ],
+        )
+        break
       default: {
         const exhaustive: never = write
         return exhaustive
@@ -128,6 +193,7 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
     ])
   else if (facts.pending === false)
     port.execute('DELETE FROM tl_pending WHERE tenant = ? AND call = ?', [facts.tenant, facts.name])
+  releaseDefinitions(port, facts.tenant, released)
   return participated({ kind: 'committed' })
 }
 
@@ -144,6 +210,8 @@ const participant: ParticipantModule = {
       case 'body-seal':
       case 'body-delete':
         return commitBody(facts, port)
+      case 'definition-put':
+        return commitDefinitionPut(facts, port)
       default: {
         const exhaustive: never = facts
         return exhaustive

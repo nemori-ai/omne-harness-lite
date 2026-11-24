@@ -20,6 +20,8 @@ import {
   tenantA,
   tenantB,
   invokeAuthority,
+  knownDefinition,
+  fixedRequestForNamedSourceGuard,
   snapshotTestPrincipal,
   evidence,
   ok,
@@ -37,7 +39,11 @@ const input = (
 ) => ({ principal, tenant, request: payload })
 
 function paired(authority: ToolInvokeAuthority<Principal> = invokeAuthority()) {
-  const source = createTestInvocationSource({ authority, snapshotPrincipal: snapshotTestPrincipal })
+  const source = createTestInvocationSource({
+    authority,
+    snapshotPrincipal: snapshotTestPrincipal,
+    definition: knownDefinition,
+  })
   const base = testAssembly()
   const assembly = testAssembly({
     ...base.input,
@@ -648,7 +654,7 @@ describe('public persistent intent recovery over shared non-durable source and l
           tenant: tenantA,
           call: b.call,
           operation: b.admission,
-          request: { ...b.request, invocation: b.invocation },
+          request: fixedRequestForNamedSourceGuard({ ...b.request, invocation: b.invocation }),
         }),
       ).toMatchObject({ kind: 'unavailable' })
       failing = false

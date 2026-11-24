@@ -48,9 +48,13 @@ export type {
   ProducerRef,
   RecoveryTask,
   Relation,
+  Attendance,
+  SessionTree,
   ResidentTool,
   ResultConsumption,
   RoutedInput,
+  RunEnd,
+  RunFailure,
   RunState,
   RunTerminal,
   ScopeReleaseDisposition,
@@ -73,6 +77,7 @@ export type {
   HistoryEntry,
   HistoryPage,
   ModelViewBasis,
+  ForkPointRead,
   ModelViewRead,
   ModelViewRow,
   OperationResolution,
@@ -86,8 +91,11 @@ export type {
   SessionFailure,
   SessionHistory,
   ArchivedBy,
+  SessionListFilter,
   SessionListItem,
   SessionListPage,
+  SessionListRelation,
+  UnarchivedLifecycle,
   SessionManagement,
   SessionReconciliation,
   SessionWork,
@@ -130,6 +138,8 @@ export type {
   AgentDrivePort,
   CustodyEvidenceCommand,
   ProductionEvidenceCommand,
+  RunAdoption,
+  RunAdoptionInput,
   SessionAdoptionPlanAnswer,
   SessionAdoptionPlanInput,
   SessionAdoptionRecorded,
@@ -191,10 +201,41 @@ export {
   type RouteJudgment,
   type RunStartJudgment,
 } from './judgments.ts'
-export { decide, commandDigest } from './decide.ts'
-export { runCancelledBy } from './decision-support.ts'
+export { decide, commandDigest, runIdOf } from './decide.ts'
+export {
+  RELATIONS_TO_REFERENCE,
+  relationToReference,
+  type DirectoryStanding,
+  type RelationToReference,
+} from './directory-relation.ts'
+export {
+  MAX_SESSION_DEPTH,
+  childRecorded,
+  judgeStanding,
+  relatedOf,
+  relatedSessionOf,
+  standingOf,
+  type ChildRecord,
+  type RelatedSession,
+} from './standing.ts'
+export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts'
+export { cancellationDriveOf, runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'
-export { reduce } from './reduce.ts'
+export {
+  EMPTY_AUTHORIZATIONS,
+  incompleteAuthorization,
+  onceAuthorizationOf,
+  reduceAuthorizations,
+  retireOnce,
+  type AuthorizationConsumer,
+  type AuthorizationContext,
+  type AuthorizationExpression,
+  type AuthorizationScope,
+  type OnceAuthorization,
+  type SessionAuthorization,
+} from './authorizations.ts'
+export { batchCallKeys, reduce } from './reduce.ts'
+export { consumptionIdOf } from './decide-results.ts'
 export {
   decideCompactionCommit,
   projectCompactionCommit,
@@ -259,7 +300,22 @@ export type {
   SessionUninterpretedCall,
 } from './history-values.ts'
 export { uninterpretedCalls } from './uninterpreted-calls.ts'
+export { boundConsumptions, committedBindings, withoutCommitted } from './committed-bindings.ts'
+export type { CommittedBinding } from './committed-bindings.ts'
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
+export {
+  bindingOf,
+  boundCall,
+  callKeysIn,
+  callKeysOutside,
+  callWithLate,
+  lendCalls,
+  type SessionCallBinding,
+  type SessionCall,
+  type SessionCallKeys,
+  type SessionLateCallFact,
+  type SettledCallLookup,
+} from './call-settlement.ts'
 export { readCallRegistration } from './call-registration.ts'
 export type { CallRegistrationView } from './call-registration.ts'
 export { readRunBoundary } from './run-boundary.ts'
@@ -304,12 +360,45 @@ export {
   type DirectCallControl,
 } from './call-control.ts'
 export {
-  BACKGROUND_INPUT_OWNER,
   backgroundInputId,
   judgeBackgroundOutcome,
   type BackgroundOutcomeJudgment,
 } from './background-outcome.ts'
 export type { SessionIntakeLimits } from './intake.ts'
+export {
+  INTAKE_BUDGET_REQUIRED,
+  INTAKE_GUARD_OWNER,
+  admitDerived,
+  admitDerivedOf,
+  admitSource,
+  createInputSourceRegistry,
+  inputSourceName,
+  commandInput,
+  prepareEntriesTerms,
+  prepareIntakeTerms,
+  budgetTermsOf,
+  commitWithinBudget,
+  withIntakeTerms,
+  intakeTermsOf,
+  parseInputSourceName,
+  type AdmittedSource,
+  type DerivedAdmission,
+  type DerivedInputKind,
+  type InputSourceDeclaration,
+  type InputSourceLookup,
+  type InputSourceName,
+  type InputSourceRegistry,
+  type InputSources,
+  type IntakeBasis,
+  type IntakeSubject,
+  type SourceTerms,
+  type IntakeTerms,
+  type SessionDerivedInputs,
+  type SessionIntakeBudget,
+  type BudgetTerms,
+  type SourceAdmission,
+  type SourceRefusal,
+} from './input-sources.ts'
 export type {
   TodoItem,
   VisibleTodoItem,
@@ -341,3 +430,45 @@ export type {
   StopView,
 } from './background-calls.ts'
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts'
+export {
+  forkPointBefore,
+  forkPointText,
+  judgeForkPoint,
+  ownPositionAfter,
+  parseForkPoint,
+  type ForkFacts,
+  type ForkPoint,
+  type ForkPointJudgment,
+  type SessionFork,
+} from './fork.ts'
+export {
+  sourceRequestIdentities,
+  type SourceRequest,
+  type SourceRequestIdentities,
+} from './source-requests.ts'
+export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts'
+export {
+  PENDING_PAGE_LIMIT,
+  PENDING_PREVIEW_CHARS,
+  inputFateOfRows,
+  pendingAcceptances,
+  pendingInputOf,
+  pendingPageOf,
+  previewOf,
+  waitingCalls,
+  type PendingInput,
+  type PendingPage,
+  type WaitingCall,
+} from './intake-reads.ts'
+export {
+  createBeforeIntakeRegistry,
+  judgeIntakeBlocks,
+  originalContent,
+  screenInput,
+  type BeforeIntakeRegistry,
+  type IntakeBlockRefusal,
+  type IntakeProcessor,
+  type IntakeScreening,
+  type IntakeVerdict,
+  type Screened,
+} from './before-intake.ts'

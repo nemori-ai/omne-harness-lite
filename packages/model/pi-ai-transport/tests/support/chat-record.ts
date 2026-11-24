@@ -27,7 +27,7 @@ import type {
   ReplaySource,
   VendorHooks,
 } from '../../src/chat-completions/index.ts'
-import { recordAdoption, recordProvider } from '../../src/index.ts'
+import { recordAdoption, recordProvider, type PiModelRecordHead } from '../../src/index.ts'
 
 export const OWNER = '@omne-harness/pi-ai-engine-test'
 export const ROUTE: ChatCompletionsRecord['route'] = { provider: 'gateway', model: 'lab/model-a' }
@@ -115,7 +115,11 @@ export function testRecord(overrides: Partial<ChatCompletionsRecord> = {}): Chat
   }
 }
 
-export function supplierOf(record: ChatCompletionsRecord): Supplier {
+/** What the helpers below read of a record of any engine. */
+export type AnyRecord = PiModelRecordHead &
+  Readonly<{ replay: Pick<ChatCompletionsRecord['replay'], 'declaration'> }>
+
+export function supplierOf(record: AnyRecord): Supplier {
   return {
     adoption: recordAdoption(OWNER, record),
     provider: recordProvider(record),
@@ -188,7 +192,7 @@ export function testHooks(probe: EngineProbe, reasoning = true): VendorHooks {
   }
 }
 
-export function testMeter(record: ChatCompletionsRecord, probe: EngineProbe): FamilyMeter {
+export function testMeter(record: AnyRecord, probe: EngineProbe): FamilyMeter {
   const supplier = supplierOf(record)
   const basis: ModelCountingBasis = {
     supplier: { adoption: supplier.adoption, provider: supplier.provider, model: supplier.model },
@@ -229,6 +233,109 @@ export function textBlock(id: string, text: string, toModel = true): unknown {
 export function imageBlock(id: string, mediaType = 'image/png'): unknown {
   return { kind: 'image', id, visibility: SHOWN, mediaType, inline: 'iVBORw0KGgo=' }
 }
+
+export const PICTURE = {
+  storage: 'tests',
+  key: 'picture-1',
+  mediaType: 'image/png',
+  bytes: '4',
+  digest: 'd'.repeat(64),
+}
+/** An image block that refers to its bytes, measured as the intake leaves it. */
+export function pictureBlock(id: string, ref = PICTURE, extra: object = {}): unknown {
+  const facts = { kind: 'image', widthPixels: 640, heightPixels: 480 }
+  return { kind: 'image', id, visibility: SHOWN, ref, transcript: null, facts, ...extra }
+}
+export const PICTURE_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+/** What a media source read for a reference: its bytes, their type and their measure. */
+export function pictureRead(
+  reference = PICTURE,
+  mime = reference.mediaType,
+  bytes = PICTURE_BYTES,
+) {
+  const measurement = {
+    reference,
+    bytes: String(bytes.byteLength),
+    mediaType: mime,
+    kind: 'image' as const,
+    widthPixels: '640',
+    heightPixels: '480',
+  }
+  return { reference, mime, bytes, measurement }
+}
+
+export const SPEECH = {
+  storage: 'tests',
+  key: 'speech-1',
+  mediaType: 'audio/wav',
+  bytes: '4',
+  digest: 'e'.repeat(64),
+}
+/** A voice block that refers to its bytes, measured as the intake leaves it. */
+export function speechBlock(id: string, ref = SPEECH): unknown {
+  const facts = { kind: 'voice', durationMs: 1500, sampleRate: 16000, channels: 1 }
+  return { kind: 'voice', id, visibility: SHOWN, ref, transcript: null, facts }
+}
+export const SPEECH_BYTES = new Uint8Array([0x52, 0x49, 0x46, 0x46])
+/** What a media source read for a voice reference. */
+export function speechRead(reference = SPEECH, mime = reference.mediaType) {
+  const measurement = {
+    reference,
+    bytes: String(SPEECH_BYTES.byteLength),
+    mediaType: mime,
+    kind: 'voice' as const,
+    durationMs: '1500',
+    sampleRate: '16000',
+    channels: '1',
+  }
+  return { reference, mime, bytes: SPEECH_BYTES, measurement }
+}
+
+export const DOCUMENT = {
+  storage: 'tests',
+  key: 'document-1',
+  mediaType: 'application/pdf',
+  bytes: '5',
+  digest: 'f'.repeat(64),
+}
+export const DOCUMENT_BYTES = new TextEncoder().encode('%PDF-')
+/** A file block that refers to its bytes, as the intake leaves it. */
+export function documentBlock(id: string, ref = DOCUMENT): unknown {
+  return { kind: 'file', id, visibility: SHOWN, ref, transcript: null, facts: { kind: 'file' } }
+}
+export function documentRead(reference = DOCUMENT, mime = reference.mediaType) {
+  const measurement = {
+    reference,
+    bytes: String(DOCUMENT_BYTES.byteLength),
+    mediaType: mime,
+    kind: 'file' as const,
+  }
+  return { reference, mime, bytes: DOCUMENT_BYTES, measurement }
+}
+/** The words a medium was made into, kept apart: Request Context stands them in as a file block. */
+export const WORDS_TEXT = 'The passphrase is BLUE GIRAFFE 4172.'
+export const WORDS = {
+  storage: 'tests',
+  key: 'words-1',
+  mediaType: 'text/plain',
+  bytes: String(new TextEncoder().encode(WORDS_TEXT).byteLength),
+  digest: 'c'.repeat(64),
+}
+export function wordsBlock(id: string): unknown {
+  return { kind: 'file', id, visibility: SHOWN, ref: WORDS, transcript: null }
+}
+export function wordsRead() {
+  const bytes = new TextEncoder().encode(WORDS_TEXT)
+  const measurement = {
+    reference: WORDS,
+    bytes: String(bytes.byteLength),
+    mediaType: 'text/plain',
+    kind: 'file' as const,
+  }
+  return { reference: WORDS, mime: 'text/plain', bytes, measurement }
+}
+export const NATIVE_PARSING = [{ id: 'file-parser', pdf: { engine: 'native' } }]
+export const PDF_WIRE = { mediaTypes: ['application/pdf'], maxBytes: 1024 }
 
 export function thinkingBlock(id: string, text: string): unknown {
   return { kind: 'thinking', id, visibility: SHOWN, text }
@@ -286,7 +393,7 @@ export type RequestParts = Readonly<{
   declaration?: ReplayDeclaration
 }>
 
-export function declarationOf(record: ChatCompletionsRecord): ReplayDeclaration {
+export function declarationOf(record: AnyRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
       provider: record.route.provider,
@@ -299,10 +406,7 @@ export function declarationOf(record: ChatCompletionsRecord): ReplayDeclaration 
   return judged.ok
 }
 
-export function fixedRequest(
-  record: ChatCompletionsRecord,
-  parts: RequestParts = {},
-): FixedModelRequest {
+export function fixedRequest(record: AnyRecord, parts: RequestParts = {}): FixedModelRequest {
   const judged = judgeFixedModelRequest({
     profile: adoption('profile'),
     suppliers: [supplierOf(record)],
@@ -337,7 +441,7 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
 }
 
 export function profileOf(
-  record: ChatCompletionsRecord,
+  record: AnyRecord,
   options: Readonly<{ replay?: ProfileReplay; outputLimit?: string }> = {},
 ): ModelProfile {
   const revision = decodeRevision('1')

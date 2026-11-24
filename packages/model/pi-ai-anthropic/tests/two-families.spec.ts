@@ -47,7 +47,12 @@ const OPENAI_FAMILY = createOpenAiFamily({
 const FAMILIES = composeFamilies([OPENAI_FAMILY, ANTHROPIC_FAMILY])
 
 const PLACEHOLDER = 'placeholder-credential'
-const ROUTE_PATH = '/api/v1/chat/completions'
+// A record goes out on the endpoint of its engine; a chat-completions record names no engine.
+const PATHS = {
+  'chat-completions': '/api/v1/chat/completions',
+  responses: '/api/v1/responses',
+  messages: '/api/v1/messages',
+} as const
 
 const LIMITS = {
   connectTimeoutMs: 5_000,
@@ -65,6 +70,7 @@ const LIMITS = {
 
 type RecordFixture = Readonly<{
   family: 'openai' | 'anthropic'
+  path: string
   name: string
   model: string
   request: FixedModelRequest
@@ -76,7 +82,12 @@ type RecordFixture = Readonly<{
 function readFixture(
   family: RecordFixture['family'],
   root: string,
-  record: Readonly<{ name: string; revision: string; route: Readonly<{ model: string }> }>,
+  record: Readonly<{
+    name: string
+    revision: string
+    route: Readonly<{ model: string }>
+    engine?: 'responses' | 'messages'
+  }>,
 ): RecordFixture {
   const directory = join(root, fixtureDirectory(record))
   const parsed: unknown = JSON.parse(readFileSync(join(directory, 'request.json'), 'utf8'))
@@ -84,6 +95,7 @@ function readFixture(
   if (!('ok' in request)) throw new Error(`${record.name}: ${JSON.stringify(request.failure)}`)
   return {
     family,
+    path: PATHS[record.engine ?? 'chat-completions'],
     name: record.name,
     model: record.route.model,
     request: request.ok,
@@ -101,16 +113,16 @@ const FIXTURES: readonly RecordFixture[] = [
 const certificate = createCertificate()
 let server: HttpsFixture
 beforeAll(async () => {
-  const streams = new Map(FIXTURES.map(item => [item.model, item.stream]))
+  const fixtures = new Map(FIXTURES.map(item => [item.model, item]))
   server = await startHttpsServer(certificate, (res, request) => {
     const model: unknown = Reflect.get(Object(JSON.parse(request.body)), 'model')
-    const stream = typeof model === 'string' ? streams.get(model) : undefined
-    if (request.path !== ROUTE_PATH || stream === undefined) {
+    const fixture = typeof model === 'string' ? fixtures.get(model) : undefined
+    if (fixture === undefined || request.path !== fixture.path) {
       res.writeHead(404).end()
       return
     }
     res.writeHead(200, { 'content-type': 'text/event-stream' })
-    res.end(stream)
+    res.end(fixture.stream)
   })
 })
 afterAll(async () => {
@@ -136,8 +148,17 @@ function buildTransport(): Built {
     families: FAMILIES,
     routes: {
       openrouter: {
-        url: new URL(ROUTE_PATH, server.url).href,
-        endMarker: GATEWAY_END_MARKER,
+        endpoints: {
+          'chat-completions': {
+            url: new URL(PATHS['chat-completions'], server.url).href,
+            endMarker: GATEWAY_END_MARKER,
+          },
+          responses: {
+            url: new URL(PATHS.responses, server.url).href,
+            endMarker: GATEWAY_END_MARKER,
+          },
+          messages: { url: new URL(PATHS.messages, server.url).href, endMarker: null },
+        },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },
@@ -189,7 +210,10 @@ describe('the record fixtures of both families through one composed transport', 
       try {
         const before = server.requests.length
         const facts = await send(built, fixture.request)
-        expect(JSON.parse(JSON.stringify(facts))).toEqual(fixture.facts)
+        expect(JSON.parse(JSON.stringify(facts))).toEqual([
+          { kind: 'response', request: null },
+          ...(fixture.facts as readonly unknown[]),
+        ])
         expect(facts.filter(fact => fact.kind === 'ended')).toHaveLength(1)
         expect(built.sends()).toBe(1)
         const received = server.requests.slice(before)

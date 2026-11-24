@@ -97,6 +97,7 @@ function checkedCommand<P>(
   return {
     request: mutationAccessRequest(fixture.access, command),
     evidence: evidence(`access/face/${command.kind}/${command.input.operation}`),
+    subject: { kind: 'member' },
   }
 }
 

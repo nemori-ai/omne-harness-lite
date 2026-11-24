@@ -5,8 +5,11 @@ import {
   decodeModelDiagnosticCursor,
   decodeModelDiagnosticId,
   decodeRevision,
+  dispatchSend,
   type Adoption,
+  type ConnectRetryReason,
   type DispatchId,
+  type DispatchInstants,
   type DispatchRecord,
   type DurableEvidence,
   type ModelAttemptDiagnostic,
@@ -14,10 +17,11 @@ import {
   type ModelDiagnosticCursor,
   type ModelDiagnostics,
   type ModelDiagnosticsPage,
+  type ModelDuration,
   type ModelFailure,
   type Termination,
 } from '@omne-harness/model-contract'
-import type { ModelCommandsAuthority } from '@omne-harness/model/commands'
+import { dispatchOutcome, type ModelCommandsAuthority } from '@omne-harness/model/commands'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   DomainRef,
@@ -56,24 +60,28 @@ function jsonCell(cell: SqlCell | undefined): Cell {
   return value
 }
 
-function rows(port: ReadPort, sql: string, params: readonly (string | bigint)[]) {
+export function rows(port: ReadPort, sql: string, params: readonly (string | bigint)[]) {
   const result = port.execute(sql, params)
   return result.rows.map(cells =>
     Object.fromEntries(result.columns.map((name, at) => [name, jsonCell(cells[at])])),
   )
 }
 
-function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
+export function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function textInput(input: Readonly<Record<string, unknown>>, key: string): string {
+export function textInput(input: Readonly<Record<string, unknown>>, key: string): string {
   const value = input[key]
   if (typeof value !== 'string' || value === '') throw new Error(`invalid input ${key}`)
   return value
 }
 
-function countInput(input: Readonly<Record<string, unknown>>, key: string, max: number): number {
+export function countInput(
+  input: Readonly<Record<string, unknown>>,
+  key: string,
+  max: number,
+): number {
   const value = input[key]
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > max)
     throw new Error(`invalid input ${key}`)
@@ -123,9 +131,11 @@ type StoredAttempt = Readonly<{
   seq: number
   dispatch: DispatchId
   adapter: Adoption
-  send: DispatchRecord['send']
+  send: ModelAttemptDiagnostic['send']
   firstContent: DispatchRecord['firstContent']
   terminal: Termination | null
+  instants: DispatchInstants
+  connectRetries: readonly ConnectRetryReason[]
 }>
 
 type AttemptsRead = Readonly<{ revision: number; attempts: readonly StoredAttempt[] }>
@@ -194,6 +204,62 @@ function adoptionOf(value: unknown, field: string): Adoption {
   }
 }
 
+const UNKNOWN_DURATION: ModelDuration = { kind: 'unknown' }
+
+const MOMENTS = [
+  'prepared',
+  'sent',
+  'responseStarted',
+  'firstContent',
+  'ended',
+] as const satisfies readonly (keyof DispatchInstants)[]
+const NO_INSTANTS: DispatchInstants = {
+  prepared: null,
+  sent: null,
+  responseStarted: null,
+  firstContent: null,
+  ended: null,
+}
+const RETRY_REASONS = [
+  'connect-failed',
+  'connect-timeout',
+] as const satisfies readonly ConnectRetryReason[]
+
+/** A record written before dispatches kept their moments has none of them. */
+function instantsOf(value: unknown, field: string): DispatchInstants {
+  if (value === undefined) return NO_INSTANTS
+  if (!isObject(value)) throw new StoredError(field, 'payload')
+  const moment = (key: (typeof MOMENTS)[number]): string | null => {
+    const item = value[key]
+    if (item === null) return null
+    if (typeof item !== 'string' || Number.isNaN(Date.parse(item)))
+      throw new StoredError(`${field}.${key}`, 'value')
+    return item
+  }
+  return {
+    prepared: moment('prepared'),
+    sent: moment('sent'),
+    responseStarted: moment('responseStarted'),
+    firstContent: moment('firstContent'),
+    ended: moment('ended'),
+  }
+}
+
+function retriesOf(value: unknown, field: string): readonly ConnectRetryReason[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) throw new StoredError(field, 'payload')
+  return value.map(item => oneOf(item, RETRY_REASONS, field))
+}
+
+/** T6: a span is known only from two kept moments, the later not before the earlier. */
+function durationBetween(from: string | null, to: string | null): ModelDuration {
+  if (from === null || to === null) return UNKNOWN_DURATION
+  const span = Date.parse(to) - Date.parse(from)
+  return Number.isSafeInteger(span) && span >= 0
+    ? { kind: 'known', milliseconds: String(span) }
+    : UNKNOWN_DURATION
+}
+
 function terminalOf(value: unknown, field: string): Termination | null {
   if (value === null) return null
   if (!isObject(value)) throw new StoredError(field, 'payload')
@@ -226,8 +292,13 @@ function attemptOf(
     seq: cell(raw, 'seq', 'number'),
     dispatch: id.ok,
     adapter: adoptionOf(record.supplier.adoption, 'md_dispatch.record.supplier.adoption'),
-    send: oneOf(record.send, SENDS, 'md_dispatch.record.send'),
+    send: dispatchSend({
+      send: oneOf(record.send, SENDS, 'md_dispatch.record.send'),
+      materialization: record.materialization,
+    }),
     firstContent: oneOf(record.firstContent, FIRST_CONTENTS, 'md_dispatch.record.firstContent'),
+    instants: instantsOf(record.instants, 'md_dispatch.record.instants'),
+    connectRetries: retriesOf(record.connectRetries, 'md_dispatch.record.connectRetries'),
     terminal:
       logicalTerminal === null
         ? terminalOf(record.terminal, 'md_dispatch.record.terminal')
@@ -366,35 +437,6 @@ function openCursor(
   return body === null ? fail(invalidCursor('cursor')) : succeed(body)
 }
 
-const SEND_OF: Readonly<Record<DispatchRecord['send'], ModelAttemptDiagnostic['send']>> = {
-  prepared: 'not-sent',
-  started: 'sent',
-  unknown: 'unknown',
-  'not-sent': 'not-sent',
-}
-
-function outcomeOf(terminal: Termination | null): ModelAttemptDiagnostic['outcome'] {
-  if (terminal === null) return { kind: 'pending' }
-  switch (terminal.kind) {
-    case 'completed':
-      return { kind: 'completed', reason: terminal.reason }
-    case 'interrupted':
-      return { kind: 'interrupted' }
-    case 'failed':
-      return {
-        kind: 'failed',
-        cause: terminal.fault.cause,
-        upstreamStatus: terminal.fault.upstreamStatus,
-      }
-    default: {
-      const exhaustive: never = terminal
-      return exhaustive
-    }
-  }
-}
-
-const UNKNOWN_DURATION = { kind: 'unknown' } as const
-
 function attemptDiagnostic(
   scope: CursorScope,
   revision: number,
@@ -406,14 +448,17 @@ function attemptDiagnostic(
     dispatch: attempt.dispatch,
     revision: minted(decodeRevision(String(revision))),
     adapter: attempt.adapter,
-    send: SEND_OF[attempt.send],
+    send: attempt.send,
     firstContent: attempt.firstContent,
-    outcome: outcomeOf(attempt.terminal),
+    outcome: dispatchOutcome(attempt.terminal),
+    instants: attempt.instants,
     timing: {
-      materialize: UNKNOWN_DURATION,
-      sendToFirstContent: UNKNOWN_DURATION,
-      execution: UNKNOWN_DURATION,
+      materialize: durationBetween(attempt.instants.prepared, attempt.instants.sent),
+      sendToResponse: durationBetween(attempt.instants.sent, attempt.instants.responseStarted),
+      sendToFirstContent: durationBetween(attempt.instants.sent, attempt.instants.firstContent),
+      execution: durationBetween(attempt.instants.sent, attempt.instants.ended),
     },
+    connectRetries: attempt.connectRetries,
   }
 }
 

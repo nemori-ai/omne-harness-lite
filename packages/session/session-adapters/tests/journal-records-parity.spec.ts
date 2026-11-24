@@ -340,7 +340,6 @@ describe('the reader records projected from the fold', () => {
           'materials',
           'deliveries',
           'aliases',
-          'consumerExecutions',
           'pendingBindings',
           'targets',
           'callTargets',

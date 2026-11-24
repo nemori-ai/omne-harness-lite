@@ -267,33 +267,41 @@ export async function openDomain(
   }
 }
 
+export type RegisterOutcome = Readonly<{ reply: RegisterReply; migrated: boolean }>
+
 export async function registerInDomain(
   env: WorkerEnv,
   state: WorkerState,
   spec: RegistrationSpec,
-): Promise<RegisterReply> {
+  readersPaused: boolean,
+): Promise<RegisterOutcome> {
   const db = state.db as DatabaseSync
+  let migrated = false
+  const outcome = (reply: RegisterReply): RegisterOutcome => ({ reply, migrated })
   try {
     const stored = storedRegistration(db, spec.combinationVersion)
     if (stored !== undefined)
-      return sameRegistration(stored, spec) ? { kind: 'registered' } : { kind: 'conflict' }
+      return outcome(sameRegistration(stored, spec) ? { kind: 'registered' } : { kind: 'conflict' })
     const plan = buildPlan(env.catalog, [spec.participants])
     const pending = pendingOf(db, plan.migrations)
+    if (pending.length > 0 && !readersPaused) return outcome({ kind: 'migration_pending' })
     const loaded = await preloadMigrations(state.modules, pending)
     transact(db, () => {
-      runMigrations(db, env.catalog, pendingOf(db, plan.migrations), loaded)
+      const due = pendingOf(db, plan.migrations)
+      migrated = due.length > 0
+      runMigrations(db, env.catalog, due, loaded)
       insertRegistration(db, spec)
     })
-    return { kind: 'registered' }
+    return outcome({ kind: 'registered' })
   } catch (error) {
     if (error instanceof CommitUncertain)
-      return { kind: 'unknown', diagnostic: 'registration_commit_uncertain' }
-    return {
+      return outcome({ kind: 'unknown', diagnostic: 'registration_commit_uncertain' })
+    return outcome({
       kind: 'unavailable',
       diagnostic:
         error instanceof Error && isStatic(error)
           ? error.message
           : describeError('register', error),
-    }
+    })
   }
 }

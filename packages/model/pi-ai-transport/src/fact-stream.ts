@@ -1,4 +1,4 @@
-import type { ModelFault } from '@omne-harness/model-contract'
+import type { ConnectRetryReason, ModelFault } from '@omne-harness/model-contract'
 import type {
   ProviderDiagnostic,
   TransportFact,
@@ -11,8 +11,11 @@ import {
   ResponseBodyReadError,
   ResponseBodyStalledError,
   ResponseBodyStoppedError,
+  type ExchangeResult,
   type HttpExchange,
+  type ResponseHeaders,
 } from './http.ts'
+import { OPENROUTER_ACCOUNTING } from './chat-completions/openrouter.ts'
 import { closeSourceOnEarlyEnd } from './iteration.ts'
 import { readSseEvents, SseProtocolError } from './sse.ts'
 import { terminationOf, type SendEnd } from './termination.ts'
@@ -23,8 +26,30 @@ export type SendInput = Readonly<{
   route: CheckedRoute
   limits: PiTransportLimits
   diagnostics: readonly ProviderDiagnostic[]
+  /** Whether the request carried reasoning state back. */
+  replayCarried: boolean
   onResponseBody?: (() => void) | undefined
+  connectRetries?: (() => readonly ConnectRetryReason[]) | undefined
 }>
+
+/** The response header in which the place keeping the account names the request; null where none is known. */
+function requestHeaderOf(route: Pick<CheckedRoute, 'accounting'>): string | null {
+  return route.accounting.place === OPENROUTER_ACCOUNTING.place ? 'x-generation-id' : null
+}
+
+/** The upstream's identity of the request: only from the response header, never from the stream. */
+function requestOf(headers: ResponseHeaders, name: string | null): string | null {
+  if (name === null) return null
+  const value = headers[name]
+  const first = typeof value === 'string' ? value : value?.[0]
+  return first === undefined || first === '' ? null : first
+}
+
+function* exchangeFacts(input: SendInput, result: ExchangeResult): Generator<TransportFact> {
+  for (const reason of input.connectRetries?.() ?? []) yield { kind: 'connect-retry', reason }
+  if (result.kind === 'ok' || result.kind === 'http-error')
+    yield { kind: 'response', request: requestOf(result.headers, requestHeaderOf(input.route)) }
+}
 
 export function factsOfSend(input: SendInput): AsyncGenerator<TransportFact, void, undefined> {
   const { exchange } = input
@@ -58,6 +83,25 @@ async function* readSend(input: SendInput): AsyncGenerator<TransportFact, void, 
   yield { kind: 'ended', termination: terminationOf(end) }
 }
 
+const UTF8 = new TextDecoder('utf-8', { fatal: false })
+
+// Only a body read whole is shown to the engine; the status decides the rest. A refusal of
+// reasoning state the request did not carry is an invalid request (T2, fourth row).
+function refusalOf(
+  decoder: PiResponseDecoder,
+  result: Extract<ExchangeResult, { kind: 'http-error' }>,
+  carried: boolean,
+): ModelFault | null {
+  if (decoder.refused === undefined || result.errorBody.kind !== 'complete') return null
+  const fault = decoder.refused(result.status, UTF8.decode(result.errorBody.bytes))
+  if (fault?.cause !== 'replay-rejected' || carried) return fault
+  return {
+    cause: 'input-rejected',
+    diagnostic: 'replay-not-carried',
+    upstreamStatus: fault.upstreamStatus,
+  }
+}
+
 // A listener that throws must not change what the transport does with the body.
 function beforeBody(input: Pick<SendInput, 'onResponseBody'>): void {
   try {
@@ -69,8 +113,9 @@ async function* decodeSend(
   input: SendInput,
   progress: Progress,
 ): AsyncGenerator<TransportFact, SendEnd, undefined> {
-  const { exchange, decoder, route, limits } = input
+  const { exchange, decoder, route, limits, replayCarried } = input
   const result = await exchange.result
+  yield* exchangeFacts(input, result)
   switch (result.kind) {
     case 'stopped':
       return { kind: 'stopped' }
@@ -79,7 +124,11 @@ async function* decodeSend(
     case 'stalled':
       return STALLED_BEFORE_RESPONSE
     case 'http-error':
-      return { kind: 'http-error', status: result.status }
+      return {
+        kind: 'http-error',
+        status: result.status,
+        fault: refusalOf(decoder, result, replayCarried),
+      }
     case 'ok':
       break
     default: {

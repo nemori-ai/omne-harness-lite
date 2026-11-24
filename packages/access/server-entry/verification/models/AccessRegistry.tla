@@ -4,11 +4,12 @@
 (* 何顺序交错时，每个在途的调用和观察是不是都有确定的结局。                     *)
 (*                                                                            *)
 (* 模型里的一步对应实现里的一步：                                              *)
-(*   Mount            挂上一份贡献。同名协议已经挂着时不挂。                   *)
+(*   Mount            挂上一份贡献。同名协议已经挂着一份时也挂上：两份都在。   *)
 (*   Unmount          移除表项，同时给这份贡献的在途调用发中止，给它的观察标   *)
 (*                    上「要结束」。这三件事是一步。                           *)
 (*   UnmountComplete  这份贡献的在途调用都答复了、观察都结束了，撤下才算完成。 *)
-(*   CallArrive       查登记表并把调用登记成在途。查和登记是一步。             *)
+(*   CallArrive       查登记表并把调用登记成在途。查和登记是一步。同名的贡献   *)
+(*                    正好一份才登记；一份都没有答没挂，多于一份答冲突。       *)
 (*   HandlerStart     把调用交给处理函数。已经收到中止的不交。                 *)
 (*   HandlerFinish    处理函数完成，或在中止之后失败。                         *)
 (*   ObsOpen、ObsEnd  建立观察；写出结束帧。                                   *)
@@ -25,8 +26,9 @@ vars == <<entries, nextGen, genState, call, obs>>
 Gens == 1..MaxGen
 NoGen == 0
 
-CallInit == [state |-> "idle", gen |-> NoGen, aborted |-> FALSE, started |-> FALSE, answer |-> "none"]
-ObsInit == [state |-> "idle", gen |-> NoGen, mustEnd |-> FALSE]
+CallInit == [state |-> "idle", gen |-> NoGen, aborted |-> FALSE, started |-> FALSE,
+             answer |-> "none", rivals |-> 0]
+ObsInit == [state |-> "idle", gen |-> NoGen, mustEnd |-> FALSE, rivals |-> 0]
 
 Init ==
   /\ entries = {}
@@ -37,9 +39,12 @@ Init ==
 
 EntryOf(p) == {e \in entries : e.protocol = p}
 
+\* 正好一份时它在服务。改坏的变体里，多于一份时也当成在服务，取其中任意一份。
+Serving(p) ==
+  IF Cardinality(EntryOf(p)) = 1 \/ Variant = "noUniqueness" THEN EntryOf(p) ELSE {}
+
 Mount(p) ==
   /\ nextGen <= MaxGen
-  /\ (Variant = "noUniqueness" \/ EntryOf(p) = {})
   /\ entries' = entries \cup {[protocol |-> p, gen |-> nextGen]}
   /\ genState' = [genState EXCEPT ![nextGen] = "live"]
   /\ nextGen' = nextGen + 1
@@ -73,12 +78,15 @@ UnmountComplete(g) ==
 
 CallArrive(c, p) ==
   /\ call[c].state = "idle"
-  /\ IF EntryOf(p) = {}
-     THEN call' = [call EXCEPT ![c] = [@ EXCEPT !.state = "answered", !.answer = "notFound"]]
-     ELSE \E e \in EntryOf(p) :
+  /\ IF Serving(p) = {}
+     THEN call' = [call EXCEPT ![c] =
+                     [@ EXCEPT !.state = "answered",
+                               !.answer = IF EntryOf(p) = {} THEN "notFound" ELSE "conflict"]]
+     ELSE \E e \in Serving(p) :
             call' = [call EXCEPT ![c] =
                        [@ EXCEPT !.state = IF Variant = "nonAtomicLookup" THEN "looked" ELSE "registered",
-                                 !.gen = e.gen]]
+                                 !.gen = e.gen,
+                                 !.rivals = Cardinality(EntryOf(p)) - 1]]
   /\ UNCHANGED <<entries, nextGen, genState, obs>>
 
 \* 只在改坏的变体里出现：查完登记表之后，隔了一步才登记成在途。
@@ -108,9 +116,11 @@ HandlerFinish(c) ==
 
 ObsOpen(o, p) ==
   /\ obs[o].state = "idle"
-  /\ IF EntryOf(p) = {}
+  /\ IF Serving(p) = {}
      THEN obs' = [obs EXCEPT ![o] = [@ EXCEPT !.state = "ended"]]
-     ELSE \E e \in EntryOf(p) : obs' = [obs EXCEPT ![o] = [@ EXCEPT !.state = "open", !.gen = e.gen]]
+     ELSE \E e \in Serving(p) :
+            obs' = [obs EXCEPT ![o] =
+                      [@ EXCEPT !.state = "open", !.gen = e.gen, !.rivals = Cardinality(EntryOf(p)) - 1]]
   /\ UNCHANGED <<entries, nextGen, genState, call>>
 
 ObsEnd(o) ==
@@ -143,11 +153,14 @@ TypeOK ==
   /\ genState \in [Gens -> {"unused", "live", "draining", "gone"}]
   /\ \A c \in Calls :
        /\ call[c].state \in {"idle", "looked", "registered", "running", "answered"}
-       /\ call[c].answer \in {"none", "ok", "notFound", "basisUnavailable", "unknown"}
+       /\ call[c].answer \in {"none", "ok", "notFound", "conflict", "basisUnavailable", "unknown"}
   /\ \A o \in Observations : obs[o].state \in {"idle", "open", "ended"}
 
-\* I-3：同名协议至多挂着一份。
-Unique == \A p \in Protocols : Cardinality(EntryOf(p)) <= 1
+\* I-3：同名协议至多一份在服务；多于一份时都不服务。
+\* 写成：没有哪个调用或观察是在这份协议另有别的贡献挂着的时候被接进来的。
+Unique ==
+  /\ \A c \in Calls : call[c].rivals = 0
+  /\ \A o \in Observations : obs[o].rivals = 0
 
 \* 在途的调用如果属于一份已经不在表里的贡献，它一定已经收到中止。
 \* 这等于说：撤下之后，没有调用在不知情的情况下进到旧的贡献。

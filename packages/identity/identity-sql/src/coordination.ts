@@ -15,6 +15,7 @@ import {
   type PrincipalVerifier,
   type StandingDestinationResolver,
   type StandingReservation,
+  type StandingReleaseOutcome,
   type StandingReservations,
   type StandingSettleOutcome,
   type StandingReserveOutcome,
@@ -54,7 +55,11 @@ import {
 type Core = Readonly<{
   stopped(): boolean
   readTime(): Promise<TimeBasis>
-  commit(facts: Readonly<Record<string, JsonValue>>, identity: SqlIdentity): Promise<CommitResultV2>
+  commit(
+    facts: Readonly<Record<string, JsonValue>>,
+    identity: SqlIdentity,
+    releases?: readonly SqlIdentity[],
+  ): Promise<CommitResultV2>
   query(identity: SqlIdentity): Promise<QueryResultV2>
   read(input: JsonValue): Promise<ReadResult>
   verifier?: PrincipalVerifier
@@ -62,13 +67,16 @@ type Core = Readonly<{
 }>
 
 type RecordRow = Readonly<Record<string, JsonValue>>
-const identity = (key: string): SqlIdentity => ({
+const identity = (key: string, recall?: 'never'): SqlIdentity => ({
   scope: IDENTITY_SCOPE,
   transactionDomain: IDENTITY_DOMAIN,
   operation: 'identity.coordination',
   protocolVersion: '2',
   operationKey: key,
+  ...(recall === undefined ? {} : { recall }),
 })
+const settlementIdentity = (reservation: StandingReservation) =>
+  identity(`${reservation.id}/settle-request/1`)
 const record = (value: unknown): value is RecordRow => isRecord(value)
 const serialized = (reservation: StandingReservation) => ({
   binding: JSON.stringify(reservation.binding),
@@ -211,6 +219,40 @@ function reserveOutcome(
   return { kind: 'unavailable', diagnostic: 'reservation-unknown' }
 }
 
+function releaseOutcome(result: CommitResultV2): StandingReleaseOutcome {
+  if (result.kind === 'committed')
+    return phaseReply(result)?.outcome === 'released'
+      ? { kind: 'released' }
+      : { kind: 'unavailable', diagnostic: 'release-malformed' }
+  const last = result.kind === 'rolled_back' ? result.responses.at(-1)?.reply : undefined
+  const refused = last?.kind === 'conflict' && isRecord(last.basis) ? last.basis['outcome'] : null
+  return refused === 'held' || refused === 'operation-conflict'
+    ? { kind: refused }
+    : { kind: 'unavailable', diagnostic: 'release-unknown' }
+}
+
+function releaseOver(core: Core): StandingReservations['release'] {
+  return async request => {
+    if (core.stopped()) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
+    const reservation = requestReservation(request)
+    if (reservation === undefined) return { kind: 'unavailable', diagnostic: 'request-invalid' }
+    if (reservationTenant(reservation) === undefined)
+      return { kind: 'unavailable', diagnostic: 'request-tenant-invalid' }
+    try {
+      const facts = {
+        kind: 'standing-release',
+        id: reservation.id,
+        operationRef: reservationOperationRef(reservation),
+        ...serialized(reservation),
+      }
+      const id = identity(`${reservation.id}/release`, 'never')
+      return releaseOutcome(await core.commit(facts, id, [settlementIdentity(reservation)]))
+    } catch {
+      return { kind: 'unavailable', diagnostic: 'release-unknown' }
+    }
+  }
+}
+
 export function coordinationOver(core: Core) {
   const read = async (input: JsonValue): Promise<RecordRow | undefined> => {
     try {
@@ -233,10 +275,9 @@ export function coordinationOver(core: Core) {
   }
   const run = async (
     facts: Readonly<Record<string, JsonValue>>,
-    key = operationKey(),
+    id = identity(operationKey()),
     operation?: GovernanceOperationRef,
   ): Promise<GovernanceReply | undefined> => {
-    const id = identity(key)
     let result: CommitResultV2 | QueryResultV2
     try {
       result = await core.commit(facts, id)
@@ -357,7 +398,7 @@ export function coordinationOver(core: Core) {
         account: tenant.account.text,
         terminal: proof.outcome,
       },
-      `${reservation.id}/settle-request/1`,
+      settlementIdentity(reservation),
     )
     if (result?.outcome === 'operation-conflict') return { kind: 'operation-conflict' }
     return result?.outcome === 'settled'
@@ -395,7 +436,7 @@ export function coordinationOver(core: Core) {
       binding,
       required,
     })
-    const result = await run({
+    const facts = {
       kind: 'standing-reserve',
       id: reservation.id,
       operationRef: reservationOperationRef(reservation),
@@ -414,8 +455,8 @@ export function coordinationOver(core: Core) {
       tenantText,
       organization: principal.tenant.organization.text,
       account: principal.tenant.account.text,
-    })
-    return reserveOutcome(result, reservation)
+    }
+    return reserveOutcome(await run(facts, identity(operationKey(), 'never')), reservation)
   }
 
   const recoverReservations: StandingReservations['recover'] = async (input = {}) => {
@@ -478,7 +519,7 @@ export function coordinationOver(core: Core) {
     if (prepared?.outcome !== 'prepared' || !isText(prepared['attempt'])) return undefined
     await run(
       { kind: 'membership-apply', operationId, attempt: prepared['attempt'], nowKey },
-      `${operationId}/apply/${prepared['attempt']}`,
+      identity(`${operationId}/apply/${prepared['attempt']}`),
     )
     const current = await row({ query: 'intent', operationId })
     return current === undefined ? undefined : replyFromRow(current)
@@ -517,7 +558,7 @@ export function coordinationOver(core: Core) {
         operationId: operation.operationId,
         facts: JSON.stringify(facts),
       },
-      `${operation.operationId}/admit`,
+      identity(`${operation.operationId}/admit`),
       operation,
     )
     const saved = await row({ query: 'intent', operationId: operation.operationId })
@@ -589,6 +630,7 @@ export function coordinationOver(core: Core) {
       observe,
       reserve,
       settle,
+      release: releaseOver(core),
       recover: recoverReservations,
     }) satisfies StandingReservations,
     governanceRecovery: Object.freeze({

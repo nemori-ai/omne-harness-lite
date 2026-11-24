@@ -108,12 +108,15 @@ it('restores checkpointed blocks without a step commit as absent, and the next s
   })
 })
 
-it('reads a per-request block from its producer in a scope whose registrations came from replay', async () => {
+it('reads a per-read block from its producer in a scope whose registrations came from replay', async () => {
   const h = harness()
-  const target = scope('b6/per-request')
+  const target = scope('b6/per-read')
   h.ports.bind(target, tenantA)
   await producer(h, tenantA, 'test.request', {
-    declaration: { ...supplied('test.request', { required: true }), volatility: 'per-request' },
+    declaration: {
+      ...supplied('test.request', { required: true, consumers: ['tool'] }),
+      volatility: 'per-read',
+    },
     supply: async () => ({ kind: 'value', value: 7 }),
   })
   const begun = await h.rc.beginReplay('holder', {
@@ -147,10 +150,10 @@ it('reads a per-request block from its producer in a scope whose registrations c
     },
   })
   expect(ready).toMatchObject({ kind: 'ready', registrationRevision: 1 })
-  const r = await reader(h, await issue(h, target, tenantA, ['test.request']))
+  const r = await reader(h, await issue(h, target, tenantA, ['test.request'], 'tool'))
   for (const round of [1, 2]) {
     const read = await r.snapshot()
     if (read.kind !== 'success') throw new Error(`${round}: ${read.kind}`)
-    expect(read.value.perRequest).toMatchObject([{ key: 'test.request', kind: 'value', value: 7 }])
+    expect(read.value.perRead).toMatchObject([{ key: 'test.request', kind: 'value', value: 7 }])
   }
 })

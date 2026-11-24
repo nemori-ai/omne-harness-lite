@@ -9,7 +9,6 @@ import { prepareRequest, submitRequest, type Prepared, type Services } from './c
 import { triggerLine } from './meter-input.ts'
 import {
   basis,
-  createConversion,
   createMeter,
   createMeterWith,
   createSender,
@@ -27,7 +26,6 @@ import {
   required,
   textBlock,
   userMessage,
-  voiceBlock,
   type Principal,
 } from './values.ts'
 
@@ -102,7 +100,6 @@ function setup(
     profiles: profiles.profiles,
     preparation: preparation.preparation,
     meter,
-    conversion: createConversion(),
     sender,
   }
   return { services, profiles, preparation, meter, transport, sender }
@@ -227,16 +224,6 @@ async function imageReferenceStaysAReferenceInThePreparedRequest(): Promise<void
   const counts = transport.counts()
   expect(counts.prepare === 1, `the request was prepared ${counts.prepare} times`)
   expect(counts.materialize === 0, `${counts.materialize} media reads happened while preparing`)
-}
-
-async function voiceBlockIsReplacedByItsDerivedText(): Promise<void> {
-  const { services } = setup()
-  const history = [userMessage('voice', [voiceBlock('v1')])]
-  const { request } = prepared(await run(services, history))
-  const kinds = request.messages[0]?.blocks.map(part => part.kind).join()
-  expect(kinds === 'text', `the message holds ${kinds}`)
-  const block = request.messages[0]?.blocks[0]
-  expect(block?.kind === 'text' && block.text === 'hello there', 'the derived text is missing')
 }
 
 async function inputOverTheTriggerIsCompressedBeforePreparing(): Promise<void> {
@@ -427,11 +414,6 @@ export const fixture = {
       name: 'an image reference stays a reference and nothing is materialized while preparing',
       kind: 'normal',
       run: imageReferenceStaysAReferenceInThePreparedRequest,
-    },
-    {
-      name: 'a voice block is replaced by the text that its converter derived',
-      kind: 'normal',
-      run: voiceBlockIsReplacedByItsDerivedText,
     },
     {
       name: 'an input over the compaction trigger is compressed by the context before preparing',

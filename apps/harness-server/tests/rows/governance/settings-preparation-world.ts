@@ -110,12 +110,12 @@ export async function settingsPreparationWorld(
   >[1] = {
     protocol: 'settings/1',
     requestId: 'request',
-    operationId: 'change-invoke',
+    operationId: 'change-first-item',
     target: w.target,
     definitionRef: snapshot.values.view.definitionRef,
     expectedRevision: 0,
     sourceId: 'tenant',
-    itemId: 'invoke',
+    itemId: w.declaration.settings[0]!.items[0]!.id,
     action: { kind: 'set', value: { pick: 'deny', allowedSet: null } },
   }
   return {

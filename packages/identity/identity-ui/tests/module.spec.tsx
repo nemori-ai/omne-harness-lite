@@ -1,26 +1,47 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { Context } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import {
-  createSlotStore,
+  partsOn,
   type AttachedLayout,
-  type ItemOf,
   type ScopeSource,
   type ShellLogin,
-  type SlotName,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
-import { ACCOUNT_ID, GATE_ID, IDENTITY_CLIENT, identityUiModule } from '../src/module.tsx'
-import { TENANT_TEXT, loginSource, settle, tenantId } from './support.ts'
+import { serveProtocol, startShellOf } from '@omne-harness/shell-contract/testing'
+import { identityProtocol } from '@omne-harness/identity-protocol'
+import { ACCOUNT_ID, GATE_ID, identityUiModule } from '../src/module.tsx'
+import { TENANT_TEXT, deferred, loginSource, settle, tenantId } from './support.ts'
 
 afterEach(() => cleanup())
+
+/** The account's glyph, `contact` of the shared kit's icon set. */
+const GLYPH = 'svg[data-icon="contact"]'
+
+/** What a control's hint says: the tooltip that opens when the control takes the keyboard's focus. */
+async function hint(control: HTMLElement): Promise<string | null> {
+  fireEvent.keyDown(window, { key: 'Tab' })
+  await act(async () => {
+    control.focus()
+  })
+  const tooltip = (await screen.findByRole('tooltip')).textContent
+  await act(async () => {
+    control.blur()
+  })
+  return tooltip
+}
+
+/** Opens a menu as a pointer press does, and returns it. */
+async function openMenu(trigger: HTMLElement): Promise<HTMLElement> {
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
+  return screen.findByRole('menu')
+}
 
 type Calls = { logins: unknown[]; logouts: number; scopes: (string | undefined)[] }
 
 class TestShell extends ShellService {
-  readonly store = createSlotStore()
   readonly login: ShellLogin
   readonly scope: ScopeSource
   constructor(ctx: Context, config: { login: ShellLogin; scope: ScopeSource }) {
@@ -30,15 +51,13 @@ class TestShell extends ShellService {
   }
   navigate(): void {}
   attached(anchor: string, subject: string): ReactNode {
-    return this.store
-      .items('attached')
+    return this.items('attached')
       .filter(item => item.anchor === anchor)
       .map(item => item.render({ scope: this.scope.get(), subject }))
   }
   arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
     return layout(
-      this.store
-        .items('attached')
+      this.items('attached')
         .filter(item => item.anchor === anchor)
         .map(item => ({
           id: item.id,
@@ -46,9 +65,6 @@ class TestShell extends ShellService {
           node: item.render({ scope: this.scope.get(), subject }),
         })),
     )
-  }
-  protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    return this.store.place(slot, item)
   }
 }
 
@@ -72,9 +88,7 @@ async function setup() {
     set: value => void calls.scopes.push(value),
     subscribe: () => () => undefined,
   }
-  const root = new Context()
-  await root.plugin(TestShell, { login, scope })
-  const shell = root.get('shell') as unknown as TestShell
+  const { root, shell } = await startShellOf(TestShell, { login, scope })
   await root.plugin(identityUiModule)
   const client = {
     'query-current-tenant': async () => ({ outcome: 'succeeded', body: { tenantId: tenantId() } }),
@@ -84,31 +98,47 @@ async function setup() {
 }
 
 describe('身份的界面模块', () => {
-  it('身份协议的客户端出现时往登录门与侧栏区各放一项，消失时一起撤掉', async () => {
+  it('M4 声明六个部位，协议有没有服务都一样', async () => {
     const t = await setup()
-    expect(t.shell.store.items('gate')).toEqual([])
-    const withdraw = t.root.reflect.provide(IDENTITY_CLIENT, t.client)
-    await settle()
-    expect(t.shell.store.items('gate').map(item => item.id)).toEqual([GATE_ID])
-    expect(t.shell.store.items('sidebar').map(item => [item.id, item.order])).toEqual([
-      [ACCOUNT_ID, 1000],
+    const read = partsOn(t.shell.registry())
+    expect(read.kind === 'read' && read.conflicts).toEqual([])
+    expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+      ['identity.account', 'shell.sidebar.footer'],
+      ['identity.account.control', 'identity.account'],
+      ['identity.account.rail', 'shell.sidebar.footer'],
+      ['identity.login', 'shell.gate'],
+      ['identity.login.form', 'identity.login'],
+      ['identity.login.submit', 'identity.login.form'],
     ])
-    expect(t.shell.store.items('pages')).toEqual([])
-    withdraw()
-    await settle()
-    expect(t.shell.store.items('gate')).toEqual([])
-    expect(t.shell.store.items('sidebar')).toEqual([])
   })
 
-  it('服务名照客户端装配的取法', () => {
-    expect(IDENTITY_CLIENT).toBe('protocol:identity/v1')
+  it('登录门不依赖身份协议，一直在；协议的客户端出现时再放侧栏区一项，消失时撤掉', async () => {
+    const t = await setup()
+    expect(t.shell.items('gate').map(item => item.id)).toEqual([GATE_ID])
+    expect(t.shell.items('sidebar')).toEqual([])
+    expect(t.shell.adoption('identity-ui')).toMatchObject({ kind: 'unavailable' })
+    const served = await serveProtocol(t.root, identityProtocol, t.client)
+    await settle()
+    expect(t.shell.adoption('identity-ui')).toMatchObject({
+      kind: 'adopted',
+      bindings: { identity: { key: 'identity/v1' } },
+    })
+    expect(t.shell.items('gate').map(item => item.id)).toEqual([GATE_ID])
+    expect(t.shell.items('sidebar').map(item => [item.id, item.order])).toEqual([
+      [ACCOUNT_ID, 1000],
+    ])
+    expect(t.shell.items('pages')).toEqual([])
+    await served.dispose()
+    await settle()
+    expect(t.shell.items('gate').map(item => item.id)).toEqual([GATE_ID])
+    expect(t.shell.items('sidebar')).toEqual([])
   })
 
   it('登录门经外壳的登录交出凭据', async () => {
     const t = await setup()
-    t.root.reflect.provide(IDENTITY_CLIENT, t.client)
+    await serveProtocol(t.root, identityProtocol, t.client)
     await settle()
-    render(<>{t.shell.store.items('gate')[0]!.render({})}</>)
+    render(<>{t.shell.items('gate')[0]!.render({})}</>)
     const field = (name: string) =>
       document.querySelector(`input[name="${name}"]`) as HTMLInputElement
     fireEvent.change(field('loginIdentifier'), { target: { value: 'alice' } })
@@ -119,25 +149,76 @@ describe('身份的界面模块', () => {
     expect(t.calls.logins).toEqual([{ loginIdentifier: 'alice', credential: 'pw' }])
   })
 
-  it('账号块查到当前租户就设给外壳并显示，退出经外壳的退出', async () => {
+  it('账号块查到当前租户就设给外壳；控件是账号的字形加组织的短写，提示写租户的全文', async () => {
     const t = await setup()
-    t.root.reflect.provide(IDENTITY_CLIENT, t.client)
+    await serveProtocol(t.root, identityProtocol, t.client)
     await settle()
     await act(async () => {
-      render(<>{t.shell.store.items('sidebar')[0]!.render({ scope: undefined })}</>)
+      render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
     })
     expect(t.calls.scopes).toEqual([TENANT_TEXT])
-    expect(screen.getByText('租户 org_0000…0000').getAttribute('title')).toBe(TENANT_TEXT)
+    const control = screen.getByRole('button', { name: TENANT_TEXT })
+    expect(control.querySelector(GLYPH)).toBeTruthy()
+    expect(control.textContent).toBe('org_0000…0000')
+    expect(control.querySelector('[data-loading-indicator]')).toBeNull()
+    expect(await hint(control)).toBe(TENANT_TEXT)
+  })
+
+  it('账号块按下是平样式的菜单，里面的「退出登录」经外壳退出；按控件本身不退出', async () => {
+    const t = await setup()
+    await serveProtocol(t.root, identityProtocol, t.client)
+    await settle()
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '退出登录' }))
+      render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
+    })
+    const control = screen.getByRole('button', { name: TENANT_TEXT })
+    fireEvent.click(control)
+    expect(t.calls.logouts).toBe(0)
+    const menu = await openMenu(control)
+    expect(menu.getAttribute('data-slot')).toBe('dropdown-menu-content')
+    expect(menu.closest('.omne-ink-bubble')).toBeNull()
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual(['退出登录'])
+    await act(async () => {
+      fireEvent.click(within(menu).getByRole('menuitem', { name: '退出登录' }))
     })
     expect(t.calls.logouts).toBe(1)
   })
 
-  it('账号块查不到时显示原因与重试，重试查到就显示', async () => {
+  it('账号块查着时字形在，短写的位置上是活动标记，提示写正在读取；查到就换成短写', async () => {
+    const t = await setup()
+    const answer = deferred<unknown>()
+    await serveProtocol(t.root, identityProtocol, { 'query-current-tenant': () => answer.promise })
+    await settle()
+    await act(async () => {
+      render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
+    })
+    const control = screen.getByRole('button', { name: '正在读取当前租户……' })
+    expect(control.getAttribute('data-omne-part')).toBe('identity.account.control')
+    expect(
+      control
+        .closest('[data-omne-part="identity.account"]')
+        ?.classList.contains('identity-account'),
+    ).toBe(true)
+    expect(control.querySelector(GLYPH)).toBeTruthy()
+    expect(control.querySelector('[data-loading-indicator]')).toBeTruthy()
+    expect(control.textContent).toBe('')
+    expect(await hint(control)).toBe('正在读取当前租户……')
+    await act(async () => {
+      answer.resolve({ outcome: 'succeeded', body: { tenantId: tenantId() } })
+      await settle()
+    })
+    expect(control.querySelector('[data-loading-indicator]')).toBeNull()
+    expect(control.textContent).toBe('org_0000…0000')
+  })
+
+  it('账号块查不到时控件里只有字形，控件上面一行通知写原因带重试，菜单照样能退出；重试查到就显示', async () => {
     const t = await setup()
     let answers = 0
-    t.root.reflect.provide(IDENTITY_CLIENT, {
+    await serveProtocol(t.root, identityProtocol, {
       'query-current-tenant': async () =>
         (answers += 1) === 1
           ? { outcome: 'uncertain', body: {} }
@@ -145,12 +226,49 @@ describe('身份的界面模块', () => {
     })
     await settle()
     await act(async () => {
-      render(<>{t.shell.store.items('sidebar')[0]!.render({ scope: undefined })}</>)
+      render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
     })
-    expect(screen.getByText('没有收到可信的答复，读不到当前租户。')).toBeTruthy()
+    const reason = '没有收到可信的答复，读不到当前租户。'
+    const notice = screen.getByText(reason).closest<HTMLElement>('[data-tone]')!
+    expect(notice.dataset['tone']).toBe('neutral')
+    const control = screen.getByRole('button', { name: reason })
+    expect(control.querySelector(GLYPH)).toBeTruthy()
+    expect(control.textContent).toBe('')
+    expect(control.querySelector('[data-loading-indicator]')).toBeNull()
+    expect(notice.compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const menu = await openMenu(control)
+    expect(within(menu).getByRole('menuitem', { name: '退出登录' })).toBeTruthy()
+    fireEvent.keyDown(menu, { key: 'Escape' })
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '重试' }))
     })
-    expect(screen.getByText('租户 org_0000…0000')).toBeTruthy()
+    expect(screen.queryByText(reason)).toBeNull()
+    expect(screen.getByRole('button', { name: TENANT_TEXT }).textContent).toBe('org_0000…0000')
+  })
+
+  it('账号块在侧栏底部的 utility 段；窄条里是一个圆：只有字形，提示写租户的全文，按下是同一个菜单；只画窄条时照样设租户', async () => {
+    const t = await setup()
+    await serveProtocol(t.root, identityProtocol, t.client)
+    await settle()
+    const [item] = t.shell.items('sidebar')
+    expect(item?.group).toBe('utility')
+    expect(item?.rail).toBeTypeOf('function')
+    await act(async () => {
+      render(<>{item!.rail!({ scope: undefined })}</>)
+    })
+    expect(t.calls.scopes).toEqual([TENANT_TEXT])
+    const circle = screen.getByRole('button', { name: TENANT_TEXT })
+    expect(circle.classList.contains('identity-account-rail')).toBe(true)
+    expect(circle.getAttribute('data-omne-part')).toBe('identity.account.rail')
+    expect(circle.querySelector(GLYPH)).toBeTruthy()
+    expect(circle.textContent).toBe('')
+    expect(await hint(circle)).toBe(TENANT_TEXT)
+    fireEvent.click(circle)
+    expect(t.calls.logouts).toBe(0)
+    const menu = await openMenu(circle)
+    await act(async () => {
+      fireEvent.click(within(menu).getByRole('menuitem', { name: '退出登录' }))
+    })
+    expect(t.calls.logouts).toBe(1)
   })
 })

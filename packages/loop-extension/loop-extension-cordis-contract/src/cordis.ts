@@ -1,4 +1,5 @@
 import { type Context, Service } from '@deepseek-ai/cordis'
+import { heldPoint } from '@omne-harness/assets'
 import type {
   BuiltinExtensions,
   EnabledExtensionsViews,
@@ -82,3 +83,10 @@ declare module '@deepseek-ai/cordis' {
     loopExtensionRunLocations: RunLocationsService<unknown>
   }
 }
+
+/** The point of the category: each layer's held extensions are its items. */
+export const loopExtensionsPoint = heldPoint({
+  name: 'loop-extension.extensions',
+  key: 'the extension name',
+  summary: 'The loop extensions each layer holds, by name.',
+})

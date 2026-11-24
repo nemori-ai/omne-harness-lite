@@ -7,6 +7,8 @@ import {
 import { createSettingsCatalogDestination } from '@omne-harness/settings-local/identity'
 import { organizationSettingsSource } from './organization-settings.ts'
 import { INDEPENDENT_SETTINGS_CONFIGURATION } from './independent-settings.ts'
+import { HELD_SETTINGS_CONFIGURATION } from './held-settings-current.ts'
+import { releaseToolTargets } from './tool-installation-assets.ts'
 import { createSessionPermissionSettingsResolver } from './session-permission-settings.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { prepareTenantGovernance, type TenantGovernanceOptions } from './tenant-runtime.ts'
@@ -14,10 +16,15 @@ import { TENANT_SETTINGS_CONFIGURATION } from './tenant-settings-current.ts'
 import { createTenantSettingsWrite } from './tenant-settings-write.ts'
 
 const destination = 'harness.governance.settings-catalog'
+const WRITE_DESTINATIONS = new Set([
+  TENANT_SETTINGS_CONFIGURATION.destination,
+  INDEPENDENT_SETTINGS_CONFIGURATION.destination,
+  HELD_SETTINGS_CONFIGURATION.destination,
+])
 
 export function prepareTenantGovernanceWithSettings(
   options: Omit<TenantGovernanceOptions, 'settings'> &
-    Pick<SettingsCatalogOptions, 'registry' | 'clock' | 'cursorLifetimeMs'>,
+    Pick<SettingsCatalogOptions, 'registry' | 'clock' | 'cursorLifetimeMs' | 'warn'>,
 ) {
   const { combinationVersion, manifestDigest } = governanceStorageCombinations(
     options.materials,
@@ -36,8 +43,11 @@ export function prepareTenantGovernanceWithSettings(
     reservations: options.identity.reservations,
     required: [],
     registry: options.registry,
+    registryTargets: () =>
+      releaseToolTargets(options.permissionRelease?.(), options.scope.tenantRef),
     clock: options.clock,
     cursorLifetimeMs: options.cursorLifetimeMs,
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
     project: binding => [
       assetsSettingsProjectionCommand(binding, options.capture()),
       standaloneSettingsProjectionCommand(binding),
@@ -55,6 +65,7 @@ export function prepareTenantGovernanceWithSettings(
     identity: options.identity,
     writer: options.catalogPrincipal,
     release: () => permissionRelease?.(),
+    ...(options.permissionDeclared === undefined ? {} : { declared: options.permissionDeclared }),
     async epoch() {
       const runtime = await (opening ??= open())
       return runtime.kind === 'created' ? runtime.epoch : undefined
@@ -92,14 +103,14 @@ export function prepareTenantGovernanceWithSettings(
   return {
     readSettings,
     settings: { read: readSettings, writer: write.writer, changes: write.changes },
+    releaseSettings: { observe: write.observe, rebase: write.rebase },
     destination: {
       seal: (reservation: Parameters<typeof settingsDestination.seal>[0]) =>
         reservation.binding.owner !== 'settings'
           ? governance.destination.seal(reservation)
           : reservation.binding.destination === destination
             ? settingsDestination.seal(reservation)
-            : reservation.binding.destination === TENANT_SETTINGS_CONFIGURATION.destination ||
-                reservation.binding.destination === INDEPENDENT_SETTINGS_CONFIGURATION.destination
+            : WRITE_DESTINATIONS.has(reservation.binding.destination)
               ? write.destination.seal(reservation)
               : governance.destination.seal(reservation),
     },

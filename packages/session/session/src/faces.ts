@@ -25,6 +25,7 @@ import type { CommandHandler } from './command.ts'
 import type { Current, SessionDependencies } from './dependencies.ts'
 import { guarded, OWNERS, unavailable } from './failures.ts'
 import { createHistoryPages } from './history-pages.ts'
+import { readInputFateOf, readPendingOf, readWaitingCallsOf } from './intake-reads.ts'
 import { readSnapshot } from './qualify.ts'
 import type { Reads } from './reads.ts'
 
@@ -138,6 +139,11 @@ function snapshotReads<P>(
   return {
     readWork: (value: SessionAccess<P>) => readSnapshotOf(reads, caller, 'readWork', value),
     readWaiting: (value: SessionAccess<P>) => readWaitingOf(reads, caller, value),
+    readPending: (value: Parameters<SessionWork<P>['readPending']>[0]) =>
+      readPendingOf(reads, caller, value),
+    readWaitingCalls: (value: SessionAccess<P>) => readWaitingCallsOf(reads, caller, value),
+    readInputFate: (value: Parameters<SessionWork<P>['readInputFate']>[0]) =>
+      readInputFateOf(reads, caller, value),
     readBackgroundCalls: (value: SessionAccess<P>) =>
       readBackgroundCallsOf(reads, caller, value, states),
     resolveBackgroundCall: (value: SessionAccess<P> & Readonly<{ id: string }>) =>
@@ -153,8 +159,12 @@ function snapshotReads<P>(
 function modelViewReads<P>(
   reads: Reads<P>,
   caller: SessionCallerClass,
-): Pick<SessionFaces<P>['history'], 'readCompactionContext' | 'readModelView'> {
+): Pick<SessionFaces<P>['history'], 'readCompactionContext' | 'readModelView' | 'readForkPoint'> {
   return {
+    readForkPoint: value =>
+      reads.session(caller, 'history.readModelView', value, view =>
+        view.history.readForkPoint({ ...accessOf(value), asking: value.asking }),
+      ),
     readCompactionContext: value =>
       reads.session(caller, 'history.readCompactionContext', value, view =>
         view.history.readCompactionContext({
@@ -216,6 +226,10 @@ export function createFaces<P>(
     listTodos: value => reads.session(caller, 'listTodos', value, view => listTodos(view, value)),
     accept: mutation('accept'),
     ...snapshotReads(reads, caller, dependencies.callStates),
+    readCall: value =>
+      reads.session(caller, 'readWork', value, view =>
+        view.readCall({ ...accessOf(value), producer: value.producer }),
+      ),
     readInput: value =>
       reads.session(caller, 'readInput', value, view =>
         view.readInput({ ...accessOf(value), input: value.input }),
@@ -266,7 +280,7 @@ export function createFaces<P>(
     create: mutation('create'),
     completeInitialization: mutation('completeInitialization'),
     change: mutation('change'),
-    setRelation: mutation('setRelation'),
+    setResident: mutation('setResident'),
     configureAutoArchive: mutation('configureAutoArchive'),
     considerAutoArchive: mutation('considerAutoArchive'),
     interrupt: mutation('interrupt'),
@@ -296,6 +310,7 @@ export function createFaces<P>(
             from: value.from,
             direction: value.direction,
             pageBytes: value.pageBytes,
+            ...(value.inherited === true ? { inherited: true } : {}),
           }),
         ),
       ),

@@ -1,8 +1,8 @@
 import { organizationCodec, tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { z } from 'zod'
-import type { ProfileResolution, ProfileScope } from './profile.ts'
-import type { Parameter, ToolDeclaration } from './root.ts'
+import { isNativeFileType, type ProfileResolution, type ProfileScope } from './profile.ts'
+import { REASONING_EFFORTS, type Parameter, type ToolDeclaration } from './root.ts'
 import type { ModelInputRejection } from './judge-request.ts'
 import { InputTree, freezeTree, rejected } from './input-tree.ts'
 import { adoption, parameter, tool } from './request-shape.ts'
@@ -82,23 +82,33 @@ const profile = z.strictObject({
   revision: checked(decodeRevision),
   updatedAt: text,
   availability: z.enum(['active', 'withdrawn']),
-  definition: z.strictObject({
-    suppliers: z.tuple([supplier]).rest(supplier),
-    fallback: z.boolean(),
-    input: z.tuple([modality]).rest(modality),
-    output: z.tuple([modality]).rest(modality),
-    context: z.strictObject({
-      window: tokenLimit,
-      input: tokenLimit.nullable(),
-      output: tokenLimit,
-      compactionTriggerPercent: z.string().regex(/^(?:[1-9][0-9]?|100)$/u),
-    }),
-    limits: z.array(tokenLimit.extend({ metric })),
-    parameters,
-    representation: adopted,
-    meter: adopted,
-    retryPolicy: adopted,
-  }),
+  definition: z
+    .strictObject({
+      suppliers: z.tuple([supplier]).rest(supplier),
+      fallback: z.boolean(),
+      input: z.tuple([modality]).rest(modality),
+      fileTypes: z.array(z.string().refine(isNativeFileType)).optional(),
+      output: z.tuple([modality]).rest(modality),
+      context: z.strictObject({
+        window: tokenLimit,
+        input: tokenLimit.nullable(),
+        output: tokenLimit,
+        compactionTriggerPercent: z.string().regex(/^(?:[1-9][0-9]?|100)$/u),
+      }),
+      limits: z.array(tokenLimit.extend({ metric })),
+      parameters,
+      reasoningEfforts: z
+        .partialRecord(z.enum(REASONING_EFFORTS), z.enum([...REASONING_EFFORTS, 'max']))
+        .optional(),
+      representation: adopted,
+      meter: adopted,
+      retryPolicy: adopted,
+    })
+    .transform(({ fileTypes, reasoningEfforts, ...value }) => ({
+      ...(reasoningEfforts === undefined ? {} : { reasoningEfforts }),
+      ...value,
+      ...(fileTypes === undefined ? {} : { fileTypes }),
+    })),
 })
 const resolution = z.discriminatedUnion('kind', [
   z.strictObject({

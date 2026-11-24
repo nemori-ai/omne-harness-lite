@@ -345,17 +345,16 @@ describe('the check before the answer', () => {
 })
 
 describe('absent ports and the read-only promise', () => {
-  it('answers gaps for the Model, Tool and Agent branches when their ports are absent', async () => {
+  it('answers gaps for the Model and Tool branches when their ports are absent, and reads the end from Session', async () => {
     const world = setup({ ports: false })
     world.entries.push(...runEntries('r1', 1))
     const page = pageOf(await first(world, alice))
     expect(page.gaps.filter(gap => gap.reason === 'not-disclosed')).toHaveLength(11)
     expect(page.gaps.filter(gap => gap.reason !== 'not-disclosed')).toEqual([
-      { source: 'agent', subject: 'exec-r1', reason: 'unsupported' },
       { source: 'model', subject: 'm-r1', reason: 'unsupported' },
     ])
     expect(page.runs[0]!.terminal).toMatchObject({
-      cause: { structured: { kind: 'unknown', reason: 'unsupported' } },
+      cause: { structured: { kind: 'model-refused', failure: 'denied' } },
     })
   })
 

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
 import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
+import { workspaceSourcesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import {
   SkillAccessService,
   SkillCatalogService,
@@ -60,10 +61,22 @@ export const skillsRow = defineRow({
   async body(ctx, raw) {
     const config = skillsRowConfig.parse(raw)
     ctx.plugin(skillCategoryPlugin)
+    const workspace = {
+      sources: () => ctx.get(workspaceSourcesKey),
+      contractOf: (category: string) => ctx.assetCategories.view.lookup(category),
+    }
     const host = new TenantSkillsHost({
       async open(tenant, tenantRef) {
         const assets = await ctx.tenantAssets.open(tenantRef)
-        return assets === undefined ? undefined : tenantSkills(assets, tenant, config.ranking)
+        return assets === undefined
+          ? undefined
+          : tenantSkills(
+              assets,
+              tenant,
+              config.ranking,
+              workspace,
+              ctx.tenantAssets.layerSources(tenantRef),
+            )
       },
     })
     const routed = routedSkills(host)

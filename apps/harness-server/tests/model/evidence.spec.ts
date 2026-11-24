@@ -157,6 +157,7 @@ it('accepts the retry decision of the default policy, and refuses the same sourc
   const policy = createDefaultRetryPolicy<unknown>({
     adoption: ADOPTION,
     policy: { maxAttempts: 2, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+    replayResend: { max: 1 },
     clock: { now: () => '2026-11-17T00:00:00.000Z' },
     random: () => 0,
   })
@@ -178,4 +179,32 @@ it('accepts the retry decision of the default policy, and refuses the same sourc
       decision: { kind: 'stop', fault: { cause: 'runtime-lost' } },
     } as RetryInput),
   ).toEqual({ failure: { kind: 'invalid', field: 'source', reason: 'untrusted' } })
+})
+
+it('accepts a looked-up cost only when its source names the request id the dispatch keeps (C13)', () => {
+  const evidence = evidenceWith([])
+  type LateInput = Parameters<ModelCommandsEvidence['lateFact']>[0]
+  const source = {
+    owner: 'model-cost-lookup',
+    record: 'gen-1',
+    revision: '1',
+    digest: '1'.repeat(64),
+  }
+  const late = (over: Partial<LateInput>) =>
+    evidence.lateFact({
+      tenant: TENANT,
+      call,
+      dispatch: 'mdisp_one',
+      upstreamRequest: 'gen-1',
+      source,
+      fact: { kind: 'cost-miss', event: 'miss-1', final: false },
+      ...over,
+    } as LateInput)
+  expect(late({})).toEqual({ ok: source })
+  for (const refused of [
+    late({ upstreamRequest: 'gen-2' }),
+    late({ upstreamRequest: null }),
+    late({ source: { ...source, owner: 'supplier' } }),
+  ])
+    expect(refused).toMatchObject({ failure: { kind: 'unavailable' } })
 })

@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { WorkSnapshot } from '@omne-harness/session-contract'
-import {
-  creation,
-  intakeInput,
-  operationId,
-  sessionId,
-} from '@omne-harness/session-contract/testing'
+import { creation, operationId, sessionId } from '@omne-harness/session-contract/testing'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { SESSION_EXECUTION_HANDLER, decodeSessionExecution } from '../src/participants.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
@@ -146,7 +141,6 @@ describe('the startRun commit writes the index in its own transaction', () => {
   it('a startRun that Session rejects writes no index row', async () => {
     const a = await app()
     ok(await a.create(TENANT_A, 'session-1'))
-    ok(await a.accept(TENANT_A, 'session-1', 'session-1-input', intakeInput('session-1-input')))
     const refused = await a.port.commit({
       access: a.access(TENANT_A),
       command: {
@@ -154,7 +148,7 @@ describe('the startRun commit writes the index in its own transaction', () => {
         input: {
           tenant: TENANT_A,
           session: sessionId('session-1'),
-          operation: operationId('start-without-login'),
+          operation: operationId('start-without-input'),
           entry: 'interactive',
           candidate: creation().definition.candidate,
           instance: { owner: 'agent', id: 'instance-1' },
@@ -162,7 +156,7 @@ describe('the startRun commit writes the index in its own transaction', () => {
       },
       guards: [],
     })
-    expect(kindOf(refused)).toBe('login-required')
+    expect(kindOf(refused)).toBe('no-input')
     expect(rows(a, 'SELECT COUNT(*) FROM sl_execution_idx')[0]?.[0]).toBe(0n)
   })
 
@@ -182,7 +176,7 @@ describe('the startRun commit writes the index in its own transaction', () => {
       failure: { kind: 'invalid', field: 'storage', reason: 'execution-indexed' },
     })
     const stop = a.provider.calls.filter(call => call.kind === 'commit').at(-1)
-    const receipt = stop === undefined ? undefined : await a.provider.storage.query(stop.identity)
+    const receipt = stop === undefined ? undefined : a.provider.ran(stop.identity)
     const reply = receipt?.kind === 'rolled_back' ? receipt.responses.at(-1)?.reply : undefined
     expect(reply).toMatchObject({
       kind: 'conflict',

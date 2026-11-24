@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Access plugin of schedule/v1: a tenant's schedules for a person acting for the tenant",
+  "description": "Access plugin of schedule/v2: a tenant's schedules for a person acting for the tenant",
   "engines": {
     "node": ">=24"
   },

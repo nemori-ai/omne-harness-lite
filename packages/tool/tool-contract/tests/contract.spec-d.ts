@@ -1,6 +1,5 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
-import { organizationCodec } from '@omne-harness/legal-identity'
 import { expectTypeOf, it } from 'vitest'
 import {
   decodeToolCallId,
@@ -14,6 +13,7 @@ import {
   type ToolResultData,
   type ToolReleaseDeliveryOutcome,
   type ReleasedDelivery,
+  type Reply,
   type ToolReturnDeclaration,
   type ToolRuntime,
   type ToolState,
@@ -21,7 +21,11 @@ import {
   type WaitState,
 } from '@omne-harness/tool-contract'
 import {
-  type AccountScope,
+  type ToolAccounts,
+  type ToolUsageFact,
+  type ToolUsageOutcome,
+  type ToolUsagePage,
+  type ToolUsageQuery,
   type ControlDispatch,
   type IndependentToolScopeInput,
   type ToolAskRequest,
@@ -36,6 +40,7 @@ import {
 type Principal = Readonly<{ user: string }>
 declare const base: ToolState
 declare const ask: Extract<WaitState, { kind: 'ask' }>
+declare const resource: Extract<WaitState, { kind: 'resource' }>
 declare const call: ToolCallId
 declare const instance: ToolInstanceId
 declare const operation: ToolOperationId
@@ -75,7 +80,7 @@ it('rejects no-response as the terminal of a background call', () => {
   void settled
 })
 
-it('allows an ask wait only on a foreground running call', () => {
+it('allows an ask wait in either relation, and a resource wait only in the foreground', () => {
   const foreground: ToolState = {
     ...base,
     phase: 'running',
@@ -83,16 +88,24 @@ it('allows an ask wait only on a foreground running call', () => {
     relation: 'foreground',
     wait: ask,
   }
-  // @ts-expect-error TS2322: The types of 'wait.kind' are incompatible: '"ask"' is not assignable to '"none"'.
-  const backgroundWait: ToolState = {
+  const backgroundAsk: ToolState = {
     ...base,
     phase: 'running',
     instance,
     relation: 'background',
     wait: ask,
   }
+  // @ts-expect-error TS2322: The types of 'wait.kind' are incompatible: '"resource"' is not assignable to '"none" | "ask"'.
+  const backgroundResource: ToolState = {
+    ...base,
+    phase: 'running',
+    instance,
+    relation: 'background',
+    wait: resource,
+  }
   void foreground
-  void backgroundWait
+  void backgroundAsk
+  void backgroundResource
 })
 
 it('gives an Ask no deadline', () => {
@@ -237,15 +250,13 @@ it('a successful delivery release has no operation claim and cannot return a pen
   void declareReleaseShape
 })
 
-it('an account scope names its organization with a minted OrganizationId', () => {
-  const parsed = organizationCodec.parse('org_0123456789abcdefghjkmnpqrs')
-  if (!parsed.ok) throw new Error('fixture organization')
-  const scope: AccountScope = { kind: 'organization', organization: parsed.value }
-  const bare: AccountScope = {
-    kind: 'organization',
-    // @ts-expect-error an organization scope takes a minted OrganizationId, not bare text
-    organization: 'org_0123456789abcdefghjkmnpqrs',
-  }
-  void scope
-  void bare
+it('a usage fact keeps how a call ended without its diagnostic, and lists by the shape of a query', () => {
+  const failed: ToolUsageOutcome = { kind: 'failed', cause: 'executor' }
+  // @ts-expect-error a usage outcome carries no diagnostic text
+  const leaky: ToolUsageOutcome = { kind: 'failed', cause: 'executor', diagnostic: 'out' }
+  expectTypeOf<ToolUsageFact['outcome']>().toEqualTypeOf<ToolUsageOutcome>()
+  expectTypeOf<Parameters<ToolAccounts<string>['list']>[0]>().toMatchTypeOf<ToolUsageQuery>()
+  expectTypeOf<ReturnType<ToolAccounts<string>['list']>>().toEqualTypeOf<Reply<ToolUsagePage>>()
+  void failed
+  void leaky
 })

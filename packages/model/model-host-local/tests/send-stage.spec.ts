@@ -24,6 +24,7 @@ import {
 import {
   ModelCommandsService,
   ModelCredentialService,
+  ModelMediaSourceService,
   ModelSendBoundaryService,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
@@ -32,7 +33,6 @@ import {
   type PiTransport,
   type PiTransportConfig,
 } from '@omne-harness/pi-ai-transport'
-import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createModelSendStagePlugin } from '../src/cordis.ts'
 import { vaultCredentialPlugin } from './support/credentials.ts'
@@ -48,8 +48,9 @@ import {
   decoded,
   FAMILIES,
   PLACEHOLDER,
-  ROUTE_PATH,
   TRANSPORT_LIMITS,
+  isGatewayPath,
+  gatewayEndpoints,
 } from './support/local-host.ts'
 import { factorySupplier } from './support/profiles.ts'
 import { firstRoundRequest, RECORD_CASE_NAMES, RECORD_CASES } from './support/recording-cases.ts'
@@ -71,7 +72,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 
 function tenantOf(suffix: string) {
@@ -182,6 +182,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -218,6 +220,7 @@ function observing() {
     const observed: Observed = { config, reads: [] }
     transports.push(observed)
     return {
+      lookupCost: () => Promise.resolve({ kind: 'unsupported' as const }),
       transport: {
         async prepare(request, supplier) {
           return {
@@ -287,8 +290,12 @@ function observing() {
 
 const ROUTES = {
   openrouter: {
-    url: 'https://gateway.invalid/api/v1/chat/completions',
-    endMarker: '[DONE]',
+    endpoints: {
+      'chat-completions': {
+        url: 'https://gateway.invalid/api/v1/chat/completions',
+        endMarker: '[DONE]',
+      },
+    },
     accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
     auth: { kind: 'bearer' as const, item: 'apiKey' },
   },
@@ -578,7 +585,7 @@ describe('the plugin and its dependencies', () => {
     expect(ctx.modelSendBoundary).toBeInstanceOf(ModelSendBoundaryService)
     expect(
       Object.keys(ctx.modelSendBoundary).filter(key => key !== 'ctx' && key !== 'name'),
-    ).toEqual(['send'])
+    ).toEqual(['send', 'lookupCost'])
     expect(watch.events).toEqual(['network', 'resources'])
 
     await fiber.dispose()
@@ -627,6 +634,37 @@ describe('the plugin and its dependencies', () => {
     await commands.dispose()
     expect(ctx.modelSendBoundary).toBeUndefined()
     expect(watch.events).toContain('resources-closed')
+    await watch.dispose()
+  })
+
+  it('reads media from the source in the tree at that moment, and loads without one', async () => {
+    class Pictures extends ModelMediaSourceService {
+      readonly open: ModelMediaSourceService['open'] = async () => ({
+        failure: { kind: 'material-unavailable' },
+      })
+    }
+    const scene = sceneOf(REQUEST, 'media-source')
+    const watch = observing()
+    const ctx = new Context()
+    await ctx.plugin(SpyCredential)
+    await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+    let current: (() => unknown) | undefined
+    const Stage = sendStagePluginOver({
+      options: optionsOf(scene),
+      assemble: config => {
+        current = config.media
+        return assembleOver({ config, factories: watch.factories })
+      },
+    })
+    await ctx.plugin(Stage, SETTINGS)
+    expect(ctx.modelSendBoundary).toBeInstanceOf(ModelSendBoundaryService)
+    expect(current?.()).toBeNull()
+    const pictures = await ctx.plugin(Pictures)
+    // A service is a proxy that refuses the properties a matcher probes, so it is compared here.
+    expect(current?.() instanceof Pictures).toBe(true)
+    await pictures.dispose()
+    expect(current?.()).toBeNull()
+    expect(ctx.modelSendBoundary).toBeInstanceOf(ModelSendBoundaryService)
     await watch.dispose()
   })
 
@@ -907,7 +945,7 @@ describe('a connect failure that the send retries, through the plugin', () => {
         const certificate = createCertificate()
         closers.push(() => certificate.dispose())
         const server = await startHttpsServer(certificate, (res, received) => {
-          if (received.path !== ROUTE_PATH) {
+          if (!isGatewayPath(received.path)) {
             res.writeHead(404).end()
             return
           }
@@ -938,8 +976,7 @@ describe('a connect failure that the send retries, through the plugin', () => {
             },
             routes: {
               openrouter: {
-                url: new URL(ROUTE_PATH, front.url).href,
-                endMarker: GATEWAY_END_MARKER,
+                endpoints: gatewayEndpoints(front.url),
                 accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
                 auth: { kind: 'bearer', item: 'apiKey' },
               },
@@ -1000,7 +1037,7 @@ async function replayThroughPlugin(
     const certificate = createCertificate()
     closers.push(() => certificate.dispose())
     const server = await startHttpsServer(certificate, (res, received) => {
-      if (received.path !== ROUTE_PATH) {
+      if (!isGatewayPath(received.path)) {
         res.writeHead(404).end()
         return
       }
@@ -1021,8 +1058,7 @@ async function replayThroughPlugin(
         },
         routes: {
           openrouter: {
-            url: new URL(ROUTE_PATH, server.url).href,
-            endMarker: GATEWAY_END_MARKER,
+            endpoints: gatewayEndpoints(server.url),
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },

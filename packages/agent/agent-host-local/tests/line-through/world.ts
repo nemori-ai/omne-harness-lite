@@ -26,7 +26,6 @@ import {
   type RuntimeConditions,
   type SelectedModel,
 } from '@omne-harness/agent-contract'
-import { createMemoryAgentAccountOutlet } from '@omne-harness/agent-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   AgentContextProvider,
@@ -35,7 +34,6 @@ import {
 import {
   ActionAdmissionService,
   AgentAccessCheckService,
-  AgentAccountOutletService,
   AgentAdoptionsService,
   AgentClockService,
   ContextCompactionService,
@@ -143,6 +141,9 @@ import {
   memoryOtherAccess,
   sessionId,
   type SessionAccessScript,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createSessionCommitNotifier, SessionProvider } from '@omne-harness/session-cordis/cordis'
 import {
@@ -558,7 +559,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
 
-  const sessionChecks = createPolicySessionAccessCheck<string>(sessionPolicy)
+  // This world admits inputs as a member of the tenant: every allowed answer names that subject.
+  const sessionChecks = withMemberSubject(createPolicySessionAccessCheck<string>(sessionPolicy))
   const pairOver = (over: SqlStorage) =>
     createSessionStoragePair<string>({
       storage: over,
@@ -582,6 +584,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       },
       accessCheck: sessionChecks,
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       combination,
     })
   const pair = pairOver(storage)
@@ -680,18 +684,25 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   }
   const receivedProvider = options.reception === 'routed' ? routedProvider() : sessionLog
 
-  const probeLog = createSessionLogJournal<unknown>({
+  const probeView = createSessionLogJournal<unknown>({
     storage: seeing,
     tenantDomainLookup: lookup,
     sessionAccessCheck: sessionChecks as never,
     combination,
-  }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).journal
+  }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId })
+  const probeLog = probeView.journal
+  const probeEntries = probeView.entries
 
   const access = createScriptedAccessCheck<unknown>()
   const adoptions = createTableAdoptions<unknown>()
   const run = creation().definition.candidate
   adoptions.define(run, {
-    definition: { category: 'AgentDefinition', name: 'assistant' } as never,
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'assistant',
+    } as never,
     evaluator: agentEvaluator,
     extensions: [],
   })
@@ -920,7 +931,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   const instance = decodeModelInstanceId('minst_cp3')
   if ('failure' in instance) throw new Error('model instance')
   const scripted = createScriptedModelProvider<unknown>({ instance: instance.ok })
-  const outlet = createMemoryAgentAccountOutlet<unknown>()
   const receiverState = createModelReceiverState<unknown>()
   const pushes: Promise<unknown>[] = []
   const admits: unknown[] = []
@@ -988,7 +998,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
                 return fail({ kind: 'denied', action: 'resolve' })
               },
             },
-      outlet,
       models: scripted.provider.runtime.calls,
       capacity: () => ({
         records: options.receiverRecords ?? 10000,
@@ -1033,9 +1042,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
   await mount(serviceOf(ModelRuntimeService, models, 'ModelRuntime'))
-  await mount(
-    serviceOf(AgentAccountOutletService as unknown as AbstractService, outlet, 'AccountOutlet'),
-  )
   // These lines never reach the compaction budget; a scripted provider answers unavailable.
   await mount(
     serviceOf(
@@ -1116,7 +1122,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     receivedProvider,
     access,
     tools,
-    outlet,
     scripted,
     pusher,
     receiverState,
@@ -1124,6 +1129,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     transactions: pair.transactions,
     probe: probe.transactions,
     probeLog,
+    probeEntries,
     intake,
     bindings,
     journal,

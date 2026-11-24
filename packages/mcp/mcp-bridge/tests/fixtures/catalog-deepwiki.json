@@ -1,0 +1,773 @@
+{
+  "name": "deepwiki",
+  "actions": [
+    {
+      "name": "ask_wiki_question",
+      "lastLawful": {
+        "name": "ask_wiki_question",
+        "outputSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "result",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "required",
+              "value": {
+                "kind": "array",
+                "items": [
+                  {
+                    "kind": "string",
+                    "value": "result"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "x-fastmcp-wrap-result",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            }
+          ]
+        },
+        "definition": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "_meta",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "fastmcp",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "tags",
+                          "value": {
+                            "kind": "array",
+                            "items": []
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "description",
+              "value": {
+                "kind": "string",
+                "value": "Ask any question about a GitHub repository's codebase and get an AI-powered answer\ngrounded in its DeepWiki."
+              }
+            },
+            {
+              "key": "inputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "additionalProperties",
+                    "value": {
+                      "kind": "boolean",
+                      "value": false
+                    }
+                  },
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "repoName",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "anyOf",
+                                "value": {
+                                  "kind": "array",
+                                  "items": [
+                                    {
+                                      "kind": "object",
+                                      "entries": [
+                                        {
+                                          "key": "type",
+                                          "value": {
+                                            "kind": "string",
+                                            "value": "string"
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "object",
+                                      "entries": [
+                                        {
+                                          "key": "items",
+                                          "value": {
+                                            "kind": "object",
+                                            "entries": [
+                                              {
+                                                "key": "type",
+                                                "value": {
+                                                  "kind": "string",
+                                                  "value": "string"
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "key": "type",
+                                          "value": {
+                                            "kind": "string",
+                                            "value": "array"
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "key": "description",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "GitHub repository or list of repositories (max 10) in owner/repo format."
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": "question",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "description",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "The question to ask about the repository."
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "required",
+                    "value": {
+                      "kind": "array",
+                      "items": [
+                        {
+                          "kind": "string",
+                          "value": "repoName"
+                        },
+                        {
+                          "kind": "string",
+                          "value": "question"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "name",
+              "value": {
+                "kind": "string",
+                "value": "ask_wiki_question"
+              }
+            },
+            {
+              "key": "outputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "result",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "required",
+                    "value": {
+                      "kind": "array",
+                      "items": [
+                        {
+                          "kind": "string",
+                          "value": "result"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "x-fastmcp-wrap-result",
+                    "value": {
+                      "kind": "boolean",
+                      "value": true
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "title",
+              "value": {
+                "kind": "string",
+                "value": "Ask Wiki Question"
+              }
+            }
+          ]
+        }
+      },
+      "definitionDigest": "sha256:401f93e2b0d72243cb0b777218f23a7c06201356d2e3f94cee54551a1d1a44c6",
+      "availability": {
+        "kind": "available"
+      }
+    },
+    {
+      "name": "read_wiki_contents",
+      "lastLawful": {
+        "name": "read_wiki_contents",
+        "outputSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "result",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "required",
+              "value": {
+                "kind": "array",
+                "items": [
+                  {
+                    "kind": "string",
+                    "value": "result"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "x-fastmcp-wrap-result",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            }
+          ]
+        },
+        "definition": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "_meta",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "fastmcp",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "tags",
+                          "value": {
+                            "kind": "array",
+                            "items": []
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "description",
+              "value": {
+                "kind": "string",
+                "value": "View documentation about a GitHub repository."
+              }
+            },
+            {
+              "key": "inputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "additionalProperties",
+                    "value": {
+                      "kind": "boolean",
+                      "value": false
+                    }
+                  },
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "repoName",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "description",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "GitHub repository in owner/repo format (e.g. \"facebook/react\")."
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "required",
+                    "value": {
+                      "kind": "array",
+                      "items": [
+                        {
+                          "kind": "string",
+                          "value": "repoName"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "name",
+              "value": {
+                "kind": "string",
+                "value": "read_wiki_contents"
+              }
+            },
+            {
+              "key": "outputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "result",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "required",
+                    "value": {
+                      "kind": "array",
+                      "items": [
+                        {
+                          "kind": "string",
+                          "value": "result"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "x-fastmcp-wrap-result",
+                    "value": {
+                      "kind": "boolean",
+                      "value": true
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "title",
+              "value": {
+                "kind": "string",
+                "value": "Read Wiki Contents"
+              }
+            }
+          ]
+        }
+      },
+      "definitionDigest": "sha256:cfa6ed9d33db1b8980fb1ab12b50e94203da0da822f3fe8e3407d8ebac25058e",
+      "availability": {
+        "kind": "available"
+      }
+    },
+    {
+      "name": "read_wiki_structure",
+      "lastLawful": {
+        "name": "read_wiki_structure",
+        "outputSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "result",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "required",
+              "value": {
+                "kind": "array",
+                "items": [
+                  {
+                    "kind": "string",
+                    "value": "result"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "x-fastmcp-wrap-result",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            }
+          ]
+        },
+        "definition": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "_meta",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "fastmcp",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "tags",
+                          "value": {
+                            "kind": "array",
+                            "items": []
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "description",
+              "value": {
+                "kind": "string",
+                "value": "Get a list of documentation topics for a GitHub repository."
+              }
+            },
+            {
+              "key": "inputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "additionalProperties",
+                    "value": {
+                      "kind": "boolean",
+                      "value": false
+                    }
+                  },
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "repoName",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "description",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "GitHub repository in owner/repo format (e.g. \"facebook/react\")."
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "required",
+                    "value": {
+                      "kind": "array",
+                      "items": [
+                        {
+                          "kind": "string",
+                          "value": "repoName"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "name",
+              "value": {
+                "kind": "string",
+                "value": "read_wiki_structure"
+              }
+            },
+            {
+              "key": "outputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "result",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "required",
+                    "value": {
+                      "kind": "array",
+                      "items": [
+                        {
+                          "kind": "string",
+                          "value": "result"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "x-fastmcp-wrap-result",
+                    "value": {
+                      "kind": "boolean",
+                      "value": true
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "title",
+              "value": {
+                "kind": "string",
+                "value": "Read Wiki Structure"
+              }
+            }
+          ]
+        }
+      },
+      "definitionDigest": "sha256:e2bb879a05bc6647dcfac608499c58a65812c839e1731c84a49277f7c2311719",
+      "availability": {
+        "kind": "available"
+      }
+    }
+  ]
+}

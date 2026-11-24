@@ -6,11 +6,17 @@ import {
   type CompactionContext,
   type CoveredEntry,
 } from '@omne-harness/message'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  forkPointBefore,
   isAcceptedInputRecord,
   openWork,
+  type ForkPointRead,
   type HistoryEntry,
+  type ModelViewBasis,
+  type ModelViewRead,
   type ModelViewRow,
+  type SessionFailure,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -197,4 +203,58 @@ export function compactionReads(
     after,
     open: [...new Set(open)],
   }
+}
+
+type Held = Readonly<{ modelView: MaterializedModelView; entries: readonly HistoryEntry[] }>
+type Keyed = Outcome<string, SessionFailure>
+
+/** The point before the asking message of the view of a memory session. */
+export function forkPointRead(
+  store: Outcome<Held, SessionFailure>,
+  key: Keyed,
+  asking: string,
+): Outcome<ForkPointRead, SessionFailure> {
+  if ('failure' in store) return fail(store.failure)
+  if ('failure' in key) return fail(key.failure)
+  const view = store.ok.modelView
+  const row = view.rows.find(item => item.message.id === asking)
+  const found = row === undefined ? undefined : { seq: row.seq, role: row.message.role }
+  const tail = store.ok.entries.at(-1)?.id ?? '0'
+  const point = forkPointBefore(`${key.ok}/${view.epoch}`, found, tail)
+  return succeed(point === null ? { kind: 'none' } : { kind: 'point', point })
+}
+
+export function modelViewPage(
+  view: MaterializedModelView,
+  key: Keyed,
+  input: Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
+): Outcome<ModelViewRead, SessionFailure> {
+  if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
+    return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+  if ('failure' in key) return fail(key.failure)
+  const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
+  if (input.basis !== null && !input.basis.epoch.startsWith(`${key.ok}/`))
+    return fail({ kind: 'invalid', field: 'basis', reason: 'another session' })
+  if (input.basis !== null && input.basis.epoch !== current.epoch)
+    return succeed({ kind: 'epoch-changed', current })
+  const basis = input.basis ?? current
+  const after = input.after === null ? 0 : Number(input.after)
+  const upper = Number(basis.upper)
+  if (
+    !Number.isInteger(after) ||
+    !Number.isInteger(upper) ||
+    after < 0 ||
+    upper > view.rows.length ||
+    after > upper
+  )
+    return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
+  const rows = []
+  let bytes = 0
+  for (const row of view.rows.slice(after, upper)) {
+    if (rows.length > 0 && bytes + row.bytes > input.pageBytes) break
+    rows.push(row)
+    bytes += row.bytes
+  }
+  const next = after + rows.length < upper ? String(after + rows.length) : null
+  return succeed({ kind: 'page', basis, rows, next })
 }

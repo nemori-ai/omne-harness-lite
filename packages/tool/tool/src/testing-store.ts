@@ -1,14 +1,18 @@
-import type { ToolRevision } from '@omne-harness/tool-contract'
-import type { ToolInstant } from '@omne-harness/tool-contract/provider'
-import { INITIAL_REVISION } from './evidence.ts'
+import type { Adoption, ToolRevision } from '@omne-harness/tool-contract'
+import type { ToolInstant, ToolUsageFact } from '@omne-harness/tool-contract/provider'
+import { canonicalJson, INITIAL_REVISION } from './evidence.ts'
+import { selectUsage } from './ledger-usage.ts'
 import {
   recordKey,
   type DueEntry,
   type LedgerCommit,
   type LedgerCommitInput,
+  type LedgerDefinitionRead,
   type LedgerDomain,
   type LedgerPendingScan,
   type LedgerPendingScanInput,
+  type LedgerUsageQuery,
+  type LedgerUsageRead,
   type LedgerDueRead,
   type LedgerRecord,
   type PendingCall,
@@ -63,10 +67,63 @@ function copy<T>(value: T): T {
   return structuredClone(value)
 }
 
+function* tenantDomains(
+  domains: ReadonlyMap<string, Domain>,
+  addresses: ReadonlyMap<string, LedgerDomain>,
+  tenant: TenantId,
+): Generator<readonly [LedgerDomain, Domain]> {
+  for (const [key, domain] of domains) {
+    const address = addresses.get(key)
+    if (address !== undefined && tenantKey(address.tenant) === tenantKey(tenant))
+      yield [address, domain]
+  }
+}
+
+function storedDefinition(
+  domains: ReadonlyMap<string, Domain>,
+  addresses: ReadonlyMap<string, LedgerDomain>,
+  tenant: TenantId,
+  adoption: Adoption,
+): LedgerDefinitionRead {
+  const wanted = canonicalJson(adoption)
+  for (const [, domain] of tenantDomains(domains, addresses, tenant))
+    for (const record of domain.records.values()) {
+      const request =
+        record.kind === 'call'
+          ? record.call.request
+          : record.kind === 'host'
+            ? record.host.request
+            : undefined
+      const definition = request?.availability.definition
+      if (definition !== undefined && canonicalJson(definition.adoption) === wanted)
+        return { kind: 'complete', definition: copy(definition) }
+    }
+  return { kind: 'complete', definition: null }
+}
+
+const sameTenant = (input: LedgerCommitInput): boolean => {
+  const tenant = JSON.stringify([
+    input.domain.tenant.organization.text,
+    input.domain.tenant.account.text,
+  ])
+  return (input.asserts ?? []).every(
+    assertion =>
+      JSON.stringify([
+        assertion.domain.tenant.organization.text,
+        assertion.domain.tenant.account.text,
+      ]) === tenant,
+  )
+}
+
+const wellFormedDrop = (input: LedgerCommitInput): boolean =>
+  !input.writes.some(write => write.kind === 'drop') ||
+  (input.writes.length === 1 && input.revision === INITIAL_REVISION)
+
 export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
   const domains = new Map<string, Domain>()
   const addresses = new Map<string, LedgerDomain>()
   const pending = new Map<string, PendingCall>()
+  const usage = new Map<string, Readonly<{ tenant: string; fact: ToolUsageFact }>>()
   const readFaults: MemoryReadFault[] = []
   const commitFaults: MemoryCommitFault[] = []
   const held: LedgerCommitInput[] = []
@@ -104,6 +161,12 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
         case 'unschedule':
           due.delete(write.key)
           break
+        case 'usage':
+          usage.set(JSON.stringify([tenantOrder(input.domain.tenant), write.fact.call]), {
+            tenant: tenantOrder(input.domain.tenant),
+            fact: copy(write.fact),
+          })
+          break
         default: {
           const exhaustive: never = write
           return exhaustive
@@ -139,35 +202,14 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
 
   const dueOf = (tenant: TenantId, now: ToolInstant, limit: number): LedgerDueRead => {
     const entries: DueEntry[] = []
-    for (const [key, domain] of domains) {
-      const address = addresses.get(key)
-      if (address === undefined || tenantKey(address.tenant) !== tenantKey(tenant)) continue
+    for (const [address, domain] of tenantDomains(domains, addresses, tenant))
       for (const [entryKey, dueAt] of domain.due)
         if (dueAt <= now) entries.push({ domain: copy(address), key: entryKey, dueAt })
-    }
     entries.sort((a, b) =>
       a.dueAt < b.dueAt ? -1 : a.dueAt > b.dueAt ? 1 : a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
     )
     return { kind: 'complete', entries: entries.slice(0, limit) }
   }
-
-  const sameTenant = (input: LedgerCommitInput): boolean => {
-    const tenant = JSON.stringify([
-      input.domain.tenant.organization.text,
-      input.domain.tenant.account.text,
-    ])
-    return (input.asserts ?? []).every(
-      assertion =>
-        JSON.stringify([
-          assertion.domain.tenant.organization.text,
-          assertion.domain.tenant.account.text,
-        ]) === tenant,
-    )
-  }
-
-  const wellFormedDrop = (input: LedgerCommitInput): boolean =>
-    !input.writes.some(write => write.kind === 'drop') ||
-    (input.writes.length === 1 && input.revision === INITIAL_REVISION)
 
   const holds = (input: LedgerCommitInput): boolean =>
     domainOf(input.domain).revision === input.expected &&
@@ -202,8 +244,15 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
     return { kind: 'committed' }
   }
 
+  const usageOf = (query: LedgerUsageQuery): LedgerUsageRead => {
+    const tenant = tenantOrder(query.tenant)
+    const facts = [...usage.values()].filter(row => row.tenant === tenant).map(row => row.fact)
+    return copy(selectUsage(facts, query))
+  }
+
   return {
     durability: 'none',
+    usage: query => Promise.resolve(usageOf(query)),
     injectRead: (...faults) => {
       readFaults.push(...faults)
     },
@@ -239,6 +288,8 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
         record: copy(target.records.get(key) ?? null),
       })
     },
+    definition: (tenant, adoption) =>
+      Promise.resolve(storedDefinition(domains, addresses, tenant, adoption)),
     commit: input => {
       commits += 1
       return Promise.resolve(commit(input))

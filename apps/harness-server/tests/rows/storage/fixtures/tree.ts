@@ -13,12 +13,19 @@ import {
   initializationFixtureGuard,
   operationId,
   sessionId,
+  TESTING_DECLARATIONS,
+  testingDerivedInputs,
   testingTenant,
+  withMemberSubject,
   type ScriptedSessionAccessCheck,
 } from '@omne-harness/session-contract/testing'
 import {
   SessionAccessCheckService,
+  SessionDerivedInputsService,
+  SessionInputSourcesService,
   sessionAccessCheckKey,
+  sessionDerivedInputsKey,
+  sessionInputSourcesKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import type { SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import { cursorSigning } from '../../../../src/entry/cursor-signing.ts'
@@ -136,16 +143,27 @@ export function accessPolicyRow(
   class Verifier extends PrincipalVerifierService {
     readonly verify = authority.verifier.verify
   }
+  // The double admits inputs as a member of the tenant, from the testing sources.
+  const admitting = withMemberSubject(check)
   class PolicyAccessCheck extends SessionAccessCheckService<string> {
-    readonly check: SessionAccessCheck<string>['check'] = request => check.check(request)
+    readonly check: SessionAccessCheck<string>['check'] = request => admitting.check(request)
+  }
+  class TestingDerivedInputs extends SessionDerivedInputsService {
+    private readonly inputs = testingDerivedInputs()
+    admission(kind: Parameters<SessionDerivedInputsService['admission']>[0]) {
+      return this.inputs.admission(kind)
+    }
   }
   const plugin = defineRow({
     row: 'authorization',
     implementation: 'contract-double',
     manifest: {
-      provides: includePrincipalVerifier
-        ? [sessionAccessCheckKey, principalVerifierKey]
-        : [sessionAccessCheckKey],
+      provides: [
+        sessionAccessCheckKey,
+        sessionInputSourcesKey,
+        sessionDerivedInputsKey,
+        ...(includePrincipalVerifier ? [principalVerifierKey] : []),
+      ],
       injects: [],
       sameProviderGroup: null,
     },
@@ -154,6 +172,9 @@ export function accessPolicyRow(
       name: 'policy-access-check',
       apply(ctx: Context) {
         new PolicyAccessCheck(ctx)
+        const sources = new SessionInputSourcesService(ctx)
+        for (const declaration of TESTING_DECLARATIONS) sources.register(declaration)
+        new TestingDerivedInputs(ctx)
         if (includePrincipalVerifier) new Verifier(ctx)
       },
     },

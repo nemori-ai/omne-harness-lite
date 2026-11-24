@@ -30,7 +30,6 @@ import {
   type MemoryContextSources,
 } from './sources.js'
 import {
-  createMemoryConversionResults,
   createScriptedInputMeter,
   createScriptedPreparationResources,
   type ScriptedPreparationResources,
@@ -154,33 +153,6 @@ export function createAssemblyGroups(
     history: {
       evidence: { target, epoch, upper: { kind: 'entry', seq: seq(0) } },
       inputs: { batch: must(decodeBatchRef('batch:1')), entries: [], saved: evidence },
-    },
-    context: {
-      contextRead: {
-        scope: target.scope,
-        recipient: 'route/model',
-        read: {
-          kind: 'success',
-          registration: { issued: 0, current: 0 },
-          value: {
-            scope: target.scope,
-            viewRevision: 1,
-            cursor: { cursor: 'c' },
-            blocks: [],
-            missing: [],
-            perRequest: [],
-          },
-        },
-        snapshot: {
-          scope: target.scope,
-          eligibility: { eligibility: 'eligible' },
-          revision: 1,
-          blocks: [],
-        },
-        perRequest: [],
-        source: evidence,
-        coverage: evidence,
-      },
       transition: null,
     },
     prompt: {
@@ -265,6 +237,7 @@ export function createAssemblyFixture(options: AssemblyFixtureOptions = {}): Ass
         upper: last === undefined ? { kind: 'empty' } : { kind: 'entry', seq: last.seq },
       },
       inputs: { batch: must(decodeBatchRef('batch:1')), entries: [], saved: evidence },
+      transition: null,
     },
     ...options.groups,
   })
@@ -276,7 +249,6 @@ export function createAssemblyFixture(options: AssemblyFixtureOptions = {}): Ass
     target,
     values: groups,
     history,
-    conversions: createMemoryConversionResults<string>(),
     preparation,
   })
   const policies = options.policies ?? fixturePolicies()

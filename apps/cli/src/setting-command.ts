@@ -14,6 +14,7 @@ import type { CallResult, Link } from './link.ts'
 import { treeOf, type JsonTree } from './json-tree.ts'
 import { readOptions } from './options.ts'
 import { exitCodeOf, report, type RequestEcho } from './report.ts'
+import { splitArguments } from './split-arguments.ts'
 
 const JSON_SWITCH = '--json'
 const INDEPENDENT_SWITCH = '--independent'
@@ -57,22 +58,6 @@ const OPTION_RULES: Readonly<
   set: { accepted: [serverOption, VALUE_OPTION], switches: [INDEPENDENT_SWITCH] },
   show: { accepted: [serverOption], switches: [JSON_SWITCH, INDEPENDENT_SWITCH] },
   unset: { accepted: [serverOption], switches: [INDEPENDENT_SWITCH] },
-}
-
-function split(args: readonly string[]): { words: string[]; options: string[] } {
-  const words: string[] = []
-  const options: string[] = []
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index] ?? ''
-    if (VALUE_OPTIONS.includes(arg)) {
-      options.push(arg)
-      const value = args[index + 1]
-      if (value !== undefined) options.push(value)
-      index += 1
-    } else if (arg.startsWith('-')) options.push(arg)
-    else words.push(arg)
-  }
-  return { words, options }
 }
 
 const SECRET_STATES: Readonly<Record<string, string>> = {
@@ -135,37 +120,53 @@ type Invocation =
   | Readonly<{ action: 'list'; values: ReadonlyMap<string, string>; scope: Scope }>
   | (Targeted & Readonly<{ action: Exclude<Action, 'list'> }>)
 
+function listInvocation(
+  values: ReadonlyMap<string, string>,
+  ownerText: string | undefined,
+  independent: boolean,
+  name: string,
+): Invocation | string {
+  if (independent) return { action: 'list', values, scope: { kind: 'independent' } }
+  if (ownerText === undefined) return { action: 'list', values, scope: { kind: 'asset' } }
+  const asset = assetOf(ownerText)
+  return asset === undefined
+    ? unrecognized(name)
+    : { action: 'list', values, scope: { kind: 'asset', asset } }
+}
+
+function targetedInvocation(
+  action: Exclude<Action, 'list'>,
+  values: ReadonlyMap<string, string>,
+  words: readonly string[],
+  independent: boolean,
+  name: string,
+): Invocation | string {
+  const missing = (independent ? INDEPENDENT_WORDS : WORDS)[action][words.length]
+  if (missing !== undefined) return missingOption(name, missing)
+  const [ownerText = '', item = ''] = words
+  const asset = independent ? undefined : assetOf(ownerText)
+  const owner: Owner | undefined = independent
+    ? groupOf(ownerText)
+    : asset && { kind: 'asset', ...asset }
+  if (owner === undefined || item === '') return unrecognized(name)
+  return { action, values, owner, item }
+}
+
 function readInvocation(
   action: Action,
   rest: readonly string[],
   name: string,
 ): Invocation | string {
-  const { words, options } = split(rest)
+  const { words, options } = splitArguments(rest, VALUE_OPTIONS)
   const read = readOptions(options, { ...OPTION_RULES[action], required: [] })
   if (read.kind === 'unrecognized') return unrecognized(name)
   if (read.kind === 'missing') return missingOption(name, read.option)
   const independent = read.values.has(INDEPENDENT_SWITCH)
-  const expected = (independent ? INDEPENDENT_WORDS : WORDS)[action]
-  if (words.length > expected.length) return unrecognized(name)
-  const missing = action === 'list' ? undefined : expected[words.length]
-  if (missing !== undefined) return missingOption(name, missing)
-  const [ownerText, item = ''] = words
-  if (action === 'list') {
-    if (independent) return { action, values: read.values, scope: { kind: 'independent' } }
-    const asset = ownerText === undefined ? undefined : assetOf(ownerText)
-    if (ownerText !== undefined && asset === undefined) return unrecognized(name)
-    const scope: Scope = asset === undefined ? { kind: 'asset' } : { kind: 'asset', asset }
-    return { action, values: read.values, scope }
-  }
-  const asset = independent || ownerText === undefined ? undefined : assetOf(ownerText)
-  const owner: Owner | undefined =
-    ownerText === undefined
-      ? undefined
-      : independent
-        ? groupOf(ownerText)
-        : asset && { kind: 'asset', ...asset }
-  if (owner === undefined || item === '') return unrecognized(name)
-  return { action, values: read.values, owner, item }
+  if (words.length > (independent ? INDEPENDENT_WORDS : WORDS)[action].length)
+    return unrecognized(name)
+  return action === 'list'
+    ? listInvocation(read.values, words[0], independent, name)
+    : targetedInvocation(action, read.values, words, independent, name)
 }
 
 async function readSecret(

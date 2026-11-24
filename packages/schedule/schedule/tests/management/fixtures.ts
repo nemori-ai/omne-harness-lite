@@ -58,7 +58,6 @@ export function access(): ManagementAccess {
       authorityVersion: 'auth-v1',
       guardRef: 'guard:authority',
     },
-    consent: { kind: 'notRequired', guardRef: 'guard:consent' },
     currentStanding: {
       kind: 'ready',
       generation: 1,
@@ -126,7 +125,6 @@ export function record(control: ScheduleControl = 'active'): ScheduleRecord {
     discardedBy: null,
     discardedAt: null,
     sourceScheduleKey: null,
-    consentAdoption: null,
     eligibleConsumed: 3,
     acceptedJobCount: 2,
     observedAt: now,
@@ -143,7 +141,7 @@ export function command(action: ScheduleCommand['action']): ScheduleCommand {
   const common = {
     action,
     scheduleId,
-    meta: { operationKey: `operation:${action}`, expectedRevision: 4, consentRef: null },
+    meta: { operationKey: `operation:${action}`, expectedRevision: 4 },
   }
   switch (action) {
     case 'update':
@@ -203,7 +201,7 @@ export function createInput(initial: 'active' | 'draft' = 'active'): ManagementD
     input: {
       definition,
       initial: initial === 'active' ? { kind: 'active' } : { kind: 'draft', reason: 'Prepare' },
-      meta: { operationKey: 'create:one', expectedRevision: null, consentRef: null },
+      meta: { operationKey: 'create:one', expectedRevision: null },
     },
   }
   return {

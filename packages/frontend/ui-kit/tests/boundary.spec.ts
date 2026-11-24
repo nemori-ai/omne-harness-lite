@@ -1,3 +1,4 @@
+// @module-tag source-text
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { expect, it } from 'vitest'
@@ -72,4 +73,13 @@ it('carries no comment other than a tool annotation or a licence notice', () => 
       .map(comment => `${file.name}: ${comment.slice(0, 60)}`),
   )
   expect(offenders).toEqual([])
+})
+
+it('imports the chart library only in the charts block', () => {
+  const importers = FILES.filter(file =>
+    importedSpecifiers(file.text).some(
+      specifier => specifier === 'recharts' || specifier.startsWith('recharts/'),
+    ),
+  ).map(file => file.name)
+  expect(importers).toEqual(['src/charts/series.tsx'])
 })

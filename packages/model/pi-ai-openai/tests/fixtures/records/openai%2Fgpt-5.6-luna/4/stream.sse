@@ -1,0 +1,266 @@
+: 
+
+: 
+
+data: {"type":"response.created","response":{"id":"gen-1795246677-FmW6UPuJNLRXPGP92Blq","object":"response","created_at":1795246677,"model":"openai/gpt-5.6-luna","status":"in_progress","completed_at":null,"output":[],"error":null,"incomplete_details":null,"access_programs":null,"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1024,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"auto","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"high","summary":"auto"},"safety_identifier":null,"prompt_cache_key":"820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431","prompt_cache_options":null,"usage":null},"sequence_number":0}
+
+data: {"type":"response.in_progress","response":{"id":"gen-1795246677-FmW6UPuJNLRXPGP92Blq","object":"response","created_at":1795246677,"model":"openai/gpt-5.6-luna","status":"in_progress","completed_at":null,"output":[],"error":null,"incomplete_details":null,"access_programs":null,"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1024,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"auto","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"high","summary":"auto"},"safety_identifier":null,"prompt_cache_key":"820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431","prompt_cache_options":null,"usage":null},"sequence_number":1}
+
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","type":"reasoning","status":"in_progress","summary":[]},"sequence_number":2}
+
+data: {"type":"response.reasoning_summary_part.added","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"part":{"type":"summary_text","text":""},"sequence_number":3}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":"**Calculating values**\n\nI","sequence_number":4}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" need","sequence_number":5}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" to","sequence_number":6}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" do","sequence_number":7}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" some","sequence_number":8}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" calculations","sequence_number":9}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":"!","sequence_number":10}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" First","sequence_number":11}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":12}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" I","sequence_number":13}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" want","sequence_number":14}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" to","sequence_number":15}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" look","sequence_number":16}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" at","sequence_number":17}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" the","sequence_number":18}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" numbers","sequence_number":19}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" below","sequence_number":20}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 100","sequence_number":21}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" that","sequence_number":22}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" are","sequence_number":23}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" positive","sequence_number":24}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":25}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" specifically","sequence_number":26}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" from","sequence_number":27}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 1","sequence_number":28}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" to","sequence_number":29}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 99","sequence_number":30}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":".","sequence_number":31}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" I","sequence_number":32}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" find","sequence_number":33}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" that","sequence_number":34}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" those","sequence_number":35}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" divisible","sequence_number":36}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" by","sequence_number":37}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 3","sequence_number":38}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" amount","sequence_number":39}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" to","sequence_number":40}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 33","sequence_number":41}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":42}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" and","sequence_number":43}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" those","sequence_number":44}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" divisible","sequence_number":45}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" by","sequence_number":46}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 7","sequence_number":47}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" make","sequence_number":48}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 14","sequence_number":49}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":".","sequence_number":50}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" For","sequence_number":51}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" numbers","sequence_number":52}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" divisible","sequence_number":53}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" by","sequence_number":54}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" both","sequence_number":55}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":56}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" their","sequence_number":57}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" least","sequence_number":58}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" common","sequence_number":59}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" multiple","sequence_number":60}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" is","sequence_number":61}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 21","sequence_number":62}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":63}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" and","sequence_number":64}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" when","sequence_number":65}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" I","sequence_number":66}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" calculate","sequence_number":67}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" how","sequence_number":68}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" many","sequence_number":69}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" times","sequence_number":70}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" that","sequence_number":71}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" fits","sequence_number":72}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" into","sequence_number":73}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 99","sequence_number":74}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":75}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" I","sequence_number":76}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" get","sequence_number":77}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 4","sequence_number":78}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":".","sequence_number":79}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" Now","sequence_number":80}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":81}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" using","sequence_number":82}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" XOR","sequence_number":83}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":84}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" I","sequence_number":85}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" can","sequence_number":86}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" find","sequence_number":87}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" the","sequence_number":88}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" result","sequence_number":89}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":":","sequence_number":90}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 33","sequence_number":91}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" +","sequence_number":92}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 14","sequence_number":93}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" -","sequence_number":94}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 2","sequence_number":95}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" times","sequence_number":96}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 4","sequence_number":97}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" gives","sequence_number":98}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" me","sequence_number":99}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" 39","sequence_number":100}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":101}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" which","sequence_number":102}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" is","sequence_number":103}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" odd","sequence_number":104}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":".","sequence_number":105}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" Now","sequence_number":106}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":",","sequence_number":107}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" I","sequence_number":108}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" should","sequence_number":109}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" use","sequence_number":110}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" the","sequence_number":111}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" tool","sequence_number":112}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" for","sequence_number":113}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" further","sequence_number":114}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":" calculations","sequence_number":115}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"delta":".","sequence_number":116}
+
+data: {"type":"response.reasoning_summary_text.done","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"text":"**Calculating values**\n\nI need to do some calculations! First, I want to look at the numbers below 100 that are positive, specifically from 1 to 99. I find that those divisible by 3 amount to 33, and those divisible by 7 make 14. For numbers divisible by both, their least common multiple is 21, and when I calculate how many times that fits into 99, I get 4. Now, using XOR, I can find the result: 33 + 14 - 2 times 4 gives me 39, which is odd. Now, I should use the tool for further calculations.","sequence_number":117}
+
+data: {"type":"response.reasoning_summary_part.done","output_index":0,"item_id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","summary_index":0,"part":{"type":"summary_text","text":"**Calculating values**\n\nI need to do some calculations! First, I want to look at the numbers below 100 that are positive, specifically from 1 to 99. I find that those divisible by 3 amount to 33, and those divisible by 7 make 14. For numbers divisible by both, their least common multiple is 21, and when I calculate how many times that fits into 99, I get 4. Now, using XOR, I can find the result: 33 + 14 - 2 times 4 gives me 39, which is odd. Now, I should use the tool for further calculations."},"sequence_number":118}
+
+data: {"type":"response.output_item.done","output_index":0,"item":{"id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","type":"reasoning","status":"completed","summary":[{"type":"summary_text","text":"**Calculating values**\n\nI need to do some calculations! First, I want to look at the numbers below 100 that are positive, specifically from 1 to 99. I find that those divisible by 3 amount to 33, and those divisible by 7 make 14. For numbers divisible by both, their least common multiple is 21, and when I calculate how many times that fits into 99, I get 4. Now, using XOR, I can find the result: 33 + 14 - 2 times 4 gives me 39, which is odd. Now, I should use the tool for further calculations."}],"encrypted_content":"gAAAAABrAUpXegSoM_7CdgO0fM7OY_h9PPJUedyMacvuSKFypJxlA2v-5XcexPc0NNRf_E9xMwQA0oiFDLoXACSD25AklL7hZClICgV6lUX8TqTtse-VKH6m3Fqbwmm4LgKvw5_84_Wxd8xHaL-lnbDb4uIu_gJKW1QsuExvtrwcTAb36e204ytbgGK3mdi3LIZuPaFQz03yFWQLUvOXOMgt3caQ9yGeKq-NpA3_cmxLKi_6e6A5pDBy7OnGRB6WTtEnrcWwT-PN4brtPdeB-si5TrmdQyoI-12lUdbgLWrkvblD1f0tH_BpWwlOtFrKUONt-B67gBydqPvJFZ1JhaNUBe1nongXjRl_ECr-_iCr4QEVoajUUgjl9i-YHC5PrkKdzd5_Wmq4O_p2re4Az0yX-Lfor5MnJURE8hti0Ot_SVcZAGQifRgvpUHMbZJe_I_JKmmIaKmtY5hpq5B4wjlAO_BVTP_ZbUdjcVhTQa6jpAnmERhty9NnYLZd5KnQqRiaB-qs2Lkquts4XQSySNtbhE2GG7GpSgn9XakOWGZWKG4XJNgL6jMxHpUbgFC7fCCwrO0XuTbkhukhQIzewup-1LLvY5rndBdtxtl-oEHL8A8Afld3r2bgL-vvN4lUfgCibCLg3utw-Z5AVpOYlc2J2zXjOTEAZX7u205rHwL0ucHkM4nHmxFJNLjOQwLdY5K2h2vvRmYuoLWruBytErOtCameK44lmYyGReMm2njBQ1Q8uPA3SK0DLRPZiueqqWc9YsayLXmHIVVm4RKhxUdyoDEYuL0Nf50tm6EpFBhE6Qq2R_4OjmN-V_8Lcnmko_yQaF1z8SrtmhUjf0-Gp_D0r17iBmjlgLy1Fx9oSNJBLt7AWviXSuiDXHjtc61VsyyK7aKGRnOQF8_PN4MBN3X15w1O5EZqWbO2NgVsCpGbTh1CK5C2CNzbZ_rQUsQGdyVQSf2nenuZ-pQ5Mpy2ve8kcllvcrMB6iU21Fgqx2GsBdZ0S-QpsdhHGSydZDmDdPA2VScQBh9Ct2IISfwvalDfXxmKgzVU0UBZmi8iIcLesZERn4gtPsbD72vypNoBckUtO4kZ2_RaqLWg_obDngMbbIkvCK5kaN5U0sWMXyUtbZehRO0J4KrDQDl3Mk-Xcys23wHP4vLGnXnJNLe2ToILM7P3MbhVAe5RClbNtMqdqkFg91cHzEE8WssDrWX3x4pOZYBYLPDcLqFlG8eVYHXkVgywG4KtzDoO7KzsbFlRrxuovGVIBBztEHmXvVkhTG_6TTF2zY0LOX_ZjN_ZhKGWYE-n_H13BJq-aLYjNsFlSS5u-6NvGuiWNAazSxFGuP33wrvY2Q7e7X8fdd3d-9XjWV80h9DSk3VHNoMMQjfSbaA9WlF4PIH9g2b9fMY4h6Pg3O_2Z146a52DVpu_3R9yaQNtTtObs9YgQz4hnv-r-joqfH3GpGxYgpbxQXXT2vihmyrT9S4Y3GFEeuTMYtzoNVR-HLANUurZQ96h6XPZiMQv4o2IYYz4GwLPt0oqOQ_pGCf6RzohP23Sg5tpW-Q8UuAvabo5TU8M8O8d6qK7_kfzFQGjwOGUch7k52tUb1bBLy6ArGHI827QshB9eJm0luLi-wJSPN7_aaMoGhZyBJpexq4LqxaKxCoYDys30iehnxfX34BwWc5sIf8hOADC7wvdLrCSnREpwSpNXj9Wjm34SvfX9vxUKu98T6rFgKKxo8_C3SNGa-mFLtvyQvOCW5-uTQ_XfqMgZc8egwj_yq4iJ9Cwev6-DwbJ-cfDQodIB3iFthjzkRDyFCAMXPS3FcqOU3Hgg8-tyzHN1OCEnxzQhuoMVJaQgObOgawA6ktEPOfO5ET3SjWhl2i8HrSnOw7Kj2sKmO0CziGJJDM3NcMVKISwcDe6weVKjIUjv0J1W1vlIsU1jlb4BzcglxzZ6R9TgbHtdTd7ISNfV43EvyOsloqVuqHyAzhRI_1Gsd4PNpirnXpwI1V_NKDNegvOplvev89glO4VV8-AQ0HUTpHWpKJAqUVMDddvQlFUKqegq0yb35CmujLUJ-eW5e7GMZ2wVuwVwaplKOojE_wITq-PmUJeWDFVuVglKvik-3nriZPDeHfkr2-KrwUxzPJAtcqPIguHmg-vuUm2X8oElp3Bz_ghxigpX4GQE_PBF52p3rkUjp_7xRv4lk7svBS6-eLSnQBW3Nb8mK5nAv06txWsCYv7P_S5zHPF1Fc39jtaYkajvFNns95VGBf1Rp84FmSpj3a0VsOKJP5Yx-jCxtcw289XsvKZ8kSrUZAnBPeib8ajwL__.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC01LjYtbHVuYS0yMDI2MDcwOXxvcGVuYWkifQ","format":"openai-responses-v1"},"sequence_number":119}
+
+data: {"type":"response.output_item.added","output_index":1,"item":{"id":"fc_tmp_3mm0zwzqm7y","type":"function_call","status":"in_progress","call_id":"call_775e34e74325440f8afeaa40e9c452ba","name":"get_weather","arguments":""},"sequence_number":120}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_3mm0zwzqm7y","delta":"{\"","sequence_number":121}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_3mm0zwzqm7y","delta":"city","sequence_number":122}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_3mm0zwzqm7y","delta":"\":\"","sequence_number":123}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_3mm0zwzqm7y","delta":"L","sequence_number":124}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_3mm0zwzqm7y","delta":"ima","sequence_number":125}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_3mm0zwzqm7y","delta":"\"}","sequence_number":126}
+
+data: {"type":"response.function_call_arguments.done","output_index":1,"item_id":"fc_tmp_3mm0zwzqm7y","name":"get_weather","arguments":"{\"city\":\"Lima\"}","sequence_number":127}
+
+data: {"type":"response.output_item.done","output_index":1,"item":{"id":"fc_tmp_3mm0zwzqm7y","type":"function_call","status":"completed","call_id":"call_775e34e74325440f8afeaa40e9c452ba","name":"get_weather","arguments":"{\"city\":\"Lima\"}"},"sequence_number":128}
+
+data: {"type":"response.completed","response":{"id":"gen-1795246677-FmW6UPuJNLRXPGP92Blq","object":"response","created_at":1795246677,"model":"openai/gpt-5.6-luna","status":"completed","completed_at":1795246679,"output":[{"id":"rs_0709d3bc893c86ba016b014a562adc87d1bd767cec3ad67e77","type":"reasoning","status":"completed","summary":[{"type":"summary_text","text":"**Calculating values**\n\nI need to do some calculations! First, I want to look at the numbers below 100 that are positive, specifically from 1 to 99. I find that those divisible by 3 amount to 33, and those divisible by 7 make 14. For numbers divisible by both, their least common multiple is 21, and when I calculate how many times that fits into 99, I get 4. Now, using XOR, I can find the result: 33 + 14 - 2 times 4 gives me 39, which is odd. Now, I should use the tool for further calculations."}],"encrypted_content":"gAAAAABrAUpXegSoM_7CdgO0fM7OY_h9PPJUedyMacvuSKFypJxlA2v-5XcexPc0NNRf_E9xMwQA0oiFDLoXACSD25AklL7hZClICgV6lUX8TqTtse-VKH6m3Fqbwmm4LgKvw5_84_Wxd8xHaL-lnbDb4uIu_gJKW1QsuExvtrwcTAb36e204ytbgGK3mdi3LIZuPaFQz03yFWQLUvOXOMgt3caQ9yGeKq-NpA3_cmxLKi_6e6A5pDBy7OnGRB6WTtEnrcWwT-PN4brtPdeB-si5TrmdQyoI-12lUdbgLWrkvblD1f0tH_BpWwlOtFrKUONt-B67gBydqPvJFZ1JhaNUBe1nongXjRl_ECr-_iCr4QEVoajUUgjl9i-YHC5PrkKdzd5_Wmq4O_p2re4Az0yX-Lfor5MnJURE8hti0Ot_SVcZAGQifRgvpUHMbZJe_I_JKmmIaKmtY5hpq5B4wjlAO_BVTP_ZbUdjcVhTQa6jpAnmERhty9NnYLZd5KnQqRiaB-qs2Lkquts4XQSySNtbhE2GG7GpSgn9XakOWGZWKG4XJNgL6jMxHpUbgFC7fCCwrO0XuTbkhukhQIzewup-1LLvY5rndBdtxtl-oEHL8A8Afld3r2bgL-vvN4lUfgCibCLg3utw-Z5AVpOYlc2J2zXjOTEAZX7u205rHwL0ucHkM4nHmxFJNLjOQwLdY5K2h2vvRmYuoLWruBytErOtCameK44lmYyGReMm2njBQ1Q8uPA3SK0DLRPZiueqqWc9YsayLXmHIVVm4RKhxUdyoDEYuL0Nf50tm6EpFBhE6Qq2R_4OjmN-V_8Lcnmko_yQaF1z8SrtmhUjf0-Gp_D0r17iBmjlgLy1Fx9oSNJBLt7AWviXSuiDXHjtc61VsyyK7aKGRnOQF8_PN4MBN3X15w1O5EZqWbO2NgVsCpGbTh1CK5C2CNzbZ_rQUsQGdyVQSf2nenuZ-pQ5Mpy2ve8kcllvcrMB6iU21Fgqx2GsBdZ0S-QpsdhHGSydZDmDdPA2VScQBh9Ct2IISfwvalDfXxmKgzVU0UBZmi8iIcLesZERn4gtPsbD72vypNoBckUtO4kZ2_RaqLWg_obDngMbbIkvCK5kaN5U0sWMXyUtbZehRO0J4KrDQDl3Mk-Xcys23wHP4vLGnXnJNLe2ToILM7P3MbhVAe5RClbNtMqdqkFg91cHzEE8WssDrWX3x4pOZYBYLPDcLqFlG8eVYHXkVgywG4KtzDoO7KzsbFlRrxuovGVIBBztEHmXvVkhTG_6TTF2zY0LOX_ZjN_ZhKGWYE-n_H13BJq-aLYjNsFlSS5u-6NvGuiWNAazSxFGuP33wrvY2Q7e7X8fdd3d-9XjWV80h9DSk3VHNoMMQjfSbaA9WlF4PIH9g2b9fMY4h6Pg3O_2Z146a52DVpu_3R9yaQNtTtObs9YgQz4hnv-r-joqfH3GpGxYgpbxQXXT2vihmyrT9S4Y3GFEeuTMYtzoNVR-HLANUurZQ96h6XPZiMQv4o2IYYz4GwLPt0oqOQ_pGCf6RzohP23Sg5tpW-Q8UuAvabo5TU8M8O8d6qK7_kfzFQGjwOGUch7k52tUb1bBLy6ArGHI827QshB9eJm0luLi-wJSPN7_aaMoGhZyBJpexq4LqxaKxCoYDys30iehnxfX34BwWc5sIf8hOADC7wvdLrCSnREpwSpNXj9Wjm34SvfX9vxUKu98T6rFgKKxo8_C3SNGa-mFLtvyQvOCW5-uTQ_XfqMgZc8egwj_yq4iJ9Cwev6-DwbJ-cfDQodIB3iFthjzkRDyFCAMXPS3FcqOU3Hgg8-tyzHN1OCEnxzQhuoMVJaQgObOgawA6ktEPOfO5ET3SjWhl2i8HrSnOw7Kj2sKmO0CziGJJDM3NcMVKISwcDe6weVKjIUjv0J1W1vlIsU1jlb4BzcglxzZ6R9TgbHtdTd7ISNfV43EvyOsloqVuqHyAzhRI_1Gsd4PNpirnXpwI1V_NKDNegvOplvev89glO4VV8-AQ0HUTpHWpKJAqUVMDddvQlFUKqegq0yb35CmujLUJ-eW5e7GMZ2wVuwVwaplKOojE_wITq-PmUJeWDFVuVglKvik-3nriZPDeHfkr2-KrwUxzPJAtcqPIguHmg-vuUm2X8oElp3Bz_ghxigpX4GQE_PBF52p3rkUjp_7xRv4lk7svBS6-eLSnQBW3Nb8mK5nAv06txWsCYv7P_S5zHPF1Fc39jtaYkajvFNns95VGBf1Rp84FmSpj3a0VsOKJP5Yx-jCxtcw289XsvKZ8kSrUZAnBPeib8ajwL__.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC01LjYtbHVuYS0yMDI2MDcwOXxvcGVuYWkifQ","format":"openai-responses-v1"},{"id":"fc_tmp_3mm0zwzqm7y","type":"function_call","status":"completed","call_id":"call_775e34e74325440f8afeaa40e9c452ba","name":"get_weather","arguments":"{\"city\":\"Lima\"}"}],"error":null,"incomplete_details":null,"access_programs":{"cyber":"standard"},"input_transformations":[],"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1024,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"default","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"high","summary":"detailed","context":"all_turns","mode":"standard"},"safety_identifier":null,"prompt_cache_key":"820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431","prompt_cache_options":null,"usage":{"input_tokens":101,"input_tokens_details":{"cached_tokens":0},"output_tokens":80,"output_tokens_details":{"reasoning_tokens":59},"total_tokens":181,"cost":0.0001162,"is_byok":false,"cost_details":{"upstream_inference_cost":0.0001162,"upstream_inference_input_cost":0.0000202,"upstream_inference_output_cost":0.000096}}},"sequence_number":129}
+
+data: [DONE]
+

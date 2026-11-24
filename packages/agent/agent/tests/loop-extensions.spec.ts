@@ -190,7 +190,14 @@ describe('a chain of several members', () => {
       view.enable(declare('a', 'execution_started'))
     })
     s.assembly.controls.adoptions.define(adoption('definition'), {
-      definition: { category: 'AgentDefinition', name: 'test', references: [], attributes: [] },
+      definition: {
+        category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
+        name: 'test',
+        references: [],
+        attributes: [],
+      },
       evaluator: agentEvaluator,
       extensions: [declare('z', 'execution_started')],
     })

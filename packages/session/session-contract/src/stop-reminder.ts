@@ -3,13 +3,14 @@ import type { BackgroundCallRecord, BackgroundCallStop, StopInitiator } from './
 import { shortCallId } from './background-calls.ts'
 import type { InputId, SessionOperationId } from './identity.ts'
 import { digestOf } from './operations.ts'
+import type { InputSourceName } from './input-sources.ts'
 import type { RoutedInput } from './values.ts'
 
 type Block = SystemReminderMessage['blocks'][number]
 type Ordinary = Extract<RoutedInput, { kind: 'ordinary' }>
 
-/** The origin owner of the reminder a person's stop of a call in the background leaves. */
-export const STOP_INPUT_OWNER = 'background-call-stop'
+/** The evidence owner of a stop's record: where the reminder's content came from. */
+const STOP_EVIDENCE_OWNER = 'background-call-stop'
 
 const VISIBLE = { toHuman: true, toModel: true } as const
 
@@ -44,10 +45,21 @@ function callText(record: BackgroundCallRecord): string {
   return intent === null ? action : `${action}: ${intent}`
 }
 
+/** The block that opens a background outcome: which call it is, by its short id, tool and intent. */
+export function namedText(message: string, record: BackgroundCallRecord): Block {
+  return {
+    kind: 'text',
+    id: `blk_${digestOf(['named', message, record.consumption]).slice(0, 32)}`,
+    visibility: VISIBLE,
+    text: `This is background call ${shortCallId(record.ordinal)} (${callText(record)}).`,
+  } as Block
+}
+
 // The reminder a person's stop leaves: which call, why, and that its outcome still comes back.
 export function stopReminderInput(
   record: BackgroundCallRecord,
   stop: BackgroundCallStop,
+  source: InputSourceName,
 ): Ordinary {
   const input = stopInputId(record, stop.operation)
   const id = digestOf(['stop-reminder', input]).slice(0, 32)
@@ -59,13 +71,14 @@ export function stopReminderInput(
   return {
     kind: 'ordinary',
     input,
+    source,
     message: {
       id: `msg_${id}` as MessageId,
       role: 'system_reminder',
       blocks: [{ kind: 'text', id: `blk_${id}`, visibility: VISIBLE, text } as Block],
     },
     origin: {
-      owner: STOP_INPUT_OWNER,
+      owner: STOP_EVIDENCE_OWNER,
       record: record.producer.call,
       revision: stop.operation,
       digest: `sha256:${digestOf({ producer: record.producer, operation: stop.operation })}`,

@@ -50,12 +50,12 @@ it('keeps every provider obligation on the full assembly with the durable ModelC
   expect(facts?.commandsKind).toBe('durable-sql')
 }, 120_000)
 
-it('reports the assembly from what it built: the durable commands over the SQL storage, Cordis 4.0.x', async () => {
+it('reports the assembly from what it built: the durable commands over the SQL storage, Cordis 4.1.x', async () => {
   const subject = await durableSubject()
   try {
     expect(subject.facts.commandsKind).toBe('durable-sql')
     expect(subject.facts.modelCommands).toContain('@omne-harness/model-storage-sql')
-    expect(subject.facts.cordis).toMatch(/^4\.0\./u)
+    expect(subject.facts.cordis).toMatch(/^4\.1\./u)
     expect(subject.facts.plugins.some(name => name.startsWith('ModelRuntimeLocalPlugin'))).toBe(
       true,
     )

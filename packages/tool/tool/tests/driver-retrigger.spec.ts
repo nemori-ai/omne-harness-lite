@@ -158,8 +158,10 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
       store: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
+        definition: memory.definition,
         read: async domain => {
           if (failing > 0 && domain.kind === 'call') {
             failing -= 1
@@ -284,8 +286,10 @@ describe('23 retrigger: when a failed run is run again', () => {
       store: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
+        definition: memory.definition,
         read: async domain => {
           const read = await memory.read(domain)
           if (polling && domain.kind === 'queue') await negativeAnswerAboutStart(harness)
@@ -340,8 +344,10 @@ describe('23 retrigger: when a failed run is run again', () => {
       store: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
+        definition: memory.definition,
         read: domain => memory.read(domain),
         commit: async input => {
           if (!putsOperation('op-c1/plan')(input)) return memory.commit(input)

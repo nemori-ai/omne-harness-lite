@@ -1,10 +1,13 @@
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
+import callLeftMigration from '../../src/worker/call-left-migration.ts'
+import forkMigration from '../../src/worker/fork-migration.ts'
 import compactionIndexMigration from '../../src/worker/compaction-index-migration.ts'
 import readEntryMessage from '../../src/worker/read-entry-message.ts'
 import readCompactionContext from '../../src/worker/read-compaction-context.ts'
 import readCurrentScope from '../../src/worker/read-current-scope.ts'
 import checkCompactionInput from '../../src/worker/check-compaction-input.ts'
 import permissionMigration from '../../src/worker/permission-current-migration.ts'
+import authorizationContextMigration from '../../src/worker/authorization-context-migration.ts'
 import readPermissionCurrent from '../../src/worker/read-permission-current.ts'
 import ordinaryBasis from '../../src/worker/ordinary-basis.ts'
 import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
@@ -41,6 +44,10 @@ import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
 import factBlobMigration from '../../src/worker/fact-blob-migration.ts'
 import itemMigration from '../../src/worker/item-migration.ts'
+import blockMigration from '../../src/worker/block-migration.ts'
+import adoptionMigration from '../../src/worker/adoption-migration.ts'
+import readSessionAdoption from '../../src/worker/read-session-adoption.ts'
+import readRequestChoices from '../../src/worker/read-request-choices.ts'
 import factBodyMigration from '../../src/worker/fact-body-migration.ts'
 import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
@@ -55,17 +62,24 @@ import readExecutionBatches from '../../src/worker/read-execution-batches.ts'
 import readExecutionEvents from '../../src/worker/read-execution-events.ts'
 import readExecutionOpen from '../../src/worker/read-execution-open.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
+import readExecutionRetired from '../../src/worker/read-execution-retired.ts'
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
+import readInheritedHistory from '../../src/worker/read-inherited-history.ts'
 import readInput from '../../src/worker/read-input.ts'
 import readModelSelection from '../../src/worker/read-model-selection.ts'
+import readForkPoint from '../../src/worker/read-fork-point.ts'
 import readModelView from '../../src/worker/read-model-view.ts'
 import readPending from '../../src/worker/read-pending.ts'
+import readSearchEntries from '../../src/worker/read-search-entries.ts'
+import readSearchSessions from '../../src/worker/read-search-sessions.ts'
+import readSearchStamp from '../../src/worker/read-search-stamp.ts'
 import readPreadmission from '../../src/worker/read-preadmission.ts'
 import readReferences from '../../src/worker/read-references.ts'
 import readReleasedScopes from '../../src/worker/read-released-scopes.ts'
 import readWorkIndex from '../../src/worker/read-work-index.ts'
+import readCallsLeft from '../../src/worker/read-calls-left.ts'
 import readWorkReads from '../../src/worker/read-work-reads.ts'
 import readWorkVersion from '../../src/worker/read-work-version.ts'
 import readWork from '../../src/worker/read-work.ts'
@@ -74,6 +88,7 @@ import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import scopeIndexMigration from '../../src/worker/scope-index-migration.ts'
 import sessionListMigration from '../../src/worker/session-list-migration.ts'
 import sessionArchiveMigration from '../../src/worker/session-archive-migration.ts'
+import sessionStandingMigration from '../../src/worker/session-standing-migration.ts'
 import readArchivedSessions from '../../src/worker/read-archived-sessions.ts'
 import readSessionList from '../../src/worker/read-session-list.ts'
 import readScopeOwner from '../../src/worker/read-scope-owner.ts'
@@ -90,12 +105,18 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readWorkVersion,
   readBinding,
   readWorkIndex,
+  readCallsLeft,
   readWorkReads,
   readInput,
   readModelSelection,
   readHistory,
+  readInheritedHistory,
+  readForkPoint,
   readModelView,
   readPending,
+  readSearchSessions,
+  readSearchStamp,
+  readSearchEntries,
   readSessionList,
   readArchivedSessions,
   readReferences,
@@ -111,7 +132,10 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readExecutionItems,
   readExecutionOpenItems,
   readExecutionSession,
+  readExecutionRetired,
   readPreadmission,
+  readSessionAdoption,
+  readRequestChoices,
 ]
 
 const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
@@ -127,16 +151,22 @@ const MIGRATIONS: readonly MigrationModule[] = [
   stateItemMigration,
   attemptGrantMigration,
   permissionMigration,
+  authorizationContextMigration,
   scopeIndexMigration,
   sessionListMigration,
   sessionArchiveMigration,
+  sessionStandingMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,
   factBodyMigration,
   factBlobMigration,
   itemMigration,
+  blockMigration,
+  adoptionMigration,
   compactionIndexMigration,
+  callLeftMigration,
+  forkMigration,
 ]
 
 export type StorageCall =
@@ -156,6 +186,7 @@ export type SqliteStorage = Readonly<{
   failReads(handler: string | null): void
   loseNextReply(): void
   failWrite(pattern: RegExp | null, nth?: number, errcode?: number): void
+  ran(identity: SqlIdentity): ReceiptV2 | undefined
 }>
 
 const DATA_CODES = new Set([1, 18, 19, 20, 25])
@@ -323,14 +354,19 @@ export function createSqliteStorage(): SqliteStorage {
       entries.push({ participant: command.participant, protocol: module.protocol, reply } as never)
       if (reply.kind !== 'participated') {
         domain.db.exec('ROLLBACK')
-        const receipt = finish('rolled_back')
-        domain.receipts.set(receiptKey(identity), receipt)
-        return receipt
+        return kept(domain, identity, finish('rolled_back'))
       }
     }
     domain.db.exec('COMMIT')
-    const receipt = finish('committed')
-    domain.receipts.set(receiptKey(identity), receipt)
+    return kept(domain, identity, finish('committed'))
+  }
+
+  const ran = new Map<string, ReceiptV2>()
+  const ranKey = (identity: SqlIdentity): string =>
+    JSON.stringify([identity.transactionDomain, identity.operation, identity.operationKey])
+  function kept(domain: Domain, identity: SqlIdentity, receipt: ReceiptV2): ReceiptV2 {
+    ran.set(ranKey(identity), receipt)
+    if (identity.recall !== 'never') domain.receipts.set(receiptKey(identity), receipt)
     return receipt
   }
 
@@ -355,7 +391,8 @@ export function createSqliteStorage(): SqliteStorage {
           reason: 'combination_unregistered',
           diagnostic: null,
         })
-      const existing = domain.receipts.get(receiptKey(identity))
+      const existing =
+        identity.recall === 'never' ? undefined : domain.receipts.get(receiptKey(identity))
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
@@ -376,18 +413,16 @@ export function createSqliteStorage(): SqliteStorage {
       const domain = domainOf(identity.scope, identity.transactionDomain)
       if (domain === null)
         return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'domain_unavailable' })
+      const proofs = {
+        writerGenerationExcluded: true,
+        oldTransactionTerminated: true,
+        databaseRecoveryFinished: true,
+        authoritativeReadSucceeded: true,
+        operationNotQueued: true,
+      } as const
+      if (identity.recall === 'never') return Promise.resolve({ kind: 'settled', identity, proofs })
       return Promise.resolve(
-        domain.receipts.get(receiptKey(identity)) ?? {
-          kind: 'not_committed',
-          identity,
-          proofs: {
-            writerGenerationExcluded: true,
-            oldTransactionTerminated: true,
-            databaseRecoveryFinished: true,
-            authoritativeReadSucceeded: true,
-            operationNotQueued: true,
-          },
-        },
+        domain.receipts.get(receiptKey(identity)) ?? { kind: 'not_committed', identity, proofs },
       )
     },
     read(request: ReadRequest): Promise<ReadResult> {
@@ -447,6 +482,7 @@ export function createSqliteStorage(): SqliteStorage {
     loseNextReply: () => {
       lose = true
     },
+    ran: identity => ran.get(ranKey(identity)),
     failWrite: (pattern, nth = 1, errcode) => {
       writeFault = pattern === null ? null : { pattern, left: nth, errcode }
     },

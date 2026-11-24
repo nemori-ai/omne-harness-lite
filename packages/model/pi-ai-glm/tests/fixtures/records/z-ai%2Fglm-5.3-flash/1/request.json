@@ -1,0 +1,219 @@
+{
+  "request": {
+    "profile": {
+      "owner": "glm-fixtures",
+      "name": "capture",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "retryPolicy": {
+      "owner": "glm-fixtures",
+      "name": "capture",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "source": {
+      "owner": "glm-fixtures",
+      "name": "capture",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-glm",
+          "name": "z-ai/glm-5.3-flash",
+          "revision": "1",
+          "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+        },
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3-flash",
+        "credential": {
+          "layer": "official"
+        }
+      }
+    ],
+    "fallback": false,
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "1024"
+      }
+    ],
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-glm",
+          "name": "z-ai/glm-5.3-flash",
+          "revision": "1",
+          "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "1024"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "1024"
+          },
+          "source": {
+            "owner": "glm-fixtures",
+            "name": "capture",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3-flash#representation",
+      "revision": "1",
+      "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+    },
+    "declarations": [
+      {
+        "produces": "openrouter/z-ai/glm-5.3-flash",
+        "accepts": [
+          "openrouter/z-ai/glm-5.3-flash"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "Use the supplied tool to read ticket values."
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Read ticket A17. What value is printed on it?"
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "read_ticket",
+        "description": "Read the value printed on a synthetic ticket.",
+        "argumentsSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "id",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "required",
+              "value": {
+                "kind": "array",
+                "items": [
+                  {
+                    "kind": "string",
+                    "value": "id"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "additionalProperties",
+              "value": {
+                "kind": "boolean",
+                "value": false
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "toolChoice": "auto"
+  },
+  "body": {
+    "max_tokens": 1024,
+    "messages": [
+      {
+        "content": "Use the supplied tool to read ticket values.",
+        "role": "system"
+      },
+      {
+        "content": "Read ticket A17. What value is printed on it?",
+        "role": "user"
+      }
+    ],
+    "model": "z-ai/glm-5.3-flash",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "z-ai/fp8"
+      ],
+      "require_parameters": true
+    },
+    "stream": true,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "function": {
+          "description": "Read the value printed on a synthetic ticket.",
+          "name": "read_ticket",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  }
+}

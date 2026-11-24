@@ -26,7 +26,8 @@ const mutations: ReadonlyArray<readonly [string, (input: Input) => Input]> = [
       request: {
         ...input.request,
         availability: {
-          ...dummyRequest().availability,
+          kind: 'known-unavailable',
+          reason: 'dependency-unavailable:file-system',
           definition: {
             ...input.request.availability.definition,
             adoption: { ...input.request.availability.definition.adoption, revision: 'changed' },
@@ -95,12 +96,7 @@ async function issued() {
   }
   const bound = await base.source.issuer.resolve({ ...access, request: payload })
   if (bound.kind !== 'bound') throw new Error(JSON.stringify(bound))
-  const input = {
-    ...access,
-    call: bound.call,
-    operation: bound.admission,
-    request: { ...payload, invocation: bound.invocation },
-  }
+  const input = { ...access, call: bound.call, operation: bound.admission, request: bound.request }
   return { ...base, input }
 }
 

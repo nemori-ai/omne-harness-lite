@@ -18,13 +18,20 @@ import {
 } from './support.ts'
 
 const CODING = [
+  'Agents',
   'Ask',
   'BkgToolCalls',
   'Calendar',
   'Files',
+  'Notifications',
+  'OmneExtensionPoints',
+  'OmneExtensions',
   'Schedules',
+  'Screen',
+  'Sessions',
   'Shell',
   'Skills',
+  'SwitchWorkspace',
   'TodoItems',
   'Tools',
   'Web',

@@ -3,10 +3,10 @@ import { randomUUID } from 'node:crypto'
 import { judgePart, parseMessageId } from '@omne-harness/message'
 import { assembleStream } from '@omne-harness/stream-arrival'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
-import { isReplayTag } from '@omne-harness/message'
+import { isReplayTag, REPLAY_PREFIX_MAX_LENGTH } from '@omne-harness/message'
 import { parseInstant } from '@omne-harness/utc-instant'
 import type { Outcome } from '@omne-harness/operation-result'
-import { decodeRevision } from '@omne-harness/model-contract'
+import { accountUndelivered, costLookupOf, decodeRevision } from '@omne-harness/model-contract'
 import type {
   MaterializationReceipt,
   ModelBlock,
@@ -19,6 +19,7 @@ import type {
   Revision,
   Settlement,
   Supplier,
+  SettledReplay,
   Termination,
   VisibleBlock,
 } from '@omne-harness/model-contract'
@@ -29,8 +30,9 @@ import type {
   ProviderDiagnostic,
   TransportFact,
 } from '@omne-harness/model-contract/provider'
-import { canonical, digest, invalid } from './value.ts'
+import { canonical, decimal, digest, invalid } from './value.ts'
 import type { CallDocument, DispatchDocument, EvidenceContext, TenantDocuments } from './types.ts'
+import { sentWithoutReplay } from './attempts.ts'
 
 export const MAX_TERMINATION_BYTES = 4096
 export const MAX_SETTLEMENT_BYTES = 8192
@@ -97,9 +99,16 @@ function producerTasks(call: CallDocument): RecoveryTask[] {
 }
 export function tasks(call: CallDocument, pending: readonly ModelOperationId[]): RecoveryTask[] {
   const result = call.state.custody.kind === 'producer' ? producerTasks(call) : []
-  if (call.state.custody.kind === 'acknowledged' && call.state.custody.cleanup !== 'released')
+  if (call.state.custody.kind !== 'producer' && call.state.custody.cleanup !== 'released')
     result.push('cleanup')
-  if (pending.length > 0 || call.dispatches.some(d => d.record.send === 'unknown'))
+  if (
+    pending.length > 0 ||
+    call.dispatches.some(
+      d => d.record.send === 'unknown' || costLookupOf(d.record) === 'pending',
+    ) ||
+    (call.state.custody.kind !== 'abandoned' &&
+      call.dispatches.some(d => accountUndelivered(d.record)))
+  )
     result.push('account')
   return result
 }
@@ -160,6 +169,24 @@ const NOT_RETRYABLE_CAUSES = [
   'modality',
 ]
 
+// A prefix and the carried mark both describe reasoning in a replay format, so neither stands alone.
+function replayMarksBind({ replayFormat, replayPrefix, replayCarried }: MaterializationReceipt) {
+  if (replayFormat === undefined) return replayPrefix === undefined && replayCarried === undefined
+  return (
+    isReplayTag(replayFormat) &&
+    (replayPrefix === undefined ||
+      (replayPrefix.length > 0 && replayPrefix.length <= REPLAY_PREFIX_MAX_LENGTH)) &&
+    (replayCarried === undefined || replayCarried === true)
+  )
+}
+
+function mediaBind({ media }: MaterializationReceipt): boolean {
+  return (
+    media === undefined ||
+    (media.length > 0 && media.every(each => each.mediaType.length > 0 && decimal(each.bytes)))
+  )
+}
+
 export function receiptBinds(
   receipt: MaterializationReceipt,
   supplier: Supplier,
@@ -169,7 +196,8 @@ export function receiptBinds(
     digest(receipt.supplier) === digest(supplier.adoption) &&
     digest(receipt.representation) === digest(request.representation) &&
     /^[0-9a-f]{64}$/u.test(receipt.payloadDigest) &&
-    (receipt.replayFormat === undefined || isReplayTag(receipt.replayFormat))
+    replayMarksBind(receipt) &&
+    mediaBind(receipt)
   )
 }
 export function dispatchOf(call: CallDocument, id: string): DispatchDocument | ModelFailure {
@@ -218,7 +246,8 @@ function retrySupplierFailure(
   const canRetry = retryable(call, prior)
   if (canRetry) return canRetry
   if (
-    call.retry?.kind !== 'retry' ||
+    call.retry === null ||
+    call.retry.kind === 'stop' ||
     !call.retrySource ||
     digest(call.retry.supplier) !== digest(input.supplier) ||
     digest(call.retrySource) !== digest(input.policyDecision)
@@ -229,21 +258,36 @@ function retrySupplierFailure(
 export function positionedRetryRequest(
   call: CallDocument,
   input: Pick<Parameters<ModelCommands<never>['decideRetry']>[0], 'position'>,
-): Outcome<FixedRequestHead, ModelFailure> {
+): Outcome<Readonly<{ request: FixedRequestHead; dispatch: DispatchDocument }>, ModelFailure> {
   if (!call.request || !call.retryPosition || digest(call.retryPosition) !== digest(input.position))
     return { failure: invalid('position', 'not-original') }
   const dispatch = dispatchOf(call, input.position.dispatch)
   if ('kind' in dispatch) return { failure: dispatch }
   const failure = retryable(call, dispatch)
   if (failure) return { failure }
-  return { ok: call.request }
+  return { ok: { request: call.request, dispatch } }
+}
+// A resend answers a refusal of carried state, once per call, to the supplier that refused it.
+function resendFailure(call: CallDocument, positioned: DispatchDocument, supplier: Supplier) {
+  const terminal = positioned.logicalTerminal
+  return terminal?.kind !== 'failed' ||
+    terminal.fault.cause !== 'replay-rejected' ||
+    sentWithoutReplay(call) ||
+    digest(supplier) !== digest(positioned.record.supplier)
+    ? invalid('decision', 'replay-resend')
+    : null
 }
 export function retryChoiceFailure(
+  call: CallDocument,
   request: FixedRequestHead,
-  dispatchCount: number,
+  positioned: DispatchDocument,
   decision: RetryDecision,
 ): ModelFailure | null {
+  if (decision.kind === 'resend-without-replay')
+    return resendFailure(call, positioned, decision.supplier)
   if (decision.kind === 'retry') {
+    // The resend does not take a place of the ordinary retries.
+    const dispatchCount = call.dispatches.filter(d => d.record.withoutReplay !== 'resend').length
     if (
       !parseInstant(decision.notBefore).ok ||
       digest(decision.basis) !== digest(request.retryPolicy)
@@ -267,8 +311,24 @@ export function settlementFailure(
 ): ModelFailure | null {
   if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
     return invalid('termination', 'encoded-byte-limit')
-  if (executionFailed(termination) || policyUnavailable(call, termination)) return null
+  if (
+    executionFailed(termination) ||
+    policyUnavailable(call, termination) ||
+    runtimeLost(call, termination)
+  )
+    return null
   return settlementPendingFailure(call) ?? settlementActualFailure(call, termination)
+}
+/** The transport of the last dispatch is gone before it ended; only a materialized one can have gone out. */
+export function runtimeLost(call: CallDocument, termination: Termination): boolean {
+  const latest = call.dispatches.at(-1)
+  return (
+    termination.kind === 'failed' &&
+    termination.fault.cause === 'runtime-lost' &&
+    latest !== undefined &&
+    latest.logicalTerminal === null &&
+    latest.record.materialization !== null
+  )
 }
 function policyUnavailable(call: CallDocument, termination: Termination): boolean {
   return (
@@ -284,8 +344,7 @@ export function executionFailed(termination: Termination): boolean {
 }
 function settlementPendingFailure(call: CallDocument): ModelFailure | null {
   const latest = call.dispatches.at(-1)
-  const awaited =
-    call.retryPosition !== null && (call.retry === null || call.retry.kind === 'retry')
+  const awaited = call.retryPosition !== null && (call.retry === null || call.retry.kind !== 'stop')
   if (awaited && call.state.control.kind === 'none') return invalid('termination', 'retry-pending')
   if (latest && [...latest.windows.values()].includes('open'))
     return invalid('termination', 'receive-pending')
@@ -418,7 +477,7 @@ export type Completion =
   | Readonly<{ kind: 'refused' | 'replay-unknown'; failure: ModelFailure }>
 type FinishReplay =
   | Readonly<{ kind: 'none' }>
-  | Readonly<{ kind: 'range'; scope: string; format: string }>
+  | Readonly<{ kind: 'range'; range: SettledReplay }>
   | Readonly<{ kind: 'unknown'; failure: ModelFailure }>
 function finishReplay(
   call: CallDocument,
@@ -427,20 +486,50 @@ function finishReplay(
 ): FinishReplay {
   const state = blocks.some(block => block.kind === 'reasoning_state')
   if (!state && !blocks.some(block => block.kind === 'thinking')) return { kind: 'none' }
-  const format = dispatch.record.materialization?.receipt.replayFormat
-  if (format === undefined)
+  const receipt = dispatch.record.materialization?.receipt
+  if (receipt?.replayFormat === undefined)
     return state
       ? { kind: 'unknown', failure: invalid('termination', 'replay-format-unknown') }
       : { kind: 'none' }
+  const { replayFormat: format, replayPrefix: prefix } = receipt
   const supplier = digest(dispatch.record.supplier)
   const index = call.request?.suppliers.findIndex(item => digest(item) === supplier) ?? -1
   const scope = call.request?.declarations[index]?.produces
-  if (scope !== undefined) return { kind: 'range', scope, format }
+  if (scope !== undefined)
+    return { kind: 'range', range: { scope, format, ...(prefix === undefined ? {} : { prefix }) } }
   if (!state) return { kind: 'none' }
   throw new TypeError(
     'a completion with reasoning state found no replay declaration for its dispatch supplier: ' +
       'the request must declare every supplier, and cleanup must clear the blocks with the request',
   )
+}
+/** The replay range a settled result carries: the latest dispatch completed it. */
+function settledReplay(call: CallDocument, termination: Termination): SettledReplay | undefined {
+  const latest = call.dispatches.at(-1)
+  if (termination.kind !== 'completed' || latest === undefined) return undefined
+  const sealed = latest.blocks.flatMap(b => (b.kind === 'sealed' ? [b.block] : []))
+  const replay = finishReplay(call, latest, sealed)
+  return replay.kind === 'range' ? replay.range : undefined
+}
+/** The settlement a call records at a version: how it ended, where its output stops, its replay. */
+export function settlementOf(
+  call: CallDocument,
+  input: Readonly<{ call: ModelCallId; termination: Termination }>,
+  version: Settlement['version'],
+): Settlement {
+  const replay = settledReplay(call, input.termination)
+  return {
+    version,
+    termination: structuredClone(input.termination),
+    cursor: call.cursor,
+    source: {
+      owner: 'model-memory',
+      record: `${input.call}/${version}`,
+      revision: String(BigInt(call.state.revision) + 1n),
+      digest: digest(input.termination),
+    },
+    ...(replay === undefined ? {} : { replay: { ...replay, call: String(input.call) } }),
+  }
 }
 export function completionOf(
   call: CallDocument,
@@ -464,23 +553,46 @@ export function completionOf(
   steps.push(
     replay.kind === 'none'
       ? { step: 'finish', index }
-      : { step: 'finish', index, replay: { scope: replay.scope, format: replay.format } },
+      : { step: 'finish', index, replay: replay.range },
   )
   if ('rejected' in assembleStream({ target: target(), steps }))
     return { kind: 'refused', failure: invalid('termination', 'invalid-completion') }
   return { kind: 'formed' }
 }
 const DIAGNOSTIC_FIELDS: Readonly<Record<ProviderDiagnostic['kind'], readonly string[]>> = {
-  'replay-omitted': ['kind', 'message', 'scope', 'format', 'omittedParts'],
+  'replay-omitted': ['kind', 'message', 'scope', 'format', 'omittedParts', 'reason'],
   'reasoning-disabled': ['kind', 'reason'],
   'reasoning-state-dropped': ['kind', 'reason', 'length'],
   'usage-inconsistent': ['kind', 'field'],
+  'upstream-transformed': ['kind', 'type', 'path', 'reason'],
 }
+const REPLAY_OMISSIONS: ReadonlySet<string> = new Set([
+  'scope',
+  'format',
+  'resent',
+  'no-prefix',
+  'prefix-history',
+  'prefix-system',
+  'prefix-tools',
+  'prefix-projection',
+])
 function isCount(value: unknown): boolean {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }
 function isText(value: unknown): boolean {
   return typeof value === 'string' && value.length > 0
+}
+const UPSTREAM_WORD = /^[a-z][a-z0-9_.]{0,127}$/
+function replayOmittedWellFormed(
+  diagnostic: Extract<ProviderDiagnostic, { kind: 'replay-omitted' }>,
+): boolean {
+  return (
+    parseMessageId(diagnostic.message).ok &&
+    isText(diagnostic.scope) &&
+    isText(diagnostic.format) &&
+    isCount(diagnostic.omittedParts) &&
+    REPLAY_OMISSIONS.has(diagnostic.reason)
+  )
 }
 export function wellFormed(diagnostic: ProviderDiagnostic): boolean {
   const fields: readonly string[] | undefined = Object.hasOwn(DIAGNOSTIC_FIELDS, diagnostic.kind)
@@ -491,18 +603,17 @@ export function wellFormed(diagnostic: ProviderDiagnostic): boolean {
   if (!keys.every(key => fields.includes(key))) return false
   switch (diagnostic.kind) {
     case 'replay-omitted':
-      return (
-        parseMessageId(diagnostic.message).ok &&
-        isText(diagnostic.scope) &&
-        isText(diagnostic.format) &&
-        isCount(diagnostic.omittedParts)
-      )
+      return replayOmittedWellFormed(diagnostic)
     case 'reasoning-disabled':
       return diagnostic.reason === 'foreign-prefix'
     case 'reasoning-state-dropped':
       return diagnostic.reason === 'payload-too-long' && isCount(diagnostic.length)
     case 'usage-inconsistent':
       return isText(diagnostic.field)
+    case 'upstream-transformed':
+      return [diagnostic.type, diagnostic.path, diagnostic.reason].every(word =>
+        UPSTREAM_WORD.test(word),
+      )
     default: {
       const _exhaustive: never = diagnostic
       return _exhaustive

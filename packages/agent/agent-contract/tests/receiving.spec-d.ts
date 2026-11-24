@@ -8,7 +8,6 @@ import type { CallAccount } from '@omne-harness/call-account'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type {
-  Access,
   AgentReceivedCommits,
   AgentReceivedProvider,
   AgentJournal,
@@ -21,9 +20,6 @@ import type {
   ReceivedCommitResult,
   ReceivedCommitQuery,
   AgentAccessOperation,
-  AgentAccountHandoff,
-  AgentAccountOutcome,
-  AgentAccountOutlet,
   AgentJournalEntries,
   AgentJournalEntry,
   Authority,
@@ -115,23 +111,6 @@ describe('the snapshot', () => {
 describe('the access check', () => {
   it('names the receive operation of the result receiver', () => {
     expectTypeOf<'receive-result'>().toExtend<AgentAccessOperation>()
-  })
-})
-
-describe('the account outlet', () => {
-  it('takes an explicit Access and a handoff with a tenant-bound Model call', () => {
-    expectTypeOf<Parameters<AgentAccountOutlet<string>['deliver']>[0]>().toEqualTypeOf<
-      Readonly<{ access: Access<string>; handoff: AgentAccountHandoff }>
-    >()
-    expectTypeOf<AgentAccountHandoff['call']>().toEqualTypeOf<M.ModelInvocationRef>()
-    expectTypeOf<AgentAccountHandoff['dispatch']>().toEqualTypeOf<M.DispatchId>()
-    expectTypeOf<AgentAccountHandoff['resultVersion']>().toEqualTypeOf<M.ResultVersion | null>()
-  })
-
-  it('answers with the six kinds of the SPEC', () => {
-    expectTypeOf<AgentAccountOutcome['kind']>().toEqualTypeOf<
-      'received' | 'denied' | 'conflict' | 'invalid' | 'unknown' | 'unavailable'
-    >()
   })
 })
 

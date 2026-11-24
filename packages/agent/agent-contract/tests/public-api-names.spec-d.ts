@@ -76,7 +76,6 @@ import type {
   VoidedIntent,
   ConsumerRef,
   ConsumptionId,
-  ContextContent,
   Continuation,
   ControlRecord,
   ControlStage,
@@ -173,8 +172,6 @@ import type {
   MessageSource,
   NamedCapturedRead,
   NeedDeclaration,
-  ModelContextRead,
-  ModelContextReader,
   ModelPurpose,
   ModelRecipient,
   ModelReplyAdmission,
@@ -258,7 +255,6 @@ type Landed = {
   CompactionState: CompactionState
   ConsumerRef: ConsumerRef
   ConsumptionId: ConsumptionId
-  ContextContent: ContextContent
   Continuation: Continuation
   CurrentConditions: CurrentConditions<string>
   DecisionCards: DecisionCards<string>
@@ -303,8 +299,6 @@ type Landed = {
   Material: Material<ContentBlock>
   MessageHandoff: MessageHandoff<string>
   MessageSource: MessageSource
-  ModelContextRead: ModelContextRead
-  ModelContextReader: ModelContextReader<string>
   ModelPurpose: ModelPurpose
   ModelRecipient: ModelRecipient
   ModelReplyAdmission: ModelReplyAdmission
@@ -516,6 +510,7 @@ describe('the discriminants of the evaluation chapter', () => {
       | 'busy'
       | 'changed'
       | 'unsupported'
+      | 'reclaimed'
       | 'commit-unknown'
       | 'conflict'
     >()
@@ -760,9 +755,8 @@ describe('the discriminants of the request chapter', () => {
     expectTypeOf<Preparation['purpose']>().toEqualTypeOf<ModelPurpose>()
   })
 
-  it('CompactionAssessment and ContextContent keep their literals', () => {
+  it('CompactionAssessment keeps its literals', () => {
     expectTypeOf<KindOf<CompactionAssessment>>().toEqualTypeOf<'accepted' | 'cannot-fit'>()
-    expectTypeOf<ContextContent>().toEqualTypeOf<'full' | 'incremental'>()
     expectTypeOf<CompactionState['ended']>().toEqualTypeOf<'committed' | 'failed' | null>()
     expectTypeOf<CompactionState>().not.toHaveProperty('stepRequest')
   })
@@ -1412,12 +1406,15 @@ describe('Tool association and control references', () => {
       purpose: 'action'
       association: 'associated'
       reference: T.ToolInvocationRef
+      acceptance: 'accepted' | 'unknown'
     }>
 
   it('allows intent before identity and requires the Tool reference after association', () => {
     expectTypeOf<Intent>().toExtend<PendingCall>()
     expectTypeOf<Associated>().toExtend<PendingCall>()
     expectTypeOf<Omit<Associated, 'reference'>>().not.toExtend<PendingCall>()
+    expectTypeOf<Omit<Associated, 'acceptance'>>().not.toExtend<PendingCall>()
+    expectTypeOf<Intent & { acceptance: 'accepted' }>().not.toExtend<PendingCall>()
     expectTypeOf<Intent & { call: T.ToolCallId }>().not.toExtend<PendingCall>()
     expectTypeOf<Intent & { admission: T.ToolOperationId }>().not.toExtend<PendingCall>()
     expectTypeOf<Intent & { reference: T.ToolInvocationRef }>().not.toExtend<PendingCall>()

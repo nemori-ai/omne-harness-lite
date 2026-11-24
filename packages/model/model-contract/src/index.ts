@@ -4,6 +4,7 @@ export type {
   Adoption,
   CallAccess,
   ConsumerRef,
+  ContextWindow,
   DispatchId,
   FixedModelRequest,
   Identity,
@@ -19,13 +20,17 @@ export type {
   CredentialLayer,
   ProviderName,
   ReadId,
+  ReasoningEffort,
   ResultVersion,
   Revision,
   Supplier,
   ToolDeclaration,
 } from './root.ts'
+export { REASONING_EFFORTS, isReasoningEffort } from './root.ts'
 export type * from './result.ts'
 export { faultIsTransient } from './result.ts'
+export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts'
+export { dispatchSend } from './dispatch-facts.ts'
 export type * from './result-delivery-values.ts'
 export type * from './result-delivery.ts'
 export type * from './result-delivery-judge.ts'
@@ -45,8 +50,10 @@ export type {
   ModelOutputV1Failure,
 } from './model-output-v1.ts'
 export type * from './call-surface.ts'
+export type * from './dispatch-facts.ts'
 export type {
   MaterializationReceipt,
+  MaterializedMedium,
   RetryDecision,
   RetryPosition,
   RetryResolution,
@@ -73,6 +80,7 @@ export type {
   ProfileIdentity,
   ProfileReplay,
   ProfileResolution,
+  ReasoningEffortMapping,
   ProfileScope,
   ProfileSupplier,
   ReplayDeclaration,
@@ -80,7 +88,7 @@ export type {
   TokenLimit,
   UpstreamLimit,
 } from './profile.ts'
-export type { ConversionResult, ConvertedContent } from './conversion.ts'
+export { isNativeFileType, profileCovers, supportedReasoningEfforts } from './profile.ts'
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts'
 export type {
   ModelPreparationLease,
@@ -105,6 +113,7 @@ export {
   decodeRevision,
 } from './identity-values.ts'
 export { deriveGuardControlOperation } from './guard-control.ts'
+export { replaySourceCall } from './replay-values.ts'
 
 export type {
   ModelInvocationParts,

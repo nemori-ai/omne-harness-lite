@@ -284,6 +284,42 @@ describe('what a background control writes', () => {
   })
 })
 
+describe('a call in the background that waits on an ask (the row the background report wait opens)', () => {
+  async function waitingInBackground() {
+    const { harness } = await suspendedCall()
+    return withState(permitted(await snapshotOfCall(harness)), { relation: 'background' })
+  }
+
+  it('the reach of a run cancellation misses it: the wait stays open', async () => {
+    const snapshot = await waitingInBackground()
+    const decision = committed(
+      decide(
+        snapshot,
+        { kind: 'withdraw', reach: 'foreground-and-unadmitted' },
+        { operation: operationId('cancel-run') },
+      ),
+    )
+    expect(decision.value.progress).toMatchObject({ kind: 'rejected', reason: 'out-of-reach' })
+    expect(stateOf(decision)).toMatchObject({ phase: 'suspended', relation: 'background' })
+  })
+
+  it('a stop closes the wait and ends the call with the text the segment left', async () => {
+    const snapshot = await waitingInBackground()
+    const decision = committed(decideStop(snapshot, { kind: 'stop' }))
+    expect(decision.value.state).toMatchObject({
+      phase: 'settled',
+      relation: 'background',
+      terminal: { kind: 'interrupted', cause: { kind: 'control' } },
+    })
+  })
+
+  it('a background intent answers relation-changed', async () => {
+    const snapshot = await waitingInBackground()
+    const decision = committed(decide(snapshot))
+    expect(decision.value.progress.kind).toBe('relation-changed')
+  })
+})
+
 describe('the public control intent', () => {
   it.each([
     [{ kind: 'background', otherwise: 'reject' }, true],
@@ -715,9 +751,13 @@ describe('the foreground timers (threshold and foreground limit)', () => {
         throw new Error('no synthetic result was asked for')
       return first.need.closedResult
     }
-    expect(
-      closedResultOf({ kind: 'background', otherwise: 'stop' }, { origin: 'foreground-limit' }),
-    ).toContain('foreground time limit')
+    const limit = closedResultOf(
+      { kind: 'background', otherwise: 'stop' },
+      { origin: 'foreground-limit' },
+    )
+    // The words the model reads name the terminal the call got: interrupted, by the limit.
+    expect(limit).toMatch(/interrupted.*foreground time limit/u)
+    expect(limit).not.toMatch(/placeholder|background/u)
     expect(closedResultOf({ kind: 'withdraw', reach: 'all' }, {})).toContain('withdrawn')
   })
 

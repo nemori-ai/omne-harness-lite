@@ -276,7 +276,7 @@ it('a session-retained terminal outlives the release of its acquisition and stop
   const facility = lease.facility('terminal')
   if (facility === undefined) throw new Error('terminal facility missing')
   const cwd = await workDirectory('omne-terminal-retained-')
-  const created = value(await facility.create({ ...base, cwd, env, retain: 'session' }))
+  const created = value(await facility.create({ ...base, cwd, env, retain: 'scope' }))
   const started = await run(
     facility,
     created.terminal,

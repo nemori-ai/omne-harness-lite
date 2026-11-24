@@ -66,7 +66,7 @@ export const enabledExtensionsDescriptor = Object.freeze({
   required: true,
   disclosure: 'plain',
   carriesPrevious: false,
-  volatility: 'per-request',
+  volatility: 'per-read',
   kind: 'supplied',
   recovery: 'recompute',
 } satisfies SuppliedBlockDescriptor<typeof ENABLED_EXTENSIONS_BLOCK, EnabledExtensionsView>)

@@ -6,7 +6,6 @@ import {
   agentMaterialsKey,
   agentRequestsKey,
   agentJournalKey,
-  agentModelContextKey,
   agentToolReceptionTargetsKey,
   agentMessageHandoffKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
@@ -30,7 +29,6 @@ const WATCHED = [
   [agentMaterialsKey, ['read']],
   [agentRequestsKey, ['prepare', 'assessCompaction', 'resume']],
   [agentJournalKey, ['commit', 'load', 'query', 'recordResult', 'recordHandoff']],
-  [agentModelContextKey, ['read']],
   [agentToolReceptionTargetsKey, ['resolve']],
   [agentMessageHandoffKey, ['prepare', 'lookup']],
 ] as const
@@ -91,7 +89,7 @@ function rulesExecutor(compactions: CompactionRequest[], delivered: unknown[]) {
 
 // Each model round before the last returns a large text and tool calls, so the next request needs
 // compaction. The first round asks for `oldToolCalls` calls; later rounds ask for one.
-function modelScript(requests: string[], cycles: number, oldToolCalls: number) {
+function modelScript(requests: string[], cycles: number, oldToolCalls: number, tool: string) {
   return async ({ body }: { body: string }) => {
     requests.push(body)
     const serving = { model: (JSON.parse(body) as { model: string }).model, provider: 'OpenAI' }
@@ -114,7 +112,7 @@ function modelScript(requests: string[], cycles: number, oldToolCalls: number) {
                         index,
                         id: `call_shell_${requests.length}_${index}`,
                         type: 'function',
-                        function: { name: 'Shell', arguments: TOOL },
+                        function: { name: 'Shell', arguments: tool },
                       }),
                     ),
                   },
@@ -131,10 +129,9 @@ function modelScript(requests: string[], cycles: number, oldToolCalls: number) {
   }
 }
 
-function stopsWaiting(failures: readonly ServiceFailure[], compacted: boolean): boolean {
+function stopsWaiting(failures: readonly ServiceFailure[]): boolean {
   return failures.some(
     ({ operation, failure }) =>
-      (compacted && operation === `${agentModelContextKey}.read`) ||
       operation === `${agentRequestsKey}.resume` ||
       operation === `${agentRequestsKey}.assessCompaction` ||
       (typeof failure === 'object' &&
@@ -148,7 +145,11 @@ function stopsWaiting(failures: readonly ServiceFailure[], compacted: boolean): 
   )
 }
 
-async function compactionRun(cycles: number, oldToolCalls: number): Promise<CompactionRun> {
+async function compactionRun(
+  cycles: number,
+  oldToolCalls: number,
+  tool = TOOL,
+): Promise<CompactionRun> {
   const requests: string[] = []
   const compactions: CompactionRequest[] = []
   const delivered: unknown[] = []
@@ -157,7 +158,8 @@ async function compactionRun(cycles: number, oldToolCalls: number): Promise<Comp
     {
       permission: 'bypass-permissions',
       collaboration: 'co-work',
-      compactionTriggerPercent: '1',
+      // The budget holds the fixed part (system prompt, twelve resident tools) and the protected tail.
+      compactionTriggerPercent: '2',
       compactionProvider: {
         binding: {
           authority: 'release/rules',
@@ -166,7 +168,7 @@ async function compactionRun(cycles: number, oldToolCalls: number): Promise<Comp
         inject: [],
         executor: rulesExecutor(compactions, delivered),
       },
-      script: modelScript(requests, cycles, oldToolCalls),
+      script: modelScript(requests, cycles, oldToolCalls, tool),
     },
     async world => {
       const failures: ServiceFailure[] = []
@@ -203,9 +205,7 @@ async function compactionRun(cycles: number, oldToolCalls: number): Promise<Comp
       const history = await pollUntil(
         'compaction and original Run completion',
         () => historyOf(world, session),
-        seen =>
-          seen.some(entry => entry.kind === 'run.terminal') ||
-          stopsWaiting(failures, compactions.length > 0),
+        seen => seen.some(entry => entry.kind === 'run.terminal') || stopsWaiting(failures),
       )
       outcome = {
         requests,
@@ -245,6 +245,11 @@ function expectCompletedRun(run: CompactionRun, cycles: number, oldToolCalls: nu
   expect(run.requests).toHaveLength(cycles + 1)
   expect(run.requests[1]).toContain(SUMMARY)
   expect(run.requests[1]).not.toContain(LARGE_HISTORY)
+  // C6: the step after the compaction tells the model the runtime context again, in full.
+  const after = run.requests[1] ?? ''
+  expect(after.lastIndexOf('Runtime context: the current values.')).toBeGreaterThan(
+    after.indexOf(SUMMARY),
+  )
   expect(JSON.stringify(history)).toContain(LARGE_HISTORY)
   expect(JSON.stringify(history)).toContain('original-task-complete')
   expect(JSON.stringify(history)).toContain('compaction-tool-complete')
@@ -310,5 +315,22 @@ it(
       expect({ ...each, oldToolCalls: first?.oldToolCalls }, JSON.stringify(measured)).toEqual(
         first,
       )
+  },
+)
+
+// #1351: the refusals of 32 calls are long, so the history of this Run is longer than one page.
+it(
+  'ends the Run after one reply with 32 refused tool calls, with compaction on',
+  { timeout: 240_000 },
+  async () => {
+    const refused = JSON.stringify({ command: 'no-such-command', params: {} })
+    const { history, requests, compactions, diagnostics } = await compactionRun(2, 32, refused)
+    expect(
+      history.filter(entry => entry.kind === 'run.terminal'),
+      diagnostics,
+    ).toHaveLength(1)
+    expect(history.filter(entry => entry.kind === 'message.tool')).toHaveLength(33)
+    expect(JSON.stringify(history)).toContain('original-task-complete')
+    expect([requests.length, compactions.length]).toEqual([3, 2])
   },
 )

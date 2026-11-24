@@ -3,7 +3,6 @@ export type { MemoryHistorySource, HistoryFixture, HistoryFixtureRow } from './h
 export {
   createScriptedInputMeter,
   createScriptedPreparationResources,
-  createMemoryConversionResults,
   createScriptedCompactionPolicy,
   createScriptedRepresentationPolicy,
   FIXTURE_COMPACTION_POLICY,
@@ -12,7 +11,6 @@ export {
 export type {
   MeterScript,
   ScriptedInputMeter,
-  MemoryConversionResults,
   PreparationCall,
   PreparationScript,
   ScriptedPreparationResources,

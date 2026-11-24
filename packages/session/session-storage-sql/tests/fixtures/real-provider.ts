@@ -28,6 +28,9 @@ import {
   ordinaryInput,
   sessionId,
   testingTenant,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import {
@@ -145,20 +148,8 @@ function catalogOf(
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
 
-export type QueryKind = 'committed' | 'rolled_back' | 'not_committed' | 'unknown'
-export function queryKindOf(result: QueryResultV2): QueryKind {
-  switch (result.kind) {
-    case 'committed':
-      return 'committed'
-    case 'rolled_back':
-      return 'rolled_back'
-    case 'not_committed':
-      return 'not_committed'
-    case 'unknown':
-    case 'not_recallable':
-      return 'unknown'
-  }
-}
+export type QueryKind = QueryResultV2['kind']
+export const queryKindOf = (result: QueryResultV2): QueryKind => result.kind
 
 export const identityOf = (
   tenant: TenantId,
@@ -172,6 +163,7 @@ export const identityOf = (
   operation,
   protocolVersion: '2',
   operationKey: JSON.stringify([session, operation, attempt]),
+  recall: 'never',
 })
 
 export type WalSample = Readonly<{ commits: number; generation: string }>
@@ -205,6 +197,7 @@ export type RealAppOptions = Readonly<{
   extraParticipants?: SqlMaterialCatalog['participants']
   policy?: Parameters<typeof createPolicySessionAccessCheck<string>>[0]
   protectedBasis?: SessionStorageOptions<string>['protectedBasis']
+  budget?: SessionStorageOptions<string>['budget']
 }>
 
 export async function openRealApp(options: RealAppOptions = {}) {
@@ -242,7 +235,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     database: real.database,
     registerCombination: input => real.registerCombination(input),
     commit: request => {
-      ops += 1
+      if (request.identity.operation !== 'session.lookup') ops += 1
       return real.commit(request)
     },
     query: identity => real.query(identity),
@@ -304,10 +297,13 @@ export async function openRealApp(options: RealAppOptions = {}) {
   const storageOptions = {
     ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     ...(options.protectedBasis === undefined ? {} : { protectedBasis: options.protectedBasis }),
+    ...(options.budget === undefined ? {} : { budget: options.budget }),
     storage,
     domains,
-    accessCheck,
+    accessCheck: withMemberSubject(accessCheck),
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination: { combinationVersion: COMBINATION, manifestDigest: digest },
   }
   const port = createSessionStorage<string>(storageOptions)
@@ -366,6 +362,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     port,
     pair,
     storage,
+    domains,
     control,
     events,
     accessCheck,
@@ -393,6 +390,7 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
     tenant: TENANT_A,
     session: sessionId('session-1'),
     execution: 'exe_1',
+    settledBy: null,
     expected: null,
     revision: '1',
     published: '0',
@@ -407,6 +405,7 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
         revision: '1',
         receipt: evidence('agent/exe_1/1'),
         emittedThrough: '0',
+        acknowledged: '0',
         ended: null,
       },
     ],
@@ -484,6 +483,7 @@ export function agentPublisher(input: {
     digest: `sha256:fixture-${String(writes)}`,
     blobs: [],
     items: [],
+    settledBy: null,
   })
   return {
     async publish(event: AgentEvent): Promise<void> {
@@ -513,6 +513,7 @@ export function agentPublisher(input: {
             revision: event.revision,
             receipt: event.head,
             emittedThrough: String(emitted),
+            acknowledged: '0',
             ended: ended as never,
           },
         ],

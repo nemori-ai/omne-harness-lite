@@ -42,12 +42,18 @@ export type ActorRef = Readonly<{ owner: string; subject: string; revision: stri
 export type ModelReferenceAccess<P> = Access<P> & Readonly<{ reference: ModelInvocationRef }>
 export type CallAccess<P> = Access<P> & Readonly<{ call: ModelCallId }>
 export type Mutation<P> = CallAccess<P> & Readonly<{ operation: ModelOperationId }>
+export const REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const
+export type ReasoningEffort = (typeof REASONING_EFFORTS)[number]
+export function isReasoningEffort(value: unknown): value is ReasoningEffort {
+  return REASONING_EFFORTS.some(effort => effort === value)
+}
 export type Parameter =
   | Readonly<{ kind: 'temperature'; value: number }>
   | Readonly<{ kind: 'top-p'; value: number }>
   | Readonly<{ kind: 'max-output-tokens'; value: string }>
   | Readonly<{ kind: 'stop'; value: readonly string[] }>
-  | Readonly<{ kind: 'reasoning-effort'; value: 'none' | 'low' | 'medium' | 'high' | 'max' }>
+  | Readonly<{ kind: 'reasoning-effort'; value: ReasoningEffort | 'none' | 'max'; scale?: never }>
+  | Readonly<{ kind: 'reasoning-effort'; value: ReasoningEffort; scale: 'unified' }>
   | Readonly<{ kind: 'seed'; value: string }>
   | Readonly<{ kind: 'frequency-penalty'; value: number }>
   | Readonly<{ kind: 'presence-penalty'; value: number }>
@@ -67,8 +73,11 @@ export type Supplier = Readonly<{
   model: string
   credential: CredentialLayer
 }>
+/** The context window of the profile a request was prepared on, as the profile said then. */
+export type ContextWindow = Readonly<{ tokens: string; compactionTriggerPercent: string }>
 export type FixedModelRequest = Readonly<{
   profile: Adoption
+  contextWindow?: ContextWindow
   suppliers: readonly [Supplier, ...Supplier[]]
   fallback: boolean
   retryPolicy: Adoption

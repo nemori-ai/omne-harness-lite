@@ -10,10 +10,10 @@ import type {
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import {
-  createAccessRegistry,
+  createStandaloneRegistry,
   type AccessDiagnostic,
   type Entered,
-  type AccessRegistry,
+  type StandaloneRegistry as AccessRegistry,
   type ServerEntryAccess,
   type ServerEntryConfig,
 } from '../../src/index.ts'
@@ -193,10 +193,11 @@ export function recordingRegistry(inner: AccessRegistry): RegistryLog {
     signals,
     registry: {
       mount: contribution => inner.mount(contribution),
+      own: contribution => inner.own(contribution),
       subscribe: listener => inner.subscribe(listener),
       enter: (key, name) => {
         const entered = inner.enter(key, name)
-        if (entered === undefined) return undefined
+        if ('refused' in entered) return entered
         const line = { name, left: false }
         const index = entries.push(line) - 1
         leaveCounts.push(0)
@@ -376,7 +377,7 @@ export function accessSide(
   options: AccessSideOptions,
   diagnostics: (event: AccessDiagnostic) => void,
 ): AccessSide {
-  const registry = createAccessRegistry()
+  const registry = createStandaloneRegistry()
   const log = recordingRegistry(registry)
   const identity = testIdentity()
   const notes = scriptedNotes()

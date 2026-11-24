@@ -65,7 +65,7 @@ function ended(
         kind: 'waiting',
         waiting: [{ kind: 'dependency', owner: 'fixture-dependency', position: 'before-ended' }],
       },
-      { kind: 'ended', outcome, cause: null, disposition: evidence(outcome) },
+      { kind: 'ended', outcome, cause: null, disposition: evidence(outcome), end: null },
     ],
   }
 }

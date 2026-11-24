@@ -4,12 +4,14 @@ import { lstat, mkdtemp, open, realpath, rm, unlink } from 'node:fs/promises'
 import type { FileHandle } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, posix } from 'node:path'
-import type {
-  FacilityReason,
-  FacilityResult,
-  FileVersion,
-  ObjectToken,
-  ProviderFacts,
+import {
+  segmentsBelow,
+  type FacilityReason,
+  type FacilityResult,
+  type FileEffect,
+  type FileVersion,
+  type ObjectToken,
+  type ProviderFacts,
 } from '@omne-harness/execution-environment-contract'
 
 export type FileStats = BigIntStats
@@ -199,6 +201,11 @@ export type HostPathsCore = Readonly<{
   bind(close: CloseHandle): HostPaths
 }>
 
+/** The paths of one effect: reads resolve below the read root, writes below the write root. */
+export type ScopedPaths = (effect: FileEffect) => HostPaths
+
+export type Target = Readonly<{ path: string; effect: FileEffect }>
+
 export type HostPathsOptions = Readonly<{
   root?: string | undefined
   probeDirectory?: string | undefined
@@ -206,14 +213,9 @@ export type HostPathsOptions = Readonly<{
 
 type RootBinding = Readonly<{
   path: string
-  segments: readonly string[]
   dev: bigint
   ino: bigint
 }>
-
-function segmentsOf(path: string): readonly string[] {
-  return path.split('/').filter(segment => segment !== '' && segment !== '.')
-}
 
 async function bindRoot(root: string): Promise<RootBinding | undefined> {
   try {
@@ -221,7 +223,7 @@ async function bindRoot(root: string): Promise<RootBinding | undefined> {
     const opened = await open(real, constants.O_RDONLY | constants.O_DIRECTORY)
     try {
       const stat = await opened.stat({ bigint: true })
-      return { path: real, segments: segmentsOf(real), dev: stat.dev, ino: stat.ino }
+      return { path: real, dev: stat.dev, ino: stat.ino }
     } finally {
       await opened.close().catch(() => undefined)
     }
@@ -231,12 +233,7 @@ async function bindRoot(root: string): Promise<RootBinding | undefined> {
 }
 
 function belowRoot(binding: RootBinding, path: string): readonly string[] | 'outside' {
-  const segments = segmentsOf(path)
-  if (segments.includes('..')) return 'outside'
-  if (segments.length < binding.segments.length) return 'outside'
-  for (const [index, segment] of binding.segments.entries())
-    if (segments[index] !== segment) return 'outside'
-  return segments.slice(binding.segments.length)
+  return segmentsBelow(binding.path, path, 'linux') ?? 'outside'
 }
 
 function splitLast(path: string): Readonly<{ directory: string; name: string }> | undefined {
@@ -499,14 +496,15 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
 }
 
 export async function gate(
-  paths: HostPaths,
+  paths: ScopedPaths,
   requestId: string,
-  targets: readonly string[],
+  targets: readonly Target[],
 ): Promise<FacilityResult<never> | undefined> {
-  if (paths.rooted)
-    for (const target of targets) {
-      const refusal = await paths.checkPath(target)
-      if (refusal !== undefined) return failed(requestId, refusal, 'notFound')
-    }
-  return (await paths.available()) ? undefined : reject(requestId, 'unavailable')
+  for (const { path, effect } of targets) {
+    const refusal = paths(effect).rooted ? await paths(effect).checkPath(path) : undefined
+    if (refusal !== undefined) return failed(requestId, refusal, 'notFound')
+  }
+  for (const effect of new Set(targets.map(target => target.effect)))
+    if (!(await paths(effect).available())) return reject(requestId, 'unavailable')
+  return undefined
 }

@@ -1,4 +1,10 @@
-import { definePoint, type Point, type PointCodec } from '@omne-harness/shell-contract'
+import {
+  definePoint,
+  defineRenderPoint,
+  type Point,
+  type PointCodec,
+  type RenderPoint,
+} from '@omne-harness/shell-contract'
 
 export type SessionSubject = Readonly<{ session: string }>
 
@@ -9,14 +15,23 @@ const sessionSubject: PointCodec<SessionSubject> = {
 
 export const SESSION_DOCK = 'session.dock'
 export const SESSION_SIDE = 'session.side'
+export const SESSION_STATUS = 'session.status'
 
 export const sessionDock: Point<SessionSubject> = definePoint({
   name: SESSION_DOCK,
+  summary: 'What stands above the composer of the open session, one under another.',
   subject: sessionSubject,
 })
 
 export const sessionSide: Point<SessionSubject> = definePoint({
   name: SESSION_SIDE,
+  summary: 'The tabs of the side area of the open session.',
+  subject: sessionSubject,
+})
+
+export const sessionStatus: Point<SessionSubject> = definePoint({
+  name: SESSION_STATUS,
+  summary: 'The quiet facts in the status line of the open session.',
   subject: sessionSubject,
 })
 
@@ -36,5 +51,112 @@ export const SESSION_CALL_DETAIL = 'session.call-detail'
 // Under each call in the background; the session module does not know what goes here.
 export const sessionCallDetail: Point<SessionCallSubject> = definePoint({
   name: SESSION_CALL_DETAIL,
+  summary:
+    'What is shown under one background call of a session, by the domain that owns its output.',
   subject: sessionCallSubject,
+})
+
+function jsonSubject<S>(holds: (value: Record<string, unknown>) => boolean): PointCodec<S> {
+  return {
+    encode: value => JSON.stringify(value),
+    decode: text => {
+      try {
+        const value: unknown = JSON.parse(text)
+        const read = typeof value === 'object' && value !== null && !Array.isArray(value)
+        return read && holds(value as Record<string, unknown>) ? (value as S) : undefined
+      } catch {
+        return undefined
+      }
+    },
+  }
+}
+const texts = (value: Record<string, unknown>, names: readonly string[]): boolean =>
+  names.every(name => typeof value[name] === 'string')
+
+/** The message being written in a session: `draft` changes when it is sent or dropped. */
+export type SessionDraftSubject = Readonly<{ session: string; draft: string }>
+/** One block of a message that is not words, with the block as the history holds it. */
+export type SessionBlockSubject = Readonly<{
+  session: string
+  message: string
+  block: string
+  content: unknown
+  /** Which representation the model read of this block in its latest request, when known. */
+  read?: 'original' | 'fitted' | 'derived' | 'transcript'
+}>
+
+const BLOCK_EXAMPLE = [
+  '{"point":"session.block-render","key":"image","module":"image-block.js","export":"block"}',
+  'image-block.js:',
+  'export const block = ({ React }) => ({ subject, generic }) =>',
+  "  React.createElement('figure', null, generic(), React.createElement('figcaption', null, subject.block))",
+].join('\n')
+
+const TOOL_CALL_EXAMPLE = [
+  '{"point":"session.tool-call","key":"Web","module":"web-card.js","export":"card"}',
+  'web-card.js:',
+  'export const card = ({ React }) => ({ subject }) =>',
+  "  React.createElement('div', null, subject.name + ': ' + subject.state)",
+].join('\n')
+
+export const SESSION_COMPOSER_ATTACHMENTS = 'session.composer-attachments'
+export const SESSION_BLOCK_RENDER = 'session.block-render'
+export const SESSION_TOOL_CALL = 'session.tool-call'
+
+export const TOOL_NAMES = 'tool.tools'
+
+export const sessionComposerAttachments: Point<SessionDraftSubject> = definePoint({
+  name: SESSION_COMPOSER_ATTACHMENTS,
+  summary: 'What a draft of the composer carries beside its words.',
+  subject: jsonSubject(value => texts(value, ['session', 'draft'])),
+})
+
+export const sessionBlockRender: RenderPoint<SessionBlockSubject> = defineRenderPoint({
+  name: SESSION_BLOCK_RENDER,
+  key: 'the kind of the block, such as image, file or voice',
+  summary:
+    'How a block of a message that is not text is drawn in the conversation, by its kind: an image, a file, a voice note.',
+  subject:
+    'one block of a message: session, message and block, its ids; content, the block as the history holds it; read, which form of it the model read last (original, fitted, derived or transcript), when known',
+  example: BLOCK_EXAMPLE,
+})
+
+/** One call of a tool, as the transcript holds it. */
+export type SessionToolCallSubject = Readonly<{
+  session: string
+  call: string | null
+  name: string
+  arguments: unknown
+  state: 'working' | 'completed' | 'no-result'
+  result: string | null
+}>
+
+export const sessionToolCall: RenderPoint<SessionToolCallSubject> = defineRenderPoint({
+  name: SESSION_TOOL_CALL,
+  key: 'the name of the tool, as the server holds it on tool.tools: OmneExtensionPoints show tool.tools lists the names',
+  summary:
+    'How a call of one tool is drawn in the conversation: the card of the call, by the tool.',
+  keysFrom: TOOL_NAMES,
+  subject:
+    'one call of the tool: session; call, its reference, or null before it has one; name; arguments; state, which is working, completed or no-result; result, its text, or null',
+  example: TOOL_CALL_EXAMPLE,
+})
+
+export type SessionRunFailureSubject = Readonly<{
+  session: string
+  cause: string
+  detail: string | null
+}>
+
+export const SESSION_RUN_FAILURE = 'session.run-failure'
+
+export const sessionRunFailure: Point<SessionRunFailureSubject> = definePoint({
+  name: SESSION_RUN_FAILURE,
+  summary:
+    'What is shown under the reason of a failed run of a session, by the domain that knows how to set it right.',
+  subject: jsonSubject(
+    value =>
+      texts(value, ['session', 'cause']) &&
+      (value['detail'] === null || typeof value['detail'] === 'string'),
+  ),
 })

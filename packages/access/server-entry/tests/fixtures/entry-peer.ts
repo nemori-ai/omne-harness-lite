@@ -1,4 +1,5 @@
 import { createInterface } from 'node:readline'
+import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 import { startAccessFixture } from '../support/access-kit.ts'
 
 const line = (value: unknown): void => {
@@ -33,6 +34,54 @@ notes.sources['watch-all'] = async context => {
     })(),
   }
 }
+// A protocol at revision 2, for a caller built with an earlier or a later contract of the same major.
+const draftRef = ruleCodec({
+  kind: 'object',
+  fields: {
+    id: { rule: { kind: 'text' } },
+    lang: { rule: { kind: 'text' }, optional: true, since: 2 },
+  },
+})
+const draft = ruleCodec({
+  kind: 'object',
+  fields: {
+    id: { rule: { kind: 'text' } },
+    title: { rule: { kind: 'text' } },
+    colour: { rule: { kind: 'text' }, optional: true, since: 2 },
+  },
+})
+const drafts = defineProtocol({
+  name: 'drafts',
+  major: 1,
+  operations: {
+    read: {
+      identity: 'none',
+      effect: 'read',
+      limit: 'small',
+      body: draftRef,
+      outcomes: { succeeded: draft },
+    },
+  },
+  observations: {},
+})
+/** How many reads reached the handler; a read of the id `count` answers it as its title. */
+let reads = 0
+if (process.argv.includes('--drafts'))
+  fixture.log.registry.mount({
+    protocol: drafts,
+    operations: {
+      read: async (_call, body) => {
+        if (body.id === 'count')
+          return { outcome: 'succeeded', body: { id: body.id, title: String(reads) } }
+        reads += 1
+        return {
+          outcome: 'succeeded',
+          body: { id: body.id, title: body.lang ?? 'T', colour: 'red' },
+        }
+      },
+    },
+    observations: {},
+  })
 let takeDown: (() => Promise<void>) | undefined = fixture.takeDown
 line({ port: fixture.port })
 const commands = createInterface({ input: process.stdin })

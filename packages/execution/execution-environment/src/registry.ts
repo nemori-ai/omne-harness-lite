@@ -50,6 +50,7 @@ import {
   copyOriginal,
   copyPlacement,
   copyScope,
+  placementOn,
   fingerprint,
   sameBinding,
   sameScope,
@@ -757,7 +758,7 @@ export function createEnvironmentRegistry<P>(
     async resolvePlacement(access, input) {
       if (!mintedTenant(access.tenant)) return rejected('invalidInput')
       const scope = copyScope(input.scope)
-      const requirement = input.requirement
+      const { requirement, filesScope } = input
       const checked = await checkAccess(ports, access, { kind: 'resolve', scope }, scope)
       if (checked.kind !== 'granted') return lookupAnswer(checked)
       if (closed) return rejected('ownerStopped')
@@ -769,15 +770,8 @@ export function createEnvironmentRegistry<P>(
       if (match.kind === 'rejected') return match
       if (foreignTenantBinding(match.binding, access.tenant)) return rejected('notAuthorized')
       if (!fitsScope(match.binding, scope)) return rejected('invalidInput')
-      const entry = match.provider.entry
-      return Object.freeze({
-        kind: 'placement',
-        requirement,
-        binding: match.binding,
-        provider: entry.identity,
-        continuity: entry.provider.continuity,
-        quotaDomain: entry.provider.quotaDomain,
-      })
+      const { identity, provider } = match.provider.entry
+      return placementOn({ requirement, filesScope }, match.binding, identity, provider)
     },
 
     async acquire(access, input) {

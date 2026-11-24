@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { SqlMaterialCatalog, SqlStorage } from '@omne-harness/sql-contract'
-import type { ActingForTenantPrincipal } from '@omne-harness/identity'
+import type { ActingForTenantPrincipal, StandingReservations } from '@omne-harness/identity'
 import {
   createSettingsQueries,
   createSettingsRegistry,
@@ -41,6 +41,9 @@ export async function openCatalogWorld(
       ) => import('@omne-harness/sql-contract').FactCommandV2
     }
     wrapCatalog?: (storage: SqlStorage) => SqlStorage
+    wrapReservations?: (reservations: StandingReservations) => StandingReservations
+    warn?: (message: string) => void
+    registryTargets?: Parameters<typeof createSettingsCatalog>[0]['registryTargets']
   } = {},
 ) {
   const identity = await openIdentityWorld()
@@ -93,20 +96,30 @@ export async function openCatalogWorld(
   })
   const selected = await selections.select(identity.principal, [s.target])
   if (selected.kind !== 'selected') throw new Error(JSON.stringify(selected))
-  const catalog = createSettingsCatalog({
-    ...terminalOptions,
-    storage: options.wrapCatalog?.(s.storage) ?? s.storage,
-    deploymentRef: 'test',
-    destination: catalogDestination,
-    verifier: identity.authority.verifier,
-    reservations: identity.identity.reservations,
-    required: [],
-    registry,
-    project,
-    clock: { now: () => now },
-    cursorLifetimeMs: 60000,
-    selection: selections,
-  })
+  const reopened: ReturnType<typeof createSettingsCatalog>[] = []
+  const openCatalog = (storage: SqlStorage, reservations: StandingReservations) =>
+    createSettingsCatalog({
+      ...terminalOptions,
+      storage,
+      deploymentRef: 'test',
+      destination: catalogDestination,
+      verifier: identity.authority.verifier,
+      reservations,
+      required: [],
+      registry,
+      ...(options.registryTargets === undefined
+        ? {}
+        : { registryTargets: options.registryTargets }),
+      ...(options.warn === undefined ? {} : { warn: options.warn }),
+      project,
+      clock: { now: () => now },
+      cursorLifetimeMs: 60000,
+      selection: selections,
+    })
+  const catalog = openCatalog(
+    options.wrapCatalog?.(s.storage) ?? s.storage,
+    options.wrapReservations?.(identity.identity.reservations) ?? identity.identity.reservations,
+  )
   const { standing: _, ...base } = s.options
   const prepared = createIdentityQualifiedSettingsPreparation({
     required: [],
@@ -203,6 +216,7 @@ export async function openCatalogWorld(
     principal: identity.principal,
     authority: identity.authority,
     identity: identity.identity,
+    identityRoot: identity.root,
     remove: identity.remove,
     change: s.command,
     world: {
@@ -215,6 +229,11 @@ export async function openCatalogWorld(
     fixture: { service: s.service, context: s.context, updateCurrent: s.updateCurrent },
     terminalOptions,
     catalog,
+    reopenCatalog() {
+      const next = openCatalog(s.storage, identity.identity.reservations)
+      reopened.push(next)
+      return next
+    },
     selections,
     selectionRef: selected.selectionRef,
     registry,
@@ -245,6 +264,7 @@ export async function openCatalogWorld(
     },
     async close() {
       await prepared.control.close()
+      for (const next of reopened) await next.close()
       await catalog.close()
       registry.close()
       selections.close()

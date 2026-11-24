@@ -4,9 +4,9 @@ import type { GatewayUsage, ReasoningDetail } from '@omne-harness/pi-ai-transpor
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import { OPENAI_OWNER } from '@omne-harness/pi-ai-openai'
 import { hooksOf, REASONING_RULES, TOOL_SCHEMA_RULES, USAGE_RULES } from '../src/rules.ts'
-import { recordNamed } from './support/openai.ts'
+import { chatRecordNamed } from './support/openai.ts'
 
-const SOL = recordNamed('openai/gpt-5.6-sol')
+const SOL = chatRecordNamed('openai/gpt-5.6-sol')
 
 function str(value: string): JsonValue {
   return { kind: 'string', value }
@@ -234,7 +234,7 @@ describe('check and hooksOf', () => {
   })
 
   it('a Pro record gets the unknown scope, the others the OpenAI usage', () => {
-    const pro = hooksOf(recordNamed('openai/gpt-5.6-sol-pro'))
+    const pro = hooksOf(chatRecordNamed('openai/gpt-5.6-sol-pro'))
     const plain = hooksOf(SOL)
     const sealed = usage({ promptTokens: '5', cachedTokens: '0', cacheWrite: '0' })
     expect(okOf(pro.usage(sealed)).items[0]).toEqual(item('input', null))

@@ -1,16 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ToolLedgerStore } from '@omne-harness/tool'
+import type { AccessVerdict, ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
   callHostDomain,
   createLocalStartCoordinator,
   createLocalStartGuard,
   PROGRAMMATIC_NOT_IN_M2,
-  type ConditionalLedgerCommit,
-  type RequestAccessVerdict,
-  type StartCondition,
-  type ToolRequestAccess,
+  type ToolTargetAvailability,
 } from '@omne-harness/tool-host-local'
 import {
   access,
@@ -22,12 +19,12 @@ import {
   type Principal,
 } from './coordinator-values.ts'
 
-function fixture(answer: () => Promise<RequestAccessVerdict>) {
+function fixture(answer: () => Promise<AccessVerdict>) {
   const memory = createMemoryToolLedgerStore()
   let conflict = false
-  const asked: Parameters<ToolRequestAccess<Principal>['qualify']>[0][] = []
-  const requestAccess = {
-    qualify: async (input: Parameters<ToolRequestAccess<Principal>['qualify']>[0]) => {
+  const asked: Parameters<ToolTargetAvailability<Principal>['qualify']>[0][] = []
+  const target = {
+    qualify: async (input: Parameters<ToolTargetAvailability<Principal>['qualify']>[0]) => {
       asked.push(structuredClone(input))
       return answer()
     },
@@ -36,8 +33,10 @@ function fixture(answer: () => Promise<RequestAccessVerdict>) {
   const store: ToolLedgerStore = {
     durability: 'none',
     scanPending: input => memory.scanPending(input),
+    usage: query => memory.usage(query),
     readRecord: (domain, key) => memory.readRecord(domain, key),
     due: memory.due,
+    definition: memory.definition,
     read: memory.read,
     commit: async input => {
       if (conflict) {
@@ -48,18 +47,10 @@ function fixture(answer: () => Promise<RequestAccessVerdict>) {
       return memory.commit(input)
     },
   }
-  const conditions: StartCondition[] = []
-  let holds: (condition: StartCondition) => boolean = () => true
-  const conditional: ConditionalLedgerCommit = {
-    commit: async ({ condition, ledger }) => {
-      conditions.push(structuredClone(condition))
-      return holds(condition) ? store.commit(ledger) : { kind: 'condition-failed' }
-    },
-  }
   const authority = createLocalStartCoordinator({
     store,
     access: access(),
-    requestAccess: { access: requestAccess, commit: conditional },
+    target,
     guardsOf: () => [],
     permitRequirements: noPermitRequirements,
     commitAttempts: 4,
@@ -68,27 +59,24 @@ function fixture(answer: () => Promise<RequestAccessVerdict>) {
   const fixed = request()
   const start = startOf('target-policy')
   const prepare = () => authority.prepare({ ...call, start, request: fixed })
-  const acceptanceCount = async () => {
+  const acceptances = async () => {
     const found = await memory.read(callHostDomain(call.tenant, 'start', call.call))
     if (found.kind !== 'complete') throw new Error('fixture store unavailable')
-    return found.records.filter(
-      row => row.kind === 'host' && JSON.stringify(row.host.value).includes('"acceptance"'),
-    ).length
+    return found.records.flatMap(row => {
+      const value = row.kind === 'host' ? (row.host.value as { kind?: string } | null) : null
+      return value?.kind === 'acceptance' ? [value as Record<string, unknown>] : []
+    })
   }
   return {
     memory,
     authority,
-    guard: createLocalStartGuard({ access: access(), requestAccess }),
+    guard: createLocalStartGuard({ access: access(), target }),
     call,
     fixed,
     start,
     prepare,
     asked,
-    conditions,
-    holdsWhen(check: (condition: StartCondition) => boolean) {
-      holds = check
-    },
-    acceptanceCount,
+    acceptances,
     conflictNext(change: () => void) {
       conflict = true
       onConflict = change
@@ -99,20 +87,17 @@ function ok<T>(value: { ok: T } | { failure: unknown }): T {
   if ('failure' in value) throw new Error(JSON.stringify(value.failure))
   return value.ok
 }
-const denied = (): Promise<RequestAccessVerdict> =>
-  Promise.resolve({ kind: 'denied', reason: 'target-rule-denied' })
-const allowed = (): Promise<RequestAccessVerdict> =>
-  Promise.resolve({ kind: 'allowed', condition: null })
-const allowedWhile = (basis: string): Promise<RequestAccessVerdict> =>
-  Promise.resolve({ kind: 'allowed', condition: { basis } })
+const denied = (): Promise<AccessVerdict> =>
+  Promise.resolve({ kind: 'denied', reason: 'target-not-included' })
+const allowed = (): Promise<AccessVerdict> => Promise.resolve({ kind: 'allowed' })
 
-describe('current request policy at the local start boundary', () => {
+describe('current target availability at the local start boundary', () => {
   it('refuses a truthful target denial before preparing or starting', async () => {
     const f = fixture(denied)
     expect(await f.prepare()).toEqual({ failure: { kind: 'denied', action: 'start' } })
     expect(await f.guard.qualifyStart({ ...f.call, request: f.fixed })).toEqual({
       kind: 'refused',
-      reason: 'target-rule-denied',
+      reason: 'target-not-included',
     })
     expect(f.memory.commits).toBe(0)
     expect(f.asked).toEqual([
@@ -121,7 +106,7 @@ describe('current request policy at the local start boundary', () => {
     ])
   })
 
-  it('persists an exclusion when policy changes after prepare and recalls it without a new acceptance', async () => {
+  it('persists an exclusion when the target leaves after prepare and recalls it without a new acceptance', async () => {
     let allow = true
     const f = fixture(() => (allow ? allowed() : denied()))
     const permit = ok(await f.prepare())
@@ -131,53 +116,44 @@ describe('current request policy at the local start boundary', () => {
     expect(result).toMatchObject({ kind: 'rejected', exclusion: { owner: expect.any(String) } })
     expect(ok(await f.authority.inspect({ ...f.call, start: f.start }))).toEqual(result)
     expect(ok(await f.authority.consume(input))).toEqual(result)
-    expect(await f.acceptanceCount()).toBe(0)
+    expect(await f.acceptances()).toHaveLength(0)
     expect(f.asked).toHaveLength(2)
   })
 
-  it.each([
-    'unavailable',
-    'throw',
-    'missing',
-    'malformed',
-    'no-condition',
-    'condition-of-another-kind',
-    'condition-not-an-object',
-  ] as const)('does not accept a configured provider that answers %s', async mode => {
-    let healthy = true
-    const f = fixture(async () => {
-      if (healthy) return { kind: 'allowed', condition: null }
-      if (mode === 'throw') throw new Error('secret-policy-payload')
-      if (mode === 'missing') return undefined as never
-      if (mode === 'malformed') return { kind: 'allowed-invalid' } as never
-      if (mode === 'no-condition') return { kind: 'allowed' } as never
-      if (mode === 'condition-of-another-kind')
-        return { kind: 'allowed-invalid', condition: {} } as never
-      if (mode === 'condition-not-an-object')
-        return { kind: 'allowed', condition: 'basis' } as never
-      return { kind: 'unavailable', diagnostic: 'row-unavailable' }
-    })
-    const permit = ok(await f.prepare())
-    healthy = false
-    expect(await f.prepare()).toMatchObject({ failure: { kind: 'unavailable' } })
-    expect(await f.guard.qualifyStart({ ...f.call, request: f.fixed })).toMatchObject({
-      kind: 'unavailable',
-    })
-    const result = ok(
-      await f.authority.consume({
-        ...f.call,
-        permit,
-        executorReceipt: evidence('executor'),
-        request: f.fixed,
-      }),
-    )
-    expect(result.kind).toBe('unknown')
-    expect(JSON.stringify(result)).not.toContain('secret-policy-payload')
-    expect(await f.acceptanceCount()).toBe(0)
-  })
+  it.each(['unavailable', 'throw', 'missing', 'malformed', 'denied-without-reason'] as const)(
+    'does not accept a configured provider that answers %s',
+    async mode => {
+      let healthy = true
+      const f = fixture(async () => {
+        if (healthy) return { kind: 'allowed' }
+        if (mode === 'throw') throw new Error('secret-policy-payload')
+        if (mode === 'missing') return undefined as never
+        if (mode === 'malformed') return { kind: 'allowed-invalid' } as never
+        if (mode === 'denied-without-reason') return { kind: 'denied' } as never
+        return { kind: 'unavailable', diagnostic: 'row-unavailable' }
+      })
+      const permit = ok(await f.prepare())
+      healthy = false
+      expect(await f.prepare()).toMatchObject({ failure: { kind: 'unavailable' } })
+      expect(await f.guard.qualifyStart({ ...f.call, request: f.fixed })).toMatchObject({
+        kind: 'unavailable',
+      })
+      const result = ok(
+        await f.authority.consume({
+          ...f.call,
+          permit,
+          executorReceipt: evidence('executor'),
+          request: f.fixed,
+        }),
+      )
+      expect(result.kind).toBe('unknown')
+      expect(JSON.stringify(result)).not.toContain('secret-policy-payload')
+      expect(await f.acceptances()).toHaveLength(0)
+    },
+  )
 
   it.each(['prepare', 'consume'] as const)(
-    'rechecks current policy after a %s CAS conflict',
+    'rechecks the current target after a %s CAS conflict',
     async phase => {
       let allow = true
       const f = fixture(() => (allow ? allowed() : denied()))
@@ -204,11 +180,11 @@ describe('current request policy at the local start boundary', () => {
         ).toMatchObject({ kind: 'rejected' })
         expect(f.asked).toHaveLength(3)
       }
-      expect(await f.acceptanceCount()).toBe(0)
+      expect(await f.acceptances()).toHaveLength(0)
     },
   )
 
-  it('recalls started history after a new denial and keeps the M2 programmatic fence', async () => {
+  it('recalls started history after the target leaves and keeps the M2 programmatic fence', async () => {
     let allow = true
     const f = fixture(() => (allow ? allowed() : denied()))
     const permit = ok(await f.prepare())
@@ -218,7 +194,7 @@ describe('current request policy at the local start boundary', () => {
     allow = false
     expect(ok(await f.authority.consume(input))).toEqual(started)
     expect(ok(await f.authority.inspect({ ...f.call, start: f.start }))).toEqual(started)
-    expect(await f.acceptanceCount()).toBe(1)
+    expect(await f.acceptances()).toHaveLength(1)
     expect(
       await f.guard.qualifyStart({
         ...f.call,
@@ -228,54 +204,20 @@ describe('current request policy at the local start boundary', () => {
     expect(f.asked).toHaveLength(2)
   })
 
-  it('commits the acceptance together with the condition of the verdict, and a permit without it', async () => {
-    const f = fixture(() => allowedWhile('b1'))
+  it('records the permit, the executor receipt and the requirement with an acceptance, and nothing else', async () => {
+    const f = fixture(allowed)
     const permit = ok(await f.prepare())
-    expect(f.conditions).toEqual([])
     const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
     expect(ok(await f.authority.consume(input)).kind).toBe('started')
-    expect(f.conditions).toEqual([{ basis: 'b1' }])
-    expect(await f.acceptanceCount()).toBe(1)
-  })
-
-  it('asks the policy again after a failed condition and accepts once under the new condition', async () => {
-    let basis = 'b1'
-    const f = fixture(() => allowedWhile(basis))
-    const permit = ok(await f.prepare())
-    f.holdsWhen(condition => {
-      if (condition['basis'] === 'b2') return true
-      basis = 'b2'
-      return false
-    })
-    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
-    expect(ok(await f.authority.consume(input)).kind).toBe('started')
-    expect(f.conditions).toEqual([{ basis: 'b1' }, { basis: 'b2' }])
-    expect(f.asked).toHaveLength(3)
-    expect(await f.acceptanceCount()).toBe(1)
-  })
-
-  it('rejects the start when the policy denies after a failed condition', async () => {
-    let allow = true
-    const f = fixture(() => (allow ? allowedWhile('b1') : denied()))
-    const permit = ok(await f.prepare())
-    f.holdsWhen(() => {
-      allow = false
-      return false
-    })
-    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
-    expect(ok(await f.authority.consume(input))).toMatchObject({ kind: 'rejected' })
-    expect(await f.acceptanceCount()).toBe(0)
-  })
-
-  it('stops after the commit attempts when the condition never holds, and accepts nothing', async () => {
-    const f = fixture(() => allowedWhile('b1'))
-    const permit = ok(await f.prepare())
-    f.holdsWhen(() => false)
-    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
-    expect(await f.authority.consume(input)).toMatchObject({
-      failure: { kind: 'unavailable', diagnostic: '4 revision or condition conflicts in a row' },
-    })
-    expect(f.conditions).toHaveLength(4)
-    expect(await f.acceptanceCount()).toBe(0)
+    const [accepted] = await f.acceptances()
+    expect(Object.keys(accepted ?? {}).sort()).toEqual([
+      'acceptance',
+      'call',
+      'executorReceipt',
+      'kind',
+      'permit',
+      'requirementSource',
+      'start',
+    ])
   })
 })

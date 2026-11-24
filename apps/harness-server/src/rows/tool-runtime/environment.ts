@@ -1,21 +1,27 @@
 import { lstat, realpath } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { release as osRelease } from 'node:os'
 import {
+  fileEffects,
   originRef,
+  segmentsBelow,
   type FacilityGuard,
   type FacilityKey,
+  type FileEffect,
+  type FilesScope,
   type IsolationClaim,
   type OriginRef,
+  type ScopedFileOperation,
 } from '@omne-harness/execution-environment-contract'
 import {
   hostObjectToken,
   hostSegmentsBelowRoot,
 } from '@omne-harness/execution-environment-host-local'
-import { tenantCodec } from '@omne-harness/legal-identity'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { access, tenantCodec } from '@omne-harness/legal-identity'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
+import { pinnedFiles, type ToolCallDirectory, type ToolFailure } from '@omne-harness/tool-contract'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
 import {
   createEnvironmentResourceLedger,
@@ -25,6 +31,7 @@ import {
 } from '@omne-harness/tool-host-local'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
 import { environmentNeedSchemaRef } from '@omne-harness/execution-environment-contract'
+import { instanceId, type WorkspaceInstances } from '@omne-harness/workspace-contract'
 import { readEnvironmentNeed } from '../tool-host/release-author.ts'
 import type { ReleaseToolIdentity } from './access.ts'
 import { callKeyOf, lateStore, type ToolRuntimeHolder } from './holder.ts'
@@ -39,7 +46,8 @@ export const RELEASE_ENVIRONMENT_ADOPTION = describedAdoption({
 })
 
 export type ReleaseEnvironmentOptions = Readonly<{
-  filesRoot: string
+  /** The workspace owner now, asked before every placement of a call pinned to an instance. */
+  workspaces(): Pick<WorkspaceInstances<unknown>, 'verify'> | undefined
   commitAttempts: number
   schemaProvider: () => SchemaProvider | null
   warn?(text: string): void
@@ -47,14 +55,6 @@ export type ReleaseEnvironmentOptions = Readonly<{
 
 const unavailable = (dependency: string, diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency, diagnostic })
-
-export function withinRoot(root: string, path: string): boolean {
-  const tail = relative(root, resolve(root, path))
-  return (
-    tail === '' ||
-    (!isAbsolute(tail) && tail !== '..' && !tail.startsWith('..\\') && !tail.startsWith('../'))
-  )
-}
 
 const missingCodes = new Set(['ENOENT', 'ENOTDIR'])
 
@@ -100,8 +100,7 @@ export async function placeAgainstRoot(
     canonicalPath(target, follow),
   ])
   if (canonicalRoot === undefined || canonical === undefined) return 'outside'
-  if (!withinRoot(canonicalRoot, canonical)) return 'outside'
-  return 'inside'
+  return segmentsBelow(canonicalRoot, canonical) === undefined ? 'outside' : 'inside'
 }
 
 function textField(request: object, name: string): unknown {
@@ -112,55 +111,96 @@ function memberOf(value: unknown, name: string): unknown {
   return typeof value === 'object' && value !== null ? Reflect.get(value, name) : null
 }
 
-function filePathValues(request: object): unknown[] {
-  const values: unknown[] = []
+function filePathValues(
+  request: object,
+  effects: Readonly<{ path: FileEffect; target?: FileEffect }>,
+): Array<Readonly<{ value: unknown; effect: FileEffect }>> {
+  const values: Array<Readonly<{ value: unknown; effect: FileEffect }>> = []
   const path = textField(request, 'path')
-  if (path !== undefined) values.push(path)
+  if (path !== undefined) values.push({ value: path, effect: effects.path })
   const target = textField(request, 'target')
-  if (target !== undefined) values.push(memberOf(target, 'path'))
+  if (target !== undefined)
+    values.push({ value: memberOf(target, 'path'), effect: effects.target ?? effects.path })
   const entries = textField(request, 'entries')
   if (entries !== undefined) {
-    if (!Array.isArray(entries)) values.push(null)
-    else for (const entry of entries as unknown[]) values.push(memberOf(entry, 'path'))
+    if (!Array.isArray(entries)) values.push({ value: null, effect: effects.path })
+    else
+      for (const entry of entries as unknown[])
+        values.push({ value: memberOf(entry, 'path'), effect: effects.path })
   }
   return values
 }
 
-export async function confinedToRoot(
-  root: string,
+async function permits(
+  scope: FilesScope,
+  effect: FileEffect,
+  value: unknown,
+  follow: boolean,
+): Promise<boolean> {
+  if (typeof value !== 'string') return false
+  const root = scope[effect]
+  if (root === undefined) return isAbsolute(value)
+  return (await placeAgainstRoot(root, value, follow)) !== 'outside'
+}
+
+const scopedOperation = (operation: string): operation is ScopedFileOperation =>
+  Object.hasOwn(fileEffects, operation)
+
+/** A command starts where it may write; a files request reads and writes by its operation; a close does neither. */
+export async function confinedToScope(
+  scope: FilesScope,
   facility: FacilityKey,
+  operation: string,
   request: object,
 ): Promise<boolean> {
   const cwd = textField(request, 'cwd')
-  const checks: Array<Readonly<{ value: unknown; follow: boolean }>> =
-    cwd === undefined ? [] : [{ value: cwd, follow: true }]
-  if (facility === 'files')
-    for (const value of filePathValues(request)) checks.push({ value, follow: false })
-  for (const { value, follow } of checks)
-    if (typeof value !== 'string' || (await placeAgainstRoot(root, value, follow)) === 'outside')
-      return false
+  if (cwd !== undefined && !(await permits(scope, 'write', cwd, true))) return false
+  if (facility !== 'files') return true
+  if (operation === 'close') {
+    const path = textField(request, 'path')
+    return (await permits(scope, 'read', path, false)) || permits(scope, 'write', path, false)
+  }
+  if (!scopedOperation(operation)) return false
+  for (const { value, effect } of filePathValues(request, fileEffects[operation]))
+    if (!(await permits(scope, effect, value, false))) return false
   return true
 }
 
 type NamingResult = Awaited<ReturnType<LocalToolRuntimeInput['environment']['naming']['name']>>
 
+/** The token at a path, its parent, or its nearest ancestor below the root (the top when there is none). */
 async function nearestToken(
-  root: string,
+  root: string | undefined,
   path: string,
   role: 'object' | 'parent' | 'ancestor',
 ): Promise<NamingResult> {
+  const top = async (at: string) =>
+    root === undefined ? dirname(at) === at : (await placeAgainstRoot(root, at, false)) === 'root'
   let current = role === 'parent' || role === 'ancestor' ? dirname(path) : path
   for (;;) {
     try {
       return succeed(await hostObjectToken(current))
     } catch {
-      if (role !== 'ancestor' || (await placeAgainstRoot(root, current, false)) === 'root')
+      if (role !== 'ancestor' || (await top(current)))
         return unavailable('host-object-naming', 'the exact host object could not be named')
       current = dirname(current)
-      if ((await placeAgainstRoot(root, current, false)) === 'outside')
+      if (root !== undefined && (await placeAgainstRoot(root, current, false)) === 'outside')
         return fail({ kind: 'denied', action: 'name-host-object' })
     }
   }
+}
+
+export async function nameUnder(
+  scope: FilesScope | undefined,
+  input: Readonly<{ path: string; role: 'object' | 'parent' | 'ancestor' }>,
+): Promise<NamingResult> {
+  for (const effect of ['read', 'write'] as const) {
+    if (scope === undefined || !(await permits(scope, effect, input.path, false))) continue
+    const root = scope[effect]
+    const path = root === undefined ? input.path : resolve(root, input.path)
+    return nearestToken(root, path, input.role)
+  }
+  return fail({ kind: 'denied', action: 'name-host-object' })
 }
 
 export type ReleaseEnvironment = Readonly<{
@@ -168,13 +208,75 @@ export type ReleaseEnvironment = Readonly<{
   origins: ReadonlyMap<OriginRef, string>
 }>
 
+/** The directory a call is pinned to, after its tenant's standing there is checked now. Null: it may not work there any more, so nothing is inside its fence. */
+export async function admittedDirectory(
+  workspaces: ReleaseEnvironmentOptions['workspaces'],
+  request: Pick<Preparation, 'principal' | 'tenant'> &
+    Readonly<{ request: Readonly<{ directory?: ToolCallDirectory }> }>,
+): Promise<Outcome<ToolCallDirectory | null, ToolFailure>> {
+  const pinned = request.request.directory
+  if (pinned === undefined)
+    return unavailable('working-directory', 'the request pins no working directory')
+  if (pinned.workspace === null) return succeed(pinned)
+  const instance = instanceId(pinned.workspace.instance)
+  const owner = workspaces()
+  if (owner === undefined || instance === null)
+    return unavailable('workspace', 'the workspace of the call cannot be asked about')
+  const verified = await owner.verify(access(request.principal, request.tenant), {
+    workspace: pinned.workspace.id,
+    instance,
+  })
+  switch (verified.kind) {
+    case 'attachable':
+      return succeed(verified.directory === pinned.path ? pinned : null)
+    case 'not-permitted':
+      return succeed(null)
+    case 'instance-unavailable':
+      return unavailable('workspace', `the instance of the call is unavailable: ${verified.reason}`)
+    case 'unavailable':
+      return unavailable('workspace', 'the workspace owner could not verify the call')
+  }
+}
+
+/** The files scope pinned with a call's directory. Null: no environment, fenced into nothing. */
+async function fenceOf(
+  workspaces: ReleaseEnvironmentOptions['workspaces'],
+  request: Preparation,
+): Promise<Outcome<FilesScope | null, ToolFailure>> {
+  if (request.request.availability.definition.declarations.environment === null)
+    return succeed(null)
+  const directory = await admittedDirectory(workspaces, request)
+  if ('failure' in directory) return directory
+  return succeed(directory.ok === null ? null : pinnedFiles(directory.ok))
+}
+
+/** The live origins of calls: the call each belongs to, and the files scope it is fenced into. */
+function createFences() {
+  const origins = new Map<OriginRef, string>()
+  const scopes = new Map<OriginRef, FilesScope>()
+  return {
+    origins,
+    scopeOf: (origin: OriginRef): FilesScope | undefined => scopes.get(origin),
+    admit(origin: OriginRef, call: string, scope: FilesScope | null): void {
+      origins.set(origin, call)
+      if (scope !== null) scopes.set(origin, scope)
+    },
+    settle(call: string): void {
+      for (const [origin, owner] of origins)
+        if (owner === call) {
+          origins.delete(origin)
+          scopes.delete(origin)
+        }
+    },
+  }
+}
+
 export function createReleaseEnvironment(
   holder: ToolRuntimeHolder,
   identity: ReleaseToolIdentity,
   options: ReleaseEnvironmentOptions,
 ): ReleaseEnvironment {
-  const root = options.filesRoot
-  const origins = new Map<OriginRef, string>()
+  const fences = createFences()
   const state: EnvironmentStateStore = createEnvironmentStateStore({
     store: lateStore(holder),
     mode: 'production',
@@ -225,25 +327,28 @@ export function createReleaseEnvironment(
   }
 
   holder.settled.add(call => {
-    for (const [origin, owner] of origins) if (owner === call) origins.delete(origin)
+    fences.settle(call)
     for (const [key, entry] of ledgerViews) if (entry.call === call) ledgerViews.delete(key)
   })
-  holder.residents.set('origins', () => origins.size)
+  holder.residents.set('origins', () => fences.origins.size)
   holder.residents.set('ledgerViews', () => ledgerViews.size)
 
   const unverified = (where: string, diagnostic: string): void =>
     options.warn?.(`session work principal not verified for ${where}: ${diagnostic}`)
 
   const guard: FacilityGuard<unknown> = {
-    async authorize(facility, _operation, request) {
+    async authorize(facility, operation, request) {
       try {
         const work = await identity.sessionWork(request.access.principal, request.access.tenant)
         if (work.kind === 'unavailable') {
           unverified('the facility guard', work.diagnostic)
           return 'unavailable'
         }
-        if (work.kind !== 'session' || !origins.has(request.origin)) return 'notAuthorized'
-        return (await confinedToRoot(root, facility, request)) ? 'authorized' : 'notAuthorized'
+        const scope = fences.scopeOf(request.origin)
+        if (work.kind !== 'session' || scope === undefined) return 'notAuthorized'
+        return (await confinedToScope(scope, facility, operation, request))
+          ? 'authorized'
+          : 'notAuthorized'
       } catch {
         return 'unavailable'
       }
@@ -257,13 +362,7 @@ export function createReleaseEnvironment(
         unverified('the host object naming', work.diagnostic)
         return unavailable('principalVerifier', work.diagnostic)
       }
-      if (
-        work.kind !== 'session' ||
-        !origins.has(input.origin) ||
-        (await placeAgainstRoot(root, input.path, false)) === 'outside'
-      )
-        return fail({ kind: 'denied', action: 'name-host-object' })
-      return nearestToken(root, resolve(root, input.path), input.role)
+      return nameUnder(work.kind === 'session' ? fences.scopeOf(input.origin) : undefined, input)
     },
   }
 
@@ -294,8 +393,10 @@ export function createReleaseEnvironment(
     async binding(request) {
       if (!tenantCodec.encode(request.tenant).ok)
         return fail({ kind: 'denied', action: 'environment-binding' })
+      const fence = await fenceOf(options.workspaces, request)
+      if ('failure' in fence) return fence
       const origin = originRef(`tool:${request.call}:${request.preparation.operation}`)
-      origins.set(origin, callKeyOf(request.tenant, request.call))
+      fences.admit(origin, callKeyOf(request.tenant, request.call), fence.ok)
       const view = await ledgers(request)
       const scope = request.request.requesterScope
       return succeed({
@@ -331,5 +432,5 @@ export function createReleaseEnvironment(
     },
     plan,
   }
-  return Object.freeze({ input, origins })
+  return Object.freeze({ input, origins: fences.origins })
 }

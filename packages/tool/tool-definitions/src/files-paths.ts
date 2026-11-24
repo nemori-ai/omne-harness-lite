@@ -101,4 +101,4 @@ export function placedFiles(
 }
 
 export const RELATIVE_PATH_DIAGNOSTIC =
-  'Relative paths need a workspace root, and none is configured for Files. Use an absolute path.'
+  'Relative paths need a working directory, and this call has none. Use an absolute path.'

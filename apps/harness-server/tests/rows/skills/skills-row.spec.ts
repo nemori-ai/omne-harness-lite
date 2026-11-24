@@ -15,6 +15,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { access, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { capabilityId, createCategoryPoint } from '@omne-harness/assets'
+import { categoryContributionPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { modelProviderCategoryPlugin } from '@omne-harness/model-host-local/cordis'
+import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
+import { toolToolsPoint } from '@omne-harness/tool-cordis-contract/cordis'
+import { heldRegistry } from '../../support/held-registry.ts'
 import {
   modelProviderBodyContract,
   modelProviderCategoryDisplay,
@@ -22,7 +27,11 @@ import {
 import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import { toolBodyContract, toolCategoryDisplay } from '@omne-harness/tool-contract'
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
-import { assetsSettingsProjectionCommand, createTenantPublisher } from '@omne-harness/assets-local'
+import {
+  assetsSettingsProjectionCommand,
+  createTenantPublisher,
+  newHoldingRef,
+} from '@omne-harness/assets-local'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
@@ -52,11 +61,13 @@ import {
   directoryReader,
   openSkillPublisher,
   publishSkill,
+  readWorkNowhere,
   SAMPLE_LINE,
   writeSampleSkill,
 } from '../../skills/support.ts'
 
 const ranking = { k1: 1.2, b: 0.75 }
+const NO_WORKSPACE = { sources: () => undefined, contractOf: () => undefined }
 const signal = new AbortController().signal
 const cleanups: (() => Promise<void> | void)[] = []
 
@@ -107,22 +118,49 @@ async function world() {
   }
   const packageRoot = join(root, 'assets')
   const categories = createCategoryPoint()
-  categories.contribute({ contract: toolBodyContract(), display: toolCategoryDisplay })
+  categories.contribute({
+    contract: toolBodyContract(),
+    display: toolCategoryDisplay,
+    point: 'tool.tools',
+  })
   categories.contribute({
     contract: modelProviderBodyContract(),
     display: modelProviderCategoryDisplay,
+    point: 'model.providers',
   })
-  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
-  const store = { storage: made.storage, materials, packageRoot, categories }
+  categories.contribute({
+    contract: skillBodyContract(),
+    display: skillCategoryDisplay,
+    point: 'skill.skills',
+  })
+  const registry = await heldRegistry([
+    categoryContributionPlugin(
+      'tool-category',
+      { contract: toolBodyContract(), display: toolCategoryDisplay },
+      toolToolsPoint,
+    ),
+    modelProviderCategoryPlugin,
+    skillCategoryPlugin,
+  ])
+  const store = {
+    storage: made.storage,
+    materials,
+    packageRoot,
+    categories,
+    heldOf: registry.held.heldOf,
+  }
   const tenantAssets = new TenantAssetsHost({
     domains: lookup,
     open: domain => openTenantAssets(store, domain),
   })
   cleanups.push(() => tenantAssets.close())
+  const sourcesOf = registry.held.sourcesOf(ref => tenantAssets.open(ref))
   const host = new TenantSkillsHost({
     async open(tenant, tenantRef) {
       const assets = await tenantAssets.open(tenantRef)
-      return assets === undefined ? undefined : tenantSkills(assets, tenant, ranking)
+      return assets === undefined
+        ? undefined
+        : tenantSkills(assets, tenant, ranking, NO_WORKSPACE, sourcesOf(tenantRef))
     },
   })
   cleanups.push(() => host.close())
@@ -134,14 +172,19 @@ async function world() {
     const principal = okOf(sessionWorkIssuerOf(fixture.env)({ tenant, session }), 'principal')
     return createBoundSkills({ principal, tenant, request: {} as FixedToolRequest } as never, {
       verifier: () => fixture.root.get('principalVerifier'),
+      readWork: readWorkNowhere,
       catalog: () => routed.catalog,
       access: () => routed.access,
     })
   }
+  // These helpers publish through a second store of the same domain; the release has one, which tells on its own.
+  const told = async () => {
+    for (const assets of await tenantAssets.opened()) await assets.syncHeld()
+  }
   const publish = async (tenant: TenantId, name: string, enabled = true) => {
     const dir = await writeSampleSkill(join(root, 'sources', name), name)
     const domain = domainOf(tenant, tenant === alpha ? 'tenant-alpha' : 'tenant-beta')
-    return publishSkill({
+    const published = await publishSkill({
       storage: made.storage,
       materials,
       domain,
@@ -150,6 +193,8 @@ async function world() {
       name,
       enabled,
     })
+    await told()
+    return published
   }
   const capture = (excluded: readonly string[]) => {
     const domain = domainOf(alpha, 'tenant-alpha')
@@ -196,6 +241,7 @@ async function world() {
       } finally {
         await publisher.close()
       }
+      await told()
     },
     async publishThroughTenantAssets(name: string) {
       const dir = await writeSampleSkill(join(root, 'sources', name), name)
@@ -232,7 +278,7 @@ describe('the skills row and the Skills binding over a real store', () => {
     const w = await world()
     expect(await w.publishThroughTenantAssets('weekly-report')).toMatchObject({
       kind: 'published',
-      holdingRef: 'skill/weekly-report',
+      holdingRef: newHoldingRef('publish-weekly-report'),
       changed: true,
     })
     expect(await search(w.alpha, '出周报')).toMatchObject({

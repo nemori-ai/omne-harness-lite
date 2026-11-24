@@ -9,19 +9,28 @@ import type {
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   batchEvidence,
+  callHeld,
   refOf,
   resultKey,
+  resultsUnder,
   type BlobStore,
+  type ExecutionView,
   type Mint,
   type PublishedBatch,
   type ReceivedView,
+  type MaterialView,
   type ResultView,
   type Stamp,
 } from '../journal/index.ts'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
-import { needClosed, peekClosed, type ClosedTable } from './closed-items.ts'
-import { journalEvidence, revisionOf } from './journal-values.ts'
+import { needClosed, needUnder, peekClosed, type ClosedTable } from './closed-items.ts'
+import {
+  journalEvidence,
+  PRESERVED_MATERIAL,
+  RECEIVED_MATERIAL,
+  revisionOf,
+} from './journal-values.ts'
 import type { Stored } from './material-table.ts'
 
 // What a core keeps of a received delivery, and how it reads that back from a closed result.
@@ -77,9 +86,7 @@ function block<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>): T {
   return structuredClone(value) as T
 }
 
-const RECEIVED_MATERIAL = 'received-material'
-
-// Where a received entry's material is kept: the source names the execution and the consumption.
+// A material source names the execution that keeps it; a received one names its consumption too.
 export const receivedMaterialSource = (
   namespace: string,
   tenantText: string,
@@ -98,28 +105,45 @@ export const receivedMaterialSource = (
     1,
   )
 
-// The version a delivery key names: a result version, or the digest of the key of another delivery.
+export const preservedSource = (
+  namespace: string,
+  tenantText: string,
+  execution: AgentExecutionId,
+  identity: unknown,
+  consumer: unknown,
+): DurableEvidence =>
+  journalEvidence(
+    canonical([
+      namespace,
+      PRESERVED_MATERIAL,
+      canonical([tenantText, execution]),
+      identity,
+      consumer,
+    ]),
+    1,
+  )
+
 export function keyVersion(key: ReceivedEntry['delivery']['key']): string {
   if (key.kind !== 'result') return refOf(key).digest
   return typeof key.result === 'string' ? key.result : key.result.version
 }
 
-export function sourceNames(
+function sourceNames(
   namespace: string,
   source: DurableEvidence,
 ): Readonly<{
   tenant: string
   execution: AgentExecutionId
-  consumption: ConsumptionId
-  version: string
+  result: Readonly<{ consumption: ConsumptionId; version: string }> | null
 }> | null {
   try {
     const parts = JSON.parse(source.record) as unknown
-    if (!Array.isArray(parts) || parts[0] !== namespace || parts[1] !== RECEIVED_MATERIAL)
-      return null
+    if (!Array.isArray(parts) || parts[0] !== namespace) return null
+    if (parts[1] !== RECEIVED_MATERIAL && parts[1] !== PRESERVED_MATERIAL) return null
     const [tenant, execution] = JSON.parse(String(parts[2])) as [string, AgentExecutionId]
+    if (parts[1] !== RECEIVED_MATERIAL) return { tenant, execution, result: null }
     const version = keyVersion(parts[3] as ReceivedEntry['delivery']['key'])
-    return { tenant, execution, consumption: parts[5] as ConsumptionId, version }
+    return { tenant, execution, result: { consumption: parts[5] as ConsumptionId, version } }
   } catch {
     return null
   }
@@ -152,8 +176,7 @@ export function receivedRecord(scope: RecordScope, received: ReceivedView): Rece
   }
 }
 
-// A result the core no longer holds open, read back by its consumption and version; a read that
-// must know asks with need.
+// A closed result by its consumption and version; a read that must know asks with need.
 export function closedReceived(
   table: ClosedTable & Readonly<{ blobs: BlobStore }>,
   mint: Mint,
@@ -167,4 +190,61 @@ export function closedReceived(
   const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as ResultView | null
   if (body === null || body.received === null) return undefined
   return receivedRecord(scope, body.received)
+}
+
+export type ReleasedMaterial = Readonly<{
+  tenant: string
+  execution: AgentExecutionId
+  released: MaterialView['value']
+}>
+
+// A material the core no longer holds open: a preserved one by its source, else with its result.
+export function closedMaterial(
+  table: ClosedTable & Readonly<{ blobs: BlobStore }>,
+  mint: Mint,
+  tenant: TenantId,
+  source: DurableEvidence,
+  need: boolean,
+): Stored | ReleasedMaterial | undefined {
+  const named = sourceNames(mint.session, source)
+  const encoded = tenantCodec.encode(tenant)
+  if (named === null || !encoded.ok || named.tenant !== encoded.value) return undefined
+  if (named.result === null) {
+    const ref = { execution: named.execution, family: 'material', item: canonical(source) }
+    const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as MaterialView | null
+    if (body === null) return undefined
+    if (body.readers === 'until-release')
+      return { tenant: named.tenant, execution: named.execution, released: body.value }
+    return {
+      tenant: named.tenant,
+      execution: named.execution,
+      value: block(table.blobs, body.value),
+      readers: body.readers,
+    }
+  }
+  const input = { tenant, execution: named.execution }
+  const closed = closedReceived(table, mint, input, named.result, need)
+  return closed !== undefined && canonical(closed.kept.entry.material) === canonical(source)
+    ? (closed.material ?? undefined)
+    : undefined
+}
+
+// Every entry a consumption received, in order; once no step holds the call, closed ones too.
+export function receivedEntries(
+  table: ClosedTable & Readonly<{ blobs: BlobStore }>,
+  view: ExecutionView,
+  consumption: ConsumptionId,
+): readonly ReceivedEntry[] {
+  const found = new Map<string, ReceivedView>()
+  const add = (received: ReceivedView | null | undefined) => {
+    if (received !== null && received !== undefined) found.set(received.delivery, received)
+  }
+  for (const item of view.results.values()) if (item.consumption === consumption) add(item.received)
+  if (!callHeld(consumption, view)) {
+    const under = { execution: view.execution, family: 'result', item: resultsUnder(consumption) }
+    for (const body of needUnder(table, under).values()) add((body as ResultView).received)
+  }
+  return [...found.values()]
+    .sort((left, right) => left.pub - right.pub)
+    .map(item => block<ReceivedEntry>(table.blobs, item.custody))
 }

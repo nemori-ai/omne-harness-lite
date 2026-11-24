@@ -1,7 +1,7 @@
 // @module-tag slow
 import type { Plugin } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createAgentRuntime } from '@omne-harness/agent'
+import { agentEvaluator, createAgentRuntime } from '@omne-harness/agent'
 import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
@@ -98,12 +98,6 @@ function heldInput(): AcceptedInput {
   }
 }
 
-async function until(probe: () => boolean): Promise<void> {
-  for (let turn = 0; turn < 200 && !probe(); turn += 1)
-    await new Promise(resolve => setTimeout(resolve, 0))
-  expect(probe()).toBe(true)
-}
-
 function newDuties(): Duties {
   return { scripts: [], handles: new Map(), quiesced: [] }
 }
@@ -179,21 +173,36 @@ describe('the agent-host row: ordered stop with the Agent factory of this releas
   )
 
   it(
-    'answers incomplete and names an instance whose slot an invoke holds',
+    'answers incomplete and names an instance whose slot an invoke with an unknown open holds',
     { timeout: 60_000 },
     async () => {
       const started = await start(agentHostRow)
       const instance = await acquire(started)
       const runtime = ok(await started.directory.resolve({ ...caller, instance }))
-      started.doubles.controls.adoptions.resolve.once(() => new Promise(() => {}))
-      void runtime.invoke({
+      started.doubles.controls.adoptions.define(definition, {
+        definition: {
+          category: 'AgentDefinition',
+          type: 'master',
+          summary: 'Works on what the person asks for.',
+          name: 'stop',
+          references: [],
+          attributes: [],
+        },
+        evaluator: agentEvaluator,
+        extensions: [],
+      })
+      started.doubles.controls.journal.failNext('open', {
+        kind: 'commit-unknown',
+        outcome: 'pending',
+      })
+      const invoked = await runtime.invoke({
         ...caller,
         execution: ok(decodeAgentExecutionId('row-stop-execution')),
         operation: ok(decodeAgentOperationId('row-stop-invoke')),
         initial: heldInput(),
         grant: null,
       })
-      await until(() => started.doubles.controls.adoptions.resolve.calls.length > 0)
+      expect(invoked).toMatchObject({ failure: { kind: 'commit-unknown' } })
       const result = await shutdownOutcome(started.tree)
       expect(result).toEqual({
         kind: 'incomplete',

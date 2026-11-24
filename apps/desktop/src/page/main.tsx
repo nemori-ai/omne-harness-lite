@@ -1,31 +1,25 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { ShellLogin } from '@omne-harness/shell-contract'
-import { colorSchemeQuery, createThemeController } from '@omne-harness/ui-kit'
-import type { HostBridge, OmneHost } from '../shared/host-bridge.ts'
-import { missingAtHost } from '../shared/wire.ts'
-import { assembly } from './assembly.tsx'
-import { connectPageBridge, httpHostChannel, ipcHostChannel } from './bridge.ts'
+import { colorSchemeQuery, createSizeController, createThemeController } from '@omne-harness/ui-kit'
+import type { ForwardingBridge } from '../shared/channel.ts'
+import { missingAtForwarding } from '../shared/wire.ts'
+import { assembly, pageFloor } from './assembly.tsx'
+import { connectPageBridge, httpChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
+import { keepBootTokens } from './shell/boot-tokens.ts'
+import { adoptChanges, tokenOf, tokensOf } from './shell/changes-sheet.ts'
 import { shellPlugin } from './shell/service.ts'
+import { storedFloatPlaces } from './shell/float-place.ts'
 import { Shell } from './shell/shell.tsx'
-import { createShellState } from './shell/state.ts'
+import { bindSizeKeys, storedSizePreference } from './shell/size.ts'
+import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
 import { storedThemePreference } from './shell/theme.ts'
+import { markWindowChrome } from './shell/window-chrome.ts'
 import { startClientTree } from './tree.ts'
 import './styles.css'
 
-declare global {
-  interface Window {
-    omneHost?: OmneHost
-  }
-}
-
-const hostChannel = () =>
-  window.omneHost === undefined
-    ? httpHostChannel(window.location.origin)
-    : ipcHostChannel(window.omneHost)
-
-const shellLogin = (bridge: HostBridge): ShellLogin => ({
+const shellLogin = (bridge: ForwardingBridge): ShellLogin => ({
   state: bridge.loginState.state,
   subscribe: bridge.loginState.subscribe,
   login: bridge.login,
@@ -35,22 +29,35 @@ const shellLogin = (bridge: HostBridge): ShellLogin => ({
 async function main(): Promise<void> {
   const element = document.getElementById('root')
   if (element === null) return
-  const bridge = await connectPageBridge(hostChannel())
+  markWindowChrome(document.documentElement, navigator.userAgent)
+  const size = createSizeController(storedSizePreference(() => window.localStorage))
+  bindSizeKeys(window, size, /Mac/.test(navigator.platform) ? 'mac' : 'other')
+  const bridge = await connectPageBridge(httpChannel(window.location.origin))
   const watched = watchConnectivity(bridge.transport)
-  const state = createShellState(shellLogin(bridge))
+  const state = createShellState(shellLogin(bridge), {
+    notices: show => bridge.onExpired(() => show(LOGIN_EXPIRED_TEXT)),
+    knowsToken: tokenOf(document),
+    tokens: tokensOf(document),
+  })
   const tree = await startClientTree({
     transport: watched.transport,
     login: bridge.loginState,
     protocols: assembly.protocols,
   })
   await tree.install(shellPlugin(state))
-  for (const module of assembly.modules) await tree.install(module)
-  const theme = createThemeController({
-    ...storedThemePreference(() => window.localStorage),
-    system: colorSchemeQuery(),
+  adoptChanges(document, state.sheet)
+  keepBootTokens({
+    store: () => window.localStorage,
+    root: document.documentElement,
+    app: state.appTokens,
+    login: bridge.loginState,
+    outcomes: pageFloor.outcomes,
   })
-  const initial = theme.start()
-  const missing = missingAtHost(assembly.protocols, bridge.hostProtocols()).map(
+  for (const module of assembly.modules) await tree.install(module)
+  const preference = storedThemePreference(() => window.localStorage)
+  const theme = createThemeController({ ...preference, system: colorSchemeQuery() })
+  theme.start()
+  const missing = missingAtForwarding(assembly.protocols, bridge.forwardingProtocols()).map(
     key => `${key.name}/v${key.major}`,
   )
   createRoot(element).render(
@@ -59,8 +66,10 @@ async function main(): Promise<void> {
         appName="omne"
         state={state}
         connectivity={watched}
-        theme={{ initial, select: choice => theme.select(choice) }}
-        missingAtHost={missing}
+        theme={{ initial: preference.read(), select: choice => theme.select(choice) }}
+        size={size}
+        floats={storedFloatPlaces(() => window.localStorage)}
+        missingAtForwarding={missing}
       />
     </StrictMode>,
   )

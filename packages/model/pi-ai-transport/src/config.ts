@@ -3,15 +3,20 @@ import type { ConnectRetryDiagnostic } from './diagnostics.ts'
 import type { PiFamilyContributions } from './family.ts'
 import { isPlainHttpsUrl } from './http.ts'
 import { isPositiveInteger, isTimerDuration, MAX_TIMER_MS } from './limits.ts'
+import type { PiMediaReader } from './media.ts'
 import { networkInternalsOf, type NetworkInternals, type NetworkResources } from './network.ts'
 
 export type RouteAccounting = Readonly<{ place: string; costUnit: string }>
 
 export type PiRouteAuth = Readonly<{ kind: 'bearer'; item: string }> | null
 
+/** The interface an engine speaks at the gateway. */
+export type EngineEndpoint = 'chat-completions' | 'messages' | 'responses'
+
+export type PiRouteEndpoint = Readonly<{ url: string; endMarker: string | null }>
+
 export type PiRoute = Readonly<{
-  url: string
-  endMarker: string | null
+  endpoints: Readonly<Partial<Record<EngineEndpoint, PiRouteEndpoint>>>
   accounting: RouteAccounting
   auth: PiRouteAuth
 }>
@@ -41,8 +46,11 @@ export type PiTransportConfig = Readonly<{
   limits: PiTransportLimits
   onConnectRetry?: (event: ConnectRetryDiagnostic) => void
   onResponseBody?: () => void
+  /** Reads the media of this transport's requests; absent, a request that refers to media is unavailable. */
+  media?: PiMediaReader
 }>
 
+/** The route of one dispatch: the endpoint its engine speaks, with the accounting and auth. */
 export type CheckedRoute = Readonly<{
   url: URL
   endMarker: string | null
@@ -50,14 +58,40 @@ export type CheckedRoute = Readonly<{
   auth: PiRouteAuth
 }>
 
+export type CheckedProviderRoute = Readonly<{
+  endpoints: ReadonlyMap<EngineEndpoint, Readonly<{ url: URL; endMarker: string | null }>>
+  accounting: RouteAccounting
+  auth: PiRouteAuth
+}>
+
+const ENGINE_ENDPOINTS: readonly EngineEndpoint[] = ['chat-completions', 'messages', 'responses']
+
+/** Whether a protocol name is an interface some engine of this transport speaks. */
+export function isEngineEndpoint(name: string): name is EngineEndpoint {
+  return ENGINE_ENDPOINTS.some(item => item === name)
+}
+
+/** The route a dispatch takes; undefined when the provider has no endpoint for this engine. */
+export function routeFor(
+  route: CheckedProviderRoute,
+  endpoint: EngineEndpoint,
+): CheckedRoute | undefined {
+  const found = route.endpoints.get(endpoint)
+  return found === undefined
+    ? undefined
+    : { url: found.url, endMarker: found.endMarker, accounting: route.accounting, auth: route.auth }
+}
+
+export type { PiMediaReader } from './media.ts'
 export type CheckedConfig = Readonly<{
   network: NetworkInternals
   families: PiFamilyContributions
-  routes: ReadonlyMap<string, CheckedRoute>
+  routes: ReadonlyMap<string, CheckedProviderRoute>
   credential: PiCredentialSlot
   limits: PiTransportLimits
   onConnectRetry?: ((event: ConnectRetryDiagnostic) => void) | undefined
   onResponseBody?: (() => void) | undefined
+  media?: PiMediaReader | undefined
 }>
 
 const JSON_LIMIT_NAMES = [
@@ -74,10 +108,9 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     throw new RangeError('families must have an acquire function')
   if (!isObject(config.credential) || typeof config.credential.read !== 'function')
     throw new RangeError('credential must have a read function')
-  if (config.onConnectRetry !== undefined && typeof config.onConnectRetry !== 'function')
-    throw new RangeError('onConnectRetry must be absent or a function')
-  if (config.onResponseBody !== undefined && typeof config.onResponseBody !== 'function')
-    throw new RangeError('onResponseBody must be absent or a function')
+  for (const name of ['onConnectRetry', 'onResponseBody', 'media'] as const)
+    if (config[name] !== undefined && typeof config[name] !== 'function')
+      throw new RangeError(`${name} must be absent or a function`)
   const network = networkInternalsOf(config.network)
   return {
     network,
@@ -87,24 +120,45 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     limits: checkLimits(config.limits),
     onConnectRetry: config.onConnectRetry,
     onResponseBody: config.onResponseBody,
+    media: config.media,
   }
 }
 
-function checkRoutes(routes: Readonly<Record<string, PiRoute>>): ReadonlyMap<string, CheckedRoute> {
+function checkEndpoint(
+  endpoint: PiRouteEndpoint,
+): Readonly<{ url: URL; endMarker: string | null }> {
+  if (!isObject(endpoint)) throw new RangeError('each route endpoint must be an object')
+  const url =
+    typeof endpoint.url === 'string' && URL.canParse(endpoint.url) ? new URL(endpoint.url) : null
+  if (url === null || !isPlainHttpsUrl(url))
+    throw new RangeError(
+      'each route url must be an https: URL without credentials, query or fragment',
+    )
+  if (endpoint.endMarker !== null && typeof endpoint.endMarker !== 'string')
+    throw new RangeError('each route endMarker must be a string or null')
+  return { url, endMarker: endpoint.endMarker }
+}
+
+function checkRoutes(
+  routes: Readonly<Record<string, PiRoute>>,
+): ReadonlyMap<string, CheckedProviderRoute> {
   if (!isObject(routes) || Array.isArray(routes)) throw new RangeError('routes must be an object')
-  const checked = new Map<string, CheckedRoute>()
+  const checked = new Map<string, CheckedProviderRoute>()
   for (const [provider, route] of Object.entries(routes)) {
-    if (!isObject(route)) throw new RangeError('each route must be an object')
-    const url = typeof route.url === 'string' && URL.canParse(route.url) ? new URL(route.url) : null
-    if (url === null || !isPlainHttpsUrl(url))
-      throw new RangeError(
-        'each route url must be an https: URL without credentials, query or fragment',
-      )
-    if (route.endMarker !== null && typeof route.endMarker !== 'string')
-      throw new RangeError('each route endMarker must be a string or null')
-    const accounting = checkAccounting(route.accounting)
-    const auth = checkAuth(route.auth)
-    checked.set(provider, { url, endMarker: route.endMarker, accounting, auth })
+    if (!isObject(route) || !isObject(route.endpoints) || Array.isArray(route.endpoints))
+      throw new RangeError('each route must be an object with endpoints')
+    const endpoints = new Map<EngineEndpoint, Readonly<{ url: URL; endMarker: string | null }>>()
+    for (const [name, endpoint] of Object.entries(route.endpoints)) {
+      if (!isEngineEndpoint(name))
+        throw new RangeError(`a route names an unknown endpoint: ${name}`)
+      if (endpoint !== undefined) endpoints.set(name, checkEndpoint(endpoint))
+    }
+    if (endpoints.size === 0) throw new RangeError('each route needs at least one endpoint')
+    checked.set(provider, {
+      endpoints,
+      accounting: checkAccounting(route.accounting),
+      auth: checkAuth(route.auth),
+    })
   }
   return checked
 }

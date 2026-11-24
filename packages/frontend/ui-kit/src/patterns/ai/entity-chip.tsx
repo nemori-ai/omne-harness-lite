@@ -7,7 +7,6 @@ import {
   ContactIcon,
   ConversationIcon,
   DeviceIcon,
-  DisclosureIcon,
   FileIcon,
   type Icon,
   LinkIcon,
@@ -16,6 +15,7 @@ import {
   ResourceIcon,
   ViewIcon,
 } from '../../icons/index.ts'
+import { DisclosureIcon } from '../../icons/kit-only.ts'
 
 export type EntityKind =
   | 'material'

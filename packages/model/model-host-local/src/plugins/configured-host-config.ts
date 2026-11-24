@@ -1,15 +1,16 @@
-import type { ModelConfiguration } from '@omne-harness/model'
+import type { ModelConfiguration, ReplayResend } from '@omne-harness/model'
 import type { Adoption } from '@omne-harness/model-contract'
 import { parseRetryPolicy, type RetryPolicy } from '@omne-harness/retry'
 import { fieldOf, isRecord } from '../fields.ts'
 import { modelHostConfigSchema, type ModelHostSettings } from './config.ts'
+import { isDelayTable } from './push-values.ts'
 import type { ResultPushLimits } from './runtime.ts'
 
 export type ConfiguredModelHostSettings = Readonly<{
   host: ModelHostSettings
   runtime: ModelConfiguration
   results: ResultPushLimits
-  retry: Readonly<{ adoption: Adoption; policy: RetryPolicy }>
+  retry: Readonly<{ adoption: Adoption; policy: RetryPolicy; replayResend: ReplayResend }>
 }>
 
 type Parsed<T> = Readonly<{ value: T }> | Readonly<{ issues: { message: string }[] }>
@@ -22,7 +23,6 @@ const RUNTIME_BOUNDS = {
   observerCheckIntervalMs: { minimum: 1, safe: true },
   readIdleMs: { minimum: 1, safe: false },
   resultPageTargetBytes: { minimum: 1, safe: false },
-  cleanupRetryMs: { minimum: 0, safe: false },
 } satisfies Record<keyof ModelConfiguration, Bound>
 const RESULT_BOUNDS = {
   maxConcurrentCalls: { minimum: 1, safe: true },
@@ -30,7 +30,12 @@ const RESULT_BOUNDS = {
   maxCleanupSteps: { minimum: 1, safe: true },
   maxPendingAccountsPerTenant: { minimum: 1, safe: true },
   maxPendingAccounts: { minimum: 1, safe: true },
-} satisfies Record<keyof ResultPushLimits, Bound>
+  maxCostMisses: { minimum: 1, safe: true },
+} satisfies Record<Exclude<keyof ResultPushLimits, 'delaysMs'>, Bound>
+const REPLAY_RESEND_BOUNDS = { max: { minimum: 0, safe: true } } satisfies Record<
+  keyof ReplayResend,
+  Bound
+>
 
 function parseNumbers<K extends string>(
   value: unknown,
@@ -62,6 +67,12 @@ function parseNumbers<K extends string>(
 
 const named = (value: unknown): value is string => typeof value === 'string' && value !== ''
 
+function parseDelays(value: unknown, group: string): Parsed<readonly number[]> {
+  return isDelayTable(value)
+    ? { value: [...value] }
+    : { issues: [{ message: `${group} must list integers of at least 1` }] }
+}
+
 function parseRetry(value: unknown): Parsed<ConfiguredModelHostSettings['retry']> {
   const adoption = fieldOf(value, 'adoption')
   const owner = fieldOf(adoption, 'owner')
@@ -70,9 +81,21 @@ function parseRetry(value: unknown): Parsed<ConfiguredModelHostSettings['retry']
   const digest = fieldOf(adoption, 'digest')
   if (!named(owner) || !named(name) || !named(revision) || !named(digest))
     return { issues: [{ message: 'retry.adoption must name owner, name, revision and digest' }] }
+  const replayResend = parseNumbers(
+    fieldOf(value, 'replayResend'),
+    'retry.replayResend',
+    REPLAY_RESEND_BOUNDS,
+  )
+  if ('issues' in replayResend) return replayResend
   try {
     const policy = parseRetryPolicy(fieldOf(value, 'policy'))
-    return { value: { adoption: { owner, name, revision, digest }, policy } }
+    return {
+      value: {
+        adoption: { owner, name, revision, digest },
+        policy,
+        replayResend: replayResend.value,
+      },
+    }
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'not a retry policy'
     return { issues: [{ message: `retry.policy: ${reason}` }] }
@@ -86,10 +109,17 @@ function parseConfig(value: unknown): Parsed<ConfiguredModelHostSettings> {
   if ('issues' in runtime) return runtime
   const results = parseNumbers(fieldOf(value, 'results'), 'results', RESULT_BOUNDS)
   if ('issues' in results) return results
+  const delays = parseDelays(fieldOf(fieldOf(value, 'results'), 'delaysMs'), 'results.delaysMs')
+  if ('issues' in delays) return delays
   const retry = parseRetry(fieldOf(value, 'retry'))
   if ('issues' in retry) return retry
   return {
-    value: { host: host.value, runtime: runtime.value, results: results.value, retry: retry.value },
+    value: {
+      host: host.value,
+      runtime: runtime.value,
+      results: { ...results.value, delaysMs: delays.value },
+      retry: retry.value,
+    },
   }
 }
 

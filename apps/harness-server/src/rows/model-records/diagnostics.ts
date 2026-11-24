@@ -1,28 +1,85 @@
+import type { Context } from '@deepseek-ai/cordis'
 import type { Access } from '@omne-harness/legal-identity'
-import type { ModelDiagnostics, ModelFailure } from '@omne-harness/model-contract'
+import type {
+  ModelDiagnostics,
+  ModelDispatchFacts,
+  ModelFailure,
+} from '@omne-harness/model-contract'
+import {
+  ModelDiagnosticsService,
+  ModelDispatchFactsService,
+} from '@omne-harness/model-cordis-contract/cordis'
+import {
+  createSqlModelDiagnostics,
+  createSqlModelDispatchFacts,
+  type SqlModelDiagnosticsOptions,
+} from '@omne-harness/model-storage-sql'
 import type { ModelReadLease } from '../../model/qualification.ts'
 
-const failureOf = (failure: ModelFailure) => ({
-  failure: failure.kind === 'denied' ? { kind: 'denied' as const, action: 'diagnostics' } : failure,
-})
+type Qualify = (access: Access<unknown>) => Promise<ModelReadLease>
+
+/** A tenant read that holds the read lease across the read and checks the action before and after. */
+function qualifying<I extends Access<unknown>, R>(
+  read: (input: I) => Promise<R | { failure: ModelFailure }>,
+  qualify: Qualify,
+  action: 'inspect' | 'read-account',
+  deniedAs: string,
+): (input: I) => Promise<R | { failure: ModelFailure }> {
+  const failureOf = (failure: ModelFailure) => ({
+    failure: failure.kind === 'denied' ? { kind: 'denied' as const, action: deniedAs } : failure,
+  })
+  return async input => {
+    const lease = await qualify(input)
+    try {
+      const resource = { kind: 'tenant' as const }
+      const before = await lease.check(action, resource)
+      if ('failure' in before) return failureOf(before.failure)
+      const result = await read(input)
+      const after = await lease.check(action, resource)
+      return 'failure' in after ? failureOf(after.failure) : result
+    } finally {
+      lease.release()
+    }
+  }
+}
 
 export function qualifyingDiagnostics(
   reader: ModelDiagnostics<unknown>,
-  qualify: (access: Access<unknown>) => Promise<ModelReadLease>,
+  qualify: Qualify,
 ): ModelDiagnostics<unknown> {
+  return { list: qualifying(input => reader.list(input), qualify, 'inspect', 'diagnostics') }
+}
+
+export function qualifyingDispatchFacts(
+  reader: ModelDispatchFacts<unknown>,
+  qualify: Qualify,
+): ModelDispatchFacts<unknown> {
   return {
-    async list(input) {
-      const lease = await qualify(input)
-      try {
-        const resource = { kind: 'tenant' as const }
-        const before = await lease.check('inspect', resource)
-        if ('failure' in before) return failureOf(before.failure)
-        const result = await reader.list(input)
-        const after = await lease.check('inspect', resource)
-        return 'failure' in after ? failureOf(after.failure) : result
-      } finally {
-        lease.release()
-      }
-    },
+    list: qualifying(input => reader.list(input), qualify, 'read-account', 'read-account'),
   }
+}
+
+type Reads = Pick<SqlModelDiagnosticsOptions<unknown>, 'storage' | 'domains' | 'authority'> &
+  Readonly<{
+    qualify: Qualify
+    diagnostics: Pick<SqlModelDiagnosticsOptions<unknown>, 'diagnosticsRead' | 'retention'>
+  }>
+
+/** Provides the two tenant reads of the Model records: the diagnostics and the dispatch facts. */
+export function mountReads(ctx: Context, reads: Reads): void {
+  const { storage, domains, authority, qualify } = reads
+  class Diagnostics extends ModelDiagnosticsService<unknown> {
+    readonly list = qualifyingDiagnostics(
+      createSqlModelDiagnostics({ storage, domains, authority, ...reads.diagnostics }),
+      qualify,
+    ).list
+  }
+  class DispatchFacts extends ModelDispatchFactsService<unknown> {
+    readonly list = qualifyingDispatchFacts(
+      createSqlModelDispatchFacts({ storage, domains, authority }),
+      qualify,
+    ).list
+  }
+  new Diagnostics(ctx)
+  new DispatchFacts(ctx)
 }

@@ -16,7 +16,12 @@ import { createSecretVault } from '@omne-harness/settings-local/secrets'
 import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
-import { LOCAL_TOKENIZERS, LOCAL_TOOL_RESULT_BYTES } from '../../src/local/operator-defaults.ts'
+import {
+  LOCAL_OPEN_LIMITS,
+  LOCAL_SCREEN_LIMITS,
+  LOCAL_TOKENIZERS,
+  LOCAL_TOOL_RESULT_BYTES,
+} from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 import { DEFAULT_COMPACTION_BINDING } from '../../src/assembly/compaction-provider.ts'
 import { SEARCH_RANKING } from '../../src/entry/search-ranking.ts'
@@ -85,22 +90,28 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     compactionTriggerPercent: '80',
     updatedAt: '2026-11-02T00:00:00Z',
   }
-  const preparation = {
-    maxCitedCalls: 8,
-    openai: {
-      limits: {
-        toolArguments: {
-          maxBytes: 65_536,
-          maxDepth: 32,
-          maxItems: 1_024,
-          maxMembers: 256,
-          maxStringLength: 65_536,
-          maxNumberLength: 64,
-        },
-        maxReasoningText: 65_536,
+  const family = {
+    limits: {
+      toolArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 1_024,
+        maxMembers: 256,
+        maxStringLength: 65_536,
+        maxNumberLength: 64,
       },
-      margin: { percent: '10', source: MODEL_TEST_ADOPTION },
+      maxReasoningText: 65_536,
     },
+    margin: { percent: '10', source: MODEL_TEST_ADOPTION },
+  }
+  const preparation = {
+    maxCitedCalls: 1_024,
+    openai: family,
+    anthropic: structuredClone(family),
+    qwen: structuredClone(family),
+    kimi: structuredClone(family),
+    deepseek: structuredClone(family),
+    glm: structuredClone(family),
   }
   const host = {
     host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },
@@ -111,18 +122,20 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       observerCheckIntervalMs: 25,
       readIdleMs: 1000,
       resultPageTargetBytes: 4096,
-      cleanupRetryMs: 1000,
     },
     retry: {
       adoption: profiles.retryPolicy,
       policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [50], jitter: 0 },
+      replayResend: { max: 1 },
     },
     results: {
       maxConcurrentCalls: 4,
       maxRedeliveries: 2,
       maxCleanupSteps: 8,
+      delaysMs: [1000, 5000, 30000],
       maxPendingAccountsPerTenant: 4,
       maxPendingAccounts: 16,
+      maxCostMisses: 5,
     },
   }
   const records = {
@@ -274,8 +287,8 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
   return {
     filesRoot,
     construction: {
-      Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, cwd: filesRoot, env },
-      Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
+      Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, env },
+      Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
       BkgToolCalls: { resultMaxBytes: 65_536 },
@@ -284,6 +297,13 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
       Calendar: { resultMaxBytes: 65_536 },
       Schedules: { resultMaxBytes: 65_536 },
+      Notifications: { resultMaxBytes: 65_536 },
+      Sessions: { resultMaxBytes: 131_072 },
+      Agents: { resultMaxBytes: 1_048_576 },
+      SwitchWorkspace: { resultMaxBytes: 65_536 },
+      OmneExtensionPoints: { resultMaxBytes: 131_072 },
+      OmneExtensions: { resultMaxBytes: 131_072 },
+      Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
     },
     web: {
       search: {
@@ -295,7 +315,6 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       fetch: { maxRedirects: 5, timeoutMs: 10_000, maxBodyBytes: 1_048_576 },
     },
     records: {
-      filesRoot,
       combinationVersion: COMBINATION_VERSION,
       configuration: {
         authorBufferBytes: 65536,
@@ -344,9 +363,38 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       observerQueueFrames: 16,
       observerResidenceMs: 5000,
     },
-    host: { filesRoot, stateDirectory },
+    host: { stateDirectory },
   }
 }
+
+/** A whole policy, as an operator gives it: the release layer carries no numbers. */
+/** The registry is walked often, so a test does not wait long for a step a lost wake-up left. */
+export const DISPATCH_POLICY = { maxOpen: 3, reconcileIntervalMs: 1000 }
+
+export const NOTIFICATION_POLICY = {
+  bodyLength: 4096,
+  causalDepth: 3,
+  pageLimit: 50,
+  listLimit: 5,
+  retry: { maxAttempts: 3, backoffMs: [100, 1000] },
+  deliverTimeoutMs: 5000,
+  beat: { defaultMinutes: 60, minMinutes: 5, maxMinutes: 1440 },
+  scanIntervalMs: 60_000,
+  recipients: { person: { channel: 'in-app', minLevel: 'weak' }, agent: null },
+}
+
+// Calendar sources point at a closed loopback port, so a test service never reaches the real
+// authorities; a test that needs the sources serves them itself.
+export const CLOSED_CALENDAR_SOURCES: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    [
+      'https://raw.githubusercontent.com',
+      'https://www8.cao.go.jp',
+      'https://www.opm.gov',
+      'https://www.federalregister.gov',
+    ].map(origin => [origin, 'http://127.0.0.1:1']),
+  ),
+)
 
 export function operatorLayer(options: {
   storageRoot: string
@@ -380,6 +428,7 @@ export function operatorLayer(options: {
         },
       },
       { kind: 'replace', id: 'secret-custody', config: { path: seedTestVault(model.vault) } },
+      { kind: 'replace', id: 'calendar', config: { sourceTestOrigins: CLOSED_CALENDAR_SOURCES } },
       { kind: 'replace', id: 'model-tokenizers', config: model.tokenizers },
       { kind: 'replace', id: 'model-profiles', config: model.profiles },
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
@@ -397,6 +446,7 @@ export function operatorLayer(options: {
             contentPageBytes: 4096,
           },
           web: tools.web,
+          sources: { resultMaxBytes: 65_536, listTimeoutMs: 5000 },
         },
       },
       { kind: 'replace', id: 'tool-records', config: tools.records },
@@ -417,7 +467,25 @@ export function operatorLayer(options: {
         id: 'tenant-assets',
         config: { packageRoot: join(dirname(options.storageRoot), 'assets') },
       },
+      {
+        kind: 'replace',
+        id: 'session-history-index',
+        config: { root: join(dirname(options.storageRoot), 'history-index') },
+      },
+      {
+        kind: 'replace',
+        id: 'media-storage-local',
+        config: { root: join(dirname(options.storageRoot), 'media') },
+      },
+      {
+        kind: 'replace',
+        id: 'plugin-server',
+        config: { floorDirectory: join(dirname(options.storageRoot), 'plugin-floor') },
+      },
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
+      { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
+      { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
+      { kind: 'replace', id: 'workspace', config: { node: 'local' } },
       {
         kind: 'replace',
         id: 'loop-extension',
@@ -433,7 +501,7 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'request-context',
-        config: { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
+        config: {},
       },
       {
         kind: 'replace',
@@ -443,7 +511,11 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'session-ad03',
-        config: { scopeIndexEntries: 4096, pageBytes: 65536 },
+        config: {
+          scopeIndexEntries: 4096,
+          pageBytes: 65536,
+          defaultDirectory: tools.filesRoot,
+        },
       },
       {
         kind: 'replace',
@@ -533,6 +605,8 @@ export type ServerHandle = Readonly<{
   stderr(): string
   stop(): Promise<ServerOutcome>
   kill(): Promise<void>
+  /** Settles with the exit code when the process ends by itself or is stopped. */
+  exited: Promise<number | null>
 }>
 
 export function startServer(options: {
@@ -541,6 +615,8 @@ export function startServer(options: {
   port: number
   startupTimeoutMs?: number
   extraCaPath?: string
+  /** Keep only about this many characters of the newest output, cut at a line; a long walk would outgrow a string. */
+  logTail?: number
 }): Promise<ServerHandle> {
   const args = [
     serverBin,
@@ -567,8 +643,14 @@ export function startServer(options: {
   })
   let stdout = ''
   let stderr = ''
-  child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout += chunk))
-  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk))
+  const kept = (text: string): string => {
+    const tail = options.logTail
+    if (tail === undefined || text.length <= 2 * tail) return text
+    const cut = text.slice(-tail)
+    return cut.slice(cut.indexOf('\n') + 1)
+  }
+  child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout = kept(stdout + chunk)))
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr = kept(stderr + chunk)))
   child.stdin.on('error', () => {})
   const closed = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
   const outcome = async (): Promise<ServerOutcome> => ({
@@ -590,6 +672,7 @@ export function startServer(options: {
       killTree(child)
       await closed
     },
+    exited: closed,
   }
   return new Promise((resolve, reject) => {
     const fail = (why: string) => {

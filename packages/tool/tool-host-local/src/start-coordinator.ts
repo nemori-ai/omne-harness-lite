@@ -42,8 +42,8 @@ import {
   REQUIREMENTS_UNAVAILABLE,
   type StartPermitRequirements,
 } from './start-permit-requirements.ts'
-import type { ConditionalLedgerCommit, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
-import { qualifyRequestAccess } from './start-guard.ts'
+import type { ToolTargetAvailability } from './ledger-guards.ts'
+import { qualifyTargetAvailability } from './start-guard.ts'
 
 type TenantId = LedgerDomain['tenant']
 
@@ -71,7 +71,7 @@ export interface StartCoordinatorAccess<P> {
 export type LocalStartCoordinatorInput<P> = Readonly<{
   store: ToolLedgerStore
   access: StartCoordinatorAccess<P>
-  requestAccess?: Readonly<{ access: ToolRequestAccess<P>; commit: ConditionalLedgerCommit }>
+  target?: ToolTargetAvailability<P>
   permitRequirements?: StartPermitRequirements<P>
   guardsOf: (request: FixedToolRequest) => readonly GuardResource[]
   commitAttempts: number
@@ -529,7 +529,6 @@ type Decision<T> =
       deletes?: readonly string[]
       assertGuards?: ToolRevision
       value: T
-      condition?: StartCondition
     }>
 
 function reply<T>(outcome: Outcome<T, ToolFailure>): Decision<T> {
@@ -568,16 +567,7 @@ function snapshotOf(
 export function createLocalStartCoordinator<P>(
   input: LocalStartCoordinatorInput<P>,
 ): ToolStartAuthority<P> {
-  const { store, access, guardsOf, commitAttempts, permitRequirements } = input
-  const requestAccess = input.requestAccess?.access
-  const commitWith: ConditionalLedgerCommit['commit'] =
-    input.requestAccess === undefined
-      ? () =>
-          Promise.resolve({
-            kind: 'unavailable',
-            diagnostic: 'a start condition has no conditional commit',
-          })
-      : conditional => input.requestAccess!.commit.commit(conditional)
+  const { store, access, guardsOf, commitAttempts, permitRequirements, target } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
   const turnTimeoutMs = input.turnTimeoutMs ?? commitAttempts * TURN_MS_PER_ATTEMPT
@@ -685,12 +675,9 @@ export function createLocalStartCoordinator<P>(
                 ? []
                 : [{ domain: guardsDomain(target.tenant), revision: decision.assertGuards }],
           }
-          let committed: Awaited<ReturnType<typeof commitWith>>
+          let committed: Awaited<ReturnType<typeof store.commit>>
           try {
-            committed =
-              decision.condition === undefined
-                ? await store.commit(ledger)
-                : await commitWith({ condition: decision.condition, ledger })
+            committed = await store.commit(ledger)
           } catch {
             return unknown('the start ledger threw on commit')
           }
@@ -699,7 +686,7 @@ export function createLocalStartCoordinator<P>(
           if (committed.kind === 'unavailable') return unavailable(committed.diagnostic)
           if (committed.kind === 'rejected') return invalid('storage', committed.reason)
         }
-        return unavailable(`${commitAttempts} revision or condition conflicts in a row`)
+        return unavailable(`${commitAttempts} revision conflicts in a row`)
       },
       () =>
         unknown(
@@ -773,12 +760,12 @@ export function createLocalStartCoordinator<P>(
         }
         const currentAccess = await qualify(principal, tenant, call, 'start')
         if ('failure' in currentAccess) return reply(currentAccess)
-        const policy = await qualifyRequestAccess(requestAccess, {
+        const available = await qualifyTargetAvailability(target, {
           ...checked.ok,
           request: request.ok,
         })
-        if (policy.kind === 'denied') return reply(fail({ kind: 'denied', action: 'start' }))
-        if (policy.kind === 'unavailable') return reply(unavailable(policy.diagnostic))
+        if (available.kind === 'denied') return reply(fail({ kind: 'denied', action: 'start' }))
+        if (available.kind === 'unavailable') return reply(unavailable(available.diagnostic))
         const requirement = await checkStartPermitRequirement(
           permitRequirements,
           Object.freeze({ ...checked.ok, start: start.ok, request: request.ok }),
@@ -884,10 +871,10 @@ export function createLocalStartCoordinator<P>(
             return rejectStart(tenant, stored, revision, 'access-denied-before-start')
           return reply(unknownProgress('access-guard unavailable'))
         }
-        const policy = await qualifyRequestAccess(requestAccess, { ...checked.ok, request })
-        if (policy.kind === 'denied')
-          return rejectStart(tenant, stored, revision, 'request-access-denied-before-start')
-        if (policy.kind === 'unavailable') return reply(unknownProgress(policy.diagnostic))
+        const available = await qualifyTargetAvailability(target, { ...checked.ok, request })
+        if (available.kind === 'denied')
+          return rejectStart(tenant, stored, revision, 'target-unavailable-before-start')
+        if (available.kind === 'unavailable') return reply(unknownProgress(available.diagnostic))
         const requirement = await checkStartPermitRequirement(
           permitRequirements,
           Object.freeze({ ...checked.ok, start: permit.ok.start, request }),
@@ -897,27 +884,19 @@ export function createLocalStartCoordinator<P>(
         if (requirement.kind !== 'not-required')
           return reply(unknownProgress(REQUIREMENTS_UNAVAILABLE))
         const key = startKey('acceptance', call, start)
-        const acceptance = mint(tenant, key, revision, {
+        const facts = {
           permit: permit.ok.digest,
           executorReceipt: receipt.ok,
-          requirementSource: requirement.source,
-        })
-        const accepted: AcceptanceRecord = {
-          kind: 'acceptance',
-          call,
-          start,
-          permit: permit.ok.digest,
-          executorReceipt: receipt.ok,
-          acceptance,
           requirementSource: requirement.source,
         }
+        const acceptance = mint(tenant, key, revision, facts)
+        const accepted: AcceptanceRecord = { kind: 'acceptance', call, start, ...facts, acceptance }
         return {
           kind: 'commit',
           puts: [accepted],
           deletes: [keyOf(stored)],
           assertGuards: snapshot.guards.revision,
           value: { kind: 'started', acceptance },
-          ...(policy.condition === null ? {} : { condition: policy.condition }),
         }
       },
       unknownProgress,
@@ -1054,6 +1033,5 @@ export function createLocalStartCoordinator<P>(
     )
   }
 
-  const authority: ToolStartAuthority<P> = { exclude, prepare, consume, inspect, invalidate }
-  return Object.freeze(authority)
+  return Object.freeze({ exclude, prepare, consume, inspect, invalidate })
 }

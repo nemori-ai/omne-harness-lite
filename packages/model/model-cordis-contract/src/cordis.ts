@@ -1,9 +1,11 @@
+import { heldPoint } from '@omne-harness/assets'
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   ConsumerRef,
   ModelCallId,
   ModelDiagnostics,
+  ModelDispatchFacts,
   ModelPreparationResources,
   ModelResultReceiver,
   ModelRuntime,
@@ -17,26 +19,21 @@ import type {
   ModelCommands,
   ModelHostAuthority,
   ModelInstanceHost,
-  ModelMessageConversion,
+  ModelMediaSource,
   ModelProfileMaintenance,
   ModelProfiles,
   ModelRequestPreparation,
   ModelRetryPolicy,
   ModelSendBoundary,
 } from '@omne-harness/model-contract/provider'
-import type { ModelConvertersService } from './converters.ts'
 import type { ModelInstancesService } from './instances.ts'
 import { createModelResultReceiverTable, type ModelResultReceiverTable } from './receivers.ts'
-import type { ModelConverterAuthority, ModelPublicationAuthority } from './registration.ts'
+import type { ModelPublicationAuthority } from './registration.ts'
 
-export { ModelConvertersService, modelConvertersKey } from './converters.ts'
 export { ModelInstancesService, modelInstancesKey } from './instances.ts'
 export { ModelResultReceiverConflictError, createModelResultReceiverTable } from './receivers.ts'
 export type { ModelResultReceiverTable } from './receivers.ts'
 export type {
-  ModelConverterAuthority,
-  ModelConverterRegistration,
-  ModelConverterRegistrationInput,
   ModelPublication,
   ModelPublicationAuthority,
   ModelRegistration,
@@ -65,6 +62,24 @@ export abstract class ModelCredentialService<P = unknown>
   abstract readonly resolve: CredentialPort<P>['resolve']
 }
 export const modelCredentialKey = ModelCredentialService.provide
+
+/**
+ * The media seam of the send stage: read at each send, absent when no owner of media is installed.
+ * @owner packages/model/model-cordis-contract
+ */
+export abstract class ModelMediaSourceService<P = unknown>
+  extends Service
+  implements ModelMediaSource<P>
+{
+  static readonly provide = 'modelMediaSource'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelMediaSourceService.provide)
+  }
+
+  abstract readonly open: ModelMediaSource<P>['open']
+}
+export const modelMediaSourceKey = ModelMediaSourceService.provide
 
 /** @owner packages/model/model-cordis-contract */
 export abstract class ModelStreamReferencesService<P>
@@ -159,6 +174,8 @@ export abstract class ModelCommandsService<P> extends Service implements ModelCo
   abstract readonly nextRead: ModelCommands<P>['nextRead']
   abstract readonly endRead: ModelCommands<P>['endRead']
   abstract readonly handoff: ModelCommands<P>['handoff']
+  abstract readonly abandon: ModelCommands<P>['abandon']
+  abstract readonly confirmAccount: ModelCommands<P>['confirmAccount']
   abstract readonly advanceCleanup: ModelCommands<P>['advanceCleanup']
   abstract readonly query: ModelCommands<P>['query']
   abstract readonly dispatches: ModelCommands<P>['dispatches']
@@ -302,21 +319,6 @@ export abstract class ModelPreparationResourcesService<P>
 export const modelPreparationResourcesKey = ModelPreparationResourcesService.provide
 
 /** @owner packages/model/model-cordis-contract */
-export abstract class ModelMessageConversionService<P>
-  extends Service
-  implements ModelMessageConversion<P>
-{
-  static readonly provide = 'modelMessageConversion'
-
-  constructor(ctx: CordisContext) {
-    super(ctx, ModelMessageConversionService.provide)
-  }
-
-  abstract readonly prepare: ModelMessageConversion<P>['prepare']
-}
-export const modelMessageConversionKey = ModelMessageConversionService.provide
-
-/** @owner packages/model/model-cordis-contract */
 export abstract class ModelHostAuthorityService<P>
   extends Service
   implements ModelHostAuthority<P>
@@ -332,21 +334,6 @@ export abstract class ModelHostAuthorityService<P>
 export const modelHostAuthorityKey = ModelHostAuthorityService.provide
 
 /** @owner packages/model/model-cordis-contract */
-export abstract class ModelConverterAuthorityService<P>
-  extends Service
-  implements ModelConverterAuthority<P>
-{
-  static readonly provide = 'modelConverterAuthority'
-
-  constructor(ctx: CordisContext) {
-    super(ctx, ModelConverterAuthorityService.provide)
-  }
-
-  abstract readonly check: ModelConverterAuthority<P>['check']
-}
-export const modelConverterAuthorityKey = ModelConverterAuthorityService.provide
-
-/** @owner packages/model/model-cordis-contract */
 export abstract class ModelDiagnosticsService<P> extends Service implements ModelDiagnostics<P> {
   static readonly provide = 'modelDiagnostics'
 
@@ -358,9 +345,25 @@ export abstract class ModelDiagnosticsService<P> extends Service implements Mode
 }
 export const modelDiagnosticsKey = ModelDiagnosticsService.provide
 
+/** @owner packages/model/model-cordis-contract */
+export abstract class ModelDispatchFactsService<P>
+  extends Service
+  implements ModelDispatchFacts<P>
+{
+  static readonly provide = 'modelDispatchFacts'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelDispatchFactsService.provide)
+  }
+
+  abstract readonly list: ModelDispatchFacts<P>['list']
+}
+export const modelDispatchFactsKey = ModelDispatchFactsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     modelDiagnostics: ModelDiagnosticsService<unknown>
+    modelDispatchFacts: ModelDispatchFactsService<unknown>
     modelRuntime: ModelRuntimeService<unknown>
     modelCommands: ModelCommandsService<unknown>
     modelSendBoundary: ModelSendBoundaryService<unknown>
@@ -372,14 +375,12 @@ declare module '@deepseek-ai/cordis' {
     modelProfileMaintenance: ModelProfileMaintenanceService<unknown>
     modelRequestPreparation: ModelRequestPreparationService<unknown>
     modelPreparationResources: ModelPreparationResourcesService<unknown>
-    modelMessageConversion: ModelMessageConversionService<unknown>
     modelHostAuthority: ModelHostAuthorityService<unknown>
-    modelConverterAuthority: ModelConverterAuthorityService<unknown>
-    modelConverters: ModelConvertersService<unknown>
     modelInstances: ModelInstancesService<unknown>
     modelStreamReferences?: ModelStreamReferencesService<unknown>
     modelStreamObservation?: ModelStreamObservationService<unknown>
     modelCredential?: ModelCredentialService
+    modelMediaSource?: ModelMediaSourceService
   }
   interface Events {
     /**
@@ -397,3 +398,10 @@ declare module '@deepseek-ai/cordis' {
     ): void
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const modelProvidersPoint = heldPoint({
+  name: 'model.providers',
+  key: 'the provider name',
+  summary: 'The model provider definitions each layer holds, by name.',
+})

@@ -132,12 +132,32 @@
               "pending": false
             },
             {
+              "name": "REASONING_EFFORTS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ReasoningEffort",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "isReasoningEffort",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "ToolDeclaration",
               "kind": "type",
               "pending": false
             },
             {
               "name": "Supplier",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextWindow",
               "kind": "type",
               "pending": false
             },
@@ -387,6 +407,26 @@
               "pending": false
             },
             {
+              "name": "costLookupOf",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "accountUndelivered",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "dispatchSend",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CostLookupState",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "OverLimitMetric",
               "kind": "type",
               "pending": false
@@ -403,6 +443,21 @@
             },
             {
               "name": "Settlement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SettledReplay",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CleanupStage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AbandonBasis",
               "kind": "type",
               "pending": false
             },
@@ -454,6 +509,16 @@
             },
             {
               "name": "AckReceipt",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AbandonInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AbandonReceipt",
               "kind": "type",
               "pending": false
             }
@@ -523,7 +588,37 @@
               "pending": false
             },
             {
+              "name": "DispatchInstants",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ConnectRetryReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "DispatchRecord",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFact",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFactsQuery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFactsPage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFacts",
               "kind": "type",
               "pending": false
             },
@@ -559,6 +654,11 @@
             },
             {
               "name": "MaterializationReceipt",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MaterializedMedium",
               "kind": "type",
               "pending": false
             },
@@ -658,6 +758,16 @@
               "pending": false
             },
             {
+              "name": "ReasoningEffortMapping",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "supportedReasoningEfforts",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "ModelProfile",
               "kind": "type",
               "pending": false
@@ -728,6 +838,16 @@
               "pending": false
             },
             {
+              "name": "profileCovers",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "isNativeFileType",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "readProfileResolution",
               "kind": "value",
               "pending": false
@@ -741,20 +861,10 @@
               "name": "judgeToolDeclarations",
               "kind": "value",
               "pending": false
-            }
-          ]
-        },
-        {
-          "title": "消息转换",
-          "names": [
-            {
-              "name": "ConvertedContent",
-              "kind": "type",
-              "pending": false
             },
             {
-              "name": "ConversionResult",
-              "kind": "type",
+              "name": "replaySourceCall",
+              "kind": "value",
               "pending": false
             }
           ]
@@ -937,12 +1047,32 @@
               "pending": false
             },
             {
-              "name": "ModelMediaLease",
+              "name": "MaterializeFailure",
               "kind": "type",
               "pending": false
             },
             {
-              "name": "ModelMediaReader",
+              "name": "MediaRefusal",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelMedia",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelMediaFailure",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelMediaLimits",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelMediaSource",
               "kind": "type",
               "pending": false
             },
@@ -1003,6 +1133,11 @@
             },
             {
               "name": "CommitQuery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CostLookupAnswer",
               "kind": "type",
               "pending": false
             },
@@ -1132,6 +1267,16 @@
               "pending": false
             },
             {
+              "name": "ReplayBinding",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayOmission",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "ReplayProjectionInput",
               "kind": "type",
               "pending": false
@@ -1174,46 +1319,6 @@
             {
               "name": "continuedMessages",
               "kind": "value",
-              "pending": false
-            }
-          ]
-        },
-        {
-          "title": "消息转换",
-          "names": [
-            {
-              "name": "ConverterKey",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ConversionFailure",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ConversionReply",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ModelConverter",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ConverterLookup",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ModelConverterCatalog",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ModelMessageConversion",
-              "kind": "type",
               "pending": false
             }
           ]
@@ -1750,6 +1855,11 @@
             },
             {
               "name": "ModelProviderBody",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelProviderEndpoint",
               "kind": "type",
               "pending": false
             },

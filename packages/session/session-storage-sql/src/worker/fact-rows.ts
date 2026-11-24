@@ -73,14 +73,41 @@ export function sessionHead(port: Executor, scope: Scope): SessionHead {
   )
   const published = root === undefined ? 0n : big(root['published'])
   if (published === 0n) return { kind: 'held', published }
-  const first = oneRow(
-    port,
-    'SELECT ord FROM er_fact WHERE tenant = ? AND session = ? AND pub = 1 AND ord = 0 LIMIT 1',
-    [scope.tenant, scope.session],
-  )
-  return first === undefined
+  return olderRecords(port, scope)
     ? { kind: 'missing', published: String(published) }
     : { kind: 'held', published }
+}
+
+function olderRecords(port: Executor, scope: Scope): boolean {
+  const where = [scope.tenant, scope.session]
+  if (oneRow(port, 'SELECT 1 FROM er_fact WHERE tenant = ? AND session = ? LIMIT 1', where))
+    return false
+  return (
+    oneRow(
+      port,
+      'SELECT 1 FROM er_execution WHERE tenant = ? AND session = ? AND settled IS NULL LIMIT 1',
+      where,
+    ) !== undefined
+  )
+}
+
+export type ReclaimedBatch = Readonly<{ published: string; execution: string }>
+
+export function reclaimedBatches(
+  port: Executor,
+  scope: Scope,
+  after: bigint,
+  through: bigint,
+): ReclaimedBatch[] {
+  return rowsOf(
+    port,
+    `SELECT o.published, o.execution FROM er_operation o
+      JOIN er_execution e ON e.tenant = o.tenant AND e.execution = o.execution
+      WHERE o.tenant = ? AND o.session = ? AND o.published > ? AND o.published <= ?
+        AND e.settled IS NOT NULL
+      ORDER BY o.published LIMIT ?`,
+    [scope.tenant, scope.session, after, through, through - after],
+  ).map(row => ({ published: String(big(row['published'])), execution: text(row['execution']) }))
 }
 
 export function batchesOf(

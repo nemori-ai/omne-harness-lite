@@ -12,6 +12,7 @@ import {
   type CardRoundId,
   type CardRequest,
   type Conclusion,
+  type DenialCategory,
   type DurableEvidence,
   type ExtensionOutput,
   type Passage,
@@ -23,6 +24,7 @@ import { agentEvidence, cardRequestIdentity, cardRound } from './identities.ts'
 import {
   answeredRound,
   apply,
+  close,
   failPresent,
   markPresented,
   needOf,
@@ -156,21 +158,72 @@ export function afterAdmission(
       resolve(before, concluded(action, before.id, at, { kind: 'observed' }), answer.evidence),
     )
   if (action.judgment.kind !== 'denied') return succeed({ action, passages })
-  const reason = answer.kind === 'denied' ? answer.reason : 'denied'
+  // The chain's veto reason is the closed denial category; the message is read back from it.
+  const reason: DenialCategory = answer.kind === 'denied' ? answer.category : 'rule'
   const denial = concluded(action, before.id, at, { kind: 'veto', reason })
   return stepped(action, passages, resolve(before, denial, action.judgment.evidence))
 }
 
-const HUMAN_GUIDANCE = 'human-guidance'
+/** A waiting action as admission judges it again: the same action, asked without its card. */
+export function judgedAgain(passages: readonly Passage[], action: Action): Action | null {
+  if (action.judgment.kind !== 'waiting' || needOfAction(passages, action) !== 'read') return null
+  return { ...action, judgment: { kind: 'pending', passage: action.judgment.passage } }
+}
 
-export function guidanceOf(passages: readonly Passage[], action: ActionId): string | null {
-  const progress = passages.find(passage => admissionActionOf(passage.id) === action)?.progress
-  if (progress?.kind !== 'resolved' && progress?.kind !== 'applied') return null
-  const { output } = progress.conclusion
-  if (output?.kind !== 'veto' || output.reason !== HUMAN_GUIDANCE) return null
+/** An answer that no longer asks settles a waiting action's chain without the person. */
+export function afterRejudged(
+  passages: readonly Passage[],
+  answer: Extract<ToolAdmission, { kind: 'allowed' | 'denied' }>,
+  chain: Passage,
+  at: AgentInstant,
+): Step {
+  const { action } = answer
+  const output: ExtensionOutput =
+    answer.kind === 'allowed' ? { kind: 'observed' } : { kind: 'veto', reason: answer.category }
+  return stepped(action, passages, close(chain, concluded(action, chain.id, at, output)))
+}
+
+/** A card round that ends with no answer refuses the action; it is not the person's no. */
+export function afterClosed(
+  passages: readonly Passage[],
+  action: Action,
+  chain: Passage,
+  evidence: DurableEvidence,
+  at: AgentInstant,
+): Step {
+  const denial = concluded(action, chain.id, at, { kind: 'veto', reason: 'card-closed' })
+  const denied: Action = { ...action, judgment: { kind: 'denied', evidence } }
+  return stepped(denied, passages, close(chain, denial))
+}
+
+// The categories a chain names; any other denial, with a chain or without, is a rule's.
+const NAMED: ReadonlySet<string> = new Set<DenialCategory>([
+  'not-released',
+  'prohibited',
+  'card-closed',
+  'guidance',
+])
+
+const categoryOf = (output: ExtensionOutput | undefined): DenialCategory =>
+  output?.kind === 'veto' && NAMED.has(output.reason) ? (output.reason as DenialCategory) : 'rule'
+
+const guidanceWords = (
+  progress: Extract<Passage['progress'], { kind: 'applied' }>,
+): string | null => {
   const last = progress.rounds.at(-1)?.progress
   const response = last?.kind === 'processed' ? last.cards[0]?.response : undefined
   return response?.kind === 'remark' ? response.text : null
+}
+
+/** Why the action was denied, read from its chain, which the batch adopted before any message. */
+export function denialOf(
+  passages: readonly Passage[],
+  action: ActionId,
+): Readonly<{ category: DenialCategory; words: string | null }> {
+  const progress = passages.find(passage => admissionActionOf(passage.id) === action)?.progress
+  if (progress?.kind !== 'applied') return { category: 'rule', words: null }
+  const category = categoryOf(progress.conclusion.output)
+  return { category, words: category === 'guidance' ? guidanceWords(progress) : null }
 }
 
 export function presentRequest(chain: Passage): Readonly<{

@@ -1,0 +1,100 @@
+// What the memory transactions keep of the calls that left the work snapshot, and how they lend them back.
+import { succeed, type Outcome } from '@omne-harness/operation-result'
+import {
+  bindingOf,
+  boundCall,
+  callKeysIn,
+  callNamed,
+  callOf,
+  callWithLate,
+  lendCalls,
+  type SessionCall,
+  type SessionCallBinding,
+  type SessionLateCallFact,
+  type SettledCallLookup,
+} from './call-settlement.ts'
+import type { ConsumptionId } from './identity.ts'
+import { judgeIdle } from './judgments.ts'
+import type { ProducerRef, WorkSnapshot } from './values.ts'
+
+export type CallsLeft = Readonly<{
+  settled: readonly SessionCall[]
+  late: readonly SessionLateCallFact[]
+}>
+const NONE_LEFT: CallsLeft = { settled: [], late: [] }
+
+type Held = Readonly<{ snapshot: WorkSnapshot; left: CallsLeft }>
+
+export const lookupOf =
+  (store: Held | undefined): SettledCallLookup =>
+  keys => {
+    const { settled, late } = store?.left ?? NONE_LEFT
+    return settled.map(call => callWithLate(call, late)).filter(call => callNamed(call, keys))
+  }
+
+const slotOf = (fact: SessionLateCallFact): string =>
+  `${fact.consumption}/${fact.slot}/${'version' in fact ? fact.version : ''}`
+
+// As strict as a store with a key on each row: a call leaves once, a slot is written once.
+export const leftAfter = (store: Held | undefined, reduced: CallsLeft): CallsLeft => {
+  const held = store?.left ?? NONE_LEFT
+  const settled = [...held.settled, ...reduced.settled]
+  const late = [...held.late, ...reduced.late]
+  if (new Set(settled.map(call => call.record.consumption)).size !== settled.length)
+    throw new Error('a call left the work snapshot twice')
+  if (new Set(late.map(slotOf)).size !== late.length)
+    throw new Error('a slot of a call that left was written twice')
+  return { settled, late }
+}
+
+/** The snapshot with the calls that `named` names and that left it, for one decision. */
+export const lentFor = <T extends WorkSnapshot | null>(
+  store: Held | undefined,
+  snapshot: T,
+  named: unknown,
+): T =>
+  snapshot === null ? snapshot : (lendCalls(snapshot, lookupOf(store)(callKeysIn(named))) as T)
+
+/** One call by its consumption, in the snapshot or after it left; null when there never was one. */
+export function callIn(store: Held | undefined, consumption: string): SessionCall | null {
+  if (store === undefined) return null
+  const id = consumption as ConsumptionId
+  return (
+    callOf(store.snapshot, id) ?? lookupOf(store)({ consumptions: [id], producers: [] })[0] ?? null
+  )
+}
+
+export function autoArchiveVerdict(snapshot: WorkSnapshot) {
+  const observation = snapshot.idle?.observation
+  if (snapshot.autoArchive?.kind !== 'enabled') return 'disabled'
+  if (snapshot.resident === true) return 'exempt'
+  if (observation === undefined) return 'not-due'
+  const idle =
+    observation.kind === 'interval'
+      ? observation.coverage
+      : {
+          own: observation.source,
+          relations: observation.source,
+          calls: [],
+          children: [],
+          completeScope: observation.source,
+        }
+  return judgeIdle(snapshot, { observation, policy: snapshot.autoArchive, coverage: idle }).kind
+}
+
+function bindingIn(store: Held, producer: ProducerRef): SessionCallBinding | null {
+  const [gone] = lookupOf(store)({ consumptions: [], producers: [producer] })
+  return boundCall(store.snapshot, producer) ?? (gone === undefined ? null : bindingOf(gone))
+}
+
+export const bindingFor = <F>(
+  store: Outcome<Held, F>,
+  producer: ProducerRef,
+): Outcome<SessionCallBinding | null, F> =>
+  'failure' in store ? store : succeed(bindingIn(store.ok, producer))
+
+export const callAt = (
+  stores: ReadonlyMap<string, Held>,
+  key: Outcome<string, unknown>,
+  consumption: string,
+): SessionCall | null => ('failure' in key ? null : callIn(stores.get(key.ok), consumption))

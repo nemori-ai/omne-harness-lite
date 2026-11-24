@@ -1,24 +1,24 @@
 import { calendarProtocol, type CalendarProtocol } from '@omne-harness/calendar-protocol'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { calendarParts } from './parts.ts'
 import { CalendarPage } from './view/calendar-page.tsx'
-
-const CALENDAR = protocolServiceName({ name: calendarProtocol.name, major: calendarProtocol.major })
 
 export const CALENDAR_PAGE_ID = 'calendar'
 export const CALENDAR_PAGE_ORDER = 13
 
-/** The calendar page, there while the `calendar/v1` client is on the tree. */
-export const calendarUiModule = defineUiModule<Record<string, ClientOf<CalendarProtocol>>>({
+/** The calendar page, placed whether or not `calendar/v1` is served. */
+export const calendarUiModule = defineUiModule({
   name: 'calendar-ui',
-  inject: [CALENDAR],
-  apply(shell, services) {
-    const client = services[CALENDAR]!
+  needs: { calendar: needProtocol<ClientOf<CalendarProtocol>>(calendarProtocol) },
+  apply(shell, { calendar: client }) {
+    for (const part of calendarParts) part.declare(shell)
     shell.contribute('pages', {
       id: CALENDAR_PAGE_ID,
       title: '日历',
       order: CALENDAR_PAGE_ORDER,
+      icon: 'appointment',
       render: ({ scope }) =>
         scope === undefined ? null : <CalendarPage client={client} tenant={scope} />,
     })

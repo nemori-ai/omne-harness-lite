@@ -16,6 +16,12 @@ export type SessionModesAuthoritySources = Readonly<{
   sessionWork?: SessionWorkPrincipals<unknown>['forSession'] | undefined
 }>
 
+/** The blocks the Session adapters produce for a session scope, each by its own producer. */
+const PRODUCED = new Map<string, string>([
+  ['session.modes', sessionModesProducer.producer],
+  [ENABLED_EXTENSIONS_BLOCK, enabledExtensionsProducer.producer],
+])
+
 async function supplyPrincipal(
   sources: SessionModesAuthoritySources,
   owner: Extract<SessionScopeOwnership, { kind: 'bound' }>,
@@ -43,12 +49,6 @@ async function supplyPrincipal(
   return { kind: 'authorized', principal, current: () => true }
 }
 
-// The blocks this installation produces for a tenant, each with its one producer.
-const PRODUCERS: ReadonlyMap<string, string> = new Map([
-  ['session.modes', sessionModesProducer.producer],
-  [ENABLED_EXTENSIONS_BLOCK, enabledExtensionsProducer.producer],
-])
-
 export async function decideSessionModesProducer(
   sources: SessionModesAuthoritySources,
   principal: ActingForTenantPrincipal,
@@ -59,7 +59,7 @@ export async function decideSessionModesProducer(
     principal.work.owner !== SESSION_MODES_WORK.owner ||
     principal.work.work !== SESSION_MODES_WORK.work ||
     !tenantEquals(principal.tenant, action.tenant) ||
-    PRODUCERS.get(action.key) !== action.producer.producer
+    PRODUCED.get(action.key) !== action.producer.producer
   )
     return { kind: 'refused' }
   if (action.kind === 'register' || action.kind === 'invalidate-tenant')

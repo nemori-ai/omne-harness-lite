@@ -45,7 +45,7 @@ it('附着位置的名字是 session.dock', () => {
   expect(SESSION_DOCK).toBe('session.dock')
 })
 
-it('会话打开后，附着在这个位置的项出现在转写区与输入框之间，收到会话标识与当前租户', async () => {
+it('会话打开后，附着在这个位置的项出现在转写的末尾、随转写滚动，收到会话标识与当前租户', async () => {
   const fake = createFakeClient()
   const { shell } = await mountModule(fake.client, TENANT)
   attach(shell, SESSION_DOCK, 'extra')
@@ -58,8 +58,10 @@ it('会话打开后，附着在这个位置的项出现在转写区与输入框�
   const transcript = screen.getByText('ses_a的内容').closest('.omne-conversation')
   const composer = screen.getByRole('textbox', { name: '输入消息' }).closest('form')
   if (transcript === null || composer === null) throw new Error('page not rendered')
-  expect(transcript.nextElementSibling?.contains(extra)).toBe(true)
-  expect(extra.closest('.omne-session-dock')?.nextElementSibling).toBe(composer)
+  const dock = extra.closest('.omne-session-dock')
+  expect(dock?.parentElement).toBe(transcript)
+  expect(transcript.lastElementChild).toBe(dock)
+  expect(composer.contains(extra)).toBe(false)
 })
 
 it('换一个会话：位置收到的对象跟着变', async () => {

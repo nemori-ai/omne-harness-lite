@@ -35,15 +35,15 @@
 > **中**：**约束 agent 由什么组装而成、从哪里被触达、以及推进时在哪些位置插手**的那一类对象。
 > 它是三样东西里**唯一独立存在的对象**；
 > [设置](#ul-setting--设置--setting)与[权限](#ul-permission--权限--permission)是它的**两种属性**。
-> **目录保留[八个列项](#八类资产)，Connector 的资产存在性搁置，其余七类继续成立；[模型供应商](#ul-model-provider--模型供应商--model-provider)是另一类资产。**
+> **目录保留[八个列项](#八类资产)，Connector 的资产存在性搁置，其余七类继续成立；[模型供应商](#ul-model-provider--模型供应商--model-provider)与[转换件定义](#ul-converter-definition--转换件定义--converter-definition)是另外两类资产。**
 >
 > **EN**: The class of objects that **constrains what an agent is assembled from**,
 > **through which channels it can be reached**, and **where things may be inserted as
 > its loop advances**. It is the only one of the three that exists as an object in
 > its own right; settings and permissions are two kinds of **attribute on** it.
-> **The catalog retains eight entries; Connector is on hold pending a decision on whether it remains an asset, while the other seven remain in scope. The model provider is one more kind of asset.**
+> **The catalog retains eight entries; Connector is on hold pending a decision on whether it remains an asset, while the other seven remain in scope. The model provider and the converter definition are two more kinds of asset.**
 
-- **目录状态**：Connector 的资产存在性及相关设计搁置，其余七类继续成立；保留的 Connector 列项不是当前交付承诺。[模型供应商](#ul-model-provider--模型供应商--model-provider)不在八个列项里，归[资产与规则的类别清单](../../product/assets-and-rules/design.md#产品需求描述)（rev 9）。
+- **目录状态**：Connector 的资产存在性及相关设计搁置，其余七类继续成立；保留的 Connector 列项不是当前交付承诺。[模型供应商](#ul-model-provider--模型供应商--model-provider)不在八个列项里，归[资产与规则的类别清单](../../product/assets-and-rules/design.md#产品需求描述)（rev 10）。[转换件定义](#ul-converter-definition--转换件定义--converter-definition)也不在八个列项里，归[媒体：转换件可以换](../../product/media/design.md#转换件可以换)（rev 1）。
 - **形态**：对象
 - **出处**：[PF-001 §4 设置、权限、资产](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 26） · [资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26）
 - **别混**：知识、经验、报告、附件与文件**都不是资产**——它们是 agent **读写的对象**，**不参与组装**
@@ -57,7 +57,7 @@
 > **EN**: A configurable aspect of how a capability works, declared by its owner. A setting can be used independently or composed into an asset definition. Its declaration defines meaning and valid values. Assignments follow the management authority, sources and lifetime of their target; evaluation does not authorize an action.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 9）
+- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）
 - **注意 ①**：资产设置的配值依附合法持有；独立设置不要求创建资产或持有。两者复用设置契约，不复用未经采用的资格或来源链。
 - **注意 ②**：资产声明哪些部分可配置。未声明部分仍按资产编辑与发布规则维护；配值不改写已发布定义。
 - **注意 ③**：属性锁、持有替换锁和定义的不可替换声明分别处理；不得因同名而合并。
@@ -106,7 +106,7 @@
 > holds, what happens at the moment a person should be asked) **— if so, governance**.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 9）；[PF-002 §5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）；[PF-002 §5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **别混**：与[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)里的「类别」不是一回事——
   那是**资产**的类别（工具、技能、模型供应商……），这是**设置项**的四类之一；正文里裸写「类别」指前者
 - **注意**：工作区**自己带来的**资产，其落点类声明随资产一起来——这条限定挡的是**改别人资产的落点**。独立设置按其目标策略确定来源，不自动继承资产层序。
@@ -166,7 +166,7 @@
 > lower layer can shadow it with a Skill of the same name.
 
 - **形态**：变体（父：[技能](#ul-skill--技能--skill)）
-- **出处**：[Skill 产品：元技能](../../product/skills/design.md#元技能)（rev 5）
+- **出处**：[Skill 产品：元技能](../../product/skills/design.md#元技能)（rev 8）
 - **⚠️ 别混**：**不是 [meta 能力](#ul-meta-capability--meta-能力--meta-capability)**——meta 能力是一整类能力的统一入口（`Tools()`、`Skills()` 这类元工具）；元技能是那扇门后的一份方法，经 `Skills()` 读取。名字只差一个字，跨 topic 引用写全称
 - **注意**：它的「不可替换」来自它自己的 `immutable` 声明，不是 meta 能力的那条规则。租户自己写的、同样教人写 Skill 的 Skill 不是元技能
 
@@ -201,7 +201,7 @@
 > **中**：**一个外部工具来源的接入点。**接进来之后，它提供的动作可被 agent 使用。
 > **接入点本身是资产，它带来的那些动作不单独成为资产**——随它一起被持有、授权与治理。
 > **对端的可用性与版本不由本系统掌握**：它提供的动作可能今天有明天没有，**而这不是故障**。
-> **对端的每一个动作在工具入口里是一个[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)**，经 MCP 登记的[工具条目来源](reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source)交出。
+> **一个接入点在工具入口里是一个[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)：一个多命令工具，对端的每一个动作是它的一个命令**，经 MCP 登记的[工具条目来源](reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source)交出。
 > 动作一般不常驻，经取用入口发现；**例外是标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的接入点，它的动作在采用点成为常驻工具**。
 > 动作集**按当下事实现算，清单变了下一次发现就不同；每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前同样与可用性一起重算；合法显式刷新可更新后续采用值，已知身份保留、单次调用输入固定**。
 > 对端服务在本系统之外运行，本系统只按地址与它通信。
@@ -211,8 +211,9 @@
 > actions it brings are not assets of their own** — they are held, authorized and
 > governed along with it. **Availability and versioning on the far side lie outside
 > this system's control**, so an action present today may be gone tomorrow — **and
-> that is not a fault**. **Each action on the far side is one tool entry in the tool
-> entry point**, handed over by the tool entry source that MCP registers. Actions are
+> that is not a fault**. **One access point is one tool entry in the tool entry point: a
+> multi-command tool, and each action on the far side is one of its commands.** The tool
+> entry source that MCP registers hands it over. Actions are
 > normally not resident and are found through the discovery entry; **the exception is an
 > access point marked resident, whose actions become resident tools at the adoption point**.
 > The action set is **computed from the facts at the moment, so a changed catalog shows at
@@ -221,7 +222,7 @@
 > The far-side service runs outside this system, which talks to it only by its address.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 5）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
 - **注意 ②**：正文里的「接入点」「MCP 接入点」指的就是本条。命令型（stdio）接入不在 `0.0.0 → 0.1.0` 阶段，见出处
@@ -365,49 +366,100 @@
 
 ### UL-modality-converter · 模态转换件 · Modality Converter
 
-> **中**：一件系统自带的转换件，**不站在任何[拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上**。
-> **非 Tool ref 来源的内容，由实现[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的提供者在接纳之前调用它转换；Tool 内容引用在 Model 实际请求时才加载并按需转换。**
-> 非 Tool ref 来源的这一执行时点已由项目负责人接受，见 [C-58](../conflicts.md#c-58模态转换件的执行时点)。
-> **输入一个非文本[模态](record-and-context.md#ul-modality--模态--modality)的[内容块](record-and-context.md#ul-content-block--内容块--content-block)或一个文件块；
-> 输出一个或多个别的模态的内容块（不能是文件块），外加一段纯文本 [transcript](record-and-context.md#ul-transcript--transcript--transcript) 作最后兜底。**
-> 产出挂在原块上作[派生表示](record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)，**原块不动，不新增块、不另立对象**。
-> 它按**一种模态或一种文件媒体类型**登记，同键只有一件生效、**可替换**（替换只在系统装配层，**本版不是资产**）；
-> 一个文件块两种键都命中时，**媒体类型那一件来转**。**本版它不调模型**，transcript 只来自本地识别。
-> 非 Tool ref 来源的产出**在消息接纳之前写好，接纳后不变**。**转换失败（它挂了、交不出 transcript、交出了文件块，或只交 transcript 不交派生块）时，那条内容不被接纳为消息，也不补偿**：
-> 拒收的后果按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定规则处理，本词条不重述。
-> 没登记转换件的键不算失败；**登记了却不可用，当转换失败**。
-> 它**不判断这次要不要转**、**不承诺无损**。正文在没有歧义处简称**转换件**。
+> **中**：**媒体把一份非文字内容转成别的表示的那套机制，由两样组成：一份[转换件定义](#ul-converter-definition--转换件定义--converter-definition)与它指名的[转换引擎](#ul-converter-engine--转换引擎--converter-engine)。**
+> 定义是资产，写明处理哪种媒体、用哪个引擎、给什么参数、内容送到哪里；引擎是做转换的部件。
+> **输入一个[内容块](record-and-context.md#ul-content-block--内容块--content-block)所指的原件，产出挂在原块上：一段纯文本 [transcript](record-and-context.md#ul-transcript--transcript--transcript)，另可有别的模态的[派生表示](record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)（不能是文件块）。**
+> 原块不动，不新增块，不另立对象。
+> **什么时候转**：人发的媒体在上传完成之后、消息接纳之前转，不看当前模型。工具产出的媒体只在当前有效模型原生读不了它、而这种媒体有生效的转换件时转，由采用工具结果的一方在采用时转，表示随结果记入历史。Model 发送时不转。
+> **一次转换的结局恰有四种**：
+> 没有生效的转换件，原件照常保存，没有 transcript，这不算失败；
+> 转出来了，至少有 transcript；
+> 这份内容本身转不出（例如没有文字层的扫描件），原件照常保存，没有 transcript；
+> 转换失败，即定义生效而引擎不可用、出错、超时或结果不合契约。
+> **失败不冒充前三种**，也不用空白或捏造的文字冒充结果。
+> 它不站在任何 Loop 拓展点上，不归 Model。它**不判断这次要不要转**、**不承诺无损**；内容可以被送出本机去转。正文在没有歧义处简称**转换件**。
 >
-> **EN**: A system-provided converter that **stands at no loop extension point**. **For content from sources other than
-> a tool reference, the provider that implements message admission calls it before acceptance; a tool content
-> reference is loaded and converted as needed only when the model request is actually made.** The project owner
-> has accepted this timing for sources other than Tool references (C-58). **It takes one
-> content block of a non-text modality, or one file block, and yields one or more content
-> blocks in other modalities (never a file block), plus a plain-text transcript as the
-> last-resort fallback.** The outputs hang on the original block as its derived renderings;
-> **the original is untouched, no block is added and no separate object is created.** Converters
-> are registered **per modality or per file media type**; one is in effect per key and it is
-> **replaceable** — at system assembly only, **not an asset in this version**; when a file block
-> matches both kinds of key, **the media-type converter converts it**. **In this version it makes
-> no model call**: the transcript comes from local recognition only. For sources other than a tool
-> reference, outputs are **written before acceptance and never change after it**. **If conversion fails (the converter is down,
-> yields no transcript, yields a file block, or yields only a transcript with no derived block),
-> the content is not accepted as a message and nothing is compensated**: the consequence of rejection follows
-> the source-specific rules of message admission and is not restated here. A key with no registered converter is not
-> a failure; **a registered converter that is unavailable counts as a failed conversion**. It does
-> **not** decide whether to convert this time and does **not** promise losslessness. Short form in
-> running text: *converter*.
+> **EN**: **The mechanism by which Media turns one piece of non-text content into other
+> representations. It has two parts: a converter definition and the converter engine that the
+> definition names.** The definition is an asset. It states which kind of media it handles, which
+> engine to use, which parameters to pass and where the content goes. The engine is the part that
+> does the conversion. **The input is the original that a content block references. The outputs
+> hang on the original block: one plain-text transcript, and optionally derived renderings in other
+> modalities, never a file block.** The original block does not change. No block is added and no
+> separate object is created. **When it converts**: media that a person sends is converted after the
+> upload completes and before the message is accepted, whatever the current model is. Media that a
+> tool produces is converted only when the current effective model cannot read it natively and a
+> converter for that kind of media is in effect. The party that adopts the tool result does the
+> conversion at adoption, and the representations go into the history with the result. Model does
+> not convert at send time. **A conversion has exactly four outcomes**:
+>
+> - No converter is in effect. The original is kept with no transcript. This is not a failure.
+> - Converted. There is at least a transcript.
+> - The content itself cannot be converted, for example a scan with no text layer. The original is
+>   kept with no transcript.
+> - Conversion failed. The definition is in effect, but the engine is unavailable, returns an
+>   error, times out or returns a result that breaks the contract.
+>
+> **A failure never passes as one of the other three**, and no blank or invented text stands in for
+> a result. It stands at no loop extension point and does not belong to Model. It does **not**
+> decide whether to convert this time, and it does **not** promise a lossless result. It can send
+> the content off this machine for conversion. Short form in running text: *converter*.
 
-- **形态**：变体（父：[拓展件](#ul-loop-extension--拓展件--loop-extension)）
-- **出处**：[PF-013 §4 转换件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17） ·
-  [PF-012 §5.8 模态转换为什么必须落在这里](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 25）
+- **形态**：总称
+- **出处**：[媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
+  [agent 拿到的图片](../../product/media/design.md#agent-拿到的图片) ·
+  [转换件可以换](../../product/media/design.md#转换件可以换)（rev 1） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
-- **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它不被持有、不按层配值，
-  也不站在拓展点上；「未来是否升为资产」是 PF-013 记下的显式缺口
-- **注意 ①**：**非 Tool ref 来源的执行时点已由项目负责人接受（C-58），契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
-- **注意 ②**：**非 Tool ref 来源转换失败，按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定拒收处理**（封存原文 [PF-012 §5.8 否决按消息是谁产生的分三路](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)）——拒绝或失败，不补偿；**被拒收的模型回复不是一次调模型失败**
-- **注意 ③**：**没登记转换件、因而没有 transcript 的块进[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)**，把收不下它的模型挡在合法目标之外——这是有意的兜底方向
+- **⚠️ 别混 ②**：**不是[拓展件](#ul-loop-extension--拓展件--loop-extension)**——它不挂在任何 Loop 拓展点上，Agent 只看到已经带着表示的消息
+- **注意 ①**：**裸写「转换件」时看语境**：讲持有、替换、禁用时指[转换件定义](#ul-converter-definition--转换件定义--converter-definition)，讲做转换、可不可用时指整套机制；要精确时写全名
+- **注意 ②**：**转换失败时，人发的那份内容暂时不能随消息发出，人可以重试**；工具结果不能成为消息的后果按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定规则处理，本词条不重述
+- **注意 ③**：**没有 transcript 的块进[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)**，把原生读不了它的模型挡在合法目标之外——这是有意的兜底方向
+- **注意 ④**：**发行版只带语音与 PDF 两份定义，不带图片的**；换模型时是否为挡路的内容补做转换、是否自带图片的转换件，产品都未裁，见[媒体：未决问题](../../product/media/design.md#未决问题与待定事项)
+
+### UL-converter-definition · 转换件定义 · Converter Definition
+
+> **中**：**一份资产，写明一种媒体怎样转：处理哪种媒体、用哪个[转换引擎](#ul-converter-engine--转换引擎--converter-engine)、给引擎什么参数、内容会被送到哪里。**
+> 资产类别是 `converter`，名字就是它处理的媒体种类：一种[模态](record-and-context.md#ul-modality--模态--modality)，或一个具体的[媒体类型](record-and-context.md#ul-media-type--媒体类型--media-type)。
+> 官方、组织与租户各能持有同名的一份；按层求值，同一种媒体只有一份生效；一个文件同时命中模态与具体媒体类型时，具体媒体类型那一份生效。
+> 换了或禁用之后，只影响此后上传的内容。
+>
+> **EN**: **An asset that states how one kind of media is converted: which kind of media it handles,
+> which converter engine to use, which parameters to pass to the engine and where the content will
+> be sent.** Its asset category is `converter`, and its name is the kind of media it handles: a
+> modality or one specific media type. The official layer, an organization and a tenant can each
+> hold one under the same name. Evaluation by layer leaves exactly one in effect for one kind of
+> media. When a file matches both a modality and a specific media type, the definition for the
+> specific media type takes effect. A replacement or a disable affects only content uploaded after
+> it.
+
+- **形态**：变体（父：[资产](#ul-asset--资产--asset)）
+- **出处**：[媒体：转换件可以换](../../product/media/design.md#转换件可以换)（rev 1） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+- **别混**：**不是[转换引擎](#ul-converter-engine--转换引擎--converter-engine)**——定义是数据，引擎是做事的部件；定义生效而它指名的引擎此刻不在时，这种媒体的转换答不可用，不当成没有转换件
+- **注意 ①**：发行版自带语音与 PDF 两份
+- **注意 ②**：内容要送出本机时，界面在转换之前说明去向；是否要组织或租户先许可，产品未裁，见[媒体：按租户许可内容外传](../../product/media/design.md#按租户许可内容外传)
+
+### UL-converter-engine · 转换引擎 · Converter Engine
+
+> **中**：**可以装上、卸下的部件，把一份媒体的原件转成别的表示。**
+> 它交回三者之一：转出来了（一段 transcript，另可有别的模态的表示）；这份内容本身转不出；失败。
+> [转换件定义](#ul-converter-definition--转换件定义--converter-definition)指名用哪个引擎；它可以在本机转，也可以把内容送到别处转。
+> **一份生效的定义指名的引擎此刻不在时，这种媒体的转换答不可用**：系统不退到别的引擎，也不当成没有转换件。
+>
+> **EN**: **A part that can be installed and removed, and that turns the original of one piece of
+> media into other representations.** It returns one of three results: converted (a transcript, and
+> optionally representations in other modalities), the content itself cannot be converted, or
+> failed. A converter definition names the engine to use. The engine can convert on this machine, or
+> send the content elsewhere for conversion. **When the engine that an effective definition names is
+> not present, conversion for that kind of media answers unavailable.** The system does not fall
+> back to another engine and does not treat the case as having no converter.
+
+- **形态**：对象
+- **出处**：[媒体：转换件可以换](../../product/media/design.md#转换件可以换)（rev 1）
+- **别混**：**不是[拓展件](#ul-loop-extension--拓展件--loop-extension)**——它不挂在 Loop 拓展点上，登记进的是媒体
+- **注意**：精确的声明与登记规则归 [Media 规格的转换件：定义与引擎](../../../../packages/media/SPEC.md#转换件定义与引擎)
 
 ### UL-slash-command · 斜杠命令 · Slash Command
 
@@ -454,20 +506,24 @@
 
 ### UL-plugin · 插件 · Plugin
 
-> **中**：**把若干资产打包在一起分发与启用的单元。**装一个 plugin，等于一次性获得
-> 它里面的全部东西；停用它，那些东西一起退场。
-> **内含成员不取得独立的顶层生命周期**——不能单独卸载 plugin 里的某一个 skill。
+> **中**：**一份定义：它列出若干成员，每个成员是某个[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)上的一项。**
+> 成员可以是另一类资产，也可以是不单独持有的东西：界面的样子与画法、一份对客户端开放的协议。
+> 装一个 plugin，它的全部成员一起出现；停用它，全部一起退场。
+> **内含成员不取得独立的顶层生命周期**——不能单独卸载 plugin 里的某一个成员。
 >
-> **EN**: **A unit for distributing and enabling a bundle of assets together.**
-> Installing one grants everything inside at once; disabling it withdraws them all.
-> **Its members have no independent top-level lifecycle** — one cannot uninstall a
-> single skill out of a plugin.
+> **EN**: **A definition that lists members, each one item on an extension point.**
+> A member may be an asset of another category, or something that is not held on its own:
+> a look or a drawing of the interface, a protocol open to clients.
+> Loading one brings all its members up together; disabling it withdraws them all.
+> **Its members have no independent top-level lifecycle** — one cannot unload a
+> single member out of a plugin.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 Plugin](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#plugin)（rev 32）
-- **别混 ①**：**不是 Cordis plugin**——那是运行时的代码装载单元，属技术设计。指它时**必须写全 `Cordis plugin`**
+- **出处**：[资产与规则：把资产加入使用范围，并看清为什么采用这份实现](../../product/assets-and-rules/design.md#把资产加入使用范围并看清为什么采用这份实现)（rev 11）
+- **别混 ①**：Plugin 是定义，是数据；它装上之后由一个 Cordis fiber 承载，那是它的活体。指运行时的代码装载单元本身时仍**写全 `Cordis plugin`**
 - **别混 ②**：Plugin 组合出来的**还是资产**，可以继续被组合；[Agent Definition](#ul-agent-definition--agent-定义--agent-definition) 组合出来的是**一个能跑的 agent**
-- **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员
+- **别混 ③**：把 Skill、Agent、Hook 打包在一起的那种 plugin 是它的一种：成员都落在这几类资产的拓展点上
+- **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员；界面的令牌、样式、画法与布局；对客户端开放的协议
 
 ### UL-agent-definition · Agent 定义 · Agent Definition
 
@@ -581,7 +637,7 @@
 > uses it to know what the package holds and to check the bytes of each file it reads.
 
 - **形态**：属性
-- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 9）
+- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11）
 - **别混**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**——那是「当时那个 agent 是什么样」；这一条只列一个版本里的文件。也不是 MCP 对端的动作清单
 - **注意**：清单在记录里，字节在内容存放处；两边靠摘要对上，对不上答材料不可用
 - **注意**：Skill 这一侧对应的值是 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)。读已发布版本时，快照由包的清单封出，两者列的是同一批文件
@@ -599,11 +655,48 @@
 > the manifest, and never hands over bytes that do not match the digest.
 
 - **形态**：视图
-- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 9）
+- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11）
 - **别混**：**不是[绑定读者](scope-and-resolution.md#ul-bound-reader--绑定读者--bound-reader)**——那是 Runtime Context 里按读取资格建立、带游标的读取入口；这一条读的是一份不变的已发布内容，没有游标，丢了按同一组（层、能力标识、版本）再取一个即可
 - **注意**：「许不许读」不由它回答。主体能不能读一份 Skill，仍由使用资格与授权每次判断
 - **注意**：它不给路径，这一条不变。「这份目录加载到本机之后在哪」是另一件事：单机装配下它是一个事实，`Skills` 把它告诉 agent，供 Shell 使用
 - **注意**：Skill 这一侧声明的需要是 [Skill 包来源](grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source)。已发布版本由包的读口经适配担任 Skill 包来源
+
+### UL-asset-summary · 资产简介 · Asset Summary
+
+> **中**：**一个[资产版本](#ul-asset-version--资产版本--asset-version)给人看的那几样：一个标题，一句说明，若干条「名字加文本」的事实。**
+> 它由这一类资产自己的算法从这个版本的内容算出，在发布时定下，随这个版本不变。
+> 它只供显示：里面的文本只当文本，不是内容本身，也不参与求值、采用与授权。
+> 一类资产没有交这个算法时，这一类的版本没有资产简介，界面只显示资产的名字。
+>
+> **EN**: **What one asset version shows to a person: a title, one sentence of description, and
+> some facts, each a name with a text.** The algorithm of the asset category computes it from the
+> content of that version. It is fixed when the version is published and does not change. It is
+> for display only: its texts are shown as text, it is not the content, and it has no part in
+> evaluation, adoption or authorization. When a category supplies no algorithm, its versions have
+> no asset summary and the interface shows only the name of the asset.
+
+- **形态**：属性
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 7）
+- **别混**：不是类别的显示声明：那是一类资产的名字与说明，这一条说的是一份资产的一个版本。不是[包的清单](#ul-package-manifest--包的清单--package-manifest)：清单列文件，简介是给人看的摘要
+
+### UL-asset-upload · 资产上传 · Asset Upload
+
+> **中**：**一个内容是目录的资产，在被发布之前由客户端分段送到服务端、暂时放着的那一份文件。**
+> 它由一个租户的一次新建操作开始，开始时申报要送的每个文件的路径与大小；文件按申报收齐之后，才能提交成一个[资产版本](#ul-asset-version--资产版本--asset-version)。
+> 提交之前它不是资产：列出、读取、求值都看不到它，别的租户也看不到它。
+> 提交成功、放置过久或被清理之后它就不在了；不在了只需要重新送，不丢任何已发布的事实。
+>
+> **EN**: **The files of a directory-content asset that a client sends to the server in parts and
+> that wait there before publication.** One create operation of one tenant starts it and declares
+> the path and size of each file to send. Only after all declared files have arrived can it be
+> committed as an asset version. Before the commit it is not an asset: listing, reading and
+> evaluation do not see it, and other tenants do not see it. It ceases to exist after a
+> successful commit, after it stays idle too long, or after a cleanup. Losing it only means
+> sending the files again; no published fact is lost.
+
+- **形态**：对象
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 7） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
+- **别混**：不是[资产版本](#ul-asset-version--资产版本--asset-version)，也不是草稿：它没有版本线，不能被持有或选用。不是发布流程内部的暂存：那是发布自己换入之前的落脚处
 
 ### UL-skill-package · Skill 包 · Skill Package
 
@@ -619,7 +712,7 @@
 > The format rules inside the package belong to the skill kind.
 
 - **形态**：属性
-- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 5） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 5）
+- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 8） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 8）
 - **别混 ①**：**不是技能的身份**。身份是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)（类别 ＋ name）。同一个身份下，不同层、不同版本的内容可以是不同的 Skill 包
 - **别混 ②**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本说的是哪一次发布定下的内容；Skill 包说的是技能内容的形式
 - **别混 ③**：**不是[插件](#ul-plugin--插件--plugin)，也不是代码仓库里的成员包**（例如 `packages/skills` 下的成员）。插件打包分发若干资产；一个 Skill 包只是一个技能的内容
@@ -640,7 +733,7 @@
 > content, so a reference to a snapshot needs only its content digest.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 5）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 9），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 8）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
 - **别混 ①**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本按发布计数，内容摘要按内容计算。工作区目录中的技能没有发布，也有 Skill 包快照
 - **别混 ②**：**不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)**，与 runtime context 的快照无关
 - **注意 ①**：**这里的「内容摘要」指按内容算出的散列值（digest），不是文字摘要**。不要裸写「摘要」指它，见 [C-82](../conflicts.md#c-82摘要的两种意思)
@@ -669,7 +762,7 @@
 > source layer and content digest identify the same material.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 5）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-83](../conflicts.md#c-83工作区目录技能的-skill-材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 8）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-83](../conflicts.md#c-83工作区目录技能的-skill-材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)**。采用依据是一次执行在采用时实际取用了什么的记录，由系统保留。Skill 材料依据是一次读取交给调用方的值，由调用方保管与带回
 - **别混 ②**：**不是 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)本身**。Skill 包快照是全部条目的清单；Skill 材料依据只带它的内容摘要，另带能力标识、来源层与资产版本
 - **别混 ③**：**不是 Skill 包的位置**。位置不在 Skill 材料依据里，调用方不能用它指定从哪里读取
@@ -713,7 +806,7 @@
 > **EN**: The actions an agent can recognize and attempt in a session. It has two sources: resident entries placed in the context, which are a record fixed at the adoption point and only grow within a session; and entries discoverable through the access entry point, computed from the subject's facts at that moment and never stored as a set. A resident entry becomes unavailable, and keeps its identity, when its definition changes or it is disabled, unloaded or revoked. An attempt is not execution authorization; an unavailable entry returns its reason through a stand-in.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 9） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 12） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 20） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
 - **别混**：能力身份可见不等于定义内容、实现绑定或可执行集合不变；也不要求每次提示词包含全部已知能力。能发现的那部分就是[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)与此刻合法可用的 Skill，主体此刻没有使用资格的不出现。
 - **注意**：封存的 PF-004 把它写成「由合法纳入会话的能力条目投影、整体单调增加」。现行产品里只有常驻那部分是这样，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
@@ -755,12 +848,12 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 9） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 9）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 20） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 20）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
   典型：会话运行模式是 [`never`](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode) 时，
-  `Ask().request_approval` 不可用，**而 `Ask()` 还在**
+  一个工具里权限为询问的命令被拒，**而这个工具的门还在**，它权限为自动的命令照常可用
 - **注意 ②**：**「必定常驻」不是产品选择，是结构逼出来的**——
   **够到非常驻能力的唯一途径就是 meta**，若它自己也不常驻，就永远够不着它。
   **自指的闭环必须有一个不动点**
@@ -775,6 +868,7 @@
 - **注意 ⑥**：`Tools()` 这扇门也按[工具](#ul-tool--工具--tool)的对象链实现：官方资产引用一个实现包，实现包导出作者插件，系统装载时派生它的工具定义。它仍是官方的，仍不可替换。它与 example 同一波迁移，依据见 [RFC-0012 对象链](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#对象链)。卸载与会话冻结的规则对 meta 能力豁免：它不参与卸载与冻结判定，经它发现和使用非常驻工具只是对它的一次调用，依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6332679272)。
 - **注意 ⑦**：Run 中途新装载的工具不进[常驻工具集合](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)，agent 经 `Tools()` 够到它们
 - **运行期边界**：Ask() 可被会话协作模式关闭人交互能力；这不删除、替换或解除 meta 资产的必需绑定。命令是否可用仍受各自权限限制。
+- **会话的事实**：命令可以声明[调用条件](reach-and-availability.md#ul-invocation-condition--调用条件--invocation-condition)。一扇门的命令在某个会话里全不成立时，这扇门不装进那个会话，例如无人值守的会话里没有 Ask()。**这不是禁用**：没有谁关了它，是这种会话里它无事可做。
 - **采用范围**：必需绑定及常驻约束作用于已采用并提供的入口。未实现定义、候选及纯占位不因此进入模型工具清单；多命令约定不替未定义占位发明命令。
 
 ### UL-prompt-slot · 提示词槽位 · Prompt Slot
@@ -792,7 +886,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 9）
+- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 20）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 
@@ -801,7 +895,7 @@
 ### UL-model-profile · 模型档案 · Model Profile
 
 > **中**：**关于一个可被调用的模型的全部事实**——上游认哪个名字、能走哪几家供应商、
-> 收得下和给得出哪几种模态、一次能吃多少吐多少、送进去之前还有什么限制、随它带上哪些[请求参数](#ul-model-request-parameters--模型请求参数--model-request-parameters)。
+> 收得下和给得出哪几种模态、原生读得了哪些不属于任何模态的文件类型、一次能吃多少吐多少、送进去之前还有什么限制、随它带上哪些[请求参数](#ul-model-request-parameters--模型请求参数--model-request-parameters)。
 > **上游输入限制的事实与本档案实际提供的有限输入范围分别声明；上游限制可明确未知，未知不等于无限制。**
 > 输入 token 的发前限额检查可以采用有依据的估算与明确配置的余量；**通过检查不保证上游实际 token 必然不超限**。
 > 字节与图片数量仍按实际值精确检查；上游实际用量与费用独立记录，不用估算替代。
@@ -816,7 +910,7 @@
 >
 > **EN**: **Everything the system holds about one callable model** — the name upstream
 > answers to, which providers it may go through and in what order, which modalities it
-> takes in and gives out, how much it reads and writes in one go, what else must
+> takes in and gives out, which file types outside every modality it reads natively, how much it reads and writes in one go, what else must
 > hold before a request goes out, and which **request parameters** travel with it. **Upstream input-limit facts
 > and this profile’s finite supplied input range are declared separately; an upstream limit may be explicitly
 > unknown, which does not mean unlimited.** Pre-send input-token limit checks may use a supported
@@ -839,7 +933,8 @@
 - **出处**：[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
   [上游限制与档案提供的上限](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#上游限制与档案提供的上限) ·
   [档案的身份：所在范围加路由名](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
-  [PF-013 flows §3.1 一条模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）
+  [PF-013 flows §3.1 一条模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
 - **⚠️ 别混 ①**：**官方档案 / 自建档案**（谁建的、落在哪一层）**不是
   [官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) /
   [自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——
@@ -935,7 +1030,7 @@
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
   [§5.12 系统自带一件默认的](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17） ·
-  [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 5）
+  [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 6）
 - **注意**：它是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)这个判断的**输入**，不是试尽的定义
 - **别混**：**列表里的每一项是对一家[模型供应商](#ul-model-provider--模型供应商--model-provider)的引用，不是模型供应商本身**——
   模型供应商是一份资产，档案不是资产、只引用它；[模型凭据](#ul-model-credential--模型凭据--model-credential)按模型供应商与层配置，不挂在档案或这一项上
@@ -959,23 +1054,23 @@
 ### UL-model-provider · 模型供应商 · Model Provider
 
 > **中**：**模型请求真实到达的那一家上游服务。**它是资产类别 `model-provider` 的一份[资产](#ul-asset--资产--asset)，
-> 正文说明它用哪种协议、端点在哪里、怎样计费，以及它需要哪些凭据项。
+> 正文说明它用哪些协议、每种协议的端点在哪里、怎样计费，以及它需要哪些凭据项。
 > 每个凭据项是它声明的一项秘密[设置](#ul-setting--设置--setting)，某一层为这一项配上的值是[模型凭据](#ul-model-credential--模型凭据--model-credential)；
 > 一家可以声明多个凭据项，也可以一个都不声明。
 > 它的身份按资产的规则确定：能力标识是「`model-provider` ＋ name」，同一个能力标识下可以有不同的具体资产，
 > 分得出这一家与那一家靠的是具体资产。官方供应商对每个合法租户视为已持有。
 >
 > **EN**: **The upstream service that a model request actually reaches.** It is one asset of the asset
-> category `model-provider`. Its body states which protocol it speaks, where its endpoint is, how it charges,
-> and which credential items it needs. Each credential item is a secret setting that the provider declares,
+> category `model-provider`. Its body states which protocols it speaks, where the endpoint for each protocol is,
+> how it charges, and which credential items it needs. Each credential item is a secret setting that the provider declares,
 > and the value set for that item at one layer is a model credential. A provider may declare several
 > credential items, or none. Its identity follows the asset rules: the capability identifier is
 > "`model-provider` + name", one capability identifier can have different concrete assets, and the concrete
 > asset tells one provider apart from another. An official provider counts as held by every legitimate tenant.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 5） ·
-  [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 9）
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 6） ·
+  [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 11）
 - **别混 ①**：**不是[允许的供应商](#ul-allowed-providers--允许的供应商--allowed-providers)里的一项**——那一项是档案对它的引用；档案不是资产，模型供应商是
 - **别混 ②**：**不是 [Cordis 服务提供者](architecture-core-and-extension.md#ul-cordis-service-provider--cordis-服务提供者--cordis-service-provider)、
   [环境提供者](grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider)这类「提供者」**——那些是系统里兑现一项能力的角色；
@@ -1002,8 +1097,8 @@
 > usable and when it was set, but never the secret value.
 
 - **形态**：属性
-- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 5） ·
-  [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 9）
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 6） ·
+  [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）
 - **⚠️ 别混 ①**：**不在档案上**——[档案](#ul-model-profile--模型档案--model-profile)不是资产，自身不存凭据；
   凭据是模型供应商这份资产的设置值，依附对它的持有
 - **别混 ②**：**裸写「凭据」不作数**——账号的登录凭据、[连接件](#ul-connector--连接件--connector)的接入凭据、
@@ -1147,7 +1242,7 @@
 > **EN**: A pluggable capability for creating and managing work arranged over time, scheduling due work, and triggering execution or notification actions, supporting the system’s own mechanical work as well as short-, medium-, and long-term undertakings for harness agents and users.
 
 - **形态**：总称
-- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 5）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 7）
 - **别混**：能力本身不同于一份 Schedule。
 
 ### UL-routine · 工作例程 · Routine
@@ -1157,7 +1252,7 @@
 > **EN**: The work-description data held within a schedule, specifying the mechanical action or agent objective and applicable notification content and target tenant for its jobs. It excludes timing rules and per-job progress or results, and has no independent identity or lifecycle. Factory-provided forms are preset descriptions used to populate this data.
 
 - **形态**：属性
-- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 5）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 7）
 - **别混**：各次 Job 共用工作定义，不共享执行状态；不同 Schedule 不共同引用一个可变 Routine 对象。
 
 ### UL-calendar-service · 日历服务 · Calendar Service
@@ -1177,7 +1272,7 @@
 > **EN**: The capability that lets a recipient know about something that has happened. A source hands over an event. The notification domain uses the recipient's notification subscriptions to decide who gets it and how urgently, puts it in the recipient's inbox, and then delivers it to the recipient's destinations. A recipient is a person or an entrusted agent.
 
 - **形态**：总称
-- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 3）
+- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 7）
 - **别混**：不是成果上报、普通会话回复或复制通知邀约本身。要一个人做决定归人在回路；交出一份要验收的工作归日程与作业。
 
 
@@ -1188,7 +1283,7 @@
 > **EN**: A versioned definition of a recurring product feature, specifying its work template, timing, controllability, parameter defaults, and applicability. Schedule subscriptions adopt the definition and produce work independently.
 
 - **形态**：对象
-- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 5）
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 7）
 - **别混**：它不是平台机械维护的系统日程，也不是某份 Schedule 内无独立身份的 Routine 属性。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

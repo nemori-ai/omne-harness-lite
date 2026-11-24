@@ -31,6 +31,7 @@ import {
 import {
   describedAdoption,
   decodeToolRevision,
+  toolAvailabilityReference,
   type ToolMessageContentBlock,
   type ToolAuthority,
 } from '@omne-harness/tool-contract/provider'
@@ -210,11 +211,27 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       TEMP: stateDirectory,
       TMP: stateDirectory,
     }
-    const authors = createAuthors(fixedRoot, executable, env, RESULT_MAX_BYTES)
+    const authors = createAuthors(executable, env, RESULT_MAX_BYTES)
     const sources = createLocalInvocationSource({
       store,
       authority: authority.sourceAuthority,
       principalCodec: authority.principalCodec,
+      definitions: {
+        current: async ({ principal, tenant, name }) => {
+          const found = await root.toolRuntime.inspect({
+            principal,
+            tenant,
+            name,
+            command: null,
+            consumer: {
+              capabilities: evidence('text-only-consumer'),
+              conversion: null,
+              attachmentAccess: evidence('no-attachments'),
+            },
+          })
+          return 'ok' in found ? succeed(found.ok.definition) : found
+        },
+      },
       commitAttempts: configuration.ledgerCommitAttempts,
     })
     const domain = createHostFilesDomain({
@@ -223,7 +240,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     })
     const provider = createHostFilesProvider({
       domain,
-      filesRoot: fixedRoot,
       stateDirectory,
       drainBoundMs: 20_000,
       command: {
@@ -335,7 +351,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     }
     const bundle = createLocalToolRuntimePlugins({
       store,
-      conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
       bodies: createMemoryToolBodies(),
       content: null,
       sources,
@@ -590,6 +605,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
             inputCompatible: true,
             outputCompatible: true,
             attachmentsReadable: true,
+            productsStorable: true,
           })
         },
       },
@@ -757,7 +773,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       const intent = label.intent === null ? {} : { intent: label.intent }
       const text = JSON.stringify(command === null ? args : { command, ...intent, params: args })
       const request: ToolInvokeRequest = {
-        availability: availability.ok,
+        availability: toolAvailabilityReference(availability.ok),
         command,
         arguments: { original: text, effective: text, complete: true },
         label,
@@ -768,7 +784,8 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
           revision: '1',
         }),
         workspace: null,
-        environment: availability.ok.definition.declarations.environment,
+        // The files root of the placement and the default directory of the author are this one value.
+        directory: { path: fixedRoot, workspace: null },
         requesterScope: authority.scope,
         resources: [],
         scope: scopeGrant,

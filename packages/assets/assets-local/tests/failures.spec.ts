@@ -14,6 +14,20 @@ async function open(options: Parameters<typeof openWorld>[0] = {}) {
 afterEach(async () => {
   await Promise.all(worlds.splice(0).map(world => world.close()))
 })
+it('answers invalid input to a recall whose operation is not an identifier and to a malformed summary lookup', async () => {
+  const world = await open()
+  const invalid = { kind: 'rejected', reason: 'invalid_input' }
+  expect(await world.owner.recallPublication('not an id')).toEqual(invalid)
+  expect(
+    await world.owner.recallChange({
+      operationId: 'not an id',
+      holdingRef: 'holding-a',
+      change: { kind: 'setEnabled', enabled: false },
+    } as never),
+  ).toEqual(invalid)
+  expect(await world.owner.readSummary({ assetRef: 7 } as never)).toEqual(invalid)
+})
+
 it('recovers an operation after the committed reply is lost without publishing twice', async () => {
   const world = await open({
     ownerWrap: storage => ({
@@ -36,7 +50,6 @@ it('recovers an operation after the committed reply is lost without publishing t
     operationId: 'publish-lost',
     revision: 1,
     changed: true,
-    domainRevision: 1,
   })
   await world.close()
   const reopened = await open({ root: world.root })
@@ -45,7 +58,6 @@ it('recovers an operation after the committed reply is lost without publishing t
     operationId: 'publish-lost',
     revision: 1,
     changed: true,
-    domainRevision: 1,
   })
   expect(
     await reopened.owner.publish({

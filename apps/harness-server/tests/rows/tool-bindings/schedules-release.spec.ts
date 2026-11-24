@@ -5,11 +5,21 @@ import {
   historyOf,
   onReleaseTree,
   pollUntil,
+  startAcceptances,
+  toolCalls,
   toolCallsThenText,
   toolResults,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
+import {
+  admittedReleases,
+  answerCard,
+  holdStart,
+  pendingCard,
+  setGate,
+} from '../authorization/release-flow-support.ts'
 
+const SCHEDULES = { kind: 'asset', category: 'tool', name: 'Schedules' } as const
 const DEFINITION = {
   label: '交月报',
   recurrence: {
@@ -30,11 +40,23 @@ const DEFINITION = {
     overlap: 'parallel',
   },
 }
+const definition = (label: string) => ({ ...DEFINITION, label })
 const create = (label: string) =>
+  JSON.stringify({ command: 'create', params: { definition: definition(label) } })
+const forward = (label: string) =>
   JSON.stringify({
-    command: 'create',
-    params: { definition: { ...DEFINITION, label }, state: 'active' },
+    command: 'execute',
+    intent: 'make a schedule',
+    params: { name: 'Schedules', command: 'create', arguments: { definition: definition(label) } },
   })
+
+const script = toolCallsThenText(body => {
+  const label = /schedules: ([a-z]+)/.exec(body)?.[1]
+  if (label === undefined) return []
+  return label === 'forwarded'
+    ? [{ id: `call_${label}`, tool: 'Tools', arguments: forward(label) }]
+    : [{ id: `call_${label}`, tool: 'Schedules', arguments: create(label) }]
+})
 
 async function settled(tree: ReleaseTree, session: string, what: string) {
   const entries = await pollUntil(
@@ -45,99 +67,141 @@ async function settled(tree: ReleaseTree, session: string, what: string) {
   return toolResults(entries).join('\n')
 }
 
-const scheduleOf = (result: string) => {
-  const line = result.split('\n').find(text => text.startsWith('{'))
-  return (JSON.parse(line ?? '{}') as { schedule?: string }).schedule ?? ''
+/** A schedule as the owner sees it: its state, who created it, and whether a consent column is there. */
+async function shownOf(tree: ReleaseTree, label: string) {
+  const listed = bodyOf(await tree.cli(['schedule', 'list'])) as {
+    items: { schedule: string; label: string }[]
+  }
+  const found = listed.items.find(item => item.label === label)
+  if (found === undefined) return undefined
+  const shown = bodyOf(await tree.cli(['schedule', 'show', '--schedule', found.schedule])) as {
+    control: string
+    author: unknown
+  }
+  return { control: shown.control, author: shown.author, consent: Object.hasOwn(shown, 'basis') }
+}
+const byAgentOf = (session: string) => ({
+  control: 'active',
+  author: { kind: 'agent', session },
+  consent: false,
+})
+
+/** Who created the schedule, as the result of the create call shows it to the agent. */
+function authorIn(result: string): unknown {
+  const [head, body] = result.split('\n')
+  if (head !== 'done Schedules create' || body === undefined) return result
+  return (JSON.parse(body) as { author: unknown }).author
 }
 
 describe('the Schedules tool on the release tree', () => {
   it(
-    'takes effect on the standing consent by default; after the owner asks to confirm, an inquiry card waits and the answer becomes the consent',
+    'names the agent, its session and the call that created a schedule',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
-      const script = toolCallsThenText(body => {
-        if (body.includes('schedules: first'))
-          return [{ id: 'call_first', tool: 'Schedules', arguments: create('月报一') }]
-        if (body.includes('schedules: second'))
-          return [{ id: 'call_second', tool: 'Schedules', arguments: create('月报二') }]
-        if (body.includes('schedules: third'))
-          return [{ id: 'call_third', tool: 'Schedules', arguments: create('月报三') }]
-        return []
+      const exit = await onReleaseTree({ script, permission: 'auto_permission' }, async tree => {
+        const session = await tree.startSession('schedules: traced')
+        const result = await settled(tree, session, 'traced')
+        const calls = toolCalls(tree.storageRoot).filter(row => row.tool === 'Schedules')
+        expect(calls).toHaveLength(1)
+        expect(authorIn(result)).toBe(`agent session=${session} call=${calls[0]?.call}`)
       })
-      const exitCode = await onReleaseTree({ script }, async tree => {
-        const auto = await settled(tree, await tree.startSession('schedules: first'), 'first')
-        expect(auto).toContain('done Schedules create')
-        expect(auto).toContain('"basis":"blanket generation=')
-        const first = scheduleOf(auto)
+      expect(exit).toBe(0)
+    },
+  )
 
-        const set = await tree.cli([
-          'setting',
-          'set',
-          '--independent',
-          'schedule/agent-authoring',
-          'agentScheduleConsent',
-          '--value',
-          '"draft"',
-        ])
-        expect(set.status, set.stdout + set.stderr).toBe(0)
-
-        const asking = await tree.startSession('schedules: second')
-        const [card] = await pollUntil(
-          'the inquiry card',
-          () => tree.cards({ sessionRef: asking }),
-          items => items.length === 1,
+  it(
+    'a call forwarded through Tools takes effect on its own release, not on the carrier',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const exit = await onReleaseTree({ script, nonresident: ['Schedules'] }, async tree => {
+        const hold = holdStart(tree, 'Schedules')
+        const forwarded = await tree.startSession('schedules: forwarded')
+        await pollUntil(
+          'the Tool to reach the start',
+          async () => hold.held(),
+          n => n > 0,
         )
-        expect(card?.card).toMatchObject({ kind: 'pending' })
-        expect(card?.card.ref.cardId).toMatch(/^schedule-consent-[0-9a-f]{64}$/)
-        const question = card!.card.question as unknown as {
-          title: string
-          options: { id: string }[]
-        }
-        expect(question.title).toContain('月报二')
-        expect(question.options.map(option => option.id)).toEqual(['activate', 'draft', 'none'])
-        const reply = await tree.cli([
-          'submit-reply',
-          '--request',
-          card!.card.ref.request.requestId,
-          '--card',
-          card!.card.ref.cardId,
-          '--revision',
-          card!.card.revision,
-          '--option',
-          'activate',
-        ])
-        expect(reply.status, reply.stdout + reply.stderr).toBe(0)
-        const confirmed = await settled(tree, asking, 'second')
-        expect(confirmed).toContain('done Schedules create')
-        expect(confirmed).toContain('"basis":"granular decision=tool-call/')
-
-        const declining = await tree.startSession('schedules: third')
-        const [other] = await pollUntil(
-          'the second card',
-          () => tree.cards({ sessionRef: declining }),
-          items => items.length === 1,
+        const releases = admittedReleases(tree.storageRoot)
+        hold.go()
+        await settled(tree, forwarded, 'it')
+        const shown = await pollUntil(
+          'the forwarded schedule',
+          () => shownOf(tree, 'forwarded'),
+          value => value !== undefined,
         )
-        await tree.cli([
-          'submit-reply',
-          '--request',
-          other!.card.ref.request.requestId,
-          '--card',
-          other!.card.ref.cardId,
-          '--revision',
-          other!.card.revision,
-          '--option',
-          'none',
-        ])
-        expect(await settled(tree, declining, 'third')).toMatch(/owner_declined/)
-
-        const listed = bodyOf(await tree.cli(['schedule', 'list'])) as {
-          items: { schedule: string; label: string }[]
-        }
-        expect(listed.items.map(item => item.label).sort()).toEqual(['月报一', '月报二'])
-        const before = bodyOf(await tree.cli(['schedule', 'show', '--schedule', first]))
-        expect(before).toMatchObject({ control: 'active', basis: { kind: 'blanket' } })
+        expect(shown).toEqual(byAgentOf(forwarded))
+        expect(startAcceptances(tree.storageRoot).filter(row => 'release' in row)).toEqual([])
+        expect(releases).toContainEqual({
+          by: 'verdict',
+          grant: expect.objectContaining({ layer: 'tenant' }),
+        })
+        expect(releases).not.toContainEqual(expect.objectContaining({ by: 'carrier' }))
       })
-      expect(exitCode).toBe(0)
+      expect(exit).toBe(0)
+    },
+  )
+
+  it(
+    'takes effect on the standing permission; once the activate gate asks, the answer to the release card lets it through',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const exit = await onReleaseTree({ script, permission: 'auto_permission' }, async tree => {
+        const standing = await tree.startSession('schedules: standing')
+        await settled(tree, standing, 'standing')
+        expect(await shownOf(tree, 'standing')).toEqual(byAgentOf(standing))
+
+        await setGate(tree, SCHEDULES, 'activate', 'ask', 'schedules-activate-asks')
+        const once = await tree.startSession('schedules: once')
+        const card = await pendingCard(tree, once, 'once')
+        expect(card.question).toMatchObject({
+          kind: 'release',
+          target: { tool: 'Schedules', command: 'create' },
+          gateTitle: '让安排生效',
+          detail: {
+            state: 'given',
+            rows: expect.arrayContaining([
+              { label: '动作', value: '新建并生效' },
+              { label: '日程', value: 'once' },
+              { label: '规则', value: '每月最后一个工作日，17:00' },
+            ]),
+            typed: { kind: 'schedule.activation@1' },
+          },
+        })
+        const { detail } = card.question as unknown as {
+          detail: { rows: { label: string; value: unknown }[]; typed: { value: string } }
+        }
+        const times = detail.rows.find(row => row.label === '接下来三次')?.value
+        expect(Array.isArray(times) && times.length === 3).toBe(true)
+        expect(JSON.parse(detail.typed.value)).toMatchObject({
+          action: 'create',
+          name: 'once',
+          next: { kind: 'times', times },
+        })
+        await answerCard(tree, card, ['--option', 'allow-once'], 'reply-once')
+        await settled(tree, once, 'once')
+        expect(await shownOf(tree, 'once')).toEqual(byAgentOf(once))
+
+        const session = await tree.startSession('schedules: session')
+        await answerCard(
+          tree,
+          await pendingCard(tree, session, 'session'),
+          ['--option', 'allow-session'],
+          'reply-session',
+        )
+        await settled(tree, session, 'session')
+        expect(await shownOf(tree, 'session')).toEqual(byAgentOf(session))
+
+        const denied = await tree.startSession('schedules: denied')
+        await answerCard(
+          tree,
+          await pendingCard(tree, denied, 'denied'),
+          ['--option', 'deny-once'],
+          'reply-denied',
+        )
+        await settled(tree, denied, 'denied')
+        expect(await shownOf(tree, 'denied')).toBeUndefined()
+      })
+      expect(exit).toBe(0)
     },
   )
 })

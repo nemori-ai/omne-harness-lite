@@ -47,6 +47,7 @@ export type {
   ToolReferenceFailure,
   ToolReferenceRejection,
 } from './reference.ts'
+export { pinnedFiles } from './call-directory.ts'
 export type {
   FixedToolRequest,
   ParameterContract,
@@ -54,11 +55,19 @@ export type {
   SourceLayer,
   ToolArguments,
   ToolAvailability,
+  ToolAvailabilityReference,
   ToolBodyDeclaration,
+  ToolCallFields,
   ToolCommandBackground,
   ToolCommandDeclaration,
+  ToolCallConditions,
+  ToolCommandRelease,
+  ToolCommandReleaseDetail,
   ToolDefinition,
+  ToolCallDirectory,
   ToolEnvironmentDeclaration,
+  ToolGate,
+  ToolGateDefault,
   ToolImplementationShape,
   ToolInvocation,
   ToolProgramDeclaration,
@@ -179,10 +188,26 @@ export type {
   IntentFault,
 } from './command-call.ts'
 export { callLabel } from './call-label.ts'
+export { IMPLICIT_TOOL_GATE, commandGateOf, toolGatesOf } from './gates.ts'
+export type {
+  ReleaseDescription,
+  ReleaseDetail,
+  ReleaseDetailAnswer,
+  ReleaseDetailPolicy,
+  ReleaseRow,
+  ToolReleaseDescriber,
+  ToolReleaseDetails,
+} from './release-detail.ts'
+export type { ToolActionGate } from './gates.ts'
 export type { ToolCallLabel } from './call-label.ts'
 export { toolsCapabilityOf } from './tools-capability.ts'
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts'
-export type { ToolForwardIntent } from './forwarding.ts'
+export type {
+  ToolActionResolution,
+  ToolActionTarget,
+  ToolCallAction,
+  ToolForwardIntent,
+} from './forwarding.ts'
 export type {
   SearchArguments,
   SearchPage,
@@ -192,3 +217,4 @@ export type {
   ToolsReadArguments,
 } from './tools-protocol.ts'
 export { returnSummary } from './return-description.ts'
+export { offeredDefinition, unmetConditions } from './conditions.ts'

@@ -11,18 +11,35 @@ import {
   type JudgeContext,
   type Judgment,
 } from '@omne-harness/assets'
-import { INSTRUCTION_LIMITS, attributeItem, type AttributeItem } from './definition.ts'
-import { instructionsProblem } from './judge-definition.ts'
+import { AGENT_TYPES, INSTRUCTION_LIMITS, attributeItem, type AttributeItem } from './definition.ts'
+import { instructionsProblem, summaryProblem } from './judge-definition.ts'
+import { AGENT_FILE, agentDefinitionLayout } from './layout.ts'
 
 const CATEGORY = 'AgentDefinition'
 
 export const agentDefinitionCategoryDisplay: CategoryDisplay = Object.freeze({
   title: '智能体',
   summary: '一个智能体的定义：它的说明、能用的能力与权限上界。',
+  creation: `一个目录，根下只有一个 ${AGENT_FILE}：头部写名字、说明与引用的能力，正文是它的提示词。`,
+  authoring: [
+    `A definition is a directory with one file, ${AGENT_FILE}: a frontmatter, then the instructions the agent works by. Whole and minimal:`,
+    '---',
+    'name: reviewer',
+    'summary: Reviews one file and reports the problems it finds. Fit for a second look at a change.',
+    'references:',
+    '  - { category: tool, name: Files, resident: true }',
+    '---',
+    'You review code. Read the file you are given and report the problems you find, the worst first.',
+    'name is the name it is published under, and the name of its directory. summary is read by the agent that chooses whom to hand work to: say what this one is fit for.',
+    'references lists the capabilities it uses, each {category, name, resident?}. A tool with resident: true is in every request it makes: a tool of the release, or one published here under category tool. A reference of another category is kept and has no effect yet.',
+    'Other fields: attributes (a list of names: model, first_token_wait_limit, post_first_token_stall_limit) and permissionBounds. type is non-master and can be left out.',
+    'It is handed work with Agents, or a session is made with it by its name; its last reply is what the one who handed it the work receives. Published again, it is used from the next run.',
+    'Kept unpublished in a workspace, under .omne/agents/<name>/, it is there from the next turn of a session in that workspace and can be handed work; a session is made with it by its name only once it is published.',
+  ].join('\n'),
 })
 
 const schemaRead = readBodyText(
-  '{"kind":"agent-definition-body","properties":{"name":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]","instructions?":"[{id,text}]","permissionBounds?":"[{capabilityId,enforcementKey,allowedSet}]"}}',
+  '{"kind":"agent-definition-body","properties":{"name":"string","type":"master|non-master","summary":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]","instructions?":"[{id,text}]","permissionBounds?":"[{capabilityId,enforcementKey,allowedSet}]"}}',
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -37,6 +54,8 @@ const schema: JsonValue = schemaRead.value
 
 type BodyRefusal =
   | 'incomplete-reference'
+  | 'invalid-type'
+  | 'invalid-summary'
   | 'name-mismatch'
   | 'duplicate-capability'
   | 'invalid-resident'
@@ -66,6 +85,7 @@ export function agentBodyContract(): BodyContract {
     references(body, context) {
       return decodeOrThrow(body, context).references
     },
+    layout: agentDefinitionLayout,
   }
 }
 
@@ -93,6 +113,8 @@ function decode(body: unknown, context?: JudgeContext): Decoded {
   if (members === undefined) return reject('incomplete-reference')
   const identity = checkIdentity(members, context)
   if (identity !== undefined) return identity
+  const standing = checkStanding(members)
+  if (standing !== undefined) return standing
   const references = decodeReferences(valueAt(members, 'references'))
   if (!references.ok) return references
   const items = decodeAttributes(valueAt(members, 'attributes'))
@@ -106,9 +128,28 @@ function decode(body: unknown, context?: JudgeContext): Decoded {
       'invalid-input'
   )
     return reject('invalid-permission-bounds')
-  if (!onlyKeys(members, ['name', 'references', 'attributes', 'instructions', 'permissionBounds']))
-    return reject('unknown-field')
+  if (!onlyKeys(members, BODY_KEYS)) return reject('unknown-field')
   return { ok: true, references: references.ids, items: items.items }
+}
+
+const BODY_KEYS = [
+  'name',
+  'type',
+  'summary',
+  'references',
+  'attributes',
+  'instructions',
+  'permissionBounds',
+  'manifest',
+]
+
+function checkStanding(members: readonly Member[]): Refused | undefined {
+  const type = textOf(valueAt(members, 'type'))
+  if (!AGENT_TYPES.some(known => known === type)) return reject('invalid-type')
+  const summary = textOf(valueAt(members, 'summary'))
+  return summary === undefined || summaryProblem(summary) !== undefined
+    ? reject('invalid-summary')
+    : undefined
 }
 
 function checkIdentity(members: readonly Member[], context?: JudgeContext): Refused | undefined {

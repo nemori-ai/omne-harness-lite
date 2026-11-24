@@ -121,7 +121,7 @@ export function representationOf(
       ? []
       : [
           {
-            json: obj({ role: str(record.wire.roles.instruction), content: arr(instruction) }),
+            json: obj({ role: str('system'), content: arr(instruction) }),
             message: null,
           },
         ]

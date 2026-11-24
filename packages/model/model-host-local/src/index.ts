@@ -19,3 +19,6 @@ export {
   type RequestDisclosure,
   type SendResourceDefectReason,
 } from './send-resources.ts'
+export { officialProfiles } from './official-profiles.ts'
+export { COST_LOOKUP_OWNER } from './plugins/cost-lookups.ts'
+export { officialProfileAdoption } from './profile-source.ts'

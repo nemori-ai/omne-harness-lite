@@ -13,7 +13,10 @@ afterEach(() => vi.restoreAllMocks())
 it('copies bytes, preflights every batch entry and recognizes durable receipts without replay', async () => {
   await withFiles(async ({ root, path, bytes, input }) => {
     const stateDirectory = join(root, 'state')
-    const files = createHostFilesEngine({ root, stateDirectory }).facilityFor('batch')
+    const files = createHostFilesEngine({
+      scope: { read: root, write: root },
+      stateDirectory,
+    }).facilityFor('batch')
     const target = { path: join(root, 'copy.txt'), named: await hostObjectToken(root) }
     expect(await files.copy({ ...input, target, replace: false })).toMatchObject({ kind: 'done' })
     expect(await readFile(target.path)).toEqual(bytes)
@@ -44,7 +47,10 @@ it('copies bytes, preflights every batch entry and recognizes durable receipts w
       value: { kind: 'committed', published: [path, second.path] },
     })
     if (result.kind !== 'done') throw new Error('batch')
-    const cold = createHostFilesEngine({ root, stateDirectory }).facilityFor('cold')
+    const cold = createHostFilesEngine({
+      scope: { read: root, write: root },
+      stateDirectory,
+    }).facilityFor('cold')
     expect(
       await cold.recoverBatch({ ...request(path, null), batch: result.value.batch }),
     ).toMatchObject({ kind: 'done', value: { state: 'complete', published: [path, second.path] } })
@@ -56,7 +62,10 @@ it('copies bytes, preflights every batch entry and recognizes durable receipts w
 it('recognizes an uncertain publication without replaying it or overwriting a later writer', async () => {
   await withFiles(async ({ root, path, input }) => {
     const stateDirectory = join(root, 'state')
-    const files = createHostFilesEngine({ root, stateDirectory }).facilityFor('batch')
+    const files = createHostFilesEngine({
+      scope: { read: root, write: root },
+      stateDirectory,
+    }).facilityFor('batch')
     const stat = await files.stat(input)
     if (stat.kind !== 'done') throw new Error('stat')
     const original = manifests.writeManifest
@@ -82,7 +91,10 @@ it('recognizes an uncertain publication without replaying it or overwriting a la
       value: { kind: 'unknown', reason: 'effectUnknown', published: [] },
     })
     if (result.kind !== 'done') throw new Error('batch')
-    const cold = createHostFilesEngine({ root, stateDirectory }).facilityFor('cold')
+    const cold = createHostFilesEngine({
+      scope: { read: root, write: root },
+      stateDirectory,
+    }).facilityFor('cold')
     expect(await cold.recoverBatch({ ...input, batch: result.value.batch })).toMatchObject({
       kind: 'done',
       value: { state: 'interrupted', matchingPrepared: [path], published: [] },
@@ -128,7 +140,10 @@ it('refuses a batch whose staging fails once every staged file is removed again'
   await withFiles(async ({ root, path, bytes, input }) => {
     stagingFailures({ write: 1 })
     const stateDirectory = join(root, 'state')
-    const files = createHostFilesEngine({ root, stateDirectory }).facilityFor('batch')
+    const files = createHostFilesEngine({
+      scope: { read: root, write: root },
+      stateDirectory,
+    }).facilityFor('batch')
     const parent = await hostObjectToken(root)
     const entries = ['one.txt', 'two.txt'].map(name => ({
       path: join(root, name),
@@ -152,7 +167,7 @@ it('answers unknown and names the staged file that stays when staging fails and 
     const seen: HostFileDiagnostic[] = []
     const stateDirectory = join(root, 'state')
     const files = createHostFilesEngine({
-      root,
+      scope: { read: root, write: root },
       stateDirectory,
       diagnose: diagnostic => seen.push(diagnostic),
     }).facilityFor('batch')
@@ -185,7 +200,10 @@ it('answers unknown and names the staged file that stays when staging fails and 
 it('lists a target that became a directory or a junction as conflicting, entry by entry', async () => {
   await withFiles(async ({ root, path, input }) => {
     const stateDirectory = join(root, 'state')
-    const files = createHostFilesEngine({ root, stateDirectory }).facilityFor('batch')
+    const files = createHostFilesEngine({
+      scope: { read: root, write: root },
+      stateDirectory,
+    }).facilityFor('batch')
     const other = join(root, 'other.txt')
     await writeFile(other, 'other')
     const versionOf = async (target: string) => {
@@ -218,7 +236,10 @@ it('lists a target that became a directory or a junction as conflicting, entry b
     await mkdir(elsewhere)
     await rm(other)
     await symlink(elsewhere, other, 'junction')
-    const cold = createHostFilesEngine({ root, stateDirectory }).facilityFor('cold')
+    const cold = createHostFilesEngine({
+      scope: { read: root, write: root },
+      stateDirectory,
+    }).facilityFor('cold')
     expect(await cold.recoverBatch({ ...input, batch: result.value.batch })).toMatchObject({
       kind: 'done',
       value: { matchingPrepared: [], conflicting: [path, other] },

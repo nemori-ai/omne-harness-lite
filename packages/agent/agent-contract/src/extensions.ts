@@ -85,6 +85,8 @@ export type DecisionCardDraft = Readonly<{
   options: readonly [CardOption, ...CardOption[]]
   about: Readonly<{ position: Position; action?: ActionId }>
   proposedRewrite?: Readonly<{ option: CardOption['id']; effectiveArguments: string }>
+  /** Filled by the card's issuer under the human-intervention card contract; the Agent does not read it. */
+  detail?: JsonValue
 }>
 export type CardOption = Readonly<{ id: string; label: string; effect?: JsonValue }>
 

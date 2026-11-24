@@ -5,6 +5,7 @@ import { succeed } from '@omne-harness/operation-result'
 import {
   type Adoption,
   type FixedToolRequest,
+  type ToolDefinition,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import { type CallAccess } from '@omne-harness/tool-contract/provider'
@@ -52,54 +53,59 @@ const adoption = (name: string): Adoption => ({
   digest: `sha256:${name}`,
 })
 
+function conformanceDefinition(): ToolDefinition {
+  return {
+    kind: 'function',
+    adoption: adoption('definition'),
+    name: 'conformance',
+    description: 'A conformance tool.',
+    requiredCapabilities: [],
+    backgroundAllowed: true,
+    declarations: {
+      adoption: adoption('declarations'),
+      environment: null,
+      attachments: [],
+      inputModalities: [],
+      outputModalities: [],
+      settings: null,
+    },
+    parameters: {
+      schema: {
+        kind: 'object',
+        entries: [{ key: 'type', value: { kind: 'string', value: 'object' } }],
+      },
+      vocabulary: adoption('json-schema'),
+      descriptions: [],
+    },
+    returns: {
+      kind: 'ordinary',
+      value: {
+        kind: 'encoded-value',
+        codec: adoption('codec'),
+        value: {
+          identity: { id: 'fixture-value', revision: '1', digest: 'sha256:fixture-value' },
+          definition: {
+            schema: { kind: 'object', entries: [] },
+            vocabulary: adoption('json-schema'),
+            descriptions: [],
+          },
+        },
+      },
+      program: { kind: 'none' },
+      body: { kind: 'text', codec: adoption('utf8') },
+      offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+    },
+  }
+}
+
 function invokeRequest(): ToolInvokeRequest {
   return {
     availability: {
       kind: 'available',
       executor: adoption('executor'),
       layer: { kind: 'official' },
-      definition: {
-        kind: 'function',
-        adoption: adoption('definition'),
-        name: 'conformance',
-        description: 'A conformance tool.',
-        requiredCapabilities: [],
-        backgroundAllowed: true,
-        declarations: {
-          adoption: adoption('declarations'),
-          environment: null,
-          attachments: [],
-          inputModalities: [],
-          outputModalities: [],
-          settings: null,
-        },
-        parameters: {
-          schema: {
-            kind: 'object',
-            entries: [{ key: 'type', value: { kind: 'string', value: 'object' } }],
-          },
-          vocabulary: adoption('json-schema'),
-          descriptions: [],
-        },
-        returns: {
-          kind: 'ordinary',
-          value: {
-            kind: 'encoded-value',
-            codec: adoption('codec'),
-            value: {
-              identity: { id: 'fixture-value', revision: '1', digest: 'sha256:fixture-value' },
-              definition: {
-                schema: { kind: 'object', entries: [] },
-                vocabulary: adoption('json-schema'),
-                descriptions: [],
-              },
-            },
-          },
-          program: { kind: 'none' },
-          body: { kind: 'text', codec: adoption('utf8') },
-          offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
-        },
-      },
+      definition: adoption('definition'),
+      name: 'conformance',
     },
     command: null,
     arguments: { original: '{}', effective: '{}', complete: true },
@@ -107,7 +113,6 @@ function invokeRequest(): ToolInvokeRequest {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: fixtureScope(),
     resources: [],
     scope: {
@@ -124,6 +129,30 @@ function invokeRequest(): ToolInvokeRequest {
     batchDecision: null,
     mode: 'foreground',
     limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
+  }
+}
+
+/** The store under test, counting its reads and commits into `counted`. */
+function countingStore(
+  inner: Parameters<Factory>[0],
+  counted: { reads: number; commits: number },
+): Parameters<Factory>[0] {
+  const read = <T>(answer: () => T): T => {
+    counted.reads += 1
+    return answer()
+  }
+  return {
+    durability: inner.durability,
+    scanPending: input => inner.scanPending(input),
+    usage: query => inner.usage(query),
+    read: domain => read(() => inner.read(domain)),
+    readRecord: (domain, key) => read(() => inner.readRecord(domain, key)),
+    due: (tenant, now, limit) => read(() => inner.due(tenant, now, limit)),
+    definition: (tenant, adoption) => inner.definition(tenant, adoption),
+    commit: command => {
+      counted.commits += 1
+      return inner.commit(command)
+    },
   }
 }
 
@@ -144,6 +173,7 @@ export async function ledgerAssembly(
       : { kind: 'denied', reason: 'not-qualified' }
   const source = deps.source({
     snapshotPrincipal: value => ({ ...value }),
+    definition: () => conformanceDefinition(),
     authority: {
       qualify: input =>
         qualify({ ...input, call: callId('source-qualification'), action: 'admit' }),
@@ -158,11 +188,7 @@ export async function ledgerAssembly(
   assert.equal(issued.kind, 'bound', 'fixture source must bind a complete legal invocation')
   assert.ok(issued.kind === 'bound')
   const access = { principal, tenant, call: issued.call }
-  const input = {
-    ...access,
-    operation: issued.admission,
-    request: { ...request, invocation: issued.invocation },
-  }
+  const input = { ...access, operation: issued.admission, request: issued.request }
   const named = new Set<string>()
   const guards: ToolLedgerGuards<Principal, ContentBlock> = {
     access: { qualify },
@@ -222,28 +248,8 @@ export async function ledgerAssembly(
       },
     },
   }
-  let reads = 0
-  let commits = 0
-  const store: Parameters<Factory>[0] = {
-    durability: fixture.store.durability,
-    scanPending: input => fixture.store.scanPending(input),
-    read: domain => {
-      reads += 1
-      return fixture.store.read(domain)
-    },
-    readRecord: (domain, key) => {
-      reads += 1
-      return fixture.store.readRecord(domain, key)
-    },
-    due: (tenant, now, limit) => {
-      reads += 1
-      return fixture.store.due(tenant, now, limit)
-    },
-    commit: command => {
-      commits += 1
-      return fixture.store.commit(command)
-    },
-  }
+  const counted = { reads: 0, commits: 0 }
+  const store = countingStore(fixture.store, counted)
   const ledger = deps.createLedger(
     store,
     guards,
@@ -298,7 +304,7 @@ export async function ledgerAssembly(
     access,
     other,
     domain: { kind: 'call', tenant, call: issued.call } as const,
-    counts: () => ({ reads, commits }),
+    counts: () => ({ ...counted }),
     revoke: () => {
       revoked = true
     },

@@ -9,7 +9,7 @@ import {
   type GroupToken,
 } from '../refs.js'
 import type { AdoptedRequestFact, GroupName } from '../values.js'
-import type { ConversionResultSource, HistorySource } from '../ports.js'
+import type { HistorySource } from '../ports.js'
 import type {
   AdoptedRequestSource,
   ContextReadEligibility,
@@ -140,7 +140,6 @@ export type MemoryContextSourcesInput<P> = Readonly<{
   target: ContextTarget
   values: AssemblyGroupValues<P>
   history: HistorySource<P>
-  conversions: ConversionResultSource<P>
   preparation: M.ModelPreparationResources<P>
   adopted?: AdoptedRequestSource<P>
   eligibility?: ContextReadEligibility<P>
@@ -188,7 +187,6 @@ export function createMemoryContextSources<P>(
     target: input.target,
     groups: {
       history: source('history'),
-      context: source('context'),
       prompt: source('prompt'),
       model: source('model'),
       tools: source('tools'),
@@ -196,7 +194,6 @@ export function createMemoryContextSources<P>(
     },
     adopted: input.adopted ?? createMemoryAdoptedSource<P>(),
     history: input.history,
-    conversions: input.conversions,
     eligibility: input.eligibility ?? createMemoryReadEligibility<P>(),
     preparation: input.preparation,
     values: () => ({ ...values }),

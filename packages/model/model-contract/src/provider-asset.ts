@@ -27,10 +27,12 @@ export type CredentialItemDeclaration = Readonly<{
   clear: string
 }>
 
+/** One entry of the gateway: the interface it speaks there and its address. */
+export type ModelProviderEndpoint = Readonly<{ protocol: string; url: string; endMarker?: string }>
+
 export type ModelProviderBody = Readonly<{
   name: ProviderName
-  protocol: string
-  endpoint: Readonly<{ url: string; endMarker?: string }>
+  endpoints: readonly ModelProviderEndpoint[]
   accounting: Readonly<{ place: string; costUnit: string }>
   credentials: readonly CredentialItemDeclaration[]
 }>
@@ -39,7 +41,9 @@ export type ModelProviderBodyRejection =
   | 'not-an-object'
   | 'invalid-name'
   | 'name-mismatch'
+  | 'invalid-endpoints'
   | 'invalid-protocol'
+  | 'duplicate-protocol'
   | 'invalid-endpoint'
   | 'invalid-accounting'
   | 'invalid-credentials'
@@ -51,7 +55,7 @@ const SETTINGS_PROVIDER_ID = MODEL_PROVIDER_CATEGORY
 const UNPINNED_VERSION = '0'
 
 const schemaRead = readBodyText(
-  '{"kind":"model-provider-body","properties":{"name":"string","protocol":"string","endpoint":{"url":"string","endMarker":"string"},"accounting":{"place":"string","costUnit":"string"},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}]}}',
+  '{"kind":"model-provider-body","properties":{"name":"string","endpoints":[{"protocol":"string","url":"string","endMarker":"string"}],"accounting":{"place":"string","costUnit":"string"},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}]}}',
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -73,17 +77,15 @@ export function parseModelProviderBody(
   if (!('ok' in decoded)) return fail('invalid-name')
   const name = decoded.ok
   if (capabilityName !== undefined && name !== capabilityName) return fail('name-mismatch')
-  const protocol = stringField(body, 'protocol')
-  if (protocol === undefined || protocol === '') return fail('invalid-protocol')
-  const endpoint = endpointOf(field(body, 'endpoint'))
-  if (endpoint === undefined) return fail('invalid-endpoint')
+  const endpoints = endpointsOf(field(body, 'endpoints'))
+  if (typeof endpoints === 'string') return fail(endpoints)
   const accounting = accountingOf(field(body, 'accounting'))
   if (accounting === undefined) return fail('invalid-accounting')
   const credentials = credentialsOf(field(body, 'credentials'))
   if (credentials === 'invalid') return fail('invalid-credentials')
   if (new Set(credentials.map(entry => entry.item)).size !== credentials.length)
     return fail('duplicate-credential')
-  return succeed({ name, protocol, endpoint, accounting, credentials })
+  return succeed({ name, endpoints, accounting, credentials })
 }
 
 export function readModelProviderBody(body: unknown): ModelProviderBody | undefined {
@@ -111,8 +113,8 @@ export function modelProviderBodyContract(): BodyContract {
           {
             id: CREDENTIALS_GROUP,
             parentId: null,
-            title: 'Credentials',
-            description: `The credentials the model provider ${provider.name} needs.`,
+            title: '凭据',
+            description: `模型供应商 ${provider.name} 要的凭据。`,
             order: 0,
           },
         ],
@@ -153,14 +155,34 @@ function typed(body: unknown, capabilityName: string | undefined): ModelProvider
   return parsed.ok
 }
 
-function endpointOf(value: JsonValue | undefined): ModelProviderBody['endpoint'] | undefined {
-  if (!isObject(value)) return undefined
-  const url = stringField(value, 'url')
-  if (url === undefined || !isHttpsUrl(url)) return undefined
-  const marker = field(value, 'endMarker')
-  if (marker === undefined) return { url }
-  const endMarker = stringField(value, 'endMarker')
-  return endMarker === undefined || endMarker === '' ? undefined : { url, endMarker }
+function endpointsOf(
+  value: JsonValue | undefined,
+):
+  | readonly ModelProviderEndpoint[]
+  | 'invalid-endpoints'
+  | 'invalid-protocol'
+  | 'duplicate-protocol'
+  | 'invalid-endpoint' {
+  const tree = readSnapshot(value)
+  if (tree === undefined || tree.kind !== 'array' || tree.items.length === 0)
+    return 'invalid-endpoints'
+  const out: ModelProviderEndpoint[] = []
+  for (const entry of tree.items) {
+    if (!isObject(entry)) return 'invalid-endpoint'
+    const protocol = stringField(entry, 'protocol')
+    if (protocol === undefined || protocol === '') return 'invalid-protocol'
+    if (out.some(item => item.protocol === protocol)) return 'duplicate-protocol'
+    const url = stringField(entry, 'url')
+    if (url === undefined || !isHttpsUrl(url)) return 'invalid-endpoint'
+    if (field(entry, 'endMarker') === undefined) {
+      out.push({ protocol, url })
+      continue
+    }
+    const endMarker = stringField(entry, 'endMarker')
+    if (endMarker === undefined || endMarker === '') return 'invalid-endpoint'
+    out.push({ protocol, url, endMarker })
+  }
+  return out
 }
 
 function accountingOf(value: JsonValue | undefined): ModelProviderBody['accounting'] | undefined {

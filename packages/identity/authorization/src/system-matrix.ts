@@ -75,6 +75,27 @@ export const SYSTEM_ACTION_MATRIX: readonly SystemActionRow[] = Object.freeze([
     'request',
   ),
   row(
+    'session-create',
+    { owner: 'session', name: 'create' },
+    'tenant',
+    { owner: 'session', kind: 'session' },
+    'request',
+  ),
+  row(
+    'session-input',
+    { owner: 'session', name: 'accept' },
+    'tenant',
+    { owner: 'session', kind: 'session' },
+    'request',
+  ),
+  row(
+    'input-fate',
+    { owner: 'session', name: 'readInputFate' },
+    'tenant',
+    { owner: 'session', kind: 'session' },
+    'none',
+  ),
+  row(
     'agent-instance-publish',
     { owner: 'agent', name: 'publish' },
     'tenant',

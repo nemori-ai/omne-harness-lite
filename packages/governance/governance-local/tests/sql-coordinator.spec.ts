@@ -77,9 +77,8 @@ async function prepare(w: Awaited<ReturnType<typeof openActivation>>, input = co
   })
   return { request, reservation, envelope: w.envelope('mutation', request) }
 }
-async function saved(w: Awaited<ReturnType<typeof openActivation>>) {
-  const driver = coordinator(w),
-    input = command()
+async function saved(w: Awaited<ReturnType<typeof openActivation>>, input = command()) {
+  const driver = coordinator(w)
   expect(await driver.accept(input)).toMatchObject({ kind: 'found', record: { state: 'accepted' } })
   const prepared = await prepare(w, input)
   expect(
@@ -300,9 +299,9 @@ it.each(corruptions)(
   },
 )
 it('keeps transport exceptions and unknown query results distinct from proof of no commit', async () => {
-  const w = await setup(),
-    prepared = await saved(w)
+  const w = await setup()
   for (const fail of [true, false]) {
+    const prepared = await saved(w, command(fail ? 'thrown' : 'unknown'))
     const storage = wrap(w.storage, {
       async commit(request) {
         await w.storage.commit(request)
@@ -317,10 +316,13 @@ it('keeps transport exceptions and unknown query results distinct from proof of 
       kind: 'unknown',
       identity: prepared.envelope.identity,
     })
+    expect(await coordinator(w).send(prepared.request.binding, 'apply')).toEqual({
+      kind: 'unplanned',
+    })
+    expect(await coordinator(w).observe(prepared.request.binding)).toMatchObject({
+      record: { state: 'committed' },
+    })
   }
-  expect(await coordinator(w).send(prepared.request.binding, 'apply')).toMatchObject({
-    kind: 'applied',
-  })
 })
 it('preserves the storage-provided no-commit proof instead of constructing one', async () => {
   const w = await setup(),

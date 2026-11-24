@@ -35,6 +35,7 @@ import {
   supplierOf,
   textBlock,
   thinkingBlock,
+  thinkingPayload,
   type RequestParts,
 } from './support/anthropic.ts'
 
@@ -59,14 +60,8 @@ const subject = createScriptedConformanceSubject()
 const access = { principal: subject.principal, tenant: subject.tenant }
 const X = unbox(decodeModelCallId('mcall_continued'))
 const Y = unbox(decodeModelCallId('mcall_source'))
-const GROUP = JSON.stringify([
-  {
-    format: 'anthropic-claude-v1',
-    index: 0,
-    signature: 'fixture-only-signature',
-    text: 'signed thinking',
-    type: 'reasoning.text',
-  },
+const GROUP = thinkingPayload([
+  { thinking: 'signed thinking', signature: 'fixture-only-signature' },
 ])
 
 const u1 = message('u1', 'user', [textBlock('b1', 'hello there')])
@@ -82,7 +77,7 @@ const a1Signed = message(
   {
     replay: {
       scope: 'openrouter/anthropic/claude-sonnet-5',
-      format: 'anthropic-claude-v1',
+      format: 'anthropic-messages-v1',
       at: [2],
     },
   },

@@ -14,8 +14,10 @@ export {
   digestOf,
   encodeBatch,
   factKey,
+  holdText,
   refOf,
   resultKey,
+  resultsUnder,
 } from './facts.ts'
 export type {
   Attempt,
@@ -31,6 +33,8 @@ export type {
   FactKind,
   FactOf,
   FactRow,
+  HoldKind,
+  HoldRef,
   NoContent,
   ParticipationKind,
   PassageBlock,
@@ -43,7 +47,12 @@ export type {
 } from './facts.ts'
 export { advances, fold, foldAll, foldItems } from './fold.ts'
 export {
+  callHeld,
   finishing,
+  settled,
+  materialHeld,
+  materialReleased,
+  releasedMaterials,
   sourceOpen,
   itemChanges,
   viewItems,
@@ -56,8 +65,11 @@ export {
 } from './items.ts'
 export {
   emptyExecutionView,
+  custodiesUnder,
+  custodyKey,
   emptySessionView,
   handoffKey,
+  receivedBy,
   receivedViews,
   viewDigest,
   viewText,
@@ -71,10 +83,12 @@ export type {
   ExclusionEntry,
   ExecutionView,
   FinishView,
+  CustodyView,
   HandoffView,
   InputView,
   IntentView,
   OperationEntry,
+  MaterialView,
   RequestView,
   ResultView,
   ReceivedView,
@@ -90,6 +104,9 @@ export {
   checkpointOf,
   cursorMoved,
   cursorOf,
+  cursorPlaced,
+  heldBy,
+  holdsMoved,
   keyKnown,
   movedMembers,
 } from './decide.ts'

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   GovernanceDefinitionBundleSchema,
   GovernanceDefinitionReadSchema,
@@ -7,6 +8,20 @@ import {
 import { canonical, equal } from './encoding.ts'
 import { validateBundle } from './definition.ts'
 
+const REMEMBERED_VALID_BUNDLES = 1024
+const validItemCounts = new Map<string, number>()
+
+function validate(bundle: GovernanceDefinitionBundle, text: string) {
+  const key = createHash('sha256').update(text).digest('hex')
+  const itemCount = validItemCounts.get(key)
+  if (itemCount !== undefined) return { kind: 'valid' as const, itemCount }
+  const result = validateBundle(bundle)
+  if (result.kind !== 'valid') return result
+  if (validItemCounts.size >= REMEMBERED_VALID_BUNDLES) validItemCounts.clear()
+  validItemCounts.set(key, result.itemCount)
+  return result
+}
+
 function identity(declaration: GovernanceDefinitionBundle) {
   const { ownerId, definitionId, version } = declaration.reference
   return { ownerId, definitionId, version }
@@ -15,6 +30,7 @@ function identity(declaration: GovernanceDefinitionBundle) {
 async function readDefinition(
   source: GovernanceDefinitionSource,
   requested: GovernanceDefinitionBundle,
+  requestedText: string,
 ) {
   try {
     const response = await source.resolve(identity(requested))
@@ -23,8 +39,9 @@ async function readDefinition(
     if (!equal(response, parsed.data)) return undefined
     const declaration = parsed.data.declaration
     if (!equal(identity(declaration), identity(requested))) return undefined
-    if (validateBundle(declaration).kind !== 'valid') return undefined
-    return declaration
+    const text = canonical(declaration)
+    if (text !== requestedText && validate(declaration, text).kind !== 'valid') return undefined
+    return { declaration, text }
   } catch {
     return undefined
   }
@@ -38,12 +55,13 @@ export async function resolveDefinition(
   if (!parsed.success)
     return { kind: 'invalid-input' as const, field: 'declaration', reason: 'shape' }
   const requested = parsed.data
-  const valid = validateBundle(requested)
+  const requestedText = canonical(requested)
+  const valid = validate(requested, requestedText)
   if (valid.kind !== 'valid') return valid
   const original = canonical(declaration)
-  const published = await readDefinition(source, requested)
+  const published = await readDefinition(source, requested, requestedText)
   if (!published) return { kind: 'unavailable' as const, owner: requested.reference.ownerId }
-  if (canonical(published) !== original)
+  if (published.text !== original)
     return { kind: 'conflict' as const, reason: 'definition' as const }
-  return { kind: 'verified' as const, declaration: published }
+  return { kind: 'verified' as const, declaration: published.declaration }
 }

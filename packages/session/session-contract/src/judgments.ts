@@ -1,5 +1,6 @@
 import type { SessionPermissionChangeBasis } from './permission-values.ts'
 import { wakingInputs, type SessionIntakeLimits } from './intake.ts'
+import type { IntakeTerms } from './input-sources.ts'
 import { originalAttempt } from './history-validation.ts'
 import { waitKey } from './call-state.ts'
 import { backgroundCalls } from './call-control.ts'
@@ -35,6 +36,7 @@ import type { GuardCommand, MutationName, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
+import type { SessionCall, SessionLateCallFact } from './call-settlement.ts'
 import type {
   SessionCallLookup,
   SessionCallTerminal,
@@ -115,7 +117,14 @@ export type CommittedBatch = Readonly<{
   entries: readonly HistoryEntry[]
 }>
 export type ReduceResult =
-  | Readonly<{ kind: 'reduced'; snapshot: WorkSnapshot }>
+  | Readonly<{
+      kind: 'reduced'
+      snapshot: WorkSnapshot
+      /** The calls that left the snapshot with this batch, as it held them. */
+      settled: readonly SessionCall[]
+      /** What this batch wrote about calls that had left before. */
+      late: readonly SessionLateCallFact[]
+    }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
 export type EncodedEntry = Omit<HistoryEntry, 'id' | 'revision'>
 export type Decision =
@@ -145,13 +154,17 @@ export type DecideReads = Readonly<{
   compaction: CompactionContext | null
   compactionEpoch?: string
   children?: readonly SessionId[]
+  /** The other end of the relation of a create: null when the tenant has no such session. */
+  related?: import('./standing.ts').RelatedSession | null
+  fork?: import('./fork.ts').ForkFacts
   idleObservation?: IdleObservation
   idleCoverage?: IdleCoverage
   frozenReceipt?: CommitReceipt
   initializationReceipts?: readonly CommitReceipt[]
   calls?: readonly SessionCallLookup[]
   runs?: readonly SessionRunLookup[]
-  firstInput?: Readonly<{ input: InputId; origin: DurableEvidence }>
+  /** The intake terms Session prepared for this commit, read from its guards. */
+  intake?: IntakeTerms
 }>
 
 export const OFF_PATH_DIAGNOSTIC =
@@ -491,7 +504,7 @@ export function judgeIdle(
   }>,
 ): IdleJudgment {
   if (input.policy.kind === 'disabled') return { kind: 'disabled' }
-  if (snapshot.relation?.kind === 'main' && snapshot.relation.resident) return { kind: 'exempt' }
+  if (snapshot.resident === true) return { kind: 'exempt' }
   if (snapshot.lifecycle === 'archived' || snapshot.run.kind === 'active')
     return { kind: 'not-due' }
   if (
@@ -504,10 +517,7 @@ export function judgeIdle(
     Object.values(work).some(items => items.length > 0) ||
     snapshot.tasks.length > 0 ||
     snapshot.controls.some(control => control.state !== 'reconciled') ||
-    snapshot.consumptions.some(
-      item =>
-        item.results.length === 0 || item.results.some(result => result.release !== 'confirmed'),
-    )
+    (snapshot.callRegistrations ?? []).length > 0
   )
     return { kind: 'not-due' }
   if (input.observation.kind !== 'interval')

@@ -4,13 +4,21 @@ import type {
   LoginIdentity,
   Principal,
 } from '@omne-harness/access-cordis-contract'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
+  DurableEvidence,
+  Modes,
+  RunId,
   SavedModelSelection,
+  SessionAccess,
+  SessionFailure,
   SessionHistory,
+  SessionId,
   SessionManagement,
   SessionWork,
+  WorkspaceAttachment,
+  WorkspaceSelection,
 } from '@omne-harness/session-contract'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import type { QueuedRequest } from './request-queue.ts'
@@ -58,13 +66,18 @@ export type SessionListPage = Readonly<{
   completeness: 'complete' | 'partial'
 }>
 
+type ArchivedBody = BodyOf<SessionProtocol['operations']['list-archived-sessions']>
+/** What both lists narrow by, as the protocol reads it: each one given, or null for any. */
+export type ListFilters = Readonly<{
+  [K in 'relation' | 'parent' | 'attendance' | 'definition']-?: Exclude<ArchivedBody[K], undefined>
+}>
 type ListingInput = Readonly<{
   principal: Principal
   tenant: TenantId
   after: string | null
   limit: number
+  filter: ListFilters
 }>
-type ArchivedBody = BodyOf<SessionProtocol['operations']['list-archived-sessions']>
 /** The archived list's filters as the protocol reads them; the times are instants, not text. */
 export type ArchiveFilters = Readonly<{
   [K in 'from' | 'to' | 'by' | 'titleContains']-?: Exclude<ArchivedBody[K], undefined>
@@ -79,8 +92,17 @@ export interface SessionListing {
   listArchived(input: ListingInput & ArchiveFilters): ListingAnswer
 }
 
+export type PermissionModeReading =
+  | Readonly<{ kind: 'read'; mode: Modes['permission']; revision: string }>
+  | Readonly<{ kind: 'unavailable' }>
+
+/** The permission mode in force for a session, with the permission revision it stands at. */
+export interface SessionPermissionModes {
+  read(access: SessionAccess<Principal>): Promise<PermissionModeReading>
+}
+
 export type SessionAccessFaces = Readonly<{
-  management: Pick<SessionManagement<Principal>, 'create' | 'interrupt'>
+  management: Pick<SessionManagement<Principal>, 'create' | 'interrupt' | 'change'>
   work: Pick<
     SessionWork<Principal>,
     | 'accept'
@@ -89,10 +111,32 @@ export type SessionAccessFaces = Readonly<{
     | 'stopCall'
     | 'retryRun'
     | 'readWaiting'
+    | 'readPending'
+    | 'readWaitingCalls'
+    | 'readInputFate'
     | 'control'
     | 'readBackgroundCalls'
+    | 'readModelSelection'
   >
   history: Pick<SessionHistory<Principal>, 'begin' | 'next'>
+}>
+
+export type HeldWorkingDirectory =
+  | Readonly<{ state: 'default' | 'attached'; directory: string }>
+  | Readonly<{ state: 'unusable'; reason: string }>
+
+export type WorkspaceSelectionReading =
+  | Readonly<{
+      kind: 'read'
+      selection: WorkspaceSelection | null
+      directory: HeldWorkingDirectory
+      revision: string
+    }>
+  | Readonly<{ kind: 'refused'; failure: SessionFailure }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export type WorkspaceSelections = Readonly<{
+  read(access: SessionAccess<Principal>): Promise<WorkspaceSelectionReading>
 }>
 
 export type RunFailureCause = Readonly<{ kind: string; detail: string | null }>
@@ -104,7 +148,7 @@ export type RunFailureReading =
 
 export interface RunFailureCauses {
   read(
-    input: Readonly<{ principal: Principal; tenant: TenantId; execution: string }>,
+    input: Readonly<{ principal: Principal; tenant: TenantId; session: SessionId; run: RunId }>,
   ): Promise<RunFailureReading>
 }
 
@@ -117,7 +161,10 @@ export type ResolvedDefinition = Readonly<{
   initialModelSelection?: SavedModelSelection
 }>
 
-export type DefinitionResolver = (definition: string) => ResolvedDefinition | undefined
+export type DefinitionResolver = (
+  definition: string,
+  tenant: TenantId,
+) => ResolvedDefinition | undefined | Promise<ResolvedDefinition | undefined | 'unavailable'>
 
 export type SessionAccessSettings = Readonly<{
   defaultDefinition?: string | undefined
@@ -128,3 +175,46 @@ export type SessionAccessSettings = Readonly<{
   requestQueueLimit: number
   requestRetryDelaysMs: readonly number[]
 }>
+
+/** What a model route resolves to for a session's selection: Model answers it, the release adapts. */
+export type ModelTargetCheck =
+  | Readonly<{
+      kind: 'selectable'
+      credential: 'available' | 'missing' | 'unknown'
+      reasoningEfforts?: readonly NonNullable<SavedModelSelection['reasoningEffort']>[]
+      basis: DurableEvidence
+    }>
+  | Readonly<{
+      kind: 'refused'
+      reason: 'unknown-name' | 'withdrawn' | 'excluded' | 'modality' | 'locked' | 'scope'
+      blocks?: readonly Readonly<{ message: string; block: string }>[]
+    }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export interface ModelTargets {
+  check(
+    input: Readonly<{ principal: Principal; tenant: TenantId; route: string; session?: SessionId }>,
+  ): Promise<ModelTargetCheck>
+}
+
+/** Whether a tenant may attach an instance now: Workspace answers it, the release adapts. */
+export type WorkspaceTargetCheck =
+  | Readonly<{
+      kind: 'attachable'
+      directory: string
+      attachment: WorkspaceAttachment
+      basis: DurableEvidence
+    }>
+  | Readonly<{ kind: 'refused'; reason: 'not-permitted' | 'instance-unavailable' }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export interface WorkspaceTargets {
+  check(
+    input: Readonly<{
+      principal: Principal
+      tenant: TenantId
+      workspace: WorkspaceId
+      instance: string
+    }>,
+  ): Promise<WorkspaceTargetCheck>
+}

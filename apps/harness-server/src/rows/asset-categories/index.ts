@@ -1,5 +1,6 @@
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import { assetCategoriesPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { defineRow } from '../../row.ts'
 
 export const assetCategoriesRow = defineRow({
@@ -7,7 +8,7 @@ export const assetCategoriesRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [assetCategoriesKey],
-    injects: [],
+    injects: [dynamisKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },

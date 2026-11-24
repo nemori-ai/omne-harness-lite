@@ -137,7 +137,11 @@ describe('an unknown definition produces no business write', () => {
       const known = await run.create(createCommand('alpha'))
       return { unknown, writesAfterUnknown, known, writesAfterKnown: run.sessionCommits.length }
     })
-    expect(failureOf(value.unknown)).toMatchObject({ kind: 'invalid', field: 'definition' })
+    // This tree keeps no assets of tenants: whether a tenant holds a definition of that name cannot be read.
+    expect(failureOf(value.unknown)).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: 'the assets of the tenant cannot be read',
+    })
     expect(value.writesAfterUnknown).toBe(0)
     expect('ok' in value.known).toBe(true)
     expect(value.writesAfterKnown).toBe(1)
@@ -246,7 +250,12 @@ describe('an unknown definition produces no business write', () => {
     if (!('ok' in value.known)) throw new Error('expected a resolution')
     expect(value.reservations).toEqual(['alpha'])
     expect(value.known.ok).toMatchObject({
-      definition: { category: 'AgentDefinition', name: 'alpha' },
+      definition: {
+        category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
+        name: 'alpha',
+      },
       extensions: [],
     })
     expect(value.known.ok.evaluator).toBe(agentEvaluator)
@@ -327,6 +336,8 @@ describe('the mapping is read once from the distribution and checked at the entr
         entryConfig('alpha', {
           definition: {
             category: 'AgentDefinition',
+            type: 'master',
+            summary: 'Works on what the person asks for.',
             name: 'alpha',
             references: 'none',
             attributes: [],
@@ -339,7 +350,14 @@ describe('the mapping is read once from the distribution and checked at the entr
       'a definition body of another name',
       mappingConfig(
         entryConfig('alpha', {
-          definition: { category: 'AgentDefinition', name: 'beta', references: [], attributes: [] },
+          definition: {
+            category: 'AgentDefinition',
+            type: 'master',
+            summary: 'Works on what the person asks for.',
+            name: 'beta',
+            references: [],
+            attributes: [],
+          },
         }),
       ),
       'mappings.0.definition.name',

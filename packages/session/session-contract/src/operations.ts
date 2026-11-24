@@ -15,7 +15,7 @@ import type { ProducerFact } from './faces.ts'
 
 export type SessionOperationElements =
   | Readonly<{
-      kind: 'todo-tool-call' | 'stop-tool-call'
+      kind: 'todo-tool-call' | 'stop-tool-call' | 'workspace-tool-call'
       tenant: string
       session: SessionId
       call: string
@@ -39,6 +39,21 @@ export type SessionOperationElements =
     }>
   | Readonly<{ kind: 'external-call'; binding: CallBinding }>
   | Readonly<{ kind: 'context-reminder'; session: SessionId; source: DurableEvidence }>
+  /** A value the session commits into a block it holds, on the session revision a step begins at. */
+  | Readonly<{
+      kind: 'context-step'
+      session: SessionId
+      scope: string
+      at: string
+      value: string
+    }>
+  /** An authorization a person expressed on a card: the decision names the one operation. */
+  | Readonly<{
+      kind: 'authorization'
+      session: SessionId
+      card: DurableEvidence
+      decision: DurableEvidence
+    }>
   | Readonly<{ kind: 'idle'; session: SessionId; observation: DurableEvidence }>
   | Readonly<{ kind: 'auto-archive'; session: SessionId; idleEvidence: DurableEvidence }>
   | Readonly<{ kind: 'freeze'; session: SessionId; evidence: DurableEvidence }>
@@ -88,7 +103,12 @@ function factElements(fact: ProducerFact): unknown {
     case 'release':
       return { kind: fact.kind, consumption: fact.consumption, version: fact.result.version }
     case 'cascade':
-      return { kind: fact.kind, child: fact.child, childOperation: fact.childOperation }
+      return {
+        kind: fact.kind,
+        child: fact.child,
+        childOperation: fact.childOperation,
+        ...(fact.refusal === undefined ? {} : { refused: true }),
+      }
     case 'routed-input':
       return { kind: fact.kind, originalOperation: fact.originalOperation }
     case 'scope-release':
@@ -117,6 +137,7 @@ export const INGRESS_FAMILIES = Object.freeze({
   control: 'session-public/1-control',
   accept: 'session-public/1-accept',
   create: 'session-public/1-create',
+  mode: 'session-public/1-mode',
 } as const)
 export type IngressFamily = (typeof INGRESS_FAMILIES)[keyof typeof INGRESS_FAMILIES]
 

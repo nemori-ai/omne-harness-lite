@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { capabilityId, readBodyText, type PackageReader } from '@omne-harness/assets'
 import type { PackagePublishResult } from '../src/packages.ts'
 import type { Failure } from '../src/schema.ts'
-import { createTenantPublisher } from '../src/tenant-publisher.ts'
-import type { AssetsLocal, AssetsMutationResult, AssetsReadResult } from '../src/types.ts'
+import { createTenantPublisher, newHoldingRef } from '../src/tenant-publisher.ts'
+import type {
+  AssetsHoldingResult,
+  AssetsLocal,
+  AssetsMutationResult,
+  AssetsReadResult,
+} from '../src/types.ts'
 
 const made = capabilityId('note', 'a')
 if (!made.ok) throw new Error('identity')
@@ -24,11 +29,13 @@ if (read.kind !== 'ok') throw new Error('body')
 const body = read.value
 
 function local(answers: {
+  held?: AssetsHoldingResult
   asset?: AssetsReadResult
   mutation?: AssetsMutationResult
   packages?: PackagePublishResult
 }): AssetsLocal {
   return {
+    readHeldCapability: async () => answers.held ?? { kind: 'absent' },
     readAsset: async () => answers.asset ?? { kind: 'absent' },
     publishAndHold: async () =>
       answers.mutation ?? { kind: 'committed', operationId: 'p', revision: 1, changed: true },
@@ -66,7 +73,7 @@ const REASONS: readonly (readonly [Failure['reason'], unknown])[] = [
   ['version_conflict', { kind: 'conflict' }],
   ['identity_conflict', { kind: 'conflict' }],
   ['holding_exists', { kind: 'conflict' }],
-  ['holding_removed', { kind: 'removed' }],
+  ['holding_removed', { kind: 'conflict' }],
   ['operation_conflict', { kind: 'operation-conflict' }],
   ['unknown_category', { kind: 'unknown-category' }],
 ]
@@ -76,17 +83,19 @@ describe('the tenant publisher maps every local answer to one outcome of the ser
     expect(await data({ mutation: { kind: 'rejected', reason } })).toEqual(outcome)
   })
 
+  it.each(REASONS)('读在持的那一份被拒 %s：两种内容都不提交', async (reason, outcome) => {
+    const committed = { kind: 'committed', operationId: 'p', revision: 9, changed: true } as const
+    const published = { kind: 'published', version: 'sha256:1', changed: true } as const
+    const held = { kind: 'rejected', reason } as const
+    expect(await data({ held, mutation: committed })).toEqual(outcome)
+    expect(await directory({ held, packages: published })).toEqual(outcome)
+  })
+
   it.each(REASONS)('数据型读资产被拒 %s：不提交', async (reason, outcome) => {
     expect(
       await data({
         asset: { kind: 'rejected', reason },
-        mutation: {
-          kind: 'committed',
-          operationId: 'p',
-          revision: 9,
-          changed: true,
-          domainRevision: 1,
-        },
+        mutation: { kind: 'committed', operationId: 'p', revision: 9, changed: true },
       }),
     ).toEqual(outcome)
   })
@@ -106,7 +115,7 @@ describe('the tenant publisher maps every local answer to one outcome of the ser
     })
     expect(await data({})).toMatchObject({
       kind: 'published',
-      holdingRef: 'note/a',
+      holdingRef: newHoldingRef('p'),
       version: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
       changed: true,
     })
@@ -115,7 +124,7 @@ describe('the tenant publisher maps every local answer to one outcome of the ser
   it.each([
     [
       { kind: 'published', version: 'sha256:1', changed: false },
-      { kind: 'published', version: 'sha256:1', holdingRef: 'note/a', changed: false },
+      { kind: 'published', version: 'sha256:1', holdingRef: newHoldingRef('p'), changed: false },
     ],
     [{ kind: 'conflict' }, { kind: 'conflict' }],
     [

@@ -24,12 +24,13 @@ import type {
   InitializationResult,
   Participation,
   RecoveryTask,
+  RunEnd,
   RunTerminal,
   SessionCreation,
   ResidentAdoption,
   ResidentTool,
   DeclarationChange,
-  Relation,
+  SessionTree,
   AutoArchivePolicy,
   IdleObservation,
   ControlProgress,
@@ -43,6 +44,7 @@ import type {
   BackgroundDisposition,
 } from './values.ts'
 import type { EntryClass, HistoryEntry } from './faces.ts'
+import type { AdmittedSource } from './input-sources.ts'
 import type { EncodedEntry } from './judgments.ts'
 import type {
   InitialAdoption,
@@ -53,18 +55,38 @@ import type {
   InitializationRequirement,
   InitializationRegistration,
 } from './values.ts'
+import { equalValue } from './session-validation.ts'
 import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
 import { member } from './payload-members.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type { SessionEntriesChannel } from './interpretation-values.ts'
 import type { BackgroundCallLabel, BackgroundCallSource } from './background-calls.ts'
+import type { AuthorizationExpression } from './authorizations.ts'
 
 export const SESSION_INTERPRETER: Adoption = Object.freeze({
   owner: '@omne-harness/session-contract',
   name: 'session-log',
-  revision: '4',
+  revision: '5',
   digest: SESSION_RELEASE_DIGEST,
 })
+
+// Both integrated releases wrote revision 5 selections without a reasoning effort.
+const BEFORE_REASONING_EFFORT: readonly Adoption[] = [
+  'sha256:5f2509c9e01e5e248f8ea47eca236bdeec25981cd6b62e89c4e166175743f196',
+  'sha256:ebca6f5b3f2831d77efc80b3e91bf8f66d01a76297c0d82341441dcb048909db',
+].map(digest => ({
+  owner: '@omne-harness/session-contract',
+  name: 'session-log',
+  revision: '5',
+  digest,
+}))
+
+export function readsSessionInterpreter(schema: Adoption): boolean {
+  return (
+    equalValue(schema, SESSION_INTERPRETER) ||
+    BEFORE_REASONING_EFFORT.some(prior => equalValue(schema, prior))
+  )
+}
 
 export type InitializationItem = Omit<
   Extract<RecoveryTask, { kind: 'initialization' }>,
@@ -79,6 +101,11 @@ export type SessionEntry =
       revision: string
       authority: DurableEvidence
     }>
+  | Readonly<{
+      kind: 'session.authorization-expressed'
+      expression: AuthorizationExpression
+      authority: DurableEvidence
+    }>
   | Readonly<{ kind: 'session.todo-added'; item: TodoItemId; text: string }>
   | Readonly<{ kind: 'session.todo-completed' | 'session.todo-removed'; item: TodoItemId }>
   | Readonly<{
@@ -87,6 +114,8 @@ export type SessionEntry =
       session: SessionId
       operation: SessionOperationId
       creation: SessionCreation
+      /** Present on a child only: what the parent stood at when the child was created. */
+      tree?: SessionTree
       items: readonly InitializationItem[]
       initializationProtocol: 1
       initialAdoption: InitialAdoption
@@ -137,8 +166,8 @@ export type SessionEntry =
       destination: 'current-run' | 'next-run'
       run: RunId | null
       origin: DurableEvidence
-      /** Absent: the input can start a Run. */
-      wakes?: false
+      /** The values this admission fixed; every later judgment reads them, never the declaration. */
+      source: AdmittedSource
     }>
   | Readonly<{
       kind: 'intake.handed-over'
@@ -178,6 +207,7 @@ export type SessionEntry =
       cause: DurableEvidence | null
       disposition: DurableEvidence | null
       bounded: BoundedClose | null
+      end: RunEnd | null
     }>
   | Readonly<{ kind: 'session.tool-resident-admitted'; resident: ResidentTool }>
   | Readonly<{
@@ -203,7 +233,8 @@ export type SessionEntry =
       basis: DurableEvidence
     }>
   | Readonly<{ kind: 'session.declaration-adopted'; policy: AutoArchivePolicy }>
-  | Readonly<{ kind: 'session.relation' | 'session.resident'; relation: Relation }>
+  | Readonly<{ kind: 'session.resident'; resident: boolean }>
+  | Readonly<{ kind: 'session.child-recorded'; child: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'session.idle-evidence'; observation: IdleObservation | null }>
   | Readonly<{ kind: 'session.frozen'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'intake.released'; inputs: readonly InputId[] }>
@@ -232,6 +263,8 @@ export type SessionEntry =
       fact: import('./faces.ts').ProducerFact
       consumption?: ConsumptionId
       result?: ProducedResult | null
+      /** The call whose final delivery this execution fact writes into the log. */
+      delivered?: ConsumptionId
     }>
   | Readonly<{
       kind: 'call.result-preserved'
@@ -533,11 +566,12 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'session.model-selected',
   'session.declaration-adopted',
   'session.permission-assigned',
+  'session.authorization-expressed',
   'session.context-registration-changed',
   'session.recovery-input-adopted',
   'session.workspace-changed',
-  'session.relation',
   'session.resident',
+  'session.child-recorded',
   'session.idle-evidence',
   'session.frozen',
   'intake.released',

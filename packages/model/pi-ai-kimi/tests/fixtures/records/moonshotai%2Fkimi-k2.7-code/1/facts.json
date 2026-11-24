@@ -1,0 +1,1670 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "The"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " user"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " wants"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " positive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " integers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "100"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " or"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " but"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " not"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "2"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " If"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " even"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " get"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Oslo"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " If"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " get"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Use"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " tool"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Let"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Positive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " integers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "100"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " floor"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "/"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ")"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ="
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " floor"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "/"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ")"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ="
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "i"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ".e"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ".,"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "):"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " floor"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "/"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ")"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ="
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " or"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " +"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ="
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "43"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " or"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " but"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " not"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "43"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ="
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " so"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " get"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "Count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ing"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " positive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " integers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "100"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ":\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "):"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " or"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " +"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " −"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " ="
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "43"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " or"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " but"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " **"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "not"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "**"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "43"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " −"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " ="
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " **"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "**\n\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " so"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " I'll"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " get"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "2",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "\":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": " \""
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "The user wants me to:\n1. Count positive integers below 100 that are divisible by 3 or by 7 but not by both\n2. If count is even, get weather of Oslo\n3. If count is odd, get weather of Lima\n4. Use the tool\n\nLet me calculate:\n- Positive integers below 100: 1 to 99\n- Divisible by 3: floor(99/3) = 33\n- Divisible by 7: floor(99/7) = 14\n- Divisible by both (i.e., by 21): floor(99/21) = 4\n- Divisible by 3 or 7: 33 + 14 - 4 = 43\n- Divisible by 3 or 7 but not both: 43 - 4 = 39\n\n39 is odd, so I need to get weather of Lima."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "text",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "Counting positive integers below 100:\n- Divisible by 3: 33\n- Divisible by 7: 14\n- Divisible by both (21): 4\n- Divisible by 3 or 7: 33 + 14 − 4 = 43\n- Divisible by 3 or 7 but **not** both: 43 − 4 = **39**\n\n39 is odd, so I'll get the weather for Lima."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "tool_call",
+      "id": "b2",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "get_weather_0_18245c54",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "3",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b3",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "{\"format\":\"unknown\",\"index\":0,\"text\":\"The user wants me to:\\n1. Count positive integers below 100 that are divisible by 3 or by 7 but not by both\\n2. If count is even, get weather of Oslo\\n3. If count is odd, get weather of Lima\\n4. Use the tool\\n\\nLet me calculate:\\n- Positive integers below 100: 1 to 99\\n- Divisible by 3: floor(99/3) = 33\\n- Divisible by 7: floor(99/7) = 14\\n- Divisible by both (i.e., by 21): floor(99/21) = 4\\n- Divisible by 3 or 7: 33 + 14 - 4 = 43\\n- Divisible by 3 or 7 but not both: 43 - 4 = 39\\n\\n39 is odd, so I need to get weather of Lima.\",\"type\":\"reasoning.text\"}",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "106",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "317",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "196",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.0013687",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Moonshot AI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

@@ -35,6 +35,7 @@ describe('definePoint', () => {
   it('hands each item the decoded subject and the tenant, and the host the id, the label and the node', async () => {
     const { root, shell } = await startShell()
     const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    side.declare(shell)
     const received: PointProps<Session>[] = []
     await root.plugin({
       name: 'contributor',
@@ -62,6 +63,7 @@ describe('definePoint', () => {
   it('returns what the layout returns', async () => {
     const { shell } = await startShell()
     const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    side.declare(shell)
     expect(side.slot(shell, { session: 'ses_1' }, entries => `${entries.length} items`)).toBe(
       '0 items',
     )
@@ -70,6 +72,7 @@ describe('definePoint', () => {
   it('keeps its name as the anchor, so an item placed straight into the attached slot shows too', async () => {
     const { root, shell } = await startShell()
     const dock = definePoint<Session>({ name: 'session.dock', subject: sessionCodec })
+    dock.declare(shell)
     await root.plugin({
       name: 'direct',
       inject: ['shell'],
@@ -91,6 +94,7 @@ describe('definePoint', () => {
   it('draws nothing for an item when the text does not decode, and does not throw', async () => {
     const { root, shell } = await startShell()
     const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    side.declare(shell)
     let rendered = 0
     await root.plugin({
       name: 'contributor',
@@ -115,6 +119,7 @@ describe('definePoint', () => {
   it('takes the item down when the scope of the contributor unloads', async () => {
     const { root, shell } = await startShell()
     const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    side.declare(shell)
     const contributor = root.plugin({
       name: 'contributor',
       inject: ['shell'],
@@ -131,7 +136,9 @@ describe('definePoint', () => {
   it('lets two points hold the same item id', async () => {
     const { root, shell } = await startShell()
     const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    side.declare(shell)
     const dock = definePoint<Session>({ name: 'session.dock', subject: sessionCodec })
+    dock.declare(shell)
     await root.plugin({
       name: 'contributor',
       inject: ['shell'],
@@ -161,6 +168,7 @@ describe('defineKeyedPoint', () => {
   it('shows an item only under the key it was placed for', async () => {
     const { root, shell } = await startShell()
     const holding = defineKeyedPoint<Holding>({ name: 'assets.holding', subject: holdingCodec })
+    holding.declare(shell)
     await root.plugin({
       name: 'mcp-ui',
       inject: ['shell'],
@@ -184,6 +192,7 @@ describe('defineKeyedPoint', () => {
   it('accepts an item for a key before any host shows that key', async () => {
     const { root, shell } = await startShell()
     const holding = defineKeyedPoint<Holding>({ name: 'assets.holding', subject: holdingCodec })
+    holding.declare(shell)
     await root.plugin({
       name: 'early',
       inject: ['shell'],
@@ -197,35 +206,110 @@ describe('defineKeyedPoint', () => {
     ).toEqual(['early'])
   })
 
-  it('lets two keys hold the same item id and refuses a repeated id under one key', async () => {
+  it('lets two keys hold the same item id and refuses a repeated id of one module under one key', async () => {
     const { root, shell } = await startShell()
     const holding = defineKeyedPoint<Holding>({ name: 'assets.holding', subject: holdingCodec })
-    await root.plugin({
-      name: 'two-keys',
-      inject: ['shell'],
-      apply(ctx: Context) {
-        holding.contribute(ctx.shell, 'mcp', { id: 'status', order: 0, render: () => 'mcp' })
-        holding.contribute(ctx.shell, 'skill', { id: 'status', order: 0, render: () => 'skill' })
-      },
-    })
-    expect(shell.items('attached').map(item => item.anchor)).toEqual([
-      'assets.holding:mcp',
-      'assets.holding:skill',
-    ])
+    holding.declare(shell)
     const error = await new Promise<unknown>(resolve => {
       root.plugin({
-        name: 'repeated',
+        name: 'two-keys',
         inject: ['shell'],
         apply(ctx: Context) {
+          holding.contribute(ctx.shell, 'mcp', { id: 'status', order: 0, render: () => 'mcp' })
+          holding.contribute(ctx.shell, 'skill', { id: 'status', order: 0, render: () => 'skill' })
           try {
             holding.contribute(ctx.shell, 'mcp', { id: 'status', order: 9, render: () => 'again' })
           } catch (caught) {
             resolve(caught)
-            throw caught
           }
         },
       })
     })
     expect(error).toMatchObject({ slot: 'attached', id: 'status', reason: 'duplicate' })
+    await new Promise(resolve => setTimeout(resolve, 5))
+    expect(shell.items('attached').map(item => item.anchor)).toEqual([
+      'assets.holding:mcp',
+      'assets.holding:skill',
+    ])
+  })
+
+  it('answers a conflict when another module repeats an id under one key; the other keys stay', async () => {
+    const { root, shell } = await startShell()
+    const holding = defineKeyedPoint<Holding>({ name: 'assets.holding', subject: holdingCodec })
+    holding.declare(shell)
+    const put = (name: string, key: string) =>
+      root.plugin({
+        name,
+        inject: ['shell'],
+        apply(ctx: Context) {
+          holding.contribute(ctx.shell, key, { id: 'status', order: 0, render: () => name })
+        },
+      })
+    await put('first', 'mcp')
+    await put('second', 'skill')
+    await put('third', 'mcp')
+    expect(shell.items('attached').map(item => item.anchor)).toEqual(['assets.holding:skill'])
+    expect(shell.conflicts('attached')).toEqual([
+      { slot: 'attached', anchor: 'assets.holding:mcp', id: 'status', by: ['first', 'third'] },
+    ])
+  })
+
+  it('carries its contract: a keyed point holds a list for each key, a plain one a list', () => {
+    const plain = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    const keyed = defineKeyedPoint<Holding>({
+      name: 'assets.holding',
+      subject: holdingCodec,
+      summary: 'What a holding shows beside itself.',
+      key: 'the category of the holding',
+    })
+    const shared = {
+      tree: 'client',
+      keyFrom: null,
+      gives: 'the tenant scope and the subject the host shows',
+      item: { kind: 'pure', fields: { render: 'function' } },
+      resolve: 'conflict',
+      binding: 'run',
+      onError: 'only this item shows that it cannot be read',
+      version: 1,
+      revision: 1,
+      keys: 'private',
+      conformance: null,
+    }
+    expect(plain.contract).toEqual({
+      ...shared,
+      name: 'session.side',
+      arity: 'list',
+      key: 'none',
+      summary: 'The point session.side.',
+    })
+    expect(keyed.contract).toEqual({
+      ...shared,
+      name: 'assets.holding',
+      arity: 'keyed-list',
+      key: 'the category of the holding',
+      summary: 'What a holding shows beside itself.',
+    })
+    const bare = defineKeyedPoint<Holding>({ name: 'assets.category', subject: holdingCodec })
+    expect(bare.contract.key).toBe('the key the host shows')
+  })
+
+  it('throws when one module declares the same point twice', async () => {
+    const { root } = await startShell()
+    const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    const error = await new Promise<unknown>(resolve => {
+      root.plugin({
+        name: 'host',
+        inject: ['shell'],
+        apply(ctx: Context) {
+          side.declare(ctx.shell)
+          try {
+            side.declare(ctx.shell)
+          } catch (caught) {
+            resolve(caught)
+          }
+        },
+      })
+    })
+    expect(error).toMatchObject({ slot: 'attached', id: 'session.side', reason: 'duplicate' })
   })
 })

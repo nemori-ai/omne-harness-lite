@@ -15,11 +15,17 @@ import {
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { TOOL_GOVERNANCE_OWNER } from '../../entry/tool-permission-release.ts'
+import { toolAssetPublication } from './tool-assets.ts'
 import { installToolAsset } from './tool-installation-assets.ts'
 import { installToolOrganizationSource } from './tool-installation-source.ts'
+import {
+  reconcileToolSettings,
+  type GovernedToolSettings,
+  type ReleaseSettingsMaintenance,
+} from './tool-settings-rebase.ts'
 
 type TrustedRelease = Extract<ToolRelease, { kind: 'trusted' }>
-type Service = GovernanceContributions<
+export type GovernanceService = GovernanceContributions<
   ActingForTenantPrincipal,
   ActingForTenantPrincipal,
   ActingForTenantPrincipal
@@ -29,9 +35,14 @@ type Options = Readonly<{
   scope: GovernanceScope
   epoch: string
   release: TrustedRelease
-  service: Service
+  concurrency: number
+  service: GovernanceService
   assets: AssetsLocal
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
+  releaseSettings: ReleaseSettingsMaintenance
+  warn(message: string): void
+  /** Adopts the whole collection of the scope; absent, the release tools are the whole collection. */
+  adoptCollection?(tools: readonly GovernanceCollectionMember[]): Promise<ToolInstallationResult>
 }>
 export type ToolInstallationResult =
   | Readonly<{ kind: 'installed' }>
@@ -41,7 +52,9 @@ export type ToolInstallationResult =
     }>
 
 export function toolInstallationGrants(
-  input: Pick<Options, 'principal' | 'scope' | 'release'>,
+  input: Pick<Options, 'principal' | 'scope' | 'release'> & {
+    owners?: Extract<GovernanceAdmissionGrant, { action: 'contribute' }>['owners']
+  },
 ): readonly GovernanceAdmissionGrant[] {
   const grant = {
     principalRef: standingPrincipalRef(input.principal),
@@ -59,14 +72,18 @@ export function toolInstallationGrants(
             entry => entry.governance.declaration.enforcementBindings,
           ),
         },
+        ...(input.owners ?? []),
       ],
     },
     { ...grant, action: 'adopt' },
+    { ...grant, action: 'withdraw' },
     { ...grant, action: 'catalog-management' },
   ]
 }
 
-async function catalog(input: Options) {
+type Adopting = Pick<Options, 'principal' | 'scope' | 'epoch' | 'service'>
+
+async function catalog(input: Adopting) {
   const result = await input.service.readCatalog(access(input.principal, input.principal.tenant), {
     scope: input.scope,
     mode: 'management',
@@ -118,9 +135,9 @@ function alreadySelected(
   })
 }
 
-async function adopt(
-  input: Options,
-  members: GovernanceCollectionMember[],
+export async function adoptMembers(
+  input: Adopting,
+  members: readonly GovernanceCollectionMember[],
 ): Promise<ToolInstallationResult> {
   const current = await catalog(input)
   if (current === undefined || !matchesContributions(current, members))
@@ -133,7 +150,7 @@ async function adopt(
     collection: createGovernanceCollection({
       scope: input.scope,
       declarationRevision: current.snapshot.declarationRevision,
-      complete: members,
+      complete: [...members],
     }),
     complete: members.map(({ contribution, selectedTargets }) => ({
       contribution,
@@ -152,7 +169,11 @@ async function installEntry(
   entry: TrustedRelease['manifest']['entries'][number],
   organizationId: string,
 ): Promise<
-  | { kind: 'member'; member: GovernanceCollectionMember }
+  | {
+      kind: 'member'
+      member: GovernanceCollectionMember
+      settings: GovernedToolSettings | undefined
+    }
   | Extract<ToolInstallationResult, { kind: 'unavailable' }>
 > {
   const asset = await installToolAsset({
@@ -197,18 +218,50 @@ async function installEntry(
       definition: declaration.reference,
       selectedTargets: asset.kind === 'ready' && sourceReady ? [asset.target] : [],
     },
+    settings:
+      definition === undefined || asset.kind === 'inactive'
+        ? undefined
+        : {
+            name: entry.asset.name,
+            assetRef: toolAssetPublication(entry).assetRef,
+            target: asset.target,
+          },
   }
+}
+
+async function settleAll<T, R>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const settled: PromiseSettledResult<R>[] = []
+  const pending = items.entries()
+  async function worker() {
+    for (const [index, item] of pending) {
+      const [result] = await Promise.allSettled([run(item)])
+      settled[index] = result
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  const rejected = settled.find(result => result.status === 'rejected')
+  if (rejected !== undefined) throw rejected.reason
+  return settled.flatMap(result => (result.status === 'fulfilled' ? [result.value] : []))
 }
 
 export async function installToolGovernance(input: Options): Promise<ToolInstallationResult> {
   const organization = organizationCodec.encode(input.principal.tenant.organization)
   if (!organization.ok) return { kind: 'unavailable', phase: 'identity' }
-  if ((await catalog(input)) === undefined) return { kind: 'unavailable', phase: 'catalog' }
+  const installed = await settleAll(input.release.manifest.entries, input.concurrency, entry =>
+    installEntry(input, entry, organization.value),
+  )
   const members: GovernanceCollectionMember[] = []
-  for (const entry of input.release.manifest.entries) {
-    const result = await installEntry(input, entry, organization.value)
+  const governed: GovernedToolSettings[] = []
+  for (const result of installed) {
     if (result.kind !== 'member') return result
     members.push(result.member)
+    if (result.settings !== undefined) governed.push(result.settings)
   }
-  return adopt(input, members)
+  const reconciliation = { ...input, tenantRef: input.scope.tenantRef }
+  await settleAll(governed, input.concurrency, tool => reconcileToolSettings(reconciliation, tool))
+  return (input.adoptCollection ?? (tools => adoptMembers(input, tools)))(members)
 }

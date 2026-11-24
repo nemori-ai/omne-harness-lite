@@ -37,12 +37,54 @@ export const PENDING_STATEMENTS: readonly string[] = [
 export const PENDING_TABLES: readonly string[] = ['tl_pending']
 
 export const PENDING_MIGRATION = Object.freeze({ owner: 'tool', id: 'r6-002-tool-pending' })
+
+export const DEFINITION_STATEMENTS: readonly string[] = [
+  `CREATE TABLE tl_definition (
+    tenant TEXT NOT NULL, digest TEXT NOT NULL, adoption TEXT NOT NULL, body BLOB NOT NULL,
+    PRIMARY KEY (tenant, digest)) STRICT, WITHOUT ROWID`,
+  `CREATE INDEX tl_definition_by_adoption ON tl_definition (tenant, adoption)`,
+  `CREATE TABLE tl_definition_chunk (
+    tenant TEXT NOT NULL, digest TEXT NOT NULL, seq INTEGER NOT NULL, data BLOB NOT NULL,
+    PRIMARY KEY (tenant, digest, seq)) STRICT, WITHOUT ROWID`,
+  `CREATE TABLE tl_definition_use (
+    tenant TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL,
+    digest TEXT NOT NULL, PRIMARY KEY (tenant, kind, name, key)) STRICT, WITHOUT ROWID`,
+  `CREATE INDEX tl_definition_use_by_digest ON tl_definition_use (tenant, digest)`,
+]
+
+export const DEFINITION_TABLES: readonly string[] = [
+  'tl_definition',
+  'tl_definition_chunk',
+  'tl_definition_use',
+]
+
+export const DEFINITION_MIGRATION = Object.freeze({ owner: 'tool', id: 'r6-003-tool-definitions' })
+
+export const DEFINITION_BLOCK_BYTES = 65_536
+export const DEFINITION_READ_ROWS = 2
+export const DEFINITION_HELD_DIGESTS = 64
+
+/** One row per settled call, kept after the sweep drops its domain; the start orders it in text. */
+export const USAGE_STATEMENTS: readonly string[] = [
+  `CREATE TABLE tl_usage (
+    tenant TEXT NOT NULL, call TEXT NOT NULL, started_at TEXT, consumer_owner TEXT NOT NULL,
+    consumer_work TEXT NOT NULL, fact TEXT NOT NULL, PRIMARY KEY (tenant, call)) STRICT`,
+  `CREATE INDEX tl_usage_by_start ON tl_usage (tenant, started_at, call)`,
+  `CREATE INDEX tl_usage_by_work ON tl_usage (tenant, consumer_owner, consumer_work)`,
+]
+
+export const USAGE_TABLES: readonly string[] = ['tl_usage']
+
+export const USAGE_MIGRATION = Object.freeze({ owner: 'tool', id: 'r6-003-tool-usage' })
+
 export const PROTOCOL = '1'
 
 export const LEDGER_READ_HANDLER = 'tool.ledger.read'
 export const BODY_READ_HANDLER = 'tool.body.read'
 export const DUE_READ_HANDLER = 'tool.due.read'
 export const PENDING_READ_HANDLER = 'tool.ledger.pending'
+export const DEFINITION_READ_HANDLER = 'tool.definition.read'
+export const USAGE_READ_HANDLER = 'tool.usage.read'
 
 export const BODY_READ_CHUNKS = 64
 export const DUE_READ_ENTRIES = 1_000

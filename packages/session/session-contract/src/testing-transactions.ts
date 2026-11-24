@@ -34,7 +34,6 @@ import type {
   SessionCallLookup,
   SessionCallTerminal,
   SessionControlReceipt,
-  SessionModelSelection,
   SessionRunLookup,
 } from './control-values.ts'
 import type {
@@ -65,20 +64,29 @@ import type {
   SessionTransactionPort,
 } from './ports.ts'
 import { decide, commandDigest } from './decide.ts'
-import { judgeCompletion } from './judgments.ts'
-import { SESSION_INTERPRETER } from './entries.ts'
-import { type DecideReads, type OperationRecord } from './judgments.ts'
+import { judgeCompletion, type OperationRecord } from './judgments.ts'
+import {
+  frozenOperation,
+  recordChild,
+  relatedReads,
+  readStoredModelSelection,
+} from './testing-store-reads.ts'
 import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
+import type { SessionCall } from './call-settlement.ts'
+import * as gone from './testing-calls-left.ts'
 import { controlAnswer } from './call-control.ts'
-import { judgeIdle } from './judgments.ts'
-import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
+import { materializeModelView, type MaterializedModelView } from './model-view.ts'
 import { memoryCompactionContext, memoryModelViewPage } from './testing-model-view-reads.ts'
-import { decodeEntry } from './entries.ts'
+import * as forks from './testing-fork.ts'
+import { decodeCursor, encodeCursor, type Cursor } from './testing-history-cursor.ts'
+import { SESSION_INTERPRETER, decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
 import { admittedInputs, withInputs } from './testing-inputs.ts'
+import { inputSourceName } from './input-sources.ts'
+import { testingWriter, type TestingWriterOptions } from './testing-sources.ts'
 import { digestSessionLog, executionReadThrough } from './log-interpretation.ts'
 import type {
   SessionEntriesObservation,
@@ -114,7 +122,6 @@ import {
   memoryOtherAccess,
   mintEvidence,
   operationId,
-  intakeInput,
   ordinaryInput,
   sessionId,
 } from './testing-values.ts'
@@ -123,8 +130,10 @@ type Recall = (receipt: CommitReceipt) => unknown
 
 type Store = {
   snapshot: WorkSnapshot
+  readonly left: gone.CallsLeft
   modelView: MaterializedModelView
   readonly entries: HistoryEntry[]
+  readonly fork?: forks.MemoryFork
   readonly operations: Map<
     SessionOperationId,
     Readonly<{
@@ -146,21 +155,12 @@ type Store = {
   readonly inputs: Map<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
 }
 
-type Cursor = Readonly<{
-  tenant: string
-  session: SessionId
-  kinds: readonly string[]
-  direction: 'forward' | 'backward'
-  upper: number
-  scanned: number
-  pageBytes: number
-}>
-
 export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
   readonly durability: 'none'
   readonly commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
   readonly controls: Readonly<{
     entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[]
+    callOf(tenant: TenantId, session: SessionId, consumption: string): SessionCall | null
     decisionOf(
       tenant: TenantId,
       session: SessionId,
@@ -177,6 +177,7 @@ export interface MemorySessionLogTransactions<P> extends MemorySessionTransactio
         operation: SessionOperationId,
       ): Promise<Outcome<CommitReceipt, SessionFailure>>
       directoryAvailable(available: boolean): void
+      forkSourceAvailable(available: boolean): void
       recordCallTerminal(tenant: TenantId, session: SessionId, terminal: SessionCallTerminal): void
     }>
 }
@@ -215,26 +216,6 @@ function entryBytes(entry: HistoryEntry): number {
   return Buffer.byteLength(canonicalText(entry), 'utf8')
 }
 
-function encodeCursor(cursor: Cursor): string {
-  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url')
-}
-
-function decodeCursor(text: string): Cursor | null {
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(text, 'base64url').toString('utf8'))
-    if (typeof parsed !== 'object' || parsed === null) return null
-    const cursor = parsed as Record<string, unknown>
-    if (typeof cursor['tenant'] !== 'string' || typeof cursor['session'] !== 'string') return null
-    if (!Array.isArray(cursor['kinds']) || typeof cursor['upper'] !== 'number') return null
-    if (typeof cursor['scanned'] !== 'number' || typeof cursor['pageBytes'] !== 'number')
-      return null
-    if (cursor['direction'] !== 'forward' && cursor['direction'] !== 'backward') return null
-    return cursor as Cursor
-  } catch {
-    return null
-  }
-}
-
 export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[] {
   const reasons: PendingReason[] = []
   if (snapshot.tasks.some(task => task.kind === 'initialization')) reasons.push('initialization')
@@ -246,7 +227,7 @@ export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason
   else if (
     snapshot.lifecycle !== 'archived' &&
     snapshot.autoArchive?.kind === 'enabled' &&
-    !(snapshot.relation?.kind === 'main' && snapshot.relation.resident)
+    snapshot.resident !== true
   )
     reasons.push('idle-armed')
   if (snapshot.consumptions.some(item => item.results.some(result => result.release === 'pending')))
@@ -359,7 +340,7 @@ function publishedLog(
     snapshot,
     entries: committedEntries,
     operations,
-    modelView: materializeModelView(store.modelView, entries, committedEntries),
+    modelView: materializeModelView(store.modelView, entries),
   }
 }
 
@@ -430,21 +411,6 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
   }
 }
 
-function firstInputRead(
-  command: SessionCommand,
-  store:
-    | Readonly<{
-        snapshot: WorkSnapshot
-        inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
-      }>
-    | undefined,
-): Pick<DecideReads, 'firstInput'> {
-  if (command.kind !== 'startRun' || store === undefined) return {}
-  const [first] = runStartInputs(store.snapshot)
-  const stored = first === undefined ? undefined : store.inputs.get(first)
-  return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
-}
-
 function sameProducer(left: ProducerRef, right: ProducerRef): boolean {
   return left.kind === right.kind && left.call === right.call
 }
@@ -466,12 +432,13 @@ function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   }
 }
 
-export type MemorySessionTransactionOptions<P> = Readonly<{
-  intakeLimits?: SessionIntakeLimits
-  initialization?: MemoryInitializationSource
-  history?: MemorySessionHistorySource
-  accessCheck: SessionAccessCheck<P>
-}>
+export type MemorySessionTransactionOptions<P> = TestingWriterOptions &
+  Readonly<{
+    intakeLimits?: SessionIntakeLimits
+    initialization?: MemoryInitializationSource
+    history?: MemorySessionHistorySource
+    accessCheck: SessionAccessCheck<P>
+  }>
 export type MemorySessionTransactionPair<P> = Readonly<{
   transactions: MemoryInitializationTransactions<P>
   delegated: SessionDelegatedTransactions<P>
@@ -513,8 +480,32 @@ function boundAccessCheck<P>(checked: SessionCheckedAccess<P>): SessionAccessChe
             ...(checked.writeQualification === undefined
               ? {}
               : { writeQualification: checked.writeQualification }),
+            ...(checked.subject === undefined ? {} : { subject: checked.subject }),
           }
         : { kind: 'denied' },
+  }
+}
+
+async function qualifyBy<P>(
+  accessCheck: SessionAccessCheck<P>,
+  request: SessionAccessRequest<P>,
+): Promise<Outcome<Extract<SessionAccessDecision, { kind: 'allowed' }>, SessionFailure>> {
+  let decision: SessionAccessDecision
+  try {
+    decision = await accessCheck.check(request)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return fail(unavailable(`access check threw for ${request.operation}: ${message}`))
+  }
+  switch (decision.kind) {
+    case 'allowed':
+      return succeed(decision)
+    case 'denied':
+      return fail(denied(request.operation))
+    case 'unavailable':
+      return fail(
+        unavailable(`access check unavailable for ${request.operation}: ${decision.diagnostic}`),
+      )
   }
 }
 
@@ -522,9 +513,11 @@ export function createMemorySessionTransactionPair<P>(
   options: MemorySessionTransactionOptions<P>,
 ): MemorySessionTransactionPair<P> {
   const intakeLimits = sessionIntakeLimits(options.intakeLimits)
+  const writer = testingWriter<P>(options)
   const stores = new Map<string, Store>()
   let directoryAvailable = true
   let failInitialization = false
+  let forkSourceAvailable = true
   let loseInitializationReply = false
   const issuedCursors = new Set<string>()
   const callTerminals = new Map<string, SessionCallTerminal>()
@@ -563,39 +556,18 @@ export function createMemorySessionTransactionPair<P>(
     return {
       material,
       prepared,
-      decision: projectSessionLog(prepared, observation, material?.reads),
+      decision: projectSessionLog(
+        gone.lentFor(store, prepared, observation),
+        observation,
+        material?.reads,
+      ),
     }
   }
 
   const surface = (
     accessCheck: SessionAccessCheck<P>,
   ): SessionTransactionPort<P> & Pick<MemorySessionTransactions<P>, 'commitLog'> => {
-    const qualify = async (
-      request: SessionAccessRequest<P>,
-    ): Promise<Outcome<DurableEvidence, SessionFailure>> => {
-      let decision: SessionAccessDecision
-      try {
-        decision = await accessCheck.check(request)
-      } catch (error) {
-        return fail(
-          unavailable(
-            `access check threw for ${request.operation}: ${error instanceof Error ? error.message : String(error)}`,
-          ),
-        )
-      }
-      switch (decision.kind) {
-        case 'allowed':
-          return succeed(decision.evidence)
-        case 'denied':
-          return fail(denied(request.operation))
-        case 'unavailable':
-          return fail(
-            unavailable(
-              `access check unavailable for ${request.operation}: ${decision.diagnostic}`,
-            ),
-          )
-      }
-    }
+    const qualify = (request: SessionAccessRequest<P>) => qualifyBy(accessCheck, request)
 
     const storeOf = async (
       access: SessionAccess<P>,
@@ -626,7 +598,8 @@ export function createMemorySessionTransactionPair<P>(
         return fail(denied(command.kind))
       const qualification = await qualify(mutationAccessRequest(input.access, command))
       if ('failure' in qualification) return fail(qualification.failure)
-      const accessEvidence = qualification.ok
+      const { evidence: accessEvidence, subject } = qualification.ok
+      const guards = await writer.guards(command, input.guards, subject)
       const key = keyOf(command.input.tenant, command.input.session)
       if ('failure' in key) return key
       const store = stores.get(key.ok)
@@ -651,18 +624,7 @@ export function createMemorySessionTransactionPair<P>(
         if (refusal !== null) return fail(refusal)
       }
       const held = store?.operations.get(command.input.operation)
-      const frozen =
-        store === undefined
-          ? undefined
-          : [...store.operations.values()].find(
-              item =>
-                item.record.receipt.source.record.endsWith('/' + item.record.operation) &&
-                store.entries.some(
-                  entry =>
-                    entry.kind === 'session.frozen' &&
-                    entry.revision === item.record.receipt.revision,
-                ),
-            )
+      const frozen = frozenOperation(store)
       const selected =
         command.kind === 'startRun'
           ? runStartInputs(store?.snapshot)
@@ -684,7 +646,11 @@ export function createMemorySessionTransactionPair<P>(
               ...store.snapshot,
               ...(material === undefined ? {} : { historyIndex: material.index }),
             }
-      const decision = decide(prepared, command, input.guards, held?.record ?? null, {
+      const lent = gone.lentFor(store, prepared, command)
+      const started = forks.startOf(stores, keyOf, command, forkSourceAvailable)
+      const decision = decide(lent, command, guards, held?.record ?? null, {
+        ...relatedReads(stores, keyOf, command),
+        ...forks.reads(started),
         ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
@@ -692,7 +658,7 @@ export function createMemorySessionTransactionPair<P>(
           command.kind === 'commitDerived' &&
           command.input.value.kind === 'compaction' &&
           store !== undefined
-            ? compactionReads(store.entries, store.snapshot, command.input.value.message.covers.to)
+            ? forks.compactionOf(store, command.input.value.message.covers.to)
             : null,
         ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
         ...(command.kind === 'cancelRun' && store !== undefined
@@ -701,7 +667,6 @@ export function createMemorySessionTransactionPair<P>(
         ...(command.kind === 'stopCall' && store !== undefined
           ? { calls: [callLookup(key.ok, store.snapshot, command.input.producer)] }
           : {}),
-        ...firstInputRead(command, store),
         initializationReceipts: [...(store?.operations.values() ?? [])].map(
           value => value.record.receipt,
         ),
@@ -753,42 +718,15 @@ export function createMemorySessionTransactionPair<P>(
         command.kind === 'considerAutoArchive' &&
         store !== undefined
       ) {
-        const snapshot = store.snapshot
-        const observation = snapshot.idle?.observation
-        const result =
-          snapshot.autoArchive?.kind !== 'enabled'
-            ? 'disabled'
-            : snapshot.relation?.kind === 'main' && snapshot.relation.resident
-              ? 'exempt'
-              : observation === undefined
-                ? 'not-due'
-                : judgeIdle(snapshot, {
-                    observation,
-                    policy: snapshot.autoArchive,
-                    coverage:
-                      observation.kind === 'interval'
-                        ? observation.coverage
-                        : {
-                            own: observation.source,
-                            relations: observation.source,
-                            calls: [],
-                            children: [],
-                            completeScope: observation.source,
-                          },
-                  }).kind
+        const result = gone.autoArchiveVerdict(store.snapshot)
         return succeed({ result, receipt: null })
       }
       const previous = prepared
       const revision = String(
         previous === null ? 1n : BigInt(previous.revision) + 1n,
       ) as SessionRevision
-      const offset = store?.entries.length ?? 0
-      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
-        ...entry,
-        id: String(offset + index + 1) as EntryId,
-        revision,
-      }))
-      const reduced = reduce(previous, { revision, entries }, material?.reads)
+      const entries = forks.numbered(store, started, revision, decision.entries)
+      const reduced = reduce(previous, { revision, entries }, material?.reads, gone.lookupOf(store))
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
       const committedEntries = [...(store?.entries ?? []), ...entries]
@@ -819,14 +757,15 @@ export function createMemorySessionTransactionPair<P>(
       const target: Store = {
         snapshot: committedSnapshot,
         modelView: materializeModelView(
-          store?.modelView ?? { epoch: 'epoch:0', rows: [] },
+          store?.modelView ?? started?.modelView ?? { epoch: 'epoch:0', rows: [] },
           entries,
-          [...(store?.entries ?? []), ...entries],
         ),
         entries: [...(store?.entries ?? []), ...entries],
+        ...forks.kept(store, started),
         operations,
         answers: store?.answers ?? new Map(),
         inputs,
+        left: gone.leftAfter(store, reduced),
       }
       const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
       if (initialization && failInitialization) {
@@ -834,6 +773,7 @@ export function createMemorySessionTransactionPair<P>(
         return fail(unavailable('injected failure before initialization publication'))
       }
       stores.set(key.ok, target)
+      recordChild(stores, keyOf, command)
       if (initialization && loseInitializationReply) {
         loseInitializationReply = false
         return fail({ kind: 'commit-unknown', operation: command.input.operation })
@@ -852,11 +792,12 @@ export function createMemorySessionTransactionPair<P>(
       if (store.answers.has(observation.operation))
         return fail({ kind: 'conflict', operation: observation.operation })
       const held = store.operations.get(observation.operation)
-      const decision = projectSessionEntries(store.snapshot, {
+      const decision = projectSessionEntries(gone.lentFor(store, store.snapshot, observation), {
         observation,
         start,
         saved: store.snapshot.entriesProgress ?? [],
         record: held?.record ?? null,
+        derived: writer.entries(),
       })
       if (decision.kind === 'rejected') return fail(decision.failure)
       if (decision.kind === 'recovered') {
@@ -866,15 +807,8 @@ export function createMemorySessionTransactionPair<P>(
       if (decision.progress === undefined)
         return fail(unavailable('an entries decision without its progress'))
       const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
-      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
-        ...entry,
-        id: String(store.entries.length + index + 1) as EntryId,
-        revision,
-      }))
-      const reduced = reduce(store.snapshot, {
-        revision,
-        entries,
-      })
+      const entries = forks.numbered(store, undefined, revision, decision.entries)
+      const reduced = reduce(store.snapshot, { revision, entries }, undefined, gone.lookupOf(store))
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
       const committedEntries = [...store.entries, ...entries]
@@ -906,7 +840,8 @@ export function createMemorySessionTransactionPair<P>(
       stores.set(key.ok, {
         ...store,
         snapshot,
-        modelView: materializeModelView(store.modelView, entries, committedEntries),
+        left: gone.leftAfter(store, reduced),
+        modelView: materializeModelView(store.modelView, entries),
         entries: committedEntries,
         operations,
         inputs: withInputs(store.inputs, decision.admitted ?? []),
@@ -930,12 +865,8 @@ export function createMemorySessionTransactionPair<P>(
         return fail(unavailable('a log projection that is not a batch of entries'))
       if (decision.entries.length === 0) return interpretedWithoutRows(store, prepared, observation)
       const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
-      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
-        ...entry,
-        id: String(store.entries.length + index + 1) as EntryId,
-        revision,
-      }))
-      const reduced = reduce(prepared, { revision, entries }, material?.reads)
+      const entries = forks.numbered(store, undefined, revision, decision.entries)
+      const reduced = reduce(prepared, { revision, entries }, material?.reads, gone.lookupOf(store))
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
       const progress = progressRowOf(entries, observation)
@@ -957,7 +888,10 @@ export function createMemorySessionTransactionPair<P>(
         interpreted: entryEvidence(progress),
         recovered: false,
       }
-      stores.set(key.ok, publishedLog(store, reduced.snapshot, entries, observation, answer))
+      stores.set(key.ok, {
+        ...publishedLog(store, reduced.snapshot, entries, observation, answer),
+        left: gone.leftAfter(store, reduced),
+      })
       return succeed(answer)
     }
 
@@ -1005,11 +939,15 @@ export function createMemorySessionTransactionPair<P>(
       }
     }
 
+    const prefixed = (store: Store, cursor: Cursor, inherited: boolean | undefined): HistoryPage =>
+      (inherited ? forks.prefixPage(store, cursor, issuedCursors) : null) ?? page(store, cursor)
+
     const history: SessionHistory<P> = {
       readCompactionContext: async input => {
         const store = await storeOf(input, 'history.readCompactionContext')
         if ('failure' in store) return store
-        return memoryCompactionContext(store.ok, keyOf(input.tenant, input.session), input)
+        const key = keyOf(input.tenant, input.session)
+        return memoryCompactionContext(forks.chained(store.ok), key, input)
       },
       begin: async input => {
         const store = await storeOf(input, 'history.begin')
@@ -1027,17 +965,10 @@ export function createMemorySessionTransactionPair<P>(
           if (input.direction === 'forward') scanned = at + 1
           else upper = at
         }
-        return succeed(
-          page(store.ok, {
-            tenant,
-            session: input.session,
-            kinds: input.kinds,
-            direction: input.direction,
-            upper,
-            scanned,
-            pageBytes: input.pageBytes,
-          }),
-        )
+        const { session, kinds, direction, pageBytes } = input
+        const cursor = { tenant, session, kinds, direction, upper, scanned, pageBytes }
+        const wrong = forks.inheritedRefusal(input)
+        return wrong === null ? succeed(prefixed(store.ok, cursor, input.inherited)) : fail(wrong)
       },
       next: async input => {
         const store = await storeOf(input, 'history.next')
@@ -1051,7 +982,7 @@ export function createMemorySessionTransactionPair<P>(
           cursor.session !== input.session
         )
           return fail({ kind: 'invalid', field: 'cursor', reason: 'not a cursor of this session' })
-        return succeed(page(store.ok, cursor))
+        return succeed(prefixed(store.ok, cursor, cursor.inherited !== undefined))
       },
       since: async input => {
         const store = await storeOf(input, 'history.since')
@@ -1079,6 +1010,10 @@ export function createMemorySessionTransactionPair<P>(
         if ('failure' in store) return store
         return memoryModelViewPage(store.ok.modelView, keyOf(input.tenant, input.session), input)
       },
+      readForkPoint: async input => {
+        const store = await storeOf(input, 'history.readModelView')
+        return forks.pointRead(store, keyOf(input.tenant, input.session), input.asking)
+      },
     }
 
     const port: SessionTransactionPort<P> & Pick<MemorySessionTransactions<P>, 'commitLog'> = {
@@ -1099,6 +1034,7 @@ export function createMemorySessionTransactionPair<P>(
         const store = await storeOf(input, 'readCurrentScope')
         return 'failure' in store ? store : succeed(store.ok.snapshot.contextScopes?.at(-1) ?? null)
       },
+      readCall: async input => gone.bindingFor(await storeOf(input, 'readWork'), input.producer),
       readInput: async input => {
         const store = await storeOf(input, 'readInput')
         if ('failure' in store) return store
@@ -1149,37 +1085,7 @@ export function createMemorySessionTransactionPair<P>(
       readModelSelection: async input => {
         const store = await storeOf(input, 'readModelSelection')
         if ('failure' in store) return store
-        let saved: { selection: SessionModelSelection['selection']; at: string } | null = null
-        for (const row of store.ok.entries) {
-          const value = decodeEntry(row)
-          if (
-            'ok' in value &&
-            value.ok.kind === 'session.model-selected' &&
-            value.ok.declaration.kind === 'model'
-          )
-            saved = {
-              selection: { name: value.ok.declaration.name, basis: value.ok.declaration.basis },
-              at: row.revision,
-            }
-        }
-        const initial = store.ok.snapshot.creation.initialModelSelection
-        const first = store.ok.entries[0]
-        const chosen =
-          saved ??
-          (initial !== undefined && first !== undefined
-            ? { selection: initial, at: first.revision }
-            : null)
-        if (chosen === null) return fail({ kind: 'not-ready' })
-        const origin = [...store.ok.operations.values()].find(
-          item => item.record.receipt.revision === chosen.at,
-        )
-        if (origin === undefined)
-          return fail(unavailable('the commit that saved the selection has no original receipt'))
-        return succeed<SessionModelSelection>({
-          selection: chosen.selection,
-          revision: store.ok.snapshot.revision,
-          source: origin.record.receipt.source,
-        })
+        return readStoredModelSelection(store.ok)
       },
       commitEntries: async input => commitEntries(input),
       commitLog,
@@ -1297,11 +1203,11 @@ export function createMemorySessionTransactionPair<P>(
     }
     return port
   }
-  const port = surface(options.accessCheck)
+  const port = surface(writer.check(options.accessCheck))
 
   const delegated: SessionDelegatedTransactions<P> = Object.freeze({
     bind: (checked: SessionCheckedAccess<P>): SessionTransactionPort<P> => {
-      const view = surface(boundAccessCheck(checked))
+      const view = surface(writer.check(boundAccessCheck(checked)))
       return Object.freeze({
         ...view,
         commitEntries: async () => fail(denied('commitEntries')),
@@ -1340,12 +1246,9 @@ export function createMemorySessionTransactionPair<P>(
             reason: 'replay must retain the original projection operation',
           })
         const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
-        const entries = decision.entries.map((entry, index) => ({
-          ...entry,
-          id: String(store.entries.length + index + 1) as EntryId,
-          revision,
-        }))
-        const reduced = reduce(prepared, { revision, entries }, material?.reads)
+        const entries = forks.numbered(store, undefined, revision, decision.entries)
+        const lookup = gone.lookupOf(store)
+        const reduced = reduce(prepared, { revision, entries }, material?.reads, lookup)
         if (reduced.kind === 'quarantined')
           return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
         const receipt = receiptOf(observation.session, operation, revision, entries)
@@ -1358,12 +1261,14 @@ export function createMemorySessionTransactionPair<P>(
         stores.set(key.ok, {
           ...store,
           snapshot: reduced.snapshot,
+          left: gone.leftAfter(store, reduced),
           entries: [...store.entries, ...entries],
           operations,
-          modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
+          modelView: materializeModelView(store.modelView, entries),
         })
         return succeed(receipt)
       },
+      forkSourceAvailable: (available: boolean) => void (forkSourceAvailable = available),
       directoryAvailable: (available: boolean) => {
         directoryAvailable = available
       },
@@ -1381,6 +1286,8 @@ export function createMemorySessionTransactionPair<P>(
         const key = keyOf(tenant, session)
         return 'failure' in key ? [] : [...(stores.get(key.ok)?.entries ?? [])]
       },
+      callOf: (tenant: TenantId, session: SessionId, consumption: string) =>
+        gone.callAt(stores, keyOf(tenant, session), consumption),
       decisionOf: (tenant: TenantId, session: SessionId, operation: SessionOperationId) => {
         const key = keyOf(tenant, session)
         return 'failure' in key
@@ -1788,16 +1695,16 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 
     conformanceCase(
       'R2',
-      'an interactive startRun needs a first input whose stored origin is the login entry',
+      'an input of a source that is not registered is unavailable and accepts nothing; a registered one starts a Run',
       async fixture => {
         const s = scene(fixture)
         succeeded(await s.create(), 'create')
-        succeeded(await s.accept('input-1', 'accept-input-1', intakeInput('input-1')), 'accept')
-        succeeded(await s.accept('input-2'), 'accept login input')
-        const refusal = refused(await s.startRun('start-interactive'), 'interactive startRun')
-        expectKind(refusal, 'login-required', 'interactive startRun')
-        assert.equal((await s.readWork()).run.kind, 'none', 'the refusal opens no Run')
-        succeeded(await s.startRun('start-dispatch', 'dispatch'), 'dispatch startRun')
+        const stray = { ...ordinaryInput('input-1'), source: inputSourceName('test.unregistered') }
+        const refusal = refused(await s.accept('input-1', 'accept-input-1', stray), 'stray source')
+        expectKind(refusal, 'unavailable', 'an unregistered source')
+        assert.deepEqual((await s.readWork()).pending, [], 'the refusal accepts nothing')
+        succeeded(await s.accept('input-2'), 'accept of a registered source')
+        succeeded(await s.startRun('start-interactive'), 'startRun')
       },
     ),
 
@@ -2415,14 +2322,23 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
             input: {
               ...s.base,
               operation: fixture.operation('select'),
-              declaration: { kind: 'model', name: 'route-a', basis: evidence('route-a') },
+              declaration: {
+                kind: 'model',
+                name: 'route-a',
+                reasoningEffort: 'xhigh',
+                basis: evidence('route-a'),
+              },
             },
           }),
           'change',
         )
         succeeded(await s.accept('later'), 'accept')
         const read = succeeded(await s.port.readModelSelection(fixture.access), 'read')
-        assert.deepEqual(read.selection, { name: 'route-a', basis: evidence('route-a') })
+        assert.deepEqual(read.selection, {
+          name: 'route-a',
+          reasoningEffort: 'xhigh',
+          basis: evidence('route-a'),
+        })
         assert.deepEqual(read.source, saved.source, 'the source is the commit that saved it')
         assert.equal(read.revision, (await s.readWork()).revision)
       },

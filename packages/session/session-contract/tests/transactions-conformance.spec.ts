@@ -2,6 +2,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import type { SessionCommand, SessionTransactionPort } from '@omne-harness/session-contract'
 import {
+  TESTING_SOURCES,
   evidence,
   memorySessionTransactionsFixture,
   ordinaryInput,
@@ -25,7 +26,8 @@ const NAMES = {
   recall: 'the same operation with the same input recalls the original receipt',
   conflict: 'the same operation with another input is a conflict',
   tenant: 'another tenant reads denied, the same as for a session that never was',
-  login: 'an interactive startRun needs a first input whose stored origin is the login entry',
+  source:
+    'an input of a source that is not registered is unavailable and accepts nothing; a registered one starts a Run',
   rehand:
     'after a bounded terminal the successor Run re-hands the same input, and judgeCompletion follows',
   accept: 'accept queues an ordinary input and readInput returns it',
@@ -260,21 +262,19 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    name: 'startRun opens an interactive Run without reading the origin of its first input',
-    fails: [NAMES.login],
+    name: 'the port accepts an input of any source as if it were the registered person source',
+    fails: [NAMES.source],
     fixture: variant(real => ({
-      commit: (async input =>
-        real.commit(
-          input.command.kind === 'startRun'
-            ? {
-                ...input,
-                command: {
-                  ...input.command,
-                  input: { ...input.command.input, entry: 'dispatch' },
-                },
-              }
-            : input,
-        )) as Port['commit'],
+      commit: (async input => {
+        const command = input.command as SessionCommand
+        if (command.kind !== 'accept' || command.input.value.kind !== 'ordinary')
+          return real.commit(input)
+        const value = { ...command.input.value, source: TESTING_SOURCES.person }
+        return real.commit({
+          ...input,
+          command: { ...command, input: { ...command.input, value } },
+        } as typeof input)
+      }) as Port['commit'],
     })),
   },
   {

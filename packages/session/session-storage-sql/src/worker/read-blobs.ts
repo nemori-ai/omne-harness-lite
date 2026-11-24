@@ -1,17 +1,15 @@
-import { handler, PAGE_ROWS } from './support.ts'
-import { readSharedBlob } from './shared-blobs.ts'
-
-// The bytes of one page of blocks: past this total the remaining digests are answered as `rest`.
-const PAGE_BYTES = 4 * 1024 * 1024
+import { handler, PAGE_BYTES, PAGE_ROWS } from './support.ts'
+import { readBlock } from './execution-blocks.ts'
 
 // Content blocks by digest, as many as fit one page; digests the store does not hold are `missing`.
 export default handler('execution-record.blobs', (input, port) => {
   const value =
     typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {}
-  const { tenant, digests } = value
+  const { tenant, execution, digests } = value
   if (
     typeof tenant !== 'string' ||
     tenant === '' ||
+    (execution !== undefined && (typeof execution !== 'string' || execution === '')) ||
     !Array.isArray(digests) ||
     digests.length === 0 ||
     digests.length > PAGE_ROWS ||
@@ -25,7 +23,7 @@ export default handler('execution-record.blobs', (input, port) => {
   let index = 0
   for (; index < digests.length && (blobs.length === 0 || bytes < PAGE_BYTES); index += 1) {
     const digest = digests[index] as string
-    const row = readSharedBlob(port, tenant, digest)
+    const row = readBlock(port, tenant, (execution as string | undefined) ?? null, digest)
     if (row === null) {
       missing.push(digest)
       continue

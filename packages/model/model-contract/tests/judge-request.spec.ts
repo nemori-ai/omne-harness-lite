@@ -220,8 +220,25 @@ describe('parameter values and request-local identities', () => {
     },
   )
 
-  it('retains all five reasoning efforts and rejects other values', () => {
-    for (const value of ['none', 'low', 'medium', 'high', 'max']) {
+  it('retains the scale of a unified choice and refuses native-only values on that scale', () => {
+    for (const value of ['low', 'medium', 'high', 'xhigh']) {
+      const input = {
+        ...request,
+        parameters: [{ kind: 'reasoning-effort', scale: 'unified', value }],
+      }
+      expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+    }
+    for (const parameter of [
+      { kind: 'reasoning-effort', scale: 'unified', value: 'max' },
+      { kind: 'reasoning-effort', scale: 'other', value: 'high' },
+    ])
+      expect(judgeFixedModelRequest({ ...request, parameters: [parameter] })).toHaveProperty(
+        'failure',
+      )
+  })
+
+  it('retains engine effort values and rejects unknown values', () => {
+    for (const value of ['none', 'low', 'medium', 'high', 'xhigh', 'max']) {
       const input = { ...request, parameters: [{ kind: 'reasoning-effort', value }] }
       expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
     }
@@ -1136,6 +1153,49 @@ describe('the replay switch and the replay declarations of a fixed request', () 
     }
     expect(judgeFixedModelRequest(value)).toEqual({
       failure: { field: '/declarations/1/foreignThinking', reason: 'value' },
+    })
+  })
+})
+
+describe('the context window the request was prepared with', () => {
+  const window = { tokens: '200000', compactionTriggerPercent: '80' }
+
+  it('keeps the window and the compaction percent of the profile as they were', () => {
+    const judged = must(judgeFixedModelRequest({ ...request, contextWindow: window }))
+    expect(judged.contextWindow).toEqual(window)
+    expect(must(judgeFixedModelRequest(request))).not.toHaveProperty('contextWindow')
+  })
+
+  it.each(['1', '9', '100'])('keeps a compaction percent of %s', percent => {
+    const contextWindow = { ...window, compactionTriggerPercent: percent }
+    expect(must(judgeFixedModelRequest({ ...request, contextWindow })).contextWindow).toEqual(
+      contextWindow,
+    )
+  })
+
+  it.each([
+    [{ tokens: '0', compactionTriggerPercent: '80' }, '/contextWindow/tokens', 'integer'],
+    [{ tokens: 200000, compactionTriggerPercent: '80' }, '/contextWindow/tokens', 'integer'],
+    [
+      { tokens: '200000', compactionTriggerPercent: '101' },
+      '/contextWindow/compactionTriggerPercent',
+      'value',
+    ],
+    [
+      { tokens: '200000', compactionTriggerPercent: '0' },
+      '/contextWindow/compactionTriggerPercent',
+      'value',
+    ],
+    [
+      { tokens: '200000', compactionTriggerPercent: 80 },
+      '/contextWindow/compactionTriggerPercent',
+      'value',
+    ],
+    [{ tokens: '200000' }, '/contextWindow/compactionTriggerPercent', 'missing'],
+    [{ ...window, input: '1' }, '/contextWindow', 'unknown-field'],
+  ])('refuses the window %j', (contextWindow, field, reason) => {
+    expect(judgeFixedModelRequest({ ...request, contextWindow })).toMatchObject({
+      failure: { field, reason },
     })
   })
 })

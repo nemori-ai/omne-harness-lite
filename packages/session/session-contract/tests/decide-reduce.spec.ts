@@ -1,4 +1,9 @@
-import { createMemorySessionHistorySource } from '@omne-harness/session-contract/testing'
+import {
+  createMemorySessionHistorySource,
+  TESTING_SOURCES,
+  TESTING_SYSTEM_COMPONENT,
+  testingIntakeGuards,
+} from '@omne-harness/session-contract/testing'
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import { accountCodec, workspaceEquals } from '@omne-harness/legal-identity'
@@ -13,6 +18,7 @@ import {
   judgeRunStart,
   openWork,
   reduce,
+  workspaceSelection,
   resolveCascade,
   resolveControlScope,
   runCancelledBy,
@@ -20,6 +26,7 @@ import {
   routeInput,
   type CommittedBatch,
   type HistoryEntry,
+  type GuardCommand,
   type SessionCommand,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -30,7 +37,6 @@ import {
   memoryAccess,
   memoryOtherAccess,
   operationId,
-  guard,
   ordinaryInput,
   testingWorkspace,
 } from '@omne-harness/session-contract/testing'
@@ -43,15 +49,9 @@ const history = createMemorySessionHistorySource()
 const historyRows: HistoryEntry[] = []
 const base = { tenant: access.tenant, session: access.session }
 
-function loginRead(previous: WorkSnapshot | null) {
-  const first = previous?.pending[0]
-  return first === undefined
-    ? {}
-    : { firstInput: { input: first, origin: ordinaryInput(first).origin } }
-}
-
 function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSnapshot {
-  const guards = command.kind === 'startRun' ? [] : initializationGuards(command, previous)
+  const own = command.kind === 'startRun' ? [] : initializationGuards(command, previous)
+  const guards = [...own, ...testingIntakeGuards(command)]
   if (previous === null) historyRows.length = 0
   const material =
     previous === null
@@ -70,7 +70,6 @@ function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSna
   const decision = decide(previous, command, guards, null, {
     compaction: null,
     ...(material === undefined ? {} : { history: material.reads }),
-    ...(command.kind === 'startRun' ? loginRead(previous) : {}),
   })
   if (decision.kind !== 'entries') throw new Error(`decide: ${JSON.stringify(decision)}`)
   const revision = String(
@@ -411,6 +410,33 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     })
   })
 
+  it('rejects a non-uniform effort before it can enter the session journal', () => {
+    const selection = { name: 'route', basis: evidence('model'), reasoningEffort: 'max' as never }
+    expect(decisionOf(createCommand({ initialModelSelection: selection }), null, [])).toMatchObject(
+      {
+        kind: 'rejected',
+        failure: { kind: 'invalid', field: 'creation.initialModelSelection.reasoningEffort' },
+      },
+    )
+    const created = commit(null, createCommand())
+    expect(
+      decisionOf(
+        {
+          kind: 'change',
+          input: {
+            ...base,
+            operation: operationId('select-effort'),
+            declaration: { kind: 'model', ...selection },
+          },
+        },
+        created,
+      ),
+    ).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'declaration.reasoningEffort' },
+    })
+  })
+
   it('workspace changes use the same validation and valid declarations commit', () => {
     const created = commit(null, createCommand())
     expect(decisionOf(changeWorkspace(WORKSPACE_TEXT, workspaceAttachment), created)).toMatchObject(
@@ -442,6 +468,56 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
       expect(decisionOf(legal, created)).toMatchObject({
         kind: 'entries',
       })
+  })
+})
+
+describe('the workspace a session stands at', () => {
+  const other = () => testingWorkspace('wsp_00000000000000000000000002')
+  const elsewhere = { instance: 'host-1:/srv/other', basis: 'unpinned' }
+  const entriesOf = (command: SessionCommand, previous: WorkSnapshot) => {
+    const decision = decisionOf(command, previous)
+    if (decision.kind !== 'entries') throw new Error(JSON.stringify(decision))
+    return decision.entries.length
+  }
+
+  it('is none for a session created without one', () => {
+    expect(workspaceSelection(commit(null, createCommand()))).toBeNull()
+  })
+
+  it('is what it was created with, then its last change, and none once it is taken away', () => {
+    const created = commit(null, createCommand({ workspace: workspace(), workspaceAttachment }))
+    expect(workspaceSelection(created)).toEqual({
+      workspace: workspace(),
+      attachment: workspaceAttachment,
+    })
+    const moved = commit(created, changeWorkspace(other(), elsewhere))
+    expect(workspaceSelection(moved)).toEqual({ workspace: other(), attachment: elsewhere })
+    expect(moved.revisions.workspace).toBe('1')
+    // A later change of another kind is not a change of the workspace.
+    const remodelled = commit(moved, {
+      kind: 'change',
+      input: {
+        ...base,
+        operation: operationId('change-model-after-workspace'),
+        declaration: { kind: 'model', name: 'other-model', basis: evidence('model') },
+      },
+    })
+    expect(remodelled.changes?.at(-1)?.kind).toBe('model')
+    expect(workspaceSelection(remodelled)).toEqual({ workspace: other(), attachment: elsewhere })
+    const cleared = commit(moved, changeWorkspace(null, null))
+    expect(workspaceSelection(cleared)).toBeNull()
+    expect(cleared.revisions.workspace).toBe('2')
+  })
+
+  it('every legal change is one entry, a change to the selection it already stands at too', () => {
+    const none = commit(null, createCommand())
+    const created = commit(null, createCommand({ workspace: workspace(), workspaceAttachment }))
+    expect(entriesOf(changeWorkspace(null, null), none)).toBe(1)
+    expect(entriesOf(changeWorkspace(workspace(), workspaceAttachment), none)).toBe(1)
+    expect(entriesOf(changeWorkspace(workspace(), workspaceAttachment), created)).toBe(1)
+    expect(entriesOf(changeWorkspace(null, null), created)).toBe(1)
+    expect(entriesOf(changeWorkspace(workspace(), elsewhere), created)).toBe(1)
+    expect(entriesOf(changeWorkspace(other(), workspaceAttachment), created)).toBe(1)
   })
 })
 
@@ -680,39 +756,51 @@ describe('the pure judgments at their edges', () => {
     expect(judgeCompletion(dormant(), 'none')).toEqual({ kind: 'allowed' })
   })
 
-  it('an interactive startRun reads the login gate from the stored first input, not from the guards', () => {
-    const previous = accepted()
-    const first = previous.pending[0]!
-    const command = (entry: 'interactive' | 'dispatch'): SessionCommand => ({
-      kind: 'startRun',
-      input: {
-        ...base,
-        operation: operationId('start-gate'),
-        entry,
-        candidate: creation().definition.candidate,
-        instance: { owner: 'agent', id: 'i' },
+  it('an input is accepted on the terms of the commit only: none, unavailable, refused and of another source', () => {
+    const previous = dormant()
+    const value = ordinaryInput('input-terms')
+    const command: SessionCommand = {
+      kind: 'accept',
+      input: { ...base, operation: operationId('accept-terms'), value },
+    }
+    const decided = (guards: readonly GuardCommand[]) =>
+      decide(previous, command, guards, null, { compaction: null })
+    const unavailable = (reason: string) => ({
+      kind: 'rejected',
+      failure: {
+        kind: 'unavailable',
+        owner: 'session-intake',
+        diagnostic: `the terms of this input are not available: ${reason}`,
       },
     })
-    const login = ordinaryInput(first).origin
-    const decided = (entry: 'interactive' | 'dispatch', reads: object, guards = []) =>
-      decide(previous, command(entry), guards, null, { compaction: null, ...reads })
-    const refusal = { kind: 'rejected', failure: { kind: 'login-required' } }
-    expect(decided('interactive', { firstInput: { input: first, origin: login } }).kind).toBe(
-      'entries',
-    )
-    expect(decided('interactive', {})).toEqual(refusal)
+    expect(decided([])).toEqual(unavailable('none prepared'))
+    expect(decided(testingIntakeGuards(command, null))).toEqual(unavailable('subject-absent'))
+    expect(decided(testingIntakeGuards(command, { kind: 'system', component: 'x' }))).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'value.source', reason: 'subject-not-accepted' },
+    })
+    const system = { ...value, source: TESTING_SOURCES.system }
+    const other = { ...command, input: { ...command.input, value: system } } as SessionCommand
+    const component = { kind: 'system', component: TESTING_SYSTEM_COMPONENT } as const
+    expect(decided(testingIntakeGuards(other, component))).toEqual({
+      kind: 'rejected',
+      failure: {
+        kind: 'invalid',
+        field: 'value.source',
+        reason: 'the intake terms are of another source',
+      },
+    })
     expect(
-      decided('interactive', { firstInput: { input: first, origin: evidence('intake') } }),
-    ).toEqual(refusal)
-    expect(decided('interactive', { firstInput: { input: 'other-input', origin: login } })).toEqual(
-      refusal,
-    )
-    expect(
-      decide(previous, command('interactive'), [guard('bridge', 'login-entry', 'x')], null, {
-        compaction: null,
-      }),
-    ).toEqual(refusal)
-    expect(decided('dispatch', {}).kind).toBe('entries')
+      decide(previous, other, testingIntakeGuards(other, component), null, { compaction: null }),
+    ).toEqual({
+      kind: 'rejected',
+      failure: {
+        kind: 'invalid',
+        field: 'value.message.role',
+        reason: 'this source authors system_reminder messages only',
+      },
+    })
+    expect(decided(testingIntakeGuards(command)).kind).toBe('entries')
   })
 
   it('names no Run for a control that ended none', () => {

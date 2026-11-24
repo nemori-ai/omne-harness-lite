@@ -194,7 +194,7 @@ function closed(value: unknown, keys: readonly string[], path: string): Record<s
   return record
 }
 
-function open(value: unknown, path: string): Record<string, unknown> {
+export function open(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     throw new Malformed(`${path}: not an object`)
   return value as Record<string, unknown>
@@ -267,7 +267,7 @@ function material(value: unknown): ContextMaterial {
   }
 }
 
-function materialValue(value: unknown, path: string): unknown {
+export function materialValue(value: unknown, path: string): unknown {
   const fields = closed(value, ['schema', 'value'], path)
   if (!sameAdoption(adoptionOf(fields['schema'], `${path}.schema`), SESSION_CONTEXT_MATERIAL))
     throw new Malformed(`${path}: the schema is not ${SESSION_CONTEXT_MATERIAL.name}/2`)
@@ -453,12 +453,10 @@ function decodeRegistration(
   if (!defined && parameters['value'] !== null)
     throw new Malformed('parameters.value: an undefined value is null')
 
-  let declaration: RegistrationBody['declaration']
-  if (declared) {
-    declaration = definitions.declaration({ definition, key })
-    if (declaration === undefined || declaration.key !== key)
-      throw new Malformed('need.declared: the adopted definition has no declaration of this block')
-  }
+  // An add made before its definition declared the block is read with the declaration it has now.
+  const declaration = definitions.declaration({ definition, key })
+  if (declared && (declaration === undefined || declaration.key !== key))
+    throw new Malformed('need.declared: the adopted definition has no declaration of this block')
   return {
     body: {
       definition,
@@ -685,7 +683,7 @@ export function encodeContextStepCommit(
 
 type StepInput = Extract<RecordedCommit, { kind: 'step' }>
 
-function decodeStep(updates: unknown): StepInput {
+export function decodeStep(updates: unknown): StepInput {
   if (!Array.isArray(updates) || updates.length === 0)
     throw new Malformed('updates: a step commit starts with its head')
   const [first, ...rest] = updates

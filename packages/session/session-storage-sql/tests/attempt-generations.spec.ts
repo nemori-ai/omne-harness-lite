@@ -17,6 +17,7 @@ const identityOf = (operation: string, attempt: number): SqlIdentity => ({
   operation: operationId(operation),
   protocolVersion: '2',
   operationKey: JSON.stringify(['session-1', operationId(operation), attempt]),
+  recall: 'never',
 })
 
 async function started(): Promise<App> {
@@ -47,9 +48,7 @@ describe('the attempt generations of one operation have no bound', () => {
     const a = await started()
     await refuseAccept(a, 'again', ROLLED_BACK)
     for (let attempt = 1; attempt <= ROLLED_BACK; attempt += 1)
-      expect((await a.provider.storage.query(identityOf('accept-again', attempt))).kind).toBe(
-        'rolled_back',
-      )
+      expect(a.provider.ran(identityOf('accept-again', attempt))?.kind).toBe('rolled_back')
 
     const mark = a.provider.calls.length
     expect(await a.accept(TENANT_A, 'session-1', 'again')).toHaveProperty('ok')
@@ -58,9 +57,7 @@ describe('the attempt generations of one operation have no bound', () => {
     expect(
       after.filter(call => call.kind === 'commit').map(call => call.identity.operationKey),
     ).toEqual([identityOf('accept-again', ROLLED_BACK + 1).operationKey])
-    expect((await a.provider.storage.query(identityOf('accept-again', ROLLED_BACK + 1))).kind).toBe(
-      'committed',
-    )
+    expect(a.provider.ran(identityOf('accept-again', ROLLED_BACK + 1))?.kind).toBe('committed')
   })
 
   it(`asks past ${ROLLED_BACK} rolled back generations and finds the attempt still in flight`, async () => {

@@ -16,7 +16,6 @@ import type {
   HandoffChange,
   HandoffOutcome,
   InputBatch,
-  ModelContextRead,
   ModelReplyAdmission,
   Preparation,
   RuntimeConditions,
@@ -46,6 +45,8 @@ export type Write = Readonly<{
   caller?: CallerCommit
   operation?: AgentOperationId
   recordsFact?: true
+  /** Decided on what the loop read last: a changed revision is answered, not written over. */
+  exactCursor?: true
 }>
 
 export function historyCaller(
@@ -88,7 +89,6 @@ export type Iteration = {
   position: ConsumerRef
   conditions: RuntimeConditions | null
   selected: SelectedModel | null
-  context: ModelContextRead | null
   preparation: Preparation | null
   ready: ReadyPreparation | null
   pending: ModelPendingCall | null

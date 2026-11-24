@@ -1,4 +1,9 @@
-import type { ModelProfile, Parameter, ParameterAdoption } from '@omne-harness/model-contract'
+import type {
+  ModelProfile,
+  Parameter,
+  ParameterAdoption,
+  ReasoningEffortMapping,
+} from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
 import {
   bindChatCompletions,
@@ -19,7 +24,12 @@ import {
   engineProbe,
   fixedRequest,
   message,
+  DOCUMENT,
+  documentBlock,
+  PDF_WIRE,
   profileOf,
+  speechBlock,
+  speechRead,
   stateBlock,
   supplierOf,
   testHooks,
@@ -34,8 +44,10 @@ function bind(
   record: ChatCompletionsRecord = testRecord(),
   probe: EngineProbe = engineProbe(),
   hooks: VendorHooks = testHooks(probe),
+  bindingEfforts?: ReasoningEffortMapping,
 ): PiFamilyBinding {
   return bindChatCompletions({
+    bindingEfforts,
     record,
     supplier: supplierOf(record),
     hooks,
@@ -69,6 +81,45 @@ function adoptionsOf(outcome: ReturnType<typeof plan>): readonly ParameterAdopti
 function applied(outcome: ReturnType<typeof plan>): readonly Parameter[] {
   return adoptionsOf(outcome).map(item => item.applied)
 }
+
+describe('rules.plan: a request that refers to a voice', () => {
+  it('is pending on its reference, measured by the duration, rate and channels the block carries', () => {
+    const plain = testRecord()
+    const record = testRecord({
+      wire: { ...plain.wire, voice: { formats: { 'audio/wav': 'wav' } } },
+    })
+    const outcome = plan(bind(record), record, {
+      messages: [message('u1', 'user', [textBlock('b1', 'hear'), speechBlock('b2')])],
+    })
+    if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+    expect(outcome.ok.representation).toMatchObject({
+      kind: 'pending-media',
+      references: [speechRead().reference],
+      media: [speechRead().measurement],
+    })
+  })
+})
+
+describe('rules.plan: a request that refers to a file', () => {
+  const record = testRecord({ wire: { ...testRecord().wire, file: PDF_WIRE } })
+  it('a PDF the record takes is pending on its reference', () => {
+    const outcome = plan(bind(record), record, {
+      messages: [message('u1', 'user', [textBlock('b1', 'read'), documentBlock('d1')])],
+    })
+    if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+    expect(outcome.ok.representation).toMatchObject({
+      kind: 'pending-media',
+      references: [DOCUMENT],
+    })
+  })
+
+  it('a file of a type the record does not take is unsupported before anything is read', () => {
+    const zip = { ...DOCUMENT, mediaType: 'application/zip' }
+    expect(
+      plan(bind(record), record, { messages: [message('u1', 'user', [documentBlock('d1', zip)])] }),
+    ).toMatchObject({ failure: { kind: 'unsupported', field: '/messages/0/blocks/0' } })
+  })
+})
 
 describe('rules.plan: the replay declaration', () => {
   const other = message('a1', 'assistant', [stateBlock('s1', 'sealed'), textBlock('b1', 'hi')], {
@@ -133,6 +184,60 @@ describe('rules.plan: parameters', () => {
     expect(plan(bind(record), record, { parameters: [{ kind: 'top-p', value: 0.5 }] })).toEqual({
       failure: { kind: 'unsupported', field: 'top-p', adapter },
     })
+  })
+
+  it('retains both the selected effort and its mapped value, and rejects a forged fourth tier', () => {
+    const mapping = { low: 'low', medium: 'high', high: 'max' } as const
+    const bound = bind(record, undefined, undefined, mapping)
+    const profile = profileOf(record)
+    const withEfforts = (reasoningEfforts: ReasoningEffortMapping) => ({
+      ...profile,
+      definition: { ...profile.definition, reasoningEfforts },
+    })
+    const medium = { kind: 'reasoning-effort', scale: 'unified', value: 'medium' } as const
+    expect(
+      adoptionsOf(plan(bound, record, { parameters: [medium] }, withEfforts(mapping))),
+    ).toContainEqual({
+      origin: { kind: 'explicit', requested: medium, source: SOURCE },
+      supplier: adapter,
+      applied: { kind: 'reasoning-effort', value: 'high' },
+    })
+    const xhigh = { kind: 'reasoning-effort', scale: 'unified', value: 'xhigh' } as const
+    for (const native of ['high', 'max', 'xhigh'] as const) {
+      expect(
+        plan(bound, record, { parameters: [xhigh] }, withEfforts({ xhigh: native })),
+      ).toMatchObject({
+        failure: { kind: 'unsupported', field: xhigh.kind },
+      })
+    }
+  })
+
+  it('requires both the profile and the bound model to declare xhigh', () => {
+    const xhigh = { kind: 'reasoning-effort', scale: 'unified', value: 'xhigh' } as const
+    const mapping = { xhigh: 'xhigh' } as const
+    const profile = profileOf(record)
+    const declared = {
+      ...profile,
+      definition: { ...profile.definition, reasoningEfforts: mapping },
+    }
+    const bound = bind(record, undefined, undefined, mapping)
+    const undeclared = bind(record)
+    const request = { parameters: [xhigh] }
+    const refusal = { failure: { kind: 'unsupported', field: 'reasoning-effort', adapter } }
+    expect(plan(bound, record, request, profile)).toEqual(refusal)
+    expect(plan(undeclared, record, request, declared)).toEqual(refusal)
+    expect(plan(undeclared, record, request, profile)).toEqual(refusal)
+    const adoptions = adoptionsOf(plan(bound, record, request, declared))
+    const fixed = fixedRequest(record, { parameterAdoptions: adoptions })
+    const encoded = bound.encode({
+      request: fixed,
+      media: [],
+      declaration: fixed.declarations[0],
+      resent: [],
+    })
+    if (!('ok' in encoded)) throw new Error('encode failed')
+    const body: unknown = JSON.parse(new TextDecoder().decode(serializeBody(encoded.ok.body)))
+    expect(body).toMatchObject({ reasoning: { effort: 'xhigh' } })
   })
 
   it('refuses a reasoning effort that the record maps to unsupported', () => {

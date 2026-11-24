@@ -114,7 +114,7 @@ describe('assets-access row', () => {
         }
         await settledSession(tree, 'hello')
         const tenant = savedTenant(tree.home)
-        const item = { tenant, owner: SHELL, item: 'invoke' }
+        const item = { tenant, owner: SHELL, item: 'run' }
 
         const before = await assets(tree, 'describe-setting', item, 'm-describe-1')
         expect(before).toMatchObject({
@@ -170,7 +170,11 @@ describe('assets-access row', () => {
         })
         const page = categories.json as { body: { items: { category: string; title: string }[] } }
         expect(page.body.items.map(item => [item.category, item.title])).toEqual([
+          ['AgentDefinition', '智能体'],
+          ['converter', '转换件'],
+          ['mcp', 'MCP'],
           ['model-provider', '模型供应商'],
+          ['plugin', 'Plugin'],
           ['skill', '技能'],
           ['tool', '工具'],
         ])

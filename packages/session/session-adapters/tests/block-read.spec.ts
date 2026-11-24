@@ -25,7 +25,8 @@ const unread: Reader = async () => ({ kind: 'unread', reason: 'closing' })
 
 it('a block the store does not answer is not readable, and nothing is kept for it', async () => {
   const into = new Map<string, string>()
-  expect(await fetchBlobClosure(unread, 'tenant', ['row-1'], into)).toBe('row-1')
+  const scope = { tenant: 'tenant', execution: 'execution' }
+  expect(await fetchBlobClosure(unread, scope, ['row-1'], into)).toBe('row-1')
   expect(into.size).toBe(0)
 })
 
@@ -118,7 +119,7 @@ const readFrom =
 it('reads the calls and declarations both cursors reach, and the declaration of a chain member not called yet', async () => {
   const { view, store } = scene()
   const into = new Map<string, string>()
-  expect(await fetchNamed(readFrom(store), 'tenant', [view], into)).toBeNull()
+  expect(await fetchNamed(readFrom(store), 'tenant', view, into)).toBeNull()
   const read = [...into.values()].join('\n')
   for (const text of [
     'pass/current',
@@ -136,7 +137,7 @@ it.each(['current-builtin', 'candidate-builtin', 'later-builtin'])(
     const { view, store, rowOf } = scene()
     const missing = rowOf(text)
     const into = new Map<string, string>()
-    expect(await fetchNamed(readFrom(store, missing), 'tenant', [view], into)).toBe(missing)
+    expect(await fetchNamed(readFrom(store, missing), 'tenant', view, into)).toBe(missing)
     expect(into.has(missing)).toBe(false)
   },
 )

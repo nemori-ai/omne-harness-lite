@@ -45,3 +45,96 @@ it('a backgrounded call hands its outcome back to the conversation after the Run
   expect(await calls()).toMatchObject([{ source: 'launched', settled: 'input' }])
   expect(await w.lastOutcome()).toBe('completed')
 }, 180_000)
+
+it('a backgrounded call that ends after its Run ended still hands its outcome back', async () => {
+  const finished = Promise.withResolvers<void>()
+  const w = await openW2World({
+    model: admission =>
+      admission.index === 0
+        ? { parts: [toolCallBlock('tc-0')], reason: 'tool-suggestions' }
+        : { parts: [replyText(`done-${admission.index}`, 'done')], reason: 'stop' },
+    tool: () => ({
+      content: [replyText('built', 'the build passed')],
+      background: true,
+      hold: finished.promise,
+    }),
+    defaultDelayMs: 0,
+    earlier: 'session',
+    reception: 'routed',
+  })
+  worlds.push(w)
+  await w.createSession('w2-background-ended')
+  await w.runRound(1, 'build in the background', 120_000)
+  expect(await w.lastOutcome()).toBe('completed')
+  const runs = w.endedRuns().length
+
+  finished.resolve()
+  // Kept at the place of an execution that has ended, and taken by the conversation as an input:
+  // it wakes a Run of its own.
+  expect(await w.toolPushes[0]).toHaveProperty('ok')
+  const calls = async () => ok(await w.probe.readWork(intakeAccess)).backgroundCalls
+  await w.until(async () => (await calls())?.[0]?.settled === 'input')
+  await w.until(() => w.endedRuns().length > runs)
+  expect(w.endedRuns().at(-1)).toMatchObject({ outcome: 'completed' })
+}, 180_000)
+
+it('a result version that comes late for a call the Run is done with is kept', async () => {
+  const later = Promise.withResolvers<void>()
+  const w = await openW2World({
+    model: admission => {
+      if (admission.index === LATER_STEPS) later.resolve()
+      return admission.index <= LATER_STEPS
+        ? { parts: [toolCallBlock(`tc-${admission.index}`)], reason: 'tool-suggestions' }
+        : { parts: [replyText('done', 'all read')], reason: 'stop' }
+    },
+    tool: index => ({
+      content: [replyText(`tool-${index}`, `file ${index}`)],
+      ...(index === 0 ? { late: later.promise } : {}),
+    }),
+    defaultDelayMs: 0,
+    earlier: 'session',
+    reception: 'routed',
+  })
+  worlds.push(w)
+  await w.createSession('w2-late-version')
+  await w.runRound(1, 'read the files', 120_000)
+
+  await w.until(() => w.toolLatePushes.length === 1)
+  expect(await w.toolLatePushes[0]).toHaveProperty('ok')
+  expect(await w.lastOutcome()).toBe('completed')
+}, 180_000)
+
+it('two backgrounded calls that end one after the other, after their Run ended, both hand their outcomes back', async () => {
+  const first = Promise.withResolvers<void>()
+  const second = Promise.withResolvers<void>()
+  const w = await openW2World({
+    model: admission =>
+      admission.index === 0
+        ? { parts: [toolCallBlock('tc-0'), toolCallBlock('tc-1')], reason: 'tool-suggestions' }
+        : { parts: [replyText(`done-${admission.index}`, 'done')], reason: 'stop' },
+    tool: index => ({
+      content: [replyText(`built-${index}`, `build ${index} passed`)],
+      background: true,
+      hold: index === 0 ? first.promise : second.promise,
+    }),
+    defaultDelayMs: 0,
+    earlier: 'session',
+    reception: 'routed',
+  })
+  worlds.push(w)
+  await w.createSession('w2-background-ended-twice')
+  await w.runRound(1, 'build both in the background', 120_000)
+  expect(await w.lastOutcome()).toBe('completed')
+  const calls = async () => ok(await w.probe.readWork(intakeAccess)).backgroundCalls ?? []
+  const settled = async () => (await calls()).filter(call => call.settled === 'input').length
+
+  // Each outcome is one more entry at the place of the ended execution: the second takes the place
+  // after the first, whichever replica keeps it.
+  first.resolve()
+  expect(await w.toolPushes[0]).toHaveProperty('ok')
+  await w.until(async () => (await settled()) === 1)
+  second.resolve()
+  expect(await w.toolPushes[1]).toHaveProperty('ok')
+  await w.until(async () => (await settled()) === 2)
+  expect(w.endedRuns().at(-1)).toMatchObject({ outcome: 'completed' })
+}, 180_000)

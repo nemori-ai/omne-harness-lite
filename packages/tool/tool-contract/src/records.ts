@@ -120,19 +120,12 @@ export interface ToolStartAuthority<P> {
   ): Reply<DurableEvidence>
 }
 export type ToolStartFence<P> = Pick<ToolStartAuthority<P>, 'invalidate'>
-export type ToolPermitRef = Readonly<{ tenant: TenantId; permit: string }>
-export type ToolPermitConsumption = Readonly<{
-  permit: ToolPermitRef
-  consumer: Readonly<{ owner: string; work: string; position: string }>
-  evidence: DurableEvidence
-}>
 export type ToolStartAcceptance = Readonly<{
   tenant: TenantId
   call: ToolCallId
   start: ToolStartRecord
   permit: DurableEvidence
   guards: readonly StartGuard[]
-  authorizations: readonly ToolPermitConsumption[]
   executorReceipt: DurableEvidence
   acceptance: DurableEvidence
 }>

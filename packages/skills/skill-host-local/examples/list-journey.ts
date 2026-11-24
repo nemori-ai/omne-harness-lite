@@ -1,12 +1,12 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { capabilityId, createCategoryPoint } from '@omne-harness/assets'
 import {
-  createAssetsLocal,
-  publishedRef,
-  tenantLayerSource,
-  type AssetsLocal,
-} from '@omne-harness/assets-local'
+  capabilityId,
+  createCategoryPoint,
+  createHeldBook,
+  heldLayerSource,
+} from '@omne-harness/assets'
+import { createAssetsLocal, tenantListing, type AssetsLocal } from '@omne-harness/assets-local'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import type { Resolution } from '@omne-harness/skill-contract/provider'
@@ -62,11 +62,13 @@ async function publishAndHold(
 ): Promise<string> {
   const made = capabilityId(skillBodyContract().category, name)
   if (!made.ok) throw new Error('not a capability identity')
+  const holdingRef = `held-${name}`
   const published = await assets.packages.publish({
     capability: made.id,
     from: directoryReader(createDirectorySource(), dir),
     operationId: `publish-${name}`,
     holding: {
+      holdingRef,
       sources: [
         { sourceId: 'tenant', ownerRef: tenantRef, scope: { kind: 'owner', subjectRef: 'skills' } },
       ],
@@ -74,7 +76,7 @@ async function publishAndHold(
     },
   })
   if (published.kind !== 'published') throw new Error(JSON.stringify(published))
-  return publishedRef(made.id)
+  return holdingRef
 }
 
 async function changeHolding(
@@ -111,7 +113,12 @@ export async function runListJourney(options: ListJourneyOptions): Promise<ListJ
   await mkdir(options.stateDir, { recursive: true })
   const opened = await openStorage(options.stateDir, tenantRef)
   const categories = createCategoryPoint()
-  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
+  categories.contribute({
+    contract: skillBodyContract(),
+    display: skillCategoryDisplay,
+    point: 'skill.skills',
+  })
+  const book = createHeldBook(tenantRef)
   const assets = createAssetsLocal({
     storage: opened.storage,
     domain: opened.domain,
@@ -119,6 +126,7 @@ export async function runListJourney(options: ListJourneyOptions): Promise<ListJ
     manifestDigest: opened.combination.manifestDigest,
     categories,
     packageRoot: join(options.stateDir, 'packages'),
+    held: book,
   })
   try {
     await publishAndHold(assets, tenantRef, 'sample-skill', options.packageDir)
@@ -131,7 +139,14 @@ export async function runListJourney(options: ListJourneyOptions): Promise<ListJ
     await changeHolding(assets, tenantRef, second, { kind: 'setEnabled', enabled: false })
 
     const fromAssets = skillInputsFromAssets<string, Scope>({
-      sources: [tenantLayerSource(assets)],
+      sources: [
+        heldLayerSource({
+          layer: 'tenant',
+          tenant: tenantRef,
+          read: book.read,
+          list: tenantListing(assets),
+        }),
+      ],
       body: versionBodyOf(assets),
     })
     const sameTenant = (who: Access<string>) =>

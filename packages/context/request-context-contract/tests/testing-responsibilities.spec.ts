@@ -356,7 +356,7 @@ it.each([
   ],
   [
     'alteration claims an unknown affected layer',
-    (value: Coverage) => ({ ...value, alterations: [{ evidence, touches: 'history-head' }] }),
+    (value: Coverage) => ({ ...value, alterations: [{ evidence, touches: 'history-start' }] }),
   ],
   [
     'alteration loses its durable digest',

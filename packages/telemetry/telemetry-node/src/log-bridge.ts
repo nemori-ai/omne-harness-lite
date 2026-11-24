@@ -2,6 +2,7 @@ import { Logger, type Exporter, type Message } from '@deepseek-ai/cordis'
 import { logRecord, type LogRecordInput, type TelemetryRecord } from './record.ts'
 import type { TelemetryRuntime } from './runtime.ts'
 
+/** Cordis `LoggerLevel.INFO`: the exporter takes error, warn and info. */
 const EXPORTED_LEVEL = 2
 
 export const UNFORMATTABLE = '<the log message did not format>'

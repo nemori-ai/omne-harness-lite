@@ -1,33 +1,27 @@
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { createRuntimeContext } from '@omne-harness/runtime-context'
-import { decodeScopeRef, type ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
-  prepareContextRegistration,
-  sessionModesDescriptor,
-  sessionModesProducer,
-} from '@omne-harness/session-adapters/cordis'
+  decodeScopeRef,
+  type ContextBlockKey,
+  type ScopeRef,
+} from '@omne-harness/runtime-context-contract'
+import { prepareContextRegistration } from '@omne-harness/session-adapters/cordis'
 import { createRuntimeContextAuthority } from '../../entry/runtime-context-trust.ts'
 import {
-  INITIAL_BLOCKS,
-  modesPreparationRecords,
-  type ModesCreation,
-} from '../../assembly/session-modes-initialization.ts'
+  contextPreparationRecord,
+  type ContextCreation,
+  type InitialBlock,
+} from '../../assembly/session-context-initialization.ts'
 import { Service, type Context } from '@deepseek-ai/cordis'
-import {
-  ENABLED_EXTENSIONS_BLOCK,
-  enabledExtensionsDescriptor,
-  enabledExtensionsProducer,
-} from '@omne-harness/loop-extension-contract'
 import { loopExtensionViewsKey } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import { createEnabledExtensionsPublisher } from '@omne-harness/loop-extension-host-local'
-import { succeed, type Outcome } from '@omne-harness/operation-result'
 import { runtimeContextKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   createSessionModesPlugin,
   type SessionModesPluginInput,
 } from '@omne-harness/session-adapters/cordis'
-import type { SessionId } from '@omne-harness/session-contract'
+import type { SessionAccess, SessionId } from '@omne-harness/session-contract'
 import type { SessionModesPrincipalsService } from '../../entry/session-modes-principals.ts'
 
 export const sessionModesInstallationKey = 'sessionModesInstallation'
@@ -49,9 +43,16 @@ declare module '@deepseek-ai/cordis' {
 
 export class SessionModesInstallation extends Service {
   readonly recoverSession: Sources['recoverSession']
-  readonly prepareInitial: (input: ModesCreation) => Promise<InitialPreparations>
+  readonly prepareInitial: (
+    input: ContextCreation,
+    block: InitialBlock,
+  ) => ReturnType<typeof prepareContextRegistration>
   readonly ensure: (tenant: TenantId) => Promise<{ kind: 'ready' | 'unavailable' }>
   readonly refresh: (tenant: TenantId, session: SessionId) => ReturnType<Producer['refresh']>
+  readonly readPermissionMode: (
+    access: SessionAccess<unknown>,
+  ) => ReturnType<Producer['readPermissionMode']>
+  readonly readModes: (access: SessionAccess<unknown>) => ReturnType<Producer['readModes']>
 
   constructor(ctx: Context, sources: Sources) {
     super(ctx, sessionModesInstallationKey)
@@ -108,25 +109,17 @@ export class SessionModesInstallation extends Service {
       const result = await sources.recoverSession(input)
       return active ? result : { kind: 'unavailable' }
     }
-    this.prepareInitial = async input => {
-      if (!active)
-        return {
-          failure: {
-            kind: 'unavailable',
-            owner: 'session.modes',
-            diagnostic: 'mode installation is closed',
-          },
-        }
-      const result = await prepareInitial(input, sources)
-      return active
-        ? result
-        : {
-            failure: {
-              kind: 'unavailable',
-              owner: 'session.modes',
-              diagnostic: 'mode installation is closed',
-            },
-          }
+    this.prepareInitial = async (input, block) => {
+      const closed = {
+        failure: {
+          kind: 'unavailable' as const,
+          owner: block.item,
+          diagnostic: 'the context installation is closed',
+        },
+      }
+      if (!active) return closed
+      const result = await prepareInitial(input, block, sources)
+      return active ? result : closed
     }
     this.ensure = async tenant => ({
       kind: (await producer(tenant)) === undefined ? 'unavailable' : 'ready',
@@ -135,6 +128,24 @@ export class SessionModesInstallation extends Service {
       const mounted = await producer(tenant)
       return mounted?.refresh(session) ?? { kind: 'unavailable' }
     }
+    this.readPermissionMode = async access => {
+      const mounted = await producer(access.tenant)
+      return mounted?.readPermissionMode(access) ?? { kind: 'unavailable' }
+    }
+    this.readModes = async access => {
+      const mounted = await producer(access.tenant)
+      return mounted?.readModes(access) ?? { kind: 'unavailable' }
+    }
+  }
+}
+
+/** A system part has no tenant of its own: once verified, the installation prepares as itself. */
+async function isSystemPart(verifier: PrincipalVerifier, creator: unknown): Promise<boolean> {
+  try {
+    const verification = await verifier.verify(creator)
+    return verification.kind === 'verified' && verification.principal.kind === 'system'
+  } catch {
+    return false
   }
 }
 
@@ -161,30 +172,22 @@ function enabledExtensionsPublisherOf(ctx: Context, tenant: TenantId, principal:
   })
 }
 
-type Prepared = Awaited<ReturnType<typeof prepareContextRegistration>>
-type InitialPreparations = Outcome<
-  readonly Extract<Prepared, { ok: unknown }>['ok'][],
-  PreparationFailure
->
-type PreparationFailure = Extract<Prepared, { failure: unknown }>['failure']
-
 async function prepareInitial(
-  input: ModesCreation,
+  input: ContextCreation,
+  block: InitialBlock,
   sources: Sources,
-): Promise<InitialPreparations> {
+): ReturnType<typeof prepareContextRegistration> {
   const unavailable = () => ({
     failure: {
       kind: 'unavailable' as const,
-      owner: 'session.modes',
-      diagnostic: 'initial modes preparation is unavailable',
+      owner: block.item,
+      diagnostic: 'the initial context preparation is unavailable',
     },
   })
   const principal = sources.principals.forTenant(input.tenant)
   if (principal === undefined) return unavailable()
-  const records = modesPreparationRecords(input)
-  const [first] = records
-  if (first === undefined) return succeed([])
-  const scope = decodeScopeRef({ ref: first.decision.scope })
+  const record = contextPreparationRecord(block, input)
+  const scope = decodeScopeRef({ ref: record.decision.scope })
   if ('failure' in scope) return unavailable()
   const authority = createRuntimeContextAuthority({ verifier: sources.verifier })
   const temporary = createRuntimeContext({
@@ -206,47 +209,44 @@ async function prepareInitial(
     },
   })
   try {
-    const registered = await temporary.registerProducer(principal, {
-      tenant: input.tenant,
-      key: 'session.modes',
-      producer: sessionModesProducer,
-      declaration: sessionModesDescriptor,
-      scoped: true,
-      supply: async () => ({ kind: 'none' }),
-    })
-    const extensions = await temporary.registerProducer(principal, {
-      tenant: input.tenant,
-      key: ENABLED_EXTENSIONS_BLOCK,
-      producer: enabledExtensionsProducer,
-      declaration: enabledExtensionsDescriptor,
-      scoped: false,
-      supply: async () => ({ kind: 'unavailable' }),
-    })
-    if (registered.kind !== 'registered' || extensions.kind !== 'registered') return unavailable()
-    const prepared = []
-    for (const [index, record] of records.entries()) {
-      const block = INITIAL_BLOCKS[index]
-      if (block === undefined) return unavailable()
-      const one = await prepareContextRegistration(
-        temporary,
-        input.principal,
-        {
-          kind: 'add',
-          tenant: input.tenant,
-          scope: scope.ok,
-          key: block.key,
-          creating: true,
-          required: true,
-          basedOn: record.decision.basedOn,
-          bindings: block.bindings,
-          parameters: undefined,
-        },
-        { commit: record.decision.commit },
-      )
-      if ('failure' in one) return one
-      prepared.push(one.ok)
+    // A supplied block is judged against its producer; a stateful one brings its declaration.
+    if ('producer' in block) {
+      const judged = {
+        tenant: input.tenant,
+        key: block.item,
+        producer: block.producer,
+        supply: async () => ({ kind: 'none' as const }),
+      }
+      const registered = block.scoped
+        ? await temporary.registerProducer<ContextBlockKey>(principal, {
+            ...judged,
+            declaration: block.descriptor,
+            scoped: true,
+          })
+        : await temporary.registerProducer<ContextBlockKey>(principal, {
+            ...judged,
+            declaration: block.descriptor,
+            scoped: false,
+          })
+      if (registered.kind !== 'registered') return unavailable()
     }
-    return succeed(prepared)
+    return await prepareContextRegistration(
+      temporary,
+      (await isSystemPart(sources.verifier, input.principal)) ? principal : input.principal,
+      {
+        kind: 'add',
+        tenant: input.tenant,
+        scope: scope.ok,
+        key: block.item,
+        creating: true,
+        required: true,
+        basedOn: block.basedOn,
+        bindings: block.bindings,
+        parameters: undefined,
+        ...('producer' in block ? {} : { declaration: block.descriptor }),
+      },
+      { commit: record.decision.commit },
+    )
   } finally {
     await temporary.close()
   }

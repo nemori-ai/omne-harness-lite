@@ -1,5 +1,6 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { AvailabilityFrame } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import {
@@ -73,6 +74,7 @@ async function tree(
 ): Promise<Tree> {
   const root = new Context()
   roots.push(root)
+  await root.plugin(DynamisService)
   const fake = fakeTransport()
   const diagnostics: AssemblyDiagnostic[] = []
   const delays: number[] = []
@@ -367,6 +369,7 @@ describe('one protocol client on the tree', () => {
   it('unloads the protocol client plugin: the service goes and the module unloads', async () => {
     const root = new Context()
     roots.push(root)
+    await root.plugin(DynamisService)
     const fake = fakeTransport()
     await root.plugin(connectionPlugin({ transport: fake.transport, login: loginSource().source }))
     let client: Fiber | undefined
@@ -582,6 +585,7 @@ describe('the protocol client when its plugin unloads', () => {
   async function hosted() {
     const root = new Context()
     roots.push(root)
+    await root.plugin(DynamisService)
     const fake = fakeTransport()
     const diagnostics: AssemblyDiagnostic[] = []
     await root.plugin(
@@ -732,6 +736,7 @@ describe('when the missing-client diagnostic is raised', () => {
   it('a connection without a diagnostics sink applies the availability and stays silent', async () => {
     const root = new Context()
     roots.push(root)
+    await root.plugin(DynamisService)
     const fake = fakeTransport()
     await root.plugin(
       connectionPlugin({
@@ -872,6 +877,7 @@ describe('what a read-retry wait leaves behind', () => {
     async function timed() {
       const root = new Context()
       roots.push(root)
+      await root.plugin(DynamisService)
       const fake = fakeTransport()
       await root.plugin(
         connectionPlugin({
@@ -913,6 +919,7 @@ describe('the protocol client and the connection: claim and subscription', () =>
   it('claims its protocol once, listens once, and on unload gives the claim back once and stops listening', async () => {
     const root = new Context()
     roots.push(root)
+    await root.plugin(DynamisService)
     const fake = fakeTransport()
     await root.plugin(
       connectionPlugin({

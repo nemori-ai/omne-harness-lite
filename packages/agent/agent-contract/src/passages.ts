@@ -235,6 +235,7 @@ export interface DecisionCards<P> {
     input: Access<P> &
       Readonly<{
         operation: AgentOperationId
+        execution: AgentExecutionId
         passage: PassageId
         round: CardRoundId
         cards: readonly DurableEvidence[]
@@ -243,10 +244,18 @@ export interface DecisionCards<P> {
   ): Reply<
     readonly Readonly<{ card: DurableEvidence; reply: Exclude<CardReply, { kind: 'pending' }> }>[]
   >
+  changes(input: Access<P> & Readonly<{ signal: AbortSignal }>): AsyncIterable<void>
 }
+export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance'
 export type AdmissionDecision =
-  | Readonly<{ kind: 'allow'; evidence: DurableEvidence }>
-  | Readonly<{ kind: 'deny'; reason: string; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'allow'; evidence: DurableEvidence; notice?: string }>
+  | Readonly<{
+      kind: 'deny'
+      category: DenialCategory
+      reason: string
+      evidence: DurableEvidence
+      notice?: string
+    }>
   | Readonly<{ kind: 'need-decision'; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'undecidable'; diagnostic: string }>
@@ -263,6 +272,8 @@ export interface ActionAdmission<P> {
         definition: Adoption
         permissions: readonly NamedCapturedRead[]
         decision: Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }> | null
+        /** The batch this action is judged with, and this pass over it; one pass reads each fact once. */
+        batch?: Readonly<{ id: ActionBatchId; pass: string }>
       }>,
   ): Reply<AdmissionDecision>
 }
@@ -395,6 +406,7 @@ export type MaterialDescription = Readonly<{
   size: number
   kind: Material<ContentBlock>['kind']
 }>
+export type MaterialReaders = 'after-release' | 'until-release'
 export interface AgentMaterials<P, B extends ContentBlock> {
   preserve(
     input: Access<P> &
@@ -403,6 +415,7 @@ export interface AgentMaterials<P, B extends ContentBlock> {
         identity: string
         consumer: ConsumerRef
         value: Material<B>
+        readers?: MaterialReaders
       }>,
   ): Reply<DurableEvidence>
   read(input: Access<P> & Readonly<{ source: DurableEvidence }>): Reply<Material<B>>

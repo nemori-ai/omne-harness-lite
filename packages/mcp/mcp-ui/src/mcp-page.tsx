@@ -1,35 +1,52 @@
 import {
-  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   EmptyState,
+  IconButton,
   InlineNotice,
+  LoadingIndicator,
   LoadingState,
+  MoreIcon,
+  Segmented,
+  SettingRow,
   type NoticeAction,
 } from '@omne-harness/ui-kit'
 import { useEffect, useState, useSyncExternalStore, type JSX } from 'react'
+import { EndpointActions, EndpointStatus, useEndpointState } from './endpoint-state.tsx'
+import { mcpEndpoint, mcpEndpointPermission, mcpPage } from './parts.ts'
 import type {
   McpEndpoint,
   McpGovernance,
   McpNotice,
   McpPermission,
   McpRow,
+  McpStatus,
   McpView,
 } from './port.ts'
 
 export const MCP_CATEGORY = 'mcp'
 
-const NOT_CONNECTED = 'MCP 还没有接进这个应用：现在没有接入点，这一页只有机制。'
+const NO_ENDPOINT = '接进来的 MCP 接入点会列在这里。'
 const TONE = { refused: 'danger', unavailable: 'caution', unknown: 'caution' } as const
 
-export type McpPageProps = Readonly<{ governance: McpGovernance; tenant: string }>
+export type McpPageProps = Readonly<{
+  governance: McpGovernance
+  tenant: string
+  status: McpStatus | null
+}>
 
-export function McpPage({ governance, tenant }: McpPageProps): JSX.Element | null {
+type Reach = Readonly<{ view: McpView; status: McpStatus | null; tenant: string }>
+
+export function McpPage({ governance, tenant, status }: McpPageProps): JSX.Element | null {
   const [view, setView] = useState<McpView | null>(null)
   useEffect(() => {
     const opened = governance.open(tenant, MCP_CATEGORY)
     setView(opened)
     return opened.close
   }, [governance, tenant])
-  return view === null ? null : <McpBody view={view} />
+  return view === null ? null : <McpBody reach={{ view, status, tenant }} />
 }
 
 function NoticeLine({
@@ -50,7 +67,8 @@ function NoticeLine({
   )
 }
 
-function McpBody({ view }: { readonly view: McpView }): JSX.Element {
+function McpBody({ reach }: { readonly reach: Reach }): JSX.Element {
+  const { view } = reach
   const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
   switch (snapshot.kind) {
     case 'reading':
@@ -59,7 +77,7 @@ function McpBody({ view }: { readonly view: McpView }): JSX.Element {
       return <NoticeLine notice={snapshot.notice} action={{ label: '重试', onClick: view.read }} />
     case 'read':
       return (
-        <div className="mcp-page">
+        <div className="mcp-page" {...mcpPage.props}>
           {snapshot.partial ? (
             <NoticeLine
               notice={{
@@ -68,10 +86,10 @@ function McpBody({ view }: { readonly view: McpView }): JSX.Element {
               }}
             />
           ) : snapshot.holdings.length === 0 ? (
-            <EmptyState title={NOT_CONNECTED} />
+            <EmptyState title={NO_ENDPOINT} />
           ) : null}
           {snapshot.holdings.map(endpoint => (
-            <Endpoint key={endpoint.name} endpoint={endpoint} view={view} />
+            <Endpoint key={endpoint.name} endpoint={endpoint} reach={reach} />
           ))}
         </div>
       )
@@ -85,15 +103,18 @@ const drawnHere = (row: McpRow): row is DrawnRow =>
 
 function Endpoint({
   endpoint,
-  view,
+  reach,
 }: {
   readonly endpoint: McpEndpoint
-  readonly view: McpView
+  readonly reach: Reach
 }): JSX.Element {
+  const { view } = reach
   const DefaultRow = view.Row
+  const { state, refresh } = useEndpointState(reach.status, reach.tenant, endpoint.name)
   return (
-    <section className="mcp-endpoint" aria-label={endpoint.name}>
+    <section className="mcp-endpoint" aria-label={endpoint.name} {...mcpEndpoint.props}>
       <h3 className="mcp-endpoint-title">{endpoint.name}</h3>
+      <EndpointStatus state={state} />
       {endpoint.rows.filter(drawnHere).map(row => (
         <CallPermission key={row.key} row={row} view={view} />
       ))}
@@ -104,21 +125,24 @@ function Endpoint({
             <DefaultRow key={row.key} rowKey={row.key} />
           ))}
       </ul>
+      <EndpointActions state={state} refresh={refresh} />
     </section>
   )
 }
 
-function applying(setting: McpPermission): string {
-  const effective = setting.effective
+const labelOf = (setting: McpPermission, value: string) =>
+  setting.choices.find(choice => choice.value === value)?.label ?? value
+
+// What stands where the control would be when nothing can be picked here.
+function readOnlyValue(setting: McpPermission): string | null {
+  const { effective } = setting
   switch (effective.kind) {
-    case 'value': {
-      const picked = setting.choices.find(choice => choice.value === effective.value)
-      return `现在：${picked?.label ?? effective.value}`
-    }
     case 'prohibited':
-      return '现在：被禁止'
+      return '被禁止'
     case 'empty-bound':
-      return '现在：没有可选的一档'
+      return '没有可选的一档'
+    case 'value':
+      return setting.editable.kind === 'yes' ? null : labelOf(setting, effective.value)
   }
 }
 
@@ -130,35 +154,64 @@ function CallPermission({
   readonly view: McpView
 }): JSX.Element {
   const setting = row.view
-  const open = setting.editable.kind === 'yes'
+  const [sent, setSent] = useState<string | null>(null)
   const busy =
     row.read.kind !== 'read' || row.write.kind === 'submitting' || row.write.kind === 'unknown'
-  const picked = setting.effective.kind === 'value' ? setting.effective.value : null
+  const fixed = readOnlyValue(setting)
+  const effective = setting.effective.kind === 'value' ? setting.effective.value : ''
+  const shownValue = busy && sent !== null ? sent : effective
+  const clearable = setting.own !== null && setting.editable.kind === 'yes'
   return (
-    <div className="mcp-permission">
-      <h4 className="mcp-permission-title">{setting.declaration.title}</h4>
-      <div role="group" aria-label={setting.declaration.title} className="mcp-permission-choices">
-        {setting.choices.map(choice => (
-          <Button
-            key={choice.value}
-            variant="outline"
-            aria-pressed={choice.value === picked}
-            disabled={busy || !open}
-            onClick={() => view.set(row.key, choice.value)}
-          >
-            {choice.label}
-          </Button>
-        ))}
-      </div>
-      <p className="mcp-permission-now">{applying(setting)}</p>
-      {open ? null : <p className="mcp-permission-closed">这一层不能改这一项。</p>}
-      {open && setting.own !== null ? (
-        <Button variant="ghost" disabled={busy} onClick={() => view.clear(row.key)}>
-          清除这一层的挑选
-        </Button>
-      ) : null}
-      <WriteLine row={row} view={view} />
+    <div className="mcp-permission" {...mcpEndpointPermission.props}>
+      <SettingRow
+        label={setting.declaration.title}
+        hint={setting.own === null ? '这一层没有挑选' : '这一层设的'}
+        notice={<WriteLine row={row} view={view} />}
+      >
+        {fixed === null ? (
+          <div className="mcp-permission-control" aria-busy={busy}>
+            <Segmented
+              label={setting.declaration.title}
+              value={shownValue}
+              options={setting.choices}
+              onValueChange={value => {
+                if (busy) return
+                setSent(value)
+                view.set(row.key, value)
+              }}
+            />
+            {busy ? <LoadingIndicator size="sm" /> : null}
+          </div>
+        ) : (
+          <p className="mcp-permission-value">{fixed}</p>
+        )}
+        {clearable ? <ClearMenu busy={busy} onClear={() => view.clear(row.key)} /> : null}
+      </SettingRow>
+      {setting.editable.kind === 'yes' ? null : (
+        <p className="mcp-permission-closed">这一层不能改这一项。</p>
+      )}
     </div>
+  )
+}
+
+function ClearMenu({
+  busy,
+  onClear,
+}: {
+  readonly busy: boolean
+  readonly onClear: () => void
+}): JSX.Element {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <IconButton label="更多" size="icon-compact" disabled={busy}>
+          <MoreIcon aria-hidden="true" />
+        </IconButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={onClear}>清除这一层的挑选</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -176,7 +229,9 @@ function WriteLine({
         <NoticeLine
           notice={write.notice}
           action={
-            write.confirming ? undefined : { label: '再确认', onClick: () => view.confirm(row.key) }
+            write.confirming
+              ? undefined
+              : { label: '再确认一次', onClick: () => view.confirm(row.key) }
           }
         />
       )

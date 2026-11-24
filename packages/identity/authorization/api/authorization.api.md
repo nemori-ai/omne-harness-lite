@@ -21,10 +21,13 @@
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectiveArguments` · `evidence.d.ts`
 - `ExpiryReading` · `system-action.d.ts`
+- `GRANT_REF_TEXT_LIMIT` · `grant.d.ts`
+- `GateRef` · `grant.d.ts`
+- `GateVerdict` · `release.d.ts`
+- `GrantLayer` · `grant.d.ts`
 - `GrantOutcome` · `permit.d.ts`
-- `InquiryDisposition` · `inquiry.d.ts`
+- `GrantRef` · `grant.d.ts`
 - `InquiryPolicy` · `inquiry.d.ts`
-- `InquiryRequirement` · `inquiry.d.ts`
 - `MaintenanceGrant` · `system-action.d.ts`
 - `MaintenanceGrantReading` · `system-action.d.ts`
 - `MaintenanceGrantSource` · `system-reference.d.ts`
@@ -37,8 +40,21 @@
 - `PermitLookup` · `permit.d.ts`
 - `PermitRef` · `permit.d.ts`
 - `PermitState` · `permit.d.ts`
+- `RELEASE_ARGUMENTS_LIMIT` · `release-card.d.ts`
+- `RELEASE_OPTIONS` · `release-card.d.ts`
 - `ReferenceAdmissionDependencies` · `reference.d.ts`
+- `ReleaseBasis` · `release.d.ts`
+- `ReleaseCard` · `release-card.d.ts`
+- `ReleaseCardAction` · `release-card.d.ts`
+- `ReleaseCardDetail` · `release-card.d.ts`
+- `ReleaseCardOption` · `release-card.d.ts`
+- `ReleaseCardRow` · `release-card.d.ts`
+- `ReleaseDecision` · `release.d.ts`
+- `ReleaseFacts` · `release.d.ts`
+- `ReleaseOffer` · `release-card.d.ts`
+- `ReleaseOption` · `release-card.d.ts`
 - `SYSTEM_ACTION_MATRIX` · `system-matrix.d.ts`
+- `SessionFacts` · `release.d.ts`
 - `StandingBasis` · `admission.d.ts`
 - `SystemActionAuthorization` · `system-action.d.ts`
 - `SystemActionBasis` · `system-action.d.ts`
@@ -52,17 +68,21 @@
 - `SystemActionTarget` · `system-action.d.ts`
 - `canonicalText` · `evidence.d.ts`
 - `decideAdmission` · `admission.d.ts`
-- `decideInquiry` · `inquiry.d.ts`
+- `decideRelease` · `release.d.ts`
 - `decideSystemAction` · `system-action.d.ts`
 - `decisionEvidence` · `evidence.d.ts`
 - `decodePermitId` · `permit.d.ts`
 - `digestOf` · `evidence.d.ts`
 - `effectiveArgumentsOf` · `evidence.d.ts`
+- `grantLayerOf` · `grant.d.ts`
+- `grantRefText` · `grant.d.ts`
 - `inMemoryPermitLedger` · `permit.d.ts`
 - `noArguments` · `evidence.d.ts`
 - `operationEquals` · `operation.d.ts`
+- `parseGrantRef` · `grant.d.ts`
 - `referenceAdmissionCheck` · `reference.d.ts`
 - `referenceSystemActionAuthorization` · `system-reference.d.ts`
+- `releaseCard` · `release-card.d.ts`
 - `targetEquals` · `operation.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
@@ -145,12 +165,52 @@ export declare function noArguments(): EffectiveArguments;
 export declare function decisionEvidence(record: string, revision: string, content: unknown): DecisionEvidence;
 ```
 
+## 声明文件 `grant.d.ts`
+
+```ts
+import type { DurableEvidence } from '@omne-harness/exchange-refs';
+export type GrantLayer = 'tenant' | 'session';
+export type GateRef = Readonly<{
+    capability: string;
+    key: string;
+}>;
+export type GrantRef = Readonly<{
+    via: 'verdict';
+    layer: GrantLayer;
+    holder: string;
+    gate: GateRef;
+    revision: string;
+}> | Readonly<{
+    via: 'session-grant';
+    holder: string;
+    gate: GateRef;
+    source: DurableEvidence;
+}> | Readonly<{
+    via: 'once';
+    holder: string;
+    source: DurableEvidence;
+}> | Readonly<{
+    via: 'skip-ask';
+    holder: string;
+    source: DurableEvidence;
+}>;
+export declare const GRANT_REF_TEXT_LIMIT = 2048;
+export declare function grantLayerOf(grant: GrantRef): GrantLayer;
+export declare function grantRefText(grant: GrantRef): string;
+export declare function parseGrantRef(value: string): GrantRef | null;
+```
+
 ## 声明文件 `index.d.ts`
 
 ```ts
 export { decideAdmission } from './admission.ts';
-export { decideInquiry } from './inquiry.ts';
-export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts';
+export { decideRelease } from './release.ts';
+export { GRANT_REF_TEXT_LIMIT, grantLayerOf, grantRefText, parseGrantRef } from './grant.ts';
+export type { GateRef, GrantLayer, GrantRef } from './grant.ts';
+export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release-card.ts';
+export type { ReleaseCard, ReleaseCardAction, ReleaseCardDetail, ReleaseCardOption, ReleaseCardRow, ReleaseOffer, ReleaseOption, } from './release-card.ts';
+export type { GateVerdict, ReleaseBasis, ReleaseDecision, ReleaseFacts, SessionFacts, } from './release.ts';
+export type { InquiryPolicy } from './inquiry.ts';
 export type { AdmissionBasis, AdmissionCheck, AdmissionDecision, AdmissionFacts, AdmissionInput, DenialReason, StandingBasis, } from './admission.ts';
 export { canonicalText, decisionEvidence, digestOf, effectiveArgumentsOf, noArguments, } from './evidence.ts';
 export type { DecisionEvidence, DurableEvidence, EffectiveArguments } from './evidence.ts';
@@ -173,10 +233,8 @@ export type { MaintenanceGrantSource, SystemActionClock, SystemActionDependencie
 ```ts
 export type InquiryPolicy = Readonly<{
     onAsk: 'deny' | 'ask-human' | 'skip-ask';
+    denial?: 'nobody-to-ask' | undefined;
 }>;
-export type InquiryRequirement = 'none' | 'required' | 'prohibited' | 'unavailable';
-export type InquiryDisposition = 'continue' | 'ask-human' | 'deny' | 'unavailable';
-export declare function decideInquiry(requirement: InquiryRequirement, policy: InquiryPolicy | null): InquiryDisposition;
 ```
 
 ## 声明文件 `operation.d.ts`
@@ -305,6 +363,146 @@ export type ReferenceAdmissionDependencies = Readonly<{
     permits: PermitLedger | null;
 }>;
 export declare function referenceAdmissionCheck(deps: ReferenceAdmissionDependencies): AdmissionCheck;
+```
+
+## 声明文件 `release-card.d.ts`
+
+```ts
+export declare const RELEASE_OPTIONS: readonly [
+    'deny-once',
+    'allow-once',
+    'allow-session',
+    'allow-always',
+    'deny-always'
+];
+export type ReleaseOption = (typeof RELEASE_OPTIONS)[number];
+export type ReleaseCardRow = Readonly<{
+    label: string;
+    value: string | readonly string[];
+}>;
+export type ReleaseCardDetail = Readonly<{
+    state: 'given';
+    rows: readonly [
+        ReleaseCardRow,
+        ...ReleaseCardRow[]
+    ];
+    typed?: Readonly<{
+        kind: string;
+        value: string;
+    }>;
+}> | Readonly<{
+    state: 'unavailable';
+}>;
+export type ReleaseCardAction = Readonly<{
+    tool: string;
+    command: string | null;
+    preview: string;
+    gateTitle: string;
+    effectiveArguments: string;
+    session: string;
+    agent: string;
+    detail?: ReleaseCardDetail;
+}>;
+export type ReleaseOffer = Readonly<Record<ReleaseOption, boolean>>;
+export type ReleaseCardOption = Readonly<{
+    id: ReleaseOption;
+    label: string;
+    scope: string;
+    offered: boolean;
+    lasting: boolean;
+    role: 'approve' | 'reject';
+}>;
+export type ReleaseCard = Readonly<{
+    title: string;
+    target: Readonly<{
+        tool: string;
+        command: string | null;
+        preview: string;
+    }>;
+    gateTitle: string;
+    arguments: Readonly<{
+        text: string;
+        truncated: boolean;
+        digest: string;
+    }>;
+    origin: Readonly<{
+        session: string;
+        agent: string;
+    }>;
+    detail?: ReleaseCardDetail;
+    options: readonly [
+        ReleaseCardOption,
+        ...ReleaseCardOption[]
+    ];
+}>;
+export declare const RELEASE_ARGUMENTS_LIMIT = 4096;
+export declare function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): ReleaseCard;
+```
+
+## 声明文件 `release.d.ts`
+
+```ts
+import type { DurableEvidence } from '@omne-harness/exchange-refs';
+import type { GateRef, GrantLayer, GrantRef } from './grant.ts';
+import type { InquiryPolicy } from './inquiry.ts';
+export type GateVerdict = Readonly<{
+    kind: 'allowed';
+    revision: string;
+    layer: GrantLayer;
+}> | Readonly<{
+    kind: 'prohibited' | 'decision-required';
+    revision: string;
+}> | Readonly<{
+    kind: 'unavailable';
+}>;
+export type SessionFacts = Readonly<{
+    kind: 'read';
+    revision: string;
+    policy: InquiryPolicy;
+    policySource: DurableEvidence;
+    once: DurableEvidence | null;
+    sessionGrant: Readonly<{
+        basis: string;
+        source: DurableEvidence;
+    }> | null;
+}> | Readonly<{
+    kind: 'unavailable';
+}>;
+export type ReleaseFacts = Readonly<{
+    carrier: boolean;
+    verdict: GateVerdict;
+    session: SessionFacts;
+    holders: Readonly<{
+        tenant: string;
+        session: string;
+    }>;
+    gate: GateRef;
+}>;
+export type ReleaseBasis = Readonly<{
+    verdict: string;
+    session: string | null;
+}>;
+export type ReleaseDecision = Readonly<{
+    kind: 'release';
+    by: 'carrier';
+    basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'release';
+    by: 'verdict' | 'once' | 'session' | 'skip-ask';
+    basis: ReleaseBasis;
+    grant: GrantRef;
+}> | Readonly<{
+    kind: 'ask';
+    basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'refuse';
+    reason: 'prohibited' | 'inquiry-policy' | 'nobody-to-ask';
+    basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'unavailable';
+    missing: 'verdict' | 'session';
+}>;
+export declare function decideRelease(facts: ReleaseFacts): ReleaseDecision;
 ```
 
 ## 声明文件 `system-action.d.ts`

@@ -36,22 +36,41 @@ function renderToolCall(kind: string, fields: Readonly<Record<string, unknown>>)
   return shown === '' ? call : `${call} ${clip(shown)}`
 }
 
+function sizeText(bytes: string): string {
+  const count = Number(bytes)
+  if (bytes === '' || !Number.isFinite(count)) return ''
+  if (count < 1024) return ` ${String(count)} B`
+  const [scaled, unit] = count < 1024 * 1024 ? [count / 1024, 'KB'] : [count / 1024 / 1024, 'MB']
+  return ` ${scaled.toFixed(1)} ${unit}`
+}
+
+/** A block that is not words: its kind, its media type and its size, then its words if it has any. */
+function renderMedia(kind: string, fields: Readonly<Record<string, unknown>>): string {
+  const ref = record(fields['ref'])
+  const type = word(ref?.['mediaType']) || word(fields['mediaType'])
+  const shown = `[${kind}${type === '' ? '' : ` ${type}`}${sizeText(word(ref?.['bytes']))}]`
+  const words = word(fields['transcript'])
+  return words === '' ? shown : `${shown} ${clip(words)}`
+}
+
+type Fields = Readonly<Record<string, unknown>>
+const BLOCKS: Readonly<Record<string, (kind: string, fields: Fields) => string>> = {
+  text: (_kind, fields) => word(fields['text']),
+  tool_call: renderToolCall,
+  tool_call_incomplete: renderToolCall,
+  tool_call_unparsed: renderToolCall,
+  tool_result: (_kind, fields) => `[tool result ${word(fields['callId'])}]`,
+  image: renderMedia,
+  voice: renderMedia,
+  file: renderMedia,
+}
+
 function renderBlock(block: unknown): string {
   const fields = record(block)
   if (fields === undefined) return clip(JSON.stringify(block) ?? '')
   const kind = word(fields['kind'])
-  switch (kind) {
-    case 'text':
-      return word(fields['text'])
-    case 'tool_call':
-    case 'tool_call_incomplete':
-    case 'tool_call_unparsed':
-      return renderToolCall(kind, fields)
-    case 'tool_result':
-      return `[tool result ${word(fields['callId'])}]`
-    default:
-      return `[${kind === '' ? 'unknown block' : kind}]`
-  }
+  const render = Object.hasOwn(BLOCKS, kind) ? BLOCKS[kind] : undefined
+  return render?.(kind, fields) ?? `[${kind === '' ? 'unknown block' : kind}]`
 }
 
 function renderMessage(payload: Readonly<Record<string, unknown>>): string {
@@ -80,4 +99,22 @@ export function renderEntry(entry: RawEntry): string {
   const kind = word(entry['kind'])
   const body = renderBody(kind, entry['payload']).split('\n').join('\n    ')
   return `#${word(entry['entryId'])} ${kind}: ${body}\n`
+}
+
+/** The entries as lines; where the session whose log holds them changes, one line says whose follow. */
+export function renderEntries(entries: readonly RawEntry[]): string {
+  const lines: string[] = []
+  let last: unknown
+  for (const entry of entries) {
+    const source = entry['inheritedFrom']
+    if (source !== last)
+      lines.push(
+        typeof source === 'string'
+          ? `--- inherited: session ${source} ---\n`
+          : '--- this session ---\n',
+      )
+    last = source
+    lines.push(renderEntry(entry))
+  }
+  return lines.join('')
 }

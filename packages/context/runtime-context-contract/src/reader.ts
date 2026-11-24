@@ -63,7 +63,7 @@ export type BlockEntry = Readonly<{
   volatility: BlockDescriptorBase<ContextBlockKey, unknown>['volatility']
 }>
 
-export type PerRequestEntry = Readonly<{ key: ContextBlockKey }> &
+export type PerReadEntry = Readonly<{ key: ContextBlockKey }> &
   (
     | Readonly<{ kind: 'value'; value: unknown; evidence: SourceEvidence }>
     | Readonly<{ kind: 'none' }>
@@ -77,7 +77,7 @@ export type Snapshot = Readonly<{
   cursor: Cursor
   blocks: readonly BlockEntry[]
   missing: readonly MissingItem[]
-  perRequest: readonly PerRequestEntry[]
+  perRead: readonly PerReadEntry[]
 }>
 
 export type ChangeEntry = Readonly<{
@@ -94,7 +94,7 @@ export type Changes = Readonly<{
   cursor: Cursor
   entries: readonly ChangeEntry[]
   missing: readonly MissingItem[]
-  perRequest: readonly PerRequestEntry[]
+  perRead: readonly PerReadEntry[]
 }>
 
 export type SnapshotResult = ReadOutcome<Snapshot>

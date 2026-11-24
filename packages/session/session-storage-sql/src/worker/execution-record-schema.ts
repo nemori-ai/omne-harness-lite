@@ -12,6 +12,7 @@ export const EXECUTION_RECORD_SCHEMA: readonly string[] = [
   `CREATE TABLE er_execution (
     tenant TEXT NOT NULL, execution TEXT NOT NULL, session TEXT NOT NULL, revision INTEGER NOT NULL,
     receipt TEXT NOT NULL, emitted_through INTEGER NOT NULL, ended TEXT,
+    acknowledged INTEGER NOT NULL DEFAULT 0, settled INTEGER, settled_by TEXT,
     PRIMARY KEY (tenant, execution)) STRICT`,
   `CREATE INDEX er_execution_session_idx ON er_execution (tenant, session, execution)`,
   `CREATE TABLE er_fact_idx (
@@ -161,11 +162,50 @@ export const ITEM_SCHEMA: readonly string[] = [
     CHECK (open IN (0, 1) AND pub > 0),
     PRIMARY KEY (tenant, execution, family, item)) STRICT, WITHOUT ROWID`,
   'CREATE INDEX er_item_open ON er_item (tenant, execution, family, item) WHERE open = 1',
+  `CREATE TABLE er_item_content (
+    tenant TEXT NOT NULL, execution TEXT NOT NULL, family TEXT NOT NULL, item TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    PRIMARY KEY (tenant, execution, family, item)) STRICT, WITHOUT ROWID`,
 ]
 
-export const ITEM_TABLES: readonly string[] = ['er_item']
+export const ITEM_TABLES: readonly string[] = ['er_item', 'er_item_content']
 
 export const ITEM_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '007-item',
+})
+
+export const BLOCK_SCHEMA: readonly string[] = [
+  `CREATE TABLE er_block (
+    tenant TEXT NOT NULL, execution TEXT NOT NULL, digest TEXT NOT NULL, media TEXT NOT NULL,
+    size INTEGER NOT NULL, payload BLOB NOT NULL,
+    PRIMARY KEY (tenant, execution, digest)) STRICT, WITHOUT ROWID`,
+]
+
+export const BLOCK_TABLES: readonly string[] = ['er_block']
+
+export const BLOCK_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '008-block',
+})
+
+// What a session reads of its adopted requests after their executions settle: the latest adoption
+// with its record block, one row per session, and the representation choices of each model call.
+export const ADOPTION_SCHEMA: readonly string[] = [
+  `CREATE TABLE er_session_adoption (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, reference TEXT NOT NULL, pub INTEGER NOT NULL,
+    execution TEXT NOT NULL, digest TEXT NOT NULL, media TEXT NOT NULL, size INTEGER NOT NULL,
+    payload BLOB NOT NULL, adoption TEXT NOT NULL,
+    CHECK (pub > 0),
+    PRIMARY KEY (tenant, session)) STRICT, WITHOUT ROWID`,
+  `CREATE TABLE er_request_choice (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, reference TEXT NOT NULL, payload TEXT NOT NULL,
+    PRIMARY KEY (tenant, session, reference)) STRICT, WITHOUT ROWID`,
+]
+
+export const ADOPTION_TABLES: readonly string[] = ['er_session_adoption', 'er_request_choice']
+
+export const ADOPTION_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '009-adoption',
 })

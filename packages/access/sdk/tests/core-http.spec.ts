@@ -89,13 +89,16 @@ describe('observations over HTTP to a real entry', () => {
     const controller = new AbortController()
     const frames = access.observe.availability({}, { signal: controller.signal })
     const first = await frames.next()
+    const digest = expect.stringMatching(/^sha256:[0-9a-f]{64}$/) as unknown as string
     expect(first.value).toEqual({
       kind: 'snapshot',
       revision: 2,
       protocols: [
-        { name: 'notes', major: 1 },
-        { name: 'access', major: 1 },
+        { name: 'notes', major: 1, revision: 1, digest },
+        { name: 'access', major: 1, revision: 2, digest },
       ],
+      conflicts: [],
+      points: [{ name: 'access.protocols', major: 1, revision: 1, digest }],
     } satisfies AvailabilityFrame)
     controller.abort()
     expect(await frames.next()).toEqual({ done: true, value: { kind: 'aborted' } })

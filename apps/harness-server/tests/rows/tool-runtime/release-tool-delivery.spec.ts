@@ -1,4 +1,4 @@
-import { observeToolResults, resultsReleased } from './release-material-observation.ts'
+import { resultsReleased, watchReleasedResults } from './release-material-observation.ts'
 // @module-tag slow
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -204,6 +204,7 @@ async function turnOnRelease(
     })
   let finished = start()
   let stopped = false
+  const released = watchReleasedResults(dir.storageRoot)
   try {
     await accepting(records, 0, 'the server')
     const cli = (args: readonly string[], credential?: string) =>
@@ -239,19 +240,18 @@ async function turnOnRelease(
     const modelRequests = gateway.requests()
     if (checkRelease !== null) {
       const offloaded = checkRelease === 'offloaded' ? 1 : 0
+      const messages = history.entries.filter(entry => entry.kind === 'message.tool').length
       const physical = await pollUntil(
-        'the Tool results to be released',
-        () => observeToolResults(dir.storageRoot),
-        observed => resultsReleased(observed, offloaded),
+        'every Tool result of the turn to have been seen released',
+        () => released.seen(),
+        observed => observed.length === messages && resultsReleased(observed, offloaded),
       )
       expect(resultsReleased(physical, offloaded), JSON.stringify(physical)).toBe(true)
+      expect(physical).toHaveLength(messages)
       console.info('W3-RELEASE', JSON.stringify(physical))
       const reread = await readAll()
       expect(reread.outcome).toBe('succeeded')
       expect(reread.entries).toEqual(history.entries)
-      expect(reread.entries.filter(entry => entry.kind === 'message.tool')).toHaveLength(
-        physical.length,
-      )
     }
     controller.abort('test: stop')
     stopped = true
@@ -305,6 +305,7 @@ async function turnOnRelease(
       { cause },
     )
   } finally {
+    released.stop()
     if (!stopped) controller.abort('test: stop')
     await finished.catch(() => undefined)
     await gateway.close()
@@ -317,6 +318,11 @@ const resultText = (entry: Entry | undefined): string =>
     .slice(1)
     .map(block => String(block['text'] ?? ''))
     .join('')
+
+const shown = (blocks: readonly unknown[]) =>
+  blocks.filter(
+    block => (block as { visibility?: { toHuman?: boolean } }).visibility?.toHuman !== false,
+  )
 
 describe('a Tool result on the release tree reaches the Agent', () => {
   it(
@@ -524,7 +530,8 @@ describe('a Tool result on the release tree reaches the Agent', () => {
         callId: 'call_deliver',
       })
       expect(resultText(entries[3])).toContain('shell=')
-      expect(blocksOf(entries[4])).toMatchObject([{ kind: 'text', text: FINAL }])
+      // What the person sees is the final text; a reply on Responses also keeps a hidden reasoning state.
+      expect(shown(blocksOf(entries[4]))).toMatchObject([{ kind: 'text', text: FINAL }])
       expect(entries[5]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
     },
   )

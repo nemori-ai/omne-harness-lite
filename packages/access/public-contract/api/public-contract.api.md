@@ -12,6 +12,7 @@
 - `Codec` · `rule-codec.d.ts`
 - `CodecResult` · `rule-codec.d.ts`
 - `DefinedProtocol` · `protocol.d.ts`
+- `FieldRule` · `rule.d.ts`
 - `FixedOutcome` · `outcome.d.ts`
 - `LeafKind` · `rule.d.ts`
 - `LoginStateId` · 包 `@omne-harness/legal-identity`
@@ -31,11 +32,24 @@
 - `encodeLoginStateIdText` · `identity-text.d.ts`
 - `encodeOrganizationIdText` · `identity-text.d.ts`
 - `encodeTenantText` · `identity-text.d.ts`
+- `livesAt` · `revision.d.ts`
+- `projectRule` · `revision.d.ts`
 - `readAccountIdText` · `identity-text.d.ts`
 - `readLoginStateIdText` · `identity-text.d.ts`
 - `readOrganizationIdText` · `identity-text.d.ts`
 - `readTenantText` · `identity-text.d.ts`
+- `revisionOf` · `revision.d.ts`
 - `ruleCodec` · `rule-codec.d.ts`
+
+## 入口 `./snapshot` · `snapshot.d.ts`
+
+- `ContractSnapshot` · `snapshot.d.ts`
+- `NextSnapshot` · `snapshot.d.ts`
+- `SnapshotStore` · `snapshot.d.ts`
+- `checkRecorded` · `snapshot.d.ts`
+- `contractDigest` · `snapshot.d.ts`
+- `nextSnapshot` · `snapshot.d.ts`
+- `snapshotProblems` · `snapshot.d.ts`
 
 ## 声明文件 `access-protocol.d.ts`
 
@@ -76,9 +90,86 @@ declare const availabilityFrame: {
                                         readonly kind: 'positive-integer';
                                     };
                                 };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
                             };
                         };
                     };
+                };
+                readonly conflicts: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
+                };
+                readonly points: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly keys: {
+                                    readonly rule: {
+                                        readonly kind: 'array';
+                                        readonly item: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly optional: true;
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
                 };
             };
         },
@@ -114,6 +205,20 @@ declare const availabilityFrame: {
                                         readonly kind: 'positive-integer';
                                     };
                                 };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
                             };
                         };
                     };
@@ -138,6 +243,28 @@ declare const availabilityFrame: {
                         };
                     };
                 };
+                readonly conflicts: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
+                };
             };
         }
     ];
@@ -152,14 +279,33 @@ export declare const accessProtocol: {
             readonly identity: "none";
             readonly open: import("./rule-codec.ts").Codec<{}>;
             readonly frame: import("./rule-codec.ts").Codec<{
-                readonly kind: "snapshot";
-                readonly protocols: readonly {
+                readonly conflicts?: readonly {
                     readonly major: number;
                     readonly name: string;
+                }[];
+                readonly kind: "snapshot";
+                readonly points?: readonly {
+                    readonly digest: string;
+                    readonly keys?: readonly string[];
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision: number;
+                }[];
+                readonly protocols: readonly {
+                    readonly digest?: string;
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision?: number;
                 }[];
                 readonly revision: number;
             } | {
                 readonly added: readonly {
+                    readonly digest?: string;
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision?: number;
+                }[];
+                readonly conflicts?: readonly {
                     readonly major: number;
                     readonly name: string;
                 }[];
@@ -203,7 +349,8 @@ export { OUTCOMES } from './outcome.ts';
 export type { FixedOutcome, Outcome } from './outcome.ts';
 export { ruleCodec } from './rule-codec.ts';
 export type { Codec, CodecResult, RuleValue } from './rule-codec.ts';
-export type { LeafKind, Rule } from './rule.ts';
+export type { FieldRule, LeafKind, Rule } from './rule.ts';
+export { livesAt, projectRule, revisionOf } from './revision.ts';
 export { defineProtocol } from './protocol.ts';
 export { accessProtocol } from './access-protocol.ts';
 export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts';
@@ -228,7 +375,7 @@ export declare function textWire(value: JsonValue | undefined): string | undefin
 export declare function stringWire(value: string): JsonValue;
 export declare function wireObject(value: Readonly<Record<string, JsonValue>>): JsonValue;
 export declare function nodeOf(input: unknown): JsonValue | undefined;
-export declare function convert(rule: Rule, input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined;
+export declare function convert(rule: Rule, input: unknown, direction: Direction, limits: JsonLimits, revision?: number): Converted | undefined;
 ```
 
 ## 声明文件 `outcome.d.ts`
@@ -279,6 +426,7 @@ export type OperationContract<Body = any, Results extends OutcomeBodies = Outcom
     readonly outcomes: Results;
     readonly carriesCredential?: true;
     readonly countsAsAccess?: true;
+    readonly since?: number;
 };
 export type ObservationContract<Open = any, Frame = any, End extends string = string> = {
     readonly identity: Identity;
@@ -287,6 +435,7 @@ export type ObservationContract<Open = any, Frame = any, End extends string = st
     readonly frame: Codec<Frame>;
     readonly ends: readonly End[];
     readonly countsAsAccess?: true;
+    readonly since?: number;
 };
 export type ProtocolContract = {
     readonly name: string;
@@ -333,6 +482,19 @@ export declare function defineProtocol<const P extends ProtocolContract>(protoco
 export {};
 ```
 
+## 声明文件 `revision.d.ts`
+
+```ts
+import type { ProtocolContract } from './protocol.ts';
+import type { Rule } from './rule.ts';
+export declare const livesAt: (since: number | undefined, revision: number | undefined) => boolean;
+export declare const MAX_REVISION = 999999999;
+export declare const isRevision: (value: unknown) => value is number;
+export declare function checkRule(rule: Rule): void;
+export declare function projectRule(rule: Rule, revision: number): Rule;
+export declare function revisionOf(protocol: ProtocolContract): number;
+```
+
 ## 声明文件 `rule-codec.d.ts`
 
 ```ts
@@ -347,8 +509,9 @@ export type CodecResult<T> = {
     readonly ok: false;
 };
 export type Codec<T> = {
-    readonly read: (value: JsonValue, limits: JsonLimits) => CodecResult<T>;
-    readonly write: (value: T, limits: JsonLimits) => CodecResult<JsonValue>;
+    readonly read: (value: JsonValue, limits: JsonLimits, revision?: number) => CodecResult<T>;
+    readonly write: (value: T, limits: JsonLimits, revision?: number) => CodecResult<JsonValue>;
+    readonly rule?: Rule;
 };
 type JsonObject = Extract<JsonValue, {
     readonly kind: 'object';
@@ -358,6 +521,7 @@ type LeafValues = {
     readonly string: string;
     readonly session: string;
     readonly 'page-bytes': string;
+    readonly bytes: Uint8Array;
     readonly revision: string;
     readonly boolean: boolean;
     readonly null: null;
@@ -412,7 +576,7 @@ export {};
 ## 声明文件 `rule.d.ts`
 
 ```ts
-export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'plain-date' | 'session' | 'page-bytes' | 'revision' | 'positive-integer' | 'count' | 'page-limit' | 'parameters' | 'json' | 'user-message';
+export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'plain-date' | 'session' | 'page-bytes' | 'bytes' | 'revision' | 'positive-integer' | 'count' | 'page-limit' | 'parameters' | 'json' | 'user-message';
 export type Rule = {
     readonly kind: LeafKind;
 } | {
@@ -420,10 +584,7 @@ export type Rule = {
     readonly values: readonly (string | boolean)[];
 } | {
     readonly kind: 'object';
-    readonly fields: Readonly<Record<string, {
-        readonly rule: Rule;
-        readonly optional?: true;
-    }>>;
+    readonly fields: Readonly<Record<string, FieldRule>>;
 } | {
     readonly kind: 'array';
     readonly item: Rule;
@@ -432,6 +593,15 @@ export type Rule = {
 } | {
     readonly kind: 'one-of';
     readonly rules: readonly Rule[];
+};
+export type FieldRule = {
+    readonly rule: Rule;
+    readonly optional?: true;
+    readonly since?: 1;
+} | {
+    readonly rule: Rule;
+    readonly optional: true;
+    readonly since: number;
 };
 export type RequestRule = {
     readonly body: Rule;
@@ -448,4 +618,37 @@ export type Family<V extends string, P extends string, S extends string> = {
     readonly responseRule: (operation: P, outcome: string) => Rule | undefined;
 };
 export declare const empty: Rule;
+```
+
+## 声明文件 `snapshot.d.ts`
+
+```ts
+import type { ProtocolContract } from './protocol.ts';
+type Plain = string | number | boolean | null | readonly Plain[] | {
+    readonly [key: string]: Plain;
+};
+export type ContractSnapshot = Readonly<{
+    name: string;
+    major: number;
+    revision: number;
+    rules: Plain;
+    digests: Readonly<Record<string, string>>;
+}>;
+export type SnapshotStore = Readonly<{
+    read: () => string | undefined;
+    write: (text: string) => void;
+    append: boolean;
+}>;
+export declare function contractDigest(protocol: ProtocolContract, revision: number, sha256: (bytes: Uint8Array) => Uint8Array): string | undefined;
+export declare function snapshotProblems(protocol: ProtocolContract, recorded: unknown): Promise<string[]>;
+export type NextSnapshot = Readonly<{
+    ok: true;
+    snapshot: ContractSnapshot;
+}> | Readonly<{
+    ok: false;
+    problems: string[];
+}>;
+export declare function nextSnapshot(protocol: ProtocolContract, recorded: unknown): Promise<NextSnapshot>;
+export declare function checkRecorded(protocol: ProtocolContract, store: SnapshotStore): Promise<string[]>;
+export {};
 ```

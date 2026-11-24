@@ -30,6 +30,7 @@ import {
   type FactBody,
   type FactRow,
   type OperationEntry,
+  type EventView,
   type PublishedBatch,
   type SessionJournalView,
   type Stamp,
@@ -529,14 +530,35 @@ describe('exclusion is a fact of the log', () => {
   })
 })
 
+// What a log opened in a family that closes at birth, in order: only the item changes hold it.
+function openedOfLog<T>(log: readonly PublishedBatch[], execution: string, family: string): T[] {
+  let view = emptySessionView()
+  const opened: T[] = []
+  for (const batch of log) {
+    const landed = foldItems(view, batch)
+    view = landed.view
+    if (batch.execution !== execution) continue
+    for (const change of landed.changes)
+      if (change.family === family && change.change === 'opened') opened.push(change.body as T)
+  }
+  return opened
+}
+
+const eventsOfLog = (log: readonly PublishedBatch[], execution: string) =>
+  openedOfLog<EventView>(log, execution, 'event')
+
 describe('the Tool start fence is a fact and an entry event', () => {
-  it('fence.started folds into the fences, projects an entry event and survives the rows', () => {
+  it('fence.started opens a fence that closes at birth, projects an entry event and survives the rows', () => {
     const { log } = scene(random(48), { rounds: 3, executions: 1, finish: false })
     const view = foldAll(log)
     const execution = view.executions.get(log[0]!.execution)!
-    expect(execution.fences.length).toBeGreaterThan(0)
-    for (const fence of execution.fences) {
-      const event = execution.events.find(item => item.pub === fence.pub)
+    const fences = openedOfLog<{ pub: number }>(log, log[0]!.execution, 'fence')
+    expect(fences.length).toBeGreaterThan(0)
+    expect(execution.fences).toEqual([])
+    const emitted = eventsOfLog(log, log[0]!.execution)
+    expect(execution.emitted).toBe(emitted.length)
+    for (const fence of fences) {
+      const event = emitted.find(item => item.pub === fence.pub)
       expect(event?.kind).toBe('entry')
       expect(event?.fact.kind).toBe('fence.started')
     }
@@ -619,8 +641,8 @@ describe('cursor.moved carries the changed top-level members only; no new fact, 
       { kind: 'advancing' },
     )
     const moved = movedMembers(before, after)
-    // What the checkpoint holds moves with its calls.
-    expect(Object.keys(moved).sort()).toEqual(['calls', 'holds', 'position'])
+    // What the checkpoint holds is not a member of the cursor: it changes in facts of its own.
+    expect(Object.keys(moved).sort()).toEqual(['calls', 'position'])
     expect(moved.calls).toEqual(refOf([{ kind: 'model' }]))
     expect(bytesOf(moved)).toBeLessThan(256)
   })
@@ -804,14 +826,11 @@ describe('a control stage the execution already reached projects no second event
 
   it('repeats nothing for the same stage fact, and one event for a changed state or a step', () => {
     const { prefix, batch } = controlScene()
-    const eventsOf = (facts: PublishedBatch['facts']) => {
-      const view = foldAll([...prefix, { ...batch, pub: prefix.length + 1, facts }])
-      return view.executions.get(batch.execution)?.events.map(event => event.kind) ?? []
-    }
-    const before =
-      foldAll(prefix)
-        .executions.get(batch.execution)
-        ?.events.map(e => e.kind) ?? []
+    const kindsOf = (log: readonly PublishedBatch[]) =>
+      eventsOfLog(log, batch.execution).map(event => event.kind)
+    const eventsOf = (facts: PublishedBatch['facts']) =>
+      kindsOf([...prefix, { ...batch, pub: prefix.length + 1, facts }])
+    const before = kindsOf(prefix)
     const stage = batch.facts.find(fact => fact.kind === 'control.stage')!
     if (stage.kind !== 'control.stage') throw new Error('control stage expected')
     expect(eventsOf([stage])).toEqual(before)
@@ -1013,8 +1032,9 @@ describe('the checkpoint of a folded view takes the input batch and the voided i
     const execution = voidedScene()
     const begun = execution.steps.at(-1)!
     const request = execution.requests.find(item => item.voided !== null)!
-    const intent = [...execution.intents.values()].find(
-      item => item.pending.kind === 'model' && item.pending.reference === request.reference,
+    // The step has moved on from the voided call: its intent has closed, the voiding names it.
+    const intent = execution.voided.find(
+      item => item.intent === 'model' && item.reference === request.reference,
     )!
     const checkpoint = {
       ...sampleCheckpoint(),

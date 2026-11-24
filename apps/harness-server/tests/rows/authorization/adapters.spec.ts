@@ -30,7 +30,7 @@ import {
   principalVerifierKey,
   tenantStandingKey,
 } from '@omne-harness/identity/cordis'
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { SessionAccessRequest } from '@omne-harness/session-contract'
 import { sessionId } from '@omne-harness/session-contract/testing'
 import {
@@ -47,9 +47,11 @@ import {
   createAgentAccessCheck,
   createSessionAccessCheck,
   createToolAccessGuard,
+  createToolAccountsGuard,
   type AccessPorts,
 } from '../../../src/rows/authorization/adapters.ts'
 import { identityClock } from '../../../src/entry/identity-clock.ts'
+import { SESSION_POLICY } from '../../../src/rows/authorization/session-policy.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
 import { authorizationConfig } from '../../../src/rows/authorization/action-rules.ts'
 import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../../../src/model/principals.ts'
@@ -57,6 +59,8 @@ import { serveProfile } from '../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
+import { ownResolution } from './own-resolution.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 const A = fixtureTenant('a')
 const B = fixtureTenant('b')
@@ -263,8 +267,8 @@ describe('sessionAccessCheck: members and branches', () => {
     const w = world()
     w.flags.standing = 'not-member'
     expect(await w.session.check(read(w.work(), 'readWork'))).toEqual({ kind: 'denied' })
-    w.flags.standing = 'member'
     expect(await w.session.check(read(w.login(), 'readWork'))).toEqual({ kind: 'denied' })
+    w.flags.standing = 'member'
     expect(await w.session.check(read(w.foreign(), 'readWork'))).toEqual({ kind: 'denied' })
   })
 
@@ -277,7 +281,7 @@ describe('sessionAccessCheck: members and branches', () => {
 
   it('lets the own login set the tenant settings and manage the session, with no named qualification', async () => {
     const w = world()
-    for (const kind of ['configureAutoArchive', 'setRelation']) {
+    for (const kind of ['configureAutoArchive', 'setResident']) {
       expect((await w.session.check(mutate(w.login(), kind))).kind, kind).toBe('allowed')
     }
     expect(w.seen.admissions.map(input => input.requires)).toEqual([[], []])
@@ -285,19 +289,357 @@ describe('sessionAccessCheck: members and branches', () => {
 
   it('denies the two operations to a login principal of another tenant, and reads nothing', async () => {
     const w = world()
-    for (const kind of ['configureAutoArchive', 'setRelation']) {
+    for (const kind of ['configureAutoArchive', 'setResident']) {
       const request = mutate(w.login(B), kind, {}, { tenant: A })
       expect(await w.session.check(request), kind).toEqual({ kind: 'denied' })
     }
     expect(w.reached()).toBe(0)
   })
 
+  it('lets the own login change the permission mode, and denies the work principal of the Agent', async () => {
+    const w = world()
+    const declaration = {
+      declaration: {
+        kind: 'permission-mode',
+        value: 'auto_permission',
+        expectedRevision: '0',
+        authorization: { owner: 'login-entry', record: 'login', revision: '1', digest: 'd' },
+      },
+    }
+    expect((await w.session.check(mutate(w.login(), 'change', declaration))).kind).toBe('allowed')
+    expect(await w.session.check(mutate(w.work(), 'change', declaration))).toEqual({
+      kind: 'denied',
+    })
+    expect(await w.session.check(mutate(w.foreign(), 'change', declaration))).toEqual({
+      kind: 'denied',
+    })
+  })
+
+  describe('an authorization a person expressed on a card', () => {
+    const card = { owner: 'cards', record: 'card-1', revision: '1', digest: 'c' }
+    const said = { owner: 'cards', record: 'answer-1', revision: '1', digest: 'a' }
+    const once = (source = said) => ({
+      declaration: {
+        kind: 'authorization-expression',
+        authorization: card,
+        expression: {
+          scope: {
+            kind: 'once',
+            consumer: { owner: '@omne-harness/agent', work: 'execution', position: 'action' },
+            target: 'Shell',
+            argumentsDigest: 'd',
+          },
+          direction: 'grant',
+          source,
+        },
+      },
+    })
+    const answering = (reply: unknown) => {
+      const w = world()
+      const read: unknown[] = []
+      const cards = {
+        read: async (input: unknown) => {
+          read.push(input)
+          return { ok: reply }
+        },
+      }
+      const check = createSessionAccessCheck({ ...w.ports, cards: () => cards as never })
+      return { w, read, check }
+    }
+    const chosen = (option: string, evidence = said) => ({
+      kind: 'chosen',
+      option,
+      value: null,
+      evidence,
+    })
+
+    it('lets the Run of this session write it when the card holds that very answer', async () => {
+      const { w, read, check } = answering(chosen('allow-once'))
+      expect((await check.check(mutate(w.work(), 'change', once()))).kind).toBe('allowed')
+      expect(read).toMatchObject([{ card }])
+    })
+
+    it.each([
+      ['another option', chosen('deny-once')],
+      ['another answer', chosen('allow-once', { ...said, record: 'answer-2' })],
+      ['no answer yet', { kind: 'pending' }],
+      ['words instead of a choice', { kind: 'remark', text: 'go on', evidence: said }],
+    ])('denies it when the card holds %s', async (_, reply) => {
+      const { w, check } = answering(reply)
+      expect(await check.check(mutate(w.work(), 'change', once()))).toEqual({ kind: 'denied' })
+    })
+
+    const gate = { capabilityId: 'tool/Shell', enforcementKey: 'tool.invoke', basis: 'r7' }
+    const forSession = (basis = gate.basis) => ({
+      declaration: {
+        kind: 'authorization-expression',
+        authorization: card,
+        expression: {
+          scope: { kind: 'session', ...gate, basis },
+          direction: 'grant',
+          source: said,
+        },
+      },
+    })
+    const handingBack = (held: typeof gate | null) => ({
+      ...chosen('allow-session'),
+      value:
+        held === null
+          ? null
+          : {
+              kind: 'object',
+              entries: Object.entries(held).map(([key, value]) => ({
+                key,
+                value: { kind: 'string', value },
+              })),
+            },
+    })
+
+    it('lets a release for the session through only for the gate and the basis the card holds', async () => {
+      const held = answering(handingBack(gate))
+      expect((await held.check.check(mutate(held.w.work(), 'change', forSession()))).kind).toBe(
+        'allowed',
+      )
+      expect(
+        await held.check.check(mutate(held.w.work(), 'change', forSession('another basis'))),
+      ).toEqual({ kind: 'denied' })
+      const none = answering(handingBack(null))
+      expect(await none.check.check(mutate(none.w.work(), 'change', forSession()))).toEqual({
+        kind: 'denied',
+      })
+    })
+
+    it('lets a once release stand on the answer of a card that also hands back its gate', async () => {
+      const { w, check } = answering({ ...handingBack(gate), option: 'allow-once' })
+      expect((await check.check(mutate(w.work(), 'change', once()))).kind).toBe('allowed')
+    })
+
+    it('denies words that carry the same option and evidence: only a choice stands', async () => {
+      const remark = { kind: 'remark', text: 'go on', option: 'allow-once', evidence: said }
+      const { w, check } = answering(remark)
+      expect(await check.check(mutate(w.work(), 'change', once()))).toEqual({ kind: 'denied' })
+    })
+
+    it('denies an expression no option of a card stands for, and reads no card for it', async () => {
+      const declared = once()
+      const revoked = {
+        declaration: {
+          ...declared.declaration,
+          expression: { ...declared.declaration.expression, direction: 'revoke' },
+        },
+      }
+      const { w, read, check } = answering(chosen('allow-once'))
+      expect(await check.check(mutate(w.work(), 'change', revoked))).toEqual({ kind: 'denied' })
+      expect(read).toEqual([])
+    })
+
+    it('reads the card as the work of the session, in its tenant, and only once the member check allows', async () => {
+      const { w, read, check } = answering(chosen('allow-once'))
+      const principal = w.work()
+      await check.check(mutate(principal, 'change', once()))
+      expect(read).toEqual([{ principal, tenant: A, card }])
+      const refusing = createSessionAccessCheck({
+        ...w.ports,
+        admission: {
+          check: async () => ({ kind: 'denied', reason: 'x', evidence: card }),
+        } as never,
+        cards: () =>
+          ({
+            read: async (input: unknown) => {
+              read.push(input)
+              return { ok: chosen('allow-once') }
+            },
+          }) as never,
+      })
+      expect(await refusing.check(mutate(principal, 'change', once()))).toMatchObject({
+        kind: 'denied',
+      })
+      expect(read).toHaveLength(1)
+    })
+
+    it('denies a command that names another session than the one it is sent to', async () => {
+      const { w, check } = answering(chosen('allow-once'))
+      const sent = { tenant: A, session: OTHER, ...once() }
+      const request = sessionRequest({
+        access: { principal: w.work(), tenant: A },
+        operation: 'change',
+        target: { kind: 'session', session: OWN, command: { kind: 'change', input: sent } },
+      })
+      expect(await check.check(request)).toEqual({ kind: 'denied' })
+    })
+
+    it('lets a once release stand on an answer for always, whose setting could not be written', async () => {
+      const { w, check } = answering(chosen('allow-always'))
+      expect((await check.check(mutate(w.work(), 'change', once()))).kind).toBe('allowed')
+      const session = answering(chosen('allow-always'))
+      expect(await session.check.check(mutate(session.w.work(), 'change', forSession()))).toEqual({
+        kind: 'denied',
+      })
+    })
+
+    it('lets the release of the session be withdrawn only on an answer for always deny naming the gate', async () => {
+      const revoke = () => {
+        const declared = forSession()
+        const expression = { ...declared.declaration.expression, direction: 'revoke' }
+        return { declaration: { ...declared.declaration, expression } }
+      }
+      const held = answering({ ...handingBack(gate), option: 'deny-always' })
+      expect((await held.check.check(mutate(held.w.work(), 'change', revoke()))).kind).toBe(
+        'allowed',
+      )
+      const other = answering(handingBack(gate))
+      expect(await other.check.check(mutate(other.w.work(), 'change', revoke()))).toEqual({
+        kind: 'denied',
+      })
+    })
+
+    it('denies the login, a foreign principal and the Run of another session, and reads no card', async () => {
+      const { w, read, check } = answering(chosen('allow-once'))
+      for (const principal of [w.login(), w.foreign(), w.work(OTHER)])
+        expect(await check.check(mutate(principal, 'change', once()))).toEqual({ kind: 'denied' })
+      expect(read).toEqual([])
+    })
+
+    it.each<[string, (() => unknown) | undefined, string]>([
+      ['no card service is installed', undefined, 'the decision cards are not installed'],
+      [
+        'the card service is not there now',
+        () => undefined,
+        'the decision cards are not installed',
+      ],
+      [
+        'the card cannot be read now',
+        () => ({ read: async () => ({ failure: { kind: 'unavailable' } }) }),
+        'the card answer could not be read now',
+      ],
+    ])('names why it waits when %s', async (_what, cards, diagnostic) => {
+      const w = world()
+      const check = createSessionAccessCheck({
+        ...w.ports,
+        ...(cards === undefined ? {} : { cards: cards as never }),
+      })
+      expect(await check.check(mutate(w.work(), 'change', once()))).toEqual({
+        kind: 'unavailable',
+        diagnostic,
+      })
+    })
+
+    it('answers a card service that throws as a dependency failure, without its message', async () => {
+      const w = world()
+      const check = createSessionAccessCheck({
+        ...w.ports,
+        cards: () => ({ read: () => Promise.reject(new Error('card SECRET-TEXT')) }) as never,
+      })
+      expect(await check.check(mutate(w.work(), 'change', once()))).toEqual({
+        kind: 'unavailable',
+        diagnostic:
+          'a dependency of the access check threw an exception; its message is not reported',
+      })
+    })
+
+    it('answers denied, with nothing more, to each answer the card cannot stand on', async () => {
+      const handing = (over: Record<string, unknown>) => ({ ...handingBack(gate), ...over })
+      for (const reply of [
+        { kind: 'pending' },
+        { kind: 'declined', evidence: said },
+        chosen('allow-once', { ...said, digest: 'other' }),
+        chosen('deny-once'),
+      ]) {
+        const { w, check } = answering(reply)
+        expect(await check.check(mutate(w.work(), 'change', once()))).toStrictEqual({
+          kind: 'denied',
+        })
+      }
+      for (const reply of [
+        { kind: 'pending' },
+        handing({ option: 'allow-once' }),
+        handing({ evidence: { ...said, digest: 'other' } }),
+        { ...handingBack({ ...gate, basis: 'r8' }) },
+      ]) {
+        const { w, check } = answering(reply)
+        expect(await check.check(mutate(w.work(), 'change', forSession()))).toStrictEqual({
+          kind: 'denied',
+        })
+      }
+    })
+
+    it('answers denied to a change whose declaration is no authorization expression of a card', async () => {
+      const { w, read, check } = answering(chosen('allow-once'))
+      const declared = once()
+      const unknown = {
+        declaration: {
+          ...declared.declaration,
+          expression: {
+            ...declared.declaration.expression,
+            scope: { kind: 'tenant' },
+          },
+        },
+      }
+      expect(await check.check(mutate(w.work(), 'change', unknown))).toStrictEqual({
+        kind: 'denied',
+      })
+      expect(read).toEqual([])
+    })
+
+    it('answers unavailable while the cards cannot be read, and writes nothing on its own word', async () => {
+      const w = world()
+      expect((await w.session.check(mutate(w.work(), 'change', once()))).kind).toBe('unavailable')
+      const failing = createSessionAccessCheck({
+        ...w.ports,
+        cards: () => ({ read: async () => ({ failure: { kind: 'unavailable' } }) }) as never,
+      })
+      expect((await failing.check(mutate(w.work(), 'change', once()))).kind).toBe('unavailable')
+    })
+  })
+
   it('denies the two operations to the work principal and to a foreign principal', async () => {
     const w = world()
-    for (const kind of ['configureAutoArchive', 'setRelation']) {
+    for (const kind of ['configureAutoArchive', 'setResident']) {
       expect(await w.session.check(mutate(w.work(), kind)), kind).toEqual({ kind: 'denied' })
       expect(await w.session.check(mutate(w.foreign(), kind)), kind).toEqual({ kind: 'denied' })
     }
+  })
+})
+
+describe('sessionAccessCheck: the subject kind of an allowed answer (SE-28)', () => {
+  it('names a member for a login principal, on an intake and on any other allowed operation', async () => {
+    const w = world()
+    const login = w.login()
+    expect(await w.session.check(mutate(login, 'accept', ordinaryValue))).toMatchObject({
+      kind: 'allowed',
+      subject: { kind: 'member' },
+    })
+    expect(await w.session.check(mutate(login, 'create'))).toMatchObject({
+      kind: 'allowed',
+      subject: { kind: 'member' },
+    })
+  })
+
+  it('names the component for a system principal the matrix allows', async () => {
+    const w = world()
+    const maintainer = w.system(SESSION_MAINTAINER_COMPONENT)
+    expect(await w.session.check(pending(maintainer))).toMatchObject({
+      kind: 'allowed',
+      subject: { kind: 'system', component: SESSION_MAINTAINER_COMPONENT },
+    })
+  })
+
+  it('names no subject kind for a work principal: it sends no ordinary input', async () => {
+    const w = world()
+    const answer = await w.session.check(read(w.work(), 'readWork'))
+    expect(answer.kind).toBe('allowed')
+    expect(answer).not.toHaveProperty('subject')
+  })
+
+  it('a denied or unavailable answer carries nothing more', async () => {
+    const w = world()
+    expect(await w.session.check(mutate(w.login(), 'accept', businessValue))).toEqual({
+      kind: 'denied',
+    })
+    w.flags.verifierThrows = true
+    const down = await w.session.check(mutate(w.login(), 'accept', ordinaryValue))
+    expect(down.kind).toBe('unavailable')
+    expect(down).not.toHaveProperty('subject')
   })
 })
 
@@ -315,14 +657,48 @@ describe('sessionAccessCheck: the steps before the dependencies (policy draft §
     expect(w.reached()).toBe(0)
   })
 
-  it('lets the login principal of the tenant list its sessions, and denies a work principal and another tenant', async () => {
+  it('lets the login and a work principal of the tenant list its sessions, and denies another tenant', async () => {
     const w = world()
     expect((await w.session.check(list(w.login()))).kind).toBe('allowed')
     expect(w.seen.admissions.at(-1)?.target).toMatchObject({ owner: 'session', kind: 'tenant' })
+    expect((await w.session.check(list(w.work()))).kind).toBe('allowed')
     const reached = w.reached()
-    expect(await w.session.check(list(w.work()))).toEqual({ kind: 'denied' })
     expect(await w.session.check(list(w.login(B), B, A))).toEqual({ kind: 'denied' })
     expect(await w.session.check(list(w.login(B), A))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(list(w.work(OWN, B), A))).toEqual({ kind: 'denied' })
+    expect(w.reached()).toBe(reached)
+  })
+
+  it('lets a work principal read the history of another session of its tenant, and nothing else of it', async () => {
+    const w = world()
+    for (const operation of ['history.begin', 'history.next'])
+      expect((await w.session.check(read(w.work(OTHER), operation))).kind).toBe('allowed')
+    expect(w.seen.admissions.at(-1)?.target).toEqual({
+      owner: 'session',
+      kind: 'session',
+      key: OWN,
+    })
+    const reached = w.reached()
+    for (const operation of [
+      'readWork',
+      'readPending',
+      'readWaitingCalls',
+      'readInputFate',
+      'readBackgroundCalls',
+      'resolveBackgroundCall',
+      'history.since',
+      'history.readModelView',
+      'history.readCompactionContext',
+      'history.readAdoptedRequest',
+      'queryOperation',
+    ])
+      expect(await w.session.check(read(w.work(OTHER), operation)), operation).toEqual({
+        kind: 'denied',
+      })
+    expect(await w.session.check(mutate(w.work(OTHER), 'claim'))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(read(w.work(OTHER, B), 'history.begin'))).toEqual({
+      kind: 'denied',
+    })
     expect(w.reached()).toBe(reached)
   })
 
@@ -844,6 +1220,7 @@ describe('agentActionAdmission', () => {
   it('does not treat a static allow as current permission', async () => {
     const w = world()
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       readPermission: () => undefined,
       actionRules: rules,
@@ -855,6 +1232,7 @@ describe('agentActionAdmission', () => {
   it('requires the issued Session work principal, the correct tenant and current membership', async () => {
     const w = world()
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       readPermission: () => undefined,
       actionRules: rules,
@@ -879,6 +1257,7 @@ describe('agentActionAdmission', () => {
     const w = world()
     const input = action(w.work())
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       readPermission: () => undefined,
       actionRules: rules,
@@ -893,6 +1272,7 @@ describe('agentActionAdmission', () => {
       })
     }
     const exact = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       readPermission: () => ({
         check: async request => {
@@ -900,7 +1280,7 @@ describe('agentActionAdmission', () => {
           return {
             kind: 'allow',
             evidence: decisionEvidence('permission-fixture', '1', request.operation),
-            condition: null,
+            release: VERDICT_RELEASE,
           }
         },
       }),
@@ -933,6 +1313,7 @@ describe('agentActionAdmission', () => {
       [() => ({ check: async () => ({ kind: 'odd' }) as never }), 'undecidable'],
     ] as const) {
       const failed = createActionAdmission({
+        readResolution: ownResolution,
         readAdmission,
         readPermission: () => undefined,
         actionRules: rules,
@@ -978,6 +1359,7 @@ describe('agentActionAdmission', () => {
       [deny, allow],
     ]) {
       const admission = createActionAdmission({
+        readResolution: ownResolution,
         readAdmission: () => w.ports.admission,
         readPermission: () => undefined,
         actionRules: { revision: 'ops-2', rules },
@@ -993,12 +1375,13 @@ describe('agentActionAdmission', () => {
       expect(JSON.stringify(result)).not.toContain('secret')
     }
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       actionRules: { revision: 'ops-1', rules: [allow] },
       readPermission: () => ({
         check: async input => ({
           kind: 'allow',
-          condition: null,
+          release: VERDICT_RELEASE,
           evidence: decisionEvidence('permission-fixture', '1', {
             operation: input.operation,
             arguments: input.effectiveArguments,
@@ -1018,6 +1401,7 @@ describe('agentActionAdmission', () => {
 
   it('has no default allow: every action is undecidable, with or without permissions or a decision', async () => {
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => undefined,
       readPermission: () => undefined,
     })
@@ -1030,6 +1414,78 @@ describe('agentActionAdmission', () => {
       expect(answer).toMatchObject({ ok: { kind: 'undecidable' } })
       expect(JSON.stringify(answer)).not.toContain('"allow"')
     }
+  })
+})
+
+function tenantText(tenant: TenantId): string {
+  const encoded = tenantCodec.encode(tenant)
+  if (!encoded.ok) throw new Error('fixture tenant')
+  return encoded.value
+}
+
+describe('Tool usage list qualification', () => {
+  it('lets a member or the session work of the tenant list its usage, asking the admission for the tenant', async () => {
+    const w = world()
+    const guard = createToolAccountsGuard(() => w.ports.admission)
+    for (const principal of [w.login(), w.work()]) {
+      expect(await guard.qualify({ principal, tenant: A })).toEqual({ kind: 'allowed' })
+      expect(w.seen.admissions.at(-1)).toMatchObject({
+        operation: { owner: 'tool', name: 'list-accounts' },
+        target: { owner: 'tool', kind: 'tenant', key: tenantText(A) },
+        arguments: noArguments(),
+      })
+    }
+  })
+
+  it('denies another tenant, a foreign or system principal, before reading the admission', async () => {
+    const w = world()
+    let reads = 0
+    const guard = createToolAccountsGuard(() => {
+      reads += 1
+      return w.ports.admission
+    })
+    for (const [principal, tenant] of [
+      [w.login(), B],
+      [w.foreign(), A],
+      [w.system('unlisted'), A],
+      [{ subject: 'forged' }, A],
+    ] as const)
+      expect(await guard.qualify({ principal, tenant })).toEqual({
+        kind: 'denied',
+        reason: 'tenant-member-required',
+      })
+    expect(reads).toBe(0)
+  })
+
+  it('answers unavailable without an admission or when the dependency throws', async () => {
+    const w = world()
+    expect(
+      await createToolAccountsGuard(() => undefined).qualify({ principal: w.login(), tenant: A }),
+    ).toEqual({ kind: 'unavailable', diagnostic: 'the tool access dependency is unavailable' })
+    const broken = createToolAccountsGuard(() => {
+      throw new Error('admission reader broke')
+    })
+    expect(await broken.qualify({ principal: w.login(), tenant: A })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the tool access request or dependency failed; exception text is not reported',
+    })
+  })
+
+  it('answers as the admission does when it denies or cannot answer', async () => {
+    const w = world()
+    const answering = (answer: unknown) =>
+      createToolAccountsGuard(() => ({ check: () => Promise.resolve(answer) }) as never).qualify({
+        principal: w.login(),
+        tenant: A,
+      })
+    expect(await answering({ kind: 'denied', reason: 'no-grant' })).toEqual({
+      kind: 'denied',
+      reason: 'no-grant',
+    })
+    expect(await answering({ kind: 'unavailable' })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the tool access dependency is unavailable',
+    })
   })
 })
 
@@ -1138,7 +1594,8 @@ describe('Tool access qualification', () => {
     const w = world()
     const guard = createToolAccessGuard(() => w.ports.admission)
     const input = { principal: w.login(), tenant: A, call: toolCallId('tc_auth') }
-    for (const action of ['lookup', 'read-result', 'read-output'] as const) {
+    const reads = ['lookup', 'read-result', 'read-output', 'account', 'read-diagnostics'] as const
+    for (const action of reads) {
       expect(await guard.qualify({ ...input, action })).toEqual({ kind: 'allowed' })
       expect(w.seen.admissions.at(-1)).toMatchObject({
         access: { principal: input.principal, tenant: A },
@@ -1152,7 +1609,6 @@ describe('Tool access qualification', () => {
       'control',
       'read-content',
       'release-delivery',
-      'account',
       'recover',
       'write',
       'start',
@@ -1161,13 +1617,14 @@ describe('Tool access qualification', () => {
         kind: 'denied',
         reason: 'session-work-and-call-required',
       })
-    expect(await guard.qualify({ ...input, tenant: B, action: 'lookup' })).toMatchObject({
-      kind: 'denied',
-    })
-    for (const action of ['read-result', 'read-output'] as const)
+    for (const action of reads) {
+      expect(await guard.qualify({ ...input, tenant: B, action })).toMatchObject({
+        kind: 'denied',
+      })
       expect(await guard.qualify({ ...input, principal: w.foreign(), action })).toMatchObject({
         kind: 'denied',
       })
+    }
     for (const action of ['lookup', 'read-result', 'read-output'] as const)
       expect(
         await guard.qualify({ ...input, principal: w.system('sessionWorkPrincipals'), action }),
@@ -1222,7 +1679,10 @@ describe('the row', () => {
     }
     try {
       const admission = ctx.agentActionAdmission
-      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'undecidable' } })
+      // The judged definition is in no catalog of this tree, so its action cannot be resolved.
+      expect(await admission.admit(input as never)).toMatchObject({
+        ok: { kind: 'unavailable', diagnostic: 'the action could not be resolved now' },
+      })
       await row.dispose()
       expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
     } finally {
@@ -1387,8 +1847,81 @@ describe('the row', () => {
     expect(answers['holder']).toMatchObject({ kind: 'allowed' })
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
-    expect(answers['admission']).toMatchObject({ ok: { kind: 'undecidable' } })
+    // The judged definition is in no catalog of this tree, so its action cannot be resolved.
+    expect(answers['admission']).toMatchObject({
+      ok: { kind: 'unavailable', diagnostic: 'the action could not be resolved now' },
+    })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')
+  })
+})
+
+describe('a part of another domain works in a tenant by the three purposes (ID-56)', () => {
+  const OPENED = [
+    ['create', () => mutate, {}],
+    ['accept', () => mutate, ordinaryValue],
+  ] as const
+
+  it('lets the holder create a session, send an ordinary input and read where an input went', async () => {
+    const w = world()
+    const dispatch = w.system('dispatch')
+    for (const [operation, , extra] of OPENED)
+      expect((await w.session.check(mutate(dispatch, operation, extra))).kind, operation).toBe(
+        'allowed',
+      )
+    expect((await w.session.check(read(dispatch, 'readInputFate'))).kind).toBe('allowed')
+    expect(w.seen.admissions).toEqual([])
+    expect(w.seen.matrix.map(request => [request.operation.name, request.target])).toEqual(
+      ['create', 'accept', 'readInputFate'].map(name => [
+        name,
+        { kind: 'tenant', tenant: A, resource: { owner: 'session', kind: 'session', key: OWN } },
+      ]),
+    )
+  })
+
+  it('denies a system part that names no tenant', async () => {
+    const w = world()
+    const request = mutate(w.system('dispatch'), 'create')
+    const { tenant: _tenant, ...access } = request.access as {
+      tenant: TenantId
+      principal: unknown
+    }
+    expect((await w.session.check({ ...request, access } as never)).kind).not.toBe('allowed')
+    expect(w.seen.matrix).toEqual([])
+  })
+
+  it('answers an allowed input of a system part as a system subject, never as a member', async () => {
+    const w = world()
+    const decided = await w.session.check(mutate(w.system('dispatch'), 'accept', ordinaryValue))
+    expect(decided).toMatchObject({
+      kind: 'allowed',
+      subject: { kind: 'system', component: 'dispatch' },
+    })
+  })
+
+  it('opens nothing else to the holder: every other Session operation stays denied', async () => {
+    const w = world()
+    const dispatch = w.system('dispatch')
+    const others = Object.keys(SESSION_POLICY).filter(
+      name => !['create', 'accept', 'readInputFate'].includes(name),
+    )
+    for (const operation of others) {
+      const asked = [mutate(dispatch, operation), read(dispatch, operation)]
+      for (const request of asked)
+        expect((await w.session.check(request)).kind, operation).not.toBe('allowed')
+    }
+    expect(await w.session.check(mutate(dispatch, 'accept', businessValue))).toEqual({
+      kind: 'denied',
+    })
+  })
+
+  it('denies a system part that holds no grant, and one that holds another row', async () => {
+    const w = world()
+    for (const component of ['somebody-else', 'sessionPrincipals.maintainer'])
+      for (const [operation, , extra] of OPENED)
+        expect(
+          (await w.session.check(mutate(w.system(component), operation, extra))).kind,
+          `${component} ${operation}`,
+        ).toBe('denied')
   })
 })

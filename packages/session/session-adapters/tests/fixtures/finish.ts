@@ -1,5 +1,7 @@
 import type {
   AgentJournal,
+  Authority,
+  CommandReceipt,
   FailureCandidate,
   FinishCandidateContent,
   FinishIntent,
@@ -33,17 +35,47 @@ export const noReplyWithFault = (): FailureCandidate => ({
   fault: { cause: 'upstream-unavailable', upstreamStatus: '504', diagnostic: 'gateway timeout' },
 })
 
+export const nodeFailed = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/node'),
+  kind: 'node-failed',
+  node: 'E4',
+  category: 'invariant',
+  failureKind: 'unavailable',
+})
+
+export const cannotFit = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/cannot-fit'),
+  kind: 'cannot-fit',
+  reason: 'protected-floor',
+  context: evidence('context/cannot-fit'),
+})
+
 export async function endWithFailure(
   s: SqlScene,
   journal: AgentJournal<string>,
+  failure: FailureCandidate,
+) {
+  const opened = ok(await journal.open(s.openInput))
+  ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+  return endOpened(s, journal, opened, failure)
+}
+
+// Ends an open execution whose first input Session took over and which waits on nothing: takes
+// the input, settles and finishes.
+export async function endOpened(
+  s: SqlScene,
+  journal: AgentJournal<string>,
+  opened: Readonly<{ receipt: CommandReceipt; authority: Authority }>,
   failure: FailureCandidate,
 ) {
   const read = journal.readFinish
   if (read === undefined) throw new Error('the Journal has no readFinish')
   const readFinish = () => read({ ...s.access, execution: s.execution })
   const load = async () => ok(await journal.load({ ...s.access, execution: s.execution }))
-  const opened = ok(await journal.open(s.openInput))
-  ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
   const beforeCandidate = await readFinish()
 
   const taken = await load()

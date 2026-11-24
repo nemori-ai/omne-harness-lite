@@ -11,14 +11,6 @@ export {
   type MemoryAgentJournalEntries,
   type RecordFault,
 } from './testing-journal-entries.ts'
-export {
-  agentAccountOutletConformance,
-  createMemoryAgentAccountOutlet,
-  memoryAgentAccountOutletFixture,
-  sampleAccountHandoff,
-  type AgentAccountOutletFixture,
-  type MemoryAgentAccountOutlet,
-} from './testing-account-outlet.ts'
 
 export {
   agentJournalCoreConformance,

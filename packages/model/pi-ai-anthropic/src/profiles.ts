@@ -2,6 +2,7 @@ import type {
   Adoption,
   ModelLimit,
   ModelProfileDefinition,
+  ReasoningEffortMapping,
   TokenLimit,
   UpstreamLimit,
 } from '@omne-harness/model-contract'
@@ -31,6 +32,21 @@ function tokenLimit(record: AnthropicRecord, supplier: Adoption, data: TokenLimi
   }
 }
 
+export function effortMapping(record: AnthropicRecord): ReasoningEffortMapping {
+  switch (record.name) {
+    case 'anthropic/claude-fable-5.2':
+    case 'anthropic/claude-fable-5.1':
+    case 'anthropic/claude-opus-5.5':
+    case 'anthropic/claude-opus-5':
+    case 'anthropic/claude-sonnet-5.5':
+    case 'anthropic/claude-sonnet-5':
+    case 'anthropic/claude-haiku-5.5':
+      return { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' }
+    default:
+      return {}
+  }
+}
+
 export function profileOf(
   record: AnthropicRecord,
   input: OfficialProfilesInput,
@@ -53,6 +69,7 @@ export function profileOf(
     ],
     fallback: false,
     input: record.profile.input,
+    ...(record.wire.file === undefined ? {} : { fileTypes: record.wire.file.mediaTypes }),
     output: record.profile.output,
     context: {
       window: tokenLimit(record, supplier, context.window),
@@ -62,6 +79,7 @@ export function profileOf(
     },
     limits,
     parameters: [],
+    reasoningEfforts: effortMapping(record),
     representation: componentAdoption(record, 'representation'),
     meter: componentAdoption(record, 'meter'),
     retryPolicy: input.retryPolicy,

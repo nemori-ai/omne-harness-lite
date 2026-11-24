@@ -12,7 +12,7 @@ export function diffForReminder(input: DiffInput): readonly ChangeMaterial[] {
     const descriptor = input.descriptors.get(entry.key)
     if (
       !descriptor ||
-      descriptor.volatility === 'per-request' ||
+      descriptor.volatility === 'per-read' ||
       !descriptor.consumers.includes('model')
     )
       return []

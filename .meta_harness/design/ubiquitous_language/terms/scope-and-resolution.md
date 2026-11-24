@@ -92,17 +92,17 @@
 
 ### UL-workspace · 工作区 · Workspace
 
-> **中**：带有自身身份、跨会话持续的完整资源聚合包。Omne Host 托管工作区有一个治理所有者租户，也可以通过[租户—工作区关系](subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)授权其他租户参与；登记外部仓库的工作区不设 Omne 治理所有者，首次登记者与后来接入的租户都是参与者，登记不取得外部资源所有权或额外写权限。
+> **中**：带有自身身份、跨会话持续的完整资源聚合包。Omne Host 托管工作区有一个治理所有者租户，也可以通过[租户—工作区关系](subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)授权其他租户参与；租户把所在节点上的一个目录显式登记成工作区时，登记者是它的治理所有者，拥有的是登记产生的治理，不是目录的内容；登记外部仓库的工作区不设 Omne 治理所有者，首次登记者与后来接入的租户都是参与者，登记不取得外部资源所有权或额外写权限。
 > 它可以聚合文件、代码、数据、知识和自定义资产，访问它的 agent 类型可以不同；它不绑定一个固定目标，
 > 也不是会话、agent、本地目录或执行环境边界。工作区可以有多个[工作区地址](#ul-workspace-address--工作区地址--workspace-address)，
 > 并在部署节点上被装载为多个[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)。
 > 工作区实例中的资产进入 PF-002 定义的工作区资产层：设置和资产可以按层求值，权限、落点与身份类及治理类例外
 > 不从工作区放宽。
 
-> **EN**: An identity-bearing, persistent resource aggregate that spans sessions. An Omne Host workspace has one tenant with governance ownership and may authorize other tenants to participate. A registered external repository has no Omne governance owner: both its first registrant and later tenants are participants, and registration grants neither external-resource ownership nor additional write permission. It may contain files, code, data, knowledge, and custom assets; it has no fixed goal and is neither a session, agent, local directory, nor execution boundary. A workspace may have multiple addresses and multiple materialized instances. Assets from its instance enter the PF-002 workspace asset layer, while permissions and placement/identity governance cannot be widened from the workspace.
+> **EN**: An identity-bearing, persistent resource aggregate that spans sessions. An Omne Host workspace has one tenant with governance ownership and may authorize other tenants to participate. A tenant that explicitly registers a directory on its node as a workspace is the governance owner of that workspace: the tenant owns the governance that the registration creates, not the contents of the directory. A registered external repository has no Omne governance owner: both its first registrant and later tenants are participants, and registration grants neither external-resource ownership nor additional write permission. It may contain files, code, data, knowledge, and custom assets; it has no fixed goal and is neither a session, agent, local directory, nor execution boundary. A workspace may have multiple addresses and multiple materialized instances. Assets from its instance enter the PF-002 workspace asset layer, while permissions and placement/identity governance cannot be widened from the workspace.
 
 - **形态**：对象
-- **出处**：[PF-020](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22） · [PF-002 工作区资产层](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 32）
+- **出处**：[PF-020](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22） · [PF-002 工作区资产层](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 32） · [工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 8）
 - **别混**：地址和实例是它的访问与装载关系，不是另一个工作区；目录只是一个可能的地址/本地承载。
 - **资产层规则**：工作区提供的自定义资产仍遵循 PF-002 的设置覆盖、同标识替换、权限过滤和禁用规则。
 - **内容来源**：实例下的[共享目录](#ul-workspace-shared-directory--工作区共享目录--workspace-shared-directory)与[本地目录](#ul-workspace-local-directory--工作区本地目录--workspace-local-directory)是同一工作区层的两个来源，不是两份工作区。组织的[参与限制](#ul-workspace-participation-restriction--工作区参与限制--workspace-participation-restriction)与工作区访问授权分别成立。
@@ -125,7 +125,7 @@
 > **EN**: A reference to one load of a workspace on a deployment node. It has two parts: the workspace instance identifier and the load basis (for example, a Git commit). It occurs together with a `WorkspaceId`: the `WorkspaceId` tells which workspace, and the workspace attachment tells on which instance and from which basis the workspace is loaded. The workspace domain owns the format of both parts.
 
 - **形态**：属性
-- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 5）。补充依据：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（PanQiWei 2026-10-27 裁定：`workspace` 分为身份轴、实例轴与版本轴，实例轴与版本轴合为工作区域拥有的附着值）。当前由 Session 契约的[创建规则](../../../../packages/session/SPEC.md#受理与输入)以 `workspaceAttachment` 字段承载
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 8）。补充依据：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（PanQiWei 2026-10-27 裁定：`workspace` 分为身份轴、实例轴与版本轴，实例轴与版本轴合为工作区域拥有的附着值）。当前由 Session 契约的[创建规则](../../../../packages/session/SPEC.md#受理与输入)以 `workspaceAttachment` 字段承载
 - **别混**：与[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)不是一回事：实例是被装载出来的工作入口，工作区附着只是指向某个实例的一次装载的引用。与[附件](execution-and-outcome.md#ul-attachment--附件--attachment)、[执行挂接](agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment)无关，字段和类型不许简称 `attachment`（同 [C-64](../conflicts.md#c-64执行挂接的候选类型名)）。产品正文（如[J-WS01](../../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)「报告附着成功」）、[租户—工作区关系](subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界与本卷[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)「不再附着」里的「附着」是动作：把工作区接到会话上，或这一动作的结果。它不是本词，本词是一个引用值。两种用法待收敛，见 [C-72](../conflicts.md#c-72附着动作与工作区附着值)
 
 ### UL-workspace-address · 工作区地址 · Workspace Address
@@ -151,21 +151,32 @@
 
 ### UL-workspace-management-type · 工作区管理类型 · Workspace Management Type
 
-> **中**：工作区采用哪一种资源管理方式的属性，用于区分其持久保存、版本管理与实例同步所遵循的模型。租户创建 Omne Host 工作区时选择该属性，首版仅提供 Git；它不同于资源与治理意义上的工作区类别，也不同于地址提供者。
+> **中**：工作区在物理上是哪一种资源的属性。它回答四个问题：这份资源是什么、在哪、处在什么版本、两次物化是不是同一份。治理规则不随它变化。已支持[文件系统型](#ul-filesystem-workspace--文件系统型工作区--filesystem-workspace)和 [Git 型](#ul-git-workspace--git-工作区--git-workspace)。显式登记已有目录时可以指定它；不指定时按目录的实际形态识别。它在工作区的一生里不变。它不同于资源与治理意义上的工作区类别，也不同于地址提供者。
 
-> **EN**: A workspace attribute identifying the model used to persist, version, and synchronize its resources with instances. A tenant selects it when creating an Omne Host workspace; the first release offers Git only. It is distinct from workspace category and address provider.
+> **EN**: The workspace attribute that tells which kind of physical resource the workspace is. It answers four questions: what the resource is, where it is, which version it has, and whether two materializations are the same resource. Governance rules do not depend on it. The supported types are the filesystem type and the Git type. A registrant may name the type when it registers an existing directory; otherwise the type follows the actual form of the directory. The type does not change during the life of the workspace. It is distinct from workspace category and address provider.
 
 - **形态**：属性
-- **出处**：[PF-020 工作区管理类型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#工作区管理类型)（rev 22）
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 8）。历史来源：[PF-020 工作区管理类型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#工作区管理类型)（rev 22）
+
+### UL-filesystem-workspace · 文件系统型工作区 · Filesystem Workspace
+
+> **中**：管理类型为文件系统的工作区。它在物理上是一个目录范围：把这个目录登记成工作区，只让系统认识它时多了一层逻辑治理，登记、关联、解除和销毁都不移动、不改写、不删除其中的内容。它没有版本可以指，一个工作区同一时刻只有一个实例；换一个目录是换地址，工作区身份不变。
+
+> **EN**: A workspace whose management type is filesystem. Physically it is a directory scope. Registration only adds a layer of logical governance to that directory: registration, association, dissociation, and destruction do not move, change, or delete its contents. It has no version to refer to, and the workspace has one instance at a time. A different directory is a different address of the same workspace identity.
+
+- **形态**：变体（父：[工作区](#ul-workspace--工作区--workspace)）
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 8）
+- **别混**：不是普通目录。同一个目录没有登记时只是普通目录，没有工作区身份，也不加载工作区来源。也不是文件系统隔离：治理管的是工作区这一层，不阻止原本合法的文件访问。
 
 ### UL-git-workspace · Git 工作区 · Git Workspace
 
-> **中**：工作区抽象（`Workspace`）中管理类型为 Git 的特化，类型记法为 `GitBasedWorkspace`。其共享资源以 Git 仓库管理，装载出的工作区实例使用相应 Git 工作副本；首版 Omne Host 仅提供此类型。它沿用工作区的逻辑身份与生命周期，Git 仓库地址、分支和提交版本不替代工作区身份。
+> **中**：管理类型为 Git 的工作区，是[文件系统型工作区](#ul-filesystem-workspace--文件系统型工作区--filesystem-workspace)的拓展：实例的目录同时是一个 Git 工作副本。文件系统型成立的规则对它都成立。它另外有提交可以指，同一个仓库的多个工作副本可以显式关联成同一个工作区的多个实例。它沿用工作区的逻辑身份与生命周期，仓库地址、分支和提交不替代工作区身份。类型记法为 `GitBasedWorkspace`。
 
-> **EN**: The Git specialization of Workspace, denoted `GitBasedWorkspace`: shared resources are managed in a Git repository and instances use corresponding Git working copies. It is the only type offered by Omne Host in the first release. It retains the workspace's logical identity and lifecycle; repository addresses, branches, and commits do not replace that identity.
+> **EN**: A workspace whose management type is Git. It extends the filesystem workspace: the directory of an instance is also a Git working copy. Every rule that holds for a filesystem workspace holds for it. In addition, it has commits to refer to, and several working copies of one repository can be explicitly associated as instances of one workspace. It keeps the logical identity and lifecycle of a workspace; repository addresses, branches, and commits do not replace that identity. It is denoted `GitBasedWorkspace`.
 
-- **形态**：变体（父：[工作区](#ul-workspace--工作区--workspace)）
-- **出处**：[PF-020 Omne Host 的首版范围](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#omne-host-的首版范围)（rev 22）
+- **形态**：变体（父：[文件系统型工作区](#ul-filesystem-workspace--文件系统型工作区--filesystem-workspace)）
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 8）。历史来源：[PF-020 Omne Host 的首版范围](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#omne-host-的首版范围)（rev 22）
+- **别混**：新建一个工作副本不等于多了一个实例。显式关联之后它才是实例。
 
 ### UL-workspace-address-provider · 工作区地址提供者 · Workspace Address Provider
 
@@ -323,11 +334,21 @@ specific.
 > that evaluation have not changed.
 
 - **形态**：属性
-- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 10） ·
-  [资产与规则：变更后的生效范围](../../product/assets-and-rules/design.md#changes-and-failures)（rev 9） ·
-  [工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 5）
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 12） ·
+  [资产与规则：变更后的生效范围](../../product/assets-and-rules/design.md#changes-and-failures)（rev 11） ·
+  [工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 8）
 - **别混**：不是全局版本号。每类来源、每个作用域各有自己的计数，彼此不比较大小
 - **注意**：计数变化只说明来源变了，不构成采用。采用仍只在新 Run 开始或显式 reload 时发生
+
+### UL-source-adoption-record · 来源采用记录 · Source Adoption Record
+
+> **中**：[工作区](#ul-workspace--工作区--workspace)按调用方给的一个键记下的一次来源读取：这个键采用的是所选实例两个来源根里哪些包、各自什么版本。同一个键永远指向同一份，记下之后不变；读不成时它记下沿用上一次读成的那一份，没有上一次时是空的，并带原因。工作区不解释键，调用方用它表示一轮执行。
+
+> **EN**: One reading of the sources that a workspace records under a key given by the caller: which packages in the two source roots of the selected instance this key adopts, and which version of each. The same key always refers to the same record, and the record does not change. When the reading fails, the record refers to the last reading that succeeded, or is empty when there is none, and it carries the reason. The workspace does not interpret the key. The caller uses it to mean one execution.
+
+- **形态**：对象
+- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 8）
+- **别混**：不是[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)。采用依据是一次执行采用了什么的整份记录，本词只是其中工作区来源那一部分的权威记录，由工作区保存。也不是[采用变更计数](#ul-adoption-change-counter--采用变更计数--adoption-change-counter)：计数只说来源变没变，本词说采用的是哪一份。
 
 ### UL-validated-assembly-candidate · 已校验装配候选 · Validated Assembly Candidate
 
@@ -341,7 +362,7 @@ specific.
 > invalidates it.
 
 - **形态**：视图
-- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 10）
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 12）
 - **别混**：与「保存的选择」不是一回事。保存的选择是用户的意图；已校验装配候选是系统按当时来源算好的结果。两者都不是采用依据
 - **注意**：丢了可以按同样的计数重新求值，所以它不是一份另存的事实
 
@@ -551,7 +572,7 @@ specific.
 - **出处**：[PF-015 §4 meta runtime context](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) · [§5.6 十四项](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **注意 ①**：**与 [meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)同构**——
   那边是每个 agent 必不可少的**能力**，这边是每个会话必不可少的**感知**。**两边都不可禁用、不可替换**
-- **注意 ②**：现行必需感知为十五项（含当前落点），[逐项的键、类与语义拥有者见正文](../../product/runtime-context/design.md#3-必需感知按内容及消费者供给)（rev 6）；封存的 [PF-015 §5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context) 列十四项
+- **注意 ②**：现行必需感知为十五项（含当前落点），[逐项的键、类与语义拥有者见正文](../../product/runtime-context/design.md#3-必需感知按内容及消费者供给)（rev 11）；封存的 [PF-015 §5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context) 列十四项
 - **注意 ③**：**模型看见其中一块只有两种形态**——**完整的那一份**（会话刚开始、**上下文压缩之后**，即[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)）
   与**一条变更通知**。**第二种依赖第一种**：只发通知不发全量，模型迟早拼出一份与真的对不上的状态
 
@@ -603,9 +624,9 @@ specific.
 > **EN**: The list a scope holder fixes for one scope: which context blocks the scope has, which needs each block is bound to, and with what parameters. Required items are fixed when the scope is created. Optional items can be added or removed. Its identity is the scope plus the block key. A registration says that the block is present here. It does not hold the block's current value.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 6）；旧说法见 [PF-015 §6.18](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）
+- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 11）；旧说法见 [PF-015 §6.18](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）
 - **别混**：不是共享数据源的创建或删除；也不是[块声明](#ul-context-block-descriptor--块声明--context-block-descriptor)——声明说「这种块长什么样、谁拥有」，注册说「这个作用域用了它」
-- **注意**：形态由属性改为对象的依据与影响见 [C-67](../conflicts.md#c-67运行时-context-注册是属性还是对象)。本版的作用域持有者是会话
+- **注意**：形态由属性改为对象的依据与影响见 [C-67](../conflicts.md#c-67运行时-context-注册是属性还是对象)
 
 ### UL-context-block · runtime context 块 · Context Block
 
@@ -614,7 +635,7 @@ specific.
 > **EN**: The unit of runtime context that can be named on its own: one **current value** in one scope, identified by a block key. It has one block descriptor, at least one participant that supplies or writes its value, and consumer classes that read it under eligibility. It enters a scope with a registration and leaves when the registration is removed or the scope ends. Its value is updated in place. It is not a stream of facts. Its identity is the scope reference plus the block key.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §2.1](../../product/runtime-context/design.md#21-两类块供给块与状态块)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.1](../../product/runtime-context/design.md#21-两类块供给块与状态块)（rev 11）
 - **别混**：不是[内容块](record-and-context.md#ul-content-block--内容块--content-block)——内容块是一条消息里装的东西，落日志；它是消息之外的当前值，不落日志
 - **注意**：两类见[供给块](#ul-supplied-block--供给块--supplied-block)与[状态块](#ul-stateful-block--状态块--stateful-block)。中文正文里在无歧义处可简称「块」；跨 topic、写规格时用全名
 
@@ -625,7 +646,7 @@ specific.
 > **EN**: A context block whose current value is supplied by **one** producer and only read by consumers. Its value is the producer's latest publication. It recovers by one of three ways stated in its descriptor: persisted, reread from its source, or recomputed.
 
 - **形态**：变体（父：[runtime context 块](#ul-context-block--runtime-context-块--context-block)）
-- **出处**：[运行感知与一次模型请求 §2.1](../../product/runtime-context/design.md#21-两类块供给块与状态块)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.1](../../product/runtime-context/design.md#21-两类块供给块与状态块)（rev 11）
 - **别混**：与[状态块](#ul-stateful-block--状态块--stateful-block)的差别只有一条：谁能改它的值。供给块只有生产者能改
 
 ### UL-stateful-block · 状态块 · Stateful Block
@@ -635,17 +656,17 @@ specific.
 > **EN**: A context block whose value is changed by context updates from several participants, merged by the reduce rule in its descriptor, and made fact by the scope holder's step commit at a step boundary. It may declare one writer per step. It may declare that it lives only within one execution and is not persisted.
 
 - **形态**：变体（父：[runtime context 块](#ul-context-block--runtime-context-块--context-block)）
-- **出处**：[运行感知与一次模型请求 §2.1](../../product/runtime-context/design.md#21-两类块供给块与状态块) · [§2.5](../../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.1](../../product/runtime-context/design.md#21-两类块供给块与状态块) · [§2.5](../../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 11）
 - **注意**：更新是提案，提交之前不是这一块的值
 
 ### UL-context-block-descriptor · 块声明 · Context Block Descriptor
 
-> **中**：一种 [runtime context 块](#ul-context-block--runtime-context-块--context-block)的静态说明，由这个值的**语义拥有者**发布：块键、值的形状、允许的消费者类、是否必需、披露方式、能否带前值、变化的频率（稳定或逐请求）、恢复方式；状态块另有写者类、合并规则与持久方式。全系统一个块键只有一份声明。它的身份是块键，随发布它的包存在。
+> **中**：一种 [runtime context 块](#ul-context-block--runtime-context-块--context-block)的静态说明，由这个值的**语义拥有者**发布：块键、值的形状、允许的消费者类、是否必需、披露方式、能否带前值、恢复方式；状态块另有写者类、合并规则与持久方式。全系统一个块键只有一份声明。它的身份是块键，随发布它的包存在。
 >
-> **EN**: The static statement of one kind of context block, published by the value's **semantic owner**: the block key, the value shape, the allowed consumer classes, whether it is required, how it is disclosed, whether it may carry a previous value, how often it changes (stable or per request), and how it recovers. A stateful block also states its writer classes, reduce rule and persistence. One block key has exactly one descriptor in the whole system. Its identity is the block key. It lives with the package that publishes it.
+> **EN**: The static statement of one kind of context block, published by the value's **semantic owner**: the block key, the value shape, the allowed consumer classes, whether it is required, how it is disclosed, whether it may carry a previous value, and how it recovers. A stateful block also states its writer classes, reduce rule and persistence. One block key has exactly one descriptor in the whole system. Its identity is the block key. It lives with the package that publishes it.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §2.2](../../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.2](../../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 11）
 - **别混**：不是[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)。声明没有作用域，注册有
 - **注意**：声明不安装块，也不授权读它。谁供值、谁能读，分别由[生产者句柄](#ul-producer-handle--生产者句柄--producer-handle)与[读取资格](#ul-read-eligibility--读取资格--read-eligibility)决定
 
@@ -656,7 +677,7 @@ specific.
 > **EN**: One line a consumer writes in its own definition: "I need a value of this shape", with the shape, the consumer class, the purpose, and whether it is required or optional. It names no block key. When a required need is missing, the action that depends on it is unavailable.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §2.3](../../product/runtime-context/design.md#23-需要绑定与集成原则)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.3](../../product/runtime-context/design.md#23-需要绑定与集成原则)（rev 11）
 - **别混**：不是[块声明](#ul-context-block-descriptor--块声明--context-block-descriptor)。声明说「我供这个」，需要说「我要这个」，两边都不点名对方
 
 ### UL-need-binding · 需要绑定 · Need Binding
@@ -666,7 +687,7 @@ specific.
 > **EN**: One mapping the integrator writes at registration time: which block satisfies this context need, and, when the shapes differ, how to translate. The translation is a pure function and its result carries the block's provenance. The consumer reads the shape it declared.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §2.3](../../product/runtime-context/design.md#23-需要绑定与集成原则)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.3](../../product/runtime-context/design.md#23-需要绑定与集成原则)（rev 11）
 - **注意**：翻译归集成方，不归生产者的契约，也不归消费者的契约
 
 ### UL-producer-handle · 生产者句柄 · Producer Handle
@@ -676,7 +697,7 @@ specific.
 > **EN**: What a producer holds after it registers to supply one block: it has a **generation** and is used to publish a new value, to invalidate the current value, and to withdraw the registration. The registration lives as long as the producer's plugin. A late publication from an old generation is not adopted.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §2.2](../../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.2](../../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 11）
 - **注意**：使当前值失效只是唤醒读者；读者读到什么以读时为准
 
 ### UL-read-eligibility · 读取资格 · Read Eligibility
@@ -686,7 +707,7 @@ specific.
 > **EN**: The material a scope holder issues for one binding: the scope, the consumer class, the principal and tenant, the set of block keys that may be read, the set of need bindings that may be read, and the registration revision at issue time. It is checked on every read. The holder can revoke it, and reads under it are then refused. The holder can also issue a new eligibility that replaces it (reissue). After a reissue it is no longer valid, and readers bound under it continue under the new one. It is never inferred from the runtime environment.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 11）
 - **别混**：不是动作授权。它只决定能读哪些块，不决定能做什么
 
 ### UL-bound-reader · 绑定读者 · Bound Reader
@@ -696,7 +717,7 @@ specific.
 > **EN**: A reading entry established from one read eligibility: its consumer class is fixed, it translates blocks into the consumer's shapes through the need bindings, and it returns the current snapshot and the changes since a cursor. Eligibility is rechecked on every read. The reader ends when its eligibility is revoked or expires.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 11）
 - **注意**：游标属于一个绑定读者。授权范围变化、生产者换代、进程重建之后游标失效，读者要重新取完整快照
 
 ### UL-context-update · 上下文更新 · Context Update
@@ -706,7 +727,7 @@ specific.
 > **EN**: One partial update a participant proposes for a stateful block. It carries the identity of the action that proposed it. It is a **proposal, not a fact**: it becomes part of the block's value only after the scope holder's step commit merges it.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §2.5](../../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.5](../../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 11）
 - **注意**：失败的步里成功动作提出的更新保留为待处理，由持有者处置，不进这一步的提交
 
 ### UL-step-commit · 步提交 · Step Commit
@@ -716,7 +737,7 @@ specific.
 > **EN**: The result a scope holder produces at one step boundary by merging every context update received in that step with each block's reduce rule, and then records as scope fact. One per step. Its identity is the scope plus the step reference. The merge is a pure function.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §2.5](../../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.5](../../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 11）
 - **别混**：不是[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)的变更。注册变的是「有哪些块」，步提交变的是「状态块的值」
 
 ### UL-change-material · 变化材料 · Change Material
@@ -726,8 +747,8 @@ specific.
 > **EN**: What is computed after a block's value changes and handed to the scope holder's change-consumption path: the block key, the revisions before and after, and the previous value filtered by reader eligibility. It is the input for a reminder. It is **not the reminder message**. It is complete once delivered.
 
 - **形态**：视图
-- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 6）
-- **别混**：不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)。快照是完整当前值，只进请求；变化材料变成的提醒追加进历史
+- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-快照与变化都写进历史)（rev 11）
+- **别混**：不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)。快照是完整当前值，变化材料只说变了的块；两者变成的提醒都追加进历史
 
 ### UL-scope-ref · 作用域引用 · Scope Reference
 
@@ -736,18 +757,30 @@ specific.
 > **EN**: An opaque reference to one scope, optionally with a parent reference. Whoever holds it does not interpret whether it points at a tenant, a session or a run. A child scope reading a block key looks in itself first and then in its parent, and the same key shadows upward. It is the key shared by registrations, read eligibility and execution-environment ownership.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 11）
 - **别混**：不是[作用域层](#ul-scope-layer--作用域层--scope-layer)。作用域层是求值合成里的一级；作用域引用是一个具体作用域的名字
-- **注意**：本版只有会话一个作用域持有者，父引用保留给将来的租户级与运行级持有者
+- **注意**：会话级作用域的父引用指向它所属租户的[租户级作用域](#ul-tenant-level-scope--租户级作用域--tenant-level-scope)；租户级作用域没有父
+
+### UL-tenant-level-scope · 租户级作用域 · Tenant-Level Scope
+
+> **中**：每个租户一个的 runtime context 作用域。它里面只有[供给块](#ul-supplied-block--供给块--supplied-block)，没有[状态块](#ul-stateful-block--状态块--stateful-block)；它登记哪些块是这次部署的事实，对每个租户相同。一个会话的作用域以它所属租户的租户级作用域为父：会话之内读不到的块到它这里找，会话之外的使用者按它的[读取资格](#ul-read-eligibility--读取资格--read-eligibility)直接读它。
+>
+> **EN**: The runtime context scope that exists once per tenant. It holds only supplied blocks and no stateful blocks. Which blocks it registers is a fact of the deployment, the same for every tenant. The scope of a session has the tenant-level scope of its tenant as its parent: a block that a reader inside the session does not find is looked up there, and a consumer outside any session reads it directly under its read eligibility.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 11）
+- **别混**：不是[作用域层](#ul-scope-layer--作用域层--scope-layer)里的租户层。作用域层是设置与资产求值合成的一级；租户级作用域是运行数据供给的一个作用域
+- **注意**：身份是租户。它不随会话生灭：租户在，它就在
+
 
 ### UL-scope-holder · 作用域持有者 · Scope Holder
 
-> **中**：为一个作用域维护[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)、签发[读取资格](#ul-read-eligibility--读取资格--read-eligibility)、在步边界写出[步提交](#ul-step-commit--步提交--step-commit)的那一方。一个作用域只有一个持有者。`0.0.0 -> 0.1.0` 阶段只有一种持有者，就是会话。
+> **中**：为一个作用域维护[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)、签发[读取资格](#ul-read-eligibility--读取资格--read-eligibility)、有状态块时在步边界写出[步提交](#ul-step-commit--步提交--step-commit)的那一方。一个作用域只有一个持有者。会话级作用域的持有者是会话；[租户级作用域](#ul-tenant-level-scope--租户级作用域--tenant-level-scope)的持有者登记的是这次部署的事实，对每个租户相同。
 >
-> **EN**: The party that maintains the registration of one scope, issues its read eligibility, and writes its step commits at step boundaries. One scope has exactly one holder. In `0.0.0 -> 0.1.0` the session is the only kind of holder.
+> **EN**: The party that maintains the registration of one scope, issues its read eligibility, and, when the scope has stateful blocks, writes its step commits at step boundaries. One scope has exactly one holder. The session holds a session-level scope. The holder of a tenant-level scope registers facts of the deployment, the same for every tenant.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §2](../../product/runtime-context/design.md#2-来源会话选择和历史分别生效)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2](../../product/runtime-context/design.md#2-来源会话选择和历史分别生效)（rev 11）
 - **别混**：不是[集成方](#ul-integrator--集成方--integrator)。持有者在注册时也是集成方，但集成方还包括装配时接线的一方与为一次调用求设置的协调者
 
 ### UL-integrator · 集成方 · Integrator
@@ -757,7 +790,7 @@ specific.
 > **EN**: The party that knows the participants and connects them. It writes a need binding for every context need and owns the translation. The integrated parties only declare what they supply and what they need, and do not know who integrates them. The scope holder at registration time, the party that wires at assembly time, and the coordinator that evaluates the settings for one tool call are all integrators.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §2.3](../../product/runtime-context/design.md#23-需要绑定与集成原则)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.3](../../product/runtime-context/design.md#23-需要绑定与集成原则)（rev 11）
 - **注意**：执行环境那边为一次获取翻译[环境要求](grounding-and-isolation.md#ul-environment-requirement--环境要求--environment-requirement)的也是集成方，同一个词、同一个含义
 
 ### UL-semantic-owner · 语义拥有者 · Semantic Owner
@@ -767,5 +800,5 @@ specific.
 > **EN**: The party that decides what a value means. The block descriptor belongs to it, not to the party that stores the value, and not necessarily to the producer that supplies it.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §2.2](../../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 6）
+- **出处**：[运行感知与一次模型请求 §2.2](../../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 11）
 - **别混**：不是生产者。生产者供值，语义拥有者定义值的含义；两者可以是同一方，也可以不是

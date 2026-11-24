@@ -36,7 +36,7 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import { succeed } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
   SessionAccessDecision,
@@ -85,7 +85,7 @@ import {
   type SqlScene,
   type SqlSceneOptions,
 } from './fixtures/sql-scene.ts'
-import { m0Checkpoint } from './fixtures/adopted-request.ts'
+import { invocation, m0Checkpoint } from './fixtures/adopted-request.ts'
 import { endWithFailure, noReplyWithFault, refusedByModel } from './fixtures/finish.ts'
 import { MODEL_CALL } from './fixtures/main-reply.ts'
 import { toolCall } from './fixtures/tool-call.ts'
@@ -95,6 +95,10 @@ const ACTIVE = 2
 const FAILED = 3
 
 const FACES = [agentJournalKey, agentJournalEntriesKey, agentMaterialsKey] as const
+
+function provides(fiber: Context['fiber'], key: string): boolean {
+  return [...fiber.provisions].some(provision => provision.name === key)
+}
 
 const other = memoryOtherAccess('intruder', 'route-other')
 const textOf = (tenant: SessionAccess<string>['tenant']) => {
@@ -663,7 +667,7 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
     const s = await scene('recv-commit')
     const { plugin, journal, entries, received } = await assembled(s)
     for (const key of [agentReceivedCommitsKey, agentModelReceptionTargetsKey])
-      expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
+      expect(provides(plugin, key), key).toBe(true)
     const draft = await waitingOnModel(s, journal(), 'recv-commit')
     const input = {
       ...s.access,
@@ -694,7 +698,7 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
   it('agentReceivedRecords answers the committed record, also from a new instance on the same storage', async () => {
     const s = await scene('recv-records')
     const first = await assembled(s)
-    expect(first.plugin.store?.[agentReceivedRecordsKey]?.fiber === first.plugin).toBe(true)
+    expect(provides(first.plugin, agentReceivedRecordsKey)).toBe(true)
     const draft = await waitingOnModel(s, first.journal(), 'recv-records')
     const input = {
       ...s.access,
@@ -799,9 +803,9 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
       consumer: draft.consumer,
       reference: draft.delivery.key.reference,
     }
-    expect(ok(await targets().resolve({ ...query, execution: s.execution })).execution).toBe(
-      s.execution,
-    )
+    expect(ok(await targets().resolve({ ...query, execution: s.execution }))).toMatchObject({
+      execution: s.execution,
+    })
     expect(await targets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
       'failure.kind',
       'denied',
@@ -838,7 +842,7 @@ describe('agentToolReceptionTargets: the Tool result receiver face', () => {
   it('answers the binding the committed associated Tool call made, also from a new instance', async () => {
     const s = await scene('tool-targets', { storage: 'real' })
     const first = await assembled(s)
-    expect(first.plugin.store?.[agentToolReceptionTargetsKey]?.fiber === first.plugin).toBe(true)
+    expect(provides(first.plugin, agentToolReceptionTargetsKey)).toBe(true)
     const { tool, instance: original } = await withToolCall(s, first.journal(), 'tool-targets')
     const query = {
       access: s.access,
@@ -923,9 +927,9 @@ describe('agentToolReceptionTargets: the Tool result receiver face', () => {
       consumer: tool.pending.position,
       reference: tool.pending.reference,
     }
-    expect(ok(await toolTargets().resolve({ ...query, execution: s.execution }))?.execution).toBe(
-      s.execution,
-    )
+    expect(ok(await toolTargets().resolve({ ...query, execution: s.execution }))).toMatchObject({
+      execution: s.execution,
+    })
     expect(await toolTargets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
       'failure.kind',
       'denied',
@@ -957,10 +961,10 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
     )
   }
 
-  it('answers null before the first M0 and the saved request after it, checking history.readModelView on the session each call', async () => {
+  it('answers null before the first M0 and the saved request after it, checking history.readAdoptedRequest on the session each call', async () => {
     const s = await scene('adopted-plugin')
     const { plugin, journal, adopted, wiring } = await assembled(s)
-    expect(plugin.store?.[sessionAdoptedRequestsKey]?.fiber === plugin).toBe(true)
+    expect(provides(plugin, sessionAdoptedRequestsKey)).toBe(true)
     const read = () => adopted().readAdoptedRequest({ access: s.access, session: s.access.session })
     const open = ok(await journal().open(s.openInput))
     expect(await read()).toEqual({ kind: 'value', value: null })
@@ -976,9 +980,38 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
     })
     expect(wiring.decided.at(-1)).toEqual({
       access: s.access,
-      operation: 'history.readModelView',
+      operation: 'history.readAdoptedRequest',
       target: { kind: 'session', session: s.access.session },
     })
+  })
+
+  it('answers the request adopted for the call a reference names, the latest without one, and null for a call it has none of', async () => {
+    const s = await scene('adopted-plugin-reference')
+    const { adopted, journal, wiring } = await assembled(s)
+    const open = ok(await journal().open(s.openInput))
+    await m0(s, journal(), open.authority, '1')
+    await m0(s, journal(), open.authority, '2')
+    const read = (reference?: string) =>
+      adopted().readAdoptedRequest({
+        access: s.access,
+        session: s.access.session,
+        ...(reference === undefined ? {} : { reference }),
+      })
+    const named = (tag: string) => invocation(s.access.tenant, tag)
+    expect(await read(named('1'))).toMatchObject({
+      kind: 'value',
+      value: { reference: named('1') },
+    })
+    expect(await read(named('2'))).toMatchObject({
+      kind: 'value',
+      value: { reference: named('2') },
+    })
+    expect(await read()).toMatchObject({ kind: 'value', value: { reference: named('2') } })
+    expect(await read(named('3'))).toEqual({ kind: 'value', value: null })
+    expect(wiring.decided.at(-1)).toMatchObject({ operation: 'history.readAdoptedRequest' })
+    const [first, second] = [await read(named('1')), await read(named('2'))]
+    if (first.kind !== 'value' || second.kind !== 'value') throw new Error('expected two values')
+    expect(BigInt(first.value!.order) < BigInt(second.value!.order)).toBe(true)
   })
 
   it('a denied access is denied, an undecided one or a throwing check unavailable, and nothing is read', async () => {
@@ -1018,6 +1051,39 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
     expect(
       await held.readAdoptedRequest({ access: s.access, session: s.access.session }),
     ).toMatchObject({ kind: 'unavailable' })
+    expect(
+      await held.readRequestChoices({
+        access: s.access,
+        session: s.access.session,
+        reference: invocation(s.access.tenant, '1'),
+      }),
+    ).toMatchObject({ kind: 'unavailable' })
+  })
+
+  it('the choices of a call check history.readAdoptedRequest on the session: denied, undecided and unminted answer as the adopted request does', async () => {
+    const s = await scene('adopted-plugin-choices')
+    const { adopted, wiring, journal } = await assembled(s)
+    const open = ok(await journal().open(s.openInput))
+    await m0(s, journal(), open.authority, '1')
+    const reference = invocation(s.access.tenant, '1')
+    const read = (access = s.access) =>
+      adopted().readRequestChoices({ access, session: s.access.session, reference })
+    expect(await read()).toEqual({ kind: 'value', value: [] })
+    expect(wiring.decided.at(-1)).toEqual({
+      access: s.access,
+      operation: 'history.readAdoptedRequest',
+      target: { kind: 'session', session: s.access.session },
+    })
+    const reads = wiring.reads
+    wiring.decide = () => ({ kind: 'denied' })
+    expect(await read()).toEqual({ kind: 'denied' })
+    wiring.decide = () => ({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    expect(await read()).toEqual({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    expect(wiring.reads).toBe(reads)
+    wiring.decide = undefined
+    expect(await read({ ...s.access, tenant: structuredClone(s.access.tenant) })).toEqual({
+      kind: 'denied',
+    })
   })
 })
 
@@ -1025,7 +1091,7 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
   it('serves the three keys from its own fiber, removes the three together when it stops, and a held reference then answers unavailable', async () => {
     const s = await scene('faces-fiber')
     const { ctx, plugin, journal, entries, materials } = await assembled(s)
-    for (const key of FACES) expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
+    for (const key of FACES) expect(provides(plugin, key), key).toBe(true)
     ok(await journal().open(s.openInput))
     const value = factsMaterial('kept')
     const source = ok(
@@ -1351,7 +1417,9 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
       checkpoint: s.checkpoint,
       installation: installation?.installation ?? null,
       acceptInput: async label => {
-        const interpreter = await cordisScene(s)
+        const interpreter = await cordisScene(s, {
+          acknowledge: () => async () => fail({ kind: 'unsupported' }),
+        })
         disposers.push(() => interpreter.dispose())
         const interpretation = createSessionJournalInterpretationPlugin<string>({
           coordinator: async () => succeed(s.access.principal),

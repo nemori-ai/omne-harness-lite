@@ -58,7 +58,11 @@ describe('tool-access and session-call-control rows', () => {
       's0.principalIssuer',
     ])
     const control = rowDeclarationOf(sessionCallControlRow)
-    expect(control?.manifest.provides).toEqual(['sessionCallControl', 'sessionCallStates'])
+    expect(control?.manifest.provides).toEqual([
+      'sessionCallControl',
+      'sessionCallStates',
+      'sessionDerivedInputs',
+    ])
     expect(toolAccessConfig.safeParse({ extra: 1 }).success).toBe(false)
   })
 
@@ -126,15 +130,19 @@ describe('tool-access and session-call-control rows', () => {
             terminal: { kind: 'completed' },
           })
           // The reminder joins the Run still going, or wakes a follow-up Run once that one ended.
+          // Runtime context reminders are system reminders too; the call's own is the other one.
+          const callReminder = (entry: { kind: string; payload?: unknown }) =>
+            entry.kind === 'message.system_reminder' &&
+            !JSON.stringify(entry.payload).includes('Runtime context')
           const entries = await pollUntil(
             'the reminder and a Run that took it',
             () => historyOf(tree, session),
             value => {
-              const at = value.findIndex(entry => entry.kind === 'message.system_reminder')
+              const at = value.findIndex(callReminder)
               return at >= 0 && value.slice(at).some(entry => entry.kind === 'run.terminal')
             },
           )
-          const reminder = entries.find(entry => entry.kind === 'message.system_reminder')
+          const reminder = entries.find(callReminder)
           expect(JSON.stringify(reminder?.payload)).toContain('bg-done')
           const after = await post(tree, '/api/session/v1/list-background-calls', {
             tenant,
@@ -212,6 +220,12 @@ describe('tool-access and session-call-control rows', () => {
             'the sealed output body after the command ends',
             () => output('0'),
             reply => (reply.json.body as Part | undefined)?.kind === 'sealed',
+          )
+          // The end of the call wakes the agent for a second Run; stopping before it ends leaves it in flight.
+          await pollUntil(
+            'the Run the end of the call woke to end',
+            () => historyOf(tree, session),
+            entries => entries.filter(entry => entry.kind === 'run.terminal').length >= 2,
           )
         },
       )

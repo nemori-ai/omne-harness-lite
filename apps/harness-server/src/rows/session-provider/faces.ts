@@ -1,5 +1,6 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  EMPTY_AUTHORIZATIONS,
   commandDigest,
   sessionIntakeLimits,
   judgeSessionIntake,
@@ -61,16 +62,21 @@ const unimplemented = (): Promise<Result<never>> => Promise.resolve(fail(UNAVAIL
 const UNIMPLEMENTED_HISTORY = {
   since: unimplemented,
   readModelView: unimplemented,
+  readForkPoint: unimplemented,
   readCompactionContext: unimplemented,
 } as const
 
 const UNIMPLEMENTED_WORK = {
   readWork: unimplemented,
   readCurrentScope: unimplemented,
+  readCall: unimplemented,
   readWaiting: unimplemented,
   readBackgroundCalls: unimplemented,
   resolveBackgroundCall: unimplemented,
   readInput: unimplemented,
+  readPending: unimplemented,
+  readWaitingCalls: unimplemented,
+  readInputFate: unimplemented,
   startRun: unimplemented,
   claim: unimplemented,
   reload: unimplemented,
@@ -141,6 +147,7 @@ function snapshotOf(
     execution: creation.execution,
     declarations: evidenceOf('declarations', session),
     permissions: { revision: '0', assignments: [] },
+    authorizations: EMPTY_AUTHORIZATIONS,
     revisions: { workspace: '0', declarations: record.revision },
     run: { kind: 'none' },
     pending: [...record.inputs],
@@ -427,7 +434,7 @@ export function createSessionProviderFaces(
     recordIdle: unimplemented,
     completeInitialization: unimplemented,
     change: unimplemented,
-    setRelation: unimplemented,
+    setResident: unimplemented,
     configureAutoArchive: unimplemented,
     considerAutoArchive: unimplemented,
     interrupt: unimplemented,

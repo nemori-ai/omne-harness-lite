@@ -91,6 +91,28 @@ describe('answers outside the binding', () => {
     ])
   })
 
+  it('writes the contract revision of the request as a header, and no header for a request without one', async () => {
+    const server = await serve(jsonReply(200, { outcome: 'succeeded', body: {} }))
+    const transport = createHttpProtocolTransport({ origin: server.origin })
+    const request = { protocol: NOTES, operation: 'ping', messageId: 'm-1', body: OPEN }
+    await transport.call({ ...request, revision: 3 })
+    await transport.call(request)
+    const stream = transport.observe({
+      protocol: NOTES,
+      observation: 'watch-all',
+      messageId: 'm-2',
+      revision: 2,
+      open: OPEN,
+      signal: new AbortController().signal,
+    })
+    await stream.next()
+    expect(server.received.map(received => received.headers['omne-contract-revision'])).toEqual([
+      '3',
+      undefined,
+      '2',
+    ])
+  })
+
   it('refuses an origin with a path, a user, a password, a query, a fragment or another scheme', () => {
     for (const origin of [
       'http://127.0.0.1:1/api',

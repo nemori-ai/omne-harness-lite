@@ -35,7 +35,8 @@
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/session": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
-    "@omne-harness/session-cordis-contract": "workspace:*"
+    "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/session-search": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/session-storage-sql": "workspace:*",

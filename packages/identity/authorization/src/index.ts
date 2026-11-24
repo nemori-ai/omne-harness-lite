@@ -1,6 +1,25 @@
 export { decideAdmission } from './admission.ts'
-export { decideInquiry } from './inquiry.ts'
-export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts'
+export { decideRelease } from './release.ts'
+export { GRANT_REF_TEXT_LIMIT, grantLayerOf, grantRefText, parseGrantRef } from './grant.ts'
+export type { GateRef, GrantLayer, GrantRef } from './grant.ts'
+export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release-card.ts'
+export type {
+  ReleaseCard,
+  ReleaseCardAction,
+  ReleaseCardDetail,
+  ReleaseCardOption,
+  ReleaseCardRow,
+  ReleaseOffer,
+  ReleaseOption,
+} from './release-card.ts'
+export type {
+  GateVerdict,
+  ReleaseBasis,
+  ReleaseDecision,
+  ReleaseFacts,
+  SessionFacts,
+} from './release.ts'
+export type { InquiryPolicy } from './inquiry.ts'
 export type {
   AdmissionBasis,
   AdmissionCheck,

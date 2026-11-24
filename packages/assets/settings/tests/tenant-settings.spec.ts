@@ -667,7 +667,7 @@ describe('list and describe', () => {
       declaration: {
         title: presentation.title,
         purpose: presentation.description,
-        appliesAt: 'Applies from the next read of the item.',
+        appliesAt: '下一次读到这一项时起生效。',
         clearEffect: presentation.clear,
         group: GROUP,
       },
@@ -686,7 +686,7 @@ describe('list and describe', () => {
       declaration: {
         title: presentation.title,
         purpose: presentation.description,
-        appliesAt: 'Applies from the next read of the item.',
+        appliesAt: '下一次读到这一项时起生效。',
         clearEffect: presentation.clear,
         group: GROUP,
       },
@@ -1087,6 +1087,21 @@ describe('which asset a query names', () => {
       principal: LOGIN_A,
       tenant: tenantA,
       scope: { kind: 'asset', asset: { category: 'other', name: 'Shell' } },
+      after: null,
+      limit: 10,
+    })
+    if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
+    expect(listed.items.map(ownerText)).toEqual(['other/Shell', 'other/Shell', 'other/Shell'])
+  })
+
+  it('a list with a category keeps the assets of that category only, in one read', async () => {
+    const w = world()
+    w.flags.catalog = 'duplicate'
+    w.flags.copyAsset = { category: 'other', name: 'Shell' }
+    const listed = await w.face.list({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      scope: { kind: 'asset', category: 'other' },
       after: null,
       limit: 10,
     })

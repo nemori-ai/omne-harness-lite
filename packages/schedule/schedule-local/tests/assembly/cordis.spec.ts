@@ -39,6 +39,9 @@ class FixtureCalendar extends CalendarQueryService {
   readonly effective = async (): Promise<never> => {
     throw new Error('Unexpected calendar effective')
   }
+  readonly health = async (): Promise<never> => {
+    throw new Error('Unexpected calendar health')
+  }
   readonly resolve = async (): Promise<never> => {
     throw new Error('Unexpected calendar resolve')
   }
@@ -75,7 +78,7 @@ it('waits for injected dependencies, drains on withdrawal and restores without d
     const created = await commands.create(context, {
       definition,
       initial: { kind: 'active' },
-      meta: { operationKey: 'cordis-create', expectedRevision: null, consentRef: null },
+      meta: { operationKey: 'cordis-create', expectedRevision: null },
     })
     if (created.kind !== 'committed') throw new Error(JSON.stringify(created))
     await calendar.dispose()
@@ -88,7 +91,7 @@ it('waits for injected dependencies, drains on withdrawal and restores without d
       await commands.create(context, {
         definition,
         initial: { kind: 'active' },
-        meta: { operationKey: 'after-close', expectedRevision: null, consentRef: null },
+        meta: { operationKey: 'after-close', expectedRevision: null },
       }),
     ).toMatchObject({ kind: 'rejected', error: { code: 'dependency_blocked' } })
     const restored = ctx.plugin(FixtureCalendar)

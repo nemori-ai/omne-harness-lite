@@ -32,6 +32,22 @@ import { factorySupplier } from './profiles.ts'
 
 export const PLACEHOLDER = 'placeholder-factory-credential'
 export const ROUTE_PATH = '/api/v1/chat/completions'
+export const MESSAGES_PATH = '/api/v1/messages'
+export const RESPONSES_PATH = '/api/v1/responses'
+
+/** Whether a request went to an interface of the test gateway. */
+export function isGatewayPath(path: string | undefined): boolean {
+  return path === ROUTE_PATH || path === MESSAGES_PATH || path === RESPONSES_PATH
+}
+
+/** The test gateway's route: the three interfaces at one origin. */
+export function gatewayEndpoints(origin: string | URL) {
+  return {
+    'chat-completions': { url: new URL(ROUTE_PATH, origin).href, endMarker: GATEWAY_END_MARKER },
+    messages: { url: new URL(MESSAGES_PATH, origin).href, endMarker: null },
+    responses: { url: new URL(RESPONSES_PATH, origin).href, endMarker: GATEWAY_END_MARKER },
+  }
+}
 
 const CONSUMER = 'local-model-consumer'
 const TEST_ADOPTION: Adoption = {
@@ -92,7 +108,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 
 export function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {
@@ -250,8 +265,7 @@ export function assembleLocalHost(input: LocalHostInput) {
     },
     routes: {
       openrouter: {
-        url: new URL(ROUTE_PATH, gateway.url).href,
-        endMarker: GATEWAY_END_MARKER,
+        endpoints: gatewayEndpoints(gateway.url),
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },
@@ -271,6 +285,7 @@ export function assembleLocalHost(input: LocalHostInput) {
       : createDefaultRetryPolicy<typeof principal>({
           adoption: request.retryPolicy,
           policy: input.retry,
+          replayResend: { max: 1 },
           clock: memory.dependencies.clock,
           random: () => 0,
         })

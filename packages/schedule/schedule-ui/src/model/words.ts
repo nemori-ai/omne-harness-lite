@@ -1,5 +1,6 @@
 import type { ScheduleProtocol } from '@omne-harness/schedule-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import type { Tone } from '@omne-harness/ui-kit'
 
 type Client = ClientOf<ScheduleProtocol>
 type Operations = ScheduleProtocol['operations']
@@ -38,27 +39,35 @@ export function authorText(author: ScheduleCard['author']): string {
   }
 }
 
-export function basisText(basis: ScheduleDetail['basis']): string {
-  switch (basis.kind) {
-    case 'owner':
-      return '你本人的操作'
-    case 'blanket':
-      return `你的全权同意（设置代次 ${basis.generation}）`
-    case 'granular':
-      return `你对一次请求的回答（${basis.decision}）`
-    case 'none':
-      return '无：还没有生效'
-  }
-}
-
 /** A local date-time of the tenant's zone, as a person reads it: `2026-11-30 17:00`. */
 export function localText(local: string): string {
   return local.replace('T', ' ').replace(/:00$/, '')
 }
 
-/** One upcoming time in the tenant's zone, and the calendar and version its working days came from. */
-export function upcomingText(item: Upcoming): string {
-  return item.calendar === null
-    ? localText(item.local)
-    : `${localText(item.local)}（${item.calendar}，版本 ${item.version ?? '未知'}）`
+/** The next time of a schedule as a person reads it, or that there is none. */
+export function nextText(next: Upcoming | null): string {
+  return next === null ? '没有下一次' : localText(next.local)
+}
+
+/** The calendar and version an upcoming time's working days came from; none when its days need no calendar. */
+export function calendarText(item: Upcoming): string | undefined {
+  return item.calendar === null ? undefined : `（${item.calendar}，版本 ${item.version ?? '未知'}）`
+}
+
+/** What a schedule says of itself when it is not the normal one, in effect and able to run on time: the word its
+ * row and its record both write, and the tone the record gives it. */
+export type StateNote = Readonly<{
+  word: string
+  tone: Extract<Tone, 'neutral' | 'caution' | 'danger'>
+}>
+
+export function stateNote(
+  schedule: Pick<ScheduleCard, 'control' | 'standing'>,
+): StateNote | undefined {
+  if (schedule.control !== 'active')
+    return { word: CONTROL_WORDS[schedule.control], tone: 'neutral' }
+  if (schedule.standing === 'blocked') return { word: STANDING_WORDS.blocked, tone: 'caution' }
+  if (schedule.standing === 'terminallyInvalidated')
+    return { word: STANDING_WORDS.terminallyInvalidated, tone: 'danger' }
+  return undefined
 }

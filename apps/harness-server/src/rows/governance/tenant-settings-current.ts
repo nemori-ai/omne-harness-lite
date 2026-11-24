@@ -38,42 +38,51 @@ export const tenantSettingsCurrentProtocol = (
   `harness-tenant-settings-current/1/${phase}/${createHash('sha256').update(JSON.stringify(configuration)).digest('hex')}`
 
 export const tenantSettingsCurrentRequestSchema = z.strictObject({
-  binding: z.json(),
+  binding: SettingsPreparationCurrentSchema.shape.binding,
   snapshot: GovernanceTargetBindingSchema,
 })
 
-export function tenantSettingsCurrentMaterial(
-  snapshot: TargetSnapshot,
-  configuration: TenantSettingsCurrentConfiguration,
-): TenantSettingsCurrentMaterial | undefined {
-  const { binding, values } = snapshot
-  if (values.presence === 'unavailable') return undefined
-  const { view, presence } = values
+type Revisioned = Readonly<{ ownerRef: string; subjectRef: string; revision: string }>
+export type SettingsCommandKind = 'change' | 'rebase'
+
+function startingValues(values: TargetSnapshot['values'], commandKind: SettingsCommandKind) {
+  if (commandKind === 'change')
+    return values.presence === 'unavailable'
+      ? undefined
+      : { view: values.view, presence: values.presence, valueRevision: values.view.state.revision }
+  return values.presence === 'unavailable' && values.reason === 'definition_changed'
+    ? {
+        view: values.view,
+        presence: 'present' as const,
+        valueRevision: values.stored.state.revision,
+      }
+    : undefined
+}
+
+/** The current facts of one target and its values, as a settings write sees them in its transaction. */
+export function settingsCurrentMaterial(input: {
+  values: TargetSnapshot['values']
+  commandKind: SettingsCommandKind
+  tenantRef: string
+  transactionDomain: string
+  mode: 'management' | 'runtime'
+  declaration: Revisioned
+  authority: Revisioned
+  configuration: TenantSettingsCurrentConfiguration
+}): TenantSettingsCurrentMaterial | undefined {
+  const starting = startingValues(input.values, input.commandKind)
+  if (starting === undefined) return undefined
+  const { view, presence, valueRevision } = starting
+  const { tenantRef, configuration } = input
   if (
     view.sources.some(
-      source =>
-        source.scope.kind !== 'tenant' || source.scope.subjectRef !== binding.scope.tenantRef,
+      source => source.scope.kind !== 'tenant' || source.scope.subjectRef !== tenantRef,
     )
   )
     return undefined
-  const subjectRef = canonicalDigest({ scope: binding.scope, epoch: binding.epoch })
-  const declaration = {
-    ownerRef: 'governance',
-    subjectRef,
-    revision: canonicalDigest({
-      declaration: snapshot.declaration.reference,
-      revision: snapshot.declarationRevision,
-      set: snapshot.declarationSetDigest,
-    }),
-  }
-  const authority = {
-    ownerRef: 'governance',
-    subjectRef,
-    revision: canonicalDigest({ mode: binding.mode, adoption: snapshot.adoptionRevision }),
-  }
   const valueOriginRef = canonicalDigest({
-    tenant: binding.scope.tenantRef,
-    transactionDomain: binding.transactionDomain,
+    tenant: tenantRef,
+    transactionDomain: input.transactionDomain,
     target: view.target,
   })
   const parsed = materialSchema.safeParse({
@@ -83,10 +92,13 @@ export function tenantSettingsCurrentMaterial(
       definitionRef: view.definitionRef,
       ownerRevision: view.ownerRevision,
       enabled: view.enabled,
-      valueRevision: view.state.revision,
+      valueRevision,
       sources: view.sources,
-      declaration,
-      selection: { kind: binding.mode === 'runtime' ? 'current' : 'not-required', authority },
+      declaration: input.declaration,
+      selection: {
+        kind: input.mode === 'runtime' ? 'current' : 'not-required',
+        authority: input.authority,
+      },
       policies: [
         {
           policyRef: `settings.target-grants/${view.target.kind}`,
@@ -95,24 +107,59 @@ export function tenantSettingsCurrentMaterial(
           inputs: view.sources.map(source => ({
             source,
             valueOriginRef,
-            valueRevision: String(view.state.revision),
+            valueRevision: String(valueRevision),
             presence,
           })),
           constraints: [],
         },
       ],
     },
-    standing: {
-      kind: 'identity',
-      destination: configuration.destination,
-      scopeRef: binding.scope.tenantRef,
-      required: configuration.required,
-    },
+    standing:
+      input.commandKind === 'change'
+        ? {
+            kind: 'identity',
+            destination: configuration.destination,
+            scopeRef: tenantRef,
+            required: configuration.required,
+          }
+        : { kind: 'maintenance', authority: input.authority },
     sources: { route: configuration.sourceRoute, sources: [] },
     definition: view.definition,
     grants: view.grants,
   })
   return parsed.success ? parsed.data : undefined
+}
+
+/** A release tool's target: the governance declaration and its adoption are part of the current facts. */
+export function tenantSettingsCurrentMaterial(
+  snapshot: TargetSnapshot,
+  configuration: TenantSettingsCurrentConfiguration,
+  commandKind: SettingsCommandKind,
+): TenantSettingsCurrentMaterial | undefined {
+  const { binding } = snapshot
+  const subjectRef = canonicalDigest({ scope: binding.scope, epoch: binding.epoch })
+  return settingsCurrentMaterial({
+    values: snapshot.values,
+    commandKind,
+    tenantRef: binding.scope.tenantRef,
+    transactionDomain: binding.transactionDomain,
+    mode: binding.mode,
+    declaration: {
+      ownerRef: 'governance',
+      subjectRef,
+      revision: canonicalDigest({
+        declaration: snapshot.declaration.reference,
+        revision: snapshot.declarationRevision,
+        set: snapshot.declarationSetDigest,
+      }),
+    },
+    authority: {
+      ownerRef: 'governance',
+      subjectRef,
+      revision: canonicalDigest({ mode: binding.mode, adoption: snapshot.adoptionRevision }),
+    },
+    configuration,
+  })
 }
 
 export function tenantSettingsCurrentParticipants(

@@ -1,4 +1,5 @@
 import type {
+  ConnectRetryReason,
   FixedModelRequest,
   MaterializationReceipt,
   ReplayDeclaration,
@@ -6,6 +7,7 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type {
+  MaterializeFailure,
   MaterializedTransport,
   ProviderDiagnostic,
   TransportDispatch,
@@ -18,7 +20,8 @@ import type { PiFamilyBinding } from './family.ts'
 import { startExchange, type ExchangeRefusal, type HttpExchange } from './http.ts'
 import { endedBeforeSend, factsOfSend, noFacts } from './fact-stream.ts'
 import { retryBeforeRequestSent } from './retry.ts'
-import { digestOf, firstModelVisibleReference, serializeBody } from './payload.ts'
+import { gatherMedia } from './media.ts'
+import { digestOf, serializeBody } from './payload.ts'
 import type { SendEnd } from './termination.ts'
 
 export type MaterializedHandle = MaterializedTransport
@@ -41,7 +44,7 @@ type MaterializedPhase =
 
 export async function materialize(
   input: MaterializeInput,
-): Promise<Outcome<MaterializedHandle, TransportFailure>> {
+): Promise<Outcome<MaterializedHandle, MaterializeFailure>> {
   const { config, request, supplier, declaration, resent, binding, signal } = input
   const reservation = await config.network.capacity.reserve(signal)
   if (reservation === undefined)
@@ -49,10 +52,9 @@ export async function materialize(
   let handedOver = false
   try {
     if (signal.aborted) return { failure: capacityUnavailable('cancelled') }
-    const reference = firstModelVisibleReference(request)
-    if (reference !== null)
-      return { failure: { kind: 'unsupported', field: reference, adapter: binding.adoption } }
-    const encoded = binding.encode({ request, media: [], declaration, resent })
+    const media = await gatherMedia({ request, binding, read: config.media, signal })
+    if (!('ok' in media)) return media
+    const encoded = binding.encode({ request, media: media.ok, declaration, resent })
     if (!('ok' in encoded)) return encoded
     const body = serializeBody(encoded.ok.body)
     const diagnostics = Object.freeze([...encoded.ok.diagnostics])
@@ -61,7 +63,22 @@ export async function materialize(
       supplier: supplier.adoption,
       representation: request.representation,
       payloadDigest: digestOf(body),
-      ...(replayFormat === null ? {} : { replayFormat }),
+      ...(media.ok.length === 0
+        ? {}
+        : {
+            media: Object.freeze(
+              media.ok.map(({ reference, mime, bytes }) =>
+                Object.freeze({ reference, mediaType: mime, bytes: String(bytes.byteLength) }),
+              ),
+            ),
+          }),
+      ...(replayFormat === null
+        ? {}
+        : {
+            replayFormat,
+            replayPrefix: encoded.ok.replayPrefix,
+            ...(encoded.ok.replayCarried ? { replayCarried: true as const } : {}),
+          }),
     })
     const materialized = createMaterialized({
       ...input,
@@ -69,6 +86,7 @@ export async function materialize(
       body,
       receipt,
       diagnostics,
+      replayCarried: encoded.ok.replayCarried,
     })
     handedOver = true
     return { ok: materialized }
@@ -97,6 +115,7 @@ function createMaterialized(
       body: Uint8Array
       receipt: MaterializationReceipt
       diagnostics: readonly ProviderDiagnostic[]
+      replayCarried: boolean
     }>,
 ): MaterializedHandle {
   let phase: MaterializedPhase = {
@@ -137,6 +156,7 @@ function createMaterialized(
       signal,
     )
     if (started.kind === 'refused') return endedBeforeSend(endOfRefusal(started.reason))
+    const connectRetries: ConnectRetryReason[] = []
     const exchange =
       config.limits.connectRetry === undefined || config.limits.connectRetry.backoffMs.length === 0
         ? started.exchange
@@ -145,7 +165,9 @@ function createMaterialized(
             diagnostics: {
               emit: event => {
                 config.network.diagnostics.emit(event)
-                if (event.kind === 'connect-retry') tell(config.onConnectRetry, event)
+                if (event.kind !== 'connect-retry') return
+                connectRetries.push(event.reason)
+                tell(config.onConnectRetry, event)
               },
             },
             closed: () => config.network.closed,
@@ -162,7 +184,9 @@ function createMaterialized(
       route,
       limits: config.limits,
       diagnostics: input.diagnostics,
+      replayCarried: input.replayCarried,
       onResponseBody: config.onResponseBody,
+      connectRetries: () => connectRetries,
     })
   }
 
