@@ -59,6 +59,8 @@ const detail = object({
   ...card.fields,
   createdAt: { rule: instant },
   definition: { rule: json },
+  /** Why it cannot run now, while its standing is not ready. */
+  reasons: { rule: array(text), optional: true, since: 2 },
 })
 
 const revision = object({
@@ -118,7 +120,10 @@ const jobCard = object({
   state: { rule: jobState },
   outcome: { rule: nullable(literal('succeeded', 'failed', 'cancelled')) },
   stop: { rule: literal('none', 'requested', 'pending', 'confirmed', 'unknown') },
+  origin: { rule: literal('due', 'catchUp', 'human', 'agent', 'system') },
   acceptedAt: { rule: instant },
+  startedAt: { rule: nullable(instant) },
+  endedAt: { rule: nullable(instant) },
 })
 
 /** One row of history: a disposed slot, a missed stretch, or a Job started outside any schedule. */
@@ -128,6 +133,7 @@ const historyRow = oneOf(
     row: { rule: text },
     schedule: { rule: text },
     at: { rule: instant },
+    local: { rule: text },
     disposition: { rule: text },
     reason: { rule: text },
     job: { rule: nullable(jobCard) },
@@ -156,6 +162,10 @@ const jobDetail = object({
   ...jobCard.fields,
   schedule: { rule: nullable(text) },
   slot: { rule: nullable(instant) },
+  local: { rule: nullable(text) },
+  calendar: { rule: nullable(text) },
+  version: { rule: nullable(text) },
+  revision: { rule: count },
   work: { rule: json },
   reason: { rule: nullable(text) },
   where: {

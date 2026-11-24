@@ -75,6 +75,42 @@ export const scheduleReading = definePart({
   within: 'schedule.page',
   depths: ['tokens', 'style'],
 })
+export const scheduleRun = definePart({
+  name: 'schedule.run',
+  label: '执行的一行',
+  summary: '一份安排已发生的一次，或漏过的一段',
+  within: 'schedule.reading',
+  depths: ['tokens', 'style'],
+  when: '打开一条日程且读到已发生的时',
+})
+
+export const scheduleHappened = definePart({
+  name: 'schedule.happened',
+  label: '已发生',
+  summary: '一份安排已发生的几次，新的在前',
+  within: 'schedule.reading',
+  depths: ['tokens', 'style'],
+  when: '打开一条日程且读到已发生的时',
+})
+
+export const scheduleJob = definePart({
+  name: 'schedule.job',
+  label: '作业详情',
+  summary: '一份作业的状态、成因、要求与经过',
+  within: 'schedule.reading',
+  depths: ['tokens', 'style'],
+  when: '打开一份作业且读到时',
+})
+
+export const scheduleJobCancel = definePart({
+  name: 'schedule.job.cancel',
+  label: '取消这一次',
+  summary: '还没收场的作业可以取消',
+  within: 'schedule.reading',
+  depths: ['tokens', 'style'],
+  when: '打开的作业还没收场时',
+})
+
 export const scheduleParts = [
   scheduleRefresh,
   scheduleFilter,
@@ -85,4 +121,8 @@ export const scheduleParts = [
   scheduleList,
   scheduleListRow,
   scheduleReading,
+  scheduleRun,
+  scheduleHappened,
+  scheduleJob,
+  scheduleJobCancel,
 ] as const

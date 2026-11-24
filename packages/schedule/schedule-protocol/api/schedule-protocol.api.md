@@ -86,6 +86,7 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
@@ -223,6 +224,7 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
@@ -275,6 +277,7 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
@@ -317,6 +320,7 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
@@ -383,6 +387,7 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
@@ -426,12 +431,16 @@ export declare const scheduleProtocol: {
                         readonly disposition: string;
                         readonly job: {
                             readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                            readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
                             readonly job: string;
+                            readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
                             readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                            readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
                             readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
                             readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
                         } | null;
                         readonly kind: "slot";
+                        readonly local: string;
                         readonly reason: string;
                         readonly row: string;
                         readonly schedule: string;
@@ -449,8 +458,11 @@ export declare const scheduleProtocol: {
                         readonly at: import("@omne-harness/utc-instant").Instant;
                         readonly job: {
                             readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                            readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
                             readonly job: string;
+                            readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
                             readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                            readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
                             readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
                             readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
                         };
@@ -483,18 +495,25 @@ export declare const scheduleProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                    readonly calendar: string | null;
+                    readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
                     readonly events: readonly {
                         readonly at: import("@omne-harness/utc-instant").Instant;
                         readonly kind: string;
                         readonly seq: number;
                     }[];
                     readonly job: string;
+                    readonly local: string | null;
+                    readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
                     readonly outcome: "cancelled" | "failed" | "succeeded" | null;
                     readonly reason: string | null;
+                    readonly revision: number;
                     readonly schedule: string | null;
                     readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                    readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
                     readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
                     readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                    readonly version: string | null;
                     readonly where: {
                         readonly execution: string;
                         readonly kind: "program";
@@ -523,18 +542,25 @@ export declare const scheduleProtocol: {
                     readonly changed: boolean;
                     readonly job: {
                         readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                        readonly calendar: string | null;
+                        readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
                         readonly events: readonly {
                             readonly at: import("@omne-harness/utc-instant").Instant;
                             readonly kind: string;
                             readonly seq: number;
                         }[];
                         readonly job: string;
+                        readonly local: string | null;
+                        readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
                         readonly outcome: "cancelled" | "failed" | "succeeded" | null;
                         readonly reason: string | null;
+                        readonly revision: number;
                         readonly schedule: string | null;
                         readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                        readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
                         readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
                         readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                        readonly version: string | null;
                         readonly where: {
                             readonly execution: string;
                             readonly kind: "program";
@@ -564,18 +590,25 @@ export declare const scheduleProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                    readonly calendar: string | null;
+                    readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
                     readonly events: readonly {
                         readonly at: import("@omne-harness/utc-instant").Instant;
                         readonly kind: string;
                         readonly seq: number;
                     }[];
                     readonly job: string;
+                    readonly local: string | null;
+                    readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
                     readonly outcome: "cancelled" | "failed" | "succeeded" | null;
                     readonly reason: string | null;
+                    readonly revision: number;
                     readonly schedule: string | null;
                     readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                    readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
                     readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
                     readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                    readonly version: string | null;
                     readonly where: {
                         readonly execution: string;
                         readonly kind: "program";
@@ -604,18 +637,25 @@ export declare const scheduleProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                    readonly calendar: string | null;
+                    readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
                     readonly events: readonly {
                         readonly at: import("@omne-harness/utc-instant").Instant;
                         readonly kind: string;
                         readonly seq: number;
                     }[];
                     readonly job: string;
+                    readonly local: string | null;
+                    readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
                     readonly outcome: "cancelled" | "failed" | "succeeded" | null;
                     readonly reason: string | null;
+                    readonly revision: number;
                     readonly schedule: string | null;
                     readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                    readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
                     readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
                     readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                    readonly version: string | null;
                     readonly where: {
                         readonly execution: string;
                         readonly kind: "program";
@@ -649,18 +689,25 @@ export declare const scheduleProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                    readonly calendar: string | null;
+                    readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
                     readonly events: readonly {
                         readonly at: import("@omne-harness/utc-instant").Instant;
                         readonly kind: string;
                         readonly seq: number;
                     }[];
                     readonly job: string;
+                    readonly local: string | null;
+                    readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
                     readonly outcome: "cancelled" | "failed" | "succeeded" | null;
                     readonly reason: string | null;
+                    readonly revision: number;
                     readonly schedule: string | null;
                     readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                    readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
                     readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
                     readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                    readonly version: string | null;
                     readonly where: {
                         readonly execution: string;
                         readonly kind: "program";

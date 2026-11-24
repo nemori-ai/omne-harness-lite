@@ -61,6 +61,7 @@ export type JobsDispatcher = Readonly<{
   startDirect(
     work: ScheduleWork,
     key: string,
+    by: 'human' | 'agent' | 'system',
   ): Promise<Readonly<{ kind: 'started' | 'unknown' | 'conflict'; jobId: string }>>
 }>
 
@@ -142,7 +143,11 @@ export function createScheduleJobs(ports: Ports): ScheduleJobs {
     },
     async start(ctx, input) {
       if (!(await may(ctx))) return fail(ctx, 'not_found')
-      const answer = await ports.dispatcher.startDirect(input.work, input.operationKey)
+      const answer = await ports.dispatcher.startDirect(
+        input.work,
+        input.operationKey,
+        ctx.actor.kind,
+      )
       if (answer.kind === 'conflict') return fail(ctx, 'operation_key_conflict')
       if (answer.kind === 'unknown')
         return { kind: 'ok', value: { outcome: 'unknown', detail: null } }

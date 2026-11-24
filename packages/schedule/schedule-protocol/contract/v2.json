@@ -1,7 +1,7 @@
 {
   "digests": {
     "1": "sha256:36e1d06a6100700156a5e79177f0c33bf3fc38dd82c80696243e4c222266f04d",
-    "2": "sha256:4d3d515bdbc19cbec3f23281512381eda71b7d3c6514ab2b03049c22c3d4e482"
+    "2": "sha256:1a13ab55b4e313acf5711c6f2839c1cf4ae514a3c8a43bbce1fdef5c36bc5b87"
   },
   "major": 2,
   "name": "schedule",
@@ -86,6 +86,32 @@
                         "kind": "instant"
                       }
                     },
+                    "calendar": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "endedAt": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "instant"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
                     "events": {
                       "rule": {
                         "item": {
@@ -114,6 +140,31 @@
                     "job": {
                       "rule": {
                         "kind": "text"
+                      }
+                    },
+                    "local": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "origin": {
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "due",
+                          "catchUp",
+                          "human",
+                          "agent",
+                          "system"
+                        ]
                       }
                     },
                     "outcome": {
@@ -147,6 +198,11 @@
                         ]
                       }
                     },
+                    "revision": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    },
                     "schedule": {
                       "rule": {
                         "kind": "one-of",
@@ -161,6 +217,19 @@
                       }
                     },
                     "slot": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "instant"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "startedAt": {
                       "rule": {
                         "kind": "one-of",
                         "rules": [
@@ -195,6 +264,19 @@
                           "pending",
                           "confirmed",
                           "unknown"
+                        ]
+                      }
+                    },
+                    "version": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
                         ]
                       }
                     },
@@ -463,6 +545,16 @@
                   ]
                 }
               },
+              "reasons": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                },
+                "since": 2
+              },
               "revision": {
                 "rule": {
                   "kind": "count"
@@ -593,9 +685,34 @@
                                         "kind": "instant"
                                       }
                                     },
+                                    "endedAt": {
+                                      "rule": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "kind": "instant"
+                                          },
+                                          {
+                                            "kind": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
                                     "job": {
                                       "rule": {
                                         "kind": "text"
+                                      }
+                                    },
+                                    "origin": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "due",
+                                          "catchUp",
+                                          "human",
+                                          "agent",
+                                          "system"
+                                        ]
                                       }
                                     },
                                     "outcome": {
@@ -609,6 +726,19 @@
                                               "failed",
                                               "cancelled"
                                             ]
+                                          },
+                                          {
+                                            "kind": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "startedAt": {
+                                      "rule": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "kind": "instant"
                                           },
                                           {
                                             "kind": "null"
@@ -656,6 +786,11 @@
                               "values": [
                                 "slot"
                               ]
+                            }
+                          },
+                          "local": {
+                            "rule": {
+                              "kind": "text"
                             }
                           },
                           "reason": {
@@ -752,9 +887,34 @@
                                     "kind": "instant"
                                   }
                                 },
+                                "endedAt": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "instant"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
                                 "job": {
                                   "rule": {
                                     "kind": "text"
+                                  }
+                                },
+                                "origin": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "due",
+                                      "catchUp",
+                                      "human",
+                                      "agent",
+                                      "system"
+                                    ]
                                   }
                                 },
                                 "outcome": {
@@ -768,6 +928,19 @@
                                           "failed",
                                           "cancelled"
                                         ]
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "startedAt": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "instant"
                                       },
                                       {
                                         "kind": "null"
@@ -1397,6 +1570,16 @@
                   ]
                 }
               },
+              "reasons": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                },
+                "since": 2
+              },
               "revision": {
                 "rule": {
                   "kind": "count"
@@ -1626,6 +1809,32 @@
                   "kind": "instant"
                 }
               },
+              "calendar": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "endedAt": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "instant"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
               "events": {
                 "rule": {
                   "item": {
@@ -1654,6 +1863,31 @@
               "job": {
                 "rule": {
                   "kind": "text"
+                }
+              },
+              "local": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "origin": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "due",
+                    "catchUp",
+                    "human",
+                    "agent",
+                    "system"
+                  ]
                 }
               },
               "outcome": {
@@ -1687,6 +1921,11 @@
                   ]
                 }
               },
+              "revision": {
+                "rule": {
+                  "kind": "count"
+                }
+              },
               "schedule": {
                 "rule": {
                   "kind": "one-of",
@@ -1701,6 +1940,19 @@
                 }
               },
               "slot": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "instant"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "startedAt": {
                 "rule": {
                   "kind": "one-of",
                   "rules": [
@@ -1735,6 +1987,19 @@
                     "pending",
                     "confirmed",
                     "unknown"
+                  ]
+                }
+              },
+              "version": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
                   ]
                 }
               },
@@ -1977,6 +2242,16 @@
                     }
                   ]
                 }
+              },
+              "reasons": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                },
+                "since": 2
               },
               "revision": {
                 "rule": {
@@ -2283,6 +2558,16 @@
                   ]
                 }
               },
+              "reasons": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                },
+                "since": 2
+              },
               "revision": {
                 "rule": {
                   "kind": "count"
@@ -2358,6 +2643,32 @@
                   "kind": "instant"
                 }
               },
+              "calendar": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "endedAt": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "instant"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
               "events": {
                 "rule": {
                   "item": {
@@ -2386,6 +2697,31 @@
               "job": {
                 "rule": {
                   "kind": "text"
+                }
+              },
+              "local": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "origin": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "due",
+                    "catchUp",
+                    "human",
+                    "agent",
+                    "system"
+                  ]
                 }
               },
               "outcome": {
@@ -2419,6 +2755,11 @@
                   ]
                 }
               },
+              "revision": {
+                "rule": {
+                  "kind": "count"
+                }
+              },
               "schedule": {
                 "rule": {
                   "kind": "one-of",
@@ -2433,6 +2774,19 @@
                 }
               },
               "slot": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "instant"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "startedAt": {
                 "rule": {
                   "kind": "one-of",
                   "rules": [
@@ -2467,6 +2821,19 @@
                     "pending",
                     "confirmed",
                     "unknown"
+                  ]
+                }
+              },
+              "version": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
                   ]
                 }
               },
@@ -2670,6 +3037,32 @@
                   "kind": "instant"
                 }
               },
+              "calendar": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "endedAt": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "instant"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
               "events": {
                 "rule": {
                   "item": {
@@ -2698,6 +3091,31 @@
               "job": {
                 "rule": {
                   "kind": "text"
+                }
+              },
+              "local": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "origin": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "due",
+                    "catchUp",
+                    "human",
+                    "agent",
+                    "system"
+                  ]
                 }
               },
               "outcome": {
@@ -2731,6 +3149,11 @@
                   ]
                 }
               },
+              "revision": {
+                "rule": {
+                  "kind": "count"
+                }
+              },
               "schedule": {
                 "rule": {
                   "kind": "one-of",
@@ -2745,6 +3168,19 @@
                 }
               },
               "slot": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "instant"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "startedAt": {
                 "rule": {
                   "kind": "one-of",
                   "rules": [
@@ -2779,6 +3215,19 @@
                     "pending",
                     "confirmed",
                     "unknown"
+                  ]
+                }
+              },
+              "version": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
                   ]
                 }
               },
@@ -3096,6 +3545,16 @@
                   ]
                 }
               },
+              "reasons": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                },
+                "since": 2
+              },
               "revision": {
                 "rule": {
                   "kind": "count"
@@ -3177,6 +3636,32 @@
                   "kind": "instant"
                 }
               },
+              "calendar": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "endedAt": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "instant"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
               "events": {
                 "rule": {
                   "item": {
@@ -3205,6 +3690,31 @@
               "job": {
                 "rule": {
                   "kind": "text"
+                }
+              },
+              "local": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "origin": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "due",
+                    "catchUp",
+                    "human",
+                    "agent",
+                    "system"
+                  ]
                 }
               },
               "outcome": {
@@ -3238,6 +3748,11 @@
                   ]
                 }
               },
+              "revision": {
+                "rule": {
+                  "kind": "count"
+                }
+              },
               "schedule": {
                 "rule": {
                   "kind": "one-of",
@@ -3252,6 +3767,19 @@
                 }
               },
               "slot": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "instant"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "startedAt": {
                 "rule": {
                   "kind": "one-of",
                   "rules": [
@@ -3286,6 +3814,19 @@
                     "pending",
                     "confirmed",
                     "unknown"
+                  ]
+                }
+              },
+              "version": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
                   ]
                 }
               },

@@ -54,6 +54,7 @@ it('returns at most 5000 rows and marks the 5001st history row as a budget senti
       preparation: null,
       receipt: null,
       job: null,
+      run: null,
       notification: null,
     }),
   )

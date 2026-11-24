@@ -61,6 +61,7 @@ describe('the history of a schedule and of a tenant', { tags: ['slow'], timeout:
       })
       expect(newest).toMatchObject({
         kind: 'slot',
+        run: { origin: 'due', startedAt: expect.any(String), endedAt: expect.any(String) },
         receipt: { disposition: 'acceptedExecution' },
         job: { body: { executionState: 'concluded', outcome: 'failed' } },
       })
@@ -85,7 +86,12 @@ describe('the history of a schedule and of a tenant', { tags: ['slow'], timeout:
       const started = await dispatcher.startDirect(work, 'direct-history')
       const page = await executions(w, null)
       expect(page.items).toMatchObject([
-        { kind: 'direct', job: { jobId: started.jobId }, rowRef: `direct:${started.jobId}` },
+        {
+          kind: 'direct',
+          job: { jobId: started.jobId },
+          run: { origin: 'system', startedAt: null, endedAt: null },
+          rowRef: `direct:${started.jobId}`,
+        },
       ])
       await dispatcher.close()
     } finally {
@@ -149,7 +155,10 @@ describe('reading, cancelling and starting one Job', { tags: ['slow'], timeout: 
       const first = await jobs.start(context, request)
       expect(first).toMatchObject({
         kind: 'ok',
-        value: { outcome: 'committed', detail: { scheduleId: null, purpose: { work } } },
+        value: {
+          outcome: 'committed',
+          detail: { scheduleId: null, purpose: { work }, run: { origin: context.actor.kind } },
+        },
       })
       const again = await jobs.start(context, request)
       expect(again.kind === 'ok' && again.value.detail?.job.jobId).toBe(

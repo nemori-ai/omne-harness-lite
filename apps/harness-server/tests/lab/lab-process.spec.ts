@@ -108,6 +108,11 @@ describe('the lab assembly: the real server on a simulated time', () => {
         ['read', 'skip 1d', 'set 2027-01-31T08:59:00Z', 'speed 60', 'nonsense', 'read'],
       )
       expect(first.code, first.stderr).toBe(0)
+      const startup = first.stdout
+        .split('\n')
+        .filter(line => line.includes('"kind":"startup-result"'))
+        .map(line => JSON.parse(line) as Record)[0]
+      expect(startup?.['appliedRows']).toContain('lab-programs')
       const [read, skipped, set, speed, refused, last] = first.replies
       expect(first.start).toMatchObject({ ok: true, command: 'start', speed: 1 })
       expect(read).toMatchObject({ ok: true, command: 'read' })

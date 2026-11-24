@@ -116,6 +116,7 @@ export const dispatchCommandSchema = z.discriminatedUnion('kind', [
     ...target,
     jobId: ScheduleJobIdSchema,
     work: ScheduleWorkSchema,
+    by: z.enum(['human', 'agent', 'system']),
   }),
   z.strictObject({
     kind: z.literal('step'),

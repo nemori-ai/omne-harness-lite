@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { ScheduleCandidateSchema } from './candidates.ts'
-import { ScheduleJobIdSchema, ScheduleJobSummarySchema } from './history.ts'
+import { ScheduleJobIdSchema, ScheduleJobRunSchema, ScheduleJobSummarySchema } from './history.ts'
 import type { ScheduleQueryResult } from './results.ts'
 import {
   ScheduleIdSchema,
@@ -13,6 +13,7 @@ import { SchedulePurposeSchema, ScheduleWorkSchema } from './work.ts'
 /** One Job read in full: what it was fixed to do, where it runs, how it went and each step it took. */
 export const ScheduleJobDetailSchema = z.strictObject({
   job: ScheduleJobSummarySchema,
+  run: ScheduleJobRunSchema,
   scheduleId: ScheduleIdSchema.nullable(),
   slot: ScheduleCandidateSchema.nullable(),
   purpose: SchedulePurposeSchema,

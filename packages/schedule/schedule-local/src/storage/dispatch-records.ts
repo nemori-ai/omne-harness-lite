@@ -161,8 +161,9 @@ function writeJob(
   command: Admit,
   record: ScheduleRecord,
   at: string,
-  waiting: boolean,
+  start: Readonly<{ waiting: boolean; origin: 'due' | 'catchUp' }>,
 ) {
+  const { waiting, origin } = start
   const { jobId } = admissionRefs(command.owner, command.scheduleId, command.slot.scheduledAt)
   const purpose = record.view.definition.purpose
   const body =
@@ -195,6 +196,7 @@ function writeJob(
     slot: command.slot,
     purpose,
     definitionRevision: record.view.definitionRevision,
+    run: { origin, startedAt: null, endedAt: null },
   })
   const owner = canonical(command.owner)
   port.execute(
@@ -244,7 +246,10 @@ export function writeAdmission(
   const accepted = decision.kind === 'accept'
   if (accepted && decision.stopPredecessors)
     stopPredecessors(port, command.owner, command.scheduleId, at)
-  const jobId = accepted ? writeJob(port, command, record, at, decision.start === 'waiting') : null
+  const origin = queued(state, command.slot.scheduledAt) ? 'catchUp' : 'due'
+  const jobId = accepted
+    ? writeJob(port, command, record, at, { waiting: decision.start === 'waiting', origin })
+    : null
   const refs = admissionRefs(command.owner, command.scheduleId, command.slot.scheduledAt)
   const purpose = record.view.definition.purpose.kind
   const receipt = ScheduleReceiptSummarySchema.parse({

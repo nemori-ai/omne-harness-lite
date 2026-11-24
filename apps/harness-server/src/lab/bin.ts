@@ -11,6 +11,7 @@ import {
   UsageError,
   recordWriter,
   serveInputs,
+  type ServeInputs,
   serveUntilStopped,
   setupCommand,
 } from '../local/serve-command.ts'
@@ -18,6 +19,7 @@ import { endProcess } from '../process-end.ts'
 import { claimLabRoot } from '../state-instance.ts'
 import { createLabClock, readSavedTime, saveTime } from './clock.ts'
 import { answer, parseDuration, readingOf } from './control.ts'
+import { LAB_PROGRAMS_ROW, labProgramsRow } from './programs.ts'
 
 const USAGE =
   'usage: harness-server-lab setup [setup options]\n' +
@@ -51,6 +53,15 @@ function claimed(dir: string): boolean {
   return false
 }
 
+/** The release distribution and, after its rows, the rows only the lab assembly has. */
+function withLabRows(inputs: ServeInputs): ServeInputs {
+  const distribution = inputs.distribution as { rows?: readonly unknown[] }
+  return {
+    ...inputs,
+    distribution: { ...distribution, rows: [...(distribution.rows ?? []), LAB_PROGRAMS_ROW] },
+  }
+}
+
 async function serve(argv: readonly string[]): Promise<number> {
   const { values } = parseArgs({ args: [...argv], allowPositionals: true, options: LAB_OPTIONS })
   const dir = labStateDir(values['state-root'])
@@ -74,9 +85,10 @@ async function serve(argv: readonly string[]): Promise<number> {
   recordWriter({ kind: 'lab-time', ok: true, command: 'start', ...readingOf(clock), fired: 0 })
   try {
     const inputs = await serveInputs({ ...values, 'state-root': dir })
-    return await serveUntilStopped(inputs, values['stop-on-stdin-close'] === true, {
+    return await serveUntilStopped(withLabRows(inputs), values['stop-on-stdin-close'] === true, {
       time: { source: clock.source, protocol: PROTOCOL },
       instance: 'lab',
+      extraPlugins: { [LAB_PROGRAMS_ROW.plugin]: labProgramsRow },
     })
   } finally {
     control.close()

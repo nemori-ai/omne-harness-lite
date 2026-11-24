@@ -418,6 +418,8 @@ export type RunServeOptions = Readonly<{
   time?: EntryTime
   /** Which kind of instance starts: a lab one only on a state root it made, a release one never there. */
   instance?: Instance
+  /** Row plugins an entry adds to the release ones; the lab adds its programs, the release none. */
+  extraPlugins?: Readonly<Record<string, unknown>>
 }>
 
 export type ServeResult = Readonly<{
@@ -523,6 +525,7 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
   }
   const plugins: Readonly<Record<string, unknown>> = options.plugins ?? {
     ...releasePlugins,
+    ...options.extraPlugins,
     agentHostRow: createAgentHostRow({
       toolRequestsOf: releaseToolRequestsOf,
       lostContact: lostContactBy(() => lock, 'instance'),
@@ -729,7 +732,7 @@ async function runServeWithHostFiles(
     summary: line => stderr(`${SERVE_PREFIX}: ${line}`),
   })
   const profile = serveProfile({
-    ...(options.plugins ?? releasePlugins),
+    ...(options.plugins ?? { ...releasePlugins, ...options.extraPlugins }),
     executionHost: executionHost.plugin,
     telemetry: telemetry.plugin,
   })

@@ -83,6 +83,7 @@ export type DispatchCommand =
       jobId: ScheduleJobId
       work: ScheduleWork
       at: ScheduleInstant
+      by: 'human' | 'agent' | 'system'
     }>
   | Readonly<{
       kind: 'step'

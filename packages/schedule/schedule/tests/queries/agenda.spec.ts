@@ -40,6 +40,7 @@ function historyRow(
     preparation: null,
     receipt: null,
     job: null,
+    run: null,
     notification: null,
   })
 }

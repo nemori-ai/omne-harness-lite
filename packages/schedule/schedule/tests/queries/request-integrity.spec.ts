@@ -25,6 +25,7 @@ describe('provider request integrity', () => {
         preparation: null,
         receipt: null,
         job: null,
+        run: null,
         notification: null,
       }),
     ]

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { advanceJob, type DispatchJob, type JobEvent, type JobFacts } from '@omne-harness/schedule'
 import {
   ScheduleCandidateSchema,
+  ScheduleJobRunSchema,
   ScheduleJobSummarySchema,
   SchedulePurposeSchema,
   type ScheduleOwner,
@@ -16,6 +17,7 @@ export const jobRecordSchema = z.strictObject({
   purpose: SchedulePurposeSchema,
   definitionRevision: z.int().nonnegative(),
   reason: z.string().nullable().default(null),
+  run: ScheduleJobRunSchema,
 })
 export type JobRecord = z.infer<typeof jobRecordSchema>
 
@@ -31,9 +33,9 @@ export function factsOf(job: JobRecord): JobFacts | null {
   }
 }
 
-/** A Job record carrying the facts after one step: the summary's revision moves by one. */
-export function withFacts(job: JobRecord, facts: JobFacts): JobRecord {
-  const { summary } = job
+/** A Job record carrying the facts after one step at `at`: the summary's revision moves by one; the run notes when it started and ended. */
+export function withFacts(job: JobRecord, facts: JobFacts, at: string): JobRecord {
+  const { summary, run } = job
   const body =
     facts.state === 'concluded'
       ? {
@@ -54,6 +56,11 @@ export function withFacts(job: JobRecord, facts: JobFacts): JobRecord {
     ...job,
     reason: facts.reason,
     summary: { ...summary, revision: summary.revision + 1, body, stopState: facts.stopState },
+    run: {
+      ...run,
+      startedAt: run.startedAt ?? (facts.state === 'running' ? at : null),
+      endedAt: run.endedAt ?? (facts.state === 'concluded' ? at : null),
+    },
   })
 }
 
@@ -106,7 +113,7 @@ export function stepJob(
   const step = advanceJob(facts, input.event)
   if (step.kind !== 'move' || !equal(step.next, input.next)) return false
   const { operation } = input
-  saveJob(port, owner, withFacts(job, step.next), {
+  saveJob(port, owner, withFacts(job, step.next, input.at), {
     ...input.event,
     at: input.at,
     ...(operation === undefined ? {} : { operation }),
@@ -130,7 +137,7 @@ export function stopPredecessors(
     const facts = factsOf(job)
     const step = facts === null ? null : advanceJob(facts, { kind: 'cancel' })
     if (step?.kind === 'move')
-      saveJob(port, owner, withFacts(job, step.next), { kind: 'cancel', by: 'replace', at })
+      saveJob(port, owner, withFacts(job, step.next, at), { kind: 'cancel', by: 'replace', at })
   }
 }
 
@@ -173,7 +180,13 @@ function toDispatchJobs(
 /** A Job started outside any schedule: accepted now, with no slot and no count; its key taken by other work is a conflict. */
 export function writeDirect(
   port: ParticipantPort,
-  input: Readonly<{ owner: ScheduleOwner; jobId: string; work: unknown; at: string }>,
+  input: Readonly<{
+    owner: ScheduleOwner
+    jobId: string
+    work: unknown
+    at: string
+    by: 'human' | 'agent' | 'system'
+  }>,
 ): boolean {
   const existing = readJob(port, input.owner, input.jobId)
   if (existing !== null)
@@ -206,6 +219,7 @@ export function writeDirect(
       notifications: [],
     },
     definitionRevision: 0,
+    run: { origin: input.by, startedAt: null, endedAt: null },
   })
   port.execute(
     'INSERT INTO sc_jobs (owner, job_id, schedule_id, slot_at, state, job) VALUES (?, ?, NULL, ?, ?, ?)',

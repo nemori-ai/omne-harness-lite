@@ -137,7 +137,11 @@ export function createDispatcher(ports: DispatcherPorts) {
   }
 
   /** Starts a Job outside any schedule: no slot, no count; the same key answers the same Job. */
-  async function startDirect(work: ScheduleWork, key: string): Promise<DirectAnswer> {
+  async function startDirect(
+    work: ScheduleWork,
+    key: string,
+    by: 'human' | 'agent' | 'system' = 'system',
+  ): Promise<DirectAnswer> {
     const jobId = directJobId(ports.owner, key)
     const result = await store.commit({
       kind: 'direct',
@@ -145,6 +149,7 @@ export function createDispatcher(ports: DispatcherPorts) {
       jobId,
       work,
       at: iso(time.now()),
+      by,
     })
     if (result.kind === 'committed') return { kind: 'started', jobId, replayed: result.replayed }
     return { kind: result.kind === 'stale' ? 'conflict' : 'unknown', jobId }

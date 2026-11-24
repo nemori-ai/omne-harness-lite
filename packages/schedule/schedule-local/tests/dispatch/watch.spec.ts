@@ -36,6 +36,13 @@ describe(
         await dispatcher.round()
         const accepted = w.receipts(id).map(item => item.at)
         expect(accepted.slice(-2)).toEqual([iso(START + 7 * HOUR), iso(START + 10 * HOUR)])
+        const origins = w
+          .rows(`SELECT slot_at, job FROM sc_jobs WHERE schedule_id = '${id}' ORDER BY slot_at`)
+          .map(row => [row['slot_at'], JSON.parse(String(row['job'])).run.origin])
+        expect(origins.slice(-2)).toEqual([
+          [iso(START + 7 * HOUR), 'due'],
+          [iso(START + 10 * HOUR), 'catchUp'],
+        ])
         const lapses = w.rows(
           `SELECT from_at, through_at, lapse FROM sc_lapses WHERE schedule_id = '${id}'`,
         )

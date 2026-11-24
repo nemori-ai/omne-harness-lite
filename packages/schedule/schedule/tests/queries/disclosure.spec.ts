@@ -223,6 +223,7 @@ describe('stable simple reads', () => {
       preparation: null,
       receipt: null,
       job: null,
+      run: null,
       notification: null,
     })
     f.state.rows = [row]

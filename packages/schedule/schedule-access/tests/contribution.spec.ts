@@ -163,6 +163,19 @@ describe('reads', () => {
       body: { author: { kind: 'agent', session: 'session-1' } },
     })
     expect((answer as { body: object }).body).not.toHaveProperty('basis')
+    expect((answer as { body: object }).body).not.toHaveProperty('reasons')
+  })
+
+  it('says why a blocked schedule cannot run', async () => {
+    const blocked = {
+      ...view('active'),
+      standing: { kind: 'blocked', reasons: ['carrier-missing:notification'] },
+    }
+    const { ops } = world({ get: { kind: 'ok', value: blocked } })
+    expect(await ops['read-schedule'](call, { tenant: tenantId, schedule: ID })).toMatchObject({
+      outcome: 'succeeded',
+      body: { standing: 'blocked', reasons: ['carrier-missing:notification'] },
+    })
   })
 
   it('answers another tenant and a missing schedule the same way', async () => {
@@ -533,8 +546,10 @@ const summary = {
   stopOperationRef: null,
   stopReceiptRef: null,
 }
+const run = { origin: 'due', startedAt: at, endedAt: null }
 const detail = {
   job: summary,
+  run,
   scheduleId: ID,
   slot: null,
   purpose: {
@@ -556,9 +571,16 @@ const shownJob = {
   state: 'running',
   outcome: null,
   stop: 'none',
+  origin: 'due',
   acceptedAt: at,
+  startedAt: at,
+  endedAt: null,
   schedule: ID,
   slot: null,
+  local: null,
+  calendar: null,
+  version: null,
+  revision: 1,
   work: { kind: 'program', programRef: 'probe', input: {} },
   reason: null,
   where: { kind: 'program', program: 'probe', execution: 'program:g:j' },
@@ -582,7 +604,7 @@ describe('Jobs: list, read, cancel, start', () => {
         count: 2,
         selected: 0,
       },
-      { kind: 'direct', rowRef: 'direct:1', originalScheduledAt: at, job: summary },
+      { kind: 'direct', rowRef: 'direct:1', originalScheduledAt: at, job: summary, run },
     ]
     const w = world({ executions: ok({ items: rows, nextCursor: 'c-2' }) })
     const body = { tenant: tenantId, schedule: null, cursor: null, limit: 500 }

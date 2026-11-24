@@ -8,6 +8,7 @@ import {
   type ScheduleDomainError,
   type ScheduleExecutionRow,
   type ScheduleJobDetail,
+  type ScheduleJobRun,
   type ScheduleRevisionView,
   type ScheduleWork,
   type ScheduleView,
@@ -79,6 +80,7 @@ export function detailOf(view: ScheduleView) {
     ...cardOf(view),
     createdAt: instantOf(view.createdAt),
     definition: treeOf(view.definition),
+    ...(view.standing.kind === 'ready' ? {} : { reasons: [...view.standing.reasons] }),
   }
 }
 
@@ -131,7 +133,9 @@ export function refusalOf(error: ScheduleDomainError): Refusal {
 type JobSummary = ScheduleJobDetail['job']
 
 /** Where a Job stands, read the same way for execution and notification bodies. */
-export function jobCardOf(job: JobSummary) {
+const at = (text: string | null) => (text === null ? null : instantOf(text))
+
+export function jobCardOf(job: JobSummary, run: ScheduleJobRun) {
   const { body } = job
   const concluded =
     body.kind === 'execution'
@@ -148,14 +152,17 @@ export function jobCardOf(job: JobSummary) {
     state,
     outcome: concluded,
     stop: job.stopState,
+    origin: run.origin,
     acceptedAt: instantOf(job.acceptedAt),
+    startedAt: at(run.startedAt),
+    endedAt: at(run.endedAt),
   }
 }
 
 export function historyRowOf(row: ScheduleExecutionRow) {
   const at = instantOf(row.originalScheduledAt)
   if (row.kind === 'direct')
-    return { kind: 'direct', row: row.rowRef, at, job: jobCardOf(row.job) } as const
+    return { kind: 'direct', row: row.rowRef, at, job: jobCardOf(row.job, row.run) } as const
   if (row.kind === 'lapse')
     return {
       kind: 'lapse',
@@ -173,18 +180,23 @@ export function historyRowOf(row: ScheduleExecutionRow) {
     row: row.rowRef,
     schedule: row.scheduleId,
     at,
+    local: row.candidate.adjustedLocal,
     disposition: row.receipt?.disposition ?? 'prepared',
     reason: row.receipt?.reasonCode ?? 'prepared',
-    job: row.job === null ? null : jobCardOf(row.job),
+    job: row.job === null || row.run === null ? null : jobCardOf(row.job, row.run),
   } as const
 }
 
 export function jobDetailOf(detail: ScheduleJobDetail) {
   const work = detail.purpose.kind === 'execution' ? detail.purpose.work : null
   return {
-    ...jobCardOf(detail.job),
+    ...jobCardOf(detail.job, detail.run),
     schedule: detail.scheduleId,
     slot: detail.slot === null ? null : instantOf(detail.slot.scheduledAt),
+    local: detail.slot?.adjustedLocal ?? null,
+    calendar: detail.slot?.basis.calendarId ?? null,
+    version: detail.slot?.basis.calendarVersionId ?? null,
+    revision: detail.definitionRevision,
     work: treeOf(work),
     reason: detail.reason,
     where:

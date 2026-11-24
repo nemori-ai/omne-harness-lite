@@ -56,7 +56,10 @@ describe('schedule/v2', () => {
       state: 'running',
       outcome: null,
       stop: 'none',
+      origin: 'due',
       acceptedAt: '2027-01-01T00:01:00.000Z',
+      startedAt: '2027-01-01T00:01:02.000Z',
+      endedAt: null,
     }
     expectRoundTrip(operations['list-jobs'].outcomes.succeeded, {
       items: [
@@ -76,6 +79,7 @@ describe('schedule/v2', () => {
           row: 'slot:s:1',
           schedule: 's',
           at: '2027-01-01T00:01:00.000Z',
+          local: '2027-01-01T08:01:00',
           disposition: 'acceptedExecution',
           reason: 'accepted',
           job,
@@ -88,6 +92,10 @@ describe('schedule/v2', () => {
       ...job,
       schedule: 's',
       slot: '2027-01-01T00:01:00.000Z',
+      local: '2027-01-01T08:01:00',
+      calendar: null,
+      version: null,
+      revision: 1,
       work: { kind: 'program', programRef: 'probe', input: {} },
       reason: null,
       where: { kind: 'program', program: 'probe', execution: 'program:g:job-1' },

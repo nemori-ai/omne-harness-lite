@@ -67,13 +67,10 @@ const lapseSchema = z.object({
 function rowOf(row: Record<string, unknown>): ScheduleExecutionRow {
   const at = ScheduleInstantSchema.parse(row['at'])
   const rowRef = z.string().parse(row['ref'])
-  if (row['kind'] === 'direct')
-    return {
-      kind: 'direct',
-      rowRef,
-      originalScheduledAt: at,
-      job: jobRecordSchema.parse(JSON.parse(z.string().parse(row['a']))).summary,
-    }
+  if (row['kind'] === 'direct') {
+    const job = jobRecordSchema.parse(JSON.parse(z.string().parse(row['a'])))
+    return { kind: 'direct', rowRef, originalScheduledAt: at, job: job.summary, run: job.run }
+  }
   const scheduleId = ScheduleIdSchema.parse(row['schedule_id'])
   if (row['kind'] === 'lapse') {
     const lapse = lapseSchema.parse(JSON.parse(z.string().parse(row['a'])))
@@ -100,6 +97,7 @@ function rowOf(row: Record<string, unknown>): ScheduleExecutionRow {
     preparation: null,
     receipt: stored.receipt,
     job: job?.summary ?? null,
+    run: job?.run ?? null,
     notification: null,
   }
 }
@@ -164,6 +162,7 @@ export function readJobDetail(port: ReadPort, owner: ScheduleOwner, jobId: strin
   const work = job.purpose.kind === 'execution' ? job.purpose.work : null
   return {
     job: job.summary,
+    run: job.run,
     scheduleId: job.scheduleId,
     slot: job.slot,
     purpose: job.purpose,
