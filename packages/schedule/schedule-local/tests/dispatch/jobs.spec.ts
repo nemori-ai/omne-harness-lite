@@ -169,7 +169,7 @@ describe(
       }
       const w = await dispatchWorld({ programs: { probe: stubborn } })
       try {
-        const id = await w.create(overlapped('replace'), 'stubborn-replace')
+        await w.create(overlapped('replace'), 'stubborn-replace')
         const dispatcher = w.dispatcher()
         await dispatcher.round()
         for (const _ of [1, 2]) {
