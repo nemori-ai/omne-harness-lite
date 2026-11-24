@@ -78,6 +78,8 @@ import {
   needOfAction,
   presentRequest,
 } from './admission-chain.ts'
+import { cardRounds } from './card-rounds.ts'
+import { nestedPassOf, nestedWaits, refuseStrayNested, type NestedRequest } from './nested.ts'
 import { cardClosing } from './card-closing.ts'
 import { judgeCancellation } from './cancellation-judgment.ts'
 import { canonical } from '../canonical.ts'
@@ -218,6 +220,8 @@ export type ExecutionEntry<P> = Readonly<{
   // 本 run 并发范围的预算：A0 把它写进每个获准请求的 `limits.scopeBudget`，由 Tool 执行。
   // 缺少它时，A0 对获准动作以 invariant 失败。
   toolConcurrency?: number
+  /** The positions programs asked about and this run has not answered; held in memory by the runtime. */
+  nested?: Readonly<{ pending(): readonly NestedRequest[] }>
   maxRunSteps?: number
   report?: (report: ReplyAdmissionReadReport) => void
 }>
@@ -528,6 +532,19 @@ function coordinate<P>(
   let waits: readonly Waiting[] = []
   const unsentRounds = new Set<CardRoundId>()
   const closing = cardClosing(ports, access, execution, unsentRounds)
+  const roundCards = cardRounds({ ports, access, execution, unsentRounds }, () =>
+    required(authority, 'authority'),
+  )
+  const nestedPass = nestedPassOf({
+    ports,
+    access,
+    execution,
+    roundCards,
+    unsentRounds,
+    authority: () => required(authority, 'authority'),
+    pending: () => entry.nested?.pending() ?? [],
+    withdraw: closing.withdrawChain,
+  })
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
   let savedWait = false
@@ -1413,6 +1430,7 @@ function coordinate<P>(
       return step('idle', null)
     },
     async W0() {
+      refuseStrayNested(entry.nested?.pending() ?? [], checkpoint?.batch ?? null)
       resumeState = state.kind === 'waiting' ? resumeState : state
       if (finishWait) {
         finishWait = false
@@ -1684,8 +1702,14 @@ function coordinate<P>(
     if (asked.ok === 'unaccepted') return step(node === 'T3' ? 'dispatch' : 'received', null)
     waitingAt = node
     recheckDependency = null
-    waits = producerWaits(open)
+    waits = [...producerWaits(open), ...nestedWaits(required(checkpoint, 'checkpoint').passages)]
     return step('wait', null)
+  }
+
+  async function nestedStep(batch: ActionBatch) {
+    const turned = await nestedPass(batch, required(checkpoint, 'checkpoint').passages)
+    if ('failure' in turned) return turned
+    return turned.ok === null ? null : step('carded', { checkpoint: { passages: turned.ok } })
   }
 
   async function advancing(): Promise<Outcome<ExecutionSnapshot, Failure>> {
@@ -2033,46 +2057,6 @@ function coordinate<P>(
     })
   }
 
-  type RoundCards =
-    | Readonly<{ kind: 'cards'; cards: readonly DurableEvidence[] }>
-    | Readonly<{ kind: 'refused'; failure: DurableEvidence }>
-    | Readonly<{ kind: 'unknown'; failure: Extract<Failure, { kind: 'unavailable' }> }>
-
-  async function roundCards(
-    request: NonNullable<ReturnType<typeof presentRequest>>,
-  ): Promise<Outcome<RoundCards, Failure>> {
-    const unknown = (owner: string, diagnostic: string): Outcome<RoundCards, Failure> =>
-      succeed({ kind: 'unknown', failure: { kind: 'unavailable', owner, diagnostic } })
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      if (unsentRounds.has(request.round)) {
-        unsentRounds.delete(request.round)
-        const presented = await ports.cards.present({
-          ...access,
-          advance: required(authority, 'authority'),
-          ...request,
-        })
-        if ('ok' in presented) return succeed({ kind: 'cards', cards: presented.ok })
-        const { failure } = presented
-        if (failure.kind === 'denied' || failure.kind === 'conflict' || failure.kind === 'invalid')
-          return succeed({
-            kind: 'refused',
-            failure: agentEvidence(`${request.round}/present-failed`, failure),
-          })
-        if (failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable') return presented
-      }
-      const found = await ports.cards.lookup({ ...access, execution, ...request })
-      if ('failure' in found) {
-        if (found.failure.kind !== 'unavailable') return found
-        return succeed({ kind: 'unknown', failure: found.failure })
-      }
-      if (found.ok.kind === 'presented') return succeed({ kind: 'cards', cards: found.ok.cards })
-      if (found.ok.kind === 'unknown')
-        return unknown('agentDecisionCards', 'the result of presenting a card round is unknown')
-      unsentRounds.add(request.round)
-    }
-    return unknown('agentDecisionCards', 'the result of presenting a card round is unknown')
-  }
-
   async function presentRounds(batch: ActionBatch, saved: readonly Passage[]) {
     const instant = await ports.clock.now()
     if ('failure' in instant) return instant
@@ -2244,7 +2228,7 @@ function coordinate<P>(
       if ('failure' in received) return received
       if (received.ok || !batch.slots.some(slot => slot.kind === 'dispatched'))
         return step('received', null)
-      return toolWait('T0', batch)
+      return (await nestedStep(batch)) ?? toolWait('T0', batch)
     },
     async T1() {
       const read = await advancing()
@@ -2280,6 +2264,8 @@ function coordinate<P>(
     },
     async T3() {
       const batch = currentBatch()
+      const nested = await nestedStep(batch)
+      if (nested !== null) return nested
       const complete = batch.actions.every(action => {
         const slot = slotOf(batch, action.id)
         return (
@@ -2978,6 +2964,8 @@ function coordinate<P>(
       if (read.ok.state.kind === 'ended') return step('terminal', null)
       const control = cancellationOf(read.ok)
       if (control === undefined) return fail(defect('F0 without effective cancellation'))
+      for (const request of entry.nested?.pending() ?? [])
+        request.answer({ kind: 'denied', reason: 'the run was cancelled' })
       const revoked = await establishCancellation(journalAt('F0'), access, execution, control)
       if ('failure' in revoked) return revoked
       const task = read.ok.checkpoint.compaction

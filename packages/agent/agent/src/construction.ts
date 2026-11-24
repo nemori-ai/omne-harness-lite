@@ -21,6 +21,7 @@ import type {
   AgentRegistrationHandle,
   AgentRuntime,
   AgentRuntimeControl,
+  NestedActionAdmission,
   CallerCommit,
   ContextCompaction,
   CompactionInputReader,
@@ -111,4 +112,6 @@ export interface AgentProvider<P> {
   readonly observation: AgentHandle<P>
   readonly recovery: AgentExecutionRecovery<P>
   readonly control: AgentRuntimeControl<P>
+  /** Asks the running execution whether an action a program makes under a waiting tool call may run. */
+  readonly nested: NestedActionAdmission<P>
 }

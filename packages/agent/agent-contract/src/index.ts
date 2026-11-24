@@ -42,6 +42,8 @@ export {
   AGENT_IDENTITY_MAX_LENGTH,
   admissionActionOf,
   admissionPassageOf,
+  nestedActionOf,
+  nestedPositionOf,
   decodeActionBatchId,
   decodeActionId,
   decodeAgentExecutionId,

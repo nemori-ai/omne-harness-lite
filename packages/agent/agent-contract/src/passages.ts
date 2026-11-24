@@ -240,8 +240,35 @@ export interface ActionAdmission<P> {
         decision: Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }> | null
         /** The batch this action is judged with, and this pass over it; one pass reads each fact once. */
         batch?: Readonly<{ id: ActionBatchId; pass: string }>
+        /** Present when a program made this action under a running tool call: that call, and where. */
+        nested?: Readonly<{ parent: ActionId; ordinal: number }>
       }>,
   ): Reply<AdmissionDecision>
+}
+/** What a program asks to do at one position: the target as adopted, its command and its arguments. */
+export type NestedActionTarget = Readonly<{
+  definition: Adoption
+  name: string
+  command: string | null
+  arguments: string
+}>
+export type NestedActionVerdict =
+  | Readonly<{ kind: 'allowed' }>
+  | Readonly<{ kind: 'denied'; reason: string }>
+  | Readonly<{ kind: 'unanswerable'; diagnostic: string }>
+/** Answers whether an action a program makes under a waiting tool call may run. It never runs it. */
+export interface NestedActionAdmission<P> {
+  admit(
+    input: Access<P> &
+      Readonly<{
+        execution: AgentExecutionId
+        parent: ActionId
+        ordinal: number
+        target: NestedActionTarget
+        /** Aborted when the caller withdraws the position before it has an answer. */
+        signal: AbortSignal
+      }>,
+  ): Promise<NestedActionVerdict>
 }
 export type MessageSource =
   | Readonly<{ kind: 'external-input'; input: InputId }>

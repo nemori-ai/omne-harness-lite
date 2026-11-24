@@ -25,6 +25,7 @@ import {
   presentRequest,
   type Judged,
 } from './admission-chain.ts'
+import { nestedChains } from './nested.ts'
 import { localFailure } from './node-failure.ts'
 import { deniedForRefusedAdmission, type ToolAdmission } from './tools.ts'
 import { needOf, type PassageNeed } from './passages.ts'
@@ -137,14 +138,17 @@ export function cardClosing<P>(
       cause: unknown,
     ): Promise<Outcome<void, Failure>> {
       const reason = agentEvidence(`${execution}/${node}`, cause)
-      for (const action of at.batch?.actions ?? []) {
-        const chain = chainOf(at.passages, action)
+      const own = (at.batch?.actions ?? []).map(action => chainOf(at.passages, action))
+      for (const chain of [...own, ...nestedChains(at.passages)]) {
         if (chain === null || !OUT_ROUNDS.includes(needOf(chain))) continue
         const withdrawn = await withdrawRound(chain, reason, unsentRounds)
         if ('failure' in withdrawn) return withdrawn
       }
       return succeed(undefined)
     },
+
+    withdrawChain: (chain: Passage, reason: DurableEvidence) =>
+      withdrawRound(chain, reason, unsentRounds),
 
     // The batch settled a waiting action: its card is withdrawn, unless the person answered first.
     async endSuperseded(
