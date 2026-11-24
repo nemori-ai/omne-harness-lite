@@ -212,6 +212,34 @@ describe('rules.plan: parameters', () => {
     }
   })
 
+  it('requires both the profile and the bound model to declare xhigh', () => {
+    const xhigh = { kind: 'reasoning-effort', scale: 'unified', value: 'xhigh' } as const
+    const mapping = { xhigh: 'xhigh' } as const
+    const profile = profileOf(record)
+    const declared = {
+      ...profile,
+      definition: { ...profile.definition, reasoningEfforts: mapping },
+    }
+    const bound = bind(record, undefined, undefined, mapping)
+    const undeclared = bind(record)
+    const request = { parameters: [xhigh] }
+    const refusal = { failure: { kind: 'unsupported', field: 'reasoning-effort', adapter } }
+    expect(plan(bound, record, request, profile)).toEqual(refusal)
+    expect(plan(undeclared, record, request, declared)).toEqual(refusal)
+    expect(plan(undeclared, record, request, profile)).toEqual(refusal)
+    const adoptions = adoptionsOf(plan(bound, record, request, declared))
+    const fixed = fixedRequest(record, { parameterAdoptions: adoptions })
+    const encoded = bound.encode({
+      request: fixed,
+      media: [],
+      declaration: fixed.declarations[0],
+      resent: [],
+    })
+    if (!('ok' in encoded)) throw new Error('encode failed')
+    const body: unknown = JSON.parse(new TextDecoder().decode(serializeBody(encoded.ok.body)))
+    expect(body).toMatchObject({ reasoning: { effort: 'xhigh' } })
+  })
+
   it('refuses a reasoning effort that the record maps to unsupported', () => {
     expect(
       plan(bind(record), record, { parameters: [{ kind: 'reasoning-effort', value: 'none' }] }),
