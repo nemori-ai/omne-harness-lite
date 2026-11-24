@@ -21,7 +21,7 @@ export {
   type ToastTone,
 } from './toast-store.ts'
 export { FLOAT_GRIP_ATTRIBUTE, ShellAssemblyError, slots } from './slots.ts'
-export { actionsContract, shellContracts } from './placement.ts'
+export { actionsContract, keymapContract, shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint, defineRenderPoint } from './point.ts'
 export {
   LAYOUT_POINT,
@@ -93,6 +93,7 @@ export type {
   FloatCorner,
   FloatItem,
   FloatProps,
+  KeymapItem,
   GateItem,
   GateProps,
   ItemOf,

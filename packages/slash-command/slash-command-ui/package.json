@@ -34,12 +34,20 @@
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/shell-contract": "workspace:*",
-    "@omne-harness/slash-command-protocol": "workspace:*"
+    "@omne-harness/slash-command-protocol": "workspace:*",
+    "@omne-harness/ui-kit": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/slash-command-contract": "workspace:*",
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

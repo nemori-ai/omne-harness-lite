@@ -379,6 +379,7 @@ export function Shell(props: ShellProps) {
         palette={palette}
         actions={keys.actions}
         mac={keys.mac}
+        changes={keys.changes}
         run={action => void runAction(action, keys)}
       />
     </AppTooltipProvider>

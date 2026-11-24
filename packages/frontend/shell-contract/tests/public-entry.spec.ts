@@ -29,6 +29,7 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'defineRenderPoint',
     'judgeBinding',
     'keyClashes',
+    'keymapContract',
     'keymapOf',
     'layersOf',
     'needPoint',
@@ -45,7 +46,7 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
   ])
 })
 
-it('declares six slots, five of them lists', () => {
+it('declares seven slots, five of them lists', () => {
   expect(slots).toEqual({
     gate: { kind: 'one' },
     pages: { kind: 'list' },
@@ -53,6 +54,7 @@ it('declares six slots, five of them lists', () => {
     float: { kind: 'list' },
     attached: { kind: 'list' },
     actions: { kind: 'list' },
+    keymap: { kind: 'one' },
   })
   expect(ShellAssemblyError.prototype).toBeInstanceOf(Error)
 })

@@ -3,7 +3,72 @@ import { needPoint, needProtocol, serviceKey, type ServiceKey } from '@omne-harn
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { CLEARED, entryActions, typedAction, type ComposerWriter } from './model/entries.ts'
 import { type Helper, openHelper, type SlashCommandClient } from './model/helper.ts'
+import { KeyBindings, type BindingCache, type PreferencePort } from './model/bindings.ts'
 import type { ComposerMachine } from './model/ports.ts'
+import { KeysPage } from './view/keys-page.tsx'
+
+const KEYS_PAGE = 'commands-and-keys'
+const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
+
+function localCache(name: string): BindingCache {
+  const key = `omne.${name}`
+  return {
+    read: () => {
+      try {
+        return window.localStorage.getItem(key)
+      } catch {
+        return null
+      }
+    },
+    write: text => {
+      try {
+        window.localStorage.setItem(key, text)
+      } catch {}
+    },
+  }
+}
+
+/** The page of every command but the Skills, where the keys are changed; the changes are the account's. */
+function keysPage(shell: ShellService, preferences: () => PreferencePort | undefined): () => void {
+  const name = MAC ? 'keys.mac' : 'keys.other'
+  const bindings = new KeyBindings(preferences, localCache(name), name)
+  const reload = (): void => {
+    if (shell.login.state() === 'signed-in') void bindings.load()
+  }
+  reload()
+  shell.contribute('keymap', {
+    id: 'slash-command.keymap',
+    changes: bindings.changes,
+    subscribe: bindings.subscribe,
+  })
+  shell.contribute('pages', {
+    id: KEYS_PAGE,
+    title: '命令与快捷键',
+    order: 30,
+    icon: 'commands',
+    group: 'utility',
+    render: () => (
+      <KeysPage
+        actions={{
+          items: () => shell.items('actions'),
+          subscribe: l => shell.subscribe('actions', l),
+        }}
+        bindings={bindings}
+        mac={MAC}
+      />
+    ),
+  })
+  shell.contribute('actions', {
+    id: 'slash-command.keys',
+    title: '命令与快捷键',
+    group: '页面',
+    kind: 'ui',
+    order: 3,
+    available: () => true,
+    run: () => shell.navigate(KEYS_PAGE),
+  })
+  return shell.login.subscribe(reload)
+}
 
 /** What helps a composer: the assembly hands it to the module that owns the composer. */
 export type ComposerHelpers = Readonly<{ open(tenant: string, session: string): Helper }>
@@ -15,6 +80,8 @@ export type SlashCommandUiOptions = Readonly<{
   composer: () => ComposerMachine
   /** Where the module that owns the composer lets words be written or said; without it entries cannot run. */
   writer?: ServiceKey<ComposerWriter>
+  /** Where the identity interface lets the account's preferences be read and written; without it keys stay here. */
+  preferences?: ServiceKey<PreferencePort>
 }>
 
 /** The list of the composer last opened, put in the action table; the one before is taken out first. */
@@ -57,8 +124,10 @@ export function createSlashCommandUiModule(options: SlashCommandUiOptions) {
     needs: {
       client: needProtocol<SlashCommandClient>(slashCommandProtocol),
       writer: needPoint(options.writer, { optional: true }),
+      preferences: needPoint(options.preferences, { optional: true }),
     },
-    apply(shell, { client, writer }, provide) {
+    apply(shell, { client, writer, preferences }, provide) {
+      const stopKeys = keysPage(shell, () => preferences.get())
       const list = listedActions(shell, () => writer.get())
       let shown: object | undefined
       provide(slashCommandComposerKey, {
@@ -83,7 +152,10 @@ export function createSlashCommandUiModule(options: SlashCommandUiOptions) {
           }
         },
       })
-      return () => list(null)
+      return () => {
+        stopKeys()
+        list(null)
+      }
     },
   })
 }

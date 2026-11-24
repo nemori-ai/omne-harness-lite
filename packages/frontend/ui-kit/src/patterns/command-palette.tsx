@@ -25,12 +25,21 @@ function KeyCap({ children }: { readonly children: ReactNode }) {
   return <kbd className="omne-keycap">{children}</kbd>
 }
 
-const matches = (item: PaletteItem, query: string): boolean => {
+const rankOf = (item: PaletteItem, needle: string): number => {
+  if (needle === '') return 0
+  const title = item.title.toLowerCase()
+  if (title === needle) return 0
+  if (title.startsWith(needle)) return 1
+  const texts = [title, item.id, item.hint ?? '', item.words ?? '']
+  return texts.some(text => text.toLowerCase().includes(needle)) ? 2 : -1
+}
+
+function ranked(items: readonly PaletteItem[], query: string): readonly PaletteItem[] {
   const needle = query.trim().toLowerCase()
-  if (needle === '') return true
-  return [item.title, item.id, item.hint ?? '', item.words ?? ''].some(text =>
-    text.toLowerCase().includes(needle),
-  )
+  const scored = items
+    .map((item, at) => ({ item, at, rank: rankOf(item, needle) }))
+    .filter(each => each.rank >= 0)
+  return scored.sort((a, b) => a.rank - b.rank || a.at - b.at).map(each => each.item)
 }
 
 function groupsOf(items: readonly PaletteItem[]): readonly (readonly [string, PaletteItem[]])[] {
@@ -68,9 +77,13 @@ export function CommandPalette({
     setQuery('')
     setAt(0)
   }, [open])
+  useLayoutEffect(() => {
+    setQuery('')
+    setAt(0)
+  }, [label])
   const [at, setAt] = useState(0)
   const listId = useId()
-  const shown = useMemo(() => items.filter(item => matches(item, query)), [items, query])
+  const shown = useMemo(() => ranked(items, query), [items, query])
   const selected = shown[Math.min(at, shown.length - 1)]
   const pick = (item: PaletteItem | undefined): void => {
     if (item === undefined || item.unavailable !== undefined || onPick === undefined) return

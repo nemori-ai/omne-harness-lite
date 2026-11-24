@@ -3,5 +3,5 @@ export {
   createSlashCommandUiModule,
   slashCommandComposerKey,
   type SlashCommandUiOptions,
-} from './module.ts'
+} from './module.tsx'
 export type { ComposerWriter } from './model/entries.ts'

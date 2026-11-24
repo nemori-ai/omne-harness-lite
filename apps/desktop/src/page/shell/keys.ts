@@ -16,6 +16,7 @@ export function shellKeys(state: ShellState, size: SizeSwitch, palette: PaletteS
     state.told.show(KEYS, { id, tone: 'attention', title })
   return {
     mac: MAC,
+    changes: () => state.slots.items('keymap')[0]?.changes() ?? {},
     actions: (): readonly ActionItem[] => [
       ...regionActions(),
       ...sizeActions(size),

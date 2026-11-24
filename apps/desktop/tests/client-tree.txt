@@ -18,6 +18,8 @@ system
           served:connection.server-points#1  [effective]
         human-intervention.release-detail
           human-intervention-ui#1  [effective]
+        identity.account-preferences
+          identity-ui#1  [effective]
         model.choices
           model-ui#1  [effective]
         notification.entry
@@ -51,6 +53,8 @@ system
         shell.float
           DesktopShell#1  [effective]
         shell.gate
+          DesktopShell#1  [effective]
+        shell.keymap
           DesktopShell#1  [effective]
         shell.layout
           DesktopShell#1  [effective]
@@ -127,6 +131,9 @@ system
       human-intervention.release-detail  [keyed-one]
         schedule.activation@1
           schedule-ui#1  [effective]
+    identity
+      identity.account-preferences  [one]
+        identity-ui#1  [effective]
     model
       model.choices  [one]
         model-ui#1  [effective]
@@ -169,6 +176,7 @@ system
         session.force-stop  [effective, session-ui#1]
         session.background  [effective, session-ui#1]
         session.stop-call  [effective, session-ui#1]
+        slash-command.keys  [effective, slash-command-ui#1]
         session.retry  [effective, session-ui#1]
         session.send  [effective, session-ui#1]
         session.send-first  [effective, session-ui#1]
@@ -187,6 +195,8 @@ system
         companion  [effective, session-ui#1]
       shell.gate  [one, build]
         identity-ui#1  [effective]
+      shell.keymap  [one]
+        slash-command-ui#1  [effective]
       shell.layout  [keyed-one]
       shell.pages  [list, build]
         conversation  [effective, session-ui#1]
@@ -198,6 +208,7 @@ system
         workspaces  [effective, workspace-ui#1]
         assets  [effective, assets-ui#1]
         settings  [effective, assets-ui#1]
+        commands-and-keys  [effective, slash-command-ui#1]
         usage  [effective, usage-ui#1]
       shell.parts  [keyed-one]
         assets.asset

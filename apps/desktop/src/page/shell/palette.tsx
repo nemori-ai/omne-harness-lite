@@ -90,8 +90,14 @@ const NOT_COMMANDS: readonly (readonly [string, string])[] = [
   ['⌘C ⌘V ⌘X ⌘A ⌘Z ⌘Q ⌘W', '系统与编辑的键，不能绑'],
 ]
 
-export function commandItems(actions: readonly ActionItem[], mac: boolean): readonly PaletteItem[] {
-  const keymap = keymapOf(actions, {}, mac)
+type Changes = Readonly<Record<string, string | null>>
+
+export function commandItems(
+  actions: readonly ActionItem[],
+  mac: boolean,
+  changes: Changes = {},
+): readonly PaletteItem[] {
+  const keymap = keymapOf(actions, changes, mac)
   return actions.map(action => {
     const can = action.available()
     const key = keymap.find(row => row.action === action.id)
@@ -107,10 +113,14 @@ export function commandItems(actions: readonly ActionItem[], mac: boolean): read
   })
 }
 
-export function keyItems(actions: readonly ActionItem[], mac: boolean): readonly PaletteItem[] {
+export function keyItems(
+  actions: readonly ActionItem[],
+  mac: boolean,
+  changes: Changes = {},
+): readonly PaletteItem[] {
   const title = new Map(actions.map(action => [action.id, action.title]))
   const now = new Set(actions.filter(action => action.available() === true).map(a => a.id))
-  const keymap = keymapOf(actions, {}, mac).filter(row => now.has(row.action))
+  const keymap = keymapOf(actions, changes, mac).filter(row => now.has(row.action))
   return [
     ...LAYERS.flatMap(([layer, group]) =>
       keymap
@@ -135,11 +145,13 @@ export function ShellPalette({
   palette,
   actions,
   mac,
+  changes,
   run,
 }: {
   readonly palette: PaletteSwitch
   readonly actions: () => readonly ActionItem[]
   readonly mac: boolean
+  readonly changes: () => Changes
   readonly run: (action: ActionItem) => void
 }) {
   const mode = useSyncExternalStore(palette.subscribe, palette.get)
@@ -152,7 +164,7 @@ export function ShellPalette({
       label={commands ? '命令面板' : '此刻能按的键'}
       placeholder={commands ? '找一条命令' : '找一个键'}
       empty={commands ? '没有对得上的命令' : '没有对得上的键'}
-      items={commands ? commandItems(now, mac) : keyItems(now, mac)}
+      items={commands ? commandItems(now, mac, changes()) : keyItems(now, mac, changes())}
       {...(commands
         ? {
             onPick: (id: string) => {

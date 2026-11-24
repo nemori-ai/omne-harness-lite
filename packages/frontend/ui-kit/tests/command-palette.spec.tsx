@@ -53,6 +53,29 @@ it('lists every item by its group with its key or its slash form, and filters by
   expect(screen.getByText('没有对得上的命令')).toBeTruthy()
 })
 
+it('puts the item whose title is what was typed first, then those that start with it', () => {
+  const picked: string[] = []
+  render(
+    <CommandPalette
+      open
+      onOpenChange={() => undefined}
+      label="命令面板"
+      placeholder="找一条命令"
+      empty="没有"
+      items={[
+        { id: 'a.help', title: '怎样用命令与快捷键', group: '帮助' },
+        { id: 'b.keys-more', title: '命令与快捷键的说明', group: '帮助' },
+        { id: 'c.keys', title: '命令与快捷键', group: '页面' },
+      ]}
+      onPick={id => picked.push(id)}
+    />,
+  )
+  fireEvent.change(search(), { target: { value: '命令与快捷键' } })
+  expect(titles()).toEqual(['命令与快捷键', '命令与快捷键的说明', '怎样用命令与快捷键'])
+  fireEvent.keyDown(search(), { key: 'Enter' })
+  expect(picked).toEqual(['c.keys'])
+})
+
 it('moves with the arrows, picks with Enter and shuts; an item that cannot run is grey with its reason and is not picked', () => {
   const picked: string[] = []
   render(<Harness picked={picked} />)

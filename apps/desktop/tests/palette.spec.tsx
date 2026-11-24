@@ -113,6 +113,29 @@ describe('the command palette (C15)', () => {
   })
 })
 
+describe('the account changes the keys (C16)', () => {
+  it('a key changed in the keymap runs the action, and the key it came with no longer does', async () => {
+    ran.length = 0
+    const changed = defineUiModule({
+      name: 'changed',
+      needs: {},
+      apply(shell) {
+        shell.contribute('keymap', {
+          id: 'test.keymap',
+          changes: () => ({ 'demo.stop': 'Mod+Shift+S' }),
+          subscribe: () => () => undefined,
+        })
+      },
+    })
+    await setup({ login: 'signed-in', modules: [acting, changed] })
+    act(() => screen.getByRole('button', { name: '正文里的键' }).focus())
+    press('.', 'Period', mod)
+    expect(ran).toEqual([])
+    press('S', 'KeyS', { ...mod, shiftKey: true })
+    expect(ran).toEqual(['demo.stop'])
+  })
+})
+
 describe('the keys of this moment (C15)', () => {
   it('? on the page lists the keys by layer, with the keys that are not commands', async () => {
     await setup({ login: 'signed-in', modules: [acting] })

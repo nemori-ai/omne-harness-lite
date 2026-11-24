@@ -55,6 +55,7 @@ import { drawingOn, type KeyRender } from './point.ts'
 import type { ServiceKey } from './service-key.ts'
 import {
   actionsContract,
+  keymapContract,
   entryOf,
   sameView,
   shellContracts,
@@ -115,6 +116,7 @@ function adoptOn(registry: Registry, references: Readonly<Record<string, Referen
 const CONTRACTS = [
   ...shellContracts,
   actionsContract,
+  keymapContract,
   partsContract,
   tokensContract,
   styleContract,
@@ -404,8 +406,10 @@ export abstract class ShellService extends Service implements ShellSlots {
     const point = `shell.${slot}`
     return this.ctx.dynamis
       .registry()
-      .placed.find(placed => placed.point === point && placed.id === (slot === 'gate' ? '' : id))
-      ?.instance.fiber
+      .placed.find(
+        placed =>
+          placed.point === point && placed.id === (slot === 'gate' || slot === 'keymap' ? '' : id),
+      )?.instance.fiber
   }
 
   watchAdoptions(listener: () => void): () => void {

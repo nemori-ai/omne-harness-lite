@@ -53,7 +53,8 @@ export function sessionKeys(
     wayOf: (press: KeyPress) => {
       const chord = chordOf(press, MAC)
       if (chord === null) return null
-      const id = actionAt(keymapOf(shell.items('actions'), {}, MAC), 'composer', chord)
+      const changes = shell.items('keymap')[0]?.changes() ?? {}
+      const id = actionAt(keymapOf(shell.items('actions'), changes, MAC), 'composer', chord)
       return id === undefined ? null : (WAYS[id] ?? null)
     },
   }

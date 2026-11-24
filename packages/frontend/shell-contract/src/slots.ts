@@ -7,6 +7,7 @@ export const slots = {
   float: { kind: 'list' },
   attached: { kind: 'list' },
   actions: { kind: 'list' },
+  keymap: { kind: 'one' },
 } as const
 
 export type SlotName = keyof typeof slots
@@ -92,6 +93,12 @@ export type ActionItem = Readonly<{
   run: () => void | Promise<void>
 }>
 
+export type KeymapItem = Readonly<{
+  id: string
+  changes: () => Readonly<Record<string, string | null>>
+  subscribe: (listener: () => void) => () => void
+}>
+
 export type AttachedLayout = (entries: readonly AttachedEntry[]) => ReactNode
 
 export type SlotItems = {
@@ -101,6 +108,7 @@ export type SlotItems = {
   float: FloatItem
   attached: AttachedItem
   actions: ActionItem
+  keymap: KeymapItem
 }
 
 export type ItemOf<K extends SlotName> = SlotItems[K]

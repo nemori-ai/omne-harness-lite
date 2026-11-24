@@ -15,7 +15,7 @@ import {
   createHumanInterventionUiModule,
   releaseDetail,
 } from '@omne-harness/human-intervention-ui/cordis'
-import { identityUiModule } from '@omne-harness/identity-ui/cordis'
+import { accountPreferencesKey, identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
@@ -89,7 +89,11 @@ export const assembly: Assembly = {
       blockReads: sessionReadsSourceKey,
       composerAssistant: slashCommandComposerKey,
     }),
-    createSlashCommandUiModule({ composer: createComposer, writer: sessionComposerKey }),
+    createSlashCommandUiModule({
+      composer: createComposer,
+      writer: sessionComposerKey,
+      preferences: accountPreferencesKey,
+    }),
     createHumanInterventionUiModule({ sessionDock }),
     notificationUiModule,
     createScheduleUiModule({ releaseDetail }),
