@@ -42,7 +42,6 @@ export type MediaUiOptions = Readonly<{
   block?: RenderPointSink<MediaBlockSubject>
   /** Where recordings come from; the browser's microphone when not given. */
   microphone?: Microphone
-  /** Where screenshots come from, when the host can read the screen of the person's machine; no screenshot button without it. */
   screen?: ScreenSource
   /** What takes the attachments of a draft, when the assembly names who provides it; the module works without. */
   drafts?: ServiceKey<Drafts>
