@@ -12,6 +12,8 @@ export type ModelChoice = Readonly<{
   selectable: boolean
   note: string | null
   reasoningEfforts: NonNullable<Listed['reasoningEfforts']>
+  /** The effort the tenant set for this model, taken when a session chose none. */
+  defaultReasoningEffort?: NonNullable<Listed['defaultReasoningEffort']>
 }>
 
 export type ModelChoiceListing =
@@ -65,6 +67,9 @@ export function createModelChoices(client: Client): ModelChoices {
         selectable: model.selectable,
         note: noteOf(model),
         reasoningEfforts: model.reasoningEfforts ?? [],
+        ...(model.defaultReasoningEffort === undefined
+          ? {}
+          : { defaultReasoningEffort: model.defaultReasoningEffort }),
       }))
       return { kind: 'listed', choices }
     },

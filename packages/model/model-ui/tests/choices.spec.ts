@@ -84,6 +84,25 @@ describe('the list of models of a tenant', () => {
     expect(JSON.stringify(asked[0])).toContain('org_00000000000000000000000000')
   })
 
+  it('gives the default effort the tenant set for a model, and none where it set none', async () => {
+    const { choices } = choicesOver({
+      outcome: 'succeeded',
+      body: {
+        models: [
+          model('z-ai/glm-5.3', {
+            reasoningEfforts: ['low', 'high'],
+            defaultReasoningEffort: 'high',
+          }),
+          model('z-ai/glm-5.2', { reasoningEfforts: ['high'] }),
+        ],
+      },
+    })
+    const listed = await choices.list(TENANT)
+    if (listed.kind !== 'listed') throw new Error(listed.reason)
+    expect(listed.choices.map(choice => choice.defaultReasoningEffort)).toEqual(['high', undefined])
+    expect(Object.hasOwn(listed.choices[1] ?? {}, 'defaultReasoningEffort')).toBe(false)
+  })
+
   it('gives an empty list as an empty list', async () => {
     const { choices } = choicesOver({ outcome: 'succeeded', body: { models: [] } })
     expect(await choices.list(TENANT)).toEqual({ kind: 'listed', choices: [] })
