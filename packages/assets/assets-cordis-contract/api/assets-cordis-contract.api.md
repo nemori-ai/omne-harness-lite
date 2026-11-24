@@ -24,6 +24,7 @@
 - `AssetChangesService` · `cordis.d.ts`
 - `AssetManagementService` · `cordis.d.ts`
 - `AssetPublishingService` · `cordis.d.ts`
+- `BroughtDefinition` · `cordis.d.ts`
 - `IndependentSettingsService` · `cordis.d.ts`
 - `assetCategoriesPlugin` · `cordis.d.ts`
 - `broughtDefinitionsPlugin` · `cordis.d.ts`
@@ -34,9 +35,15 @@
 
 ```ts
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis';
-import { type JsonValue, type OfficialAsset, type CategoryContribution, type HeldHolding, type HeldItem, type HeldPoint, type HeldReading, type CategoryView, type TenantManagement, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
+import { type JsonValue, type OfficialAsset, type PackageReader, type CategoryContribution, type HeldHolding, type HeldItem, type HeldPoint, type HeldReading, type CategoryView, type TenantManagement, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
 import { type DynamisService } from '@omne-harness/dynamis-cordis/cordis';
 import type { IndependentSettingsPoint, IndependentSettingsView, SettingDefinitions } from '@omne-harness/settings';
+export type BroughtDefinition = Readonly<{
+    name: string;
+    item: HeldItem;
+    body: JsonValue;
+    files?: PackageReader;
+}>;
 export declare class AssetCategoriesService extends Service {
     static readonly provide = "assetCategories";
     readonly view: CategoryView;
@@ -50,15 +57,12 @@ export declare class AssetCategoriesService extends Service {
         name: string;
         item: HeldItem;
         body: JsonValue;
+        files?: PackageReader;
     }>>;
     constructor(ctx: Context);
     contribute(category: Omit<CategoryContribution, 'point'>, point: HeldPoint): void;
     holdingsOf(tenant: string, skipped: (holding: HeldHolding) => void): (holdings: readonly HeldHolding[]) => void;
-    bring(point: string, held: readonly Readonly<{
-        name: string;
-        item: HeldItem;
-        body: JsonValue;
-    }>[]): void;
+    bring(point: string, held: readonly BroughtDefinition[]): void;
     official(): readonly OfficialAsset[] | 'unavailable';
 }
 export declare class AssetPublishingService extends Service implements TenantPublishing<unknown> {
@@ -103,11 +107,7 @@ declare module '@deepseek-ai/cordis' {
 }
 export declare function independentSettingsPlugin(name: string, definition: SettingDefinitions): Plugin.Object;
 export declare const assetCategoriesPlugin: Plugin.Object;
-export declare function broughtDefinitionsPlugin(name: string, point: string, held: readonly Readonly<{
-    name: string;
-    item: HeldItem;
-    body: JsonValue;
-}>[]): Plugin.Object;
+export declare function broughtDefinitionsPlugin(name: string, point: string, held: readonly BroughtDefinition[]): Plugin.Object;
 export declare function categoryContributionPlugin(name: string, category: Omit<CategoryContribution, 'point'>, point: HeldPoint): Plugin.Object;
 ```
 
