@@ -1,4 +1,5 @@
 import type { Plugin } from '@deepseek-ai/cordis'
+import { createElement } from 'react'
 import type { Backoff } from '@omne-harness/client-assembly'
 import {
   NO_FLOOR,
@@ -8,38 +9,68 @@ import {
   pluginProtocol,
   standingOf,
   type FloorPort,
+  type Listed,
   type PluginProtocol,
 } from '@omne-harness/plugin-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { needProtocol, tenantScope } from '@omne-harness/shell-contract'
+import {
+  defineKeyedPoint,
+  lookScope,
+  needProtocol,
+  tenantScope,
+} from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { followWanted, type Sleep } from './follow.ts'
 import { installOn, type Code } from './install.ts'
+import { createWear, memoryLookStore, type LookStore, type Wear } from './looks.ts'
 import { createReporter, describedOf, reportsOf } from './report.ts'
+import { SkinChoice } from './view/skin-choice.tsx'
 
 export type PluginUiOptions = Readonly<{
   backoff?: Backoff
   sleep?: Sleep
   code?: Code
   floor?: FloorPort
+  /** Where the look a person chose is remembered; without one it lasts as long as this run. */
+  looks?: LookStore
   /** The name this client goes by on the server; one of its own making when none is given. */
   clientId?: () => string
 }>
 
 type Running = Readonly<{ stop: () => Promise<void> }>
 
-/** Loads what one tenant is to load, in the scope of that tenant, for as long as it is the one signed in. */
+const SKIN_CATEGORY = 'skin'
+
+/** The place the assets page keeps above the list of one category. The page declares it; this module only puts on it. */
+const aboveCategory = defineKeyedPoint<Readonly<{ category: string }>>({
+  name: 'assets.category',
+  subject: { encode: value => value.category, decode: text => ({ category: text }) },
+})
+
+const isSkin = (listed: Listed): boolean => listed.kind === 'skin'
+
+/** Loads what one tenant is to load for as long as it is the one signed in: a skin in the scope of its own look, the rest in the scope of the tenant. */
 function loadFor(
   shell: ShellService,
   client: ClientOf<PluginProtocol>,
   text: string | undefined,
   options: PluginUiOptions,
+  wear: Wear,
 ): Running | undefined {
   const tenant = readTenantText(text ?? '')
   if (tenant === undefined || text === undefined) return undefined
-  const scope = tenantScope(text)
-  const { code, floor = NO_FLOOR, clientId = () => crypto.randomUUID(), ...pace } = options
+  const scopeOf = (listed: Listed) =>
+    isSkin(listed) ? lookScope(text, listed.name) : tenantScope(text)
+  const {
+    code,
+    floor = NO_FLOOR,
+    clientId = () => crypto.randomUUID(),
+    looks: _looks,
+    ...pace
+  } = options
+  let skins: ReadonlySet<string> | undefined
+  wear.open(text)
   const id = clientId()
   const risen = floor.rise(text)
   const known = new Set(risen.want)
@@ -50,7 +81,7 @@ function loadFor(
       const fiber = fiberOf(listed.name, listed.version)
       floor.want(text, fiber)
       known.add(fiber)
-      return installOn(shell, listed, scope, code)
+      return installOn(shell, listed, scopeOf(listed), code)
     },
   })
   const mark = (held: ReadonlySet<string>): void => {
@@ -74,6 +105,7 @@ function loadFor(
     }
     mark(standing.held)
     if (!standing.loading) floor.settle(text)
+    if (skins !== undefined) wear.settle(skins, loader.states())
     reporter.touch()
   }
   const reporter = createReporter(
@@ -95,6 +127,7 @@ function loadFor(
     tenant,
     id,
     onList(list) {
+      skins = new Set(list.filter(isSkin).map(each => each.name))
       loader.converge(list)
       listed = true
       settle()
@@ -107,6 +140,7 @@ function loadFor(
       for (const stop of unwatch) stop()
       await stopFollowing()
       mark(new Set())
+      wear.close()
       await loader.stop()
       floor.settle(text)
     },
@@ -118,6 +152,15 @@ export function createPluginUiModule(options: PluginUiOptions = {}): Plugin.Obje
     name: 'plugin-ui',
     needs: { plugin: needProtocol<ClientOf<PluginProtocol>>(pluginProtocol) },
     apply(shell, { plugin: client }) {
+      const wear = createWear({
+        wear: look => shell.wear(look),
+        store: options.looks ?? memoryLookStore(),
+      })
+      aboveCategory.contribute(shell, SKIN_CATEGORY, {
+        id: 'plugin-ui.skins',
+        order: 0,
+        render: () => createElement(SkinChoice, { wear }),
+      })
       let wanted: string | undefined
       let running: Running | undefined
       let turning: Promise<void> = Promise.resolve()
@@ -127,7 +170,7 @@ export function createPluginUiModule(options: PluginUiOptions = {}): Plugin.Obje
         turning = turning.then(async () => {
           await running?.stop()
           running = undefined
-          if (wanted === text) running = loadFor(shell, client, text, options)
+          if (wanted === text) running = loadFor(shell, client, text, options, wear)
         })
       }
       const unsubscribe = shell.scope.subscribe(turn)

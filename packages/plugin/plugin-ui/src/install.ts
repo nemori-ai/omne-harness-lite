@@ -155,7 +155,7 @@ export async function installOn(
     })
     .catch((error: unknown) => reasonOf(error))
   if (typeof hosted === 'string') return failed(hosted)
-  const [refused] = shell.changes().refused.filter(each => each.by === hosted.by)
+  const [refused] = shell.changesFor(scope ?? []).refused.filter(each => each.by === hosted.by)
   if (refused === undefined) return { kind: 'installed', remove: () => hosted.dispose() }
   await hosted.dispose()
   return failed(`${refused.point} ${refused.key}: ${refused.reason}`)

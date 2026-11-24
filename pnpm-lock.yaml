@@ -5111,10 +5111,25 @@ importers:
       '@omne-harness/shell-contract':
         specifier: workspace:*
         version: link:../../frontend/shell-contract
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -5124,12 +5139,9 @@ importers:
       '@types/react-dom':
         specifier: 'catalog:'
         version: 19.3.0(@types/react@19.3.0)
-      react:
+      happy-dom:
         specifier: 'catalog:'
-        version: 19.3.0
-      react-dom:
-        specifier: 'catalog:'
-        version: 19.3.0(react@19.3.0)
+        version: 21.0.4
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

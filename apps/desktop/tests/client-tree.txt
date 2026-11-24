@@ -68,11 +68,13 @@ system
           workspace-ui#1  [effective]
   client
     assets
+      assets.category  [keyed-list]
+        skin
+          plugin-ui.skins  [effective, plugin-ui#1]
       assets.category-page  [list]
         mcp  [effective, mcp-ui#1]
       assets.governance  [one]
         assets-ui#1  [effective]
-      assets.category  [keyed-list]
       assets.control  [keyed-one]
       assets.holding  [keyed-list]
     connection

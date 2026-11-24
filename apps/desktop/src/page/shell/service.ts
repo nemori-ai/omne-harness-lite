@@ -47,8 +47,8 @@ export class DesktopShell extends ShellService {
         'desktop-shell.conflicts',
       )
     ctx.on('dynamis-cordis/changed', registry => this.reportProblems(registry))
-    ctx.on('dynamis-cordis/changed', () => this.restyle())
-    ctx.effect(() => state.scope.subscribe(() => this.rescoped()), 'desktop-shell.sheet')
+    ctx.effect(() => this.watchChanges(() => this.restyle()), 'desktop-shell.sheet')
+    ctx.effect(() => state.scope.subscribe(() => this.rescope()), 'desktop-shell.scope')
     this.restyle()
     ctx.effect(() => this.watchAdoptions(() => this.refell()), 'desktop-shell.fallen')
     ctx.effect(
@@ -109,11 +109,6 @@ export class DesktopShell extends ShellService {
   private refell(): void {
     const now = this.fallen()
     if (JSON.stringify(now) !== JSON.stringify(this.state.fallen.get())) this.state.fallen.set(now)
-  }
-
-  private rescoped(): void {
-    this.rescope()
-    this.restyle()
   }
 
   private restyle(): void {

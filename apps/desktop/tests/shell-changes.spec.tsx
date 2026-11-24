@@ -4,11 +4,12 @@ import {
   TOKENS_POINT,
   definePart,
   defineRenderPoint,
+  lookScope,
   tenantScope,
 } from '@omne-harness/shell-contract'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { adoptChanges, tokenOf, tokensOf } from '../src/page/shell/changes-sheet.ts'
-import { CHAT, SETTINGS, settle, setup } from './support/shell-setup.tsx'
+import { CHAT, SETTINGS, current, settle, setup } from './support/shell-setup.tsx'
 
 const ALICE = '{"organization":"org_1","account":"acc_alice"}'
 const BOB = '{"organization":"org_1","account":"acc_bob"}'
@@ -33,6 +34,22 @@ describe('the sheet of the changes', () => {
     t.state.scope.set(ALICE)
     await take()
     await settle()
+    expect(t.state.sheet.get()).toBe(EMPTY)
+  })
+
+  it('follows the look the shell wears: what is put for a look reaches the sheet while that look is worn', async () => {
+    const t = await setup({ login: 'signed-in', knowsToken: known })
+    t.state.scope.set(ALICE)
+    const sea = await t.module('sea')
+    sea.shell.putTokens('shell.app', { '--omne-accent': '#0a7' }, lookScope(ALICE, 'sea'))
+    await settle()
+    expect(t.state.sheet.get()).toBe(EMPTY)
+    t.service.wear('sea')
+    expect(t.state.sheet.get()).toBe(GREEN)
+    t.service.wear('ink')
+    expect(t.state.sheet.get()).toBe(EMPTY)
+    t.service.wear('sea')
+    t.state.scope.set(BOB)
     expect(t.state.sheet.get()).toBe(EMPTY)
   })
 
@@ -263,6 +280,35 @@ describe('the drawing of a part in the desktop shell', () => {
       ['mine:files.read', 'files.read'],
     ])
     quiet.mockRestore()
+  })
+
+  it('wearing a look does not draw a page anew: the page on show stays the same element and stays the one chosen, though the order of the pages changes', async () => {
+    const t = await setup({ login: 'signed-in', knowsToken: known })
+    await t.provide(CHAT)
+    await t.provide(SETTINGS)
+    await act(async () => {
+      t.state.scope.set(ALICE)
+      await settle()
+    })
+    const shown = () => document.querySelector('.shell-page[data-page="chat"]')
+    const before = shown()
+    const chosen = current()
+    expect(before).not.toBeNull()
+    const sea = await t.module('sea')
+    await act(async () => {
+      sea.shell.putTokens('shell.app', { '--omne-accent': '#0a7' }, lookScope(ALICE, 'sea'))
+      sea.shell.putLayout('shell.pages', ['settings', 'chat'], lookScope(ALICE, 'sea'))
+      await settle()
+    })
+    expect(t.service.items('pages').map(page => page.id)).toEqual(['chat', 'settings'])
+    await act(async () => {
+      t.service.wear('sea')
+      await settle()
+    })
+    expect(t.service.items('pages').map(page => page.id)).toEqual(['settings', 'chat'])
+    expect(t.state.sheet.get()).toBe(GREEN)
+    expect(shown()).toBe(before)
+    expect(current()).toEqual(chosen)
   })
 
   it('the pages follow the layout of the tenant on show', async () => {
