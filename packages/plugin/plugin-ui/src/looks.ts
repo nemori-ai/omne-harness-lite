@@ -70,9 +70,7 @@ export function choiceIn(text: string | null): LookChoice {
   let read: unknown
   try {
     read = JSON.parse(String(text))
-  } catch {
-    return NONE
-  }
+  } catch {}
   const { kind, name } = (read ?? {}) as Record<string, unknown>
   if (kind === 'builtin') return { kind }
   return kind === 'named' && typeof name === 'string' && name !== '' ? { kind, name } : NONE

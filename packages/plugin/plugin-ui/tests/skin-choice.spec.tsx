@@ -7,7 +7,8 @@ import { createPluginUiModule } from '@omne-harness/plugin-ui/cordis'
 import { pluginProtocol } from '@omne-harness/plugin-protocol'
 import { STYLE_POINT, defineKeyedPoint, definePart } from '@omne-harness/shell-contract'
 import { ReferenceShell, serveProtocol, startShellOf } from '@omne-harness/shell-contract/testing'
-import { noteOf } from '../src/view/skin-choice.tsx'
+import type { Wear, WearView } from '../src/looks.ts'
+import { SkinChoice, noteOf } from '../src/view/skin-choice.tsx'
 import { fakeSource, given, givenSkin } from './support/fake-source.ts'
 
 const ALICE =
@@ -195,5 +196,86 @@ describe('what a row says of its skin', () => {
     ],
   ])('%s', (_, now, choice, note) => {
     expect(noteOf(now, view(choice))).toBe(note)
+  })
+})
+
+describe('the block as drawn from what the wear shows', () => {
+  const none: LookChoice = { kind: 'none' }
+  const still = (view: WearView | undefined): Wear => ({
+    open: () => undefined,
+    settle: () => undefined,
+    close: () => undefined,
+    view: () => view,
+    choose: () => undefined,
+    watch: () => () => undefined,
+  })
+  const drawn = (view: WearView) => {
+    render(<SkinChoice wear={still(view)} />)
+    const row = (label: string) => screen.getByRole('radio', { name: label })
+    return {
+      hint: document.querySelector('.plugin-skins-hint')?.textContent,
+      note: (label: string) =>
+        row(label).closest('label')?.querySelector('.plugin-skin-note')?.textContent,
+      disabled: (label: string) => row(label).hasAttribute('disabled'),
+    }
+  }
+
+  it.each<[string, WearView | undefined]>([
+    ['before the skins are known', undefined],
+    [
+      'while the list is not read',
+      { listed: false, skins: [{ name: 'sea', state: 'loaded' }], worn: undefined, choice: none },
+    ],
+    ['where there is none', { listed: true, skins: [], worn: undefined, choice: none }],
+  ])('draws nothing %s', (_, view) => {
+    const { container } = render(<SkinChoice wear={still(view)} />)
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('asks a person to choose while nothing is chosen, and says nothing on the look it shipped with', () => {
+    const t = drawn({
+      listed: true,
+      skins: [{ name: 'sea', state: 'loaded' }],
+      worn: undefined,
+      choice: none,
+    })
+    expect(t.hint).toMatch(/^选一套/u)
+    expect(t.note('自带的样子')).toBe('')
+  })
+
+  it('once chosen, asks to click another; the look it shipped with says it is in use only while it is worn', () => {
+    const worn = drawn({
+      listed: true,
+      skins: [{ name: 'sea', state: 'loaded' }],
+      worn: 'sea',
+      choice: named('sea'),
+    })
+    expect(worn.hint).toMatch(/^点另一套/u)
+    expect(worn.note('自带的样子')).toBe('')
+    expect(worn.note('sea')).toBe('在用')
+    cleanup()
+    const own = drawn({
+      listed: true,
+      skins: [{ name: 'sea', state: 'loaded' }],
+      worn: undefined,
+      choice: { kind: 'builtin' },
+    })
+    expect(own.note('自带的样子')).toBe('在用')
+  })
+
+  it('a skin still loading can be chosen; one that failed or was held back cannot', () => {
+    const t = drawn({
+      listed: true,
+      skins: [
+        { name: 'sea', state: 'loading' },
+        { name: 'ink', state: 'failed', reason: 'no part' },
+        { name: 'odd', state: 'held' },
+      ],
+      worn: undefined,
+      choice: none,
+    })
+    expect(t.disabled('sea')).toBe(false)
+    expect(t.disabled('ink')).toBe(true)
+    expect(t.disabled('odd')).toBe(true)
   })
 })
