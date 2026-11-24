@@ -7,6 +7,7 @@
 ## 入口 `.` · `index.d.ts`
 
 - `CanvasBody` · `canvas-protocol.d.ts`
+- `CanvasEntryBody` · `canvas-protocol.d.ts`
 - `CanvasItemBody` · `canvas-protocol.d.ts`
 - `CanvasKindBody` · `canvas-protocol.d.ts`
 - `CanvasPileBody` · `canvas-protocol.d.ts`
@@ -577,6 +578,31 @@ declare const kindListing: {
         }
     ];
 };
+declare const entry: {
+    readonly kind: 'one-of';
+    readonly rules: readonly [
+        {
+            readonly kind: 'object';
+            readonly fields: {
+                readonly item: {
+                    rule: {
+                        readonly kind: 'text';
+                    };
+                };
+            };
+        },
+        {
+            readonly kind: 'object';
+            readonly fields: {
+                readonly pile: {
+                    rule: {
+                        readonly kind: 'text';
+                    };
+                };
+            };
+        }
+    ];
+};
 export declare const canvasProtocol: {
     readonly operations: {
         readonly look: {
@@ -646,6 +672,56 @@ export declare const canvasProtocol: {
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
+        readonly 'look-away': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly items: readonly {
+                        readonly at: {
+                            readonly x: number;
+                            readonly y: number;
+                        };
+                        readonly by: {
+                            readonly kind: "human";
+                        } | {
+                            readonly kind: "agent";
+                            readonly session: string;
+                        };
+                        readonly id: string;
+                        readonly locked: boolean;
+                        readonly pile: string | null;
+                        readonly rank: number;
+                        readonly reference: {
+                            readonly kind: string;
+                            readonly ref: string;
+                        };
+                        readonly size: {
+                            readonly height: number;
+                            readonly width: number;
+                        } | null;
+                        readonly state: "off" | "on";
+                        readonly when: import("@omne-harness/utc-instant").Instant;
+                    }[];
+                    readonly next: number | null;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly path: readonly (string | number)[];
+                    readonly reason: "batch" | "canvas" | "repeated" | "request" | "size" | "spot";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly before?: number;
+                readonly canvas: string;
+                readonly limit: number;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
         readonly kinds: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
@@ -673,21 +749,356 @@ export declare const canvasProtocol: {
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
+        readonly place: {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly item: {
+                        readonly at: {
+                            readonly x: number;
+                            readonly y: number;
+                        };
+                        readonly by: {
+                            readonly kind: "human";
+                        } | {
+                            readonly kind: "agent";
+                            readonly session: string;
+                        };
+                        readonly id: string;
+                        readonly locked: boolean;
+                        readonly pile: string | null;
+                        readonly rank: number;
+                        readonly reference: {
+                            readonly kind: string;
+                            readonly ref: string;
+                        };
+                        readonly size: {
+                            readonly height: number;
+                            readonly width: number;
+                        } | null;
+                        readonly state: "off" | "on";
+                        readonly when: import("@omne-harness/utc-instant").Instant;
+                    };
+                    readonly revision: number;
+                }>;
+                readonly 'no-change': import("@omne-harness/public-contract").Codec<{
+                    readonly item: {
+                        readonly at: {
+                            readonly x: number;
+                            readonly y: number;
+                        };
+                        readonly by: {
+                            readonly kind: "human";
+                        } | {
+                            readonly kind: "agent";
+                            readonly session: string;
+                        };
+                        readonly id: string;
+                        readonly locked: boolean;
+                        readonly pile: string | null;
+                        readonly rank: number;
+                        readonly reference: {
+                            readonly kind: string;
+                            readonly ref: string;
+                        };
+                        readonly size: {
+                            readonly height: number;
+                            readonly width: number;
+                        } | null;
+                        readonly state: "off" | "on";
+                        readonly when: import("@omne-harness/utc-instant").Instant;
+                    };
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly path: readonly (string | number)[];
+                    readonly reason: "batch" | "canvas" | "repeated" | "request" | "size" | "spot";
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: "full" | "kind-undeclared" | "not-admitted";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly effect: 'commit';
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly at?: {
+                    readonly x: number;
+                    readonly y: number;
+                };
+                readonly canvas: string;
+                readonly near?: {
+                    readonly x: number;
+                    readonly y: number;
+                };
+                readonly reference: {
+                    readonly kind: string;
+                    readonly ref: string;
+                };
+                readonly size?: {
+                    readonly height: number;
+                    readonly width: number;
+                };
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly arrange: {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly revision: number;
+                }>;
+                readonly 'no-change': import("@omne-harness/public-contract").Codec<{}>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly path: readonly (string | number)[];
+                    readonly reason: "batch" | "canvas" | "repeated" | "request" | "size" | "spot";
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{
+                    readonly entry: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly entry?: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                    readonly reason: "full" | "in-pile" | "kind-undeclared" | "locked" | "not-admitted" | "taken";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly effect: 'commit';
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly canvas: string;
+                readonly items?: readonly {
+                    readonly at?: {
+                        readonly x: number;
+                        readonly y: number;
+                    };
+                    readonly item: string;
+                    readonly pile?: string | null;
+                    readonly size?: {
+                        readonly height: number;
+                        readonly width: number;
+                    } | null;
+                    readonly top?: true;
+                }[];
+                readonly piles?: readonly {
+                    readonly at?: {
+                        readonly x: number;
+                        readonly y: number;
+                    };
+                    readonly name?: string | null;
+                    readonly pile: string;
+                }[];
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly take: {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly revision: number;
+                }>;
+                readonly 'no-change': import("@omne-harness/public-contract").Codec<{}>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly path: readonly (string | number)[];
+                    readonly reason: "batch" | "canvas" | "repeated" | "request" | "size" | "spot";
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{
+                    readonly entry: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly entry?: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                    readonly reason: "full" | "in-pile" | "kind-undeclared" | "locked" | "not-admitted" | "taken";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly effect: 'commit';
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly canvas: string;
+                readonly items: readonly string[];
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly pile: {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly revision: number;
+                }>;
+                readonly 'no-change': import("@omne-harness/public-contract").Codec<{}>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly path: readonly (string | number)[];
+                    readonly reason: "batch" | "canvas" | "repeated" | "request" | "size" | "spot";
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{
+                    readonly entry: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly entry?: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                    readonly reason: "full" | "in-pile" | "kind-undeclared" | "locked" | "not-admitted" | "taken";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly effect: 'commit';
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly at?: {
+                    readonly x: number;
+                    readonly y: number;
+                };
+                readonly canvas: string;
+                readonly items: readonly string[];
+                readonly pile: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly scatter: {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly revision: number;
+                }>;
+                readonly 'no-change': import("@omne-harness/public-contract").Codec<{}>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly path: readonly (string | number)[];
+                    readonly reason: "batch" | "canvas" | "repeated" | "request" | "size" | "spot";
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{
+                    readonly entry: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly entry?: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                    readonly reason: "full" | "in-pile" | "kind-undeclared" | "locked" | "not-admitted" | "taken";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly effect: 'commit';
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly canvas: string;
+                readonly pile: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly lock: {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly revision: number;
+                }>;
+                readonly 'no-change': import("@omne-harness/public-contract").Codec<{}>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly path: readonly (string | number)[];
+                    readonly reason: "batch" | "canvas" | "repeated" | "request" | "size" | "spot";
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{
+                    readonly entry: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly entry?: {
+                        readonly item: string;
+                    } | {
+                        readonly pile: string;
+                    };
+                    readonly reason: "full" | "in-pile" | "kind-undeclared" | "locked" | "not-admitted" | "taken";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly effect: 'commit';
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly canvas: string;
+                readonly items: readonly string[];
+                readonly locked: boolean;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
     };
     readonly name: "canvas";
     readonly major: 1;
-    readonly observations: {};
+    readonly observations: {
+        readonly 'observe-changes': {
+            readonly identity: "login";
+            readonly open: import("@omne-harness/public-contract").Codec<{
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly frame: import("@omne-harness/public-contract").Codec<{
+                readonly kind: "changed";
+            }>;
+            readonly ends: readonly [
+            ];
+        };
+    };
 };
 export type CanvasProtocol = typeof canvasProtocol;
 export type CanvasBody = RuleValue<typeof canvas>;
 export type CanvasItemBody = RuleValue<typeof item>;
 export type CanvasPileBody = RuleValue<typeof pile>;
 export type CanvasKindBody = RuleValue<typeof kindListing>;
+export type CanvasEntryBody = RuleValue<typeof entry>;
 export {};
 ```
 
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { canvasProtocol, type CanvasBody, type CanvasItemBody, type CanvasKindBody, type CanvasPileBody, type CanvasProtocol, } from './canvas-protocol.ts';
+export { canvasProtocol, type CanvasBody, type CanvasEntryBody, type CanvasItemBody, type CanvasKindBody, type CanvasPileBody, type CanvasProtocol, } from './canvas-protocol.ts';
 ```
