@@ -27,7 +27,7 @@ describe('a tool an agent wrote, on the release tree', () => {
         expect(placed).toMatch(/wordcount\s+tenant-assets#1 this tenant/u)
         // The tools of the release are held as before, each by the deployment and by this tenant.
         expect(placed).toMatch(/Files\s+governance#1 deployment\s+\[in effect\]/u)
-        expect(placed.match(/governance#1 deployment/gu)).toHaveLength(17)
+        expect(placed.match(/governance#1 deployment/gu)).toHaveLength(18)
 
         // What help gives to copy is published as it stands.
         const helped = await ask([extensions('help', { name: 'publish', category: 'tool' })])

@@ -81,6 +81,11 @@
               "tool": "Schedules"
             },
             {
+              "id": "jobs",
+              "effect": "allow",
+              "tool": "Jobs"
+            },
+            {
               "id": "notifications",
               "effect": "allow",
               "tool": "Notifications"

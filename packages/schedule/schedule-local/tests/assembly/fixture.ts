@@ -37,20 +37,6 @@ export function localOptions(world: World): ScheduleLocalOptions {
         observe: async () => ({ kind: 'ok', value: readAccess(world.context) }),
         confirm: async () => ({ kind: 'ok', value: readAccess(world.context) }),
       },
-      history: {
-        observe: async () => ({ kind: 'ok', value: { observationRevision: 'history:empty' } }),
-        confirm: async () => ({ kind: 'ok', value: { observationRevision: 'history:empty' } }),
-        read: async () => ({
-          kind: 'ok',
-          value: {
-            items: [],
-            nextCursor: null,
-            total: { kind: 'exact', value: 0 },
-            complete: true,
-            observationRevision: 'history:empty',
-          },
-        }),
-      },
       limits: {
         timeoutMs: 10000,
         maxDependencyCalls: 1000,

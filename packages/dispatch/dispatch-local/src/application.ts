@@ -11,15 +11,7 @@ import {
 import { parsePolicy } from './policy.ts'
 import { createSqlDispatchStore, type DispatchSqlOptions } from './storage/store.ts'
 
-export type Timers = Readonly<{
-  set(run: () => void, delayMs: number): unknown
-  clear(timer: unknown): void
-}>
-
-export const realTimers: Timers = {
-  set: (run, delayMs) => setTimeout(run, delayMs),
-  clear: timer => clearTimeout(timer as ReturnType<typeof setTimeout>),
-}
+export type Timers = Readonly<{ after(delayMs: number, fire: () => void): () => void }>
 
 export type DispatchLocalOptions = Readonly<{
   /** Parsed against the policy schema. A missing or invalid value refuses to load. */
@@ -37,7 +29,7 @@ export type DispatchLocalOptions = Readonly<{
     definitions: AgentDefinitions
   }>
   clock: Clock
-  timers?: Timers
+  timers: Timers
   report?: (error: unknown) => void
 }>
 
@@ -90,7 +82,7 @@ export async function createDispatchLocalApplication(
 ): Promise<DispatchLocalApplication> {
   const policy = parsePolicy(options.policy)
   const report = options.report ?? (() => {})
-  const timers = options.timers ?? realTimers
+  const { timers } = options
   const lifetime = createLifetime()
   const store = createSqlDispatchStore(options.sql)
   const woken = new Set<TenantId>()
@@ -99,10 +91,10 @@ export async function createDispatchLocalApplication(
   function wake(tenant: TenantId): void {
     if (lifetime.stopping || woken.has(tenant)) return
     woken.add(tenant)
-    timers.set(() => {
+    timers.after(0, () => {
       woken.delete(tenant)
       if (!lifetime.stopping) lifetime.track(registry.reconcile(tenant)).catch(report)
-    }, 0)
+    })
   }
 
   const registry = createDispatching({
@@ -120,13 +112,13 @@ export async function createDispatchLocalApplication(
     await Promise.all(tenants.map(tenant => lifetime.track(reconcile(tenant))))
   }
 
-  let periodic: unknown
+  let cancelPeriodic = (): void => {}
   const schedule = () => {
-    periodic = timers.set(() => {
+    cancelPeriodic = timers.after(policy.reconcileIntervalMs, () => {
       if (lifetime.stopping) return
       lifetime.track(scan()).catch(report)
       schedule()
-    }, policy.reconcileIntervalMs)
+    })
   }
 
   let closing: Promise<void> | undefined
@@ -143,7 +135,7 @@ export async function createDispatchLocalApplication(
     close() {
       closing ??= (async () => {
         await lifetime.drain()
-        timers.clear(periodic)
+        cancelPeriodic()
       })()
       return closing
     },

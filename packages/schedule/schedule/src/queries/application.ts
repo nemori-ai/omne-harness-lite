@@ -175,7 +175,8 @@ export function createScheduleQueryApplication(
         ScheduleExecutionsRequestSchema,
         async (observation, access, request) => {
           const page = paging(observation, access, 'executions', request)
-          const current = await observation.get(access, request.scheduleId)
+          const current =
+            request.scheduleId === null ? null : await observation.get(access, request.scheduleId)
           const history = await observation.historyObservation(access)
           const result = await observation.history(access, history.observationRevision, {
             ...request,
@@ -183,10 +184,10 @@ export function createScheduleQueryApplication(
           })
           const value = page.finish(
             result,
-            digest([current.observationRevision, history.observationRevision]),
+            digest([current?.observationRevision ?? null, history.observationRevision]),
           )
           await observation.confirmHistory(access, history.observationRevision)
-          await observation.confirm(access)
+          if (current !== null) await observation.confirm(access)
           return value
         },
       ),

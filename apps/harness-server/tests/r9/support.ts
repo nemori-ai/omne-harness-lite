@@ -297,6 +297,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
       Calendar: { resultMaxBytes: 65_536 },
       Schedules: { resultMaxBytes: 65_536 },
+      Jobs: { resultMaxBytes: 65_536 },
       Notifications: { resultMaxBytes: 65_536 },
       Sessions: { resultMaxBytes: 131_072 },
       Agents: { resultMaxBytes: 1_048_576 },

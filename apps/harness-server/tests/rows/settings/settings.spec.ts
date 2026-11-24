@@ -22,7 +22,8 @@ import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { afterEach, describe, expect, it } from 'vitest'
-import { readSystemInstant } from '../../../src/entry/session-clock.ts'
+import { systemTime } from '@omne-harness/time-source'
+import { readInstant } from '../../../src/entry/time.ts'
 import {
   ReleaseToolContributionAuthority,
   loadProductionRelease,
@@ -145,7 +146,7 @@ async function world() {
   const port: SecretSettings = createSecretSettings({
     items: async () => items,
     qualify: input => guard.qualify(input),
-    now: readSystemInstant,
+    now: () => readInstant(systemTime()),
   })
   const close = () => fixture.root.fiber.dispose()
   return { root: fixture.root, path, vault, flags, registry, port, close }

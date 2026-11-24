@@ -350,6 +350,12 @@ system
           schedule-ui#1  [effective]
         schedule.filter
           schedule-ui#1  [effective]
+        schedule.happened
+          schedule-ui#1  [effective]
+        schedule.job
+          schedule-ui#1  [effective]
+        schedule.job.cancel
+          schedule-ui#1  [effective]
         schedule.list
           schedule-ui#1  [effective]
         schedule.list.row
@@ -359,6 +365,8 @@ system
         schedule.reading
           schedule-ui#1  [effective]
         schedule.refresh
+          schedule-ui#1  [effective]
+        schedule.run
           schedule-ui#1  [effective]
         schedule.title
           schedule-ui#1  [effective]

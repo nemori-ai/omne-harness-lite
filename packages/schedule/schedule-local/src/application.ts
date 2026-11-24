@@ -6,25 +6,40 @@ import {
   type SchedulePredictionDependencies,
   type ScheduleQueryDependencies,
 } from '@omne-harness/schedule'
-import type { ScheduleCommands, ScheduleQueries } from '@omne-harness/schedule-contract'
+import type {
+  ScheduleCommands,
+  ScheduleJobs,
+  ScheduleQueries,
+} from '@omne-harness/schedule-contract'
 import { createScheduleCalculationWorker } from './calculation-worker/index.ts'
 import {
   createScheduleManagementSqlBackend,
   type ScheduleManagementSqlOptions,
 } from './storage/index.ts'
 import { ScheduleLocalLifetime, stoppedError } from './lifetime.ts'
+import { createScheduleDispatcher, type ScheduleDispatchOptions } from './dispatch.ts'
+import { createScheduleHistoryReader, createScheduleJobs } from './jobs.ts'
 
 export type ScheduleLocalOptions = Readonly<{
   sql: ScheduleManagementSqlOptions
   worker: Parameters<typeof createScheduleCalculationWorker>[0]
   prediction: Omit<SchedulePredictionDependencies, 'calculator'>
   management: Omit<ScheduleManagementDependencies, 'store' | 'persistence' | 'definitions'>
-  query: Omit<ScheduleQueryDependencies, 'store' | 'prediction' | 'clock' | 'monotonicClock'>
+  query: Omit<
+    ScheduleQueryDependencies,
+    'store' | 'prediction' | 'clock' | 'monotonicClock' | 'history'
+  >
+  /** Absent: nothing disposes due slots in this application (a read-only or management-only use). */
+  dispatch?: ScheduleDispatchOptions
 }>
 
 export type ScheduleLocalApplication = Readonly<{
   commands: ScheduleCommands
   queries: ScheduleQueries
+  /** One round of the dispatcher now; absent without dispatch. */
+  round?: () => Promise<unknown>
+  /** Reading, cancelling and directly starting Jobs; absent without dispatch. */
+  jobs?: ScheduleJobs
   close(): Promise<void>
 }>
 
@@ -45,12 +60,35 @@ export async function createScheduleLocalApplication(
     })
     const { queries } = createScheduleQueryApplication({
       ...options.query,
+      history: createScheduleHistoryReader(options.sql),
       store: backend.store,
       prediction,
       clock: options.management.clock,
       monotonicClock: options.prediction.monotonicClock,
     })
-    return bindLifetime(commands, queries, worker.dispose)
+    const dispatcher =
+      options.dispatch === undefined
+        ? undefined
+        : createScheduleDispatcher(options.sql, prediction, options.dispatch)
+    dispatcher?.start()
+    const dispose = async () => {
+      await dispatcher?.close()
+      await worker.dispose()
+    }
+    const jobs =
+      dispatcher === undefined || options.dispatch === undefined
+        ? undefined
+        : createScheduleJobs({
+            sql: options.sql,
+            owner: options.dispatch.owner,
+            queries,
+            authorizer: options.query.authorizer,
+            dispatcher,
+          })
+    return {
+      ...bindLifetime(commands, queries, dispose, jobs),
+      ...(dispatcher === undefined ? {} : { round: dispatcher.round }),
+    }
   } catch (error) {
     try {
       await worker.dispose()
@@ -65,6 +103,7 @@ function bindLifetime(
   commands: ScheduleCommands,
   queries: ScheduleQueries,
   dispose: () => Promise<void>,
+  jobs: ScheduleJobs | undefined,
 ): ScheduleLocalApplication {
   const lifetime = new ScheduleLocalLifetime()
   const rejected = () => ({ kind: 'rejected' as const, error: stoppedError() })
@@ -85,6 +124,19 @@ function bindLifetime(
       agenda: (context, input) => lifetime.run(() => queries.agenda(context, input), failed),
       preview: (context, input) => lifetime.run(() => queries.preview(context, input), failed),
     },
+    ...(jobs === undefined
+      ? {}
+      : {
+          jobs: {
+            get: (context, input) => lifetime.run(() => jobs.get(context, input), failed),
+            cancel: (context, input) => lifetime.run(() => jobs.cancel(context, input), failed),
+            queryCancel: (context, input) =>
+              lifetime.run(() => jobs.queryCancel(context, input), failed),
+            start: (context, input) => lifetime.run(() => jobs.start(context, input), failed),
+            queryStart: (context, input) =>
+              lifetime.run(() => jobs.queryStart(context, input), failed),
+          },
+        }),
     close: () => lifetime.close(dispose),
   }
 }

@@ -42,4 +42,49 @@
 .schedule-note {
   margin: calc(var(--spacing) * 2) 0 0;
 }
+.schedule-runs-heading {
+  display: flex;
+  gap: calc(var(--spacing) * 2);
+  align-items: baseline;
+  margin: calc(var(--spacing) * 3) 0 calc(var(--spacing) * 2);
+  font-size: var(--omne-text-ui);
+  font-weight: var(--omne-weight-heading);
+}
+.schedule-runs-aside,
+.schedule-run-word,
+.schedule-run-fact {
+  color: var(--omne-ink-muted);
+  font-weight: normal;
+}
+.schedule-upcoming > li {
+  display: flex;
+  gap: calc(var(--spacing) * 2);
+  align-items: baseline;
+}
+.schedule-happened,
+.schedule-steps {
+  display: grid;
+  gap: var(--spacing);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.schedule-run,
+.schedule-run-open {
+  display: flex;
+  gap: calc(var(--spacing) * 2);
+  align-items: baseline;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.schedule-run-open {
+  justify-content: flex-start;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  text-align: start;
+}
+.schedule-run-time {
+  font-variant-numeric: tabular-nums;
+}
 }

@@ -25,7 +25,7 @@ export function createCalendarSupplyRunner(options: CalendarSupplyRunnerOptions)
   let state: 'idle' | 'running' | 'stopped' = 'idle'
   let initialized = false
   let seeded = false
-  let timer: ReturnType<typeof setTimeout> | undefined
+  let cancelNext = (): void => {}
   let pending: Promise<CalendarRunnerCycle> | undefined
   let stopping: Promise<CalendarRunnerStop> | undefined
   let observerFailure: string | null = null
@@ -132,15 +132,15 @@ export function createCalendarSupplyRunner(options: CalendarSupplyRunnerOptions)
     if (state !== 'running')
       return Promise.resolve({ kind: 'stopped', events: [], observerFailure })
     if (pending) return pending
-    clearTimeout(timer)
+    cancelNext()
     pending = Promise.resolve()
       .then(cycle)
       .finally(() => {
         pending = undefined
         if (state === 'running')
-          timer = setTimeout(() => {
+          cancelNext = config.timers.after(config.intervalMs, () => {
             void tick()
-          }, config.intervalMs)
+          })
       })
     return pending
   }
@@ -148,7 +148,7 @@ export function createCalendarSupplyRunner(options: CalendarSupplyRunnerOptions)
   function stop(): Promise<CalendarRunnerStop> {
     if (stopping) return stopping
     state = 'stopped'
-    clearTimeout(timer)
+    cancelNext()
     let supplyStop: CalendarRunnerStop['supplyStop']
     try {
       supplyStop = { kind: 'returned', value: supply.stop() }

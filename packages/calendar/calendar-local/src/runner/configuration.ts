@@ -18,6 +18,13 @@ export const calendarRunnerConfigurationSchema = z.strictObject({
   initializationOperationKey: operationKeySchema,
   acknowledgementKey: operationKeySchema,
   intervalMs: timerDelaySchema,
+  /** The wait of the time the assembly runs on, for the next cycle; it returns its cancel. */
+  timers: z.custom<Readonly<{ after(delayMs: number, fire: () => void): () => void }>>(
+    value =>
+      typeof value === 'object' &&
+      value !== null &&
+      typeof (value as { after?: unknown }).after === 'function',
+  ),
   drainTimeoutMs: timerDelaySchema,
   limit: z.number().int().min(1).max(100),
   phases: z.strictObject({

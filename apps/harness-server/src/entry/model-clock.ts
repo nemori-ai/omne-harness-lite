@@ -4,8 +4,8 @@ import { ModelClockService, modelClockKey } from '@omne-harness/model-cordis-con
 import { parseInstant } from '@omne-harness/utc-instant'
 import type { EntryObjectModule, EntryTime } from '../types.ts'
 import { waitUntil as waitUntilEpoch } from '@omne-harness/time-source'
-import { epochMillisOf, readInstant } from './session-clock.ts'
-import { timeOf } from './time.ts'
+import { epochMillisOf } from './session-clock.ts'
+import { readInstant, timeOf } from './time.ts'
 
 export function createModelClock(time: EntryTime): ModelClock {
   const now: ModelClock['now'] = () => {
