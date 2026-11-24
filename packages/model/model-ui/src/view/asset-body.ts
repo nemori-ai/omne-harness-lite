@@ -3,7 +3,12 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 
 type Described = Readonly<{ content: Readonly<{ kind: string; body?: JsonValue }> }>
 type Detail = Readonly<{ kind: string; asset?: Described; shown?: Described }>
-type Entry = Readonly<{ row: Readonly<{ name: string }>; detail: Detail | null }>
+type KeyRow = Readonly<{ view: Readonly<{ kind: string; own?: unknown; official?: unknown }> }>
+type Entry = Readonly<{
+  row: Readonly<{ name: string; summary?: Readonly<{ title: string }> | null }>
+  detail: Detail | null
+  settings?: readonly KeyRow[]
+}>
 type Snapshot = Readonly<{
   kind: string
   assets?: Readonly<{ kind: string; entries?: readonly Entry[] }>
@@ -17,9 +22,11 @@ export type AssetView = Readonly<{
 }>
 
 export type AssetPort = Readonly<{ open: (tenantText: string, category: string) => AssetView }>
+export type { KeyRow }
 
 const EMPTY: Snapshot = { kind: 'reading' }
-const idle: AssetView = {
+/** A view of nothing, for while no port is opened; its snapshot is always the same value. */
+export const IDLE_VIEW: AssetView = {
   subscribe: () => () => undefined,
   getSnapshot: () => EMPTY,
   close: () => {},
@@ -32,7 +39,7 @@ export function useAssetBody(
   category: string,
   name: string,
 ): unknown {
-  const [view, setView] = useState<AssetView>(idle)
+  const [view, setView] = useState<AssetView>(IDLE_VIEW)
   useEffect(() => {
     const opened = port.open(tenant, category)
     setView(opened)

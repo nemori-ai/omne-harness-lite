@@ -11,7 +11,7 @@ import {
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { createModelChoices, type ModelChoices } from './choices.ts'
 import type { AssetPort } from './view/asset-body.ts'
-import { CredentialRemedy, failedOnCredential } from './view/credential-remedy.tsx'
+import { CredentialRemedy } from './view/credential-remedy.tsx'
 import { ProviderBlock } from './view/provider-block.tsx'
 
 /** The models of a tenant, on the client tree while `model/v1` is mounted. */
@@ -53,8 +53,16 @@ export function createModelUiModule(options: ModelUiOptions = {}): UiModule {
       options.runFailure?.contribute(shell, {
         id: CREDENTIAL_REMEDY_ID,
         order: 0,
-        render: ({ subject }) =>
-          failedOnCredential(subject.detail) ? <CredentialRemedy fill={fill} /> : null,
+        render: ({ scope, subject }) =>
+          scope === undefined ? null : (
+            <CredentialRemedy
+              port={assets.get()}
+              tenant={scope}
+              category={PROVIDER_CATEGORY}
+              detail={subject.detail}
+              fill={fill}
+            />
+          ),
       })
       options.holding?.contribute(shell, PROVIDER_CATEGORY, {
         id: PROVIDER_BLOCK_ID,
