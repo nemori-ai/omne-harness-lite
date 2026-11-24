@@ -44,6 +44,8 @@ system
           session-ui#1  [effective]
         session.tool-call
           session-ui#1  [effective]
+        shell.back
+          DesktopShell#1  [effective]
         shell.float
           DesktopShell#1  [effective]
         shell.gate
@@ -158,6 +160,7 @@ system
         usage.occupancy  [effective, usage-ui#1]
       session.tool-call  [keyed-one]
     shell
+      shell.back  [one, build]
       shell.float  [list, build]
         companion  [effective, session-ui#1]
       shell.gate  [one, build]

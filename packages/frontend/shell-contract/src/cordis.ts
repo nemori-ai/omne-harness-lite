@@ -419,8 +419,9 @@ export abstract class ShellService extends Service implements ShellSlots {
     const point = `shell.${slot}`
     return this.ctx.dynamis
       .registry()
-      .placed.find(placed => placed.point === point && placed.id === (slot === 'gate' ? '' : id))
-      ?.instance.fiber
+      .placed.find(
+        placed => placed.point === point && placed.id === (slots[slot].kind === 'one' ? '' : id),
+      )?.instance.fiber
   }
 
   watchAdoptions(listener: () => void): () => void {
@@ -521,6 +522,24 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   abstract navigate(pageId: string, subject?: string): void
+
+  protected face(): 'front' | 'back' {
+    return 'front'
+  }
+
+  protected turn(): void {
+    return undefined
+  }
+
+  protected bringUp(
+    pageId: string,
+    subject: string | undefined,
+    show: (pageId: string, subject?: string) => void,
+  ): void {
+    if (!this.items('pages').some(page => page.id === pageId)) return
+    if (this.face() === 'back') this.turn()
+    show(pageId, subject)
+  }
 
   get page(): Readonly<{
     get(): string | undefined

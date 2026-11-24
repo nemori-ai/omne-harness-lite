@@ -31,7 +31,8 @@ async function main(): Promise<void> {
   if (element === null) return
   markWindowChrome(document.documentElement, navigator.userAgent)
   const size = createSizeController(storedSizePreference(() => window.localStorage))
-  bindSizeKeys(window, size, /Mac/.test(navigator.platform) ? 'mac' : 'other')
+  const platform = /Mac/.test(navigator.platform) ? 'mac' : 'other'
+  bindSizeKeys(window, size, platform)
   const bridge = await connectPageBridge(httpChannel(window.location.origin))
   const watched = watchConnectivity(bridge.transport)
   const state = createShellState(shellLogin(bridge), {
@@ -68,6 +69,7 @@ async function main(): Promise<void> {
         connectivity={watched}
         theme={{ initial: preference.read(), select: choice => theme.select(choice) }}
         size={size}
+        platform={platform}
         floats={storedFloatPlaces(() => window.localStorage)}
         missingAtForwarding={missing}
       />

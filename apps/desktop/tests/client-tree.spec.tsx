@@ -44,7 +44,7 @@ async function clientRegistry() {
 
 const clientTree = async () => tree(await clientRegistry(), deployment)
 
-it('桌面装配的整棵客户端树：四个外壳位置与 16 个界面拓展点都声明了，问题一栏是空的（FE-I39）', async () => {
+it('桌面装配的整棵客户端树：五个外壳位置与 16 个界面拓展点都声明了，问题一栏是空的（FE-I39）', async () => {
   const client = await clientTree()
   expect(client.problems).toEqual([])
   await expect(`${render(client.root)}\n`).toMatchFileSnapshot('./client-tree.txt')
@@ -81,6 +81,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'session.side',
     'session.status',
     'session.tool-call',
+    'shell.back',
     'shell.float',
     'shell.gate',
     'shell.icon',

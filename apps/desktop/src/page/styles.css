@@ -33,7 +33,7 @@ body,
   transform: translateY(0);
 }
 
-:is(.shell-sidebar, .shell-workspace, .shell-outside):focus-visible {
+:is(.shell-sidebar, .shell-workspace, .shell-outside, .shell-back):focus-visible {
   outline: none;
 }
 
@@ -45,10 +45,28 @@ body,
 }
 
 .app-shell {
+  min-height: 100dvh;
+  background: var(--omne-surface-page);
+}
+
+.shell-front {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   min-height: 100dvh;
+}
+
+.shell-back {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--omne-window-inset);
   background: var(--omne-surface-page);
+}
+
+/* Both faces stay mounted; the one put away is laid out but neither seen nor reached. */
+.shell-face[inert] {
+  visibility: hidden;
 }
 
 .shell-float {
@@ -502,17 +520,17 @@ body,
 }
 
 @media (min-width: 768px) {
-  .app-shell:has(> .shell-sidebar) {
+  .shell-front:has(> .shell-sidebar) {
     grid-template-columns: var(--omne-sidebar-width) minmax(0, 1fr);
   }
-  .app-shell:has(> .shell-sidebar[data-width='rail']) {
+  .shell-front:has(> .shell-sidebar[data-width='rail']) {
     grid-template-columns: var(--omne-sidebar-rail-width) minmax(0, 1fr);
   }
-  .app-shell > .shell-sidebar[data-width] {
+  .shell-front > .shell-sidebar[data-width] {
     width: auto;
     min-width: 0;
   }
-  .app-shell:has(> .shell-sidebar[data-fold-ready='true']) {
+  .shell-front:has(> .shell-sidebar[data-fold-ready='true']) {
     transition: grid-template-columns var(--omne-motion-layout) var(--omne-motion-ease-enter);
   }
   .shell-sidebar[data-fold-ready='true'][data-width='rail'][data-labels='shown'] .shell-link-label {
@@ -523,7 +541,7 @@ body,
 
 /* Below 768 the sidebar is the home and the sheet's toggle side by side in the page's top corner (OD-19). */
 @media (max-width: 767px) {
-  .app-shell {
+  .shell-front {
     display: block;
   }
   .shell-sidebar {
@@ -543,8 +561,8 @@ body,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-shell:has(> .shell-sidebar),
-  .app-shell > .shell-sidebar[data-width] {
+  .shell-front:has(> .shell-sidebar),
+  .shell-front > .shell-sidebar[data-width] {
     transition: none !important;
   }
   .shell-page,
