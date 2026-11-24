@@ -1,4 +1,5 @@
 import { createScheduleJobs } from '../../src/jobs.ts'
+import { createScheduleDispatchSqlStore } from '../../src/storage/index.ts'
 import type { TimeSource } from '@omne-harness/time-source'
 import { simulatedTime } from '@omne-harness/time-source/simulated'
 import {
@@ -10,10 +11,15 @@ import {
   createProgramExecutor,
   createScheduleDispatcher,
   createScheduleLocalApplication,
+  schedulePredictor,
   type ScheduleDispatchOptions,
   type ScheduleProgram,
 } from '@omne-harness/schedule-local'
-import { createSchedulePredictionService } from '@omne-harness/schedule'
+import {
+  createDispatcher,
+  createSchedulePredictionService,
+  type DispatchStore,
+} from '@omne-harness/schedule'
 import { createScheduleCalculationWorker } from '@omne-harness/schedule-local'
 import { openWorld } from '../storage/world.ts'
 import { context, now } from '../storage/data.ts'
@@ -91,14 +97,18 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
       facts: { dispatch: requirement as never },
     }),
   }
-  const dispatcher = (generation?: string, clock: TimeSource = time.source) => {
+  const dispatcher = (
+    generation?: string,
+    clock: TimeSource = time.source,
+    wrap?: (store: DispatchStore) => DispatchStore,
+  ) => {
     const programs = createProgramExecutor(name => options.programs?.[name], generation)
-    return createScheduleDispatcher(sql, prediction, {
-      executor: work => (work.kind === 'program' ? programs : undefined),
+    const ports = {
+      executor: (work: { kind: string }) => (work.kind === 'program' ? programs : undefined),
       owner: context.owner,
       guards,
       time: clock,
-      standing: options.standing ?? (async () => ({ kind: 'eligible' })),
+      standing: options.standing ?? (async () => ({ kind: 'eligible' }) as const),
       missingCarriers: options.missingCarriers ?? (() => []),
       policy: {
         intervalMs: MINUTE,
@@ -106,6 +116,13 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
         roundLimit: 20,
         classifyPages: 10,
       },
+    } satisfies ScheduleDispatchOptions
+    if (wrap === undefined) return createScheduleDispatcher(sql, prediction, ports)
+    const { guards: held, ...rest } = ports
+    return createDispatcher({
+      ...rest,
+      store: wrap(createScheduleDispatchSqlStore({ ...sql, owner: context.owner, guards: held })),
+      predict: schedulePredictor(prediction, context.owner),
     })
   }
   const create = async (definition: ScheduleDefinition, key: string): Promise<ScheduleId> => {

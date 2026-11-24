@@ -1,6 +1,8 @@
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
+import type { DispatchStore } from '@omne-harness/schedule'
 import type { TimeSource } from '@omne-harness/time-source'
+import { context } from '../storage/data.ts'
 import { dispatchWorld, everyMinute, MINUTE, START } from './world.ts'
 
 type Random = () => number
@@ -39,6 +41,40 @@ function hinting(source: TimeSource, random: Random): TimeSource {
 }
 
 type World = Awaited<ReturnType<typeof dispatchWorld>>
+
+async function control(w: World, id: string, action: 'pause' | 'resume', key: string) {
+  await w.stamp()
+  const result = await w.app.commands.execute(context, {
+    action,
+    scheduleId: id,
+    reason: null,
+    meta: { operationKey: key, expectedRevision: Number(w.view(id)['revision']) },
+  } as never)
+  expect(result.kind).toBe('committed')
+}
+
+/** A process that dies at its nth commit, before it (nothing written) or after it (written, answer lost); then does nothing. */
+const died = { before: 0, after: 0 }
+function dying(nth: number, after: boolean) {
+  return (store: DispatchStore): DispatchStore => {
+    let commits = 0
+    let dead = false
+    const gone = () => Promise.reject(new Error('crashed'))
+    return {
+      pending: (now, limit) => (dead ? gone() : store.pending(now, limit)),
+      job: jobId => (dead ? gone() : store.job(jobId)),
+      async commit(command) {
+        if (dead) return gone()
+        commits += 1
+        if (commits < nth) return store.commit(command)
+        dead = true
+        died[after ? 'after' : 'before'] += 1
+        if (after) await store.commit(command)
+        return gone()
+      },
+    }
+  }
+}
 
 /** The model's invariants over what is stored: each minute from activation to now is either one receipt or inside
  * exactly one missed stretch, never both; counts match. */
@@ -107,7 +143,7 @@ describe('random sequences against the model', { tags: ['slow'], timeout: 600_00
     expect(seen.size).toBeGreaterThan(4)
   })
 
-  it('two dispatchers, restarts and stretches of downtime in random order keep every minute disposed once, in one way', async () => {
+  it('two dispatchers, restarts, crashes at a commit, pauses and stretches of downtime in random order keep every minute disposed once, in one way', async () => {
     const seen = new Set<string>()
     for (let seed = 1; seed <= 8; seed += 1) {
       const random = randomOf(seed * 104_729)
@@ -119,8 +155,9 @@ describe('random sequences against the model', { tags: ['slow'], timeout: 600_00
           w.dispatcher(`00000000-0000-8000-8000-${String(++generation).padStart(12, '0')}`)
         let [a, b] = [make(), make()]
         const trail: string[] = []
-        for (let step = 0; step < 8; step += 1) {
-          const roll = below(random, 4)
+        let paused = false
+        for (let step = 0; step < 10; step += 1) {
+          const roll = below(random, 6)
           if (roll === 0) {
             const minutes = 1 + below(random, 3)
             trail.push(`+${minutes}`)
@@ -132,6 +169,24 @@ describe('random sequences against the model', { tags: ['slow'], timeout: 600_00
             trail.push('restart')
             await a.close()
             a = make()
+          } else if (roll === 3) {
+            const nth = 1 + below(random, 4)
+            const after = random() < 0.5
+            trail.push(`crash${nth}${after ? 'a' : 'b'}`)
+            await a.close()
+            const doomed = w.dispatcher(
+              `00000000-0000-8000-8000-${String(++generation).padStart(12, '0')}`,
+              undefined,
+              dying(nth, after),
+            )
+            await doomed.round().catch(() => undefined)
+            await doomed.close()
+            a = make()
+          } else if (roll === 4) {
+            const action = paused ? 'resume' : 'pause'
+            trail.push(action)
+            await control(w, id, action, `${action}-${seed}-${step}`)
+            paused = !paused
           } else {
             const minutes = 6 + below(random, 30)
             trail.push(`down${minutes}`)
@@ -140,6 +195,7 @@ describe('random sequences against the model', { tags: ['slow'], timeout: 600_00
             ;[a, b] = [make(), make()]
           }
         }
+        if (paused) await control(w, id, 'resume', `resume-${seed}-end`)
         for (const _ of [1, 2, 3]) await Promise.all([a.round(), b.round()])
         seen.add(trail.join(' '))
         await Promise.all([a.close(), b.close()])
@@ -148,7 +204,16 @@ describe('random sequences against the model', { tags: ['slow'], timeout: 600_00
         await w.close()
       }
     }
-    process.stdout.write(`dispatcher sequences: ${seen.size} distinct of 8\n`)
+    const pauses = [...seen]
+      .join(' ')
+      .split(' ')
+      .filter(word => word === 'pause').length
+    process.stdout.write(
+      `dispatcher sequences: ${seen.size} distinct of 8; died before a commit ${died.before}, after ${died.after}; paused ${pauses} times\n`,
+    )
     expect(seen.size).toBeGreaterThan(4)
+    expect(died.before).toBeGreaterThan(0)
+    expect(died.after).toBeGreaterThan(0)
+    expect(pauses).toBeGreaterThan(0)
   })
 })
