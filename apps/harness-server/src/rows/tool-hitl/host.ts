@@ -24,20 +24,10 @@ import type {
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import { canonicalDigest } from '@omne-harness/tool'
-import { readSystemInstant } from '../../entry/session-clock.ts'
 
 export const HITL_DESTINATION = 'harness.hitl'
 export const HITL_LOCATION = 'local'
 const HITL_RESERVATION_OWNER = 'human-intervention'
-
-// The moment a batch of cards is registered; a clock that cannot answer leaves the moment out.
-const HITL_CLOCK = Object.freeze({
-  now(): string {
-    const instant = readSystemInstant()
-    if (!instant.ok) throw new Error('the system clock gave no instant')
-    return instant.text
-  },
-})
 
 export type HitlApplication = ReturnType<typeof createIndependentHitlApplication>
 
@@ -55,6 +45,8 @@ export type ToolHitlHostInput = Readonly<{
   verifier: () => PrincipalVerifier | undefined
   standing: () => TenantStandingSource | undefined
   reservations: () => StandingReservations | undefined
+  /** The moment a batch of cards is registered; a clock that cannot answer leaves the moment out. */
+  now: () => string
   decided?: (
     input: Readonly<{
       application: HitlApplication
@@ -227,7 +219,7 @@ export function createToolHitlHost(input: ToolHitlHostInput): ToolHitlHost {
       locationRef: HITL_LOCATION,
       cursorKey,
       guards: toolOriginGuards(text),
-      clock: HITL_CLOCK,
+      clock: { now: input.now },
     })
     const made: Tenant = {
       domain: found.domain,

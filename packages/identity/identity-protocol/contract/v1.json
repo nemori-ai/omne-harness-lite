@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:6491433adfeb4ab8b3102bb6751e24a4dabc50fb3768295481aea9b5b6634795"
+    "1": "sha256:6491433adfeb4ab8b3102bb6751e24a4dabc50fb3768295481aea9b5b6634795",
+    "2": "sha256:2594c9773b687350e31d6063c631081243afa5ef5e4f20114b6dc11094b5d4fd"
   },
   "major": 1,
   "name": "identity",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {},
     "operations": {
@@ -1221,6 +1222,55 @@
           }
         }
       },
+      "read-account-preference": {
+        "body": {
+          "fields": {
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "revision": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "value": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "string"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        },
+        "since": 2
+      },
       "register-and-activate": {
         "body": {
           "fields": {
@@ -1860,6 +1910,71 @@
           },
           "unknown": true
         }
+      },
+      "write-account-preference": {
+        "body": {
+          "fields": {
+            "expected": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "value": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "kind": "string"
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {
+              "revision": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "revision": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        },
+        "since": 2
       }
     }
   }

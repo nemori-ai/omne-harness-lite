@@ -47,6 +47,7 @@ const SESSION_GOLDEN = {
     D,
   ],
   setResident: [M, D, D],
+  recordCommand: [M, D, D],
   configureAutoArchive: [M, D, D],
   considerAutoArchive: WORK_ONLY,
   recordIdle: WORK_ONLY,
@@ -163,8 +164,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 54 Session rows and 30 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(54)
+  it('has the 55 Session rows and 30 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(55)
     expect(Object.keys(AGENT_GOLDEN)).toHaveLength(30)
   })
 })

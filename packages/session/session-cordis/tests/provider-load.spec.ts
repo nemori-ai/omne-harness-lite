@@ -11,6 +11,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import {
   SessionClockService,
   sessionBeforeIntakeKey,
+  sessionUtteranceResolverKey,
   sessionBeforeIntakePlugin,
 } from '@omne-harness/session-cordis-contract/cordis'
 import { operationId, ordinaryInput } from '@omne-harness/session-contract/testing'
@@ -187,7 +188,7 @@ describe('the admission declaration', () => {
   }
 
   it('without it and without the registration point, accept answers unavailable', async () => {
-    const a = await build({ provider: {} })
+    const a = await build({ provider: { resolver: 'none' } })
     const intake = await a.caller('intake')
     await a.create(intake)
     expect(await words(a, intake, 'undeclared')).toMatchObject({
@@ -195,8 +196,36 @@ describe('the admission declaration', () => {
     })
   })
 
-  it("with admission 'none', accept runs no processor, registered or not", async () => {
+  it('without a resolver declaration a member input waits for its resolver: none registered is unavailable, one registered reads it', async () => {
     const a = await build({ provider: { admission: 'none' } })
+    const intake = await a.caller('intake')
+    await a.create(intake)
+    expect(await words(a, intake, 'no-resolver')).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'sessionUtteranceResolver' },
+    })
+    await a.mount(sessionBeforeIntakePlugin)
+    const read: string[] = []
+    await a.mount({
+      name: 'resolver',
+      inject: [sessionUtteranceResolverKey],
+      apply(ctx: Context) {
+        ctx.sessionUtteranceResolver.register({
+          name: 'test',
+          resolve: async ({ original }) => {
+            read.push(original.blocks.map(block => ('text' in block ? block.text : '')).join(''))
+            return { kind: 'refused', reason: 'no such command: /nope' }
+          },
+        })
+      },
+    })
+    expect(await words(a, intake, 'refused')).toMatchObject({
+      failure: { kind: 'invalid', reason: 'no such command: /nope' },
+    })
+    expect(read.length).toBe(1)
+  })
+
+  it("with admission 'none', accept runs no processor, registered or not", async () => {
+    const a = await build({ provider: { admission: 'none', resolver: 'none' } })
     await a.mount(sessionBeforeIntakePlugin)
     await a.mount(blocking)
     const intake = await a.caller('intake')
@@ -205,7 +234,7 @@ describe('the admission declaration', () => {
   })
 
   it('without it, the processors registered at the moment of each intake run', async () => {
-    const a = await build({ provider: {} })
+    const a = await build({ provider: { resolver: 'none' } })
     const point = await a.mount(sessionBeforeIntakePlugin)
     const intake = await a.caller('intake')
     await a.create(intake)
@@ -223,7 +252,7 @@ describe('the admission declaration', () => {
   })
 
   it('with the point there and no processor of media, an input that refers to media is unavailable (SE-37)', async () => {
-    const a = await build({ provider: {} })
+    const a = await build({ provider: { resolver: 'none' } })
     await a.mount(sessionBeforeIntakePlugin)
     const intake = await a.caller('intake')
     await a.create(intake)
@@ -247,7 +276,7 @@ describe('the admission declaration', () => {
   })
 
   it('the registry of input sources is read at each intake that has processors to run: gone, the input is unavailable', async () => {
-    const a = await build({ provider: {} })
+    const a = await build({ provider: { resolver: 'none' } })
     await a.mount(sessionBeforeIntakePlugin)
     await a.mount({
       name: 'passing',

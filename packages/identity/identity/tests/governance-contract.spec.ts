@@ -124,6 +124,11 @@ describe('the governance contract suite on the reference double', () => {
         'members-not-visible',
         'members-read-and-removed',
         'own-memberships-active-only',
+        'preference-after-restart',
+        'preference-bounds-denied',
+        'preference-per-account',
+        'preference-read-write',
+        'preference-stale-write-conflict',
         'received-invitations-own',
       ].sort(),
     )
@@ -138,7 +143,7 @@ describe('the governance contract suite on the reference double', () => {
     expect(report.passed).toBe(true)
     expect(
       report.cases.filter(result => result.status === 'not-applicable').map(result => result.id),
-    ).toEqual(['revoked-stays-invalid-after-restart'])
+    ).toEqual(['revoked-stays-invalid-after-restart', 'preference-after-restart'])
   })
 
   it('refuses options whose short lifetime is not shorter than the long one', async () => {

@@ -15,14 +15,13 @@ import {
   type Fields,
   type TelemetryPort,
 } from '@omne-harness/telemetry-contract'
-import { systemTime, type TimeSource } from '@omne-harness/time-source'
+import type { TimeSource } from '@omne-harness/time-source'
+import { runTimeOf } from '../../entry/time.ts'
 import { processInstance } from '../telemetry/instance.ts'
 
 export const accessClockOf = (time: TimeSource): Clock => ({
   schedule: (ms, run, options) => time.after(ms, run, options),
 })
-
-const rowTime = systemTime()
 
 const GRACE_MS = 5000
 const FRAME_QUEUE_BYTES = 1 << 20
@@ -115,7 +114,7 @@ export function entryAccess(
     graceMs: GRACE_MS,
     frameQueueBytes: FRAME_QUEUE_BYTES,
     availabilityBacklog: AVAILABILITY_BACKLOG,
-    clock: accessClockOf(rowTime),
+    clock: accessClockOf(runTimeOf(ctx)),
     diagnostics,
   }
 }

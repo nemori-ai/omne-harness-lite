@@ -123,7 +123,8 @@ export function fixture(size = 1) {
         calls.push('history.read')
         const rows = state.rows.filter(
           row =>
-            row.scheduleId === request.scheduleId &&
+            (request.scheduleId === null ||
+              (row.kind !== 'direct' && row.scheduleId === request.scheduleId)) &&
             (request.from === null || row.originalScheduledAt >= request.from) &&
             (request.to === null || row.originalScheduledAt < request.to),
         )

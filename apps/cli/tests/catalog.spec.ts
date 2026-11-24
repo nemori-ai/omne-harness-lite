@@ -73,6 +73,7 @@ describe('command catalog', () => {
       'search',
       'read-session-diagnostics',
       'read-pending',
+      'list-commands',
       'read-waiting-calls',
       'read-input-fate',
       'cancel-run',

@@ -18,6 +18,8 @@ system
           served:connection.server-points#1  [effective]
         human-intervention.release-detail
           human-intervention-ui#1  [effective]
+        identity.account-preferences
+          identity-ui#1  [effective]
         model.choices
           model-ui#1  [effective]
         notification.entry
@@ -29,6 +31,8 @@ system
         session.block-render
           session-ui#1  [effective]
         session.call-detail
+          session-ui#1  [effective]
+        session.composer
           session-ui#1  [effective]
         session.composer-attachments
           session-ui#1  [effective]
@@ -44,11 +48,15 @@ system
           session-ui#1  [effective]
         session.tool-call
           session-ui#1  [effective]
+        shell.actions
+          DesktopShell#1  [effective]
         shell.float
           DesktopShell#1  [effective]
         shell.gate
           DesktopShell#1  [effective]
         shell.icon
+          DesktopShell#1  [effective]
+        shell.keymap
           DesktopShell#1  [effective]
         shell.layout
           DesktopShell#1  [effective]
@@ -66,6 +74,8 @@ system
           DesktopShell#1  [effective]
         shell.tokens
           DesktopShell#1  [effective]
+        slash-command.composer
+          slash-command-ui#1  [effective]
         usage.presentation
           usage-ui#1  [effective]
         usage.widget
@@ -113,6 +123,8 @@ system
           served:session-diagnostics/v1#1  [effective]
         session/v1
           served:session/v1#1  [effective]
+        slash-command/v1
+          served:slash-command/v1#1  [effective]
         tool/v1
           served:tool/v1#1  [effective]
         usage/v1
@@ -125,6 +137,9 @@ system
       human-intervention.release-detail  [keyed-one]
         schedule.activation@1
           schedule-ui#1  [effective]
+    identity
+      identity.account-preferences  [one]
+        identity-ui#1  [effective]
     model
       model.choices  [one]
         model-ui#1  [effective]
@@ -144,6 +159,8 @@ system
       session.call-detail  [list]
         tool-call-children  [effective, tool-ui#1]
         tool-call-output  [effective, tool-ui#1]
+      session.composer  [one]
+        session-ui#1  [effective]
       session.composer-attachments  [list]
         media  [effective, media-ui#1]
       session.composer-intake  [one]
@@ -161,11 +178,35 @@ system
         Code
           tool-ui#1  [effective]
     shell
+      shell.actions  [list]
+        assets.settings  [effective, assets-ui#1]
+        session.stop  [effective, session-ui#1]
+        human-intervention.waiting  [effective, human-intervention-ui#1]
+        session.force-stop  [effective, session-ui#1]
+        session.background  [effective, session-ui#1]
+        session.stop-call  [effective, session-ui#1]
+        slash-command.keys  [effective, slash-command-ui#1]
+        session.retry  [effective, session-ui#1]
+        session.send  [effective, session-ui#1]
+        session.send-first  [effective, session-ui#1]
+        session.send-after  [effective, session-ui#1]
+        session.new  [effective, session-ui#1]
+        session.next  [effective, session-ui#1]
+        session.previous  [effective, session-ui#1]
+        session.search  [effective, session-ui#1]
+        session.focus-composer  [effective, session-ui#1]
+        session.start-command  [effective, session-ui#1]
+        session.details  [effective, session-ui#1]
+        session.pick-model  [effective, session-ui#1]
+        session.pick-permission  [effective, session-ui#1]
+        session.side-panel  [effective, session-ui#1]
       shell.float  [list, build]
         companion  [effective, session-ui#1]
       shell.gate  [one, build]
         identity-ui#1  [effective]
       shell.icon  [keyed-one]
+      shell.keymap  [one]
+        slash-command-ui#1  [effective]
       shell.layout  [keyed-one]
       shell.pages  [list, build]
         conversation  [effective, session-ui#1]
@@ -177,6 +218,7 @@ system
         workspaces  [effective, workspace-ui#1]
         assets  [effective, assets-ui#1]
         settings  [effective, assets-ui#1]
+        commands-and-keys  [effective, slash-command-ui#1]
         usage  [effective, usage-ui#1]
       shell.parts  [keyed-one]
         assets.asset
@@ -311,6 +353,12 @@ system
           schedule-ui#1  [effective]
         schedule.filter
           schedule-ui#1  [effective]
+        schedule.happened
+          schedule-ui#1  [effective]
+        schedule.job
+          schedule-ui#1  [effective]
+        schedule.job.cancel
+          schedule-ui#1  [effective]
         schedule.list
           schedule-ui#1  [effective]
         schedule.list.row
@@ -320,6 +368,8 @@ system
         schedule.reading
           schedule-ui#1  [effective]
         schedule.refresh
+          schedule-ui#1  [effective]
+        schedule.run
           schedule-ui#1  [effective]
         schedule.title
           schedule-ui#1  [effective]
@@ -448,6 +498,9 @@ system
         session-list  [effective, session-ui#1]
         archived-sessions  [effective, session-ui#1]
         identity.account  [effective, identity-ui#1]
+    slash-command
+      slash-command.composer  [one]
+        slash-command-ui#1  [effective]
     usage
       usage.presentation  [keyed-list]
         breakdown

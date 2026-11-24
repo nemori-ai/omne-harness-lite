@@ -1,5 +1,5 @@
 import type { SessionPermissionChangeBasis } from './permission-values.ts'
-import { wakingInputs, type SessionIntakeLimits } from './intake.ts'
+import { heldBack, wakingInputs, type SessionIntakeLimits } from './intake.ts'
 import type { IntakeTerms } from './input-sources.ts'
 import { originalAttempt } from './history-validation.ts'
 import { waitKey } from './call-state.ts'
@@ -337,7 +337,7 @@ export function judgeCompletion(snapshot: WorkSnapshot, execution: string): Comp
       : { kind: 'terminal', terminal }
   if (snapshot.run.kind !== 'active' || snapshot.run.execution.execution !== execution)
     return { kind: 'allowed' }
-  const handed = new Set(snapshot.handed)
+  const handed = new Set([...snapshot.handed, ...heldBack(snapshot)])
   const pendingInputs = snapshot.pending.filter(input => !handed.has(input))
   return pendingInputs.length === 0 ? { kind: 'allowed' } : { kind: 'blocked', pendingInputs }
 }

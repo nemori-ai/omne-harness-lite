@@ -8,9 +8,9 @@ import {
   IconButton,
   MoreIcon,
   RetryIcon,
-  Textarea,
   ValuePill,
 } from '@omne-harness/ui-kit'
+import type { Reader } from '@omne-harness/shell-contract'
 import {
   Fragment,
   useCallback,
@@ -20,10 +20,9 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import { stopFace } from '../model/composer.ts'
+import type { ComposerAssistant } from '../model/composer-assistant.ts'
 import { EMPTY_CONTENT, terminalOf, type HistoryEntry } from '../model/content.ts'
 import type { ComposerDraftStore } from '../model/composer-drafts.ts'
 import { conversationItems, type BlockSource, type Item } from '../model/conversation.ts'
@@ -34,21 +33,19 @@ import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import type { Cause, Waiting } from '../model/waiting.ts'
 import type { SessionRunFailureSubject } from '../points.ts'
 import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './block-slot.ts'
-import { ComposerActionSlot } from './composer-action-slot.tsx'
+import { Composer } from './composer.tsx'
 import { HeadingFoldContext, useHeadingFold, type HeadingFold } from './heading-fold.tsx'
 import { NoticeLine } from './notice.tsx'
 import { PartDrawContext } from './part-draw.ts'
 import { Bubble, ItemView, speakerOf } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
-import { AGENT_NAME, FigureControl, SideFrameContext, useSideFrame } from './side-frame.tsx'
+import { FigureControl, SideFrameContext, useSideFrame } from './side-frame.tsx'
 import { TranscriptRow, usePublication } from './transcript-arrivals.tsx'
 import { useSession } from './use-session.ts'
 import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
 import { useShownEntry } from './shown-entry.ts'
 import {
   sessionBackdrop,
-  sessionComposer,
-  sessionComposerInput,
   sessionHeader,
   sessionHeaderMore,
   sessionHeaderTitle,
@@ -71,7 +68,7 @@ export type ConversationPageProps = Readonly<{
   failure?: (subject: SessionRunFailureSubject) => ReactNode
   drafts: ComposerDraftStore
   attachments?: (session: string, draft: string) => ReactNode
-  /** What draws a block of a message that is not words, by its kind; `fallback` when nothing does. */
+  assistant?: Reader<ComposerAssistant>
   block?: Parts['block']
   toolCall?: Parts['toolCall']
   heading?: (session: string) => ReactNode
@@ -92,6 +89,7 @@ export function ConversationPage({
   failure = () => null,
   drafts,
   attachments = () => null,
+  assistant,
   block = (_session, _kind, _source, fallback) => fallback,
   toolCall = (_session, _part, generic) => generic(),
   heading = () => null,
@@ -123,6 +121,7 @@ export function ConversationPage({
           failure={failure}
           drafts={drafts}
           attachments={attachments}
+          assistant={assistant}
           block={block}
           toolCall={toolCall}
           heading={heading}
@@ -141,6 +140,7 @@ type Parts = Readonly<{
   failure: (subject: SessionRunFailureSubject) => ReactNode
   drafts: ComposerDraftStore
   attachments: (session: string, draft: string) => ReactNode
+  assistant: Reader<ComposerAssistant> | undefined
   block: (
     session: string,
     kind: string,
@@ -407,6 +407,7 @@ function OpenSession({
   failure,
   drafts,
   attachments,
+  assistant,
   block,
   toolCall,
   work,
@@ -445,10 +446,12 @@ function OpenSession({
         <Composer
           state={state}
           driver={driver}
+          scope={scope}
           status={status(state.session)}
           waiting={waiting}
           drafts={drafts}
           attachments={attachments}
+          {...(assistant === undefined ? {} : { assistant })}
         />
       </ToolCallSlotContext.Provider>
     </BlockSlotContext.Provider>
@@ -641,76 +644,4 @@ function InputNote({
       ) : null}
     </p>
   )
-}
-
-const placeholderOf = (waiting: number, busy: boolean): string =>
-  waiting > 0
-    ? `发消息给${AGENT_NAME}，会排队，不算回答`
-    : busy
-      ? '写好下一句，现在即可排队'
-      : `发消息给${AGENT_NAME}`
-
-function Composer({
-  state,
-  driver,
-  status,
-  waiting,
-  drafts,
-  attachments,
-}: Pick<Parts, 'drafts' | 'attachments'> & {
-  readonly state: Open
-  readonly driver: SessionDriver
-  readonly status: ReactNode
-  readonly waiting: number
-}) {
-  const { session } = state
-  const [text, setText] = useState('')
-  const draft = useSyncExternalStore(drafts.subscribe, () => drafts.read(session))
-  useEffect(() => () => drafts.drop(session), [drafts, session])
-  const canSend = draft.ready && (text.trim().length > 0 || draft.attachments.length > 0)
-  const submit = () => {
-    if (!canSend) return
-    void driver.send(text, drafts.take(session))
-    setText('')
-  }
-  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
-    event.preventDefault()
-    submit()
-  }
-  const drawer = useContext(PartDrawContext)
-  const builtIn = () => (
-    <form
-      className="omne-composer"
-      {...sessionComposer.props}
-      onSubmit={event => {
-        event.preventDefault()
-        submit()
-      }}
-    >
-      <Textarea
-        {...sessionComposerInput.props}
-        aria-label="输入消息"
-        placeholder={placeholderOf(waiting, state.run.kind !== 'idle')}
-        rows={1}
-        value={text}
-        onChange={event => setText(event.target.value)}
-        onKeyDown={onKeyDown}
-      />
-      <div>{attachments(session, draft.draft)}</div>
-      <div className="omne-composer-actions">
-        <div className="omne-session-status">{status}</div>
-        <ComposerActionSlot
-          face={stopFace(state.run)}
-          canSend={canSend}
-          onStop={() => driver.cancel()}
-        />
-      </div>
-    </form>
-  )
-  if (drawer === null) return builtIn()
-  return sessionComposer.draw(drawer, builtIn, {
-    running: state.run.kind !== 'idle',
-    empty: text.trim().length === 0,
-  })
 }

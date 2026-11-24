@@ -66,9 +66,12 @@
     "tool-records",
     "tool-body-sweep",
     "tool-entry-sources",
+    "slash-command",
     "mcp",
     "tool-bindings",
     "skills",
+    "skill-command-source",
+    "prompt-command-source",
     "tool-runtime",
     "tool-executor",
     "tool-host",
@@ -98,6 +101,7 @@
     "assets-access",
     "human-intervention-access",
     "session-diagnostics-access",
+    "slash-command-access",
     "mcp-access",
     "calendar-access",
     "schedule-access",
@@ -171,7 +175,9 @@
       "names": [
         "storage",
         "tenantDomainLookup",
-        "tenantDomainRegistration"
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal",
+        "tenantStanding"
       ]
     },
     {
@@ -515,6 +521,18 @@
       ]
     },
     {
+      "row": "skill-command-source",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "prompt-command-source",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
       "row": "assets-access",
       "names": [
         "principalIssuer",
@@ -531,6 +549,13 @@
     },
     {
       "row": "session-diagnostics-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "slash-command-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

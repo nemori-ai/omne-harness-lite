@@ -1,10 +1,6 @@
-import {
-  sizeStepForKey,
-  stepSize,
-  type SizeController,
-  type SizeKeyPlatform,
-  type SizeTier,
-} from '@omne-harness/ui-kit'
+import type { SizeController, SizeKeyPlatform, SizeTier } from '@omne-harness/ui-kit'
+import { bindActionKeys } from './dispatch.ts'
+import { sizeActions } from './layout-actions.ts'
 import type { PreferenceStore } from './theme.ts'
 
 export const SIZE_KEY = 'omne.size'
@@ -39,12 +35,5 @@ export function bindSizeKeys(
   size: SizeController,
   platform: SizeKeyPlatform,
 ): () => void {
-  const onKey = (event: KeyboardEvent): void => {
-    const step = sizeStepForKey(event, platform)
-    if (step === undefined) return
-    event.preventDefault()
-    size.set(stepSize(size.current(), step))
-  }
-  target.addEventListener('keydown', onKey)
-  return () => target.removeEventListener('keydown', onKey)
+  return bindActionKeys(target, { actions: () => sizeActions(size), mac: platform === 'mac' })
 }

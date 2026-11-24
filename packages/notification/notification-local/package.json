@@ -39,9 +39,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@omne-harness/time-source": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "@omne-harness/sqlite-provider": "workspace:*"
+    "vitest": "catalog:"
   }
 }

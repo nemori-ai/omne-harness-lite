@@ -35,8 +35,34 @@ const detail = {
   createdAt: '2026-11-17T00:00:00.000Z',
   definition: {},
 }
+const job = {
+  job: 'j-1',
+  state: 'running',
+  outcome: null,
+  stop: 'none',
+  origin: 'due',
+  acceptedAt: '2027-01-01T00:01:00.000Z',
+  startedAt: '2027-01-01T00:01:01.000Z',
+  endedAt: null,
+  schedule: 's-1',
+  slot: '2027-01-01T00:01:00.000Z',
+  local: '2027-01-01T00:01:00',
+  calendar: null,
+  version: null,
+  revision: 1,
+  work: { kind: 'program', programRef: 'probe', input: {} },
+  reason: null,
+  where: null,
+  events: [],
+}
 const answers: Readonly<Record<string, unknown>> = {
   'list-schedules': { items: [card], next: null },
+  'list-jobs': { items: [], next: null },
+  'read-job': job,
+  'cancel-job': { changed: true, job },
+  'query-cancel-job': job,
+  'start-job': job,
+  'query-start-job': job,
   'create-schedule': detail,
   'query-create-schedule': detail,
   'manage-schedule': detail,
@@ -160,5 +186,48 @@ describe('omne schedule', () => {
     const before = service.seen.length
     expect((await cli(['schedule', ...args])).code).toBe(2)
     expect(service.seen.length).toBe(before)
+  })
+
+  it('lists the Jobs of a schedule or of the whole tenant, and shows one Job', async () => {
+    const service = await serve()
+    const listed = await cli(['schedule', 'jobs'])
+    expect(listed.code, listed.stderr).toBe(0)
+    expect(body(service, 'list-jobs')).toEqual({
+      tenant: tenantText,
+      schedule: null,
+      cursor: null,
+      limit: 100,
+    })
+    await cli(['schedule', 'jobs', '--schedule', 's-1'])
+    expect(body(service, 'list-jobs')).toMatchObject({ schedule: 's-1' })
+    const shown = await cli(['schedule', 'job', '--job', 'j-1'])
+    expect(shown.code).toBe(0)
+    expect(body(service, 'read-job')).toEqual({ tenant: tenantText, job: 'j-1' })
+  })
+
+  it('cancels a Job with a fresh client id; recalls it only by the id it was sent with', async () => {
+    const service = await serve()
+    expect((await cli(['schedule', 'cancel-job', '--job', 'j-1'])).code).toBe(0)
+    expect(body(service, 'cancel-job')).toMatchObject({ job: 'j-1', actionId: expect.any(String) })
+    expect((await cli(['schedule', 'cancel-job', '--job', 'j-1', '--query'])).code).toBe(2)
+    await cli(['schedule', 'cancel-job', '--job', 'j-1', '--action-id', 'a-9', '--query'])
+    expect(body(service, 'query-cancel-job')).toMatchObject({ job: 'j-1', actionId: 'a-9' })
+  })
+
+  it('starts a Job directly from a work file; recalls it by the start id', async () => {
+    const service = await serve()
+    const path = join(root, 'work.json')
+    writeFileSync(path, '{"kind":"program","programRef":"probe","input":{}}')
+    expect((await cli(['schedule', 'start-job', '--work-file', path])).code).toBe(0)
+    expect(body(service, 'start-job')).toMatchObject({
+      work: { kind: 'program', programRef: 'probe', input: {} },
+      startId: expect.any(String),
+    })
+    expect((await cli(['schedule', 'start-job', '--work-file', path, '--query'])).code).toBe(2)
+    await cli(['schedule', 'start-job', '--work-file', path, '--start-id', 's-9', '--query'])
+    expect(body(service, 'query-start-job')).toMatchObject({ startId: 's-9' })
+    expect(body(service, 'start-job')).toMatchObject({
+      startId: expect.not.stringMatching(/^s-9$/),
+    })
   })
 })

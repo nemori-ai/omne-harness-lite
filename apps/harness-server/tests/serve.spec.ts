@@ -161,9 +161,12 @@ describe('serve: the release tree of doubles', () => {
         'tool-records:real',
         'tool-body-sweep:real',
         'tool-entry-sources:real',
+        'slash-command:real',
         'mcp:real',
         'tool-bindings:real',
         'skills:real',
+        'skill-command-source:real',
+        'prompt-command-source:real',
         'tool-runtime:real',
         'tool-executor:real',
         'tool-host:real',
@@ -193,6 +196,7 @@ describe('serve: the release tree of doubles', () => {
         'assets-access:real',
         'human-intervention-access:real',
         'session-diagnostics-access:real',
+        'slash-command-access:real',
         'mcp-access:real',
         'calendar-access:real',
         'schedule-access:real',
@@ -213,9 +217,9 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 110,
+        enabledRows: 114,
         barrierCalls: 1,
-        implementations: { real: 108, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 112, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])

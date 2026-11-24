@@ -34,7 +34,7 @@ import { bindReleaseTodoItems } from './todo-items.ts'
 import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 import { bindReleaseCalendar } from './calendar.ts'
-import { attachReleaseScheduleReads, bindReleaseSchedules } from './schedules.ts'
+import { attachReleaseScheduleReads, bindReleaseJobs, bindReleaseSchedules } from './schedules.ts'
 import { bindReleaseNotifications } from './notifications.ts'
 import { bindReleaseSessions } from './sessions.ts'
 import { bindReleaseAgents } from './agents.ts'
@@ -61,6 +61,7 @@ type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBl
 const DOMAIN_TOOLS = [
   ['Calendar', bindReleaseCalendar],
   ['Schedules', bindReleaseSchedules],
+  ['Jobs', bindReleaseJobs],
   ['Notifications', bindReleaseNotifications],
   ['Sessions', bindReleaseSessions],
   ['Agents', bindReleaseAgents],

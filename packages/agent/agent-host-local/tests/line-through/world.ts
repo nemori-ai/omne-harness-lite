@@ -1073,7 +1073,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       : (options.plugins ?? [])
   for (const [plugin, config] of extra) await mount(plugin, config)
 
-  await mount(options.sessionProvider ?? SessionProvider, { admission: 'none' })
+  await mount(options.sessionProvider ?? SessionProvider, { admission: 'none', resolver: 'none' })
 
   const intake = await (async () => {
     let seen: Context | undefined

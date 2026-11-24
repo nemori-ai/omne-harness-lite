@@ -16,7 +16,9 @@ import {
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
+import { every } from '@omne-harness/time-source'
 import { defineRow } from '../../row.ts'
+import { runTimeOf } from '../../entry/time.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { publishActing } from './acting.ts'
@@ -40,19 +42,21 @@ export const tenantAssetsRowConfig = z.strictObject({
 
 /** Sweeps idle uploads of every open tenant on a timer bound to the row's scope. */
 function sweepUploads(ctx: Context, host: TenantAssetsHost, idleMs: number): void {
-  ctx.effect(() => {
-    const timer = setInterval(
-      () => {
-        void host
-          .opened()
-          .then(all => Promise.all(all.map(assets => assets.uploads.sweep())))
-          .catch(() => undefined)
-      },
-      Math.max(1000, Math.floor(idleMs / 2)),
-    )
-    timer.unref()
-    return () => clearInterval(timer)
-  }, 'tenant-assets.sweep-uploads')
+  ctx.effect(
+    () =>
+      every(
+        runTimeOf(ctx),
+        Math.max(1000, Math.floor(idleMs / 2)),
+        () => {
+          void host
+            .opened()
+            .then(all => Promise.all(all.map(assets => assets.uploads.sweep())))
+            .catch(() => undefined)
+        },
+        { background: true },
+      ),
+    'tenant-assets.sweep-uploads',
+  )
 }
 
 export const tenantAssetsRow = defineRow({

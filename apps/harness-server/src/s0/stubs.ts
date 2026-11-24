@@ -31,7 +31,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   'session-input-sources': { provides: ['sessionInputSources'] },
-  'session-before-intake': { provides: ['sessionBeforeIntake'] },
+  'session-before-intake': { provides: ['sessionBeforeIntake', 'sessionUtteranceResolver'] },
   'session-history-index': { provides: ['sessionHistoryIndex'], phase: 'composition' },
   'session-search': {
     provides: ['sessionSearch'],
@@ -147,8 +147,23 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   schedule: {
-    provides: ['scheduleCommands', 'scheduleQueries'],
-    injects: ['storage', 'tenantDomainLookup', 'calendarQuery', 'tenantIndependentSettings'],
+    provides: [
+      'scheduleCommands',
+      'scheduleQueries',
+      'scheduleJobs',
+      'schedulePrograms',
+      'scheduleExecutors',
+      'scheduleCarriers',
+    ],
+    injects: [
+      'storage',
+      'tenantDomainLookup',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+      'tenantStanding',
+      'calendarQuery',
+      'tenantIndependentSettings',
+    ],
     phase: 'composition',
   },
   notification: {
@@ -413,6 +428,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
     group: 'tool-start',
   },
   'tool-entry-sources': { provides: ['toolEntrySources'], injects: ['dynamis'] },
+  'slash-command': {
+    provides: ['commandEntrySources', 'commandCatalog'],
+    injects: ['dynamis', 'sessionUtteranceResolver'],
+  },
   mcp: {
     provides: [
       'mcpActionDiscovery',
@@ -434,6 +453,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantAssets', 'assetCategories'],
     phase: 'composition',
   },
+  'skill-command-source': { provides: [], injects: ['commandEntrySources'] },
+  'prompt-command-source': { provides: [], injects: ['commandEntrySources'] },
   'tool-runtime': {
     provides: ['toolRuntime'],
     injects: ['toolCommands', 'toolReads'],
@@ -520,6 +541,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'slash-command-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'mcp-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'calendar-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'model-access': { injects: ['accessRegistry', 'principalIssuer'] },

@@ -15,6 +15,7 @@ export const LOCAL_HISTORY_KINDS = [
   'message.system_reminder',
   'run.started',
   'run.terminal',
+  'session.command-recorded',
 ] as const
 
 export const LOCAL_HISTORY_SEARCH = {
@@ -127,6 +128,7 @@ export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 
 const STORAGE_LOCK_WAIT_MS = 5000
 export const LOCAL_READ_WAIT_MS = 2 * STORAGE_LOCK_WAIT_MS
+export const LOCAL_MAX_RESPONSE_BYTES = 1_048_576
 
 const TOOL_ORPHAN_GRACE_MS = 60_000
 
@@ -248,7 +250,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
     maxJsonMembers: 65_536,
-    maxResponseBytes: 1_048_576,
+    maxResponseBytes: LOCAL_MAX_RESPONSE_BYTES,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,
@@ -550,6 +552,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
           Calendar: { resultMaxBytes: 65_536 },
           Schedules: { resultMaxBytes: 65_536 },
+          Jobs: { resultMaxBytes: 65_536 },
           Notifications: { resultMaxBytes: 65_536 },
           Sessions: { resultMaxBytes: 131_072 },
           Agents: { resultMaxBytes: 1_048_576 },

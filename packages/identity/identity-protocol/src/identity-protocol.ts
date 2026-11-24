@@ -1,5 +1,15 @@
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
-import { empty, needDecision, noChanges, requests, successes } from './rules.ts'
+import {
+  empty,
+  needDecision,
+  noChanges,
+  preferenceHeld,
+  preferenceRead,
+  preferenceRevision,
+  preferenceWrite,
+  requests,
+  successes,
+} from './rules.ts'
 
 const emptyBody = ruleCodec(empty)
 
@@ -239,6 +249,31 @@ export const identityProtocol = defineProtocol({
         'no-change': ruleCodec(noChanges['switch-current-tenant']),
         'stage-not-provided': true,
       },
+    },
+    'read-account-preference': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(preferenceRead),
+      outcomes: {
+        succeeded: ruleCodec(preferenceHeld),
+        'not-visible': emptyBody,
+        'stage-not-provided': true,
+      },
+      since: 2,
+    },
+    'write-account-preference': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(preferenceWrite),
+      outcomes: {
+        succeeded: ruleCodec(preferenceRevision),
+        conflict: ruleCodec(preferenceRevision),
+        'not-visible': emptyBody,
+        'stage-not-provided': true,
+      },
+      since: 2,
     },
     'query-organization': {
       identity: 'acting-tenant',

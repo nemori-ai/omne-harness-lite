@@ -28,6 +28,7 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Skills: { resultMaxBytes: 4096 },
   Calendar: { resultMaxBytes: 16 },
   Schedules: { resultMaxBytes: 64 },
+  Jobs: { resultMaxBytes: 64 },
   Notifications: { resultMaxBytes: 64 },
   Sessions: { resultMaxBytes: 4096 },
   Agents: { resultMaxBytes: 4096 },

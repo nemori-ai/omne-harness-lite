@@ -4,25 +4,10 @@ import type { Adoption } from '@omne-harness/exchange-refs'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ClockSample, SessionClock } from '@omne-harness/session-contract'
 import { SessionClockService, sessionClockKey } from '@omne-harness/session-cordis-contract/cordis'
-import { systemTime, waitUntil as waitUntilEpoch, type TimeSource } from '@omne-harness/time-source'
-import { parseInstant, type InstantFailure } from '@omne-harness/utc-instant'
+import { waitUntil as waitUntilEpoch } from '@omne-harness/time-source'
+import { parseInstant } from '@omne-harness/utc-instant'
 import type { EntryObjectModule, EntryTime } from '../types.ts'
-import { timeOf } from './time.ts'
-
-export type SystemInstant =
-  | Readonly<{ ok: true; text: string }>
-  | Readonly<{ ok: false; failure: InstantFailure }>
-
-export function readInstant(time: TimeSource): SystemInstant {
-  const text = new Date(time.now()).toISOString()
-  const parsed = parseInstant(text)
-  return parsed.ok ? { ok: true, text } : { ok: false, failure: parsed.failure }
-}
-
-const rowTime = systemTime()
-
-/** For the rows that still read the clock on their own; an entry object reads the time the assembly gave. */
-export const readSystemInstant = (): SystemInstant => readInstant(rowTime)
+import { readInstant, timeOf } from './time.ts'
 
 export function epochMillisOf(instantText: string): number {
   const direct = Date.parse(instantText)

@@ -495,7 +495,7 @@
 > but it does not become an input.
 
 - **形态**：属性
-- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 12）
+- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 13）
 - **别混**：**它不是工具结果的交付。**交付是 Tool 把结果推给受理时冻结的消费位置，有没有这项资格都照推；
   这项资格只管结局能不能再进会话，成为一条输入
 - **注意 ①**：裸写「投递资格」只在讲后台结局的一段里作数；跨 topic 引用写正式名
@@ -514,7 +514,7 @@
 > of a call that was stopped by itself.
 
 - **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
-- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 12）
+- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 13）
 - **别混**：**它不是被留存的结局。**被留存的结局不成为输入，模型读不到；不叫醒的输入是输入，模型在下一次承接时读到
 - **注意**：一条输入叫不叫醒由它的[输入来源](#ul-input-source--输入来源--input-source)决定，在受理时定下，之后不改
 
@@ -536,7 +536,7 @@
 > permission; whether a submission to one session is allowed is checked at every intake.
 
 - **形态**：对象
-- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 12）
+- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 13）
 - **别混 ①**：不是[来源标记](record-and-context.md#ul-source-tag--来源标记--source-tag)。来源标记是一条输入身上记着的那个值；输入来源是登记的那份声明，标记的值取自它的名字
 - **别混 ②**：不是[通知来源](#ul-notification-source--通知来源--notification-source)。通知来源向通知登记，说的是谁在发事件；输入来源向会话登记，说的是谁在送输入
 - **注意**：身份是它的名字，`<领域>.<名字>`。同名的第二份登记失败，不覆盖
@@ -553,7 +553,7 @@
 > session is not it.
 
 - **形态**：视图
-- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 12）
+- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 13）
 - **别混**：不是提交的结局。结局答「这一次送，会话接下了没有」；去向答「接下之后它怎样了」
 
 
@@ -569,7 +569,7 @@
 > search was complete: when it could not finish, the answer says so and does not say there is none.
 
 - **形态**：过程
-- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 12）
+- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 13）
 - **别混**：不是搜会话。搜会话按标题找会话；搜历史按消息里的字找到具体的那句话
 
 
@@ -583,7 +583,7 @@
 > message is a hit is decided by the original text in the session log.
 
 - **形态**：视图
-- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 12）
+- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 13）
 - **别混**：不是会话日志。它不保存任何别处没有的事实
 
 
@@ -1442,6 +1442,58 @@
 - **形态**：属性
 - **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 7）
 - **别混**：节拍只提醒已有的通知，不带任何工作。定期要 agent 做一件事归日程。
+
+### UL-command-name · 全名与短名 · Command Name
+
+> **中**：[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)的名字有两种写法。全名是「空间:名字」，空间由交出它的[入口来源](reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source)声明，全名永不相撞；`omne-official` 是保留空间。短名是不带空间的那一段，按它写在哪里解析：在开头，系统命令先于提示词命令先于 Skill；在句中，只认 Skill。
+>
+> **EN**: The two spellings of a command entry's name. The full name is "namespace:name"; the namespace is declared by the command entry source that hands the entry over, and full names never collide; `omne-official` is reserved. The short name is the part without the namespace and is resolved by where it is written: at the start, a system command wins over a prompt command, which wins over a skill; inside a sentence, only skills count.
+
+- **形态**：属性
+- **出处**：[Slash Command 名字](../../product/slash-commands/design.md#名字)（rev 4）
+- **别混**：不是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)：同一份 Skill 的能力标识是「类别加名字」，它的全名是「空间:名字」，空间不是类别
+- **注意**：拿掉一项可能让一个短名改绑到另一项，所以「少一项不会多出引用」不成立；看得见的标记与[发送方所见](#ul-sender-view--发送方所见--sender-view)守住这一点
+
+### UL-slash-reference · 斜杠引用 · Slash Reference
+
+> **中**：一句话里认出来的、绑到一份引用型[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)的一处 `/名字`。它不改写人的话：受理时人的话原样一块，被引用的那份 Skill 的正文另成一块，块上带[来路标记](record-and-context.md#ul-origin-tag--来路标记--origin-tag)。同一份被引用几次只带一次。
+>
+> **EN**: A `/name` recognized in a sentence and bound to a reference-kind command entry. It does not rewrite what the person wrote: at intake the person's words stay one block as written, and the referenced skill's body becomes a separate block carrying an origin tag. A skill referenced several times is carried once.
+
+- **形态**：属性
+- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 4）
+- **别混**：不是 agent 调读取工具读一份 Skill，那是一次工具调用；引用走受理，不运行脚本，不放宽读取权。也不是「按引用找它」里那个泛称的引用，跨 topic 写全称
+
+### UL-sender-view · 发送方所见 · Sender View
+
+> **中**：一次提交里交付面随输入带上的识别结果：开头是哪条命令或没有，引用了哪几份入口项（全名，去重，按第一次出现的次序）。受理侧按当下的清单再认一遍，结果不等于它就整条不受理，写明哪一项变了。
+>
+> **EN**: The recognition result a delivery surface sends along with an input: which command is at the start, if any, and which entries are referenced (full names, without duplicates, in order of first appearance). Intake recognizes the input again against the list as it is now; if the result differs, the whole input is not accepted and the reply says which item changed.
+
+- **形态**：属性
+- **出处**：[Slash Command 看到的就是受理的](../../product/slash-commands/design.md#看到的就是受理的)（rev 4）
+- **注意**：只比绑到了哪些名字，不比版本；没带所见的提交照受理侧认出的受理，回执写明绑定了什么
+
+### UL-shell-action · 外壳动作 · Shell Action
+
+> **中**：客户端外壳的动作表里按名字登记的一件事：名字、标题、此刻能不能用及原因、怎样执行。按键、命令面板、按钮、系统菜单都只引用它的名字，可用性只在它这里算一处。它由某个界面模块登记，随那个模块的作用域挂上与撤下。对在跑的一轮的控制与界面自己的动作都是外壳动作；控制执行时点名界面此刻看到的那一轮或那一次调用。
+>
+> **EN**: One thing registered by name in the client shell's action table: a name, a title, whether it can be done now and why not, and how to do it. Keys, the command palette, buttons and the system menu refer to it only by name, and its availability is computed in this one place. A UI module registers it, and it is added and removed with that module's scope. Controls over a running run and the interface's own actions are both shell actions; a control names the run or call the interface sees at that moment.
+
+- **形态**：对象
+- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 4）
+- **别混**：不是 agent 的[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里的动作，那是模型能发起的；外壳动作只由人触发，模型看不到。裸写「动作」不作术语
+- **注意**：外壳不认识任何一个动作的含义，含义归登记它的界面模块。它是一种[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)：身份是动作表里的名字，随登记它的模块挂上与撤下
+
+### UL-key-binding · 键位绑定 · Key Binding
+
+> **中**：「在哪一层按哪个键，执行哪个[外壳动作](#ul-shell-action--外壳动作--shell-action)」的一条对应。层从里到外是浮层、输入框或当前页、全局，按键时先查最里面的一层。缺省的一套随应用发；人改过的跟着账号存，换一个客户端登录读到同一份。只能绑到控制与界面动作上。
+>
+> **EN**: One mapping of "in this layer, this key performs this shell action". Layers run from the innermost outwards: overlay, composer or current page, global; a key press looks in the innermost layer first. A default set ships with the application; the person's changes are kept with the account, so another client signed in to the same account reads the same set. Keys bind only to controls and interface actions.
+
+- **形态**：属性
+- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 4）
+- **注意**：不是某个租户的设置；它是账号的偏好，切换租户不变
 
 ---
 

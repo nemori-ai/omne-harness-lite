@@ -50,6 +50,7 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         'Calendar',
         'Code',
         'Files',
+        'Jobs',
         'Notifications',
         'OmneExtensionPoints',
         'OmneExtensions',
@@ -107,9 +108,9 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         return { failure: { kind: 'unavailable', diagnostic: 'test' } }
       },
     })
-    expect(seen).toHaveLength(18)
+    expect(seen).toHaveLength(19)
     for (const access of seen) expect(access).toBe(registrant)
-    expect(results.map(result => result.outcome)).toEqual(Array(18).fill('unavailable'))
+    expect(results.map(result => result.outcome)).toEqual(Array(19).fill('unavailable'))
   })
 
   it('a throw while reading the release is kept in the start load: a warning, no rejection', async () => {

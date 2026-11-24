@@ -8,7 +8,7 @@ import {
   type SettingsSecretItems,
 } from '@omne-harness/settings'
 import { parseInstant } from '@omne-harness/utc-instant'
-import type { SystemInstant } from '../../entry/session-clock.ts'
+import type { SystemInstant } from '../../entry/time.ts'
 import type { SettingsAction, SettingsVerdict } from '../authorization/settings-access.ts'
 import type {
   SecretClearOutcome,
