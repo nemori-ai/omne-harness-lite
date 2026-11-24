@@ -27,8 +27,12 @@ const KEY_DIRECTIONS: Readonly<Record<string, readonly [number, number]>> = {
   ArrowDown: [0, 1],
 }
 
-export const KEY_SHORTCUTS =
-  'ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight'
+export const KEY_SHORTCUTS = [
+  'ArrowUp ArrowDown ArrowLeft ArrowRight',
+  'Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight',
+  'Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight',
+  'Alt+Shift+ArrowUp Alt+Shift+ArrowDown Alt+Shift+ArrowLeft Alt+Shift+ArrowRight',
+].join(' ')
 
 function landing(frame: PaperFrame, from: PaperBox, grip: Grip, by: PaperPoint): PaperBox {
   return grip.gesture === 'move'
@@ -118,8 +122,8 @@ export function useCarry({
   })
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLElement>): void => {
-    if (event.altKey || event.metaKey || event.ctrlKey) return
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.metaKey || event.ctrlKey) return
+    if (!event.altKey && (event.key === 'Enter' || event.key === ' ')) {
       event.preventDefault()
       onPress?.()
       return
@@ -129,7 +133,7 @@ export function useCarry({
     event.preventDefault()
     if (event.shiftKey && !resizable) return
     const which: Grip = event.shiftKey ? { gesture: 'resize', corner: 'se' } : { gesture: 'move' }
-    const step = frame.sheet.step
+    const step = event.altKey ? 1 : frame.sheet.step
     const next = landing(frame, box, which, { x: direction[0] * step, y: direction[1] * step })
     if (!same(next, box)) onPlace(next, which.gesture)
   }

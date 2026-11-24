@@ -225,6 +225,35 @@ describe('a page', () => {
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 
+  it('moves and resizes by one unit with Alt, off the grid only while the magnet is off', () => {
+    const loose = vi.fn<PlaceBox>()
+    const { unmount } = render(
+      <Board>
+        <PaperPage box={BOX} name="报告" onPlace={loose} />
+      </Board>,
+    )
+    const handle = screen.getByRole('button', { name: '挪动报告' })
+    fireEvent.keyDown(handle, { key: 'ArrowRight', altKey: true })
+    fireEvent.keyDown(handle, { key: 'ArrowDown', altKey: true, shiftKey: true })
+    expect(loose.mock.calls).toEqual([
+      [{ ...BOX, x: 97 }, 'move'],
+      [{ ...BOX, height: 241 }, 'resize'],
+    ])
+    expect(handle.getAttribute('aria-keyshortcuts')).toContain('Alt+ArrowRight')
+    unmount()
+    const snapped = vi.fn<PlaceBox>()
+    render(
+      <Board magnet>
+        <PaperPage box={BOX} name="报告" onPlace={snapped} />
+      </Board>,
+    )
+    fireEvent.keyDown(screen.getByRole('button', { name: '挪动报告' }), {
+      key: 'ArrowRight',
+      altKey: true,
+    })
+    expect(snapped).not.toHaveBeenCalled()
+  })
+
   it('hands nothing over from the keyboard at the edge of the paper', () => {
     const onPlace = vi.fn<PlaceBox>()
     render(
@@ -591,6 +620,17 @@ describe('a point of the screen on the paper', () => {
     expect(fireEvent(surface, dropped('drop'))).toBe(false)
     expect(onDropAt).toHaveBeenCalledTimes(1)
     expect(onDropAt.mock.calls[0]?.[1]).toEqual({ x: 1000, y: 800 })
+  })
+
+  it('lands a drop on the grid while the magnet is on', () => {
+    seen(100, 50, 800, 600)
+    const onDropAt = vi.fn<(event: React.DragEvent<HTMLDivElement>, at: PaperPoint) => void>()
+    render(<Board magnet onDropAt={onDropAt} />)
+    const surface = screen.getByRole('region', { name: '画布' })
+    const event = createEvent.drop(surface)
+    Object.defineProperties(event, { clientX: { value: 110.4 }, clientY: { value: 60.6 } })
+    fireEvent(surface, event)
+    expect(onDropAt.mock.calls[0]?.[1]).toEqual({ x: 608, y: 512 })
   })
 
   it('leaves a drop alone when the caller takes none', () => {

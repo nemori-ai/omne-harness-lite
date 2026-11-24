@@ -1,5 +1,7 @@
 export type PaperPoint = Readonly<{ x: number; y: number }>
 
+export const PAPER_NAME_LINE = 22
+
 export type PaperBox = Readonly<{ x: number; y: number; width: number; height: number }>
 
 export type PaperSheet = Readonly<{ width: number; height: number; step: number }>
@@ -57,6 +59,14 @@ export function clampMove(box: PaperBox, sheet: PaperSheet, magnet: Magnet): Pap
     ...box,
     x: within(settle(box.x, magnet), 0, sheet.width - box.width, unit),
     y: within(settle(box.y, magnet), 0, sheet.height - box.height, unit),
+  }
+}
+
+export function landPoint(point: PaperPoint, sheet: PaperSheet, magnet: Magnet): PaperPoint {
+  const unit = unitOf(magnet)
+  return {
+    x: within(settle(point.x, magnet), 0, sheet.width, unit),
+    y: within(settle(point.y, magnet), 0, sheet.height, unit),
   }
 }
 

@@ -201,6 +201,7 @@ export { FIGURE_SIZE } from './ink/store.ts'
 export { ToldNote, type Told } from './ink/told-note.tsx'
 export { type Box } from './ink/travel.ts'
 export {
+  PAPER_NAME_LINE,
   type PaperBox,
   type PaperPoint,
   type PaperSheet,

@@ -4,6 +4,7 @@ import { cn } from '../lib/utils.ts'
 import { useSizeFactor } from '../size/use-size-factor.ts'
 import {
   clampView,
+  landPoint,
   type Lens,
   type Magnet,
   panBy,
@@ -281,7 +282,8 @@ export function PaperSurface({
             onDragOver: (event: React.DragEvent<HTMLDivElement>) => event.preventDefault(),
             onDrop: (event: React.DragEvent<HTMLDivElement>) => {
               event.preventDefault()
-              onDropAt(event, at({ x: event.clientX, y: event.clientY }))
+              const point = at({ x: event.clientX, y: event.clientY })
+              onDropAt(event, landPoint(point, sheet, { on: magnet, step: sheet.step }))
             },
           })}
       {...pan.handlers}
