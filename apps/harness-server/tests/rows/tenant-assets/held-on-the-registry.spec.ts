@@ -113,7 +113,7 @@ describe('what the release brings is on the points of the categories', () => {
         )
         expect(official('skill')).toEqual([])
         const tools = official('tool')
-        expect(tools).toHaveLength(17)
+        expect(tools).toHaveLength(18)
         expect(tools.map(([name]) => name)).toContain('Skills')
         for (const [name, scope, asset] of tools)
           expect([scope, asset]).toEqual([[], `official/tool/${String(name)}`])
