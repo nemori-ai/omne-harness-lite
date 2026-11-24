@@ -26,9 +26,9 @@ import { codeCommands } from './commands.ts'
 import type { CodeAuthorEnvironment } from './environment.ts'
 import { limitField } from './pictures.ts'
 import { parseConstruction, type Arguments } from './protocol.ts'
-import { confirmation } from './text.ts'
+import { confirmation, utf8Length } from './text.ts'
 
-type Limits = ProgramLimits & Readonly<{ inFlight: number }>
+type Limits = ProgramLimits & Readonly<{ inFlight: number; sourceBytes: number }>
 
 const CODE_GATES: CommandGates = {
   gates: [{ id: 'run', title: '运行程序', default: 'auto' }],
@@ -59,7 +59,7 @@ ${RULES}
 help gives the limits here and the functions a program can call now, with their parameter and return types.`
 
 const limitsLine = (limits: Limits) =>
-  `Limits: ${limits.computeMs / 1000} s of computing (waiting for a call does not count), ${Math.floor(limits.memoryBytes / 1048576)} MiB of memory, ${limits.calls} tool calls with at most ${limits.inFlight} at once, ${limits.outputBytes} bytes of result.`
+  `Limits: ${limits.computeMs / 1000} s of computing (waiting for a call does not count), ${Math.floor(limits.memoryBytes / 1048576)} MiB of memory, ${limits.calls} tool calls with at most ${limits.inFlight} at once, ${limits.outputBytes} bytes of result, ${limits.sourceBytes} bytes of program.`
 
 function byTool(functions: readonly ProgramFunction[]) {
   const tools = new Map<string, ProgramFunction[]>()
@@ -191,15 +191,20 @@ async function execute(
   args: Arguments,
   environment: CodeAuthorEnvironment,
   execution: ToolExecutionContext,
-  { inFlight, ...limits }: Limits,
+  { inFlight, sourceBytes, ...limits }: Limits,
 ): Promise<string> {
+  const source = args.text('code')
+  if (utf8Length(source) > sourceBytes)
+    throw new Error(
+      `Code execute failed kind=too-large\nThe program is ${utf8Length(source)} bytes; the limit is ${sourceBytes}.\nNothing ran.`,
+    )
   const known = await callable(execution, 'execute')
   if (typeof known === 'string') return known
   const { tools } = known
   const functions: Functions = new Map(known.functions.map(one => [one.entry, one]))
   const handle = Promise.withResolvers<ProgramRun>()
   const started = await environment.program.run({
-    source: args.text('code'),
+    source,
     input: args.fields.get('input') ?? { kind: 'null' },
     entries: [...functions.keys()],
     failures: [PROGRAM_FAILURE],
@@ -210,8 +215,7 @@ async function execute(
   if (started.kind !== 'done') return `Code execute: ${confirmation(started, () => '')}`
   handle.resolve(started.value)
   const outcome = await outcomeOf(started.value, execution.signal)
-  if (outcome.kind !== 'returned')
-    throw new Error(failed(outcome, args.text('code')) ?? 'Code execute failed')
+  if (outcome.kind !== 'returned') throw new Error(failed(outcome, source) ?? 'Code execute failed')
   const table = await tools.settle()
   if ('failure' in table)
     throw new Error(
@@ -244,6 +248,7 @@ export function createCodeAuthor(
       'callsInFlight',
       'Required positive safe integer: the tool calls of one program at once.',
     ),
+    limitField('sourceBytes', 'Required positive safe integer: the text of one program.'),
   ])
   if ('failure' in parsed) return fail({ field: 'construction', reason: parsed.failure.reason })
   const number = (name: string) => parsed.ok.number(name, 1)
@@ -253,6 +258,7 @@ export function createCodeAuthor(
     outputBytes: number('outputBytes'),
     calls: number('calls'),
     inFlight: number('callsInFlight'),
+    sourceBytes: number('sourceBytes'),
   }
   return succeed(
     createAuthor<CodeAuthorEnvironment>(
@@ -266,6 +272,7 @@ export function createCodeAuthor(
       {
         encoding: 'flat',
         isolation: ['restricted-js'],
+        layers: ['stateless_sandbox'],
         gates: CODE_GATES,
         help: (args, _environment, execution) =>
           helpText(execution, limits, args.optionalText('name')),

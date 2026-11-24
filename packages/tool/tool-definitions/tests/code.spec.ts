@@ -194,6 +194,7 @@ const LIMITS = {
   outputBytes: 65_536,
   calls: 50,
   callsInFlight: 8,
+  sourceBytes: 4096,
 }
 function authorOf(overrides: Partial<typeof LIMITS> = {}) {
   return value(createCodeAuthor(tree({ ...LIMITS, ...overrides })))
@@ -343,6 +344,19 @@ return seen`,
     expect(answer).toContain(JSON.stringify([kind, kind === 'failed' ? 'unknown' : 'none']))
   })
 
+  it('refuses a program longer than its limit before anything runs', async () => {
+    const world = scripted(files())
+    await expect(
+      execute(`return ${'1 + '.repeat(40)}1`, world.tools, { limits: { sourceBytes: 100 } }),
+    ).rejects.toThrow(
+      /^Error: Code execute failed kind=too-large\nThe program is 168 bytes; the limit is 100\.\nNothing ran\.$/u,
+    )
+    expect(
+      await execute('return "é".length', world.tools, { limits: { sourceBytes: 19 } }),
+    ).toContain('result:\n1')
+    expect(world.settled()).toBe(1)
+  })
+
   it('takes its limits from the operator only: a call cannot bring its own', async () => {
     const registration = readToolRegistration(authorOf())
     if (registration?.kind !== 'commands') throw new Error('commands')
@@ -463,7 +477,7 @@ describe('Code help', () => {
     const text = await run('help', {}, scripted({}).tools)
     expect(text).toMatch(/^done Code help\nProgram\n/u)
     expect(text).toContain(
-      'Limits: 2 s of computing (waiting for a call does not count), 64 MiB of memory, 50 tool calls with at most 8 at once, 65536 bytes of result.',
+      'Limits: 2 s of computing (waiting for a call does not count), 64 MiB of memory, 50 tool calls with at most 8 at once, 65536 bytes of result, 4096 bytes of program.',
     )
     expect(text).toContain(
       'declare const Files: {\n  /** list of the fixture */\n  list(params: { path?: string }): Promise<{ entries?: unknown[] }>',
@@ -509,9 +523,10 @@ describe('the definition of Code', () => {
     ])
     expect(definition.gates).toEqual([{ id: 'run', title: '运行程序', default: 'auto' }])
     const need = definition.declarations.environment?.value
-    expect(need === undefined ? null : plain(need)).toMatchObject({
+    expect(need === undefined ? null : plain(need)).toEqual({
       facilities: ['program'],
       isolation: ['restricted-js'],
+      layers: ['stateless_sandbox'],
     })
   })
 

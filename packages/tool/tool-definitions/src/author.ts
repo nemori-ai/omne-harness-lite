@@ -4,6 +4,7 @@ import { createToolMessageResultCodec } from '@omne-harness/tool'
 import {
   bindingKinds,
   environmentNeedAdoption,
+  type BindingKind,
   type FacilityKey,
 } from '@omne-harness/execution-environment-contract'
 import {
@@ -60,8 +61,9 @@ export type StructuredCommand<E> = Readonly<{
 export type AuthorOptions<E> = Readonly<{
   settings?: ToolSettingsDeclaration | null
   encoding?: CommandCallEncoding
-  /** The isolation the place of a call must assert, by name. */
+  /** The isolation the place of a call must assert, by name, and the layers it may be on. */
   isolation?: readonly string[]
+  layers?: readonly BindingKind[]
   /** What `help` answers instead of the usage of the commands. */
   help?: (args: Arguments, environment: E, execution: ToolExecutionContext) => Promise<string>
   gates?: CommandGates
@@ -154,6 +156,7 @@ export function createAuthor<E>(
   options: AuthorOptions<E> = {},
 ): ToolImplementation<E, ToolMessageContentBlock> {
   const { settings = null, gates, structured = {}, encoding = ENCODING, isolation = [] } = options
+  const layers = options.layers ?? bindingKinds
   const codec = createToolMessageResultCodec(maximum)
   const menu: CommandTable = {
     name,
@@ -201,7 +204,7 @@ export function createAuthor<E>(
         adoption,
         environment: {
           adoption: environmentNeedAdoption,
-          value: tree({ facilities, isolation, layers: bindingKinds }),
+          value: tree({ facilities, isolation, layers }),
         },
         attachments: [],
         inputModalities: ['text'],
