@@ -59,8 +59,11 @@ function library(overrides: Partial<AssetsLocal> = {}) {
     },
     async publish(input: {
       operationId: string
+      expectedRevision: number
       pinned: { version: string; body: unknown; source: string }
     }) {
+      if (input.expectedRevision !== assetRevision)
+        return { kind: 'rejected', reason: 'revision_conflict' }
       writes.push('publish')
       operations.push(input.operationId)
       versions.set(input.pinned.version, {
