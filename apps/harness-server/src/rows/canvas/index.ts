@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { canvasAppKind, tenantIdSchema, type TenantId } from '@omne-harness/canvas-contract'
-import { canvasKey, putKind } from '@omne-harness/canvas-cordis-contract/cordis'
+import { canvasChangesKey, canvasKey, putKind } from '@omne-harness/canvas-cordis-contract/cordis'
 import { canvasPersistenceParticipant, canvasPolicySchema } from '@omne-harness/canvas-local'
 import { createCanvasLocalPlugin } from '@omne-harness/canvas-local/cordis'
 import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
@@ -38,7 +38,7 @@ export const canvasRow = defineRow({
   row: 'canvas',
   implementation: 'real',
   manifest: {
-    provides: [canvasKey],
+    provides: [canvasKey, canvasChangesKey],
     injects: [storageKey, dynamisKey, tenantDomainLookupKey],
     sameProviderGroup: null,
   },

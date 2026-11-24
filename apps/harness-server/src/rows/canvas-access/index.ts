@@ -3,7 +3,7 @@ import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import type { CanvasPrincipals } from '@omne-harness/canvas-access'
 import { createCanvasAccessPlugin } from '@omne-harness/canvas-access/cordis'
 import { tenantIdSchema } from '@omne-harness/canvas-contract'
-import { canvasKey } from '@omne-harness/canvas-cordis-contract/cordis'
+import { canvasChangesKey, canvasKey } from '@omne-harness/canvas-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { defineRow } from '../../row.ts'
 import { memberActingOfCall } from '../server-entry/identity.ts'
@@ -26,6 +26,7 @@ function principalsOf(ctx: Context): CanvasPrincipals {
 const plugin = createCanvasAccessPlugin({
   principals: principalsOf,
   face: ctx => ctx.get(canvasKey),
+  changes: ctx => ctx.get(canvasChangesKey),
 })
 
 export const canvasAccessRow = defineRow({
