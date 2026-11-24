@@ -1,5 +1,10 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
-import type { Admission, KindDeclaration, KindName } from '@omne-harness/canvas-contract'
+import type {
+  Admission,
+  CanvasKinds,
+  KindDeclaration,
+  KindName,
+} from '@omne-harness/canvas-contract'
 import {
   CANVAS_KINDS_POINT,
   CanvasService,
@@ -55,6 +60,22 @@ function held(tree: DynamisService, name: string): KindDeclaration | undefined {
 }
 
 const input = { tenant: 't', subject: null, ref: 'r', holder: 'h' } as never
+
+/** What place does with a kind: takes it, asks its owner against a time limit, and leaves it at the outcome. */
+async function asking(kinds: CanvasKinds, timeoutMs: number): Promise<Admission> {
+  const entry = kinds.enter('media.object')
+  if (entry.kind !== 'declared') throw new Error(entry.kind)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const limit = new Promise<Admission>(resolve => {
+    timer = setTimeout(() => resolve({ kind: 'basis-unavailable' }), timeoutMs)
+  })
+  try {
+    return await Promise.race([entry.admit!(input), limit])
+  } finally {
+    clearTimeout(timer)
+    entry.leave()
+  }
+}
 
 describe('the point canvas.kinds', () => {
   it('is declared by the service of the canvas, on the server, one item per key, the keys public', async () => {
@@ -178,7 +199,7 @@ describe('a declaration with admit', () => {
     expect(tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT)).toEqual([])
   })
 
-  it('is taken off only once the admits in flight have their answers, and takes no new one meanwhile', async () => {
+  it('is taken off only once the place asking the owner has its answer, and hands no new admit to the owner meanwhile', async () => {
     const { putting, tree, kinds } = await world()
     let answer: (admission: Admission) => void = () => undefined
     let calls = 0
@@ -190,7 +211,7 @@ describe('a declaration with admit', () => {
       }),
     )
     const admit = held(tree, 'media.object')!.admit!
-    const inFlight = admit(input)
+    const placing = asking(kinds, 60_000)
     const leaving = fiber.dispose()
     await new Promise(resolve => setTimeout(resolve, 5))
     expect(tree.registry().retiring).toEqual([{ fiber: 'media-row', generation: 1 }])
@@ -201,22 +222,21 @@ describe('a declaration with admit', () => {
     expect(await admit(input)).toEqual({ kind: 'basis-unavailable' })
     expect(calls).toBe(1)
     answer({ kind: 'admitted' })
-    expect(await inFlight).toEqual({ kind: 'admitted' })
+    expect(await placing).toEqual({ kind: 'admitted' })
     await leaving
     expect(tree.registry().retiring).toEqual([])
     expect(tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT)).toEqual([])
   })
 
-  it('waits for every admit in flight, not only the first to come back', async () => {
-    const { putting, tree } = await world()
+  it('waits for every place asking the owner, not only the first to come back', async () => {
+    const { putting, tree, kinds } = await world()
     const answers: ((admission: Admission) => void)[] = []
     const fiber = await putting(
       'media-row',
       kind('media.object', 'media', () => new Promise(resolve => void answers.push(resolve))),
     )
-    const admit = held(tree, 'media.object')!.admit!
-    const first = admit(input)
-    const second = admit(input)
+    const first = asking(kinds, 60_000)
+    const second = asking(kinds, 60_000)
     let gone = false
     const leaving = fiber.dispose().then(() => void (gone = true))
     answers[0]!({ kind: 'admitted' })
@@ -230,7 +250,35 @@ describe('a declaration with admit', () => {
     expect(tree.registry().retiring).toEqual([])
   })
 
-  it('counts an admit that throws as ended', async () => {
+  it('is taken off once the place has passed its time limit, though the owner never answers; the late answer changes nothing', async () => {
+    const { putting, tree, kinds } = await world()
+    let answer: (admission: Admission) => void = () => undefined
+    let calls = 0
+    const fiber = await putting(
+      'media-row',
+      kind('media.object', 'media', () => {
+        calls += 1
+        return new Promise(resolve => void (answer = resolve))
+      }),
+    )
+    const admit = held(tree, 'media.object')!.admit!
+    expect(await asking(kinds, 5)).toEqual({ kind: 'basis-unavailable' })
+    const leaving = fiber.dispose()
+    const ended = await Promise.race([
+      Promise.resolve(leaving).then(() => 'drained'),
+      new Promise(resolve => setTimeout(() => resolve('still draining'), 1_000)),
+    ])
+    expect(ended).toBe('drained')
+    expect(tree.registry().retiring).toEqual([])
+    expect(tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT)).toEqual([])
+    answer({ kind: 'admitted' })
+    await new Promise(resolve => setTimeout(resolve, 5))
+    expect(await admit(input)).toEqual({ kind: 'basis-unavailable' })
+    expect(calls).toBe(1)
+    expect(tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT)).toEqual([])
+  })
+
+  it('passes a throw of the owner back and does not hold the batch for it', async () => {
     const { putting, tree } = await world()
     const fiber = await putting(
       'media-row',

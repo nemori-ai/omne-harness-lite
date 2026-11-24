@@ -51,6 +51,8 @@ describe('place asks the owner before it commits', () => {
       },
       { kind: 'basis-unavailable' },
     ],
+    // The fake port holds the batch only for the place, as putKind does; that the kind can still be
+    // withdrawn after the time limit is pinned on the real putKind, canvas-cordis-contract kinds-point.spec.ts.
     [
       'passes the time limit',
       () => new Promise<Admission>(() => undefined),

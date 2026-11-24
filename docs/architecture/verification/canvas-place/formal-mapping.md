@@ -17,7 +17,7 @@
 | `WithinLimit` | 摆着的不超过上限 | 两次摆上交错，越过上限 | CV-11 |
 | `NoAdmitWhenFull` | 读上限时已经摆满的摆上，不去问拥有者 | 摆不上的时候让拥有者白留一份事实 | 规格「答复的次序」第 5、6 步的先后 |
 | `CommitWhileDeclared` | 提交的那一刻种类声明着 | 种类撤下之后还多出这一类的记录 | CV-13 |
-| `NoCallAfterGone` | 取走了的声明不再被调用 | 调一个已经撤下的贡献 | 规格「拓展点」`canvas.kinds` 的撤下 |
+| `NoCallAfterGone` | 取走了的声明不再被调用。已经发出而过了时限的那一次在 `late` 里，不算 | 调一个已经撤下的贡献 | 规格「拓展点」`canvas.kinds` 的撤下 |
 | `PlaceEnds` | 每一次摆上都有结局，拥有者不答也一样 | 一次摆上永远挂着，agent 的调用跟着挂 | 规格里 `admit` 的时限 |
 | `DrainEnds` | 撤下总能完成，拥有者不答也一样 | 一个贡献方卸不掉 | 同上 |
 
@@ -30,11 +30,12 @@
 | `Start` | `place` 进到问拥有者那一步：引用没摆着、种类声明着、没摆满。别的情形答没有变化或现状不允许，不改任何东西，所以不是模型里的一步 | `packages/canvas/canvas/src/canvas.ts` 的 `place`：读 `placing`，摆着就答没有变化；`kinds.enter` 取这一类并持住它的一批；查上限 |
 | `AdmitAccept` | 拥有者答接受，并留下它的事实。对已经留下的再问一次不变 | 同上 `admitted` 答 `admitted`；持有方由 `canvas-contract` 的 `holderOf` 定 |
 | `AdmitRefuse` | 拥有者答拒绝、依据不可用、不知道，或抛出：都没有记录 | 同上 `admitted` 的另几种答复，`place` 不提交 |
-| `Timeout` | 过了画布配置的时限：这一次答依据不可用。拥有者之后可能照样做完，见 `LateHold` | 同上 `admitted` 的计时，时限是策略的 `admitTimeoutMs` |
+| `Timeout` | 过了画布配置的时限：这一次答依据不可用。拥有者之后可能照样做完，见 `LateHold` | 同上 `admitted` 的计时，时限是策略的 `admitTimeoutMs`；时限一到 `place` 就答复并离开这一批（`entry.leave()`） |
+| `LateHold`、`LateDrop` | 过了时限之后，拥有者照样留下它的事实，或不留 | 画布不等也不接：`place` 已经答复，`putKind` 不为拥有者的那次调用持住这一批 |
 | `Commit` | 带条件的提交：引用仍没摆着、仍没到上限、种类仍声明着。不成立时不写 | 种类：提交前同步读 `entry.declared()`，写进命令；一批持到提交答复回来，撤下等它（`canvas-cordis-contract` 的 `putKind`、`kindsOn().enter`）。引用与上限：事务脚本 `placeReference`（`packages/canvas/canvas/src/scripts.ts`）在同一次提交里再核 |
 | `Lose` | 提交失败或结果不知道：没有记录，拥有者留下的事实还在 | `place` 把提交的 `rolled-back` 答成依据不可用，`unknown` 答成不知道 |
 | `Take` | 拿走。拥有者留下的事实不撤 | 事务脚本 `takeItems` |
-| `Withdraw`、`Drained` | 贡献方离开：这一批先不接新的 `admit`，在途的各有结局，然后才取走 | `putKind` 的排空：离开之后 `enter` 与 `admit` 都不接，在途的 `admit` 与持着的 `place` 都结束才报排空完 |
+| `Withdraw`、`Drained` | 贡献方离开：这一批先不接新的 `admit`，在途的各有结局，然后才取走 | `putKind` 的排空：离开之后 `enter` 不接，`admit` 不再交给拥有者；持着这一批的 `place` 都有了结局（含过了时限的）才报排空完。只数 `place`，不数拥有者还没回的调用 |
 | `Declare` | 贡献方回来 | `putKind` 再放一份 |
 
 `held` 为真而 `rows` 为零是规格「不能声称的」里写明的残余：拥有者接受了而提交没有成。模型不把它当错。

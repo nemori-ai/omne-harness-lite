@@ -107,8 +107,8 @@ function entryOf(item: Held, by: Instance): Entry<Held> {
 
 const NOT_TAKEN: Admission = Object.freeze({ kind: 'basis-unavailable' })
 
-/** Puts one declaration as an effect of the caller. Its batch drains: once it leaves no admit and no
- * place is taken, and it goes when the admits and the places in flight are back at zero. */
+/** Puts one declaration as an effect of the caller. Its batch drains: once it leaves no place takes it and no admit
+ * goes to the owner; it goes when the places that took it have their outcome, a time limit passed included. */
 export function putKind(ctx: Context, declaration: KindDeclaration): () => unknown {
   if (!kindNameSchema.safeParse(declaration.name).success)
     throw new TypeError(`${JSON.stringify(declaration.name)} is not the name of a kind`)
@@ -129,21 +129,15 @@ export function putKind(ctx: Context, declaration: KindDeclaration): () => unkno
     },
   }
   const { admit } = declaration
-  const counted = async (input: AdmitInput): Promise<Admission> => {
-    if (!hold.enter()) return NOT_TAKEN
-    try {
-      return await admit!(input)
-    } finally {
-      hold.exit()
-    }
-  }
+  const handed = async (input: AdmitInput): Promise<Admission> =>
+    leaving ? NOT_TAKEN : admit!(input)
   const drain = (): Promise<void> => {
     leaving = true
     return inFlight === 0 ? Promise.resolve() : new Promise(resolve => void (drained = resolve))
   }
   const item: Held = Object.freeze({
     ...declaration,
-    ...(admit === undefined ? {} : { admit: counted }),
+    ...(admit === undefined ? {} : { admit: handed }),
     [HOLD]: hold,
   })
   return tree.put(by => [entryOf(item, by)], { drain })
