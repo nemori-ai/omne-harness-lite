@@ -221,15 +221,29 @@ describe('a mapping that names no resident tool', () => {
   it('references that are not resident name no resident', async () => {
     const config = mappingConfig(withReferences('alpha', [toolRef('Files', false)]))
     const { source, table } = await sourceOn(config, { tools: 'absent' })
-    expect(table.mappings.byName('alpha')?.residentCapabilities).toBeUndefined()
+    expect(table.mappings.byName('alpha')?.residentReferences).toBeUndefined()
     expect(initialOf(await prepare(source, createCommand('alpha')))['newResidents']).toEqual([])
   })
 })
 
 describe('the mapping table', () => {
-  it('copies the resident Tool references of the definition into the entry, in order', async () => {
-    const table = await buildTable(agentAdoptionsConfig.parse(mappingConfig(CODING)))
-    expect(table.mappings.byName('alpha')?.residentCapabilities).toEqual(['Files', 'Shell'])
+  it('copies the resident references of the definition into the entry, in order, with their categories', async () => {
+    const config = mappingConfig(
+      withReferences('alpha', [
+        toolRef('Files'),
+        { capability: { category: 'skill', name: 'tidy-notes' }, resident: true },
+        { capability: { category: 'mcp', name: 'deepwiki' }, resident: true },
+        toolRef('Shell'),
+        { capability: { category: 'skill', name: 'other' }, resident: false },
+      ]),
+    )
+    const table = await buildTable(agentAdoptionsConfig.parse(config))
+    expect(table.mappings.byName('alpha')?.residentReferences).toEqual([
+      { category: 'tool', name: 'Files' },
+      { category: 'skill', name: 'tidy-notes' },
+      { category: 'mcp', name: 'deepwiki' },
+      { category: 'tool', name: 'Shell' },
+    ])
   })
 
   it('takes one spelling of the tool category: the name the category is registered under', async () => {
@@ -239,16 +253,18 @@ describe('the mapping table', () => {
       ]),
     )
     await expect(buildTable(agentAdoptionsConfig.parse(config))).rejects.toThrow(
-      'mappings.0.definition.references.0: a resident reference must name a Tool',
+      'mappings.0.definition.references.0: a resident reference names a tool, a skill or an mcp endpoint',
     )
   })
 
-  it('refuses a resident reference that is not a tool', async () => {
+  it('refuses a resident reference of a category that cannot be resident', async () => {
     const config = mappingConfig(
-      withReferences('alpha', [{ capability: { category: 'Skill', name: 'x' }, resident: true }]),
+      withReferences('alpha', [
+        { capability: { category: 'AgentDefinition', name: 'x' }, resident: true },
+      ]),
     )
     await expect(buildTable(agentAdoptionsConfig.parse(config))).rejects.toThrow(
-      'mappings.0.definition.references.0: a resident reference must name a Tool',
+      'mappings.0.definition.references.0: a resident reference names a tool, a skill or an mcp endpoint',
     )
   })
 })

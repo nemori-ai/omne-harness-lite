@@ -16,7 +16,7 @@ import {
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { admitMaintainer } from '../../entry/execution-authorities.ts'
-import { sourcedEntriesOf, sourcedEntryFor } from '../../entry/tool-entry-sources.ts'
+import { sourcedEntriesOf, sourceListsName } from '../../entry/tool-entry-sources.ts'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import { releaseCurrentDefinitions, releaseOf } from '../../entry/tool-release.ts'
 import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
@@ -62,7 +62,7 @@ function releasePermitRequirements(
           layer: availability.layer,
           asset: { name, adoption: availability.definition.adoption },
         })
-      const listed = sourcedEntryFor(sourcedEntriesOf(root), input, availability) !== undefined
+      const listed = sourceListsName(sourcedEntriesOf(root), input, availability)
       if (!inRelease && !heldNow && !listed)
         return {
           kind: 'unavailable',

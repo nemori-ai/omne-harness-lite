@@ -91,7 +91,14 @@ async function judgedOf(
   })
   if ('failure' in resolved) return unavailable('the action could not be resolved now')
   const action = resolved.ok
-  if (action.kind === 'own') return [{ ...own, gate: action.gate }]
+  if (action.kind === 'own')
+    return [
+      {
+        ...own,
+        ...(action.capability === undefined ? {} : { capability: action.capability }),
+        gate: action.gate,
+      },
+    ]
   const made = { work: input.execution, position: input.action }
   carried?.(made, action.kind === 'carried' ? action.target.definition : null)
   // A call that performs no action is judged as a carrier: it answers the argument error itself.

@@ -4,16 +4,24 @@ import {
   definitionPlaces,
   type AgentDefinition,
   type DefinitionFacts,
+  type ResidentTool,
 } from '@omne-harness/agent-contract'
 import { agentDefinitionsPoint } from '@omne-harness/agent-cordis-contract/cordis'
 import {
+  capabilityId,
+  evaluate,
   judgePackageContent,
+  layerInputsOf,
   type CategoryEffect,
   type JsonValue,
   type PublishContent,
 } from '@omne-harness/assets'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { mcpEndpointGates } from '@omne-harness/mcp-contract'
+import { mcpEndpointsPoint } from '@omne-harness/mcp-cordis-contract/cordis'
+import { skillBodyContract } from '@omne-harness/skill-contract'
+import { skillSkillsPoint } from '@omne-harness/skill-cordis-contract/cordis'
 import { toolToolsPoint } from '@omne-harness/tool-cordis-contract/cordis'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { askerLayersOf } from '../tenant-assets/asker-layers.ts'
@@ -21,10 +29,15 @@ import { heldStandingOf, rejectionText } from '../tenant-assets/held-standing.ts
 import { heldReadingOf } from '../tool-host/held-now.ts'
 import { heldToolStanding } from '../tool-host/held-tools.ts'
 import { DEFINITION_CATEGORY, writtenDefinitionOf } from './held-definitions.ts'
-import { TOOL_CATEGORY } from './table.ts'
+import { residentReferencesOf, TOOL_CATEGORY } from './table.ts'
 
 const POINT = agentDefinitionsPoint.name
 const TOOL_POINT = toolToolsPoint.name
+const RESIDENT_POINTS: Readonly<Record<string, string>> = Object.freeze({
+  [TOOL_CATEGORY]: toolToolsPoint.name,
+  [skillBodyContract().category]: skillSkillsPoint.name,
+  [mcpEndpointGates.category]: mcpEndpointsPoint.name,
+})
 const NOT_A_DIRECTORY = 'a definition made here is published from a directory'
 
 /** Whether a tool is there for a tenant now: one of the release, or one it holds in force. Null: that cannot be read. */
@@ -36,22 +49,37 @@ function toolThere(ctx: Context, tenant: TenantId | undefined, name: string): bo
   return standing.kind === 'unavailable' ? null : standing.kind === 'held'
 }
 
-/** What a definition writes that bears on whether it works: its resident tools, and the references that do nothing yet. */
-function referencesOf(ctx: Context, tenant: TenantId | undefined, definition: AgentDefinition) {
-  const tools = definition.references.filter(
-    reference => reference.capability.category === TOOL_CATEGORY,
-  )
-  return {
-    residents: tools
-      .filter(reference => reference.resident === true)
-      .map(({ capability }) => ({
-        name: capability.name,
-        there: toolThere(ctx, tenant, capability.name),
-      })),
-    inert: definition.references
-      .filter(reference => reference.capability.category !== TOOL_CATEGORY)
-      .map(({ capability }) => `${capability.category}/${capability.name}`),
-  }
+/** Whether a skill or an endpoint stands for a tenant now by the asset rules; null when that cannot be read, not that it is missing. */
+function heldThere(
+  ctx: Context,
+  tenantRef: string,
+  capability: Readonly<{ category: string; name: string }>,
+): Pick<ResidentTool, 'there' | 'why'> {
+  const id = capabilityId(capability.category, capability.name)
+  if (!id.ok) return { there: false, why: 'it is not a name of its category' }
+  const reading = ctx.get(assetCategoriesKey)?.held(id.id, tenantRef)
+  if (reading === undefined) return { there: null }
+  const answer = evaluate({ layers: layerInputsOf(reading, tenantRef), eligible: () => 'yes' })
+  if (answer.kind === 'unavailable') return { there: null }
+  if (answer.kind === 'winner' && answer.layer === 'tenant') return { there: true }
+  const out = answer.filtered.find(entry => entry.layer === 'tenant')
+  if (out === undefined) return { there: false, why: 'this tenant does not hold it' }
+  return { there: false, why: out.by === undefined ? out.reason : `${out.reason} by ${out.by}` }
+}
+
+/** The capabilities a definition keeps resident, each with whether it is there for the tenant now. */
+function residentsOf(
+  ctx: Context,
+  tenantRef: string,
+  tenant: TenantId | undefined,
+  definition: AgentDefinition,
+): readonly ResidentTool[] {
+  return residentReferencesOf(definition).map(({ category, name }) => {
+    const told = { category, name, point: RESIDENT_POINTS[category] ?? category }
+    return category === TOOL_CATEGORY
+      ? { ...told, there: toolThere(ctx, tenant, name) }
+      : { ...told, ...heldThere(ctx, tenantRef, { category, name }) }
+  })
 }
 
 /** What the definition category tells of its own: what publishing a directory would do, and whether a held one can be used. */
@@ -69,8 +97,8 @@ export function definitionEffectOf(
     const written = await writtenDefinitionOf(body)
     if (typeof written === 'string') return { ...none, refused: written }
     const tenant = tenantCodec.parse(tenantRef)
-    const references = referencesOf(ctx, tenant.ok ? tenant.value : undefined, written)
-    return { ...none, refused: null, ...references }
+    const residents = residentsOf(ctx, tenantRef, tenant.ok ? tenant.value : undefined, written)
+    return { ...none, refused: null, residents }
   }
   async function bodyIn(name: string, content: PublishContent): Promise<JsonValue | string> {
     const contract = ctx.get(assetCategoriesKey)?.view.lookup(DEFINITION_CATEGORY)

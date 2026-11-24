@@ -55,6 +55,7 @@ const conditions: RuntimeConditions = {
   model: adoption('model'),
   context: evidence('context'),
   bindings: [],
+  segments: [],
 }
 
 async function invokeThrough(plugin: ReturnType<typeof createAgentHostLocalPlugin>) {

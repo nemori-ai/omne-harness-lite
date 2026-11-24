@@ -38,13 +38,16 @@ async function setup() {
     tenant,
     session,
     adopted,
-    admit: (names: readonly string[]) => {
-      residents = names.map(capability => ({
-        capability,
-        version: '1',
-        shape: { kind: 'null' },
-        admitted: { owner: 'session', record: capability, revision: '1', digest: capability },
-      }))
+    admit: (names: readonly string[], besides: WorkSnapshot['residents'] = []) => {
+      residents = [
+        ...names.map(capability => ({
+          capability,
+          version: '1',
+          shape: { kind: 'null' as const },
+          admitted: { owner: 'session', record: capability, revision: '1', digest: capability },
+        })),
+        ...besides,
+      ]
     },
   }
 }
@@ -215,6 +218,50 @@ describe('release catalog lawful inclusion', () => {
       expect(await createReleaseCatalogView({ ...w.ports, ...patch }).read(w)).toMatchObject({
         failure: { kind: 'unavailable' },
       })
+  })
+
+  it('gives a resident that carries its definition as an entry of the asking tenant with that definition, without asking what is held for it', async () => {
+    const w = await setup()
+    const definition = {
+      name: 'kept__docs',
+      adoption: { owner: 'peer', name: 'docs', revision: '1', digest: 'sha256:docs' },
+    }
+    const carried = {
+      capability: 'kept__docs',
+      version: 'sha256:docs',
+      shape: { kind: 'null' as const },
+      admitted: { owner: 'session', record: 'kept/docs', revision: '1', digest: 'sha256:docs' },
+      definition: { kind: 'string' as const, value: JSON.stringify(definition) },
+    }
+    const asked: unknown[] = []
+    const held: Held = {
+      ...holding(w.tenant, {}),
+      recorded: async (_access, resident) => {
+        asked.push(resident.capability)
+        return undefined
+      },
+    }
+    w.admit(['Files'], [carried])
+    const view = okOf(await createReleaseCatalogView({ ...w.ports, held }).read(w), 'view')
+    expect(view.entries.filter(entry => entry.sourced === true)).toEqual([
+      {
+        key: {
+          layer: { kind: 'tenant', tenant: w.tenant },
+          asset: { name: 'kept__docs', adoption: definition.adoption },
+        },
+        resident: true,
+        knownDefinition: definition,
+        sourced: true,
+      },
+    ])
+    expect(asked).toEqual([])
+    // What the tenant holds cannot be read: a session whose other residents are of the release still goes on.
+    const unread = { ...holding(w.tenant, {}), names: async () => undefined }
+    const still = okOf(
+      await createReleaseCatalogView({ ...w.ports, held: unread }).read(w),
+      'still',
+    )
+    expect(still.entries.filter(entry => entry.sourced === true)).toHaveLength(1)
   })
 
   it('goes on with the tools of the release while what the tenant holds cannot be read, unless the session keeps a tool that is not of the release', async () => {
