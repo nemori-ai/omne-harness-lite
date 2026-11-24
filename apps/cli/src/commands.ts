@@ -328,6 +328,7 @@ type InputCommand = ExistingCommand<
     model: string | undefined
     acceptId: string | undefined
     inputId: string | undefined
+    afterRun: boolean
   }
 >
 
@@ -347,6 +348,7 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
   ],
   required: ['--session'],
   repeatable: ['--attach'],
+  ...(name === 'send-input' ? { switches: ['--after-run'] } : {}),
   parse: (values, lists) => {
     const target = targeted(values)
     const model = values.get('--model')
@@ -362,6 +364,7 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
       model,
       acceptId: values.get('--accept-id'),
       inputId: values.get('--input-id'),
+      afterRun: values.has('--after-run'),
     }
   },
   target: ({ session, tenant }) => ({ session, tenant }),
@@ -406,7 +409,15 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
         return link.call(
           sessionProtocol,
           name,
-          { tenant, session, acceptId, inputId, message, ...(seen === null ? {} : { seen }) },
+          {
+            tenant,
+            session,
+            acceptId,
+            inputId,
+            message,
+            ...(seen === null ? {} : { seen }),
+            ...(parsed.afterRun ? { afterRun: 'yes' as const } : {}),
+          },
           messageId,
         )
       },

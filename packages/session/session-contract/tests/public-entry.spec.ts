@@ -64,6 +64,7 @@ it('exports exactly the declared root runtime surface', () => {
     'foldInputFate',
     'forkPointBefore',
     'forkPointText',
+    'heldBack',
     'incompleteAuthorization',
     'initializationRegistrationCommit',
     'inputFateOfRows',

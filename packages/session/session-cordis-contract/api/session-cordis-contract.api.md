@@ -388,6 +388,7 @@
 - `foldInputFate` · 包 `@omne-harness/session-contract`
 - `forkPointBefore` · 包 `@omne-harness/session-contract`
 - `forkPointText` · 包 `@omne-harness/session-contract`
+- `heldBack` · 包 `@omne-harness/session-contract`
 - `incompleteAuthorization` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
 - `inputFateOfRows` · 包 `@omne-harness/session-contract`

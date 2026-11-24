@@ -68,6 +68,7 @@ async function enqueueInput(
     login: caller.login,
     ...(urgent ? { urgent: true as const } : {}),
     ...(body.seen === undefined ? {} : { seen: body.seen }),
+    ...('afterRun' in body && body.afterRun === 'yes' ? { afterRun: true as const } : {}),
   })
 }
 
@@ -123,6 +124,7 @@ function commitInput(
     message,
     origin: loginEntryOrigin(caller.account, caller.login),
     source: MEMBER_INPUT_SOURCE.name,
+    ...(request.afterRun === true ? { afterRun: true as const } : {}),
   }
   const seen = request.seen === undefined ? {} : { seen: request.seen }
   if (request.urgent === true)

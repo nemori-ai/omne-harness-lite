@@ -351,6 +351,7 @@ export declare const sessionProtocol: {
             readonly limit: "input";
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly acceptId: string;
+                readonly afterRun?: "yes";
                 readonly inputId: string;
                 readonly message: {
                     readonly kind: 'object';

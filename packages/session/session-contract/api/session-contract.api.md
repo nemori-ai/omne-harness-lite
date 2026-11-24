@@ -373,6 +373,7 @@
 - `foldInputFate` · `input-fate.d.ts`
 - `forkPointBefore` · `fork.d.ts`
 - `forkPointText` · `fork.d.ts`
+- `heldBack` · `intake.d.ts`
 - `incompleteAuthorization` · `authorizations.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
 - `inputFateOfRows` · `intake-reads.d.ts`
@@ -533,6 +534,20 @@
 - `testingWorkspace` · `testing-values.d.ts`
 - `userMessage` · `testing-values.d.ts`
 - `withMemberSubject` · `testing-access.d.ts`
+
+## 声明文件 `accepted-ordinary.d.ts`
+
+```ts
+import type { AdmittedSource } from './input-sources.ts';
+import type { RunId } from './identity.ts';
+import type { EncodedEntry } from './judgments.ts';
+import type { RoutedInput } from './values.ts';
+type Ordinary = Extract<RoutedInput, {
+    kind: 'ordinary';
+}>;
+export declare function acceptedOrdinary(input: Ordinary, destination: 'current-run' | 'next-run', run: RunId | null, source: AdmittedSource): EncodedEntry[];
+export {};
+```
 
 ## 声明文件 `access.d.ts`
 
@@ -1573,6 +1588,7 @@ export type SessionEntry = Readonly<{
     run: RunId | null;
     origin: DurableEvidence;
     source: AdmittedSource;
+    after?: true;
 }> | Readonly<{
     kind: 'intake.handed-over';
     input: InputId;
@@ -2645,7 +2661,7 @@ export { readRunBoundary } from './run-boundary.ts';
 export type { RunBoundaryView } from './run-boundary.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
-export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, pendingIntakeCount, inputsToDeliver, runStartInputs, wakingInputs, } from './intake.ts';
+export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, pendingIntakeCount, inputsToDeliver, runStartInputs, wakingInputs, heldBack, } from './intake.ts';
 export { archiveCollapse, backgroundCalls, controlAnswer, controlRoutes, type ArchiveCollapse, type ControlRoutes, type DirectCallControl, } from './call-control.ts';
 export { backgroundInputId, judgeBackgroundOutcome, type BackgroundOutcomeJudgment, } from './background-outcome.ts';
 export type { SessionIntakeLimits } from './intake.ts';
@@ -3008,8 +3024,9 @@ export declare function judgeSessionIntake(pending: number, value: Extract<Route
 }> | null;
 export declare function pendingIntakeCount(snapshot: Pick<WorkSnapshot, 'pending' | 'handed' | 'uncountedInputs'>): number;
 export declare function inputsToDeliver(snapshot: Pick<WorkSnapshot, 'deliveredTail'>, ordered: readonly InputId[]): readonly InputId[];
-export declare function runStartInputs(snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'> | null | undefined): readonly InputId[];
-export declare function wakingInputs(snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'>): readonly InputId[];
+export declare function runStartInputs(snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs' | 'deferredInputs'> | null | undefined): readonly InputId[];
+export declare function wakingInputs(snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs' | 'deferredInputs'>): readonly InputId[];
+export declare function heldBack(snapshot: Pick<WorkSnapshot, 'deferredInputs'>): ReadonlySet<InputId>;
 ```
 
 ## 声明文件 `interpretation-values.d.ts`
@@ -4072,8 +4089,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:d868bc86894a19b3ea0919c9c1f541a7969e0497c669742e818d54f34d933acf";
-export declare const SESSION_RELEASE_DIGEST = "sha256:d868bc86894a19b3ea0919c9c1f541a7969e0497c669742e818d54f34d933acf";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5bee90fb136557fbb387dcae481353e3d5bf1f5ee313a46614a7e87a1cb6bc96";
+export declare const SESSION_RELEASE_DIGEST = "sha256:5bee90fb136557fbb387dcae481353e3d5bf1f5ee313a46614a7e87a1cb6bc96";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4729,7 +4746,7 @@ import { type MemorySessionHistorySource } from './testing-history-source.ts';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type SessionAccessCheck, type SessionDelegatedTransactions } from './access.ts';
-import type { DurableEvidence, EntryId, InputId, SessionAccess, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
+import type { DurableEvidence, EntryId, InputId, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { SessionCallTerminal } from './control-values.ts';
 import type { BoundedClose, RoutedInput, RunTerminal, SessionCreation, WorkSnapshot, Participation } from './values.ts';
 import type { CommitReceipt, AdmittedMessage, EntryClass, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
@@ -4932,6 +4949,10 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         backgroundOrdinal?: number;
         uncountedInputs?: readonly InputId[];
         quietInputs?: readonly InputId[];
+        deferredInputs?: readonly Readonly<{
+            input: InputId;
+            run: RunId | null;
+        }>[];
         deliveredTail?: readonly InputId[];
         releasedScopes?: readonly Readonly<{
             task: SessionOperationId;
@@ -5280,6 +5301,7 @@ export type RoutedInput = Readonly<{
     origin: DurableEvidence;
     source: InputSourceName;
     wake?: boolean;
+    afterRun?: true;
 }> | Readonly<{
     kind: 'card-decision';
     card: DurableEvidence;
@@ -5642,6 +5664,10 @@ export type WorkSnapshot = Readonly<{
     backgroundOrdinal?: number;
     uncountedInputs?: readonly InputId[];
     quietInputs?: readonly InputId[];
+    deferredInputs?: readonly Readonly<{
+        input: InputId;
+        run: RunId | null;
+    }>[];
     deliveredTail?: readonly InputId[];
     releasedScopes?: readonly Readonly<{
         task: SessionOperationId;

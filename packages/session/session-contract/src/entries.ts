@@ -168,6 +168,8 @@ export type SessionEntry =
       origin: DurableEvidence
       /** The values this admission fixed; every later judgment reads them, never the declaration. */
       source: AdmittedSource
+      /** Held back until `run` ends. */
+      after?: true
     }>
   | Readonly<{
       kind: 'intake.handed-over'

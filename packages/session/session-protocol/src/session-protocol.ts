@@ -435,6 +435,7 @@ export const sessionProtocol = defineProtocol({
           inputId: { rule: text },
           message: { rule: { kind: 'user-message' } },
           seen: { rule: seen, optional: true, since: 3 },
+          afterRun: { rule: literal('yes'), optional: true, since: 3 },
         }),
       ),
       outcomes: {

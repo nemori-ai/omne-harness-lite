@@ -534,6 +534,26 @@ describe('session commands', () => {
     expect((parsed(result.stdout)['request'] as Record<string, string>)['seen']).toBe('unknown')
   })
 
+  it('send-input --after-run asks to wait for the run going on; an urgent input takes no such switch', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    await cli(['send-input', '--session', sessionId, '--text', 'next thing', '--after-run'])
+    expect(service.seen.at(-1)?.body).toMatchObject({ afterRun: 'yes' })
+    await cli(['send-input', '--session', sessionId, '--text', 'now'])
+    expect(service.seen.at(-1)?.body).not.toHaveProperty('afterRun')
+    const before = service.seen.length
+    const urgent = await cli([
+      'interrupt-input',
+      '--session',
+      sessionId,
+      '--text',
+      'x',
+      '--after-run',
+    ])
+    expect(urgent.code).toBe(2)
+    expect(service.seen).toHaveLength(before)
+  })
+
   it('interrupt-input sends the same body as send-input to the urgent operation (C27)', async () => {
     const service = await serve()
     await loginOwningSession(service)

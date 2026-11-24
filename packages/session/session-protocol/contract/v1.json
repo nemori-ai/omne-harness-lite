@@ -2,7 +2,7 @@
   "digests": {
     "1": "sha256:e7a3729c5efd373af845eabe7f0e7cba8997d81afdecbc3d79b37ddb8d813417",
     "2": "sha256:46c6ac16c84ea1202c0a6c70b43a9ec65d6811c9aa553e456d8f502779da8eaa",
-    "3": "sha256:1dacff57327a9b9d7c74343202117299d7edefcb8f4010a60f58b8672b81ceec"
+    "3": "sha256:b51f99c77214ad84d43653673cc3a107eb5ad7bd39982e78dbd84c2779123f76"
   },
   "major": 1,
   "name": "session",
@@ -3416,6 +3416,16 @@
               "rule": {
                 "kind": "text"
               }
+            },
+            "afterRun": {
+              "optional": true,
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "yes"
+                ]
+              },
+              "since": 3
             },
             "inputId": {
               "rule": {
