@@ -91,6 +91,15 @@
 .omne-paper-count {
   font-variant-numeric: tabular-nums;
 }
+.omne-paper-quiet {
+  transition: opacity var(--omne-motion-feedback) var(--omne-motion-ease);
+}
+.omne-paper-page:not(:hover):not(:focus-within):not([data-selected]):not([data-gesture])
+  > .omne-paper-name
+  .omne-paper-quiet,
+.omne-paper-pile-leaf:not(:hover):not(:focus-within) > .omne-paper-quiet {
+  opacity: 0;
+}
 .omne-paper-aside {
   display: flex;
   flex: none;
@@ -229,6 +238,7 @@
   .omne-paper-surface,
   .omne-paper-handle,
   .omne-paper-corner,
+  .omne-paper-quiet,
   .omne-paper-leaf,
   .omne-paper-pile-leaf {
     transition: none !important;

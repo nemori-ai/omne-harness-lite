@@ -48,6 +48,18 @@ export function PaperHandle({
   )
 }
 
+export function PaperQuiet({
+  children,
+}: {
+  readonly children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <span data-slot="paper-quiet" className="omne-paper-quiet">
+      {children}
+    </span>
+  )
+}
+
 export function PaperPage({
   box,
   name,
@@ -95,7 +107,7 @@ export function PaperPage({
     >
       <div className="omne-paper-name">
         {locked ? (
-          <span className="omne-paper-name-text">{name}</span>
+          <span className="omne-paper-name-text omne-paper-quiet">{name}</span>
         ) : (
           <PaperHandle
             label={handleLabel ?? `挪动${name}`}
@@ -103,7 +115,7 @@ export function PaperPage({
             onKeyDown={carry.onKeyDown}
             {...carry.grip({ gesture: 'move' })}
           >
-            <span className="omne-paper-name-text">{name}</span>
+            <span className="omne-paper-name-text omne-paper-quiet">{name}</span>
           </PaperHandle>
         )}
         {aside === undefined ? null : <span className="omne-paper-aside">{aside}</span>}
