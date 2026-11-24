@@ -65,6 +65,13 @@
   line-height: var(--omne-leading-ui);
   color: var(--omne-ink-faint);
 }
+.omne-paper-page:hover > .omne-paper-name,
+.omne-paper-page:focus-within > .omne-paper-name,
+.omne-paper-page[data-selected] > .omne-paper-name,
+.omne-paper-page[data-gesture] > .omne-paper-name {
+  --omne-ink-faint: var(--omne-ink-muted);
+  --color-ink-faint: var(--omne-ink-muted);
+}
 .omne-paper-handle {
   display: flex;
   flex: 1;

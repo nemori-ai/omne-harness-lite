@@ -28,7 +28,7 @@ function rules(text: string): Rule[] {
     const selectors: string[] = []
     let depth = 0
     let start = 0
-    const list = match[1]!
+    const list = match[1]!.replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')')
     for (let at = 0; at < list.length; at += 1) {
       if (list[at] === '(') depth += 1
       if (list[at] === ')') depth -= 1
@@ -138,5 +138,84 @@ describe('who gives way in a name line: the content before the facts about it', 
     expect(keepsItsWidth(pile.getByTestId('mark'))).toBe(true)
     expect(keepsItsWidth(pile.getByRole('button', { name: '⋯' }))).toBe(true)
     expect(keepsItsWidth(pile.getByRole('button', { name: '展开' }))).toBe(true)
+  })
+})
+
+/** Every rule that lifts the faint ink, with the pointer, the press and the focus as probe attributes happy-dom can match. */
+const LIFTS = [...rules(source('styles', 'motion.css')), ...PAPER]
+  .filter(rule => /(?:^|;)\s*--omne-ink-faint\s*:/.test(rule.body))
+  .flatMap(rule => rule.selectors)
+  .map(selector =>
+    selector
+      .replaceAll(':hover', '[data-probe-hover]')
+      .replaceAll(':focus-within', '[data-probe-focus]'),
+  )
+  .join(', ')
+
+const lifted = (element: Element): boolean => element.closest(LIFTS) !== null
+
+/** The pointer over an element is over every element it lies in. */
+function pointAt(element: Element): void {
+  for (let at: Element | null = element; at !== null; at = at.parentElement)
+    at.setAttribute('data-probe-hover', '')
+}
+
+describe('the ink of a name line: faint until the page is looked at', () => {
+  function drawn() {
+    render(
+      <Board>
+        {['甲', '乙'].map((name, index) => (
+          <PaperPage
+            key={name}
+            box={{ ...BOX, x: 96 + index * 400 }}
+            name={name}
+            onPlace={() => undefined}
+            aside={<span data-testid={`mark-${name}`}>记号</span>}
+          >
+            <button type="button">{`${name}里的钮`}</button>
+          </PaperPage>
+        ))}
+      </Board>,
+    )
+    return {
+      surface: screen.getByRole('region', { name: '画布' }),
+      page: (name: string) => screen.getByRole('group', { name }),
+      mark: (name: string) => screen.getByTestId(`mark-${name}`),
+    }
+  }
+
+  it('keeps every mark faint while the pointer is on bare paper', () => {
+    const { surface, mark } = drawn()
+    expect(LIFTS).not.toBe('')
+    pointAt(surface)
+    expect(lifted(mark('甲'))).toBe(false)
+    expect(lifted(mark('乙'))).toBe(false)
+  })
+
+  it('deepens the marks of the page under the pointer only', () => {
+    const { page, mark } = drawn()
+    pointAt(page('甲'))
+    expect(lifted(mark('甲'))).toBe(true)
+    expect(lifted(mark('乙'))).toBe(false)
+  })
+
+  it('deepens them on a page that is selected or holds the focus, and on no other', () => {
+    const { page, mark } = drawn()
+    page('甲').setAttribute('data-selected', 'true')
+    page('乙').setAttribute('data-probe-focus', '')
+    expect(lifted(mark('甲'))).toBe(true)
+    expect(lifted(mark('乙'))).toBe(true)
+    cleanup()
+    const again = drawn()
+    again.page('甲').setAttribute('data-gesture', 'move')
+    expect(lifted(again.mark('甲'))).toBe(true)
+    expect(lifted(again.mark('乙'))).toBe(false)
+  })
+
+  it('still lifts the ink inside a control under the pointer, on the paper as anywhere', () => {
+    const { surface } = drawn()
+    const button = within(surface).getByRole('button', { name: '甲里的钮' })
+    pointAt(button)
+    expect(lifted(button)).toBe(true)
   })
 })
