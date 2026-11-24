@@ -14,3 +14,4 @@ export {
   sniffMediaType,
   wavFacts,
 } from './sniff.ts'
+export { readReferenceText, referenceText } from './reference-text.ts'

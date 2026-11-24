@@ -25,6 +25,8 @@ it('exports the pure functions of the contract', async () => {
     'isEngineName',
     'isMediaKey',
     'modalityOf',
+    'readReferenceText',
+    'referenceText',
     'representationHolder',
     'sniffMediaType',
     'wavFacts',
