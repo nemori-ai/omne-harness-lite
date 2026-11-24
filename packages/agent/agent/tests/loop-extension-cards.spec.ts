@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type {
+  ActionAdmission,
   CardReply,
   DecisionCardDraft,
   ExecutionSnapshot,
@@ -251,5 +252,72 @@ describe('cards of a batch before its actions', () => {
     expect(waiting.state.kind === 'waiting' && waiting.state.waits).toHaveLength(2)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
     expect(assembly.controls.admission.admit.calls).toHaveLength(0)
+  })
+})
+
+describe('the card of an extension is not a permission', () => {
+  type Admit = Awaited<ReturnType<ActionAdmission<string>['admit']>>
+
+  /** One tool call whose extension asked a person, and the person agreed on that card. */
+  async function agreed(admit: Admit) {
+    const view = tenantView()
+    const extensions = implementations()
+    view.enable(declare('probe', 'before_action'))
+    extensions.define('probe', (_input, mode) =>
+      mode.kind === 'fresh' ? ask('Run this tool?', 'before_action') : observed,
+    )
+    const assembly = await toolAssembly({}, {}, {}, dependencies => ({
+      ...dependencies,
+      extensions: extensions.port,
+      enabledExtensions: view.port,
+    }))
+    assembly.controls.admission.admit.always(async () => admit)
+    const desk = cardDesk(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await waitingForPerson(assembly)
+    const [card] = desk.presented()
+    if (card === undefined) throw new Error('the extension presented no card')
+    expect(assembly.controls.admission.admit.calls).toHaveLength(0)
+    desk.answer(card, chosen('yes'))
+    await nextCheck(assembly)
+    return { assembly, desk, extensions, card }
+  }
+
+  it('an action that needs a decision still gets its release card after the person agreed on the card of the extension', async () => {
+    const release: Admit = {
+      ok: {
+        kind: 'need-decision',
+        card: draft('Allow this tool?', 'before_action'),
+        evidence: evidence('release'),
+      },
+    }
+    const { assembly, desk, extensions, card } = await agreed(release)
+    await eventually(async () => desk.presented().length === 2)
+    expect(extensions.invocations.map(item => item.mode)).toEqual(['fresh', 'replay'])
+    expect(assembly.controls.admission.admit.calls).toHaveLength(1)
+    expect(desk.presented()[1]).not.toBe(card)
+    const waiting = await waitingForPerson(assembly)
+    expect(waiting.checkpoint.batch?.actions.map(action => action.judgment.kind)).toEqual([
+      'waiting',
+    ])
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+  })
+
+  it('a prohibited action is still denied after the person agreed on the card of the extension', async () => {
+    const { assembly, desk } = await agreed({
+      ok: {
+        kind: 'deny',
+        category: 'prohibited',
+        reason: 'the tenant prohibits this tool',
+        evidence: evidence('prohibited'),
+      },
+    })
+    await eventually(async () =>
+      (await loaded(assembly)).checkpoint.calls.some(call => call.action.startsWith('step-2/')),
+    )
+    expect(assembly.controls.admission.admit.calls).toHaveLength(1)
+    expect(desk.presented()).toHaveLength(1)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
   })
 })
