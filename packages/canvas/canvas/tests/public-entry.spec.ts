@@ -1,8 +1,19 @@
 import { expect, it } from 'vitest'
 
-it('the root entry gives the reads of the canvas and the script of a look', async () => {
+it('the root entry gives the canvas, the reads and the scripts every store runs', async () => {
   const root = (await import('@omne-harness/canvas')) as Record<string, unknown>
-  expect(Object.keys(root).sort()).toEqual(['arrangementOf', 'createCanvas'])
+  expect(Object.keys(root).sort()).toEqual([
+    'arrangeBatch',
+    'arrangementOf',
+    'awayOf',
+    'createCanvas',
+    'lockItems',
+    'pileItems',
+    'placeReference',
+    'placingOf',
+    'scatterPile',
+    'takeItems',
+  ])
 })
 
 it('the testing entry gives the memory store, the fakes and the conformance cases', async () => {
@@ -11,6 +22,7 @@ it('the testing entry gives the memory store, the fakes and the conformance case
     'context',
     'createMemoryStore',
     'fakeAuthority',
+    'fakeClock',
     'fakeKinds',
     'fakeMovers',
     'storeConformanceCases',

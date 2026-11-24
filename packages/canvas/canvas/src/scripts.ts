@@ -1,0 +1,231 @@
+import {
+  CELLS,
+  statusOf,
+  type Cell,
+  type Entry,
+  type Item,
+  type ItemChange,
+  type ItemId,
+  type ItemOperation,
+  type PileChange,
+  type Spot,
+} from '@omne-harness/canvas-contract'
+import type { CanvasFacts } from './facts.ts'
+import { isFree, roomOf, seatOf, takenRects } from './geometry.ts'
+import type {
+  ArrangeCommand,
+  ChangeResult,
+  LockCommand,
+  PileCommand,
+  PlaceCommand,
+  PlaceResult,
+  ScatterCommand,
+  TakeCommand,
+} from './store.ts'
+import { Work } from './work.ts'
+
+const NO_CHANGE = Object.freeze({ kind: 'no-change' as const })
+
+const open = (
+  facts: CanvasFacts,
+  command: Pick<PlaceCommand, 'canvas' | 'by' | 'when' | 'rules'>,
+) => new Work(facts, command.canvas, command.by, command.when, command.rules)
+
+/** The first cell that stops the batch, as the answer about this entry; null when every cell goes on. */
+function stopping(cells: readonly Cell[], entry: Entry): ChangeResult | null {
+  for (const cell of cells) {
+    if (cell === 'not-found') return { kind: 'not-found', entry }
+    if (typeof cell === 'object') return { kind: 'conflict', reason: cell.conflict, entry }
+  }
+  return null
+}
+
+const cellsOf = (operations: readonly ItemOperation[], item: Item | null) =>
+  operations.map(operation => CELLS[operation][statusOf(item)])
+
+const saved = (work: Work): ChangeResult => {
+  const revision = work.save()
+  return revision === null ? NO_CHANGE : { kind: 'changed', revision }
+}
+
+/** Where an item shows: its own spot when loose, its pile's when in one. */
+function shownAt(work: Work, item: Item): Spot {
+  const pile = item.pile === null ? undefined : work.piles.get(item.pile)
+  return pile?.at ?? item.at
+}
+
+/** Takes an item out of its pile to `at`, or beside the pile; the pile goes when it is left empty. */
+function out(work: Work, item: Item, at: Spot | undefined): Item {
+  const pile = item.pile
+  const spot = at ?? work.freeNear(shownAt(work, item), item.size, item.id)
+  const moved = work.update(item, { pile: null, at: spot })
+  work.prune(pile)
+  return moved
+}
+
+function into(work: Work, item: Item, pile: NonNullable<Item['pile']>): Item {
+  const from = item.pile
+  const moved = work.update(item, { pile })
+  if (from !== pile) work.prune(from)
+  return moved
+}
+
+function raise(work: Work, item: Item): Item {
+  return item.rank === work.topRank() ? item : work.update(item, { rank: work.nextRank() })
+}
+
+/**
+ * Puts a reference on the sheet with its conditions checked at the commit: it is still not on, the sheet
+ * is still below the limit, the kind was still declared. Otherwise it answers as the state is now.
+ */
+export function placeReference(facts: CanvasFacts, command: PlaceCommand): PlaceResult {
+  const work = open(facts, command)
+  const existing = facts.itemOf(command.canvas, command.reference)
+  if (existing !== null && existing.state === 'on') return { kind: 'no-change', item: existing }
+  const placed = [...work.items.values()].filter(item => item.state === 'on').length
+  if (placed >= command.rules.placed) return { kind: 'conflict', reason: 'full' }
+  if (!command.declared) return { kind: 'conflict', reason: 'kind-undeclared' }
+
+  const size = command.size ?? existing?.size ?? null
+  const at = command.at ?? spotFor(work, command, existing, size)
+  const rank = work.nextRank()
+  const item = work.put({
+    id: existing?.id ?? (`i${rank}` as ItemId),
+    reference: command.reference,
+    state: 'on',
+    at,
+    size,
+    rank,
+    pile: null,
+    locked: false,
+    by: command.by,
+    when: command.when,
+  })
+  const revision = work.save()!
+  return { kind: 'changed', revision, item }
+}
+
+/** Near the spot asked for; else where a taken item was, when it is still free; else beside the seat. */
+function spotFor(
+  work: Work,
+  command: PlaceCommand,
+  existing: Item | null,
+  size: Item['size'],
+): Spot {
+  if (command.near !== undefined) return work.freeNear(command.near, size)
+  if (existing === null) return work.freeNear(seatOf(command.rules.sheet), size)
+  const { sheet, footprint } = command.rules
+  const taken = takenRects(work.items.values(), work.piles.values(), sheet, footprint)
+  return isFree(sheet, taken, existing.at, roomOf(size, footprint))
+    ? existing.at
+    : work.freeNear(existing.at, size)
+}
+
+function arrangeItem(work: Work, change: ItemChange): ChangeResult | null {
+  const entry = { item: change.item }
+  let item = work.item(change.item)
+  const operations: ItemOperation[] = []
+  if (change.pile === null) operations.push('leave')
+  else if (change.pile !== undefined) operations.push('enter')
+  else if (change.at !== undefined) operations.push('move')
+  if (change.size !== undefined || change.top === true) operations.push('adjust')
+  const stop = stopping(cellsOf(operations, item), entry)
+  if (stop !== null || item === null) return stop
+  if (typeof change.pile === 'string') {
+    if (!work.piles.has(change.pile)) return { kind: 'not-found', entry: { pile: change.pile } }
+    item = into(work, item, change.pile)
+  } else if (change.pile === null && item.pile !== null) item = out(work, item, change.at)
+  else if (change.at !== undefined) item = work.update(item, { at: change.at })
+  if (change.size !== undefined) item = work.update(item, { size: change.size })
+  if (change.top === true) raise(work, item)
+  return null
+}
+
+function arrangePile(work: Work, change: PileChange): ChangeResult | null {
+  const pile = work.piles.get(change.pile)
+  if (pile === undefined) return { kind: 'not-found', entry: { pile: change.pile } }
+  work.updatePile(pile, {
+    ...(change.at === undefined ? {} : { at: change.at }),
+    ...(change.name === undefined ? {} : { name: change.name }),
+  })
+  return null
+}
+
+/** A batch in its order, the items before the piles. One entry that stops it stops all of it. */
+export function arrangeBatch(facts: CanvasFacts, command: ArrangeCommand): ChangeResult {
+  const work = open(facts, command)
+  for (const change of command.items) {
+    const stop = arrangeItem(work, change)
+    if (stop !== null) return stop
+  }
+  for (const change of command.piles) {
+    const stop = arrangePile(work, change)
+    if (stop !== null) return stop
+  }
+  return saved(work)
+}
+
+/** Takes items off the sheet; a taken item keeps where it showed. The oldest taken beyond the limit go. */
+export function takeItems(facts: CanvasFacts, command: TakeCommand): ChangeResult {
+  const work = open(facts, command)
+  for (const id of command.items) {
+    const item = work.item(id)
+    const stop = stopping(cellsOf(['take'], item), { item: id })
+    if (stop !== null || item === null) return stop!
+    if (item.state === 'off') continue
+    const pile = item.pile
+    work.update(item, { state: 'off', at: shownAt(work, item), pile: null, rank: work.nextRank() })
+    work.prune(pile)
+  }
+  const away = new Map(facts.items(command.canvas, 'off').map(item => [item.id, item]))
+  for (const item of work.items.values())
+    if (item.state === 'off') away.set(item.id, item)
+    else away.delete(item.id)
+  const oldest = [...away.values()].sort((left, right) => left.rank - right.rank)
+  for (const item of oldest.slice(0, Math.max(0, oldest.length - command.rules.away)))
+    work.drop(item.id)
+  return saved(work)
+}
+
+/** Puts items in a pile the caller names; a pile that is not there is made, at the spot given or the first item's. */
+export function pileItems(facts: CanvasFacts, command: PileCommand): ChangeResult {
+  const work = open(facts, command)
+  const items: Item[] = []
+  for (const id of command.items) {
+    const item = work.item(id)
+    const stop = stopping(cellsOf(['pile'], item), { item: id })
+    if (stop !== null || item === null) return stop!
+    items.push(item)
+  }
+  if (!work.piles.has(command.pile))
+    work.createPile(command.pile, command.at ?? shownAt(work, items[0]!))
+  for (const item of items) into(work, work.item(item.id)!, command.pile)
+  return saved(work)
+}
+
+/** Spreads a pile's items to free spots beside it, the lowest first; the pile is gone. */
+export function scatterPile(facts: CanvasFacts, command: ScatterCommand): ChangeResult {
+  const work = open(facts, command)
+  const pile = work.piles.get(command.pile)
+  if (pile === undefined) return NO_CHANGE
+  const members = [...work.items.values()]
+    .filter(item => item.state === 'on' && item.pile === pile.id)
+    .sort((left, right) => left.rank - right.rank)
+  work.piles.delete(pile.id)
+  for (const item of members)
+    work.update(item, { pile: null, at: work.freeNear(pile.at, item.size, item.id) })
+  return saved(work)
+}
+
+/** Locks every item named, or unlocks every one. */
+export function lockItems(facts: CanvasFacts, command: LockCommand): ChangeResult {
+  const work = open(facts, command)
+  const operation = command.locked ? 'lock' : 'unlock'
+  for (const id of command.items) {
+    const item = work.item(id)
+    const stop = stopping(cellsOf([operation], item), { item: id })
+    if (stop !== null || item === null) return stop!
+    work.update(item, { locked: command.locked })
+  }
+  return saved(work)
+}

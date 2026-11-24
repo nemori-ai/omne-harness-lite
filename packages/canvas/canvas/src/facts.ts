@@ -1,12 +1,31 @@
-import type { CanvasId, Item, Pile } from '@omne-harness/canvas-contract'
-import type { Arrangement } from './store.ts'
+import type {
+  AwayPage,
+  CanvasId,
+  Item,
+  ItemId,
+  Pile,
+  PileId,
+  Reference,
+} from '@omne-harness/canvas-contract'
+import type { Arrangement, Placing } from './store.ts'
 
 /** One tenant's facts inside one storage transaction. Synchronous: a script runs to completion in the storage worker. */
 export interface CanvasFacts {
   /** The revision of the canvas; 0 while nothing was ever committed to it. */
   revision(canvas: CanvasId): number
+  /** The rank the next item put on top gets; 1 while nothing was ever committed. */
+  nextRank(canvas: CanvasId): number
   items(canvas: CanvasId, state: Item['state']): readonly Item[]
+  item(canvas: CanvasId, id: ItemId): Item | null
+  itemOf(canvas: CanvasId, reference: Reference): Item | null
   piles(canvas: CanvasId): readonly Pile[]
+
+  setHead(canvas: CanvasId, revision: number, nextRank: number): void
+  /** Inserts or replaces by identity. A second item of the same reference is refused. */
+  putItem(canvas: CanvasId, item: Item): void
+  dropItem(canvas: CanvasId, id: ItemId): void
+  putPile(canvas: CanvasId, pile: Pile): void
+  dropPile(canvas: CanvasId, id: PileId): void
 }
 
 const byText = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0)
@@ -18,4 +37,23 @@ export function arrangementOf(facts: CanvasFacts, canvas: CanvasId): Arrangement
   )
   const piles = [...facts.piles(canvas)].sort((left, right) => byText(left.id, right.id))
   return { revision: facts.revision(canvas), items, piles }
+}
+
+/** The read of `look-away`: taking an item gives it the next rank, so the newest has the highest. */
+export function awayOf(
+  facts: CanvasFacts,
+  canvas: CanvasId,
+  page: Readonly<{ limit: number; before?: number | undefined }>,
+): AwayPage {
+  const newest = [...facts.items(canvas, 'off')]
+    .filter(item => page.before === undefined || item.rank < page.before)
+    .sort((left, right) => right.rank - left.rank)
+  const items = newest.slice(0, page.limit)
+  const more = newest.length > page.limit
+  return { items, next: more ? items[items.length - 1]!.rank : null }
+}
+
+/** The read of `place` before the owner of the kind is asked. */
+export function placingOf(facts: CanvasFacts, canvas: CanvasId, reference: Reference): Placing {
+  return { item: facts.itemOf(canvas, reference), placed: facts.items(canvas, 'on').length }
 }
