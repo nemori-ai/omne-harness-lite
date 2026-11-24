@@ -71,7 +71,6 @@ export type SessionUiOptions = Readonly<{
 /** Where a contribution to the composer gives back what the message being written carries. */
 export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
 
-/** A block of a message drawn by whatever is put at its point, told what the model read of it. */
 const SESSION_POINTS = [
   sessionDock,
   sessionSide,
