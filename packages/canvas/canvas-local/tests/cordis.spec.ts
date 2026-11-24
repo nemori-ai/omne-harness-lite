@@ -4,7 +4,12 @@ import { Context } from '@deepseek-ai/cordis'
 import { expect, it } from 'vitest'
 import { context, fakeAuthority, fakeMovers } from '@omne-harness/canvas/testing'
 import { canvasAppKind } from '@omne-harness/canvas-contract'
-import { canvasKey, kindsOn, putKind } from '@omne-harness/canvas-cordis-contract/cordis'
+import {
+  canvasChangesKey,
+  canvasKey,
+  kindsOn,
+  putKind,
+} from '@omne-harness/canvas-cordis-contract/cordis'
 import { CanvasPolicyError } from '@omne-harness/canvas-local'
 import { createCanvasLocalPlugin } from '@omne-harness/canvas-local/cordis'
 import { DynamisService, dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
@@ -37,7 +42,7 @@ function configuration(world: SqlWorld, policy: unknown) {
   }
 }
 
-it('starts when the storage and the registry are there, reads the canvas over SQL and the kinds off the registry', async () => {
+it('starts when the storage and the registry are there, reads the canvas over SQL and the kinds off the registry, and tells its changes', async () => {
   const world = await openSqlWorld()
   const root = new Context()
   try {
@@ -69,8 +74,20 @@ it('starts when the storage and the registry are there, reads the canvas over SQ
       ],
     })
 
+    const heard: string[] = []
+    root.get(canvasChangesKey)!.subscribe(context().tenant, {
+      changed: change => heard.push(`changed ${change.canvas}`),
+      closed: () => heard.push('closed'),
+    })
+    const placed = { canvas: 'main', reference: { kind: 'canvas.app', ref: 'clock' } }
+    expect(await canvas.place(context(), placed)).toMatchObject({ kind: 'done' })
+    expect(await canvas.place(context(), placed)).toMatchObject({ kind: 'no-change' })
+    expect(heard).toEqual(['changed main'])
+
     await local.dispose()
+    expect(heard).toEqual(['changed main', 'closed'])
     expect(root.get(canvasKey)).toBeUndefined()
+    expect(root.get(canvasChangesKey)).toBeUndefined()
     expect(kindsOn(root.get(dynamisKey) as DynamisService).read()).toEqual({ kind: 'unavailable' })
   } finally {
     await world.close()

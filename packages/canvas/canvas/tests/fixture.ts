@@ -1,4 +1,4 @@
-import { createCanvas, type CanvasConfig } from '@omne-harness/canvas'
+import { createCanvas, observed, type CanvasChanges, type CanvasConfig } from '@omne-harness/canvas'
 import {
   context,
   createMemoryStore,
@@ -26,15 +26,18 @@ export const kind = (name: string, admit?: KindDeclaration['admit']): KindDeclar
   ...(admit === undefined ? {} : { admit }),
 })
 
-/** A canvas over the memory store with every port faked, the kinds media.object and canvas.app declared. */
-export function world(options: { store?: MemoryStore; config?: Partial<CanvasConfig> } = {}) {
+/** A canvas over the memory store with every port faked; with `changes`, its store tells them. */
+export function world(
+  options: { store?: MemoryStore; config?: Partial<CanvasConfig>; changes?: CanvasChanges } = {},
+) {
   const store = options.store ?? createMemoryStore()
   const authority = fakeAuthority()
   const kinds = fakeKinds()
   const movers = fakeMovers()
   const clock = fakeClock()
   const config = { ...CONFIG, ...options.config }
-  const canvas = createCanvas({ store, authority, movers, kinds, clock, config })
+  const written = options.changes === undefined ? store : observed(store, options.changes)
+  const canvas = createCanvas({ store: written, authority, movers, kinds, clock, config })
   return { store, authority, kinds, movers, clock, canvas, ctx: context() }
 }
 

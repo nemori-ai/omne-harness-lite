@@ -3,6 +3,7 @@ import {
   kindNameSchema,
   type Admission,
   type AdmitInput,
+  type CanvasChangeFeed,
   type CanvasKinds,
   type CanvasOperations,
   type KindDeclaration,
@@ -74,6 +75,18 @@ export abstract class CanvasService extends Service implements CanvasOperations 
   abstract readonly lock: CanvasOperations['lock']
 }
 export const canvasKey = CanvasService.provide
+
+/** @owner packages/canvas/canvas-cordis-contract */
+export abstract class CanvasChangesService extends Service implements CanvasChangeFeed {
+  static readonly provide = 'canvasChanges'
+
+  constructor(ctx: Context) {
+    super(ctx, CanvasChangesService.provide)
+  }
+
+  abstract readonly subscribe: CanvasChangeFeed['subscribe']
+}
+export const canvasChangesKey = CanvasChangesService.provide
 
 /** How a place holds the batch of a declaration: entered while the batch is not leaving, left once. */
 type Hold = Readonly<{ enter(): boolean; exit(): void }>
@@ -193,5 +206,6 @@ export function kindsOn(tree: Pick<DynamisService, 'registry'>): CanvasKinds {
 declare module '@deepseek-ai/cordis' {
   interface Context {
     canvas: CanvasService
+    canvasChanges: CanvasChangesService
   }
 }

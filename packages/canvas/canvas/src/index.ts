@@ -1,4 +1,5 @@
 export { createCanvas, type CanvasConfig, type CanvasPorts, type Clock } from './canvas.ts'
+export { createCanvasChanges, observed, type CanvasChanges } from './changes.ts'
 export { arrangementOf, awayOf, placingOf, type CanvasFacts } from './facts.ts'
 export {
   arrangeBatch,

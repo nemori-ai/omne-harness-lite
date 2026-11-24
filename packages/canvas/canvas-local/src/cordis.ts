@@ -1,12 +1,17 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { createCanvas } from '@omne-harness/canvas'
+import { createCanvas, createCanvasChanges, observed } from '@omne-harness/canvas'
 import {
   instantSchema,
   type CanvasAuthority,
+  type CanvasChangeFeed,
   type CanvasMovers,
   type CanvasOperations,
 } from '@omne-harness/canvas-contract'
-import { CanvasService, kindsOn } from '@omne-harness/canvas-cordis-contract/cordis'
+import {
+  CanvasChangesService,
+  CanvasService,
+  kindsOn,
+} from '@omne-harness/canvas-cordis-contract/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
@@ -45,6 +50,14 @@ class LocalCanvas extends CanvasService {
   }
 }
 
+class LocalCanvasChanges extends CanvasChangesService {
+  readonly subscribe: CanvasChangeFeed['subscribe']
+  constructor(ctx: Context, feed: CanvasChangeFeed) {
+    super(ctx)
+    this.subscribe = feed.subscribe
+  }
+}
+
 const clock = {
   now: () =>
     instantSchema.parse(
@@ -52,26 +65,34 @@ const clock = {
     ),
 }
 
-/** The canvas over SQL, its kinds read from the registry at each call, its clock the system's. */
+/** The canvas over SQL, its kinds read from the registry at each call, its clock the system's. Each
+ * commit that changed an arrangement, or may have, is told to the observers of its tenant. */
 export function createCanvasLocalPlugin() {
   return {
     name: 'canvas-local',
     inject: [storageKey, dynamisKey],
     async apply(ctx: Context, config: CanvasLocalConfiguration) {
       const policy = parsePolicy(config.policy)
+      const changes = createCanvasChanges(error =>
+        ctx.logger('canvas-local').warn('a canvas observer threw: %s', error),
+      )
+      ctx.effect(() => () => changes.close(), 'canvas-local.changes')
       const store = createSqlCanvasStore({
         storage: ctx.get(storageKey) as SqlStorage,
         bind: config.sql.bind,
       })
       const face = createCanvas({
-        store,
+        store: observed(store, changes),
         authority: config.ports.authority,
         movers: config.ports.movers,
         kinds: kindsOn(ctx.get(dynamisKey) as DynamisService),
         clock,
         config: policy,
       })
-      await ctx.plugin(LocalCanvas, face).await()
+      await Promise.all([
+        ctx.plugin(LocalCanvas, face).await(),
+        ctx.plugin(LocalCanvasChanges, changes).await(),
+      ])
     },
   }
 }
