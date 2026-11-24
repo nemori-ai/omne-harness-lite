@@ -4,6 +4,7 @@ import { Button, EmptyState, LoadingState, PageColumn, PageHeader } from '@omne-
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
 import type { CategoriesRead, CategoryNames } from '../model/category-names.ts'
 import type { GovernanceModel } from '../model/governance.ts'
+import { NO_CLAIMS, type HoldingClaims } from '../model/holding-claims.ts'
 import { assetsPage, assetsPanel, assetsTabs, assetsTabsTab } from '../parts.ts'
 import { CategoryPage, type Extras } from './category-page.tsx'
 import { NoticeLine } from './notice.tsx'
@@ -14,6 +15,8 @@ export type AssetsPageProps = Readonly<{
   categoryNames?: CategoryNames
   categorySlot?: (category: string) => ReactNode
   holdingSlot?: (category: string, name: string) => ReactNode
+  /** The settings items the items of `assets.holding` claim; none without it. */
+  claims?: HoldingClaims
   pages?: (layout: AttachedLayout) => ReactNode
   /** The category the shell points at: it is chosen when it is there, nothing is opened. */
   pointAt?: string
@@ -77,6 +80,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
     label: category => names.get(category) ?? category,
     categorySlot: props.categorySlot ?? nothing,
     holdingSlot: props.holdingSlot ?? nothing,
+    claims: props.claims ?? NO_CLAIMS,
   }
   const generic = (category: string) => (
     <CategoryPage

@@ -100,6 +100,29 @@ it('往一个类别的 assets.holding 下放的项，出现在这一类每一份
   expect(assetPage().querySelector('[data-holding]')).toBeNull()
 })
 
+it('一项 assets.holding 认领的设置项不在「设置」段里画；这一份的项全被认领时，「设置」段不出现', async () => {
+  await shown([permissionView(), ordinaryView(), secretView()], ctx =>
+    assetsHolding.contribute(ctx.shell, 'tool', {
+      id: 'claims-files',
+      order: 0,
+      claims: ['max-read-bytes'],
+      render: ({ subject }) => <p data-holding={subject.name}>自己画</p>,
+    }),
+  )
+  await showTab('工具')
+  const files = await enterAsset('files')
+  expect(files.getByText('自己画')).toBeTruthy()
+  expect(files.queryByText('一次读取的上限')).toBeNull()
+  expect(assetPage().querySelector('#assets-asset-settings')).toBeNull()
+  await backToList()
+  await enterAsset('shell')
+  expect(assetPage().querySelector('#assets-asset-settings')).not.toBeNull()
+  await showTab('模型')
+  const openai = await enterAsset('openai')
+  expect(assetPage().querySelector('#assets-asset-settings')).not.toBeNull()
+  expect(openai.queryByText('这一份没有可以改的设置。')).toBeNull()
+})
+
 it('往一个类别的 assets.category 下放的项，只在选中这一类时出现在这一类的上方，收到类别', async () => {
   await shown([permissionView(), secretView()], ctx =>
     assetsCategory.contribute(ctx.shell, 'model', {

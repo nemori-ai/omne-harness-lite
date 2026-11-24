@@ -79,6 +79,7 @@ system
           media-converter  [effective, media-ui#1]
         model-provider
           model-provider-access  [effective, model-ui#1]
+          model-provider-models  [effective, model-ui#1]
       assets.category  [keyed-list]
       assets.control  [keyed-one]
     connection
@@ -279,6 +280,10 @@ system
           media-ui#1  [effective]
         media.tray.record
           media-ui#1  [effective]
+        model.provider.models
+          model-ui#1  [effective]
+        model.provider.models.row
+          model-ui#1  [effective]
         notification.page
           notification-ui#1  [effective]
         notification.page.filter

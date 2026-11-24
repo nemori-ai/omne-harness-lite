@@ -53,6 +53,8 @@ media.tray | 附件区 | 输入区里放附件的地方 | session.composer | tok
 media.tray.attach | 加附件 | 选图片、语音或 PDF | media.tray | tokens style | 打开一段会话时 | media-ui
 media.tray.chip | 一个附件 | 选好要发的一个附件 | media.tray | tokens style | 有附件时 | media-ui
 media.tray.record | 录音 | 按住说话 | media.tray | tokens style | 打开一段会话时 | media-ui
+model.provider.models | 模型 | 这家供应商适配的模型：开哪些，平时用哪一档推理强度 | assets.asset | tokens style | 点进一份模型供应商之后 | model-ui
+model.provider.models.row | 一个模型 | 一个型号的事实、开关与缺省推理强度 | model.provider.models | tokens style | 点进一份模型供应商之后 | model-ui
 notification.page | 通知页 | 各处发来的通知 | shell.workspace.page | tokens style | 一直在 | notification-ui
 notification.page.filter | 通知的筛选 | 只看没了结的，或看全部 | notification.page | tokens style | 一直在 | notification-ui
 notification.page.group | 通知的分组 | 没了结的一组，或已了结的一组 | notification.page | tokens style | 这一组有通知时 | notification-ui

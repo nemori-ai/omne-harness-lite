@@ -40,14 +40,24 @@ type AssetPageProps = Readonly<{
   view: CategoryGovernance
   label: string
   holding: ReactNode
+  /** The settings items an item of `assets.holding` draws itself. */
+  claimed: readonly string[]
   onBack: () => void
 }>
 
 const OFFICIAL_LINE = '官方 · 部署装的，不能禁用或移除。'
 
 /** One asset on its own page: where it sits, its settings, what its category adds, then its details folded. */
-export function AssetPage({ entry, view, label, holding, onBack }: AssetPageProps): JSX.Element {
+export function AssetPage({
+  entry,
+  view,
+  label,
+  holding,
+  claimed,
+  onBack,
+}: AssetPageProps): JSX.Element {
   const { row } = entry
+  const settings = entry.settings.filter(setting => !claimed.includes(setting.view.item))
   const title = row.summary?.title ?? row.name
   const back = useRef<HTMLButtonElement>(null)
   useEffect(() => back.current?.focus(), [])
@@ -84,9 +94,11 @@ export function AssetPage({ entry, view, label, holding, onBack }: AssetPageProp
         )}
         {!row.enabled && <StatusPill tone="neutral">已禁用</StatusPill>}
         <ActionLine action={entry.action} confirm={() => view.confirmAsset(row.name)} />
-        <Section id="assets-asset-settings" title="设置" {...assetsAssetSettings.props}>
-          <Settings rows={entry.settings} view={view} />
-        </Section>
+        {(settings.length > 0 || entry.settings.length === 0) && (
+          <Section id="assets-asset-settings" title="设置" {...assetsAssetSettings.props}>
+            <Settings rows={settings} view={view} />
+          </Section>
+        )}
         <div className="assets-holding-slot">{holding}</div>
         <div {...assetsAssetDetail.props}>
           <Disclosure label="详情">
