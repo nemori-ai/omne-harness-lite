@@ -1,4 +1,5 @@
 import {
+  digestBytes,
   isReadBody,
   readBodyText,
   readSnapshot,
@@ -10,7 +11,8 @@ import {
 } from '@omne-harness/assets'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeProviderName } from './provider-name.ts'
-import type { ProviderName } from './root.ts'
+import type { ModelModality } from './profile.ts'
+import { REASONING_EFFORTS, type ProviderName, type ReasoningEffort } from './root.ts'
 
 export const MODEL_PROVIDER_CATEGORY = 'model-provider'
 
@@ -30,12 +32,29 @@ export type CredentialItemDeclaration = Readonly<{
 /** One entry of the gateway: the interface it speaks there and its address. */
 export type ModelProviderEndpoint = Readonly<{ protocol: string; url: string; endMarker?: string }>
 
+/** One model of the provider model catalog: what the provider adapts, and whether the release enables it. */
+export type CatalogModel = Readonly<{
+  model: string
+  title: string
+  input: readonly ModelModality[]
+  output: readonly ModelModality[]
+  window: string
+  efforts: readonly ReasoningEffort[]
+  enabled: boolean
+}>
+
 export type ModelProviderBody = Readonly<{
   name: ProviderName
   endpoints: readonly ModelProviderEndpoint[]
   accounting: Readonly<{ place: string; costUnit: string }>
   credentials: readonly CredentialItemDeclaration[]
+  models: readonly CatalogModel[]
 }>
+
+/** The setting of a tenant: on or off per model of the catalog. */
+export const MODEL_SWITCHES = 'model-switches'
+/** The setting of a tenant: the default reasoning effort per model of the catalog. */
+export const MODEL_REASONING_EFFORTS = 'model-reasoning-efforts'
 
 export type ModelProviderBodyRejection =
   | 'not-an-object'
@@ -48,16 +67,16 @@ export type ModelProviderBodyRejection =
   | 'invalid-accounting'
   | 'invalid-credentials'
   | 'duplicate-credential'
+  | 'invalid-models'
 
 const CREDENTIAL_ITEM = /^[a-zA-Z][a-zA-Z0-9]{0,63}$/u
 const CREDENTIALS_GROUP = 'credentials'
 const SETTINGS_PROVIDER_ID = MODEL_PROVIDER_CATEGORY
-const UNPINNED_VERSION = '0'
 
 const schemaRead = readBodyText(
-  '{"kind":"model-provider-body","properties":{"name":"string","endpoints":[{"protocol":"string","url":"string","endMarker":"string"}],"accounting":{"place":"string","costUnit":"string"},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}]}}',
+  '{"kind":"model-provider-body","properties":{"name":"string","endpoints":[{"protocol":"string","url":"string","endMarker":"string"}],"accounting":{"place":"string","costUnit":"string"},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}],"models":[{"model":"string","title":"string","input":["string"],"output":["string"],"window":"string","efforts":["string"],"enabled":"boolean"}]}}',
   {
-    maxBytes: 1000,
+    maxBytes: 2000,
     maxDepth: 8,
     maxItems: 64,
     maxMembers: 16,
@@ -85,7 +104,9 @@ export function parseModelProviderBody(
   if (credentials === 'invalid') return fail('invalid-credentials')
   if (new Set(credentials.map(entry => entry.item)).size !== credentials.length)
     return fail('duplicate-credential')
-  return succeed({ name, endpoints, accounting, credentials })
+  const models = modelsOf(field(body, 'models'))
+  if (models === undefined) return fail('invalid-models')
+  return succeed({ name, endpoints, accounting, credentials, models })
 }
 
 export function readModelProviderBody(body: unknown): ModelProviderBody | undefined {
@@ -103,38 +124,7 @@ export function modelProviderBodyContract(): BodyContract {
       return { entries: [] }
     },
     settings(body, context) {
-      const provider = typed(body, context?.capabilityName)
-      if (provider.credentials.length === 0) return null
-      return {
-        providerId: SETTINGS_PROVIDER_ID,
-        definitionId: provider.name,
-        version: context?.definition ?? UNPINNED_VERSION,
-        groups: [
-          {
-            id: CREDENTIALS_GROUP,
-            parentId: null,
-            title: '凭据',
-            description: `模型供应商 ${provider.name} 要的凭据。`,
-            order: 0,
-          },
-        ],
-        items: provider.credentials.map(credential => ({
-          id: credential.item,
-          groupId: CREDENTIALS_GROUP,
-          category: 'binding' as const,
-          presentation: {
-            title: credential.title,
-            description: credential.description,
-            impact: credential.impact,
-            clear: credential.clear,
-            adoption: 'next-read' as const,
-          },
-          valueSchema: { type: 'string' },
-          default: { kind: 'absent' as const },
-          merge: 'override' as const,
-          sensitivity: 'secret' as const,
-        })),
-      }
+      return preferencesAndCredentials(typed(body, context?.capabilityName))
     },
     references(body, context) {
       typed(body, context?.capabilityName)
@@ -238,4 +228,142 @@ function field(body: unknown, key: string): JsonValue | undefined {
 function isObject(body: unknown): boolean {
   if (!isReadBody(body)) return false
   return readSnapshot(body)?.kind === 'object'
+}
+
+const PREFERENCES_GROUP = 'models'
+
+const PREFERENCE_ITEMS = [
+  {
+    id: MODEL_SWITCHES,
+    groupId: PREFERENCES_GROUP,
+    category: 'preference' as const,
+    presentation: {
+      title: '启用的模型',
+      description: '这家供应商的每个模型开或关；没有设的按发行缺省。',
+      impact: '之后的模型列表与请求按新的开关；正在跑的调用不受影响。',
+      clear: '清除之后每个模型回到发行缺省。',
+      adoption: 'next-read' as const,
+    },
+    valueSchema: { type: 'object', additionalProperties: { type: 'boolean' } },
+    default: { kind: 'absent' as const },
+    merge: 'override' as const,
+    sensitivity: 'ordinary' as const,
+  },
+  {
+    id: MODEL_REASONING_EFFORTS,
+    groupId: PREFERENCES_GROUP,
+    category: 'preference' as const,
+    presentation: {
+      title: '模型的缺省推理强度',
+      description: '会话没有另选推理强度时，每个模型用这里定的一档。',
+      impact: '之后的请求按新的缺省推理强度；已经发出的不变。',
+      clear: '清除之后每个模型回到供应商默认。',
+      adoption: 'next-read' as const,
+    },
+    valueSchema: { type: 'object', additionalProperties: { enum: [...REASONING_EFFORTS] } },
+    default: { kind: 'absent' as const },
+    merge: 'override' as const,
+    sensitivity: 'ordinary' as const,
+  },
+]
+
+function preferencesAndCredentials(provider: ModelProviderBody) {
+  const groups = [
+    {
+      id: PREFERENCES_GROUP,
+      parentId: null,
+      title: '模型',
+      description: `模型供应商 ${provider.name} 的模型开关与缺省推理强度。`,
+      order: 0,
+    },
+    ...(provider.credentials.length === 0
+      ? []
+      : [
+          {
+            id: CREDENTIALS_GROUP,
+            parentId: null,
+            title: '凭据',
+            description: `模型供应商 ${provider.name} 要的凭据。`,
+            order: 1,
+          },
+        ]),
+  ]
+  const items = [
+    ...PREFERENCE_ITEMS,
+    ...provider.credentials.map(credential => ({
+      id: credential.item,
+      groupId: CREDENTIALS_GROUP,
+      category: 'binding' as const,
+      presentation: {
+        title: credential.title,
+        description: credential.description,
+        impact: credential.impact,
+        clear: credential.clear,
+        adoption: 'next-read' as const,
+      },
+      valueSchema: { type: 'string' },
+      default: { kind: 'absent' as const },
+      merge: 'override' as const,
+      sensitivity: 'secret' as const,
+    })),
+  ]
+  // The version follows the declaration alone, so a catalog that changes leaves stored values valid.
+  const version = digestBytes(new TextEncoder().encode(JSON.stringify({ groups, items })))
+  return { providerId: SETTINGS_PROVIDER_ID, definitionId: provider.name, version, groups, items }
+}
+
+const WINDOW = /^[1-9][0-9]{0,15}$/u
+const MODEL_MODALITIES: ReadonlySet<string> = new Set(['text', 'image', 'voice'])
+
+function textsOf(value: JsonValue | undefined): string[] | undefined {
+  if (value?.kind !== 'array') return undefined
+  const out: string[] = []
+  for (const item of value.items) {
+    if (item.kind !== 'string') return undefined
+    out.push(item.value)
+  }
+  return out
+}
+
+const isModelModality = (text: string): text is ModelModality => MODEL_MODALITIES.has(text)
+
+function modalitiesOf(value: JsonValue | undefined): ModelModality[] | undefined {
+  const texts = textsOf(value)
+  if (texts === undefined || texts.length === 0) return undefined
+  const modalities = texts.filter(isModelModality)
+  return modalities.length === texts.length ? modalities : undefined
+}
+
+function effortsOf(value: JsonValue | undefined): ReasoningEffort[] | undefined {
+  const texts = textsOf(value)
+  if (texts === undefined) return undefined
+  const ordered = REASONING_EFFORTS.filter(effort => texts.includes(effort))
+  return ordered.length === texts.length && ordered.every((effort, i) => texts[i] === effort)
+    ? ordered
+    : undefined
+}
+
+function catalogModelOf(entry: JsonValue): CatalogModel | undefined {
+  const model = stringField(entry, 'model')
+  const title = stringField(entry, 'title')
+  const window = stringField(entry, 'window')
+  const enabled = field(entry, 'enabled')
+  const input = modalitiesOf(field(entry, 'input'))
+  const output = modalitiesOf(field(entry, 'output'))
+  const efforts = effortsOf(field(entry, 'efforts'))
+  if (!model || !title || window === undefined || !WINDOW.test(window)) return undefined
+  if (enabled?.kind !== 'boolean' || input === undefined || output === undefined) return undefined
+  if (efforts === undefined) return undefined
+  return { model, title, input, output, window, efforts, enabled: enabled.value }
+}
+
+function modelsOf(value: JsonValue | undefined): CatalogModel[] | undefined {
+  if (value?.kind !== 'array') return undefined
+  const out: CatalogModel[] = []
+  for (const entry of value.items) {
+    const model = catalogModelOf(entry)
+    if (model === undefined || out.some(other => other.model === model.model)) return undefined
+    out.push(model)
+  }
+  return out
 }

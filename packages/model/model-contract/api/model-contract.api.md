@@ -309,8 +309,11 @@
 
 ## 入口 `./provider-asset` · `provider-asset.d.ts`
 
+- `CatalogModel` · `provider-asset.d.ts`
 - `CredentialItemDeclaration` · `provider-asset.d.ts`
 - `MODEL_PROVIDER_CATEGORY` · `provider-asset.d.ts`
+- `MODEL_REASONING_EFFORTS` · `provider-asset.d.ts`
+- `MODEL_SWITCHES` · `provider-asset.d.ts`
 - `ModelProviderBody` · `provider-asset.d.ts`
 - `ModelProviderBodyRejection` · `provider-asset.d.ts`
 - `ModelProviderEndpoint` · `provider-asset.d.ts`
@@ -2002,7 +2005,8 @@ export type ReplayProjection = Readonly<{
 ```ts
 import { type BodyContract, type CategoryDisplay } from '@omne-harness/assets';
 import { type Outcome } from '@omne-harness/operation-result';
-import type { ProviderName } from './root.ts';
+import type { ModelModality } from './profile.ts';
+import { type ProviderName, type ReasoningEffort } from './root.ts';
 export declare const MODEL_PROVIDER_CATEGORY = "model-provider";
 export declare const modelProviderCategoryDisplay: CategoryDisplay;
 export type CredentialItemDeclaration = Readonly<{
@@ -2017,6 +2021,15 @@ export type ModelProviderEndpoint = Readonly<{
     url: string;
     endMarker?: string;
 }>;
+export type CatalogModel = Readonly<{
+    model: string;
+    title: string;
+    input: readonly ModelModality[];
+    output: readonly ModelModality[];
+    window: string;
+    efforts: readonly ReasoningEffort[];
+    enabled: boolean;
+}>;
 export type ModelProviderBody = Readonly<{
     name: ProviderName;
     endpoints: readonly ModelProviderEndpoint[];
@@ -2025,8 +2038,11 @@ export type ModelProviderBody = Readonly<{
         costUnit: string;
     }>;
     credentials: readonly CredentialItemDeclaration[];
+    models: readonly CatalogModel[];
 }>;
-export type ModelProviderBodyRejection = 'not-an-object' | 'invalid-name' | 'name-mismatch' | 'invalid-endpoints' | 'invalid-protocol' | 'duplicate-protocol' | 'invalid-endpoint' | 'invalid-accounting' | 'invalid-credentials' | 'duplicate-credential';
+export declare const MODEL_SWITCHES = "model-switches";
+export declare const MODEL_REASONING_EFFORTS = "model-reasoning-efforts";
+export type ModelProviderBodyRejection = 'not-an-object' | 'invalid-name' | 'name-mismatch' | 'invalid-endpoints' | 'invalid-protocol' | 'duplicate-protocol' | 'invalid-endpoint' | 'invalid-accounting' | 'invalid-credentials' | 'duplicate-credential' | 'invalid-models';
 export declare function parseModelProviderBody(body: unknown, capabilityName?: string): Outcome<ModelProviderBody, ModelProviderBodyRejection>;
 export declare function readModelProviderBody(body: unknown): ModelProviderBody | undefined;
 export declare function modelProviderBodyContract(): BodyContract;

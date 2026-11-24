@@ -1887,6 +1887,21 @@
               "name": "modelProviderCategoryDisplay",
               "kind": "value",
               "pending": false
+            },
+            {
+              "name": "CatalogModel",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MODEL_SWITCHES",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "MODEL_REASONING_EFFORTS",
+              "kind": "value",
+              "pending": false
             }
           ]
         }

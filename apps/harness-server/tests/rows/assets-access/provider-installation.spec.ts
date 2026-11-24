@@ -51,8 +51,12 @@ describe('the release installs its model provider into each tenant (C3)', () => 
         const tenant = tenantOf(savedTenant(tree.home))
 
         // Reading the settings opens the tenant's governance, which installs what the release brings.
-        expect((await settingsOf(assets, tenant)).map(item => [item.kind, item.own])).toEqual([
-          ['secret', 'unset'],
+        expect(
+          (await settingsOf(assets, tenant)).map(item => [item.item, item.kind, item.own]),
+        ).toEqual([
+          ['apiKey', 'secret', 'unset'],
+          ['model-reasoning-efforts', expect.anything(), expect.anything()],
+          ['model-switches', expect.anything(), expect.anything()],
         ])
         const listed = await assets['list-assets']({
           tenant,
@@ -65,8 +69,12 @@ describe('the release installs its model provider into each tenant (C3)', () => 
           ['openrouter', 'official', 'harness.preinstalled.model-provider.openrouter'],
         ])
 
-        expect((await settingsOf(assets, tenant)).map(item => [item.kind, item.own])).toEqual([
-          ['secret', 'unset'],
+        expect(
+          (await settingsOf(assets, tenant)).map(item => [item.item, item.kind, item.own]),
+        ).toEqual([
+          ['apiKey', 'secret', 'unset'],
+          ['model-reasoning-efforts', expect.anything(), expect.anything()],
+          ['model-switches', expect.anything(), expect.anything()],
         ])
 
         const written = await assets['set-setting']({
@@ -78,8 +86,12 @@ describe('the release installs its model provider into each tenant (C3)', () => 
           value: { kind: 'secret', secret: 'sk-or-tenant-installation' },
         })
         expect(written).toMatchObject({ outcome: 'succeeded' })
-        expect((await settingsOf(assets, tenant)).map(item => [item.kind, item.own])).toEqual([
-          ['secret', 'available'],
+        expect(
+          (await settingsOf(assets, tenant)).map(item => [item.item, item.kind, item.own]),
+        ).toEqual([
+          ['apiKey', 'secret', 'available'],
+          ['model-reasoning-efforts', expect.anything(), expect.anything()],
+          ['model-switches', expect.anything(), expect.anything()],
         ])
         expect(await credentialOf(tree)).toEqual(['available'])
         const before = tree.modelAuthorizations().length

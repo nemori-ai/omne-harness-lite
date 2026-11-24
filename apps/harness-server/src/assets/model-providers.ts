@@ -5,8 +5,12 @@ import {
   parseModelProviderBody,
   type ModelProviderBody,
 } from '@omne-harness/model-contract/provider-asset'
-import type { ProviderName } from '@omne-harness/model-contract'
-import type { CredentialProviderSource } from '@omne-harness/model-host-local'
+import { decodeProviderName, type ProviderName } from '@omne-harness/model-contract'
+import {
+  officialCatalog,
+  officialSupplierProviders,
+  type CredentialProviderSource,
+} from '@omne-harness/model-host-local'
 import {
   isEngineEndpoint,
   type EngineEndpoint,
@@ -16,14 +20,15 @@ import {
 import { OPENROUTER_PROVIDER_BODY_TEXT } from '@omne-harness/pi-ai-transport/chat-completions'
 import type { SecretBindingKey, SecretScope, SettingsHolding } from '@omne-harness/settings'
 import { holdingKey, officialHolding, type OfficialHolding } from './official-holdings.ts'
+import { RELEASE_ENABLED_MODELS } from './release-models.ts'
 
 const RELEASE_PROVIDER_TEXTS: readonly string[] = [OPENROUTER_PROVIDER_BODY_TEXT]
 const PROVIDER_CONTRACT = modelProviderBodyContract()
 
 const BODY_LIMITS = {
-  maxBytes: 16_384,
+  maxBytes: 131_072,
   maxDepth: 8,
-  maxItems: 64,
+  maxItems: 4096,
   maxMembers: 16,
   maxStringLength: 2048,
   maxNumberLength: 20,
@@ -37,7 +42,17 @@ export type ReleaseProvider = Readonly<{
   holding: Extract<OfficialHolding, { kind: 'declared' }> | null
 }>
 
-function readProvider(text: string): ReleaseProvider {
+/** The base body of a provider with the catalog of the official profiles that go through it. */
+function withCatalog(base: string): string {
+  const document = JSON.parse(base) as Record<string, unknown>
+  const name = decodeProviderName(document['name'])
+  if (!('ok' in name)) throw new Error('a release provider base body has no provider name')
+  const models = officialCatalog(name.ok, model => RELEASE_ENABLED_MODELS.has(model))
+  return JSON.stringify({ ...document, models })
+}
+
+function readProvider(base: string): ReleaseProvider {
+  const text = withCatalog(base)
   const read = readBodyText(text, BODY_LIMITS)
   if (read.kind !== 'ok') throw new Error(`a release provider body is not a document: ${read.kind}`)
   const parsed = parseModelProviderBody(read.value)
@@ -55,10 +70,26 @@ function readProvider(text: string): ReleaseProvider {
   return { body, document: read.value, version, holding: held.kind === 'declared' ? held : null }
 }
 
+/** Refuses a release whose official profiles go through a provider the release does not hold. */
+export function assertSuppliersHeld(held: readonly string[], suppliers: readonly string[]): void {
+  const missing = suppliers.filter(name => !held.includes(name))
+  if (missing.length > 0)
+    throw new Error(
+      `official profiles go through providers the release does not hold: ${missing.join(', ')}`,
+    )
+}
+
 let providers: readonly ReleaseProvider[] | undefined
 
 export function releaseProviders(): readonly ReleaseProvider[] {
-  providers ??= Object.freeze(RELEASE_PROVIDER_TEXTS.map(readProvider))
+  if (providers === undefined) {
+    const read = Object.freeze(RELEASE_PROVIDER_TEXTS.map(readProvider))
+    assertSuppliersHeld(
+      read.map(provider => provider.body.name),
+      officialSupplierProviders(),
+    )
+    providers = read
+  }
   return providers
 }
 
