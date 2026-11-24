@@ -52,7 +52,9 @@ function drawn(shell: Awaited<ReturnType<typeof loaded>>['shell'], scope: string
   const [item] = shell.items('back')
   if (item === undefined) throw new Error('nothing is on the back')
   return render(
-    <AppTooltipProvider>{item.render({ scope, turn: () => undefined })}</AppTooltipProvider>,
+    <AppTooltipProvider>
+      {item.render({ scope, turn: () => undefined, home: () => undefined })}
+    </AppTooltipProvider>,
   )
 }
 

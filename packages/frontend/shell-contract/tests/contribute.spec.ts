@@ -1,6 +1,6 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { ShellAssemblyError, type SlotName } from '@omne-harness/shell-contract'
+import { ShellAssemblyError, type BackProps, type SlotName } from '@omne-harness/shell-contract'
 import { render, startShell } from './reference-shell.ts'
 
 const gate = (id: string) => ({ id, render })
@@ -74,6 +74,21 @@ describe('contribute', () => {
       expect(shell.items('back').map(item => item.id)).toEqual(['canvas'])
       expect(shell.conflicts('back')).toEqual([])
       expect(shell.owner('back', 'canvas')).toBe('a')
+    })
+
+    it('hands its item the tenant, and turn and home, each reaching the shell once a call', async () => {
+      const { root, shell } = await startShell()
+      shell.tenant = 'tenant-x'
+      const handed: BackProps[] = []
+      await place(root, 'a', ctx =>
+        ctx.shell.contribute('back', { id: 'canvas', render: props => void handed.push(props) }),
+      )
+      shell.back()
+      expect(handed.map(props => props.scope)).toEqual(['tenant-x'])
+      handed[0]?.home()
+      handed[0]?.turn()
+      handed[0]?.home()
+      expect(shell.asked).toEqual(['home', 'turn', 'home'])
     })
 
     it('answers a conflict when another module puts a back: neither is drawn, both are named, and the one left takes effect', async () => {

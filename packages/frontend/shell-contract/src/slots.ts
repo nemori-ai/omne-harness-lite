@@ -65,8 +65,8 @@ export type FloatItem = Readonly<{
   render: (props: FloatProps) => ReactNode
 }>
 
-/** `turn` turns the application to its other face, as the shell's own ways to turn do; it gives nothing back. */
-export type BackProps = Readonly<{ scope: string | undefined; turn: () => void }>
+/** `turn` turns the application to its other face, as the shell's own ways to turn do; `home` is a press on the front's home. Neither gives anything back. */
+export type BackProps = Readonly<{ scope: string | undefined; turn: () => void; home: () => void }>
 
 export type BackItem = Readonly<{
   id: string

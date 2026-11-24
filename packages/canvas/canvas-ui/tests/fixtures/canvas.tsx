@@ -81,21 +81,15 @@ export function memoryPreferences(held: Partial<Record<CanvasPreference, string>
 
 export type Opened = Awaited<ReturnType<typeof opened>>
 
-/** The back drawn on the reference shell for the tenant, its first reads not answered yet. */
-export async function opening(
-  preferences: CanvasPreferences = memoryPreferences().preferences,
-  turn: () => void = () => undefined,
-) {
+/** The back the reference shell draws for the tenant, its first reads not answered yet; `shell.asked` is what it asked of the shell. */
+export async function opening(preferences: CanvasPreferences = memoryPreferences().preferences) {
   const started = await startConnected()
   started.shell.tenant = TENANT
   const fake = createFakeClient<CanvasClient>(OPERATIONS)
   await serveProtocol(started.root, canvasProtocol, fake.client)
   await started.root.plugin(createCanvasUiModule({ preferences }))
-  const [back] = started.shell.items('back')
-  if (back === undefined) throw new Error('nothing is on the back')
-  const view = render(
-    <AppTooltipProvider>{back.render({ scope: TENANT, turn })}</AppTooltipProvider>,
-  )
+  if (started.shell.items('back').length === 0) throw new Error('nothing is on the back')
+  const view = render(<AppTooltipProvider>{started.shell.back()}</AppTooltipProvider>)
   return { ...started, fake, view }
 }
 
@@ -104,9 +98,8 @@ export async function opened(
   body: CanvasBody,
   kinds: readonly CanvasKindBody[] | 'unreadable' = [NOTE_KIND],
   preferences?: CanvasPreferences,
-  turn?: () => void,
 ) {
-  const world = await opening(preferences, turn)
+  const world = await opening(preferences)
   ;(await world.fake.next('look')).answer({ outcome: 'succeeded', body })
   const kindsCall = await world.fake.next('kinds')
   kindsCall.answer(

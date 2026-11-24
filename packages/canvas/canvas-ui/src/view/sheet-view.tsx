@@ -46,6 +46,7 @@ export type SheetViewProps = Readonly<{
   place: Place
   lookAway: (limit: number, before?: number) => Promise<Reading<AwayPage>>
   dismiss: () => void
+  home: () => void
 }>
 
 /** Where this device looks and whether its magnet is on: kept on the device, never on the canvas. */
@@ -193,7 +194,9 @@ export function SheetView(props: SheetViewProps): JSX.Element {
           open={layers.open}
         />
         <PaperSpot at={{ x: sheet.width / 2, y: sheet.height / 2 }}>
-          <FigureSeat name={SEAT} priority={1} className="canvas-seat" />
+          <IconButton label="回到正面" onClick={() => props.home()}>
+            <FigureSeat name={SEAT} priority={1} className="canvas-seat" />
+          </IconButton>
         </PaperSpot>
         {canvas.piles.map(pile => (
           <PileView

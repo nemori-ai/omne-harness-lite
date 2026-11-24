@@ -46,7 +46,7 @@ export function createCanvasUiModule(options: CanvasUiOptions) {
       const followKinds = following(server)
       shell.contribute('back', {
         id: CANVAS_BACK_ID,
-        render: ({ scope, turn }) =>
+        render: ({ scope, turn, home }) =>
           scope === undefined ? null : (
             <CanvasBack
               client={client}
@@ -55,6 +55,7 @@ export function createCanvasUiModule(options: CanvasUiOptions) {
               preferences={options.preferences}
               followKinds={followKinds}
               turn={turn}
+              home={home}
             />
           ),
       })

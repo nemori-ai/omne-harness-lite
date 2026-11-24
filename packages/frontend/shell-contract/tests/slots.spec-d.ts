@@ -63,7 +63,7 @@ test('each slot takes its own item', () => {
     Readonly<{ id: string; render: (props: BackProps) => ReactNode }>
   >()
   expectTypeOf<BackProps>().toEqualTypeOf<
-    Readonly<{ scope: string | undefined; turn: () => void }>
+    Readonly<{ scope: string | undefined; turn: () => void; home: () => void }>
   >()
   expectTypeOf<AttachedItem>().toEqualTypeOf<
     Readonly<{
@@ -167,6 +167,8 @@ test('contribute refuses an item that belongs to another slot', () => {
   shell.contribute('back', { id: 'f', order: 0, render })
   // @ts-expect-error the back hands its item a way to turn that gives nothing back
   shell.contribute('back', { id: 'b', render: (props: { turn: () => boolean }) => props.turn() })
+  // @ts-expect-error the back hands its item a way home that gives nothing back
+  shell.contribute('back', { id: 'b', render: (props: { home: () => boolean }) => props.home() })
   // @ts-expect-error there is no seventh slot
   shell.contribute('footer', { id: 'f', render })
 })

@@ -20,6 +20,8 @@ export type CanvasBackProps = Readonly<{
   followKinds?: KindsFollow
   /** The shell's turn to the front, drawn as the mark in the corner. */
   turn: () => void
+  /** The shell's home on the front, pressed through the seat of the figure. */
+  home: () => void
 }>
 
 /** The back of the application: the tenant's canvas, as the server last said it is. */
@@ -60,6 +62,7 @@ function Driven({
   host,
   preferences,
   followKinds,
+  home,
 }: Omit<CanvasBackProps, 'client' | 'turn'> & Readonly<{ driver: CanvasDriver }>) {
   const state = useSyncExternalStore(driver.subscribe, driver.getState)
   const place = useCallback<Place>((reference, near) => driver.place(reference, near), [driver])
@@ -91,6 +94,7 @@ function Driven({
       place={place}
       lookAway={lookAway}
       dismiss={() => driver.dismiss()}
+      home={home}
     />
   )
 }

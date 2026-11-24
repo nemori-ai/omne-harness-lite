@@ -32,6 +32,7 @@ import {
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
 import { Float } from './float.tsx'
+import { goHome, homeOf, mergedOf } from './home.ts'
 import type { FloatPlaces } from './float-place.ts'
 import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
@@ -109,17 +110,10 @@ function useWide(): boolean {
   )
 }
 
-const ownerOf = (owners: readonly object[] = []): object | undefined =>
-  owners.length === 1 ? owners[0] : undefined
-
-/** The modules' reports merged (R4-1): the module whose page is on show is in front. */
 function useFigure(state: ShellState, pages: readonly PageItem[], shown: string | undefined) {
   const [, changed] = useReducer((count: number) => count + 1, 0)
   useEffect(() => state.figure.subscribe(changed), [state.figure])
-  return state.figure.merged({
-    foreground: shown === undefined ? undefined : ownerOf(state.pageOwners.get(shown)),
-    pages: pages.map(page => page.id),
-  })
+  return mergedOf(state, pages, shown)
 }
 
 export function figureText(merged: MergedFigure): string {
@@ -355,7 +349,7 @@ function Back(props: {
         <Item
           key={item.id}
           scope={scope}
-          render={() => item.render({ scope, turn: state.face.turn })}
+          render={() => item.render({ scope, turn: state.face.turn, home: () => goHome(state) })}
         />
       ) : null}
     </section>
@@ -474,8 +468,7 @@ export function Shell(props: ShellProps) {
   const merged = useFigure(state, pages, shown)
   const face = useWatched(state.face)
   useEffect(() => bindRegionKeys(window), [])
-  const homePage =
-    merged.waiting > 0 && merged.waitingPage !== undefined ? merged.waitingPage : pages[0]?.id
+  const homePage = homeOf(merged, pages)
   return (
     <RedrawProvider value={state.redraw.draw}>
       <AppTooltipProvider>

@@ -6,6 +6,7 @@ import {
   needPoint,
   needProtocol,
   serviceKey,
+  type BackProps,
   type Need,
 } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
@@ -261,6 +262,7 @@ describe('a view module that declares its needs', () => {
 
   it('while a required need is missing it puts its pages and its gate, nothing on the sidebar, over the application, on the back or on an attached point, and provides nothing', async () => {
     const w = await world()
+    const handed: BackProps[] = []
     const offered = serviceKey<{ text: string }>('notes.offer')
     const spot = definePoint({
       name: 'test.a',
@@ -281,7 +283,7 @@ describe('a view module that declares its needs', () => {
           shell.contribute('gate', { id: 'notes.gate', render })
           shell.contribute('sidebar', { id: 'notes.side', order: 0, render })
           shell.contribute('float', { id: 'notes.float', order: 0, render })
-          shell.contribute('back', { id: 'notes.back', render })
+          shell.contribute('back', { id: 'notes.back', render: props => void handed.push(props) })
           spot.contribute(shell, { id: 'notes.attached', order: 0, render })
           provide(offered, { text: 'the offer' })
         },
@@ -306,6 +308,8 @@ describe('a view module that declares its needs', () => {
       attached: 0,
     })
     expect(w.shell.conflicts('back')).toEqual([])
+    w.shell.back()
+    expect(handed).toEqual([])
     expect(there().offered).not.toBe('one')
     await w.serve('notes', 1)
     await settled()
@@ -318,6 +322,9 @@ describe('a view module that declares its needs', () => {
       attached: 1,
       offered: 'one',
     })
+    w.shell.back()
+    handed[0]?.home()
+    expect(w.shell.asked).toEqual(['home'])
   })
 })
 

@@ -110,7 +110,9 @@ describe('two drawings on one key, on the desktop shell', () => {
     const shell = root.get('shell') as unknown as DesktopShell
     const [back] = shell.items('back')
     render(
-      <AppTooltipProvider>{back!.render({ scope: TENANT, turn: () => {} })}</AppTooltipProvider>,
+      <AppTooltipProvider>
+        {back!.render({ scope: TENANT, turn: () => {}, home: () => {} })}
+      </AppTooltipProvider>,
     )
     await settle()
     expect(screen.getByText('这个名字有两份，互相冲突：clock-one、clock-two')).toBeTruthy()

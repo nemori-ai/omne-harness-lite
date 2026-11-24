@@ -101,7 +101,8 @@ it('declares the five points of the shell itself as fixed when the application i
       ...shared,
       name: 'shell.back',
       arity: 'one',
-      gives: 'the tenant scope, and turn, which turns the application to its other face',
+      gives:
+        "the tenant scope; turn, which turns the application to its other face; and home, which goes where the front's home goes",
       onError: 'only this item shows that it cannot be read; the shell still turns to the front',
       summary:
         'The back of the application: its other face once somebody is signed in. Fixed when the app is built: a plugin cannot add to it while the app runs.',

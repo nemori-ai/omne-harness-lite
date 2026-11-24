@@ -15,6 +15,7 @@ import {
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
 import { Drawn } from './drawn.tsx'
+import { goHome, toFront } from './home.ts'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
 import { redrawKeys, redrawPoints, redrawThrough } from './redraw.ts'
@@ -176,8 +177,11 @@ export class DesktopShell extends ShellService {
   }
 
   protected override turn(): void {
-    this.state.face.turn()
-    if (this.state.face.get() === 'back') this.state.face.turn()
+    toFront(this.state.face)
+  }
+
+  protected override home(): void {
+    goHome(this.state)
   }
 
   /** Only which page is on show: choosing one stays with `navigate`. */

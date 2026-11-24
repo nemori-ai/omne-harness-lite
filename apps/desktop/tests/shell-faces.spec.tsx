@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import type { Fiber, Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
-import type { BackProps } from '@omne-harness/shell-contract'
-import { defineUiModule } from '@omne-harness/shell-contract/cordis'
+import type { BackProps, FigureReport } from '@omne-harness/shell-contract'
+import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { FigureSeat } from '@omne-harness/ui-kit'
 import { FACE_KEY, storedFacePreference } from '../src/page/shell/face.ts'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
@@ -80,6 +80,33 @@ function backModule(
       shell.contribute('back', { id: 'canvas', render })
     },
   })
+}
+
+const homing = (): Plugin.Object =>
+  backModule(({ turn, home }) => (
+    <>
+      <button type="button" onClick={turn}>
+        翻回去
+      </button>
+      <button type="button" onClick={home}>
+        回家
+      </button>
+    </>
+  ))
+const goHome = () => act(() => screen.getByRole('button', { name: '回家' }).click())
+
+/** A module that puts a page late in the order and reports to the figure through the shell. */
+function waiter(id: string) {
+  const held: { shell?: ShellService } = {}
+  const plugin = defineUiModule({
+    name: `waiter-${id}`,
+    needs: {},
+    apply(shell) {
+      held.shell = shell
+      shell.contribute('pages', { id, title: id, order: 50, icon: 'topics', render: () => null })
+    },
+  })
+  return { plugin, report: (value: FigureReport) => act(() => held.shell!.figure(value)) }
 }
 
 function floater(id: string): Plugin.Object {
@@ -244,6 +271,30 @@ describe('外壳：两面', () => {
     act(() => t.service.navigate('settings'))
     expect(onShow()).toBe('front')
     expect(section('settings')?.hidden).toBe(false)
+  })
+
+  it('反面那一项调 home()，没有待答时：翻回正面，去次序最前的一页', async () => {
+    const t = await signedIn([homing()])
+    await t.provide(CHAT)
+    await t.provide(SETTINGS)
+    act(() => t.service.navigate('settings'))
+    press()
+    goHome()
+    expect(onShow()).toBe('front')
+    expect(section('chat')?.hidden).toBe(false)
+    expect(section('settings')?.hidden).toBe(true)
+  })
+
+  it('反面那一项调 home()，有待答时：翻回正面，去待答的那一页', async () => {
+    const later = waiter('later')
+    const t = await signedIn([homing(), later.plugin])
+    await t.provide(CHAT)
+    press()
+    later.report({ doing: 'idle', waiting: 1, waitingPage: 'later' })
+    goHome()
+    expect(onShow()).toBe('front')
+    expect(section('later')?.hidden).toBe(false)
+    expect(section('chat')?.hidden).toBe(true)
   })
 
   it('露着反面时撤下那一项，直接露出正面；它回来时入口回来，外壳不自己翻过去', async () => {
@@ -533,17 +584,7 @@ describe('外壳：停在哪一面', () => {
 describe('外壳：翻面在动', () => {
   async function playing(more: Parameters<typeof setup>[0] = {}) {
     reduced = false
-    const t = await signedIn(
-      [
-        backModule(({ turn }) => (
-          <button type="button" onClick={turn}>
-            翻回去
-          </button>
-        )),
-      ],
-      undefined,
-      more,
-    )
+    const t = await signedIn([homing()], undefined, more)
     vi.useFakeTimers({
       toFake: [
         'setTimeout',
@@ -620,10 +661,27 @@ describe('外壳：翻面在动', () => {
     expect(onShow()).toBe('front')
     expect(section('settings')?.hidden).toBe(false)
   })
+
+  it('翻向反面的途中调 home()：停在正面，到次序最前的一页', async () => {
+    const t = await playing()
+    await act(async () => {
+      await serveSettings(t, CHAT)
+    })
+    act(() => t.service.navigate('settings'))
+    press()
+    t.pass(300)
+    goHome()
+    t.pass(1500)
+    expect(t.layer()).toBeNull()
+    expect(onShow()).toBe('front')
+    expect(section('chat')?.hidden).toBe(false)
+    expect(section('settings')?.hidden).toBe(true)
+  })
 })
 
-async function serveSettings(t: Awaited<ReturnType<typeof setup>>) {
+async function serveSettings(t: Awaited<ReturnType<typeof setup>>, ...more: readonly string[]) {
   vi.useRealTimers()
+  for (const name of more) await t.provide(name)
   await t.provide(SETTINGS)
   vi.useFakeTimers({
     toFake: [

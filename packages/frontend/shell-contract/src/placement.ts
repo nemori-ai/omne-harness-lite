@@ -75,7 +75,8 @@ export const shellContracts: readonly Contract[] = [
     ...SHARED,
     name: POINT.back,
     arity: 'one',
-    gives: 'the tenant scope, and turn, which turns the application to its other face',
+    gives:
+      "the tenant scope; turn, which turns the application to its other face; and home, which goes where the front's home goes",
     binding: 'build',
     onError: 'only this item shows that it cannot be read; the shell still turns to the front',
     summary: `The back of the application: its other face once somebody is signed in. ${FIXED}`,

@@ -531,6 +531,10 @@ export abstract class ShellService extends Service implements ShellSlots {
     return undefined
   }
 
+  protected home(): void {
+    return undefined
+  }
+
   protected bringUp(
     pageId: string,
     subject: string | undefined,

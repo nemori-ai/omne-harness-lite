@@ -42,6 +42,7 @@ import {
   type ThemeChoice,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
+import { goHome } from './home.ts'
 import { useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
 import { useSidebarFoldMotion, type SidebarWidth } from './sidebar-motion.ts'
@@ -127,7 +128,7 @@ function Home(props: {
   appName: string
   selected: boolean
   page: string | undefined
-  choose: (id: string) => void
+  go: () => void
   seat?: boolean
 }) {
   return (
@@ -141,7 +142,10 @@ function Home(props: {
         aria-current={props.selected ? 'page' : undefined}
         aria-label={props.appName}
         draggable={false}
-        onClick={follow(props.choose, props.page)}
+        onClick={event => {
+          event.preventDefault()
+          props.go()
+        }}
       >
         {props.seat === false ? (
           <span className="shell-home-seat" />
@@ -410,7 +414,7 @@ export function Sidebar(
           appName={props.appName}
           selected={homeSelected(props)}
           page={props.homePage}
-          choose={props.state.page.choose}
+          go={() => goHome(props.state)}
         />
         <IconButton
           label={expanded ? '收起侧栏' : '展开侧栏'}
@@ -462,6 +466,7 @@ function SheetNavigation(
     inside: RefCallback<HTMLDivElement>
     seat: boolean
     choose: (id: string) => void
+    home: () => void
   },
 ) {
   return (
@@ -471,7 +476,7 @@ function SheetNavigation(
           appName={props.appName}
           selected={homeSelected(props)}
           page={props.homePage}
-          choose={props.choose}
+          go={props.home}
           seat={props.seat}
         />
       </div>
@@ -508,7 +513,7 @@ export function NarrowNavigation(props: SidebarProps & { covering: (open: boolea
         appName={navigation.appName}
         selected={homeSelected(navigation)}
         page={navigation.homePage}
-        choose={navigation.state.page.choose}
+        go={() => goHome(navigation.state)}
         seat={!arrived}
       />
       <Sheet
@@ -532,7 +537,16 @@ export function NarrowNavigation(props: SidebarProps & { covering: (open: boolea
           aria-describedby={undefined}
         >
           <SheetTitle className="sr-only">{navigation.appName}</SheetTitle>
-          <SheetNavigation {...navigation} inside={inside} seat={arrived} choose={choose} />
+          <SheetNavigation
+            {...navigation}
+            inside={inside}
+            seat={arrived}
+            choose={choose}
+            home={() => {
+              goHome(navigation.state)
+              close()
+            }}
+          />
         </SheetContent>
       </Sheet>
     </aside>
