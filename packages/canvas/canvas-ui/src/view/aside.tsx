@@ -1,6 +1,8 @@
 import type { CanvasItemBody } from '@omne-harness/canvas-protocol'
 import {
   Ago,
+  AssistantIcon,
+  ContactIcon,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -9,20 +11,45 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  formatRelative,
   IconButton,
   LockIcon,
   MoreIcon,
+  PaperQuiet,
+  useAgeClock,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useRef, type JSX } from 'react'
 import { KEYS, shortcutOf, type KeyAct } from './keys.ts'
 
-/** Who last arranged it: a person, or an agent; never the full identifier of a session. */
-export function ByLine({ by, when }: Readonly<Pick<CanvasItemBody, 'by' | 'when'>>): JSX.Element {
-  const who = by.kind === 'human' ? '人' : 'agent'
+type Placed = Readonly<Pick<CanvasItemBody, 'by' | 'when'>>
+
+const tipOf = (by: Placed['by']): string =>
+  by.kind === 'human' ? '最近由人摆放' : '最近由 agent 摆放'
+
+function Mark({ by }: Readonly<Pick<Placed, 'by'>>): JSX.Element {
+  const Drawn = by.kind === 'human' ? ContactIcon : AssistantIcon
+  return <Drawn aria-hidden="true" className="canvas-by-mark" />
+}
+
+/** Who last arranged it, a person or an agent, never a session: a mark, and words shown while the page is looked at. */
+export function ByLine({ by, when }: Placed): JSX.Element {
   return (
-    <span className="canvas-by" title={by.kind === 'human' ? '最近由人摆放' : '最近由 agent 摆放'}>
-      {who} · <Ago at={encodeInstant(when)} />
+    <span className="canvas-by" title={tipOf(by)}>
+      <PaperQuiet>
+        {by.kind === 'human' ? '人' : 'agent'} · <Ago at={encodeInstant(when)} />
+      </PaperQuiet>
+      <Mark by={by} />
+    </span>
+  )
+}
+
+/** Who last arranged a pile: the mark alone takes room in the line; the words are its tip and its name. */
+export function ByMark({ by, when }: Placed): JSX.Element {
+  const said = `${tipOf(by)} · ${formatRelative(encodeInstant(when), useAgeClock(true))}`
+  return (
+    <span className="canvas-by" role="img" aria-label={said} title={said}>
+      <Mark by={by} />
     </span>
   )
 }

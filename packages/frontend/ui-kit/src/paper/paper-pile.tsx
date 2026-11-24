@@ -97,7 +97,7 @@ function Leaf({
         } as React.CSSProperties
       }
     >
-      {open ? <span className="omne-paper-name-text">{leaf.name}</span> : null}
+      {open ? <span className="omne-paper-name-text omne-paper-quiet">{leaf.name}</span> : null}
       <div className="omne-paper-leaf">{leaf.content}</div>
     </div>
   )

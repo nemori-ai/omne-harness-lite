@@ -8,11 +8,12 @@ import {
   useAgeClock,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
-import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import {
   SESSION_KIND,
   paperRow,
   pickable,
+  readThrough,
   type ArchivedDirectory,
   type PaperElementSubject,
   type PaperFrame,
@@ -106,11 +107,21 @@ function DirectoryRow({
     useCallback((listener: () => void) => archived.subscribe(tenant, listener), [archived, tenant]),
     () => archived.read(tenant),
   )
-  const { row, read } = paperRow(list, scan, subject.reference.ref)
+  const [met, setMet] = useState<number | undefined>(() => readThrough(list))
+  const since = met ?? readThrough(list)
+  const session = subject.reference.ref
+  const { row, read } = paperRow(list, scan, session, since)
+  useEffect(() => {
+    if (met === undefined && since !== undefined) setMet(since)
+  }, [met, since])
   useEffect(() => {
     if (read === 'more') driver.loadMoreSessions()
     if (read === 'archived' && list.kind === 'read') archived.scan(tenant, list.page)
-  }, [read, driver, archived, tenant, list])
+    // Pages that miss at once read once: the first read turns the directory to reading for the rest.
+    const now = driver.getState().list
+    if (read === 'again' && paperRow(now, archived.read(tenant), session, since).read === 'again')
+      driver.loadList()
+  }, [read, driver, archived, tenant, list, session, since])
   const { frame } = subject
   switch (row.kind) {
     case 'reading':

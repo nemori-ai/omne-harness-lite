@@ -35,14 +35,24 @@ export type PaperRow =
   | Readonly<{ kind: 'row'; item: ListedSession; archived: boolean }>
   | Readonly<{ kind: 'reading' | 'unreadable' | 'unavailable' }>
 
-export type PaperStep = Readonly<{ row: PaperRow; read: 'more' | 'archived' | null }>
+export type PaperStep = Readonly<{ row: PaperRow; read: 'more' | 'archived' | 'again' | null }>
 
 const READING: PaperStep = { row: { kind: 'reading' }, read: null }
 const UNREADABLE: PaperStep = { row: { kind: 'unreadable' }, read: null }
 const UNAVAILABLE: PaperStep = { row: { kind: 'unavailable' }, read: null }
 
-function archivedRow(scan: ArchivedScan | undefined, after: ListPage, session: string): PaperStep {
-  if (scan === undefined || scan.after !== after)
+const AGAIN: PaperStep = { row: { kind: 'reading' }, read: 'again' }
+
+export const readThrough = (list: SessionList): number | undefined =>
+  list.kind === 'read' && list.page.next === null ? list.issued : undefined
+
+function archivedRow(
+  scan: ArchivedScan | undefined,
+  list: Extract<SessionList, { kind: 'read' }>,
+  session: string,
+  since: number | undefined,
+): PaperStep {
+  if (scan === undefined || scan.after !== list.page)
     return { row: { kind: 'reading' }, read: 'archived' }
   switch (scan.kind) {
     case 'reading':
@@ -53,19 +63,19 @@ function archivedRow(scan: ArchivedScan | undefined, after: ListPage, session: s
       return UNAVAILABLE
     case 'read': {
       const item = scan.rows.get(session)
-      return item === undefined
-        ? UNREADABLE
-        : { row: { kind: 'row', item, archived: true }, read: null }
+      if (item !== undefined) return { row: { kind: 'row', item, archived: true }, read: null }
+      return since !== undefined && list.issued > since ? UNREADABLE : AGAIN
     }
   }
 }
 
-// The open directory first, page after page; only once it is read through without the session is the
-// archived one asked.
+// The open directory page after page, then the archived one. In neither is unreadable only in a directory newer
+// than the one the page met first (`since`): a session made after a read is missing from it, not gone.
 export function paperRow(
   list: SessionList,
   scan: ArchivedScan | undefined,
   session: string,
+  since: number | undefined,
 ): PaperStep {
   const item = shownBy(list)?.sessions.find(listed => listed.session === session)
   if (item !== undefined) return { row: { kind: 'row', item, archived: false }, read: null }
@@ -77,7 +87,7 @@ export function paperRow(
       return list.retry ? UNAVAILABLE : UNREADABLE
     case 'read':
       return list.page.next === null
-        ? archivedRow(scan, list.page, session)
+        ? archivedRow(scan, list, session, since)
         : { row: { kind: 'reading' }, read: 'more' }
   }
 }

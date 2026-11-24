@@ -144,7 +144,7 @@
     summary,
     [role='option'],
     [role^='menuitem']
-  ):not([data-control='field'], [data-control='choice']):is(
+  ):not([data-control='field'], [data-control='choice'], [data-control='paper']):is(
     :hover,
     :active,
     [data-selected='true'],

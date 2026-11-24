@@ -65,6 +65,13 @@
   line-height: var(--omne-leading-ui);
   color: var(--omne-ink-faint);
 }
+.omne-paper-page:hover > .omne-paper-name,
+.omne-paper-page:focus-within > .omne-paper-name,
+.omne-paper-page[data-selected] > .omne-paper-name,
+.omne-paper-page[data-gesture] > .omne-paper-name {
+  --omne-ink-faint: var(--omne-ink-muted);
+  --color-ink-faint: var(--omne-ink-muted);
+}
 .omne-paper-handle {
   display: flex;
   flex: 1;
@@ -88,14 +95,41 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.omne-paper-page:not(.omne-paper-pile) > .omne-paper-name > :is(.omne-paper-handle, .omne-paper-name-text) {
+  min-width: 2em;
+}
 .omne-paper-count {
+  flex: none;
   font-variant-numeric: tabular-nums;
+}
+.omne-paper-quiet {
+  transition: opacity var(--omne-motion-feedback) var(--omne-motion-ease);
+}
+.omne-paper-page:not(:hover):not(:focus-within):not([data-selected]):not([data-gesture])
+  > .omne-paper-name
+  .omne-paper-quiet,
+.omne-paper-pile-leaf:not(:hover):not(:focus-within) > .omne-paper-quiet {
+  opacity: 0;
 }
 .omne-paper-aside {
   display: flex;
-  flex: none;
+  flex: 0 1 auto;
   align-items: center;
+  min-width: 0;
   margin-block: calc(var(--spacing) * -1.25);
+}
+.omne-paper-aside > :not(.omne-paper-quiet, :has(.omne-paper-quiet)),
+.omne-paper-name > [data-slot='paper-pile-toggle'] {
+  flex: none;
+}
+.omne-paper-aside > :has(.omne-paper-quiet) {
+  min-width: 0;
+}
+.omne-paper-aside .omne-paper-quiet {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .omne-paper-leaf {
@@ -229,6 +263,7 @@
   .omne-paper-surface,
   .omne-paper-handle,
   .omne-paper-corner,
+  .omne-paper-quiet,
   .omne-paper-leaf,
   .omne-paper-pile-leaf {
     transition: none !important;
