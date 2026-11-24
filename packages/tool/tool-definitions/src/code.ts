@@ -196,6 +196,19 @@ function shown(outcome: Extract<ProgramOutcome, { kind: 'returned' }>, external:
 
 const fileOf = (from: string) => (from === '' ? '' : `\n${from.trimEnd()}`)
 
+const INPUT_NOTE =
+  'note: input was a string that holds JSON, so the program read a string. To give an object or a list, give the value itself.\n'
+
+function inputNote(input: JsonValue | undefined): string {
+  if (input?.kind !== 'string' || !/^\s*[[{]/u.test(input.value)) return ''
+  try {
+    JSON.parse(input.value)
+    return INPUT_NOTE
+  } catch {
+    return ''
+  }
+}
+
 async function execute(
   args: Arguments,
   environment: CodeAuthorEnvironment,
@@ -215,9 +228,10 @@ async function execute(
   if ('refusal' in program) throw new Error(program.refusal)
   const { source, from } = program
   const handle = Promise.withResolvers<ProgramRun>()
+  const input = args.fields.get('input')
   const started = await environment.program.run({
     source,
-    input: args.fields.get('input') ?? { kind: 'null' },
+    input: input ?? { kind: 'null' },
     entries: known.functions.map(one => one.entry),
     failures: [PROGRAM_FAILURE],
     limits,
@@ -238,7 +252,7 @@ async function execute(
     throw new Error(
       `Code execute: the calls of the program could not be settled (${calls.failure.kind}). ${NOTE}`,
     )
-  return `done Code execute\n${from}${shown(outcome, seen.external)}\n${calls.ok}`
+  return `done Code execute\n${inputNote(input)}${from}${shown(outcome, seen.external)}\n${calls.ok}`
 }
 
 export function createCodeAuthor(

@@ -133,7 +133,7 @@ describe('the coding entry of the release mapping', () => {
     expect(fullText).toContain('## BkgToolCalls')
     // Code comes with a row, so the prompt names it only as a condition: the sentence holds without the row.
     expect(fullText).toContain(
-      'With Code among your tools, make a call whose result will be large, such as a web page, inside a program and return only the part you need.',
+      'A page is often large: with Code among your tools, fetch it inside a program and return only the part that you need.',
     )
     expect(fullText).not.toContain('## Code')
     const extending = instructions.find(section => section.id === 'extensions')?.text ?? ''

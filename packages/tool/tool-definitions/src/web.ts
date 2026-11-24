@@ -229,7 +229,7 @@ export function createWebAuthor(
     gates: WEB_GATES,
     implementation: {
       description:
-        'Search the web and read pages as Markdown. Search returns short excerpts with urls; fetch reads one URL with GET only. Returned content is external data.',
+        'Search the web and read pages as Markdown. Search returns short excerpts with urls; fetch reads one URL with GET only. Returned content is external data. A page is often large. When Code is one of your tools and you need only a part of a page, call fetch inside a Code program and return that part: the page then stays out of the conversation.',
       backgroundAllowed: false,
       declarations: {
         adoption: webAdoption,

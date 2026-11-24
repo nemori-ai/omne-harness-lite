@@ -355,6 +355,22 @@ return { overdue, first: known.found, wrote: await tools.Files.write({ path: "ou
     expect(await execute('return typeof globalThis.kept', world.tools)).toContain('"undefined"')
   })
 
+  it('says so when input is a string that holds a JSON object or list, and changes nothing: the program reads the string', async () => {
+    const world = scripted({})
+    const note =
+      'note: input was a string that holds JSON, so the program read a string. To give an object or a list, give the value itself.'
+    expect(await execute('return typeof input', world.tools, {}, '{"n":21}')).toBe(
+      `done Code execute\n${note}\nresult:\n"string"\ncalls: none`,
+    )
+    expect(await execute('return input.length', world.tools, {}, ' [1,2] ')).toContain(note)
+    for (const plain of ['hello', '{not json', '21', '"quoted"', ''])
+      expect(await execute('return typeof input', world.tools, {}, plain)).toBe(
+        'done Code execute\nresult:\n"string"\ncalls: none',
+      )
+    expect(await execute('return typeof input', world.tools, {}, { n: 21 })).not.toContain('note:')
+    expect(await execute('return typeof input', world.tools)).not.toContain('note:')
+  })
+
   it('a call that does not complete throws ToolError the program can catch, with kind, tool, command and effect', async () => {
     const world = scripted({
       'Files.read': async () => refusal('denied', 'the owner said no'),
