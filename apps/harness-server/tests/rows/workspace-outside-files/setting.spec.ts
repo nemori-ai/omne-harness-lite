@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { workspaceOutsideFilesSettings } from '@omne-harness/workspace-local'
 import type { TenantIndependentSettingsService } from '../../../src/rows/governance/independent-settings-service.ts'
-import { outsideFilesReader } from '../../../src/rows/workspace/outside-files.ts'
+import { outsideFilesReader } from '../../../src/rows/workspace-outside-files/setting.ts'
 import { TENANT_A } from '../storage/fixtures/tree.ts'
 
 const viewOf = (value: unknown) => ({

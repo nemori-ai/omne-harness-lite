@@ -20,6 +20,23 @@ describe('a list slot', () => {
     expect(shell.items('sidebar').map(item => item.id)).toEqual(['first', 'a', 'b', 'z', 'c'])
   })
 
+  it('orders what floats over the application the same way', async () => {
+    const { root, shell } = await startShell()
+    const entries: [string, number][] = [
+      ['b', 1],
+      ['a', 1],
+      ['first', 0],
+    ]
+    for (const [id, order] of entries)
+      await root.plugin({
+        name: `p-${id}`,
+        inject: ['shell'],
+        apply: ctx => ctx.shell.contribute('float', { id, order, render }),
+      })
+    expect(shell.items('float').map(item => item.id)).toEqual(['first', 'a', 'b'])
+    expect(shell.items('sidebar')).toEqual([])
+  })
+
   it('orders the attached slot by order, then by id, not by anchor', async () => {
     const { root, shell } = await startShell()
     const entries: [string, number, string][] = [

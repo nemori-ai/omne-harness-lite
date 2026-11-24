@@ -77,7 +77,7 @@ export function closingStroke(hand: Hand = DEFAULT_HAND, seed = 0): InkStroke {
 
 export const EYE_WEIGHT = BRUSH * PRESS.dot
 
-const dab = (t: number): number =>
+export const dab = (t: number): number =>
   t < 0.4 ? 0.8 + 0.2 * Math.sin((t / 0.4) * (Math.PI / 2)) : 1 - 0.36 * ((t - 0.4) / 0.6) ** 1.4
 
 export function eyeStroke(seed = 0): InkStroke {

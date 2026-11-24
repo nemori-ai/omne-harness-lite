@@ -98,6 +98,20 @@ describe('contribute', () => {
       expect(shell.conflicts('sidebar')).toEqual([])
     })
 
+    it('answers the same conflict over the application: neither floats until one leaves', async () => {
+      const { root, shell } = await startShell()
+      await place(root, 'a', ctx => ctx.shell.contribute('float', side('pet')))
+      const second = await place(root, 'b', ctx => ctx.shell.contribute('float', side('pet')))
+      expect(shell.items('float')).toEqual([])
+      expect(shell.conflicts('float')).toEqual([
+        { slot: 'float', anchor: undefined, id: 'pet', by: ['a', 'b'] },
+      ])
+      await second.dispose()
+      await settle()
+      expect(shell.items('float').map(item => item.id)).toEqual(['pet'])
+      expect(shell.owner('float', 'pet')).toBe('a')
+    })
+
     it('answers the same whichever module was loaded first', async () => {
       const forward = await startShell()
       const backward = await startShell()

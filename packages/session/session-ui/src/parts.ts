@@ -1,5 +1,11 @@
-import { definePart } from '@omne-harness/shell-contract'
+import {
+  definePart,
+  type FigureDoing,
+  type FloatCorner,
+  type FloatProps,
+} from '@omne-harness/shell-contract'
 import type { ReactNode } from 'react'
+import type { SayAnswer, SayTarget } from './model/say.ts'
 
 /** What the drawing of a message is given: who spoke, whether it is still being written, and its content drawn. */
 export type MessageDrawing = Readonly<{ role: string; live: boolean; content: ReactNode }>
@@ -9,6 +15,57 @@ export type BubbleDrawing = Readonly<{ role: string; live: boolean; content: Rea
 
 /** What the drawing of the page's backdrop is given: whether no session is open. */
 export type BackdropDrawing = Readonly<{ empty: boolean }>
+
+export type CompanionSession = Readonly<{ session: string; name: string }>
+
+export type CompanionPort = Readonly<{
+  sessions: readonly CompanionSession[] | null
+  current: string | null
+  say: (to: SayTarget, words: string) => Promise<SayAnswer>
+  show: () => void
+}>
+
+export type CompanionFigureDrawing = Readonly<{
+  doing: FigureDoing
+  unfolded: boolean
+  dragging: boolean
+}>
+
+export type CompanionPanelDrawing = CompanionPort & Readonly<{ close: () => void }>
+
+export type CompanionDrawing = CompanionPort &
+  Readonly<{
+    doing: FigureDoing
+    grip: FloatProps['grip']
+    corner: FloatCorner
+    dragging: boolean
+  }>
+
+export const sessionCompanion = definePart<CompanionDrawing>({
+  name: 'session.companion',
+  label: '随身入口',
+  summary: '浮在整个应用之上、能拖到任何地方的一处，在哪一页都能对 Agent 说一句话',
+  depths: ['tokens', 'style', 'render'],
+  when: '登录之后',
+})
+
+export const sessionCompanionFigure = definePart<CompanionFigureDrawing>({
+  name: 'session.companion.figure',
+  label: '随身入口的形象',
+  summary: '随身入口长什么样，按它展开小框，按住它拖；自带的是几粒墨点',
+  within: 'session.companion',
+  depths: ['tokens', 'style', 'render'],
+  when: '登录之后',
+})
+
+export const sessionCompanionPanel = definePart<CompanionPanelDrawing>({
+  name: 'session.companion.panel',
+  label: '随身入口的小框',
+  summary: '写一句话、选说给谁、发出去的地方',
+  within: 'session.companion',
+  depths: ['tokens', 'style', 'render'],
+  when: '小框展开时',
+})
 
 export const sessionList = definePart({
   name: 'session.list',
@@ -243,6 +300,9 @@ export const sessionSearchHit = definePart({
   when: '搜到东西时',
 })
 export const sessionParts = [
+  sessionCompanion,
+  sessionCompanionFigure,
+  sessionCompanionPanel,
   sessionList,
   sessionListNew,
   sessionListItem,

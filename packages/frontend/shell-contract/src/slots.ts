@@ -4,6 +4,7 @@ export const slots = {
   gate: { kind: 'one' },
   pages: { kind: 'list' },
   sidebar: { kind: 'list' },
+  float: { kind: 'list' },
   attached: { kind: 'list' },
 } as const
 
@@ -46,6 +47,23 @@ export type SidebarItem = Readonly<{
   render: (props: ScopedProps) => ReactNode
 }>
 
+export const FLOAT_GRIP_ATTRIBUTE = 'data-omne-float-grip'
+
+export type FloatCorner = Readonly<{ x: 'start' | 'end'; y: 'start' | 'end' }>
+
+export type FloatProps = Readonly<{
+  scope: string | undefined
+  grip: Readonly<{ [FLOAT_GRIP_ATTRIBUTE]: '' }>
+  corner: FloatCorner
+  dragging: boolean
+}>
+
+export type FloatItem = Readonly<{
+  id: string
+  order: number
+  render: (props: FloatProps) => ReactNode
+}>
+
 export type AttachedItem = Readonly<{
   id: string
   order: number
@@ -62,6 +80,7 @@ export type SlotItems = {
   gate: GateItem
   pages: PageItem
   sidebar: SidebarItem
+  float: FloatItem
   attached: AttachedItem
 }
 

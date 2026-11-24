@@ -13,22 +13,19 @@ const options = { script, permission: 'bypass-permissions' }
 
 const sorted = (kinds: readonly string[]) => [...kinds].sort()
 
-// The facts of one call reach the log from two reporters: the producer's own report, and what the
-// Session reads off the Agent's output. The log takes the two commits in either order, so the
-// commits of one call are compared as a set.
-function callsAsSets(lines: readonly string[]): string[] {
-  const out: string[] = []
-  let facts: string[] = []
-  for (const line of [...lines, '']) {
-    if (line.startsWith('call.execution-fact')) {
-      facts.push(line)
-      continue
-    }
-    out.push(...facts.sort())
-    facts = []
-    if (line !== '') out.push(line)
+const REPORT = 'call.execution-fact, history.annotated'
+
+// The producer of a call reports its fact on its own, and the turn does not wait for the report:
+// its commit lands anywhere after the call is bound, so the turn is compared without those commits.
+function everyCallIsReported(lines: readonly string[]): boolean {
+  let unreported = 0
+  for (const line of lines) {
+    if (line.startsWith('call.bound')) unreported += 1
+    if (line !== REPORT) continue
+    unreported -= 1
+    if (unreported < 0) return false
   }
-  return out
+  return unreported === 0
 }
 
 const TURN = [
@@ -44,17 +41,16 @@ const TURN = [
   'run.batch-taken, history.annotated',
   'call.bound, extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
-  'call.execution-fact, history.annotated',
   'message.assistant',
   'call.result-processed',
   'call.bound, extension.passage, history.annotated',
+  // The commit that records which call the tool action became tells what the step waits for.
+  'extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
-  'call.execution-fact, history.annotated',
   'message.tool',
   'call.result-processed',
   'call.bound, extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
-  'call.execution-fact, history.annotated',
   'message.assistant',
   'call.result-processed',
   'run.attempt-released, run.terminal, history.annotated',
@@ -70,7 +66,9 @@ describe('the commit notices of one turn with a tool call', () => {
         const notices = recorder.notices().filter(notice => notice.session === session)
         const rows = noticeTable(batches, notices, session)
         process.stdout.write(`${tableLines(rows).join('\n')}\n`)
-        expect(callsAsSets(batches.map(batch => batch.kinds.join(', ')))).toEqual(TURN)
+        const kinds = batches.map(batch => batch.kinds.join(', '))
+        expect(kinds.filter(line => line !== REPORT)).toEqual(TURN)
+        expect(everyCallIsReported(kinds)).toBe(true)
         expect(rows.filter(row => row.notices !== 1)).toEqual([])
         for (const batch of batches) {
           const notice = notices.find(item => item.revision === batch.revision)

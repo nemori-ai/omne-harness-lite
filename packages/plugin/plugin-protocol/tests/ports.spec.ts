@@ -130,7 +130,7 @@ describe('the ports of one call', () => {
   })
 
   it('carries every kind of data: true, a number, null, nested lists, an object with no prototype', async () => {
-    const seen: unknown[] = []
+    const seen: [caller: unknown, input: unknown][] = []
     const send = bindPorts({ notifications: () => echoes(seen) }, CALLER).ports['notifications']?.[
       'send'
     ]

@@ -331,14 +331,27 @@ describe('the dev directory as a source of plugins', () => {
   })
 
   it('tells of a change while something keeps writing into the directory: it does not wait for the writing to stop', async () => {
-    const { root, source } = counted()
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'plugin-dev-')))
+    write(root, 'board/plugin.json', manifest('board'))
+    write(root, 'board/main.js', 'export const page = 2\n')
+    let event = (): void => undefined
+    const source = createDevDirectorySource({
+      root,
+      warn: () => undefined,
+      watch: (_root, onEvent) => ((event = onEvent), () => undefined),
+    })
+    opened.push({ root, source })
     await listed(source)
     await source.settled()
     let told: number | undefined
     const started = Date.now()
     const stop = source.subscribe('any tenant', () => (told ??= Date.now() - started))
-    write(root, 'board/main.js', 'export const page = 4\n')
-    const noise = setInterval(() => write(root, 'notes/.scratch', String(Date.now())), 40)
+    const written = (path: string, text: string): void => {
+      write(root, path, text)
+      event()
+    }
+    written('board/main.js', 'export const page = 4\n')
+    const noise = setInterval(() => written('notes/.scratch', String(Date.now())), 40)
     try {
       await new Promise(resolve => setTimeout(resolve, 1_500))
     } finally {

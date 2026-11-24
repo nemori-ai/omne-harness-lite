@@ -259,7 +259,7 @@ describe('a view module that declares its needs', () => {
     expect(w.shell.owner('pages', 'notes')).toBe('notes-ui')
   })
 
-  it('while a required need is missing it puts its pages and its gate, nothing on the sidebar or an attached point, and provides nothing', async () => {
+  it('while a required need is missing it puts its pages and its gate, nothing on the sidebar, over the application or on an attached point, and provides nothing', async () => {
     const w = await world()
     const offered = serviceKey<{ text: string }>('notes.offer')
     const spot = definePoint({
@@ -280,6 +280,7 @@ describe('a view module that declares its needs', () => {
           })
           shell.contribute('gate', { id: 'notes.gate', render })
           shell.contribute('sidebar', { id: 'notes.side', order: 0, render })
+          shell.contribute('float', { id: 'notes.float', order: 0, render })
           spot.contribute(shell, { id: 'notes.attached', order: 0, render })
           provide(offered, { text: 'the offer' })
         },
@@ -290,14 +291,22 @@ describe('a view module that declares its needs', () => {
       pages: w.shell.items('pages').length,
       gate: w.shell.items('gate').length,
       sidebar: w.shell.items('sidebar').length,
+      float: w.shell.items('float').length,
       attached: w.shell.items('attached').length,
       offered: ask(w.shell.registry(), offered, '', []).kind,
     })
-    expect(there()).toMatchObject({ pages: 1, gate: 1, sidebar: 0, attached: 0 })
+    expect(there()).toMatchObject({ pages: 1, gate: 1, sidebar: 0, float: 0, attached: 0 })
     expect(there().offered).not.toBe('one')
     await w.serve('notes', 1)
     await settled()
-    expect(there()).toEqual({ pages: 1, gate: 1, sidebar: 1, attached: 1, offered: 'one' })
+    expect(there()).toEqual({
+      pages: 1,
+      gate: 1,
+      sidebar: 1,
+      float: 1,
+      attached: 1,
+      offered: 'one',
+    })
   })
 })
 

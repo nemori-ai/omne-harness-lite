@@ -48,13 +48,14 @@ const encoder = new TextEncoder()
 const utf8 = (text: string) => encoder.encode(text)
 
 const description =
-  "Manage what extends this system for the acting tenant, in every category the system has now: publish one from a workspace directory or a body, ask what it would change, see whether it is in effect, enable, disable, remove. Write the files in the workspace first, then publish here; the app's own files are not edited."
+  "Manage what extends this system for the acting tenant, in every category the system has now: publish one from a directory or a body, ask what it would change, see whether it is in effect, enable, disable, remove. Write the files in a directory first, then publish here; the app's own files are not edited."
 
 const guide = [
   'Give every publish, enable, disable and remove an id of your own. After a failure that says unknown, send the same command with the same id, or ask result: what took effect is recalled, not done twice.',
   'Categories come and go while the system runs. They are not listed in this text; categories reads what exists now.',
   'Ask impact before you publish: a new holding is enabled when it is made, so publishing takes effect at once.',
   'To change an extension that is already held: export it to a directory, edit the files there, ask impact with that directory, then publish from it. The held version is the source; the directory is your working copy.',
+  'dir is a path from the working directory of this session, or an absolute path. It reaches as far as the file tools of this call do.',
   'You act for the acting tenant: what you publish is held by this tenant and changes only what this tenant sees.',
   'A failure starts with its reason, then says what to do.',
 ].join('\n\n')

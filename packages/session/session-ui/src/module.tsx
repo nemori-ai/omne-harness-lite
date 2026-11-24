@@ -5,6 +5,7 @@ import {
   needPoint,
   needProtocol,
   serviceKey,
+  type ItemOf,
   type ServiceKey,
 } from '@omne-harness/shell-contract'
 import {
@@ -37,6 +38,7 @@ import {
 } from './points.ts'
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
+import { Companion, COMPANION } from './view/companion.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
 import { FigureReport } from './view/figure-report.tsx'
 import { ReadBlock } from './view/read-block.tsx'
@@ -145,6 +147,27 @@ const shownOn = (shell: ShellService) => ({
   subscribe: (listener: () => void) => shell.page.subscribe(listener),
 })
 
+function companionItem(
+  shell: ShellService,
+  workspaces: SessionWorkspaces,
+  background: BackgroundCallsStore,
+): ItemOf<'float'> {
+  const show = (): void => shell.navigate(CONVERSATION_PAGE)
+  return {
+    id: COMPANION,
+    order: 0,
+    render: float => (
+      <Companion
+        workspaces={workspaces}
+        background={background}
+        shell={shell}
+        float={float}
+        onShow={show}
+      />
+    ),
+  }
+}
+
 const needsOf = (options: SessionUiOptions) => ({
   session: needProtocol<ClientOf<SessionProtocol>>(sessionProtocol),
   modelChoices: needPoint(options.modelChoices, { optional: true }),
@@ -187,6 +210,7 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
         <BackgroundHint store={background} tenant={scope} session={subject.session} />
       ),
   })
+  shell.contribute('float', companionItem(shell, workspaces, background))
   shell.contribute('sidebar', {
     id: SESSION_LIST,
     order: 0,

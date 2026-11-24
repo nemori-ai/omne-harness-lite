@@ -458,17 +458,17 @@
 > **EN**: The directory that file and command tools of one session use by default during the current step. Before each step, the system derives it from the session's selection at that time and from the verification of the selected instance. It does not change during the step. When the session has attached a workspace and the selected instance is available, it is the root directory of the instance. When the session has not attached a workspace, it is the default directory of the deployment. When the session has attached a workspace but the instance is unavailable or the tenant no longer has the participation right, there is no directory, and an action that depends on it fails explicitly. After the session changes its workspace, the directory changes from the next step, and actions already issued stay in the earlier directory.
 
 - **形态**：视图
-- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 7）
+- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 8）
 - **别混**：不是[落点](#ul-placement--落点--placement)。落点回答一次执行落在哪个环境，本词回答这个会话的工具默认在哪个目录。知道目录不构成许可。也不是留着的终端当前所在的目录：那个目录随终端里的命令变。
 
 ### UL-files-scope · 文件范围 · Files Scope
 
-> **中**：一次工具调用的文件请求读可以到哪、写可以到哪：一个读的根，一个写的根，缺哪一侧，哪一侧不限。它在调用受理时定下并随调用钉住，之后不变。附着了[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)的会话里，它由所选[实例](scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)的范围与用户为「工作区之外的文件」配的那一档算出；没有附着工作区的会话里，读与写都限在默认目录。
+> **中**：一次工具调用的文件请求读可以到哪、写可以到哪：一个读的根，一个写的根，缺哪一侧，哪一侧不限。它在调用受理时定下并随调用钉住，之后不变。附着了[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)的会话里，它由所选[实例](scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)的范围与用户为「工作区之外的文件」配的那一档算出；没有附着工作区的会话里，读与写都不限。
 
-> **EN**: Where the file requests of one tool call may read and where they may write: one root for reading and one root for writing. A side with no root is not limited. The system sets it when the call is accepted and pins it to the call. It does not change afterwards. In a session with an attached workspace, the system computes it from the range of the selected instance and from the level that the user set for files outside the workspace. In a session without a workspace, it limits reading and writing to the default directory.
+> **EN**: Where the file requests of one tool call may read and where they may write: one root for reading and one root for writing. A side with no root is not limited. The system sets it when the call is accepted and pins it to the call. It does not change afterwards. In a session with an attached workspace, the system computes it from the range of the selected instance and from the level that the user set for files outside the workspace. In a session without a workspace, it limits neither reading nor writing.
 
 - **形态**：属性
-- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 7）
+- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 8）
 - **别混**：不是[会话工作目录](#ul-session-working-directory--会话工作目录--session-working-directory)。会话工作目录回答工具默认在哪个目录干活，本词回答文件请求能碰到哪里；一个会话可以在工作区里干活而被许可读别处。也不是隔离：文件工具的请求由围栏照它执行，命令只在启动之前照它核明着写出的路径，程序运行时自己去读写的地方它管不到。
 
 ### UL-session-base · 会话据点 · Session Base

@@ -96,6 +96,11 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['runtimeContextTenantBlocks', 'tenantIndependentSettings'],
     phase: 'composition',
   },
+  'workspace-outside-files': {
+    provides: ['workspaceOutsideFiles'],
+    injects: ['runtimeContextTenantBlocks', 'tenantIndependentSettings'],
+    phase: 'composition',
+  },
   dynamis: { provides: ['dynamis'] },
   'asset-categories': { provides: ['assetCategories'], injects: ['dynamis'] },
   'tenant-assets': {

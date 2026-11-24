@@ -1,9 +1,10 @@
 import { expect, it } from 'vitest'
 import { ShellAssemblyError, slots } from '@omne-harness/shell-contract'
 
-it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the three shell points, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, and nothing else at run time', async () => {
+it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the four shell points, the attribute a floating item is dragged by, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, and nothing else at run time', async () => {
   const root = (await import('@omne-harness/shell-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
+    'FLOAT_GRIP_ATTRIBUTE',
     'LAYOUT_POINT',
     'PARTS_POINT',
     'PART_ATTRIBUTE',
@@ -32,17 +33,18 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
   ])
 })
 
-it('declares four slots, three of them lists', () => {
+it('declares five slots, four of them lists', () => {
   expect(slots).toEqual({
     gate: { kind: 'one' },
     pages: { kind: 'list' },
     sidebar: { kind: 'list' },
+    float: { kind: 'list' },
     attached: { kind: 'list' },
   })
   expect(ShellAssemblyError.prototype).toBeInstanceOf(Error)
 })
 
-it('declares the three points of the shell itself as fixed when the application is built', async () => {
+it('declares the four points of the shell itself as fixed when the application is built', async () => {
   const { shellContracts } = await import('@omne-harness/shell-contract')
   const shared = {
     tree: 'client',
@@ -83,6 +85,15 @@ it('declares the three points of the shell itself as fixed when the application 
       onError: 'only this section shows that it cannot be read',
       summary:
         'The sections of the sidebar, in the order of their order and id. Fixed when the app is built: a plugin cannot add to it while the app runs.',
+    },
+    {
+      ...shared,
+      name: 'shell.float',
+      arity: 'list',
+      gives: 'the tenant scope',
+      onError: 'only this item is not drawn',
+      summary:
+        'What floats over the whole application once somebody is signed in, in the order of their order and id. Fixed when the app is built: a plugin cannot add to it while the app runs.',
     },
   ])
 })
