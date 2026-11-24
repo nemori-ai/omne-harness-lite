@@ -69,6 +69,7 @@ describe('assets/v1 asset operations on the release tree', () => {
         expect(categories.body.items.map(item => [item.category, item.creation])).toEqual([
           ['AgentDefinition', 'directory'],
           ['converter', 'data'],
+          ['loop-extension', 'directory'],
           ['mcp', 'data'],
           ['model-provider', 'none'],
           ['plugin', 'directory'],
@@ -129,6 +130,12 @@ describe('assets/v1 asset operations on the release tree', () => {
             body: {
               items: [
                 {
+                  name: 'skin-authoring',
+                  holding: 'official/skill/skin-authoring',
+                  origin: 'official',
+                  enabled: true,
+                },
+                {
                   name: 'review',
                   holding: made.body.holding,
                   origin: 'customized',
@@ -170,7 +177,19 @@ describe('assets/v1 asset operations on the release tree', () => {
           })
           expect(
             await assets['list-assets']({ tenant, category: 'skill', after: null, limit: 10 }),
-          ).toMatchObject({ outcome: 'succeeded', body: { items: [] } })
+          ).toMatchObject({
+            outcome: 'succeeded',
+            body: {
+              items: [
+                {
+                  name: 'skin-authoring',
+                  holding: 'official/skill/skin-authoring',
+                  origin: 'official',
+                  enabled: true,
+                },
+              ],
+            },
+          })
           await until(() => frames.length >= 3, 'a frame after the holding changes', 10_000)
 
           const again = await upload(assets, tenant, 'up-2', SKILL)
@@ -259,7 +278,7 @@ describe('assets/v1 asset operations on the release tree', () => {
         const listed = await omne('asset', 'list', 'skill')
         expect(listed.status).toBe(0)
         expect(listed.stdout).toMatch(
-          /^NAME +ENABLED +ORIGIN +VERSION +TITLE\nreview +yes +customized /,
+          /^NAME +ENABLED +ORIGIN +VERSION +TITLE\nskin-authoring +yes +official +\S+ +skin-authoring\nreview +yes +customized /,
         )
 
         const shown = await omne('asset', 'show', 'skill:review')
@@ -276,7 +295,16 @@ describe('assets/v1 asset operations on the release tree', () => {
         expect(refused.status).toBe(2)
         expect((await omne('asset', 'remove', 'skill:review', '--yes')).status).toBe(0)
         expect((await omne('asset', 'list', 'skill', '--json')).result).toMatchObject({
-          body: { items: [] },
+          body: {
+            items: [
+              {
+                name: 'skin-authoring',
+                holding: 'official/skill/skin-authoring',
+                origin: 'official',
+                enabled: true,
+              },
+            ],
+          },
         })
         expect((await omne('asset', 'create', 'skill:review', '--dir', dir)).status).toBe(0)
       })

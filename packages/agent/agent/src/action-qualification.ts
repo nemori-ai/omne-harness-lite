@@ -65,7 +65,7 @@ async function qualifyTool<P>(
     consumer: toolConsumer(input.execution, action),
   })
   if ('failure' in described) return described
-  if (described.ok.kind !== 'tool' || !same(described.ok.definition, input.definition))
+  if (described.ok.kind !== 'tool' || !same(described.ok.definition.adoption, input.definition))
     return denied()
   return succeed(null)
 }

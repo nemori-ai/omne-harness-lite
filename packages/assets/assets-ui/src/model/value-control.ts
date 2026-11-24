@@ -3,6 +3,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 export type ValueControl =
   | Readonly<{ kind: 'pick'; values: readonly string[] }>
   | Readonly<{ kind: 'text' }>
+  | Readonly<{ kind: 'switch' }>
   | Readonly<{ kind: 'none' }>
 
 const NONE: ValueControl = { kind: 'none' }
@@ -13,7 +14,9 @@ export function controlOf(schema: JsonValue): ValueControl {
   const choices = field('enum')
   if (choices !== undefined) return pickOf(choices)
   const type = field('type')
-  return type?.kind === 'string' && type.value === 'string' ? { kind: 'text' } : NONE
+  if (type?.kind !== 'string') return NONE
+  if (type.value === 'string') return { kind: 'text' }
+  return type.value === 'boolean' ? { kind: 'switch' } : NONE
 }
 
 function pickOf(choices: JsonValue): ValueControl {
@@ -22,10 +25,7 @@ function pickOf(choices: JsonValue): ValueControl {
   return values.length === choices.items.length ? { kind: 'pick', values } : NONE
 }
 
-export type FieldControl =
-  | Exclude<ValueControl, { kind: 'none' }>
-  | Readonly<{ kind: 'switch' }>
-  | Readonly<{ kind: 'number' }>
+export type FieldControl = Exclude<ValueControl, { kind: 'none' }> | Readonly<{ kind: 'number' }>
 
 export type FormField = Readonly<{
   key: string
@@ -49,7 +49,6 @@ function fieldControl(schema: JsonValue): FieldControl | undefined {
   if (control.kind !== 'none') return control
   const type = member(schema, 'type')
   if (type?.kind !== 'string') return undefined
-  if (type.value === 'boolean') return { kind: 'switch' }
   if (type.value === 'number' || type.value === 'integer') return { kind: 'number' }
   return undefined
 }

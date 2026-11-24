@@ -102,7 +102,7 @@ export function prepareTenantGovernanceWithSettings(
   let opening: ReturnType<typeof open> | undefined
   return {
     readSettings,
-    settings: { read: readSettings, writer: write.writer },
+    settings: { read: readSettings, writer: write.writer, changes: write.changes },
     releaseSettings: { observe: write.observe, rebase: write.rebase },
     destination: {
       seal: (reservation: Parameters<typeof settingsDestination.seal>[0]) =>

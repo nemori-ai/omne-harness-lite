@@ -312,6 +312,15 @@ describe('an official asset can be looked at', () => {
     })
   })
 
+  it('the files of one brought with the files of its version are those files', async () => {
+    const from = {
+      manifest: async () => ({ ok: { entries: [] } }),
+      open: async () => ({ failure: 'entry-not-found' as const }),
+    }
+    const s = setup({ official: [{ ...official('a'), files: from }] })
+    expect(await s.management.files(looking('a'))).toEqual({ kind: 'files', version: 'v-a', from })
+  })
+
   it('files of an asset neither layer has: absent', async () => {
     expect(await setup({ official: [] }).management.files(looking('a'))).toEqual({
       kind: 'absent',

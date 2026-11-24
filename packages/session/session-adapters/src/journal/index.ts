@@ -37,6 +37,8 @@ export type {
   HoldRef,
   NoContent,
   ParticipationKind,
+  PassageBlock,
+  PassageIndex,
   ProducerCall,
   PublishedBatch,
   Ref,

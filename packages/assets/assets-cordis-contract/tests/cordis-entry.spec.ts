@@ -360,6 +360,28 @@ describe('the point of a category, and what the deployment brings on it', () => 
     expect(service.official()).toEqual([])
   })
 
+  it('an asset of a directory category brought with the files of its version gives them with its body; one brought without gives none', async () => {
+    const { root, service } = await categories()
+    await root.plugin(contributionPlugin('gadget-category', contribution('gadget', 'G')))
+    const files = {
+      manifest: async () => ({ ok: { entries: [] } }),
+      open: async () => ({ failure: 'entry-not-found' as const }),
+    } as const
+    await root.plugin({
+      name: 'release',
+      inject: ['assetCategories'],
+      apply(ctx: Context) {
+        ctx.assetCategories.bring('gadget.items', [
+          { name: 'spanner', item: item('official/gadget/spanner'), body: BODY, files },
+          { name: 'wrench', item: item('official/gadget/wrench', 'v7'), body: BODY },
+        ])
+      },
+    })
+    const [spanner, wrench] = service.official() as readonly Record<string, unknown>[]
+    expect(spanner?.['files']).toBe(files)
+    expect(wrench).not.toHaveProperty('files')
+  })
+
   it('what is brought before its category is contributed is official once the category is there', async () => {
     const { root, service } = await categories()
     await root.plugin({

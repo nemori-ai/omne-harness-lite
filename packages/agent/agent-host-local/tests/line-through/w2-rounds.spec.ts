@@ -1,5 +1,5 @@
 // @module-tag slow
-import { testAdoption } from '@omne-harness/agent/testing'
+import { testAdoption, testToolDefinition } from '@omne-harness/agent/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EARLIER, intakeAccess, ok, strangerAccess } from './world.ts'
 import { ad04RowsOf, historyReadGrowth, type RoundCount } from './w2-measure.ts'
@@ -208,7 +208,7 @@ describe('J2: a Tool result enters the next Model request', () => {
                   diagnostic: 'scenario',
                 },
               }
-            : { ok: { kind: 'tool', definition: testAdoption('w2-read_file') } }
+            : { ok: { kind: 'tool', definition: testToolDefinition(testAdoption('w2-read_file')) } }
         },
       },
     })

@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { type AssetLayerSource } from '@omne-harness/assets'
+import { type AssetLayerSource, type OfficialAssets } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
 import {
   access as accessOf,
@@ -40,6 +40,12 @@ export type TenantSkills = Readonly<{
 
 export type WorkspaceSkillPorts = WorkspaceLayerPorts
 
+/** The skills the release brings: the official assets with their bodies, and the directory one version of them lies in. */
+export type OfficialSkillPorts = Readonly<{
+  assets: OfficialAssets
+  directoryOf(ref: string, version: string): string | undefined
+}>
+
 export type TenantSkillsHostOptions = Readonly<{
   open(tenant: TenantId, tenantRef: string): Promise<TenantSkills | undefined>
 }>
@@ -68,8 +74,10 @@ export function tenantSkills(
   ranking: RankingParameters,
   workspace: WorkspaceSkillPorts,
   sources: readonly AssetLayerSource[],
+  official: OfficialSkillPorts,
 ): TenantSkills {
-  const tenantLayer = tenantLayers(assets, sources, () => workspace.contractOf(SKILL))
+  const contract = () => workspace.contractOf(SKILL)
+  const tenantLayer = tenantLayers(assets, sources, contract, official.assets)
   const layers = (access: Access<unknown>, scope: unknown) =>
     turnLayers(tenantLayer, workspace, access, turnKeyOf(scope))
   const inputs = (access: Access<unknown>, scope: unknown) => {
@@ -96,6 +104,8 @@ export function tenantSkills(
         readerOf,
         async directoryOf(locator) {
           if (inWorkspace(locator.ref)) return succeed(null)
+          const brought = official.directoryOf(locator.ref, locator.digest)
+          if (brought !== undefined) return succeed(brought)
           const at = tenantLayer.withinOf(locator.ref, locator.digest)
           if (at === undefined) return directory(locator)
           const place = await assets.packages.locate({ assetRef: locator.ref, version: at.version })

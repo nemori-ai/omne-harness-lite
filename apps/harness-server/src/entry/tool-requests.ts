@@ -342,7 +342,7 @@ async function closedBySession(
 }
 
 async function sessionScope(
-  ports: ToolRequestPorts,
+  ports: Pick<ToolRequestPorts, 'readWork'>,
   tenant: TenantId,
   principal: unknown,
   session: SessionId,
@@ -366,7 +366,7 @@ async function sessionScope(
 }
 
 async function tenantScope(
-  ports: ToolRequestPorts,
+  ports: Pick<ToolRequestPorts, 'scopeBinding'>,
   tenant: TenantId,
   scope: ScopeRef,
 ): Promise<Outcome<ScopeRef, Failure>> {
@@ -388,8 +388,8 @@ async function tenantScope(
   }
 }
 
-async function currentScope(
-  ports: ToolRequestPorts,
+export async function currentScope(
+  ports: Pick<ToolRequestPorts, 'readWork' | 'scopeBinding'>,
   tenant: TenantId,
   principal: unknown,
   session: SessionId,
@@ -489,7 +489,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     return succeed(
       availability.ok.kind === 'answered'
         ? availability.ok
-        : { kind: 'tool', definition: availability.ok.definition.adoption },
+        : { kind: 'tool', definition: availability.ok.definition },
     )
   }
 

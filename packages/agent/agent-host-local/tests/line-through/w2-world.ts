@@ -3,7 +3,7 @@ import {
   createAgentRuntime,
   type AgentDependencies,
 } from '@omne-harness/agent'
-import { testAdoption } from '@omne-harness/agent/testing'
+import { testAdoption, testToolDefinition } from '@omne-harness/agent/testing'
 import {
   type Access,
   type AgentExecutionId,
@@ -308,7 +308,9 @@ export async function openW2World(options: W2Options) {
   const replies: ModelReplyRecord[] = []
   const toolRequests: ToolInvokeRequest[] = []
   const toolRequestSource: NonNullable<Dependencies['toolRequests']> = {
-    describe: async () => ({ ok: { kind: 'tool', definition: testAdoption('w2-read_file') } }),
+    describe: async () => ({
+      ok: { kind: 'tool', definition: testToolDefinition(testAdoption('w2-read_file')) },
+    }),
     prepare: async input => {
       const request = fixedToolRequest(input.consumer)
       toolRequests.push(request)

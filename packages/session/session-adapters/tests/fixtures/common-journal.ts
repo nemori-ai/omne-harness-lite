@@ -63,7 +63,7 @@ export function checkpoint(): AgentCheckpoint {
     compaction: null,
     adoptedContext: null,
     guard: null,
-    completedPassages: [],
+    chain: null,
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
