@@ -1,0 +1,18 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
+.canvas-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--omne-space-page);
+  font-size: var(--omne-text-ui);
+}
+
+.canvas-paper {
+  box-sizing: border-box;
+  background: var(--omne-surface-panel);
+  border: var(--omne-rule-width) solid var(--omne-line);
+  border-radius: var(--omne-radius-card);
+}
+}

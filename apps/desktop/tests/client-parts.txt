@@ -24,6 +24,8 @@ calendar.lookup.ask | 查的按钮 | 按填的日期去查 | calendar.lookup | t
 calendar.page | 日历页 | 用哪份日历，查某一天 | shell.workspace.page | tokens style | 一直在 | calendar-ui
 calendar.shipped | 供应的日历 | 部署给出的日历清单 | calendar.page | tokens style | 一直在 | calendar-ui
 calendar.shipped.item | 一份日历 | 清单里的一份日历 | calendar.shipped | tokens style | 清单里有日历时 | calendar-ui
+canvas.paper | 纸 | 画布上有边的一张纸，大小与网格由服务端给 | canvas.view | tokens style | 读到画布之后 | canvas-ui
+canvas.view | 画布 | 反面上的画布：能滚动的一块，纸在里面 | shell.app | tokens style | 登录之后 | canvas-ui
 human-intervention.page | 待你决定页 | 等你回答或放行的卡 | shell.workspace.page | tokens style | 一直在 | human-intervention-ui
 human-intervention.page.group | 一段会话的卡 | 同一段会话的卡放在一组 | human-intervention.page | tokens style | 有卡时 | human-intervention-ui
 human-intervention.paper | 一张纸 | 一组卡的一张纸，一次摆一张 | – | tokens style | 有卡时 | human-intervention-ui

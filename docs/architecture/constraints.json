@@ -1526,6 +1526,18 @@
       ],
       "status": "candidate",
       "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "packages/canvas/canvas-ui",
+      "paths": [
+        "packages/canvas/canvas-ui/src/**"
+      ],
+      "layer": "unknown",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
     }
   ],
   "rules": [
@@ -2465,7 +2477,8 @@
         "packages/canvas/canvas-contract",
         "packages/canvas/canvas-cordis-contract",
         "packages/canvas/canvas-local",
-        "packages/canvas/canvas-protocol"
+        "packages/canvas/canvas-protocol",
+        "packages/canvas/canvas-ui"
       ],
       "to": [
         "packages/media/media",
@@ -2551,6 +2564,20 @@
       "to": [
         "packages/canvas/canvas",
         "packages/canvas/canvas-local"
+      ],
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "DIR-CANVAS-UI",
+      "from": [
+        "packages/canvas/canvas-ui"
+      ],
+      "to": [
+        "packages/canvas/canvas-contract",
+        "packages/canvas/canvas",
+        "packages/canvas/canvas-cordis-contract",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-access"
       ],
       "source": "packages/canvas/SPEC.md"
     }
