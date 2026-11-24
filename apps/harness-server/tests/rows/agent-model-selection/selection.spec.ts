@@ -192,8 +192,26 @@ describe('no other model is chosen', () => {
     [ROUTE]: answer,
   })
 
+  test('a route the tenant has turned off fails as invalid, so the Run ends instead of waiting', async () => {
+    const { value } = await withLiveRow(
+      {
+        session: () => succeed(savedSelection(ROUTE)),
+        profiles: withDefault(succeed({ kind: 'absent', reason: 'excluded' } as const)),
+      },
+      async ({ select, profiles }) => ({
+        outcome: await select(selectInput),
+        asked: profiles.resolves.map(input => (input as { route: string }).route),
+      }),
+    )
+    expect(failureOf(value.outcome)).toEqual({
+      kind: 'invalid',
+      field: 'model',
+      reason: 'not-enabled',
+    })
+    expect(value.asked).toEqual([ROUTE])
+  })
+
   test.each([
-    ['absent', succeed({ kind: 'absent', reason: 'excluded' } as const) as ProfilesAnswer],
     [
       'resolved but not selectable',
       succeed(

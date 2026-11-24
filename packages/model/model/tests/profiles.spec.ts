@@ -95,7 +95,9 @@ function profileOf(
 
 function candidateOf(
   profile: ModelProfile,
-  over: Partial<Pick<Candidate, 'excluded' | 'locked' | 'credential'>> = {},
+  over: Partial<
+    Pick<Candidate, 'excluded' | 'locked' | 'credential' | 'defaultReasoningEffort'>
+  > = {},
 ): Candidate {
   return { profile, excluded: false, locked: false, credential: 'unavailable', ...over }
 }
@@ -304,7 +306,7 @@ it('reports the credential state of the winner, available included', async () =>
   expect(resolvedOf(await resolveOf(snapshot, 'alpha')).credential).toBe('available')
 })
 
-it('lists only selectable profiles, one per route, in the order the routes first appear', async () => {
+it('lists every route once, in the order the routes first appear, each with whether it can be selected', async () => {
   const snapshot = snapshotOf(
     [
       candidateOf(profileOf({ route: 'beta' }), { excluded: true }),
@@ -315,14 +317,17 @@ it('lists only selectable profiles, one per route, in the order the routes first
     { precedence: [factory, organizationOf('2')] },
   )
   const choices = await listOf(snapshot, null, requirement(['text', 'image']))
-  expect(routesOf(choices)).toEqual(['beta', 'alpha'])
+  expect(routesOf(choices)).toEqual(['beta', 'alpha', 'gamma'])
   expect(
     choices.choices.map(choice =>
-      choice.kind === 'resolved' ? choice.profile.identity.scope : null,
+      choice.kind === 'resolved'
+        ? [choice.profile.identity.scope, choice.selectable, choice.reasons]
+        : null,
     ),
   ).toEqual([
-    { kind: 'organization', organization: organizationOf('2').organization },
-    { kind: 'factory' },
+    [{ kind: 'organization', organization: organizationOf('2').organization }, true, []],
+    [{ kind: 'factory' }, true, []],
+    [{ kind: 'factory' }, false, ['modality']],
   ])
   expect(choices.source).toEqual(evidence)
   expect(choices.selected).toBeNull()
@@ -341,7 +346,7 @@ it('explains a selection the snapshot cannot offer instead of dropping it', asyn
 it('keeps a selection that is present but not selectable, with its reasons', async () => {
   const snapshot = snapshotOf([candidateOf(profileOf({ route: 'alpha' }), { locked: true })])
   const choices = await listOf(snapshot, 'alpha')
-  expect(choices.choices).toEqual([])
+  expect(choices.choices).toMatchObject([{ selectable: false, reasons: ['locked'] }])
   expect(choices.selected?.resolution).toMatchObject({
     kind: 'resolved',
     selectable: false,
@@ -430,4 +435,33 @@ it('hands a source failure back unchanged and never judges a missing snapshot', 
       }),
     ),
   ).toBe(unreadable.failure)
+})
+
+it('lists a route the tenant has turned off as not selectable, not enabled, while resolving it stays excluded', async () => {
+  const snapshot = snapshotOf([
+    candidateOf(profileOf({ route: 'alpha' })),
+    candidateOf(profileOf({ route: 'beta' }), { excluded: true }),
+  ])
+  const choices = await listOf(snapshot, 'beta')
+  expect(
+    choices.choices.map(choice =>
+      choice.kind === 'resolved'
+        ? [choice.profile.identity.route, choice.selectable, choice.reasons]
+        : null,
+    ),
+  ).toEqual([
+    ['alpha', true, []],
+    ['beta', false, ['not-enabled']],
+  ])
+  expect(choices.selected?.resolution).toEqual({ kind: 'absent', reason: 'excluded' })
+  expect(await resolveOf(snapshot, 'beta')).toEqual({ kind: 'absent', reason: 'excluded' })
+})
+
+it('carries the default effort of the winning candidate into its resolution', async () => {
+  const snapshot = snapshotOf([
+    candidateOf(profileOf({ route: 'alpha' }), { defaultReasoningEffort: 'high' }),
+    candidateOf(profileOf({ route: 'beta' })),
+  ])
+  expect(await resolveOf(snapshot, 'alpha')).toMatchObject({ defaultReasoningEffort: 'high' })
+  expect(await resolveOf(snapshot, 'beta')).not.toHaveProperty('defaultReasoningEffort')
 })

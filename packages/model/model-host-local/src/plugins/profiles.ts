@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Adoption, ModelFailure } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { parseInstant } from '@omne-harness/utc-instant'
-import { modelCredentialKey } from '@omne-harness/model-cordis-contract/cordis'
+import { modelCredentialKey, modelPreferencesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { createModelProfiles } from '@omne-harness/model'
 import { fieldOf, isRecord } from '../fields.ts'
@@ -79,6 +79,7 @@ export class ModelProfilesLocalPlugin extends ModelProfilesService<unknown> {
         updatedAt: config.updatedAt,
       },
       () => ctx.get(modelCredentialKey, false),
+      () => ctx.get(modelPreferencesKey, false),
     )
     const profiles = createModelProfiles(source)
     let removed = false

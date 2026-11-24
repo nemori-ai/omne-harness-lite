@@ -51,9 +51,14 @@ export type ModelProviderBody = Readonly<{
   models: readonly CatalogModel[]
 }>
 
-/** The setting of a tenant: on or off per model of the catalog. */
+/** What a tenant chose over a catalog: the models that are on, and the default effort of some. */
+export type ProviderPreferences = Readonly<{
+  enabled: ReadonlySet<string>
+  efforts: ReadonlyMap<string, ReasoningEffort>
+}>
+
+/** The two settings of a tenant: on or off, and the default reasoning effort, per catalog model. */
 export const MODEL_SWITCHES = 'model-switches'
-/** The setting of a tenant: the default reasoning effort per model of the catalog. */
 export const MODEL_REASONING_EFFORTS = 'model-reasoning-efforts'
 
 export type ModelProviderBodyRejection =
@@ -366,4 +371,27 @@ function modelsOf(value: JsonValue | undefined): CatalogModel[] | undefined {
     out.push(model)
   }
   return out
+}
+
+const entryOf = (value: unknown, key: string): unknown =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) && Object.hasOwn(value, key)
+    ? Reflect.get(value, key)
+    : undefined
+
+// Without a boolean switch a model keeps its release default; an unsupported effort or a key outside the catalog is ignored.
+export function preferencesOf(
+  body: ModelProviderBody,
+  switches: unknown,
+  efforts: unknown,
+): ProviderPreferences {
+  const enabled = new Set<string>()
+  const chosen = new Map<string, ReasoningEffort>()
+  for (const entry of body.models) {
+    const on = entryOf(switches, entry.model)
+    if (typeof on === 'boolean' ? on : entry.enabled) enabled.add(entry.model)
+    const effort = entryOf(efforts, entry.model)
+    const supported = entry.efforts.find(level => level === effort)
+    if (supported !== undefined) chosen.set(entry.model, supported)
+  }
+  return { enabled, efforts: chosen }
 }

@@ -4,6 +4,7 @@ import { bodyOf, savedTenant } from '../../r9/support.ts'
 import { sessionRef, tenantOf } from '../../support/protocol-clients.ts'
 import { historyOf, onReleaseTree, pollUntil, sse } from '../../support/release-tree.ts'
 import { send, words } from '../media-intake/support.ts'
+import { setModelSwitches } from '../../support/model-switches.ts'
 
 it(
   'uses the saved session effort in the next outbound request on the same model',
@@ -32,6 +33,8 @@ it(
         },
       },
       async tree => {
+        // GLM 5.2 is the one GLM that takes xhigh; the release starts it off, so the tenant turns it on.
+        await setModelSwitches(tree, { [glm52]: true })
         const created = await tree.cli(['create-session', '--definition', 'coding'])
         expect(created.status, created.stderr).toBe(0)
         const session = String(bodyOf(created)['session'])

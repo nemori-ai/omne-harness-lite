@@ -5,9 +5,13 @@ import type {
   ModelProfile,
   ModelProfileDefinition,
   ProfileScope,
+  ProviderName,
 } from '@omne-harness/model-contract'
 import { decodeRevision } from '@omne-harness/model-contract'
+import type { Access } from '@omne-harness/legal-identity'
+import type { ProviderPreferences } from '@omne-harness/model-contract/provider-asset'
 import type {
+  ModelPreferencesPort,
   ModelProfileSnapshot,
   ModelProfileSource,
   CredentialPort,
@@ -79,7 +83,7 @@ function profileOf(definition: ModelProfileDefinition, updatedAt: string): Model
 function sourceEvidence(
   updatedAt: string,
   profiles: readonly ModelProfile[],
-  credentials?: readonly (readonly [string, string])[],
+  credentials?: readonly (readonly string[])[],
 ): DurableEvidence {
   const digest = digestOf(
     credentials === undefined
@@ -94,9 +98,83 @@ function sourceEvidence(
   })
 }
 
+type CredentialState = ModelProfileSnapshot['candidates'][number]['credential']
+type Preferences = ReadonlyMap<ProviderName, ProviderPreferences>
+
+const PREFERENCES_UNAVAILABLE = Object.freeze({
+  failure: {
+    kind: 'unavailable' as const,
+    dependency: 'model-preferences',
+    diagnostic: 'unreadable',
+  },
+})
+
+function credentialOf<P>(
+  port: CredentialPort<P> | undefined,
+  provider: ProviderName,
+  access: Access<P>,
+): CredentialState {
+  if (port === undefined) return 'unavailable'
+  try {
+    const layer = port.layerOf({ provider, official: true, access })
+    if ('ok' in layer) return 'available'
+    switch (layer.failure.kind) {
+      case 'missing':
+      case 'incomplete':
+      case 'revoked':
+        return 'missing'
+      case 'unreadable':
+        return 'unreadable'
+      case 'denied':
+      case 'unavailable':
+        return 'unavailable'
+    }
+  } catch {
+    return 'unavailable'
+  }
+}
+
+function credentialsOf<P>(
+  readCredentials: (() => CredentialPort<P> | undefined) | undefined,
+  providers: readonly ProviderName[],
+  access: Access<P>,
+): ReadonlyMap<ProviderName, CredentialState> | undefined {
+  if (readCredentials === undefined) return undefined
+  let port: CredentialPort<P> | undefined
+  try {
+    port = readCredentials()
+  } catch {
+    port = undefined
+  }
+  return new Map(providers.map(provider => [provider, credentialOf(port, provider, access)]))
+}
+
+/** Each provider's preferences, read once; undefined when the tree has none, null when unreadable. */
+async function preferencesOf<P>(
+  readPreferences: (() => ModelPreferencesPort<P> | undefined) | undefined,
+  providers: readonly ProviderName[],
+  access: Access<P>,
+): Promise<Preferences | undefined | null> {
+  if (readPreferences === undefined) return undefined
+  const port = readPreferences()
+  if (port === undefined) return undefined
+  const read = new Map<ProviderName, ProviderPreferences>()
+  for (const provider of providers) {
+    try {
+      const answer = await port.read({ provider, access })
+      if (!('ok' in answer)) return null
+      read.set(provider, answer.ok)
+    } catch {
+      return null
+    }
+  }
+  return read
+}
+
 export function createOfficialProfileSource<P>(
   input: OfficialProfileSourceInput,
   readCredentials?: () => CredentialPort<P> | undefined,
+  readPreferences?: () => ModelPreferencesPort<P> | undefined,
 ): ModelProfileSource<P> {
   const profiles: ModelProfile[] = []
   for (const definition of input.definitions) {
@@ -119,48 +197,26 @@ export function createOfficialProfileSource<P>(
     ),
     source: sourceEvidence(input.updatedAt, profiles),
   })
+  const providers = [...new Set(profiles.map(supplierOf))]
   return {
     read: async access => {
-      if (readCredentials === undefined) return { ok: snapshot }
-      let port: CredentialPort<P> | undefined
-      try {
-        port = readCredentials()
-      } catch {
-        port = undefined
-      }
-      type State = ModelProfileSnapshot['candidates'][number]['credential']
-      const states = new Map<string, State>()
+      const preferences = await preferencesOf(readPreferences, providers, access)
+      if (preferences === null) return PREFERENCES_UNAVAILABLE
+      const credentials = credentialsOf(readCredentials, providers, access)
+      if (credentials === undefined && preferences === undefined) return { ok: snapshot }
       const candidates = Object.freeze(
         profiles.map(profile => {
-          const provider = profile.definition.suppliers[0].provider
-          let credential = states.get(provider)
-          if (credential === undefined) {
-            credential = 'unavailable'
-            if (port !== undefined) {
-              try {
-                const layer = port.layerOf({ provider, official: true, access })
-                if ('ok' in layer) credential = 'available'
-                else
-                  switch (layer.failure.kind) {
-                    case 'missing':
-                    case 'incomplete':
-                    case 'revoked':
-                      credential = 'missing'
-                      break
-                    case 'unreadable':
-                      credential = 'unreadable'
-                      break
-                    case 'denied':
-                    case 'unavailable':
-                      break
-                  }
-              } catch {
-                credential = 'unavailable'
-              }
-            }
-            states.set(provider, credential)
-          }
-          return Object.freeze({ profile, excluded: false, locked: false, credential })
+          const provider = supplierOf(profile)
+          const route = profile.identity.route
+          const chosen = preferences?.get(provider)
+          const effort = chosen?.efforts.get(route)
+          return Object.freeze({
+            profile,
+            excluded: chosen === undefined ? false : !chosen.enabled.has(route),
+            locked: false,
+            credential: credentials?.get(provider) ?? 'unavailable',
+            ...(effort === undefined ? {} : { defaultReasoningEffort: effort }),
+          })
         }),
       )
       return {
@@ -170,10 +226,23 @@ export function createOfficialProfileSource<P>(
           source: sourceEvidence(
             input.updatedAt,
             profiles,
-            candidates.map(candidate => [candidate.profile.identity.route, candidate.credential]),
+            candidates.map(candidate =>
+              preferences === undefined
+                ? [candidate.profile.identity.route, candidate.credential]
+                : [
+                    candidate.profile.identity.route,
+                    candidate.credential,
+                    candidate.excluded ? 'off' : 'on',
+                    candidate.defaultReasoningEffort ?? '',
+                  ],
+            ),
           ),
         }),
       }
     },
   }
+}
+
+function supplierOf(profile: ModelProfile): ProviderName {
+  return profile.definition.suppliers[0].provider
 }

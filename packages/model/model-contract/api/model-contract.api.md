@@ -262,6 +262,7 @@
 - `ModelMediaSource` · `provider-protocol.d.ts`
 - `ModelOperationParts` · `reference.d.ts`
 - `ModelOperationRef` · `reference.d.ts`
+- `ModelPreferencesPort` · `credential.d.ts`
 - `ModelProfileMaintenance` · `profile.d.ts`
 - `ModelProfileSnapshot` · `profile-source.d.ts`
 - `ModelProfileSource` · `profile-source.d.ts`
@@ -317,9 +318,11 @@
 - `ModelProviderBody` · `provider-asset.d.ts`
 - `ModelProviderBodyRejection` · `provider-asset.d.ts`
 - `ModelProviderEndpoint` · `provider-asset.d.ts`
+- `ProviderPreferences` · `provider-asset.d.ts`
 - `modelProviderBodyContract` · `provider-asset.d.ts`
 - `modelProviderCategoryDisplay` · `provider-asset.d.ts`
 - `parseModelProviderBody` · `provider-asset.d.ts`
+- `preferencesOf` · `provider-asset.d.ts`
 - `readModelProviderBody` · `provider-asset.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
@@ -1083,6 +1086,7 @@ export declare function selectCredentialLayer(input: Readonly<{
 ```ts
 import type { Access } from '@omne-harness/legal-identity';
 import type { Outcome } from '@omne-harness/operation-result';
+import type { ProviderPreferences } from './provider-asset.ts';
 import type { CredentialLayer, ProviderName } from './root.ts';
 export declare const MODEL_SEND = "model-send";
 export type CredentialPurpose = typeof MODEL_SEND;
@@ -1116,6 +1120,14 @@ export type CredentialResolution = Outcome<ReadonlyMap<string, string>, Credenti
 export type CredentialPort<P = unknown> = {
     layerOf(input: CredentialLayerQuery<P>): Outcome<CredentialLayer, CredentialFailure>;
     resolve(reference: CredentialReference<P>): CredentialResolution;
+};
+export type ModelPreferencesPort<P = unknown> = {
+    read(input: Readonly<{
+        provider: ProviderName;
+        access: Access<P>;
+    }>): Promise<Outcome<ProviderPreferences, Readonly<{
+        kind: 'unavailable';
+    }>>>;
 };
 ```
 
@@ -1584,7 +1596,7 @@ export declare function judgeToolDeclarations(value: unknown): Outcome<readonly 
 
 ```ts
 import type { MessageId } from '@omne-harness/message';
-import type { Access, ModelCallId } from './root.ts';
+import type { Access, ModelCallId, ReasoningEffort } from './root.ts';
 import type { DurableEvidence, ModelFailure, Reply } from './result.ts';
 import type { Supplier } from './root.ts';
 import type { ContentBlock } from '@omne-harness/content-block';
@@ -1598,6 +1610,7 @@ export type ModelProfileSnapshot = Readonly<{
         excluded: boolean;
         locked: boolean;
         credential: 'available' | 'missing' | 'unreadable' | 'unavailable';
+        defaultReasoningEffort?: ReasoningEffort;
     }>[];
     source: DurableEvidence;
 }>;
@@ -1775,9 +1788,10 @@ export type ProfileResolution = Readonly<{
     profile: ModelProfile;
     source: DurableEvidence;
     selectable: boolean;
-    reasons: readonly ('modality' | 'locked' | 'scope')[];
+    reasons: readonly ('modality' | 'locked' | 'scope' | 'not-enabled')[];
     credential: 'available' | 'missing' | 'unreadable' | 'unavailable';
     shadowed: readonly Adoption[];
+    defaultReasoningEffort?: ReasoningEffort;
 }> | Readonly<{
     kind: 'absent';
     reason: 'unknown-name' | 'withdrawn' | 'excluded';
@@ -2040,12 +2054,17 @@ export type ModelProviderBody = Readonly<{
     credentials: readonly CredentialItemDeclaration[];
     models: readonly CatalogModel[];
 }>;
+export type ProviderPreferences = Readonly<{
+    enabled: ReadonlySet<string>;
+    efforts: ReadonlyMap<string, ReasoningEffort>;
+}>;
 export declare const MODEL_SWITCHES = "model-switches";
 export declare const MODEL_REASONING_EFFORTS = "model-reasoning-efforts";
 export type ModelProviderBodyRejection = 'not-an-object' | 'invalid-name' | 'name-mismatch' | 'invalid-endpoints' | 'invalid-protocol' | 'duplicate-protocol' | 'invalid-endpoint' | 'invalid-accounting' | 'invalid-credentials' | 'duplicate-credential' | 'invalid-models';
 export declare function parseModelProviderBody(body: unknown, capabilityName?: string): Outcome<ModelProviderBody, ModelProviderBodyRejection>;
 export declare function readModelProviderBody(body: unknown): ModelProviderBody | undefined;
 export declare function modelProviderBodyContract(): BodyContract;
+export declare function preferencesOf(body: ModelProviderBody, switches: unknown, efforts: unknown): ProviderPreferences;
 ```
 
 ## 声明文件 `provider-name.d.ts`
@@ -2481,7 +2500,7 @@ export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } fro
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
 export type { ModelContentAuthority, ModelProfileSnapshot, ModelProfileSource, } from '../profile-source.ts';
 export type { ModelConsumerOwnerDeclaration } from '../consumer-owner.ts';
-export type { CredentialFailure, CredentialItemState, CredentialLayerQuery, CredentialPort, CredentialPurpose, CredentialReference, CredentialResolution, } from '../credential.ts';
+export type { CredentialFailure, CredentialItemState, CredentialLayerQuery, CredentialPort, ModelPreferencesPort, CredentialPurpose, CredentialReference, CredentialResolution, } from '../credential.ts';
 export { MODEL_SEND } from '../credential.ts';
 export { readCredentialLayer, selectCredentialLayer, type CredentialLayerReading, } from '../credential-values.ts';
 export { compareRevisions, decodeReadId } from '../identity-values.ts';

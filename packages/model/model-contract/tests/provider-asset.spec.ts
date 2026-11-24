@@ -11,6 +11,7 @@ import {
   modelProviderBodyContract,
   modelProviderCategoryDisplay,
   parseModelProviderBody,
+  preferencesOf,
   readModelProviderBody,
 } from '@omne-harness/model-contract/provider-asset'
 import { decodeProviderName } from '@omne-harness/model-contract'
@@ -447,5 +448,52 @@ describe('the provider model catalog (C1, C2)', () => {
       type: 'object',
       additionalProperties: { enum: ['low', 'medium', 'high', 'xhigh'] },
     })
+  })
+})
+
+describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
+  const catalog = (() => {
+    const parsed = parseModelProviderBody(
+      body(
+        plainBody({
+          models: [
+            { ...MODEL, model: 'm/on', enabled: true, efforts: ['low', 'high'] },
+            { ...MODEL, model: 'm/off', enabled: false, efforts: [] },
+          ],
+        }),
+      ),
+    )
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    return parsed.ok
+  })()
+
+  it('without settings each model is as the release enables it, with no default effort', () => {
+    const preferences = preferencesOf(catalog, undefined, undefined)
+    expect([...preferences.enabled]).toEqual(['m/on'])
+    expect([...preferences.efforts]).toEqual([])
+  })
+
+  it('a switch of the tenant turns a model on or off', () => {
+    const preferences = preferencesOf(catalog, { 'm/on': false, 'm/off': true }, undefined)
+    expect([...preferences.enabled]).toEqual(['m/off'])
+  })
+
+  it('takes a default effort only where the model supports it', () => {
+    const preferences = preferencesOf(catalog, undefined, { 'm/on': 'high', 'm/off': 'low' })
+    expect([...preferences.efforts]).toEqual([['m/on', 'high']])
+    expect(preferencesOf(catalog, undefined, { 'm/on': 'medium' }).efforts.size).toBe(0)
+  })
+
+  it('ignores what does not belong to the catalog or is not a value of its kind', () => {
+    const preferences = preferencesOf(
+      catalog,
+      { 'm/elsewhere': true, 'm/off': 'yes' },
+      { 'm/elsewhere': 'low', 'm/on': 'max' },
+    )
+    expect([...preferences.enabled]).toEqual(['m/on'])
+    expect(preferences.efforts.size).toBe(0)
+    expect(preferencesOf(catalog, [true], 'high')).toEqual(
+      preferencesOf(catalog, undefined, undefined),
+    )
   })
 })

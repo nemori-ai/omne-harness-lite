@@ -96,6 +96,9 @@ export async function selectModel(
   if ('failure' in resolved) return fail(fromProfiles(resolved.failure))
 
   const resolution = resolved.ok
+  // A model the tenant turned off does not come back on its own: the Run ends rather than waits.
+  if (resolution.kind === 'absent' && resolution.reason === 'excluded')
+    return fail({ kind: 'invalid', field: 'model', reason: 'not-enabled' })
   if (resolution.kind === 'absent')
     return fail(
       unavailable('modelProfiles', `route "${route}" has no profile (${resolution.reason})`),

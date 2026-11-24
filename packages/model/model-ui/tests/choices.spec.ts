@@ -37,6 +37,14 @@ describe('the word said of a model', () => {
       '不能选：被锁定、不在这个租户能用的范围里',
     ],
     [{ selectable: false, reasons: [], credential: 'available' }, '现在不能选'],
+    [
+      { selectable: false, reasons: [], credential: 'available', enabled: false },
+      '不能选：没有启用',
+    ],
+    [
+      { selectable: false, reasons: ['locked'], credential: 'available', enabled: false },
+      '不能选：没有启用、被锁定',
+    ],
   ] as const)('%j is said as %j', (given, said) => {
     expect(noteOf(given as never)).toBe(said)
   })

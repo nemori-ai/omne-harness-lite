@@ -1,12 +1,35 @@
 import { describe, expect, it } from 'vitest'
 import type { ModelProfile } from '@omne-harness/model-contract'
-import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
+import { decodeProviderName } from '@omne-harness/model-contract'
+import {
+  ModelProfilesService,
+  modelPreferencesKey,
+} from '@omne-harness/model-cordis-contract/cordis'
+import { officialCatalog } from '@omne-harness/model-host-local'
+import { serveModelPreferences } from '@omne-harness/model-host-local/cordis'
+import { defineRow } from '../../../src/row.ts'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { TENANT, withLiveRows } from './support.ts'
 
-const plugins = { modelProfilesRow }
+// Every catalog model on: these cases are about the profiles row, not about a tenant's choices.
+const everyModelOn = defineRow({
+  row: 'every-model-on',
+  implementation: 'real',
+  manifest: { provides: [modelPreferencesKey], injects: [], sameProviderGroup: null },
+  lifecycle: { kind: 'none' },
+  plugin: {
+    name: 'every-model-on',
+    apply(ctx) {
+      const openrouter = decodeProviderName('openrouter')
+      if (!('ok' in openrouter)) throw new Error('provider name')
+      const enabled = new Set(officialCatalog(openrouter.ok, () => true).map(entry => entry.model))
+      serveModelPreferences(ctx, { read: async () => ({ ok: { enabled, efforts: new Map() } }) })
+    },
+  },
+})
+const plugins = { modelProfilesRow, everyModelOn }
 const config = {
   retryPolicy: {
     owner: 'harness-server-release',
@@ -17,7 +40,10 @@ const config = {
   compactionTriggerPercent: '80',
   updatedAt: '2026-11-02T00:00:00Z',
 }
-const rows = [{ id: 'model-profiles', plugin: 'modelProfilesRow', config }]
+const rows = [
+  { id: 'every-model-on', plugin: 'everyModelOn' },
+  { id: 'model-profiles', plugin: 'modelProfilesRow', config },
+]
 const REQUIRED = {
   modalities: ['text'] as ['text'],
   source: { owner: 'test', record: 'required', revision: '1', digest: '1'.repeat(64) },
@@ -25,11 +51,16 @@ const REQUIRED = {
 const ACCESS = { principal: Object.freeze({ subject: 'test' }), tenant: TENANT }
 
 describe('the model-profiles row', () => {
-  it('declares the formal key, no inject and no shutdown phase', () => {
+  it('declares the formal key, injects the preferences of a tenant and has no shutdown phase', () => {
     expect(rowDeclarationOf(modelProfilesRow)).toEqual({
       row: 'model-profiles',
       implementation: 'real',
-      manifest: { provides: ['modelProfiles'], injects: [], phase: null, sameProviderGroup: null },
+      manifest: {
+        provides: ['modelProfiles'],
+        injects: ['modelPreferences'],
+        phase: null,
+        sameProviderGroup: null,
+      },
       lifecycle: { kind: 'none' },
     })
   })

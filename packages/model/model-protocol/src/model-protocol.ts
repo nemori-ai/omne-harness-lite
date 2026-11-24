@@ -25,6 +25,14 @@ const model = object({
     optional: true,
     since: 2,
   },
+  // False for a model the tenant has turned off: it is listed, and it cannot be selected.
+  enabled: { rule: boolean, optional: true, since: 3 },
+  // The effort the tenant set for this model; a session that chose none uses it.
+  defaultReasoningEffort: {
+    rule: literal('low', 'medium', 'high', 'xhigh'),
+    optional: true,
+    since: 3,
+  },
   input: modalities,
   output: modalities,
 })

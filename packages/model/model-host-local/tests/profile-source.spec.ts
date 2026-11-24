@@ -1,6 +1,9 @@
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { Adoption, ModelProfile, ModelProfileDefinition } from '@omne-harness/model-contract'
-import type { ModelProfileSnapshot } from '@omne-harness/model-contract/provider'
+import type {
+  ModelPreferencesPort,
+  ModelProfileSnapshot,
+} from '@omne-harness/model-contract/provider'
 import { createModelProfiles } from '@omne-harness/model'
 import { expect, it } from 'vitest'
 import { createOfficialProfileSource } from '../src/profile-source.ts'
@@ -309,4 +312,69 @@ it('reports unreadable custody distinctly from missing, revoked or incomplete cr
     const snapshot = await source.read({ principal, tenant: TENANT })
     expect(snapshot).toMatchObject({ ok: { candidates: [{ credential: expected }] } })
   }
+})
+
+function withPreferences(port: (() => ModelPreferencesPort | undefined) | undefined) {
+  return createOfficialProfileSource(
+    { definitions: ['on/route', 'off/route'].map(definitionOf), updatedAt: UPDATED_AT },
+    undefined,
+    port,
+  )
+}
+
+const chosen = (enabled: readonly string[], efforts: readonly (readonly [string, 'high'])[] = []) =>
+  ({
+    async read() {
+      return { ok: { enabled: new Set(enabled), efforts: new Map(efforts) } }
+    },
+  }) satisfies ModelPreferencesPort
+
+it('marks a model the tenant has off as excluded and carries the default effort of one it has on', async () => {
+  const read = await withPreferences(() => chosen(['on/route'], [['on/route', 'high']])).read({
+    principal,
+    tenant: TENANT,
+  })
+  if ('failure' in read) throw new Error(JSON.stringify(read.failure))
+  expect(
+    read.ok.candidates.map(candidate => [
+      candidate.profile.identity.route,
+      candidate.excluded,
+      candidate.defaultReasoningEffort,
+    ]),
+  ).toEqual([
+    ['on/route', false, 'high'],
+    ['off/route', true, undefined],
+  ])
+})
+
+it('answers unavailable when the preferences cannot be read, never all on or all off', async () => {
+  const failing = await withPreferences(() => ({
+    async read() {
+      return { failure: { kind: 'unavailable' } } as const
+    },
+  })).read({ principal, tenant: TENANT })
+  expect(failing).toMatchObject({ failure: { kind: 'unavailable' } })
+  const throwing = await withPreferences(() => ({
+    read: () => Promise.reject(new Error('settings are down')),
+  })).read({ principal, tenant: TENANT })
+  expect(throwing).toMatchObject({ failure: { kind: 'unavailable' } })
+})
+
+it('excludes nothing in a tree that has no preferences, as a source used on its own', async () => {
+  for (const port of [undefined, () => undefined]) {
+    const read = await withPreferences(port).read({ principal, tenant: TENANT })
+    if ('failure' in read) throw new Error(JSON.stringify(read.failure))
+    expect(read.ok.candidates.every(candidate => !candidate.excluded)).toBe(true)
+  }
+})
+
+it('reads the preferences once per provider and with the access of the reader', async () => {
+  const seen: unknown[] = []
+  await withPreferences(() => ({
+    async read(input) {
+      seen.push(input)
+      return { ok: { enabled: new Set(['on/route']), efforts: new Map() } }
+    },
+  })).read({ principal, tenant: TENANT })
+  expect(seen).toEqual([{ provider: 'openrouter', access: { principal, tenant: TENANT } }])
 })
