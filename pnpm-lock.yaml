@@ -551,6 +551,9 @@ importers:
       '@omne-harness/schedule-ui':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-ui
+      '@omne-harness/screen':
+        specifier: workspace:*
+        version: link:../../packages/execution/screen
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -593,6 +596,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.13.19
+      node-screenshots:
+        specifier: 'catalog:'
+        version: 0.2.8
       react:
         specifier: 'catalog:'
         version: 19.3.0
