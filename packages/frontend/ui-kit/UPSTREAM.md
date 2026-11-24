@@ -19,6 +19,7 @@
 | 流式 Markdown | `conversation/prose.tsx`、`code-highlight.ts`、`markdown-diagrams.ts`，`conversation.css` 里 Markdown 的规则 | `src/prose/`、`src/styles/prose.css` |
 | 主题 | `theme/controller.ts` | `src/theme/` |
 | 墨迹 | `spirit/` 里形的引擎与件，`assistant/told-note.{tsx,css}` | `src/ink/`，逐文件见[墨迹](#墨迹) |
+| 纸的面 | 不取来源的文件，只照提交 `6d4f0582` 的 `paper/look.ts`、`paper/sheet-wheel.tsx`、`paper/carry.ts`、`paper/thing.tsx`、`shared/paper/places.ts` 与 `paper/paper.css` 的表现：围着指针缩放，捏合与按住 ⌘ 的滚轮缩放比率，不带修饰键的滚轮平移，拿起前的 4 像素，页的细边与小圆角，拿起时的抬起，一叠露四页、向右上错开 | `src/paper/`，代码是本成员写的。和来源不同：纸有边，原点在左上角，看着的那一块用纸上的中心点记；磁吸是开关，开着取整到网格；拖到另一样上只是压着；名字一行在页的上沿，按住它拖；四角都能改大小；键盘能挪、改大小、平移与缩放；长度只读 token 或 `--spacing` 的倍数 |
 
 ## 改了哪几样
 
