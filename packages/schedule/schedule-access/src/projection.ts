@@ -148,7 +148,7 @@ export function jobCardOf(job: JobSummary, run: ScheduleJobRun) {
   const state =
     body.kind === 'execution' ? body.executionState : concluded === null ? 'running' : 'concluded'
   return {
-    job: job.jobId,
+    job: job.jobId as string,
     state,
     outcome: concluded,
     stop: job.stopState,
@@ -167,7 +167,7 @@ export function historyRowOf(row: ScheduleExecutionRow) {
     return {
       kind: 'lapse',
       row: row.rowRef,
-      schedule: row.scheduleId,
+      schedule: row.scheduleId as string,
       at,
       through: instantOf(row.through),
       cause: row.cause,
@@ -178,9 +178,9 @@ export function historyRowOf(row: ScheduleExecutionRow) {
   return {
     kind: 'slot',
     row: row.rowRef,
-    schedule: row.scheduleId,
+    schedule: row.scheduleId as string,
     at,
-    local: row.candidate.adjustedLocal,
+    local: row.candidate.adjustedLocal as string,
     disposition: row.receipt?.disposition ?? 'prepared',
     reason: row.receipt?.reasonCode ?? 'prepared',
     job: row.job === null || row.run === null ? null : jobCardOf(row.job, row.run),
@@ -191,9 +191,9 @@ export function jobDetailOf(detail: ScheduleJobDetail) {
   const work = detail.purpose.kind === 'execution' ? detail.purpose.work : null
   return {
     ...jobCardOf(detail.job, detail.run),
-    schedule: detail.scheduleId,
+    schedule: detail.scheduleId as string | null,
     slot: detail.slot === null ? null : instantOf(detail.slot.scheduledAt),
-    local: detail.slot?.adjustedLocal ?? null,
+    local: (detail.slot?.adjustedLocal ?? null) as string | null,
     calendar: detail.slot?.basis.calendarId ?? null,
     version: detail.slot?.basis.calendarVersionId ?? null,
     revision: detail.definitionRevision,
