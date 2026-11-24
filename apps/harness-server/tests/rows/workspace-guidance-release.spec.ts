@@ -274,7 +274,7 @@ it(
                 command: 'execute',
                 intent: 'wait for switch',
                 params: {
-                  cwd: 'src/pay',
+                  cwd: leaf,
                   script:
                     'printf started > started; while [ ! -f go ]; do sleep 0.1; done; printf completed > completed',
                 },
