@@ -67,14 +67,20 @@ const VISION = {
   ...GLM53,
   model: 'qwen/vision',
   title: 'qwen/vision',
-  input: ['text', 'image'],
+  input: ['text', 'image', 'audio', 'video', 'file'],
   efforts: [],
 }
 const BODY = { name: 'openrouter', models: [GLM53, GLM52, VISION] }
 
 type Own = Readonly<{ kind: 'unset' } | { kind: 'set'; value: JsonValue }>
 type Write = Readonly<{ kind: string; notice?: Readonly<{ text: string }> }>
-type Settings = Readonly<{ switches: Own; efforts: Own; write?: Write; editable?: boolean }>
+type Settings = Readonly<{
+  switches: Own
+  efforts?: Own
+  write?: Write
+  editable?: boolean
+  reason?: string
+}>
 
 const UNSET: Own = { kind: 'unset' }
 const setTo = (value: Record<string, unknown>): Own => ({ kind: 'set', value: tree(value) })
@@ -89,7 +95,10 @@ function portOf(body: unknown | undefined, first: Settings | undefined) {
       kind: 'ordinary',
       item,
       own,
-      editable: settings.editable === false ? { kind: 'no', reason: 'locked' } : { kind: 'yes' },
+      editable:
+        settings.editable === false
+          ? { kind: 'no', reason: settings.reason ?? 'locked' }
+          : { kind: 'yes' },
     },
     write: item === 'model-switches' ? (settings.write ?? { kind: 'none' }) : { kind: 'none' },
   })
@@ -110,7 +119,9 @@ function portOf(body: unknown | undefined, first: Settings | undefined) {
               : [
                   { key: 'k-secret', view: { kind: 'secret', item: 'api-key', own: 'unset' } },
                   row('k-switches', 'model-switches', settings.switches, settings),
-                  row('k-efforts', 'model-reasoning-efforts', settings.efforts, settings),
+                  ...(settings.efforts === undefined
+                    ? []
+                    : [row('k-efforts', 'model-reasoning-efforts', settings.efforts, settings)]),
                 ],
         },
       ],
@@ -195,13 +206,14 @@ it('claims the two model settings, and draws a row for each model of the catalog
     'model-reasoning-efforts',
   ])
   expect(screen.getByRole('heading', { name: '模型' })).toBeTruthy()
+  expect(screen.queryByText(/不能改/u)).toBeNull()
   expect(screen.getAllByRole('row')).toHaveLength(3)
   const glm = rowOf('GLM 5.3')
   expect(glm.getByText('z-ai/glm-5.3')).toBeTruthy()
   expect(glm.getByText('收：文字 · 发：文字')).toBeTruthy()
   expect(glm.getByText('窗口 202752')).toBeTruthy()
   expect(glm.getByText('low、medium、high')).toBeTruthy()
-  expect(rowOf('qwen/vision').getByText('收：文字、图片 · 发：文字')).toBeTruthy()
+  expect(rowOf('qwen/vision').getByText('收：文字、图片、声音、视频、文件 · 发：文字')).toBeTruthy()
   expect(rowOf('qwen/vision').getByText('不能调推理强度')).toBeTruthy()
   expect(rowOf('qwen/vision').queryAllByText('qwen/vision')).toHaveLength(1)
 })
@@ -270,6 +282,7 @@ it('while a write is out the switches wait; a refused one says why; an unknown o
   )
   expect(glm().hasAttribute('disabled')).toBe(false)
   expect(screen.getByText('这一项在别处改过了，没有写入。已重新读取。')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: '再确认' })).toBeNull()
   act(() =>
     fake.change({
       switches: UNSET,
@@ -289,6 +302,16 @@ it('settings this layer cannot change are drawn, not offered', async () => {
   expect(screen.getByText('这两项被上层锁定，这里不能改。')).toBeTruthy()
 })
 
+it('a setting this layer may not write for another reason says so in its own words', async () => {
+  await shown(BODY, {
+    switches: UNSET,
+    efforts: UNSET,
+    editable: false,
+    reason: 'prohibited-above',
+  })
+  expect(screen.getByText('这一层不能改这两项。')).toBeTruthy()
+})
+
 it('says so in one line when the catalog or the settings cannot be read, and takes no room before', async () => {
   await shown(undefined, undefined)
   expect(screen.queryByRole('heading', { name: '模型' })).toBeNull()
@@ -298,6 +321,9 @@ it('says so in one line when the catalog or the settings cannot be read, and tak
   expect(screen.queryByRole('table')).toBeNull()
   cleanup()
   await shown(BODY, undefined)
+  expect(screen.getByText('读不出这家的模型设置。')).toBeTruthy()
+  cleanup()
+  await shown(BODY, { switches: UNSET })
   expect(screen.getByText('读不出这家的模型设置。')).toBeTruthy()
   expect(screen.queryByRole('table')).toBeNull()
 })

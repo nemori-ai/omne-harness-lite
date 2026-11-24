@@ -52,7 +52,15 @@ describe('the catalog a provider body carries', () => {
       { models: [{ ...MODEL, efforts: 'high' }] },
     ])
       expect(catalogOf(body)).toBeUndefined()
-    expect(catalogOf({ models: [{ ...MODEL, model: 3 }] })).toBeUndefined()
+    for (const broken of [
+      { model: 3 },
+      { title: null },
+      { window: 202752 },
+      { input: 'text' },
+      { output: [1] },
+      { enabled: 'yes' },
+    ])
+      expect(catalogOf({ models: [MODEL, { ...MODEL, ...broken }] })).toBeUndefined()
   })
 })
 

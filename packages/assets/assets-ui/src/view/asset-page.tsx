@@ -57,7 +57,6 @@ export function AssetPage({
   onBack,
 }: AssetPageProps): JSX.Element {
   const { row } = entry
-  const settings = entry.settings.filter(setting => !claimed.includes(setting.view.item))
   const title = row.summary?.title ?? row.name
   const back = useRef<HTMLButtonElement>(null)
   useEffect(() => back.current?.focus(), [])
@@ -94,11 +93,7 @@ export function AssetPage({
         )}
         {!row.enabled && <StatusPill tone="neutral">已禁用</StatusPill>}
         <ActionLine action={entry.action} confirm={() => view.confirmAsset(row.name)} />
-        {(settings.length > 0 || entry.settings.length === 0) && (
-          <Section id="assets-asset-settings" title="设置" {...assetsAssetSettings.props}>
-            <Settings rows={settings} view={view} />
-          </Section>
-        )}
+        <SettingsSection rows={entry.settings} claimed={claimed} view={view} />
         <div className="assets-holding-slot">{holding}</div>
         <div {...assetsAssetDetail.props}>
           <Disclosure label="详情">
@@ -107,6 +102,23 @@ export function AssetPage({
         </div>
       </ReadingDocument>
     </section>
+  )
+}
+
+type SettingsProps = Readonly<{
+  rows: readonly Row[]
+  claimed: readonly string[]
+  view: CategoryGovernance
+}>
+
+// The section goes when every setting of the asset is drawn by an item of `assets.holding`.
+function SettingsSection({ rows, claimed, view }: SettingsProps) {
+  const shown = rows.filter(row => !claimed.includes(row.view.item))
+  if (rows.length > 0 && shown.length === 0) return null
+  return (
+    <Section id="assets-asset-settings" title="设置" {...assetsAssetSettings.props}>
+      <Settings rows={shown} view={view} />
+    </Section>
   )
 }
 

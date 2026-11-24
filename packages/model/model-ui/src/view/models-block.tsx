@@ -21,6 +21,7 @@ import {
   catalogOf,
   rowsOf,
   withEntry,
+  type CatalogRow,
   type ModelRow,
   type Own,
 } from './models-table.ts'
@@ -41,10 +42,8 @@ const NOT_EDITABLE = '这一层不能改这两项。'
 const modalities = (kinds: readonly string[]) =>
   kinds.map(kind => MODALITIES[kind] ?? kind).join('、')
 
-function ownOf(row: KeyRow): Own {
-  const own = row.view.own as Own | undefined
-  return own?.kind === 'set' ? own : { kind: 'unset' }
-}
+const UNSET: Own = { kind: 'unset' }
+const ownOf = (row: KeyRow): Own => (row.view.own as Own | undefined) ?? UNSET
 
 type Wired = Readonly<{ view: AssetView; switches: KeyRow; efforts: KeyRow }>
 
@@ -113,19 +112,25 @@ function ModelLine({ row, wired }: Readonly<{ row: ModelRow; wired: Wired }>): J
   )
 }
 
+// A write this block made that did not land: the settings machine's words; an unknown one can be asked again.
 function WriteNotice({ setting, view }: Readonly<{ setting: KeyRow; view: AssetView }>) {
   const { write } = setting
   if (write?.notice === undefined) return null
-  if (write.kind === 'unknown')
-    return (
-      <InlineNotice
-        tone="caution"
-        action={{ label: '再确认', onClick: () => view.confirm(setting.key ?? '') }}
-      >
-        {write.notice.text}
-      </InlineNotice>
-    )
-  return write.kind === 'refused' ? <InlineNotice>{write.notice.text}</InlineNotice> : null
+  const again =
+    write.kind === 'unknown'
+      ? { action: { label: '再确认', onClick: () => view.confirm(setting.key ?? '') } }
+      : {}
+  return (
+    <InlineNotice tone={write.kind === 'refused' ? 'danger' : 'caution'} {...again}>
+      {write.notice.text}
+    </InlineNotice>
+  )
+}
+
+function LockNote({ setting }: Readonly<{ setting: KeyRow }>) {
+  const { editable } = setting.view
+  if (editable?.kind !== 'no') return null
+  return <p className="omne-model-note">{LOCKED[editable.reason ?? ''] ?? NOT_EDITABLE}</p>
 }
 
 function Block({ children }: Readonly<{ children: JSX.Element }>): JSX.Element {
@@ -159,14 +164,18 @@ export function ModelsBlock({ port, tenant, category, name }: BlockProps): JSX.E
         <p className="omne-model-note">读不出这家的模型设置。</p>
       </Block>
     )
-  const editable = switches.view.editable
-  const wired = { view, switches, efforts }
+  return <ModelsTable catalog={catalog} wired={{ view, switches, efforts }} />
+}
+
+function ModelsTable({
+  catalog,
+  wired,
+}: Readonly<{ catalog: readonly CatalogRow[]; wired: Wired }>) {
+  const { view, switches, efforts } = wired
   return (
     <Block>
       <>
-        {editable?.kind === 'no' && (
-          <p className="omne-model-note">{LOCKED[editable.reason ?? ''] ?? NOT_EDITABLE}</p>
-        )}
+        <LockNote setting={switches} />
         <WriteNotice setting={switches} view={view} />
         <WriteNotice setting={efforts} view={view} />
         <Table>

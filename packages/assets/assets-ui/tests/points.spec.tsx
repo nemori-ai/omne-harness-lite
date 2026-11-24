@@ -123,6 +123,36 @@ it('一项 assets.holding 认领的设置项不在「设置」段里画；这一
   expect(openai.queryByText('这一份没有可以改的设置。')).toBeNull()
 })
 
+it('认领只算自己那一类；页开着时才放进来的项也算；一项可以认领几项', async () => {
+  let later: Context | undefined
+  await shown([permissionView(), ordinaryView(), secretView()], ctx => {
+    later = ctx
+    assetsHolding.contribute(ctx.shell, 'model', {
+      id: 'claims-elsewhere',
+      order: 0,
+      claims: ['max-read-bytes', 'call-permission'],
+      render: () => null,
+    })
+  })
+  await showTab('工具')
+  const shell = await enterAsset('shell')
+  expect(assetPage().querySelector('#assets-asset-settings')).not.toBeNull()
+  await act(async () =>
+    assetsHolding.contribute(later!.shell, 'tool', {
+      id: 'claims-both',
+      order: 0,
+      claims: ['max-read-bytes', 'call-permission'],
+      render: () => <p>自己画两项</p>,
+    }),
+  )
+  await settle()
+  expect(shell.getByText('自己画两项')).toBeTruthy()
+  expect(assetPage().querySelector('#assets-asset-settings')).toBeNull()
+  await backToList()
+  await enterAsset('files')
+  expect(assetPage().querySelector('#assets-asset-settings')).toBeNull()
+})
+
 it('往一个类别的 assets.category 下放的项，只在选中这一类时出现在这一类的上方，收到类别', async () => {
   await shown([permissionView(), secretView()], ctx =>
     assetsCategory.contribute(ctx.shell, 'model', {
