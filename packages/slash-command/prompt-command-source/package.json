@@ -1,0 +1,40 @@
+{
+  "name": "@omne-harness/prompt-command-source",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The prompt command category and its command entry source: a named prompt, used at the head with arguments",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/assets": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/slash-command-contract": "workspace:*",
+    "yaml": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

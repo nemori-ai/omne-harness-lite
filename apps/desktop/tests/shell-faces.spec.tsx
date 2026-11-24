@@ -9,6 +9,8 @@ import { FigureSeat } from '@omne-harness/ui-kit'
 import { FACE_KEY, storedFacePreference } from '../src/page/shell/face.ts'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
 import { activeSeat } from '../src/page/shell/seats.ts'
+import { bindActionKeys } from '../src/page/shell/dispatch.ts'
+import { faceActions } from '../src/page/shell/layout-actions.ts'
 import { FACE_TEXT } from '../src/page/shell/shell.tsx'
 import { TURN_LABEL } from '../src/page/shell/sidebar.tsx'
 import { fakeGate, placeholder } from './support/fake-modules.tsx'
@@ -57,14 +59,26 @@ const onShow = (): string | undefined => {
   return shown[0]?.getAttribute('data-face') ?? undefined
 }
 
-const MAC_TURN = { key: 'p', metaKey: true, shiftKey: true }
-const OTHER_TURN = { key: 'P', ctrlKey: true, shiftKey: true }
+/** The key of `shell.turn-face` as it comes: ⌘⇧O on the Mac, Ctrl+Shift+O elsewhere. */
+const MAC = /Mac/.test(navigator.platform)
+const TURN = {
+  key: 'o',
+  code: 'KeyO',
+  shiftKey: true,
+  ...(MAC ? { metaKey: true } : { ctrlKey: true }),
+}
+const ELSEWHERE = {
+  key: 'o',
+  code: 'KeyO',
+  shiftKey: true,
+  ...(MAC ? { ctrlKey: true } : { metaKey: true }),
+}
 
-/** Presses the keys and tells whether the shell took them. */
-function press(keys: object = MAC_TURN): boolean {
+/** Presses the keys where the case says and tells whether the shell took them. */
+function press(keys: object = TURN, at: Element | Window = window): boolean {
   let taken = false
   act(() => {
-    taken = !fireEvent.keyDown(window, keys)
+    taken = !fireEvent.keyDown(at, keys)
   })
   return taken
 }
@@ -119,15 +133,10 @@ function floater(id: string): Plugin.Object {
   })
 }
 
-const signedIn = (
-  modules: readonly Plugin.Object[],
-  platform?: 'mac' | 'other',
-  more: Parameters<typeof setup>[0] = {},
-) =>
+const signedIn = (modules: readonly Plugin.Object[], more: Parameters<typeof setup>[0] = {}) =>
   setup({
     login: 'signed-in',
     modules: [fakeGate(), chatPage, settingsPage, ...modules],
-    ...(platform === undefined ? {} : { platform }),
     ...more,
   })
 
@@ -198,7 +207,7 @@ describe('外壳：两面', () => {
     expect(screen.getByText('对话占位')).toBeTruthy()
   })
 
-  it('⌘⇧P 换到反面，再按换回正面，正面还在原来那一页，两面都没有卸下', async () => {
+  it('翻面的键（缺省 ⌘⇧O）换到反面，再按换回正面，正面还在原来那一页，两面都没有卸下', async () => {
     const t = await signedIn([backModule()])
     await t.provide(CHAT)
     await t.provide(SETTINGS)
@@ -215,17 +224,38 @@ describe('外壳：两面', () => {
     expect(screen.getByText('对话占位')).toBe(chat)
   })
 
-  it('别的平台按 Ctrl+Shift+P；各平台只认自己的那一组', async () => {
-    await signedIn([backModule()], 'other')
-    expect(press(MAC_TURN)).toBe(false)
+  it('只认这个平台的那一组：换成另一个修饰键、多按 Alt、按 ⌘⇧P 都不翻', async () => {
+    await signedIn([backModule()])
+    expect(press(ELSEWHERE)).toBe(false)
+    expect(press({ ...TURN, altKey: true })).toBe(false)
+    expect(press({ ...TURN, key: 'p', code: 'KeyP' })).toBe(false)
     expect(onShow()).toBe('front')
-    expect(press(OTHER_TURN)).toBe(true)
-    expect(onShow()).toBe('back')
-    cleanup()
-    await signedIn([backModule()], 'mac')
-    expect(press(OTHER_TURN)).toBe(false)
-    expect(press({ ...MAC_TURN, altKey: true })).toBe(false)
-    expect(onShow()).toBe('front')
+  })
+
+  it('翻面是动作 shell.turn-face：Mac 上是 ⌘⇧O，别的平台是 Ctrl+Shift+O', () => {
+    const turned: string[] = []
+    const face = { two: { get: () => true }, turn: () => void turned.push('turned') }
+    const [action] = faceActions(face, true)
+    expect(action).toMatchObject({ id: 'shell.turn-face', title: '翻到另一面', kind: 'ui' })
+    const tried = (mac: boolean, held: object): boolean => {
+      const target = document.createElement('div')
+      const unbind = bindActionKeys(target, { actions: () => faceActions(face, true), mac })
+      const event = new KeyboardEvent('keydown', {
+        key: 'o',
+        code: 'KeyO',
+        shiftKey: true,
+        cancelable: true,
+        ...held,
+      })
+      target.dispatchEvent(event)
+      unbind()
+      return event.defaultPrevented
+    }
+    expect(tried(true, { metaKey: true })).toBe(true)
+    expect(tried(true, { ctrlKey: true })).toBe(false)
+    expect(tried(false, { ctrlKey: true })).toBe(true)
+    expect(tried(false, { metaKey: true })).toBe(false)
+    expect(turned).toEqual(['turned', 'turned'])
   })
 
   it('没有人放反面时应用只有一面，按键不翻、不吃掉这一下', async () => {
@@ -235,6 +265,82 @@ describe('外壳：两面', () => {
     expect(press()).toBe(false)
     expect(face('back')).toBeNull()
     expect(face('front')?.hasAttribute('inert')).toBe(false)
+  })
+
+  it('没有反面时没有翻面这个动作：按了什么都不发生，也没有提示', async () => {
+    const t = await signedIn([])
+    const told = vi.spyOn(t.state.told, 'show')
+    expect(press()).toBe(false)
+    expect(told).not.toHaveBeenCalled()
+    expect(face('front')?.hasAttribute('inert')).toBe(false)
+  })
+
+  it('开着挡住的浮层时不翻，这一下交给浮层', async () => {
+    await signedIn([backModule()])
+    const overlay = document.createElement('div')
+    overlay.setAttribute('aria-modal', 'true')
+    document.body.append(overlay)
+    expect(press()).toBe(false)
+    expect(onShow()).toBe('front')
+    overlay.remove()
+    expect(press()).toBe(true)
+    expect(onShow()).toBe('back')
+  })
+
+  it('输入法组字时不翻，不吃掉这一下', async () => {
+    await signedIn([backModule()])
+    expect(press({ ...TURN, isComposing: true })).toBe(false)
+    expect(onShow()).toBe('front')
+  })
+
+  it('在输入框里打字时也翻：带修饰键的键不算打字', async () => {
+    await signedIn([backModule()])
+    const field = document.createElement('textarea')
+    face('front')!.append(field)
+    act(() => field.focus())
+    expect(press(TURN, field)).toBe(true)
+    expect(onShow()).toBe('back')
+  })
+
+  it('这一下已被别处处理时不翻', async () => {
+    await signedIn([backModule()])
+    const taken = (event: Event) => event.preventDefault()
+    document.body.addEventListener('keydown', taken)
+    press(TURN, document.body)
+    document.body.removeEventListener('keydown', taken)
+    expect(onShow()).toBe('front')
+  })
+
+  it('按住连发只翻一次，连发的那几下照样吃掉', async () => {
+    await signedIn([backModule()])
+    expect(press()).toBe(true)
+    expect(press({ ...TURN, repeat: true })).toBe(true)
+    expect(press({ ...TURN, repeat: true })).toBe(true)
+    expect(onShow()).toBe('back')
+  })
+
+  it('命令面板每次打开都现取：有反面时列着「翻到另一面」，反面走了就不列', async () => {
+    Object.assign(Element.prototype, { scrollIntoView: () => undefined })
+    const t = await signedIn([])
+    const titles = (): readonly string[] => {
+      press({ ...TURN, key: 'k', code: 'KeyK', shiftKey: false })
+      const listed = screen.getAllByRole('option').map(row => row.textContent ?? '')
+      press({ ...TURN, key: 'k', code: 'KeyK', shiftKey: false })
+      return listed
+    }
+    expect(titles().some(title => title.startsWith('翻到另一面'))).toBe(false)
+    let back: Fiber | undefined
+    await act(async () => {
+      back = t.root.plugin(backModule())
+      await back
+      await settle()
+    })
+    expect(titles().some(title => title.startsWith('翻到另一面'))).toBe(true)
+    await act(async () => {
+      await back?.dispose()
+      await settle()
+    })
+    expect(titles().some(title => title.startsWith('翻到另一面'))).toBe(false)
   })
 
   it('没登录时没有两面，按键什么都不做', async () => {
@@ -474,15 +580,15 @@ describe('外壳：翻面的入口', () => {
 describe('外壳：停在哪一面', () => {
   it('记在本机：翻到反面后重开，停在反面；再翻回正面后重开，停在正面', async () => {
     const kept = device()
-    await signedIn([backModule()], undefined, { faces: kept.faces })
+    await signedIn([backModule()], { faces: kept.faces })
     press()
     expect(kept.held.get(FACE_KEY)).toBe('back')
     cleanup()
-    await signedIn([backModule()], undefined, { faces: kept.faces })
+    await signedIn([backModule()], { faces: kept.faces })
     expect(onShow()).toBe('back')
     press()
     cleanup()
-    await signedIn([backModule()], undefined, { faces: kept.faces })
+    await signedIn([backModule()], { faces: kept.faces })
     expect(onShow()).toBe('front')
   })
 
@@ -491,13 +597,13 @@ describe('外壳：停在哪一面', () => {
     ['读不到', device('back', 'read')],
     ['读不懂', device('the back')],
   ])('%s是正面', async (_name, kept) => {
-    await signedIn([backModule()], undefined, { faces: kept.faces })
+    await signedIn([backModule()], { faces: kept.faces })
     expect(onShow()).toBe('front')
   })
 
   it('存不进时这一次照常翻', async () => {
     const kept = device(undefined, 'write')
-    await signedIn([backModule()], undefined, { faces: kept.faces })
+    await signedIn([backModule()], { faces: kept.faces })
     expect(press()).toBe(true)
     expect(onShow()).toBe('back')
     expect(press()).toBe(true)
@@ -516,7 +622,7 @@ describe('外壳：停在哪一面', () => {
   it('再登录时照记着的那一面停，即使上一次登录里反面撤下过', async () => {
     const kept = device('back')
     const told = telling()
-    const t = await signedIn([], undefined, { faces: kept.faces, connection: told.connection })
+    const t = await signedIn([], { faces: kept.faces, connection: told.connection })
     await told.say()
     expect(onShow()).toBe('front')
     act(() => t.login.set('signed-out'))
@@ -531,7 +637,7 @@ describe('外壳：停在哪一面', () => {
   it('记着反面而连接还没说开着什么：露一张空纸等着；反面放上了就画它', async () => {
     const kept = device('back')
     const told = telling()
-    const t = await signedIn([], undefined, { faces: kept.faces, connection: told.connection })
+    const t = await signedIn([], { faces: kept.faces, connection: told.connection })
     expect(onShow()).toBe('back')
     expect(face('back')?.textContent).toBe('')
     await act(async () => {
@@ -547,7 +653,7 @@ describe('外壳：停在哪一面', () => {
   it('记着反面而定下来没有反面：露出正面，记着的那一面不变', async () => {
     const kept = device('back')
     const told = telling()
-    const t = await signedIn([], undefined, { faces: kept.faces, connection: told.connection })
+    const t = await signedIn([], { faces: kept.faces, connection: told.connection })
     expect(onShow()).toBe('back')
     await told.say()
     expect(onShow()).toBe('front')
@@ -563,7 +669,7 @@ describe('外壳：停在哪一面', () => {
   it('露着反面时那一项被撤下：直接露出正面，不播翻面，记着的那一面不变', async () => {
     reduced = false
     const kept = device('back')
-    const t = await signedIn([], undefined, { faces: kept.faces })
+    const t = await signedIn([], { faces: kept.faces })
     let back: Fiber | undefined
     await act(async () => {
       back = t.root.plugin(backModule())
@@ -584,7 +690,7 @@ describe('外壳：停在哪一面', () => {
 describe('外壳：翻面在动', () => {
   async function playing(more: Parameters<typeof setup>[0] = {}) {
     reduced = false
-    const t = await signedIn([homing()], undefined, more)
+    const t = await signedIn([homing()], more)
     vi.useFakeTimers({
       toFake: [
         'setTimeout',

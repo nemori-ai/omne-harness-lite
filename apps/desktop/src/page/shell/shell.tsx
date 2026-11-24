@@ -1,6 +1,7 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -28,7 +29,6 @@ import {
   useSizeFactor,
   type Box,
   type FaceFlip,
-  type SizeKeyPlatform,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
 import { Float } from './float.tsx'
@@ -36,7 +36,9 @@ import { goHome, homeOf, mergedOf } from './home.ts'
 import type { FloatPlaces } from './float-place.ts'
 import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
-import { bindFaceKeys, bindRegionKeys } from './keys.ts'
+import { runAction } from './dispatch.ts'
+import { bindShellKeys, shellKeys } from './keys.ts'
+import { paletteSwitch, ShellPalette } from './palette.tsx'
 import { lackText, type Lack, type LackSlot } from './lacks.ts'
 import { shellApp, shellGate, shellWorkspace, shellWorkspacePage } from './parts.ts'
 import { pressSeat, useSeatedHome } from './seats.ts'
@@ -65,7 +67,6 @@ export type ShellProps = Readonly<{
   connectivity: ConnectivitySource
   theme: ThemeSwitch
   size: SizeSwitch
-  platform: SizeKeyPlatform
   floats: FloatPlaces
   missingAtForwarding?: readonly string[]
 }>
@@ -387,10 +388,9 @@ function Workspace(
   props: SidebarProps & {
     missing: readonly string[]
     floats: FloatPlaces
-    platform: SizeKeyPlatform
   },
 ) {
-  const { state, pages, shown, platform } = props
+  const { state, pages, shown } = props
   const focus = useWatched(state.page.focus)
   const scope = useWatched(state.scope)
   const face = useWatched(state.face)
@@ -409,7 +409,6 @@ function Workspace(
   const lacksOf = useLacks(state)
   useEffect(() => state.told.room(room), [state.told, room])
   useEffect(() => () => state.told.room(false), [state.told])
-  useEffect(() => bindFaceKeys(window, state.face, platform), [state.face, platform])
   useEffect(() => bindFigureTurn(state), [state])
   return (
     <div className="app-shell" {...shellApp.props}>
@@ -482,7 +481,9 @@ export function Shell(props: ShellProps) {
   const shown = useWatched(state.page)
   const merged = useFigure(state, pages, shown)
   const face = useWatched(state.face)
-  useEffect(() => bindRegionKeys(window), [])
+  const palette = useMemo(paletteSwitch, [])
+  const keys = useMemo(() => shellKeys(state, props.size, palette), [state, props.size, palette])
+  useEffect(() => bindShellKeys(window, keys), [keys])
   const homePage = homeOf(merged, pages)
   return (
     <RedrawProvider value={state.redraw.draw}>
@@ -513,12 +514,18 @@ export function Shell(props: ShellProps) {
               homePage={homePage}
               missing={missing}
               floats={props.floats}
-              platform={props.platform}
             />
           ) : (
             <Outside state={state} login={login} connectivity={connectivity} missing={missing} />
           )}
         </FigureStage>
+        <ShellPalette
+          palette={palette}
+          actions={keys.actions}
+          mac={keys.mac}
+          changes={keys.changes}
+          run={action => void runAction(action, keys)}
+        />
       </AppTooltipProvider>
     </RedrawProvider>
   )

@@ -15,6 +15,7 @@ export const LOCAL_HISTORY_KINDS = [
   'message.system_reminder',
   'run.started',
   'run.terminal',
+  'session.command-recorded',
 ] as const
 
 export const LOCAL_HISTORY_SEARCH = {

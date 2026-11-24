@@ -12,6 +12,7 @@ import type { ProtocolContract } from '@omne-harness/public-contract'
 import { scheduleProtocol } from '@omne-harness/schedule-protocol'
 import { sessionDiagnosticsProtocol } from '@omne-harness/session-diagnostics-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
+import { slashCommandProtocol } from '@omne-harness/slash-command-protocol'
 import { toolProtocol } from '@omne-harness/tool-protocol'
 import { usageProtocol } from '@omne-harness/usage-protocol'
 import { workspaceProtocol } from '@omne-harness/workspace-protocol'
@@ -20,6 +21,7 @@ export const domainProtocols: readonly ProtocolContract[] = [
   identityProtocol,
   sessionProtocol,
   sessionDiagnosticsProtocol,
+  slashCommandProtocol,
   assetsProtocol,
   humanInterventionProtocol,
   toolProtocol,

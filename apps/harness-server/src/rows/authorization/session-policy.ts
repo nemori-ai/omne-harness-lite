@@ -127,6 +127,13 @@ export const SESSION_POLICY = Object.freeze({
     ),
     deny(OUTSIDE_MATRIX),
   ),
+  recordCommand: row(
+    member(
+      '会话规格「受理流水线」：操作请求由 Session 留下命令名、参数与结果摘要；只有成员本人经交付面发的输入走到这一步（命令规格「解析：受理的解析一步」）',
+    ),
+    deny(NO_SOURCE),
+    deny(OUTSIDE_MATRIX),
+  ),
   setResident: row(
     member(
       'R2-D204（P-1，qiwei.pan 裁定）：租户是（组织，账号），只有该账号的登录能取得代该租户行事的主体，「只有本人」由主体的签发保证，不需要具名资格。SW:187、SS:610 至 611',

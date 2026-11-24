@@ -6,6 +6,7 @@ import type {
   InputSourceDeclaration,
   InputSourceLookup,
   IntakeProcessor,
+  UtteranceResolver,
   SessionAccess,
   SessionAccessRequest,
   SessionCallerClass,
@@ -99,6 +100,8 @@ export type HarnessOptions = Readonly<{
   admission?: readonly IntakeProcessor<string>[] | null
   /** What the registry of input sources says of every source; null: the registry is not there. */
   sources?: InputSourceLookup | null
+  /** The resolver of a member's words: absent, no resolving; null, declared but not there. */
+  resolver?: UtteranceResolver<string> | 'none' | null
   drive?: boolean
   measure?: SessionMeasure
 }>
@@ -254,6 +257,9 @@ export async function harness(options: HarnessOptions) {
     principals: { coordinator: 'system:coordinator', maintainer: 'system:maintainer' },
     admission: { current: () => admission },
     sources: { current: () => (sources === null ? null : { lookup: () => sources! }) },
+    ...(options.resolver === undefined
+      ? {}
+      : { resolver: { current: () => options.resolver ?? null } }),
   }
   const diagnostics: SessionDiagnostic[] = []
   const instance: SessionInstance<string> = createSessionInstance(

@@ -377,6 +377,8 @@ export function applyExtended(
     case 'session.resident':
       draft.resident = entry.resident
       return null
+    case 'session.command-recorded':
+      return null
     case 'session.child-recorded':
       return applyChildRecorded(draft, entry)
     case 'session.idle-evidence':

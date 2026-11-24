@@ -153,9 +153,9 @@ export class DesktopShell extends ShellService {
   }
 
   /** A page remembers the module that put it: that module is in front while its page is on show. */
-  override contribute<K extends SlotName>(slot: K, item: ItemOf<K>): void {
-    super.contribute(slot, item)
-    if (slot !== 'pages') return
+  override contribute<K extends SlotName>(slot: K, item: ItemOf<K>): () => unknown {
+    const withdraw = super.contribute(slot, item)
+    if (slot !== 'pages') return withdraw
     const { pageOwners } = this.state
     const owner = this.ctx.fiber
     this.ctx.effect(() => {
@@ -166,6 +166,7 @@ export class DesktopShell extends ShellService {
         else pageOwners.set(item.id, left)
       }
     }, 'desktop-shell.page-owner')
+    return withdraw
   }
 
   navigate(pageId: string, subject?: string): void {

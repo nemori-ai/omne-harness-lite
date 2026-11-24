@@ -14,8 +14,11 @@ const SENTENCES: Readonly<Record<string, string>> = {
   'uniform-auth-failure': '登录没有通过。',
 }
 
-export function refused(outcome: string, prefix: string): Notice {
-  return { kind: 'refused', text: `${prefix}${SENTENCES[outcome] ?? `服务端答复「${outcome}」。`}` }
+export function refused(outcome: string, prefix: string, reason?: string): Notice {
+  const sentence = SENTENCES[outcome] ?? `服务端答复「${outcome}」。`
+  return reason === undefined
+    ? { kind: 'refused', text: `${prefix}${sentence}` }
+    : { kind: 'refused', text: `${prefix}${sentence}原因：${reason}`, reason }
 }
 
 export const NOT_SENT = (what: string): Notice => ({

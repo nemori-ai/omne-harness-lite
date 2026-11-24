@@ -326,6 +326,11 @@
       "config": {}
     },
     {
+      "id": "slash-command",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "mcp",
       "plugin": "stubPlugin",
       "config": {}
@@ -337,6 +342,16 @@
     },
     {
       "id": "skills",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "skill-command-source",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "prompt-command-source",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -492,6 +507,11 @@
     },
     {
       "id": "session-diagnostics-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "slash-command-access",
       "plugin": "stubPlugin",
       "config": {}
     },

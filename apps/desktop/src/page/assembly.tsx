@@ -22,7 +22,7 @@ import {
   createHumanInterventionUiModule,
   releaseDetail,
 } from '@omne-harness/human-intervention-ui/cordis'
-import { identityUiModule } from '@omne-harness/identity-ui/cordis'
+import { accountPreferencesKey, identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
@@ -47,6 +47,7 @@ import {
   sessionCallDetail,
   sessionComposerAttachments,
   sessionComposerIntakeKey,
+  sessionComposerKey,
   sessionDock,
   sessionReadsSourceKey,
   sessionReadsUiModule,
@@ -55,6 +56,11 @@ import {
   sessionStatus,
 } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
+import { createComposer } from '@omne-harness/slash-command-contract'
+import {
+  createSlashCommandUiModule,
+  slashCommandComposerKey,
+} from '@omne-harness/slash-command-ui/cordis'
 import { createToolUiModule } from '@omne-harness/tool-ui/cordis'
 import { storedLayouts } from '@omne-harness/usage-ui'
 import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
@@ -93,6 +99,12 @@ export const assembly: Assembly = {
       blockReads: sessionReadsSourceKey,
       canvasElement,
       canvasPicker,
+      composerAssistant: slashCommandComposerKey,
+    }),
+    createSlashCommandUiModule({
+      composer: createComposer,
+      writer: sessionComposerKey,
+      preferences: accountPreferencesKey,
     }),
     createHumanInterventionUiModule({ sessionDock }),
     notificationUiModule,

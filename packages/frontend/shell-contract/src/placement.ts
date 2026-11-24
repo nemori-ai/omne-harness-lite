@@ -17,6 +17,8 @@ const POINT = {
   sidebar: 'shell.sidebar',
   float: 'shell.float',
   back: 'shell.back',
+  actions: 'shell.actions',
+  keymap: 'shell.keymap',
 } as const
 
 const FIXED = 'Fixed when the app is built: a plugin cannot add to it while the app runs.'
@@ -83,6 +85,30 @@ export const shellContracts: readonly Contract[] = [
   },
 ]
 
+export const actionsContract: Contract = {
+  ...SHARED,
+  name: POINT.actions,
+  arity: 'list',
+  item: { kind: 'pure', fields: { available: 'function', run: 'function' } },
+  gives: 'nothing: an action asks what it needs when it runs',
+  binding: 'run',
+  onError: 'the action is not run, and the person is told why',
+  summary:
+    'The shell actions by name: what a key, the palette and a button run. A module puts its own; they leave with it.',
+}
+
+export const keymapContract: Contract = {
+  ...SHARED,
+  name: POINT.keymap,
+  arity: 'one',
+  item: { kind: 'pure', fields: { changes: 'function', subscribe: 'function' } },
+  gives: 'nothing',
+  binding: 'run',
+  onError: 'the keys are the ones the actions come with',
+  summary:
+    "The account's changes to the keys of the actions: what the dispatcher and the palette read.",
+}
+
 /** The contract of a point a view module declares: what is put there can change while running. */
 export function pointContract(
   name: string,
@@ -141,6 +167,8 @@ const SPOT: { readonly [K in SlotName]: (item: ItemOf<K>) => Spot } = {
   float: item => ({ point: POINT.float, key: '', id: item.id, rank: item.order }),
   back: () => ({ point: POINT.back, key: '', id: '', rank: 0 }),
   attached: item => ({ ...anchored(item.anchor), id: item.id, rank: item.order }),
+  actions: item => ({ point: POINT.actions, key: '', id: item.id, rank: item.order }),
+  keymap: () => ({ point: POINT.keymap, key: '', id: '', rank: 0 }),
 }
 
 /** A render function has no digest of its own: the instance that put it stands for its content. */
@@ -162,7 +190,7 @@ function conflictOf(slot: SlotName, entries: readonly Placed[]): SlotConflict {
   return { slot, anchor: first.item.anchor, id: first.id, by }
 }
 
-function oneView<K extends 'gate' | 'back'>(registry: Registry, slot: K): SlotView<K> {
+function oneView<K extends 'gate' | 'back' | 'keymap'>(registry: Registry, slot: K): SlotView<K> {
   const answer = ask<ItemOf<K>>(registry, POINT[slot], '', deployment)
   if (answer.kind === 'one') return { items: [answer.entry.item], conflicts: [] }
   if (answer.kind !== 'conflict') return NOTHING
@@ -209,6 +237,8 @@ const VIEW: { readonly [K in SlotName]: (registry: Registry) => SlotView<K> } = 
   float: registry => listView(registry, 'float', POINT.float),
   back: registry => oneView(registry, 'back'),
   attached: attachedView,
+  actions: registry => listView(registry, 'actions', POINT.actions),
+  keymap: registry => oneView(registry, 'keymap'),
 }
 
 export function viewOf<K extends SlotName>(registry: Registry, slot: K): SlotView<K> {

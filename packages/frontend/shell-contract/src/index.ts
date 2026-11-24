@@ -21,7 +21,7 @@ export {
   type ToastTone,
 } from './toast-store.ts'
 export { FLOAT_GRIP_ATTRIBUTE, ShellAssemblyError, slots } from './slots.ts'
-export { shellContracts } from './placement.ts'
+export { actionsContract, keymapContract, shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint, defineRenderPoint } from './point.ts'
 export {
   LAYOUT_POINT,
@@ -84,6 +84,9 @@ export type {
   RenderPutter,
 } from './point.ts'
 export type {
+  ActionItem,
+  ActionKey,
+  ActionLayer,
   AttachedEntry,
   AttachedItem,
   AttachedLayout,
@@ -93,6 +96,7 @@ export type {
   FloatCorner,
   FloatItem,
   FloatProps,
+  KeymapItem,
   GateItem,
   GateProps,
   ItemOf,
@@ -128,3 +132,21 @@ export {
   type Reader,
   PROTOCOLS_POINT,
 } from './needs.ts'
+export {
+  actionAt,
+  bareChord,
+  type BindingJudgment,
+  chordLabel,
+  chordOf,
+  judgeBinding,
+  type KeyAnswer,
+  keyClashes,
+  keymapOf,
+  type KeymapRow,
+  type KeyPress,
+  type KeyView,
+  layersOf,
+  normalChord,
+  RESERVED_CHORDS,
+  resolveKey,
+} from './keys.ts'

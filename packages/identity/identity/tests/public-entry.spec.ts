@@ -4,6 +4,7 @@ it('publishes the first identity shapes: the principal authority, the qualificat
   const root = (await import('@omne-harness/identity')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual(
     [
+      'ACCOUNT_PREFERENCE_LIMITS',
       'DEFAULT_TEAM_MODEL',
       'DEFAULT_TEAM_ROLES',
       'DEFAULT_TEAM_ROLE_MAPPING',

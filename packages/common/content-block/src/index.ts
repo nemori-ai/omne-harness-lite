@@ -10,11 +10,15 @@ export interface Visibility {
   readonly toModel: boolean
 }
 
+/** Where a text came from when the person did not type it: the full name of what was named, and the version taken. */
+export type TextOrigin = Readonly<{ name: string; layer: string; version: string; digest: string }>
+
 export interface TextContentBlock {
   readonly kind: 'text'
   readonly id: BlockId
   readonly visibility: Visibility
   readonly text: string
+  readonly origin?: TextOrigin
 }
 
 export interface ThinkingContentBlock {
@@ -103,6 +107,7 @@ export type ContentBlockRejection =
   | 'transcript'
   | 'facts'
   | 'snapshot'
+  | 'origin'
 
 export type ContentBlockJudgment =
   | { readonly ok: ContentBlock }
@@ -110,6 +115,7 @@ export type ContentBlockJudgment =
 
 interface BlockRule {
   readonly keys: readonly string[]
+  readonly optional?: readonly string[]
   readonly body?: 'text' | 'inline'
   readonly admit: (
     value: Record<string, unknown>,
@@ -128,12 +134,31 @@ function admitWritten(
   return { ok: { kind, id, visibility, text: value.text } }
 }
 
+const ORIGIN_KEYS = ['name', 'layer', 'version', 'digest'] as const
+
+function originOf(value: unknown): TextOrigin | undefined {
+  if (!isRecord(value) || hasUnknownKey(value, ORIGIN_KEYS)) return undefined
+  if (!ORIGIN_KEYS.every(key => typeof value[key] === 'string') || value.name === '')
+    return undefined
+  return {
+    name: value.name as string,
+    layer: value.layer as string,
+    version: value.version as string,
+    digest: value.digest as string,
+  }
+}
+
 function admitText(
   value: Record<string, unknown>,
   id: BlockId,
   visibility: Visibility,
 ): ContentBlockJudgment {
-  return admitWritten('text', value, id, visibility)
+  const written = admitWritten('text', value, id, visibility)
+  if (!Object.hasOwn(value, 'origin') || !('ok' in written)) return written
+  const origin = originOf(value.origin)
+  return origin === undefined
+    ? { rejected: 'origin' }
+    : { ok: { ...(written.ok as TextContentBlock), origin } }
 }
 
 function admitThinking(
@@ -196,7 +221,12 @@ function admitFile(
 }
 
 const BLOCKS: Readonly<Record<ContentBlockKind, BlockRule>> = {
-  text: { keys: ['kind', 'id', 'visibility', 'text'], body: 'text', admit: admitText },
+  text: {
+    keys: ['kind', 'id', 'visibility', 'text'],
+    optional: ['origin'],
+    body: 'text',
+    admit: admitText,
+  },
   thinking: { keys: ['kind', 'id', 'visibility', 'text'], body: 'text', admit: admitThinking },
   voice: {
     keys: ['kind', 'id', 'visibility', 'mediaType', 'inline'],
@@ -395,7 +425,7 @@ export function judgeContentBlock(value: unknown): ContentBlockJudgment {
     return admitReference(value.kind, value, identity.ok.id, identity.ok.visibility)
   }
   const rule = BLOCKS[value.kind]
-  if (hasUnknownKey(value, rule.keys)) return { rejected: 'extra' }
+  if (hasUnknownKey(value, [...rule.keys, ...(rule.optional ?? [])])) return { rejected: 'extra' }
   const identity = judgeBlockIdentity(value)
   if ('rejected' in identity) return { rejected: identity.rejected }
   return rule.admit(value, identity.ok.id, identity.ok.visibility)

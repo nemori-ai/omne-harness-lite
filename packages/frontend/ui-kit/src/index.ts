@@ -77,6 +77,7 @@ export {
 } from './patterns/ai/trace.tsx'
 export { ValuePill } from './patterns/ai/value-pill.tsx'
 export { ChoiceList, ChoiceRow } from './patterns/choice-list.tsx'
+export { CommandPalette, type PaletteItem } from './patterns/command-palette.tsx'
 export { CodeSurface } from './patterns/code-surface.tsx'
 export { CountPill } from './patterns/count-pill.tsx'
 export { ImpactPanel } from './patterns/confirm/impact-panel.tsx'
@@ -172,12 +173,10 @@ export {
   SIZE_TIERS,
   type SizeController,
   type SizeControllerInput,
-  type SizeKey,
   type SizeKeyPlatform,
   type SizeRoot,
   type SizeStep,
   type SizeTier,
-  sizeStepForKey,
   stepSize,
 } from './size/controller.ts'
 export { useSizeFactor } from './size/use-size-factor.ts'

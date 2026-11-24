@@ -28,6 +28,7 @@ import {
   type ReportAccessFacts,
   type RevokeLoginFacts,
   type SwitchTenantFacts,
+  type WritePreferenceFacts,
 } from './schema.ts'
 import {
   actingCaller,
@@ -125,6 +126,7 @@ const GOVERNANCE_SHAPES: Readonly<Record<GovernanceFacts['kind'], Shape>> = {
     text: ACTING,
     nullable: ['targetTenant', 'targetOrganization', 'targetAccount'],
   },
+  'write-preference': { text: [...CALLER, 'name', 'expected'], nullable: ['value'] },
   'revoke-login': { text: [...CALLER, 'revokedAt'], nullable: ['target'] },
   'report-access': { text: [...CALLER, 'idleDeadline', 'idleKey'] },
 }
@@ -558,6 +560,25 @@ function switchTenant(facts: SwitchTenantFacts, port: ParticipantPort) {
   return reply('succeeded', { tenantText: targetTenant })
 }
 
+/** A write names the revision it read: another write since then is a conflict, and nothing is written. */
+function writePreference(facts: WritePreferenceFacts, port: ParticipantPort) {
+  const who = liveCaller(port, facts.login, facts.nowKey)
+  if (who.kind !== 'caller') return reply(who.outcome)
+  const row = oneRow(
+    port,
+    'SELECT revision FROM id_account_preference WHERE account = ? AND name = ? LIMIT 1',
+    [who.account, facts.name],
+  )
+  const now = row === undefined ? 0 : Number(row['revision'])
+  if (facts.expected !== String(now)) return reply('conflict', { revision: String(now) })
+  port.execute(
+    `INSERT INTO id_account_preference (account, name, value, revision) VALUES (?, ?, ?, ?)
+      ON CONFLICT (account, name) DO UPDATE SET value = excluded.value, revision = excluded.revision`,
+    [who.account, facts.name, facts.value, now + 1],
+  )
+  return reply('succeeded', { revision: String(now + 1) })
+}
+
 function revokeLogin(facts: RevokeLoginFacts, port: ParticipantPort) {
   const who = liveCaller(port, facts.login, facts.nowKey)
   if (who.kind !== 'caller') return reply(who.outcome)
@@ -616,6 +637,8 @@ function governance(
       return changeMember(facts, port, mode)
     case 'switch-tenant':
       return switchTenant(facts, port)
+    case 'write-preference':
+      return writePreference(facts, port)
     case 'revoke-login':
       return revokeLogin(facts, port)
     case 'report-access':

@@ -68,6 +68,8 @@ class IdentitySqlGovernanceService extends IdentityGovernanceService {
   readonly changeMemberRole: IdentityGovernance['changeMemberRole']
   readonly switchCurrentTenant: IdentityGovernance['switchCurrentTenant']
   readonly queryCurrentTenant: IdentityGovernance['queryCurrentTenant']
+  readonly readAccountPreference: IdentityGovernance['readAccountPreference']
+  readonly writeAccountPreference: IdentityGovernance['writeAccountPreference']
   readonly revokeLogin: IdentityGovernance['revokeLogin']
   readonly queryOwnValidLogins: IdentityGovernance['queryOwnValidLogins']
   readonly reportBusinessAccess: IdentityGovernance['reportBusinessAccess']
@@ -90,6 +92,8 @@ class IdentitySqlGovernanceService extends IdentityGovernanceService {
     this.changeMemberRole = input => governance.changeMemberRole(input)
     this.switchCurrentTenant = input => governance.switchCurrentTenant(input)
     this.queryCurrentTenant = input => governance.queryCurrentTenant(input)
+    this.readAccountPreference = input => governance.readAccountPreference(input)
+    this.writeAccountPreference = input => governance.writeAccountPreference(input)
     this.revokeLogin = input => governance.revokeLogin(input)
     this.queryOwnValidLogins = input => governance.queryOwnValidLogins(input)
     this.reportBusinessAccess = input => governance.reportBusinessAccess(input)

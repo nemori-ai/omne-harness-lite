@@ -38,6 +38,7 @@ import {
   spansLeapSecond,
   timesDuration,
 } from './time.ts'
+import { withPreferenceCases } from './governance-preferences.ts'
 
 export type IdentityProviders = Readonly<{
   operations: IdentityOperations
@@ -101,7 +102,6 @@ type ContractCase = Readonly<{
   rule: string
   run(context: Context): Promise<'passed' | 'not-applicable'>
 }>
-
 class ContractViolation extends Error {}
 
 function check(condition: boolean, message: string): asserts condition {
@@ -211,7 +211,7 @@ async function recognition(context: Context, login: IssuedLogin): Promise<string
 
 const DISPOSITIONS = ['acceptMemberInvitation', 'rejectMemberInvitation'] as const
 
-const CASES: readonly ContractCase[] = [
+const CASES: readonly ContractCase[] = withPreferenceCases({ check, kindIs }, [
   {
     id: 'create-team-atomic',
     rule: 'ID-05, A1: the organization, the creator tenant and the first super administrator exist together',
@@ -2074,7 +2074,7 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-]
+])
 
 export const IDENTITY_GOVERNANCE_CONTRACT_CASES: readonly Readonly<{ id: string; rule: string }>[] =
   Object.freeze(CASES.map(({ id, rule }) => Object.freeze({ id, rule })))

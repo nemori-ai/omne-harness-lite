@@ -155,6 +155,26 @@ export type CurrentTenantOutcome =
   | GovernanceDenied
   | GovernanceBasisUnavailable
 
+/** One preference of an account: a value under a name, with the revision a write must name to replace it. */
+export const ACCOUNT_PREFERENCE_LIMITS = Object.freeze({ name: 64, value: 16_384 })
+
+export type ReadAccountPreferenceInput = GovernanceLogin & Readonly<{ name: string }>
+
+export type AccountPreferenceOutcome =
+  | Readonly<{ kind: 'succeeded'; value: string | null; revision: string }>
+  | GovernanceDenied
+  | GovernanceBasisUnavailable
+
+/** `expected` is the revision read before; another write since then makes this one a conflict. */
+export type WriteAccountPreferenceInput = GovernanceLogin &
+  Readonly<{ name: string; value: string | null; expected: string }>
+
+export type WriteAccountPreferenceOutcome =
+  | Readonly<{ kind: 'succeeded'; revision: string }>
+  | Readonly<{ kind: 'conflict'; revision: string }>
+  | GovernanceDenied
+  | GovernanceBasisUnavailable
+
 export type RevokeLoginInput = GovernanceLogin & Readonly<{ target: LoginStateId }>
 
 export type RevokeLoginOutcome =
@@ -202,6 +222,8 @@ export interface IdentityGovernance {
   changeMemberRole(input: ChangeMemberRoleInput): Promise<MemberChangeOutcome>
   switchCurrentTenant(input: SwitchCurrentTenantInput): Promise<SwitchCurrentTenantOutcome>
   queryCurrentTenant(input: GovernanceLogin): Promise<CurrentTenantOutcome>
+  readAccountPreference(input: ReadAccountPreferenceInput): Promise<AccountPreferenceOutcome>
+  writeAccountPreference(input: WriteAccountPreferenceInput): Promise<WriteAccountPreferenceOutcome>
   revokeLogin(input: RevokeLoginInput): Promise<RevokeLoginOutcome>
   queryOwnValidLogins(input: GovernanceLogin): Promise<OwnValidLoginsOutcome>
   reportBusinessAccess(input: GovernanceLogin): Promise<BusinessAccessReport>

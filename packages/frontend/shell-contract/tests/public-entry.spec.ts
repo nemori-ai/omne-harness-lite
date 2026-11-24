@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { ShellAssemblyError, slots } from '@omne-harness/shell-contract'
 
-it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the five shell points, the attribute a floating item is dragged by, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, and nothing else at run time', async () => {
+it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the five shell points and of the actions, the key functions, the attribute a floating item is dragged by, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, and nothing else at run time', async () => {
   const root = (await import('@omne-harness/shell-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'FLOAT_GRIP_ATTRIBUTE',
@@ -10,22 +10,35 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'PART_ATTRIBUTE',
     'PROTOCOLS_POINT',
     'RENDER_POINT',
+    'RESERVED_CHORDS',
     'STYLE_POINT',
     'ShellAssemblyError',
     'TOKENS_POINT',
+    'actionAt',
+    'actionsContract',
     'attachWhile',
+    'bareChord',
     'changesOn',
+    'chordLabel',
+    'chordOf',
     'createFigureStore',
     'createToastStore',
     'defineKeyedPoint',
     'definePart',
     'definePoint',
     'defineRenderPoint',
+    'judgeBinding',
+    'keyClashes',
+    'keymapContract',
+    'keymapOf',
+    'layersOf',
     'lookScope',
     'needPoint',
     'needProtocol',
+    'normalChord',
     'partFault',
     'partsOn',
+    'resolveKey',
     'serviceKey',
     'shellContracts',
     'slots',
@@ -34,7 +47,7 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
   ])
 })
 
-it('declares six slots, two that hold one and four lists', () => {
+it('declares eight slots, three that hold one and five lists', () => {
   expect(slots).toEqual({
     gate: { kind: 'one' },
     pages: { kind: 'list' },
@@ -42,6 +55,8 @@ it('declares six slots, two that hold one and four lists', () => {
     float: { kind: 'list' },
     back: { kind: 'one' },
     attached: { kind: 'list' },
+    actions: { kind: 'list' },
+    keymap: { kind: 'one' },
   })
   expect(ShellAssemblyError.prototype).toBeInstanceOf(Error)
 })

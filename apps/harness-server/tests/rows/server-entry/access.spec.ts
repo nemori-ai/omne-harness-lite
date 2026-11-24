@@ -316,6 +316,7 @@ describe('the serve process with the release', () => {
         'schedule/v2',
         'session-diagnostics/v1',
         'session/v1',
+        'slash-command/v1',
         'tool/v1',
         'usage/v1',
         'workspace/v1',

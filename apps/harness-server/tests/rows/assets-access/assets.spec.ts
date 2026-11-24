@@ -73,6 +73,7 @@ describe('assets/v1 asset operations on the release tree', () => {
           ['mcp', 'data'],
           ['model-provider', 'none'],
           ['plugin', 'directory'],
+          ['prompt', 'directory'],
           ['skill', 'directory'],
           ['skin', 'directory'],
           ['tool', 'directory'],

@@ -53,7 +53,15 @@ import {
 } from './part.ts'
 import { drawingOn, type KeyRender } from './point.ts'
 import type { ServiceKey } from './service-key.ts'
-import { entryOf, sameView, shellContracts, viewOf, type SlotView } from './placement.ts'
+import {
+  actionsContract,
+  keymapContract,
+  entryOf,
+  sameView,
+  shellContracts,
+  viewOf,
+  type SlotView,
+} from './placement.ts'
 import {
   ShellAssemblyError,
   slots,
@@ -107,6 +115,8 @@ function adoptOn(registry: Registry, references: Readonly<Record<string, Referen
 
 const CONTRACTS = [
   ...shellContracts,
+  actionsContract,
+  keymapContract,
   partsContract,
   tokensContract,
   styleContract,
@@ -156,8 +166,8 @@ export abstract class ShellService extends Service implements ShellSlots {
     ctx.on('dynamis-cordis/changed', registry => this.follow(registry))
   }
 
-  contribute<K extends SlotName>(slot: K, item: ItemOf<K>): void {
-    this.put(slot, item.id, instance => [entryOf(slot, item, instance)])
+  contribute<K extends SlotName>(slot: K, item: ItemOf<K>): () => unknown {
+    return this.put(slot, item.id, instance => [entryOf(slot, item, instance)])
   }
 
   declare(contract: Contract): void {
@@ -429,9 +439,9 @@ export abstract class ShellService extends Service implements ShellSlots {
     return () => void this.adoptionWatchers.delete(listener)
   }
 
-  private put(slot: SlotName, id: string, made: Made): void {
+  private put(slot: SlotName, id: string, made: Made): () => unknown {
     try {
-      this.ctx.dynamis.put(made)
+      return this.ctx.dynamis.put(made)
     } catch (error) {
       if (!(error instanceof DynamisRefused)) throw error
       const reason = error.reason === 'held' ? 'duplicate' : 'invalid'

@@ -7,6 +7,8 @@ export const slots = {
   float: { kind: 'list' },
   back: { kind: 'one' },
   attached: { kind: 'list' },
+  actions: { kind: 'list' },
+  keymap: { kind: 'one' },
 } as const
 
 export type SlotName = keyof typeof slots
@@ -65,7 +67,6 @@ export type FloatItem = Readonly<{
   render: (props: FloatProps) => ReactNode
 }>
 
-/** `turn` turns the application to its other face, as the shell's own ways to turn do; `home` is a press on the front's home. Neither gives anything back. */
 export type BackProps = Readonly<{ scope: string | undefined; turn: () => void; home: () => void }>
 
 export type BackItem = Readonly<{
@@ -83,6 +84,29 @@ export type AttachedItem = Readonly<{
 
 export type AttachedEntry = Readonly<{ id: string; label: string | undefined; node: ReactNode }>
 
+export type ActionLayer = 'overlay' | 'composer' | 'page' | 'global'
+export type ActionKey = Readonly<{ chord: string; layer: ActionLayer }>
+
+/** One shell action: a key, the palette and a button all name it; the shell knows nothing of what it does. */
+export type ActionItem = Readonly<{
+  id: string
+  title: string
+  group: string
+  kind: 'control' | 'ui' | 'command'
+  order: number
+  keys?: readonly ActionKey[]
+  slash?: string
+  repeat?: true
+  available: () => true | string
+  run: () => void | Promise<void>
+}>
+
+export type KeymapItem = Readonly<{
+  id: string
+  changes: () => Readonly<Record<string, string | null>>
+  subscribe: (listener: () => void) => () => void
+}>
+
 export type AttachedLayout = (entries: readonly AttachedEntry[]) => ReactNode
 
 export type SlotItems = {
@@ -92,6 +116,8 @@ export type SlotItems = {
   float: FloatItem
   back: BackItem
   attached: AttachedItem
+  actions: ActionItem
+  keymap: KeymapItem
 }
 
 export type ItemOf<K extends SlotName> = SlotItems[K]

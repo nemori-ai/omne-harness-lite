@@ -797,6 +797,14 @@
       "config": {}
     },
     {
+      "id": "slash-command",
+      "plugin": "slashCommandRow",
+      "config": {
+        "declaredSources": ["system-commands", "skill", "prompt"],
+        "timeoutMs": 5000
+      }
+    },
+    {
       "id": "mcp",
       "plugin": "mcpRow",
       "config": {
@@ -824,6 +832,16 @@
     {
       "id": "skills",
       "plugin": "skillsRow",
+      "config": {}
+    },
+    {
+      "id": "skill-command-source",
+      "plugin": "skillCommandSourceRow",
+      "config": {}
+    },
+    {
+      "id": "prompt-command-source",
+      "plugin": "promptCommandSourceRow",
       "config": {}
     },
     {
@@ -983,6 +1001,11 @@
     {
       "id": "session-diagnostics-access",
       "plugin": "sessionDiagnosticsAccessRow",
+      "config": {}
+    },
+    {
+      "id": "slash-command-access",
+      "plugin": "slashCommandAccessRow",
       "config": {}
     },
     {

@@ -44,7 +44,7 @@ async function clientRegistry() {
 
 const clientTree = async () => tree(await clientRegistry(), deployment)
 
-it('桌面装配的整棵客户端树：五个外壳位置与 20 个界面拓展点都声明了，问题一栏是空的（FE-I39）', async () => {
+it('桌面装配的整棵客户端树：五个外壳位置与 21 个界面拓展点都声明了，问题一栏是空的（FE-I39）', async () => {
   const client = await clientTree()
   expect(client.problems).toEqual([])
   await expect(`${render(client.root)}\n`).toMatchFileSnapshot('./client-tree.txt')
@@ -72,12 +72,14 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'connection.server-points',
     'dynamis.points',
     'human-intervention.release-detail',
+    'identity.account-preferences',
     'model.choices',
     'notification.entry',
     'notification.inbox-sections',
     'session.block-reads-source',
     'session.block-render',
     'session.call-detail',
+    'session.composer',
     'session.composer-attachments',
     'session.composer-intake',
     'session.dock',
@@ -85,16 +87,19 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'session.side',
     'session.status',
     'session.tool-call',
+    'shell.actions',
     'shell.back',
     'shell.float',
     'shell.gate',
     'shell.icon',
+    'shell.keymap',
     'shell.layout',
     'shell.pages',
     'shell.parts',
     'shell.piece',
     'shell.sidebar',
     'shell.tokens',
+    'slash-command.composer',
     'usage.presentation',
     'usage.widget',
     'workspace.choices',

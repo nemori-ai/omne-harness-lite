@@ -21,6 +21,7 @@ import type {
   InvitationTermsSource,
   MemberInvitation,
 } from '../governance.ts'
+import { withPreferences } from './preference-double.ts'
 import type { IdentityOperations } from '../operations.ts'
 import {
   DEFAULT_TEAM_MODEL,
@@ -602,7 +603,7 @@ export function governanceOver(
     return Object.freeze({ kind: 'refreshed', idleDeadline: record.idleDeadline })
   }
 
-  return Object.freeze({
+  return withPreferences({ begin, caller, records })({
     createOrganization,
     queryCreateOrganization,
     issueMemberInvitation,

@@ -44,7 +44,7 @@ it('exports only the plugin from ./cordis', () => {
   expect(cordis.IdentitySqlPlugin.name).toBe('identity-sql')
 })
 
-it('describes one participant, three migrations and five snapshot read handlers', () => {
+it('describes one participant, four migrations and five snapshot read handlers', () => {
   const materials = root.identitySqlMaterials()
   expect(materials.participants.map(item => item.participant)).toEqual(['identity'])
   expect(materials.participants[0]?.grouping).toBe('singleton')
@@ -61,6 +61,7 @@ it('describes one participant, three migrations and five snapshot read handlers'
     'id_login_revocation',
     'id_standing_reservation',
     'id_membership_intent',
+    'id_account_preference',
   ])
   expect(
     materials.migrations.map(item => ({
@@ -71,6 +72,7 @@ it('describes one participant, three migrations and five snapshot read handlers'
     { migration: 'identity/001-identity', requires: [] },
     { migration: 'identity/002-governance', requires: ['identity/001-identity'] },
     { migration: 'identity/003-standing', requires: ['identity/002-governance'] },
+    { migration: 'identity/004-preference', requires: ['identity/003-standing'] },
   ])
   const handlers = Object.fromEntries(materials.readHandlers.map(item => [item.handler, item]))
   expect(Object.keys(handlers).sort()).toEqual([
@@ -85,7 +87,11 @@ it('describes one participant, three migrations and five snapshot read handlers'
   expect(migrationsOf('identity.issue-basis')).toEqual(['001-identity'])
   expect(migrationsOf('identity.standing')).toEqual(['001-identity'])
   expect(migrationsOf('identity.login-by-proof')).toEqual(['001-identity', '002-governance'])
-  expect(migrationsOf('identity.governance')).toEqual(['001-identity', '002-governance'])
+  expect(migrationsOf('identity.governance')).toEqual([
+    '001-identity',
+    '002-governance',
+    '004-preference',
+  ])
   expect(handlers['identity.governance']?.maxRowsRead).toBe(1016)
   expect(handlers['identity.governance']?.maxOutputBytes).toBe(1 << 20)
   for (const handler of materials.readHandlers) expect(handler.ordering).toBe('snapshot')
