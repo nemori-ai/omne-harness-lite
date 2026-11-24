@@ -137,7 +137,7 @@ describe('command call encodings', () => {
       expect(value.properties['command']?.enum).toEqual(names)
       expect(value.additionalProperties).toBe(encoding === 'flat')
       expect(Object.keys(value.properties)).toEqual(
-        encoding === 'wrapped' ? ['command', 'params'] : ['command'],
+        encoding === 'wrapped' ? ['command', 'params'] : ['command', 'path'],
       )
     })
 
@@ -324,8 +324,49 @@ describe('the exact texts of a call', () => {
       '{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":["read","shell"]},"params":{"type":"object"}},"additionalProperties":false}',
     )
     expect(writeJsonText(commandCallSchema(flat))).toBe(
-      '{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":["read","shell"]}},"additionalProperties":true}',
+      '{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":["read","shell"]},"path":{"type":"string"}},"additionalProperties":true}',
     )
+  })
+
+  it('a flat schema names each field of each command once, and leaves a field two commands shape differently open', () => {
+    const [read] = flat.commands
+    if (read === undefined) throw new Error('fixture')
+    const shaped = (name: string, schema: string): Commands['commands'][number] => ({
+      ...read,
+      name,
+      parameters: {
+        kind: 'declared',
+        value: { ...parameters([]), schema: json(schema) },
+      },
+    })
+    const several: Commands = {
+      ...flat,
+      commands: [
+        shaped('run', '{"type":"object","properties":{"code":{"type":"string"},"input":{}}}'),
+        shaped(
+          'show',
+          '{"type":"object","properties":{"name":{"type":"string"},"code":{"type":"string"}}}',
+        ),
+        shaped('count', '{"type":"object","properties":{"name":{"type":"integer"}}}'),
+        shaped('bare', '{"type":"object"}'),
+      ],
+    }
+    const properties = (
+      JSON.parse(writeJsonText(commandCallSchema(several))) as {
+        properties: Record<string, unknown>
+      }
+    ).properties
+    expect(properties).toEqual({
+      command: { type: 'string', enum: ['run', 'show', 'count', 'bare'] },
+      code: { type: 'string' },
+      input: {},
+      name: {},
+    })
+    const nested = JSON.parse(writeJsonText(commandCallSchema({ ...several, encoding: 'wrapped' })))
+    expect(Object.keys((nested as { properties: object }).properties)).toEqual([
+      'command',
+      'params',
+    ])
   })
 
   it('writes the guide of the tool, or of one command in full, each followed by the tool guide', () => {

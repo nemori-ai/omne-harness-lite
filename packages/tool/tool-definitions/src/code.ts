@@ -40,7 +40,7 @@ const CODE_GATES: CommandGates = {
 const RULES = `Program
 - code is the body of an async function, written in TypeScript. Top-level await and return work. Type annotations are erased before the run; enum, namespace and decorators are not accepted.
 - The value you return is the result you receive, as JSON. console.log lines are returned too. Return only what you need: nothing else from the program reaches you.
-- input (optional JSON) is the constant input.
+- input (optional) is any JSON value, given as the value itself: an object as an object, not as a string that holds JSON. The program reads it as the constant input.
 
 Calling tools
 - Each callable tool is a global object named like the tool, and each of its commands is a function: await Files.read({ path: "a.txt" }). A function takes one object and resolves to the declared value, not to text. The same objects are also on tools.

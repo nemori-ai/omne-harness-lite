@@ -381,7 +381,8 @@ export const codeCommands: readonly Command[] = [
       {
         name: 'input',
         kind: 'json',
-        description: 'Optional JSON value. The program reads it as the constant input.',
+        description:
+          'Optional JSON value, given as the value itself (an object as an object, not as a string that holds JSON). The program reads it as the constant input.',
       },
     ],
   },

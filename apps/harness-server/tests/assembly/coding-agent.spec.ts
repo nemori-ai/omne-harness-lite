@@ -131,6 +131,11 @@ describe('the coding entry of the release mapping', () => {
       'You have thirteen resident command tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar, Schedules, Notifications, Sessions, Agents and Skills.',
     )
     expect(fullText).toContain('## BkgToolCalls')
+    // Code comes with a row, so the prompt names it only as a condition: the sentence holds without the row.
+    expect(fullText).toContain(
+      'With Code among your tools, make a call whose result will be large, such as a web page, inside a program and return only the part you need.',
+    )
+    expect(fullText).not.toContain('## Code')
     const extending = instructions.find(section => section.id === 'extensions')?.text ?? ''
     for (const word of ['OmneExtensionPoints', 'OmneExtensions', 'Files', 'impact', 'disable'])
       expect(extending, word).toContain(word)
