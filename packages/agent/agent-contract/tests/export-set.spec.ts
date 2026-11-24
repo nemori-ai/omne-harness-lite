@@ -55,6 +55,7 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'encodeCompactionRequest',
     'encodeCompactionTaskRef',
     'encodeCompactionTaskState',
+    'endsWithUntakenInput',
     'judgeAccess',
     'judgeAdoption',
     'judgeAgentDefinition',

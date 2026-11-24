@@ -47,12 +47,9 @@ const implementation = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('builtin'), builtinName: text }),
   z.strictObject({
     kind: z.literal('command'),
-    host: z.enum(['claude_code', 'codex']),
-    dialect: text,
-    event: text,
-    command: text,
-    matcher: text.optional(),
-    timeout: z.string().regex(ISO_DURATION).optional(),
+    interpreter: text,
+    entry: text,
+    timeout: z.string().regex(ISO_DURATION),
   }),
 ])
 
@@ -161,12 +158,9 @@ function copyImplementation(field: Parsed['implementation']): ExtensionImplement
     return Object.freeze({ kind: 'builtin', builtinName: field.builtinName })
   return Object.freeze({
     kind: 'command',
-    host: field.host,
-    dialect: field.dialect,
-    event: field.event,
-    command: field.command,
-    ...(field.matcher === undefined ? {} : { matcher: field.matcher }),
-    ...(field.timeout === undefined ? {} : { timeout: field.timeout }),
+    interpreter: field.interpreter,
+    entry: field.entry,
+    timeout: field.timeout,
   })
 }
 

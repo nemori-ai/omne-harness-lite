@@ -18,7 +18,7 @@ import type {
   SettingsFailure,
   SettingsTarget,
 } from '@omne-harness/settings'
-import { SettingsTargetSchema } from '@omne-harness/settings'
+import { SettingsTargetSchema, createChangeSignal } from '@omne-harness/settings'
 import { isIndependentTargetInDomain } from './standalone-records.ts'
 import {
   STANDALONE_READ,
@@ -76,7 +76,14 @@ export function createStandaloneSettingsOwner(input: SettingsSqlTerminalOptions)
   }
   const active = new Set<Promise<unknown>>()
   let closing: Promise<void> | undefined
+  const changes = createChangeSignal<SettingsTarget>()
+  const announced = (target: SettingsTarget, committed: SettingsCommitResult) => {
+    if (committed.kind === 'committed' && committed.changed)
+      changes.emit({ domain: target, revision: committed.revision })
+    return committed
+  }
   return {
+    changes: { subscribe: changes.subscribe },
     readTarget(raw: SettingsTarget): Promise<StandaloneTargetReadResult> {
       const fail = (reason: SettingsFailure['reason']): StandaloneTargetReadResult => ({
         kind: 'rejected',
@@ -129,7 +136,12 @@ export function createStandaloneSettingsOwner(input: SettingsSqlTerminalOptions)
             },
           ],
         })
-        .then(r => result(r, command.operationId))
+        .then(r =>
+          announced(
+            command.kind === 'provision' ? command.record.target : command.target,
+            result(r, command.operationId),
+          ),
+        )
         .catch((): SettingsCommitResult => ({ kind: 'unknown', operationId: command.operationId }))
       active.add(pending)
       void pending.then(() => active.delete(pending))

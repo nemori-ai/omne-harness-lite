@@ -1,3 +1,4 @@
+import type { PassEffect } from './extension-pass.ts'
 import type {
   AgentCheckpoint,
   AgentEventBody,
@@ -94,6 +95,7 @@ export type Iteration = {
   lost: DurableEvidence | null
   result: ModelResult | null
   admission: 'new' | 'unknown' | 'accepted'
+  before: PassEffect | null
 }
 
 export const step = (on: Label, commit: Write | null = {}): Outcome<Step, Failure> =>

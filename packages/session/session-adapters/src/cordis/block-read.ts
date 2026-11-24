@@ -1,5 +1,5 @@
 import type { ExecutionView } from '../journal/index.ts'
-import { listedDigests, recordRefs, refsIn } from './content-refs.ts'
+import { cursorReach, listedDigests, recordRefs, refsIn } from './content-refs.ts'
 import { blobRowDigest } from './journal-batch.ts'
 import { readBlob, type Reader } from './journal-read.ts'
 
@@ -37,18 +37,32 @@ async function fetchExecution(
   const missing = await fetchBlobClosure(read, scope, named, into)
   if (missing !== null) return missing
   const items = new Set<string>()
+  const payloadOf = (digest: string) => into.get(blobRowDigest(digest))
   for (const digest of lists) {
-    const payload = into.get(blobRowDigest(digest))
+    const payload = payloadOf(digest)
     if (payload === undefined) continue
     for (const item of listedDigests(payload)) items.add(blobRowDigest(item))
   }
   // A candidate keeps the cursor of the step it was established on; after later steps only that cursor block names the member blocks of that step.
+  const members: unknown[] = [execution.cursor]
   for (const digest of cursors) {
-    const payload = into.get(blobRowDigest(digest))
+    const payload = payloadOf(digest)
     if (payload === undefined) continue
-    for (const ref of refsIn(JSON.parse(payload) as unknown)) items.add(blobRowDigest(ref))
+    const cursor = JSON.parse(payload) as { members?: unknown }
+    for (const ref of refsIn(cursor)) items.add(blobRowDigest(ref))
+    members.push(cursor.members)
   }
-  return fetchBlobClosure(read, scope, items, into)
+  const listed = await fetchBlobClosure(read, scope, items, into)
+  if (listed !== null) return listed
+  // The extension calls of a cursor are two blocks deep: the index names the calls, each call names its declaration.
+  for (let depth = 0; depth < 2; depth += 1) {
+    const reached = new Set<string>()
+    for (const cursor of members)
+      for (const ref of cursorReach(cursor, payloadOf)) reached.add(blobRowDigest(ref))
+    const unread = await fetchBlobClosure(read, scope, reached, into)
+    if (unread !== null) return unread
+  }
+  return null
 }
 
 export function fetchNamed(

@@ -360,7 +360,7 @@ async function requestFor(ctx: Context, principal: unknown, command: string, par
   const described = await source.describe(input)
   if ('failure' in described) throw new Error(`describe: ${JSON.stringify(described.failure)}`)
   if (described.ok.kind === 'answered') throw new Error(`describe answered: ${described.ok.text}`)
-  const prepared = await source.prepare({ ...input, definition: described.ok.definition })
+  const prepared = await source.prepare({ ...input, definition: described.ok.definition.adoption })
   if ('failure' in prepared) throw new Error(`prepare: ${JSON.stringify(prepared.failure)}`)
   return prepared.ok
 }

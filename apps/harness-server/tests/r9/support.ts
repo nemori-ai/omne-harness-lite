@@ -488,6 +488,18 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'workspace', config: { node: 'local' } },
       {
         kind: 'replace',
+        id: 'loop-extension',
+        config: {
+          commands: {
+            interpreters: { node: process.execPath },
+            env: tools.construction.Shell.env,
+            stateDirectory: join(options.storageRoot, 'loop-extension-calls'),
+            workspace: tools.filesRoot,
+          },
+        },
+      },
+      {
+        kind: 'replace',
         id: 'request-context',
         config: {},
       },

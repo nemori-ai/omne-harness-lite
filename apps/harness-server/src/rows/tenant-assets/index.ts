@@ -97,10 +97,12 @@ export const tenantAssetsRow = defineRow({
       open: domain => openTenantAssets(store, domain),
     })
     const layerSources = held.sourcesOf(tenantRef => host.open(tenantRef))
+    const official = () => ctx.assetCategories.official()
     provideTenantAssets(ctx, {
       open: tenantRef => host.open(tenantRef),
       standing: tenantRef => host.standing(tenantRef),
       layerSources,
+      official,
     })
     const acting = publishActing({ verifier: ctx.principalVerifier, standing: ctx.tenantStanding })
     const publishing = createTenantPublishing({
@@ -124,7 +126,7 @@ export const tenantAssetsRow = defineRow({
             ? undefined
             : createTenantLayerStore(assets, tenant, categories, layerSources(tenant))
         },
-        official: () => ctx.assetCategories.official(),
+        official,
       }),
     )
     new AssetChangesService(ctx, changes)

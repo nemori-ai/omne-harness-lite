@@ -1,5 +1,5 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
-import type { AssetLayerSource } from '@omne-harness/assets'
+import type { AssetLayerSource, OfficialAssets } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
 
 /**
@@ -17,6 +17,8 @@ export abstract class TenantAssetsService extends Service {
   ) => Promise<'registered' | 'unregistered' | 'unknown'>
   /** The official and the tenant layer of one tenant: the one source of candidates for every category. */
   abstract readonly layerSources: (tenantRef: string) => readonly AssetLayerSource[]
+  /** Every official asset the deployment brings now, with its body and, for a directory category, its files. */
+  abstract readonly official: OfficialAssets
 }
 export const tenantAssetsKey = TenantAssetsService.provide
 
@@ -26,17 +28,19 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-type Provided = Pick<TenantAssetsService, 'open' | 'standing' | 'layerSources'>
+type Provided = Pick<TenantAssetsService, 'open' | 'standing' | 'layerSources' | 'official'>
 
 class TenantAssetsImpl extends TenantAssetsService {
   readonly open: TenantAssetsService['open']
   readonly standing: TenantAssetsService['standing']
   readonly layerSources: TenantAssetsService['layerSources']
+  readonly official: TenantAssetsService['official']
   constructor(ctx: Context, assets: Provided) {
     super(ctx)
     this.open = tenantRef => assets.open(tenantRef)
     this.standing = tenantRef => assets.standing(tenantRef)
     this.layerSources = tenantRef => assets.layerSources(tenantRef)
+    this.official = () => assets.official()
   }
 }
 

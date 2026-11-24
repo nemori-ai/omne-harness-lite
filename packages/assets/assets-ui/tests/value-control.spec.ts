@@ -33,9 +33,12 @@ describe('the control a declared value gets', () => {
     ).toEqual({ kind: 'text' })
   })
 
+  it('a boolean is a switch', () => {
+    expect(controlOf(object({ type: text('boolean') }))).toEqual({ kind: 'switch' })
+  })
+
   it.each([
     ['an integer', object({ type: text('integer') })],
-    ['a boolean', object({ type: text('boolean') })],
     [
       'an enum with a value that is not a string',
       object({ enum: array(text('a'), { kind: 'null' }) }),
