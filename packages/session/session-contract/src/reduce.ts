@@ -155,6 +155,8 @@ function applyIntakeRouted(
   draft.pending = [...draft.pending, entry.input]
   if (!entry.source.countsTowardCapacity)
     draft.uncountedInputs = [...(draft.uncountedInputs ?? []), entry.input]
+  if (entry.after === true && entry.run !== null)
+    draft.deferredInputs = [...(draft.deferredInputs ?? []), { input: entry.input, run: entry.run }]
   if (!entry.source.wakes) {
     draft.quietInputs = [...(draft.quietInputs ?? []), entry.input]
     return null
@@ -187,6 +189,12 @@ function applyRunStarted(
     return 'a Run started before every initialization item was ready'
   if (draft.run.kind === 'active') return 'a second Run started while one is unfinished'
   if (!draft.pending.includes(entry.first)) return 'the first input of the Run is not pending'
+  if (draft.deferredInputs?.some(held => held.input === entry.first))
+    return 'the first input of the Run is held back until a Run ends'
+  if (draft.deferredInputs !== undefined)
+    draft.deferredInputs = draft.deferredInputs.map(held =>
+      held.run === null ? { ...held, run: entry.run } : held,
+    )
   draft.run = {
     kind: 'active',
     run: entry.run,
@@ -252,6 +260,14 @@ function applyRunTerminal(
     item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
   )
   draft.run = { kind: 'terminal', terminal: entry.terminal }
+  if (draft.deferredInputs !== undefined) {
+    const { run, outcome } = entry.terminal
+    draft.deferredInputs = draft.deferredInputs.flatMap(held => {
+      if (!draft.pending.includes(held.input)) return []
+      if (held.run !== run) return [held]
+      return outcome === 'failed' ? [{ ...held, run: null }] : []
+    })
+  }
   // No action of an ended Run starts any more: none holds a once authorization.
   draft.authorizations = retireOnce(draft.authorizations)
   draft.handed = []

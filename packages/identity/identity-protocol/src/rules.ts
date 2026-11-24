@@ -9,6 +9,33 @@ const tenant = { kind: 'tenant' } as const
 const instant = { kind: 'instant' } as const
 const complete = { kind: 'literal', values: ['complete'] } as const
 const tenantId = { kind: 'object', fields: { tenantId: { rule: tenant } } } as const
+const preferenceName = { kind: 'text' } as const
+const preferenceValue = {
+  kind: 'one-of',
+  rules: [{ kind: 'string' }, { kind: 'null' }],
+} as const
+
+/** One preference of the calling account: the name, and for a write the value and the revision read. */
+export const preferenceRead = {
+  kind: 'object',
+  fields: { name: { rule: preferenceName } },
+} as const
+export const preferenceWrite = {
+  kind: 'object',
+  fields: {
+    name: { rule: preferenceName },
+    value: { rule: preferenceValue },
+    expected: { rule: text },
+  },
+} as const
+export const preferenceHeld = {
+  kind: 'object',
+  fields: { value: { rule: preferenceValue }, revision: { rule: text } },
+} as const
+export const preferenceRevision = {
+  kind: 'object',
+  fields: { revision: { rule: text } },
+} as const
 
 const invitationState = {
   kind: 'literal',

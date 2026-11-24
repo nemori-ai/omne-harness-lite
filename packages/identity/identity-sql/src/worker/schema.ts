@@ -54,6 +54,7 @@ export const OPERATIONS = Object.freeze({
   leaveOrganization: 'identity.leave-organization',
   changeMember: 'identity.change-member',
   switchTenant: 'identity.switch-current-tenant',
+  writePreference: 'identity.write-account-preference',
   revokeLogin: 'identity.revoke-login',
   reportAccess: 'identity.report-business-access',
 })
@@ -174,6 +175,11 @@ export type SwitchTenantFacts = ActingFacts &
     targetAccount: string | null
   }>
 
+export const PREFERENCE_TABLES: readonly string[] = Object.freeze(['id_account_preference'])
+
+export type WritePreferenceFacts = CallerFacts &
+  Readonly<{ kind: 'write-preference'; name: string; value: string | null; expected: string }>
+
 export type RevokeLoginFacts = CallerFacts &
   Readonly<{ kind: 'revoke-login'; target: string | null; revokedAt: string }>
 
@@ -187,6 +193,7 @@ export type GovernanceFacts =
   | LeaveOrganizationFacts
   | ChangeMemberFacts
   | SwitchTenantFacts
+  | WritePreferenceFacts
   | RevokeLoginFacts
   | ReportAccessFacts
 
@@ -241,6 +248,7 @@ export type GovernanceReadInput =
         superAdminRole: string
       }>)
   | (CallerFacts & Readonly<{ query: 'current-tenant' }>)
+  | (CallerFacts & Readonly<{ query: 'preference'; name: string }>)
   | (CallerFacts & Readonly<{ query: 'own-logins' }>)
   | Readonly<{ query: 'account-of'; loginIdentifier: string }>
   | (CallerFacts & Readonly<{ query: 'login-terms' }>)

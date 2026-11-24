@@ -282,6 +282,7 @@ export function createFaces<P>(
     completeInitialization: mutation('completeInitialization'),
     change: mutation('change'),
     setResident: mutation('setResident'),
+    recordCommand: mutation('recordCommand'),
     configureAutoArchive: mutation('configureAutoArchive'),
     considerAutoArchive: mutation('considerAutoArchive'),
     interrupt: mutation('interrupt'),

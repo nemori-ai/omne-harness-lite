@@ -6,7 +6,6 @@ import {
   type SizeRoot,
   type SizeTier,
   createSizeController,
-  sizeStepForKey,
   stepSize,
   useSizeFactor,
 } from '../src/index.ts'
@@ -133,36 +132,6 @@ describe('one tier at a time', () => {
       'medium',
       'medium',
     ])
-  })
-
-  const key = (key: string, modifiers: { metaKey?: boolean; ctrlKey?: boolean } = {}) => ({
-    key,
-    metaKey: modifiers.metaKey ?? false,
-    ctrlKey: modifiers.ctrlKey ?? false,
-  })
-
-  it.each([
-    ['=', 'larger'],
-    ['+', 'larger'],
-    ['-', 'smaller'],
-    ['_', 'smaller'],
-    ['0', 'standard'],
-  ] as const)(
-    'reads %s with Command on macOS and with Control elsewhere as %s',
-    (pressed, step) => {
-      expect(sizeStepForKey(key(pressed, { metaKey: true }), 'mac')).toBe(step)
-      expect(sizeStepForKey(key(pressed, { ctrlKey: true }), 'other')).toBe(step)
-    },
-  )
-
-  it('reads nothing else as a size key', () => {
-    expect(sizeStepForKey(key('='), 'mac')).toBeUndefined()
-    expect(sizeStepForKey(key('=', { ctrlKey: true }), 'mac')).toBeUndefined()
-    expect(sizeStepForKey(key('=', { metaKey: true }), 'other')).toBeUndefined()
-    expect(sizeStepForKey(key('=', { metaKey: true, ctrlKey: true }), 'mac')).toBeUndefined()
-    expect(sizeStepForKey(key('=', { metaKey: true, ctrlKey: true }), 'other')).toBeUndefined()
-    expect(sizeStepForKey(key('9', { metaKey: true }), 'mac')).toBeUndefined()
-    expect(sizeStepForKey(key('Equal', { ctrlKey: true }), 'other')).toBeUndefined()
   })
 })
 

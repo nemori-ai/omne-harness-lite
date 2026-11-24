@@ -5,6 +5,7 @@ export type ToolResultView = Readonly<{ parts: readonly Part[] }>
 
 export type Part =
   | Readonly<{ kind: 'text'; key: string; text: string }>
+  | Readonly<{ kind: 'named'; key: string; name: string; text: string }>
   | Readonly<{ kind: 'thinking'; key: string; text: string }>
   | Readonly<{
       kind: 'tool-call'
@@ -62,7 +63,16 @@ const media: PartFrom = (block, key, kind, message) => {
 }
 
 const PART: ReadonlyMap<string, PartFrom> = new Map<string, PartFrom>([
-  ['text', (block, key) => ({ kind: 'text', key, text: textOf(block['text']) ?? '' })],
+  [
+    'text',
+    (block, key) => {
+      const text = textOf(block['text']) ?? ''
+      const named = isRecord(block['origin']) ? textOf(block['origin']['name']) : undefined
+      return named === undefined
+        ? { kind: 'text', key, text }
+        : { kind: 'named', key, name: named, text }
+    },
+  ],
   ['thinking', (block, key) => ({ kind: 'thinking', key, text: textOf(block['text']) ?? '' })],
   ['image', media],
   ['file', media],
@@ -273,6 +283,17 @@ const markerItem =
   (label: string): ItemFrom =>
   (_walk, entry) => ({ kind: 'marker', key: entry.entryId, label, failedRun: null })
 
+/** A system command a member gave: written as the person typed it, its result in what follows. */
+const commandItem: ItemFrom = (walk, entry) => {
+  const { payload } = entry
+  const name = isRecord(payload) ? textOf(payload['name']) : undefined
+  const args = isRecord(payload) ? (textOf(payload['args']) ?? '') : ''
+  if (name === undefined) return unknownItem(walk, entry)
+  const short = name.slice(name.lastIndexOf(':') + 1)
+  const label = `执行了 /${short}${args === '' ? '' : ` ${args}`}`
+  return { kind: 'marker', key: entry.entryId, label, failedRun: null }
+}
+
 const terminalItem: ItemFrom = (walk, entry) => {
   for (const callId of walk.openCalls.splice(0)) walk.endedCalls.add(callId)
   return terminalMarker(entry)
@@ -287,6 +308,7 @@ const ENTRY_ITEM: ReadonlyMap<string, ItemFrom> = new Map([
   ['message.compaction', markerItem('前面的对话已压缩')],
   ['run.started', markerItem('新的一轮开始')],
   ['run.terminal', terminalItem],
+  ['session.command-recorded', commandItem],
 ])
 
 export function conversationItems(content: Content, runActive: boolean): readonly Item[] {

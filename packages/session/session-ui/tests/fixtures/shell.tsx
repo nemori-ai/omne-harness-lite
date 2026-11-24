@@ -1,3 +1,4 @@
+import type { ComposerAssistant } from '../../src/model/composer-assistant.ts'
 import './dom.ts'
 import { act, render } from '@testing-library/react'
 import type { ClientOf } from '@omne-harness/sdk/core'
@@ -31,6 +32,7 @@ export const TAKEN = {
   modelChoices: serviceKey<ModelChoiceSource>('test.model-choices'),
   workspaceChoices: serviceKey<WorkspaceChoiceSource>('test.workspace-choices'),
   blockReads: serviceKey<BlockReadsSource>('test.block-reads'),
+  composerAssistant: serviceKey<ComposerAssistant>('test.composer-assistant'),
 }
 
 /** Provides under a key as another module does; what `attach` returns takes it back. */

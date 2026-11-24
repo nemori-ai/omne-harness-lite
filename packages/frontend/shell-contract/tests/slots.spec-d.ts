@@ -12,6 +12,7 @@ import {
   type PointSink,
 } from '@omne-harness/shell-contract'
 import type {
+  ActionItem,
   AttachedEntry,
   AttachedItem,
   AttachedLayout,
@@ -32,11 +33,16 @@ import type {
   ShellSlots,
   SidebarItem,
   SlotName,
+  KeymapItem,
 } from '@omne-harness/shell-contract'
 import { ShellService, defineUiModule } from '@omne-harness/shell-contract/cordis'
 
 test('each slot takes its own item', () => {
-  expectTypeOf<SlotName>().toEqualTypeOf<'gate' | 'pages' | 'sidebar' | 'float' | 'attached'>()
+  expectTypeOf<SlotName>().toEqualTypeOf<
+    'gate' | 'pages' | 'sidebar' | 'float' | 'attached' | 'actions' | 'keymap'
+  >()
+  expectTypeOf<ItemOf<'actions'>>().toEqualTypeOf<ActionItem>()
+  expectTypeOf<ItemOf<'keymap'>>().toEqualTypeOf<KeymapItem>()
   expectTypeOf<ItemOf<'gate'>>().toEqualTypeOf<GateItem>()
   expectTypeOf<ItemOf<'pages'>>().toEqualTypeOf<PageItem>()
   expectTypeOf<ItemOf<'sidebar'>>().toEqualTypeOf<SidebarItem>()

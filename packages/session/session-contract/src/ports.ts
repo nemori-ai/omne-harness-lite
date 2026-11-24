@@ -198,6 +198,7 @@ export type MutationName =
   | 'completeInitialization'
   | 'change'
   | 'setResident'
+  | 'recordCommand'
   | 'configureAutoArchive'
   | 'considerAutoArchive'
   | 'recordIdle'

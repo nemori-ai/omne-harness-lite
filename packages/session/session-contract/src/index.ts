@@ -359,6 +359,7 @@ export {
   inputsToDeliver,
   runStartInputs,
   wakingInputs,
+  heldBack,
 } from './intake.ts'
 export {
   archiveCollapse,
@@ -473,6 +474,8 @@ export {
 export {
   createBeforeIntakeRegistry,
   judgeIntakeBlocks,
+  bringsOrigin,
+  keepsTheWords,
   originalContent,
   screenInput,
   type BeforeIntakeRegistry,
@@ -491,3 +494,13 @@ export {
   UNKNOWN_MODEL_PROVENANCE,
 } from './model-provenance.ts'
 export { originalModelRows } from './model-originals.ts'
+
+export {
+  createUtteranceResolverRegistry,
+  type OperationRequest,
+  type Resolution,
+  type SenderView,
+  type Utterance,
+  type UtteranceResolver,
+  type UtteranceResolverRegistry,
+} from './utterance-resolver.ts'

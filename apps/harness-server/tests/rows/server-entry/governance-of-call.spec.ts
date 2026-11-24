@@ -21,6 +21,8 @@ const METHODS = [
   'changeMemberRole',
   'switchCurrentTenant',
   'queryCurrentTenant',
+  'readAccountPreference',
+  'writeAccountPreference',
   'revokeLogin',
   'queryOwnValidLogins',
   'reportBusinessAccess',
@@ -36,7 +38,7 @@ function echoProvider(): IdentityGovernance {
 }
 
 describe('governanceOfCall', () => {
-  it('has the nineteen methods of the governance port', () => {
+  it('has the twenty-one methods of the governance port', () => {
     expect(Object.keys(governanceOfCall(new Context())).sort()).toEqual([...METHODS].sort())
   })
 

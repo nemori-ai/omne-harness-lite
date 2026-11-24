@@ -1,0 +1,17 @@
+{
+  "scope": "a finite safety model of intake: one session, one sender, two skills; the list and the read permission change while the sender types; the accepting side compares with what the sender was shown; no proof of the implementation",
+  "cases": [
+    {
+      "name": "intake-compare",
+      "model": "models/SlashIntake.tla",
+      "config": "models/intake-compare.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "intake-bad-no-compare",
+      "model": "models/SlashIntake.tla",
+      "config": "models/intake-bad-no-compare.cfg",
+      "expected": "AsShown"
+    }
+  ]
+}

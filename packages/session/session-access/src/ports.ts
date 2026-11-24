@@ -102,7 +102,10 @@ export interface SessionPermissionModes {
 }
 
 export type SessionAccessFaces = Readonly<{
-  management: Pick<SessionManagement<Principal>, 'create' | 'interrupt' | 'change'>
+  management: Pick<
+    SessionManagement<Principal>,
+    'create' | 'interrupt' | 'change' | 'recordCommand'
+  >
   work: Pick<
     SessionWork<Principal>,
     | 'accept'

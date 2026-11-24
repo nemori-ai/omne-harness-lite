@@ -89,6 +89,8 @@ export abstract class IdentityGovernanceService extends Service implements Ident
   abstract readonly changeMemberRole: IdentityGovernance['changeMemberRole']
   abstract readonly switchCurrentTenant: IdentityGovernance['switchCurrentTenant']
   abstract readonly queryCurrentTenant: IdentityGovernance['queryCurrentTenant']
+  abstract readonly readAccountPreference: IdentityGovernance['readAccountPreference']
+  abstract readonly writeAccountPreference: IdentityGovernance['writeAccountPreference']
   abstract readonly revokeLogin: IdentityGovernance['revokeLogin']
   abstract readonly queryOwnValidLogins: IdentityGovernance['queryOwnValidLogins']
   abstract readonly reportBusinessAccess: IdentityGovernance['reportBusinessAccess']
