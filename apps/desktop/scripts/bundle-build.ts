@@ -15,7 +15,12 @@ import {
 
 export const desktopDir = resolve(import.meta.dirname, '..')
 
-const EXTERNAL = ['electron', ...builtinModules.flatMap(name => [name, `node:${name}`])]
+// The screenshot library loads its binary by path at run time (src/main/screen-host.ts); it is never bundled.
+const EXTERNAL = [
+  'electron',
+  'node-screenshots',
+  ...builtinModules.flatMap(name => [name, `node:${name}`]),
+]
 
 export const modulesRecordName = (bundle: string): string => `${bundle}.modules.json`
 

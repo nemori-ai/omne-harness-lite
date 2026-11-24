@@ -36,8 +36,12 @@ const SCREEN_GATES: CommandGates = {
   of: { help: 'read', screens: 'observe', capture: 'observe' },
 }
 
-const NOT_PERMITTED =
-  'rejected reason=notAuthorized the system has not permitted reading the screen (on macOS: Screen Recording, for the application that runs this server)'
+const NOT_PERMITTED = [
+  'rejected reason=notAuthorized the system has not permitted reading the screen.',
+  'On macOS the permission is Screen Recording (System Settings > Privacy & Security > Screen Recording),',
+  'held by the application that started this server: the terminal or editor it was started from (Terminal, iTerm, Visual Studio Code) or the app that runs it.',
+  'Turn it on for that application and restart it.',
+].join(' ')
 
 /** What the facility answered when it gave nothing, as one line. */
 function refused(answer: Exclude<FacilityResult<unknown>, { kind: 'done' }>, named: string | null) {

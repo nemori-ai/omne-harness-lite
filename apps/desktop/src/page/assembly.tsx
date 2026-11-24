@@ -57,6 +57,7 @@ import { pluginFilePath } from '../shared/plugin-path.ts'
 import { storedFloor, whenDrawn } from './shell/floor.ts'
 import { domainProtocols } from '../shared/protocols.ts'
 import { LOOK_KEY, storedTenantTexts } from './shell/tenant-text.ts'
+import { hostScreen } from './screen-source.ts'
 
 export const USAGE_REFRESH_MS = 60_000
 
@@ -104,6 +105,7 @@ export const assembly: Assembly = {
       refreshMs: USAGE_REFRESH_MS,
     }),
     createMediaUiModule({
+      screen: hostScreen(),
       composerAttachments: sessionComposerAttachments,
       block: sessionBlockRender,
       drafts: sessionComposerIntakeKey,

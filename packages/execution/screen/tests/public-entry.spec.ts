@@ -5,6 +5,7 @@ it('the root entry exports the backend contract, its shared functions and the ch
   expect(Object.keys(root).sort()).toEqual([
     'diagnoseScreen',
     'libraryBackend',
+    'macosRequestScreenAccess',
     'macosScreenPermission',
     'monitorsProblem',
     'regionWithin',

@@ -27,6 +27,15 @@ export const mediaTrayAttach = definePart({
   when: '打开一段会话时',
 })
 
+export const mediaTrayScreenshot = definePart({
+  name: 'media.tray.screenshot',
+  label: '截图',
+  summary: '截一张屏幕，作为图片附件',
+  within: 'media.tray',
+  depths: ['tokens', 'style'],
+  when: '宿主截得了这台机器的屏幕时',
+})
+
 export const mediaTrayRecord = definePart({
   name: 'media.tray.record',
   label: '录音',
@@ -68,6 +77,7 @@ export const mediaParts = [
   mediaTrayChip,
   mediaTrayAttach,
   mediaTrayRecord,
+  mediaTrayScreenshot,
   mediaPicture,
   mediaFile,
   mediaRead,
