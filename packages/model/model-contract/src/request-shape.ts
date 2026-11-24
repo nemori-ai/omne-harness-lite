@@ -131,25 +131,23 @@ function stopParameter(item: unknown, at: string): Checked<Parameter> {
   if (new Set(parsed.ok).size !== parsed.ok.length) return rejected(at, 'duplicate')
   return succeed({ kind: 'stop', value: parsed.ok })
 }
+function unifiedEffort(record: Record<string, unknown>, field: string): Checked<Parameter> {
+  if (record.scale !== 'unified') return rejected(`${field}/scale`, 'value')
+  if (!isReasoningEffort(record.value)) return rejected(`${field}/value`, 'value')
+  const basis = Object.hasOwn(record, 'basis') ? { basis: 'preference' as const } : {}
+  return succeed({ kind: 'reasoning-effort', scale: 'unified', value: record.value, ...basis })
+}
 function reasoningParameter(record: Record<string, unknown>, field: string): Checked<Parameter> {
-  const item = record.value
-  const at = `${field}/value`
-  const preference = Object.hasOwn(record, 'basis')
-  if (preference && (record.basis !== 'preference' || record.scale !== 'unified'))
+  if (
+    Object.hasOwn(record, 'basis') &&
+    (record.basis !== 'preference' || record.scale !== 'unified')
+  )
     return rejected(`${field}/basis`, 'value')
-  if (Object.hasOwn(record, 'scale')) {
-    if (record.scale !== 'unified') return rejected(`${field}/scale`, 'value')
-    if (!isReasoningEffort(item)) return rejected(at, 'value')
-    return succeed({
-      kind: 'reasoning-effort',
-      scale: 'unified',
-      value: item,
-      ...(preference ? { basis: 'preference' as const } : {}),
-    })
-  }
+  if (Object.hasOwn(record, 'scale')) return unifiedEffort(record, field)
+  const item = record.value
   return isReasoningEffort(item) || item === 'none' || item === 'max'
     ? succeed({ kind: 'reasoning-effort', value: item })
-    : rejected(at, 'value')
+    : rejected(`${field}/value`, 'value')
 }
 function extensionParameter(record: Record<string, unknown>, field: string): Checked<Parameter> {
   const definition = adoption(record.definition, `${field}/definition`)

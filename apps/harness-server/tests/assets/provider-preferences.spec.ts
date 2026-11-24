@@ -115,6 +115,28 @@ describe('the preferences a tenant holds on a release provider (C4, C6)', () => 
     expect(ctx.settings.reads()).toBe(2)
   })
 
+  it('keeps the reads of at most 512 tenants, dropping the one read longest ago', async () => {
+    const ctx = ctxWith(async () => [view('model-switches')])
+    const preferences = createProviderPreferences(ctx)
+    const readAs = (tenant: string) =>
+      preferences.read({ provider: openrouter, access: { principal: { subject: 'test' }, tenant } as never })
+    const others = async (from: number, count: number) => {
+      for (let index = from; index < from + count; index += 1) await readAs(`other-${index}`)
+    }
+    await readAs('tenant')
+    await others(0, 511)
+    await readAs('tenant')
+    expect(ctx.settings.reads()).toBe(512)
+    ctx.settings.write()
+    await readAs('tenant')
+    await others(511, 2)
+    await readAs('tenant')
+    expect(ctx.settings.reads()).toBe(515)
+    await others(513, 512)
+    await readAs('tenant')
+    expect(ctx.settings.reads()).toBe(1028)
+  })
+
   it('is unavailable for a provider the release does not bring', async () => {
     const other = decodeProviderName('elsewhere')
     if (!('ok' in other)) throw new Error('provider name')

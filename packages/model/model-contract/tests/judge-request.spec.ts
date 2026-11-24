@@ -261,6 +261,28 @@ describe('parameter values and request-local identities', () => {
     ).toEqual({ failure: { field: '/parameters/0/basis', reason: 'value' } })
   })
 
+  it('refuses a native-only value on the unified scale, and the two effort keys on any other parameter', () => {
+    expect(
+      judgeFixedModelRequest({
+        ...request,
+        parameters: [{ kind: 'reasoning-effort', scale: 'unified', value: 'max' }],
+      }),
+    ).toEqual({ failure: { field: '/parameters/0/value', reason: 'value' } })
+    expect(
+      judgeFixedModelRequest({
+        ...request,
+        parameters: [{ kind: 'reasoning-effort', scale: 'other', value: 'high' }],
+      }),
+    ).toEqual({ failure: { field: '/parameters/0/scale', reason: 'value' } })
+    for (const key of ['scale', 'basis'])
+      expect(
+        judgeFixedModelRequest({
+          ...request,
+          parameters: [{ kind: 'temperature', value: 0.5, [key]: 'unified' }],
+        }),
+      ).toEqual({ failure: { field: '/parameters/0', reason: 'unknown-field' } })
+  })
+
   it('retains engine effort values and rejects unknown values', () => {
     for (const value of ['none', 'low', 'medium', 'high', 'xhigh', 'max']) {
       const input = { ...request, parameters: [{ kind: 'reasoning-effort', value }] }
