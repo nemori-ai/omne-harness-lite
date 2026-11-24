@@ -5,6 +5,7 @@ export type ToolResultView = Readonly<{ parts: readonly Part[] }>
 
 export type Part =
   | Readonly<{ kind: 'text'; key: string; text: string }>
+  | Readonly<{ kind: 'named'; key: string; name: string; text: string }>
   | Readonly<{ kind: 'thinking'; key: string; text: string }>
   | Readonly<{
       kind: 'tool-call'
@@ -62,7 +63,16 @@ const media: PartFrom = (block, key, kind, message) => {
 }
 
 const PART: ReadonlyMap<string, PartFrom> = new Map<string, PartFrom>([
-  ['text', (block, key) => ({ kind: 'text', key, text: textOf(block['text']) ?? '' })],
+  [
+    'text',
+    (block, key) => {
+      const text = textOf(block['text']) ?? ''
+      const named = isRecord(block['origin']) ? textOf(block['origin']['name']) : undefined
+      return named === undefined
+        ? { kind: 'text', key, text }
+        : { kind: 'named', key, name: named, text }
+    },
+  ],
   ['thinking', (block, key) => ({ kind: 'thinking', key, text: textOf(block['text']) ?? '' })],
   ['image', media],
   ['file', media],

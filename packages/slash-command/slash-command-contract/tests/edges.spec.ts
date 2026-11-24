@@ -1,5 +1,6 @@
 import {
   codeMask,
+  ENTRY_SOURCES_POINT,
   isFullName,
   isName,
   judgeListing,
@@ -49,6 +50,7 @@ describe('names', () => {
       'head',
     ])
     expect(RESERVED_SPACE).toBe('omne-official')
+    expect(ENTRY_SOURCES_POINT).toBe('slash-command.entry-sources')
   })
 
   it('reads a typed name of at most NAME_MAX characters; a longer one is no candidate at all', () => {
@@ -65,6 +67,9 @@ describe('code is never read for commands', () => {
     ['a ```x', '001111'],
     ['```a``````b```', '11111111111111'],
     ['``', '11'],
+    ['a\n`b`', '00111'],
+    ['a `b`\nc', '0011100'],
+    ['```x', '1111'],
   ])('masks %j as %s', (text, wanted) => expect(masked(text)).toBe(wanted))
 
   it('drops only a backslash that stands before a slash outside code', () => {

@@ -141,6 +141,19 @@ describe('screening one input', () => {
     ])
   })
 
+  it('takes the origin off a text block: only intake says where a text came from, never the sender', () => {
+    const origin = { name: 'skill:review', layer: 'tenant', version: '3', digest: 'sha-1' }
+    const brought = {
+      id: ID,
+      role: 'user',
+      blocks: [{ ...text('b1', '照这个做'), origin }, text('b2', '原话')],
+    }
+    expect(originalContent(brought as unknown as Message).blocks).toEqual([
+      text('b1', '照这个做'),
+      text('b2', '原话'),
+    ])
+  })
+
   it('what a processor may give a reference block: its facts, its snapshot and its inline text', async () => {
     const given = { facts: FACTS, snapshot: SNAPSHOT, transcript: 'a red circle' }
     const effective = message(text('b1', 'look at this'), image('b2', 'k1', given))

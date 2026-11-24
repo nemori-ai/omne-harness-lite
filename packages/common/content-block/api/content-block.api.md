@@ -23,6 +23,7 @@
 - `ReferenceContentBlock` · `index.d.ts`
 - `RepresentationSnapshot` · `index.d.ts`
 - `TextContentBlock` · `index.d.ts`
+- `TextOrigin` · `index.d.ts`
 - `ThinkingContentBlock` · `index.d.ts`
 - `Visibility` · `index.d.ts`
 - `judgeBlockIdentity` · `index.d.ts`
@@ -47,11 +48,18 @@ export interface Visibility {
     readonly toHuman: boolean;
     readonly toModel: boolean;
 }
+export type TextOrigin = Readonly<{
+    name: string;
+    layer: string;
+    version: string;
+    digest: string;
+}>;
 export interface TextContentBlock {
     readonly kind: 'text';
     readonly id: BlockId;
     readonly visibility: Visibility;
     readonly text: string;
+    readonly origin?: TextOrigin;
 }
 export interface ThinkingContentBlock {
     readonly kind: 'thinking';
@@ -117,7 +125,7 @@ export type ReferenceContentBlock = Readonly<{
     snapshot?: RepresentationSnapshot;
 }>;
 export type ContentBlock = TextContentBlock | ThinkingContentBlock | MediaContentBlock | FileContentBlock | ReferenceContentBlock;
-export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file' | 'ref' | 'storage' | 'key' | 'mediaType' | 'bytes' | 'digest' | 'transcript' | 'facts' | 'snapshot';
+export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file' | 'ref' | 'storage' | 'key' | 'mediaType' | 'bytes' | 'digest' | 'transcript' | 'facts' | 'snapshot' | 'origin';
 export type ContentBlockJudgment = {
     readonly ok: ContentBlock;
 } | {

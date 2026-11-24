@@ -1,6 +1,7 @@
 import {
   CodeSurface,
   CommandsIcon,
+  Disclosure,
   DisclosureContent,
   FactList,
   FactRow,
@@ -246,7 +247,7 @@ function Reasoning({ text, live }: { readonly text: string; readonly live: boole
 }
 
 const inBubble = (part: Part): boolean =>
-  part.kind === 'text' || part.kind === 'media' || part.kind === 'unknown'
+  part.kind === 'text' || part.kind === 'named' || part.kind === 'media' || part.kind === 'unknown'
 
 function MediaPart({ part }: { readonly part: Extract<Part, { kind: 'media' }> }) {
   const slot = useContext(BlockSlotContext)
@@ -264,6 +265,12 @@ function BubblePart({ part, live }: { readonly part: Part; readonly live: boolea
   switch (part.kind) {
     case 'text':
       return <Prose text={part.text} isAnimating={live} />
+    case 'named':
+      return (
+        <Disclosure label={`引用了 ${part.name}`}>
+          <Prose text={part.text} isAnimating={false} />
+        </Disclosure>
+      )
     case 'media':
       return <MediaPart part={part} />
     case 'unknown':
