@@ -162,6 +162,17 @@
     max-width: none;
   }
 
+  .assets-asset-title {
+    margin: 0;
+    color: var(--omne-ink-primary);
+    font-family: var(--omne-font-reading);
+    font-size: var(--omne-text-title);
+    font-weight: var(--omne-weight-heading);
+    line-height: var(--omne-leading-title);
+    letter-spacing: var(--omne-reading-tracking);
+    overflow-wrap: anywhere;
+  }
+
   .assets-asset-description,
   .assets-asset-none {
     margin: 0;

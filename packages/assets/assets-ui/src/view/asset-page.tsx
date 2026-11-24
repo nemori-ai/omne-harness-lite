@@ -78,6 +78,7 @@ export function AssetPage({ entry, view, label, holding, onBack }: AssetPageProp
         </ReadingToolbar>
       </div>
       <ReadingDocument>
+        <h2 className="assets-asset-title">{title}</h2>
         {row.summary !== null && row.summary.description !== '' && (
           <p className="assets-asset-description">{row.summary.description}</p>
         )}
