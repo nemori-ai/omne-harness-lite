@@ -79,12 +79,32 @@ describe('the Canvas declaration', () => {
     expect(one).toEqual({ ok: `done Canvas help place\n${commandGuide(definition, 'place')}` })
     const guide = commandGuide(definition)
     expect(guide).toContain('"point":"canvas.app-render","key":"clock","module":"clock.js"')
-    expect(guide).toContain('OmneExtensions publish, category plugin')
-    expect(guide).toContain('reference {"kind":"canvas.app","ref":"clock"}')
     expect(guide).toContain('A person locks and unlocks')
     expect(guide).toContain(
       'look gives the width, height and grid of the sheet, the least and most size of an item, and the footprint an item given no size takes',
     )
+  })
+
+  it('writes the publish and the place of a canvas app as params sent exactly as written', () => {
+    const made = author()
+    const guide = commandGuide(commandsOf(made.definition))
+    const paramsAfter = (lead: string): unknown => {
+      const from = guide.indexOf(lead)
+      expect(from).toBeGreaterThan(-1)
+      const rest = guide.slice(from + lead.length)
+      let depth = 0
+      for (let at = 0; at < rest.length; at += 1) {
+        depth += rest[at] === '{' ? 1 : rest[at] === '}' ? -1 : 0
+        if (depth === 0) return JSON.parse(rest.slice(0, at + 1))
+      }
+      throw new Error(`no params after ${lead}`)
+    }
+    const publish = paramsAfter('OmneExtensions publish with params ')
+    expect(Object.keys(publish as object).sort()).toEqual(['category', 'dir', 'id', 'name'])
+    expect(publish).toMatchObject({ category: 'plugin', name: 'clock' })
+    const place = paramsAfter('Canvas place with params ')
+    expect(place).toEqual({ reference: { kind: 'canvas.app', ref: 'clock' } })
+    expect(made.decode('place', place)).toHaveProperty('ok')
   })
 
   it('is the same declaration whatever it is built with, and takes only resultMaxBytes, at least 64', () => {
