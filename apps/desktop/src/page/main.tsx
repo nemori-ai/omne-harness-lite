@@ -8,6 +8,7 @@ import { assembly, pageFloor } from './assembly.tsx'
 import { connectPageBridge, httpChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
 import { keepBootTokens } from './shell/boot-tokens.ts'
+import { storedFacePreference } from './shell/face.ts'
 import { adoptChanges, tokenOf, tokensOf } from './shell/changes-sheet.ts'
 import { shellPlugin } from './shell/service.ts'
 import { storedFloatPlaces } from './shell/float-place.ts'
@@ -39,6 +40,7 @@ async function main(): Promise<void> {
     notices: show => bridge.onExpired(() => show(LOGIN_EXPIRED_TEXT)),
     knowsToken: tokenOf(document),
     tokens: tokensOf(document),
+    faces: storedFacePreference(() => window.localStorage),
   })
   const tree = await startClientTree({
     transport: watched.transport,

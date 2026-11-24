@@ -1,12 +1,15 @@
-// Runs before the first paint, so the page never shows in the other theme or size first.
-// The same rules as `shell/theme.ts`, `shell/size.ts` and the two controllers; a test keeps the keys in step.
+// Runs before the first paint, so the page never shows in the other theme, size or face first.
+// The same rules as `shell/theme.ts`, `shell/size.ts`, `shell/face.ts` and the two controllers; a test keeps the keys in step.
 ;(function () {
   var choice = null
   var size = null
+  var face = null
   try {
     choice = window.localStorage.getItem('omne.theme')
     size = window.localStorage.getItem('omne.size')
+    face = window.localStorage.getItem('omne.face')
   } catch {}
+  document.documentElement.dataset.face = face === 'back' ? 'back' : 'front'
   var dark =
     choice === 'dark' ||
     (choice !== 'light' &&

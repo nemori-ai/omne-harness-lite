@@ -53,6 +53,17 @@ interface Drying {
 
 export const TRAVEL_CASUAL = { bow: 0.4, reach: 0.2, time: 0.12 } as const
 
+export interface Timed {
+  readonly ms: number
+  readonly start?: number
+  readonly hold?: boolean
+  readonly along?: Readonly<{ from: number; to: number }>
+}
+
+const HELD_INK = 26
+
+const CARRY_WAKE = { linger: 30, fade: 35 } as const
+
 interface Way {
   readonly remnant: Remnant
   readonly stroke: InkStroke
@@ -64,6 +75,10 @@ interface Way {
   gone: number
   readonly linger: number
   readonly fade: number
+  reached: (() => void) | null
+  readonly holds: boolean
+  held: boolean
+  readonly along: Readonly<{ from: number; to: number }> | null
 }
 
 const smooth = (from: number, to: number, value: number): number => {
@@ -92,6 +107,7 @@ export function wayStroke(
   weight: number,
   seed: number,
   loose: readonly number[] | null = null,
+  carries = false,
 ): InkStroke {
   const a: Point = [from.point.x / unit, from.point.y / unit]
   const d: Point = [to.point.x / unit, to.point.y / unit]
@@ -106,8 +122,8 @@ export function wayStroke(
     nx = -nx
     ny = -ny
   }
-  const bow = Math.min(84, span * 0.18)
-  const loosely = loose
+  const bow = carries ? Math.min(18, span * 0.02) : Math.min(84, span * 0.18)
+  const loosely = carries ? null : loose
   const by = (index: number, spread: number): number =>
     loosely === null ? 1 : 1 + ((loosely[index] ?? 0.5) * 2 - 1) * spread
   const [bowFrom, bowTo, reachFrom, reachTo] = [
@@ -143,6 +159,7 @@ export function wayStroke(
   }
   const random = seeded(seed ^ 0x5bd1e995)
   const span01 = (least: number, most: number): number => least + (most - least) * random()
+  if (carries) return carriedStroke(line, weight, seed, span01)
   const far = smooth(40, 640, span)
   const thin = span01(0.56, 0.66) - 0.08 * far
   const press = through([
@@ -173,6 +190,58 @@ export function wayStroke(
     dry: plain.dry,
     ending: 'stop',
   }
+}
+
+function carriedStroke(
+  line: readonly Point[],
+  weight: number,
+  seed: number,
+  span01: (least: number, most: number) => number,
+): InkStroke {
+  const firm = through([
+    [0, 0.86],
+    [0.06, 1],
+    [span01(0.3, 0.4), 0.9],
+    [span01(0.55, 0.65), span01(0.8, 0.86)],
+    [0.88, 0.92],
+    [1, 0.96],
+  ])
+  const drying = (t: number): number => 0.12 * smooth(0.1, 0.5, t) * (1 - 0.5 * smooth(0.8, 1, t))
+  const parting = (t: number): number => 0.08 * smooth(0.2, 0.5, t) * (1 - smooth(0.7, 0.9, t))
+  const held = designed(line, weight * PRESS.way, {
+    ink: 0.95,
+    wet: 0.35,
+    dry: 0.35,
+    drying,
+    parting,
+  })
+  return {
+    ...vary(held, seed, { wander: 0.3, freedom: 0.3, endings: { stop: 1 } }),
+    press: firm,
+    dry: held.dry,
+    ending: 'stop',
+  }
+}
+
+function alongShare(way: Way, u: number): number {
+  const { from, to } = way.along!
+  const unit = way.remnant.size / CANVAS
+  const target = (from + (to - from) * brushTime(Math.min(1, Math.max(0, u)))) / unit
+  const toward = to >= from ? 1 : -1
+  const { x, zero, spacing, length } = brushedOf(way.stroke)
+  const last = Math.min(x.length - 1, zero + Math.ceil(length / spacing))
+  if ((x[zero]! - target) * toward >= 0) return 0
+  for (let k = zero + 1; k <= last; k += 1) {
+    if ((x[k]! - target) * toward < 0) continue
+    const f = (target - x[k - 1]!) / (x[k]! - x[k - 1]! || 1)
+    return Math.min(1, ((k - 1 - zero + f) * spacing) / length)
+  }
+  return 1
+}
+
+const toward = (here: Placement, there: Placement): Point => {
+  const span = Math.hypot(there.x - here.x, there.y - here.y) || 1
+  return [(there.x - here.x) / span, (there.y - here.y) / span]
 }
 
 type Listener = (remnants: readonly Remnant[]) => void
@@ -211,12 +280,14 @@ export class Journeys {
     from: Placement,
     to: Placement,
     landed: (arrived: boolean) => void,
+    way?: Timed,
   ): void {
     const size = this.size
     const onScreen = (centre: Placement, [x, y]: readonly [number, number]): Placement => ({
       x: centre.x + ((x - CENTRE[0]) * size) / CANVAS,
       y: centre.y + ((y - CENTRE[1]) * size) / CANVAS,
     })
+    const corner = this.flying()?.holds === true
     const cut = this.cut()
     let leaving: Tip
     let left: Frame | null = null
@@ -229,10 +300,11 @@ export class Journeys {
     const circle = circleStroke(body.hand, freshSeed())
     const [a, b] = [circle.line[0]!, circle.line[1]!]
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
-    const arriving: Tip = {
-      point: onScreen(to, a),
-      heading: [(b[0] - a[0]) / length, (b[1] - a[1]) / length],
-    }
+    const holds = way?.hold === true || way?.along !== undefined
+    const arriving: Tip = holds
+      ? { point: to, heading: toward(leaving.point, to) }
+      : { point: onScreen(to, a), heading: [(b[0] - a[0]) / length, (b[1] - a[1]) / length] }
+    if (corner) leaving = { point: leaving.point, heading: toward(leaving.point, arriving.point) }
     this.go({
       left,
       at: from,
@@ -244,6 +316,10 @@ export class Journeys {
         body.arrive(circle, casual.around(WRITE.circle, BODY_CASUAL.landing))
         landed(arrived)
       },
+      ...(holds && { reached: () => landed(true) }),
+      ...(way !== undefined && { duration: way.ms, leftDry: way.ms }),
+      ...(way?.start !== undefined && { start: way.start }),
+      ...(way?.along !== undefined && { along: way.along }),
     })
   }
 
@@ -255,6 +331,11 @@ export class Journeys {
     weight,
     seed,
     land,
+    duration: timed,
+    leftDry,
+    start,
+    reached,
+    along,
   }: {
     readonly left: Frame | null
     readonly at: Placement
@@ -263,15 +344,21 @@ export class Journeys {
     readonly weight: number
     readonly seed: number
     readonly land: (arrived: boolean) => void
+    readonly duration?: number
+    readonly leftDry?: number
+    readonly start?: number
+    readonly reached?: () => void
+    readonly along?: Readonly<{ from: number; to: number }>
   }): void {
     const now = inkNow()
     const size = this.size
-    if (left !== null) this.leaveBehind(left, at)
+    if (left !== null) this.leaveBehind(left, at, leftDry)
     const unit = size / CANVAS
-    const loose = casual.still()
-      ? null
-      : [casual.random(), casual.random(), casual.random(), casual.random()]
-    const stroke = wayStroke(from, to, unit, weight, seed, loose)
+    const loose =
+      along !== undefined || casual.still()
+        ? null
+        : [casual.random(), casual.random(), casual.random(), casual.random()]
+    const stroke = wayStroke(from, to, unit, weight, seed, loose, along !== undefined)
     const { bounds } = brushedOf(stroke)
     const pad = 2
     const area = {
@@ -289,31 +376,37 @@ export class Journeys {
     )
     const distance = Math.hypot(to.point.x - from.point.x, to.point.y - from.point.y)
     const pace = WRITE.journey
-    const duration = ms(
-      casual.around(
-        flightTime(distance) * pace,
-        TRAVEL_CASUAL.time,
-        FLIGHT.least * pace,
-        FLIGHT.most * pace,
-      ),
-    )
+    const duration =
+      timed ??
+      ms(
+        casual.around(
+          flightTime(distance) * pace,
+          TRAVEL_CASUAL.time,
+          FLIGHT.least * pace,
+          FLIGHT.most * pace,
+        ),
+      )
     const near = 1 - smooth(40, 640, distance / unit)
     this.ways.push({
       remnant,
       stroke,
-      start: now,
+      start: start ?? now,
       duration,
       passed: [],
       land,
       last: now,
       gone: 0,
-      linger: WRITE.wayLinger * (1 + 4 * near),
-      fade: WRITE.wayFade * (1 + 2 * near),
+      linger: along === undefined ? WRITE.wayLinger * (1 + 4 * near) : CARRY_WAKE.linger,
+      fade: along === undefined ? WRITE.wayFade * (1 + 2 * near) : CARRY_WAKE.fade,
+      reached: reached ?? null,
+      holds: reached !== undefined,
+      held: false,
+      along: along ?? null,
     })
     this.wake()
   }
 
-  public leaveBehind(left: Frame, at: Placement, duration: number = ms(WRITE.leftDry)): void {
+  public leaveBehind(left: Frame, at: Placement, duration = ms(WRITE.leftDry)): void {
     if (left.marks.length === 0) return
     const size = this.size
     const origin = { x: at.x - size / 2, y: at.y - size / 2 }
@@ -326,6 +419,7 @@ export class Journeys {
     const way = this.flying()
     if (way === null) return null
     way.land = null
+    way.reached = null
     this.stopped(way, inkNow())
     const line = way.stroke.line
     const at = Math.max(
@@ -346,6 +440,7 @@ export class Journeys {
     if (way === null) return
     const land = way.land!
     way.land = null
+    way.reached = null
     this.stopped(way, inkNow())
     land(arrived)
   }
@@ -414,24 +509,20 @@ export class Journeys {
       const { remnant } = way
       const linger = ms(way.linger)
       const fade = ms(way.fade)
-      if (way.land !== null) {
-        const u = (now - way.start) / Math.max(1, way.duration)
-        remnant.written = Math.max(remnant.written, brushTime(Math.min(1, u)))
-        if (u >= 1) {
-          const land = way.land
-          way.land = null
-          this.stopped(way, now)
-          land(true)
-        }
-      }
+      if (way.land !== null && !way.held) this.advance(way, now)
       way.passed.push({ t: now, share: remnant.written })
       const at = (time: number): number | null => {
         for (let i = way.passed.length - 1; i >= 0; i -= 1)
           if (way.passed[i]!.t <= time) return way.passed[i]!.share
         return null
       }
-      const to = at(now - linger)
-      const gone = Math.max(way.gone, at(now - linger - fade * 4) ?? 0)
+      const wet =
+        way.held && way.land !== null
+          ? 1 - Math.min(0.6, HELD_INK / brushedOf(way.stroke).length)
+          : 1
+      const passedTo = at(now - linger)
+      const to = passedTo === null ? null : Math.min(wet, passedTo)
+      const gone = Math.max(way.gone, Math.min(wet, at(now - linger - fade * 4) ?? 0))
       const dt = now - way.last
       way.last = now
       remnant.tail =
@@ -468,6 +559,28 @@ export class Journeys {
     this.emit()
     if (this.ways.length > 0 || this.drying.size > 0)
       this.frameRequest = requestAnimationFrame(this.tick)
+  }
+
+  private advance(way: Way, now: number): void {
+    const u = (now - way.start) / Math.max(1, way.duration)
+    const { remnant } = way
+    remnant.written = Math.max(
+      remnant.written,
+      way.along === null ? brushTime(Math.min(1, u)) : alongShare(way, u),
+    )
+    if (u < 1) return
+    if (way.reached !== null) {
+      remnant.written = 1
+      way.held = true
+      const reached = way.reached
+      way.reached = null
+      reached()
+      return
+    }
+    const land = way.land!
+    way.land = null
+    this.stopped(way, now)
+    land(true)
   }
 
   private emit(): void {

@@ -69,6 +69,24 @@ body,
   visibility: hidden;
 }
 
+/* While a turn is on, the face it leaves stays drawn over the other one, under the floats, being narrowed. */
+.shell-face[inert][data-flip-leaving] {
+  visibility: visible;
+}
+
+.shell-front[data-flip-leaving] {
+  position: relative;
+}
+
+.shell-face[data-flip-leaving] {
+  z-index: 30;
+}
+
+/* A device that stays on the back shows blank paper, not the front's words, until the shell is up. */
+html[data-face='back'] .booting {
+  visibility: hidden;
+}
+
 .shell-float {
   position: fixed;
   inset: 0;
@@ -299,7 +317,7 @@ body,
 }
 
 .shell-navigation-content[data-expanded='false']
-  :is([data-glide-highlight], .shell-nav-link, .shell-appearance),
+  :is([data-glide-highlight], .shell-nav-link, .shell-appearance, .shell-turn),
 .shell-sidebar[data-labels='hidden'] .shell-fold {
   border-radius: var(--omne-radius-pill);
 }
@@ -372,7 +390,7 @@ body,
   min-width: 0;
 }
 
-.shell-appearance {
+:is(.shell-appearance, .shell-turn) {
   flex: none;
   color: var(--omne-ink-muted);
 }
@@ -387,6 +405,13 @@ body,
 }
 
 .shell-navigation-content[data-expanded='false'] .shell-appearance {
+  align-self: center;
+  width: var(--omne-nav-row-height);
+  height: var(--omne-nav-row-height);
+}
+
+/* The turn mark is the same circle as the appearance, just above it. */
+.shell-navigation-content[data-expanded='false'] .shell-turn {
   align-self: center;
   width: var(--omne-nav-row-height);
   height: var(--omne-nav-row-height);

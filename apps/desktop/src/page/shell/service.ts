@@ -72,6 +72,7 @@ export class DesktopShell extends ShellService {
   /** Why a protocol is missing is the connection's to say: the registry only says that it is. */
   private heed(availability: Context['connection']['availability']): () => void {
     const told = (): void => {
+      this.state.face.told(availability.revision() !== undefined)
       for (const listener of Array.from(this.lackWatchers)) listener()
     }
     this.standing = key => availability.standing(key)
@@ -80,7 +81,8 @@ export class DesktopShell extends ShellService {
     return () => {
       stop()
       this.standing = UNTOLD
-      told()
+      this.state.face.told(false)
+      for (const listener of Array.from(this.lackWatchers)) listener()
     }
   }
 
@@ -175,6 +177,7 @@ export class DesktopShell extends ShellService {
 
   protected override turn(): void {
     this.state.face.turn()
+    if (this.state.face.get() === 'back') this.state.face.turn()
   }
 
   /** Only which page is on show: choosing one stays with `navigate`. */

@@ -2,7 +2,7 @@ import { FigureBody, type Doing, type FigureMoment } from './body.ts'
 import { casual } from './casual.ts'
 import { DoingPolicy } from './doing.ts'
 import { CANVAS } from './ink.ts'
-import { Journeys, type Placement } from './travel.ts'
+import { Journeys, type Placement, type Timed } from './travel.ts'
 
 export const FIGURE_SIZE = 56
 
@@ -37,6 +37,20 @@ export interface FigureSnapshot {
   readonly seat: string | null
   readonly point: Placement | null
   readonly hover: boolean
+}
+
+export type TurnLeg = Readonly<{ to: Placement; ms: number; hold?: boolean; carry?: boolean }>
+
+export type TurnPlan = Readonly<{ legs: readonly TurnLeg[]; settle: number }>
+
+interface Turning {
+  readonly legs: readonly TurnLeg[]
+  readonly settle: number
+  readonly ticket: number
+  index: number
+  go: number | null
+  holding: boolean
+  settling: boolean
 }
 
 type Listener = () => void
@@ -76,6 +90,8 @@ export class FigureStore {
   private lastSeat: Seat | null = null
   private heldSeat: { readonly seat: Seat; readonly timer: ReturnType<typeof setTimeout> } | null =
     null
+  private turning: Turning | null = null
+  private turns = 0
 
   public constructor(told: number | null = null) {
     this.policy = new DoingPolicy(this.body, undefined, told)
@@ -117,10 +133,44 @@ export class FigureStore {
     this.reduced = reduced
     casual.setStill(reduced)
     this.body.setReduced(reduced)
+    if (reduced && this.turning !== null) this.placeOnSeat()
     if (reduced) {
       this.journeys.end(true)
       this.journeys.dryQuickly(true)
     }
+  }
+
+  public turn(plan: TurnPlan): void {
+    if (!this.snapshot.present) return
+    if (this.turning !== null || this.reduced) this.placeOnSeat()
+    if (this.reduced) return
+    this.turns += 1
+    this.turning = {
+      legs: plan.legs,
+      settle: plan.settle,
+      ticket: this.turns,
+      index: 0,
+      go: null,
+      holding: false,
+      settling: false,
+    }
+    this.set({ phase: 'flying' })
+    this.nextLeg(this.turns)
+  }
+
+  public turnGo(start: number): void {
+    const turning = this.turning
+    if (turning === null) return
+    if (!turning.holding) {
+      turning.go = start
+      return
+    }
+    turning.holding = false
+    this.nextLeg(turning.ticket, start)
+  }
+
+  public endTurn(): void {
+    if (this.turning !== null) this.placeOnSeat()
   }
 
   public setAppSize(factor: number): void {
@@ -138,6 +188,63 @@ export class FigureStore {
       if (this.seats.get(id) === options) this.seats.delete(id)
       queueMicrotask(() => this.hostChanged())
     }
+  }
+
+  private nextLeg(ticket: number, start?: number): void {
+    const turning = this.turning
+    if (turning === null || turning.ticket !== ticket) return
+    const leg = turning.legs[turning.index]
+    if (leg === undefined) {
+      turning.settling = true
+      if (!this.fly(turning.settle)) {
+        this.turning = null
+        this.keepSeat()
+      }
+      return
+    }
+    turning.index += 1
+    const before = turning.legs[turning.index - 2]
+    const from = before === undefined ? this.placement : before.to
+    const way: Timed = {
+      ms: leg.ms,
+      ...(start !== undefined && { start }),
+      ...(leg.hold === true && { hold: true }),
+      ...(leg.carry === true && { along: { from: from.x, to: leg.to.x } }),
+    }
+    this.go(
+      leg.to,
+      () => {
+        if (this.turning !== turning) return
+        if (leg.hold !== true) {
+          this.nextLeg(ticket)
+          return
+        }
+        const go = turning.go
+        turning.go = null
+        if (go === null) turning.holding = true
+        else this.nextLeg(ticket, go)
+      },
+      way,
+    )
+  }
+
+  private placeOnSeat(): void {
+    this.turning = null
+    this.turns += 1
+    if (this.going !== null || this.journeys.travelling) {
+      this.journeys.end(false)
+      this.going = null
+    }
+    this.journeys.dryQuickly(this.reduced)
+    const seat = this.activeSeat()
+    this.seat = seat?.id ?? null
+    const home = this.home()
+    if (home === null) {
+      this.leave()
+      return
+    }
+    this.place(home)
+    this.set({ phase: 'seated', seat: this.seat, point: home })
   }
 
   public hostChanged = (): void => {
@@ -250,6 +357,7 @@ export class FigureStore {
       this.body.writeAnew()
       return
     }
+    if (this.turning !== null) return
     if (seat === null || home === null) {
       this.leave()
       return
@@ -284,17 +392,23 @@ export class FigureStore {
     this.set({ phase: 'seated', present: false, seat: null, point: null })
   }
 
-  private fly(): void {
+  private fly(settle?: number): boolean {
     const seat = this.activeSeat()
     this.seat = seat?.id ?? null
     const home = this.home()
-    if (home === null) return
+    if (home === null) return false
     this.set({ phase: 'flying', seat: this.seat, point: home })
-    this.go(home, () => {
-      if (this.snapshot.phase !== 'flying') return
-      this.set({ phase: 'seated' })
-      this.keepSeat()
-    })
+    this.go(
+      home,
+      () => {
+        if (this.turning?.settling === true) this.turning = null
+        if (this.snapshot.phase !== 'flying') return
+        this.set({ phase: 'seated' })
+        this.keepSeat()
+      },
+      settle === undefined ? undefined : { ms: settle },
+    )
+    return true
   }
 
   private ownSize(): number {
@@ -305,7 +419,7 @@ export class FigureStore {
     return (base * this.snapshot.size) / FIGURE_SIZE
   }
 
-  private go(to: Placement, arrive: () => void): void {
+  private go(to: Placement, arrive: () => void, way?: Timed): void {
     const from = this.placement
     const near = Math.hypot(to.x - from.x, to.y - from.y) < NEAR
     if (this.reduced || !this.snapshot.present || near) {
@@ -316,10 +430,16 @@ export class FigureStore {
       return
     }
     this.going = { x: to.x, y: to.y }
-    this.journeys.travel(this.body, from, to, arrived => {
-      this.going = null
-      if (arrived) arrive()
-    })
+    this.journeys.travel(
+      this.body,
+      from,
+      to,
+      arrived => {
+        this.going = null
+        if (arrived) arrive()
+      },
+      way,
+    )
     this.place(to)
   }
 
