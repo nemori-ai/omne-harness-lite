@@ -46,7 +46,7 @@
 
 ### 共用界面件
 
-`ui-kit` 的十块与它们的位置：
+`ui-kit` 的十一块与它们的位置：
 
 | 块 | 位置 |
 | --- | --- |
@@ -60,8 +60,28 @@
 | 字号档：四档的名字、控制器、一档一档调的函数 | `src/size/` |
 | 墨迹：Agent 形、形座位、一程、墨框、告知笺 | `src/ink/` |
 | 图表：堆叠柱、折线、面积、占比条、读数表、迷你图、数字块，与数字的格式化 | `src/charts/` |
+| 换画口：把按名字画的一样东西交给应用另画的口 | `src/redraw/` |
 
 成员导出一个根入口、一份汇总样式 `./styles.css`、层的次序 `./layers.css`、字体 `./fonts/*`。汇总样式按次序引入 token、字体、基线、动效、图标、控件与通用件的样式和 Markdown 的样式，并带 `@source`，让用它的应用在构建时扫到成员的类名。
+
+#### 换画口
+
+共用件里有几样东西是按名字画的：图标集里的每个图标，加上四个通用件。应用可以给共用件一个口，让这些东西在画之前先问它一句；共用件自己不认识外壳，也不认识 plugin。
+
+- 口是一个函数 `Redraw`：`(种类, 名字, 被要求画成什么样, 自带的画法) => 画出来的东西`。应用用 `RedrawProvider` 把它放在页面的根上。种类只有两种：`icon` 与 `piece`。
+- 没有口时，每样东西直接画自带的那一份，不多一层元素。口交回 `自带的画法()` 时，画出来的标记与没有口时逐字相同。
+- 图标：名字是 `defineIcon` 登记的名字，`iconNames()` 给出全部名字（排过序，不重复）；被要求画成的样子是 `{ name, size, className }`。
+- 通用件的四个名字在常量 `PIECES` 里：
+
+  | 名字 | 哪一件 | 被要求画成的样子 |
+  | --- | --- | --- |
+  | `loading` | `LoadingIndicator` | `size`、`active`、`counted`、`className` |
+  | `empty-state` | `EmptyState` | `title`、`hint`、`action`、`role`、`className` |
+  | `inline-notice` | `InlineNotice` | `tone`、`title`、`body`、`detail`、`action` |
+  | `figure` | 形的身体（舞台里那一块墨） | `size`、`phase`（`seated` 或 `flying`）、`hover`、`doing`（`idle`、`thinking`、`looking`、`writing`、`background`）、`waiting` |
+
+- 形只交出身体的画法。它在哪个座位、怎样走过去、被按下，都在舞台自己的元素上，换了画法之后照旧。
+- 口怎样决定画哪一份、画法抛出时怎样落回，是应用的事。桌面应用把它接到外壳的两个按键选画法的点上，见[桌面应用的规格](../../apps/desktop/SPEC.md)。
 
 #### 样式的层
 
@@ -328,16 +348,18 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 样子的改动是放在登记表上的条目，键是部位的名字。改法有三种：令牌、样式、画法。外壳把现在算数的令牌与样式变成一张样式表，写在 `omne-changes` 这一层里；条目撤掉，下一次生成里就没有它，自带的样子原样回来。页面的次序另有一个点，写在本节末尾。
 
 - 每个改样子的点的规矩都写给只看得到文字的读者：`summary` 第一句说它改的是什么，用用户会说的词（主题、品牌色、样式、画法、页面次序）；`key` 说键是什么、从哪知道有哪些键；`gives` 说一项是什么或宿主给它什么；`example` 是一项照 plugin 清单里一个成员的写法写出来的文本，照抄就装得上（数据成员一行；代码成员一行之后跟文件的最小写法）。例子：令牌在 `shell.app` 上放 `--omne-accent`，样式给 `session.composer.send` 写 `base` 与 `hover`，画法给 `session.transcript.agent-message` 包一层（把 `part` 展开到最外层元素上，`builtIn()` 是原来的画法），布局把两页提到前面。外壳自己的三个位置随应用构建时定，`summary` 末尾写 `Fixed when the app is built: a plugin cannot add to it while the app runs.`，不给 `example`。
-- 第一种改法是令牌：点 `shell.tokens`，每键一项，键取自 `shell.parts`，一项是数据 `{ tokens: { 令牌名: 值 } }`。`shell.putTokens(部位, 令牌, 作用域)` 放一项，返回撤掉它的函数；放它的模块卸载时也跟着撤掉。
+- 第一种改法是令牌：点 `shell.tokens`，每键一项，键取自 `shell.parts`，一项是数据 `{ tokens: { 令牌名: 值 } }`。`shell.putTokens(部位, 令牌, 作用域, 文件的位置)` 放一项（最后一样可以不给，见下面值的那一条），返回撤掉它的函数；放它的模块卸载时也跟着撤掉。
 - 写到哪：键是 `shell.app` 的，写成页面根上的自定义属性；别的部位，写在带着这个名字的元素上（`[data-omne-part="<名字>"]`），所以只有那一块和它里面的东西读到新值。
-- 谁算数：同一个键上作用域最深的一项。整个部署的作用域是空的；一个租户放的是 `['tenant', 租户]`（`tenantScope(租户)`），只有这个租户看得到，没登录时谁的都看不到。同一层有两项内容不同是冲突：两项都不算数，自带的样子显示，两家都列出来。
+- 谁算数：同一个键上作用域最深的一项。整个部署的作用域是空的；一个租户放的是 `['tenant', 租户]`（`tenantScope(租户)`），只有这个租户看得到，没登录时谁的都看不到。
+- 样子：外壳有一个值「样子」，是一个名字或没有，由 `shell.wear(名字)` 定。发问的作用域只在 `lookScope(租户, 样子)` 一处造：没登录是整个部署；有租户没有样子是 `tenantScope(租户)`；两样都有是在它后面接 `['look', 名字]`。外壳的每一次发问（令牌、样式、次序、部位的画法、按键选的画法）都用它，所以换样子时各处同一刻换；放在某个样子那一层的条目，只有带着这个样子发问时看得见，并盖过租户这一层同一个键上的。外壳不知道这个名字指什么，谁定它也不归外壳。同一层有两项内容不同是冲突：两项都不算数，自带的样子显示，两家都列出来。
 - 自带的那一份：外壳在 `shell.app` 上放一项空的、标着 `builtIn` 的条目，作用域是整个部署。树上因此看得出整个应用现在是谁的样子。值不搬进条目，仍在 `tokens.css`。所以整个部署这一层再往 `shell.app` 上放一项，是和自带的冲突。
 - 不合规矩的条目不算数，并说出原因，更浅的一层里合规矩的那一项照常算数：
   - 键不是声明过的部位，或那个部位没有开 `tokens`；
   - 令牌名不是界面的令牌。界面的令牌由外壳的实现说了算（`knowsToken`）；桌面应用里的定义写在[桌面应用的规格](../../apps/desktop/SPEC.md)。外壳的实现能给出令牌的名字表（`dataKeysOf('shell.tokens')`，不空）时，原因写成 `<名字> is not a token of the interface. Nearest: <至多三个>. OmneExtensionPoints show shell.tokens lists them all.`：最接近的是去掉 `--`、`--omne-` 前缀后相同的名字，或编辑距离不超过 `max(2, 名字长度的四分之一)` 的名字，前者在前，再按距离、名字排；没有够近的就不写 `Nearest` 那一句。给不出名字表或表是空的，原因只有第一句；
   - 值不是文字，是空的，或有不许有的东西。
-- 值是数据，里面没有能执行、能引外部东西的写法。值里只许有字母、数字、空格与 `# % . , ( ) + * / _ -`；只许调用 `var`、`calc`、`min`、`max`、`clamp` 与写颜色的函数（`rgb`、`rgba`、`hsl`、`hsla`、`hwb`、`lab`、`lch`、`oklab`、`oklch`、`color`、`color-mix`、`light-dark`）。所以 `url(`、`@`、分号、花括号、尖括号、引号、反斜杠、`!` 都进不来。核法是纯函数 `valueFault(值)`。
-- 第二种改法是样式：点 `shell.part-style`，每键一项，键取自 `shell.parts`，一项是数据 `{ style: { base, hover, focus-visible, active, selected, open, disabled } }`，每一格是一组「属性: 值」，哪一格都可以不写。`shell.putStyle(部位, 样式, 作用域)` 放一项，返回撤掉它的函数。谁算数、冲突、撤掉，和令牌相同。
+- 值是数据，里面没有能执行、能引外部东西的写法。值里只许有字母、数字、空格与 `# % . , ( ) + * / _ -`；只许调用 `var`、`calc`、`min`、`max`、`clamp` 与写颜色的函数（`rgb`、`rgba`、`hsl`、`hsla`、`hwb`、`lab`、`lch`、`oklab`、`oklch`、`color`、`color-mix`、`light-dark`）。所以 `url(`、`@`、分号、花括号、尖括号、引号、反斜杠、`!` 都进不来。核法是纯函数 `valueFault(值, 文件的位置)`。
+- 值可以指到放它的那一方自己的图：写 `file(路径)`。路径是包里的相对路径（用 `/` 分段，每段是字母、数字、点、下划线、连字符，不以点开头，所以写不出 `.` 与 `..`），并且以 `.png`、`.jpg`、`.webp`、`.avif`、`.svg` 之一结尾。放这一项的一方同时给出「文件的位置」：本应用的一段路径，以 `/` 开头和结尾。外壳写样式表时把 `file(路径)` 写成 `url("位置加路径")`。路径不合规矩、不是图、没给位置、位置不是本应用的路径，这一项都不算数并说出原因。值里仍然写不出 `url(`：地址只由外壳拼。外壳不认识 plugin，它只认识「放的一方可以给一个位置」。
+- 第二种改法是样式：点 `shell.part-style`，每键一项，键取自 `shell.parts`，一项是数据 `{ style: { base, hover, focus-visible, active, selected, open, disabled } }`，每一格是一组「属性: 值」，哪一格都可以不写。`shell.putStyle(部位, 样式, 作用域, 文件的位置)` 放一项，返回撤掉它的函数。谁算数、冲突、撤掉，和令牌相同。
 - 样式写在带着这个部位名字的元素上；`shell.app` 写在页面的根上。每一格一条规则，状态用固定的选择器：`hover`、`focus-visible`、`active` 是同名的伪类；`selected` 是 `aria-selected`、`data-selected`、`aria-current="page"`、`aria-pressed` 为真，或 `data-state` 是 `active`、`checked`；`open` 是 `data-state="open"` 或 `aria-expanded` 为真；`disabled` 是 `:disabled`、`aria-disabled` 为真或带 `data-disabled`。规则按这个先后写出，所以几种状态同时成立时后面的盖过前面的，`disabled` 最后。
 - 样式不合规矩的情形：部位没有开 `style`；状态不是这六种之一；属性名不是小写字母与连字符（以 `--` 开头的是令牌，要放到 `shell.tokens`）；值过不了上面那一条值的核法。不合规矩的一项整份不算数。
 - 改动的那一层盖过自带的全部规则，包括共用件的状态规则：给一个部位写了平常的底色而没有写悬停的，悬停时显示的就是平常的那个。要悬停时不一样，就把 `hover` 那一格也写上。
@@ -348,8 +370,8 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - 页面的次序是一份布局：点 `shell.layout`，每键一项，键只有 `shell.pages`，一项是数据 `{ order: [页面的标识, …] }`。`shell.putLayout('shell.pages', 次序, 作用域)` 放一项，返回撤掉它的函数。谁算数、冲突、撤掉，和令牌相同。
 - 布局里写到的页面排在前面，照布局的先后；没写到的照各模块给的次序排在后面；写到而不在的标识略过。`shell.items('pages')` 给出的是排过的次序，次序变了照常通知订阅者。没有算数的布局时是各模块给的次序。布局只排页面，别的位置不动。
 - 布局不合规矩的情形：键不是 `shell.pages`；次序里有一项不是文字或是空的；同一个标识写了两次。
-- `changesOn(登记表, 发问者的作用域, 认不认得这个令牌, 令牌的名字表)` 是纯函数（名字表是一个函数，只在拒一个名字时才读，可以不给），给出样式表的文字、算数的画法（按部位）与布局（按键）、每个键上现在是谁、不算数的各项与原因、冲突的各项。`shell.changes()` 按外壳正在显示的租户问它；登记表与租户都没变时给出同一份。点没有声明时给出空的一层，不抛出。
-- `shell.watchChanges(监听)` 在登记表变了、或外壳显示的租户变了时通知，返回停止的函数。租户变了由外壳的实现调受保护的 `rescope()` 告诉抽象类：页面的次序与改动都照新的租户重算。
+- `changesOn(登记表, 发问者的作用域, 认不认得这个令牌, 令牌的名字表)` 是纯函数（名字表是一个函数，只在拒一个名字时才读，可以不给），给出样式表的文字、算数的画法（按部位）与布局（按键）、每个键上现在是谁、不算数的各项与原因、冲突的各项。`shell.changes()` 按外壳正在显示的租户与样子问它；登记表、租户与样子都没变时给出同一份。`shell.changesFor(作用域)` 按给定的作用域问它，不看外壳此刻显示谁、用哪个样子：往某一层放了东西的一方用它问自己放的算不算数。点没有声明时给出空的一层，不抛出。
+- `shell.watchChanges(监听)` 在登记表变了、外壳显示的租户变了、或样子变了时通知，返回停止的函数。租户变了由外壳的实现调受保护的 `rescope()` 告诉抽象类：页面的次序与改动都照新的租户重算。
 - 桌面应用把这张表作为可构造的样式表挂在页面自己的样式之后；登记表或租户一变就重写。不算数的与冲突的各写一行警告。开了画法的部位画在一层错误边界里，画法换了就重画。
 
 #### 界面模块
@@ -422,7 +444,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I23 | 媒体查询与代码里比较的宽度只有 768、1100、1160（`max-width` 写成减一） | 不同的页面在不同的宽度换版式 | `apps/desktop/tests/design-gates/breakpoints.spec.ts` |
 | FE-I24 | 环的余量是一个注册的长度；每个裁切容器留出它，工作区的边除外；每个滚动容器拿它作滚动内边距 | 焦点环被裁掉一半，键盘用户看不到焦点 | `apps/desktop/tests/design-gates/rings.spec.ts` |
 | FE-I25 | 共用件的控件以外没有原生的 `button`、`input`、`select`、`textarea`、`details`；可点的元素都带控件族的标记 | 一处可点的东西没有悬停与按下的反馈，或带进浏览器自己的样子 | `apps/desktop/tests/design-gates/clickables.spec.ts` |
-| FE-I26 | 只画图标集里的图标；字形在 24 格内、用 `currentColor`、笔画数不超过上限，只经动效 token 上的过渡移动 | 出现第二种风格的图标 | `apps/desktop/tests/design-gates/icons.spec.ts` |
+| FE-I26 | 界面模块只画图标集里的图标，别的画法只经换画口进来；图标集的字形在 24 格内、用 `currentColor`、笔画数不超过上限，只经动效 token 上的过渡移动 | 自带的界面里出现第二种风格的图标 | `apps/desktop/tests/design-gates/icons.spec.ts` |
 | FE-I27 | 两套主题下正文与状态词 4.5:1、字段边界与焦点 3:1；悬停、选中与强调的悬停彼此分得开 | 一种主题下字看不清，或指针下的行像是选中了 | `apps/desktop/tests/design-gates/contrast.spec.ts` |
 | FE-I28 | 加载、空、出错各只有共用件的一个件；胶囊与数字徽标只有共用件的那一个 | 同一种状态在两页长得不一样 | `apps/desktop/tests/design-gates/one-per-job.spec.ts` |
 | FE-I29 | 每份样式表都被导入；渲染的每个类名在样式里都有规则，或是工具类，或是共用件的类 | 一个件的样子整个没了，按散字排在页面里 | `apps/desktop/tests/design-gates/classes.spec.ts` |
@@ -448,3 +470,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I49 | `Prose` 里的表格整张画出，盒子不设高度上限；太宽时只横着滚，竖向随转写滚（Streamdown 缺省的表格高度上限关掉，不在框里竖滚，也不裁掉行） | 长表格超出的行被裁掉而看不见，或表格在转写里自己竖着滚、抢走滚轮 | `ui-kit/tests/prose.spec.tsx` 的「a long table is drawn whole」 |
 | FE-I50 | 浮层是外壳的第四个放一列的位置：次序、冲突、卸载、缺需要时不放都和侧栏区相同；一项收到当前租户、可以拖的那组属性、靠着的角与是不是被拖着 | 浮着的东西各自发明定位与拖动；两个模块撞在浮层上静默互相覆盖 | `shell-contract/tests/order.spec.ts`、`contribute.spec.ts`、`needs.spec.ts`、`slots.spec-d.ts` 的浮层用例 |
 | FE-I51 | 墨点只以点与干动：没事时不出帧也没有计时；只在它代表的事在做时重点；被拖着只留一粒；减弱动效时一次到位。它不带形的标记，不算一个形 | 一个常驻的东西一直在动、一直占着帧；屏幕上像是有两个形 | `ui-kit/tests/motes.spec.ts`、`motes-ink.spec.tsx` |
+| FE-I52 | 外壳的每一次发问带同一个作用域，由 `lookScope(租户, 样子)` 一处造出：换样子时令牌、样式、次序、部位的画法、按键选的画法同一刻换；没有样子时与 `tenantScope(租户)` 逐字相同；放在一个样子那一层的条目，别的样子、别的租户、没登录时都看不见；外壳自己的部位对这一层同样不开画法 | 两套皮肤各换一半；没用皮肤的人界面变了；一个租户的皮肤出现在另一个租户的界面上 | `shell-contract/tests/look.spec.ts`；`apps/desktop/tests/shell-changes.spec.tsx` |
+| FE-I53 | 共用件按名字画的东西（图标与 `PIECES` 的四件）在没有换画口、或口交回自带的画法时，画出来的标记逐字相同、不多一层元素；共用件不依赖外壳契约 | 开了这个口，没人用它时界面也变了；几百个图标各多一层包裹 | `ui-kit/tests/redraw.spec.tsx`、`pieces.spec.tsx`；`lint:deps` |
+| FE-I54 | 形被另画时只换身体：舞台仍把它带到座位上、仍会走、按它仍有反应；画法收到大小、在座还是在走、在做什么、有几件事等人 | 换了形之后它不再回座位，点它没有反应 | `ui-kit/tests/ink.spec.tsx` 的「the body of the figure drawn by another hand」 |
+| FE-I55 | 值里的 `file(路径)` 只指得到放这一项的一方给的位置之下的图；没给位置、路径出了包、不是图的都不算数；值里写不出地址 | 一套皮肤加载远处的图，或指到别人的文件 | `shell-contract/tests/value-files.spec.ts` |

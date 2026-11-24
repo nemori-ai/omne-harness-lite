@@ -17,6 +17,7 @@ import { Arranged, Attached } from './attached.tsx'
 import { Drawn } from './drawn.tsx'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
+import { redrawKeys, redrawPoints, redrawThrough } from './redraw.ts'
 import type { TokenNow } from './changes-sheet.ts'
 import type { ShellState } from './state.ts'
 
@@ -40,6 +41,8 @@ export class DesktopShell extends ShellService {
     this.login = state.login
     this.scope = state.scope
     this.declareOwn(shellParts.map(part => part.declaration))
+    for (const point of redrawPoints) point.declare(this)
+    ctx.effect(() => state.redraw.bind(redrawThrough(this)), 'desktop-shell.redraw')
     ctx.effect(() => state.slots.bind(this), 'desktop-shell.slots')
     for (const slot of SLOT_NAMES)
       ctx.effect(
@@ -47,8 +50,8 @@ export class DesktopShell extends ShellService {
         'desktop-shell.conflicts',
       )
     ctx.on('dynamis-cordis/changed', registry => this.reportProblems(registry))
-    ctx.on('dynamis-cordis/changed', () => this.restyle())
-    ctx.effect(() => state.scope.subscribe(() => this.rescoped()), 'desktop-shell.sheet')
+    ctx.effect(() => this.watchChanges(() => this.restyle()), 'desktop-shell.sheet')
+    ctx.effect(() => state.scope.subscribe(() => this.rescope()), 'desktop-shell.scope')
     this.restyle()
     ctx.effect(() => this.watchAdoptions(() => this.refell()), 'desktop-shell.fallen')
     ctx.effect(
@@ -103,17 +106,13 @@ export class DesktopShell extends ShellService {
   }
 
   protected override dataKeysOf(point: string): readonly TokenNow[] | undefined {
-    return point === TOKENS_POINT ? this.state.tokens() : undefined
+    if (point === TOKENS_POINT) return this.state.tokens()
+    return redrawKeys(point)?.map(name => ({ name, now: null }))
   }
 
   private refell(): void {
     const now = this.fallen()
     if (JSON.stringify(now) !== JSON.stringify(this.state.fallen.get())) this.state.fallen.set(now)
-  }
-
-  private rescoped(): void {
-    this.rescope()
-    this.restyle()
   }
 
   private restyle(): void {
