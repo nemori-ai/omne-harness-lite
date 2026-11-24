@@ -10,9 +10,18 @@ import { CATALOG, list, type Contract } from '@omne-harness/dynamis'
 import { DynamisService, dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { describe, expect, it } from 'vitest'
 
+const unavailable = async () => ({ kind: 'basis-unavailable' }) as const
+
 class Canvas extends CanvasService {
-  readonly look = async () => ({ kind: 'basis-unavailable' }) as const
-  readonly kinds = async () => ({ kind: 'basis-unavailable' }) as const
+  readonly look = unavailable
+  readonly lookAway = unavailable
+  readonly kinds = unavailable
+  readonly place = unavailable
+  readonly arrange = unavailable
+  readonly take = unavailable
+  readonly pile = unavailable
+  readonly scatter = unavailable
+  readonly lock = unavailable
 }
 
 const kind = (name: string, label = name, admit?: KindDeclaration['admit']): KindDeclaration => ({
@@ -188,4 +197,60 @@ describe('a declaration with admit', () => {
     await fiber.dispose()
     expect(tree.registry().retiring).toEqual([])
   })
+})
+
+describe('a kind as place takes it', () => {
+  it('gives the one declaration of a name with its admit, none for a name not declared, both who put one twice', async () => {
+    const { kinds, putting } = await world()
+    expect(kinds.enter('media.object')).toEqual({ kind: 'undeclared' })
+    expect(kinds.enter('Not a name')).toEqual({ kind: 'undeclared' })
+    await putting(
+      'media-row',
+      kind('media.object', 'media', async () => ({ kind: 'admitted' })),
+    )
+    const entry = kinds.enter('media.object')
+    if (entry.kind !== 'declared') throw new Error(entry.kind)
+    expect(await entry.admit?.(input)).toEqual({ kind: 'admitted' })
+    expect(entry.declared()).toBe(true)
+    entry.leave()
+    await putting('other-row', kind('media.object', 'other'))
+    expect(kinds.enter('media.object')).toEqual({
+      kind: 'conflict',
+      by: ['media-row', 'other-row'],
+    })
+    expect(entry.declared()).toBe(false)
+  })
+
+  it('cannot be taken while no service of the canvas declares the point', async () => {
+    const root = new Context()
+    await root.plugin(DynamisService)
+    expect(kindsOn(root.get(dynamisKey) as DynamisService).enter('canvas.app')).toEqual({
+      kind: 'unavailable',
+    })
+  })
+
+  it.each([
+    ['with admit', async (): Promise<Admission> => ({ kind: 'admitted' })],
+    ['without admit', undefined],
+  ])(
+    'holds the declaration %s from the time it is taken until the place leaves it',
+    async (_name, admit) => {
+      const { putting, tree, kinds } = await world()
+      const fiber = await putting('media-row', kind('media.object', 'media', admit))
+      const entry = kinds.enter('media.object')
+      if (entry.kind !== 'declared') throw new Error(entry.kind)
+      const leaving = fiber.dispose()
+      await new Promise(resolve => setTimeout(resolve, 5))
+      expect(tree.registry().retiring).toEqual([{ fiber: 'media-row', generation: 1 }])
+      expect(entry.declared()).toBe(false)
+      expect(kinds.enter('media.object')).toEqual({ kind: 'undeclared' })
+      entry.leave()
+      entry.leave()
+      await leaving
+      expect(tree.registry().retiring).toEqual([])
+      expect(tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT)).toEqual(
+        [],
+      )
+    },
+  )
 })

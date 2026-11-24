@@ -6,6 +6,7 @@ import {
   type CanvasKinds,
   type CanvasOperations,
   type KindDeclaration,
+  type KindEntry,
   type KindListing,
   type KindName,
 } from '@omne-harness/canvas-contract'
@@ -63,52 +64,76 @@ export abstract class CanvasService extends Service implements CanvasOperations 
   }
 
   abstract readonly look: CanvasOperations['look']
+  abstract readonly lookAway: CanvasOperations['lookAway']
   abstract readonly kinds: CanvasOperations['kinds']
+  abstract readonly place: CanvasOperations['place']
+  abstract readonly arrange: CanvasOperations['arrange']
+  abstract readonly take: CanvasOperations['take']
+  abstract readonly pile: CanvasOperations['pile']
+  abstract readonly scatter: CanvasOperations['scatter']
+  abstract readonly lock: CanvasOperations['lock']
 }
 export const canvasKey = CanvasService.provide
 
-function entryOf(declaration: KindDeclaration, by: Instance): Entry<KindDeclaration> {
+/** How a place holds the batch of a declaration: entered while the batch is not leaving, left once. */
+type Hold = Readonly<{ enter(): boolean; exit(): void }>
+const HOLD = Symbol('canvas.kinds hold')
+type Held = KindDeclaration & { readonly [HOLD]?: Hold }
+
+function entryOf(item: Held, by: Instance): Entry<Held> {
   return {
     point: CANVAS_KINDS_POINT,
-    key: declaration.name,
+    key: item.name,
     id: '',
     scope: deployment,
     rank: 0,
-    digest: `${declaration.name}@${by.fiber}#${by.generation}`,
-    item: Object.freeze({ ...declaration }),
+    digest: `${item.name}@${by.fiber}#${by.generation}`,
+    item,
   }
 }
 
 const NOT_TAKEN: Admission = Object.freeze({ kind: 'basis-unavailable' })
 
-/** Puts one declaration as an effect of the caller. With `admit` the batch drains: admits in flight
- * are counted, none is taken once it leaves, and it goes when the count is back at zero. */
+/** Puts one declaration as an effect of the caller. Its batch drains: once it leaves no admit and no
+ * place is taken, and it goes when the admits and the places in flight are back at zero. */
 export function putKind(ctx: Context, declaration: KindDeclaration): () => unknown {
   if (!kindNameSchema.safeParse(declaration.name).success)
     throw new TypeError(`${JSON.stringify(declaration.name)} is not the name of a kind`)
   // Taken from the caller's context: Cordis gives each caller its own view, so the batch is the caller's.
   const tree = ctx.get(dynamisKey) as DynamisService
-  const { admit } = declaration
-  if (admit === undefined) return tree.put(by => [entryOf(declaration, by)])
-
   let inFlight = 0
   let leaving = false
   let drained: (() => void) | undefined
-  const counted = async (input: AdmitInput): Promise<Admission> => {
-    if (leaving) return NOT_TAKEN
-    inFlight += 1
-    try {
-      return await admit(input)
-    } finally {
+  const hold: Hold = {
+    enter() {
+      if (leaving) return false
+      inFlight += 1
+      return true
+    },
+    exit() {
       inFlight -= 1
       if (leaving && inFlight === 0) drained?.()
+    },
+  }
+  const { admit } = declaration
+  const counted = async (input: AdmitInput): Promise<Admission> => {
+    if (!hold.enter()) return NOT_TAKEN
+    try {
+      return await admit!(input)
+    } finally {
+      hold.exit()
     }
   }
   const drain = (): Promise<void> => {
     leaving = true
     return inFlight === 0 ? Promise.resolve() : new Promise(resolve => void (drained = resolve))
   }
-  return tree.put(by => [entryOf({ ...declaration, admit: counted }, by)], { drain })
+  const item: Held = Object.freeze({
+    ...declaration,
+    ...(admit === undefined ? {} : { admit: counted }),
+    [HOLD]: hold,
+  })
+  return tree.put(by => [entryOf(item, by)], { drain })
 }
 
 const byName = (left: KindListing, right: KindListing) =>
@@ -128,6 +153,39 @@ export function kindsOn(tree: Pick<DynamisService, 'registry'>): CanvasKinds {
         return { kind: 'conflict', name: entries[0]!.key as KindName, by }
       })
       return { kind: 'read', kinds: [...declared, ...conflicts].sort(byName) }
+    },
+
+    enter(name): KindEntry {
+      const read = () => list<Held>(tree.registry(), CANVAS_KINDS_POINT, name, deployment)
+      const listing = read()
+      if (listing.kind !== 'read') return { kind: 'unavailable' }
+      const [conflict] = listing.conflicts
+      if (conflict !== undefined)
+        return {
+          kind: 'conflict',
+          by: [...new Set(conflict.map(entry => entry.instance.fiber))].sort(),
+        }
+      const item = listing.items[0]?.entry.item
+      const hold = item?.[HOLD]
+      if (item === undefined || hold?.enter() === false) return { kind: 'undeclared' }
+      let left = false
+      return {
+        kind: 'declared',
+        ...(item.admit === undefined ? {} : { admit: item.admit }),
+        declared() {
+          const again = read()
+          return (
+            again.kind === 'read' &&
+            again.conflicts.length === 0 &&
+            again.items[0]?.entry.item === item
+          )
+        },
+        leave() {
+          if (left) return
+          left = true
+          hold?.exit()
+        },
+      }
     },
   }
 }
