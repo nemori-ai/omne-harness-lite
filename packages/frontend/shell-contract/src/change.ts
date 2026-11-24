@@ -17,10 +17,12 @@ export const LAYOUT_POINT = 'shell.layout'
 const APP = 'shell.app'
 const LAYER = 'omne-changes'
 const TENANT = 'tenant'
+const LOOK = 'look'
 
 export type TokensItem = Readonly<{
   tokens: Readonly<Record<string, string>>
   builtIn?: boolean
+  files?: string
 }>
 
 const STATES = ['hover', 'focus-visible', 'active', 'selected', 'open', 'disabled'] as const
@@ -31,7 +33,7 @@ export type PartStyle = Readonly<
   Partial<Record<'base' | PartState, Readonly<Record<string, string>>>>
 >
 
-export type StyleItem = Readonly<{ style: PartStyle }>
+export type StyleItem = Readonly<{ style: PartStyle; files?: string }>
 
 export type RenderItem = Readonly<{ render: PartRender }>
 
@@ -163,6 +165,11 @@ export function tenantScope(tenant: string | undefined): Scope {
   return tenant === undefined || tenant === '' ? [] : [TENANT, tenant]
 }
 
+export function lookScope(tenant: string | undefined, look: string | undefined): Scope {
+  const scope = tenantScope(tenant)
+  return scope.length === 0 || look === undefined || look === '' ? scope : [...scope, LOOK, look]
+}
+
 const PLAIN = /^[A-Za-z0-9 #%.,()+*/_-]$/u
 const CALL = /([A-Za-z-][A-Za-z0-9-]*)\(/gu
 const CALLS = new Set([
@@ -185,16 +192,39 @@ const CALLS = new Set([
   'light-dark',
 ])
 
+const FILE = /(?<![A-Za-z0-9_-])file\(([^()]*)\)/gu
+const FILE_PATH = /^[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$/u
+const IMAGE = /\.(?:png|jpg|webp|avif|svg)$/u
+const FILES_PLACE = /^\/(?:[A-Za-z0-9._~-]+\/)+$/u
+
+function fileFault(path: string, files: string | undefined): string | null {
+  if (!FILE_PATH.test(path)) return `file(${path}) is not a path inside the package`
+  if (!IMAGE.test(path)) return `file(${path}) does not name an image`
+  if (files === undefined)
+    return `file(${path}) points at a file, and what put this item gave no files`
+  return FILES_PLACE.test(files)
+    ? null
+    : 'the place of the files of this item is not a path of this application'
+}
+
 /** Why this text may not be the value of a token or of a declaration, or null when it may. */
-export function valueFault(value: string): string | null {
+export function valueFault(value: string, files?: string): string | null {
   if (value.trim() === '') return 'the value is empty'
   const odd = Array.from(value).find(char => !PLAIN.test(char))
   if (odd !== undefined) return `the value has ${JSON.stringify(odd)}, which a value may not have`
-  const called = Array.from(value.matchAll(CALL), match => match[1] ?? '').find(
+  const lost = Array.from(value.matchAll(FILE), match => fileFault((match[1] ?? '').trim(), files))
+  const fault = lost.find(found => found !== null)
+  if (fault !== undefined) return fault
+  const called = Array.from(value.replace(FILE, '').matchAll(CALL), match => match[1] ?? '').find(
     name => !CALLS.has(name.toLowerCase()),
   )
   return called === undefined ? null : `the value calls ${called}(, which a value may not call`
 }
+
+const written = (value: string, files: string | undefined): string =>
+  files === undefined
+    ? value
+    : value.replace(FILE, (_, path: string) => `url("${files}${path.trim()}")`)
 
 /** The same data written with its keys in order, so that two writings of one thing have one digest. */
 function ordered(value: unknown): unknown {
@@ -207,8 +237,13 @@ function ordered(value: unknown): unknown {
   )
 }
 
-export function styleEntry(part: string, style: PartStyle, scope: Scope): Entry<StyleItem> {
-  const item = { style }
+export function styleEntry(
+  part: string,
+  style: PartStyle,
+  scope: Scope,
+  files?: string,
+): Entry<StyleItem> {
+  const item = files === undefined ? { style } : { style, files }
   return {
     point: STYLE_POINT,
     key: part,
@@ -244,8 +279,9 @@ export function tokensEntry(
   tokens: Readonly<Record<string, string>>,
   scope: Scope,
   builtIn = false,
+  files?: string,
 ): Entry<TokensItem> {
-  const item = builtIn ? { tokens, builtIn } : { tokens }
+  const item = { tokens, ...(builtIn && { builtIn }), ...(files !== undefined && { files }) }
   return {
     point: TOKENS_POINT,
     key: part,
@@ -279,9 +315,9 @@ function partFaultOf(key: string, depth: string, parts: readonly DeclaredPart[])
 
 const selectorOf = (key: string): string => (key === APP ? ':root' : `[${PART_ATTRIBUTE}="${key}"]`)
 
-function declarationsOf(values: Readonly<Record<string, string>>): string {
+function declarationsOf(values: Readonly<Record<string, string>>, files?: string): string {
   const names = Object.keys(values).sort()
-  return names.map(name => `${name}:${(values[name] ?? '').trim()};`).join('')
+  return names.map(name => `${name}:${written((values[name] ?? '').trim(), files)};`).join('')
 }
 
 function distance(left: string, right: string): number {
@@ -327,14 +363,14 @@ function tokensFault(item: TokensItem, tokens: Tokens): string | null {
     const value: unknown = item.tokens[name]
     if (!tokens.known(name)) return unknownToken(name, tokens.names)
     if (typeof value !== 'string') return `the token ${name} has no text for a value`
-    const fault = valueFault(value)
+    const fault = valueFault(value, item.files)
     if (fault !== null) return `the token ${name}: ${fault}`
   }
   return null
 }
 
 function tokensRules(key: string, item: TokensItem): string {
-  const declarations = declarationsOf(item.tokens)
+  const declarations = declarationsOf(item.tokens, item.files)
   return declarations === '' ? '' : `${selectorOf(key)}{${declarations}}`
 }
 
@@ -351,11 +387,11 @@ const WHEN: Readonly<Record<'base' | PartState, string>> = {
 const ORDER = ['base', ...STATES] as const
 const PROPERTY = /^[a-z][a-z-]*$/u
 
-function declarationFault(property: string, value: unknown): string | null {
+function declarationFault(property: string, value: unknown, files?: string): string | null {
   if (property.startsWith('--')) return `${property} is a token: tokens are put on ${TOKENS_POINT}`
   if (!PROPERTY.test(property)) return `${property} is not the name of a property`
   if (typeof value !== 'string') return `the property ${property} has no text for a value`
-  const fault = valueFault(value)
+  const fault = valueFault(value, files)
   return fault === null ? null : `the property ${property}: ${fault}`
 }
 
@@ -367,7 +403,8 @@ function styleFault(item: StyleItem): string | null {
     if (typeof declared !== 'object' || declared === null)
       return `the state ${state} has no declarations`
     for (const property of Object.keys(declared).sort()) {
-      const fault = declarationFault(property, (declared as Record<string, unknown>)[property])
+      const value = (declared as Record<string, unknown>)[property]
+      const fault = declarationFault(property, value, item.files)
       if (fault !== null) return state === 'base' ? fault : `in ${state}, ${fault}`
     }
   }
@@ -376,7 +413,7 @@ function styleFault(item: StyleItem): string | null {
 
 function styleRules(key: string, item: StyleItem): string {
   return ORDER.map(state => {
-    const declarations = declarationsOf(item.style[state] ?? {})
+    const declarations = declarationsOf(item.style[state] ?? {}, item.files)
     return declarations === '' ? '' : `${selectorOf(key)}${WHEN[state]}{${declarations}}`
   }).join('')
 }

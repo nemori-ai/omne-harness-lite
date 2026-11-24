@@ -1,6 +1,5 @@
 import {
   MAX_ASSET_PAGE,
-  capabilityId,
   collectCandidates,
   evaluate,
   listAssets,
@@ -14,6 +13,7 @@ import {
 import { writeJsonText } from '@omne-harness/json-text'
 import { readManifest, type PluginManifest } from '@omne-harness/plugin-protocol'
 import { PLUGIN_CATEGORY } from './category.ts'
+import { SKIN_CATEGORY } from './skin-category.ts'
 import type { KeptContents } from './contents.ts'
 
 export type HeldFile = Readonly<{ path: string; digest: string; bytes: number }>
@@ -39,6 +39,8 @@ export type HeldPluginPorts = Readonly<{
     held: Readonly<{ asset: string; version: string }>,
   ): Promise<JsonValue | undefined>
 }>
+
+const LOADED_CATEGORIES = [PLUGIN_CATEGORY, SKIN_CATEGORY] as const
 
 const UNAVAILABLE = Object.freeze({ kind: 'unavailable' as const })
 const DIGEST = /^sha256:([0-9a-f]{64})$/u
@@ -70,22 +72,31 @@ function writtenIn(
   return { manifestText, manifest: read.manifest, files: files as readonly HeldFile[] }
 }
 
-/** Every entry the layers list in this category, read page by page; nothing when a page cannot be read whole. */
-async function entriesOf(
+/** Every entry the layers list in one category, read page by page; nothing when a page cannot be read whole. */
+async function entriesIn(
   sources: readonly AssetLayerSource[],
+  category: string,
 ): Promise<readonly AssetEntry[] | undefined> {
   const entries: AssetEntry[] = []
   let after: string | null = null
   do {
-    const answer = await listAssets(sources, {
-      category: PLUGIN_CATEGORY,
-      after,
-      limit: MAX_ASSET_PAGE,
-    })
+    const answer = await listAssets(sources, { category, after, limit: MAX_ASSET_PAGE })
     if (answer.state !== 'read' || answer.page.completeness === 'partial') return
     entries.push(...answer.page.items)
     after = answer.page.next
   } while (after !== null)
+  return entries
+}
+
+async function entriesOf(
+  sources: readonly AssetLayerSource[],
+): Promise<readonly AssetEntry[] | undefined> {
+  const entries: AssetEntry[] = []
+  for (const category of LOADED_CATEGORIES) {
+    const listed = await entriesIn(sources, category)
+    if (listed === undefined) return
+    entries.push(...listed)
+  }
   return entries
 }
 
@@ -94,29 +105,34 @@ async function namesOf(
 ): Promise<readonly CapabilityId[] | undefined> {
   const entries = await entriesOf(sources)
   if (entries === undefined) return
-  return [...new Map(entries.map(entry => [entry.capability.name, entry.capability])).values()]
+  const named = entries.map(
+    ({ capability }) => [`${capability.category}\n${capability.name}`, capability] as const,
+  )
+  return [...new Map(named).values()]
 }
 
 type Chosen = Candidate | 'none' | 'unavailable'
 
-async function chosen(sources: readonly AssetLayerSource[], name: string): Promise<Chosen> {
-  const capability = capabilityId(PLUGIN_CATEGORY, name)
-  if (!capability.ok) return 'none'
-  const layers = await collectCandidates(sources, capability.id)
+async function chosen(
+  sources: readonly AssetLayerSource[],
+  capability: CapabilityId,
+): Promise<Chosen> {
+  const layers = await collectCandidates(sources, capability)
   const evaluation = evaluate({ layers, eligible: () => 'yes' })
   if (evaluation.kind === 'unavailable') return 'unavailable'
   return evaluation.kind === 'winner' ? evaluation.candidate : 'none'
 }
 
-/** The plugins one tenant is to load, from what it holds: for each name the version the evaluation chooses. */
+/** The plugins one tenant is to load, from what it holds as plugins and as skins: for each name the version the evaluation chooses in its category. A name held in both is given twice, and whoever loads leaves out a name given twice. */
 export async function heldPlugins(ports: HeldPluginPorts, tenant: string): Promise<HeldPlugins> {
   const sources = ports.sources(tenant)
   if (sources === undefined) return UNAVAILABLE
   const names = await namesOf(sources)
   if (names === undefined) return UNAVAILABLE
   const plugins: HeldPlugin[] = []
-  for (const { name } of names) {
-    const candidate = await chosen(sources, name)
+  for (const capability of names) {
+    const { name } = capability
+    const candidate = await chosen(sources, capability)
     if (candidate === 'unavailable') return UNAVAILABLE
     if (candidate === 'none') continue
     const held = { asset: candidate.asset, version: candidate.version }
@@ -131,6 +147,7 @@ export async function heldPlugins(ports: HeldPluginPorts, tenant: string): Promi
 }
 
 export type ListedPlugin = Readonly<{
+  category: string
   name: string
   enabled: boolean
   manifest: PluginManifest
@@ -157,6 +174,7 @@ export async function listedPlugins(
     const written = writtenIn(body)
     if (written === undefined) continue
     plugins.push({
+      category: capability.category,
       name: capability.name,
       enabled,
       manifest: written.manifest,

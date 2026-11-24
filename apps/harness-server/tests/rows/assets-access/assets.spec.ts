@@ -74,6 +74,7 @@ describe('assets/v1 asset operations on the release tree', () => {
           ['model-provider', 'none'],
           ['plugin', 'directory'],
           ['skill', 'directory'],
+          ['skin', 'directory'],
           ['tool', 'directory'],
         ])
         expect(await assets['describe-category']({ category: 'skill' })).toMatchObject({

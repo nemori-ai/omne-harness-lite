@@ -1,10 +1,11 @@
-import type { Member } from './manifest.ts'
+import type { Member, PluginKind } from './manifest.ts'
 import { UNWANTED, stepSide, type SideEvent, type SideState } from './side-state.ts'
 
 /** One plugin as the list has it for this side; `fault` is why it cannot be loaded as listed. */
 export type Listed = Readonly<{
   name: string
   version: string
+  kind?: PluginKind
   members: readonly Member[]
   fault?: string
 }>

@@ -32,6 +32,7 @@ import { createLogger, type Logger } from './log.ts'
 import type { UtilityState } from './recovery.ts'
 import { refuseRemoteDebugging } from './remote-debugging.ts'
 import { loadScreenLibrary, SCREEN_SETTINGS_URL } from './screen-host.ts'
+import { screenOverlays } from './screen-overlay.ts'
 import { startServerProcess } from './utility-process.ts'
 import {
   APP_PARTITION,
@@ -112,6 +113,7 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
       backend: () =>
         screenBackendFor(process.platform, { load: () => loadScreenLibrary(app.isPackaged) }),
       window: windowShade(() => window),
+      overlays: screenOverlays(),
       requestAccess: process.platform === 'darwin' ? () => macosRequestScreenAccess() : null,
       openSettings:
         process.platform === 'darwin' ? () => shell.openExternal(SCREEN_SETTINGS_URL) : null,
