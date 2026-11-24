@@ -21,12 +21,13 @@ export type {
   PiRoute,
   PiRouteEndpoint,
   EngineEndpoint,
+  ProviderEndpoint,
   PiRouteAuth,
   PiTransportConfig,
   PiTransportLimits,
   RouteAccounting,
 } from './config.ts'
-export { isEngineEndpoint } from './config.ts'
+export { isEngineEndpoint, isProviderEndpoint } from './config.ts'
 export {
   RECORD_FACTS,
   type FactSource,
