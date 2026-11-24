@@ -304,6 +304,7 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
 
 export type SqlSceneOptions = Readonly<{
   storage?: 'double' | 'real'
+  storageRoot?: string
   decide?: (request: SessionAccessRequest<string>) => SessionAccessDecision
   registered?: 'own' | 'none'
   cancellation?: 'installed'
@@ -330,7 +331,7 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   let storage: SqlStorage
   let controls: DoubleControls | null = null
   if (options.storage === 'real') {
-    root = await realpath(await mkdtemp(join(tmpdir(), 'journal-real-')))
+    root = await realpath(options.storageRoot ?? (await mkdtemp(join(tmpdir(), 'journal-real-'))))
     const { realConfig } = await import('./sql-real-config.ts')
     const created = await createRealStorage({
       config: realConfig(join(root, 'storage')),
@@ -341,7 +342,8 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
     storage = created.storage
     close = async () => {
       await created.control.close({ initiator: 'disposal' }).catch(() => undefined)
-      if (root !== null) await rm(root, { recursive: true, force: true })
+      if (root !== null && options.storageRoot === undefined)
+        await rm(root, { recursive: true, force: true })
     }
   } else {
     const made = await doubleStorage()

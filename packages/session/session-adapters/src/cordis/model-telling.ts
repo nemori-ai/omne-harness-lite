@@ -74,7 +74,7 @@ const down = (diagnostic: string) =>
 
 export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P, B>) {
   const { reminders } = ports
-  const { commit, recover, refresh } = createModelTellingSteps(ports)
+  const { commit, submitGuidance, recover, refresh } = createModelTellingSteps(ports)
 
   async function prepareTell(
     book: B,
@@ -82,7 +82,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
     principal: P,
     snapshot: WorkSnapshot | null,
   ): Promise<Exclude<Told, null> | Readonly<{ kind: 'ready'; basis: ModelViewBasis | null }>> {
-    const recovery = await recover(book, domain)
+    const recovery = await recover(book, domain, snapshot)
     if (recovery !== null) return recovery
     if (reminders === undefined) return { kind: 'ready', basis: null }
     if (snapshot === null) return down('no Session snapshot to tell the model from')
@@ -109,7 +109,8 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       viewRevision: prepared.ok.viewRevision,
       message,
     })
-    const settled = reminderOutcome(await commit(book, domain, command, prepared.ok.advance))
+    const submit = prepared.ok.modelView === undefined ? commit : submitGuidance
+    const settled = reminderOutcome(await submit(book, domain, command, prepared.ok.advance))
     return typeof settled === 'string' ? { kind: 'again' } : failed(settled)
   }
 

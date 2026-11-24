@@ -1,6 +1,6 @@
 # 工作区目录指导的证明边界
 
-本模型约束 [Context 的目录指导规格](../../../../packages/context/SPEC.md#工作区目录指导)。下文的集合结论适用于任意有限的已确认目录集合。两个 TLA+ 模型分别检查有限范围内的事件交错。
+本模型约束 [Context 的目录指导规格](../../../../packages/context/SPEC.md#工作区目录指导)。下文的集合结论适用于任意有限的已确认目录集合。三个 TLA+ 模型分别检查有限范围内的事件交错。
 
 ## 目录闭包、最小增量与成本
 
@@ -24,7 +24,10 @@
 | --- | --- | --- |
 | [WorkspaceGuidance](WorkspaceGuidance.tla) · [配置](check.cfg) | A 内两个已发出的工具，两个叶共享祖先；完成任意排序，最多 A→B→A，一次压缩可保留任意已显示子集。只有完成的目录可进入请求，根单独作为已知基线 | 每次成功提交与当时绑定、祖先集合及可见差集相符；旧代际结果不能成为新实例的访问，同一步共享正文只发一次 |
 | [GuidanceAppend](GuidanceAppend.tla) · [配置](append.cfg) | 两个写入准备者共享根与共同父目录，分别读取、准备、比较提交。可在任意时点压缩并保留任意子集；提交可返回未知，随后按原操作查回 | 在提交真正生效的位置没有缺项或重复，失去回执不能导致再追加 |
+| [GuidanceRecovery](GuidanceRecovery.tla) · [配置](recovery.cfg) | 首个写入者已持久登记原操作，进程可在其正文提交到达前或之后退出。第二个进程查回原身份，或对原修订作条件提交以排除迟到写入。可穿插一次其他提交 | 查回成功必能对应原提交；确认排除后原提交再也无法生效；本例所需正文最终就绪时恰有一份 |
 
 Finish 对应原工具执行结果的接纳，Prepare 是可丢的候选，Commit／Append 是 Session 有修订依据的条件提交，Compact 是有效历史边界的变化，Recover 是按原操作认回。模型中资格与文件内容固定；代码精化还须检验物理路径围栏、分项结果与提交的耐久性、正文所有权、源版本和实际发出的模型请求。
 
-在包根约定的形式工具环境下，在本目录用 TLC 分别执行两份 cfg。负对照将配置中的 Fault 改为 WorkspaceGuidance 的 late、stale、forget、above-root 或 parallel，或 GuidanceAppend 的 without-cas、repeat-unknown。应得到 Safety 反例。例：两个准备者同时把共同根放入各自候选，首个追加成功，另一个若跳过修订检查再追加，就会把根写两遍。
+在包根约定的形式工具环境下，在本目录用 TLC 分别执行三份 cfg。负对照将配置中的 Fault 改为 WorkspaceGuidance 的 late、stale、forget、above-root 或 parallel，或 GuidanceAppend 的 without-cas、repeat-unknown。应得到 Safety 反例。例：两个准备者同时把共同根放入各自候选，首个追加成功，另一个若跳过修订检查再追加，就会把根写两遍。
+
+恢复模型的负对照为 no-fence 和 foreign-receipt。前者允许第二个写入者宣布已排除原提交，而原提交仍可成功；后者允许用另一个会话的回执确认本次操作。恢复模型假设事务按同一单调修订原子提交，进程退出不会回滚已提交的记录。模型只检查安全性质，存储持续不可用时没有就绪期限。
