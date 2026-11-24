@@ -79,4 +79,13 @@
     max-width: 100%;
     max-height: none;
   }
+  .omne-media-object {
+    min-width: 0;
+  }
+  .omne-media-object[data-frame='pile'] .omne-media-picture img {
+    max-height: calc(var(--spacing) * 45);
+  }
+  .omne-media-intake {
+    flex-direction: column;
+  }
 }

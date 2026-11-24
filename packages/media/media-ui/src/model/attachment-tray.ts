@@ -37,17 +37,23 @@ export type Attachment = Readonly<{
   state: AttachmentState
 }>
 
+type DraftOf =
+  | Readonly<{
+      session: string
+      draft: string
+      /** The holder of drafts there now; null while nothing takes attachments. */
+      drafts: () => Drafts | null
+    }>
+  | Readonly<{ session?: never; draft?: never; drafts?: never }>
+
 export type TrayDeps = Readonly<{
   client: MediaClient
   tenant: TenantId
-  session: string
-  draft: string
-  /** The holder of drafts there now; null while nothing takes attachments. */
-  drafts: () => Drafts | null
   newId: () => string
   preview: (file: PickedFile) => string | null
   release: (preview: string) => void
-}>
+}> &
+  DraftOf
 
 export const IMAGE_TYPES: readonly string[] = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 export const ACCEPTED_TYPES: readonly string[] = [
@@ -164,16 +170,17 @@ export class AttachmentTray {
 
   #changed(items: readonly Attachment[]): void {
     this.#items = items
-    const { session, draft } = this.#deps
-    this.#deps.drafts()?.offer({
-      session,
-      draft,
-      source: SOURCE,
-      attachments: items.flatMap(({ state }) =>
-        state.kind === 'ready' ? [{ kind: kindOf(state.ref.mediaType), ref: state.ref }] : [],
-      ),
-      ready: items.every(item => item.state.kind === 'ready'),
-    })
+    const { session, draft, drafts } = this.#deps
+    if (drafts !== undefined)
+      drafts()?.offer({
+        session,
+        draft,
+        source: SOURCE,
+        attachments: items.flatMap(({ state }) =>
+          state.kind === 'ready' ? [{ kind: kindOf(state.ref.mediaType), ref: state.ref }] : [],
+        ),
+        ready: items.every(item => item.state.kind === 'ready'),
+      })
     for (const listener of this.#listeners) listener()
   }
 }

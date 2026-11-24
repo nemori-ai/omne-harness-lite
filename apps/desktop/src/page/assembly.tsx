@@ -11,7 +11,7 @@ import {
 import '@omne-harness/calendar-ui/calendar-ui.css'
 import { calendarUiModule } from '@omne-harness/calendar-ui/cordis'
 import '@omne-harness/canvas-ui/canvas-ui.css'
-import { canvasUiModule } from '@omne-harness/canvas-ui/cordis'
+import { canvasElement, canvasIntake, canvasUiModule } from '@omne-harness/canvas-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import {
   createHumanInterventionUiModule,
@@ -113,6 +113,8 @@ export const assembly: Assembly = {
       drafts: sessionComposerIntakeKey,
       holding: assetsHolding,
       assets: assetGovernanceKey,
+      canvasElement,
+      canvasIntake,
     }),
     sessionReadsUiModule,
     canvasUiModule,
