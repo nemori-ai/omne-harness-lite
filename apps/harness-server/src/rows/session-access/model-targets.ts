@@ -4,6 +4,7 @@ import type {
   ModalityRequirement,
   ProfileResolution,
 } from '@omne-harness/model-contract'
+import { supportedReasoningEfforts } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import {
@@ -45,6 +46,7 @@ export function targetOf(resolution: ProfileResolution): ModelTargetCheck {
   return {
     kind: 'selectable',
     credential: CREDENTIAL[resolution.credential],
+    reasoningEfforts: supportedReasoningEfforts(resolution.profile.definition),
     basis: { owner, record: name, revision, digest },
   }
 }

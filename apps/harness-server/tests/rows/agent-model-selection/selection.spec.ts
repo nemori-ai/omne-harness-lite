@@ -46,6 +46,44 @@ describe('the selected model', () => {
     expect(selected.evidence).toEqual(SAVED_SOURCE)
   })
 
+  test('changing effort on the same route affects the next selection and preserves other parameters', async () => {
+    const base = profileOf(ROUTE)
+    const profile = {
+      ...base,
+      definition: {
+        ...base.definition,
+        parameters: [
+          { kind: 'max-output-tokens', value: '256' },
+          { kind: 'reasoning-effort', value: 'low' },
+        ] as const,
+        reasoningEfforts: { low: 'low', high: 'high' } as const,
+      },
+    }
+    const state = savedSelection(ROUTE)
+    let reasoningEffort: 'high' | 'xhigh' = 'high'
+    const { value } = await withLiveRow(
+      {
+        session: () => succeed({ ...state, selection: { ...state.selection, reasoningEffort } }),
+        profiles: { [ROUTE]: succeed(resolvedOf(profile)) },
+      },
+      async ({ select }) => {
+        const first = await select(selectInput)
+        reasoningEffort = 'xhigh'
+        return { first, second: await select(selectInput) }
+      },
+    )
+    expect(value.first).toMatchObject({
+      ok: {
+        parameters: [
+          { kind: 'max-output-tokens', value: '256' },
+          { kind: 'reasoning-effort', value: 'high', scale: 'unified' },
+        ],
+      },
+    })
+    expect(value.second).toMatchObject({ failure: { kind: 'invalid', field: 'reasoningEffort' } })
+    expect(profile.definition.parameters[1].value).toBe('low')
+  })
+
   test('the Session is read as a maintainer with exactly the principal, tenant and session', async () => {
     const { value } = await withLiveRow(happy, async ({ select, session }) => {
       await select(selectInput)
