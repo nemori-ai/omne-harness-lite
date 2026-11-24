@@ -215,8 +215,8 @@ describe('OmneExtensions on the release tree', () => {
           [extensions('publish', { id: 'op-tool-1', category: 'tool', name: 'mine', data: {} })],
         )
         expect(every.match(/done OmneExtensions list/gu)).toHaveLength(7)
-        // What the deployment installed and the tenant does not hold is on the tree of points, not here.
-        expect(every).toContain('converter voice is not held by this tenant.')
+        // What the deployment installed is among the tenant's assets too, and cannot be changed in place.
+        expect(every).toMatch(/converter voice\s+\S+\s+enabled\s+installed with the deployment/u)
         expect(every).toMatch(/tool Files\s+\S+\s+enabled\s+installed with the deployment/u)
         expect(every).toContain(
           'it is installed with the deployment and cannot be changed in place.',
@@ -224,7 +224,10 @@ describe('OmneExtensions on the release tree', () => {
         expect(every).toContain(
           'category tool is made from a directory: write it in the workspace and give dir.',
         )
-        expect(every).not.toContain('to change it: publish a new body as data.')
+        const filesShown = every
+          .split('done OmneExtensions show')
+          .find(part => part.includes('tool Files'))
+        expect(filesShown).not.toContain('to change it: publish a new body as data.')
 
         const off = await ask(
           [extensions('impact', { ...TIDY, change: 'disable' })],
