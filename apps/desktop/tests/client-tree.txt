@@ -98,9 +98,13 @@ system
           model-provider-access  [effective, model-ui#1]
       assets.control  [keyed-one]
     canvas
-      canvas.app-render  [keyed-one]
       canvas.element  [keyed-one]
+        media.object
+          media-ui#1  [effective]
       canvas.intake  [keyed-one]
+        files
+          media-ui#1  [effective]
+      canvas.app-render  [keyed-one]
       canvas.picker  [keyed-one]
     connection
       connection.protocols  [keyed-one]
@@ -298,6 +302,10 @@ system
         mcp.page
           mcp-ui#1  [effective]
         media.file
+          media-ui#1  [effective]
+        media.intake
+          media-ui#1  [effective]
+        media.object
           media-ui#1  [effective]
         media.picture
           media-ui#1  [effective]

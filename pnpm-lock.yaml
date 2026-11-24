@@ -4548,6 +4548,9 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
       '@omne-harness/media-protocol':
         specifier: workspace:*
         version: link:../media-protocol

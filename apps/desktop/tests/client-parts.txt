@@ -50,6 +50,8 @@ mcp.endpoint.permission | 调用权限 | 这个接入点的动作要不要先问
 mcp.endpoint.status | 状态 | 这个接入点连上没有，不能用时为什么 | mcp.endpoint | tokens style | 有接入点时 | mcp-ui
 mcp.page | MCP 页 | 资产页里 MCP 这一类的页面 | assets.panel | tokens style | 选中 MCP 页签且读到时 | mcp-ui
 media.file | 消息里的文件 | 消息里的语音、PDF 等的一行 | session.transcript | tokens style | 消息里有图以外的附件时 | media-ui
+media.intake | 拖到纸上的文件 | 拖到纸上的文件各传到了哪一步 | canvas.view | tokens style | 有文件拖到纸上时 | media-ui
+media.object | 纸上的媒体 | 纸上的一张图、一个文件或一段语音 | canvas.view | tokens style | 纸上摆着媒体时 | media-ui
 media.picture | 消息里的图 | 消息里的一张缩略图 | session.transcript | tokens style | 消息里有图时 | media-ui
 media.read | 模型读的 | 模型读的是原件还是转写 | session.transcript | tokens style | 知道模型读的是哪一份时 | media-ui
 media.tray | 附件区 | 输入区里放附件的地方 | session.composer | tokens style | 打开一段会话时 | media-ui
