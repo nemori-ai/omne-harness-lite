@@ -80,7 +80,7 @@ import {
   presentRequest,
 } from './admission-chain.ts'
 import { cardClosing } from './card-closing.ts'
-import { cancellationCause, judgeCancellation } from './cancellation-judgment.ts'
+import { judgeCancellation } from './cancellation-judgment.ts'
 import { canonical } from '../canonical.ts'
 import { waitForExecutionChange, type HeldPosition, type ReconciliationPacer } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
@@ -2892,8 +2892,7 @@ function coordinate<P>(
         const interrupted = await interruptForCancel(control, pending)
         if ('failure' in interrupted) return interrupted
       }
-      const cause = cancellationCause(control)
-      const withdrawn = await closing.withdrawOpen(read.ok.checkpoint, 'F0/cancel', cause)
+      const withdrawn = await closing.withdrawCancelled(read.ok.checkpoint, control)
       if ('failure' in withdrawn) return withdrawn
       return step('cancelled', null)
     },
