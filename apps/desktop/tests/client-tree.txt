@@ -241,6 +241,8 @@ system
           human-intervention-ui#1  [effective]
         human-intervention.paper.foot.submit
           human-intervention-ui#1  [effective]
+        human-intervention.paper.pager
+          human-intervention-ui#1  [effective]
         human-intervention.session-cards
           human-intervention-ui#1  [effective]
         identity.account
