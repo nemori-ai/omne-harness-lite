@@ -2,7 +2,7 @@
 id: PD-tool-execution
 title: 工具执行
 status: accepted
-revision: 12
+revision: 13
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 工具执行
 
-本 topic 维护产品规则、能力定义与未决事项。产品规则的接受不表示对应技术增量或实现已接受。会话常驻工具规则依据 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)。有限期正文保管的用户决定及交付边界见 [#1168](https://github.com/nemori-ai/omne-harness-lite/issues/1168)。卸载触发阈值与卸载预览预算的分离、机械预览的结构及读回到期窗口由 PanQiWei 于 2026-11-09 确认。
+本 topic 维护产品规则、能力定义与未决事项。产品规则的接受不表示对应技术增量或实现已接受。会话常驻工具规则依据 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)。有限期正文保管的用户决定及交付边界见 [#1168](https://github.com/nemori-ai/omne-harness-lite/issues/1168)。卸载触发阈值与卸载预览预算的分离、机械预览的结构及读回到期窗口由 PanQiWei 于 2026-11-09 确认。标了常驻的 MCP 接入点是一条常驻工具：PanQiWei 2026-11-23 定一个接入点是一个多命令工具，2026-11-24 确认常驻的设计，见 [#1238](https://github.com/nemori-ai/omne-harness-lite/issues/1238)。
 
 ## 阅读入口
 

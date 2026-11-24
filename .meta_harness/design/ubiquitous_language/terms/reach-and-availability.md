@@ -33,7 +33,7 @@
 > **它标的是「看不看得见」，不是「看见的是什么」**：可见时呈现成什么是装配时的策略——
 > 技能是 name 与说明进系统提示词，工具由各模型的适配按供应商的方式呈现。
 > **没标常驻的不是「不能用」，是「不占位置」**——它照样在动作空间里，经取用入口够得着。
-> 常驻的可以是工具、Skill 的简介，以及标了常驻的 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点的动作；后者在采用点成为常驻工具。
+> 常驻的可以是工具、Skill 的简介，以及标了常驻的 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点；后者在采用点成为一条常驻工具。
 > 引用可以在 Agent 定义里，也可以在会话执行类型的必需身份集合里；两处任一处标了常驻，就常驻。
 >
 > **EN**: **A tool's or skill's capability identity is always visible to the agent**, with
@@ -44,13 +44,13 @@
 > contributes its name and description to the system prompt, a tool is rendered by each
 > model adapter in its provider's way. **Not being resident does not mean unusable; it means
 > not occupying a slot** — it remains in the action space, reachable through the discovery entry.
-> What can be resident is a tool, a skill's summary, or the actions of an MCP access point marked
-> resident, which become resident tools at the adoption point. The reference may sit in the Agent
+> What can be resident is a tool, a skill's summary, or an MCP access point marked resident,
+> which becomes one resident tool at the adoption point. The reference may sit in the Agent
 > Definition or in the required identity set of the session's execution type; if either marks it
 > resident, it is resident.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24） · [工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 12） · [Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 8） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 5）
+- **出处**：[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24） · [工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 13） · [Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 8） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 6）
 - **别混**：**它是那份 Agent Definition 或 Plugin 上、或会话执行类型必需身份集合那一项上的一项设置**（引用条目长在那里），
   归[偏好类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)，由持有它的各层配值——**不是工具或技能自己的设置**
 - **注意**：**上下文预算是装配方的问题，工具作者根本不知道**——这就是标记挂在引用上而非资产上的理由
@@ -83,9 +83,9 @@
 > Registration keys come from adoption evidence and are not separate holder facts.
 
 - **形态**：视图
-- **出处**：[常驻持有者的现行定义](../index.md#ul-d-04-常驻持有者)，PanQiWei 2026-10-24 的 D-04 裁决；会话路径依据[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 12）；已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
+- **出处**：[常驻持有者的现行定义](../index.md#ul-d-04-常驻持有者)，PanQiWei 2026-10-24 的 D-04 裁决；会话路径依据[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 13）；已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
 - **别混 ①**：不是会话产品页里主会话的「常驻」。那个标记让主会话免于自动归档，与工具无关
-- **别混 ②**：非常驻工具不受这些规则约束。Run 中途新装载的工具经 `Tools()` 够到，不进这个集合。MCP 动作一般不常驻，不在这些规则的范围内；标了常驻的 MCP 接入点，它的动作在采用点成为常驻工具，适用这些规则
+- **别混 ②**：非常驻工具不受这些规则约束。Run 中途新装载的工具经 `Tools()` 够到，不进这个集合。MCP 动作一般不常驻，不在这些规则的范围内；标了常驻的 MCP 接入点在采用点成为一条常驻工具，适用这些规则
 - **注意**：RFC-0012 简称它「常驻集合」。跨 topic 引用时写全称，避免与主会话的「常驻」混淆
 
 ### UL-tool-entry · 工具条目 · Tool Entry
@@ -101,7 +101,7 @@
 > point is one tool entry, and its actions are the commands of that tool.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 12） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 20） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 5）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 13） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 20） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 6）
 - **别混 ①**：**不是[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)**——定义是条目带着的那份内容；条目是这份内容此刻在入口里的那一项
 - **别混 ②**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里会话已知的那一项**——那一项按会话合法纳入的能力投影、在会话内只增不减；工具条目按主体此刻的事实现算。两者的关系见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)
 - **注意**：主体此刻没有使用资格的不出现；有资格但此刻调不动的，以不可用呈现并说明原因。调一个条目就是一次工具调用
@@ -120,7 +120,7 @@
 > its access points, one tool entry for each access point.
 
 - **形态**：属性
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 12） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 5）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 13） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 6）
 - **别混**：**不是工具登记表里的一份贡献**——那是一个工具实现登记进去，由登记键区分；来源不登记工具，只在被问时交出条目。也不是[接入贡献](architecture-core-and-extension.md#ul-access-contribution--接入贡献--access-contribution)，那是接入层入口登记表上的一包协议处理
 - **注意**：来源只交出条目，不替工具执行决定受理、结局或结果怎样保管
 
@@ -178,7 +178,7 @@
 > in the comparison.
 
 - **形态**：规则
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 12）；比较的字段见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 13）；比较的字段见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 - **别混**：不是「同一个能力身份」。同一个能力身份下，不同层的资产可以派生出不同形的定义
 - **注意**：比较按文本规范化进行。语义等价但文本不同的两份 schema 判为不同形，这时会话留在原版本，不会因此误判冻结
 
@@ -336,7 +336,7 @@
 > own the result of any call.
 
 - **形态**：对象
-- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC01](../../product/mcp/design.md#j-mc01-采用接入点并取得合法连接条件) · [J-MC06](../../product/mcp/design.md#j-mc06-断线后恢复连接和原工作)（rev 5）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC01](../../product/mcp/design.md#j-mc01-采用接入点并取得合法连接条件) · [J-MC06](../../product/mcp/design.md#j-mc06-断线后恢复连接和原工作)（rev 6）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)
 - **⚠️ 别混 ①**：**不是[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)**。连接件把外部消息送进来，方向相反
 - **别混 ②**：**不是[连接目标](capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)**。连接目标是接入点上的一项设置，说连到对端的哪里；MCP 连接是按这项设置实际接通的结果
 - **别混 ③**：**不是接入点本身**。接入点是资产，身份是它的 name；同一个接入点可以同时有几条 MCP 连接，分属不同租户或不同对端账号
@@ -358,7 +358,7 @@
 > whole. A catalog that is part new and part old never occurs.
 
 - **形态**：对象
-- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用) · [J-MC03](../../product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)（rev 5）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)。键里的「接入点持有」来自 Skill 与 MCP 领域的候选技术设计，产品正文与已接受的领域页未述
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用) · [J-MC03](../../product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)（rev 6）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)。键里的「接入点持有」来自 Skill 与 MCP 领域的候选技术设计，产品正文与已接受的领域页未述
 - **⚠️ 别混 ①**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)**。动作空间属于一个会话；MCP 动作清单属于租户、对端账号与接入点持有，不随会话结束
 - **别混 ②**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**，与一次装配无关
 - **注意**：发现或刷新失败时保持原清单并说明原因，不当成空清单。产品正文称它「合法清单」「最近合法清单」时，指的就是它
@@ -379,8 +379,8 @@
 > tool entry point it is one command of the single tool entry of its access point.
 
 - **形态**：对象
-- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用)（rev 5）
-- **别混 ①**：**不是[替换件](#ul-stand-in--替换件--stand-in)**。常驻接入点的动作不可用时，按[常驻工具](#ul-resident-tool-set--常驻工具集合--resident-tool-set)的规则有同形替换件占在原位；不常驻接入点的动作没有替换件。MCP 已知动作是清单里的那一项
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用)（rev 6）
+- **别混 ①**：**不是[替换件](#ul-stand-in--替换件--stand-in)**。常驻接入点整个用不了时，按[常驻工具](#ul-resident-tool-set--常驻工具集合--resident-tool-set)的规则有记下定义的替换件占在原位，它的单个动作用不了时，那一条命令答不可用；不常驻接入点的动作没有替换件。MCP 已知动作是清单里的那一项
 - **别混 ②**：**不是资产**。对端动作随接入点一起被持有、授权与治理，见 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp)
 - **注意**：裸写「已知动作」不作术语，跨 topic 写全称
 

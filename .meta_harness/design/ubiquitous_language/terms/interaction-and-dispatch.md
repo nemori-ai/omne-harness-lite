@@ -600,7 +600,7 @@
 > identity of the call and has no meaning outside this session.
 
 - **形态**：属性
-- **出处**：[工具执行「前台和后台是等待与交付方式」](../../product/tool-execution/design.md#前台和后台是等待与交付方式)（rev 12）
+- **出处**：[工具执行「前台和后台是等待与交付方式」](../../product/tool-execution/design.md#前台和后台是等待与交付方式)（rev 13）
 - **别混**：**它不是调用引用。**调用引用是 Tool 认得的身份，跨会话有效；短号只在一个会话里指认一项
 
 ### UL-inbound-target · 投递目标 · Inbound Target
