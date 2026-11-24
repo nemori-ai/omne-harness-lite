@@ -5,6 +5,7 @@ import type {
   ActionBatch,
   ActionId,
   ActionToolCall,
+  AdmissionDecision,
   AgentExecutionId,
   Authority,
   CardRoundId,
@@ -218,36 +219,31 @@ export async function judged<P>(
   const decision = admitted.ok
   if (decision.kind === 'unavailable') return succeed('unanswerable')
   if (decision.kind === 'undecidable') return veto('undecidable')
-  const step =
-    decision.kind === 'allow'
-      ? afterAdmission(
-          passages,
-          { kind: 'allowed', action, evidence: decision.evidence },
-          chain,
-          instant.ok,
-        )
-      : decision.kind === 'deny'
-        ? afterAdmission(
-            passages,
-            {
-              kind: 'denied',
-              action: { ...action, judgment: { kind: 'denied', evidence: decision.evidence } },
-              category: decision.category,
-            },
-            chain,
-            instant.ok,
-          )
-        : afterAdmission(
-            passages,
-            { kind: 'asked', action, card: decision.card, evidence: decision.evidence },
-            chain,
-            instant.ok,
-          )
+  const step = afterAdmission(passages, concluded(action, decision), chain, instant.ok)
   if ('failure' in step) return fail(defect(step.failure.step))
   return succeed({
     passages: step.ok.passages,
     ...(step.opened === undefined ? {} : { opened: step.opened }),
   })
+}
+
+/** What the chain is told of a decision that is one: allowed, denied with its category, or asked with its card. */
+function concluded(
+  action: Action,
+  decision: Exclude<AdmissionDecision, { kind: 'unavailable' | 'undecidable' }>,
+): Parameters<typeof afterAdmission>[1] {
+  switch (decision.kind) {
+    case 'allow':
+      return { kind: 'allowed', action, evidence: decision.evidence }
+    case 'deny':
+      return {
+        kind: 'denied',
+        action: { ...action, judgment: { kind: 'denied', evidence: decision.evidence } },
+        category: decision.category,
+      }
+    case 'need-decision':
+      return { kind: 'asked', action, card: decision.card, evidence: decision.evidence }
+  }
 }
 
 export async function presented<P>(

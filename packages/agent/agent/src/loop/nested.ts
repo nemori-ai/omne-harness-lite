@@ -97,31 +97,51 @@ async function advance<P>(
   const known = passages.find(item => item.id === passage.ok) ?? null
   if (nestedVerdict(known) !== null) return succeed({ passages })
   const action = actionOf(id, request.target.arguments, known)
-  const open = known !== null && known.progress.kind === 'asked'
   const ended = !parentWaits(input.batch, request.parent)
-  if (ended || request.withdrawn()) {
-    if (!open || known === null) return succeed({ passages })
-    const next = await closed(input, passages, action, known, ended ? 'parent-ended' : 'withdrawn')
-    return 'failure' in next ? next : succeed({ passages: next.ok })
-  }
+  if (ended || request.withdrawn())
+    return left(input, passages, action, known, ended ? 'parent-ended' : 'withdrawn')
   const chain = known ?? freshChain(action, passage.ok)
   const need = needOf(chain)
-  if (need === 'judge') {
-    const next = await judged(input, passages, action, chain, request)
-    if ('failure' in next) return next
-    if (next.ok !== 'unanswerable') return succeed(next.ok)
-    request.answer({ kind: 'unanswerable', diagnostic: 'the admission cannot answer now' })
-    return succeed({ passages })
+  if (need !== 'judge') return moved(await stepped(input, passages, action, chain, need))
+  const next = await judged(input, passages, action, chain, request)
+  if ('failure' in next) return next
+  if (next.ok !== 'unanswerable') return succeed(next.ok)
+  request.answer({ kind: 'unanswerable', diagnostic: 'the admission cannot answer now' })
+  return succeed({ passages })
+}
+
+const moved = (next: Outcome<readonly Passage[], Failure>): Outcome<Moved, Failure> =>
+  'failure' in next ? next : succeed({ passages: next.ok })
+
+/** The asker is gone or its parent ended: an open chain is closed, one that never opened leaves nothing. */
+async function left<P>(
+  input: NestedTurnInput<P>,
+  passages: readonly Passage[],
+  action: Action,
+  known: Passage | null,
+  cause: 'parent-ended' | 'withdrawn',
+): Promise<Outcome<Moved, Failure>> {
+  if (known === null || known.progress.kind !== 'asked') return succeed({ passages })
+  return moved(await closed(input, passages, action, known, cause))
+}
+
+function stepped<P>(
+  input: NestedTurnInput<P>,
+  passages: readonly Passage[],
+  action: Action,
+  chain: Passage,
+  need: Exclude<ReturnType<typeof needOf>, 'judge'>,
+): Promise<Outcome<readonly Passage[], Failure>> {
+  switch (need) {
+    case 'present':
+      return presented(input, passages, action, chain)
+    case 'read':
+      return read(input, passages, action)
+    case 'closed':
+      return closed(input, passages, action, chain, 'card-closed')
+    default:
+      return Promise.resolve(succeed(passages))
   }
-  const next =
-    need === 'present'
-      ? await presented(input, passages, action, chain)
-      : need === 'read'
-        ? await read(input, passages, action)
-        : need === 'closed'
-          ? await closed(input, passages, action, chain, 'card-closed')
-          : succeed(passages)
-  return 'failure' in next ? next : succeed({ passages: next.ok })
 }
 
 async function orphans<P>(

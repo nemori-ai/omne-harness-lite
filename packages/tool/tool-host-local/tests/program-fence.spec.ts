@@ -155,6 +155,11 @@ describe('what a host does for one position behind the barrier', () => {
     const [first, again] = controlled as { operation: string; call: string; intent: object }[]
     expect(first).toMatchObject({ call: callId('child'), intent: { kind: 'stop' } })
     expect(again?.operation).toBe(first?.operation)
+    // The operation is of the position: another ordinal, or another parent, is another operation.
+    await made.stop({ ...at, ordinal: 3 })
+    await made.stop({ ...at, parent: callId('another-parent') })
+    const [, , ordinal, other] = controlled as { operation: string }[]
+    expect(new Set([first?.operation, ordinal?.operation, other?.operation]).size).toBe(3)
   })
 
   it.each([
