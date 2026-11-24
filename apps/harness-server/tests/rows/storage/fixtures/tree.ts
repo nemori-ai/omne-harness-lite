@@ -38,7 +38,10 @@ import {
   type RowSpec,
   type StartResult,
 } from '../../../../src/loader.ts'
-import { LOCAL_READ_WAIT_MS } from '../../../../src/local/operator-defaults.ts'
+import {
+  LOCAL_MAX_RESPONSE_BYTES,
+  LOCAL_READ_WAIT_MS,
+} from '../../../../src/local/operator-defaults.ts'
 import { serveProfile } from '../../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../../src/row.ts'
 import { sessionStorageRow } from '../../../../src/rows/session-storage/index.ts'
@@ -88,7 +91,7 @@ export function providerConfig(
     globalInFlightWriteBytes: 67108864,
     maxJsonDepth: 64,
     maxJsonMembers: 65536,
-    maxResponseBytes: 65536,
+    maxResponseBytes: LOCAL_MAX_RESPONSE_BYTES,
     maxOperationResponseBytes: 1048576,
     globalWriteResponseBytes: 33554432,
     maxDiagnosticBytes: 4096,

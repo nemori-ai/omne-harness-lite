@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { calendarCalculatorKey } from '@omne-harness/calendar-cordis-contract/cordis'
 import {
   scheduleCommandsKey,
+  scheduleJobsKey,
   scheduleQueriesKey,
 } from '@omne-harness/schedule-cordis-contract/cordis'
 import {
@@ -198,6 +199,7 @@ const CAPABILITY_SERVICES: Readonly<Record<string, string | ((ctx: Context) => b
   'calendar.read': calendarCalculatorKey,
   'schedule.read': scheduleQueriesKey,
   'schedule.write': scheduleCommandsKey,
+  'schedule.jobs': scheduleJobsKey,
   'notification.read': notificationInboxKey,
   'notification.write': notificationSendingKey,
   'session.read': sessionKey,

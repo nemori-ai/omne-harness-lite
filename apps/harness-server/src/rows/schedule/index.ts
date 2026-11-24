@@ -82,7 +82,6 @@ export const scheduleRowConfig = z.strictObject({
 })
 type ScheduleRowConfig = z.infer<typeof scheduleRowConfig>
 
-/** The owner of a tenant's schedules: the tenant and its account, as every schedule call names it. */
 function ownerOf(tenantRef: string) {
   const tenant = tenantCodec.parse(tenantRef)
   const account = tenant.ok ? accountCodec.encode(tenant.value.account) : undefined
@@ -431,11 +430,14 @@ export const scheduleRow = defineRow({
       createProgramExecutor(name => carriers.programs.get(name)),
     )
     const host = createTenantHost(ctx, scheduleRowConfig.parse(raw ?? {}), carriers)
-    void host.watchAll()
     new Commands(ctx, host)
     new Queries(ctx, host)
     new Jobs(ctx, host)
     return {
+      /** After every row applied, so the programs and carriers rows register are there for the first round. */
+      async start() {
+        void host.watchAll()
+      },
       async stop() {
         await host.close()
         return { kind: 'settled' }

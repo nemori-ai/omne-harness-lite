@@ -125,7 +125,7 @@ describe('the schedule row on the release tree', () => {
   )
 
   it(
-    'with a probe program registered by a row, a due minute after a restart becomes a Job that runs and succeeds, without any schedule call',
+    'with a probe program registered by a row, a due minute after a restart becomes a Job that runs and succeeds, without any schedule call; omne reads the history, the Job, and starts one directly',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const ran: string[] = []
@@ -164,6 +164,9 @@ describe('the schedule row on the release tree', () => {
           time: { source: time.source, protocol: 'simulated-clock' },
           addedRows: [PROBE_PROGRAM],
           rowConfig: { schedule: { dispatch: { intervalMs: 5_000, gapMs: 600_000 } } },
+          async beforeRun(run) {
+            if (run === 1) time.setWall(time.source.now() + 3 * 60 * 60_000)
+          },
         },
         [
           async tree => {
@@ -193,6 +196,51 @@ describe('the schedule row on the release tree', () => {
             )
             expect(concluded[0]).toBe('succeeded')
             expect(ran.length).toBeGreaterThan(0)
+            const history = succeeded(await tree.cli(['schedule', 'jobs', '--schedule', schedule]))
+            const items = history['items'] as Record<string, unknown>[]
+            expect(items.find(row => row['kind'] === 'lapse')).toMatchObject({
+              schedule,
+              cause: 'stopped',
+              reason: 'catch-up-none',
+            })
+            const done = items.find(
+              row =>
+                row['kind'] === 'slot' &&
+                (row['job'] as Record<string, unknown> | null)?.['outcome'] === 'succeeded',
+            ) as { job: { job: string } }
+            const shown = succeeded(await tree.cli(['schedule', 'job', '--job', done.job.job]))
+            expect(shown).toMatchObject({
+              schedule,
+              state: 'concluded',
+              work: { kind: 'program', programRef: 'probe' },
+              where: { kind: 'program', program: 'probe' },
+            })
+            const work = join(dirname(tree.home), 'work.json')
+            writeFileSync(work, JSON.stringify({ kind: 'program', programRef: 'probe', input: {} }))
+            const started = succeeded(
+              await tree.cli(['schedule', 'start-job', '--work-file', work, '--start-id', 'd-1']),
+            )
+            expect(started).toMatchObject({ schedule: null, slot: null })
+            const again = succeeded(
+              await tree.cli([
+                'schedule',
+                'start-job',
+                '--work-file',
+                work,
+                '--start-id',
+                'd-1',
+                '--query',
+              ]),
+            )
+            expect(again['job']).toBe(started['job'])
+            const tenant = succeeded(await tree.cli(['schedule', 'jobs']))
+            expect(
+              (tenant['items'] as Record<string, unknown>[]).some(
+                row =>
+                  row['kind'] === 'direct' &&
+                  (row['job'] as Record<string, unknown>)['job'] === started['job'],
+              ),
+            ).toBe(true)
           },
         ],
       )
