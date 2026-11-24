@@ -67,6 +67,127 @@ function isBare(target: EventTarget | null): boolean {
 
 type Pan = Readonly<{ pointer: number; x: number; y: number; view: PaperView; moved: boolean }>
 
+type Looking = Readonly<{
+  shown: PaperView
+  sheet: PaperSheet
+  lens: Lens
+  zoomLimits: ZoomLimits
+  hand: (next: PaperView) => void
+}>
+
+function useSeen(root: React.RefObject<HTMLDivElement | null>): {
+  width: number
+  height: number
+} {
+  const [seen, setSeen] = useState({ width: 0, height: 0 })
+  useLayoutEffect(() => {
+    const element = root.current
+    if (element === null) return undefined
+    const measure = (): void =>
+      setSeen(was =>
+        was.width === element.clientWidth && was.height === element.clientHeight
+          ? was
+          : { width: element.clientWidth, height: element.clientHeight },
+      )
+    measure()
+    if (typeof ResizeObserver !== 'function') return undefined
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [root])
+  return seen
+}
+
+function wheeled(event: WheelEvent, element: Element, now: Looking): PaperView {
+  const [dx, dy] = wheelPixels(event, now.lens.height)
+  if (!event.ctrlKey && !event.metaKey)
+    return panBy(now.shown, { x: -dx, y: -dy }, now.sheet, now.lens, now.zoomLimits)
+  const box = element.getBoundingClientRect()
+  return zoomAround(
+    now.shown,
+    { x: event.clientX - box.left, y: event.clientY - box.top },
+    now.shown.zoom * Math.exp(-dy * (event.ctrlKey ? PINCH_RATE : WHEEL_ZOOM_RATE)),
+    now.sheet,
+    now.lens,
+    now.zoomLimits,
+  )
+}
+
+function useWheel(root: React.RefObject<HTMLDivElement | null>, looking: Looking): void {
+  const latest = useRef(looking)
+  latest.current = looking
+  useEffect(() => {
+    const element = root.current
+    if (element === null) return undefined
+    const onWheel = (event: WheelEvent): void => {
+      const zooming = event.ctrlKey || event.metaKey
+      if (!zooming && !isBare(event.target)) return
+      const now = latest.current
+      const next = wheeled(event, element, now)
+      if (zooming || next.x !== now.shown.x || next.y !== now.shown.y) event.preventDefault()
+      now.hand(next)
+    }
+    element.addEventListener('wheel', onWheel, { passive: false })
+    return () => element.removeEventListener('wheel', onWheel)
+  }, [root])
+}
+
+function keyed(event: React.KeyboardEvent, now: Looking): PaperView | undefined {
+  const direction = PAN_KEYS[event.key]
+  if (direction !== undefined) {
+    const reach = now.sheet.step * (event.shiftKey ? PAN_KEY_STEPS_FAR : PAN_KEY_STEPS)
+    const scale = now.shown.zoom * (now.lens.sizeFactor > 0 ? now.lens.sizeFactor : 1)
+    return panBy(
+      now.shown,
+      { x: -direction[0] * reach * scale, y: -direction[1] * reach * scale },
+      now.sheet,
+      now.lens,
+      now.zoomLimits,
+    )
+  }
+  const zoom = zoomKey(event.key, now.shown.zoom)
+  if (zoom === undefined) return undefined
+  const centre = { x: now.lens.width / 2, y: now.lens.height / 2 }
+  return zoomAround(now.shown, centre, zoom, now.sheet, now.lens, now.zoomLimits)
+}
+
+function usePan(now: Looking): {
+  readonly moving: boolean
+  readonly handlers: Readonly<{
+    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
+    onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void
+    onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void
+    onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => void
+  }>
+} {
+  const [pan, setPan] = useState<Pan | null>(null)
+  const end = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (pan !== null && event.pointerId === pan.pointer) setPan(null)
+  }
+  return {
+    moving: pan?.moved === true,
+    handlers: {
+      onPointerDown: event => {
+        if (event.button !== 0 || !isBare(event.target)) return
+        const { pointerId: pointer, clientX: x, clientY: y } = event
+        setPan({ pointer, x, y, view: now.shown, moved: false })
+      },
+      onPointerMove: event => {
+        if (pan === null || event.pointerId !== pan.pointer) return
+        const by = { x: event.clientX - pan.x, y: event.clientY - pan.y }
+        if (!pan.moved) {
+          if (!pastSlop(by.x, by.y)) return
+          capture(event.currentTarget, event.pointerId)
+          setPan({ ...pan, moved: true })
+        }
+        now.hand(panBy(pan.view, by, now.sheet, now.lens, now.zoomLimits))
+      },
+      onPointerUp: end,
+      onPointerCancel: end,
+    },
+  }
+}
+
 export function PaperSurface({
   sheet,
   view,
@@ -94,112 +215,22 @@ export function PaperSurface({
 }): React.JSX.Element {
   const root = useRef<HTMLDivElement>(null)
   const sizeFactor = useSizeFactor()
-  const [seen, setSeen] = useState({ width: 0, height: 0 })
-  const [pan, setPan] = useState<Pan | null>(null)
-  const lens: Lens = { ...seen, sizeFactor }
+  const lens: Lens = { ...useSeen(root), sizeFactor }
   const shown = clampView(view, sheet, lens, zoomLimits)
-  const latest = useRef({ shown, sheet, lens, zoomLimits, onViewChange })
-  latest.current = { shown, sheet, lens, zoomLimits, onViewChange }
-
-  useLayoutEffect(() => {
-    const element = root.current
-    if (element === null) return undefined
-    const measure = (): void =>
-      setSeen(was =>
-        was.width === element.clientWidth && was.height === element.clientHeight
-          ? was
-          : { width: element.clientWidth, height: element.clientHeight },
-      )
-    measure()
-    if (typeof ResizeObserver !== 'function') return undefined
-    const observer = new ResizeObserver(measure)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    const element = root.current
-    if (element === null) return undefined
-    const onWheel = (event: WheelEvent): void => {
-      if (!isBare(event.target) && !event.ctrlKey && !event.metaKey) return
-      const now = latest.current
-      const box = element.getBoundingClientRect()
-      const [dx, dy] = wheelPixels(event, now.lens.height)
-      const next =
-        event.ctrlKey || event.metaKey
-          ? zoomAround(
-              now.shown,
-              { x: event.clientX - box.left, y: event.clientY - box.top },
-              now.shown.zoom * Math.exp(-dy * (event.ctrlKey ? PINCH_RATE : WHEEL_ZOOM_RATE)),
-              now.sheet,
-              now.lens,
-              now.zoomLimits,
-            )
-          : panBy(now.shown, { x: -dx, y: -dy }, now.sheet, now.lens, now.zoomLimits)
-      if (event.ctrlKey || event.metaKey || next.x !== now.shown.x || next.y !== now.shown.y)
-        event.preventDefault()
-      if (next.x !== now.shown.x || next.y !== now.shown.y || next.zoom !== now.shown.zoom)
-        now.onViewChange(next)
-    }
-    element.addEventListener('wheel', onWheel, { passive: false })
-    return () => element.removeEventListener('wheel', onWheel)
-  }, [])
-
   const hand = (next: PaperView): void => {
     if (next.x !== shown.x || next.y !== shown.y || next.zoom !== shown.zoom) onViewChange(next)
   }
+  const looking: Looking = { shown, sheet, lens, zoomLimits, hand }
+  useWheel(root, looking)
+  const pan = usePan(looking)
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     if (event.target !== event.currentTarget || event.altKey || event.metaKey || event.ctrlKey)
       return
-    const direction = PAN_KEYS[event.key]
-    if (direction !== undefined) {
-      event.preventDefault()
-      const reach = sheet.step * (event.shiftKey ? PAN_KEY_STEPS_FAR : PAN_KEY_STEPS)
-      const scale = shown.zoom * (sizeFactor > 0 ? sizeFactor : 1)
-      hand(
-        panBy(
-          shown,
-          { x: -direction[0] * reach * scale, y: -direction[1] * reach * scale },
-          sheet,
-          lens,
-          zoomLimits,
-        ),
-      )
-      return
-    }
-    const zoom = zoomKey(event.key, shown.zoom)
-    if (zoom === undefined) return
+    const next = keyed(event, looking)
+    if (next === undefined) return
     event.preventDefault()
-    hand(
-      zoomAround(shown, { x: seen.width / 2, y: seen.height / 2 }, zoom, sheet, lens, zoomLimits),
-    )
-  }
-
-  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
-    if (event.button !== 0 || !isBare(event.target)) return
-    setPan({
-      pointer: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      view: shown,
-      moved: false,
-    })
-  }
-
-  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>): void => {
-    if (pan === null || event.pointerId !== pan.pointer) return
-    const by = { x: event.clientX - pan.x, y: event.clientY - pan.y }
-    if (!pan.moved) {
-      if (!pastSlop(by.x, by.y)) return
-      capture(event.currentTarget, event.pointerId)
-      setPan({ ...pan, moved: true })
-    }
-    hand(panBy(pan.view, by, sheet, lens, zoomLimits))
-  }
-
-  const onPointerEnd = (event: React.PointerEvent<HTMLDivElement>): void => {
-    if (pan !== null && event.pointerId === pan.pointer) setPan(null)
+    hand(next)
   }
 
   return (
@@ -211,13 +242,10 @@ export function PaperSurface({
       aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight = - 0"
       tabIndex={0}
       data-control="paper"
-      data-gesture={pan?.moved === true ? 'pan' : undefined}
+      data-gesture={pan.moving ? 'pan' : undefined}
       className={cn('omne-paper-surface', className)}
       onKeyDown={onKeyDown}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerEnd}
-      onPointerCancel={onPointerEnd}
+      {...pan.handlers}
     >
       <div
         className="omne-paper-lens"
