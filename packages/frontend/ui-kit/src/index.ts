@@ -200,3 +200,14 @@ export { FigureStage } from './ink/figure-stage.tsx'
 export { FIGURE_SIZE } from './ink/store.ts'
 export { ToldNote, type Told } from './ink/told-note.tsx'
 export { type Box } from './ink/travel.ts'
+export {
+  type PaperBox,
+  type PaperSheet,
+  type PaperView,
+  type SizeLimits,
+  type ZoomLimits,
+} from './paper/geometry.ts'
+export { type PaperGesture, type PlaceBox } from './paper/carry.ts'
+export { PaperPage } from './paper/paper-page.tsx'
+export { PaperPile, type PileLeaf } from './paper/paper-pile.tsx'
+export { PaperSurface } from './paper/paper-surface.tsx'
