@@ -44,6 +44,7 @@ import { createAgentHostRow } from './rows/agent-host/index.ts'
 import { createModelHostRow } from './rows/model-host/index.ts'
 import { createModelRecordsRow } from './rows/model-records/index.ts'
 import { createToolRecordsRow } from './rows/tool-runtime/index.ts'
+import { refusedInstance, type Instance } from './state-instance.ts'
 import { acquireStateLock, lostContactBy, type StateLock } from './state-lock.ts'
 import { prepareStartupDirectory } from './startup-directory.ts'
 import { createTrust, type Trust } from './trust.ts'
@@ -415,6 +416,8 @@ export type RunServeOptions = Readonly<{
   hostScreen?: Parameters<typeof createExecutionHostBinding>[1]
   /** The one time of this run; absent: the system time. The release entry gives none. */
   time?: EntryTime
+  /** Which kind of instance starts: a lab one only on a state root it made, a release one never there. */
+  instance?: Instance
 }>
 
 export type ServeResult = Readonly<{
@@ -491,6 +494,18 @@ function stopRequest(signal: AbortSignal): { promise: Promise<string>; cancel: (
 }
 
 export async function runServe(options: RunServeOptions): Promise<ServeResult> {
+  const wrongInstance = refusedInstance(options.stateRoot, options.instance ?? 'release')
+  if (wrongInstance !== undefined) {
+    options.stderr(`${SERVE_PREFIX}: ${wrongInstance}`)
+    return {
+      exitCode: 3,
+      accepting: false,
+      barrierCalls: 0,
+      startedRows: [],
+      appliedRows: [],
+      implementations: { real: 0, 'contract-double': 0, 's0-double': 0 },
+    }
+  }
   const hostFiles = createHostFilesRuntime({
     diagnose: diagnostic => options.stderr(`${SERVE_PREFIX}: ${diagnostic.kind}`),
   })
