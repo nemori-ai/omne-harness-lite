@@ -37,6 +37,7 @@ import {
   SessionAdoptedRequestsService,
   SessionExecutionLogService,
   sessionAccessCheckKey,
+  sessionKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import {
   EXECUTION_RECORD_HANDLERS,
@@ -59,6 +60,7 @@ import { readerOf } from './journal-read.ts'
 import { resolveDomain } from './journal-state.ts'
 import { announcePublished } from './published-queue.ts'
 import { createSqlCompactionInputs } from './compaction-inputs-sql.ts'
+import { readGuidanceHistory } from './guidance-history.ts'
 import { createModelReminders } from './model-reminders.ts'
 import type { StepDirectory } from './working-directory-step.ts'
 import type { DescriptorCatalog } from '@omne-harness/runtime-context-contract'
@@ -667,6 +669,17 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
         ? {}
         : {
             reminders: createModelReminders<unknown>({
+              history: async ({ principal, tenant, session }) => {
+                const history = ctx
+                  .intercept(sessionKey, { caller: 'reader' })
+                  .get(sessionKey, false)?.history
+                if (history === undefined || session === undefined)
+                  return fail({
+                    kind: 'unavailable',
+                    diagnostic: 'the Session model history reader is unavailable',
+                  })
+                return readGuidanceHistory(history, { principal, tenant, session })
+              },
               eligibility: {
                 current: request => ctx[runtimeContextReaderEligibilityKey].current(request),
               },

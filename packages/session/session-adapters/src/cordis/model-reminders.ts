@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto'
-import type { BlockId } from '@omne-harness/content-block'
+import { guidanceBlocks } from './guidance-window.ts'
+import { workspaceGuidanceSchema, workspaceGuidanceDescriptor } from '../workspace-guidance.ts'
+import type { GuidanceHistory } from './guidance-history.ts'
+import type { ModelViewBasis, SessionId } from '@omne-harness/session-contract'
+import type { BlockId, TextContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { MessageId, SystemReminderMessage } from '@omne-harness/message'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -28,6 +32,7 @@ export type ModelReminderFailure =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 export type PreparedReminders = Readonly<{
+  modelView?: ModelViewBasis
   messages: readonly SystemReminderMessage[]
   /** The view revision the reminder tells; it names the source of the reminder commit. */
   viewRevision: string
@@ -36,6 +41,7 @@ export type PreparedReminders = Readonly<{
 }>
 
 export type ModelReminderInput<P> = Readonly<{
+  session?: SessionId
   principal: P
   tenant: TenantId
   scope: ScopeRef
@@ -53,6 +59,7 @@ export type ModelReminderPorts<P> = Readonly<{
   eligibility: ReaderEligibilityHandoff<P>
   runtimeContext: ReaderOperations
   descriptors: DescriptorCatalog
+  history?(input: ModelReminderInput<P>): Promise<Answer<GuidanceHistory>>
 }>
 
 type Told = Readonly<{ eligibility: EligibilityId; reader: ContextReader; snapshot: Snapshot }>
@@ -78,15 +85,24 @@ function failureOf(read: Refusal): Answer<never> {
   }
 }
 
-function reminder(seed: readonly unknown[], text: string): SystemReminderMessage {
+function reminderMessages(
+  seed: readonly unknown[],
+  text: string | null,
+  guidance: readonly TextContentBlock[],
+): readonly SystemReminderMessage[] {
   const id = createHash('sha256')
-    .update(JSON.stringify([...seed, text]))
+    .update(JSON.stringify([...seed, text, ...guidance.map(block => block.id)]))
     .digest('base64url')
-  return {
-    id: `msg_${id}` as MessageId,
-    role: 'system_reminder',
-    blocks: [{ kind: 'text', id: `blk_${id}` as BlockId, visibility: VISIBLE, text }],
-  }
+  const [first, ...rest] =
+    text === null
+      ? guidance
+      : [
+          { kind: 'text' as const, id: `blk_${id}` as BlockId, visibility: VISIBLE, text },
+          ...guidance,
+        ]
+  return first === undefined
+    ? []
+    : [{ id: `msg_${id}` as MessageId, role: 'system_reminder', blocks: [first, ...rest] }]
 }
 
 function applied(previous: Snapshot, changes: Changes): Snapshot {
@@ -167,14 +183,36 @@ export function createModelReminders<P>(ports: ModelReminderPorts<P>): ModelRemi
         if ('failure' in bound) return bound
         reader = bound.ok
       }
-      const prepared = (snapshot: Snapshot, text: string | null): PreparedReminders => ({
-        messages:
-          text === null
-            ? []
-            : [reminder([input.tenant, input.scope.ref, input.at, snapshot.viewRevision], text)],
-        viewRevision: String(snapshot.viewRevision),
-        advance: () => told.set(key, { eligibility: eligibility.ok, reader, snapshot }),
-      })
+      const prepared = async (
+        snapshot: Snapshot,
+        text: string | null,
+      ): Promise<Answer<PreparedReminders>> => {
+        const state = snapshot.blocks.find(
+          block => block.key === workspaceGuidanceDescriptor.key,
+        )?.state
+        let guidance: readonly TextContentBlock[] = []
+        let modelView: ModelViewBasis | undefined
+        if (state?.kind === 'value') {
+          const scope = workspaceGuidanceSchema.safeParse(state.value)
+          if (!scope.success) return down('invalid workspace guidance value')
+          const history = await ports.history?.(input)
+          if (history === undefined)
+            return down('the current model view for workspace guidance is unavailable')
+          if ('failure' in history) return history
+          modelView = history.ok.basis
+          guidance = guidanceBlocks(scope.data, history.ok.messages, key)
+        }
+        return succeed({
+          ...(modelView === undefined ? {} : { modelView }),
+          messages: reminderMessages(
+            [input.tenant, input.scope.ref, input.at, snapshot.viewRevision],
+            text,
+            guidance,
+          ),
+          viewRevision: String(snapshot.viewRevision),
+          advance: () => told.set(key, { eligibility: eligibility.ok, reader, snapshot }),
+        })
+      }
       if (previous !== undefined) {
         const changes = await reader.changes(previous.snapshot.cursor)
         if (changes.kind === 'success') {
@@ -185,10 +223,11 @@ export function createModelReminders<P>(ports: ModelReminderPorts<P>): ModelRemi
             next: changes.value,
             descriptors: ports.descriptors,
           })
-          return succeed(
-            prepared(
-              applied(previous.snapshot, changes.value),
-              renderChangeReminder(changes.value.entries, materials),
+          return prepared(
+            applied(previous.snapshot, changes.value),
+            renderChangeReminder(
+              changes.value.entries,
+              materials.filter(item => item.key !== workspaceGuidanceDescriptor.key),
             ),
           )
         }
@@ -198,7 +237,12 @@ export function createModelReminders<P>(ports: ModelReminderPorts<P>): ModelRemi
       if (snapshot.kind !== 'success') return failureOf(snapshot)
       if (snapshot.value.missing.length > 0)
         return failureOf({ kind: 'missing', items: snapshot.value.missing })
-      return succeed(prepared(snapshot.value, renderSnapshotReminder(snapshot.value.blocks)))
+      return prepared(
+        snapshot.value,
+        renderSnapshotReminder(
+          snapshot.value.blocks.filter(item => item.key !== workspaceGuidanceDescriptor.key),
+        ),
+      )
     },
     forget(input) {
       const key = keyOf(input.tenant, input.scope)

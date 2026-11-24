@@ -78,7 +78,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       domain,
       combination: ports.combination,
       operation: command.input.operation,
-      recall: 'never',
+      recall: undefined,
       commands: sessionCommitCommands([sessionCommandFacts(command, [])]),
       generations: ports.generations,
     })
@@ -138,6 +138,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
     const scope = openContextScope({ tenant: book.tenant, session: book.session, snapshot })
     if (scope === null) return down('the session has no open context scope')
     const prepared = await reminders.prepare({
+      session: book.session,
       principal,
       tenant: book.tenant,
       scope,

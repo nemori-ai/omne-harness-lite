@@ -481,6 +481,7 @@ describe('the step commit a boundary writes', () => {
           ? command.input.declaration.basis.digest
           : '',
     })
+    expect(command.input.expected).toBe(revisionOf(7))
     expect(command.input.operation).toBe(operation)
     const { declaration } = command.input
     if (declaration.kind !== 'context-step-commit') throw new Error(declaration.kind)

@@ -73,6 +73,7 @@ export function workingDirectoryCommand(
       tenant: input.tenant,
       session: input.session,
       operation,
+      expected: input.at,
       declaration: {
         kind: 'context-step-commit',
         basis: {

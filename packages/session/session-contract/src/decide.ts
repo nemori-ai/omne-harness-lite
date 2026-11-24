@@ -533,7 +533,9 @@ function decideDeclarationChange(
   command: Extract<SessionCommand, { kind: 'change' }>,
   reads: DecideReads,
 ): Decision {
-  const { declaration } = command.input
+  const { declaration, expected } = command.input
+  if (expected !== undefined && expected !== snapshot.revision)
+    return rejected({ kind: 'changed', revision: snapshot.revision })
   if (declaration.kind === 'permission-assignment')
     return decidePermissionAssignment({
       snapshot,

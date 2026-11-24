@@ -142,3 +142,38 @@ it(
     )
   },
 )
+
+it(
+  'C3 sibling writes share one parent body and later visits do not repeat it',
+  { tags: ['slow'], timeout: 360_000 },
+  async () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'guidance-parallel-')))
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }))
+    for (const leaf of ['pay', 'docs', 'next'])
+      mkdirSync(join(root, 'src', leaf), { recursive: true })
+    writeFileSync(join(root, 'AGENTS.md'), 'ROOT_55917')
+    writeFileSync(join(root, 'src', 'AGENTS.md'), 'SHARED_62585')
+    for (const leaf of ['pay', 'docs', 'next'])
+      writeFileSync(join(root, 'src', leaf, 'AGENTS.md'), 'GUIDE_' + leaf)
+    const requests: string[] = []
+    const script = toolCallsByRequest(body => {
+      requests.push(body)
+      const leaves = requests.length === 1 ? ['docs', 'pay'] : requests.length === 2 ? ['next'] : []
+      return leaves.map(leaf => ({
+        id: 'call_' + leaf,
+        tool: 'Files',
+        arguments: JSON.stringify({
+          command: 'write',
+          intent: 'write note',
+          params: { path: 'src/' + leaf + '/note.txt', text: 'ok', mode: 'create' },
+        }),
+      }))
+    })
+    await onReleaseTree({ script, permission: 'bypass-permissions' }, async tree => {
+      await run(tree, await sessionIn(tree, root))
+      expect(requests).toHaveLength(3)
+      for (const marker of ['ROOT_55917', 'SHARED_62585', 'GUIDE_pay', 'GUIDE_docs', 'GUIDE_next'])
+        expect(requests[2]!.split(marker).length - 1, marker).toBe(1)
+    })
+  },
+)
