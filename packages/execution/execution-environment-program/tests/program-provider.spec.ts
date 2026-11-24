@@ -96,12 +96,20 @@ it('starts the thread from the worker file it is given', async () => {
 it('fails a call to a name that is not an entry, and does not hand it out', async () => {
   const { facility } = await leased(createProgramProvider())
   let handed = 0
-  const source =
-    'try { await globalThis.__call("Nope", {}) } catch (error) { return error.message }'
+  const source = `const said = []
+let deep = 1
+for (let depth = 0; depth < 300; depth++) deep = [deep]
+for (const call of [["Nope", {}], [5, {}], ["Wait", deep]])
+  try { await globalThis.__call(...call) } catch (error) { said.push(error.message) }
+return said`
   const run = await started(facility.run({ ...program(source), onCall: () => void handed++ }))
-  expect(await run.outcome).toMatchObject({
-    kind: 'returned',
-    value: { kind: 'string', value: 'Nope cannot be called so' },
+  const outcome = await run.outcome
+  expect(outcome.kind === 'returned' && outcome.value).toMatchObject({
+    items: [
+      { value: 'Nope cannot be called so' },
+      { value: '5 cannot be called so' },
+      { value: 'Wait cannot be called so' },
+    ],
   })
   expect(handed).toBe(0)
 })
@@ -136,6 +144,10 @@ it('bounds the domains that exist at once and frees a place when a thread has ex
   expect(await third.outcome).toMatchObject({ kind: 'exceeded', limit: 'compute-time' })
   const fourth = await started(facility.run(program('return 4')))
   expect(await fourth.outcome).toMatchObject({ kind: 'returned' })
+  const fifth = await started(facility.run(program(waiting)))
+  expect(await facility.run(program(waiting))).toMatchObject({ reason: 'capacity' })
+  fifth.abort()
+  await fifth.outcome
   runs[1]?.abort()
   await runs[1]?.outcome
 })

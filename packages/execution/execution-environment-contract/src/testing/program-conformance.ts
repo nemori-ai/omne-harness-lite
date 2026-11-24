@@ -337,10 +337,10 @@ async function checkFailures(s: ProgramConformanceSubject): Promise<void> {
     ],
     ['ToolError', denied.message, 3],
   )
-  const stranger = await execute(s, source.replace('error.name,', 'error.constructor.name,'), {
+  const stranger = await execute(s, source.replace('error.name,', 'Object.keys(error).join(),'), {
     answer: () => ({ ...denied, name: 'Stranger' }),
   })
-  assert.deepEqual(returned(stranger.outcome), [false, true, 'Error', 'denied', denied.message])
+  assert.deepEqual(returned(stranger.outcome), [false, true, 'kind', 'denied', denied.message])
 }
 
 async function checkThrownLines(s: ProgramConformanceSubject): Promise<void> {

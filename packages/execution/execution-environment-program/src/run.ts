@@ -62,11 +62,7 @@ function namesAreValid(request: Request): boolean {
   for (const name of request.entries) {
     const [root = '', member] = name.split('.')
     const shape = member === undefined ? 'function' : 'object'
-    if (
-      !isProgramEntry(name) ||
-      (roots.has(root) && (shape === 'function' || roots.get(root) !== shape))
-    )
-      return false
+    if (!isProgramEntry(name) || (roots.has(root) && roots.get(root) !== shape)) return false
     roots.set(root, shape)
   }
   return (
@@ -236,12 +232,13 @@ function openDomain(request: Request, ready: Ready, engine: ProgramEngine): Doma
     },
   })
   const outcome = handle.result.then(async result => {
+    const why = cause
     clock.pause()
     started(false)
     await sandbox.close()
     if (exited === null) engine.domains.active--
     await exited
-    return outcomeOf(result, cause, ready.head, limits)
+    return outcomeOf(result, why, ready.head, limits)
   })
   const run: ProgramRun = {
     outcome,
