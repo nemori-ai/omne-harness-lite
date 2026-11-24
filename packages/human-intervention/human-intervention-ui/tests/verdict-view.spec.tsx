@@ -292,14 +292,14 @@ describe('种类行行尾的相对时间', () => {
     expect(time.closest('.hitl-kind-trail')).not.toBeNull()
   })
 
-  it('writes nothing when the card has no time; with more than one section n / m stands before the time', async () => {
+  it('writes nothing when the card has no time; with more than one section the dots say which one, so no n / m', async () => {
     await listed([questionItem()])
     expect(document.querySelector('.hitl-kind time')).toBeNull()
     expect(document.querySelector('.hitl-kind-trail')).toBeNull()
     cleanup()
     await listed([asked(questionItem('a'), 2), questionItem('b')])
     const trails = [...document.querySelectorAll('.hitl-kind-trail')]
-    expect(trails.map(trail => trail.textContent)).toEqual(['1 / 22 分钟前', '2 / 2'])
+    expect(trails.map(trail => trail.textContent)).toEqual(['2 分钟前'])
     expect(trails[0]?.lastElementChild?.tagName).toBe('TIME')
   })
 })

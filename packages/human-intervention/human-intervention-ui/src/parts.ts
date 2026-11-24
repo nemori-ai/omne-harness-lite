@@ -29,9 +29,18 @@ export const humanInterventionSessionCards = definePart({
 export const humanInterventionPaper = definePart({
   name: 'human-intervention.paper',
   label: '一张纸',
-  summary: '一组卡叠成的一张纸',
+  summary: '一组卡的一张纸，一次摆一张',
   depths: ['tokens', 'style'],
   when: '有卡时',
+})
+
+export const humanInterventionPaperPager = definePart({
+  name: 'human-intervention.paper.pager',
+  label: '翻题的圆点',
+  summary: '纸顶一排圆点，每张卡一个，与上一题、下一题',
+  within: 'human-intervention.paper',
+  depths: ['tokens', 'style'],
+  when: '纸上不止一张卡时',
 })
 
 export const humanInterventionPaperCard = definePart({
@@ -102,6 +111,7 @@ export const humanInterventionParts = [
   humanInterventionPageGroup,
   humanInterventionSessionCards,
   humanInterventionPaper,
+  humanInterventionPaperPager,
   humanInterventionPaperCard,
   humanInterventionPaperCardTitle,
   humanInterventionPaperCardDetail,

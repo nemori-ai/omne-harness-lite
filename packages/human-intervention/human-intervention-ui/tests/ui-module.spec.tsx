@@ -53,7 +53,7 @@ it('U1 协议客户端在：放「待你决定」一页，次序 10，带张数�
   expect(shell.items('gate')).toEqual([])
 })
 
-it('U1b 模块声明它的十一个部位，协议客户端在不在都一样', async () => {
+it('U1b 模块声明它的十二个部位，协议客户端在不在都一样', async () => {
   const { root, shell } = await startShell()
   await root.plugin(createHumanInterventionUiModule())
   const read = partsOn(shell.registry())
@@ -69,6 +69,7 @@ it('U1b 模块声明它的十一个部位，协议客户端在不在都一样', 
     ['human-intervention.paper.foot', 'human-intervention.paper'],
     ['human-intervention.paper.foot.actions', 'human-intervention.paper.foot'],
     ['human-intervention.paper.foot.submit', 'human-intervention.paper.foot'],
+    ['human-intervention.paper.pager', 'human-intervention.paper'],
     ['human-intervention.session-cards', 'session.transcript'],
   ])
 })
