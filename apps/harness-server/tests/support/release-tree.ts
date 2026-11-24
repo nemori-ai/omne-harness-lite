@@ -536,6 +536,27 @@ export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
     .sort((left, right) => Number(left.entry?.ordinal ?? 0) - Number(right.entry?.ordinal ?? 0))
 }
 
+// The spelling `encodeToolInvocationRef` gives; a wrong one is refused like any unknown reference.
+const TOOL_REFERENCE_VERSION = 2
+
+/** The references of the calls of one tool, as a client names them: the call and its admission. */
+export function toolCallReferences(storageRoot: string, tool: string): readonly string[] {
+  return ledgerRows(storageRoot).flatMap(row => {
+    const record = row.record as {
+      kind: string
+      call?: {
+        call: string
+        admission: string
+        request: { availability: { definition?: { name: string } } }
+      }
+    }
+    const call = record.kind === 'call' ? record.call : undefined
+    return call !== undefined && call.request.availability.definition?.name === tool
+      ? [JSON.stringify(['tool-invocation', TOOL_REFERENCE_VERSION, call.call, call.admission])]
+      : []
+  })
+}
+
 export type ToolCallFacts = Readonly<{
   arguments: string
   starts: number

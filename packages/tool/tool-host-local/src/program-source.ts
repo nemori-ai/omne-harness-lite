@@ -99,6 +99,7 @@ export const positionTargetOf = (request: FixedToolRequest): PositionTarget => (
     command: request.command,
     arguments: request.arguments.effective,
   }),
+  preview: request.label.preview,
 })
 
 function sourceOf(

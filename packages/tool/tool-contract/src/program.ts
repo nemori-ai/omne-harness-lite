@@ -15,7 +15,12 @@ import type { ToolInvokeOutcome } from './operations.ts'
 import type { Effect, Reply, ToolTerminal } from './results.ts'
 
 /** What one position of a program calls. `digest` names the definition, the command and the arguments. */
-export type PositionTarget = Readonly<{ name: string; command: string | null; digest: string }>
+export type PositionTarget = Readonly<{
+  name: string
+  command: string | null
+  digest: string
+  preview?: string
+}>
 
 export type PositionExclusion = Readonly<{
   kind: 'denied' | 'not-accepted' | 'unavailable' | 'closed'

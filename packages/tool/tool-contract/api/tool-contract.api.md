@@ -3353,6 +3353,7 @@ export type PositionTarget = Readonly<{
     name: string;
     command: string | null;
     digest: string;
+    preview?: string;
 }>;
 export type PositionExclusion = Readonly<{
     kind: 'denied' | 'not-accepted' | 'unavailable' | 'closed';

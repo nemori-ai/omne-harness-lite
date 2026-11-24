@@ -31,7 +31,7 @@ Commands
   omne change-permission-mode --session <id> --mode <mode> --expected-revision <n>                                        Change the permission mode of a session (never, auto_permission or bypass-permissions) at the revision read.
   omne list-sessions [--relation <kind>] [--parent <id>] [--attendance <who>] [--definition <name>]                       List the sessions that are not archived, each with its relation (main, child or handoff) and who attends it (attended or unattended).
   omne list-archived-sessions [--since <instant>] [--before <instant>] [--by person|auto|parent] [--title <text>]         List the archived sessions, the latest archived first. It takes the filters of list-sessions too.
-  omne calls list|show|output|stop|background                                                                             List the background tool calls of a session, read one, or stop or background it.
+  omne calls list|show|output|children|stop|background                                                                    List the background tool calls of a session, read one or the calls under it, or stop or background it.
   omne list-cards                                                                                                         List the cards that wait for a person.
   omne read-card --request <id> --card <id>                                                                               Read one card.
   omne submit-reply --request <id> --card <id> --revision <name>                                                          Reply to a card with an option, a text or a decline.

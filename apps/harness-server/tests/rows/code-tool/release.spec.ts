@@ -4,10 +4,12 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { expect, it } from 'vitest'
 import { ONCE, answerCard, pendingCard, setShell } from '../authorization/release-flow-support.ts'
+import { savedLoginProof, savedTenant } from '../../r9/support.ts'
 import {
   historyOf,
   onReleaseTree,
   pollUntil,
+  toolCallReferences,
   toolCalls,
   toolCallsByRequest,
   toolResults,
@@ -105,6 +107,40 @@ async function ran(tree: ReleaseTree, label: string) {
   return ended(tree, await tree.startSession(`start: code ${label}`), label)
 }
 
+type Child = Readonly<{
+  ordinal: number
+  tool: string
+  command: string | null
+  preview: string
+  state: string
+  child: string | null
+}>
+
+/** What `tool/v1` answers for the positions under one call. */
+async function childrenOf(tree: ReleaseTree, reference: string) {
+  const response = await fetch(
+    `http://127.0.0.1:${String(tree.port)}/api/tool/v1/list-call-children`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${savedLoginProof(tree.home)}`,
+        'omne-message-id': `m-${Math.random().toString(36).slice(2)}`,
+        'omne-contract-revision': '2',
+      },
+      body: JSON.stringify({ tenant: savedTenant(tree.home), reference, cursor: null }),
+    },
+  )
+  const json = (await response.json()) as { outcome: string; body?: { items?: Child[] } }
+  return { outcome: json.outcome, items: json.body?.items ?? [] }
+}
+
+const codeReference = (tree: ReleaseTree): string => {
+  const [reference] = toolCallReferences(tree.storageRoot, 'Code')
+  if (reference === undefined) throw new Error('no call of Code in the ledger')
+  return reference
+}
+
 const callsOf = (tree: ReleaseTree, tool: string) =>
   toolCalls(tree.storageRoot).filter(row => row.tool === tool)
 
@@ -181,6 +217,10 @@ it('HS-52 a tool set to deny is refused inside a program, with no card and no ca
       expect(result).toContain('"effect":"none"')
       expect(callsOf(tree, 'Shell')).toHaveLength(0)
       expect(await tree.cards({ sessionRef: session })).toHaveLength(0)
+      const listed = await childrenOf(tree, codeReference(tree))
+      expect(listed.items).toMatchObject([
+        { ordinal: 1, tool: 'Shell', command: 'execute', state: 'denied' },
+      ])
     },
   )
   expect(exit).toBe(0)
@@ -199,6 +239,26 @@ it('one position that waits for a person does not hold another: the other call e
         rows => rows.length === 1,
       )
       expect(callsOf(tree, 'Shell')).toHaveLength(0)
+      const reference = codeReference(tree)
+      const waiting = await pollUntil(
+        'the position of the read to show its end',
+        () => childrenOf(tree, reference),
+        listed => listed.items[1]?.state === 'completed',
+      )
+      expect(waiting).toMatchObject({
+        outcome: 'succeeded',
+        items: [
+          { ordinal: 1, tool: 'Shell', command: 'execute', state: 'waiting', child: null },
+          { ordinal: 2, tool: 'Files', command: 'read', state: 'completed' },
+        ],
+      })
+      expect(waiting.items[0]?.preview).toContain('echo held-done')
+      const read = waiting.items[1]?.child ?? ''
+      expect(await childrenOf(tree, read)).toEqual({ outcome: 'succeeded', items: [] })
+      expect(await childrenOf(tree, reference.replace(/"[^"]*"\]$/u, '"op-never"]'))).toEqual({
+        outcome: 'denied',
+        items: [],
+      })
       // Longer than the computing limit: waiting for a person is not computing.
       await new Promise(resolve => setTimeout(resolve, 2500))
       expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toHaveLength(1)
@@ -207,6 +267,14 @@ it('one position that waits for a person does not hold another: the other call e
       expect(result).toContain('"held":"held-done"')
       expect(result).toContain('"read":"read while waiting"')
       expect(callsOf(tree, 'Shell')).toHaveLength(1)
+      const after = await childrenOf(tree, reference)
+      expect(after.items.map(item => item.state)).toEqual(['completed', 'completed'])
+      const [shell] = toolCallReferences(tree.storageRoot, 'Shell')
+      expect(after.items[0]?.child).toBe(shell)
+      const cli = await tree.cli(['calls', 'children', '--call', reference])
+      expect(cli.status, cli.stderr).toBe(0)
+      expect(cli.stdout).toMatch(/^1 {2}completed {2}Shell execute · .*echo held-done/u)
+      expect(cli.stdout).toMatch(/\n2 {2}completed {2}Files read · /u)
     },
   )
   expect(exit).toBe(0)
