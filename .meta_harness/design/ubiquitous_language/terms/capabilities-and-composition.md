@@ -539,10 +539,32 @@
 > Skins are a category of their own among the assets. They are not listed with the plugins.
 
 - **形态**：变体（父：[插件](#ul-plugin--插件--plugin)）
-- **出处**：[桌面应用：皮肤](../../product/desktop-application/design.md#皮肤)（rev 9）
+- **出处**：[桌面应用：皮肤](../../product/desktop-application/design.md#皮肤)（rev 10）
 - **别混 ①**：不是主题。主题是浅色、深色、跟随系统三选一，由应用自带；皮肤是持有的资产，一套皮肤自己要顾到浅色与深色
 - **别混 ②**：启用不等于在用。启用是这一套装着、可以用；界面此刻用哪一套是人在这台设备上的[观感偏好](interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference)
 - **别混 ③**：一份只改几处样子的普通 plugin 不是皮肤：它没有在清单里写明，不进皮肤这一类，也不受「至多用一套」的约束
+
+### UL-canvas-app · 画布小应用 · Canvas App
+
+> **中**：**agent 做的、只管画的一段界面：它是一份 [plugin](#ul-plugin--插件--plugin) 的一个成员，按名字被摆上[画布](interaction-and-dispatch.md#ul-canvas--画布--canvas)。**
+> [画布项](interaction-and-dispatch.md#ul-canvas-item--画布项--canvas-item)按名字指着它。它只能用 plugin 交给界面代码的那些能力，没有自己去取数据的办法；它要显示的内容，在 agent 做它的时候写进去。
+> agent 改了它再发布，画布上那一项换成新的样子，位置不变。发布它的 plugin 被禁用或移除时，那一项写着「这个小应用现在不在」，画布项留着。
+> 两份 plugin 带了同名的画布小应用时，这个名字画不出来。
+>
+> **EN**: **A piece of interface that the agent makes and that only draws. It is one member of a
+> plugin, and it is placed on a canvas by its name.** A canvas item points to it by name. It can
+> use only the abilities that a plugin gives to interface code, and it has no way to fetch data
+> itself. The agent writes the content that it shows when the agent makes it. When the agent
+> changes it and publishes it again, the canvas item shows the new look in the same position. When
+> the plugin that published it is disabled or removed, the canvas item stays and says that the app
+> is not there now. When two plugins bring a canvas app with the same name, that name cannot be
+> drawn.
+
+- **形态**：属性
+- **出处**：[画布「画布小应用」](../../product/canvas/design.md#画布小应用) · [「能摆什么」](../../product/canvas/design.md#能摆什么)（rev 1）
+- **别混 ①**：不是[皮肤](#ul-skin--皮肤--skin)。皮肤换整个界面的样子；画布小应用只画画布上的一项。
+- **别混 ②**：画布项指着的是画布小应用的名字，不是发布它的那份 plugin。
+- **注意**：人不直接做画布小应用，人要一个就对 agent 说。画布小应用这一类由画布自己声明[可画布渲染](reach-and-availability.md#ul-canvas-renderable--可画布渲染--canvas-renderable)。
 
 ### UL-agent-definition · Agent 定义 · Agent Definition
 
@@ -695,7 +717,7 @@
 > no asset summary and the interface shows only the name of the asset.
 
 - **形态**：属性
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 9）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 10）
 - **别混**：不是类别的显示声明：那是一类资产的名字与说明，这一条说的是一份资产的一个版本。不是[包的清单](#ul-package-manifest--包的清单--package-manifest)：清单列文件，简介是给人看的摘要
 
 ### UL-asset-upload · 资产上传 · Asset Upload
@@ -714,7 +736,7 @@
 > sending the files again; no published fact is lost.
 
 - **形态**：对象
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 9） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 10） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
 - **别混**：不是[资产版本](#ul-asset-version--资产版本--asset-version)，也不是草稿：它没有版本线，不能被持有或选用。不是发布流程内部的暂存：那是发布自己换入之前的落脚处
 
 ### UL-skill-package · Skill 包 · Skill Package

@@ -42,17 +42,18 @@ function backendOf(
   }
 }
 
-/** Overlays that record what they were asked; `gone` stands for one closed from outside. */
+/** Overlays that record what they were asked; `gone` stands for the overlay on one screen going away from outside. */
 function overlaysOf(log: Log) {
-  let gone: () => void = () => undefined
+  let gone: (screen: string) => void = () => undefined
   const overlays: DeviceScreenDeps['overlays'] = {
-    open: (screens, whenGone) => {
-      log.push(`open ${screens.map(each => each.id).join(',')}`)
+    open: (screens, capture, whenGone) => {
+      log.push(`open ${screens.map(each => each.id).join(',')} #${String(capture)}`)
       gone = whenGone
     },
+    lock: screen => void log.push(`lock ${screen}`),
     close: () => void log.push('close'),
   }
-  return { overlays, gone: () => gone() }
+  return { overlays, gone: (screen: string) => gone(screen) }
 }
 
 function depsOf(log: Log, overrides: Partial<DeviceScreenDeps> = {}): DeviceScreenDeps {
@@ -80,12 +81,15 @@ const call = (
     }),
   )
 
-/** Starts a capture and waits until the overlays are open; the answer comes once the person chose. */
-async function choosing(route: ReturnType<typeof deviceScreenRoute>, log: Log) {
+/** Starts a capture and waits until its overlays are open; the answer comes once the person chose. */
+async function choosing(route: ReturnType<typeof deviceScreenRoute>, log: Log, capture = 1) {
   const answer = call(route, 'POST', '/device/screen')
-  await vi.waitFor(() => expect(log.some(line => line.startsWith('open'))).toBe(true))
+  await vi.waitFor(() => expect(log).toContain(`open main,side #${String(capture)}`))
   return { answer }
 }
+
+/** The query an overlay page sends with every request: its screen and the capture that opened it. */
+const of = (screen: string, capture = 1) => `?screen=${screen}&capture=${String(capture)}`
 
 describe('the device screen route', () => {
   it('leaves every path outside /device/ to the forwarding', () => {
@@ -110,7 +114,7 @@ describe('the device screen route', () => {
     })
   })
 
-  it('gets out of the way, freezes every screen, opens an overlay on each and answers the picture the person chose', async () => {
+  it('gets out of the way, freezes every screen, opens a numbered overlay on each and answers the picture the person chose', async () => {
     const log: Log = []
     const route = deviceScreenRoute(depsOf(log))
     const { answer } = await choosing(route, log)
@@ -119,12 +123,16 @@ describe('the device screen route', () => {
       'list',
       'capture main null',
       'capture side null',
-      'open main,side',
+      'open main,side #1',
     ])
-    const frame = await call(route, 'GET', '/device/screen/frame?screen=side')
+    const frame = await call(route, 'GET', `/device/screen/frame${of('side')}`)
     expect(frame?.headers.get('content-type')).toBe('image/png')
     expect(new Uint8Array(await frame!.arrayBuffer())).toEqual(new Uint8Array([...PNG, 4]))
-    expect((await call(route, 'POST', '/device/screen/choice', CHOSEN))?.status).toBe(204)
+    expect((await call(route, 'POST', `/device/screen/active${of('main')}`))?.status).toBe(204)
+    expect(log.at(-1)).toBe('lock main')
+    expect((await call(route, 'POST', `/device/screen/choice${of('main')}`, CHOSEN))?.status).toBe(
+      204,
+    )
     const done = await answer
     expect(done?.status).toBe(200)
     expect(done?.headers.get('x-omne-taken-at')).toBe('1700000000000')
@@ -132,36 +140,94 @@ describe('the device screen route', () => {
     expect(log.slice(-2)).toEqual(['close', 'show'])
   })
 
-  it('answers nothing and comes back when the person cancels, or an overlay is closed from outside', async () => {
+  it('answers nothing and comes back when the person cancels, or the overlay in use goes away', async () => {
     const log: Log = []
     const route = deviceScreenRoute(depsOf(log))
     const { answer: cancelled } = await choosing(route, log)
-    await call(route, 'POST', '/device/screen/choice', new Uint8Array())
+    await call(route, 'POST', `/device/screen/choice${of('side')}`, new Uint8Array())
     expect((await cancelled)?.status).toBe(204)
     expect(log.slice(-2)).toEqual(['close', 'show'])
     log.length = 0
     const { overlays, gone } = overlaysOf(log)
     const closing = deviceScreenRoute(depsOf(log, { overlays }))
     const { answer: lost } = await choosing(closing, log)
-    gone()
+    gone('main')
     expect((await lost)?.status).toBe(204)
     expect(log.slice(-2)).toEqual(['close', 'show'])
   })
 
-  it('takes one capture at a time; frames and choices outside a capture are refused', async () => {
+  it('takes one capture at a time; frames, reports and choices outside it are refused', async () => {
     const log: Log = []
     const route = deviceScreenRoute(depsOf(log))
-    expect((await call(route, 'GET', '/device/screen/frame?screen=main'))?.status).toBe(404)
-    expect((await call(route, 'POST', '/device/screen/choice', CHOSEN))?.status).toBe(409)
+    expect((await call(route, 'GET', `/device/screen/frame${of('main')}`))?.status).toBe(404)
+    expect((await call(route, 'POST', `/device/screen/active${of('main')}`))?.status).toBe(409)
+    expect((await call(route, 'POST', `/device/screen/choice${of('main')}`, CHOSEN))?.status).toBe(
+      409,
+    )
     const { answer: first } = await choosing(route, log)
     expect((await call(route, 'POST', '/device/screen'))?.status).toBe(409)
-    expect((await call(route, 'GET', '/device/screen/frame?screen=gone'))?.status).toBe(404)
-    expect(
-      (await call(route, 'POST', '/device/screen/choice', new Uint8Array([1, 2])))?.status,
-    ).toBe(400)
-    await call(route, 'POST', '/device/screen/choice', CHOSEN)
-    expect((await first)?.status).toBe(200)
+    expect((await call(route, 'GET', `/device/screen/frame${of('gone')}`))?.status).toBe(404)
     expect((await call(route, 'GET', '/device/screen/frame?screen=main'))?.status).toBe(404)
+    expect((await call(route, 'GET', '/device/screen/frame?screen=main&capture=x'))?.status).toBe(
+      404,
+    )
+    expect((await call(route, 'POST', '/device/screen/choice?screen=main', CHOSEN))?.status).toBe(
+      409,
+    )
+    expect(
+      (await call(route, 'POST', `/device/screen/choice${of('main')}`, new Uint8Array([1, 2])))
+        ?.status,
+    ).toBe(400)
+    await call(route, 'POST', `/device/screen/choice${of('main')}`, CHOSEN)
+    expect((await first)?.status).toBe(200)
+    expect((await call(route, 'GET', `/device/screen/frame${of('main')}`))?.status).toBe(404)
+  })
+
+  it('answers each capture once: a second choice after it settled is refused', async () => {
+    const log: Log = []
+    const route = deviceScreenRoute(depsOf(log))
+    const { answer } = await choosing(route, log)
+    await call(route, 'POST', `/device/screen/choice${of('main')}`, CHOSEN)
+    expect(
+      (await call(route, 'POST', `/device/screen/choice${of('side')}`, new Uint8Array()))?.status,
+    ).toBe(409)
+    const done = await answer
+    expect(done?.status).toBe(200)
+    expect(new Uint8Array(await done!.arrayBuffer())).toEqual(CHOSEN)
+  })
+
+  it('takes answers only from the overlays this capture opened, never a late one from an earlier capture', async () => {
+    const log: Log = []
+    const route = deviceScreenRoute(depsOf(log))
+    const { answer: first } = await choosing(route, log)
+    await call(route, 'POST', `/device/screen/choice${of('main')}`, new Uint8Array())
+    await first
+    const { answer: second } = await choosing(route, log, 2)
+    expect((await call(route, 'POST', `/device/screen/active${of('main', 1)}`))?.status).toBe(409)
+    expect(
+      (await call(route, 'POST', `/device/screen/choice${of('main', 1)}`, CHOSEN))?.status,
+    ).toBe(409)
+    expect((await call(route, 'GET', `/device/screen/frame${of('main', 1)}`))?.status).toBe(404)
+    expect(log).not.toContain('lock main')
+    await call(route, 'POST', `/device/screen/choice${of('side', 2)}`, CHOSEN)
+    expect((await second)?.status).toBe(200)
+  })
+
+  it('once a screen is in use, shuts the others out and takes no answer from them', async () => {
+    const log: Log = []
+    const { overlays, gone } = overlaysOf(log)
+    const route = deviceScreenRoute(depsOf(log, { overlays }))
+    const { answer } = await choosing(route, log)
+    await call(route, 'POST', `/device/screen/active${of('main')}`)
+    expect((await call(route, 'POST', `/device/screen/active${of('side')}`))?.status).toBe(204)
+    expect(log.filter(line => line.startsWith('lock'))).toEqual(['lock main'])
+    expect((await call(route, 'POST', `/device/screen/choice${of('side')}`, CHOSEN))?.status).toBe(
+      409,
+    )
+    gone('side')
+    expect(log).not.toContain('close')
+    await call(route, 'POST', `/device/screen/choice${of('main')}`, CHOSEN)
+    expect((await answer)?.status).toBe(200)
   })
 
   it('without the permission it asks the system once, stays in place and opens nothing', async () => {

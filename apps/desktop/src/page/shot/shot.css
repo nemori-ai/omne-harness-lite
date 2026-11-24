@@ -1,55 +1,21 @@
 @import '@omne-harness/ui-kit/layers.css';
-@import '@omne-harness/ui-kit/tokens.css' layer(omne-builtin);
 
 @layer omne-builtin {
+  /* The component's icon font, served from the page itself: the policy takes no data: fonts (scripts/screenshots-css.ts). */
+  @font-face {
+    font-family: screenshots-icon;
+    src: url('./screenshots-icon.woff2') format('woff2');
+  }
+
   html,
-  body {
+  body,
+  #root {
     height: 100%;
     margin: 0;
-    background: transparent;
   }
 
-  main {
-    position: fixed;
-    inset: 0;
-    cursor: crosshair;
-    user-select: none;
-  }
-
-  main img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  .shot-shade {
-    position: absolute;
-    inset: 0;
-    background: var(--omne-overlay);
-  }
-
-  /* The shadow dims everything outside the box. */
-  .shot-box {
-    position: absolute;
-    box-shadow: 0 0 0 100vmax var(--omne-overlay);
-    outline: 1px solid var(--omne-accent);
-  }
-
-  .shot-size {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    padding: 0.25em 0.5em;
-    font-family: var(--omne-font-ui);
-    font-size: var(--omne-text-caption);
-    color: var(--omne-accent-ink);
-    background: var(--omne-accent);
-    white-space: nowrap;
-  }
-
-  .shot-box[data-label='inside'] .shot-size {
-    top: 0;
-    bottom: auto;
+  /* The picture goes to the attachment tray; there is no saving to a file here. */
+  .screenshots-button:has(.icon-save) {
+    display: none;
   }
 }
