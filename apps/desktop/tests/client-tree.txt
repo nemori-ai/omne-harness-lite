@@ -36,6 +36,8 @@ system
           session-ui#1  [effective]
         session.dock
           session-ui#1  [effective]
+        session.run-failure
+          session-ui#1  [effective]
         session.side
           session-ui#1  [effective]
         session.status
@@ -72,9 +74,13 @@ system
         mcp  [effective, mcp-ui#1]
       assets.governance  [one]
         assets-ui#1  [effective]
+      assets.holding  [keyed-list]
+        converter
+          media-converter  [effective, media-ui#1]
+        model-provider
+          model-provider-access  [effective, model-ui#1]
       assets.category  [keyed-list]
       assets.control  [keyed-one]
-      assets.holding  [keyed-list]
     connection
       connection.protocols  [keyed-one]
         assets/v1
@@ -138,6 +144,8 @@ system
       session.dock  [list]
         decisions-in-session  [effective, human-intervention-ui#1]
         background-calls  [effective, session-ui#1]
+      session.run-failure  [list]
+        model-credential  [effective, model-ui#1]
       session.side  [list]
         usage  [effective, usage-ui#1]
       session.status  [list]
@@ -161,6 +169,16 @@ system
         settings  [effective, assets-ui#1]
         usage  [effective, usage-ui#1]
       shell.parts  [keyed-one]
+        assets.asset
+          assets-ui#1  [effective]
+        assets.asset.actions
+          assets-ui#1  [effective]
+        assets.asset.detail
+          assets-ui#1  [effective]
+        assets.asset.settings
+          assets-ui#1  [effective]
+        assets.asset.toolbar
+          assets-ui#1  [effective]
         assets.category
           assets-ui#1  [effective]
         assets.category.create
@@ -172,10 +190,6 @@ system
         assets.create.submit
           assets-ui#1  [effective]
         assets.item
-          assets-ui#1  [effective]
-        assets.item.actions
-          assets-ui#1  [effective]
-        assets.item.detail
           assets-ui#1  [effective]
         assets.list
           assets-ui#1  [effective]

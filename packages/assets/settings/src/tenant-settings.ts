@@ -246,10 +246,10 @@ function writable(view: SettingsTargetView, action: 'set' | 'clear') {
   return grant?.actions.includes(action) === true ? source.sourceId : undefined
 }
 export const ADOPTION_TEXT: Readonly<Record<SettingItem['presentation']['adoption'], string>> = {
-  'next-read': 'Applies from the next read of the item.',
-  'next-boundary': 'Applies from the next use boundary that the asset declares.',
-  reload: 'Applies after the asset reloads.',
-  creation: 'Applies to what is created after the change.',
+  'next-read': '下一次读到这一项时起生效。',
+  'next-boundary': '到这份资产声明的下一个使用边界时起生效。',
+  reload: '资产重新加载之后生效。',
+  creation: '对改动之后新建的生效。',
 }
 
 function outcomeOf(result: TenantSettingsWriteResult): WriteOutcome {

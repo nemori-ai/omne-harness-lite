@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import type { SettingView } from '@omne-harness/assets-protocol'
 import { AssetsPage, createGovernance } from '../src/index.ts'
+import { assetPage, assetRows, backToList, enterAsset, enterFirst } from './fixtures/asset-pages.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { namesOf } from './fixtures/names.ts'
@@ -34,13 +35,8 @@ async function answer(
   return call
 }
 
-/** Opens the detail of every asset listed in the shown tab: a setting shows only in its detail. */
-async function openListed(): Promise<void> {
-  await settle()
-  await settle()
-  for (const button of screen.queryAllByRole('button', { expanded: false })) fireEvent.click(button)
-  await settle()
-}
+/** Goes into the first asset of the shown tab: a setting shows only on its asset's page. */
+const openListed = enterFirst
 
 function page(fake: FakeClient, items: readonly SettingView[], names = {}) {
   const rows = assetsOf(items)
@@ -69,9 +65,10 @@ async function listed(
 }
 
 const row = (title: string) => screen.getByRole('heading', { name: title }).closest('li')!
-async function showTab(label: string): Promise<void> {
+async function showTab(label: string, into = true): Promise<void> {
   fireEvent.click(screen.getByRole('tab', { name: label }))
-  await openListed()
+  if (into) await openListed()
+  else await settle()
 }
 
 it('P1 列出后每项显示说明、生效的值、来源、能不能改；不能改的写明原因', async () => {
@@ -92,6 +89,8 @@ it('P1 列出后每项显示说明、生效的值、来源、能不能改；不�
     'auto',
   ])
 
+  await backToList()
+  await enterAsset('files')
   const ordinary = within(row('一次读取的上限'))
   expect(ordinary.getByText('能不能改').nextElementSibling?.textContent).toBe('不能改：被上层锁定')
   expect(ordinary.getByText('来源').nextElementSibling?.textContent).toBe('默认')
@@ -243,8 +242,8 @@ it('P10 一个类别一个页签，次序按类别的标识；默认选中第一
   await showTab('工具')
   expect(screen.getAllByRole('heading', { level: 4 }).map(heading => heading.textContent)).toEqual([
     '调用权限',
-    '一次读取的上限',
   ])
+  expect(assetRows()).toEqual([])
   expect(tabs.getByRole('tab', { name: '工具' }).getAttribute('aria-selected')).toBe('true')
   expect(tabs.getByRole('tab', { name: '模型' }).getAttribute('aria-selected')).toBe('false')
 })
@@ -253,44 +252,46 @@ it('P12 页签上的字与这一类的标题取类别列表给的名字', async 
   await listed([permissionView(), secretView()], { tool: '工具' })
   const tabs = within(screen.getByRole('tablist', { name: '资产的类别' }))
   expect(tabs.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['model', '工具'])
-  await showTab('model')
+  await backToList()
   expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('model')
-  await showTab('工具')
+  await showTab('工具', false)
   expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('工具')
+  await enterAsset('shell')
+  expect(assetPage().textContent).toContain('工具 › shell')
 })
 
 const settingTitles = (item: HTMLElement) =>
   within(item)
     .queryAllByRole('heading', { level: 4 })
     .map(heading => heading.textContent)
-const assetItem = (name: string) => screen.getByRole('listitem', { name })
+const listedNames = () => assetRows().map(row => row.getAttribute('aria-label'))
 
-it('P13 列表照资产列表的次序，一行一份；一份资产的设置项只在它的详情里', async () => {
+it('P13 列表照资产列表的次序，一行一份；一份资产的设置项只在它自己的页上', async () => {
   const second = permissionView({
     item: 'second-permission',
     declaration: { ...permissionView().declaration, title: '第二项权限' },
   })
   await listed([permissionView(), ordinaryView(), second], { tool: '工具' })
-  const list = within(screen.getByRole('list', { name: '工具的资产' }))
-  expect(list.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual([
-    'shell',
-    'files',
-  ])
-  expect(settingTitles(assetItem('shell'))).toEqual(['调用权限', '第二项权限'])
-  expect(settingTitles(assetItem('files'))).toEqual(['一次读取的上限'])
-  fireEvent.click(screen.getByRole('button', { name: 'files', expanded: true }))
-  await settle()
-  expect(settingTitles(assetItem('files'))).toEqual([])
+  await backToList()
+  expect(listedNames()).toEqual(['shell', 'files'])
+  expect(screen.queryAllByRole('heading', { level: 4 })).toEqual([])
+  await enterAsset('shell')
+  expect(settingTitles(assetPage())).toEqual(['调用权限', '第二项权限'])
+  await backToList()
+  await enterAsset('files')
+  expect(settingTitles(assetPage())).toEqual(['一次读取的上限'])
 })
 
 it('P14 名字相同而类别不同的两份资产在各自的页签里，各带自己的设置项', async () => {
   const sameName = secretView({ owner: { kind: 'asset', category: 'model', name: 'shell' } })
   await listed([permissionView(), sameName], { tool: '工具', model: '模型' })
-  expect(screen.getAllByRole('listitem', { name: 'shell' })).toHaveLength(1)
-  expect(settingTitles(assetItem('shell'))).toEqual(['模型供应商的密钥'])
+  expect(settingTitles(assetPage())).toEqual(['模型供应商的密钥'])
+  await backToList()
+  expect(listedNames()).toEqual(['shell'])
   await showTab('工具')
-  expect(screen.getAllByRole('listitem', { name: 'shell' })).toHaveLength(1)
-  expect(settingTitles(assetItem('shell'))).toEqual(['调用权限'])
+  expect(settingTitles(assetPage())).toEqual(['调用权限'])
+  await backToList()
+  expect(listedNames()).toEqual(['shell'])
 })
 
 it('P11 没有本层的值时清除不可用；秘密项不显示值', async () => {
@@ -403,8 +404,11 @@ it('P0 each part of the category page is on its own element', async () => {
   expect(on('assets.category.head')[0]?.tagName).toBe('HEADER')
   expect(on('assets.list')[0]?.tagName).toBe('UL')
   expect(on('assets.item')[0]?.tagName).toBe('LI')
-  expect(on('assets.item.detail')[0]?.classList.contains('assets-detail')).toBe(true)
-  expect(on('assets.item.actions')[0]?.classList.contains('assets-detail-actions')).toBe(true)
+  expect(on('assets.asset')[0]?.tagName).toBe('SECTION')
+  expect(on('assets.asset.toolbar')[0]?.querySelector('.list-reading-toolbar')).toBeTruthy()
+  expect(on('assets.asset.actions')[0]?.classList.contains('assets-asset-actions')).toBe(true)
+  expect(on('assets.asset.settings')[0]?.tagName).toBe('SECTION')
+  expect(on('assets.asset.detail')[0]?.querySelector('.omne-disclosure')).toBeTruthy()
   expect(on('assets.setting')[0]?.classList.contains('assets-setting')).toBe(true)
   expect(on('assets.setting.control')[0]?.classList.contains('assets-setting-control')).toBe(true)
 })

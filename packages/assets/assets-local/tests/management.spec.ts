@@ -122,6 +122,7 @@ async function world() {
         return publishing.publish(request)
       },
     },
+    official: () => [],
     storeOf: async tenant =>
       tenant === 'tenant-a'
         ? createTenantLayerStore(opened.owner, 'tenant-a', categories, [opened.tenantLayer])

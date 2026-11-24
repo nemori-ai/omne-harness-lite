@@ -38,7 +38,13 @@ const unknown = () =>
 describe('the creation slot', () => {
   it('idle: a creation goes out under its operation', () => {
     expect(run(NOT_CREATING, { kind: 'create', operation: 'op-1', request: DIRECTORY })).toEqual({
-      creating: { kind: 'sending', operation: 'op-1', request: DIRECTORY, received: 0 },
+      creating: {
+        kind: 'sending',
+        operation: 'op-1',
+        request: DIRECTORY,
+        received: 0,
+        existed: false,
+      },
       effects: [{ kind: 'create', operation: 'op-1', request: DIRECTORY }],
       reread: false,
     })
@@ -123,17 +129,30 @@ describe('the creation slot', () => {
     expect(step.reread).toBe(reread)
   })
 
-  it('a creation whose name is listed becomes its new version', () => {
-    const step = stepCreation(
-      sending(),
-      {
-        kind: 'create-answered',
-        operation: 'op-1',
-        answer: { outcome: 'succeeded', body: { version: 'v', holding: 'h', changed: true } },
-      },
-      name => name === 'notes',
-    )
-    expect(step.creating).toEqual({ kind: 'done', text: '已成为 notes 的新版本。' })
+  const succeeded = {
+    kind: 'create-answered',
+    operation: 'op-1',
+    answer: { outcome: 'succeeded', body: { version: 'v', holding: 'h', changed: true } },
+  } as const
+  const listedNotes = (name: string) => name === 'notes'
+
+  it('a creation whose name was listed when it was sent becomes its new version', () => {
+    const sent = stepCreation(
+      NOT_CREATING,
+      { kind: 'create', operation: 'op-1', request: DATA },
+      listedNotes,
+    ).creating
+    expect(stepCreation(sent, succeeded, nothingListed).creating).toEqual({
+      kind: 'done',
+      text: '已成为 notes 的新版本。',
+    })
+  })
+
+  it('a name that is listed only by the time the answer comes, because the list was read meanwhile, was made new', () => {
+    expect(stepCreation(sending(), succeeded, listedNotes).creating).toEqual({
+      kind: 'done',
+      text: '已新建 notes。',
+    })
   })
 
   it('an answer for another operation counts for nothing', () => {

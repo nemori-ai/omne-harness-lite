@@ -4,6 +4,8 @@ import '@omne-harness/assets-ui/assets-ui.css'
 import {
   assetGovernanceKey,
   assetsCategoryPage,
+  assetsHolding,
+  assetsPageTarget,
   assetsUiModule,
 } from '@omne-harness/assets-ui/cordis'
 import '@omne-harness/calendar-ui/calendar-ui.css'
@@ -19,7 +21,11 @@ import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
 import { createMediaUiModule } from '@omne-harness/media-ui/cordis'
 import '@omne-harness/media-ui/media-ui.css'
-import { modelChoicesKey, modelUiModule } from '@omne-harness/model-ui/cordis'
+import {
+  PROVIDER_CATEGORY,
+  createModelUiModule,
+  modelChoicesKey,
+} from '@omne-harness/model-ui/cordis'
 import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
 import '@omne-harness/notification-ui/notification-ui.css'
 import { createPluginUiModule } from '@omne-harness/plugin-ui/cordis'
@@ -36,6 +42,7 @@ import {
   sessionDock,
   sessionReadsSourceKey,
   sessionReadsUiModule,
+  sessionRunFailure,
   sessionSide,
   sessionStatus,
 } from '@omne-harness/session-ui/cordis'
@@ -81,7 +88,12 @@ export const assembly: Assembly = {
     assetsUiModule,
     createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
     createToolUiModule({ callDetail: sessionCallDetail }),
-    modelUiModule,
+    createModelUiModule({
+      runFailure: sessionRunFailure,
+      providers: assetsPageTarget(PROVIDER_CATEGORY),
+      holding: assetsHolding,
+      assets: assetGovernanceKey,
+    }),
     workspaceUiModule,
     createUsageUiModule({
       sessionSide,
@@ -93,6 +105,8 @@ export const assembly: Assembly = {
       composerAttachments: sessionComposerAttachments,
       block: sessionBlockRender,
       drafts: sessionComposerIntakeKey,
+      holding: assetsHolding,
+      assets: assetGovernanceKey,
     }),
     sessionReadsUiModule,
     createPluginUiModule({

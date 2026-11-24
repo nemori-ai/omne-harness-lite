@@ -1,8 +1,11 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import {
   admitCategory,
+  capabilityId,
   categoryViewOf,
   scopeOfLayer,
+  type JsonValue,
+  type OfficialAsset,
   type CategoryContribution,
   type HeldHolding,
   type HeldItem,
@@ -69,6 +72,14 @@ const categoriesContract: Contract = Object.freeze({
 
 const UNREAD: HeldReading = Object.freeze({ kind: 'unavailable' })
 
+type Brought = Readonly<{ point: string; name: string; item: HeldItem; body: JsonValue }>
+
+const broughtAs = (brought: Brought, point: string, name: string, item: HeldItem): boolean =>
+  brought.point === point &&
+  brought.name === name &&
+  brought.item.asset === item.asset &&
+  brought.item.version === item.version
+
 type Contributed = CategoryContribution & Readonly<{ category: string }>
 
 function contributed(contribution: CategoryContribution, by: Instance): Entry<Contributed> {
@@ -100,6 +111,7 @@ export class AssetCategoriesService extends Service {
     tenant: string,
   ) => HeldReading
   protected readonly tree: DynamisService
+  protected readonly brought = new Set<Brought>()
   constructor(ctx: Context) {
     super(ctx, AssetCategoriesService.provide)
     const tree = ctx.get(dynamisKey) as DynamisService
@@ -144,12 +156,44 @@ export class AssetCategoriesService extends Service {
     })
   }
 
-  /** The definitions the deployment itself brings: items of the whole deployment on the point of their category. */
-  bring(point: string, held: readonly Readonly<{ name: string; item: HeldItem }>[]): void {
-    const { tree } = this
+  /** The definitions the deployment brings, on the point of their category, with their bodies. */
+  bring(
+    point: string,
+    held: readonly Readonly<{ name: string; item: HeldItem; body: JsonValue }>[],
+  ): void {
+    const { tree, brought } = this
     const scope = scopeOfLayer('official')
     const entries = held.map(({ name, item }) => heldEntry(point, name, scope, item))
-    this.ctx.effect(() => tree.put(entries), 'assetCategories.bring')
+    const kept: Brought[] = held.map(({ name, item, body }) => ({ point, name, item, body }))
+    this.ctx.effect(() => {
+      for (const each of kept) brought.add(each)
+      const remove = tree.put(entries)
+      return () => {
+        remove()
+        for (const each of kept) brought.delete(each)
+      }
+    }, 'assetCategories.bring')
+  }
+
+  official(): readonly OfficialAsset[] | 'unavailable' {
+    const registry = this.tree.registry()
+    const found: OfficialAsset[] = []
+    for (const { category, point } of this.view.list()) {
+      const read = candidates<HeldItem>(registry, point, null, scopeOfLayer('official'))
+      if (read.kind !== 'read') return 'unavailable'
+      const entries = [...read.entries].sort((left, right) => (left.key < right.key ? -1 : 1))
+      for (const { key, item } of entries) {
+        const body = [...this.brought].find(each => broughtAs(each, point, key, item))?.body
+        const capability = capabilityId(category, key)
+        if (body === undefined || !capability.ok) continue
+        const known = found.some(
+          each => each.capability.name === key && each.capability.category === category,
+        )
+        if (!known)
+          found.push({ capability: capability.id, asset: item.asset, version: item.version, body })
+      }
+    }
+    return found
   }
 }
 
@@ -247,7 +291,7 @@ export const assetCategoriesPlugin: Plugin.Object = {
 export function broughtDefinitionsPlugin(
   name: string,
   point: string,
-  held: readonly Readonly<{ name: string; item: HeldItem }>[],
+  held: readonly Readonly<{ name: string; item: HeldItem; body: JsonValue }>[],
 ): Plugin.Object {
   return {
     name,

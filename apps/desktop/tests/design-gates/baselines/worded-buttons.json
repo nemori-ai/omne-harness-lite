@@ -4,13 +4,7 @@
     "packages/assets/assets-ui/src/view/assets-page.tsx | {labelOf(category)}": {
       "R9": 1
     },
-    "packages/assets/assets-ui/src/view/category-page.tsx | {row.summary?.title ?? row.name}": {
-      "name": 1
-    },
     "packages/assets/assets-ui/src/view/category-page.tsx | 收起/新建": {
-      "R9": 1
-    },
-    "packages/assets/assets-ui/src/view/category-page.tsx | 禁用/启用": {
       "R9": 1
     },
     "packages/assets/assets-ui/src/view/create-form.tsx | 提交": {
@@ -46,6 +40,9 @@
     },
     "packages/identity/identity-ui/src/view/login-card.tsx | 请稍候……/{TITLE[form.mode]}": {
       "commit": 1
+    },
+    "packages/model/model-ui/src/view/credential-remedy.tsx | 去填": {
+      "primary": 1
     },
     "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {
       "name": 1

@@ -61,7 +61,9 @@ async function world(options: { opens?: (tenant: string) => boolean } = {}) {
   await gadget.await()
   const official = item('official/gadget/spanner')
   await root.plugin(
-    broughtDefinitionsPlugin('release', 'gadget.items', [{ name: 'spanner', item: official }]),
+    broughtDefinitionsPlugin('release', 'gadget.items', [
+      { name: 'spanner', item: official, body: { kind: 'null' } },
+    ]),
   )
   const syncs = new Map<string, Sync>()
   await root.plugin({

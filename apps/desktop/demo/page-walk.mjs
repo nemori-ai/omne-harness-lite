@@ -297,23 +297,62 @@ const HELPERS = `
   const assetsPage = () => document.querySelector('section[data-page=assets]')
   const assetTabs = () => [...assetsPage().querySelectorAll('[role=tablist][aria-label="资产的类别"] [role=tab]')]
   const shownPanel = () => assetsPage().querySelector('[role=tabpanel]:not([hidden])')
+  const assetPageOpen = () => shownPanel()?.querySelector('.assets-asset')
+  const backToList = async () => {
+    const back = assetPageOpen()?.querySelector('button[aria-label="回到列表"]')
+    if (!back) return
+    back.click()
+    await wait('the list again', () => !assetPageOpen())
+  }
   const openTab = async tab => {
     if (tab.getAttribute('aria-selected') !== 'true') tab.click()
     await wait('the panel of ' + tab.textContent, () => tab.getAttribute('aria-selected') === 'true' && shownPanel())
-    await sleep(50)
-    for (const button of shownPanel().querySelectorAll('.assets-item-title button[aria-expanded=false]')) button.click()
+    await backToList()
     await sleep(50)
     return shownPanel()
   }
-  const inAssetTabs = async (what, find) => {
+  const listedRow = name => shownPanel()?.querySelector('li.assets-item[aria-label="' + name + '"]')
+  const marksOf = item => [...item.querySelectorAll('.assets-item-marks > *')].map(mark => mark.textContent)
+  const enterAsset = async name => {
+    const row = await wait('the row of ' + name, () => listedRow(name))
+    row.querySelector('[data-asset-row]').click()
+    return await wait('the page of ' + name, () => assetPageOpen())
+  }
+  const openDetails = async page => {
+    const toggle = [...page.querySelectorAll('button')].find(button => button.textContent.trim() === '详情')
+    if (toggle.getAttribute('aria-expanded') !== 'true') toggle.click()
+    await wait('the details', () => page.innerText.includes('现在能不能用'))
+  }
+  const fromMenu = async (page, label) => {
+    // A menu that is still closing takes no clicks: open the next one only once the last is gone.
+    await wait('no menu left open', () => !document.querySelector('[role=menu]'))
+    const more = await wait('an enabled more button', () => {
+      const button = page.querySelector('button[aria-label="更多"]')
+      return button && !button.disabled ? button : undefined
+    })
+    more.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+    const menu = await wait('the more menu', () => document.querySelector('[role=menu]'))
+    const item = await wait('the menu item ' + label, () =>
+      [...menu.querySelectorAll('[role=menuitem]')].find(each => each.textContent.trim() === label))
+    item.click()
+  }
+  // Every asset of every tab, one page at a time; leaves the page that holds what is found open.
+  const inAssetPages = async (what, find) => {
     for (let round = 0; round < 60; round += 1) {
       for (const tab of assetTabs()) {
-        const found = find(await openTab(tab))
-        if (found) return found
+        const panel = await openTab(tab)
+        const names = [...panel.querySelectorAll('li.assets-item')].map(item => item.getAttribute('aria-label'))
+        for (const name of names) {
+          const page = await enterAsset(name)
+          await sleep(50)
+          const found = find(page)
+          if (found) return found
+          await backToList()
+        }
       }
       await sleep(100)
     }
-    throw new Error('timed out waiting for ' + what + ' on any asset tab')
+    throw new Error('timed out waiting for ' + what + ' on any asset page')
   }
   const dock = () => document.querySelector('section[data-page=conversation] .hitl-session-cards')
   const sections = area => [...area.querySelectorAll('.hitl-section')]
@@ -466,14 +505,13 @@ async function walk(browser, origin, proofs, elsewhere) {
   await step(
     '资产的列表与详情',
     `
-    const listed = await inAssetTabs('a listed asset', panel => panel.querySelector('li.assets-item'))
-    listed.querySelector('.assets-item-title button[aria-expanded=false]')?.click()
-    const item = await wait('its detail', () =>
-      listed.querySelector('.assets-detail') && listed.innerText.includes('现在能不能用') ? listed : undefined)
-    const facts = [...item.querySelectorAll('.assets-item-facts span')].map(span => span.textContent)
-    const standing = [...item.querySelectorAll('.fact-list-row')]
+    const page = await inAssetPages('a listed asset', page => page)
+    const where = page.querySelector('.list-reading-toolbar-name').textContent
+    await openDetails(page)
+    const standing = [...page.querySelectorAll('.fact-list-row')]
       .find(row => row.querySelector('dt').textContent === '现在能不能用').querySelector('dd').textContent
-    return { asset: item.getAttribute('aria-label'), facts, standing }`,
+    await backToList()
+    return { asset: where, standing }`,
   )
   let madeElsewhere = Promise.resolve()
   await step(
@@ -492,7 +530,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     `
     const item = await wait('the new skill, without touching the page', () =>
       shownPanel().querySelector('li.assets-item[aria-label="walk-made"]'))
-    return { listed: item.getAttribute('aria-label'), facts: [...item.querySelectorAll('.assets-item-facts span')].map(span => span.textContent) }`,
+    return { listed: item.getAttribute('aria-label'), marks: marksOf(item) }`,
   )
   await madeElsewhere
   const skillDirectory = mkdtempSync(join(tmpdir(), 'page-walk-skill-'))
@@ -527,20 +565,19 @@ async function walk(browser, origin, proofs, elsewhere) {
     return { created: item.getAttribute('aria-label'), note: form.innerText.split('\\n').filter(line => line.includes('文件')) }`,
   )
   await step(
-    '新建的这一份：列表里有它的简介；在详情里禁用、启用、移除',
+    '新建的这一份：列表里有它的简介；进它的页禁用、启用、移除，移除后回到列表',
     `
-    const item = () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]')
-    const button = text => [...(item()?.querySelectorAll('button') ?? [])].find(each => each.textContent.trim() === text && !each.disabled)
-    const row = await wait('the row', item)
+    const row = await wait('the row', () => listedRow('walk-page'))
     if (!row.innerText.includes('Made in the page by the walk.')) throw new Error('the row shows no summary: ' + row.innerText)
-    row.querySelector('button[aria-expanded="false"]')?.click()
-    ;(await wait('a disable button', () => button('禁用'))).click()
-    await wait('the row to read disabled', () => item()?.innerText.includes('已禁用'))
-    ;(await wait('an enable button', () => button('启用'))).click()
-    await wait('the row to read enabled', () => item()?.innerText.includes('已启用'))
-    ;(await wait('a remove button', () => button('移除'))).click()
+    const page = await enterAsset('walk-page')
+    const button = text => [...page.querySelectorAll('button')].find(each => each.textContent.trim() === text && !each.disabled)
+    await fromMenu(page, '禁用')
+    await wait('the page to read disabled', () => page.querySelector('.list-reading-document').innerText.includes('已禁用'))
+    await fromMenu(page, '启用')
+    await wait('the page to read enabled', () => !page.querySelector('.list-reading-document').innerText.includes('已禁用'))
+    ;(await wait('a remove button', () => page.querySelector('button[aria-label="移除"]:not([disabled])'))).click()
     ;(await wait('the confirmation', () => button('确认移除'))).click()
-    await wait('the row to go', () => item() === null)
+    await wait('back on the list, without the row', () => !assetPageOpen() && !listedRow('walk-page'))
     return { summary: 'Made in the page by the walk.', disabled: true, enabled: true, removed: true }`,
   )
   await step(
@@ -565,14 +602,14 @@ async function walk(browser, origin, proofs, elsewhere) {
     await press('form[aria-label="新建"] button', '提交')
     const item = await wait('the row again', () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]'))
     await wait('the creation', () => form.innerText.includes('已新建 walk-page。'))
-    return { again: item.getAttribute('aria-label'), facts: item.innerText.includes('已启用') }`,
+    return { again: item.getAttribute('aria-label'), enabled: !marksOf(item).includes('已禁用') }`,
   )
   rmSync(skillDirectory, { recursive: true, force: true })
   await step(
     '改一项设置，再清除它',
     `
-    const row = await inAssetTabs('an editable permission with no pick on this layer', panel =>
-      [...panel.querySelectorAll('li.assets-setting')].find(item =>
+    const row = await inAssetPages('an editable permission with no pick on this layer', page =>
+      [...page.querySelectorAll('li.assets-setting')].find(item =>
         item.innerText.includes('没有挑选') &&
         item.querySelector('[role=radio][aria-checked=false]') &&
         [...item.querySelectorAll('button')].some(button => button.textContent.trim() === '设置')))
@@ -589,8 +626,8 @@ async function walk(browser, origin, proofs, elsewhere) {
   await step(
     '设一个秘密项，再清除它',
     `
-    const row = await inAssetTabs('an editable secret', panel =>
-      [...panel.querySelectorAll('li.assets-setting[data-kind=secret]')].find(item => item.querySelector('input[type=password]')))
+    const row = await inAssetPages('an editable secret', page =>
+      [...page.querySelectorAll('li.assets-setting[data-kind=secret]')].find(item => item.querySelector('input[type=password]')))
     const own = () => row.querySelector('.fact-list-row:nth-child(1) dd')?.textContent
     const input = row.querySelector('input[type=password]')
     if (own() !== '未配置') throw new Error('the secret already had a value on this layer: ' + own())
@@ -611,10 +648,16 @@ async function walk(browser, origin, proofs, elsewhere) {
     let locked = 0
     for (const tab of assetTabs()) {
       const panel = await openTab(tab)
-      const rows = [...panel.querySelectorAll('li.assets-setting')].filter(item => item.innerText.includes('被上层锁定'))
-      locked += rows.length
-      if (rows.some(item => [...item.querySelectorAll('button')].some(button => ['设置', '清除'].includes(button.textContent.trim()))))
-        throw new Error('a locked setting shows controls on the tab ' + tab.textContent)
+      const names = [...panel.querySelectorAll('li.assets-item')].map(item => item.getAttribute('aria-label'))
+      for (const name of names) {
+        const page = await enterAsset(name)
+        await sleep(50)
+        const rows = [...page.querySelectorAll('li.assets-setting')].filter(item => item.innerText.includes('被上层锁定'))
+        locked += rows.length
+        if (rows.some(item => [...item.querySelectorAll('button')].some(button => ['设置', '清除'].includes(button.textContent.trim()))))
+          throw new Error('a locked setting shows controls on ' + tab.textContent + ' › ' + name)
+        await backToList()
+      }
     }
     if (locked === 0) return 'no locked setting in this deployment; not walked'
     return { locked, controls: 0 }`,
@@ -625,8 +668,8 @@ async function walk(browser, origin, proofs, elsewhere) {
     const tab = await wait('the MCP tab', () => assetTabs().find(item => item.textContent === 'MCP'))
     const panel = await openTab(tab)
     const page = await wait('the MCP page', () => panel.querySelector('.mcp-page'))
-    const text = await wait('the statement of the MCP page', () =>
-      page.innerText.includes('MCP 还没有接进这个应用') ? page.innerText.trim() : undefined)
+    const text = await wait('the empty list of the MCP page', () =>
+      page.innerText.includes('接进来的 MCP 接入点会列在这里。') ? page.innerText.trim() : undefined)
     if (panel.querySelector('.assets-category') !== null) throw new Error('the MCP tab draws the generic page')
     return { text }`,
   )
@@ -905,8 +948,11 @@ async function walk(browser, origin, proofs, elsewhere) {
 }
 
 const CATEGORIES = [
+  ['AgentDefinition', '智能体'],
   ['converter', '转换件'],
+  ['mcp', 'MCP'],
   ['model-provider', '模型供应商'],
+  ['plugin', 'Plugin'],
   ['skill', '技能'],
   ['tool', '工具'],
 ]

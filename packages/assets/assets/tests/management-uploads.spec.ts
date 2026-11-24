@@ -134,6 +134,7 @@ function setup(options: Options = {}) {
         return options.publish ?? PUBLISHED
       },
     },
+    official: () => [],
     storeOf: async () => store,
   })
   return { management, published, discarded, calls }

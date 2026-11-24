@@ -127,6 +127,7 @@ export {
   type UploadCommit,
   type UploadEntry,
 } from './management.ts'
+export { type OfficialAsset, type OfficialAssets } from './official.ts'
 export {
   decideAssetHoldingChange,
   type AssetHolding,

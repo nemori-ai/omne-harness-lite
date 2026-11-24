@@ -3,6 +3,7 @@ import { readTenantText, type TenantId } from '@omne-harness/public-contract'
 import {
   needPoint,
   needProtocol,
+  type KeyedPointSink,
   type PointSink,
   type RenderPointSink,
   type ServiceKey,
@@ -13,7 +14,9 @@ import type { Drafts } from './model/attachment-tray.ts'
 import type { Microphone } from './model/recorder.ts'
 import type { MediaClient } from './model/upload.ts'
 import { mediaParts } from './parts.ts'
+import type { AssetPort } from './view/asset-body.ts'
 import { AttachmentTrayView } from './view/attachment-tray.tsx'
+import { ConverterBlock } from './view/converter-block.tsx'
 import { MEDIA_BLOCKS } from './view/media-block.tsx'
 import { browserMicrophone } from './view/microphone.ts'
 
@@ -39,7 +42,12 @@ export type MediaUiOptions = Readonly<{
   microphone?: Microphone
   /** What takes the attachments of a draft, when the assembly names who provides it; the module works without. */
   drafts?: ServiceKey<Drafts>
+  holding?: KeyedPointSink<Readonly<{ category: string; name: string }>>
+  assets?: ServiceKey<AssetPort>
 }>
+
+const CONVERTER_CATEGORY = 'converter'
+const CONVERTER_BLOCK_ID = 'media-converter'
 
 const ITEM = 'media'
 
@@ -60,8 +68,9 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
     needs: {
       media: needProtocol<MediaClient>(mediaProtocol),
       intake: needPoint(options.drafts, { optional: true }),
+      assets: needPoint(options.assets, { optional: true }),
     },
-    apply(shell, { media: client, intake }) {
+    apply(shell, { media: client, intake, assets }) {
       for (const part of mediaParts) part.declare(shell)
       const drafts = () => intake.get() ?? null
       options.composerAttachments?.contribute(shell, {
@@ -95,6 +104,21 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
             )}
           </Scoped>
         ))
+      options.holding?.contribute(shell, CONVERTER_CATEGORY, {
+        id: CONVERTER_BLOCK_ID,
+        order: 0,
+        render: ({ scope, subject }) => {
+          const port = assets.get()
+          return scope === undefined || port === undefined ? null : (
+            <ConverterBlock
+              port={port}
+              tenant={scope}
+              category={subject.category}
+              name={subject.name}
+            />
+          )
+        },
+      })
     },
   })
 }

@@ -5,6 +5,7 @@ import type { AssetRowView } from '@omne-harness/assets-protocol'
 import type { JsonValue } from '@omne-harness/json-text'
 import { AssetsPage, createGovernance } from '../src/index.ts'
 import { assetRow, serveAssetReads } from './fixtures/asset-reads.ts'
+import { backToList, enterAsset } from './fixtures/asset-pages.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { namesOf } from './fixtures/names.ts'
@@ -100,9 +101,10 @@ it('C17 两个只在测试里的类别各是一个页签：列表、详情与新
       .map(tab => tab.textContent),
   ).toEqual(['测试数据', '测试包'])
 
-  await click(screen.getByRole('button', { name: 'alpha', expanded: false }))
-  const alpha = within(screen.getByRole('listitem', { name: 'alpha' }))
+  const alpha = await enterAsset('alpha')
+  await click(alpha.getByRole('button', { name: '详情' }))
   expect(alpha.getByText(/https:\/\/a\.example/)).toBeTruthy()
+  await backToList()
   await click(screen.getByRole('button', { name: '新建' }))
   const dataForm = within(screen.getByRole('form', { name: '新建' }))
   expect(dataForm.getByText('填一个地址。')).toBeTruthy()
@@ -110,9 +112,10 @@ it('C17 两个只在测试里的类别各是一个页签：列表、详情与新
 
   await click(tabs().getByRole('tab', { name: '测试包' }))
   await settle()
-  await click(screen.getByRole('button', { name: 'pack', expanded: false }))
-  const pack = within(screen.getByRole('listitem', { name: 'pack' }))
+  const pack = await enterAsset('pack')
+  await click(pack.getByRole('button', { name: '详情' }))
   expect(within(pack.getByRole('list', { name: '文件' })).getByText(/README\.md/)).toBeTruthy()
+  await backToList()
   await click(screen.getByRole('button', { name: '新建' }))
   const directoryForm = within(screen.getByRole('form', { name: '新建' }))
   expect(directoryForm.getByText('一个目录，根下有 README.md。')).toBeTruthy()
