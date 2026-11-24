@@ -80,6 +80,7 @@ type Settings = Readonly<{
   write?: Write
   editable?: boolean
   reason?: string
+  readingEfforts?: boolean
 }>
 
 const UNSET: Own = { kind: 'unset' }
@@ -101,6 +102,10 @@ function portOf(body: unknown | undefined, first: Settings | undefined) {
           : { kind: 'yes' },
     },
     write: item === 'model-switches' ? (settings.write ?? { kind: 'none' }) : { kind: 'none' },
+    read:
+      item === 'model-reasoning-efforts' && settings.readingEfforts === true
+        ? { kind: 'reading', token: 2 }
+        : { kind: 'read' },
   })
   const snapshotOf = (settings: Settings | undefined) => ({
     kind: 'read',
@@ -297,6 +302,15 @@ it('while a write is out the switches wait; a refused one says why; an unknown o
   expect(document.querySelector('[data-inline-notice]')?.getAttribute('data-tone')).toBe('caution')
   fireEvent.click(screen.getByRole('button', { name: '再确认' }))
   expect(fake.confirms).toEqual(['k-switches'])
+})
+
+it('a setting being read again takes no pick: its controls wait for the read', async () => {
+  await shown(BODY, { switches: UNSET, efforts: UNSET, readingEfforts: true })
+  const glm = rowOf('GLM 5.3')
+  expect(
+    glm.getByRole('combobox', { name: 'GLM 5.3 的缺省推理强度' }).hasAttribute('disabled'),
+  ).toBe(true)
+  expect(glm.getByRole('switch', { name: '启用 GLM 5.3' }).hasAttribute('disabled')).toBe(false)
 })
 
 it('settings this layer cannot change are drawn, not offered', async () => {

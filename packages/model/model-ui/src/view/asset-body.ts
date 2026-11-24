@@ -13,6 +13,7 @@ type KeyRow = Readonly<{
     editable?: Readonly<{ kind: string; reason?: string }>
   }>
   write?: Readonly<{ kind: string; notice?: Readonly<{ text: string }> }>
+  read?: Readonly<{ kind: string }>
 }>
 type Entry = Readonly<{
   row: Readonly<{ name: string; summary?: Readonly<{ title: string }> | null }>

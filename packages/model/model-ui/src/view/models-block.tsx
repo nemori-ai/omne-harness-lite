@@ -49,8 +49,11 @@ type Wired = Readonly<{ view: AssetView; switches: KeyRow; efforts: KeyRow }>
 
 function ModelLine({ row, wired }: Readonly<{ row: ModelRow; wired: Wired }>): JSX.Element {
   const { view, switches, efforts } = wired
+  // The settings machine takes no change while the row is being written or read again.
   const locked = (setting: KeyRow) =>
-    setting.view.editable?.kind === 'no' || setting.write?.kind === 'submitting'
+    setting.view.editable?.kind === 'no' ||
+    setting.write?.kind === 'submitting' ||
+    setting.read?.kind === 'reading'
   const pick = (value: string) =>
     view.setValue(
       efforts.key ?? '',
