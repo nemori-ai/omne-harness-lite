@@ -81,6 +81,11 @@
               "tool": "Schedules"
             },
             {
+              "id": "jobs",
+              "effect": "allow",
+              "tool": "Jobs"
+            },
+            {
               "id": "notifications",
               "effect": "allow",
               "tool": "Notifications"
@@ -885,6 +890,11 @@
     {
       "id": "context-compaction",
       "plugin": "contextCompactionRow",
+      "config": {}
+    },
+    {
+      "id": "loop-extension",
+      "plugin": "loopExtensionRow",
       "config": {}
     },
     {

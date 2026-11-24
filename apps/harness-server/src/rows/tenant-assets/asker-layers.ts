@@ -34,8 +34,11 @@ export function askerLayersOf(
     const assets = await service.open(encoded.value)
     if (assets === undefined)
       return (await service.standing(encoded.value)) === 'unregistered' ? NOTHING_HELD : undefined
-    const held = tenantLayers(assets, service.layerSources(encoded.value), () =>
-      workspace.contractOf(category),
+    const held = tenantLayers(
+      assets,
+      service.layerSources(encoded.value),
+      () => workspace.contractOf(category),
+      service.official,
     )
     if (turn === undefined || (await relationEnded(ctx, turn))) return held
     return turnLayers(held, workspace, turn.access, turn.key)

@@ -13,6 +13,7 @@ import type {
   Adoption,
   AssemblyFailure,
   AssemblyUnknown,
+  PromptContribution,
   PromptContributionSet,
   PromptSection,
   ScopeRef,
@@ -123,6 +124,50 @@ export function definitionContributions(
     uses: [],
   }))
   return { contributions, digest: digest(sections), generation: null }
+}
+
+const RESIDENT_ORDER = '1-resident-'
+export const RESIDENT_SECTION_PREFIX = 'resident/'
+const RESIDENT_SOURCE = '@omne-harness/agent-context'
+
+/** The segments the session keeps, each one section after those of the definition; its text is a variable, so it goes in as written. */
+export function residentContributions(
+  segments: NonNullable<RuntimeConditions['segments']>,
+  scope: ScopeRef,
+): readonly PromptContribution[] {
+  return segments.flatMap(({ key, text }): PromptContribution[] => {
+    const name = `${RESIDENT_SECTION_PREFIX}${key}`
+    const variable = `${name}/text`
+    const revision = digest(text)
+    const source: Adoption = { owner: RESIDENT_SOURCE, name, revision, digest: revision }
+    return [
+      {
+        kind: 'section',
+        name,
+        scope,
+        source,
+        revision,
+        order: `${RESIDENT_ORDER}${key}`,
+        template: `{{${variable}}}`,
+        uses: [variable],
+      },
+      { kind: 'variable', name: variable, scope, source, revision, value: text },
+    ]
+  })
+}
+
+/** The prompt of a request: the sections of the definition, then the resident segments. */
+export function promptContributions(
+  definition: PromptContributionSet | null,
+  resident: readonly PromptContribution[],
+): PromptContributionSet | null {
+  if (resident.length === 0) return definition
+  const contributions = [...(definition?.contributions ?? []), ...resident]
+  return {
+    contributions,
+    digest: digest([definition?.digest ?? null, resident]),
+    generation: definition?.generation ?? null,
+  }
 }
 
 export function failureOfAssembly(failure: AssemblyFailure | AssemblyUnknown): Failure {

@@ -404,6 +404,7 @@ export async function createWorld(options: WorldOptions = {}) {
     model: profile.adoption,
     context: evidence('conditions-context'),
     bindings: [],
+    segments: [],
   }
 
   type PrepareInput = Parameters<RequestPreparation<string>['prepare']>[0]

@@ -65,6 +65,7 @@ it('testing entry exports the memory Journal, the scripted doubles, the clock an
     'readyPreparation',
     'testAdoption',
     'testEvidence',
+    'testToolDefinition',
   ])
 })
 

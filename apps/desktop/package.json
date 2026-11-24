@@ -78,7 +78,8 @@
     "hono": "catalog:",
     "node-screenshots": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "react-screenshots": "catalog:"
   },
   "devDependencies": {
     "@electron/fuses": "catalog:",

@@ -81,6 +81,7 @@ export function initializationGuard(
       !same(original.residentAdoption, {
         residents: initial.newResidents,
         keys: initial.residentBindings,
+        ...(initial.newSegments === undefined ? {} : { segments: initial.newSegments }),
       })
     )
       throw new InitializationInvalid('initial adoption contradicts the resident declaration')

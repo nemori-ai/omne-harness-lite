@@ -297,6 +297,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
       Calendar: { resultMaxBytes: 65_536 },
       Schedules: { resultMaxBytes: 65_536 },
+      Jobs: { resultMaxBytes: 65_536 },
       Notifications: { resultMaxBytes: 65_536 },
       Canvas: { resultMaxBytes: 65_536 },
       Sessions: { resultMaxBytes: 131_072 },
@@ -496,6 +497,18 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
       { kind: 'replace', id: 'canvas', config: { policy: CANVAS_POLICY } },
       { kind: 'replace', id: 'workspace', config: { node: 'local' } },
+      {
+        kind: 'replace',
+        id: 'loop-extension',
+        config: {
+          commands: {
+            interpreters: { node: process.execPath },
+            env: tools.construction.Shell.env,
+            stateDirectory: join(options.storageRoot, 'loop-extension-calls'),
+            workspace: tools.filesRoot,
+          },
+        },
+      },
       {
         kind: 'replace',
         id: 'request-context',

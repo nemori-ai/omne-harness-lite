@@ -183,6 +183,50 @@ const SPECS: Readonly<Record<string, Spec>> = {
       return call(queried ? 'query-create-schedule' : 'create-schedule', body, messageId)
     },
   },
+  jobs: {
+    options: ['--schedule'],
+    required: [],
+    send: (read, { tenant, messageId }) =>
+      call(
+        'list-jobs',
+        { tenant, schedule: read.values.get('--schedule') ?? null, cursor: null, limit: 100 },
+        messageId,
+      ),
+  },
+  job: {
+    options: ['--job'],
+    required: ['--job'],
+    send: (read, { tenant, messageId }) =>
+      call('read-job', { tenant, job: text(read.values, '--job') }, messageId),
+  },
+  'cancel-job': {
+    options: ['--job', '--action-id'],
+    required: ['--job'],
+    switches: [QUERY],
+    send(read, { tenant, newId, messageId }) {
+      const queried = read.values.has(QUERY)
+      if (queried && !read.values.has('--action-id')) return 'action-id'
+      const body = {
+        tenant,
+        actionId: read.values.get('--action-id') ?? newId(),
+        job: text(read.values, '--job'),
+      }
+      return call(queried ? 'query-cancel-job' : 'cancel-job', body, messageId)
+    },
+  },
+  'start-job': {
+    options: ['--work-file', '--start-id'],
+    required: ['--work-file'],
+    switches: [QUERY],
+    send(read, { tenant, newId, messageId }) {
+      const work = read.file('--work-file')
+      if (typeof work === 'string') return work
+      const queried = read.values.has(QUERY)
+      if (queried && !read.values.has('--start-id')) return 'start-id'
+      const body = { tenant, startId: read.values.get('--start-id') ?? newId(), work }
+      return call(queried ? 'query-start-job' : 'start-job', body, messageId)
+    },
+  },
   rename: manage(['--label'], ['--label'], read => ({
     kind: 'rename',
     label: text(read.values, '--label'),
@@ -243,8 +287,8 @@ async function runSchedule(
 
 export const scheduleCommand: CommandSpec = {
   name: 'schedule',
-  usage: 'list|show|history|agenda|preview|create|<action>',
+  usage: 'list|show|history|agenda|preview|create|jobs|job|cancel-job|start-job|<action>',
   summary:
-    'Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard.',
+    'Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard. List the Jobs of a schedule or of the tenant, show one, cancel one, or start one directly.',
   run: runSchedule,
 }

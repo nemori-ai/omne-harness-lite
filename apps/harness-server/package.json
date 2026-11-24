@@ -8,7 +8,8 @@
     "node": ">=24"
   },
   "bin": {
-    "harness-server": "./dist/bin.js"
+    "harness-server": "./dist/bin.js",
+    "harness-server-lab": "./dist/lab/bin.js"
   },
   "exports": {
     ".": {
@@ -94,6 +95,10 @@
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/loop-extension": "workspace:*",
+    "@omne-harness/loop-extension-contract": "workspace:*",
+    "@omne-harness/loop-extension-cordis-contract": "workspace:*",
+    "@omne-harness/loop-extension-host-local": "workspace:*",
     "@omne-harness/mcp": "workspace:*",
     "@omne-harness/mcp-access": "workspace:*",
     "@omne-harness/mcp-bridge": "workspace:*",

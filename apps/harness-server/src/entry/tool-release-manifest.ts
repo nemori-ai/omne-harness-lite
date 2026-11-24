@@ -132,6 +132,13 @@ export const RELEASE_TOOLS = Object.freeze([
     construction: Object.freeze(['resultMaxBytes']),
   }),
   Object.freeze({
+    name: 'Jobs',
+    package: SCHEDULE_TOOLS_PACKAGE,
+    capabilities: Object.freeze(['schedule.read', 'schedule.jobs']),
+    export: 'jobsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
     name: 'Sessions',
     package: SESSION_TOOLS_PACKAGE,
     capabilities: Object.freeze(['session.read', 'session.search']),

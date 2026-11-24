@@ -8,6 +8,7 @@ import {
   type TenantStandingSource,
 } from '@omne-harness/identity'
 import type {
+  ChangeSignal,
   SettingDefinitions,
   SettingsDefinitionRef,
   SettingsRebase,
@@ -348,6 +349,7 @@ function createReleaseSettingsPreparation(shared: Shared) {
   return {
     control: {
       destination: prepared.control.destination,
+      changes: prepared.control.changes,
       async close() {
         await prepared.control.close()
         await maintenance.control.close()
@@ -399,8 +401,16 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
       : destination === HELD_SETTINGS_CONFIGURATION.destination
         ? held.control
         : release.control
+  const controls = [release.control, independent.control, held.control]
+  const changes: ChangeSignal<SettingsTarget> = {
+    subscribe(listener) {
+      const leaving = controls.map(control => control.changes.subscribe(listener))
+      return () => leaving.forEach(leave => leave())
+    },
+  }
   return {
     writer,
+    changes,
     observe: release.observe,
     rebase: release.rebase,
     destination: {

@@ -1,3 +1,4 @@
+import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import {
   instantSchema,
@@ -24,7 +25,7 @@ import {
   tenantDomainsKey,
 } from '@omne-harness/sql-contract/cordis'
 import { DISPATCH_PRINCIPAL_KEY } from '../../entry/dispatch-principal.ts'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf, runTimeOf } from '../../entry/time.ts'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { defineRow } from '../../row.ts'
 import { agentDefinitionCatalogKey } from '../agent-adoptions/definition-catalog.ts'
@@ -49,11 +50,7 @@ import {
 export const dispatchConfig = z.strictObject({ policy: dispatchPolicySchema })
 const PARTICIPANTS = [dispatchPersistenceParticipant]
 
-function now(): Instant {
-  const instant = readSystemInstant()
-  if (!instant.ok) throw new Error('dispatch clock unavailable')
-  return instantSchema.parse(instant.text)
-}
+const nowOf = (ctx: Context) => (): Instant => instantSchema.parse(instantTextOf(ctx, 'dispatch'))
 
 /** The storage combination of the dispatch participant, from the catalogue of the running code. */
 export async function dispatchCombination(): Promise<Combination> {
@@ -118,7 +115,8 @@ export const dispatchRow = defineRow({
           () => holder.turns,
         ),
       },
-      clock: { now },
+      clock: { now: nowOf(ctx) },
+      timers: runTimeOf(ctx),
       report: error => logger.warn('dispatch work failed: %s', String(error)),
     })
     await provider.await()

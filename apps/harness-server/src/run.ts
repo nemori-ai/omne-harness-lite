@@ -38,16 +38,20 @@ import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts
 import type { LoadedRow } from './readiness.ts'
 import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-bound.ts'
 import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
+import { hostTime, holdRunTime } from './entry/time.ts'
+import { enabledExtensionsOf } from './rows/agent-host/enabled-extensions.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
 import { createModelHostRow } from './rows/model-host/index.ts'
 import { createModelRecordsRow } from './rows/model-records/index.ts'
 import { createToolRecordsRow } from './rows/tool-runtime/index.ts'
+import { refusedInstance, type Instance } from './state-instance.ts'
 import { acquireStateLock, lostContactBy, type StateLock } from './state-lock.ts'
 import { prepareStartupDirectory } from './startup-directory.ts'
 import { createTrust, type Trust } from './trust.ts'
 import type {
   EntryEnv,
+  EntryTime,
   EntryObjectModule,
   Implementation,
   LifecycleHandle,
@@ -411,6 +415,12 @@ export type RunServeOptions = Readonly<{
   visibility?: Visibility
   /** How the host row chooses its screen backend; absent: by the system this process runs on. */
   hostScreen?: Parameters<typeof createExecutionHostBinding>[1]
+  /** The one time of this run; absent: the system time. The release entry gives none. */
+  time?: EntryTime
+  /** Which kind of instance starts: a lab one only on a state root it made, a release one never there. */
+  instance?: Instance
+  /** Row plugins an entry adds to the release ones; the lab adds its programs, the release none. */
+  extraPlugins?: Readonly<Record<string, unknown>>
 }>
 
 export type ServeResult = Readonly<{
@@ -423,6 +433,18 @@ export type ServeResult = Readonly<{
 }>
 
 const SERVE_PREFIX = 'serve'
+
+/** The entry's environment for this run; the one time of the run is held on its root for the rows. */
+function entryEnvOf(root: Context, trust: Trust, options: RunServeOptions): EntryEnv {
+  const time = options.time ?? hostTime()
+  holdRunTime(root, time)
+  return {
+    stateRoot: options.stateRoot,
+    readTrusted: name => trust.contextForName(root, name),
+    once: createOnce(),
+    time,
+  }
+}
 
 function createOnce(): EntryEnv['once'] {
   const made = new Map<symbol, { create: () => unknown; value: unknown }>()
@@ -475,6 +497,18 @@ function stopRequest(signal: AbortSignal): { promise: Promise<string>; cancel: (
 }
 
 export async function runServe(options: RunServeOptions): Promise<ServeResult> {
+  const wrongInstance = refusedInstance(options.stateRoot, options.instance ?? 'release')
+  if (wrongInstance !== undefined) {
+    options.stderr(`${SERVE_PREFIX}: ${wrongInstance}`)
+    return {
+      exitCode: 3,
+      accepting: false,
+      barrierCalls: 0,
+      startedRows: [],
+      appliedRows: [],
+      implementations: { real: 0, 'contract-double': 0, 's0-double': 0 },
+    }
+  }
   const hostFiles = createHostFilesRuntime({
     diagnose: diagnostic => options.stderr(`${SERVE_PREFIX}: ${diagnostic.kind}`),
   })
@@ -492,8 +526,10 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
   }
   const plugins: Readonly<Record<string, unknown>> = options.plugins ?? {
     ...releasePlugins,
+    ...options.extraPlugins,
     agentHostRow: createAgentHostRow({
       toolRequestsOf: releaseToolRequestsOf,
+      enabledExtensionsOf,
       lostContact: lostContactBy(() => lock, 'instance'),
     }),
     modelHostRow: createModelHostRow({ lostContact: lostContactBy(() => lock, 'call') }),
@@ -698,7 +734,7 @@ async function runServeWithHostFiles(
     summary: line => stderr(`${SERVE_PREFIX}: ${line}`),
   })
   const profile = serveProfile({
-    ...(options.plugins ?? releasePlugins),
+    ...(options.plugins ?? { ...releasePlugins, ...options.extraPlugins }),
     executionHost: executionHost.plugin,
     telemetry: telemetry.plugin,
   })
@@ -820,11 +856,7 @@ async function runServeWithHostFiles(
   )
   await root.plugin(S0AssemblyLifecycleService, registry)
 
-  const env: EntryEnv = {
-    stateRoot: options.stateRoot,
-    readTrusted: name => trust.contextForName(root, name),
-    once: createOnce(),
-  }
+  const env = entryEnvOf(root, trust, options)
   const started = await startTree({
     root,
     trust,

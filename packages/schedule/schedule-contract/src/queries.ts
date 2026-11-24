@@ -76,7 +76,7 @@ export const ScheduleRevisionsRequestSchema = z.strictObject({
 })
 export const ScheduleExecutionsRequestSchema = z
   .strictObject({
-    scheduleId: ScheduleIdSchema,
+    scheduleId: ScheduleIdSchema.nullable(),
     from: ScheduleInstantSchema.nullable(),
     to: ScheduleInstantSchema.nullable(),
     ...SchedulePageRequestSchema.shape,

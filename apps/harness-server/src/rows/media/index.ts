@@ -11,8 +11,8 @@ import {
   MediaStoresProvider,
   createMediaPlugin,
 } from '@omne-harness/media/cordis'
-import { systemTime } from '@omne-harness/time-source'
 import { z } from 'zod'
+import { runTimeOf } from '../../entry/time.ts'
 import { defineRow } from '../../row.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -58,7 +58,7 @@ export const mediaRow = defineRow({
     Config: mediaConfig,
     apply(ctx: Context, raw: unknown) {
       const { writeTo, ...config } = mediaConfig.parse(raw)
-      const time = systemTime()
+      const time = runTimeOf(ctx)
       const timer = { after: (delayMs: number, fire: () => void) => time.after(delayMs, fire) }
       ctx.plugin(MediaStoresProvider)
       ctx.plugin(MediaEnginesProvider)

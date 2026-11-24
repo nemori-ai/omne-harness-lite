@@ -12,7 +12,9 @@ const completed = (entries: readonly { kind: string }[]) =>
     '"outcome":"completed"',
   )
 
-const ROWS = ['runtime-context-tenant-scope', 'session-intake-budget', 'workspace-outside-files']
+const SCOPE = 'runtime-context-tenant-scope'
+const READERS = ['session-intake-budget', 'workspace-outside-files']
+const ROWS = [SCOPE, ...READERS]
 
 describe('the release tree and the rows of the tenant-level scope', () => {
   it(
@@ -39,13 +41,13 @@ describe('the release tree and the rows of the tenant-level scope', () => {
   )
 
   it(
-    'starts without them and a session talks: the pending limit is then the one of the storage row',
+    'starts without the two rows that read these settings through it and a session talks: the pending limit is then the one of the storage row',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
-      const options = { script: toolCallsThenText(() => []), withoutRows: ROWS }
+      const options = { script: toolCallsThenText(() => []), withoutRows: READERS }
       const exitCode = await onReleaseTree(options, async tree => {
         const ids = tree.records.filter(r => r['kind'] === 'tree').map(r => r['id'])
-        expect(ids.filter(id => ROWS.includes(String(id)))).toEqual([])
+        expect(ids.filter(id => READERS.includes(String(id)))).toEqual([])
         const session = await tree.startSession('hello')
         const entries = await pollUntil(
           'the Run to end',
@@ -55,6 +57,19 @@ describe('the release tree and the rows of the tenant-level scope', () => {
         expect(completed(entries)).toBe(true)
       })
       expect(exitCode).toBe(0)
+    },
+  )
+
+  // The loop extensions a tenant enabled are read through this scope at every position: a tree
+  // that cannot read them does not serve, it does not run the turns without them.
+  it(
+    'does not start accepting without the tenant-level scope itself',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const options = { script: toolCallsThenText(() => []), withoutRows: ROWS }
+      await expect(onReleaseTree(options, async () => {})).rejects.toThrow(
+        'the server did not start accepting',
+      )
     },
   )
 })

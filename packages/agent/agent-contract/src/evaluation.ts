@@ -23,7 +23,7 @@ import type {
   StepId,
 } from './identity.ts'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { HandoffReference, MessageSource, Passage } from './passages.ts'
+import type { ExtensionChain, HandoffReference, MessageSource, Passage } from './passages.ts'
 import type { CompactionState, Preparation, SavedPreparation } from './request.ts'
 
 export type ProducedResult = Readonly<{
@@ -211,6 +211,8 @@ export type ActionBatch = Readonly<{
   actions: readonly Action[]
   barrier: ActionBarrier
   slots: readonly ActionSlot[]
+  /** The calls of the pass before the actions; null until that pass is adopted. A batch is judged by it once. */
+  beforePass: readonly PassageId[] | null
   batchPass: readonly PassageId[] | null
 }>
 export type ModelReplyAdmission = Readonly<{
@@ -308,7 +310,8 @@ export type AgentCheckpoint = Readonly<{
   adoptedContext: DurableEvidence | null
   adoptedRequest?: AdoptedRequest | null
   guard: GuardFact | null
-  completedPassages: readonly PassageId[]
+  /** The extension chain of the pass that is open, or null. */
+  chain: ExtensionChain | null
   priorConditions: DurableEvidence | null
   /** The H of the current source position; set by P, cleared or moved only by a Ja, never by Rh. */
   currentHandoff: HandoffReference | null
@@ -322,7 +325,11 @@ export type RuntimeConditions = Readonly<{
   model: Adoption
   context: DurableEvidence
   bindings: readonly Adoption[]
+  /** The resident segments of the system prompt; absent when the session keeps none. */
+  segments?: readonly ResidentSegmentText[]
 }>
+/** A segment of the system prompt the session keeps: placed as written after the sections of the definition. */
+export type ResidentSegmentText = Readonly<{ key: string; text: string }>
 export type ProducerDecisionView =
   | Readonly<{ kind: 'unresolved'; pending: PendingCall; source: DurableEvidence }>
   | Readonly<{

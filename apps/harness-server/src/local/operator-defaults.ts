@@ -127,6 +127,7 @@ export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 
 const STORAGE_LOCK_WAIT_MS = 5000
 export const LOCAL_READ_WAIT_MS = 2 * STORAGE_LOCK_WAIT_MS
+export const LOCAL_MAX_RESPONSE_BYTES = 1_048_576
 
 const TOOL_ORPHAN_GRACE_MS = 60_000
 
@@ -248,7 +249,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
     maxJsonMembers: 65_536,
-    maxResponseBytes: 1_048_576,
+    maxResponseBytes: LOCAL_MAX_RESPONSE_BYTES,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,
@@ -549,6 +550,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
           Calendar: { resultMaxBytes: 65_536 },
           Schedules: { resultMaxBytes: 65_536 },
+          Jobs: { resultMaxBytes: 65_536 },
           Notifications: { resultMaxBytes: 65_536 },
           Canvas: { resultMaxBytes: 65_536 },
           Sessions: { resultMaxBytes: 131_072 },
@@ -609,6 +611,17 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ...(rows.has('canvas') ? ([['canvas', { policy: CANVAS_POLICY }]] as const) : []),
     ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
     ['execution-host', { stateDirectory: locations.hostFilesDir }],
+    [
+      'loop-extension',
+      {
+        commands: {
+          interpreters: { node: process.execPath },
+          env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
+          stateDirectory: path.join(locations.storageRoot, 'loop-extension-calls'),
+          workspace: settings.workspace,
+        },
+      },
+    ],
     ['request-context', {}],
     ['agent-context', {}],
     ['agent-host', AGENT_HOST],

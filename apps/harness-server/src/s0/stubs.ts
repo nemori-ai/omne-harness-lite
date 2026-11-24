@@ -131,6 +131,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantAssetSettings',
       'independentSettings',
       'tenantIndependentSettings',
+      'loopExtensionSources',
     ],
     injects: [
       'storage',
@@ -154,8 +155,23 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   schedule: {
-    provides: ['scheduleCommands', 'scheduleQueries'],
-    injects: ['storage', 'tenantDomainLookup', 'calendarQuery', 'tenantIndependentSettings'],
+    provides: [
+      'scheduleCommands',
+      'scheduleQueries',
+      'scheduleJobs',
+      'schedulePrograms',
+      'scheduleExecutors',
+      'scheduleCarriers',
+    ],
+    injects: [
+      'storage',
+      'tenantDomainLookup',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+      'tenantStanding',
+      'calendarQuery',
+      'tenantIndependentSettings',
+    ],
     phase: 'composition',
   },
   notification: {
@@ -426,6 +442,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'mcpAdoptionView',
       'mcpUseEligibility',
       'mcpCredentialUse',
+      'residentEndpoints',
     ],
     injects: ['tenantAssets', 'assetCategories', 'toolEntrySources'],
   },
@@ -434,7 +451,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['toolContributionAuthority'],
   },
   skills: {
-    provides: ['skillCatalog', 'skillAccess'],
+    provides: ['skillCatalog', 'skillAccess', 'sessionSkills'],
     injects: ['tenantAssets', 'assetCategories'],
     phase: 'composition',
   },
@@ -498,6 +515,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'modelPreparationResources',
       'modelRequestPreparation',
     ],
+  },
+  'loop-extension': {
+    provides: [
+      'loopExtensionViews',
+      'loopExtensionBuiltins',
+      'loopExtensionRunLocations',
+      'agentExtensions',
+    ],
+    injects: ['runtimeContextTenantBlocks'],
   },
   'runtime-context': { provides: ['runtimeContext'], injects: ['runtimeContextTrust'] },
   'session-observation': {

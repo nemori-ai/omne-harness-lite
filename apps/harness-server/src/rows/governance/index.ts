@@ -37,7 +37,8 @@ import { monotonicClock } from '../../shutdown.ts'
 import { governanceInstallationPrincipalsKey } from '../../entry/governance-installation-principals.ts'
 import { governanceDirectoryPrincipalsKey } from '../../entry/governance-directory-principals.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
-import { readSystemInstant, epochMillisOf } from '../../entry/session-clock.ts'
+import { epochMillisOf } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { categoryGateTemplatesSchema } from '../../entry/category-gates.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { LOCAL_GOVERNANCE_OPENING } from '../../local/operator-defaults.ts'
@@ -65,6 +66,8 @@ import {
   tenantSettingsKey,
   type TenantSettingsServiceOptions,
 } from './tenant-settings-service.ts'
+import { provideExtensionSources } from './extension-sources.ts'
+import { loopExtensionSourcesKey } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import { isHitlReservation } from '../tool-hitl/host.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
@@ -143,6 +146,7 @@ export const governanceRow = defineRow({
       tenantAssetSettingsKey,
       independentSettingsKey,
       tenantIndependentSettingsKey,
+      loopExtensionSourcesKey,
     ],
     injects: [
       storageKey,
@@ -247,11 +251,7 @@ export const governanceRow = defineRow({
           identity,
           registry,
           clock: {
-            now() {
-              const instant = readSystemInstant()
-              if (!instant.ok) throw new Error('governance Settings clock unavailable')
-              return epochMillisOf(instant.text)
-            },
+            now: () => epochMillisOf(instantTextOf(ctx, 'governance Settings')),
           },
           cursorLifetimeMs: 60_000,
           grants: [
@@ -269,6 +269,7 @@ export const governanceRow = defineRow({
       },
     })
     new StandingDestination(ctx, host)
+    provideExtensionSources(ctx, tenantRef => host.settings(tenantRef), config.deploymentId)
     new SessionBackend(ctx, host)
     new CurrentPermissionService(ctx, {
       identity: {

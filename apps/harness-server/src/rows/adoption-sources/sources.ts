@@ -41,7 +41,8 @@ import { prepareInitialContext, type PreparedBlock } from './initial-context.ts'
 import { jsonOf } from './json.ts'
 import { recallInitialContext } from './recall-context.ts'
 import { lastTurnOf, madeFrom, type Turn } from '../tenant-assets/turn.ts'
-import { plannedResidents } from './residents.ts'
+import { plannedResidents, type ResidentReport } from './residents.ts'
+import { TOOL_CATEGORY } from '../agent-adoptions/table.ts'
 import { adoptForStartedRun, adoptWorkspace, type RunSourcesPorts } from './run-sources.ts'
 
 const OWNER = '@omne-harness/harness-server'
@@ -113,7 +114,11 @@ function undeclaredByMapping(
     )
   const declared = creation.residentAdoption
   if (declared === undefined) return undefined
-  const named = new Set(entry.residentCapabilities ?? [])
+  const named = new Set(
+    (entry.residentReferences ?? [])
+      .filter(reference => reference.category === TOOL_CATEGORY)
+      .map(reference => reference.name),
+  )
   const capabilities = [...declared.residents, ...declared.keys].map(item => item.capability)
   if (capabilities.some(capability => !named.has(capability)))
     return invalid(
@@ -179,6 +184,7 @@ function initialAdoptionOf(
     },
     residentBindings: residents.keys,
     newResidents: residents.residents,
+    ...(residents.segments === undefined ? {} : { newSegments: residents.segments }),
   }
 }
 
@@ -279,7 +285,9 @@ function initializationMaterial(facts: InitializationGuardFacts): Prepared {
   ])
 }
 
-function runSourcesOf(ctx: Context): RunSourcesPorts {
+type AdoptionPorts = RunSourcesPorts & Readonly<{ leftOut: ResidentReport }>
+
+function runSourcesOf(ctx: Context, leftOut: ResidentReport | undefined): AdoptionPorts {
   const coordinator = ctx.intercept(sessionKey, { caller: 'coordinator' })
   const logger = ctx.logger('adoption-sources')
   return {
@@ -287,6 +295,8 @@ function runSourcesOf(ctx: Context): RunSourcesPorts {
     sources: () => ctx.get(workspaceSourcesKey),
     categories: () => ctx.get(assetCategoriesKey)?.view,
     report: reason => logger.warn('the run starts without a workspace layer: %s', reason),
+    leftOut:
+      leftOut ?? (reason => logger.warn('a resident is left out of the session: %s', reason)),
   }
 }
 
@@ -321,22 +331,25 @@ async function addedResidents<P>(
   entry: DefinitionMappingEntry,
   access: SessionAccess<P>,
   turn: Turn | null,
+  report: ResidentReport,
 ): Promise<Outcome<ResidentAdoption | undefined, SessionFailure>> {
-  const kept = new Set(work.residents.map(resident => resident.capability))
-  const added = (entry.residentCapabilities ?? []).filter(capability => !kept.has(capability))
-  if (added.length === 0) return succeed(undefined)
-  const planned = await plannedResidents(ctx, added, access, turn)
+  const planned = await plannedResidents(
+    ctx,
+    entry.residentReferences ?? [],
+    access,
+    report,
+    turn,
+    work,
+  )
   if ('failure' in planned) return planned
-  return succeed({
-    residents: planned.ok.residents,
-    keys: [...(work.residentKeys ?? []), ...planned.ok.keys],
-  })
+  const { residents, segments } = planned.ok
+  return succeed(residents.length === 0 && segments === undefined ? undefined : planned.ok)
 }
 
 /** What a run that starts now adopts: the version in force under the name of its definition. */
 async function runAdoption<P>(
   ctx: Context,
-  runSources: RunSourcesPorts,
+  runSources: AdoptionPorts,
   mappings: Mappings,
   access: SessionAccess<P>,
   { work, run }: RunAdoptionInput,
@@ -359,7 +372,7 @@ async function runAdoption<P>(
     entry = read.entry
   }
   if (same(entry.candidate, pinned)) return succeed({ candidate: pinned })
-  const residents = await addedResidents(ctx, work, entry, access, turn)
+  const residents = await addedResidents(ctx, work, entry, access, turn, runSources.leftOut)
   if ('failure' in residents) return residents
   return succeed({
     candidate: entry.candidate,
@@ -369,7 +382,7 @@ async function runAdoption<P>(
 
 async function prepareFrom<P>(
   ctx: Context,
-  runSources: RunSourcesPorts,
+  runSources: AdoptionPorts,
   mappings: Mappings,
   command: AdoptionEvidenceCommand,
   access: SessionAccess<P> | undefined,
@@ -395,7 +408,13 @@ async function prepareFrom<P>(
         return invalid(mismatch, 'the creation does not match the mapping entry of its definition')
       const undeclared = undeclaredByMapping(entry, command)
       if (undeclared !== undefined) return undeclared
-      const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access, turn)
+      const residents = await plannedResidents(
+        ctx,
+        entry.residentReferences ?? [],
+        access,
+        runSources.leftOut,
+        turn,
+      )
       if ('failure' in residents) return residents
       const preparation = await prepareInitialContext(ctx, command, access)
       if ('failure' in preparation) return preparation
@@ -417,10 +436,10 @@ export class AdoptionSourcesImpl extends SessionAdoptionSourceService {
   readonly prepare: SessionAdoptionSource['prepare']
   readonly forRun: NonNullable<SessionAdoptionSource['forRun']>
 
-  constructor(ctx: Context, mappings: Mappings) {
+  constructor(ctx: Context, mappings: Mappings, leftOut?: ResidentReport) {
     super(ctx)
     this.mappings = mappings
-    const runSources = runSourcesOf(ctx)
+    const runSources = runSourcesOf(ctx, leftOut)
     this.prepare = (command, access) => prepareFrom(ctx, runSources, mappings, command, access)
     this.forRun = (access, input) => runAdoption(ctx, runSources, mappings, access, input)
   }

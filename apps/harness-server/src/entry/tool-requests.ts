@@ -51,6 +51,7 @@ import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { FilesScope } from '@omne-harness/execution-environment-contract'
 import type { OutsideFiles } from '@omne-harness/workspace-local'
 import { workspaceOutsideFilesKey } from '../rows/workspace-outside-files/service.ts'
+import { sourcedEntriesOf, type SourcedEntries } from './tool-entry-sources.ts'
 import { currentHeldTool, type CurrentHeldTool } from '../rows/tool-host/held-current.ts'
 import { HELD_TOOL_SETTINGS, ownLayer } from '../rows/tool-host/held-tools.ts'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
@@ -88,6 +89,7 @@ export type ToolRequestPorts = Readonly<{
   ): Promise<Outcome<WorkingDirectory | null, string>>
   outsideFiles(tenant: TenantId): Promise<Outcome<OutsideFiles, string>>
   held?(access: Access<unknown>, name: string): Promise<CurrentHeldTool>
+  sourced?(): SourcedEntries
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -183,6 +185,21 @@ function consumerOf(release: Trusted): ToolConsumerProfile {
   return { capabilities, conversion, attachmentAccess }
 }
 
+function callable(
+  released: boolean,
+  held: Awaited<ReturnType<NonNullable<ToolRequestPorts['held']>>> | undefined,
+  sourced: boolean,
+  availability: Extract<ToolAvailability, { kind: 'available' }>,
+  tenant: DescribeInput['tenant'],
+): boolean {
+  if (released) return availability.layer.kind === 'official'
+  if (!ownLayer(availability.layer, tenant)) return false
+  return held?.kind === 'held'
+    ? canonicalDigest(availability.definition.adoption) ===
+        canonicalDigest(held.authority.asset.adoption)
+    : sourced
+}
+
 async function availabilityOf(
   ports: ToolRequestPorts,
   release: Trusted,
@@ -228,12 +245,8 @@ async function availabilityOf(
       kind: 'answered',
       text: `${name} is not available now (${availability.reason}). Continue without it.`,
     })
-  const own =
-    held?.kind === 'held' &&
-    ownLayer(availability.layer, input.tenant) &&
-    canonicalDigest(availability.definition.adoption) ===
-      canonicalDigest(held.authority.asset.adoption)
-  if (released ? availability.layer.kind !== 'official' : !own)
+  const sourced = ports.sourced?.().owns(name) === true
+  if (!callable(released, held, sourced, availability, input.tenant))
     return unavailable(`${name} is not available`)
   const selected = callOf(availability.definition, input.effectiveArguments)
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
@@ -329,7 +342,7 @@ async function closedBySession(
 }
 
 async function sessionScope(
-  ports: ToolRequestPorts,
+  ports: Pick<ToolRequestPorts, 'readWork'>,
   tenant: TenantId,
   principal: unknown,
   session: SessionId,
@@ -353,7 +366,7 @@ async function sessionScope(
 }
 
 async function tenantScope(
-  ports: ToolRequestPorts,
+  ports: Pick<ToolRequestPorts, 'scopeBinding'>,
   tenant: TenantId,
   scope: ScopeRef,
 ): Promise<Outcome<ScopeRef, Failure>> {
@@ -375,8 +388,8 @@ async function tenantScope(
   }
 }
 
-async function currentScope(
-  ports: ToolRequestPorts,
+export async function currentScope(
+  ports: Pick<ToolRequestPorts, 'readWork' | 'scopeBinding'>,
   tenant: TenantId,
   principal: unknown,
   session: SessionId,
@@ -476,7 +489,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     return succeed(
       availability.ok.kind === 'answered'
         ? availability.ok
-        : { kind: 'tool', definition: availability.ok.definition.adoption },
+        : { kind: 'tool', definition: availability.ok.definition },
     )
   }
 
@@ -560,5 +573,6 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
       (await ctx.get(workspaceOutsideFilesKey)?.read(tenant)) ??
       fail('the row that reads the setting through Runtime Context is not there'),
     held: (access, name) => currentHeldTool(ctx, access, name),
+    sourced: () => sourcedEntriesOf(ctx),
   })
 }

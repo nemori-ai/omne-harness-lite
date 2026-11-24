@@ -1,3 +1,4 @@
+import { enabledExtensionsOf } from './rows/agent-host/enabled-extensions.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
 export { createStubPlugin as stubPlugin } from './s0/stub-plugin.ts'
@@ -104,6 +105,7 @@ export {
 export { requestContextRow } from './rows/request-context/index.ts'
 export { agentContextRow } from './rows/agent-context/index.ts'
 export { contextCompactionRow } from './rows/context-compaction/default.ts'
+export { loopExtensionRow } from './rows/loop-extension/index.ts'
 export { sessionAd02Row } from './rows/session-ad02/index.ts'
 export { sessionAd03Row } from './rows/session-ad03/index.ts'
 export { sessionAd04Row } from './rows/session-ad04/index.ts'
@@ -111,6 +113,9 @@ export { sessionAd05Row } from './rows/session-ad05/index.ts'
 export { sessionHandoffRow } from './rows/session-handoff/index.ts'
 export { sessionConditionsRow } from './rows/session-conditions/index.ts'
 
-export const agentHostRow = createAgentHostRow({ toolRequestsOf: releaseToolRequestsOf })
+export const agentHostRow = createAgentHostRow({
+  toolRequestsOf: releaseToolRequestsOf,
+  enabledExtensionsOf,
+})
 
 export { modelTokenizersRow } from './rows/model-tokenizers/index.ts'

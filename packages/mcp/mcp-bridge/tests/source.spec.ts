@@ -299,14 +299,49 @@ describe('a call of a command', () => {
     expect((result.content[0] as { text: string }).text).toContain('forty-two')
   })
 
-  it('does not start when the called action changed after the call was accepted', async () => {
+  it('does not start when the parameters of the called action changed after the call was accepted', async () => {
     const w = await ready(['search'], ['fetch'])
     const declared = commandNamed(w, alice, 'mcp__docs', 'search')
-    w.offers('docs', [action('search', { description: 'Now it deletes.' }), action('fetch')], 2)
+    const inputSchema = { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] }
+    w.offers('docs', [action('search', { inputSchema }), action('fetch')], 2)
     await expect(w.source.execute(callOf(alice, 'mcp__docs', declared))).rejects.toThrow(
       /did not start: the definition of the action changed.*Nothing was sent/u,
     )
     expect(w.invoked).toEqual([])
+  })
+
+  it('is sent as usual when only the words of the peer about the called action changed', async () => {
+    const w = await ready(['search', { description: 'Searches the docs.' }], ['fetch'])
+    w.answers(() => done)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'search')
+    w.offers(
+      'docs',
+      [
+        action('search', { description: 'Now it says something else entirely. And more.' }),
+        action('fetch'),
+      ],
+      2,
+    )
+    await w.source.execute(callOf(alice, 'mcp__docs', declared))
+    expect(w.invoked).toHaveLength(1)
+  })
+
+  it('is sent as usual when the declaration it was accepted with lists its members in another order', async () => {
+    const w = await ready(['search'])
+    w.answers(() => done)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'search')
+    const reversed = (value: object) => Object.fromEntries(Object.entries(value).reverse())
+    const reordered = { ...reversed(declared), returns: reversed(declared.returns) }
+    await w.source.execute(callOf(alice, 'mcp__docs', reordered as never))
+    expect(w.invoked).toHaveLength(1)
+  })
+
+  it('lists the endpoint of the call first for an asker of the tenant who has not listed it, then sends', async () => {
+    const w = await ready(['search'])
+    w.answers(() => done)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'search')
+    await w.source.execute(callOf(bob, 'mcp__docs', declared))
+    expect(w.invoked.map(item => item.asker)).toEqual([bob])
   })
 
   it('is sent as usual when only another action changed', async () => {
@@ -361,5 +396,90 @@ describe('a call of a command', () => {
       { ref: expect.objectContaining({ name: 'docs' }), taskId: 'task-9', issuedAt: 3 },
     ])
     expect(w.invoked).toHaveLength(1)
+  })
+})
+
+describe('one endpoint asked for by the name of its tool', () => {
+  it('gives its entry, and the asker may call it after', async () => {
+    const w = world()
+    w.adopt(home, 'docs', 'other')
+    w.offers('docs', [action('search')])
+    w.reads('other', succeed(notAcquired))
+    w.answers(() => done)
+    const found = await w.source.named(alice, 'mcp__docs')
+    if (found.kind !== 'entry') throw new Error(JSON.stringify(found))
+    expect(found.entry.definition.name).toBe('mcp__docs')
+    expect(w.refreshed).not.toContain('other')
+    const declared = commandNamed(w, alice, 'mcp__docs', 'search')
+    await w.source.execute(callOf(alice, 'mcp__docs', declared))
+    expect(w.invoked).toHaveLength(1)
+  })
+
+  it('keeps what the asker listed before, and adds the one asked for', async () => {
+    const w = world()
+    w.adopt(home, 'docs', 'other')
+    w.offers('docs', [action('search')])
+    w.offers('other', [action('fetch')])
+    await w.source.list(alice)
+    await w.source.named(alice, 'mcp__docs')
+    expect(w.source.select(alice, 'mcp__other')?.definition.name).toBe('mcp__other')
+    expect(w.source.select(alice, 'mcp__docs')?.definition.name).toBe('mcp__docs')
+  })
+
+  it('a call for an endpoint the asker has not listed, beside one it has, lists it first and is sent', async () => {
+    const w = world()
+    w.adopt(home, 'docs', 'other')
+    w.offers('docs', [action('search')])
+    w.offers('other', [action('fetch')])
+    w.answers(() => done)
+    await w.source.list(alice)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'search')
+    await w.source.named(bob, 'mcp__other')
+    await w.source.execute(callOf(bob, 'mcp__docs', declared))
+    expect(w.invoked.map(item => item.asker)).toEqual([bob])
+  })
+
+  it('a call for an endpoint that is withheld by the time of the call does not start, whether or not the asker listed anything before', async () => {
+    for (const listedAnother of [false, true]) {
+      const w = world()
+      w.adopt(home, 'docs', 'other')
+      w.offers('docs', [action('search')])
+      w.offers('other', [action('fetch')])
+      await w.source.list(alice)
+      const declared = commandNamed(w, alice, 'mcp__docs', 'search')
+      if (listedAnother) await w.source.named(bob, 'mcp__other')
+      w.reads('docs', fail({ kind: 'blocked', reason: 'disabled' }))
+      await expect(w.source.execute(callOf(bob, 'mcp__docs', declared))).rejects.toThrow(
+        /did not start/u,
+      )
+      expect(w.invoked).toEqual([])
+    }
+  })
+
+  it('withheld, with the reason, when the endpoint is disabled', async () => {
+    const w = world()
+    w.adopt(home, 'docs')
+    w.reads('docs', fail({ kind: 'blocked', reason: 'disabled' }))
+    expect(await w.source.named(alice, 'mcp__docs')).toEqual({
+      kind: 'withheld',
+      reason: expect.stringContaining('disabled'),
+    })
+  })
+
+  it('absent when this asker holds no endpoint of that name; the other tenant holds one', async () => {
+    const w = world()
+    w.adopt(away, 'docs')
+    w.offers('docs', [action('search')])
+    expect(await w.source.named(alice, 'mcp__docs')).toEqual({ kind: 'absent' })
+    expect((await w.source.named(mallory, 'mcp__docs')).kind).toBe('entry')
+  })
+
+  it('not readable when what the asker adopted cannot be read', async () => {
+    const w = world()
+    w.adoptRefs(home, 'unknown')
+    expect(await w.source.named(alice, 'mcp__docs')).toEqual({
+      kind: 'unreadable',
+      reason: 'the adopted MCP endpoints could not be read',
+    })
   })
 })

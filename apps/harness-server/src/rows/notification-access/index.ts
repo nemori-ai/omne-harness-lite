@@ -12,7 +12,7 @@ import {
   notificationSendingKey,
   notificationSubscriptionsKey,
 } from '@omne-harness/notification-cordis-contract/cordis'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { defineRow } from '../../row.ts'
 import { memberActingOfCall } from '../server-entry/identity.ts'
 
@@ -47,18 +47,14 @@ function facesOf(ctx: Context): NotificationFaces | undefined {
     : { sending, inbox, subscriptions, destinations, catalog }
 }
 
-function now(): string {
-  const instant = readSystemInstant()
-  if (!instant.ok) throw new Error('notification-access clock unavailable')
-  return instant.text
-}
-
-const plugin = createNotificationAccessPlugin({
-  principals: principalsOf,
-  faces: facesOf,
-  changes: ctx => ctx.get(notificationChangesKey),
-  now,
-})
+/** Built when the row applies, so its clock is the time of this run. */
+const pluginOf = (ctx: Context) =>
+  createNotificationAccessPlugin({
+    principals: principalsOf,
+    faces: facesOf,
+    changes: scope => scope.get(notificationChangesKey),
+    now: () => instantTextOf(ctx, 'notification-access'),
+  })
 
 export const notificationAccessRow = defineRow({
   row: 'notification-access',
@@ -69,5 +65,9 @@ export const notificationAccessRow = defineRow({
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },
-  plugin: { ...plugin, inject: [accessRegistryKey, principalIssuerKey] },
+  plugin: {
+    name: 'notification-access',
+    inject: [accessRegistryKey, principalIssuerKey],
+    apply: (ctx: Context) => pluginOf(ctx).apply(ctx, undefined),
+  },
 })

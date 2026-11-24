@@ -3,6 +3,7 @@ import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import { fail } from '@omne-harness/operation-result'
 import { toolCommandsKey } from '@omne-harness/tool-cordis-contract/cordis'
+import { instantTextOf } from '../../entry/time.ts'
 import { sessionWorkReaderOf } from '../../entry/tool-requests.ts'
 import { mountDecisionRoute } from '../tool-runtime/decision-routes.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
@@ -26,6 +27,7 @@ export function mountToolHitl(
     verifier: () => tool.verifier(),
     standing: () => tool.standing(),
     reservations: () => hitl.reservations(),
+    now: () => instantTextOf(ctx, 'tool-hitl'),
     decided: wakeOnDecision(currentInstanceHost(ctx), text => ctx.logger('tool-hitl').warn(text)),
   })
   const readWork = sessionWorkReaderOf(ctx)

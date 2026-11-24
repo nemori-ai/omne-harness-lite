@@ -39,3 +39,11 @@ export function application() {
       .mockReturnValue({ kind: 'admissionStopped', durableRuns: 'retained' }),
   } satisfies CalendarSupplyApplication
 }
+
+/** Waits on the host timers, so a test drives them with the fake timers of vitest. */
+export const hostTimers = {
+  after(delayMs: number, fire: () => void): () => void {
+    const timer = setTimeout(fire, delayMs)
+    return () => clearTimeout(timer)
+  },
+}

@@ -37,6 +37,11 @@ const EXPECTED: Readonly<
     ['draft', 'auto', ['draft', 'revise', 'discard']],
     ['activate', 'auto', ['create', 'update', 'replace', 'promote', 'pause', 'resume', 'stop']],
   ],
+  Jobs: [
+    ['read', 'auto', ['help', 'list', 'show']],
+    ['start', 'auto', ['start']],
+    ['cancel', 'auto', ['cancel']],
+  ],
   Notifications: [
     ['read', 'auto', ['help', 'sent', 'inbox', 'read', 'sources', 'subscriptions']],
     ['triage', 'auto', ['done', 'dismiss', 'restore', 'unsubscribe']],

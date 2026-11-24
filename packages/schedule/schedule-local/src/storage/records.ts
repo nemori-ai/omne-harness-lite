@@ -28,7 +28,7 @@ export function readRecord(
     throw new Error('Stored schedule binding mismatch')
   return record
 }
-function saveRecord(port: ParticipantPort, value: ScheduleRecord) {
+export function saveRecord(port: ParticipantPort, value: ScheduleRecord) {
   const record = recordSchema.parse(value)
   const { view } = record
   const owner = canonical(view.owner)

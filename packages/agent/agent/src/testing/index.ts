@@ -74,6 +74,7 @@ export type { ManualAgentClock } from './clock.ts'
 export {
   createScriptedAccessCheck,
   createScriptedActionAdmission,
+  testToolDefinition,
   createScriptedDecisionCards,
   createScriptedExtensions,
   createScriptedMaterials,

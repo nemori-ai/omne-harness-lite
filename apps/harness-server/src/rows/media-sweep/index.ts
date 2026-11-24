@@ -2,8 +2,10 @@ import type { Context } from '@deepseek-ai/cordis'
 import { mediaKey } from '@omne-harness/media-cordis-contract/cordis'
 import type { TenantDomains } from '@omne-harness/sql-contract'
 import { tenantDomainsKey } from '@omne-harness/sql-contract/cordis'
+import { every } from '@omne-harness/time-source'
 import { z } from 'zod'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
+import { runTimeOf } from '../../entry/time.ts'
 import { defineRow } from '../../row.ts'
 import { sweepEveryTenant } from './sweep.ts'
 
@@ -43,12 +45,12 @@ export const mediaSweepRow = defineRow({
         })
       }
       ctx.effect(() => {
-        const first = setTimeout(beat, 0)
-        const timer = setInterval(beat, intervalMs)
-        timer.unref()
+        const time = runTimeOf(ctx)
+        const first = time.after(0, beat, { background: true })
+        const periodic = every(time, intervalMs, beat, { background: true })
         return () => {
-          clearTimeout(first)
-          clearInterval(timer)
+          first()
+          periodic()
         }
       }, 'media-sweep.beat')
     },
