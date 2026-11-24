@@ -4,6 +4,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   directoryOf,
   routedSkills,
+  sessionSkillsOf,
   TenantSkillsHost,
   type TenantSkills,
 } from '../../../src/rows/skills/tenant-skills.ts'
@@ -27,6 +28,10 @@ function setOf(label: string): TenantSkills {
     access: {
       read: async () => ({ failure: { kind: 'resource-missing' } }),
       list: async () => ({ failure: { kind: 'source-unavailable' } }),
+    },
+    sessionCatalog: {
+      summaries: async () => ({ ok: [{ kind: 'adopted', name: label } as never] }),
+      search: async () => ({ ok: [] }),
     },
   }
 }
@@ -96,6 +101,17 @@ describe('one Skill service set per tenant, over the local assets of the tenant'
         name: 'x',
       } as never),
     ).toStrictEqual({ failure: { kind: 'source-unavailable' } })
+  })
+
+  it('asks the session catalog of the tenant it is given, and answers unknown when that tenant has no set', async () => {
+    const w = world()
+    const sessionSkills = sessionSkillsOf(w.host)
+    expect(await sessionSkills(alpha, [])).toMatchObject({ ok: [{ name: 'alpha' }] })
+    expect(await sessionSkills(beta, [])).toMatchObject({ ok: [{ name: 'beta' }] })
+    w.answer('none')
+    const fresh = world()
+    fresh.answer('none')
+    expect(await sessionSkillsOf(fresh.host)(alpha, [])).toStrictEqual({ failure: 'unknown' })
   })
 
   it('answers no set, and keeps no failure, when the local assets are not there or the set cannot be built', async () => {

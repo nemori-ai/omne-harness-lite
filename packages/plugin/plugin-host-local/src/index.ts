@@ -54,3 +54,4 @@ export {
   type PortCaller,
   type PortItem,
 } from './server-points.ts'
+export { OFFICIAL_SKILLS, type OfficialSkill } from './official-skills.ts'

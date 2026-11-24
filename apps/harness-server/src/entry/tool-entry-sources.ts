@@ -35,6 +35,18 @@ export function sourcedEntryFor(
     : undefined
 }
 
+/** Whether the source of this name lists it to this asker now, in its tenant: a definition kept since need not be the one it lists. */
+export function sourceListsName(
+  entries: SourcedEntries,
+  access: Access<unknown>,
+  availability: Pick<ToolAvailability, 'kind' | 'definition'> & Readonly<{ layer?: SourceLayer }>,
+): boolean {
+  const { layer } = availability
+  if (availability.kind !== 'available' || layer === undefined) return false
+  if (!sameSourceLayer(layer, { kind: 'tenant', tenant: access.tenant })) return false
+  return entries.entry(access, availability.definition.name)?.availability.kind === 'available'
+}
+
 export function sourcedEntriesOf(ctx: Context): SourcedEntries {
   const sourceOf = (name: string) => {
     const service = ctx.get(toolEntrySourcesKey, false) as

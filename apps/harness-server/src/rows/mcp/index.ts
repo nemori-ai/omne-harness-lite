@@ -42,6 +42,7 @@ import {
 import { gatedCategoryContract } from '../../entry/category-gates.ts'
 import { defineRow } from '../../row.ts'
 import { classify } from '../authorization/principals.ts'
+import { provideResidentEndpoints, residentEndpointsKey } from './resident-endpoints.ts'
 import {
   tenantAssetSettingsKey,
   type TenantAssetSettingsService,
@@ -248,20 +249,20 @@ const mcpPlugin: Plugin.Object = {
       unknown,
       ToolMessageContentBlock
     >
-    sources.contribute(
-      createMcpEntrySource<unknown>({
-        endpoints: asker => held(asker.tenant),
-        discovery: discoveryOf(ctx),
-        invoker: invokerOf(ctx),
-        principalKey,
-        shape: {
-          resultContract: createToolMessageResultCodec(config.bridge.resultMaxBytes).adoption,
-        },
-        resultMaxBytes: config.bridge.resultMaxBytes,
-        acquireWaitMs: config.bridge.acquireWaitMs,
-        connectBound: config.bridge.connectBoundMs as Millis,
-      }),
-    )
+    const source = createMcpEntrySource<unknown>({
+      endpoints: asker => held(asker.tenant),
+      discovery: discoveryOf(ctx),
+      invoker: invokerOf(ctx),
+      principalKey,
+      shape: {
+        resultContract: createToolMessageResultCodec(config.bridge.resultMaxBytes).adoption,
+      },
+      resultMaxBytes: config.bridge.resultMaxBytes,
+      acquireWaitMs: config.bridge.acquireWaitMs,
+      connectBound: config.bridge.connectBoundMs as Millis,
+    })
+    sources.contribute(source)
+    provideResidentEndpoints(ctx, (access, name) => source.named(access, name))
   },
 }
 
@@ -277,6 +278,7 @@ export const mcpRow = defineRow({
       mcpAdoptionViewKey,
       mcpUseEligibilityKey,
       mcpCredentialUseKey,
+      residentEndpointsKey,
     ],
     injects: [tenantAssetsKey, assetCategoriesKey, toolEntrySourcesKey],
     sameProviderGroup: null,

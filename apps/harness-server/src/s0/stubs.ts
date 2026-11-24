@@ -423,6 +423,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'mcpAdoptionView',
       'mcpUseEligibility',
       'mcpCredentialUse',
+      'residentEndpoints',
     ],
     injects: ['tenantAssets', 'assetCategories', 'toolEntrySources'],
   },
@@ -431,7 +432,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['toolContributionAuthority'],
   },
   skills: {
-    provides: ['skillCatalog', 'skillAccess'],
+    provides: ['skillCatalog', 'skillAccess', 'sessionSkills'],
     injects: ['tenantAssets', 'assetCategories'],
     phase: 'composition',
   },

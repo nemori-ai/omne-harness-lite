@@ -924,6 +924,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     model: profile.adoption,
     context: evidence('conditions-context'),
     bindings: [],
+    segments: [],
   }
   conditions.read.always(() => succeed(current))
   selection.select.always(() => succeed(selected))

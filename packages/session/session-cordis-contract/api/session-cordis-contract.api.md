@@ -169,6 +169,8 @@
 - `ResidentAdoption` · 包 `@omne-harness/session-contract`
 - `ResidentKey` · 包 `@omne-harness/session-contract`
 - `ResidentReference` · 包 `@omne-harness/session-contract`
+- `ResidentSegment` · 包 `@omne-harness/session-contract`
+- `ResidentSegmentSource` · 包 `@omne-harness/session-contract`
 - `ResidentTool` · 包 `@omne-harness/session-contract`
 - `Resolution` · 包 `@omne-harness/session-contract`
 - `ResultConsumption` · 包 `@omne-harness/session-contract`

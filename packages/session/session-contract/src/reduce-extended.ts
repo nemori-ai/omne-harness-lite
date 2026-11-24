@@ -49,6 +49,19 @@ function applyResidentAdmitted(
   return null
 }
 
+function applySegmentAdmitted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.prompt-segment-admitted' }>,
+): string | null {
+  const { segment } = entry
+  const segments = draft.segments ?? []
+  const prior = segments.find(item => item.key === segment.key)
+  if (prior !== undefined && !segment.text.startsWith(prior.text))
+    return 'resident segment revision does not begin with the previous text'
+  draft.segments = [...segments.filter(item => item.key !== segment.key), segment]
+  return null
+}
+
 function applyDeclaration(
   draft: Draft,
   entry: Extract<
@@ -351,6 +364,8 @@ export function applyExtended(
       return null
     case 'session.tool-resident-admitted':
       return applyResidentAdmitted(draft, entry)
+    case 'session.prompt-segment-admitted':
+      return applySegmentAdmitted(draft, entry)
     case 'session.mode-changed':
     case 'session.model-selected':
     case 'session.declaration-adopted':

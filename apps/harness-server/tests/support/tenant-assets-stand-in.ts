@@ -15,6 +15,7 @@ export const tenantAssetsStandIn = defineRow({
         open: async () => undefined,
         standing: async () => 'unregistered',
         layerSources: () => [],
+        official: () => [],
       })
     },
   },

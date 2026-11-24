@@ -14,7 +14,7 @@ export const skinCategoryDisplay: CategoryDisplay = Object.freeze({
     'A skin is a plugin with "kind":"skin" and members under client only. A member names a point and a key and gives data (a JSON value) or module with export (a .js file here and the name it exports).',
     'Layers, each a point; use those the look needs: shell.tokens on shell.app (colours, radii, fonts); shell.part-style (CSS of a part at rest and in each state); shell.part-render (draw a part, around builtIn); shell.icon (an icon, by name); shell.piece (loading, empty-state, inline-notice, figure).',
     'OmneExtensionPoints show <point> lists the keys a point takes and what a value or a drawing is given. A part takes only the layers it opens.',
-    'Light and dark: write a colour as light-dark(light, dark), and look at the skin in both.',
+    'Light and dark: write colours as light-dark(light, dark). The whole guide is the skill skin-authoring (Skills read).',
     'Images: carry .png, .jpg, .webp, .avif or .svg files that begin as their kind does. A value points at one with file(path); code gets files.url(path). Ship art you may ship: draw your own.',
     'Before you finish: a publish that is refused says why. Enable the skin; a person wears it on the assets page and sees it in light and dark. A drawing that throws falls back to the built-in at that place.',
   ].join('\n'),

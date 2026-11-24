@@ -27,11 +27,12 @@ test('the seam has four reads and the source takes it as its only option', () =>
     .toEqualTypeOf<Readonly<{ fs?: DirectoryFs }> | undefined>()
 })
 
-test('the run time exports of the root entry are the two sources, the decisions and their asset inputs', () => {
+test('the run time exports of the root entry are the two sources, the reader of a package in a directory, the decisions and their asset inputs', () => {
   expectTypeOf<keyof typeof root>().toEqualTypeOf<
     | 'createContentStoreSource'
     | 'createDirectorySource'
     | 'createSkillDecisions'
+    | 'directoryPackageReader'
     | 'publishedCandidate'
     | 'skillInputsFromAssets'
   >()

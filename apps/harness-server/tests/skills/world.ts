@@ -20,6 +20,7 @@ import {
   routedSkills,
   tenantSkills,
   TenantSkillsHost,
+  type OfficialSkillPorts,
 } from '../../src/rows/skills/tenant-skills.ts'
 import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
 import { openTenantAssets, TenantAssetsHost } from '../../src/rows/tenant-assets/host.ts'
@@ -30,6 +31,7 @@ import { fixtureEnv, fixtureTenant } from '../entry/support.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 import { openSkillPublisher, readWorkNowhere, writeSampleSkill } from './support.ts'
 
+const NO_OFFICIAL: OfficialSkillPorts = { assets: () => [], directoryOf: () => undefined }
 const NO_WORKSPACE = { sources: () => undefined, contractOf: () => undefined }
 
 /** One tenant's Skills on real sqlite, called through the Skills author and its binding. */
@@ -119,7 +121,7 @@ export async function skillsWorld(): Promise<SkillsWorld> {
       const assets = await tenantAssets.open(tenantRef)
       return assets === undefined
         ? undefined
-        : tenantSkills(assets, who, SEARCH_RANKING, NO_WORKSPACE, sourcesOf(tenantRef))
+        : tenantSkills(assets, who, SEARCH_RANKING, NO_WORKSPACE, sourcesOf(tenantRef), NO_OFFICIAL)
     },
   })
 
