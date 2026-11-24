@@ -128,8 +128,6 @@ export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 const STORAGE_LOCK_WAIT_MS = 5000
 export const LOCAL_READ_WAIT_MS = 2 * STORAGE_LOCK_WAIT_MS
 export const LOCAL_MAX_RESPONSE_BYTES = 1_048_576
-// A coding-session creation carries its initialization facts in both Session and its SQL basis.
-// The provider counts JSON members across the whole commit.
 export const LOCAL_STORAGE_JSON_MEMBERS = 2 * 65_536
 
 const TOOL_ORPHAN_GRACE_MS = 60_000
