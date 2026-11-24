@@ -1,4 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
+import {
+  accountCodec,
+  organizationCodec,
+  tenant as tenantOf,
+  tenantCodec,
+  type TenantId,
+} from '@omne-harness/legal-identity'
 import { decodeProviderName } from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
 import { createProviderPreferences } from '../../src/assets/provider-preferences.ts'
@@ -9,7 +16,25 @@ const openrouter = (() => {
   if (!('ok' in decoded)) throw new Error('provider name')
   return decoded.ok
 })()
-const access = { principal: { subject: 'test' }, tenant: 'tenant' } as never
+// Account identities of the 26 letters the codec takes; a new object for every reading of the same one.
+const LETTERS = 'abcdefghjkmnpqrstvwxyz2345'
+function tenantNumbered(n: number): TenantId {
+  let tail = ''
+  for (let rest = n, place = 0; place < 26; place += 1, rest = Math.floor(rest / 26))
+    tail = LETTERS[rest % 26] + tail
+  const account = accountCodec.parse(`acc_${tail}`)
+  const organization = organizationCodec.parse('org_abcdefghjkmnpqrstvwxyz2345')
+  if (!account.ok || !organization.ok) throw new Error('fixture tenant')
+  return tenantOf(organization.value, account.value)
+}
+const textOf = (tenant: TenantId) => {
+  const encoded = tenantCodec.encode(tenant)
+  return encoded.ok ? encoded.value : ''
+}
+const TENANT = textOf(tenantNumbered(0))
+const accessOf = (n: number) =>
+  ({ principal: { subject: 'test' }, tenant: tenantNumbered(n) }) as never
+const access = accessOf(0)
 
 type View = Readonly<{
   owner: Readonly<{ kind: 'asset'; category: string; name: string }>
@@ -18,7 +43,7 @@ type View = Readonly<{
   effective?: Readonly<{ value: Readonly<{ kind: 'set'; value: unknown } | { kind: 'unset' }> }>
 }>
 
-type Query = Readonly<{ tenant: string; category: string }>
+type Query = Readonly<{ tenant: TenantId; category: string }>
 type Settings = Readonly<{ reads: () => number; write: () => void }>
 
 // The settings answer only the query the adapter must make: this tenant, the provider category.
@@ -33,9 +58,11 @@ function ctxWith(
       : {
           items: async (query: Query) => {
             reads += 1
-            return query.tenant === 'tenant' && query.category === 'model-provider' ? items() : []
+            return textOf(query.tenant) === TENANT && query.category === 'model-provider'
+              ? items()
+              : []
           },
-          writes: (tenant: string) => (tenant === 'tenant' ? writes : -1),
+          writes: (tenant: TenantId) => (textOf(tenant) === TENANT ? writes : -1),
         }
   return {
     get: (key: string) => (key === tenantAssetSettingsKey ? service : undefined),
@@ -78,13 +105,17 @@ describe('the preferences a tenant holds on a release provider (C4, C6)', () => 
     expect([...answer.ok.efforts]).toEqual([['anthropic/claude-opus-5.5', 'high']])
   })
 
-  it('is unavailable when the settings cannot be read, or the tenant does not hold them yet', async () => {
+  it('is unavailable when the settings cannot be read (C6)', async () => {
     expect(await read(ctxWith(undefined))).toEqual({ failure: { kind: 'unavailable' } })
     expect(await read(ctxWith(async () => 'unknown'))).toEqual({ failure: { kind: 'unavailable' } })
-    expect(await read(ctxWith(async () => []))).toEqual({ failure: { kind: 'unavailable' } })
-    expect(
-      await read(ctxWith(async () => [{ ...view('model-switches'), kind: 'secret' }])),
-    ).toEqual({ failure: { kind: 'unavailable' } })
+  })
+
+  it('a tenant that does not hold the settings yet has chosen nothing: the release default', async () => {
+    for (const views of [[], [{ ...view('model-switches'), kind: 'secret' as const }]]) {
+      const answer = await read(ctxWith(async () => views))
+      if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
+      expect(answer.ok.enabled.size).toBe(25)
+    }
   })
 
   it('reads the tenant’s settings again only after a write of them', async () => {
@@ -118,22 +149,21 @@ describe('the preferences a tenant holds on a release provider (C4, C6)', () => 
   it('keeps the reads of at most 512 tenants, dropping the one read longest ago', async () => {
     const ctx = ctxWith(async () => [view('model-switches')])
     const preferences = createProviderPreferences(ctx)
-    const readAs = (tenant: string) =>
-      preferences.read({ provider: openrouter, access: { principal: { subject: 'test' }, tenant } as never })
+    const readAs = (n: number) => preferences.read({ provider: openrouter, access: accessOf(n) })
     const others = async (from: number, count: number) => {
-      for (let index = from; index < from + count; index += 1) await readAs(`other-${index}`)
+      for (let index = from; index < from + count; index += 1) await readAs(index + 1)
     }
-    await readAs('tenant')
+    await readAs(0)
     await others(0, 511)
-    await readAs('tenant')
+    await readAs(0)
     expect(ctx.settings.reads()).toBe(512)
     ctx.settings.write()
-    await readAs('tenant')
+    await readAs(0)
     await others(511, 2)
-    await readAs('tenant')
+    await readAs(0)
     expect(ctx.settings.reads()).toBe(515)
     await others(513, 512)
-    await readAs('tenant')
+    await readAs(0)
     expect(ctx.settings.reads()).toBe(1028)
   })
 
