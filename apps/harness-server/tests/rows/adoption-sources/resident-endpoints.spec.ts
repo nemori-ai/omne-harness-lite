@@ -139,6 +139,25 @@ describe('a definition that keeps MCP endpoints resident: what the creation adop
     ).toHaveLength(1)
   })
 
+  it('an endpoint the bridge lists as known and unavailable now is recorded with its definition all the same', async () => {
+    const down = {
+      ...DOCS,
+      availability: { kind: 'known-unavailable' as const, reason: 'the peer cannot be reached' },
+    }
+    const { source, reported } = await sourceWith(withEndpoints('docs'), () => ({
+      kind: 'entry',
+      entry: down,
+    }))
+    const { initial } = await initialOf(source)
+    const residents = initial['newResidents'] as ResidentTool[]
+    expect(residents.map(item => item.capability)).toEqual(['mcp__docs'])
+    expect(residents[0]!.definition).toEqual({
+      kind: 'string',
+      value: JSON.stringify(DOCS.definition),
+    })
+    expect(reported).toEqual([])
+  })
+
   it('an endpoint withheld, not held, or not readable is left out with its reason, and the session is made', async () => {
     const answers: Record<string, NamedEntry> = {
       mcp__off: { kind: 'withheld', reason: 'the address of the endpoint is not set' },

@@ -392,6 +392,17 @@ describe('an entry of a source that the session keeps resident', () => {
       })
     }
   })
+
+  it('stands in the same way when no source is at the point at all', async () => {
+    const { catalog } = world([], [keptOf(taken)])
+    expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toEqual({
+      ok: {
+        kind: 'known-unavailable',
+        definition: taken.definition,
+        reason: 'the source does not list this entry now',
+      },
+    })
+  })
 })
 
 describe('a call of an entry of a source', () => {

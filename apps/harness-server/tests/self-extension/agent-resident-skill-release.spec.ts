@@ -111,11 +111,19 @@ describe('a definition that keeps a published Skill resident, on the release tre
             .join('\n')
           expect(fourth).toMatch(/ERROR: disabled/u)
 
+          // Removed: what it held may go, and the prompt keeps the line the session took.
+          const gone = await ask([
+            extensions('remove', { id: 'op-5', category: 'skill', name: 'tidy-notes' }),
+          ])
+          expect(gone).toContain('done OmneExtensions remove')
+          await say('after it is removed')
+          await runs(5)
+
           const own = model.bodies
             .slice(before)
             .map(systemTextOf)
             .filter(system => system.includes('MARK-NOTETAKER'))
-          expect(own.length).toBeGreaterThanOrEqual(4)
+          expect(own.length).toBeGreaterThanOrEqual(5)
           expect(own.some(system => system.includes('MARK-NEWER'))).toBe(false)
           for (const system of own) {
             expect(system.indexOf(SEGMENT), system).toBeGreaterThan(
