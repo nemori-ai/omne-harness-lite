@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 
 import { cn } from '../lib/utils.ts'
 import { useSizeFactor } from '../size/use-size-factor.ts'
@@ -35,6 +43,8 @@ export type PaperFrame = Readonly<{
 
 const Frame = createContext<PaperFrame | null>(null)
 
+const At = createContext<PaperFrame['at'] | null>(null)
+
 export function usePaperFrame(): PaperFrame {
   const frame = useContext(Frame)
   if (frame === null) throw new Error('A page of paper is drawn inside a PaperSurface.')
@@ -42,7 +52,9 @@ export function usePaperFrame(): PaperFrame {
 }
 
 export function usePaperAt(): (client: PaperPoint) => PaperPoint {
-  return usePaperFrame().at
+  const at = useContext(At)
+  if (at === null) throw new Error('A page of paper is drawn inside a PaperSurface.')
+  return at
 }
 
 function onPaper(value: number, length: number): number {
@@ -252,6 +264,11 @@ export function PaperSurface({
   )
   useWheel(root, looking)
   const pan = usePan(looking)
+  const scale = shown.zoom * (sizeFactor > 0 ? sizeFactor : 1)
+  const frame = useMemo<PaperFrame>(
+    () => ({ sheet, limits, magnet: { on: magnet, step: sheet.step }, scale, at }),
+    [sheet, limits, magnet, scale, at],
+  )
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     if (event.target !== event.currentTarget || event.altKey || event.metaKey || event.ctrlKey)
@@ -306,17 +323,9 @@ export function PaperSurface({
             } as React.CSSProperties
           }
         >
-          <Frame.Provider
-            value={{
-              sheet,
-              limits,
-              magnet: { on: magnet, step: sheet.step },
-              scale: shown.zoom * (sizeFactor > 0 ? sizeFactor : 1),
-              at,
-            }}
-          >
-            {children}
-          </Frame.Provider>
+          <At.Provider value={at}>
+            <Frame.Provider value={frame}>{children}</Frame.Provider>
+          </At.Provider>
         </div>
       </div>
     </div>

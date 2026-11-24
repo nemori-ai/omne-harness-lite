@@ -728,6 +728,39 @@ describe('外壳：翻面在动', () => {
     }
   })
 
+  it('翻面途中两面上的东西都不重画：一页被画几次与这一程有多少帧无关', async () => {
+    const drawn = { back: 0, front: 0 }
+    function Counted(props: { face: 'back' | 'front' }): ReactNode {
+      drawn[props.face] += 1
+      return null
+    }
+    const page = defineUiModule({
+      name: 'counted-page',
+      needs: {},
+      apply(shell) {
+        shell.contribute('pages', {
+          id: 'counted',
+          title: '数着',
+          order: -1,
+          icon: 'topics',
+          render: () => <Counted face="front" />,
+        })
+      },
+    })
+    const t = await playing({ modules: [backModule(() => <Counted face="back" />), page] })
+    /** One turn played frame by frame, each frame a task of its own as in a window. */
+    const turnOnce = (frame: number) => {
+      drawn.back = 0
+      drawn.front = 0
+      press()
+      for (let passed = 0; passed <= 1500; passed += frame) t.pass(frame)
+      expect(t.layer()).toBeNull()
+      return { ...drawn }
+    }
+    const turns = [turnOnce(16), turnOnce(16), turnOnce(4), turnOnce(4)]
+    expect(turns).toEqual(Array(4).fill({ back: 0, front: 0 }))
+  })
+
   it('途中再按一次：立刻停在要去的那一面，不翻回来', async () => {
     const t = await playing()
     press()
