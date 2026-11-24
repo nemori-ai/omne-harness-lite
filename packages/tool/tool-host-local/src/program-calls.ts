@@ -34,7 +34,8 @@ import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingRegistry } from './bindings.ts'
 import { operationOf, readCallArguments } from './executor-binding.ts'
 import type { LocalInvocationSource } from './invocation-source.ts'
-import type { PreparedPosition, ProgramArrival } from './program-source.ts'
+import type { ProgramArrival } from './program-receiver.ts'
+import type { PreparedPosition } from './program-source.ts'
 
 export type ArgumentsVerdict =
   | Readonly<{ kind: 'valid' }>
@@ -42,7 +43,7 @@ export type ArgumentsVerdict =
   | Readonly<{ kind: 'unavailable' }>
 
 export type LocalProgramCallsInput<P> = Readonly<{
-  source(): LocalInvocationSource<P>['programs'] | undefined
+  source(): Pick<LocalInvocationSource<P>['programs'], 'prepare' | 'arrivals'> | undefined
   runtime(): ToolProgramRuntime<P> | undefined
   children(): ToolChildren<P> | undefined
   admission(): ProgramActionAdmission<P> | undefined

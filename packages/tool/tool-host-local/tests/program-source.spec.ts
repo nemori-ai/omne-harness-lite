@@ -206,6 +206,24 @@ describe('a call a program made is verified against the source this host stored'
     expect(await w.source.recoverBinding({ ...asked, request: other })).toHaveProperty('failure')
   })
 
+  it('a call that says of itself that a program made it is forged', async () => {
+    const w = await world()
+    const request = { ...w.target, consumer: { ...w.target.consumer, position: 'self-declared' } }
+    const direct = await w.source.issuer.resolve({ ...access(w), request })
+    if (direct.kind !== 'bound') throw new Error(JSON.stringify(direct))
+    const claimed = {
+      ...direct.request,
+      invocation: { ...direct.request.invocation, kind: 'programmatic' as const },
+    }
+    const asked = { ...access(w), call: direct.call, operation: direct.admission }
+    expect(await w.source.guard.verify({ ...asked, request: direct.request })).toEqual({
+      kind: 'trusted',
+    })
+    expect(await w.source.guard.verify({ ...asked, request: claimed })).toMatchObject({
+      kind: 'forged',
+    })
+  })
+
   it('a direct request cannot name a program position as its consumer', async () => {
     const w = await world()
     const forged = { ...w.target, consumer: programConsumer(w.parent.call, 1) }

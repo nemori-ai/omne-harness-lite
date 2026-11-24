@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FixedToolRequest, ToolTerminal } from '@omne-harness/tool-contract'
 import { programAnswerOf } from '../src/program-calls.ts'
-import type { ProgramArrival } from '../src/program-source.ts'
+import type { ProgramArrival } from '../src/program-receiver.ts'
 import { evidence, request } from './coordinator-values.ts'
 
 const base = request()

@@ -10,10 +10,14 @@ import {
 } from './invocation-forwarding.ts'
 import {
   createInvocationPrograms,
-  createProgramReceiver,
   TOOL_PROGRAM_OWNER,
   type InvocationPrograms,
 } from './program-source.ts'
+import {
+  createProgramArrivals,
+  createProgramReceiver,
+  type ProgramArrivals,
+} from './program-receiver.ts'
 import { createForwardingReceiver } from './forwarding-receiver.ts'
 import { fail } from '@omne-harness/operation-result'
 import type { Reply, ToolResultReceiver } from '@omne-harness/tool-contract'
@@ -119,8 +123,8 @@ export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Re
   guard: ToolSourceGuard<P>
   forwarding: ToolForwardSource<P>
   receiver: ToolResultReceiver<P, B>
-  programs: Pick<InvocationPrograms<P>, 'source' | 'prepare' | 'arrivals'> &
-    Readonly<{ receiver: ToolResultReceiver<P, B> }>
+  programs: Pick<InvocationPrograms<P>, 'source' | 'prepare'> &
+    Readonly<{ arrivals: ProgramArrivals; receiver: ToolResultReceiver<P, B> }>
   forwardedResult: ToolInvocationQueries<P, ContentBlock>['readResult']
   recoverBinding(
     input: Omit<CallAccess<P>, 'principal'> &
@@ -326,6 +330,14 @@ async function bindSource(
   if (committed.kind === 'rejected')
     return rejected({ kind: 'invalid', field: 'storage', reason: committed.reason })
   return null
+}
+
+function programSide<P, B extends ContentBlock>(
+  input: LocalInvocationSourceInput<P>,
+  programs: InvocationPrograms<P>,
+): LocalInvocationSource<P, B>['programs'] {
+  const arrivals = createProgramArrivals()
+  return { ...programs, arrivals, receiver: createProgramReceiver<P, B>(input, arrivals) }
 }
 
 type Issued = Readonly<{
@@ -601,7 +613,7 @@ function buildInvocationSource<P, B extends ContentBlock>(
     guard,
     forwarding: forwards.source,
     receiver,
-    programs: { ...programs, receiver: createProgramReceiver<P, B>(input, programs.arrivals) },
+    programs: programSide<P, B>(input, programs),
     forwardedResult: createForwardedResultReader(input, forwards),
     recoverBinding,
     releaseReceivedCopies: forwards.releaseReceivedCopies,

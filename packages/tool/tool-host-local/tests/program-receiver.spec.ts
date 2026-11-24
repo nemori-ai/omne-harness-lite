@@ -21,13 +21,8 @@ import {
 import { testingCallLabel } from '@omne-harness/tool-contract/testing'
 import type { LocalInvocationSourceInput } from '../src/invocation-source.ts'
 import { sourceDomain, sourceKey } from '../src/invocation-forwarding.ts'
-import {
-  createProgramArrivals,
-  createProgramReceiver,
-  positionTargetOf,
-  programConsumer,
-  programPositionOf,
-} from '../src/program-source.ts'
+import { createProgramArrivals, createProgramReceiver } from '../src/program-receiver.ts'
+import { positionTargetOf, programConsumer, programPositionOf } from '../src/program-source.ts'
 import { createLocalTextResults } from '../src/text-results.ts'
 import { callId, evidence, operationId, request, tenantA } from './coordinator-values.ts'
 

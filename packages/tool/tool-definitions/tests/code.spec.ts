@@ -324,6 +324,43 @@ return seen`,
     ])
   })
 
+  it.each([
+    'denied',
+    'unsupported',
+    'invalid',
+    'limit',
+    'unavailable',
+    'failed',
+    'interrupted',
+    'no-response',
+    'unknown',
+  ] as const)('the failure %s reaches the program under that name', async kind => {
+    const world = scripted({ Lookup: async () => refusal(kind, 'why') })
+    const answer = await execute(
+      'try { await Lookup({ path: "x" }) } catch (error) { return [error.kind, error.effect] }',
+      world.tools,
+    )
+    expect(answer).toContain(JSON.stringify([kind, kind === 'failed' ? 'unknown' : 'none']))
+  })
+
+  it('takes its limits from the operator only: a call cannot bring its own', async () => {
+    const registration = readToolRegistration(authorOf())
+    if (registration?.kind !== 'commands') throw new Error('commands')
+    const operation = registration.operations.find(([name]) => name === 'execute')?.[1]
+    for (const extra of ['computeMs', 'limits', 'calls']) {
+      const text = JSON.stringify({ code: 'return 1', [extra]: 10 ** 9 })
+      expect(
+        operation?.author.parameters.parse({ original: text, effective: text, complete: true }),
+      ).toEqual({ failure: { kind: 'invalid', reason: `invalid-field:${extra}` } })
+    }
+    for (const missing of [{}, { input: 1 }, { code: 7 }]) {
+      const text = JSON.stringify(missing)
+      expect(
+        operation?.author.parameters.parse({ original: text, effective: text, complete: true }),
+      ).toHaveProperty('failure')
+    }
+  })
+
   it('an uncaught failure fails the call: the kind, the line, and that nothing is rerun', async () => {
     const world = scripted({ 'Files.read': async () => refusal('unavailable', 'no place') })
     await expect(

@@ -8,6 +8,8 @@ import { createMemoryToolBodies, createMemoryToolLedgerStore } from '@omne-harne
 import {
   programToolsOf,
   resolveToolInvocationRef,
+  toolsCapabilityOf,
+  type ToolForwardIntent,
   type FixedToolRequest,
   type ProgramTools,
   type ToolInvocationRef,
@@ -50,6 +52,7 @@ import { createLocalToolBindings } from '../../src/executor-binding.ts'
 import { createLocalGrantVerifiers } from '../../src/grant-verifiers.ts'
 import { createLocalInvocationSource } from '../../src/invocation-source.ts'
 import { createLocalArgumentsCheck, createLocalProgramCalls } from '../../src/program-calls.ts'
+import { createLocalToolForwarding } from '../../src/tool-forwarding.ts'
 import {
   createLocalToolRuntimePlugins,
   type LocalToolRuntimeInput,
@@ -82,6 +85,18 @@ const SAID_TREE: JsonValue = {
 }
 const saidIdentity = { id: 'fixture-said', revision: '1', digest: canonicalDigest(SAID) }
 
+function jsonOf(value: unknown): JsonValue {
+  if (value === null) return { kind: 'null' }
+  if (typeof value === 'string') return { kind: 'string', value }
+  if (typeof value === 'boolean') return { kind: 'boolean', value }
+  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
+  if (Array.isArray(value)) return { kind: 'array', items: value.map(jsonOf) }
+  return {
+    kind: 'object',
+    entries: Object.entries(Object(value)).map(([key, member]) => ({ key, value: jsonOf(member) })),
+  }
+}
+
 function plain(value: JsonValue): unknown {
   if (value.kind === 'object')
     return Object.fromEntries(value.entries.map(entry => [entry.key, plain(entry.value)]))
@@ -89,6 +104,8 @@ function plain(value: JsonValue): unknown {
   if (value.kind === 'number') return Number(value.lexeme)
   return value.kind === 'null' ? null : value.value
 }
+
+export { jsonOf }
 
 export async function programWorld(options: ProgramWorldOptions) {
   const root = new Context()
@@ -225,6 +242,18 @@ export async function programWorld(options: ProgramWorldOptions) {
     const table = await tools.settle()
     return JSON.stringify({ output, table: 'ok' in table ? table.ok : table.failure })
   }
+  /** Stands in for `Tools`: it hands the target its own arguments name on to the forwarding capability. */
+  const relay: Run = async (args, context) => {
+    const capability = toolsCapabilityOf(context)
+    if (capability === undefined) throw new Error('No forwarding on this call')
+    const { name, command, arguments: given } = JSON.parse(args) as Record<string, unknown>
+    const intent = { name, command, arguments: jsonOf(given) } as ToolForwardIntent
+    const answer = await capability.execute(intent)
+    return JSON.stringify({
+      kind: answer.kind,
+      failure: 'failure' in answer ? answer.failure.kind : null,
+    })
+  }
   const implementation = { backgroundAllowed: false, declarations }
   const modules: Readonly<
     Record<string, ToolImplementationModule<ToolEnvironmentValue, ToolMessageContentBlock>>
@@ -261,6 +290,21 @@ export async function programWorld(options: ProgramWorldOptions) {
           implementation: { ...implementation, description: 'Says what it is given' },
         }),
     },
+    Relay: {
+      executor: adoption('runtime-test-executor'),
+      createAuthor: () =>
+        defineCommandTool({
+          encoding: 'wrapped',
+          commands: {
+            execute: {
+              summary: 'Forward one target',
+              operation: operationOf(relay, data, false),
+              program: OPEN,
+            },
+          },
+          implementation: { ...implementation, description: 'Forwards like Tools' },
+        }),
+    },
     Plain: {
       executor: adoption('runtime-test-executor'),
       createAuthor: () =>
@@ -295,7 +339,7 @@ export async function programWorld(options: ProgramWorldOptions) {
         services: {},
       }),
     )
-    return authority.asset.name === 'Echo'
+    return ['Echo', 'Relay'].includes(authority.asset.name)
       ? { ...loaded, definition: { ...loaded.definition, programmable: true } }
       : loaded
   }
@@ -309,6 +353,10 @@ export async function programWorld(options: ProgramWorldOptions) {
       authority: () => root.get('toolStartAuthority'),
       isParent: (parent: FixedToolRequest) => parent.availability.definition.name === 'Runner',
       children: () => children(),
+    },
+    forwarding: {
+      authority: () => root.get('toolStartAuthority'),
+      isParent: (parent: FixedToolRequest) => parent.availability.definition.name === 'Relay',
     },
     commitAttempts: 8,
     definitions: { current: async ({ name }) => succeed(byName(name)?.definition ?? null) },
@@ -521,15 +569,36 @@ export async function programWorld(options: ProgramWorldOptions) {
     checkArguments: createLocalArgumentsCheck(() => registry),
     retryMs: 5,
   })
+  const forwarding = createLocalToolForwarding<unknown>({
+    runtime: () => root.get('toolRuntime'),
+    forwarding: plugins.forwarding,
+    catalog: () => catalog,
+    consumer: async () =>
+      succeed({
+        capabilities: evidence('profile'),
+        conversion: null,
+        attachmentAccess: evidence('attachments'),
+      }),
+    prepareTarget: async (_parent, intent) => {
+      const made = invokeRequest(intent.name, intent.command, plain(intent.arguments), 'forwarded')
+      return made === null
+        ? fail({ kind: 'invalid', field: 'name', reason: 'unknown-tool' })
+        : succeed(made)
+    },
+    reader: () => undefined,
+    attemptMs: 250,
+  })
   bindings = createLocalToolBindings({
     registry,
     catalog,
     authority: root.toolStartAuthority,
     ...plugins.authorExecution,
-    capability: ({ start, ...parent }, scope) =>
-      start.kind === 'start' && parent.request.availability.definition.name === 'Runner'
-        ? calls.bind({ ...parent, start }, scope)
-        : scope,
+    capability: ({ start, ...parent }, scope) => {
+      const { name } = parent.request.availability.definition
+      if (start.kind !== 'start') return scope
+      if (name === 'Relay') return forwarding.bind({ ...parent, start }, scope)
+      return name === 'Runner' ? calls.bind({ ...parent, start }, scope) : scope
+    },
   })
   authorFiber = root.plugin({
     name: 'runtime-test-author',
@@ -624,6 +693,7 @@ export async function programWorld(options: ProgramWorldOptions) {
       ),
     close: async () => {
       for (const one of gates.values()) one.resolve()
+      await forwarding.close()
       await plugins.close()
       await root.fiber.dispose()
     },

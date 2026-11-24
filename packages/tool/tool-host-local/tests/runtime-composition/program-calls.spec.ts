@@ -7,7 +7,7 @@ import {
   type ProgramTools,
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
-import { programWorld } from './program-fixture.ts'
+import { jsonOf, programWorld } from './program-fixture.ts'
 
 const object = (fields: Readonly<Record<string, string | boolean>>): JsonValue => ({
   kind: 'object',
@@ -344,6 +344,46 @@ it('TL-67 the ledger does not record completed for a call whose positions have n
       .toBe('retained')
     await new Promise(resolve => setTimeout(resolve, 100))
     expect([(await world.table(reference)).phase, await phase()]).toEqual(['open', 'running'])
+  } finally {
+    await world.close()
+  }
+})
+
+it("TL-71 a tool that forwards does not open what is closed: the source stays the program's and the ledger answers unsupported", async () => {
+  const world = await programWorld({
+    script: async tools => {
+      const relay = (ordinal: number, name: string, command: string | null, text: string) =>
+        tools.call({
+          ordinal,
+          entry: 'Relay.execute',
+          arguments: jsonOf({ name, command, arguments: { text } }),
+        })
+      const closed = saidOf(await relay(1, 'Plain', null, 'through the back door'))
+      const open = saidOf(await relay(2, 'Echo', 'say', 'relayed'))
+      return JSON.stringify([JSON.parse(closed), JSON.parse(open).failure])
+    },
+  })
+  try {
+    const ran = await world.run('relay')
+    expect(JSON.parse(JSON.parse(ran.text).output)).toEqual([
+      { kind: 'rejected', failure: 'unsupported' },
+      null,
+    ])
+    await expect.poll(() => world.said).toEqual(['relayed'])
+    const direct = world.invokeRequest(
+      'Relay',
+      'execute',
+      { name: 'Plain', command: null, arguments: { text: 'by the model' } },
+      'direct-relay',
+    )
+    const reference = await world.api.invoke({
+      principal: world.principal,
+      tenant: world.tenant,
+      request: direct!,
+    })
+    if (reference.kind !== 'accepted') throw new Error(JSON.stringify(reference))
+    await world.settled(reference.reference)
+    await expect.poll(() => world.said).toEqual(['relayed', 'by the model'])
   } finally {
     await world.close()
   }

@@ -20,12 +20,8 @@ import {
   type ToolChildren,
 } from '@omne-harness/tool-contract/provider'
 import { createLocalProgramCalls, type ArgumentsVerdict } from '../src/program-calls.ts'
-import {
-  createProgramArrivals,
-  positionTargetOf,
-  programConsumer,
-  type PreparedPosition,
-} from '../src/program-source.ts'
+import { createProgramArrivals } from '../src/program-receiver.ts'
+import { positionTargetOf, programConsumer, type PreparedPosition } from '../src/program-source.ts'
 import { adoption, callId, operationId, request, tenantA } from './coordinator-values.ts'
 
 const fixed = request()
@@ -125,14 +121,7 @@ function world(over: Over = {}) {
   if ('failure' in scope) throw new Error('scope')
   const present = <T>(name: Over['absent'], value: T) => (over.absent === name ? undefined : value)
   const calls = createLocalProgramCalls<unknown>({
-    source: () =>
-      present('source', {
-        prepare: async () => prepared,
-        arrivals,
-        source: { resolve: async () => ({ kind: 'association-unknown' }) },
-        recoverBinding: async () => fail(unavailable),
-        receiver: { push: async () => fail({ kind: 'denied' }) },
-      }),
+    source: () => present('source', { prepare: async () => prepared, arrivals }),
     runtime: () =>
       present('runtime', {
         invoke: async () => {
