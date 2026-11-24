@@ -50,8 +50,8 @@
     cursor: pointer;
   }
   ::selection {
-    background: var(--omne-accent);
-    color: var(--omne-accent-ink);
+    background: var(--omne-selection);
+    color: var(--omne-selection-ink);
   }
   input,
   textarea {
@@ -77,12 +77,12 @@
   * {
     scrollbar-width: auto;
     scrollbar-color: auto;
-    --omne-scrollbar-thumb: color-mix(in srgb, var(--omne-ink-faint) 27%, transparent);
+    --omne-scrollbar-thumb: var(--omne-scrollbar-thumb-rest);
     --omne-scrollbar-thumb-border: var(--omne-scrollbar-gap);
   }
   *:hover,
   *:focus-within {
-    --omne-scrollbar-thumb: color-mix(in srgb, var(--omne-ink-faint) 48%, transparent);
+    --omne-scrollbar-thumb: var(--omne-scrollbar-thumb-active);
     --omne-scrollbar-thumb-border: var(--omne-scrollbar-gap-hover);
   }
   *::-webkit-scrollbar {
