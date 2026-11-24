@@ -1,6 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { createCanvas } from '@omne-harness/canvas'
-import type { CanvasAuthority, CanvasMovers, CanvasOperations } from '@omne-harness/canvas-contract'
+import {
+  instantSchema,
+  type CanvasAuthority,
+  type CanvasMovers,
+  type CanvasOperations,
+} from '@omne-harness/canvas-contract'
 import { CanvasService, kindsOn } from '@omne-harness/canvas-cordis-contract/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { SqlStorage } from '@omne-harness/sql-contract'
@@ -18,15 +23,31 @@ export type CanvasLocalConfiguration = Readonly<{
 
 class LocalCanvas extends CanvasService {
   readonly look: CanvasOperations['look']
+  readonly lookAway: CanvasOperations['lookAway']
   readonly kinds: CanvasOperations['kinds']
+  readonly place: CanvasOperations['place']
+  readonly arrange: CanvasOperations['arrange']
+  readonly take: CanvasOperations['take']
+  readonly pile: CanvasOperations['pile']
+  readonly scatter: CanvasOperations['scatter']
+  readonly lock: CanvasOperations['lock']
   constructor(ctx: Context, face: CanvasOperations) {
     super(ctx)
     this.look = face.look
+    this.lookAway = face.lookAway
     this.kinds = face.kinds
+    this.place = face.place
+    this.arrange = face.arrange
+    this.take = face.take
+    this.pile = face.pile
+    this.scatter = face.scatter
+    this.lock = face.lock
   }
 }
 
-/** The canvas over SQL, its kinds read from the registry at each call. */
+const clock = { now: () => instantSchema.parse(new Date().toISOString()) }
+
+/** The canvas over SQL, its kinds read from the registry at each call, its clock the system's. */
 export function createCanvasLocalPlugin() {
   return {
     name: 'canvas-local',
@@ -42,7 +63,8 @@ export function createCanvasLocalPlugin() {
         authority: config.ports.authority,
         movers: config.ports.movers,
         kinds: kindsOn(ctx.get(dynamisKey) as DynamisService),
-        sheet: policy.sheet,
+        clock,
+        config: policy,
       })
       await ctx.plugin(LocalCanvas, face).await()
     },

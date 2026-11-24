@@ -68,16 +68,41 @@ function pileOf(row: Row): Pile {
   })
 }
 
-/** One tenant's canvases in SQL. Every statement names the tenant: the rows of no other are read. */
+const ITEM_WRITE = `INSERT INTO canvas_item (tenant, canvas, ${ITEM_COLUMNS}) VALUES (${Array(16).fill('?').join(', ')}) ON CONFLICT (tenant, canvas, id) DO UPDATE SET ${ITEM_COLUMNS.split(
+  ', ',
+)
+  .slice(1)
+  .map(column => `${column} = excluded.${column}`)
+  .join(', ')}`
+
+const PILE_WRITE =
+  'INSERT INTO canvas_pile (tenant, canvas, id, name, x, y, by_kind, by_session, changed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (tenant, canvas, id) DO UPDATE SET name = excluded.name, x = excluded.x, y = excluded.y, by_kind = excluded.by_kind, by_session = excluded.by_session, changed_at = excluded.changed_at'
+
+const sessionOf = (mover: Mover) => (mover.kind === 'agent' ? mover.session : null)
+
+/** One tenant's canvases in SQL. Every statement names the tenant: the rows of no other are read or written. */
 export function sqlFacts(port: SqlPort, tenant: string): CanvasFacts {
+  const head = (canvas: CanvasId) =>
+    select(port, 'SELECT revision, next_rank FROM canvas_head WHERE tenant = ? AND canvas = ?', [
+      tenant,
+      canvas,
+    ])[0]
+  const one = (canvas: CanvasId, where: string, params: readonly SqlValue[]) => {
+    const [row] = select(
+      port,
+      `SELECT ${ITEM_COLUMNS} FROM canvas_item WHERE tenant = ? AND canvas = ? AND ${where}`,
+      [tenant, canvas, ...params],
+    )
+    return row === undefined ? null : itemOf(row)
+  }
   return {
-    revision(canvas: CanvasId) {
-      const [head] = select(
-        port,
-        'SELECT revision FROM canvas_head WHERE tenant = ? AND canvas = ?',
-        [tenant, canvas],
-      )
-      return head === undefined ? 0 : integer(head[0])
+    revision: canvas => {
+      const row = head(canvas)
+      return row === undefined ? 0 : integer(row[0])
+    },
+    nextRank: canvas => {
+      const row = head(canvas)
+      return row === undefined ? 1 : integer(row[1])
     },
     items: (canvas, state) =>
       select(
@@ -85,11 +110,68 @@ export function sqlFacts(port: SqlPort, tenant: string): CanvasFacts {
         `SELECT ${ITEM_COLUMNS} FROM canvas_item WHERE tenant = ? AND canvas = ? AND state = ?`,
         [tenant, canvas, state],
       ).map(itemOf),
+    item: (canvas, id) => one(canvas, 'id = ?', [id]),
+    itemOf: (canvas, reference) =>
+      one(canvas, 'kind = ? AND ref = ?', [reference.kind, reference.ref]),
     piles: canvas =>
       select(
         port,
         'SELECT id, name, x, y, by_kind, by_session, changed_at FROM canvas_pile WHERE tenant = ? AND canvas = ?',
         [tenant, canvas],
       ).map(pileOf),
+
+    setHead(canvas, revision, nextRank) {
+      port.execute(
+        'INSERT INTO canvas_head (tenant, canvas, revision, next_rank) VALUES (?, ?, ?, ?) ON CONFLICT (tenant, canvas) DO UPDATE SET revision = excluded.revision, next_rank = excluded.next_rank',
+        [tenant, canvas, revision, nextRank],
+      )
+    },
+    putItem(canvas, item) {
+      port.execute(ITEM_WRITE, [
+        tenant,
+        canvas,
+        item.id,
+        item.reference.kind,
+        item.reference.ref,
+        item.state,
+        item.at.x,
+        item.at.y,
+        item.size?.width ?? null,
+        item.size?.height ?? null,
+        item.rank,
+        item.pile,
+        item.locked ? 1 : 0,
+        item.by.kind,
+        sessionOf(item.by),
+        item.when,
+      ])
+    },
+    dropItem(canvas, id) {
+      port.execute('DELETE FROM canvas_item WHERE tenant = ? AND canvas = ? AND id = ?', [
+        tenant,
+        canvas,
+        id,
+      ])
+    },
+    putPile(canvas, pile) {
+      port.execute(PILE_WRITE, [
+        tenant,
+        canvas,
+        pile.id,
+        pile.name,
+        pile.at.x,
+        pile.at.y,
+        pile.by.kind,
+        sessionOf(pile.by),
+        pile.when,
+      ])
+    },
+    dropPile(canvas, id) {
+      port.execute('DELETE FROM canvas_pile WHERE tenant = ? AND canvas = ? AND id = ?', [
+        tenant,
+        canvas,
+        id,
+      ])
+    },
   }
 }
