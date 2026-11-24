@@ -9,6 +9,7 @@ import type { TiktokenExecutor, TiktokenResources } from '@omne-harness/tokenize
 import { createDeepSeekMeter, type MeterMargin } from './meter.ts'
 import { DEEPSEEK_OWNER } from './owner.ts'
 import type { DeepSeekRecord } from './record.ts'
+import { effortMapping } from './profiles.ts'
 import { DEEPSEEK_RECORDS } from './records.ts'
 import { hooksOf } from './rules.ts'
 
@@ -93,6 +94,7 @@ export function createDeepSeekFamily(config: DeepSeekFamilyConfig): PiFamily {
         return {
           ok: bindChatCompletions({
             record,
+            bindingEfforts: effortMapping(record),
             supplier,
             hooks: hooksOf(record),
             meter: createDeepSeekMeter(record, tokenizer.ok.tokenizer, config.margin),

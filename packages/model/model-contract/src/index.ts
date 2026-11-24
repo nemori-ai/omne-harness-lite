@@ -20,11 +20,13 @@ export type {
   CredentialLayer,
   ProviderName,
   ReadId,
+  ReasoningEffort,
   ResultVersion,
   Revision,
   Supplier,
   ToolDeclaration,
 } from './root.ts'
+export { REASONING_EFFORTS, isReasoningEffort } from './root.ts'
 export type * from './result.ts'
 export { faultIsTransient } from './result.ts'
 export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts'
@@ -78,6 +80,7 @@ export type {
   ProfileIdentity,
   ProfileReplay,
   ProfileResolution,
+  ReasoningEffortMapping,
   ProfileScope,
   ProfileSupplier,
   ReplayDeclaration,
@@ -85,7 +88,7 @@ export type {
   TokenLimit,
   UpstreamLimit,
 } from './profile.ts'
-export { isNativeFileType, profileCovers } from './profile.ts'
+export { isNativeFileType, profileCovers, supportedReasoningEfforts } from './profile.ts'
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts'
 export type {
   ModelPreparationLease,

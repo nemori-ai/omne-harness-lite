@@ -2,6 +2,7 @@ import type { MediaView } from './media.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
+  ReasoningEffortMapping,
   FixedModelRequest,
   MeterRepresentation,
   ModelProfile,
@@ -32,6 +33,7 @@ export function carriesReplay(treatments: readonly ReplayTreatment[]): boolean {
 
 export type EngineBinding = Readonly<{
   record: Pick<ChatCompletionsRecord, 'parameters' | 'extensions'>
+  bindingEfforts?: ReasoningEffortMapping | undefined
   meter: FamilyMeter
   supplier: Supplier
   adapter: Adoption
@@ -88,6 +90,7 @@ export function wiredParams(
     const wired = wireParameter(param, {
       record: binding.record,
       adapter: binding.adapter,
+      bindingEfforts: binding.bindingEfforts,
       outputLimit: null,
     })
     if (!('ok' in wired)) return wired

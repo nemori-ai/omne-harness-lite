@@ -1,5 +1,10 @@
 import { wireLimits } from '../media.ts'
-import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
+import type {
+  Adoption,
+  FixedModelRequest,
+  ReasoningEffortMapping,
+  Supplier,
+} from '@omne-harness/model-contract'
 import type { RouteAccounting } from '../config.ts'
 import type { PiFamilyBinding } from '../family.ts'
 import { recordAdoption } from '../family-table.ts'
@@ -19,6 +24,7 @@ import { encodeResponses, planResponses, type ResponsesContext } from './request
 import type { ResponsesLimits, ResponsesRecord } from './vocabulary.ts'
 
 export type ResponsesBindingInput = Readonly<{
+  bindingEfforts?: ReasoningEffortMapping | undefined
   record: ResponsesRecord
   supplier: Supplier
   meter: FamilyMeter
@@ -100,7 +106,13 @@ export function bindResponses(input: ResponsesBindingInput): PiFamilyBinding {
     toolArguments: Object.freeze({ ...input.limits.toolArguments }),
     maxReasoningText: input.limits.maxReasoningText,
   })
-  const context: ResponsesContext = { record, meter, supplier, adapter: adoption }
+  const context: ResponsesContext = {
+    record,
+    meter,
+    supplier,
+    adapter: adoption,
+    bindingEfforts: input.bindingEfforts,
+  }
   let released: Promise<void> | undefined
   return Object.freeze({
     supplier,

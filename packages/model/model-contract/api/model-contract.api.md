@@ -122,9 +122,12 @@
 - `ProfileScope` · `profile.d.ts`
 - `ProfileSupplier` · `profile.d.ts`
 - `ProviderName` · `root.d.ts`
+- `REASONING_EFFORTS` · `root.d.ts`
 - `ReadId` · `root.d.ts`
 - `ReadStart` · `call-surface.d.ts`
 - `ReadState` · `call-surface.d.ts`
+- `ReasoningEffort` · `root.d.ts`
+- `ReasoningEffortMapping` · `profile.d.ts`
 - `ReplayDeclaration` · `profile.d.ts`
 - `Reply` · `result.d.ts`
 - `RequestBudget` · `profile.d.ts`
@@ -171,6 +174,7 @@
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `faultIsTransient` · `result.d.ts`
 - `isNativeFileType` · `profile.d.ts`
+- `isReasoningEffort` · `root.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
 - `judgeModelParameters` · `profile-codec.d.ts`
 - `judgeToolDeclarations` · `profile-codec.d.ts`
@@ -180,6 +184,7 @@
 - `readProfileResolution` · `profile-codec.d.ts`
 - `replaySourceCall` · `replay-values.d.ts`
 - `resolveModelInvocationRef` · `reference.d.ts`
+- `supportedReasoningEfforts` · `profile.d.ts`
 
 ## 入口 `./conformance` · `conformance/index.d.ts`
 
@@ -1302,7 +1307,8 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
+export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ReasoningEffort, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
+export { REASONING_EFFORTS, isReasoningEffort } from './root.ts';
 export type * from './result.ts';
 export { faultIsTransient } from './result.ts';
 export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts';
@@ -1319,8 +1325,8 @@ export type { ModelOutputV1, ModelOutputV1Snapshot, ModelOutputV1Delta, ModelOut
 export type * from './call-surface.ts';
 export type * from './dispatch-facts.ts';
 export type { MaterializationReceipt, MaterializedMedium, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
-export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
-export { isNativeFileType, profileCovers } from './profile.ts';
+export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ReasoningEffortMapping, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
+export { isNativeFileType, profileCovers, supportedReasoningEfforts } from './profile.ts';
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
 export type { ModelPreparationLease, ModelPreparationResources, ModelRequestRules, PreparationLineage, } from './profile-source.ts';
 export type * from './diagnostics.ts';
@@ -1563,7 +1569,7 @@ export interface ModelStreamReferences<P> {
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
 import { type ProfileResolution } from './profile.ts';
-import type { Parameter, ToolDeclaration } from './root.ts';
+import { type Parameter, type ToolDeclaration } from './root.ts';
 import type { ModelInputRejection } from './judge-request.ts';
 export declare function profileResolutionValue(value: ProfileResolution): Outcome<unknown, ModelInputRejection>;
 export declare function readProfileResolution(value: unknown): Outcome<ProfileResolution, ModelInputRejection>;
@@ -1660,7 +1666,7 @@ import { type Modality } from '@omne-harness/modality';
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block';
 import type { Message, MessageId } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
-import type { Access, Adoption, FixedModelRequest, ModelOperationId, Parameter, Revision, Supplier, ToolDeclaration } from './root.ts';
+import type { Access, Adoption, FixedModelRequest, ModelOperationId, Parameter, ReasoningEffort, Revision, Supplier, ToolDeclaration } from './root.ts';
 import type { DurableEvidence, Reply } from './result.ts';
 import type { CommitQuery, TransportFailure } from './provider-protocol.ts';
 import type { ModelCountingBasis } from './tokenizer.ts';
@@ -1718,6 +1724,8 @@ export type ReplayDeclaration = Readonly<{
 export type ProfileSupplier = Omit<Supplier, 'credential'> & Readonly<{
     replay?: ProfileReplay;
 }>;
+export type ReasoningEffortMapping = Readonly<Partial<Record<ReasoningEffort, ReasoningEffort | 'max'>>>;
+export declare function supportedReasoningEfforts(definition: Pick<ModelProfileDefinition, 'reasoningEfforts'>): readonly ReasoningEffort[];
 export type ModelProfileDefinition = Readonly<{
     suppliers: readonly [
         ProfileSupplier,
@@ -1736,6 +1744,7 @@ export type ModelProfileDefinition = Readonly<{
     context: ContextLimits;
     limits: readonly ModelLimit[];
     parameters: readonly Parameter[];
+    reasoningEfforts?: ReasoningEffortMapping;
     representation: Adoption;
     meter: Adoption;
     retryPolicy: Adoption;
@@ -2911,6 +2920,14 @@ export type CallAccess<P> = Access<P> & Readonly<{
 export type Mutation<P> = CallAccess<P> & Readonly<{
     operation: ModelOperationId;
 }>;
+export declare const REASONING_EFFORTS: readonly [
+    'low',
+    'medium',
+    'high',
+    'xhigh'
+];
+export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+export declare function isReasoningEffort(value: unknown): value is ReasoningEffort;
 export type Parameter = Readonly<{
     kind: 'temperature';
     value: number;
@@ -2925,7 +2942,12 @@ export type Parameter = Readonly<{
     value: readonly string[];
 }> | Readonly<{
     kind: 'reasoning-effort';
-    value: 'none' | 'low' | 'medium' | 'high' | 'max';
+    value: ReasoningEffort | 'none' | 'max';
+    scale?: never;
+}> | Readonly<{
+    kind: 'reasoning-effort';
+    value: ReasoningEffort;
+    scale: 'unified';
 }> | Readonly<{
     kind: 'seed';
     value: string;

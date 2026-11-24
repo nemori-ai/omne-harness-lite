@@ -58,6 +58,12 @@ describe('officialOpenAiProfiles', () => {
           },
         ],
         parameters: [],
+        reasoningEfforts: {
+          low: 'low',
+          medium: 'medium',
+          high: 'high',
+          ...('engine' in record && record.engine === 'responses' ? { xhigh: 'xhigh' } : {}),
+        },
         representation: componentAdoption(record, 'representation'),
         meter: componentAdoption(record, 'meter'),
         retryPolicy: RETRY,

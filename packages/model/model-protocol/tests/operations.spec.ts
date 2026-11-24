@@ -55,6 +55,7 @@ describe('what list-models answers', () => {
     expectRoundTrip(answered, {
       models: [
         sonnet,
+        { ...sonnet, reasoningEfforts: ['low', 'xhigh'] },
         { ...sonnet, route: 'openai/gpt-6-astra', credential: 'missing' },
         { ...sonnet, route: 'locked', selectable: false, reasons: ['locked', 'scope'] },
         {
@@ -70,6 +71,7 @@ describe('what list-models answers', () => {
   })
 
   it.each([
+    ['a native effort outside the four user settings', { ...sonnet, reasoningEfforts: ['max'] }],
     ['a model without a route', { ...sonnet, route: '' }],
     ['a reason outside the three', { ...sonnet, reasons: ['withdrawn'] }],
     ['a credential state outside the three', { ...sonnet, credential: 'unreadable' }],

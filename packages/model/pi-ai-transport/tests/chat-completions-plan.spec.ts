@@ -1,4 +1,9 @@
-import type { ModelProfile, Parameter, ParameterAdoption } from '@omne-harness/model-contract'
+import type {
+  ModelProfile,
+  Parameter,
+  ParameterAdoption,
+  ReasoningEffortMapping,
+} from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
 import {
   bindChatCompletions,
@@ -39,8 +44,10 @@ function bind(
   record: ChatCompletionsRecord = testRecord(),
   probe: EngineProbe = engineProbe(),
   hooks: VendorHooks = testHooks(probe),
+  bindingEfforts?: ReasoningEffortMapping,
 ): PiFamilyBinding {
   return bindChatCompletions({
+    bindingEfforts,
     record,
     supplier: supplierOf(record),
     hooks,
@@ -177,6 +184,32 @@ describe('rules.plan: parameters', () => {
     expect(plan(bind(record), record, { parameters: [{ kind: 'top-p', value: 0.5 }] })).toEqual({
       failure: { kind: 'unsupported', field: 'top-p', adapter },
     })
+  })
+
+  it('retains both the selected effort and its mapped value, and rejects a forged fourth tier', () => {
+    const mapping = { low: 'low', medium: 'high', high: 'max' } as const
+    const bound = bind(record, undefined, undefined, mapping)
+    const profile = profileOf(record)
+    const withEfforts = (reasoningEfforts: ReasoningEffortMapping) => ({
+      ...profile,
+      definition: { ...profile.definition, reasoningEfforts },
+    })
+    const medium = { kind: 'reasoning-effort', scale: 'unified', value: 'medium' } as const
+    expect(
+      adoptionsOf(plan(bound, record, { parameters: [medium] }, withEfforts(mapping))),
+    ).toContainEqual({
+      origin: { kind: 'explicit', requested: medium, source: SOURCE },
+      supplier: adapter,
+      applied: { kind: 'reasoning-effort', value: 'high' },
+    })
+    const xhigh = { kind: 'reasoning-effort', scale: 'unified', value: 'xhigh' } as const
+    for (const native of ['high', 'max', 'xhigh'] as const) {
+      expect(
+        plan(bound, record, { parameters: [xhigh] }, withEfforts({ xhigh: native })),
+      ).toMatchObject({
+        failure: { kind: 'unsupported', field: xhigh.kind },
+      })
+    }
   })
 
   it('refuses a reasoning effort that the record maps to unsupported', () => {

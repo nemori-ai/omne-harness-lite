@@ -2,6 +2,7 @@ import type {
   Adoption,
   ModelLimit,
   ModelProfileDefinition,
+  ReasoningEffortMapping,
   TokenLimit,
   UpstreamLimit,
 } from '@omne-harness/model-contract'
@@ -28,6 +29,16 @@ function tokenLimit(record: KimiRecord, supplier: Adoption, data: TokenLimitData
   return {
     provided: data.provided,
     upstream: [{ supplier, limit: upstreamOf(record, data.upstream) }],
+  }
+}
+
+export function effortMapping(record: KimiRecord): ReasoningEffortMapping {
+  switch (record.name) {
+    case 'moonshotai/kimi-k3.1-pro':
+    case 'moonshotai/kimi-k3':
+      return { low: 'low', medium: 'high', high: 'max' }
+    default:
+      return {}
   }
 }
 
@@ -62,6 +73,7 @@ export function profileOf(
     },
     limits,
     parameters: [],
+    reasoningEfforts: effortMapping(record),
     representation: componentAdoption(record, 'representation'),
     meter: componentAdoption(record, 'meter'),
     retryPolicy: input.retryPolicy,

@@ -1,5 +1,10 @@
 import { wireLimits } from '../media.ts'
-import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
+import type {
+  Adoption,
+  FixedModelRequest,
+  ReasoningEffortMapping,
+  Supplier,
+} from '@omne-harness/model-contract'
 import type { RouteAccounting } from '../config.ts'
 import type { PiFamilyBinding } from '../family.ts'
 import { recordAdoption } from '../family-table.ts'
@@ -19,6 +24,7 @@ import { encodeMessages, planMessages, type MessagesContext } from './request.ts
 import type { MessagesLimits, MessagesRecord } from './vocabulary.ts'
 
 export type MessagesBindingInput = Readonly<{
+  bindingEfforts?: ReasoningEffortMapping | undefined
   record: MessagesRecord
   supplier: Supplier
   meter: FamilyMeter
@@ -97,7 +103,13 @@ export function bindMessages(input: MessagesBindingInput): PiFamilyBinding {
     toolArguments: Object.freeze({ ...input.limits.toolArguments }),
     maxReasoningText: input.limits.maxReasoningText,
   })
-  const context: MessagesContext = { record, meter, supplier, adapter: adoption }
+  const context: MessagesContext = {
+    record,
+    meter,
+    supplier,
+    adapter: adoption,
+    bindingEfforts: input.bindingEfforts,
+  }
   let released: Promise<void> | undefined
   return Object.freeze({
     supplier,

@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:69f341e1b9334e9b03d9767cc3e709ecdd31710149f3166354e88d6d887093eb"
+    "1": "sha256:69f341e1b9334e9b03d9767cc3e709ecdd31710149f3166354e88d6d887093eb",
+    "2": "sha256:9f26498ce0add4c058e17b08425c8b2401d9d49a7a46a62fcd59b84ce0bd6226"
   },
   "major": 1,
   "name": "model",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {},
     "operations": {
@@ -68,6 +69,22 @@
                           },
                           "kind": "array"
                         }
+                      },
+                      "reasoningEfforts": {
+                        "optional": true,
+                        "rule": {
+                          "item": {
+                            "kind": "literal",
+                            "values": [
+                              "low",
+                              "medium",
+                              "high",
+                              "xhigh"
+                            ]
+                          },
+                          "kind": "array"
+                        },
+                        "since": 2
                       },
                       "reasons": {
                         "rule": {
