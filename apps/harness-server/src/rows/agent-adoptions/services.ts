@@ -1,8 +1,15 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { capabilityId, collectCandidates, evaluate } from '@omne-harness/assets'
+import {
+  capabilityId,
+  collectCandidates,
+  evaluate,
+  listAssets,
+  MAX_ASSET_PAGE,
+} from '@omne-harness/assets'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { agentEvaluator } from '@omne-harness/agent'
 import {
+  definitionListing,
   judgeAdoption,
   type AgentAdoptions,
   type AgentDefinitionListing,
@@ -11,25 +18,60 @@ import { AgentAdoptionsService } from '@omne-harness/agent-cordis-contract/cordi
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   DefinitionMappingsService,
+  type DefinitionAsker,
   type DefinitionMappingEntry,
   type DefinitionMappings,
+  type DefinitionReading,
 } from './definition-mappings.ts'
+import { DEFINITION_CATEGORY, type DefinitionReadingInput } from './held-definitions.ts'
+import { askerLayersOf } from '../tenant-assets/asker-layers.ts'
+import { inWorkspace, type AssetLayers } from '../tenant-assets/layers.ts'
+import { turnOfAccess } from '../tenant-assets/turn.ts'
+import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import type { Adoption } from '@omne-harness/session-contract'
 import { AgentDefinitionCatalogService } from './definition-catalog.ts'
 import { officialAssetRef } from '../../assets/official-holdings.ts'
-import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import type { MappingTable } from './table.ts'
 
-export const DEFINITION_CATEGORY = 'AgentDefinition'
+export { DEFINITION_CATEGORY }
 
-/** A tenant sees a definition of the table while, over its layers, the official one is the one in force under its name. */
+/** The layers a tenant reads a definition from, and with a turn the workspace as that turn adopted it. */
+export function definitionLayersOf(ctx: Context): DefinitionReadingInput['layers'] {
+  return askerLayersOf(ctx, DEFINITION_CATEGORY)
+}
+
+/** The names a tenant holds or the workspace of a turn carries in the definition category; undefined when a layer cannot be listed. */
+async function heldNames(layers: AssetLayers): Promise<readonly string[] | undefined> {
+  const names = new Set<string>()
+  let after: string | null = null
+  do {
+    const answer = await listAssets(layers.sources, {
+      category: DEFINITION_CATEGORY,
+      after,
+      limit: MAX_ASSET_PAGE,
+    })
+    if (answer.state !== 'read' || answer.page.completeness === 'partial') return undefined
+    for (const item of answer.page.items) names.add(item.capability.name)
+    after = answer.page.next
+  } while (after !== null)
+  return [...names]
+}
+
+/** What a tenant can hand work to now: the definitions of the table in force for it, and the ones it holds or its turn's workspace carries. */
 export class AgentDefinitionCatalogImpl extends AgentDefinitionCatalogService {
   private readonly listings: readonly AgentDefinitionListing[]
-  constructor(ctx: Context, table: MappingTable) {
+  private readonly reading: DefinitionReading
+  private readonly layers: DefinitionReadingInput['layers']
+  constructor(ctx: Context, table: MappingTable, reading: DefinitionReading) {
     super(ctx)
     this.listings = table.listings
+    this.reading = reading
+    this.layers = definitionLayersOf(ctx)
   }
-  async visibleTo(tenant: TenantId): Promise<readonly AgentDefinitionListing[] | undefined> {
+  async visibleTo(
+    tenant: TenantId,
+    turn?: DefinitionAsker['turn'],
+  ): Promise<readonly AgentDefinitionListing[] | undefined> {
     const encoded = tenantCodec.encode(tenant)
     const sources = encoded.ok
       ? this.ctx.get(tenantAssetsKey)?.layerSources(encoded.value)
@@ -45,6 +87,24 @@ export class AgentDefinitionCatalogImpl extends AgentDefinitionCatalogService {
       const official = officialAssetRef(DEFINITION_CATEGORY, listing.name)
       if (answer.kind === 'winner' && answer.candidate.asset === official) seen.push(listing)
     }
+    const held = await this.heldBy({ tenant, ...(turn === undefined ? {} : { turn }) })
+    return held === undefined ? undefined : [...seen, ...held]
+  }
+
+  private async heldBy(
+    asker: DefinitionAsker,
+  ): Promise<readonly AgentDefinitionListing[] | undefined> {
+    const layers = await this.layers(asker)
+    const names = layers === undefined ? undefined : await heldNames(layers)
+    if (names === undefined) return undefined
+    const official = new Set(this.listings.map(listing => listing.name))
+    const seen: AgentDefinitionListing[] = []
+    for (const name of names) {
+      if (official.has(name)) continue
+      const read = await this.reading.named(asker, name)
+      if (read.kind === 'unavailable') return undefined
+      if (read.kind === 'found') seen.push(definitionListing(read.side.definition))
+    }
     return seen
   }
 }
@@ -52,10 +112,16 @@ export class AgentDefinitionCatalogImpl extends AgentDefinitionCatalogService {
 export class DefinitionMappingsImpl extends DefinitionMappingsService {
   readonly identity: string
   readonly table: DefinitionMappings
-  constructor(ctx: Context, table: DefinitionMappings) {
+  readonly named: DefinitionReading['named']
+  readonly adopted: DefinitionReading['adopted']
+  readonly modesFor: DefinitionReading['modesFor']
+  constructor(ctx: Context, table: DefinitionMappings, reading: DefinitionReading) {
     super(ctx)
     this.table = table
     this.identity = table.identity
+    this.named = reading.named
+    this.adopted = reading.adopted
+    this.modesFor = reading.modesFor
   }
   entries(): readonly DefinitionMappingEntry[] {
     return this.table.entries()
@@ -70,31 +136,47 @@ export class DefinitionMappingsImpl extends DefinitionMappingsService {
 
 type Resolved = Awaited<ReturnType<AgentAdoptions<unknown>['resolve']>>
 
+const OWNER = '@omne-harness/harness-server'
+
 export class AgentAdoptionsImpl extends AgentAdoptionsService<unknown> {
   readonly mappings: DefinitionMappings
   private readonly agentSideOf: MappingTable['agentSide']
+  private readonly reading: DefinitionReading
 
-  constructor(ctx: Context, table: MappingTable) {
+  constructor(ctx: Context, table: MappingTable, reading: DefinitionReading) {
     super(ctx)
     this.mappings = table.mappings
     this.agentSideOf = table.agentSide
+    this.reading = reading
   }
 
   readonly resolve: AgentAdoptions<unknown>['resolve'] = async (input): Promise<Resolved> => {
     const judged = judgeAdoption(input.adoption)
     if ('failure' in judged)
       return fail({ kind: 'invalid', field: 'adoption', reason: judged.failure.reason })
-    const side = this.agentSideOf(judged.ok)
-    if (side === undefined)
+    const { tenant, principal } = input
+    // A definition of a workspace is read as the turn that runs it adopted the workspace.
+    const turn = inWorkspace(judged.ok.revision)
+      ? await turnOfAccess(this.ctx, { principal, tenant })
+      : null
+    if (turn === undefined)
       return fail({
-        kind: 'invalid',
-        field: 'adoption',
-        reason: 'not a definition adoption of this deployment',
+        kind: 'unavailable',
+        owner: OWNER,
+        diagnostic: 'the turn that runs this definition cannot be read',
       })
+    const read = await this.reading.adopted(
+      turn === null ? { tenant } : { tenant, turn },
+      judged.ok,
+    )
+    if (read.kind === 'unavailable')
+      return fail({ kind: 'unavailable', owner: OWNER, diagnostic: read.diagnostic })
+    if (read.kind === 'absent')
+      return fail({ kind: 'invalid', field: 'adoption', reason: read.reason })
     return succeed({
-      definition: side.definition,
+      definition: read.side.definition,
       evaluator: agentEvaluator,
-      extensions: side.extensions,
+      extensions: read.side.extensions,
     })
   }
 

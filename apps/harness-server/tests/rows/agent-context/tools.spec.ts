@@ -71,19 +71,6 @@ async function loaded(): Promise<ReleaseFixture> {
               residents: [],
               definition: { name: 'coding', adopted: binding('coding') },
             }),
-          resolve: async () =>
-            succeed({
-              definition: {
-                category: 'AgentDefinition',
-                type: 'master',
-                summary: 'Works on what the person asks for.',
-                name: 'coding',
-                attributes: [],
-                references: ['Files', 'Shell'].map(name => ({
-                  capability: { category: 'Tool', name },
-                })),
-              },
-            }),
         }),
         search: { k1: 1.2, b: 0.75, maxCachedCorpora: 16 },
         authority: startAuthorityProxy(ctx),

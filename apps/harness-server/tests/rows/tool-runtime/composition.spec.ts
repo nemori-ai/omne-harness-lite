@@ -71,6 +71,7 @@ import {
   toolReleaseRegistrant,
 } from '../../../src/entry/tool-release.ts'
 import { releaseOf } from '../../../src/entry/tool-release.ts'
+import { tenantAssetsStandIn } from '../../support/tenant-assets-stand-in.ts'
 import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
@@ -254,6 +255,7 @@ function rowsOf(storageRoot: string) {
         config: { construction: tools.construction },
       },
       { id: 'tool-residency', plugin: 'residencyStandIn' },
+      { id: 'tenant-assets', plugin: 'tenantAssetsStandIn' },
       { id: 'tool-instances', plugin: 'toolInstancesRow' },
       { id: 'tool-environments', plugin: 'toolEnvironmentsRow' },
       { id: 'execution-environment', plugin: 'executionEnvironmentRow' },
@@ -499,6 +501,7 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
         ...cordis,
         identityStandIn,
         residencyStandIn,
+        tenantAssetsStandIn,
         policyAccess: maintenancePolicy,
       },
       entryObjects: entryObjects(work),
@@ -603,7 +606,13 @@ describe('Tool segment B: the release rows in one process composition', () => {
     const { value, run } = await withLiveRows(
       {
         rows,
-        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: maintenancePolicy },
+        plugins: {
+          ...cordis,
+          identityStandIn,
+          residencyStandIn,
+          tenantAssetsStandIn,
+          policyAccess: maintenancePolicy,
+        },
         entryObjects: entryObjects(workPrincipalsOverStandIn),
         probe: [toolRuntimeKey],
       },
@@ -650,6 +659,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
             ...cordis,
             identityStandIn,
             residencyStandIn,
+            tenantAssetsStandIn,
             policyAccess: maintenancePolicy,
           },
           entryObjects: entryObjects(workPrincipalsOverStandIn),
@@ -801,7 +811,13 @@ describe('Tool segment B: the release rows in one process composition', () => {
     await withLiveRows(
       {
         rows,
-        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: maintenancePolicy },
+        plugins: {
+          ...cordis,
+          identityStandIn,
+          residencyStandIn,
+          tenantAssetsStandIn,
+          policyAccess: maintenancePolicy,
+        },
         entryObjects: entryObjects(workPrincipalsOverStandIn),
         probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
       },
@@ -849,6 +865,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
             ...cordis,
             identityStandIn,
             residencyStandIn,
+            tenantAssetsStandIn,
             policyAccess: maintenancePolicy,
           },
           entryObjects: entryObjects(workPrincipalsOverStandIn),
@@ -914,6 +931,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
             ...cordis,
             identityStandIn,
             residencyStandIn,
+            tenantAssetsStandIn,
             policyAccess: maintenancePolicy,
           },
           entryObjects: entryObjects(workPrincipalsOverStandIn),
@@ -982,6 +1000,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
         ...cordis,
         identityStandIn,
         residencyStandIn,
+        tenantAssetsStandIn,
         policyAccess: maintenancePolicy,
       }
       const live = {

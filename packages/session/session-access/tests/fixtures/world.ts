@@ -67,7 +67,7 @@ function definitionOf(name: string): ResolvedDefinition {
   }
 }
 
-export const resolveDefinition: DefinitionResolver = name =>
+export const resolveDefinition = (name: string) =>
   name === DEFINITION || name === DEFAULT_DEFINITION ? definitionOf(name) : undefined
 
 export type FixtureLogin = Readonly<{

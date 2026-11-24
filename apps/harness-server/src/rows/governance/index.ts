@@ -29,6 +29,7 @@ import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createIndependentSettingsPoint, createSettingsRegistry } from '@omne-harness/settings'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { toolToolsPoint } from '@omne-harness/tool-cordis-contract/cordis'
+import { toolEffectOf } from '../tool-host/tool-effect.ts'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
 import { classify } from '../authorization/principals.ts'
@@ -79,6 +80,10 @@ const configSchema = z.strictObject({
     .default(LOCAL_GOVERNANCE_OPENING.installationConcurrency),
   categoryGates: categoryGateTemplatesSchema.default([]),
 })
+
+const releasedNames =
+  (release: { manifest: { entries: readonly { asset: { name: string } }[] } }) => (name: string) =>
+    release.manifest.entries.some(entry => entry.asset.name === name)
 
 function governedOf(ctx: Context, tenantRef: string) {
   return {
@@ -165,7 +170,7 @@ export const governanceRow = defineRow({
       {
         contract: createToolAssetCategory(release),
         display: toolCategoryDisplay,
-        generalCreation: 'closed',
+        effect: toolEffectOf(ctx, releasedNames(release)),
       },
       toolToolsPoint,
     )

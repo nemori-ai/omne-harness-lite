@@ -535,6 +535,53 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     })
   })
 
+  it('a run adopts what the adoption source names when it starts, and the session records that adoption once', async () => {
+    const h = await service()
+    await h.create()
+    const pinned = (await read(h)).definition.adopted
+    const newer = { ...pinned, digest: 'sha256:newer' }
+    const asked: string[] = []
+    h.dependencies.evidence.runAdoption = async (access, input) => {
+      asked.push(`${access.session}/${input.run}/${input.work.definition.adopted.digest}`)
+      return { ok: { candidate: newer } }
+    }
+    await h.accept('input-1')
+    await vi.waitFor(async () => {
+      const work = await read(h)
+      expect(work.run.kind).toBe('active')
+      expect(work.definition.adopted).toEqual(newer)
+      expect(work.run.kind === 'active' && work.run.adoption).toEqual(newer)
+    })
+    expect(asked).toHaveLength(1)
+    expect(asked[0]).toContain(`/${pinned.digest}`)
+  })
+
+  it('a run does not start while the adoption source cannot say what it adopts; the input stays pending', async () => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+    await h.create()
+    let asked = 0
+    h.dependencies.evidence.runAdoption = async () => {
+      asked += 1
+      return fail({ kind: 'unavailable' as const, owner: 'adoption', diagnostic: 'not held' })
+    }
+    await h.accept('input-1')
+    await vi.waitFor(() => {
+      expect(asked).toBe(1)
+    })
+    h.clock.controls.advance(1000)
+    await vi.waitFor(() => {
+      expect(
+        h
+          .diagnostics()
+          .some(item => item.step === 'startRun' && item.reason === 'retries-exhausted'),
+      ).toBe(true)
+    })
+    expect(asked).toBe(2)
+    const work = await read(h)
+    expect(work.pending).toEqual(['input-1'])
+    expect(work.run.kind).not.toBe('active')
+  })
+
   it('a startRun that keeps answering unavailable stops after the configured delays and reports it', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await h.create()

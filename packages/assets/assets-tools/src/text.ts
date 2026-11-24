@@ -103,7 +103,11 @@ export const fileCount = (count: number) => `${count} ${count === 1 ? 'file' : '
 
 const CLOSED = 'this category is not made through here: it cannot be changed with this tool.'
 
-export function sourceLines(asset: Asset, closed: boolean): string[] {
+const FROM_DIRECTORY =
+  'one made here is a directory: help with name publish and this category says how it is written.'
+
+export function sourceLines(asset: Asset, creation: 'none' | 'data' | 'directory'): string[] {
+  const closed = creation === 'none'
   const fixed =
     asset.row.origin === 'customized'
       ? []
@@ -134,14 +138,26 @@ export function sourceLines(asset: Asset, closed: boolean): string[] {
     `source: this held version, a body of ${bytes} bytes:`,
     text,
     ...fixed,
-    closed ? CLOSED : 'to change it: publish a new body as data.',
+    closed
+      ? CLOSED
+      : creation === 'directory'
+        ? FROM_DIRECTORY
+        : 'to change it: publish a new body as data.',
   ]
 }
 
 /** The second line of a publish: what the data says about it now, nothing more. */
 export function publishedLine(enabled: boolean | undefined, placed: Placed | undefined): string[] {
   const parts: string[] = []
-  if (enabled === true) parts.push('in effect from now.')
+  const places = placed?.kind === 'placed' ? placed.places : []
+  const out = places.find(place => place.standing === 'not in effect')
+  const stands = places.some(place => ['selected', 'in effect'].includes(place.standing))
+  if (enabled === true)
+    parts.push(
+      out !== undefined && !stands
+        ? `held, and not in effect: ${out.says}.`
+        : 'in effect from now.',
+    )
   if (enabled === false) parts.push('held disabled: not in effect.')
   if (placed?.kind === 'placed' && placed.clients !== null)
     parts.push(

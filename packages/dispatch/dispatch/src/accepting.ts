@@ -23,7 +23,7 @@ async function factsOf(
   const { tenant, session } = ctx
   const [row, type, open] = await Promise.all([
     env.sessions.row(tenant, session),
-    env.definitions.typeOf(tenant, request.agent),
+    env.definitions.typeOf(tenant, request.agent, session),
     env.store.openOf(tenant, session),
   ])
   if (row.kind !== 'read' || type.kind !== 'read' || open.kind !== 'read') return null

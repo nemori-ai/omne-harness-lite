@@ -1,5 +1,5 @@
 export { agentHostPlugin, createAgentHostLocalPlugin } from './host-plugin.ts'
-export { agentDefinitionCategoryPlugin } from './category.ts'
+export { agentDefinitionCategory, agentDefinitionCategoryPlugin } from './category.ts'
 export type {
   AgentHostLocalPluginInput,
   AgentHostPlugin,

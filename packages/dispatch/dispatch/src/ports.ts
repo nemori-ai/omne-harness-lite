@@ -38,8 +38,12 @@ export interface ContextCopies {
 }
 
 export interface AgentDefinitions {
-  /** The type of the definition of this name as the tenant sees it now, or null when it sees none. */
-  typeOf(tenant: TenantId, name: string): Promise<PortRead<'master' | 'non-master' | null>>
+  /** The type of the definition of this name as the dispatching session sees it now, or null when it sees none. */
+  typeOf(
+    tenant: TenantId,
+    name: string,
+    dispatcher: SessionRef,
+  ): Promise<PortRead<'master' | 'non-master' | null>>
 }
 
 export interface Clock {

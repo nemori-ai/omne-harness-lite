@@ -9,16 +9,22 @@ import {
   definitionMappingsKey,
   modesAdoptionOf,
   type DefinitionMappings,
+  type DefinitionReading,
 } from '../agent-adoptions/definition-mappings.ts'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { defineRow } from '../../row.ts'
 
+/** The modes of a definition the table does not hold: the defaults a deployment gives what a tenant defines. */
+type OtherModes = DefinitionReading['modesFor']
+
 export function defaultModesOf(
   mappings: DefinitionMappings,
+  others?: OtherModes,
 ): SessionConditionsInput['defaultModes'] {
   return input => {
-    const entry = mappings.byName(input.definition.name)
+    const { name } = input.definition
+    const entry = mappings.byName(name) ?? others?.(name)
     if (entry === undefined)
       return Promise.resolve(
         fail({
@@ -59,7 +65,9 @@ const plugin: Plugin.Object = {
   async apply(ctx: Context) {
     await ctx.plugin(
       createSessionConditionsPlugin<unknown>({
-        defaultModes: defaultModesOf(ctx[definitionMappingsKey]),
+        defaultModes: defaultModesOf(ctx[definitionMappingsKey], name =>
+          ctx[definitionMappingsKey].modesFor(name),
+        ),
       }),
     )
   },

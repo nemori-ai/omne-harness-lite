@@ -141,7 +141,7 @@ it('does not know what a tenant sees when its assets cannot be opened, or could 
   expect((await missed.catalog.visibleTo(fixtureTenant('b')))?.length).toBeGreaterThan(0)
 })
 
-it('a definition a tenant holds over the official one is not the official one to it, from the first question on', async () => {
+it('a definition a tenant holds under the name of an official one does not take its place: the official one stays what it sees', async () => {
   const [first] = (mappingConfig() as { mappings: readonly { name: string }[] }).mappings
   if (first === undefined) throw new Error('the table lists nothing')
   const mine = {
@@ -156,8 +156,8 @@ it('a definition a tenant holds over the official one is not the official one to
   }
   const { catalog } = await treeOf(mappingConfig(), { holds })
   const seenByA = (await catalog.visibleTo(fixtureTenant('a')))?.map(entry => entry.name)
-  expect(seenByA).not.toContain(first.name)
-  expect(seenByA).toBeDefined()
+  expect(seenByA).toContain(first.name)
+  expect(seenByA?.filter(name => name === first.name)).toHaveLength(1)
   const seenByB = (await catalog.visibleTo(fixtureTenant('b')))?.map(entry => entry.name)
   expect(seenByB).toContain(first.name)
 })
