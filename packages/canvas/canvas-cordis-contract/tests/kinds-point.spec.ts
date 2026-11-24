@@ -357,3 +357,47 @@ describe('a kind as place takes it', () => {
     },
   )
 })
+
+describe('a kind taken by a place, later', () => {
+  it('is no longer declared once the point is gone, and says so rather than failing', async () => {
+    const root = new Context()
+    await root.plugin(DynamisService)
+    const service = root.plugin(Canvas)
+    await service
+    const tree = root.get(dynamisKey) as DynamisService
+    await root.plugin({
+      name: 'media-row',
+      inject: [dynamisKey],
+      apply(ctx: Context) {
+        putKind(ctx, kind('media.object'))
+      },
+    })
+    const entry = kindsOn(tree).enter('media.object')
+    if (entry.kind !== 'declared') throw new Error(entry.kind)
+    await service.dispose()
+    expect(kindsOn(tree).read()).toEqual({ kind: 'unavailable' })
+    expect(entry.declared()).toBe(false)
+    entry.leave()
+  })
+
+  it('a place that leaves twice lets go of its own hold only, not that of another place', async () => {
+    const { putting, tree, kinds } = await world()
+    const fiber = await putting(
+      'media-row',
+      kind('media.object', 'media', async () => ({ kind: 'admitted' })),
+    )
+    const first = kinds.enter('media.object')
+    const second = kinds.enter('media.object')
+    if (first.kind !== 'declared' || second.kind !== 'declared') throw new Error('not taken')
+    let gone = false
+    const leaving = fiber.dispose().then(() => void (gone = true))
+    first.leave()
+    first.leave()
+    await new Promise(resolve => setTimeout(resolve, 5))
+    expect(gone).toBe(false)
+    expect(tree.registry().retiring).toEqual([{ fiber: 'media-row', generation: 1 }])
+    second.leave()
+    await leaving
+    expect(tree.registry().retiring).toEqual([])
+  })
+})
