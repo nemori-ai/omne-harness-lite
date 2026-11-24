@@ -11,7 +11,7 @@ import {
 import '@omne-harness/calendar-ui/calendar-ui.css'
 import { calendarUiModule } from '@omne-harness/calendar-ui/cordis'
 import '@omne-harness/canvas-ui/canvas-ui.css'
-import { canvasUiModule } from '@omne-harness/canvas-ui/cordis'
+import { canvasElement, canvasPicker, canvasUiModule } from '@omne-harness/canvas-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import {
   createHumanInterventionUiModule,
@@ -85,6 +85,8 @@ export const assembly: Assembly = {
       modelChoices: modelChoicesKey,
       workspaceChoices: workspaceChoicesKey,
       blockReads: sessionReadsSourceKey,
+      canvasElement,
+      canvasPicker,
     }),
     createHumanInterventionUiModule({ sessionDock }),
     notificationUiModule,

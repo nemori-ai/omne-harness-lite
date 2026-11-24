@@ -1,5 +1,6 @@
 import { expectTypeOf, it } from 'vitest'
 import { assetGovernanceKey, assetsCategoryPage } from '@omne-harness/assets-ui/cordis'
+import { canvasElement, canvasIntake, canvasPicker } from '@omne-harness/canvas-ui/cordis'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import { modelChoicesKey } from '@omne-harness/model-ui/cordis'
 import { createMediaUiModule } from '@omne-harness/media-ui/cordis'
@@ -55,4 +56,12 @@ it('the reads the diagnostics give fit what the session interface takes, and wha
   expectTypeOf(createMediaUiModule).toBeCallableWith({ drafts: sessionComposerIntakeKey })
   // @ts-expect-error a list of models is not what takes the attachments of a draft
   createMediaUiModule({ drafts: modelChoicesKey })
+})
+
+it('the canvas points fit what the session interface draws and picks by, and not the other way round', () => {
+  expectTypeOf(createSessionUiModule).toBeCallableWith({ canvasElement, canvasPicker })
+  // @ts-expect-error the picker is not given the frame and the reference a drawing on the paper reads
+  createSessionUiModule({ canvasElement: canvasPicker })
+  // @ts-expect-error what is handed in for files is not what the search gives a picker
+  createSessionUiModule({ canvasPicker: canvasIntake })
 })

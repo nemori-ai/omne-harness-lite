@@ -98,10 +98,14 @@ system
           model-provider-access  [effective, model-ui#1]
       assets.control  [keyed-one]
     canvas
-      canvas.app-render  [keyed-one]
       canvas.element  [keyed-one]
-      canvas.intake  [keyed-one]
+        session.session
+          session-ui#1  [effective]
       canvas.picker  [keyed-one]
+        session.session
+          session-ui#1  [effective]
+      canvas.app-render  [keyed-one]
+      canvas.intake  [keyed-one]
     connection
       connection.protocols  [keyed-one]
         assets/v1
@@ -380,6 +384,10 @@ system
         session.list.item
           session-ui#1  [effective]
         session.list.new
+          session-ui#1  [effective]
+        session.paper.item
+          session-ui#1  [effective]
+        session.paper.pick
           session-ui#1  [effective]
         session.queue
           session-ui#1  [effective]
