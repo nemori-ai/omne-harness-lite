@@ -77,6 +77,7 @@ function bench(options: { reduced?: boolean; frames?: boolean; random?: () => nu
     swaps: () => swaps,
     now: () => now,
     phases: () => seen.map(state => state.phase),
+    running: () => [...timers, ...waiting].filter(timer => timer.live).length,
   }
 }
 
@@ -231,5 +232,111 @@ describe('the way of a flip', () => {
     expect(foldAt(state, state.carried + carry)).toEqual({ x: give.x, share: 1 })
     while (b.flip.current().phase !== 'settle') b.advance(1)
     expect(foldAt(b.flip.current(), b.now())?.share).toBe(1)
+  })
+})
+
+describe('the clock of a flip, as the timing standard writes it', () => {
+  const far = { x: 1000, y: 400 }
+  const fixed = (value: number) => () => value
+
+  it('takes the designed times when the casual draw is in the middle', () => {
+    expect(flipPlan(VIEW, 'right', far, fixed(0.5))).toEqual({
+      toward: 'right',
+      take: { x: 6, y: 400 },
+      give: { x: 1194, y: 400 },
+      approach: 359,
+      carry: 600,
+      settle: 320,
+    })
+  })
+
+  it('loosens each time by its own share and keeps the whole no longer than designed', () => {
+    expect(flipPlan(VIEW, 'right', far, fixed(1))).toMatchObject({
+      take: { y: 440 },
+      approach: 400,
+      carry: 648,
+      settle: 231,
+    })
+    expect(flipPlan(VIEW, 'right', far, fixed(0))).toMatchObject({
+      take: { y: 360 },
+      approach: 316,
+      carry: 552,
+      settle: 282,
+    })
+  })
+
+  it('goes to the edge from the middle band when there is no figure, its way half the width', () => {
+    expect(flipPlan(VIEW, 'right', null)).toMatchObject({ take: { x: 6, y: 360 }, approach: 296 })
+  })
+
+  it('keeps the height in the middle band at both ends', () => {
+    expect(flipPlan(VIEW, 'right', { x: 1000, y: 700 }).take.y).toBe(480)
+    expect(flipPlan(VIEW, 'right', { x: 1000, y: 100 }, fixed(0)).take.y).toBe(240)
+  })
+})
+
+describe('the flip between its turns', () => {
+  it('rests uncut before any turn, and a stop at rest tells no one', () => {
+    const b = bench()
+    expect(b.flip.current()).toEqual({ phase: 'idle', cut: false })
+    b.flip.stop()
+    expect(b.seen).toEqual([])
+    expect(b.flip.current()).toEqual({ phase: 'idle', cut: false })
+  })
+
+  it('tells a listener no more once it has left', () => {
+    const b = bench()
+    const heard: string[] = []
+    const leave = b.flip.subscribe(() => heard.push(b.flip.current().phase))
+    leave()
+    b.turn()
+    expect(heard).toEqual([])
+  })
+
+  it('a turn right after one that ended is not cut by the time limit of the one before', () => {
+    const b = bench()
+    b.turn()
+    settledAt(b)
+    b.turn('left')
+    settledAt(b)
+    expect(b.flip.current()).toEqual({ phase: 'idle', cut: false })
+  })
+
+  it('a turn stopped while it changes the face leaves nothing running to cut the next one', () => {
+    const b = bench()
+    b.flip.turn('right', () => b.flip.stop())
+    expect(b.flip.current()).toEqual({ phase: 'idle', cut: true })
+    b.advance(1000)
+    b.turn('left')
+    settledAt(b)
+    expect(b.flip.current()).toEqual({ phase: 'idle', cut: false })
+  })
+
+  it.each([0, 100, 370, 800, 1000])(
+    'a turn stopped %i ms in leaves no timer and no frame behind',
+    at => {
+      const b = bench()
+      b.turn()
+      b.advance(at)
+      b.flip.stop()
+      expect(b.flip.current()).toEqual({ phase: 'idle', cut: true })
+      expect(b.running()).toBe(0)
+    },
+  )
+
+  it('a turn that ends by itself leaves no timer and no frame behind', () => {
+    const b = bench()
+    b.turn()
+    settledAt(b)
+    expect(b.running()).toBe(0)
+  })
+})
+
+describe('the fold of the leaving face', () => {
+  const plan = flipPlan(VIEW, 'right', { x: 40, y: 60 }, () => 0.5)
+
+  it('is all the way over once the flip settles, whatever the clock it is drawn at', () => {
+    const settling: FlipState = { phase: 'settle', plan, began: 0, carried: 1000 }
+    expect(foldAt(settling, 1000)).toEqual({ x: plan.give.x, share: 1 })
   })
 })
