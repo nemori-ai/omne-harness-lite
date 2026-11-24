@@ -2,6 +2,13 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { expect, it } from 'vitest'
 import { guidanceDirectories } from '../src/guidance-directories.ts'
 
+it('includes the bound root once and accepts only absolute visit evidence', () => {
+  const root = resolve('repo/app')
+  const unconfirmed = relative(process.cwd(), join(root, 'unconfirmed'))
+  expect(guidanceDirectories(root, [])).toEqual([root])
+  expect(guidanceDirectories(root, [root, unconfirmed, root])).toEqual([root])
+})
+
 it('unions only bounded ancestors across shuffled, repeated, and out-of-workspace visits', () => {
   const root = resolve('repo/app')
   const leaves = Array.from({ length: 128 }, (_, i) => join(root, 'src', 'modules', String(i)))
