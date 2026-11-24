@@ -16,6 +16,7 @@ import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ExtensionsCallSource, ExtensionsFaces, Placed } from './port.ts'
 import { limits, type ArgumentsOf, type ExtensionsCommandName } from './protocol.ts'
+import { configure, settings } from './settings-commands.ts'
 import {
   columns,
   conflict,
@@ -573,4 +574,6 @@ export const HANDLERS: { readonly [K in Reaching]: Handler<K> } = {
   disable: changeOf('disable') as Handler<'disable'>,
   remove: changeOf('remove') as Handler<'remove'>,
   result,
+  settings,
+  configure,
 }

@@ -32,11 +32,18 @@ async function described(command: string, params: unknown) {
   return checked.ok.rows
 }
 
-it('the release card is described for the four writes and export alone', () => {
+it('the release card is described for the writes and export alone', () => {
   const describing = tool.registration.operations
     .filter(([, slot]) => slot.describeRelease !== null)
     .map(([name]) => name)
-  expect(describing.sort()).toEqual(['disable', 'enable', 'export', 'publish', 'remove'])
+  expect(describing.sort()).toEqual([
+    'configure',
+    'disable',
+    'enable',
+    'export',
+    'publish',
+    'remove',
+  ])
 })
 
 describe('what a write would do, shown on its release card', () => {
@@ -75,5 +82,23 @@ describe('what a write would do, shown on its release card', () => {
       { label: '类别', value: 'note' },
       { label: '名字', value: 'a' },
     ])
+  })
+
+  it('a configure names the asset, the setting and the value it would write, or that it clears', async () => {
+    const base = { id: 'c1', category: 'mcp', name: 'docs', item: 'program-calls' }
+    expect(await described('configure', { ...base, value: true })).toEqual([
+      { label: '动作', value: '改设置' },
+      { label: '类别', value: 'mcp' },
+      { label: '名字', value: 'docs' },
+      { label: '设置项', value: 'program-calls' },
+      { label: '要写的值', value: 'true' },
+    ])
+    expect((await described('configure', { ...base, clear: true })).at(-1)).toEqual({
+      label: '要写的值',
+      value: '清除这一层的值',
+    })
+    const long = await described('configure', { ...base, value: 'x'.repeat(900) })
+    expect([...(long.at(-1)?.value ?? '')]).toHaveLength(401)
+    expect((await described('configure', base)).at(-1)?.value).toBe('没有给值')
   })
 })

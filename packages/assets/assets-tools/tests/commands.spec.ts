@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { digestBytes } from '@omne-harness/assets'
-import { ALICE, BUNDLE, PLACED, bound, directoryOf, id, world, type World } from './world.ts'
+import {
+  ALICE,
+  BUNDLE,
+  DOCS_SETTINGS,
+  PLACED,
+  bound,
+  directoryOf,
+  id,
+  world,
+  type World,
+} from './world.ts'
 
 const PILL = { category: 'bundle', name: 'pill-send', dir: 'plugins/pill-send' }
 const lines = (...body: string[]) => body.join('\n')
@@ -855,5 +865,222 @@ describe('export', () => {
     w.filesOver.answer = answer
     expect((await bound(w).failure('export', EXPORT)).kind).toBe(kind)
     expect(w.placeAsked).toEqual([])
+  })
+})
+
+const DOCS = { category: 'note', name: 'docs' }
+
+/** A world where the tenant holds note docs with the five kinds of setting rows. */
+function configuring(over: Partial<World['settings']> = {}) {
+  const w = world()
+  w.settings.items.set('note/docs', [...DOCS_SETTINGS])
+  Object.assign(w.settings, over)
+  return { w, s: bound(w) }
+}
+
+// AS-28: the agent reads the ordinary settings; of a secret only whether it is set; of a permission nothing.
+describe('settings', () => {
+  it('lists each ordinary setting with its value now, where it comes from and its type; a secret and a permission without what they hold', async () => {
+    expect(await configuring().s.text('settings', DOCS)).toBe(
+      lines(
+        'done OmneExtensions settings note docs',
+        'target          "https://docs.example/mcp"   set here                string',
+        'program-calls   false                        default                 boolean',
+        'region          "eu"                         from the organization   "eu"|"us"   cannot be written here: locked by the organization',
+        'credential      secret                       set',
+        'invoke          permission                   not read here',
+        'configure writes or clears an ordinary setting. A secret or a permission is set by a person, on the settings page or on a card.',
+        'tree rev 7c1f.41',
+      ),
+    )
+  })
+
+  it('says of a secret only whether it is set, or that this is not known', async () => {
+    const { w, s } = configuring()
+    const row = (configured: 'yes' | 'no' | 'unknown') =>
+      ({ kind: 'secret', item: 'credential', title: '凭据', revision: '0', configured }) as const
+    w.settings.items.set('note/docs', [row('no')])
+    expect(await s.text('settings', DOCS)).toContain('credential   secret   not set\n')
+    w.settings.items.set('note/docs', [row('unknown')])
+    expect(await s.text('settings', DOCS)).toContain(
+      'credential   secret   not known whether set\n',
+    )
+  })
+
+  it('an extension with no setting says so', async () => {
+    const { w, s } = configuring()
+    w.settings.items.set('note/docs', [])
+    expect(await s.text('settings', DOCS)).toBe(
+      lines('done OmneExtensions settings note docs', 'It has no setting.', 'tree rev 7c1f.41'),
+    )
+  })
+
+  it.each([
+    ['not held', {}, { category: 'note', name: 'gone' }, 'invalid', 'note gone is not held'],
+    ['denied', { read: 'denied' }, DOCS, 'unsupported', 'may not act for the tenant'],
+    ['not readable', { read: 'unavailable' }, DOCS, 'unavailable', 'cannot answer now'],
+    ['without the settings face', { face: 'absent' }, DOCS, 'unavailable', 'cannot answer now'],
+  ] as const)('%s: a failure that says so', async (_case, over, params, kind, said) => {
+    const failure = await configuring(over).s.failure('settings', params)
+    expect(failure.kind).toBe(kind)
+    expect(failure.reason).toContain(said)
+  })
+
+  it('a category not there now names the ones that are', async () => {
+    const failure = await configuring().s.failure('settings', { category: 'nope', name: 'docs' })
+    expect(failure.reason).toContain('Categories now: bundle, kit, note.')
+  })
+})
+
+// AS-28: the agent writes an ordinary setting of the tenant layer, and nothing else.
+describe('configure', () => {
+  const OPEN = { id: 'c1', ...DOCS, item: 'program-calls', value: true }
+
+  it('writes an ordinary setting at the revision it read, and answers with the receipt', async () => {
+    const { w, s } = configuring()
+    expect(await s.text('configure', OPEN)).toBe(
+      lines(
+        'done OmneExtensions configure',
+        '{"id":"c1","category":"note","name":"docs","item":"program-calls","value":true,"changed":true}',
+        'written. settings shows the value now.',
+        'tree rev 7c1f.41',
+      ),
+    )
+    expect(w.settings.written).toEqual([
+      {
+        asset: DOCS,
+        item: 'program-calls',
+        operation: expect.stringMatching(/^configure\/sha256:[0-9a-f]{64}$/u),
+        revision: '4',
+        change: { kind: 'set', value: true },
+      },
+    ])
+    expect(await s.text('settings', DOCS)).toContain('program-calls   true ')
+  })
+
+  it('clears the value of this layer', async () => {
+    const { w, s } = configuring()
+    const text = await s.text('configure', { id: 'c2', ...DOCS, item: 'target', clear: true })
+    expect(text).toContain('"item":"target","cleared":true,"changed":true}')
+    expect(w.settings.written.map(sent => sent.change)).toEqual([{ kind: 'clear' }])
+  })
+
+  it.each([
+    ['a secret', 'credential', 'credential is a secret'],
+    ['a permission', 'invoke', 'invoke is a permission'],
+    [
+      'a setting that is not there',
+      'colour',
+      'has no setting "colour". Ordinary settings: target, program-calls, region.',
+    ],
+    [
+      'a setting this layer may not write',
+      'region',
+      'region cannot be written here: locked by the organization',
+    ],
+  ] as const)('%s is not written: invalid, with the reason', async (_case, item, said) => {
+    const { w, s } = configuring()
+    const failure = await s.failure('configure', { id: 'c3', ...DOCS, item, value: 'x' })
+    expect(failure.kind).toBe('invalid')
+    expect(failure.reason).toContain(said)
+    expect(w.settings.written).toEqual([])
+    const cleared = await s.failure('configure', { id: 'c4', ...DOCS, item, clear: true })
+    expect(cleared.kind).toBe('invalid')
+    expect(w.settings.written).toEqual([])
+  })
+
+  it.each([
+    ['neither a value nor clear', {}],
+    ['both a value and clear', { value: true, clear: true }],
+    ['clear that is not true', { clear: false }],
+  ])('%s is invalid, and nothing is read or written', async (_case, given) => {
+    const { w, s } = configuring()
+    const failure = await s.failure('configure', {
+      id: 'c5',
+      ...DOCS,
+      item: 'program-calls',
+      ...given,
+    })
+    expect(failure.kind).toBe('invalid')
+    expect(failure.reason).toContain('give value to write the setting, or clear: true to clear')
+    expect(w.settings.written).toEqual([])
+  })
+
+  it('a value the layer already has is not written again: the same command after an unknown answer finds it done', async () => {
+    const { w, s } = configuring({ next: 'unknown' })
+    const lost = await s.failure('configure', OPEN)
+    expect(lost).toMatchObject({ kind: 'unknown', operation: 'OmneExtensions.configure' })
+    expect(lost.reason).toContain('send the same command again with the same id')
+    w.settings.items.set(
+      'note/docs',
+      DOCS_SETTINGS.map(one =>
+        one.item === 'program-calls' && one.kind === 'ordinary'
+          ? { ...one, own: { kind: 'set', value: true }, effective: { kind: 'set', value: true } }
+          : one,
+      ),
+    )
+    expect(await s.text('configure', OPEN)).toContain('"value":true,"changed":false}')
+    expect(w.settings.written).toHaveLength(1)
+    const fresh = configuring()
+    const unset = { id: 'c9', ...DOCS, item: 'program-calls', clear: true }
+    expect(await fresh.s.text('configure', unset)).toContain('"cleared":true,"changed":false}')
+    expect(fresh.w.settings.written).toEqual([])
+  })
+
+  it('one id for one write at one revision is one operation; another value, item or revision is another', async () => {
+    const operationOf = async (params: object, revision = '4') => {
+      const { w, s } = configuring({ next: 'unavailable' })
+      w.settings.items.set(
+        'note/docs',
+        DOCS_SETTINGS.map(one => ({ ...one, revision })),
+      )
+      await s.failure('configure', params)
+      return w.settings.written[0]?.operation
+    }
+    const first = await operationOf(OPEN)
+    expect(await operationOf(OPEN)).toBe(first)
+    expect(await operationOf({ ...OPEN, value: false })).not.toBe(first)
+    expect(await operationOf({ ...OPEN, value: 'yes' })).not.toBe(first)
+    expect(await operationOf({ ...OPEN, id: 'c7' })).not.toBe(first)
+    expect(await operationOf({ ...OPEN, item: 'target' })).not.toBe(first)
+    expect(await operationOf(OPEN, '5')).not.toBe(first)
+  })
+
+  it.each([
+    ['invalid', 'invalid', 'does not fit program-calls: its schema is {"type":"boolean"}'],
+    ['conflict', 'conflict', 'changed while this was being written'],
+    ['locked', 'invalid', 'cannot be written here: locked by the organization'],
+    [
+      'out-of-bound',
+      'invalid',
+      'cannot be written here: the value is outside what the organization allows',
+    ],
+    ['prohibited-above', 'invalid', 'cannot be written here: prohibited by the organization'],
+    ['not-a-source', 'invalid', 'cannot be written here: this layer does not set it'],
+    ['gone', 'invalid', 'note docs is not held'],
+    ['denied', 'unsupported', 'may not act for the tenant'],
+    ['unavailable', 'unavailable', 'cannot answer now'],
+    ['no-change', undefined, '"changed":false}'],
+  ] as const)('the write answers %s: %s, saying why', async (next, kind, said) => {
+    const { s } = configuring({ next })
+    const answer = await s.run('configure', OPEN)
+    if (kind === undefined) expect(answer).toMatchObject({ ok: expect.stringContaining(said) })
+    else {
+      expect(answer).toMatchObject({ failure: { kind } })
+      expect((answer as { failure: { reason: string } }).failure.reason).toContain(said)
+    }
+  })
+
+  it.each([
+    ['not held', {}, { ...OPEN, name: 'gone' }, 'invalid', 'note gone is not held'],
+    ['denied', { read: 'denied' }, OPEN, 'unsupported', 'may not act'],
+    ['not readable', { read: 'unavailable' }, OPEN, 'unavailable', 'cannot answer now'],
+    ['without the settings face', { face: 'absent' }, OPEN, 'unavailable', 'cannot answer now'],
+  ] as const)('%s: nothing is written', async (_case, over, params, kind, said) => {
+    const { w, s } = configuring(over)
+    const failure = await s.failure('configure', params)
+    expect(failure.kind).toBe(kind)
+    expect(failure.reason).toContain(said)
+    expect(w.settings.written).toEqual([])
   })
 })

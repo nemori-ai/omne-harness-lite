@@ -46,6 +46,13 @@ const guarded = (call: string) =>
     `try { return await ${call} }`,
     'catch (error) { return { refused: String(error), kind: error.kind ?? null } }',
   ].join('\n')
+const SHOP = { category: 'mcp', name: 'shop' }
+// What the model writes for `start: extensions <label>`: one call of OmneExtensions about the endpoint shop.
+const EXTENSION_CALLS: Readonly<Record<string, readonly [string, object]>> = {
+  settings: ['settings', SHOP],
+  open: ['configure', { id: 'open-1', ...SHOP, item: 'program-calls', value: true }],
+  'grab-gate': ['configure', { id: 'grab-1', ...SHOP, item: 'invoke', value: 'auto' }],
+}
 const PROGRAMS: Readonly<Record<string, string>> = {
   count: guarded('mcp__shop.count({ text: "four" })'),
   plain: guarded('mcp__shop.echo({ text: "plain" })'),
@@ -87,6 +94,12 @@ function scripted() {
     const call = /start: call ([a-z]+) ([a-z]+) ([a-z0-9-]+)/.exec(said)
     const inspect = /start: inspect ([a-z]+) ([a-z]+)/.exec(said)
     const code = PROGRAMS[/start: code ([a-z]+)/.exec(said)?.[1] ?? '']
+    const extension = EXTENSION_CALLS[/start: extensions ([a-z-]+)/.exec(said)?.[1] ?? '']
+    if (extension !== undefined) {
+      const [command, params] = extension
+      const id = `extensions_${String(bodies.length)}`
+      return [{ id, tool: 'OmneExtensions', arguments: JSON.stringify({ command, params }) }]
+    }
     if (code !== undefined) {
       const id = `code_${String(bodies.length)}`
       return [{ id, tool: 'Code', arguments: JSON.stringify({ command: 'execute', code }) }]
@@ -551,7 +564,7 @@ it(
 )
 
 it(
-  'MC-26 a program calls the actions of an endpoint only while its holder has program calls on: it gets the checked structured content, or the content items, and each call still asks',
+  'MC-26 AS-28 a program calls the actions of an endpoint only once program calls are on; the agent turns them on through OmneExtensions after a person allows it, and cannot write the gate of the endpoint that way',
   { tags: ['slow'], timeout: 600_000 },
   async () => {
     const { script } = scripted()
@@ -573,8 +586,48 @@ it(
         expect(peer.calls).toEqual([])
         expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
 
-        at('the holder turns program calls on: the call of the program asks, then answers')
-        await configured(w, 'shop', 'program-calls', true, 'shop-open')
+        at('the agent reads the settings of the endpoint: no secret value, no permission')
+        await sendInput(tree, session, 'start: extensions settings')
+        const read = await lastResult(tree, session, 3)
+        expect(read).toContain('done OmneExtensions settings mcp shop')
+        expect(read).toMatch(/program-calls\s+false\s+default\s+boolean/u)
+        expect(read).toMatch(/invoke\s+permission\s+not read here/u)
+
+        at('the agent asks to turn program calls on: a person is asked, then it is written')
+        await sendInput(tree, session, 'start: extensions open')
+        const asking = await pendingCard(tree, session, 'the write of the setting')
+        const shown = JSON.stringify(asking.question)
+        expect(asking.question).toMatchObject({
+          kind: 'release',
+          target: { tool: 'OmneExtensions' },
+        })
+        for (const said of ['改设置', 'mcp', 'shop', 'program-calls', 'true'])
+          expect(shown).toContain(said)
+        expect(await described(w, 'shop', 'program-calls')).toMatchObject({
+          own: { kind: 'unset' },
+        })
+        await answerCard(tree, asking, ['--option', 'allow-once'], 'reply-open')
+        const opened = await lastResult(tree, session, 4)
+        expect(opened).toContain('"item":"program-calls","value":true,"changed":true}')
+        expect(await described(w, 'shop', 'program-calls')).toMatchObject({
+          own: { kind: 'set', value: { kind: 'boolean', value: true } },
+        })
+
+        at(
+          'the agent asks to write the gate of the endpoint: allowed by a person, it is still not written',
+        )
+        await sendInput(tree, session, 'start: extensions grab-gate')
+        const grabbing = await pendingCard(tree, session, 'the write of the gate')
+        await answerCard(tree, grabbing, ['--option', 'allow-once'], 'reply-grab')
+        const grabbed = await lastResult(tree, session, 5)
+        expect(grabbed).toContain('invoke is a permission')
+        expect(await described(w, 'shop', 'invoke')).toMatchObject({
+          kind: 'permission',
+          own: null,
+          effective: { kind: 'value', value: 'ask' },
+        })
+
+        at('program calls are on: the call of the program asks, then answers')
         await sendInput(tree, session, 'start: code count')
         const card = await pendingCard(tree, session, 'the call the program made')
         expect(card.question).toMatchObject({
@@ -584,14 +637,14 @@ it(
         })
         expect(peer.calls).toEqual([])
         await answerCard(tree, card, ['--option', 'allow-session'], 'reply-count')
-        const counted = await lastResult(tree, session, 3)
+        const counted = await lastResult(tree, session, 6)
         expect(counted).toContain('done Code execute')
         expect(counted).toContain('"length":4')
         expect(peer.calls).toEqual([{ action: 'count', text: 'four' }])
 
         at('an action without an output schema gives the program its content items')
         await sendInput(tree, session, 'start: code plain')
-        const plain = await lastResult(tree, session, 4)
+        const plain = await lastResult(tree, session, 7)
         expect(plain).toContain('"type":"text"')
         expect(plain).toContain('echo answered plain')
         expect(plain).not.toContain('refused')
@@ -599,7 +652,7 @@ it(
         at('the holder turns program calls off again')
         await configured(w, 'shop', 'program-calls', false, 'shop-closed')
         await sendInput(tree, session, 'start: code count')
-        expect(await lastResult(tree, session, 5)).toContain('"kind":null')
+        expect(await lastResult(tree, session, 8)).toContain('"kind":null')
         expect(peer.calls).toHaveLength(2)
       }),
     )

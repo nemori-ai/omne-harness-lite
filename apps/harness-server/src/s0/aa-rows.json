@@ -428,7 +428,8 @@
       "row": "tool-bindings",
       "names": [
         "principalVerifier",
-        "settingsSecretCustody"
+        "settingsSecretCustody",
+        "settingsSecretItems"
       ]
     },
     {

@@ -25,8 +25,8 @@ export const unavailable = (command: ExtensionsCommandName, why = NOW_UNAVAILABL
 const NOT_KNOWN =
   'it is not known whether this took effect; send the same command again with the same id, or ask result: what took effect is recalled, not done twice'
 
-export const unknown = (command: ExtensionsCommandName): Answer =>
-  fail({ kind: 'unknown', operation: operationOf(command), reason: NOT_KNOWN })
+export const unknown = (command: ExtensionsCommandName, why = NOT_KNOWN): Answer =>
+  fail({ kind: 'unknown', operation: operationOf(command), reason: why })
 
 export const invalid = (why: string): Answer => fail({ kind: 'invalid', reason: why })
 export const conflict = (why: string): Answer => fail({ kind: 'conflict', reason: why })

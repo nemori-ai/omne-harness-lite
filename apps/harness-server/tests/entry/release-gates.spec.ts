@@ -58,9 +58,10 @@ const EXPECTED: Readonly<
   SwitchWorkspace: [['invoke', 'ask', []]],
   OmneExtensionPoints: [['read', 'auto', ['help', 'tree', 'find', 'show', 'changes']]],
   OmneExtensions: [
-    ['read', 'auto', ['help', 'categories', 'list', 'show', 'impact', 'result']],
+    ['read', 'auto', ['help', 'categories', 'list', 'show', 'impact', 'result', 'settings']],
     ['change', 'auto', ['publish', 'enable', 'disable', 'remove']],
     ['export', 'auto', ['export']],
+    ['configure', 'ask', ['configure']],
   ],
   Screen: [
     ['read', 'auto', ['help']],

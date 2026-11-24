@@ -62,6 +62,7 @@ import { permissionOriginsOf } from './permission-origins.ts'
 import { CurrentPermissionService, currentToolPermissionKey } from './current-permission-service.ts'
 import {
   provideTenantSettings,
+  tenantActingSettingsKey,
   tenantAssetSettingsKey,
   tenantSettingsKey,
   type TenantSettingsServiceOptions,
@@ -144,6 +145,7 @@ export const governanceRow = defineRow({
       currentToolPermissionKey,
       tenantSettingsKey,
       tenantAssetSettingsKey,
+      tenantActingSettingsKey,
       independentSettingsKey,
       tenantIndependentSettingsKey,
       loopExtensionSourcesKey,

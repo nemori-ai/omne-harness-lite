@@ -121,6 +121,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'currentToolPermission',
       'tenantSettings',
       'tenantAssetSettings',
+      'tenantActingSettings',
       'independentSettings',
       'tenantIndependentSettings',
       'loopExtensionSources',
