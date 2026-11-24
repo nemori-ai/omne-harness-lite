@@ -10,10 +10,11 @@ import {
   type PaperPoint,
   type PaperView,
 } from '@omne-harness/ui-kit'
+import { encodeInstant } from '@omne-harness/utc-instant'
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { CanvasState } from '../model/canvas-driver.ts'
 import { itemKey, pileKey, type Command } from '../model/commands.ts'
-import { standingOf } from '../model/kinds.ts'
+import { standingOf, type KindStanding } from '../model/kinds.ts'
 import {
   keep,
   keptMagnet,
@@ -32,6 +33,7 @@ import { ItemPage } from './item-page.tsx'
 import { ITEM_DRAG, PileView } from './pile-view.tsx'
 import { droppedOut, itemActs, pileActs, type Selection } from './sheet-acts.ts'
 import { bareAt, FinderKey, FoundMark, useLayers, type Place } from './sheet-layers.tsx'
+import { useLatest, useSame, useSteady } from './steady.ts'
 
 /** The seat of the figure on the back is in the middle of the sheet, at the first priority. */
 const SEAT = 'canvas'
@@ -80,6 +82,10 @@ function useRound(host: CanvasHost): number {
   useEffect(() => host.watchChanges(() => setRound(value => value + 1)), [host])
   return round
 }
+
+/** An item as text to tell whether it changed; its instant has no JSON form, so it is written out. */
+const itemText = (item: CanvasItemBody): string =>
+  JSON.stringify({ ...item, when: encodeInstant(item.when) })
 
 const byRank = (one: CanvasItemBody, other: CanvasItemBody): number => one.rank - other.rank
 
@@ -133,10 +139,27 @@ const letsGo = (event: React.KeyboardEvent, selected: Selection): boolean =>
   selected.size > 0 &&
   (event.target as Element).closest('[role="menu"]') === null
 
+/** How each kind stands, asked once a kind while the kinds read stay the same. */
+function useStanding(kinds: CanvasState['kinds']): (item: CanvasItemBody) => KindStanding {
+  return useMemo(() => {
+    const known = new Map<string, KindStanding>()
+    return item => {
+      const name = item.reference.kind
+      const held = known.get(name)
+      if (held !== undefined) return held
+      const standing = standingOf(kinds, name)
+      known.set(name, standing)
+      return standing
+    }
+  }, [kinds])
+}
+
 /** The sheet of the canvas, with what the server last said lies on it. */
 export function SheetView(props: SheetViewProps): JSX.Element {
   const { host, scope, canvas, state, preferences, send, dismiss } = props
-  const sheet = paperSheet(canvas)
+  const sheet = useSame(paperSheet(canvas))
+  const limits = useSame(pageLimits(canvas))
+  const items = useSteady(canvas.items, itemText)
   const looking = useLooking(preferences, canvas)
   const round = useRound(host)
   const [selected, select] = useState<Selection>(() => new Set())
@@ -152,14 +175,14 @@ export function SheetView(props: SheetViewProps): JSX.Element {
     send,
     newPile: () => `pile-${crypto.randomUUID()}`,
   }
-  const acts = itemActs(deps)
-  const piled = pileActs(deps)
-  const standing = (item: CanvasItemBody) => standingOf(state.kinds, item.reference.kind)
-  const choices = useMemo(
-    () => canvas.piles.map(pile => ({ id: pile.id, name: pile.name ?? '没有名字的一叠' })),
-    [canvas.piles],
+  const latest = useLatest(deps)
+  const acts = useMemo(() => itemActs(latest), [latest])
+  const piled = useMemo(() => pileActs(latest), [latest])
+  const standing = useStanding(state.kinds)
+  const choices = useSame(
+    canvas.piles.map(pile => ({ id: pile.id, name: pile.name ?? '没有名字的一叠' })),
   )
-  const loose = canvas.items.filter(item => item.state === 'on' && item.pile === null).sort(byRank)
+  const loose = items.filter(item => item.state === 'on' && item.pile === null).sort(byRank)
   return (
     <div
       ref={root}
@@ -184,7 +207,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
         view={looking.view}
         onViewChange={looking.look}
         zoomLimits={ZOOM_LIMITS}
-        limits={pageLimits(canvas)}
+        limits={limits}
         magnet={looking.magnet}
         onDropAt={(event, at) => {
           const item = event.dataTransfer.getData(ITEM_DRAG)
@@ -212,7 +235,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
             pile={pile}
             box={pileBox(pile, sheet)}
             footprint={sheet.footprint}
-            leaves={canvas.items.filter(item => item.pile === pile.id).sort((a, b) => byRank(b, a))}
+            leaves={items.filter(item => item.pile === pile.id).sort((a, b) => byRank(b, a))}
             standing={standing}
             round={round}
             pending={state.pending.has(pileKey(pile.id))}
@@ -237,6 +260,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
             round={round}
             pending={state.pending.has(itemKey(item.id))}
             selected={selected.has(item.id)}
+            pileable={acts.grouped(item) >= 2}
             piles={choices}
             acts={acts}
           />

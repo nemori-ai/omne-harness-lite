@@ -6,7 +6,7 @@ import {
   type PaperGesture,
   type PaperPoint,
 } from '@omne-harness/ui-kit'
-import { useRef, type JSX } from 'react'
+import { memo, useRef, type JSX } from 'react'
 import type { KindStanding } from '../model/kinds.ts'
 import { ByLine, LockMark, ThingMenu, type PileChoice } from './aside.tsx'
 import { Element, kindName, type CanvasHost } from './element.tsx'
@@ -33,12 +33,23 @@ export type ItemPageProps = Readonly<{
   round: number
   pending: boolean
   selected: boolean
+  /** Whether a pile can be made from it: it and what is selected are two or more. */
+  pileable: boolean
   piles: readonly PileChoice[]
   acts: ItemActs
 }>
 
+const sameBox = (one: PaperBox, other: PaperBox): boolean =>
+  one.x === other.x && one.y === other.y && one.width === other.width && one.height === other.height
+
+/** A page is drawn again only when something it is given is another: the box by where it is. */
+const sameProps = (was: ItemPageProps, now: ItemPageProps): boolean =>
+  (Object.keys(now) as (keyof ItemPageProps)[]).every(key =>
+    key === 'box' ? sameBox(was.box, now.box) : Object.is(was[key], now[key]),
+  )
+
 /** One thing lying loose on the sheet, where the server says it is. */
-export function ItemPage(props: ItemPageProps): JSX.Element {
+export const ItemPage = memo(function ItemPage(props: ItemPageProps): JSX.Element {
   const { host, scope, item, box, standing, round, pending, selected, piles, acts } = props
   const how = useRef<PressHow>('toggle')
   const under = useRef<PaperPoint | undefined>(undefined)
@@ -54,7 +65,7 @@ export function ItemPage(props: ItemPageProps): JSX.Element {
           act: 'pile',
           label: '叠成一叠',
           run: () => acts.act(item, 'pile'),
-          disabled: acts.grouped(item) < 2,
+          disabled: !props.pileable,
         },
       ]}
       piles={piles}
@@ -111,4 +122,4 @@ export function ItemPage(props: ItemPageProps): JSX.Element {
       </PaperPage>
     </div>
   )
-}
+}, sameProps)
