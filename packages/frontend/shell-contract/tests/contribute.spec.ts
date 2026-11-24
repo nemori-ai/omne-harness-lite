@@ -67,6 +67,52 @@ describe('contribute', () => {
     })
   })
 
+  describe('the back of the application, which holds one', () => {
+    it('places into an empty slot', async () => {
+      const { root, shell } = await startShell()
+      await place(root, 'a', ctx => ctx.shell.contribute('back', gate('canvas')))
+      expect(shell.items('back').map(item => item.id)).toEqual(['canvas'])
+      expect(shell.conflicts('back')).toEqual([])
+      expect(shell.owner('back', 'canvas')).toBe('a')
+    })
+
+    it('answers a conflict when another module puts a back: neither is drawn, both are named, and the one left takes effect', async () => {
+      const { root, shell } = await startShell()
+      const first = await place(root, 'a', ctx => ctx.shell.contribute('back', gate('canvas')))
+      await place(root, 'b', ctx => ctx.shell.contribute('back', gate('board')))
+      expect(shell.items('back')).toEqual([])
+      expect(shell.conflicts('back')).toEqual([
+        { slot: 'back', anchor: undefined, id: '', by: ['a', 'b'] },
+      ])
+      await first.dispose()
+      await settle()
+      expect(shell.items('back').map(item => item.id)).toEqual(['board'])
+      expect(shell.conflicts('back')).toEqual([])
+    })
+
+    it('throws when one module puts a second back, and nothing of that module shows', async () => {
+      const { root, shell } = await startShell()
+      const error = await failure(root, ctx => {
+        ctx.shell.contribute('back', gate('canvas'))
+        ctx.shell.contribute('back', gate('canvas'))
+      })
+      expect(error).toBeInstanceOf(ShellAssemblyError)
+      expect(error).toMatchObject({ slot: 'back', id: 'canvas', reason: 'duplicate' })
+      await settle()
+      expect(shell.items('back')).toEqual([])
+    })
+
+    it('stands apart from the login gate: an item on one is not on the other', async () => {
+      const { root, shell } = await startShell()
+      await place(root, 'a', ctx => {
+        ctx.shell.contribute('gate', gate('login'))
+        ctx.shell.contribute('back', gate('canvas'))
+      })
+      expect(shell.items('gate').map(item => item.id)).toEqual(['login'])
+      expect(shell.items('back').map(item => item.id)).toEqual(['canvas'])
+    })
+  })
+
   describe('a slot that holds a list', () => {
     it('places into an empty slot', async () => {
       const { root, shell } = await startShell()

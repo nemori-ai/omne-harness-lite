@@ -5,6 +5,7 @@ export const slots = {
   pages: { kind: 'list' },
   sidebar: { kind: 'list' },
   float: { kind: 'list' },
+  back: { kind: 'one' },
   attached: { kind: 'list' },
 } as const
 
@@ -64,6 +65,14 @@ export type FloatItem = Readonly<{
   render: (props: FloatProps) => ReactNode
 }>
 
+/** `turn` turns the application to its other face, as the shell's own ways to turn do; it gives nothing back. */
+export type BackProps = Readonly<{ scope: string | undefined; turn: () => void }>
+
+export type BackItem = Readonly<{
+  id: string
+  render: (props: BackProps) => ReactNode
+}>
+
 export type AttachedItem = Readonly<{
   id: string
   order: number
@@ -81,6 +90,7 @@ export type SlotItems = {
   pages: PageItem
   sidebar: SidebarItem
   float: FloatItem
+  back: BackItem
   attached: AttachedItem
 }
 

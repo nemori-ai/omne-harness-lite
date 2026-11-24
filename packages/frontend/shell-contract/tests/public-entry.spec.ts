@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { ShellAssemblyError, slots } from '@omne-harness/shell-contract'
 
-it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the four shell points, the attribute a floating item is dragged by, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, and nothing else at run time', async () => {
+it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the five shell points, the attribute a floating item is dragged by, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, and nothing else at run time', async () => {
   const root = (await import('@omne-harness/shell-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'FLOAT_GRIP_ATTRIBUTE',
@@ -34,18 +34,19 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
   ])
 })
 
-it('declares five slots, four of them lists', () => {
+it('declares six slots, two that hold one and four lists', () => {
   expect(slots).toEqual({
     gate: { kind: 'one' },
     pages: { kind: 'list' },
     sidebar: { kind: 'list' },
     float: { kind: 'list' },
+    back: { kind: 'one' },
     attached: { kind: 'list' },
   })
   expect(ShellAssemblyError.prototype).toBeInstanceOf(Error)
 })
 
-it('declares the four points of the shell itself as fixed when the application is built', async () => {
+it('declares the five points of the shell itself as fixed when the application is built', async () => {
   const { shellContracts } = await import('@omne-harness/shell-contract')
   const shared = {
     tree: 'client',
@@ -95,6 +96,15 @@ it('declares the four points of the shell itself as fixed when the application i
       onError: 'only this item is not drawn',
       summary:
         'What floats over the whole application once somebody is signed in, in the order of their order and id. Fixed when the app is built: a plugin cannot add to it while the app runs.',
+    },
+    {
+      ...shared,
+      name: 'shell.back',
+      arity: 'one',
+      gives: 'the tenant scope, and turn, which turns the application to its other face',
+      onError: 'only this item shows that it cannot be read; the shell still turns to the front',
+      summary:
+        'The back of the application: its other face once somebody is signed in. Fixed when the app is built: a plugin cannot add to it while the app runs.',
     },
   ])
 })

@@ -88,6 +88,8 @@ export type {
   AttachedItem,
   AttachedLayout,
   AttachedProps,
+  BackItem,
+  BackProps,
   FloatCorner,
   FloatItem,
   FloatProps,

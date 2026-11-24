@@ -9,13 +9,14 @@ import {
   type Placed,
   type Registry,
 } from '@omne-harness/dynamis'
-import type { AttachedItem, GateItem, ItemOf, SlotConflict, SlotName } from './slots.ts'
+import type { AttachedItem, ItemOf, SlotConflict, SlotName } from './slots.ts'
 
 const POINT = {
   gate: 'shell.gate',
   pages: 'shell.pages',
   sidebar: 'shell.sidebar',
   float: 'shell.float',
+  back: 'shell.back',
 } as const
 
 const FIXED = 'Fixed when the app is built: a plugin cannot add to it while the app runs.'
@@ -32,7 +33,7 @@ const SHARED = {
   conformance: null,
 } as const
 
-/** The four places of the shell itself. What they hold is fixed when the application is built. */
+/** The five places of the shell itself. What they hold is fixed when the application is built. */
 export const shellContracts: readonly Contract[] = [
   {
     ...SHARED,
@@ -69,6 +70,15 @@ export const shellContracts: readonly Contract[] = [
     binding: 'build',
     onError: 'only this item is not drawn',
     summary: `What floats over the whole application once somebody is signed in, in the order of their order and id. ${FIXED}`,
+  },
+  {
+    ...SHARED,
+    name: POINT.back,
+    arity: 'one',
+    gives: 'the tenant scope, and turn, which turns the application to its other face',
+    binding: 'build',
+    onError: 'only this item shows that it cannot be read; the shell still turns to the front',
+    summary: `The back of the application: its other face once somebody is signed in. ${FIXED}`,
   },
 ]
 
@@ -128,6 +138,7 @@ const SPOT: { readonly [K in SlotName]: (item: ItemOf<K>) => Spot } = {
   pages: item => ({ point: POINT.pages, key: '', id: item.id, rank: item.order }),
   sidebar: item => ({ point: POINT.sidebar, key: '', id: item.id, rank: item.order }),
   float: item => ({ point: POINT.float, key: '', id: item.id, rank: item.order }),
+  back: () => ({ point: POINT.back, key: '', id: '', rank: 0 }),
   attached: item => ({ ...anchored(item.anchor), id: item.id, rank: item.order }),
 }
 
@@ -150,11 +161,11 @@ function conflictOf(slot: SlotName, entries: readonly Placed[]): SlotConflict {
   return { slot, anchor: first.item.anchor, id: first.id, by }
 }
 
-function gateView(registry: Registry): SlotView<'gate'> {
-  const answer = ask<GateItem>(registry, POINT.gate, '', deployment)
+function oneView<K extends 'gate' | 'back'>(registry: Registry, slot: K): SlotView<K> {
+  const answer = ask<ItemOf<K>>(registry, POINT[slot], '', deployment)
   if (answer.kind === 'one') return { items: [answer.entry.item], conflicts: [] }
   if (answer.kind !== 'conflict') return NOTHING
-  return { items: [], conflicts: [conflictOf('gate', answer.entries)] }
+  return { items: [], conflicts: [conflictOf(slot, answer.entries)] }
 }
 
 function listView<K extends SlotName>(registry: Registry, slot: K, point: string): SlotView<K> {
@@ -173,7 +184,7 @@ const byText = (left: string, right: string): number => (left < right ? -1 : lef
 const byOrderThenId = (left: AttachedItem, right: AttachedItem): number =>
   left.order - right.order || byText(left.id, right.id) || byText(left.anchor, right.anchor)
 
-/** A declared point that holds a list of drawn items, and is not one of the four of the shell, is a place something can be attached to. */
+/** A declared point that holds a list of drawn items, and is not one of the places of the shell, is a place something can be attached to. */
 function attachedView(registry: Registry): SlotView<'attached'> {
   const declared = list<Contract>(registry, CATALOG, null, deployment)
   if (declared.kind !== 'read') return NOTHING
@@ -191,10 +202,11 @@ function attachedView(registry: Registry): SlotView<'attached'> {
 }
 
 const VIEW: { readonly [K in SlotName]: (registry: Registry) => SlotView<K> } = {
-  gate: gateView,
+  gate: registry => oneView(registry, 'gate'),
   pages: registry => listView(registry, 'pages', POINT.pages),
   sidebar: registry => listView(registry, 'sidebar', POINT.sidebar),
   float: registry => listView(registry, 'float', POINT.float),
+  back: registry => oneView(registry, 'back'),
   attached: attachedView,
 }
 
