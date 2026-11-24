@@ -938,6 +938,11 @@
       "config": {}
     },
     {
+      "id": "media-canvas",
+      "plugin": "mediaCanvasRow",
+      "config": {}
+    },
+    {
       "id": "server-entry",
       "plugin": "serverEntryRow",
       "config": {}

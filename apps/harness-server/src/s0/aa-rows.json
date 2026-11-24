@@ -92,6 +92,7 @@
     "dispatch-tool",
     "canvas",
     "session-canvas",
+    "media-canvas",
     "server-entry",
     "identity-access",
     "session-access",

@@ -80,6 +80,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   'session-canvas': { provides: [], injects: ['dynamis', 'canvas'] },
+  'media-canvas': { provides: [], injects: ['dynamis', 'canvas'] },
   usage: { provides: ['usage', 'usageSources'] },
   'usage-adapters': { provides: ['usageSessionScope'], injects: ['usageSources'] },
   'usage-access': { injects: ['accessRegistry', 'principalIssuer'] },
