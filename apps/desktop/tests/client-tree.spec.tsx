@@ -82,6 +82,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'session.tool-call',
     'shell.float',
     'shell.gate',
+    'shell.icon',
     'shell.layout',
     'shell.pages',
     'shell.parts',

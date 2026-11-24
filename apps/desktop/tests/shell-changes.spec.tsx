@@ -81,6 +81,7 @@ describe('the sheet of the changes', () => {
     const told = t.service.described().points
     expect(told.find(point => point.name === TOKENS_POINT)?.dataKeys).toEqual(tokens())
     expect(told.filter(point => point.dataKeys !== undefined).map(point => point.name)).toEqual([
+      'shell.icon',
       TOKENS_POINT,
     ])
   })

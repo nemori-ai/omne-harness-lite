@@ -123,6 +123,8 @@ const REST = [
   'Field',
   'GlideMenu',
   'ICONS',
+  'iconNames',
+  'RedrawProvider',
   'IconButton',
   'ImpactPanel',
   'InlineConfirm',

@@ -46,6 +46,8 @@ system
           DesktopShell#1  [effective]
         shell.gate
           DesktopShell#1  [effective]
+        shell.icon
+          DesktopShell#1  [effective]
         shell.layout
           DesktopShell#1  [effective]
         shell.pages
@@ -148,6 +150,7 @@ system
         companion  [effective, session-ui#1]
       shell.gate  [one, build]
         identity-ui#1  [effective]
+      shell.icon  [keyed-one]
       shell.layout  [keyed-one]
       shell.pages  [list, build]
         conversation  [effective, session-ui#1]

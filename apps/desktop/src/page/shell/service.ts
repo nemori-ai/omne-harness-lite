@@ -17,6 +17,7 @@ import { Arranged, Attached } from './attached.tsx'
 import { Drawn } from './drawn.tsx'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
+import { redrawKeys, redrawPoints, redrawThrough } from './redraw.ts'
 import type { TokenNow } from './changes-sheet.ts'
 import type { ShellState } from './state.ts'
 
@@ -40,6 +41,8 @@ export class DesktopShell extends ShellService {
     this.login = state.login
     this.scope = state.scope
     this.declareOwn(shellParts.map(part => part.declaration))
+    for (const point of redrawPoints) point.declare(this)
+    ctx.effect(() => state.redraw.bind(redrawThrough(this)), 'desktop-shell.redraw')
     ctx.effect(() => state.slots.bind(this), 'desktop-shell.slots')
     for (const slot of SLOT_NAMES)
       ctx.effect(
@@ -103,7 +106,8 @@ export class DesktopShell extends ShellService {
   }
 
   protected override dataKeysOf(point: string): readonly TokenNow[] | undefined {
-    return point === TOKENS_POINT ? this.state.tokens() : undefined
+    if (point === TOKENS_POINT) return this.state.tokens()
+    return redrawKeys(point)?.map(name => ({ name, now: null }))
   }
 
   private refell(): void {
