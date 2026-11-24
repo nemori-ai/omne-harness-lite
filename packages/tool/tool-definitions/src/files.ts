@@ -192,6 +192,8 @@ async function readPage(files: Files, args: Arguments, header: string, maximum: 
     }
   }
 }
+const isEntryName = (name: unknown): name is string =>
+  typeof name === 'string' && name !== '' && name !== '.' && name !== '..' && !/[/\\]/u.test(name)
 async function listEntries(files: Files, args: Arguments, header: string): Promise<Answer> {
   const listed = await files.list({ path: args.text('path'), ...page(args) })
   if (listed.kind !== 'done') return { text: confirmation(listed, () => '') }
@@ -199,13 +201,7 @@ async function listEntries(files: Files, args: Arguments, header: string): Promi
   const entries: unknown[] = []
   for (const entry of listed.value.entries) {
     const name = 'name' in entry ? entry.name : undefined
-    if (
-      typeof name !== 'string' ||
-      name === '' ||
-      name === '.' ||
-      name === '..' ||
-      /[/\\]/u.test(name)
-    )
+    if (!isEntryName(name))
       return { text: 'unavailable reason=entry-name-unavailable no entries returned' }
     lines.push(`${JSON.stringify(name)}\t${entry.type}\t${entry.sizeBytes}\t${identityText(entry)}`)
     entries.push({ name, type: entry.type, size_bytes: entry.sizeBytes })

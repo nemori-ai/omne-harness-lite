@@ -24,10 +24,9 @@ import { adoption as vocabulary, tree } from './protocol.ts'
 import { textBody, textReturns } from './returns.ts'
 import { bounded, utf8Length } from './text.ts'
 
-/** How one command faces a program: it gives a value of `schema`, gives none, or is closed. */
+/** How one command faces a program: it gives a value of `schema`, or is closed. */
 export type ProgramSide =
   | Readonly<{ kind: 'data'; schema: object; external: boolean; unless?: readonly string[] }>
-  | Readonly<{ kind: 'void'; unless?: readonly string[] }>
   | Readonly<{ kind: 'closed' }>
 
 /** What a command answers: the text a reader gets and, when the answer has one, the value a program gets. */
