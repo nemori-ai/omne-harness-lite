@@ -12,10 +12,12 @@ import type {
   Reply,
   ToolFailure,
   ToolForwardIntent,
+  ToolInvokeOutcome,
   ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import {
   attachProgramTools,
+  type CallAccess,
   isProgramSettled,
   programFunctions,
   type PositionExclusion,
@@ -32,7 +34,7 @@ import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingRegistry } from './bindings.ts'
 import { operationOf, readCallArguments } from './executor-binding.ts'
 import type { LocalInvocationSource } from './invocation-source.ts'
-import type { ProgramArrival } from './program-source.ts'
+import type { PreparedPosition, ProgramArrival } from './program-source.ts'
 
 export type ArgumentsVerdict =
   | Readonly<{ kind: 'valid' }>
@@ -45,7 +47,6 @@ export type LocalProgramCallsInput<P> = Readonly<{
   children(): ToolChildren<P> | undefined
   admission(): ProgramActionAdmission<P> | undefined
   functions(parent: ProgramParent<P>): Reply<readonly ProgramFunction[]>
-  /** Picks the target by name in the parent's view and makes its request; the position is added here. */
   prepareTarget(parent: ProgramParent<P>, intent: ToolForwardIntent): Reply<ToolInvokeRequest>
   checkArguments(access: Access<P>, request: FixedToolRequest): Promise<ArgumentsVerdict>
   retryMs: number
@@ -94,7 +95,6 @@ const EFFECTS: Readonly<Record<ProgramArrival['effect']['kind'], ProgramCallFail
   unknown: 'unknown',
 }
 
-/** What the program gets for a retained result: the value of a completed call, or a named failure. */
 export function programAnswerOf(
   request: FixedToolRequest,
   arrival: ProgramArrival,
@@ -170,14 +170,26 @@ async function admitted<P>(
   return null
 }
 
-/** TL-65, TL-68: the fixed order of one position. Nothing is left behind before it is registered. */
-async function place<P>(
-  run: Running<P>,
-  ordinal: number,
-  entry: string,
-  argumentsValue: JsonValue,
-): Promise<ProgramCallAnswer> {
-  const { input, parent } = run
+type Ports<P> = Readonly<{
+  source: NonNullable<ReturnType<LocalProgramCallsInput<P>['source']>>
+  runtime: ToolProgramRuntime<P>
+  children: ToolChildren<P>
+  admission: ProgramActionAdmission<P>
+}>
+type Prepared = Extract<PreparedPosition, { kind: 'prepared' }>
+type Ready<P> = Readonly<{
+  ports: Ports<P>
+  prepared: Prepared
+  placed: ProgramParent<P> & Readonly<{ ordinal: number; target: ToolInvokeRequest }>
+  at: Readonly<{
+    principal: P
+    tenant: ProgramParent<P>['tenant']
+    call: ProgramParent<P>['call']
+  }> &
+    Readonly<{ ordinal: number }>
+}>
+
+function portsOf<P>(input: LocalProgramCallsInput<P>): Ports<P> | ProgramCallAnswer {
   const source = input.source()
   const runtime = input.runtime()
   const children = input.children()
@@ -186,6 +198,19 @@ async function place<P>(
   if (runtime === undefined) return absent('tool runtime')
   if (children === undefined) return absent('position table')
   if (admission === undefined) return absent('admission of nested actions')
+  return { source, runtime, children, admission }
+}
+
+/** Everything that is checked before the position exists: a refusal here leaves nothing behind. */
+async function chosen<P>(
+  run: Running<P>,
+  ordinal: number,
+  entry: string,
+  argumentsValue: JsonValue,
+): Promise<Ready<P> | ProgramCallAnswer> {
+  const { input, parent } = run
+  const ports = portsOf(input)
+  if ('kind' in ports) return ports
   if (argumentsValue.kind !== 'object')
     return failed('invalid', 'none', `${entry} takes one object of named arguments.`)
   const target = await input.prepareTarget(parent, {
@@ -197,56 +222,95 @@ async function place<P>(
       ? refusal(target.failure)
       : failed('unsupported', 'none', `${entry} is not a function this program can call.`)
   const placed = { ...parent, ordinal, target: target.ok }
-  const prepared = await source.prepare(placed)
+  const prepared = await ports.source.prepare(placed)
   if (prepared.kind === 'association-unknown') return absent('verified parent call')
   if (prepared.kind === 'rejected') return refusal(prepared.failure)
-  const { request } = prepared
-  const valid = await input.checkArguments(parent, request)
+  const valid = await input.checkArguments(parent, prepared.request)
   if (valid.kind === 'unavailable') return absent('parser of the arguments')
   if (valid.kind === 'invalid') return failed('invalid', 'none', valid.reason)
+  const { principal, tenant, call } = parent
+  return { ports, prepared, placed, at: { principal, tenant, call, ordinal } }
+}
 
-  const at = { principal: parent.principal, tenant: parent.tenant, call: parent.call, ordinal }
-  const { child, admission: operation, target: named } = prepared
-  const registered = await children.register({ ...at, child, admission: operation, target: named })
+/** Registers the position, asks, and hands it off; an answer here means the call is not made. */
+async function released<P>(
+  run: Running<P>,
+  ready: Ready<P>,
+): Promise<ProgramPosition | ProgramCallAnswer> {
+  const { ports, prepared, at } = ready
+  const { children } = ports
+  const { child, admission, target } = prepared
+  const registered = await children.register({ ...at, child, admission, target })
   if ('failure' in registered) return refusal(registered.failure)
-  let position: ProgramPosition = registered.ok
-  if (position.state === 'registered') {
-    const verdict = await admitted(run, admission, ordinal, request)
-    if (verdict === null)
-      return failed('interrupted', 'none', 'The program ended before this call was released.')
-    if (verdict.kind === 'denied') {
-      const exclusion = { kind: 'denied', reason: verdict.reason } as const
-      const excluded = await children.exclude({ ...at, exclusion })
-      return 'failure' in excluded
-        ? refusal(excluded.failure)
-        : failed('denied', 'none', verdict.reason)
-    }
-    const handed = await children.handOff(at)
-    if ('failure' in handed) return refusal(handed.failure)
-    position = handed.ok
+  if (registered.ok.state !== 'registered') return registered.ok
+  const verdict = await admitted(run, ports.admission, at.ordinal, prepared.request)
+  if (verdict === null)
+    return failed('interrupted', 'none', 'The program ended before this call was released.')
+  if (verdict.kind === 'denied') {
+    const exclusion = { kind: 'denied', reason: verdict.reason } as const
+    const excluded = await children.exclude({ ...at, exclusion })
+    return 'failure' in excluded
+      ? refusal(excluded.failure)
+      : failed('denied', 'none', verdict.reason)
   }
+  const handed = await children.handOff(at)
+  return 'failure' in handed ? refusal(handed.failure) : handed.ok
+}
+
+/** A call the ledger did not accept: excluded under its own identity, or null when it runs after all. */
+async function unaccepted<P>(
+  ready: Ready<P>,
+  outcome: Exclude<ToolInvokeOutcome, { kind: 'accepted' }>,
+): Promise<ProgramCallAnswer | null> {
+  const rejected = outcome.kind === 'rejected' ? outcome.failure : null
+  const reason = rejected === null ? outcome.kind : describe(rejected)
+  const exclusion = { kind: 'not-accepted', reason } as const
+  const excluded = await ready.ports.children.exclude({ ...ready.at, exclusion })
+  if ('failure' in excluded)
+    return excluded.failure.kind === 'invalid'
+      ? null
+      : failed('unknown', 'unknown', 'Whether the call was accepted is not known.')
+  if (excluded.ok.state !== 'excluded') return null
+  return rejected === null
+    ? failed('unavailable', 'none', 'The call was not accepted.')
+    : refusal(rejected)
+}
+
+/** TL-65, TL-68: the fixed order of one position. Nothing is left behind before it is registered. */
+async function place<P>(
+  run: Running<P>,
+  ordinal: number,
+  entry: string,
+  argumentsValue: JsonValue,
+): Promise<ProgramCallAnswer> {
+  const ready = await chosen(run, ordinal, entry, argumentsValue)
+  if ('kind' in ready) return ready
+  const position = await released(run, ready)
+  if ('kind' in position) return position
   if (position.state === 'excluded')
     return failed(EXCLUSIONS[position.exclusion.kind], 'none', position.exclusion.reason)
-
-  const arrival = source.arrivals.wait(parent.tenant, prepared.consumer, run.signal)
-  const outcome = await runtime.invoke(placed)
-  if (outcome.kind !== 'accepted') {
-    const reason = outcome.kind === 'rejected' ? describe(outcome.failure) : outcome.kind
-    const excluded = await children.exclude({ ...at, exclusion: { kind: 'not-accepted', reason } })
-    if ('ok' in excluded && excluded.ok.state === 'excluded')
-      return outcome.kind === 'rejected'
-        ? refusal(outcome.failure)
-        : failed('unavailable', 'none', 'The call was not accepted.')
-    if ('failure' in excluded && excluded.failure.kind !== 'invalid')
-      return failed('unknown', 'unknown', 'Whether the call was accepted is not known.')
-  }
+  const { source, runtime } = ready.ports
+  const arrival = source.arrivals.wait(run.parent.tenant, ready.prepared.consumer, run.signal)
+  const outcome = await runtime.invoke(ready.placed)
+  const refused = outcome.kind === 'accepted' ? null : await unaccepted(ready, outcome)
+  if (refused !== null) return refused
   const arrived = await arrival
   return arrived === null
     ? failed('interrupted', 'unknown', 'The program ended before this call gave a result.')
-    : programAnswerOf(request, arrived)
+    : programAnswerOf(ready.prepared.request, arrived)
 }
 
 type Calls = Map<number, Readonly<{ digest: string; answer: Promise<ProgramCallAnswer> }>>
+
+async function excludeUnreleased<P>(
+  children: ToolChildren<P>,
+  access: CallAccess<P>,
+  table: ProgramTable,
+) {
+  const exclusion = { kind: 'unavailable', reason: 'The call was never released.' } as const
+  for (const { ordinal, state } of table.positions)
+    if (state === 'registered') await children.exclude({ ...access, ordinal, exclusion })
+}
 
 /** TL-67: closes registration, lets every position already made run on, and gives the table. */
 async function settle<P>(run: Running<P>, calls: Calls): Reply<ProgramTable> {
@@ -255,14 +319,13 @@ async function settle<P>(run: Running<P>, calls: Calls): Reply<ProgramTable> {
   const access = { principal, tenant, call }
   if (children === undefined) return fail(ended('The position table is absent.'))
   let table = await children.seal(access)
-  while ('ok' in table && !isProgramSettled(table.ok) && !run.signal.aborted) {
+  const open = () => 'ok' in table && !isProgramSettled(table.ok) && !run.signal.aborted
+  while (open()) {
     const before = calls.size
     await Promise.allSettled([...calls.values()].map(one => one.answer))
     table = await children.table(access)
-    if ('failure' in table || calls.size !== before || isProgramSettled(table.ok)) continue
-    const exclusion = { kind: 'unavailable', reason: 'The call was never released.' } as const
-    for (const { ordinal, state } of table.ok.positions)
-      if (state === 'registered') await children.exclude({ ...access, ordinal, exclusion })
+    if (!open() || calls.size !== before || 'failure' in table) continue
+    await excludeUnreleased(children, access, table.ok)
     await run.pause()
   }
   return table

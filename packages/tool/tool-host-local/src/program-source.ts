@@ -71,7 +71,6 @@ export function programPositionOf(
     : null
 }
 
-/** What a retained result gives the program that waits for it. The text of the result is not kept. */
 export type ProgramArrival = Readonly<{
   result: ToolResultVersion
   terminal: ToolTerminal
@@ -196,7 +195,6 @@ type Issuing<P> = Readonly<{
   parents: ReturnType<typeof createParentChecks<P>>
 }>
 
-/** Everything the position needs before it is registered. Nothing is written. */
 async function prepare<P>(issuing: Issuing<P>, given: Placed<P>): Promise<PreparedPosition> {
   const { input } = issuing
   const fixed = judgeFixedToolRequest(given.request)
@@ -218,11 +216,12 @@ async function prepare<P>(issuing: Issuing<P>, given: Placed<P>): Promise<Prepar
   const closed = closedToPrograms(target)
   if (closed !== null)
     return { kind: 'rejected', failure: { kind: 'unsupported', adoption, reason: closed } }
-  if (
-    target.mode !== 'foreground' ||
-    target.batchDecision !== null ||
-    !same(pinnedOf(parent.request), pinnedOf(target))
-  )
+  const asParent = [
+    target.mode === 'foreground',
+    target.batchDecision === null,
+    same(pinnedOf(parent.request), pinnedOf(target)),
+  ]
+  if (asParent.includes(false))
     return { kind: 'rejected', failure: { kind: 'denied', action: 'admit' } }
   const ids = issuing.identitiesOf(parent.tenant, consumer)
   const requestDigest = canonicalDigest(judged.ok)
@@ -242,6 +241,17 @@ async function prepare<P>(issuing: Issuing<P>, given: Placed<P>): Promise<Prepar
   }
 }
 
+async function sameSubject<P>(
+  input: LocalInvocationSourceInput<P>,
+  current: P,
+  stored: StoredForward,
+): Promise<'allowed' | 'denied' | 'unavailable'> {
+  const decoded = input.principalCodec.decode(stored.principal)
+  if ('failure' in decoded) return 'unavailable'
+  const subject = await input.authority.samePrincipal({ current, original: decoded.ok })
+  return subject.kind === 'unavailable' ? 'unavailable' : subject.kind
+}
+
 /** The stored source is the one this parent's position was given, by the principal that gave it. */
 async function verifyStored<P>(
   issuing: Issuing<P>,
@@ -249,14 +259,8 @@ async function verifyStored<P>(
   stored: StoredForward,
 ): Reply<CallRecord> {
   const { input } = issuing
-  const decoded = input.principalCodec.decode(stored.principal)
-  if ('failure' in decoded) return unavailable()
-  const subject = await input.authority.samePrincipal({
-    current: access.principal,
-    original: decoded.ok,
-  })
-  if (subject.kind === 'denied') return denied()
-  if (subject.kind !== 'allowed') return unavailable()
+  const subject = await sameSubject(input, access.principal, stored)
+  if (subject !== 'allowed') return subject === 'denied' ? denied() : unavailable()
   const place = programPositionOf(stored.request.consumer)
   if (place === null) return denied()
   const read = await issuing.parents.readParent({ ...access, call: place.parent })
@@ -264,23 +268,20 @@ async function verifyStored<P>(
   const parent = read.ok
   const { origin, request } = stored
   const ids = issuing.identitiesOf(access.tenant, stored.request.consumer)
-  if (
-    origin.ordinal !== place.ordinal ||
-    origin.parent !== parent.call ||
-    origin.admission !== parent.admission ||
-    origin.requestDigest !== canonicalDigest(fixedRequestReference(parent.request)) ||
-    !same(origin.start, parent.start) ||
-    !same(ids, { call: stored.call, admission: stored.admission }) ||
-    typeof origin.issued !== 'string' ||
-    !same(
-      request.invocation,
-      sourceOf(access.tenant, parent.call, place.ordinal, ids, origin.issued),
-    ) ||
-    !same(pinnedOf(parent.request), pinnedOf(request)) ||
-    closedToPrograms(request) !== null
-  )
-    return denied()
-  return succeed(parent)
+  const issued = sourceOf(access.tenant, parent.call, place.ordinal, ids, String(origin.issued))
+  const original = [
+    origin.ordinal === place.ordinal,
+    origin.parent === parent.call,
+    origin.admission === parent.admission,
+    origin.requestDigest === canonicalDigest(fixedRequestReference(parent.request)),
+    same(origin.start, parent.start),
+    same(ids, { call: stored.call, admission: stored.admission }),
+    typeof origin.issued === 'string',
+    same(request.invocation, issued),
+    same(pinnedOf(parent.request), pinnedOf(request)),
+    closedToPrograms(request) === null,
+  ]
+  return original.includes(false) ? denied() : succeed(parent)
 }
 
 async function positionOf<P>(
@@ -295,64 +296,87 @@ async function positionOf<P>(
   return succeed(row?.kind === 'position' ? row.position : null)
 }
 
+type Prepared = Extract<PreparedPosition, { kind: 'prepared' }>
+
+async function recalled<P>(
+  issuing: Issuing<P>,
+  given: Placed<P>,
+  prepared: Prepared,
+  known: StoredForward,
+): Promise<ToolForwardSourceOutcome> {
+  const current = await verifyStored(issuing, given, known)
+  if ('failure' in current) return refused(current.failure)
+  return same(fixedRequestReference(known.request), fixedRequestReference(prepared.request))
+    ? { kind: 'bound', ...issuedBinding(known) }
+    : { kind: 'rejected', failure: { kind: 'conflict', operation: known.admission } }
+}
+
+function sourceRecord<P>(issuing: Issuing<P>, given: Placed<P>, prepared: Prepared) {
+  const { consumer, child: call, admission, request, parent, requestDigest } = prepared
+  const value = {
+    kind: 'invocation-source',
+    call,
+    admission,
+    requestDigest,
+    fixedDigest: canonicalDigest(fixedRequestReference(request)),
+    invocation: request.invocation,
+    principal: issuing.input.principalCodec.encode(given.principal),
+    origin: {
+      kind: 'program',
+      parent: parent.call,
+      admission: parent.admission,
+      start: parent.start,
+      requestDigest: canonicalDigest(fixedRequestReference(parent.request)),
+      ordinal: given.ordinal,
+      issued: requestDigest,
+    },
+  }
+  return { kind: 'host', host: { key: sourceKey(consumer), value, request } } as const
+}
+
+async function handedTo<P>(
+  issuing: Issuing<P>,
+  given: Placed<P>,
+  prepared: Prepared,
+): Reply<boolean> {
+  const position = await positionOf(issuing, given.tenant, given.call, given.ordinal)
+  if ('failure' in position) return position
+  const at = position.ok
+  return succeed(
+    at !== null &&
+      [
+        at.state === 'handed',
+        at.child === prepared.child,
+        at.admission === prepared.admission,
+        same(at.target, prepared.target),
+      ].every(Boolean),
+  )
+}
+
 /** TL-65: the source of a position is issued once, and only for a position the table has handed off. */
 async function issue<P>(issuing: Issuing<P>, given: Placed<P>): Promise<ToolForwardSourceOutcome> {
-  const { input } = issuing
+  const { store, commitAttempts } = issuing.input
   const prepared = await prepare(issuing, given)
   if (prepared.kind !== 'prepared') return prepared
-  const { consumer, child: call, admission, request, parent } = prepared
+  const { consumer, child: call, admission, request } = prepared
   const ids = { call, admission }
-  for (let attempt = 0; attempt < input.commitAttempts; attempt++) {
-    const found = await readIssued(input.store, given.tenant, consumer, 'program')
+  for (let attempt = 0; attempt < commitAttempts; attempt++) {
+    const found = await readIssued(store, given.tenant, consumer, 'program')
     if ('failure' in found) return { kind: 'association-unknown' }
-    const known = found.ok.stored
-    if (known !== null) {
-      const current = await verifyStored(issuing, given, known)
-      if ('failure' in current) return refused(current.failure)
-      return same(fixedRequestReference(known.request), fixedRequestReference(request))
-        ? { kind: 'bound', ...issuedBinding(known) }
-        : { kind: 'rejected', failure: { kind: 'conflict', operation: known.admission } }
-    }
-    const position = await positionOf(issuing, given.tenant, given.call, given.ordinal)
-    if ('failure' in position) return { kind: 'association-unknown' }
-    const at = position.ok
-    if (
-      at?.state !== 'handed' ||
-      at.child !== call ||
-      at.admission !== admission ||
-      !same(at.target, prepared.target)
-    )
-      return { kind: 'rejected', failure: { kind: 'denied', action: 'admit' } }
-    const value = {
-      kind: 'invocation-source',
-      ...ids,
-      requestDigest: prepared.requestDigest,
-      fixedDigest: canonicalDigest(fixedRequestReference(request)),
-      invocation: request.invocation,
-      principal: input.principalCodec.encode(given.principal),
-      origin: {
-        kind: 'program',
-        parent: parent.call,
-        admission: parent.admission,
-        start: parent.start,
-        requestDigest: canonicalDigest(fixedRequestReference(parent.request)),
-        ordinal: given.ordinal,
-        issued: prepared.requestDigest,
-      },
-    }
-    const { read } = found.ok
-    const record = { kind: 'host', host: { key: sourceKey(consumer), value, request } } as const
-    let commit
-    try {
-      commit = await input.store.commit({
+    if (found.ok.stored !== null) return recalled(issuing, given, prepared, found.ok.stored)
+    const handed = await handedTo(issuing, given, prepared)
+    if ('failure' in handed) return { kind: 'association-unknown' }
+    if (!handed.ok) return { kind: 'rejected', failure: { kind: 'denied', action: 'admit' } }
+    const { revision } = found.ok.read
+    const commit = await store
+      .commit({
         domain: sourceDomain(given.tenant, consumer),
-        expected: read.revision,
-        revision: nextSourceRevision(read.revision),
-        writes: [{ kind: 'put', record }],
+        expected: revision,
+        revision: nextSourceRevision(revision),
+        writes: [{ kind: 'put', record: sourceRecord(issuing, given, prepared) }],
       })
-    } catch {
-      return { kind: 'issuance-unknown', ...ids }
-    }
+      .catch(() => null)
+    if (commit === null) return { kind: 'issuance-unknown', ...ids }
     const outcome = forwardCommitted(commit, ids, request)
     if (outcome !== null) return outcome
   }
@@ -409,46 +433,49 @@ export function createProgramReceiver<P, B extends ContentBlock>(
   arrivals: ProgramArrivals,
 ): ToolResultReceiver<P, B> {
   type Push = Parameters<ToolResultReceiver<P, B>['push']>[0]
-  const save = async ({ access, delivery }: Push): ReturnType<ToolResultReceiver<P, B>['push']> => {
+  type Saved = ReturnType<ToolResultReceiver<P, B>['push']>
+  const placeOf = async ({ access, delivery }: Push) => {
     const judged = judgeToolDelivery({ tenant: access.tenant, delivery })
-    if ('failure' in judged) return fail({ kind: 'invalid', ...judged.failure })
+    if ('failure' in judged) return fail({ kind: 'invalid' as const, ...judged.failure })
     const place = programPositionOf(delivery.consumer)
     const reference = resolveToolInvocationRef(delivery.key.reference, access.tenant)
-    if (place === null || 'failure' in reference) return fail({ kind: 'denied' })
+    if (place === null || 'failure' in reference) return fail({ kind: 'denied' as const })
+    const found = await readIssued(input.store, access.tenant, delivery.consumer, 'program')
+    const stored = 'ok' in found ? found.ok.stored : null
+    if (stored === null)
+      return fail({ kind: 'unavailable' as const, dependency: 'invocation-source' })
+    const { call, admission } = reference.ok
+    return stored.call === call && stored.admission === admission
+      ? succeed(place)
+      : fail({ kind: 'denied' as const })
+  }
+  const save = async (pushed: Push): Saved => {
+    const { access, delivery } = pushed
+    const place = await placeOf(pushed)
+    if ('failure' in place) return place
     const children: ToolChildren<P> | undefined = input.programs?.children()
     if (children === undefined)
       return fail({ kind: 'unavailable', dependency: 'program-positions' })
-    const found = await readIssued(input.store, access.tenant, delivery.consumer, 'program')
-    if ('failure' in found || found.ok.stored === null)
-      return fail({ kind: 'unavailable', dependency: 'invocation-source' })
-    const { stored } = found.ok
-    if (stored.call !== reference.ok.call || stored.admission !== reference.ok.admission)
-      return fail({ kind: 'denied' })
-    const at = { ...access, call: place.parent, ordinal: place.ordinal }
+    const at = { ...access, call: place.ok.parent, ordinal: place.ok.ordinal }
     const evidence = {
       owner: TOOL_PROGRAM_OWNER,
       record: `${sourceKey(delivery.consumer)}/position`,
       revision: '1',
       digest: canonicalDigest(delivery.key),
     }
-    if (delivery.kind === 'account') return succeed({ key: delivery.key, evidence })
+    const saved = succeed({ key: delivery.key, evidence })
+    if (delivery.kind === 'account') return saved
     if (delivery.kind === 'placeholder') {
       const moved = await children.background(at)
-      return 'failure' in moved
-        ? retainedFailure(moved.failure)
-        : succeed({ key: delivery.key, evidence })
+      return 'failure' in moved ? retainedFailure(moved.failure) : saved
     }
     const { terminal, effect } = delivery
     const result = delivery.key.result
     const kept = await children.retain({ ...at, result, terminal, effect })
     if ('failure' in kept) return retainedFailure(kept.failure)
-    arrivals.arrived(access.tenant, delivery.consumer, {
-      result,
-      terminal,
-      effect,
-      data: structuredClone(delivery.value.data),
-    })
-    return succeed({ key: delivery.key, evidence })
+    const data = structuredClone(delivery.value.data)
+    arrivals.arrived(access.tenant, delivery.consumer, { result, terminal, effect, data })
+    return saved
   }
   return {
     async push(pushed) {

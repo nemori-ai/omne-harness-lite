@@ -67,20 +67,31 @@ function byTool(functions: readonly ProgramFunction[]) {
   return tools
 }
 
-async function helpText(tools: ProgramTools | undefined, limits: Limits, name: string | undefined) {
+const DECLARED = `declare class ${PROGRAM_FAILURE} extends Error { kind: string; tool: string; command: string | null; effect: "none" | "occurred" | "unknown" }\ndeclare const input: unknown`
+
+/** The capability of this call and what a program can call through it now, or why there is none. */
+async function callable(execution: ToolExecutionContext, command: string) {
+  const tools = programToolsOf(execution)
   if (tools === undefined)
-    return 'rejected reason=unavailable Code help: program calls are not attached to this call'
+    return `rejected reason=unavailable Code ${command}: program calls are not attached to this call`
   const listed = await tools.functions()
-  if ('failure' in listed) return `rejected reason=unavailable Code help: ${listed.failure.kind}`
-  const all = byTool(listed.ok)
-  const shown = name === undefined ? [...all.values()] : [all.get(name) ?? []]
-  if (shown.every(one => one.length === 0))
-    return `rejected reason=notFound Code help: ${name ?? 'no tool'} has no function a program can call now. Callable: ${[...all.keys()].join(', ') || 'none'}`
-  const signatures = shown.map(functionsSignature).join('\n')
-  const failure = `declare class ${PROGRAM_FAILURE} extends Error { kind: string; tool: string; command: string | null; effect: "none" | "occurred" | "unknown" }\ndeclare const input: unknown`
-  return name === undefined
-    ? `done Code help\n${RULES}\n\n${limitsLine(limits)}\n\nCallable now\n${signatures}\n${failure}`
-    : `done Code help ${name}\n${signatures}`
+  return 'failure' in listed
+    ? `rejected reason=unavailable Code ${command}: ${listed.failure.kind}`
+    : { tools, functions: listed.ok }
+}
+
+async function helpText(execution: ToolExecutionContext, limits: Limits, name: string | undefined) {
+  const known = await callable(execution, 'help')
+  if (typeof known === 'string') return known
+  const all = byTool(known.functions)
+  if (name === undefined) {
+    const signatures = [...all.values()].map(functionsSignature).join('\n')
+    return `done Code help\n${RULES}\n\n${limitsLine(limits)}\n\nCallable now\n${signatures}\n${DECLARED}`
+  }
+  const one = all.get(name)
+  return one === undefined
+    ? `rejected reason=notFound Code help: ${name} has no function a program can call now. Callable: ${[...all.keys()].join(', ') || 'none'}`
+    : `done Code help ${name}\n${functionsSignature(one)}`
 }
 
 function failureOf(one: ProgramFunction | undefined, entry: string, answer: ProgramCallAnswer) {
@@ -134,74 +145,73 @@ function failed(outcome: ProgramOutcome, code: string): string | null {
   }
 }
 
+type Functions = ReadonlyMap<string, ProgramFunction>
+
+/** Hands each call of the program to the capability, no more than the limit at once, and answers it. */
+function caller(
+  tools: ProgramTools,
+  functions: Functions,
+  limit: number,
+  run: Promise<ProgramRun>,
+) {
+  let inFlight = 0
+  return (call: ProgramCall): void => {
+    const { ordinal, entry } = call
+    const answer = (given: ProgramCallAnswer) =>
+      void run.then(started =>
+        started.answer(
+          ordinal,
+          failureOf(functions.get(entry), entry, given) ??
+            (given.kind === 'value'
+              ? { kind: 'value', value: given.value ?? { kind: 'null' } }
+              : never()),
+        ),
+      )
+    if (inFlight >= limit) {
+      const message = `more than ${limit} calls at once; this one was not made. Await some before making more.`
+      return answer({ kind: 'failure', failure: { kind: 'limit', effect: 'none', message } })
+    }
+    inFlight += 1
+    void tools.call({ ordinal, entry, arguments: call.argument }).then(given => {
+      inFlight -= 1
+      answer(given)
+    })
+  }
+}
+
+/** The outcome of the program once it has stopped; stopping the call stops the program. */
+async function outcomeOf(run: ProgramRun, signal: AbortSignal): Promise<ProgramOutcome> {
+  const abort = () => run.abort()
+  signal.addEventListener('abort', abort, { once: true })
+  if (signal.aborted) abort()
+  return run.outcome.finally(() => signal.removeEventListener('abort', abort))
+}
+
 async function execute(
   args: Arguments,
   environment: CodeAuthorEnvironment,
   execution: ToolExecutionContext,
-  limits: Limits,
+  { inFlight, ...limits }: Limits,
 ): Promise<string> {
-  const tools = programToolsOf(execution)
-  if (tools === undefined)
-    return 'rejected reason=unavailable Code execute: program calls are not attached to this call'
-  const listed = await tools.functions()
-  if ('failure' in listed) return `rejected reason=unavailable Code execute: ${listed.failure.kind}`
-  const functions = new Map(listed.ok.map(one => [one.entry, one]))
+  const known = await callable(execution, 'execute')
+  if (typeof known === 'string') return known
+  const { tools } = known
+  const functions: Functions = new Map(known.functions.map(one => [one.entry, one]))
   const handle = Promise.withResolvers<ProgramRun>()
-  let inFlight = 0
-  const onCall = (call: ProgramCall) => {
-    const answer = (given: ProgramAnswer) =>
-      void handle.promise.then(run => run.answer(call.ordinal, given))
-    const refuse = (kind: 'limit' | 'unsupported', message: string) =>
-      answer(
-        failureOf(functions.get(call.entry), call.entry, {
-          kind: 'failure',
-          failure: { kind, effect: 'none', message },
-        })!,
-      )
-    if (inFlight >= limits.inFlight)
-      return refuse(
-        'limit',
-        `more than ${limits.inFlight} calls at once; this one was not made. Await some before making more.`,
-      )
-    inFlight += 1
-    void tools
-      .call({ ordinal: call.ordinal, entry: call.entry, arguments: call.argument })
-      .then(given => {
-        inFlight -= 1
-        answer(
-          failureOf(functions.get(call.entry), call.entry, given) ??
-            (given.kind === 'value'
-              ? { kind: 'value', value: given.value ?? { kind: 'null' } }
-              : never()),
-        )
-      })
-  }
   const started = await environment.program.run({
     source: args.text('code'),
     input: args.fields.get('input') ?? { kind: 'null' },
     entries: [...functions.keys()],
     failures: [PROGRAM_FAILURE],
-    limits: {
-      computeMs: limits.computeMs,
-      memoryBytes: limits.memoryBytes,
-      outputBytes: limits.outputBytes,
-      calls: limits.calls,
-    },
-    onCall,
+    limits,
+    onCall: caller(tools, functions, inFlight, handle.promise),
     onIdle: () => {},
   })
   if (started.kind !== 'done') return `Code execute: ${confirmation(started, () => '')}`
-  const run = started.value
-  handle.resolve(run)
-  const abort = () => run.abort()
-  execution.signal.addEventListener('abort', abort, { once: true })
-  if (execution.signal.aborted) abort()
-  const outcome = await run.outcome.finally(() =>
-    execution.signal.removeEventListener('abort', abort),
-  )
-  const failure = failed(outcome, args.text('code'))
-  if (failure !== null || outcome.kind !== 'returned')
-    throw new Error(failure ?? 'Code execute failed')
+  handle.resolve(started.value)
+  const outcome = await outcomeOf(started.value, execution.signal)
+  if (outcome.kind !== 'returned')
+    throw new Error(failed(outcome, args.text('code')) ?? 'Code execute failed')
   const table = await tools.settle()
   if ('failure' in table)
     throw new Error(
@@ -258,7 +268,7 @@ export function createCodeAuthor(
         isolation: ['restricted-js'],
         gates: CODE_GATES,
         help: (args, _environment, execution) =>
-          helpText(programToolsOf(execution), limits, args.optionalText('name')),
+          helpText(execution, limits, args.optionalText('name')),
       },
     ),
   )

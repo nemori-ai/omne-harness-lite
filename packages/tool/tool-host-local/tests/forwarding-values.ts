@@ -79,6 +79,8 @@ export async function forwardingFixture(
   options: {
     durableDeclaration?: boolean
     consumed?: boolean
+    /** The parent also runs programs, and the target is open to them. */
+    programs?: boolean
   } = {},
 ) {
   const memory = createMemoryToolLedgerStore()
@@ -105,6 +107,11 @@ export async function forwardingFixture(
       return memory.commit(input)
     },
   }
+  const plain = request().availability.definition
+  const targetDefinition: typeof plain =
+    options.programs === true && plain.kind === 'function'
+      ? { ...plain, programmable: true, program: { kind: 'open', unless: [] } }
+      : plain
   const authority = createLocalStartCoordinator<string>({
     store,
     commitAttempts: 8,
@@ -132,12 +139,22 @@ export async function forwardingFixture(
       decode: (value: unknown) =>
         typeof value === 'string' ? succeed(value) : fail({ reason: 'not a string' }),
     },
-    definitions: currentDefinitions<string>(toolsDefinition(), request().availability.definition),
+    definitions: currentDefinitions<string>(toolsDefinition(), targetDefinition),
     forwarding: {
       authority: () => authority,
       isParent: (fixed: FixedToolRequest) =>
         fixed.availability.definition.adoption.name === 'Tools',
     },
+    ...(options.programs === true
+      ? {
+          programs: {
+            authority: () => authority,
+            isParent: (fixed: FixedToolRequest) =>
+              fixed.availability.definition.adoption.name === 'Tools',
+            children: () => undefined,
+          },
+        }
+      : {}),
   }
   const source = createLocalInvocationSource(input)
   const cleaned = parentRequest()
@@ -198,7 +215,10 @@ export async function forwardingFixture(
   const consume = () =>
     authority.consume({ ...parent, permit, executorReceipt: evidence('parent-executor') })
   if (options.consumed !== false) ok(await consume())
-  const target = toolInvokeRequestOf(request())
+  const target = toolInvokeRequestOf({
+    ...request(),
+    availability: { ...request().availability, definition: targetDefinition },
+  })
   return {
     memory,
     store,
