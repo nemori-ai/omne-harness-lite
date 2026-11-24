@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createMemoryStore, type MemoryStore } from '@omne-harness/canvas/testing'
+import { createCanvasChanges } from '@omne-harness/canvas'
+import { createMemoryStore, tenantOf, type MemoryStore } from '@omne-harness/canvas/testing'
+import type { CanvasChange } from '@omne-harness/canvas-contract'
 import { CONFIG, kind, media, world } from './fixture.ts'
 
 type World = ReturnType<typeof world>
@@ -87,6 +89,54 @@ describe('the limit of taken records', () => {
     const w = await placed(['a', 'b', 'c', 'd'], limited)
     expect(await take(w, ['i1', 'i2', 'i3', 'i4'])).toMatchObject({ kind: 'done' })
     expect(await ids(w)).toEqual(['d', 'c'])
+  })
+
+  describe('once the limit is lowered below the records kept', () => {
+    /** Three references taken off under the configured limit; then the same store under a limit of one. */
+    async function lowered() {
+      const store = createMemoryStore()
+      const before = await placed(['a', 'b', 'c'], { store })
+      await take(before, ['i1', 'i2', 'i3'])
+      const heard: CanvasChange[] = []
+      const changes = createCanvasChanges(() => undefined)
+      changes.subscribe(tenantOf('tenant-1'), {
+        changed: change => heard.push(change),
+        closed: () => undefined,
+      })
+      const w = world({ store, changes, config: { limits: { ...CONFIG.limits, away: 1 } } })
+      w.kinds.declare(kind('media.object'))
+      return { w, heard }
+    }
+    const revision = async (w: World) => {
+      const read = await w.canvas.look(w.ctx, { canvas: 'main' })
+      if (read.kind !== 'done') throw new Error(read.kind)
+      return read.value.revision
+    }
+
+    it('taking again what is taken is no change: no revision, no record dropped, nothing told', async () => {
+      const { w, heard } = await lowered()
+      const was = await revision(w)
+      expect(await take(w, ['i1'])).toEqual({ kind: 'no-change' })
+      expect(await revision(w)).toBe(was)
+      expect(await ids(w)).toEqual(['c', 'b', 'a'])
+      expect(heard).toEqual([])
+    })
+
+    it('a batch that takes one thing on the sheet is a change, though the rest were taken', async () => {
+      const { w } = await lowered()
+      const put = await w.canvas.place(w.ctx, {
+        canvas: 'main',
+        reference: media('d'),
+        at: { x: 1600, y: 0 },
+      })
+      if (put.kind !== 'done') throw new Error(put.kind)
+      const was = await revision(w)
+      expect(await take(w, ['i1', put.value.item.id])).toMatchObject({
+        kind: 'done',
+        value: { revision: was + 1 },
+      })
+      expect(await ids(w)).toContain('d')
+    })
   })
 
   it('drops the one taken longest ago, whatever the order they were placed in', async () => {

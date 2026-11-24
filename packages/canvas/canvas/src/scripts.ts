@@ -168,9 +168,10 @@ export function arrangeBatch(facts: CanvasFacts, command: ArrangeCommand): Chang
   return saved(work)
 }
 
-/** Takes items off the sheet; a taken item keeps where it showed. The oldest taken beyond the limit go. */
+/** Takes items off the sheet where they showed. Only when one is taken do the oldest taken past the limit go. */
 export function takeItems(facts: CanvasFacts, command: TakeCommand): ChangeResult {
   const work = open(facts, command)
+  let taking = false
   for (const id of command.items) {
     const item = work.item(id)
     const stop = stopping(cellsOf(['take'], item), { item: id })
@@ -179,7 +180,9 @@ export function takeItems(facts: CanvasFacts, command: TakeCommand): ChangeResul
     const pile = item.pile
     work.update(item, { state: 'off', at: shownAt(work, item), pile: null, rank: work.nextRank() })
     work.prune(pile)
+    taking = true
   }
+  if (!taking) return NO_CHANGE
   const away = new Map(facts.items(command.canvas, 'off').map(item => [item.id, item]))
   for (const item of work.items.values())
     if (item.state === 'off') away.set(item.id, item)
