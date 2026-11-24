@@ -439,6 +439,61 @@ describe('the resolver of a member words', () => {
     succeeded(await accept(declared, withBlocks('in-6', text('b1', '原话'))), 'none declared')
   })
 
+  it('hands the resolver what the sender saw and which request this is, and says why it could not tell', async () => {
+    const given: unknown[] = []
+    const h = await service({
+      resolver: {
+        name: 'test',
+        resolve: async (words: unknown) => {
+          given.push(words)
+          return { kind: 'unavailable', diagnostic: 'list down' } as never
+        },
+      },
+    })
+    const seen = { command: null, references: ['skill:review'] }
+    const value = withBlocks('in-10', text('b1', '用 /review'))
+    expect(
+      failureOf(
+        await h
+          .faces('intake')
+          .work.accept({ ...h.access(), operation: operationId('accept-10'), value, seen }),
+      ),
+    ).toEqual({ kind: 'unavailable', owner: 'sessionUtteranceResolver', diagnostic: 'list down' })
+    expect(given).toMatchObject([
+      { seen, request: { input: value.input, operation: operationId('accept-10') } },
+    ])
+    const threw = await service({
+      resolver: resolverOf(async () => {
+        throw new Error('down')
+      }),
+    })
+    expect(failureOf(await accept(threw, withBlocks('in-11', text('b1', 'x'))))).toMatchObject({
+      diagnostic: 'threw: down',
+    })
+  })
+
+  it('asks the registry of sources first, and reads no words of the first input of a new session', async () => {
+    const read: string[] = []
+    const unknown = await service({
+      sources: { kind: 'absent' },
+      resolver: resolverOf(appendNamed, read),
+    })
+    expect(failureOf(await accept(unknown, withBlocks('in-12', text('b1', '/x'))))).toMatchObject({
+      kind: 'unavailable',
+      owner: 'sessionInputSources',
+    })
+    const h = await service({ resolver: resolverOf(appendNamed, read) })
+    succeeded(
+      await h.faces('intake').management.create({
+        ...h.access('session-9'),
+        operation: operationId('create-session-9'),
+        creation: creation({ initial: withBlocks('first', text('b1', '用 /review')) }),
+      }),
+      'create',
+    )
+    expect(read).toEqual([])
+  })
+
   it('an operation is no message: until Session does it, it is unsupported', async () => {
     const h = await service({
       resolver: resolverOf(async () => ({

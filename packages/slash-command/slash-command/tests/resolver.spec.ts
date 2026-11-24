@@ -121,6 +121,38 @@ describe('resolving a member words', () => {
     expect(await resolve(words('看 /etc/hosts'))).toEqual({ kind: 'input', appended: [] })
   })
 
+  it('compares what was shown even without a slash, and tells a missing source only when something was named', async () => {
+    const resolve = createResolver(catalogOf().catalog)
+    expect(
+      await resolve(words('没有斜杠', { command: 'skill:review', references: [] })),
+    ).toMatchObject({ kind: 'refused', reason: expect.stringContaining('what was shown changed') })
+    const missing = createResolver(catalogOf({ missing: ['skill', 'prompt'] }).catalog)
+    expect(await missing(words('没有斜杠', { command: null, references: [] }))).toEqual({
+      kind: 'input',
+      appended: [],
+    })
+    expect(await missing(words('/commit 看一下'))).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the list cannot be told in full: skill, prompt',
+    })
+  })
+
+  it('stops at a head command that cannot be taken, and a reference that is no text', async () => {
+    const gone = createResolver(catalogOf({ take: async () => fail('not-listed') }).catalog)
+    expect(await gone(words('/commit x'))).toEqual({
+      kind: 'refused',
+      reason: 'what was shown changed: prompt:commit cannot be named now',
+    })
+    const odd = createResolver(
+      catalogOf({ take: async () => succeed({ kind: 'operation', operation: 'x', args: '' }) })
+        .catalog,
+    )
+    expect(await odd(words('用 /review'))).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'skill:review is no text',
+    })
+  })
+
   it('expands a prompt command after the words, and hands a system command over as an operation', async () => {
     const resolve = createResolver(catalogOf().catalog)
     expect(await resolve(words('/commit 修复 "登录 超时"'))).toEqual({
@@ -145,5 +177,7 @@ describe('expanding a prompt', () => {
     ['少了：$3', 'x', '少了：'],
     ['没有占位', 'x y', '没有占位\n\nx y'],
     ['没有占位', '', '没有占位'],
+    ['原样：$1', 'a"b', '原样：a"b'],
+    ['空的：[$1]', '', '空的：[]'],
   ])('%j with %j is %j', (prompt, args, wanted) => expect(expandPrompt(prompt, args)).toBe(wanted))
 })
