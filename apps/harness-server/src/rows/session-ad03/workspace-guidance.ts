@@ -16,13 +16,17 @@ export async function readWorkspaceGuidance(
   rootIdentity?: string,
 ): Promise<WorkspaceGuidance> {
   const root = value.directory
-  const visit = input.snapshot.workspaceVisit
-  const active =
-    visit?.workspace === value.workspace &&
+  const visits = [
+    ...(input.snapshot.workspaceVisit === undefined ? [] : [input.snapshot.workspaceVisit]),
+    ...(input.snapshot.workspaceBackgroundVisits ?? []).map(item => item.visit),
+  ]
+  const active = visits.flatMap(visit =>
+    visit.workspace === value.workspace &&
     visit.instance === value.instance &&
     visit.generation === (value.generation ?? '0')
       ? visit.directories
-      : []
+      : [],
+  )
   const basis = { root, workspace: value.workspace, instance: value.instance }
   if (!rootIdentity || !/^\d+:[1-9]\d*$/u.test(rootIdentity))
     return {

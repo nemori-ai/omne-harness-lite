@@ -1,70 +1,76 @@
 // @module-tag slow
 import { expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness/message'
-import { tenantCodec } from '@omne-harness/legal-identity'
-import { createModelTelling } from '../src/cordis/model-telling.ts'
-import { sqlScene } from './fixtures/sql-scene.ts'
-import { ok } from './fixtures/common-journal.ts'
+import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
+import { sqlScene, takeInputs } from './fixtures/sql-scene.ts'
+import { ok, evidence } from './fixtures/common-journal.ts'
 
-it('settles four owned prerequisite commits before asking the Agent publication to try again once', async () => {
-  const s = await sqlScene('model-step-settlement', { storage: 'real' })
-  try {
-    ok(await s.view.journal.open(s.openInput))
-    const snapshot = ok(await s.port.readWork(s.access))
-    const tenant = tenantCodec.encode(s.access.tenant)
-    if (!tenant.ok) throw new Error('invalid tenant')
-    let pending = 4
-    let refreshed = 0
-    const actions = createModelTelling({
-      storage: s.storage,
-      combination: s.combination,
-      generations: new Map(),
-      read: async () => ({ ok: ok(await s.port.readWork(s.access)) }),
-      directory: {
-        refresh: async () => {
-          refreshed++
-          return { kind: 'refreshed' as const }
+it.each([4, 20])(
+  'bounds preparation separately from publication races when %i reminders are waiting',
+  async initial => {
+    const s = await sqlScene('model-step-settlement', { storage: 'real' })
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const snapshot = ok(await s.port.readWork(s.access))
+      let pending = initial
+      let refreshed = 0
+      const holder = createSessionLogJournal<string>({
+        storage: s.storage,
+        combination: s.combination,
+        tenantDomainLookup: { lookup: async () => ({ kind: 'ready', domain: s.domain }) },
+        sessionAccessCheck: {
+          check: async () => ({ kind: 'allowed', evidence: evidence('allowed') }),
         },
-      },
-      reminders: {
-        prepare: async () => {
-          const message = judgeMessage({
-            id: `msg_${String(pending).repeat(22)}`,
-            role: 'system_reminder',
-            blocks: [
-              {
-                kind: 'text',
-                id: `prerequisite-${pending}`,
-                text: `owned prerequisite ${pending}`,
-                visibility: { toModel: true, toHuman: true },
-              },
-            ],
-          })
-          if (!('ok' in message) || message.ok.role !== 'system_reminder')
-            throw new Error('invalid reminder')
-          return {
-            ok: {
-              messages: pending > 0 ? [message.ok] : [],
-              viewRevision: String(pending),
-              advance: () => {
-                if (pending > 0) pending--
-              },
-            },
-          }
+        directory: {
+          refresh: async () => {
+            refreshed++
+            return { kind: 'refreshed' as const }
+          },
         },
-        forget() {},
-      },
-    })
-    const book = { ...s.access, tenantText: tenant.value, published: null }
-    expect(
-      await actions.beforeStep(book, s.domain, s.access, { snapshot, commands: [] }, [
-        { facts: [{ kind: 'step.begun', step: '0' }] },
-      ] as never),
-    ).toEqual({ kind: 'again' })
-    expect(pending).toBe(0)
-    expect(refreshed).toBe(5)
-    expect(ok(await s.port.readWork(s.access)).revision).not.toBe(snapshot.revision)
-  } finally {
-    await s.close()
-  }
-})
+        reminders: {
+          prepare: async () => {
+            const message = judgeMessage({
+              id: `msg_${String(pending).padStart(22, '0')}`,
+              role: 'system_reminder',
+              blocks: [
+                {
+                  kind: 'text',
+                  id: `prerequisite-${pending}`,
+                  text: `owned prerequisite ${pending}`,
+                  visibility: { toModel: true, toHuman: true },
+                },
+              ],
+            })
+            if (!('ok' in message) || message.ok.role !== 'system_reminder')
+              throw new Error('invalid reminder')
+            return {
+              ok: {
+                messages: pending > 0 ? [message.ok] : [],
+                viewRevision: String(pending),
+                advance: () => {
+                  if (pending > 0) pending--
+                },
+              },
+            }
+          },
+          forget() {},
+        },
+      })
+      const journal = holder.forSession(s.access).journal
+      if (initial === 4) {
+        await takeInputs(s, journal)
+        expect(pending).toBe(0)
+        expect(refreshed).toBe(5)
+      } else {
+        await expect(takeInputs(s, journal)).rejects.toThrow(
+          'the model step prerequisites kept changing',
+        )
+        expect(pending).toBe(4)
+        expect(refreshed).toBe(16)
+      }
+      expect(ok(await s.port.readWork(s.access)).revision).not.toBe(snapshot.revision)
+    } finally {
+      await s.close()
+    }
+  },
+)

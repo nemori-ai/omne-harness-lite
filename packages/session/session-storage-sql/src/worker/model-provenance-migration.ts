@@ -10,8 +10,10 @@ const migration: MigrationModule = {
     )
   },
   verify(port) {
-    return port.execute('SELECT name FROM sqlite_schema WHERE name = ?', [MODEL_PROVENANCE_TABLE])
-      .rows.length === 1
+    return port.execute(
+      "SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ? LIMIT 1",
+      [MODEL_PROVENANCE_TABLE],
+    ).rows.length === 1
       ? { kind: 'verified' }
       : { kind: 'failed', diagnostic: 'model provenance index is absent' }
   },

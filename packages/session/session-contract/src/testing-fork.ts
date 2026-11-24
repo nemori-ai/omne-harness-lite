@@ -158,7 +158,7 @@ export const compactionOf = (store: Held, through: string) =>
     chainOf(store),
     store.snapshot,
     store.modelView.rows,
-    store.modelView.rows.length,
+    null,
     through,
     store.fork?.inherited.length,
   )

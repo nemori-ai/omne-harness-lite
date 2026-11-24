@@ -3355,7 +3355,7 @@ export declare function materializeModelView(previous: MaterializedModelView, co
     entries: readonly HistoryEntry[];
 }): MaterializedModelView;
 export declare function compactionReads(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, through: string, inherited?: number, visible?: ReadonlySet<string>): CompactionContext | null;
-export declare function compactionContextForView(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, rows: readonly ModelViewRow[], upper: number, through: string | null, inherited?: number): CompactionContext | null;
+export declare function compactionContextForView(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, rows: readonly ModelViewRow[], upper: number | null, through: string | null, inherited?: number): CompactionContext | null;
 ```
 
 ## 声明文件 `observation-validation.d.ts`
@@ -4102,8 +4102,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:790b454a532255b1816fff33702635accc12d112f1c079a9a18ecc7d35d2b999";
-export declare const SESSION_RELEASE_DIGEST = "sha256:790b454a532255b1816fff33702635accc12d112f1c079a9a18ecc7d35d2b999";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:4c8484b7ed0bcb2e72449f4245c8bec69279146ea3cd73e7b8a25f2326989d3c";
+export declare const SESSION_RELEASE_DIGEST = "sha256:4c8484b7ed0bcb2e72449f4245c8bec69279146ea3cd73e7b8a25f2326989d3c";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4979,6 +4979,11 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
             declaration: import("./values.ts").DeclarationChange;
         }>[];
         workspaceVisit?: import("./values.ts").WorkspaceDirectoryVisit;
+        workspaceBackgroundVisits?: readonly Readonly<{
+            consumption: import("./identity.ts").ConsumptionId;
+            visit: import("./values.ts").WorkspaceDirectoryVisit;
+            input?: InputId;
+        }>[];
         changes?: readonly import("./values.ts").DeclarationChange[];
         initialization?: import("./values.ts").InitializationState;
         historyIndex?: import("./history-values.ts").SessionHistoryIndex;
@@ -5661,6 +5666,11 @@ export type WorkSnapshot = Readonly<{
         declaration: DeclarationChange;
     }>[];
     workspaceVisit?: WorkspaceDirectoryVisit;
+    workspaceBackgroundVisits?: readonly Readonly<{
+        consumption: ConsumptionId;
+        visit: WorkspaceDirectoryVisit;
+        input?: InputId;
+    }>[];
     changes?: readonly DeclarationChange[];
     initialization?: InitializationState;
     historyIndex?: SessionHistoryIndex;
@@ -5881,6 +5891,12 @@ export declare function workspaceGeneration(snapshot: Pick<WorkSnapshot, 'creati
 ## 声明文件 `workspace-visit.d.ts`
 
 ```ts
-import type { WorkspaceDirectoryVisit } from './values.ts';
+import type { ConsumptionId } from './identity.ts';
+import type { WorkSnapshot, WorkspaceDirectoryVisit } from './values.ts';
 export declare function activeWorkspaceVisit(previous: WorkspaceDirectoryVisit | undefined, visit: WorkspaceDirectoryVisit): WorkspaceDirectoryVisit;
+type VisitState = Pick<WorkSnapshot, 'creation' | 'changes'> & {
+    -readonly [K in 'workspaceVisit' | 'workspaceBackgroundVisits']?: NonNullable<WorkSnapshot[K]>;
+};
+export declare function applyWorkspaceVisit(state: VisitState, consumption: ConsumptionId, visit: WorkspaceDirectoryVisit): void;
+export {};
 ```

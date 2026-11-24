@@ -112,6 +112,15 @@ it.each(['A', 'B'] as const)(
             expect(last).toContain('BACKGROUND_B_ROOT_926')
             expect(last).not.toContain('LATE_BACKGROUND_A_LEAF_926')
           }
+          if (target === 'A') {
+            // Editing an already handled result's directory does not create another tool visit.
+            writeFileSync(join(leaf, 'AGENTS.md'), 'HANDLED_BACKGROUND_NEW_VERSION_926')
+            entries = await run(tree, session, 3)
+            expect(requests).toHaveLength(before + 2)
+            expect(requests.at(-1)).toContain('LATE_BACKGROUND_A_LEAF_926')
+            expect(requests.at(-1)).not.toContain('HANDLED_BACKGROUND_NEW_VERSION_926')
+            expect(readFileSync(join(leaf, 'effect.txt'), 'utf8')).toBe('x')
+          }
           const calls = toolLedger(tree.storageRoot)
           expect(calls).toHaveLength(1)
           const original = calls[0]

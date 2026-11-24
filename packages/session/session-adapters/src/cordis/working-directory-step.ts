@@ -33,7 +33,10 @@ export type StepDirectoryInput<P> = Readonly<{
   tenant: TenantId
   session: SessionId
   scope: ScopeRef
-  snapshot: Pick<WorkSnapshot, 'creation' | 'changes' | 'contextRecords' | 'workspaceVisit'>
+  snapshot: Pick<
+    WorkSnapshot,
+    'creation' | 'changes' | 'contextRecords' | 'workspaceVisit' | 'workspaceBackgroundVisits'
+  >
 }>
 
 /** Refreshed: the block already holds the value, or the scope holds no such block. */

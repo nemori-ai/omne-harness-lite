@@ -238,20 +238,29 @@ export function compactionContextForView(
   entries: readonly HistoryEntry[],
   snapshot: WorkSnapshot,
   rows: readonly ModelViewRow[],
-  upper: number,
+  upper: number | null,
   through: string | null,
   inherited = 0,
 ): CompactionContext | null {
-  const selected = new Set(rows.slice(0, upper).map(row => String(row.entry)))
+  const currentRows = upper === null ? rows : rows.slice(0, upper)
+  const selected = new Set(currentRows.map(row => String(row.entry)))
   through ??= entries.findLast(row => selected.has(row.id))?.id ?? null
   if (through === null) return null
   const value = compactionReads(entries, snapshot, through, inherited, selected)
   if (value === null) return null
+  // A commit may end on an own journal fact between messages. It carries no model bytes.
+  const ownAnchor =
+    upper === null &&
+    entries.some(
+      (entry, index) =>
+        index >= inherited && entry.id === through && !entry.kind.startsWith('message.'),
+    )
   const keep = (row: CoveredEntry) =>
+    (ownAnchor && row.ref === through) ||
     selected.has(row.ref) ||
     value.open.includes(row.ref) ||
     (value.base.kind === 'initial' && row.ref === value.origin)
-  const projected = new Map(rows.slice(0, upper).map(row => [String(row.entry), row.message]))
+  const projected = new Map(currentRows.map(row => [String(row.entry), row.message]))
   const visible = (row: CoveredEntry): CoveredEntry =>
     selected.has(row.ref)
       ? { ...row, message: projected.get(String(row.ref)) ?? row.message }

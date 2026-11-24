@@ -433,6 +433,7 @@ function kindsOf(scratch: Scratch): ParticipationKind[] {
 }
 
 type Settled<T> =
+  | Readonly<{ kind: 'step-changed' }>
   | Readonly<{ kind: 'answer'; value: Outcome<T, Failure> }>
   | Readonly<{ kind: 'again' }>
   | Readonly<{ kind: 'fetch'; refs: readonly ItemRef[] }>
@@ -1157,7 +1158,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         value: fail(unavailable(`a ${written.method} changed the Agent records without a batch`)),
       }
     const told = await telling.beforeStep(book, domain, input, scratch, appended)
-    if (told !== null) return told
+    if (told !== null) return told.kind === 'again' ? { kind: 'step-changed' } : told
     const heads = headsOf(mintOf(book), after.agent.view, appended)
     const execution = appended[0]!.execution
     const operation = storageOperation(
@@ -1442,6 +1443,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       const domain = await domainOf(book)
       if ('failure' in domain) return domain
       const target = targetOf(input)
+      let preparationChanges = 0
       for (let lost = 0; lost < LOST_RACES;) {
         let synced = await sync(book, domain.ok)
         if ('failure' in synced) return synced
@@ -1485,6 +1487,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           book.scratch = null
         }
         if (settled.kind === 'answer') return settled.value
+        if (settled.kind === 'step-changed') {
+          // The step must rebuild on its prerequisite's revision. This is a separate budget from publication conflicts.
+          if (++preparationChanges >= 16)
+            return fail(unavailable('the model step prerequisites kept changing'))
+          continue
+        }
         if (settled.kind === 'again') lost += 1
         else {
           const unread = await fetchClosed(readerOf(options.storage, domain.ok), book, settled.refs)

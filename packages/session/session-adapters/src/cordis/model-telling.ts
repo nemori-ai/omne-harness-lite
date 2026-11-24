@@ -24,7 +24,6 @@ import {
 } from './model-reminder-commit.ts'
 import type { ModelReminders } from './model-reminders.ts'
 import { createModelTellingSteps } from './model-telling-steps.ts'
-import { settleModelStep } from './model-step-settlement.ts'
 import type { StepDirectory } from './working-directory-step.ts'
 
 export type { ModelReminders } from './model-reminders.ts'
@@ -79,7 +78,7 @@ const down = (diagnostic: string) =>
 
 export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P, B>) {
   const { reminders } = ports
-  const { commit, submitGuidance, recover, refresh } = createModelTellingSteps(ports)
+  const { commit, submitGuidance, refresh } = createModelTellingSteps(ports)
 
   async function prepareTell(
     book: B,
@@ -87,8 +86,6 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
     principal: P,
     snapshot: WorkSnapshot | null,
   ): Promise<Preparation> {
-    const recovery = await recover(book, domain, snapshot)
-    if (recovery !== null) return recovery
     if (reminders === undefined) return { kind: 'ready', basis: null }
     if (snapshot === null) return down('no Session snapshot to tell the model from')
     const scope = openContextScope({ tenant: book.tenant, session: book.session, snapshot })
@@ -157,7 +154,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
         if (refreshed?.kind === 'again') continue
         const prepared = await prepareTell(book, domain, principal, before.ok)
         if (prepared.kind === 'answer') return prepared.value
-        if (prepared.kind === 'again') continue
+        if (prepared.kind !== 'ready') continue
         const current = await ports.read(book, domain)
         if ('failure' in current) return current
         if (current.ok?.revision === before.ok.revision) return succeed(prepared.basis)
@@ -179,12 +176,9 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       const step = begunStep(appended)
       if (step === null) return null
       const principal = principalOf<P>(write)
-      return settleModelStep(
-        scratch.snapshot,
-        async snapshot =>
-          (await refresh(book, domain, principal, snapshot, step)) ??
-          stepTell(await prepareTell(book, domain, principal, snapshot)),
-        () => ports.read(book, domain),
+      return (
+        (await refresh(book, domain, principal, scratch.snapshot, step)) ??
+        stepTell(await prepareTell(book, domain, principal, scratch.snapshot))
       )
     },
     /** The request after a compaction is prepared in the same step: tell it in full right away. */

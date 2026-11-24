@@ -324,6 +324,14 @@ export function applyBackgroundSettled(
   const placeholders = draft.backgroundPlaceholders ?? []
   if (!placeholders.includes(entry.consumption)) return 'a settlement of a call not in background'
   draft.backgroundPlaceholders = placeholders.filter(item => item !== entry.consumption)
+  if (draft.workspaceBackgroundVisits !== undefined)
+    draft.workspaceBackgroundVisits = draft.workspaceBackgroundVisits.flatMap(item =>
+      item.consumption !== entry.consumption
+        ? [item]
+        : entry.disposition.kind === 'input'
+          ? [{ ...item, input: entry.disposition.input }]
+          : [],
+    )
   const settled = entry.disposition.kind
   draft.backgroundCalls = (draft.backgroundCalls ?? []).map(item =>
     item.consumption === entry.consumption ? { ...item, settled } : item,
@@ -334,6 +342,12 @@ export function applyBackgroundSettled(
 /** An input keeps what it was accepted as while it is pending or its bracket is open. */
 export function pruneInputLists(draft: Draft): void {
   const alive = new Set([...draft.pending, ...(draft.unanswered ?? [])])
+  if (draft.workspaceBackgroundVisits?.length) {
+    const awaitingOutcome = new Set(draft.backgroundPlaceholders)
+    draft.workspaceBackgroundVisits = draft.workspaceBackgroundVisits.filter(item =>
+      item.input === undefined ? awaitingOutcome.has(item.consumption) : alive.has(item.input),
+    )
+  }
   if (draft.uncountedInputs !== undefined)
     draft.uncountedInputs = draft.uncountedInputs.filter(input => alive.has(input))
   if (draft.quietInputs !== undefined)

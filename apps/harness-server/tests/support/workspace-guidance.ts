@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { expect } from 'vitest'
 import { historyOf, pollUntil, type ReleaseTree } from './release-tree.ts'
 
@@ -31,4 +33,11 @@ export async function run(tree: ReleaseTree, session: string, ordinal = 1) {
     },
     seen => seen.filter(entry => entry.kind === 'run.terminal').length >= ordinal,
   )
+}
+
+export function saveGuidanceEvidence(name: string, value: unknown) {
+  const directory = process.env['OMNE_GUIDANCE_NATIVE_EVIDENCE']
+  if (directory === undefined) return
+  mkdirSync(directory, { recursive: true })
+  writeFileSync(join(directory, name), JSON.stringify(value, null, 2) + '\n')
 }
