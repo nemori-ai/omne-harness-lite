@@ -126,6 +126,13 @@ function Tools({
   )
 }
 
+/** Escape lets go of what is selected, unless something before it took the key or a menu has it. */
+const letsGo = (event: React.KeyboardEvent, selected: Selection): boolean =>
+  event.key === 'Escape' &&
+  !event.defaultPrevented &&
+  selected.size > 0 &&
+  (event.target as Element).closest('[role="menu"]') === null
+
 /** The sheet of the canvas, with what the server last said lies on it. */
 export function SheetView(props: SheetViewProps): JSX.Element {
   const { host, scope, canvas, state, preferences, send, dismiss } = props
@@ -165,8 +172,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
         pointer.current = undefined
       }}
       onKeyDown={event => {
-        if (event.key !== 'Escape' || event.defaultPrevented || selected.size === 0) return
-        if ((event.target as Element).closest('[role="menu"]') !== null) return
+        if (!letsGo(event, selected)) return
         event.preventDefault()
         select(new Set())
       }}

@@ -108,6 +108,14 @@ function Rename({
   )
 }
 
+/** On the handle Enter and Space open and close the pile; anywhere on it the act keys rename and scatter it. */
+function pileKeyAct(event: React.KeyboardEvent): 'toggle' | 'rename' | 'scatter' | undefined {
+  const onHandle = (event.target as Element).closest('[data-slot="paper-handle"]') !== null
+  if (onHandle && (event.key === 'Enter' || event.key === ' ')) return 'toggle'
+  const act = actOf(event)
+  return act === 'rename' || act === 'scatter' ? act : undefined
+}
+
 /** A pile where the server says it is: its pages, top first, opened and closed here. */
 export function PileView(props: PileViewProps): JSX.Element {
   const { host, scope, pile, box, leaves, standing, round, pending, open, onOpenChange, acts } =
@@ -119,16 +127,11 @@ export function PileView(props: PileViewProps): JSX.Element {
       className="canvas-thing"
       data-pile={pile.id}
       onKeyDown={event => {
-        const onHandle = (event.target as Element).closest('[data-slot="paper-handle"]') !== null
-        if (onHandle && (event.key === 'Enter' || event.key === ' ')) {
-          event.preventDefault()
-          onOpenChange(!open)
-          return
-        }
-        const act = actOf(event)
-        if (act !== 'rename' && act !== 'scatter') return
+        const act = pileKeyAct(event)
+        if (act === undefined) return
         event.preventDefault()
-        if (act === 'rename') setRenaming(true)
+        if (act === 'toggle') onOpenChange(!open)
+        else if (act === 'rename') setRenaming(true)
         else acts.scatter(pile)
       }}
     >

@@ -172,6 +172,11 @@ function step(root: HTMLElement, by: 1 | -1): boolean {
   return at + by >= all.length
 }
 
+const STEPS = new Map<string, 1 | -1>([
+  ['ArrowDown', 1],
+  ['ArrowUp', -1],
+])
+
 /** One line written on the sheet where the finder was opened, and beneath it what can be put on the sheet. */
 export function Finder(props: FinderProps): JSX.Element {
   const { host, scope, kinds, round, at, place, lookAway, close } = props
@@ -196,13 +201,14 @@ export function Finder(props: FinderProps): JSX.Element {
   const declared = kinds.kind === 'read' ? kinds.value.filter(kind => kind.kind === 'declared') : []
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     if (event.defaultPrevented || event.nativeEvent.isComposing || root.current === null) return
+    const by = STEPS.get(event.key)
     if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
       close(true)
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    } else if (by !== undefined) {
       event.preventDefault()
-      if (step(root.current, event.key === 'ArrowDown' ? 1 : -1)) more()
+      if (step(root.current, by)) more()
     } else if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
       event.preventDefault()
       root.current.querySelector<HTMLElement>(`.canvas-finder-found :is(${FOCUSABLE})`)?.click()
