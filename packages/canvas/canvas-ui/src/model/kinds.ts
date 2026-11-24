@@ -1,6 +1,5 @@
 import type { CanvasKindBody } from '@omne-harness/canvas-protocol'
 import { lookScope } from '@omne-harness/shell-contract'
-import { CANVAS_ELEMENT } from '../points.ts'
 import type { Reading } from './reading.ts'
 
 /** What the server says of one kind: declared with its name for people, not declared, or not known now. */
@@ -40,10 +39,11 @@ export type DrawingHost = Readonly<{
 const sees = (scope: readonly string[], asker: readonly string[]): boolean =>
   scope.length <= asker.length && scope.every((part, at) => asker[at] === part)
 
-/** After the shell fell back: the owners of the drawings at the deepest layer this tenant sees, if two or more. */
+/** Who put the drawings on a key of a point at the deepest layer this tenant sees, if two or more. */
 export function drawingsInConflict(
   host: DrawingHost,
-  kind: string,
+  point: string,
+  key: string,
   scope: string | undefined,
 ): readonly string[] {
   const registry = host.registry()
@@ -54,8 +54,8 @@ export function drawingsInConflict(
     )
   const standing = registry.placed.filter(
     placed =>
-      placed.point === CANVAS_ELEMENT &&
-      placed.key === kind &&
+      placed.point === point &&
+      placed.key === key &&
       sees(placed.scope, asker) &&
       serving(placed.instance),
   )
