@@ -208,10 +208,9 @@ describe('the position table of a program (TL-65 to TL-68)', () => {
         field: 'ordinal',
       })
     const nowhere = { ...at(1), call: callId('call-9') }
-    expect(failure(await children.register(nowhere))).toMatchObject({ reason: 'unknown-call' })
-    expect(failure(await children.seal({ ...parent, call: callId('call-9') }))).toMatchObject({
-      reason: 'unknown-call',
-    })
+    const unknown = { kind: 'invalid', field: 'call', reason: 'unknown-call' }
+    expect(failure(await children.register(nowhere))).toEqual(unknown)
+    expect(failure(await children.seal({ ...parent, call: callId('call-9') }))).toEqual(unknown)
     expect(failure(await children.register({ ...at(1), principal: principalB }))).toMatchObject({
       kind: 'denied',
     })
@@ -340,9 +339,14 @@ describe('the position table, cell by cell', () => {
     ok(await children.handOff({ ...parent, ordinal: 1 }))
     ok(await children.background({ ...parent, ordinal: 1 }))
     ok(await children.retain(retained(1)))
+    expect(failure(await children.exclude({ ...parent, ordinal: 1, exclusion: denied }))).toEqual({
+      kind: 'conflict',
+      operation: operationId('child-op-1'),
+    })
     ok(await children.seal(parent))
     ok(await children.table(parent))
     expect(asked).toEqual([
+      'write:alice',
       'write:alice',
       'write:alice',
       'write:alice',

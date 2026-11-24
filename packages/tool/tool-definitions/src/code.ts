@@ -94,13 +94,13 @@ async function helpText(execution: ToolExecutionContext, limits: Limits, name: s
     : `done Code help ${name}\n${functionsSignature(one)}`
 }
 
-function failureOf(one: ProgramFunction | undefined, entry: string, answer: ProgramCallAnswer) {
-  if (answer.kind === 'value') return null
+/** What the program receives for one call: the value, or an error it can catch by its kind. */
+function answerOf(entry: string, answer: ProgramCallAnswer): ProgramAnswer {
+  if (answer.kind === 'value') return { kind: 'value', value: answer.value ?? { kind: 'null' } }
   const { kind, effect, message } = answer.failure
   const text = (value: string | null): JsonValue =>
     value === null ? { kind: 'null' } : { kind: 'string', value }
-  const [tool = entry, command = null] =
-    one === undefined ? entry.split('.') : [one.tool, one.command]
+  const [tool = entry, command = null] = entry.split('.')
   return {
     kind: 'failure',
     name: PROGRAM_FAILURE,
@@ -111,7 +111,7 @@ function failureOf(one: ProgramFunction | undefined, entry: string, answer: Prog
       { key: 'command', value: text(command) },
       { key: 'effect', value: text(effect) },
     ],
-  } satisfies ProgramAnswer
+  }
 }
 
 const NOTE = 'Calls that completed keep their effects. The program is not rerun.'
@@ -127,11 +127,9 @@ function hint(message: string, code: string): string {
     : ''
 }
 
-/** Why the program did not return, as the text the model reads; null when it returned. */
-function failed(outcome: ProgramOutcome, code: string): string | null {
+/** Why the program did not return, as the text the model reads. */
+function failed(outcome: Exclude<ProgramOutcome, { kind: 'returned' }>, code: string): string {
   switch (outcome.kind) {
-    case 'returned':
-      return null
     case 'syntax':
       return `Code execute failed kind=syntax${at(outcome.line)}\n${outcome.message}${hint(outcome.message, code)}\nNothing ran.`
     case 'threw':
@@ -145,28 +143,13 @@ function failed(outcome: ProgramOutcome, code: string): string | null {
   }
 }
 
-type Functions = ReadonlyMap<string, ProgramFunction>
-
 /** Hands each call of the program to the capability, no more than the limit at once, and answers it. */
-function caller(
-  tools: ProgramTools,
-  functions: Functions,
-  limit: number,
-  run: Promise<ProgramRun>,
-) {
+function caller(tools: ProgramTools, limit: number, run: Promise<ProgramRun>) {
   let inFlight = 0
   return (call: ProgramCall): void => {
     const { ordinal, entry } = call
     const answer = (given: ProgramCallAnswer) =>
-      void run.then(started =>
-        started.answer(
-          ordinal,
-          failureOf(functions.get(entry), entry, given) ??
-            (given.kind === 'value'
-              ? { kind: 'value', value: given.value ?? { kind: 'null' } }
-              : never()),
-        ),
-      )
+      void run.then(started => started.answer(ordinal, answerOf(entry, given)))
     if (inFlight >= limit) {
       const message = `more than ${limit} calls at once; this one was not made. Await some before making more.`
       return answer({ kind: 'failure', failure: { kind: 'limit', effect: 'none', message } })
@@ -201,21 +184,20 @@ async function execute(
   const known = await callable(execution, 'execute')
   if (typeof known === 'string') return known
   const { tools } = known
-  const functions: Functions = new Map(known.functions.map(one => [one.entry, one]))
   const handle = Promise.withResolvers<ProgramRun>()
   const started = await environment.program.run({
     source,
     input: args.fields.get('input') ?? { kind: 'null' },
-    entries: [...functions.keys()],
+    entries: known.functions.map(one => one.entry),
     failures: [PROGRAM_FAILURE],
     limits,
-    onCall: caller(tools, functions, inFlight, handle.promise),
+    onCall: caller(tools, inFlight, handle.promise),
     onIdle: () => {},
   })
   if (started.kind !== 'done') return `Code execute: ${confirmation(started, () => '')}`
   handle.resolve(started.value)
   const outcome = await outcomeOf(started.value, execution.signal)
-  if (outcome.kind !== 'returned') throw new Error(failed(outcome, source) ?? 'Code execute failed')
+  if (outcome.kind !== 'returned') throw new Error(failed(outcome, source))
   const table = await tools.settle()
   if ('failure' in table)
     throw new Error(
@@ -224,10 +206,6 @@ async function execute(
   const value =
     outcome.value === undefined ? '(the program returned nothing)' : writeJsonText(outcome.value)
   return `done Code execute\nresult:\n${value}${consoleOf(outcome.console)}`
-}
-
-function never(): never {
-  throw new TypeError('A call answered neither a value nor a failure')
 }
 
 export function createCodeAuthor(

@@ -9,7 +9,7 @@ import {
 import { createMemoryResourceLedger } from '@omne-harness/execution-environment-contract/testing'
 import { createProgramProvider } from '@omne-harness/execution-environment-program'
 import type { JsonValue } from '@omne-harness/json-text'
-import { succeed } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { createIndependentToolScope, executeTool } from '@omne-harness/tool'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import type {
@@ -20,7 +20,11 @@ import type {
 } from '@omne-harness/tool-contract'
 import { attachProgramTools, deriveDefinition } from '@omne-harness/tool-contract/provider'
 import { ordinaryReturnFixture, testingTenant } from '@omne-harness/tool-contract/testing'
-import { createCodeAuthor, type CodeAuthorEnvironment } from '@omne-harness/tool-definitions'
+import {
+  codeToolModule,
+  createCodeAuthor,
+  type CodeAuthorEnvironment,
+} from '@omne-harness/tool-definitions'
 import { value } from './run-author.ts'
 
 const tenant = testingTenant(`org_${'0'.repeat(26)}`, `acc_${'1'.repeat(26)}`)
@@ -158,14 +162,18 @@ const refusal = (kind: ProgramCallFailureKind, message: string): ProgramCallAnsw
 type Handler = (args: Record<string, unknown>, ordinal: number) => Promise<ProgramCallAnswer>
 
 /** The capability a host would attach, scripted: what was called, in what order, how many at once. */
-function scripted(handlers: Readonly<Record<string, Handler>>) {
+type Faults = Readonly<{ functions?: boolean; settle?: boolean; none?: boolean }>
+const down = { kind: 'unavailable', dependency: 'view', diagnostic: 'down' } as const
+
+function scripted(handlers: Readonly<Record<string, Handler>>, faults: Faults = {}) {
   const calls: (readonly [number, string, unknown])[] = []
   const pending = new Set<Promise<unknown>>()
   let inFlight = 0
   let most = 0
   let settled = 0
   const tools: ProgramTools = {
-    functions: async () => succeed(FUNCTIONS),
+    functions: async () =>
+      faults.functions === true ? fail(down) : succeed(faults.none === true ? [] : FUNCTIONS),
     call(asked) {
       const args = plain(asked.arguments) as Record<string, unknown>
       calls.push([asked.ordinal, asked.entry, args])
@@ -181,7 +189,7 @@ function scripted(handlers: Readonly<Record<string, Handler>>) {
     async settle() {
       await Promise.allSettled(pending)
       settled += 1
-      return succeed({ phase: 'sealed', positions: [] })
+      return faults.settle === true ? fail(down) : succeed({ phase: 'sealed', positions: [] })
     },
   }
   return { tools, calls, most: () => most, settled: () => settled }
@@ -352,7 +360,7 @@ return seen`,
       /^Error: Code execute failed kind=too-large\nThe program is 168 bytes; the limit is 100\.\nNothing ran\.$/u,
     )
     expect(
-      await execute('return "é".length', world.tools, { limits: { sourceBytes: 19 } }),
+      await execute('return "é".length', world.tools, { limits: { sourceBytes: 18 } }),
     ).toContain('result:\n1')
     expect(world.settled()).toBe(1)
   })
@@ -425,13 +433,15 @@ return seen`,
     const world = scripted(files(release.promise))
     const answer = execute(
       `const all = await Promise.allSettled(["a", "b", "c"].map(name => Files.read({ path: name })))
-return all.map(one => one.status === "fulfilled" ? one.value.text : one.reason.kind)`,
+return all.map(one => one.status === "fulfilled" ? one.value.text : [one.reason.kind, one.reason.effect, one.reason.message])`,
       world.tools,
       { limits: { callsInFlight: 2 } },
     )
     await expect.poll(() => world.calls.length).toBe(2)
     release.resolve()
-    expect(await answer).toContain('["paid","overdue since May","limit"]')
+    expect(await answer).toContain(
+      '["paid","overdue since May",["limit","none","Files.read: more than 2 calls at once; this one was not made. Await some before making more."]]',
+    )
     expect(world.calls.map(([ordinal]) => ordinal)).toEqual([1, 2])
   })
 
@@ -463,6 +473,42 @@ return all.map(one => one.status === "fulfilled" ? one.value.text : one.reason.k
     await expect(answer).rejects.toThrow(/kind=aborted/u)
   })
 
+  it('stops at once when the call was already stopped, and fails when its calls cannot be settled', async () => {
+    const stopped = new AbortController()
+    stopped.abort()
+    const world = scripted(files())
+    await expect(
+      execute('for (;;) await Lookup({ path: "a" })', world.tools, { signal: stopped.signal }),
+    ).rejects.toThrow(/kind=aborted/u)
+    const unsettled = scripted(files(), { settle: true })
+    await expect(execute('return 1', unsettled.tools)).rejects.toThrow(
+      /^Error: Code execute: the calls of the program could not be settled \(unavailable\)\. Calls that completed keep their effects\. The program is not rerun\.$/u,
+    )
+  })
+
+  it('gives the line-break hint only for one line that carries a literal backslash-n', async () => {
+    const world = scripted(files())
+    await expect(execute('const a = 1\nconst b = = 2\nreturn "\\n"', world.tools)).rejects.toThrow(
+      /^Error: Code execute failed kind=syntax line=2\nExpression expected\nNothing ran\.$/u,
+    )
+    await expect(execute('const b = = 2', world.tools)).rejects.toThrow(
+      /^Error: Code execute failed kind=syntax line=1\nExpression expected\nNothing ran\.$/u,
+    )
+  })
+
+  it('answers unavailable when the functions of this call cannot be listed', async () => {
+    const world = scripted({}, { functions: true })
+    expect(await execute('return 1', world.tools)).toBe(
+      'rejected reason=unavailable Code execute: unavailable',
+    )
+    expect(await run('help', {}, world.tools)).toBe(
+      'rejected reason=unavailable Code help: unavailable',
+    )
+    expect(await run('help', {}, null)).toBe(
+      'rejected reason=unavailable Code help: program calls are not attached to this call',
+    )
+  })
+
   it('answers unavailable without the capability, and passes on what the facility refuses', async () => {
     expect(await execute('return 1', null)).toMatch(/^rejected reason=unavailable Code execute/u)
     const world = scripted({})
@@ -487,6 +533,9 @@ describe('Code help', () => {
       'declare function Lookup(params: { path?: string }): Promise<{ found?: boolean }>',
     )
     expect(text).toContain('declare class ToolError extends Error')
+    expect(text).toMatch(
+      /Promise<void>\n\}\n\/\*\* Lookup of the fixture \*\/\ndeclare function Lookup/u,
+    )
   })
 
   it('shows one tool when asked, and names the callable ones when the name is not one of them', async () => {
@@ -497,6 +546,9 @@ describe('Code help', () => {
     expect(one).not.toContain('Files')
     expect(await run('help', { name: 'Shell' }, scripted({}).tools)).toBe(
       'rejected reason=notFound Code help: Shell has no function a program can call now. Callable: Files, Lookup',
+    )
+    expect(await run('help', { name: 'Shell' }, scripted({}, { none: true }).tools)).toBe(
+      'rejected reason=notFound Code help: Shell has no function a program can call now. Callable: none',
     )
   })
 })
@@ -530,8 +582,19 @@ describe('the definition of Code', () => {
     })
   })
 
+  it('is offered as a module whose executor names this author', () => {
+    expect(codeToolModule.createAuthor).toBe(createCodeAuthor)
+    expect(codeToolModule.executor).toMatchObject({
+      owner: '@omne-harness/tool-definitions',
+      name: 'Code',
+      revision: '1',
+    })
+  })
+
   it.each(Object.keys(LIMITS))('refuses a construction without %s', name => {
     const { [name as keyof typeof LIMITS]: _dropped, ...rest } = LIMITS
-    expect(createCodeAuthor(tree(rest))).toHaveProperty('failure')
+    expect(createCodeAuthor(tree(rest))).toEqual({
+      failure: { field: 'construction', reason: `missing-field:${name}` },
+    })
   })
 })
