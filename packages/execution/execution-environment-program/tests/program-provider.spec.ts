@@ -69,6 +69,43 @@ it('does not run when the engine cannot be set up', async () => {
   expect(await started(small.facility.run(program('return 1')))).toBeDefined()
 })
 
+it('does not count a domain that could not be set up against the bound', async () => {
+  const wasm = () => Promise.reject(new Error('no file'))
+  const { facility } = await leased(createProgramProvider({ wasm, maxDomains: 1 }))
+  for (const attempt of [1, 2])
+    expect(await facility.run(program(`return ${String(attempt)}`))).toMatchObject({
+      kind: 'rejected',
+      reason: 'unavailable',
+    })
+})
+
+it('starts the thread from the worker file it is given', async () => {
+  const given = new URL(import.meta.resolve('@earendil-works/pi-codemode/worker'))
+  const real = await leased(createProgramProvider({ workerUrl: given }))
+  expect(await (await started(real.facility.run(program('return 2')))).outcome).toMatchObject({
+    kind: 'returned',
+  })
+  const nowhere = new URL('file:///nowhere/worker.js')
+  const missing = await leased(createProgramProvider({ workerUrl: nowhere }))
+  expect(await missing.facility.run(program('return 2'))).toMatchObject({
+    kind: 'rejected',
+    reason: 'unavailable',
+  })
+})
+
+it('fails a call to a name that is not an entry, and does not hand it out', async () => {
+  const { facility } = await leased(createProgramProvider())
+  let handed = 0
+  const source =
+    'try { await globalThis.__call("Nope", {}) } catch (error) { return error.message }'
+  const run = await started(facility.run({ ...program(source), onCall: () => void handed++ }))
+  expect(await run.outcome).toMatchObject({
+    kind: 'returned',
+    value: { kind: 'string', value: 'Nope cannot be called so' },
+  })
+  expect(handed).toBe(0)
+})
+
 it('refuses a limit above the ceiling of the provider instead of lowering it', async () => {
   const { facility } = await leased(createProgramProvider({ ceilings: { calls: 4 } }))
   expect(await facility.run(program('return 1', { calls: 5 }))).toMatchObject({
@@ -95,8 +132,10 @@ it('bounds the domains that exist at once and frees a place when a thread has ex
   })
   runs[0]?.abort()
   expect((await runs[0]?.outcome)?.kind).toBe('aborted')
-  const third = await started(facility.run(program('return 3')))
-  expect(await third.outcome).toMatchObject({ kind: 'returned' })
+  const third = await started(facility.run(program('while (true) {}', { computeMs: 50 })))
+  expect(await third.outcome).toMatchObject({ kind: 'exceeded', limit: 'compute-time' })
+  const fourth = await started(facility.run(program('return 4')))
+  expect(await fourth.outcome).toMatchObject({ kind: 'returned' })
   runs[1]?.abort()
   await runs[1]?.outcome
 })
@@ -150,12 +189,14 @@ it('gives the program none of the helpers of the engine', async () => {
   const { facility } = await leased(createProgramProvider())
   const run = await started(
     facility.run(
-      program(`return [typeof __call, typeof __r, typeof text, typeof store, typeof exit]`),
+      program(
+        'return [__call, __r, ALL_TOOLS, text, image, exit, store, load].map(one => typeof one)',
+      ),
     ),
   )
   expect(await run.outcome).toMatchObject({
     kind: 'returned',
-    value: { kind: 'array', items: Array.from({ length: 5 }, () => ({ value: 'undefined' })) },
+    value: { kind: 'array', items: Array.from({ length: 8 }, () => ({ value: 'undefined' })) },
   })
 })
 

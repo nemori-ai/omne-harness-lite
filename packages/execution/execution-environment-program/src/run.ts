@@ -123,7 +123,7 @@ function returned(value: unknown, console: string, limits: ProgramLimits): Progr
     : { kind: 'invalid-output', path: '$ (nested too deeply)', console }
 }
 
-function outcomeOf(
+export function outcomeOf(
   result: CodemodeResult,
   cause: Cause | null,
   head: number,
@@ -166,18 +166,14 @@ function computeClock(ms: number, expire: () => void) {
 
 type Domain = Readonly<{ run: ProgramRun; booted: Promise<boolean> }>
 
-function openDomain(
-  request: Request,
-  ready: Ready,
-  wasm: CodemodeWasmModule,
-  engine: ProgramEngine,
-): Domain {
+function openDomain(request: Request, ready: Ready, engine: ProgramEngine): Domain {
   const { limits } = request
-  let exited: Promise<void> = Promise.resolve()
+  let exited: Promise<void> | null = null
   const sandbox = new CodemodeSandbox({
-    wasm,
+    wasm: engine.wasm(),
     memoryLimitBytes: limits.memoryBytes,
     ...(engine.workerUrl === undefined ? {} : { workerUrl: engine.workerUrl }),
+    acquireWorker: () => () => void engine.domains.active--,
     onWorkerStarted: done => void (exited = done),
   })
   const controller = new AbortController()
@@ -186,20 +182,17 @@ function openDomain(
   let cause: Cause | null = null
   let issued = 0
   let delivered = 0
-  let held: (() => void)[] | null = []
+  const end = (why: Cause) => {
+    if (cause !== null || handle.finished) return
+    cause = why
+    controller.abort()
+  }
   const tell = (event: () => void) => {
     try {
       event()
     } catch {
       end('aborted')
     }
-  }
-  const emit = (event: () => void) => (held === null ? tell(event) : held.push(event))
-  const end = (why: Cause) => {
-    if (cause !== null || handle.finished) return
-    cause = why
-    clock.pause()
-    controller.abort()
   }
   const clock = computeClock(limits.computeMs, () => end('compute-time'))
   const deliver = (id: number, outcome: CodemodeOutcome) => {
@@ -221,7 +214,7 @@ function openDomain(
     }
     const ordinal = ++issued
     waiting.set(ordinal, call.id)
-    emit(() => request.onCall({ ordinal, entry, argument: read.value }))
+    tell(() => request.onCall({ ordinal, entry, argument: read.value }))
   }
   let started: (value: boolean) => void = () => undefined
   const booted = new Promise<boolean>(resolve => void (started = resolve))
@@ -239,36 +232,29 @@ function openDomain(
     onIdle(seq) {
       if (seq !== delivered || cause !== null) return
       clock.pause()
-      const count = issued
-      emit(() => request.onIdle(count))
+      tell(() => request.onIdle(issued))
     },
   })
   const outcome = handle.result.then(async result => {
     clock.pause()
-    waiting.clear()
-    started(result.ok || result.error.kind !== 'sandbox')
+    started(false)
     await sandbox.close()
+    if (exited === null) engine.domains.active--
     await exited
-    engine.domains.active--
     return outcomeOf(result, cause, ready.head, limits)
   })
   const run: ProgramRun = {
     outcome,
     answer(ordinal, answer) {
       const id = waiting.get(ordinal)
-      if (id === undefined || handle.finished || cause !== null) return 'not-waiting'
+      if (id === undefined || handle.finished) return 'not-waiting'
       waiting.delete(ordinal)
       deliver(id, answerOf(answer, request.failures))
       return 'delivered'
     },
     abort: () => end('aborted'),
   }
-  const flush = () => {
-    const events = held ?? []
-    held = null
-    for (const event of events) tell(event)
-  }
-  return { run, booted: booted.finally(() => setImmediate(flush)) }
+  return { run, booted }
 }
 
 /** Runs one program in a new execution domain. The outcome is given only after the thread has exited. */
@@ -288,14 +274,7 @@ export async function startProgram(
   }
   if (engine.domains.active >= engine.domains.max) return refuse('capacity')
   engine.domains.active++
-  let wasm: CodemodeWasmModule
-  try {
-    wasm = await engine.wasm()
-  } catch {
-    engine.domains.active--
-    return refuse('unavailable')
-  }
-  const domain = openDomain(request, prepared, wasm, engine)
+  const domain = openDomain(request, prepared, engine)
   if (await domain.booted) return { kind: 'done', requestId, value: domain.run }
   await domain.run.outcome
   return refuse('unavailable')

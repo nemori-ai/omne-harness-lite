@@ -50,6 +50,7 @@ type Script = Readonly<{
   input?: unknown
   limits?: Partial<ProgramLimits>
   entries?: readonly string[]
+  failures?: readonly string[]
   /** Answers each call when it arrives; `undefined` leaves the call waiting. */
   answer?(call: ProgramCall, run: ProgramRun): ProgramAnswer | undefined
   idle?(issued: number, started: Started): void
@@ -70,7 +71,7 @@ async function start(s: ProgramConformanceSubject, source: string, script: Scrip
     source,
     input: json(script.input ?? null),
     entries: script.entries ?? ENTRIES,
-    failures: ['ToolError'],
+    failures: script.failures ?? ['ToolError'],
     limits: { ...LIMITS, ...script.limits },
     onCall(call) {
       started.calls.push(call)
@@ -214,20 +215,31 @@ async function checkRunaways(s: ProgramConformanceSubject, stallMs: number): Pro
 }
 
 async function checkWaitingIsNotCompute(s: ProgramConformanceSubject): Promise<void> {
-  const { outcome } = await execute(s, 'return (await Echo.say({ text: "late" })).text', {
+  const late = (ms: number) => (call: ProgramCall, run: ProgramRun) => {
+    setTimeout(() => run.answer(call.ordinal, echo(call)), ms)
+    return undefined
+  }
+  const waited = await execute(s, 'return (await Echo.say({ text: "late" })).text', {
     limits: { computeMs: 1000 },
-    answer(call, run) {
-      setTimeout(() => run.answer(call.ordinal, echo(call)), 2000)
-      return undefined
-    },
+    answer: late(2000),
   })
-  assert.equal(returned(outcome), 'late')
-  const sliced = await execute(
-    s,
-    'let x = 0\nfor (let k = 0; k < 400; k++) { for (let i = 0; i < 2e6; i++) x += i\nawait Echo.say({}) }\nreturn x',
-    { limits: { computeMs: 300, calls: 1000 } },
-  )
+  assert.equal(returned(waited.outcome), 'late')
+  const pair = 'await Promise.all([Echo.say({}), Echo.say({})])\nreturn (await Twice({ n: 3 })).n'
+  const afterPair = await execute(s, pair, {
+    answer: (call, run) =>
+      call.entry === 'Twice' ? late(LIMITS.computeMs * 2)(call, run) : echo(call),
+  })
+  assert.equal(returned(afterPair.outcome), 3)
+  const spun = await execute(s, 'await Echo.say({})\nwhile (true) {}', { answer: late(50) })
+  assert.equal(exceeded(spun.outcome), 'compute-time')
+  const slices =
+    'let x = 0\nfor (let k = 0; k < 60; k++) { for (let i = 0; i < 2e5; i++) x += i\nawait Echo.say({}) }'
+  const sliced = await execute(s, slices, {
+    limits: { computeMs: 150, calls: 100 },
+    answer: late(5),
+  })
   assert.equal(exceeded(sliced.outcome), 'compute-time')
+  assert.ok(sliced.calls.length > 1, 'no single slice may use up the limit')
 }
 
 async function checkCallAndOutputLimits(s: ProgramConformanceSubject): Promise<void> {
@@ -243,6 +255,11 @@ async function checkCallAndOutputLimits(s: ProgramConformanceSubject): Promise<v
   )
   const large = await execute(s, 'return "x".repeat(5000)', { limits: { outputBytes: 4096 } })
   assert.equal(exceeded(large.outcome), 'output')
+  const fits = 'console.log("x".repeat(1000))\nreturn "y".repeat(3093)'
+  const exact = await execute(s, fits, { limits: { outputBytes: 4095 } })
+  assert.equal(returned(exact.outcome), 'y'.repeat(3093))
+  const over = await execute(s, fits, { limits: { outputBytes: 4094 } })
+  assert.equal(exceeded(over.outcome), 'output')
   const noisy = await execute(s, 'for (let i = 0; i < 100; i++) console.log("x".repeat(100))', {
     limits: { outputBytes: 4096 },
   })
@@ -277,6 +294,10 @@ async function checkSyntax(s: ProgramConformanceSubject): Promise<void> {
   assert.equal(await line('const a = 1\nenum Kind { A }\nreturn a'), 2)
   assert.equal(await line('import fs from "node:fs"\nreturn 1'), 1)
   assert.equal(await line('const a = 1\n\nnamespace N { export const b = 1 }'), 3)
+  assert.equal(await line('const a = 1\nconst a = 2'), 2)
+  const refused = await start(s, 'const b = ;')
+  const run = refused.result.kind === 'done' ? refused.result.value : undefined
+  assert.equal(run?.answer(1, denied), 'not-waiting')
 }
 
 async function checkTypesAreErased(s: ProgramConformanceSubject): Promise<void> {
@@ -316,14 +337,32 @@ async function checkFailures(s: ProgramConformanceSubject): Promise<void> {
     ],
     ['ToolError', denied.message, 3],
   )
-  const thrown = await execute(s, 'console.log("before")\nthrow new RangeError("no")')
+  const stranger = await execute(s, source.replace('error.name,', 'error.constructor.name,'), {
+    answer: () => ({ ...denied, name: 'Stranger' }),
+  })
+  assert.deepEqual(returned(stranger.outcome), [false, true, 'Error', 'denied', denied.message])
+}
+
+async function checkThrownLines(s: ProgramConformanceSubject): Promise<void> {
+  const thrown = await execute(
+    s,
+    'console.log("before")\nconsole.log("it")\nthrow new RangeError("no")',
+  )
   assert.deepEqual(thrown.outcome, {
     kind: 'threw',
     name: 'RangeError',
     message: 'no',
-    line: 2,
-    console: 'before',
+    line: 3,
+    console: 'before\nit',
   })
+  const lineOf = async (source: string) => {
+    const { outcome } = await execute(s, source)
+    assert.equal(outcome.kind, 'threw', source)
+    return outcome.kind === 'threw' ? outcome.line : undefined
+  }
+  assert.equal(await lineOf('throw new Error("first line")'), 1)
+  assert.equal(await lineOf(`${'\n'.repeat(11)}throw new Error("line twelve")`), 12)
+  assert.equal(await lineOf('throw "not an error"'), null)
 }
 
 async function checkAbort(s: ProgramConformanceSubject): Promise<void> {
@@ -338,6 +377,11 @@ async function checkAbort(s: ProgramConformanceSubject): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 50))
   busy.started.run.abort()
   assert.equal((await busy.started.run.outcome).kind, 'aborted')
+  const spent = await start(s, 'while (true) {}', { limits: { computeMs: 50 } })
+  assert.equal(spent.result.kind, 'done')
+  await new Promise(resolve => setTimeout(resolve, 100))
+  spent.started.run.abort()
+  assert.equal(exceeded(await spent.started.run.outcome), 'compute-time')
 }
 
 async function checkAnswers(s: ProgramConformanceSubject): Promise<void> {
@@ -382,8 +426,13 @@ async function checkRefusals(s: ProgramConformanceSubject): Promise<void> {
     ['tools'],
     ['Echo.say', 'Echo.say'],
     ['Echo', 'Echo.say'],
+    ['Echo.say', 'Echo'],
+    ['Twice', 'Twice'],
+    ['ToolError.raise'],
   ])
     assert.equal(await reason({ entries }), 'invalidInput')
+  for (const failures of [['ToolError', 'ToolError'], ['not-a-name'], ['Echo']])
+    assert.equal(await reason({ failures }), 'invalidInput')
 }
 
 export const programConformanceNames = [
@@ -399,6 +448,7 @@ export const programConformanceNames = [
   'program.syntax',
   'program.types-are-erased',
   'program.failures',
+  'program.thrown-lines',
   'program.abort',
   'program.answers',
   'program.refusals',
@@ -421,6 +471,7 @@ export function programFacilityConformance(
     checkSyntax,
     checkTypesAreErased,
     checkFailures,
+    checkThrownLines,
     checkAbort,
     checkAnswers,
     checkRefusals,
