@@ -95,8 +95,9 @@ export function executeDispatch(requirement: DispatchRequirement, port: Particip
     return { kind: 'conflict', basis: { forbidden: true } } as const
   const at = fact.data.decisionAt
   if (command.kind === 'beat') beat(port, command)
-  else if (command.kind === 'direct') writeDirect(port, command)
-  else if (command.kind === 'step') {
+  else if (command.kind === 'direct') {
+    if (!writeDirect(port, command)) return stale
+  } else if (command.kind === 'step') {
     if (!stepJob(port, command.owner, { ...command, at })) return stale
   } else {
     const record = readRecord(port, command.owner, command.scheduleId)

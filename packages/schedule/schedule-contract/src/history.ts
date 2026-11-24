@@ -95,7 +95,8 @@ export const ScheduleNotificationSummarySchema = z.discriminatedUnion('outcome',
     durableAvailableReceiptRef: z.null(),
   }),
 ])
-export const ScheduleExecutionRowSchema = z.strictObject({
+const ScheduleSlotRowSchema = z.strictObject({
+  kind: z.literal('slot'),
   rowRef: ref,
   scheduleId: ScheduleIdSchema,
   occurrenceKey: ref,
@@ -106,6 +107,29 @@ export const ScheduleExecutionRowSchema = z.strictObject({
   job: ScheduleJobSummarySchema.nullable(),
   notification: ScheduleNotificationSummarySchema.nullable(),
 })
+const ScheduleLapseRowSchema = z.strictObject({
+  kind: z.literal('lapse'),
+  rowRef: ref,
+  scheduleId: ScheduleIdSchema,
+  originalScheduledAt: ScheduleInstantSchema,
+  through: ScheduleInstantSchema,
+  cause: ref,
+  reason: ref,
+  count: z.int().nonnegative().nullable(),
+  selected: z.int().nonnegative(),
+})
+const ScheduleDirectRowSchema = z.strictObject({
+  kind: z.literal('direct'),
+  rowRef: ref,
+  originalScheduledAt: ScheduleInstantSchema,
+  job: ScheduleJobSummarySchema,
+})
+/** One row of a schedule's history: a disposed slot, a missed stretch, or a Job started outside any schedule. */
+export const ScheduleExecutionRowSchema = z.discriminatedUnion('kind', [
+  ScheduleSlotRowSchema,
+  ScheduleLapseRowSchema,
+  ScheduleDirectRowSchema,
+])
 export type ScheduleJobId = z.infer<typeof ScheduleJobIdSchema>
 export type ScheduleReceiptId = z.infer<typeof ScheduleReceiptIdSchema>
 export type SchedulePreparationSummary = z.infer<typeof SchedulePreparationSummarySchema>

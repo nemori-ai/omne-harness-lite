@@ -92,6 +92,7 @@ export type DispatchCommand =
       event: JobEvent
       next: JobFacts
       at: ScheduleInstant
+      operation?: string
     }>
   | Readonly<{
       kind: 'classify'

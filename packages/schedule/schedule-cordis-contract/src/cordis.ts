@@ -2,6 +2,7 @@ import { Service, type Context } from '@deepseek-ai/cordis'
 import type {
   ScheduleCommands,
   ScheduleJobExecutor,
+  ScheduleJobs,
   ScheduleProgram,
   ScheduleQueries,
   ScheduleResultCarrier,
@@ -38,6 +39,27 @@ export abstract class ScheduleQueriesService extends Service implements Schedule
   abstract readonly preview: ScheduleQueries['preview']
 }
 export const scheduleQueriesKey = ScheduleQueriesService.provide
+
+/** @owner packages/schedule/schedule-cordis-contract */
+export abstract class ScheduleJobsService extends Service implements ScheduleJobs {
+  static readonly provide = 'scheduleJobs'
+
+  constructor(ctx: Context) {
+    super(ctx, ScheduleJobsService.provide)
+  }
+
+  abstract readonly get: ScheduleJobs['get']
+  abstract readonly cancel: ScheduleJobs['cancel']
+  abstract readonly queryCancel: ScheduleJobs['queryCancel']
+  abstract readonly start: ScheduleJobs['start']
+  abstract readonly queryStart: ScheduleJobs['queryStart']
+  /** Told when a tenant's Jobs or history may have changed, and when nothing more will be told. */
+  abstract watch(
+    tenant: string,
+    listener: Readonly<{ changed(): void; closed(): void }>,
+  ): () => void
+}
+export const scheduleJobsKey = ScheduleJobsService.provide
 
 /** @owner packages/schedule/schedule-cordis-contract
  * The programs program work can name: a row registers one and withdraws only its own. */
@@ -85,6 +107,7 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     scheduleCommands: ScheduleCommandsService
     scheduleQueries: ScheduleQueriesService
+    scheduleJobs: ScheduleJobsService
     schedulePrograms: ScheduleProgramsService
     scheduleExecutors: ScheduleExecutorsService
     scheduleCarriers: ScheduleCarriersService

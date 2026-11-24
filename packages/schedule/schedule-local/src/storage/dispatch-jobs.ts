@@ -91,14 +91,26 @@ export function saveJob(
 export function stepJob(
   port: ParticipantPort,
   owner: ScheduleOwner,
-  input: Readonly<{ jobId: string; revision: number; event: JobEvent; next: JobFacts; at: string }>,
+  input: Readonly<{
+    jobId: string
+    revision: number
+    event: JobEvent
+    next: JobFacts
+    at: string
+    operation?: string | undefined
+  }>,
 ): boolean {
   const job = readJob(port, owner, input.jobId)
   const facts = job === null ? null : factsOf(job)
   if (job === null || facts === null || job.summary.revision !== input.revision) return false
   const step = advanceJob(facts, input.event)
   if (step.kind !== 'move' || !equal(step.next, input.next)) return false
-  saveJob(port, owner, withFacts(job, step.next), { ...input.event, at: input.at })
+  const { operation } = input
+  saveJob(port, owner, withFacts(job, step.next), {
+    ...input.event,
+    at: input.at,
+    ...(operation === undefined ? {} : { operation }),
+  })
   return true
 }
 
@@ -158,12 +170,14 @@ function toDispatchJobs(
   })
 }
 
-/** A Job started outside any schedule: accepted now, with no slot and no count. */
+/** A Job started outside any schedule: accepted now, with no slot and no count; its key taken by other work is a conflict. */
 export function writeDirect(
   port: ParticipantPort,
   input: Readonly<{ owner: ScheduleOwner; jobId: string; work: unknown; at: string }>,
-) {
-  if (readJob(port, input.owner, input.jobId) !== null) return
+): boolean {
+  const existing = readJob(port, input.owner, input.jobId)
+  if (existing !== null)
+    return existing.purpose.kind === 'execution' && equal(existing.purpose.work, input.work)
   const job = jobRecordSchema.parse({
     summary: {
       jobId: input.jobId,
@@ -202,6 +216,7 @@ export function writeDirect(
     input.jobId,
     canonical({ kind: 'accepted', direct: true, at: input.at }),
   ])
+  return true
 }
 
 export function dispatchJobOf(

@@ -27,6 +27,7 @@ function historyRow(
   const candidate = first(f).view.nextOccurrence
   if (!candidate) throw new Error('Expected candidate')
   return ScheduleExecutionRowSchema.parse({
+    kind: 'slot',
     rowRef,
     scheduleId: first(f).view.scheduleId,
     occurrenceKey: rowRef,

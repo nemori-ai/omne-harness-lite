@@ -8,6 +8,7 @@ import {
   type ScheduleCallContext,
   type ScheduleCommands,
   type ScheduleDomainError,
+  type ScheduleJobs,
   type ScheduleQueries,
 } from '@omne-harness/schedule-contract'
 import {
@@ -16,6 +17,8 @@ import {
   scheduleCommandsKey,
   scheduleCarriersKey,
   scheduleExecutorsKey,
+  scheduleJobsKey,
+  ScheduleJobsService,
   scheduleProgramsKey,
   scheduleQueriesKey,
 } from '@omne-harness/schedule-cordis-contract/cordis'
@@ -109,7 +112,27 @@ const unavailable = (requestId: string): ScheduleDomainError => ({
   details: {},
 })
 
+type Listener = Readonly<{ changed(): void; closed(): void }>
+
+class Watchers {
+  private readonly byTenant = new Map<string, Set<Listener>>()
+  add(tenant: string, listener: Listener): () => void {
+    const set = this.byTenant.get(tenant) ?? new Set<Listener>()
+    this.byTenant.set(tenant, set)
+    set.add(listener)
+    return () => set.delete(listener)
+  }
+  changed(tenant: string): void {
+    for (const listener of this.byTenant.get(tenant) ?? []) listener.changed()
+  }
+  close(): void {
+    for (const set of this.byTenant.values()) for (const listener of set) listener.closed()
+    this.byTenant.clear()
+  }
+}
+
 type Host = Readonly<{
+  watchers: Watchers
   applicationOf(context: ScheduleCallContext): Promise<ScheduleLocalApplication | undefined>
   /** Opens the application of every tenant the directory lists, so each has a dispatcher without waiting for a call. */
   watchAll(): Promise<void>
@@ -127,7 +150,7 @@ async function registration() {
 async function openTenantApplication(
   ctx: Context,
   config: ScheduleRowConfig,
-  carriers: Carriers,
+  carriers: Carriers & Readonly<{ changed: (tenant: string) => void }>,
   tenantRef: string,
   combination: () => Promise<Readonly<{ combinationVersion: string; manifestDigest: string }>>,
 ): Promise<ScheduleLocalApplication | undefined> {
@@ -207,20 +230,6 @@ async function openTenantApplication(
     },
     query: {
       authorizer: authorizers.read,
-      history: {
-        observe: async () => ({ kind: 'ok', value: { observationRevision: `${OWNER}/no-runs` } }),
-        confirm: async () => ({ kind: 'ok', value: { observationRevision: `${OWNER}/no-runs` } }),
-        read: async () => ({
-          kind: 'ok',
-          value: {
-            items: [],
-            nextCursor: null,
-            total: { kind: 'exact', value: 0 },
-            complete: true,
-            observationRevision: `${OWNER}/no-runs`,
-          },
-        }),
-      },
       limits: {
         timeoutMs: 10_000,
         maxDependencyCalls: 1000,
@@ -238,6 +247,7 @@ async function openTenantApplication(
       policy: config.dispatch,
       report: error =>
         ctx.logger('schedule').warn('schedule dispatch round failed: %s', String(error)),
+      changed: () => carriers.changed(tenantRef),
     },
   })
 }
@@ -245,12 +255,19 @@ async function openTenantApplication(
 /** One schedule application per tenant, in the tenant's own domain; registered the first time it is asked. */
 function createTenantHost(ctx: Context, config: ScheduleRowConfig, carriers: Carriers): Host {
   const opened = new Map<string, Promise<ScheduleLocalApplication | undefined>>()
+  const watchers = new Watchers()
   let combination:
     | Promise<Readonly<{ combinationVersion: string; manifestDigest: string }>>
     | undefined
 
   const open = (tenantRef: string) =>
-    openTenantApplication(ctx, config, carriers, tenantRef, () => (combination ??= registration()))
+    openTenantApplication(
+      ctx,
+      config,
+      { ...carriers, changed: tenant => watchers.changed(tenant) },
+      tenantRef,
+      () => (combination ??= registration()),
+    )
 
   function openTenant(tenantRef: string): Promise<ScheduleLocalApplication | undefined> {
     let opening = opened.get(tenantRef)
@@ -262,6 +279,7 @@ function createTenantHost(ctx: Context, config: ScheduleRowConfig, carriers: Car
   }
 
   return {
+    watchers,
     async watchAll() {
       const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown> | undefined
       const listed = await directory
@@ -283,6 +301,7 @@ function createTenantHost(ctx: Context, config: ScheduleRowConfig, carriers: Car
       return application
     },
     async close() {
+      watchers.close()
       const all = await Promise.all(opened.values())
       opened.clear()
       await Promise.all(all.map(application => application?.close()))
@@ -354,6 +373,32 @@ class Queries extends ScheduleQueriesService {
   }
 }
 
+class Jobs extends ScheduleJobsService {
+  readonly get: ScheduleJobs['get']
+  readonly cancel: ScheduleJobs['cancel']
+  readonly queryCancel: ScheduleJobs['queryCancel']
+  readonly start: ScheduleJobs['start']
+  readonly queryStart: ScheduleJobs['queryStart']
+  constructor(ctx: Context, host: Host) {
+    super(ctx)
+    const via =
+      <I, R>(call: (jobs: ScheduleJobs, context: ScheduleCallContext, input: I) => Promise<R>) =>
+      async (context: ScheduleCallContext, input: I) => {
+        const jobs = (await host.applicationOf(context))?.jobs
+        return jobs === undefined
+          ? ({ kind: 'error', error: unavailable(context.requestId) } as R)
+          : call(jobs, context, input)
+      }
+    this.get = via((j, c, i) => j.get(c, i))
+    this.cancel = via((j, c, i) => j.cancel(c, i))
+    this.queryCancel = via((j, c, i) => j.queryCancel(c, i))
+    this.start = via((j, c, i) => j.start(c, i))
+    this.queryStart = via((j, c, i) => j.queryStart(c, i))
+    this.watch = (tenant, listener) => host.watchers.add(tenant, listener)
+  }
+  readonly watch: ScheduleJobsService['watch']
+}
+
 export const scheduleRow = defineRow({
   row: 'schedule',
   implementation: 'real',
@@ -361,6 +406,7 @@ export const scheduleRow = defineRow({
     provides: [
       scheduleCommandsKey,
       scheduleQueriesKey,
+      scheduleJobsKey,
       scheduleProgramsKey,
       scheduleExecutorsKey,
       scheduleCarriersKey,
@@ -388,6 +434,7 @@ export const scheduleRow = defineRow({
     void host.watchAll()
     new Commands(ctx, host)
     new Queries(ctx, host)
+    new Jobs(ctx, host)
     return {
       async stop() {
         await host.close()

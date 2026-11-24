@@ -1,3 +1,4 @@
+import { createScheduleJobs } from '../../src/jobs.ts'
 import { simulatedTime } from '@omne-harness/time-source/simulated'
 import {
   ScheduleDefinitionSchema,
@@ -115,12 +116,21 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
     if (created.kind !== 'committed') throw new Error(JSON.stringify(created))
     return created.value.scheduleId
   }
+  const facet = (from: ReturnType<typeof dispatcher>) =>
+    createScheduleJobs({
+      sql,
+      owner: context.owner,
+      queries: app.queries,
+      authorizer: local.query.authorizer,
+      dispatcher: from,
+    })
   const rows = (sql: string) => world.sql(sql) as Record<string, unknown>[]
   return {
     world,
     app,
     time,
     dispatcher,
+    facet,
     create,
     rows,
     receipts: (id: string) =>

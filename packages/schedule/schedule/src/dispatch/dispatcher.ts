@@ -11,7 +11,7 @@ export type CancelAnswer =
   | Readonly<{ kind: 'absent' | 'unknown' }>
 export type DirectAnswer =
   | Readonly<{ kind: 'started'; jobId: ScheduleJobId; replayed: boolean }>
-  | Readonly<{ kind: 'unknown'; jobId: ScheduleJobId }>
+  | Readonly<{ kind: 'unknown' | 'conflict'; jobId: ScheduleJobId }>
 
 export {
   reminderDeadline,
@@ -28,8 +28,23 @@ export type RoundReport = Readonly<{
   disposed: number
 }>
 
+/** The store as the dispatcher uses it: readers hear of each committed change, the heartbeat aside. */
+function telling(ports: DispatcherPorts): DispatcherPorts['store'] {
+  const { store, changed } = ports
+  if (changed === undefined) return store
+  return {
+    ...store,
+    async commit(command) {
+      const result = await store.commit(command)
+      if (result.kind === 'committed' && command.kind !== 'beat') changed()
+      return result
+    },
+  }
+}
+
 export function createDispatcher(ports: DispatcherPorts) {
-  const { store, time, policy } = ports
+  const { time, policy } = ports
+  const store = telling(ports)
   let stopping = false
   let inflight: Promise<RoundReport> | undefined
   let cancelWait = (): void => {}
@@ -97,7 +112,7 @@ export function createDispatcher(ports: DispatcherPorts) {
   }
 
   /** Cancels one Job: before its start it never starts; once started a stop is asked; a concluded Job keeps its outcome. */
-  async function cancel(jobId: ScheduleJobId): Promise<CancelAnswer> {
+  async function cancel(jobId: ScheduleJobId, operation?: string): Promise<CancelAnswer> {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const read = await store.job(jobId)
       if (read.kind === 'unavailable') return { kind: 'unknown' }
@@ -113,6 +128,7 @@ export function createDispatcher(ports: DispatcherPorts) {
         event: { kind: 'cancel' },
         next: step.next,
         at: iso(time.now()),
+        ...(operation === undefined ? {} : { operation }),
       })
       if (result.kind === 'committed') return { kind: 'changed', facts: step.next }
       if (result.kind === 'unknown') return { kind: 'unknown' }
@@ -130,9 +146,8 @@ export function createDispatcher(ports: DispatcherPorts) {
       work,
       at: iso(time.now()),
     })
-    return result.kind === 'committed'
-      ? { kind: 'started', jobId, replayed: result.replayed }
-      : { kind: 'unknown', jobId }
+    if (result.kind === 'committed') return { kind: 'started', jobId, replayed: result.replayed }
+    return { kind: result.kind === 'stale' ? 'conflict' : 'unknown', jobId }
   }
 
   return {

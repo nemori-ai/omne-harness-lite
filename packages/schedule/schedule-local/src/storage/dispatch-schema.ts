@@ -124,6 +124,7 @@ export const dispatchCommandSchema = z.discriminatedUnion('kind', [
     revision: z.int().positive(),
     event: jobEventSchema,
     next: jobFactsSchema,
+    operation: z.string().min(1).optional(),
   }),
   z.strictObject({
     kind: z.literal('classify'),

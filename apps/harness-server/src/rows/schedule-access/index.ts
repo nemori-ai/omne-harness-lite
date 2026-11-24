@@ -6,6 +6,7 @@ import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { ScheduleInstantSchema } from '@omne-harness/schedule-contract'
 import {
   scheduleCommandsKey,
+  scheduleJobsKey,
   scheduleQueriesKey,
 } from '@omne-harness/schedule-cordis-contract/cordis'
 import type { ScheduleFaces, SchedulePrincipals } from '@omne-harness/schedule-access'
@@ -30,7 +31,10 @@ function principalsOf(ctx: Context): SchedulePrincipals {
 function facesOf(ctx: Context): ScheduleFaces | undefined {
   const commands = ctx.get(scheduleCommandsKey)
   const queries = ctx.get(scheduleQueriesKey)
-  return commands === undefined || queries === undefined ? undefined : { commands, queries }
+  const jobs = ctx.get(scheduleJobsKey)
+  return commands === undefined || queries === undefined || jobs === undefined
+    ? undefined
+    : { commands, queries, jobs }
 }
 
 /** Built when the row applies, so its clock is the time of this run. */

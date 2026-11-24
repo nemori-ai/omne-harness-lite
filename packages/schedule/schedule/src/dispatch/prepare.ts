@@ -49,11 +49,12 @@ export type DispatcherPorts = Readonly<{
   /** The carriers the purpose names that this deployment does not have now. */
   missingCarriers(purpose: SchedulePurpose): readonly string[]
   standing(owner: ScheduleOwner): Promise<OwnerStanding>
-  /** The executor of a kind of work in this deployment; absent when none is registered now. */
   executor(work: ScheduleWork): ScheduleJobExecutor | undefined
   time: DispatcherTime
   policy: Readonly<{ intervalMs: number; gapMs: number; roundLimit: number; classifyPages: number }>
   report?: (error: unknown) => void
+  /** Told after each committed dispatch command: what readers see of Jobs and history may have changed. */
+  changed?: () => void
 }>
 
 const PAGE = 100

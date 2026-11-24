@@ -9,6 +9,7 @@ import { readRecord } from './records.ts'
 import { readPending } from './dispatch-read.ts'
 import { dispatchJobOf } from './dispatch-jobs.ts'
 import { shownRecord } from './dispatch-standing.ts'
+import { readHistoryRequest } from './history-read.ts'
 function observation(port: ReadPort, owner: ScheduleOwner): string {
   const row = port.execute('SELECT revision FROM sc_observations WHERE owner = ? LIMIT 1', [
     canonical(owner),
@@ -103,6 +104,15 @@ function read(input: RepositoryRequest, port: ReadPort) {
   if (input.kind === 'dispatchPending')
     return ownerMatches(input.scope, input.owner)
       ? { kind: 'ok', value: readPending(port, input) }
+      : { kind: 'absent' }
+  if (
+    input.kind === 'history' ||
+    input.kind === 'historyRevision' ||
+    input.kind === 'jobDetail' ||
+    input.kind === 'jobCancel'
+  )
+    return ownerMatches(input.scope, input.owner)
+      ? readHistoryRequest(port, input)
       : { kind: 'absent' }
   const owner =
     input.kind === 'schedule'

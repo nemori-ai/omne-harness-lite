@@ -214,6 +214,7 @@ describe('stable simple reads', () => {
     const candidate = first(f).view.nextOccurrence
     if (!candidate) throw new Error('Expected candidate')
     const row = ScheduleExecutionRowSchema.parse({
+      kind: 'slot',
       rowRef: 'row:1',
       scheduleId: first(f).view.scheduleId,
       occurrenceKey: 'occ:1',

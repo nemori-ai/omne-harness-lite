@@ -2,10 +2,14 @@ import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-
 import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import {
   ScheduleDefinitionSchema,
+  ScheduleWorkSchema,
   type ScheduleCandidate,
   type ScheduleDefinition,
   type ScheduleDomainError,
+  type ScheduleExecutionRow,
+  type ScheduleJobDetail,
   type ScheduleRevisionView,
+  type ScheduleWork,
   type ScheduleView,
 } from '@omne-harness/schedule-contract'
 
@@ -27,6 +31,11 @@ export function treeOf(value: unknown): JsonValue {
 /** A definition the client sends, judged by the schedule's own schema. */
 export function definitionOf(tree: JsonValue): ScheduleDefinition | undefined {
   const parsed = ScheduleDefinitionSchema.safeParse(JSON.parse(writeJsonText(tree)))
+  return parsed.success ? parsed.data : undefined
+}
+
+export function workOf(tree: JsonValue): ScheduleWork | undefined {
+  const parsed = ScheduleWorkSchema.safeParse(JSON.parse(writeJsonText(tree)))
   return parsed.success ? parsed.data : undefined
 }
 
@@ -117,4 +126,75 @@ export function refusalOf(error: ScheduleDomainError): Refusal {
   if (UNSUPPORTED.has(error.code)) return { outcome: 'unsupported', code: error.code }
   if (CONFLICT.has(error.code)) return { outcome: 'conflict', code: error.code }
   return { outcome: 'basis-unavailable' }
+}
+
+type JobSummary = ScheduleJobDetail['job']
+
+/** Where a Job stands, read the same way for execution and notification bodies. */
+export function jobCardOf(job: JobSummary) {
+  const { body } = job
+  const concluded =
+    body.kind === 'execution'
+      ? body.executionState === 'concluded'
+        ? body.outcome
+        : null
+      : (({ durableAvailable: 'succeeded', failed: 'failed', cancelled: 'cancelled' } as const)[
+          body.primaryOutcome as 'durableAvailable' | 'failed' | 'cancelled'
+        ] ?? null)
+  const state =
+    body.kind === 'execution' ? body.executionState : concluded === null ? 'running' : 'concluded'
+  return {
+    job: job.jobId,
+    state,
+    outcome: concluded,
+    stop: job.stopState,
+    acceptedAt: instantOf(job.acceptedAt),
+  }
+}
+
+export function historyRowOf(row: ScheduleExecutionRow) {
+  const at = instantOf(row.originalScheduledAt)
+  if (row.kind === 'direct')
+    return { kind: 'direct', row: row.rowRef, at, job: jobCardOf(row.job) } as const
+  if (row.kind === 'lapse')
+    return {
+      kind: 'lapse',
+      row: row.rowRef,
+      schedule: row.scheduleId,
+      at,
+      through: instantOf(row.through),
+      cause: row.cause,
+      reason: row.reason,
+      count: row.count,
+      selected: row.selected,
+    } as const
+  return {
+    kind: 'slot',
+    row: row.rowRef,
+    schedule: row.scheduleId,
+    at,
+    disposition: row.receipt?.disposition ?? 'prepared',
+    reason: row.receipt?.reasonCode ?? 'prepared',
+    job: row.job === null ? null : jobCardOf(row.job),
+  } as const
+}
+
+export function jobDetailOf(detail: ScheduleJobDetail) {
+  const work = detail.purpose.kind === 'execution' ? detail.purpose.work : null
+  return {
+    ...jobCardOf(detail.job),
+    schedule: detail.scheduleId,
+    slot: detail.slot === null ? null : instantOf(detail.slot.scheduledAt),
+    work: treeOf(work),
+    reason: detail.reason,
+    where:
+      detail.executionWhere === null
+        ? null
+        : {
+            kind: 'program' as const,
+            program: detail.executionWhere.programRef,
+            execution: detail.executionWhere.executionRef,
+          },
+    events: detail.events.map(event => ({ ...event, at: instantOf(event.at) })),
+  } as const
 }

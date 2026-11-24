@@ -149,6 +149,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: [
       'scheduleCommands',
       'scheduleQueries',
+      'scheduleJobs',
       'schedulePrograms',
       'scheduleExecutors',
       'scheduleCarriers',
