@@ -45,6 +45,14 @@ describe('Snapper', () => {
     expect(new Uint8Array((await file?.blob?.arrayBuffer()) ?? new ArrayBuffer(0))).toEqual(PNG)
   })
 
+  it('goes back to idle without a word when the person cancels the capture', async () => {
+    const { source } = sourceOf([async () => ({ kind: 'cancelled' })])
+    const { snapper, delivered } = snapperOf(source)
+    await snapper.press()
+    expect(snapper.read()).toEqual({ kind: 'idle' })
+    expect(delivered).toEqual([])
+  })
+
   it('ignores a press while it captures', async () => {
     let finish: (answer: ScreenAnswer) => void = () => undefined
     const { source, capture } = sourceOf([() => new Promise(done => (finish = done))])
