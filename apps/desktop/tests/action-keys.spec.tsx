@@ -151,7 +151,7 @@ const SHELL_SOURCES = [
   join(import.meta.dirname, '../../../packages/frontend/shell-contract/src'),
 ]
 
-describe('the shell knows no action of a module (C13, FE-I52)', () => {
+describe('the shell knows no action of a module (C13, FE-I60)', () => {
   it('none of the names the modules put is written in the shell', async () => {
     const owned = (await assembled()).filter(action => !action.id.startsWith('shell.'))
     expect(owned.length).toBeGreaterThan(15)

@@ -172,6 +172,7 @@ function Page({
   const fold = useHeadingFold(frame.header, title)
   const known = state.kind === 'open' || state.kind === 'unavailable' ? state.session : null
   const open = state.kind === 'open' ? state.session : null
+  const drawer = useContext(PartDrawContext)
   if (state.kind === 'none')
     return (
       <div className="omne-session-page" data-empty="" ref={setPage}>
@@ -179,30 +180,33 @@ function Page({
         <Body state={state} driver={driver} {...parts} />
       </div>
     )
+  const header = () => (
+    <header className="omne-session-bar" ref={frame.header} {...sessionHeader.props}>
+      <h2 className="omne-session-title" ref={fold.title} {...sessionHeaderTitle.props}>
+        {title}
+      </h2>
+      <FigureControl frame={frame} />
+      <div className="omne-session-bar-end" ref={fold.end}>
+        <HeadingFoldContext.Provider value={fold.bar}>
+          {open === null ? null : heading(open)}
+        </HeadingFoldContext.Provider>
+        {known === null ? null : (
+          <SessionMore
+            key={known}
+            session={known}
+            verbs={state.kind === 'open' ? more : null}
+            folded={open !== null && fold.folded > 0 ? fold.folded : 0}
+            choices={heading}
+          />
+        )}
+      </div>
+    </header>
+  )
   return (
     <SideFrameContext.Provider value={frame}>
       <div className="omne-session-page" ref={setPage}>
         <Backdrop empty={false} />
-        <header className="omne-session-bar" ref={frame.header} {...sessionHeader.props}>
-          <h2 className="omne-session-title" ref={fold.title} {...sessionHeaderTitle.props}>
-            {title}
-          </h2>
-          <FigureControl frame={frame} />
-          <div className="omne-session-bar-end" ref={fold.end}>
-            <HeadingFoldContext.Provider value={fold.bar}>
-              {open === null ? null : heading(open)}
-            </HeadingFoldContext.Provider>
-            {known === null ? null : (
-              <SessionMore
-                key={known}
-                session={known}
-                verbs={state.kind === 'open' ? more : null}
-                folded={open !== null && fold.folded > 0 ? fold.folded : 0}
-                choices={heading}
-              />
-            )}
-          </div>
-        </header>
+        {drawer === null ? header() : sessionHeader.draw(drawer, header, { title })}
         <div className="omne-session-body">
           <div className="omne-session-main">
             <ConnectionLine state={state} />

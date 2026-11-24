@@ -54,6 +54,8 @@ system
           DesktopShell#1  [effective]
         shell.gate
           DesktopShell#1  [effective]
+        shell.icon
+          DesktopShell#1  [effective]
         shell.keymap
           DesktopShell#1  [effective]
         shell.layout
@@ -65,6 +67,8 @@ system
         shell.part-style
           DesktopShell#1  [effective]
         shell.parts
+          DesktopShell#1  [effective]
+        shell.piece
           DesktopShell#1  [effective]
         shell.sidebar
           DesktopShell#1  [effective]
@@ -80,6 +84,9 @@ system
           workspace-ui#1  [effective]
   client
     assets
+      assets.category  [keyed-list]
+        skin
+          plugin-ui.skins  [effective, plugin-ui#1]
       assets.category-page  [list]
         mcp  [effective, mcp-ui#1]
       assets.governance  [one]
@@ -89,7 +96,6 @@ system
           media-converter  [effective, media-ui#1]
         model-provider
           model-provider-access  [effective, model-ui#1]
-      assets.category  [keyed-list]
       assets.control  [keyed-one]
     connection
       connection.protocols  [keyed-one]
@@ -195,6 +201,7 @@ system
         companion  [effective, session-ui#1]
       shell.gate  [one, build]
         identity-ui#1  [effective]
+      shell.icon  [keyed-one]
       shell.keymap  [one]
         slash-command-ui#1  [effective]
       shell.layout  [keyed-one]
@@ -471,6 +478,7 @@ system
           workspace-ui#1  [effective]
         workspace.register
           workspace-ui#1  [effective]
+      shell.piece  [keyed-one]
       shell.sidebar  [list, build]
         session-list  [effective, session-ui#1]
         archived-sessions  [effective, session-ui#1]

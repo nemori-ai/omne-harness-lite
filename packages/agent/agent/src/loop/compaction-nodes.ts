@@ -31,6 +31,7 @@ import {
   type Iteration,
   type Step,
 } from './coordinator-steps.ts'
+import { leaves, type PositionPasses } from './position-passes.ts'
 import type { LoopPorts } from './coordinator.ts'
 import { recordedOutcome } from './coordinator-helpers.ts'
 
@@ -72,6 +73,7 @@ export type CompactionNodeScope<P> = Readonly<{
   prepareHandoff: (request: PendingHandoff) => Promise<Outcome<HandoffOutcome, Failure>>
   select: (conditions: RuntimeConditions) => Promise<Outcome<SelectedModel, Failure>>
   restoredIteration: (at: AgentCheckpoint) => Outcome<Iteration, Failure>
+  positions: Pick<PositionPasses, 'beforeCompaction' | 'afterCompaction'>
 }>
 
 export function producedCompaction(task: CompactionState): ProducedResult {
@@ -156,13 +158,29 @@ async function failedCompaction<P>(
 }
 
 async function c0<P>(scope: CompactionNodeScope<P>): Promise<Outcome<Step, Failure>> {
+  const preparation = originalCompactionOf(scope.checkpoint())
+  const before = await scope.positions.beforeCompaction(preparation)
+  if ('failure' in before) return before
+  if (leaves(before.ok)) return succeed(before.ok)
   const task = await beginCompaction(scope.ports.compactionInputs, {
     ...scope.access,
-    preparation: originalCompactionOf(scope.checkpoint()),
+    preparation,
     provider: scope.provider,
   })
   if ('failure' in task) return task
-  return step('recorded', { checkpoint: { compaction: task.ok } })
+  return step('recorded', { checkpoint: { ...before.ok, compaction: task.ok } })
+}
+
+// The transition the history adopted is the source of the handoff that C3 resolved.
+function committedTransition(read: ExecutionSnapshot, task: CompactionState) {
+  for (const { request } of read.handoffs)
+    if (
+      request.kind === 'execution' &&
+      request.source.kind === 'context-transition' &&
+      canonical(request.source.transition.task) === canonical(task.task)
+    )
+      return request.source.transition
+  return null
 }
 
 async function c1<P>(scope: CompactionNodeScope<P>): Promise<Outcome<Step, Failure>> {
@@ -270,6 +288,11 @@ async function c4<P>(scope: CompactionNodeScope<P>): Promise<Outcome<Step, Failu
   if ('failure' in latest) return latest
   const task = required(latest.ok.checkpoint.compaction, 'compaction task')
   if (task.ended !== 'committed') return fail(invalidCompaction('history was not adopted'))
+  const transition = committedTransition(latest.ok, task)
+  if (transition === null) return fail(invalidCompaction('the adopted transition is missing'))
+  const after = await scope.positions.afterCompaction(transition)
+  if ('failure' in after) return after
+  if (leaves(after.ok)) return succeed(after.ok)
   const restored = scope.restoredIteration(latest.ok.checkpoint)
   if ('failure' in restored) return restored
   const current = restored.ok
@@ -296,11 +319,11 @@ async function c4<P>(scope: CompactionNodeScope<P>): Promise<Outcome<Step, Failu
   current.preparation = resumed.ok
   if (resumed.ok.kind === 'ready') {
     current.ready = resumed.ok
-    return step('ready')
+    return step('ready', { checkpoint: after.ok })
   }
   return resumed.ok.kind === 'cannot-fit'
-    ? step('try-finish', { checkpoint: { requestPreparation: resumed.ok } })
-    : step('prepared')
+    ? step('try-finish', { checkpoint: { ...after.ok, requestPreparation: resumed.ok } })
+    : step('prepared', { checkpoint: after.ok })
 }
 
 export function compactionNodes<P>(scope: CompactionNodeScope<P>) {

@@ -213,6 +213,21 @@ function searchPage(
   })
 }
 
+type ListGiven = Omit<Parameters<typeof SessionListPanel>[0], 'scope' | 'onShow'>
+
+function listItem(shell: ShellService, given: ListGiven): ItemOf<'sidebar'> {
+  const show = (): void => shell.navigate(CONVERSATION_PAGE)
+  return {
+    id: SESSION_LIST,
+    order: 0,
+    render: ({ scope }) => (
+      <PartDrawContext.Provider value={shell}>
+        <SessionListPanel {...given} scope={scope} onShow={show} />
+      </PartDrawContext.Provider>
+    ),
+  }
+}
+
 const needsOf = (options: SessionUiOptions) => ({
   session: needProtocol<ClientOf<SessionProtocol>>(sessionProtocol),
   modelChoices: needPoint(options.modelChoices, { optional: true }),
@@ -258,19 +273,7 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
       ),
   })
   shell.contribute('float', companionItem(shell, workspaces, background))
-  shell.contribute('sidebar', {
-    id: SESSION_LIST,
-    order: 0,
-    render: ({ scope }) => (
-      <SessionListPanel
-        workspaces={workspaces}
-        places={places}
-        scope={scope}
-        onShow={() => shell.navigate(CONVERSATION_PAGE)}
-        conversationShown={conversationShown}
-      />
-    ),
-  })
+  shell.contribute('sidebar', listItem(shell, { workspaces, places, conversationShown }))
   shell.contribute('sidebar', {
     id: ARCHIVED_SESSIONS,
     order: 1,

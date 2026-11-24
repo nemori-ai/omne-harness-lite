@@ -12,6 +12,8 @@
 - `FILE_SUFFIXES` · `package.d.ts`
 - `FloorPort` · `floor.d.ts`
 - `FloorStanding` · `floor.d.ts`
+- `IMAGE_HEAD_BYTES` · `package.d.ts`
+- `IMAGE_SUFFIXES` · `package.d.ts`
 - `JsonValue` · `manifest.d.ts`
 - `Kept` · `loader.d.ts`
 - `Listed` · `loader.d.ts`
@@ -29,6 +31,7 @@
 - `PackageFile` · `package.d.ts`
 - `PackageJudgment` · `package.d.ts`
 - `PlacedMember` · `package.d.ts`
+- `PluginKind` · `manifest.d.ts`
 - `PluginManifest` · `manifest.d.ts`
 - `PluginProtocol` · `plugin-protocol.d.ts`
 - `Port` · `ports.d.ts`
@@ -48,7 +51,9 @@
 - `bindPorts` · `ports.d.ts`
 - `createLoader` · `loader.d.ts`
 - `fiberOf` · `floor.d.ts`
+- `fileRefs` · `package.d.ts`
 - `heldOf` · `floor.d.ts`
+- `imageFault` · `package.d.ts`
 - `insidePackage` · `manifest.d.ts`
 - `judgePackage` · `package.d.ts`
 - `memberDigest` · `package.d.ts`
@@ -87,8 +92,8 @@ export declare function standingOf(states: ReadonlyMap<string, Kept>): FloorStan
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { MANIFEST_FILE, MANIFEST_SCHEMA, insidePackage, memberKind, readManifest, type DataMember, type DirectoryMember, type JsonValue, type ManifestRead, type Member, type MemberPlace, type ModuleMember, type PluginManifest, type Side, type SideName, } from './manifest.ts';
-export { FILE_SUFFIXES, judgePackage, memberDigest, membersOf, type PackageFile, type PackageJudgment, type PlacedMember, } from './package.ts';
+export { MANIFEST_FILE, MANIFEST_SCHEMA, insidePackage, memberKind, readManifest, type DataMember, type DirectoryMember, type JsonValue, type ManifestRead, type Member, type MemberPlace, type ModuleMember, type PluginKind, type PluginManifest, type Side, type SideName, } from './manifest.ts';
+export { FILE_SUFFIXES, IMAGE_HEAD_BYTES, IMAGE_SUFFIXES, fileRefs, imageFault, judgePackage, memberDigest, membersOf, type PackageFile, type PackageJudgment, type PlacedMember, } from './package.ts';
 export { pluginProtocol, type PluginProtocol, type ReportedPoint, type ReportedPointContract, } from './plugin-protocol.ts';
 export { UNWANTED, stepSide, type SideEffect, type SideEvent, type SideState, type SideStep, } from './side-state.ts';
 export { NO_FLOOR, fiberOf, heldOf, standingOf, type FloorPort, type FloorStanding, } from './floor.ts';
@@ -100,11 +105,12 @@ export { bindPorts, type Bound, type Port, type PortAnswer, type PortData, type 
 ## 声明文件 `loader.d.ts`
 
 ```ts
-import type { Member } from './manifest.ts';
+import type { Member, PluginKind } from './manifest.ts';
 import { type SideState } from './side-state.ts';
 export type Listed = Readonly<{
     name: string;
     version: string;
+    kind?: PluginKind;
     members: readonly Member[];
     fault?: string;
 }>;
@@ -161,6 +167,7 @@ export type ModuleMember = MemberPlace & Readonly<{
 }>;
 export type Member = DataMember | DirectoryMember | ModuleMember;
 export type SideName = 'client' | 'server';
+export type PluginKind = 'skin';
 export type Side = Readonly<{
     needs?: readonly string[];
     members: readonly Member[];
@@ -169,6 +176,7 @@ export type PluginManifest = Readonly<{
     schema: typeof MANIFEST_SCHEMA;
     name: string;
     summary: string;
+    kind?: PluginKind;
     client?: Side;
     server?: Side;
 }>;
@@ -200,6 +208,16 @@ export declare const FILE_SUFFIXES: readonly [
     '.css',
     '.json'
 ];
+export declare const IMAGE_SUFFIXES: readonly [
+    '.png',
+    '.jpg',
+    '.webp',
+    '.avif',
+    '.svg'
+];
+export declare const IMAGE_HEAD_BYTES = 1024;
+export declare function imageFault(path: string, head: Uint8Array): string | null;
+export declare function fileRefs(value: string): readonly string[];
 export type PackageFile = Readonly<{
     path: string;
     digest: string;
@@ -686,7 +704,7 @@ export declare function stepSide(state: SideState, event: SideEvent): SideStep;
 ## 声明文件 `wanted.d.ts`
 
 ```ts
-import type { Member, PluginManifest, SideName } from './manifest.ts';
+import type { Member, PluginKind, PluginManifest, SideName } from './manifest.ts';
 import type { PackageFile } from './package.ts';
 export type Offered = Readonly<{
     version: string;
@@ -696,6 +714,7 @@ export type Offered = Readonly<{
 export type Wanted = Readonly<{
     name: string;
     version: string;
+    kind?: PluginKind;
     members: readonly Member[];
     needs: readonly string[];
     files: readonly PackageFile[];

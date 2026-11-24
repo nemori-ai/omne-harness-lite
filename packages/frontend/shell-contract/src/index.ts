@@ -29,6 +29,7 @@ export {
   STYLE_POINT,
   TOKENS_POINT,
   changesOn,
+  lookScope,
   tenantScope,
   valueFault,
   type Changes,

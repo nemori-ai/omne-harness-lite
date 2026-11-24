@@ -1,6 +1,15 @@
 import { expect, it } from 'vitest'
 import type { StatefulBlockDescriptor } from '@omne-harness/runtime-context-contract'
-import { harness, issue, numberSchema, reader, scope, tenantA } from './support.js'
+import {
+  harness,
+  issue,
+  numberSchema,
+  producer,
+  reader,
+  scope,
+  supplied,
+  tenantA,
+} from './support.js'
 
 function stateful<K extends `${string}.${string}`>(
   key: K,
@@ -97,4 +106,54 @@ it('restores checkpointed blocks without a step commit as absent, and the next s
     kind: 'value',
     value: 3,
   })
+})
+
+it('reads a per-read block from its producer in a scope whose registrations came from replay', async () => {
+  const h = harness()
+  const target = scope('b6/per-read')
+  h.ports.bind(target, tenantA)
+  await producer(h, tenantA, 'test.request', {
+    declaration: {
+      ...supplied('test.request', { required: true, consumers: ['tool'] }),
+      volatility: 'per-read',
+    },
+    supply: async () => ({ kind: 'value', value: 7 }),
+  })
+  const begun = await h.rc.beginReplay('holder', {
+    scope: target,
+    tenant: tenantA,
+    through: { commit: 'r1' },
+    supersedes: null,
+  })
+  if (begun.kind !== 'replaying') throw new Error(begun.kind)
+  const ready = await h.rc.finishReplay('holder', {
+    replay: begun.replay,
+    material: {
+      registrations: [
+        {
+          commit: { commit: 'r1' },
+          change: {
+            kind: 'add' as const,
+            creating: true,
+            scope: target,
+            tenant: tenantA,
+            key: 'test.request',
+            basedOn: 0,
+            required: true,
+            bindings: [],
+            parameters: undefined,
+          },
+        },
+      ],
+      checkpoints: [],
+      end: null,
+    },
+  })
+  expect(ready).toMatchObject({ kind: 'ready', registrationRevision: 1 })
+  const r = await reader(h, await issue(h, target, tenantA, ['test.request'], 'tool'))
+  for (const round of [1, 2]) {
+    const read = await r.snapshot()
+    if (read.kind !== 'success') throw new Error(`${round}: ${read.kind}`)
+    expect(read.value.perRead).toMatchObject([{ key: 'test.request', kind: 'value', value: 7 }])
+  }
 })

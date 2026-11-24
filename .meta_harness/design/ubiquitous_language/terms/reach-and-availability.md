@@ -315,6 +315,28 @@
 - **别混 ②**：**不是[当下可用性](#ul-current-availability--当下可用性--current-availability)里的依赖缺失**——那是设施在不在，这是会话是哪一种
 - **注意**：条件写在命令的定义里，**装配不按入口或命令的名字判断**；一轮当中变得不成立时，调到它的调用不运行并得到原因
 
+### UL-canvas-renderable · 可画布渲染 · Canvas-Renderable
+
+> **中**：**一类对象的一项性质：拥有这一类的领域此刻声明着它，这一类的对象才摆得上[画布](interaction-and-dispatch.md#ul-canvas--画布--canvas)。**
+> 声明写明这一类叫什么、一句话说明它是什么、怎样指明这一类里的一个对象，并带来这一类在画布上的画法；拥有者还可以要求每个对象摆上之前先核一下。
+> 它是「一类」的性质，不是某一个对象的。声明撤下时，例如拥有它的领域没有开放，这一类就不再可画布渲染：
+> 已经摆着的[画布项](interaction-and-dispatch.md#ul-canvas-item--画布项--canvas-item)留着，摆法不变，画成写明「这一类现在没有声明」的一页。
+>
+> **EN**: **A property of one class of objects: objects of the class can be placed on a canvas only
+> while the domain that owns the class declares it.** The declaration gives the name of the class,
+> one sentence about what it is, how to identify one object of the class, and how the class is
+> drawn on the canvas. The owner can also require a check of each object before it is placed. The
+> property belongs to the class, not to one object. When the declaration is withdrawn, for example
+> because the owning domain is not open, the class is no longer canvas-renderable. Canvas items that
+> are already placed stay with the same arrangement, and each shows a page that says the class is
+> not declared now.
+
+- **形态**：属性
+- **出处**：[画布「能摆什么」](../../product/canvas/design.md#能摆什么) · [「画不出来的时候」](../../product/canvas/design.md#画不出来的时候)（rev 1）
+- **别混 ①**：不是允许。一类可画布渲染，不表示这一类的每个对象都摆得上：拥有者可以不接受某一个对象。它也不表示这个人能看某一个对象，那由这一类的画法说。
+- **别混 ②**：不是「能从查找里挑」。一类要出现在查找里，拥有者还要另外提供挑法。
+- **注意**：画布不认识任何一类，多一类是拥有它的领域多一份声明。产品要求三类可画布渲染：[媒体对象](record-and-context.md#ul-media-object--媒体对象--media-object)、[会话](agent-runtime-loop.md#ul-session--会话--session)与[画布小应用](capabilities-and-composition.md#ul-canvas-app--画布小应用--canvas-app)；画布小应用这一类由画布自己声明。
+
 ## MCP 对端够不够得着
 
 ### UL-mcp-connection · MCP 连接 · MCP Connection

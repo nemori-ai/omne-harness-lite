@@ -38,6 +38,7 @@ import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts
 import type { LoadedRow } from './readiness.ts'
 import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-bound.ts'
 import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
+import { enabledExtensionsOf } from './rows/agent-host/enabled-extensions.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
 import { createModelHostRow } from './rows/model-host/index.ts'
@@ -494,6 +495,7 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
     ...releasePlugins,
     agentHostRow: createAgentHostRow({
       toolRequestsOf: releaseToolRequestsOf,
+      enabledExtensionsOf,
       lostContact: lostContactBy(() => lock, 'instance'),
     }),
     modelHostRow: createModelHostRow({ lostContact: lostContactBy(() => lock, 'call') }),

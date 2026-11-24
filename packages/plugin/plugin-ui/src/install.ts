@@ -1,5 +1,6 @@
 import {
   fiberOf,
+  insidePackage,
   type JsonValue,
   type Listed,
   type Member,
@@ -19,6 +20,7 @@ import type { ShellService } from '@omne-harness/shell-contract/cordis'
 export type Code = Readonly<{
   load: (name: string, version: string, path: string) => Promise<unknown>
   given: Readonly<Record<string, unknown>>
+  files?: (name: string, version: string) => string
 }>
 
 type Scope = Parameters<ShellService['putStyle']>[2]
@@ -31,21 +33,22 @@ const isRecord = (data: JsonValue): data is Entries =>
   typeof data === 'object' && data !== null && !Array.isArray(data)
 
 /** The points that take data from a plugin: what the data must be, and how it is put. */
-const DATA: Readonly<Record<string, (key: string, data: JsonValue, scope: Scope) => Put | string>> =
-  {
-    [TOKENS_POINT]: (key, data, scope) =>
-      isRecord(data)
-        ? shell => shell.putTokens(key, data as Readonly<Record<string, string>>, scope)
-        : 'the data is not a record of names and values',
-    [STYLE_POINT]: (key, data, scope) =>
-      isRecord(data)
-        ? shell => shell.putStyle(key, data as PartStyle, scope)
-        : 'the data is not a record of states and declarations',
-    [LAYOUT_POINT]: (key, data, scope) =>
-      Array.isArray(data)
-        ? shell => shell.putLayout(key, data as readonly string[], scope)
-        : 'the data is not a list of ids',
-  }
+type Taken = (key: string, data: JsonValue, scope: Scope, files: string | undefined) => Put | string
+
+const DATA: Readonly<Record<string, Taken>> = {
+  [TOKENS_POINT]: (key, data, scope, files) =>
+    isRecord(data)
+      ? shell => shell.putTokens(key, data as Readonly<Record<string, string>>, scope, files)
+      : 'the data is not a record of names and values',
+  [STYLE_POINT]: (key, data, scope, files) =>
+    isRecord(data)
+      ? shell => shell.putStyle(key, data as PartStyle, scope, files)
+      : 'the data is not a record of states and declarations',
+  [LAYOUT_POINT]: (key, data, scope) =>
+    Array.isArray(data)
+      ? shell => shell.putLayout(key, data as readonly string[], scope)
+      : 'the data is not a list of ids',
+}
 
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -69,6 +72,7 @@ function stepOf(
   member: Member,
   scope: Scope,
   code: Code | undefined,
+  files: string | undefined,
 ): Put | Pending | string {
   if ('directory' in member) return 'this side takes no directory'
   const single = member.id === undefined && member.rank === undefined
@@ -79,8 +83,14 @@ function stepOf(
   }
   const taken = DATA[member.point]
   if (taken === undefined) return 'the point takes no data from a plugin'
-  return single ? taken(member.key, member.data, scope) : ONE_ITEM
+  return single ? taken(member.key, member.data, scope, files) : ONE_ITEM
 }
+
+const filesAt = (place: string): object =>
+  Object.freeze({
+    url: (path: string): string | undefined =>
+      insidePackage(path) ? `${place}${path}` : undefined,
+  })
 
 /** Loads the file of a member of code and takes its export: how to put its drawing, or why it cannot be. */
 async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promise<Put | string> {
@@ -94,9 +104,13 @@ async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promis
   const made = (loaded.file as Readonly<Record<string, unknown>> | null)?.[name]
   if (typeof made !== 'function') return `${path} exports no function named ${name}`
   return shell => {
-    const drawing = called(name, () =>
-      made(Object.freeze({ ...code.given, shell: guestOf(shell) })),
-    )
+    const files = code.files?.(listed.name, listed.version)
+    const handed = {
+      ...code.given,
+      shell: guestOf(shell),
+      ...(files !== undefined && { files: filesAt(files) }),
+    }
+    const drawing = called(name, () => made(Object.freeze(handed)))
     if (typeof drawing !== 'function') throw new Error(`${name} gave no drawing`)
     shell.putDrawing(point, key, drawing as KeyRender, scope)
   }
@@ -112,6 +126,59 @@ function called(name: string, call: () => unknown): unknown {
 
 const failed = (reason: string): Outcome => ({ kind: 'failed', reason })
 
+type Step = Readonly<{ label: string; step: Put | Pending }>
+type Ready = Readonly<{ label: string; put: Put }>
+
+function stepsOf(
+  shell: ShellService,
+  { name, version, members }: Listed,
+  scope: Scope,
+  code?: Code,
+): readonly Step[] | string {
+  const files = code?.files?.(name, version)
+  const places = members.map(member => `${member.point}\n${member.key}`)
+  const steps: Step[] = []
+  for (const [index, member] of members.entries()) {
+    const label = `member ${index + 1} (${member.point} ${member.key})`
+    const twice = places.indexOf(places[index] ?? '') !== index
+    const step = twice
+      ? 'another member of this plugin is at the same place'
+      : stepOf(shell, member, scope, code, files)
+    if (typeof step === 'string') return `${label}: ${step}`
+    steps.push({ label, step })
+  }
+  return steps
+}
+
+async function readyOf(
+  listed: Listed,
+  steps: readonly Step[],
+  scope: Scope,
+): Promise<readonly Ready[] | string> {
+  const loaded = await Promise.all(
+    steps.map(async ({ label, step }) => ({
+      label,
+      put: typeof step === 'function' ? step : await drawingOf(listed, step, scope),
+    })),
+  )
+  const ready: Ready[] = []
+  for (const { label, put } of loaded) {
+    if (typeof put === 'string') return `${label}: ${put}`
+    ready.push({ label, put })
+  }
+  return ready
+}
+
+function putAll(inside: ShellService, ready: readonly Ready[]): void {
+  for (const { label, put } of ready) {
+    try {
+      put(inside)
+    } catch (error) {
+      throw new Error(`${label}: ${reasonOf(error)}`)
+    }
+  }
+}
+
 /** Puts the members of one plugin in a scope of its own, in the scope it is to count in: all of them, or none. */
 export async function installOn(
   shell: ShellService,
@@ -120,42 +187,15 @@ export async function installOn(
   code?: Code,
 ): Promise<Outcome> {
   if (listed.fault !== undefined) return failed(listed.fault)
-  const { members } = listed
-  const places = members.map(member => `${member.point}\n${member.key}`)
-  const steps: Readonly<{ label: string; step: Put | Pending }>[] = []
-  for (const [index, member] of members.entries()) {
-    const label = `member ${index + 1} (${member.point} ${member.key})`
-    const twice = places.indexOf(places[index] ?? '') !== index
-    const step = twice
-      ? 'another member of this plugin is at the same place'
-      : stepOf(shell, member, scope, code)
-    if (typeof step === 'string') return failed(`${label}: ${step}`)
-    steps.push({ label, step })
-  }
-  const ready = await Promise.all(
-    steps.map(async ({ label, step }) => ({
-      label,
-      put: typeof step === 'function' ? step : await drawingOf(listed, step, scope),
-    })),
-  )
-  const puts: Readonly<{ label: string; put: Put }>[] = []
-  for (const { label, put } of ready) {
-    if (typeof put === 'string') return failed(`${label}: ${put}`)
-    puts.push({ label, put })
-  }
+  const steps = stepsOf(shell, listed, scope, code)
+  if (typeof steps === 'string') return failed(steps)
+  const ready = await readyOf(listed, steps, scope)
+  if (typeof ready === 'string') return failed(ready)
   const hosted = await shell
-    .host(fiberOf(listed.name, listed.version), inside => {
-      for (const { label, put } of puts) {
-        try {
-          put(inside)
-        } catch (error) {
-          throw new Error(`${label}: ${reasonOf(error)}`)
-        }
-      }
-    })
+    .host(fiberOf(listed.name, listed.version), inside => putAll(inside, ready))
     .catch((error: unknown) => reasonOf(error))
   if (typeof hosted === 'string') return failed(hosted)
-  const [refused] = shell.changes().refused.filter(each => each.by === hosted.by)
+  const [refused] = shell.changesFor(scope ?? []).refused.filter(each => each.by === hosted.by)
   if (refused === undefined) return { kind: 'installed', remove: () => hosted.dispose() }
   await hosted.dispose()
   return failed(`${refused.point} ${refused.key}: ${refused.reason}`)

@@ -179,10 +179,10 @@ describe('OmneExtensionPoints on the release tree', () => {
         expect(await ask('points: tree notes')).toContain('note.notes')
         const categories = await ask('extensions: categories')
         expect(categories).toMatch(/^note\s+from a body\s+Note — A note that came later\.$/mu)
-        expect(categories).toContain('9 categories now.')
+        expect(categories).toContain('11 categories now.')
         await late.dispose()
         expect(await ask('points: show late')).not.toContain('done OmneExtensionPoints show')
-        expect(await ask('extensions: categories')).toContain('8 categories now.')
+        expect(await ask('extensions: categories')).toContain('10 categories now.')
 
         watching.abort()
         await until(

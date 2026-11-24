@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { Page } from '@playwright/test'
@@ -35,22 +34,76 @@ test('注册、发一条消息、看到回复；页面读不到登录 cookie，�
 // The button shows only once the main process has loaded the screen backend: in the packaged app that proves the
 // binary it carries loads. On macOS the packaged test app is a bundle of its own, which the system would ask about
 // on every run, so there the test stops before the capture; the unpackaged app is Electron's bundle, allowed once.
-test('输入框的截图钮：截一张这台机器的屏幕，作为图片附件进草稿', async ({ launchApp, target }) => {
-  const { page } = await launchApp()
+test('输入框的截图钮：每块屏上铺一层遮罩，框一块画上标注再确定、双击取整块、右键取消', async ({
+  launchApp,
+  target,
+}) => {
+  const { app, page } = await launchApp()
   await expect(page.locator('input[name=loginIdentifier]')).toBeVisible({ timeout: 30_000 })
   await signUp(page)
   await page.getByRole('button', { name: '新建会话' }).click()
   const button = page.getByRole('button', { name: '截一张屏幕，作为图片附件' })
   await expect(button).toBeVisible({ timeout: 30_000 })
   if (process.platform === 'darwin' && target === 'packaged') return
-  await button.click()
-  await expect(page.getByText(/^屏幕截图 \d\d\.\d\d\.\d\d\.png$/u)).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByText('已备好')).toBeVisible({ timeout: 30_000 })
-  // Kept for a look: the picture should show the screen behind omne, not omne itself.
-  const picture = (await page.evaluate(
-    `(() => { const image = document.querySelector('img[alt$="的预览"]'); const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight; canvas.getContext('2d').drawImage(image, 0, 0); return canvas.toDataURL('image/png').split(',')[1] })()`,
-  )) as string
-  writeFileSync(test.info().outputPath('screenshot.png'), Buffer.from(picture, 'base64'))
+  const screens = await app.evaluate(({ screen }) => screen.getAllDisplays().length)
+  const shown = () => app.windows().filter(each => each.url().includes('/shot.html'))
+  const overlayErrors: string[] = []
+  // A person can act once the overlay is on screen with its frozen frame.
+  const drawn =
+    'document.visibilityState === "visible" && [...document.images].some(image => image.naturalWidth > 0)'
+  const overlay = async (): Promise<Page> => {
+    await button.click()
+    await expect.poll(() => shown().length, { timeout: 30_000 }).toBe(screens)
+    const [first] = shown()
+    first!.on('console', message => {
+      if (message.type() === 'error') overlayErrors.push(message.text())
+    })
+    await first!.waitForFunction(drawn, undefined, { timeout: 30_000 })
+    return first!
+  }
+  const closed = async () => {
+    await expect.poll(() => shown().length, { timeout: 30_000 }).toBe(0)
+    await expect(button).toBeEnabled({ timeout: 30_000 })
+  }
+  const previews = page.locator('img[alt$="的预览"]')
+  const sizes = async () =>
+    (await page.evaluate(
+      `[...document.querySelectorAll('img[alt$="的预览"]')].map(image => [image.naturalWidth, image.naturalHeight])`,
+    )) as number[][]
+
+  const framed = await overlay()
+  const ratio = (await framed.evaluate('devicePixelRatio')) as number
+  await framed.mouse.move(100, 100)
+  await framed.mouse.down()
+  await framed.mouse.move(500, 400, { steps: 8 })
+  await framed.mouse.up()
+  await framed.locator('[title="矩形"]').click()
+  await framed.mouse.move(200, 180)
+  await framed.mouse.down()
+  await framed.mouse.move(380, 300, { steps: 6 })
+  await framed.mouse.up()
+  await framed.locator('[title="确定"]').click()
+  await closed()
+  await expect(previews).toHaveCount(1, { timeout: 30_000 })
+  await expect.poll(sizes).toEqual([[400 * ratio, 300 * ratio]])
+
+  const whole = await overlay()
+  const screenPixels = (await whole.evaluate(
+    '[Math.round(innerWidth * devicePixelRatio), Math.round(innerHeight * devicePixelRatio)]',
+  )) as number[]
+  await whole.mouse.dblclick(300, 300)
+  await closed()
+  await expect(previews).toHaveCount(2, { timeout: 30_000 })
+  await expect.poll(sizes).toEqual([[400 * ratio, 300 * ratio], screenPixels])
+
+  // On macOS the context menu comes on the press: the overlay cancels and closes before the release reaches it.
+  await (await overlay()).mouse.click(300, 300, { button: 'right' }).catch((failure: unknown) => {
+    if (!String(failure).includes('has been closed')) throw failure
+  })
+  await closed()
+  await expect(previews).toHaveCount(2)
+  await expect(page.getByText('已备好')).toHaveCount(2)
+  expect(overlayErrors).toEqual([])
 })
 
 /** Per stored cookie of the app: whether its value is on disk in plain text, or only encrypted. */

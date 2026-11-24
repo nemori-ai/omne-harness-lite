@@ -11,12 +11,17 @@ export {
   type Member,
   type MemberPlace,
   type ModuleMember,
+  type PluginKind,
   type PluginManifest,
   type Side,
   type SideName,
 } from './manifest.ts'
 export {
   FILE_SUFFIXES,
+  IMAGE_HEAD_BYTES,
+  IMAGE_SUFFIXES,
+  fileRefs,
+  imageFault,
   judgePackage,
   memberDigest,
   membersOf,

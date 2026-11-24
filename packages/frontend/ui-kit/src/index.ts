@@ -121,6 +121,14 @@ export { Prose, type ProseProps } from './prose/prose.tsx'
 export { PROSE_TRANSLATIONS } from './prose/translations.ts'
 
 export * from './icons/index.ts'
+export { iconNames } from './icons/glyph.ts'
+export {
+  PIECES,
+  RedrawProvider,
+  type Piece,
+  type Redraw,
+  type RedrawKind,
+} from './redraw/redraw.ts'
 
 export {
   blockingOverlay,

@@ -85,6 +85,7 @@
     "request-context",
     "agent-context",
     "context-compaction",
+    "loop-extension",
     "runtime-context",
     "runtime-context-tenant-scope",
     "session-intake-budget",
@@ -315,7 +316,8 @@
     {
       "row": "agent-host",
       "names": [
-        "sessionModesInstallation"
+        "sessionModesInstallation",
+        "tenantScopePrincipals"
       ]
     },
     {

@@ -28,6 +28,7 @@ import type { Open } from '../model/session-machine.ts'
 import { sessionComposer, sessionComposerInput } from '../parts.ts'
 import type { ComposerHandles, SendWay } from '../model/composer-handles.ts'
 import { ComposerActionSlot } from './composer-action-slot.tsx'
+import { PartDrawContext } from './part-draw.ts'
 import { SendWays } from './send-ways.tsx'
 import { AGENT_NAME } from './side-frame.tsx'
 
@@ -217,6 +218,7 @@ export function Composer({
   assistant = NOBODY,
 }: ComposerProps) {
   const keys = useContext(ComposerKeysContext)
+  const drawer = useContext(PartDrawContext)
   const { session } = state
   const [text, setText] = useState('')
   const field = useRef<HTMLTextAreaElement>(null)
@@ -273,7 +275,7 @@ export function Composer({
     void sendAs(way)
   }
   const caretOf = () => field.current?.selectionStart ?? text.length
-  return (
+  const builtIn = () => (
     <form
       className="omne-composer"
       {...sessionComposer.props}
@@ -347,4 +349,9 @@ export function Composer({
       </div>
     </form>
   )
+  if (drawer === null) return builtIn()
+  return sessionComposer.draw(drawer, builtIn, {
+    running: state.run.kind !== 'idle',
+    empty: text.trim().length === 0,
+  })
 }

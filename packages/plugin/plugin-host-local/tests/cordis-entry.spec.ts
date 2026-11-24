@@ -2,7 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { capabilityId } from '@omne-harness/assets'
 import { assetCategoriesPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
-import { pluginCategoryDisplay } from '@omne-harness/plugin-host-local'
+import { pluginCategoryDisplay, skinCategoryDisplay } from '@omne-harness/plugin-host-local'
 import { pluginCategory } from '@omne-harness/plugin-host-local/cordis'
 import { expect, it } from 'vitest'
 
@@ -11,7 +11,7 @@ it('the cordis entry exports the plugin that registers the category', async () =
   expect(Object.keys(cordis)).toEqual(['pluginCategory'])
 })
 
-it('contributes the category with its point, and withdraws both on unload', async () => {
+it('contributes its two categories, each with its point, and withdraws them on unload', async () => {
   const root = new Context()
   await root.plugin(DynamisService)
   await root.plugin(assetCategoriesPlugin)
@@ -25,12 +25,21 @@ it('contributes the category with its point, and withdraws both on unload', asyn
       creation: 'directory',
       point: 'plugin.plugins',
     },
+    {
+      category: 'skin',
+      display: skinCategoryDisplay,
+      creation: 'directory',
+      point: 'plugin.skins',
+    },
   ])
   expect(view.atPoint('plugin.plugins')).toBe(view.describe('plugin'))
+  expect(view.atPoint('plugin.skins')).toBe(view.describe('skin'))
   expect(view.lookup('plugin')?.layout?.namespace).toBe('plugins')
+  expect(view.lookup('skin')?.layout?.namespace).toBe('skins')
   await fiber.dispose()
   expect(view.list()).toEqual([])
   expect(view.atPoint('plugin.plugins')).toBeUndefined()
+  expect(view.atPoint('plugin.skins')).toBeUndefined()
 })
 
 it('tells of its own only when given the ports: what the tenant holds is asked through them', async () => {

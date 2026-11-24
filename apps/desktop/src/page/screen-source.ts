@@ -2,6 +2,7 @@
 export type ScreenAnswer =
   | Readonly<{ kind: 'shot'; png: Uint8Array<ArrayBuffer>; takenAt: number }>
   | Readonly<{ kind: 'not-authorized' }>
+  | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'failed'; reason: string }>
 export type ScreenSource = Readonly<{
   available(): Promise<boolean>
@@ -29,6 +30,7 @@ export function hostScreen(fetcher: Fetcher = (input, init) => fetch(input, init
     },
     async capture(): Promise<ScreenAnswer> {
       const response = await fetcher(DEVICE_SCREEN, { method: 'POST' })
+      if (response.status === 204) return { kind: 'cancelled' }
       const takenAt = Number(response.headers.get('x-omne-taken-at'))
       if (response.ok && takenAt > 0)
         return { kind: 'shot', png: new Uint8Array(await response.arrayBuffer()), takenAt }
