@@ -47,6 +47,11 @@ import {
   sessionStatus,
 } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
+import { createComposer } from '@omne-harness/slash-command-contract'
+import {
+  createSlashCommandUiModule,
+  slashCommandComposerKey,
+} from '@omne-harness/slash-command-ui/cordis'
 import { createToolUiModule } from '@omne-harness/tool-ui/cordis'
 import { storedLayouts } from '@omne-harness/usage-ui'
 import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
@@ -81,7 +86,9 @@ export const assembly: Assembly = {
       modelChoices: modelChoicesKey,
       workspaceChoices: workspaceChoicesKey,
       blockReads: sessionReadsSourceKey,
+      composerAssistant: slashCommandComposerKey,
     }),
+    createSlashCommandUiModule({ composer: createComposer }),
     createHumanInterventionUiModule({ sessionDock }),
     notificationUiModule,
     createScheduleUiModule({ releaseDetail }),

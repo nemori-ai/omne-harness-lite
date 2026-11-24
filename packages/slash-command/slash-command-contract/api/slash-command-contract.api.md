@@ -6,7 +6,9 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `Answer` · `composer.d.ts`
 - `Asker` · `source.d.ts`
+- `Assist` · `composer.d.ts`
 - `Catalog` · `names.d.ts`
 - `CatalogRead` · `source.d.ts`
 - `Command` · `recognize.d.ts`
@@ -14,6 +16,8 @@
 - `CommandEntry` · `names.d.ts`
 - `Completion` · `complete.d.ts`
 - `CompletionIndex` · `complete.d.ts`
+- `Composer` · `composer.d.ts`
+- `ComposerMachine` · `composer.d.ts`
 - `ENTRY_SOURCES_POINT` · `source.d.ts`
 - `EntryKind` · `names.d.ts`
 - `EntrySource` · `source.d.ts`
@@ -21,8 +25,13 @@
 - `Found` · `complete.d.ts`
 - `Item` · `complete.d.ts`
 - `Judgment` · `view.d.ts`
+- `Key` · `composer.d.ts`
+- `Known` · `composer.d.ts`
 - `ListingBreach` · `source.d.ts`
 - `Lookup` · `names.d.ts`
+- `Mark` · `composer.d.ts`
+- `Menu` · `composer.d.ts`
+- `MenuItem` · `composer.d.ts`
 - `Message` · `recognize.d.ts`
 - `NAME_MAX` · `names.d.ts`
 - `NamedEntry` · `names.d.ts`
@@ -38,24 +47,36 @@
 - `TIERS` · `complete.d.ts`
 - `Taken` · `source.d.ts`
 - `Tier` · `complete.d.ts`
+- `Tone` · `composer.d.ts`
 - `Typing` · `complete.d.ts`
 - `Zone` · `names.d.ts`
 - `accept` · `complete.d.ts`
+- `assistOf` · `composer.d.ts`
 - `codeMask` · `recognize.d.ts`
 - `complete` · `complete.d.ts`
+- `composing` · `composer.d.ts`
+- `createComposer` · `composer.d.ts`
 - `fullName` · `names.d.ts`
 - `indexOf` · `complete.d.ts`
 - `isFullName` · `names.d.ts`
 - `isName` · `names.d.ts`
 - `judge` · `view.d.ts`
 - `judgeListing` · `source.d.ts`
+- `known` · `composer.d.ts`
+- `listed` · `composer.d.ts`
+- `literal` · `composer.d.ts`
 - `lookupOf` · `names.d.ts`
+- `moved` · `composer.d.ts`
+- `picked` · `composer.d.ts`
 - `placeOf` · `names.d.ts`
+- `pressed` · `composer.d.ts`
 - `rankOf` · `names.d.ts`
 - `recognize` · `recognize.d.ts`
 - `sameView` · `view.d.ts`
 - `search` · `complete.d.ts`
 - `shortAt` · `names.d.ts`
+- `start` · `composer.d.ts`
+- `typed` · `composer.d.ts`
 - `typing` · `complete.d.ts`
 - `unescape` · `recognize.d.ts`
 - `viewOf` · `view.d.ts`
@@ -111,6 +132,96 @@ export declare function accept(text: string, completion: Completion, item: Item)
 }>;
 ```
 
+## 声明文件 `composer.d.ts`
+
+```ts
+import { type Completion, type CompletionIndex } from './complete.ts';
+import { type Catalog, type Lookup } from './names.ts';
+import { type SenderView } from './view.ts';
+export type Tone = 'reference' | 'command' | 'refused' | 'note';
+export type Mark = Readonly<{
+    from: number;
+    to: number;
+    tone: Tone;
+    label: string;
+}>;
+export type MenuItem = Readonly<{
+    id: string;
+    label: string;
+    title: string;
+    kind: string;
+    unavailable: string | null;
+}>;
+export type Menu = Readonly<{
+    items: readonly MenuItem[];
+    selected: number;
+    note: string;
+}>;
+export type Assist = Readonly<{
+    marks: readonly Mark[];
+    ghost: string;
+    menu: Menu | null;
+    blocked: string | null;
+    seen: SenderView | null;
+}>;
+export type Key = 'up' | 'down' | 'tab' | 'enter' | 'escape';
+export type Answer = Readonly<{
+    kind: 'pass';
+}> | Readonly<{
+    kind: 'held';
+}> | Readonly<{
+    kind: 'send';
+}> | Readonly<{
+    kind: 'edit';
+    text: string;
+    caret: number;
+}>;
+export type Known = Readonly<{
+    kind: 'reading';
+}> | Readonly<{
+    kind: 'read';
+    catalog: Catalog;
+    lookup: Lookup;
+    index: CompletionIndex;
+}> | Readonly<{
+    kind: 'failed';
+}>;
+export declare const known: (catalog: Catalog) => Known;
+type Phase = 'closed' | 'open' | 'dismissed';
+export type Composer = Readonly<{
+    text: string;
+    caret: number;
+    phase: Phase;
+    composing: boolean;
+    selected: number;
+    known: Known;
+    found: Completion | null;
+}>;
+export declare const start: (state?: Known) => Composer;
+export declare function typed(c: Composer, text: string, caret: number): Composer;
+export declare function moved(c: Composer, caret: number): Composer;
+export declare function composing(c: Composer, on: boolean): Composer;
+export declare function listed(c: Composer, state: Known): Composer;
+export declare function pressed(c: Composer, key: Key): Readonly<{
+    state: Composer;
+    answer: Answer;
+}>;
+export declare const picked: (c: Composer, at: number) => Answer;
+export declare function assistOf(c: Composer): Assist;
+export declare function literal(text: string): string;
+export type ComposerMachine = Readonly<{
+    listed(catalog: Catalog | null): void;
+    input(text: string, caret: number): void;
+    composing(on: boolean): void;
+    key(key: Key): Answer;
+    take(index: number): Answer;
+    read(): Assist;
+    literal(text: string): string;
+}>;
+export declare function createComposer(): ComposerMachine;
+export {};
+```
+
 ## 声明文件 `index.d.ts`
 
 ```ts
@@ -119,6 +230,7 @@ export { codeMask, type Command, type Message, type Note, type Recognition, reco
 export { judge, type Judgment, sameView, type SenderView, viewOf } from './view.ts';
 export { accept, complete, type Completion, type CompletionIndex, type Found, indexOf, type Item, search, type Tier, TIERS, type Typing, typing, } from './complete.ts';
 export { type Asker, type CatalogRead, type CommandCatalog, ENTRY_SOURCES_POINT, type EntrySource, type EntrySourceSlot, judgeListing, type ListingBreach, type Origin, type Taken, } from './source.ts';
+export { type Answer, type Assist, assistOf, type Composer, type ComposerMachine, composing, createComposer, type Key, known, type Known, listed, literal, type Mark, type Menu, type MenuItem, moved, picked, pressed, start, type Tone, typed, } from './composer.ts';
 ```
 
 ## 声明文件 `names.d.ts`

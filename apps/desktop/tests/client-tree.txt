@@ -62,6 +62,8 @@ system
           DesktopShell#1  [effective]
         shell.tokens
           DesktopShell#1  [effective]
+        slash-command.composer
+          slash-command-ui#1  [effective]
         usage.presentation
           usage-ui#1  [effective]
         usage.widget
@@ -107,6 +109,8 @@ system
           served:session-diagnostics/v1#1  [effective]
         session/v1
           served:session/v1#1  [effective]
+        slash-command/v1
+          served:slash-command/v1#1  [effective]
         tool/v1
           served:tool/v1#1  [effective]
         usage/v1
@@ -433,6 +437,9 @@ system
         session-list  [effective, session-ui#1]
         archived-sessions  [effective, session-ui#1]
         identity.account  [effective, identity-ui#1]
+    slash-command
+      slash-command.composer  [one]
+        slash-command-ui#1  [effective]
     usage
       usage.presentation  [keyed-list]
         breakdown

@@ -32,6 +32,7 @@ import { openLink, type CallResult, type Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
+import { seenOf } from './sender-view.ts'
 import { assetCommand } from './asset-command.ts'
 import { settingCommand } from './setting-command.ts'
 import { calendarCommand } from './calendar-command.ts'
@@ -371,6 +372,12 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
     const { session, model } = parsed
     let unselected = false
     let refused: string | null = null
+    const echo: Record<string, string> = {
+      messageId,
+      acceptId,
+      inputId,
+      tenant: encodeTenantText(tenant),
+    }
     return {
       // Every file is read before anything is sent; then each is uploaded, a model is selected
       // under a control identity the accept identity gives, and the message goes last.
@@ -394,14 +401,16 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
         }
         const { attachments } = attached
         const message = await userMessage({ inputId, text: parsed.text, attachments })
+        const seen = await seenOf(link, { tenant, session }, parsed.text, newId())
+        echo.seen = seen === null ? 'unknown' : JSON.stringify(seen)
         return link.call(
           sessionProtocol,
           name,
-          { tenant, session, acceptId, inputId, message },
+          { tenant, session, acceptId, inputId, message, ...(seen === null ? {} : { seen }) },
           messageId,
         )
       },
-      echo: { messageId, acceptId, inputId, tenant: encodeTenantText(tenant) },
+      echo,
       note: () => {
         if (refused !== null)
           return `the attachment ${refused} was not taken; the input was not sent`

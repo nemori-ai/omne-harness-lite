@@ -1,3 +1,4 @@
+import type { SenderSeen } from './composer-assistant.ts'
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import {
@@ -90,7 +91,7 @@ const CALLS: Calls = {
       createCallId,
       answer,
     })),
-  'send-input': ({ session, acceptId, inputId, text, attachments }, { client, tenant }) =>
+  'send-input': ({ session, acceptId, inputId, text, attachments, seen }, { client, tenant }) =>
     notSent(async () =>
       client['send-input']({
         tenant,
@@ -98,6 +99,7 @@ const CALLS: Calls = {
         acceptId,
         inputId,
         message: await userMessage({ inputId, text, attachments }),
+        ...(seen === undefined ? {} : { seen }),
       }),
     ).then(answer => ({ kind: 'send-answered', session, acceptId, answer })),
   'query-send-input': ({ session, acceptId }, { client, tenant }) =>
@@ -182,12 +184,24 @@ export class SessionDriver {
     this.dispatch({ kind: 'create-confirm' })
   }
 
-  async send(text: string, attachments: readonly UserAttachment[] = []): Promise<void> {
+  async send(
+    text: string,
+    attachments: readonly UserAttachment[] = [],
+    seen?: SenderSeen,
+  ): Promise<void> {
     if (text.trim().length === 0 && attachments.length === 0) return
     const inputId = this.#deps.newId()
     const messageId = await userMessageId(inputId)
     const acceptId = this.#deps.newId()
-    this.dispatch({ kind: 'send', text, attachments, inputId, acceptId, messageId })
+    this.dispatch({
+      kind: 'send',
+      text,
+      attachments,
+      ...(seen === undefined ? {} : { seen }),
+      inputId,
+      acceptId,
+      messageId,
+    })
   }
 
   /** Hands words to a session in one step, and answers once with how they ended. */

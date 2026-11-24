@@ -14,6 +14,18 @@ export type {
 } from './model/model-selection.ts'
 export type { ComposerDrafts, DraftOffer } from './model/composer-drafts.ts'
 export type {
+  Assist,
+  AssistAnswer,
+  AssistItem,
+  AssistKey,
+  AssistMark,
+  AssistMenu,
+  AssistTone,
+  ComposerAssistant,
+  ComposerHelper,
+  SenderSeen,
+} from './model/composer-assistant.ts'
+export type {
   WorkspaceChoice,
   WorkspaceChoiceHolder,
   WorkspaceChoiceListing,

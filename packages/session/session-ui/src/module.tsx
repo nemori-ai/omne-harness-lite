@@ -21,6 +21,7 @@ import { EntryFocus } from './model/entry-focus.ts'
 import { SessionFigure } from './model/figure.ts'
 import { HistorySearchStore } from './model/history-search.ts'
 import { BackgroundCallsStore } from './model/background-calls.ts'
+import type { ComposerAssistant } from './model/composer-assistant.ts'
 import { ComposerDraftStore, type ComposerDrafts } from './model/composer-drafts.ts'
 import { ModelSelectionStore, type ModelChoiceSource } from './model/model-selection.ts'
 import { PermissionModeStore } from './model/permission-mode.ts'
@@ -66,6 +67,7 @@ export type SessionUiOptions = Readonly<{
   modelChoices?: ServiceKey<ModelChoiceSource>
   workspaceChoices?: ServiceKey<WorkspaceChoiceSource>
   blockReads?: ServiceKey<BlockReadsSource>
+  composerAssistant?: ServiceKey<ComposerAssistant>
 }>
 
 /** Where a contribution to the composer gives back what the message being written carries. */
@@ -186,11 +188,12 @@ const needsOf = (options: SessionUiOptions) => ({
   modelChoices: needPoint(options.modelChoices, { optional: true }),
   workspaceChoices: needPoint(options.workspaceChoices, { optional: true }),
   blockReads: needPoint(options.blockReads, { optional: true }),
+  assistant: needPoint(options.composerAssistant, { optional: true }),
 })
 
 const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
   shell,
-  { session: client, modelChoices, workspaceChoices, blockReads },
+  { session: client, modelChoices, workspaceChoices, blockReads, assistant },
   provide,
 ) => {
   for (const part of sessionParts) part.declare(shell)
@@ -290,6 +293,7 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
             waitingCalls={waitingCalls}
             {...placesOf(shell)}
             drafts={drafts}
+            assistant={assistant}
             attachments={(session, draft) =>
               sessionComposerAttachments.slot(shell, { session, draft }, fragments)
             }

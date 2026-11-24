@@ -13,8 +13,9 @@ import {
   settleLive,
   type Content,
 } from './content.ts'
+import type { SenderSeen } from './composer-assistant.ts'
 import { NOT_SENT, refused, STILL_UNKNOWN, UNKNOWN } from './notices.ts'
-import { compareDecimal, isRecord, textOf } from './plain.ts'
+import { compareDecimal, isRecord, textOf, type Plain } from './plain.ts'
 import {
   NO_WAITING,
   readWaiting,
@@ -40,7 +41,12 @@ export type ObservationEnd = ClientObservationEnd<
   SessionProtocol['observations']['observe-session']
 >
 
-export type Notice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; text: string }>
+export type Notice = Readonly<{
+  kind: 'refused' | 'unavailable' | 'unknown'
+  text: string
+  /** The reason the server gave for refusing, as it gave it. */
+  reason?: string
+}>
 
 export type InputStatus =
   | 'sending'
@@ -125,6 +131,7 @@ export type Event =
       kind: 'send'
       text: string
       attachments?: readonly UserAttachment[]
+      seen?: SenderSeen
       acceptId: string
       inputId: string
       messageId: string
@@ -161,6 +168,7 @@ export type Effect =
       inputId: string
       text: string
       attachments: readonly UserAttachment[]
+      seen?: SenderSeen
     }>
   | Readonly<{ kind: 'query-send-input'; session: string; acceptId: string }>
   | Readonly<{ kind: 'cancel-run'; session: string; run: string; controlId: string }>
@@ -187,9 +195,17 @@ function pending(words: Words, attachments: readonly UserAttachment[] = []): Pen
   return { ...words, attachments, status: 'sending', notice: null }
 }
 
-function sending(session: string, input: PendingInput): Effect {
+function sending(session: string, input: PendingInput, seen?: SenderSeen): Effect {
   const { acceptId, inputId, text, attachments } = input
-  return { kind: 'send-input', session, acceptId, inputId, text, attachments }
+  return {
+    kind: 'send-input',
+    session,
+    acceptId,
+    inputId,
+    text,
+    attachments,
+    ...(seen === undefined ? {} : { seen }),
+  }
 }
 
 function opened(session: string, first: Words | null = null): Step {
@@ -403,7 +419,7 @@ function onSend(state: State, event: Extract<Event, { kind: 'send' }>): Step {
   const input = pending({ text, acceptId, inputId, messageId }, attachments)
   return {
     state: { ...state, inputs: [...state.inputs, input] },
-    effects: [sending(state.session, input)],
+    effects: [sending(state.session, input, event.seen)],
   }
 }
 
@@ -438,6 +454,13 @@ function askSend(state: Open, acceptId: string): Step {
   }
 }
 
+function reasonOf(answer: SendAnswer): string | undefined {
+  if (answer.outcome !== 'invalid') return undefined
+  const body = 'body' in answer ? (answer.body as Plain) : undefined
+  const reason = isRecord(body) ? body['reason'] : undefined
+  return typeof reason === 'string' ? reason : undefined
+}
+
 function onSendAnswered(state: State, event: Extract<Event, { kind: 'send-answered' }>): Step {
   const open = holding(state, event.session, event.acceptId, 'sending')
   if (open === null) return same(state)
@@ -456,7 +479,7 @@ function onSendAnswered(state: State, event: Extract<Event, { kind: 'send-answer
       return same(
         updateInput(open, event.acceptId, {
           status: 'refused',
-          notice: refused(outcome, '没有发出：'),
+          notice: refused(outcome, '没有发出：', reasonOf(event.answer)),
         }),
       )
   }

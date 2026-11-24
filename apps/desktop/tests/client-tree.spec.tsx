@@ -88,6 +88,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'shell.parts',
     'shell.sidebar',
     'shell.tokens',
+    'slash-command.composer',
     'usage.presentation',
     'usage.widget',
     'workspace.choices',

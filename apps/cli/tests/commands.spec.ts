@@ -27,6 +27,7 @@ import {
   otherTenantText,
   ownLoginId,
   sessionId,
+  defaultAnswer,
   NOT_OFFERED,
   startFakeService,
   tenantText,
@@ -491,6 +492,46 @@ describe('session commands', () => {
     })
     expect(body.message.role).toBe('user')
     expect(body.message.blocks.map(block => block.text)).toEqual(['-5 apples'])
+  })
+
+  it('send-input reads the list when the words have a slash, sends what they name, and writes it on the receipt', async () => {
+    const catalog = {
+      entries: [
+        { full: 'skill:review', space: 'skill', name: 'review', kind: 'reference', title: '评审' },
+      ],
+      missing: [],
+    }
+    const service = await serve(seen =>
+      seen.operation === 'read-catalog'
+        ? { outcome: 'succeeded', body: catalog }
+        : defaultAnswer(seen),
+    )
+    await loginOwningSession(service)
+    const named = await cli(['send-input', '--session', sessionId, '--text', '用 /review 看'])
+    expect(service.seen.at(-2)?.path).toBe('/api/slash-command/v1/read-catalog')
+    expect(service.seen.at(-1)?.body).toMatchObject({
+      seen: { command: null, references: ['skill:review'] },
+    })
+    expect((parsed(named.stdout)['request'] as Record<string, string>)['seen']).toBe(
+      '{"command":null,"references":["skill:review"]}',
+    )
+    const before = service.seen.length
+    const plain = await cli(['send-input', '--session', sessionId, '--text', '没有斜杠'])
+    expect(service.seen.length).toBe(before + 1)
+    expect(service.seen.at(-1)?.body).toMatchObject({ seen: { command: null, references: [] } })
+    expect((parsed(plain.stdout)['request'] as Record<string, string>)['seen']).toBe(
+      '{"command":null,"references":[]}',
+    )
+  })
+
+  it('send-input sends no view when the list cannot be read, and says so on the receipt', async () => {
+    const service = await serve(seen =>
+      seen.operation === 'read-catalog' ? { outcome: 'denied', body: {} } : defaultAnswer(seen),
+    )
+    await loginOwningSession(service)
+    const result = await cli(['send-input', '--session', sessionId, '--text', '/nope'])
+    expect(service.seen.at(-1)?.body).not.toHaveProperty('seen')
+    expect((parsed(result.stdout)['request'] as Record<string, string>)['seen']).toBe('unknown')
   })
 
   it('interrupt-input sends the same body as send-input to the urgent operation (C27)', async () => {
