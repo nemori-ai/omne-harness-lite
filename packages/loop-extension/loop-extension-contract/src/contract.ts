@@ -1,5 +1,6 @@
 import { POSITIONS, POWERS, type LoopExtensionDeclaration } from '@omne-harness/agent-contract'
 import {
+  digestBytes,
   isReadBody,
   readBodyText,
   refusal,
@@ -22,7 +23,6 @@ export const loopExtensionCategoryDisplay: CategoryDisplay = Object.freeze({
 
 const PROVIDER = 'loop-extension'
 const GROUP = 'loop-extension'
-const UNPINNED = 'unpinned'
 const ID_LITERAL = /^[a-zA-Z0-9.:/-]$/u
 
 const schemaRead = readBodyText(
@@ -111,12 +111,18 @@ function settingsId(text: string): string {
   return out
 }
 
-// Holding an extension does not run it: the tenant turns `run` on, and an organization may lock it either way.
-function runSetting(name: string, version: string | undefined): SettingDefinitions {
+// Holding an extension does not run it: the tenant turns `run` on. The version of the definition comes
+// from its content alone, so a new version of the extension keeps the value the tenant set.
+function runSetting(name: string): SettingDefinitions {
+  const content = runSettingContent(name)
+  const version = digestBytes(new TextEncoder().encode(JSON.stringify(content)))
+  return { ...content, version }
+}
+
+function runSettingContent(name: string): Omit<SettingDefinitions, 'version'> {
   return {
     providerId: PROVIDER,
     definitionId: settingsId(name),
-    version: settingsId(version ?? UNPINNED),
     groups: [
       {
         id: GROUP,
@@ -163,7 +169,7 @@ export function loopExtensionBodyContract(): BodyContract {
         ],
       }
     },
-    settings: (body, context) => runSetting(judged(body, context).name, context?.definition),
+    settings: (body, context) => runSetting(judged(body, context).name),
     references(body, context) {
       judged(body, context)
       return []

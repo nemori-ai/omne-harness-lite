@@ -7,8 +7,9 @@ import type { LoopExtensionDeclaration, Passage } from '@omne-harness/agent-cont
 import type { BuiltinExtensions } from '@omne-harness/loop-extension-contract'
 import { unpackText } from '@omne-harness/sql-contract/worker'
 import { shellRound, shellScript } from '../../governance/tenant-settings-support.ts'
+import type { GatewayScript } from '../../fixtures/model-gateway.ts'
 import { historyOf, onReleaseTree, type ReleaseTree } from '../../support/release-tree.ts'
-import { assetOf, runSwitch, tenantOf } from './support.ts'
+import { assetOf, tenantOf } from './support.ts'
 
 const GUARD: LoopExtensionDeclaration = {
   name: 'guard',
@@ -45,15 +46,15 @@ function sqliteFiles(dir: string): string[] {
 type Call = Omit<Passage, 'declaration'>
 const RANK = { requested: 0, asked: 1, resolved: 2, applied: 3 } as const
 
-/** The extension calls the session log holds, each in the furthest state it reached. */
-function extensionCalls(storageRoot: string): readonly Call[] {
-  const calls = new Map<string, Call>()
+// The extension calls the execution records hold now, each in the furthest state it reached. An
+// execution record lives as long as its Run: it is reclaimed when the Run is settled.
+function extensionCalls(storageRoot: string, calls = new Map<string, Call>()): readonly Call[] {
   for (const file of sqliteFiles(storageRoot)) {
     const db = new DatabaseSync(file, { readOnly: true })
     try {
-      const table = "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sl_blob'"
+      const table = "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'er_block'"
       if (db.prepare(table).get() === undefined) continue
-      for (const row of db.prepare('SELECT payload FROM sl_blob').all()) {
+      for (const row of db.prepare('SELECT payload FROM er_block').all()) {
         let value: Partial<Call>
         try {
           value = JSON.parse(unpackText(row['payload'] as Uint8Array)) as Partial<Call>
@@ -85,15 +86,24 @@ async function kindsOf(tree: ReleaseTree, session: string): Promise<string[]> {
   return (await historyOf(tree, session)).map(entry => String(entry.kind))
 }
 
-it('with a builtin probe and a command probe enabled, the same request leaves in the session log exactly the calls of these two and their consequence, each naming its extension; a failing and an unlawful version are recorded as errors and the Run goes on', async () => {
-  const exit = await onReleaseTree({ script: shellScript }, async tree => {
+it('with a builtin probe and a command probe enabled, the same request leaves in the execution record exactly the calls of these two and their consequence, each naming its extension; a failing and an unlawful version are recorded as errors and the Run goes on', async () => {
+  // Read while each Run is still open: at its model request that carries the tool result.
+  const seen = new Map<string, Call>()
+  let root: string | undefined
+  const script: GatewayScript = async input => {
+    if (root !== undefined && input.body.includes('"role":"tool"')) extensionCalls(root, seen)
+    return shellScript(input)
+  }
+  const recorded = (): readonly Call[] => [...seen.values()]
+  const exit = await onReleaseTree({ script }, async tree => {
+    root = tree.storageRoot
     const tenant = await tenantOf(tree)
     const workspace = join(dirname(tree.storageRoot), 'workspace')
     const ledgers = join(tree.storageRoot, 'loop-extension-calls')
 
     const without = await shellRound(tree, 'same')
     expect(without.started).toBe(true)
-    expect(extensionCalls(tree.storageRoot)).toEqual([])
+    expect(recorded()).toEqual([])
 
     const builtins = tree.scope.get('loopExtensionBuiltins') as BuiltinExtensions
     builtins.register('guard', async () => ({
@@ -102,18 +112,17 @@ it('with a builtin probe and a command probe enabled, the same request leaves in
     }))
     const guard = await tenant.publish(GUARD)
     const watch = await tenant.publish(WATCH, { 'watch.mjs': WATCH_SCRIPT })
-    const stand = runSwitch(tree)
-    stand.set('guard', true)
-    stand.set('watch', true)
+    await tenant.run('guard', true)
+    await tenant.run('watch', true)
 
     const guarded = await shellRound(tree, 'same')
     expect(guarded).toMatchObject({
       started: false,
-      result: 'The tool call was denied and did not run.',
+      result: 'The tool call was denied by a rule or a prohibition and did not run.',
       calls: [],
     })
     expect(await kindsOf(tree, guarded.session)).toEqual(await kindsOf(tree, without.session))
-    const first = extensionCalls(tree.storageRoot)
+    const first = recorded()
     expect(first.map(call => [call.implementation, call.position]).toSorted()).toEqual(
       [
         [
@@ -145,11 +154,11 @@ it('with a builtin probe and a command probe enabled, the same request leaves in
       .map(line => (JSON.parse(line) as { at: string }).at)
     expect(steps).toEqual(['intended', 'resource', 'started', 'ended'])
 
-    stand.set('guard', false)
+    await tenant.run('guard', false)
     const failing = await tenant.publish(WATCH, { 'watch.mjs': 'process.exit(3)\n' })
     const failed = await shellRound(tree, 'fail')
     expect(failed.started).toBe(true)
-    const second = byName(extensionCalls(tree.storageRoot), 'watch').find(
+    const second = byName(recorded(), 'watch').find(
       call => call.implementation.revision === failing,
     )
     expect(conclusionOf(second)).toMatchObject({ skipped: 'errored' })
@@ -160,13 +169,13 @@ it('with a builtin probe and a command probe enabled, the same request leaves in
     })
     const garbled = await shellRound(tree, 'garbled')
     expect(garbled.started).toBe(true)
-    const third = byName(extensionCalls(tree.storageRoot), 'watch').find(
+    const third = byName(recorded(), 'watch').find(
       call => call.implementation.revision === unlawful,
     )
     expect(conclusionOf(third)).toMatchObject({ skipped: 'errored' })
     expect(JSON.stringify(conclusionOf(third))).toContain('bad_output')
     expect(JSON.stringify(conclusionOf(third))).not.toContain('this is not an output')
-    expect(byName(extensionCalls(tree.storageRoot), 'guard')).toHaveLength(1)
+    expect(byName(recorded(), 'guard')).toHaveLength(1)
     expect(existsSync(join(workspace, 'watch.log'))).toBe(true)
   })
   expect(exit).toBe(0)

@@ -25,7 +25,7 @@ import {
 import { createEnabledExtensions } from '../../src/entry/loop-extensions.ts'
 import { sessionModesInstallationKey } from '../../src/rows/session-ad03/modes.ts'
 import type { PublishedViewPorts } from '../../src/rows/session-ad03/published-view.ts'
-import { runSwitch, tenantOf as extensionTenantOf } from '../rows/loop-extension/support.ts'
+import { tenantOf as extensionTenantOf } from '../rows/loop-extension/support.ts'
 import type { EntryEnv } from '../../src/types.ts'
 import { startAssembly } from '../history-cost/assembly.ts'
 import { PAYLOAD_FILE } from '../history-cost/payload.ts'
@@ -296,7 +296,6 @@ async function installObservers(): Promise<void> {
   if (builtins === undefined) throw new Error('the loop-extension row is not there')
   const tree = { scope, env: entryEnv, home }
   const tenant = await extensionTenantOf(tree)
-  const stand = runSwitch(tree)
   for (let index = 0; index < extensions; index += 1) {
     const name = `observer-${String(index)}`
     builtins.register(name, async () => {
@@ -309,7 +308,7 @@ async function installObservers(): Promise<void> {
       power: 'observe',
       implementation: { kind: 'builtin', builtinName: name },
     })
-    stand.set(name, true)
+    await tenant.run(name, true)
   }
 }
 

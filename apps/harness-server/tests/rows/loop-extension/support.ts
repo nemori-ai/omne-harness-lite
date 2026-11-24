@@ -4,13 +4,13 @@ import {
   capabilityId,
   digestBytes,
   type PackageReader,
+  type TenantManagement,
   type TenantPublishing,
 } from '@omne-harness/assets'
 import {
   LOOP_EXTENSION_CATEGORY,
   RUN_SETTING,
   type ExtensionSources,
-  type TenantExtensionSources,
 } from '@omne-harness/loop-extension-contract'
 import type { TenantSettings } from '@omne-harness/settings'
 import { savedTenant } from '../../r9/support.ts'
@@ -20,6 +20,7 @@ import type { EntryEnv } from '../../../src/types.ts'
 type Tree = Readonly<{ scope: Context; env: EntryEnv; home: string }>
 
 export const assetOf = (name: string) => `${LOOP_EXTENSION_CATEGORY}/${name}`
+const WRITTEN = 'written'
 
 export function packageOf(files: Readonly<Record<string, string>>): PackageReader {
   const bytes = new Map(
@@ -56,6 +57,12 @@ export async function tenantOf(tree: Tree) {
   let operations = 0
   const operation = (what: string) => `${what}-${(operations += 1)}-${Date.now()}`
 
+  const management = serviceOf<{ management: TenantManagement<unknown> }>(
+    tree,
+    'assetManagement',
+  ).management
+  const holdings = new Map<string, string>()
+
   /** Publishes a version of one extension and holds it; returns the version it got. */
   async function publish(
     declaration: LoopExtensionDeclaration,
@@ -74,7 +81,21 @@ export async function tenantOf(tree: Tree) {
       },
     })
     if (published.kind !== 'published') throw new Error(JSON.stringify(published))
+    holdings.set(declaration.name, published.holdingRef)
     return published.version
+  }
+
+  /** Enables or disables the holding of one extension through the management entry a tenant uses. */
+  async function setEnabled(name: string, enabled: boolean) {
+    const holding = holdings.get(name)
+    if (holding === undefined) throw new Error(`${name} is not held`)
+    return management.setEnabled({
+      operationId: operation(`enable-${name}`),
+      tenant: tenantRef,
+      principal: access.principal,
+      holding,
+      enabled,
+    })
   }
 
   /** Writes the run setting of one extension through the settings entry a tenant uses, and gives its answer. */
@@ -86,68 +107,29 @@ export async function tenantOf(tree: Tree) {
     }
     const described = await settings.describe(item)
     if (described.kind !== 'described') return described
-    return settings.set({
+    const written = await settings.set({
       ...item,
       operation: operation(`run-${name}`),
       expectedRevision: described.item.revision,
       value: { kind: 'ordinary', value: on },
     })
+    if (written.kind !== WRITTEN) throw new Error(JSON.stringify(written))
+    return written
   }
 
-  return { tenantRef, access, publish, run }
+  return { tenantRef, access, publish, run, setEnabled }
 }
 
 /**
- * The release has no write path yet for a plain setting of an asset that is not a tool: the settings
- * writer plans only for the targets of the release tools. This stands in for that one write, around the
- * real tenant sources of the release: `run` answers on for the named extensions, and a change gives the
- * signal a settings writer gives after its commit. Publishing, holding and everything else stay real.
- * It also takes the sources away and brings them back, for the Run that waits while the view cannot be read.
+ * Takes the tenant sources of the loop extensions away and brings them back, for the Run that waits
+ * while the view cannot be read. Nothing else is stood in: publishing, holding and settings are real.
  */
-export function runSwitch(tree: Tree) {
+export function sourcesGate(tree: Tree) {
   const service = serviceOf<ExtensionSources<unknown>>(tree, 'loopExtensionSources')
   const present = service.of.bind(service)
-  const on = new Set<string>()
-  const listeners = new Set<() => void>()
-  const wrapped = new WeakMap<TenantExtensionSources, TenantExtensionSources>()
-  let changes = 0
   let away = false
-  const wrap = (real: TenantExtensionSources): TenantExtensionSources => ({
-    ...real,
-    async run(held) {
-      return on.has(held.capability.name) ? { kind: 'value', value: true } : real.run(held)
-    },
-    async basis() {
-      const basis = await real.basis()
-      return basis === undefined
-        ? undefined
-        : { ...basis, settings: `${basis.settings}+${changes}` }
-    },
-    changes: {
-      subscribe(listener) {
-        const leave = real.changes.subscribe(listener)
-        listeners.add(listener)
-        return () => {
-          leave()
-          listeners.delete(listener)
-        }
-      },
-    },
-  })
-  service.of = async access => {
-    const real = away ? undefined : await present(access)
-    if (real === undefined) return undefined
-    const known = wrapped.get(real) ?? wrap(real)
-    wrapped.set(real, known)
-    return known
-  }
+  service.of = async access => (away ? undefined : present(access))
   return {
-    set(name: string, run: boolean) {
-      if (run) on.add(name)
-      else on.delete(name)
-      changes += 1
-      for (const listener of listeners) listener()
-    },
     away(gone: boolean) {
       away = gone
     },

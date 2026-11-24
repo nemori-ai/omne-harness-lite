@@ -229,7 +229,6 @@ describe('the run setting', () => {
     const body = await bodyOf({ [DECLARATION_PATH]: text(builtin()) })
     const settings = contract.settings?.(body, { capabilityName: 'probe', definition: 'v1' })
     expect(settings?.definitionId).toBe('probe')
-    expect(settings?.version).toBe('v1')
     expect(settings?.items).toEqual([
       expect.objectContaining({
         id: RUN_SETTING,
@@ -238,5 +237,17 @@ describe('the run setting', () => {
         sensitivity: 'ordinary',
       }),
     ])
+  })
+
+  it('the version of the definition comes from its content: the same for every version of one extension, another for another extension', async () => {
+    const body = await bodyOf({ [DECLARATION_PATH]: text(builtin()) })
+    const of = (capabilityName: string, definition: string) =>
+      contract.settings?.(body, { capabilityName, definition })?.version
+    expect(of('probe', 'v1')).toMatch(/^sha256:[0-9a-f]{64}$/u)
+    expect(of('probe', 'v2')).toBe(of('probe', 'v1'))
+    const other = await bodyOf({ [DECLARATION_PATH]: text({ ...builtin(), name: 'other' }) })
+    expect(
+      contract.settings?.(other, { capabilityName: 'other', definition: 'v1' })?.version,
+    ).not.toBe(of('probe', 'v1'))
   })
 })
