@@ -7,7 +7,7 @@ import { keymapOf, type KeymapRow } from '@omne-harness/shell-contract'
 import { servePoint, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { blockingOverlay } from '@omne-harness/ui-kit'
 import { parseInstant } from '@omne-harness/utc-instant'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
 import {
   faceActions,
@@ -36,6 +36,10 @@ const TURN = {
 beforeAll(() => {
   const still = () => ({ cancel: () => undefined, finished: Promise.resolve() })
   Object.assign(Element.prototype, { animate: still, scrollIntoView: () => undefined })
+})
+beforeEach(() => {
+  // The page asks its host whether it can take the screen; there is no host here.
+  vi.stubGlobal('fetch', async () => new Response(null, { status: 404 }))
 })
 afterEach(() => {
   cleanup()
