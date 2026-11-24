@@ -192,7 +192,7 @@ const INVALID: readonly (readonly [string, (w: World) => Promise<unknown>, strin
 
 describe('the answers before the state is looked at', () => {
   it.each(INVALID)(
-    '1, invalid: %s names %s, before the authority is asked',
+    '1, invalid: %s, before the authority is asked',
     async (_name, call, where, path) => {
       const w = await seeded()
       const before = await revision(w)
