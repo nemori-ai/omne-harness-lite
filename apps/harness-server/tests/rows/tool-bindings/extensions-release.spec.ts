@@ -285,9 +285,8 @@ describe('OmneExtensions on the release tree', () => {
         expect(every).toContain(
           'it is installed with the deployment and cannot be changed in place.',
         )
-        expect(every).toContain('category tool is not made through here; nothing was changed.')
         expect(every).toContain(
-          'this category is not made through here: it cannot be changed with this tool.',
+          'category tool is made from a directory: write it in the workspace and give dir.',
         )
         expect(every).not.toContain('to change it: publish a new body as data.')
 

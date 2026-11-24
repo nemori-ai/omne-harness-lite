@@ -197,7 +197,11 @@ export function namedUngated(tool: string): readonly string[] {
   return RELEASE_UNGATED[tool] ?? []
 }
 export type ReleaseModule = ToolImplementationModule<unknown, ToolMessageContentBlock>
-export type ReleaseModules = Readonly<Record<ReleaseToolExport, ReleaseModule>>
+/** The implementation of the tools a tenant or a workspace brings: a module of the release that is no tool by itself. */
+export const SCRIPT_EXECUTOR_EXPORT = 'scriptToolModule'
+export type ReleaseModules = Readonly<
+  Record<ReleaseToolExport | typeof SCRIPT_EXECUTOR_EXPORT, ReleaseModule>
+>
 
 const digestText = z.string().regex(/^sha256:[0-9a-f]{64}$/)
 const adoptionSchema = z.strictObject({
@@ -295,7 +299,7 @@ export function constructionTree(value: unknown): JsonValue | undefined {
 
 export const RELEASE_ENTRY_FILE = 'dist/index.js'
 
-function releaseModuleOf(namespace: object, name: ReleaseToolExport): ReleaseModule {
+function releaseModuleOf(namespace: object, name: string): ReleaseModule {
   const module: unknown = Reflect.get(namespace, name)
   if (
     typeof module !== 'object' ||
@@ -317,14 +321,16 @@ export async function importReleaseModules(roots: ReleaseRoots): Promise<Release
       throw new Error(`tool-release: the release entry of ${name} has no exports`)
     namespaces.set(name, namespace)
   }
-  return Object.freeze(
-    Object.fromEntries(
+  const script = releaseModuleOf(namespaces.get(TOOL_DEFINITIONS_PACKAGE)!, SCRIPT_EXECUTOR_EXPORT)
+  return Object.freeze({
+    ...(Object.fromEntries(
       RELEASE_TOOLS.map(tool => [
         tool.export,
         releaseModuleOf(namespaces.get(tool.package)!, tool.export),
       ]),
-    ) as Record<ReleaseToolExport, ReleaseModule>,
-  )
+    ) as Record<ReleaseToolExport, ReleaseModule>),
+    [SCRIPT_EXECUTOR_EXPORT]: script,
+  })
 }
 
 async function artifactPaths(packageRoot: string): Promise<string[]> {

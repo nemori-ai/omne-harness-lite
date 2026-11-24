@@ -36,13 +36,18 @@ export function officialAssetRef(category: string, name: string): string {
   return `${SOURCE}/${category}/${name}`
 }
 
-/** An official definition as the item its category's point holds: enabled, and it locks nothing. */
-export function officialItem(category: string, name: string, version: string): HeldItem {
+/** An official definition as the item its category's point holds; `irreplaceable`: no more specific layer puts another in its place. */
+export function officialItem(
+  category: string,
+  name: string,
+  version: string,
+  irreplaceable = false,
+): HeldItem {
   return {
     asset: officialAssetRef(category, name),
     version,
     disabled: false,
-    immutable: false,
+    immutable: irreplaceable,
     replaceLocked: false,
   }
 }

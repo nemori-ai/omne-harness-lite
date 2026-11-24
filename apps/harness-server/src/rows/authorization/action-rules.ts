@@ -16,6 +16,8 @@ const rule = z.union([
       source: z.strictObject({ category: text, name: text.optional() }).readonly(),
     })
     .readonly(),
+  // Every tool whose definition one owner adopts: the tools a tenant holds have no names a deployment can list.
+  z.strictObject({ id: text, effect, definitionOwner: text }).readonly(),
 ])
 
 export const actionRulesSchema = z
@@ -42,15 +44,17 @@ export function toolActionRule(
   capability: Readonly<{ category: string; name: string }>,
 ) {
   const matches = rules.rules.filter(rule =>
-    'source' in rule
-      ? rule.source.category === capability.category &&
-        (rule.source.name === undefined || rule.source.name === capability.name)
-      : rule.tool === definition.name &&
-        (rule.definition == null ||
-          (rule.definition.owner === definition.owner &&
-            rule.definition.name === definition.name &&
-            rule.definition.revision === definition.revision &&
-            rule.definition.digest === definition.digest)),
+    'definitionOwner' in rule
+      ? rule.definitionOwner === definition.owner
+      : 'source' in rule
+        ? rule.source.category === capability.category &&
+          (rule.source.name === undefined || rule.source.name === capability.name)
+        : rule.tool === definition.name &&
+          (rule.definition == null ||
+            (rule.definition.owner === definition.owner &&
+              rule.definition.name === definition.name &&
+              rule.definition.revision === definition.revision &&
+              rule.definition.digest === definition.digest)),
   )
   return (
     matches.find(rule => rule.effect === 'deny') ?? matches.find(rule => rule.effect === 'allow')

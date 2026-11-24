@@ -12,6 +12,7 @@ import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 import { ToolOperatorSettingsImpl, toolOperatorSettingsKey } from './operator-settings.ts'
+import { setScriptSetting } from './script-host.ts'
 import { releaseAuthorInput, type ReleaseAuthorOptions } from './release-author.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -139,6 +140,9 @@ export function createToolHostPlugin(
     apply(ctx: Context, config: unknown) {
       const { construction, settings } = toolHostConfig.parse(config)
       new ToolOperatorSettingsImpl(ctx, settings ?? {})
+      const shell = construction?.Shell
+      if (shell !== undefined)
+        setScriptSetting(ctx, { env: shell.env, resultMaxBytes: shell.resultMaxBytes })
       const Host = createLocalToolHostPlugin<unknown, unknown, ToolMessageContentBlock>(
         releaseAuthorInput(ctx, construction ?? {}, options),
       )

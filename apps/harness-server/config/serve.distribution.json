@@ -121,6 +121,11 @@
               "tool": "Skills"
             },
             {
+              "id": "held-tools",
+              "effect": "allow",
+              "definitionOwner": "@omne-harness/assets"
+            },
+            {
               "id": "mcp",
               "effect": "allow",
               "source": {
@@ -430,7 +435,7 @@
               "owner": "harness-server-release",
               "name": "coding",
               "revision": "1",
-              "digest": "sha256:4f0dfcea670e8dd92cfdfb29d20684d8ffd8d3f0916df37349f91a3b92f74cc4"
+              "digest": "sha256:9874b5e1b31373bf49c18b1779e0d880c98c217a7eac11d7d2e6c9efd04d2b26"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -472,119 +477,119 @@
               "references": [
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Files"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Shell"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Tools"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "TodoItems"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "BkgToolCalls"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Ask"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Web"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Calendar"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Schedules"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Notifications"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Sessions"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Agents"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "SwitchWorkspace"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "OmneExtensionPoints"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "OmneExtensions"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Screen"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Skills"
                   },
                   "resident": true
@@ -648,7 +653,41 @@
             },
             "extensions": []
           }
-        ]
+        ],
+        "custom": {
+          "execution": {
+            "owner": "harness-server-release",
+            "name": "generic",
+            "revision": "1",
+            "digest": "sha256:generic"
+          },
+          "entryContract": {
+            "owner": "harness-server-release",
+            "name": "chat",
+            "revision": "1",
+            "digest": "sha256:chat"
+          },
+          "requiredIdentities": [],
+          "modes": {
+            "permission": "bypass-permissions",
+            "environment": {
+              "owner": "harness-server-release",
+              "name": "local",
+              "revision": "1",
+              "digest": "sha256:local"
+            },
+            "collaboration": "co-work"
+          },
+          "initialModelSelection": {
+            "name": "openai/gpt-6.1-sol",
+            "basis": {
+              "owner": "harness-server-release",
+              "record": "serve.distribution.json#agent-adoptions/custom/initialModelSelection",
+              "revision": "1",
+              "digest": "sha256:752f5b2b80e183167c034e8e4919404d7d8b36db26b941f3cadf4836a245df47"
+            }
+          }
+        }
       }
     },
     {

@@ -61,6 +61,21 @@ describe('publish', () => {
     )
   })
 
+  it('says so when what was published is held and another stands in its place', async () => {
+    const blocked = {
+      ...PLACED,
+      clients: null,
+      places: [
+        { point: 'note.notes', key: 'a', standing: 'not in effect', says: 'blocked by official' },
+      ],
+    }
+    const w = world({ placement: { of: async () => blocked } })
+    const params = { id: 'n2', category: 'note', name: 'a', data: { text: 'hi' } }
+    expect((await bound(w).text('publish', params)).split('\n')[2]).toBe(
+      'held, and not in effect: blocked by official.',
+    )
+  })
+
   it('from a body: the body is what the category judges', async () => {
     const w = world({ placement: { of: async () => ({ ...PLACED, clients: null }) } })
     const params = { id: 'n1', category: 'note', name: 'a', data: { text: 'hi' } }

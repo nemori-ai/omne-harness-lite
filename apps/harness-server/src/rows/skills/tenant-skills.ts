@@ -1,35 +1,29 @@
 import { join } from 'node:path'
-import {
-  packageBody,
-  packageDigest,
-  withinDirectory,
-  type AssetLayerSource,
-  type BodyContract,
-  type Candidate,
-  type PackageReader,
-} from '@omne-harness/assets'
-import type { JsonValue } from '@omne-harness/json-text'
+import { type AssetLayerSource } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
 import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
-import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
+import {
+  skillBodyContract,
+  type SkillAccess,
+  type SkillCatalog,
+} from '@omne-harness/skill-contract'
 import {
   createContentStoreSource,
   createSkillDecisions,
   skillInputsFromAssets,
   type PackageDirectoryOf,
   type PackageReaderOf,
-  type VersionBody,
 } from '@omne-harness/skill-host-local'
-import {
-  workspaceBody,
-  workspaceLayerSource,
-  workspaceReader,
-  type WorkspaceLayerInput,
-} from '@omne-harness/workspace-asset-source'
-import type { WorkspaceSources } from '@omne-harness/workspace-contract'
 import type { RankingParameters } from '@omne-harness/text-search'
+import {
+  inWorkspace,
+  tenantLayers,
+  turnKeyOf,
+  turnLayers,
+  type WorkspaceLayerPorts,
+} from '../tenant-assets/layers.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 
 export type TenantSkills = Readonly<{
@@ -37,16 +31,13 @@ export type TenantSkills = Readonly<{
   access: SkillAccess<unknown, unknown>
 }>
 
-/** Where a turn's workspace layer comes from, looked up at each call. */
-export type WorkspaceSkillPorts = Readonly<{
-  sources(): WorkspaceSources<unknown> | undefined
-  contractOf(category: string): BodyContract | undefined
-}>
+export type WorkspaceSkillPorts = WorkspaceLayerPorts
 
 export type TenantSkillsHostOptions = Readonly<{
   open(tenant: TenantId, tenantRef: string): Promise<TenantSkills | undefined>
 }>
 
+const SKILL = skillBodyContract().category
 const GRANTED = Object.freeze({ kind: 'granted' } as const)
 const REFUSED = Object.freeze({ kind: 'refused' } as const)
 
@@ -64,95 +55,6 @@ export function directoryOf(assets: Pick<AssetsLocal, 'packages'>): PackageDirec
   }
 }
 
-const ABSENT = Object.freeze({
-  kind: 'unavailable',
-  diagnostic: 'workspace sources absent',
-} as const)
-const ABSENT_SOURCES: Pick<WorkspaceSources<unknown>, 'adopted' | 'open'> = {
-  adopted: async () => ABSENT,
-  open: async () => ABSENT,
-}
-
-/** The key of the turn a call is made in; the workspace layer reads what that turn adopted. */
-function keyOf(scope: unknown): string | null {
-  const key = (scope as { key?: unknown } | null)?.key
-  return typeof key === 'string' ? key : null
-}
-
-const inWorkspace = (ref: string) => ref.startsWith('workspace/')
-
-type Layers = Readonly<{
-  sources: Parameters<typeof skillInputsFromAssets>[0]['sources']
-  body: VersionBody
-  readerOf: PackageReaderOf
-}>
-
-const SKILL = 'skill'
-
-type Within = Readonly<{ version: string; within: string }>
-type Judged = Readonly<{ body: JsonValue; digest: string }>
-
-async function bodyWithin(contract: BodyContract | undefined, from: PackageReader) {
-  const layout = contract?.layout
-  if (layout === undefined) return undefined
-  const listed = await from.manifest()
-  if (!('ok' in listed)) return undefined
-  const inspected = await layout.inspect(from)
-  if (!('ok' in inspected)) return undefined
-  const body = packageBody(inspected.ok, listed.ok)
-  return 'ok' in body ? { body: body.ok, digest: packageDigest(listed.ok.entries) } : undefined
-}
-
-function tenantLayers(
-  assets: AssetsLocal,
-  sources: readonly AssetLayerSource[],
-  contractOf: (category: string) => BodyContract | undefined,
-): Layers & Readonly<{ withinOf(ref: string, digest: string): Within | undefined }> {
-  const places = new Map<string, Within>()
-  const judged = new Map<string, Judged>()
-  const whole = (assetRef: string, version: string) => assets.packages.reader({ assetRef, version })
-  return {
-    sources,
-    async body(candidate) {
-      const { asset, version, within } = candidate
-      if (within === undefined) {
-        const read = await assets.readVersion({ assetRef: asset, version })
-        return read.kind === 'version' ? read.version.body : undefined
-      }
-      const tag = `${asset}\n${version}\n${within}`
-      const known =
-        judged.get(tag) ??
-        (await bodyWithin(contractOf(SKILL), withinDirectory(whole(asset, version), within)))
-      if (known === undefined) return undefined
-      judged.set(tag, known)
-      places.set(`${asset}\n${known.digest}`, { version, within })
-      return known.body
-    },
-    readerOf({ ref, digest }) {
-      const at = places.get(`${ref}\n${digest}`)
-      return at === undefined
-        ? whole(ref, digest)
-        : withinDirectory(whole(ref, at.version), at.within)
-    },
-    withinOf: (ref, digest) => places.get(`${ref}\n${digest}`),
-  }
-}
-
-/** A turn's layers: the tenant's, and the workspace's as the turn adopted it. */
-function turnLayers(tenant: Layers, input: WorkspaceLayerInput<unknown>): Layers {
-  const body = workspaceBody(input)
-  const reader = workspaceReader(input)
-  return {
-    sources: [...tenant.sources, workspaceLayerSource(input)],
-    body: (candidate: Candidate) =>
-      inWorkspace(candidate.asset) ? body(candidate) : tenant.body(candidate),
-    readerOf: locator =>
-      inWorkspace(locator.ref)
-        ? reader({ assetRef: locator.ref, version: locator.digest })
-        : tenant.readerOf(locator),
-  }
-}
-
 export function tenantSkills(
   assets: AssetsLocal,
   tenant: TenantId,
@@ -160,13 +62,9 @@ export function tenantSkills(
   workspace: WorkspaceSkillPorts,
   sources: readonly AssetLayerSource[],
 ): TenantSkills {
-  const tenantLayer = tenantLayers(assets, sources, workspace.contractOf)
-  const layers = (access: Access<unknown>, scope: unknown): Layers => {
-    const key = keyOf(scope)
-    if (key === null) return tenantLayer
-    const sources = workspace.sources() ?? ABSENT_SOURCES
-    return turnLayers(tenantLayer, { sources, access, key, contractOf: workspace.contractOf })
-  }
+  const tenantLayer = tenantLayers(assets, sources, () => workspace.contractOf(SKILL))
+  const layers = (access: Access<unknown>, scope: unknown) =>
+    turnLayers(tenantLayer, workspace, access, turnKeyOf(scope))
   const inputs = (access: Access<unknown>, scope: unknown) => {
     const { sources, body } = layers(access, scope)
     return skillInputsFromAssets<unknown, unknown>({ sources, body })
@@ -198,7 +96,7 @@ export function tenantSkills(
   const tenantAccess = accessOver(tenantLayer.readerOf)
   // A turn's reads go through its own layers; a call that names no turn shares the tenant's.
   const accessFor = (access: Access<unknown>, scope: unknown) =>
-    keyOf(scope) === null ? tenantAccess : accessOver(layers(access, scope).readerOf)
+    turnKeyOf(scope) === null ? tenantAccess : accessOver(layers(access, scope).readerOf)
   return {
     catalog: createSkillCatalog({ resolution, readCheck }, { ranking }),
     access: {

@@ -5,6 +5,7 @@ import {
   expectedRevision,
   judgeAdvance,
   judgeRunStart,
+  runIdOf,
   type AgentDrivePort,
   type BoundedClose,
   type DriveFailure,
@@ -13,6 +14,7 @@ import {
   type FreezeVerdict,
   type InputId,
   type ProducerFact,
+  type RunAdoption,
   type RunId,
   type SessionFaces,
   type SessionFailure,
@@ -102,6 +104,60 @@ async function submitOnce(
   } catch (error) {
     return fail({ kind: 'unavailable', diagnostic: `submit threw: ${messageOf(error)}` })
   }
+}
+
+type As<P> = <T>(
+  actor: Actor,
+  ref: SessionRef,
+  operation: (principal: P) => Promise<Outcome<T, SessionFailure>>,
+) => Promise<Outcome<T, SessionFailure>>
+
+/** How a run is started, and what it adopts: asked of the adoption source at that moment, the version in force then. */
+function runStarts<P>(
+  dependencies: SessionDependencies<P>,
+  coordinator: SessionFaces<P>['work'],
+  as: As<P>,
+) {
+  const start = (
+    ref: SessionRef,
+    first: InputId,
+    predecessor: RunId | null,
+    { candidate, residentAdoption }: RunAdoption,
+  ) =>
+    as('coordinator', ref, principal =>
+      coordinator.startRun({
+        principal,
+        ...ref,
+        operation: deriveSessionOperation({
+          kind: 'startRun',
+          session: ref.session,
+          first,
+          predecessor,
+        }),
+        entry: 'interactive',
+        candidate,
+        instance: sessionSlotReference(ref.session, candidate),
+        ...(residentAdoption === undefined ? {} : { residentAdoption }),
+      }),
+    )
+  const adoptionFor = async (
+    ref: SessionRef,
+    work: WorkSnapshot,
+    first: InputId,
+    predecessor: RunId | null,
+  ): Promise<Outcome<RunAdoption, SessionFailure>> => {
+    const pinned = { ok: { candidate: work.definition.adopted } }
+    const { evidence } = dependencies
+    if (evidence.runAdoption === undefined) return pinned
+    const run = runIdOf(work.session, first, predecessor)
+    return as(
+      'coordinator',
+      ref,
+      async principal =>
+        (await evidence.runAdoption?.({ principal, ...ref }, { work, run })) ?? pinned,
+    )
+  }
+  return { start, adoptionFor }
 }
 
 export function createAdvance<P>(
@@ -485,27 +541,7 @@ export function createAdvance<P>(
     unknownTo(ref, answer, () => freeze(ref, verdict))
   }
 
-  const start = (
-    ref: SessionRef,
-    first: InputId,
-    predecessor: RunId | null,
-    candidate: WorkSnapshot['definition']['adopted'],
-  ) =>
-    as('coordinator', ref, principal =>
-      coordinator.startRun({
-        principal,
-        ...ref,
-        operation: deriveSessionOperation({
-          kind: 'startRun',
-          session: ref.session,
-          first,
-          predecessor,
-        }),
-        entry: 'interactive',
-        candidate,
-        instance: sessionSlotReference(ref.session, candidate),
-      }),
-    )
+  const { start, adoptionFor } = runStarts(dependencies, coordinator, as)
 
   // A Run that cannot start yet for a passing reason (its predecessor not read through, a moved
   // revision) is tried again after each configured delay, judged again on a fresh read.
@@ -515,7 +551,9 @@ export function createAdvance<P>(
     let first = input
     for (let attempt = 0; ; attempt += 1) {
       const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
-      const started = await start(ref, first, predecessor, snapshot.definition.adopted)
+      const adoption = await adoptionFor(ref, snapshot, first, predecessor)
+      const started =
+        'failure' in adoption ? adoption : await start(ref, first, predecessor, adoption.ok)
       if ('ok' in started) return invoke(ref, started.ok)
       const failure = started.failure
       if (failure.kind === 'frozen') {
@@ -549,7 +587,9 @@ export function createAdvance<P>(
     if ('failure' in snapshot) return reportFailure(ref, 'replay', null, snapshot)
     const run = grantedNotInvoked(snapshot.ok, known.of(ref, snapshot.ok))
     if (run === null) return
-    const started = await start(ref, run.first, predecessorOf(snapshot.ok, run.run), run.adoption)
+    const started = await start(ref, run.first, predecessorOf(snapshot.ok, run.run), {
+      candidate: run.adoption,
+    })
     if ('failure' in started) {
       reportFailure(ref, 'replay', run.run, started)
       return unknownTo(ref, started, () => replay(ref))

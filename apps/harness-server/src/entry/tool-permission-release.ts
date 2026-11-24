@@ -107,6 +107,64 @@ export function gateRules(gate: Pick<ReleasedGate, 'title' | 'default'> & { desc
   }
 }
 
+/** A tool a tenant holds: its gates are declared, and no settings item configures them. */
+export type HeldControlledTool = Readonly<{
+  name: string
+  adoption: Adoption
+  definition: string
+  gates: readonly ReleasedGate[]
+}>
+
+/** The gates of a held tool as permissions: the declared default, the rule of the session, nothing stored for a tenant. */
+export function heldToolPermission(input: HeldControlledTool): ToolPermissionRelease {
+  const version = canonicalDigest(input).slice(7)
+  const origin = {
+    kind: 'asset' as const,
+    assetId: `harness.held-tool.${input.name}`,
+    releaseRef: `harness.held-tool.${input.name}/${version}`,
+  }
+  const gates = input.gates.map(gate => {
+    const { effects, interpretationRef, ...rules } = gatePolicy(input.name, gate)
+    const permission: PermissionDefinition = {
+      ...rules,
+      supportedScopes: rules.supportedScopes.filter(scope => scope.kind !== 'tenant'),
+      assignmentLayers: ['session'],
+      reference: { origin, itemId: gate.id, revision: version },
+      capabilityId: `held-tool.${input.name}`,
+      enforcementKey: toolEnforcementKey(gate),
+      settings: null,
+    }
+    const binding = {
+      capabilityId: permission.capabilityId,
+      enforcementKey: permission.enforcementKey,
+      implementationRef: `held-tool/${version}`,
+      action: 'invoke',
+      interpretationRef,
+    }
+    return { permission, binding, effects }
+  })
+  const reference = {
+    ownerId: TOOL_GOVERNANCE_OWNER,
+    definitionId: `held-tool.${input.name}`,
+    version,
+  }
+  const body = {
+    reference,
+    origin,
+    settings: [],
+    permissions: gates.map(gate => gate.permission),
+    enforcementBindings: gates.map(gate => gate.binding),
+  }
+  return toolPermissionReleaseSchema.parse({
+    declaration: { ...body, reference: { ...reference, digest: canonicalDigest(body).slice(7) } },
+    interpretations: gates.map(({ binding, permission, effects }) => ({
+      binding,
+      definition: permission,
+      effects,
+    })),
+  })
+}
+
 type ControlledTool = {
   name: ReleaseToolName
   adoption: Adoption

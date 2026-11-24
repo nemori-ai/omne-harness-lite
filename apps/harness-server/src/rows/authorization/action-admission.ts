@@ -7,7 +7,12 @@ import {
   type AdmissionInput,
 } from '@omne-harness/authorization'
 import { succeed } from '@omne-harness/operation-result'
-import type { ToolActionGate, ToolActionResolution, ToolGate } from '@omne-harness/tool-contract'
+import type {
+  Adoption,
+  ToolActionGate,
+  ToolActionResolution,
+  ToolGate,
+} from '@omne-harness/tool-contract'
 import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
 import {
@@ -25,6 +30,7 @@ import {
   type ToolPermissionAction,
   type ToolPermissionCheck,
 } from './current-tool-permission.ts'
+import type { AdmittedAction } from './admitted-targets.ts'
 import { agentActionConsumer } from './authorization-facts.ts'
 
 type Request = Parameters<ActionAdmission<unknown>['admit']>[0]
@@ -40,6 +46,7 @@ type Readers = Readonly<{
   readLabeling?: () => ToolCallLabeling | undefined
   /** The tenant's own setting of a gate; absent, the deployment gives no lasting option. */
   readPicks?: () => TenantPicks | undefined
+  carried?: (action: AdmittedAction, target: Adoption | null) => void
 }>
 
 function unavailable(diagnostic: string): AdmissionDecision {
@@ -65,6 +72,7 @@ async function judgedOf(
   input: Request,
   principal: ToolPermissionAction['principal'],
   readResolution: ResolutionReader,
+  carried: Readers['carried'],
 ): Promise<Gates | AdmissionDecision> {
   const own = {
     capability: toolCapability(input.definition.name),
@@ -84,6 +92,8 @@ async function judgedOf(
   if ('failure' in resolved) return unavailable('the action could not be resolved now')
   const action = resolved.ok
   if (action.kind === 'own') return [{ ...own, gate: action.gate }]
+  const made = { work: input.execution, position: input.action }
+  carried?.(made, action.kind === 'carried' ? action.target.definition : null)
   // A call that performs no action is judged as a carrier: it answers the argument error itself.
   if (action.kind === 'argument-error') return [{ ...own, gate: action.gate, carrier: true }]
   const { target } = action
@@ -231,7 +241,7 @@ async function judgeAdmitted(
     requires: [],
     permit: null,
   })
-  const gates = await judgedOf(input, who.principal, readers.readResolution)
+  const gates = await judgedOf(input, who.principal, readers.readResolution, readers.carried)
   if ('kind' in gates) return gates
   const judging = {
     input,

@@ -56,6 +56,8 @@ const ctx = (subject: unknown, tenant = A, session = 'session-1'): CallContext =
   asking: null,
 })
 
+const DISPATCHER = 'ses_dispatcher' as SessionRef
+
 describe('who may ask dispatch for what on the release', () => {
   it('permits every action to the verified work principal of the session the call names', async () => {
     const principal = work(A)
@@ -107,10 +109,19 @@ describe('the type of an Agent definition as a tenant sees it', () => {
 
   it('reads the type from the catalogue of the tenant, and null for a name the tenant does not see', async () => {
     const definitions = definitionsOf(() => catalog)
-    expect(await definitions.typeOf(textOf(A), 'coding')).toEqual({ kind: 'read', value: 'master' })
-    expect(await definitions.typeOf(textOf(A), 'other')).toEqual({ kind: 'read', value: null })
-    expect(await definitions.typeOf(textOf(B), 'coding')).toEqual({ kind: 'read', value: null })
-    expect(await definitions.typeOf('nobody' as TenantId, 'coding')).toEqual({
+    expect(await definitions.typeOf(textOf(A), 'coding', DISPATCHER)).toEqual({
+      kind: 'read',
+      value: 'master',
+    })
+    expect(await definitions.typeOf(textOf(A), 'other', DISPATCHER)).toEqual({
+      kind: 'read',
+      value: null,
+    })
+    expect(await definitions.typeOf(textOf(B), 'coding', DISPATCHER)).toEqual({
+      kind: 'read',
+      value: null,
+    })
+    expect(await definitions.typeOf('nobody' as TenantId, 'coding', DISPATCHER)).toEqual({
       kind: 'read',
       value: null,
     })
@@ -118,10 +129,14 @@ describe('the type of an Agent definition as a tenant sees it', () => {
 
   it('is unavailable while the catalogue cannot know what the tenant sees', async () => {
     const unknown = { visibleTo: async () => undefined }
-    expect(await definitionsOf(() => unknown).typeOf(textOf(A) as TenantId, 'coding')).toEqual(
-      await definitionsOf(() => undefined).typeOf(textOf(A) as TenantId, 'coding'),
+    expect(
+      await definitionsOf(() => unknown).typeOf(textOf(A) as TenantId, 'coding', DISPATCHER),
+    ).toEqual(
+      await definitionsOf(() => undefined).typeOf(textOf(A) as TenantId, 'coding', DISPATCHER),
     )
-    expect(await definitionsOf(() => unknown).typeOf(textOf(A) as TenantId, 'coding')).not.toEqual({
+    expect(
+      await definitionsOf(() => unknown).typeOf(textOf(A) as TenantId, 'coding', DISPATCHER),
+    ).not.toEqual({
       kind: 'read',
       value: null,
     })
@@ -135,7 +150,9 @@ describe('the type of an Agent definition as a tenant sees it', () => {
         return [{ name: 'coding', type: 'master' as const, summary: 's' }]
       },
     }
-    expect(await definitionsOf(() => everything).typeOf('nobody' as TenantId, 'coding')).toEqual({
+    expect(
+      await definitionsOf(() => everything).typeOf('nobody' as TenantId, 'coding', DISPATCHER),
+    ).toEqual({
       kind: 'read',
       value: null,
     })
@@ -143,9 +160,34 @@ describe('the type of an Agent definition as a tenant sees it', () => {
   })
 
   it('is unavailable while the catalogue is not mounted', async () => {
-    expect(await definitionsOf(() => undefined).typeOf(textOf(A), 'coding')).toEqual({
+    expect(await definitionsOf(() => undefined).typeOf(textOf(A), 'coding', DISPATCHER)).toEqual({
       kind: 'unavailable',
     })
+  })
+
+  it('sees the definitions of the workspace of the dispatching session through its turn, and none while that turn cannot be read', async () => {
+    const turn = { access: { principal: 'p', tenant: A }, key: 'run_now' }
+    const asked: unknown[] = []
+    const catalog = {
+      visibleTo: async (_tenant: unknown, given?: unknown) => {
+        asked.push(given)
+        return given === undefined ? [] : [{ name: 'helper', type: 'non-master' as const }]
+      },
+    } as never
+    const through = (turns: () => unknown) =>
+      definitionsOf(() => catalog, turns as never).typeOf(textOf(A), 'helper', DISPATCHER)
+    const dispatchers: unknown[] = []
+    const read = async (_tenant: unknown, dispatcher: unknown) => {
+      dispatchers.push(dispatcher)
+      return turn
+    }
+    expect(await through(() => read)).toEqual({ kind: 'read', value: 'non-master' })
+    expect(dispatchers).toEqual([DISPATCHER])
+    expect(asked).toEqual([turn])
+    // No turn: only what the tenant holds is seen. Unreadable: no answer is made up.
+    expect(await through(() => async () => null)).toEqual({ kind: 'read', value: null })
+    expect(await through(() => async () => undefined)).toEqual({ kind: 'unavailable' })
+    expect(await through(() => null)).toEqual({ kind: 'unavailable' })
   })
 })
 
@@ -156,7 +198,7 @@ describe('the ports the contributing rows mount', () => {
   const started = { id: D, session: S }
 
   it('answers every read as unavailable and makes no write while no row has mounted its port', async () => {
-    const holder: DispatchHolder = { sessions: null, waits: null, copies: null }
+    const holder: DispatchHolder = { sessions: null, waits: null, copies: null, turns: null }
     const sessions = lateSessions(holder)
     expect(await sessions.row(T, S)).toEqual({ kind: 'unavailable' })
     expect(await sessions.startFate(T, started)).toEqual({ kind: 'unavailable' })
@@ -169,7 +211,7 @@ describe('the ports the contributing rows mount', () => {
   })
 
   it('reads the mounted port at each call, so a row that comes and goes is seen', async () => {
-    const holder: DispatchHolder = { sessions: null, waits: null, copies: null }
+    const holder: DispatchHolder = { sessions: null, waits: null, copies: null, turns: null }
     const sessions = lateSessions(holder)
     const waits = lateWaits(holder)
     const row = { kind: 'read', value: null } as const
@@ -188,7 +230,7 @@ describe('the ports the contributing rows mount', () => {
   })
 
   it('cannot fix the moment of a spawn while the row that knows Session is not started, and asks it when it is', async () => {
-    const holder: DispatchHolder = { sessions: null, waits: null, copies: null }
+    const holder: DispatchHolder = { sessions: null, waits: null, copies: null, turns: null }
     const copies = lateCopies(holder)
     expect(await copies.moment(T, S, 'call-1')).toEqual({ kind: 'unavailable' })
     const fixed = { kind: 'read', value: { kind: 'moment', moment: 'm' } } as const

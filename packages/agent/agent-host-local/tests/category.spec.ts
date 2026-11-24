@@ -15,7 +15,7 @@ it('contributes the agent definition category with its own name and withdraws it
     {
       category: 'AgentDefinition',
       display: agentDefinitionCategoryDisplay,
-      creation: 'none',
+      creation: 'directory',
       point: 'agent.definitions',
     },
   ])

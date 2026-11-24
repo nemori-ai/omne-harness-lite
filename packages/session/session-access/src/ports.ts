@@ -161,7 +161,10 @@ export type ResolvedDefinition = Readonly<{
   initialModelSelection?: SavedModelSelection
 }>
 
-export type DefinitionResolver = (definition: string) => ResolvedDefinition | undefined
+export type DefinitionResolver = (
+  definition: string,
+  tenant: TenantId,
+) => ResolvedDefinition | undefined | Promise<ResolvedDefinition | undefined | 'unavailable'>
 
 export type SessionAccessSettings = Readonly<{
   defaultDefinition?: string | undefined

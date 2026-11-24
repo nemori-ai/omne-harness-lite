@@ -10,7 +10,7 @@ import type { PrincipalVerifier } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { AgentDefinitionCatalog } from '../agent-adoptions/definition-catalog.ts'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
-import type { DispatchHolder } from './holder.ts'
+import type { DispatcherTurns, DispatchHolder } from './holder.ts'
 
 const UNAVAILABLE = { kind: 'unavailable' } as const
 const UNKNOWN = { kind: 'unknown' } as const
@@ -54,14 +54,20 @@ export function createDispatchAuthority(ports: AuthorityPorts): DispatchAuthorit
   }
 }
 
-export function definitionsOf(catalog: () => AgentDefinitionCatalog | undefined): AgentDefinitions {
+/** `turns` gives the turn of the dispatching session: with it the definitions of its workspace are seen too. */
+export function definitionsOf(
+  catalog: () => AgentDefinitionCatalog | undefined,
+  turns?: () => DispatcherTurns | null,
+): AgentDefinitions {
   return {
-    async typeOf(tenant, name) {
+    async typeOf(tenant, name, dispatcher) {
       const legal = tenantCodec.parse(tenant)
       const listing = catalog()
       if (listing === undefined) return UNAVAILABLE
       if (!legal.ok) return { kind: 'read', value: null }
-      const seen = await listing.visibleTo(legal.value)
+      const turn = turns === undefined ? null : await turns()?.(legal.value, dispatcher)
+      if (turn === undefined) return UNAVAILABLE
+      const seen = await listing.visibleTo(legal.value, turn ?? undefined)
       if (seen === undefined) return UNAVAILABLE
       return { kind: 'read', value: seen.find(item => item.name === name)?.type ?? null }
     },

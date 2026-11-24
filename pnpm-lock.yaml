@@ -1381,6 +1381,9 @@ importers:
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../common/utc-instant
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
       zod:
         specifier: 'catalog:'
         version: 4.6.5

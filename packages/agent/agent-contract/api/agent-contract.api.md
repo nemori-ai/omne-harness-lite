@@ -137,6 +137,7 @@
 - `DECISION_CARD_DRAFT_SCHEMA` · `judge-output.d.ts`
 - `DecisionCardDraft` · `extensions.d.ts`
 - `DecisionCards` · `passages.d.ts`
+- `DefinitionFacts` · `effect.d.ts`
 - `DenialCategory` · `passages.d.ts`
 - `Dimension` · `extensions.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
@@ -280,6 +281,7 @@
 - `ReplyAdmissionRead` · `evaluation.d.ts`
 - `ReplyAdmissionSequence` · `identity.d.ts`
 - `RequestPreparation` · `request.d.ts`
+- `ResidentTool` · `effect.d.ts`
 - `ResponsibilityCoverage` · `finishing.d.ts`
 - `ResultResponsibility` · `execution.d.ts`
 - `RuntimeConditions` · `evaluation.d.ts`
@@ -340,7 +342,9 @@
 - `decodeReplyAdmissionPageCursor` · `identity.d.ts`
 - `decodeReplyAdmissionSequence` · `identity.d.ts`
 - `decodeStepId` · `identity.d.ts`
+- `definitionImpact` · `effect.d.ts`
 - `definitionListing` · `definition.d.ts`
+- `definitionPlaces` · `effect.d.ts`
 - `encodeCompactionInput` · `compaction-codec.d.ts`
 - `encodeCompactionRequest` · `compaction-codec.d.ts`
 - `encodeCompactionTaskRef` · `compaction-codec.d.ts`
@@ -760,6 +764,32 @@ export type AgentDefinitionListing = Readonly<{
 }>;
 export declare function definitionListing(definition: AgentDefinition): AgentDefinitionListing;
 export declare function attributeItem(text: string | undefined): AttributeItem | undefined;
+```
+
+## 声明文件 `effect.d.ts`
+
+```ts
+import type { AssetStanding, ImpactLine, PlacedLine } from '@omne-harness/assets';
+export type ResidentTool = Readonly<{
+    name: string;
+    there: boolean | null;
+}>;
+export type DefinitionFacts = Readonly<{
+    name: string;
+    official: boolean;
+    refused: string | null;
+    residents: readonly ResidentTool[];
+    inert: readonly string[];
+}>;
+export type DefinitionTold<Line> = Readonly<{
+    lines: readonly Line[];
+    advice: string | null;
+}>;
+export declare function definitionImpact(point: string, toolPoint: string, facts: DefinitionFacts): DefinitionTold<ImpactLine>;
+export declare function definitionPlaces(point: string, toolPoint: string, standing: AssetStanding | undefined, facts: DefinitionFacts): Readonly<{
+    places: readonly PlacedLine[];
+    advice: string | null;
+}>;
 ```
 
 ## 声明文件 `evaluation.d.ts`
@@ -2607,6 +2637,7 @@ export type * from './receiving.ts';
 export type * from './request.ts';
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts';
 export type * from './action-qualification.ts';
+export { definitionImpact, definitionPlaces, type DefinitionFacts, type ResidentTool, } from './effect.ts';
 ```
 
 ## 声明文件 `journal.d.ts`
@@ -2968,6 +2999,14 @@ export type BatchJudgment<T> = {
     readonly index: number;
 };
 export declare function refused<T>(reason: RefusalReason, detail?: string): Judgment<T>;
+```
+
+## 声明文件 `layout.d.ts`
+
+```ts
+import { type PackageLayout } from '@omne-harness/assets';
+export declare const AGENT_FILE = "AGENT.md";
+export declare const agentDefinitionLayout: PackageLayout;
 ```
 
 ## 声明文件 `passages.d.ts`

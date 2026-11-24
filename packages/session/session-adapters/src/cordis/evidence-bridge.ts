@@ -8,6 +8,7 @@ import type {
   ProductionEvidenceCommand,
   SessionAccess,
   SessionCommand,
+  SessionAdoptionSource,
   SessionEvidenceBridge,
 } from '@omne-harness/session-contract'
 import {
@@ -190,6 +191,20 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
         `no source gave material for ${command.kind}`,
       )
     return succeed(materials)
+  }
+
+  readonly runAdoption: NonNullable<SessionEvidenceBridge<P>['runAdoption']> = async (
+    access,
+    input,
+  ) => {
+    if (this.closed) return unavailable(BRIDGE_OWNER, 'the evidence bridge has stopped')
+    const source = this.ctx[sessionAdoptionSourceKey] as SessionAdoptionSource<P>
+    if (source.forRun === undefined) return succeed({ candidate: input.work.definition.adopted })
+    try {
+      return await source.forRun(access, input)
+    } catch (cause) {
+      return unavailable(sessionAdoptionSourceKey, `the source threw: ${describe(cause)}`)
+    }
   }
 
   // A permission write is checked in its own transaction; a model's legality was judged with Model.

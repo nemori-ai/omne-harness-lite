@@ -15,6 +15,7 @@ import { contentDigest } from '../../src/rows/agent-adoptions/definition-mapping
 import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
 import { AgentAdoptionsImpl } from '../../src/rows/agent-adoptions/services.ts'
 import { buildTable } from '../../src/rows/agent-adoptions/table.ts'
+import { tableReading } from '../../src/rows/agent-adoptions/held-definitions.ts'
 import { TENANT_A } from '../rows/storage/fixtures/tree.ts'
 
 type Distribution = Readonly<{ rows: readonly Readonly<{ id: string; config: unknown }>[] }>
@@ -35,7 +36,7 @@ const access = { principal: 'tester', tenant: TENANT_A }
 
 async function adoptionsFace() {
   const table = await buildTable(config)
-  return new AgentAdoptionsImpl(new Context(), table)
+  return new AgentAdoptionsImpl(new Context(), table, tableReading(table))
 }
 
 describe('the coding entry of the release mapping', () => {
@@ -45,23 +46,23 @@ describe('the coding entry of the release mapping', () => {
     const judged = await judgeAgentDefinition(entry.definition)
     expect(judged.kind).toBe('accepted')
     expect(configured.references).toEqual([
-      { capability: { category: 'Tool', name: 'Files' }, resident: true },
-      { capability: { category: 'Tool', name: 'Shell' }, resident: true },
-      { capability: { category: 'Tool', name: 'Tools' }, resident: true },
-      { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
-      { capability: { category: 'Tool', name: 'BkgToolCalls' }, resident: true },
-      { capability: { category: 'Tool', name: 'Ask' }, resident: true },
-      { capability: { category: 'Tool', name: 'Web' }, resident: true },
-      { capability: { category: 'Tool', name: 'Calendar' }, resident: true },
-      { capability: { category: 'Tool', name: 'Schedules' }, resident: true },
-      { capability: { category: 'Tool', name: 'Notifications' }, resident: true },
-      { capability: { category: 'Tool', name: 'Sessions' }, resident: true },
-      { capability: { category: 'Tool', name: 'Agents' }, resident: true },
-      { capability: { category: 'Tool', name: 'SwitchWorkspace' }, resident: true },
-      { capability: { category: 'Tool', name: 'OmneExtensionPoints' }, resident: true },
-      { capability: { category: 'Tool', name: 'OmneExtensions' }, resident: true },
-      { capability: { category: 'Tool', name: 'Screen' }, resident: true },
-      { capability: { category: 'Tool', name: 'Skills' }, resident: true },
+      { capability: { category: 'tool', name: 'Files' }, resident: true },
+      { capability: { category: 'tool', name: 'Shell' }, resident: true },
+      { capability: { category: 'tool', name: 'Tools' }, resident: true },
+      { capability: { category: 'tool', name: 'TodoItems' }, resident: true },
+      { capability: { category: 'tool', name: 'BkgToolCalls' }, resident: true },
+      { capability: { category: 'tool', name: 'Ask' }, resident: true },
+      { capability: { category: 'tool', name: 'Web' }, resident: true },
+      { capability: { category: 'tool', name: 'Calendar' }, resident: true },
+      { capability: { category: 'tool', name: 'Schedules' }, resident: true },
+      { capability: { category: 'tool', name: 'Notifications' }, resident: true },
+      { capability: { category: 'tool', name: 'Sessions' }, resident: true },
+      { capability: { category: 'tool', name: 'Agents' }, resident: true },
+      { capability: { category: 'tool', name: 'SwitchWorkspace' }, resident: true },
+      { capability: { category: 'tool', name: 'OmneExtensionPoints' }, resident: true },
+      { capability: { category: 'tool', name: 'OmneExtensions' }, resident: true },
+      { capability: { category: 'tool', name: 'Screen' }, resident: true },
+      { capability: { category: 'tool', name: 'Skills' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])
     expect(instructions.map(section => section.id)).toEqual([
