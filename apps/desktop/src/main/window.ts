@@ -1,4 +1,6 @@
+import { setTimeout as delay } from 'node:timers/promises'
 import {
+  app,
   BrowserWindow,
   dialog,
   protocol,
@@ -8,6 +10,7 @@ import {
   type WebContents,
 } from 'electron'
 import { APP_SCHEME, APP_URL } from './app-url.ts'
+import type { DeviceScreenDeps } from './device-screen.ts'
 import { externalTarget } from './external-links.ts'
 import { MAIN_WINDOW_READY_MESSAGE } from '../startup-signals.ts'
 import type { Logger } from './log.ts'
@@ -32,7 +35,7 @@ export function registerAppScheme(): void {
   ])
 }
 
-const LOAD_ABORTED = -3
+export const LOAD_ABORTED = -3
 
 const SHOW_FALLBACK_MS = 1_000
 
@@ -218,4 +221,33 @@ export function openAppWindow(
 
   void window.loadURL(APP_URL).catch(() => {})
   return window
+}
+
+const SHADE_POLL_MS = 20
+const SHADE_LIMIT_MS = 1_000
+const SHADE_SETTLE_MS = 250
+
+/** The app gets out of the way of a screenshot and comes back: on macOS the whole app hides, elsewhere the window. */
+export function windowShade(current: () => BrowserWindow | undefined): DeviceScreenDeps['window'] {
+  const mac = process.platform === 'darwin'
+  return {
+    async hide() {
+      const window = current()
+      if (mac) app.hide()
+      else window?.hide()
+      for (
+        let waited = 0;
+        window?.isVisible() === true && waited < SHADE_LIMIT_MS;
+        waited += SHADE_POLL_MS
+      )
+        await delay(SHADE_POLL_MS)
+      await delay(SHADE_SETTLE_MS)
+    },
+    show() {
+      if (mac) app.show()
+      const window = current()
+      window?.show()
+      window?.focus()
+    },
+  }
 }

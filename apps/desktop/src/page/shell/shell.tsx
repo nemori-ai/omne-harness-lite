@@ -14,6 +14,7 @@ import type {
 } from '@omne-harness/shell-contract'
 import {
   AppTooltipProvider,
+  RedrawProvider,
   FIGURE_SIZE,
   FigureSeat,
   FigureStage,
@@ -342,34 +343,36 @@ export function Shell(props: ShellProps) {
   const homePage =
     merged.waiting > 0 && merged.waitingPage !== undefined ? merged.waitingPage : pages[0]?.id
   return (
-    <AppTooltipProvider>
-      <FigureStage
-        doing={merged.doing === 'idle' ? undefined : merged.doing}
-        moment={merged.moment}
-        waiting={merged.waiting}
-        label={figureText(merged)}
-        onPress={pressSeat}
-      >
-        <a className="shell-skip" href="#shell-content" data-control="link">
-          跳到正文
-        </a>
-        {login === 'signed-in' ? (
-          <Workspace
-            appName={props.appName}
-            state={state}
-            connectivity={connectivity}
-            theme={props.theme}
-            size={props.size}
-            pages={pages}
-            shown={shown}
-            homePage={homePage}
-            missing={missing}
-            floats={props.floats}
-          />
-        ) : (
-          <Outside state={state} login={login} connectivity={connectivity} missing={missing} />
-        )}
-      </FigureStage>
-    </AppTooltipProvider>
+    <RedrawProvider value={state.redraw.draw}>
+      <AppTooltipProvider>
+        <FigureStage
+          doing={merged.doing === 'idle' ? undefined : merged.doing}
+          moment={merged.moment}
+          waiting={merged.waiting}
+          label={figureText(merged)}
+          onPress={pressSeat}
+        >
+          <a className="shell-skip" href="#shell-content" data-control="link">
+            跳到正文
+          </a>
+          {login === 'signed-in' ? (
+            <Workspace
+              appName={props.appName}
+              state={state}
+              connectivity={connectivity}
+              theme={props.theme}
+              size={props.size}
+              pages={pages}
+              shown={shown}
+              homePage={homePage}
+              missing={missing}
+              floats={props.floats}
+            />
+          ) : (
+            <Outside state={state} login={login} connectivity={connectivity} missing={missing} />
+          )}
+        </FigureStage>
+      </AppTooltipProvider>
+    </RedrawProvider>
   )
 }

@@ -36,13 +36,28 @@ const SCREEN_GATES: CommandGates = {
   of: { help: 'read', screens: 'observe', capture: 'observe' },
 }
 
-const NOT_PERMITTED =
-  'rejected reason=notAuthorized the system has not permitted reading the screen (on macOS: Screen Recording, for the application that runs this server)'
+const NOT_PERMITTED = [
+  'rejected reason=notAuthorized the system has not permitted reading the screen.',
+  'On macOS the permission is Screen Recording (System Settings > Privacy & Security > Screen Recording),',
+  'held by the application that started this server: the terminal or editor it was started from (Terminal, iTerm, Visual Studio Code) or the app that runs it.',
+  'Turn it on for that application and restart it.',
+].join(' ')
 
 /** What the facility answered when it gave nothing, as one line. */
-function refused(answer: Exclude<FacilityResult<unknown>, { kind: 'done' }>, named: string | null) {
+type Region = Readonly<{ x: number; y: number; width: number; height: number }>
+
+const rectangle = ({ x, y, width, height }: Region) =>
+  `${String(x)},${String(y)},${String(width)}x${String(height)}`
+
+function refused(
+  answer: Exclude<FacilityResult<unknown>, { kind: 'done' }>,
+  named: string | null,
+  region: Region | null = null,
+) {
   if (answer.kind !== 'rejected') return confirmation(answer, () => '')
   if (answer.reason === 'notAuthorized') return NOT_PERMITTED
+  if (answer.reason === 'invalidInput' && region !== null)
+    return `rejected reason=invalidInput region=${rectangle(region)} is not inside the screen; screens gives the pixels of each screen`
   if (answer.reason === 'notFound' && named !== null)
     return `rejected reason=notFound screen=${JSON.stringify(named)} is not a screen of this machine; list them with screens`
   return confirmation(answer, () => '')
@@ -89,9 +104,10 @@ async function captureScreen(
   limits: Limits,
 ): Promise<PictureAnswer> {
   const named = args.optionalText('screen') ?? null
-  const answer = await environment.screen.capture({ screen: named, region: null })
-  if (answer.kind !== 'done') return { text: refused(answer, named) }
-  const { screen, takenAt } = answer.value
+  const asked = args.region()
+  const answer = await environment.screen.capture({ screen: named, region: asked })
+  if (answer.kind !== 'done') return { text: refused(answer, named, asked) }
+  const { screen, region, takenAt } = answer.value
   const subject = `screen=${JSON.stringify(screen.id)}`
   const image = await prepared(answer.value, limits)
   if (typeof image === 'string') return { text: `rejected reason=${image} ${subject}` }
@@ -99,13 +115,13 @@ async function captureScreen(
   if ('failure' in stored) return { text: unstored(stored.failure, subject) }
   const { pixels, scale, name } = screen
   return {
-    text: `done Screen capture ${subject} name=${JSON.stringify(name)} screen_pixels=${pixels.width}x${pixels.height} scale=${scale} image_pixels=${image.width}x${image.height} taken_at=${takenAt}`,
+    text: `done Screen capture ${subject} name=${JSON.stringify(name)} screen_pixels=${pixels.width}x${pixels.height} scale=${scale} region=${rectangle(region)} image_pixels=${image.width}x${image.height} taken_at=${takenAt}`,
     product: stored.ok,
   }
 }
 
 const GUIDE =
-  'Screen reads what is on the screens of the machine the session works on; it changes nothing there. screens lists them. capture takes one frame of the primary screen, or of the screen named by its identifier, and returns it for the model to see. The line after the picture gives the coordinate system: a point (x, y) of the picture is the point (x * screen_pixels.width / image_pixels.width, y * screen_pixels.height / image_pixels.height) of the screen, in its physical pixels; divided by scale and moved by the origin screens gives, it is a point of the desktop in logical points. An identifier that is not listed is refused, never replaced by the primary screen.'
+  'Screen reads what is on the screens of the machine the session works on; it changes nothing there. screens lists them. capture takes one frame of the primary screen, or of the screen named by its identifier, and returns it for the model to see; with a region it takes only that rectangle of the screen, which shows small things larger. The line after the picture gives the coordinate system: region=x,y,WxH is the rectangle of the screen the picture covers, and a point (px, py) of the picture is the point (x + px * W / image_pixels.width, y + py * H / image_pixels.height) of the screen, in its physical pixels; divided by scale and moved by the origin screens gives, it is a point of the desktop in logical points. An identifier that is not listed is refused, never replaced by the primary screen.'
 
 export function createScreenAuthor(
   construction: JsonValue,

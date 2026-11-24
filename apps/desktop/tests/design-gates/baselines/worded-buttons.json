@@ -41,6 +41,9 @@
     "packages/identity/identity-ui/src/view/login-card.tsx | 请稍候……/{TITLE[form.mode]}": {
       "commit": 1
     },
+    "packages/media/media-ui/src/view/attachment-tray.tsx | 打开系统设置": {
+      "primary": 1
+    },
     "packages/model/model-ui/src/view/credential-remedy.tsx | 去填": {
       "primary": 1
     },

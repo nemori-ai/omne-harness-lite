@@ -411,6 +411,11 @@
       "config": {}
     },
     {
+      "id": "loop-extension",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "runtime-context",
       "plugin": "stubPlugin",
       "config": {}

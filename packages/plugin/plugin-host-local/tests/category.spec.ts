@@ -163,6 +163,35 @@ describe('inspecting a package', () => {
     ])
   })
 
+  it('accepts an image that begins as its name says, and rejects one that only bears the name, naming the file', async () => {
+    const drawn = { ...GOOD, 'art/mark.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>' }
+    expect('ok' in (await inspect(drawn)).answer).toBe(true)
+    const { answer } = await inspect({ ...GOOD, 'art/sea.png': '<html><script>1</script></html>' })
+    expect(answer).toEqual(rejected('the file art/sea.png is not the image its name says'))
+  })
+
+  it('an image that cannot be read now is the source failing, not a package refused', async () => {
+    const made = world()
+    const pkg = packageOf({ ...GOOD, 'art/mark.svg': '<svg/>' })
+    const answer = await made.contract.layout!.inspect({
+      manifest: pkg.manifest,
+      open: async (path, digest) =>
+        path === 'art/mark.svg' ? fail('unavailable') : pkg.open(path, digest),
+    })
+    expect(answer).toEqual(fail({ kind: 'source-failed', failure: 'unavailable' }))
+  })
+
+  it('opens only the files named as images: a file of another kind that cannot be read now does not stop it', async () => {
+    const made = world()
+    const pkg = packageOf({ ...GOOD, 'art/mark.svg': '<svg/>', 'notes.json': '{}' })
+    const answer = await made.contract.layout!.inspect({
+      manifest: pkg.manifest,
+      open: async (path, digest) =>
+        path === 'notes.json' ? fail('unavailable') : pkg.open(path, digest),
+    })
+    expect('ok' in answer).toBe(true)
+  })
+
   it('rejects a package without a manifest', async () => {
     const { answer } = await inspect({ 'main.js': '' })
     expect(answer).toEqual(rejected('the package has no plugin.json'))

@@ -893,6 +893,11 @@
       "config": {}
     },
     {
+      "id": "loop-extension",
+      "plugin": "loopExtensionRow",
+      "config": {}
+    },
+    {
       "id": "runtime-context",
       "plugin": "runtimeContextRow",
       "config": {}

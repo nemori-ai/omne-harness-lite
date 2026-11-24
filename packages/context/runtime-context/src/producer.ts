@@ -185,7 +185,7 @@ export function createSupplier<P>(world: World<P>) {
       !world.closed &&
       world.state(s.scope) === s &&
       s.replayEpoch === epoch &&
-      s.supplySeq.get(producer.key) === seq &&
+      (s.supplySeq.get(producer.key) ?? 0) === seq &&
       !s.ended &&
       s.registrations.has(producer.key)
     if (!fresh) {

@@ -68,10 +68,12 @@ async function categoriesAndAssets(assets: Assets, tenant: TenantId) {
     ['converter', 'data'],
     [FIXTURE, 'data'],
     [FIXTURE_BUNDLE, 'directory'],
+    ['loop-extension', 'directory'],
     ['mcp', 'data'],
     ['model-provider', 'none'],
     ['plugin', 'directory'],
     ['skill', 'directory'],
+    ['skin', 'directory'],
     ['tool', 'directory'],
   ])
   expect(await assets['describe-category']({ category: FIXTURE })).toMatchObject({

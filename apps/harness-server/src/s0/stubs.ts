@@ -123,6 +123,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantAssetSettings',
       'independentSettings',
       'tenantIndependentSettings',
+      'loopExtensionSources',
     ],
     injects: [
       'storage',
@@ -493,6 +494,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'modelPreparationResources',
       'modelRequestPreparation',
     ],
+  },
+  'loop-extension': {
+    provides: [
+      'loopExtensionViews',
+      'loopExtensionBuiltins',
+      'loopExtensionRunLocations',
+      'agentExtensions',
+    ],
+    injects: ['runtimeContextTenantBlocks'],
   },
   'runtime-context': { provides: ['runtimeContext'], injects: ['runtimeContextTrust'] },
   'session-observation': {

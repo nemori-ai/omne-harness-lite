@@ -1,20 +1,33 @@
-import { FILE_SUFFIXES, insidePackage } from '@omne-harness/plugin-protocol'
+import { FILE_SUFFIXES, IMAGE_SUFFIXES, insidePackage } from '@omne-harness/plugin-protocol'
 import { pluginProtocol } from '@omne-harness/plugin-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import { createClient, type Transport } from '@omne-harness/sdk/core'
 import { PLUGIN_FILES } from '../shared/plugin-path.ts'
 
-export type PluginFileAt = Readonly<{ name: string; version: string; path: string; type: string }>
+/** `shut` is true for a file that could run as a page of its own: its answer carries a policy that lets nothing in it run. */
+export type PluginFileAt = Readonly<{
+  name: string
+  version: string
+  path: string
+  type: string
+  shut: boolean
+}>
 
 /** A file that was found: its size, and its parts in order, each read when it is asked for. */
 export type PluginFileAnswer =
   | Readonly<{ kind: 'file'; bytes: number; parts: AsyncIterableIterator<Uint8Array> }>
   | Readonly<{ kind: 'not-found' | 'denied' | 'unavailable' }>
 
-const TYPES: Readonly<Record<(typeof FILE_SUFFIXES)[number], string>> = {
+const SUFFIXES = [...FILE_SUFFIXES, ...IMAGE_SUFFIXES] as const
+const TYPES: Readonly<Record<(typeof SUFFIXES)[number], string>> = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.svg': 'image/svg+xml',
 }
 const NAME = /^[a-z][a-z0-9-]{0,63}$/u
 const VERSION = /^[A-Za-z0-9._-]{1,128}$/u
@@ -27,9 +40,10 @@ export function pluginFileAt(pathname: string): PluginFileAt | undefined {
   const [name, version, ...rest] = pathname.slice(PLUGIN_FILES.length).split('/')
   if (name === undefined || version === undefined) return
   const path = rest.join('/')
-  const suffix = FILE_SUFFIXES.find(each => path.endsWith(each))
+  const suffix = SUFFIXES.find(each => path.endsWith(each))
   if (!NAME.test(name) || !VERSION.test(version) || suffix === undefined) return
-  return insidePackage(path) ? { name, version, path, type: TYPES[suffix] } : undefined
+  if (!insidePackage(path)) return
+  return { name, version, path, type: TYPES[suffix], shut: suffix === '.svg' }
 }
 
 type Part = Readonly<{ part: Uint8Array; next: number | null; bytes: number }>

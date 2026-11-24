@@ -31,7 +31,7 @@ import {
   withChosenRewrite,
   type Judged,
 } from './admission-chain.ts'
-import type { RoundCards } from './card-rounds.ts'
+import type { RoundCards } from './extension-drive.ts'
 import { agentEvidence } from './identities.ts'
 import { needOf, type Outside } from './passages.ts'
 import { toolConsumer } from './tools.ts'

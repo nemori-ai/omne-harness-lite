@@ -351,6 +351,12 @@ export const screenCommands: readonly Command[] = withHelp([
         description:
           'The identifier of a screen, as screens lists it. Omit for the primary screen.',
       },
+      {
+        name: 'region',
+        kind: 'region',
+        description:
+          'A rectangle of the screen to take instead of all of it, in its physical pixels as screens gives them: { x, y, width, height }. Take one to see small things larger.',
+      },
     ],
   },
 ])

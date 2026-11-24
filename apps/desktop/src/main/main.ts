@@ -1,7 +1,8 @@
 import { writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, Menu, safeStorage, session, type BrowserWindow } from 'electron'
+import { macosRequestScreenAccess, screenBackendFor } from '@omne-harness/screen'
+import { app, Menu, safeStorage, session, shell, type BrowserWindow } from 'electron'
 import { DEFAULT_SERVER } from '../shared/server.ts'
 import {
   BUILD_PROFILE_MESSAGE,
@@ -26,11 +27,20 @@ import {
   storeCookieKeyFirst,
 } from './cookie-key.ts'
 import { developmentHost } from './dev-host.ts'
+import { deviceScreenRoute } from './device-screen.ts'
 import { createLogger, type Logger } from './log.ts'
 import type { UtilityState } from './recovery.ts'
 import { refuseRemoteDebugging } from './remote-debugging.ts'
+import { loadScreenLibrary, SCREEN_SETTINGS_URL } from './screen-host.ts'
+import { screenOverlays } from './screen-overlay.ts'
 import { startServerProcess } from './utility-process.ts'
-import { APP_PARTITION, openAppWindow, registerAppScheme, type UtilityWatch } from './window.ts'
+import {
+  APP_PARTITION,
+  openAppWindow,
+  registerAppScheme,
+  windowShade,
+  type UtilityWatch,
+} from './window.ts'
 import { windowStateFile } from './window-state.ts'
 
 if (OMNE_BUILD_PROFILE === 'release') refuseRemoteDebugging()
@@ -99,6 +109,16 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
       log,
     }),
     log,
+    local: deviceScreenRoute({
+      backend: () =>
+        screenBackendFor(process.platform, { load: () => loadScreenLibrary(app.isPackaged) }),
+      window: windowShade(() => window),
+      overlays: screenOverlays(),
+      requestAccess: process.platform === 'darwin' ? () => macosRequestScreenAccess() : null,
+      openSettings:
+        process.platform === 'darwin' ? () => shell.openExternal(SCREEN_SETTINGS_URL) : null,
+      now: Date.now,
+    }),
   })
   void forwarding.ready().catch(() => {})
 

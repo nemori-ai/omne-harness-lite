@@ -8,6 +8,7 @@ import {
   type CardReply,
   type CardRound,
   type CardRoundId,
+  type ControlRecord,
   type DurableEvidence,
   type Failure,
   type Passage,
@@ -15,6 +16,7 @@ import {
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '../construction.ts'
+import { cancellationCause } from './cancellation-judgment.ts'
 import { AGENT_OWNER, agentEvidence } from './identities.ts'
 import {
   afterClosed,
@@ -149,6 +151,9 @@ export function cardClosing<P>(
 
     withdrawChain: (chain: Passage, reason: DurableEvidence) =>
       withdrawRound(chain, reason, unsentRounds),
+    withdrawCancelled(at: Pick<AgentCheckpoint, 'batch' | 'passages'>, control: ControlRecord) {
+      return this.withdrawOpen(at, 'F0/cancel', cancellationCause(control))
+    },
 
     // The batch settled a waiting action: its card is withdrawn, unless the person answered first.
     async endSuperseded(

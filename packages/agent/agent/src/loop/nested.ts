@@ -189,35 +189,31 @@ export async function nestedTurn<P>(
   return succeed({ passages, opened })
 }
 
-type Passing<P> = Omit<
-  NestedTurnInput<P>,
-  'authority' | 'batch' | 'passages' | 'requests' | 'present'
-> &
-  Readonly<{
-    authority(): Authority
-    pending(): readonly NestedRequest[]
-    roundCards: NestedTurnInput<P>['present']
-    unsentRounds: Set<CardRoundId>
-  }>
+type Place<P> = Omit<NestedTurnInput<P>, 'authority' | 'batch' | 'passages' | 'requests'> &
+  Readonly<{ unsentRounds: Set<CardRoundId> }>
+type Asked = Readonly<{ pending(): readonly NestedRequest[] }> | undefined
 
-export function nestedPassOf<P>(passing: Passing<P>) {
-  return async (
-    batch: ActionBatch,
-    saved: readonly Passage[],
-  ): Promise<Outcome<readonly Passage[] | null, Failure>> => {
-    const requests = passing.pending()
-    if (requests.length === 0 && nestedChains(saved).length === 0) return succeed(null)
-    const { roundCards: present, authority, ...place } = passing
-    const turned = await nestedTurn({
-      ...place,
-      authority: authority(),
-      batch,
-      passages: saved,
-      requests,
-      present,
-    })
-    if ('failure' in turned) return turned
-    for (const round of turned.ok.opened) passing.unsentRounds.add(round)
-    return succeed(turned.ok.passages === saved ? null : turned.ok.passages)
+const CANCELLED: NestedActionVerdict = { kind: 'denied', reason: 'the run was cancelled' }
+
+/** What the Loop does with the positions programs ask about: one pass, the strays, and a cancelled run. */
+export function nestedDrive<P>(place: Place<P>, asked: Asked, authority: () => Authority) {
+  const pending = () => asked?.pending() ?? []
+  return {
+    async pass(
+      batch: ActionBatch,
+      saved: readonly Passage[],
+    ): Promise<Outcome<readonly Passage[] | null, Failure>> {
+      const requests = pending()
+      if (requests.length === 0 && nestedChains(saved).length === 0) return succeed(null)
+      const turn = { ...place, authority: authority(), batch, passages: saved, requests }
+      const turned = await nestedTurn(turn)
+      if ('failure' in turned) return turned
+      for (const round of turned.ok.opened) place.unsentRounds.add(round)
+      return succeed(turned.ok.passages === saved ? null : turned.ok.passages)
+    },
+    refuseStray: (batch: ActionBatch | null) => refuseStrayNested(pending(), batch),
+    cancelled() {
+      for (const request of pending()) request.answer(CANCELLED)
+    },
   }
 }

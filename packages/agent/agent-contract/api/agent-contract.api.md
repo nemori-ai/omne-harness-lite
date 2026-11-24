@@ -100,6 +100,8 @@
 - `CardRound` · `passages.d.ts`
 - `CardRoundId` · `identity.d.ts`
 - `CardRoundProgress` · `passages.d.ts`
+- `ChainMember` · `passages.d.ts`
+- `ChainSource` · `passages.d.ts`
 - `CommandReceipt` · `execution.d.ts`
 - `CompactionAssessment` · `request.d.ts`
 - `CompactionFailure` · `compaction.d.ts`
@@ -142,6 +144,8 @@
 - `Dimension` · `extensions.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectIntent` · `journal.d.ts`
+- `EnabledExtension` · `passages.d.ts`
+- `EnabledExtensions` · `passages.d.ts`
 - `ErrorPolicy` · `extensions.d.ts`
 - `EventPage` · `execution.d.ts`
 - `ExcludedPredecessor` · `finishing.d.ts`
@@ -153,6 +157,7 @@
 - `ExecutionSettlement` · `finishing.d.ts`
 - `ExecutionSnapshot` · `execution.d.ts`
 - `ExecutionState` · `execution.d.ts`
+- `ExtensionChain` · `passages.d.ts`
 - `ExtensionImplementationDeclaration` · `extensions.d.ts`
 - `ExtensionImplementations` · `passages.d.ts`
 - `ExtensionInput` · `extensions.d.ts`
@@ -352,6 +357,7 @@
 - `encodeCompactionRequest` · `compaction-codec.d.ts`
 - `encodeCompactionTaskRef` · `compaction-codec.d.ts`
 - `encodeCompactionTaskState` · `compaction-codec.d.ts`
+- `endsWithUntakenInput` · `finishing.d.ts`
 - `judgeAccess` · `identity.d.ts`
 - `judgeAdoption` · `identity.d.ts`
 - `judgeAgentDefinition` · `judge-definition.d.ts`
@@ -808,7 +814,7 @@ import type * as T from '@omne-harness/tool-contract';
 import type { ControlRecord, ResultResponsibility } from './execution.ts';
 import type { Adoption, ActionBatchId, ActionId, AgentInstant, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, Continuation, DurableEvidence, InputBatchId, InputId, PassageId, ReplyAdmissionPageCursor, ReplyAdmissionSequence, StepId } from './identity.ts';
 import type { JsonValue } from '@omne-harness/json-text';
-import type { HandoffReference, MessageSource, Passage } from './passages.ts';
+import type { ExtensionChain, HandoffReference, MessageSource, Passage } from './passages.ts';
 import type { CompactionState, Preparation, SavedPreparation } from './request.ts';
 export type ProducedResult = Readonly<{
     producer: Readonly<{
@@ -1032,6 +1038,7 @@ export type ActionBatch = Readonly<{
     actions: readonly Action[];
     barrier: ActionBarrier;
     slots: readonly ActionSlot[];
+    beforePass: readonly PassageId[] | null;
     batchPass: readonly PassageId[] | null;
 }>;
 export type ModelReplyAdmission = Readonly<{
@@ -1134,7 +1141,7 @@ export type AgentCheckpoint = Readonly<{
     adoptedContext: DurableEvidence | null;
     adoptedRequest?: AdoptedRequest | null;
     guard: GuardFact | null;
-    completedPassages: readonly PassageId[];
+    chain: ExtensionChain | null;
     priorConditions: DurableEvidence | null;
     currentHandoff: HandoffReference | null;
     replyAdmissionRead: ReplyAdmissionRead;
@@ -1755,12 +1762,9 @@ export type ExtensionImplementationDeclaration = Readonly<{
     builtinName: string;
 }> | Readonly<{
     kind: 'command';
-    host: 'claude_code' | 'codex';
-    dialect: string;
-    event: string;
-    command: string;
-    matcher?: string;
-    timeout?: string;
+    interpreter: string;
+    entry: string;
+    timeout: string;
 }>;
 export type NeedDeclaration = Readonly<{
     name: string;
@@ -2210,6 +2214,7 @@ export type FinishObligation = (ObligationHead<'accepted-input'> & Readonly<{
     observation: TerminalObservation;
     terminal: DurableEvidence | null;
 }>);
+export declare function endsWithUntakenInput(candidate: Pick<FinishCandidateContent, 'conclusion' | 'failure'>): boolean;
 export declare function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory;
 export type CoverageFacet = Readonly<{
     owner: string;
@@ -2622,7 +2627,7 @@ export declare function judgeAuthority(value: unknown): Outcome<Authority, Struc
 
 ```ts
 export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts';
-export { obligationCategoryOf } from './finishing.ts';
+export { endsWithUntakenInput, obligationCategoryOf } from './finishing.ts';
 export { AGENT_TYPES, ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS, SUMMARY_LIMITS, definitionListing, } from './definition.ts';
 export { ACTION_ADMISSION_DECLARATION, ACTION_ADMISSION_IMPLEMENTATION, POSITIONS, POWERS, } from './extensions.ts';
 export { judgeAgentDefinition } from './judge-definition.ts';
@@ -3226,6 +3231,36 @@ export type Subject = Readonly<{
     terminal: AgentConclusion;
     disposition: DurableEvidence;
 }>;
+export type ChainSource = 'definition' | 'tenant' | 'system';
+export type ChainMember = Readonly<{
+    source: ChainSource;
+    declaration: LoopExtensionDeclaration;
+    implementation: Adoption;
+}>;
+export type ExtensionChain = Readonly<{
+    pass: string;
+    position: Position;
+    dimension: Dimension | null;
+    purpose: 'main' | null;
+    members: readonly ChainMember[];
+    basis: DurableEvidence | null;
+    unread?: DurableEvidence;
+}>;
+export type EnabledExtension = Readonly<{
+    declaration: LoopExtensionDeclaration;
+    implementation: Adoption;
+}>;
+export interface EnabledExtensions<P> {
+    read(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        position: Position;
+        dimension: Dimension | null;
+        purpose: 'main' | null;
+    }>): Reply<Readonly<{
+        members: readonly EnabledExtension[];
+        basis: DurableEvidence;
+    }>>;
+}
 export interface ExtensionImplementations<P> {
     resolve(input: Access<P> & Readonly<{
         passage: Passage;
@@ -4368,6 +4403,8 @@ export declare function finishInput<P>(opened: AgentJournalCoreOpened<P>, snapsh
     }>;
 };
 export declare function failedContent(name: string): Partial<FinishCandidateContent>;
+export declare function nodeFailedContent(name: string): Partial<FinishCandidateContent>;
+export declare function untakenInputContent(kind: 'node-failed' | 'extension-stop' | 'ordinary-fail' | 'complete'): Partial<FinishCandidateContent>;
 export declare function prepareOrdinaryEnd<P>(opened: AgentJournalCoreOpened<P>, name: string, authority?: Authority, content?: Partial<FinishCandidateContent>): Promise<ExecutionSnapshot>;
 export declare function end<P>(opened: AgentJournalCoreOpened<P>, name?: string, authority?: Authority, content?: Partial<FinishCandidateContent>): Promise<CommandReceipt>;
 export declare function settlement<P, K extends SettlementRequest<P>['kind']>(opened: AgentJournalCoreOpened<P>, name: string, body: Omit<Extract<SettlementRequest<P>, {

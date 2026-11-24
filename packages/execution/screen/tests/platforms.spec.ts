@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { diagnoseScreen, macosScreenPermission, screenBackendFor } from '@omne-harness/screen'
+import {
+  diagnoseScreen,
+  macosRequestScreenAccess,
+  macosScreenPermission,
+  screenBackendFor,
+} from '@omne-harness/screen'
 import {
   libraryOf,
   MACOS_RECORDED,
@@ -36,6 +41,24 @@ describe('the permission of macOS to read the screen, asked of the system', () =
       'satisfied',
     ])
     expect(calls).toBe(2)
+  })
+})
+
+describe('asking macOS for the permission to read the screen', () => {
+  it('asks the system with its own scripting tool to request the permission, which shows its prompt and lists the app', async () => {
+    const scripts: string[] = []
+    await macosRequestScreenAccess(async script => {
+      scripts.push(script)
+      return 'false'
+    })
+    expect(scripts).toHaveLength(1)
+    expect(scripts[0]).toContain('CGRequestScreenCaptureAccess')
+  })
+
+  it('does not fail when the system cannot be asked', async () => {
+    await expect(
+      macosRequestScreenAccess(() => Promise.reject(new Error('no osascript'))),
+    ).resolves.toBeUndefined()
   })
 })
 

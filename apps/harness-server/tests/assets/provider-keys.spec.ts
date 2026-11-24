@@ -1,6 +1,10 @@
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
-import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
+import {
+  providerCredentialKey,
+  providerRoutes,
+  releaseProvider,
+} from '../../src/assets/model-providers.ts'
 import { providerKeyOf } from '../../src/assets/provider-keys.ts'
 
 const parsed = tenantCodec.parse(
@@ -63,4 +67,14 @@ describe('the bearer key of a release provider for a tenant', () => {
   it('is missing for a provider the release does not hold', () => {
     expect(providerKeyOf('nobody', custody({}))(tenant)).toEqual({ kind: 'missing' })
   })
+})
+
+it('assembles the Decisions endpoint and existing bearer alongside the streaming routes', () => {
+  const route = providerRoutes({}).openrouter
+  expect(route?.endpoints.decisions).toEqual({
+    url: 'https://openrouter.ai/api/alpha/decisions',
+    endMarker: null,
+  })
+  expect(route?.auth).toEqual({ kind: 'bearer', item })
+  expect(route?.endpoints['chat-completions']?.endMarker).toBe('[DONE]')
 })

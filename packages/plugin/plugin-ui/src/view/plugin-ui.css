@@ -1,0 +1,40 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
+  .plugin-skins {
+    display: grid;
+    gap: var(--omne-space-inline);
+    min-width: 0;
+    margin: 0 0 var(--omne-space-block);
+    padding: 0;
+    border: 0;
+    justify-items: start;
+    text-align: start;
+    font-size: var(--omne-text-ui);
+  }
+
+  .plugin-skins legend {
+    padding: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+
+  .plugin-skins-hint {
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+
+  .plugin-skin {
+    display: grid;
+    grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--omne-space-inline);
+  }
+
+  .plugin-skin-note {
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    overflow-wrap: anywhere;
+  }
+}

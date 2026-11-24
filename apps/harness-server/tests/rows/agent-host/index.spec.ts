@@ -1,7 +1,7 @@
 // @module-tag slow
 import { afterEach, describe, expect, it } from 'vitest'
 import { agentEvaluator, type AgentMeasureEvent } from '@omne-harness/agent'
-import { testAdoption } from '@omne-harness/agent/testing'
+import { testAdoption, testToolDefinition } from '@omne-harness/agent/testing'
 import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
@@ -324,7 +324,9 @@ function countingSource() {
   const source = {
     async describe() {
       seen.describe += 1
-      return { ok: { kind: 'tool' as const, definition: adoption('read_file') } }
+      return {
+        ok: { kind: 'tool' as const, definition: testToolDefinition(adoption('read_file')) },
+      }
     },
     async prepare(request: { consumer: ToolInvokeRequest['consumer'] }) {
       seen.prepare += 1

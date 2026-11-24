@@ -29,6 +29,12 @@ export {
   type SettingsChangeDecision,
 } from './commands.ts'
 export * from './ports.ts'
+export {
+  createChangeSignal,
+  type ChangeEmitter,
+  type ChangeSignal,
+  type DomainChange,
+} from './changes.ts'
 export * from './preparation.ts'
 export * from './current-basis.ts'
 export * from './sources.ts'

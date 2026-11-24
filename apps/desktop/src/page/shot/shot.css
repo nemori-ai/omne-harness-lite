@@ -1,0 +1,21 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
+  /* The component's icon font, served from the page itself: the policy takes no data: fonts (scripts/screenshots-css.ts). */
+  @font-face {
+    font-family: screenshots-icon;
+    src: url('./screenshots-icon.woff2') format('woff2');
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  /* The picture goes to the attachment tray; there is no saving to a file here. */
+  .screenshots-button:has(.icon-save) {
+    display: none;
+  }
+}
