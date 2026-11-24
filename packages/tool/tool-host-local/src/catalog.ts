@@ -118,12 +118,11 @@ type Observed = Readonly<{
   sourced: SourcedCatalogEntries
 }>
 
-const keptEntry = (view: LocalToolCatalogView, name: string) =>
-  view.entries.find(entry => entry.sourced === true && entry.knownDefinition?.name === name)
-
 // A source entry the session keeps resident answers with the definition it took: live while its source lists the name.
 function keptSourced(view: LocalToolCatalogView, sourced: SourcedCatalogEntries, name: string) {
-  const kept = keptEntry(view, name)
+  const kept = view.entries.find(
+    entry => entry.sourced === true && entry.knownDefinition?.name === name,
+  )
   if (kept?.knownDefinition === undefined) return undefined
   const common = { key: kept.key, definition: kept.knownDefinition, resident: kept.resident }
   const live = sourced.live.find(listing => listing.definition.name === name)
@@ -268,18 +267,8 @@ function chosen(
 }
 
 // The entries of the sources join those of the registry; what they say besides is part of what is compared.
-function withSourced(
-  listed: Observed['entries'],
-  sourced: SourcedCatalogEntries,
-  view: LocalToolCatalogView,
-) {
-  const entries = [
-    ...listed,
-    ...sourced.live.map(listing => ({
-      listing,
-      resident: keptEntry(view, listing.definition.name) !== undefined,
-    })),
-  ]
+function withSourced(listed: Observed['entries'], sourced: SourcedCatalogEntries) {
+  const entries = [...listed, ...sourced.live.map(listing => ({ listing, resident: false }))]
   return {
     entries,
     sourced,
@@ -300,7 +289,7 @@ function liveReader<P>(input: LocalToolCatalogInput<P>) {
     const listed = listingsFor(input.registry, access, observed.ok.view)
     if ('failure' in listed) return listed
     const sourced = (await input.sources?.read(access, names)) ?? NO_SOURCES
-    return succeed({ ...observed.ok, ...withSourced(listed.ok, sourced, observed.ok.view), names })
+    return succeed({ ...observed.ok, ...withSourced(listed.ok, sourced), names })
   }
   const stable = async (
     observed: Readonly<{

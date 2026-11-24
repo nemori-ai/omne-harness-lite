@@ -168,11 +168,11 @@ export function commandShapeText(command: ToolCommandDeclaration): string {
 function sorted(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sorted)
   if (typeof value !== 'object' || value === null) return value
+  const members = value as Readonly<Record<string, unknown>>
   return Object.fromEntries(
-    Object.entries(value)
-      .filter(([, member]) => member !== undefined)
-      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-      .map(([key, member]) => [key, sorted(member)]),
+    Object.keys(members)
+      .sort()
+      .map(key => [key, sorted(members[key])]),
   )
 }
 

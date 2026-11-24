@@ -256,8 +256,8 @@ export function createMcpEntrySource<P>(deps: McpBridgeDependencies<P>): McpEntr
   async function refOf(call: ToolSourceCall<P>): Promise<EndpointRef | undefined> {
     const known = listed.get(askerKey(call))?.get(call.name)?.ref
     if (known !== undefined) return known
-    const found = await named(call, call.name)
-    return found.kind === 'entry' ? listed.get(askerKey(call))?.get(call.name)?.ref : undefined
+    await named(call, call.name)
+    return listed.get(askerKey(call))?.get(call.name)?.ref
   }
 
   return {

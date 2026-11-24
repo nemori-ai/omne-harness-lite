@@ -13,19 +13,15 @@ export async function targetResidency(
 ): Reply<void> {
   if (target.kind !== 'available') return fail({ kind: 'denied', action: 'target-unavailable' })
   const fromSource = sourced !== undefined && sourcedEntryFor(sourced, access, target) !== undefined
-  if (source === undefined && fromSource)
-    return required === 'nonresident'
-      ? succeed(undefined)
-      : fail({ kind: 'denied', action: 'nonresident-tools-require-forwarding' })
-  if (source === undefined)
+  if (source === undefined && !fromSource)
     return fail({
       kind: 'unavailable',
       dependency: 'toolCatalogView',
       diagnostic: 'The current target view is absent.',
     })
-  const current = await source.read(access)
-  if ('failure' in current) return current
-  const entry = current.ok.entries.find(item =>
+  const current = await source?.read(access)
+  if (current !== undefined && 'failure' in current) return current
+  const entry = current?.ok.entries.find(item =>
     fromSource
       ? item.sourced === true && item.key.asset.name === target.definition.name
       : sameBindingKey(item.key, {
@@ -33,16 +29,14 @@ export async function targetResidency(
           asset: { name: target.definition.name, adoption: target.definition.adoption },
         }),
   )
-  if (entry === undefined)
-    return fromSource
-      ? required === 'nonresident'
-        ? succeed(undefined)
-        : fail({ kind: 'denied', action: 'nonresident-tools-require-forwarding' })
-      : fail({ kind: 'denied', action: 'target-not-included' })
-  if (entry.resident === (required === 'resident')) return succeed(undefined)
+  // A tool of the registry must be in the view; a source entry the session does not keep is simply not resident.
+  if (entry === undefined && !fromSource)
+    return fail({ kind: 'denied', action: 'target-not-included' })
+  const resident = entry?.resident === true
+  if (resident === (required === 'resident')) return succeed(undefined)
   return fail({
     kind: 'denied',
-    action: entry.resident
+    action: resident
       ? 'resident-tools-require-direct-call'
       : 'nonresident-tools-require-forwarding',
   })

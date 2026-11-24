@@ -185,6 +185,21 @@ function consumerOf(release: Trusted): ToolConsumerProfile {
   return { capabilities, conversion, attachmentAccess }
 }
 
+function callable(
+  released: boolean,
+  held: Awaited<ReturnType<NonNullable<ToolRequestPorts['held']>>> | undefined,
+  sourced: boolean,
+  availability: Extract<ToolAvailability, { kind: 'available' }>,
+  tenant: DescribeInput['tenant'],
+): boolean {
+  if (released) return availability.layer.kind === 'official'
+  if (!ownLayer(availability.layer, tenant)) return false
+  return held?.kind === 'held'
+    ? canonicalDigest(availability.definition.adoption) ===
+        canonicalDigest(held.authority.asset.adoption)
+    : sourced
+}
+
 async function availabilityOf(
   ports: ToolRequestPorts,
   release: Trusted,
@@ -230,16 +245,8 @@ async function availabilityOf(
       kind: 'answered',
       text: `${name} is not available now (${availability.reason}). Continue without it.`,
     })
-  const own =
-    held?.kind === 'held' &&
-    ownLayer(availability.layer, input.tenant) &&
-    canonicalDigest(availability.definition.adoption) ===
-      canonicalDigest(held.authority.asset.adoption)
-  const sourced =
-    held?.kind !== 'held' &&
-    ports.sourced?.().owns(name) === true &&
-    ownLayer(availability.layer, input.tenant)
-  if (released ? availability.layer.kind !== 'official' : !own && !sourced)
+  const sourced = ports.sourced?.().owns(name) === true
+  if (!callable(released, held, sourced, availability, input.tenant))
     return unavailable(`${name} is not available`)
   const selected = callOf(availability.definition, input.effectiveArguments)
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
