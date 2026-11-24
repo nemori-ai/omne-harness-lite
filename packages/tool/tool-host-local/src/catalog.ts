@@ -118,11 +118,12 @@ type Observed = Readonly<{
   sourced: SourcedCatalogEntries
 }>
 
+const keptEntry = (view: LocalToolCatalogView, name: string) =>
+  view.entries.find(entry => entry.sourced === true && entry.knownDefinition?.name === name)
+
 // A source entry the session keeps resident answers with the definition it took: live while its source lists the name.
 function keptSourced(view: LocalToolCatalogView, sourced: SourcedCatalogEntries, name: string) {
-  const kept = view.entries.find(
-    entry => entry.sourced === true && entry.knownDefinition?.name === name,
-  )
+  const kept = keptEntry(view, name)
   if (kept?.knownDefinition === undefined) return undefined
   const common = { key: kept.key, definition: kept.knownDefinition, resident: kept.resident }
   const live = sourced.live.find(listing => listing.definition.name === name)
@@ -272,16 +273,12 @@ function withSourced(
   sourced: SourcedCatalogEntries,
   view: LocalToolCatalogView,
 ) {
-  const kept = (listing: ToolListing) =>
-    view.entries.some(
-      entry =>
-        entry.sourced === true &&
-        entry.resident &&
-        entry.knownDefinition?.name === listing.definition.name,
-    )
   const entries = [
     ...listed,
-    ...sourced.live.map(listing => ({ listing, resident: kept(listing) })),
+    ...sourced.live.map(listing => ({
+      listing,
+      resident: keptEntry(view, listing.definition.name) !== undefined,
+    })),
   ]
   return {
     entries,
