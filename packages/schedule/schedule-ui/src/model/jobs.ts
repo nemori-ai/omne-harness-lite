@@ -141,7 +141,6 @@ type Tree =
   | Readonly<{ kind: 'array'; items: readonly Tree[] }>
   | Readonly<{ kind: 'object'; entries: readonly Readonly<{ key: string; value: Tree }>[] }>
 
-/** A JSON value the protocol carries as a tree, as a plain value. */
 export function plainOf(tree: unknown): unknown {
   const value = tree as Tree
   switch (value.kind) {
