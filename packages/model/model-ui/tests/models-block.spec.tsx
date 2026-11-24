@@ -75,7 +75,7 @@ const BODY = { name: 'openrouter', models: [GLM53, GLM52, VISION] }
 type Own = Readonly<{ kind: 'unset' } | { kind: 'set'; value: JsonValue }>
 type Write = Readonly<{ kind: string; notice?: Readonly<{ text: string }> }>
 type Settings = Readonly<{
-  switches: Own
+  switches?: Own
   efforts?: Own
   write?: Write
   editable?: boolean
@@ -118,7 +118,9 @@ function portOf(body: unknown | undefined, first: Settings | undefined) {
               ? []
               : [
                   { key: 'k-secret', view: { kind: 'secret', item: 'api-key', own: 'unset' } },
-                  row('k-switches', 'model-switches', settings.switches, settings),
+                  ...(settings.switches === undefined
+                    ? []
+                    : [row('k-switches', 'model-switches', settings.switches, settings)]),
                   ...(settings.efforts === undefined
                     ? []
                     : [row('k-efforts', 'model-reasoning-efforts', settings.efforts, settings)]),
@@ -260,6 +262,7 @@ it('choosing a default effort writes it, and going back to the provider default 
 it('a stored effort the model no longer takes is named, and the provider default is used', async () => {
   await shown(BODY, { switches: UNSET, efforts: setTo({ 'z-ai/glm-5.3': 'xhigh' }) })
   expect(rowOf('GLM 5.3').getByText('存的是 xhigh，这个模型现在不支持，按供应商默认')).toBeTruthy()
+  expect(screen.getAllByText(/现在不支持/u)).toHaveLength(1)
   expect(
     rowOf('GLM 5.3').getByRole('combobox', { name: 'GLM 5.3 的缺省推理强度' }).textContent,
   ).toContain('供应商默认')
@@ -283,6 +286,7 @@ it('while a write is out the switches wait; a refused one says why; an unknown o
   expect(glm().hasAttribute('disabled')).toBe(false)
   expect(screen.getByText('这一项在别处改过了，没有写入。已重新读取。')).toBeTruthy()
   expect(screen.queryByRole('button', { name: '再确认' })).toBeNull()
+  expect(document.querySelector('[data-inline-notice]')?.getAttribute('data-tone')).toBe('danger')
   act(() =>
     fake.change({
       switches: UNSET,
@@ -290,6 +294,7 @@ it('while a write is out the switches wait; a refused one says why; an unknown o
       write: { kind: 'unknown', notice: { text: '不知道写没写进去。' } },
     }),
   )
+  expect(document.querySelector('[data-inline-notice]')?.getAttribute('data-tone')).toBe('caution')
   fireEvent.click(screen.getByRole('button', { name: '再确认' }))
   expect(fake.confirms).toEqual(['k-switches'])
 })
@@ -324,6 +329,9 @@ it('says so in one line when the catalog or the settings cannot be read, and tak
   expect(screen.getByText('读不出这家的模型设置。')).toBeTruthy()
   cleanup()
   await shown(BODY, { switches: UNSET })
+  expect(screen.getByText('读不出这家的模型设置。')).toBeTruthy()
+  cleanup()
+  await shown(BODY, { efforts: UNSET })
   expect(screen.getByText('读不出这家的模型设置。')).toBeTruthy()
   expect(screen.queryByRole('table')).toBeNull()
 })
