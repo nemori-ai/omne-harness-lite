@@ -3,8 +3,10 @@ import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { canvasProtocol } from '@omne-harness/canvas-protocol'
 import {
+  canvasAppRender,
   canvasElement,
   createCanvasUiModule,
+  type CanvasAppSubject,
   type CanvasElementSubject,
 } from '@omne-harness/canvas-ui/cordis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
@@ -67,14 +69,14 @@ const canvasClient = {
     outcome: 'succeeded',
     body: {
       sheet: { width: 1600, height: 900, grid: 8 },
-      items: [thing('b', 'test.note', 'n1', 600)],
+      items: [thing('a', 'canvas.app', 'clock', 80), thing('b', 'test.note', 'n1', 600)],
       piles: [],
       revision: 1,
     },
   }),
   kinds: async () => ({
     outcome: 'succeeded',
-    body: { kinds: [declared('test.note', '便签')] },
+    body: { kinds: [declared('canvas.app', '小应用'), declared('test.note', '便签')] },
   }),
   observe: { 'observe-changes': () => (async function* () {})() },
 }
@@ -89,12 +91,14 @@ function putting<S>(root: Context, name: string, point: RenderPointSink<S>, key:
 }
 
 describe('two drawings on one key, on the desktop shell', () => {
-  it('the generic page of a kind names both', async () => {
+  it('the page of the canvas names both, for a canvas app and for a kind', async () => {
     const root = new Context()
     await root.plugin(DynamisService)
     await root.plugin(shellPlugin(createShellState(login)))
     await serveProtocol(root, canvasProtocol, canvasClient as never)
     await root.plugin(createCanvasUiModule({ preferences: { read: () => null, write: () => {} } }))
+    await putting<CanvasAppSubject>(root, 'clock-one', canvasAppRender, 'clock')
+    await putting<CanvasAppSubject>(root, 'clock-two', canvasAppRender, 'clock')
     await putting<CanvasElementSubject>(root, 'notes-one', canvasElement, 'test.note')
     await putting<CanvasElementSubject>(root, 'notes-two', canvasElement, 'test.note')
     const shell = root.get('shell') as unknown as DesktopShell
@@ -103,6 +107,7 @@ describe('two drawings on one key, on the desktop shell', () => {
       <AppTooltipProvider>{back!.render({ scope: TENANT, turn: () => {} })}</AppTooltipProvider>,
     )
     await settle()
+    expect(screen.getByText('这个名字有两份，互相冲突：clock-one、clock-two')).toBeTruthy()
     expect(screen.getByText('这一类有两份画法，互相冲突：notes-one、notes-two')).toBeTruthy()
   })
 })

@@ -6,6 +6,7 @@ import type { CanvasPreferences } from './model/preferences.ts'
 import type { CanvasClient } from './model/reading.ts'
 import { canvasParts } from './parts.ts'
 import { canvasElement, canvasPoints } from './points.ts'
+import { appDrawing, CANVAS_APP } from './view/app.tsx'
 import { CanvasBack, type KindsFollow } from './view/canvas-back.tsx'
 
 export const CANVAS_BACK_ID = 'canvas'
@@ -41,10 +42,11 @@ export function createCanvasUiModule(options: CanvasUiOptions) {
     apply(shell, { canvas: client, server }) {
       for (const part of canvasParts) part.declare(shell)
       for (const point of canvasPoints) point.declare(shell)
+      canvasElement.put(shell, CANVAS_APP, appDrawing(shell))
       const followKinds = following(server)
       shell.contribute('back', {
         id: CANVAS_BACK_ID,
-        render: ({ scope }) =>
+        render: ({ scope, turn }) =>
           scope === undefined ? null : (
             <CanvasBack
               client={client}
@@ -52,6 +54,7 @@ export function createCanvasUiModule(options: CanvasUiOptions) {
               host={shell}
               preferences={options.preferences}
               followKinds={followKinds}
+              turn={turn}
             />
           ),
       })

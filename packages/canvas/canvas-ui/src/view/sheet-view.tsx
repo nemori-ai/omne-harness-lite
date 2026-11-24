@@ -1,13 +1,16 @@
 import type { CanvasBody, CanvasItemBody } from '@omne-harness/canvas-protocol'
 import {
   FigureSeat,
+  IconButton,
   InlineNotice,
   PaperSpot,
   PaperSurface,
+  SearchIcon,
   Switch,
+  type PaperPoint,
   type PaperView,
 } from '@omne-harness/ui-kit'
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { CanvasState } from '../model/canvas-driver.ts'
 import { itemKey, pileKey, type Command } from '../model/commands.ts'
 import { standingOf } from '../model/kinds.ts'
@@ -21,10 +24,14 @@ import {
 } from '../model/preferences.ts'
 import { itemBox, PAGE_LIMITS, paperSheet, pileBox, ZOOM_LIMITS } from '../model/sheet.ts'
 import { canvasPaper } from '../parts.ts'
+import type { AwayPage, Reading } from '../model/reading.ts'
 import type { CanvasHost } from './element.tsx'
+import { Finder } from './finder.tsx'
+import { IntakeSpot } from './intake.tsx'
 import { ItemPage } from './item-page.tsx'
 import { ITEM_DRAG, PileView } from './pile-view.tsx'
 import { droppedOut, itemActs, pileActs, type Selection } from './sheet-acts.ts'
+import { bareAt, FinderKey, FoundMark, useLayers, type Place } from './sheet-layers.tsx'
 
 /** The seat of the figure on the back is in the middle of the sheet, at the first priority. */
 const SEAT = 'canvas'
@@ -36,6 +43,8 @@ export type SheetViewProps = Readonly<{
   state: CanvasState
   preferences: CanvasPreferences
   send: (command: Command) => void
+  place: Place
+  lookAway: (limit: number, before?: number) => Promise<Reading<AwayPage>>
   dismiss: () => void
 }>
 
@@ -90,10 +99,21 @@ function Notices({ state, dismiss }: Readonly<{ state: CanvasState; dismiss: () 
   )
 }
 
-function Tools({ looking }: Readonly<{ looking: ReturnType<typeof useLooking> }>) {
+function Tools({
+  looking,
+  find,
+}: Readonly<{ looking: ReturnType<typeof useLooking>; find: (opener: Element) => void }>) {
   const percent = Math.round(looking.view.zoom * 100)
   return (
     <div className="canvas-tools">
+      <IconButton
+        label="查找"
+        size="icon-compact"
+        aria-keyshortcuts="@"
+        onClick={event => find(event.currentTarget)}
+      >
+        <SearchIcon aria-hidden="true" />
+      </IconButton>
       <label className="canvas-tool">
         <Switch checked={looking.magnet} onCheckedChange={looking.snap} aria-label="磁吸" />
         <span aria-hidden="true">磁吸</span>
@@ -112,6 +132,9 @@ export function SheetView(props: SheetViewProps): JSX.Element {
   const looking = useLooking(preferences, canvas)
   const round = useRound(host)
   const [selected, select] = useState<Selection>(() => new Set())
+  const root = useRef<HTMLDivElement>(null)
+  const pointer = useRef<PaperPoint | undefined>(undefined)
+  const layers = useLayers({ canvas, sheet, looking, place: props.place })
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set())
   const deps = {
     canvas,
@@ -130,7 +153,23 @@ export function SheetView(props: SheetViewProps): JSX.Element {
   )
   const loose = canvas.items.filter(item => item.state === 'on' && item.pile === null).sort(byRank)
   return (
-    <div className="canvas-paper" {...canvasPaper.props}>
+    <div
+      ref={root}
+      className="canvas-paper"
+      {...canvasPaper.props}
+      onPointerMove={event => {
+        pointer.current = bareAt(event)
+      }}
+      onPointerLeave={() => {
+        pointer.current = undefined
+      }}
+      onKeyDown={event => {
+        if (event.key !== 'Escape' || event.defaultPrevented || selected.size === 0) return
+        if ((event.target as Element).closest('[role="menu"]') !== null) return
+        event.preventDefault()
+        select(new Set())
+      }}
+    >
       <PaperSurface
         className="canvas-surface"
         label={`纸，宽 ${String(sheet.width)}，高 ${String(sheet.height)}`}
@@ -142,9 +181,17 @@ export function SheetView(props: SheetViewProps): JSX.Element {
         magnet={looking.magnet}
         onDropAt={(event, at) => {
           const item = event.dataTransfer.getData(ITEM_DRAG)
-          if (item !== '') droppedOut(deps, item, at)
+          if (item !== '') return droppedOut(deps, item, at)
+          const files = Array.from(event.dataTransfer.files)
+          if (files.length > 0) layers.drop(files, at)
         }}
       >
+        <FinderKey
+          root={root}
+          pointer={pointer}
+          closed={layers.finder === undefined}
+          open={layers.open}
+        />
         <PaperSpot at={{ x: sheet.width / 2, y: sheet.height / 2 }}>
           <FigureSeat name={SEAT} priority={1} className="canvas-seat" />
         </PaperSpot>
@@ -184,9 +231,33 @@ export function SheetView(props: SheetViewProps): JSX.Element {
             acts={acts}
           />
         ))}
+        {layers.dropped.map(dropped => (
+          <IntakeSpot
+            key={dropped.id}
+            host={host}
+            scope={scope}
+            round={round}
+            dropped={dropped}
+            placeNear={layers.placeNear}
+            close={() => layers.closeDrop(dropped.id)}
+          />
+        ))}
+        {layers.found === undefined ? null : <FoundMark box={layers.found} />}
+        {layers.finder === undefined ? null : (
+          <Finder
+            host={host}
+            scope={scope}
+            kinds={state.kinds}
+            round={round}
+            at={layers.finder.at}
+            place={layers.placeNear(layers.finder.at)}
+            lookAway={props.lookAway}
+            close={layers.closeFinder}
+          />
+        )}
       </PaperSurface>
       <Notices state={state} dismiss={dismiss} />
-      <Tools looking={looking} />
+      <Tools looking={looking} find={opener => layers.open(undefined, opener)} />
     </div>
   )
 }

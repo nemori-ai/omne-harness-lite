@@ -1,13 +1,29 @@
 import { defaultBackoff } from '@omne-harness/client-assembly'
-import type { CanvasBody, CanvasKindBody, CanvasProtocol } from '@omne-harness/canvas-protocol'
+import type {
+  CanvasBody,
+  CanvasItemBody,
+  CanvasKindBody,
+  CanvasProtocol,
+} from '@omne-harness/canvas-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ObservationEnd } from '@omne-harness/sdk/core'
-import { touched, UNKNOWN_TEXT, whyNot, type Command } from './commands.ts'
+import {
+  placedOf,
+  touched,
+  UNKNOWN_TEXT,
+  whyNot,
+  type Answer,
+  type Command,
+  type Placed,
+  type Spot,
+} from './commands.ts'
 import {
   MAIN_CANVAS,
   READING,
+  readAway,
   readKinds,
   readLook,
+  type AwayPage,
   type CanvasClient,
   type Reading,
 } from './reading.ts'
@@ -100,19 +116,34 @@ export class CanvasDriver {
   /** Sends one command. Whatever it answers, the canvas is read again and drawn as read. */
   async send(command: Command): Promise<void> {
     if (this.#disposed) return
+    const answer = await this.#run(command)
+    const notice = answer === undefined ? UNKNOWN_TEXT : whyNot(answer)
+    this.#set(notice === undefined ? {} : { notice })
+  }
+
+  async place(reference: CanvasItemBody['reference'], near: Spot): Promise<Placed> {
+    if (this.#disposed) return placedOf(undefined)
+    return placedOf(await this.#run({ op: 'place', body: { reference, near } }))
+  }
+
+  lookAway(limit: number, before?: number): Promise<Reading<AwayPage>> {
+    return readAway(this.#client, this.#tenant, limit, before)
+  }
+
+  async #run(command: Command): Promise<Answer | undefined> {
     const keys = touched(command)
     this.#hold(keys, 1)
     this.#set({ notice: undefined })
-    let notice: string | undefined
+    let answer: Answer | undefined
     try {
       const body = { ...command.body, tenant: this.#tenant, canvas: MAIN_CANVAS }
-      notice = whyNot(await this.#call(command.op, body))
+      answer = await this.#call(command.op, body)
     } catch {
-      notice = UNKNOWN_TEXT
+      answer = undefined
     }
     await this.reread()
     this.#hold(keys, -1)
-    this.#set(notice === undefined ? {} : { notice })
+    return answer
   }
 
   dismiss(): void {

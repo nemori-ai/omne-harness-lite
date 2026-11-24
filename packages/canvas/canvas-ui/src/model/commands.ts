@@ -1,4 +1,6 @@
-type Spot = Readonly<{ x: number; y: number }>
+import type { CanvasItemBody } from '@omne-harness/canvas-protocol'
+
+export type Spot = Readonly<{ x: number; y: number }>
 type Size = Readonly<{ width: number; height: number }>
 
 export type ItemChange = Readonly<{
@@ -21,6 +23,10 @@ export type Command =
   | Readonly<{ op: 'pile'; body: Readonly<{ pile: string; items: readonly string[] }> }>
   | Readonly<{ op: 'scatter'; body: Readonly<{ pile: string }> }>
   | Readonly<{ op: 'lock'; body: Readonly<{ items: readonly string[]; locked: boolean }> }>
+  | Readonly<{
+      op: 'place'
+      body: Readonly<{ reference: CanvasItemBody['reference']; near: Spot }>
+    }>
 
 export const itemKey = (item: string): string => `item:${item}`
 export const pileKey = (pile: string): string => `pile:${pile}`
@@ -43,10 +49,12 @@ export function touched(command: Command): readonly string[] {
     case 'take':
     case 'lock':
       return command.body.items.map(itemKey)
+    case 'place':
+      return []
   }
 }
 
-type Answer = Readonly<{ outcome: string; body?: unknown }>
+export type Answer = Readonly<{ outcome: string; body?: unknown }>
 
 const CONFLICT_TEXT: Readonly<Record<string, string>> = {
   locked: '它锁着，先解开才能动。',
@@ -95,4 +103,19 @@ export function whyNot(answer: Answer): string | undefined {
     default:
       return NOT_UNDERSTOOD
   }
+}
+
+/** What putting a reference on the canvas came to: put there, lying there already, or not, and why. */
+export type Placed =
+  | Readonly<{ kind: 'placed'; item: CanvasItemBody }>
+  | Readonly<{ kind: 'there'; item: CanvasItemBody }>
+  | Readonly<{ kind: 'not'; why: string }>
+
+/** An answer that never came back is not known, the same as `unknown`. */
+export function placedOf(answer: Answer | undefined): Placed {
+  if (answer === undefined) return { kind: 'not', why: UNKNOWN_TEXT }
+  const item = (answer.body as { item?: CanvasItemBody } | undefined)?.item
+  if (answer.outcome === 'succeeded' && item !== undefined) return { kind: 'placed', item }
+  if (answer.outcome === 'no-change' && item !== undefined) return { kind: 'there', item }
+  return { kind: 'not', why: whyNot(answer) ?? NOT_UNDERSTOOD }
 }

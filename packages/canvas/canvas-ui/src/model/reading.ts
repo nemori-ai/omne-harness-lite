@@ -1,4 +1,9 @@
-import type { CanvasBody, CanvasKindBody, CanvasProtocol } from '@omne-harness/canvas-protocol'
+import type {
+  CanvasBody,
+  CanvasItemBody,
+  CanvasKindBody,
+  CanvasProtocol,
+} from '@omne-harness/canvas-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 
@@ -51,4 +56,24 @@ export const readKinds = (
   settled(
     () => client.kinds({ tenant }),
     body => (body as { kinds: readonly CanvasKindBody[] }).kinds,
+  )
+
+/** A page of the taken records; `next` reads on from here, none when this was the last. */
+export type AwayPage = Readonly<{ items: readonly CanvasItemBody[]; next: number | null }>
+
+export const readAway = (
+  client: CanvasClient,
+  tenant: TenantId,
+  limit: number,
+  before?: number,
+): Promise<Reading<AwayPage>> =>
+  settled(
+    () =>
+      client['look-away']({
+        tenant,
+        canvas: MAIN_CANVAS,
+        limit,
+        ...(before === undefined ? {} : { before }),
+      }),
+    body => body as AwayPage,
   )

@@ -99,6 +99,8 @@ system
       assets.control  [keyed-one]
     canvas
       canvas.element  [keyed-one]
+        canvas.app
+          canvas-ui#1  [effective]
         media.object
           media-ui#1  [effective]
         session.session

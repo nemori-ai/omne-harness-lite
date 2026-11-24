@@ -1,11 +1,12 @@
 import { readTenantText, type TenantId } from '@omne-harness/public-contract'
-import { InlineNotice, LoadingState, RetryIcon } from '@omne-harness/ui-kit'
-import { useEffect, useMemo, useState, useSyncExternalStore, type JSX } from 'react'
+import { IconButton, InlineNotice, LoadingState, RetryIcon, TurnIcon } from '@omne-harness/ui-kit'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type JSX } from 'react'
 import { CanvasDriver } from '../model/canvas-driver.ts'
 import type { CanvasPreferences } from '../model/preferences.ts'
 import { UNREADABLE_TEXT, type CanvasClient } from '../model/reading.ts'
 import { canvasView } from '../parts.ts'
 import type { CanvasHost } from './element.tsx'
+import type { Place } from './sheet-layers.tsx'
 import { SheetView } from './sheet-view.tsx'
 
 /** Calls the listener when the kinds the server makes public may have changed. */
@@ -17,6 +18,8 @@ export type CanvasBackProps = Readonly<{
   host: CanvasHost
   preferences: CanvasPreferences
   followKinds?: KindsFollow
+  /** The shell's turn to the front, drawn as the mark in the corner. */
+  turn: () => void
 }>
 
 /** The back of the application: the tenant's canvas, as the server last said it is. */
@@ -29,6 +32,9 @@ export function CanvasBack(props: CanvasBackProps): JSX.Element {
       ) : (
         <Canvas key={props.tenant} {...props} owner={owner} />
       )}
+      <IconButton label="翻到正面" className="canvas-turn" onClick={() => props.turn()}>
+        <TurnIcon aria-hidden="true" />
+      </IconButton>
     </div>
   )
 }
@@ -54,8 +60,13 @@ function Driven({
   host,
   preferences,
   followKinds,
-}: Omit<CanvasBackProps, 'client'> & Readonly<{ driver: CanvasDriver }>) {
+}: Omit<CanvasBackProps, 'client' | 'turn'> & Readonly<{ driver: CanvasDriver }>) {
   const state = useSyncExternalStore(driver.subscribe, driver.getState)
+  const place = useCallback<Place>((reference, near) => driver.place(reference, near), [driver])
+  const lookAway = useCallback(
+    (limit: number, before?: number) => driver.lookAway(limit, before),
+    [driver],
+  )
   useEffect(() => followKinds?.(() => driver.rereadKinds()), [driver, followKinds])
   const { look, kinds } = state
   if (look.kind === 'reading') return <LoadingState label="正在读画布……" />
@@ -77,6 +88,8 @@ function Driven({
       state={state}
       preferences={preferences}
       send={command => void driver.send(command)}
+      place={place}
+      lookAway={lookAway}
       dismiss={() => driver.dismiss()}
     />
   )
