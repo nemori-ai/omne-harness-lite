@@ -11,6 +11,7 @@ export {
   type Member,
   type MemberPlace,
   type ModuleMember,
+  type PluginKind,
   type PluginManifest,
   type Side,
   type SideName,

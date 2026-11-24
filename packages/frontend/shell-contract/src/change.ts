@@ -17,6 +17,7 @@ export const LAYOUT_POINT = 'shell.layout'
 const APP = 'shell.app'
 const LAYER = 'omne-changes'
 const TENANT = 'tenant'
+const LOOK = 'look'
 
 export type TokensItem = Readonly<{
   tokens: Readonly<Record<string, string>>
@@ -161,6 +162,11 @@ export const layoutContract: Contract = {
 /** The scope of what one tenant put, and of the one who asks as that tenant; nobody signed in asks as the deployment. */
 export function tenantScope(tenant: string | undefined): Scope {
   return tenant === undefined || tenant === '' ? [] : [TENANT, tenant]
+}
+
+export function lookScope(tenant: string | undefined, look: string | undefined): Scope {
+  const scope = tenantScope(tenant)
+  return scope.length === 0 || look === undefined || look === '' ? scope : [...scope, LOOK, look]
 }
 
 const PLAIN = /^[A-Za-z0-9 #%.,()+*/_-]$/u

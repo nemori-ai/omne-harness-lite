@@ -184,6 +184,23 @@ describe('the manifest of a plugin', () => {
     expect(refusal(withMember(member))).toBe(reason)
   })
 
+  it('says what it is in kind: nothing written is a plain plugin, skin is a skin', () => {
+    const { server: _server, ...clientOnly } = GREEN
+    const plain = readManifest(text(clientOnly))
+    expect(plain.kind === 'read' && 'kind' in plain.manifest).toBe(false)
+    const skin = { ...clientOnly, kind: 'skin' }
+    expect(readManifest(text(skin))).toStrictEqual({ kind: 'read', manifest: skin, unread: [] })
+  })
+
+  it.each([['theme'], ['Skin'], [''], [null], [1], [['skin']]])(
+    'refuses the kind %j, which it does not know, and says which it knows: it is not read as a plain plugin',
+    kind => {
+      expect(refusal({ ...GREEN, kind })).toBe(
+        `the kind ${JSON.stringify(kind)} is not one this reader knows; it knows skin`,
+      )
+    },
+  )
+
   it('names the side and the place of the member it refuses', () => {
     const value = {
       ...GREEN,
