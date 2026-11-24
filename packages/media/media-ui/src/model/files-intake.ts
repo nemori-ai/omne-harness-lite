@@ -1,4 +1,4 @@
-import { referenceText } from '@omne-harness/media-contract'
+import { referenceText } from '@omne-harness/media-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import { AttachmentTray, type PickedFile } from './attachment-tray.ts'
 import type { MediaClient } from './upload.ts'

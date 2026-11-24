@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { referenceText } from '@omne-harness/media-contract'
+import { referenceText } from '@omne-harness/media-protocol'
 import { mediaProtocol } from '@omne-harness/media-protocol'
 import { defineRenderPoint, partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'

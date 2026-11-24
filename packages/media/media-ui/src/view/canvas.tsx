@@ -1,4 +1,4 @@
-import { readReferenceText } from '@omne-harness/media-contract'
+import { readReferenceText } from '@omne-harness/media-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import { InlineNotice, LoadingState, RetryIcon } from '@omne-harness/ui-kit'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'

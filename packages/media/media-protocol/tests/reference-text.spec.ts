@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { readReferenceText, referenceText } from '@omne-harness/media-contract'
+import { readReferenceText, referenceText } from '@omne-harness/media-protocol'
 
 const REF = {
   storage: 'local',

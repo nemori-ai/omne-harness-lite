@@ -35,7 +35,6 @@
     "@omne-harness/client-assembly": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
-    "@omne-harness/media-contract": "workspace:*",
     "@omne-harness/media-protocol": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
