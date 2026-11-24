@@ -162,6 +162,56 @@ function noted<P>(scope: ToolExecutionScope, facts: CallAccess<P>): ToolExecutio
   return scope
 }
 
+function suspendSegment<P>(
+  input: CallAccess<P> & Readonly<{ start: Start }>,
+  operation: ToolOperationSlot,
+  execution: LocalAuthorExecution,
+  attempt: { segment: SuspendedSegment | Readonly<{ kind: 'completed' }> | null },
+  suspended: Extract<AuthorSegment<Uint8Array, unknown>, { kind: 'suspended' }>,
+): string | null {
+  const segments = operation.segments
+  if (segments === null) return 'the author does not run in segments'
+  const { state, wait, closedResult } = suspended
+  if (!declaredWait(operation, wait)) return 'the segment waits for an Ask it did not declare'
+  if (
+    typeof closedResult !== 'string' ||
+    closedResult.length === 0 ||
+    new TextEncoder().encode(closedResult).byteLength > CLOSED_RESULT_MAX_BYTES
+  )
+    return 'the segment gives no result for a closed wait within the bound'
+  if (!(state instanceof Uint8Array) || state.byteLength > segments.checkpoint.maxBytes)
+    return 'the segment state exceeds the declared checkpoint size'
+  const { contract } = wait
+  const judged = judgeJsonValue(wait.request)
+  if (!('ok' in judged)) return 'the request of the segment wait is no JSON value'
+  const request = writeJsonText(judged.ok)
+  if (Buffer.byteLength(request) > contract.request.maxBytes)
+    return 'the request of the segment wait exceeds the declared size'
+  const key = canonicalDigest([input.tenant, input.call, input.start.operation])
+  const schemas = waitSchemasOf(contract)
+  const waitId = segmentWait(input.start.operation)
+  if ('failure' in waitId) return 'the start cannot name the wait of its segment'
+  const kept = Buffer.from(state).toString('base64')
+  const payload = localAuthorEvidence(`checkpoint-state/${key}`, kept)
+  const intent: WaitIntent = {
+    kind: 'ask',
+    wait: waitId.ok,
+    resume: payload,
+    request: localAuthorEvidence(`wait-request/${key}`, request),
+    schemas: { ...schemas, source: localAuthorEvidence(`wait-schemas/${key}`, schemas) },
+  }
+  attempt.segment = {
+    payload,
+    state: kept,
+    closedResult,
+    intent,
+    boundary: localAuthorEvidence(`segment-boundary/${key}`, [input.start, intent]),
+    exclusion: localAuthorEvidence(`segment-returned/${key}`, [input.start, payload]),
+  }
+  execution.publish({ kind: 'wait', value: intent, request })
+  return null
+}
+
 export function createLocalToolBindings<P, E, B extends ContentBlock>(
   dependencies: LocalToolBindingsInput<P, E, B>,
 ): ToolBindings<P, E> {
@@ -285,56 +335,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       execution,
     })
     if ('ok' in settled) execution.publish(settled.ok)
-  }
-
-  const suspendSegment = (
-    input: StartInput<P, E>,
-    operation: ToolOperationSlot,
-    execution: LocalAuthorExecution,
-    attempt: Attempt,
-    suspended: Extract<AuthorSegment<Uint8Array, unknown>, { kind: 'suspended' }>,
-  ): string | null => {
-    const segments = operation.segments
-    if (segments === null) return 'the author does not run in segments'
-    const { state, wait, closedResult } = suspended
-    if (!declaredWait(operation, wait)) return 'the segment waits for an Ask it did not declare'
-    if (
-      typeof closedResult !== 'string' ||
-      closedResult.length === 0 ||
-      new TextEncoder().encode(closedResult).byteLength > CLOSED_RESULT_MAX_BYTES
-    )
-      return 'the segment gives no result for a closed wait within the bound'
-    if (!(state instanceof Uint8Array) || state.byteLength > segments.checkpoint.maxBytes)
-      return 'the segment state exceeds the declared checkpoint size'
-    const { contract } = wait
-    const judged = judgeJsonValue(wait.request)
-    if (!('ok' in judged)) return 'the request of the segment wait is no JSON value'
-    const request = writeJsonText(judged.ok)
-    if (Buffer.byteLength(request) > contract.request.maxBytes)
-      return 'the request of the segment wait exceeds the declared size'
-    const key = startKey(input, input.start)
-    const schemas = waitSchemasOf(contract)
-    const waitId = segmentWait(input.start.operation)
-    if ('failure' in waitId) return 'the start cannot name the wait of its segment'
-    const kept = Buffer.from(state).toString('base64')
-    const payload = localAuthorEvidence(`checkpoint-state/${key}`, kept)
-    const intent: WaitIntent = {
-      kind: 'ask',
-      wait: waitId.ok,
-      resume: payload,
-      request: localAuthorEvidence(`wait-request/${key}`, request),
-      schemas: { ...schemas, source: localAuthorEvidence(`wait-schemas/${key}`, schemas) },
-    }
-    attempt.segment = {
-      payload,
-      state: kept,
-      closedResult,
-      intent,
-      boundary: localAuthorEvidence(`segment-boundary/${key}`, [input.start, intent]),
-      exclusion: localAuthorEvidence(`segment-returned/${key}`, [input.start, payload]),
-    }
-    execution.publish({ kind: 'wait', value: intent, request })
-    return null
   }
 
   const launchSegment = async (

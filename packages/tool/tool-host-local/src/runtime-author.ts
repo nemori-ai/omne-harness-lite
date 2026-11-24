@@ -71,6 +71,110 @@ function interruption(call: Parameters<RuntimeAuthorExecution['settle']>[0]): To
   }
 }
 
+function authorScope(
+  input: Readonly<{ configuration: ToolConfiguration; bodyWrites: ToolBodyWrites<unknown> }>,
+  text: ReturnType<typeof createLocalTextResults>,
+  shutdown: AbortController,
+  bodies: Set<() => ReturnType<ToolExecutionScope['finish']>>,
+): RuntimeAuthorExecution['scope'] {
+  const absentWaits: ToolWaiter = {
+    wait: async request =>
+      fail({
+        kind: 'unavailable',
+        operation: request.key,
+        reason: 'The author wait provider is absent.',
+      }),
+  }
+  return ({ execution, principal, tenant, call, start }) => {
+    if (shutdown.signal.aborted) throw new Error('The author execution host has retired.')
+    const blocks = new Map<string, ProcessBlock>()
+    const scope = createIndependentToolScope({
+      signal: execution.signal,
+      limits: {
+        authorBufferBytes: input.configuration.authorBufferBytes,
+        authorBufferItems: input.configuration.authorBufferItems,
+        authorWaitHistoryBytes: input.configuration.authorWaitHistoryBytes,
+        authorWaitHistoryItems: input.configuration.authorWaitHistoryItems,
+      },
+      waits: absentWaits,
+      process: {
+        async receive({ sequence, update }) {
+          const previous = blocks.get(update.index)
+          const content =
+            update.kind === 'replace'
+              ? update.content
+              : text.text(
+                  (previous?.content.kind === 'text' ? previous.content.text : '') + update.text,
+                )
+          if ('failure' in content) return fail({ kind: 'invalid', reason: content.failure.reason })
+          const block = 'ok' in content ? content.ok.content[0] : content
+          if (block === undefined) return fail({ kind: 'invalid', reason: 'Empty process block.' })
+          const next: ProcessBlock = {
+            index: update.index,
+            sequence,
+            mode: update.kind === 'replace' ? 'replace' : 'append',
+            state: update.close ? 'closed' : 'open',
+            content: block,
+            trim: null,
+          }
+          if (update.close) blocks.delete(update.index)
+          else blocks.set(update.index, next)
+          execution.publish({ kind: 'process', blocks: [next] })
+          return succeed(undefined)
+        },
+      },
+    })
+    if ('failure' in scope) throw new TypeError(`Invalid author scope: ${scope.failure.reason}`)
+    const bodySignal = AbortSignal.any([execution.signal, shutdown.signal])
+    const body = createToolBodyScope({
+      binding: { principal, tenant, call, start, source: execution.source },
+      writes: {
+        begin: request => input.bodyWrites.begin(request),
+        append: request => input.bodyWrites.append(request),
+        seal: request => input.bodyWrites.seal(request),
+        inspect: request => input.bodyWrites.inspect(request),
+      },
+      signal: bodySignal,
+      limits: scope.ok.limits,
+    })
+    const local = scope.ok
+    let bodyClosing: ReturnType<ToolExecutionScope['finish']> | undefined
+    const finishBody = (exit: 'returned' | 'failed') => {
+      bodyClosing ??= body.finish(exit).then(answer => {
+        if (body.handoffConfirmed) bodies.delete(retireBody)
+        return answer
+      })
+      return bodyClosing
+    }
+    const retireBody = () => finishBody('failed')
+    bodies.add(retireBody)
+    let finished: ReturnType<ToolExecutionScope['finish']> | undefined
+    return {
+      context: {
+        mode: local.context.mode,
+        signal: local.context.signal,
+        body: body.writer,
+        emit: update => local.context.emit(update),
+        wait: local.context.wait.bind(local.context),
+      },
+      limits: local.limits,
+      finish(exit) {
+        finished ??= Promise.all([local.finish(exit), finishBody(exit)]).then(
+          outcomes =>
+            outcomes.find(
+              answer =>
+                'failure' in answer &&
+                (answer.failure.kind === 'unknown' || answer.failure.kind === 'unavailable'),
+            ) ??
+            outcomes.find(answer => 'failure' in answer) ??
+            succeed(undefined),
+        )
+        return finished
+      },
+    }
+  }
+}
+
 export function createRuntimeAuthorExecution(
   input: Readonly<{
     configuration: ToolConfiguration
@@ -127,14 +231,6 @@ export function createRuntimeAuthorExecution(
       diagnostic: 'Final planning remains unresolved after executor retirement.',
     })
   }
-  const absentWaits: ToolWaiter = {
-    wait: async request =>
-      fail({
-        kind: 'unavailable',
-        operation: request.key,
-        reason: 'The author wait provider is absent.',
-      }),
-  }
   return {
     async close() {
       shutdown.abort()
@@ -151,96 +247,7 @@ export function createRuntimeAuthorExecution(
     pendingBodyScopes: () => bodies.size,
     pending: () => finals.size + validating,
     retainedReturns: () => unencoded.size,
-    scope({ execution, principal, tenant, call, start }) {
-      if (shutdown.signal.aborted) throw new Error('The author execution host has retired.')
-      const blocks = new Map<string, ProcessBlock>()
-      const scope = createIndependentToolScope({
-        signal: execution.signal,
-        limits: {
-          authorBufferBytes: input.configuration.authorBufferBytes,
-          authorBufferItems: input.configuration.authorBufferItems,
-          authorWaitHistoryBytes: input.configuration.authorWaitHistoryBytes,
-          authorWaitHistoryItems: input.configuration.authorWaitHistoryItems,
-        },
-        waits: absentWaits,
-        process: {
-          async receive({ sequence, update }) {
-            const previous = blocks.get(update.index)
-            const content =
-              update.kind === 'replace'
-                ? update.content
-                : text.text(
-                    (previous?.content.kind === 'text' ? previous.content.text : '') + update.text,
-                  )
-            if ('failure' in content)
-              return fail({ kind: 'invalid', reason: content.failure.reason })
-            const block = 'ok' in content ? content.ok.content[0] : content
-            if (block === undefined)
-              return fail({ kind: 'invalid', reason: 'Empty process block.' })
-            const next: ProcessBlock = {
-              index: update.index,
-              sequence,
-              mode: update.kind === 'replace' ? 'replace' : 'append',
-              state: update.close ? 'closed' : 'open',
-              content: block,
-              trim: null,
-            }
-            if (update.close) blocks.delete(update.index)
-            else blocks.set(update.index, next)
-            execution.publish({ kind: 'process', blocks: [next] })
-            return succeed(undefined)
-          },
-        },
-      })
-      if ('failure' in scope) throw new TypeError(`Invalid author scope: ${scope.failure.reason}`)
-      const bodySignal = AbortSignal.any([execution.signal, shutdown.signal])
-      const body = createToolBodyScope({
-        binding: { principal, tenant, call, start, source: execution.source },
-        writes: {
-          begin: request => input.bodyWrites.begin(request),
-          append: request => input.bodyWrites.append(request),
-          seal: request => input.bodyWrites.seal(request),
-          inspect: request => input.bodyWrites.inspect(request),
-        },
-        signal: bodySignal,
-        limits: scope.ok.limits,
-      })
-      const local = scope.ok
-      let bodyClosing: ReturnType<ToolExecutionScope['finish']> | undefined
-      const finishBody = (exit: 'returned' | 'failed') => {
-        bodyClosing ??= body.finish(exit).then(answer => {
-          if (body.handoffConfirmed) bodies.delete(retireBody)
-          return answer
-        })
-        return bodyClosing
-      }
-      const retireBody = () => finishBody('failed')
-      bodies.add(retireBody)
-      let finished: ReturnType<ToolExecutionScope['finish']> | undefined
-      return {
-        context: {
-          mode: local.context.mode,
-          signal: local.context.signal,
-          body: body.writer,
-          emit: update => local.context.emit(update),
-          wait: local.context.wait.bind(local.context),
-        },
-        limits: local.limits,
-        finish(exit) {
-          finished ??= Promise.all([local.finish(exit), finishBody(exit)]).then(
-            outcomes =>
-              outcomes.find(
-                answer =>
-                  'failure' in answer &&
-                  (answer.failure.kind === 'unknown' || answer.failure.kind === 'unavailable'),
-              ) ??
-              outcomes.find(answer => 'failure' in answer) ??
-              succeed(undefined),
-          )
-          return finished
-        },
-      }
-    },
+    scope: authorScope(input, text, shutdown, bodies),
     async settle(call) {
       const authorInterruption = call.outcome.kind === 'failed' ? interruption(call) : null
       const closing = call.closing.then(outcome => ({
