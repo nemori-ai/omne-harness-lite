@@ -34,7 +34,8 @@ test('注册、发一条消息、看到回复；页面读不到登录 cookie，�
 // The button shows only once the main process has loaded the screen backend: in the packaged app that proves the
 // binary it carries loads. On macOS the packaged test app is a bundle of its own, which the system would ask about
 // on every run, so there the test stops before the capture; the unpackaged app is Electron's bundle, allowed once.
-test('输入框的截图钮：每块屏上铺一层遮罩，单击取整块、拖动框一块、Esc 或右键取消', async ({
+// Esc is not here: keys from the driver reach the page but never the main process's before-input-event, where Esc is.
+test('输入框的截图钮：每块屏上铺一层遮罩，单击取整块、拖动框一块、右键取消', async ({
   launchApp,
   target,
 }) => {
@@ -47,8 +48,9 @@ test('输入框的截图钮：每块屏上铺一层遮罩，单击取整块、�
   if (process.platform === 'darwin' && target === 'packaged') return
   const screens = await app.evaluate(({ screen }) => screen.getAllDisplays().length)
   const shown = () => app.windows().filter(each => each.url().includes('/shot.html'))
-  // An overlay is ready once its frozen frame loaded.
-  const drawn = 'document.querySelector("main img").naturalWidth > 0'
+  // A person can act once the overlay is on screen with its frozen frame.
+  const drawn =
+    'document.visibilityState === "visible" && document.querySelector("main img").naturalWidth > 0'
   const overlay = async (): Promise<Page> => {
     await button.click()
     await expect.poll(() => shown().length, { timeout: 30_000 }).toBe(screens)
@@ -85,8 +87,6 @@ test('输入框的截图钮：每块屏上铺一层遮罩，单击取整块、�
   await expect(previews).toHaveCount(2, { timeout: 30_000 })
   await expect.poll(sizes).toEqual([screenPixels, [200 * ratio, 150 * ratio]])
 
-  await (await overlay()).keyboard.press('Escape')
-  await closed()
   await (await overlay()).mouse.click(50, 50, { button: 'right' })
   await closed()
   await expect(previews).toHaveCount(2)
