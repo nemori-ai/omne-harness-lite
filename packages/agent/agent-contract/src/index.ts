@@ -41,6 +41,8 @@ export type {
 export {
   AGENT_IDENTITY_MAX_LENGTH,
   admissionActionOf,
+  stepOfToolAction,
+  toolActionOf,
   admissionPassageOf,
   decodeActionBatchId,
   decodeActionId,

@@ -75,6 +75,8 @@ export type ResultConsumption = Readonly<{
   release: 'pending' | 'confirmed'
 }>
 export type WorkspaceDirectoryVisit = Readonly<{
+  /** Original foreground group. An asynchronous result can contribute without changing the group. */
+  batch?: string
   workspace: string
   instance: string
   generation: string

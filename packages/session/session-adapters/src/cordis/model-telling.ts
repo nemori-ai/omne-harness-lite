@@ -1,7 +1,13 @@
 import type { Failure } from '@omne-harness/agent-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { Outcome } from '@omne-harness/operation-result'
-import type { SessionCommand, SessionId, WorkSnapshot } from '@omne-harness/session-contract'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { ScopeRef } from '@omne-harness/runtime-context-contract'
+import type {
+  ModelViewBasis,
+  SessionCommand,
+  SessionId,
+  WorkSnapshot,
+} from '@omne-harness/session-contract'
 import {
   afterSessionCommit,
   sessionCommandFacts,
@@ -65,8 +71,11 @@ function begunStep(appended: readonly PublishedBatch[]): string | null {
   return null
 }
 
-const failed = (failure: Failure): Told => ({ kind: 'answer', value: { failure } })
-const down = (diagnostic: string): Told =>
+const failed = (failure: Failure): Extract<Told, { kind: 'answer' }> => ({
+  kind: 'answer',
+  value: { failure },
+})
+const down = (diagnostic: string) =>
   failed({ kind: 'unavailable', owner: 'session-log-journal', diagnostic })
 
 export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P, B>) {
@@ -127,13 +136,13 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
     return typeof settled === 'string' ? { kind: 'again' } : failed(settled)
   }
 
-  async function tell(
+  async function prepareTell(
     book: B,
     domain: DomainRef,
     principal: P,
     snapshot: WorkSnapshot | null,
-  ): Promise<Told> {
-    if (reminders === undefined) return null
+  ): Promise<Exclude<Told, null> | Readonly<{ kind: 'ready'; basis: ModelViewBasis | null }>> {
+    if (reminders === undefined) return { kind: 'ready', basis: null }
     if (snapshot === null) return down('no Session snapshot to tell the model from')
     const scope = openContextScope({ tenant: book.tenant, session: book.session, snapshot })
     if (scope === null) return down('the session has no open context scope')
@@ -148,7 +157,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
     const [message] = prepared.ok.messages
     if (message === undefined) {
       prepared.ok.advance()
-      return null
+      return { kind: 'ready', basis: prepared.ok.modelView ?? null }
     }
     const command = reminderCommand({
       tenant: book.tenant,
@@ -163,7 +172,49 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
     return typeof settled === 'string' ? { kind: 'again' } : failed(settled)
   }
 
+  async function tell(book: B, domain: DomainRef, principal: P, snapshot: WorkSnapshot | null) {
+    const result = await prepareTell(book, domain, principal, snapshot)
+    return result.kind === 'ready' ? null : result
+  }
+
   return {
+    async ensureHistory(
+      book: B,
+      domain: DomainRef,
+      principal: P,
+      expectedScope: ScopeRef,
+    ): Promise<Outcome<ModelViewBasis | null, Failure>> {
+      for (let attempt = 0; attempt < 16; attempt++) {
+        const before = await ports.read(book, domain)
+        if ('failure' in before) return before
+        if (before.ok === null)
+          return fail({
+            kind: 'unavailable',
+            owner: 'session-log-journal',
+            diagnostic: 'the Session snapshot is missing',
+          })
+        const scope = openContextScope({
+          tenant: book.tenant,
+          session: book.session,
+          snapshot: before.ok,
+        })
+        if (scope?.ref !== expectedScope.ref) return fail({ kind: 'changed' })
+        const refreshed = await refresh(book, domain, principal, before.ok, 'request')
+        if (refreshed?.kind === 'answer') return refreshed.value
+        if (refreshed?.kind === 'again') continue
+        const prepared = await prepareTell(book, domain, principal, before.ok)
+        if (prepared.kind === 'answer') return prepared.value
+        if (prepared.kind === 'again') continue
+        const current = await ports.read(book, domain)
+        if ('failure' in current) return current
+        if (current.ok?.revision === before.ok.revision) return succeed(prepared.basis)
+      }
+      return fail({
+        kind: 'unavailable',
+        owner: 'session-log-journal',
+        diagnostic: 'the workspace guidance revision kept changing',
+      })
+    },
     /** A read that fails fails the step; nothing told moves on unless its commit is accepted. */
     async beforeStep(
       book: B,
@@ -186,7 +237,9 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       scratch: Scratch,
       outcome: JournalCommitResult,
     ): Promise<void> {
-      const compacted = scratch.commands.some(item => item.kind === 'commitDerived')
+      const compacted = scratch.commands.some(
+        item => item.kind === 'commitDerived' && item.input.value.kind === 'compaction',
+      )
       if (reminders === undefined || !compacted || outcome.kind === 'refused') return
       const before =
         scratch.snapshot === null
@@ -202,8 +255,9 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       const told =
         'failure' in fresh
           ? failed(fresh.failure)
-          : await tell(book, domain, principalOf<P>(write), fresh.ok)
-      // A failure here does not fail the committed compaction: the next step tells the model.
+          : ((await refresh(book, domain, principalOf<P>(write), fresh.ok, 'compaction')) ??
+            (await tell(book, domain, principalOf<P>(write), fresh.ok)))
+      // The original compaction remains committed. Resolving the next model view retries the repair.
       if (told?.kind === 'answer')
         ports.fault?.(
           `the runtime context after a compaction is not told yet: ${JSON.stringify(told.value.failure)}`,

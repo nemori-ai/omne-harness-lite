@@ -1,3 +1,4 @@
+import { SessionModelHistoryReadiness } from './model-history-readiness.ts'
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -408,6 +409,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     toolTargets,
     adoptedRequests,
     openTenant: journals.openTenant,
+    ensureModelHistory: journals.ensureModelHistory,
     compactionInputs,
     close(): void {
       closed = true
@@ -724,6 +726,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.query = journal.query
     this.inputAcceptance = journal.inputAcceptance
     this.output = journal.output
+    new SessionModelHistoryReadiness(ctx, routed.ensureModelHistory)
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
     new SessionLogCompactionInputs(ctx, routed.compactionInputs)

@@ -1,3 +1,4 @@
+import type { EnsureModelHistory } from './model-history-readiness.ts'
 import { historyCaller } from './history-caller.ts'
 import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
@@ -1653,8 +1654,26 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
+  const ensureModelHistory: EnsureModelHistory<P> = async input => {
+    const allowed = await options.sessionAccessCheck.check({
+      access: input,
+      operation: 'history.readModelView',
+      target: { kind: 'session', session: input.session },
+    })
+    if (allowed.kind === 'denied') return fail({ kind: 'denied', action: 'read-model-history' })
+    if (allowed.kind === 'unavailable') return fail(unavailable(allowed.diagnostic))
+    const book = bookOf(input.tenant, input.session)
+    if (book === null) return fail({ kind: 'denied', action: 'read-model-history' })
+    return serial(book, async () => {
+      const domain = await domainOf(book)
+      if ('failure' in domain) return domain
+      return telling.ensureHistory(book, domain.ok, input.principal, input.scope)
+    })
+  }
+
   return {
     forSession,
+    ensureModelHistory,
     readAdopted,
     readRequestChoices,
     openTenant: domainOf,

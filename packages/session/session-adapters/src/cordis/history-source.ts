@@ -1,3 +1,4 @@
+import type { EnsureModelHistory } from './model-history-readiness.ts'
 import { contextEpochOf, sessionEpochOf } from './history-epoch.ts'
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
@@ -72,6 +73,7 @@ export interface SessionHistoryHeads {
 }
 
 export type SessionHistorySourceInput = Readonly<{
+  ensureModelHistory?: EnsureModelHistory<unknown>
   heads: SessionHistoryHeads
   scopeIndexEntries?: number
   pageBytes?: number
@@ -817,6 +819,22 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     const found = await this.currentScope(work, session, head, headTenant)
     if (!('scope' in found)) return found
     const { scope } = found
+    const ensure = this.shared.input.ensureModelHistory
+    if (ensure !== undefined) {
+      const ready = await ensure({ ...session, scope })
+      if ('failure' in ready) {
+        if (ready.failure.kind === 'denied') return DENIED
+        return unavailable(
+          ready.failure.kind === 'unavailable' ? ready.failure.diagnostic : ready.failure.kind,
+        )
+      }
+      if (ready.ok !== null) {
+        const evidence = evidenceOf({ tenant: head.tenant, scope }, ready.ok)
+        return evidence === undefined
+          ? this.defect('the ready model view has an invalid basis')
+          : { kind: 'value', value: evidence }
+      }
+    }
     const view = await this.call<ModelViewRead>(() =>
       this.scope[sessionKey].history.readModelView({
         ...session,

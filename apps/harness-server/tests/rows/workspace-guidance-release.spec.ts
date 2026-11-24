@@ -11,6 +11,9 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
+import { sessionModelHistoryReadinessKey } from '@omne-harness/session-adapters/cordis'
+import { decodeCompactionOutcome } from '@omne-harness/agent-contract'
+import { succeed } from '@omne-harness/operation-result'
 import {
   historyOf,
   onReleaseTree,
@@ -314,6 +317,193 @@ it(
           e => e.kind === 'call.execution-fact' && JSON.stringify(e.payload).includes(leaf),
         )
         expect(evidence.length).toBeGreaterThan(0)
+      },
+    )
+  },
+)
+
+it.each(['root', 'all', 'none', 'unreadable'] as const)(
+  'C5/C6 the next compacted request uses the latest batch, retained sources %s',
+  { tags: ['slow'], timeout: 360_000 },
+  async retained => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'guidance-compact-')))
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }))
+    for (const child of ['pay', 'docs']) mkdirSync(join(root, 'src', child), { recursive: true })
+    for (const [directory, marker] of [
+      ['', 'ROOT'],
+      ['src', 'PARENT'],
+      ['src/pay', 'PAY'],
+      ['src/docs', 'DOCS'],
+    ] as const)
+      writeFileSync(join(root, directory, 'AGENTS.md'), 'BODY_379_' + marker)
+    const requests: string[] = []
+    const calls = toolCallsByRequest(body => {
+      requests.push(body)
+      const leaves = requests.length === 1 ? ['pay', 'docs'] : requests.length === 2 ? ['pay'] : []
+      return leaves.map(leaf => ({
+        id: 'call_' + requests.length + '_' + leaf,
+        tool: 'Files',
+        arguments: JSON.stringify({
+          command: 'write',
+          intent: 'write note',
+          params: {
+            path: 'src/' + leaf + '/round-' + requests.length,
+            text: 'done',
+            mode: 'create',
+          },
+        }),
+      }))
+    })
+    let compactions = 0
+    let unreadable = false
+    let sentWhileUnreadable = 0
+    await onReleaseTree(
+      {
+        permission: 'bypass-permissions',
+        collaboration: 'co-work',
+        extraHistoryKinds: ['message.system_reminder'],
+        compactionTriggerPercent: '2',
+        compactionProvider: {
+          binding: {
+            authority: 'release/guidance',
+            adoption: {
+              owner: 'release-test',
+              name: 'guidance',
+              revision: '1',
+              digest: 'guidance/1',
+            },
+          },
+          inject: [],
+          executor: () => ({
+            async advance(request, generation) {
+              compactions++
+              const history = request.input.history
+              const roots = history.entries
+                .filter(
+                  e =>
+                    e.message.role === 'system_reminder' &&
+                    (retained === 'all' ||
+                      (retained !== 'none' &&
+                        JSON.stringify(e.message.blocks).includes('BODY_379_ROOT'))),
+                )
+                .map(e => e.ref)
+              const result = decodeCompactionOutcome(
+                JSON.stringify({
+                  kind: 'completed',
+                  message: {
+                    id: request.input.outputMessageId,
+                    role: 'compaction',
+                    blocks: [
+                      {
+                        kind: 'text',
+                        id: 'summary',
+                        text: 'Continue the pay work. SUMMARY_5891',
+                        visibility: { toModel: true, toHuman: true },
+                      },
+                    ],
+                    covers: { from: history.origin, to: history.upper },
+                    retained: history.logOrder.filter(
+                      ref => history.protected.includes(ref) || roots.includes(ref),
+                    ),
+                    derivation: generation,
+                  },
+                }),
+              )
+              if ('failure' in result || result.ok.kind !== 'completed')
+                throw new Error('invalid test compaction')
+              return succeed({
+                phase: 'terminal',
+                physical: 'settled',
+                outcome: result.ok,
+              } as const)
+            },
+            cancel: async () => succeed('settled' as const),
+          }),
+        },
+        script: async input => {
+          if (unreadable) sentWhileUnreadable++
+          const answer = await calls(input)
+          if (requests.length !== 2) return answer
+          const frame =
+            'data: ' +
+            JSON.stringify({
+              model: (JSON.parse(input.body) as { model: string }).model,
+              provider: 'OpenAI',
+              choices: [{ delta: { content: 'memo '.repeat(1_000) } }],
+            }) +
+            '\n\n'
+          return { ...answer, body: frame.repeat(12) + answer.body }
+        },
+      },
+      async tree => {
+        const session = await sessionIn(tree, root)
+        if (retained === 'unreadable') {
+          const service = tree.scope.get(sessionModelHistoryReadinessKey)
+          if (service === undefined) throw new Error('missing release history readiness service')
+          const ensure = service.ensure.bind(service)
+          let injected = false
+          Reflect.set(service, 'ensure', async (input: Parameters<typeof ensure>[0]) => {
+            if (
+              !injected &&
+              compactions > 0 &&
+              (await historyOf(tree, session)).some(e => e.kind === 'message.compaction')
+            ) {
+              writeFileSync(join(root, 'src/pay/AGENTS.md'), Buffer.from([0xff]))
+              injected = unreadable = true
+            }
+            return ensure(input)
+          })
+        }
+        await command(tree, ['send-input', '--session', session, '--text', 'Begin.'])
+        if (retained === 'unreadable') {
+          await pollUntil(
+            'a committed compression encounters the unreadable pay rules',
+            () => {
+              const waiting = tree.records.some(record => {
+                const text = (record['fields'] as { text?: string } | undefined)?.text
+                return (
+                  text?.includes('agent run waits for a dependency') && text.includes('guidance')
+                )
+              })
+              return (unreadable && waiting) || sentWhileUnreadable > 0
+            },
+            observed => observed,
+          )
+          expect(sentWhileUnreadable).toBe(0)
+          const beforeRepair = await historyOf(tree, session)
+          expect(beforeRepair.filter(e => e.kind === 'message.compaction')).toHaveLength(1)
+          expect(readFileSync(join(root, 'src/pay/round-2'), 'utf8')).toBe('done')
+          writeFileSync(join(root, 'src/pay/AGENTS.md'), 'BODY_379_PAY')
+          unreadable = false
+        }
+        const entries = await pollUntil(
+          'the original Run completes',
+          () => historyOf(tree, session),
+          seen => seen.some(entry => entry.kind === 'run.terminal'),
+        )
+        expect(compactions).toBe(1)
+        expect(requests).toHaveLength(3)
+        expect(entries.filter(e => e.kind === 'run.started')).toHaveLength(1)
+        expect(requests[1]).toContain('BODY_379_DOCS')
+        const after = requests[2]!
+        expect(after).toContain('SUMMARY_5891')
+        if (retained !== 'all') expect(after).not.toContain('BODY_379_DOCS')
+        for (const marker of ['ROOT', 'PARENT', 'PAY'])
+          expect(after.split('BODY_379_' + marker)).toHaveLength(2)
+        const compacted = entries.findIndex(e => e.kind === 'message.compaction')
+        expect(compacted).toBeGreaterThanOrEqual(0)
+        const restored = entries
+          .slice(compacted + 1)
+          .filter(
+            e =>
+              e.kind === 'message.system_reminder' &&
+              JSON.stringify(e.payload).includes('BODY_379_PAY'),
+          )
+        expect(restored).toHaveLength(retained === 'all' ? 0 : 1)
+        if (retained !== 'all') expect(JSON.stringify(restored)).toContain('BODY_379_PARENT')
+        if (retained === 'none') expect(JSON.stringify(restored)).toContain('BODY_379_ROOT')
+        else expect(JSON.stringify(restored)).not.toContain('BODY_379_ROOT')
+        expect(readFileSync(join(root, 'src/pay/round-2'), 'utf8')).toBe('done')
       },
     )
   },

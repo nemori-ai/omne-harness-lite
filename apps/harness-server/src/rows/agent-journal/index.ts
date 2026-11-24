@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createSessionAgentJournalPlugin,
+  sessionModelHistoryReadinessKey,
   type SessionAgentJournalPluginInput,
 } from '@omne-harness/session-adapters/cordis'
 import {
@@ -75,6 +76,7 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
         agentToolReceptionTargetsKey,
         sessionAdoptedRequestsKey,
         sessionExecutionLogKey,
+        sessionModelHistoryReadinessKey,
       ],
       injects: [
         ...INJECTS,

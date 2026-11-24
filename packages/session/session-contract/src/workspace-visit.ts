@@ -9,6 +9,11 @@ export function activeWorkspaceVisit(
     previous?.generation === visit.generation &&
     previous.workspace === visit.workspace &&
     previous.instance === visit.instance
-  const existing = sameBinding ? previous.directories : []
-  return { ...visit, directories: [...new Set([...existing, ...visit.directories])].sort() }
+  const batch = visit.batch ?? (sameBinding ? previous.batch : undefined)
+  const existing = sameBinding && previous.batch === batch ? previous.directories : []
+  return {
+    ...visit,
+    ...(batch === undefined ? {} : { batch }),
+    directories: [...new Set([...existing, ...visit.directories])].sort(),
+  }
 }
