@@ -115,13 +115,8 @@ export const canvasSummaries: Readonly<Record<CanvasCommandName, string>> = {
   unlock: 'Unlock items.',
 }
 
-/** The contract's values are immutable, which zod writes as `readOnly`: in a schema that means "do not send". */
-const sendable = (ctx: { jsonSchema: { readOnly?: boolean } }) => {
-  delete ctx.jsonSchema.readOnly
-}
-
 export function canvasContract(name: CanvasCommandName): ParameterContract {
-  const document = z.toJSONSchema(shapes[name], { override: sendable })
+  const document = z.toJSONSchema(shapes[name])
   const { $schema: _dialect, ...schema } = document as Record<string, unknown>
   return { schema: tree(schema), vocabulary, descriptions: [] }
 }
