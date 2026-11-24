@@ -52,7 +52,6 @@ function Board({
         zoomLimits={ZOOM}
         limits={LIMITS}
         magnet={magnet}
-        showGrid={magnet}
         {...(onDropAt === undefined ? {} : { onDropAt })}
       >
         {children}

@@ -217,7 +217,6 @@ export function PaperSurface({
   zoomLimits,
   limits,
   magnet,
-  showGrid = false,
   onDropAt,
   label,
   roleDescription = '纸面',
@@ -230,7 +229,6 @@ export function PaperSurface({
   readonly zoomLimits: ZoomLimits
   readonly limits: SizeLimits
   readonly magnet: boolean
-  readonly showGrid?: boolean
   readonly onDropAt?: (event: React.DragEvent<HTMLDivElement>, at: PaperPoint) => void
   readonly label: string
   readonly roleDescription?: string
@@ -300,7 +298,6 @@ export function PaperSurface({
       >
         <div
           className="omne-paper-sheet omne-size-standard"
-          data-grid={showGrid ? '' : undefined}
           style={
             {
               '--omne-paper-width': sheet.width,

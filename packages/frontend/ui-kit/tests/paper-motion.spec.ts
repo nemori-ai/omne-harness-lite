@@ -39,3 +39,13 @@ it('takes every transition of the paper away when motion is reduced, the control
   for (const name of [...moving, '.omne-paper-surface', '.omne-paper-handle', '.omne-paper-corner'])
     expect(still, name).toContain(name)
 })
+
+it('moves only transform and opacity: every transition of the paper names one of the two', () => {
+  const moved = rules(SHEET.slice(0, start)).flatMap(rule =>
+    [...rule.body.matchAll(/(?:^|;)\s*transition(?:-property)?\s*:([^;]*)/g)].flatMap(match =>
+      match[1]!.split(',').map(part => part.trim().split(/\s+/)[0]),
+    ),
+  )
+  expect(moved.length).toBeGreaterThan(0)
+  for (const property of moved) expect(['transform', 'opacity']).toContain(property)
+})
