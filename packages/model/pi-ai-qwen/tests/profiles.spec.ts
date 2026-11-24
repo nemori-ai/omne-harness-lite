@@ -38,6 +38,7 @@ describe('officialQwenProfiles', () => {
           { metric: 'voice-duration-ms', provided: '300000', upstream: unknown },
         ],
         parameters: [],
+        reasoningEfforts: { low: 'low', medium: 'medium', xhigh: 'xhigh' },
         representation: componentAdoption(RECORD, 'representation'),
         meter: componentAdoption(RECORD, 'meter'),
         retryPolicy: RETRY,

@@ -6,6 +6,7 @@ import {
   profileCovers,
   profileResolutionValue,
   readProfileResolution,
+  supportedReasoningEfforts,
   type ProfileResolution,
 } from '@omne-harness/model-contract'
 
@@ -59,6 +60,20 @@ it('round trips a frozen profile through JSON and restores legal identity', () =
     throw new Error('scope changed')
   expect(tenantEquals(restored.profile.identity.scope.tenant, tenant.value)).toBe(true)
   expect(Object.isFrozen(restored.profile.definition)).toBe(true)
+})
+
+it('retains exactly the selectable effort keys and their native values', () => {
+  const value = JSON.parse(JSON.stringify(ok(profileResolutionValue(resolution))))
+  value.profile.definition.reasoningEfforts = { high: 'max', low: 'low', medium: 'high' }
+  const decoded = ok(readProfileResolution(value))
+  if (decoded.kind !== 'resolved') throw new Error('not resolved')
+  expect(supportedReasoningEfforts(decoded.profile.definition)).toEqual(['low', 'medium', 'high'])
+  expect(ok(profileResolutionValue(decoded))).toEqual(value)
+  expect(supportedReasoningEfforts({})).toEqual([])
+  for (const invalid of [{ max: 'max' }, { xhigh: 'none' }, ['low']]) {
+    value.profile.definition.reasoningEfforts = invalid
+    expect(readProfileResolution(value)).toHaveProperty('failure')
+  }
 })
 
 it('rejects invalid parameters, forged scope and unknown profile fields', () => {

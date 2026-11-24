@@ -1,6 +1,11 @@
 import { wireLimits } from '../media.ts'
 import type { RouteAccounting } from '../config.ts'
-import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
+import type {
+  Adoption,
+  FixedModelRequest,
+  ReasoningEffortMapping,
+  Supplier,
+} from '@omne-harness/model-contract'
 import { recordAdoption } from '../family-table.ts'
 import { isPositiveInteger } from '../limits.ts'
 import type { PiFamilyBinding } from '../family.ts'
@@ -20,6 +25,7 @@ import type {
 } from './vocabulary.ts'
 
 export type ChatCompletionsBindingInput = Readonly<{
+  bindingEfforts?: ReasoningEffortMapping | undefined
   record: ChatCompletionsRecord
   supplier: Supplier
   hooks: VendorHooks
@@ -156,6 +162,7 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
     maxReasoningText: input.limits.maxReasoningText,
   })
   const context: RequestContext = {
+    bindingEfforts: input.bindingEfforts,
     record,
     hooks,
     meter,

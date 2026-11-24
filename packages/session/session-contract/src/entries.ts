@@ -55,6 +55,7 @@ import type {
   InitializationRequirement,
   InitializationRegistration,
 } from './values.ts'
+import { equalValue } from './session-validation.ts'
 import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
 import { member } from './payload-members.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
@@ -68,6 +69,24 @@ export const SESSION_INTERPRETER: Adoption = Object.freeze({
   revision: '5',
   digest: SESSION_RELEASE_DIGEST,
 })
+
+// Both integrated releases wrote revision 5 selections without a reasoning effort.
+const BEFORE_REASONING_EFFORT: readonly Adoption[] = [
+  'sha256:5f2509c9e01e5e248f8ea47eca236bdeec25981cd6b62e89c4e166175743f196',
+  'sha256:ebca6f5b3f2831d77efc80b3e91bf8f66d01a76297c0d82341441dcb048909db',
+].map(digest => ({
+  owner: '@omne-harness/session-contract',
+  name: 'session-log',
+  revision: '5',
+  digest,
+}))
+
+export function readsSessionInterpreter(schema: Adoption): boolean {
+  return (
+    equalValue(schema, SESSION_INTERPRETER) ||
+    BEFORE_REASONING_EFFORT.some(prior => equalValue(schema, prior))
+  )
+}
 
 export type InitializationItem = Omit<
   Extract<RecoveryTask, { kind: 'initialization' }>,

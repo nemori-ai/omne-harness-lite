@@ -26,7 +26,10 @@ const source = {
   revision: '1',
   digest: 'e'.repeat(64),
 }
-const profile = { adoption } as unknown as ModelProfile
+const profile = {
+  adoption,
+  definition: { reasoningEfforts: { low: 'low', high: 'high' } },
+} as unknown as ModelProfile
 
 function resolved(
   changes: Partial<Extract<ProfileResolution, { kind: 'resolved' }>> = {},
@@ -76,6 +79,7 @@ describe('what a resolved route means for a selection', () => {
       expect(targetOf(resolved({ credential }))).toEqual({
         kind: 'selectable',
         credential: expected,
+        reasoningEfforts: ['low', 'high'],
         basis: {
           owner: adoption.owner,
           record: adoption.name,

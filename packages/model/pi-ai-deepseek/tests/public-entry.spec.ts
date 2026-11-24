@@ -72,3 +72,21 @@ it('rejects invalid compaction settings before publishing profiles', () => {
       RangeError,
     )
 })
+
+it('maps the selectable levels to the native modes of each release', () => {
+  const profiles = officialDeepSeekProfiles(options)
+  const efforts = Object.fromEntries(profiles.map(p => [p.suppliers[0].model, p.reasoningEfforts]))
+  const twoLevels = { medium: 'high', high: 'max' }
+  const threeLevels = { low: 'low', medium: 'high', high: 'max' }
+  expect(efforts).toEqual({
+    'deepseek/deepseek-v3.2': {},
+    'deepseek/deepseek-v3.2-exp': {},
+    'deepseek/deepseek-v4-pro': twoLevels,
+    'deepseek/deepseek-v4-flash': twoLevels,
+    'deepseek/deepseek-v4-pro-0813': threeLevels,
+    'deepseek/deepseek-v4-flash-0731': threeLevels,
+    'deepseek/deepseek-v4-flash-vision-exp': threeLevels,
+    'deepseek/deepseek-v4.1-flash': threeLevels,
+    'deepseek/deepseek-v4.1-flash-1017': threeLevels,
+  })
+})

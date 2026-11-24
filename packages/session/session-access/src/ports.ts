@@ -181,6 +181,7 @@ export type ModelTargetCheck =
   | Readonly<{
       kind: 'selectable'
       credential: 'available' | 'missing' | 'unknown'
+      reasoningEfforts?: readonly NonNullable<SavedModelSelection['reasoningEffort']>[]
       basis: DurableEvidence
     }>
   | Readonly<{

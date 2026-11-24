@@ -1,5 +1,5 @@
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
-import type { ModalityRequirement } from '@omne-harness/model-contract'
+import { supportedReasoningEfforts, type ModalityRequirement } from '@omne-harness/model-contract'
 import type { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -112,10 +112,24 @@ export async function selectModel(
       ),
     )
 
+  const { definition } = resolution.profile
+  const { reasoningEffort } = saved.ok.selection
+  if (
+    reasoningEffort !== undefined &&
+    !supportedReasoningEfforts(definition).includes(reasoningEffort)
+  )
+    return fail({ kind: 'invalid', field: 'reasoningEffort', reason: 'unsupported-effort' })
+
   return succeed({
     recipient: { route, profile: resolution.profile.adoption },
     resolution: { ...resolution, selectable: true },
-    parameters: resolution.profile.definition.parameters,
+    parameters:
+      reasoningEffort === undefined
+        ? definition.parameters
+        : [
+            ...definition.parameters.filter(parameter => parameter.kind !== 'reasoning-effort'),
+            { kind: 'reasoning-effort', value: reasoningEffort, scale: 'unified' },
+          ],
     tools: input.scope,
     evidence: saved.ok.source,
   })

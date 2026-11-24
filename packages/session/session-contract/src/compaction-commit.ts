@@ -1,7 +1,12 @@
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { judgeCompaction, judgeMessage } from '@omne-harness/message'
 import { entries, invalid, originOf, rejected, sourceOf } from './decision-support.ts'
-import { decodeEntries, encodeEntry, SESSION_INTERPRETER } from './entries.ts'
+import {
+  decodeEntries,
+  encodeEntry,
+  readsSessionInterpreter,
+  SESSION_INTERPRETER,
+} from './entries.ts'
 import { sameInitializationValue } from './initialization-plan.ts'
 import { judgeAdvance, type CommittedBatch, type DecideReads, type Decision } from './judgments.ts'
 import type { SessionCommand } from './ports.ts'
@@ -87,13 +92,14 @@ export function projectCompactionCommit(
   execution: RunExecution,
   batch: CommittedBatch,
 ): Readonly<{ state: CompactionCommitState; execution: RunExecution }> | string {
-  if (!sameInitializationValue(state.interpreter, SESSION_INTERPRETER))
+  if (!readsSessionInterpreter(state.interpreter))
     return 'unsupported snapshot interpreter adoption'
   if (
     batch.entries.length !== 2 ||
+    !readsSessionInterpreter(batch.entries[0]!.schema) ||
     batch.entries.some(
       row =>
-        !sameInitializationValue(row.schema, SESSION_INTERPRETER) ||
+        !sameInitializationValue(row.schema, batch.entries[0]?.schema) ||
         row.revision !== batch.revision ||
         !/^[1-9]\d*$/.test(row.id),
     ) ||
@@ -140,7 +146,13 @@ export function projectCompactionCommit(
     throw error
   }
   return {
-    state: { ...state, run: draft.run, revision, source: batchEvidence(batch, state.session) },
+    state: {
+      ...state,
+      interpreter: SESSION_INTERPRETER,
+      run: draft.run,
+      revision,
+      source: batchEvidence(batch, state.session),
+    },
     execution: draft.executions[0]!,
   }
 }

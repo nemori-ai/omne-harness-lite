@@ -2,6 +2,7 @@ import type {
   Adoption,
   ModelLimit,
   ModelProfileDefinition,
+  ReasoningEffortMapping,
   TokenLimit,
   UpstreamLimit,
 } from '@omne-harness/model-contract'
@@ -28,6 +29,15 @@ function tokenLimit(record: QwenRecord, supplier: Adoption, data: TokenLimitData
   return {
     provided: data.provided,
     upstream: [{ supplier, limit: upstreamOf(record, data.upstream) }],
+  }
+}
+
+export function effortMapping(record: QwenRecord): ReasoningEffortMapping {
+  switch (record.name) {
+    case 'qwen/qwen3.8-omni-flash':
+      return { low: 'low', medium: 'medium', xhigh: 'xhigh' }
+    default:
+      return {}
   }
 }
 
@@ -62,6 +72,7 @@ export function profileOf(
     },
     limits,
     parameters: [],
+    reasoningEfforts: effortMapping(record),
     representation: componentAdoption(record, 'representation'),
     meter: componentAdoption(record, 'meter'),
     retryPolicy: input.retryPolicy,

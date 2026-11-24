@@ -50,7 +50,7 @@ async function bodyOf(record: AnthropicRecord, parts: RequestParts): Promise<unk
 }
 
 describe('parameters', () => {
-  it.each(['low', 'medium', 'high', 'max'] as const)(
+  it.each(['low', 'medium', 'high', 'xhigh', 'max'] as const)(
     'passes the effort %s and writes it as itself',
     async value => {
       const effort: Parameter = { kind: 'reasoning-effort', value }

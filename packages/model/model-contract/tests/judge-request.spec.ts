@@ -220,8 +220,25 @@ describe('parameter values and request-local identities', () => {
     },
   )
 
-  it('retains all five reasoning efforts and rejects other values', () => {
-    for (const value of ['none', 'low', 'medium', 'high', 'max']) {
+  it('retains the scale of a unified choice and refuses native-only values on that scale', () => {
+    for (const value of ['low', 'medium', 'high', 'xhigh']) {
+      const input = {
+        ...request,
+        parameters: [{ kind: 'reasoning-effort', scale: 'unified', value }],
+      }
+      expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+    }
+    for (const parameter of [
+      { kind: 'reasoning-effort', scale: 'unified', value: 'max' },
+      { kind: 'reasoning-effort', scale: 'other', value: 'high' },
+    ])
+      expect(judgeFixedModelRequest({ ...request, parameters: [parameter] })).toHaveProperty(
+        'failure',
+      )
+  })
+
+  it('retains engine effort values and rejects unknown values', () => {
+    for (const value of ['none', 'low', 'medium', 'high', 'xhigh', 'max']) {
       const input = { ...request, parameters: [{ kind: 'reasoning-effort', value }] }
       expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
     }

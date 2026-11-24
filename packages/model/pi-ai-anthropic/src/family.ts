@@ -6,6 +6,7 @@ import type { TiktokenExecutor, TiktokenResources } from '@omne-harness/tokenize
 import { createAnthropicMeter, type MeterMargin } from './meter.ts'
 import { ANTHROPIC_OWNER } from './owner.ts'
 import type { AnthropicRecord } from './record.ts'
+import { effortMapping } from './profiles.ts'
 import { ANTHROPIC_RECORDS } from './records.ts'
 
 export type AnthropicFamilyConfig = Readonly<{
@@ -81,6 +82,7 @@ export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily {
         return {
           ok: bindMessages({
             record,
+            bindingEfforts: effortMapping(record),
             supplier,
             meter: createAnthropicMeter(record, tokenizer.ok.tokenizer, config.margin),
             limits: config.limits,

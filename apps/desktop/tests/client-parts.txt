@@ -79,7 +79,7 @@ session.composer | 输入区 | 底部写消息的地方 | – | tokens style | �
 session.composer.input | 输入框 | 写消息的框 | session.composer | tokens style | 打开一段会话时 | session-ui
 session.composer.send | 发送按钮 | 发出这条消息；一轮在跑时是停止 | session.composer | tokens style | 打开一段会话时 | session-ui
 session.header | 对话头 | 对话页顶上的一栏 | – | tokens style | 打开一段会话时 | session-ui
-session.header.model | 模型选择 | 换这段会话用的模型 | session.header | tokens style | 对话头够宽且有模型可选时 | session-ui
+session.header.model | 模型选择 | 选择会话的模型与推理强度 | session.header | tokens style | 对话头够宽且有模型可选时 | session-ui
 session.header.more | 更多 | 对话头上的「⋯」菜单 | session.header | tokens style | 打开一段会话时 | session-ui
 session.header.permission | 权限处理 | 选动作要不要先问你 | session.header | tokens style | 对话头够宽时 | session-ui
 session.header.title | 会话标题 | 这段会话的名字 | session.header | tokens style | 打开一段会话时 | session-ui

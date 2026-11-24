@@ -132,6 +132,21 @@
               "pending": false
             },
             {
+              "name": "REASONING_EFFORTS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ReasoningEffort",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "isReasoningEffort",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "ToolDeclaration",
               "kind": "type",
               "pending": false
@@ -740,6 +755,16 @@
             {
               "name": "ModelProfileDefinition",
               "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReasoningEffortMapping",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "supportedReasoningEfforts",
+              "kind": "value",
               "pending": false
             },
             {

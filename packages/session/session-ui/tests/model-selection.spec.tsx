@@ -55,7 +55,7 @@ function storeWith(reads: readonly unknown[], answer: unknown = selected(CLAUDE)
 const LISTED: ModelChoiceListing = {
   kind: 'listed',
   choices: [
-    { route: GPT, selectable: true, note: null },
+    { route: GPT, selectable: true, note: null, reasoningEfforts: ['low', 'medium', 'high'] },
     { route: CLAUDE, selectable: true, note: '还没有配置凭据，选了也暂时调不了' },
     { route: LOCKED, selectable: false, note: '不能选：被锁定' },
   ],
@@ -96,6 +96,12 @@ describe('the model of a session, as Session answered it last', () => {
     expect(selectText({ outcome: 'invalid', body: { reason: 'unknown-name' } })).toBe(
       '没有换：没有这个模型',
     )
+    expect(
+      selectText({
+        outcome: 'invalid',
+        body: { reason: 'excluded', detail: 'unsupported-effort' },
+      }),
+    ).toBe('没有换：这个模型不支持所选推理强度')
     expect(selectText({ outcome: 'archived', body: {} })).toBe('没有换：会话已归档')
     expect(selectText({ outcome: 'frozen', body: {} })).toBe('没有换：会话已冻结')
     expect(selectText({ outcome: 'unknown' })).toBe('不知道换没换成，已重新读取')
@@ -218,6 +224,90 @@ describe('the model in the heading of a conversation', () => {
     expect(select.mock.calls[0]?.[0]).toMatchObject({ session: SESSION, model: CLAUDE })
     expect(screen.getByRole('status').textContent).toBe(`已换成 ${CLAUDE}`)
     expect(screen.getByRole('combobox', { name: '模型' }).textContent).toContain(CLAUDE)
+  })
+
+  it('offers the four efforts, disables unsupported xhigh and reads back the selected effort', async () => {
+    const { store, select } = storeWith(
+      [
+        selection(GPT, '1'),
+        { outcome: 'succeeded', body: { model: GPT, revision: '2', reasoningEffort: 'high' } },
+      ],
+      selected(GPT),
+    )
+    store.attach(sourceOf(LISTED))
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '推理强度' }), { key: 'Enter' })
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
+      '模型默认',
+      'low',
+      'medium',
+      'high',
+      'xhigh（此型号未提供）',
+    ])
+    expect(
+      screen.getByRole('option', { name: /xhigh.*此型号未提供/u }).getAttribute('aria-disabled'),
+    ).toBe('true')
+    fireEvent.click(screen.getByRole('option', { name: 'high' }))
+    await settle()
+    expect(select.mock.calls[0]?.[0]).toMatchObject({ model: GPT, reasoningEffort: 'high' })
+    expect(screen.getByRole('combobox', { name: '推理强度' }).textContent).toContain('high')
+  })
+
+  it.each([
+    [['high'], undefined, 'high'],
+    [[], '未提供 high，切换并使用模型默认强度', undefined],
+  ] as const)(
+    'makes the effort used after switching explicit for a target offering %j',
+    async (offered, note, expected) => {
+      const { store, select } = storeWith([
+        { outcome: 'succeeded', body: { model: GPT, revision: '1', reasoningEffort: 'high' } },
+        selection(CLAUDE, '2'),
+      ])
+      store.attach(
+        sourceOf({
+          kind: 'listed',
+          choices: [
+            { route: GPT, selectable: true, note: null, reasoningEfforts: ['high'] },
+            { route: CLAUDE, selectable: true, note: null, reasoningEfforts: offered },
+          ],
+        }),
+      )
+      render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+      await settle()
+      fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'Enter' })
+      const target = screen.getByRole('option', { name: /claude-y/ })
+      if (note !== undefined) expect(target.textContent).toContain(note)
+      fireEvent.click(target)
+      await settle()
+      expect(select.mock.calls[0]?.[0]).toEqual({
+        tenant: expect.anything(),
+        model: CLAUDE,
+        session: SESSION,
+        controlId: 'id-1',
+        ...(expected === undefined ? {} : { reasoningEffort: expected }),
+      })
+    },
+  )
+
+  it('keeps the confirmed effort after a rejected change and refreshes available efforts', async () => {
+    const confirmed = {
+      outcome: 'succeeded',
+      body: { model: GPT, revision: '1', reasoningEffort: 'medium' },
+    }
+    const { store } = storeWith([confirmed], {
+      outcome: 'invalid',
+      body: { reason: 'excluded', detail: 'unsupported-effort' },
+    })
+    const source = sourceOf(LISTED)
+    store.attach(source)
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    const count = source.asked.length
+    await choose('推理强度', '^high$')
+    expect(screen.getByRole('combobox', { name: '推理强度' }).textContent).toContain('medium')
+    expect(screen.getByRole('status').textContent).toBe('没有换：这个模型不支持所选推理强度')
+    expect(source.asked.length).toBe(count + 1)
   })
 
   it('a refused change is said, and the model shown is the one read again', async () => {

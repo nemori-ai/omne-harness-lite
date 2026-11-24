@@ -27,6 +27,7 @@ export declare const modelProtocol: {
                         readonly credential: "available" | "missing" | "unknown";
                         readonly input: readonly ("image" | "text" | "voice")[];
                         readonly output: readonly ("image" | "text" | "voice")[];
+                        readonly reasoningEfforts?: readonly ("high" | "low" | "medium" | "xhigh")[];
                         readonly reasons: readonly ("locked" | "modality" | "scope")[];
                         readonly route: string;
                         readonly selectable: boolean;
