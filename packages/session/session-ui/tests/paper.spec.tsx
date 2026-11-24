@@ -210,7 +210,7 @@ describe('picking a session in the search', () => {
   const rows = (view: ReturnType<typeof render>) =>
     within(view.container)
       .queryAllByRole('button')
-      .map(button => button.querySelector('.omne-session-item-title')?.textContent)
+      .map(button => button.querySelector('.list-reading-row-title')?.textContent)
 
   it('finds the open sessions whose names hold the words, whatever their case', async () => {
     const { fake, shell } = await mounted()

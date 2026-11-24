@@ -12,13 +12,10 @@ import {
   type SessionList,
 } from './session-list.ts'
 
-/** The kind a session is on the canvas: its identifier is the session's. */
 export const SESSION_KIND = 'session.session'
 
-/** What a thing on the canvas refers to, written here as the canvas writes it. */
 export type PaperReference = Readonly<{ kind: string; ref: string }>
 
-/** The frame a thing is drawn in: on the sheet, as the page a pile shows, or as a row of the search. */
 export type PaperFrame = 'sheet' | 'pile' | 'search'
 
 export type PaperElementSubject = Readonly<{ reference: PaperReference; frame: PaperFrame }>
@@ -28,7 +25,6 @@ export type PaperPickerSubject = Readonly<{
   pick: (reference: PaperReference) => void
 }>
 
-/** The archived directory read through, once for each read of the open directory it was asked after. */
 export type ArchivedScan =
   | Readonly<{ kind: 'reading'; after: ListPage }>
   | Readonly<{ kind: 'read'; after: ListPage; rows: ReadonlyMap<string, ArchivedItem> }>
@@ -39,7 +35,6 @@ export type PaperRow =
   | Readonly<{ kind: 'row'; item: ListedSession; archived: boolean }>
   | Readonly<{ kind: 'reading' | 'unreadable' | 'unavailable' }>
 
-/** The row as far as it is read, and what is to be read for it next. */
 export type PaperStep = Readonly<{ row: PaperRow; read: 'more' | 'archived' | null }>
 
 const READING: PaperStep = { row: { kind: 'reading' }, read: null }

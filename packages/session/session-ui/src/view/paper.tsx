@@ -1,4 +1,12 @@
-import { Ago, GlideMenu, LoadingState, StateWord, useAgeClock } from '@omne-harness/ui-kit'
+import {
+  Ago,
+  Button,
+  GlideMenu,
+  ListReadingRow,
+  LoadingState,
+  StateWord,
+  useAgeClock,
+} from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from 'react'
 import {
@@ -27,6 +35,8 @@ function Said({ frame, children }: { readonly frame: PaperFrame; readonly childr
   )
 }
 
+const lifecycleOf = (item: ListedSession) => LIFECYCLE[item.lifecycle]
+
 function Facts({
   item,
   archived,
@@ -36,7 +46,7 @@ function Facts({
   readonly archived: boolean
   readonly now: number
 }) {
-  const lifecycle = LIFECYCLE[item.lifecycle]
+  const lifecycle = lifecycleOf(item)
   const at = item.lastActivityAt
   if (at === null && lifecycle === undefined && !archived) return null
   return (
@@ -74,15 +84,15 @@ function Row({
       </div>
     )
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
       className="omne-paper-session"
       data-frame={frame}
       {...sessionPaperItem.props}
       onClick={() => onOpen(item.session)}
     >
       {facts}
-    </button>
+    </Button>
   )
 }
 
@@ -151,6 +161,27 @@ export function PaperSession({
   )
 }
 
+function PickRow({
+  item,
+  now,
+  onPick,
+}: {
+  readonly item: ListedSession
+  readonly now: number
+  readonly onPick: () => void
+}) {
+  const lifecycle = lifecycleOf(item)
+  const at = item.lastActivityAt
+  return (
+    <ListReadingRow
+      title={sessionName(item)}
+      {...(lifecycle === undefined ? {} : { facts: <StateWord state={lifecycle} /> })}
+      {...(at === null ? {} : { time: <Ago at={encodeInstant(at)} now={now} /> })}
+      onSelect={onPick}
+    />
+  )
+}
+
 function Picks({
   driver,
   subject,
@@ -180,16 +211,11 @@ function Picks({
       <ul className="omne-paper-picks" aria-label="会话" {...sessionPaperPick.props}>
         {rows.map(item => (
           <li key={item.session}>
-            <button
-              type="button"
-              className="omne-session-item"
-              data-glide-row=""
-              data-control="row"
-              onClick={() => subject.pick({ kind: SESSION_KIND, ref: item.session })}
-            >
-              <span className="omne-session-item-title">{sessionName(item)}</span>
-              <Facts item={item} archived={false} now={now} />
-            </button>
+            <PickRow
+              item={item}
+              now={now}
+              onPick={() => subject.pick({ kind: SESSION_KIND, ref: item.session })}
+            />
           </li>
         ))}
       </ul>

@@ -1027,14 +1027,18 @@
     flex-direction: column;
     align-items: stretch;
     gap: var(--omne-space-inline);
+    justify-content: flex-start;
     width: 100%;
+    height: auto;
     min-width: 0;
     padding: var(--omne-row-padding);
     border: 0;
     border-radius: var(--omne-radius-control);
     background: transparent;
     color: var(--omne-ink-primary);
+    font-weight: var(--omne-weight-regular);
     text-align: left;
+    white-space: normal;
   }
   .omne-paper-session[data-frame='sheet'] .omne-session-item-title {
     font-size: var(--omne-text-body);
