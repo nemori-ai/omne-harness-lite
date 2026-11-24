@@ -242,7 +242,10 @@ describe('list-call-children: the items', () => {
     const table = tableOf([position(1, { state: 'handed', background: false })])
     const current = (reference: string) =>
       reference === parent ? succeed({ state: stateOf('running'), current: null }) : answer
-    const items = await itemsOf({ table: succeed(table), current: current as NonNullable<Scripted['current']> })
+    const items = await itemsOf({
+      table: succeed(table),
+      current: current as NonNullable<Scripted['current']>,
+    })
     expect(items.map(item => item.state)).toEqual([word])
   })
 })
