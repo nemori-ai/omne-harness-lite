@@ -13,10 +13,16 @@ export type PiRouteAuth = Readonly<{ kind: 'bearer'; item: string }> | null
 /** The interface an engine speaks at the gateway. */
 export type EngineEndpoint = 'chat-completions' | 'messages' | 'responses'
 
+export type ProviderEndpoint = EngineEndpoint | 'decisions'
+
+export function isProviderEndpoint(name: string): name is ProviderEndpoint {
+  return name === 'decisions' || isEngineEndpoint(name)
+}
+
 export type PiRouteEndpoint = Readonly<{ url: string; endMarker: string | null }>
 
 export type PiRoute = Readonly<{
-  endpoints: Readonly<Partial<Record<EngineEndpoint, PiRouteEndpoint>>>
+  endpoints: Readonly<Partial<Record<ProviderEndpoint, PiRouteEndpoint>>>
   accounting: RouteAccounting
   auth: PiRouteAuth
 }>
@@ -59,7 +65,7 @@ export type CheckedRoute = Readonly<{
 }>
 
 export type CheckedProviderRoute = Readonly<{
-  endpoints: ReadonlyMap<EngineEndpoint, Readonly<{ url: URL; endMarker: string | null }>>
+  endpoints: ReadonlyMap<ProviderEndpoint, Readonly<{ url: URL; endMarker: string | null }>>
   accounting: RouteAccounting
   auth: PiRouteAuth
 }>
@@ -147,11 +153,15 @@ function checkRoutes(
   for (const [provider, route] of Object.entries(routes)) {
     if (!isObject(route) || !isObject(route.endpoints) || Array.isArray(route.endpoints))
       throw new RangeError('each route must be an object with endpoints')
-    const endpoints = new Map<EngineEndpoint, Readonly<{ url: URL; endMarker: string | null }>>()
+    const endpoints = new Map<ProviderEndpoint, Readonly<{ url: URL; endMarker: string | null }>>()
     for (const [name, endpoint] of Object.entries(route.endpoints)) {
-      if (!isEngineEndpoint(name))
+      if (!isProviderEndpoint(name))
         throw new RangeError(`a route names an unknown endpoint: ${name}`)
-      if (endpoint !== undefined) endpoints.set(name, checkEndpoint(endpoint))
+      if (endpoint !== undefined) {
+        if (name === 'decisions' && endpoint.endMarker !== null)
+          throw new RangeError('the decisions endpoint accepts one JSON response')
+        endpoints.set(name, checkEndpoint(endpoint))
+      }
     }
     if (endpoints.size === 0) throw new RangeError('each route needs at least one endpoint')
     checked.set(provider, {
@@ -210,18 +220,22 @@ function checkLimits(limits: PiTransportLimits): PiTransportLimits {
     throw new RangeError('limits.maxErrorBodyBytes must be a positive integer')
   if (!isPositiveInteger(maxEventBytes))
     throw new RangeError('limits.maxEventBytes must be a positive integer')
-  if (!isObject(json)) throw new RangeError('limits.json must be an object')
-  for (const name of JSON_LIMIT_NAMES)
-    if (!isPositiveInteger(json[name]))
-      throw new RangeError(`limits.json.${name} must be a positive integer`)
   return Object.freeze({
     connectTimeoutMs,
     ...(streamStallTimeoutMs === undefined ? {} : { streamStallTimeoutMs }),
     ...(checkedRetry === undefined ? {} : { connectRetry: checkedRetry }),
     maxErrorBodyBytes,
     maxEventBytes,
-    json: Object.freeze({ ...json }),
+    json: checkJsonLimits(json),
   })
+}
+
+export function checkJsonLimits(json: JsonLimits): JsonLimits {
+  if (!isObject(json)) throw new RangeError('limits.json must be an object')
+  for (const name of JSON_LIMIT_NAMES)
+    if (!isPositiveInteger(json[name]))
+      throw new RangeError(`limits.json.${name} must be a positive integer`)
+  return Object.freeze({ ...json })
 }
 
 function checkConnectRetry(retry: ConnectRetryLimits | undefined): ConnectRetryLimits | undefined {

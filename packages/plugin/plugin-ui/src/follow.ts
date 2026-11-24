@@ -58,7 +58,12 @@ export function listedOf(plugins: readonly Given[]): readonly Listed[] {
   }
   const sound = wantedOf(offered, SIDE)
     .filter(({ name }) => !faulty.has(name))
-    .map(({ name, version, members }) => ({ name, version, members }))
+    .map(({ name, version, kind, members }) => ({
+      name,
+      version,
+      ...(kind !== undefined && { kind }),
+      members,
+    }))
   return [...faulty.values(), ...sound]
 }
 

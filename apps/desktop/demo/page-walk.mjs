@@ -95,10 +95,12 @@ const THIRD_ARGUMENTS = JSON.stringify({
     questions: [
       {
         title: THIRD_TITLE,
-        description: 'The cache holds a stale build of the page.',
+        description:
+          'The cache holds a stale build of the page. It was written by an older compiler before the asset pages moved, so some of its chunks point at files that no longer exist, and a build on top of it may serve a page that looks right but loads the old styles until the next full rebuild.',
         options: [
           { label: THIRD_PICK, description: 'Build on top of it.' },
           { label: 'Clear it', description: 'The next build takes longer.' },
+          { label: 'Move it aside', description: 'Keep a copy next to the new one.' },
         ],
       },
     ],
@@ -848,7 +850,7 @@ async function walk(browser, origin, proofs, elsewhere) {
   )
   phase = 'ask'
   await step(
-    '一轮里并行的两次 Ask：对话页的一张纸上叠着三节问询，纸底的链接与导航上的张数',
+    '一轮里并行的两次 Ask：对话页的一张纸上三节问询、一次摆一节、纸顶三个圆点，纸底的链接与导航上的张数',
     `
     // The row of this session is selected only while its conversation shows; remember which row it is.
     window.walkAskRow = document.querySelector('.omne-session-item[aria-current=true] .omne-session-item-title')?.textContent
@@ -860,7 +862,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     const seen = sections(area).map(section => ({
       kind: section.dataset.kind,
       title: section.querySelector('.hitl-title').textContent,
-      head: section.querySelector('.hitl-kind').innerText,
+      head: section.querySelector('.hitl-kind').textContent,
       who: section.querySelector('.hitl-who').textContent,
     }))
     const titles = seen.map(card => card.title).sort()
@@ -868,7 +870,9 @@ async function walk(browser, origin, proofs, elsewhere) {
     if (JSON.stringify(titles) !== JSON.stringify(expected)) throw new Error('the cards ask something else: ' + JSON.stringify(seen))
     if (!seen.every(card => card.kind === 'question')) throw new Error('a card is not a question: ' + JSON.stringify(seen))
     if (!seen.every(card => card.head.startsWith('需要你回答'))) throw new Error('a kind line does not say whose move it is: ' + JSON.stringify(seen))
-    if (area.querySelector('[role=tablist], button[aria-label="下一题"]')) throw new Error('the sheet still pages its questions')
+    const shownCount = sections(area).filter(section => !section.inert).length
+    if (shownCount !== 1 || area.querySelectorAll('[role=tablist] [role=tab]').length !== 3)
+      throw new Error('the paper does not show one of its three sections under three dots: ' + shownCount)
     if (!submitOf(area).disabled) throw new Error('the submit is open before any answer')
     if (footLink(area) !== '还差 3 题') throw new Error('the foot says ' + footLink(area))
     const badge = await wait('the count in the navigation', () => {
@@ -876,6 +880,88 @@ async function walk(browser, origin, proofs, elsewhere) {
       return found && found.textContent.trim() === '3' ? found : undefined
     })
     return { cards: seen, badge: badge.textContent.trim() }`,
+  )
+  await step(
+    '翻题：点圆点、在同一个点用指针连按两次「下一题」、在圆点上按方向键；纸高与「下一题」钮的位置不变',
+    `
+    const area = await wait('the cards of this session', () => dock())
+    const paper = area.querySelector('.hitl-paper')
+    const shownAt = () => sections(area).findIndex(section => !section.inert)
+    const tabs = [...area.querySelectorAll('[role=tab]')]
+    if (tabs.length !== 3) throw new Error('the paper has ' + tabs.length + ' dots')
+    const heights = sections(area).map(section =>
+      Math.round(Math.max(...[...section.children].map(child => child.getBoundingClientRect().bottom)) - section.getBoundingClientRect().top),
+    )
+    if (Math.max(...heights) - Math.min(...heights) < 24)
+      throw new Error('the sections are about as tall as each other, so turning proves nothing: ' + heights)
+    tabs[0].click()
+    await wait('the first section shown', () => shownAt() === 0)
+    const box = area.querySelector('button[aria-label="下一题"]').getBoundingClientRect()
+    window.walkTurns = [{ shown: shownAt(), paper: paper.getBoundingClientRect().height, x: box.x, y: box.y }]
+    window.walkNextAt = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    return { heights, at: window.walkNextAt }`,
+    async () => {
+      const read = async expression =>
+        (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }))
+          .result.value
+      const { x, y } = await read('window.walkNextAt')
+      for (let turn = 0; turn < 2; turn += 1) {
+        await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+        await send('Input.dispatchMouseEvent', {
+          type: 'mousePressed',
+          x,
+          y,
+          button: 'left',
+          clickCount: 1,
+        })
+        await send('Input.dispatchMouseEvent', {
+          type: 'mouseReleased',
+          x,
+          y,
+          button: 'left',
+          clickCount: 1,
+        })
+        await new Promise(resolve => setTimeout(resolve, 150))
+        await read(`(() => {
+          const area = document.querySelector('section[data-page=conversation] .hitl-session-cards')
+          const box = area.querySelector('button[aria-label="下一题"]').getBoundingClientRect()
+          window.walkTurns.push({
+            shown: [...area.querySelectorAll('.hitl-section')].findIndex(section => !section.inert),
+            paper: area.querySelector('.hitl-paper').getBoundingClientRect().height,
+            x: box.x,
+            y: box.y,
+          })
+        })()`)
+      }
+    },
+    `
+    const turns = window.walkTurns
+    if (JSON.stringify(turns.map(turn => turn.shown)) !== '[0,1,2]')
+      throw new Error('two presses of 下一题 at one spot did not turn twice: ' + JSON.stringify(turns))
+    const [first] = turns
+    const moved = turns.filter(turn => Math.abs(turn.paper - first.paper) > 0.5 || Math.abs(turn.x - first.x) > 0.5 || Math.abs(turn.y - first.y) > 0.5)
+    if (moved.length > 0) throw new Error('the paper or 下一题 moved while turning: ' + JSON.stringify(turns))
+    const area = dock()
+    const shownAt = () => sections(area).findIndex(section => !section.inert)
+    const tabs = () => [...area.querySelectorAll('[role=tab]')]
+    tabs()[2].focus()
+    tabs()[2].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    await wait('ArrowLeft on the dots to turn back', () => shownAt() === 1 && document.activeElement === tabs()[1])
+    tabs()[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+    await wait('Home on the dots to turn to the first', () => shownAt() === 0 && document.activeElement === tabs()[0])
+    // The other side: with the unseen sections taken out of the cell, the paper's height follows the section shown.
+    // Inline styles go through the CSSOM, which the page's content security policy lets through; a <style> would not.
+    const unstacked = []
+    for (const at of [0, 1, 2]) {
+      tabs()[at].click()
+      await sleep(50)
+      for (const section of sections(area)) section.style.display = section.inert ? 'none' : ''
+      unstacked.push(Math.round(area.querySelector('.hitl-paper').getBoundingClientRect().height))
+    }
+    for (const section of sections(area)) section.style.display = ''
+    tabs()[0].click()
+    if (new Set(unstacked).size < 2) throw new Error('unstacked, the paper keeps its height as well, so the check proves nothing: ' + unstacked)
+    return { turns, unstacked }`,
   )
   await step(
     '「待你决定」页按会话分组，是同一组卡',

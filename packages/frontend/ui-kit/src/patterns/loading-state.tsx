@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 
 import { cn } from '../lib/utils.ts'
+import { useRedrawn } from '../redraw/redraw.ts'
 import { COUNTED_DROPS, DROPS, type Drop } from './loading-ink.ts'
 
 export function useLoopPause<T extends HTMLElement>(active: boolean): React.RefObject<T | null> {
@@ -77,7 +78,7 @@ export function LoadingIndicator({
     ? COUNTED_DROPS.map((drop, index) => ({ drop, turn: index * 2 }))
     : DROPS.map((drop, turn) => ({ drop, turn }))
 
-  return (
+  return useRedrawn('piece', 'loading', { size, active, counted, className }, () => (
     <span
       ref={element}
       aria-hidden="true"
@@ -94,7 +95,7 @@ export function LoadingIndicator({
       </svg>
       {counted && <span className="omne-loading-ordinal tabular-nums">{children}</span>}
     </span>
-  )
+  ))
 }
 
 export function LoadingState({

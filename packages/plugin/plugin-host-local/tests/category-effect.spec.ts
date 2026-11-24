@@ -13,13 +13,25 @@ import {
 import { readManifest } from '@omne-harness/plugin-protocol'
 import { describe, expect, it } from 'vitest'
 
-const manifestText = (name: string, members: readonly unknown[]): string =>
-  JSON.stringify({ schema: 1, name, summary: `The ${name} plugin.`, client: { members } })
+const manifestText = (name: string, members: readonly unknown[], kind?: 'skin'): string =>
+  JSON.stringify({
+    schema: 1,
+    name,
+    summary: `The ${name} plugin.`,
+    ...(kind !== undefined && { kind }),
+    client: { members },
+  })
 
-function listed(name: string, members: readonly unknown[], enabled = true): ListedPlugin {
-  const read = readManifest(manifestText(name, members))
+function listed(
+  name: string,
+  members: readonly unknown[],
+  enabled = true,
+  kind?: 'skin',
+): ListedPlugin {
+  const read = readManifest(manifestText(name, members, kind))
   if (read.kind !== 'read') throw new Error(read.reason)
   return {
+    category: kind ?? 'plugin',
     name,
     enabled,
     manifest: read.manifest,
@@ -47,11 +59,12 @@ function directory(files: Readonly<Record<string, string>>): PackageReader {
 const SEND = { point: 'shell.part-style', key: 'session.composer.send', data: { base: {} } }
 const STYLE: KnownPoint = { name: 'shell.part-style', side: 'client', takes: null, when: null }
 
-const plugin = (name: string): CapabilityId => {
-  const made = capabilityId('plugin', name)
+const held = (category: string, name: string): CapabilityId => {
+  const made = capabilityId(category, name)
   if (!made.ok) throw new Error('capability')
   return made.id
 }
+const plugin = (name: string): CapabilityId => held('plugin', name)
 
 function world(over: Partial<PluginEffectPorts> = {}) {
   const asked: string[] = []
@@ -149,7 +162,7 @@ describe('what a change of a plugin would do', () => {
     })
     const answer = await world().effect.impact.of(publish(directory({ 'plugin.json': text })))
     expect(answer.kind === 'changes' && answer.advice).toBe(
-      'plugin.json has fields that are not read: members, version. A manifest reads schema, name, summary, client and server; members go under client or server.',
+      'plugin.json has fields that are not read: members, version. A manifest reads schema, name, summary, kind, client and server; members go under client or server.',
     )
   })
 
@@ -298,5 +311,62 @@ describe('where a held plugin is placed now', () => {
     expect(
       await world().effect.placement.of({ tenant: 'alice', capability: plugin('tidy') }),
     ).toEqual({ kind: 'unavailable', reason: 'the tenant holds no plugin named tidy' })
+  })
+})
+
+describe('a skin among what the tenant holds', () => {
+  const version = 'a'.repeat(64)
+  const told = (name: string) => ({
+    ...client(),
+    plugins: [{ name, version, state: 'loaded' as const, reason: null }],
+  })
+  const holding = {
+    listed: async () =>
+      ({
+        kind: 'read',
+        plugins: [
+          listed('brand', [SEND]),
+          listed('sea', [SEND], true, 'skin'),
+          listed('ink', [SEND], true, 'skin'),
+        ],
+      }) as const,
+  }
+  const WORN =
+    'This is a skin: its members count while it is the skin worn. With one skin enabled the interface wears it; with more, the one a person chose on the assets page.'
+
+  it('rivals nothing where another skin and a plain plugin put on the same key, and says that it counts while worn', async () => {
+    const { effect } = world({ ...holding, clients: () => [told('sea')] })
+    const placed = await effect.placement.of({ tenant: 'alice', capability: held('skin', 'sea') })
+    expect(placed).toMatchObject({
+      kind: 'placed',
+      places: [{ key: 'session.composer.send', standing: 'in effect', says: '' }],
+      advice: WORN,
+    })
+    const impact = await effect.impact.of({
+      tenant: 'alice',
+      capability: held('skin', 'sea'),
+      change: 'enable',
+    })
+    expect(impact.kind === 'changes' && impact.lines.map(line => line.mark)).toEqual(['+'])
+    expect(impact.kind === 'changes' && impact.advice).toBe(WORN)
+  })
+
+  it('is no rival of a plain plugin on the same key', async () => {
+    const { effect } = world({ ...holding, clients: () => [told('brand')] })
+    expect(
+      await effect.placement.of({ tenant: 'alice', capability: plugin('brand') }),
+    ).toMatchObject({
+      kind: 'placed',
+      places: [{ standing: 'in effect' }],
+      advice: null,
+    })
+  })
+
+  it('is told of under its own category: a name held as a skin is not held as a plugin', async () => {
+    const { effect } = world(holding)
+    expect(await effect.placement.of({ tenant: 'alice', capability: plugin('sea') })).toEqual({
+      kind: 'unavailable',
+      reason: 'the tenant holds no plugin named sea',
+    })
   })
 })

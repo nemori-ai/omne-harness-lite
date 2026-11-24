@@ -12,7 +12,7 @@ import {
   RetryIcon,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
-import { useCallback, useState, useSyncExternalStore } from 'react'
+import { useCallback, useContext, useState, useSyncExternalStore } from 'react'
 import type { SessionDriver } from '../model/session-driver.ts'
 import {
   arrange,
@@ -32,6 +32,7 @@ import { ReadOnEnd } from './read-on-end.tsx'
 import { useNewSessionWorkspace } from './workspace-selection.tsx'
 import { useSession } from './use-session.ts'
 import { sessionList, sessionListItem, sessionListNew } from '../parts.ts'
+import { PartDrawContext } from './part-draw.ts'
 
 export type SessionListPanelProps = Readonly<{
   workspaces: SessionWorkspaces
@@ -157,33 +158,39 @@ function SessionRow({
     RELATION[relationOf(item)],
     item.attendance === 'unattended' ? '无人值守' : undefined,
   ].filter(mark => mark !== undefined)
+  const drawer = useContext(PartDrawContext)
+  const row = () => (
+    <button
+      type="button"
+      className="omne-session-item"
+      {...sessionListItem.props}
+      data-glide-row=""
+      data-control="row"
+      data-selected={current}
+      aria-current={current ? 'true' : undefined}
+      disabled={locked}
+      onClick={onOpen}
+    >
+      <span className="omne-session-item-title">{sessionName(item)}</span>
+      {at === null && lifecycle === undefined && marks.length === 0 ? null : (
+        <span className="omne-session-item-meta">
+          {at === null ? null : <Ago at={encodeInstant(at)} now={now} />}
+          {lifecycle === undefined ? null : <StateWord state={lifecycle} />}
+          {marks.map(mark => (
+            <span key={mark}>{mark}</span>
+          ))}
+        </span>
+      )}
+    </button>
+  )
   return (
     <li
       data-level={level}
       style={{ paddingInlineStart: `calc(${String(level)} * var(--omne-space-block))` }}
     >
-      <button
-        type="button"
-        className="omne-session-item"
-        {...sessionListItem.props}
-        data-glide-row=""
-        data-control="row"
-        data-selected={current}
-        aria-current={current ? 'true' : undefined}
-        disabled={locked}
-        onClick={onOpen}
-      >
-        <span className="omne-session-item-title">{sessionName(item)}</span>
-        {at === null && lifecycle === undefined && marks.length === 0 ? null : (
-          <span className="omne-session-item-meta">
-            {at === null ? null : <Ago at={encodeInstant(at)} now={now} />}
-            {lifecycle === undefined ? null : <StateWord state={lifecycle} />}
-            {marks.map(mark => (
-              <span key={mark}>{mark}</span>
-            ))}
-          </span>
-        )}
-      </button>
+      {drawer === null
+        ? row()
+        : sessionListItem.draw(drawer, row, { title: sessionName(item), selected: current })}
     </li>
   )
 }

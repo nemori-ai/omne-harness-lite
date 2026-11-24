@@ -8,6 +8,7 @@ import {
 } from 'react'
 
 import { useReducedMotion } from '../motion/motion.ts'
+import { useRedrawn } from '../redraw/redraw.ts'
 import { useSizeFactor } from '../size/use-size-factor.ts'
 import { type Doing, type FigureMoment } from './body.ts'
 import { StageContext } from './seat.tsx'
@@ -77,8 +78,23 @@ function useOwnPage(store: FigureStore): boolean {
   return owns
 }
 
-function Figure({ store }: { readonly store: FigureStore }): React.JSX.Element {
+function Figure({
+  store,
+  doing,
+  waiting,
+}: {
+  readonly store: FigureStore
+  readonly doing: Doing | undefined
+  readonly waiting: number
+}): React.JSX.Element {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
+  const { size, phase, hover } = snapshot
+  const body = useRedrawn(
+    'piece',
+    'figure',
+    { size, phase, hover, doing: doing ?? 'idle', waiting },
+    () => <FigureInk body={store.body} size={size} />,
+  )
   const carried = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const element = carried.current
@@ -108,7 +124,7 @@ function Figure({ store }: { readonly store: FigureStore }): React.JSX.Element {
         }}
         onPointerCancel={() => store.cancel()}
       />
-      <FigureInk body={store.body} size={snapshot.size} />
+      {body}
     </div>
   )
 }
@@ -160,7 +176,7 @@ export function FigureStage({
       {owns && (
         <div className="omne-figure-layer" data-figure-own="">
           <FigureJourneys journeys={store.journeys} />
-          <Figure store={store} />
+          <Figure store={store} doing={doing} waiting={waiting} />
           <span className="sr-only" role="status">
             {label}
           </span>

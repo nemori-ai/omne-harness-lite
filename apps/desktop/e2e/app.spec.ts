@@ -31,6 +31,67 @@ test('注册、发一条消息、看到回复；页面读不到登录 cookie，�
   expect(await page.evaluate('document.cookie')).toBe('')
 })
 
+// The button shows only once the main process has loaded the screen backend: in the packaged app that proves the
+// binary it carries loads. On macOS the packaged test app is a bundle of its own, which the system would ask about
+// on every run, so there the test stops before the capture; the unpackaged app is Electron's bundle, allowed once.
+test('输入框的截图钮：每块屏上铺一层遮罩，单击取整块、拖动框一块、右键取消', async ({
+  launchApp,
+  target,
+}) => {
+  const { app, page } = await launchApp()
+  await expect(page.locator('input[name=loginIdentifier]')).toBeVisible({ timeout: 30_000 })
+  await signUp(page)
+  await page.getByRole('button', { name: '新建会话' }).click()
+  const button = page.getByRole('button', { name: '截一张屏幕，作为图片附件' })
+  await expect(button).toBeVisible({ timeout: 30_000 })
+  if (process.platform === 'darwin' && target === 'packaged') return
+  const screens = await app.evaluate(({ screen }) => screen.getAllDisplays().length)
+  const shown = () => app.windows().filter(each => each.url().includes('/shot.html'))
+  // A person can act once the overlay is on screen with its frozen frame.
+  const drawn =
+    'document.visibilityState === "visible" && document.querySelector("main img").naturalWidth > 0'
+  const overlay = async (): Promise<Page> => {
+    await button.click()
+    await expect.poll(() => shown().length, { timeout: 30_000 }).toBe(screens)
+    const [first] = shown()
+    await first!.waitForFunction(drawn, undefined, { timeout: 30_000 })
+    return first!
+  }
+  const closed = async () => {
+    await expect.poll(() => shown().length, { timeout: 30_000 }).toBe(0)
+    await expect(button).toBeEnabled({ timeout: 30_000 })
+  }
+  const previews = page.locator('img[alt$="的预览"]')
+  const sizes = async () =>
+    (await page.evaluate(
+      `[...document.querySelectorAll('img[alt$="的预览"]')].map(image => [image.naturalWidth, image.naturalHeight])`,
+    )) as number[][]
+
+  const whole = await overlay()
+  const screenPixels = (await whole.evaluate(
+    '[Math.round(innerWidth * devicePixelRatio), Math.round(innerHeight * devicePixelRatio)]',
+  )) as number[]
+  await whole.mouse.click(200, 200)
+  await closed()
+  await expect(previews).toHaveCount(1, { timeout: 30_000 })
+  await expect.poll(sizes).toEqual([screenPixels])
+
+  const framed = await overlay()
+  const ratio = (await framed.evaluate('devicePixelRatio')) as number
+  await framed.mouse.move(100, 100)
+  await framed.mouse.down()
+  await framed.mouse.move(300, 250, { steps: 5 })
+  await framed.mouse.up()
+  await closed()
+  await expect(previews).toHaveCount(2, { timeout: 30_000 })
+  await expect.poll(sizes).toEqual([screenPixels, [200 * ratio, 150 * ratio]])
+
+  await (await overlay()).mouse.click(50, 50, { button: 'right' })
+  await closed()
+  await expect(previews).toHaveCount(2)
+  await expect(page.getByText('已备好')).toHaveCount(2)
+})
+
 /** Per stored cookie of the app: whether its value is on disk in plain text, or only encrypted. */
 function storedCookies(userData: string): string[] {
   const store = new DatabaseSync(join(userData, 'Partitions', 'omne', 'Cookies'), {

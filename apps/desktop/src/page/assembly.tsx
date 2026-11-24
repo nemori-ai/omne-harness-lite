@@ -30,6 +30,7 @@ import {
 import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
 import '@omne-harness/notification-ui/notification-ui.css'
 import { createPluginUiModule } from '@omne-harness/plugin-ui/cordis'
+import '@omne-harness/plugin-ui/plugin-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import * as React from 'react'
 import '@omne-harness/schedule-ui/schedule-ui.css'
@@ -56,6 +57,8 @@ import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-
 import { pluginFilePath } from '../shared/plugin-path.ts'
 import { storedFloor, whenDrawn } from './shell/floor.ts'
 import { domainProtocols } from '../shared/protocols.ts'
+import { LOOK_KEY, storedTenantTexts } from './shell/tenant-text.ts'
+import { hostScreen } from './screen-source.ts'
 
 export const USAGE_REFRESH_MS = 60_000
 
@@ -103,6 +106,7 @@ export const assembly: Assembly = {
       refreshMs: USAGE_REFRESH_MS,
     }),
     createMediaUiModule({
+      screen: hostScreen(),
       composerAttachments: sessionComposerAttachments,
       block: sessionBlockRender,
       drafts: sessionComposerIntakeKey,
@@ -112,10 +116,12 @@ export const assembly: Assembly = {
     sessionReadsUiModule,
     createPluginUiModule({
       floor: pageFloor,
+      looks: storedTenantTexts(() => window.localStorage, LOOK_KEY),
       code: {
         given: { React, ui },
         load: (name, version, path) =>
           import(/* @vite-ignore */ pluginFilePath(name, version, path)),
+        files: (name, version) => pluginFilePath(name, version, ''),
       },
     }),
   ],

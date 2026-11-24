@@ -202,7 +202,7 @@
 > **接入点本身是资产，它带来的那些动作不单独成为资产**——随它一起被持有、授权与治理。
 > **对端的可用性与版本不由本系统掌握**：它提供的动作可能今天有明天没有，**而这不是故障**。
 > **一个接入点在工具入口里是一个[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)：一个多命令工具，对端的每一个动作是它的一个命令**，经 MCP 登记的[工具条目来源](reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source)交出。
-> 动作一般不常驻，经取用入口发现；**例外是标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的接入点，它的动作在采用点成为常驻工具**。
+> 动作一般不常驻，经取用入口发现；**例外是标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的接入点，它在采用点成为一条常驻工具，命令是它此刻的动作**。
 > 动作集**按当下事实现算，清单变了下一次发现就不同；每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前同样与可用性一起重算；合法显式刷新可更新后续采用值，已知身份保留、单次调用输入固定**。
 > 对端服务在本系统之外运行，本系统只按地址与它通信。
 >
@@ -215,14 +215,15 @@
 > multi-command tool, and each action on the far side is one of its commands.** The tool
 > entry source that MCP registers hands it over. Actions are
 > normally not resident and are found through the discovery entry; **the exception is an
-> access point marked resident, whose actions become resident tools at the adoption point**.
+> access point marked resident, which becomes one resident tool at the adoption point, its commands
+> being the actions it offers then**.
 > The action set is **computed from the facts at the moment, so a changed catalog shows at
 > the next discovery; it is also recomputed before each run attempt together with availability;
 > lawful explicit refresh may update later uses while known identities remain and each started call keeps its inputs**.
 > The far-side service runs outside this system, which talks to it only by its address.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 5）
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 7）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
 - **注意 ②**：正文里的「接入点」「MCP 接入点」指的就是本条。命令型（stdio）接入不在 `0.0.0 → 0.1.0` 阶段，见出处
@@ -525,6 +526,24 @@
 - **别混 ③**：把 Skill、Agent、Hook 打包在一起的那种 plugin 是它的一种：成员都落在这几类资产的拓展点上
 - **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员；界面的令牌、样式、画法与布局；对客户端开放的协议
 
+### UL-skin · 皮肤 · Skin
+
+> **中**：**一份只改界面样子的 [plugin](#ul-plugin--插件--plugin)：它在清单里写明自己是皮肤，成员都在客户端一侧。**
+> 一个租户可以持有并启用几套，界面同一时刻至多用其中一套；换一套时界面各处一起换。
+> 皮肤在资产里自成一类，不列在 plugin 那一类里。
+>
+> **EN**: **A [plugin](#ul-plugin--插件--plugin) that changes only how the interface looks: its manifest
+> says that it is a skin, and all its members are on the client side.**
+> A tenant can hold and enable more than one. The interface uses at most one of them at a time,
+> and every place of the interface changes together when the skin changes.
+> Skins are a category of their own among the assets. They are not listed with the plugins.
+
+- **形态**：变体（父：[插件](#ul-plugin--插件--plugin)）
+- **出处**：[桌面应用：皮肤](../../product/desktop-application/design.md#皮肤)（rev 9）
+- **别混 ①**：不是主题。主题是浅色、深色、跟随系统三选一，由应用自带；皮肤是持有的资产，一套皮肤自己要顾到浅色与深色
+- **别混 ②**：启用不等于在用。启用是这一套装着、可以用；界面此刻用哪一套是人在这台设备上的[观感偏好](interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference)
+- **别混 ③**：一份只改几处样子的普通 plugin 不是皮肤：它没有在清单里写明，不进皮肤这一类，也不受「至多用一套」的约束
+
 ### UL-agent-definition · Agent 定义 · Agent Definition
 
 > **中**：一个 agent 的数据定义，描述它由什么装配而成、以什么面貌工作。会话固定所选定义的身份；同身份内容可以发布新有效版本，并在运行装配边界热重载。定义不是会话或运行中的协程，已发生执行的采用版本不随定义更新改写。
@@ -676,7 +695,7 @@
 > no asset summary and the interface shows only the name of the asset.
 
 - **形态**：属性
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 7）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 9）
 - **别混**：不是类别的显示声明：那是一类资产的名字与说明，这一条说的是一份资产的一个版本。不是[包的清单](#ul-package-manifest--包的清单--package-manifest)：清单列文件，简介是给人看的摘要
 
 ### UL-asset-upload · 资产上传 · Asset Upload
@@ -695,7 +714,7 @@
 > sending the files again; no published fact is lost.
 
 - **形态**：对象
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 7） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 9） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
 - **别混**：不是[资产版本](#ul-asset-version--资产版本--asset-version)，也不是草稿：它没有版本线，不能被持有或选用。不是发布流程内部的暂存：那是发布自己换入之前的落脚处
 
 ### UL-skill-package · Skill 包 · Skill Package
@@ -806,7 +825,7 @@
 > **EN**: The actions an agent can recognize and attempt in a session. It has two sources: resident entries placed in the context, which are a record fixed at the adoption point and only grow within a session; and entries discoverable through the access entry point, computed from the subject's facts at that moment and never stored as a set. A resident entry becomes unavailable, and keeps its identity, when its definition changes or it is disabled, unloaded or revoked. An attempt is not execution authorization; an unavailable entry returns its reason through a stand-in.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 12） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 20） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 14） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 21） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
 - **别混**：能力身份可见不等于定义内容、实现绑定或可执行集合不变；也不要求每次提示词包含全部已知能力。能发现的那部分就是[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)与此刻合法可用的 Skill，主体此刻没有使用资格的不出现。
 - **注意**：封存的 PF-004 把它写成「由合法纳入会话的能力条目投影、整体单调增加」。现行产品里只有常驻那部分是这样，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
@@ -848,7 +867,7 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 20） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 20）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 21） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 21）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
@@ -886,7 +905,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 20）
+- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 21）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 

@@ -49,6 +49,23 @@ describe('what one side is to load, of what a source offers', () => {
     expect(wantedOf([], 'client')).toEqual([])
   })
 
+  it('carries the kind a manifest writes, and none for one that writes none', () => {
+    const skin = offered('v5', manifest('sea', { kind: 'skin', client: { members: [data('s')] } }))
+    expect(wantedOf([skin, clientOnly], 'client')).toEqual([
+      { name: 'alpha', version: 'v2', members: [data('c')], needs: [], files: clientOnly.files },
+      {
+        name: 'sea',
+        version: 'v5',
+        kind: 'skin',
+        members: [data('s')],
+        needs: [],
+        files: skin.files,
+      },
+    ])
+    expect('kind' in wantedOf([clientOnly], 'client')[0]!).toBe(false)
+    expect(wantedOf([skin], 'server')).toEqual([])
+  })
+
   it('leaves out a name offered twice: neither is loaded', () => {
     const again = offered('v9', manifest('both', { client: { members: [data('z')] } }))
     expect(wantedOf([both, again, clientOnly], 'client').map(each => each.name)).toEqual(['alpha'])

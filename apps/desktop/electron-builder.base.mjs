@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import afterPack from './scripts/fuses.ts'
+import { screenshotsBinary } from './scripts/native-binaries.ts'
 
 const product = JSON.parse(readFileSync(new URL('./product.json', import.meta.url), 'utf8'))
 const electron = createRequire(import.meta.url)('electron/package.json')
@@ -15,6 +16,8 @@ export default {
   npmRebuild: false,
   nodeGypRebuild: false,
   files: ['**/*', '!**/*.map', '!**/*.modules.json', '!node_modules{,/**/*}'],
+  // Outside the asar, loaded by path in the main process (src/main/screen-host.ts).
+  extraResources: [{ from: screenshotsBinary(), to: 'native/node-screenshots.node' }],
   afterPack,
   mac: {
     target: ['dmg', 'zip'],

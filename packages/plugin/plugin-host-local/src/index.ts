@@ -4,7 +4,9 @@ export {
   pluginBodyContract,
   pluginCategoryDisplay,
   pluginPluginsPoint,
+  skinBodyContract,
 } from './category.ts'
+export { SKIN_CATEGORY, skinCategoryDisplay, skinSkinsPoint } from './skin-category.ts'
 export { pluginEffect, type PluginEffectPorts, type ToldByClient } from './category-effect.ts'
 export { createKeptContents, type KeptContents } from './contents.ts'
 export {

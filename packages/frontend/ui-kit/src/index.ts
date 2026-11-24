@@ -82,6 +82,7 @@ export { CountPill } from './patterns/count-pill.tsx'
 export { ImpactPanel } from './patterns/confirm/impact-panel.tsx'
 export { type ConfirmTone, InlineConfirm } from './patterns/confirm/inline-confirm.tsx'
 export { Disclosure, DisclosureContent, DisclosureTrigger } from './patterns/disclosure.tsx'
+export { type DotMark, DotPager, type PagerDot } from './patterns/dot-pager.tsx'
 export { EmptyState } from './patterns/empty-state.tsx'
 export { FactList, FactRow } from './patterns/fact-list.tsx'
 export { ActionTooltip, AppTooltipProvider, IconButton } from './patterns/icon-button.tsx'
@@ -119,6 +120,14 @@ export { Prose, type ProseProps } from './prose/prose.tsx'
 export { PROSE_TRANSLATIONS } from './prose/translations.ts'
 
 export * from './icons/index.ts'
+export { iconNames } from './icons/glyph.ts'
+export {
+  PIECES,
+  RedrawProvider,
+  type Piece,
+  type Redraw,
+  type RedrawKind,
+} from './redraw/redraw.ts'
 
 export {
   blockingOverlay,

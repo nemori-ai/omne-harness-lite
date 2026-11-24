@@ -26,7 +26,7 @@ calendar.shipped | 供应的日历 | 部署给出的日历清单 | calendar.page
 calendar.shipped.item | 一份日历 | 清单里的一份日历 | calendar.shipped | tokens style | 清单里有日历时 | calendar-ui
 human-intervention.page | 待你决定页 | 等你回答或放行的卡 | shell.workspace.page | tokens style | 一直在 | human-intervention-ui
 human-intervention.page.group | 一段会话的卡 | 同一段会话的卡放在一组 | human-intervention.page | tokens style | 有卡时 | human-intervention-ui
-human-intervention.paper | 一张纸 | 一组卡叠成的一张纸 | – | tokens style | 有卡时 | human-intervention-ui
+human-intervention.paper | 一张纸 | 一组卡的一张纸，一次摆一张 | – | tokens style | 有卡时 | human-intervention-ui
 human-intervention.paper.card | 一张卡 | 一个问题，或一次要放行的动作 | human-intervention.paper | tokens style | 有卡时 | human-intervention-ui
 human-intervention.paper.card.answer | 作答的地方 | 选一项，或自己写 | human-intervention.paper.card | tokens style | 有卡时 | human-intervention-ui
 human-intervention.paper.card.detail | 动作的详情 | 要放行的动作具体是什么 | human-intervention.paper.card | tokens style | 放行卡且工具给了详情时 | human-intervention-ui
@@ -34,6 +34,7 @@ human-intervention.paper.card.title | 卡的标题 | 这张卡问的是什么 | 
 human-intervention.paper.foot | 纸的底栏 | 一张纸一个，放提交 | human-intervention.paper | tokens style | 纸上有没答的卡时 | human-intervention-ui
 human-intervention.paper.foot.actions | 底栏的按钮 | 提交与取消，或画成按钮的选项 | human-intervention.paper.foot | tokens style | 纸上有没答的卡时 | human-intervention-ui
 human-intervention.paper.foot.submit | 提交 | 把这张纸上的回答交上去 | human-intervention.paper.foot | tokens style | 选项不是画成按钮时 | human-intervention-ui
+human-intervention.paper.pager | 翻题的圆点 | 纸顶一排圆点，每张卡一个，与上一题、下一题 | human-intervention.paper | tokens style | 纸上不止一张卡时 | human-intervention-ui
 human-intervention.session-cards | 会话里的卡 | 对话页里这段会话等你决定的卡 | session.transcript | tokens style | 这段会话有卡时 | human-intervention-ui
 identity.account | 账号 | 侧栏底下的账号 | shell.sidebar.footer | tokens style | 侧栏展开时 | identity-ui
 identity.account.control | 账号钮 | 点开退出的菜单 | identity.account | tokens style | 侧栏展开时 | identity-ui
@@ -53,6 +54,7 @@ media.tray | 附件区 | 输入区里放附件的地方 | session.composer | tok
 media.tray.attach | 加附件 | 选图片、语音或 PDF | media.tray | tokens style | 打开一段会话时 | media-ui
 media.tray.chip | 一个附件 | 选好要发的一个附件 | media.tray | tokens style | 有附件时 | media-ui
 media.tray.record | 录音 | 按住说话 | media.tray | tokens style | 打开一段会话时 | media-ui
+media.tray.screenshot | 截图 | 截一张屏幕，作为图片附件 | media.tray | tokens style | 宿主截得了这台机器的屏幕时 | media-ui
 model.provider.models | 模型 | 这家供应商适配的模型：开哪些，平时用哪一档推理强度 | assets.asset | tokens style | 点进一份模型供应商之后 | model-ui
 model.provider.models.row | 一个模型 | 一个型号的事实、开关与缺省推理强度 | model.provider.models | tokens style | 点进一份模型供应商之后 | model-ui
 notification.page | 通知页 | 各处发来的通知 | shell.workspace.page | tokens style | 一直在 | notification-ui
@@ -77,17 +79,17 @@ session.backdrop | 对话页的背景 | 垫在对话页一切之下的一层，�
 session.companion | 随身入口 | 浮在整个应用之上、能拖到任何地方的一处，在哪一页都能对 Agent 说一句话 | – | tokens style render | 登录之后 | session-ui
 session.companion.figure | 随身入口的形象 | 随身入口长什么样，按它展开小框，按住它拖；自带的是几粒墨点 | session.companion | tokens style render | 登录之后 | session-ui
 session.companion.panel | 随身入口的小框 | 写一句话、选说给谁、发出去的地方 | session.companion | tokens style render | 小框展开时 | session-ui
-session.composer | 输入区 | 底部写消息的地方 | – | tokens style | 打开一段会话时 | session-ui
+session.composer | 输入区 | 底部写消息的地方 | – | tokens style render | 打开一段会话时 | session-ui
 session.composer.input | 输入框 | 写消息的框 | session.composer | tokens style | 打开一段会话时 | session-ui
 session.composer.send | 发送按钮 | 发出这条消息；一轮在跑时是停止 | session.composer | tokens style | 打开一段会话时 | session-ui
-session.header | 对话头 | 对话页顶上的一栏 | – | tokens style | 打开一段会话时 | session-ui
+session.header | 对话头 | 对话页顶上的一栏 | – | tokens style render | 打开一段会话时 | session-ui
 session.header.model | 模型选择 | 选择会话的模型与推理强度 | session.header | tokens style | 对话头够宽且有模型可选时 | session-ui
 session.header.more | 更多 | 对话头上的「⋯」菜单 | session.header | tokens style | 打开一段会话时 | session-ui
 session.header.permission | 权限处理 | 选动作要不要先问你 | session.header | tokens style | 对话头够宽时 | session-ui
 session.header.title | 会话标题 | 这段会话的名字 | session.header | tokens style | 打开一段会话时 | session-ui
 session.header.workspace | 工作区选择 | 换这段会话的工作区 | session.header | tokens style | 对话头够宽且有工作区可选时 | session-ui
 session.list | 会话列表 | 侧栏里的会话 | shell.sidebar | tokens style | 一直在 | session-ui
-session.list.item | 会话的一行 | 列表里的一段会话 | session.list | tokens style | 有会话时 | session-ui
+session.list.item | 会话的一行 | 列表里的一段会话 | session.list | tokens style render | 有会话时 | session-ui
 session.list.new | 新建会话 | 开一段新的会话 | session.list | tokens style | 一直在 | session-ui
 session.queue | 排队的话 | 说了还没被处理的话 | – | tokens style | 有排队的输入时 | session-ui
 session.search | 搜索页 | 在以前的会话里找 | shell.workspace.page | tokens style | 一直在 | session-ui
