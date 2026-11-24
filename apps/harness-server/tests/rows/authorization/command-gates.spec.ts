@@ -26,7 +26,13 @@ const governance = toolPermissionRelease({
   gates: [READ, WRITE],
 })
 const declarations = [
-  { asset: files.asset, governance, holdingRef: 'harness.preinstalled.tool.Files' },
+  {
+    asset: { category: 'tool', name: 'Files' },
+    definition: files.asset.adoption,
+    governance,
+    holdingRef: 'harness.preinstalled.tool.Files',
+    tenantRef: null,
+  },
 ]
 
 describe('a tool without commands', () => {
@@ -79,6 +85,7 @@ describe('a tool with two gates', () => {
   it('finds the permission of exactly the gate asked, and none for a gate the tool lacks', () => {
     const found = (id: string) =>
       declaredPermission(declarations, {
+        capability: { category: 'tool', name: 'Files' },
         definition: files.asset.adoption,
         gate: { id, title: id, default: 'ask' },
       })?.interpretation.binding.enforcementKey

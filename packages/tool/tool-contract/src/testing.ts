@@ -102,3 +102,10 @@ export {
   type ToolEnvironmentAllocationFixture,
 } from './testing-environment-allocation.ts'
 export { checkReleaseDescription } from './testing-release-detail.ts'
+export {
+  createMemoryToolEntrySource,
+  testingSourceEntry,
+  toolEntrySourceConformance,
+  type MemoryToolEntrySource,
+  type ToolEntrySourceFixture,
+} from './testing-entry-source.ts'

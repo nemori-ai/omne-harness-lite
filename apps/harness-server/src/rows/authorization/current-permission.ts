@@ -4,7 +4,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import { sessionInquiryBinding } from '@omne-harness/session-adapters/cordis'
 import type { SessionId } from '@omne-harness/session-contract'
-import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
+import { tenantPermissionDeclarations } from '../../entry/permission-declarations.ts'
 import { currentToolPermissionKey } from '../governance/current-permission-service.ts'
 import { publishedViewPortsOf, readPublishedView } from '../session-ad03/published-view.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
@@ -53,7 +53,7 @@ async function inquiryOf(ctx: Context, input: ToolPermissionAction) {
 
 export function currentPermissionOf(ctx: Context) {
   return createCurrentToolPermission({
-    declarations: () => permissionDeclarationsOf(ctx),
+    declarations: tenant => tenantPermissionDeclarations(ctx, tenant),
     source: () => ctx.get(currentToolPermissionKey),
     inquiry: inquiryOncePerPass(input => inquiryOf(ctx, input)),
   })

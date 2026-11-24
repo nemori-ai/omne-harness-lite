@@ -1094,6 +1094,21 @@ describe('which asset a query names', () => {
     expect(listed.items.map(ownerText)).toEqual(['other/Shell', 'other/Shell', 'other/Shell'])
   })
 
+  it('a list with a category keeps the assets of that category only, in one read', async () => {
+    const w = world()
+    w.flags.catalog = 'duplicate'
+    w.flags.copyAsset = { category: 'other', name: 'Shell' }
+    const listed = await w.face.list({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      scope: { kind: 'asset', category: 'other' },
+      after: null,
+      limit: 10,
+    })
+    if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
+    expect(listed.items.map(ownerText)).toEqual(['other/Shell', 'other/Shell', 'other/Shell'])
+  })
+
   it('a list across assets orders by category, then name, then item', async () => {
     const w = world()
     w.flags.catalog = 'duplicate'

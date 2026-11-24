@@ -7,6 +7,7 @@ import {
   type LocalToolCatalogViewSource,
   type ToolTargetAvailability,
 } from '@omne-harness/tool-host-local'
+import type { SourcedEntries } from '../../entry/tool-entry-sources.ts'
 import { targetResidency } from '../../entry/tool-target-residency.ts'
 
 const requestDigest = (request: FixedToolRequest): string =>
@@ -44,6 +45,7 @@ export function withTargetResidency(
 
 export function currentTargetResidency(
   view: () => LocalToolCatalogViewSource<unknown> | undefined,
+  sourced?: () => SourcedEntries,
 ): ToolTargetAvailability<unknown> {
   return {
     async qualify(input) {
@@ -55,6 +57,7 @@ export function currentTargetResidency(
         input,
         input.request.availability,
         owner === TOOL_FORWARDING_OWNER ? 'nonresident' : 'resident',
+        sourced?.(),
       )
       if ('ok' in target) return { kind: 'allowed' }
       return target.failure.kind === 'denied'

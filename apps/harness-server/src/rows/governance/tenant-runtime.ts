@@ -36,6 +36,7 @@ export type TenantGovernanceOptions = Omit<
     catalogPrincipal: ActingForTenantPrincipal
     permissionRelease?: () => ToolRelease
     permissionDeclarations?: () => readonly PermissionDeclaration[]
+    permissionDeclared?: () => readonly PermissionDeclaration[]
     permissionOrigins?: () => PermissionOrigins | undefined
     login?: () => SessionPermissionLogin | undefined
     settings?: SessionPermissionSettingsResolver
@@ -199,7 +200,7 @@ export function prepareTenantGovernance(input: TenantGovernanceOptions): TenantG
     ...input,
     scope: GovernanceScopeSchema.parse(input.scope),
     domain: structuredClone(input.domain),
-    grants: structuredClone(input.grants),
+    grants: typeof input.grants === 'function' ? input.grants : structuredClone(input.grants),
     identity: { ...input.identity },
   }
   const combinations = governanceStorageCombinations(input.materials)

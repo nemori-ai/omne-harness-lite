@@ -65,6 +65,8 @@
     "model-records",
     "tool-records",
     "tool-body-sweep",
+    "tool-entry-sources",
+    "mcp",
     "tool-bindings",
     "skills",
     "tool-runtime",
@@ -94,6 +96,7 @@
     "assets-access",
     "human-intervention-access",
     "session-diagnostics-access",
+    "mcp-access",
     "calendar-access",
     "schedule-access",
     "notification-access",
@@ -420,6 +423,13 @@
       ]
     },
     {
+      "row": "mcp",
+      "names": [
+        "settingsSecretCustody",
+        "settingsSecretItems"
+      ]
+    },
+    {
       "row": "agent-adoptions",
       "names": [
         "definitionMappings"
@@ -518,6 +528,13 @@
     },
     {
       "row": "session-diagnostics-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "mcp-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

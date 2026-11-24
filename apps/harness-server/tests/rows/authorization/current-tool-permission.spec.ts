@@ -70,6 +70,7 @@ function world() {
     principal: issued.ok,
     tenant: TOOL_RELEASE_TENANT,
     operation: { owner: 'agent', operationId: 'fixture-action' },
+    capability: { category: 'tool', name: 'Shell' },
     definition: entry!.asset.adoption,
     effectiveArguments:
       '{"command":"execute","intent":"test call","params":{"script":"echo hello"}}',
@@ -510,12 +511,13 @@ it('answers unavailable, and reads nothing, when no declaration names the capabi
 
 it('judges a capability outside the release once its category owner registers its declaration', async () => {
   const w = world()
-  const released = w.ports.declarations()
-  const own = released.find(entry => entry.asset.adoption.name === w.input.definition.name)
+  const released = w.ports.declarations(w.input.tenant)
+  const own = released.find(entry => entry.asset.name === w.input.capability.name)
   if (own === undefined) throw new Error('fixture declaration missing')
-  const capability = { ...w.input.definition, name: 'TestCapability', digest: 'test-capability' }
-  const registered = { ...own, asset: { name: 'TestCapability', adoption: capability } }
-  const outside = { ...w.input, definition: capability }
+  const capability = { ...w.input.capability, name: 'TestCapability' }
+  const definition = { ...w.input.definition, name: 'TestCapability', digest: 'test-capability' }
+  const registered = { ...own, asset: capability, definition }
+  const outside = { ...w.input, capability, definition }
   expect(await createCurrentToolPermission(w.ports).check(outside)).toMatchObject({
     kind: 'unavailable',
   })

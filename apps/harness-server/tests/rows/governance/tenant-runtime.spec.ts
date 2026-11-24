@@ -896,6 +896,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     principal,
     tenant: principal.tenant,
     operation: agentPermissionOperation(position),
+    capability: { category: 'tool', name: tool.asset.name },
     definition: tool.asset.adoption,
     effectiveArguments: '{"command":"execute","intent":"test call","params":{"script":"echo"}}',
     gate: { id: 'run', title: '执行', default: 'ask' as const },

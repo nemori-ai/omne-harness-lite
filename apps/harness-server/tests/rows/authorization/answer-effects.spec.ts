@@ -19,7 +19,12 @@ const answered: Answered = {
   tenant: 'tenant' as never,
   session: 'ses-1',
   consumer: { owner: '@omne-harness/agent', work: 'exe-1', position: 'act-1' },
-  gate: { definition, effectiveArguments: '{"command":"run"}', gate: IMPLICIT_TOOL_GATE },
+  gate: {
+    capability: { category: 'tool', name: 'Shell' },
+    definition,
+    effectiveArguments: '{"command":"run"}',
+    gate: IMPLICIT_TOOL_GATE,
+  },
 }
 const once = {
   kind: 'once',

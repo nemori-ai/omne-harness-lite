@@ -73,7 +73,7 @@ function world(given: Partial<Answers> = {}) {
     items: input => (input.scope.layer === 'official' ? answers.official : answers.tenant),
   }
   const face = createSecretSettings({
-    items,
+    items: async () => items,
     qualify: async () => ({ kind: answers.verdict }),
     now: (): SystemInstant =>
       answers.clock

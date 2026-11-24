@@ -14,9 +14,15 @@ import {
 import {
   encodeCommandCall,
   toolAvailabilityReference,
+  type ToolCapabilityIdentity,
   type ToolForwardParent,
 } from '@omne-harness/tool-contract/provider'
-import type { LocalToolCatalogViewSource } from '@omne-harness/tool-host-local'
+import {
+  SOURCE_ENTRY_SETTINGS,
+  type LocalToolCatalogViewSource,
+} from '@omne-harness/tool-host-local'
+import { toolCapability } from './permission-declarations.ts'
+import { sourcedEntryFor, type SourcedEntries } from './tool-entry-sources.ts'
 import { targetResidency } from './tool-target-residency.ts'
 
 const EMPTY_PARAMS = { kind: 'object', entries: [] } as const
@@ -27,6 +33,8 @@ export type ForwardRequestPorts = Readonly<{
   release(): ToolRelease
   catalog(): ToolCatalog<unknown> | undefined
   view(): LocalToolCatalogViewSource<unknown> | undefined
+  /** The entries of the tool entry sources; absent, only release tools are targets. */
+  sourced?(): SourcedEntries
 }>
 const unavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: 'tools-target', diagnostic })
@@ -63,18 +71,29 @@ export function isReleaseToolRequest(
 }
 
 type TargetDefinition = Extract<ToolAvailability, { kind: 'available' }>['definition']
+type ReleaseEntry = Trusted['manifest']['entries'][number]
+type TargetAccess = Pick<ToolForwardParent<unknown>, 'principal' | 'tenant'>
+type Available = Extract<ToolAvailability, { kind: 'available' }>
 
-function targetEntry(release: Trusted, intent: ToolForwardIntent) {
+/** Where the catalog has the target from: the release, or a source that owns its name. */
+type TargetOrigin =
+  | Readonly<{ kind: 'release'; entry: ReleaseEntry }>
+  | Readonly<{ kind: 'source'; entries: SourcedEntries }>
+
+function targetOrigin(ports: ForwardRequestPorts, release: Trusted, intent: ToolForwardIntent) {
   if (intent.name === 'Tools') return invalid('name', 'recursive-tools-execute')
   const entry = release.manifest.entries.find(item => item.asset.name === intent.name)
-  if (entry === undefined) return invalid('name', 'unknown-target')
-  return succeed(entry)
+  if (entry !== undefined) return succeed<TargetOrigin>({ kind: 'release', entry })
+  const entries = ports.sourced?.()
+  return entries?.owns(intent.name) === true
+    ? succeed<TargetOrigin>({ kind: 'source', entries })
+    : invalid('name', 'unknown-target')
 }
 
 function isReleaseAdoption(
   availability: ToolAvailability,
-  entry: Trusted['manifest']['entries'][number],
-): availability is Extract<ToolAvailability, { kind: 'available' }> {
+  entry: ReleaseEntry,
+): availability is Available {
   return (
     availability.kind === 'available' &&
     availability.layer.kind === 'official' &&
@@ -83,13 +102,50 @@ function isReleaseAdoption(
   )
 }
 
+type Target = Readonly<{
+  availability: Available
+  capability: ToolCapabilityIdentity
+  settings: ToolInvokeRequest['settings']
+}>
+
+async function releaseTarget(
+  ports: ForwardRequestPorts,
+  access: TargetAccess,
+  availability: ToolAvailability,
+  entry: ReleaseEntry,
+): Reply<Target> {
+  if (!isReleaseAdoption(availability, entry))
+    return unavailable('The exact target release adoption is unavailable.')
+  const nonresident = await targetResidency(ports.view(), access, availability, 'nonresident')
+  if ('failure' in nonresident) return nonresident
+  return succeed({
+    availability,
+    capability: toolCapability(entry.asset.name),
+    settings: entry.settings,
+  })
+}
+
+// A source entry is never resident; it is the entry its source listed to this asker just now.
+function sourceTarget(
+  access: TargetAccess,
+  availability: ToolAvailability,
+  entries: SourcedEntries,
+): Awaited<Reply<Target>> {
+  if (availability.kind !== 'available')
+    return fail({ kind: 'denied', action: 'target-unavailable' })
+  const entry = sourcedEntryFor(entries, access, availability)
+  if (entry === undefined)
+    return unavailable('The source no longer lists the target as the catalog answered it.')
+  return succeed({ availability, capability: entry.capability, settings: SOURCE_ENTRY_SETTINGS })
+}
+
 async function inspectTarget(
   ports: ForwardRequestPorts,
-  access: Pick<ToolForwardParent<unknown>, 'principal' | 'tenant'>,
+  access: TargetAccess,
   intent: ToolForwardIntent,
   release: Trusted,
-  entry: Trusted['manifest']['entries'][number],
-) {
+  origin: TargetOrigin,
+): Reply<Target> {
   const catalog = ports.catalog()
   if (catalog === undefined) return unavailable('The target catalog is unavailable.')
   const inspected = await catalog.inspect({
@@ -100,12 +156,9 @@ async function inspectTarget(
     consumer: releaseToolConsumer(release),
   })
   if ('failure' in inspected) return inspected
-  const availability = inspected.ok
-  if (!isReleaseAdoption(availability, entry))
-    return unavailable('The exact target release adoption is unavailable.')
-  const nonresident = await targetResidency(ports.view(), access, availability, 'nonresident')
-  if ('failure' in nonresident) return nonresident
-  return succeed(availability)
+  return origin.kind === 'release'
+    ? releaseTarget(ports, access, inspected.ok, origin.entry)
+    : sourceTarget(access, inspected.ok, origin.entries)
 }
 
 function functionCall(intent: ToolForwardIntent) {
@@ -150,13 +203,13 @@ export async function resolveForwardTarget(
 ) {
   const release = ports.release()
   if (release.kind !== 'trusted') return unavailable('The release snapshot is unavailable.')
-  const entry = targetEntry(release, intent)
-  if ('failure' in entry) return entry
-  const availability = await inspectTarget(ports, access, intent, release, entry.ok)
-  if ('failure' in availability) return availability
-  const effective = effectiveCall(availability.ok.definition, intent)
+  const origin = targetOrigin(ports, release, intent)
+  if ('failure' in origin) return origin
+  const target = await inspectTarget(ports, access, intent, release, origin.ok)
+  if ('failure' in target) return target
+  const effective = effectiveCall(target.ok.availability.definition, intent)
   if ('failure' in effective) return effective
-  return succeed({ entry: entry.ok, availability: availability.ok, effective: effective.ok })
+  return succeed({ ...target.ok, effective: effective.ok })
 }
 
 export function createForwardTargetRequests(ports: ForwardRequestPorts) {
@@ -169,7 +222,7 @@ export function createForwardTargetRequests(ports: ForwardRequestPorts) {
       return unavailable('The exact parent Tools adoption is unavailable.')
     const resolved = await resolveForwardTarget(ports, parent, intent)
     if ('failure' in resolved) return resolved
-    const { entry, availability, effective } = resolved.ok
+    const { settings, availability, effective } = resolved.ok
     const definition = availability.definition
     const label = callLabel(definition, {
       command: intent.command,
@@ -186,7 +239,7 @@ export function createForwardTargetRequests(ports: ForwardRequestPorts) {
       command: intent.command,
       arguments: { original: effective, effective, complete: true },
       label,
-      settings: entry.settings,
+      settings,
       batchDecision: null,
       context,
       workspace,

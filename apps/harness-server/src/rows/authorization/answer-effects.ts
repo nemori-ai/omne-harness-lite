@@ -26,7 +26,7 @@ export type Answered = Readonly<{
   tenant: TenantId
   session: string
   consumer: AuthorizationConsumer
-  gate: Pick<ToolPermissionAction, 'definition' | 'effectiveArguments' | 'gate'>
+  gate: Pick<ToolPermissionAction, 'capability' | 'definition' | 'effectiveArguments' | 'gate'>
 }>
 export type EffectPorts = Readonly<{
   authorizations: AuthorizationWriter | undefined
@@ -85,6 +85,7 @@ async function lasting(
   const written = await ports.picks.write({
     principal: answered.principal,
     tenant: answered.tenant,
+    capability: answered.gate.capability,
     definition: answered.gate.definition,
     gate: answered.gate.gate,
     effect: effect.effect,

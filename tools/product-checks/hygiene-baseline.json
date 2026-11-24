@@ -107,7 +107,7 @@
       },
       "apps/harness-server/src/rows/governance/tenant-settings-permissions.ts": {
         "count": 1,
-        "longest": 214
+        "longest": 211
       },
       "apps/harness-server/src/rows/session-provider/faces.ts": {
         "count": 1,
@@ -199,7 +199,7 @@
       },
       "packages/assets/settings/src/tenant-settings.ts": {
         "count": 1,
-        "longest": 234
+        "longest": 231
       },
       "packages/calendar/calendar-local/src/runner/index.ts": {
         "count": 1,
@@ -643,7 +643,7 @@
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,
-        "longest": 177
+        "longest": 154
       },
       "packages/tool/tool-host-local/src/control-subject-adapter.ts": {
         "count": 1,

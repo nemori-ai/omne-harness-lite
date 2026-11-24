@@ -110,7 +110,6 @@ describe('refresh publishes', () => {
     if (stored === 'absent') throw new Error('nothing stored')
     expect(stored.actions.map(action => [action.name, action.availability])).toEqual([
       ['read', { kind: 'available' }],
-      ['write', { kind: 'unavailable', reason: 'no-longer-offered' }],
     ])
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
   })

@@ -85,6 +85,8 @@ system
           served:human-intervention/v1#1  [effective]
         identity/v1
           served:identity/v1#1  [effective]
+        mcp/v1
+          served:mcp/v1#1  [effective]
         media/v1
           served:media/v1#1  [effective]
         model/v1
@@ -241,7 +243,11 @@ system
           identity-ui#1  [effective]
         mcp.endpoint
           mcp-ui#1  [effective]
+        mcp.endpoint.actions
+          mcp-ui#1  [effective]
         mcp.endpoint.permission
+          mcp-ui#1  [effective]
+        mcp.endpoint.status
           mcp-ui#1  [effective]
         mcp.page
           mcp-ui#1  [effective]

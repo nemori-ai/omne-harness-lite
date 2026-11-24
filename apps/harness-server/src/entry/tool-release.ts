@@ -18,6 +18,7 @@ import { pauseAfterFailures } from '../retry-pause.ts'
 import { monotonicClock } from '../shutdown.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { issueEntrySystemPrincipal } from './agent-host-principal.ts'
+import { sourcedEntriesOf } from './tool-entry-sources.ts'
 import {
   importReleaseModules,
   loadToolRelease,
@@ -378,12 +379,14 @@ export function releaseDefinitionOf(ctx: Context, name: string): ToolDefinition 
 }
 
 export function releaseCurrentDefinitions<P>(ctx: Context): LocalCurrentDefinitions<P> {
+  const sourced = sourcedEntriesOf(ctx)
   return {
-    current: ({ name }) => {
+    current: ({ name, principal, tenant }) => {
       const release = releaseOf(ctx)
+      const listed = sourced.owns(name) ? sourced.entry({ principal, tenant }, name) : undefined
       return Promise.resolve(
         release.kind === 'trusted'
-          ? succeed(releaseDefinitionOf(ctx, name) ?? null)
+          ? succeed(releaseDefinitionOf(ctx, name) ?? listed?.definition ?? null)
           : fail({
               kind: 'unavailable',
               dependency: 'tool-release',

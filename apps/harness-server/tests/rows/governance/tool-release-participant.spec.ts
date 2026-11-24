@@ -13,6 +13,7 @@ import {
   type ToolReleaseSnapshot,
 } from '../../../src/entry/tool-release-manifest.ts'
 import { toolAssetPublication } from '../../../src/rows/governance/tool-assets.ts'
+import { NO_HELD_ASSETS, heldFacts } from './permission-held-fixture.mjs'
 
 type Probe = Readonly<{
   outcome: unknown
@@ -34,7 +35,9 @@ beforeAll(async () => {
 })
 
 async function probe(href: string): Promise<Probe> {
-  const worker = new Worker(PROBE, { workerData: { href } })
+  const worker = new Worker(PROBE, {
+    workerData: { href, held: heldFacts, noHeldAssets: NO_HELD_ASSETS },
+  })
   try {
     const [message] = (await once(worker, 'message')) as [Probe]
     return message
@@ -46,7 +49,7 @@ async function probe(href: string): Promise<Probe> {
 it('provides the same release facts, byte for byte, as the trusted release of the main thread', async () => {
   const { entries } = release.manifest
   const { outcome, provided } = await probe(moduleUrl.href)
-  expect(outcome).toEqual({ kind: 'participated', response: null })
+  expect(outcome).toEqual({ kind: 'participated', response: [] })
   expect(provided).toEqual([
     {
       key: PERMISSION_RELEASES,

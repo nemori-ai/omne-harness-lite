@@ -174,7 +174,7 @@ describe('the reasons a target of a Tools execute call is refused', () => {
       ).toEqual(refused('arguments', 'command-parameters-must-be-object'))
       const found = await resolve(ports, echo('info'))
       if ('failure' in found) throw new Error(JSON.stringify(found.failure))
-      expect(found.ok.entry.asset.name).toBe('ToyEcho')
+      expect(found.ok.capability).toEqual({ category: 'tool', name: 'ToyEcho' })
       expect(found.ok.availability.definition.name).toBe('ToyEcho')
       expect(JSON.parse(found.ok.effective)).toMatchObject({ command: 'info' })
     } finally {

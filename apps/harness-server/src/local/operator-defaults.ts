@@ -580,6 +580,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           },
           fetch: { maxRedirects: 5, timeoutMs: 30_000, maxBodyBytes: 5 * 1024 * 1024 },
         },
+        sources: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, listTimeoutMs: 5000 },
       },
     ],
     ...(rows.has('tenant-assets')
