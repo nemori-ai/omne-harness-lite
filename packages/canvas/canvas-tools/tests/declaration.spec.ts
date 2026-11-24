@@ -82,6 +82,9 @@ describe('the Canvas declaration', () => {
     expect(guide).toContain('OmneExtensions publish, category plugin')
     expect(guide).toContain('reference {"kind":"canvas.app","ref":"clock"}')
     expect(guide).toContain('A person locks and unlocks')
+    expect(guide).toContain(
+      'look gives the width, height and grid of the sheet, the least and most size of an item, and the footprint an item given no size takes',
+    )
   })
 
   it('is the same declaration whatever it is built with, and takes only resultMaxBytes, at least 64', () => {

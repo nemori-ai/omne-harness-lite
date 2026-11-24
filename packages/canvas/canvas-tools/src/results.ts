@@ -30,7 +30,7 @@ const WHERE: Readonly<Record<RequestInvalidWhere, string>> = {
   request:
     'a value of the command does not fit; help with the name of the command gives its fields',
   spot: 'the spot is off the sheet; look gives the width and the height of the sheet',
-  size: 'the size is out of bounds; leave it out and the drawing takes its own size',
+  size: 'the size is out of bounds; look gives the least and most size of an item, or leave the size out and the drawing takes its own',
   repeated: 'an item or a pile is named twice in one batch; name each once',
   batch: 'the batch is longer than the canvas takes; split it',
 }

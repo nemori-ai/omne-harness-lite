@@ -106,6 +106,16 @@ describe('what the canvas refuses is a failed result with its reason and what to
       reason:
         'invalid spot at at: the spot is off the sheet; look gives the width and the height of the sheet',
     })
+    expect(
+      await caller(d.canvas).failure('place', {
+        reference: media('a'),
+        size: { width: 9999, height: 100 },
+      }),
+    ).toEqual({
+      kind: 'invalid',
+      reason:
+        'invalid size at size: the size is out of bounds; look gives the least and most size of an item, or leave the size out and the drawing takes its own',
+    })
     expect(await caller(d.canvas).failure('take', { items: ['i1', 'i1'] })).toEqual({
       kind: 'invalid',
       reason:
