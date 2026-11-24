@@ -14,7 +14,13 @@ import {
   type PaperReference,
   type SessionUiOptions,
 } from '../src/cordis.ts'
-import { paperRow, type ArchivedScan, type PaperStep } from '../src/model/paper.ts'
+import {
+  paperRow,
+  pickable,
+  readThrough,
+  type ArchivedScan,
+  type PaperStep,
+} from '../src/model/paper.ts'
 import type { ListPage, SessionList } from '../src/model/session-list.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage } from './fixtures/frames.ts'
@@ -445,9 +451,37 @@ describe('where a session on the paper is drawn from, and what is read for it', 
   it.each(CASES)('%s', (_, list, scan, since, answer) => {
     expect(paperRow(list, scan, 'ses_x', since)).toMatchObject(answer as object)
   })
+
+  it('counts the directory as met only once it is read through', () => {
+    expect(readThrough(through(3))).toBe(3)
+    expect(readThrough({ kind: 'read', issued: 2, page: pageOf('c-2', OTHER) })).toBeUndefined()
+    expect(readThrough({ kind: 'unread', issued: 0 })).toBeUndefined()
+  })
 })
 
 describe('picking a session in the search', () => {
+  it('lists sessions never active after those that were, latest first', () => {
+    const at = (session: string, minutes: number | null) => ({
+      ...listed(session, session),
+      lastActivityAt: minutes === null ? null : minutesAgo(minutes),
+    })
+    const list: SessionList = {
+      kind: 'read',
+      issued: 1,
+      page: {
+        sessions: [at('never', null), at('older', 5), at('also-never', null), at('newer', 1)],
+        next: null,
+        completeness: 'complete',
+      },
+    }
+    expect(pickable(list, '', 10).map(item => item.session)).toEqual([
+      'newer',
+      'older',
+      'never',
+      'also-never',
+    ])
+  })
+
   const rows = (view: ReturnType<typeof render>) =>
     within(view.container)
       .queryAllByRole('button')

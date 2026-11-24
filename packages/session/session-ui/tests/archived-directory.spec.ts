@@ -118,3 +118,19 @@ describe('reading the archived directory through', () => {
     expect(fake.calls).toHaveLength(0)
   })
 })
+
+describe('who hears of a scan', () => {
+  it('every listener of the tenant, until it leaves', async () => {
+    const fake = createFakeClient()
+    const directory = new ArchivedDirectory(fake.client)
+    const heard: string[] = []
+    directory.subscribe(TENANT, () => heard.push('first'))
+    const leave = directory.subscribe(TENANT, () => heard.push('second'))
+    directory.scan(TENANT, openPage())
+    expect(heard).toEqual(['first', 'second'])
+    leave()
+    ;(await fake.next('list-archived-sessions')).answer(pageOf([], null))
+    await settle()
+    expect(heard).toEqual(['first', 'second', 'first'])
+  })
+})
