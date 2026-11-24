@@ -164,7 +164,7 @@ function AssetList({ assets, ...shown }: Listing & { readonly assets: CategoryAs
       {assets.entries.length === 0 ? (
         <EmptyState title="这一类还没有资产。" />
       ) : (
-        <GlideMenu className="assets-list-glide">
+        <GlideMenu>
           <ul
             className="assets-list"
             aria-label={`${shown.extras.label(shown.category)}的资产`}

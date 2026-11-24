@@ -36,13 +36,13 @@ export function CredentialRemedy({
         : undefined
   if (text === undefined) return null
   return (
-    <div className="model-credential-remedy">
+    <>
       <p>{text}</p>
       {fill === undefined ? null : (
         <Button variant="outline" onClick={fill}>
           去填
         </Button>
       )}
-    </div>
+    </>
   )
 }

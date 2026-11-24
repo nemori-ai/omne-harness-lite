@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { scopeOfLayer, type HeldItem } from '@omne-harness/assets'
+import { officialAssetRef } from '../../../src/assets/official-holdings.ts'
 import { candidates } from '@omne-harness/dynamis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { settledSession } from '../../governance/tenant-settings-support.ts'
@@ -65,11 +66,13 @@ function heldOn(tree: ReleaseTree, category: string, asker: readonly string[]) {
     .sort((left, right) => (left.name < right.name ? -1 : 1))
 }
 
-/** What the ledger says the tenant holds in one category, read over the wire. */
+/** What the tenant layer holds in one category, read over the wire: the list without the official assets it only
+ * holds as every tenant does, whose holding is the official asset itself. */
 async function ledger(assets: Assets, tenant: TenantId, category: string) {
   const listed = await assets['list-assets']({ tenant, category, after: null, limit: 100 })
   if (listed.outcome !== 'succeeded') throw new Error(`${category}: ${listed.outcome}`)
   return listed.body.items
+    .filter(row => row.holding !== officialAssetRef(category, row.name))
     .map(row => ({ name: row.name, version: row.version, disabled: !row.enabled }))
     .sort((left, right) => (left.name < right.name ? -1 : 1))
 }

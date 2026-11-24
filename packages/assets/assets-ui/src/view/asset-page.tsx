@@ -58,7 +58,7 @@ export function AssetPage({ entry, view, label, holding, onBack }: AssetPageProp
   }
   return (
     <section className="assets-asset" aria-label={title} onKeyDown={leave} {...assetsAsset.props}>
-      <div className="assets-asset-toolbar" {...assetsAssetToolbar.props}>
+      <div {...assetsAssetToolbar.props}>
         <ReadingToolbar
           name={
             <>
@@ -88,7 +88,7 @@ export function AssetPage({ entry, view, label, holding, onBack }: AssetPageProp
           <Settings rows={entry.settings} view={view} />
         </Section>
         <div className="assets-holding-slot">{holding}</div>
-        <div className="assets-asset-detail" {...assetsAssetDetail.props}>
+        <div {...assetsAssetDetail.props}>
           <Disclosure label="详情">
             <Detail entry={entry} view={view} />
           </Disclosure>
@@ -164,7 +164,7 @@ function AssetFacts({ asset }: Readonly<{ asset: Described }>) {
   const { item, content, standing } = asset
   return (
     <>
-      <FactList className="assets-detail-facts">
+      <FactList>
         <FactRow term="名字">{item.name}</FactRow>
         <FactRow term="版本">
           <span title={item.version}>{shortVersion(item.version)}</span>
