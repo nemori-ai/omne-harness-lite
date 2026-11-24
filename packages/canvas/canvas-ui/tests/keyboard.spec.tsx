@@ -151,3 +151,17 @@ describe('a locked page', () => {
     expect(lock.textContent).toContain('L')
   })
 })
+
+describe('a pile renamed from its menu with the pointer', () => {
+  it('puts the focus in the name field, and the closing menu does not take it back', async () => {
+    const one = item('a', { pile: 'p' })
+    const two = item('b', { pile: 'p', rank: 2 })
+    await opened(canvas([one, two], [pile('p')]))
+    const more = screen.getByRole('button', { name: '没有名字的一叠的更多操作' })
+    fireEvent.pointerDown(more, { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: /改名/u }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const field = screen.getByRole('textbox', { name: '一叠的名字' })
+    expect(document.activeElement).toBe(field)
+  })
+})

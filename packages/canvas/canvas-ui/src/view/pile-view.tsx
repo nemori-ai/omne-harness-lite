@@ -149,7 +149,7 @@ export function PileView(props: PileViewProps): JSX.Element {
             <ThingMenu
               label={`${title}的更多操作`}
               acts={[
-                { act: 'rename', label: '改名', run: () => setRenaming(true) },
+                { act: 'rename', label: '改名', run: () => setRenaming(true), focuses: true },
                 { act: 'scatter', label: '散开', run: () => acts.scatter(pile) },
               ]}
             />

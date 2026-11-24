@@ -14,7 +14,7 @@ import {
   MoreIcon,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
-import type { JSX } from 'react'
+import { useRef, type JSX } from 'react'
 import { KEYS, shortcutOf, type KeyAct } from './keys.ts'
 
 /** Who last arranged it: a person, or an agent; never the full identifier of a session. */
@@ -45,16 +45,25 @@ export type MenuAct = Readonly<{
   label: string
   run: () => void
   disabled?: boolean
+  /** The act opens a field of its own: it runs once the menu has closed, and the focus stays where it put it. */
+  focuses?: boolean
 }>
 
 export type PileChoice = Readonly<{ id: string; name: string }>
 
-function Act({ act, label, run, disabled = false }: MenuAct): JSX.Element {
+function Act({
+  act,
+  label,
+  run,
+  disabled = false,
+  focuses = false,
+  later,
+}: MenuAct & Readonly<{ later: (run: () => void) => void }>): JSX.Element {
   return (
     <DropdownMenuItem
       disabled={disabled}
       aria-keyshortcuts={shortcutOf(act)}
-      onSelect={() => run()}
+      onSelect={() => (focuses ? later(run) : run())}
     >
       {label}
       <DropdownMenuShortcut>{KEYS[act].shown}</DropdownMenuShortcut>
@@ -74,6 +83,7 @@ export function ThingMenu({
   piles?: readonly PileChoice[]
   onPutInto?: (pile: string) => void
 }>): JSX.Element {
+  const after = useRef<(() => void) | null>(null)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -81,9 +91,18 @@ export function ThingMenu({
           <MoreIcon aria-hidden="true" />
         </IconButton>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        onCloseAutoFocus={event => {
+          const run = after.current
+          if (run === null) return
+          after.current = null
+          event.preventDefault()
+          run()
+        }}
+      >
         {acts.map(act => (
-          <Act key={act.act} {...act} />
+          <Act key={act.act} {...act} later={run => (after.current = run)} />
         ))}
         {onPutInto === undefined || piles.length === 0 ? null : (
           <DropdownMenuSub>
