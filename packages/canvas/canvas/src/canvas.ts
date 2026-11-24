@@ -29,7 +29,7 @@ import {
   type Size,
   type SizeRange,
 } from '@omne-harness/canvas-contract'
-import type { CanvasStore, ChangeResult, Rules, StoreAnswer } from './store.ts'
+import type { CanvasStore, ChangeResult, PlaceResult, Rules, StoreAnswer } from './store.ts'
 
 export interface Clock {
   now(): Instant
@@ -128,6 +128,47 @@ async function admitted(
   }
 }
 
+type Entered = Extract<ReturnType<CanvasKinds['enter']>, { kind: 'declared' }>
+
+/** `Start`: takes the kind of the reference and holds its batch; any other answer is the reply of place. */
+function enterKind(kinds: CanvasKinds, name: string): Entered | PlaceAnswer {
+  let entry: ReturnType<CanvasKinds['enter']>
+  try {
+    entry = kinds.enter(name)
+  } catch {
+    return UNAVAILABLE
+  }
+  if (entry.kind === 'declared') return entry
+  if (entry.kind === 'undeclared') return { kind: 'conflict', reason: 'kind-undeclared' }
+  if (entry.kind === 'unavailable') return UNAVAILABLE
+  return {
+    kind: 'basis-unavailable',
+    conflict: { name: name as KindDeclaration['name'], by: entry.by },
+  }
+}
+
+/** `AdmitAccept`, `AdmitRefuse` and `Timeout`: null when the owner accepts or is not asked. */
+async function refusal(
+  admit: KindDeclaration['admit'],
+  input: AdmitInput,
+  timeoutMs: number,
+): Promise<PlaceAnswer | null> {
+  if (admit === undefined) return null
+  const admission = await admitted(admit, input, timeoutMs)
+  if (admission === 'admitted') return null
+  if (admission === 'refused') return { kind: 'conflict', reason: 'not-admitted' }
+  return admission === 'unknown' ? UNKNOWN : UNAVAILABLE
+}
+
+function committed(answer: StoreAnswer<PlaceResult>): PlaceAnswer {
+  if (answer.kind === 'rolled-back') return UNAVAILABLE
+  if (answer.kind === 'unknown') return UNKNOWN
+  const result = answer.value
+  if (result.kind === 'changed')
+    return { kind: 'done', value: { revision: result.revision, item: result.item } }
+  return result
+}
+
 function changed(result: ChangeResult): ChangeAnswer {
   if (result.kind === 'changed') return { kind: 'done', value: { revision: result.revision } }
   return result.kind === 'no-change' ? NO_CHANGE : result
@@ -212,42 +253,20 @@ export function createCanvas(ports: CanvasPorts): CanvasOperations {
       const placing = await reading(() => store.placing(ctx.tenant, canvas, reference))
       if (placing?.kind !== 'read') return UNAVAILABLE
       if (placing.value.item?.state === 'on') return { kind: 'no-change', item: placing.value.item }
-
-      let entry: ReturnType<CanvasKinds['enter']>
-      try {
-        entry = kinds.enter(reference.kind)
-      } catch {
-        return UNAVAILABLE
-      }
-      if (entry.kind === 'undeclared') return { kind: 'conflict', reason: 'kind-undeclared' }
-      if (entry.kind === 'unavailable') return UNAVAILABLE
-      if (entry.kind === 'conflict')
-        return {
-          kind: 'basis-unavailable',
-          conflict: { name: reference.kind as KindDeclaration['name'], by: entry.by },
-        }
+      const entry = enterKind(kinds, reference.kind)
+      if (entry.kind !== 'declared') return entry
       try {
         if (placing.value.placed >= config.limits.placed)
           return { kind: 'conflict', reason: 'full' }
-        if (entry.admit !== undefined) {
-          const holder = holderOf(ctx.tenant, canvas, reference)
-          const input = { tenant: ctx.tenant, subject: ctx.subject, ref: reference.ref, holder }
-          const admission = await admitted(entry.admit, input, config.admitTimeoutMs)
-          if (admission === 'refused') return { kind: 'conflict', reason: 'not-admitted' }
-          if (admission === 'unknown') return UNKNOWN
-          if (admission !== 'admitted') return UNAVAILABLE
-        }
+        const holder = holderOf(ctx.tenant, canvas, reference)
+        const input = { tenant: ctx.tenant, subject: ctx.subject, ref: reference.ref, holder }
+        const refused = await refusal(entry.admit, input, config.admitTimeoutMs)
+        if (refused !== null) return refused
         const command = { ...stamp, reference, declared: entry.declared() }
         const { at, near, size } = request
-        const answer = await committing(() =>
-          store.place(ctx.tenant, { ...command, at, near, size }),
+        return committed(
+          await committing(() => store.place(ctx.tenant, { ...command, at, near, size })),
         )
-        if (answer.kind === 'rolled-back') return UNAVAILABLE
-        if (answer.kind === 'unknown') return UNKNOWN
-        const result = answer.value
-        if (result.kind === 'changed')
-          return { kind: 'done', value: { revision: result.revision, item: result.item } }
-        return result
       } finally {
         entry.leave()
       }

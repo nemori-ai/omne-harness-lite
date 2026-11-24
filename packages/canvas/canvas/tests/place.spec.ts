@@ -51,6 +51,8 @@ describe('place asks the owner before it commits', () => {
       },
       { kind: 'basis-unavailable' },
     ],
+    // The fake port holds the batch only for the place, as putKind does; that the kind can still be
+    // withdrawn after the time limit is pinned on the real putKind, canvas-cordis-contract kinds-point.spec.ts.
     [
       'passes the time limit',
       () => new Promise<Admission>(() => undefined),
@@ -242,5 +244,19 @@ describe('where place puts a reference', () => {
       kind: 'done',
       value: { item: { at: { x: 104, y: 104 }, rank: 2 } },
     })
+  })
+
+  it('as tall as the sheet, so that with its name line it fits nowhere: at the spot asked for, on the grid', async () => {
+    const config = {
+      sheet: { width: 320, height: 200, grid: 8 },
+      size: { min: { width: 120, height: 64 }, max: { width: 320, height: 200 } },
+    }
+    const w = world({ config })
+    w.kinds.declare(kind('media.object'))
+    const answer = await place(w, 'a', {
+      near: { x: 101, y: 99 },
+      size: { width: 160, height: 200 },
+    })
+    expect(answer).toMatchObject({ kind: 'done', value: { item: { at: { x: 104, y: 96 } } } })
   })
 })

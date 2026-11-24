@@ -123,6 +123,15 @@ export class Work {
 
   /** Null when nothing changed: nothing is written. */
   save(): number | null {
+    const items = this.saveItems()
+    const piles = this.savePiles()
+    if (!items && !piles) return null
+    const revision = this.revision + 1
+    this.facts.setHead(this.canvas, revision, this.rank)
+    return revision
+  }
+
+  private saveItems(): boolean {
     let changed = false
     for (const id of this.dropped) {
       if (this.before.has(`item:${id}`) || this.facts.item(this.canvas, id) !== null) {
@@ -135,6 +144,11 @@ export class Work {
         this.facts.putItem(this.canvas, item)
         changed = true
       }
+    return changed
+  }
+
+  private savePiles(): boolean {
+    let changed = false
     for (const [mark] of this.before)
       if (mark.startsWith('pile:') && !this.piles.has(mark.slice(5) as PileId)) {
         this.facts.dropPile(this.canvas, mark.slice(5) as PileId)
@@ -145,9 +159,6 @@ export class Work {
         this.facts.putPile(this.canvas, pile)
         changed = true
       }
-    if (!changed) return null
-    const revision = this.revision + 1
-    this.facts.setHead(this.canvas, revision, this.rank)
-    return revision
+    return changed
   }
 }
