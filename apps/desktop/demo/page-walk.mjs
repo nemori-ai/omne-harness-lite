@@ -648,6 +648,9 @@ async function walk(browser, origin, proofs, elsewhere) {
     await wait('the page to read disabled', () => page.querySelector('.list-reading-document').innerText.includes('已禁用'))
     await fromMenu(page, '启用')
     await wait('the page to read enabled', () => !page.querySelector('.list-reading-document').innerText.includes('已禁用'))
+    // The menu gives the focus back as it closes, and a confirm that loses the focus disarms.
+    await wait('no menu left open', () => !document.querySelector('[role=menu]'))
+    await sleep(300)
     ;(await wait('a remove button', () => page.querySelector('button[aria-label="移除"]:not([disabled])'))).click()
     ;(await wait('the confirmation', () => button('确认移除'))).click()
     await wait('back on the list, without the row', () => !assetPageOpen() && !listedRow('walk-page'))
