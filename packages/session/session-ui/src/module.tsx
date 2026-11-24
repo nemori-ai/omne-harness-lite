@@ -16,6 +16,7 @@ import {
 import { Fragment, type ReactNode } from 'react'
 import { ArchiveStore } from './model/archive.ts'
 import { BlockReads, type BlockReadsSource } from './model/block-reads.ts'
+import { writeConversationSubject } from './model/conversation-subject.ts'
 import { toolCallState, toolResultText, type BlockSource } from './model/conversation.ts'
 import { EntryFocus } from './model/entry-focus.ts'
 import { SessionFigure } from './model/figure.ts'
@@ -54,6 +55,7 @@ import { SessionWork } from './view/session-work.tsx'
 import { sessionParts } from './parts.ts'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
+import { SubjectOpener } from './view/subject-opener.tsx'
 import { WorkspaceAction } from './view/workspace-selection.tsx'
 
 export const CONVERSATION_PAGE = 'conversation'
@@ -67,6 +69,17 @@ export type SessionUiOptions = Readonly<{
   workspaceChoices?: ServiceKey<WorkspaceChoiceSource>
   blockReads?: ServiceKey<BlockReadsSource>
 }>
+
+/** Where a jump to a session goes: the shell's navigate takes these two, and the conversation page opens it. */
+export function conversationTarget(
+  session: string,
+  run?: string,
+): Readonly<{ page: string; subject: string }> {
+  return {
+    page: CONVERSATION_PAGE,
+    subject: writeConversationSubject(run === undefined ? { session } : { session, run }),
+  }
+}
 
 /** Where a contribution to the composer gives back what the message being written carries. */
 export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
@@ -252,9 +265,10 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
     title: '对话',
     order: 0,
     icon: 'conversation',
-    render: ({ scope }) => (
+    render: ({ scope, subject }) => (
       <EntryFocusContext.Provider value={focus}>
         <PartDrawContext.Provider value={shell}>
+          <SubjectOpener workspaces={workspaces} scope={scope} subject={subject} focus={focus} />
           <FigureReport
             workspaces={workspaces}
             scope={scope}

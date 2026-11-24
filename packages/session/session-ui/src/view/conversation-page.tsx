@@ -24,7 +24,7 @@ import {
   type ReactNode,
 } from 'react'
 import { stopFace } from '../model/composer.ts'
-import { EMPTY_CONTENT, terminalOf, type HistoryEntry } from '../model/content.ts'
+import { EMPTY_CONTENT, runStartOf, terminalOf, type HistoryEntry } from '../model/content.ts'
 import type { ComposerDraftStore } from '../model/composer-drafts.ts'
 import { conversationItems, type BlockSource, type Item } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
@@ -538,7 +538,8 @@ function Conversation({
   const arriving = (key: string) => publication.arrivals.has(key)
   const anchor = waitingAnchor(committed, waiting)
   const rows = useMemo(() => committed.map(item => item.key), [committed])
-  const found = useShownEntry(epoch, scroller, rows, content.readThrough !== null)
+  const startOf = useCallback((run: string) => runStartOf(content.entries, run), [content.entries])
+  const found = useShownEntry(epoch, scroller, rows, content.readThrough !== null, startOf)
   const notice = (
     <WaitingNotice
       waiting={waiting}

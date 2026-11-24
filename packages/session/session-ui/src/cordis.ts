@@ -1,6 +1,7 @@
 export {
   CONVERSATION_PAGE,
   SESSION_LIST,
+  conversationTarget,
   createSessionUiModule,
   sessionComposerIntakeKey,
   sessionUiModule,
