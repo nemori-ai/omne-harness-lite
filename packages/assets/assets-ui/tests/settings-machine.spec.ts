@@ -7,7 +7,7 @@ import {
   type Row,
   type State,
 } from '../src/model/settings-machine.ts'
-import { permissionView } from './fixtures/views.ts'
+import { ordinaryView, permissionView } from './fixtures/views.ts'
 
 const VIEW = permissionView()
 const KEY = keyOf(VIEW)
@@ -605,5 +605,41 @@ describe('一项', () => {
   it('闲时点「重试」不变', () => {
     const state = listed()
     expect(step(state, { kind: 'retry-row', key: KEY }).state).toBe(state)
+  })
+})
+
+describe('the items of one asset share its revision', () => {
+  const SIBLING = { ...VIEW, item: 'other-item' }
+  const ELSEWHERE = ordinaryView()
+  const three = (): State =>
+    run(
+      INITIAL,
+      { kind: 'read-list' },
+      {
+        kind: 'list-answered',
+        token: 1,
+        answer: {
+          outcome: 'succeeded',
+          body: { items: [VIEW, SIBLING, ELSEWHERE], next: null, completeness: 'complete' },
+        },
+      },
+    ).state
+  const described = (effects: unknown[]) =>
+    effects.flatMap(effect =>
+      (effect as { kind: string }).kind === 'describe' ? [(effect as { key: string }).key] : [],
+    )
+
+  it('a write that lands or meets a conflict reads again every item of the same asset, not of another', () => {
+    for (const answer of [
+      { outcome: 'succeeded', body: { revision: '2' } },
+      { outcome: 'conflict', body: {} },
+    ] as const) {
+      const { effects } = run(
+        three(),
+        { kind: 'set', key: KEY, pick: 'auto', operation: 'op-1' },
+        { kind: 'write-answered', key: KEY, operation: 'op-1', answer: answer as never },
+      )
+      expect(described(effects)).toEqual([KEY, keyOf(SIBLING)])
+    }
   })
 })
