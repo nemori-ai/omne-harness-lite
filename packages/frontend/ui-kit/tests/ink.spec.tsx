@@ -304,6 +304,7 @@ afterEach(() => {
   moved.clear()
   folded.clear()
   clipped.clear()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   cleanup()
   document.body.innerHTML = ''
   document.documentElement.removeAttribute('style')
