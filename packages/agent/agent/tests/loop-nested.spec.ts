@@ -469,3 +469,160 @@ describe('AG-31 a nested action after the run moved to another runtime', () => {
     expect(cards.present.calls).toHaveLength(1)
   })
 })
+
+describe('AG-31 what a nested action leaves before it is judged, and when the ports fail', () => {
+  const requestOf = (assembly: Assembly, ordinal: number) =>
+    assembly.controls.materials.preserve.calls.find(call =>
+      call.identity.endsWith(`/nested/${String(ordinal)}/request`),
+    )
+
+  it('keeps the whole request as facts before the admission is asked: parent, ordinal, tool, command and arguments', async () => {
+    const assembly = await waitingOnTool()
+    expect(await asked(assembly, 1)).toEqual({ kind: 'allowed' })
+    const kept = requestOf(assembly, 1)
+    expect(kept?.identity).toBe(`${execution()}/step-1/tool/0/nested/1/request`)
+    expect(kept?.value).toEqual({
+      kind: 'facts',
+      schema: {
+        owner: 'agent',
+        name: 'nested-action-request',
+        revision: '1',
+        digest: 'agent:nested-action-request/1',
+      },
+      value: {
+        kind: 'object',
+        entries: [
+          { key: 'parent', value: { kind: 'string', value: parent } },
+          { key: 'ordinal', value: { kind: 'number', lexeme: '1' } },
+          { key: 'name', value: { kind: 'string', value: 'write_file' } },
+          { key: 'command', value: { kind: 'null' } },
+          { key: 'arguments', value: { kind: 'string', value: JSON.stringify({ path: 'a.txt' }) } },
+        ],
+      },
+    })
+    const commanded = assembly.provider.nested.admit({
+      ...alice,
+      execution: execution(),
+      parent,
+      ordinal: 2,
+      target: { ...target(), command: 'write' },
+      signal: new AbortController().signal,
+    })
+    expect(await commanded).toEqual({ kind: 'allowed' })
+    expect(requestOf(assembly, 2)?.value).toMatchObject({
+      value: {
+        entries: expect.arrayContaining([
+          { key: 'command', value: { kind: 'string', value: 'write' } },
+        ]),
+      },
+    })
+  })
+
+  it('a request that cannot be kept now is not judged: no admission is asked and no record is left', async () => {
+    const assembly = await waitingOnTool()
+    const keep = assembly.controls.materials.preserve
+    const real = keep.calls.length
+    keep.always(async call =>
+      call.identity.includes('/nested/')
+        ? { failure: { kind: 'unavailable', owner: 'materials', diagnostic: 'down' } }
+        : { failure: { kind: 'unavailable', owner: 'materials', diagnostic: 'not here' } },
+    )
+    expect(await asked(assembly, 1)).toMatchObject({ kind: 'unanswerable' })
+    expect(keep.calls.length).toBeGreaterThan(real)
+    expect(nestedCalls(assembly)).toEqual([])
+    expect(await chainOf(assembly, 1)).toBeUndefined()
+  })
+
+  it('an admission port that is away leaves the position open; one that fails otherwise refuses this action', async () => {
+    const assembly = await waitingOnTool()
+    assembly.controls.admission.admit.always(async call =>
+      call.nested?.ordinal === 1
+        ? { failure: { kind: 'unavailable', owner: 'admission', diagnostic: 'away' } }
+        : { failure: { kind: 'invalid', field: 'action', reason: 'broken' } },
+    )
+    expect(await asked(assembly, 1)).toMatchObject({ kind: 'unanswerable' })
+    expect(await chainOf(assembly, 1)).toBeUndefined()
+    expect(await asked(assembly, 2)).toMatchObject({ kind: 'denied' })
+    expect((await chainOf(assembly, 2))?.progress).toMatchObject({
+      conclusion: { output: { kind: 'veto' } },
+    })
+    assembly.controls.admission.admit.always(async () => allow)
+    expect(await asked(assembly, 1)).toEqual({ kind: 'allowed' })
+    expect(await asked(assembly, 2)).toMatchObject({ kind: 'denied' })
+  })
+})
+
+describe('AG-32 a card left open when its parent call ends', () => {
+  it('is withdrawn and its position refused, with nobody asking again', async () => {
+    const assembly = await waitingOnTool()
+    assembly.controls.admission.admit.always(async call =>
+      call.nested !== undefined && call.decision === null ? ask('Write the file?') : allow,
+    )
+    assembly.controls.cards.invalidate.always(async call => ({
+      ok: call.cards.map(card => ({
+        card,
+        reply: { kind: 'invalidated', evidence: evidence('withdrawn') } as const,
+      })),
+    }))
+    const waiting = asked(assembly, 1)
+    await eventually(async () => assembly.controls.cards.present.calls.length === 1)
+    await eventually(async () => (await chainOf(assembly, 1))?.progress.kind === 'asked')
+    const [pending] = await associatedTools(assembly, 1)
+    if (pending === undefined) throw new Error('no pending tool call')
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'done' })))
+    expect(await waiting).toMatchObject({ kind: 'denied' })
+    await eventually(async () => assembly.controls.cards.invalidate.calls.length >= 1)
+    await eventually(async () => (await chainOf(assembly, 1))?.progress.kind !== 'asked')
+    expect((await chainOf(assembly, 1))?.progress).toMatchObject({
+      conclusion: { output: { kind: 'veto' } },
+    })
+    expect(nestedCalls(assembly).filter(call => call.decision !== null)).toEqual([])
+  })
+
+  it('is closed by the runtime that took the run over, when the program that asked is gone and nobody asks again', async () => {
+    const assembly = await waitingOnTool()
+    const { admission, cards } = assembly.controls
+    admission.admit.always(async call =>
+      call.nested !== undefined && call.decision === null ? ask('Write the file?') : allow,
+    )
+    cards.invalidate.always(async call => ({
+      ok: call.cards.map(card => ({
+        card,
+        reply: { kind: 'invalidated', evidence: evidence('withdrawn') } as const,
+      })),
+    }))
+    const waiting = asked(assembly, 1)
+    await eventually(async () => cards.present.calls.length === 1)
+    await eventually(async () => (await chainOf(assembly, 1))?.progress.kind === 'asked')
+    const [pending] = await associatedTools(assembly, 1)
+    if (pending === undefined) throw new Error('no pending tool call')
+    ok(
+      await assembly.provider.control.quiesce({
+        ...alice,
+        operation: operation('quiesce-orphan'),
+        reason: evidence('stop'),
+      }),
+    )
+    expect(await waiting).toMatchObject({ kind: 'unanswerable' })
+    expect((await chainOf(assembly, 1))?.progress.kind).toBe('asked')
+    const next = ok(
+      await createAgentRuntime(assembly.dependencies, options({ reconciliationDelaysMs: [1000] })),
+    )
+    ok(
+      await next.runtime.resume({
+        ...alice,
+        execution: execution(),
+        operation: operation('resume-orphan'),
+        recovery: evidence('recovery'),
+        grant: null,
+      }),
+    )
+    const invalidated = cards.invalidate.calls.length
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'done' })))
+    await eventually(async () => cards.invalidate.calls.length > invalidated)
+    await eventually(async () => (await chainOf(assembly, 1))?.progress.kind !== 'asked')
+    const waits = (await snapshot(assembly)).state
+    expect(waits.kind === 'waiting' && waits.waits.some(wait => wait.kind === 'human')).toBe(false)
+    expect(cards.present.calls).toHaveLength(1)
+  })
+})
