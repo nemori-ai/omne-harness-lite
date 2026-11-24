@@ -44,27 +44,29 @@ function viewOf(event: KeyboardEvent): KeyView {
   }
 }
 
+/** The action a key press runs, and whether it leaves a field; nothing when the key is not the dispatcher's. */
+function routeOf(event: KeyboardEvent, keys: ActionKeys): ActionItem | 'leave' | undefined {
+  const chord = event.defaultPrevented ? null : chordOf(event, keys.mac)
+  if (chord === null) return undefined
+  const actions = keys.actions()
+  const keymap = keymapOf(actions, keys.changes?.(), keys.mac)
+  const answer = resolveKey(keymap, chord, viewOf(event))
+  if (answer.kind === 'leave') return 'leave'
+  if (answer.kind !== 'action') return undefined
+  const action = actions.find(item => item.id === answer.action)
+  return action !== undefined && bareChord(chord) && action.available() !== true
+    ? undefined
+    : action
+}
+
 /** One listener in the bubble phase: what a page or control took is not looked at again. */
 export function bindActionKeys(target: KeyTarget, keys: ActionKeys): () => void {
   const onKey = (event: KeyboardEvent): void => {
-    if (event.defaultPrevented) return
-    const chord = chordOf(event, keys.mac)
-    if (chord === null) return
-    const actions = keys.actions()
-    const keymap = keymapOf(actions, keys.changes?.(), keys.mac)
-    const answer = resolveKey(keymap, chord, viewOf(event))
-    if (answer.kind === 'leave') {
-      event.preventDefault()
-      keys.leave?.()
-      return
-    }
-    if (answer.kind !== 'action') return
-    const action = actions.find(item => item.id === answer.action)
-    if (action === undefined) return
-    if (bareChord(chord) && action.available() !== true) return
+    const route = routeOf(event, keys)
+    if (route === undefined) return
     event.preventDefault()
-    if (event.repeat === true && action.repeat !== true) return
-    runAction(action, keys)
+    if (route === 'leave') keys.leave?.()
+    else if (event.repeat !== true || route.repeat === true) runAction(route, keys)
   }
   target.addEventListener('keydown', onKey)
   return () => target.removeEventListener('keydown', onKey)

@@ -66,22 +66,26 @@ function physical(code: string): string | undefined {
   return SIGNS[code]
 }
 
+const SPOKEN: Readonly<Record<string, string>> = { ' ': 'Space', '+': 'Plus' }
+
+function heldOf(press: KeyPress, mac: boolean): readonly string[] {
+  const held = [
+    [mac && press.ctrlKey, 'Ctrl'],
+    [mac ? press.metaKey : press.ctrlKey, 'Mod'],
+    [press.altKey, 'Alt'],
+  ] as const
+  return held.flatMap(([down, name]) => (down === true ? [name] : []))
+}
+
 /** One key press as a chord name: with ⌘, Ctrl or Alt held, the physical key, since ⌥/ types ÷. */
 export function chordOf(press: KeyPress, mac: boolean): string | null {
   if (MODIFIERS.includes(press.key)) return null
-  const mod = mac ? press.metaKey : press.ctrlKey
-  const ctrl = mac && press.ctrlKey
-  let key = press.key
-  if (mod || ctrl || press.altKey) key = physical(press.code) ?? key
-  if (key.length === 1) key = key.toUpperCase()
-  if (key === ' ') key = 'Space'
-  if (key === '+') key = 'Plus'
-  const parts: string[] = []
-  if (ctrl) parts.push('Ctrl')
-  if (mod) parts.push('Mod')
-  if (press.altKey) parts.push('Alt')
-  if (press.shiftKey && (key.length > 1 || mod || ctrl || press.altKey)) parts.push('Shift')
-  return [...parts, key].join('+')
+  const held = heldOf(press, mac)
+  const typed = held.length > 0 ? (physical(press.code) ?? press.key) : press.key
+  const upper = typed.length === 1 ? typed.toUpperCase() : typed
+  const key = SPOKEN[upper] ?? upper
+  const shift = press.shiftKey && (key.length > 1 || held.length > 0)
+  return [...held, ...(shift ? ['Shift'] : []), key].join('+')
 }
 
 export function normalChord(chord: string): string {
