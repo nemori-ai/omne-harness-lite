@@ -20,10 +20,7 @@ import { encodeInstant } from '@omne-harness/utc-instant'
 import { useRef, type JSX } from 'react'
 import { KEYS, shortcutOf, type KeyAct } from './keys.ts'
 
-/**
- * Who last arranged it: a person, or an agent; never the full identifier of a session. At rest only its mark shows;
- * the words come out while the page is looked at.
- */
+/** Who last arranged it, a person or an agent, never a session: a mark, and words shown while the page is looked at. */
 export function ByLine({ by, when }: Readonly<Pick<CanvasItemBody, 'by' | 'when'>>): JSX.Element {
   const human = by.kind === 'human'
   const Mark = human ? ContactIcon : AssistantIcon
