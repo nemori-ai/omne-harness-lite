@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 import type { ToolInvokeRequest } from '@omne-harness/tool-contract'
 import { decodeToolRevision, type ProgramPosition } from '@omne-harness/tool-contract/provider'
 import { invocationSourceIdentities } from '../src/invocation-source.ts'
-import { positionTargetOf, programConsumer, TOOL_PROGRAM_OWNER } from '../src/program-source.ts'
+import { hostKey } from '@omne-harness/tool'
+import { callId, operationId } from './coordinator-values.ts'
+import { sourceDomain, sourceKey } from '../src/invocation-forwarding.ts'
+import {
+  positionTargetOf,
+  programConsumer,
+  programPositionOf,
+  TOOL_PROGRAM_OWNER,
+} from '../src/program-source.ts'
 import { forwardingFixture, ok, parentRequest } from './forwarding-values.ts'
 
 type World = Awaited<ReturnType<typeof world>>
@@ -17,7 +25,11 @@ async function world(options: Parameters<typeof forwardingFixture>[0] = {}) {
   })
   const domain = { kind: 'call', tenant: f.parent.tenant, call: f.parent.call } as const
   /** Writes the position the way the table would after its hand-off. */
-  const hand = async (ordinal = 1, state: ProgramPosition['state'] = 'handed') => {
+  const hand = async (
+    ordinal = 1,
+    state: ProgramPosition['state'] = 'handed',
+    other: Partial<Pick<ProgramPosition, 'child' | 'admission'>> = {},
+  ) => {
     const prepared = await f.source.programs.prepare(placed(ordinal))
     if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
     const read = await f.memory.read(domain)
@@ -29,6 +41,7 @@ async function world(options: Parameters<typeof forwardingFixture>[0] = {}) {
       target: positionTargetOf(prepared.request),
       state,
       ...(state === 'handed' ? { background: false } : {}),
+      ...other,
     } as ProgramPosition
     await f.memory.commit({
       domain,
@@ -38,10 +51,33 @@ async function world(options: Parameters<typeof forwardingFixture>[0] = {}) {
     })
     return prepared
   }
+  /** Rewrites the stored source of position 1, as someone with the store but not the host would. */
+  const tamper = async (change: (value: Record<string, unknown>) => Record<string, unknown>) => {
+    const consumer = programConsumer(f.parent.call, 1)
+    const at = sourceDomain(f.parent.tenant, consumer)
+    const read = await f.memory.readRecord(at, hostKey(sourceKey(consumer)))
+    if (read.kind !== 'complete' || read.record?.kind !== 'host') throw new Error('no source')
+    const host = read.record.host
+    await f.memory.commit({
+      domain: at,
+      expected: read.revision,
+      revision: ok(decodeToolRevision(String(Number(read.revision) + 1))),
+      writes: [
+        {
+          kind: 'put',
+          record: {
+            kind: 'host',
+            host: { ...host, value: change(host.value as Record<string, unknown>) },
+          },
+        },
+      ],
+    })
+  }
   return {
     ...f,
     placed,
     hand,
+    tamper,
     resolve: (ordinal = 1) => f.source.programs.source.resolve(placed(ordinal)),
   }
 }
@@ -231,5 +267,79 @@ describe('a call a program made is verified against the source this host stored'
       kind: 'rejected',
       failure: { kind: 'denied' },
     })
+  })
+
+  it.each([
+    ['its ordinal', { ordinal: 2 }],
+    ['its parent call', { parent: 'call-another' }],
+    ['the admission of its parent', { admission: 'admit-another' }],
+    ['the request of its parent', { requestDigest: 'sha256:another' }],
+    ['the start of its parent', { start: { kind: 'start', operation: 'another' } }],
+    ['what it was issued for', { issued: 7 }],
+  ] as const)('a stored source that was rewritten in %s is forged', async (_, change) => {
+    const { w, verify } = await issued()
+    expect(await verify()).toEqual({ kind: 'trusted' })
+    await w.tamper(value => ({
+      ...value,
+      origin: { ...(value['origin'] as object), ...change },
+    }))
+    expect(await verify()).toMatchObject({ kind: 'forged' })
+  })
+
+  it('a stored source whose principal cannot be read back is not trusted', async () => {
+    const { w, verify } = await issued()
+    await w.tamper(value => ({ ...value, principal: 7 }))
+    expect(await verify()).toMatchObject({ kind: 'unavailable' })
+    expect(await verify({ operation: operationId('admit-other') })).not.toEqual({ kind: 'trusted' })
+  })
+})
+
+describe('the consuming position of a program call, read back', () => {
+  it('takes position 0, which loads the program, and refuses a parent that is not a call', () => {
+    expect(programPositionOf(programConsumer(callId('call-p'), 0))).toEqual({
+      parent: callId('call-p'),
+      ordinal: 0,
+    })
+    expect(programPositionOf({ ...programConsumer(callId('call-p'), 1), work: '' })).toBeNull()
+    expect(
+      programPositionOf({ ...programConsumer(callId('call-p'), 1), position: '1.5' }),
+    ).toBeNull()
+  })
+})
+
+describe('what is refused before a source is written', () => {
+  it('a position handed off to another child or under another admission', async () => {
+    for (const other of [
+      { child: callId('call-other') },
+      { admission: operationId('admit-other') },
+    ]) {
+      const w = await world()
+      await w.hand(1, 'handed', other)
+      expect(await w.resolve()).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })
+    }
+  })
+
+  it('a parent request, a target, or a tool that cannot be read', async () => {
+    const w = await world()
+    const broken = { ...w.placed(), request: { ...w.parent.request, consumer: 7 } }
+    expect(await w.source.programs.prepare(broken as never)).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid' },
+    })
+    const target = { ...w.target, arguments: { original: 7 } }
+    expect(await w.source.programs.prepare(w.placed(1, target as never))).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid' },
+    })
+    const unknown = {
+      ...w.target,
+      availability: { ...w.target.availability, name: 'no_such_tool' },
+    }
+    expect((await w.source.programs.prepare(w.placed(1, unknown as never))).kind).toBe('rejected')
+    expect(await w.source.programs.prepare(w.placed(-1))).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'ordinal', reason: 'range' },
+    })
+    expect((await w.source.programs.prepare(w.placed(0))).kind).toBe('prepared')
   })
 })

@@ -44,9 +44,15 @@ const handed: ProgramPosition = {
   background: false,
 }
 
-async function world(
-  over: Partial<{ stored: boolean; children: boolean; fails: ToolFailure }> = {},
-) {
+type WorldOver = Partial<{
+  stored: boolean
+  children: boolean
+  programs: boolean
+  fails: ToolFailure
+  storeThrows: boolean
+}>
+
+async function world(over: WorldOver = {}) {
   const memory = createMemoryToolLedgerStore()
   const store: ToolLedgerStore = { ...memory, durability: 'durable' }
   if (over.stored !== false)
@@ -86,9 +92,18 @@ async function world(
     background: given => answered('background', given),
   } as ToolChildren<string>
   const arrivals = createProgramArrivals()
+  const reading: ToolLedgerStore = {
+    ...store,
+    readRecord: (...given) => {
+      if (over.storeThrows === true) throw new Error('store broke')
+      return store.readRecord(...given)
+    },
+  }
   const input = {
-    store,
-    programs: { children: () => (over.children === false ? undefined : children) },
+    store: reading,
+    ...(over.programs === false
+      ? {}
+      : { programs: { children: () => (over.children === false ? undefined : children) } }),
   } as LocalInvocationSourceInput<string>
   const receiver = createProgramReceiver<string, ContentBlock>(input, arrivals)
   const push = (delivery: ToolDelivery<ContentBlock>, signal = new AbortController().signal) =>
@@ -142,8 +157,15 @@ describe('the receiver of a program position (TL-73)', () => {
     const w = await world()
     const waiting = w.arrivals.wait(tenantA, consumer, new AbortController().signal)
     const saved = ok(await w.push(result))
-    expect(saved.key).toEqual(result.key)
-    expect(saved.evidence).toMatchObject({ owner: consumer.owner })
+    expect(saved).toEqual({
+      key: result.key,
+      evidence: {
+        owner: consumer.owner,
+        record: `${sourceKey(consumer)}/position`,
+        revision: '1',
+        digest: canonicalDigest(result.key),
+      },
+    })
     expect(w.log).toEqual([
       [
         'retain',
@@ -257,5 +279,60 @@ describe('the receiver of a program position (TL-73)', () => {
       failure: { kind: 'cancelled-before-accept' },
     })
     expect(w.log).toEqual([])
+  })
+
+  it('refuses a delivery that names the call under another admission, and one that is not well formed', async () => {
+    const w = await world()
+    const other = ok(
+      encodeToolInvocationRef({
+        tenant: tenantA,
+        call: child.call,
+        admission: operationId('admit-other'),
+      }),
+    )
+    expect(await w.push({ ...result, key: { ...result.key, reference: other } })).toEqual({
+      failure: { kind: 'denied' },
+    })
+    const malformed = {
+      kind: 'account',
+      key: { kind: 'account', producer: 'tool', reference, event: 'e1', revision: '2' },
+      consumer,
+      account: { revision: '1', subject: { kind: 'tool_execution', id: child.call } },
+    } as never
+    expect(await w.push(malformed)).toMatchObject({
+      failure: { kind: 'invalid', field: 'key.revision' },
+    })
+    expect(w.log).toEqual([])
+  })
+
+  it('answers unavailable when this host runs no programs, or its store cannot be read', async () => {
+    const none = await world({ programs: false })
+    expect(await none.push(result)).toEqual({
+      failure: { kind: 'unavailable', dependency: 'program-positions' },
+    })
+    const broken = await world({ storeThrows: true })
+    expect(await broken.push(result)).toEqual({
+      failure: { kind: 'unavailable', dependency: 'program-positions' },
+    })
+  })
+
+  it('a wait that was already given up answers at once, and an arrival reaches every waiter of the position', async () => {
+    const { arrivals } = await world()
+    const gone = new AbortController()
+    gone.abort()
+    expect(await arrivals.wait(tenantA, consumer, gone.signal)).toBeNull()
+    const live = new AbortController()
+    const both = [1, 2].map(() => arrivals.wait(tenantA, consumer, live.signal))
+    const elsewhere = arrivals.wait(tenantA, programConsumer(parent, 4), live.signal)
+    const arrival = {
+      result: result.key.result,
+      terminal: result.terminal,
+      effect: result.effect,
+      data,
+    }
+    arrivals.arrived(tenantA, consumer, arrival)
+    expect(await Promise.all(both)).toEqual([arrival, arrival])
+    live.abort()
+    expect(await elsewhere).toBeNull()
   })
 })
