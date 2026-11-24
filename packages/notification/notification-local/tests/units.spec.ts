@@ -17,14 +17,14 @@ const at = (minute: number) => new Date(Date.UTC(2026, 10, 18, 6, minute)).toISO
 
 describe('wake-ups', () => {
   function wakeUps() {
-    const manual = manualTimers()
     const woken: string[] = []
     const clock = fakeClock('2026-11-18T06:00:00.000Z')
+    const manual = manualTimers(() => Date.parse(clock.now()))
     return {
       manual,
       woken,
       clock,
-      hints: createWakeUps(clock, manual.timers, tenant => void woken.push(tenant)),
+      hints: createWakeUps(manual.timers, tenant => void woken.push(tenant)),
     }
   }
 

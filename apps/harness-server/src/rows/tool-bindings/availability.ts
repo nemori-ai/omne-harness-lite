@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { calendarCalculatorKey } from '@omne-harness/calendar-cordis-contract/cordis'
 import {
   scheduleCommandsKey,
+  scheduleJobsKey,
   scheduleQueriesKey,
 } from '@omne-harness/schedule-cordis-contract/cordis'
 import {
@@ -28,7 +29,7 @@ import { toolEnvironmentsKey, toolMediaStoreKey } from '@omne-harness/tool-cordi
 import type { SessionWork } from '@omne-harness/session-contract'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import type { LocalToolAvailabilitySource } from '@omne-harness/tool-host-local'
-import { sourcedEntriesOf, sourcedEntryFor } from '../../entry/tool-entry-sources.ts'
+import { sourcedEntriesOf, sourceListsName } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import type { ToolReleaseManifest } from '../../entry/tool-release-manifest.ts'
 import { hostOffers } from '../execution-host/offers.ts'
@@ -180,10 +181,10 @@ function heldBy(ctx: Context, { layer, definition, tenant }: JudgeInput): boolea
   )
 }
 
-// A source entry belongs to the asking tenant, and is the one its source listed to this asker just now.
+// A source entry belongs to the asking tenant, and its source lists the name to this asker now.
 function fromSource(ctx: Context, input: JudgeInput): boolean {
   const asked = { kind: 'available', definition: input.definition, layer: input.layer } as const
-  return sourcedEntryFor(sourcedEntriesOf(ctx), input, asked) !== undefined
+  return sourceListsName(sourcedEntriesOf(ctx), input, asked)
 }
 
 function environmentInstalled(ctx: Context): boolean {
@@ -198,6 +199,7 @@ const CAPABILITY_SERVICES: Readonly<Record<string, string | ((ctx: Context) => b
   'calendar.read': calendarCalculatorKey,
   'schedule.read': scheduleQueriesKey,
   'schedule.write': scheduleCommandsKey,
+  'schedule.jobs': scheduleJobsKey,
   'notification.read': notificationInboxKey,
   'notification.write': notificationSendingKey,
   'session.read': sessionKey,

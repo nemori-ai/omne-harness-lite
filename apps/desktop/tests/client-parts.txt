@@ -64,11 +64,15 @@ notification.row.detail | 通知的正文 | 点开之后的内容 | notification
 notification.row.title | 通知的标题 | 点一下展开正文 | notification.row | tokens style | 有通知时 | notification-ui
 schedule.activation | 要启用的日程 | 放行卡里写明将启用什么 | human-intervention.paper.card.detail | tokens style | 放行卡是启用日程的调用时 | schedule-ui
 schedule.filter | 日程的筛选 | 只看当前的，或看全部 | schedule.list | tokens style | 一直在 | schedule-ui
+schedule.happened | 已发生 | 一份安排已发生的几次，新的在前 | schedule.reading | tokens style | 打开一条日程且读到已发生的时 | schedule-ui
+schedule.job | 作业详情 | 一份作业的状态、成因、要求与经过 | schedule.reading | tokens style | 打开一份作业且读到时 | schedule-ui
+schedule.job.cancel | 取消这一次 | 还没收场的作业可以取消 | schedule.reading | tokens style | 打开的作业还没收场时 | schedule-ui
 schedule.list | 日程列表 | 左边的一列日程 | schedule.page | tokens style | 一直在 | schedule-ui
 schedule.list.row | 日程的一行 | 列表里的一条日程 | schedule.list | tokens style | 有日程时 | schedule-ui
 schedule.page | 日程页 | 定好的时间与它们的下一次 | shell.workspace.page | tokens style | 一直在 | schedule-ui
 schedule.reading | 日程的阅读面 | 右边看一条日程的地方 | schedule.page | tokens style | 一直在 | schedule-ui
 schedule.refresh | 刷新日程 | 重读列表与打开的日程 | schedule.page | tokens style | 一直在 | schedule-ui
+schedule.run | 执行的一行 | 一份安排已发生的一次，或漏过的一段 | schedule.reading | tokens style | 打开一条日程且读到已发生的时 | schedule-ui
 schedule.title | 日程的名字 | 打开的这条日程叫什么 | schedule.reading | tokens style | 打开一条日程且读到时 | schedule-ui
 schedule.upcoming | 接下来几次 | 这条日程之后几次的时间 | schedule.reading | tokens style | 打开一条日程且读到预览时 | schedule-ui
 session.archived | 已归档 | 收起来的归档会话 | shell.sidebar | tokens style | 一直在 | session-ui

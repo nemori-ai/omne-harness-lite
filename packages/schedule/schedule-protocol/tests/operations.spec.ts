@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { revisionOf } from '@omne-harness/public-contract'
 import { scheduleProtocol } from '@omne-harness/schedule-protocol'
 import { expectRoundTrip, readSample, tenant } from './fixtures/samples.ts'
 
@@ -21,7 +22,7 @@ const detail = {
 }
 
 describe('schedule/v2', () => {
-  it('has the read and commit operations of the design and no observation', () => {
+  it('has the read and commit operations of the design; revision 2 adds the Job operations and one observation', () => {
     expect(Object.keys(operations)).toEqual([
       'list-schedules',
       'read-schedule',
@@ -32,11 +33,80 @@ describe('schedule/v2', () => {
       'query-create-schedule',
       'manage-schedule',
       'query-manage-schedule',
+      'list-jobs',
+      'read-job',
+      'cancel-job',
+      'query-cancel-job',
+      'start-job',
+      'query-start-job',
     ])
     expect(operations['create-schedule'].effect).toBe('commit')
     expect(operations['manage-schedule'].effect).toBe('commit')
     expect(operations['read-schedule'].effect).toBe('read')
-    expect(Object.keys(scheduleProtocol.observations)).toEqual([])
+    expect(operations['cancel-job'].effect).toBe('commit')
+    expect(operations['start-job'].effect).toBe('commit')
+    expect(operations['list-jobs'].since).toBe(2)
+    expect(Object.keys(scheduleProtocol.observations)).toEqual(['observe-jobs'])
+    expect(revisionOf(scheduleProtocol)).toBe(2)
+  })
+
+  it('round-trips a history page of the three row kinds and a Job in full; a row of a fourth kind is refused', () => {
+    const job = {
+      job: 'job-1',
+      state: 'running',
+      outcome: null,
+      stop: 'none',
+      origin: 'due',
+      acceptedAt: '2027-01-01T00:01:00.000Z',
+      startedAt: '2027-01-01T00:01:02.000Z',
+      endedAt: null,
+    }
+    expectRoundTrip(operations['list-jobs'].outcomes.succeeded, {
+      items: [
+        {
+          kind: 'lapse',
+          row: 'lapse:s:1',
+          schedule: 's',
+          at: '2027-01-01T00:02:00.000Z',
+          through: '2027-01-01T00:05:00.000Z',
+          cause: 'stopped',
+          reason: 'catch-up-none',
+          count: 3,
+          selected: 0,
+        },
+        {
+          kind: 'slot',
+          row: 'slot:s:1',
+          schedule: 's',
+          at: '2027-01-01T00:01:00.000Z',
+          local: '2027-01-01T08:01:00',
+          disposition: 'acceptedExecution',
+          reason: 'accepted',
+          job,
+        },
+        { kind: 'direct', row: 'direct:job-2', at: '2027-01-01T00:00:00.000Z', job },
+      ],
+      next: null,
+    })
+    expectRoundTrip(operations['read-job'].outcomes.succeeded, {
+      ...job,
+      schedule: 's',
+      slot: '2027-01-01T00:01:00.000Z',
+      local: '2027-01-01T08:01:00',
+      calendar: null,
+      version: null,
+      revision: 1,
+      work: { kind: 'program', programRef: 'probe', input: {} },
+      reason: null,
+      where: { kind: 'program', program: 'probe', execution: 'program:g:job-1' },
+      events: [{ seq: 1, kind: 'accepted', at: '2027-01-01T00:01:00.000Z' }],
+    })
+    expect(
+      readSample(operations['list-jobs'].outcomes.succeeded, {
+        items: [{ kind: 'notice', row: 'x', at: '2027-01-01T00:00:00.000Z' }],
+        next: null,
+      }).ok,
+    ).toBe(false)
   })
 
   it('round-trips a page of cards and a detail with its author, and no consent', () => {

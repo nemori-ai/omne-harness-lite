@@ -50,6 +50,9 @@
     "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {
       "name": 1
     },
+    "packages/schedule/schedule-ui/src/view/schedule-runs.tsx | {body}": {
+      "name": 1
+    },
     "packages/session/session-ui/src/view/background-pane.tsx | 后台有 {view.calls.length} 项在跑": {
       "name": 1
     },

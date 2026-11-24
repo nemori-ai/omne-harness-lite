@@ -54,12 +54,40 @@ export const originOf = (source: DurableEvidence): HistoryEntry['origin'] => ({
 export const completeEvidence = (source: DurableEvidence): boolean =>
   [source.owner, source.record, source.revision, source.digest].every(part => part.length > 0)
 
+function segmentEntries(
+  snapshot: Pick<WorkSnapshot, 'segments'> | null,
+  segments: NonNullable<ResidentAdoption['segments']>,
+  source: DurableEvidence,
+): Decision {
+  const known = new Map((snapshot?.segments ?? []).map(segment => [segment.key, segment.text]))
+  const keys = new Set<string>()
+  const out: EncodedEntry[] = []
+  for (const segment of segments) {
+    if (!segment.key || !segment.text || keys.has(segment.key))
+      return invalid('residentAdoption.segments', 'empty or duplicate segment')
+    if (!segment.sources.every(item => item.category && item.name && item.digest))
+      return invalid('residentAdoption.segments', 'incomplete segment source')
+    keys.add(segment.key)
+    const prior = known.get(segment.key)
+    if (prior === segment.text) continue
+    if (prior !== undefined && !segment.text.startsWith(prior))
+      return invalid(
+        'residentAdoption.segments',
+        'a new revision of a resident segment must begin with the previous text',
+      )
+    out.push(encodeEntry({ kind: 'session.prompt-segment-admitted', segment }, originOf(source)))
+  }
+  return entries(out)
+}
+
 export function residentEntries(
-  snapshot: Pick<WorkSnapshot, 'residents'> | null,
+  snapshot: Pick<WorkSnapshot, 'residents' | 'segments'> | null,
   material: ResidentAdoption | undefined,
   source: DurableEvidence,
 ): Decision {
   if (material === undefined) return entries([])
+  const segments = segmentEntries(snapshot, material.segments ?? [], source)
+  if (segments.kind !== 'entries') return segments
   const known = new Map(
     (snapshot?.residents ?? []).map(resident => [resident.capability, resident]),
   )
@@ -85,12 +113,15 @@ export function residentEntries(
       out.push(encodeEntry({ kind: 'session.tool-resident-admitted', resident }, originOf(source)))
     }
   }
+  const keyed = new Set(
+    [...known.values()].filter(item => item.definition === undefined).map(item => item.capability),
+  )
   if (
-    [...known.keys()].some(capability => !keys.has(capability)) ||
-    [...keys].some(capability => !known.has(capability))
+    [...keyed].some(capability => !keys.has(capability)) ||
+    [...keys].some(capability => !keyed.has(capability))
   )
     return invalid('residentAdoption.keys', 'keys must cover the complete resident capability set')
-  return entries(out)
+  return entries([...out, ...segments.entries])
 }
 
 export function terminalEntries(

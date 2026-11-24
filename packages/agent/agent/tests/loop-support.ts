@@ -73,6 +73,7 @@ export function conditions(
     model: adoption('model'),
     context: evidence('context'),
     bindings: [],
+    segments: [],
   }
 }
 

@@ -3,6 +3,7 @@ import type {
   ScheduleCallContext,
   ScheduleCommands,
   ScheduleInstant,
+  ScheduleJobs,
   ScheduleQueries,
 } from '@omne-harness/schedule-contract'
 import type { ToolExecutionContext, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
@@ -119,6 +120,49 @@ export function attachSchedules(
     finish(exit) {
       if (finished !== undefined) return finished
       if (attachments.get(context.signal) === schedules) attachments.delete(context.signal)
+      finished = Promise.resolve().then(() => scope.finish(exit))
+      return finished
+    },
+  }
+}
+
+export type JobsCallSource = Omit<ScheduleCallSource, 'commands'> &
+  Readonly<{ jobs(): ScheduleJobs | undefined }>
+export type JobsFaces = ScheduleReadFaces & Readonly<{ jobs: ScheduleJobs }>
+
+export type BoundJobs = Readonly<{
+  faces(): Promise<JobsFaces | ScheduleUnreachable>
+  operationKey(step: string): string
+}>
+
+export function bindJobs(source: JobsCallSource): BoundJobs {
+  const reads = bindScheduleReads(source)
+  return {
+    async faces() {
+      const jobs = source.jobs()
+      if (jobs === undefined) return unavailable
+      const faces = await reads.faces()
+      return 'kind' in faces ? faces : { ...faces, jobs }
+    },
+    operationKey: step => `tool:${digestOf([source.tenant, source.call, 'Jobs', step])}`,
+  }
+}
+
+const jobAttachments = new WeakMap<AbortSignal, BoundJobs>()
+export function jobsOf(context: Pick<ToolExecutionContext, 'signal'>): BoundJobs | undefined {
+  return jobAttachments.get(context.signal)
+}
+
+export function attachJobs(scope: ToolExecutionScope, jobs: BoundJobs): ToolExecutionScope {
+  const context = scope.context
+  jobAttachments.set(context.signal, jobs)
+  let finished: ReturnType<ToolExecutionScope['finish']> | undefined
+  return {
+    context,
+    limits: scope.limits,
+    finish(exit) {
+      if (finished !== undefined) return finished
+      if (jobAttachments.get(context.signal) === jobs) jobAttachments.delete(context.signal)
       finished = Promise.resolve().then(() => scope.finish(exit))
       return finished
     },

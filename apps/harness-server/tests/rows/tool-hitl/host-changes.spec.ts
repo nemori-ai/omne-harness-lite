@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { systemTime } from '@omne-harness/time-source'
+import { readInstantText } from '../../../src/entry/time.ts'
 import type { CardChangeListener } from '@omne-harness/human-intervention-access'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -42,6 +44,7 @@ function makeHost() {
     verifier: () => authority.verifier,
     standing: () => ({ read: async () => ({ kind: 'not-member', evidence: {} }) as never }),
     reservations: () => ({}) as never,
+    now: () => readInstantText(systemTime()),
   })
 }
 

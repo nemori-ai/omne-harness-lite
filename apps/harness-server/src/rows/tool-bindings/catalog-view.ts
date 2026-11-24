@@ -93,11 +93,28 @@ async function heldEntries(
   }
   // A resident whose tool is not in force now keeps the version the session took: the catalog answers for it in its shape.
   for (const resident of work.residents) {
+    if (resident.definition !== undefined) continue
     if (official.has(resident.capability) || entries.has(resident.capability)) continue
     const recorded = await held.recorded?.(access, resident)
     if (recorded !== undefined) entries.set(resident.capability, { ...recorded, resident: true })
   }
   return [...entries.values()]
+}
+
+function sourcedEntries(access: Access<unknown>, work: CatalogWork): readonly Entry[] {
+  return work.residents.flatMap(resident => {
+    if (resident.definition?.kind !== 'string') return []
+    const definition = JSON.parse(resident.definition.value) as ToolDefinition
+    const asset = { name: definition.name, adoption: definition.adoption }
+    return [
+      {
+        key: { layer: { kind: 'tenant' as const, tenant: access.tenant }, asset },
+        resident: true,
+        knownDefinition: definition,
+        sourced: true as const,
+      },
+    ]
+  })
 }
 
 export function createReleaseCatalogView(
@@ -136,9 +153,14 @@ export function createReleaseCatalogView(
         const official = new Set(release.manifest.entries.map(entry => entry.asset.name))
         const held = await heldEntries(ports.held, access, official, work.ok)
         // Unread, a session whose residents are all of the release goes on with those; one that keeps another tool waits.
-        if (held === undefined && work.ok.residents.some(item => !official.has(item.capability)))
+        if (
+          held === undefined &&
+          work.ok.residents.some(
+            item => item.definition === undefined && !official.has(item.capability),
+          )
+        )
           return unavailable('what the tenant holds cannot be read')
-        entries.push(...(held ?? []))
+        entries.push(...(held ?? []), ...sourcedEntries(access, work.ok))
         const identity = {
           tenant: access.tenant,
           session,

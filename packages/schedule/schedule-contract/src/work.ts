@@ -132,6 +132,7 @@ export const SchedulePurposeSchema = z.discriminatedUnion('kind', [
   }),
 ])
 export type SchedulePurpose = z.infer<typeof SchedulePurposeSchema>
+export type ScheduleOverlap = z.infer<typeof ScheduleOverlapSchema>
 export type ScheduleWork = z.infer<typeof ScheduleWorkSchema>
 export type ScheduleResultPolicy = z.infer<typeof ScheduleResultPolicySchema>
 export type ScheduleAgentSessionPlan = z.infer<typeof ScheduleAgentSessionPlanSchema>

@@ -14,7 +14,7 @@ import {
 } from '@omne-harness/notification-cordis-contract/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { runtimeContextTenantBlocksKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { defineRow } from '../../row.ts'
 import { standingItemsBinding } from '../notification/standing.ts'
 import { pluginReportsKey, type PluginReportsService } from '../plugin-access/reports-service.ts'
@@ -49,19 +49,16 @@ async function announce(ctx: Context, news: readonly Arrival[], warn: (line: str
       if (sending === undefined || !id.success) return
       const context = { tenant: id.data, subject: null, actor: { kind: 'system', source } } as const
       for (const arrival of news) {
-        const answer = await sending.send(context, arrivalRequest(source, tenant, arrival, now()))
+        const answer = await sending.send(
+          context,
+          arrivalRequest(source, tenant, arrival, instantTextOf(ctx, 'plugin-notification')),
+        )
         if (answer.kind !== 'done')
           warn(`tenant ${tenant}: ${arrival.type} ${arrival.name} not told: ${answer.kind}`)
       }
     },
     warn,
   })
-}
-
-function now(): string {
-  const instant = readSystemInstant()
-  if (!instant.ok) throw new Error('the clock of the load failures is unavailable')
-  return instant.text
 }
 
 /** The extensions as a source of notification: a held plugin a client could not load is a standing item of its tenant.
@@ -81,7 +78,7 @@ export const pluginNotificationRow = defineRow({
       listed,
       reports: tenant =>
         (ctx.get(pluginReportsKey) as PluginReportsService | undefined)?.reportsOf(tenant),
-      now,
+      now: () => instantTextOf(ctx, 'plugin-notification'),
     })
     // Notification's need is bound only while Notification is there to read it.
     ctx.inject([notificationSourcesKey, runtimeContextTenantBlocksKey], child => {

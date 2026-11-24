@@ -3,9 +3,10 @@ import {
   calendarImportSeedResultSchema,
   calendarProbeResultSchema,
 } from '@omne-harness/calendar-contract'
+import { simulatedTime } from '@omne-harness/time-source/simulated'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createCalendarSupplyRunner, type CalendarRunnerEvent } from '../../src/runner/index.ts'
-import { application, context } from './fixture.ts'
+import { application, context, hostTimers } from './fixture.ts'
 
 afterEach(() => vi.useRealTimers())
 function setup(
@@ -27,6 +28,7 @@ function setup(
     initializationOperationKey: 'initialize-intent',
     acknowledgementKey: 'ack-intent',
     intervalMs: 1000,
+    timers: hostTimers,
     drainTimeoutMs: 10,
     limit: 10,
     phases: { recover: true, runDue: true, deliverReactions: true },
@@ -468,3 +470,18 @@ it.each([1, 2])(
     await w.runner.stop()
   },
 )
+
+it('a wall clock moved an hour ahead is a stop of an hour: no cycle starts early, and the next comes at its interval', async () => {
+  const time = simulatedTime({ wall: Date.parse('2026-11-18T06:00:00.000Z') })
+  const w = setup({ timers: time.source })
+  await w.runner.start()
+  const cycles = w.contextSupplier.mock.calls.length
+  time.setWall(time.source.now() + 3_600_000)
+  time.advance(999)
+  await Promise.resolve()
+  expect(w.contextSupplier).toHaveBeenCalledTimes(cycles)
+  time.advance(1)
+  await vi.waitFor(() => expect(w.contextSupplier).toHaveBeenCalledTimes(cycles + 1))
+  expect(w.events.filter(event => event.kind === 'failure')).toEqual([])
+  await w.runner.stop()
+})

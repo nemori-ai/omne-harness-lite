@@ -6,6 +6,10 @@ import { bindingSchema, HANDLER, PROTOCOL, recordSchema, revisionSchema } from '
 import { readRequestSchema, type PageRequest, type RepositoryRequest } from './read-schema.ts'
 import { cursorKey, nextCursor, pageRelation, visibleRelation } from './pagination.ts'
 import { readRecord } from './records.ts'
+import { readPending } from './dispatch-read.ts'
+import { dispatchJobOf } from './dispatch-jobs.ts'
+import { shownRecord } from './dispatch-standing.ts'
+import { readHistoryRequest } from './history-read.ts'
 function observation(port: ReadPort, owner: ScheduleOwner): string {
   const row = port.execute('SELECT revision FROM sc_observations WHERE owner = ? LIMIT 1', [
     canonical(owner),
@@ -27,7 +31,10 @@ function get(input: Extract<RepositoryRequest, { kind: 'get' }>, port: ReadPort)
     throw new Error('Stored schedule binding mismatch')
   return {
     kind: 'ok',
-    value: { observationRevision: observation(port, input.access.owner), value: record },
+    value: {
+      observationRevision: observation(port, input.access.owner),
+      value: shownRecord(port, record),
+    },
   }
 }
 function page(input: PageRequest, port: ReadPort) {
@@ -58,7 +65,7 @@ function page(input: PageRequest, port: ReadPort) {
       const record = recordSchema.parse(stored)
       if (!equal(record.view.owner, input.access.owner) || record.view.scheduleId !== row[0])
         throw new Error('Stored schedule binding mismatch')
-      return record.view
+      return shownRecord(port, record).view
     }
     const revision = revisionSchema.parse(stored)
     if (
@@ -90,6 +97,23 @@ function page(input: PageRequest, port: ReadPort) {
   }
 }
 function read(input: RepositoryRequest, port: ReadPort) {
+  if (input.kind === 'dispatchJob')
+    return ownerMatches(input.scope, input.owner)
+      ? { kind: 'ok', value: dispatchJobOf(port, input.owner, input.jobId) }
+      : { kind: 'absent' }
+  if (input.kind === 'dispatchPending')
+    return ownerMatches(input.scope, input.owner)
+      ? { kind: 'ok', value: readPending(port, input) }
+      : { kind: 'absent' }
+  if (
+    input.kind === 'history' ||
+    input.kind === 'historyRevision' ||
+    input.kind === 'jobDetail' ||
+    input.kind === 'jobCancel'
+  )
+    return ownerMatches(input.scope, input.owner)
+      ? readHistoryRequest(port, input)
+      : { kind: 'absent' }
   const owner =
     input.kind === 'schedule'
       ? input.owner

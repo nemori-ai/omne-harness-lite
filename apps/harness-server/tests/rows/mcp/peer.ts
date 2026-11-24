@@ -9,6 +9,8 @@ export type PeerAction = Readonly<{
   description: string
   /** What the action answers; `hang` never answers, so the caller sees the connection break. */
   answer: 'echo' | 'error' | 'hang'
+  /** What the action takes: a text by default, or a count. */
+  input?: 'text' | 'count'
 }>
 
 export type PeerCall = Readonly<{ action: string; text: string }>
@@ -55,17 +57,28 @@ export async function testPeer(
   const sessions = new Set<Readonly<{ peer: McpServer; tools: Map<string, Registered> }>>()
 
   function register(peer: McpServer, action: PeerAction): Registered {
-    return peer.registerTool(
-      action.name,
-      { description: action.description, inputSchema: z.object({ text: z.string() }) },
-      async ({ text }) => {
-        calls.push({ action: action.name, text })
-        if (action.answer === 'hang') await new Promise<never>(() => undefined)
-        return action.answer === 'error'
-          ? { isError: true, content: [{ type: 'text', text: `${action.name} refused ${text}` }] }
-          : { content: [{ type: 'text', text: `${action.name} answered ${text}` }] }
-      },
-    )
+    const answered = async (text: string) => {
+      calls.push({ action: action.name, text })
+      if (action.answer === 'hang') await new Promise<never>(() => undefined)
+      return action.answer === 'error'
+        ? {
+            isError: true,
+            content: [{ type: 'text' as const, text: `${action.name} refused ${text}` }],
+          }
+        : { content: [{ type: 'text' as const, text: `${action.name} answered ${text}` }] }
+    }
+    const facts = { description: action.description }
+    return action.input === 'count'
+      ? peer.registerTool(
+          action.name,
+          { ...facts, inputSchema: z.object({ count: z.number() }) },
+          async ({ count }) => answered(String(count)),
+        )
+      : peer.registerTool(
+          action.name,
+          { ...facts, inputSchema: z.object({ text: z.string() }) },
+          async ({ text }) => answered(text),
+        )
   }
 
   function sessionOf(): McpServer {
@@ -119,6 +132,7 @@ export async function testPeer(
     target: `http://127.0.0.1:${String(port)}/mcp`,
     calls,
     offer(actions) {
+      const offeredBefore = offered
       offered = actions
       for (const { peer, tools } of sessions) {
         for (const [name, tool] of tools)
@@ -128,7 +142,11 @@ export async function testPeer(
           }
         for (const action of actions) {
           const tool = tools.get(action.name)
-          if (tool === undefined) tools.set(action.name, register(peer, action))
+          const was = offeredBefore.find(before => before.name === action.name)
+          if (tool !== undefined && (was?.input ?? 'text') !== (action.input ?? 'text')) {
+            tool.remove()
+            tools.set(action.name, register(peer, action))
+          } else if (tool === undefined) tools.set(action.name, register(peer, action))
           else tool.update({ description: action.description })
         }
       }

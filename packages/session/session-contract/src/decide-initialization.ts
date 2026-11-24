@@ -49,7 +49,7 @@ function withInitialization(action: () => Decision): Decision {
 }
 
 function adoptionEntries(
-  snapshot: Pick<WorkSnapshot, 'residents'> | null,
+  snapshot: Pick<WorkSnapshot, 'residents' | 'segments'> | null,
   value: InitializationAdoption,
   createOperation: SessionOperationId,
   item: Readonly<{ owner: string; item: string }> | null,
@@ -57,7 +57,11 @@ function adoptionEntries(
 ): readonly EncodedEntry[] {
   const residents = residentEntries(
     snapshot,
-    { residents: value.newResidents, keys: value.residentBindings },
+    {
+      residents: value.newResidents,
+      keys: value.residentBindings,
+      ...(value.newSegments === undefined ? {} : { segments: value.newSegments }),
+    },
     value.source,
   )
   if (residents.kind !== 'entries') {
@@ -144,7 +148,10 @@ function successfulFacts(
         'execution readiness asserts an adoption without new capability facts',
       )
     return adoptionEntries(
-      snapshot ?? { residents: state.initialAdoption.newResidents },
+      snapshot ?? {
+        residents: state.initialAdoption.newResidents,
+        segments: state.initialAdoption.newSegments ?? [],
+      },
       consequence.adoption,
       state.createOperation,
       plan,

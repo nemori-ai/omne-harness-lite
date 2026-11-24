@@ -8,6 +8,7 @@ import {
 } from '@omne-harness/legal-identity'
 import { createTrust, type Trust } from '../../src/trust.ts'
 import type { EntryEnv, EntryObjectModule, EntryTime, ServiceName } from '../../src/types.ts'
+import { holdRunTime, timeOf } from '../../src/entry/time.ts'
 
 function parsed<T>(result: { ok: true; value: T } | { ok: false }, what: string): T {
   if (!result.ok) throw new Error(`fixture ${what} did not parse`)
@@ -105,6 +106,7 @@ export function fixtureEnv(
     once: onceTable(),
     ...(time === undefined ? {} : { time }),
   }
+  holdRunTime(root, timeOf(env))
   const scopeOf = (name: ServiceName): Context =>
     trust.isTrusted(name) ? trust.contextForName(root, name) : root
   return {

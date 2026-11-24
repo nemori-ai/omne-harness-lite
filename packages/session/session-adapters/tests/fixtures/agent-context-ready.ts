@@ -182,6 +182,7 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
     model: profile.adoption,
     context: evidence('conditions-context'),
     bindings: [],
+    segments: [],
   }
   const prepared = await requests.prepare({
     ...access,

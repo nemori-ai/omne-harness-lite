@@ -16,7 +16,8 @@ import {
 import { defineRow } from '../../row.ts'
 import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import { officialSkillPorts, officialSkills } from './official-skills.ts'
-import { routedSkills, tenantSkills, TenantSkillsHost } from './tenant-skills.ts'
+import { provideSessionSkills, sessionSkillsKey } from './session-skills.ts'
+import { routedSkills, sessionSkillsOf, tenantSkills, TenantSkillsHost } from './tenant-skills.ts'
 
 export const skillsRowConfig = z.strictObject({
   ranking: z.strictObject({ k1: z.number().positive(), b: z.number().min(0).max(1) }),
@@ -57,7 +58,7 @@ export const skillsRow = defineRow({
   row: 'skills',
   implementation: 'real',
   manifest: {
-    provides: [skillCatalogKey, skillAccessKey],
+    provides: [skillCatalogKey, skillAccessKey, sessionSkillsKey],
     injects: [tenantAssetsKey, assetCategoriesKey],
     sameProviderGroup: null,
   },
@@ -91,6 +92,7 @@ export const skillsRow = defineRow({
     const routed = routedSkills(host)
     new TenantSkillCatalog(ctx, routed.catalog)
     new TenantSkillAccess(ctx, routed.access)
+    provideSessionSkills(ctx, sessionSkillsOf(host))
     ctx.effect(() => () => host.close(), 'skills.close')
     return {
       async stop() {
