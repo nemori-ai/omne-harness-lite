@@ -7,7 +7,7 @@ import type {
   InitializationGuardFacts,
 } from './values.ts'
 import type { Adoption, ResidentKey } from './identity.ts'
-import type { ResidentTool } from './values.ts'
+import type { ResidentSegment, ResidentTool } from './values.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { fromJsonValue, toJsonValue } from './entries.ts'
 import { INITIALIZATION_RELEASE_DIGEST } from './release-digests.ts'
@@ -42,6 +42,22 @@ export type {
   InitializationFactReference,
 } from './values.ts'
 
+function segment(value: unknown): ResidentSegment {
+  const fields = object(value, ['key', 'text', 'sources'])
+  return {
+    key: text(fields['key']),
+    text: text(fields['text']),
+    sources: list(fields['sources'], item => {
+      const source = object(item, ['category', 'name', 'digest'])
+      return {
+        category: text(source['category']),
+        name: text(source['name']),
+        digest: text(source['digest']),
+      }
+    }),
+  }
+}
+
 function resident(value: unknown): ResidentTool {
   const fields = object(value, ['capability', 'version', 'shape', 'admitted'])
   return {
@@ -51,6 +67,9 @@ function resident(value: unknown): ResidentTool {
     admitted: evidence(fields['admitted']),
   }
 }
+
+const hasOwn = (value: unknown, key: string): boolean =>
+  typeof value === 'object' && value !== null && Object.hasOwn(value, key)
 
 export function adoptionMaterial(value: unknown, initial: true): InitialAdoption
 export function adoptionMaterial(value: unknown, initial: false): InitializationAdoption
@@ -67,6 +86,7 @@ export function adoptionMaterial(
     'capabilities',
     'residentBindings',
     'newResidents',
+    ...(hasOwn(value, 'newSegments') ? ['newSegments'] : []),
     ...(initial ? ['candidate'] : []),
   ])
   const adopted: InitializationAdoption = {
@@ -81,10 +101,16 @@ export function adoptionMaterial(
       return { capability: text(pair['capability']), key: text(pair['key']) as ResidentKey }
     }),
     newResidents: list(fields['newResidents'], resident),
+    ...(fields['newSegments'] === undefined
+      ? {}
+      : { newSegments: list(fields['newSegments'], segment) }),
   }
   for (const values of [adopted.residentBindings, adopted.newResidents])
     if (new Set(values.map(value => value.capability)).size !== values.length)
       throw new InitializationInvalid('duplicate resident capability')
+  const segmentKeys = (adopted.newSegments ?? []).map(item => item.key)
+  if (new Set(segmentKeys).size !== segmentKeys.length)
+    throw new InitializationInvalid('duplicate resident segment')
   return initial ? { ...adopted, candidate: adoption(fields['candidate']) } : adopted
 }
 

@@ -1,11 +1,17 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { createHash } from 'node:crypto'
+import { capabilityId } from '@omne-harness/assets'
 import type {
   DurableEvidence,
   ResidentAdoption,
+  ResidentSegment,
   SessionAccess,
   SessionFailure,
+  WorkSnapshot,
 } from '@omne-harness/session-contract'
+import { residentSkillLine, residentSkillsText } from '@omne-harness/skill'
+import { skillBodyContract } from '@omne-harness/skill-contract'
 import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
 import {
   ToolBindingsService,
@@ -15,6 +21,9 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
 import { TOOL_RELEASE_FILE } from '../../entry/tool-release-manifest.ts'
+import type { ResidentReference } from '../agent-adoptions/definition-mappings.ts'
+import { TOOL_CATEGORY } from '../agent-adoptions/table.ts'
+import { SessionSkillsService, sessionSkillsKey } from '../skills/session-skills.ts'
 import type { Turn } from '../tenant-assets/turn.ts'
 import { currentHeldTool } from '../tool-host/held-current.ts'
 import { createAdoptionPlanner, type AdoptionDefinition } from './planner.ts'
@@ -79,11 +88,22 @@ function current<T>(ctx: Context, key: string, kind: abstract new (...args: neve
   return service instanceof kind ? service : undefined
 }
 
-export async function plannedResidents<P>(
+/** Says why a resident a definition names is left out of the session: it is not held, or cannot be read now. */
+export type ResidentReport = (reason: string) => void
+
+/** What a session already keeps, so a changed definition only adds to it. */
+export type KeptResidents = Pick<WorkSnapshot, 'residents' | 'segments' | 'residentKeys'>
+
+const NOTHING_KEPT: KeptResidents = Object.freeze({ residents: [], segments: [], residentKeys: [] })
+
+const namesOf = (references: readonly ResidentReference[], category: string) =>
+  references.filter(reference => reference.category === category).map(({ name }) => name)
+
+async function plannedTools<P>(
   ctx: Context,
   capabilities: readonly string[],
   access: SessionAccess<P> | undefined,
-  turn: Turn | null = null,
+  turn: Turn | null,
 ): Promise<ResidentsAnswer> {
   if (capabilities.length === 0) return succeed(NO_RESIDENTS)
   if (access === undefined) return unavailable('the create carries no access to plan them with')
@@ -116,4 +136,87 @@ export async function plannedResidents<P>(
   if (missing.length > 0 || material.residents.length !== capabilities.length)
     return unavailable(`the plan left out ${missing.join(', ') || 'a first definition'}`)
   return succeed(material)
+}
+
+const SKILLS_SEGMENT = 'skills'
+const SKILL_CATEGORY = skillBodyContract().category
+
+const lineDigest = (line: string) => `sha256:${createHash('sha256').update(line).digest('hex')}`
+
+/** The segment of the resident Skills: the one the session keeps, with a line added for each Skill it does not have yet. */
+async function skillsSegment<P>(
+  ctx: Context,
+  names: readonly string[],
+  access: SessionAccess<P> | undefined,
+  kept: ResidentSegment | undefined,
+  report: ResidentReport,
+): Promise<ResidentSegment | undefined> {
+  const had = new Set((kept?.sources ?? []).map(source => source.name))
+  const wanted = names.filter(name => !had.has(name))
+  if (wanted.length === 0) return undefined
+  const skills = current(ctx, sessionSkillsKey, SessionSkillsService)
+  if (skills === undefined || access === undefined) {
+    report(`resident skills ${wanted.join(', ')}: the Skill catalog cannot be read now`)
+    return undefined
+  }
+  const ids = wanted.flatMap(name => {
+    const id = capabilityId(SKILL_CATEGORY, name)
+    return id.ok ? [id.id] : []
+  })
+  const read = await skills.summaries(access.tenant, ids)
+  if (!('ok' in read)) {
+    report(`resident skills ${wanted.join(', ')}: the Skill catalog cannot be read now`)
+    return undefined
+  }
+  const byName = new Map(read.ok.map(entry => [String(entry.name), entry]))
+  const entries = wanted.flatMap(name => {
+    const entry = byName.get(name)
+    if (entry === undefined) report(`resident skill ${name}: this tenant does not hold it`)
+    return entry === undefined ? [] : [entry]
+  })
+  if (entries.length === 0) return undefined
+  const lines = entries.map(residentSkillLine)
+  return {
+    key: SKILLS_SEGMENT,
+    text: kept === undefined ? residentSkillsText(entries) : [kept.text, ...lines].join('\n'),
+    sources: [
+      ...(kept?.sources ?? []),
+      ...entries.map((entry, at) => ({
+        category: SKILL_CATEGORY,
+        name: String(entry.name),
+        digest: lineDigest(lines[at] ?? ''),
+      })),
+    ],
+  }
+}
+
+/** What a session adopts as resident from the references of its definition, over what it already keeps. */
+export async function plannedResidents<P>(
+  ctx: Context,
+  references: readonly ResidentReference[],
+  access: SessionAccess<P> | undefined,
+  report: ResidentReport,
+  turn: Turn | null = null,
+  kept: KeptResidents = NOTHING_KEPT,
+): Promise<ResidentsAnswer> {
+  const keptTools = new Set(kept.residents.map(resident => resident.capability))
+  const tools = await plannedTools(
+    ctx,
+    namesOf(references, TOOL_CATEGORY).filter(name => !keptTools.has(name)),
+    access,
+    turn,
+  )
+  if ('failure' in tools) return tools
+  const segment = await skillsSegment(
+    ctx,
+    namesOf(references, SKILL_CATEGORY),
+    access,
+    kept.segments?.find(item => item.key === SKILLS_SEGMENT),
+    report,
+  )
+  return succeed({
+    residents: tools.ok.residents,
+    keys: [...(kept.residentKeys ?? []), ...tools.ok.keys],
+    ...(segment === undefined ? {} : { segments: [segment] }),
+  })
 }

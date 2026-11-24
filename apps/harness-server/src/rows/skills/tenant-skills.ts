@@ -1,7 +1,12 @@
 import { join } from 'node:path'
 import { type AssetLayerSource } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
-import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
+import {
+  access as accessOf,
+  tenantCodec,
+  type Access,
+  type TenantId,
+} from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
 import {
@@ -25,10 +30,12 @@ import {
   type WorkspaceLayerPorts,
 } from '../tenant-assets/layers.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
+import type { SessionSkillsService } from './session-skills.ts'
 
 export type TenantSkills = Readonly<{
   catalog: SkillCatalog<unknown, unknown>
   access: SkillAccess<unknown, unknown>
+  sessionCatalog: SkillCatalog<unknown, unknown>
 }>
 
 export type WorkspaceSkillPorts = WorkspaceLayerPorts
@@ -69,13 +76,17 @@ export function tenantSkills(
     const { sources, body } = layers(access, scope)
     return skillInputsFromAssets<unknown, unknown>({ sources, body })
   }
-  const ownWork = (principal: unknown) => sessionWorkOf(principal, tenant) !== undefined
-  const { resolution, readCheck } = createSkillDecisions<unknown, unknown>({
-    layers: (access, scope, capability) => inputs(access, scope).layers(access, scope, capability),
-    identities: (access, scope) => inputs(access, scope).identities(access, scope),
-    eligible: async who => (ownWork(who.principal) ? 'yes' : 'no'),
-    readable: async who => (ownWork(who.principal) ? GRANTED : REFUSED),
-  })
+  const decisionsFor = (asWork: (principal: unknown) => boolean) =>
+    createSkillDecisions<unknown, unknown>({
+      layers: (access, scope, capability) =>
+        inputs(access, scope).layers(access, scope, capability),
+      identities: (access, scope) => inputs(access, scope).identities(access, scope),
+      eligible: async who => (asWork(who.principal) ? 'yes' : 'no'),
+      readable: async who => (asWork(who.principal) ? GRANTED : REFUSED),
+    })
+  const { resolution, readCheck } = decisionsFor(
+    principal => sessionWorkOf(principal, tenant) !== undefined,
+  )
   const directory = directoryOf(assets)
   const accessOver = (readerOf: PackageReaderOf) =>
     createSkillAccess({
@@ -99,6 +110,10 @@ export function tenantSkills(
     turnKeyOf(scope) === null ? tenantAccess : accessOver(layers(access, scope).readerOf)
   return {
     catalog: createSkillCatalog({ resolution, readCheck }, { ranking }),
+    sessionCatalog: createSkillCatalog(
+      decisionsFor(() => true),
+      { ranking },
+    ),
     access: {
       read: (access, scope, target, options) =>
         accessFor(access, scope).read(access, scope, target, options),
@@ -149,7 +164,18 @@ export class TenantSkillsHost {
 }
 
 const CATALOG_UNKNOWN = Object.freeze(fail('unknown' as const))
+const SESSION_WORK = Object.freeze({ kind: 'session-work-of-the-tenant' } as const)
 const ACCESS_UNKNOWN = Object.freeze(fail({ kind: 'unknown' } as const))
+
+/** What the work of a session of the tenant would see for these Skills now: asked at an adoption point. */
+export function sessionSkillsOf(host: TenantSkillsHost): SessionSkillsService['summaries'] {
+  return async (tenant, capabilities) => {
+    const set = await host.get(tenant)
+    return set === undefined
+      ? CATALOG_UNKNOWN
+      : set.sessionCatalog.summaries(accessOf(SESSION_WORK, tenant), null, capabilities)
+  }
+}
 
 /** The two Skill services over all tenants: each call goes to the set of its own tenant. */
 export function routedSkills(host: TenantSkillsHost): Readonly<{

@@ -309,6 +309,48 @@ describe('the groups that Request Context reads', () => {
       ).toEqual(expect.stringContaining('"name":"coding"'))
     })
 
+    it('places each resident segment after the sections of the definition, as written, and keeps it through a saved request', async () => {
+      const w = await createWorld({
+        definitions: async () => ({ kind: 'value', value: sections }),
+      })
+      const segments = [
+        { key: 'kept', text: '## Kept at hand\n- notes: keeps {{names}} as written' },
+      ]
+      const result = await prepared(w, {
+        definition,
+        conditions: { ...w.conditions, segments },
+      })
+      expect(systemText(result).split('\n')).toEqual([
+        '# Role',
+        '# Trust',
+        '# Tools',
+        '## Kept at hand',
+        '- notes: keeps {{names}} as written',
+      ])
+      const { readMemento, saveMemento } = await import('../src/request-memento.ts')
+      const memento = {
+        schema: 'agent-context/original-request/1' as const,
+        scope: 'scope-1',
+        inputs: w.prepareInput().inputs,
+        conditions: { ...w.conditions, segments },
+        definition,
+      }
+      expect(readMemento(saveMemento(memento))?.conditions.segments).toEqual(segments)
+      const { segments: _segments, ...older } = memento.conditions
+      expect(readMemento(saveMemento({ ...memento, conditions: older as never }))).toBeNull()
+    })
+
+    it('a definition without sections still gets the resident segments', async () => {
+      const w = await createWorld({
+        definitions: async () => ({ kind: 'value', value: [] }),
+      })
+      const result = await prepared(w, {
+        definition,
+        conditions: { ...w.conditions, segments: [{ key: 'kept', text: '- only' }] },
+      })
+      expect(systemText(result)).toBe('- only')
+    })
+
     it('fails closed when the definition cannot be read: no candidate, and no empty prompt is sent', async () => {
       let assembled = 0
       const w = await createWorld({
