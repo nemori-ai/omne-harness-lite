@@ -96,7 +96,10 @@ test('输入框的截图钮：每块屏上铺一层遮罩，框一块画上标�
   await expect(previews).toHaveCount(2, { timeout: 30_000 })
   await expect.poll(sizes).toEqual([[400 * ratio, 300 * ratio], screenPixels])
 
-  await (await overlay()).mouse.click(300, 300, { button: 'right' })
+  // On macOS the context menu comes on the press: the overlay cancels and closes before the release reaches it.
+  await (await overlay()).mouse.click(300, 300, { button: 'right' }).catch((failure: unknown) => {
+    if (!String(failure).includes('has been closed')) throw failure
+  })
   await closed()
   await expect(previews).toHaveCount(2)
   await expect(page.getByText('已备好')).toHaveCount(2)
