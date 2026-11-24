@@ -71,6 +71,7 @@ async function categoriesAndAssets(assets: Assets, tenant: TenantId) {
     ['mcp', 'data'],
     ['model-provider', 'none'],
     ['plugin', 'directory'],
+    ['prompt', 'directory'],
     ['skill', 'directory'],
     ['tool', 'directory'],
   ])

@@ -232,6 +232,14 @@
       "source": "packages/slash-command/SPEC.md"
     },
     {
+      "id": "packages/slash-command/prompt-command-source",
+      "paths": ["packages/slash-command/prompt-command-source/src/**"],
+      "layer": "unknown",
+      "domains": ["slash-command"],
+      "status": "candidate",
+      "source": "packages/slash-command/SPEC.md"
+    },
+    {
       "id": "packages/slash-command/slash-command-ui",
       "paths": ["packages/slash-command/slash-command-ui/src/**"],
       "layer": "unknown",

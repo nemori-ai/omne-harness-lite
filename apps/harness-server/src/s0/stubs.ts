@@ -435,6 +435,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   'skill-command-source': { provides: [], injects: ['commandEntrySources'] },
+  'prompt-command-source': { provides: [], injects: ['commandEntrySources'] },
   'tool-runtime': {
     provides: ['toolRuntime'],
     injects: ['toolCommands', 'toolReads'],

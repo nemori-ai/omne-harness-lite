@@ -175,6 +175,7 @@ describe('assets-access row', () => {
           ['mcp', 'MCP'],
           ['model-provider', '模型供应商'],
           ['plugin', 'Plugin'],
+          ['prompt', '提示词命令'],
           ['skill', '技能'],
           ['tool', '工具'],
         ])

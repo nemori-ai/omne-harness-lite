@@ -351,6 +351,11 @@
       "config": {}
     },
     {
+      "id": "prompt-command-source",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "tool-runtime",
       "plugin": "stubPlugin",
       "config": {}

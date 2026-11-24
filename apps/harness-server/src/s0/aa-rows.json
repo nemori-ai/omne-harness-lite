@@ -71,6 +71,7 @@
     "tool-bindings",
     "skills",
     "skill-command-source",
+    "prompt-command-source",
     "tool-runtime",
     "tool-executor",
     "tool-host",
@@ -516,6 +517,12 @@
     },
     {
       "row": "skill-command-source",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "prompt-command-source",
       "names": [
         "sessionWorkPrincipals"
       ]

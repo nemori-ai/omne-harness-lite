@@ -942,6 +942,9 @@ importers:
       '@omne-harness/plugin-tools':
         specifier: workspace:*
         version: link:../../packages/plugin/plugin-tools
+      '@omne-harness/prompt-command-source':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/prompt-command-source
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
@@ -6475,6 +6478,37 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/slash-command/prompt-command-source:
+    dependencies:
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../slash-command-contract
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
+    devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

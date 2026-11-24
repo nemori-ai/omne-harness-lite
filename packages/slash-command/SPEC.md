@@ -112,9 +112,9 @@ Session 的受理流水线在取到来源声明、算出「文字要解析」之
 
 ### 提示词命令
 
-- 资产的一个类别，目录型：名字、给人看的一句话、提示词、可选的参数提示。空间 `prompt`。
+- 资产的一个类别（`prompt`），目录型：目录里只有一个 `PROMPT.md`，头部写 `name`、`description` 与可选的 `argument-hint`，正文是提示词；工作区里放在 `.omne/prompts/<名字>/`。空间 `prompt`。哪一份生效照资产的层：工作区的盖租户的；工作区那一层只在会话的一轮里有，和 Skill 一样。停用的在清单里灰着并写明原因，取用时当作不在清单里。
 - 占位只有两种：定长的位置参数 `$1` 到 `$n`，与剩下的全部 `$ARGUMENTS`。没写占位时参数空一行接在提示词后面。参数按空白切分，引号括起的算一个。
-- 发布时的类别判断写明第一处不合格：定义不完整、名字不合词法、想占保留空间、占位超出参数提示的个数。
+- 发布时的类别判断写明第一处不合格：定义不完整、名字不合词法、想占保留空间、占位超出参数提示的个数（写了参数提示时，`$n` 的 n 不大于它列出的参数个数）。类别的说明带一份可以照抄的最小例子，`OmneExtensions` 的 `help` 按类别给出它。
 
 ### 系统命令
 
@@ -123,7 +123,7 @@ Session 的受理流水线在取到来源声明、算出「文字要解析」之
 
 ### 成员与协议
 
-- 成员：纯契约 `slash-command-contract`（值、识别、匹配、补全、所见、核对、入口来源的形状与判定）；实现 `slash-command`（合成清单，之后的解析器）；Cordis 契约 `slash-command-cordis-contract`（入口来源拓展点的服务与清单服务）；协议 `slash-command-protocol`；接入插件 `slash-command-access`；界面模块 `slash-command-ui`（输入框的帮手：读清单、听「可能变了」、断线重连与被拒收「变了」之后重读，把输入框的逻辑接上会话的界面模块给的助手口）。输入框的逻辑（菜单的四个状态与九种操作、标记、灰字、发不出去的原因与所见）是纯契约里的 `createComposer`。界面模块不依赖纯契约，由应用的装配把它交给界面模块（`createSlashCommandUiModule({ composer })`），所以客户端用的就是受理侧的那个识别函数。命令行直接调纯契约：文字里有斜杠时先读清单、认出所见，随输入交出，回执写所见。Skill 一侧的来源在 `packages/skills/skill-command-source`。
+- 成员：纯契约 `slash-command-contract`（值、识别、匹配、补全、所见、核对、入口来源的形状与判定）；实现 `slash-command`（合成清单，之后的解析器）；Cordis 契约 `slash-command-cordis-contract`（入口来源拓展点的服务与清单服务）；协议 `slash-command-protocol`；接入插件 `slash-command-access`；界面模块 `slash-command-ui`（输入框的帮手：读清单、听「可能变了」、断线重连与被拒收「变了」之后重读，把输入框的逻辑接上会话的界面模块给的助手口）。输入框的逻辑（菜单的四个状态与九种操作、标记、灰字、发不出去的原因与所见）是纯契约里的 `createComposer`。界面模块不依赖纯契约，由应用的装配把它交给界面模块（`createSlashCommandUiModule({ composer })`），所以客户端用的就是受理侧的那个识别函数。命令行直接调纯契约：文字里有斜杠时先读清单、认出所见，随输入交出，回执写所见。Skill 一侧的来源在 `packages/skills/skill-command-source`。提示词命令的类别、哪一份生效与它的入口来源在 `prompt-command-source`，由服务端的一行登记类别、接上来源。
 - 协议 `slash-command/1`：读清单 `read-catalog`（租户与会话，答公开的一半与 `missing`），与观察 `observe-catalog`（开在一个会话上，帧只说「可能变了」）。一个登录读某个会话的清单，先要会话自己许它读这个会话；清单按会话的工作主体与这一轮的作用域合成，与这个会话里 agent 经 `Skills` 读到的同一份。
 
 ### 失败、取消与生命周期
