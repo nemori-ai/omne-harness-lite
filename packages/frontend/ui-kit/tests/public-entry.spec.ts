@@ -124,6 +124,7 @@ const REST = [
   'GlideMenu',
   'ICONS',
   'iconNames',
+  'PIECES',
   'RedrawProvider',
   'IconButton',
   'ImpactPanel',

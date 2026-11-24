@@ -58,6 +58,8 @@ system
           DesktopShell#1  [effective]
         shell.parts
           DesktopShell#1  [effective]
+        shell.piece
+          DesktopShell#1  [effective]
         shell.sidebar
           DesktopShell#1  [effective]
         shell.tokens
@@ -416,6 +418,7 @@ system
           workspace-ui#1  [effective]
         workspace.register
           workspace-ui#1  [effective]
+      shell.piece  [keyed-one]
       shell.sidebar  [list, build]
         session-list  [effective, session-ui#1]
         archived-sessions  [effective, session-ui#1]

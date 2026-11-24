@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import { type Icon as SetIcon } from '../icons/index.ts'
 import { useArrival } from '../motion/motion.ts'
 import { cn } from '../lib/utils.ts'
+import { useRedrawn } from '../redraw/redraw.ts'
 
 export function EmptyState({
   icon: Icon,
@@ -26,7 +27,7 @@ export function EmptyState({
 }): React.JSX.Element {
   const root = useRef<HTMLDivElement>(null)
   useArrival(root, { still })
-  return (
+  return useRedrawn('piece', 'empty-state', { title, hint, action, role, className }, () => (
     <div
       ref={root}
       className={cn('empty-state', className)}
@@ -42,5 +43,5 @@ export function EmptyState({
       {hint !== undefined && <p className="empty-state-hint">{hint}</p>}
       {action !== undefined && <div className="empty-state-action">{action}</div>}
     </div>
-  )
+  ))
 }

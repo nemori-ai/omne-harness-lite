@@ -82,6 +82,7 @@ describe('the sheet of the changes', () => {
     expect(told.find(point => point.name === TOKENS_POINT)?.dataKeys).toEqual(tokens())
     expect(told.filter(point => point.dataKeys !== undefined).map(point => point.name)).toEqual([
       'shell.icon',
+      'shell.piece',
       TOKENS_POINT,
     ])
   })

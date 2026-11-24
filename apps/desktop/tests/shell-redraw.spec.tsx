@@ -1,9 +1,17 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { lookScope, tenantScope } from '@omne-harness/shell-contract'
-import { DoneIcon, RedrawProvider, SendIcon, iconNames } from '@omne-harness/ui-kit'
+import {
+  DoneIcon,
+  EmptyState,
+  LoadingIndicator,
+  PIECES,
+  RedrawProvider,
+  SendIcon,
+  iconNames,
+} from '@omne-harness/ui-kit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { iconPoint } from '../src/page/shell/redraw.ts'
+import { iconPoint, piecePoint } from '../src/page/shell/redraw.ts'
 import { settle, setup } from './support/shell-setup.tsx'
 
 const ALICE = '{"organization":"org_1","account":"acc_alice"}'
@@ -123,5 +131,55 @@ describe('the icons of the kit in the desktop shell', () => {
       </RedrawProvider>,
     ).container
     expect(icons()).toEqual(['own:done'])
+  })
+})
+
+describe('the shared pieces of the kit in the desktop shell', () => {
+  it('the shell declares the point and lists the pieces as its keys', async () => {
+    const t = await setup({ login: 'signed-in' })
+    expect(t.service.takesDrawing('shell.piece')).toBe(true)
+    const told = t.service.described().points.find(point => point.name === 'shell.piece')
+    expect(told?.dataKeys?.map(key => key.name)).toEqual([...PIECES])
+    expect(told?.contract.example).toContain('"point":"shell.piece"')
+  })
+
+  it('a piece is drawn by what is put on its name, told what the page asked of it; one that throws falls back, and the other pieces stay their own', async () => {
+    const t = await setup({ login: 'signed-in' })
+    await act(async () => {
+      t.state.scope.set(ALICE)
+      await settle()
+    })
+    const view = render(
+      <RedrawProvider value={t.state.redraw.draw}>
+        <LoadingIndicator size="sm" />
+        <EmptyState title="还没有" />
+      </RedrawProvider>,
+    ).container
+    const seen = () => [
+      view.querySelector('[data-mine]')?.getAttribute('data-mine') ?? null,
+      view.querySelector('[data-loading-indicator]') !== null,
+      view.querySelector('.empty-state') !== null,
+    ]
+    expect(seen()).toEqual([null, true, true])
+    const brand = await t.module('brand')
+    let take: (() => unknown) | undefined
+    await act(async () => {
+      take = piecePoint.put(
+        brand.shell,
+        'loading',
+        ({ subject }) => <b data-mine={`loading:${(subject as { size: string }).size}`} />,
+        tenantScope(ALICE),
+      )
+      await settle()
+    })
+    expect(seen()).toEqual(['loading:sm', false, true])
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    await act(async () => {
+      await take?.()
+      piecePoint.put(brand.shell, 'loading', () => <Broken />, tenantScope(ALICE))
+      await settle()
+    })
+    expect(seen()).toEqual([null, true, true])
+    quiet.mockRestore()
   })
 })
