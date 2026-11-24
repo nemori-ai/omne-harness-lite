@@ -154,7 +154,7 @@ describe('a drag is a preview; the release sends a command, and the sheet is rea
     await settle()
     const sent = await world.fake.next('arrange')
     expect(sent.body.items).toEqual([
-      { item: 'a', at: { x: 80, y: 80 }, size: { width: 240, height: 170 } },
+      { item: 'a', at: { x: 80, y: 80 }, size: { width: 240, height: 168 } },
     ])
   })
 

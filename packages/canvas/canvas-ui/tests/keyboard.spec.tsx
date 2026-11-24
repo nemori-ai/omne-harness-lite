@@ -59,9 +59,9 @@ describe('everything a person does on the canvas, with the keyboard only', () =>
 
     tabTo(handle('a'))
     press('ArrowDown', { shiftKey: true })
-    const sized = { ...moved, size: { width: 200, height: 130 } }
+    const sized = { ...moved, size: { width: 200, height: 128 } }
     expect(await sent(world, 'arrange', canvas([sized, b]))).toEqual({
-      items: [{ item: 'a', at: { x: 88, y: 80 }, size: { width: 200, height: 130 }, top: true }],
+      items: [{ item: 'a', at: { x: 88, y: 80 }, size: { width: 200, height: 128 }, top: true }],
     })
 
     tabTo(handle('a'))

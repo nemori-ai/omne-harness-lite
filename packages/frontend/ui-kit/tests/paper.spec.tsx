@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   AppTooltipProvider,
+  PAPER_NAME_LINE,
   type PaperBox,
   PaperPage,
   PaperPile,
@@ -202,9 +203,10 @@ describe('a page', () => {
   it('moves and resizes from the keyboard by one grid step a press, each press handed over', () => {
     const onPlace = vi.fn<PlaceBox>()
     const onPress = vi.fn()
+    const page = { ...BOX, height: 240 + PAPER_NAME_LINE }
     render(
       <Board magnet>
-        <PaperPage box={BOX} name="报告" onPlace={onPlace} onPress={onPress} />
+        <PaperPage box={page} name="报告" onPlace={onPlace} onPress={onPress} />
       </Board>,
     )
     const handle = screen.getByRole('button', { name: '挪动报告' })
@@ -216,10 +218,10 @@ describe('a page', () => {
     fireEvent.keyDown(handle, { key: 'ArrowLeft', shiftKey: true })
     fireEvent.keyDown(handle, { key: 'Enter' })
     expect(onPlace.mock.calls).toEqual([
-      [{ ...BOX, x: 112 }, 'move'],
-      [{ ...BOX, y: 80 }, 'move'],
-      [{ ...BOX, height: 256 }, 'resize'],
-      [{ ...BOX, width: 304 }, 'resize'],
+      [{ ...page, x: 112 }, 'move'],
+      [{ ...page, y: 80 }, 'move'],
+      [{ ...page, height: 256 + PAPER_NAME_LINE }, 'resize'],
+      [{ ...page, width: 304 }, 'resize'],
     ])
     expect(onPress).toHaveBeenCalledTimes(1)
   })

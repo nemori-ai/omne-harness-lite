@@ -6,6 +6,7 @@ import {
   type Lens,
   type Magnet,
   moveBox,
+  PAPER_NAME_LINE,
   type PaperBox,
   type PaperCorner,
   paperToScreen,
@@ -66,6 +67,14 @@ function limitsOf(draw: Draw, sheet: PaperSheet): SizeLimits {
   }
 }
 
+function pageLimitsOf(draw: Draw, sheet: PaperSheet): SizeLimits {
+  const limits = limitsOf(draw, sheet)
+  return {
+    ...limits,
+    minHeight: limits.minHeight + PAPER_NAME_LINE,
+    maxHeight: limits.maxHeight + PAPER_NAME_LINE,
+  }
+}
 function boxOf(draw: Draw, sheet: PaperSheet): PaperBox {
   return {
     x: draw.between(-200, sheet.width + 200),
@@ -156,7 +165,7 @@ describe('a resize', () => {
   it('stays on the paper and in the limits from any corner, on the grid when the magnet is on', () => {
     cases(4, draw => {
       const sheet = sheetOf(draw)
-      const limits = limitsOf(draw, sheet)
+      const limits = pageLimitsOf(draw, sheet)
       const on = draw.pick([true, false])
       const start = boxOf(draw, sheet)
       const resized = resizeBox(start, draw.pick(CORNERS), deltaOf(draw), sheet, limits, {
@@ -169,8 +178,76 @@ describe('a resize', () => {
       expect(resized.height).toBeGreaterThanOrEqual(limits.minHeight)
       expect(resized.height).toBeLessThanOrEqual(limits.maxHeight)
       if (on)
-        for (const value of [resized.x, resized.y, resized.width, resized.height])
+        for (const value of [resized.x, resized.y, resized.width, resized.height - PAPER_NAME_LINE])
           expect(onGrid(value, sheet.step)).toBe(true)
+    })
+  })
+
+  function pageOf(draw: Draw, sheet: PaperSheet, limits: SizeLimits): PaperBox {
+    const width =
+      sheet.step * draw.whole(limits.minWidth / sheet.step, limits.maxWidth / sheet.step)
+    const content =
+      sheet.step *
+      draw.whole(
+        (limits.minHeight - PAPER_NAME_LINE) / sheet.step,
+        (limits.maxHeight - PAPER_NAME_LINE) / sheet.step,
+      )
+    const height = content + PAPER_NAME_LINE
+    return {
+      x: sheet.step * draw.whole(0, Math.max(0, Math.floor((sheet.width - width) / sheet.step))),
+      y: sheet.step * draw.whole(0, Math.max(0, Math.floor((sheet.height - height) / sheet.step))),
+      width,
+      height,
+    }
+  }
+
+  it('changes only the width when only the width is pulled, the magnet on or off', () => {
+    cases(9, draw => {
+      const sheet = { ...sheetOf(draw), width: 8000, height: 8000 }
+      const limits = pageLimitsOf(draw, sheet)
+      const start = pageOf(draw, sheet, limits)
+      const by = { x: draw.pick([-1, 1]) * draw.pick([1, sheet.step, draw.between(0, 300)]), y: 0 }
+      const resized = resizeBox(start, draw.pick(['se', 'ne'] as const), by, sheet, limits, {
+        on: draw.pick([true, false]),
+        step: sheet.step,
+      })
+      expect([resized.y, resized.height]).toEqual([start.y, start.height])
+    })
+  })
+
+  it('changes only the height when only the height is pulled, the magnet on or off', () => {
+    cases(10, draw => {
+      const sheet = { ...sheetOf(draw), width: 8000, height: 8000 }
+      const limits = pageLimitsOf(draw, sheet)
+      const start = pageOf(draw, sheet, limits)
+      const by = { x: 0, y: draw.pick([-1, 1]) * draw.pick([1, sheet.step, draw.between(0, 300)]) }
+      const resized = resizeBox(start, draw.pick(['se', 'sw'] as const), by, sheet, limits, {
+        on: draw.pick([true, false]),
+        step: sheet.step,
+      })
+      expect([resized.x, resized.width]).toEqual([start.x, start.width])
+    })
+  })
+
+  it('with the magnet on, puts the content of a page on the grid, the name line under it left out', () => {
+    cases(11, draw => {
+      const sheet = sheetOf(draw)
+      const limits = pageLimitsOf(draw, sheet)
+      const start = boxOf(draw, sheet)
+      const resized = resizeBox(start, draw.pick(CORNERS), deltaOf(draw), sheet, limits, {
+        on: true,
+        step: sheet.step,
+      })
+      expect(onGrid(resized.width, sheet.step)).toBe(true)
+      expect(onGrid(resized.height - PAPER_NAME_LINE, sheet.step)).toBe(true)
+      expect(onGrid(resized.y, sheet.step)).toBe(true)
+    })
+    const page = { x: 80, y: 80, width: 160, height: 120 + PAPER_NAME_LINE }
+    const sheet = { width: 1000, height: 800, step: 8 }
+    const limits = { minWidth: 40, minHeight: 40, maxWidth: 600, maxHeight: 600 }
+    expect(resizeBox(page, 'se', { x: 8, y: 0 }, sheet, limits, { on: true, step: 8 })).toEqual({
+      ...page,
+      width: 168,
     })
   })
 

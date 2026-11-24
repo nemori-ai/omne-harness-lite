@@ -121,15 +121,15 @@ export function resizeBox(
     magnet,
   )
   const down = resizeSpan(
-    { at: box.y, length: box.height },
+    { at: box.y, length: box.height - PAPER_NAME_LINE },
     corner === 'nw' || corner === 'ne',
     by.y,
-    sheet.height,
-    limits.minHeight,
-    limits.maxHeight,
+    sheet.height - PAPER_NAME_LINE,
+    limits.minHeight - PAPER_NAME_LINE,
+    limits.maxHeight - PAPER_NAME_LINE,
     magnet,
   )
-  return { x: across.at, y: down.at, width: across.length, height: down.length }
+  return { x: across.at, y: down.at, width: across.length, height: down.length + PAPER_NAME_LINE }
 }
 
 export function clampZoom(zoom: number, limits: ZoomLimits): number {
