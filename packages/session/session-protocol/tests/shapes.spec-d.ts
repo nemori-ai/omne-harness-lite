@@ -41,6 +41,7 @@ type SessionRequestBodies = {
     readonly acceptId: string
     readonly inputId: string
     readonly message: JsonObject
+    readonly seen?: { readonly command: string | null; readonly references: readonly string[] }
   }
   'query-send-input': Target & { readonly acceptId: string }
   'read-history':

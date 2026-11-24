@@ -31,7 +31,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   'session-input-sources': { provides: ['sessionInputSources'] },
-  'session-before-intake': { provides: ['sessionBeforeIntake'] },
+  'session-before-intake': { provides: ['sessionBeforeIntake', 'sessionUtteranceResolver'] },
   'session-history-index': { provides: ['sessionHistoryIndex'], phase: 'composition' },
   'session-search': {
     provides: ['sessionSearch'],
@@ -410,7 +410,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
     group: 'tool-start',
   },
   'tool-entry-sources': { provides: ['toolEntrySources'], injects: ['dynamis'] },
-  'slash-command': { provides: ['commandEntrySources', 'commandCatalog'], injects: ['dynamis'] },
+  'slash-command': {
+    provides: ['commandEntrySources', 'commandCatalog'],
+    injects: ['dynamis', 'sessionUtteranceResolver'],
+  },
   mcp: {
     provides: [
       'mcpActionDiscovery',

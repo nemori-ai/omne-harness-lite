@@ -496,9 +496,9 @@
 
 ### UL-prompt-command · 提示词命令 · Prompt Command
 
-> **中**：**资产的一个类别：一个名字、给人看的一句话、一段提示词与可选的[参数声明](#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration)。**人在开头敲 `/名字 参数`，提示词代入参数，形成人的一条消息。它在名字空间 `prompt` 下，不能占用保留空间。
+> **中**：**资产的一个类别：一个名字、给人看的一句话、一段提示词与可选的[参数声明](#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration)。**人在开头敲 `/名字 参数`，提示词代入参数之后作为一块带来路标记的文字，接在人敲的那一行之后。它在名字空间 `prompt` 下，不能占用保留空间。
 >
-> **EN**: **One category of asset: a name, one line for people, a prompt and an optional parameter declaration.** A person types `/name arguments` at the start; the arguments are put into the prompt, and the result becomes one message from the person. It lives in the namespace `prompt` and cannot take the reserved namespace.
+> **EN**: **One category of asset: a name, one line for people, a prompt and an optional parameter declaration.** A person types `/name arguments` at the start; the arguments are put into the prompt, and the result follows the line the person typed as one text block with an origin tag. It lives in the namespace `prompt` and cannot take the reserved namespace.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
 - **出处**：[Slash Command J-SC01](../../product/slash-commands/design.md#j-sc01-发布一条提示词命令) · [J-SC03](../../product/slash-commands/design.md#j-sc03-用提示词命令发出一条消息)（rev 4）

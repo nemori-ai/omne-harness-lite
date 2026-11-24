@@ -314,7 +314,7 @@ describe('send-input', () => {
     [LIMITED, { outcome: 'limited', body: { resource: 'pending-inputs', limit: 3 } }],
     [
       { kind: 'invalid', field: 'x', reason: 'y' },
-      { outcome: 'invalid', body: {} },
+      { outcome: 'invalid', body: { field: 'x', reason: 'y' } },
     ],
     [{ kind: 'archived' }, { outcome: 'archived', body: {} }],
     [

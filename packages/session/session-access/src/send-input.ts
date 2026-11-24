@@ -63,6 +63,7 @@ async function enqueueInput(
     message,
     login: caller.login,
     ...(urgent ? { urgent: true as const } : {}),
+    ...(body.seen === undefined ? {} : { seen: body.seen }),
   })
 }
 
@@ -119,12 +120,20 @@ function commitInput(
     origin: loginEntryOrigin(caller.account, caller.login),
     source: MEMBER_INPUT_SOURCE.name,
   }
+  const seen = request.seen === undefined ? {} : { seen: request.seen }
   if (request.urgent === true)
     return faces.management
-      .interrupt({ ...access, operation, run: null, urgent: value, decision: value.origin })
+      .interrupt({
+        ...access,
+        operation,
+        run: null,
+        urgent: value,
+        decision: value.origin,
+        ...seen,
+      })
       .then(answer => ('ok' in answer ? { ok: answerOf(answer.ok) } : answer))
   return faces.work
-    .accept({ ...access, operation, value })
+    .accept({ ...access, operation, value, ...seen })
     .then(answer => ('ok' in answer ? { ok: { recovered: answer.ok.recovered } } : answer))
 }
 

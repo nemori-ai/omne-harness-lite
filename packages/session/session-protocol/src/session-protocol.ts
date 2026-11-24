@@ -17,6 +17,16 @@ const nullable = <const R extends Rule>(rule: R) =>
   ({ kind: 'one-of', rules: [rule, nothing] }) as const
 
 const target = { tenant: { rule: tenant }, session: { rule: session } } as const
+const seen = object({
+  command: { rule: nullable(text) },
+  references: { rule: { kind: 'array', item: text, max: 64 } },
+})
+const refusal = ruleCodec(
+  object({
+    field: { rule: text, optional: true, since: 3 },
+    reason: { rule: text, optional: true, since: 3 },
+  }),
+)
 
 const modelSelection = {
   model: { rule: text },
@@ -419,12 +429,13 @@ export const sessionProtocol = defineProtocol({
           acceptId: { rule: text },
           inputId: { rule: text },
           message: { rule: { kind: 'user-message' } },
+          seen: { rule: seen, optional: true, since: 3 },
         }),
       ),
       outcomes: {
         succeeded: ruleCodec(object({ recovered: { rule: boolean } })),
         limited,
-        invalid: empty,
+        invalid: refusal,
         archived: empty,
         frozen: empty,
         conflict: empty,
@@ -442,6 +453,7 @@ export const sessionProtocol = defineProtocol({
           acceptId: { rule: text },
           inputId: { rule: text },
           message: { rule: { kind: 'user-message' } },
+          seen: { rule: seen, optional: true, since: 3 },
         }),
       ),
       outcomes: {
@@ -449,7 +461,7 @@ export const sessionProtocol = defineProtocol({
           object({ recovered: { rule: boolean }, as: { rule: literal('interrupt', 'ordinary') } }),
         ),
         limited,
-        invalid: empty,
+        invalid: refusal,
         archived: empty,
         frozen: empty,
         conflict: empty,

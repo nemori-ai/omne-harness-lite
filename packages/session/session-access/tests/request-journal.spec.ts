@@ -71,6 +71,17 @@ describe('the request journal file', () => {
     await reopened.close()
   })
 
+  it('reads back what the sender was shown with its request', async () => {
+    const journal = await openRequestJournal(file)
+    const seen = { command: null, references: ['skill:review'] }
+    const shown = { ...request('a', 0), seen }
+    expect(await journal.append(enqueued(shown))).toBe(true)
+    await journal.close()
+    const reopened = await openRequestJournal(file)
+    expect(reopened.pending).toEqual([shown])
+    await reopened.close()
+  })
+
   it('does not read back a request that left, and reads one queued again after it left', async () => {
     const journal = await openRequestJournal(file)
     const again = { ...request('a', 2), message: '{"text":"again"}' }

@@ -1,7 +1,10 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
-import { createCommandCatalog } from '@omne-harness/slash-command'
+import type { Message } from '@omne-harness/message'
+import type { UtteranceResolver } from '@omne-harness/session-contract'
+import { sessionUtteranceResolverKey } from '@omne-harness/session-cordis-contract/cordis'
+import { createCommandCatalog, createResolver, type Named } from '@omne-harness/slash-command'
 import {
   CommandCatalogService,
   commandCatalogKey,
@@ -26,9 +29,46 @@ class ReleaseCommandCatalog extends CommandCatalogService<unknown> {
   }
 }
 
+const BOTH = Object.freeze({ toHuman: true, toModel: true })
+
+/** The person's words as they came, and after them one text block for each thing named, with its origin. */
+function withNamed(original: Message, appended: readonly Named[]): Message {
+  const taken = new Set<string>(original.blocks.map(block => block.id))
+  const idOf = (n: number): string => {
+    let id = `named-${String(n)}`
+    while (taken.has(id)) id = `${id}-`
+    return id
+  }
+  const blocks = appended.map((named, n) => ({
+    kind: 'text',
+    id: idOf(n + 1),
+    visibility: BOTH,
+    text: named.text,
+    origin: named.origin,
+  }))
+  return { ...original, blocks: [...original.blocks, ...blocks] } as Message
+}
+
+function resolverOf(catalog: CommandCatalog<unknown>): UtteranceResolver<unknown> {
+  const resolve = createResolver(catalog)
+  return {
+    name: 'slash-command',
+    async resolve({ original, seen, access }) {
+      const text = original.blocks
+        .flatMap(block => (block.kind === 'text' ? [block.text] : []))
+        .join('\n')
+      const asker = { principal: access.principal, tenant: access.tenant, session: access.session }
+      const resolved = await resolve({ text, seen, asker })
+      return resolved.kind === 'input'
+        ? { kind: 'input', effective: withNamed(original, resolved.appended) }
+        : resolved
+    },
+  }
+}
+
 const slashCommandPlugin: Plugin.Object = {
   name: 'slash-command',
-  inject: [dynamisKey],
+  inject: [dynamisKey, sessionUtteranceResolverKey],
   Config: slashCommandRowConfig,
   apply(ctx: Context, raw: unknown) {
     const config = slashCommandRowConfig.parse(raw)
@@ -38,7 +78,7 @@ const slashCommandPlugin: Plugin.Object = {
       declared: config.declaredSources,
       timeoutMs: config.timeoutMs,
     })
-    new ReleaseCommandCatalog(ctx, {
+    const held: CommandCatalog<unknown> = {
       read: catalog.read,
       async take(asker, full, signal) {
         const owner = sources
@@ -51,7 +91,9 @@ const slashCommandPlugin: Plugin.Object = {
           release()
         }
       },
-    })
+    }
+    new ReleaseCommandCatalog(ctx, held)
+    ctx.get(sessionUtteranceResolverKey)?.register(resolverOf(held))
   },
 }
 
@@ -61,7 +103,7 @@ export const slashCommandRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [commandEntrySourcesKey, commandCatalogKey],
-    injects: [dynamisKey],
+    injects: [dynamisKey, sessionUtteranceResolverKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },

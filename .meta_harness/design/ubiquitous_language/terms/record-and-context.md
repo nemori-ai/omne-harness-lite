@@ -259,9 +259,9 @@
 
 > **中**：**一块文字身上记着的「这段字不是人打的，它来自哪一份」**：受理时随[斜杠引用](interaction-and-dispatch.md#ul-slash-reference--斜杠引用--slash-reference)装进来的 Skill 正文，记着那份 Skill 的全名、来源层、版本与包摘要。
 > **它是[内容块](#ul-content-block--内容块--content-block)上的一项属性，不是另一类块**：人的话与装进来的正文在同一条消息里各成一块，靠它分得出哪块是哪个。
-> 它只说出处——不说这块给谁看，也不代表任何资格已经判过。只有受理时解析人的话的那一步能写它，发送方带来的被去掉。
+> 它只说出处——不说这块给谁看，也不代表任何资格已经判过。只有受理时解析人的话的那一步能写它，发送方带来的拒收。
 >
-> **EN**: **The mark on a text block recording "this text was not typed by the person; it comes from this item"**: the skill body brought in at intake by a slash reference carries the skill's full name, source layer, version and package digest. **It is an attribute of a content block, not another kind of block**: the person's words and the brought-in body sit in one message as separate blocks, and this mark tells them apart. It states provenance only — nothing about who reads the block, and no entitlement is implied by it. Only the step of intake that resolves the person's words may write it; one a sender brings is removed.
+> **EN**: **The mark on a text block recording "this text was not typed by the person; it comes from this item"**: the skill body brought in at intake by a slash reference carries the skill's full name, source layer, version and package digest. **It is an attribute of a content block, not another kind of block**: the person's words and the brought-in body sit in one message as separate blocks, and this mark tells them apart. It states provenance only — nothing about who reads the block, and no entitlement is implied by it. Only the step of intake that resolves the person's words may write it; a sender that brings one is refused.
 
 - **形态**：属性
 - **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 4）

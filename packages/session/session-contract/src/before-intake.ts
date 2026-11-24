@@ -54,24 +54,44 @@ export function createBeforeIntakeRegistry<P>(): BeforeIntakeRegistry<P> {
 const isReference = (block: ContentBlock): block is Extract<ContentBlock, { ref: unknown }> =>
   Object.hasOwn(block, 'ref')
 
-/** A message as its sender may bring it: facts, snapshot and inline text of a reference block, and the origin of a text block, are not the sender's to give. */
+const isNamed = (block: unknown): boolean =>
+  (block as ContentBlock).kind === 'text' && Object.hasOwn(block as object, 'origin')
+
+export const bringsOrigin = (message: Message): boolean => message.blocks.some(isNamed)
+
+/** A message as its sender brought it: the named texts intake appended go, and facts, snapshot and inline text of a reference block. */
 export function originalContent<M extends Message>(message: M): M {
-  const blocks = message.blocks.map(block => {
-    if ((block as ContentBlock).kind === 'text' && Object.hasOwn(block, 'origin')) {
-      const { origin: _origin, ...bare } = block as Record<string, unknown>
-      return bare
-    }
-    if (!isReference(block as ContentBlock)) return block
-    const { facts: _facts, snapshot: _snapshot, ...bare } = block as Record<string, unknown>
-    return Object.hasOwn(bare, 'transcript') ? { ...bare, transcript: null } : bare
-  })
+  const blocks = message.blocks
+    .filter(block => !isNamed(block))
+    .map(block => {
+      if (!isReference(block as ContentBlock)) return block
+      const { facts: _facts, snapshot: _snapshot, ...bare } = block as Record<string, unknown>
+      return Object.hasOwn(bare, 'transcript') ? { ...bare, transcript: null } : bare
+    })
   return { ...message, blocks } as M
 }
 
-/** An effective content may only add to the reference blocks of the original what `originalContent` drops. */
-function withinOriginal(original: Message, effective: unknown): effective is Message {
+const namedOf = (message: Message): string => digestOf(message.blocks.filter(isNamed))
+
+export function keepsTheWords(original: Message, effective: unknown): effective is Message {
   const judged = judgeMessage(effective)
-  return 'ok' in judged && digestOf(originalContent(judged.ok)) === digestOf(original)
+  return (
+    'ok' in judged && digestOf(originalContent(judged.ok)) === digestOf(originalContent(original))
+  )
+}
+
+/** An effective content may only add to the reference blocks what `originalContent` drops, and keeps the named texts it was given. */
+function withinOriginal(
+  original: Message,
+  start: Message,
+  effective: unknown,
+): effective is Message {
+  const judged = judgeMessage(effective)
+  return (
+    'ok' in judged &&
+    digestOf(originalContent(judged.ok)) === digestOf(original) &&
+    namedOf(judged.ok) === namedOf(start)
+  )
 }
 
 const OUT_OF_BOUNDS = 'its effective content changes more than the reference blocks may gain'
@@ -100,12 +120,12 @@ async function verdictOf<P>(
 
 /** Runs the processors in the order of their names. A block refuses; a throw or no verdict is unavailable. */
 export async function screenInput<P>(
-  input: Readonly<{ processors: readonly IntakeProcessor<P>[] }> &
+  input: Readonly<{ processors: readonly IntakeProcessor<P>[]; start?: Message }> &
     Omit<IntakeScreening<P>, 'effective'>,
 ): Promise<Screened> {
-  const { processors, ...given } = input
+  const { processors, start, ...given } = input
   const original = originalContent(given.original)
-  let effective = original
+  let effective = start ?? original
   for (const each of processors) {
     const processor = each.name
     const verdict = await verdictOf(each, { ...given, original, effective })
@@ -114,7 +134,7 @@ export async function screenInput<P>(
     if (verdict.kind === 'unavailable')
       return { kind: 'unavailable', processor, diagnostic: verdict.diagnostic }
     if (verdict.effective === undefined) continue
-    if (!withinOriginal(original, verdict.effective))
+    if (!withinOriginal(original, start ?? original, verdict.effective))
       return { kind: 'unavailable', processor, diagnostic: OUT_OF_BOUNDS }
     effective = verdict.effective
   }

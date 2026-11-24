@@ -8,8 +8,8 @@ type Waiting = Readonly<{ line: string; change: number; landed: (durable: boolea
 function lineOf(record: JournalRecord): string {
   const { kind, tenant, session, acceptId } = record
   if (kind === 'left') return `${JSON.stringify({ kind, tenant, session, acceptId })}\n`
-  const { inputId, message, login, seq, urgent } = record
-  const line = { kind, tenant, session, acceptId, inputId, message, login, seq, urgent }
+  const { inputId, message, login, seq, urgent, seen } = record
+  const line = { kind, tenant, session, acceptId, inputId, message, login, seq, urgent, seen }
   return `${JSON.stringify(line)}\n`
 }
 
@@ -22,8 +22,17 @@ function replay(text: string): QueuedRequest[] {
     const key = JSON.stringify([record.tenant, record.session, record.acceptId])
     if (record.kind === 'left') queued.delete(key)
     else {
-      const { tenant, session, acceptId, inputId, message, login, seq, urgent } = record
-      const request = { tenant, session, acceptId, inputId, message, login, seq }
+      const { tenant, session, acceptId, inputId, message, login, seq, urgent, seen } = record
+      const request = {
+        tenant,
+        session,
+        acceptId,
+        inputId,
+        message,
+        login,
+        seq,
+        ...(seen === undefined ? {} : { seen }),
+      }
       queued.set(key, urgent === true ? { ...request, urgent } : request)
     }
   }

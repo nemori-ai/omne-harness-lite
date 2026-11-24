@@ -329,7 +329,10 @@ export declare const sessionProtocol: {
                     readonly limit: number;
                     readonly resource: "input-bytes" | "pending-inputs";
                 }>;
-                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly field?: string;
+                    readonly reason?: string;
+                }>;
                 readonly archived: import("@omne-harness/public-contract").Codec<{}>;
                 readonly frozen: import("@omne-harness/public-contract").Codec<{}>;
                 readonly conflict: import("@omne-harness/public-contract").Codec<{}>;
@@ -348,6 +351,10 @@ export declare const sessionProtocol: {
                     readonly kind: 'object';
                     readonly entries: readonly import("@omne-harness/json-text").JsonEntry[];
                 };
+                readonly seen?: {
+                    readonly command: string | null;
+                    readonly references: readonly string[];
+                };
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
@@ -363,7 +370,10 @@ export declare const sessionProtocol: {
                     readonly limit: number;
                     readonly resource: "input-bytes" | "pending-inputs";
                 }>;
-                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly field?: string;
+                    readonly reason?: string;
+                }>;
                 readonly archived: import("@omne-harness/public-contract").Codec<{}>;
                 readonly frozen: import("@omne-harness/public-contract").Codec<{}>;
                 readonly conflict: import("@omne-harness/public-contract").Codec<{}>;
@@ -381,6 +391,10 @@ export declare const sessionProtocol: {
                 readonly message: {
                     readonly kind: 'object';
                     readonly entries: readonly import("@omne-harness/json-text").JsonEntry[];
+                };
+                readonly seen?: {
+                    readonly command: string | null;
+                    readonly references: readonly string[];
                 };
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;

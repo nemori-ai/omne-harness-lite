@@ -463,6 +463,8 @@ export {
 export {
   createBeforeIntakeRegistry,
   judgeIntakeBlocks,
+  bringsOrigin,
+  keepsTheWords,
   originalContent,
   screenInput,
   type BeforeIntakeRegistry,
@@ -472,3 +474,11 @@ export {
   type IntakeVerdict,
   type Screened,
 } from './before-intake.ts'
+export {
+  createUtteranceResolverRegistry,
+  type Resolution,
+  type SenderView,
+  type Utterance,
+  type UtteranceResolver,
+  type UtteranceResolverRegistry,
+} from './utterance-resolver.ts'

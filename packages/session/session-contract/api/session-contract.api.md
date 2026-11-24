@@ -169,6 +169,7 @@
 - `ResidentKey` · `identity.d.ts`
 - `ResidentReference` · `faces.d.ts`
 - `ResidentTool` · `values.d.ts`
+- `Resolution` · `utterance-resolver.d.ts`
 - `ResultConsumption` · `values.d.ts`
 - `RouteJudgment` · `judgments.d.ts`
 - `RoutedInput` · `values.d.ts`
@@ -187,6 +188,7 @@
 - `ScopeReleasePort` · `ports.d.ts`
 - `ScopeReleaseReadback` · `ports.d.ts`
 - `Screened` · `before-intake.d.ts`
+- `SenderView` · `utterance-resolver.d.ts`
 - `SessionAccess` · `identity.d.ts`
 - `SessionAccessCheck` · `access.d.ts`
 - `SessionAccessDecision` · `access.d.ts`
@@ -313,6 +315,9 @@
 - `TodoPage` · `todos.d.ts`
 - `TodoPageCursor` · `todos.d.ts`
 - `UnarchivedLifecycle` · `faces.d.ts`
+- `Utterance` · `utterance-resolver.d.ts`
+- `UtteranceResolver` · `utterance-resolver.d.ts`
+- `UtteranceResolverRegistry` · `utterance-resolver.d.ts`
 - `VisibleTodoItem` · `todos.d.ts`
 - `Waiting` · `values.d.ts`
 - `WaitingCall` · `intake-reads.d.ts`
@@ -331,6 +336,7 @@
 - `bindingOf` · `call-settlement.d.ts`
 - `boundCall` · `call-settlement.d.ts`
 - `boundConsumptions` · `committed-bindings.d.ts`
+- `bringsOrigin` · `before-intake.d.ts`
 - `budgetTermsOf` · `input-sources.d.ts`
 - `callKeysIn` · `call-settlement.d.ts`
 - `callKeysOutside` · `call-settlement.d.ts`
@@ -350,6 +356,7 @@
 - `controlRoutes` · `call-control.d.ts`
 - `createBeforeIntakeRegistry` · `before-intake.d.ts`
 - `createInputSourceRegistry` · `input-sources.d.ts`
+- `createUtteranceResolverRegistry` · `utterance-resolver.d.ts`
 - `decide` · `decide.d.ts`
 - `decideCompactionCommit` · `compaction-commit.d.ts`
 - `decideControlConsequences` · `control-normalization.d.ts`
@@ -383,6 +390,7 @@
 - `judgeSessionIntake` · `intake.d.ts`
 - `judgeStanding` · `standing.d.ts`
 - `judgeWaiting` · `judgments.d.ts`
+- `keepsTheWords` · `before-intake.d.ts`
 - `lendCalls` · `call-settlement.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `onceAuthorizationOf` · `authorizations.d.ts`
@@ -834,7 +842,9 @@ export type BeforeIntakeRegistry<P> = Readonly<{
     current(): readonly IntakeProcessor<P>[];
 }>;
 export declare function createBeforeIntakeRegistry<P>(): BeforeIntakeRegistry<P>;
+export declare const bringsOrigin: (message: Message) => boolean;
 export declare function originalContent<M extends Message>(message: M): M;
+export declare function keepsTheWords(original: Message, effective: unknown): effective is Message;
 export type Screened = Readonly<{
     kind: 'screened';
     effective: Message;
@@ -850,6 +860,7 @@ export type Screened = Readonly<{
 }>;
 export declare function screenInput<P>(input: Readonly<{
     processors: readonly IntakeProcessor<P>[];
+    start?: Message;
 }> & Omit<IntakeScreening<P>, 'effective'>): Promise<Screened>;
 export type IntakeBlockRefusal = Readonly<{
     kind: 'inline' | 'unmeasured';
@@ -1789,6 +1800,7 @@ import type { ContextScopeBinding } from './values.ts';
 import type { RelationToReference } from './directory-relation.ts';
 import type { SessionCallBinding } from './call-settlement.ts';
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts';
+import type { SenderView } from './utterance-resolver.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { CompactionContext, Message, RecordEntryRef } from '@omne-harness/message';
@@ -1917,6 +1929,7 @@ export interface SessionWork<P> {
     }>): Reply<TodoPage>;
     accept(input: Mutation<P> & Readonly<{
         value: RoutedInput;
+        seen?: SenderView;
     }>): Reply<CommitReceipt>;
     readWork(input: SessionAccess<P>): Reply<WorkSnapshot>;
     readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>;
@@ -2084,6 +2097,7 @@ export interface SessionManagement<P> {
             kind: 'ordinary';
         }>;
         decision: DurableEvidence;
+        seen?: SenderView;
     }>): Reply<Readonly<{
         receipt: CommitReceipt;
         progress: ControlProgress | null;
@@ -2636,7 +2650,8 @@ export { forkPointBefore, forkPointText, judgeForkPoint, ownPositionAfter, parse
 export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentities, } from './source-requests.ts';
 export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts';
 export { PENDING_PAGE_LIMIT, PENDING_PREVIEW_CHARS, inputFateOfRows, pendingAcceptances, pendingInputOf, pendingPageOf, previewOf, waitingCalls, type PendingInput, type PendingPage, type WaitingCall, } from './intake-reads.ts';
-export { createBeforeIntakeRegistry, judgeIntakeBlocks, originalContent, screenInput, type BeforeIntakeRegistry, type IntakeBlockRefusal, type IntakeProcessor, type IntakeScreening, type IntakeVerdict, type Screened, } from './before-intake.ts';
+export { createBeforeIntakeRegistry, judgeIntakeBlocks, bringsOrigin, keepsTheWords, originalContent, screenInput, type BeforeIntakeRegistry, type IntakeBlockRefusal, type IntakeProcessor, type IntakeScreening, type IntakeVerdict, type Screened, } from './before-intake.ts';
+export { createUtteranceResolverRegistry, type Resolution, type SenderView, type Utterance, type UtteranceResolver, type UtteranceResolverRegistry, } from './utterance-resolver.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -4047,8 +4062,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:e7287e3113d741addda8e964a6e86b5666f8b253a710bee54cafad6cb2d0874e";
-export declare const SESSION_RELEASE_DIGEST = "sha256:e7287e3113d741addda8e964a6e86b5666f8b253a710bee54cafad6cb2d0874e";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f551551bfe331262a7a35edb102d7bd6d63166d9ec51477946b356a2dd760764";
+export declare const SESSION_RELEASE_DIGEST = "sha256:f551551bfe331262a7a35edb102d7bd6d63166d9ec51477946b356a2dd760764";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -5034,6 +5049,52 @@ export declare function uninterpretedCalls(execution: string, facts: Iterable<Re
     sequence: string;
     consequences: readonly SessionLogConsequence[];
 }>>): SessionUninterpretedCall[];
+```
+
+## 声明文件 `utterance-resolver.d.ts`
+
+```ts
+import type { Message } from '@omne-harness/message';
+import type { InputId, SessionAccess, SessionOperationId } from './identity.ts';
+import type { InputSourceName } from './input-sources.ts';
+export type SenderView = Readonly<{
+    command: string | null;
+    references: readonly string[];
+}>;
+export type Utterance<P> = Readonly<{
+    original: Message;
+    seen: SenderView | null;
+    source: InputSourceName;
+    request: Readonly<{
+        input: InputId;
+        operation: SessionOperationId;
+    }>;
+    access: SessionAccess<P>;
+}>;
+export type Resolution = Readonly<{
+    kind: 'input';
+    effective: Message;
+}> | Readonly<{
+    kind: 'operation';
+    name: string;
+    operation: string;
+    args: string;
+}> | Readonly<{
+    kind: 'refused';
+    reason: string;
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export type UtteranceResolver<P> = Readonly<{
+    name: string;
+    resolve(utterance: Utterance<P>): Promise<Resolution>;
+}>;
+export type UtteranceResolverRegistry<P> = Readonly<{
+    register(resolver: UtteranceResolver<P>): () => void;
+    current(): UtteranceResolver<P> | null;
+}>;
+export declare function createUtteranceResolverRegistry<P>(): UtteranceResolverRegistry<P>;
 ```
 
 ## 声明文件 `values.d.ts`

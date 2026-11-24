@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:e7a3729c5efd373af845eabe7f0e7cba8997d81afdecbc3d79b37ddb8d813417",
-    "2": "sha256:46c6ac16c84ea1202c0a6c70b43a9ec65d6811c9aa553e456d8f502779da8eaa"
+    "2": "sha256:46c6ac16c84ea1202c0a6c70b43a9ec65d6811c9aa553e456d8f502779da8eaa",
+    "3": "sha256:3b1dfde5c8f10f50b5823cdf248fdbfb5411da8d847b2081f0a02e4e8e996ca4"
   },
   "major": 1,
   "name": "session",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {
       "observe-session": {
@@ -805,6 +806,37 @@
                 "kind": "user-message"
               }
             },
+            "seen": {
+              "optional": true,
+              "rule": {
+                "fields": {
+                  "command": {
+                    "rule": {
+                      "kind": "one-of",
+                      "rules": [
+                        {
+                          "kind": "text"
+                        },
+                        {
+                          "kind": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "references": {
+                    "rule": {
+                      "item": {
+                        "kind": "text"
+                      },
+                      "kind": "array",
+                      "max": 64
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              "since": 3
+            },
             "session": {
               "rule": {
                 "kind": "session"
@@ -838,7 +870,22 @@
             "kind": "object"
           },
           "invalid": {
-            "fields": {},
+            "fields": {
+              "field": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 3
+              },
+              "reason": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 3
+              }
+            },
             "kind": "object"
           },
           "limited": {
@@ -3348,6 +3395,37 @@
                 "kind": "user-message"
               }
             },
+            "seen": {
+              "optional": true,
+              "rule": {
+                "fields": {
+                  "command": {
+                    "rule": {
+                      "kind": "one-of",
+                      "rules": [
+                        {
+                          "kind": "text"
+                        },
+                        {
+                          "kind": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "references": {
+                    "rule": {
+                      "item": {
+                        "kind": "text"
+                      },
+                      "kind": "array",
+                      "max": 64
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              "since": 3
+            },
             "session": {
               "rule": {
                 "kind": "session"
@@ -3381,7 +3459,22 @@
             "kind": "object"
           },
           "invalid": {
-            "fields": {},
+            "fields": {
+              "field": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 3
+              },
+              "reason": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 3
+              }
+            },
             "kind": "object"
           },
           "limited": {

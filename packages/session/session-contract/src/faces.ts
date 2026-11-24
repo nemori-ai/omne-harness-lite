@@ -4,6 +4,7 @@ import type { ContextScopeBinding } from './values.ts'
 import type { RelationToReference } from './directory-relation.ts'
 import type { SessionCallBinding } from './call-settlement.ts'
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
+import type { SenderView } from './utterance-resolver.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { CompactionContext, Message, RecordEntryRef } from '@omne-harness/message'
@@ -138,7 +139,9 @@ export interface SessionWork<P> {
   listTodos(
     input: SessionAccess<P> & Readonly<{ after: TodoPageCursor | null; limit: number }>,
   ): Reply<TodoPage>
-  accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
+  accept(
+    input: Mutation<P> & Readonly<{ value: RoutedInput; seen?: SenderView }>,
+  ): Reply<CommitReceipt>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
   readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>
   readWaiting(input: SessionAccess<P>): Reply<SessionWaiting | null>
@@ -295,6 +298,7 @@ export interface SessionManagement<P> {
         run: RunId | null
         urgent: Extract<RoutedInput, { kind: 'ordinary' }>
         decision: DurableEvidence
+        seen?: SenderView
       }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress | null }>>
   freeze(input: Mutation<P> & Readonly<{ verdict: FreezeVerdict }>): Reply<CommitReceipt>

@@ -4,6 +4,8 @@ import {
   commandDigest,
   createBeforeIntakeRegistry,
   judgeIntakeBlocks,
+  bringsOrigin,
+  keepsTheWords,
   originalContent,
   screenInput,
   type IntakeProcessor,
@@ -141,17 +143,59 @@ describe('screening one input', () => {
     ])
   })
 
-  it('takes the origin off a text block: only intake says where a text came from, never the sender', () => {
+  it('the words as brought leave out the named texts intake appended, and a sender who brings one is told', () => {
     const origin = { name: 'skill:review', layer: 'tenant', version: '3', digest: 'sha-1' }
-    const brought = {
+    const resolved = {
       id: ID,
       role: 'user',
-      blocks: [{ ...text('b1', '照这个做'), origin }, text('b2', '原话')],
+      blocks: [text('b1', '帮我用 /review 看'), { ...text('named-1', '先读改动。'), origin }],
     }
-    expect(originalContent(brought as unknown as Message).blocks).toEqual([
-      text('b1', '照这个做'),
-      text('b2', '原话'),
+    expect(originalContent(resolved as unknown as Message).blocks).toEqual([
+      text('b1', '帮我用 /review 看'),
     ])
+    expect(bringsOrigin(resolved as unknown as Message)).toBe(true)
+    expect(
+      bringsOrigin({ id: ID, role: 'user', blocks: [text('b1', '原话')] } as unknown as Message),
+    ).toBe(false)
+    expect(
+      keepsTheWords(
+        { id: ID, role: 'user', blocks: [text('b1', '帮我用 /review 看')] } as unknown as Message,
+        resolved,
+      ),
+    ).toBe(true)
+    expect(
+      keepsTheWords(
+        { id: ID, role: 'user', blocks: [text('b1', '原话被改了')] } as unknown as Message,
+        resolved,
+      ),
+    ).toBe(false)
+  })
+
+  it('a processor keeps the named texts it is given: dropping one is out of bounds', async () => {
+    const origin = { name: 'skill:review', layer: 'tenant', version: '3', digest: 'sha-1' }
+    const said = message(text('b1', 'look at this'))
+    const start = message(text('b1', 'look at this'), { ...text('named-1', 'body'), origin })
+    const dropping = processor('a.drop', () => ({ kind: 'pass', effective: said }))
+    const screened = await screenInput({
+      processors: [dropping],
+      start,
+      original: said,
+      source: 'session.member',
+      request: { input: 'in-1', operation: 'op-1' },
+      access: { principal: 'p', tenant: 't', session: 's-1' },
+    } as never)
+    expect(screened).toMatchObject({ kind: 'unavailable', processor: 'a.drop' })
+    const keeping = processor('a.keep', () => ({ kind: 'pass' }))
+    expect(
+      await screenInput({
+        processors: [keeping],
+        start,
+        original: said,
+        source: 'session.member',
+        request: { input: 'in-1', operation: 'op-1' },
+        access: { principal: 'p', tenant: 't', session: 's-1' },
+      } as never),
+    ).toEqual({ kind: 'screened', effective: start })
   })
 
   it('what a processor may give a reference block: its facts, its snapshot and its inline text', async () => {

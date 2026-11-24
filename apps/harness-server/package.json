@@ -105,6 +105,7 @@
     "@omne-harness/media-image": "workspace:*",
     "@omne-harness/media-storage-local": "workspace:*",
     "@omne-harness/media-storage-sql": "workspace:*",
+    "@omne-harness/message": "workspace:*",
     "@omne-harness/model": "workspace:*",
     "@omne-harness/model-access": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",

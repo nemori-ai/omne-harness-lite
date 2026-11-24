@@ -852,6 +852,9 @@ importers:
       '@omne-harness/media-storage-sql':
         specifier: workspace:*
         version: link:../../packages/media/media-storage-sql
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../packages/common/message
       '@omne-harness/model':
         specifier: workspace:*
         version: link:../../packages/model/model

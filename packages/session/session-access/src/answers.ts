@@ -51,8 +51,13 @@ export function refused<K extends Name>(name: K, failure: SessionFailure): Answe
   const outcome = failureOutcome(failure)
   if (!Object.hasOwn(outcomes, outcome)) return UNAVAILABLE as Answer<K>
   if (outcomes[outcome] === true) return { outcome } as Answer<K>
+  const said = failure.kind === 'invalid' && (name === 'send-input' || name === 'interrupt-input')
   const body =
-    failure.kind === 'limited' ? { resource: failure.resource, limit: failure.limit } : {}
+    failure.kind === 'limited'
+      ? { resource: failure.resource, limit: failure.limit }
+      : said
+        ? { field: failure.field, reason: failure.reason }
+        : {}
   return { outcome, body } as Answer<K>
 }
 
