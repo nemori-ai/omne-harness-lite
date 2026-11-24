@@ -281,6 +281,8 @@ system
           media-ui#1  [effective]
         media.tray.record
           media-ui#1  [effective]
+        media.tray.screenshot
+          media-ui#1  [effective]
         notification.page
           notification-ui#1  [effective]
         notification.page.filter

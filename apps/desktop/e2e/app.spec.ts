@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { Page } from '@playwright/test'
@@ -29,6 +30,27 @@ test('注册、发一条消息、看到回复；页面读不到登录 cookie，�
     timeout: 30_000,
   })
   expect(await page.evaluate('document.cookie')).toBe('')
+})
+
+// The button shows only once the main process has loaded the screen backend: in the packaged app that proves the
+// binary it carries loads. On macOS the packaged test app is a bundle of its own, which the system would ask about
+// on every run, so there the test stops before the capture; the unpackaged app is Electron's bundle, allowed once.
+test('输入框的截图钮：截一张这台机器的屏幕，作为图片附件进草稿', async ({ launchApp, target }) => {
+  const { page } = await launchApp()
+  await expect(page.locator('input[name=loginIdentifier]')).toBeVisible({ timeout: 30_000 })
+  await signUp(page)
+  await page.getByRole('button', { name: '新建会话' }).click()
+  const button = page.getByRole('button', { name: '截一张屏幕，作为图片附件' })
+  await expect(button).toBeVisible({ timeout: 30_000 })
+  if (process.platform === 'darwin' && target === 'packaged') return
+  await button.click()
+  await expect(page.getByText(/^屏幕截图 \d\d\.\d\d\.\d\d\.png$/u)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('已备好')).toBeVisible({ timeout: 30_000 })
+  // Kept for a look: the picture should show the screen behind omne, not omne itself.
+  const picture = (await page.evaluate(
+    `(() => { const image = document.querySelector('img[alt$="的预览"]'); const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight; canvas.getContext('2d').drawImage(image, 0, 0); return canvas.toDataURL('image/png').split(',')[1] })()`,
+  )) as string
+  writeFileSync(test.info().outputPath('screenshot.png'), Buffer.from(picture, 'base64'))
 })
 
 /** Per stored cookie of the app: whether its value is on disk in plain text, or only encrypted. */

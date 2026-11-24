@@ -147,7 +147,7 @@ describe('Screen lists the screens of the machine', () => {
     const { script, screens } = world()
     script.list = id => ({ kind: 'rejected', requestId: id, reason: 'notAuthorized' })
     expect(await screens()).toMatch(
-      /^rejected reason=notAuthorized the system has not permitted reading the screen/u,
+      /^rejected reason=notAuthorized the system has not permitted reading the screen\. On macOS the permission is Screen Recording \(System Settings > Privacy & Security > Screen Recording\), held by the application that started this server/u,
     )
     script.list = id => ({ kind: 'unknown', requestId: id })
     expect(await screens()).toBe('unknown request="fixture"')

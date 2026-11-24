@@ -13,7 +13,7 @@
 | 共享类型     | 页面与转发层之间的路径与字节；两边读同一份协议清单                                                   |
 | 转发层       | 登录怎样变成一枚 cookie；一个页面请求能不能转发、带什么凭据；一页的多条观察怎样合成一条流            |
 | 独立转发进程 | 开发与走查时，一个单独的 Node 进程怎样在回环地址上把转发层交给浏览器；它不是 utility 进程            |
-| 主进程       | 怎样把应用协议的请求送进 utility 进程里的转发层，怎样保管 cookie，窗口怎样加固与恢复                 |
+| 主进程       | 怎样把应用协议的请求送进 utility 进程里的转发层，怎样保管 cookie，窗口怎样加固与恢复；本机设备的路由 |
 | utility 进程 | 桌面应用里承载转发层的子进程，属于整个应用，不属于哪个窗口；它怎样启动、就绪、停止与重启             |
 | 进程间传输   | 主进程与 utility 进程之间怎样在一个消息端口上传 `Request` 与 `Response` 的流，怎样限速与取消         |
 | 页面         | 页面这一侧的传输怎样接到客户端的树；界面外壳怎样画出插入位置里的东西；装配文件列出哪些协议与界面模块 |
@@ -155,6 +155,8 @@
   - 保管 cookie。转发层答复里的 `Set-Cookie` 存进主进程的 cookie 罐，存好并写到磁盘之后才把答复交给页面，下一个请求就看得到。应用退出前再写一次，等它有时限。主进程给每个请求注入 `Cookie` 头。页面自带的 `Cookie` 头被剥掉。页面的脚本没有 `document.cookie`。
   - 补上来源。请求到达协议处理函数，说明它来自应用自己的页面，因为窗口不离开应用协议。主进程给非 `GET` 的请求补上内部源的 `Origin`。页面自带的 `Origin` 不被采信。
   - 关联取消。处理函数收到的请求自带的取消信号不触发。主进程在请求发出前给它盖一个头，值是本次启动的随机前缀加网络请求的编号，页面自带的同名头被换掉。页面在响应头之前放弃请求时，主进程从网络请求的错误事件得知，按这个头找到这次请求并取消它。响应头之后，取消经响应正文那条流传到。
+- 本机设备的路由：`/device/` 下的请求不送进 utility 进程，由主进程自己答（`src/main/device-screen.ts`）。`GET /device/screen` 答 `{ available }`，这台机器有没有屏幕后端；`POST /device/screen` 截一张；`POST /device/screen/settings` 打开系统设置的屏幕录制那一页（只有 macOS 有，别处答 404）；`/device/` 下别的路径答 404。屏幕后端就是 agent 截图用的那一个：`@omne-harness/screen` 的 `screenBackendFor(process.platform)`，库的二进制由主进程按档加载（打包的应用从 `resources/native/node-screenshots.node`，没打包的从安装的包），第一次用时加载一次，加载不了答没有后端。截图在 omne 自己的进程里，macOS 的屏幕录制许可因此记在 omne 名下。
+- 截一张的次序：后端答没有许可时，先请系统要一次许可（macOS 弹一次窗，并把 omne 列进系统设置），答 403 `not-authorized`，窗口不动；否则先记下窗口所在那块屏的原点，让开（macOS 隐藏整个应用，别处隐藏窗口，等窗口看不见了再等一会儿），在后端列的屏里挑原点相同的那块，没有就挑主屏，截整块屏，然后回来，截失败也回来。答复是 `image/png` 与截取的时刻（头 `x-omne-taken-at`）；这块屏在截的时候不见了答 409，后端出错答 500，都带一句原因。页面一侧是 `src/page/screen-source.ts`，装配把它交给媒体的界面模块作截图的来源；独立转发进程没有这些路由，浏览器里没有截图钮。
 - utility 进程有明确的状态：空闲、启动中、运行中、停止中、已停止。并发的启动共用同一次就绪。启动到就绪有时限，停止有宽限期。utility 进程意外结束时主进程重启它，开着的请求以失败结束，页面读作不确定。因为转发层不记登录，重启之后人不用重新登录。
 - 停掉或退役一个还没生出来的 utility 进程时，Electron 杀不了它；主进程在它生出来的那一刻杀掉它，不让它跑到宽限期满或一直跑下去。
 - utility 进程不在的时候，页面自己的文档请求算一次加载失败，由窗口的恢复重新加载。别的请求照常得到一个表示失败的状态，页面读作不确定。文档请求要是也答一个状态，窗口会把那一行失败的文字当成加载好的页面留在那里。
@@ -285,7 +287,7 @@
 ### 打包
 
 - `pnpm run package` 把 `dist/release` 打成解开的应用到 `out/release`；`pnpm run package:test` 把 `dist/test` 打到 `out/test`；`pnpm run dist` 把 `dist/release` 打成安装包：macOS 是 dmg 与 zip，Windows 是可以选安装目录与安装范围的 NSIS，Linux 是 deb 与 rpm（rpm 要本机有 `rpmbuild`）。安装包只出发行档。三者都不构建，打的就是 `dist/<档>` 里现有的包，没有就说先跑哪一条构建。只打一个平台，给 `dist` 加 `--mac`、`--win` 或 `--linux`。Windows 安装包要在 Windows 上打：electron-builder 26 在 macOS 上交叉打出的安装包能装、应用能跑，但没配应用图标时卸载程序过不了 NSIS 的完整性检查（electron-userland/electron-builder 的 issue 10258，27 版修复）。
-- electron-builder 的配置分 `electron-builder.base.mjs` 与两份各自写全应用目录与输出目录的 `electron-builder.test.mjs`、`electron-builder.release.mjs`。它打的就是 `dist/<档>`，去掉源码映射与模块清单；应用里不装 `node_modules`。
+- electron-builder 的配置分 `electron-builder.base.mjs` 与两份各自写全应用目录与输出目录的 `electron-builder.test.mjs`、`electron-builder.release.mjs`。它打的就是 `dist/<档>`，去掉源码映射与模块清单；应用里不装 `node_modules`。唯一的原生二进制是截图库在构建平台上的那一个（`scripts/native-binaries.ts` 照 napi-rs 的平台包名找到它），放在 asar 之外的 `resources/native/node-screenshots.node`；找不到时打包失败，不打出一个截不了屏的应用。打包器把 `node-screenshots` 当外部模块，不打进主进程的包。
 - 应用名、包名与 `appId` 在 `product.json` 里只写一次，都是可移植的文件名：electron-builder 不改写它们，可执行文件的路径照它的缺省名字算。应用名决定用户数据目录。
 - fuses 一张表两列，在 `scripts/fuses.ts`：不能以 Node 运行，不认 `NODE_OPTIONS`，只从自己的 asar 加载且核对它的完整性，cookie 加密打开。测试档只多开 Node 调试参数，Playwright 的 Electron 驱动要靠它接上应用。两档都在打包后翻上并逐个读回，没翻上打包失败。
 - Windows 安装包（`nsis/installer.nsh`）不碰不是它装的文件。首次安装只接受空目录或不存在的目录，读不了的目录也拒绝；升级只接受注册过、且卸载程序按文件删除的那一份安装。卸载与升级只删打包时列下的文件（`scripts/nsis-files.ts` 在打包后写出 `out/nsis/<架构>.nsh`，编进卸载程序），目录空了才删，用户自己放进去的文件留下。安装路径或已装目录里有目录链接就拒绝。删不掉的文件报出 Windows 错误码并停下，卸载程序与注册都留着，可以重试。没有这份记录的旧安装不替用户调用它的递归卸载程序，而是拒绝并请人先备份、处理旧安装。登记的安装目录在一块本机固定盘上、盘读得到而目录整个不在了，这份登记算过期：新的安装目录验过之后，删掉过期的登记、不调用它的卸载程序，按首次安装继续；登记的路径为空、盘不可用（可移动盘或网络盘上的目录不在也算）、读不了，或目录还在而没有按文件删除的卸载程序，都拒绝。这些检查在 electron-builder 选定装给当前用户还是所有用户、做完需要的提权之后才跑，并且在卸载旧版本、解开任何文件之前；靠 `patches/app-builder-lib-nsis-destination.patch` 给 `app-builder-lib` 加的入口调用，同一个补丁让安装包初始化时不在安装目录里建东西，静默安装的 `/D` 因此不会在检查之前把不在的目录建出来。旧的安装包可能已经建出了一个空目录：确认它是空的、挪开之后再用新的安装包重试。

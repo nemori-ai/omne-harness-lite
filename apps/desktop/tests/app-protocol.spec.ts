@@ -61,7 +61,10 @@ function fakeElectron() {
   }
 }
 
-function serve(upstream?: (request: Request) => Promise<Response>) {
+function serve(
+  upstream?: (request: Request) => Promise<Response>,
+  local?: (request: Request) => Promise<Response> | undefined,
+) {
   const electron = fakeElectron()
   const logged: { level: string; msg: string; data: Record<string, unknown> }[] = []
   const level =
@@ -83,6 +86,7 @@ function serve(upstream?: (request: Request) => Promise<Response>) {
     },
     cookies: createCookieJar({ store, hosts: ['app.desktop'], log }),
     log,
+    ...(local === undefined ? {} : { local }),
   })
   return { ...electron, logged, seen, store }
 }
@@ -98,6 +102,18 @@ describe('应用协议：映射与来源', () => {
     const { send, seen } = serve()
     expect(await (await send(`${APP_ORIGIN}/bridge/events?page=p`).answer).text()).toBe('forwarded')
     expect(seen[0]!.url).toBe(`${INTERNAL_ORIGIN}/bridge/events?page=p`)
+  })
+
+  it('本机路由答得了的请求在主进程里答，不转发；答不了的照常转发', async () => {
+    const { send, seen } = serve(undefined, request =>
+      new URL(request.url).pathname.startsWith('/device/')
+        ? Promise.resolve(new Response('local'))
+        : undefined,
+    )
+    expect(await (await send(`${APP_ORIGIN}/device/screen`).answer).text()).toBe('local')
+    expect(seen).toEqual([])
+    expect(await (await send(`${APP_ORIGIN}/bridge/events`).answer).text()).toBe('forwarded')
+    expect(seen.map(request => new URL(request.url).pathname)).toEqual(['/bridge/events'])
   })
 
   it('主机名不是应用自己的就拒绝，不转发', async () => {
