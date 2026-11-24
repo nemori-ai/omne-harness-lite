@@ -53,7 +53,7 @@ export function extendGuidanceIndex(
 }
 
 export function guidanceBlocks(
-  scope: WorkspaceGuidance,
+  scope: Exclude<WorkspaceGuidance, { state: 'unavailable' }>,
   history: readonly Message[],
   partition: string,
 ): TextContentBlock[] {
@@ -65,7 +65,7 @@ export function guidanceBlocks(
 }
 
 export function missingGuidanceBlocks(
-  scope: WorkspaceGuidance,
+  scope: Exclude<WorkspaceGuidance, { state: 'unavailable' }>,
   index: GuidanceIndex,
   partition: string,
 ): TextContentBlock[] {

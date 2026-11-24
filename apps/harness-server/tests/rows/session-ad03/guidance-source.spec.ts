@@ -41,10 +41,22 @@ it('distinguishes a missing rule in a verified directory from an unverified pare
       },
     },
   }
-  await expect(readWorkspaceGuidance(input, binding)).resolves.toMatchObject({ sources: [] })
+  await expect(readWorkspaceGuidance(input, binding)).resolves.toMatchObject({
+    state: 'attached',
+    absent: ['AGENTS.md', 'visited/AGENTS.md'],
+    sources: [],
+  })
   await rm(child, { recursive: true })
   await symlink(peer, child, 'dir')
-  await expect(readWorkspaceGuidance(input, binding)).rejects.toThrow()
+  await expect(readWorkspaceGuidance(input, binding)).resolves.toMatchObject({
+    state: 'unavailable',
+    path: 'visited/AGENTS.md',
+    reason: 'denied',
+  })
   await writeFile(join(peer, 'AGENTS.md'), 'other workspace')
-  await expect(readWorkspaceGuidance(input, binding)).rejects.toThrow()
+  await expect(readWorkspaceGuidance(input, binding)).resolves.toMatchObject({
+    state: 'unavailable',
+    path: 'visited/AGENTS.md',
+    reason: 'denied',
+  })
 })

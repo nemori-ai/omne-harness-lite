@@ -204,6 +204,10 @@ export function createModelReminders<P>(ports: ModelReminderPorts<P>): ModelRemi
         if (state?.kind === 'value') {
           const scope = workspaceGuidanceSchema.safeParse(state.value)
           if (!scope.success) return down('invalid workspace guidance value')
+          if (scope.data.state === 'unavailable')
+            return down(
+              `workspace guidance ${scope.data.path} (${scope.data.reason}): ${scope.data.diagnostic}`,
+            )
           const history = await ports.history?.(input, key, previous?.window)
           if (history === undefined)
             return down('the current model view for workspace guidance is unavailable')

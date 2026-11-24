@@ -12,11 +12,21 @@ const source = z.strictObject({
 export const workspaceGuidanceSchema = z.discriminatedUnion('state', [
   z.strictObject({ state: z.literal('inactive') }),
   z.strictObject({
+    state: z.literal('unavailable'),
+    workspace: text,
+    instance: text,
+    root: text,
+    path: text,
+    reason: z.enum(['denied', 'unreadable', 'unknown']),
+    diagnostic: text,
+  }),
+  z.strictObject({
     state: z.literal('attached'),
     workspace: text,
     instance: text,
     root: text,
     sources: z.array(source),
+    absent: z.array(text).optional(),
   }),
 ])
 export type WorkspaceGuidance = z.infer<typeof workspaceGuidanceSchema>
