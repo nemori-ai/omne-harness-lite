@@ -1115,6 +1115,7 @@ const CATEGORIES = [
   ['model-provider', '模型供应商'],
   ['plugin', 'Plugin'],
   ['skill', '技能'],
+  ['skin', '皮肤'],
   ['tool', '工具'],
 ]
 
