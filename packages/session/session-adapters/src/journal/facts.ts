@@ -8,6 +8,7 @@ import type {
   AgentJournalEntry,
   AgentOperationId,
   Authority,
+  ChainMember,
   ConsumerRef,
   CompactionTaskIdentity,
   ConsumptionId,
@@ -15,13 +16,16 @@ import type {
   DurableEvidence,
   ExecutionAttachmentId,
   ExecutionControl,
+  ExtensionChain,
   FinishCandidateContent,
   FinishRoute,
   HandoffReference,
   InputBatch,
   InputId,
+  LoopExtensionDeclaration,
   MaterialReaders,
   ModelReplyAdmission,
+  Passage,
   PassageId,
   PendingCall,
   StepId,
@@ -94,6 +98,15 @@ export type ProducerCall = (
     source: DurableEvidence
   }>
 
+export type PassageBlock = Omit<Passage, 'declaration'> &
+  Readonly<{ declaration: Ref<LoopExtensionDeclaration> }>
+export type ChainBlock = Omit<ExtensionChain, 'members'> &
+  Readonly<{
+    members: readonly (Omit<ChainMember, 'declaration'> &
+      Readonly<{ declaration: Ref<LoopExtensionDeclaration> }>)[]
+  }>
+export type PassageIndex = readonly Ref<PassageBlock>[]
+
 export type CursorMembers = Readonly<{
   position: string
   step: StepId
@@ -105,8 +118,8 @@ export type CursorMembers = Readonly<{
   compaction: Ref | null
   requestPreparation: Ref | null
   adoptedContext: DurableEvidence | null
-  passages: Ref
-  completedPassages: readonly PassageId[]
+  passages: Ref<PassageIndex>
+  chain: Ref<ChainBlock> | null
   batch: Ref | null
   calls: Ref
   schema: Adoption

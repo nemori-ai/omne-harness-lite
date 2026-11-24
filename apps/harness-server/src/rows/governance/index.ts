@@ -66,6 +66,8 @@ import {
   tenantSettingsKey,
   type TenantSettingsServiceOptions,
 } from './tenant-settings-service.ts'
+import { provideExtensionSources } from './extension-sources.ts'
+import { loopExtensionSourcesKey } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import { isHitlReservation } from '../tool-hitl/host.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
@@ -144,6 +146,7 @@ export const governanceRow = defineRow({
       tenantAssetSettingsKey,
       independentSettingsKey,
       tenantIndependentSettingsKey,
+      loopExtensionSourcesKey,
     ],
     injects: [
       storageKey,
@@ -266,6 +269,7 @@ export const governanceRow = defineRow({
       },
     })
     new StandingDestination(ctx, host)
+    provideExtensionSources(ctx, tenantRef => host.settings(tenantRef), config.deploymentId)
     new SessionBackend(ctx, host)
     new CurrentPermissionService(ctx, {
       identity: {

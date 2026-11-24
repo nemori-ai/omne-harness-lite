@@ -601,6 +601,17 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ...(rows.has('dispatch') ? ([['dispatch', { policy: DISPATCH_POLICY }]] as const) : []),
     ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
     ['execution-host', { stateDirectory: locations.hostFilesDir }],
+    [
+      'loop-extension',
+      {
+        commands: {
+          interpreters: { node: process.execPath },
+          env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
+          stateDirectory: path.join(locations.storageRoot, 'loop-extension-calls'),
+          workspace: settings.workspace,
+        },
+      },
+    ],
     ['request-context', {}],
     ['agent-context', {}],
     ['agent-host', AGENT_HOST],

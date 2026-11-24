@@ -33,6 +33,7 @@ import {
   createResumedCoordinator,
   type ExecutionCoordinator,
   type ExecutionDrive,
+  type ExecutionEntry,
   type Halted,
   type ResumeEntry,
 } from './loop/coordinator.ts'
@@ -141,6 +142,33 @@ type Driving = {
   }> | null
 }
 
+/** A stop an extension asked for is a control request: the same qualification check, the same write. */
+function cancelCommand<P>(input: Parameters<NonNullable<ExecutionEntry<P>['requestCancel']>>[0]) {
+  const { reason, ...target } = input
+  return { ...target, command: { kind: 'cancel' as const, reason } }
+}
+
+function stateOf(instance: AgentInstanceId, held: Slot): AgentState {
+  switch (held.kind) {
+    case 'free':
+      return { kind: 'idle', instance }
+    case 'reserved':
+      return { kind: 'reserved', instance }
+    case 'running':
+    case 'failed':
+      return {
+        kind: 'occupied',
+        instance,
+        execution: held.execution,
+        executionAttachment: held.attachment,
+      }
+    default: {
+      const _exhaustive: never = held
+      return _exhaustive
+    }
+  }
+}
+
 function drainingRefusal(operation: 'invoke' | 'resume'): Failure {
   return {
     kind: 'unavailable',
@@ -205,6 +233,10 @@ export function createProvider<P, B extends ContentBlock>(
   })
 
   const writeControl = createControlWriter(dependencies)
+  const requestCancel: NonNullable<ExecutionEntry<P>['requestCancel']> = async input => {
+    const passed = await guard(input, 'control', onExecution(input.execution))
+    return 'failure' in passed ? passed : writeControl(cancelCommand(input))
+  }
   let slot: Slot = { kind: 'free' }
   let driving: Driving | null = null
   let current: AgentState = { kind: 'idle', instance }
@@ -217,31 +249,10 @@ export function createProvider<P, B extends ContentBlock>(
   let retired = false
   const draining = () => quiescing !== null || checking > 0
 
-  function stateOf(held: Slot): AgentState {
-    switch (held.kind) {
-      case 'free':
-        return { kind: 'idle', instance }
-      case 'reserved':
-        return { kind: 'reserved', instance }
-      case 'running':
-      case 'failed':
-        return {
-          kind: 'occupied',
-          instance,
-          execution: held.execution,
-          executionAttachment: held.attachment,
-        }
-      default: {
-        const _exhaustive: never = held
-        return _exhaustive
-      }
-    }
-  }
-
   function occupy(next: Slot): void {
     slot = next
     for (const wake of listeners) wake()
-    const state = stateOf(next)
+    const state = stateOf(instance, next)
     if (JSON.stringify(state) === JSON.stringify(current)) return
     current = state
     try {
@@ -415,11 +426,11 @@ export function createProvider<P, B extends ContentBlock>(
       adoption: binding.definition,
     })
     if ('failure' in resolved) return resolved
-    if (resolved.ok.extensions.length > 0)
-      return fail(notImplemented('an adopted loop extension', 'stage 3'))
     return succeed({
       ...coordinatorBase(entry),
       evaluator: resolved.ok.evaluator,
+      extensions: resolved.ok.extensions,
+      requestCancel,
       access,
       execution,
       idle,
@@ -605,6 +616,8 @@ export function createProvider<P, B extends ContentBlock>(
     const coordinator = createExecutionCoordinator({
       ...coordinatorBase(entry),
       evaluator: resolved.ok.evaluator,
+      extensions: resolved.ok.extensions,
+      requestCancel,
       access: { principal: input.principal, tenant: input.tenant },
       execution: input.execution,
       operation: input.operation,

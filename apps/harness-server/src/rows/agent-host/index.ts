@@ -39,6 +39,9 @@ export type AgentToolRequests = NonNullable<AgentHostLocalPluginInput['toolReque
 
 export type AgentHostRowInput = Readonly<{
   toolRequestsOf?: (ctx: Context) => AgentToolRequests
+  enabledExtensionsOf?: (
+    ctx: Context,
+  ) => NonNullable<AgentHostLocalPluginInput['enabledExtensions']>
   measure?: AgentMeasure
   lostContact?: NonNullable<AgentHostLocalPluginInput['lostContact']>
 }>
@@ -145,6 +148,9 @@ export function createAgentHostRow(input: AgentHostRowInput = {}) {
   return createAgentHostRowOver(ctx =>
     createAgentHostLocalPlugin({
       ...(input.toolRequestsOf === undefined ? {} : { toolRequests: input.toolRequestsOf(ctx) }),
+      ...(input.enabledExtensionsOf === undefined
+        ? {}
+        : { enabledExtensions: input.enabledExtensionsOf(ctx) }),
       measure: input.measure ?? agentMeasureOf(ctx),
       ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
     }),

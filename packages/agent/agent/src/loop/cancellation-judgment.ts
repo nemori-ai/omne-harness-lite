@@ -9,6 +9,12 @@ import type {
 } from '@omne-harness/agent-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 
+/** What a cancellation is, the same at each of its stages: an operation made for it gives one reason however often it is tried. */
+export const cancellationCause = (control: ControlRecord) => ({
+  operation: control.operation,
+  accepted: control.stages.accepted.source,
+})
+
 // Nothing was written to the execution since its current judgment: a new candidate is a write too.
 function judgmentHolds(read: ExecutionSnapshot): boolean {
   const { currentJudgment, judgments } = read.settlement
