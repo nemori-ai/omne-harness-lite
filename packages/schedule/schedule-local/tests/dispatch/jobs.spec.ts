@@ -156,6 +156,45 @@ describe(
       }
     })
 
+    it('replace waits for a real stop: while the first has been asked but has not stopped, the new Job does not start', async () => {
+      const stopped: (() => void)[] = []
+      const runs: string[] = []
+      const stubborn: ScheduleProgram = {
+        name: 'probe',
+        run: (_input, { signal, jobId }) =>
+          new Promise((_resolve, reject) => {
+            runs.push(jobId)
+            signal.addEventListener('abort', () => stopped.push(() => reject(new Error('stopped'))))
+          }),
+      }
+      const w = await dispatchWorld({ programs: { probe: stubborn } })
+      try {
+        const id = await w.create(overlapped('replace'), 'stubborn-replace')
+        const dispatcher = w.dispatcher()
+        await dispatcher.round()
+        for (const _ of [1, 2]) {
+          w.time.advance(MINUTE)
+          await dispatcher.round()
+          await settle()
+        }
+        for (const _ of [1, 2]) {
+          await dispatcher.round()
+          await settle()
+        }
+        expect(runs).toHaveLength(1)
+        expect(stopped).toHaveLength(1)
+        stopped[0]?.()
+        for (const _ of [1, 2, 3]) {
+          await settle()
+          await dispatcher.round()
+        }
+        expect(runs).toHaveLength(2)
+        await dispatcher.close()
+      } finally {
+        await w.close()
+      }
+    })
+
     it('parallel: both run', async () => {
       const t = await world('parallel')
       try {

@@ -92,6 +92,7 @@ describe(
         expect(
           w.rows(`SELECT count(*) AS n FROM sc_lapses WHERE schedule_id = '${id}'`)[0]?.['n'],
         ).toBe(1)
+        expect(w.view(id)).toMatchObject({ eligibleConsumed: 30 * 24, acceptedJobCount: 2 })
         await dispatcher.close()
       } finally {
         await w.close()
@@ -124,6 +125,7 @@ describe(
         await dispatcher.round()
         await dispatcher.round()
         expect(w.receipts(id)).toEqual([])
+        expect(w.view(id)).toMatchObject({ eligibleConsumed: 2 })
         const [lapse] = w.rows(`SELECT lapse FROM sc_lapses WHERE schedule_id = '${id}'`)
         expect(JSON.parse(String(lapse?.['lapse']))).toMatchObject({
           cause: 'paused',

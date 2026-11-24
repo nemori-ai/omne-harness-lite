@@ -123,6 +123,19 @@ describe(
       }
     })
 
+    it('a slot whose source was already disposed at another time is not disposed again', async () => {
+      const { w, id, store, command } = await prepared()
+      try {
+        expect(await store.commit(command)).toMatchObject({ kind: 'committed' })
+        const moved = new Date(Date.parse(command.slot.scheduledAt) + 30_000).toISOString()
+        const slot = { ...command.slot, scheduledAt: moved as never }
+        expect(await store.commit({ ...command, slot, next: null })).toEqual({ kind: 'stale' })
+        expect(w.receipts(id)).toHaveLength(1)
+      } finally {
+        await w.close()
+      }
+    })
+
     it('a later slot is not disposed while an earlier one is still due', async () => {
       const { w, id, store, command } = await prepared()
       try {
