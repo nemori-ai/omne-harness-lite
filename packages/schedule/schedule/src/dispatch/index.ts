@@ -6,6 +6,7 @@ export {
   type OwnerStanding,
   type Prediction,
   type RoundReport,
+  reminderDeadline,
 } from './dispatcher.ts'
 export { admissionRefs } from './refs.ts'
 export type * from './types.ts'

@@ -21,7 +21,7 @@ export type Prediction =
 
 export type OwnerStanding =
   | Readonly<{ kind: 'eligible' }>
-  | Readonly<{ kind: 'refused'; reason: string }>
+  | Readonly<{ kind: 'refused' | 'terminal'; reason: string }>
   | Readonly<{ kind: 'unknown' }>
 
 export type DispatcherTime = Readonly<{
@@ -54,6 +54,15 @@ const admissionIds = (...args: Parameters<typeof admissionRefs>) => {
   return { receiptId, jobId }
 }
 const iso = (epochMs: number) => new Date(epochMs).toISOString() as ScheduleInstant
+const REMINDER_WINDOW_MS = 5 * 60_000
+/** A reminder is first accepted in [W, deadline): W plus five minutes, or the next valid slot if that is sooner. */
+export function reminderDeadline(
+  slot: ScheduleCandidate,
+  next: ScheduleCandidate | null,
+): ScheduleInstant {
+  const window = iso(Date.parse(slot.scheduledAt) + REMINDER_WINDOW_MS)
+  return next !== null && next.scheduledAt < window ? next.scheduledAt : window
+}
 const later = (left: ScheduleInstant | null, right: ScheduleInstant) =>
   left !== null && left > right ? left : right
 
@@ -123,7 +132,8 @@ async function admitCommand(
   const prepared = {
     hasNext: predicted.next !== null,
     missingCarriers: ports.missingCarriers(purpose),
-    reminderClosed: purpose.kind === 'reminder' ? false : null,
+    reminderClosed:
+      purpose.kind === 'reminder' ? at >= reminderDeadline(slot, predicted.next) : null,
     standing,
   } satisfies Pick<AdmissionFacts, 'hasNext' | 'missingCarriers' | 'reminderClosed' | 'standing'>
   const facts: AdmissionFacts = {

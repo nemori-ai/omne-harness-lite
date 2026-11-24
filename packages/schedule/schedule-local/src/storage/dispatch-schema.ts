@@ -56,7 +56,7 @@ export const preparedSchema = z.strictObject({
   reminderClosed: z.boolean().nullable(),
   standing: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('eligible') }),
-    z.strictObject({ kind: z.literal('refused'), reason: z.string().min(1) }),
+    z.strictObject({ kind: z.enum(['refused', 'terminal']), reason: z.string().min(1) }),
   ]),
 })
 const target = { owner: ScheduleOwnerSchema, at: ScheduleInstantSchema }

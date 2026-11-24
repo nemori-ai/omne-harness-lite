@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { decideAdmission, type AdmissionFacts } from '../../src/dispatch/admission.ts'
+import { reminderDeadline } from '../../src/dispatch/dispatcher.ts'
 
 const ready: AdmissionFacts = {
   slot: { disposed: false, earlierPending: false },
@@ -52,6 +53,11 @@ describe('the admission of one due slot: the first row that holds decides', () =
       '5 a dependency is gone for good',
       with_({ dependency: { kind: 'terminal', reasons: ['device-retired'] } }),
       { kind: 'invalidate', reasons: ['device-retired'] },
+    ],
+    [
+      '5 the owner is no longer a member',
+      with_({ standing: { kind: 'terminal', reason: 'owner-not-member' } }),
+      { kind: 'invalidate', reasons: ['owner-not-member'] },
     ],
     [
       '6 a dependency is blocked',
@@ -148,4 +154,50 @@ describe('the admission of one due slot: the first row that holds decides', () =
       ),
     ).toMatchObject({ kind: 'skip', exhausts: false })
   })
+})
+
+describe('the admission window of a reminder', () => {
+  const candidate = (scheduledAt: string) => ({ scheduledAt }) as never
+  it('is five minutes from its slot, or up to the next slot when that comes sooner', () => {
+    expect(reminderDeadline(candidate('2026-11-04T09:00:00.000Z'), null)).toBe(
+      '2026-11-04T09:05:00.000Z',
+    )
+    expect(
+      reminderDeadline(
+        candidate('2026-11-04T09:00:00.000Z'),
+        candidate('2026-11-04T09:10:00.000Z'),
+      ),
+    ).toBe('2026-11-04T09:05:00.000Z')
+    expect(
+      reminderDeadline(
+        candidate('2026-11-04T09:00:00.000Z'),
+        candidate('2026-11-04T09:01:00.000Z'),
+      ),
+    ).toBe('2026-11-04T09:01:00.000Z')
+  })
+})
+
+describe('what does not count as a job, and what is not an overlap', () => {
+  const oneJobLeft = { ...ready.counts, jobsAccepted: 1, jobLimit: 2 }
+  it('a missed or rejected slot does not use the last job, so it does not exhaust the schedule by the job limit', () => {
+    expect(decideAdmission(with_({ counts: oneJobLeft, reminderClosed: true }))).toMatchObject({
+      kind: 'miss',
+      exhausts: false,
+    })
+    expect(
+      decideAdmission(with_({ counts: oneJobLeft, standing: { kind: 'refused', reason: 'x' } })),
+    ).toMatchObject({ kind: 'reject', exhausts: false })
+  })
+
+  it.each(['skip', 'wait', 'replace'] as const)(
+    'with nothing unfinished, policy %s accepts at once and stops nothing',
+    policy => {
+      expect(decideAdmission(with_({ overlap: { unfinished: 0, policy } }))).toEqual({
+        kind: 'accept',
+        start: 'ready',
+        stopPredecessors: false,
+        exhausts: false,
+      })
+    },
+  )
 })

@@ -20,7 +20,9 @@ export type AdmissionFacts = Readonly<{
   missingCarriers: readonly string[]
   /** For a reminder: the admission window of the slot has closed. Null for execution. */
   reminderClosed: boolean | null
-  standing: Readonly<{ kind: 'eligible' }> | Readonly<{ kind: 'refused'; reason: string }>
+  standing:
+    | Readonly<{ kind: 'eligible' }>
+    | Readonly<{ kind: 'refused' | 'terminal'; reason: string }>
   overlap: Readonly<{ unfinished: number; policy: ScheduleOverlap }>
 }>
 
@@ -63,6 +65,8 @@ export function decideAdmission(facts: AdmissionFacts): Admission {
     return { kind: 'exhaust' }
   if (facts.dependency.kind === 'terminal')
     return { kind: 'invalidate', reasons: facts.dependency.reasons }
+  if (facts.standing.kind === 'terminal')
+    return { kind: 'invalidate', reasons: [facts.standing.reason] }
   if (facts.dependency.kind === 'blocked')
     return { kind: 'block', reasons: facts.dependency.reasons }
   if (facts.missingCarriers.length > 0)

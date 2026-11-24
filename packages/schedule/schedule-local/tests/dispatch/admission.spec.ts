@@ -42,6 +42,37 @@ describe(
       }
     })
 
+    it('a schedule already active before the dispatcher first saw it is watched from that moment: earlier slots are not its slots', async () => {
+      const w = await dispatchWorld()
+      try {
+        const id = await w.create(everyMinute(), 'takeover')
+        const updated = await w.app.commands.execute(context, {
+          action: 'update',
+          scheduleId: id,
+          patch: { kind: 'label', label: 'Taken over' },
+          meta: { operationKey: 'takeover-update', expectedRevision: 1 },
+        } as never)
+        expect(updated.kind).toBe('committed')
+        w.time.advance(3 * MINUTE)
+        const dispatcher = w.dispatcher()
+        await dispatcher.round()
+        const state = JSON.parse(
+          String(w.rows(`SELECT state FROM sc_dispatch WHERE schedule_id = '${id}'`)[0]?.['state']),
+        )
+        expect(state).toMatchObject({
+          watchedCause: 'takeover',
+          watchedFrom: new Date(START + 3 * MINUTE + 10_000).toISOString(),
+        })
+        expect(state.next.scheduledAt).toBe(at(4))
+        w.time.advance(MINUTE)
+        await dispatcher.round()
+        expect(w.receipts(id).map(item => item.at)).toEqual([at(4)])
+        await dispatcher.close()
+      } finally {
+        await w.close()
+      }
+    })
+
     it('two dispatchers on one store accept a slot once', async () => {
       const w = await dispatchWorld()
       try {

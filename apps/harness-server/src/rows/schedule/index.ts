@@ -89,7 +89,8 @@ function standingOf(ctx: Context, tenantRef: string) {
     if (source === undefined || !tenant.ok) return { kind: 'unknown' as const }
     const reading = await source.read({ tenant: tenant.value }).catch(() => undefined)
     if (reading?.kind === 'member') return { kind: 'eligible' as const }
-    if (reading?.kind === 'not-member') return { kind: 'refused' as const, reason: 'not-member' }
+    if (reading?.kind === 'not-member')
+      return { kind: 'terminal' as const, reason: 'owner-not-member' }
     return { kind: 'unknown' as const }
   }
 }

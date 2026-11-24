@@ -45,14 +45,18 @@ export function everyMinute(change: Partial<ScheduleDefinition> = {}): ScheduleD
 }
 
 export type DispatchWorldOptions = Readonly<{
+  root?: string
+  wall?: number
   standing?: ScheduleDispatchOptions['standing']
   missingCarriers?: ScheduleDispatchOptions['missingCarriers']
 }>
 
 /** Real SQLite, real prediction, a simulated time the test moves, and a dispatcher whose rounds the test calls. */
 export async function dispatchWorld(options: DispatchWorldOptions = {}) {
-  const world = await openWorld()
-  const time = simulatedTime({ wall: START + 10_000 })
+  const world = await openWorld(
+    options.root === undefined ? {} : { root: options.root, configure: false },
+  )
+  const time = simulatedTime({ wall: options.wall ?? START + 10_000 })
   const app = await createScheduleLocalApplication(localOptions(world))
   const worker = createScheduleCalculationWorker({ maxConcurrent: 1, maxQueued: 4 })
   const base = localOptions(world)
@@ -103,11 +107,13 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
     receipts: (id: string) =>
       rows(
         `SELECT slot_at, job_id, receipt FROM sc_receipts WHERE schedule_id = '${id}' ORDER BY slot_at`,
-      ).map(row => ({
-        at: row['slot_at'],
-        job: row['job_id'],
-        ...(JSON.parse(String(row['receipt'])) as { receipt: Record<string, unknown> }).receipt,
-      })),
+      ).map(
+        (row): Record<string, unknown> => ({
+          at: row['slot_at'],
+          job: row['job_id'],
+          ...(JSON.parse(String(row['receipt'])) as { receipt: Record<string, unknown> }).receipt,
+        }),
+      ),
     jobs: (id: string) =>
       rows(
         `SELECT job_id, slot_at, state FROM sc_jobs WHERE schedule_id = '${id}' ORDER BY slot_at`,

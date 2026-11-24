@@ -16,7 +16,7 @@ import {
   saveState,
   writeAdmission,
 } from './dispatch-records.ts'
-import { GUARD_FACT } from './schema.ts'
+import { GUARD_FACT, RESULT_FACT } from './schema.ts'
 
 const exhausting = (command: DispatchCommandInput) =>
   command.kind === 'admit' &&
@@ -103,5 +103,6 @@ export function executeDispatch(requirement: DispatchRequirement, port: Particip
     }
   }
   const response = json({ committed: command.kind })
+  port.provideFact(RESULT_FACT, response)
   return { kind: 'participated', response } as const
 }
