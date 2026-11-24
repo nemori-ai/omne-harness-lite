@@ -117,6 +117,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       scope,
       step,
       at: snapshot.revision,
+      ...(refreshed.kind === 'guidance' ? { key: 'session.workspace-guidance' as const } : {}),
       value: refreshed.value,
     })
     const settled = reminderOutcome(

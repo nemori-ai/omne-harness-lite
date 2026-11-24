@@ -7,6 +7,7 @@ import {
   type SessionId,
   type SessionRevision,
 } from '@omne-harness/session-contract'
+import type { WorkspaceGuidance } from '../workspace-guidance.ts'
 import type { WorkingDirectory } from '../working-directory-schema.ts'
 import { encodeContextStepCommit } from './context-input.ts'
 import { workingDirectoryDescriptor } from './working-directory-block.ts'
@@ -21,15 +22,16 @@ type StepInput = Readonly<{
   step: string
   /** The session revision the step begins at: what makes one boundary's commit its own. */
   at: SessionRevision
-  value: WorkingDirectory
+  key?: 'session.working-directory' | 'session.workspace-guidance'
+  value: WorkingDirectory | WorkspaceGuidance
 }>
 
-const digestOf = (value: WorkingDirectory) =>
+const digestOf = (value: StepInput['value']) =>
   `sha256:${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`
 
 /** The step commit of one boundary: the coordinator writes the whole value of the block. */
 export function workingDirectoryStep(input: StepInput) {
-  const { key } = workingDirectoryDescriptor
+  const key = input.key ?? workingDirectoryDescriptor.key
   const operation = deriveSessionOperation({
     kind: 'context-step',
     session: input.session,
@@ -75,7 +77,7 @@ export function workingDirectoryCommand(
         kind: 'context-step-commit',
         basis: {
           owner: OWNER,
-          record: `${input.scope.ref}/${workingDirectoryDescriptor.key}/step/${input.step}`,
+          record: `${input.scope.ref}/${input.key ?? workingDirectoryDescriptor.key}/step/${input.step}`,
           revision: '1',
           digest: digestOf(input.value),
         },

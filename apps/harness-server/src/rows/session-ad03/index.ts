@@ -21,6 +21,7 @@ import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts
 import { sessionModesPrincipalsKey } from '../../entry/session-modes-principals.ts'
 import { defaultModesOf } from '../session-conditions/index.ts'
 import { SessionModesInstallation, sessionModesInstallationKey } from './modes.ts'
+import { readWorkspaceGuidance } from './workspace-guidance.ts'
 import { SessionWorkingDirectory, sessionWorkingDirectoryKey } from './working-directory.ts'
 import { workspaceTargets } from '../session-access/workspace-targets.ts'
 import { adoptedContextDefinitions } from '../../assembly/context-definitions.ts'
@@ -82,6 +83,7 @@ const plugin: Plugin.Object = {
     })
     new SessionWorkingDirectory(ctx, {
       defaultDirectory: config.defaultDirectory,
+      guidance: readWorkspaceGuidance,
       targets: () => workspaceTargets(ctx),
       recover: input => bundle.recoverSession(input),
     })

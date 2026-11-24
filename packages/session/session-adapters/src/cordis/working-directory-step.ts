@@ -7,6 +7,7 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { WorkingDirectory } from '../working-directory-schema.ts'
+import { workspaceGuidanceDescriptor, type WorkspaceGuidance } from '../workspace-guidance.ts'
 import { heldBlock } from './context-records.ts'
 import { workingDirectoryDescriptor } from './working-directory-block.ts'
 
@@ -33,6 +34,7 @@ export type StepDirectoryInput<P> = Readonly<{
 export type StepDirectoryResult =
   | Readonly<{ kind: 'refreshed' }>
   | Readonly<{ kind: 'commit'; value: WorkingDirectory }>
+  | Readonly<{ kind: 'guidance'; value: WorkspaceGuidance }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /** The one place the working directory of a session changes: the action before a step. */
@@ -41,6 +43,10 @@ export type StepDirectory<P> = Readonly<{
 }>
 
 export type StepDirectoryPorts<P> = Readonly<{
+  guidance?(
+    input: StepDirectoryInput<P>,
+    value: Extract<WorkingDirectory, { state: 'attached' }>,
+  ): Promise<WorkspaceGuidance>
   defaultDirectory: string
   targets(): WorkingDirectoryTargets<P> | undefined
   recover(
@@ -101,9 +107,20 @@ export function createStepDirectory<P>(ports: StepDirectoryPorts<P>): StepDirect
         if (held.kind === 'not-held') return REFRESHED
         const value = await directoryInForce(ports, input)
         if ('unavailable' in value) return down(value.unavailable)
-        return held.committed !== null && isDeepStrictEqual(held.committed.value, value)
+        if (held.committed === null || !isDeepStrictEqual(held.committed.value, value))
+          return { kind: 'commit', value }
+        if (ports.guidance === undefined) return REFRESHED
+        const guidance = heldBlock(
+          input.snapshot.contextRecords ?? [],
+          input.scope,
+          workspaceGuidanceDescriptor.key,
+        )
+        if (guidance.kind === 'not-held') return REFRESHED
+        const next: WorkspaceGuidance =
+          value.state === 'attached' ? await ports.guidance(input, value) : { state: 'inactive' }
+        return isDeepStrictEqual(guidance.committed?.value, next)
           ? REFRESHED
-          : { kind: 'commit', value }
+          : { kind: 'guidance', value: next }
       } catch (cause) {
         return down(`the working directory refresh threw: ${String(cause)}`)
       }

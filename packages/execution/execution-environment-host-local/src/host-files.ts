@@ -139,8 +139,8 @@ export type HostFilesEngineOptions = Readonly<{
   diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
 }>
 
-export function createHostFiles(): FileSystemFacility<unknown> {
-  return createHostFilesEngine().facilityFor('host-files')
+export function createHostFiles(scope?: FilesScope): FileSystemFacility<unknown> {
+  return createHostFilesEngine(scope === undefined ? {} : { scope }).facilityFor('host-files')
 }
 
 function absolutePath(name: string, value: string | undefined): void {
