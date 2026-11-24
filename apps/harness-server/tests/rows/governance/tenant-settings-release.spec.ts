@@ -45,6 +45,7 @@ it('a login principal sets the Shell run permission to deny on the release tree 
         'Notifications/triage:auto',
         'OmneExtensionPoints/read:auto',
         'OmneExtensions/change:auto',
+        'OmneExtensions/configure:ask',
         'OmneExtensions/export:auto',
         'OmneExtensions/read:auto',
         'Schedules/activate:auto',
