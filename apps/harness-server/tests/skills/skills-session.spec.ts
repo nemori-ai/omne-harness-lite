@@ -149,6 +149,7 @@ describe('Skills in a real coding session', () => {
         'Ask',
         'BkgToolCalls',
         'Calendar',
+        'Canvas',
         'Files',
         'Notifications',
         'OmneExtensionPoints',
