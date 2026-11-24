@@ -1,6 +1,6 @@
 import {
   Ago,
-  Button,
+  EntityKindIcon,
   GlideMenu,
   ListReadingRow,
   LoadingState,
@@ -27,34 +27,24 @@ import { useSession } from './use-session.ts'
 
 const PICKS = 6
 
-function Said({ frame, children }: { readonly frame: PaperFrame; readonly children: ReactNode }) {
+function Said({ children }: { readonly children: ReactNode }) {
   return (
-    <div className="omne-paper-session" data-frame={frame} {...sessionPaperItem.props}>
-      <p className="omne-paper-session-said">{children}</p>
-    </div>
+    <p className="omne-paper-said" {...sessionPaperItem.props}>
+      {children}
+    </p>
   )
 }
 
 const lifecycleOf = (item: ListedSession) => LIFECYCLE[item.lifecycle]
 
-function Facts({
-  item,
-  archived,
-  now,
-}: {
-  readonly item: ListedSession
-  readonly archived: boolean
-  readonly now: number
-}) {
+function stateOf(item: ListedSession, archived: boolean): ReactNode {
   const lifecycle = lifecycleOf(item)
-  const at = item.lastActivityAt
-  if (at === null && lifecycle === undefined && !archived) return null
+  if (lifecycle === undefined && !archived) return undefined
   return (
-    <span className="omne-session-item-meta">
-      {at === null ? null : <Ago at={encodeInstant(at)} now={now} />}
+    <>
       {lifecycle === undefined ? null : <StateWord state={lifecycle} />}
       {archived ? <span>已归档</span> : null}
-    </span>
+    </>
   )
 }
 
@@ -70,29 +60,31 @@ function Row({
   readonly frame: PaperFrame
   readonly onOpen: (session: string) => void
 }) {
-  const now = useAgeClock(item.lastActivityAt !== null)
-  const facts = (
-    <>
-      <span className="omne-session-item-title">{sessionName(item)}</span>
-      <Facts item={item} archived={archived} now={now} />
-    </>
-  )
+  const at = item.lastActivityAt
+  const now = useAgeClock(at !== null)
+  const state = stateOf(item, archived)
+  const age = at === null ? undefined : <Ago at={encodeInstant(at)} now={now} />
   if (frame === 'search')
     return (
-      <div className="omne-paper-session" data-frame={frame} {...sessionPaperItem.props}>
-        {facts}
+      <div className="omne-paper-line" data-frame={frame} {...sessionPaperItem.props}>
+        <span className="omne-session-item-title">{sessionName(item)}</span>
+        <span className="omne-session-item-meta">
+          {age}
+          {state}
+        </span>
       </div>
     )
   return (
-    <Button
-      variant="ghost"
+    <ListReadingRow
       className="omne-paper-session"
       data-frame={frame}
       {...sessionPaperItem.props}
-      onClick={() => onOpen(item.session)}
-    >
-      {facts}
-    </Button>
+      mark={<EntityKindIcon kind="conversation" />}
+      title={sessionName(item)}
+      {...(state === undefined ? {} : { facts: state })}
+      {...(age === undefined ? {} : { time: age })}
+      onSelect={() => onOpen(item.session)}
+    />
   )
 }
 
@@ -124,9 +116,9 @@ function DirectoryRow({
     case 'reading':
       return <LoadingState label="正在读这个会话……" />
     case 'unreadable':
-      return <Said frame={frame}>读不到这个会话：它不在了，或你没有权限看。</Said>
+      return <Said>读不到这个会话：它不在了，或你没有权限看。</Said>
     case 'unavailable':
-      return <Said frame={frame}>现在读不到这个会话。</Said>
+      return <Said>现在读不到这个会话。</Said>
     case 'row':
       return <Row item={row.item} archived={row.archived} frame={frame} onOpen={onOpen} />
   }
@@ -147,7 +139,7 @@ export function PaperSession({
   readonly onOpen: (session: string) => void
 }) {
   const handle = useSession(workspaces, scope)
-  if (handle.kind === 'unreadable') return <Said frame={subject.frame}>现在读不到这个会话。</Said>
+  if (handle.kind === 'unreadable') return <Said>现在读不到这个会话。</Said>
   if (handle.kind !== 'ready' || scope === undefined)
     return <LoadingState label="正在读这个会话……" />
   return (

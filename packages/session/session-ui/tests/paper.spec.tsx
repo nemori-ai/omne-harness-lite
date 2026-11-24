@@ -98,7 +98,7 @@ describe('a session on the paper', () => {
     await settle()
     const item = screen.getByRole('button')
     expect(item.getAttribute('data-omne-part')).toBe('session.paper.item')
-    expect(item.querySelector('.omne-session-item-title')?.textContent).toBe('周报')
+    expect(item.querySelector('.list-reading-row-title')?.textContent).toBe('周报')
     expect(item.querySelector('time')?.textContent).toMatch(/3 分钟前/u)
     expect(container.textContent).not.toMatch(/空闲|休眠|正在初始化|已冻结/u)
   })

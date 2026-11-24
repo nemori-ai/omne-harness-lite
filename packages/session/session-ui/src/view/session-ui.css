@@ -1023,33 +1023,19 @@
   /* A session on the canvas, inside the frame the paper gives it: a page on the sheet, the page a pile
    lets show, a line of the search. */
   .omne-paper-session {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--omne-space-inline);
-    justify-content: flex-start;
     width: 100%;
-    height: auto;
-    min-width: 0;
-    padding: var(--omne-row-padding);
-    border: 0;
-    border-radius: var(--omne-radius-control);
-    background: transparent;
-    color: var(--omne-ink-primary);
-    font-weight: var(--omne-weight-regular);
-    text-align: left;
-    white-space: normal;
   }
-  .omne-paper-session[data-frame='sheet'] .omne-session-item-title {
+  .omne-paper-session[data-frame='sheet'] .list-reading-row-title {
     font-size: var(--omne-text-body);
-    overflow-wrap: anywhere;
-    white-space: normal;
   }
-  .omne-paper-session[data-frame='search'] {
-    flex-direction: row;
+  .omne-paper-line {
+    display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
+    gap: var(--omne-space-inline);
+    min-width: 0;
   }
-  .omne-paper-session-said,
+  .omne-paper-said,
   .omne-paper-pick-none {
     margin: 0;
     color: var(--omne-ink-muted);
