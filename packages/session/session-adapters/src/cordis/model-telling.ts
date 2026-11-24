@@ -24,6 +24,7 @@ import {
 } from './model-reminder-commit.ts'
 import type { ModelReminders } from './model-reminders.ts'
 import { createModelTellingSteps } from './model-telling-steps.ts'
+import { settleModelStep } from './model-step-settlement.ts'
 import type { StepDirectory } from './working-directory-step.ts'
 
 export type { ModelReminders } from './model-reminders.ts'
@@ -45,6 +46,9 @@ export type Told =
   | null
   | Readonly<{ kind: 'again' }>
   | Readonly<{ kind: 'answer'; value: Readonly<{ failure: Failure }> }>
+
+type Preparation = Exclude<Told, null> | Readonly<{ kind: 'ready'; basis: ModelViewBasis | null }>
+const stepTell = (prepared: Preparation): Told => (prepared.kind === 'ready' ? null : prepared)
 
 export type StepOpening<P> = Readonly<{
   reminders?: ModelReminders<P> | undefined
@@ -82,7 +86,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
     domain: DomainRef,
     principal: P,
     snapshot: WorkSnapshot | null,
-  ): Promise<Exclude<Told, null> | Readonly<{ kind: 'ready'; basis: ModelViewBasis | null }>> {
+  ): Promise<Preparation> {
     const recovery = await recover(book, domain, snapshot)
     if (recovery !== null) return recovery
     if (reminders === undefined) return { kind: 'ready', basis: null }
@@ -124,11 +128,6 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
     const submit = prepared.ok.modelView === undefined ? commit : submitGuidance
     const settled = reminderOutcome(await submit(book, domain, command, prepared.ok.advance))
     return typeof settled === 'string' ? { kind: 'again' } : failed(settled)
-  }
-
-  async function tell(book: B, domain: DomainRef, principal: P, snapshot: WorkSnapshot | null) {
-    const result = await prepareTell(book, domain, principal, snapshot)
-    return result.kind === 'ready' ? null : result
   }
 
   return {
@@ -180,8 +179,13 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       const step = begunStep(appended)
       if (step === null) return null
       const principal = principalOf<P>(write)
-      const stale = await refresh(book, domain, principal, scratch.snapshot, step)
-      return stale ?? tell(book, domain, principal, scratch.snapshot)
+      return settleModelStep(
+        scratch.snapshot,
+        async snapshot =>
+          (await refresh(book, domain, principal, snapshot, step)) ??
+          stepTell(await prepareTell(book, domain, principal, snapshot)),
+        () => ports.read(book, domain),
+      )
     },
     /** The request after a compaction is prepared in the same step: tell it in full right away. */
     async afterCompaction(
@@ -210,7 +214,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
         'failure' in fresh
           ? failed(fresh.failure)
           : ((await refresh(book, domain, principalOf<P>(write), fresh.ok, 'compaction')) ??
-            (await tell(book, domain, principalOf<P>(write), fresh.ok)))
+            stepTell(await prepareTell(book, domain, principalOf<P>(write), fresh.ok)))
       // The original compaction remains committed. Resolving the next model view retries the repair.
       if (told?.kind === 'answer')
         ports.fault?.(

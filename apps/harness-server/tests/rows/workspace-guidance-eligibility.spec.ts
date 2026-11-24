@@ -31,6 +31,7 @@ it.each([
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'guidance-rights-')))
     onTestFinished(() => rmSync(root, { recursive: true, force: true }))
     const body = 'REVOKED_WORKSPACE_CONTENT_195'
+    const userReference = 'Continue with current access; my own reference is ' + root
     const oldScope = (request: string) =>
       textValues(JSON.parse(request)).filter(
         text =>
@@ -47,15 +48,20 @@ it.each([
       { script, extraHistoryKinds: ['message.system_reminder', 'session.model-projected'] },
       async tree => {
         let stage = 'first-run'
+        const qualificationCalls: unknown[] = []
         onTestFailed(() => {
           process.stderr.write(
             JSON.stringify({
               mode,
               stage,
               requests: requests.length,
+              qualificationCalls,
               records: tree.records
-                .slice(-12)
-                .map(item => (item['fields'] as { text?: string } | undefined)?.text),
+                .map(item => (item['fields'] as { text?: string } | undefined)?.text)
+                .filter(
+                  text => text && /denied|qualification|waits|failure|unavailable/u.test(text),
+                )
+                .slice(-20),
             }) + '\n',
           )
         })
@@ -105,6 +111,12 @@ it.each([
         const qualify = qualified.qualify
         if (mode === 'bypassed-history-qualification') {
           Reflect.set(qualified, 'qualify', async () => succeed([]))
+        } else {
+          Reflect.set(qualified, 'qualify', async (...args: Parameters<typeof qualify>) => {
+            const result = await qualify(...args)
+            qualificationCalls.push({ scopes: args[1], result })
+            return result
+          })
         }
         stage = 'qualification-change'
         const originalCount = requests.length
@@ -123,13 +135,7 @@ it.each([
         })
         try {
           const recordStart = tree.records.length
-          await command(tree, [
-            'send-input',
-            '--session',
-            session,
-            '--text',
-            'Continue with current access.',
-          ])
+          await command(tree, ['send-input', '--session', session, '--text', userReference])
           await pollUntil(
             'the new qualification reaches a request or an explicit refusal',
             async () => {
@@ -165,6 +171,7 @@ it.each([
             expect(requests.length).toBeGreaterThan(originalCount)
             expect(requests.at(-1)).not.toContain(body)
             expect(oldScope(requests.at(-1)!)).toHaveLength(0)
+            expect(requests.at(-1)).toContain(userReference)
             if (mode === 'historical') expect(requests.at(-1)).toContain('LEGAL_WORKSPACE_B_318')
             if (mode === 'selected') expect(requests.at(-1)).toMatch(/unusable/u)
             const entries = await historyOf(tree, session)

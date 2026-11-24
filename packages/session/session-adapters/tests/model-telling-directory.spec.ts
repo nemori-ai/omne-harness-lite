@@ -3,6 +3,7 @@ import { memoryAccess } from '@omne-harness/session-contract/testing'
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import { createModelTelling } from '../src/cordis/model-telling.ts'
 import type { StepDirectoryInput } from '../src/cordis/working-directory-step.ts'
+import { settleModelStep } from '../src/cordis/model-step-settlement.ts'
 
 const access = memoryAccess('telling-directory')
 const book = { ...access, tenantText: 'tenant', published: null }
@@ -62,4 +63,41 @@ it('fails the step without settling anything when there is no snapshot or no ope
     failed('the session has no open context scope'),
   )
   expect(refreshed).toEqual([])
+})
+
+it('stops owned preparation on an unknown read and bounds a preparation that never settles', async () => {
+  const snapshot = scoped(null)
+  let reads = 0
+  expect(
+    await settleModelStep(
+      snapshot,
+      async () => ({ kind: 'again' }),
+      async () => {
+        reads++
+        return {
+          failure: {
+            kind: 'unavailable',
+            owner: 'session-history',
+            diagnostic: 'read disconnected',
+          },
+        }
+      },
+    ),
+  ).toMatchObject({ kind: 'answer', value: { failure: { diagnostic: 'read disconnected' } } })
+  expect(reads).toBe(1)
+  reads = 0
+  expect(
+    await settleModelStep(
+      snapshot,
+      async () => ({ kind: 'again' }),
+      async () => {
+        reads++
+        return { ok: snapshot }
+      },
+    ),
+  ).toMatchObject({
+    kind: 'answer',
+    value: { failure: { diagnostic: 'the model step prerequisites kept changing' } },
+  })
+  expect(reads).toBe(16)
 })
