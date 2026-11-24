@@ -7,6 +7,7 @@ import {
   LoadingState,
   RadioGroup,
   RadioGroupItem,
+  Switch,
 } from '@omne-harness/ui-kit'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { RenderDrawer } from '@omne-harness/shell-contract'
@@ -68,6 +69,11 @@ function ownText(view: SettingView): string | null {
   if (view.kind === 'permission') return view.own
   if (view.kind !== 'ordinary' || view.own.kind !== 'set') return null
   return view.own.value.kind === 'string' ? view.own.value.value : null
+}
+
+function ownSwitch(view: SettingView): boolean | null {
+  if (view.kind !== 'ordinary' || view.own.kind !== 'set') return null
+  return view.own.value.kind === 'boolean' ? view.own.value.value : null
 }
 
 export function RowView({ row, driver }: Props): JSX.Element {
@@ -135,6 +141,41 @@ function Choices({
         ))}
       </RadioGroup>
     </fieldset>
+  )
+}
+
+function SwitchValue({
+  title,
+  own,
+  busy,
+  onSubmit,
+}: {
+  readonly title: string
+  readonly own: boolean | null
+  readonly busy: boolean
+  readonly onSubmit: (on: boolean) => void
+}): JSX.Element {
+  const [on, setOn] = useState(own)
+  return (
+    <div className="assets-setting-value">
+      <label className="assets-setting-switch">
+        <Switch
+          checked={on === true}
+          disabled={busy}
+          onCheckedChange={setOn}
+          aria-label={`${title}：开或关`}
+        />
+        <span>{on === true ? '开' : '关'}</span>
+      </label>
+      <Button
+        disabled={busy || on === null || on === own}
+        onClick={() => {
+          if (on !== null) onSubmit(on)
+        }}
+      >
+        设置
+      </Button>
+    </div>
   )
 }
 
@@ -289,6 +330,14 @@ function OwnControls({ row, driver }: Props): JSX.Element | null {
           own={own}
           busy={busy}
           onSubmit={text => driver.setValue(row.key, { kind: 'string', value: text })}
+        />
+      ) : null}
+      {control.kind === 'switch' ? (
+        <SwitchValue
+          title={title}
+          own={ownSwitch(view)}
+          busy={busy}
+          onSubmit={on => driver.setValue(row.key, { kind: 'boolean', value: on })}
         />
       ) : null}
       {view.kind === 'secret' ? (

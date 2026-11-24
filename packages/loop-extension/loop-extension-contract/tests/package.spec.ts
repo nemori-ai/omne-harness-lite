@@ -6,7 +6,9 @@ import {
   RUN_SETTING,
   declarationOf,
   loopExtensionBodyContract,
+  loopExtensionCategoryDisplay,
 } from '@omne-harness/loop-extension-contract'
+import { POSITIONS } from '@omne-harness/agent-contract'
 import type { JsonValue, PackageReader } from '@omne-harness/assets'
 import { fail } from '@omne-harness/operation-result'
 import { builtin, command, packageOf, text } from './support.ts'
@@ -249,5 +251,58 @@ describe('the run setting', () => {
     expect(
       contract.settings?.(other, { capabilityName: 'other', definition: 'v1' })?.version,
     ).not.toBe(of('probe', 'v1'))
+  })
+})
+
+describe('the summary of a version', () => {
+  const context = { capabilityName: 'probe', definition: 'v1' }
+
+  it('says where a builtin extension runs and what it may do there', async () => {
+    const declaration = builtin({ position: 'execution_started', power: 'observe' })
+    const body = await bodyOf({ [DECLARATION_PATH]: text(declaration) })
+    expect(contract.summarize?.(body, context)).toEqual({
+      title: 'probe',
+      description: '在「执行开始之后」运行，只观察这一步。',
+      facts: [
+        { name: '位置', text: '执行开始之后' },
+        { name: '干预力', text: '只观察' },
+        { name: '实现', text: '内建：probe' },
+      ],
+    })
+  })
+
+  it('names the script and time limit of a command, and what its error means when the declaration says', async () => {
+    const declaration = command({ onError: 'treat_as_veto' })
+    const body = await bodyOf({ [DECLARATION_PATH]: text(declaration), 'check.mjs': '' })
+    const summary = contract.summarize?.(body, context)
+    expect(summary?.description).toBe('在「执行动作之前」运行，可以否决这一步。')
+    expect(summary?.facts.slice(2)).toEqual([
+      { name: '实现', text: '命令：node check.mjs，时限 PT10S' },
+      { name: '出错时', text: '当作否决' },
+    ])
+  })
+
+  it('refuses to summarize a body that is not a declaration', () => {
+    expect(() => contract.summarize?.({ kind: 'object', entries: [] }, context)).toThrow(TypeError)
+  })
+})
+
+describe('the texts a person and an agent read', () => {
+  it('the run setting is written in Chinese and says that holding is not running', async () => {
+    const body = await bodyOf({ [DECLARATION_PATH]: text(builtin()) })
+    const [item] =
+      contract.settings?.(body, { capabilityName: 'probe', definition: 'v1' })?.items ?? []
+    expect(item?.presentation).toMatchObject({ title: '运行', clear: '回到缺省：不运行。' })
+    expect(item?.presentation.description).toContain('持有它不等于运行它')
+  })
+
+  it('the authoring text carries a whole declaration that the contract accepts, and the nine positions', async () => {
+    const lines = (loopExtensionCategoryDisplay.authoring ?? '').split('\n')
+    const start = lines.indexOf('extension.json:')
+    const declaration = JSON.parse(lines.slice(start + 1, start + 3).join('')) as { entry?: string }
+    const body = await bodyOf({ [DECLARATION_PATH]: text(declaration), 'watch.mjs': '' })
+    expect(declarationOf(body)?.name).toBe('watch')
+    for (const position of POSITIONS)
+      expect(loopExtensionCategoryDisplay.authoring).toContain(position)
   })
 })

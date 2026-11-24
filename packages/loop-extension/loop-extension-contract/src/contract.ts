@@ -1,9 +1,16 @@
-import { POSITIONS, POWERS, type LoopExtensionDeclaration } from '@omne-harness/agent-contract'
+import {
+  POSITIONS,
+  POWERS,
+  type LoopExtensionDeclaration,
+  type Position,
+  type Power,
+} from '@omne-harness/agent-contract'
 import {
   digestBytes,
   isReadBody,
   readBodyText,
   refusal,
+  type AssetSummary,
   type BodyContract,
   type CategoryDisplay,
   type JsonValue,
@@ -18,8 +25,64 @@ export const RUN_SETTING = 'run'
 export const loopExtensionCategoryDisplay: CategoryDisplay = Object.freeze({
   title: '拓展件',
   summary: '挂在 agent 循环某一处位置上的一段判断：观察、改写或否决这一步。',
-  creation: '一个目录，根下有 extension.json；命令型另带它运行的脚本。',
+  creation:
+    '一个目录，根下有 extension.json；命令型另带它运行的脚本。发布之后要打开「运行」才生效。',
+  authoring: [
+    'A loop extension is a directory with extension.json at its root, and for a command the script it runs. Whole and minimal:',
+    'extension.json:',
+    '{ "name": "watch", "position": "before_action", "power": "veto",',
+    '  "implementation": { "kind": "command", "interpreter": "node", "entry": "watch.mjs", "timeout": "PT30S" } }',
+    'watch.mjs:',
+    "let text = ''",
+    'for await (const chunk of process.stdin) text += chunk',
+    'const request = JSON.parse(text)',
+    "process.stdout.write(JSON.stringify({ kind: 'observed' }))",
+    'name is the name it is published under. position is where in the loop it runs: execution_started, before_compaction, after_compaction, before_model_call, after_model_call, before_action, after_action, before_terminal, after_terminal.',
+    'power is the most it may do there: observe, rewrite or veto. onError (optional) says what an error of the script means: ignore, record, or treat_as_veto for a veto.',
+    'The script reads one JSON request from standard input: mode (fresh or replay) and input (position, subject, earlier). It writes one JSON output to standard output and exits 0: { "kind": "observed" }, or { "kind": "veto", "reason": "..." } where the power is veto. Anything else, a nonzero exit or a timeout is recorded as an error. It gets no way to call back into the system.',
+    'Holding one does not run it: after it is published, turn its setting run on. It then runs from the next time the loop passes its position, in every session of the tenant; turning run off stops it the same way.',
+  ].join('\n'),
 })
+
+const POSITION_TEXT: Readonly<Record<Position, string>> = {
+  execution_started: '执行开始之后',
+  before_compaction: '压缩之前',
+  after_compaction: '压缩之后',
+  before_model_call: '调模型之前',
+  after_model_call: '调模型之后',
+  before_action: '执行动作之前',
+  after_action: '执行动作之后',
+  before_terminal: '落终态之前',
+  after_terminal: '落终态之后',
+}
+const POWER_TEXT: Readonly<Record<Power, string>> = {
+  observe: '只观察',
+  rewrite: '可以改写',
+  veto: '可以否决',
+}
+const ERROR_TEXT: Readonly<Record<NonNullable<LoopExtensionDeclaration['onError']>, string>> = {
+  ignore: '忽略，这一步照常',
+  record: '记下，这一步照常',
+  treat_as_veto: '当作否决',
+}
+
+function summaryOf(declaration: LoopExtensionDeclaration): AssetSummary {
+  const { position, power, implementation, onError } = declaration
+  const how =
+    implementation.kind === 'builtin'
+      ? `内建：${implementation.builtinName}`
+      : `命令：${implementation.interpreter} ${implementation.entry}，时限 ${implementation.timeout}`
+  return {
+    title: declaration.name,
+    description: `在「${POSITION_TEXT[position]}」运行，${POWER_TEXT[power]}这一步。`,
+    facts: [
+      { name: '位置', text: POSITION_TEXT[position] },
+      { name: '干预力', text: POWER_TEXT[power] },
+      { name: '实现', text: how },
+      ...(onError === undefined ? [] : [{ name: '出错时', text: ERROR_TEXT[onError] }]),
+    ],
+  }
+}
 
 const PROVIDER = 'loop-extension'
 const GROUP = 'loop-extension'
@@ -127,8 +190,8 @@ function runSettingContent(name: string): Omit<SettingDefinitions, 'version'> {
       {
         id: GROUP,
         parentId: null,
-        title: 'Loop extension',
-        description: `Whether the loop extension ${name} runs.`,
+        title: '运行',
+        description: `拓展件 ${name} 运行不运行。`,
         order: 0,
       },
     ],
@@ -138,10 +201,10 @@ function runSettingContent(name: string): Omit<SettingDefinitions, 'version'> {
         groupId: GROUP,
         category: 'preference',
         presentation: {
-          title: 'Run',
-          description: `Run the loop extension ${name} at the position it declares.`,
-          impact: 'When on, the extension observes, rewrites or vetoes steps of the agent.',
-          clear: 'Clearing the value turns the extension off.',
+          title: '运行',
+          description: `在它声明的位置上运行拓展件 ${name}。持有它不等于运行它。`,
+          impact: '打开之后，它在这个租户的每个会话里观察、改写或否决 agent 的这一步。',
+          clear: '回到缺省：不运行。',
           adoption: 'next-read',
         },
         valueSchema: { type: 'boolean' },
@@ -170,6 +233,7 @@ export function loopExtensionBodyContract(): BodyContract {
       }
     },
     settings: (body, context) => runSetting(judged(body, context).name),
+    summarize: (body, context) => summaryOf(judged(body, context)),
     references(body, context) {
       judged(body, context)
       return []

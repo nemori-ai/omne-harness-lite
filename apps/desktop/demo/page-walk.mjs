@@ -514,6 +514,77 @@ async function walk(browser, origin, proofs, elsewhere) {
     return { asset: where, standing }`,
   )
   let madeElsewhere = Promise.resolve()
+  const extensionDirectory = mkdtempSync(join(tmpdir(), 'page-walk-extension-'))
+  writeFileSync(
+    join(extensionDirectory, 'extension.json'),
+    JSON.stringify({
+      name: 'walk-guard',
+      position: 'before_action',
+      power: 'veto',
+      implementation: {
+        kind: 'command',
+        interpreter: 'node',
+        entry: 'guard.mjs',
+        timeout: 'PT30S',
+      },
+    }),
+  )
+  writeFileSync(
+    join(extensionDirectory, 'guard.mjs'),
+    "process.stdout.write(JSON.stringify({ kind: 'observed' }))\n",
+  )
+  await step(
+    '拓展件这一类：栏里有它，还没有一件时窗格说明怎样新建',
+    `
+    const tab = await wait('the loop extension tab', () => assetTabs().find(item => item.textContent === '拓展件'))
+    const panel = await openTab(tab)
+    await press('button', '新建')
+    const form = await wait('the form', () => shownPanel().querySelector('form[aria-label="新建"]'))
+    if (!form.innerText.includes('extension.json')) throw new Error('the form does not say what to bring: ' + form.innerText)
+    fill(form.querySelector('input:not([type=file])'), 'walk-guard')
+    return { tab: tab.textContent, rows: panel.querySelectorAll('li.assets-item').length }`,
+    async () => {
+      const found = await send('Runtime.evaluate', {
+        expression: `document.querySelector('form[aria-label="新建"] input[type=file]')`,
+      })
+      await send('DOM.setFileInputFiles', {
+        objectId: found.result.objectId,
+        files: [extensionDirectory],
+      })
+    },
+    `
+    const form = shownPanel().querySelector('form[aria-label="新建"]')
+    await wait('the file count', () => form.innerText.includes('2 个文件'))
+    await press('form[aria-label="新建"] button', '提交')
+    await wait('the creation', () => form.innerText.includes('已新建 walk-guard。'))
+    const row = await wait('the new row', () => listedRow('walk-guard'))
+    if (!row.innerText.includes('在「执行动作之前」运行，可以否决这一步。')) throw new Error('the row shows no summary: ' + row.innerText)
+    return { created: row.getAttribute('aria-label'), summary: row.innerText.split('\\n').slice(0, 3) }`,
+  )
+  rmSync(extensionDirectory, { recursive: true, force: true })
+  await step(
+    '一件拓展件的页：写着它挂在哪、能做什么；「运行」缺省是关，拨开再点「设置」就写进去，清除回到关',
+    `
+    const page = await enterAsset('walk-guard')
+    const row = await wait('the run setting', () =>
+      [...page.querySelectorAll('li.assets-setting')].find(item => item.querySelector('.assets-setting-title')?.textContent === '运行'))
+    const toggle = row.querySelector('[role=switch]')
+    if (toggle.getAttribute('aria-checked') !== 'false') throw new Error('run is not off by default')
+    const set = () => [...row.querySelectorAll('button')].find(button => button.textContent.trim() === '设置')
+    if (!set().disabled) throw new Error('set is enabled before the switch moved')
+    toggle.click()
+    ;(await wait('an enabled set', () => (set().disabled ? undefined : set()))).click()
+    await wait('the write', () => row.innerText.includes('已写入。'))
+    const on = await wait('the switch reads on after the reread', () => row.querySelector('[role=switch][aria-checked=true]'))
+    const facts = row.querySelector('.fact-list')?.innerText ?? ''
+    const clear = await wait('an enabled clear', () => [...row.querySelectorAll('button')].find(button => button.textContent.trim() === '清除' && !button.disabled))
+    clear.click()
+    await wait('the clear to land', () => row.querySelector('[role=switch][aria-checked=false]') && !row.innerText.includes('正在提交'))
+    await openDetails(page)
+    for (const fact of ['执行动作之前', '可以否决', '命令：node guard.mjs，时限 PT30S'])
+      if (!page.innerText.includes(fact)) throw new Error('the page lacks ' + fact + ': ' + page.innerText)
+    return { on: on !== null, facts: facts.split('\\n'), cleared: true }`,
+  )
   await step(
     '别处新建一份技能：页面不用人动就列出它',
     `
@@ -950,6 +1021,7 @@ async function walk(browser, origin, proofs, elsewhere) {
 const CATEGORIES = [
   ['AgentDefinition', '智能体'],
   ['converter', '转换件'],
+  ['loop-extension', '拓展件'],
   ['mcp', 'MCP'],
   ['model-provider', '模型供应商'],
   ['plugin', 'Plugin'],
