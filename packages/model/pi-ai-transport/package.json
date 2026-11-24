@@ -28,6 +28,11 @@
       "types": "./dist/responses/index.d.ts",
       "import": "./dist/responses/index.js"
     },
+    "./decisions": {
+      "source": "./src/decisions/index.ts",
+      "types": "./dist/decisions/index.d.ts",
+      "import": "./dist/decisions/index.js"
+    },
     "./testing": {
       "source": "./src/testing/index.ts",
       "types": "./dist/testing/index.d.ts",

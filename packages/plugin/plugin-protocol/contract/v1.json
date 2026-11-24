@@ -15,9 +15,7 @@
             "kind": {
               "rule": {
                 "kind": "literal",
-                "values": [
-                  "changed"
-                ]
+                "values": ["changed"]
               }
             }
           },
@@ -34,10 +32,7 @@
             "side": {
               "rule": {
                 "kind": "literal",
-                "values": [
-                  "client",
-                  "server"
-                ]
+                "values": ["client", "server"]
               }
             },
             "tenant": {
@@ -89,11 +84,7 @@
                                 "rule": {
                                   "item": {
                                     "kind": "literal",
-                                    "values": [
-                                      "tokens",
-                                      "style",
-                                      "render"
-                                    ]
+                                    "values": ["tokens", "style", "render"]
                                   },
                                   "kind": "array"
                                 }
@@ -157,11 +148,7 @@
                               "state": {
                                 "rule": {
                                   "kind": "literal",
-                                  "values": [
-                                    "loaded",
-                                    "failed",
-                                    "held"
-                                  ]
+                                  "values": ["loaded", "failed", "held"]
                                 }
                               },
                               "version": {
@@ -186,21 +173,13 @@
                                     "arity": {
                                       "rule": {
                                         "kind": "literal",
-                                        "values": [
-                                          "one",
-                                          "list",
-                                          "keyed-one",
-                                          "keyed-list"
-                                        ]
+                                        "values": ["one", "list", "keyed-one", "keyed-list"]
                                       }
                                     },
                                     "binding": {
                                       "rule": {
                                         "kind": "literal",
-                                        "values": [
-                                          "build",
-                                          "run"
-                                        ]
+                                        "values": ["build", "run"]
                                       }
                                     },
                                     "example": {
@@ -255,11 +234,7 @@
                                           "kind": {
                                             "rule": {
                                               "kind": "literal",
-                                              "values": [
-                                                "data",
-                                                "pure",
-                                                "effect"
-                                              ]
+                                              "values": ["data", "pure", "effect"]
                                             }
                                           }
                                         },
@@ -292,10 +267,7 @@
                                     "resolve": {
                                       "rule": {
                                         "kind": "literal",
-                                        "values": [
-                                          "conflict",
-                                          "most-specific"
-                                        ]
+                                        "values": ["conflict", "most-specific"]
                                       }
                                     },
                                     "revision": {
@@ -376,10 +348,7 @@
             "side": {
               "rule": {
                 "kind": "literal",
-                "values": [
-                  "client",
-                  "server"
-                ]
+                "values": ["client", "server"]
               }
             },
             "tenant": {
@@ -507,10 +476,7 @@
               "reason": {
                 "rule": {
                   "kind": "literal",
-                  "values": [
-                    "plugin",
-                    "file"
-                  ]
+                  "values": ["plugin", "file"]
                 }
               }
             },
@@ -563,11 +529,7 @@
                       "rule": {
                         "item": {
                           "kind": "literal",
-                          "values": [
-                            "tokens",
-                            "style",
-                            "render"
-                          ]
+                          "values": ["tokens", "style", "render"]
                         },
                         "kind": "array"
                       }
@@ -631,11 +593,7 @@
                     "state": {
                       "rule": {
                         "kind": "literal",
-                        "values": [
-                          "loaded",
-                          "failed",
-                          "held"
-                        ]
+                        "values": ["loaded", "failed", "held"]
                       }
                     },
                     "version": {
@@ -660,21 +618,13 @@
                           "arity": {
                             "rule": {
                               "kind": "literal",
-                              "values": [
-                                "one",
-                                "list",
-                                "keyed-one",
-                                "keyed-list"
-                              ]
+                              "values": ["one", "list", "keyed-one", "keyed-list"]
                             }
                           },
                           "binding": {
                             "rule": {
                               "kind": "literal",
-                              "values": [
-                                "build",
-                                "run"
-                              ]
+                              "values": ["build", "run"]
                             }
                           },
                           "example": {
@@ -729,11 +679,7 @@
                                 "kind": {
                                   "rule": {
                                     "kind": "literal",
-                                    "values": [
-                                      "data",
-                                      "pure",
-                                      "effect"
-                                    ]
+                                    "values": ["data", "pure", "effect"]
                                   }
                                 }
                               },
@@ -766,10 +712,7 @@
                           "resolve": {
                             "rule": {
                               "kind": "literal",
-                              "values": [
-                                "conflict",
-                                "most-specific"
-                              ]
+                              "values": ["conflict", "most-specific"]
                             }
                           },
                           "revision": {

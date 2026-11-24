@@ -55,16 +55,19 @@ const layers: readonly AssetLayerSource[] = [
       layer: 'tenant',
       state: 'read',
       page: {
-        items: [
-          {
-            capability: { category, name: 'tidy' } as never,
-            layer: 'tenant',
-            asset: candidate.asset,
-            version: VERSION,
-            selection: 'latest' as never,
-            enabled: true,
-          },
-        ],
+        items:
+          category === 'plugin'
+            ? [
+                {
+                  capability: { category, name: 'tidy' } as never,
+                  layer: 'tenant',
+                  asset: candidate.asset,
+                  version: VERSION,
+                  selection: 'latest' as never,
+                  enabled: true,
+                },
+              ]
+            : [],
         next: null,
         completeness: 'complete',
       },

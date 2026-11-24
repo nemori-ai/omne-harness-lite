@@ -11,14 +11,23 @@ export type Given = Readonly<{
 
 type Member = Readonly<Record<string, unknown>>
 
-export function given(name: string, version: string, ...members: Member[]): Given {
-  const manifest = JSON.stringify({ schema: 1, name, summary: 'a look', client: { members } })
+function listed(name: string, version: string, written: Member): Given {
+  const manifest = JSON.stringify({ schema: 1, name, summary: 'a look', ...written })
   return {
     name,
     version,
     manifest,
     files: [{ path: 'plugin.json', digest: version, bytes: manifest.length }],
   }
+}
+
+export function given(name: string, version: string, ...members: Member[]): Given {
+  return listed(name, version, { client: { members } })
+}
+
+/** A plugin whose manifest says it is a skin. */
+export function givenSkin(name: string, version: string, ...members: Member[]): Given {
+  return listed(name, version, { kind: 'skin', client: { members } })
 }
 
 /** A source a case sets: each tenant has its own list; it says so on opening and each time one is set. */

@@ -348,6 +348,9 @@ function bodyOf(parts: AsyncIterableIterator<Uint8Array>): ReadableStream<Uint8A
   })
 }
 
+const PLUGIN_FILE_CACHE = 'private, max-age=31536000, immutable'
+const SHUT_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+
 function pluginRoute(app: Hono<Env>, rules: ForwardingRules): void {
   app.get(`${PLUGIN_FILES}*`, async c => {
     const at = pluginFileAt(new URL(c.req.url).pathname)
@@ -360,6 +363,8 @@ function pluginRoute(app: Hono<Env>, rules: ForwardingRules): void {
       'content-type': at.type,
       'content-length': String(answer.bytes),
       ...BASE_HEADERS,
+      'cache-control': PLUGIN_FILE_CACHE,
+      ...(at.shut && { 'content-security-policy': SHUT_POLICY }),
     }
     return new Response(bodyOf(answer.parts), { headers })
   })

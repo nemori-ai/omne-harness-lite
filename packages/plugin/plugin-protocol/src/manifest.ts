@@ -17,6 +17,8 @@ export type ModuleMember = MemberPlace & Readonly<{ module: string; export: stri
 export type Member = DataMember | DirectoryMember | ModuleMember
 
 export type SideName = 'client' | 'server'
+/** What a plugin says it is. One that says nothing is a plain plugin. */
+export type PluginKind = 'skin'
 export type Side = Readonly<{ needs?: readonly string[]; members: readonly Member[] }>
 
 /** What a plugin puts where, as data: nothing of it has to run to know what it puts. */
@@ -24,6 +26,7 @@ export type PluginManifest = Readonly<{
   schema: typeof MANIFEST_SCHEMA
   name: string
   summary: string
+  kind?: PluginKind
   client?: Side
   server?: Side
 }>
@@ -41,7 +44,8 @@ const isFields = (value: unknown): value is Fields =>
 const NAME = /^[a-z][a-z0-9-]{0,63}$/u
 const SEGMENT = /^[A-Za-z0-9._-]+$/u
 const WAYS = ['data', 'directory', 'module'] as const
-const READ: readonly string[] = ['schema', 'name', 'summary', 'client', 'server']
+const KINDS: readonly PluginKind[] = ['skin']
+const READ: readonly string[] = ['schema', 'name', 'summary', 'kind', 'client', 'server']
 
 /** A path that stays inside the package: its segments are plain names, none of them a step up or in place. */
 export function insidePackage(path: string): boolean {
@@ -104,23 +108,40 @@ function sideOf(value: unknown, side: SideName): Side {
 
 const isName = (value: unknown): boolean => typeof value === 'string' && value !== ''
 
+function nameOf(name: unknown): string {
+  if (typeof name === 'string' && NAME.test(name)) return name
+  throw new Refused(
+    `the name ${JSON.stringify(name)} is not lower-case letters, digits and hyphens`,
+  )
+}
+
+function summaryOf(summary: unknown): string {
+  if (typeof summary === 'string' && summary.trim() !== '') return summary
+  throw new Refused('the summary is empty')
+}
+
+function kindOf(kind: unknown): PluginKind | undefined {
+  if (kind === undefined) return undefined
+  const known = KINDS.find(one => one === kind)
+  if (known !== undefined) return known
+  throw new Refused(
+    `the kind ${JSON.stringify(kind)} is not one this reader knows; it knows ${KINDS.join(', ')}`,
+  )
+}
+
 function manifestOf(value: unknown): PluginManifest {
   if (!isFields(value)) throw new Refused('the manifest is not an object')
-  const { schema, name, summary, client, server } = value
+  const { schema, client, server } = value
   if (schema !== MANIFEST_SCHEMA)
     throw new Refused(
       `the manifest is of schema ${String(schema)}; this reader knows schema ${MANIFEST_SCHEMA}`,
     )
-  if (typeof name !== 'string' || !NAME.test(name))
-    throw new Refused(
-      `the name ${JSON.stringify(name)} is not lower-case letters, digits and hyphens`,
-    )
-  if (typeof summary !== 'string' || summary.trim() === '')
-    throw new Refused('the summary is empty')
+  const kind = kindOf(value['kind'])
   return {
     schema: MANIFEST_SCHEMA,
-    name,
-    summary,
+    name: nameOf(value['name']),
+    summary: summaryOf(value['summary']),
+    ...(kind !== undefined && { kind }),
     ...(client !== undefined && { client: sideOf(client, 'client') }),
     ...(server !== undefined && { server: sideOf(server, 'server') }),
   }

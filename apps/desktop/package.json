@@ -59,6 +59,7 @@
     "@omne-harness/retry": "workspace:*",
     "@omne-harness/schedule-protocol": "workspace:*",
     "@omne-harness/schedule-ui": "workspace:*",
+    "@omne-harness/screen": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/session-diagnostics-protocol": "workspace:*",
     "@omne-harness/session-protocol": "workspace:*",
@@ -73,8 +74,10 @@
     "@omne-harness/workspace-ui": "workspace:*",
     "eventsource-parser": "catalog:",
     "hono": "catalog:",
+    "node-screenshots": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "react-screenshots": "catalog:"
   },
   "devDependencies": {
     "@electron/fuses": "catalog:",

@@ -3,6 +3,65 @@ import { insidePackage, type Member, type PluginManifest, type SideName } from '
 /** The kinds of file a package carries beside the files of its directory members. */
 export const FILE_SUFFIXES = ['.js', '.css', '.json'] as const
 
+export const IMAGE_SUFFIXES = ['.png', '.jpg', '.webp', '.avif', '.svg'] as const
+
+const CARRIED: readonly string[] = [...FILE_SUFFIXES, ...IMAGE_SUFFIXES]
+
+type Begins = (head: Uint8Array) => boolean
+
+const at = (head: Uint8Array, from: number, ...bytes: number[]): boolean =>
+  bytes.every((byte, index) => head[from + index] === byte)
+
+function vector(head: Uint8Array): boolean {
+  const words = new TextDecoder().decode(head)
+  const root = words.replace(/^\uFEFF?(?:\s|<\?[^>]*\?>|<!--[\s\S]*?-->|<!DOCTYPE[^>]*>)*/u, '')
+  return /^<svg[\s>/]/u.test(root)
+}
+
+const AVIF_BRANDS = ['avif', 'avis']
+
+function avif(head: Uint8Array): boolean {
+  if (!at(head, 4, 0x66, 0x74, 0x79, 0x70)) return false
+  const box = Math.min(
+    new DataView(head.buffer, head.byteOffset, head.byteLength).getUint32(0),
+    head.length,
+  )
+  const brands = [
+    8,
+    ...Array.from({ length: Math.max(0, (box - 16) / 4) }, (_, index) => 16 + index * 4),
+  ]
+  const words = new TextDecoder().decode(head)
+  return brands.some(from => AVIF_BRANDS.includes(words.slice(from, from + 4)))
+}
+
+const BEGINS: Readonly<Record<(typeof IMAGE_SUFFIXES)[number], Begins>> = {
+  '.png': head => at(head, 0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a),
+  '.jpg': head => at(head, 0, 0xff, 0xd8, 0xff),
+  '.webp': head => at(head, 0, 0x52, 0x49, 0x46, 0x46) && at(head, 8, 0x57, 0x45, 0x42, 0x50),
+  '.avif': avif,
+  '.svg': vector,
+}
+
+export const IMAGE_HEAD_BYTES = 1024
+
+export function imageFault(path: string, head: Uint8Array): string | null {
+  const suffix = IMAGE_SUFFIXES.find(each => path.endsWith(each))
+  if (suffix === undefined || BEGINS[suffix](head)) return null
+  return `the file ${path} is not the image its name says`
+}
+
+const FILE_REF = /(?<![A-Za-z0-9_-])file\(([^()]*)\)/gu
+
+export function fileRefs(value: string): readonly string[] {
+  return [...new Set(Array.from(value.matchAll(FILE_REF), match => (match[1] ?? '').trim()))]
+}
+
+function pointed(data: unknown): readonly string[] {
+  if (typeof data === 'string') return fileRefs(data)
+  if (typeof data !== 'object' || data === null) return []
+  return Object.values(data).flatMap(pointed)
+}
+
 export type PackageFile = Readonly<{ path: string; digest: string }>
 
 export type PackageJudgment = Readonly<{ ok: true }> | Readonly<{ ok: false; reason: string }>
@@ -31,15 +90,16 @@ function memberFault({ at, member }: Placed, files: readonly PackageFile[]): str
     return files.some(file => under(member.directory, file.path))
       ? null
       : `${at}: the directory ${member.directory} is not in the package`
-  return null
+  const lost = pointed(member.data).find(path => !files.some(file => file.path === path))
+  return lost === undefined ? null : `${at}: the file ${lost} it points at is not in the package`
 }
 
 function fileFault(path: string, directories: readonly string[]): string | null {
   if (!insidePackage(path)) return `the file ${path} is not a path inside the package`
   if (directories.some(directory => under(directory, path))) return null
-  return FILE_SUFFIXES.some(suffix => path.endsWith(suffix))
+  return CARRIED.some(suffix => path.endsWith(suffix))
     ? null
-    : `the file ${path} is not one of ${FILE_SUFFIXES.join(', ')}`
+    : `the file ${path} is not one of ${CARRIED.join(', ')}`
 }
 
 /** Whether a package holds what its manifest writes, and nothing of a kind it may not carry. */

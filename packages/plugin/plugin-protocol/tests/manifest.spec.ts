@@ -89,6 +89,16 @@ describe('the manifest of a plugin', () => {
       'the name "a/b" is not lower-case letters, digits and hyphens',
     ],
     ['an empty summary', { ...GREEN, summary: ' ' }, 'the summary is empty'],
+    [
+      'a name that is not text',
+      { ...GREEN, name: true },
+      'the name true is not lower-case letters, digits and hyphens',
+    ],
+    [
+      'a name that is null',
+      { ...GREEN, name: null },
+      'the name null is not lower-case letters, digits and hyphens',
+    ],
     ['a side that is not an object', { ...GREEN, client: [] }, 'client is not an object'],
     [
       'members that are not a list',
@@ -183,6 +193,23 @@ describe('the manifest of a plugin', () => {
   ])('refuses a member that %s, naming the member', (_name, member, reason) => {
     expect(refusal(withMember(member))).toBe(reason)
   })
+
+  it('says what it is in kind: nothing written is a plain plugin, skin is a skin', () => {
+    const { server: _server, ...clientOnly } = GREEN
+    const plain = readManifest(text(clientOnly))
+    expect(plain.kind === 'read' && 'kind' in plain.manifest).toBe(false)
+    const skin = { ...clientOnly, kind: 'skin' }
+    expect(readManifest(text(skin))).toStrictEqual({ kind: 'read', manifest: skin, unread: [] })
+  })
+
+  it.each([['theme'], ['Skin'], [''], [null], [1], [['skin']]])(
+    'refuses the kind %j, which it does not know, and says which it knows: it is not read as a plain plugin',
+    kind => {
+      expect(refusal({ ...GREEN, kind })).toBe(
+        `the kind ${JSON.stringify(kind)} is not one this reader knows; it knows skin`,
+      )
+    },
+  )
 
   it('names the side and the place of the member it refuses', () => {
     const value = {
