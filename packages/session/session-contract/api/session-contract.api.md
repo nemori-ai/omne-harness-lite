@@ -146,6 +146,7 @@
 - `OpenWork` · `judgments.d.ts`
 - `OperationJudgment` · `judgments.d.ts`
 - `OperationRecord` · `judgments.d.ts`
+- `OperationRequest` · `utterance-resolver.d.ts`
 - `OperationResolution` · `faces.d.ts`
 - `PENDING_PAGE_LIMIT` · `intake-reads.d.ts`
 - `PENDING_PREVIEW_CHARS` · `intake-reads.d.ts`
@@ -1637,6 +1638,10 @@ export type SessionEntry = Readonly<{
     kind: 'session.resident';
     resident: boolean;
 }> | Readonly<{
+    kind: 'session.command-recorded';
+    name: string;
+    args: string;
+}> | Readonly<{
     kind: 'session.child-recorded';
     child: SessionId;
     basis: DurableEvidence;
@@ -1800,7 +1805,7 @@ import type { ContextScopeBinding } from './values.ts';
 import type { RelationToReference } from './directory-relation.ts';
 import type { SessionCallBinding } from './call-settlement.ts';
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts';
-import type { SenderView } from './utterance-resolver.ts';
+import type { OperationRequest, SenderView } from './utterance-resolver.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { CompactionContext, Message, RecordEntryRef } from '@omne-harness/message';
@@ -1842,6 +1847,7 @@ export type SessionFailure = Readonly<{
     diagnostic: string;
 }> | Readonly<{
     kind: 'unsupported';
+    request?: OperationRequest;
 }> | Readonly<{
     kind: 'terminal';
     terminal: RunTerminal;
@@ -2081,6 +2087,10 @@ export interface SessionManagement<P> {
     }>): Reply<CommitReceipt>;
     setResident(input: Mutation<P> & Readonly<{
         resident: boolean;
+    }>): Reply<CommitReceipt>;
+    recordCommand(input: Mutation<P> & Readonly<{
+        name: string;
+        args: string;
     }>): Reply<CommitReceipt>;
     configureAutoArchive(input: Mutation<P> & Readonly<{
         policy: AutoArchivePolicy;
@@ -2651,7 +2661,7 @@ export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentiti
 export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts';
 export { PENDING_PAGE_LIMIT, PENDING_PREVIEW_CHARS, inputFateOfRows, pendingAcceptances, pendingInputOf, pendingPageOf, previewOf, waitingCalls, type PendingInput, type PendingPage, type WaitingCall, } from './intake-reads.ts';
 export { createBeforeIntakeRegistry, judgeIntakeBlocks, bringsOrigin, keepsTheWords, originalContent, screenInput, type BeforeIntakeRegistry, type IntakeBlockRefusal, type IntakeProcessor, type IntakeScreening, type IntakeVerdict, type Screened, } from './before-intake.ts';
-export { createUtteranceResolverRegistry, type Resolution, type SenderView, type Utterance, type UtteranceResolver, type UtteranceResolverRegistry, } from './utterance-resolver.ts';
+export { createUtteranceResolverRegistry, type OperationRequest, type Resolution, type SenderView, type Utterance, type UtteranceResolver, type UtteranceResolverRegistry, } from './utterance-resolver.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -3716,7 +3726,7 @@ export type SessionBlockDeclaration = Readonly<{
     consumers: readonly ('model' | 'coordinator')[];
     schema: Adoption;
 }>;
-export type MutationName = 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setResident' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'retryRun' | 'freeze' | 'receive';
+export type MutationName = 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setResident' | 'recordCommand' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'retryRun' | 'freeze' | 'receive';
 export type Mutations = Pick<SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>, MutationName>;
 export type SessionCommand = {
     readonly [K in MutationName]: Readonly<{
@@ -4062,8 +4072,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f551551bfe331262a7a35edb102d7bd6d63166d9ec51477946b356a2dd760764";
-export declare const SESSION_RELEASE_DIGEST = "sha256:f551551bfe331262a7a35edb102d7bd6d63166d9ec51477946b356a2dd760764";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:d868bc86894a19b3ea0919c9c1f541a7969e0497c669742e818d54f34d933acf";
+export declare const SESSION_RELEASE_DIGEST = "sha256:d868bc86894a19b3ea0919c9c1f541a7969e0497c669742e818d54f34d933acf";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -5071,15 +5081,17 @@ export type Utterance<P> = Readonly<{
     }>;
     access: SessionAccess<P>;
 }>;
-export type Resolution = Readonly<{
-    kind: 'input';
-    effective: Message;
-}> | Readonly<{
-    kind: 'operation';
+export type OperationRequest = Readonly<{
     name: string;
     operation: string;
     args: string;
-}> | Readonly<{
+}>;
+export type Resolution = Readonly<{
+    kind: 'input';
+    effective: Message;
+}> | (Readonly<{
+    kind: 'operation';
+}> & OperationRequest) | Readonly<{
     kind: 'refused';
     reason: string;
 }> | Readonly<{

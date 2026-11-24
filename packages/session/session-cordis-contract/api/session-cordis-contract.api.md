@@ -146,6 +146,7 @@
 - `OpenWork` · 包 `@omne-harness/session-contract`
 - `OperationJudgment` · 包 `@omne-harness/session-contract`
 - `OperationRecord` · 包 `@omne-harness/session-contract`
+- `OperationRequest` · 包 `@omne-harness/session-contract`
 - `OperationResolution` · 包 `@omne-harness/session-contract`
 - `PENDING_PAGE_LIMIT` · 包 `@omne-harness/session-contract`
 - `PENDING_PREVIEW_CHARS` · 包 `@omne-harness/session-contract`

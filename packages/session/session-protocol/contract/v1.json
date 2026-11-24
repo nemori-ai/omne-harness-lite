@@ -2,7 +2,7 @@
   "digests": {
     "1": "sha256:e7a3729c5efd373af845eabe7f0e7cba8997d81afdecbc3d79b37ddb8d813417",
     "2": "sha256:46c6ac16c84ea1202c0a6c70b43a9ec65d6811c9aa553e456d8f502779da8eaa",
-    "3": "sha256:3b1dfde5c8f10f50b5823cdf248fdbfb5411da8d847b2081f0a02e4e8e996ca4"
+    "3": "sha256:1dacff57327a9b9d7c74343202117299d7edefcb8f4010a60f58b8672b81ceec"
   },
   "major": 1,
   "name": "session",
@@ -918,6 +918,38 @@
                     "ordinary"
                   ]
                 }
+              },
+              "operation": {
+                "optional": true,
+                "rule": {
+                  "fields": {
+                    "detail": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "outcome": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "since": 3
               },
               "recovered": {
                 "rule": {
@@ -3499,6 +3531,38 @@
           "protocol-rejected": true,
           "succeeded": {
             "fields": {
+              "operation": {
+                "optional": true,
+                "rule": {
+                  "fields": {
+                    "detail": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "outcome": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "since": 3
+              },
               "recovered": {
                 "rule": {
                   "kind": "boolean"

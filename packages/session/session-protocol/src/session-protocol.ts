@@ -21,6 +21,11 @@ const seen = object({
   command: { rule: nullable(text) },
   references: { rule: { kind: 'array', item: text, max: 64 } },
 })
+const commandOperation = object({
+  name: { rule: text },
+  outcome: { rule: text },
+  detail: { rule: nullable(text) },
+})
 const refusal = ruleCodec(
   object({
     field: { rule: text, optional: true, since: 3 },
@@ -433,7 +438,12 @@ export const sessionProtocol = defineProtocol({
         }),
       ),
       outcomes: {
-        succeeded: ruleCodec(object({ recovered: { rule: boolean } })),
+        succeeded: ruleCodec(
+          object({
+            recovered: { rule: boolean },
+            operation: { rule: commandOperation, optional: true, since: 3 },
+          }),
+        ),
         limited,
         invalid: refusal,
         archived: empty,
@@ -458,7 +468,11 @@ export const sessionProtocol = defineProtocol({
       ),
       outcomes: {
         succeeded: ruleCodec(
-          object({ recovered: { rule: boolean }, as: { rule: literal('interrupt', 'ordinary') } }),
+          object({
+            recovered: { rule: boolean },
+            as: { rule: literal('interrupt', 'ordinary') },
+            operation: { rule: commandOperation, optional: true, since: 3 },
+          }),
         ),
         limited,
         invalid: refusal,

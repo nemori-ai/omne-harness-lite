@@ -234,6 +234,7 @@ export type SessionEntry =
     }>
   | Readonly<{ kind: 'session.declaration-adopted'; policy: AutoArchivePolicy }>
   | Readonly<{ kind: 'session.resident'; resident: boolean }>
+  | Readonly<{ kind: 'session.command-recorded'; name: string; args: string }>
   | Readonly<{ kind: 'session.child-recorded'; child: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'session.idle-evidence'; observation: IdleObservation | null }>
   | Readonly<{ kind: 'session.frozen'; evidence: DurableEvidence }>
@@ -571,6 +572,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'session.recovery-input-adopted',
   'session.workspace-changed',
   'session.resident',
+  'session.command-recorded',
   'session.child-recorded',
   'session.idle-evidence',
   'session.frozen',

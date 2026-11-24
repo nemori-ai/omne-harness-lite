@@ -85,7 +85,6 @@ export const PATH_MUTATIONS = Object.freeze([
 ] as const satisfies readonly SessionCommand['kind'][])
 
 type Origin = HistoryEntry['origin']
-
 function emptyAdoption(adoption: Adoption): boolean {
   return [adoption.owner, adoption.name, adoption.revision, adoption.digest].some(
     part => part.length === 0,
@@ -957,6 +956,7 @@ function decideCommand(
       return decideFreeze(previous, command, reads)
     case 'control':
     case 'setResident':
+    case 'recordCommand':
     case 'configureAutoArchive':
     case 'considerAutoArchive':
     case 'recordIdle':

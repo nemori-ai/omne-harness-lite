@@ -5,6 +5,7 @@ import { afterEach, expect, it } from 'vitest'
 import { EMPTY_CONTENT, mergeHistory } from '../src/model/content.ts'
 import { conversationItems } from '../src/model/conversation.ts'
 import { ItemView } from '../src/view/parts.tsx'
+import { toTree } from '../src/model/plain.ts'
 import { messageEntry } from './fixtures/frames.ts'
 
 afterEach(cleanup)
@@ -31,4 +32,17 @@ it('a named text is drawn folded under its name, and the person opens it to read
   fireEvent.click(fold)
   expect(fold.getAttribute('aria-expanded')).toBe('true')
   expect(screen.getByText('先读改动，再说哪里不对。')).toBeTruthy()
+})
+
+it('a system command a member gave is a quiet line of what they typed', () => {
+  const recorded = {
+    entryId: '2',
+    revision: '2',
+    kind: 'session.command-recorded',
+    payload: toTree({ name: 'omne-official:model', args: 'z-ai/glm-5.3' }),
+  }
+  const items = conversationItems(mergeHistory(EMPTY_CONTENT, [recorded]), false)
+  expect(items).toEqual([
+    { kind: 'marker', key: '2', label: '执行了 /model z-ai/glm-5.3', failedRun: null },
+  ])
 })

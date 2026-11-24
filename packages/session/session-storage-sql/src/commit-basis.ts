@@ -76,6 +76,7 @@ const commandKinds = {
   completeInitialization: true,
   change: true,
   setResident: true,
+  recordCommand: true,
   configureAutoArchive: true,
   considerAutoArchive: true,
   recordIdle: true,

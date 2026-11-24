@@ -127,7 +127,9 @@ describe('slash-command/1 on the release tree', () => {
             tenant: tenantOf(savedTenant(tree.home)),
             session,
           })
-          expect(read).toEqual({ outcome: 'succeeded', body: { entries: [], missing: ['skill'] } })
+          expect(read).toMatchObject({ outcome: 'succeeded', body: { missing: ['skill'] } })
+          const { entries } = (read as { body: { entries: readonly { kind: string }[] } }).body
+          expect(entries.map(entry => entry.kind)).toEqual(['system', 'system', 'system'])
         },
       )
       expect(exitCode).toBe(0)

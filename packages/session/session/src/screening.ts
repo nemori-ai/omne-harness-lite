@@ -150,8 +150,10 @@ async function resolved<P>(
         : fail(unavailable(OWNERS.resolver, 'the resolver changed the words it was given'))
     case 'refused':
       return fail({ kind: 'invalid', field, reason: answer.reason })
-    case 'operation':
-      return fail({ kind: 'unsupported' })
+    case 'operation': {
+      const { name, operation, args } = answer
+      return fail({ kind: 'unsupported', request: { name, operation, args } })
+    }
     case 'unavailable':
       return fail(unavailable(OWNERS.resolver, answer.diagnostic))
   }

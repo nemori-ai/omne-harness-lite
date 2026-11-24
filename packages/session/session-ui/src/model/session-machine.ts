@@ -467,7 +467,10 @@ function onSendAnswered(state: State, event: Extract<Event, { kind: 'send-answer
   const outcome = event.answer.outcome
   switch (outcome) {
     case 'succeeded':
-      return same(updateInput(open, event.acceptId, { status: 'accepted', notice: null }))
+      return (event.answer.body as Readonly<{ operation?: unknown }> | undefined)?.operation !==
+        undefined
+        ? same({ ...open, inputs: open.inputs.filter(input => input.acceptId !== event.acceptId) })
+        : same(updateInput(open, event.acceptId, { status: 'accepted', notice: null }))
     case 'unknown':
     case 'uncertain':
       return askSend(open, event.acceptId)

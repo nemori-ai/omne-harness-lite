@@ -278,6 +278,34 @@ describe('发消息与认回', () => {
     })
     expect(asOpen(next.state).inputs[0]).toMatchObject({ status: 'accepted', notice: null })
   })
+  it('系统命令做成了：没有消息会进历史，待定的那句收走；被拒的照常写原因', () => {
+    const done = run(open(), send, {
+      kind: 'send-answered',
+      session: S,
+      acceptId: 'a1',
+      answer: {
+        outcome: 'succeeded',
+        body: {
+          recovered: false,
+          operation: { name: 'omne-official:model', outcome: 'succeeded', detail: 'm2' },
+        },
+      },
+    })
+    expect(asOpen(done.state).inputs).toEqual([])
+    const refused = run(open(), send, {
+      kind: 'send-answered',
+      session: S,
+      acceptId: 'a1',
+      answer: {
+        outcome: 'invalid',
+        body: { field: 'value.message', reason: 'omne-official:model: invalid: unknown-model' },
+      },
+    })
+    expect(asOpen(refused.state).inputs[0]).toMatchObject({
+      status: 'refused',
+      notice: { reason: 'omne-official:model: invalid: unknown-model' },
+    })
+  })
   it('unknown 或 uncertain：不重发，用同一个受理编号认回，显示未知', () => {
     for (const outcome of ['unknown', 'uncertain'] as const) {
       const next = run(open(), send, {

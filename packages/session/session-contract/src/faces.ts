@@ -4,7 +4,7 @@ import type { ContextScopeBinding } from './values.ts'
 import type { RelationToReference } from './directory-relation.ts'
 import type { SessionCallBinding } from './call-settlement.ts'
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
-import type { SenderView } from './utterance-resolver.ts'
+import type { OperationRequest, SenderView } from './utterance-resolver.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { CompactionContext, Message, RecordEntryRef } from '@omne-harness/message'
@@ -68,7 +68,7 @@ export type SessionFailure =
   | Readonly<{ kind: 'commit-unknown'; operation: SessionOperationId }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
-  | Readonly<{ kind: 'unsupported' }>
+  | Readonly<{ kind: 'unsupported'; request?: OperationRequest }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
   | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
   | Readonly<{ kind: 'frozen'; verdict: FreezeVerdict | null }>
@@ -282,6 +282,7 @@ export interface SessionManagement<P> {
   ): Reply<CommitReceipt>
   change(input: Mutation<P> & Readonly<{ declaration: DeclarationChange }>): Reply<CommitReceipt>
   setResident(input: Mutation<P> & Readonly<{ resident: boolean }>): Reply<CommitReceipt>
+  recordCommand(input: Mutation<P> & Readonly<{ name: string; args: string }>): Reply<CommitReceipt>
   configureAutoArchive(
     input: Mutation<P> & Readonly<{ policy: AutoArchivePolicy }>,
   ): Reply<CommitReceipt>

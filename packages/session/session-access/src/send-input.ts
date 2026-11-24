@@ -3,13 +3,14 @@ import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contr
 import { writeJsonText } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { judgeMessage, type Message } from '@omne-harness/message'
-import type { InputId, SessionId } from '@omne-harness/session-contract'
+import type { InputId, OperationRequest, SessionId } from '@omne-harness/session-contract'
 import {
   commitCall,
   describedBy,
   readCall,
   refused,
   UNAVAILABLE,
+  type Admitted,
   type Answer,
   type Body,
   type Refusal,
@@ -22,6 +23,7 @@ import type {
   SessionAccessFaces,
   TargetTenantPrincipals,
 } from './ports.ts'
+import type { PerformOperation } from './command-operations.ts'
 import type { Admission, RequestDrain } from './request-drain.ts'
 import type { QueuedRequest } from './request-queue.ts'
 
@@ -36,6 +38,8 @@ export type AdmissionPorts = Readonly<{
   principals: Pick<TargetTenantPrincipals, 'resume'>
   facts: PrincipalFacts
   faces(): SessionAccessFaces | undefined
+  /** Does the operation a system command asks for; without it such a command is unsupported. */
+  perform?: PerformOperation
 }>
 
 function userMessageOf(text: string): Message | undefined {
@@ -137,6 +141,42 @@ function commitInput(
     .then(answer => ('ok' in answer ? { ok: { recovered: answer.ok.recovered } } : answer))
 }
 
+/** A system command: written into the session, then its operation done as itself; its answer is the operation's. */
+async function commanded(
+  admitted: Admitted,
+  request: QueuedRequest,
+  asked: OperationRequest,
+  perform: PerformOperation,
+): Promise<Admission> {
+  const { access, faces } = admitted
+  const operation = acceptOperation(request.tenant, access.session, `command:${request.acceptId}`)
+  const recorded = await commitCall(() =>
+    faces.management.recordCommand({ ...access, operation, name: asked.name, args: asked.args }),
+  )
+  if (recorded === 'unknown') return RETRY
+  if ('failure' in recorded) {
+    const { kind } = recorded.failure
+    if (kind === 'unavailable' || kind === 'commit-unknown') return RETRY
+    return settled(refused('send-input', recorded.failure))
+  }
+  const done = await perform(admitted, asked, `command:${request.acceptId}`)
+  if (done.outcome === 'unknown' || done.outcome === 'basis-unavailable') return RETRY
+  if (done.outcome !== 'succeeded' && done.outcome !== 'no-change')
+    return settled({
+      outcome: 'invalid',
+      body: {
+        field: 'value.message',
+        reason: `${asked.name}: ${done.outcome}${done.detail === null ? '' : `: ${done.detail}`}`,
+      },
+    })
+  const said = { name: asked.name, outcome: done.outcome, detail: done.detail }
+  const as = request.urgent === true ? { as: 'ordinary' as const } : {}
+  return settled({
+    outcome: 'succeeded',
+    body: { recovered: recorded.ok.recovered, ...as, operation: said },
+  } as Answer<'send-input'>)
+}
+
 export async function admitRequest(
   ports: AdmissionPorts,
   request: QueuedRequest,
@@ -154,6 +194,15 @@ export async function admitRequest(
   const result = await commitCall(() => commitInput(faces, issued.ok, caller, request, message))
   if (result === 'unknown') return RETRY
   if ('ok' in result) return settled({ outcome: 'succeeded', body: result.ok })
+  const asked = result.failure.kind === 'unsupported' ? result.failure.request : undefined
+  if (asked !== undefined && ports.perform !== undefined) {
+    const access = {
+      principal: issued.ok,
+      tenant: caller.tenant,
+      session: request.session as SessionId,
+    }
+    return commanded({ access, tenantText: request.tenant, faces }, request, asked, ports.perform)
+  }
   const { kind } = result.failure
   if (kind === 'unavailable' || kind === 'commit-unknown') return RETRY
   return settled(refused('send-input', result.failure))

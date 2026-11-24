@@ -323,6 +323,11 @@ export declare const sessionProtocol: {
         readonly 'send-input': {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly operation?: {
+                        readonly detail: string | null;
+                        readonly name: string;
+                        readonly outcome: string;
+                    };
                     readonly recovered: boolean;
                 }>;
                 readonly limited: import("@omne-harness/public-contract").Codec<{
@@ -364,6 +369,11 @@ export declare const sessionProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly as: "interrupt" | "ordinary";
+                    readonly operation?: {
+                        readonly detail: string | null;
+                        readonly name: string;
+                        readonly outcome: string;
+                    };
                     readonly recovered: boolean;
                 }>;
                 readonly limited: import("@omne-harness/public-contract").Codec<{

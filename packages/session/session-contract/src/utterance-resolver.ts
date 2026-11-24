@@ -14,10 +14,13 @@ export type Utterance<P> = Readonly<{
   access: SessionAccess<P>
 }>
 
-/** An input carries on with its effective content; an operation is done by Session itself; a refusal is not queued. */
+/** A request to do an operation the session protocol already has, named by a system command. */
+export type OperationRequest = Readonly<{ name: string; operation: string; args: string }>
+
+/** An input carries on with its effective content; an operation is handed back to be done as itself; a refusal is not queued. */
 export type Resolution =
   | Readonly<{ kind: 'input'; effective: Message }>
-  | Readonly<{ kind: 'operation'; name: string; operation: string; args: string }>
+  | (Readonly<{ kind: 'operation' }> & OperationRequest)
   | Readonly<{ kind: 'refused'; reason: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 

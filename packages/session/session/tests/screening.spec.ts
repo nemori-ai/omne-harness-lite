@@ -494,7 +494,7 @@ describe('the resolver of a member words', () => {
     expect(read).toEqual([])
   })
 
-  it('an operation is no message: until Session does it, it is unsupported', async () => {
+  it('an operation is no message: it is handed back as the request, with nothing committed', async () => {
     const h = await service({
       resolver: resolverOf(async () => ({
         kind: 'operation',
@@ -503,9 +503,12 @@ describe('the resolver of a member words', () => {
         args: '',
       })),
     })
+    const committed = commits(h)
     expect(failureOf(await accept(h, withBlocks('in-7', text('b1', '/archive'))))).toEqual({
       kind: 'unsupported',
+      request: { name: 'omne-official:archive', operation: 'archive', args: '' },
     })
+    expect(committed).toEqual([])
   })
 
   it('reads no words of a system source, and refuses a sender who brings a named text', async () => {

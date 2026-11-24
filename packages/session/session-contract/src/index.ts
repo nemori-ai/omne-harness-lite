@@ -476,6 +476,7 @@ export {
 } from './before-intake.ts'
 export {
   createUtteranceResolverRegistry,
+  type OperationRequest,
   type Resolution,
   type SenderView,
   type Utterance,
