@@ -35,7 +35,6 @@ export type PaperRow =
   | Readonly<{ kind: 'row'; item: ListedSession; archived: boolean }>
   | Readonly<{ kind: 'reading' | 'unreadable' | 'unavailable' }>
 
-/** `again`: the directory this page met first is read through without the session; read it once more. */
 export type PaperStep = Readonly<{ row: PaperRow; read: 'more' | 'archived' | 'again' | null }>
 
 const READING: PaperStep = { row: { kind: 'reading' }, read: null }
@@ -44,7 +43,6 @@ const UNAVAILABLE: PaperStep = { row: { kind: 'unavailable' }, read: null }
 
 const AGAIN: PaperStep = { row: { kind: 'reading' }, read: 'again' }
 
-/** The read of the open directory that this one is, once it is read through; a later read is a newer directory. */
 export const readThrough = (list: SessionList): number | undefined =>
   list.kind === 'read' && list.page.next === null ? list.issued : undefined
 
