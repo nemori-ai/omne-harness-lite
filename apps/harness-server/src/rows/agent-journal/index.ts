@@ -118,6 +118,20 @@ export const agentJournalRow = createAgentJournalRow({
   cancellation: releaseCancellation,
   reminders: { descriptors: sessionContextBlocks },
   workingDirectory: ctx => ({
+    inspectHistory: async (input, scopes) =>
+      (await ctx.get(sessionWorkingDirectoryKey)?.inspectHistory(input, scopes)) ?? {
+        failure: {
+          kind: 'unavailable',
+          diagnostic: 'workspace history qualification has no publisher',
+        },
+      },
+    qualifyHistory: async (input, scopes) =>
+      (await ctx.get(sessionWorkingDirectoryKey)?.qualifyHistory(input, scopes)) ?? {
+        failure: {
+          kind: 'unavailable',
+          diagnostic: 'workspace guidance history qualification has no publisher',
+        },
+      },
     refresh: async input =>
       (await ctx.get(sessionWorkingDirectoryKey)?.refresh(input)) ?? {
         kind: 'unavailable',

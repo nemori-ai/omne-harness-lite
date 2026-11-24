@@ -651,15 +651,9 @@ export function createMemorySessionTransactionPair<P>(
       const decision = decide(lent, command, guards, held?.record ?? null, {
         ...relatedReads(stores, keyOf, command),
         ...forks.reads(started),
-        ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
+        ...forks.contextReads(store, key.ok, command),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
-        compaction:
-          command.kind === 'commitDerived' &&
-          command.input.value.kind === 'compaction' &&
-          store !== undefined
-            ? forks.compactionOf(store, command.input.value.message.covers.to)
-            : null,
         ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
         ...(command.kind === 'cancelRun' && store !== undefined
           ? { runs: [runLookup(store.snapshot, command.input.run)] }

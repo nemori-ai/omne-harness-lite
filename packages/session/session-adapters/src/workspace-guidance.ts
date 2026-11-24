@@ -3,11 +3,28 @@ import { z } from 'zod'
 import type { Adoption } from '@omne-harness/session-contract'
 import type { NeedBinding, StatefulBlockDescriptor } from '@omne-harness/runtime-context-contract'
 
+export const WORKSPACE_GUIDANCE_PROVENANCE = '@omne-harness/session-adapters/workspace-guidance'
 const text = z.string().min(1)
 const source = z.strictObject({
   path: text,
   digest: text,
   text: z.string(),
+})
+export const workspaceGuidanceScopeSchema = z.strictObject({
+  workspace: text,
+  instance: text,
+  root: text,
+})
+export type WorkspaceGuidanceScope = z.infer<typeof workspaceGuidanceScopeSchema>
+export const workspaceGuidanceManifestSchema = z.strictObject({
+  key: z.literal('session.workspace-guidance'),
+  scope: workspaceGuidanceScopeSchema.nullable(),
+  sources: z.array(source.pick({ path: true, digest: true })),
+})
+export const workspaceGuidanceBodySchema = z.strictObject({
+  key: z.literal('session.workspace-guidance'),
+  scope: workspaceGuidanceScopeSchema,
+  source,
 })
 export const workspaceGuidanceSchema = z.discriminatedUnion('state', [
   z.strictObject({ state: z.literal('inactive') }),

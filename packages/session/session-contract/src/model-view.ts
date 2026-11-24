@@ -1,3 +1,5 @@
+import { summarizeModelProvenance, projectModelProvenance } from './model-provenance.ts'
+import { projectModelMessage } from './model-projection.ts'
 import { requiredWorkEntries } from './work-entry-state.ts'
 import { SessionValidationFailure } from './session-validation.ts'
 import {
@@ -41,7 +43,12 @@ export function viewMessageOf(entries: readonly HistoryEntry[], index: number): 
 function numbered(rows: readonly ModelViewRow[]): ModelViewRow[] {
   let prefix = ''
   return rows.map((row, index) => {
-    prefix = digestOf({ prefix, entry: row.entry, message: row.message })
+    prefix = digestOf({
+      prefix,
+      entry: row.entry,
+      message: row.message,
+      ...(row.provenance?.length ? { provenance: row.provenance } : {}),
+    })
     return {
       ...row,
       seq: String(index + 1),
@@ -59,6 +66,20 @@ export function materializeModelView(
   let rows = [...previous.rows]
   let past = previous.past
   for (const [index, entry] of committed.entries()) {
+    const decoded = decodeEntry(entry)
+    if ('ok' in decoded && decoded.ok.kind === 'session.model-projected') {
+      const blocks = new Set(decoded.ok.blocks)
+      past = new Map(past).set(epoch, numbered(rows))
+      rows = rows.flatMap(row => {
+        const message = projectModelMessage(row.message, blocks)
+        const provenance = projectModelProvenance(row.provenance, blocks)
+        return message === null
+          ? []
+          : [{ ...row, message, ...(provenance === undefined ? {} : { provenance }) }]
+      })
+      epoch = `epoch:${entry.id}`
+      continue
+    }
     const message = viewMessageOf(committed, index)
     if (
       message === null ||
@@ -77,11 +98,36 @@ export function materializeModelView(
       past = new Map(past).set(epoch, numbered(rows))
       rows = [
         ...retained,
-        { seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message },
+        {
+          seq: '',
+          entry: entry.id,
+          bytes: 0,
+          prefixDigest: '',
+          message,
+          provenance: summarizeModelProvenance(
+            rows.map(row => row.provenance),
+            message.blocks.map(block => block.id),
+          ),
+        },
         ...after,
       ]
       epoch = `epoch:${entry.id}`
-    } else rows.push({ seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message })
+    } else {
+      const provenance =
+        'ok' in decoded && 'provenance' in decoded.ok
+          ? decoded.ok.provenance
+          : message.role === 'system_reminder'
+            ? undefined
+            : []
+      rows.push({
+        seq: '',
+        entry: entry.id,
+        bytes: 0,
+        prefixDigest: '',
+        message,
+        ...(provenance === undefined ? {} : { provenance }),
+      })
+    }
   }
   return { epoch, rows: numbered(rows), ...(past === undefined ? {} : { past }) }
 }
@@ -186,8 +232,11 @@ export function compactionContextForView(
     selected.has(row.ref) ||
     value.open.includes(row.ref) ||
     (value.base.kind === 'initial' && row.ref === value.origin)
+  const projected = new Map(rows.slice(0, upper).map(row => [String(row.entry), row.message]))
   const visible = (row: CoveredEntry): CoveredEntry =>
-    selected.has(row.ref) ? row : { ref: row.ref, message: null }
+    selected.has(row.ref)
+      ? { ...row, message: projected.get(String(row.ref)) ?? row.message }
+      : { ref: row.ref, message: null }
   const covered = value.covered.filter(keep).map(visible)
   const after = value.after.filter(keep).map(visible)
   if (covered.at(-1)?.ref !== through) return null

@@ -158,6 +158,7 @@ function reminderEntries(
     encodeEntry(
       {
         kind: 'message.system_reminder',
+        provenance: [],
         message: input.message,
         source: input.origin,
         admission: null,

@@ -31,6 +31,22 @@ const plugin: Plugin.Object = {
   async apply(ctx: Context, config: SessionAd04Config) {
     const bundle = createSessionHistorySource({
       heads: { sessionOf: sessionHeadOf },
+      qualifyHistory: async (input, sources) => {
+        const qualifier = ctx.get(sessionModelHistoryReadinessKey, false)?.qualify
+        if (qualifier === undefined)
+          return {
+            failure: {
+              kind: 'unavailable',
+              diagnostic: 'workspace history qualification is not installed',
+            },
+          }
+        const checked = await qualifier(input, sources)
+        return 'failure' in checked
+          ? checked
+          : checked.ok.length > 0
+            ? { failure: { kind: 'denied' } }
+            : { ok: undefined }
+      },
       ensureModelHistory: async input => {
         const service = ctx.get(sessionModelHistoryReadinessKey, false)
         return service === undefined

@@ -476,3 +476,11 @@ export {
   type IntakeVerdict,
   type Screened,
 } from './before-intake.ts'
+
+export { projectModelMessage } from './model-projection.ts'
+
+export {
+  summarizeModelProvenance,
+  projectModelProvenance,
+  UNKNOWN_MODEL_PROVENANCE,
+} from './model-provenance.ts'

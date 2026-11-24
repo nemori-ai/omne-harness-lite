@@ -8,7 +8,12 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { WorkingDirectory } from '../working-directory-schema.ts'
-import { workspaceGuidanceDescriptor, type WorkspaceGuidance } from '../workspace-guidance.ts'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import {
+  workspaceGuidanceDescriptor,
+  type WorkspaceGuidance,
+  type WorkspaceGuidanceScope,
+} from '../workspace-guidance.ts'
 import { heldBlock } from './context-records.ts'
 import { workingDirectoryDescriptor } from './working-directory-block.ts'
 
@@ -41,6 +46,19 @@ export type StepDirectoryResult =
 /** The one place the working directory of a session changes: the action before a step. */
 export type StepDirectory<P> = Readonly<{
   refresh(input: StepDirectoryInput<P>): Promise<StepDirectoryResult>
+  inspectHistory?(
+    input: Readonly<{ principal: P; tenant: TenantId }>,
+    scopes: readonly WorkspaceGuidanceScope[],
+  ): Promise<
+    Outcome<
+      readonly WorkspaceGuidanceScope[],
+      { kind: 'denied' } | { kind: 'unavailable'; diagnostic: string }
+    >
+  >
+  qualifyHistory?(
+    input: Readonly<{ principal: P; tenant: TenantId }>,
+    scopes: readonly WorkspaceGuidanceScope[],
+  ): Promise<Outcome<void, { kind: 'denied' } | { kind: 'unavailable'; diagnostic: string }>>
 }>
 
 export type StepDirectoryPorts<P> = Readonly<{
@@ -113,8 +131,60 @@ async function verifiedDirectory<P>(
   }
 }
 
-export function createStepDirectory<P>(ports: StepDirectoryPorts<P>): StepDirectory<P> {
+export function createStepDirectory<P>(
+  ports: StepDirectoryPorts<P>,
+): StepDirectory<P> & Required<Pick<StepDirectory<P>, 'qualifyHistory' | 'inspectHistory'>> {
+  const inspectHistory: NonNullable<StepDirectory<P>['inspectHistory']> = async (input, scopes) => {
+    if (scopes.length === 0) return succeed([])
+    const targets = ports.targets()
+    if (targets === undefined)
+      return fail({
+        kind: 'unavailable',
+        diagnostic: 'the workspace owner is unavailable for history qualification',
+      })
+    const denied: WorkspaceGuidanceScope[] = []
+    const checkedInstances = new Set<string>()
+    for (const scope of scopes) {
+      const key = JSON.stringify([scope.workspace, scope.instance])
+      if (checkedInstances.has(key)) continue
+      checkedInstances.add(key)
+      const workspace = workspaceCodec.parse(scope.workspace)
+      if (!workspace.ok) {
+        denied.push(scope)
+        continue
+      }
+      try {
+        const checked = await targets.check({
+          ...input,
+          workspace: workspace.value,
+          instance: scope.instance,
+        })
+        if (checked.kind === 'unavailable')
+          return fail({
+            kind: 'unavailable',
+            diagnostic: 'workspace guidance history qualification is unknown',
+          })
+        if (checked.kind === 'refused' && checked.reason !== 'instance-unavailable')
+          denied.push(scope)
+      } catch {
+        return fail({
+          kind: 'unavailable',
+          diagnostic: 'workspace guidance history qualification threw',
+        })
+      }
+    }
+    return succeed(denied)
+  }
   return {
+    inspectHistory,
+    async qualifyHistory(input, scopes) {
+      const inspected = await inspectHistory(input, scopes)
+      return 'failure' in inspected
+        ? inspected
+        : inspected.ok.length > 0
+          ? fail({ kind: 'denied' })
+          : succeed(undefined)
+    },
     async refresh(input) {
       try {
         const recovered = await ports.recover(input)

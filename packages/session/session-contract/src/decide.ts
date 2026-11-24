@@ -1,3 +1,4 @@
+import { decideModelProjection } from './model-projection.ts'
 import { validSelectionEffort } from './control-values.ts'
 import { originalContent } from './before-intake.ts'
 import { decidePermissionAssignment } from './permission-state.ts'
@@ -762,12 +763,15 @@ function decideDerived(
   if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
   if (input.expected !== snapshot.revision)
     return rejected({ kind: 'changed', revision: snapshot.revision })
+  if (input.value.kind === 'model-projection')
+    return decideModelProjection(snapshot, command, reads, source)
   if (input.value.message.role !== 'system_reminder')
     return invalid('value.message', 'not a context reminder')
   return entries([
     encodeEntry(
       {
         kind: 'message.system_reminder',
+        ...(input.value.provenance === undefined ? {} : { provenance: input.value.provenance }),
         message: input.value.message,
         source: input.value.source,
         admission: null,

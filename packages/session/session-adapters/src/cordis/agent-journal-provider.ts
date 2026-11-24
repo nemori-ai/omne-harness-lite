@@ -1,4 +1,7 @@
-import { SessionModelHistoryReadiness } from './model-history-readiness.ts'
+import {
+  SessionModelHistoryReadiness,
+  sessionModelHistoryReadinessKey,
+} from './model-history-readiness.ts'
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -676,6 +679,24 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
         ? {}
         : {
             reminders: createModelReminders<unknown>({
+              inspectHistory: (input, scopes) =>
+                ctx.get(sessionModelHistoryReadinessKey, false)?.qualify(input, scopes) ??
+                Promise.resolve(
+                  fail({
+                    kind: 'unavailable',
+                    diagnostic: 'workspace history inspection is not installed',
+                  }),
+                ),
+              qualifyHistory: (input, scopes) =>
+                directory?.qualifyHistory?.(input, scopes) ??
+                Promise.resolve(
+                  scopes.length === 0
+                    ? succeed(undefined)
+                    : fail({
+                        kind: 'unavailable',
+                        diagnostic: 'workspace guidance history qualification is not installed',
+                      }),
+                ),
               history: async ({ principal, tenant, session }, partition, previous) => {
                 const history = ctx
                   .intercept(sessionKey, { caller: 'reader' })
@@ -736,7 +757,20 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.query = journal.query
     this.inputAcceptance = journal.inputAcceptance
     this.output = journal.output
-    new SessionModelHistoryReadiness(ctx, routed.ensureModelHistory)
+    new SessionModelHistoryReadiness(
+      ctx,
+      routed.ensureModelHistory,
+      (input, scopes) =>
+        directory?.inspectHistory?.(input, scopes) ??
+        Promise.resolve(
+          scopes.length === 0
+            ? succeed([])
+            : fail({
+                kind: 'unavailable',
+                diagnostic: 'workspace history qualification is not installed',
+              }),
+        ),
+    )
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
     new SessionLogCompactionInputs(ctx, routed.compactionInputs)

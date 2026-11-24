@@ -24,6 +24,8 @@ declare module '@deepseek-ai/cordis' {
  */
 export class SessionWorkingDirectory extends Service implements StepDirectory<unknown> {
   readonly refresh: StepDirectory<unknown>['refresh']
+  readonly inspectHistory: NonNullable<StepDirectory<unknown>['inspectHistory']>
+  readonly qualifyHistory: NonNullable<StepDirectory<unknown>['qualifyHistory']>
   /** The directory a step beginning on this snapshot stands at, worked out as the step does. */
   readonly inForce: (input: InForceInput) => ReturnType<typeof directoryInForce<unknown>>
 
@@ -31,6 +33,8 @@ export class SessionWorkingDirectory extends Service implements StepDirectory<un
     super(ctx, sessionWorkingDirectoryKey)
     const step = createStepDirectory<unknown>(sources)
     this.refresh = input => step.refresh(input)
+    this.qualifyHistory = step.qualifyHistory
+    this.inspectHistory = step.inspectHistory
     this.inForce = input => directoryInForce(sources, input)
   }
 }

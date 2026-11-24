@@ -1,7 +1,14 @@
+import type { ModelViewRow } from '@omne-harness/session-contract'
 import { createHash } from 'node:crypto'
 import type { BlockId, TextContentBlock } from '@omne-harness/content-block'
 import type { Message } from '@omne-harness/message'
-import type { WorkspaceGuidance } from '../workspace-guidance.ts'
+import {
+  workspaceGuidanceBodySchema,
+  WORKSPACE_GUIDANCE_PROVENANCE,
+  workspaceGuidanceManifestSchema,
+  type WorkspaceGuidance,
+  type WorkspaceGuidanceScope,
+} from '../workspace-guidance.ts'
 
 const manifestPrefix = 'blk_guidance_scope_'
 const sourcePrefix = 'blk_guidance_source_'
@@ -22,34 +29,73 @@ function block(prefix: string, partition: string, value: unknown): TextContentBl
   }
 }
 
-export type GuidanceIndex = Readonly<{ manifest: BlockId | null; sources: ReadonlySet<BlockId> }>
-export const emptyGuidanceIndex = (): GuidanceIndex => ({ manifest: null, sources: new Set() })
+export type GuidanceIndex = Readonly<{
+  manifest: BlockId | null
+  sources: ReadonlySet<BlockId>
+  scopes: readonly WorkspaceGuidanceScope[]
+  sourceScopes: ReadonlyMap<BlockId, WorkspaceGuidanceScope>
+}>
+export const emptyGuidanceIndex = (): GuidanceIndex => ({
+  manifest: null,
+  sources: new Set(),
+  scopes: [],
+  sourceScopes: new Map(),
+})
 
 /** An entry proves a body only if its committed identifier matches every byte visible to the model. */
 export function extendGuidanceIndex(
   previous: GuidanceIndex,
   messages: readonly Message[],
   partition: string,
+  authored?: ReadonlyMap<string, WorkspaceGuidanceScope>,
 ): GuidanceIndex {
   let manifest = previous.manifest
   let sources: Set<BlockId> | undefined
+  let scopes: Map<string, WorkspaceGuidanceScope> | undefined
+  let sourceScopes: Map<BlockId, WorkspaceGuidanceScope> | undefined
+  const remember = (id: BlockId, scope: WorkspaceGuidanceScope) => {
+    if (previous.sourceScopes.has(id)) return
+    sourceScopes ??= new Map(previous.sourceScopes)
+    scopes ??= new Map(previous.scopes.map(scope => [JSON.stringify(scope), scope]))
+    scopes.set(JSON.stringify(scope), scope)
+    sourceScopes.set(id, scope)
+  }
   for (const message of messages) {
     if (message.role !== 'system_reminder') continue
     for (const part of message.blocks) {
       if (part.kind !== 'text' || !part.visibility.toModel) continue
-      if (part.id.startsWith(manifestPrefix))
-        manifest = part.id === blockId(manifestPrefix, partition, part.text) ? part.id : null
+      const attested = authored?.get(part.id)
+      if (attested !== undefined) remember(part.id, attested)
+      if (part.id.startsWith(manifestPrefix)) {
+        const valid = part.id === blockId(manifestPrefix, partition, part.text)
+        manifest = valid ? part.id : null
+        if (valid && !previous.sourceScopes.has(part.id)) {
+          try {
+            const parsed = workspaceGuidanceManifestSchema.safeParse(JSON.parse(part.text))
+            if (parsed.success && parsed.data.scope !== null) remember(part.id, parsed.data.scope)
+          } catch {}
+        }
+      }
       if (
         part.id.startsWith(sourcePrefix) &&
         !previous.sources.has(part.id) &&
-        part.id === blockId(sourcePrefix, partition, part.text)
+        (part.id === blockId(sourcePrefix, partition, part.text) || attested !== undefined)
       ) {
         sources ??= new Set(previous.sources)
         sources.add(part.id)
+        try {
+          const body = workspaceGuidanceBodySchema.safeParse(JSON.parse(part.text))
+          if (body.success) remember(part.id, body.data.scope)
+        } catch {}
       }
     }
   }
-  return { manifest, sources: sources ?? previous.sources }
+  return {
+    manifest,
+    sources: sources ?? previous.sources,
+    scopes: scopes === undefined ? previous.scopes : [...scopes.values()],
+    sourceScopes: sourceScopes ?? previous.sourceScopes,
+  }
 }
 
 export function guidanceBlocks(
@@ -87,4 +133,24 @@ export function missingGuidanceBlocks(
     if (!index.sources.has(body.id)) pending.push(body)
   }
   return pending
+}
+
+/** Only the original producer assigns an opaque qualification source to its own verified blocks. */
+export function guidanceProvenance(
+  message: Message,
+  partition: string,
+): NonNullable<ModelViewRow['provenance']> {
+  const index = extendGuidanceIndex(emptyGuidanceIndex(), [message], partition)
+  const grouped = new Map<string, string[]>()
+  for (const [id, scope] of index.sourceScopes) {
+    const key = JSON.stringify(scope)
+    const blocks = grouped.get(key) ?? []
+    blocks.push(id)
+    grouped.set(key, blocks)
+  }
+  return [...grouped].map(([key, blocks]) => ({
+    owner: WORKSPACE_GUIDANCE_PROVENANCE,
+    key,
+    blocks,
+  }))
 }

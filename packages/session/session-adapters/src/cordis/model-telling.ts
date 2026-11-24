@@ -15,6 +15,7 @@ import type {
   JournalCommitResult,
 } from '../journal-commit.ts'
 import type { PublishedBatch } from '../journal/index.ts'
+import { projectionCommand } from './model-projection-commit.ts'
 import {
   openContextScope,
   reminderCommand,
@@ -96,6 +97,17 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       at: String(snapshot.revision),
     })
     if ('failure' in prepared) return failed(reminderReadFailure(prepared.failure))
+    if (prepared.ok.projection !== undefined) {
+      const command = projectionCommand({
+        tenant: book.tenant,
+        session: book.session,
+        scope,
+        at: snapshot.revision,
+        projection: prepared.ok.projection,
+      })
+      const settled = reminderOutcome(await submitGuidance(book, domain, command))
+      return typeof settled === 'string' ? { kind: 'again' } : failed(settled)
+    }
     const [message] = prepared.ok.messages
     if (message === undefined) {
       prepared.ok.advance()

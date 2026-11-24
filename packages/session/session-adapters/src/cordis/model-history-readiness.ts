@@ -1,3 +1,4 @@
+import type { StepDirectory } from './working-directory-step.ts'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { Failure } from '@omne-harness/agent-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -18,8 +19,14 @@ declare module '@deepseek-ai/cordis' {
 
 export class SessionModelHistoryReadiness extends Service {
   readonly ensure: EnsureModelHistory<unknown>
-  constructor(ctx: Context, ensure: EnsureModelHistory<unknown>) {
+  readonly qualify: NonNullable<StepDirectory<unknown>['inspectHistory']>
+  constructor(
+    ctx: Context,
+    ensure: EnsureModelHistory<unknown>,
+    qualify: NonNullable<StepDirectory<unknown>['inspectHistory']>,
+  ) {
     super(ctx, sessionModelHistoryReadinessKey)
     this.ensure = ensure
+    this.qualify = qualify
   }
 }

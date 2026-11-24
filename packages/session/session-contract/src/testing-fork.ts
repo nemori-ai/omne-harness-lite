@@ -15,8 +15,8 @@ import type {
   SessionFailure,
 } from './faces.ts'
 import type { EntryId, SessionId, SessionRevision } from './identity.ts'
-import type { EncodedEntry } from './judgments.ts'
-import { compactionReads, type MaterializedModelView } from './model-view.ts'
+import type { EncodedEntry, DecideReads } from './judgments.ts'
+import { compactionContextForView, type MaterializedModelView } from './model-view.ts'
 import type { SessionCommand } from './ports.ts'
 import { encodeCursor, type Cursor } from './testing-history-cursor.ts'
 import { TESTING_OWNER } from './testing-values.ts'
@@ -134,7 +134,14 @@ export function numbered(
 }
 
 export const compactionOf = (store: Held, through: string) =>
-  compactionReads(chainOf(store), store.snapshot, through, store.fork?.inherited.length)
+  compactionContextForView(
+    chainOf(store),
+    store.snapshot,
+    store.modelView.rows,
+    store.modelView.rows.length,
+    through,
+    store.fork?.inherited.length,
+  )
 
 export const chained = <S extends Held>(store: S) => ({
   ...store,
@@ -201,4 +208,24 @@ export function prefixPage(store: Held, cursor: Cursor, issued: Set<string>): Hi
     exhausted: false,
     annotations: [],
   }
+}
+
+/** The same current view underlies compaction and an eligibility-driven withdrawal. */
+export function contextReads(
+  store: Held | undefined,
+  key: string,
+  command: SessionCommand,
+): Pick<DecideReads, 'compaction' | 'compactionEpoch'> {
+  if (store === undefined) return { compaction: null }
+  const compactionEpoch = `${key}/${store.modelView.epoch}`
+  if (
+    command.kind !== 'commitDerived' ||
+    (command.input.value.kind !== 'compaction' && command.input.value.kind !== 'model-projection')
+  )
+    return { compactionEpoch, compaction: null }
+  const through =
+    command.input.value.kind === 'compaction'
+      ? command.input.value.message.covers.to
+      : String(store.modelView.rows.at(-1)?.entry ?? '0')
+  return { compactionEpoch, compaction: compactionOf(store, through) }
 }

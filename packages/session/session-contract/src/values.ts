@@ -261,9 +261,22 @@ export type BoundedClose =
       reason: string | null
       input: InputId | null
     }>
+export type ModelProvenance = Readonly<{ owner: string; key: string; blocks: readonly string[] }>
+
 export type DerivedMessage =
+  | Readonly<{
+      kind: 'model-projection'
+      epoch: string
+      blocks: readonly string[]
+      source: DurableEvidence
+    }>
   | Readonly<{ kind: 'compaction'; message: CompactionMessage; epoch: string }>
-  | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'context-reminder'
+      message: Message
+      source: DurableEvidence
+      provenance?: readonly ModelProvenance[]
+    }>
 
 export type Modes = Readonly<{
   permission: 'never' | 'auto_permission' | 'bypass-permissions'

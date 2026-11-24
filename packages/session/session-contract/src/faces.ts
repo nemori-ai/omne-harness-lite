@@ -39,6 +39,7 @@ import type {
   ControlProgress,
   DeclarationChange,
   DerivedMessage,
+  ModelProvenance,
   FreezeVerdict,
   IdleObservation,
   InitializationResult,
@@ -231,7 +232,7 @@ export interface SessionWork<P> {
       | (Mutation<P> &
           Readonly<{
             expected: SessionRevision
-            value: Extract<DerivedMessage, { kind: 'context-reminder' }>
+            value: Extract<DerivedMessage, { kind: 'context-reminder' | 'model-projection' }>
           }>),
   ): Reply<CommitReceipt>
   release(
@@ -410,6 +411,7 @@ export type HistoryPage = Readonly<{
 }>
 export type ModelViewBasis = Readonly<{ epoch: string; upper: string }>
 export type ModelViewRow = Readonly<{
+  provenance?: readonly ModelProvenance[]
   seq: string
   entry: EntryId
   bytes: number

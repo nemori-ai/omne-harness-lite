@@ -1,3 +1,5 @@
+import { readGuidanceHistory } from './guidance-history.ts'
+import type { StepDirectory } from './working-directory-step.ts'
 import type { EnsureModelHistory } from './model-history-readiness.ts'
 import { contextEpochOf, sessionEpochOf } from './history-epoch.ts'
 import { createHash } from 'node:crypto'
@@ -74,6 +76,7 @@ export interface SessionHistoryHeads {
 
 export type SessionHistorySourceInput = Readonly<{
   ensureModelHistory?: EnsureModelHistory<unknown>
+  qualifyHistory?: NonNullable<StepDirectory<unknown>['qualifyHistory']>
   heads: SessionHistoryHeads
   scopeIndexEntries?: number
   pageBytes?: number
@@ -486,6 +489,22 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       return refused.kind === 'unknown' || refused.kind === 'invalid'
         ? unavailable(`the eligibility read answered ${probe.failure.kind}`)
         : refused
+    }
+    const qualify = this.shared.input.qualifyHistory
+    if (qualify !== undefined) {
+      const window = await readGuidanceHistory(
+        this.scope[sessionKey].history,
+        located.session,
+        JSON.stringify([located.tenant, located.target.scope.ref]),
+      )
+      if ('failure' in window)
+        return window.failure.kind === 'denied' ? DENIED : unavailable(window.failure.diagnostic)
+      const allowed = await qualify(located.access, [
+        ...window.ok.index.scopes,
+        ...window.ok.summarizedScopes,
+      ])
+      if ('failure' in allowed)
+        return allowed.failure.kind === 'denied' ? DENIED : unavailable(allowed.failure.diagnostic)
     }
     return located
   }

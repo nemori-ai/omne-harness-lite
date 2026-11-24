@@ -21,6 +21,7 @@ import type {
 } from './identity.ts'
 import type {
   BoundedClose,
+  ModelProvenance,
   InitializationResult,
   Participation,
   RecoveryTask,
@@ -95,6 +96,12 @@ export type InitializationItem = Omit<
 
 export type SessionEntry =
   | Readonly<{
+      kind: 'session.model-projected'
+      epoch: string
+      blocks: readonly string[]
+      source: DurableEvidence
+    }>
+  | Readonly<{
       kind: 'session.permission-assigned'
       declaration: Extract<DeclarationChange, { kind: 'permission-assignment' }>
       previousRevision: string
@@ -144,6 +151,7 @@ export type SessionEntry =
     }>
   | Readonly<{
       kind: `message.${Message['role']}`
+      provenance?: readonly ModelProvenance[]
       message: Message
       source: DurableEvidence
       admission: DurableEvidence | null
@@ -542,6 +550,7 @@ export type DecodedEntry =
   | Readonly<{ malformed: string }>
 
 const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
+  'session.model-projected',
   'session.todo-added',
   'session.todo-completed',
   'session.todo-removed',
