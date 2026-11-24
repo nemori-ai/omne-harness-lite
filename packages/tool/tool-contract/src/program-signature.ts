@@ -153,7 +153,10 @@ function callOf(one: ProgramFunction): string {
 
 /** The TypeScript declaration of what a program may call on one definition; empty when it may call nothing. */
 export function programSignature(definition: ToolDefinition): string {
-  const functions = programFunctions(definition)
+  return functionsSignature(programFunctions(definition))
+}
+
+export function functionsSignature(functions: readonly ProgramFunction[]): string {
   const [only] = functions
   if (only === undefined) return ''
   const doc = (text: string) => `/** ${text.replaceAll('*/', '* /').replaceAll(/\s+/g, ' ')} */`
@@ -163,7 +166,7 @@ export function programSignature(definition: ToolDefinition): string {
     `  ${doc(one.summary)}`,
     `  ${one.command ?? ''}${callOf(one)}`,
   ])
-  return [`declare const ${definition.name}: {`, ...lines, '}'].join('\n')
+  return [`declare const ${only.tool}: {`, ...lines, '}'].join('\n')
 }
 
 /** TL-71: why a program may not make this call, or null when it may. `given` names the arguments it gives. */

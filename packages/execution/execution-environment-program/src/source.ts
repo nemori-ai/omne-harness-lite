@@ -76,8 +76,8 @@ function erased(source: string): string | Extract<PreparedProgram, { kind: 'synt
   } catch (error) {
     const line =
       isRecord(error) && typeof error['startLine'] === 'number' ? error['startLine'] : null
-    const message = error instanceof Error ? error.message : String(error)
-    return { kind: 'syntax', message, line }
+    const said = isRecord(error) ? error['message'] : undefined
+    return { kind: 'syntax', message: typeof said === 'string' ? said : String(error), line }
   }
 }
 

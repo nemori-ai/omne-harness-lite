@@ -354,3 +354,36 @@ export const screenCommands: readonly Command[] = withHelp([
     ],
   },
 ])
+
+export const codeCommands: readonly Command[] = [
+  {
+    name: 'execute',
+    summary: 'Run one TypeScript program and return its result.',
+    fields: [
+      {
+        name: 'code',
+        kind: 'text',
+        required: true,
+        description:
+          'The body of an async function, in TypeScript. Top-level await and return work. Send real line breaks.',
+      },
+      {
+        name: 'input',
+        kind: 'json',
+        description: 'Optional JSON value. The program reads it as the constant input.',
+      },
+    ],
+  },
+  {
+    name: 'help',
+    summary:
+      'Show how to write a program: the rules, the limits here, and the functions it can call with their types.',
+    fields: [
+      {
+        name: 'name',
+        kind: 'string',
+        description: 'Optional tool name. Show only the functions of that tool.',
+      },
+    ],
+  },
+]

@@ -35,6 +35,7 @@ export type Field = Readonly<{
     | 'terminal'
     | 'edits'
     | 'strings'
+    | 'json'
   required?: boolean
   choices?: readonly string[]
   description: string
@@ -115,6 +116,7 @@ const validators: Record<Field['kind'], (value: JsonValue, field: Field) => bool
   env: validEnv,
   terminal: validTerminal,
   edits: validEdits,
+  json: () => true,
 }
 function textValue(value: JsonValue | undefined): string {
   return value?.kind === 'string' ? value.value : ''
@@ -219,6 +221,8 @@ function fieldSchema(field: Field): unknown {
       }
     case 'boolean':
       return { type: 'boolean' }
+    case 'json':
+      return {}
     case 'strings':
       return { type: 'array', items: { type: 'string' } }
     case 'env':

@@ -288,7 +288,9 @@ async function checkSyntax(s: ProgramConformanceSubject): Promise<void> {
     const outcome = await started.run.outcome
     assert.equal(outcome.kind, 'syntax', source)
     assert.equal(started.calls.length, 0)
-    return outcome.kind === 'syntax' ? outcome.line : null
+    if (outcome.kind !== 'syntax') return null
+    assert.match(outcome.message, /^[A-Za-z'"`]/u, `the message says what is wrong: ${source}`)
+    return outcome.line
   }
   assert.equal(await line('const a = 1\nconst b = ;\nreturn a'), 2)
   assert.equal(await line('const a = 1\nenum Kind { A }\nreturn a'), 2)

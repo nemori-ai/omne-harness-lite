@@ -296,6 +296,7 @@ export type {
 export { returnGuide } from './return-description.ts'
 export {
   PROGRAM_FAILURE,
+  functionsSignature,
   isProgramName,
   programCallRefusal,
   programFunctions,

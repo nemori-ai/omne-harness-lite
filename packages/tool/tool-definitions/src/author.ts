@@ -59,6 +59,11 @@ export type StructuredCommand<E> = Readonly<{
 
 export type AuthorOptions<E> = Readonly<{
   settings?: ToolSettingsDeclaration | null
+  encoding?: CommandCallEncoding
+  /** The isolation the place of a call must assert, by name. */
+  isolation?: readonly string[]
+  /** What `help` answers instead of the usage of the commands. */
+  help?: (args: Arguments, environment: E, execution: ToolExecutionContext) => Promise<string>
   gates?: CommandGates
   /** The commands whose result is blocks, by name; every other command returns text. */
   structured?: Readonly<Record<string, StructuredCommand<E>>>
@@ -146,12 +151,13 @@ export function createAuthor<E>(
     environment: E,
     execution: ToolExecutionContext,
   ) => Promise<string | Answer>,
-  { settings = null, gates, structured = {} }: AuthorOptions<E> = {},
+  options: AuthorOptions<E> = {},
 ): ToolImplementation<E, ToolMessageContentBlock> {
+  const { settings = null, gates, structured = {}, encoding = ENCODING, isolation = [] } = options
   const codec = createToolMessageResultCodec(maximum)
   const menu: CommandTable = {
     name,
-    encoding: ENCODING,
+    encoding,
     guide: rules,
     commands: commands.map(command =>
       menuEntry(
@@ -176,7 +182,10 @@ export function createAuthor<E>(
             side: command.program,
             maximum,
             async run(args, environment, execution) {
-              if (command.name === 'help') return { text: help(menu, args) }
+              if (command.name === 'help')
+                return {
+                  text: (await options.help?.(args, environment, execution)) ?? help(menu, args),
+                }
               const given = await execute(command.name, args, environment, execution)
               return typeof given === 'string' ? { text: given } : given
             },
@@ -192,7 +201,7 @@ export function createAuthor<E>(
         adoption,
         environment: {
           adoption: environmentNeedAdoption,
-          value: tree({ facilities, isolation: [], layers: bindingKinds }),
+          value: tree({ facilities, isolation, layers: bindingKinds }),
         },
         attachments: [],
         inputModalities: ['text'],
@@ -200,7 +209,7 @@ export function createAuthor<E>(
         settings,
       },
     },
-    encoding: ENCODING,
+    encoding,
     guide: rules,
     ...(gates === undefined ? {} : { gates: gates.gates }),
     commands: table,

@@ -6774,6 +6774,9 @@ importers:
         specifier: workspace:*
         version: link:../../util/unix-format
     devDependencies:
+      '@omne-harness/execution-environment-program':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-program
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

@@ -102,6 +102,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'fixToolRequest',
     'fixedRequestReference',
     'foldResident',
+    'functionsSignature',
     'intentFault',
     'isProgramCall',
     'isProgramName',
