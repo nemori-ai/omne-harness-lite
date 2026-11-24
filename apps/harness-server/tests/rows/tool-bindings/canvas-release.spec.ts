@@ -1,6 +1,6 @@
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
-import { savedLoginProof, savedTenant } from '../../r9/support.ts'
+import { CANVAS_POLICY, savedLoginProof, savedTenant } from '../../r9/support.ts'
 import {
   historyOf,
   onReleaseTree,
@@ -82,6 +82,7 @@ describe('the Canvas tool on the release tree', () => {
               session: 'another',
             }),
           ],
+          ['canvas: look', 'call_look', canvasCall('look', {})],
           ...LOCKED_CALLS.map(([id, command]) => ['canvas: locked', id, lockedCall(command)]),
         ] as const
         return calls
@@ -109,6 +110,14 @@ describe('the Canvas tool on the release tree', () => {
         expect(forged).toContain('Canvas place: Unrecognized keys: "by", "tenant", "session"')
         expect(await itemsOf(tree)).toHaveLength(1)
 
+        const looked = await settled(tree, await tree.startSession('canvas: look'), 'look')
+        const [head, ...lines] = looked.split('\n')
+        expect(head).toBe('done Canvas look')
+        const byAgent = JSON.parse(lines.join('\n')) as Record<string, unknown>
+        const { size, footprint } = CANVAS_POLICY
+        expect(byAgent['sheet']).toEqual({ ...CANVAS_POLICY.sheet, size, footprint })
+        expect(byAgent).toEqual((await asPerson(tree, 'look', {})).body)
+
         const put = await asPerson(tree, 'place', { reference: app('note'), at: { x: 800, y: 80 } })
         expect(put.outcome).toBe('succeeded')
         locked = put.body['item'].id
@@ -128,7 +137,7 @@ describe('the Canvas tool on the release tree', () => {
         const reached = [...toolCallFacts(tree.storageRoot).values()].map(
           facts => (JSON.parse(facts.arguments) as { command: string }).command,
         )
-        expect(reached.filter(command => command !== 'place').sort()).toEqual([
+        expect(reached.filter(command => !['place', 'look'].includes(command)).sort()).toEqual([
           'arrange',
           'pile',
           'take',
