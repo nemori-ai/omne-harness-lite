@@ -52,6 +52,17 @@ const EXTENSION_CALLS: Readonly<Record<string, readonly [string, object]>> = {
   settings: ['settings', SHOP],
   open: ['configure', { id: 'open-1', ...SHOP, item: 'program-calls', value: true }],
   'grab-gate': ['configure', { id: 'grab-1', ...SHOP, item: 'invoke', value: 'auto' }],
+  'vault-settings': ['settings', { category: 'mcp', name: 'vault' }],
+  'grab-secret': [
+    'configure',
+    {
+      id: 'grab-2',
+      category: 'mcp',
+      name: 'vault',
+      item: 'credential',
+      value: 'sk-from-the-agent',
+    },
+  ],
 }
 const PROGRAMS: Readonly<Record<string, string>> = {
   count: guarded('mcp__shop.count({ text: "four" })'),
@@ -564,7 +575,7 @@ it(
 )
 
 it(
-  'MC-26 AS-28 a program calls the actions of an endpoint only once program calls are on; the agent turns them on through OmneExtensions after a person allows it, and cannot write the gate of the endpoint that way',
+  'MC-26 AS-28 a program calls the actions of an endpoint only once program calls are on; the agent turns them on through OmneExtensions after a person allows it, and cannot write a gate or a credential that way',
   { tags: ['slow'], timeout: 600_000 },
   async () => {
     const { script } = scripted()
@@ -627,6 +638,20 @@ it(
           effective: { kind: 'value', value: 'ask' },
         })
 
+        at(
+          'a secured endpoint: the agent reads only whether its credential is set, and cannot write it',
+        )
+        await registered(w, 'vault', 'static')
+        await sendInput(tree, session, 'start: extensions vault-settings')
+        const vault = await lastResult(tree, session, 6)
+        expect(vault).toMatch(/credential\s+secret\s+not set/u)
+        await sendInput(tree, session, 'start: extensions grab-secret')
+        const taking = await pendingCard(tree, session, 'the write of the credential')
+        await answerCard(tree, taking, ['--option', 'allow-once'], 'reply-secret')
+        expect(await lastResult(tree, session, 7)).toContain('credential is a secret')
+        await sendInput(tree, session, 'start: extensions vault-settings')
+        expect(await lastResult(tree, session, 8)).toBe(vault)
+
         at('program calls are on: the call of the program asks, then answers')
         await sendInput(tree, session, 'start: code count')
         const card = await pendingCard(tree, session, 'the call the program made')
@@ -637,14 +662,14 @@ it(
         })
         expect(peer.calls).toEqual([])
         await answerCard(tree, card, ['--option', 'allow-session'], 'reply-count')
-        const counted = await lastResult(tree, session, 6)
+        const counted = await lastResult(tree, session, 9)
         expect(counted).toContain('done Code execute')
         expect(counted).toContain('"length":4')
         expect(peer.calls).toEqual([{ action: 'count', text: 'four' }])
 
         at('an action without an output schema gives the program its content items')
         await sendInput(tree, session, 'start: code plain')
-        const plain = await lastResult(tree, session, 7)
+        const plain = await lastResult(tree, session, 10)
         expect(plain).toContain('"type":"text"')
         expect(plain).toContain('echo answered plain')
         expect(plain).not.toContain('refused')
@@ -652,7 +677,7 @@ it(
         at('the holder turns program calls off again')
         await configured(w, 'shop', 'program-calls', false, 'shop-closed')
         await sendInput(tree, session, 'start: code count')
-        expect(await lastResult(tree, session, 8)).toContain('"kind":null')
+        expect(await lastResult(tree, session, 11)).toContain('"kind":null')
         expect(peer.calls).toHaveLength(2)
       }),
     )

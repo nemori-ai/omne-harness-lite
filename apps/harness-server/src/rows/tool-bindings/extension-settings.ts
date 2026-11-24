@@ -3,7 +3,7 @@ import type { HeldSetting, HeldSettings, SettingWritten } from '@omne-harness/as
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { WriteOutcome } from '@omne-harness/settings'
 import type { ActingSettings, ActingSettingView } from '../governance/acting-settings.ts'
-import type { SecretSettings } from '../settings/ports.ts'
+import type { SecretItemInput, SecretView } from '../settings/ports.ts'
 
 type Asset = Readonly<{ category: string; name: string }>
 type Configured = Extract<HeldSetting, { kind: 'secret' }>['configured']
@@ -14,8 +14,8 @@ export type HeldSettingsInput = Readonly<{
   tenant: TenantId
   /** The asset as the tenant holds it now, as the management face answers this caller. */
   describe(capability: CapabilityId): Promise<ManagedAsset>
-  /** The face that knows whether a secret is set; absent, that is not known. */
-  secrets(): Pick<SecretSettings, 'describe'> | undefined
+  /** Whether one secret is set, as the settings row answers this caller; absent, that is not known. */
+  secrets(): Readonly<{ presence(input: SecretItemInput): Promise<SecretView['own']> }> | undefined
 }>
 
 const SET: Readonly<Record<string, Configured>> = { available: 'yes', unset: 'no', revoked: 'no' }
@@ -62,10 +62,8 @@ export function heldSettingsOf(input: HeldSettingsInput): HeldSettings {
 
   async function configured(asset: Asset, item: string): Promise<Configured> {
     try {
-      const asked = { principal, tenant, asset, item } as Parameters<SecretSettings['describe']>[0]
-      const read = await input.secrets()?.describe(asked)
-      const own = read?.kind === 'described' && read.item.kind === 'secret' ? read.item.own : ''
-      return SET[own] ?? 'unknown'
+      const asked = { principal, tenant, asset, item } as SecretItemInput
+      return SET[(await input.secrets()?.presence(asked)) ?? ''] ?? 'unknown'
     } catch {
       return 'unknown'
     }

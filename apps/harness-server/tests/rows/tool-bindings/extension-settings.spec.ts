@@ -76,9 +76,9 @@ function world(over: Partial<HeldSettingsInput> = {}) {
 }
 
 const secretState = (own: string) => ({
-  describe: async (input: unknown) => {
+  presence: async (input: unknown) => {
     expect(input).toEqual({ principal: PRINCIPAL, tenant: TENANT, asset: DOCS, item: 'credential' })
-    return { kind: 'described', item: { kind: 'secret', own } } as never
+    return own as never
   },
 })
 
@@ -125,18 +125,14 @@ describe('the settings of a held asset, for one call of OmneExtensions', () => {
     expect(listed).toContainEqual(expect.objectContaining({ item: 'credential', configured }))
   })
 
-  it('a secret is not known to be set when the secret face refuses or throws', async () => {
-    for (const describe of [
-      async () => ({ kind: 'denied' }) as never,
-      async () => {
-        throw new Error('down')
-      },
-    ]) {
-      const { settings } = world({ secrets: () => ({ describe }) })
-      expect(await settings.list(DOCS)).toContainEqual(
-        expect.objectContaining({ item: 'credential', configured: 'unknown' }),
-      )
+  it('a secret is not known to be set when the settings row cannot say, or throws', async () => {
+    const presence = async () => {
+      throw new Error('down')
     }
+    const { settings } = world({ secrets: () => ({ presence }) })
+    expect(await settings.list(DOCS)).toContainEqual(
+      expect.objectContaining({ item: 'credential', configured: 'unknown' }),
+    )
   })
 
   it.each([
