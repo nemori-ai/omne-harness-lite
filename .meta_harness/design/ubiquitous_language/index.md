@@ -132,7 +132,7 @@
 | [UL-skill](terms/capabilities-and-composition.md#ul-skill--技能--skill) | 技能 | Skill | 一段可复用的工作方法 |
 | [UL-meta-skill](terms/capabilities-and-composition.md#ul-meta-skill--元技能--meta-skill) | 元技能 | Meta Skill | 官方层发行、常驻、声明不可替换的那份教 agent 写 Skill 的普通 Skill；**不是 meta 能力** |
 | [UL-tool](terms/capabilities-and-composition.md#ul-tool--工具--tool) | 工具 | Tool | 一个可被调用的动作，**身份是这一类里的那个 name**；资产只带身份、治理声明与实现引用，形状由实现提供 |
-| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点，只按地址接入；一个接入点是一个工具条目，对端的动作是它的命令，按当下事实现算；标了常驻的接入点，动作在采用点成为常驻工具；弃用 ~~端点~~ |
+| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点，只按地址接入；一个接入点是一个工具条目，对端的动作是它的命令，按当下事实现算；标了常驻的接入点在采用点成为一条常驻工具；弃用 ~~端点~~ |
 | [UL-connection-target](terms/capabilities-and-composition.md#ul-connection-target--连接目标--connection-target) | 连接目标 | Connection Target | MCP 接入点连到对端哪里，**落点与身份类**，工作区配不了；**不是身份** |
 | [UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) | 连接件 | Connector | 一个外部消息来源的接入件，**方向相反**；声明事件目录、持有上配事件订阅；两种投递方式（已有会话开口接收 / 事件开新会话，后者必配触发会话的默认运行模式）；带身份鉴权，接哪个账号是持有上的落点与身份类设置 |
 | [UL-connector-event-type](terms/capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type) | 连接件事件类型 | Connector Event Type | 连接件正文里声明的一种会送进来的外部事件：类型名 + 说明 + 消息包形状；每条外部消息恰属一种 |
