@@ -19,6 +19,32 @@ function stacked(
 
 export type PileLeaf = Readonly<{ key: string; name: string; content: React.ReactNode }>
 
+function Leaf({
+  leaf,
+  depth,
+  open,
+}: {
+  readonly leaf: PileLeaf
+  readonly depth: number
+  readonly open: boolean
+}): React.JSX.Element {
+  const hidden = !open && depth > 0
+  return (
+    <div
+      role="group"
+      aria-label={leaf.name}
+      aria-hidden={hidden || undefined}
+      inert={hidden}
+      data-depth={depth}
+      className="omne-paper-pile-leaf"
+      style={{ '--omne-paper-depth': depth } as React.CSSProperties}
+    >
+      {open ? <span className="omne-paper-name-text">{leaf.name}</span> : null}
+      <div className="omne-paper-leaf">{leaf.content}</div>
+    </div>
+  )
+}
+
 export function PaperPile({
   box,
   name,
@@ -104,24 +130,9 @@ export function PaperPile({
         </IconButton>
       </div>
       <div className="omne-paper-pile-leaves">
-        {stacked(open, drawn).map(({ leaf, depth }) => {
-          const hidden = !open && depth > 0
-          return (
-            <div
-              key={leaf.key}
-              role="group"
-              aria-label={leaf.name}
-              aria-hidden={hidden || undefined}
-              inert={hidden}
-              data-depth={depth}
-              className="omne-paper-pile-leaf"
-              style={{ '--omne-paper-depth': depth } as React.CSSProperties}
-            >
-              {open ? <span className="omne-paper-name-text">{leaf.name}</span> : null}
-              <div className="omne-paper-leaf">{leaf.content}</div>
-            </div>
-          )
-        })}
+        {stacked(open, drawn).map(({ leaf, depth }) => (
+          <Leaf key={leaf.key} leaf={leaf} depth={depth} open={open} />
+        ))}
       </div>
     </div>
   )
