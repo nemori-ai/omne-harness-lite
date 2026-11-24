@@ -67,12 +67,13 @@ const viewOf = ({ choice, skins, worn }: Open): WearView => ({
 
 /** The choice a kept text says. A text that is not one of the three is no choice. */
 export function choiceIn(text: string | null): LookChoice {
-  let read: unknown = null
+  let read: unknown
   try {
-    read = JSON.parse(text ?? 'null')
-  } catch {}
-  if (typeof read !== 'object' || read === null) return NONE
-  const { kind, name } = read as Record<string, unknown>
+    read = JSON.parse(String(text))
+  } catch {
+    return NONE
+  }
+  const { kind, name } = (read ?? {}) as Record<string, unknown>
   if (kind === 'builtin') return { kind }
   return kind === 'named' && typeof name === 'string' && name !== '' ? { kind, name } : NONE
 }

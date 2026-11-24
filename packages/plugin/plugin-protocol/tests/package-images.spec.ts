@@ -59,6 +59,42 @@ describe('an image told from what only bears its name', () => {
     ['a.avif', AVIF],
     ['a.svg', SVG],
     ['a.svg', text('  <svg viewBox="0 0 1 1"></svg>')],
+    [
+      'a.svg',
+      text(
+        '<?xml version="1.0"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg/>',
+      ),
+    ],
+    ['a.avif', bytes(0, 0, 0, 28, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x73, 0, 0)],
+    [
+      'a.avif',
+      bytes(
+        0,
+        0,
+        0,
+        24,
+        0x66,
+        0x74,
+        0x79,
+        0x70,
+        0x6d,
+        0x69,
+        0x66,
+        0x31,
+        0,
+        0,
+        0,
+        0,
+        0x6d,
+        0x69,
+        0x66,
+        0x31,
+        0x61,
+        0x76,
+        0x69,
+        0x66,
+      ),
+    ],
   ])('%s that begins as its kind does is that image', (path, head) => {
     expect(imageFault(path, head)).toBeNull()
   })
@@ -69,6 +105,58 @@ describe('an image told from what only bears its name', () => {
     ['a.webp', bytes(0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x41, 0x56, 0x45)],
     ['a.avif', bytes(0, 0, 0, 28, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x70, 0x34, 0x32)],
     ['a.svg', HTML],
+    ['a.svg', text('<html><body><svg/></body></html>')],
+    [
+      'a.avif',
+      bytes(
+        0,
+        0,
+        0,
+        20,
+        0x66,
+        0x74,
+        0x79,
+        0x70,
+        0x68,
+        0x65,
+        0x69,
+        0x63,
+        0,
+        0,
+        0,
+        0,
+        0x6d,
+        0x69,
+        0x66,
+        0x31,
+      ),
+    ],
+    ['a.avif', bytes(0, 0, 0, 16, 0x6d, 0x6f, 0x6f, 0x76, 0x61, 0x76, 0x69, 0x66, 0, 0, 0, 0)],
+    [
+      'a.avif',
+      bytes(
+        0,
+        0,
+        0,
+        16,
+        0x66,
+        0x74,
+        0x79,
+        0x70,
+        0x6d,
+        0x69,
+        0x66,
+        0x31,
+        0,
+        0,
+        0,
+        0,
+        0x61,
+        0x76,
+        0x69,
+        0x66,
+      ),
+    ],
     ['a.svg', text('<svgx/>')],
     ['a.png', bytes()],
   ])('%s that begins otherwise is refused, and the reason names the file', (path, head) => {
@@ -94,6 +182,11 @@ describe('the files a value points at', () => {
       base: { 'background-image': 'file(art/sea.webp)' },
       hover: { mask: 'file(art/mark.svg)' },
     }
+    expect(judgePackage(skin(data), FILES)).toEqual({ ok: true })
+  })
+
+  it('a data member whose values are null, numbers or truths points at nothing', () => {
+    const data = { base: { opacity: 1, 'z-index': null }, hover: { visible: true } }
     expect(judgePackage(skin(data), FILES)).toEqual({ ok: true })
   })
 

@@ -12,20 +12,17 @@ const valueOf = (choice: LookChoice): string =>
 const choiceOf = (value: string): LookChoice =>
   value.startsWith(SKIN) ? { kind: 'named', name: value.slice(SKIN.length) } : { kind: 'builtin' }
 
+const NOTES: Readonly<Record<SkinNow['state'], (now: SkinNow, chosen: boolean) => string>> = {
+  loaded: () => '',
+  loading: (_, chosen) => (chosen ? '已选，正在装，装上就换' : '正在装'),
+  failed: ({ reason }) => `没装上：${reason ?? '没有说原因'}`,
+  held: () => '应用连着两次没起来，这一套已停下。发布新的一版，或禁用它',
+}
+
 /** What a row says of its skin, in the words of a person: nothing for one that is up and not worn. */
-function noteOf({ name, state, reason }: SkinNow, { worn, choice }: WearView): string {
-  if (worn === name) return '在用'
-  const chosen = choice.kind === 'named' && choice.name === name
-  switch (state) {
-    case 'loaded':
-      return ''
-    case 'loading':
-      return chosen ? '已选，正在装，装上就换' : '正在装'
-    case 'failed':
-      return `没装上：${reason ?? '没有说原因'}`
-    case 'held':
-      return '应用连着两次没起来，这一套已停下。发布新的一版，或禁用它'
-  }
+export function noteOf(now: SkinNow, { worn, choice }: WearView): string {
+  if (worn === now.name) return '在用'
+  return NOTES[now.state](now, choice.kind === 'named' && choice.name === now.name)
 }
 
 /** A skin a person can turn to now: one that failed or was held back waits for a new version. */

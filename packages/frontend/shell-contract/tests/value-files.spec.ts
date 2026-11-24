@@ -19,6 +19,13 @@ describe('a value that points at a file of the package that put it', () => {
     )
   })
 
+  it.each(['file(sea.png)', 'file(art/sea/deep/a.png)'])(
+    'takes a path of one segment or of many: %s',
+    value => {
+      expect(valueFault(value, FILES)).toBeNull()
+    },
+  )
+
   it.each([
     ['file(../x.png)', 'file(../x.png) is not a path inside the package'],
     ['file(art/./x.png)', 'file(art/./x.png) is not a path inside the package'],
@@ -27,6 +34,7 @@ describe('a value that points at a file of the package that put it', () => {
     ['file()', 'file() is not a path inside the package'],
     ['file(art/font.woff2)', 'file(art/font.woff2) does not name an image'],
     ['file(art/page.html)', 'file(art/page.html) does not name an image'],
+    ['file(art/a.png.js)', 'file(art/a.png.js) does not name an image'],
   ])('%s is refused: %s', (value, reason) => {
     expect(valueFault(value, FILES)).toBe(reason)
   })
@@ -97,7 +105,7 @@ describe('the sheet of an item that points at files', () => {
   it('writes each file(path) as the address of that file under the place the item came with, in tokens and in styles', async () => {
     const w = await world()
     await place(w.root, 'sea', ctx => {
-      ctx.shell.putTokens('shell.app', { '--omne-mark': 'file(art/mark.svg)' }, alice, FILES)
+      ctx.shell.putTokens('shell.app', { '--omne-mark': 'file( art/mark.svg )' }, alice, FILES)
       ctx.shell.putStyle(
         'notes.page',
         { base: { 'background-image': 'file(art/sea.webp), file(art/mark.svg)' } },

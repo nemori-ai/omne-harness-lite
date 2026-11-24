@@ -181,6 +181,17 @@ describe('inspecting a package', () => {
     expect(answer).toEqual(fail({ kind: 'source-failed', failure: 'unavailable' }))
   })
 
+  it('opens only the files named as images: a file of another kind that cannot be read now does not stop it', async () => {
+    const made = world()
+    const pkg = packageOf({ ...GOOD, 'art/mark.svg': '<svg/>', 'notes.json': '{}' })
+    const answer = await made.contract.layout!.inspect({
+      manifest: pkg.manifest,
+      open: async (path, digest) =>
+        path === 'notes.json' ? fail('unavailable') : pkg.open(path, digest),
+    })
+    expect('ok' in answer).toBe(true)
+  })
+
   it('rejects a package without a manifest', async () => {
     const { answer } = await inspect({ 'main.js': '' })
     expect(answer).toEqual(rejected('the package has no plugin.json'))

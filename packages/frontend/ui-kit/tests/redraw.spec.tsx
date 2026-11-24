@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { GLYPHS } from '../src/icons/glyphs.ts'
 import { DoneIcon, ICONS, RedrawProvider, SendIcon, iconNames, type Redraw } from '../src/index.ts'
 
 afterEach(cleanup)
@@ -23,6 +24,15 @@ describe('an icon of the set, drawn where a redraw may stand', () => {
     expect(root?.getAttribute('data-icon')).toBe('done')
     expect(root?.getAttribute('width')).toBe('16')
     expect(root?.getAttribute('class')).toBe('omne-icon mark')
+    expect(root?.getAttribute('xmlns')).toBe('http://www.w3.org/2000/svg')
+    expect(root?.getAttribute('viewBox')).toBe('0 0 24 24')
+    expect(root?.getAttribute('fill')).toBe('currentColor')
+    expect(root?.getAttribute('aria-hidden')).toBe('true')
+    const still = [...(root?.querySelectorAll(':scope > path') ?? [])].map(path =>
+      path.getAttribute('d'),
+    )
+    expect(still).toEqual(GLYPHS.done.still.map(stroke => stroke.ink))
+    expect(still.length).toBeGreaterThan(0)
   })
 
   it('is the same markup when the redraw gives back its own drawing', () => {

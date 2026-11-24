@@ -18,11 +18,27 @@ function vector(head: Uint8Array): boolean {
   return /^<svg[\s>/]/u.test(root)
 }
 
+const AVIF_BRANDS = ['avif', 'avis']
+
+function avif(head: Uint8Array): boolean {
+  if (!at(head, 4, 0x66, 0x74, 0x79, 0x70)) return false
+  const box = Math.min(
+    new DataView(head.buffer, head.byteOffset, head.byteLength).getUint32(0),
+    head.length,
+  )
+  const brands = [
+    8,
+    ...Array.from({ length: Math.max(0, (box - 16) / 4) }, (_, index) => 16 + index * 4),
+  ]
+  const words = new TextDecoder().decode(head)
+  return brands.some(from => AVIF_BRANDS.includes(words.slice(from, from + 4)))
+}
+
 const BEGINS: Readonly<Record<(typeof IMAGE_SUFFIXES)[number], Begins>> = {
   '.png': head => at(head, 0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a),
   '.jpg': head => at(head, 0, 0xff, 0xd8, 0xff),
   '.webp': head => at(head, 0, 0x52, 0x49, 0x46, 0x46) && at(head, 8, 0x57, 0x45, 0x42, 0x50),
-  '.avif': head => at(head, 4, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69) && at(head, 11, 0x66),
+  '.avif': avif,
   '.svg': vector,
 }
 

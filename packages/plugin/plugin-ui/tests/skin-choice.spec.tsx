@@ -7,6 +7,7 @@ import { createPluginUiModule } from '@omne-harness/plugin-ui/cordis'
 import { pluginProtocol } from '@omne-harness/plugin-protocol'
 import { STYLE_POINT, defineKeyedPoint, definePart } from '@omne-harness/shell-contract'
 import { ReferenceShell, serveProtocol, startShellOf } from '@omne-harness/shell-contract/testing'
+import { noteOf } from '../src/view/skin-choice.tsx'
 import { fakeSource, given, givenSkin } from './support/fake-source.ts'
 
 const ALICE =
@@ -164,5 +165,35 @@ describe('where a person switches the skin', () => {
     ])
     await vi.waitFor(() => expect(screen.queryByRole('radio', { name: 'ink' })).not.toBeNull())
     expect(checked()).toEqual(['sea'])
+  })
+})
+
+describe('what a row says of its skin', () => {
+  const view = (choice: LookChoice, worn?: string) => ({ listed: true, skins: [], worn, choice })
+  const none: LookChoice = { kind: 'none' }
+
+  it('says it is in use when it is worn, whatever its state', () => {
+    expect(noteOf({ name: 'sea', state: 'loading' }, view(named('sea'), 'sea'))).toBe('在用')
+  })
+
+  it.each<[string, Parameters<typeof noteOf>[0], LookChoice, string]>([
+    ['up and not worn', { name: 'sea', state: 'loaded' }, none, ''],
+    ['loading, chosen', { name: 'sea', state: 'loading' }, named('sea'), '已选，正在装，装上就换'],
+    ['loading, another chosen', { name: 'sea', state: 'loading' }, named('ink'), '正在装'],
+    [
+      'failed with a reason',
+      { name: 'sea', state: 'failed', reason: 'no part' },
+      none,
+      '没装上：no part',
+    ],
+    ['failed with none', { name: 'sea', state: 'failed' }, none, '没装上：没有说原因'],
+    [
+      'held back',
+      { name: 'sea', state: 'held' },
+      none,
+      '应用连着两次没起来，这一套已停下。发布新的一版，或禁用它',
+    ],
+  ])('%s', (_, now, choice, note) => {
+    expect(noteOf(now, view(choice))).toBe(note)
   })
 })

@@ -89,6 +89,16 @@ describe('the manifest of a plugin', () => {
       'the name "a/b" is not lower-case letters, digits and hyphens',
     ],
     ['an empty summary', { ...GREEN, summary: ' ' }, 'the summary is empty'],
+    [
+      'a name that is not text',
+      { ...GREEN, name: true },
+      'the name true is not lower-case letters, digits and hyphens',
+    ],
+    [
+      'a name that is null',
+      { ...GREEN, name: null },
+      'the name null is not lower-case letters, digits and hyphens',
+    ],
     ['a side that is not an object', { ...GREEN, client: [] }, 'client is not an object'],
     [
       'members that are not a list',
