@@ -271,7 +271,6 @@ async function unaccepted<P>(
     return excluded.failure.kind === 'invalid'
       ? null
       : failed('unknown', 'unknown', 'Whether the call was accepted is not known.')
-  if (excluded.ok.state !== 'excluded') return null
   return rejected === null
     ? failed('unavailable', 'none', 'The call was not accepted.')
     : refusal(rejected)

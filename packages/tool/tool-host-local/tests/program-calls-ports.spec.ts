@@ -65,6 +65,10 @@ type Over = Partial<{
   exclude: ToolFailure
   invoke: ToolInvokeOutcome
   table: readonly ProgramPosition[]
+  readTable: ToolFailure
+  targetThrows: boolean
+  stopped: boolean
+  retryMs: number
 }>
 
 function world(over: Over = {}) {
@@ -101,12 +105,16 @@ function world(over: Over = {}) {
       return succeed({ phase: 'sealed', positions: over.table ?? [] })
     },
     table: async () =>
-      succeed({
-        phase: 'sealed',
-        positions: log.some(one => one.startsWith('exclude')) ? [] : (over.table ?? []),
-      }),
+      over.readTable !== undefined
+        ? fail(over.readTable)
+        : succeed({
+            phase: 'sealed',
+            positions: log.some(one => one.startsWith('exclude')) ? [] : (over.table ?? []),
+          }),
   }
   const controller = new AbortController()
+  if (over.stopped === true) controller.abort()
+  const intents: unknown[] = []
   const scope = createIndependentToolScope({
     limits: {
       authorBufferBytes: 1024,
@@ -140,10 +148,13 @@ function world(over: Over = {}) {
         },
       }),
     functions: async () => succeed([]),
-    prepareTarget: async () =>
-      over.target === undefined ? succeed(toolInvokeRequestOf(fixed)) : fail(over.target),
+    prepareTarget: async (_parent, intent) => {
+      intents.push([intent.name, intent.command])
+      if (over.targetThrows === true) throw new Error('view broke')
+      return over.target === undefined ? succeed(toolInvokeRequestOf(fixed)) : fail(over.target)
+    },
     checkArguments: async () => over.arguments ?? { kind: 'valid' },
-    retryMs: 5,
+    retryMs: over.retryMs ?? 5,
   })
   const bound = calls.bind(parent, scope.ok)
   const tools = programToolsOf(bound.context)
@@ -151,10 +162,11 @@ function world(over: Over = {}) {
   return {
     tools,
     log,
+    intents,
     stop: () => controller.abort(),
     finish: bound.finish,
-    call: (argumentsValue: JsonValue = object) =>
-      tools.call({ ordinal: 1, entry: 'Echo.say', arguments: argumentsValue }),
+    call: (argumentsValue: JsonValue = object, entry = 'Echo.say') =>
+      tools.call({ ordinal: 1, entry, arguments: argumentsValue }),
     arrive: (terminal: Parameters<typeof arrivals.arrived>[2]['terminal']) =>
       arrivals.arrived(tenantA, consumer, {
         result: 'v1' as ToolResultVersion,
@@ -315,5 +327,203 @@ describe('one program position, port by port (TL-65, TL-68, TL-72)', () => {
     expect(await world({ absent: 'children' }).tools.settle()).toMatchObject({
       failure: { kind: 'unavailable' },
     })
+  })
+
+  it.each([
+    ['source', 'Program calls are unavailable: no invocation source.'],
+    ['runtime', 'Program calls are unavailable: no tool runtime.'],
+    ['children', 'Program calls are unavailable: no position table.'],
+    ['admission', 'Program calls are unavailable: no admission of nested actions.'],
+  ] as const)('the answer names the missing %s', async (absent, message) => {
+    expect(await world({ absent }).call()).toEqual({
+      kind: 'failure',
+      failure: { kind: 'unavailable', effect: 'none', message },
+    })
+  })
+
+  const refused = (failure: ToolFailure): Over => ({
+    prepared: { kind: 'rejected', failure } as never,
+  })
+  it.each([
+    [{ kind: 'denied', action: 'admit' }, 'denied', 'none', 'denied'],
+    [{ kind: 'invalid', field: 'ordinal', reason: 'range' }, 'invalid', 'none', 'ordinal: range'],
+    [{ kind: 'conflict', operation: operationId('op') }, 'invalid', 'none', 'conflict'],
+    [unavailable, 'unavailable', 'none', 'store: down'],
+    [
+      { kind: 'commit-unknown', operation: operationId('op') },
+      'unknown',
+      'unknown',
+      'commit-unknown',
+    ],
+    [{ kind: 'not-settled' }, 'unavailable', 'none', 'not-settled'],
+  ] as const)(
+    'a refusal %j reaches the program as %s with effect %s',
+    async (failure, kind, effect, message) => {
+      expect(await world(refused(failure as ToolFailure)).call()).toEqual({
+        kind: 'failure',
+        failure: { kind, effect, message },
+      })
+    },
+  )
+
+  it.each([
+    [{ target: handedOff }, object, 'Echo.say is not a function this program can call.'],
+    [
+      {},
+      { kind: 'string', value: 'x' } as JsonValue,
+      'Echo.say takes one object of named arguments.',
+    ],
+    [
+      { prepared: { kind: 'association-unknown' } },
+      object,
+      'Program calls are unavailable: no verified parent call.',
+    ],
+    [
+      { arguments: { kind: 'unavailable' } },
+      object,
+      'Program calls are unavailable: no parser of the arguments.',
+    ],
+    [{ arguments: { kind: 'invalid', reason: 'text: required' } }, object, 'text: required'],
+  ] as const)('a refusal before registration says why: %j', async (over, args, message) => {
+    expect(await world(over as Over).call(args)).toMatchObject({
+      failure: { effect: 'none', message },
+    })
+  })
+
+  it('reads the tool and the command from the name the program wrote', async () => {
+    const w = world({ target: handedOff })
+    await w.call(object, 'Echo.say')
+    await w.tools.call({ ordinal: 2, entry: 'Lookup', arguments: object })
+    await w.tools.call({ ordinal: 3, entry: 'Files.read.more', arguments: object })
+    expect(w.intents).toEqual([
+      ['Echo', 'say'],
+      ['Lookup', null],
+      ['Files', 'read.more'],
+    ])
+  })
+
+  it.each([
+    [{ kind: 'denied', reason: 'before' }, 'denied'],
+    [{ kind: 'not-accepted', reason: 'never' }, 'unavailable'],
+    [{ kind: 'unavailable', reason: 'gone' }, 'unavailable'],
+  ] as const)(
+    'a position recalled as excluded for %j answers %s, and nothing happened',
+    async (exclusion, kind) => {
+      const w = world({ register: succeed(excludedAt(exclusion)) })
+      expect(await w.call()).toEqual({
+        kind: 'failure',
+        failure: { kind, effect: 'none', message: exclusion.reason },
+      })
+    },
+  )
+
+  it('a position that cannot be registered, or whose denial cannot be recorded, answers the refusal', async () => {
+    const unregistered = world({ register: fail(unavailable) })
+    expect(failureOf(await unregistered.call())).toEqual(['unavailable', 'none'])
+    expect(unregistered.log).toEqual(['register'])
+    const unrecorded = world({
+      admit: async () => ({ kind: 'denied', reason: 'no' }),
+      exclude: unavailable,
+    })
+    expect(await unrecorded.call()).toMatchObject({
+      failure: { kind: 'unavailable', message: 'store: down' },
+    })
+  })
+
+  it('a call whose acceptance is unknown and whose exclusion then holds was not accepted', async () => {
+    const w = world({ invoke: { kind: 'commit-unknown', reference } })
+    expect(await w.call()).toEqual({
+      kind: 'failure',
+      failure: { kind: 'unavailable', effect: 'none', message: 'The call was not accepted.' },
+    })
+    const unknown = world({ invoke: { kind: 'commit-unknown', reference }, exclude: unavailable })
+    expect(await unknown.call()).toMatchObject({
+      failure: { message: 'Whether the call was accepted is not known.' },
+    })
+  })
+
+  it('says why a call that ended with the program has no result', async () => {
+    const waiting = world()
+    const answer = waiting.call()
+    await expect.poll(() => waiting.log.at(-1)).toBe('invoke')
+    waiting.stop()
+    expect(await answer).toMatchObject({
+      failure: { message: 'The program ended before this call gave a result.' },
+    })
+    const asking = world({ admit: async () => ({ kind: 'unanswerable', diagnostic: 'later' }) })
+    const unreleased = asking.call()
+    await expect.poll(() => asking.log.includes('admit')).toBe(true)
+    asking.stop()
+    expect(await unreleased).toMatchObject({
+      failure: { message: 'The program ended before this call was released.' },
+    })
+  })
+
+  it('a program that was stopped before it started, or has finished, makes no call', async () => {
+    const stopped = world({ stopped: true })
+    expect(await stopped.call()).toEqual({
+      kind: 'failure',
+      failure: { kind: 'interrupted', effect: 'none', message: 'The program has ended.' },
+    })
+    expect(await stopped.tools.functions()).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'program-calls',
+        diagnostic: 'The program has ended.',
+      },
+    })
+    const finished = world()
+    await finished.finish({ kind: 'returned' } as never).catch(() => undefined)
+    expect(failureOf(await finished.call())).toEqual(['interrupted', 'none'])
+    expect([...stopped.log, ...finished.log]).toEqual([])
+  })
+
+  it('the same position asked again gives the same answer; another call at it is refused', async () => {
+    const w = world({ handOff: unavailable })
+    const first = w.call()
+    expect(w.call()).toBe(first)
+    await first
+    expect(await w.tools.call({ ordinal: 1, entry: 'Echo.shout', arguments: object })).toEqual({
+      kind: 'failure',
+      failure: {
+        kind: 'invalid',
+        effect: 'none',
+        message: 'This position already made another call.',
+      },
+    })
+    expect(w.log.filter(one => one === 'register')).toHaveLength(1)
+  })
+
+  it('a step that throws is reported as unknown, not as a value', async () => {
+    expect(await world({ targetThrows: true }).call()).toEqual({
+      kind: 'failure',
+      failure: {
+        kind: 'unknown',
+        effect: 'unknown',
+        message: 'The call could not be followed to its end.',
+      },
+    })
+  })
+
+  it('settling leaves a handed-off position alone and reports a table that cannot be read', async () => {
+    const handed = world({ table: [at('handed')] })
+    const settling = handed.tools.settle()
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(handed.log.some(one => one.startsWith('exclude'))).toBe(false)
+    handed.stop()
+    expect(await settling).toMatchObject({ ok: { positions: [{ state: 'handed' }] } })
+    const unreadable = world({ table: [at('registered')], readTable: unavailable })
+    expect(await unreadable.tools.settle()).toEqual({ failure: unavailable })
+    expect(await world({ absent: 'children' }).tools.settle()).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'program-calls',
+        diagnostic: 'The position table is absent.',
+      },
+    })
+  })
+
+  it.each([0, -1, 1.5, Number.NaN])('refuses a retry interval of %s', retryMs => {
+    expect(() => world({ retryMs })).toThrow('retryMs: range')
   })
 })

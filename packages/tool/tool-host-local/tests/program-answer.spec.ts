@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { FixedToolRequest, ToolTerminal } from '@omne-harness/tool-contract'
-import { programAnswerOf } from '../src/program-calls.ts'
+import { fail, succeed } from '@omne-harness/operation-result'
+import type { LocalToolBindingRegistry } from '../src/bindings.ts'
+import { createLocalArgumentsCheck, programAnswerOf } from '../src/program-calls.ts'
 import type { ProgramArrival } from '../src/program-receiver.ts'
 import { evidence, request } from './coordinator-values.ts'
 
@@ -96,5 +98,84 @@ describe('what a program gets for a retained result', () => {
     expect(programAnswerOf(target(true), arrival(failed, { effect }))).toMatchObject({
       failure: { effect: expected },
     })
+  })
+})
+
+describe('what a program gets, by the command it called', () => {
+  it('reads the declaration of the command that was called, not of its neighbour', () => {
+    const definition = base.availability.definition
+    if (definition.kind !== 'function') throw new Error('function')
+    const { kind: _kind, parameters, returns, ...metadata } = definition
+    const declared = { kind: 'declared', value: parameters } as const
+    const open = { kind: 'open', unless: [] } as const
+    const commands = {
+      ...metadata,
+      kind: 'commands',
+      encoding: 'wrapped',
+      programmable: true,
+      commands: [
+        {
+          name: 'read',
+          summary: 'r',
+          parameters: declared,
+          returns: { ...returns, program },
+          program: open,
+        },
+        { name: 'write', summary: 'w', parameters: declared, returns, program: open },
+      ],
+    }
+    const called = (command: string) =>
+      ({
+        ...base,
+        command,
+        availability: { ...base.availability, definition: commands },
+      }) as unknown as FixedToolRequest
+    const completed = arrival({ kind: 'completed' }, withValue)
+    expect(programAnswerOf(called('read'), completed)).toMatchObject({ kind: 'value', value })
+    expect(programAnswerOf(called('write'), completed)).toEqual({
+      kind: 'value',
+      value: null,
+      external: false,
+    })
+  })
+
+  it('says what interrupted the call', () => {
+    const stopped = { kind: 'interrupted', cause: { kind: 'foreground-limit' } } as const
+    expect(programAnswerOf(target(true), arrival(stopped))).toMatchObject({
+      failure: { kind: 'interrupted', message: 'interrupted: foreground-limit' },
+    })
+  })
+})
+
+describe('checking arguments before a position is registered', () => {
+  type Registry = LocalToolBindingRegistry<unknown, unknown, never>
+  const access = { principal: 'alice', tenant: base.consumer as never }
+  const withRegistry = (peek: Registry['peek'] | null) =>
+    createLocalArgumentsCheck(() => (peek === null ? undefined : ({ peek } as Registry)))
+
+  it.each([
+    ['no registry', withRegistry(null), base],
+    [
+      'a registry that cannot give the author',
+      withRegistry(() => fail({ kind: 'unavailable', diagnostic: 'gone' })),
+      base,
+    ],
+    [
+      'an author that has no such command',
+      withRegistry(() => succeed({ implementation: {} } as never)),
+      base,
+    ],
+    [
+      'a tool that is known to be unavailable',
+      withRegistry(() => {
+        throw new Error('not asked')
+      }),
+      {
+        ...base,
+        availability: { kind: 'known-unavailable', reason: 'gone' },
+      } as unknown as FixedToolRequest,
+    ],
+  ] as const)('%s answers unavailable, never valid', async (_, check, request) => {
+    expect(await check(access, request)).toEqual({ kind: 'unavailable' })
   })
 })
