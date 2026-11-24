@@ -25,8 +25,8 @@ const arrangementOnly = ({ by: _by, when: _when, ...rest }: Item | Pile) => cano
 
 /** One canvas while a script runs; `save` writes the difference. An equal change is none and is not stamped. */
 export class Work {
-  readonly items = new Map<ItemId, Item>()
-  readonly piles = new Map<PileId, Pile>()
+  readonly items: Map<ItemId, Item> = new Map()
+  readonly piles: Map<PileId, Pile> = new Map()
   private readonly before = new Map<string, string>()
   private readonly dropped = new Set<ItemId>()
   private rank: number
