@@ -54,6 +54,13 @@ export type PageChoice = Watched<string | undefined> & {
   choose(pageId: string, subject?: string): void
 }
 
+export type Face = 'front' | 'back'
+
+export type FaceChoice = Watched<Face> & {
+  readonly two: Watched<boolean>
+  turn(): void
+}
+
 /** The told note on show: the newest toast a module handed over while there was room to write it. */
 export type Said = Readonly<{ key: string; owner: object; toast: Toast }>
 
@@ -139,6 +146,7 @@ export type ShellState = {
   readonly login: ShellLogin
   readonly scope: ScopeSource
   readonly page: PageChoice
+  readonly face: FaceChoice
   readonly notice: Watched<string | undefined>
   readonly sheet: Watched<string> & { set(css: string): void }
   readonly fallen: Watched<readonly Fallen[]> & { set(fallen: readonly Fallen[]): void }
@@ -196,6 +204,26 @@ function pageChoice(slots: ShellSlots): PageChoice & { dispose(): void } {
       chosen.set(pageId)
       focus.set(subject === undefined ? undefined : { page: pageId, subject })
       settle()
+    },
+    dispose: stop,
+  }
+}
+
+function faceChoice(slots: ShellSlots): FaceChoice & { dispose(): void } {
+  const shown = cell<Face>('front')
+  const there = (): boolean => slots.items('back').length > 0 || slots.conflicts('back').length > 0
+  const two = cell(there())
+  const settle = (): void => {
+    two.set(there())
+    if (!two.get()) shown.set('front')
+  }
+  const stop = slots.subscribe('back', settle)
+  return {
+    get: shown.get,
+    subscribe: shown.subscribe,
+    two: { get: two.get, subscribe: two.subscribe },
+    turn() {
+      if (two.get()) shown.set(shown.get() === 'front' ? 'back' : 'front')
     },
     dispose: stop,
   }
@@ -261,6 +289,7 @@ export function createShellState(
   const scopeCell = cell<string | undefined>(undefined)
   const notice = cell<string | undefined>(undefined)
   const page = pageChoice(slots)
+  const face = faceChoice(slots)
   const stopNotices = options.notices?.(text => notice.set(text))
   const stopLogin = inner.subscribe(state => {
     if (state !== 'signed-in') scopeCell.set(undefined)
@@ -278,6 +307,7 @@ export function createShellState(
     login: watchedLogin(inner, notice),
     scope: { get: scopeCell.get, set: scopeCell.set, subscribe: scopeCell.subscribe },
     page,
+    face,
     notice: { get: notice.get, subscribe: notice.subscribe },
     sheet: cell(''),
     fallen: cell<readonly Fallen[]>([]),
@@ -289,6 +319,7 @@ export function createShellState(
       stopNotices?.()
       stopTold()
       page.dispose()
+      face.dispose()
     },
   }
 }

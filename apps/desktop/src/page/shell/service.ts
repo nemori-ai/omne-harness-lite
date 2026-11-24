@@ -19,7 +19,7 @@ import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
 import { redrawKeys, redrawPoints, redrawThrough } from './redraw.ts'
 import type { TokenNow } from './changes-sheet.ts'
-import type { ShellState } from './state.ts'
+import type { Face, ShellState } from './state.ts'
 
 const SLOT_NAMES = Object.keys(slots) as SlotName[]
 const NO_LACKS: readonly Lack[] = Object.freeze([])
@@ -166,7 +166,15 @@ export class DesktopShell extends ShellService {
   }
 
   navigate(pageId: string, subject?: string): void {
-    this.state.page.choose(pageId, subject)
+    this.bringUp(pageId, subject, (id, about) => this.state.page.choose(id, about))
+  }
+
+  protected override face(): Face {
+    return this.state.face.get()
+  }
+
+  protected override turn(): void {
+    this.state.face.turn()
   }
 
   /** Only which page is on show: choosing one stays with `navigate`. */

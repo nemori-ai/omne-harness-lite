@@ -11,6 +11,7 @@ import type { ShellService } from '@omne-harness/shell-contract/cordis'
 import {
   createSizeController,
   type ResolvedTheme,
+  type SizeKeyPlatform,
   type SizeRoot,
   type ThemeChoice,
 } from '@omne-harness/ui-kit'
@@ -84,6 +85,8 @@ export async function setup(
     /** Where the floating items were left; nothing is kept unless a case says so. */
     floats?: FloatPlaces
     theme?: ThemeChoice
+    /** Which keys turn the application over; the Mac's unless a case says so. */
+    platform?: SizeKeyPlatform
     /** The connection of the tree, for a case that says where a protocol stands. */
     connection?: object | null
     /** The tokens the page knows; none unless a case says so. */
@@ -142,6 +145,7 @@ export async function setup(
       connectivity={connectivity}
       theme={theme}
       size={size}
+      platform={options.platform ?? 'mac'}
       floats={options.floats ?? { read: () => undefined, write: () => undefined }}
       {...(options.missingAtForwarding === undefined
         ? {}

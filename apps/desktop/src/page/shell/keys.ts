@@ -1,4 +1,9 @@
-import { blockingOverlay, moveRegion, rememberFocus } from '@omne-harness/ui-kit'
+import {
+  blockingOverlay,
+  moveRegion,
+  rememberFocus,
+  type SizeKeyPlatform,
+} from '@omne-harness/ui-kit'
 import type { KeyTarget } from './size.ts'
 
 /** F6 walks the `data-keyboard-region` regions in page order, Shift+F6 back; a region gives back the focus it held. */
@@ -16,4 +21,22 @@ export function bindRegionKeys(target: KeyTarget, root: Document = document): ()
     target.removeEventListener('keydown', onKey)
     root.removeEventListener('focusin', onFocus)
   }
+}
+
+/** ⌘⇧P on the Mac, Ctrl+Shift+P elsewhere, on either face; it is not taken while there is no back to turn to. */
+export function bindFaceKeys(
+  target: KeyTarget,
+  face: Readonly<{ two: { get(): boolean }; turn(): void }>,
+  platform: SizeKeyPlatform,
+): () => void {
+  const onKey = (event: KeyboardEvent): void => {
+    const held =
+      platform === 'mac' ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
+    if (!held || !event.shiftKey || event.altKey || event.key.toLowerCase() !== 'p') return
+    if (event.defaultPrevented || event.isComposing || blockingOverlay() || !face.two.get()) return
+    event.preventDefault()
+    if (!event.repeat) face.turn()
+  }
+  target.addEventListener('keydown', onKey)
+  return () => target.removeEventListener('keydown', onKey)
 }

@@ -7,10 +7,12 @@ import {
   useSyncExternalStore,
 } from 'react'
 import type {
+  BackItem,
   FigureDoing,
   MergedFigure,
   PageItem,
   ShellLoginState,
+  SlotConflict,
 } from '@omne-harness/shell-contract'
 import {
   AppTooltipProvider,
@@ -23,13 +25,14 @@ import {
   LoadingState,
   useSizeFactor,
   type Box,
+  type SizeKeyPlatform,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
 import { Float } from './float.tsx'
 import type { FloatPlaces } from './float-place.ts'
 import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
-import { bindRegionKeys } from './keys.ts'
+import { bindFaceKeys, bindRegionKeys } from './keys.ts'
 import { lackText, type Lack, type LackSlot } from './lacks.ts'
 import { shellApp, shellGate, shellWorkspace, shellWorkspacePage } from './parts.ts'
 import { pressSeat, useSeatedHome } from './seats.ts'
@@ -58,6 +61,7 @@ export type ShellProps = Readonly<{
   connectivity: ConnectivitySource
   theme: ThemeSwitch
   size: SizeSwitch
+  platform: SizeKeyPlatform
   floats: FloatPlaces
   missingAtForwarding?: readonly string[]
 }>
@@ -186,6 +190,9 @@ function GateNotice(props: { text: string; seat: React.RefObject<HTMLElement | n
 export const gateConflictText = (by: readonly string[]): string =>
   `登录入口有 ${by.length} 份，来自 ${by.join('、')}，都没有显示。`
 
+export const backConflictText = (by: readonly string[]): string =>
+  `反面有 ${by.length} 份，来自 ${by.join('、')}，都没有显示。`
+
 function Gate(props: { state: ShellState; connectivity: Connectivity }) {
   const [gate] = useSlot(props.state.slots, 'gate')
   const [conflict] = useConflicts(props.state.slots, 'gate')
@@ -268,10 +275,52 @@ function useLacks(state: ShellState): (slot: LackSlot, id: string) => readonly L
   return (slot, id) => state.lacks.of(slot, id)
 }
 
-function Workspace(props: SidebarProps & { missing: readonly string[]; floats: FloatPlaces }) {
-  const { state, pages, shown } = props
+function Back(props: {
+  state: ShellState
+  scope: string | undefined
+  item: BackItem | undefined
+  conflict: SlotConflict | undefined
+  away: boolean
+}) {
+  const { item, conflict, scope, state } = props
+  return (
+    <section
+      className="shell-face shell-back"
+      data-face="back"
+      aria-label="反面"
+      data-keyboard-region="back"
+      tabIndex={-1}
+      inert={props.away}
+    >
+      {conflict !== undefined ? (
+        <InlineNotice tone="danger" role="alert" className="shell-banner" still>
+          {backConflictText(conflict.by)}
+        </InlineNotice>
+      ) : item !== undefined ? (
+        <Item
+          key={item.id}
+          scope={scope}
+          render={() => item.render({ scope, turn: state.face.turn })}
+        />
+      ) : null}
+    </section>
+  )
+}
+
+function Workspace(
+  props: SidebarProps & {
+    missing: readonly string[]
+    floats: FloatPlaces
+    platform: SizeKeyPlatform
+  },
+) {
+  const { state, pages, shown, platform } = props
   const focus = useWatched(state.page.focus)
   const scope = useWatched(state.scope)
+  const face = useWatched(state.face)
+  const [back] = useSlot(state.slots, 'back')
+  const [backConflict] = useConflicts(state.slots, 'back')
+  const onBack = face === 'back'
   const wide = useWide()
   const [width, setWidth] = useState<SidebarWidth>('expanded')
   const [covered, setCovered] = useState(false)
@@ -281,51 +330,57 @@ function Workspace(props: SidebarProps & { missing: readonly string[]; floats: F
   const lacksOf = useLacks(state)
   useEffect(() => state.told.room(room), [state.told, room])
   useEffect(() => () => state.told.room(false), [state.told])
+  useEffect(() => bindFaceKeys(window, state.face, platform), [state.face, platform])
   return (
     <div className="app-shell" {...shellApp.props}>
-      {wide ? (
-        <Sidebar
-          {...props}
-          width={width}
-          setWidth={setWidth}
-          sidebar={sidebar}
-          told={<ToldAtHome state={state} sidebar={sidebar} />}
-        />
-      ) : (
-        <NarrowNavigation {...props} covering={setCovered} />
-      )}
-      <main
-        id="shell-content"
-        className="shell-workspace"
-        {...shellWorkspace.props}
-        data-keyboard-region="main"
-        tabIndex={-1}
-        inert={!wide && covered}
-      >
-        <div className="shell-drag-strip" aria-hidden="true" />
-        <StaleApp missing={props.missing} />
-        <Fallen state={state} />
-        {pages.map(page => {
-          const lacks = lacksOf('pages', page.id)
-          const toPage = focus?.page === page.id ? { scope, subject: focus.subject } : { scope }
-          return (
-            <section
-              key={page.id}
-              className="shell-page"
-              {...shellWorkspacePage.props}
-              aria-label={page.title}
-              data-page={page.id}
-              hidden={page.id !== shown}
-            >
-              {lacks.length > 0 ? (
-                <Lacks lacks={lacks} slot="pages" />
-              ) : (
-                <Item scope={scope} render={() => page.render(toPage)} />
-              )}
-            </section>
-          )
-        })}
-      </main>
+      <div className="shell-face shell-front" data-face="front" inert={onBack}>
+        {wide ? (
+          <Sidebar
+            {...props}
+            width={width}
+            setWidth={setWidth}
+            sidebar={sidebar}
+            told={<ToldAtHome state={state} sidebar={sidebar} />}
+          />
+        ) : (
+          <NarrowNavigation {...props} covering={setCovered} />
+        )}
+        <main
+          id="shell-content"
+          className="shell-workspace"
+          {...shellWorkspace.props}
+          data-keyboard-region="main"
+          tabIndex={-1}
+          inert={!wide && covered}
+        >
+          <div className="shell-drag-strip" aria-hidden="true" />
+          <StaleApp missing={props.missing} />
+          <Fallen state={state} />
+          {pages.map(page => {
+            const lacks = lacksOf('pages', page.id)
+            const toPage = focus?.page === page.id ? { scope, subject: focus.subject } : { scope }
+            return (
+              <section
+                key={page.id}
+                className="shell-page"
+                {...shellWorkspacePage.props}
+                aria-label={page.title}
+                data-page={page.id}
+                hidden={page.id !== shown}
+              >
+                {lacks.length > 0 ? (
+                  <Lacks lacks={lacks} slot="pages" />
+                ) : (
+                  <Item scope={scope} render={() => page.render(toPage)} />
+                )}
+              </section>
+            )
+          })}
+        </main>
+      </div>
+      {back !== undefined || backConflict !== undefined ? (
+        <Back state={state} scope={scope} item={back} conflict={backConflict} away={!onBack} />
+      ) : null}
       <Float state={state} scope={scope} places={props.floats} inert={!wide && covered} />
     </div>
   )
@@ -367,6 +422,7 @@ export function Shell(props: ShellProps) {
               homePage={homePage}
               missing={missing}
               floats={props.floats}
+              platform={props.platform}
             />
           ) : (
             <Outside state={state} login={login} connectivity={connectivity} missing={missing} />
