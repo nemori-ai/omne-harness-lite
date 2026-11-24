@@ -164,7 +164,7 @@ describe('the working directory the model is told', () => {
       ])
       const [before, after] = bodies as [Body, Body]
       const value = (text: string | undefined) =>
-        /"directory":"[^"]+","state":"default"/u.exec(text ?? '')?.[0]
+        /"directory":"[^"]+","files":\{\},"state":"default"/u.exec(text ?? '')?.[0]
       expect(told(before, SNAPSHOT)).toHaveLength(1)
       expect(value(told(before, SNAPSHOT)[0])).toBeDefined()
       expect(told(after, SNAPSHOT)).toHaveLength(2)

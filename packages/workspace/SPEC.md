@@ -199,4 +199,4 @@ Workspace 包组回答一个问题：加在一份物理资源上的这层逻辑�
 | INV-WS25 | 同一个来源采用记录的键永远指向同一份来源读取；读文件时字节与清单对不上答材料不可用 | 一轮跑到一半，能用的资产换了内容 | 存储符合性套件（内存与 SQLite）里键的认回；`workspace/tests/sources.spec.ts` 认回不重读、读文件答材料变了 |
 | INV-WS26 | 来源读取与它的适配不认识任何类别；多一个登记了布局的类别，本组不改 | 每加一个类别就要改工作区 | `docs/architecture/constraints.json` 的方向行 `DIR-WORKSPACE-ASSETS`、`DIR-WORKSPACE-CATEGORIES`；`workspace-asset-source/tests/layer-source.spec.ts` 用一个虚构的类别走通 |
 | INV-WS27 | 读一个来源采用记录以当时的关系为准；关系解除之后的第一次读就不通过 | 被移除的租户继续用上这个项目的资产 | `workspace/tests/sources.spec.ts`：关系解除之后，已记下的键读不出；`workspace-asset-source` 的层答读不到 |
-| INV-WS28 | 工作区目录里的文件不能给「工作区之外的文件」配值；这项设置的说明不声称隔离 | 一个仓库给自己开了出工作区的口；人以为命令被关在工作区里 | `workspace-local/tests/outside-files.spec.ts`：值只从租户这一层的独立设置读，说明里没有「隔离」「保证」；`apps/harness-server/tests/entry/tool-requests.spec.ts` 的表二：文件范围只由租户的值与实例的根算出，没有选工作区的会话不读这个值、两侧都不限 |
+| INV-WS28 | 工作区目录里的文件不能给「工作区之外的文件」配值；这项设置的说明不声称隔离 | 一个仓库给自己开了出工作区的口；人以为命令被关在工作区里 | `workspace-local/tests/outside-files.spec.ts`：值只从租户这一层的独立设置读，说明里没有「隔离」「保证」；`apps/harness-server/tests/rows/session-ad03/reaching-targets.spec.ts`：文件范围只由租户的值与实例的根算出；`session-adapters/tests/working-directory.spec.ts`：没有选工作区的会话不问端口，两侧都不限 |
