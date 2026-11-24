@@ -4,6 +4,8 @@ import {
   type CardReply,
   type DenialCategory,
 } from '@omne-harness/agent-contract'
+import { cancellationCause } from '../src/loop/cancellation-judgment.ts'
+import { agentEvidence } from '../src/loop/identities.ts'
 import { recoveryRoute } from '../src/loop/recovery-route.ts'
 import { evidence, execution, ok } from './journal-support.ts'
 import { eventually, invoke } from './loop-support.ts'
@@ -31,6 +33,11 @@ import {
   waitingForPerson,
   type Assembly,
 } from './loop-cards-support.ts'
+
+const ok2 = <T>(value: T | undefined): T => {
+  if (value === undefined) throw new Error('missing')
+  return value
+}
 
 describe('an admission that asks a person', () => {
   it('saves the round, presents it once, waits without a dispatch, and hands the answer back', async () => {
@@ -521,6 +528,13 @@ describe('a card round always ends (Agent rule: card rounds always settle)', () 
       cards: [evidence('card/step-1/tool/0/admission/round/1/card/1')],
     })
     expect(withdraw?.reason.record).toBe(`${execution()}/F0/cancel`)
+    // The cancellation has moved through more stages by now; a withdrawal tried again for it must
+    // give the same reason, or the card service answers that the operation was made with another.
+    const [control] = (await snapshot(assembly)).controls
+    expect(Object.keys(control?.stages ?? {}).length).toBeGreaterThan(1)
+    expect(withdraw?.reason).toEqual(
+      agentEvidence(`${execution()}/F0/cancel`, cancellationCause(ok2(control))),
+    )
     expect(assembly.controls.cards.invalidate.calls).toHaveLength(1)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
   })
