@@ -132,7 +132,7 @@ const RESIDENT_SOURCE = '@omne-harness/agent-context'
 
 /** The segments the session keeps, each one section after those of the definition; its text is a variable, so it goes in as written. */
 export function residentContributions(
-  segments: RuntimeConditions['segments'],
+  segments: NonNullable<RuntimeConditions['segments']>,
   scope: ScopeRef,
 ): readonly PromptContribution[] {
   return segments.flatMap(({ key, text }): PromptContribution[] => {

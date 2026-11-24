@@ -96,6 +96,5 @@ export {
   definitionImpact,
   definitionPlaces,
   type DefinitionFacts,
-  type ResidentPoints,
-  type ResidentReference,
+  type ResidentTool,
 } from './effect.ts'

@@ -322,7 +322,8 @@ export type RuntimeConditions = Readonly<{
   model: Adoption
   context: DurableEvidence
   bindings: readonly Adoption[]
-  segments: readonly ResidentSegmentText[]
+  /** The resident segments of the system prompt; absent when the session keeps none. */
+  segments?: readonly ResidentSegmentText[]
 }>
 /** A segment of the system prompt the session keeps: placed as written after the sections of the definition. */
 export type ResidentSegmentText = Readonly<{ key: string; text: string }>

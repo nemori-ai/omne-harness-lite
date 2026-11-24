@@ -6,27 +6,34 @@ import {
 } from '@omne-harness/agent-contract'
 
 const POINT = 'agent.definitions'
-const POINTS = { tool: 'tool.tools', skill: 'skill.skills', mcp: 'mcp.endpoints' }
+const TOOL_POINT = 'tool.tools'
 const facts: DefinitionFacts = {
   name: 'counter',
   official: false,
   refused: null,
   residents: [
-    { category: 'tool', name: 'Files', there: true },
-    { category: 'tool', name: 'wordcount', there: false },
+    { name: 'Files', there: true },
+    { name: 'wordcount', there: false },
     { category: 'tool', name: 'later', there: null },
-    { category: 'skill', name: 'tidy-notes', there: true },
-    { category: 'skill', name: 'off', there: false, why: 'it is disabled' },
-    { category: 'mcp', name: 'board', there: false, why: 'its address is not set' },
-    { category: 'mcp', name: 'docs', there: true },
+    { category: 'skill', name: 'tidy-notes', there: true, point: 'skill.skills' },
+    { category: 'skill', name: 'off', there: false, why: 'it is disabled', point: 'skill.skills' },
+    {
+      category: 'mcp',
+      name: 'board',
+      there: false,
+      why: 'its address is not set',
+      point: 'mcp.endpoints',
+    },
+    { category: 'mcp', name: 'docs', there: true, point: 'mcp.endpoints' },
   ],
+  inert: [],
 }
 const impact = (given: Partial<DefinitionFacts> = {}) =>
-  definitionImpact(POINT, POINTS, { ...facts, ...given })
+  definitionImpact(POINT, TOOL_POINT, { ...facts, ...given })
 const places = (
   standing: Parameters<typeof definitionPlaces>[2],
   given: Partial<DefinitionFacts> = {},
-) => definitionPlaces(POINT, POINTS, standing, { ...facts, ...given })
+) => definitionPlaces(POINT, TOOL_POINT, standing, { ...facts, ...given })
 
 describe('what is told of a directory before it is published as a definition', () => {
   it('says it can be handed work, and names each resident that is not there, of each category, with why', () => {
@@ -137,7 +144,7 @@ describe('where a held definition stands', () => {
     expect(told.places[5]?.says).toBe(
       'its resident skill off is not there now (it is disabled): a session with it starts without it',
     )
-    const withoutTool = facts.residents.filter(resident => resident.category !== 'tool')
+    const withoutTool = facts.residents.filter(resident => (resident.category ?? 'tool') !== 'tool')
     expect(places({ kind: 'selected' }, { residents: withoutTool }).places[0]).toMatchObject({
       standing: 'selected',
     })
@@ -164,5 +171,15 @@ describe('where a held definition stands', () => {
       standing: 'not known',
       says: 'the tenant layer cannot be read now',
     })
+  })
+})
+
+describe('a resident mark on a category that is never kept resident', () => {
+  it('is told as advice, before publishing and after, and not at all when there is none', () => {
+    const advice =
+      'A resident mark does nothing on: plugin/board. A tool, a skill or an mcp endpoint is kept resident.'
+    expect(impact({ inert: ['plugin/board'] }).advice).toBe(advice)
+    expect(places({ kind: 'selected' } as never, { inert: ['plugin/board'] }).advice).toBe(advice)
+    expect(impact().advice).toBeNull()
   })
 })

@@ -36,7 +36,8 @@ function batch(value: unknown): InputBatch | null {
   }
 }
 
-function segments(value: unknown): RuntimeConditions['segments'] | null {
+function segments(value: unknown): NonNullable<RuntimeConditions['segments']> | null {
+  if (value === undefined) return []
   if (!Array.isArray(value)) return null
   const out: { key: string; text: string }[] = []
   for (const item of value as unknown[]) {

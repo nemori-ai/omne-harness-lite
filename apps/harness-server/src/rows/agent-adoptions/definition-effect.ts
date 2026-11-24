@@ -4,7 +4,7 @@ import {
   definitionPlaces,
   type AgentDefinition,
   type DefinitionFacts,
-  type ResidentReference,
+  type ResidentTool,
 } from '@omne-harness/agent-contract'
 import { agentDefinitionsPoint } from '@omne-harness/agent-cordis-contract/cordis'
 import {
@@ -32,7 +32,8 @@ import { DEFINITION_CATEGORY, writtenDefinitionOf } from './held-definitions.ts'
 import { residentReferencesOf, TOOL_CATEGORY } from './table.ts'
 
 const POINT = agentDefinitionsPoint.name
-const RESIDENT_POINTS = Object.freeze({
+const TOOL_POINT = toolToolsPoint.name
+const RESIDENT_POINTS: Readonly<Record<string, string>> = Object.freeze({
   [TOOL_CATEGORY]: toolToolsPoint.name,
   [skillBodyContract().category]: skillSkillsPoint.name,
   [mcpEndpointGates.category]: mcpEndpointsPoint.name,
@@ -53,7 +54,7 @@ function heldThere(
   ctx: Context,
   tenantRef: string,
   capability: Readonly<{ category: string; name: string }>,
-): Pick<ResidentReference, 'there' | 'why'> {
+): Pick<ResidentTool, 'there' | 'why'> {
   const id = capabilityId(capability.category, capability.name)
   if (!id.ok) return { there: false, why: 'it is not a name of its category' }
   const reading = ctx.get(assetCategoriesKey)?.held(id.id, tenantRef)
@@ -72,12 +73,13 @@ function residentsOf(
   tenantRef: string,
   tenant: TenantId | undefined,
   definition: AgentDefinition,
-): readonly ResidentReference[] {
-  return residentReferencesOf(definition).map(({ category, name }) =>
-    category === TOOL_CATEGORY
-      ? { category, name, there: toolThere(ctx, tenant, name) }
-      : { category, name, ...heldThere(ctx, tenantRef, { category, name }) },
-  )
+): readonly ResidentTool[] {
+  return residentReferencesOf(definition).map(({ category, name }) => {
+    const told = { category, name, point: RESIDENT_POINTS[category] ?? category }
+    return category === TOOL_CATEGORY
+      ? { ...told, there: toolThere(ctx, tenant, name) }
+      : { ...told, ...heldThere(ctx, tenantRef, { category, name }) }
+  })
 }
 
 /** What the definition category tells of its own: what publishing a directory would do, and whether a held one can be used. */
@@ -90,7 +92,7 @@ export function definitionEffectOf(
     name: string,
     body: JsonValue | string,
   ): Promise<DefinitionFacts> {
-    const none = { name, official: official(name), residents: [] }
+    const none = { name, official: official(name), residents: [], inert: [] }
     if (typeof body === 'string') return { ...none, refused: body }
     const written = await writtenDefinitionOf(body)
     if (typeof written === 'string') return { ...none, refused: written }
@@ -118,7 +120,7 @@ export function definitionEffectOf(
           return { kind: 'changes', lines: [line], loads: null, advice: null }
         }
         const facts = await factsOf(tenant, name, await bodyIn(name, content))
-        return { kind: 'changes', ...definitionImpact(POINT, RESIDENT_POINTS, facts), loads: null }
+        return { kind: 'changes', ...definitionImpact(POINT, TOOL_POINT, facts), loads: null }
       },
     },
     placement: {
@@ -132,7 +134,7 @@ export function definitionEffectOf(
         const body =
           held === undefined || layers === undefined ? undefined : await layers.body(held.candidate)
         const facts = await factsOf(tenant, name, body ?? 'its body cannot be read now')
-        const told = definitionPlaces(POINT, RESIDENT_POINTS, held?.standing, facts)
+        const told = definitionPlaces(POINT, TOOL_POINT, held?.standing, facts)
         return { kind: 'placed', ...told, clients: null }
       },
     },

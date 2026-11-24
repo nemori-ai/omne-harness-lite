@@ -1,12 +1,13 @@
 import type { AssetStanding, ImpactLine, PlacedLine } from '@omne-harness/assets'
 
-/** One capability a definition keeps resident, and whether it is there for this tenant now; null: that cannot be asked. */
-export type ResidentReference = Readonly<{
-  category: string
+/** One capability a definition keeps resident, and whether it is there for this tenant now; null: that cannot be asked. Without a category it is a tool; without a point it is told on the tool point. */
+export type ResidentTool = Readonly<{
   name: string
   there: boolean | null
+  category?: string
   /** Why it is not there, when that is known. */
   why?: string
+  point?: string
 }>
 
 /** What is known of a definition as written: `official`, the deployment brings one of this name; `refused`, the first thing its category refuses. */
@@ -14,33 +15,36 @@ export type DefinitionFacts = Readonly<{
   name: string
   official: boolean
   refused: string | null
-  residents: readonly ResidentReference[]
+  residents: readonly ResidentTool[]
+  /** References marked resident whose category is never kept resident, as `category/name`. */
+  inert: readonly string[]
 }>
 
 export type DefinitionTold<Line> = Readonly<{ lines: readonly Line[]; advice: string | null }>
 
-/** The point each category of resident is told on. */
-export type ResidentPoints = Readonly<Record<string, string>>
+const inertAdvice = (inert: readonly string[]): string | null =>
+  inert.length === 0
+    ? null
+    : `A resident mark does nothing on: ${inert.join(', ')}. A tool, a skill or an mcp endpoint is kept resident.`
 
 const TOOL = 'tool'
 const NOUNS: Readonly<Record<string, string>> = { mcp: 'mcp endpoint' }
 const nounOf = (category: string) => NOUNS[category] ?? category
 const article = (noun: string) => (/^[aeiou]/u.test(noun) || noun.startsWith('mcp') ? 'an' : 'a')
 
-function missing(resident: ResidentReference): string {
-  const what = `its resident ${nounOf(resident.category)} ${resident.name} is not there now`
-  return resident.category === TOOL
+const categoryOf = (resident: ResidentTool) => resident.category ?? TOOL
+
+function missing(resident: ResidentTool): string {
+  const what = `its resident ${nounOf(categoryOf(resident))} ${resident.name} is not there now`
+  return categoryOf(resident) === TOOL
     ? `${what}: a session with it cannot start until it is`
     : `${what}${resident.why === undefined ? '' : ` (${resident.why})`}: a session with it starts without it`
 }
 
-const pointOf = (points: ResidentPoints, resident: ResidentReference) =>
-  points[resident.category] ?? resident.category
-
 /** What publishing a directory as an Agent definition would do, said to the agent that is about to publish it. */
 export function definitionImpact(
   point: string,
-  points: ResidentPoints,
+  toolPoint: string,
   facts: DefinitionFacts,
 ): DefinitionTold<ImpactLine> {
   const own = (mark: ImpactLine['mark'], says: string): ImpactLine => ({
@@ -72,19 +76,19 @@ export function definitionImpact(
       ...absent.map((resident): ImpactLine => ({
         mark: '!',
         of: resident.name,
-        point: pointOf(points, resident),
+        point: resident.point ?? toolPoint,
         key: resident.name,
         says: `→ ${missing(resident)}`,
       })),
     ],
-    advice: null,
+    advice: inertAdvice(facts.inert),
   }
 }
 
 /** Where a held definition stands, and each capability it keeps resident beside it. */
 export function definitionPlaces(
   point: string,
-  points: ResidentPoints,
+  toolPoint: string,
   standing: AssetStanding | undefined,
   facts: DefinitionFacts,
 ): Readonly<{ places: readonly PlacedLine[]; advice: string | null }> {
@@ -111,9 +115,9 @@ export function definitionPlaces(
       advice: null,
     }
   const residents = facts.residents.map((resident): PlacedLine => {
-    const noun = nounOf(resident.category)
+    const noun = nounOf(categoryOf(resident))
     return {
-      point: pointOf(points, resident),
+      point: resident.point ?? toolPoint,
       key: resident.name,
       standing:
         resident.there === null ? 'not known' : resident.there ? 'in effect' : 'not in effect',
@@ -124,7 +128,7 @@ export function definitionPlaces(
     }
   })
   const stopped = facts.residents.some(
-    resident => resident.category === TOOL && resident.there === false,
+    resident => categoryOf(resident) === TOOL && resident.there === false,
   )
   return {
     places: [
@@ -133,6 +137,6 @@ export function definitionPlaces(
         : own('selected', 'work can be handed to it now, and a session made with it'),
       ...residents,
     ],
-    advice: null,
+    advice: inertAdvice(facts.inert),
   }
 }

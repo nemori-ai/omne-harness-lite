@@ -87,7 +87,7 @@ async function promptGroupOf<P>(
   access: Access<P>,
   scope: ContextTarget['scope'],
   definition: Adoption | undefined,
-  segments: RuntimeConditions['segments'],
+  segments: NonNullable<RuntimeConditions['segments']>,
 ): Promise<StagedGroups<P>['prompt']> {
   const resident = residentContributions(segments, scope)
   if (definition === undefined)
@@ -361,7 +361,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
           access,
           target.scope,
           input.definition,
-          input.conditions.segments,
+          input.conditions.segments ?? [],
         ),
         model: { kind: 'value', value: selectedModel(input.selection) },
         tools: await options.tools({ access, conditions: input.conditions }),

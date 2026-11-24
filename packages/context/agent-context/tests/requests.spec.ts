@@ -336,8 +336,13 @@ describe('the groups that Request Context reads', () => {
         definition,
       }
       expect(readMemento(saveMemento(memento))?.conditions.segments).toEqual(segments)
+      // A request saved without segments is one of a session that keeps none; segments that are not a list are not a request.
       const { segments: _segments, ...older } = memento.conditions
-      expect(readMemento(saveMemento({ ...memento, conditions: older as never }))).toBeNull()
+      expect(
+        readMemento(saveMemento({ ...memento, conditions: older }))?.conditions.segments,
+      ).toEqual([])
+      const broken = { ...memento.conditions, segments: 'kept' }
+      expect(readMemento(saveMemento({ ...memento, conditions: broken as never }))).toBeNull()
     })
 
     it('a definition without sections still gets the resident segments', async () => {
