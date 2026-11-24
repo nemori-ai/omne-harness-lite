@@ -60,6 +60,26 @@ function routeOption(choice: ModelChoice, previous: ReasoningEffort | undefined)
   return { value: choice.route, label: choice.route, disabled: !choice.selectable, note, effort }
 }
 
+// A model that cannot be picked is offered only while it is the current one, to say why.
+function routesOf(
+  choices: readonly ModelChoice[],
+  model: string,
+  previous: ReasoningEffort | undefined,
+) {
+  const routes = choices
+    .filter(choice => choice.selectable || choice.route === model)
+    .map(choice => routeOption(choice, previous))
+  if (!choices.some(choice => choice.route === model))
+    routes.unshift({
+      value: model,
+      label: model,
+      disabled: true,
+      note: '不在现在的列表里',
+      effort: undefined,
+    })
+  return routes
+}
+
 type Props = Readonly<{ store: ModelSelectionStore; tenant: string; session: string }>
 
 export function ModelAction({ store, tenant, session }: Props) {
@@ -93,17 +113,7 @@ export function ModelAction({ store, tenant, session }: Props) {
   }
   const choices = listing.kind === 'listed' ? listing.choices : null
   const current = choices?.find(choice => choice.route === view.model)
-  // A model that cannot be picked is offered only while it is the current one, to say why.
-  const offered = choices?.filter(choice => choice.selectable || choice.route === view.model)
-  const routes = offered?.map(choice => routeOption(choice, view.reasoningEffort)) ?? null
-  if (routes !== null && current === undefined)
-    routes.unshift({
-      value: view.model,
-      label: view.model,
-      disabled: true,
-      note: '不在现在的列表里',
-      effort: undefined,
-    })
+  const routes = choices === null ? null : routesOf(choices, view.model, view.reasoningEffort)
   const modelChoice = (tell: (text: string) => void): ChoiceProps => ({
     label: '模型',
     value: view.model,

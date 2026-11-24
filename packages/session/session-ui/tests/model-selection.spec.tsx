@@ -238,6 +238,11 @@ describe('the model in the heading of a conversation', () => {
     expect(locked.getAttribute('aria-disabled')).toBe('true')
     expect(locked.textContent).toContain('不能选：被锁定')
     expect(screen.getAllByRole('option')).toHaveLength(3)
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    await settle()
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '推理强度' }), { key: 'Enter' })
+    const [first] = await screen.findAllByRole('option')
+    expect(first?.getAttribute('aria-disabled')).toBe('true')
   })
 
   it('the model default says the effort the tenant set for the model, or the provider default (C9)', async () => {
@@ -261,7 +266,11 @@ describe('the model in the heading of a conversation', () => {
     const effort = screen.getByRole('combobox', { name: '推理强度' })
     expect(effort.textContent).toContain('模型默认（medium）')
     fireEvent.keyDown(effort, { key: 'Enter' })
-    expect((await screen.findAllByRole('option'))[0]?.textContent).toBe('模型默认（medium）')
+    const [first] = await screen.findAllByRole('option')
+    expect([first?.textContent, first?.getAttribute('aria-disabled')]).toEqual([
+      '模型默认（medium）',
+      null,
+    ])
   })
 
   it('offers the four efforts, disables unsupported xhigh and reads back the selected effort', async () => {
