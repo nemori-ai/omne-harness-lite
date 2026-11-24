@@ -101,11 +101,15 @@ system
       canvas.element  [keyed-one]
         media.object
           media-ui#1  [effective]
+        session.session
+          session-ui#1  [effective]
       canvas.intake  [keyed-one]
         files
           media-ui#1  [effective]
-      canvas.app-render  [keyed-one]
       canvas.picker  [keyed-one]
+        session.session
+          session-ui#1  [effective]
+      canvas.app-render  [keyed-one]
     connection
       connection.protocols  [keyed-one]
         assets/v1
@@ -388,6 +392,10 @@ system
         session.list.item
           session-ui#1  [effective]
         session.list.new
+          session-ui#1  [effective]
+        session.paper.item
+          session-ui#1  [effective]
+        session.paper.pick
           session-ui#1  [effective]
         session.queue
           session-ui#1  [effective]

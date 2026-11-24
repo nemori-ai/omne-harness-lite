@@ -93,6 +93,8 @@ session.header.workspace | 工作区选择 | 换这段会话的工作区 | sessi
 session.list | 会话列表 | 侧栏里的会话 | shell.sidebar | tokens style | 一直在 | session-ui
 session.list.item | 会话的一行 | 列表里的一段会话 | session.list | tokens style render | 有会话时 | session-ui
 session.list.new | 新建会话 | 开一段新的会话 | session.list | tokens style | 一直在 | session-ui
+session.paper.item | 纸上的会话 | 摆在画布上的一段会话 | canvas.paper | tokens style | 会话摆在纸上时 | session-ui
+session.paper.pick | 挑一段会话 | 画布的查找里能挑的会话 | canvas.view | tokens style | 在画布上查找时 | session-ui
 session.queue | 排队的话 | 说了还没被处理的话 | – | tokens style | 有排队的输入时 | session-ui
 session.search | 搜索页 | 在以前的会话里找 | shell.workspace.page | tokens style | 一直在 | session-ui
 session.search.hit | 搜到的一条 | 搜到的一段记录 | session.search | tokens style | 搜到东西时 | session-ui

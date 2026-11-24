@@ -1,6 +1,7 @@
 export {
   CONVERSATION_PAGE,
   SESSION_LIST,
+  conversationTarget,
   createSessionUiModule,
   sessionComposerIntakeKey,
   sessionUiModule,
@@ -13,6 +14,12 @@ export type {
   ModelChoiceSource,
 } from './model/model-selection.ts'
 export type { ComposerDrafts, DraftOffer } from './model/composer-drafts.ts'
+export type {
+  PaperElementSubject,
+  PaperFrame,
+  PaperPickerSubject,
+  PaperReference,
+} from './model/paper.ts'
 export type {
   WorkspaceChoice,
   WorkspaceChoiceHolder,

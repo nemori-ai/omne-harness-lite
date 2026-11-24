@@ -6,6 +6,7 @@ import {
   needProtocol,
   serviceKey,
   type ItemOf,
+  type RenderPointSink,
   type ServiceKey,
 } from '@omne-harness/shell-contract'
 import {
@@ -16,6 +17,7 @@ import {
 import { Fragment, type ReactNode } from 'react'
 import { ArchiveStore } from './model/archive.ts'
 import { BlockReads, type BlockReadsSource } from './model/block-reads.ts'
+import { writeConversationSubject } from './model/conversation-subject.ts'
 import { toolCallState, toolResultText, type BlockSource } from './model/conversation.ts'
 import { EntryFocus } from './model/entry-focus.ts'
 import { SessionFigure } from './model/figure.ts'
@@ -23,6 +25,12 @@ import { HistorySearchStore } from './model/history-search.ts'
 import { BackgroundCallsStore } from './model/background-calls.ts'
 import { ComposerDraftStore, type ComposerDrafts } from './model/composer-drafts.ts'
 import { ModelSelectionStore, type ModelChoiceSource } from './model/model-selection.ts'
+import {
+  ArchivedDirectory,
+  SESSION_KIND,
+  type PaperElementSubject,
+  type PaperPickerSubject,
+} from './model/paper.ts'
 import { PermissionModeStore } from './model/permission-mode.ts'
 import { SessionWorkStore } from './model/session-work.ts'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
@@ -51,9 +59,11 @@ import { PartDrawContext } from './view/part-draw.ts'
 import { EntryFocusContext } from './view/shown-entry.ts'
 import { PermissionModeAction } from './view/permission-mode.tsx'
 import { SessionWork } from './view/session-work.tsx'
-import { sessionParts } from './parts.ts'
+import { sessionPaperItem, sessionPaperPick, sessionParts } from './parts.ts'
+import { PaperPicker, PaperSession } from './view/paper.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
+import { SubjectOpener } from './view/subject-opener.tsx'
 import { WorkspaceAction } from './view/workspace-selection.tsx'
 
 export const CONVERSATION_PAGE = 'conversation'
@@ -66,12 +76,24 @@ export type SessionUiOptions = Readonly<{
   modelChoices?: ServiceKey<ModelChoiceSource>
   workspaceChoices?: ServiceKey<WorkspaceChoiceSource>
   blockReads?: ServiceKey<BlockReadsSource>
+  canvasElement?: RenderPointSink<PaperElementSubject>
+  canvasPicker?: RenderPointSink<PaperPickerSubject>
 }>
+
+/** Where a jump to a session goes: the shell's navigate takes these two, and the conversation page opens it. */
+export function conversationTarget(
+  session: string,
+  run?: string,
+): Readonly<{ page: string; subject: string }> {
+  return {
+    page: CONVERSATION_PAGE,
+    subject: writeConversationSubject(run === undefined ? { session } : { session, run }),
+  }
+}
 
 /** Where a contribution to the composer gives back what the message being written carries. */
 export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
 
-/** A block of a message drawn by whatever is put at its point, told what the model read of it. */
 const SESSION_POINTS = [
   sessionDock,
   sessionSide,
@@ -196,6 +218,36 @@ function listItem(shell: ShellService, given: ListGiven): ItemOf<'sidebar'> {
   }
 }
 
+function putOnCanvas(
+  shell: ShellService,
+  options: SessionUiOptions,
+  workspaces: SessionWorkspaces,
+  archived: ArchivedDirectory,
+): void {
+  const open = (session: string): void => {
+    const target = conversationTarget(session)
+    shell.navigate(target.page, target.subject)
+  }
+  if (options.canvasElement !== undefined) {
+    sessionPaperItem.declare(shell)
+    options.canvasElement.put(shell, SESSION_KIND, ({ scope, subject }) => (
+      <PaperSession
+        workspaces={workspaces}
+        archived={archived}
+        scope={scope}
+        subject={subject}
+        onOpen={open}
+      />
+    ))
+  }
+  if (options.canvasPicker !== undefined) {
+    sessionPaperPick.declare(shell)
+    options.canvasPicker.put(shell, SESSION_KIND, ({ scope, subject }) => (
+      <PaperPicker workspaces={workspaces} scope={scope} subject={subject} />
+    ))
+  }
+}
+
 const needsOf = (options: SessionUiOptions) => ({
   session: needProtocol<ClientOf<SessionProtocol>>(sessionProtocol),
   modelChoices: needPoint(options.modelChoices, { optional: true }),
@@ -203,11 +255,15 @@ const needsOf = (options: SessionUiOptions) => ({
   blockReads: needPoint(options.blockReads, { optional: true }),
 })
 
-const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
-  shell,
-  { session: client, modelChoices, workspaceChoices, blockReads },
-  provide,
-) => {
+type Apply = UiModuleDefinition<ReturnType<typeof needsOf>>['apply']
+type Given = Parameters<Apply>
+
+const apply = (
+  options: SessionUiOptions,
+  shell: Given[0],
+  { session: client, modelChoices, workspaceChoices, blockReads }: Given[1],
+  provide: Given[2],
+): ReturnType<Apply> => {
   for (const part of sessionParts) part.declare(shell)
   for (const point of SESSION_POINTS) point.declare(shell)
   const models = new ModelSelectionStore(client)
@@ -230,6 +286,7 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
   const focus = new EntryFocus()
   const figure = new SessionFigure(report => shell.figure(report))
   const conversationShown = shownOn(shell)
+  putOnCanvas(shell, options, workspaces, new ArchivedDirectory(client))
   sessionDock.contribute(shell, {
     id: 'background-calls',
     order: 10,
@@ -253,9 +310,10 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
     title: '对话',
     order: 0,
     icon: 'conversation',
-    render: ({ scope }) => (
+    render: ({ scope, subject }) => (
       <EntryFocusContext.Provider value={focus}>
         <PartDrawContext.Provider value={shell}>
+          <SubjectOpener workspaces={workspaces} scope={scope} subject={subject} focus={focus} />
           <FigureReport
             workspaces={workspaces}
             scope={scope}
@@ -342,7 +400,11 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
 }
 
 export function createSessionUiModule(options: SessionUiOptions = {}) {
-  return defineUiModule({ name: 'session-ui', needs: needsOf(options), apply })
+  return defineUiModule({
+    name: 'session-ui',
+    needs: needsOf(options),
+    apply: (shell, needs, provide) => apply(options, shell, needs, provide),
+  })
 }
 
 export const sessionUiModule = createSessionUiModule()
