@@ -738,6 +738,9 @@ importers:
       '@omne-harness/canvas-local':
         specifier: workspace:*
         version: link:../../packages/canvas/canvas-local
+      '@omne-harness/canvas-tools':
+        specifier: workspace:*
+        version: link:../../packages/canvas/canvas-tools
       '@omne-harness/context-compaction':
         specifier: workspace:*
         version: link:../../packages/context/context-compaction
@@ -2383,6 +2386,49 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/canvas/canvas-tools:
+    dependencies:
+      '@omne-harness/canvas-contract':
+        specifier: workspace:*
+        version: link:../canvas-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/canvas':
+        specifier: workspace:*
+        version: link:../canvas
+      '@omne-harness/canvas-access':
+        specifier: workspace:*
+        version: link:../canvas-access
+      '@omne-harness/canvas-protocol':
+        specifier: workspace:*
+        version: link:../canvas-protocol
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
