@@ -36,7 +36,7 @@ export type TerminalFrame =
   | Readonly<{ t: 'ready' }>
   | Readonly<{ t: 'fault' }>
   | Readonly<{ t: 'opened'; cwd: string }>
-  | Readonly<{ t: 'started'; leg: string }>
+  | Readonly<{ t: 'started'; leg: string; cwd: string }>
   | Readonly<{ t: 'data' | 'between'; leg: string; b: string }>
   | Readonly<{ t: 'begun'; leg: string; discarded: number }>
   | Readonly<{ t: 'finished'; leg: string; code: number; cwd: string }>
@@ -382,7 +382,10 @@ function opened(step: Step, record: ObservationRecord): Step {
 function started(step: Step, record: ObservationRecord): Step {
   const active = step.state.active
   if (active === undefined || record.id !== active.id) return faulted(step)
-  return { ...advance(step, step.state, [{ t: 'started', leg: record.id }]), stdin: active.stdin }
+  return {
+    ...advance(step, step.state, [{ t: 'started', leg: record.id, cwd: record.cwd }]),
+    stdin: active.stdin,
+  }
 }
 
 function exitCode(code: string): number | undefined {

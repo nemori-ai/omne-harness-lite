@@ -1,5 +1,4 @@
-import { realpath } from 'node:fs/promises'
-import { isAbsolute, relative, sep } from 'node:path'
+import { isAbsolute, normalize, relative, sep } from 'node:path'
 import { workspaceCodec } from '@omne-harness/legal-identity'
 import type { ToolCallDirectory, ToolDirectoryVisit } from '@omne-harness/tool-contract'
 
@@ -7,10 +6,10 @@ import type { ToolCallDirectory, ToolDirectoryVisit } from '@omne-harness/tool-c
 export function directoryObserver(pinned: ToolCallDirectory | undefined) {
   const visited = new Set<string>()
   return {
-    async observed(path: string) {
+    observed(path: string) {
       if (pinned?.workspace == null || !isAbsolute(path)) return
-      const physical = await realpath(path).catch(() => null)
-      if (physical === null) return
+      const physical = normalize(path)
+      if (physical !== path) return
       const fromRoot = relative(pinned.path, physical)
       if (isAbsolute(fromRoot) || fromRoot === '..' || fromRoot.startsWith('..' + sep)) return
       visited.add(physical)

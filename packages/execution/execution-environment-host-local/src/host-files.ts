@@ -1,3 +1,4 @@
+import { createHostFileFacade } from './host-file-visits.ts'
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { lstat, open } from 'node:fs/promises'
@@ -841,26 +842,7 @@ export function createHostFilesEngine(
       if (scope.write !== undefined) operations.write = macos.write
     }
 
-    const unlessSealed =
-      <Q extends { readonly requestId: string }, T>(
-        run: (request: Q) => Promise<FacilityResult<T>>,
-      ) =>
-      async (request: Q): Promise<FacilityResult<T>> =>
-        sealed.has(owner) ? reject(request.requestId, 'closed') : run(request)
-    const facility: FileSystemFacility<unknown> = {
-      read: unlessSealed(operations.read),
-      stat: unlessSealed(operations.stat),
-      write: unlessSealed(operations.write),
-      close: unlessSealed(operations.close),
-      list: unlessSealed(operations.list),
-      search: unlessSealed(operations.search),
-      mkdir: unlessSealed(operations.mkdir),
-      remove: unlessSealed(operations.remove),
-      move: unlessSealed(operations.move),
-      copy: unlessSealed(operations.copy),
-      commitBatch: unlessSealed(operations.commitBatch),
-      recoverBatch: unlessSealed(operations.recoverBatch),
-    }
+    const facility = createHostFileFacade(operations, scope, () => sealed.has(owner))
 
     internalState.set(facility, {
       pendingCloseCount: () => [...pendingClose.values()].filter(holder => holder === owner).length,

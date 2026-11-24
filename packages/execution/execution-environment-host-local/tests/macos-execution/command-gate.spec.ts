@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -18,6 +18,7 @@ type Gate = Readonly<{
   parsed(): CommandFrame[]
 }>
 
+const runnerDirectory = process.cwd()
 let reader: FakeReader
 let cwd = ''
 let gatePid = 0
@@ -36,6 +37,8 @@ beforeEach(async context => {
 
 afterEach(async () => {
   if (process.platform === 'win32') return
+  // This fixture runs the private gate in the test worker.
+  process.chdir(runnerDirectory)
   try {
     if (gatePid > 1) process.kill(-gatePid, 'SIGKILL')
   } catch {}
@@ -200,13 +203,29 @@ describe('the macOS command gate in this process', () => {
       await new Promise(resolve => setTimeout(resolve, 50))
       expect(gate.lines).toEqual([
         '{"t":"ready"}',
-        '{"t":"started"}',
+        JSON.stringify({ t: 'started', cwd }),
         `{"t":"data","s":"stdout","b":"${Buffer.from('abcd').toString('base64')}"}`,
         `{"t":"data","s":"stdout","b":"${Buffer.from('efgh').toString('base64')}"}`,
         `{"t":"data","s":"stdout","b":"${Buffer.from('ij').toString('base64')}"}`,
         '{"t":"exit","code":3,"signal":null,"members":2}',
       ])
       expect(await reader.calls()).toContainEqual(['members', String(gatePid), String(gatePid)])
+    })
+
+    it('reports the actual inherited start directory when the request names a symlink', async () => {
+      const actual = join(cwd, 'actual')
+      const alias = join(cwd, 'alias')
+      await mkdir(actual)
+      await symlink(actual, alias)
+      const gate = startGate()
+      gate.write({ ...request('pwd -P'), cwd: alias })
+      gate.write(go)
+      await exited(gate)
+      expect(output(gate, 'stdout').toString().trim()).toBe(actual)
+      expect(gate.parsed().find(frame => frame.t === 'started')).toEqual({
+        t: 'started',
+        cwd: actual,
+      })
     })
 
     it('reports members as null when the session reader fails', async () => {

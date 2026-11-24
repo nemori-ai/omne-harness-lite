@@ -6830,6 +6830,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@omne-harness/execution-environment-host-local':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-host-local
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

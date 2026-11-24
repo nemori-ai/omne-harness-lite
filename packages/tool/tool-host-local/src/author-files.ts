@@ -1,4 +1,3 @@
-import { dirname } from 'node:path'
 import type {
   FacilityRequest,
   FacilityResult,
@@ -48,16 +47,8 @@ export function boundFiles<P>(
     const facility = input.lease.facility('files')
     if (!facility) return absent(common.requestId)
     const result = await perform(facility, { ...fixed, ...common, named: named.ok })
-    if (result.kind === 'done' && operation !== 'close') {
-      const isDirectory =
-        ['list', 'search', 'mkdir'].includes(operation) ||
-        (operation === 'stat' &&
-          typeof result.value === 'object' &&
-          result.value !== null &&
-          'type' in result.value &&
-          result.value.type === 'directory')
-      await observer.observed(isDirectory ? fixed.path : dirname(fixed.path))
-    }
+    if (result.kind === 'done')
+      for (const path of result.verifiedDirectories ?? []) observer.observed(path)
     return result
   }
 
@@ -91,7 +82,7 @@ export function boundFiles<P>(
       if (!facility) return absent(common.requestId)
       const result = await facility.commitBatch({ entries, ...common })
       if (result.kind === 'done')
-        for (const path of result.value.published) await observer.observed(dirname(path))
+        for (const path of result.verifiedDirectories ?? []) observer.observed(path)
       return result
     },
     async recoverBatch(request) {
@@ -108,12 +99,10 @@ export function boundFiles<P>(
     return file(operation, request, 'object', async (facility, source) => {
       const target = await name(operation, source.target.path, 'parent')
       if ('failure' in target) return namingFailure(source.requestId, target.failure)
-      const result = await facility[operation]({
+      return facility[operation]({
         ...source,
         target: { path: source.target.path, named: target.ok },
       })
-      if (result.kind === 'done') await observer.observed(dirname(source.target.path))
-      return result
     })
   }
 

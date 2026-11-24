@@ -223,6 +223,12 @@ public static class OmneTerminalShell {
     while((c=reader.Read())!=-1&&c!=10){if(line.Length>=limit)throw new InvalidDataException("control frame limit");if(c!=13)line.Append((char)c);}
     return c==-1&&line.Length==0?null:line.ToString();
   }
+  static string ObserveLocation(Runspace runspace) {
+    try {
+      PathInfo location=runspace.SessionStateProxy.Path.CurrentLocation;
+      return location.Provider.Name=="FileSystem" ? OmneWindowsBridge.PhysicalDirectory(location.ProviderPath) : null;
+    } catch { return null; }
+  }
   public static void Run(string pipe) {
     BindConsole();
     using(NamedPipeClientStream control=new NamedPipeClientStream(".",pipe,PipeDirection.InOut)) {
@@ -234,7 +240,7 @@ public static class OmneTerminalShell {
       OmneConsoleHost host=new OmneConsoleHost();
       using(Runspace runspace=RunspaceFactory.CreateRunspace(host)) {
         runspace.Open();runspace.SessionStateProxy.Path.SetLocation(init.cwd);
-        writer.WriteLine(json.Serialize(new {t="opened",cwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath}));
+        writer.WriteLine(json.Serialize(new {t="opened",cwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath,observed=ObserveLocation(runspace)}));
         string line;
         while((line=ReadBounded(reader,init.maxControlBytes))!=null) {
           OmneTerminalRequest request=json.Deserialize<OmneTerminalRequest>(line);if(request.c=="close")return;
@@ -257,8 +263,9 @@ public static class OmneTerminalShell {
               ps.Commands.Commands[0].MergeMyResults(PipelineResultTypes.Error,PipelineResultTypes.Output);
               ps.AddCommand("Out-Default");
               PSDataCollection<PSObject> input=new PSDataCollection<PSObject>();input.Complete();
+              string startDirectory=ObserveLocation(runspace);
               IAsyncResult execution=ps.BeginInvoke<PSObject,PSObject>(input,new PSDataCollection<PSObject>());
-              writer.WriteLine(json.Serialize(new {t="started",id=request.id}));
+              writer.WriteLine(json.Serialize(new {t="started",id=request.id,observed=startDirectory}));
               try {ps.EndInvoke(execution);}catch(RuntimeException error){Console.Error.WriteLine(error.Message);}
               int? exit=host.TakeExit();ended=exit.HasValue;
               completed=ended||ps.InvocationStateInfo.State==PSInvocationState.Completed||ps.InvocationStateInfo.State==PSInvocationState.Failed;
@@ -273,7 +280,7 @@ public static class OmneTerminalShell {
           string cwd;
           try {cwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath;if(String.IsNullOrEmpty(cwd)){cwd=savedCwd;restored=false;}}catch(Exception){cwd=savedCwd;restored=false;}
           Sentinel("e",request.nonce);
-          writer.WriteLine(json.Serialize(new {t="finished",v=3,id=request.id,cwd=cwd,restored=restored,completed=completed,elapsedMs=elapsedMs,code=code,ended=ended}));
+          writer.WriteLine(json.Serialize(new {t="finished",v=3,id=request.id,cwd=cwd,observed=restored?ObserveLocation(runspace):null,restored=restored,completed=completed,elapsedMs=elapsedMs,code=code,ended=ended}));
           // exit N ends the persistent shell after its invocation is answered.
           if(!restored||ended)return;
         }

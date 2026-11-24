@@ -648,6 +648,7 @@ export type ResidueReport = {
 };
 export type CommandOutcome = {
     readonly kind: 'completed';
+    readonly observedCwd?: string;
     readonly exit: {
         readonly kind: 'code';
         readonly code: number;
@@ -1032,6 +1033,7 @@ export type FacilityResult<T> = {
     readonly kind: 'done';
     readonly requestId: string;
     readonly value: T;
+    readonly verifiedDirectories?: readonly string[];
 } | {
     readonly kind: 'unresolved';
     readonly requestId: string;

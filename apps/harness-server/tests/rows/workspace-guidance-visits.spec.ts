@@ -62,7 +62,7 @@ it(
   async () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'guidance-shell-')))
     onTestFinished(() => rmSync(root, { recursive: true, force: true }))
-    const names = ['once', 'transient', 'terminal', 'observed', 'printed']
+    const names = ['once', 'transient', 'terminal', 'observed', 'printed', 'override']
     const markers = names.map((_, i) => 'SHELL_GUIDANCE_' + String(i) + '_841')
     for (const [index, name] of names.entries()) {
       mkdirSync(join(root, name))
@@ -101,7 +101,9 @@ it(
                     join(root, 'printed') +
                     "'",
                 }
-              : null
+              : requests.length === 4
+                ? { terminal, cwd: join(root, 'override'), script: 'pwd -P' }
+                : null
       return params
         ? [
             {
@@ -121,8 +123,8 @@ it(
       expect(terminal).toBeDefined()
       expect(completedOutput).toContain(join(root, 'observed'))
       expect(completedOutput).toContain(join(root, 'printed'))
-      expect(requests).toHaveLength(4)
-      const visible = [[], [0], [0, 2], [0, 2, 3]]
+      expect(requests).toHaveLength(5)
+      const visible = [[], [0], [0, 2], [0, 2, 3], [0, 2, 3, 5]]
       for (const [index, request] of requests.entries())
         for (const [source, marker] of markers.entries())
           expect(

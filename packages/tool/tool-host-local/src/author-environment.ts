@@ -219,9 +219,9 @@ function boundFacilities<P>(
       const common = base()
       const facility = input.lease.facility('command')
       if (!facility) return absent(common.requestId)
-      const cwd = request.cwd
       const result = await facility.start({ ...request, ...common })
-      if (result.kind === 'done') await observer.observed(cwd)
+      if (result.kind === 'done')
+        for (const path of result.verifiedDirectories ?? []) observer.observed(path)
       return result
     },
   }
@@ -254,9 +254,9 @@ function boundFacilities<P>(
       const common = base()
       const facility = input.lease.facility('terminal')
       if (!facility) return absent(common.requestId)
-      const cwd = request.cwd
       const result = await facility.create({ ...request, ...common })
-      if (result.kind === 'done') await observer.observed(cwd)
+      if (result.kind === 'done')
+        for (const path of result.verifiedDirectories ?? []) observer.observed(path)
       return result
     },
     async execute(request) {
@@ -265,14 +265,15 @@ function boundFacilities<P>(
       if (!facility) return absent(common.requestId)
       const result = await facility.execute({ ...request, ...common })
       if (result.kind !== 'done') return result
+      for (const path of result.verifiedDirectories ?? []) observer.observed(path)
       const handle = result.value
       return {
         ...result,
         value: {
           ...handle,
-          result: handle.result.then(async outcome => {
+          result: handle.result.then(outcome => {
             if (outcome.kind === 'completed' && outcome.observedCwd !== undefined)
-              await observer.observed(outcome.observedCwd)
+              observer.observed(outcome.observedCwd)
             return outcome
           }),
         },
