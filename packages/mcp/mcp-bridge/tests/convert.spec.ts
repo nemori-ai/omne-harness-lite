@@ -11,6 +11,7 @@ import {
   PEER_TEXT_BEGIN,
   PEER_TEXT_END,
 } from '../src/index.ts'
+import { commandShapeText } from '../src/convert.ts'
 import { action, realCatalog, shape } from './support.ts'
 
 const endpoint = 'docs' as EndpointName
@@ -202,5 +203,41 @@ describe('one endpoint is one multi-command tool', () => {
     )
     if (!('ok' in one) || !('ok' in other)) throw new Error('not admitted')
     expect(commandText(one.ok)).toBe(commandText(other.ok))
+  })
+})
+
+describe('the shape of a command declaration, compared at a call', () => {
+  const declared = (returns: unknown) =>
+    ({
+      name: 'search',
+      summary: 'what the peer says',
+      parameters: { kind: 'declared', value: { schema: { kind: 'object', entries: [] } } },
+      returns,
+    }) as never
+  const returns = { b: { y: 1, x: 2, z: null }, a: [{ q: 1, p: 2 }], c: 'text' }
+
+  it('is the same text whatever order the members of the declaration come in', () => {
+    const reordered = { c: 'text', a: [{ p: 2, q: 1 }], b: { z: null, x: 2, y: 1 } }
+    expect(commandShapeText(declared(reordered))).toBe(commandShapeText(declared(returns)))
+  })
+
+  it('is another text when a member deep in it differs, or an array changes its order', () => {
+    const base = commandShapeText(declared(returns))
+    expect(commandShapeText(declared({ ...returns, b: { y: 1, x: 3, z: null } }))).not.toBe(base)
+    const two = { ...returns, a: [{ q: 1 }, { p: 2 }] }
+    const swapped = { ...returns, a: [{ p: 2 }, { q: 1 }] }
+    expect(commandShapeText(declared(swapped))).not.toBe(commandShapeText(declared(two)))
+    const listed = commandShapeText(declared({ ...returns, a: ['one'] }))
+    expect(commandShapeText(declared({ ...returns, a: { 0: 'one' } }))).not.toBe(listed)
+  })
+
+  it('is told for a command whose parameters its executor owns, and for a schema that is not an object', () => {
+    const owned = { ...(declared(returns) as object), parameters: { kind: 'executor-owned' } }
+    expect(commandShapeText(owned as never)).not.toBe(commandShapeText(declared(returns)))
+    const plain = {
+      ...(declared(returns) as object),
+      parameters: { kind: 'declared', value: { schema: { kind: 'boolean', value: true } } },
+    }
+    expect(commandShapeText(plain as never)).not.toBe(commandShapeText(declared(returns)))
   })
 })

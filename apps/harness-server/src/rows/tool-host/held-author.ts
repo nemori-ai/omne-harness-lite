@@ -51,7 +51,13 @@ async function bodyOf(ctx: Context, authority: ToolAuthority): Promise<JsonValue
   const assets = await service.open(encoded.value)
   if (assets === undefined) return undefined
   const contract = () => ctx.get(assetCategoriesKey)?.view.lookup(TOOL_CATEGORY)
-  return tenantLayers(assets, service.layerSources(encoded.value), contract).body(taken)
+  const layers = tenantLayers(
+    assets,
+    service.layerSources(encoded.value),
+    contract,
+    service.official,
+  )
+  return layers.body(taken)
 }
 
 /** The construction a held tool is made with: what its body gives the script executor, whole. */

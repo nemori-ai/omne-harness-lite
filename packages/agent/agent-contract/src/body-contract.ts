@@ -31,7 +31,7 @@ export const agentDefinitionCategoryDisplay: CategoryDisplay = Object.freeze({
     '---',
     'You review code. Read the file you are given and report the problems you find, the worst first.',
     'name is the name it is published under, and the name of its directory. summary is read by the agent that chooses whom to hand work to: say what this one is fit for.',
-    'references lists the capabilities it uses, each {category, name, resident?}. A tool with resident: true is in every request it makes: a tool of the release, or one published here under category tool. A reference of another category is kept and has no effect yet.',
+    'references lists the capabilities it uses, each {category, name, resident?}. A reference with resident: true is in every request a session made with it sends: a tool (of the release, or published here under category tool) and an mcp endpoint are declared as tools, and the name and description of a skill go into the system prompt. A resident skill or mcp endpoint that is not there leaves the session without it; a resident tool that is not there keeps the session from starting.',
     'Other fields: attributes (a list of names: model, first_token_wait_limit, post_first_token_stall_limit) and permissionBounds. type is non-master and can be left out.',
     'It is handed work with Agents, or a session is made with it by its name; its last reply is what the one who handed it the work receives. Published again, it is used from the next run.',
     'Kept unpublished in a workspace, under .omne/agents/<name>/, it is there from the next turn of a session in that workspace and can be handed work; a session is made with it by its name only once it is published.',

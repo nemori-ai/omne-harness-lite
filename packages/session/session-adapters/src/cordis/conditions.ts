@@ -240,6 +240,7 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
       model: modelOf(saved.ok),
       context: scopeEvidence(tenantText, work.ok, scope),
       bindings: work.ok.residents.map(bindingOf),
+      segments: (work.ok.segments ?? []).map(({ key, text }) => ({ key, text })),
     }
     const source: DurableEvidence = {
       owner: OWNER,

@@ -179,14 +179,18 @@ async function releaseTarget(
   })
 }
 
-// A source entry is never resident; it is the entry its source listed to this asker just now.
-function sourceTarget(
+// A source entry is forwarded unless the session keeps it resident; it is the entry its source listed to this asker just now.
+async function sourceTarget(
+  ports: ForwardRequestPorts,
   access: TargetAccess,
   availability: ToolAvailability,
   entries: SourcedEntries,
-): Awaited<Reply<Target>> {
+  required: TargetResidency,
+): Reply<Target> {
   if (availability.kind !== 'available')
     return fail({ kind: 'denied', action: 'target-unavailable' })
+  const placed = await targetResidency(ports.view(), access, availability, required, entries)
+  if ('failure' in placed) return placed
   const entry = sourcedEntryFor(entries, access, availability)
   if (entry === undefined)
     return unavailable('The source no longer lists the target as the catalog answered it.')
@@ -214,7 +218,7 @@ async function inspectTarget(
   if (origin.kind === 'release')
     return releaseTarget(ports, access, inspected.ok, origin.entry, required)
   if (origin.kind === 'held') return heldTarget(ports, access, inspected.ok, origin.held, required)
-  return sourceTarget(access, inspected.ok, origin.entries)
+  return sourceTarget(ports, access, inspected.ok, origin.entries, required)
 }
 
 function functionCall(intent: ToolForwardIntent) {

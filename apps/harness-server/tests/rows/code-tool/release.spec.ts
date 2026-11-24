@@ -74,6 +74,24 @@ const codeScript = toolCallsByRequest(body => {
         arguments: JSON.stringify({ command: 'execute', code }),
       },
     ]
+  // One message with two calls: a program whose command asks a person, beside a direct read.
+  if (/start: beside/.test(text))
+    return [
+      {
+        id: 'call_beside_code',
+        tool: 'Code',
+        arguments: JSON.stringify({ command: 'execute', code: PROGRAMS['refused'] }),
+      },
+      {
+        id: 'call_beside_read',
+        tool: 'Files',
+        arguments: JSON.stringify({
+          command: 'read',
+          intent: 'test call',
+          params: { path: 'a.txt' },
+        }),
+      },
+    ]
   const path = /start: path ([a-z0-9.-]+)/.exec(text)?.[1]
   if (path !== undefined)
     return [
@@ -422,6 +440,28 @@ it('TL-69 stopping a program midway stops the calls it still has: each says stop
       const { result } = await ended(tree, session, 'the stopped program')
       expect(result).not.toContain('a-done')
       expect(result).not.toContain('done Code execute')
+    },
+  )
+  expect(exit).toBe(0)
+})
+
+it('AG-31 a program called beside another tool in one message still asks a person for its own call', async () => {
+  const exit = await onReleaseTree(
+    { script: codeScript, permission: 'auto_permission' },
+    async tree => {
+      seed(tree, { 'a.txt': 'read beside the program' })
+      const session = await tree.startSession('start: beside')
+      const card = await pendingCard(tree, session, 'the call of the program')
+      expect(card.question).toMatchObject({
+        kind: 'release',
+        target: { tool: 'Shell', command: 'execute' },
+        origin: { program: true },
+      })
+      await answerCard(tree, card, ['--option', 'allow-once'], 'reply-beside')
+      const { result } = await ended(tree, session, 'the two calls')
+      expect(result).toContain('"ran"')
+      expect(result).toContain('read beside the program')
+      expect(callsOf(tree, 'Shell')).toHaveLength(1)
     },
   )
   expect(exit).toBe(0)

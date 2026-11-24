@@ -289,6 +289,7 @@
 - `ReplyAdmissionRead` · `evaluation.d.ts`
 - `ReplyAdmissionSequence` · `identity.d.ts`
 - `RequestPreparation` · `request.d.ts`
+- `ResidentSegmentText` · `evaluation.d.ts`
 - `ResidentTool` · `effect.d.ts`
 - `ResponsibilityCoverage` · `finishing.d.ts`
 - `ResultResponsibility` · `execution.d.ts`
@@ -784,6 +785,9 @@ import type { AssetStanding, ImpactLine, PlacedLine } from '@omne-harness/assets
 export type ResidentTool = Readonly<{
     name: string;
     there: boolean | null;
+    category?: string;
+    why?: string;
+    point?: string;
 }>;
 export type DefinitionFacts = Readonly<{
     name: string;
@@ -1154,6 +1158,11 @@ export type RuntimeConditions = Readonly<{
     model: Adoption;
     context: DurableEvidence;
     bindings: readonly Adoption[];
+    segments?: readonly ResidentSegmentText[];
+}>;
+export type ResidentSegmentText = Readonly<{
+    key: string;
+    text: string;
 }>;
 export type ProducerDecisionView = Readonly<{
     kind: 'unresolved';

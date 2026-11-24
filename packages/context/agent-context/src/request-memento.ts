@@ -36,8 +36,21 @@ function batch(value: unknown): InputBatch | null {
   }
 }
 
+function segments(value: unknown): NonNullable<RuntimeConditions['segments']> | null {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return null
+  const out: { key: string; text: string }[] = []
+  for (const item of value as unknown[]) {
+    if (!record(item) || typeof item.key !== 'string' || typeof item.text !== 'string') return null
+    out.push({ key: item.key, text: item.text })
+  }
+  return out
+}
+
 function conditions(value: unknown): RuntimeConditions | null {
   if (!record(value) || !record(value.progression) || !Array.isArray(value.bindings)) return null
+  const kept = segments(value.segments)
+  if (kept === null) return null
   const source = judgeEvidence(value.source)
   const configuration = judgeAdoption(value.configuration)
   const model = judgeAdoption(value.model)
@@ -62,6 +75,7 @@ function conditions(value: unknown): RuntimeConditions | null {
     context: context.ok,
     progression: { kind, basis: basis.ok },
     bindings: bindings.flatMap(v => ('ok' in v ? [v.ok] : [])),
+    segments: kept,
   }
 }
 

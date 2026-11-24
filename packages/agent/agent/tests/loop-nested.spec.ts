@@ -268,6 +268,43 @@ describe('AG-31 answers that are not conclusions', () => {
   })
 })
 
+describe('AG-31 a parent that was sent beside another call of the same reply', () => {
+  /** Two calls in one reply; the second has its result, the first is still waiting. */
+  async function besideAnother(): Promise<Assembly> {
+    const assembly = await cardAssembly()
+    assembly.controls.admission.admit.always(async () => allow)
+    handles.set(assembly, await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    const pending = await associatedTools(assembly, 2)
+    const other = pending.find(call => call.action !== parent)
+    if (other === undefined) throw new Error('no second tool call')
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(other, { name: 'done' })))
+    await eventually(async () => {
+      const batch = (await snapshot(assembly)).checkpoint.batch
+      return batch?.slots.filter(slot => slot.kind === 'dispatched').length === 1
+    })
+    await sleeping(assembly)
+    return assembly
+  }
+
+  it('is still judged for the actions its program makes, after the other call has its result', async () => {
+    const assembly = await besideAnother()
+    expect(await asked(assembly, 1)).toEqual({ kind: 'allowed' })
+  })
+
+  it('puts out the card of a nested action that needs a person, and takes the answer', async () => {
+    const assembly = await besideAnother()
+    assembly.controls.admission.admit.always(async call =>
+      call.nested !== undefined && call.decision === null ? ask('Write the file?') : allow,
+    )
+    const answering = asked(assembly, 1)
+    await eventually(async () => assembly.controls.cards.present.calls.length === 1)
+    assembly.controls.cards.read.always(async () => ({ ok: chosen }))
+    assembly.controls.cards.changes.emit()
+    expect(await answering).toEqual({ kind: 'allowed' })
+  })
+})
+
 describe('AG-32 nothing is allowed once the parent is no longer waiting', () => {
   it('refuses, without asking the admission or a person, after the parent has its result', async () => {
     const assembly = await waitingOnTool()

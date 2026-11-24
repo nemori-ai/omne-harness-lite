@@ -6,6 +6,7 @@ import {
   scopeOfLayer,
   type JsonValue,
   type OfficialAsset,
+  type PackageReader,
   type CategoryContribution,
   type HeldHolding,
   type HeldItem,
@@ -72,7 +73,20 @@ const categoriesContract: Contract = Object.freeze({
 
 const UNREAD: HeldReading = Object.freeze({ kind: 'unavailable' })
 
-type Brought = Readonly<{ point: string; name: string; item: HeldItem; body: JsonValue }>
+type Brought = Readonly<{
+  point: string
+  name: string
+  item: HeldItem
+  body: JsonValue
+  files?: PackageReader
+}>
+
+export type BroughtDefinition = Readonly<{
+  name: string
+  item: HeldItem
+  body: JsonValue
+  files?: PackageReader
+}>
 
 const broughtAs = (brought: Brought, point: string, name: string, item: HeldItem): boolean =>
   brought.point === point &&
@@ -157,14 +171,11 @@ export class AssetCategoriesService extends Service {
   }
 
   /** The definitions the deployment brings, on the point of their category, with their bodies. */
-  bring(
-    point: string,
-    held: readonly Readonly<{ name: string; item: HeldItem; body: JsonValue }>[],
-  ): void {
+  bring(point: string, held: readonly BroughtDefinition[]): void {
     const { tree, brought } = this
     const scope = scopeOfLayer('official')
     const entries = held.map(({ name, item }) => heldEntry(point, name, scope, item))
-    const kept: Brought[] = held.map(({ name, item, body }) => ({ point, name, item, body }))
+    const kept: Brought[] = held.map(each => ({ point, ...each }))
     this.ctx.effect(() => {
       for (const each of kept) brought.add(each)
       const remove = tree.put(entries)
@@ -183,14 +194,16 @@ export class AssetCategoriesService extends Service {
       if (read.kind !== 'read') return 'unavailable'
       const entries = [...read.entries].sort((left, right) => (left.key < right.key ? -1 : 1))
       for (const { key, item } of entries) {
-        const body = [...this.brought].find(each => broughtAs(each, point, key, item))?.body
+        const hit = [...this.brought].find(each => broughtAs(each, point, key, item))
         const capability = capabilityId(category, key)
-        if (body === undefined || !capability.ok) continue
+        if (hit === undefined || !capability.ok) continue
         const known = found.some(
           each => each.capability.name === key && each.capability.category === category,
         )
-        if (!known)
-          found.push({ capability: capability.id, asset: item.asset, version: item.version, body })
+        if (known) continue
+        const { body, files } = hit
+        const at = { capability: capability.id, asset: item.asset, version: item.version, body }
+        found.push(files === undefined ? at : { ...at, files })
       }
     }
     return found
@@ -291,7 +304,7 @@ export const assetCategoriesPlugin: Plugin.Object = {
 export function broughtDefinitionsPlugin(
   name: string,
   point: string,
-  held: readonly Readonly<{ name: string; item: HeldItem; body: JsonValue }>[],
+  held: readonly BroughtDefinition[],
 ): Plugin.Object {
   return {
     name,
