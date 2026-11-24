@@ -66,7 +66,7 @@ const GLM52 = {
 const VISION = {
   ...GLM53,
   model: 'qwen/vision',
-  title: 'Qwen Vision',
+  title: 'qwen/vision',
   input: ['text', 'image'],
   efforts: [],
 }
@@ -201,8 +201,9 @@ it('claims the two model settings, and draws a row for each model of the catalog
   expect(glm.getByText('收：文字 · 发：文字')).toBeTruthy()
   expect(glm.getByText('窗口 202752')).toBeTruthy()
   expect(glm.getByText('low、medium、high')).toBeTruthy()
-  expect(rowOf('Qwen Vision').getByText('收：文字、图片 · 发：文字')).toBeTruthy()
-  expect(rowOf('Qwen Vision').getByText('不能调推理强度')).toBeTruthy()
+  expect(rowOf('qwen/vision').getByText('收：文字、图片 · 发：文字')).toBeTruthy()
+  expect(rowOf('qwen/vision').getByText('不能调推理强度')).toBeTruthy()
+  expect(rowOf('qwen/vision').queryAllByText('qwen/vision')).toHaveLength(1)
 })
 
 it('each switch is as this layer holds it over the release default, and says which', async () => {

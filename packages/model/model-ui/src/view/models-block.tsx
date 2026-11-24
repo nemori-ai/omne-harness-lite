@@ -61,7 +61,7 @@ function ModelLine({ row, wired }: Readonly<{ row: ModelRow; wired: Wired }>): J
     <TableRow {...modelProviderModelsRow.props}>
       <TableCell>
         <div className="omne-model-row-title">{row.title}</div>
-        <div className="omne-model-row-fact">{row.model}</div>
+        {row.title !== row.model && <div className="omne-model-row-fact">{row.model}</div>}
       </TableCell>
       <TableCell>
         <div className="omne-model-row-fact">{`收：${modalities(row.input)} · 发：${modalities(row.output)}`}</div>

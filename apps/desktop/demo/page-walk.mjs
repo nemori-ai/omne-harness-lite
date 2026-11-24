@@ -515,6 +515,28 @@ async function walk(browser, origin, proofs, elsewhere) {
   )
   let madeElsewhere = Promise.resolve()
   await step(
+    '模型供应商的页：「模型」块列出目录，拨一个开关写进去并读回，设置段只剩凭据',
+    `
+    const tab = await wait('the provider tab', () => assetTabs().find(item => item.textContent === '模型供应商'))
+    const panel = await openTab(tab)
+    const name = await wait('the official provider', () =>
+      [...panel.querySelectorAll('li.assets-item')].map(item => item.getAttribute('aria-label')).find(each => /openrouter/i.test(each)))
+    const page = await enterAsset(name)
+    const block = await wait('the models block', () => page.querySelector('#model-provider-models table'))
+    const rows = block.querySelectorAll('tr').length
+    const settings = [...page.querySelectorAll('#assets-asset-settings .assets-setting-title')].map(title => title.textContent)
+    const first = () => block.querySelector('tr')
+    const on = () => first().querySelector('[role=switch]').getAttribute('aria-checked')
+    const before = on()
+    first().querySelector('[role=switch]').click()
+    await wait('the switch to read back', () => on() !== before && first().innerText.includes('这一层设的'))
+    first().querySelector('[role=switch]').click()
+    await wait('the switch back', () => on() === before)
+    block.scrollIntoView({ block: 'start' })
+    await sleep(100)
+    return { rows, settings, toggled: true }`,
+  )
+  await step(
     '别处新建一份技能：页面不用人动就列出它',
     `
     const tab = await wait('the skill tab', () => assetTabs().find(item => item.textContent === '技能'))
