@@ -382,6 +382,11 @@ it('V15 一组三题一次摆一题：纸顶一排圆点，每题一个、说它
   ])
   expect(dots().map(dot => dot.dataset['mark'])).toEqual(['waiting', 'waiting', 'waiting'])
   expect(dots().map(dot => dot.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false'])
+  const articles = screen.getAllByRole('article')
+  expect(new Set(articles.map(article => article.id)).size).toBe(3)
+  expect(dots().map(dot => dot.getAttribute('aria-controls'))).toEqual(
+    articles.map(article => article.id),
+  )
   expect(document.querySelector('.hitl-kind-trail')).toBeNull()
   fireEvent.click(screen.getByRole('tab', { name: '第 3 题：还没答' }))
   expect(shownTitle()).toEqual(['第三问'])
@@ -404,6 +409,14 @@ it('V15 一组三题一次摆一题：纸顶一排圆点，每题一个、说它
   choose(section('第二问'), '不回答这一题')
   expect(submitButton().disabled).toBe(false)
   expect(screen.queryByRole('button', { name: /还差/ })).toBeNull()
+})
+
+it('V15a 一开始不翻题、直接作答：还摆着这一张，不跳到下一张没答的', async () => {
+  await listed([titled('第一问', 'card-a'), titled('第二问', 'card-b')])
+  expect(shownTitle()).toEqual(['第一问'])
+  choose(section('第一问'), '主干')
+  expect(shownTitle()).toEqual(['第一问'])
+  expect(dots()[0]?.getAttribute('aria-label')).toBe('第 1 题：答好了，还没提交')
 })
 
 it('V15b 正在看的那一题被切掉时换成站到它位置上的那一题；被关掉的一题圆点是淡墨，没记上的是危险色', async () => {
@@ -433,6 +446,29 @@ it('V15b 正在看的那一题被切掉时换成站到它位置上的那一题�
   fireEvent.click(section('第一问').getByRole('button', { name: '知道了' }))
   expect(shownTitle()).toEqual(['第三问'])
   expect(screen.queryByRole('tablist')).toBeNull()
+})
+
+it('V15c 提交中的圆点说正在提交，结果未知的说未确认；前面的卡切掉之后，正在看的再被切掉，换成站到它位置上的那一张', async () => {
+  const cards = ['第一问', '第二问', '第三问', '第四问', '第五问'].map((title, at) =>
+    titled(title, `card-${at}`),
+  )
+  const fake = await listed(cards)
+  for (const card of cards) choose(section(card.card.question.title), '主干')
+  fireEvent.click(screen.getByRole('tab', { name: '第 3 题：答好了，还没提交' }))
+  fireEvent.click(submitButton())
+  const first = await fake.next('submit-reply')
+  await settle()
+  expect(dots()[0]?.getAttribute('aria-label')).toBe('第 1 题：正在提交')
+  expect(dots()[0]?.dataset['mark']).toBe('filled')
+  first.answer(DECIDED(cards[0]!))
+  await settle()
+  await answer(fake, 'submit-reply', { outcome: 'denied' })
+  expect(shownTitle()).toEqual(['第三问'])
+  await answer(fake, 'submit-reply', DECIDED(cards[2]!))
+  expect(shownTitle()).toEqual(['第四问'])
+  await answer(fake, 'submit-reply', { outcome: 'unknown' })
+  expect(dots()[1]?.getAttribute('aria-label')).toBe('第 2 题：未确认')
+  expect(dots()[1]?.dataset['mark']).toBe('quiet')
 })
 
 it('V16 一组三题一次提交：每题各交一次、依次发出；结局逐题，没记上的留着人填的，点「知道了」去掉', async () => {

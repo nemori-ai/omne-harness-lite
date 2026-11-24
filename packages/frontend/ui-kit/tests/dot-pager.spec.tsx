@@ -1,10 +1,22 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DotPager, type PagerDot } from '../src/index.ts'
 
-afterEach(cleanup)
+const thrown: unknown[] = []
+const keep = (event: ErrorEvent) => thrown.push(event.error)
+
+beforeEach(() => {
+  thrown.length = 0
+  window.addEventListener('error', keep)
+})
+
+afterEach(() => {
+  window.removeEventListener('error', keep)
+  cleanup()
+  expect(thrown).toEqual([])
+})
 
 const DOTS: readonly PagerDot[] = [
   { key: 'a', label: '第 1 题：答好了，还没提交', mark: 'filled', controls: 'panel-a' },
@@ -50,6 +62,12 @@ it('is one tab list: a dot for each item in order, named by its label, its mark 
     'false',
   ])
   expect(dots().map(dot => dot.tabIndex)).toEqual([-1, 0, -1, -1])
+  expect(dots().map(dot => dot.dataset['state'])).toEqual([
+    'inactive',
+    'active',
+    'inactive',
+    'inactive',
+  ])
   expect(dots().map(dot => dot.getAttribute('aria-controls'))).toEqual([
     'panel-a',
     'panel-b',
@@ -72,9 +90,15 @@ it('moves with the arrow keys, Home and End while a dot has focus, and takes the
   render(<Pager />)
   const second = screen.getByRole('tab', { name: '第 2 题：还没答' })
   second.focus()
-  fireEvent.keyDown(second, { key: 'ArrowRight' })
+  expect(fireEvent.keyDown(second, { key: 'Tab' })).toBe(true)
+  expect(fireEvent.keyDown(second, { key: 'a' })).toBe(true)
+  expect(document.activeElement).toBe(second)
+  expect(fireEvent.keyDown(second, { key: 'ArrowRight' })).toBe(false)
   expect(document.activeElement).toBe(screen.getByRole('tab', { name: '第 3 题：没有记上' }))
   expect(document.activeElement?.getAttribute('aria-selected')).toBe('true')
+  fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowLeft' })
+  expect(document.activeElement).toBe(second)
+  expect(second.getAttribute('aria-selected')).toBe('true')
   fireEvent.keyDown(document.activeElement as Element, { key: 'End' })
   expect(document.activeElement?.getAttribute('aria-label')).toBe('第 4 题：已关闭')
   fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowRight' })

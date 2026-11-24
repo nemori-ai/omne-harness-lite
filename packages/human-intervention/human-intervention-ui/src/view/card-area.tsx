@@ -233,11 +233,11 @@ type Paging = Readonly<{
 function usePage(
   paper: RefObject<HTMLDivElement | null>,
   keys: readonly string[],
-  start: string | undefined,
+  unanswered: (key: string) => boolean,
 ): Paging {
   const focusOn = useRef<string | null>(null)
   const [page, setPage] = useState<Page>(null)
-  const current = pageAfter(keys, page, start)
+  const current = pageAfter(keys, page, unanswered)
   const now: Page = current === undefined ? null : { key: current, at: keys.indexOf(current) }
   if (now?.key !== page?.key || now?.at !== page?.at) setPage(now)
   const reveal = (key: string) => {
@@ -257,10 +257,8 @@ function usePage(
   })
   const turn = (key: string) => setPage({ key, at: keys.indexOf(key) })
   const go = (key: string) => {
-    if (key !== current) {
-      focusOn.current = key
-      turn(key)
-    } else reveal(key)
+    focusOn.current = key
+    turn(key)
   }
   return { current, turn, go }
 }
@@ -309,11 +307,7 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
   const keys = shown.map(card => card.key)
   order.current = keys
   const unanswered = new Set([...sheet.missing, ...sheet.open])
-  const { current, turn, go } = usePage(
-    paper,
-    keys,
-    keys.find(key => unanswered.has(key)),
-  )
+  const { current, turn, go } = usePage(paper, keys, key => unanswered.has(key))
   if (current === undefined) return null
   const buttons = verdictOf(shown.map(itemOf))
   const [only] = sheet.entries

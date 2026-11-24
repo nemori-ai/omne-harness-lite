@@ -92,6 +92,33 @@ describe('会话里的卡', () => {
     expect(fake.observations).toEqual([])
   })
 
+  it('C4b 两处各看各的：一处翻题另一处不跟；后挂上的一处从第一张没答的开始', async () => {
+    const { fake, hub } = setup()
+    render(
+      <div data-testid="page">
+        <DecisionsPage hub={hub} tenant={TENANT} />
+      </div>,
+    )
+    await answer(fake, 'list-cards', page(['card-a', 'card-b', 'card-c'].map(id => rowedItem(id))))
+    const inPage = within(screen.getByTestId('page'))
+    const shownIn = (scope: ReturnType<typeof within>) =>
+      scope.getAllByRole('article').filter((article: HTMLElement) => !article.hasAttribute('inert'))
+    pick(within(shownIn(inPage)[0]!), '主干')
+    fireEvent.click(inPage.getByRole('tab', { name: '第 3 题：还没答' }))
+    render(
+      <div data-testid="session">
+        <SessionCards hub={hub} tenant={TENANT} session={SESSION} />
+      </div>,
+    )
+    await settle()
+    const inSession = within(screen.getByTestId('session'))
+    const selected = (scope: ReturnType<typeof within>) =>
+      scope.getAllByRole('tab').map((tab: HTMLElement) => tab.getAttribute('aria-selected'))
+    expect(selected(inSession)).toEqual(['false', 'true', 'false'])
+    expect(shownIn(inSession)).toEqual([inSession.getAllByRole('article')[1]])
+    expect(selected(inPage)).toEqual(['false', 'false', 'true'])
+  })
+
   it('C4 页面与会话里读同一份：会话里填的页面上也看得到；会话里提交，两处都在提交；记下后两处都收起', async () => {
     const { fake, hub } = setup()
     render(

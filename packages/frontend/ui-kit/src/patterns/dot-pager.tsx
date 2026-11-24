@@ -1,5 +1,3 @@
-import { useRef } from 'react'
-
 import { DisclosureIcon } from '../icons/kit-only.ts'
 import { cn } from '../lib/utils.ts'
 import { ActionTooltip, IconButton } from './icon-button.tsx'
@@ -14,8 +12,8 @@ export type PagerDot = Readonly<{
 }>
 
 const MOVES: Readonly<Record<string, (at: number, count: number) => number>> = {
-  ArrowRight: (at, count) => Math.min(at + 1, count - 1),
-  ArrowLeft: at => Math.max(at - 1, 0),
+  ArrowRight: at => at + 1,
+  ArrowLeft: at => at - 1,
   Home: () => 0,
   End: (_at, count) => count - 1,
 }
@@ -37,14 +35,13 @@ export function DotPager({
   readonly nextLabel: string
   readonly className?: string
 }): React.JSX.Element {
-  const list = useRef<HTMLDivElement>(null)
   const at = Math.max(
     dots.findIndex(dot => dot.key === current),
     0,
   )
   const go = (index: number): void => {
     const dot = dots[index]
-    if (dot !== undefined && dot.key !== current) onCurrentChange(dot.key)
+    if (dot !== undefined) onCurrentChange(dot.key)
   }
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     const move = MOVES[event.key]
@@ -52,7 +49,7 @@ export function DotPager({
     event.preventDefault()
     const index = move(at, dots.length)
     go(index)
-    list.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[index]?.focus()
+    event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[index]?.focus()
   }
   const step = (by: -1 | 1, name: string, glyph: React.ReactNode) => {
     const stuck = dots[at + by] === undefined
@@ -69,13 +66,7 @@ export function DotPager({
   }
   return (
     <div className={cn('omne-dot-pager', className)}>
-      <div
-        ref={list}
-        role="tablist"
-        aria-label={label}
-        className="omne-dot-pager-dots"
-        onKeyDown={onKeyDown}
-      >
+      <div role="tablist" aria-label={label} className="omne-dot-pager-dots" onKeyDown={onKeyDown}>
         {dots.map((dot, index) => (
           <ActionTooltip key={dot.key} label={dot.label}>
             <button
