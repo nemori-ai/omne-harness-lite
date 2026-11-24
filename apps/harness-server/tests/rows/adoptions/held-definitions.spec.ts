@@ -184,7 +184,10 @@ describe('the definition a tenant holds, read as an entry of the table', () => {
       requiredIdentities: [],
       modes: CUSTOM.modes,
       initialModelSelection: CUSTOM.initialModelSelection,
-      residentCapabilities: ['Files'],
+      residentReferences: [
+        { category: 'tool', name: 'Files' },
+        { category: 'skill', name: 'review' },
+      ],
     })
     expect(side.extensions).toEqual([])
     expect(side.definition.instructions).toEqual([{ id: 'instructions', text: 'You review code.' }])

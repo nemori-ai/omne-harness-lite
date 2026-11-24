@@ -22,7 +22,7 @@ import type {
   DefinitionMappings,
   DefinitionReading,
 } from './definition-mappings.ts'
-import { residentToolsOf, type MappingTable } from './table.ts'
+import { residentReferencesOf, type MappingTable } from './table.ts'
 
 export const DEFINITION_CATEGORY = 'AgentDefinition'
 
@@ -83,7 +83,7 @@ export function createDefinitionReading(input: DefinitionReadingInput): Definiti
       return unavailable(
         'the deployment gives no agent-adoptions.custom: how a definition of a tenant runs is not configured',
       )
-    const residents = residentToolsOf(definition)
+    const residents = residentReferencesOf(definition)
     const entry: DefinitionMappingEntry = Object.freeze({
       name,
       candidate: candidateOf(name, held),
@@ -94,7 +94,7 @@ export function createDefinitionReading(input: DefinitionReadingInput): Definiti
       ...(custom.initialModelSelection === undefined
         ? {}
         : { initialModelSelection: custom.initialModelSelection }),
-      ...(residents.length === 0 ? {} : { residentCapabilities: residents }),
+      ...(residents.length === 0 ? {} : { residentReferences: residents }),
     })
     return { kind: 'found', entry, side: { definition, extensions: [] } }
   }

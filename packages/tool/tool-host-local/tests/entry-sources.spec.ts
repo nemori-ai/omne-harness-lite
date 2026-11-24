@@ -11,6 +11,7 @@ import type {
 import type {
   ToolEntrySource,
   ToolExecutionContext,
+  ToolSourceEntry,
   ToolSourceListing,
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
@@ -21,6 +22,8 @@ import {
 import {
   createLocalToolCatalog,
   type LocalToolAvailabilitySource,
+  type LocalToolCatalogView,
+  type LocalToolCatalogViewSource,
 } from '@omne-harness/tool-host-local'
 import { createLocalEntrySources, noteCallFacts } from '../src/entry-sources.ts'
 import {
@@ -104,7 +107,29 @@ const beta = testingSourceEntry({
 const toA = (listing: ToolSourceListing) => (access: Access<string>) =>
   sameTenant(access, asA) ? listing : { entries: [], withheld: [] }
 
-function world(sources: readonly Source[]) {
+type ViewEntry = LocalToolCatalogView['entries'][number]
+
+/** The view of a session that keeps these source entries resident, with the definitions it took. */
+function keeping(base: LocalToolCatalogViewSource<string>, kept: readonly ViewEntry[]) {
+  return {
+    read: async (access: Access<string>) => {
+      const read = await base.read(access)
+      return 'ok' in read ? succeed({ ...read.ok, entries: [...read.ok.entries, ...kept] }) : read
+    },
+  }
+}
+
+const keptOf = (entry: ToolSourceEntry, tenant = tenantA): ViewEntry => ({
+  key: {
+    layer: { kind: 'tenant', tenant },
+    asset: { name: entry.definition.name, adoption: entry.definition.adoption },
+  },
+  resident: true,
+  knownDefinition: entry.definition,
+  sourced: true,
+})
+
+function world(sources: readonly Source[], kept: readonly ViewEntry[] = []) {
   const shell = authorityFor(officialLayer, 'Shell', 'holding-Shell-1', '1')
   const { registry } = fiberedRegistry(scriptedVerifier([shell]))
   if (!('ok' in register(registry, asA, shell))) throw new Error('setup')
@@ -134,7 +159,7 @@ function world(sources: readonly Source[]) {
     catalog: createLocalToolCatalog({
       registry,
       availability: allowing,
-      view: catalogView(registry),
+      view: keeping(catalogView(registry), kept),
       search: catalogSearch,
       sources: sourced.entries,
     }),
@@ -157,7 +182,7 @@ const searching = (access: Access<string>, after: string | null = null, limit = 
 })
 
 describe('the entries of a source in the catalog', () => {
-  it('are found, inspected and described like the tools of the registry, and are never resident', async () => {
+  it('are found, inspected and described like the tools of the registry, and are not resident unless a session keeps them', async () => {
     const { catalog } = world([probe(toA({ entries: [alpha, beta], withheld: [] }))])
     const found = await catalog.search(searching(asA))
     if ('failure' in found) throw new Error(JSON.stringify(found.failure))
@@ -322,6 +347,91 @@ describe('the entries of a source in the catalog', () => {
   })
 })
 
+describe('an entry of a source that the session keeps resident', () => {
+  const taken = testingSourceEntry({ name: 'probe__alpha', category: 'probe', commands: ['run'] })
+  const now = testingSourceEntry({
+    name: 'probe__alpha',
+    category: 'probe',
+    commands: ['run', 'more'],
+    revision: '2',
+  })
+
+  it('answers with the definition the session took while its source lists the name, with the executor of the source', async () => {
+    const { catalog } = world([probe(toA({ entries: [now], withheld: [] }))], [keptOf(taken)])
+    expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toEqual({
+      ok: {
+        kind: 'available',
+        definition: taken.definition,
+        executor: now.executor,
+        layer: { kind: 'tenant', tenant: tenantA },
+      },
+    })
+    expect(await catalog.inspect(inspecting(asA, 'probe__alpha', 'more'))).toEqual(
+      fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' }),
+    )
+    const found = await catalog.search(searching(asA))
+    if ('failure' in found) throw new Error(JSON.stringify(found.failure))
+    expect(found.ok.entries.map(entry => entry.definition.name)).not.toContain('probe__alpha')
+  })
+
+  it('stands in with the definition the session took, and the reason, when its source does not list it as available', async () => {
+    const down = testingSourceEntry({
+      name: 'probe__alpha',
+      category: 'probe',
+      unavailable: 'the connection is closed',
+    })
+    const cases = [
+      [{ entries: [down], withheld: [] }, 'the connection is closed'],
+      [{ entries: [], withheld: [{ name: 'probe__alpha', reason: 'disabled' }] }, 'disabled'],
+      [{ entries: [], withheld: [] }, 'the source does not list this entry now'],
+    ] as const
+    for (const [listing, reason] of cases) {
+      const { catalog } = world([probe(toA(listing))], [keptOf(taken)])
+      expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toEqual({
+        ok: { kind: 'known-unavailable', definition: taken.definition, reason },
+      })
+    }
+  })
+
+  it('answers each name with its own: the kept entry, another entry of the source, a tool of the registry', async () => {
+    const other = testingSourceEntry({ name: 'probe__beta', category: 'probe', commands: ['run'] })
+    const listing = { entries: [other], withheld: [{ name: 'probe__alpha', reason: 'disabled' }] }
+    const { catalog } = world([probe(toA(listing))], [keptOf(taken)])
+    expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toEqual({
+      ok: { kind: 'known-unavailable', definition: taken.definition, reason: 'disabled' },
+    })
+    expect(await catalog.inspect(inspecting(asA, 'probe__beta'))).toMatchObject({
+      ok: { kind: 'available', definition: other.definition },
+    })
+    expect(await catalog.inspect(inspecting(asA, 'Shell'))).toMatchObject({
+      ok: { kind: 'available', definition: { name: 'Shell' } },
+    })
+  })
+
+  it('takes the reason of its own name, not that of another entry the source knows to be unavailable', async () => {
+    const listing = { entries: [beta], withheld: [{ name: 'probe__gamma', reason: 'disabled' }] }
+    const { catalog } = world([probe(toA(listing))], [keptOf(taken)])
+    expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toEqual({
+      ok: {
+        kind: 'known-unavailable',
+        definition: taken.definition,
+        reason: 'the source does not list this entry now',
+      },
+    })
+  })
+
+  it('stands in the same way when no source is at the point at all', async () => {
+    const { catalog } = world([], [keptOf(taken)])
+    expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toEqual({
+      ok: {
+        kind: 'known-unavailable',
+        definition: taken.definition,
+        reason: 'the source does not list this entry now',
+      },
+    })
+  })
+})
+
 describe('a call of an entry of a source', () => {
   const call = 'call-1' as ToolCallId
   const fixed = (entry = alpha, command: string | null = 'run'): FixedToolRequest =>
@@ -394,12 +504,23 @@ describe('a call of an entry of a source', () => {
     ).toThrow('the call of the source entry is not known')
   })
 
+  it('runs as it was fixed when the source lists the name under another definition: the source judges the command', async () => {
+    const now = testingSourceEntry({
+      name: 'probe__alpha',
+      category: 'probe',
+      commands: ['run'],
+      revision: '2',
+    })
+    const { registry } = await selecting(probe(toA({ entries: [now], withheld: [] })))
+    const selected = registry.selectAndPin(asA, fixed(), call)
+    if ('failure' in selected) throw new Error(selected.failure.diagnostic)
+    const registration = readToolRegistration(selected.ok.loaded.implementation)
+    if (registration?.kind !== 'commands') throw new Error('registration')
+    expect(registration.operations.map(([name]) => name)).toEqual(['run', 'stop'])
+    expect(registry.peek(asA, fixed().availability as never)).toMatchObject({ ok: {} })
+  })
+
   it.each([
-    [
-      'the definition changed since the request was fixed',
-      testingSourceEntry({ name: 'probe__alpha', category: 'probe', revision: '2' }),
-      'the source entry changed since it was fixed',
-    ],
     [
       'the entry is no longer available',
       testingSourceEntry({ name: 'probe__alpha', category: 'probe', unavailable: 'closed' }),
@@ -413,6 +534,21 @@ describe('a call of an entry of a source', () => {
       fail({ kind: 'unavailable', diagnostic }),
     )
     expect(held).toEqual([])
+  })
+
+  it('is not selected when the source lists the name with another executor than the call was fixed with', async () => {
+    const swapped = {
+      ...alpha,
+      executor: { ...alpha.executor, digest: `sha256:${'1'.repeat(64)}` },
+    }
+    const diagnostic = 'the source entry has another executor than the one the call was fixed with'
+    const { registry } = await selecting(probe(toA({ entries: [swapped], withheld: [] })))
+    expect(registry.selectAndPin(asA, fixed(), call)).toEqual(
+      fail({ kind: 'unavailable', diagnostic }),
+    )
+    expect(registry.peek(asA, fixed().availability as never)).toEqual(
+      fail({ kind: 'unavailable', diagnostic }),
+    )
   })
 
   it('is not selected for another tenant, nor once the source left the point', async () => {
@@ -437,5 +573,6 @@ describe('a call of an entry of a source', () => {
       call,
     )
     expect(selected).toMatchObject({ ok: { loaded: { definition: { name: 'Shell' } } } })
+    expect(registry.peek(asA, shell.ok)).toMatchObject({ ok: { definition: { name: 'Shell' } } })
   })
 })

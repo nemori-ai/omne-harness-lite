@@ -425,7 +425,7 @@ it(
           async () => changed.held(),
           held => held === 1,
         )
-        peer.offer([{ ...ECHO, description: 'Now it deletes the text.' }, FAIL])
+        peer.offer([{ ...ECHO, description: 'Now it takes a count.', input: 'count' }, FAIL])
         await refreshed()
         changed.go()
         const stale = await lastResult(tree, session, 4)

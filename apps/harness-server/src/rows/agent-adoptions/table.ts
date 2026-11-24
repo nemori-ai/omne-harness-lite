@@ -10,7 +10,10 @@ import {
   type AgentSide,
   type DefinitionMappingEntry,
   type DefinitionMappings,
+  type ResidentReference,
 } from './definition-mappings.ts'
+import { mcpEndpointGates } from '@omne-harness/mcp-contract'
+import { skillBodyContract } from '@omne-harness/skill-contract'
 import type { Adoption } from '@omne-harness/session-contract'
 import type { AgentAdoptionsConfig } from './config.ts'
 
@@ -26,22 +29,38 @@ const candidateKey = (candidate: Adoption): string => canonicalText(candidate)
 /** The category of a tool, as a reference of a definition writes it: the name the tool category is registered under. */
 export const TOOL_CATEGORY = 'tool'
 
-/** The tools a definition keeps resident; a resident reference of another category is kept and plans nothing. */
-export function residentToolsOf(definition: AgentDefinition): readonly string[] {
+/** The categories a definition can keep resident: a tool, a Skill, an MCP endpoint. */
+export const RESIDENT_CATEGORIES: readonly string[] = Object.freeze([
+  TOOL_CATEGORY,
+  skillBodyContract().category,
+  mcpEndpointGates.category,
+])
+
+/** What a definition keeps resident, in its own order; a resident reference of another category plans nothing. */
+export function residentReferencesOf(definition: AgentDefinition): readonly ResidentReference[] {
   return Object.freeze(
     definition.references
       .filter(
-        reference => reference.resident === true && reference.capability.category === TOOL_CATEGORY,
+        reference =>
+          reference.resident === true &&
+          RESIDENT_CATEGORIES.includes(reference.capability.category),
       )
-      .map(reference => reference.capability.name),
+      .map(({ capability }) =>
+        Object.freeze({ category: capability.category, name: capability.name }),
+      ),
   )
 }
 
-function residentCapabilitiesOf(definition: AgentDefinition, at: string): readonly string[] {
+function officialResidentsOf(
+  definition: AgentDefinition,
+  at: string,
+): readonly ResidentReference[] {
   for (const [index, reference] of definition.references.entries())
-    if (reference.resident === true && reference.capability.category !== TOOL_CATEGORY)
-      throw new Error(`${at}.definition.references.${index}: a resident reference must name a Tool`)
-  return residentToolsOf(definition)
+    if (reference.resident === true && !RESIDENT_CATEGORIES.includes(reference.capability.category))
+      throw new Error(
+        `${at}.definition.references.${index}: a resident reference names a tool, a skill or an mcp endpoint`,
+      )
+  return residentReferencesOf(definition)
 }
 
 export async function buildTable(config: AgentAdoptionsConfig): Promise<MappingTable> {
@@ -55,7 +74,7 @@ export async function buildTable(config: AgentAdoptionsConfig): Promise<MappingT
       throw new Error(`${at}.definition: refused (${definition.reason})`)
     if (definition.value.name !== item.name)
       throw new Error(`${at}.definition.name: must equal the definition name "${item.name}"`)
-    const residents = residentCapabilitiesOf(definition.value, at)
+    const residents = officialResidentsOf(definition.value, at)
     const extensions = await judgeLoopExtensions(item.extensions)
     if (extensions.kind === 'refused')
       throw new Error(`${at}.extensions.${extensions.index}: refused (${extensions.reason})`)
@@ -70,7 +89,7 @@ export async function buildTable(config: AgentAdoptionsConfig): Promise<MappingT
         ...(item.initialModelSelection === undefined
           ? {}
           : { initialModelSelection: Object.freeze(item.initialModelSelection) }),
-        ...(residents.length === 0 ? {} : { residentCapabilities: residents }),
+        ...(residents.length === 0 ? {} : { residentReferences: residents }),
       }),
     )
     listings.push(definitionListing(definition.value))

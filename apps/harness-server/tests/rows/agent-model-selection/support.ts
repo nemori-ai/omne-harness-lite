@@ -93,6 +93,7 @@ export const selectInput: SelectInput = {
     model: adoption('model'),
     context: evidenceOf('context'),
     bindings: [],
+    segments: [],
   },
   alterations: [],
 }

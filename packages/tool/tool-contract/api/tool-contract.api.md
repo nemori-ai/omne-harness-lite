@@ -2459,6 +2459,7 @@ export type ToolActionTarget = Readonly<{
 export type ToolCallAction = Readonly<{
     kind: 'own';
     gate: ToolActionGate;
+    capability?: ToolCapabilityIdentity;
 }> | Readonly<{
     kind: 'carried';
     carrier: Readonly<{
