@@ -27,7 +27,7 @@ describe('the parameters of a command', () => {
     const problems = parsed.failure.reason.split('; ')
     expect(problems).toHaveLength(2)
     expect(problems.find(problem => problem.startsWith('reference.kind: '))).toBeDefined()
-    expect(problems.find(problem => /^Unrecognized key/u.test(problem))).toBeDefined()
+    expect(problems.find(problem => problem.startsWith('Unrecognized key'))).toBeDefined()
   })
 
   it('answers params that are not bounded JSON as a failure, without throwing', () => {
