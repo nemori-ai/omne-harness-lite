@@ -121,25 +121,25 @@
 
 ## working-directory
 
-`WorkingDirectory.tla` 检查会话工作目录在更换、步的边界、工具调用的受理与进程重建任意交错下的四条性质。采用的承诺：Session 规格[日志与提交](../../SPEC.md#日志与提交)里会话工作目录的规则，Tool 规格里固定请求钉住工作目录的规则。模型里的耐久事实是会话的选择、块在最近一次步边界提交的值、写给模型的最后一条提醒、每次已受理调用钉住的目录；活体只有持有者的「已告知」，重建时丢。
+`WorkingDirectory.tla` 检查会话工作目录与文件范围在更换、设置改动、步的边界、工具调用的受理与进程重建任意交错下的四条性质。一个值是一对：目录与文件范围；范围由租户的「工作区之外的文件」算出，步前动作读这项设置，两半一起提交。采用的承诺：Session 规格[日志与提交](../../SPEC.md#日志与提交)里会话工作目录的规则，Tool 规格里固定请求钉住工作目录与文件范围的规则。模型里的耐久事实是会话的选择、租户的设置、块在最近一次步边界提交的值、写给模型的最后一条提醒、每次已受理调用钉住的值；活体只有持有者的「已告知」，重建时丢。
 
 | 性质（模型名）    | 含义                                                   | 负控：去掉的规则                                                                                                             |
 | ----------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `PinnedDirectory` | 一次调用执行时用的目录等于它第一次受理时钉住的目录     | `bad-exec-reread` 执行时重新读块；`bad-volatile-pin` 钉住的值不耐久，重建后重新取                                            |
-| `ToldDirectory`   | 一次调用钉住的目录等于模型发出它时被告知的目录         | `bad-live-read` 受理时读最新的选择；`bad-direct-publish` 更换的提交直接改块；`bad-recover-latest` 重建后按最新的选择给块赋值 |
+| `PinnedDirectory` | 一次调用执行时用的值等于它第一次受理时钉住的值         | `bad-exec-reread` 执行时重新读块；`bad-volatile-pin` 钉住的值不耐久，重建后重新取                                            |
+| `ToldDirectory`   | 一次调用钉住的目录与范围等于模型发出它时被告知的那一份 | `bad-live-read` 受理时读最新的选择；`bad-direct-publish` 更换的提交直接改块；`bad-recover-latest` 重建后按最新的选择给块赋值；`bad-accept-reads-setting` 受理时另读设置算范围 |
 | `NoRefusal`       | 没有调用因为没有目录而被答不可用，跨重建也成立         | `bad-volatile-block` 重建时把块丢掉                                                                                          |
-| `ToldAtBoundary`  | 走到模型请求的一步，已经把这一步开始时的选择告知了模型 | `bad-refresh-after-read` 先读变化、后刷新                                                                                    |
+| `ToldAtBoundary`  | 走到模型请求的一步，已经把这一步开始时的选择与设置告知了模型 | `bad-refresh-after-read` 先读变化、后刷新；`bad-stale-reach` 步前只按选择刷新，范围沿用上一次 |
 
 | 配置                                                                 | 预期                                                                                                       |
 | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `working-directory`、`working-directory-wide`                        | 无反例。前者两个目录、两次调用、两次更换、三步、一次重建；后者三个目录、三次调用、三次更换、四步、两次重建 |
-| `bad-live-read`、`bad-direct-publish`、`bad-recover-latest`          | 命中 `ToldDirectory`                                                                                       |
+| `working-directory`、`working-directory-wide`                        | 无反例。前者两个目录、两档、两次调用、两次更换、一次改设置、三步、一次重建；后者三个目录、三档、三次调用、三次更换、两次改设置、四步、两次重建 |
+| `bad-live-read`、`bad-direct-publish`、`bad-recover-latest`、`bad-accept-reads-setting` | 命中 `ToldDirectory`                                                                                       |
 | `bad-volatile-block`                                                 | 命中 `NoRefusal`                                                                                           |
 | `bad-exec-reread`、`bad-volatile-pin`                                | 命中 `PinnedDirectory`                                                                                     |
-| `bad-refresh-after-read`                                             | 命中 `ToldAtBoundary`                                                                                      |
-| `witness-new-directory`、`witness-outlives-switch`、`witness-resume` | 见证：有调用在新目录里执行；有调用在更换之后仍在原目录执行完；有调用还没受理时发生了重建。证明正控不是空转 |
+| `bad-refresh-after-read`、`bad-stale-reach`                          | 命中 `ToldAtBoundary`                                                                                      |
+| `witness-new-directory`、`witness-outlives-switch`、`witness-new-reach`、`witness-outlives-setting`、`witness-resume` | 见证：有调用在新目录里、照新范围执行；有调用在更换或改设置之后仍照原值执行完；有调用还没受理时发生了重建。证明正控不是空转 |
 
-环境假设：一个会话同一时刻只有一个 Run，一个 Run 的步串行；一步的调用都在下一步开始之前受理；一步开始之前的动作失败时这一步不发模型请求。模型检查只说明这些假设与上界之内的设计性质。
+环境假设：一个会话同一时刻只有一个 Run，一个 Run 的步串行；一步的调用都在下一步开始之前受理；一步开始之前的动作失败时这一步不发模型请求；设置可以在任何时刻改。模型检查只说明这些假设与上界之内的设计性质。
 
 ## execution-settlement
 
