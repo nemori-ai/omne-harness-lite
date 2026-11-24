@@ -113,9 +113,12 @@ export function residentEntries(
       out.push(encodeEntry({ kind: 'session.tool-resident-admitted', resident }, originOf(source)))
     }
   }
+  const keyed = new Set(
+    [...known.values()].filter(item => item.definition === undefined).map(item => item.capability),
+  )
   if (
-    [...known.keys()].some(capability => !keys.has(capability)) ||
-    [...keys].some(capability => !known.has(capability))
+    [...keyed].some(capability => !keys.has(capability)) ||
+    [...keys].some(capability => !keyed.has(capability))
   )
     return invalid('residentAdoption.keys', 'keys must cover the complete resident capability set')
   return entries([...out, ...segments.entries])

@@ -20,7 +20,7 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import {
   commandOf,
-  commandText,
+  commandShapeText,
   endpointTool,
   MCP_SOURCE_PREFIX,
   mcpActionExecutor,
@@ -56,6 +56,19 @@ type Row =
   | Readonly<{ kind: 'entry'; entry: ToolSourceEntry; ref: EndpointRef }>
 
 type Listed = Readonly<{ entry: ToolSourceEntry; ref: EndpointRef }>
+
+export type NamedEntry =
+  | Readonly<{ kind: 'entry'; entry: ToolSourceEntry }>
+  | Readonly<{ kind: 'withheld'; reason: string }>
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'unreadable'; reason: string }>
+
+export type McpEntrySource<P> = ToolEntrySource<P, ToolMessageContentBlock> &
+  Readonly<{
+    named(access: Access<P>, name: string): Promise<NamedEntry>
+  }>
+
+const ABSENT: NamedEntry = Object.freeze({ kind: 'absent' })
 /** What a list of actions converts to: the entry, or why the endpoint is withheld. */
 type Converted = ToolSourceEntry | string
 
@@ -134,7 +147,7 @@ async function calling<P>(
       : undefined
   if (known === undefined) return fail(failureText({ kind: 'action-unavailable' }))
   const now = commandOf(known, deps.shape)
-  return 'ok' in now && commandText(now.ok) === commandText(declared)
+  return 'ok' in now && commandShapeText(now.ok) === commandShapeText(declared)
     ? succeed(known)
     : fail(failureText({ kind: 'definition-changed' }))
 }
@@ -165,9 +178,7 @@ async function send<P>(
   return came
 }
 
-export function createMcpEntrySource<P>(
-  deps: McpBridgeDependencies<P>,
-): ToolEntrySource<P, ToolMessageContentBlock> {
+export function createMcpEntrySource<P>(deps: McpBridgeDependencies<P>): McpEntrySource<P> {
   const listed = new Map<string, ReadonlyMap<string, Listed>>()
   const converted = new Map<string, Converted>()
   const acquiring = new Map<string, Promise<Outcome<unknown, OperationFailure>>>()
@@ -227,8 +238,31 @@ export function createMcpEntrySource<P>(
       : withheld(ref, 'the actions of the endpoint have not been acquired')
   }
 
+  async function named(access: Access<P>, name: string): Promise<NamedEntry> {
+    const adopted = await deps.endpoints(access)
+    if ('failure' in adopted)
+      return { kind: 'unreadable', reason: 'the adopted MCP endpoints could not be read' }
+    const refs = adopted.ok.filter(ref => toolName(ref) === name)
+    const row = settled(await Promise.all(refs.map(ref => endpointRow(access, ref)))).get(name)
+    if (row === undefined) return ABSENT
+    if (row.kind === 'withheld') return { kind: 'withheld', reason: row.withheld.reason }
+    const key = askerKey(access)
+    const kept = new Map(listed.get(key) ?? [])
+    kept.set(name, { entry: row.entry, ref: row.ref })
+    keep(listed, key, kept)
+    return { kind: 'entry', entry: row.entry }
+  }
+
+  async function refOf(call: ToolSourceCall<P>): Promise<EndpointRef | undefined> {
+    const known = listed.get(askerKey(call))?.get(call.name)?.ref
+    if (known !== undefined) return known
+    const found = await named(call, call.name)
+    return found.kind === 'entry' ? listed.get(askerKey(call))?.get(call.name)?.ref : undefined
+  }
+
   return {
     prefix: MCP_SOURCE_PREFIX,
+    named,
 
     async list(access) {
       const adopted = await deps.endpoints(access)
@@ -252,7 +286,7 @@ export function createMcpEntrySource<P>(
     select: (access, name) => listed.get(askerKey(access))?.get(name)?.entry,
 
     async execute(call): Promise<BridgeResult> {
-      const ref = listed.get(askerKey(call))?.get(call.name)?.ref
+      const ref = call.declared === null ? undefined : await refOf(call)
       const outcome =
         ref === undefined || call.declared === null
           ? notStarted(call.name, call.command ?? '', failureText({ kind: 'not-available-to-you' }))

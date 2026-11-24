@@ -409,6 +409,7 @@ export function encodeEntry(
       newResidents: entry.initialAdoption.newResidents.map(resident => ({
         ...resident,
         shape: FROM_RESIDENT,
+        ...(resident.definition === undefined ? {} : { definition: FROM_RESIDENT }),
       })),
       ...(newSegments === undefined
         ? {}
@@ -775,7 +776,11 @@ function resolveStored(
         !sameEvidence(holder.admitted, item['admitted'] as DurableEvidence)
       )
         return `session.created: no SE36 of the batch admits ${String(item['capability'])} with the same version and asset digest`
-      named.push({ ...item, shape: holder.shape })
+      named.push({
+        ...item,
+        shape: holder.shape,
+        ...(holder.definition === undefined ? {} : { definition: holder.definition }),
+      })
     }
     const segments = segmentsOf(adoption['newSegments'], references.segments ?? [])
     if (typeof segments === 'string') return segments

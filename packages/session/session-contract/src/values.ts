@@ -33,6 +33,7 @@ export type ResidentTool = Readonly<{
   version: string
   shape: JsonValue
   admitted: DurableEvidence
+  definition?: JsonValue
 }>
 export type ResidentSegment = Readonly<{
   key: string

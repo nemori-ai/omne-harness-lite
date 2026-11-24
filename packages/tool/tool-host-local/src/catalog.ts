@@ -74,6 +74,7 @@ const NO_SOURCES: SourcedCatalogEntries = Object.freeze({
   unavailable: Object.freeze([]),
 })
 const NOT_REGISTERED = 'the tool implementation is not present in the binding registry'
+const NOT_LISTED = 'the source does not list this entry now'
 
 function asked<P>(
   access: Access<P>,
@@ -117,10 +118,28 @@ type Observed = Readonly<{
   sourced: SourcedCatalogEntries
 }>
 
+// A source entry the session keeps resident answers with the definition it took: live while its source lists the name.
+function keptSourced(view: LocalToolCatalogView, sourced: SourcedCatalogEntries, name: string) {
+  const kept = view.entries.find(
+    entry => entry.sourced === true && entry.knownDefinition?.name === name,
+  )
+  if (kept?.knownDefinition === undefined) return undefined
+  const common = { key: kept.key, definition: kept.knownDefinition, resident: kept.resident }
+  const live = sourced.live.find(listing => listing.definition.name === name)
+  if (live !== undefined) return { kind: 'live' as const, executor: live.executor, ...common }
+  const reason =
+    sourced.known.find(entry => entry.definition.name === name)?.reason ??
+    sourced.withheld.find(entry => entry.name === name)?.reason ??
+    NOT_LISTED
+  return { kind: 'known' as const, reason, ...common }
+}
+
 function candidateFor(
   { entries: visible, view, sourced }: Observed,
   name: string,
 ): CatalogCandidate | undefined {
+  const kept = keptSourced(view, sourced, name)
+  if (kept !== undefined) return kept
   const listing = choose(
     visible.map(entry => entry.listing),
     name,
@@ -248,8 +267,22 @@ function chosen(
 }
 
 // The entries of the sources join those of the registry; what they say besides is part of what is compared.
-function withSourced(listed: Observed['entries'], sourced: SourcedCatalogEntries) {
-  const entries = [...listed, ...sourced.live.map(listing => ({ listing, resident: false }))]
+function withSourced(
+  listed: Observed['entries'],
+  sourced: SourcedCatalogEntries,
+  view: LocalToolCatalogView,
+) {
+  const kept = (listing: ToolListing) =>
+    view.entries.some(
+      entry =>
+        entry.sourced === true &&
+        entry.resident &&
+        entry.knownDefinition?.name === listing.definition.name,
+    )
+  const entries = [
+    ...listed,
+    ...sourced.live.map(listing => ({ listing, resident: kept(listing) })),
+  ]
   return {
     entries,
     sourced,
@@ -270,7 +303,7 @@ function liveReader<P>(input: LocalToolCatalogInput<P>) {
     const listed = listingsFor(input.registry, access, observed.ok.view)
     if ('failure' in listed) return listed
     const sourced = (await input.sources?.read(access, names)) ?? NO_SOURCES
-    return succeed({ ...observed.ok, ...withSourced(listed.ok, sourced), names })
+    return succeed({ ...observed.ok, ...withSourced(listed.ok, sourced, observed.ok.view), names })
   }
   const stable = async (
     observed: Readonly<{

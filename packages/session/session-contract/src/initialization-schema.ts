@@ -42,6 +42,9 @@ export type {
   InitializationFactReference,
 } from './values.ts'
 
+const hasOwn = (value: unknown, key: string): boolean =>
+  typeof value === 'object' && value !== null && Object.hasOwn(value, key)
+
 function segment(value: unknown): ResidentSegment {
   const fields = object(value, ['key', 'text', 'sources'])
   return {
@@ -59,17 +62,22 @@ function segment(value: unknown): ResidentSegment {
 }
 
 function resident(value: unknown): ResidentTool {
-  const fields = object(value, ['capability', 'version', 'shape', 'admitted'])
+  const defined = hasOwn(value, 'definition')
+  const fields = object(value, [
+    'capability',
+    'version',
+    'shape',
+    'admitted',
+    ...(defined ? ['definition'] : []),
+  ])
   return {
     capability: text(fields['capability']),
     version: text(fields['version']),
     shape: json(fields['shape']),
     admitted: evidence(fields['admitted']),
+    ...(defined ? { definition: json(fields['definition']) } : {}),
   }
 }
-
-const hasOwn = (value: unknown, key: string): boolean =>
-  typeof value === 'object' && value !== null && Object.hasOwn(value, key)
 
 export function adoptionMaterial(value: unknown, initial: true): InitialAdoption
 export function adoptionMaterial(value: unknown, initial: false): InitializationAdoption

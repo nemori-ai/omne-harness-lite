@@ -2,17 +2,26 @@ import type { Context } from '@deepseek-ai/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { createHash } from 'node:crypto'
 import { capabilityId } from '@omne-harness/assets'
+import type { TenantId } from '@omne-harness/legal-identity'
+import { MCP_SOURCE_PREFIX } from '@omne-harness/mcp-bridge'
+import { mcpEndpointGates } from '@omne-harness/mcp-contract'
+import { residentToolFacts } from '@omne-harness/tool-contract'
 import type {
   DurableEvidence,
   ResidentAdoption,
   ResidentSegment,
+  ResidentTool,
   SessionAccess,
   SessionFailure,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { residentSkillLine, residentSkillsText } from '@omne-harness/skill'
 import { skillBodyContract } from '@omne-harness/skill-contract'
-import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
+import {
+  shapeOf,
+  type ToolAuthority,
+  type ToolSourceEntry,
+} from '@omne-harness/tool-contract/provider'
 import {
   ToolBindingsService,
   ToolGenerationsService,
@@ -23,6 +32,7 @@ import { releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
 import { TOOL_RELEASE_FILE } from '../../entry/tool-release-manifest.ts'
 import type { ResidentReference } from '../agent-adoptions/definition-mappings.ts'
 import { TOOL_CATEGORY } from '../agent-adoptions/table.ts'
+import { ResidentEndpointsService, residentEndpointsKey } from '../mcp/resident-endpoints.ts'
 import { SessionSkillsService, sessionSkillsKey } from '../skills/session-skills.ts'
 import type { Turn } from '../tenant-assets/turn.ts'
 import { currentHeldTool } from '../tool-host/held-current.ts'
@@ -91,7 +101,6 @@ function current<T>(ctx: Context, key: string, kind: abstract new (...args: neve
 /** Says why a resident a definition names is left out of the session: it is not held, or cannot be read now. */
 export type ResidentReport = (reason: string) => void
 
-/** What a session already keeps, so a changed definition only adds to it. */
 export type KeptResidents = Pick<WorkSnapshot, 'residents' | 'segments' | 'residentKeys'>
 
 const NOTHING_KEPT: KeptResidents = Object.freeze({ residents: [], segments: [], residentKeys: [] })
@@ -143,7 +152,6 @@ const SKILL_CATEGORY = skillBodyContract().category
 
 const lineDigest = (line: string) => `sha256:${createHash('sha256').update(line).digest('hex')}`
 
-/** The segment of the resident Skills: the one the session keeps, with a line added for each Skill it does not have yet. */
 async function skillsSegment<P>(
   ctx: Context,
   names: readonly string[],
@@ -190,6 +198,60 @@ async function skillsSegment<P>(
   }
 }
 
+const ENDPOINT_CATEGORY = mcpEndpointGates.category
+
+function sourcedResident(entry: ToolSourceEntry, tenant: TenantId): ResidentTool | string {
+  const { definition } = entry
+  const key = {
+    layer: { kind: 'tenant' as const, tenant },
+    asset: { name: definition.name, adoption: definition.adoption },
+  }
+  const facts = residentToolFacts(key, shapeOf(definition))
+  if ('failure' in facts) return `its definition makes no resident shape (${facts.failure.field})`
+  return {
+    capability: definition.name,
+    version: definition.adoption.digest,
+    shape: facts.ok.shape,
+    admitted: {
+      owner: definition.adoption.owner,
+      record: `${ENDPOINT_CATEGORY}/${entry.capability.name}`,
+      revision: definition.adoption.revision,
+      digest: definition.adoption.digest,
+    },
+    definition: { kind: 'string', value: JSON.stringify(definition) },
+  }
+}
+
+async function plannedEndpoints<P>(
+  ctx: Context,
+  names: readonly string[],
+  access: SessionAccess<P> | undefined,
+  kept: ReadonlySet<string>,
+  report: ResidentReport,
+): Promise<readonly ResidentTool[]> {
+  const endpoints = current(ctx, residentEndpointsKey, ResidentEndpointsService)
+  const out: ResidentTool[] = []
+  for (const name of names) {
+    const tool = `${MCP_SOURCE_PREFIX}${name}`
+    if (kept.has(tool)) continue
+    const said = (why: string) => report(`resident mcp endpoint ${name}: ${why}`)
+    if (endpoints === undefined || access === undefined) {
+      said('the MCP endpoints cannot be read now')
+      continue
+    }
+    const found = await endpoints.named(access as SessionAccess<unknown>, tool)
+    if (found.kind === 'absent') said('this tenant does not hold it')
+    else if (found.kind === 'unreadable') said(`it cannot be read now (${found.reason})`)
+    else if (found.kind === 'withheld') said(`it is withheld (${found.reason})`)
+    else {
+      const resident = sourcedResident(found.entry, access.tenant)
+      if (typeof resident === 'string') said(resident)
+      else out.push(resident)
+    }
+  }
+  return out
+}
+
 /** What a session adopts as resident from the references of its definition, over what it already keeps. */
 export async function plannedResidents<P>(
   ctx: Context,
@@ -207,6 +269,13 @@ export async function plannedResidents<P>(
     turn,
   )
   if ('failure' in tools) return tools
+  const endpoints = await plannedEndpoints(
+    ctx,
+    namesOf(references, ENDPOINT_CATEGORY),
+    access,
+    keptTools,
+    report,
+  )
   const segment = await skillsSegment(
     ctx,
     namesOf(references, SKILL_CATEGORY),
@@ -215,7 +284,7 @@ export async function plannedResidents<P>(
     report,
   )
   return succeed({
-    residents: tools.ok.residents,
+    residents: [...tools.ok.residents, ...endpoints],
     keys: [...(kept.residentKeys ?? []), ...tools.ok.keys],
     ...(segment === undefined ? {} : { segments: [segment] }),
   })

@@ -153,6 +153,35 @@ export function commandText(command: ToolCommandDeclaration): string {
   return JSON.stringify([command.name, command.summary, parameters, command.returns])
 }
 
+/** The shape of a command declaration: its name, parameter contract and returns, without what the peer says of it. */
+export function commandShapeText(command: ToolCommandDeclaration): string {
+  const parameters =
+    command.parameters.kind === 'declared'
+      ? {
+          ...command.parameters.value,
+          schema: writeJsonText(canonical(undescribed(command.parameters.value.schema))),
+        }
+      : null
+  return JSON.stringify(sorted([command.name, parameters, command.returns]))
+}
+
+function sorted(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sorted)
+  if (typeof value !== 'object' || value === null) return value
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, member]) => member !== undefined)
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(([key, member]) => [key, sorted(member)]),
+  )
+}
+
+function undescribed(schema: JsonValue): JsonValue {
+  return schema.kind === 'object'
+    ? { kind: 'object', entries: schema.entries.filter(entry => entry.key !== 'description') }
+    : schema
+}
+
 // The whole description goes on the root of the input schema, where every rendering of the schema
 // shows it; a description the schema had already follows it.
 function described(
