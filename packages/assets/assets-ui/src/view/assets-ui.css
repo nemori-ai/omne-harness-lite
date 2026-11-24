@@ -277,7 +277,6 @@
     display: inline-flex;
     align-items: center;
     gap: var(--omne-space-inline);
-    margin-inline-end: auto;
     color: var(--omne-ink-muted);
   }
 

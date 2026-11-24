@@ -144,38 +144,27 @@ function Choices({
   )
 }
 
-function SwitchValue({
+function SwitchPick({
   title,
-  own,
+  on,
   busy,
-  onSubmit,
+  onPick,
 }: {
   readonly title: string
-  readonly own: boolean | null
+  readonly on: boolean | null
   readonly busy: boolean
-  readonly onSubmit: (on: boolean) => void
+  readonly onPick: (on: boolean) => void
 }): JSX.Element {
-  const [on, setOn] = useState(own)
   return (
-    <div className="assets-setting-value">
-      <label className="assets-setting-switch">
-        <Switch
-          checked={on === true}
-          disabled={busy}
-          onCheckedChange={setOn}
-          aria-label={`${title}：开或关`}
-        />
-        <span>{on === true ? '开' : '关'}</span>
-      </label>
-      <Button
-        disabled={busy || on === null || on === own}
-        onClick={() => {
-          if (on !== null) onSubmit(on)
-        }}
-      >
-        设置
-      </Button>
-    </div>
+    <label className="assets-setting-switch">
+      <Switch
+        checked={on === true}
+        disabled={busy}
+        onCheckedChange={onPick}
+        aria-label={`${title}：开或关`}
+      />
+      <span>{on === true ? '开' : '关'}</span>
+    </label>
   )
 }
 
@@ -312,6 +301,8 @@ function OwnControls({ row, driver }: Props): JSX.Element | null {
   const control = controlFor(view)
   const choices = choicesOf(view, control)
   const [pick, setPick] = useState<string | null>(choices === null ? null : own)
+  const ownOn = ownSwitch(view)
+  const [on, setOn] = useState(ownOn)
   if (view.editable.kind !== 'yes') return null
   const title = view.declaration.title
   const busy = busyOf(row)
@@ -333,12 +324,7 @@ function OwnControls({ row, driver }: Props): JSX.Element | null {
         />
       ) : null}
       {control.kind === 'switch' ? (
-        <SwitchValue
-          title={title}
-          own={ownSwitch(view)}
-          busy={busy}
-          onSubmit={on => driver.setValue(row.key, { kind: 'boolean', value: on })}
-        />
+        <SwitchPick title={title} on={on} busy={busy} onPick={setOn} />
       ) : null}
       {view.kind === 'secret' ? (
         <SecretInput
@@ -348,11 +334,16 @@ function OwnControls({ row, driver }: Props): JSX.Element | null {
         />
       ) : null}
       <Actions row={row} driver={driver}>
-        {choices === null ? null : (
+        {choices === null && control.kind !== 'switch' ? null : (
           <Button
-            disabled={busy || pick === null || pick === own}
+            disabled={
+              busy ||
+              (choices === null ? on === null || on === ownOn : pick === null || pick === own)
+            }
             onClick={() => {
-              if (pick !== null) submitPick(pick)
+              if (choices !== null && pick !== null) submitPick(pick)
+              if (choices === null && on !== null)
+                driver.setValue(row.key, { kind: 'boolean', value: on })
             }}
           >
             设置
