@@ -119,7 +119,7 @@ it(
 )
 
 it(
-  'C3 sibling writes share one parent body and later visits do not repeat it',
+  'C3 parallel siblings keep distinct sources for identical bodies and revisits only add the new version',
   { tags: ['slow'], timeout: 360_000 },
   async () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'guidance-parallel-')))
@@ -129,26 +129,41 @@ it(
     writeFileSync(join(root, 'AGENTS.md'), 'ROOT_55917')
     writeFileSync(join(root, 'src', 'AGENTS.md'), 'SHARED_62585')
     for (const leaf of ['pay', 'docs', 'next'])
-      writeFileSync(join(root, 'src', leaf, 'AGENTS.md'), 'GUIDE_' + leaf)
+      writeFileSync(
+        join(root, 'src', leaf, 'AGENTS.md'),
+        leaf === 'next' ? 'GUIDE_next' : 'GUIDE_SHARED_BYTES_672',
+      )
     const requests: string[] = []
     const script = toolCallsByRequest(body => {
       requests.push(body)
-      const leaves = requests.length === 1 ? ['docs', 'pay'] : requests.length === 2 ? ['next'] : []
+      const step = requests.length
+      if (step === 3) writeFileSync(join(root, 'src', 'pay', 'AGENTS.md'), 'GUIDE_pay_v2')
+      const leaves = [['docs', 'pay'], ['next'], ['pay', 'docs']][step - 1] ?? []
       return leaves.map(leaf => ({
-        id: 'call_' + leaf,
+        id: 'call_' + step + '_' + leaf,
         tool: 'Files',
         arguments: JSON.stringify({
           command: 'write',
           intent: 'write note',
-          params: { path: 'src/' + leaf + '/note.txt', text: 'ok', mode: 'create' },
+          params: { path: 'src/' + leaf + '/note' + step + '.txt', text: 'ok', mode: 'create' },
         }),
       }))
     })
     await onReleaseTree({ script, permission: 'bypass-permissions' }, async tree => {
       await run(tree, await sessionIn(tree, root))
-      expect(requests).toHaveLength(3)
-      for (const marker of ['ROOT_55917', 'SHARED_62585', 'GUIDE_pay', 'GUIDE_docs', 'GUIDE_next'])
-        expect(requests[2]!.split(marker).length - 1, marker).toBe(1)
+      expect(requests).toHaveLength(4)
+      for (const [index, request] of requests.entries()) {
+        expect(request.split('ROOT_55917')).toHaveLength(2)
+        expect(request.split('SHARED_62585')).toHaveLength(index >= 1 ? 2 : 1)
+        expect(request.split('GUIDE_SHARED_BYTES_672')).toHaveLength(index >= 1 ? 3 : 1)
+        expect(request.split('GUIDE_next')).toHaveLength(index >= 2 ? 2 : 1)
+        expect(request.split('GUIDE_pay_v2')).toHaveLength(index >= 3 ? 2 : 1)
+      }
+      for (const [step, leaves] of [['docs', 'pay'], ['next'], ['pay', 'docs']].entries())
+        for (const leaf of leaves)
+          expect(readFileSync(join(root, 'src', leaf, 'note' + (step + 1) + '.txt'), 'utf8')).toBe(
+            'ok',
+          )
     })
   },
 )

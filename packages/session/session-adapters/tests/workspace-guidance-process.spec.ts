@@ -1,7 +1,7 @@
 // @module-tag slow
 import { expect, it } from 'vitest'
 import { spawn } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -52,7 +52,7 @@ function run(phase: 'a' | 'b', standing: string, root: string) {
 it.each(['committed', 'not-submitted'] as const)(
   'C6 OS process B recovers %s guidance after A exits',
   async standing => {
-    const root = await mkdtemp(join(tmpdir(), 'guidance-os-'))
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'guidance-os-')))
     try {
       const a = await run('a', standing, root)
       const b = await run('b', standing, root)

@@ -331,7 +331,10 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   let storage: SqlStorage
   let controls: DoubleControls | null = null
   if (options.storage === 'real') {
-    root = await realpath(options.storageRoot ?? (await mkdtemp(join(tmpdir(), 'journal-real-'))))
+    root =
+      options.storageRoot === undefined
+        ? await realpath(await mkdtemp(join(tmpdir(), 'journal-real-')))
+        : await realpath(options.storageRoot)
     const { realConfig } = await import('./sql-real-config.ts')
     const created = await createRealStorage({
       config: realConfig(join(root, 'storage')),
