@@ -95,7 +95,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.omne-paper-page:not(.omne-paper-pile) > .omne-paper-name > :is(.omne-paper-handle, .omne-paper-name-text) {
+.omne-paper-page:not(.omne-paper-pile)
+  > .omne-paper-name
+  > :is(.omne-paper-handle, .omne-paper-name-text) {
   min-width: 2em;
 }
 .omne-paper-count {
@@ -261,6 +263,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .omne-paper-surface,
+  .omne-paper-name *,
   .omne-paper-handle,
   .omne-paper-corner,
   .omne-paper-quiet,
