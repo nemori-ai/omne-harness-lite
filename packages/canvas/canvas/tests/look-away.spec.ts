@@ -122,6 +122,16 @@ describe('the limit of taken records', () => {
       expect(heard).toEqual([])
     })
 
+    it('the next thing really taken drops the oldest down to the new limit at once', async () => {
+      const store = createMemoryStore()
+      const before = await placed(['a', 'b', 'c', 'd'], { store })
+      await take(before, ['i1', 'i2', 'i3'])
+      const w = world({ store, config: { limits: { ...CONFIG.limits, away: 2 } } })
+      w.kinds.declare(kind('media.object'))
+      expect(await take(w, ['i4'])).toMatchObject({ kind: 'done' })
+      expect(await ids(w)).toEqual(['d', 'c'])
+    })
+
     it('a batch that takes one thing on the sheet is a change, though the rest were taken', async () => {
       const { w } = await lowered()
       const put = await w.canvas.place(w.ctx, {
