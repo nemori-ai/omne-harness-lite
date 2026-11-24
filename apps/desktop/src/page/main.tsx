@@ -12,7 +12,7 @@ import { adoptChanges, tokenOf, tokensOf } from './shell/changes-sheet.ts'
 import { shellPlugin } from './shell/service.ts'
 import { storedFloatPlaces } from './shell/float-place.ts'
 import { Shell } from './shell/shell.tsx'
-import { bindSizeKeys, storedSizePreference } from './shell/size.ts'
+import { storedSizePreference } from './shell/size.ts'
 import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
 import { storedThemePreference } from './shell/theme.ts'
 import { markWindowChrome } from './shell/window-chrome.ts'
@@ -31,7 +31,6 @@ async function main(): Promise<void> {
   if (element === null) return
   markWindowChrome(document.documentElement, navigator.userAgent)
   const size = createSizeController(storedSizePreference(() => window.localStorage))
-  bindSizeKeys(window, size, /Mac/.test(navigator.platform) ? 'mac' : 'other')
   const bridge = await connectPageBridge(httpChannel(window.location.origin))
   const watched = watchConnectivity(bridge.transport)
   const state = createShellState(shellLogin(bridge), {

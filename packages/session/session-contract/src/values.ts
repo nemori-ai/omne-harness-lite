@@ -167,6 +167,7 @@ export type RoutedInput =
       origin: DurableEvidence
       source: InputSourceName
       wake?: boolean
+      afterRun?: true
     }>
   | Readonly<{
       kind: 'card-decision'
@@ -458,6 +459,7 @@ export type WorkSnapshot = Readonly<{
   uncountedInputs?: readonly InputId[]
   /** Pending inputs that cannot start a Run on their own; they go in with the next batch. */
   quietInputs?: readonly InputId[]
+  deferredInputs?: readonly Readonly<{ input: InputId; run: RunId | null }>[]
   /** Inputs delivered to the model view since the last assistant message. */
   deliveredTail?: readonly InputId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]

@@ -1,0 +1,37 @@
+{
+  "name": "@omne-harness/slash-command",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Slash command implementation: the list asked of every entry source, and later the resolver; no Cordis",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/slash-command-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/legal-identity": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

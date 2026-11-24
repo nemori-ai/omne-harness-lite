@@ -14,6 +14,7 @@ export const OWNERS = Object.freeze({
   clock: 'sessionClock',
   admission: 'sessionAdmission',
   sources: 'sessionInputSources',
+  resolver: 'sessionUtteranceResolver',
 } as const)
 export type Owner = (typeof OWNERS)[keyof typeof OWNERS]
 

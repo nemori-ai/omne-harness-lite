@@ -29,6 +29,8 @@ import type {
   TargetTenantPrincipals,
 } from './ports.ts'
 import { createRequestDrain } from './request-drain.ts'
+import { createOperationPerformer } from './command-operations.ts'
+import { describedBy } from './answers.ts'
 import { admitRequest } from './send-input.ts'
 
 export type SessionCreateInput = Parameters<SessionManagement<Principal>['create']>[0]
@@ -70,6 +72,7 @@ function facesOf(
       create: creation => management.create(prepare === undefined ? creation : prepare(creation)),
       interrupt: urgent => management.interrupt(urgent),
       change: declared => management.change(declared),
+      recordCommand: given => management.recordCommand(given),
     },
     work,
     history,
@@ -91,6 +94,11 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
       })
       const principals = input.principals(ctx)
       const faces = () => facesOf(ctx, input.prepareCreation)
+      const perform = createOperationPerformer({
+        factOf: principal => describedBy(input.facts, principal),
+        modes: () => input.permissionModes?.(ctx),
+        targets: () => input.modelTargets?.(ctx),
+      })
       const opening = input.journal(settings)
       let drain: ReturnType<typeof createRequestDrain> | undefined
       ctx.effect(() => async () => {
@@ -102,7 +110,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
       if (ctx.fiber.uid === null) return
       const requests = createRequestDrain({
         journal,
-        admit: request => admitRequest({ principals, facts: input.facts, faces }, request),
+        admit: request => admitRequest({ principals, facts: input.facts, faces, perform }, request),
         limit: settings.requestQueueLimit,
         retryDelaysMs: settings.requestRetryDelaysMs,
       })

@@ -50,6 +50,7 @@ it('exports exactly the message runtime names, with no mint function and no part
     'judgeMessage',
     'judgePart',
     'messageIdEquals',
+    'originHeader',
     'parseMessageId',
     'parseRecordEntryRef',
     'projectMessage',

@@ -45,6 +45,7 @@ const documentedPairs = {
   sessionHistoryLogKey: 'SessionHistoryLogService',
   sessionSearchCursorsKey: 'SessionSearchCursorsService',
   sessionSearchKey: 'SessionSearchService',
+  sessionUtteranceResolverKey: 'SessionUtteranceResolverService',
 } as const
 
 const documentedKeys = {
@@ -77,6 +78,7 @@ const documentedKeys = {
   sessionExecutionLogKey: 'sessionExecutionLog',
   sessionInputSourcesKey: 'sessionInputSources',
   sessionBeforeIntakeKey: 'sessionBeforeIntake',
+  sessionUtteranceResolverKey: 'sessionUtteranceResolver',
   sessionDerivedInputsKey: 'sessionDerivedInputs',
   sessionHistoryIndexKey: 'sessionHistoryIndex',
   sessionHistoryLogKey: 'sessionHistoryLog',

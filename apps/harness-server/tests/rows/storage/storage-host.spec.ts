@@ -98,6 +98,7 @@ describe('materials (acceptance 4)', () => {
       ['001-identity', []],
       ['002-governance', ['001-identity']],
       ['003-standing', ['002-governance']],
+      ['004-preference', ['003-standing']],
     ])
     const governance = catalog.readHandlers.find(item => item.handler === 'identity.governance')
     expect(governance?.maxOutputBytes).toBe(1048576)

@@ -27,6 +27,7 @@ import {
   otherTenantText,
   ownLoginId,
   sessionId,
+  defaultAnswer,
   NOT_OFFERED,
   startFakeService,
   tenantText,
@@ -493,6 +494,66 @@ describe('session commands', () => {
     expect(body.message.blocks.map(block => block.text)).toEqual(['-5 apples'])
   })
 
+  it('send-input reads the list when the words have a slash, sends what they name, and writes it on the receipt', async () => {
+    const catalog = {
+      entries: [
+        { full: 'skill:review', space: 'skill', name: 'review', kind: 'reference', title: '评审' },
+      ],
+      missing: [],
+    }
+    const service = await serve(seen =>
+      seen.operation === 'read-catalog'
+        ? { outcome: 'succeeded', body: catalog }
+        : defaultAnswer(seen),
+    )
+    await loginOwningSession(service)
+    const named = await cli(['send-input', '--session', sessionId, '--text', '用 /review 看'])
+    expect(service.seen.at(-2)?.path).toBe('/api/slash-command/v1/read-catalog')
+    expect(service.seen.at(-1)?.body).toMatchObject({
+      seen: { command: null, references: ['skill:review'] },
+    })
+    expect((parsed(named.stdout)['request'] as Record<string, string>)['seen']).toBe(
+      '{"command":null,"references":["skill:review"]}',
+    )
+    const before = service.seen.length
+    const plain = await cli(['send-input', '--session', sessionId, '--text', '没有斜杠'])
+    expect(service.seen.length).toBe(before + 1)
+    expect(service.seen.at(-1)?.body).toMatchObject({ seen: { command: null, references: [] } })
+    expect((parsed(plain.stdout)['request'] as Record<string, string>)['seen']).toBe(
+      '{"command":null,"references":[]}',
+    )
+  })
+
+  it('send-input sends no view when the list cannot be read, and says so on the receipt', async () => {
+    const service = await serve(seen =>
+      seen.operation === 'read-catalog' ? { outcome: 'denied', body: {} } : defaultAnswer(seen),
+    )
+    await loginOwningSession(service)
+    const result = await cli(['send-input', '--session', sessionId, '--text', '/nope'])
+    expect(service.seen.at(-1)?.body).not.toHaveProperty('seen')
+    expect((parsed(result.stdout)['request'] as Record<string, string>)['seen']).toBe('unknown')
+  })
+
+  it('send-input --after-run asks to wait for the run going on; an urgent input takes no such switch', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    await cli(['send-input', '--session', sessionId, '--text', 'next thing', '--after-run'])
+    expect(service.seen.at(-1)?.body).toMatchObject({ afterRun: 'yes' })
+    await cli(['send-input', '--session', sessionId, '--text', 'now'])
+    expect(service.seen.at(-1)?.body).not.toHaveProperty('afterRun')
+    const before = service.seen.length
+    const urgent = await cli([
+      'interrupt-input',
+      '--session',
+      sessionId,
+      '--text',
+      'x',
+      '--after-run',
+    ])
+    expect(urgent.code).toBe(2)
+    expect(service.seen).toHaveLength(before)
+  })
+
   it('interrupt-input sends the same body as send-input to the urgent operation (C27)', async () => {
     const service = await serve()
     await loginOwningSession(service)
@@ -631,6 +692,15 @@ describe('session commands', () => {
       session: sessionId,
       inputId: 'input-1',
     })
+  })
+
+  it('list-commands reads the list of one session over slash-command/1', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const listed = await cli(['list-commands', '--session', sessionId])
+    expect(listed.stderr).toBe('')
+    expect(service.seen.at(-1)?.path).toBe('/api/slash-command/v1/read-catalog')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: sessionId })
   })
 
   it('the reads refuse a limit that is not a page limit and a fate without its input, and send nothing', async () => {

@@ -2,6 +2,7 @@ import { modelProtocol } from '@omne-harness/model-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import { sessionProtocol, userMessage, type SessionProtocol } from '@omne-harness/session-protocol'
+import { slashCommandProtocol } from '@omne-harness/slash-command-protocol'
 import type { BodyOf } from '@omne-harness/sdk/core'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
@@ -31,6 +32,7 @@ import { openLink, type CallResult, type Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
+import { seenOf } from './sender-view.ts'
 import { assetCommand } from './asset-command.ts'
 import { settingCommand } from './setting-command.ts'
 import { calendarCommand } from './calendar-command.ts'
@@ -326,6 +328,7 @@ type InputCommand = ExistingCommand<
     model: string | undefined
     acceptId: string | undefined
     inputId: string | undefined
+    afterRun: boolean
   }
 >
 
@@ -345,6 +348,7 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
   ],
   required: ['--session'],
   repeatable: ['--attach'],
+  ...(name === 'send-input' ? { switches: ['--after-run'] } : {}),
   parse: (values, lists) => {
     const target = targeted(values)
     const model = values.get('--model')
@@ -360,6 +364,7 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
       model,
       acceptId: values.get('--accept-id'),
       inputId: values.get('--input-id'),
+      afterRun: values.has('--after-run'),
     }
   },
   target: ({ session, tenant }) => ({ session, tenant }),
@@ -370,6 +375,12 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
     const { session, model } = parsed
     let unselected = false
     let refused: string | null = null
+    const echo: Record<string, string> = {
+      messageId,
+      acceptId,
+      inputId,
+      tenant: encodeTenantText(tenant),
+    }
     return {
       // Every file is read before anything is sent; then each is uploaded, a model is selected
       // under a control identity the accept identity gives, and the message goes last.
@@ -393,14 +404,24 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
         }
         const { attachments } = attached
         const message = await userMessage({ inputId, text: parsed.text, attachments })
+        const seen = await seenOf(link, { tenant, session }, parsed.text, newId())
+        echo.seen = seen === null ? 'unknown' : JSON.stringify(seen)
         return link.call(
           sessionProtocol,
           name,
-          { tenant, session, acceptId, inputId, message },
+          {
+            tenant,
+            session,
+            acceptId,
+            inputId,
+            message,
+            ...(seen === null ? {} : { seen }),
+            ...(parsed.afterRun ? { afterRun: 'yes' as const } : {}),
+          },
           messageId,
         )
       },
-      echo: { messageId, acceptId, inputId, tenant: encodeTenantText(tenant) },
+      echo,
       note: () => {
         if (refused !== null)
           return `the attachment ${refused} was not taken; the input was not sent`
@@ -498,6 +519,22 @@ const sessionRead = (name: SessionRead): ExistingCommand<ModeTarget> => ({
 })
 
 const readPermissionMode = sessionRead('read-permission-mode')
+
+const listCommands: ExistingCommand<ModeTarget> = {
+  kind: 'existing',
+  name: 'list-commands',
+  accepted: ['--session', '--tenant', serverOption],
+  required: ['--session'],
+  parse: modeTarget,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: ({ session }, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link => link.call(slashCommandProtocol, 'read-catalog', { tenant, session }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
 
 const POSITION = /^(0|[1-9][0-9]*)$/u
 const DEFAULT_PENDING_LIMIT = 50
@@ -843,6 +880,13 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id> [--after <position>] [--limit <n>]',
     summary: 'List the inputs a session accepted that no run took yet, the oldest first.',
     run: (args, output, environment) => runSession(readPending, args, output, environment),
+  },
+  {
+    name: 'list-commands',
+    usage: '--session <id>',
+    summary:
+      'List what a session can name now: its Skills, prompt commands and system commands, and the sources it could not ask.',
+    run: (args, output, environment) => runSession(listCommands, args, output, environment),
   },
   {
     name: 'read-waiting-calls',

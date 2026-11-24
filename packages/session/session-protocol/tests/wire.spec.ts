@@ -219,11 +219,22 @@ describe('outcome bodies', () => {
     },
   )
 
+  it('a refused input may say which field and why, from revision 3', () => {
+    for (const name of ['send-input', 'interrupt-input'] as const) {
+      const codec = sessionProtocol.operations[name].outcomes.invalid
+      expect(
+        expectRoundTrip(codec, { field: 'value.message', reason: 'no such command: /nope' }),
+      ).toEqual({ field: 'value.message', reason: 'no such command: /nope' })
+      expect(readNew(codec, { reason: 3 })).toEqual({ ok: false })
+    }
+  })
+
   it('every other outcome with a codec has an empty body, as before', () => {
     for (const name of operations)
       for (const [outcome, codec] of Object.entries(sessionProtocol.operations[name].outcomes)) {
         if (outcome === 'succeeded' || outcome === 'limited' || codec === true) continue
         expect(expectRoundTrip(codec, {})).toEqual({})
+        if (outcome === 'invalid' && (name === 'send-input' || name === 'interrupt-input')) continue
         expect(readNew(codec, { reason: 'x' })).toEqual({ ok: false })
       }
   })

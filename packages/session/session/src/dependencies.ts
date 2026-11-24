@@ -2,6 +2,7 @@ import type {
   AgentDrivePort,
   InputSources,
   IntakeProcessor,
+  UtteranceResolver,
   ScopeReleasePort,
   SessionAccessCheck,
   SessionCallControl,
@@ -37,6 +38,8 @@ export type SessionDependencies<P> = Readonly<{
   /** The processors before intake, read at every intake; null: no list and none declared. */
   admission: Current<readonly IntakeProcessor<P>[]>
   sources: Current<InputSources>
+  /** The resolver of a member's words; absent here or declared 'none': no resolving. */
+  resolver?: Current<UtteranceResolver<P> | 'none'>
 }>
 
 export class SessionDependencyError extends Error {

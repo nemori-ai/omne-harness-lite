@@ -30,6 +30,11 @@ export class SessionWorkspaces {
     }
   }
 
+  /** The driver held for a scope now, if some view holds it; it makes none. */
+  peek(scope: string): SessionDriver | undefined {
+    return this.#held.get(scope)?.driver
+  }
+
   #create(scope: string, tenant: TenantId): Held {
     const driver = new SessionDriver({ ...this.#deps, tenant })
     driver.loadList()

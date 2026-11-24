@@ -115,8 +115,8 @@ describe('contribute', () => {
     it('answers the same whichever module was loaded first', async () => {
       const forward = await startShell()
       const backward = await startShell()
-      const first = (ctx: Context): void => ctx.shell.contribute('pages', page('chat'))
-      const second = (ctx: Context): void => ctx.shell.contribute('pages', page('chat'))
+      const first = (ctx: Context): void => void ctx.shell.contribute('pages', page('chat'))
+      const second = (ctx: Context): void => void ctx.shell.contribute('pages', page('chat'))
       await place(forward.root, 'a', first)
       await place(forward.root, 'b', second)
       await place(backward.root, 'b', second)
@@ -262,8 +262,10 @@ describe('contribute', () => {
   it('orders two attached items of one order and id by the name of their place, whoever came first', async () => {
     const forward = await startShell()
     const backward = await startShell()
-    const one = (ctx: Context): void => ctx.shell.contribute('attached', attached('same', 'test.b'))
-    const two = (ctx: Context): void => ctx.shell.contribute('attached', attached('same', 'test.a'))
+    const one = (ctx: Context): void =>
+      void ctx.shell.contribute('attached', attached('same', 'test.b'))
+    const two = (ctx: Context): void =>
+      void ctx.shell.contribute('attached', attached('same', 'test.a'))
     await place(forward.root, 'x', one)
     await place(forward.root, 'y', two)
     await place(backward.root, 'y', two)
