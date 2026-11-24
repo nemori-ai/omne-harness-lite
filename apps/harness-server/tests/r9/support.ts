@@ -412,6 +412,7 @@ export function operatorLayer(options: {
   shutdownDeadlineMs?: number
   modelRoute?: string
   maxJsonDepth?: number
+  maxJsonMembers?: number
   exaEndpoint?: string
 }): unknown {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
@@ -426,6 +427,7 @@ export function operatorLayer(options: {
           closeDeadlineMs: deadline - 1000,
           maxResponseBytes: 1_048_576,
           maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
+          maxJsonMembers: options.maxJsonMembers ?? releaseMaxJsonMembers(),
         }),
       },
       {
@@ -583,6 +585,13 @@ export function releaseMaxJsonDepth(): number {
   const depth = releaseRowConfig('storage')['maxJsonDepth']
   if (typeof depth !== 'number') throw new Error('the release storage row gives no maxJsonDepth')
   return depth
+}
+
+export function releaseMaxJsonMembers(): number {
+  const members = releaseRowConfig('storage')['maxJsonMembers']
+  if (typeof members !== 'number')
+    throw new Error('the release storage row gives no maxJsonMembers')
+  return members
 }
 
 export function writeOperator(path: string, layer: unknown): void {

@@ -14,7 +14,8 @@
       "id": "storage",
       "plugin": "storageRow",
       "config": {
-        "maxJsonDepth": 128
+        "maxJsonDepth": 128,
+        "maxJsonMembers": 131072
       }
     },
     {
