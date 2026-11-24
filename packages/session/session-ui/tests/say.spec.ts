@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BUSY, NO_WORDS, sayFate, type Said } from '../src/model/say.ts'
+import { sayFate, type Said } from '../src/model/say.ts'
 import { SessionDriver } from '../src/model/session-driver.ts'
 import {
   INITIAL,
@@ -247,6 +247,10 @@ describe('结局是对状态的一次读', () => {
     })
   })
 
+  it('还没有，状态上没有那一句：没发出，原因是没有建成会话', () => {
+    expect(sayFate(INITIAL, SAID_NEW)).toEqual({ kind: 'failed', reason: '没有建成会话。' })
+  })
+
   it('还没有，是说给已有会话的：不知道', () => {
     expect(sayFate(INITIAL, SAID_S)).toEqual({ kind: 'unknown' })
   })
@@ -288,6 +292,34 @@ describe('结局是对状态的一次读', () => {
     expect(sayFate(notCommitted, SAID_S)).toEqual({
       kind: 'failed',
       reason: '已确认：这条消息没有被受理。可以重新发送。',
+    })
+  })
+
+  it('已打开，这条输入上没有那一句：没发出，原因是这句话没有发出', () => {
+    const bare = (status: 'refused' | 'not-committed'): State => {
+      const open = asOpen(answered('frozen'))
+      return { ...open, inputs: open.inputs.map(input => ({ ...input, status, notice: null })) }
+    }
+    expect(sayFate(bare('refused'), SAID_S)).toEqual({ kind: 'failed', reason: '这句话没有发出。' })
+    expect(sayFate(bare('not-committed'), SAID_S)).toEqual({
+      kind: 'failed',
+      reason: '这句话没有发出。',
+    })
+  })
+
+  it('已打开，待定的输入不止一条：各按自己的受理标识认回', () => {
+    const earlier: Words = { text: '先说的', acceptId: 'a0', inputId: 'i0', messageId: 'msg_w' }
+    const both = run(sending, say(TO_S, earlier), {
+      kind: 'send-answered',
+      session: S,
+      acceptId: 'a0',
+      answer: { outcome: 'succeeded' } as never,
+    }).state
+    expect(asOpen(both).inputs.map(input => input.acceptId)).toEqual(['a1', 'a0'])
+    expect(sayFate(both, SAID_S)).toBeNull()
+    expect(sayFate(both, { to: TO_S, acceptId: 'a0', messageId: 'msg_w' })).toEqual({
+      kind: 'sent',
+      session: S,
     })
   })
 
@@ -364,7 +396,7 @@ describe('驱动器的 say', () => {
     const { fake, driver } = started()
     await expect(driver.say({ kind: 'new' }, '   ')).resolves.toEqual({
       kind: 'failed',
-      reason: NO_WORDS,
+      reason: '没有字，没有发出。',
     })
     expect(fake.calls).toEqual([])
   })
@@ -375,11 +407,11 @@ describe('驱动器的 say', () => {
     await fake.next('create-session')
     await expect(driver.say({ kind: 'session', session: S }, '你好')).resolves.toEqual({
       kind: 'failed',
-      reason: BUSY,
+      reason: '正在建另一个会话，这句话没有交出去。',
     })
     await expect(driver.say({ kind: 'new' }, '你好')).resolves.toEqual({
       kind: 'failed',
-      reason: BUSY,
+      reason: '正在建另一个会话，这句话没有交出去。',
     })
     expect(fake.calls.map(call => call.operation)).toEqual(['create-session'])
   })
@@ -411,7 +443,10 @@ describe('驱动器的 say', () => {
   it('已经收掉的驱动器：答没发出，什么都不发', async () => {
     const { fake, driver } = started()
     driver.dispose()
-    await expect(driver.say({ kind: 'new' }, '你好')).resolves.toMatchObject({ kind: 'failed' })
+    await expect(driver.say({ kind: 'new' }, '你好')).resolves.toEqual({
+      kind: 'failed',
+      reason: '已经退出，这句话没有交出去。',
+    })
     expect(fake.calls).toEqual([])
   })
 })

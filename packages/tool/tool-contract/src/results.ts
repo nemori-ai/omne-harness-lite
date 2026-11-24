@@ -166,9 +166,10 @@ export type ToolState = Readonly<{
         ))
   )
 export type ToolRelation = Readonly<{ relation: 'foreground' | 'background' }>
+/** A call in the background waits on nothing, or on an ask whose contract declares it may wait in the background. */
 export type ActiveRelation =
   | Readonly<{ relation: 'foreground'; wait: WaitState }>
-  | Readonly<{ relation: 'background'; wait: Readonly<{ kind: 'none' }> }>
+  | Readonly<{ relation: 'background'; wait: Extract<WaitState, { kind: 'none' | 'ask' }> }>
 export type ResultPage<B extends ContentBlock> = Readonly<{
   result: ToolResultVersion
   terminal: ToolTerminal

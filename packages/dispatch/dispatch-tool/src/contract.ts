@@ -80,6 +80,8 @@ const defined = defineToolWaitContract<ReportWaitResponse, 'ask'>({
       'A tool waits for the outcome of one dispatch: its report, its failure or its withdrawal.',
   }),
   expiry: 'forbidden',
+  // A dispatching call waits for its report from the background: nobody answers it but the dispatch.
+  background: 'waits',
   request: valueSchema<ReportWaitRequest>('request', requestDocument, 1024),
   response: valueSchema<ReportWaitResponse>('response', responseDocument, WAIT_RESPONSE_MAX_BYTES),
 })

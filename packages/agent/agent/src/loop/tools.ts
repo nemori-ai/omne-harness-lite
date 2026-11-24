@@ -23,6 +23,7 @@ import {
   type Failure,
   type Material,
   type PendingCall,
+  type Waiting,
   type ProducedResult,
   type ReceivedEntry,
   type StepId,
@@ -416,6 +417,10 @@ export function openToolCalls(batch: ActionBatch): readonly PendingCall[] {
   })
 }
 
+export function producerWaits(calls: readonly PendingCall[]): Waiting[] {
+  return calls.map(pending => ({ kind: 'producer', pending }))
+}
+
 export function toolCallOf<P>(access: Access<P>, pending: AssociatedToolCall): ToolCallId {
   return minted(resolveToolInvocationRef(pending.reference, access.tenant)).call
 }
@@ -721,6 +726,16 @@ export function refusedTool(
   return {
     calls: at.calls.filter(call => call.kind !== 'tool' || call.action !== action),
     voided: [...at.voided, { ...record, basis }],
+  }
+}
+
+export function dispatchedSlot(action: Action) {
+  return {
+    kind: 'dispatched' as const,
+    action: action.id,
+    each: null,
+    candidateDigest: null,
+    handoff: null,
   }
 }
 

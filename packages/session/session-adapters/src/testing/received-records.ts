@@ -25,7 +25,12 @@ import {
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
 import { needClosed, needUnder, peekClosed, type ClosedTable } from './closed-items.ts'
-import { journalEvidence, revisionOf } from './journal-values.ts'
+import {
+  journalEvidence,
+  PRESERVED_MATERIAL,
+  RECEIVED_MATERIAL,
+  revisionOf,
+} from './journal-values.ts'
 import type { Stored } from './material-table.ts'
 
 // What a core keeps of a received delivery, and how it reads that back from a closed result.
@@ -81,8 +86,6 @@ function block<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>): T {
   return structuredClone(value) as T
 }
 
-const RECEIVED_MATERIAL = 'received-material'
-
 // A material source names the execution that keeps it; a received one names its consumption too.
 export const receivedMaterialSource = (
   namespace: string,
@@ -101,8 +104,6 @@ export const receivedMaterialSource = (
     ]),
     1,
   )
-
-const PRESERVED_MATERIAL = 'material'
 
 export const preservedSource = (
   namespace: string,

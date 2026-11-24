@@ -9,7 +9,16 @@ import {
   toolCallsByRequest,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
-import { DISPATCHED, answered, call, registryAs, reminders, settled } from './release-support.ts'
+import {
+  DISPATCHED,
+  answered,
+  call,
+  outcomesOf,
+  registryAs,
+  reminders,
+  settled,
+  settledWhen,
+} from './release-support.ts'
 
 const OPTIONS = {
   permission: 'bypass-permissions',
@@ -101,6 +110,8 @@ describe('messages between agents on the release tree', () => {
       const relay = (body: string, level: string, next: string) => {
         if (!answered(body)) return [delegate(`c_${level}`, next)]
         if (body.includes(`c_${level}_report`)) return []
+        // The dispatch starts in the background: report once its outcome has come back.
+        if (!body.includes('This is background call')) return []
         const said = /too-deep[^"\\]*/u.exec(body)?.[0] ?? 'no refusal seen'
         return [
           call(`c_${level}_report`, 'report', { text: `${level} heard: ${said.slice(0, 60)}` }),
@@ -139,9 +150,9 @@ describe('messages between agents on the release tree', () => {
       })
       const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
         const top = await tree.startSession('agents: chain')
-        const chained = await settled(tree, top)
-        expect(chained.results).toContain('done Agents dispatch')
-        expect(chained.results).toMatch(
+        const chained = await outcomesOf(tree, top, 1)
+        expect(chained).toContain('done Agents dispatch')
+        expect(chained).toMatch(
           /"report":"one heard: too-deep: this session is at the deepest layer/u,
         )
         const registry = await registryAs(tree, top)
@@ -152,7 +163,7 @@ describe('messages between agents on the release tree', () => {
         expect(await (await registryAs(tree, second.session)).made()).toEqual([])
 
         const owner = await tree.startSession('agents: handoff')
-        const handed = await settled(tree, owner)
+        const handed = { results: await outcomesOf(tree, owner, 3) }
         expect(handed.results).toContain(
           'unknown-agent: no such agent definition for this tenant; see targets',
         )
@@ -175,7 +186,10 @@ describe('messages between agents on the release tree', () => {
         ).toBe(true)
 
         await say(tree, owner, 'agents: relations')
-        const related = await settled(tree, owner, 2)
+        // The words may join the run that still takes the outcomes in: wait for their answer, not for a count of runs.
+        const related = await settledWhen(tree, owner, 'the relations', seen =>
+          seen.results.includes('{"sessions":[],"next":null,"complete":true}'),
+        )
         expect(related.results).toMatch(
           new RegExp(
             `"session":"${handoff.session}","title":[^{}]*"relation":"handed-off","attendance":"attended","definition":"coding"`,

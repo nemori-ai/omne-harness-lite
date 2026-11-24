@@ -6,15 +6,15 @@ import { UNAVAILABLE, read, sessionId } from './support.ts'
 
 const NONE: PortRead<ContextMoment> = read({ kind: 'none' })
 
-/** The moment of a spawn is the point Session names for the dispatching session now: the dispatching call
- * runs inside a step, so that point is what the model was given for the request that made the call. */
+/** The moment of a spawn is the point Session names before the asking message: what the model was given for the
+ * request that made the call, however far the dispatching session has gone on since. */
 export function createContextCopies(calls: Pick<SessionCalls, 'forkPoint'>): ContextCopies {
   return {
-    async moment(tenant, dispatcher): Promise<PortRead<ContextMoment>> {
+    async moment(tenant, dispatcher, asking): Promise<PortRead<ContextMoment>> {
       const legal = legalTenantOf(tenant)
-      if (legal === undefined) return NONE
+      if (legal === undefined || asking === null) return NONE
       const point = await calls
-        .forkPoint({ tenant: legal, session: sessionId(dispatcher) })
+        .forkPoint({ tenant: legal, session: sessionId(dispatcher), asking })
         .catch(() => UNAVAILABLE)
       if (point.kind !== 'read') return UNAVAILABLE
       if (point.value === null) return NONE

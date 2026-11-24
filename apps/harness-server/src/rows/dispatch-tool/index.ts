@@ -40,7 +40,7 @@ function bridgeOf(ctx: Context, system: unknown) {
       const dispatching = ctx.get(dispatchingKey)
       if (text === undefined || dispatching === undefined) return UNAVAILABLE
       const shown = await dispatching.show(
-        { tenant: text, subject: system, session: NO_SESSION },
+        { tenant: text, subject: system, session: NO_SESSION, asking: null },
         id,
       )
       if (shown.kind === 'done') return { kind: 'read', value: shown.value }

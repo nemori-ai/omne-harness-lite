@@ -64,6 +64,18 @@ describe('浮着的一项的位置', () => {
     })
   })
 
+  it('只有一个方向放不下时只夹那个方向，另一个方向原样', () => {
+    const place: FloatPlace = { x: { from: 'start', gap: 600 }, y: { from: 'end', gap: 500 } }
+    expect(kept(place, { width: 400, height: 800 }, ITEM)).toEqual({
+      x: { from: 'start', gap: 300 },
+      y: { from: 'end', gap: 500 },
+    })
+    expect(kept(place, { width: 1000, height: 300 }, ITEM)).toEqual({
+      x: { from: 'start', gap: 600 },
+      y: { from: 'end', gap: 240 },
+    })
+  })
+
   it('这一项比窗口还大时贴着它靠的那个角，距离不为负', () => {
     const small = { width: 80, height: 40 }
     expect(kept(DEFAULT_PLACE, small, ITEM)).toEqual({
@@ -98,6 +110,14 @@ describe('记在本机的位置', () => {
     expect(places.read('pet')).toEqual(place)
     expect(places.read('other')).toBeUndefined()
     expect([...held.keys()]).toEqual(['omne.float.pet'])
+  })
+
+  it('贴着角的位置（距离是 0）也读得回', () => {
+    const { store } = memory()
+    const places = storedFloatPlaces(() => store)
+    const corner: FloatPlace = { x: { from: 'end', gap: 0 }, y: { from: 'start', gap: 0 } }
+    places.write('pet', corner)
+    expect(places.read('pet')).toEqual(corner)
   })
 
   it.each([

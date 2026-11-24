@@ -12,9 +12,9 @@ const completed = (entries: readonly { kind: string }[]) =>
     '"outcome":"completed"',
   )
 
-const ROWS = ['runtime-context-tenant-scope', 'session-intake-budget']
+const ROWS = ['runtime-context-tenant-scope', 'session-intake-budget', 'workspace-outside-files']
 
-describe('the release tree and the two rows of the tenant-level scope', () => {
+describe('the release tree and the rows of the tenant-level scope', () => {
   it(
     'reads the pending limit through the tenant-level scope while the rows are there, and a session talks',
     { tags: ['slow'], timeout: 300_000 },

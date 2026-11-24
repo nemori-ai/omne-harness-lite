@@ -1,0 +1,176 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "The"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " user"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " wants me to read ticket"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " A17. I'll"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " use the read_ticket function"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " with"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " id"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " \"A17\"."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\"id\": \"A17\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "The user wants me to read ticket A17. I'll use the read_ticket function with id \"A17\"."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_8137fe049e0b41728f82a5a4",
+      "name": "read_ticket",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "id",
+            "value": {
+              "kind": "string",
+              "value": "A17"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "{\"format\":\"unknown\",\"index\":0,\"text\":\"The user wants me to read ticket A17. I'll use the read_ticket function with id \\\"A17\\\".\",\"type\":\"reasoning.text\"}",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "120",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "36",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "64",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "23",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.00034304",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Z.AI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

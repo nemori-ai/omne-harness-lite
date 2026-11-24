@@ -72,6 +72,7 @@ import {
   type WaitRequestRecord,
 } from './ledger-store.ts'
 import {
+  acceptedRelation,
   backgroundAllowed,
   backgroundPlaceholder,
   type BackgroundPlaceholder,
@@ -268,7 +269,7 @@ export function decideAdmit<B extends ContentBlock>(
   if (snapshot.call !== null) return reply(staleCall(snapshot.call))
   const { request } = command
   const { definition } = request.availability
-  if (request.mode === 'background' && !backgroundAllowed(request))
+  if (acceptedRelation(request) === 'background' && !backgroundAllowed(request))
     return reply(invalid('request.mode', 'background-not-allowed'))
   if (request.availability.kind === 'known-unavailable')
     return settle(
@@ -306,7 +307,7 @@ function acceptWithinCapacity(command: AdmitCommand, mint: Mint): Decision<Admit
 
 function launchedPlaceholder(command: AdmitCommand, mint: Mint): BackgroundPlaceholder | null {
   const { tenant, call, request, operation } = command
-  if (request.mode !== 'background') return null
+  if (acceptedRelation(request) !== 'background') return null
   const source = { kind: 'launched' } as const
   return backgroundPlaceholder(
     { call, operation, consumer: request.consumer },
@@ -335,7 +336,7 @@ function acceptedState(
     supplements: [],
     phase: 'accepted',
     wait: { kind: 'none' },
-    relation: request.mode,
+    relation: acceptedRelation(request),
   } as const
   return { ...body, source: mintEvidence('state', { tenant, call }, revision, body) }
 }
