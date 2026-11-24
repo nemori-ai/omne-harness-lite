@@ -81,6 +81,7 @@ const REST = [
   'moveRegion',
   'navigateWithin',
   'ownsTyping',
+  'reachable',
   'rememberFocus',
   'AGE_TICK_MS',
   'ActionTooltip',

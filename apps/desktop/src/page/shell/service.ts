@@ -1,5 +1,6 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createElement, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { deployment, tree, type Registry } from '@omne-harness/dynamis'
 import {
   type AttachedLayout,
@@ -170,7 +171,7 @@ export class DesktopShell extends ShellService {
   }
 
   navigate(pageId: string, subject?: string): void {
-    this.bringUp(pageId, subject, (id, about) => this.state.page.choose(id, about))
+    flushSync(() => this.bringUp(pageId, subject, (id, about) => this.state.page.choose(id, about)))
   }
 
   protected override face(): Face {

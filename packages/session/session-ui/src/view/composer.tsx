@@ -1,5 +1,5 @@
 import type { KeyPress, Reader } from '@omne-harness/shell-contract'
-import { Button, GlideMenu, Textarea } from '@omne-harness/ui-kit'
+import { Button, GlideMenu, reachable, Textarea } from '@omne-harness/ui-kit'
 import {
   createContext,
   Fragment,
@@ -188,6 +188,7 @@ function useComposerHandle(
     () =>
       keys?.handles.show({
         session,
+        reachable: () => reachable(field.current),
         focus: () => field.current?.focus(),
         insert: words => {
           const { text, write } = latest.current

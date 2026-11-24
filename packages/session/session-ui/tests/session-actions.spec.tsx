@@ -194,3 +194,53 @@ describe('moving between sessions and to the composer', () => {
     expect(document.activeElement).toBe(box())
   })
 })
+
+describe('a control under a folded face is not there (FE-I57)', () => {
+  /** The session open, its permission mode read, and everything the module drew put under an inert face. */
+  async function folded() {
+    const opening = await opened('run_1')
+    ;(await opening.fake.next('read-permission-mode')).answer({
+      outcome: 'succeeded',
+      body: { mode: 'never', revision: '1' },
+    })
+    await settle()
+    fireEvent.change(box(), { target: { value: '草稿' } })
+    const face = document.body.firstElementChild
+    if (face === null) throw new Error('nothing is drawn')
+    face.setAttribute('inert', '')
+    return { ...opening, face }
+  }
+  const expanded = () =>
+    [...document.querySelectorAll('[aria-expanded]')].map(
+      element => `${element.getAttribute('aria-expanded')}:${element.getAttribute('data-state')}`,
+    )
+
+  it('the pick answers that the control is not there, and neither presses nor focuses it', async () => {
+    const { action, face } = await folded()
+    const pick = action('session.pick-permission')
+    const before = expanded()
+    expect(pick.available()).toBe('对话页上现在没有这个控件')
+    expect(() => pick.run()).toThrow('对话页上现在没有这个控件')
+    await settle()
+    expect(expanded()).toEqual(before)
+    expect(document.activeElement?.closest('[inert]') ?? null).toBeNull()
+    face.removeAttribute('inert')
+    expect(pick.available()).toBe(true)
+    act(() => void pick.run())
+    await settle()
+    expect(expanded()).not.toEqual(before)
+  })
+
+  it('the ways to send and what another module writes do not reach a folded composer', async () => {
+    const { action, fake, mounted, face } = await folded()
+    const composer = providedOn(mounted.shell, sessionComposerKey)!
+    expect(action('session.send-first').available()).toBe('没有打开的输入框')
+    expect(() => action('session.send-first').run()).toThrow('没有打开的输入框')
+    expect(composer.write('/model ')).toBe('没有打开的输入框')
+    await settle()
+    expect(box().value).toBe('草稿')
+    expect(fake.calls.some(call => call.operation === 'interrupt-input')).toBe(false)
+    face.removeAttribute('inert')
+    expect(action('session.send-first').available()).toBe(true)
+  })
+})

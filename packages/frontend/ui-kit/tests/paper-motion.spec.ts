@@ -49,3 +49,13 @@ it('moves only transform and opacity: every transition of the paper names one of
   expect(moved.length).toBeGreaterThan(0)
   for (const property of moved) expect(['transform', 'opacity']).toContain(property)
 })
+
+const ICONS = readFileSync(join(import.meta.dirname, '..', 'src', 'styles', 'icons.css'), 'utf8')
+
+it('takes the transitions away from whatever the name line holds, an icon that moves on its own included', () => {
+  const iconMoves = rules(ICONS.slice(0, ICONS.indexOf(REDUCED))).some(rule =>
+    /(?:^|;)\s*transition\s*:/.test(rule.body),
+  )
+  expect(iconMoves).toBe(true)
+  expect(still).toContain('.omne-paper-name *')
+})

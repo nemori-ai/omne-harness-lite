@@ -1,4 +1,5 @@
 import { PART_ATTRIBUTE, type ActionItem, type ActionKey } from '@omne-harness/shell-contract'
+import { reachable } from '@omne-harness/ui-kit'
 import {
   sessionHeaderModel,
   sessionHeaderPermission,
@@ -26,6 +27,10 @@ const SENDING = '发送'
 const MOVING = '会话'
 const VIEW = '对话页'
 const NO_SESSION = '没有打开的会话'
+const NO_CONTROL = '对话页上现在没有这个控件'
+const NO_COMPOSER = '没有打开的输入框'
+
+const SIDE_PANEL = 'button.omne-session-figure[aria-controls]'
 
 const partAt = (part: Readonly<{ name: string }>): string => `[${PART_ATTRIBUTE}="${part.name}"]`
 const at = (layer: ActionKey['layer'], chord: string): readonly ActionKey[] => [{ chord, layer }]
@@ -45,14 +50,22 @@ export function workingCall(open: Open): string | undefined {
   return calls.at(-1)
 }
 
+const PRESSABLE = 'button,[role="combobox"]'
+
+/** The control a person could press now: one under a folded face or a folded heading is not there. */
+function controlAt(selector: string): HTMLElement | undefined {
+  const found = [...document.querySelectorAll<HTMLElement>(selector)].find(reachable)
+  if (found === undefined || found.matches(PRESSABLE)) return found
+  return found.querySelector<HTMLElement>(PRESSABLE) ?? undefined
+}
+
+const there = (selector: string) => (): true | string =>
+  controlAt(selector) === undefined ? NO_CONTROL : true
+
 /** Opens the control a person would press: a menu opens on Enter, a plain button on a click. */
 function press(selector: string): true | string {
-  const found = document.querySelector<HTMLElement>(selector)
-  const control =
-    found?.matches('button,[role="combobox"]') === true
-      ? found
-      : found?.querySelector<HTMLElement>('button,[role="combobox"]')
-  if (control === null || control === undefined) return '对话页上现在没有这个控件'
+  const control = controlAt(selector)
+  if (control === undefined) return NO_CONTROL
   if (control.getAttribute('aria-haspopup') === null) {
     control.click()
     return true
@@ -132,9 +145,10 @@ function sendWays(deps: SessionActionDeps): readonly ActionItem[] {
       kind: 'control',
       order,
       keys: at('composer', chord),
-      available: () => (deps.composer.current() === undefined ? '没有打开的输入框' : true),
+      available: () => (deps.composer.current()?.reachable() === true ? true : NO_COMPOSER),
       run: () => {
-        const done = deps.composer.current()?.send(how) ?? '没有打开的输入框'
+        const handle = deps.composer.current()
+        const done = handle?.reachable() === true ? handle.send(how) : NO_COMPOSER
         if (done !== true) throw new Error(done)
       },
     }) as const satisfies ActionItem
@@ -199,7 +213,7 @@ function moves(deps: SessionActionDeps): readonly ActionItem[] {
     }),
     ui('session.start-command', '回到输入框敲一条命令', VIEW, 31, {
       keys: at('page', '/'),
-      available: () => (deps.composer.current() === undefined ? '没有打开的输入框' : true),
+      available: () => (deps.composer.current() === undefined ? NO_COMPOSER : true),
       run: toComposer(handle => {
         handle.focus()
         handle.insert('/')
@@ -211,15 +225,18 @@ function moves(deps: SessionActionDeps): readonly ActionItem[] {
     }),
     ui('session.pick-model', '选模型', VIEW, 33, {
       keys: at('global', 'Mod+Alt+/'),
+      available: there(partAt(sessionHeaderModel)),
       run: pressed(partAt(sessionHeaderModel)),
     }),
     ui('session.pick-permission', '选权限处理模式', VIEW, 34, {
       keys: at('global', 'Mod+Shift+P'),
+      available: there(partAt(sessionHeaderPermission)),
       run: pressed(partAt(sessionHeaderPermission)),
     }),
     ui('session.side-panel', '展开或收起侧边区', VIEW, 35, {
       keys: at('global', 'Mod+Alt+B'),
-      run: pressed('button.omne-session-figure[aria-controls]'),
+      available: there(SIDE_PANEL),
+      run: pressed(SIDE_PANEL),
     }),
   ]
 }
@@ -228,9 +245,9 @@ const PROCESS = [sessionTranscriptToolCall, sessionTranscriptReasoning]
   .map(part => `${partAt(part)} [aria-expanded]`)
   .join(',')
 
-/** Opens every process line when one is shut, and shuts them all when all are open. */
+/** Opens every process line when one is shut, and shuts them all when all are open; a folded line is left alone. */
 function toggleDetails(): void {
-  const lines = [...document.querySelectorAll<HTMLElement>(PROCESS)]
+  const lines = [...document.querySelectorAll<HTMLElement>(PROCESS)].filter(reachable)
   const open = lines.some(line => line.getAttribute('aria-expanded') !== 'true')
   for (const line of lines)
     if ((line.getAttribute('aria-expanded') === 'true') !== open) line.click()

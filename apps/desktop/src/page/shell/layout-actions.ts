@@ -2,6 +2,7 @@ import { PART_ATTRIBUTE, type ActionItem, type ActionKey } from '@omne-harness/s
 import {
   blockingOverlay,
   moveRegion,
+  reachable,
   stepSize,
   type SizeController,
   type SizeStep,
@@ -80,7 +81,9 @@ export function sizeActions(size: Pick<SizeController, 'current' | 'set'>): read
 const FOLD = [shellSidebarFold, shellSidebarMenu]
   .map(part => `[${PART_ATTRIBUTE}="${part.name}"]`)
   .join(',')
-const foldButton = (): HTMLElement | null => document.querySelector<HTMLElement>(FOLD)
+/** The sidebar's fold a person could press now: the one on a folded face is not there. */
+const foldButton = (): HTMLElement | undefined =>
+  [...document.querySelectorAll<HTMLElement>(FOLD)].find(reachable)
 
 let closing = false
 
@@ -94,7 +97,7 @@ export function frameActions(): readonly ActionItem[] {
       kind: 'ui',
       order: 30,
       keys: at('global', 'Mod+B'),
-      available: () => (foldButton() === null ? '这时没有侧栏' : true),
+      available: () => (foldButton() === undefined ? '这时没有侧栏' : true),
       run: () => foldButton()?.click(),
     },
     {
