@@ -25,17 +25,17 @@
 
 三方：画布、一个种类的拥有者、放这个种类的贡献方。模型只有一个带 `admit` 的种类；不带 `admit` 的种类是它恒答接受的特例。
 
-| 模型 | 规格里的规则 |
-| --- | --- |
-| `Start` | `place` 进到问拥有者那一步：引用没摆着、种类声明着、没摆满。别的情形答没有变化或现状不允许，不改任何东西，所以不是模型里的一步 |
-| `AdmitAccept` | 拥有者答接受，并留下它的事实。对已经留下的再问一次不变 |
-| `AdmitRefuse` | 拥有者答拒绝、依据不可用、不知道，或抛出：都没有记录 |
-| `Timeout` | 过了画布配置的时限：这一次答依据不可用。拥有者之后可能照样做完，见 `LateHold` |
-| `Commit` | 带条件的提交：引用仍没摆着、仍没到上限、种类仍声明着。不成立时不写 |
-| `Lose` | 提交失败或结果不知道：没有记录，拥有者留下的事实还在 |
-| `Take` | 拿走。拥有者留下的事实不撤 |
-| `Withdraw`、`Drained` | 贡献方离开：这一批先不接新的 `admit`，在途的各有结局，然后才取走 |
-| `Declare` | 贡献方回来 |
+| 模型 | 规格里的规则 | 实现在哪 |
+| --- | --- | --- |
+| `Start` | `place` 进到问拥有者那一步：引用没摆着、种类声明着、没摆满。别的情形答没有变化或现状不允许，不改任何东西，所以不是模型里的一步 | `packages/canvas/canvas/src/canvas.ts` 的 `place`：读 `placing`，摆着就答没有变化；`kinds.enter` 取这一类并持住它的一批；查上限 |
+| `AdmitAccept` | 拥有者答接受，并留下它的事实。对已经留下的再问一次不变 | 同上 `admitted` 答 `admitted`；持有方由 `canvas-contract` 的 `holderOf` 定 |
+| `AdmitRefuse` | 拥有者答拒绝、依据不可用、不知道，或抛出：都没有记录 | 同上 `admitted` 的另几种答复，`place` 不提交 |
+| `Timeout` | 过了画布配置的时限：这一次答依据不可用。拥有者之后可能照样做完，见 `LateHold` | 同上 `admitted` 的计时，时限是策略的 `admitTimeoutMs` |
+| `Commit` | 带条件的提交：引用仍没摆着、仍没到上限、种类仍声明着。不成立时不写 | 种类：提交前同步读 `entry.declared()`，写进命令；一批持到提交答复回来，撤下等它（`canvas-cordis-contract` 的 `putKind`、`kindsOn().enter`）。引用与上限：事务脚本 `placeReference`（`packages/canvas/canvas/src/scripts.ts`）在同一次提交里再核 |
+| `Lose` | 提交失败或结果不知道：没有记录，拥有者留下的事实还在 | `place` 把提交的 `rolled-back` 答成依据不可用，`unknown` 答成不知道 |
+| `Take` | 拿走。拥有者留下的事实不撤 | 事务脚本 `takeItems` |
+| `Withdraw`、`Drained` | 贡献方离开：这一批先不接新的 `admit`，在途的各有结局，然后才取走 | `putKind` 的排空：离开之后 `enter` 与 `admit` 都不接，在途的 `admit` 与持着的 `place` 都结束才报排空完 |
+| `Declare` | 贡献方回来 | `putKind` 再放一份 |
 
 `held` 为真而 `rows` 为零是规格「不能声称的」里写明的残余：拥有者接受了而提交没有成。模型不把它当错。
 
@@ -65,4 +65,4 @@
 
 - 模型不含找空处、一叠、锁与租户；它们不参与这一处的交错。
 - 模型里拥有者留下的事实只有「留下了」一个状态，不含媒体自己的暂存、到期与删除；那一半由[媒体保管的模型](../media-custody/formal-mapping.md)守。
-- 实现是不是照模型的次序做，由 `place` 的用例守，不由本模型守。
+- 实现是不是照模型的次序做，由 `place` 的用例守（`packages/canvas/canvas/tests/place.spec.ts`、`order.spec.ts`），不由本模型守。
