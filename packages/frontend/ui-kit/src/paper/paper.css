@@ -199,6 +199,29 @@
   color: var(--omne-ink-faint);
 }
 
+.omne-flip {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--omne-layer-menu) + 1);
+  overflow: clip;
+  overflow-clip-margin: var(--omne-ring-room);
+}
+.omne-flip-shade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--spacing) * 24);
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--omne-ink-primary) 18%, transparent) 50%,
+    transparent
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   .omne-paper-surface,
   .omne-paper-handle,
