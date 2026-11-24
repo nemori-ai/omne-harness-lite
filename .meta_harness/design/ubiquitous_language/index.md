@@ -145,6 +145,7 @@
 | [UL-command-parameter-declaration](terms/capabilities-and-composition.md#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration) | 命令参数声明 | Command Parameter Declaration | 斜杠命令可选带的参数说明，**是命令本身、不是设置**；没声明就整段作一个自由参数 |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 列出若干拓展点上的成员的一份定义，成员一起装上、一起退场 |
 | [UL-skin](terms/capabilities-and-composition.md#ul-skin--皮肤--skin) | 皮肤 | Skin | 清单写明自己是皮肤、只改界面样子的一份 plugin；资产里自成一类，界面同一时刻至多用一套 |
+| [UL-canvas-app](terms/capabilities-and-composition.md#ul-canvas-app--画布小应用--canvas-app) | 画布小应用 | Canvas App | agent 做的、只管画的一段界面，是一份 plugin 的一个成员，按名字摆上画布；**不能自己取数据** |
 | [UL-agent-definition](terms/capabilities-and-composition.md#ul-agent-definition--agent-定义--agent-definition) | Agent 定义 | Agent Definition | 一个 agent 的静态定义，不是会话也不是实例 |
 | [UL-capability-auto-inheritance](terms/capabilities-and-composition.md#ul-capability-auto-inheritance--能力自动继承--capability-auto-inheritance) | 能力自动继承 | Capability Auto-Inheritance | Agent Definition 声明是否继承额外 Skill、Tool、MCP，来源范围与排除项 |
 | [UL-agent-type](terms/capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type) | agent 类型 | Agent Type | 这份定义**具不具备 master 的那一整套机制**：`master` / `non-master`；**不是「子 agent」那个意思** |
@@ -334,6 +335,7 @@
 | [UL-governance-center-health-check](terms/reach-and-availability.md#ul-governance-center-health-check--治理中心体检--governance-center-health-check) | 治理中心体检 | Governance Center Health Check | 中心「我在不在、能不能答」的自述；公开部分恰三样、登录前可读，**不含治理事实与秘密** |
 | [UL-governance-center-reachability](terms/reach-and-availability.md#ul-governance-center-reachability--治理中心可达性--governance-center-reachability) | 治理中心可达性 | Governance Center Reachability | 据点对所属中心**此刻在不在应答**的观察，答复说什么不影响它；**不作任何准入依据**，不可达时开着的会话照常干活 |
 | [UL-protocol-availability](terms/reach-and-availability.md#ul-protocol-availability--协议可用性--protocol-availability) | 协议可用性 | Protocol Availability | 一个部署此刻挂着哪些公开协议，加只增不减的修订号；**和调用者无关、不需要登录**；只说存在，不说允不允许；不是当下可用性 |
+| [UL-canvas-renderable](terms/reach-and-availability.md#ul-canvas-renderable--可画布渲染--canvas-renderable) | 可画布渲染 | Canvas-Renderable | 一类对象的性质：拥有它的领域此刻声明着，这一类才摆得上画布；**是「一类」的，不是允许** |
 | [UL-mcp-connection](terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection) | MCP 连接 | MCP Connection | 接入点为一个租户、以一个对端账号与对端的接通，是协商得到的一组结果，不带进程；**按租户与账号分开，不是连接件** |
 | [UL-mcp-action-catalog](terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | MCP 动作清单 | MCP Action Catalog | 按租户、对端账号与接入点持有保存的最近合法动作集合；对端不再提供的动作从中消失；**整份更新，不是动作空间** |
 | [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里由合法发现取得的一个对端动作，在工具入口里是它的接入点那一个工具条目的一个命令；**不可用在接入点这一级说明**，只有常驻接入点的动作有同形替换件 |
@@ -449,14 +451,19 @@
 | [UL-asset-category-page](terms/interaction-and-dispatch.md#ul-asset-category-page--资产类别页面--asset-category-page) | 资产类别页面 | Asset Category Page | 一类资产在资产页里自己的那一页；由这一类的界面模块带来，没带来时用通用的页面；**不存事实** |
 | [UL-asset-governance-port](terms/interaction-and-dispatch.md#ul-asset-governance-port--资产治理口--asset-governance-port) | 资产治理口 | Asset Governance Port | 资产的界面模块交给一类资产的界面模块的口：这一类的资产、设置项与改它们的操作；**规则不由它判** |
 | [UL-agent-figure](terms/interaction-and-dispatch.md#ul-agent-figure--agent-形--agent-figure) | Agent 形 | Agent Figure | 桌面应用里代表 agent 的那一个墨圆，**一个窗口里同一时刻只有一个**；用笔画说状态，口外写待答数；**不存事实** |
-| [UL-figure-seat](terms/interaction-and-dispatch.md#ul-figure-seat--形座位--figure-seat) | 形座位 | Figure Seat | 界面里给 Agent 形留出的固定位置：门、家、对话头；**自己不画东西** |
+| [UL-figure-seat](terms/interaction-and-dispatch.md#ul-figure-seat--形座位--figure-seat) | 形座位 | Figure Seat | 界面里给 Agent 形留出的固定位置：登录门与正面上的门、家、对话头，反面上画布放的一个；**自己不画东西**，收起的一面不给座位 |
 | [UL-figure-port](terms/interaction-and-dispatch.md#ul-figure-port--形口--figure-port) | 形口 | Figure Port | 界面外壳交给界面模块的口：报会话在做什么与待答数；**只交数据，没有结果** |
 | [UL-awaiting-answer-count](terms/interaction-and-dispatch.md#ul-awaiting-answer-count--待答数--awaiting-answer-count) | 待答数 | Awaiting-Answer Count | 决策池里此刻等着人回答的决策卡片的张数；用琥珀写，没了结的通知不算 |
 | [UL-ink-bubble](terms/interaction-and-dispatch.md#ul-ink-bubble--墨框--ink-bubble) | 墨框 | Ink Bubble | Agent 形展开的内容外面的墨边，浓淡两种；**应用自己的菜单与浮层不是墨框** |
 | [UL-told-note](terms/interaction-and-dispatch.md#ul-told-note--告知笺--told-note) | 告知笺 | Told Note | 形在家旁用浓墨框写的一句话，同时只有最新一条；**不按时间消失，写过不等于看到** |
-| [UL-companion-entry](terms/interaction-and-dispatch.md#ul-companion-entry--随身入口--companion-entry) | 随身入口 | Companion Entry | 浮在整个窗口之上、能拖到任何地方的一处，在哪一页都能对 agent 说一句话；**不是形** |
+| [UL-companion-entry](terms/interaction-and-dispatch.md#ul-companion-entry--随身入口--companion-entry) | 随身入口 | Companion Entry | 浮在整个窗口与两面之上、能拖到任何地方的一处，在哪一面、哪一页都能对 agent 说一句话；**不是形** |
 | [UL-ink-motes](terms/interaction-and-dispatch.md#ul-ink-motes--墨点--ink-motes) | 墨点 | Ink Motes | 随身入口默认的样子：同一支笔点出的几粒墨，落在一个不画出来的圆上；**只会点与干，不算一个形** |
 | [UL-size-tier](terms/interaction-and-dispatch.md#ul-size-tier--字号档--size-tier) | 字号档 | Size Tier | 整个界面一起放大缩小的档位，**恰四档**：小楷、中楷、大楷、老花；不是窗口缩放 |
+| [UL-application-face](terms/interaction-and-dispatch.md#ul-application-face--应用的面--application-face) | 应用的面 | Application Face | 桌面应用登录之后的正面或反面，反面是画布；**翻面只换露着的那一面**；不是交付面 |
+| [UL-canvas](terms/interaction-and-dispatch.md#ul-canvas--画布--canvas) | 画布 | Canvas | 一个租户恰一张的有边的纸，人和 agent 共用；**只记什么摆在哪，不存被摆的对象** |
+| [UL-canvas-item](terms/interaction-and-dispatch.md#ul-canvas-item--画布项--canvas-item) | 画布项 | Canvas Item | 画布上指着别处一个对象、带着摆法的一条记录，一个对象至多一条；**拿走不是删除** |
+| [UL-canvas-arrangement](terms/interaction-and-dispatch.md#ul-canvas-arrangement--摆法--canvas-arrangement) | 摆法 | Canvas Arrangement | 一个画布项在画布上的位置、大小、上下、在哪一叠、锁没锁与最近是谁摆的；**不是落点，不是布局** |
+| [UL-canvas-pile](terms/interaction-and-dispatch.md#ul-canvas-pile--一叠--canvas-pile) | 一叠 | Canvas Pile | 叠在一起的几个画布项，**只由「叠成一叠」产生**，压着不算；最后一项离开就没有了 |
 | [UL-notification](terms/interaction-and-dispatch.md#ul-notification--通知--notification) | 通知 | Notification | 一个收件人的收件箱里的一条 |
 | [UL-notification-source](terms/interaction-and-dispatch.md#ul-notification-source--通知来源--notification-source) | 通知来源 | Notification Source | 一个会产生通知事件的东西，在通知这里登记过 |
 | [UL-notification-event-type](terms/interaction-and-dispatch.md#ul-notification-event-type--通知事件类型--notification-event-type) | 通知事件类型 | Notification Event Type | 一个通知来源声明的一类事 |
