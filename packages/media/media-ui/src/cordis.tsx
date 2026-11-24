@@ -12,6 +12,7 @@ import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
 import type { Microphone } from './model/recorder.ts'
+import type { ScreenSource } from './model/snapper.ts'
 import type { MediaClient } from './model/upload.ts'
 import { mediaParts } from './parts.ts'
 import type { AssetPort } from './view/asset-body.ts'
@@ -22,6 +23,7 @@ import { browserMicrophone } from './view/microphone.ts'
 
 export { mediaParts } from './parts.ts'
 export type { DraftOffer, Drafts } from './model/attachment-tray.ts'
+export type { ScreenAnswer, ScreenSource } from './model/snapper.ts'
 
 /** The message being written in a session, as the host of the composer names it. */
 export type MediaDraftSubject = Readonly<{ session: string; draft: string }>
@@ -40,6 +42,8 @@ export type MediaUiOptions = Readonly<{
   block?: RenderPointSink<MediaBlockSubject>
   /** Where recordings come from; the browser's microphone when not given. */
   microphone?: Microphone
+  /** Where screenshots come from, when the host can read the screen of the person's machine; no screenshot button without it. */
+  screen?: ScreenSource
   /** What takes the attachments of a draft, when the assembly names who provides it; the module works without. */
   drafts?: ServiceKey<Drafts>
   holding?: KeyedPointSink<Readonly<{ category: string; name: string }>>
@@ -86,6 +90,7 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
                 draft={subject.draft}
                 drafts={drafts}
                 microphone={options.microphone ?? browserMicrophone}
+                {...(options.screen === undefined ? {} : { screen: options.screen })}
               />
             )}
           </Scoped>
