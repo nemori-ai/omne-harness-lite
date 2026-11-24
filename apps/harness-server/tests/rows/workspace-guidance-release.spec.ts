@@ -1,5 +1,13 @@
 // @module-tag slow
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
@@ -175,5 +183,138 @@ it(
       for (const marker of ['ROOT_55917', 'SHARED_62585', 'GUIDE_pay', 'GUIDE_docs', 'GUIDE_next'])
         expect(requests[2]!.split(marker).length - 1, marker).toBe(1)
     })
+  },
+)
+
+it(
+  'C4 both switch entrances preserve the request prefix and reuse a retained root body on returning',
+  { tags: ['slow'], timeout: 360_000 },
+  async () => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'guidance-switch-')))
+    onTestFinished(() => rmSync(base, { recursive: true, force: true }))
+    const a = join(base, 'a')
+    const b = join(base, 'b')
+    for (const [root, text] of [
+      [a, 'GUIDE_A_911'],
+      [b, 'GUIDE_B_884'],
+    ] as const) {
+      mkdirSync(root)
+      writeFileSync(join(root, 'AGENTS.md'), text)
+    }
+    type WireMessage = { role: string; content: unknown }
+    const requests: WireMessage[][] = []
+    const script = toolCallsByRequest(body => {
+      requests.push((JSON.parse(body) as { messages: WireMessage[] }).messages)
+      const target = requests.length === 3 ? b : requests.length === 4 ? a : null
+      return target === null
+        ? []
+        : [
+            {
+              id: 'switch_' + requests.length,
+              tool: 'SwitchWorkspace',
+              arguments: JSON.stringify({ directory: target }),
+            },
+          ]
+    })
+    await onReleaseTree({ script, permission: 'bypass-permissions' }, async tree => {
+      const first = await registered(tree, a)
+      const second = await registered(tree, b)
+      const session = await sessionIn(tree, first)
+      await run(tree, session)
+      for (const [target, ordinal] of [
+        [second, 2],
+        [first, 3],
+      ] as const) {
+        await command(tree, ['select-workspace', '--session', session, ...target])
+        await run(tree, session, ordinal)
+      }
+      expect(requests).toHaveLength(5)
+      for (const [index, request] of requests.entries()) {
+        const body = JSON.stringify(request)
+        expect(body.split('GUIDE_A_911')).toHaveLength(2)
+        expect(body.split('GUIDE_B_884')).toHaveLength(index === 0 ? 1 : 2)
+        if (index > 0) {
+          const prior = requests[index - 1]!
+          expect(request.slice(0, prior.length)).toEqual(prior)
+        }
+        const manifests = request.filter(m =>
+          JSON.stringify(m).includes('session.workspace-guidance'),
+        )
+        const latest = JSON.stringify(manifests.at(-1))
+        expect(latest).toContain([a, b, a, b, a][index])
+      }
+    })
+  },
+)
+
+it(
+  'C4 a Shell result returning after A to B to A keeps its original visit out of the new binding',
+  { tags: ['slow'], timeout: 360_000 },
+  async () => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'guidance-late-')))
+    onTestFinished(() => rmSync(base, { recursive: true, force: true }))
+    const a = join(base, 'A'),
+      b = join(base, 'B')
+    const leaf = join(a, 'src', 'pay')
+    mkdirSync(leaf, { recursive: true })
+    mkdirSync(b)
+    writeFileSync(join(leaf, 'AGENTS.md'), 'STALE_BODY_410')
+    const requests: string[] = []
+    const script = toolCallsByRequest(body => {
+      requests.push(body)
+      return requests.length === 1
+        ? [
+            {
+              id: 'late-shell',
+              tool: 'Shell',
+              arguments: JSON.stringify({
+                command: 'execute',
+                intent: 'wait for switch',
+                params: {
+                  cwd: 'src/pay',
+                  script:
+                    'printf started > started; while [ ! -f go ]; do sleep 0.1; done; printf completed > completed',
+                },
+              }),
+            },
+          ]
+        : []
+    })
+    await onReleaseTree(
+      {
+        script,
+        permission: 'bypass-permissions',
+        extraHistoryKinds: ['call.execution-fact', 'message.system_reminder'],
+      },
+      async tree => {
+        const first = await registered(tree, a),
+          second = await registered(tree, b)
+        const session = await sessionIn(tree, first)
+        await command(tree, ['send-input', '--session', session, '--text', 'Begin.'])
+        try {
+          await pollUntil(
+            'the original shell starts in A/pay',
+            () => existsSync(join(leaf, 'started')),
+            Boolean,
+          )
+          await command(tree, ['select-workspace', '--session', session, ...second])
+          await command(tree, ['select-workspace', '--session', session, ...first])
+        } finally {
+          writeFileSync(join(leaf, 'go'), '')
+        }
+        const entries = await pollUntil(
+          'the original run completes',
+          () => historyOf(tree, session),
+          seen => seen.some(e => e.kind === 'run.terminal'),
+        )
+        expect(readFileSync(join(leaf, 'completed'), 'utf8')).toBe('completed')
+        expect(requests).toHaveLength(2)
+        expect(requests[1]).not.toContain('STALE_BODY_410')
+        const evidence = entries.filter(
+          e => e.kind === 'call.execution-fact' && JSON.stringify(e.payload).includes(leaf),
+        )
+        expect(evidence.length).toBeGreaterThan(0)
+      },
+    )
   },
 )
