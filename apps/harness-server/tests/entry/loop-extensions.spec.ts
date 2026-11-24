@@ -109,11 +109,21 @@ describe('the Agent port of the tenant-enabled extensions', () => {
       { ok: read([{ key: 'loop-extension.enabled', kind: 'unavailable' }] as never) },
     ],
     ['the block is not a view', { ok: value({ members: 'none' }) }],
+    [
+      'the basis of the block is not text',
+      { ok: value({ members: [], basis: { assets: 7, settings: 2 } }) },
+    ],
     ['the read throws', new Error('boom')],
   ])('is unavailable, never an empty chain, when %s', async (_case, answer) => {
     const { at } = portOf(answer as never)
     expect(await at(work(A), A)).toMatchObject({
       failure: { kind: 'unavailable', owner: 'agentEnabledExtensions' },
     })
+  })
+
+  it('does not ask the scope while nobody reads it', async () => {
+    const { at, asked } = portOf('no reader')
+    await at(work(A), A)
+    expect(asked).toEqual([])
   })
 })
