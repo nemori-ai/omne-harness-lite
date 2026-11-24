@@ -35,7 +35,7 @@ export function registerAppScheme(): void {
   ])
 }
 
-const LOAD_ABORTED = -3
+export const LOAD_ABORTED = -3
 
 const SHOW_FALLBACK_MS = 1_000
 
@@ -231,12 +231,6 @@ const SHADE_SETTLE_MS = 250
 export function windowShade(current: () => BrowserWindow | undefined): DeviceScreenDeps['window'] {
   const mac = process.platform === 'darwin'
   return {
-    origin() {
-      const window = current()
-      if (window === undefined) return null
-      const { x, y } = screen.getDisplayMatching(window.getBounds()).bounds
-      return { x, y }
-    },
     async hide() {
       const window = current()
       if (mac) app.hide()
