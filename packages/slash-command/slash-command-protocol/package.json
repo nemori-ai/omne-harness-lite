@@ -1,0 +1,36 @@
+{
+  "name": "@omne-harness/slash-command-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The slash-command protocol: read the list a session can name, and hear that it may have changed",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/public-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/json-text": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -38,6 +38,16 @@ function contribute(shell: ShellService, hub: CardsHub, options: HumanInterventi
         </DetailHost.Provider>
       ),
   })
+  shell.contribute('actions', {
+    id: 'human-intervention.waiting',
+    title: '去「待你决定」',
+    group: '页面',
+    kind: 'ui',
+    order: 1,
+    keys: [{ chord: 'Mod+Shift+A', layer: 'global' }],
+    available: () => true,
+    run: () => shell.navigate(PAGE_ID),
+  })
   options.sessionDock?.contribute(shell, {
     id: IN_SESSION_ID,
     order: 0,

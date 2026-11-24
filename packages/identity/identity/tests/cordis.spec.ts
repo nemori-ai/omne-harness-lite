@@ -187,5 +187,5 @@ it('runs every governance contract case through the registered service and remov
   )
   expect(
     report.cases.filter(result => result.status === 'not-applicable').map(result => result.id),
-  ).toEqual(['revoked-stays-invalid-after-restart'])
+  ).toEqual(['revoked-stays-invalid-after-restart', 'preference-after-restart'])
 })

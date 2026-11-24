@@ -30,12 +30,14 @@ type FaceMethod =
   | 'create'
   | 'interrupt'
   | 'change'
+  | 'recordCommand'
   | 'accept'
   | 'queryOperation'
   | 'cancelRun'
   | 'stopCall'
   | 'retryRun'
   | 'change'
+  | 'recordCommand'
   | 'history.begin'
   | 'history.next'
   | 'readWaiting'
@@ -204,7 +206,10 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     return succeed(receipt)
   }
 
-  const management: Pick<SessionManagement<P>, 'create' | 'interrupt' | 'change'> = {
+  const management: Pick<
+    SessionManagement<P>,
+    'create' | 'interrupt' | 'change' | 'recordCommand'
+  > = {
     async create(input) {
       record('create', input, input.creation)
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'create' })
@@ -250,6 +255,12 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
         found.model = { selection, at: outcome.ok.revision }
       }
       return outcome
+    },
+    async recordCommand(input) {
+      record('recordCommand', input, { name: input.name, args: input.args })
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'recordCommand' })
+      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'recordCommand' })
+      return commit('recordCommand', input.operation, { name: input.name, args: input.args })
     },
   }
 

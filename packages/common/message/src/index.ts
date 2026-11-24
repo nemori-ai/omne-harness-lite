@@ -45,4 +45,4 @@ export type {
   UnparsedToolCallPart,
 } from './parts.ts'
 
-export { projectMessage } from './projection.ts'
+export { originHeader, projectMessage } from './projection.ts'

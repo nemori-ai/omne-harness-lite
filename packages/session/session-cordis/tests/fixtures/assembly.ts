@@ -335,7 +335,8 @@ export async function assemble(options: AssemblyOptions = {}) {
     await fiber.await().catch(() => undefined)
     return fiber
   }
-  if (options.provider !== false) await load(options.provider ?? { admission: 'none' })
+  if (options.provider !== false)
+    await load(options.provider ?? { admission: 'none', resolver: 'none' })
 
   const caller = async (
     callerClass: SessionCallerClass | 'unset' | string,

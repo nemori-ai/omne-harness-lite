@@ -204,7 +204,6 @@ export function createSessionProviderFaces(
   const intakeLimits = sessionIntakeLimits(options.intakeLimits)
   const store = new SessionStore()
   const { accessCheck, observe } = options
-
   const report = (arrival: SessionProviderArrival): void => {
     try {
       observe?.(arrival)
@@ -435,6 +434,7 @@ export function createSessionProviderFaces(
     completeInitialization: unimplemented,
     change: unimplemented,
     setResident: unimplemented,
+    recordCommand: unimplemented,
     configureAutoArchive: unimplemented,
     considerAutoArchive: unimplemented,
     interrupt: unimplemented,

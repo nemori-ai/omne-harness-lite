@@ -67,6 +67,7 @@ export type IdentityRecords = Readonly<{
   loginsById: Map<string, LoginRecord>
   invitations: Map<string, InvitationRecord>
   receipts: Map<string, CreateReceipt>
+  preferences: Map<string, { value: string | null; revision: number }>
 }>
 
 export function newRecords(): IdentityRecords {
@@ -79,6 +80,7 @@ export function newRecords(): IdentityRecords {
     loginsById: new Map(),
     invitations: new Map(),
     receipts: new Map(),
+    preferences: new Map(),
   })
 }
 

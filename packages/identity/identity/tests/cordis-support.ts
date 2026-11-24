@@ -50,6 +50,8 @@ export async function installGovernance(options: IdentityGovernanceContractProvi
     readonly changeMemberRole = delegate.changeMemberRole
     readonly switchCurrentTenant = delegate.switchCurrentTenant
     readonly queryCurrentTenant = delegate.queryCurrentTenant
+    readonly readAccountPreference = delegate.readAccountPreference
+    readonly writeAccountPreference = delegate.writeAccountPreference
     readonly revokeLogin = delegate.revokeLogin
     readonly queryOwnValidLogins = delegate.queryOwnValidLogins
     readonly reportBusinessAccess = delegate.reportBusinessAccess

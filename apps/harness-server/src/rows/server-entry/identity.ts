@@ -76,6 +76,14 @@ export function governanceOfCall(ctx: Context): IdentityGovernance {
       const governance = current()
       return governance === undefined ? ABSENT : governance.createOrganization(input)
     },
+    async readAccountPreference(input) {
+      const governance = current()
+      return governance === undefined ? ABSENT : governance.readAccountPreference(input)
+    },
+    async writeAccountPreference(input) {
+      const governance = current()
+      return governance === undefined ? ABSENT : governance.writeAccountPreference(input)
+    },
     async queryCreateOrganization(input) {
       const governance = current()
       return governance === undefined ? ABSENT : governance.queryCreateOrganization(input)

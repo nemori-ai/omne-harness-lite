@@ -36,6 +36,15 @@ function queueOf(...candidates: readonly RequestCandidate[]): RequestQueue {
 }
 
 describe('enqueue, same identity and same content', () => {
+  it('keeps what the sender was shown, and a request shown otherwise under the same identity is a conflict', () => {
+    const seen = { command: null, references: ['skill:review'] }
+    const decided = enqueue(EMPTY_QUEUE, candidate('a', { seen }), LIMIT)
+    if (decided.kind !== 'appended') throw new Error(decided.kind)
+    expect(decided.request.seen).toEqual(seen)
+    expect(enqueue(decided.queue, candidate('a', { seen }), LIMIT).kind).toBe('same')
+    expect(enqueue(decided.queue, candidate('a'), LIMIT).kind).toBe('conflict')
+  })
+
   it('appends a request that is not queued to the tail of its session with the next number', () => {
     const queue = queueOf(candidate('a'))
     const decided = enqueue(queue, candidate('b'), LIMIT)
