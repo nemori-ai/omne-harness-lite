@@ -2,6 +2,7 @@ import type {
   Adoption,
   ModelLimit,
   ModelProfileDefinition,
+  ReasoningEffortMapping,
   TokenLimit,
   UpstreamLimit,
 } from '@omne-harness/model-contract'
@@ -28,6 +29,22 @@ function tokenLimit(record: DeepSeekRecord, supplier: Adoption, data: TokenLimit
   return {
     provided: data.provided,
     upstream: [{ supplier, limit: upstreamOf(record, data.upstream) }],
+  }
+}
+
+export function effortMapping(record: DeepSeekRecord): ReasoningEffortMapping {
+  switch (record.name) {
+    case 'deepseek/deepseek-v4.1-flash':
+    case 'deepseek/deepseek-v4.1-flash-1017':
+    case 'deepseek/deepseek-v4-pro-0813':
+    case 'deepseek/deepseek-v4-flash-0731':
+    case 'deepseek/deepseek-v4-flash-vision-exp':
+      return { low: 'low', medium: 'high', high: 'max' }
+    case 'deepseek/deepseek-v4-pro':
+    case 'deepseek/deepseek-v4-flash':
+      return { medium: 'high', high: 'max' }
+    default:
+      return {}
   }
 }
 
@@ -62,6 +79,7 @@ export function profileOf(
     },
     limits,
     parameters: [],
+    reasoningEfforts: effortMapping(record),
     representation: componentAdoption(record, 'representation'),
     meter: componentAdoption(record, 'meter'),
     retryPolicy: input.retryPolicy,

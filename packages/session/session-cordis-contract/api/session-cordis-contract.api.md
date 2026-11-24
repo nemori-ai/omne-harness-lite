@@ -172,6 +172,8 @@
 - `ResultConsumption` · 包 `@omne-harness/session-contract`
 - `RouteJudgment` · 包 `@omne-harness/session-contract`
 - `RoutedInput` · 包 `@omne-harness/session-contract`
+- `RunAdoption` · 包 `@omne-harness/session-contract`
+- `RunAdoptionInput` · 包 `@omne-harness/session-contract`
 - `RunBoundaryView` · 包 `@omne-harness/session-contract`
 - `RunEnd` · 包 `@omne-harness/session-contract`
 - `RunExecution` · 包 `@omne-harness/session-contract`

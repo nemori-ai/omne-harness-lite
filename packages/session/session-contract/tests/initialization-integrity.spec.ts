@@ -321,6 +321,61 @@ describe('exact interpreter and replay evidence', () => {
     })
     return rows(s.command, s.facts(s.command, null, [s.registration('a', 0)]))
   }
+  it.each([
+    'sha256:5f2509c9e01e5e248f8ea47eca236bdeec25981cd6b62e89c4e166175743f196',
+    'sha256:ebca6f5b3f2831d77efc80b3e91bf8f66d01a76297c0d82341441dcb048909db',
+  ])('replays the release %s and appends a current selection to its snapshot', digest => {
+    const initial = batch()
+    const prior = { ...SESSION_INTERPRETER, digest }
+    const replayed = reduce(null, {
+      ...initial,
+      entries: initial.entries.map(row => ({ ...row, schema: prior })),
+    })
+    if (replayed.kind !== 'reduced') throw new Error(replayed.diagnostic)
+    const existing = { ...replayed.snapshot, interpreter: prior }
+    const selected = decide(
+      existing,
+      {
+        kind: 'change',
+        input: {
+          tenant: existing.tenant,
+          session: existing.session,
+          operation: operationId('effort'),
+          declaration: {
+            kind: 'model',
+            name: 'route',
+            reasoningEffort: 'xhigh',
+            basis: evidence('route'),
+          },
+        },
+      },
+      [],
+      null,
+      { compaction: null },
+    )
+    if (selected.kind !== 'entries') throw new Error(JSON.stringify(selected))
+    const revision = '2' as typeof initial.revision
+    const next = {
+      revision,
+      entries: selected.entries.map((row, i) => ({
+        ...row,
+        revision,
+        id: `${revision}/${i}` as (typeof initial.entries)[number]['id'],
+      })),
+    }
+    expect(reduce(existing, next)).toMatchObject({
+      kind: 'reduced',
+      snapshot: {
+        interpreter: SESSION_INTERPRETER,
+        changes: expect.arrayContaining([
+          expect.objectContaining({ kind: 'model', name: 'route', reasoningEffort: 'xhigh' }),
+        ]),
+      },
+    })
+    expect(
+      reduce({ ...existing, interpreter: { ...prior, digest: 'sha256:unknown' } }, next),
+    ).toMatchObject({ kind: 'quarantined' })
+  })
   it('replays an identical batch and rejects same-revision edited facts', () => {
     const original = batch()
     const result = reduce(null, original)

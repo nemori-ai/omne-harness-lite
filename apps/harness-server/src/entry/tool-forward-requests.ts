@@ -1,8 +1,11 @@
 import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
+import type { Access } from '@omne-harness/legal-identity'
 import {
   callLabel,
+  type Adoption,
+  type ConsumerRef,
   type FixedToolRequest,
   type Reply,
   type ToolCatalog,
@@ -14,6 +17,7 @@ import {
 import {
   encodeCommandCall,
   toolAvailabilityReference,
+  type ToolAuthority,
   type ToolCapabilityIdentity,
   type ToolForwardParent,
 } from '@omne-harness/tool-contract/provider'
@@ -21,6 +25,8 @@ import {
   SOURCE_ENTRY_SETTINGS,
   type LocalToolCatalogViewSource,
 } from '@omne-harness/tool-host-local'
+import type { CurrentHeldTool } from '../rows/tool-host/held-current.ts'
+import { HELD_TOOL_SETTINGS } from '../rows/tool-host/held-tools.ts'
 import { toolCapability } from './permission-declarations.ts'
 import { sourcedEntryFor, type SourcedEntries } from './tool-entry-sources.ts'
 import { targetResidency } from './tool-target-residency.ts'
@@ -35,10 +41,13 @@ export type ForwardRequestPorts = Readonly<{
   view(): LocalToolCatalogViewSource<unknown> | undefined
   /** The entries of the tool entry sources; absent, only release tools are targets. */
   sourced?(): SourcedEntries
+  held?(access: Access<unknown>, name: string): Promise<CurrentHeldTool>
+  admitted?(consumer: ConsumerRef, target: Adoption): boolean
 }>
 const unavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: 'tools-target', diagnostic })
 const invalid = (field: string, reason: string) => fail({ kind: 'invalid' as const, field, reason })
+export const HELD_UNREAD = 'tenant-tools'
 
 export function releaseToolConsumer(release: Trusted): ToolConsumerProfile {
   const { capabilities, conversion, attachmentAccess } = release.manifest.consumer
@@ -79,14 +88,29 @@ type Available = Extract<ToolAvailability, { kind: 'available' }>
 type TargetOrigin =
   | Readonly<{ kind: 'release'; entry: ReleaseEntry }>
   | Readonly<{ kind: 'source'; entries: SourcedEntries }>
+  | Readonly<{ kind: 'held'; held: ToolAuthority }>
 
-function targetOrigin(ports: ForwardRequestPorts, release: Trusted, intent: ToolForwardIntent) {
+async function targetOrigin(
+  ports: ForwardRequestPorts,
+  release: Trusted,
+  access: TargetAccess,
+  intent: ToolForwardIntent,
+) {
   if (intent.name === 'Tools') return invalid('name', 'recursive-tools-execute')
   const entry = release.manifest.entries.find(item => item.asset.name === intent.name)
   if (entry !== undefined) return succeed<TargetOrigin>({ kind: 'release', entry })
   const entries = ports.sourced?.()
-  return entries?.owns(intent.name) === true
-    ? succeed<TargetOrigin>({ kind: 'source', entries })
+  if (entries?.owns(intent.name) === true) return succeed<TargetOrigin>({ kind: 'source', entries })
+  const held = await ports.held?.(access, intent.name)
+  if (held?.kind === 'unavailable')
+    return fail({
+      kind: 'unavailable' as const,
+      dependency: HELD_UNREAD,
+      diagnostic: held.diagnostic,
+    })
+  if (held?.kind === 'unfit') return unavailable(held.reason)
+  return held?.kind === 'held'
+    ? succeed<TargetOrigin>({ kind: 'held', held: held.authority })
     : invalid('name', 'unknown-target')
 }
 
@@ -106,7 +130,32 @@ type Target = Readonly<{
   availability: Available
   capability: ToolCapabilityIdentity
   settings: ToolInvokeRequest['settings']
+  held?: true
 }>
+
+async function heldTarget(
+  ports: ForwardRequestPorts,
+  access: TargetAccess,
+  availability: ToolAvailability,
+  held: ToolAuthority,
+): Reply<Target> {
+  if (
+    availability.kind !== 'available' ||
+    canonicalDigest(availability.layer) !== canonicalDigest(held.layer) ||
+    canonicalDigest(availability.definition.adoption) !== canonicalDigest(held.asset.adoption)
+  )
+    return unavailable(
+      'The version of the tool the tenant holds now is not the one the catalog offers.',
+    )
+  const nonresident = await targetResidency(ports.view(), access, availability, 'nonresident')
+  if ('failure' in nonresident) return nonresident
+  return succeed({
+    availability,
+    capability: toolCapability(held.asset.name),
+    settings: HELD_TOOL_SETTINGS,
+    held: true,
+  })
+}
 
 async function releaseTarget(
   ports: ForwardRequestPorts,
@@ -156,9 +205,9 @@ async function inspectTarget(
     consumer: releaseToolConsumer(release),
   })
   if ('failure' in inspected) return inspected
-  return origin.kind === 'release'
-    ? releaseTarget(ports, access, inspected.ok, origin.entry)
-    : sourceTarget(access, inspected.ok, origin.entries)
+  if (origin.kind === 'release') return releaseTarget(ports, access, inspected.ok, origin.entry)
+  if (origin.kind === 'held') return heldTarget(ports, access, inspected.ok, origin.held)
+  return sourceTarget(access, inspected.ok, origin.entries)
 }
 
 function functionCall(intent: ToolForwardIntent) {
@@ -203,7 +252,7 @@ export async function resolveForwardTarget(
 ) {
   const release = ports.release()
   if (release.kind !== 'trusted') return unavailable('The release snapshot is unavailable.')
-  const origin = targetOrigin(ports, release, intent)
+  const origin = await targetOrigin(ports, release, access, intent)
   if ('failure' in origin) return origin
   const target = await inspectTarget(ports, access, intent, release, origin.ok)
   if ('failure' in target) return target
@@ -224,6 +273,11 @@ export function createForwardTargetRequests(ports: ForwardRequestPorts) {
     if ('failure' in resolved) return resolved
     const { settings, availability, effective } = resolved.ok
     const definition = availability.definition
+    if (
+      resolved.ok.held === true &&
+      ports.admitted?.(parent.request.consumer, definition.adoption) !== true
+    )
+      return invalid('name', 'target-changed-after-admission')
     const label = callLabel(definition, {
       command: intent.command,
       intent: null,

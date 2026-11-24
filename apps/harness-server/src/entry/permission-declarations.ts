@@ -4,6 +4,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { SettingsTarget } from '@omne-harness/settings'
 import type { ToolReleaseEntry } from './tool-release-manifest.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
+import { heldPermissionDeclarations } from '../rows/tool-host/held-definitions.ts'
 
 export type CapabilityIdentity = Readonly<{ category: string; name: string }>
 
@@ -14,6 +15,8 @@ export type PermissionDeclaration = Readonly<{
   governance: ToolReleaseEntry['governance']
   holdingRef: string
   tenantRef: string | null
+  /** No storage publishes this declaration: a gate has its declared default and what the session holds. */
+  unpublished?: true
 }>
 
 export const TOOL_CATEGORY = 'tool'
@@ -67,7 +70,10 @@ export function permissionDeclarationsOf(
   ctx: Context,
   tenantRef: string,
 ): readonly PermissionDeclaration[] {
-  return governedDeclarations(releaseOf(ctx), registeredPermissionDeclarations(ctx, tenantRef))
+  return [
+    ...governedDeclarations(releaseOf(ctx), registeredPermissionDeclarations(ctx, tenantRef)),
+    ...heldPermissionDeclarations(ctx, tenantRef),
+  ]
 }
 
 export function tenantPermissionDeclarations(

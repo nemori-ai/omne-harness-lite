@@ -5,6 +5,7 @@ import { encodeResidentKey } from '@omne-harness/tool-contract'
 import { toolGenerationsKey, type ToolGenerations } from '@omne-harness/tool-cordis-contract/cordis'
 import { AdoptionSourcesImpl } from '../../../src/rows/adoption-sources/sources.ts'
 import { agentAdoptionsConfig } from '../../../src/rows/agent-adoptions/config.ts'
+import { tableMappings } from '../../../src/rows/agent-adoptions/held-definitions.ts'
 import { buildTable } from '../../../src/rows/agent-adoptions/table.ts'
 import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
 import { createToolHostPlugin } from '../../../src/rows/tool-host/index.ts'
@@ -22,7 +23,7 @@ type Plain = Record<string, unknown>
 type Create = Extract<AdoptionEvidenceCommand, { kind: 'create' }>
 
 const toolRef = (name: string, resident = true) => ({
-  capability: { category: 'Tool', name },
+  capability: { category: 'tool', name },
   resident,
 })
 
@@ -76,7 +77,7 @@ async function sourceOn(config: unknown, options: Options = {}) {
   await fixture.root.plugin({
     name: 'adoption-source-probe',
     apply(ctx: Context) {
-      source = new AdoptionSourcesImpl(ctx, table.mappings)
+      source = new AdoptionSourcesImpl(ctx, tableMappings(table))
     },
   })
   return { fixture, source: got(source, 'adoption source'), table }
@@ -137,7 +138,7 @@ describe('a mapping that names resident tools', () => {
     ).toHaveLength(2)
   })
 
-  it('a tool the release does not hold fails the creation with a diagnostic; no resident is left out', async () => {
+  it('a tool the release does not hold, where what the tenant holds cannot be read, fails the creation with a diagnostic; no resident is left out', async () => {
     const config = mappingConfig(
       withReferences('alpha', [toolRef('Files'), toolRef('Browser'), toolRef('Shell')]),
     )
@@ -146,7 +147,7 @@ describe('a mapping that names resident tools', () => {
       failure: {
         kind: 'unavailable',
         owner: '@omne-harness/harness-server',
-        diagnostic: 'resident tools: Browser is not a tool of the trusted release',
+        diagnostic: 'resident tools: what the tenant holds as Browser cannot be read',
       },
     })
   })
@@ -229,6 +230,17 @@ describe('the mapping table', () => {
   it('copies the resident Tool references of the definition into the entry, in order', async () => {
     const table = await buildTable(agentAdoptionsConfig.parse(mappingConfig(CODING)))
     expect(table.mappings.byName('alpha')?.residentCapabilities).toEqual(['Files', 'Shell'])
+  })
+
+  it('takes one spelling of the tool category: the name the category is registered under', async () => {
+    const config = mappingConfig(
+      withReferences('alpha', [
+        { capability: { category: 'Tool', name: 'Files' }, resident: true },
+      ]),
+    )
+    await expect(buildTable(agentAdoptionsConfig.parse(config))).rejects.toThrow(
+      'mappings.0.definition.references.0: a resident reference must name a Tool',
+    )
   })
 
   it('refuses a resident reference that is not a tool', async () => {

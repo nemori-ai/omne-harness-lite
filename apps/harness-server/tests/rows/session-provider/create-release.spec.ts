@@ -69,6 +69,7 @@ import {
   type LoadedTree,
 } from '../session-fixtures/tree.ts'
 import { disabledTelemetryRow } from '../telemetry/support.ts'
+import { tenantAssetsStandIn } from '../../support/tenant-assets-stand-in.ts'
 import { TENANT_A } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
@@ -177,6 +178,7 @@ async function start(
         spec.row.id === 'storage' ? declared(storageRow, storage.config) : spec,
       ),
       identityDouble(),
+      declared(tenantAssetsStandIn),
       declared(agentAdoptionsRow, releaseMapping),
       declared(adoptionSourcesRow),
       declared(sessionAd10Row),

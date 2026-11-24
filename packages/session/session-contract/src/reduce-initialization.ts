@@ -120,8 +120,11 @@ export function validateInitializationBatch(
     }
     if (decision.kind !== 'entries')
       return `invalid initialization history: ${JSON.stringify(decision)}`
+    // The reducer has already admitted the batch's exact interpreter. Replay compares the
+    // facts as encoded by that release, including origins and all initialization payloads.
     const actual = batch.entries.map(({ id: _id, revision: _revision, ...entry }) => entry)
-    return same(actual, decision.entries)
+    const expected = decision.entries.map(entry => ({ ...entry, schema: actual[0]!.schema }))
+    return same(actual, expected)
       ? null
       : 'initialization batch facts, bindings or references are inconsistent'
   } catch (error) {

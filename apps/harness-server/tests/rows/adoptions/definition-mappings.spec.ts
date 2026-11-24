@@ -119,6 +119,9 @@ describe('DefinitionMappingsService', () => {
     entries = () => this.table.entries()
     byName = (name: string) => this.table.byName(name)
     byCandidate = (candidate: Adoption) => this.table.byCandidate(candidate)
+    named = async () => ({ kind: 'absent', reason: 'not read here' }) as const
+    adopted = async () => ({ kind: 'absent', reason: 'not read here' }) as const
+    modesFor = () => undefined
   }
 
   test('the key is definitionMappings and a consumer reads the provided table', async () => {

@@ -39,6 +39,8 @@ import type {
   Parameter,
   ProviderName,
   ReadId,
+  ReasoningEffort,
+  ReasoningEffortMapping,
   ResultVersion,
   Revision,
   Supplier,
@@ -154,6 +156,15 @@ it('access inputs carry the tenant and nest the call and the operation', () => {
   const loose: Mutation<string> = { ...callAccess, operation: 'op' }
   void [noTenant, instanceAsCall, loose]
   expectTypeOf<TenantId>().toEqualTypeOf<Access<string>['tenant']>()
+})
+
+it('distinguishes the four user efforts from the native effort in a model mapping', () => {
+  expectTypeOf<ReasoningEffort>().toEqualTypeOf<'low' | 'medium' | 'high' | 'xhigh'>()
+  expectTypeOf<Extract<Parameter, { scale: 'unified' }>['value']>().toEqualTypeOf<ReasoningEffort>()
+  expectTypeOf<keyof ReasoningEffortMapping>().toEqualTypeOf<ReasoningEffort>()
+  expectTypeOf<ReasoningEffortMapping['high']>().toEqualTypeOf<
+    ReasoningEffort | 'max' | undefined
+  >()
 })
 
 it('Parameter is a closed union of kinds', () => {

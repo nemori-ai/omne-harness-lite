@@ -1004,12 +1004,14 @@ export declare const sessionProtocol: {
                     readonly controlId: string;
                     readonly credential: "available" | "missing" | "unknown";
                     readonly model: string;
+                    readonly reasoningEffort?: "high" | "low" | "medium" | "xhigh";
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly blocks?: readonly {
                         readonly block: string;
                         readonly message: string;
                     }[];
+                    readonly detail?: "unsupported-effort";
                     readonly reason: "excluded" | "locked" | "modality" | "scope" | "unknown-name" | "withdrawn";
                 }>;
                 readonly archived: import("@omne-harness/public-contract").Codec<{}>;
@@ -1027,6 +1029,7 @@ export declare const sessionProtocol: {
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly controlId: string;
                 readonly model: string;
+                readonly reasoningEffort?: "high" | "low" | "medium" | "xhigh";
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
@@ -1094,6 +1097,7 @@ export declare const sessionProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly model: string;
+                    readonly reasoningEffort?: "high" | "low" | "medium" | "xhigh";
                     readonly revision: string;
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{}>;

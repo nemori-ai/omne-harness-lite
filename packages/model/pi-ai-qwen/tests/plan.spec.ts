@@ -49,7 +49,7 @@ async function encoded(
 }
 
 describe('parameters', () => {
-  it.each(['low', 'medium', 'high', 'max'] as const)(
+  it.each(['low', 'medium', 'high', 'xhigh', 'max'] as const)(
     'passes the effort %s and writes it as itself',
     async value => {
       const outcome = await plan([{ kind: 'reasoning-effort', value }])
@@ -61,6 +61,14 @@ describe('parameters', () => {
       })
     },
   )
+
+  it('leaves high unavailable between the documented medium and xhigh settings', async () => {
+    expect(
+      await plan([{ kind: 'reasoning-effort', scale: 'unified', value: 'high' }]),
+    ).toMatchObject({
+      failure: { kind: 'unsupported', field: 'reasoning-effort' },
+    })
+  })
 
   it.each([
     { kind: 'reasoning-effort', value: 'none' },

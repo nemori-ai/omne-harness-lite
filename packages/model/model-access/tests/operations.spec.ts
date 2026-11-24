@@ -62,13 +62,13 @@ describe('what Model answers becomes an outcome of the protocol', () => {
   it('lists each resolved profile with whether it can be selected, why not, and its credential', async () => {
     const { world, list } = assembled()
     world.state.listing = [
-      resolved('anthropic/claude-sonnet-5'),
+      resolved('anthropic/claude-sonnet-5', {}, { low: 'low', medium: 'medium', high: 'high' }),
       resolved('openai/gpt-6-astra', { credential: 'missing' }),
       resolved('locked', { selectable: false, reasons: ['locked', 'scope'] }),
       resolved('unread', { credential: 'unreadable' }),
       resolved('down', { credential: 'unavailable' }),
     ]
-    const io = { input: ['text', 'image'], output: ['text'] }
+    const io = { reasoningEfforts: [], input: ['text', 'image'], output: ['text'] }
     expect(await list()).toEqual({
       outcome: 'succeeded',
       body: {
@@ -79,6 +79,7 @@ describe('what Model answers becomes an outcome of the protocol', () => {
             reasons: [],
             credential: 'available',
             ...io,
+            reasoningEfforts: ['low', 'medium', 'high'],
           },
           {
             route: 'openai/gpt-6-astra',

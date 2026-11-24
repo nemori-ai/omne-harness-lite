@@ -2,6 +2,7 @@ import type {
   Adoption,
   ModelLimit,
   ModelProfileDefinition,
+  ReasoningEffortMapping,
   TokenLimit,
   UpstreamLimit,
 } from '@omne-harness/model-contract'
@@ -28,6 +29,20 @@ function tokenLimit(record: GlmRecord, supplier: Adoption, data: TokenLimitData)
   return {
     provided: data.provided,
     upstream: [{ supplier, limit: upstreamOf(record, data.upstream) }],
+  }
+}
+
+export function effortMapping(record: GlmRecord): ReasoningEffortMapping {
+  switch (record.name) {
+    case 'z-ai/glm-5.3':
+    case 'z-ai/glm-5.3-prime':
+    case 'z-ai/glm-5.3-flash':
+    case 'z-ai/glm-5.3-flashx':
+      return { low: 'low', medium: 'high', high: 'max' }
+    case 'z-ai/glm-5.2':
+      return { high: 'high', xhigh: 'xhigh' }
+    default:
+      return {}
   }
 }
 
@@ -59,6 +74,7 @@ export function profileOf(record: GlmRecord, input: OfficialProfilesInput): Mode
     },
     limits,
     parameters: [],
+    reasoningEfforts: effortMapping(record),
     representation: componentAdoption(record, 'representation'),
     meter: componentAdoption(record, 'meter'),
     retryPolicy: input.retryPolicy,

@@ -2,6 +2,7 @@ import type {
   Adoption,
   Parameter,
   ParameterAdoption,
+  ReasoningEffortMapping,
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -43,6 +44,7 @@ function compareDecimal(left: string, right: string): number {
 export type ParameterContext = Readonly<{
   record: Pick<ChatCompletionsRecord, 'parameters' | 'extensions'>
   adapter: Adoption
+  bindingEfforts?: ReasoningEffortMapping | undefined
   outputLimit: string | null
 }>
 
@@ -52,6 +54,19 @@ function unsupported(field: string, adapter: Adoption): TransportFailure {
 
 function invalid(field: string, reason: string): TransportFailure {
   return { kind: 'invalid', field, reason }
+}
+
+function effortWire(
+  value: Extract<Parameter, { kind: 'reasoning-effort' }>['value'],
+  context: ParameterContext,
+): GatewayParam | 'unsupported' {
+  const rule = context.record.parameters['reasoning-effort']
+  if (rule.support === 'unsupported') return 'unsupported'
+  if (value === 'xhigh')
+    return Object.values(context.bindingEfforts ?? {}).includes(value)
+      ? { field: 'reasoning.effort', value }
+      : 'unsupported'
+  return rule.wire[value]
 }
 
 export function judgeParameter(param: Unified, context: ParameterContext): TransportFailure | null {
@@ -97,10 +112,10 @@ export function judgeParameter(param: Unified, context: ParameterContext): Trans
       return DECIMAL.test(param.value) ? null : invalid(param.kind, 'out-of-range')
     }
     case 'reasoning-effort': {
-      const rule = table['reasoning-effort']
-      if (rule.support === 'unsupported' || rule.wire[param.value] === 'unsupported')
-        return unsupported(param.kind, context.adapter)
-      return null
+      if (param.scale === 'unified') return invalid(param.kind, 'unresolved-effort')
+      return effortWire(param.value, context) === 'unsupported'
+        ? unsupported(param.kind, context.adapter)
+        : null
     }
     default: {
       const _exhaustive: never = param
@@ -170,11 +185,33 @@ export function extensionParam(
   return read === null ? { failure: invalid('extension', 'value') } : { ok: read }
 }
 
+type PlanParametersInput = ParameterContext &
+  Readonly<{
+    requested: readonly Parameter[]
+    reasoningEfforts?: ReasoningEffortMapping | undefined
+    supplier: Adoption
+    source: Adoption
+  }>
+
+function appliedParameter(
+  requested: Unified,
+  input: PlanParametersInput,
+): Outcome<Unified, TransportFailure> {
+  let applied = requested
+  if (requested.kind === 'reasoning-effort' && requested.scale === 'unified') {
+    const mapped = input.reasoningEfforts?.[requested.value]
+    if (mapped === undefined || mapped !== input.bindingEfforts?.[requested.value])
+      return { failure: unsupported(requested.kind, input.adapter) }
+    applied = { kind: 'reasoning-effort', value: mapped }
+  }
+  const failure = judgeParameter(applied, input)
+  return failure === null ? { ok: applied } : { failure }
+}
+
 export function planParameters(
-  input: ParameterContext &
-    Readonly<{ requested: readonly Parameter[]; supplier: Adoption; source: Adoption }>,
+  input: PlanParametersInput,
 ): Outcome<readonly ParameterAdoption[], TransportFailure> {
-  const explicit = new Map<ParameterKind, Unified>()
+  const explicit = new Map<ParameterKind, ParameterAdoption>()
   const extensions: Extension[] = []
   const definitions = new Set<string>()
   for (const param of input.requested) {
@@ -188,15 +225,15 @@ export function planParameters(
       continue
     }
     if (explicit.has(param.kind)) return { failure: invalid(param.kind, 'repeated') }
-    const failure = judgeParameter(param, input)
-    if (failure !== null) return { failure }
-    explicit.set(param.kind, param)
+    const applied = appliedParameter(param, input)
+    if ('failure' in applied) return applied
+    explicit.set(param.kind, explicitAdoption(input, param, applied.ok))
   }
   const adoptions: ParameterAdoption[] = []
   for (const kind of PARAMETER_KINDS) {
-    const requested = explicit.get(kind)
-    if (requested !== undefined) {
-      adoptions.push(explicitAdoption(input, requested))
+    const selected = explicit.get(kind)
+    if (selected !== undefined) {
+      adoptions.push(selected)
       continue
     }
     const fallback = defaultParameter(input.record.parameters, kind)
@@ -212,10 +249,11 @@ export function planParameters(
 function explicitAdoption(
   input: Readonly<{ supplier: Adoption; source: Adoption }>,
   param: Parameter,
+  applied: Parameter = param,
 ): ParameterAdoption {
   return {
     supplier: input.supplier,
-    applied: param,
+    applied,
     origin: { kind: 'explicit', requested: param, source: input.source },
   }
 }
@@ -260,8 +298,7 @@ export function wireParameter(
       return { ok: { field: rule.wire.field, value: param.value } }
     }
     case 'reasoning-effort': {
-      const rule = table['reasoning-effort']
-      const mapped = rule.support === 'supported' ? rule.wire[param.value] : 'unsupported'
+      const mapped = effortWire(param.value, context)
       return mapped === 'unsupported'
         ? { failure: unsupported(param.kind, context.adapter) }
         : { ok: mapped }

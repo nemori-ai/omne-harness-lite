@@ -10,7 +10,13 @@ type Answer<K extends keyof Client> =
   | Readonly<{ outcome: 'unavailable' }>
 type Refusal = Extract<Answer<'select-model'>, { outcome: 'invalid' }>['body']['reason']
 
-export type ModelChoice = Readonly<{ route: string; selectable: boolean; note: string | null }>
+export type ReasoningEffort = NonNullable<Parameters<Client['select-model']>[0]['reasoningEffort']>
+export type ModelChoice = Readonly<{
+  route: string
+  selectable: boolean
+  note: string | null
+  reasoningEfforts?: readonly ReasoningEffort[]
+}>
 export type ModelChoiceListing = Listing<ModelChoice>
 
 /** What the session interface needs from whoever lists models. It does not know who that is. */
@@ -24,7 +30,7 @@ export interface ModelChoiceHolder {
 
 export type SelectionView =
   | Readonly<{ kind: 'unread' }>
-  | Readonly<{ kind: 'read'; model: string; revision: string }>
+  | Readonly<{ kind: 'read'; model: string; revision: string; reasoningEffort?: ReasoningEffort }>
   | Readonly<{ kind: 'unreadable'; reason: string }>
 
 const UNREAD = { kind: 'unread' } as const
@@ -45,7 +51,9 @@ export function selectText(answer: Answer<'select-model'>): string {
         ? `已换成 ${answer.body.model}；它还没有配置凭据，暂时调不了`
         : `已换成 ${answer.body.model}`
     case 'invalid':
-      return `没有换：${REFUSALS[answer.body.reason]}`
+      return answer.body.detail === 'unsupported-effort'
+        ? '没有换：这个模型不支持所选推理强度'
+        : `没有换：${REFUSALS[answer.body.reason]}`
     case 'archived':
       return '没有换：会话已归档'
     case 'frozen':
@@ -93,13 +101,29 @@ export class ModelSelectionStore implements ModelChoiceHolder {
     )
   }
 
-  async select(tenant: string, session: string, model: string): Promise<string> {
+  async select(
+    tenant: string,
+    session: string,
+    model: string,
+    reasoningEffort?: ReasoningEffort,
+  ): Promise<string> {
     const owner = readTenantText(tenant)
     if (owner === undefined) return '没有送达：租户读不懂'
+    const previous = this.read(tenant, session)
     const answer = await notSent(() =>
-      this.client['select-model']({ tenant: owner, session, controlId: this.newId(), model }),
+      this.client['select-model']({
+        tenant: owner,
+        session,
+        controlId: this.newId(),
+        model,
+        ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+      }),
     )
     await this.load(tenant, session)
+    if (answer.outcome === 'succeeded' && previous.kind === 'read' && previous.model === model)
+      return `推理强度已设为 ${reasoningEffort ?? '模型默认'}`
+    if (answer.outcome === 'invalid' && answer.body.detail === 'unsupported-effort')
+      await this.loadChoices(tenant)
     return selectText(answer)
   }
 

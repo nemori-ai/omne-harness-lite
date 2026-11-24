@@ -5,6 +5,7 @@ import { mediaPending, mediaRead, nativeParsing, type MediaView } from '../media
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   type Adoption,
+  type ReasoningEffortMapping,
   type AssembledModelInput,
   type FixedModelRequest,
   type MeterRepresentation,
@@ -40,6 +41,7 @@ import type {
 } from './vocabulary.ts'
 
 export type RequestContext = Readonly<{
+  bindingEfforts?: ReasoningEffortMapping | undefined
   record: ChatCompletionsRecord
   hooks: VendorHooks
   meter: FamilyMeter
@@ -150,6 +152,8 @@ export function planRequest(
   const planned = planParameters({
     record: context.record,
     adapter: context.adapter,
+    bindingEfforts: context.bindingEfforts,
+    reasoningEfforts: profile.definition.reasoningEfforts,
     outputLimit: profile.definition.context.output.provided,
     requested: assembled.parameters,
     supplier: context.adapter,

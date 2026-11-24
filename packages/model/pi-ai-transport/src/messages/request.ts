@@ -182,6 +182,8 @@ export function planMessages(
   const planned = planParameters({
     record: context.record,
     adapter: context.adapter,
+    bindingEfforts: context.bindingEfforts,
+    reasoningEfforts: profile.definition.reasoningEfforts,
     outputLimit: profile.definition.context.output.provided,
     requested: assembled.parameters,
     supplier: context.adapter,

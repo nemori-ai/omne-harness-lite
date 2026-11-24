@@ -31,6 +31,8 @@ import {
   type PermissionBasis,
 } from './permission-basis.ts'
 import { capturedInquirySchema } from './permission-inquiry.ts'
+import { declaredPermissionBasis } from './declared-permission-basis.ts'
+import type { QualifiedOrigin } from './permission-qualification.ts'
 import {
   createPermissionReadMapping,
   type PermissionReadMapping,
@@ -173,6 +175,36 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
       : missingOrganization()
   }
 
+  async function stored(
+    mapped: PermissionReadMapping,
+    request: PermissionBasisRequest,
+    origin: QualifiedOrigin,
+  ): Promise<PermissionBasis | undefined> {
+    const commands = permissionBasisCommands(
+      permissionBasisRequestSchema.parse({
+        snapshot: GovernanceTargetBindingSchema.parse({
+          scope: options.scope,
+          epoch: options.epoch,
+          principalRef: origin.principalRef,
+          captureId: randomUUID(),
+          transactionDomain: options.domain.transactionDomain,
+          mode: 'runtime',
+          definition: origin.definition,
+          target: mapped.target,
+        }),
+        permission: request,
+        session: origin.session,
+        constraints: origin.constraints,
+        requiredConstraintIds: origin.constraints.map(constraint => constraint.id),
+      }),
+      origin.configuration,
+    )
+    const projected = await readProjection(options.storage, options.domain, options.read, commands)
+    return projected.kind === 'completed'
+      ? permissionBasisSchema.parse(projected.response)
+      : undefined
+  }
+
   async function read(raw: ToolPermissionContext): Promise<CurrentPermissionRead> {
     const context = {
       ...raw,
@@ -193,37 +225,15 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
     const qualification = await qualified(options, context, request, { passKey, sessionOnce })
     if (qualification.kind !== 'qualified') return without(qualification, request)
     const { origin } = qualification
-    const commands = permissionBasisCommands(
-      permissionBasisRequestSchema.parse({
-        snapshot: GovernanceTargetBindingSchema.parse({
-          scope: options.scope,
-          epoch: options.epoch,
-          principalRef: origin.principalRef,
-          captureId: randomUUID(),
-          transactionDomain: options.domain.transactionDomain,
-          mode: 'runtime',
-          definition: origin.definition,
-          target: mapped.target,
-        }),
-        permission: request,
-        session: origin.session,
-        constraints: origin.constraints,
-        requiredConstraintIds: origin.constraints.map(constraint => constraint.id),
-      }),
-      origin.configuration,
-    )
     // The layers of one gate do not depend on the action; one pass reads them once.
     const gate = await gateOnce(
       passKey('gate', mapped.target, request.definition, origin.session, origin.constraints),
       async () => {
-        const projected = await readProjection(
-          options.storage,
-          options.domain,
-          options.read,
-          commands,
-        )
-        if (projected.kind !== 'completed') return undefined
-        const basis: PermissionBasis = permissionBasisSchema.parse(projected.response)
+        const basis =
+          mapped.declared === null
+            ? await stored(mapped, request, origin)
+            : declaredPermissionBasis(mapped.declared, request, origin)
+        if (basis === undefined) return undefined
         return { basis, organization: await organization(mapped, request, basis.evaluation) }
       },
     )

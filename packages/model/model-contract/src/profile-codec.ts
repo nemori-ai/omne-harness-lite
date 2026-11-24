@@ -2,7 +2,7 @@ import { organizationCodec, tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { z } from 'zod'
 import { isNativeFileType, type ProfileResolution, type ProfileScope } from './profile.ts'
-import type { Parameter, ToolDeclaration } from './root.ts'
+import { REASONING_EFFORTS, type Parameter, type ToolDeclaration } from './root.ts'
 import type { ModelInputRejection } from './judge-request.ts'
 import { InputTree, freezeTree, rejected } from './input-tree.ts'
 import { adoption, parameter, tool } from './request-shape.ts'
@@ -97,11 +97,15 @@ const profile = z.strictObject({
       }),
       limits: z.array(tokenLimit.extend({ metric })),
       parameters,
+      reasoningEfforts: z
+        .partialRecord(z.enum(REASONING_EFFORTS), z.enum([...REASONING_EFFORTS, 'max']))
+        .optional(),
       representation: adopted,
       meter: adopted,
       retryPolicy: adopted,
     })
-    .transform(({ fileTypes, ...value }) => ({
+    .transform(({ fileTypes, reasoningEfforts, ...value }) => ({
+      ...(reasoningEfforts === undefined ? {} : { reasoningEfforts }),
       ...value,
       ...(fileTypes === undefined ? {} : { fileTypes }),
     })),

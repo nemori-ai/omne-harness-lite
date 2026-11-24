@@ -11,9 +11,10 @@ import { sessionKey, type SessionService } from '@omne-harness/session-cordis-co
 import { contextInitialization } from '../../assembly/session-context-initialization.ts'
 import {
   definitionMappingsKey,
-  definitionResolverOf,
+  mappedDefinitionFor,
 } from '../agent-adoptions/definition-mappings.ts'
 import { sessionModesInstallationKey } from '../session-ad03/modes.ts'
+import { lastTurnOf, madeFrom } from '../tenant-assets/turn.ts'
 import { readForkPointOf } from './fork-point.ts'
 
 const OWNER = 'harness-server/dispatch-session'
@@ -48,11 +49,18 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
     return issued.failure.kind === 'denied' ? 'none' : 'unavailable'
   }
 
-  function creationOf(input: Parameters<SessionCalls['create']>[0]): SessionCreation | undefined {
+  async function creationOf(
+    input: Parameters<SessionCalls['create']>[0],
+  ): Promise<SessionCreation | undefined> {
     const mappings = ctx.get(definitionMappingsKey)
-    const resolved =
-      mappings === undefined ? undefined : definitionResolverOf(mappings)(input.creation.agent)
-    if (resolved === undefined) return undefined
+    if (mappings === undefined) return undefined
+    const { tenant } = input
+    const from = madeFrom(input.creation.standing.relation)
+    const turn = from === null ? null : await lastTurnOf(ctx, tenant, from)
+    if (turn === undefined) return undefined
+    const asker = turn === null ? { tenant } : { tenant, turn }
+    const resolved = await mappedDefinitionFor(mappings, asker, input.creation.agent)
+    if (resolved === undefined || resolved === 'unavailable') return undefined
     const { tenantDefaults, ...mapped } = resolved
     const { agent, workspace, modes, standing } = input.creation
     return {
@@ -72,7 +80,7 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
   return {
     async create(input): Promise<Called<unknown>> {
       const service = intake()
-      const creation = creationOf(input)
+      const creation = await creationOf(input)
       if (service === undefined) return absent('the Session service')
       if (creation === undefined) return absent(`the definition ${input.creation.agent}`)
       const { tenant, session, operation } = input

@@ -11,6 +11,8 @@ import { DISPATCH_COMPONENT } from '../authorization/grants.ts'
 import { dispatchHolder } from '../dispatch/holder.ts'
 import { sessionModesInstallationKey } from '../session-ad03/modes.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
+import type { SessionId } from '@omne-harness/session-contract'
+import { lastTurnOf } from '../tenant-assets/turn.ts'
 import { sessionCallsOf } from './calls.ts'
 
 /** Dispatch's side that knows Session: its three input sources, the session port and the context copies of the provider. */
@@ -43,10 +45,12 @@ export const dispatchSessionRow = defineRow({
     })
     holder.sessions = sessions
     holder.copies = copies
+    holder.turns = (tenant, session) => lastTurnOf(ctx, tenant, session as SessionId)
     return {
       async stop() {
         if (holder.sessions === sessions) holder.sessions = null
         if (holder.copies === copies) holder.copies = null
+        holder.turns = null
         return { kind: 'settled' }
       },
     }

@@ -7,7 +7,12 @@ type Answer = Awaited<ReturnType<Client['list-models']>>
 type Listed = Extract<Answer, { outcome: 'succeeded' }>['body']['models'][number]
 
 /** One model as a person picks from it: its route, whether it can be picked, and a word on it. */
-export type ModelChoice = Readonly<{ route: string; selectable: boolean; note: string | null }>
+export type ModelChoice = Readonly<{
+  route: string
+  selectable: boolean
+  note: string | null
+  reasoningEfforts: NonNullable<Listed['reasoningEfforts']>
+}>
 
 export type ModelChoiceListing =
   | Readonly<{ kind: 'listed'; choices: readonly ModelChoice[] }>
@@ -56,6 +61,7 @@ export function createModelChoices(client: Client): ModelChoices {
         route: model.route,
         selectable: model.selectable,
         note: noteOf(model),
+        reasoningEfforts: model.reasoningEfforts ?? [],
       }))
       return { kind: 'listed', choices }
     },

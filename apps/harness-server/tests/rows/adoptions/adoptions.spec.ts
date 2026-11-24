@@ -137,7 +137,11 @@ describe('an unknown definition produces no business write', () => {
       const known = await run.create(createCommand('alpha'))
       return { unknown, writesAfterUnknown, known, writesAfterKnown: run.sessionCommits.length }
     })
-    expect(failureOf(value.unknown)).toMatchObject({ kind: 'invalid', field: 'definition' })
+    // This tree keeps no assets of tenants: whether a tenant holds a definition of that name cannot be read.
+    expect(failureOf(value.unknown)).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: 'the assets of the tenant cannot be read',
+    })
     expect(value.writesAfterUnknown).toBe(0)
     expect('ok' in value.known).toBe(true)
     expect(value.writesAfterKnown).toBe(1)
