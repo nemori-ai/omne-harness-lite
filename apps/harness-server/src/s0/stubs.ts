@@ -499,7 +499,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'loopExtensionRunLocations',
       'agentExtensions',
     ],
-    injects: [],
+    injects: ['runtimeContextTenantBlocks'],
   },
   'runtime-context': { provides: ['runtimeContext'], injects: ['runtimeContextTrust'] },
   'session-observation': {

@@ -1,9 +1,5 @@
 import type { ActingForTenantPrincipal, PrincipalVerifier } from '@omne-harness/identity'
 import { tenantEquals } from '@omne-harness/legal-identity'
-import {
-  ENABLED_EXTENSIONS_BLOCK,
-  enabledExtensionsProducer,
-} from '@omne-harness/loop-extension-contract'
 import type { AuthorityDecision, ProducerAction } from '@omne-harness/runtime-context-contract'
 import { sessionModesProducer } from '@omne-harness/session-adapters/cordis'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
@@ -17,10 +13,7 @@ export type SessionModesAuthoritySources = Readonly<{
 }>
 
 /** The blocks the Session adapters produce for a session scope, each by its own producer. */
-const PRODUCED = new Map<string, string>([
-  ['session.modes', sessionModesProducer.producer],
-  [ENABLED_EXTENSIONS_BLOCK, enabledExtensionsProducer.producer],
-])
+const PRODUCED = new Map<string, string>([['session.modes', sessionModesProducer.producer]])
 
 async function supplyPrincipal(
   sources: SessionModesAuthoritySources,

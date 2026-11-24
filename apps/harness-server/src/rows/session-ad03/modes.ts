@@ -13,9 +13,6 @@ import {
   type InitialBlock,
 } from '../../assembly/session-context-initialization.ts'
 import { Service, type Context } from '@deepseek-ai/cordis'
-import { loopExtensionViewsKey } from '@omne-harness/loop-extension-cordis-contract/cordis'
-import { createEnabledExtensionsPublisher } from '@omne-harness/loop-extension-host-local'
-import { runtimeContextKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   createSessionModesPlugin,
@@ -58,11 +55,9 @@ export class SessionModesInstallation extends Service {
     super(ctx, sessionModesInstallationKey)
     const producers = new Map<string, Promise<Producer | undefined>>()
     let active = true
-    const closing: (() => Promise<void>)[] = []
-    ctx.effect(() => async () => {
+    ctx.effect(() => () => {
       active = false
       producers.clear()
-      await Promise.all(closing.splice(0).map(close => close()))
     })
     const mount = async (tenant: TenantId): Promise<Producer | undefined> => {
       const principal = sources.principals.forTenant(tenant)
@@ -74,20 +69,12 @@ export class SessionModesInstallation extends Service {
         defaultModes: sources.defaultModes,
       })
       const fiber = ctx.plugin(plugin)
-      const extensions = enabledExtensionsPublisherOf(ctx, tenant, principal)
       try {
         await fiber
-        const registered = await extensions.start()
-        if (registered.kind !== 'registered')
-          throw new Error(`extension producer registration answered ${registered.kind}`)
-        if (active) {
-          closing.push(() => extensions.close())
-          return plugin
-        }
+        if (active) return plugin
       } catch {
-        ctx.logger('session-ad03-modes').warn('tenant context producers could not start')
+        ctx.logger('session-ad03-modes').warn('tenant mode producer could not start')
       }
-      await extensions.close()
       await fiber.dispose()
       return undefined
     }
@@ -149,29 +136,6 @@ async function isSystemPart(verifier: PrincipalVerifier, creator: unknown): Prom
   }
 }
 
-// The view is asked for on each read: while the loop-extension services are away the block reads as missing.
-function enabledExtensionsPublisherOf(ctx: Context, tenant: TenantId, principal: unknown) {
-  return createEnabledExtensionsPublisher<unknown>({
-    tenant,
-    principal,
-    runtime: {
-      registerProducer: (caller, registration) => {
-        const runtime = ctx.get(runtimeContextKey)
-        return runtime === undefined
-          ? Promise.resolve({ kind: 'rejected' as const, reason: 'closed' as const })
-          : runtime.registerProducer(caller, registration)
-      },
-    },
-    views: {
-      read: async access =>
-        (await ctx.get(loopExtensionViewsKey)?.read(access)) ?? {
-          kind: 'unavailable',
-          diagnostic: 'the loop extension views are away',
-        },
-    },
-  })
-}
-
 async function prepareInitial(
   input: ContextCreation,
   block: InitialBlock,
@@ -211,23 +175,14 @@ async function prepareInitial(
   try {
     // A supplied block is judged against its producer; a stateful one brings its declaration.
     if ('producer' in block) {
-      const judged = {
+      const registered = await temporary.registerProducer<ContextBlockKey>(principal, {
         tenant: input.tenant,
         key: block.item,
         producer: block.producer,
-        supply: async () => ({ kind: 'none' as const }),
-      }
-      const registered = block.scoped
-        ? await temporary.registerProducer<ContextBlockKey>(principal, {
-            ...judged,
-            declaration: block.descriptor,
-            scoped: true,
-          })
-        : await temporary.registerProducer<ContextBlockKey>(principal, {
-            ...judged,
-            declaration: block.descriptor,
-            scoped: false,
-          })
+        declaration: block.descriptor,
+        scoped: true,
+        supply: async () => ({ kind: 'none' }),
+      })
       if (registered.kind !== 'registered') return unavailable()
     }
     return await prepareContextRegistration(

@@ -7,10 +7,12 @@ import {
   loopExtensionRunLocationsKey,
   loopExtensionViewsKey,
 } from '@omne-harness/loop-extension-cordis-contract/cordis'
+import { enabledExtensionsBlock } from '@omne-harness/loop-extension-host-local'
 import {
   loopExtensionCategoryPlugin,
   loopExtensionPlugin,
 } from '@omne-harness/loop-extension-host-local/cordis'
+import { runtimeContextTenantBlocksKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { z } from 'zod'
 import { EntryRunLocations } from '../../entry/loop-extensions.ts'
 import { currentScope, sessionWorkReaderOf } from '../../entry/tool-requests.ts'
@@ -41,7 +43,7 @@ export const loopExtensionRow = defineRow({
       loopExtensionRunLocationsKey,
       agentExtensionsKey,
     ],
-    injects: [],
+    injects: [runtimeContextTenantBlocksKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },
@@ -52,6 +54,19 @@ export const loopExtensionRow = defineRow({
       const commands = config.commands
       // The category is this domain's contribution: it waits for the category point and leaves with this row.
       ctx.plugin(loopExtensionCategoryPlugin)
+      // The enabled extensions are a fact of the tenant: a block of the tenant-level scope. The view
+      // is asked for at each read; while it is away the block reads as unavailable.
+      ctx[runtimeContextTenantBlocksKey].register({
+        blocks: [
+          enabledExtensionsBlock<unknown>({
+            read: async access =>
+              (await ctx.get(loopExtensionViewsKey)?.read(access)) ?? {
+                kind: 'unavailable',
+                diagnostic: 'the loop extension views are away',
+              },
+          }),
+        ],
+      })
       const scopePorts = {
         readWork: sessionWorkReaderOf(ctx),
         scopeBinding: () => ctx.get(executionScopeBindingKey),

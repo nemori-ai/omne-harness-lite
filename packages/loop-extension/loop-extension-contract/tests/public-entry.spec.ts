@@ -7,7 +7,7 @@ it('exports the category, the package format, the block and the command protocol
     'COMMAND_PROTOCOL',
     'DECLARATION_PATH',
     'ENABLED_EXTENSIONS_BLOCK',
-    'ENABLED_EXTENSIONS_PUBLICATION',
+    'ENABLED_EXTENSIONS_REQUEST',
     'LOOP_EXTENSION_CATEGORY',
     'LOOP_EXTENSION_PACKAGE_LIMITS',
     'MODEL_CALL_NEED',
@@ -15,9 +15,7 @@ it('exports the category, the package format, the block and the command protocol
     'commandRequest',
     'commandTimeoutMs',
     'declarationOf',
-    'enabledExtensionsBinding',
     'enabledExtensionsDescriptor',
-    'enabledExtensionsProducer',
     'loopExtensionBodyContract',
     'loopExtensionCategoryDisplay',
   ])

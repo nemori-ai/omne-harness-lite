@@ -1,9 +1,7 @@
 export {
   ENABLED_EXTENSIONS_BLOCK,
-  ENABLED_EXTENSIONS_PUBLICATION,
-  enabledExtensionsBinding,
+  ENABLED_EXTENSIONS_REQUEST,
   enabledExtensionsDescriptor,
-  enabledExtensionsProducer,
   type EnabledExtensionsView,
   type EnabledMember,
 } from './block.ts'

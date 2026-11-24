@@ -1,10 +1,4 @@
 import { tenantCodec } from '@omne-harness/legal-identity'
-import {
-  ENABLED_EXTENSIONS_PUBLICATION,
-  enabledExtensionsBinding,
-  enabledExtensionsDescriptor,
-  enabledExtensionsProducer,
-} from '@omne-harness/loop-extension-contract'
 import { contentDigest } from '../rows/agent-adoptions/definition-mappings.ts'
 import {
   SESSION_MODES_PUBLICATION,
@@ -39,19 +33,11 @@ const DECLARED = [
     bindings: sessionModesBindings,
     descriptor: sessionModesDescriptor,
     producer: sessionModesProducer,
-    scoped: true,
   },
   {
     definition: SESSION_WORKING_DIRECTORY,
     bindings: workingDirectoryBindings,
     descriptor: workingDirectoryDescriptor,
-  },
-  {
-    definition: ENABLED_EXTENSIONS_PUBLICATION,
-    bindings: [enabledExtensionsBinding],
-    descriptor: enabledExtensionsDescriptor,
-    producer: enabledExtensionsProducer,
-    scoped: false,
   },
 ] as const
 

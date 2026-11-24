@@ -1,9 +1,11 @@
-import { createHash } from 'node:crypto'
 import type { LoopExtensionDeclaration } from '@omne-harness/agent-contract'
-import type { NeedBinding, SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
+import type {
+  StaticReaderRequest,
+  SuppliedBlockDescriptor,
+} from '@omne-harness/runtime-context-contract'
 
-/** The key of the block that supplies the extensions a tenant has enabled. Not scoped to a session; read from its producer each time. */
-export const ENABLED_EXTENSIONS_BLOCK = 'loop-extension.enabled'
+/** The key of the block that supplies the extensions a tenant has enabled. A block of the tenant-level scope: asked for at each read, never stored. */
+export const ENABLED_EXTENSIONS_BLOCK = 'loop-extension.enabled' as const
 
 export type EnabledMember = Readonly<{
   capability: string
@@ -45,11 +47,7 @@ function isView(value: unknown): value is EnabledExtensionsView {
   return text(basis['assets']) && text(basis['settings']) && members.every(isMember)
 }
 
-export const enabledExtensionsProducer = Object.freeze({
-  producer: '@omne-harness/loop-extension/enabled',
-})
-
-/** A required block: when its producer is away the reader gets a missing block, never an empty view. */
+/** A required block: when it is not contributed the reader gets a missing block, never an empty view. */
 export const enabledExtensionsDescriptor = Object.freeze({
   key: ENABLED_EXTENSIONS_BLOCK,
   schema: {
@@ -71,32 +69,9 @@ export const enabledExtensionsDescriptor = Object.freeze({
   recovery: 'recompute',
 } satisfies SuppliedBlockDescriptor<typeof ENABLED_EXTENSIONS_BLOCK, EnabledExtensionsView>)
 
-/** The one need of this block: the coordinator reads the whole view at an extension position. */
-export const enabledExtensionsBinding = Object.freeze({
-  key: ENABLED_EXTENSIONS_BLOCK,
-  need: Object.freeze({
-    name: 'loop-extension.chain',
-    shape: enabledExtensionsDescriptor.schema,
-    consumer: 'coordinator',
-    purpose:
-      'The loop extensions the tenant has enabled, read when a Run reaches an extension position',
-    necessity: 'required',
-  }),
-} satisfies NeedBinding<typeof ENABLED_EXTENSIONS_BLOCK, EnabledExtensionsView>)
-
-const VIEW_SHAPE = {
-  members: [{ capability: 'string', assetRef: 'string', version: 'string', declaration: 'object' }],
-  basis: { assets: 'string', settings: 'string' },
-}
-
-/** The identity under which a scope adopts this block and its need. Its digest covers the key, the need and the shape of the view. */
-export const ENABLED_EXTENSIONS_PUBLICATION = Object.freeze({
-  owner: '@omne-harness/loop-extension-contract',
-  name: 'loop-extension.enabled-publication',
-  revision: '1',
-  digest: `sha256:${createHash('sha256')
-    .update(
-      JSON.stringify([ENABLED_EXTENSIONS_BLOCK, enabledExtensionsBinding.need.name, VIEW_SHAPE]),
-    )
-    .digest('hex')}`,
+/** What the coordinator asks the tenant-level scope for at an extension position. */
+export const ENABLED_EXTENSIONS_REQUEST: StaticReaderRequest = Object.freeze({
+  consumer: 'coordinator' as const,
+  blocks: [ENABLED_EXTENSIONS_BLOCK] as const,
+  needs: [] as const,
 })

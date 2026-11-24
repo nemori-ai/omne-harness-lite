@@ -14,10 +14,6 @@ import {
   type SessionContextDefinitions,
 } from '@omne-harness/session-adapters/cordis'
 import {
-  ENABLED_EXTENSIONS_PUBLICATION,
-  enabledExtensionsBinding,
-} from '@omne-harness/loop-extension-contract'
-import {
   SESSION_MODES_PUBLICATION,
   SESSION_WORKING_DIRECTORY,
 } from '@omne-harness/session-adapters'
@@ -90,11 +86,6 @@ const ADOPTED: readonly DeclaredContextBlocks[] = [
     definition: SESSION_WORKING_DIRECTORY,
     bindings: workingDirectoryBindings,
     declarations: [workingDirectoryDescriptor],
-  },
-  {
-    definition: ENABLED_EXTENSIONS_PUBLICATION,
-    bindings: [enabledExtensionsBinding],
-    declarations: [],
   },
 ]
 

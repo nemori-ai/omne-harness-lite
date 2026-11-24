@@ -1,29 +1,28 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { DurableEvidence, EnabledExtensions, Failure } from '@omne-harness/agent-contract'
 import type { PrincipalVerifier } from '@omne-harness/identity'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import type { TenantId } from '@omne-harness/legal-identity'
 import { membersAt } from '@omne-harness/loop-extension'
 import {
-  enabledExtensionsBinding,
+  ENABLED_EXTENSIONS_BLOCK,
+  ENABLED_EXTENSIONS_REQUEST,
   enabledExtensionsDescriptor,
   type EnabledExtensionsView,
   type RunLocation,
 } from '@omne-harness/loop-extension-contract'
 import { RunLocationsService } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ScopeRef } from '@omne-harness/runtime-context-contract'
+import type { ScopeRef, StaticScopeHolder } from '@omne-harness/runtime-context-contract'
 import type { SessionId } from '@omne-harness/session-contract'
 import { contentDigest } from '../rows/agent-adoptions/definition-mappings.ts'
-import {
-  publishedViewPortsOf,
-  readCoordinatorNeed,
-  type PublishedViewPorts,
-} from '../rows/session-ad03/published-view.ts'
 import { sessionWorkOf, verifySessionWork } from '../rows/tool-runtime/session-work.ts'
 
 const OWNER = 'agentEnabledExtensions'
 
-export type EnabledExtensionsPorts = Readonly<{ views(): PublishedViewPorts | null }>
+export type EnabledExtensionsPorts = Readonly<{
+  scope(): Pick<StaticScopeHolder<unknown>, 'read'> | undefined
+  principal(tenant: TenantId): unknown
+}>
 
 const unavailable = (diagnostic: string): Outcome<never, Failure> =>
   fail({ kind: 'unavailable', owner: OWNER, diagnostic })
@@ -40,7 +39,7 @@ async function sessionOf(
     : succeed(verdict.session as SessionId)
 }
 
-function viewOf(value: unknown): EnabledExtensionsView | undefined {
+function viewOfValue(value: unknown): EnabledExtensionsView | undefined {
   const judged = enabledExtensionsDescriptor.schema['~standard'].validate(value)
   return 'value' in judged ? judged.value : undefined
 }
@@ -52,42 +51,45 @@ const basisOf = (view: EnabledExtensionsView): DurableEvidence => ({
   digest: contentDigest(view),
 })
 
-const KNOWN_SCOPES = 4096
-
-/** The Agent port of the tenant-enabled extensions. Unreadable is unavailable, never an empty chain. The session comes from the shape of the principal: the read verifies it. */
-export function createEnabledExtensions(ports: EnabledExtensionsPorts): EnabledExtensions<unknown> {
-  // A hint: the scope the last read of a session used.
-  const scopes = new Map<string, ScopeRef>()
-  return {
-    async read(input) {
-      const work = sessionWorkOf(input.principal, input.tenant)
-      const tenant = tenantCodec.encode(input.tenant)
-      if (work === undefined || !tenant.ok)
-        return fail({ kind: 'denied', action: 'enabled-extensions' })
-      const views = ports.views()
-      if (views === null) return unavailable('the Session or Runtime Context services are absent')
-      const session = work.session as SessionId
-      const key = `${tenant.value}|${session}`
-      const access = { principal: input.principal, tenant: input.tenant, session }
-      const asked = { key: enabledExtensionsBinding.key, need: enabledExtensionsBinding.need.name }
-      const read = await readCoordinatorNeed(views, access, asked, scopes.get(key))
-      if ('failure' in read) {
-        scopes.delete(key)
-        return unavailable(read.failure)
-      }
-      if (scopes.size >= KNOWN_SCOPES && !scopes.has(key)) scopes.clear()
-      scopes.set(key, read.ok.scope)
-      const view = viewOf(read.ok.value)
-      if (view === undefined)
-        return unavailable('the block is not a view of the enabled extensions')
-      const { position, dimension } = input
-      return succeed({ members: membersAt(view, { position, dimension }), basis: basisOf(view) })
-    },
-  }
+async function viewOfTenant(
+  ports: EnabledExtensionsPorts,
+  tenant: TenantId,
+): Promise<Outcome<EnabledExtensionsView, Failure>> {
+  const scope = ports.scope()
+  const principal = ports.principal(tenant)
+  if (scope === undefined) return unavailable('the holder of the tenant-level scope is not there')
+  if (principal === undefined) return unavailable('no principal reads the tenant-level scope now')
+  const read = await scope.read(principal, tenant, ENABLED_EXTENSIONS_REQUEST)
+  if ('failure' in read) return unavailable(`the tenant-level scope: ${read.failure.kind}`)
+  const entry = read.ok.entries.find(item => item.key === ENABLED_EXTENSIONS_BLOCK)
+  const view = entry?.kind === 'value' ? viewOfValue(entry.value) : undefined
+  return view === undefined
+    ? unavailable(`the block read as ${entry?.kind ?? 'missing'}`)
+    : succeed(view)
 }
 
-export function enabledExtensionsOf(ctx: Context): EnabledExtensions<unknown> {
-  return createEnabledExtensions({ views: () => publishedViewPortsOf(ctx) })
+// The view is a fact of the tenant: read from the tenant-level scope, for the work of a session of
+// this tenant. Unreadable is unavailable, never an empty chain.
+export function createEnabledExtensions(ports: EnabledExtensionsPorts): EnabledExtensions<unknown> {
+  return {
+    async read(input) {
+      if (sessionWorkOf(input.principal, input.tenant) === undefined)
+        return fail({ kind: 'denied', action: 'enabled-extensions' })
+      try {
+        const view = await viewOfTenant(ports, input.tenant)
+        if ('failure' in view) return view
+        const { position, dimension } = input
+        return succeed({
+          members: membersAt(view.ok, { position, dimension }),
+          basis: basisOf(view.ok),
+        })
+      } catch (cause) {
+        return unavailable(
+          `the read threw: ${cause instanceof Error ? cause.message : String(cause)}`,
+        )
+      }
+    },
+  }
 }
 
 export type RunLocationPorts = Readonly<{

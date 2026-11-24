@@ -5,9 +5,9 @@ it('the root entry exports the views, the publisher of the block, the builtin re
   expect(Object.keys(root).sort()).toEqual([
     'createBuiltinExtensions',
     'createCommandHost',
-    'createEnabledExtensionsPublisher',
     'createEnabledExtensionsViews',
     'createExtensionImplementations',
+    'enabledExtensionsBlock',
   ])
 })
 

@@ -1,4 +1,4 @@
-import { enabledExtensionsOf } from './entry/loop-extensions.ts'
+import { enabledExtensionsOf } from './rows/agent-host/enabled-extensions.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
 export { createStubPlugin as stubPlugin } from './s0/stub-plugin.ts'

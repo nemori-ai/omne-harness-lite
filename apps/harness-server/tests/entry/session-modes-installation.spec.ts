@@ -79,7 +79,7 @@ it('mounts one real producer per tenant through the production authority and wit
       modes.ensure(fixtureTenant('b')),
     ])
     expect(answers).toEqual([{ kind: 'ready' }, { kind: 'ready' }, { kind: 'ready' }])
-    expect(registrations).toHaveBeenCalledTimes(4)
+    expect(registrations).toHaveBeenCalledTimes(2)
     const original = createCommand('alpha')
     const input = { ...original.input, tenant, principal: principals.forTenant(tenant) }
     const initial = contextInitialization(input)
@@ -87,7 +87,6 @@ it('mounts one real producer per tenant through the production authority and wit
     expect(initial.blocks.map(item => item.block.item)).toEqual([
       'session.modes',
       'session.working-directory',
-      'loop-extension.enabled',
     ])
     const command = {
       ...original,

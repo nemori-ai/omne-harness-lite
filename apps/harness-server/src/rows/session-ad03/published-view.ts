@@ -127,17 +127,6 @@ async function readIn<V>(
   holds: (current: Current) => boolean,
 ): Promise<PublishedViewRead<V | null>> {
   const access = { ...input }
-  const scope = await recoveredScope(ports, access, holds)
-  if ('failure' in scope) return scope
-  if (scope.ok === null) return succeed(null)
-  return readAt(ports, access, scope.ok, reader => selected(reader, binding))
-}
-
-async function recoveredScope(
-  ports: PublishedViewPorts,
-  access: SessionAccess<unknown>,
-  holds: (current: Current) => boolean,
-): Promise<PublishedViewRead<ScopeRef | null>> {
   try {
     const current = await currentScope(ports, access)
     if ('failure' in current) return current
@@ -148,19 +137,7 @@ async function recoveredScope(
       session: access.session,
       scope,
     })
-    return recovered.kind === 'ready' ? succeed(scope) : fail(`session recovery: ${recovered.kind}`)
-  } catch (error) {
-    return fail(`threw: ${error instanceof Error ? error.message : String(error)}`)
-  }
-}
-
-async function readAt<T>(
-  ports: PublishedViewPorts,
-  access: SessionAccess<unknown>,
-  scope: ScopeRef,
-  read: (reader: ContextReader) => Promise<PublishedViewRead<T>>,
-): Promise<PublishedViewRead<T>> {
-  try {
+    if (recovered.kind !== 'ready') return fail(`session recovery: ${recovered.kind}`)
     const issued = await ports.eligibility.current({ ...access, scope, consumer: 'coordinator' })
     if (issued.kind !== 'current') return fail(`eligibility: ${issued.kind}`)
     const bound = await ports.runtime.bind(issued.eligibility)
@@ -168,45 +145,13 @@ async function readAt<T>(
     try {
       if (bound.reader.consumer !== 'coordinator' || bound.reader.scope.ref !== scope.ref)
         return fail('bind: another consumer or scope')
-      return await read(bound.reader)
+      return await selected(bound.reader, binding)
     } finally {
       await bound.reader.end()
     }
   } catch (error) {
     return fail(`threw: ${error instanceof Error ? error.message : String(error)}`)
   }
-}
-
-const needOf =
-  (asked: Readonly<{ key: ContextBlockKey; need: string }>) =>
-  async (reader: ContextReader): Promise<PublishedViewRead<unknown>> => {
-    const result = await reader.read([asked])
-    if (result.kind === 'missing')
-      return fail(`read: missing (${result.items.map(item => item.cause).join(', ')})`)
-    if (result.kind !== 'success') return fail(`read: ${result.kind}`)
-    const item = result.value.length === 1 ? result.value[0]! : undefined
-    if (item === undefined || item.need !== asked.need) return fail('read: not the one asked need')
-    return item.kind === 'value' ? succeed(item.value) : fail(`read: ${item.kind}`)
-  }
-
-/** The value of one need of the current context scope of a session, read as the coordinator. `known` is a scope an earlier read found: it is tried first. */
-export async function readCoordinatorNeed(
-  ports: PublishedViewPorts,
-  input: SessionAccess<unknown>,
-  asked: Readonly<{ key: ContextBlockKey; need: string }>,
-  known?: ScopeRef,
-): Promise<PublishedViewRead<Readonly<{ value: unknown; scope: ScopeRef }>>> {
-  const access = { ...input }
-  const read = needOf(asked)
-  if (known !== undefined) {
-    const direct = await readAt(ports, access, known, read)
-    if ('ok' in direct) return succeed({ value: direct.ok, scope: known })
-  }
-  const scope = await recoveredScope(ports, access, () => true)
-  if ('failure' in scope) return scope
-  if (scope.ok === null) return fail('read: no scope')
-  const found = await readAt(ports, access, scope.ok, read)
-  return 'failure' in found ? found : succeed({ value: found.ok, scope: scope.ok })
 }
 
 /** `declared: false` reads the services lazily, for a row that does not list them among its injects. */

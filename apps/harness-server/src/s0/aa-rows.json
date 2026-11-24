@@ -312,7 +312,8 @@
     {
       "row": "agent-host",
       "names": [
-        "sessionModesInstallation"
+        "sessionModesInstallation",
+        "tenantScopePrincipals"
       ]
     },
     {

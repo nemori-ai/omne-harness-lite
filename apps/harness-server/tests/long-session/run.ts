@@ -17,14 +17,10 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { BuiltinExtensions } from '@omne-harness/loop-extension-contract'
 import { userTextMessage } from '@omne-harness/session-protocol'
 import type { SessionId, SessionWorkPrincipals } from '@omne-harness/session-contract'
-import { sessionKey, sessionWorkPrincipalsKey } from '@omne-harness/session-cordis-contract/cordis'
-import {
-  runtimeContextKey,
-  runtimeContextReaderEligibilityKey,
-} from '@omne-harness/runtime-context-cordis-contract/cordis'
+import { sessionWorkPrincipalsKey } from '@omne-harness/session-cordis-contract/cordis'
+import { runtimeContextTenantScopeKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { createEnabledExtensions } from '../../src/entry/loop-extensions.ts'
-import { sessionModesInstallationKey } from '../../src/rows/session-ad03/modes.ts'
-import type { PublishedViewPorts } from '../../src/rows/session-ad03/published-view.ts'
+import { tenantScopePrincipalsKey } from '../../src/entry/tenant-scope-principals.ts'
 import { tenantOf as extensionTenantOf } from '../rows/loop-extension/support.ts'
 import type { EntryEnv } from '../../src/types.ts'
 import { startAssembly } from '../history-cost/assembly.ts'
@@ -231,7 +227,7 @@ async function visibleHistory(session: string) {
   }
 }
 
-// How many storage reads one read of the tenant-enabled extensions costs once the scope of the session is known.
+// How many storage reads one read of the tenant-enabled extensions costs after the first one.
 async function probeReads(session: string) {
   if (scope === undefined) throw new Error('the scope of the serving tree was not given')
   const issued = await workPrincipals?.()?.forSession({
@@ -243,21 +239,8 @@ async function probeReads(session: string) {
     throw new Error(`no session-work principal: ${JSON.stringify(issued)}`)
   const tree = scope
   const port = createEnabledExtensions({
-    views() {
-      const session = tree.intercept(sessionKey, { caller: 'coordinator' }).get(sessionKey)
-      const eligibility = tree.get(runtimeContextReaderEligibilityKey)
-      const runtime = tree
-        .intercept(runtimeContextKey, { consumer: 'coordinator' })
-        .get(runtimeContextKey)
-      const modes = trusted?.(sessionModesInstallationKey)
-      if (!session || !eligibility || !runtime || !modes) return null
-      return {
-        work: session.work,
-        eligibility,
-        runtime,
-        recoverSession: input => modes.recoverSession(input),
-      } as PublishedViewPorts
-    },
+    scope: () => tree.get(runtimeContextTenantScopeKey),
+    principal: tenant => trusted?.(tenantScopePrincipalsKey)?.forTenant(tenant),
   })
   const read = () =>
     port.read({
@@ -288,7 +271,7 @@ async function probeReads(session: string) {
   )
 }
 
-// Installs observing builtin extensions for the tenant, before the model call: every round passes there twice. Published through the release entry; run is turned on by the stand-in, the release has no write path for it yet.
+// Installs observing builtin extensions for the tenant, before the model call: every round passes there twice. Published and turned on through the entries a tenant uses.
 async function installObservers(): Promise<void> {
   if (scope === undefined || entryEnv === undefined)
     throw new Error('the scope of the serving tree was not given')

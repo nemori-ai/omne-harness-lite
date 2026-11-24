@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   ENABLED_EXTENSIONS_BLOCK,
-  ENABLED_EXTENSIONS_PUBLICATION,
-  enabledExtensionsBinding,
+  ENABLED_EXTENSIONS_REQUEST,
   enabledExtensionsDescriptor,
-  enabledExtensionsProducer,
 } from '@omne-harness/loop-extension-contract'
 import { builtin } from './support.ts'
 
@@ -18,7 +16,7 @@ const view = { members: [member], basis: { assets: '2', settings: '1' } }
 const validate = (value: unknown) => enabledExtensionsDescriptor.schema['~standard'].validate(value)
 
 describe('the block of the enabled loop extensions', () => {
-  it('is a required block its producer supplies at each read, for the coordinator alone', () => {
+  it('is a required block of the tenant-level scope, asked for at each read, for the coordinator alone', () => {
     expect(ENABLED_EXTENSIONS_BLOCK).toBe('loop-extension.enabled')
     expect(enabledExtensionsDescriptor).toMatchObject({
       key: 'loop-extension.enabled',
@@ -29,20 +27,10 @@ describe('the block of the enabled loop extensions', () => {
       recovery: 'recompute',
       carriesPrevious: false,
     })
-    expect(enabledExtensionsProducer).toEqual({ producer: '@omne-harness/loop-extension/enabled' })
-    expect(enabledExtensionsBinding).toMatchObject({
-      key: 'loop-extension.enabled',
-      need: { name: 'loop-extension.chain', consumer: 'coordinator', necessity: 'required' },
-    })
-    expect(enabledExtensionsBinding.need.shape).toBe(enabledExtensionsDescriptor.schema)
-  })
-
-  it('is adopted under one identity whose digest is a SHA-256', () => {
-    expect(ENABLED_EXTENSIONS_PUBLICATION).toMatchObject({
-      owner: '@omne-harness/loop-extension-contract',
-      name: 'loop-extension.enabled-publication',
-      revision: '1',
-      digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
+    expect(ENABLED_EXTENSIONS_REQUEST).toEqual({
+      consumer: 'coordinator',
+      blocks: ['loop-extension.enabled'],
+      needs: [],
     })
   })
 
