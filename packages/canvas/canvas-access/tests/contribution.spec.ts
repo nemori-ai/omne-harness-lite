@@ -2,6 +2,7 @@ import {
   tenantIdSchema,
   type CanvasOperations,
   type KindListing,
+  type KindName,
 } from '@omne-harness/canvas-contract'
 import { describe, expect, it } from 'vitest'
 import { NAMES, OTHER, SHEET, TENANT, world, type Name } from './fixtures/world.ts'
@@ -120,13 +121,16 @@ describe('kinds', () => {
       { kind: 'declared', name: 'canvas.app', label: '画布小应用', summary: 's', reference: 'r' },
       { kind: 'conflict', name: 'media.object', by: ['a', 'b'] },
     ] as KindListing[]
-    w.kinds.set(listed)
+    const declared = { label: '画布小应用', summary: 's', reference: 'r' }
+    w.kinds.declare({ name: 'canvas.app' as KindName, ...declared })
+    for (const by of ['a', 'b'])
+      w.kinds.declare({ name: 'media.object' as KindName, ...declared }, by)
     expect(await w.call('kinds', {})).toEqual({ outcome: 'succeeded', body: { kinds: listed } })
   })
 
   it('answers an unavailable basis when the registry cannot be read', async () => {
     const w = world()
-    w.kinds.set('unavailable')
+    w.kinds.fail('unavailable')
     expect(await w.call('kinds', {})).toEqual({ outcome: 'basis-unavailable' })
   })
 })
@@ -134,12 +138,12 @@ describe('kinds', () => {
 describe('step four', () => {
   it.each(NAMES)('%s answers an unavailable basis when the canvas throws', async name => {
     const w = world()
-    const throwing: CanvasOperations = {
+    const throwing = {
       look: () => Promise.reject(new Error('gone')),
       kinds: () => {
         throw new Error('gone')
       },
-    }
+    } as unknown as CanvasOperations
     w.state.face = throwing
     expect(await w.call(name, SAMPLES[name])).toEqual({ outcome: 'basis-unavailable' })
   })

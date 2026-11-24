@@ -3,6 +3,7 @@ import { createCanvas } from '@omne-harness/canvas'
 import {
   createMemoryStore,
   fakeAuthority,
+  fakeClock,
   fakeKinds,
   fakeMovers,
 } from '@omne-harness/canvas/testing'
@@ -61,7 +62,15 @@ export function world() {
   const store = createMemoryStore()
   const authority = fakeAuthority()
   const kinds = fakeKinds()
-  const real = createCanvas({ store, authority, movers: fakeMovers(), kinds, sheet: SHEET })
+  const config = {
+    sheet: SHEET,
+    limits: { placed: 200, away: 500, batch: 50 },
+    size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
+    footprint: { width: 160, height: 80 },
+    admitTimeoutMs: 5000,
+  }
+  const movers = fakeMovers()
+  const real = createCanvas({ store, authority, movers, kinds, clock: fakeClock(), config })
   const state = {
     login: 'acting' as LoginAnswer,
     face: real as CanvasFace | undefined,
