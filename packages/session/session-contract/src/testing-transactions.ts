@@ -1088,11 +1088,10 @@ export function createMemorySessionTransactionPair<P>(
             'ok' in value &&
             value.ok.kind === 'session.model-selected' &&
             value.ok.declaration.kind === 'model'
-          )
-            saved = {
-              selection: { name: value.ok.declaration.name, basis: value.ok.declaration.basis },
-              at: row.revision,
-            }
+          ) {
+            const { kind: _kind, ...selection } = value.ok.declaration
+            saved = { selection, at: row.revision }
+          }
         }
         const initial = store.ok.snapshot.creation.initialModelSelection
         const first = store.ok.entries[0]
@@ -2348,14 +2347,23 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
             input: {
               ...s.base,
               operation: fixture.operation('select'),
-              declaration: { kind: 'model', name: 'route-a', basis: evidence('route-a') },
+              declaration: {
+                kind: 'model',
+                name: 'route-a',
+                reasoningEffort: 'xhigh',
+                basis: evidence('route-a'),
+              },
             },
           }),
           'change',
         )
         succeeded(await s.accept('later'), 'accept')
         const read = succeeded(await s.port.readModelSelection(fixture.access), 'read')
-        assert.deepEqual(read.selection, { name: 'route-a', basis: evidence('route-a') })
+        assert.deepEqual(read.selection, {
+          name: 'route-a',
+          reasoningEffort: 'xhigh',
+          basis: evidence('route-a'),
+        })
         assert.deepEqual(read.source, saved.source, 'the source is the commit that saved it')
         assert.equal(read.revision, (await s.readWork()).revision)
       },

@@ -1162,8 +1162,16 @@ export {};
 import type { DurableEvidence, RunId, SessionRevision } from './identity.ts';
 import type { ControlProgress, ProducerRef, RunTerminal } from './values.ts';
 import type { SessionOperationId } from './identity.ts';
+declare const EFFORTS: readonly [
+    'low',
+    'medium',
+    'high',
+    'xhigh'
+];
+export declare function validSelectionEffort(effort: unknown): boolean;
 export type SavedModelSelection = Readonly<{
     name: string;
+    reasoningEffort?: (typeof EFFORTS)[number];
     basis: DurableEvidence;
 }>;
 export type SessionModelSelection = Readonly<{
@@ -1225,6 +1233,7 @@ export type SessionRunLookup = Readonly<{
     run: RunId;
     covered: SessionRevision;
 }>;
+export {};
 ```
 
 ## 声明文件 `decide-control.d.ts`
@@ -1472,6 +1481,7 @@ import type { SessionEntriesChannel } from './interpretation-values.ts';
 import type { BackgroundCallLabel, BackgroundCallSource } from './background-calls.ts';
 import type { AuthorizationExpression } from './authorizations.ts';
 export declare const SESSION_INTERPRETER: Adoption;
+export declare function readsSessionInterpreter(schema: Adoption): boolean;
 export type InitializationItem = Omit<Extract<RecoveryTask, {
     kind: 'initialization';
 }>, 'kind' | 'originalOperation' | 'state' | 'diagnostic'>;
@@ -4023,8 +4033,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5f2509c9e01e5e248f8ea47eca236bdeec25981cd6b62e89c4e166175743f196";
-export declare const SESSION_RELEASE_DIGEST = "sha256:5f2509c9e01e5e248f8ea47eca236bdeec25981cd6b62e89c4e166175743f196";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:d52940228b980ccbab090bfdd4642ed46f6c2e510dc0ffec565628fad5edd02b";
+export declare const SESSION_RELEASE_DIGEST = "sha256:d52940228b980ccbab090bfdd4642ed46f6c2e510dc0ffec565628fad5edd02b";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4779,7 +4789,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
             kind: 'ordinary';
         }> | null;
         entryContract: import("@omne-harness/exchange-refs").Adoption;
-        initialModelSelection?: import('./control-values.ts').SavedModelSelection;
+        initialModelSelection?: import("./control-values.ts").SavedModelSelection;
         residentAdoption?: import("./values.ts").ResidentAdoption;
         initialization?: import("./values.ts").InitializationSources;
         relation?: import("./values.ts").Relation;
@@ -5011,6 +5021,7 @@ export declare function uninterpretedCalls(execution: string, facts: Iterable<Re
 ## 声明文件 `values.d.ts`
 
 ```ts
+import type { SavedModelSelection } from './control-values.ts';
 import type { SessionPermissions } from './permission-values.ts';
 import type { AuthorizationContext, AuthorizationExpression } from './authorizations.ts';
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions';
@@ -5328,7 +5339,7 @@ export type SessionCreation = Readonly<{
         kind: 'ordinary';
     }> | null;
     entryContract: Adoption;
-    initialModelSelection?: import('./control-values.ts').SavedModelSelection;
+    initialModelSelection?: SavedModelSelection;
     residentAdoption?: ResidentAdoption;
     initialization?: InitializationSources;
     relation?: Relation;
@@ -5400,11 +5411,9 @@ export type DeclarationChange = Readonly<{
     value: WorkspaceId | null;
     workspaceAttachment: WorkspaceAttachment | null;
     basis: DurableEvidence;
-}> | Readonly<{
+}> | (Readonly<{
     kind: 'model';
-    name: string;
-    basis: DurableEvidence;
-}> | Readonly<{
+}> & SavedModelSelection) | Readonly<{
     kind: 'declaration';
     item: string;
     value: JsonValue | null;

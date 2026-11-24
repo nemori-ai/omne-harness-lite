@@ -410,6 +410,33 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     })
   })
 
+  it('rejects a non-uniform effort before it can enter the session journal', () => {
+    const selection = { name: 'route', basis: evidence('model'), reasoningEffort: 'max' as never }
+    expect(decisionOf(createCommand({ initialModelSelection: selection }), null, [])).toMatchObject(
+      {
+        kind: 'rejected',
+        failure: { kind: 'invalid', field: 'creation.initialModelSelection.reasoningEffort' },
+      },
+    )
+    const created = commit(null, createCommand())
+    expect(
+      decisionOf(
+        {
+          kind: 'change',
+          input: {
+            ...base,
+            operation: operationId('select-effort'),
+            declaration: { kind: 'model', ...selection },
+          },
+        },
+        created,
+      ),
+    ).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'declaration.reasoningEffort' },
+    })
+  })
+
   it('workspace changes use the same validation and valid declarations commit', () => {
     const created = commit(null, createCommand())
     expect(decisionOf(changeWorkspace(WORKSPACE_TEXT, workspaceAttachment), created)).toMatchObject(

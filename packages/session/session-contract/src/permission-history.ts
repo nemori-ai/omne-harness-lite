@@ -2,7 +2,12 @@ import type { Adoption, DurableEvidence } from './identity.ts'
 import type { CommittedBatch } from './judgments.ts'
 import type { Modes, WorkSnapshot, SessionCreation } from './values.ts'
 import type { SessionPermissions } from './permission-values.ts'
-import { decodeEntries, SESSION_INTERPRETER, type SessionEntry } from './entries.ts'
+import {
+  decodeEntries,
+  readsSessionInterpreter,
+  SESSION_INTERPRETER,
+  type SessionEntry,
+} from './entries.ts'
 import { applyPermissionEvent } from './permission-state.ts'
 import { batchEvidence } from './batch-evidence.ts'
 import { equalValue } from './session-validation.ts'
@@ -24,10 +29,11 @@ export type SessionPermissionHistory = Readonly<{
 
 function supported(value: Adoption): boolean {
   return (
-    value?.owner === SESSION_INTERPRETER.owner &&
-    value.name === SESSION_INTERPRETER.name &&
-    value.revision === SESSION_INTERPRETER.revision &&
-    (value.digest === SESSION_INTERPRETER.digest || predecessors.has(value.digest))
+    readsSessionInterpreter(value) ||
+    (value?.owner === SESSION_INTERPRETER.owner &&
+      value.name === SESSION_INTERPRETER.name &&
+      value.revision === SESSION_INTERPRETER.revision &&
+      predecessors.has(value.digest))
   )
 }
 

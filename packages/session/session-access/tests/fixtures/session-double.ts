@@ -245,11 +245,10 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       if (found === undefined) return fail({ kind: 'denied', action: 'change' })
       const outcome = commit('change', input.operation, { declaration: input.declaration })
       const { declaration } = input
-      if ('ok' in outcome && declaration.kind === 'model')
-        found.model = {
-          selection: { name: declaration.name, basis: declaration.basis },
-          at: outcome.ok.revision,
-        }
+      if ('ok' in outcome && declaration.kind === 'model') {
+        const { kind: _kind, ...selection } = declaration
+        found.model = { selection, at: outcome.ok.revision }
+      }
       return outcome
     },
   }

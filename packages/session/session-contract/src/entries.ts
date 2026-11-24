@@ -55,6 +55,7 @@ import type {
   InitializationRequirement,
   InitializationRegistration,
 } from './values.ts'
+import { equalValue } from './session-validation.ts'
 import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
 import { member } from './payload-members.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
@@ -68,6 +69,18 @@ export const SESSION_INTERPRETER: Adoption = Object.freeze({
   revision: '5',
   digest: SESSION_RELEASE_DIGEST,
 })
+
+// This exact release wrote the same log shapes without the optional model effort.
+const BEFORE_REASONING_EFFORT: Adoption = {
+  owner: '@omne-harness/session-contract',
+  name: 'session-log',
+  revision: '5',
+  digest: 'sha256:5f2509c9e01e5e248f8ea47eca236bdeec25981cd6b62e89c4e166175743f196',
+}
+
+export function readsSessionInterpreter(schema: Adoption): boolean {
+  return equalValue(schema, SESSION_INTERPRETER) || equalValue(schema, BEFORE_REASONING_EFFORT)
+}
 
 export type InitializationItem = Omit<
   Extract<RecoveryTask, { kind: 'initialization' }>,

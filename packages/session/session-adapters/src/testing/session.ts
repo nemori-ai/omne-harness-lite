@@ -823,17 +823,16 @@ export function createSessionTransactions<P>(
       for (const row of store.ok.entries) {
         if (row.kind !== 'session.model-selected') continue
         const declaration = rowData(row)['declaration'] as
-          | { kind?: string; name?: string; basis?: DurableEvidence }
+          | ({ kind: 'model' } & SavedModelSelection)
           | undefined
         if (
           declaration?.kind === 'model' &&
           declaration.name !== undefined &&
           declaration.basis !== undefined
-        )
-          saved = {
-            selection: { name: declaration.name, basis: declaration.basis },
-            at: row.revision,
-          }
+        ) {
+          const { kind: _kind, ...selection } = declaration
+          saved = { selection, at: row.revision }
+        }
       }
       const initial = store.ok.snapshot.creation.initialModelSelection
       const first = store.ok.entries[0]

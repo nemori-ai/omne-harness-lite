@@ -1,3 +1,4 @@
+import { validSelectionEffort } from './control-values.ts'
 import { originalContent } from './before-intake.ts'
 import { decidePermissionAssignment } from './permission-state.ts'
 import { incompleteAuthorization } from './authorizations.ts'
@@ -175,6 +176,8 @@ function decideCreate(
   const initialModel = creation.initialModelSelection
   if (initialModel !== undefined && (!initialModel.name || !completeEvidence(initialModel.basis)))
     return invalid('creation.initialModelSelection', 'empty name or incomplete evidence')
+  if (!validSelectionEffort(initialModel?.reasoningEffort))
+    return invalid('creation.initialModelSelection.reasoningEffort', 'invalid reasoning effort')
   const workspace = judgeWorkspace(creation.workspace, creation.workspaceAttachment, {
     workspace: 'creation.workspace',
     attachment: 'creation.workspaceAttachment',
@@ -595,8 +598,11 @@ function decideChange(
   const moved =
     declaration.kind === 'permission-mode' ? modeRevisionRefusal(snapshot, declaration) : null
   if (moved !== null) return moved
-  if (declaration.kind === 'model' && !declaration.name)
-    return invalid('declaration.name', 'empty model selection')
+  if (declaration.kind === 'model') {
+    if (!declaration.name) return invalid('declaration.name', 'empty model selection')
+    if (!validSelectionEffort(declaration.reasoningEffort))
+      return invalid('declaration.reasoningEffort', 'invalid reasoning effort')
+  }
   if (
     declaration.kind === 'environment-mode' &&
     (emptyAdoption(declaration.value) || !completeEvidence(declaration.setting))

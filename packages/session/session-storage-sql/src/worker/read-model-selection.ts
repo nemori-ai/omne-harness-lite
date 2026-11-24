@@ -3,7 +3,7 @@ import { readEntryText } from '../entry-codec.ts'
 import { readMember } from './state-rows.ts'
 import { big, handler, oneRow, packed, scopeOf, text } from './support.ts'
 
-type Selection = { name: string; basis: unknown }
+type Selection = { name: string; basis: unknown; reasoningEffort?: string }
 
 export default handler('session.model-selection', (input, port) => {
   const scope = scopeOf(input)
@@ -39,11 +39,12 @@ export default handler('session.model-selection', (input, port) => {
     const entry = readEntryText(packed(saved['entry']), 'sl_entry session.model-selected')
     const declaration = (
       plainOf(entry.payload) as {
-        declaration?: { kind?: string; name?: string; basis?: unknown }
+        declaration?: { kind: 'model' } & Selection
       } | null
     )?.declaration
     if (declaration?.kind === 'model' && declaration.name !== undefined) {
-      selection = { name: declaration.name, basis: declaration.basis }
+      const { kind: _kind, ...savedSelection } = declaration
+      selection = savedSelection
       at = big(saved['revision'])
     }
   }

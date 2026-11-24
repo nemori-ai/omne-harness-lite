@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   adoptedInitializationFixture,
   creation,
+  evidence,
   initializationFixtureFacts,
   initializationFixtureGuard,
   operationId,
@@ -86,6 +87,40 @@ describe('commit through the real write Worker', () => {
         kind: 'conflict',
       })
     }
+  }, 30_000)
+
+  it('reopens the saved route and effort and recalls exactly the original selection', async () => {
+    const app = await open()
+    ok(await app.create(TENANT_A))
+    const select = (store: RealApp, reasoningEffort: 'high' | 'xhigh') => {
+      const access = store.access(TENANT_A)
+      return store.port.commit({
+        access,
+        guards: [],
+        command: {
+          kind: 'change',
+          input: {
+            tenant: access.tenant,
+            session: access.session,
+            operation: operationId('select-effort'),
+            declaration: {
+              kind: 'model',
+              name: 'route',
+              reasoningEffort,
+              basis: evidence('route'),
+            },
+          },
+        },
+      })
+    }
+    ok(await select(app, 'xhigh'))
+    const saved = await app.port.readModelSelection(app.access(TENANT_A))
+    expect(saved).toMatchObject({ ok: { selection: { name: 'route', reasoningEffort: 'xhigh' } } })
+    expect(await app.close()).toHaveProperty('kind', 'closed')
+    const reopened = await open({ root: app.root })
+    expect(ok(await select(reopened, 'xhigh'))).toMatchObject({ recovered: true })
+    expect(failureOf(await select(reopened, 'high'))).toMatchObject({ kind: 'conflict' })
+    expect(await reopened.port.readModelSelection(reopened.access(TENANT_A))).toEqual(saved)
   }, 30_000)
 
   it('a created session is committed, read back through the read Worker and recalled by its original receipt', async () => {

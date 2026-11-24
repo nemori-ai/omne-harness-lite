@@ -45,16 +45,23 @@ export async function selectModel(
     const named = blocks === undefined ? {} : { blocks: blocks.slice(0, NAMED_BLOCKS) }
     return { outcome: 'invalid', body: { reason, ...named } }
   }
+  const { reasoningEffort } = body
+  if (reasoningEffort !== undefined && !target.reasoningEfforts?.includes(reasoningEffort))
+    return { outcome: 'invalid', body: { reason: 'excluded', detail: 'unsupported-effort' } }
+  const effort = reasoningEffort === undefined ? {} : { reasoningEffort }
   const result = await commitCall(() =>
     faces.management.change({
       ...access,
       operation: controlOperation(caller.login, tenantText, access.session, controlId),
-      declaration: { kind: 'model', name: model, basis: target.basis },
+      declaration: { kind: 'model', name: model, ...effort, basis: target.basis },
     }),
   )
   if (result === 'unknown') return { outcome: 'unknown' }
   if ('failure' in result) return refused('select-model', result.failure)
-  return { outcome: 'succeeded', body: { controlId, model, credential: target.credential } }
+  return {
+    outcome: 'succeeded',
+    body: { controlId, model, ...effort, credential: target.credential },
+  }
 }
 
 /** The model the session stands at now, as Session holds it: its log is the authority. */
@@ -69,8 +76,13 @@ export async function readModelSelection(
   const read = await readCall(() => faces.work.readModelSelection(access))
   if (read === 'basis-unavailable') return UNAVAILABLE
   if ('failure' in read) return refused('read-model-selection', read.failure)
+  const { name, reasoningEffort } = read.ok.selection
   return {
     outcome: 'succeeded',
-    body: { model: read.ok.selection.name, revision: read.ok.revision },
+    body: {
+      model: name,
+      ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+      revision: read.ok.revision,
+    },
   }
 }

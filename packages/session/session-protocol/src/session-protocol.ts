@@ -18,6 +18,11 @@ const nullable = <const R extends Rule>(rule: R) =>
 
 const target = { tenant: { rule: tenant }, session: { rule: session } } as const
 
+const modelSelection = {
+  model: { rule: text },
+  reasoningEffort: { rule: literal('low', 'medium', 'high', 'xhigh'), optional: true, since: 2 },
+} as const
+
 const producer = object({ kind: { rule: literal('model', 'tool') }, call: { rule: text } })
 const toolCall = object({ kind: { rule: literal('tool') }, call: { rule: text } })
 const backgroundAnswer = object({
@@ -668,12 +673,12 @@ export const sessionProtocol = defineProtocol({
       identity: 'login',
       effect: 'commit',
       limit: 'small',
-      body: ruleCodec(object({ ...target, controlId: { rule: text }, model: { rule: text } })),
+      body: ruleCodec(object({ ...target, controlId: { rule: text }, ...modelSelection })),
       outcomes: {
         succeeded: ruleCodec(
           object({
             controlId: { rule: text },
-            model: { rule: text },
+            ...modelSelection,
             credential: { rule: literal('available', 'missing', 'unknown') },
           }),
         ),
@@ -682,6 +687,7 @@ export const sessionProtocol = defineProtocol({
             reason: {
               rule: literal('unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'),
             },
+            detail: { rule: literal('unsupported-effort'), optional: true, since: 2 },
             blocks: { rule: { kind: 'array', item: blockPosition, max: 16 }, optional: true },
           }),
         ),
@@ -742,7 +748,7 @@ export const sessionProtocol = defineProtocol({
       limit: 'small',
       body: ruleCodec(object(target)),
       outcomes: {
-        succeeded: ruleCodec(object({ model: { rule: text }, revision: { rule: anyText } })),
+        succeeded: ruleCodec(object({ ...modelSelection, revision: { rule: anyText } })),
         invalid: empty,
       },
       countsAsAccess: true,
