@@ -1,8 +1,4 @@
-export { CanvasBack, type CanvasBackProps } from './view/canvas-back.tsx'
-export {
-  readKinds,
-  readLook,
-  type CanvasClient,
-  type Reading,
-  type Unreadable,
-} from './model/reading.ts'
+export { CanvasBack, type CanvasBackProps, type KindsFollow } from './view/canvas-back.tsx'
+export type { CanvasHost } from './view/element.tsx'
+export type { CanvasPreference, CanvasPreferences } from './model/preferences.ts'
+export { type CanvasClient, type Reading, type Unreadable } from './model/reading.ts'

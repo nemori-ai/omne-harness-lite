@@ -4,6 +4,7 @@ import { canvasProtocol } from '@omne-harness/canvas-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import { partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { AppTooltipProvider } from '@omne-harness/ui-kit'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import type { CanvasClient } from '../src/index.ts'
 import {
@@ -15,9 +16,10 @@ import {
   canvasElement,
   canvasIntake,
   canvasPicker,
-  canvasUiModule,
+  createCanvasUiModule,
 } from '../src/cordis.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
+import { memoryPreferences } from './fixtures/canvas.tsx'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
 
@@ -33,6 +35,7 @@ const EMPTY = {
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
 const settle = () => act(tick)
 const POINTS = [CANVAS_ELEMENT, CANVAS_PICKER, CANVAS_INTAKE, CANVAS_APP_RENDER]
+const canvasUiModule = createCanvasUiModule({ preferences: memoryPreferences().preferences })
 
 beforeAll(stubAnimation)
 afterEach(cleanup)
@@ -48,7 +51,9 @@ async function loaded() {
 function drawn(shell: Awaited<ReturnType<typeof loaded>>['shell'], scope: string | undefined) {
   const [item] = shell.items('back')
   if (item === undefined) throw new Error('nothing is on the back')
-  return render(<>{item.render({ scope, turn: () => undefined })}</>)
+  return render(
+    <AppTooltipProvider>{item.render({ scope, turn: () => undefined })}</AppTooltipProvider>,
+  )
 }
 
 it('canvas/v1 served: the canvas is on the back; withdrawn: the back is empty, so the application has one face', async () => {
@@ -81,22 +86,24 @@ it('the canvas is read from the main canvas of the tenant, its kinds too; while 
   const { shell, fake } = await loaded()
   drawn(shell, TENANT)
   expect(screen.getByRole('status', { name: '正在读画布……' })).toBeTruthy()
-  expect(screen.queryByRole('img')).toBeNull()
+  expect(screen.queryByRole('region')).toBeNull()
   const look = await fake.next('look')
   const kinds = await fake.next('kinds')
   expect(look.body).toEqual({ tenant: readTenantText(TENANT), canvas: 'main' })
   expect(kinds.body).toEqual({ tenant: readTenantText(TENANT) })
 })
 
-it('an empty canvas is drawn as a sheet as wide and high as the server says, the size step applied', async () => {
+it('an empty canvas is drawn as a sheet as wide and high as the server says, on its grid', async () => {
   const { shell, fake } = await loaded()
   drawn(shell, TENANT)
   ;(await fake.next('look')).answer({ outcome: 'succeeded', body: EMPTY })
   ;(await fake.next('kinds')).answer({ outcome: 'succeeded', body: { kinds: [] } })
   await settle()
-  const paper = screen.getByRole('img', { name: '纸，宽 1600，高 900' })
-  expect(paper.style.width).toBe('calc(1600px * var(--omne-size))')
-  expect(paper.style.height).toBe('calc(900px * var(--omne-size))')
+  const paper = screen.getByRole('region', { name: '纸，宽 1600，高 900' })
+  const sheet = paper.querySelector<HTMLElement>('.omne-paper-sheet')
+  expect(sheet?.style.getPropertyValue('--omne-paper-width')).toBe('1600')
+  expect(sheet?.style.getPropertyValue('--omne-paper-height')).toBe('900')
+  expect(sheet?.style.getPropertyValue('--omne-paper-step')).toBe('8')
   expect(screen.queryByRole('status')).toBeNull()
 })
 
@@ -106,11 +113,12 @@ it('a canvas that cannot be read now says so and is not drawn as an empty sheet;
   ;(await fake.next('look')).answer({ outcome: 'basis-unavailable' })
   await settle()
   expect(screen.getByText('现在读不到画布。')).toBeTruthy()
-  expect(screen.queryByRole('img')).toBeNull()
+  expect(screen.queryByRole('region')).toBeNull()
+  ;(await fake.next('kinds')).answer({ outcome: 'succeeded', body: { kinds: [] } })
   fireEvent.click(screen.getByRole('button', { name: '重试' }))
   ;(await fake.next('look')).answer({ outcome: 'succeeded', body: EMPTY })
   await settle()
-  expect(screen.getByRole('img', { name: '纸，宽 1600，高 900' })).toBeTruthy()
+  expect(screen.getByRole('region', { name: '纸，宽 1600，高 900' })).toBeTruthy()
 })
 
 it('a read that never arrives is not readable now either, and a refusal says it is refused', async () => {
@@ -127,7 +135,7 @@ it('a read that never arrives is not readable now either, and a refusal says it 
   ;(await thrown.fake.next('look')).answer({ outcome: 'denied' })
   await settle()
   expect(screen.getByText('没有权限看这张画布。')).toBeTruthy()
-  expect(screen.queryByRole('img')).toBeNull()
+  expect(screen.queryByRole('region')).toBeNull()
 })
 
 it('declares the four client points in the catalog, each taking drawings by key', async () => {

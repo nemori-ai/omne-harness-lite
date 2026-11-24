@@ -14,7 +14,10 @@ it('the Cordis entry gives the module, its parts and the four client points with
     'canvasIntake',
     'canvasParts',
     'canvasPicker',
-    'canvasUiModule',
+    'createCanvasUiModule',
   ])
-  expect(cordis['canvasUiModule']).toMatchObject({ name: 'canvas-ui' })
+  const create = cordis['createCanvasUiModule'] as (options: unknown) => unknown
+  expect(create({ preferences: { read: () => null, write: () => undefined } })).toMatchObject({
+    name: 'canvas-ui',
+  })
 })

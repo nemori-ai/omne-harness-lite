@@ -33,10 +33,12 @@
   },
   "dependencies": {
     "@omne-harness/canvas-protocol": "workspace:*",
+    "@omne-harness/client-assembly": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/shell-contract": "workspace:*",
     "@omne-harness/ui-kit": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

@@ -15,7 +15,7 @@ import {
   canvasElement,
   canvasIntake,
   canvasPicker,
-  canvasUiModule,
+  createCanvasUiModule,
 } from '@omne-harness/canvas-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import {
@@ -61,6 +61,7 @@ import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
 import '@omne-harness/usage-ui/usage-ui.css'
 import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-ui/cordis'
 import { pluginFilePath } from '../shared/plugin-path.ts'
+import { storedCanvasPreferences } from './canvas-preferences.ts'
 import { storedFloor, whenDrawn } from './shell/floor.ts'
 import { domainProtocols } from '../shared/protocols.ts'
 import { LOOK_KEY, storedTenantTexts } from './shell/tenant-text.ts'
@@ -124,7 +125,7 @@ export const assembly: Assembly = {
       canvasIntake,
     }),
     sessionReadsUiModule,
-    canvasUiModule,
+    createCanvasUiModule({ preferences: storedCanvasPreferences(() => window.localStorage) }),
     createPluginUiModule({
       floor: pageFloor,
       looks: storedTenantTexts(() => window.localStorage, LOOK_KEY),

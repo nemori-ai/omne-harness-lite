@@ -1,4 +1,4 @@
-export { CANVAS_BACK_ID, canvasUiModule } from './module.tsx'
+export { CANVAS_BACK_ID, createCanvasUiModule, type CanvasUiOptions } from './module.tsx'
 export { canvasParts } from './parts.ts'
 export {
   CANVAS_APP_RENDER,

@@ -2398,6 +2398,9 @@ importers:
       '@omne-harness/canvas-protocol':
         specifier: workspace:*
         version: link:../canvas-protocol
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../access/public-contract
@@ -2410,6 +2413,9 @@ importers:
       '@omne-harness/ui-kit':
         specifier: workspace:*
         version: link:../../frontend/ui-kit
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       react:
         specifier: 'catalog:'
         version: 19.3.0
