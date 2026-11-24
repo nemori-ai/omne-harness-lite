@@ -135,8 +135,10 @@ export function createReleaseCatalogView(
         })
         const official = new Set(release.manifest.entries.map(entry => entry.asset.name))
         const held = await heldEntries(ports.held, access, official, work.ok)
-        if (held === undefined) return unavailable('what the tenant holds cannot be read')
-        entries.push(...held)
+        // Unread, a session whose residents are all of the release goes on with those; one that keeps another tool waits.
+        if (held === undefined && work.ok.residents.some(item => !official.has(item.capability)))
+          return unavailable('what the tenant holds cannot be read')
+        entries.push(...(held ?? []))
         const identity = {
           tenant: access.tenant,
           session,

@@ -88,4 +88,31 @@ describe('the gate of a tool a tenant published, where gates ask, on the release
       )
     },
   )
+
+  it(
+    'does not run a tool that was published in the very step that calls it without the release the call needs',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      await inWorkspace(
+        async (ask, tree, project, session) => {
+          mkdirSync(join(project, 'work/wordcount'), { recursive: true })
+          writeFileSync(join(project, 'work/wordcount/tool.json'), JSON.stringify(WORDCOUNT))
+          writeFileSync(join(project, 'work/wordcount/count.py'), COUNT_PY)
+          const ran = () => toolCalls(tree.storageRoot).filter(row => row.tool === 'wordcount')
+
+          // When the step is admitted the name stands for nothing; when the call runs the tool is there.
+          const both = ask([publish, count('one two three')], [follow], [follow])
+          await new Promise(resolve => setTimeout(resolve, 15_000))
+          const cards = await tree.cards({ sessionRef: session, states: ['pending'] })
+          for (const item of cards)
+            await answerCard(tree, item.card, ['--option', 'deny-once'], 'reply-deny-same-step')
+          const said = await both
+          expect(said).toContain('done OmneExtensions publish')
+          expect(said).not.toMatch(/^3$/mu)
+          expect(ran()).toEqual([])
+        },
+        { permission: 'auto_permission' },
+      )
+    },
+  )
 })

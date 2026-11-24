@@ -61,6 +61,11 @@ export async function heldToolNames(
   return [...names]
 }
 
+export async function heldReadable(ctx: Context, access: Access<unknown>): Promise<boolean> {
+  const turn = await turnOfAccess(ctx, access)
+  return turn !== undefined && (await heldToolNames(ctx, access.tenant, turn)) !== undefined
+}
+
 /** What stands under a name in a turn: the layers are evaluated as that turn reads them, and a workspace winner is kept in mind. */
 async function standingIn(
   ctx: Context,

@@ -210,11 +210,28 @@ describe('release catalog lawful inclusion', () => {
           throw new Error('storage failed')
         },
       },
-      { held: { ...holding(w.tenant, {}), names: async () => undefined } },
-      { held: holding(w.tenant, { wordcount: 'unavailable' }) },
     ]
     for (const patch of patches)
       expect(await createReleaseCatalogView({ ...w.ports, ...patch }).read(w)).toMatchObject({
+        failure: { kind: 'unavailable' },
+      })
+  })
+
+  it('goes on with the tools of the release while what the tenant holds cannot be read, unless the session keeps a tool that is not of the release', async () => {
+    const w = await setup()
+    const whole = okOf(await createReleaseCatalogView(w.ports).read(w), 'whole')
+    const unread: Held[] = [
+      { ...holding(w.tenant, {}), names: async () => undefined },
+      holding(w.tenant, { wordcount: 'unavailable' }),
+    ]
+    for (const held of unread) {
+      const view = okOf(await createReleaseCatalogView({ ...w.ports, held }).read(w), 'view')
+      expect(shown(view)).toEqual(shown(whole))
+    }
+    // A resident that is not of the release cannot be declared from a catalog that lacks it: this session waits.
+    w.admit(['Files', 'wordcount'])
+    for (const held of unread)
+      expect(await createReleaseCatalogView({ ...w.ports, held }).read(w)).toMatchObject({
         failure: { kind: 'unavailable' },
       })
   })

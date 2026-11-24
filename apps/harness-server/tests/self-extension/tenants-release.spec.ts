@@ -1,6 +1,6 @@
 // @module-tag slow
 // Starts the release tree: two tenants publish under the same names, and one of them loses sight of what it holds.
-import { mkdtempSync, realpathSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -14,7 +14,6 @@ import {
   tools,
   type PlannedCall,
 } from '../support/planned-model.ts'
-import { history } from '../support/release-tree.ts'
 import { COUNT_PY, inWorkspace, otherTenant, WORDCOUNT, write } from './support.ts'
 
 const agent = (mark: string) => `---
@@ -86,39 +85,41 @@ describe('two tenants that publish a tool and a definition under the same names,
   )
 
   it(
-    'does not answer that there is none while what a tenant holds cannot be read: the turn waits, and a creation is told the basis cannot be read',
+    'does not answer that there is none while what a tenant holds cannot be read: the turn goes on with the tools of the release, and each asking is told the basis cannot be read',
     { tags: ['slow'], timeout: 240_000 },
     async () => {
-      await inWorkspace(async (ask, tree, _project, session) => {
+      await inWorkspace(async (ask, tree, project) => {
         const mine = await ask(made('MARK-ALPHA', COUNT_PY), published)
         expect(mine.match(/done OmneExtensions publish/gu)).toHaveLength(2)
-        const ended = async () =>
-          (await history(tree.port, tree.home, session)).filter(
-            entry => entry.kind === 'run.terminal',
-          ).length
-        const before = await ended()
 
         // The assets of every tenant stop answering: held or not is no longer known.
         const assets = tree.scope.get(tenantAssetsKey)
         if (assets === undefined) throw new Error('the tree has no tenant assets')
         const { open, standing } = assets
         Object.assign(assets, { open: async () => undefined, standing: async () => 'unknown' })
-        let waited: Promise<string>
         try {
           const created = await tree.cli(['create-session', '--definition', 'reviewer'])
           expect(created.status).not.toBe(0)
           expect(created.stdout).toContain('"outcome":"basis-unavailable"')
           expect(created.stdout).not.toContain('"outcome":"invalid"')
 
-          // A turn that needs the catalog does not go on with a catalog that lacks what cannot be read.
-          waited = ask(...used)
-          await new Promise(resolve => setTimeout(resolve, 8000))
-          expect(await ended()).toBe(before)
+          // This session has residents of the release alone: its turn is not held up, and a tool of the release runs.
+          const during = await ask(
+            [write('work/still-works.txt', 'yes'), search, agents('targets', {})],
+            [count],
+          )
+          expect(existsSync(join(project, 'work/still-works.txt'))).toBe(true)
+          expect(during).toContain('the agent definitions cannot be read now')
+          expect(during).not.toContain('"tools":[')
+          expect(during).not.toContain('unknown-target')
+          expect(during).not.toContain('MARK-ALPHA')
+          expect(during).not.toMatch(/^3$/mu)
+          expect(during.match(/^ERROR: unavailable$/gmu)).toHaveLength(2)
         } finally {
           Object.assign(assets, { open, standing })
         }
-        // Read again, it is there: the turn goes on, finds the tool and the definition, and calls the tool.
-        const found = await waited
+        // Read again, it is there: the next turn finds the tool and the definition, and calls the tool.
+        const found = await ask(...used)
         expect(found).toContain('Count the words of a text')
         expect(found).toContain('MARK-ALPHA')
         expect(found).toMatch(/^3$/mu)

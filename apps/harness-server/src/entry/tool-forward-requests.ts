@@ -4,6 +4,8 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
   callLabel,
+  type Adoption,
+  type ConsumerRef,
   type FixedToolRequest,
   type Reply,
   type ToolCatalog,
@@ -33,10 +35,12 @@ export type ForwardRequestPorts = Readonly<{
   view(): LocalToolCatalogViewSource<unknown> | undefined
   /** The tool the tenant of the call holds in force under a name, loaded; absent: this assembly keeps none. */
   held?(access: Access<unknown>, name: string): Promise<CurrentHeldTool>
+  admitted?(consumer: ConsumerRef, target: Adoption): boolean
 }>
 const unavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: 'tools-target', diagnostic })
 const invalid = (field: string, reason: string) => fail({ kind: 'invalid' as const, field, reason })
+export const HELD_UNREAD = 'tenant-tools'
 
 export function releaseToolConsumer(release: Trusted): ToolConsumerProfile {
   const { capabilities, conversion, attachmentAccess } = release.manifest.consumer
@@ -84,7 +88,12 @@ async function targetOf(
   const entry = release.manifest.entries.find(item => item.asset.name === intent.name)
   if (entry !== undefined) return succeed<Target>({ entry })
   const held = await ports.held?.(access, intent.name)
-  if (held?.kind === 'unavailable') return unavailable(held.diagnostic)
+  if (held?.kind === 'unavailable')
+    return fail({
+      kind: 'unavailable' as const,
+      dependency: HELD_UNREAD,
+      diagnostic: held.diagnostic,
+    })
   if (held?.kind === 'unfit') return unavailable(held.reason)
   return held?.kind === 'held'
     ? succeed<Target>({ held: held.authority })
@@ -213,6 +222,11 @@ export function createForwardTargetRequests(ports: ForwardRequestPorts) {
     if ('failure' in resolved) return resolved
     const { settings, availability, effective } = resolved.ok
     const definition = availability.definition
+    if (
+      availability.layer.kind !== 'official' &&
+      ports.admitted?.(parent.request.consumer, definition.adoption) !== true
+    )
+      return invalid('name', 'target-changed-after-admission')
     const label = callLabel(definition, {
       command: intent.command,
       intent: null,
