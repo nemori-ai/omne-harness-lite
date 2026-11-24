@@ -1,5 +1,6 @@
 import { isTable } from '../journal/shared-map.ts'
 import {
+  EXEC_FAMILY,
   releasedMaterials,
   viewItems,
   type ExecutionView,
@@ -44,14 +45,38 @@ export function listedDigests(payload: string): string[] {
   )
 }
 
-// The blocks an item needs in memory: the ones it names, and for a finish candidate or an obligation
-// list the ones named inside its cursor or list block, which finishing reads.
+type CursorLike = Readonly<{
+  passages?: Readonly<{ digest?: string }>
+  chain?: Readonly<{ digest?: string }> | null
+}>
+
+export function cursorReach(
+  cursor: unknown,
+  payloadOf: (digest: string) => string | undefined,
+  into = new Set<string>(),
+): Set<string> {
+  const inner = (digest: string | undefined): Set<string> => {
+    const payload = digest === undefined ? undefined : payloadOf(digest)
+    return payload === undefined ? new Set() : refsIn(JSON.parse(payload) as unknown)
+  }
+  const members = cursor as CursorLike | undefined
+  for (const call of inner(members?.passages?.digest)) {
+    into.add(call)
+    for (const declaration of inner(call)) into.add(declaration)
+  }
+  for (const declaration of inner(members?.chain?.digest)) into.add(declaration)
+  return into
+}
+
+// The blocks an item needs in memory: the ones it names, the ones its cursor reaches, and for a finish
+// candidate or an obligation list the ones named inside its cursor or list block, which finishing reads.
 function itemRefs(
   family: string,
   body: unknown,
   payloadOf: (digest: string) => string | undefined,
 ): Set<string> {
   const refs = refsIn(body)
+  if (family === EXEC_FAMILY) cursorReach((body as { cursor?: unknown }).cursor, payloadOf, refs)
   const inner =
     family === 'candidate'
       ? (body as { cursor?: { digest?: string } }).cursor?.digest
@@ -61,7 +86,11 @@ function itemRefs(
   const payload = inner === undefined ? undefined : payloadOf(inner)
   if (payload === undefined) return refs
   if (family === 'list') for (const digest of listedDigests(payload)) refs.add(digest)
-  else refsIn(JSON.parse(payload) as unknown, refs)
+  else {
+    const cursor = JSON.parse(payload) as { members?: unknown }
+    refsIn(cursor, refs)
+    cursorReach(cursor.members, payloadOf, refs)
+  }
   return refs
 }
 

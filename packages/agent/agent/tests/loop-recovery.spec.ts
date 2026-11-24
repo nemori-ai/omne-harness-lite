@@ -1,21 +1,19 @@
 import { describe, expect, it } from 'vitest'
+import { recoveryRoute } from '../src/loop/recovery-route.ts'
 import { agentEvaluator } from '@omne-harness/agent'
 import type {
   Action,
   ActionBatch,
   ActionSlot,
   AgentCheckpoint,
+  ExtensionChain,
   Authority,
   ExecutionSnapshot,
   ExecutionState,
   Failure,
 } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
-import {
-  createExecutionCoordinator,
-  recoveryRoute,
-  type ExecutionEntry,
-} from '../src/loop/coordinator.ts'
+import { createExecutionCoordinator, type ExecutionEntry } from '../src/loop/coordinator.ts'
 import {
   acceptedInput,
   adoption,
@@ -177,17 +175,6 @@ describe('E4 recovery routing', () => {
     expect(ok(route(checkpoint(position), { state: { kind: 'settling', intent } }))).toBe(position)
   })
 
-  it.each(['X0', 'X1', 'X2', 'X3', 'X4', 'X5'])(
-    'unfinished node %s has a named stage owner',
-    position => {
-      expect(failure(route(checkpoint(position)))).toMatchObject({
-        kind: 'unsupported',
-        node: position,
-        card: expect.stringContaining('#502'),
-      })
-    },
-  )
-
   it.each([
     'C0',
     'C1',
@@ -226,6 +213,7 @@ describe('E4 recovery routing', () => {
         actions,
         barrier: { kind: barrier, evidence: evidence('barrier') },
         slots,
+        beforePass: null,
         batchPass: null,
       }) as unknown as ActionBatch
     const at = (position: string, saved: ActionBatch) => ({ ...checkpoint(position), batch: saved })
@@ -248,11 +236,19 @@ describe('E4 recovery routing', () => {
     ).toBe('T2')
   })
 
-  it('a saved extension passage takes precedence over the E3 position', () => {
-    expect(failure(route(checkpoint('E3', [afterTerminalPassage('extension')])))).toMatchObject({
-      kind: 'unsupported',
-      node: 'X2',
-    })
+  it('an open extension chain resumes at the node it runs on, whatever else the checkpoint holds', () => {
+    const chain: ExtensionChain = {
+      pass: 'step-1/execution_started',
+      position: 'execution_started',
+      dimension: null,
+      purpose: null,
+      members: [],
+      basis: null,
+    }
+    expect(ok(route({ ...checkpoint('E3'), chain }))).toBe('E3')
+    expect(ok(route({ ...checkpoint('E3', [afterTerminalPassage('extension')]), chain }))).toBe(
+      'E3',
+    )
   })
 })
 

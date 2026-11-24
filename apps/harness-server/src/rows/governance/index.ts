@@ -66,6 +66,8 @@ import {
   tenantSettingsKey,
   type TenantSettingsServiceOptions,
 } from './tenant-settings-service.ts'
+import { provideExtensionSources } from './extension-sources.ts'
+import { loopExtensionSourcesKey } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import { isHitlReservation } from '../tool-hitl/host.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
@@ -85,6 +87,14 @@ const configSchema = z.strictObject({
 const releasedNames =
   (release: { manifest: { entries: readonly { asset: { name: string } }[] } }) => (name: string) =>
     release.manifest.entries.some(entry => entry.asset.name === name)
+
+const SETTINGS_CLOCK = {
+  now() {
+    const instant = readSystemInstant()
+    if (!instant.ok) throw new Error('governance Settings clock unavailable')
+    return epochMillisOf(instant.text)
+  },
+}
 
 function governedOf(ctx: Context, tenantRef: string) {
   return {
@@ -145,6 +155,7 @@ export const governanceRow = defineRow({
       tenantAssetSettingsKey,
       independentSettingsKey,
       tenantIndependentSettingsKey,
+      loopExtensionSourcesKey,
     ],
     injects: [
       storageKey,
@@ -248,13 +259,7 @@ export const governanceRow = defineRow({
           destination: 'harness.governance',
           identity,
           registry,
-          clock: {
-            now() {
-              const instant = readSystemInstant()
-              if (!instant.ok) throw new Error('governance Settings clock unavailable')
-              return epochMillisOf(instant.text)
-            },
-          },
+          clock: SETTINGS_CLOCK,
           cursorLifetimeMs: 60_000,
           grants: [
             {
@@ -271,6 +276,7 @@ export const governanceRow = defineRow({
       },
     })
     new StandingDestination(ctx, host)
+    provideExtensionSources(ctx, tenantRef => host.settings(tenantRef), config.deploymentId)
     new SessionBackend(ctx, host)
     new CurrentPermissionService(ctx, {
       identity: {

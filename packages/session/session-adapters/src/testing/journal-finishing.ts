@@ -41,7 +41,7 @@ import type {
   JournalCommitState,
   SettlementResult,
 } from '@omne-harness/agent-contract'
-import { obligationCategoryOf } from '@omne-harness/agent-contract'
+import { endsWithUntakenInput, obligationCategoryOf } from '@omne-harness/agent-contract'
 import { canonical } from './canonical.ts'
 import { JOURNAL_OWNER, journalEvidence, revisionOf } from './journal-values.ts'
 import {
@@ -307,8 +307,7 @@ export function buildObligations(
   candidate: FinishCandidate,
 ): Readonly<{ items: readonly FinishObligation[]; coverage: ResponsibilityCoverage }> {
   const cancelled = candidate.conclusion.kind === 'cancelled'
-  const nodeFailed =
-    candidate.conclusion.kind === 'fail' && candidate.failure?.kind === 'node-failed'
+  const endsUntaken = endsWithUntakenInput(candidate)
   const fixed = (what: string): DurableEvidence =>
     journalEvidence(`${source.execution}/obligation/${what}`, source.revision)
   const items: FinishObligation[] = []
@@ -330,7 +329,7 @@ export function buildObligations(
       disposition:
         taken !== null
           ? settled(fixed(`input/${input.id}/taken/${taken}`))
-          : cancelled || nodeFailed
+          : cancelled || endsUntaken
             ? held(origin, read('load'))
             : pending('input-disposition', read('submit')),
       input: input.id,

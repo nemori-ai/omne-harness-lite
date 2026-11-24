@@ -12,7 +12,10 @@ import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
+import type { Context } from '@deepseek-ai/cordis'
 import * as cordis from '../../src/cordis.ts'
+import { entryObjects } from '../../src/entry/index.ts'
+import type { EntryObjectModule } from '../../src/types.ts'
 import { runServe } from '../../src/run.ts'
 import { startModelGateway } from '../fixtures/model-gateway.ts'
 import { bodyOf, freePort, operatorLayer, runOmne, savedTenant } from '../r9/support.ts'
@@ -46,6 +49,8 @@ export type AssemblyOptions = Readonly<{
   historyKinds?: readonly string[]
   record?: (record: unknown) => void
   script?: () => string
+  /** Gets the scope of the serving tree once its entry objects are installed. */
+  onScope?: (scope: Context, env: Parameters<EntryObjectModule['install']>[1]) => void
 }>
 
 export async function startAssembly(
@@ -104,10 +109,12 @@ export async function startAssembly(
           },
         }
       }
+      // Shell runs in the working directory of the session: without a workspace, the default one.
+      if (op.id === 'session-ad03')
+        writeFileSync(join(String(config['defaultDirectory']), PAYLOAD_FILE), author.body)
       const construction = config['construction'] as Record<string, unknown> | undefined
       if (construction?.['Shell'] !== undefined) {
         const shell = construction['Shell'] as Record<string, unknown>
-        writeFileSync(join(String(shell['cwd']), PAYLOAD_FILE), author.body)
         return {
           ...op,
           config: {
@@ -139,10 +146,25 @@ export async function startAssembly(
   }
   operator.ops = operator.ops.map(op => ({ ...op, config: tune(op.id, op.config ?? {}) }))
   const stderr: string[] = []
+  const [first, ...others] = entryObjects
+  const objects: readonly EntryObjectModule[] =
+    first === undefined || options.onScope === undefined
+      ? entryObjects
+      : [
+          {
+            ...first,
+            async install(scope, given) {
+              await first.install(scope, given)
+              options.onScope?.(scope, given)
+            },
+          },
+          ...others,
+        ]
   const finished = runServe({
     distribution: release,
     operator,
     plugins: cordis,
+    entryObjects: objects,
     stateRoot,
     stop: controller.signal,
     readinessTimeoutMs: 15_000,

@@ -273,6 +273,13 @@
     min-width: 0;
   }
 
+  .assets-setting-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--omne-space-inline);
+    color: var(--omne-ink-muted);
+  }
+
   .assets-setting-actions {
     display: flex;
     gap: var(--omne-space-inline);

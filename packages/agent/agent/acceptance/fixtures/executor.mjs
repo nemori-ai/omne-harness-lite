@@ -75,6 +75,7 @@ process.on('message', async message => {
           handoff: group(['handoff'], ['prepare', 'lookup', 'exclude']),
           materials: group(['materials'], ['preserve', 'read']),
           entries: group(['entries'], ['read', 'receivedOf']),
+          extensions: group(['extensions'], ['resolve']),
           clock: group(['clock'], ['now']),
         },
       })

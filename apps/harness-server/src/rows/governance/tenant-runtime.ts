@@ -10,8 +10,10 @@ import { access, tenantCodec } from '@omne-harness/legal-identity'
 import { GovernanceScopeSchema } from '@omne-harness/governance-contract'
 import type { ReadUnavailableReason, SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import type {
+  ChangeSignal,
   SettingsBasis,
   SettingsFailure,
+  SettingsTarget,
   SettingsViewRequest,
   TenantSettingsWriter,
 } from '@omne-harness/settings'
@@ -174,6 +176,8 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
 export type TenantSettingsAccess = Readonly<{
   read(request: SettingsViewRequest): Promise<SettingsBasis | SettingsFailure>
   writer: TenantSettingsWriter
+  /** One signal after each committed change of a tenant setting. */
+  changes: ChangeSignal<SettingsTarget>
 }>
 
 export type TenantAssetsAccess = Pick<AssetsLocal, 'readHolding'>
