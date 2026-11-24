@@ -82,7 +82,13 @@ const POLICIES: Readonly<Record<string, string>> = {
 
 export function lapseText(row: LapseRow): string {
   const counted =
-    row.count === null ? '这一段没有逐个算，都没有补' : `这一段共 ${row.count} 次没有补`
+    row.count === null
+      ? '这一段没有逐个算，都没有补'
+      : row.count > 0
+        ? `这一段共 ${row.count} 次没有补`
+        : row.selected > 0
+          ? `这一段的 ${row.selected} 次都补了`
+          : '这一段没有到点的'
   const why = [CAUSES[row.cause] ?? row.cause, POLICIES[row.reason] ?? row.reason].join('，')
   return `${counted}（${why}）`
 }

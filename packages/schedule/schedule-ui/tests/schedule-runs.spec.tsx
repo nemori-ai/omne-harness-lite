@@ -169,6 +169,11 @@ it('E2 nothing has happened yet: one sentence; a stretch not counted one by one 
   expect(happened().textContent).toBe('这一段没有逐个算，都没有补（停机，超出了计算的预算）')
 })
 
+it('E2b a stretch whose every slot was caught up says so, not that none were missed', async () => {
+  await withRuns([{ ...LAPSE, count: 0, selected: 1 }])
+  expect(happened().textContent).toBe('这一段的 1 次都补了（停机，只补最近几次）')
+})
+
 it('E3 runs that cannot be read say why and read again on 重试', async () => {
   const fake = await opened()
   await answer(await fake.next('list-jobs'), { outcome: 'basis-unavailable' })
