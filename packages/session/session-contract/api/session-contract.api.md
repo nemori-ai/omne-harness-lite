@@ -4033,8 +4033,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:d52940228b980ccbab090bfdd4642ed46f6c2e510dc0ffec565628fad5edd02b";
-export declare const SESSION_RELEASE_DIGEST = "sha256:d52940228b980ccbab090bfdd4642ed46f6c2e510dc0ffec565628fad5edd02b";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:0a034cac07b98309e5946fdefc3e3db37b3ed4cfb741bbc294ceb6894e978710";
+export declare const SESSION_RELEASE_DIGEST = "sha256:0a034cac07b98309e5946fdefc3e3db37b3ed4cfb741bbc294ceb6894e978710";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4649,7 +4649,8 @@ export declare function testingWriter<P>(options: TestingWriterOptions): {
 
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { Outcome } from '@omne-harness/operation-result';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { SessionModelSelection } from './control-values.ts';
 import type { HistoryEntry, SessionFailure } from './faces.ts';
 import type { SessionId } from './identity.ts';
 import type { DecideReads, OperationRecord } from './judgments.ts';
@@ -4675,6 +4676,9 @@ type Operated<O> = Readonly<{
 export declare function frozenOperation<O extends Readonly<{
     record: OperationRecord;
 }>>(store: Operated<O> | undefined): O | undefined;
+export declare function readStoredModelSelection(store: Operated<{
+    record: OperationRecord;
+}> & Pick<Held, 'snapshot'>): Outcome<SessionModelSelection, SessionFailure>;
 export {};
 ```
 

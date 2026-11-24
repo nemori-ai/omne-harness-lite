@@ -32,7 +32,7 @@ import type {
   WorkSnapshot,
   WorkspaceAttachment,
 } from './values.ts'
-import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
+import type { HistoryEntry, ProducerFact, StartAdoption } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
 import {
@@ -60,7 +60,13 @@ import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
 import { admitInput, readsWithTerms } from './decide-intake.ts'
 import type { AdmittedSource } from './input-sources.ts'
-import { residentEntries, completeEvidence } from './decision-support.ts'
+import {
+  rejected,
+  invalid,
+  entries,
+  residentEntries,
+  completeEvidence,
+} from './decision-support.ts'
 import { judgeFork, judgeStanding } from './standing.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
@@ -79,18 +85,6 @@ export const PATH_MUTATIONS = Object.freeze([
 ] as const satisfies readonly SessionCommand['kind'][])
 
 type Origin = HistoryEntry['origin']
-
-function rejected(failure: SessionFailure): Decision {
-  return { kind: 'rejected', failure }
-}
-
-function invalid(field: string, reason: string): Decision {
-  return rejected({ kind: 'invalid', field, reason })
-}
-
-function entries(list: readonly EncodedEntry[]): Decision {
-  return { kind: 'entries', entries: list }
-}
 
 function emptyAdoption(adoption: Adoption): boolean {
   return [adoption.owner, adoption.name, adoption.revision, adoption.digest].some(

@@ -87,8 +87,8 @@
       "packages/session/session-adapters/src/testing/factory.ts": 1239,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1263,
       "packages/session/session-adapters/src/testing/journal.ts": 4190,
-      "packages/session/session-adapters/src/testing/session.ts": 1194,
-      "packages/session/session-contract/src/testing-transactions.ts": 2468,
+      "packages/session/session-adapters/src/testing/session.ts": 1193,
+      "packages/session/session-contract/src/testing-transactions.ts": 2451,
       "packages/session/session-storage-sql/src/worker/participant.ts": 1026,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
@@ -539,7 +539,7 @@
       },
       "packages/session/session-adapters/src/testing/session.ts": {
         "count": 2,
-        "longest": 867
+        "longest": 866
       },
       "packages/session/session-contract/src/projection.ts": {
         "count": 1,
@@ -563,7 +563,7 @@
       },
       "packages/session/session-contract/src/testing-transactions.ts": {
         "count": 5,
-        "longest": 819
+        "longest": 810
       },
       "packages/session/session-observation/src/observation.ts": {
         "count": 2,

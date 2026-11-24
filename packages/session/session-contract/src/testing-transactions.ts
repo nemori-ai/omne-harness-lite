@@ -34,7 +34,6 @@ import type {
   SessionCallLookup,
   SessionCallTerminal,
   SessionControlReceipt,
-  SessionModelSelection,
   SessionRunLookup,
 } from './control-values.ts'
 import type {
@@ -66,7 +65,12 @@ import type {
 } from './ports.ts'
 import { decide, commandDigest } from './decide.ts'
 import { judgeCompletion, type OperationRecord } from './judgments.ts'
-import { frozenOperation, recordChild, relatedReads } from './testing-store-reads.ts'
+import {
+  frozenOperation,
+  recordChild,
+  relatedReads,
+  readStoredModelSelection,
+} from './testing-store-reads.ts'
 import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
@@ -1081,36 +1085,7 @@ export function createMemorySessionTransactionPair<P>(
       readModelSelection: async input => {
         const store = await storeOf(input, 'readModelSelection')
         if ('failure' in store) return store
-        let saved: { selection: SessionModelSelection['selection']; at: string } | null = null
-        for (const row of store.ok.entries) {
-          const value = decodeEntry(row)
-          if (
-            'ok' in value &&
-            value.ok.kind === 'session.model-selected' &&
-            value.ok.declaration.kind === 'model'
-          ) {
-            const { kind: _kind, ...selection } = value.ok.declaration
-            saved = { selection, at: row.revision }
-          }
-        }
-        const initial = store.ok.snapshot.creation.initialModelSelection
-        const first = store.ok.entries[0]
-        const chosen =
-          saved ??
-          (initial !== undefined && first !== undefined
-            ? { selection: initial, at: first.revision }
-            : null)
-        if (chosen === null) return fail({ kind: 'not-ready' })
-        const origin = [...store.ok.operations.values()].find(
-          item => item.record.receipt.revision === chosen.at,
-        )
-        if (origin === undefined)
-          return fail(unavailable('the commit that saved the selection has no original receipt'))
-        return succeed<SessionModelSelection>({
-          selection: chosen.selection,
-          revision: store.ok.snapshot.revision,
-          source: origin.record.receipt.source,
-        })
+        return readStoredModelSelection(store.ok)
       },
       commitEntries: async input => commitEntries(input),
       commitLog,
