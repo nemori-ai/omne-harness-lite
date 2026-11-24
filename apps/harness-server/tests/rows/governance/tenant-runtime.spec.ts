@@ -824,6 +824,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     'tool.Ask',
     'tool.BkgToolCalls',
     'tool.Calendar',
+    'tool.Code',
     'tool.Files',
     'tool.Notifications',
     'tool.OmneExtensionPoints',

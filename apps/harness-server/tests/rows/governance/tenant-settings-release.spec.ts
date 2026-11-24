@@ -33,6 +33,7 @@ it('a login principal sets the Shell run permission to deny on the release tree 
         'Agents/report:auto',
         'BkgToolCalls/invoke:auto',
         'Calendar/invoke:auto',
+        'Code/run:auto',
         'Files/read:auto',
         'Files/write:ask',
         'Notifications/read:auto',
