@@ -152,7 +152,7 @@ describe('the shared pieces of the kit in the desktop shell', () => {
     const view = render(
       <RedrawProvider value={t.state.redraw.draw}>
         <LoadingIndicator size="sm" />
-        <EmptyState title="还没有" />
+        <EmptyState title="还没有" still />
       </RedrawProvider>,
     ).container
     const seen = () => [
