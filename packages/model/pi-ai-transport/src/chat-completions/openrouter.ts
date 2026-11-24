@@ -19,6 +19,7 @@ export const OPENROUTER_PROVIDER_BODY_TEXT: string = JSON.stringify({
       url: 'https://openrouter.ai/api/v1/responses',
       endMarker: '[DONE]',
     },
+    { protocol: 'decisions', url: 'https://openrouter.ai/api/alpha/decisions' },
   ],
   accounting: OPENROUTER_ACCOUNTING,
   credentials: [

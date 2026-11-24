@@ -16,5 +16,10 @@ export type {
   LibraryUnits,
   ScreenLibrary,
 } from './library.ts'
-export { diagnoseScreen, macosScreenPermission, screenBackendFor } from './platforms.ts'
+export {
+  diagnoseScreen,
+  macosRequestScreenAccess,
+  macosScreenPermission,
+  screenBackendFor,
+} from './platforms.ts'
 export type { BackendSources, ScreenDiagnosis } from './platforms.ts'

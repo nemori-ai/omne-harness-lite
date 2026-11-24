@@ -137,3 +137,31 @@
 | `CallLifecycle-exclusion-without-due.cfg`       | 负控 | 违反 `IdleIsScheduled`                                      |
 | `CallLifecycle-drop-before-body-bytes.cfg`      | 负控 | 违反 `NoOrphanBytes`                                        |
 | `CallLifecycle-drop-while-busy.cfg`             | 负控 | 违反 `NotRemovedWhileBusy`                                  |
+
+## ProgramChildren
+
+模型 [ProgramChildren.tla](models/program-children/ProgramChildren.tla)。它是 3 个位置的有界实例。父调用域与每个子调用域各自原子提交，两者之间没有共同事务；子调用的启动与屏障在同一个启动排序域里排先后。它假设放行判断在取消生效之后不再放行；人可能永远不答，所以进展只在屏障成立之后承诺。不建模名额与结果的内容。动作名对应父调用域的登记、交出、排除、承接与关闭这几种提交。
+
+| 性质 | 守的规则 |
+| --- | --- |
+| `StartAtMostOnce` | 同一位置的函数至多执行一次 |
+| `NoLateRegistration` | 关闭之后没有新的位置被登记 |
+| `NoStartBehindFence` | 屏障范围之内的子调用不在屏障之后首次启动 |
+| `CompletedMeansSettled` | 报完成时每个位置已排除或已承接，被承接的子调用已真实收场 |
+| `ClosedKeepsCause` | 关闭过的程序不报完成，结局就是关闭的原因 |
+| `NoOrphanChild` | 每个被受理的子调用都在位置表里，不会被记成已排除 |
+| `WithdrawSparesBackground` | 撤回前台与未受理不停屏障成立时已在后台的子调用 |
+| `AdmittedOnlyIfAllowed` | 没有放行就没有子调用 |
+| `ClosedSettles` | 屏障成立之后每个位置最终都有交代（`FairSpec`） |
+
+| 配置 | 种类 | 预期 |
+| --- | --- | --- |
+| `ProgramChildren-positive.cfg` | 正控 | 全部不变式成立 |
+| `ProgramChildren-progress.cfg` | 正控 | `ClosedSettles` 成立（`FairSpec`） |
+| `ProgramChildren-register-after-close.cfg` | 负控 | 违反 `NoLateRegistration`（关闭之后仍接受登记） |
+| `ProgramChildren-start-after-close.cfg` | 负控 | 违反 `NoStartBehindFence`（启动不核屏障） |
+| `ProgramChildren-finish-early.cfg` | 负控 | 违反 `CompletedMeansSettled`（正文返回就报完成） |
+| `ProgramChildren-withdraw-stops-background.cfg` | 负控 | 违反 `WithdrawSparesBackground`（撤回时不看范围） |
+| `ProgramChildren-exclude-without-fence.cfg` | 负控 | 违反 `NoOrphanChild`（记排除而不排除受理操作） |
+| `ProgramChildren-redeliver.cfg` | 负控 | 违反 `StartAtMostOnce`（重送建出新的执行） |
+| `ProgramChildren-no-close-exclude.cfg` | 负控 | 违反 `ClosedSettles`（关闭之后不处置已登记的位置） |
