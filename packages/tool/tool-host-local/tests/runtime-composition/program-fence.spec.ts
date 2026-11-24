@@ -149,3 +149,57 @@ it('TL-66 a call that was accepted and had not started when the barrier was set 
     await world.close()
   }
 })
+
+it('a call of a program that is refused where its start is ordered does not start, and the program is told it had no effect', async () => {
+  let answer: unknown
+  const world: World = await programWorld({
+    script: async tools => {
+      answer = await say(tools, 1, { text: 'late' })
+      return 'returned'
+    },
+  })
+  try {
+    const starts = holdStarts(world)
+    const reference = await world.start('revoked')
+    await expect.poll(() => starts.held()).toBe(1)
+    // The right is there when the start is taken up, and not where the start is ordered.
+    world.revoke('start', 1)
+    starts.go()
+    expect((await world.settled(reference)).terminal).toEqual({ kind: 'completed' })
+    // The author never ran, and the program got a named failure with no effect, not an empty value.
+    expect(world.said).toEqual([])
+    expect(answer).toMatchObject({ kind: 'failure', failure: { effect: 'none' } })
+    expect(await rows(world, reference)).toEqual([[1, 'retained', 'unavailable']])
+  } finally {
+    await world.close()
+  }
+})
+
+it('calls of one tool made together by a program run within the limit of that tool', async () => {
+  const world: World = await programWorld({
+    concurrency: 2,
+    script: async tools => {
+      const all = [1, 2, 3, 4, 5, 6].map(ordinal =>
+        say(tools, ordinal, { text: `t${String(ordinal)}`, hold: `g${String(ordinal)}` }),
+      )
+      return String((await Promise.all(all)).length)
+    },
+  })
+  try {
+    const reference = await world.start('limited')
+    const peaks: number[] = []
+    for (let done = 0; done < 6; done += 2) {
+      await expect.poll(() => world.said.length).toBe(done + 2)
+      // Nothing more starts while two are running.
+      await new Promise(resolve => setTimeout(resolve, 60))
+      peaks.push(world.said.length - done)
+      for (const text of world.said.slice(done, done + 2))
+        world.gate(text.replace('t', 'g')).resolve()
+    }
+    expect(peaks).toEqual([2, 2, 2])
+    expect((await world.settled(reference)).terminal).toEqual({ kind: 'completed' })
+    expect((await rows(world, reference)).map(row => row[2])).toEqual(Array(6).fill('completed'))
+  } finally {
+    await world.close()
+  }
+})

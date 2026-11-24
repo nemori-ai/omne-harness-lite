@@ -71,6 +71,8 @@ export type ProgramWorldOptions = Readonly<{
   admission?: ((asked: NestedAdmissionInput<unknown>) => Promise<NestedAdmission>) | null
   /** `false`: the stand-in returns as soon as its script does, without asking for the table. */
   settle?: boolean
+  /** How many calls of one tool may run at once; absent, eight. */
+  concurrency?: number
 }>
 
 const OPEN: ToolProgramAccess = { kind: 'open', unless: [] }
@@ -119,8 +121,17 @@ export async function programWorld(options: ProgramWorldOptions) {
     actor: { component: 'sessionWorkPrincipals' },
     work: { owner: 'session', work: 'session-alice' },
   }
-  const qualify = async (input: { principal: unknown }) =>
-    input.principal === principal
+  /** One check of an action that answers denied, after `left` more checks of it were still allowed. */
+  const revoked = new Map<string, number>()
+  const lost = (action: string) => {
+    const left = revoked.get(action)
+    if (left === undefined) return false
+    if (left > 0) revoked.set(action, left - 1)
+    else revoked.delete(action)
+    return left === 0
+  }
+  const qualify = async (input: { principal: unknown; action?: string }) =>
+    input.principal === principal && !lost(input.action ?? '')
       ? { kind: 'allowed' as const }
       : { kind: 'denied' as const, reason: 'fixture-denied' }
   const access = { guard: { qualify }, start: { qualify } }
@@ -540,7 +551,7 @@ export async function programWorld(options: ProgramWorldOptions) {
       }),
       command,
       consumer: { ...fixed.consumer, position },
-      limits: { ...fixed.limits, concurrency: 8 },
+      limits: { ...fixed.limits, concurrency: options.concurrency ?? 8 },
       arguments: { original: effective, effective, complete: true },
     }
     return made
@@ -663,6 +674,7 @@ export async function programWorld(options: ProgramWorldOptions) {
     said,
     asked,
     gate,
+    revoke: (action: string, after = 0) => void revoked.set(action, after),
     principal,
     tenant: tenantA,
     query,
