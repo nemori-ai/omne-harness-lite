@@ -10,10 +10,13 @@ export const skinCategoryDisplay: CategoryDisplay = Object.freeze({
   creation: '一个目录，根下有 plugin.json，清单里写 "kind":"skin"；只有 client 一侧的成员。',
   authoring: [
     'plugin.json, whole and minimal:',
-    '{"schema":1,"name":"sea","summary":"One sentence on how it looks.","kind":"skin","client":{"members":[{"point":"shell.tokens","key":"shell.app","data":{"--omne-accent":"#0a7a4a"}}]}}',
-    'A skin is a plugin whose manifest writes "kind":"skin" and has members under client only: no server side. The rest is as for the category plugin.',
-    'A member names a point and a key and gives exactly one of: data (a JSON value); module with export (a .js file in this directory and the name it exports).',
-    'Of the skins a tenant holds enabled, the interface wears one at a time, and a person switches on the assets page. OmneExtensionPoints show with the name of a point says what that point takes.',
+    '{"schema":1,"name":"sea","summary":"One sentence on how it looks.","kind":"skin","client":{"members":[{"point":"shell.tokens","key":"shell.app","data":{"--omne-accent":"light-dark(#0a7a4a, #5fd3a4)"}}]}}',
+    'A skin is a plugin with "kind":"skin" and members under client only. A member names a point and a key and gives data (a JSON value) or module with export (a .js file here and the name it exports).',
+    'Layers, each a point; use those the look needs: shell.tokens on shell.app (colours, radii, fonts); shell.part-style (CSS of a part at rest and in each state); shell.part-render (draw a part, around builtIn); shell.icon (an icon, by name); shell.piece (loading, empty-state, inline-notice, figure).',
+    'OmneExtensionPoints show <point> lists the keys a point takes and what a value or a drawing is given. A part takes only the layers it opens.',
+    'Light and dark: write a colour as light-dark(light, dark), and look at the skin in both.',
+    'Images: carry .png, .jpg, .webp, .avif or .svg files that begin as their kind does. A value points at one with file(path); code gets files.url(path). Ship art you may ship: draw your own.',
+    'Before you finish: a publish that is refused says why. Enable the skin; a person wears it on the assets page and sees it in light and dark. A drawing that throws falls back to the built-in at that place.',
   ].join('\n'),
 })
 
