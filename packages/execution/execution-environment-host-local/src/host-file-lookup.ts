@@ -1,8 +1,10 @@
-import { lstat } from 'node:fs/promises'
+import { isAbsolute } from 'node:path'
+import { lstat, realpath } from 'node:fs/promises'
 import type { ObjectToken } from '@omne-harness/execution-environment-contract'
 import {
   createHostPathsCore,
   errorCode,
+  fdDir,
   fdPath,
   tokenOf,
   fail,
@@ -17,7 +19,20 @@ import { getWindowsFilesHelper } from './windows-files/helper.ts'
 
 type FileLookup = (
   path: string,
-) => Promise<Outcome<Readonly<{ object: ObjectToken; size: number }> | null>>
+) => Promise<Outcome<Readonly<{ object: ObjectToken; size: number; directory: string }> | null>>
+
+function lookupResult(result: {
+  info: { type: string; token: string; size: number }
+  directory?: string
+}): Awaited<ReturnType<FileLookup>> {
+  if (result.info.type !== 'file') return fail('unsupported')
+  if (!result.directory || !isAbsolute(result.directory)) return fail('unknown')
+  return ok({
+    object: { token: result.info.token },
+    size: result.info.size,
+    directory: result.directory,
+  })
+}
 
 /** Observe a regular file below the held root. Only a missing final name in an opened parent proves absence. */
 export function createHostFileLookup(root: string, expected?: string): FileLookup {
@@ -33,11 +48,8 @@ export function createHostFileLookup(root: string, expected?: string): FileLooku
         named: '',
         path,
       })
-      return typeof result === 'string'
-        ? result === 'notFound'
-          ? ok(null)
-          : fail(result)
-        : ok({ object: { token: result.info.token }, size: result.info.size })
+      if (typeof result === 'string') return result === 'notFound' ? ok(null) : fail(result)
+      return lookupResult(result)
     }
   }
   if (process.platform === 'win32') {
@@ -57,8 +69,7 @@ export function createHostFileLookup(root: string, expected?: string): FileLooku
         follow: false,
       })
       if (typeof result === 'string') return result === 'notFound' ? ok(null) : fail(result)
-      if (result.info.type !== 'file') return fail('unsupported')
-      return ok({ object: { token: result.info.token }, size: result.info.size })
+      return lookupResult(result)
     }
   }
   const paths = createHostPathsCore({ root, expectedRoot: expected }).bind(handle => handle.close())
@@ -69,12 +80,20 @@ export function createHostFileLookup(root: string, expected?: string): FileLooku
     if (!located.ok) return located
     const { parent, name } = located.value
     try {
-      const stat = await lstat(fdPath(parent, name), { bigint: true })
+      const stat = await lstat(fdPath(parent, name), { bigint: true }).catch(error => {
+        if (errorCode(error) === 'ENOENT') return null
+        throw error
+      })
+      if (stat === null) return ok(null)
       if (!stat.isFile()) return fail('unsupported')
       if (stat.dev !== (await parent.stat({ bigint: true })).dev) return fail('notAuthorized')
-      return ok({ object: tokenOf(stat), size: Number(stat.size) })
-    } catch (error) {
-      return errorCode(error) === 'ENOENT' ? ok(null) : fail('unavailable')
+      return ok({
+        object: tokenOf(stat),
+        size: Number(stat.size),
+        directory: await realpath(fdDir(parent)),
+      })
+    } catch {
+      return fail('unavailable')
     } finally {
       await parent.close()
     }

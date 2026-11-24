@@ -133,12 +133,14 @@ it(
         join(root, 'src', leaf, 'AGENTS.md'),
         leaf === 'next' ? 'GUIDE_next' : 'GUIDE_SHARED_BYTES_672',
       )
+    const alternatePay = existsSync(join(root, 'src', 'PAY')) ? 'PAY' : 'pay'
+    const batches = [['docs', 'pay'], ['next'], ['pay', 'docs'], [alternatePay]]
     const requests: string[] = []
     const script = toolCallsByRequest(body => {
       requests.push(body)
       const step = requests.length
       if (step === 3) writeFileSync(join(root, 'src', 'pay', 'AGENTS.md'), 'GUIDE_pay_v2')
-      const leaves = [['docs', 'pay'], ['next'], ['pay', 'docs']][step - 1] ?? []
+      const leaves = batches[step - 1] ?? []
       return leaves.map(leaf => ({
         id: 'call_' + step + '_' + leaf,
         tool: 'Files',
@@ -151,7 +153,7 @@ it(
     })
     await onReleaseTree({ script, permission: 'bypass-permissions' }, async tree => {
       await run(tree, await sessionIn(tree, root))
-      expect(requests).toHaveLength(4)
+      expect(requests).toHaveLength(batches.length + 1)
       for (const [index, request] of requests.entries()) {
         expect(request.split('ROOT_55917')).toHaveLength(2)
         expect(request.split('SHARED_62585')).toHaveLength(index >= 1 ? 2 : 1)
@@ -159,7 +161,7 @@ it(
         expect(request.split('GUIDE_next')).toHaveLength(index >= 2 ? 2 : 1)
         expect(request.split('GUIDE_pay_v2')).toHaveLength(index >= 3 ? 2 : 1)
       }
-      for (const [step, leaves] of [['docs', 'pay'], ['next'], ['pay', 'docs']].entries())
+      for (const [step, leaves] of batches.entries())
         for (const leaf of leaves)
           expect(readFileSync(join(root, 'src', leaf, 'note' + (step + 1) + '.txt'), 'utf8')).toBe(
             'ok',

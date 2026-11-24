@@ -41,6 +41,11 @@ int main(void) {
         } else s = entry_stat(loc);
         if (rooted && s.st_dev != r.dev) refuse("notAuthorized");
         fprintf(output, "{\"info\":"); metadata(output, &s, loc.name);
+        if (strcmp(operation, "lookup") == 0) {
+          char directory[PATH_MAX];
+          if (fcntl(loc.parent, F_GETPATH, directory) != 0) refuse("unknown");
+          fprintf(output, ",\"directory\":"); quote(output, directory);
+        }
         result_defaults(output, 0); fputc('}', output);
       }
       else if (strcmp(operation, "read") == 0 || strcmp(operation, "stat") == 0 || strcmp(operation, "write") == 0) basic_operation(&d, r, output, operation);

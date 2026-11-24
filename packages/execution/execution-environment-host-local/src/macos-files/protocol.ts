@@ -61,6 +61,7 @@ export type NativeReply = Readonly<{
   hits: readonly { path: string; token: string; offsetBytes: number }[]
   truncated: boolean
   eof: boolean
+  directory?: string
   source?: string
 }>
 
@@ -142,6 +143,7 @@ export function parseReply(value: unknown): NativeReply | Failure {
       }),
       truncated: value['truncated'],
       eof: value['eof'],
+      ...('directory' in value ? { directory: string(value['directory']) } : {}),
       ...('source' in value ? { source: string(value['source']) } : {}),
     }
   } catch {

@@ -140,6 +140,9 @@ it('looks up and reads a named file only under the verified root object', async 
     }
     const identity = await rootToken(root)
     const wrong = await rootToken(other)
+    expect(() => createHostFiles(undefined, identity)).toThrow(
+      'a verified read root needs its absolute path',
+    )
     const lookup = await createHostFileLookup(root, identity)(file)
     if (!lookup.ok || lookup.value === null) throw new Error(JSON.stringify(lookup))
     const request = {

@@ -142,12 +142,10 @@ export type HostFilesEngineOptions = Readonly<{
 }>
 
 export function createHostFiles(
-  scope?: FilesScope,
+  scope: FilesScope = {},
   expectedReadRoot?: string,
 ): FileSystemFacility<unknown> {
-  return createHostFilesEngine(scope === undefined ? {} : { scope, expectedReadRoot }).facilityFor(
-    'host-files',
-  )
+  return createHostFilesEngine({ scope, expectedReadRoot }).facilityFor('host-files')
 }
 
 function absolutePath(name: string, value: string | undefined): void {
@@ -226,6 +224,8 @@ function bindScoped(cores: Readonly<Record<FileEffect, HostPathsCore>>, close: C
 /** The roots of a scope, checked and bound once per effect: the path cores and each platform's identities. */
 function scopedRoots(options: HostFilesEngineOptions) {
   const scope: FilesScope = Object.freeze({ ...options.scope })
+  if (options.expectedReadRoot !== undefined && scope.read === undefined)
+    throw new TypeError('a verified read root needs its absolute path')
   absolutePath('scope.read', scope.read)
   absolutePath('scope.write', scope.write)
   absolutePath('stateDirectory', options.stateDirectory)

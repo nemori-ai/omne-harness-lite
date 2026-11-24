@@ -55,6 +55,26 @@ it('distinguishes a missing rule in a verified directory from an unverified pare
     absent: ['AGENTS.md', 'visited/AGENTS.md'],
     sources: [],
   })
+  const alias = join(root, 'VISITED')
+  const aliasStat = await lstat(alias, { bigint: true }).catch(() => null)
+  const registeredStat = await lstat(child, { bigint: true })
+  if (aliasStat?.ino === registeredStat.ino && aliasStat.dev === registeredStat.dev) {
+    await writeFile(join(child, 'AGENTS.md'), 'case-preserved source')
+    const visitedAs = (directories: string[]) => ({
+      ...input,
+      snapshot: {
+        ...input.snapshot,
+        workspaceVisit: { ...input.snapshot.workspaceVisit, directories },
+      },
+    })
+    const together = await readWorkspaceGuidance(visitedAs([alias, child]), binding, rootIdentity)
+    const again = await readWorkspaceGuidance(visitedAs([alias]), binding, rootIdentity)
+    for (const value of [together, again]) {
+      expect(value.state).toBe('attached')
+      if (value.state === 'attached')
+        expect(value.sources.map(source => source.path)).toEqual(['visited/AGENTS.md'])
+    }
+  }
   await rm(child, { recursive: true })
   await symlink(peer, child, 'dir')
   await expect(readWorkspaceGuidance(input, binding, rootIdentity)).resolves.toMatchObject({

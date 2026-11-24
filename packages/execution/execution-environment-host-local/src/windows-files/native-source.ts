@@ -1,3 +1,4 @@
+import { handlePathSource } from '../windows-native/handle-path.ts'
 export const nativeSource = String.raw`
 using System;
 using System.IO;
@@ -5,6 +6,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 public static partial class OmneFiles {
+${handlePathSource}
   [StructLayout(LayoutKind.Sequential)] struct Unicode { public ushort length, maximum; public IntPtr buffer; }
   [StructLayout(LayoutKind.Sequential)] struct Attributes { public uint length; public IntPtr root, name; public uint flags; public IntPtr security, qos; }
   [StructLayout(LayoutKind.Sequential)] struct Status { public IntPtr status, information; }
@@ -221,7 +223,12 @@ public static partial class OmneFiles {
       uint access=operation=="list" || operation=="search"?0x81u:operation=="read"?0x80000080u:0x80u;
       IntPtr current=Final(root,expectedRoot,segments,rooted,directory,follow,access,operation=="identify",held,operation=="lookup");
       Info info=Information(current);
-      if(operation=="identify" || operation=="lookup") return new { info=Metadata(current,""), bytes="", entries=new object[0], next=-1 };
+      if(operation=="lookup") {
+        string name=PhysicalHandlePath(current);
+        if(name==null) throw new IOException("unknown");
+        return new { info=Metadata(current,""), directory=Path.GetDirectoryName(name), bytes="", entries=new object[0], next=-1 };
+      }
+      if(operation=="identify") return new { info=Metadata(current,""), bytes="", entries=new object[0], next=-1 };
       if(Token(current)!=named) throw new IOException("conflict");
       if(operation=="search") {
         if((info.attributes&16)==0) throw new IOException("unsupported");

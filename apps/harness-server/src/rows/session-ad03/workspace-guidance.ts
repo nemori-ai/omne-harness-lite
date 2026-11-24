@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { join, relative, sep } from 'node:path'
+import { isAbsolute, join, posix, relative, sep } from 'node:path'
 import { guidanceDirectories } from '@omne-harness/request-context-contract'
 import { originRef } from '@omne-harness/execution-environment-contract'
 import {
@@ -34,7 +34,8 @@ export async function readWorkspaceGuidance(
     }
   const files = createHostFiles({ read: root }, rootIdentity)
   const lookup = createHostFileLookup(root, rootIdentity)
-  const sources = []
+  const captured = new Map<string, Captured>()
+  const sources = new Map<string, { path: string; digest: string; text: string }>()
   const absent = []
   const directories = guidanceDirectories(root, active)
   // Each lookup can start a native helper. Bound concurrent processes and preserve ancestor-first output.
@@ -45,7 +46,7 @@ export async function readWorkspaceGuidance(
         const absolute = join(directory, 'AGENTS.md')
         const path = relative(root, absolute).split(sep).join('/')
         try {
-          return { path, result: await readSource(input, files, lookup, absolute) }
+          return { path, result: await readSource(input, root, files, lookup, absolute, captured) }
         } catch (cause) {
           return { path, result: refusal('unknown', String(cause)) }
         }
@@ -61,10 +62,16 @@ export async function readWorkspaceGuidance(
           diagnostic: result.diagnostic,
         }
       if (result.kind === 'absent') absent.push(path)
-      else sources.push({ path, digest: result.digest, text: result.text })
+      else sources.set(result.path, { path: result.path, digest: result.digest, text: result.text })
     }
   }
-  return { state: 'attached', ...basis, sources, absent }
+  const ordered = [...sources.values()].sort((a, b) => {
+    const left = posix.dirname(a.path),
+      right = posix.dirname(b.path)
+    if (left === right) return 0
+    return left === '.' || (right !== '.' && left < right) ? -1 : 1
+  })
+  return { state: 'attached', ...basis, sources: ordered, absent }
 }
 
 type FailureReason = Extract<WorkspaceGuidance, { state: 'unavailable' }>['reason']
@@ -78,24 +85,52 @@ function facilityFailure(reason: string) {
   )
 }
 
+type FoundFile = { object: { token: string }; size: number; directory: string }
+type Captured = { file: FoundFile; result: ReturnType<typeof readBody> }
+
 async function readSource(
   input: StepDirectoryInput<unknown>,
+  root: string,
   files: ReturnType<typeof createHostFiles>,
   lookup: ReturnType<typeof createHostFileLookup>,
   path: string,
+  captured: Map<string, Captured>,
 ) {
   const found = await lookup(path)
   if (!found.ok) return facilityFailure(found.failure)
   if (found.value === null) return { kind: 'absent' as const }
+  const file = found.value
+  const dir = relative(root, file.directory)
+  if (dir === '..' || dir.startsWith('..' + sep) || isAbsolute(dir))
+    return refusal('denied', 'the observed directory is outside the workspace')
+  const source = posix.join(dir.split(sep).join('/'), 'AGENTS.md')
+  const earlier = captured.get(source)
+  if (earlier) {
+    if (earlier.file.object.token !== file.object.token || earlier.file.size !== file.size)
+      return refusal('unknown', 'the source changed between directory observations')
+    return earlier.result
+  }
+  const result = readBody(input, files, path, source, file)
+  captured.set(source, { file, result })
+  return result
+}
+
+async function readBody(
+  input: StepDirectoryInput<unknown>,
+  files: ReturnType<typeof createHostFiles>,
+  path: string,
+  source: string,
+  file: FoundFile,
+) {
   const request = {
     path,
-    named: found.value.object,
+    named: file.object,
     access: access(input.principal, input.tenant),
     binding: { kind: 'host_machine' as const },
     origin: originRef(input.scope.ref),
     requestId: 'workspace-guidance',
   }
-  const result = await files.read({ ...request, limitBytes: found.value.size + 1 })
+  const result = await files.read({ ...request, limitBytes: file.size + 1 })
   if (result.kind !== 'done')
     return facilityFailure(result.kind === 'rejected' ? result.reason : result.kind)
   if (!result.value.eof) return refusal('unreadable', 'incomplete file')
@@ -103,7 +138,7 @@ async function readSource(
   try {
     const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
     const digest = 'sha256:' + createHash('sha256').update(bytes).digest('hex')
-    return { kind: 'found' as const, digest, text }
+    return { kind: 'found' as const, path: source, digest, text }
   } catch (cause) {
     return refusal('unreadable', String(cause))
   }

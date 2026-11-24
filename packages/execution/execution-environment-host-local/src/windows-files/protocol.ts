@@ -105,6 +105,7 @@ export type NativeReply = Readonly<{
   truncated: boolean
   eof: boolean
   source?: Metadata
+  directory?: string
   target?: Metadata | null
 }>
 
@@ -222,5 +223,6 @@ function reply(value: unknown): NativeReply | Failure {
     truncated: fields['truncated'] === true,
     eof: fields['eof'] === true,
     ...names,
+    ...(typeof fields['directory'] === 'string' ? { directory: fields['directory'] } : {}),
   }
 }
