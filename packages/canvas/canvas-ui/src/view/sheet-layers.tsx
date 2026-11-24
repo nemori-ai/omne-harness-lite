@@ -4,12 +4,11 @@ import {
   usePaperAt,
   type PaperBox,
   type PaperPoint,
-  type PaperSheet,
   type PaperView,
 } from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useRef, useState, type JSX, type RefObject } from 'react'
 import type { Placed, Spot } from '../model/commands.ts'
-import { itemBox, pileBox } from '../model/sheet.ts'
+import { itemBox, pileBox, type Sheet } from '../model/sheet.ts'
 import type { CanvasReference } from '../points.ts'
 import type { Dropped } from './intake.tsx'
 
@@ -30,14 +29,14 @@ const middle = (box: PaperBox): PaperPoint => ({
   y: Math.round(box.y + box.height / 2),
 })
 
-function boxOf(canvas: CanvasBody, sheet: PaperSheet, item: CanvasItemBody): PaperBox {
+function boxOf(canvas: CanvasBody, sheet: Sheet, item: CanvasItemBody): PaperBox {
   const pile = canvas.piles.find(one => one.id === item.pile)
   return pile === undefined ? itemBox(item, sheet) : pileBox(pile, sheet)
 }
 
 /** The finder, the files dropped, and the thing pointed out: what the sheet draws over what lies on it. */
 export function useLayers(
-  deps: Readonly<{ canvas: CanvasBody; sheet: PaperSheet; looking: Looking; place: Place }>,
+  deps: Readonly<{ canvas: CanvasBody; sheet: Sheet; looking: Looking; place: Place }>,
 ) {
   const { sheet, looking } = deps
   const [finder, setFinder] = useState<Opened | undefined>(undefined)

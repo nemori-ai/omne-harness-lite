@@ -17,7 +17,14 @@ import { startConnected } from './reference-shell.ts'
 export const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 export const OPERATIONS = Object.keys(canvasProtocol.operations)
-export const SHEET = { width: 1600, height: 900, grid: 8 }
+/** The least and most sizes and the footprint differ from any deployment's, so a number written into the module shows. */
+export const SHEET = {
+  width: 1600,
+  height: 900,
+  grid: 8,
+  size: { min: { width: 96, height: 48 }, max: { width: 320, height: 240 } },
+  footprint: { width: 176, height: 96 },
+}
 export const NOTE = 'test.note'
 export const NOTE_KIND: CanvasKindBody = {
   kind: 'declared',

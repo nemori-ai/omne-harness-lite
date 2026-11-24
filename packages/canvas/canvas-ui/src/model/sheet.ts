@@ -9,29 +9,28 @@ import {
 
 type Size = Readonly<{ width: number; height: number }>
 
-/** `canvas/v1` does not tell these: the local deployment's footprint and least and most sizes. */
-export const FOOTPRINT: Size = { width: 160, height: 80 }
-const LEAST: Size = { width: 120, height: 64 }
-const MOST: Size = { width: 900, height: 900 }
+/** The sheet as the module draws it: the paper's, with the footprint the server gives an item of no size. */
+export type Sheet = PaperSheet & Readonly<{ footprint: Size }>
 
 export const ZOOM_LIMITS: ZoomLimits = { min: 0.25, max: 2 }
 
-/** The limits of a page's box: the name line under its content is in the box, so it is added here once. */
-export const PAGE_LIMITS: SizeLimits = {
-  minWidth: LEAST.width,
-  minHeight: LEAST.height + PAPER_NAME_LINE,
-  maxWidth: MOST.width,
-  maxHeight: MOST.height + PAPER_NAME_LINE,
-}
+/** The limits of a page's box, read from the sheet: the name line under its content is in the box, so it is added here once. */
+export const pageLimits = (canvas: CanvasBody): SizeLimits => ({
+  minWidth: canvas.sheet.size.min.width,
+  minHeight: canvas.sheet.size.min.height + PAPER_NAME_LINE,
+  maxWidth: canvas.sheet.size.max.width,
+  maxHeight: canvas.sheet.size.max.height + PAPER_NAME_LINE,
+})
 
-export const paperSheet = (canvas: CanvasBody): PaperSheet => ({
+export const paperSheet = (canvas: CanvasBody): Sheet => ({
   width: canvas.sheet.width,
   height: canvas.sheet.height,
   step: canvas.sheet.grid,
+  footprint: canvas.sheet.footprint,
 })
 
 /** An item whose box is off the sheet is drawn inside it; what is on the server stays as it is. */
-function onSheet(box: PaperBox, sheet: PaperSheet): PaperBox {
+function onSheet(box: PaperBox, sheet: Sheet): PaperBox {
   return {
     ...box,
     x: Math.max(0, Math.min(box.x, sheet.width - box.width)),
@@ -40,21 +39,21 @@ function onSheet(box: PaperBox, sheet: PaperSheet): PaperBox {
 }
 
 /** The box a page is drawn in: the content the server sizes, and the name line under it. */
-export function itemBox(item: CanvasItemBody, sheet: PaperSheet): PaperBox {
-  const size = item.size ?? FOOTPRINT
+export function itemBox(item: CanvasItemBody, sheet: Sheet): PaperBox {
+  const size = item.size ?? sheet.footprint
   return onSheet(
     { x: item.at.x, y: item.at.y, width: size.width, height: size.height + PAPER_NAME_LINE },
     sheet,
   )
 }
 
-export function pileBox(pile: CanvasPileBody, sheet: PaperSheet): PaperBox {
+export function pileBox(pile: CanvasPileBody, sheet: Sheet): PaperBox {
   return onSheet(
     {
       x: pile.at.x,
       y: pile.at.y,
-      width: FOOTPRINT.width,
-      height: FOOTPRINT.height + PAPER_NAME_LINE,
+      width: sheet.footprint.width,
+      height: sheet.footprint.height + PAPER_NAME_LINE,
     },
     sheet,
   )

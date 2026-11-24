@@ -8,6 +8,7 @@ import {
   canvas,
   handle,
   item,
+  memoryPreferences,
   opened,
   page,
   pile,
@@ -15,6 +16,7 @@ import {
   reread,
   screen,
   settle,
+  SHEET,
   TENANT,
   type Opened,
 } from './fixtures/canvas.tsx'
@@ -32,15 +34,15 @@ function drag(element: Element, by: [number, number]): void {
 }
 
 describe('the sheet draws what was read', () => {
-  it('each item where the server says, its box the content and the name line under it', async () => {
+  it('each item where the server says, its box the content and the name line under it; no size is the footprint read', async () => {
     const sized = item('b', { at: { x: 400, y: 200 }, size: null, rank: 2 })
     await opened(canvas([A, sized]))
     expect(placedAt(page('a'))).toEqual({ x: 80, y: 80, width: 200, height: 120 + PAPER_NAME_LINE })
     expect(placedAt(page('b'))).toEqual({
       x: 400,
       y: 200,
-      width: 160,
-      height: 80 + PAPER_NAME_LINE,
+      width: SHEET.footprint.width,
+      height: SHEET.footprint.height + PAPER_NAME_LINE,
     })
     expect(page('a').getAttribute('aria-label')).toBe('便签')
   })
@@ -154,6 +156,21 @@ describe('a drag is a preview; the release sends a command, and the sheet is rea
     expect(sent.body.items).toEqual([
       { item: 'a', at: { x: 80, y: 80 }, size: { width: 240, height: 170 } },
     ])
+  })
+
+  it('a resize is held within the least and most sizes the sheet gives', async () => {
+    const { preferences } = memoryPreferences({ magnet: 'off' })
+    const world = await opened(canvas([A]), undefined, preferences)
+    drag(page('a').querySelector('[data-corner="se"]')!, [600, 600])
+    await settle()
+    const grown = await world.fake.next('arrange')
+    expect(grown.body.items).toEqual([{ item: 'a', at: { x: 80, y: 80 }, size: SHEET.size.max }])
+    grown.answer({ outcome: 'succeeded', body: { revision: 2 } })
+    await reread(world, canvas([A]))
+    drag(page('a').querySelector('[data-corner="se"]')!, [-600, -600])
+    await settle()
+    const shrunk = await world.fake.next('arrange')
+    expect(shrunk.body.items).toEqual([{ item: 'a', at: { x: 80, y: 80 }, size: SHEET.size.min }])
   })
 
   it('a press brings a page under another to the top', async () => {

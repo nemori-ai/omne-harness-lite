@@ -1,7 +1,7 @@
 import type { CanvasBody, CanvasItemBody, CanvasPileBody } from '@omne-harness/canvas-protocol'
-import type { PaperBox, PaperGesture, PaperPoint, PaperSheet } from '@omne-harness/ui-kit'
+import type { PaperBox, PaperGesture, PaperPoint } from '@omne-harness/ui-kit'
 import type { Command } from '../model/commands.ts'
-import { contentSize, holds, pileBox } from '../model/sheet.ts'
+import { contentSize, holds, pileBox, type Sheet } from '../model/sheet.ts'
 import type { ItemActs, PressHow } from './item-page.tsx'
 import type { KeyAct } from './keys.ts'
 import type { PileActs } from './pile-view.tsx'
@@ -10,7 +10,7 @@ export type Selection = ReadonlySet<string>
 
 export type SheetDeps = Readonly<{
   canvas: CanvasBody
-  sheet: PaperSheet
+  sheet: Sheet
   selected: Selection
   select: (next: Selection) => void
   send: (command: Command) => void

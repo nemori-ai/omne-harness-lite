@@ -22,7 +22,7 @@ import {
   viewText,
   type CanvasPreferences,
 } from '../model/preferences.ts'
-import { itemBox, PAGE_LIMITS, paperSheet, pileBox, ZOOM_LIMITS } from '../model/sheet.ts'
+import { itemBox, pageLimits, paperSheet, pileBox, ZOOM_LIMITS } from '../model/sheet.ts'
 import { canvasPaper } from '../parts.ts'
 import type { AwayPage, Reading } from '../model/reading.ts'
 import type { CanvasHost } from './element.tsx'
@@ -177,7 +177,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
         view={looking.view}
         onViewChange={looking.look}
         zoomLimits={ZOOM_LIMITS}
-        limits={PAGE_LIMITS}
+        limits={pageLimits(canvas)}
         magnet={looking.magnet}
         onDropAt={(event, at) => {
           const item = event.dataTransfer.getData(ITEM_DRAG)

@@ -19,7 +19,7 @@ import {
   createCanvasUiModule,
 } from '../src/cordis.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
-import { memoryPreferences } from './fixtures/canvas.tsx'
+import { memoryPreferences, SHEET } from './fixtures/canvas.tsx'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
 
@@ -27,7 +27,7 @@ const OPERATIONS = Object.keys(canvasProtocol.operations)
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const EMPTY = {
-  sheet: { width: 1600, height: 900, grid: 8 },
+  sheet: SHEET,
   items: [],
   piles: [],
   revision: 0,

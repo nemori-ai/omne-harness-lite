@@ -68,7 +68,13 @@ const canvasClient = {
   look: async () => ({
     outcome: 'succeeded',
     body: {
-      sheet: { width: 1600, height: 900, grid: 8 },
+      sheet: {
+        width: 1600,
+        height: 900,
+        grid: 8,
+        size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
+        footprint: { width: 160, height: 80 },
+      },
       items: [thing('a', 'canvas.app', 'clock', 80), thing('b', 'test.note', 'n1', 600)],
       piles: [],
       revision: 1,
