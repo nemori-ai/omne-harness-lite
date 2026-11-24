@@ -347,6 +347,13 @@ describe('the provider model catalog (C1, C2)', () => {
     expect(parsed.ok.models).toEqual([MODEL, second])
   })
 
+  it('reads a model that takes voice', () => {
+    const omni = { ...MODEL, input: ['text', 'voice'] }
+    const parsed = parseModelProviderBody(body(plainBody({ models: [omni] })))
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    expect(parsed.ok.models[0]?.input).toEqual(['text', 'voice'])
+  })
+
   it.each([
     ['a body without a catalog', { models: undefined }],
     ['two entries for one model', { models: [MODEL, MODEL] }],
@@ -356,6 +363,15 @@ describe('the provider model catalog (C1, C2)', () => {
     ['a window that is not a positive integer', { models: [{ ...MODEL, window: '0' }] }],
     ['a model without input', { models: [{ ...MODEL, input: [] }] }],
     ['an enabled default that is not a boolean', { models: [{ ...MODEL, enabled: 'yes' }] }],
+    ['a catalog that is not a list', { models: { a: MODEL } }],
+    ['a model without an enabled default', { models: [{ ...MODEL, enabled: undefined }] }],
+    ['a model without a title', { models: [{ ...MODEL, title: '' }] }],
+    ['a model without output', { models: [{ ...MODEL, output: undefined }] }],
+    ['a window with a tail', { models: [{ ...MODEL, window: '200000k' }] }],
+    ['a window with a head', { models: [{ ...MODEL, window: 'k200000' }] }],
+    ['a modality that is not text', { models: [{ ...MODEL, input: ['text', 7] }] }],
+    ['a modality no model takes', { models: [{ ...MODEL, input: ['text', 'video'] }] }],
+    ['efforts that are not a list', { models: [{ ...MODEL, efforts: 'low' }] }],
   ])('refuses %s', (_case, change) => {
     expect(parseModelProviderBody(body(plainBody(change)))).toEqual({
       failure: 'invalid-models',
@@ -369,6 +385,7 @@ describe('the provider model catalog (C1, C2)', () => {
       ['model-reasoning-efforts', 'preference', 'ordinary'],
     ])
     for (const item of definitions?.items ?? []) expect(item.default).toEqual({ kind: 'absent' })
+    expect(definitions?.groups.map(group => group.id)).toEqual(['models'])
   })
 
   it('declares the credential items after the preferences', () => {
@@ -378,6 +395,7 @@ describe('the provider model catalog (C1, C2)', () => {
       'model-reasoning-efforts',
       'apiKey',
     ])
+    expect(definitions?.groups.map(group => group.id)).toEqual(['models', 'credentials'])
   })
 
   it('a version of the declaration that follows its content, not the catalog or the asset version', () => {
