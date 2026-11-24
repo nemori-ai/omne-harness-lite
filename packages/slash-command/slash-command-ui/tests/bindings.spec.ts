@@ -83,4 +83,62 @@ describe('the key bindings of an account (C16)', () => {
     const alone = new KeyBindings(undefined, cache(), 'keys.mac')
     expect((await alone.change({ 'session.stop': 'Mod+J' })).kind).toBe('unsaved')
   })
+
+  it('reads from the cache only an object of names to keys or to no key', () => {
+    for (const text of ['[1]', '"Mod+J"', 'null', 'not json', '7'])
+      expect(new KeyBindings(undefined, cache(text), 'keys.mac').changes()).toEqual({})
+    const mixed = cache('{"a":1,"b":"Mod+X","c":null,"d":[]}')
+    expect(new KeyBindings(undefined, mixed, 'keys.mac').changes()).toEqual({ b: 'Mod+X', c: null })
+  })
+
+  it('asks for the port at each use, and keeps a change on this machine while there is no account', async () => {
+    const store = account()
+    let port: PreferencePort | undefined
+    const local = cache()
+    const bindings = new KeyBindings(() => port, local, 'keys.mac')
+    await bindings.load()
+    expect(bindings.state()).toEqual({ kind: 'saved' })
+    expect(await bindings.change({ 'session.stop': 'Mod+J' })).toEqual({
+      kind: 'unsaved',
+      why: '读不到账号，改动只存在这台机器上',
+    })
+    expect(local.text()).toBe('{"session.stop":"Mod+J"}')
+    port = store.port
+    expect(await bindings.change({ 'session.stop': 'Mod+K' })).toEqual({ kind: 'saved' })
+    expect(store.value()).toBe('{"session.stop":"Mod+K"}')
+  })
+
+  it('a change before the first read names the revision the account holds; a read that fails is told', async () => {
+    const store = account()
+    await new KeyBindings(store.port, cache(), 'keys.mac').change({ 'session.stop': 'Mod+J' })
+    const local = cache()
+    const late = new KeyBindings(store.port, local, 'keys.mac')
+    expect(await late.change({ 'session.stop': 'Mod+K' })).toEqual({ kind: 'saved' })
+    expect(store.value()).toBe('{"session.stop":"Mod+K"}')
+    expect(local.text()).toBe('{"session.stop":"Mod+K"}')
+    store.fail(true)
+    const blind = new KeyBindings(store.port, cache('{"session.stop":"Mod+L"}'), 'keys.mac')
+    await blind.load()
+    expect(blind.state()).toEqual({ kind: 'unsaved', why: '读不到' })
+    expect(blind.changes()).toEqual({ 'session.stop': 'Mod+L' })
+    expect(await blind.change({ 'session.stop': 'Mod+M' })).toEqual({
+      kind: 'unsaved',
+      why: '读不到',
+    })
+  })
+
+  it('a refused change never passes through saved, and a listener taken off hears nothing', async () => {
+    const store = account()
+    const one = new KeyBindings(store.port, cache(), 'keys.mac')
+    const two = new KeyBindings(store.port, cache(), 'keys.mac')
+    await Promise.all([one.load(), two.load()])
+    await one.change({ 'session.stop': 'Mod+J' })
+    const states: string[] = []
+    const off = two.subscribe(() => states.push(two.state().kind))
+    await two.change({ 'session.stop': 'Mod+K' })
+    expect(states).toEqual(['saving', 'saving', 'unsaved'])
+    off()
+    await two.change({ 'session.stop': 'Mod+K' })
+    expect(states).toHaveLength(3)
+  })
 })

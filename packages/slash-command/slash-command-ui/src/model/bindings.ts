@@ -81,7 +81,7 @@ export class KeyBindings {
     this.#revision = read.revision
     this.#changes = parse(read.value)
     this.#cache.write(JSON.stringify(this.#changes))
-    this.#tell(this.#state.kind === 'saving' ? { kind: 'saved' } : this.#state)
+    this.#tell(this.#state)
   }
 
   async change(next: Changes): Promise<SaveState> {
