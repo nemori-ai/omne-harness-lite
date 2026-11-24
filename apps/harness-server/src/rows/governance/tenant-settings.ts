@@ -65,6 +65,7 @@ export function prepareTenantGovernanceWithSettings(
     identity: options.identity,
     writer: options.catalogPrincipal,
     release: () => permissionRelease?.(),
+    ...(options.permissionDeclared === undefined ? {} : { declared: options.permissionDeclared }),
     async epoch() {
       const runtime = await (opening ??= open())
       return runtime.kind === 'created' ? runtime.epoch : undefined

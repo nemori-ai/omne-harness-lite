@@ -9,9 +9,11 @@ it('a released tool declares its permission under its preinstalled settings targ
   const governance = { declaration: { enforcementBindings: [] }, interpretations: [] }
   const declaration = releasedDeclaration({ asset, governance } as never)
   expect(declaration).toEqual({
-    asset,
+    asset: { category: 'tool', name: 'Shell' },
+    definition: asset.adoption,
     governance,
     holdingRef: 'harness.preinstalled.tool.Shell',
+    tenantRef: null,
   })
   expect(declarationTarget(declaration, 'tenant-1')).toEqual({
     kind: 'asset',

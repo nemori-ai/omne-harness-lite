@@ -16,6 +16,7 @@ import {
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { admitMaintainer } from '../../entry/execution-authorities.ts'
+import { sourcedEntriesOf, sourcedEntryFor } from '../../entry/tool-entry-sources.ts'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import { releaseCurrentDefinitions, releaseOf } from '../../entry/tool-release.ts'
 import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
@@ -61,8 +62,13 @@ function releasePermitRequirements(
           layer: availability.layer,
           asset: { name, adoption: availability.definition.adoption },
         })
-      if (!inRelease && !heldNow)
-        return { kind: 'unavailable', diagnostic: 'not a tool that is lawful to start now' }
+      const listed = sourcedEntryFor(sourcedEntriesOf(root), input, availability) !== undefined
+      if (!inRelease && !heldNow && !listed)
+        return {
+          kind: 'unavailable',
+          diagnostic:
+            'not a release built-in tool, a tool the tenant holds now, or an entry of a source now in service',
+        }
       const work = await identity.sessionWork(input.principal, input.tenant)
       if (work.kind === 'unavailable')
         return {
@@ -94,7 +100,10 @@ function inputFor(
 ) {
   const identity = createReleaseToolIdentity(holder)
   const store = lateStore(holder)
-  const residency = currentTargetResidency(() => releaseCatalogViewOf(root))
+  const residency = currentTargetResidency(
+    () => releaseCatalogViewOf(root),
+    () => sourcedEntriesOf(root),
+  )
   const sources = createLocalInvocationSource({
     store,
     authority: identity.sourceAuthority,

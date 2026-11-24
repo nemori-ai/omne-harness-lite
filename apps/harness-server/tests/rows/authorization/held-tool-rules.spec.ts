@@ -9,6 +9,8 @@ const held = (name: string, owner = HELD_TOOL_OWNER) => ({
   revision: `tool/${name}`,
   digest: 'sha256:held',
 })
+const match = (set: Parameters<typeof toolActionRule>[0], definition: ReturnType<typeof held>) =>
+  toolActionRule(set, definition, { category: 'tool', name: definition.name })
 const rules = actionRulesSchema.parse({
   revision: 'test-1',
   rules: [
@@ -20,16 +22,16 @@ const rules = actionRulesSchema.parse({
 
 describe('an action rule that names the owner of a definition', () => {
   it('covers every tool whose definition that owner adopts, whatever its name', () => {
-    expect(toolActionRule(rules, held('wordcount'))?.id).toBe('held-tools')
-    expect(toolActionRule(rules, held('anything-else'))?.id).toBe('held-tools')
+    expect(match(rules, held('wordcount'))?.id).toBe('held-tools')
+    expect(match(rules, held('anything-else'))?.id).toBe('held-tools')
   })
 
   it('does not cover a definition of another owner', () => {
-    expect(toolActionRule(rules, held('wordcount', '@omne-harness/elsewhere'))).toBeUndefined()
+    expect(match(rules, held('wordcount', '@omne-harness/elsewhere'))).toBeUndefined()
   })
 
   it('yields to a prohibition of the same tool by name', () => {
-    expect(toolActionRule(rules, held('wiper'))).toMatchObject({ id: 'no-wiper', effect: 'deny' })
+    expect(match(rules, held('wiper'))).toMatchObject({ id: 'no-wiper', effect: 'deny' })
   })
 
   it('is one of two forms: a rule names a tool or an owner, never both and never neither', () => {
@@ -48,7 +50,7 @@ describe('an action rule that names the owner of a definition', () => {
     const configured = actionRulesSchema.parse(
       distribution.rows.find(row => row.id === 'authorization')?.config?.actionRules,
     )
-    expect(toolActionRule(configured, held('wordcount'))).toMatchObject({ effect: 'allow' })
-    expect(toolActionRule(configured, held('wordcount', '@omne-harness/elsewhere'))).toBeUndefined()
+    expect(match(configured, held('wordcount'))).toMatchObject({ effect: 'allow' })
+    expect(match(configured, held('wordcount', '@omne-harness/elsewhere'))).toBeUndefined()
   })
 })

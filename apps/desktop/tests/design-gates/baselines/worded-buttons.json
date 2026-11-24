@@ -47,12 +47,6 @@
     "packages/identity/identity-ui/src/view/login-card.tsx | 请稍候……/{TITLE[form.mode]}": {
       "commit": 1
     },
-    "packages/mcp/mcp-ui/src/mcp-page.tsx | {choice.label}": {
-      "R9": 1
-    },
-    "packages/mcp/mcp-ui/src/mcp-page.tsx | 清除这一层的挑选": {
-      "R9": 1
-    },
     "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {
       "name": 1
     },

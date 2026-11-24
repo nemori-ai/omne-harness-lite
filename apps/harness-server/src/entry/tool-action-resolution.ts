@@ -18,6 +18,7 @@ import {
   resolveForwardTarget,
   type ForwardRequestPorts,
 } from './tool-forward-requests.ts'
+import { TOOL_CATEGORY } from './permission-declarations.ts'
 import { namedUngated } from './tool-release-manifest.ts'
 import { callOf } from './tool-requests.ts'
 
@@ -171,6 +172,7 @@ async function carriedAction(
       return refused('name', 'target-unread')
     return resolved
   }
+  const { capability } = resolved.ok
   const target = resolved.ok.availability.definition
   // A call its target would answer with usage carries no action either.
   const targetCall = callOf(target, resolved.ok.effective)
@@ -180,6 +182,7 @@ async function carriedAction(
     carrier: { name: input.name, definition: definition.adoption, gate: own },
     target: {
       name: intent.name,
+      ...(capability.category === TOOL_CATEGORY ? {} : { capability }),
       definition: target.adoption,
       command: intent.command,
       effectiveArguments: resolved.ok.effective,

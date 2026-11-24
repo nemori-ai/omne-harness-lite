@@ -1,5 +1,6 @@
 import type { DurableEvidence } from '@omne-harness/agent-contract'
 import { digestOf } from '@omne-harness/authorization'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { TenantSettings } from '@omne-harness/settings'
 import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import { declaredPermission, type ToolPermissionAction } from './current-tool-permission.ts'
@@ -7,7 +8,10 @@ import type { CardStanding } from './settings-access.ts'
 
 /** What a lasting answer makes of the gate for the whole tenant. */
 export type LastingEffect = 'allow' | 'deny'
-type Gate = Pick<ToolPermissionAction, 'principal' | 'tenant' | 'definition' | 'gate'>
+type Gate = Pick<
+  ToolPermissionAction,
+  'principal' | 'tenant' | 'capability' | 'definition' | 'gate'
+>
 
 /** The tenant's own pick of a gate, as the settings face holds it: read what it can take, and set it. */
 export type TenantPicks = Readonly<{
@@ -23,7 +27,7 @@ export type TenantPicks = Readonly<{
   ): Promise<'written' | 'not-writable' | 'unavailable'>
 }>
 export type TenantPickPorts = Readonly<{
-  declarations(): readonly PermissionDeclaration[]
+  declarations(tenant: TenantId): readonly PermissionDeclaration[]
   settings(): TenantSettings<unknown> | undefined
 }>
 
@@ -47,7 +51,7 @@ function itemOf(declarations: readonly PermissionDeclaration[], gate: Gate) {
     return values.length === 1 ? values[0]!.value : undefined
   }
   return {
-    owner: { kind: 'asset' as const, name: found.entry.asset.name },
+    owner: { kind: 'asset' as const, ...found.entry.asset },
     item,
     picks: { allow: pickOf('allow'), deny: pickOf('deny') },
   }
@@ -56,7 +60,7 @@ function itemOf(declarations: readonly PermissionDeclaration[], gate: Gate) {
 export function createTenantPicks(ports: TenantPickPorts): TenantPicks {
   async function described(gate: Gate) {
     const settings = ports.settings()
-    const located = itemOf(ports.declarations(), gate)
+    const located = itemOf(ports.declarations(gate.tenant), gate)
     if (settings === undefined) return 'unavailable' as const
     if (located === undefined) return undefined
     const { owner, item } = located

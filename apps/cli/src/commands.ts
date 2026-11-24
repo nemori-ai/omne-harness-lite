@@ -36,6 +36,7 @@ import { settingCommand } from './setting-command.ts'
 import { calendarCommand } from './calendar-command.ts'
 import { usageCommands } from './usage-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
+import { mcpCommand } from './mcp-command.ts'
 import { notificationCommand } from './notification-command.ts'
 import { attachUploads, mediaCommand, readUpload } from './media-command.ts'
 import { workspaceCommand } from './workspace-command.ts'
@@ -949,6 +950,7 @@ export const productionCommands: readonly CommandSpec[] = [
   workspaceCommand,
   settingCommand,
   assetCommand,
+  mcpCommand,
   mediaCommand,
   ...usageCommands,
 ]

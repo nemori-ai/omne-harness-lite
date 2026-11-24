@@ -19,6 +19,7 @@ import type {
   ToolValueSchema,
 } from './definitions.ts'
 import type { CheckpointedToolExecutor } from './checkpointed-author.ts'
+import type { ToolSourceWithheld } from './entry-source.ts'
 import type { TextRenderer, ToolExecutor } from './execution.ts'
 import type { Access, Adoption, DurableEvidence, ToolCallId } from './identity.ts'
 import type { ToolReleaseDescriber } from './release-detail.ts'
@@ -85,7 +86,14 @@ export interface ToolCatalog<P> {
         after: string | null
         limit: number
       }>,
-  ): Reply<Readonly<{ entries: readonly ToolCatalogSearchEntry[]; next: string | null }>>
+  ): Reply<
+    Readonly<{
+      entries: readonly ToolCatalogSearchEntry[]
+      /** Names that exist but have no lawful definition to show, on the first page only. */
+      withheld?: readonly ToolSourceWithheld[]
+      next: string | null
+    }>
+  >
 }
 export interface ParameterCodec<A> {
   readonly adoption: Adoption

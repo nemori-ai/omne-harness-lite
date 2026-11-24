@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import type { ToolBindingKey } from '@omne-harness/tool-contract/provider'
+import { tenantCodec } from '@omne-harness/legal-identity'
 import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import { heldToolPermission, releasedGatesOf } from '../../entry/tool-permission-release.ts'
 
@@ -13,8 +14,11 @@ const keyTextOf = (key: ToolBindingKey) => canonicalDigest({ layer: key.layer, a
 /** The gates of a held tool, declared from the very definition it was loaded with. */
 function permissionOf(key: ToolBindingKey, definition: ToolDefinition): PermissionDeclaration {
   const { name } = key.asset
+  const tenant = key.layer.kind === 'tenant' ? tenantCodec.encode(key.layer.tenant) : undefined
   return Object.freeze({
-    asset: key.asset,
+    asset: { category: 'tool', name },
+    definition: definition.adoption,
+    tenantRef: tenant?.ok === true ? tenant.value : null,
     governance: heldToolPermission({
       name,
       adoption: definition.adoption,
@@ -42,10 +46,14 @@ export function rememberHeldDefinition(
   entries.set(keyTextOf(key), { definition: kept, permission: permissionOf(key, kept) })
 }
 
-/** The permission declarations of the held tools loaded here; the same version in two tenants declares once. */
-export function heldPermissionDeclarations(ctx: Context): readonly PermissionDeclaration[] {
+/** The permission declarations of the held tools loaded here for one tenant, one for each version. */
+export function heldPermissionDeclarations(
+  ctx: Context,
+  tenantRef: string,
+): readonly PermissionDeclaration[] {
   const byAdoption = new Map<string, PermissionDeclaration>()
   for (const { permission } of known.get(ctx.root)?.values() ?? [])
-    byAdoption.set(canonicalDigest(permission.asset.adoption), permission)
+    if (permission.tenantRef === tenantRef && permission.definition !== null)
+      byAdoption.set(canonicalDigest(permission.definition), permission)
   return [...byAdoption.values()]
 }

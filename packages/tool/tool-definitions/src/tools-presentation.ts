@@ -53,6 +53,7 @@ export function presentSearch(page: SearchPage): ToolResult<ToolMessageContentBl
           ? { returns: returnSummary(entry.definition.returns) }
           : {}),
       })),
+      ...(page.withheld === undefined ? {} : { withheld: page.withheld }),
       next: page.next,
     }),
   )

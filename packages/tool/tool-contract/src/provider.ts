@@ -288,6 +288,18 @@ export type {
   ToolForwardRuntime,
 } from './forwarding.ts'
 export { returnGuide } from './return-description.ts'
+export {
+  TOOL_ENTRY_SOURCES_POINT,
+  isToolSourcePrefix,
+  judgeToolSourceListing,
+  type ToolCapabilityIdentity,
+  type ToolEntrySource,
+  type ToolSourceBreach,
+  type ToolSourceCall,
+  type ToolSourceEntry,
+  type ToolSourceListing,
+  type ToolSourceWithheld,
+} from './entry-source.ts'
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts'
 export {
   SCRIPT_EXECUTOR,

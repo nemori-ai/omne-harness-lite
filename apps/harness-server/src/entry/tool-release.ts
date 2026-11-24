@@ -29,6 +29,7 @@ import {
 import { monotonicClock } from '../shutdown.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { issueEntrySystemPrincipal } from './agent-host-principal.ts'
+import { sourcedEntriesOf } from './tool-entry-sources.ts'
 import {
   importReleaseModules,
   loadToolRelease,
@@ -448,6 +449,7 @@ async function heldDefinitionNow(ctx: Context, access: Access<unknown>, name: st
 }
 
 export function releaseCurrentDefinitions<P>(ctx: Context): LocalCurrentDefinitions<P> {
+  const sourced = sourcedEntriesOf(ctx)
   return {
     async current({ name, tenant, principal }) {
       const release = releaseOf(ctx)
@@ -458,9 +460,11 @@ export function releaseCurrentDefinitions<P>(ctx: Context): LocalCurrentDefiniti
           diagnostic: release.diagnostic,
         })
       const released = releaseDefinitionOf(ctx, name)
-      return released === undefined
+      if (released !== undefined) return succeed(released)
+      const listed = sourced.owns(name) ? sourced.entry({ principal, tenant }, name) : undefined
+      return listed === undefined
         ? heldDefinitionNow(ctx, { principal, tenant }, name)
-        : succeed(released)
+        : succeed(listed.definition)
     },
   }
 }

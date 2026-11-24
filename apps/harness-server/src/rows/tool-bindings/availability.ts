@@ -28,6 +28,7 @@ import { toolEnvironmentsKey, toolMediaStoreKey } from '@omne-harness/tool-cordi
 import type { SessionWork } from '@omne-harness/session-contract'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import type { LocalToolAvailabilitySource } from '@omne-harness/tool-host-local'
+import { sourcedEntriesOf, sourcedEntryFor } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import type { ToolReleaseManifest } from '../../entry/tool-release-manifest.ts'
 import { hostOffers } from '../execution-host/offers.ts'
@@ -169,7 +170,6 @@ function inRelease(release: Trusted, definition: ToolDefinition, layer: JudgeInp
   )
 }
 
-/** A definition of the tenant layer is judged only for its own tenant, while it holds that version and it was loaded here as this. */
 function heldBy(ctx: Context, { layer, definition, tenant }: JudgeInput): boolean {
   const key = { layer, asset: { name: definition.name, adoption: definition.adoption } }
   const loaded = heldDefinitionOf(ctx, key)
@@ -178,6 +178,12 @@ function heldBy(ctx: Context, { layer, definition, tenant }: JudgeInput): boolea
     canonicalDigest(loaded) === canonicalDigest(definition) &&
     isHeldNow(ctx, tenant, key)
   )
+}
+
+// A source entry belongs to the asking tenant, and is the one its source listed to this asker just now.
+function fromSource(ctx: Context, input: JudgeInput): boolean {
+  const asked = { kind: 'available', definition: input.definition, layer: input.layer } as const
+  return sourcedEntryFor(sourcedEntriesOf(ctx), input, asked) !== undefined
 }
 
 function environmentInstalled(ctx: Context): boolean {
@@ -257,7 +263,12 @@ async function judgeRelease(ctx: Context, reads: ModelReads, input: JudgeInput):
   if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
   const work = await workSession(ctx, input.principal, input.tenant)
   if ('problem' in work) return unavailable(work.problem)
-  if (!inRelease(release, input.definition, input.layer) && !heldBy(ctx, input)) return denied
+  if (
+    !inRelease(release, input.definition, input.layer) &&
+    !heldBy(ctx, input) &&
+    !fromSource(ctx, input)
+  )
+    return denied
   const confirmed = release.manifest.consumer
   if (!confirmedTextConsumer(input.consumer, confirmed))
     return unavailable('consumer material is not a confirmed text consumer')

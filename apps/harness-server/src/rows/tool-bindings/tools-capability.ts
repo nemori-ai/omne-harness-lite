@@ -13,6 +13,7 @@ import {
   isReleaseToolsRequest,
   releaseToolConsumer,
 } from '../../entry/tool-forward-requests.ts'
+import { sourcedEntriesOf } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { wasAdmittedTarget } from '../authorization/admitted-targets.ts'
 import { currentHeldTool, heldReadable } from '../tool-host/held-current.ts'
@@ -104,6 +105,7 @@ export function createReleaseToolsCapability(ctx: Context, config: ToolsCapabili
       view: () => releaseCatalogViewOf(ctx),
       held: (access, name) => currentHeldTool(ctx, access, name),
       admitted: (consumer, target) => wasAdmittedTarget(ctx, consumer, target),
+      sourced: () => sourcedEntriesOf(ctx),
     }),
     reader: () => reader,
     attemptMs: config.attemptMs,

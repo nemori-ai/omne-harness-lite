@@ -1,8 +1,14 @@
-import { needPoint, type PointSink, type ServiceKey } from '@omne-harness/shell-contract'
+import { mcpProtocol } from '@omne-harness/mcp-protocol'
+import {
+  needPoint,
+  needProtocol,
+  type PointSink,
+  type ServiceKey,
+} from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { MCP_CATEGORY, McpPage } from './mcp-page.tsx'
 import { mcpParts } from './parts.ts'
-import type { McpGovernance } from './port.ts'
+import type { McpGovernance, McpStatus } from './port.ts'
 
 export type McpUiOptions = Readonly<{
   page: PointSink<unknown>
@@ -12,17 +18,21 @@ export type McpUiOptions = Readonly<{
 export function createMcpUiModule({ page, governance }: McpUiOptions) {
   return defineUiModule({
     name: 'mcp-ui',
-    needs: { governance: needPoint(governance) },
+    needs: {
+      governance: needPoint(governance),
+      status: needProtocol<McpStatus | null>(mcpProtocol, { optional: true }),
+    },
     apply(shell, bound) {
       for (const part of mcpParts) part.declare(shell)
       const port = bound.governance.get()
       if (port === undefined) return
+      const status = bound.status ?? null
       page.contribute(shell, {
         id: MCP_CATEGORY,
         order: 0,
         label: 'MCP',
         render: ({ scope }) =>
-          scope === undefined ? null : <McpPage governance={port} tenant={scope} />,
+          scope === undefined ? null : <McpPage governance={port} tenant={scope} status={status} />,
       })
     },
   })

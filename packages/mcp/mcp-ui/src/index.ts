@@ -6,6 +6,7 @@ export type {
   McpPermission,
   McpRow,
   McpSnapshot,
+  McpStatus,
   McpView,
   McpWrite,
 } from './port.ts'

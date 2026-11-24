@@ -25,12 +25,15 @@ const declare = (digest?: string) =>
 function world(digest?: string) {
   const governance = declare(digest)
   const entry = {
-    asset: { name: 'wordcount', adoption: adoption(digest) },
+    asset: { category: 'tool', name: 'wordcount' },
+    definition: adoption(digest),
+    tenantRef: 'tenant-a',
     governance,
     holdingRef: 'harness.held.tool.wordcount',
     unpublished: true as const,
   }
   const found = declaredPermission([entry], {
+    capability: entry.asset,
     definition: adoption(digest),
     gate: IMPLICIT_TOOL_GATE,
   })

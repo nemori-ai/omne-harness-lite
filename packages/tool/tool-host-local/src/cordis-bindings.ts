@@ -8,12 +8,15 @@ import {
   ToolBindingsService,
   ToolCatalogService,
   ToolReleaseDetailsService,
+  toolEntrySourcesKey,
   type ToolContributionAuthority,
+  type ToolEntrySourcesService,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolBindingRegistry } from './bindings.ts'
 import { createLocalToolCatalog, type LocalToolCatalogInput } from './catalog.ts'
 import { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 import { captureToolCaller, checkEmptyToolConfig } from './cordis-host.ts'
+import { createLocalEntrySources, type LocalEntrySourcesInput } from './entry-sources.ts'
 import { createLocalReleaseDetails, type ReleaseDetailAttach } from './release-details.ts'
 
 const RELEASE_DETAIL_SCHEMA_BUDGET: SchemaBudget = Object.freeze({
@@ -30,6 +33,8 @@ export type LocalToolBindingsPluginInput<P, E, B extends ContentBlock> = Omit<
 > &
   Pick<LocalToolCatalogInput<P>, 'availability' | 'view' | 'search'> &
   Readonly<{
+    /** Given, the entries of the sources on `tool.entry-sources` join the catalog and can be called. */
+    entrySources?: Pick<LocalEntrySourcesInput<P, B>, 'codec' | 'policy'>
     releaseDetails?: Readonly<{
       policy?: ReleaseDetailPolicy
       schemas?: SchemaBudget
@@ -64,15 +69,25 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
       checkEmptyToolConfig(config)
       super(ctx)
       let retired = false
-      this.live = () => !retired && (ctx.fiber.state === 1 || ctx.fiber.state === 2)
+      const live = (this.live = () => !retired && (ctx.fiber.state === 1 || ctx.fiber.state === 2))
       ctx.effect(() => () => {
         retired = true
       })
       const verifier = ctx.toolContributionAuthority as ToolContributionAuthority<P>
-      const registry = (this.registry = createLocalToolBindingRegistry<P, E, B>({
+      const registered = (this.registry = createLocalToolBindingRegistry<P, E, B>({
         verifier,
         fiber: () => this.callers.getStore() ?? null,
       }))
+      const point = () => ctx.get(toolEntrySourcesKey) as ToolEntrySourcesService<P, B> | undefined
+      const sourced =
+        input.entrySources === undefined
+          ? null
+          : createLocalEntrySources<P, E, B>({
+              ...input.entrySources,
+              sources: () => (live() ? (point()?.sources() ?? []) : []),
+              hold: prefix => point()?.hold(prefix) ?? (() => {}),
+            })
+      const registry = sourced === null ? registered : sourced.registry(registered)
       const unavailable = () =>
         fail({
           kind: 'unavailable' as const,
@@ -90,8 +105,8 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
         availability: input.availability,
         view: input.view,
         search: input.search,
+        sources: sourced?.entries ?? null,
       })
-      const live = this.live
       class Catalog extends ToolCatalogService<P> {
         readonly inspect: ToolCatalogService<P>['inspect'] = async request => {
           if (!live()) return unavailable()

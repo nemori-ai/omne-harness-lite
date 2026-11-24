@@ -1,5 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { FixedToolRequest } from './definitions.ts'
+import type { ToolCapabilityIdentity } from './entry-source.ts'
 import type { ToolActionGate } from './gates.ts'
 import type { Access, Adoption, CallAccess, ToolCallId, ToolOperationId } from './identity.ts'
 import type {
@@ -24,6 +25,8 @@ export type ToolForwardIntent = Readonly<{
 /** The action one tool call really performs: the tool it names, with the command and arguments it runs. */
 export type ToolActionTarget = Readonly<{
   name: string
+  /** The asset behind the target, when it is not a tool of its own name; permission is found by it. */
+  capability?: ToolCapabilityIdentity
   definition: Adoption
   command: string | null
   effectiveArguments: string

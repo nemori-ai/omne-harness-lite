@@ -40,6 +40,11 @@ describe('媒体进了装配', () => {
     expect(assembly.protocols).toBe(domainProtocols)
   })
 
+  it('协议清单里有 mcp/v1：MCP 页的状态与动作清单经它读', () => {
+    const names = domainProtocols.map(protocol => `${protocol.name}/v${String(protocol.major)}`)
+    expect(names).toContain('mcp/v1')
+  })
+
   it('界面模块里有媒体的；装配里没有专管转交的插件', () => {
     const names = assembly.modules.map(module => module.name ?? '')
     expect(names).toContain('media-ui')

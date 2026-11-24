@@ -18,7 +18,8 @@ const source = { owner: 'human-intervention', record: 'reply/1', revision: '1', 
 const gate = {
   principal: { kind: 'acting-for-tenant' } as never,
   tenant: TOOL_RELEASE_TENANT,
-  definition: shell.asset.adoption,
+  capability: shell.asset,
+  definition: shell.definition!,
   gate: { id: 'run', title: '执行', default: 'ask' as const },
 }
 
@@ -70,7 +71,7 @@ describe('which lasting picks the tenant setting of a gate can take', () => {
       {
         principal: gate.principal,
         tenant: gate.tenant,
-        owner: { kind: 'asset', name: 'Shell' },
+        owner: { kind: 'asset', category: 'tool', name: 'Shell' },
         item: 'run',
       },
     ])
