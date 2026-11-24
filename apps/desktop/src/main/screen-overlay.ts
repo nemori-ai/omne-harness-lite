@@ -39,8 +39,8 @@ const displayOf = ({ origin }: Monitor): Display =>
 
 /** One borderless window over each screen, above the menu bar and the Dock, showing the page a screenshot is picked on. */
 export function screenOverlays(): DeviceScreenDeps['overlays'] {
-  let shown: BrowserWindow[] = []
-  function overlay(id: string, bounds: Rectangle, focused: boolean, cancel: () => void) {
+  let shown = new Map<string, BrowserWindow>()
+  function overlay(page: URL, bounds: Rectangle, focused: boolean, gone: () => void) {
     const window = new BrowserWindow(overlayOptions(bounds))
     window.setAlwaysOnTop(true, 'screen-saver')
     window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
@@ -48,32 +48,41 @@ export function screenOverlays(): DeviceScreenDeps['overlays'] {
     const contents = window.webContents
     harden(contents)
     contents.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
-      if (isMainFrame && code !== LOAD_ABORTED) cancel()
+      if (isMainFrame && code !== LOAD_ABORTED) gone()
     })
-    contents.on('render-process-gone', cancel)
+    contents.on('render-process-gone', gone)
     window.once('closed', () => {
-      if (shown.includes(window)) cancel()
+      if ([...shown.values()].includes(window)) gone()
     })
     window.once('ready-to-show', () => {
       window.showInactive()
       if (focused) window.focus()
     })
-    const url = `${OVERLAY_PAGE}?screen=${encodeURIComponent(id)}`
-    void window.loadURL(url).catch(() => {})
+    void window.loadURL(page.href).catch(() => {})
     return window
   }
   return {
-    open(monitors, cancel) {
+    open(monitors, capture, gone) {
       const pointer = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).id
-      shown = monitors.map(monitor => {
-        const display = displayOf(monitor)
-        return overlay(monitor.id, display.bounds, display.id === pointer, cancel)
-      })
+      shown = new Map(
+        monitors.map(monitor => {
+          const display = displayOf(monitor)
+          const page = new URL(OVERLAY_PAGE)
+          page.searchParams.set('screen', monitor.id)
+          page.searchParams.set('capture', String(capture))
+          const focused = display.id === pointer
+          return [monitor.id, overlay(page, display.bounds, focused, () => gone(monitor.id))]
+        }),
+      )
+    },
+    lock(inUse) {
+      for (const [id, window] of shown)
+        if (id !== inUse && !window.isDestroyed()) window.setIgnoreMouseEvents(true)
     },
     close() {
       const closing = shown
-      shown = []
-      for (const window of closing) if (!window.isDestroyed()) window.destroy()
+      shown = new Map()
+      for (const window of closing.values()) if (!window.isDestroyed()) window.destroy()
     },
   }
 }

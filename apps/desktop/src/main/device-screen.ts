@@ -12,8 +12,12 @@ export type DeviceScreenDeps = Readonly<{
     hide(): Promise<void>
     show(): void
   }>
-  /** One overlay on each screen, where the person picks a screen or draws a rectangle; `cancel` when one goes away. */
-  overlays: Readonly<{ open(screens: readonly Monitor[], cancel: () => void): void; close(): void }>
+  /** One overlay per screen for one capture; `gone` names the screen whose overlay went away, `lock` shuts out all but one. */
+  overlays: Readonly<{
+    open(screens: readonly Monitor[], capture: number, gone: (screen: string) => void): void
+    lock(screen: string): void
+    close(): void
+  }>
   /** Asks the system for the screen recording permission, which lists the app in its settings; null where there is no such thing. */
   requestAccess: (() => Promise<void>) | null
   openSettings: (() => Promise<void>) | null
@@ -24,9 +28,13 @@ type Choice =
   | Readonly<{ kind: 'picture'; png: Uint8Array<ArrayBuffer> }>
   | Readonly<{ kind: 'cancel' }>
 
+type Ticket = Readonly<{ screen: string; capture: number }>
+
 type Choosing = Readonly<{
+  capture: number
   frames: ReadonlyMap<string, Uint8Array>
   takenAt: number
+  active: string | null
   settle: (choice: Choice) => void
 }>
 
@@ -44,13 +52,24 @@ const png = (bytes: Uint8Array<ArrayBuffer>, headers: Record<string, string> = {
 
 const isPng = (bytes: Uint8Array) => PNG_SIGNATURE.every((byte, at) => bytes[at] === byte)
 
+function ticketOf(url: URL): Ticket | null {
+  const screen = url.searchParams.get('screen') ?? ''
+  const capture = Number(url.searchParams.get('capture'))
+  return screen !== '' && Number.isSafeInteger(capture) && capture > 0 ? { screen, capture } : null
+}
+
 /** Answers the page's requests under /device/ on this machine; every other path is the forwarding's. */
 export function deviceScreenRoute(
   deps: DeviceScreenDeps,
 ): (request: Request) => Promise<Response> | undefined {
   let loading: Promise<ScreenBackend | undefined> | undefined
   let choosing: Choosing | null = null
+  let captures = 0
   const backend = () => (loading ??= deps.backend().catch(() => undefined))
+  const current = (ticket: Ticket | null): Choosing | null =>
+    ticket !== null && choosing?.capture === ticket.capture ? choosing : null
+  const mayAnswer = (open: Choosing, screen: string) =>
+    open.active === null || open.active === screen
 
   async function freeze(screen: ScreenBackend, screens: readonly Monitor[]) {
     const frames = new Map<string, Uint8Array>()
@@ -68,9 +87,13 @@ export function deviceScreenRoute(
     if (frames === 'not-found')
       return json(409, { reason: 'failed', detail: '这块屏幕在截图时不见了' })
     const takenAt = deps.now()
+    const capture = (captures += 1)
     const choice = await new Promise<Choice>(settle => {
-      choosing = { frames, takenAt, settle }
-      deps.overlays.open(screens, () => settle({ kind: 'cancel' }))
+      choosing = { capture, frames, takenAt, active: null, settle }
+      deps.overlays.open(screens, capture, screen => {
+        const open = current({ screen, capture })
+        if (open !== null && mayAnswer(open, screen)) open.settle({ kind: 'cancel' })
+      })
     })
     if (choice.kind === 'cancel') return new Response(null, { status: 204 })
     return png(choice.png, { 'x-omne-taken-at': String(takenAt) })
@@ -97,16 +120,31 @@ export function deviceScreenRoute(
   }
 
   function frame(url: URL): Response {
-    const bytes = choosing?.frames.get(url.searchParams.get('screen') ?? '')
+    const ticket = ticketOf(url)
+    const bytes = ticket === null ? undefined : current(ticket)?.frames.get(ticket.screen)
     return bytes === undefined ? json(404, { reason: 'not-found' }) : png(bytes.slice())
   }
 
-  async function chosen(request: Request): Promise<Response> {
-    const current = choosing
-    if (current === null) return json(409, { reason: 'not-choosing' })
+  function active(url: URL): Response {
+    const ticket = ticketOf(url)
+    const open = current(ticket)
+    if (ticket === null || open === null) return json(409, { reason: 'not-choosing' })
+    if (open.active === null) {
+      choosing = { ...open, active: ticket.screen }
+      deps.overlays.lock(ticket.screen)
+    }
+    return new Response(null, { status: 204 })
+  }
+
+  // The body is read first: checking and settling then happen in one step, as the model's Deliver does.
+  async function chosen(request: Request, url: URL): Promise<Response> {
     const bytes = new Uint8Array(await request.arrayBuffer())
+    const ticket = ticketOf(url)
+    const open = current(ticket)
+    if (ticket === null || open === null) return json(409, { reason: 'not-choosing' })
+    if (!mayAnswer(open, ticket.screen)) return json(409, { reason: 'not-in-use' })
     if (bytes.byteLength > 0 && !isPng(bytes)) return json(400, { reason: 'not-a-png' })
-    current.settle(bytes.byteLength === 0 ? { kind: 'cancel' } : { kind: 'picture', png: bytes })
+    open.settle(bytes.byteLength === 0 ? { kind: 'cancel' } : { kind: 'picture', png: bytes })
     return new Response(null, { status: 204 })
   }
 
@@ -125,7 +163,8 @@ export function deviceScreenRoute(
       return backend().then(screen => json(200, { available: screen !== undefined }))
     if (route === `POST ${DEVICE_SCREEN}`) return capture()
     if (route === `GET ${DEVICE_SCREEN}/frame`) return Promise.resolve(frame(url))
-    if (route === `POST ${DEVICE_SCREEN}/choice`) return chosen(request)
+    if (route === `POST ${DEVICE_SCREEN}/active`) return Promise.resolve(active(url))
+    if (route === `POST ${DEVICE_SCREEN}/choice`) return chosen(request, url)
     if (route === `POST ${DEVICE_SCREEN}/settings`) return settings()
     return Promise.resolve(json(404, { reason: 'not-found' }))
   }
