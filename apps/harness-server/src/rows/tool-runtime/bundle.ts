@@ -3,6 +3,7 @@ import { TOOL_READ_ARGUMENTS } from '../../entry/tool-read-budget.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { createRecoveryAccess } from '@omne-harness/execution-environment-contract'
+import { isHeldNow } from '../tool-host/held-now.ts'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
   toolBindingsKey,
@@ -54,10 +55,19 @@ function releasePermitRequirements(
         availability.kind === 'available' &&
         availability.layer.kind === 'official' &&
         release.manifest.entries.some(entry => entry.asset.name === name)
-      if (!inRelease && sourcedEntryFor(sourcedEntriesOf(root), input, availability) === undefined)
+      // A tool a tenant holds starts only for that tenant, and only while it still holds that version.
+      const heldNow =
+        availability.kind === 'available' &&
+        isHeldNow(root, input.tenant, {
+          layer: availability.layer,
+          asset: { name, adoption: availability.definition.adoption },
+        })
+      const listed = sourcedEntryFor(sourcedEntriesOf(root), input, availability) !== undefined
+      if (!inRelease && !heldNow && !listed)
         return {
           kind: 'unavailable',
-          diagnostic: 'neither a release built-in tool nor an entry of a source now in service',
+          diagnostic:
+            'not a release built-in tool, a tool the tenant holds now, or an entry of a source now in service',
         }
       const work = await identity.sessionWork(input.principal, input.tenant)
       if (work.kind === 'unavailable')

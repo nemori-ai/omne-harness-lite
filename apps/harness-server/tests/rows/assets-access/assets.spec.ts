@@ -67,13 +67,13 @@ describe('assets/v1 asset operations on the release tree', () => {
         const categories = await assets['list-categories']({ after: null, limit: 100 })
         if (categories.outcome !== 'succeeded') throw new Error(categories.outcome)
         expect(categories.body.items.map(item => [item.category, item.creation])).toEqual([
-          ['AgentDefinition', 'none'],
+          ['AgentDefinition', 'directory'],
           ['converter', 'data'],
           ['mcp', 'data'],
           ['model-provider', 'none'],
           ['plugin', 'directory'],
           ['skill', 'directory'],
-          ['tool', 'none'],
+          ['tool', 'directory'],
         ])
         expect(await assets['describe-category']({ category: 'skill' })).toMatchObject({
           outcome: 'succeeded',
@@ -82,12 +82,22 @@ describe('assets/v1 asset operations on the release tree', () => {
         expect(
           await assets['create-asset']({
             tenant,
+            operation: 'make-provider',
+            category: 'model-provider',
+            name: 'mine',
+            body: { kind: 'null' },
+          }),
+        ).toEqual({ outcome: 'invalid', body: { reason: 'creation-closed' } })
+        // A tool is made from a directory: a body alone is refused, and says so.
+        expect(
+          await assets['create-asset']({
+            tenant,
             operation: 'make-tool',
             category: 'tool',
             name: 'shell',
             body: { kind: 'null' },
           }),
-        ).toEqual({ outcome: 'invalid', body: { reason: 'creation-closed' } })
+        ).toEqual({ outcome: 'invalid', body: { reason: 'a-directory-category' } })
 
         const controller = new AbortController()
         const frames: unknown[] = []

@@ -1,3 +1,6 @@
+import type { Access } from '@omne-harness/legal-identity'
+import { currentHeldTool } from '../tool-host/held-current.ts'
+import { rememberAdmittedTarget } from './admitted-targets.ts'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   referenceAdmissionCheck,
@@ -131,6 +134,7 @@ const plugin: Plugin.Object = {
       release: () => releaseOf(ctx),
       catalog: () => ctx.get(toolCatalogKey, false),
       view: () => releaseCatalogViewOf(ctx),
+      held: (access: Access<unknown>, name: string) => currentHeldTool(ctx, access, name),
       sourced: () => sourcedEntriesOf(ctx),
     }
     const resolution = createToolActionResolution(forwarding)
@@ -157,6 +161,7 @@ const plugin: Plugin.Object = {
         readLabeling: () => (active ? labeling : undefined),
         readAuthorizations: () => (active ? authorizations : undefined),
         readPicks: () => (active ? picks : undefined),
+        carried: (action, target) => rememberAdmittedTarget(ctx, action, target),
       }),
     )
   },

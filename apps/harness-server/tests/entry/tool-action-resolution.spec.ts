@@ -592,6 +592,30 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
     }
   })
 
+  it('answers an argument error, not a wait, for a target under a name the tenant may hold while what it holds cannot be read', async () => {
+    const world = await forwardWorld()
+    try {
+      const resolution = createToolActionResolution({
+        release: () => world.release,
+        catalog: () => world.catalog,
+        view: () => world.view,
+        held: async () => ({ kind: 'unavailable', diagnostic: 'the assets cannot be opened' }),
+      })
+      const resolved = await resolution.resolve({
+        principal: world.principal,
+        tenant: world.tenant,
+        name: 'Tools',
+        definition: adoptionOf(world, 'Tools'),
+        effectiveArguments: toolsCall(world, { name: 'wordcount', command: null, arguments: {} }),
+      })
+      expect(resolved).toMatchObject({
+        ok: { kind: 'argument-error', field: 'name', reason: 'target-unread' },
+      })
+    } finally {
+      await world.close()
+    }
+  })
+
   it('answers an argument error for a Tools command that does not exist, and for execute arguments of no target', async () => {
     const world = await forwardWorld()
     try {

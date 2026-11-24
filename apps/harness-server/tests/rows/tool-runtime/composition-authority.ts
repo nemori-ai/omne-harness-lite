@@ -40,7 +40,7 @@ class Adoptions extends AgentAdoptionsService<unknown> {
         summary: 'Works on what the person asks for.',
         name: 'transport-fixture',
         attributes: [],
-        references: ['Files', 'Shell'].map(name => ({ capability: { category: 'Tool', name } })),
+        references: ['Files', 'Shell'].map(name => ({ capability: { category: 'tool', name } })),
       },
       evaluator: {
         initial() {

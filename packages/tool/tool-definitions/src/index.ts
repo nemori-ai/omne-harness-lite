@@ -7,6 +7,8 @@ export {
   createShellAuthor,
   shellToolModule,
 } from './shell.ts'
+export { createScriptAuthor, scriptToolModule } from './script.ts'
+export { attachScriptHost, scriptHostOf, type ScriptHost, type ScriptPlace } from './script-port.ts'
 export { createSkillsAuthor, skillsToolModule } from './skills.ts'
 export { attachSkillsAccess, skillsAccessOf } from './skills-port.ts'
 export type {

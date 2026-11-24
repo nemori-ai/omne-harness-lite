@@ -70,13 +70,20 @@ async function initialWorkspace(
   return { workspace: target.workspace, workspaceAttachment: target.attachment }
 }
 
-/** The definition the creation names, or the default one of the deployment. */
-function namedDefinition(ports: CreateSessionPorts, body: Body<'create-session'>) {
+/** The definition the creation names, or the default one of the deployment, as the tenant sees it. */
+async function namedDefinition(
+  ports: CreateSessionPorts,
+  body: Body<'create-session'>,
+  tenant: () => TenantId | undefined,
+) {
   const definitions = ports.definitions()
   if (definitions === undefined) return UNAVAILABLE
   const name = body.definition ?? ports.settings.defaultDefinition
   if (name === undefined) return INVALID
-  const resolved = definitions(name)
+  const creator = tenant()
+  if (creator === undefined) return UNAVAILABLE
+  const resolved = await definitions(name, creator)
+  if (resolved === 'unavailable') return UNAVAILABLE
   return resolved === undefined ? INVALID : { name, resolved }
 }
 
@@ -85,7 +92,7 @@ export async function createSession(
   principal: Principal,
   body: Body<'create-session'>,
 ): Promise<Answer<'create-session'>> {
-  const definition = namedDefinition(ports, body)
+  const definition = await namedDefinition(ports, body, () => ports.factOf(principal)?.tenant)
   if ('outcome' in definition) return definition
   const { name, resolved } = definition
   const fact = ports.factOf(principal)

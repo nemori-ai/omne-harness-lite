@@ -31,18 +31,15 @@ function runKeyOf(snapshot: WorkSnapshot, command: StartRun): string | null {
   return runIdOf(snapshot.session, judged.first, predecessor)
 }
 
-async function adopt(
+/** Reads the workspace of the session once under the key of a run; null when it has none or was read. */
+export async function adoptWorkspace(
   ports: RunSourcesPorts,
-  command: StartRun,
   access: SessionAccess<unknown>,
+  work: WorkSnapshot,
+  key: string,
 ): Promise<string | null> {
-  const read = await ports.readWork(access)
-  if (read === undefined) return 'the session cannot be read'
-  if ('failure' in read) return `the session read answered ${read.failure.kind}`
-  const selection = workspaceSelection(read.ok)
+  const selection = workspaceSelection(work)
   if (selection === null) return null
-  const key = runKeyOf(read.ok, command)
-  if (key === null) return null
   const sources = ports.sources()
   const categories = ports.categories()
   if (sources === undefined || categories === undefined) return 'the workspace sources are absent'
@@ -56,6 +53,37 @@ async function adopt(
   return adopted.kind === 'adopted' ? null : `the workspace sources answered ${adopted.kind}`
 }
 
+async function adopt(
+  ports: RunSourcesPorts,
+  command: StartRun,
+  access: SessionAccess<unknown>,
+): Promise<Readonly<{ key: string | null; failed: string | null }>> {
+  const read = await ports.readWork(access)
+  if (read === undefined) return { key: null, failed: 'the session cannot be read' }
+  if ('failure' in read)
+    return { key: null, failed: `the session read answered ${read.failure.kind}` }
+  const key = runKeyOf(read.ok, command)
+  if (key === null) return { key, failed: null }
+  return { key, failed: await adoptWorkspace(ports, access, read.ok, key) }
+}
+
+/** Adopts once for the run a command starts, and answers the key of that run; null when it starts none. */
+export async function adoptForStartedRun(
+  ports: RunSourcesPorts,
+  command: StartRun,
+  access: SessionAccess<unknown> | undefined,
+): Promise<string | null> {
+  if (access === undefined) return null
+  try {
+    const { key, failed } = await adopt(ports, command, access)
+    if (failed !== null) ports.report(failed)
+    return key
+  } catch (cause) {
+    ports.report(`adopting the workspace sources threw: ${String(cause)}`)
+    return null
+  }
+}
+
 // Once for the run a command starts. A failure is reported and leaves the run without a workspace
 // layer: it never stands in the way of the start.
 export async function adoptRunSources(
@@ -63,11 +91,5 @@ export async function adoptRunSources(
   command: StartRun,
   access: SessionAccess<unknown> | undefined,
 ): Promise<void> {
-  if (access === undefined) return
-  try {
-    const failed = await adopt(ports, command, access)
-    if (failed !== null) ports.report(failed)
-  } catch (cause) {
-    ports.report(`adopting the workspace sources threw: ${String(cause)}`)
-  }
+  await adoptForStartedRun(ports, command, access)
 }

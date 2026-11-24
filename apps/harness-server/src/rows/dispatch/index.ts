@@ -113,7 +113,10 @@ export const dispatchRow = defineRow({
         sessions: lateSessions(holder),
         waits: lateWaits(holder),
         copies: lateCopies(holder),
-        definitions: definitionsOf(() => ctx.get(agentDefinitionCatalogKey)),
+        definitions: definitionsOf(
+          () => ctx.get(agentDefinitionCatalogKey),
+          () => holder.turns,
+        ),
       },
       clock: { now },
       report: error => logger.warn('dispatch work failed: %s', String(error)),

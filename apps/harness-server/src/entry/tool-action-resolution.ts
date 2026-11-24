@@ -13,6 +13,7 @@ import {
 } from '@omne-harness/tool-contract'
 import { forwardIntentOfCall } from '@omne-harness/tool-host-local'
 import {
+  HELD_UNREAD,
   releaseToolConsumer,
   resolveForwardTarget,
   type ForwardRequestPorts,
@@ -167,6 +168,8 @@ async function carriedAction(
     // A target the forward refuses (resident, not included, not available) is no target either.
     if (failure.kind === 'denied') return refused('name', 'target-refused')
     if (failure.kind === 'invalid') return refused(failure.field, failure.reason)
+    if (failure.kind === 'unavailable' && failure.dependency === HELD_UNREAD)
+      return refused('name', 'target-unread')
     return resolved
   }
   const { capability } = resolved.ok

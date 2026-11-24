@@ -172,6 +172,8 @@
 - `ResultConsumption` · `values.d.ts`
 - `RouteJudgment` · `judgments.d.ts`
 - `RoutedInput` · `values.d.ts`
+- `RunAdoption` · `ports.d.ts`
+- `RunAdoptionInput` · `ports.d.ts`
 - `RunBoundaryView` · `run-boundary.d.ts`
 - `RunEnd` · `values.d.ts`
 - `RunExecution` · `values.d.ts`
@@ -2570,7 +2572,7 @@ export type { AdmittedMessage, DeliveredInputs, CommitReceipt, CompactionContext
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
 export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionControlReceipt, SessionModelSelection, SessionRunLookup, } from './control-values.ts';
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt, } from './interpretation-values.ts';
-export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, SessionAdoptionPlanAnswer, SessionAdoptionPlanInput, SessionAdoptionRecorded, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionCallControl, SessionCallStates, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionTransactionPort, SessionWorkPrincipals, } from './ports.ts';
+export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, RunAdoption, RunAdoptionInput, SessionAdoptionPlanAnswer, SessionAdoptionPlanInput, SessionAdoptionRecorded, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionCallControl, SessionCallStates, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionTransactionPort, SessionWorkPrincipals, } from './ports.ts';
 export { sessionModesBlock } from './block.ts';
 export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, judgeWaiting, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest, runIdOf } from './decide.ts';
@@ -3553,7 +3555,7 @@ import type { SessionCallBinding } from './call-settlement.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { Outcome } from '@omne-harness/operation-result';
-import type { Adoption, AdvanceRef, ConsumptionId, DurableEvidence, InputId, ResidentKey, SessionAccess, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
+import type { Adoption, AdvanceRef, ConsumptionId, DurableEvidence, InputId, ResidentKey, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { ClockSample, Control, FreezeVerdict, IdleObservation, ProducedResult, ProducerRef, ResidentAdoption, RoutedInput, ScopeReleaseDisposition, WorkSnapshot } from './values.ts';
 import type { BackgroundCallState } from './background-calls.ts';
 import type { ControlOperationResolution, SessionModelSelection } from './control-values.ts';
@@ -3712,8 +3714,19 @@ export type GuardCommand = Readonly<{
 export interface SessionIdentityBridge<P> {
     prepare(input: SessionAccess<P>, command: SessionCommand): Reply<GuardCommand>;
 }
+export type RunAdoption = Readonly<{
+    candidate: Adoption;
+    residentAdoption?: ResidentAdoption & Readonly<{
+        verdict?: FreezeVerdict;
+    }>;
+}>;
+export type RunAdoptionInput = Readonly<{
+    work: WorkSnapshot;
+    run: RunId;
+}>;
 export interface SessionEvidenceBridge<P = unknown> {
     prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>;
+    runAdoption?(access: SessionAccess<P>, input: RunAdoptionInput): Reply<RunAdoption>;
 }
 export interface SessionClock {
     sample(): Reply<ClockSample>;
@@ -3759,6 +3772,7 @@ export interface SessionAdoptionSource<P = unknown> {
     plan?: (access: SessionAccess<P>, input: SessionAdoptionPlanInput) => Promise<Outcome<SessionAdoptionPlanAnswer, Readonly<{
         kind: 'unavailable';
     }>>>;
+    forRun?(access: SessionAccess<P>, input: RunAdoptionInput): Reply<RunAdoption>;
 }
 export interface SessionProductionSource {
     prepare(command: ProductionEvidenceCommand): Reply<readonly GuardCommand[]>;
@@ -4023,8 +4037,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5f2509c9e01e5e248f8ea47eca236bdeec25981cd6b62e89c4e166175743f196";
-export declare const SESSION_RELEASE_DIGEST = "sha256:5f2509c9e01e5e248f8ea47eca236bdeec25981cd6b62e89c4e166175743f196";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:ebca6f5b3f2831d77efc80b3e91bf8f66d01a76297c0d82341441dcb048909db";
+export declare const SESSION_RELEASE_DIGEST = "sha256:ebca6f5b3f2831d77efc80b3e91bf8f66d01a76297c0d82341441dcb048909db";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

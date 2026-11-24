@@ -92,3 +92,9 @@ export type * from './request.ts'
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts'
 
 export type * from './action-qualification.ts'
+export {
+  definitionImpact,
+  definitionPlaces,
+  type DefinitionFacts,
+  type ResidentTool,
+} from './effect.ts'

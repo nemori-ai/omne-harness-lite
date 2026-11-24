@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import {
   SessionAdoptionSourceService,
@@ -13,6 +13,7 @@ import {
   modesAdoptionOf,
   type DefinitionMappingEntry,
   type DefinitionMappings,
+  type DefinitionReading,
 } from '../agent-adoptions/definition-mappings.ts'
 import {
   INITIALIZATION_PROTOCOL,
@@ -24,9 +25,13 @@ import {
   type InitializationPlanItem,
   type InitializationRequirement,
   type ResidentAdoption,
+  type RunAdoption,
+  type RunAdoptionInput,
   type SessionAccess,
   type SessionAdoptionSource,
   type SessionCreation,
+  type SessionFailure,
+  type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
   contextInitialization,
@@ -35,8 +40,9 @@ import {
 import { prepareInitialContext, type PreparedBlock } from './initial-context.ts'
 import { jsonOf } from './json.ts'
 import { recallInitialContext } from './recall-context.ts'
+import { lastTurnOf, madeFrom, type Turn } from '../tenant-assets/turn.ts'
 import { plannedResidents } from './residents.ts'
-import { adoptRunSources, type RunSourcesPorts } from './run-sources.ts'
+import { adoptForStartedRun, adoptWorkspace, type RunSourcesPorts } from './run-sources.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
@@ -284,24 +290,87 @@ function runSourcesOf(ctx: Context): RunSourcesPorts {
   }
 }
 
+type Mappings = DefinitionMappings & DefinitionReading
+
+const unreadable = (diagnostic: string) =>
+  fail({ kind: 'unavailable' as const, owner: OWNER, diagnostic })
+
 async function definitionEvidence<P>(
   runSources: RunSourcesPorts,
-  mappings: DefinitionMappings,
+  mappings: Mappings,
   command: Extract<AdoptionEvidenceCommand, { kind: 'startRun' | 'reload' }>,
   access: SessionAccess<P> | undefined,
 ): Promise<Prepared> {
-  const entry = mappings.byCandidate(command.input.candidate)
-  if (entry === undefined)
-    return invalid('candidate', 'the candidate is not a definition adoption of this deployment')
-  if (command.kind === 'startRun')
-    await adoptRunSources(runSources, command, access as SessionAccess<unknown> | undefined)
-  return succeed([materialOf(mappings, command.kind, entry)])
+  const given = access as SessionAccess<unknown> | undefined
+  const key =
+    command.kind === 'startRun' ? await adoptForStartedRun(runSources, command, given) : null
+  const turn = given === undefined || key === null ? {} : { turn: { access: given, key } }
+  const read = await mappings.adopted(
+    { tenant: command.input.tenant, ...turn },
+    command.input.candidate,
+  )
+  if (read.kind === 'unavailable') return unreadable(read.diagnostic)
+  if (read.kind === 'absent') return invalid('candidate', read.reason)
+  return succeed([materialOf(mappings, command.kind, read.entry)])
+}
+
+/** The residents a changed definition adds, planned over the ones the session already keeps. */
+async function addedResidents<P>(
+  ctx: Context,
+  work: WorkSnapshot,
+  entry: DefinitionMappingEntry,
+  access: SessionAccess<P>,
+  turn: Turn | null,
+): Promise<Outcome<ResidentAdoption | undefined, SessionFailure>> {
+  const kept = new Set(work.residents.map(resident => resident.capability))
+  const added = (entry.residentCapabilities ?? []).filter(capability => !kept.has(capability))
+  if (added.length === 0) return succeed(undefined)
+  const planned = await plannedResidents(ctx, added, access, turn)
+  if ('failure' in planned) return planned
+  return succeed({
+    residents: planned.ok.residents,
+    keys: [...(work.residentKeys ?? []), ...planned.ok.keys],
+  })
+}
+
+/** What a run that starts now adopts: the version in force under the name of its definition. */
+async function runAdoption<P>(
+  ctx: Context,
+  runSources: RunSourcesPorts,
+  mappings: Mappings,
+  access: SessionAccess<P>,
+  { work, run }: RunAdoptionInput,
+): Promise<Outcome<RunAdoption, SessionFailure>> {
+  const { name, adopted: pinned } = work.definition
+  let entry = mappings.byName(name)
+  let turn: Turn | null = null
+  if (entry === undefined) {
+    const given = access as SessionAccess<unknown>
+    const failed = await adoptWorkspace(runSources, given, work, run)
+    if (failed !== null) runSources.report(failed)
+    turn = { access: given, key: run }
+    const read = await mappings.named({ tenant: access.tenant, turn }, name)
+    if (read.kind !== 'found')
+      return unreadable(
+        read.kind === 'absent'
+          ? `the definition of the session cannot be adopted: ${read.reason}`
+          : read.diagnostic,
+      )
+    entry = read.entry
+  }
+  if (same(entry.candidate, pinned)) return succeed({ candidate: pinned })
+  const residents = await addedResidents(ctx, work, entry, access, turn)
+  if ('failure' in residents) return residents
+  return succeed({
+    candidate: entry.candidate,
+    ...(residents.ok === undefined ? {} : { residentAdoption: residents.ok }),
+  })
 }
 
 async function prepareFrom<P>(
   ctx: Context,
   runSources: RunSourcesPorts,
-  mappings: DefinitionMappings,
+  mappings: Mappings,
   command: AdoptionEvidenceCommand,
   access: SessionAccess<P> | undefined,
 ): Promise<Prepared> {
@@ -310,16 +379,23 @@ async function prepareFrom<P>(
       const recalled = await recallInitialContext(ctx, command, access, MAPPING_ENTRY_SCHEMA)
       if ('failure' in recalled) return recalled
       if (recalled.ok !== undefined) return initializationMaterial(recalled.ok)
-      const { creation } = command.input
-      const entry = mappings.byName(creation.definition.name)
-      if (entry === undefined)
+      const { creation, tenant } = command.input
+      // A session made from another is made as that one's turn saw things: its workspace is read too.
+      const from = madeFrom(creation.relation)
+      const turn = from === null ? null : await lastTurnOf(ctx, tenant, from)
+      if (turn === undefined) return unreadable('the session this one is made from cannot be read')
+      const asker = turn === null ? { tenant } : { tenant, turn }
+      const read = await mappings.named(asker, creation.definition.name)
+      if (read.kind === 'unavailable') return unreadable(read.diagnostic)
+      if (read.kind === 'absent')
         return invalid('definition', 'the definition name is not in the deployment mapping')
+      const { entry } = read
       const mismatch = creationMismatch(entry, creation)
       if (mismatch !== undefined)
         return invalid(mismatch, 'the creation does not match the mapping entry of its definition')
       const undeclared = undeclaredByMapping(entry, command)
       if (undeclared !== undefined) return undeclared
-      const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access)
+      const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access, turn)
       if ('failure' in residents) return residents
       const preparation = await prepareInitialContext(ctx, command, access)
       if ('failure' in preparation) return preparation
@@ -336,14 +412,16 @@ async function prepareFrom<P>(
 }
 
 export class AdoptionSourcesImpl extends SessionAdoptionSourceService {
-  readonly mappings: DefinitionMappings
+  readonly mappings: Mappings
 
   readonly prepare: SessionAdoptionSource['prepare']
+  readonly forRun: NonNullable<SessionAdoptionSource['forRun']>
 
-  constructor(ctx: Context, mappings: DefinitionMappings) {
+  constructor(ctx: Context, mappings: Mappings) {
     super(ctx)
     this.mappings = mappings
     const runSources = runSourcesOf(ctx)
     this.prepare = (command, access) => prepareFrom(ctx, runSources, mappings, command, access)
+    this.forRun = (access, input) => runAdoption(ctx, runSources, mappings, access, input)
   }
 }

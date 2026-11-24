@@ -19,6 +19,8 @@ import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { sessionKey, sessionSearchKey } from '@omne-harness/session-cordis-contract/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { heldDefinitionOf } from '../tool-host/held-definitions.ts'
+import { isHeldNow } from '../tool-host/held-now.ts'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolConsumerProfile, ToolDefinition } from '@omne-harness/tool-contract'
 import { commandAddedModalities } from '@omne-harness/tool-contract/provider'
@@ -168,6 +170,16 @@ function inRelease(release: Trusted, definition: ToolDefinition, layer: JudgeInp
   )
 }
 
+function heldBy(ctx: Context, { layer, definition, tenant }: JudgeInput): boolean {
+  const key = { layer, asset: { name: definition.name, adoption: definition.adoption } }
+  const loaded = heldDefinitionOf(ctx, key)
+  return (
+    loaded !== undefined &&
+    canonicalDigest(loaded) === canonicalDigest(definition) &&
+    isHeldNow(ctx, tenant, key)
+  )
+}
+
 // A source entry belongs to the asking tenant, and is the one its source listed to this asker just now.
 function fromSource(ctx: Context, input: JudgeInput): boolean {
   const asked = { kind: 'available', definition: input.definition, layer: input.layer } as const
@@ -251,7 +263,12 @@ async function judgeRelease(ctx: Context, reads: ModelReads, input: JudgeInput):
   if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
   const work = await workSession(ctx, input.principal, input.tenant)
   if ('problem' in work) return unavailable(work.problem)
-  if (!inRelease(release, input.definition, input.layer) && !fromSource(ctx, input)) return denied
+  if (
+    !inRelease(release, input.definition, input.layer) &&
+    !heldBy(ctx, input) &&
+    !fromSource(ctx, input)
+  )
+    return denied
   const confirmed = release.manifest.consumer
   if (!confirmedTextConsumer(input.consumer, confirmed))
     return unavailable('consumer material is not a confirmed text consumer')
