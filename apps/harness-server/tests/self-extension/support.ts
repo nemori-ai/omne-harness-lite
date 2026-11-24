@@ -64,13 +64,23 @@ export function recordingModel(): Readonly<{
 
 export type Ask = (...steps: readonly (readonly PlannedCall[])[]) => Promise<string>
 
+type Body = (ask: Ask, tree: ReleaseTree, project: string, session: string) => Promise<void>
+
 /** One coding session in a fresh workspace on the release tree; `ask` sends it one plan and gives the tool results. */
 export async function inWorkspace(
-  body: (ask: Ask, tree: ReleaseTree, project: string, session: string) => Promise<void>,
+  body: Body,
   options: Partial<ReleaseTreeOptions> = {},
 ): Promise<void> {
+  expect(await workspaceExit(body, options)).toBe(0)
+}
+
+/** The same, giving the exit code of the server for a case whose subject is not how the server stops. */
+export async function workspaceExit(
+  body: Body,
+  options: Partial<ReleaseTreeOptions> = {},
+): Promise<number | undefined> {
   const project = realpathSync(mkdtempSync(join(tmpdir(), 'self-extension-')))
-  const exitCode = await onReleaseTree(
+  return onReleaseTree(
     { script: plannedModel, permission: 'bypass-permissions', ...options },
     async tree => {
       const { workspace, instance } = (await cliOk(tree, ['workspace', 'register', project])).body
@@ -81,7 +91,6 @@ export async function inWorkspace(
       await body((...steps) => send(session, ...steps), tree, project, session)
     },
   )
-  expect(exitCode).toBe(0)
 }
 
 /** A tool that counts words, as an agent would write it: tool.json and the script beside it. */

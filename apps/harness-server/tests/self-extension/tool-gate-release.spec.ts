@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { answerCard, pendingCard } from '../rows/authorization/release-flow-support.ts'
 import { extensions, follow, tools } from '../support/planned-model.ts'
 import { toolCalls } from '../support/release-tree.ts'
-import { COUNT_PY, inWorkspace, WORDCOUNT } from './support.ts'
+import { COUNT_PY, inWorkspace, WORDCOUNT, workspaceExit } from './support.ts'
 
 const count = (text: string) =>
   tools('execute', { name: 'wordcount', command: null, arguments: { text } })
@@ -93,7 +93,8 @@ describe('the gate of a tool a tenant published, where gates ask, on the release
     'does not run a tool that was published in the very step that calls it without the release the call needs',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
-      await inWorkspace(
+      // A refusal after the attempt budget leaves the forward unconfirmed, and the server then stops as incomplete (#1413): not the subject here.
+      const exit = await workspaceExit(
         async (ask, tree, project, session) => {
           mkdirSync(join(project, 'work/wordcount'), { recursive: true })
           writeFileSync(join(project, 'work/wordcount/tool.json'), JSON.stringify(WORDCOUNT))
@@ -113,6 +114,7 @@ describe('the gate of a tool a tenant published, where gates ask, on the release
         },
         { permission: 'auto_permission' },
       )
+      expect([0, 5]).toContain(exit)
     },
   )
 })
