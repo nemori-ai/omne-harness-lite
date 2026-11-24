@@ -9,6 +9,8 @@ import {
 } from '@omne-harness/agent-contract'
 import { adoption, evidence, execution, ok, operation } from './journal-support.ts'
 import * as agent from '../src/index.ts'
+import { createAgentRuntime } from '@omne-harness/agent'
+import { options } from './factory-support.ts'
 import { alice, eventually, gate, invoke } from './loop-support.ts'
 import {
   associatedTools,
@@ -405,5 +407,65 @@ describe('AG-32 the qualification of a nested action, as the permission check as
       return batch === null || batch.slots.every(slot => slot.kind !== 'dispatched')
     })
     expect(await qualifier.qualify(next)).toHaveProperty('failure')
+  })
+})
+
+describe('AG-31 a nested action after the run moved to another runtime', () => {
+  it('answers a position that has its conclusion from the record, and does not put a waiting card out again', async () => {
+    const assembly = await waitingOnTool()
+    const { admission, cards } = assembly.controls
+    admission.admit.always(async call =>
+      call.nested?.ordinal === 2 && call.decision === null ? ask('Write the file?') : allow,
+    )
+    expect(await asked(assembly, 1)).toEqual({ kind: 'allowed' })
+    const waiting = asked(assembly, 2)
+    await eventually(async () => cards.present.calls.length === 1)
+    await eventually(async () => (await chainOf(assembly, 2))?.progress.kind === 'asked')
+
+    // The runtime hands the run over: what it had not answered is answered as not answerable now.
+    ok(
+      await assembly.provider.control.quiesce({
+        ...alice,
+        operation: operation('quiesce-nested'),
+        reason: evidence('stop'),
+      }),
+    )
+    expect(await waiting).toMatchObject({ kind: 'unanswerable' })
+    const judged = nestedCalls(assembly).length
+
+    const next = ok(
+      await createAgentRuntime(assembly.dependencies, options({ reconciliationDelaysMs: [1000] })),
+    )
+    ok(
+      await next.runtime.resume({
+        ...alice,
+        execution: execution(),
+        operation: operation('resume-nested'),
+        recovery: evidence('recovery'),
+        grant: null,
+      }),
+    )
+    const ask2 = (ordinal: number) =>
+      next.nested.admit({
+        ...alice,
+        execution: execution(),
+        parent,
+        ordinal,
+        target: target(),
+        signal: new AbortController().signal,
+      })
+    // Position 1 is answered as before, and nothing judges it a second time.
+    expect(await ask2(1)).toEqual({ kind: 'allowed' })
+    expect(nestedCalls(assembly).filter(call => call.nested?.ordinal === 1)).toHaveLength(1)
+    // Position 2 goes on waiting on the card that is already out.
+    const again = ask2(2)
+    const reads = cards.read.calls.length
+    await eventually(async () => cards.read.calls.length > reads)
+    expect(cards.present.calls).toHaveLength(1)
+    expect(nestedCalls(assembly)).toHaveLength(judged)
+    cards.read.always(async () => ({ ok: chosen }))
+    cards.changes.emit()
+    expect(await again).toEqual({ kind: 'allowed' })
+    expect(cards.present.calls).toHaveLength(1)
   })
 })

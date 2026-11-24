@@ -703,6 +703,70 @@ export async function programWorld(options: ProgramWorldOptions) {
       unbox(
         await plugins.children()!.table({ principal, tenant: tenantA, call: callOf(reference) }),
       ),
+    /** The host is gone: a second runtime over the same store, which may hold the proof of that. */
+    async newExecutor(overrides: Partial<LocalToolRuntimeInput> = {}) {
+      const nextRoot = new Context()
+      let nextBindings: typeof bindings
+      const next = createLocalToolRuntimePlugins({
+        ...input,
+        ...overrides,
+        bindings: () => nextBindings,
+      })
+      children = next.children
+      const external = nextRoot.plugin({
+        name: 'frozen-reopened-external',
+        apply(ctx: Context) {
+          new Clock(ctx)
+          new PublicationAuthority(ctx)
+          ctx.provide('executionEnvironment', execution)
+        },
+      })
+      await Promise.all([
+        external,
+        nextRoot.plugin(next.records),
+        nextRoot.plugin(next.instanceHost),
+        nextRoot.plugin(next.instances),
+        nextRoot.plugin(next.environments),
+        nextRoot.plugin(next.maintenance),
+      ])
+      nextBindings = createLocalToolBindings({
+        registry,
+        catalog,
+        authority: nextRoot.toolStartAuthority,
+        ...next.authorExecution,
+      })
+      await Promise.all([nextRoot.plugin(next.executor), nextRoot.plugin(next.runtime)])
+      const received: string[] = []
+      await nextRoot.plugin({
+        name: 'reopened-consumer',
+        inject: ['toolRuntime'],
+        apply(ctx: Context) {
+          ctx.toolRuntime.registerResultReceiver('consumer', {
+            async push(value) {
+              if (value.delivery.kind === 'result') received.push(value.delivery.terminal.kind)
+              return succeed({
+                key: value.delivery.key,
+                evidence: { ...evidence('saved'), owner: value.delivery.consumer.owner },
+              })
+            },
+          })
+        },
+      })
+      const lookup = async (reference: ToolInvocationRef) =>
+        unbox(await nextRoot.toolRuntime.queries.lookup(query(reference)))
+      return {
+        received,
+        lookup,
+        table: async (reference: ToolInvocationRef) =>
+          unbox(
+            await next.children()!.table({ principal, tenant: tenantA, call: callOf(reference) }),
+          ),
+        close: async () => {
+          await next.close()
+          await nextRoot.fiber.dispose()
+        },
+      }
+    },
     close: async () => {
       for (const one of gates.values()) one.resolve()
       await forwarding.close()
