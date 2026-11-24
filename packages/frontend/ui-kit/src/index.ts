@@ -137,6 +137,7 @@ export {
   moveRegion,
   navigateWithin,
   ownsTyping,
+  reachable,
   rememberFocus,
 } from './lib/focus.ts'
 export { cn, joinFacts } from './lib/utils.ts'

@@ -3,11 +3,19 @@ import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react
 import { serverPointsContract } from '@omne-harness/client-assembly'
 import { canvasProtocol } from '@omne-harness/canvas-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
+import { keymapOf, type KeymapRow } from '@omne-harness/shell-contract'
 import { servePoint, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { blockingOverlay } from '@omne-harness/ui-kit'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
+import {
+  faceActions,
+  frameActions,
+  regionActions,
+  sizeActions,
+} from '../src/page/shell/layout-actions.ts'
+import { paletteActions, paletteSwitch } from '../src/page/shell/palette.tsx'
 import { DesktopShell } from '../src/page/shell/service.ts'
 import { fakeGate } from './support/fake-modules.tsx'
 import { settle, setup } from './support/shell-setup.tsx'
@@ -35,7 +43,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-/** Turns at once, as under reduced motion. */
+/** Turns at once, as under reduced motion: the sweep turns back between keys, and a turn while one plays only stops it. */
 function reducedMotion(): void {
   const real = window.matchMedia.bind(window)
   vi.stubGlobal('matchMedia', (query: string) =>
@@ -282,6 +290,33 @@ function pressOf(chord: string): KeyboardEventInit {
   }
 }
 
+/** Every key of the action table the application puts together, in this platform's chords. */
+function keys(t: Awaited<ReturnType<typeof onTheBack>>['t']): readonly KeymapRow[] {
+  const actions = [
+    ...regionActions(),
+    ...sizeActions(t.size),
+    ...frameActions(),
+    ...faceActions(t.state.face, true),
+    ...paletteActions(paletteSwitch()),
+    ...t.state.slots.items('actions'),
+  ]
+  return keymapOf(actions, {}, MAC)
+}
+
+const WATCHED = ['aria-expanded', 'aria-pressed', 'data-state', 'data-width', 'data-open', 'hidden']
+
+/** What a person could see change on the folded front: the open state of every control, and what the composer holds. */
+function frontNow(): string {
+  const front = face('front')
+  if (front === null) return ''
+  const states = [...front.querySelectorAll('*')].flatMap((element, at) =>
+    WATCHED.filter(name => element.hasAttribute(name)).map(
+      name => `${at}:${name}=${element.getAttribute(name)}`,
+    ),
+  )
+  return [...states, `composer=${composer()?.value ?? ''}`].join('\n')
+}
+
 const toolLine = () =>
   document.querySelector('[data-omne-part="session.transcript.tool-call"] [aria-expanded]')
 
@@ -293,7 +328,63 @@ async function openFirst(): Promise<void> {
   if (toolLine() === null) throw new Error('the tool call has no line that opens')
 }
 
+/** Back to how the case began: what is open closed, 甲 open on the front, the back on show, the focus on the thing. */
+async function again(): Promise<void> {
+  for (let round = 0; round < 3 && blockingOverlay() !== undefined; round += 1)
+    press({ key: 'Escape' })
+  if (toolLine() === null) {
+    if (onShow() === 'back') press(TURN)
+    await openFirst()
+  }
+  if (onShow() === 'front') press(TURN)
+  toPaper()
+}
+
 describe('on the back the keys do not act on the folded front (FE-I57)', () => {
+  it('every key of the application, pressed on the back, leaves the folded front alone, or turns to it on purpose', async () => {
+    reducedMotion()
+    const { t, navigated, asked } = await onTheBack()
+    // A new session stays being made here, as the client never answers, so the key that starts one goes last.
+    const all = keys(t).filter(row => row.layer !== 'overlay')
+    const rows = [
+      ...all.filter(row => row.action !== 'session.new'),
+      ...all.filter(row => row.action === 'session.new'),
+    ]
+    expect(rows.map(row => row.action)).toEqual(
+      expect.arrayContaining([
+        'session.pick-permission',
+        'session.side-panel',
+        'session.details',
+        'shell.sidebar',
+      ]),
+    )
+    const wrong: string[] = []
+    for (const row of rows) {
+      await again()
+      const field = row.layer === 'composer' ? document.createElement('textarea') : null
+      if (field !== null) {
+        face('back')?.append(field)
+        act(() => field.focus())
+      }
+      const before = frontNow()
+      const held = document.activeElement
+      const went = navigated.mock.calls.length
+      press(pressOf(row.chord))
+      await act(settle)
+      field?.remove()
+      const where = `${row.action} (${row.chord})`
+      const focus = document.activeElement
+      if (focus !== held && focus?.closest('[inert]') != null)
+        wrong.push(`${where}: put the focus in the folded face`)
+      if (onShow() === 'front') {
+        if (row.action !== 'shell.turn-face' && navigated.mock.calls.length === went)
+          wrong.push(`${where}: turned to the front without going to a page`)
+      } else if (frontNow() !== before) wrong.push(`${where}: changed the folded front`)
+    }
+    expect(wrong).toEqual([])
+    expect(asked.filter(name => name === 'send-input' || name === 'interrupt-input')).toEqual([])
+  })
+
   it('/ on the back turns to the conversation page with the focus in the composer, so what is typed next goes there (S1)', async () => {
     await onTheBack()
     expect(press({ key: '/', code: 'Slash' })).toBe(true)
