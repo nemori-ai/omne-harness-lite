@@ -43,6 +43,11 @@ const EXPECTED: Readonly<
     ['send', 'ask', ['send']],
     ['subscribe', 'auto', ['subscribe']],
   ],
+  Canvas: [
+    ['read', 'auto', ['help', 'look', 'away', 'kinds']],
+    ['arrange', 'auto', ['place', 'arrange', 'take', 'pile', 'scatter']],
+    ['lock', 'deny', ['lock', 'unlock']],
+  ],
   Sessions: [['invoke', 'auto', ['help', 'list', 'search', 'show', 'read']]],
   Agents: [
     ['read', 'auto', ['help', 'targets', 'show', 'list']],

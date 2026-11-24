@@ -1528,6 +1528,18 @@
       "source": "packages/canvas/SPEC.md"
     },
     {
+      "id": "packages/canvas/canvas-tools",
+      "paths": [
+        "packages/canvas/canvas-tools/src/**"
+      ],
+      "layer": "unknown",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
       "id": "packages/canvas/canvas-ui",
       "paths": [
         "packages/canvas/canvas-ui/src/**"
@@ -2465,7 +2477,8 @@
         "packages/canvas/canvas-contract",
         "packages/canvas/canvas-cordis-contract",
         "packages/canvas/canvas-local",
-        "packages/canvas/canvas-protocol"
+        "packages/canvas/canvas-protocol",
+        "packages/canvas/canvas-tools"
       ],
       "source": "packages/canvas/SPEC.md"
     },
@@ -2478,7 +2491,8 @@
         "packages/canvas/canvas-cordis-contract",
         "packages/canvas/canvas-local",
         "packages/canvas/canvas-protocol",
-        "packages/canvas/canvas-ui"
+        "packages/canvas/canvas-ui",
+        "packages/canvas/canvas-tools"
       ],
       "to": [
         "packages/media/media",
@@ -2525,7 +2539,8 @@
         "packages/canvas/canvas-cordis-contract",
         "packages/canvas/canvas-local",
         "packages/canvas/canvas-protocol",
-        "packages/canvas/canvas-access"
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-tools"
       ],
       "source": "packages/canvas/SPEC.md"
     },
@@ -2538,7 +2553,23 @@
         "packages/canvas/canvas",
         "packages/canvas/canvas-local",
         "packages/canvas/canvas-protocol",
-        "packages/canvas/canvas-access"
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-tools"
+      ],
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "DIR-CANVAS-TOOLS",
+      "from": [
+        "packages/canvas/canvas-tools"
+      ],
+      "to": [
+        "packages/canvas/canvas",
+        "packages/canvas/canvas-cordis-contract",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-protocol",
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-ui"
       ],
       "source": "packages/canvas/SPEC.md"
     },
@@ -2552,7 +2583,8 @@
         "packages/canvas/canvas",
         "packages/canvas/canvas-cordis-contract",
         "packages/canvas/canvas-local",
-        "packages/canvas/canvas-access"
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-tools"
       ],
       "source": "packages/canvas/SPEC.md"
     },
@@ -2563,7 +2595,8 @@
       ],
       "to": [
         "packages/canvas/canvas",
-        "packages/canvas/canvas-local"
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-tools"
       ],
       "source": "packages/canvas/SPEC.md"
     },
@@ -2577,7 +2610,8 @@
         "packages/canvas/canvas",
         "packages/canvas/canvas-cordis-contract",
         "packages/canvas/canvas-local",
-        "packages/canvas/canvas-access"
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-tools"
       ],
       "source": "packages/canvas/SPEC.md"
     }

@@ -185,7 +185,7 @@ describe('where place puts a reference', () => {
     const at = await spotOf(w, 'b', { near: { x: 801, y: 801 } })
     expect((at.x % 8) + (at.y % 8)).toBe(0)
     expect(at).not.toEqual({ x: 800, y: 800 })
-    const room = { width: 160, height: 80 + 24 }
+    const room = { width: 160, height: 80 + 22 }
     const clear =
       at.x >= 800 + room.width ||
       at.x + room.width <= 800 ||
@@ -193,6 +193,13 @@ describe('where place puts a reference', () => {
       at.y + room.height <= 800
     expect(clear).toBe(true)
     expect(Math.hypot(at.x - 801, at.y - 801)).toBeLessThanOrEqual(room.height + 8)
+  })
+
+  it('counts the name line under an item as 22 high, the line the shared sheet draws', async () => {
+    const w = world()
+    w.kinds.declare(kind('media.object'))
+    await spotOf(w, 'a', { at: { x: 800, y: 802 } })
+    expect(await spotOf(w, 'b', { near: { x: 800, y: 904 } })).toEqual({ x: 800, y: 904 })
   })
 
   it('with no spot: beside the seat in the middle of the sheet', async () => {

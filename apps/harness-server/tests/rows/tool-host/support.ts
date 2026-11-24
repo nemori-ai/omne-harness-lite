@@ -92,6 +92,7 @@ export const TEST_CONSTRUCTION = Object.freeze({
   Calendar: { resultMaxBytes: 4096 },
   Schedules: { resultMaxBytes: 4096 },
   Notifications: { resultMaxBytes: 4096 },
+  Canvas: { resultMaxBytes: 4096 },
   Sessions: { resultMaxBytes: 4096 },
   Agents: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },

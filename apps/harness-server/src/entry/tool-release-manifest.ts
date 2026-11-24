@@ -31,6 +31,7 @@ export const TOOL_DEFINITIONS_PACKAGE = '@omne-harness/tool-definitions' as cons
 export const CALENDAR_TOOLS_PACKAGE = '@omne-harness/calendar-tools' as const
 export const SCHEDULE_TOOLS_PACKAGE = '@omne-harness/schedule-tools' as const
 export const NOTIFICATION_TOOLS_PACKAGE = '@omne-harness/notification-tools' as const
+export const CANVAS_TOOLS_PACKAGE = '@omne-harness/canvas-tools' as const
 export const SESSION_TOOLS_PACKAGE = '@omne-harness/session-tools' as const
 export const DISPATCH_TOOLS_PACKAGE = '@omne-harness/dispatch-tools' as const
 export const WORKSPACE_TOOLS_PACKAGE = '@omne-harness/workspace-tools' as const
@@ -42,6 +43,7 @@ export const RELEASE_PACKAGES = Object.freeze([
   CALENDAR_TOOLS_PACKAGE,
   SCHEDULE_TOOLS_PACKAGE,
   NOTIFICATION_TOOLS_PACKAGE,
+  CANVAS_TOOLS_PACKAGE,
   SESSION_TOOLS_PACKAGE,
   DISPATCH_TOOLS_PACKAGE,
   WORKSPACE_TOOLS_PACKAGE,
@@ -148,6 +150,13 @@ export const RELEASE_TOOLS = Object.freeze([
     package: NOTIFICATION_TOOLS_PACKAGE,
     capabilities: Object.freeze(['notification.read', 'notification.write']),
     export: 'notificationsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Canvas',
+    package: CANVAS_TOOLS_PACKAGE,
+    capabilities: Object.freeze(['canvas.arrangement']),
+    export: 'canvasToolModule',
     construction: Object.freeze(['resultMaxBytes']),
   }),
   Object.freeze({

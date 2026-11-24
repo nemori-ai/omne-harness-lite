@@ -66,6 +66,7 @@
     "@omne-harness/canvas-contract": "workspace:*",
     "@omne-harness/canvas-cordis-contract": "workspace:*",
     "@omne-harness/canvas-local": "workspace:*",
+    "@omne-harness/canvas-tools": "workspace:*",
     "@omne-harness/context-compaction": "workspace:*",
     "@omne-harness/dispatch": "workspace:*",
     "@omne-harness/dispatch-contract": "workspace:*",
