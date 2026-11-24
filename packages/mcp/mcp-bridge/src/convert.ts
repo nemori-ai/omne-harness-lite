@@ -254,6 +254,16 @@ function described(
 const PROBE = 'probe'
 const NOT_FOR_PROGRAMS: ToolProgramDeclaration = { kind: 'none' }
 
+function facing(
+  action: KnownAction,
+  shape: BridgeShape,
+  open: boolean,
+): Pick<ToolCommandDeclaration, 'returns' | 'program'> {
+  if (!open) return { returns: returnsOf(shape, NOT_FOR_PROGRAMS) }
+  const program = programOf(action.lastLawful.definition)
+  return { returns: returnsOf(shape, program), program: accessOf(action.name) }
+}
+
 export function commandOf(
   action: KnownAction,
   shape: BridgeShape,
@@ -279,8 +289,7 @@ export function commandOf(
         descriptions: [],
       },
     },
-    returns: returnsOf(shape, open ? programOf(definition) : NOT_FOR_PROGRAMS),
-    ...(open ? { program: accessOf(action.name) } : {}),
+    ...facing(action, shape, open),
     release: { gate: MCP_INVOKE_GATE },
   }
   return 'failure' in judgeToolDefinition(shellOf(PROBE, [command], []))
