@@ -1,5 +1,5 @@
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
-import type { CallContext, CanvasOperations } from '@omne-harness/canvas-contract'
+import type { CallContext, CanvasChangeFeed, CanvasOperations } from '@omne-harness/canvas-contract'
 
 /** The application decides whether this login acts for the tenant; the plugin cannot read a login. */
 export interface CanvasPrincipals {
@@ -13,3 +13,6 @@ export interface CanvasPrincipals {
 
 /** Taken at each call; absent while the canvas row is not there. */
 export type CanvasFace = CanvasOperations
+
+/** Taken when an observation opens; absent while the canvas row is not there. */
+export type CanvasChanges = CanvasChangeFeed

@@ -1,24 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { createCanvas } from '@omne-harness/canvas'
 import {
   context,
   createMemoryStore,
-  fakeAuthority,
-  fakeKinds,
-  fakeMovers,
   tenantOf,
+  type MemoryStore,
 } from '@omne-harness/canvas/testing'
-import type { CanvasStore } from '@omne-harness/canvas'
-import type { Item, KindListing, Pile } from '@omne-harness/canvas-contract'
+import type { Item, Pile } from '@omne-harness/canvas-contract'
+import { CONFIG, kind, world as base } from './fixture.ts'
 
-const SHEET = { width: 4800, height: 3200, grid: 8 }
+const SHEET = CONFIG.sheet
 const AT = '2026-11-24T06:00:00.000Z'
 
-function world(store: CanvasStore = createMemoryStore()) {
-  const authority = fakeAuthority()
-  const kinds = fakeKinds()
-  const movers = fakeMovers()
-  const canvas = createCanvas({ store, authority, movers, kinds, sheet: SHEET })
+function world(store: MemoryStore = createMemoryStore()) {
+  const { authority, kinds, movers, canvas } = base({ store })
   return { authority, kinds, movers, canvas }
 }
 
@@ -49,10 +43,9 @@ describe('look', () => {
   })
 
   it('does not ask who the caller is: a read changes nothing to record', async () => {
-    const { canvas, kinds, movers } = world()
+    const { canvas, movers } = world()
     movers.set(null)
     expect(await canvas.look(context(), { canvas: 'main' })).toMatchObject({ kind: 'done' })
-    kinds.set([])
     expect(await canvas.kinds(context())).toMatchObject({ kind: 'done' })
     expect(movers.asked()).toBe(0)
   })
@@ -92,12 +85,14 @@ describe('look', () => {
   })
 
   it('answers an unavailable basis when the store throws', async () => {
-    const throwing: CanvasStore = {
-      look: () => {
-        throw new Error('the storage is gone')
-      },
+    const gone = () => {
+      throw new Error('the storage is gone')
     }
-    const rejecting: CanvasStore = { look: async () => Promise.reject(new Error('gone')) }
+    const throwing = { ...createMemoryStore(), look: gone }
+    const rejecting = {
+      ...createMemoryStore(),
+      look: async () => Promise.reject(new Error('gone')),
+    }
     for (const store of [throwing, rejecting])
       expect(await world(store).canvas.look(context(), { canvas: 'main' })).toEqual({
         kind: 'basis-unavailable',
@@ -135,38 +130,39 @@ describe('look', () => {
 })
 
 describe('kinds', () => {
-  const declared: KindListing = {
-    kind: 'declared',
-    name: 'canvas.app',
-    label: '画布小应用',
-    summary: 's',
-    reference: 'r',
-  } as unknown as KindListing
-  const conflict = {
-    kind: 'conflict',
-    name: 'media.object',
-    by: ['a', 'b'],
-  } as unknown as KindListing
-
   it('lists the kinds the registry has now, the conflicts with them', async () => {
     const { canvas, kinds } = world()
     expect(await canvas.kinds(context())).toEqual({ kind: 'done', value: [] })
-    kinds.set([declared, conflict])
-    expect(await canvas.kinds(context())).toEqual({ kind: 'done', value: [declared, conflict] })
+    kinds.declare(kind('canvas.app'))
+    kinds.declare(kind('media.object'), 'a')
+    kinds.declare(kind('media.object'), 'b')
+    expect(await canvas.kinds(context())).toEqual({
+      kind: 'done',
+      value: [
+        {
+          kind: 'declared',
+          name: 'canvas.app',
+          label: 'canvas.app',
+          summary: 'canvas.app is a thing',
+          reference: 'the identity of a canvas.app',
+        },
+        { kind: 'conflict', name: 'media.object', by: ['a', 'b'] },
+      ],
+    })
   })
 
   it.each(['unavailable', 'throw'] as const)(
     'answers an unavailable basis when the registry is %s, never an empty list',
     async state => {
       const { canvas, kinds } = world()
-      kinds.set(state)
+      kinds.fail(state)
       expect(await canvas.kinds(context())).toEqual({ kind: 'basis-unavailable' })
     },
   )
 
   it('asks the authority whether the canvas may be read, and stops at a refusal', async () => {
     const { canvas, kinds, authority } = world()
-    kinds.set([declared])
+    kinds.declare(kind('canvas.app'))
     authority.answer('denied')
     expect(await canvas.kinds(context())).toEqual({ kind: 'denied' })
     authority.answer('unavailable')

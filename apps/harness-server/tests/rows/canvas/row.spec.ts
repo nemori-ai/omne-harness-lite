@@ -9,19 +9,19 @@ import { rowManifests } from '../../../src/s0/stubs.ts'
 import { CANVAS_POLICY } from '../../r9/support.ts'
 
 describe('the canvas row', () => {
-  it('provides the canvas and needs the storage, the registry and the tenant domains, as the stub table says', () => {
+  it('provides the canvas and its changes and needs the storage, the registry and the tenant domains, as the stub table says', () => {
     const declared = rowDeclarationOf(canvasRow)
     expect(declared).toMatchObject({
       row: 'canvas',
       implementation: 'real',
       lifecycle: { kind: 'body', phase: 'composition' },
       manifest: {
-        provides: ['canvas'],
+        provides: ['canvas', 'canvasChanges'],
         injects: ['storage', 'dynamis', 'tenantDomainLookup'],
       },
     })
     expect(rowManifests.get(declared!.row)).toMatchObject({
-      provides: ['s0.canvas'],
+      provides: ['s0.canvas', 's0.canvasChanges'],
       injects: ['s0.storage', 's0.dynamis', 's0.tenantDomainLookup'],
     })
   })

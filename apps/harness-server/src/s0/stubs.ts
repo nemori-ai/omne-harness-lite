@@ -75,7 +75,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'dispatch-tool': { provides: [], injects: ['dispatchPrincipal'], phase: 'composition' },
   canvas: {
-    provides: ['canvas'],
+    provides: ['canvas', 'canvasChanges'],
     injects: ['storage', 'dynamis', 'tenantDomainLookup'],
     phase: 'composition',
   },

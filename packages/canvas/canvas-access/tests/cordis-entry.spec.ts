@@ -22,6 +22,7 @@ async function mount(present: boolean) {
   await root.plugin(RecordingRegistry)
   const seen: Context[] = []
   const faces: Context[] = []
+  const feeds: Context[] = []
   await root.plugin(
     createCanvasAccessPlugin({
       principals: ctx => {
@@ -35,10 +36,14 @@ async function mount(present: boolean) {
         faces.push(ctx)
         return present ? (w.state.face ?? undefined) : undefined
       },
+      changes: ctx => {
+        feeds.push(ctx)
+        return present ? w.state.feed : undefined
+      },
     }),
   )
   const registry = root.get('accessRegistry') as unknown as RecordingRegistry
-  return { registry, seen, faces }
+  return { registry, seen, faces, feeds }
 }
 
 const call = { principal: {}, messageId: 'm-1', signal: new AbortController().signal } as never
@@ -49,13 +54,16 @@ it('the cordis entry gives the plugin factory and nothing else at run time', asy
   expect(Object.keys(cordis)).toEqual(['createCanvasAccessPlugin'])
 })
 
-it('mounts canvas/v1 with every operation, and takes the canvas at each call', async () => {
-  const { registry, seen, faces } = await mount(true)
+it('mounts canvas/v1 with every operation and the observation, and takes the canvas at each call', async () => {
+  const { registry, seen, faces, feeds } = await mount(true)
   expect(registry.mounted).toHaveLength(1)
   const contribution = registry.mounted[0]!
   expect(contribution.protocol).toBe(canvasProtocol)
-  expect(Object.keys(contribution.operations).sort()).toEqual(['kinds', 'look'])
-  expect(contribution.observations).toEqual({})
+  expect(Object.keys(contribution.operations).sort()).toEqual(
+    Object.keys(canvasProtocol.operations).sort(),
+  )
+  expect(Object.keys(contribution.observations)).toEqual(['observe-changes'])
+  expect(feeds).toHaveLength(0)
   expect(seen).toHaveLength(1)
   expect(faces).toHaveLength(0)
   expect(await contribution.operations.look(call, look())).toMatchObject({ outcome: 'succeeded' })
@@ -63,9 +71,16 @@ it('mounts canvas/v1 with every operation, and takes the canvas at each call', a
   expect(faces).toHaveLength(2)
 })
 
-it('answers an unavailable basis while the canvas is absent, with the protocol still mounted', async () => {
-  const { registry } = await mount(false)
-  expect(await registry.mounted[0]!.operations.look(call, look())).toEqual({
+it('answers an unavailable basis while the canvas and its changes are absent, with the protocol still mounted', async () => {
+  const { registry, feeds } = await mount(false)
+  const contribution = registry.mounted[0]!
+  expect(await contribution.operations.look(call, look())).toEqual({
     outcome: 'basis-unavailable',
   })
+  const open = { tenant: (look() as { tenant: unknown }).tenant } as never
+  const observing = { ...(call as object), revision: 1 } as never
+  expect(await contribution.observations['observe-changes'](observing, open)).toEqual({
+    outcome: 'basis-unavailable',
+  })
+  expect(feeds).toHaveLength(1)
 })

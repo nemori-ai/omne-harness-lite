@@ -10,9 +10,18 @@ import { CATALOG, list, type Contract } from '@omne-harness/dynamis'
 import { DynamisService, dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { describe, expect, it } from 'vitest'
 
+const unavailable = async () => ({ kind: 'basis-unavailable' }) as const
+
 class Canvas extends CanvasService {
-  readonly look = async () => ({ kind: 'basis-unavailable' }) as const
-  readonly kinds = async () => ({ kind: 'basis-unavailable' }) as const
+  readonly look = unavailable
+  readonly lookAway = unavailable
+  readonly kinds = unavailable
+  readonly place = unavailable
+  readonly arrange = unavailable
+  readonly take = unavailable
+  readonly pile = unavailable
+  readonly scatter = unavailable
+  readonly lock = unavailable
 }
 
 const kind = (name: string, label = name, admit?: KindDeclaration['admit']): KindDeclaration => ({
@@ -112,6 +121,28 @@ describe('the point canvas.kinds', () => {
     })
   })
 
+  it('lists the kinds by name, the declared and the conflicts together, each conflict with who put it in order', async () => {
+    const { kinds, putting } = await world()
+    await putting('zeta-row', kind('probe.zeta'))
+    await putting('z-row', kind('media.object', 'z'))
+    await putting('app-row', kind('canvas.app'))
+    await putting('a-row', kind('media.object', 'a'))
+    await putting('beta-row', kind('probe.beta'))
+    const read = kinds.read()
+    if (read.kind !== 'read') throw new Error(read.kind)
+    expect(read.kinds.map(listing => [listing.kind, listing.name])).toEqual([
+      ['declared', 'canvas.app'],
+      ['conflict', 'media.object'],
+      ['declared', 'probe.beta'],
+      ['declared', 'probe.zeta'],
+    ])
+    expect(read.kinds[1]).toEqual({
+      kind: 'conflict',
+      name: 'media.object',
+      by: ['a-row', 'z-row'],
+    })
+  })
+
   it('does not take a name that is not the name of a kind', async () => {
     const { putting, tree } = await world()
     const fiber = putting('bad-row', kind('Media'))
@@ -176,6 +207,29 @@ describe('a declaration with admit', () => {
     expect(tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT)).toEqual([])
   })
 
+  it('waits for every admit in flight, not only the first to come back', async () => {
+    const { putting, tree } = await world()
+    const answers: ((admission: Admission) => void)[] = []
+    const fiber = await putting(
+      'media-row',
+      kind('media.object', 'media', () => new Promise(resolve => void answers.push(resolve))),
+    )
+    const admit = held(tree, 'media.object')!.admit!
+    const first = admit(input)
+    const second = admit(input)
+    let gone = false
+    const leaving = fiber.dispose().then(() => void (gone = true))
+    answers[0]!({ kind: 'admitted' })
+    await first
+    await new Promise(resolve => setTimeout(resolve, 5))
+    expect(gone).toBe(false)
+    expect(tree.registry().retiring).toEqual([{ fiber: 'media-row', generation: 1 }])
+    answers[1]!({ kind: 'refused' })
+    expect(await second).toEqual({ kind: 'refused' })
+    await leaving
+    expect(tree.registry().retiring).toEqual([])
+  })
+
   it('counts an admit that throws as ended', async () => {
     const { putting, tree } = await world()
     const fiber = await putting(
@@ -188,4 +242,70 @@ describe('a declaration with admit', () => {
     await fiber.dispose()
     expect(tree.registry().retiring).toEqual([])
   })
+})
+
+describe('a declaration without admit', () => {
+  it('goes on the registry without an admit of its own making', async () => {
+    const { putting, tree } = await world()
+    await putting('app-row', kind('canvas.app'))
+    const declaration = held(tree, 'canvas.app')!
+    expect(declaration.label).toBe('canvas.app')
+    expect('admit' in declaration).toBe(false)
+  })
+})
+
+describe('a kind as place takes it', () => {
+  it('gives the one declaration of a name with its admit, none for a name not declared, both who put one twice', async () => {
+    const { kinds, putting } = await world()
+    expect(kinds.enter('media.object')).toEqual({ kind: 'undeclared' })
+    expect(kinds.enter('Not a name')).toEqual({ kind: 'undeclared' })
+    await putting(
+      'media-row',
+      kind('media.object', 'media', async () => ({ kind: 'admitted' })),
+    )
+    const entry = kinds.enter('media.object')
+    if (entry.kind !== 'declared') throw new Error(entry.kind)
+    expect(await entry.admit?.(input)).toEqual({ kind: 'admitted' })
+    expect(entry.declared()).toBe(true)
+    entry.leave()
+    await putting('other-row', kind('media.object', 'other'))
+    expect(kinds.enter('media.object')).toEqual({
+      kind: 'conflict',
+      by: ['media-row', 'other-row'],
+    })
+    expect(entry.declared()).toBe(false)
+  })
+
+  it('cannot be taken while no service of the canvas declares the point', async () => {
+    const root = new Context()
+    await root.plugin(DynamisService)
+    expect(kindsOn(root.get(dynamisKey) as DynamisService).enter('canvas.app')).toEqual({
+      kind: 'unavailable',
+    })
+  })
+
+  it.each([
+    ['with admit', async (): Promise<Admission> => ({ kind: 'admitted' })],
+    ['without admit', undefined],
+  ])(
+    'holds the declaration %s from the time it is taken until the place leaves it',
+    async (_name, admit) => {
+      const { putting, tree, kinds } = await world()
+      const fiber = await putting('media-row', kind('media.object', 'media', admit))
+      const entry = kinds.enter('media.object')
+      if (entry.kind !== 'declared') throw new Error(entry.kind)
+      const leaving = fiber.dispose()
+      await new Promise(resolve => setTimeout(resolve, 5))
+      expect(tree.registry().retiring).toEqual([{ fiber: 'media-row', generation: 1 }])
+      expect(entry.declared()).toBe(false)
+      expect(kinds.enter('media.object')).toEqual({ kind: 'undeclared' })
+      entry.leave()
+      entry.leave()
+      await leaving
+      expect(tree.registry().retiring).toEqual([])
+      expect(tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT)).toEqual(
+        [],
+      )
+    },
+  )
 })

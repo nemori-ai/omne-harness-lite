@@ -2,9 +2,11 @@ import { DatabaseSync } from 'node:sqlite'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { describe, expect, it } from 'vitest'
 import { storeConformanceCases, tenantOf } from '@omne-harness/canvas/testing'
+import { MAIN_CANVAS, type Item } from '@omne-harness/canvas-contract'
 import migration from '../../src/storage/migration.ts'
 import participant from '../../src/storage/participant.ts'
 import reader from '../../src/storage/read.ts'
+import { sqlFacts } from '../../src/storage/facts.ts'
 import { TABLES } from '../../src/storage/schema.ts'
 import { createInProcessStore, migrated, portOf } from './in-process.ts'
 
@@ -80,6 +82,27 @@ const look = (db: DatabaseSync, tenant = 't1') =>
   reader.read({ read: 'look', tenant, canvas: 'main' }, portOf(db))
 
 describe('the tables', () => {
+  it('refuse a second item of a reference written past the domain', () => {
+    const db = migrated()
+    const facts = sqlFacts(portOf(db), 't1')
+    const item = {
+      id: 'i1',
+      reference: { kind: 'media.object', ref: 'o1' },
+      state: 'on',
+      at: { x: 0, y: 0 },
+      size: null,
+      rank: 1,
+      pile: null,
+      locked: false,
+      by: { kind: 'human' },
+      when: AT,
+    } as unknown as Item
+    facts.putItem(MAIN_CANVAS, item)
+    facts.putItem(MAIN_CANVAS, { ...item, rank: 2 })
+    expect(() => facts.putItem(MAIN_CANVAS, { ...item, id: 'i2' as Item['id'] })).toThrow(/UNIQUE/u)
+    expect(facts.items(MAIN_CANVAS, 'on')).toMatchObject([{ id: 'i1', rank: 2 }])
+  })
+
   it('hold one item for one reference on a canvas', () => {
     const db = migrated()
     insertItem(db, {})
@@ -173,7 +196,7 @@ describe('the read of a canvas', () => {
       kind: 'failed',
     })
     const execute: ParticipantModule['execute'] = participant.execute
-    expect(execute({ script: 'place', command: null }, portOf(db))).toEqual({
+    expect(execute({ script: 'everything', tenant: 't1', command: null }, portOf(db))).toEqual({
       kind: 'failed',
       diagnostic: 'unknown_canvas_script',
     })

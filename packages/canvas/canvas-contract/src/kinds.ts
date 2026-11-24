@@ -35,13 +35,25 @@ export type KindListing =
     }>
   | Readonly<{ kind: 'conflict'; name: KindName; by: readonly string[] }>
 
-/** The kinds now declared, or that they cannot be read. Never an empty list instead. */
 export type KindsRead =
   | Readonly<{ kind: 'read'; kinds: readonly KindListing[] }>
   | Readonly<{ kind: 'unavailable' }>
 
+/** One kind as `place` takes it. While it is held, a withdrawal of its declaration waits for `leave`. */
+export type KindEntry =
+  | Readonly<{
+      kind: 'declared'
+      admit?: KindDeclaration['admit']
+      declared(): boolean
+      leave(): void
+    }>
+  | Readonly<{ kind: 'undeclared' }>
+  | Readonly<{ kind: 'conflict'; by: readonly string[] }>
+  | Readonly<{ kind: 'unavailable' }>
+
 export interface CanvasKinds {
   read(): KindsRead
+  enter(name: string): KindEntry
 }
 
 /** The canvas's own kind: a small app a plugin brings, by its name on `canvas.app-render`. */

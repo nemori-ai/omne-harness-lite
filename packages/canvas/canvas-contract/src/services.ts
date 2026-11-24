@@ -1,5 +1,7 @@
 import { z } from 'zod'
+import type { AwayPage, ChangeAnswer, PlaceAnswer } from './answers.ts'
 import type { KindListing } from './kinds.ts'
+import type { RequestInvalid } from './requests.ts'
 import { canvasIdSchema, type Canvas, type Mover, type TenantId } from './values.ts'
 
 /** A trusted adapter builds it, never a model. `call` is the tool call this is part of; a person has none. */
@@ -43,8 +45,15 @@ export function parseLook(
   return { invalid: onCanvas ? 'canvas' : 'request' }
 }
 
-/** The operations of the canvas. People and agents call the same functions. */
+/** People and agents call the same functions. A write takes its request unparsed and answers what does not fit. */
 export interface CanvasOperations {
   look(ctx: CallContext, request: LookRequestInput): Promise<LookAnswer>
+  lookAway(ctx: CallContext, request: unknown): Promise<RequestInvalid | ReadAnswer<AwayPage>>
   kinds(ctx: CallContext): Promise<ReadAnswer<readonly KindListing[]>>
+  place(ctx: CallContext, request: unknown): Promise<PlaceAnswer>
+  arrange(ctx: CallContext, request: unknown): Promise<ChangeAnswer>
+  take(ctx: CallContext, request: unknown): Promise<ChangeAnswer>
+  pile(ctx: CallContext, request: unknown): Promise<ChangeAnswer>
+  scatter(ctx: CallContext, request: unknown): Promise<ChangeAnswer>
+  lock(ctx: CallContext, request: unknown): Promise<ChangeAnswer>
 }

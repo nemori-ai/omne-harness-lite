@@ -21,7 +21,7 @@ export function tenantTextOf(tenant: TenantId): string {
   return encoded.value
 }
 
-const itemOf = (item: Item): CanvasItemBody => ({ ...item, when: instantOf(item.when) })
+export const itemOf = (item: Item): CanvasItemBody => ({ ...item, when: instantOf(item.when) })
 const pileOf = (pile: Pile): CanvasPileBody => ({ ...pile, when: instantOf(pile.when) })
 
 export const canvasOf = (canvas: Canvas): CanvasBody => ({
@@ -31,7 +31,5 @@ export const canvasOf = (canvas: Canvas): CanvasBody => ({
   revision: canvas.revision,
 })
 
-export const kindOf = (listing: KindListing): CanvasKindBody =>
-  listing.kind === 'declared'
-    ? { ...listing }
-    : { kind: 'conflict', name: listing.name, by: [...listing.by] }
+/** A declared kind and a name declared twice go out as they are, each marked as what it is. */
+export const kindOf = (listing: KindListing): CanvasKindBody => ({ ...listing })
