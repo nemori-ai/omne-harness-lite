@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { placedOf, UNKNOWN_TEXT, whyNot, type Answer } from '../src/model/commands.ts'
+import { placedOf, touched, UNKNOWN_TEXT, whyNot, type Answer } from '../src/model/commands.ts'
 
 const NOT_UNDERSTOOD = '画布没读懂这一步。'
 
@@ -77,5 +77,56 @@ describe('placedOf', () => {
       kind: 'not',
       why: '纸上摆满了，先拿走几样。',
     })
+  })
+
+  it('an answer that was not done is not placed, even when it names an item', () => {
+    expect(placedOf({ outcome: 'conflict', body: { item, reason: 'full' } })).toEqual({
+      kind: 'not',
+      why: '纸上摆满了，先拿走几样。',
+    })
+    expect(placedOf({ outcome: 'denied', body: { item } })).toEqual({
+      kind: 'not',
+      why: '没有权限改这张画布。',
+    })
+    expect(placedOf({ outcome: 'no-change', body: {} })).toEqual({
+      kind: 'not',
+      why: NOT_UNDERSTOOD,
+    })
+  })
+
+  it('an answer without a body says why it was not placed', () => {
+    expect(placedOf({ outcome: 'denied' })).toEqual({ kind: 'not', why: '没有权限改这张画布。' })
+  })
+})
+
+describe('touched', () => {
+  it('an arrange is about the items it moves, the piles they go into, and the piles it moves', () => {
+    expect(
+      touched({
+        op: 'arrange',
+        body: {
+          items: [{ item: 'a', pile: 'p' }, { item: 'b', pile: null }, { item: 'c' }],
+          piles: [{ pile: 'q', name: 'Q' }],
+        },
+      }),
+    ).toEqual(['item:a', 'pile:p', 'item:b', 'item:c', 'pile:q'])
+    expect(touched({ op: 'arrange', body: {} })).toEqual([])
+  })
+
+  it('a pile is about the pile and its items, a scatter about the pile', () => {
+    expect(touched({ op: 'pile', body: { pile: 'p', items: ['a', 'b'] } })).toEqual([
+      'pile:p',
+      'item:a',
+      'item:b',
+    ])
+    expect(touched({ op: 'scatter', body: { pile: 'p' } })).toEqual(['pile:p'])
+  })
+
+  it('a take and a lock are about their items, a place about nothing on the sheet yet', () => {
+    expect(touched({ op: 'take', body: { items: ['a', 'b'] } })).toEqual(['item:a', 'item:b'])
+    expect(touched({ op: 'lock', body: { items: ['a'], locked: true } })).toEqual(['item:a'])
+    expect(
+      touched({ op: 'place', body: { reference: { kind: 'k', ref: 'r' }, near: { x: 0, y: 0 } } }),
+    ).toEqual([])
   })
 })
