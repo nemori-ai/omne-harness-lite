@@ -176,6 +176,7 @@ describe('OmneExtensions on the release tree', () => {
         )
         expect(first).toContain('done OmneExtensions categories')
         expect(first).toMatch(/plugin\s/u)
+        expect(first).toMatch(/^skin\s/mu)
         expect(first).toContain('done OmneExtensions impact')
         expect(first).toContain('+ shell.tokens / shell.app')
         expect(first).toContain('→ in effect')
@@ -271,14 +272,14 @@ describe('OmneExtensions on the release tree', () => {
 
         // Every category of the release answers list, and one held in each of two of them answers show.
         const every = await ask(
-          ['AgentDefinition', 'converter', 'model-provider', 'plugin', 'skill', 'tool'].map(
+          ['AgentDefinition', 'converter', 'model-provider', 'plugin', 'skill', 'skin', 'tool'].map(
             category => extensions('list', { category }),
           ),
           [extensions('show', { category: 'converter', name: 'voice' })],
           [extensions('show', { category: 'tool', name: 'Files' })],
           [extensions('publish', { id: 'op-tool-1', category: 'tool', name: 'mine', data: {} })],
         )
-        expect(every.match(/done OmneExtensions list/gu)).toHaveLength(6)
+        expect(every.match(/done OmneExtensions list/gu)).toHaveLength(7)
         // What the deployment installed and the tenant does not hold is on the tree of points, not here.
         expect(every).toContain('converter voice is not held by this tenant.')
         expect(every).toMatch(/tool Files\s+\S+\s+enabled\s+installed with the deployment/u)

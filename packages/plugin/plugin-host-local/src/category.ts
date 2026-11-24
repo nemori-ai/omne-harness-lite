@@ -8,7 +8,6 @@ import {
   type CategoryListing,
   type CategoryView,
   type JsonValue,
-  type Judgment,
   type PackageLayout,
   type PackageReader,
   type PackageRejection,
@@ -23,8 +22,11 @@ import {
   type PlacedMember,
   type PluginManifest,
 } from '@omne-harness/plugin-protocol'
+import { SKIN_CATEGORY, plainFault, skinFault } from './skin-category.ts'
 
 export const PLUGIN_CATEGORY = 'plugin'
+
+type Fault = (manifest: PluginManifest) => string | null
 
 export const pluginCategoryDisplay: CategoryDisplay = Object.freeze({
   title: 'Plugin',
@@ -33,7 +35,7 @@ export const pluginCategoryDisplay: CategoryDisplay = Object.freeze({
   authoring: [
     'plugin.json, whole and minimal:',
     '{"schema":1,"name":"brand-green","summary":"One sentence on what it does.","client":{"members":[{"point":"shell.tokens","key":"shell.app","data":{"--omne-accent":"#0a7a4a"}}]}}',
-    'A manifest reads schema (always 1), name (lower-case letters, digits and hyphens), summary, client and server. Other fields are not read.',
+    'A manifest reads schema (always 1), name (lower-case letters, digits and hyphens), summary, client and server; kind is written by a skin alone (category skin). Other fields are not read.',
     'A member names a point and a key and gives exactly one of: data (a JSON value); module with export (a .js file in this directory and the name it exports); directory (a directory in this directory).',
     'Members of the interface go under client, members of the server under server. OmneExtensionPoints show with the name of a point says what that point takes and gives a member to copy.',
   ].join('\n'),
@@ -106,7 +108,8 @@ async function judgeByCategory(
   pkg: PackageReader,
 ): Promise<Verdict> {
   const { category, creation } = listing
-  if (category === PLUGIN_CATEGORY) return { unfit: 'a plugin does not hold a plugin' }
+  if (category === PLUGIN_CATEGORY || category === SKIN_CATEGORY)
+    return { unfit: `a plugin does not hold a ${category}` }
   if (creation === 'none')
     return { unfit: `the category ${category} is not created through the general entry` }
   if (side === 'client')
@@ -141,6 +144,7 @@ const invalid = (reason: string) => fail({ kind: 'invalid-package', reason } as 
 
 async function readPackage(
   pkg: PackageReader,
+  fault: Fault,
 ): Promise<Outcome<Readonly<{ manifest: PluginManifest; body: JsonValue }>, PackageRejection>> {
   const listed = await pkg.manifest()
   if (!('ok' in listed)) return fail({ kind: 'source-failed', failure: listed.failure })
@@ -153,18 +157,20 @@ async function readPackage(
   if (read.kind === 'refused') return invalid(read.reason)
   const held = judgePackage(read.manifest, listed.ok.entries)
   if (!held.ok) return invalid(held.reason)
+  const unfit = fault(read.manifest)
+  if (unfit !== null) return invalid(unfit)
   const body = readBodyText(text, BODY_LIMITS)
   return body.kind === 'ok'
     ? succeed({ manifest: read.manifest, body: body.value })
     : invalid(`the manifest is beyond what a body may be: ${body.kind}`)
 }
 
-function layoutOf(categories: CategoryView): PackageLayout {
+function layoutOf(categories: CategoryView, namespace: string, fault: Fault): PackageLayout {
   return {
-    namespace: 'plugins',
+    namespace,
     limits: PLUGIN_PACKAGE_LIMITS,
     async inspect(pkg) {
-      const read = await readPackage(pkg)
+      const read = await readPackage(pkg, fault)
       if (!('ok' in read)) return read
       for (const placed of membersOf(read.ok.manifest)) {
         const verdict = await judgeMember(categories, placed, pkg)
@@ -188,26 +194,44 @@ function manifestOf(body: unknown): PluginManifest | string {
   return read.kind === 'read' ? read.manifest : read.reason
 }
 
-function judge(body: unknown, context?: { readonly capabilityName?: string }): Judgment {
-  const manifest = manifestOf(body)
-  if (typeof manifest === 'string') return { ok: false, rejected: manifest }
-  const published = context?.capabilityName
-  return published === undefined || published === manifest.name
-    ? { ok: true }
-    : {
-        ok: false,
-        rejected: `the manifest names ${manifest.name}; it is published as ${published}`,
-      }
+function judged(fault: Fault): BodyContract['judge'] {
+  return (body, context) => {
+    const manifest = manifestOf(body)
+    if (typeof manifest === 'string') return { ok: false, rejected: manifest }
+    const unfit = fault(manifest)
+    if (unfit !== null) return { ok: false, rejected: unfit }
+    const published = context?.capabilityName
+    return published === undefined || published === manifest.name
+      ? { ok: true }
+      : {
+          ok: false,
+          rejected: `the manifest names ${manifest.name}; it is published as ${published}`,
+        }
+  }
 }
 
-/** Plugin as a category: a package is fit when its manifest reads, holds what it writes, and each member that points at a category is fit for that category. */
-export function pluginBodyContract(categories: CategoryView): BodyContract {
+function packageContract(
+  categories: CategoryView,
+  category: string,
+  namespace: string,
+  fault: Fault,
+): BodyContract {
   return {
-    category: PLUGIN_CATEGORY,
+    category,
     schema: { kind: 'null' },
-    layout: layoutOf(categories),
-    judge,
+    layout: layoutOf(categories, namespace, fault),
+    judge: judged(fault),
     deriveDeclarations: () => ({ entries: [] }),
     references: () => [],
   }
+}
+
+/** Plugin as a category. A manifest that says it is a skin is not held here. */
+export function pluginBodyContract(categories: CategoryView): BodyContract {
+  return packageContract(categories, PLUGIN_CATEGORY, 'plugins', plainFault)
+}
+
+/** Skin as a category: the contract of Plugin, narrowed to a manifest that says it is a skin and writes no server side. */
+export function skinBodyContract(categories: CategoryView): BodyContract {
+  return packageContract(categories, SKIN_CATEGORY, 'skins', skinFault)
 }

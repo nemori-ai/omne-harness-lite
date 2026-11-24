@@ -1,10 +1,17 @@
+import { pluginProtocol } from '@omne-harness/plugin-protocol'
+import { createClient } from '@omne-harness/sdk/core'
 import { describe, expect, it } from 'vitest'
 import { scopeOfLayer, type HeldItem } from '@omne-harness/assets'
 import { candidates } from '@omne-harness/dynamis'
 import { settledSession } from '../../governance/tenant-settings-support.ts'
 import { savedTenant } from '../../r9/support.ts'
-import { uploadPlugin as upload } from '../../support/plugin-packages.ts'
-import { tenantOf } from '../../support/protocol-clients.ts'
+import { uploadAsset, uploadPlugin as upload } from '../../support/plugin-packages.ts'
+import {
+  originOf,
+  protocolTransport,
+  savedCredentials,
+  tenantOf,
+} from '../../support/protocol-clients.ts'
 import { onReleaseTree, toolCallsThenText } from '../../support/release-tree.ts'
 
 const SKILL = `---
@@ -98,6 +105,99 @@ describe('Plugin as a category on the release tree', () => {
           limit: 10,
         })
         expect(after).toMatchObject({ body: { items: [{ name: 'tidy' }] } })
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'a login publishes a skin to the category skin and the client is to load it with its kind; a package that is not a skin, or one with a server side, is not held as a skin, and a skin is not held as a plugin',
+    { tags: ['slow'], timeout: 240_000 },
+    async () => {
+      const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
+        await settledSession(tree, 'hello')
+        const { assets } = tree.clients
+        const plugin = createClient(
+          pluginProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        const tenantText = savedTenant(tree.home)
+        const tenant = tenantOf(tenantText)
+        const skin = (name: string, over: Readonly<Record<string, unknown>> = {}): string =>
+          JSON.stringify({
+            ...JSON.parse(manifest(name, [])),
+            server: undefined,
+            kind: 'skin',
+            ...over,
+          })
+
+        expect(await assets['describe-category']({ category: 'skin' })).toMatchObject({
+          outcome: 'succeeded',
+          body: { title: '皮肤', creation: { kind: 'directory' } },
+        })
+
+        const made = await uploadAsset(assets, tenant, 'skin', 'sea', {
+          'plugin.json': skin('sea'),
+        })
+        if (made.outcome !== 'succeeded') throw new Error(`commit: ${JSON.stringify(made)}`)
+        expect(
+          await assets['list-assets']({ tenant, category: 'skin', after: null, limit: 10 }),
+        ).toMatchObject({
+          outcome: 'succeeded',
+          body: { items: [{ name: 'sea', holding: made.body.holding, enabled: true }] },
+        })
+        const registry = tree.scope.get('dynamis')?.registry()
+        if (registry === undefined) throw new Error('the tree has no registry')
+        const asker = scopeOfLayer('tenant', tenantText)
+        expect(candidates<HeldItem>(registry, 'plugin.skins', 'sea', asker)).toMatchObject({
+          kind: 'read',
+          entries: [{ key: 'sea' }],
+        })
+        expect(candidates<HeldItem>(registry, 'plugin.plugins', 'sea', asker)).toMatchObject({
+          kind: 'read',
+          entries: [],
+        })
+
+        const wanted = await plugin['list-wanted']({ tenant, side: 'client' })
+        if (wanted.outcome !== 'succeeded') throw new Error(JSON.stringify(wanted))
+        expect(
+          wanted.body.plugins.map(each => [each.name, JSON.parse(each.manifest).kind]),
+        ).toEqual([['sea', 'skin']])
+        expect(await plugin['list-wanted']({ tenant, side: 'server' })).toMatchObject({
+          outcome: 'succeeded',
+          body: { plugins: [] },
+        })
+
+        const plain = await uploadAsset(assets, tenant, 'skin', 'plain', {
+          'plugin.json': skin('plain', { kind: undefined }),
+        })
+        expect(plain).toMatchObject({
+          outcome: 'invalid',
+          body: {
+            reason:
+              'the manifest does not say it is a skin: write "kind":"skin", or publish it to the category plugin',
+          },
+        })
+        const sided = await uploadAsset(assets, tenant, 'skin', 'sided', {
+          'plugin.json': skin('sided', {
+            server: { members: [{ point: 'notes.cards', key: 'k', data: {} }] },
+          }),
+        })
+        expect(sided).toMatchObject({
+          outcome: 'invalid',
+          body: {
+            reason:
+              'a skin has members of the interface only, and this manifest writes a server side: leave server out',
+          },
+        })
+        const misplaced = await upload(assets, tenant, 'ink', { 'plugin.json': skin('ink') })
+        expect(misplaced).toMatchObject({
+          outcome: 'invalid',
+          body: { reason: 'the manifest says it is a skin: publish it to the category skin' },
+        })
+        expect(
+          await assets['list-assets']({ tenant, category: 'skin', after: null, limit: 10 }),
+        ).toMatchObject({ body: { items: [{ name: 'sea' }] } })
       })
       expect(exitCode).toBe(0)
     },

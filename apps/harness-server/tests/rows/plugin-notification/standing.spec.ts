@@ -17,6 +17,7 @@ function held(name: string, enabled = true): ListedPlugin {
   const read = readManifest(JSON.stringify({ schema: 1, name, summary: 's' }))
   if (read.kind !== 'read') throw new Error(read.reason)
   return {
+    category: 'plugin',
     name,
     enabled,
     manifest: read.manifest,

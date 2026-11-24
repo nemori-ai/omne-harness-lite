@@ -58,7 +58,9 @@ function bodyOf(text: string, extra: readonly string[] = []): JsonValue {
   return body.ok
 }
 
-type Held = Readonly<{ name: string; candidate: Candidate; body?: JsonValue }>
+type Held = Readonly<{ name: string; candidate: Candidate; body?: JsonValue; category?: string }>
+
+const categoryOf = (held: Held): string => held.category ?? 'plugin'
 
 const candidate = (name: string, letter = 'a', disabled = false): Candidate => ({
   asset: `holding/${name}`,
@@ -74,7 +76,8 @@ function world(held: readonly Held[], over: Partial<AssetLayerSource> = {}) {
     layer: 'tenant',
     async list({ category, after, limit }) {
       asked.push(`list ${category} ${String(after)} ${limit}`)
-      const names = [...new Set(held.map(each => each.name))].sort()
+      const mine = held.filter(each => categoryOf(each) === category)
+      const names = [...new Set(mine.map(each => each.name))].sort()
       const start = after === null ? 0 : names.indexOf(after) + 1
       const page = names.slice(start, start + 2)
       const last = start + 2 >= names.length
@@ -83,7 +86,7 @@ function world(held: readonly Held[], over: Partial<AssetLayerSource> = {}) {
         state: 'read',
         page: {
           items: page.map(name => {
-            const one = held.find(each => each.name === name)!.candidate
+            const one = mine.find(each => each.name === name)!.candidate
             return {
               capability: { category, name } as never,
               layer: 'tenant',
@@ -102,7 +105,9 @@ function world(held: readonly Held[], over: Partial<AssetLayerSource> = {}) {
       return {
         layer: 'tenant',
         state: 'read',
-        candidates: held.filter(each => each.name === capability.name).map(each => each.candidate),
+        candidates: held
+          .filter(each => each.name === capability.name && categoryOf(each) === capability.category)
+          .map(each => each.candidate),
       }
     },
     ...over,
@@ -163,7 +168,60 @@ describe('the plugins a tenant holds', () => {
       'list plugin null 100',
       'list plugin b-two 100',
       'list plugin d-four 100',
+      'list skin null 100',
     ])
+  })
+
+  it('gives what the tenant holds as skins with what it holds as plugins: one group, by name', async () => {
+    const sea: Held = {
+      name: 'sea',
+      category: 'skin',
+      candidate: candidate('sea', 'b'),
+      body: bodyOf(JSON.stringify({ ...JSON.parse(manifestText('sea')), kind: 'skin' })),
+    }
+    const answer = await heldPlugins(world([tidy, sea]).ports, 'alice')
+    if (answer.kind !== 'read') throw new Error(answer.kind)
+    expect(answer.plugins.map(each => [each.name, each.manifest.kind])).toEqual([
+      ['sea', 'skin'],
+      ['tidy', undefined],
+    ])
+    const listed = await listedPlugins(world([tidy, sea]).ports, 'alice')
+    expect(
+      listed.kind === 'read' && listed.plugins.map(each => [each.category, each.name]),
+    ).toEqual([
+      ['skin', 'sea'],
+      ['plugin', 'tidy'],
+    ])
+  })
+
+  it('gives a name held in both categories twice, each in the version its own category chooses: whoever loads leaves the name out', async () => {
+    const asSkin: Held = {
+      name: 'tidy',
+      category: 'skin',
+      candidate: { ...candidate('tidy', 'b'), asset: 'holding/skin/tidy' },
+      body: bodyOf(JSON.stringify({ ...JSON.parse(manifestText('tidy')), kind: 'skin' })),
+    }
+    const answer = await heldPlugins(world([tidy, asSkin]).ports, 'alice')
+    if (answer.kind !== 'read') throw new Error(answer.kind)
+    expect(answer.plugins.map(each => [each.name, each.held.asset])).toEqual([
+      ['tidy', 'holding/tidy'],
+      ['tidy', 'holding/skin/tidy'],
+    ])
+  })
+
+  it('is unavailable when the skins cannot be listed, though the plugins can', async () => {
+    const { ports } = world([tidy], {
+      async list({ category }) {
+        return category === 'skin'
+          ? { layer: 'tenant', state: 'unavailable' }
+          : {
+              layer: 'tenant',
+              state: 'read',
+              page: { items: [], next: null, completeness: 'complete' },
+            }
+      },
+    })
+    expect(await heldPlugins(ports, 'alice')).toEqual({ kind: 'unavailable' })
   })
 
   it('does not give a plugin that is disabled', async () => {
