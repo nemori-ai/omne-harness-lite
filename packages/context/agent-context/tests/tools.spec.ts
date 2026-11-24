@@ -147,6 +147,7 @@ const conditionsWith = (bindings: readonly Adoption[]): RuntimeConditions => ({
   model: owner,
   context: evidence('context'),
   bindings,
+  segments: [],
 })
 
 describe('toolsSourceOf: the sixth group from the bindings of the conditions', () => {

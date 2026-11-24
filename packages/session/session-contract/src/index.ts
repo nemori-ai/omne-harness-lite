@@ -270,7 +270,13 @@ export {
   type SessionControlStage,
 } from './control-normalization.ts'
 export { isDeferredFact, type SessionFactKind } from './history-values.ts'
-export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts'
+export type {
+  ResidentAdoption,
+  ResidentSegment,
+  ResidentSegmentSource,
+  RunExecution,
+  ContextScopeBinding,
+} from './values.ts'
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts'
 export type {
   InitialAdoption,

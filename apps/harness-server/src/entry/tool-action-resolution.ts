@@ -138,8 +138,16 @@ export function createToolActionResolution(
           reason: 'unknown-command',
         })
       const own = gateOf(definition, called.command)
-      if (input.name !== 'Tools' || called.command !== 'execute')
-        return succeed({ kind: 'own', gate: own })
+      if (input.name !== 'Tools' || called.command !== 'execute') {
+        const capability = released
+          ? undefined
+          : ports.sourced?.().entry(input, input.name)?.capability
+        return succeed({
+          kind: 'own',
+          gate: own,
+          ...(capability === undefined ? {} : { capability }),
+        })
+      }
       if (!released) return unavailable('Tools is not available as released')
       return carriedAction(ports, input, definition, own, gateOf)
     },

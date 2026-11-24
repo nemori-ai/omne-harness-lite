@@ -29,6 +29,7 @@ import type {
   RunTerminal,
   SessionCreation,
   ResidentAdoption,
+  ResidentSegment,
   ResidentTool,
   DeclarationChange,
   SessionTree,
@@ -219,6 +220,7 @@ export type SessionEntry =
       end: RunEnd | null
     }>
   | Readonly<{ kind: 'session.tool-resident-admitted'; resident: ResidentTool }>
+  | Readonly<{ kind: 'session.prompt-segment-admitted'; segment: ResidentSegment }>
   | Readonly<{
       kind:
         | 'session.mode-changed'
@@ -379,12 +381,14 @@ export function fromJsonValue(tree: JsonValue): unknown {
 export type EntryReferences = Readonly<{
   created?: InitialAdoption | null
   residents?: readonly ResidentTool[]
+  segments?: readonly ResidentSegment[]
 }>
 
 const FROM_ORIGIN = '=origin.source'
 const FROM_CREATED = '=session.created.initialAdoption'
 const FROM_COMMAND = '=session.created.command'
 const FROM_RESIDENT = '=session.tool-resident-admitted'
+const FROM_SEGMENT = '=session.prompt-segment-admitted'
 
 const FACT_KINDS: ReadonlySet<string> = new Set([
   'call.execution-fact',
@@ -408,12 +412,17 @@ export function encodeEntry(
   if (kind === 'session.created') {
     plain['tenant'] = tenantText(entry.tenant)
     plain['creation'] = { ...entry.creation, workspace: workspaceText(entry.creation.workspace) }
+    const { newSegments } = entry.initialAdoption
     plain['initialAdoption'] = {
       ...entry.initialAdoption,
       newResidents: entry.initialAdoption.newResidents.map(resident => ({
         ...resident,
         shape: FROM_RESIDENT,
+        ...(resident.definition === undefined ? {} : { definition: FROM_RESIDENT }),
       })),
+      ...(newSegments === undefined
+        ? {}
+        : { newSegments: newSegments.map(segment => ({ ...segment, text: FROM_SEGMENT })) }),
     }
     if (sameTree(commandOf(plain), entry.input)) plain['input'] = FROM_COMMAND
   }
@@ -572,6 +581,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'run.attempt-released',
   'run.terminal',
   'session.tool-resident-admitted',
+  'session.prompt-segment-admitted',
   'session.mode-changed',
   'session.model-selected',
   'session.declaration-adopted',
@@ -657,18 +667,25 @@ export function decodeEntries(
 ): DecodedEntry[] {
   const out: (DecodedEntry | undefined)[] = rows.map(() => undefined)
   const residents: ResidentTool[] = []
+  const segments: ResidentSegment[] = []
   rows.forEach((row, index) => {
-    if (row.kind !== 'session.tool-resident-admitted') return
+    if (
+      row.kind !== 'session.tool-resident-admitted' &&
+      row.kind !== 'session.prompt-segment-admitted'
+    )
+      return
     const decoded = decodeEntry(row)
     out[index] = decoded
     if ('ok' in decoded && decoded.ok.kind === 'session.tool-resident-admitted')
       residents.push(decoded.ok.resident)
+    if ('ok' in decoded && decoded.ok.kind === 'session.prompt-segment-admitted')
+      segments.push(decoded.ok.segment)
   })
   let current = created
   return rows.map((row, index) => {
     const known = out[index]
     if (known !== undefined) return known
-    const decoded = decodeEntry(row, { created: current, residents })
+    const decoded = decodeEntry(row, { created: current, residents, segments })
     if ('ok' in decoded && decoded.ok.kind === 'session.created')
       current = decoded.ok.initialAdoption
     return decoded
@@ -691,6 +708,7 @@ export function expandHistoryEntries(
     const resolved = resolveStored(row.kind, payload, row.origin, {
       created,
       residents: created?.newResidents ?? [],
+      segments: created?.newSegments ?? [],
     })
     if (resolved !== null) return { malformed: resolved }
     out ??= [...rows]
@@ -701,8 +719,11 @@ export function expandHistoryEntries(
 
 function storedReferences(row: HistoryEntry): 'none' | 'origin' | 'created' {
   if (row.kind === 'session.created') {
-    const residents = member(member(row.payload, 'initialAdoption'), 'newResidents')
-    return residents?.kind === 'array' && residents.items.length > 0 ? 'created' : 'origin'
+    const adoption = member(row.payload, 'initialAdoption')
+    const named = [member(adoption, 'newResidents'), member(adoption, 'newSegments')]
+    return named.some(list => list?.kind === 'array' && list.items.length > 0)
+      ? 'created'
+      : 'origin'
   }
   if (row.kind === 'session.adoption')
     return member(member(row.payload, 'initialization'), 'adoption')?.kind === 'string'
@@ -715,6 +736,29 @@ function storedReferences(row: HistoryEntry): 'none' | 'origin' | 'created' {
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
+
+// The segments a creation adopted name their text by the segment entry of their batch that holds it.
+function segmentsOf(
+  value: unknown,
+  holders: readonly ResidentSegment[],
+): readonly unknown[] | string | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) return 'session.created: the new segments are not a list'
+  const named: unknown[] = []
+  for (const item of value as unknown[]) {
+    if (!isObject(item) || item['text'] !== FROM_SEGMENT)
+      return 'session.created: a new segment does not name its holder'
+    const holder = holders.find(
+      segment =>
+        segment.key === item['key'] &&
+        canonicalText(segment.sources) === canonicalText(item['sources']),
+    )
+    if (holder === undefined)
+      return `session.created: no segment entry of the batch holds ${String(item['key'])}`
+    named.push({ ...item, text: holder.text })
+  }
+  return named
+}
 
 function resolveStored(
   kind: string,
@@ -742,9 +786,19 @@ function resolveStored(
         !sameEvidence(holder.admitted, item['admitted'] as DurableEvidence)
       )
         return `session.created: no SE36 of the batch admits ${String(item['capability'])} with the same version and asset digest`
-      named.push({ ...item, shape: holder.shape })
+      named.push({
+        ...item,
+        shape: holder.shape,
+        ...(holder.definition === undefined ? {} : { definition: holder.definition }),
+      })
     }
-    payload['initialAdoption'] = { ...adoption, newResidents: named }
+    const segments = segmentsOf(adoption['newSegments'], references.segments ?? [])
+    if (typeof segments === 'string') return segments
+    payload['initialAdoption'] = {
+      ...adoption,
+      newResidents: named,
+      ...(segments === undefined ? {} : { newSegments: segments }),
+    }
     return null
   }
   if (kind === 'session.adoption') {

@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { createCalendarSupplyRunner } from '../../src/index.ts'
-import { application, context } from './fixture.ts'
+import { application, context, hostTimers } from './fixture.ts'
 
 afterEach(() => vi.useRealTimers())
 
@@ -14,6 +14,7 @@ it('passes the same trusted context and configured budget to each phase and pres
     initializationOperationKey: 'original-init',
     acknowledgementKey: 'original-ack',
     intervalMs: 1000,
+    timers: hostTimers,
     drainTimeoutMs: 10,
     limit: 7,
     phases: { recover: true, runDue: true, deliverReactions: true },

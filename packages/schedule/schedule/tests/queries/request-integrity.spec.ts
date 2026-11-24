@@ -16,6 +16,7 @@ describe('provider request integrity', () => {
     if (!candidate) throw new Error('Expected candidate')
     f.state.rows = [
       ScheduleExecutionRowSchema.parse({
+        kind: 'slot',
         rowRef: 'other:history',
         scheduleId: other.view.scheduleId,
         occurrenceKey: 'other:occurrence',
@@ -24,6 +25,7 @@ describe('provider request integrity', () => {
         preparation: null,
         receipt: null,
         job: null,
+        run: null,
         notification: null,
       }),
     ]

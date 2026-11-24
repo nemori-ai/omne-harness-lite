@@ -1,7 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fakeClock } from '@omne-harness/notification/testing'
+import { describe, expect, it } from 'vitest'
 import { tenantIdSchema, type Instant } from '@omne-harness/notification-contract'
-import { createWakeUps, realTimers } from '../src/hints.ts'
+import { createWakeUps } from '../src/hints.ts'
 import { NotificationPolicyError, parsePolicy } from '../src/policy.ts'
 import { AGENT_POSTS, NOTIFICATION_SYSTEM } from '../src/sources.ts'
 import { manualTimers, policy } from './fixture.ts'
@@ -175,31 +174,14 @@ describe('the sources this group registers for itself', () => {
   })
 })
 
-describe('wake-ups on the timers of the process', () => {
+describe('wake-ups for an instant', () => {
   const t1 = tenantIdSchema.parse('t1')
   const at = (minute: number) =>
     new Date(Date.UTC(2026, 10, 18, 6, minute)).toISOString() as Instant
 
-  it('wake after the delay, and not at all once cleared', () => {
-    vi.useFakeTimers()
-    try {
-      const woken: string[] = []
-      const first = realTimers.set(() => void woken.push('first'), 1000)
-      realTimers.set(() => void woken.push('second'), 1000)
-      realTimers.clear(first)
-      vi.advanceTimersByTime(999)
-      expect(woken).toEqual([])
-      vi.advanceTimersByTime(1)
-      expect(woken).toEqual(['second'])
-      expect(vi.getTimerCount()).toBe(0)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
   it('keep the timer they have for the same instant, and replace it only for an earlier one', () => {
     const manual = manualTimers()
-    const hints = createWakeUps(fakeClock('2026-11-18T06:00:00.000Z'), manual.timers, () => {})
+    const hints = createWakeUps(manual.timers, () => {})
     hints.wakeAt(t1, at(10))
     const [first] = [...manual.pending.keys()]
     hints.wakeAt(t1, at(10))

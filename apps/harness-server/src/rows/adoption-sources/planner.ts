@@ -37,8 +37,9 @@ export type AdoptionPlannerOptions<P> = Readonly<{
   readGenerations(): Pick<ToolGenerations<P, unknown, never>, 'ensureLoaded'> | undefined
   definitionFor(capability: string): AdoptionDefinition | undefined
 }>
+type ToolMaterial = Pick<ResidentAdoption, 'residents' | 'keys'>
 type Answer = Outcome<
-  Readonly<{ material: ResidentAdoption; verdict: FreezeVerdict | null }>,
+  Readonly<{ material: ToolMaterial; verdict: FreezeVerdict | null }>,
   Readonly<{ kind: 'unavailable' }>
 >
 const unavailable = () => fail({ kind: 'unavailable' as const })
@@ -81,7 +82,7 @@ function planRecorded<P>(
   entries: readonly ToolBindingEntry[],
   live: readonly ToolBindingEntry[],
   definition: AdoptionDefinition | undefined,
-): ResidentAdoption | undefined {
+): ToolMaterial | undefined {
   const key = recordedKey(recorded, entries, definition)
   if (key === undefined) return undefined
   const shape = recordedShape(access, recorded)
@@ -108,7 +109,7 @@ function planInitial(
   capability: string,
   live: readonly ToolBindingEntry[],
   definition: AdoptionDefinition | undefined,
-): ResidentAdoption | undefined {
+): ToolMaterial | undefined {
   if (definition === undefined || definition.authority.asset.name !== capability) return undefined
   const winner = live[0]
   if (live.length !== 1 || winner === undefined) return undefined

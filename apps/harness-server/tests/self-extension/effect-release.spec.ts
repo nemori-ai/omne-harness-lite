@@ -10,7 +10,7 @@ summary: Counts the words of what it is given.
 references:
   - { category: tool, name: Files, resident: true }
   - { category: tool, name: ${tool}, resident: true }
-  - { category: skill, name: tidy-notes }
+  - { category: skill, name: tidy-notes, resident: true }
 ---
 You count words.
 `
@@ -56,13 +56,15 @@ describe('what is told of a tool and of a definition, on the release tree', () =
         expect(tool).toContain('A call of it asks a person unless the session lets it through.')
         expect(broken).toContain('! tool.tools / broken   → would be refused: tool.json: ')
         expect(files).toContain('→ would be refused: the deployment holds a tool named Files')
-        // The tool it keeps resident is not published yet: that is said, with what does nothing.
+        // The tool and the skill it keeps resident are not published yet: each is said, with what it means.
         expect(counter).toContain('+ agent.definitions / counter   → held; work can be handed')
         expect(counter).toContain(
           '! wordcount: tool.tools / wordcount   → its resident tool wordcount is not there now',
         )
         expect(counter).not.toContain('Files   →')
-        expect(counter).toContain('Kept and without effect yet: skill/tidy-notes.')
+        expect(counter).toContain(
+          '! tidy-notes: skill.skills / tidy-notes   → its resident skill tidy-notes is not there now (this tenant does not hold it): a session with it starts without it',
+        )
         expect(coding).toContain(
           '→ would be held and not in effect: the definition coding of the deployment stands and cannot be replaced',
         )
@@ -91,7 +93,9 @@ describe('what is told of a tool and of a definition, on the release tree', () =
           /tool\.tools \/ Files +\[in effect\] +a tool this definition keeps resident/u,
         )
         expect(late).toMatch(/tool\.tools \/ wordcount +\[in effect\]/u)
-        expect(late).toContain('Kept and without effect yet: skill/tidy-notes.')
+        expect(late).toMatch(
+          /skill\.skills \/ tidy-notes +\[not in effect\] +its resident skill tidy-notes is not there now \(this tenant does not hold it\)/u,
+        )
         expect(deployed).toMatch(
           /tool\.tools \/ Files +\[selected\] +installed with the deployment/u,
         )

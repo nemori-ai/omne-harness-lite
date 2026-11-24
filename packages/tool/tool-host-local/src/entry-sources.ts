@@ -314,28 +314,26 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
     })
   }
 
+  // The call runs as it was fixed: its own definition, the executor of the source. Whether the command
+  // it names can still be sent is for the source to judge before it sends.
   function selected(
     access: Access<P>,
-    name: string,
-    adoption: Adoption,
+    definition: ToolDefinition,
     executor: Adoption,
   ): Outcome<Readonly<{ source: Source; loaded: Loaded }>, string> {
-    const source = sourceOf(input.sources(), name)
+    const source = sourceOf(input.sources(), definition.name)
     if (source === undefined) return fail('the entry source is not in service')
     let entry: ToolSourceEntry | undefined
     try {
-      entry = source.select(access, name)
+      entry = source.select(access, definition.name)
     } catch {
       return fail('the entry source could not select the entry')
     }
     if (entry === undefined || entry.availability.kind !== 'available')
       return fail('the source entry is not available now')
-    if (
-      canonicalDigest(entry.definition.adoption) !== canonicalDigest(adoption) ||
-      canonicalDigest(entry.executor) !== canonicalDigest(executor)
-    )
-      return fail('the source entry changed since it was fixed')
-    const loaded = loadedOf(access, source, entry)
+    if (canonicalDigest(entry.executor) !== canonicalDigest(executor))
+      return fail('the source entry has another executor than the one the call was fixed with')
+    const loaded = loadedOf(access, source, { ...entry, definition })
     return 'failure' in loaded ? loaded : succeed({ source, loaded: loaded.ok })
   }
 
@@ -350,26 +348,27 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
       return Object.freeze({
         ...base,
         peek: (access, availability) => {
-          const { name, adoption } = availability.definition
-          if (sourceOf(input.sources(), name) === undefined) return base.peek(access, availability)
-          const found = selected(access, name, adoption, availability.executor)
+          const { definition } = availability
+          if (sourceOf(input.sources(), definition.name) === undefined)
+            return base.peek(access, availability)
+          const found = selected(access, definition, availability.executor)
           return 'failure' in found ? unavailable(found.failure) : succeed(found.ok.loaded)
         },
         selectAndPin: (access, request, call) => {
           const { availability } = request
-          const { name, adoption } = availability.definition
-          if (sourceOf(input.sources(), name) === undefined)
+          const { definition } = availability
+          if (sourceOf(input.sources(), definition.name) === undefined)
             return base.selectAndPin(access, request, call)
           if (availability.kind !== 'available') return unavailable('the fixed tool is unavailable')
           const { executor } = availability
-          const found = selected(access, name, adoption, executor)
+          const found = selected(access, definition, executor)
           if ('failure' in found) return unavailable(found.failure)
           const { source, loaded } = found.ok
           return succeed({
             loaded,
             pin: pinOf(source.prefix),
             repin: again => {
-              const current = selected(again, name, adoption, executor)
+              const current = selected(again, definition, executor)
               return 'failure' in current || current.ok.source !== source
                 ? unavailable('original source entry is absent')
                 : succeed(pinOf(source.prefix))

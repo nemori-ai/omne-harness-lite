@@ -7,6 +7,8 @@ import {
 import { canonical, commandMatches, domainError, equal, json } from './encoding.ts'
 import { scheduleManagementGuardRequirement } from './guards.ts'
 import { readRecord, saveDecision } from './records.ts'
+import { executeDispatch } from './dispatch-commit.ts'
+import { dispatchRequirementSchema } from './dispatch-schema.ts'
 import {
   GUARD_FACT,
   PARTICIPANT,
@@ -17,6 +19,34 @@ import {
 } from './schema.ts'
 import type { ScheduleManagementGuardRequirement } from './guards.ts'
 
+/** The commit that makes the first schedule of a scope active records the heartbeat at its decision time. */
+function watchFirstActive(
+  port: ParticipantPort,
+  decision: Extract<ReturnType<typeof decideScheduleManagement>, { kind: 'save' }>,
+  at: string,
+) {
+  const { mutation } = decision
+  const records =
+    mutation.kind === 'noChange'
+      ? []
+      : mutation.kind === 'replace'
+        ? [mutation.successor]
+        : [mutation.next]
+  const active = records.filter(record => record.view.control === 'active')
+  if (active.length === 0) return
+  const owner = canonical(decision.result.owner)
+  const others = port.execute(
+    "SELECT count(*) FROM sc_schedules WHERE owner = ? AND control = 'active' AND schedule_id NOT IN (" +
+      active.map(() => '?').join(', ') +
+      ') LIMIT 1',
+    [owner, ...active.map(record => record.view.scheduleId)],
+  ).rows[0]?.[0]
+  if (others !== 0n) return
+  port.execute(
+    'INSERT INTO sc_watch (owner, beat_at, watch_from) VALUES (?, ?, ?) ON CONFLICT(owner) DO UPDATE SET beat_at=excluded.beat_at, watch_from=excluded.watch_from',
+    [owner, at, at],
+  )
+}
 function rejection(requirement: ScheduleManagementGuardRequirement, error: ScheduleDomainError) {
   return { kind: 'conflict', basis: json({ binding: requirement.binding, error }) } as const
 }
@@ -60,6 +90,7 @@ function execute(requirement: ScheduleManagementGuardRequirement, port: Particip
   )
     return fail('revision_conflict', 'Successor identity already exists')
   saveDecision(port, decision)
+  watchFirstActive(port, decision, fact.data.decisionAt)
   const view = ScheduleOperationViewSchema.parse({
     kind: decision.mutation.kind === 'noChange' ? 'noChange' : 'committed',
     operationRef: binding.operation.operationRef,
@@ -80,6 +111,11 @@ export default {
   participant: PARTICIPANT,
   protocol: PROTOCOL,
   execute(facts, port) {
+    if (facts['dispatch'] !== undefined) {
+      const dispatch = dispatchRequirementSchema.safeParse(facts['dispatch'])
+      if (!dispatch.success) return { kind: 'failed', diagnostic: 'invalid_dispatch_requirement' }
+      return executeDispatch(dispatch.data, port)
+    }
     const parsed = guardRequirementSchema.safeParse(facts['requirement'])
     if (!parsed.success) return { kind: 'failed', diagnostic: 'invalid_management_requirement' }
     return execute(parsed.data, port)

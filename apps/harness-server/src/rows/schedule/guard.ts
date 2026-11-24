@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import {
   scheduleManagementGuardsFact,
   scheduleManagementSqlMaterials,
+  type ScheduleDispatchRequirement,
   type ScheduleManagementSqlGuards,
 } from '@omne-harness/schedule-local'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
@@ -19,6 +20,15 @@ export const SCHEDULE_GUARD_MIGRATION = {
 /** Schedules not in a terminal state that one author may keep for one owner. */
 export const SCHEDULE_CAPACITY = 100
 export const SCHEDULE_PARTICIPANTS = ['schedule.management.persistence', SCHEDULE_GUARD.participant]
+
+/** Dispatch commits go through the same guard: it stamps their decision time and frees quota on exhaustion. */
+export const scheduleDispatchGuards = {
+  participant: SCHEDULE_GUARD.participant,
+  dispatch: (requirement: ScheduleDispatchRequirement) => ({
+    participant: SCHEDULE_GUARD.participant,
+    facts: { dispatch: JSON.parse(JSON.stringify(requirement)) },
+  }),
+}
 
 export const scheduleGuards: ScheduleManagementSqlGuards = {
   participant: SCHEDULE_GUARD.participant,

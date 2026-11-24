@@ -5,6 +5,7 @@ import {
   createAdoptionPlanner,
   type AdoptionDefinition,
 } from '../../../src/rows/adoption-sources/planner.ts'
+import { RELEASE_TOOLS } from '../../../src/entry/tool-release-manifest.ts'
 import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
 import { createToolHostPlugin } from '../../../src/rows/tool-host/index.ts'
 import { access } from '../adoptions/support.ts'
@@ -88,7 +89,7 @@ describe('the resident tools of a coding create follow the start load', () => {
     { timeout: 20_000 },
     async () => {
       const { live, plan } = await treeWith(true, TEST_CONSTRUCTION)
-      expect(await until(() => live() === CODING.length)).toBe(true)
+      expect(await until(() => live() === RELEASE_TOOLS.length)).toBe(true)
       const planned = await plan()
       if (!('ok' in planned)) throw new Error(`plan: ${JSON.stringify(planned)}`)
       expect(planned.ok.material.keys.map(pair => pair.capability)).toEqual([...CODING])
@@ -100,7 +101,7 @@ describe('the resident tools of a coding create follow the start load', () => {
     { timeout: 20_000 },
     async () => {
       const { live, warnings, plan } = await treeWith(true, {})
-      expect(await until(() => warnings() >= CODING.length)).toBe(true)
+      expect(await until(() => warnings() >= RELEASE_TOOLS.length)).toBe(true)
       expect(live()).toBe(0)
       expect(await plan()).toEqual({ failure: { kind: 'unavailable' } })
     },

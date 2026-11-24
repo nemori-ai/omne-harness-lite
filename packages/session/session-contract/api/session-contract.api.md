@@ -168,6 +168,8 @@
 - `ResidentAdoption` · `values.d.ts`
 - `ResidentKey` · `identity.d.ts`
 - `ResidentReference` · `faces.d.ts`
+- `ResidentSegment` · `values.d.ts`
+- `ResidentSegmentSource` · `values.d.ts`
 - `ResidentTool` · `values.d.ts`
 - `ResultConsumption` · `values.d.ts`
 - `RouteJudgment` · `judgments.d.ts`
@@ -1414,7 +1416,7 @@ export declare function cancellationDriveOf(terminal: RunTerminal, execution: st
 export declare function runCancelledBy(snapshot: WorkSnapshot, operation: SessionOperationId): RunId | null;
 export declare const originOf: (source: DurableEvidence) => HistoryEntry['origin'];
 export declare const completeEvidence: (source: DurableEvidence) => boolean;
-export declare function residentEntries(snapshot: Pick<WorkSnapshot, 'residents'> | null, material: ResidentAdoption | undefined, source: DurableEvidence): Decision;
+export declare function residentEntries(snapshot: Pick<WorkSnapshot, 'residents' | 'segments'> | null, material: ResidentAdoption | undefined, source: DurableEvidence): Decision;
 export declare function terminalEntries(snapshot: WorkSnapshot, terminal: RunTerminal, source: DurableEvidence, interpretation?: Readonly<{
     sequence: string | null;
     cause: DurableEvidence | null;
@@ -1479,7 +1481,7 @@ import type { JsonValue } from '@omne-harness/json-text';
 import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId, TodoItemId } from './identity.ts';
-import type { BoundedClose, ModelProvenance, InitializationResult, Participation, RecoveryTask, RunEnd, RunTerminal, SessionCreation, ResidentAdoption, ResidentTool, DeclarationChange, SessionTree, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, ProducerRef, InputBatch, Waiting, ExecutionRef, BackgroundDisposition } from './values.ts';
+import type { BoundedClose, ModelProvenance, InitializationResult, Participation, RecoveryTask, RunEnd, RunTerminal, SessionCreation, ResidentAdoption, ResidentSegment, ResidentTool, DeclarationChange, SessionTree, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, ProducerRef, InputBatch, Waiting, ExecutionRef, BackgroundDisposition } from './values.ts';
 import type { EntryClass, HistoryEntry } from './faces.ts';
 import type { AdmittedSource } from './input-sources.ts';
 import type { EncodedEntry } from './judgments.ts';
@@ -1617,6 +1619,9 @@ export type SessionEntry = Readonly<{
 }> | Readonly<{
     kind: 'session.tool-resident-admitted';
     resident: ResidentTool;
+}> | Readonly<{
+    kind: 'session.prompt-segment-admitted';
+    segment: ResidentSegment;
 }> | Readonly<{
     kind: 'session.mode-changed' | 'session.model-selected' | 'session.declaration-adopted' | 'session.context-registration-changed' | 'session.recovery-input-adopted';
     declaration: DeclarationChange;
@@ -1772,6 +1777,7 @@ export declare function fromJsonValue(tree: JsonValue): unknown;
 export type EntryReferences = Readonly<{
     created?: InitialAdoption | null;
     residents?: readonly ResidentTool[];
+    segments?: readonly ResidentSegment[];
 }>;
 export declare function encodeEntry(entry: SessionEntry, origin: HistoryEntry['origin'], references?: EntryReferences): EncodedEntry;
 export type DecodedEntry = Readonly<{
@@ -2619,7 +2625,7 @@ export { projectSessionEntries, digestSessionEntries } from './entries-interpret
 export { digestSessionLog, executionReadThrough } from './log-interpretation.ts';
 export { decideControlConsequences, type SessionControlDecisionInput, type SessionControlEvidence, type SessionControlOrigin, type SessionControlRecordEvidence, type SessionControlSettlement, type SessionControlStage, } from './control-normalization.ts';
 export { isDeferredFact, type SessionFactKind } from './history-values.ts';
-export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts';
+export type { ResidentAdoption, ResidentSegment, ResidentSegmentSource, RunExecution, ContextScopeBinding, } from './values.ts';
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts';
 export type { InitialAdoption, InitializationAdoption, InitializationGuardFacts, InitializationGuardResult, InitializationConsequence, InitializationState, InitializationFactReference, } from './initialization-schema.ts';
 export { initializationRegistrationCommit } from './initialization-plan.ts';
@@ -4102,8 +4108,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:40a6cb74b24459d2046cf6e6b921a89611f120e80b65a0b8ae77c1a537a02a1f";
-export declare const SESSION_RELEASE_DIGEST = "sha256:40a6cb74b24459d2046cf6e6b921a89611f120e80b65a0b8ae77c1a537a02a1f";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:6180ceb3dc926b8dfbb4a586a20c3a45186fb06f91102ecb78972ea0163eec89";
+export declare const SESSION_RELEASE_DIGEST = "sha256:6180ceb3dc926b8dfbb4a586a20c3a45186fb06f91102ecb78972ea0163eec89";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4954,6 +4960,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         todos?: readonly import("./todos.ts").TodoItem[];
         executions?: readonly import("./values.ts").RunExecution[];
         residentKeys?: import("./values.ts").ResidentAdoption['keys'];
+        segments?: readonly import("./values.ts").ResidentSegment[];
         relation?: import("./values.ts").Relation;
         tree?: import("./values.ts").SessionTree;
         attendance?: import("./values.ts").Attendance;
@@ -5126,6 +5133,17 @@ export type ResidentTool = Readonly<{
     version: string;
     shape: JsonValue;
     admitted: DurableEvidence;
+    definition?: JsonValue;
+}>;
+export type ResidentSegment = Readonly<{
+    key: string;
+    text: string;
+    sources: readonly ResidentSegmentSource[];
+}>;
+export type ResidentSegmentSource = Readonly<{
+    category: string;
+    name: string;
+    digest: string;
 }>;
 export type SessionFrozen = Readonly<{
     cause: 'tool-shape-lost';
@@ -5641,6 +5659,7 @@ export type WorkSnapshot = Readonly<{
     todos?: readonly TodoItem[];
     executions?: readonly RunExecution[];
     residentKeys?: ResidentAdoption['keys'];
+    segments?: readonly ResidentSegment[];
     relation?: Relation;
     tree?: SessionTree;
     attendance?: Attendance;
@@ -5690,6 +5709,7 @@ export type ResidentAdoption = Readonly<{
         capability: string;
         key: ResidentKey;
     }>[];
+    segments?: readonly ResidentSegment[];
 }>;
 export type RunExecution = Readonly<{
     run: RunId;
@@ -5744,6 +5764,7 @@ export type InitializationAdoption = Readonly<{
     capabilities: ContextMaterial;
     residentBindings: ResidentAdoption['keys'];
     newResidents: ResidentAdoption['residents'];
+    newSegments?: readonly ResidentSegment[];
 }>;
 export type InitialAdoption = InitializationAdoption & Readonly<{
     candidate: Adoption;

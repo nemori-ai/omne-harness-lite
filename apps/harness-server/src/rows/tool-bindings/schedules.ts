@@ -2,29 +2,28 @@ import type { Context } from '@deepseek-ai/cordis'
 import { ScheduleCallContextSchema, ScheduleInstantSchema } from '@omne-harness/schedule-contract'
 import {
   scheduleCommandsKey,
+  scheduleJobsKey,
   scheduleQueriesKey,
 } from '@omne-harness/schedule-cordis-contract/cordis'
 import {
+  attachJobs,
   attachScheduleReads,
   attachSchedules,
+  bindJobs,
   bindScheduleReads,
   bindSchedules,
 } from '@omne-harness/schedule-tools'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { domainCallerOf } from './domain-caller.ts'
 import { holdLiveCall } from './live-calls.ts'
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
-function now() {
-  const instant = readSystemInstant()
-  if (!instant.ok) throw new Error('schedules clock unavailable')
-  return ScheduleInstantSchema.parse(instant.text)
-}
+const nowOf = (ctx: Context) => () => ScheduleInstantSchema.parse(instantTextOf(ctx, 'Schedules'))
 
 /** While a release card asks what a Schedules call would do: only the reads, under the description's
  * signal. There is no call yet, so nothing that needs one is reachable. */
@@ -37,7 +36,7 @@ export function attachReleaseScheduleReads(
   const reads = bindScheduleReads({
     tenant: tenant.ok ? tenant.value : '',
     queries: () => ctx.get(scheduleQueriesKey),
-    now,
+    now: nowOf(ctx),
     async context() {
       const caller = await domainCallerOf(
         toolRuntimeHolder(ctx).verifier(),
@@ -58,6 +57,26 @@ export function attachReleaseScheduleReads(
   return attachScheduleReads(input.signal, reads)
 }
 
+/** The session agent's context of one call, for Schedules and Jobs alike. */
+function agentContext(ctx: Context, parent: Parent, tool: string) {
+  return async () => {
+    const caller = await domainCallerOf(
+      toolRuntimeHolder(ctx).verifier(),
+      parent.principal,
+      parent.tenant,
+    )
+    if (caller === undefined) return undefined
+    return ScheduleCallContextSchema.parse({
+      principalRef: caller.principalRef,
+      owner: { kind: 'tenant', tenantId: caller.tenantId, ownerId: caller.ownerId },
+      actor: { kind: 'agent', actorRef: caller.actorRef },
+      authContextRef: `tool/${tool}`,
+      requestId: parent.call,
+      originatingSessionRef: caller.session,
+    })
+  }
+}
+
 /** Attaches the schedule services per call with the session agent's context; the call's access stays
  * registered while its scope is open, so the schedule authority can name the session and the call. */
 export function bindReleaseSchedules(
@@ -71,23 +90,26 @@ export function bindReleaseSchedules(
     call: parent.call,
     commands: () => ctx.get(scheduleCommandsKey),
     queries: () => ctx.get(scheduleQueriesKey),
-    now,
-    async context() {
-      const caller = await domainCallerOf(
-        toolRuntimeHolder(ctx).verifier(),
-        parent.principal,
-        parent.tenant,
-      )
-      if (caller === undefined) return undefined
-      return ScheduleCallContextSchema.parse({
-        principalRef: caller.principalRef,
-        owner: { kind: 'tenant', tenantId: caller.tenantId, ownerId: caller.ownerId },
-        actor: { kind: 'agent', actorRef: caller.actorRef },
-        authContextRef: 'tool/Schedules',
-        requestId: parent.call,
-        originatingSessionRef: caller.session,
-      })
-    },
+    now: nowOf(ctx),
+    context: agentContext(ctx, parent, 'Schedules'),
   })
   return holdLiveCall(ctx, parent, attachSchedules(scope, schedules))
+}
+
+/** Attaches the Job services per call, with the same context as Schedules. */
+export function bindReleaseJobs(
+  ctx: Context,
+  parent: Parent,
+  scope: ToolExecutionScope,
+): ToolExecutionScope {
+  const tenant = tenantCodec.encode(parent.tenant)
+  const jobs = bindJobs({
+    tenant: tenant.ok ? tenant.value : '',
+    call: parent.call,
+    jobs: () => ctx.get(scheduleJobsKey),
+    queries: () => ctx.get(scheduleQueriesKey),
+    now: nowOf(ctx),
+    context: agentContext(ctx, parent, 'Jobs'),
+  })
+  return holdLiveCall(ctx, parent, attachJobs(scope, jobs))
 }
