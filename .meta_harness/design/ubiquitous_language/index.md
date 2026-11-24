@@ -168,8 +168,12 @@
 | [UL-profile-listing-status](terms/capabilities-and-composition.md#ul-profile-listing-status--档案在册状态--profile-listing-status) | 档案在册状态 | Profile Listing Status | 在册 ⇄ 已撤回，**来回都走得通、没有终态、行还在**；「已下架」说的是一个名字（链上同名的都撤回了）；「范围不允许」不是它的取值 |
 | [UL-allowed-providers](terms/capabilities-and-composition.md#ul-allowed-providers--允许的供应商--allowed-providers) | 允许的供应商 | Allowed Providers | 档案上有序非空的一串供应商，**顺序即重试逐家去试的顺序** |
 | [UL-provider-fallback](terms/capabilities-and-composition.md#ul-provider-fallback--供应商回退--provider-fallback) | 供应商回退 | Provider Fallback | 档案上的是 / 否：允不允许换下一家；**不许的是换家，不是再试** |
-| [UL-model-provider](terms/capabilities-and-composition.md#ul-model-provider--模型供应商--model-provider) | 模型供应商 | Model Provider | 模型请求真实到达的那一家上游服务，资产类别 `model-provider` 的一份资产；正文声明协议、端点、计费与凭据项；**不是档案上「允许的供应商」那一项** |
+| [UL-model-provider](terms/capabilities-and-composition.md#ul-model-provider--模型供应商--model-provider) | 模型供应商 | Model Provider | 模型请求真实到达的那一家上游服务，资产类别 `model-provider` 的一份资产；正文声明协议、端点、计费、凭据项与供应商模型目录；**不是档案上「允许的供应商」那一项** |
 | [UL-model-credential](terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) | 模型凭据 | Model Credential | 模型供应商声明的一项秘密设置（凭据项）在租户层或官方层的那一份值；**一次调用的每个供应商条目按整层选定**，不显示值 |
+| [UL-provider-model-catalog](terms/capabilities-and-composition.md#ul-provider-model-catalog--供应商模型目录--provider-model-catalog) | 供应商模型目录 | Provider Model Catalog | 一家模型供应商正文里列出的、这家适配的全部型号；每项一条同名官方档案；**不是档案上的「允许的供应商」，也不是设置的目录** |
+| [UL-model-enablement](terms/capabilities-and-composition.md#ul-model-enablement--模型启用--model-enablement) | 模型启用 | Model Enablement | 租户对供应商模型目录里一个型号定的开或关；没配按发行缺省；关着的官方档案算被配置排除；**不是资产启禁，也不是模型切换** |
+| [UL-reasoning-effort](terms/capabilities-and-composition.md#ul-reasoning-effort--推理强度--reasoning-effort) | 推理强度 | Reasoning Effort | 一次模型请求的推理深浅，low、medium、high、xhigh 四档之一；型号支持哪几档写在档案里 |
+| [UL-default-reasoning-effort](terms/capabilities-and-composition.md#ul-default-reasoning-effort--缺省推理强度--default-reasoning-effort) | 缺省推理强度 | Default Reasoning Effort | 租户给目录里一个型号定的推理强度，会话没显式选时采用；不再支持时按没设处理；**不是供应商自己的默认** |
 | [UL-model-request-parameters](terms/capabilities-and-composition.md#ul-model-request-parameters--模型请求参数--model-request-parameters) | 模型请求参数 | Model Request Parameters | 档案身上随请求带上的一组常用参数，**系统统一命名、adapter 各自解析**，不认的项留痕不静默丢 |
 | [UL-mcp-credential](terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential) | MCP 凭据 | MCP Credential | MCP 接入点持有上的一项落点与身份类设置，**一份持有一份**；静态的或经 OAuth 取得的；**不是模型凭据** |
 | [UL-selected-model](terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model) | 选中模型 | Selected Model | 会话当前指向的那个档案路由名，**只因切换而变的取值**，落到哪一行按层覆盖现算；没切换过时取「用哪个模型」沿层级求值的那个名字 |

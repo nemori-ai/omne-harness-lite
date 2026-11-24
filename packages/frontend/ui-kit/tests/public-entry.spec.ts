@@ -95,6 +95,7 @@ const REST = [
   'Disclosure',
   'DisclosureContent',
   'DisclosureTrigger',
+  'DotPager',
   'DropdownMenu',
   'DropdownMenuCheckboxItem',
   'DropdownMenuContent',

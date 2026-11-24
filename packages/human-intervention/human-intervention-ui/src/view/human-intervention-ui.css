@@ -50,16 +50,13 @@
   min-width: 0;
 }
 
-/* Sections of one paper sit one hairline apart, inset like the source's one rule; no section is a card. */
-.hitl-section + .hitl-section {
-  margin-top: calc(var(--spacing) * 4);
+/* The row of dots heads the paper: the first dot lines up with the text, the two step buttons sit at the right. */
+.hitl-pager {
+  padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 3) 0 calc(var(--spacing) * 3.25);
 }
 
-.hitl-section + .hitl-section::before {
-  content: '';
-  display: block;
-  margin-inline: calc(var(--spacing) * 5);
-  border-top: 1px solid var(--omne-line-subtle);
+.hitl-pager + .omne-paged .hitl-kind {
+  padding-top: calc(var(--spacing) * 1.5);
 }
 
 /* `.decision-kind`: whose move it is; the glyph and the word are amber while the card waits on the person. */
