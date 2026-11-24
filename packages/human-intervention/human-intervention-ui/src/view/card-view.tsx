@@ -54,7 +54,7 @@ const WORDS = 'words'
 const DECLINE = 'decline'
 
 /** Whose move it is and when it was asked, once at the head of the section: amber while the card waits on the person. */
-function KindLine({ card, at, of }: Readonly<{ card: Shown; at: number; of: number }>) {
+function KindLine({ card }: Readonly<{ card: Shown }>) {
   const item = itemOf(card)
   const release = item.card.question.kind === 'release'
   const Glyph = release ? PermissionIcon : QuestionIcon
@@ -75,12 +75,11 @@ function KindLine({ card, at, of }: Readonly<{ card: Shown; at: number; of: numb
       {word}
       {submit?.kind === 'submitting' ? (
         <LoadingState label="正在提交" className="hitl-kind-trail" />
-      ) : of > 1 || asked !== undefined ? (
+      ) : asked === undefined ? null : (
         <span className="hitl-kind-trail">
-          {of > 1 ? <span>{`${at} / ${of}`}</span> : null}
-          {asked === undefined ? null : <Ago at={asked} className="hitl-kind-time" />}
+          <Ago at={asked} className="hitl-kind-time" />
         </span>
-      ) : null}
+      )}
     </p>
   )
 }
@@ -92,8 +91,8 @@ function whoOf(item: HumanInterventionCardItem): string {
 
 type Props = Readonly<{
   card: Shown
-  at: number
-  of: number
+  id: string
+  shown: boolean
   optionsAsButtons: boolean
   cancels: number
   disabled: boolean
@@ -104,8 +103,8 @@ type Props = Readonly<{
 /** One section of the paper: the kind line, the question, the answer rows, and what came of sending it. */
 export function CardView({
   card,
-  at,
-  of,
+  id,
+  shown,
   optionsAsButtons,
   cancels,
   disabled,
@@ -119,6 +118,8 @@ export function CardView({
   const state = card.kind === 'closed' ? 'closed' : card.entry.submit.kind
   return (
     <article
+      id={id}
+      inert={!shown}
       className="hitl-section"
       {...humanInterventionPaperCard.props}
       data-card={card.key}
@@ -126,7 +127,7 @@ export function CardView({
       data-state={state}
       aria-labelledby={title}
     >
-      <KindLine card={card} at={at} of={of} />
+      <KindLine card={card} />
       <h3
         id={title}
         className="hitl-title"

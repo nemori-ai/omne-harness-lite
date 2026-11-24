@@ -296,7 +296,7 @@
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息的内容是一串块](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
-  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
+  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 7）
 - **别混**：**裸写「块」不作数**——那个词到处都是
 - **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
@@ -319,7 +319,7 @@
 > The readable text of the same reasoning sits in a thinking block, apart from it.
 
 - **形态**：变体（父：[内容块](#ul-content-block--内容块--content-block)）
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 7）
 - **别混**：**不是思考块**——思考块装可读的推理文字，可以给人看；推理续接状态装的是读不懂的状态，只给能消费它的模型
 - **注意**：哪些模型能消费它，看它所在回复的[推理回放范围](#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；形状与受理规则归 [message 成员](../../../../packages/common/SPEC.md#消息)
 
@@ -334,7 +334,7 @@
 > states are carried again.
 
 - **形态**：过程
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 7）
 - **别混**：**不是 Agent 接续时的[回放](agent-runtime-loop.md#ul-replay--回放--replay)**——那是把挂起中的拓展件按日志重跑到停处；推理回放只决定一次请求带上哪些推理状态。两者都可能简称「回放」，跨 topic 时写全名
 - **注意**：被上游拒绝时略去这次带上的全部推理状态再发一次；原消费者可以对一次请求关闭推理回放。精确规则归 [Model 规格的推理回放](../../../../packages/model/SPEC.md#推理回放)
 
@@ -350,7 +350,7 @@
 > same model at the same recipient.
 
 - **形态**：属性
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 7）
 - **别混**：**不是[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)或账户的范围**——它只说哪些模型认得这段状态，不授予任何访问资格；凭据换了账户，状态仍可能被上游拒绝
 - **注意**：消息上的键名是 `replay.scope`；档案上的声明归 [Model 规格](../../../../packages/model/SPEC.md#推理回放)
 
@@ -376,7 +376,7 @@
 - **形态**：属性
 - **出处**：[媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
   [agent 拿到的图片](../../product/media/design.md#agent-拿到的图片)（rev 1） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 7）
 - **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)的占位**——占位替换了原件，派生表示与原件并存；**也不是[请求版本](#ul-request-version--请求版本--request-version)**——请求版本与原件同一种模态，仍算原件这一级
 - **注意**：**取哪一份不需要选择规则**——看模型收得下什么、直接取对应的那份
 
@@ -402,7 +402,7 @@
 - **形态**：属性
 - **出处**：[媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
   [agent 拿到的图片](../../product/media/design.md#agent-拿到的图片)（rev 1） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 7） ·
   [PF-013 §5.11](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 17）
 - **别混**：**不专指语音转写**——图、视频、文件的兜底文本都叫它
 - **弃用说法**：~~文本那一份~~ ~~块上的文本字段~~
@@ -427,7 +427,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模态](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态)（rev 17） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 7）
 - **⚠️ 别混**：**八类块 ≠ 四种模态**——块的类型归 [PF-009](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
 - **注意 ①**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
 - **注意 ②**：**视频是一种模态，不等于有模型能原生读它**——原生支持的目标是文字、图片与语音，视频的文件表示不构成原生视频理解的承诺
@@ -450,7 +450,7 @@
 
 - **形态**：属性
 - **出处**：[PF-009 §4 消息的内容是一串块](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 7） ·
   [媒体：模型读哪一份](../../product/media/design.md#模型读哪一份)（rev 1）
 - **别混**：**不是块的类型**——块的类型是载体（八类），媒体类型是载体里那样东西的格式；**视频没有自己的块类型，靠媒体类型认出来**
 - **注意**：一个文件**同时命中「模态」与「具体媒体类型」两份转换件定义时，具体媒体类型那一份生效**——更具体的压过更一般的
@@ -474,7 +474,7 @@
 - **形态**：视图
 - **出处**：[PF-013 §4 模态投影](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态投影) ·
   [§6.18](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 17） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 7）
 - **别混 ①**：**不是「这一次请求里带了哪些模态」**——那随压缩与筛选变；投影说的是整个会话曾经有过什么
 - **别混 ②**：**不是「当前模型收得下哪些模态」**——那是档案说的能力；投影说的是历史
 - **注意**：它是[会话要维护的一项状态，却不是 runtime context](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)——会话内三个角色都不消费它
