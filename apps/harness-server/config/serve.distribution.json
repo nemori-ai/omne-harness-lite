@@ -933,6 +933,11 @@
       "config": {}
     },
     {
+      "id": "session-canvas",
+      "plugin": "sessionCanvasRow",
+      "config": {}
+    },
+    {
       "id": "server-entry",
       "plugin": "serverEntryRow",
       "config": {}
