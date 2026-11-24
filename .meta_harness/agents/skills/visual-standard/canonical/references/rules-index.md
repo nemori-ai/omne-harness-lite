@@ -229,4 +229,5 @@
 | 导航与列表里的计数 | 共用件的计数胶囊 | 成员自己的胶囊与徽标 |
 | 到达、落定、页面的到达 | `useArrival`、`Arrive`、`useSettleCue`、`useMotionCue` | 新的关键帧或时长 |
 | 形、形座位、一程、墨框、告知笺 | 共用件的墨迹块 | 成员自己画的形、边框或气泡 |
-| 纸上的东西：纸面、页、一叠，摆在纸上一个点的东西（形座位、查找的线、收文件的那一处），屏幕上的点换成纸上的点 | `PaperSurface`、`PaperPage`、`PaperPile`、`PaperSpot`、`usePaperAt`，拖进来的东西用纸面的 `onDropAt` | 成员自己用定位与变换摆在纸上；自己换算纸上的坐标 |
+| 纸上的东西：纸面、页、一叠，摆在纸上一个点的东西（形座位、查找的线、收文件的那一处），屏幕上的点换成纸上的点。样子、状态与用到的规则见[纸、页、一叠](paper.md) | `PaperSurface`、`PaperPage`、`PaperPile`、`PaperSpot`、`usePaperAt`，拖进来的东西用纸面的 `onDropAt` | 成员自己用定位与变换摆在纸上；自己换算纸上的坐标 |
+| 应用在两面之间翻面：翻面层与它的编排，钟见[时长](timing.md)第 6 节 | `FlipLayer`、`useFaceFlip` | 外壳或成员自己写的翻面动画；给离开的那一面拍照 |
