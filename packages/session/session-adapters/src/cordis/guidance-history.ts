@@ -1,21 +1,45 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ModelReminderFailure } from './model-reminders.ts'
-import type { Message } from '@omne-harness/message'
-import type { ModelViewBasis, SessionHistory, SessionId } from '@omne-harness/session-contract'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { ModelViewBasis, SessionAccess, SessionHistory } from '@omne-harness/session-contract'
+import { emptyGuidanceIndex, extendGuidanceIndex, type GuidanceIndex } from './guidance-window.ts'
 
-export type GuidanceHistory = Readonly<{ messages: readonly Message[]; basis: ModelViewBasis }>
+export type GuidanceHistory = Readonly<{
+  basis: ModelViewBasis
+  resume: string | null
+  index: GuidanceIndex
+}>
 
-/** Read the same bounded epoch the Session exposes to Request Context. */
+/** Every read requalifies. Only a verified prefix of the same effective epoch can satisfy a source. */
 export async function readGuidanceHistory<P>(
-  history: SessionHistory<P>,
-  access: { principal: P; tenant: TenantId; session: SessionId },
+  history: Pick<SessionHistory<P>, 'readModelView'>,
+  access: SessionAccess<P>,
+  partition: string,
+  previous?: GuidanceHistory,
 ): Promise<Outcome<GuidanceHistory, ModelReminderFailure>> {
-  const reminders: Message[] = []
+  let cached = previous?.resume == null ? undefined : previous
+  let index = cached?.index ?? emptyGuidanceIndex()
+  let after = cached?.resume ?? null
   let basis: ModelViewBasis | null = null
-  let after: string | null = null
   for (;;) {
-    const page = await history.readModelView({ ...access, basis, after, pageBytes: 1_048_576 })
+    const page = await history.readModelView({
+      ...access,
+      basis,
+      after,
+      resumeAtEnd: true,
+      pageBytes: 1_048_576,
+    })
+    if (
+      cached &&
+      ('failure' in page
+        ? page.failure.kind === 'invalid'
+        : page.ok.kind !== 'page' || page.ok.basis.epoch !== cached.basis.epoch)
+    ) {
+      cached = undefined
+      after = null
+      basis = null
+      index = emptyGuidanceIndex()
+      continue
+    }
     if ('failure' in page) {
       if (page.failure.kind === 'denied') return fail({ kind: 'denied' })
       return fail({
@@ -28,9 +52,13 @@ export async function readGuidanceHistory<P>(
         kind: 'unavailable',
         diagnostic: 'the Session model view changed during preparation',
       })
-    for (const { message } of page.ok.rows)
-      if (message.role === 'system_reminder') reminders.push(message)
-    if (page.ok.next === null) return succeed({ messages: reminders, basis: page.ok.basis })
+    index = extendGuidanceIndex(
+      index,
+      page.ok.rows.map(row => row.message),
+      partition,
+    )
+    if (page.ok.next === null)
+      return succeed({ index, basis: page.ok.basis, resume: page.ok.resume ?? null })
     basis = page.ok.basis
     after = page.ok.next
   }

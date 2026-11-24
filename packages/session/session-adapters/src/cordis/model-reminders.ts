@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { guidanceBlocks } from './guidance-window.ts'
+import { missingGuidanceBlocks } from './guidance-window.ts'
 import { workspaceGuidanceSchema, workspaceGuidanceDescriptor } from '../workspace-guidance.ts'
 import type { GuidanceHistory } from './guidance-history.ts'
 import type { ModelViewBasis, SessionId } from '@omne-harness/session-contract'
@@ -59,10 +59,19 @@ export type ModelReminderPorts<P> = Readonly<{
   eligibility: ReaderEligibilityHandoff<P>
   runtimeContext: ReaderOperations
   descriptors: DescriptorCatalog
-  history?(input: ModelReminderInput<P>): Promise<Answer<GuidanceHistory>>
+  history?(
+    input: ModelReminderInput<P>,
+    partition: string,
+    previous?: GuidanceHistory,
+  ): Promise<Answer<GuidanceHistory>>
 }>
 
-type Told = Readonly<{ eligibility: EligibilityId; reader: ContextReader; snapshot: Snapshot }>
+type Told = Readonly<{
+  window?: GuidanceHistory
+  eligibility: EligibilityId
+  reader: ContextReader
+  snapshot: Snapshot
+}>
 type Refusal = Exclude<SnapshotResult | ChangesResult, { kind: 'success' }>
 type Answer<T> = Outcome<T, ModelReminderFailure>
 
@@ -191,26 +200,32 @@ export function createModelReminders<P>(ports: ModelReminderPorts<P>): ModelRemi
           block => block.key === workspaceGuidanceDescriptor.key,
         )?.state
         let guidance: readonly TextContentBlock[] = []
-        let modelView: ModelViewBasis | undefined
+        let window: GuidanceHistory | undefined
         if (state?.kind === 'value') {
           const scope = workspaceGuidanceSchema.safeParse(state.value)
           if (!scope.success) return down('invalid workspace guidance value')
-          const history = await ports.history?.(input)
+          const history = await ports.history?.(input, key, previous?.window)
           if (history === undefined)
             return down('the current model view for workspace guidance is unavailable')
           if ('failure' in history) return history
-          modelView = history.ok.basis
-          guidance = guidanceBlocks(scope.data, history.ok.messages, key)
+          window = history.ok
+          guidance = missingGuidanceBlocks(scope.data, history.ok.index, key)
         }
         return succeed({
-          ...(modelView === undefined ? {} : { modelView }),
+          ...(window === undefined ? {} : { modelView: window.basis }),
           messages: reminderMessages(
             [input.tenant, input.scope.ref, input.at, snapshot.viewRevision],
             text,
             guidance,
           ),
           viewRevision: String(snapshot.viewRevision),
-          advance: () => told.set(key, { eligibility: eligibility.ok, reader, snapshot }),
+          advance: () =>
+            told.set(key, {
+              eligibility: eligibility.ok,
+              reader,
+              snapshot,
+              ...(window === undefined ? {} : { window }),
+            }),
         })
       }
       if (previous !== undefined) {

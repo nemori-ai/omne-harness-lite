@@ -421,6 +421,8 @@ export type ModelViewRead =
       kind: 'page'
       basis: ModelViewBasis
       rows: readonly ModelViewRow[]
+      /** Requested tail cursor for continuing an index in the same epoch. */
+      resume?: string
       next: string | null
     }>
   | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
@@ -452,7 +454,12 @@ export interface SessionHistory<P> {
   ): Reply<HistoryPage>
   readModelView(
     input: SessionAccess<P> &
-      Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
+      Readonly<{
+        basis: ModelViewBasis | null
+        after: string | null
+        pageBytes: number
+        resumeAtEnd?: true
+      }>,
   ): Reply<ModelViewRead>
 }
 export type ArchivedBy = 'person' | 'auto' | 'parent'

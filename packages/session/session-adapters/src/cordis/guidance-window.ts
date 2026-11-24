@@ -5,35 +5,70 @@ import type { WorkspaceGuidance } from '../workspace-guidance.ts'
 
 const manifestPrefix = 'blk_guidance_scope_'
 const sourcePrefix = 'blk_guidance_source_'
-function block(prefix: string, partition: string, value: unknown): TextContentBlock {
-  const text = JSON.stringify(value)
+function blockId(prefix: string, partition: string, text: string): BlockId {
   const digest = createHash('sha256')
     .update(JSON.stringify([partition, text]))
     .digest('base64url')
+  return (prefix + digest) as BlockId
+}
+
+function block(prefix: string, partition: string, value: unknown): TextContentBlock {
+  const text = JSON.stringify(value)
   return {
     kind: 'text',
-    id: (prefix + digest) as BlockId,
+    id: blockId(prefix, partition, text),
     text,
     visibility: { toModel: true, toHuman: true },
   }
 }
 
-/** Only source-identified, model-visible, intact reminder blocks satisfy a current requirement. */
+export type GuidanceIndex = Readonly<{ manifest: BlockId | null; sources: ReadonlySet<BlockId> }>
+export const emptyGuidanceIndex = (): GuidanceIndex => ({ manifest: null, sources: new Set() })
+
+/** An entry proves a body only if its committed identifier matches every byte visible to the model. */
+export function extendGuidanceIndex(
+  previous: GuidanceIndex,
+  messages: readonly Message[],
+  partition: string,
+): GuidanceIndex {
+  let manifest = previous.manifest
+  let sources: Set<BlockId> | undefined
+  for (const message of messages) {
+    if (message.role !== 'system_reminder') continue
+    for (const part of message.blocks) {
+      if (part.kind !== 'text' || !part.visibility.toModel) continue
+      if (part.id.startsWith(manifestPrefix))
+        manifest = part.id === blockId(manifestPrefix, partition, part.text) ? part.id : null
+      if (
+        part.id.startsWith(sourcePrefix) &&
+        !previous.sources.has(part.id) &&
+        part.id === blockId(sourcePrefix, partition, part.text)
+      ) {
+        sources ??= new Set(previous.sources)
+        sources.add(part.id)
+      }
+    }
+  }
+  return { manifest, sources: sources ?? previous.sources }
+}
+
 export function guidanceBlocks(
   scope: WorkspaceGuidance,
   history: readonly Message[],
   partition: string,
 ): TextContentBlock[] {
-  const visible = new Map<string, string>()
-  let lastManifest: TextContentBlock | undefined
-  for (const message of history) {
-    if (message.role !== 'system_reminder') continue
-    for (const part of message.blocks) {
-      if (part.kind !== 'text' || !part.visibility.toModel) continue
-      if (part.id.startsWith(manifestPrefix)) lastManifest = part
-      if (part.id.startsWith(sourcePrefix)) visible.set(part.id, part.text)
-    }
-  }
+  return missingGuidanceBlocks(
+    scope,
+    extendGuidanceIndex(emptyGuidanceIndex(), history, partition),
+    partition,
+  )
+}
+
+export function missingGuidanceBlocks(
+  scope: WorkspaceGuidance,
+  index: GuidanceIndex,
+  partition: string,
+): TextContentBlock[] {
   const scopeKey = 'session.workspace-guidance'
   const basis =
     scope.state === 'attached'
@@ -46,11 +81,10 @@ export function guidanceBlocks(
     sources: sources.map(({ path, digest }) => ({ path, digest })),
   })
   const pending: TextContentBlock[] = []
-  if (lastManifest?.id !== manifest.id || lastManifest.text !== manifest.text)
-    pending.push(manifest)
+  if (index.manifest !== manifest.id) pending.push(manifest)
   for (const source of sources) {
     const body = block(sourcePrefix, partition, { key: scopeKey, scope: basis, source })
-    if (visible.get(body.id) !== body.text) pending.push(body)
+    if (!index.sources.has(body.id)) pending.push(body)
   }
   return pending
 }

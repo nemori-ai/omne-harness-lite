@@ -425,13 +425,19 @@ export function historyFace<P>(context: Context<P>): SessionHistory<P> {
       if (out['kind'] === 'unreadable')
         return failure(unavailable('a segment of the model view cannot be read'))
       const next = out['next'] as string | null
-      const token = next === null ? null : await seal(context.cursor, binding, { after: next })
+      const basis = basisOf(out['basis'] as { epoch: string; upper: string })
+      const cursorPosition = next ?? (input.resumeAtEnd ? basis.upper : null)
+      const token =
+        cursorPosition === null
+          ? null
+          : await seal(context.cursor, binding, { after: cursorPosition })
       if (token !== null && 'failure' in token) return token
       return succeed({
         kind: 'page',
-        basis: basisOf(out['basis'] as { epoch: string; upper: string }),
+        basis,
         rows: out['rows'] as never,
-        next: token === null ? null : token.ok,
+        next: next === null ? null : (token?.ok ?? null),
+        ...(next === null && input.resumeAtEnd && token !== null ? { resume: token.ok } : {}),
       } satisfies ModelViewRead)
     },
   }

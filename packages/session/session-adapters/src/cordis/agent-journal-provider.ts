@@ -671,7 +671,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
         ? {}
         : {
             reminders: createModelReminders<unknown>({
-              history: async ({ principal, tenant, session }) => {
+              history: async ({ principal, tenant, session }, partition, previous) => {
                 const history = ctx
                   .intercept(sessionKey, { caller: 'reader' })
                   .get(sessionKey, false)?.history
@@ -680,7 +680,12 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
                     kind: 'unavailable',
                     diagnostic: 'the Session model history reader is unavailable',
                   })
-                return readGuidanceHistory(history, { principal, tenant, session })
+                return readGuidanceHistory(
+                  history,
+                  { principal, tenant, session },
+                  partition,
+                  previous,
+                )
               },
               eligibility: {
                 current: request => ctx[runtimeContextReaderEligibilityKey].current(request),
