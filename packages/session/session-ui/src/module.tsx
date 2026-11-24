@@ -23,6 +23,7 @@ import { HistorySearchStore } from './model/history-search.ts'
 import { BackgroundCallsStore } from './model/background-calls.ts'
 import type { ComposerAssistant } from './model/composer-assistant.ts'
 import { ComposerDraftStore, type ComposerDrafts } from './model/composer-drafts.ts'
+import type { SessionComposer } from './model/composer-handles.ts'
 import { ModelSelectionStore, type ModelChoiceSource } from './model/model-selection.ts'
 import { PermissionModeStore } from './model/permission-mode.ts'
 import { SessionWorkStore } from './model/session-work.ts'
@@ -74,6 +75,7 @@ export type SessionUiOptions = Readonly<{
 
 /** Where a contribution to the composer gives back what the message being written carries. */
 export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
+export const sessionComposerKey = serviceKey<SessionComposer>('session.composer')
 
 /** A block of a message drawn by whatever is put at its point, told what the model read of it. */
 const SESSION_POINTS = [
@@ -246,6 +248,7 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
   const figure = new SessionFigure(report => shell.figure(report))
   const conversationShown = shownOn(shell)
   const keys = sessionKeys(shell, workspaces, client, PAGES)
+  provide(sessionComposerKey, keys.composer)
   sessionDock.contribute(shell, {
     id: 'background-calls',
     order: 10,

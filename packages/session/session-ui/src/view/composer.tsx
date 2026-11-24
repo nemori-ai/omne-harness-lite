@@ -171,6 +171,7 @@ export const ComposerKeysContext = createContext<ComposerKeys | null>(null)
 type Latest = Readonly<{
   sendAs: (way: SendWay) => true | string
   write: (next: string, caret: number) => void
+  say: (words: string) => void
   text: string
 }>
 
@@ -193,6 +194,13 @@ function useComposerHandle(
           write(text.slice(0, at) + words + text.slice(at), at + words.length)
         },
         send: way => latest.current.sendAs(way),
+        write: words => {
+          const { text, write } = latest.current
+          const next = `${words}${text.trimStart()}`
+          field.current?.focus()
+          write(next, next.length)
+        },
+        say: words => latest.current.say(words),
       }),
     [keys, session, field],
   )
@@ -241,7 +249,8 @@ export function Composer({
     return true
   }
   const submit = () => void sendAs('send')
-  useComposerHandle(keys, session, field, { sendAs, write, text })
+  const say = (words: string) => void driver.send(words, [], undefined)
+  useComposerHandle(keys, session, field, { sendAs, write, say, text })
   const follow = (answer: AssistAnswer) => {
     if (answer.kind === 'edit') write(answer.text, answer.caret)
     if (answer.kind === 'send') submit()

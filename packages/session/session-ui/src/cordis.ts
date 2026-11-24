@@ -3,6 +3,7 @@ export {
   SESSION_LIST,
   createSessionUiModule,
   sessionComposerIntakeKey,
+  sessionComposerKey,
   sessionUiModule,
   type SessionUiOptions,
 } from './module.tsx'
@@ -13,6 +14,7 @@ export type {
   ModelChoiceSource,
 } from './model/model-selection.ts'
 export type { ComposerDrafts, DraftOffer } from './model/composer-drafts.ts'
+export type { SessionComposer } from './model/composer-handles.ts'
 export type {
   Assist,
   AssistAnswer,

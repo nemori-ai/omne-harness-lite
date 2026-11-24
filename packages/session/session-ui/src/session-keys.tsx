@@ -4,7 +4,7 @@ import { actionAt, chordOf, keymapOf, type KeyPress } from '@omne-harness/shell-
 import type { ShellService } from '@omne-harness/shell-contract/cordis'
 import type { ReactNode } from 'react'
 import { CallControls } from './model/call-controls.ts'
-import { ComposerHandles, type SendWay } from './model/composer-handles.ts'
+import { ComposerHandles, composerOf, type SendWay } from './model/composer-handles.ts'
 import { sessionActions, type SessionActionDeps } from './model/session-actions.ts'
 import type { SessionWorkspaces } from './model/session-workspaces.ts'
 import { CallControlContext, type CallControlSlot } from './view/block-slot.ts'
@@ -67,5 +67,5 @@ export function sessionKeys(
     </ComposerKeysContext.Provider>
   )
   for (const action of actions) shell.contribute('actions', action)
-  return { around }
+  return { around, composer: composerOf(handles) }
 }

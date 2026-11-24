@@ -74,6 +74,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'session.block-reads-source',
     'session.block-render',
     'session.call-detail',
+    'session.composer',
     'session.composer-attachments',
     'session.composer-intake',
     'session.dock',

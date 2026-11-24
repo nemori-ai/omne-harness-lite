@@ -83,9 +83,10 @@ export type ActionItem = Readonly<{
   id: string
   title: string
   group: string
-  kind: 'control' | 'ui'
+  kind: 'control' | 'ui' | 'command'
   order: number
   keys?: readonly ActionKey[]
+  slash?: string
   repeat?: true
   available: () => true | string
   run: () => void | Promise<void>

@@ -13,6 +13,8 @@ import {
   messageEntry,
 } from './fixtures/frames.ts'
 import { mountModule } from './fixtures/shell.tsx'
+import { providedOn } from '@omne-harness/shell-contract/testing'
+import { sessionComposerKey } from '../src/module.tsx'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -49,7 +51,7 @@ async function opened(run: string | null, entries = [assistantEntry('1', '1', '�
     if (found === undefined) throw new Error(`no action ${id}`)
     return found
   }
-  return { fake, action }
+  return { fake, action, mounted }
 }
 
 const box = () => screen.getByRole<HTMLTextAreaElement>('textbox', { name: '输入消息' })
@@ -99,6 +101,33 @@ describe('the controls of the run on show (C14)', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: '停掉这个调用' }))
     const stopped = await fake.next('stop-call')
     expect(stopped.body).toMatchObject({ producer: { kind: 'tool', call: 'call_7' } })
+  })
+})
+
+describe('one command, whatever triggers it (C15)', () => {
+  it('the stop button and the stop action ask Session the same thing of the same run', async () => {
+    const { fake, action } = await opened('run_1')
+    fireEvent.click(screen.getByRole('button', { name: '停止' }))
+    const byButton = (await fake.next('cancel-run')).body as Record<string, unknown>
+    fake.calls.findLast(call => call.operation === 'cancel-run')?.answer({ outcome: 'uncertain' })
+    await settle()
+    await act(async () => void action('session.stop').run())
+    const byAction = (await fake.next('cancel-run')).body as Record<string, unknown>
+    const { controlId: _a, ...button } = byButton
+    const { controlId: _b, ...run } = byAction
+    expect(run).toEqual(button)
+    expect(run).toMatchObject({ run: 'run_1', urgency: 'graceful' })
+  })
+
+  it('what other modules write starts the composer, and what they say goes out as it is', async () => {
+    const { fake, mounted } = await opened('run_1')
+    const composer = providedOn(mounted.shell, sessionComposerKey)!
+    fireEvent.change(box(), { target: { value: '  旧的话' } })
+    act(() => void composer.write('/model '))
+    expect(box().value).toBe('/model 旧的话')
+    act(() => void composer.say('/archive'))
+    expect((await fake.next('send-input')).body).toMatchObject({ session: 'ses_a' })
+    expect(box().value).toBe('/model 旧的话')
   })
 })
 

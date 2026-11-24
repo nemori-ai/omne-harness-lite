@@ -91,6 +91,7 @@ const REST = [
   'ChoiceList',
   'ChoiceRow',
   'CodeSurface',
+  'CommandPalette',
   'CountPill',
   'Disclosure',
   'DisclosureContent',

@@ -8,9 +8,33 @@ export type ComposerHandle = Readonly<{
   session: string
   focus: () => void
   insert: (text: string) => void
-  /** Sends what is written; answers why not when it cannot. */
   send: (way: SendWay) => true | string
+  /** Puts words at the start of what is written, for the person to go on. */
+  write: (text: string) => void
+  /** Sends these words as they are, leaving what is written alone. */
+  say: (text: string) => void
 }>
+
+/** What other modules may do to the composer on show: each answers why not when none is open. */
+export type SessionComposer = Readonly<{
+  write: (text: string) => true | string
+  say: (text: string) => true | string
+}>
+
+const NO_COMPOSER = '没有打开的输入框'
+
+export function composerOf(handles: ComposerHandles): SessionComposer {
+  const act = (use: (handle: ComposerHandle) => void) => (): true | string => {
+    const handle = handles.current()
+    if (handle === undefined) return NO_COMPOSER
+    use(handle)
+    return true
+  }
+  return {
+    write: text => act(handle => handle.write(text))(),
+    say: text => act(handle => handle.say(text))(),
+  }
+}
 
 /** The composer on show, if any: the last one mounted wins, and leaving takes only itself away. */
 export class ComposerHandles {

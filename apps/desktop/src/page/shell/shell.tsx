@@ -1,13 +1,13 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
 import type {
-  ActionItem,
   FigureDoing,
   MergedFigure,
   PageItem,
@@ -29,8 +29,9 @@ import { Float } from './float.tsx'
 import type { FloatPlaces } from './float-place.ts'
 import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
-import { bindShellKeys } from './keys.ts'
-import { frameActions, regionActions, sizeActions } from './layout-actions.ts'
+import { runAction } from './dispatch.ts'
+import { bindShellKeys, shellKeys } from './keys.ts'
+import { paletteSwitch, ShellPalette } from './palette.tsx'
 import { lackText, type Lack, type LackSlot } from './lacks.ts'
 import { shellApp, shellGate, shellWorkspace, shellWorkspacePage } from './parts.ts'
 import { pressSeat, useSeatedHome } from './seats.ts'
@@ -332,29 +333,6 @@ function Workspace(props: SidebarProps & { missing: readonly string[]; floats: F
   )
 }
 
-const KEYS = { name: 'shell keys' }
-const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
-
-function shellKeys(state: ShellState, size: SizeSwitch) {
-  const tell = (id: string, title: string): void =>
-    state.told.show(KEYS, { id, tone: 'attention', title })
-  return {
-    mac: MAC,
-    actions: () => [
-      ...regionActions(),
-      ...sizeActions(size),
-      ...frameActions(),
-      ...state.slots.items('actions'),
-    ],
-    refused: (action: ActionItem, reason: string) => tell(action.id, reason),
-    failed: (action: ActionItem, error: unknown) => {
-      console.error(error)
-      tell(action.id, `${action.title}没有做成`)
-    },
-    leave: () => document.getElementById('shell-content')?.focus(),
-  }
-}
-
 export function Shell(props: ShellProps) {
   const { state } = props
   const login = useLoginState(state)
@@ -363,7 +341,9 @@ export function Shell(props: ShellProps) {
   const pages = useSlot(state.slots, 'pages')
   const shown = useWatched(state.page)
   const merged = useFigure(state, pages, shown)
-  useEffect(() => bindShellKeys(window, shellKeys(state, props.size)), [state, props.size])
+  const palette = useMemo(paletteSwitch, [])
+  const keys = useMemo(() => shellKeys(state, props.size, palette), [state, props.size, palette])
+  useEffect(() => bindShellKeys(window, keys), [keys])
   const homePage =
     merged.waiting > 0 && merged.waitingPage !== undefined ? merged.waitingPage : pages[0]?.id
   return (
@@ -395,6 +375,12 @@ export function Shell(props: ShellProps) {
           <Outside state={state} login={login} connectivity={connectivity} missing={missing} />
         )}
       </FigureStage>
+      <ShellPalette
+        palette={palette}
+        actions={keys.actions}
+        mac={keys.mac}
+        run={action => void runAction(action, keys)}
+      />
     </AppTooltipProvider>
   )
 }

@@ -30,6 +30,8 @@ system
           session-ui#1  [effective]
         session.call-detail
           session-ui#1  [effective]
+        session.composer
+          session-ui#1  [effective]
         session.composer-attachments
           session-ui#1  [effective]
         session.composer-intake
@@ -143,6 +145,8 @@ system
           media-ui#1  [effective]
       session.call-detail  [list]
         tool-call-output  [effective, tool-ui#1]
+      session.composer  [one]
+        session-ui#1  [effective]
       session.composer-attachments  [list]
         media  [effective, media-ui#1]
       session.composer-intake  [one]

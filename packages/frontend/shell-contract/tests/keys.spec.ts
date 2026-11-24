@@ -6,6 +6,7 @@ import {
   keyClashes,
   actionAt,
   keymapOf,
+  normalChord,
   resolveKey,
   type ActionItem,
   type KeyPress,
@@ -55,7 +56,34 @@ describe('a key press as a chord', () => {
     [press('Meta', 'MetaLeft', { metaKey: true }), true, null],
   ])('%j on mac=%s is %s', (given, mac, wanted) => expect(chordOf(given, mac)).toBe(wanted))
 
+  it.each([
+    ['∫', 'KeyB', { altKey: true }, 'Alt+B'],
+    ['º', 'Digit0', { altKey: true }, 'Alt+0'],
+    ['F', 'KeyF', { metaKey: true, shiftKey: true }, 'Mod+Shift+F'],
+    ['≤', 'Comma', { metaKey: true }, 'Mod+,'],
+    ['–', 'Minus', { metaKey: true }, 'Mod+-'],
+    ['≠', 'Equal', { metaKey: true }, 'Mod+='],
+    ['“', 'BracketLeft', { metaKey: true }, 'Mod+['],
+    ['‘', 'BracketRight', { metaKey: true }, 'Mod+]'],
+    ['«', 'Backslash', { metaKey: true }, 'Mod+\\'],
+    ['…', 'Semicolon', { metaKey: true }, 'Mod+;'],
+    ['æ', 'Quote', { metaKey: true }, "Mod+'"],
+    ['`', 'Backquote', { metaKey: true }, 'Mod+`'],
+    ['+', 'NumpadAdd', { metaKey: true }, 'Mod+Plus'],
+    ['k', 'KeyK', { ctrlKey: true, metaKey: true }, 'Ctrl+Mod+K'],
+  ] as const)(
+    'with a modifier held, %s on %s reads the key where it sits',
+    (key, code, held, wanted) => expect(chordOf(press(key, code, held), true)).toBe(wanted),
+  )
+
+  it('writes a chord a person wrote in one order of modifiers', () => {
+    expect(normalChord(' shift + mod + k ')).toBe('Mod+Shift+K')
+    expect(normalChord('alt+ctrl+escape')).toBe('Ctrl+Alt+Escape')
+  })
+
   it('is written as the platform writes it', () => {
+    expect(chordLabel('Ctrl+Tab', true)).toBe('⌃Tab')
+    expect(chordLabel('Escape', true)).toBe('Esc')
     expect(chordLabel('Mod+Shift+F', true)).toBe('⌘⇧F')
     expect(chordLabel('Alt+Enter', true)).toBe('⌥↩')
     expect(chordLabel('Mod+Shift+F', false)).toBe('Ctrl+Shift+F')
@@ -146,6 +174,60 @@ describe('giving a key to an action', () => {
     expect(chordOf(press('Tab', 'Tab', { ctrlKey: true }), false)).toBe('Mod+Tab')
     expect(actionAt(MAP, 'composer', 'Enter')).toBe('session.send')
     expect(actionAt(MAP, 'page', 'Enter')).toBeUndefined()
+  })
+
+  it.each([
+    'Mod+V',
+    'Mod+X',
+    'Mod+A',
+    'Mod+Z',
+    'Mod+Shift+Z',
+    'Mod+Q',
+    'Mod+W',
+    'Tab',
+    'Shift+Tab',
+  ])('refuses the key of the system or of editing %s', chord =>
+    expect(judgeBinding(MAP, stop, chord)).toMatchObject({
+      ok: false,
+      why: `${chord} 是系统或编辑的键，不能绑`,
+    }),
+  )
+
+  it('gives a key only to a control or an action of the interface, and a typing key only where nobody types', () => {
+    const command = { id: 'slash-command.x', kind: 'command', keys: [] } as const
+    expect(judgeBinding(MAP, command, 'Mod+J')).toEqual({
+      ok: false,
+      why: '键只能绑到控制与界面动作上',
+    })
+    const onPage = action('a.page', 'G', 'page')
+    expect(judgeBinding(MAP, onPage, 'J')).toEqual({ ok: true, chord: 'J' })
+    expect(judgeBinding(MAP, action('a.field', 'Mod+J', 'composer'), 'Shift+J').ok).toBe(false)
+    expect(judgeBinding(MAP, { id: 'a.none', kind: 'ui' }, 'J').ok).toBe(false)
+  })
+
+  it('sees a clash only where both keys are seen: the same layer, or one of them everywhere', () => {
+    expect(judgeBinding(MAP, action('a.page', 'G', 'page'), 'Mod+Enter')).toEqual({
+      ok: true,
+      chord: 'Mod+Enter',
+    })
+    expect(judgeBinding(MAP, action('a.page', 'G', 'page'), 'Mod+.')).toMatchObject({
+      ok: false,
+      why: '和 session.stop 撞了',
+    })
+    expect(judgeBinding(MAP, action('a.all', 'G', 'global'), 'Mod+Enter')).toMatchObject({
+      clash: 'session.send-first',
+    })
+    expect(judgeBinding(MAP, stop, 'Mod+.')).toEqual({ ok: true, chord: 'Mod+.' })
+  })
+
+  it('puts a changed key in the layer of the action, everywhere when it had none, and reads Ctrl and Mod as one off macOS', () => {
+    expect(keymapOf([{ id: 'a.none' }], { 'a.none': 'Mod+J' })).toEqual([
+      { layer: 'global', chord: 'Mod+J', action: 'a.none' },
+    ])
+    expect(keymapOf([{ id: 'a.none' }], { 'a.none': undefined as never })).toEqual([])
+    expect(keymapOf([action('a.x', 'Ctrl+Mod+K', 'global')], {}, false)[0]?.chord).toBe('Mod+K')
+    const twice = action('a.x', 'Mod+K', 'global')
+    expect(keyClashes(keymapOf([{ ...twice, keys: [...twice.keys, ...twice.keys] }]))).toEqual([])
   })
 
   it('finds two actions on one key in one layer', () => {

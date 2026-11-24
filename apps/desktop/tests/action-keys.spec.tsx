@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
 import { bindActionKeys } from '../src/page/shell/dispatch.ts'
 import { frameActions, regionActions, sizeActions } from '../src/page/shell/layout-actions.ts'
+import { paletteActions, paletteSwitch } from '../src/page/shell/palette.tsx'
 import { shellPlugin } from '../src/page/shell/service.ts'
 import { createShellState } from '../src/page/shell/state.ts'
 import { quietConnection } from './support/shell-setup.tsx'
@@ -48,11 +49,17 @@ async function assembled(): Promise<readonly ActionItem[]> {
     ...regionActions(),
     ...sizeActions(size),
     ...frameActions(),
+    ...paletteActions(paletteSwitch()),
     ...state.slots.items('actions'),
   ]
 }
 
-const SIGN: Readonly<Record<string, string>> = { '/': 'Slash', '.': 'Period', ',': 'Comma' }
+const SIGN: Readonly<Record<string, string>> = {
+  '/': 'Slash',
+  '.': 'Period',
+  ',': 'Comma',
+  '?': 'Slash',
+}
 const SIGN_CODE = (key: string): string =>
   /^[A-Z]$/u.test(key) ? `Key${key}` : /^\d$/u.test(key) ? `Digit${key}` : (SIGN[key] ?? key)
 
@@ -75,7 +82,7 @@ function pressOf(chord: string): KeyboardEventInit {
 
 type Where = 'page' | 'field' | 'overlay'
 
-/** design/first-batch.md: each command that comes with a key, the key on macOS, and where it is pressed. */
+/** design/first-batch.md: each command that comes with a key, the key on macOS, and where it is pressed; Enter is the composer's (session-ui). */
 const FIRST_BATCH: readonly (readonly [string, string, Where])[] = [
   ['session.stop', 'Mod+.', 'field'],
   ['session.background', 'Mod+Shift+B', 'page'],
@@ -100,6 +107,10 @@ const FIRST_BATCH: readonly (readonly [string, string, Where])[] = [
   ['shell.smaller', 'Mod+-', 'page'],
   ['shell.reset-size', 'Mod+0', 'page'],
   ['shell.close-layer', 'Escape', 'overlay'],
+  ['shell.palette', 'Mod+K', 'field'],
+  ['shell.palette', 'Mod+K', 'overlay'],
+  ['shell.shortcuts', 'Mod+/', 'field'],
+  ['shell.shortcuts', '?', 'page'],
 ]
 
 afterEach(() => {
