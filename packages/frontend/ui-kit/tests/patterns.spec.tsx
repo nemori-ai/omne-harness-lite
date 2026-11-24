@@ -241,6 +241,64 @@ it('Ago shows an age in words and keeps the instant on the element', () => {
   expect(time.getAttribute('title')).toBe(formatInstant(at))
 })
 
+it('a moment written again and again builds its formats once for each set of options', () => {
+  const Real = Intl.DateTimeFormat
+  let built = 0
+  vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function (
+    ...args: ConstructorParameters<typeof Intl.DateTimeFormat>
+  ) {
+    built += 1
+    return new Real(...args)
+  } as typeof Intl.DateTimeFormat)
+  try {
+    const at = '2026-01-01T15:04:00.000Z'
+    const base = Date.parse('2026-06-01T00:00:00.000Z')
+    const write = () => [
+      formatInstant(at),
+      formatInstant(at, 'h12'),
+      formatInstant(at, 'h23'),
+      formatRelative('2026-02-01T00:00:00.000Z', base),
+      formatRelative('2024-02-01T00:00:00.000Z', base),
+    ]
+    const first = write()
+    const once = built
+    for (let round = 0; round < 10; round += 1) {
+      expect(write()).toEqual(first)
+      render(<Ago at={at} now={base} />)
+    }
+    expect(built).toBe(once)
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+it('a moment is written as a format built for it would write it, for each hour cycle and year', () => {
+  const at = '2026-01-01T15:04:00.000Z'
+  const instant = Date.parse(at)
+  const clock = (hourCycle: 'h12' | 'h23') =>
+    new Intl.DateTimeFormat('zh-CN', { hour: 'numeric', minute: '2-digit', hourCycle }).format(
+      instant,
+    )
+  const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full' }).format(instant)
+  formatInstant(at, 'h23')
+  expect(formatInstant(at, 'h12')).toBe(`${date} ${clock('h12')}`)
+  expect(formatInstant(at, 'h23')).toBe(`${date} ${clock('h23')}`)
+  const base = Date.parse('2026-06-01T00:00:00.000Z')
+  const month = (iso: string, year: boolean) =>
+    new Intl.DateTimeFormat('zh-CN', {
+      month: 'short',
+      day: 'numeric',
+      ...(year ? { year: 'numeric' } : {}),
+    }).format(Date.parse(iso))
+  formatRelative('2026-02-01T00:00:00.000Z', base)
+  expect(formatRelative('2024-02-01T00:00:00.000Z', base)).toBe(
+    month('2024-02-01T00:00:00.000Z', true),
+  )
+  expect(formatRelative('2026-02-01T00:00:00.000Z', base)).toBe(
+    month('2026-02-01T00:00:00.000Z', false),
+  )
+})
+
 it('Ago shows an unreadable instant exactly as given', () => {
   render(<Ago at="不是时间" now={0} />)
   expect(screen.getByText('不是时间').tagName).toBe('SPAN')
