@@ -2,6 +2,7 @@ import {
   capabilityId,
   pinBody,
   projectAssetSettings,
+  readBodyText,
   type BodyContract,
   type HeldItem,
   type JsonValue,
@@ -81,6 +82,23 @@ export function officialHolding(asset: OfficialAsset): OfficialHolding {
     },
     definition,
   }
+}
+
+// Room for the largest definition the release carries: an Agent definition holds up to 32 sections of 10,000 bytes.
+const DOCUMENT_LIMITS = {
+  maxBytes: 512 * 1024,
+  maxDepth: 24,
+  maxItems: 16384,
+  maxMembers: 16384,
+  maxStringLength: 16384,
+  maxNumberLength: 32,
+}
+
+/** A definition the release carries, as the body of its official asset; the release refuses to start without it. */
+export function releaseDocument(value: unknown): JsonValue {
+  const read = readBodyText(JSON.stringify(value), DOCUMENT_LIMITS)
+  if (read.kind !== 'ok') throw new Error(`a release definition is not a document: ${read.kind}`)
+  return read.value
 }
 
 export function holdingKey(

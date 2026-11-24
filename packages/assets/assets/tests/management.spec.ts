@@ -160,6 +160,7 @@ function setup(
     },
     categories,
     publishing: { publish: async () => ({ kind: 'unavailable' }) },
+    official: () => [],
     async storeOf() {
       if (options.store === 'throws') throw new Error('the tenant set does not open')
       return options.store === 'missing' ? undefined : store

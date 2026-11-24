@@ -124,6 +124,7 @@ export const tenantAssetsRow = defineRow({
             ? undefined
             : createTenantLayerStore(assets, tenant, categories, layerSources(tenant))
         },
+        official: () => ctx.assetCategories.official(),
       }),
     )
     new AssetChangesService(ctx, changes)

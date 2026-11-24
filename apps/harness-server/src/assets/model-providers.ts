@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readBodyText } from '@omne-harness/assets'
+import { readBodyText, type JsonValue } from '@omne-harness/assets'
 import {
   modelProviderBodyContract,
   parseModelProviderBody,
@@ -31,6 +31,8 @@ const BODY_LIMITS = {
 
 export type ReleaseProvider = Readonly<{
   body: ModelProviderBody
+  /** The body as the document its official asset holds. */
+  document: JsonValue
   version: string
   holding: Extract<OfficialHolding, { kind: 'declared' }> | null
 }>
@@ -50,7 +52,7 @@ function readProvider(text: string): ReleaseProvider {
   })
   if (held.kind === 'rejected')
     throw new Error(`the provider ${body.name} declares no valid settings: ${held.reason}`)
-  return { body, version, holding: held.kind === 'declared' ? held : null }
+  return { body, document: read.value, version, holding: held.kind === 'declared' ? held : null }
 }
 
 let providers: readonly ReleaseProvider[] | undefined

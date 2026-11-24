@@ -7,7 +7,7 @@ import { agentDefinitionCategoryPlugin } from '@omne-harness/agent-host-local/co
 import { broughtDefinitionsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import { agentDefinitionCatalogKey } from './definition-catalog.ts'
 import { definitionMappingsKey } from './definition-mappings.ts'
-import { officialItem } from '../../assets/official-holdings.ts'
+import { officialItem, releaseDocument } from '../../assets/official-holdings.ts'
 import { defineRow } from '../../row.ts'
 import { agentAdoptionsConfig, type AgentAdoptionsConfig } from './config.ts'
 import {
@@ -31,6 +31,7 @@ const plugin: Plugin.Object = {
         table.mappings.entries().map(({ name, candidate }) => ({
           name,
           item: officialItem(DEFINITION_CATEGORY, name, candidate.digest),
+          body: releaseDocument(table.agentSide(candidate)?.definition),
         })),
       ),
     )

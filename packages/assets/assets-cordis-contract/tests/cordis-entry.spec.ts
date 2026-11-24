@@ -268,6 +268,8 @@ describe('the categories as keys on the registry of the tree', () => {
   })
 })
 
+const BODY = { kind: 'string', value: 'the body' } as const
+
 describe('the point of a category, and what the deployment brings on it', () => {
   const item = (asset: string, version = 'v1'): HeldItem => ({
     asset,
@@ -308,8 +310,8 @@ describe('the point of a category, and what the deployment brings on it', () => 
       inject: ['assetCategories'],
       apply(ctx: Context) {
         ctx.assetCategories.bring('gadget.items', [
-          { name: 'spanner', item: item('official/gadget/spanner') },
-          { name: 'wrench', item: item('official/gadget/wrench', 'v7') },
+          { name: 'spanner', item: item('official/gadget/spanner'), body: BODY },
+          { name: 'wrench', item: item('official/gadget/wrench', 'v7'), body: BODY },
         ])
       },
     })
@@ -325,10 +327,85 @@ describe('the point of a category, and what the deployment brings on it', () => 
     expect(official(root, 'wrench')).toMatchObject({ kind: 'read', entries: [] })
   })
 
+  it('answers the official assets on the points of the categories, with the bodies they came with', async () => {
+    const { root, service } = await categories()
+    await root.plugin(contributionPlugin('gadget-category', contribution('gadget', 'G')))
+    const other = { kind: 'string', value: 'another body' } as const
+    const bringer = root.plugin({
+      name: 'release',
+      inject: ['assetCategories'],
+      apply(ctx: Context) {
+        ctx.assetCategories.bring('gadget.items', [
+          { name: 'spanner', item: item('official/gadget/spanner'), body: BODY },
+          { name: 'wrench', item: item('official/gadget/wrench', 'v7'), body: other },
+        ])
+      },
+    })
+    await bringer.await()
+    expect(service.official()).toEqual([
+      {
+        capability: { category: 'gadget', name: 'spanner' },
+        asset: 'official/gadget/spanner',
+        version: 'v1',
+        body: BODY,
+      },
+      {
+        capability: { category: 'gadget', name: 'wrench' },
+        asset: 'official/gadget/wrench',
+        version: 'v7',
+        body: other,
+      },
+    ])
+    await bringer.dispose()
+    expect(service.official()).toEqual([])
+  })
+
+  it('what is brought before its category is contributed is official once the category is there', async () => {
+    const { root, service } = await categories()
+    await root.plugin({
+      name: 'release',
+      inject: ['assetCategories'],
+      apply(ctx: Context) {
+        ctx.assetCategories.bring('gadget.items', [
+          { name: 'spanner', item: item('official/gadget/spanner'), body: BODY },
+        ])
+      },
+    })
+    expect(service.official()).toEqual([])
+    const category = root.plugin(contributionPlugin('gadget-category', contribution('gadget', 'G')))
+    await category.await()
+    expect(service.official()).toMatchObject([{ capability: { name: 'spanner' } }])
+    await category.dispose()
+    expect(service.official()).toEqual([])
+  })
+
+  it('two plugins that bring the same item: it stays official until the last of them goes', async () => {
+    const { root, service } = await categories()
+    await root.plugin(contributionPlugin('gadget-category', contribution('gadget', 'G')))
+    const bringer = (name: string) =>
+      root.plugin({
+        name,
+        inject: ['assetCategories'],
+        apply(ctx: Context) {
+          ctx.assetCategories.bring('gadget.items', [
+            { name: 'spanner', item: item('official/gadget/spanner'), body: BODY },
+          ])
+        },
+      })
+    const first = bringer('first')
+    const second = bringer('second')
+    await Promise.all([first.await(), second.await()])
+    expect(service.official()).toHaveLength(1)
+    await first.dispose()
+    expect(service.official()).toMatchObject([{ body: BODY }])
+    await second.dispose()
+    expect(service.official()).toEqual([])
+  })
+
   it('a plugin that only brings waits for the categories and holds up no one', async () => {
     const root = new Context()
     await root.plugin(DynamisService)
-    const brought = [{ name: 'spanner', item: item('official/gadget/spanner') }]
+    const brought = [{ name: 'spanner', item: item('official/gadget/spanner'), body: BODY }]
     const fiber = root.plugin(broughtDefinitionsPlugin('gadget-official', 'gadget.items', brought))
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(fiber.state).toBe(PENDING)
@@ -347,7 +424,9 @@ describe('the point of a category, and what the deployment brings on it', () => 
       name: 'release',
       inject: ['assetCategories'],
       apply(ctx: Context) {
-        ctx.assetCategories.bring('gadget.items', [{ name: 'spanner', item: item('a') }])
+        ctx.assetCategories.bring('gadget.items', [
+          { name: 'spanner', item: item('a'), body: BODY },
+        ])
       },
     })
     expect(official(root, 'spanner')).toMatchObject({ kind: 'unavailable', reason: 'undeclared' })
@@ -383,7 +462,7 @@ describe('the point of a category, and what the deployment brings on it', () => 
       name: 'holders',
       inject: ['assetCategories'],
       apply(ctx: Context) {
-        ctx.assetCategories.bring('gadget.items', [{ name: 'spanner', item: shipped }])
+        ctx.assetCategories.bring('gadget.items', [{ name: 'spanner', item: shipped, body: BODY }])
         ctx.assetCategories.holdingsOf(
           'tenant-a',
           () => undefined,
