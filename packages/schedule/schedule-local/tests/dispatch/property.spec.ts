@@ -42,14 +42,18 @@ function hinting(source: TimeSource, random: Random): TimeSource {
 
 type World = Awaited<ReturnType<typeof dispatchWorld>>
 
+/** An unknown answer is recalled by the same operation, the same key and the same expected revision, never a new one. */
 async function control(w: World, id: string, action: 'pause' | 'resume', key: string) {
   await w.stamp()
-  const result = await w.app.commands.execute(context, {
+  const command = {
     action,
     scheduleId: id,
     reason: null,
     meta: { operationKey: key, expectedRevision: Number(w.view(id)['revision']) },
-  } as never)
+  } as never
+  let result = await w.app.commands.execute(context, command)
+  for (let tries = 0; result.kind === 'unknown' && tries < 5; tries += 1)
+    result = await w.app.commands.execute(context, command)
   expect(result.kind).toBe('committed')
 }
 
