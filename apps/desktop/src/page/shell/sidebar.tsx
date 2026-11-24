@@ -33,6 +33,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TurnIcon,
   UnknownIcon,
   ViewIcon,
   type ResolvedTheme,
@@ -311,6 +312,24 @@ function Appearance(props: { theme: ThemeSwitch; size: SizeSwitch; expanded: boo
   )
 }
 
+export const TURN_LABEL = '翻到反面'
+
+function TurnMark(props: { state: ShellState; expanded: boolean }) {
+  const two = useWatched(props.state.face.two)
+  if (!two) return null
+  return (
+    <IconButton
+      label={TURN_LABEL}
+      tooltipSide={props.expanded ? 'top' : 'right'}
+      className="shell-turn"
+      data-turn=""
+      onClick={() => props.state.face.turn()}
+    >
+      <TurnIcon aria-hidden="true" />
+    </IconButton>
+  )
+}
+
 function Reconnecting(props: { connectivity: Connectivity }) {
   if (props.connectivity !== 'disconnected') return null
   return <LoadingState className="shell-reconnecting" label={RECONNECTING_TEXT} />
@@ -353,6 +372,7 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
         {utility.length === 0 ? null : rows('次要页面', utility, true)}
         <div className="shell-footer-row" {...shellSidebarFooter.props}>
           <div className="shell-footer-items">{entries('utility')}</div>
+          <TurnMark state={state} expanded={expanded} />
           <Appearance theme={props.theme} size={props.size} expanded={expanded} />
         </div>
       </div>

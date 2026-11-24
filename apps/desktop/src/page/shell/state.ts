@@ -13,6 +13,7 @@ import {
   type ToastBoard,
 } from '@omne-harness/shell-contract'
 import type { TokenNow } from './changes-sheet.ts'
+import type { Face, FacePreference } from './face.ts'
 import type { Lack, LackSlot, PageLacks } from './lacks.ts'
 import { redrawRelay, type RedrawRelay } from './redraw.ts'
 
@@ -54,11 +55,15 @@ export type PageChoice = Watched<string | undefined> & {
   choose(pageId: string, subject?: string): void
 }
 
-export type Face = 'front' | 'back'
+export type { Face } from './face.ts'
+
+export type FacePerformer = (to: Face, swap: () => void) => void
 
 export type FaceChoice = Watched<Face> & {
   readonly two: Watched<boolean>
   turn(): void
+  perform(performer: FacePerformer): () => void
+  told(said: boolean): void
 }
 
 /** The told note on show: the newest toast a module handed over while there was room to write it. */
@@ -209,25 +214,72 @@ function pageChoice(slots: ShellSlots): PageChoice & { dispose(): void } {
   }
 }
 
-function faceChoice(slots: ShellSlots): FaceChoice & { dispose(): void } {
-  const shown = cell<Face>('front')
+function faceChoice(
+  slots: ShellSlots,
+  login: ShellLogin,
+  preference: FacePreference,
+): FaceChoice & { dispose(): void } {
+  let kept = preference.read()
+  const shown = cell<Face>(kept)
   const there = (): boolean => slots.items('back').length > 0 || slots.conflicts('back').length > 0
   const two = cell(there())
+  let waiting = kept === 'back'
+  let said = false
+  let saying: ReturnType<typeof setTimeout> | undefined
+  let performer: FacePerformer | undefined
   const settle = (): void => {
     two.set(there())
-    if (!two.get()) shown.set('front')
+    if (two.get() || said) waiting = false
+    if (!two.get() && !waiting) shown.set('front')
   }
-  const stop = slots.subscribe('back', settle)
+  const stopSlots = slots.subscribe('back', settle)
+  const stopLogin = login.subscribe(state => {
+    if (state !== 'signed-in') return
+    shown.set(kept)
+    waiting = kept === 'back'
+    settle()
+  })
   return {
     get: shown.get,
     subscribe: shown.subscribe,
     two: { get: two.get, subscribe: two.subscribe },
     turn() {
-      if (two.get()) shown.set(shown.get() === 'front' ? 'back' : 'front')
+      if (!two.get()) return
+      const to: Face = shown.get() === 'front' ? 'back' : 'front'
+      const swap = (): void => {
+        shown.set(to)
+        kept = to
+        preference.write(to)
+      }
+      if (performer === undefined) swap()
+      else performer(to, swap)
     },
-    dispose: stop,
+    perform(next) {
+      performer = next
+      return () => {
+        if (performer === next) performer = undefined
+      }
+    },
+    told(next) {
+      clearTimeout(saying)
+      if (!next) {
+        said = false
+        return
+      }
+      saying = setTimeout(() => {
+        said = true
+        settle()
+      }, 0)
+    },
+    dispose() {
+      clearTimeout(saying)
+      stopSlots()
+      stopLogin()
+    },
   }
 }
+
+const UNKEPT: FacePreference = { read: () => 'front', write: () => undefined }
 
 function watchedLogin(inner: ShellLogin, notice: { set(text: string | undefined): void }) {
   const login: ShellLogin = {
@@ -282,6 +334,7 @@ export function createShellState(
     notices?: (show: (text: string) => void) => () => void
     knowsToken?: (name: string) => boolean
     tokens?: () => readonly TokenNow[]
+    faces?: FacePreference
   }> = {},
 ): ShellState {
   const slots = slotRelay()
@@ -289,7 +342,7 @@ export function createShellState(
   const scopeCell = cell<string | undefined>(undefined)
   const notice = cell<string | undefined>(undefined)
   const page = pageChoice(slots)
-  const face = faceChoice(slots)
+  const face = faceChoice(slots, inner, options.faces ?? UNKEPT)
   const stopNotices = options.notices?.(text => notice.set(text))
   const stopLogin = inner.subscribe(state => {
     if (state !== 'signed-in') scopeCell.set(undefined)

@@ -20,11 +20,14 @@ import {
   FIGURE_SIZE,
   FigureSeat,
   FigureStage,
+  FlipLayer,
   InkBubble,
   InlineNotice,
   LoadingState,
+  useFaceFlip,
   useSizeFactor,
   type Box,
+  type FaceFlip,
   type SizeKeyPlatform,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
@@ -45,7 +48,7 @@ import {
   type ThemeSwitch,
 } from './sidebar.tsx'
 import type { SidebarWidth } from './sidebar-motion.ts'
-import type { ShellState } from './state.ts'
+import type { Face, ShellState } from './state.ts'
 import { ToldAtHome } from './told.tsx'
 
 export type { SizeSwitch, ThemeSwitch } from './sidebar.tsx'
@@ -275,18 +278,70 @@ function useLacks(state: ShellState): (slot: LackSlot, id: string) => readonly L
   return (slot, id) => state.lacks.of(slot, id)
 }
 
+export const FACE_TEXT: Readonly<Record<Face, string>> = {
+  front: '现在露着正面',
+  back: '现在露着反面',
+}
+
+function useFlipPhase(flip: FaceFlip): string {
+  return useSyncExternalStore(flip.subscribe, () => flip.current().phase)
+}
+
+function useFaceFlipFor(state: ShellState): { flip: FaceFlip; leaving: Face | undefined } {
+  const flip = useFaceFlip()
+  const face = useWatched(state.face)
+  const turning = useFlipPhase(flip) !== 'idle'
+  useEffect(
+    () => state.face.perform((to, swap) => flip.turn(to === 'back' ? 'right' : 'left', swap)),
+    [state.face, flip],
+  )
+  return { flip, leaving: turning ? (face === 'back' ? 'front' : 'back') : undefined }
+}
+
+function bindFigureTurn(state: ShellState): () => void {
+  const onMenu = (event: MouseEvent): void => {
+    if (
+      !(event.target instanceof Element) ||
+      event.target.closest('[data-control="figure"]') === null
+    )
+      return
+    if (state.face.get() !== 'back' || !state.face.two.get()) return
+    event.preventDefault()
+    state.face.turn()
+  }
+  window.addEventListener('contextmenu', onMenu)
+  return () => window.removeEventListener('contextmenu', onMenu)
+}
+
+function FaceSaid(props: { face: Face; flip: FaceFlip }) {
+  const turning = useFlipPhase(props.flip) !== 'idle'
+  const [first] = useState(props.face)
+  const [turned, setTurned] = useState(false)
+  if (!turned && props.face !== first) setTurned(true)
+  return (
+    <span className="sr-only" role="status">
+      {turned && !turning ? FACE_TEXT[props.face] : ''}
+    </span>
+  )
+}
+
 function Back(props: {
   state: ShellState
   scope: string | undefined
   item: BackItem | undefined
   conflict: SlotConflict | undefined
   away: boolean
+  leaving: boolean
+  element: React.RefObject<HTMLElement | null>
 }) {
   const { item, conflict, scope, state } = props
   return (
     <section
+      ref={props.element}
+      id="shell-back"
       className="shell-face shell-back"
       data-face="back"
+      data-flip-leaving={props.leaving ? '' : undefined}
       aria-label="反面"
       data-keyboard-region="back"
       tabIndex={-1}
@@ -321,6 +376,9 @@ function Workspace(
   const [back] = useSlot(state.slots, 'back')
   const [backConflict] = useConflicts(state.slots, 'back')
   const onBack = face === 'back'
+  const { flip, leaving } = useFaceFlipFor(state)
+  const front = useRef<HTMLDivElement>(null)
+  const backFace = useRef<HTMLElement>(null)
   const wide = useWide()
   const [width, setWidth] = useState<SidebarWidth>('expanded')
   const [covered, setCovered] = useState(false)
@@ -331,9 +389,16 @@ function Workspace(
   useEffect(() => state.told.room(room), [state.told, room])
   useEffect(() => () => state.told.room(false), [state.told])
   useEffect(() => bindFaceKeys(window, state.face, platform), [state.face, platform])
+  useEffect(() => bindFigureTurn(state), [state])
   return (
     <div className="app-shell" {...shellApp.props}>
-      <div className="shell-face shell-front" data-face="front" inert={onBack}>
+      <div
+        ref={front}
+        className="shell-face shell-front"
+        data-face="front"
+        data-flip-leaving={leaving === 'front' ? '' : undefined}
+        inert={onBack}
+      >
         {wide ? (
           <Sidebar
             {...props}
@@ -378,10 +443,23 @@ function Workspace(
           })}
         </main>
       </div>
-      {back !== undefined || backConflict !== undefined ? (
-        <Back state={state} scope={scope} item={back} conflict={backConflict} away={!onBack} />
+      {back !== undefined || backConflict !== undefined || onBack ? (
+        <Back
+          state={state}
+          scope={scope}
+          item={back}
+          conflict={backConflict}
+          away={!onBack}
+          leaving={leaving === 'back'}
+          element={backFace}
+        />
       ) : null}
       <Float state={state} scope={scope} places={props.floats} inert={!wide && covered} />
+      <FlipLayer
+        flip={flip}
+        leaving={() => (state.face.get() === 'back' ? front.current : backFace.current)}
+      />
+      <FaceSaid face={face} flip={flip} />
     </div>
   )
 }
@@ -394,6 +472,7 @@ export function Shell(props: ShellProps) {
   const pages = useSlot(state.slots, 'pages')
   const shown = useWatched(state.page)
   const merged = useFigure(state, pages, shown)
+  const face = useWatched(state.face)
   useEffect(() => bindRegionKeys(window), [])
   const homePage =
     merged.waiting > 0 && merged.waitingPage !== undefined ? merged.waitingPage : pages[0]?.id
@@ -407,7 +486,11 @@ export function Shell(props: ShellProps) {
           label={figureText(merged)}
           onPress={pressSeat}
         >
-          <a className="shell-skip" href="#shell-content" data-control="link">
+          <a
+            className="shell-skip"
+            href={login === 'signed-in' && face === 'back' ? '#shell-back' : '#shell-content'}
+            data-control="link"
+          >
             跳到正文
           </a>
           {login === 'signed-in' ? (
