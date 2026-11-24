@@ -38,6 +38,9 @@ const PROGRAMS: Readonly<Record<string, string>> = {
     '])',
     'return { held: held.stdout.trim(), read: read.text }',
   ].join('\n'),
+  hidden: ['try { await Files.read({ path: "missing.txt" }) } catch {}', 'return "all fine"'].join(
+    '\n',
+  ),
   loop: 'while (true) {}',
   memory:
     'const all = []\nwhile (true) all.push(new Array(100000).fill("x".repeat(64) + all.length))',
@@ -60,6 +63,11 @@ const codeScript = toolCallsByRequest(body => {
         tool: 'Code',
         arguments: JSON.stringify({ command: 'execute', code }),
       },
+    ]
+  const path = /start: path ([a-z0-9.-]+)/.exec(text)?.[1]
+  if (path !== undefined)
+    return [
+      { id: 'call_path', tool: 'Code', arguments: JSON.stringify({ command: 'execute', path }) },
     ]
   return /start: direct/.test(text)
     ? [
@@ -240,6 +248,49 @@ it('HS-53 without the row of the restricted domain Code is not available, and ot
       const direct = await ended(tree, session, 'the direct read', 2)
       expect(direct.result).toContain('still readable')
       expect(callsOf(tree, 'Files')).toHaveLength(1)
+    },
+  )
+  expect(exit).toBe(0)
+})
+
+it('a program kept in a file is run by its path: the file is read as a call of the program, and the result names it', async () => {
+  const exit = await onReleaseTree(
+    { script: codeScript, permission: 'bypass-permissions' },
+    async tree => {
+      const program = 'const a = await Files.read({ path: "a.txt" })\nreturn a.text.length'
+      seed(tree, { 'a.txt': 'hello world', 'count.ts': program })
+      const session = await tree.startSession('start: path count.ts')
+      const { result } = await ended(tree, session, 'the stored program')
+      expect(result).toContain('done Code execute')
+      expect(result).toMatch(
+        /\nprogram: count\.ts sha256:[0-9a-f]{64}\nresult:\n11\ncalls: 2 completed/u,
+      )
+      expect(callsOf(tree, 'Files')).toHaveLength(2)
+      const sent = await tree.cli([
+        'send-input',
+        '--session',
+        session,
+        '--text',
+        'start: path gone.ts',
+      ])
+      expect(sent.status, sent.stderr).toBe(0)
+      const missing = await ended(tree, session, 'the missing program', 2)
+      expect(missing.result).toContain('Code execute failed kind=unreadable\ngone.ts: ')
+      expect(missing.result).toContain('Nothing ran.')
+    },
+  )
+  expect(exit).toBe(0)
+})
+
+it('TL-73 a failure a program caught and hid is in the summary the model reads', async () => {
+  const exit = await onReleaseTree(
+    { script: codeScript, permission: 'bypass-permissions' },
+    async tree => {
+      const { result } = await ran(tree, 'hidden')
+      expect(result).toContain(
+        'done Code execute\nresult:\n"all fine"\ncalls: 0 completed, 1 failed',
+      )
+      expect(result).toMatch(/\n- #1 Files\.read failed, effect /u)
     },
   )
   expect(exit).toBe(0)

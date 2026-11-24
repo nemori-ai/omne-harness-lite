@@ -22,11 +22,13 @@ import {
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { createAuthor, type CommandGates } from './author.ts'
+import { callsSummary, type AnsweredFailure } from './code-summary.ts'
+import { givenProgram, loadProgram, pickedSource } from './code-source.ts'
 import { codeCommands } from './commands.ts'
 import type { CodeAuthorEnvironment } from './environment.ts'
 import { limitField } from './pictures.ts'
 import { parseConstruction, type Arguments } from './protocol.ts'
-import { confirmation, utf8Length } from './text.ts'
+import { confirmation, EXTERNAL_DATA } from './text.ts'
 
 type Limits = ProgramLimits & Readonly<{ inFlight: number; sourceBytes: number }>
 
@@ -118,7 +120,6 @@ const NOTE = 'Calls that completed keep their effects. The program is not rerun.
 const consoleOf = (text: string) => (text.length === 0 ? '' : `\nconsole:\n${text}`)
 const at = (line: number | null) => (line === null ? '' : ` line=${line}`)
 
-/** What usually went wrong when a program is not accepted, said once. */
 function hint(message: string, code: string): string {
   if (/\b(import|export|require)\b/u.test(message))
     return '\nThere is nothing to import: each tool is a global object, for example await Files.read({ path }).'
@@ -127,7 +128,6 @@ function hint(message: string, code: string): string {
     : ''
 }
 
-/** Why the program did not return, as the text the model reads. */
 function failed(outcome: Exclude<ProgramOutcome, { kind: 'returned' }>, code: string): string {
   switch (outcome.kind) {
     case 'syntax':
@@ -143,13 +143,18 @@ function failed(outcome: Exclude<ProgramOutcome, { kind: 'returned' }>, code: st
   }
 }
 
+type Answered = { readonly failures: Map<number, AnsweredFailure>; external: boolean }
+
 /** Hands each call of the program to the capability, no more than the limit at once, and answers it. */
-function caller(tools: ProgramTools, limit: number, run: Promise<ProgramRun>) {
+function caller(tools: ProgramTools, limit: number, run: Promise<ProgramRun>, seen: Answered) {
   let inFlight = 0
   return (call: ProgramCall): void => {
     const { ordinal, entry } = call
-    const answer = (given: ProgramCallAnswer) =>
+    const answer = (given: ProgramCallAnswer) => {
+      if (given.kind === 'failure') seen.failures.set(ordinal, { entry, failure: given.failure })
+      else if (given.external) seen.external = true
       void run.then(started => started.answer(ordinal, answerOf(entry, given)))
+    }
     if (inFlight >= limit) {
       const message = `more than ${limit} calls at once; this one was not made. Await some before making more.`
       return answer({ kind: 'failure', failure: { kind: 'limit', effect: 'none', message } })
@@ -170,20 +175,40 @@ async function outcomeOf(run: ProgramRun, signal: AbortSignal): Promise<ProgramO
   return run.outcome.finally(() => signal.removeEventListener('abort', abort))
 }
 
+/** TL-67, TL-73: no further position, every position settled, then the summary made from the table. */
+async function closed(tools: ProgramTools, seen: Answered) {
+  const table = await tools.settle()
+  return 'failure' in table ? table : { ok: callsSummary(table.ok, seen.failures) }
+}
+
+/** The output of the program as the model reads it; marked whole when any call gave outside data. */
+function shown(outcome: Extract<ProgramOutcome, { kind: 'returned' }>, external: boolean): string {
+  const value =
+    outcome.value === undefined ? '(the program returned nothing)' : writeJsonText(outcome.value)
+  const body = `result:\n${value}${consoleOf(outcome.console)}`
+  return external ? `${EXTERNAL_DATA.begin}\n${body}\n${EXTERNAL_DATA.end}` : body
+}
+
+const fileOf = (from: string) => (from === '' ? '' : `\n${from.trimEnd()}`)
+
 async function execute(
   args: Arguments,
   environment: CodeAuthorEnvironment,
   execution: ToolExecutionContext,
   { inFlight, sourceBytes, ...limits }: Limits,
 ): Promise<string> {
-  const source = args.text('code')
-  if (utf8Length(source) > sourceBytes)
-    throw new Error(
-      `Code execute failed kind=too-large\nThe program is ${utf8Length(source)} bytes; the limit is ${sourceBytes}.\nNothing ran.`,
-    )
+  const picked = pickedSource(args)
+  if (typeof picked === 'string') return picked
   const known = await callable(execution, 'execute')
   if (typeof known === 'string') return known
   const { tools } = known
+  const seen: Answered = { failures: new Map(), external: false }
+  const program =
+    'code' in picked
+      ? givenProgram(picked.code, sourceBytes)
+      : await loadProgram(picked.path, tools, known.functions, sourceBytes, seen.failures)
+  if ('refusal' in program) throw new Error(program.refusal)
+  const { source, from } = program
   const handle = Promise.withResolvers<ProgramRun>()
   const started = await environment.program.run({
     source,
@@ -191,21 +216,23 @@ async function execute(
     entries: known.functions.map(one => one.entry),
     failures: [PROGRAM_FAILURE],
     limits,
-    onCall: caller(tools, inFlight, handle.promise),
+    onCall: caller(tools, inFlight, handle.promise, seen),
     onIdle: () => {},
   })
   if (started.kind !== 'done') return `Code execute: ${confirmation(started, () => '')}`
   handle.resolve(started.value)
   const outcome = await outcomeOf(started.value, execution.signal)
-  if (outcome.kind !== 'returned') throw new Error(failed(outcome, source))
-  const table = await tools.settle()
-  if ('failure' in table)
+  if (outcome.kind === 'syntax') throw new Error(`${failed(outcome, source)}${fileOf(from)}`)
+  const calls = await closed(tools, seen)
+  if (outcome.kind !== 'returned') {
+    const tail = 'ok' in calls ? calls.ok : `calls: unknown (${calls.failure.kind})`
+    throw new Error(`${failed(outcome, source)}\n${from}${tail}`)
+  }
+  if ('failure' in calls)
     throw new Error(
-      `Code execute: the calls of the program could not be settled (${table.failure.kind}). ${NOTE}`,
+      `Code execute: the calls of the program could not be settled (${calls.failure.kind}). ${NOTE}`,
     )
-  const value =
-    outcome.value === undefined ? '(the program returned nothing)' : writeJsonText(outcome.value)
-  return `done Code execute\nresult:\n${value}${consoleOf(outcome.console)}`
+  return `done Code execute\n${from}${shown(outcome, seen.external)}\n${calls.ok}`
 }
 
 export function createCodeAuthor(

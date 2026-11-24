@@ -363,9 +363,14 @@ export const codeCommands: readonly Command[] = [
       {
         name: 'code',
         kind: 'text',
-        required: true,
         description:
-          'The body of an async function, in TypeScript. Top-level await and return work. Send real line breaks.',
+          'The body of an async function, in TypeScript. Top-level await and return work. Send real line breaks. Give code or path, not both.',
+      },
+      {
+        name: 'path',
+        kind: 'string',
+        description:
+          'The path of a file that holds such a body. The file is read once, now; later changes do not reach this run.',
       },
       {
         name: 'input',

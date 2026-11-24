@@ -861,6 +861,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
         'Agents',
         'BkgToolCalls',
         'Calendar',
+        'Code',
         'Files',
         'Notifications',
         'OmneExtensionPoints',

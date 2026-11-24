@@ -7,6 +7,7 @@ import {
   type ProgramTools,
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
+import { TOOL_PROGRAM_OWNER } from '../../src/program-source.ts'
 import { jsonOf, programWorld } from './program-fixture.ts'
 
 const object = (fields: Readonly<Record<string, string | boolean>>): JsonValue => ({
@@ -50,6 +51,40 @@ it('a program calls two functions in order and gets the value each one returned'
       [1, 'Echo', 'say'],
       [2, 'Echo', 'say'],
     ])
+  } finally {
+    await world.close()
+  }
+})
+
+it('each call of a program has its own account: the parent counts the program only, and no call is counted twice', async () => {
+  const world = await programWorld({
+    script: async tools => {
+      await say(tools, 1, { text: 'one' })
+      return saidOf(await say(tools, 2, { text: 'two' }))
+    },
+  })
+  try {
+    const ran = await world.run('accounts')
+    const parent = world.callOf(ran.reference)
+    const read = await world.store.usage({
+      tenant: world.tenant,
+      range: null,
+      consumer: null,
+      order: 'ascending',
+      after: null,
+      limit: 10,
+    })
+    if (read.kind !== 'page') throw new Error(JSON.stringify(read))
+    expect(read.facts).toHaveLength(3)
+    expect(new Set(read.facts.map(fact => fact.call)).size).toBe(3)
+    for (const fact of read.facts)
+      expect(fact.account.subject).toEqual({ kind: 'tool_execution', id: fact.call })
+    const children = read.facts.filter(fact => fact.call !== parent)
+    expect(children.map(fact => [fact.consumer.owner, fact.consumer.work])).toEqual([
+      [TOOL_PROGRAM_OWNER, parent],
+      [TOOL_PROGRAM_OWNER, parent],
+    ])
+    expect(read.facts.filter(fact => fact.call === parent)).toHaveLength(1)
   } finally {
     await world.close()
   }
