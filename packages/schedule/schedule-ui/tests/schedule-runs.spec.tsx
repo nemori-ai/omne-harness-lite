@@ -100,8 +100,9 @@ const JOB = {
 }
 
 beforeAll(stubAnimation)
+let inView: ReturnType<typeof stubInView>
 beforeEach(() => {
-  stubInView()
+  inView = stubInView()
 })
 afterEach(() => {
   cleanup()
@@ -201,14 +202,18 @@ it('E4 a blocked schedule says why at the top of the runs, and what lets it run 
   ).toBeTruthy()
 })
 
-it('E5 更早的 reads the page after the cursor and adds it below', async () => {
+it('E5 once the end of what happened is in view, the page after the cursor is read once and added below', async () => {
   const fake = await withRuns([SLOT], 'c2')
-  fireEvent.click(screen.getByRole('button', { name: '更早的' }))
+  act(() => {
+    inView.enter()
+    inView.enter()
+  })
   const more = await fake.next('list-jobs')
   expect(more.body).toMatchObject({ cursor: 'c2' })
   await answer(more, { outcome: 'succeeded', body: { items: [SKIPPED], next: null } })
   expect(happened().children).toHaveLength(2)
-  expect(screen.queryByRole('button', { name: '更早的' })).toBeNull()
+  expect(fake.calls.filter(call => call.operation === 'list-jobs')).toHaveLength(2)
+  expect(inView.watched()).toEqual([])
 })
 
 it('J1 a run opens its Job: the time as its title, its state, cause, basis, requirement, carrier and steps', async () => {

@@ -12,7 +12,6 @@ import {
   ReadingDocument,
   ReadingToolbar,
   Section,
-  StatusPill,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useRef, useState, type JSX } from 'react'
@@ -21,6 +20,7 @@ import { readOnce, useReading } from '../model/reading.ts'
 import { localText } from '../model/words.ts'
 import { scheduleJob, scheduleJobCancel } from '../parts.ts'
 import { Drawn } from './drawn.tsx'
+import { JobWord } from './job-word.tsx'
 
 type Client = ClientOf<ScheduleProtocol>
 
@@ -134,7 +134,7 @@ function Job({ detail }: Readonly<{ detail: JobDetail }>): JSX.Element {
       </h2>
       <FactList className="schedule-record-facts" aria-label="作业详情">
         <FactRow term="状态">
-          <StatusPill tone={word.tone}>{word.word}</StatusPill>
+          <JobWord word={word} />
         </FactRow>
         <FactRow term="成因">{ORIGIN_WORDS[detail.origin]}</FactRow>
         <FactRow term="依据">{basis}</FactRow>

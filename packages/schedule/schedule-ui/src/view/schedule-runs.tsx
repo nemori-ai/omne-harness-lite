@@ -1,7 +1,7 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ScheduleProtocol } from '@omne-harness/schedule-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { Button, InlineNotice, Section, StatusPill } from '@omne-harness/ui-kit'
+import { Button, InlineNotice, Section } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useEffect, useRef, useState, type JSX } from 'react'
 import {
@@ -16,6 +16,8 @@ import { readOnce, useReading, type Reading } from '../model/reading.ts'
 import { calendarText, localText, type Succeeded, type Upcoming } from '../model/words.ts'
 import { scheduleHappened, scheduleRun, scheduleUpcoming } from '../parts.ts'
 import { Drawn } from './drawn.tsx'
+import { JobWord } from './job-word.tsx'
+import { ReadOnEnd } from './read-on-end.tsx'
 
 type Client = ClientOf<ScheduleProtocol>
 type Preview = Succeeded<'preview'>
@@ -114,7 +116,7 @@ function UpcomingList({ preview }: Readonly<{ preview: Preview }>): JSX.Element 
   )
 }
 
-/** What happened, read page by page: the first page on open and on each change, earlier ones on 更早的. */
+/** What happened, read page by page: the first page on open and on each change, earlier ones once the end is in view. */
 function Happened({ client, tenant, schedule, round, onOpen }: RunsProps): JSX.Element {
   const [first, reread] = useReading<Page>(
     schedule,
@@ -138,43 +140,20 @@ function Happened({ client, tenant, schedule, round, onOpen }: RunsProps): JSX.E
                 <RunRow key={row.row} row={row} onOpen={onOpen} />
               ))}
             </ol>
-            {cursor !== null && (
-              <Earlier
-                read={signal =>
-                  client['list-jobs']({ tenant, schedule, cursor, limit: PAGE_LIMIT }, { signal })
-                }
-                onRead={more => setEarlier(pages => [...pages, more])}
-              />
-            )}
+            <ReadOnEnd
+              next={cursor}
+              onEnd={next =>
+                void readOnce<Page>(() =>
+                  client['list-jobs']({ tenant, schedule, cursor: next, limit: PAGE_LIMIT }),
+                ).then(reading => {
+                  if (reading.kind === 'read') setEarlier(pages => [...pages, reading.value])
+                })
+              }
+            />
           </>
         )
       }}
     </Drawn>
-  )
-}
-
-function Earlier({
-  read,
-  onRead,
-}: Readonly<{
-  read: (signal: AbortSignal) => Promise<{ outcome: string; body?: unknown }>
-  onRead: (page: Page) => void
-}>): JSX.Element {
-  const [pending, setPending] = useState(false)
-  return (
-    <Button
-      variant="ghost"
-      disabled={pending}
-      onClick={() => {
-        setPending(true)
-        void readOnce<Page>(() => read(new AbortController().signal)).then(reading => {
-          setPending(false)
-          if (reading.kind === 'read') onRead(reading.value)
-        })
-      }}
-    >
-      更早的
-    </Button>
   )
 }
 
@@ -193,7 +172,7 @@ function RunRow({
   const body = (
     <>
       <span className="schedule-run-time">{localText(row.local)}</span>
-      <StatusPill tone={word.tone}>{word.word}</StatusPill>
+      <JobWord word={word} />
       <span className="schedule-run-fact">{slotFact(row, Date.now())}</span>
     </>
   )

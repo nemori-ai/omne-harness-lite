@@ -1,4 +1,4 @@
-import type { Tone } from '@omne-harness/ui-kit'
+import type { StateLabel, Tone } from '@omne-harness/ui-kit'
 import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import type { Succeeded } from './words.ts'
 
@@ -8,17 +8,20 @@ export type LapseRow = Extract<HistoryRow, { kind: 'lapse' }>
 export type JobDetail = Succeeded<'read-job'>
 export type JobCard = NonNullable<SlotRow['job']>
 
-export type Word = Readonly<{
-  word: string
-  tone: Extract<Tone, 'neutral' | 'good' | 'caution' | 'danger'>
-}>
+/** A word of the page, or a state the kit's table names, which reaches the page only through `StateWord`. */
+export type Word = Readonly<
+  { tone: Extract<Tone, 'neutral' | 'good' | 'caution' | 'danger'> } & (
+    | { word: string; state?: never }
+    | { state: Extract<StateLabel, 'failed' | 'cancelled'>; word?: never }
+  )
+>
 
 /** Where a Job stands, in the words of the schedule page: a stop asked and not yet confirmed is waiting for it to stop. */
 export function jobWord(job: Pick<JobCard, 'state' | 'outcome' | 'stop'>): Word {
   if (job.state === 'concluded') {
     if (job.outcome === 'succeeded') return { word: '完成', tone: 'good' }
-    if (job.outcome === 'cancelled') return { word: '已取消', tone: 'neutral' }
-    return { word: '失败', tone: 'danger' }
+    if (job.outcome === 'cancelled') return { state: 'cancelled', tone: 'neutral' }
+    return { state: 'failed', tone: 'danger' }
   }
   if (job.stop !== 'none') return { word: '在等它停下', tone: 'neutral' }
   if (job.state === 'waiting') return { word: '等前一次', tone: 'neutral' }
