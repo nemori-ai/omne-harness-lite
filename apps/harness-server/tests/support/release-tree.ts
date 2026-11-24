@@ -700,6 +700,8 @@ export type ReleaseTreeOptions = Readonly<{
   hostScreen?: NonNullable<Parameters<typeof runServe>[0]['hostScreen']>
   /** The fallback checks of a waiting Agent; absent: every 50 ms, so no test waits on the clock. */
   reconciliationDelaysMs?: readonly number[]
+  /** The one time of every run; absent: the system time. */
+  time?: NonNullable<Parameters<typeof runServe>[0]['time']>
 }>
 
 export type AddedRow = Readonly<{
@@ -839,6 +841,7 @@ async function serveOnce(
   )
   const finished = runServe({
     ...(options.hostScreen === undefined ? {} : { hostScreen: options.hostScreen }),
+    ...(options.time === undefined ? {} : { time: options.time }),
     distribution: withAddedRows(
       withoutRows(
         withRowConfig(releaseDistribution(options), options.rowConfig),

@@ -55,6 +55,7 @@ import type {
   ServiceName,
   TreeRow,
 } from '../../../../src/types.ts'
+import { holdRunTime, hostTime } from '../../../../src/entry/time.ts'
 
 export const TENANT_A: TenantId = testingTenant(
   'org_app1st0rage000000000000000',
@@ -257,6 +258,7 @@ export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree>
     ...(options.extraRows ?? []),
   ]
   const root = new Context()
+  holdRunTime(root, hostTime())
   const trust = createTrust(
     [...new Set([...profile.visibility.values()].flat())].map(name => ({
       id: name,

@@ -28,7 +28,7 @@ import {
   type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { defineRow } from '../../row.ts'
 import { environmentOf } from '../calendar/index.ts'
 import {
@@ -48,11 +48,7 @@ import { liveCallOrigin } from '../tool-bindings/live-calls.ts'
 
 const OWNER = 'harness-server.schedule'
 
-function now() {
-  const instant = readSystemInstant()
-  if (!instant.ok) throw new Error('schedule clock unavailable')
-  return ScheduleInstantSchema.parse(instant.text)
-}
+const nowOf = (ctx: Context) => () => ScheduleInstantSchema.parse(instantTextOf(ctx, 'schedule'))
 
 const unavailable = (requestId: string): ScheduleDomainError => ({
   code: 'provider_failure',
@@ -104,7 +100,7 @@ function createTenantHost(ctx: Context): Host {
     })
     if (registered.kind !== 'registered') return undefined
     const calendar = ctx.get(calendarQueryKey) as CalendarQueries
-    const authorizers = createScheduleAuthorizers({ origin: liveCallOrigin(ctx), now })
+    const authorizers = createScheduleAuthorizers({ origin: liveCallOrigin(ctx), now: nowOf(ctx) })
     return createScheduleLocalApplication({
       sql: {
         storage,
@@ -152,7 +148,7 @@ function createTenantHost(ctx: Context): Host {
             }
           },
         },
-        clock: { now },
+        clock: { now: nowOf(ctx) },
         ids: { schedule: () => ScheduleIdSchema.parse(randomUUID()) },
       },
       query: {

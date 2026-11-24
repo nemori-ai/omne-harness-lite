@@ -2092,6 +2092,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/time-source':
+        specifier: workspace:*
+        version: link:../../assembly/time-source
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../common/utc-instant
@@ -2846,6 +2849,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/time-source':
+        specifier: workspace:*
+        version: link:../../assembly/time-source
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -5097,6 +5103,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/time-source':
+        specifier: workspace:*
+        version: link:../../assembly/time-source
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

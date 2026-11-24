@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { systemTime } from '@omne-harness/time-source'
+import { readInstantText } from '../../../src/entry/time.ts'
 import {
   admissionPassageOf,
   cardRequestOf,
@@ -480,6 +482,7 @@ describe('changes: the card changes of the tenant, for a Run that waits on a per
       verifier: () => authority.verifier,
       standing: () => ({ read: async () => ({ kind: 'not-member', evidence: {} }) as never }),
       reservations: () => ({}) as never,
+      now: () => readInstantText(systemTime()),
     })
   const cardsOn = (host: ToolHitlHost) =>
     createAgentDecisionCards({

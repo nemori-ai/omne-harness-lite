@@ -13,18 +13,14 @@ import {
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { domainCallerOf } from './domain-caller.ts'
 import { holdLiveCall } from './live-calls.ts'
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
-function now() {
-  const instant = readSystemInstant()
-  if (!instant.ok) throw new Error('schedules clock unavailable')
-  return ScheduleInstantSchema.parse(instant.text)
-}
+const nowOf = (ctx: Context) => () => ScheduleInstantSchema.parse(instantTextOf(ctx, 'Schedules'))
 
 /** While a release card asks what a Schedules call would do: only the reads, under the description's
  * signal. There is no call yet, so nothing that needs one is reachable. */
@@ -37,7 +33,7 @@ export function attachReleaseScheduleReads(
   const reads = bindScheduleReads({
     tenant: tenant.ok ? tenant.value : '',
     queries: () => ctx.get(scheduleQueriesKey),
-    now,
+    now: nowOf(ctx),
     async context() {
       const caller = await domainCallerOf(
         toolRuntimeHolder(ctx).verifier(),
@@ -71,7 +67,7 @@ export function bindReleaseSchedules(
     call: parent.call,
     commands: () => ctx.get(scheduleCommandsKey),
     queries: () => ctx.get(scheduleQueriesKey),
-    now,
+    now: nowOf(ctx),
     async context() {
       const caller = await domainCallerOf(
         toolRuntimeHolder(ctx).verifier(),

@@ -10,7 +10,7 @@ import {
 } from '@omne-harness/schedule-cordis-contract/cordis'
 import type { ScheduleFaces, SchedulePrincipals } from '@omne-harness/schedule-access'
 import { createScheduleAccessPlugin } from '@omne-harness/schedule-access/cordis'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { defineRow } from '../../row.ts'
 import { personContext } from '../calendar-access/index.ts'
 import { memberActingOfCall } from '../server-entry/identity.ts'
@@ -33,18 +33,14 @@ function facesOf(ctx: Context): ScheduleFaces | undefined {
   return commands === undefined || queries === undefined ? undefined : { commands, queries }
 }
 
-const plugin = createScheduleAccessPlugin({
-  principals: principalsOf,
-  faces: facesOf,
-  requestId: randomUUID,
-  clock: {
-    now() {
-      const instant = readSystemInstant()
-      if (!instant.ok) throw new Error('schedule-access clock unavailable')
-      return ScheduleInstantSchema.parse(instant.text)
-    },
-  },
-})
+/** Built when the row applies, so its clock is the time of this run. */
+const pluginOf = (ctx: Context) =>
+  createScheduleAccessPlugin({
+    principals: principalsOf,
+    faces: facesOf,
+    requestId: randomUUID,
+    clock: { now: () => ScheduleInstantSchema.parse(instantTextOf(ctx, 'schedule-access')) },
+  })
 
 export const scheduleAccessRow = defineRow({
   row: 'schedule-access',
@@ -55,5 +51,9 @@ export const scheduleAccessRow = defineRow({
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },
-  plugin: { ...plugin, inject: [accessRegistryKey, principalIssuerKey] },
+  plugin: {
+    name: 'schedule-access',
+    inject: [accessRegistryKey, principalIssuerKey],
+    apply: (ctx: Context) => pluginOf(ctx).apply(ctx, undefined),
+  },
 })

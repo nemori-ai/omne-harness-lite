@@ -37,7 +37,8 @@ import { monotonicClock } from '../../shutdown.ts'
 import { governanceInstallationPrincipalsKey } from '../../entry/governance-installation-principals.ts'
 import { governanceDirectoryPrincipalsKey } from '../../entry/governance-directory-principals.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
-import { readSystemInstant, epochMillisOf } from '../../entry/session-clock.ts'
+import { epochMillisOf } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { categoryGateTemplatesSchema } from '../../entry/category-gates.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { LOCAL_GOVERNANCE_OPENING } from '../../local/operator-defaults.ts'
@@ -247,11 +248,7 @@ export const governanceRow = defineRow({
           identity,
           registry,
           clock: {
-            now() {
-              const instant = readSystemInstant()
-              if (!instant.ok) throw new Error('governance Settings clock unavailable')
-              return epochMillisOf(instant.text)
-            },
+            now: () => epochMillisOf(instantTextOf(ctx, 'governance Settings')),
           },
           cursorLifetimeMs: 60_000,
           grants: [

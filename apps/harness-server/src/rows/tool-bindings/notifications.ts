@@ -15,7 +15,7 @@ import {
 } from '@omne-harness/notification-tools'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { domainCallerOf } from './domain-caller.ts'
 import { holdLiveCall } from './live-calls.ts'
@@ -63,11 +63,7 @@ export function bindReleaseNotifications(
       }
     },
     causalDepth: () => 0,
-    now() {
-      const instant = readSystemInstant()
-      if (!instant.ok) throw new Error('Notifications clock unavailable')
-      return instant.text
-    },
+    now: () => instantTextOf(ctx, 'Notifications'),
   })
   return holdLiveCall(ctx, parent, attachNotifications(scope, notifications))
 }

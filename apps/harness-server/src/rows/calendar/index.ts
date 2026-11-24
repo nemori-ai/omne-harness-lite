@@ -33,7 +33,8 @@ import { tenantStandingKey } from '@omne-harness/identity/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { combinationManifest, manifestDigest, type SqlStorage } from '@omne-harness/sql-contract'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
-import { epochMillisOf, readSystemInstant } from '../../entry/session-clock.ts'
+import { epochMillisOf } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { defineRow } from '../../row.ts'
 import {
   tenantIndependentSettingsKey,
@@ -53,11 +54,7 @@ import {
   supplyClock,
 } from './supply.ts'
 
-function now(): number {
-  const instant = readSystemInstant()
-  if (!instant.ok) throw new Error('calendar clock unavailable')
-  return epochMillisOf(instant.text)
-}
+const nowOf = (ctx: Context) => (): number => epochMillisOf(instantTextOf(ctx, 'calendar'))
 
 class Queries extends CalendarQueryService {
   readonly list: CalendarQueries['list']
@@ -158,7 +155,7 @@ export const calendarRow = defineRow({
       ...stores,
       ...calendarSourceAdapters(rowConfig),
       authority: calendarSupplyAuthority,
-      clock: supplyClock(now),
+      clock: supplyClock(nowOf(ctx)),
     })
     // The seed lands before any service is offered; the runner then follows the sources.
     const { releaseDate: _releaseDate, ...release } = shippedCalendarSeedRelease
@@ -188,7 +185,7 @@ export const calendarRow = defineRow({
         catalog.map(entry => entry.calendarId),
       ),
       authority: authorityOf(ctx.get(tenantStandingKey) as TenantStandingSource),
-      clock: { now },
+      clock: { now: nowOf(ctx) },
       catalog,
       healthProjection: projection,
     })

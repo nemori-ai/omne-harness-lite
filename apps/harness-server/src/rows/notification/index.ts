@@ -1,3 +1,4 @@
+import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { instantSchema, type Instant } from '@omne-harness/notification-contract'
@@ -30,7 +31,7 @@ import {
   runtimeContextTenantBlocksKey,
   runtimeContextTenantScopeKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf, runTimeOf } from '../../entry/time.ts'
 import { tenantScopePrincipalsKey } from '../../entry/tenant-scope-principals.ts'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { defineRow } from '../../row.ts'
@@ -48,11 +49,8 @@ import { createStandingItemsReader, standingContribution } from './standing.ts'
 
 export const notificationConfig = z.strictObject({ policy: notificationPolicySchema })
 
-function now(): Instant {
-  const instant = readSystemInstant()
-  if (!instant.ok) throw new Error('notification clock unavailable')
-  return instantSchema.parse(instant.text)
-}
+const nowOf = (ctx: Context) => (): Instant =>
+  instantSchema.parse(instantTextOf(ctx, 'notification'))
 
 /** The storage combination of the notification participant, from the catalogue of the running code. */
 export async function notificationCombination(): Promise<Combination> {
@@ -118,7 +116,8 @@ export const notificationRow = defineRow({
           principal: async tenant => ctx.get(tenantScopePrincipalsKey)?.forTenant(tenant) ?? null,
         }),
       },
-      clock: { now },
+      clock: { now: nowOf(ctx) },
+      timers: runTimeOf(ctx),
       report: error => logger.warn('notification work failed: %s', String(error)),
     })
     await provider.await()

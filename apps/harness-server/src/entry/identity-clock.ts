@@ -3,8 +3,7 @@ import type { ClockReading, IdentityClock } from '@omne-harness/identity'
 import { IdentityClockService, identityClockKey } from '@omne-harness/identity/cordis'
 import { parseInstant } from '@omne-harness/utc-instant'
 import type { EntryObjectModule, EntryTime } from '../types.ts'
-import { readInstant } from './session-clock.ts'
-import { timeOf } from './time.ts'
+import { readInstant, timeOf } from './time.ts'
 
 export function createIdentityClock(time: EntryTime): IdentityClock {
   const now = (): Promise<ClockReading> => {

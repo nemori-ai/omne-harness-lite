@@ -44,17 +44,19 @@ export const policy = (overrides: Partial<NotificationPolicy> = {}): Notificatio
   ...overrides,
 })
 
-/** Timers that fire only when a test says so. */
-export function manualTimers() {
+/** Waits that fire only when a test says so; a wait for an instant counts its delay from `now`. */
+export function manualTimers(now: () => number = () => Date.parse('2026-11-18T06:00:00.000Z')) {
   const pending = new Map<number, { run: () => void; delayMs: number }>()
   let next = 0
+  const hold = (run: () => void, delayMs: number) => {
+    next += 1
+    const id = next
+    pending.set(id, { run, delayMs })
+    return () => void pending.delete(id)
+  }
   const timers: Timers = {
-    set(run, delayMs) {
-      next += 1
-      pending.set(next, { run, delayMs })
-      return next
-    },
-    clear: timer => void pending.delete(timer as number),
+    after: (delayMs, run) => hold(run, delayMs),
+    at: (epochMs, run) => hold(run, Math.max(0, epochMs - now())),
   }
   return {
     timers,
@@ -119,6 +121,8 @@ export async function openApplication(
     policy?: unknown
     tenants?: readonly TenantId[] | null
     channel?: ChannelName | null
+    /** The waits to run on; absent: manual waits that fire only when the test says so. */
+    timers?: Timers
   } = {},
 ) {
   const world = options.world ?? (await openSqlWorld())
@@ -126,7 +130,7 @@ export async function openApplication(
   const creators = fakeCreators()
   const standing = fakeStanding()
   const clock = fakeClock('2026-11-18T06:01:00.000Z')
-  const manual = manualTimers()
+  const manual = manualTimers(() => Date.parse(clock.now()))
   const reported: unknown[] = []
   const probeName =
     options.channel === undefined ? channelNameSchema.parse('probe') : options.channel
@@ -134,13 +138,21 @@ export async function openApplication(
     probeName === null
       ? policy().recipients
       : { person: { channel: probeName, minLevel: 'weak' as const }, agent: null }
-  const sqlStore = createStoreOptions(world, options.tenants === undefined ? [T1] : options.tenants)
+  const listed = createStoreOptions(world, options.tenants === undefined ? [T1] : options.tenants)
+  const scans = { count: 0 }
+  const sqlStore = {
+    ...listed,
+    tenants: () => {
+      scans.count += 1
+      return listed.tenants()
+    },
+  }
   const local: NotificationLocalOptions = {
     policy: options.policy ?? policy({ recipients }),
     sql: sqlStore,
     ports: { authority, creators, standing },
     clock,
-    timers: manual.timers,
+    timers: options.timers ?? manual.timers,
     report: error => void reported.push(error),
   }
   const application = await createNotificationLocalApplication(local)
@@ -160,6 +172,7 @@ export async function openApplication(
     standing,
     clock,
     manual,
+    scans,
     reported,
     probe,
     changes,

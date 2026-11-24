@@ -599,7 +599,7 @@ flowchart LR
 | 会话权限写入后端 | `session-storage` | 默认 governance 行按原已登记租户域管理实例并发布后端。每次调用现取后端；同租户共用开启，不同租户独立。composition 停止新受理、等待已开始的开启并调用原关闭；超时保留 incomplete。结算目的地不等待业务开启，避免恢复回入形成等待环。原操作没有已提交的回执时重新核对原登录，已提交的原操作由 Session 按回执认回。 |
 | 治理目录主体 | `governance` | 入口用本运行原主体权威签发，固定组件 governanceDirectoryPrincipals 和工作 harness.governance/directory。只接受租户参数，不暴露通用签发者。行只授予本 scope 的 catalog-management，不授予业务调用许可 |
 | 治理安装主体 | `governance` | 入口用本运行原主体权威签发，固定组件 governanceInstallationPrincipals 和工作 harness.governance/installation。只接受租户参数。行按当前可信发行授予精确 contribute、adopt、catalog-management；不代替用户的权限编辑准入或业务许可 |
-| 时间源 | 入口提供的各个时钟对象 | 装配入口在本次运行里只建一个，是最先准备好的运行时对象。发行的服务端装配建的是系统时间源；测试装配与实验装配经入口环境交入模拟时间源与它的时钟协议名。不进插件树，不进插件配置，不 provide 成服务。见[时间](time.md#装配) |
+| 时间源 | 入口提供的各个时钟对象；各行与它们的本地提供者 | 装配入口在本次运行里只建一个，是最先准备好的运行时对象。发行的服务端装配建的是系统时间源；测试装配与实验装配经启动函数交入模拟时间源与它的时钟协议名。入口把它挂在本次运行的根上，各行按自己的作用域读到的就是这一个，再交给本地提供者的定时与周期清扫。不进插件树，不进插件配置，不 provide 成服务。见[时间](time.md#装配) |
 | 时钟 | `session-provider`（`sessionClock`）、`agent-host`（`agentClock`）、`model-host`（`modelClock`）、`identity` 与 `authorization`（经入口对象 `identityClock`，不受信，在根上） | 四个时钟对象都从本次运行的时间源适配：读数取它的墙钟，等待用它的「到几点」。会话时钟的采样带时间源的协议名。缺席时按各成员规定返回 `unavailable`。`identity` 的时钟由 identity 自己的 `./cordis` 定义 `identityClock` 提供，装配入口在根上 provide 入口对象，不进受信子树。见 [SessionClock](../../../packages/session/SPEC.md#模式自动归档与冻结) |
 | 凭据解析 | `model-host` | 只交凭据引用，不交秘密副本 |
 | 供应商传输适配 | `model-host` | 经注入交给 Model 宿主，不设供应商全局键 |
