@@ -22,6 +22,8 @@ export type PileViewProps = Readonly<{
   scope: string
   pile: CanvasPileBody
   box: PaperBox
+  /** The size of a page that has none of its own: the footprint the server gives. */
+  footprint: Readonly<{ width: number; height: number }>
   leaves: readonly CanvasItemBody[]
   standing: (item: CanvasItemBody) => KindStanding
   round: number
@@ -118,8 +120,8 @@ function pileKeyAct(event: React.KeyboardEvent): 'toggle' | 'rename' | 'scatter'
 
 /** A pile where the server says it is: its pages, top first, opened and closed here. */
 export function PileView(props: PileViewProps): JSX.Element {
-  const { host, scope, pile, box, leaves, standing, round, pending, open, onOpenChange, acts } =
-    props
+  const { host, scope, pile, box, footprint, leaves, standing, round, pending, open } = props
+  const { onOpenChange, acts } = props
   const [renaming, setRenaming] = useState(false)
   const title = pile.name ?? '没有名字的一叠'
   return (
@@ -160,6 +162,7 @@ export function PileView(props: PileViewProps): JSX.Element {
           return {
             key: item.id,
             name: kindName(item, kind),
+            size: item.size ?? footprint,
             content: (
               <Leaf
                 host={host}

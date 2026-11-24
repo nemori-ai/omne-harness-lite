@@ -18,6 +18,8 @@ import {
   type SizeLimits,
   snap,
   snapBox,
+  spreadShift,
+  type PaperRect,
   type ZoomLimits,
   zoomAround,
 } from '../src/paper/geometry.ts'
@@ -429,5 +431,56 @@ describe('the view', () => {
       { width: 800, height: 600, sizeFactor: 1.25 },
     )
     expect(screen).toEqual({ x: 525, y: 300 })
+  })
+})
+
+describe('the spread of an open pile', () => {
+  const inside = (rect: PaperRect, view: PaperRect): boolean =>
+    rect.left >= view.left - 1e-9 &&
+    rect.top >= view.top - 1e-9 &&
+    rect.left + rect.width <= view.left + view.width + 1e-9 &&
+    rect.top + rect.height <= view.top + view.height + 1e-9
+  const moved = (rect: PaperRect, by: { x: number; y: number }): PaperRect => ({
+    ...rect,
+    left: rect.left + by.x,
+    top: rect.top + by.y,
+  })
+
+  it('stays where it is drawn when it fits; else lies inside the view whenever it fits there', () => {
+    cases(12, draw => {
+      const view = {
+        left: 0,
+        top: 0,
+        width: draw.between(400, 2000),
+        height: draw.between(300, 1200),
+      }
+      const anchor = {
+        left: draw.between(-100, view.width + 100),
+        top: draw.between(-100, view.height + 100),
+        width: draw.between(40, 300),
+        height: 22,
+      }
+      const gap = 4
+      const spread = {
+        left: anchor.left,
+        top: anchor.top + anchor.height + gap,
+        width: draw.between(50, view.width),
+        height: draw.between(50, view.height),
+      }
+      const by = spreadShift(anchor, spread, view)
+      if (inside(spread, view)) expect(by).toEqual({ x: 0, y: 0 })
+      expect(inside(moved(spread, by), view)).toBe(true)
+    })
+  })
+
+  it('opens leftward from the right edge of the pile near the right of the view, and upward near the bottom', () => {
+    const view = { left: 0, top: 0, width: 1000, height: 800 }
+    const anchor = { left: 800, top: 700, width: 160, height: 22 }
+    const spread = { left: 800, top: 726, width: 600, height: 300 }
+    expect(moved(spread, spreadShift(anchor, spread, view))).toEqual({
+      ...spread,
+      left: 360,
+      top: 700 - 4 - 300,
+    })
   })
 })

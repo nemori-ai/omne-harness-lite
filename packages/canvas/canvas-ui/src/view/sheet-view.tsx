@@ -211,6 +211,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
             scope={scope}
             pile={pile}
             box={pileBox(pile, sheet)}
+            footprint={sheet.footprint}
             leaves={canvas.items.filter(item => item.pile === pile.id).sort((a, b) => byRank(b, a))}
             standing={standing}
             round={round}

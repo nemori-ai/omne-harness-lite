@@ -80,6 +80,22 @@ describe('the sheet draws what was read', () => {
     fireEvent.click(within(drawn).getByRole('button', { name: '收起' }))
     expect(drawn.dataset['state']).toBe('closed')
   })
+
+  it('an open pile draws each page at its own size, or at the footprint when it has none', async () => {
+    const sized = item('s', { pile: 'p', rank: 2, size: { width: 240, height: 144 } })
+    const plain = item('n', { pile: 'p', rank: 1, size: null })
+    await opened(canvas([sized, plain], [pile('p', { name: '周报' })]))
+    const drawn = screen.getByRole('group', { name: '周报' })
+    fireEvent.click(within(drawn).getByRole('button', { name: '展开' }))
+    const sizes = [...drawn.querySelectorAll<HTMLElement>('[data-depth]')].map(leaf => [
+      Number(leaf.style.getPropertyValue('--omne-paper-leaf-w')),
+      Number(leaf.style.getPropertyValue('--omne-paper-leaf-h')),
+    ])
+    expect(sizes).toEqual([
+      [240, 144],
+      [SHEET.footprint.width, SHEET.footprint.height],
+    ])
+  })
 })
 
 describe('a drag is a preview; the release sends a command, and the sheet is read again', () => {

@@ -444,6 +444,36 @@ describe('a pile', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it("draws each page of an open pile at the size the caller gives it, the pile's own when none is given", () => {
+    const sized = [
+      { ...LEAVES[0]!, size: { width: 176, height: 112 } },
+      { ...LEAVES[1]!, size: { width: 240, height: 96 } },
+      LEAVES[2]!,
+    ]
+    render(
+      <Board>
+        <PaperPile
+          box={BOX}
+          name="资料"
+          leaves={sized}
+          open
+          onOpenChange={() => undefined}
+          onPlace={() => undefined}
+        />
+      </Board>,
+    )
+    const pile = screen.getByRole('group', { name: '资料' })
+    const sizes = [...pile.querySelectorAll<HTMLElement>('.omne-paper-pile-leaf')].map(leaf => [
+      Number(leaf.style.getPropertyValue('--omne-paper-leaf-w')),
+      Number(leaf.style.getPropertyValue('--omne-paper-leaf-h')),
+    ])
+    expect(sizes).toEqual([
+      [176, 112],
+      [240, 96],
+      [BOX.width, BOX.height - PAPER_NAME_LINE],
+    ])
+  })
+
   it('is dragged whole by its name, like a page, and cannot be resized', () => {
     const onPlace = vi.fn<PlaceBox>()
     render(<Pile onPlace={onPlace} />)

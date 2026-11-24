@@ -132,6 +132,20 @@ export function resizeBox(
   return { x: across.at, y: down.at, width: across.length, height: down.length + PAPER_NAME_LINE }
 }
 
+export type PaperRect = Readonly<{ left: number; top: number; width: number; height: number }>
+
+export function spreadShift(anchor: PaperRect, spread: PaperRect, view: PaperRect): PaperPoint {
+  const gap = spread.top - (anchor.top + anchor.height)
+  const right = view.left + view.width
+  const bottom = view.top + view.height
+  const across =
+    spread.left + spread.width > right ? anchor.left + anchor.width - spread.width : spread.left
+  const down = spread.top + spread.height > bottom ? anchor.top - gap - spread.height : spread.top
+  const left = Math.max(view.left, Math.min(across, right - spread.width))
+  const top = Math.max(view.top, Math.min(down, bottom - spread.height))
+  return { x: left - spread.left, y: top - spread.top }
+}
+
 export function clampZoom(zoom: number, limits: ZoomLimits): number {
   const least = Math.min(limits.min, limits.max)
   const most = Math.max(limits.min, limits.max)

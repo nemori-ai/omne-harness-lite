@@ -173,19 +173,28 @@
   position: absolute;
   top: 100%;
   left: 0;
-  display: grid;
-  grid-template-columns: repeat(
-    var(--omne-paper-columns),
-    calc(var(--omne-paper-w) * 1px - var(--spacing) * 5.25)
-  );
-  grid-auto-rows: calc(var(--omne-paper-h) * 1px - var(--spacing) * 12.25);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   margin-top: var(--spacing);
   gap: var(--omne-space-block);
   width: max-content;
+  max-width: min(
+    calc(var(--omne-paper-room) * 1px),
+    calc(var(--omne-paper-row) * 1px + (var(--omne-paper-columns) + 1) * var(--omne-space-block))
+  );
+  translate: calc(var(--omne-paper-spread-x) * 1px) calc(var(--omne-paper-spread-y) * 1px);
   padding: var(--omne-space-block);
   border-radius: var(--omne-radius-card);
   background-color: var(--omne-surface-page);
   box-shadow: var(--omne-elevation-raised);
+}
+.omne-paper-pile[data-state='open'] .omne-paper-pile-leaf {
+  width: calc(var(--omne-paper-leaf-w) * 1px);
+}
+.omne-paper-pile[data-state='open'] .omne-paper-pile-leaf > .omne-paper-leaf {
+  flex: none;
+  height: calc(var(--omne-paper-leaf-h) * 1px);
 }
 .omne-paper-pile[data-state='open'] .omne-paper-pile-leaf > .omne-paper-name-text {
   font-size: var(--omne-text-caption);
