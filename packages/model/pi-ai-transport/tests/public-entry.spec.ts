@@ -9,6 +9,7 @@ it('the root entry exports the family table, the network resources factory, the 
     'createPiTransport',
     'defineFamily',
     'isEngineEndpoint',
+    'isProviderEndpoint',
     'recordAdoption',
     'recordProvider',
     'replayFormatsOf',

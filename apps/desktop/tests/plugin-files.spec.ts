@@ -91,7 +91,8 @@ describe('the path a page takes a file of a plugin from', () => {
     expect(await answer.text()).toBe('export const a = 1')
     expect(answer.headers.get('content-type')).toBe('text/javascript; charset=utf-8')
     expect(answer.headers.get('x-content-type-options')).toBe('nosniff')
-    expect(answer.headers.get('cache-control')).toBe('no-store')
+    expect(answer.headers.get('cache-control')).toBe('private, max-age=31536000, immutable')
+    expect(answer.headers.get('content-security-policy')).toBeNull()
     expect(t.seen.map(record => record.credentials)).toEqual([
       { proof: PROOF_SENTINEL },
       { proof: PROOF_SENTINEL },
@@ -106,12 +107,37 @@ describe('the path a page takes a file of a plugin from', () => {
   it.each([
     ['a.css', 'text/css; charset=utf-8'],
     ['data/tokens.json', 'application/json; charset=utf-8'],
+    ['art/sea.png', 'image/png'],
+    ['art/sea.jpg', 'image/jpeg'],
+    ['art/sea.webp', 'image/webp'],
+    ['art/sea.avif', 'image/avif'],
+    ['art/mark.svg', 'image/svg+xml'],
   ])('types %s as %s', async (path, type) => {
     const t = await start()
     t.reads(() => part('x', null, 1))
     const answer = await t.get(`/bridge/plugins/p/v1/${path}`)
     expect(answer.status).toBe(200)
     expect(answer.headers.get('content-type')).toBe(type)
+  })
+
+  it('a vector image is shut in: opened as a page of its own, nothing in it runs or loads', async () => {
+    const t = await start()
+    t.reads(() => part('<svg/>', null, 6))
+    const answer = await t.get('/bridge/plugins/p/v1/art/mark.svg')
+    expect(answer.headers.get('content-security-policy')).toBe(
+      "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    )
+    expect(answer.headers.get('x-content-type-options')).toBe('nosniff')
+  })
+
+  it('what is not a file keeps out of every cache: a refusal is not kept for a year', async () => {
+    const t = await start()
+    t.reads(() => answered('not-found', { reason: 'file' }))
+    const missing = await t.get('/bridge/plugins/p/v1/art/none.png')
+    expect(missing.status).toBe(404)
+    expect(missing.headers.get('cache-control')).toBe('no-store')
+    const unsigned = await t.get('/bridge/plugins/p/v1/a.js', false)
+    expect(unsigned.headers.get('cache-control')).toBe('no-store')
   })
 
   it('answers 401 without a login, and asks the server nothing', async () => {
@@ -123,7 +149,8 @@ describe('the path a page takes a file of a plugin from', () => {
   })
 
   it.each([
-    ['a suffix that is not one of the three', '/bridge/plugins/p/v1/a.wasm'],
+    ['a suffix a package may not carry', '/bridge/plugins/p/v1/a.wasm'],
+    ['a font', '/bridge/plugins/p/v1/a.woff2'],
     ['no suffix', '/bridge/plugins/p/v1/readme'],
     ['a step up', '/bridge/plugins/p/v1/../../index.html'],
     ['an encoded step up', '/bridge/plugins/p/v1/%2e%2e/secret.js'],

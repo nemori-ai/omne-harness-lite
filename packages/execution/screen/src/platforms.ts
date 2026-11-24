@@ -8,19 +8,29 @@ import {
 } from './backend.ts'
 import { libraryBackend, type LibraryUnits, type ScreenLibrary } from './library.ts'
 
-const PREFLIGHT =
-  'ObjC.import("CoreGraphics"); ObjC.bindFunction("CGPreflightScreenCaptureAccess", ["bool", []]); $.CGPreflightScreenCaptureAccess()'
+const graphics = (call: string) =>
+  `ObjC.import("CoreGraphics"); ObjC.bindFunction("${call}", ["bool", []]); $.${call}()`
+const PREFLIGHT = graphics('CGPreflightScreenCaptureAccess')
+const REQUEST = graphics('CGRequestScreenCaptureAccess')
 
-/** Asks macOS with its own scripting tool; nothing is compiled and no prompt is raised. */
-function askMacos(): Promise<string> {
+function runMacos(script: string): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
       '/usr/bin/osascript',
-      ['-l', 'JavaScript', '-e', PREFLIGHT],
+      ['-l', 'JavaScript', '-e', script],
       { timeout: 5_000 },
       (error, stdout) => (error === null ? resolve(stdout) : reject(error)),
     )
   })
+}
+
+const askMacos = (): Promise<string> => runMacos(PREFLIGHT)
+
+/** Requests the permission: macOS shows its prompt once and lists the app that runs this process in its settings; the person's answer comes later. */
+export async function macosRequestScreenAccess(
+  run: (script: string) => Promise<string> = runMacos,
+): Promise<void> {
+  await run(REQUEST).catch(() => undefined)
 }
 
 const ANSWERS: Readonly<Record<string, ScreenPermission>> = {

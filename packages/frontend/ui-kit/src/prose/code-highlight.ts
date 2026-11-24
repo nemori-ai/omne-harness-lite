@@ -4,16 +4,16 @@ import { createMermaidPlugin } from '@streamdown/mermaid'
 import { math } from '@streamdown/math'
 import { type PluginConfig } from 'streamdown'
 
-const INK = 'var(--omne-ink-primary)'
-const RESERVED = 'var(--omne-info-ink)'
-const LITERAL = 'var(--omne-caution-ink)'
-const COMMENT = 'var(--omne-ink-faint)'
+const INK = 'var(--omne-code-ink)'
+const RESERVED = 'var(--omne-code-keyword)'
+const LITERAL = 'var(--omne-code-literal)'
+const COMMENT = 'var(--omne-code-comment)'
 
 const RESTRAINED_THEME: ThemeInput = {
   name: 'omne-restrained',
 
   type: 'light',
-  colors: { 'editor.foreground': INK, 'editor.background': 'var(--omne-surface-panel-soft)' },
+  colors: { 'editor.foreground': INK, 'editor.background': 'var(--omne-code-surface)' },
   tokenColors: [
     {
       scope: ['comment', 'punctuation.definition.comment', 'string.comment'],

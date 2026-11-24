@@ -48,7 +48,7 @@ describe('a package judged against its manifest', () => {
     [
       'a file of a kind the package may not carry',
       [...FILES, file('cards/web.wasm')],
-      'the file cards/web.wasm is not one of .js, .css, .json',
+      'the file cards/web.wasm is not one of .js, .css, .json, .png, .jpg, .webp, .avif, .svg',
     ],
     [
       'a file whose path leaves the package',
@@ -63,7 +63,8 @@ describe('a package judged against its manifest', () => {
     const others = [...FILES, file('skills/other/SKILL.md')]
     expect(judgePackage(MANIFEST, others)).toEqual({
       ok: false,
-      reason: 'the file skills/other/SKILL.md is not one of .js, .css, .json',
+      reason:
+        'the file skills/other/SKILL.md is not one of .js, .css, .json, .png, .jpg, .webp, .avif, .svg',
     })
   })
 })

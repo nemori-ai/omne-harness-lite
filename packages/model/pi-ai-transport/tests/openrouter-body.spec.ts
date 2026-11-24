@@ -5,7 +5,7 @@ import {
 import { describe, expect, it } from 'vitest'
 
 describe('the OpenRouter provider body', () => {
-  it('names openrouter, its three streaming endpoints, the decoder accounting and the one apiKey item', () => {
+  it('names openrouter, its streaming and decisions endpoints, the decoder accounting and the one apiKey item', () => {
     expect(JSON.parse(OPENROUTER_PROVIDER_BODY_TEXT)).toEqual({
       name: 'openrouter',
       endpoints: [
@@ -20,6 +20,7 @@ describe('the OpenRouter provider body', () => {
           url: 'https://openrouter.ai/api/v1/responses',
           endMarker: '[DONE]',
         },
+        { protocol: 'decisions', url: 'https://openrouter.ai/api/alpha/decisions' },
       ],
       accounting: { ...OPENROUTER_ACCOUNTING },
       credentials: [

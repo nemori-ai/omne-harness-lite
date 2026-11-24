@@ -21,6 +21,7 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'definePart',
     'definePoint',
     'defineRenderPoint',
+    'lookScope',
     'needPoint',
     'needProtocol',
     'partFault',

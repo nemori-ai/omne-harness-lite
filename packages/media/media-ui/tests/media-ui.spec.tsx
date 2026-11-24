@@ -13,6 +13,7 @@ import {
   type MediaDraftSubject,
 } from '../src/cordis.tsx'
 import type { Microphone } from '../src/model/recorder.ts'
+import type { ScreenAnswer, ScreenSource } from '../src/model/snapper.ts'
 import { fakeMedia, TENANT, TENANT_TEXT, type FakeMedia } from './fixtures/fake-media.ts'
 import { startShell as startBare } from './fixtures/reference-shell.ts'
 
@@ -60,7 +61,7 @@ const png = (name: string, bytes: number[]) =>
 
 const draftsKey = serviceKey<Drafts>('test.drafts')
 
-async function mounted(media: FakeMedia, microphone?: Microphone) {
+async function mounted(media: FakeMedia, microphone?: Microphone, screenSource?: ScreenSource) {
   const { root, shell } = await startShell()
   shell.tenant = TENANT_TEXT
   await serveProtocol(root, mediaProtocol, media.client)
@@ -70,6 +71,7 @@ async function mounted(media: FakeMedia, microphone?: Microphone) {
       block,
       drafts: draftsKey,
       ...(microphone === undefined ? {} : { microphone }),
+      ...(screenSource === undefined ? {} : { screen: screenSource }),
     }),
   )
   const offers: DraftOffer[] = []
@@ -103,7 +105,7 @@ describe('界面模块', () => {
     expect(['image', 'file', 'voice', 'text'].map(put)).toEqual([true, true, true, false])
   })
 
-  it('声明七个部位，协议有没有服务都一样', async () => {
+  it('声明八个部位，协议有没有服务都一样', async () => {
     const { root, shell } = await startShell()
     await root.plugin(createMediaUiModule({ composerAttachments: attachments, block }))
     const read = partsOn(shell.registry())
@@ -118,6 +120,7 @@ describe('界面模块', () => {
       ['media.tray.attach', 'media.tray'],
       ['media.tray.chip', 'media.tray'],
       ['media.tray.record', 'media.tray'],
+      ['media.tray.screenshot', 'media.tray'],
     ])
   })
 
@@ -278,6 +281,62 @@ describe('输入框的附件区', () => {
     fireEvent.keyUp(button, { key: ' ' })
     await settle()
     expect(screen.getByRole('status').textContent).toBe('用不了麦克风')
+  })
+
+  it('截图钮：宿主截得了屏才有；按下后草稿里多一张 PNG，照粘贴的图片上传；没权限时一行说明与「打开系统设置」；截失败说原因', async () => {
+    const media = fakeMedia(2)
+    const answers: ScreenAnswer[] = [
+      { kind: 'not-authorized' },
+      { kind: 'failed', reason: '屏幕后端出错' },
+      {
+        kind: 'shot',
+        png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+        takenAt: new Date(2026, 10, 24, 13, 5, 9).getTime(),
+      },
+    ]
+    const opened: string[] = []
+    const screenSource: ScreenSource = {
+      available: async () => true,
+      capture: async () => answers.shift() ?? { kind: 'failed', reason: '没有了' },
+      openSettings: () => void opened.push('settings'),
+    }
+    const { shell, offers } = await mounted(media, undefined, screenSource)
+    render(tray(shell))
+    await settle()
+    const button = screen.getByRole('button', { name: '截一张屏幕，作为图片附件' })
+    fireEvent.click(button)
+    await settle()
+    expect(screen.getByRole('status').textContent).toBe('还没有屏幕录制的权限')
+    fireEvent.click(screen.getByRole('button', { name: '打开系统设置' }))
+    expect(opened).toEqual(['settings'])
+    fireEvent.click(button)
+    await settle()
+    expect(screen.getByRole('status').textContent).toBe('没截到屏幕：屏幕后端出错')
+    expect(screen.queryByRole('button', { name: '打开系统设置' })).toBeNull()
+    fireEvent.click(button)
+    await settle()
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.getByText('屏幕截图 13.05.09.png')).not.toBeNull()
+    const begun = media.calls.find(call => call.operation === 'begin-upload')
+    expect(begun?.body).toMatchObject({ mediaType: 'image/png', bytes: 4 })
+    expect(offers.at(-1)).toMatchObject({ attachments: [{ kind: 'image' }] })
+  })
+
+  it('截图钮：宿主截不了屏，或没给截图的来源时，没有这个钮', async () => {
+    const media = fakeMedia(2)
+    const unable: ScreenSource = {
+      available: async () => false,
+      capture: async () => ({ kind: 'failed', reason: '不该被叫到' }),
+    }
+    const first = await mounted(media, undefined, unable)
+    render(tray(first.shell))
+    await settle()
+    expect(screen.queryByRole('button', { name: '截一张屏幕，作为图片附件' })).toBeNull()
+    cleanup()
+    const second = await mounted(media)
+    render(tray(second.shell))
+    await settle()
+    expect(screen.queryByRole('button', { name: '截一张屏幕，作为图片附件' })).toBeNull()
   })
 
   it('贴图与拖入：在输入框的表单上贴进或拖进的图片也附加上；只贴文字时不拦', async () => {

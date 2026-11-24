@@ -1,6 +1,7 @@
 import { createElement as h, useId, type ReactNode, type SVGProps } from 'react'
 
 import { cn } from '../lib/utils.ts'
+import { useRedrawn } from '../redraw/redraw.ts'
 import { HAND, type Stroke } from './brush.ts'
 import type { Glyph } from './glyphs.ts'
 
@@ -46,24 +47,31 @@ function movingStrokes(glyph: Glyph, id: string): ReactNode {
   )
 }
 
+const names = new Set<string>()
+
+export const iconNames = (): readonly string[] => [...names].sort()
+
 export function defineIcon(name: string, glyph: Glyph): Icon {
+  names.add(name)
   function GlyphIcon({ size = 24, className, ...props }: IconProps): React.JSX.Element {
     const id = maskId(useId())
-    return h(
-      'svg',
-      {
-        xmlns: 'http://www.w3.org/2000/svg',
-        viewBox: '0 0 24 24',
-        width: size,
-        height: size,
-        fill: 'currentColor',
-        'aria-hidden': 'true',
-        'data-icon': name,
-        className: cn('omne-icon', className),
-        ...props,
-      },
-      glyph.still.map(stroke => ink(stroke)),
-      movingStrokes(glyph, id),
+    return useRedrawn('icon', name, { name, size, className }, () =>
+      h(
+        'svg',
+        {
+          xmlns: 'http://www.w3.org/2000/svg',
+          viewBox: '0 0 24 24',
+          width: size,
+          height: size,
+          fill: 'currentColor',
+          'aria-hidden': 'true',
+          'data-icon': name,
+          className: cn('omne-icon', className),
+          ...props,
+        },
+        glyph.still.map(stroke => ink(stroke)),
+        movingStrokes(glyph, id),
+      ),
     )
   }
   GlyphIcon.displayName = `Icon(${name})`

@@ -95,6 +95,11 @@
       "id": "plugin",
       "label": "Plugin 的清单与送达",
       "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "canvas",
+      "label": "画布",
+      "source": "packages/canvas/SPEC.md"
     }
   ],
   "roles": [

@@ -4,6 +4,7 @@ import {
   AudioIcon,
   Button,
   DeleteIcon,
+  DeviceIcon,
   IconButton,
   Input,
   RetryIcon,
@@ -17,8 +18,15 @@ import {
   type PickedFile,
 } from '../model/attachment-tray.ts'
 import { Recorder, type Microphone, type RecorderState } from '../model/recorder.ts'
+import { Snapper, type ScreenSource, type SnapperState } from '../model/snapper.ts'
 import type { MediaClient } from '../model/upload.ts'
-import { mediaTray, mediaTrayAttach, mediaTrayChip, mediaTrayRecord } from '../parts.ts'
+import {
+  mediaTray,
+  mediaTrayAttach,
+  mediaTrayChip,
+  mediaTrayRecord,
+  mediaTrayScreenshot,
+} from '../parts.ts'
 
 export type AttachmentTrayProps = Readonly<{
   client: MediaClient
@@ -27,6 +35,7 @@ export type AttachmentTrayProps = Readonly<{
   draft: string
   drafts: () => Drafts | null
   microphone: Microphone
+  screen?: ScreenSource
 }>
 
 const NONE: readonly Attachment[] = []
@@ -170,6 +179,67 @@ function RecordButton({
   )
 }
 
+const RESTING: SnapperState = { kind: 'idle' }
+
+function useSnapper(tray: AttachmentTray | null, source: ScreenSource | undefined) {
+  const [snapper, setSnapper] = useState<Snapper | null>(null)
+  useEffect(() => {
+    if (tray === null || source === undefined) return undefined
+    let live = true
+    const made = new Snapper({ source, deliver: file => tray.add([file]) })
+    void source.available().then(
+      can => live && can && setSnapper(made),
+      () => undefined,
+    )
+    return () => {
+      live = false
+      made.dispose()
+      setSnapper(null)
+    }
+  }, [tray, source])
+  const state = useSyncExternalStore(snapper?.subscribe ?? idle, snapper?.read ?? (() => RESTING))
+  return { snapper, state }
+}
+
+/** One press takes one screenshot of the person's screen as a picture attachment; shown only where the host can read the screen. */
+function ScreenshotButton({
+  tray,
+  source,
+}: {
+  tray: AttachmentTray | null
+  source?: ScreenSource
+}) {
+  const { snapper, state } = useSnapper(tray, source)
+  if (snapper === null) return null
+  const capturing = state.kind === 'capturing'
+  return (
+    <>
+      <IconButton
+        type="button"
+        size="icon-compact"
+        label="截一张屏幕，作为图片附件"
+        {...mediaTrayScreenshot.props}
+        aria-busy={capturing || undefined}
+        disabled={capturing}
+        onClick={() => void snapper.press()}
+      >
+        <DeviceIcon />
+      </IconButton>
+      {state.kind === 'needs-permission' ? (
+        <>
+          <span role="status">还没有屏幕录制的权限</span>
+          {state.canOpenSettings ? (
+            <Button type="button" variant="link" onClick={() => snapper.openSettings()}>
+              打开系统设置
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+      {state.kind === 'failed' ? <span role="status">{`没截到屏幕：${state.reason}`}</span> : null}
+    </>
+  )
+}
+
 type ChipProps = Readonly<{ item: Attachment; onRemove: () => void; onRetry: () => void }>
 
 function Chip({ item, onRemove, onRetry }: ChipProps) {
@@ -240,6 +310,10 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
         <AttachIcon />
       </IconButton>
       <RecordButton tray={tray} microphone={props.microphone} />
+      <ScreenshotButton
+        tray={tray}
+        {...(props.screen === undefined ? {} : { source: props.screen })}
+      />
     </div>
   )
 }
