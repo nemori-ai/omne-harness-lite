@@ -278,7 +278,13 @@ function settleLeg(entry: Entry, code?: number): void {
   leg.result.settle(
     code === undefined
       ? { kind: 'failed', reason: 'effectUnknown', observedDurationMs: durationMs, output }
-      : { kind: 'completed', exit: { kind: 'code', code }, durationMs, output },
+      : {
+          kind: 'completed',
+          exit: { kind: 'code', code },
+          durationMs,
+          output,
+          observedCwd: entry.cwd,
+        },
   )
 }
 function summary(leg: Leg): Extract<OutputSummary, { mode: 'terminal' }> {

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { lstat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
+import { guidanceDirectories } from '@omne-harness/request-context-contract'
 import { originRef } from '@omne-harness/execution-environment-contract'
 import { createHostFiles, hostObjectToken } from '@omne-harness/execution-environment-host-local'
 import { access } from '@omne-harness/legal-identity'
@@ -12,9 +13,22 @@ export async function readWorkspaceGuidance(
   value: Extract<WorkingDirectory, { state: 'attached' }>,
 ): Promise<WorkspaceGuidance> {
   const root = value.directory
+  const visit = input.snapshot.workspaceVisit
+  const active =
+    visit?.workspace === value.workspace &&
+    visit.instance === value.instance &&
+    visit.generation === (value.generation ?? '0')
+      ? visit.directories
+      : []
   const files = createHostFiles({ read: root, write: root })
-  const source = await readSource(input, files, root, join(root, 'AGENTS.md'))
-  const sources = source === null ? [] : [source]
+  const sources = []
+  for (const directory of guidanceDirectories(root, active)) {
+    const path = join(directory, 'AGENTS.md')
+    const source = await readSource(input, files, root, path).catch((cause: unknown) => {
+      throw new Error(`workspace guidance ${relative(root, path)}: ${String(cause)}`, { cause })
+    })
+    if (source !== null) sources.push(source)
+  }
   return { state: 'attached', root, workspace: value.workspace, instance: value.instance, sources }
 }
 

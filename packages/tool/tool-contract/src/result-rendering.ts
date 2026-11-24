@@ -120,6 +120,8 @@ function renderOrdinary<B extends ContentBlock>(
   if ('failure' in rendered) return rendered
   const produced = outcome('text', factory.text(rendered.ok), resultObject)
   if ('failure' in produced) return produced
+  if ('directoryVisit' in produced.ok)
+    return failed('directoryVisit', 'reserved for facility observations')
   const extra = structuredOnly(produced.ok)
   if (extra !== undefined) return failed('text', `${extra} is only for a structured return`)
   const data = programData(value, author.program)
@@ -132,6 +134,8 @@ function renderStructured<B extends ContentBlock>(
   author: Structured<B>,
   policy: ResultPolicy<B>,
 ): Rendering<B> {
+  if (typeof value === 'object' && value !== null && 'directoryVisit' in value)
+    return failed('directoryVisit', 'reserved for facility observations')
   const result = judged(policy, value as ToolRenderedResult<ContentBlock>)
   if ('failure' in result) return result
   const mismatch = dataMismatch(result.ok.data, author.program)

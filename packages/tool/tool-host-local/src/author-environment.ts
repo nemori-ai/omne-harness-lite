@@ -1,3 +1,5 @@
+import { dirname } from 'node:path'
+import { directoryObserver, rememberDirectoryObserver } from './directory-visits.ts'
 import { randomUUID } from 'node:crypto'
 import type {
   CommandFacility,
@@ -82,6 +84,7 @@ export type AuthorEnvironmentInput<P> = Readonly<{
   facts: EnvironmentFacts
   /** The provider that stores products, taken anew at each put; absent while none is installed. */
   media: () => ToolMediaStore<P> | undefined
+  reportDirectoryVisits?: boolean
   directory?: ToolCallDirectory
 }>
 
@@ -96,19 +99,27 @@ function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<
 
 /** The default directory of the author is the directory pinned in the request: one pinned value. */
 export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue {
+  const observer = directoryObserver(
+    input.reportDirectoryVisits && input.lease.placement.binding.kind === 'host_machine'
+      ? input.directory
+      : undefined,
+  )
   const value = {
-    ...boundFacilities(input),
+    ...boundFacilities(input, observer),
     media: productSink(input),
     screen: boundScreen(input),
   }
   const pinned = input.directory
-  return pinned === undefined
-    ? Object.freeze(value)
-    : Object.freeze({
-        ...value,
-        directory: pinned.path,
-        ...(pinned.files === undefined ? {} : { scope: pinned.files }),
-      })
+  const environment =
+    pinned === undefined
+      ? Object.freeze(value)
+      : Object.freeze({
+          ...value,
+          directory: pinned.path,
+          ...(pinned.files === undefined ? {} : { scope: pinned.files }),
+        })
+  rememberDirectoryObserver(environment, observer)
+  return environment
 }
 
 export const TOOL_PRODUCT_OWNER = '@omne-harness/tool-host-local/products'
@@ -170,6 +181,7 @@ function boundScreen<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue[
 
 function boundFacilities<P>(
   input: AuthorEnvironmentInput<P>,
+  observer: ReturnType<typeof directoryObserver>,
 ): Omit<ToolEnvironmentValue, 'media' | 'screen'> {
   const base = () => requestOf(input)
   const name = (
@@ -206,7 +218,18 @@ function boundFacilities<P>(
     if ('failure' in named) return namingFailure(common.requestId, named.failure)
     const facility = input.lease.facility('files')
     if (!facility) return absent(common.requestId)
-    return perform(facility, { ...fixed, ...common, named: named.ok })
+    const result = await perform(facility, { ...fixed, ...common, named: named.ok })
+    if (result.kind === 'done' && operation !== 'close') {
+      const isDirectory =
+        ['list', 'search', 'mkdir'].includes(operation) ||
+        (operation === 'stat' &&
+          typeof result.value === 'object' &&
+          result.value !== null &&
+          'type' in result.value &&
+          result.value.type === 'directory')
+      await observer.observed(isDirectory ? fixed.path : dirname(fixed.path))
+    }
+    return result
   }
 
   const files: ToolEnvironmentValue['files'] = {
@@ -236,7 +259,11 @@ function boundFacilities<P>(
         entries.push({ ...entry, named: named.ok })
       }
       const facility = input.lease.facility('files')
-      return facility ? facility.commitBatch({ entries, ...common }) : absent(common.requestId)
+      if (!facility) return absent(common.requestId)
+      const result = await facility.commitBatch({ entries, ...common })
+      if (result.kind === 'done')
+        for (const path of result.value.published) await observer.observed(dirname(path))
+      return result
     },
     async recoverBatch(request) {
       const common = base()
@@ -252,10 +279,12 @@ function boundFacilities<P>(
     return file(operation, request, 'object', async (facility, source) => {
       const target = await name(operation, source.target.path, 'parent')
       if ('failure' in target) return namingFailure(source.requestId, target.failure)
-      return facility[operation]({
+      const result = await facility[operation]({
         ...source,
         target: { path: source.target.path, named: target.ok },
       })
+      if (result.kind === 'done') await observer.observed(dirname(source.target.path))
+      return result
     })
   }
 
@@ -304,7 +333,11 @@ function boundFacilities<P>(
     async start(request) {
       const common = base()
       const facility = input.lease.facility('command')
-      return facility ? facility.start({ ...request, ...common }) : absent(common.requestId)
+      if (!facility) return absent(common.requestId)
+      const cwd = request.cwd
+      const result = await facility.start({ ...request, ...common })
+      if (result.kind === 'done') await observer.observed(cwd)
+      return result
     },
   }
   const terminal: ToolEnvironmentValue['terminal'] = {
@@ -335,12 +368,30 @@ function boundFacilities<P>(
     async create(request) {
       const common = base()
       const facility = input.lease.facility('terminal')
-      return facility ? facility.create({ ...request, ...common }) : absent(common.requestId)
+      if (!facility) return absent(common.requestId)
+      const cwd = request.cwd
+      const result = await facility.create({ ...request, ...common })
+      if (result.kind === 'done') await observer.observed(cwd)
+      return result
     },
     async execute(request) {
       const common = base()
       const facility = input.lease.facility('terminal')
-      return facility ? facility.execute({ ...request, ...common }) : absent(common.requestId)
+      if (!facility) return absent(common.requestId)
+      const result = await facility.execute({ ...request, ...common })
+      if (result.kind !== 'done') return result
+      const handle = result.value
+      return {
+        ...result,
+        value: {
+          ...handle,
+          result: handle.result.then(async outcome => {
+            if (outcome.kind === 'completed' && outcome.observedCwd !== undefined)
+              await observer.observed(outcome.observedCwd)
+            return outcome
+          }),
+        },
+      }
     },
     async close(request) {
       const common = base()

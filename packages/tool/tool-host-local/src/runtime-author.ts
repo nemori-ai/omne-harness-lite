@@ -378,6 +378,10 @@ export function createRuntimeAuthorExecution(
           final: {
             kind: 'final',
             ...final,
+            result: {
+              ...final.result,
+              ...(call.directoryVisit === undefined ? {} : { directoryVisit: call.directoryVisit }),
+            },
             effect: {
               kind: 'unknown',
               diagnostic: 'Author completion does not prove the disposition of external effects.',

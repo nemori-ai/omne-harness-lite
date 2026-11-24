@@ -3,6 +3,7 @@ import { workspaceCodec, type TenantId, type WorkspaceId } from '@omne-harness/l
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   workspaceSelection,
+  workspaceGeneration,
   type SessionId,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -27,7 +28,7 @@ export type StepDirectoryInput<P> = Readonly<{
   tenant: TenantId
   session: SessionId
   scope: ScopeRef
-  snapshot: Pick<WorkSnapshot, 'creation' | 'changes' | 'contextRecords'>
+  snapshot: Pick<WorkSnapshot, 'creation' | 'changes' | 'contextRecords' | 'workspaceVisit'>
 }>
 
 /** Refreshed: the block already holds the value, or the scope holds no such block. */
@@ -78,13 +79,16 @@ export async function directoryInForce<P>(
     instance,
   })
   switch (checked.kind) {
-    case 'attachable':
+    case 'attachable': {
+      const generation = workspaceGeneration(input.snapshot)
       return {
         state: 'attached',
         workspace: workspace.value,
+        ...(generation === '0' ? {} : { generation }),
         instance,
         directory: checked.directory,
       }
+    }
     case 'refused':
       return { state: 'unusable', workspace: workspace.value, instance, reason: checked.reason }
     case 'unavailable':

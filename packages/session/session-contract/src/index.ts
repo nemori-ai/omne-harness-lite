@@ -218,7 +218,11 @@ export {
   type ChildRecord,
   type RelatedSession,
 } from './standing.ts'
-export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts'
+export {
+  workspaceGeneration,
+  workspaceSelection,
+  type WorkspaceSelection,
+} from './workspace-selection.ts'
 export { cancellationDriveOf, runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'
 export {

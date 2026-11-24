@@ -44,6 +44,9 @@ type Start = ToolStartRecord
 type StartInput<P, E> = Omit<Parameters<ToolExecutorBinding<P, E>['start']>[0], 'start'> &
   Readonly<{ start: Start }>
 type Segment = Outcome<AuthorSegment<Uint8Array, unknown>, ToolPrimitiveFailure>
+import { directoryVisitOf } from './directory-visits.ts'
+import type { ToolDirectoryVisit } from '@omne-harness/tool-contract'
+
 type Final = Extract<ToolExecutionFact, { kind: 'final' }>
 
 function closeScope(
@@ -83,6 +86,7 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
         request: FixedToolRequest
         operation: ToolOperationSlot
         arguments: unknown
+        directoryVisit?: ToolDirectoryVisit | undefined
         outcome:
           | Readonly<{ kind: 'returned'; value: unknown }>
           | Readonly<{ kind: 'failed'; reason: string }>
@@ -275,6 +279,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       ...input,
       operation,
       arguments: parsed,
+      directoryVisit: directoryVisitOf(environment),
       outcome,
       closing,
       execution,
@@ -383,6 +388,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       ...input,
       operation,
       arguments: parsed,
+      directoryVisit: directoryVisitOf(environment),
       outcome,
       closing: closing ?? Promise.resolve(succeed(undefined)),
       execution,

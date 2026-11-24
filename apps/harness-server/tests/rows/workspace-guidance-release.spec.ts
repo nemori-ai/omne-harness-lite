@@ -1,5 +1,5 @@
 // @module-tag slow
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
@@ -89,6 +89,55 @@ it(
         expect(JSON.stringify(captured[1])).not.toMatch(
           /ROOT_GUIDANCE_471|OUTSIDE_GUIDANCE_856|CHILD_GUIDANCE_629/u,
         )
+      },
+    )
+  },
+)
+
+it(
+  'C2 a completed first write introduces its directory and parent in the following request',
+  { tags: ['slow'], timeout: 360_000 },
+  async () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'workspace-write-')))
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }))
+    const leaf = join(root, 'src', 'pay')
+    mkdirSync(leaf, { recursive: true })
+    writeFileSync(join(root, 'src', 'AGENTS.md'), 'PARENT_GUIDANCE_107')
+    writeFileSync(join(leaf, 'AGENTS.md'), 'LEAF_GUIDANCE_313')
+    const requests: string[] = []
+    const script = toolCallsByRequest(body => {
+      requests.push(body)
+      return requests.length === 1
+        ? [
+            {
+              id: 'pay-write',
+              tool: 'Files',
+              arguments: JSON.stringify({
+                command: 'write',
+                intent: 'create payment note',
+                params: { path: 'src/pay/note.txt', text: 'one write', mode: 'create' },
+              }),
+            },
+          ]
+        : []
+    })
+    await onReleaseTree(
+      { script, permission: 'bypass-permissions', extraHistoryKinds: ['message.system_reminder'] },
+      async tree => {
+        const entries = await run(tree, await sessionIn(tree, root))
+        expect(readFileSync(join(leaf, 'note.txt'), 'utf8')).toBe('one write')
+        expect(requests).toHaveLength(2)
+        expect(requests[0]).not.toMatch(/PARENT_GUIDANCE_107|LEAF_GUIDANCE_313/u)
+        expect(requests[1]).toContain('PARENT_GUIDANCE_107')
+        expect(requests[1]).toContain('LEAF_GUIDANCE_313')
+        const result = entries.findIndex(entry => entry.kind === 'message.tool')
+        const guidance = entries.findIndex(
+          entry =>
+            entry.kind === 'message.system_reminder' &&
+            JSON.stringify(entry.payload).includes('LEAF_GUIDANCE_313'),
+        )
+        expect(result).toBeGreaterThanOrEqual(0)
+        expect(guidance).toBeGreaterThan(result)
       },
     )
   },

@@ -1,3 +1,6 @@
+import { activeWorkspaceVisit } from './workspace-visit.ts'
+import { workspaceCodec } from '@omne-harness/legal-identity'
+import { workspaceGeneration, workspaceSelection } from './workspace-selection.ts'
 import { validateResult } from './call-state.ts'
 import { evidenceFields } from './session-validation.ts'
 import type { SessionEntry } from './entries.ts'
@@ -128,6 +131,19 @@ export function applyProducerFact(
       digestOf(call.binding.producer) !== digestOf(fact.producer)
     )
       return 'final delivery without its original binding'
+    if (fact.directoryVisit !== undefined) {
+      const visit = fact.directoryVisit
+      const selected = workspaceSelection(draft)
+      const workspace = selected === null ? null : workspaceCodec.encode(selected.workspace)
+      if (
+        workspace?.ok &&
+        workspace.value === visit.workspace &&
+        selected?.attachment.instance === visit.instance &&
+        visit.generation === workspaceGeneration(draft)
+      ) {
+        draft.workspaceVisit = activeWorkspaceVisit(draft.workspaceVisit, visit)
+      }
+    }
     draft.consumptions = draft.consumptions.map(item =>
       item.id === call.id ? { ...item, delivered: fact.source } : item,
     )

@@ -1,3 +1,4 @@
+export { guidanceDirectories } from './guidance-directories.js'
 export type { ScopeRef, ContextBlockKey } from '@omne-harness/runtime-context-contract'
 export type { Path, Decoded, Decoder } from './schema.js'
 export {

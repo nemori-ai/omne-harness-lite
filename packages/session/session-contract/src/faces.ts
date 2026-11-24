@@ -310,7 +310,12 @@ export type ProducerFact =
         | Readonly<{ kind: 'rejected'; reason: string; rejection: DurableEvidence }>
     }>
   | Readonly<{ kind: 'agent-exit'; advance: AdvanceRef; source: DurableEvidence }>
-  | Readonly<{ kind: 'execution'; producer: ProducerRef; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'execution'
+      producer: ProducerRef
+      source: DurableEvidence
+      directoryVisit?: import('./values.ts').WorkspaceDirectoryVisit
+    }>
   | Readonly<{ kind: 'account'; producer: ProducerRef; source: DurableEvidence }>
   | Readonly<{
       kind: 'release'

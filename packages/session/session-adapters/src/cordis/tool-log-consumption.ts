@@ -239,7 +239,14 @@ function interpretationOf(
       ]
     case 'result':
       return [
-        { kind: 'execution', producer, source },
+        {
+          kind: 'execution',
+          producer,
+          source,
+          ...(delivery.value.directoryVisit === undefined
+            ? {}
+            : { directoryVisit: delivery.value.directoryVisit }),
+        },
         ...(delivery.account === null ? [] : [account]),
         ...(backgrounded
           ? [

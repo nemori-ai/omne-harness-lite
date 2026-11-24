@@ -430,6 +430,7 @@ export async function pinnedDirectory(
     pinnedTo({
       path: value.directory,
       workspace: { id: id.value, instance: value.instance },
+      ...(value.generation === undefined ? {} : { generation: value.generation }),
       files: filesScopeOf(outside.ok, value.directory),
     }),
   )

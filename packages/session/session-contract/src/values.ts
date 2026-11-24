@@ -74,6 +74,12 @@ export type ResultConsumption = Readonly<{
   completion: DurableEvidence | null
   release: 'pending' | 'confirmed'
 }>
+export type WorkspaceDirectoryVisit = Readonly<{
+  workspace: string
+  instance: string
+  generation: string
+  directories: readonly string[]
+}>
 export type Consumption = Readonly<{
   id: ConsumptionId
   binding: CallBinding
@@ -455,6 +461,7 @@ export type WorkSnapshot = Readonly<{
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]
+  workspaceVisit?: WorkspaceDirectoryVisit
   changes?: readonly DeclarationChange[]
   initialization?: InitializationState
   historyIndex?: SessionHistoryIndex
