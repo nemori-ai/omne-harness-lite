@@ -521,6 +521,70 @@
 [data-count-dots] .omne-count-pill[data-tone='neutral'] {
   background: var(--omne-ink-muted);
 }
+.omne-dot-pager {
+  display: flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+.omne-dot-pager-dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+}
+.omne-dot {
+  display: inline-grid;
+  place-items: center;
+  width: calc(var(--spacing) * 5.5);
+  height: var(--omne-control-height-compact);
+  padding: 0;
+  border-radius: var(--omne-radius-control);
+  color: var(--omne-ink-faint);
+}
+.omne-dot::before {
+  content: '';
+  box-sizing: border-box;
+  width: calc(var(--spacing) * 2);
+  height: calc(var(--spacing) * 2);
+  border: calc(var(--spacing) * 0.375) solid currentColor;
+  border-radius: var(--omne-radius-pill);
+  background: currentColor;
+}
+.omne-dot[aria-selected='true']::before {
+  width: calc(var(--spacing) * 4);
+}
+.omne-dot[data-mark='waiting'] {
+  color: var(--omne-caution-ink);
+}
+.omne-dot[data-mark='waiting']::before {
+  background: transparent;
+}
+.omne-dot[data-mark='filled'] {
+  color: var(--omne-ink-primary);
+}
+.omne-dot[data-mark='failed'] {
+  color: var(--omne-danger-ink);
+}
+.omne-dot-pager-steps {
+  display: flex;
+  margin-left: auto;
+}
+.omne-dot-pager-steps > [aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+.omne-paged {
+  display: grid;
+  min-width: 0;
+}
+.omne-paged > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.omne-paged > [inert] {
+  visibility: hidden;
+}
 .omne-choice-list {
   min-width: 0;
 }
