@@ -36,6 +36,7 @@ import {
   requestedCall,
   type PassEffect,
   type PassPlace,
+  type PassState,
 } from './extension-pass.ts'
 import { agentEvidence } from './identities.ts'
 import type { LoopNode } from './nodes.ts'
@@ -392,7 +393,7 @@ async function planObservers<P>(
   driver: Driver<P>,
   pass: PassPlace & Readonly<{ id: string }>,
   at: Pick<AgentCheckpoint, 'passages'>,
-): Promise<Outcome<Pick<AgentCheckpoint, 'chain' | 'passages'> | null, Failure>> {
+): Promise<Outcome<PassState | null, Failure>> {
   const chain: ExtensionChain = { ...placeOf(pass), pass: pass.id, members: [], basis: null }
   const read = await readTenant(driver, pass)
   if (read !== null && 'failure' in read) {
@@ -432,7 +433,7 @@ export function createPassDriver<P>(host: PassHost<P>) {
     planObservers: (
       pass: PassPlace & Readonly<{ id: string }>,
       at: Pick<AgentCheckpoint, 'passages'>,
-    ) => planObservers(driver, pass, at),
+    ): Promise<Outcome<PassState | null, Failure>> => planObservers(driver, pass, at),
     observe: (call: Passage, subject: Subject) => observe(driver, call, subject),
   }
 }

@@ -109,10 +109,12 @@ export async function startAssembly(
           },
         }
       }
+      // Shell runs in the working directory of the session: without a workspace, the default one.
+      if (op.id === 'session-ad03')
+        writeFileSync(join(String(config['defaultDirectory']), PAYLOAD_FILE), author.body)
       const construction = config['construction'] as Record<string, unknown> | undefined
       if (construction?.['Shell'] !== undefined) {
         const shell = construction['Shell'] as Record<string, unknown>
-        writeFileSync(join(String(shell['cwd']), PAYLOAD_FILE), author.body)
         return {
           ...op,
           config: {

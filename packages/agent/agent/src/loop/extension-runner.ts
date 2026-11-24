@@ -28,7 +28,7 @@ import {
   type PassDriver,
   type PassHost,
 } from './extension-drive.ts'
-import type { PassEffect } from './extension-pass.ts'
+import type { PassEffect, PassState } from './extension-pass.ts'
 import { conclusionEvidence } from './extension-positions.ts'
 import {
   AGENT_OWNER,
@@ -300,7 +300,10 @@ export function createPassRunner<P>(host: PassRunnerHost<P>) {
   const runner: Runner<P> = { host, driver }
   return {
     run: (node: LoopNode, pass: Pass) => run(runner, node, pass),
-    planObservers: (candidate: AgentOperationId, at: Pick<AgentCheckpoint, 'passages'>) =>
+    planObservers: (
+      candidate: AgentOperationId,
+      at: Pick<AgentCheckpoint, 'passages'>,
+    ): Promise<Outcome<PassState | null, Failure>> =>
       driver.planObservers(
         {
           id: `${candidate}/after_terminal`,

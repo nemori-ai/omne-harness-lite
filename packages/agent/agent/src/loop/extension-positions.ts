@@ -3,7 +3,6 @@ import type {
   ActionBatch,
   ActionSlot,
   ActionToolCall,
-  AgentCheckpoint,
   Conclusion,
   DurableEvidence,
   Failure,
@@ -17,7 +16,7 @@ import type { Message } from '@omne-harness/message'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import type { PassSubject } from './extension-drive.ts'
-import { closedPass, type PassEffect } from './extension-pass.ts'
+import { closedPass, type PassEffect, type PassState } from './extension-pass.ts'
 import { agentEvidence } from './identities.ts'
 
 /** What each position gives its pass to judge and takes back from it. Pure: the node that calls it owns the commit. */
@@ -43,7 +42,7 @@ export function preparedBy(effect: PassEffect | null, assembled: Preparation | n
   return effect !== null && 'preparation' in effect.subject ? effect.subject.preparation : assembled
 }
 
-export function stepEnd(at: Pick<AgentCheckpoint, 'chain' | 'passages'>) {
+export function stepEnd(at: PassState): Partial<PassState> & Pick<PassState, 'passages'> {
   const passages = at.passages.filter(passage => admissionActionOf(passage.id) === null)
   return { passages, ...closedPass({ chain: at.chain, passages }) }
 }
@@ -57,7 +56,7 @@ const rewrote = (call: Passage): boolean =>
   (call.progress.kind === 'resolved' || call.progress.kind === 'applied') &&
   call.progress.conclusion.output?.kind === 'rewrite'
 
-export function closedKeepingRewrites(at: Pick<AgentCheckpoint, 'chain' | 'passages'>) {
+export function closedKeepingRewrites(at: PassState): Partial<PassState> {
   const { chain } = at
   if (chain === null) return {}
   const transition = agentEvidence(`${chain.pass}/adopted`)

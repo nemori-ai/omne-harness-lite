@@ -143,9 +143,9 @@ export function nextOrdinal(chain: ExtensionChain, call: Passage, conclusion: Co
 }
 
 /** What the checkpoint holds once a pass is adopted: no open chain, and none of its calls. */
-export function closedPass(
-  at: Pick<AgentCheckpoint, 'chain' | 'passages'>,
-): Partial<Pick<AgentCheckpoint, 'chain' | 'passages'>> {
+export type PassState = Pick<AgentCheckpoint, 'chain' | 'passages'>
+
+export function closedPass(at: PassState): Partial<PassState> {
   const { chain } = at
   if (chain === null) return {}
   return {
