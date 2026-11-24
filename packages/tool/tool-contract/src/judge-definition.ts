@@ -374,33 +374,45 @@ function flatCallable<
   })
 }
 
+type Refusal = Readonly<{ field: string; reason: string }> | undefined
+const programName = (ok: boolean, at: string): Refusal =>
+  ok ? undefined : { field: member(at, 'name'), reason: 'program-name' }
+
+function functionProgram(
+  value: Pick<ToolDefinition, 'name'> & Extract<ToolImplementationShape, { kind: 'function' }>,
+  at: string,
+): Refusal {
+  const field = member(at, 'program')
+  if (value.program === undefined) return { field, reason: 'undeclared' }
+  if (value.program.kind !== 'open') return { field, reason: 'no-open-command' }
+  return programName(isProgramName(value.name), at)
+}
+
+function commandsProgram(
+  value: Pick<ToolDefinition, 'name'> & Extract<ToolImplementationShape, { kind: 'commands' }>,
+  at: string,
+): Refusal {
+  const commands = member(at, 'commands')
+  const access = value.commands.map(entry => entry.program)
+  const missing = access.indexOf(undefined)
+  if (missing >= 0)
+    return { field: member(item(commands, missing), 'program'), reason: 'undeclared' }
+  const open = value.commands.filter((_, index) => access[index]?.kind === 'open')
+  if (open.length === 0) return { field: commands, reason: 'no-open-command' }
+  if (!isProgramName(value.name)) return programName(false, at)
+  const unnameable = open.find(entry => !isProgramName(value.name, entry.name))
+  return unnameable === undefined
+    ? undefined
+    : programName(false, item(commands, value.commands.indexOf(unnameable)))
+}
+
 // TL-72: a programmable tool says of every command how it faces a program, and a program can name it.
 function programDeclared(
   value: Pick<ToolDefinition, 'name' | 'programmable'> & ToolImplementationShape,
   at: string,
-): Readonly<{ field: string; reason: string }> | undefined {
+): Refusal {
   if (value.programmable !== true) return undefined
-  if (value.kind === 'function') {
-    if (value.program === undefined) return { field: member(at, 'program'), reason: 'undeclared' }
-    if (value.program.kind !== 'open')
-      return { field: member(at, 'program'), reason: 'no-open-command' }
-    return isProgramName(value.name)
-      ? undefined
-      : { field: member(at, 'name'), reason: 'program-name' }
-  }
-  const commands = member(at, 'commands')
-  const missing = value.commands.findIndex(entry => entry.program === undefined)
-  if (missing >= 0)
-    return { field: member(item(commands, missing), 'program'), reason: 'undeclared' }
-  const open = value.commands.filter(entry => entry.program?.kind === 'open')
-  if (open.length === 0) return { field: commands, reason: 'no-open-command' }
-  if (!isProgramName(value.name)) return { field: member(at, 'name'), reason: 'program-name' }
-  const unnameable = value.commands.findIndex(
-    entry => entry.program?.kind === 'open' && !isProgramName(value.name, entry.name),
-  )
-  return unnameable < 0
-    ? undefined
-    : { field: member(item(commands, unnameable), 'name'), reason: 'program-name' }
+  return value.kind === 'function' ? functionProgram(value, at) : commandsProgram(value, at)
 }
 
 export const toolDefinition: Check<ToolDefinition> = refine(

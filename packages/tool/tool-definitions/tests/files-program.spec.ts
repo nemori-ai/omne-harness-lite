@@ -1,19 +1,17 @@
 import { stripTypeScriptTypes } from 'node:module'
 import { expect, it } from 'vitest'
-import { programSignature, type ToolDefinition } from '@omne-harness/tool-contract/provider'
+import type { ToolDefinition } from '@omne-harness/tool-contract'
+import { programSignature } from '@omne-harness/tool-contract/provider'
 import { createFilesAuthor, PROGRAM_DATA_MAX_BYTES } from '@omne-harness/tool-definitions'
 import { READ_PAGE_MAX_BYTES } from '../src/files.ts'
 import { bounded } from '../src/text.ts'
 import { filesFixture } from './fixtures/files.ts'
-import { runRaw, value } from './run-author.ts'
+import { runForProgram, runRaw, value } from './run-author.ts'
 
 const author = (fixture: ReturnType<typeof filesFixture>) =>
   value(createFilesAuthor(fixture.config))
-const answered = async (fixture: ReturnType<typeof filesFixture>, command: string, args: unknown) =>
-  (await runRaw(author(fixture), command, args, fixture.environment)) as {
-    text: string
-    data?: unknown
-  }
+const answered = (fixture: ReturnType<typeof filesFixture>, command: string, args: unknown) =>
+  runForProgram(author(fixture), command, args, fixture.environment)
 
 function definitionOf(implementation: ReturnType<typeof author>): ToolDefinition {
   const { facts } = implementation
@@ -105,14 +103,23 @@ it('gives no value when the facility refuses, so that a program sees a failure',
       write: async () => ({ kind: 'rejected', requestId: 'fixture', reason: 'conflict' }) as const,
     },
   }
-  const written = (await runRaw(
+  const written = await runForProgram(
     author(fixture),
     'write',
     { path: '/a.txt', text: 'x', mode: 'create' },
     environment,
-  )) as { text: string }
+  )
   expect(written.text).toMatch(/^rejected /)
   expect('data' in written).toBe(false)
+})
+
+it('computes no value for a call the model makes itself: its answer is the text alone', async () => {
+  const fixture = filesFixture({ '/a.txt': 'alpha' })
+  const direct = await runRaw(author(fixture), 'read', { path: '/a.txt' }, fixture.environment)
+  expect(direct).toEqual({ text: expect.stringContaining('alpha') })
+  const program = await answered(fixture, 'read', { path: '/a.txt' })
+  expect(program.text).toBe(Reflect.get(Object(direct), 'text'))
+  expect(program.data).toMatchObject({ text: 'alpha' })
 })
 
 it('gives the entries, hits and facts of the reading commands as values', async () => {

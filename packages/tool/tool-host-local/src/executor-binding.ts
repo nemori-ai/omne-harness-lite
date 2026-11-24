@@ -17,6 +17,7 @@ import {
   CLOSED_RESULT_MAX_BYTES,
   commandArguments,
   describeCommandArgumentsRejection,
+  markProgramCall,
   type AuthorWait,
   type AuthorSegment,
   type CallAccess,
@@ -153,9 +154,12 @@ function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
 }
 
 // The executor of a source entry reads who calls from the context, in the first segment and in each resumed one.
-function noted<P>(scope: ToolExecutionScope, facts: CallAccess<P>): ToolExecutionScope {
+function noted<P>(
+  scope: ToolExecutionScope,
+  facts: CallAccess<P> & Readonly<{ request: FixedToolRequest }>,
+): ToolExecutionScope {
   noteCallFacts(scope.context, facts)
-  return scope
+  return facts.request.invocation.kind === 'programmatic' ? markProgramCall(scope) : scope
 }
 
 export function createLocalToolBindings<P, E, B extends ContentBlock>(

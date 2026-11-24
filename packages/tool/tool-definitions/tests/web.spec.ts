@@ -8,6 +8,7 @@ import {
   commandGuide,
   deriveDefinition,
   judgeToolDefinition,
+  markProgramCall,
 } from '@omne-harness/tool-contract/provider'
 import { toolAssetBody, toolBodyContract, toolsCapabilityOf } from '@omne-harness/tool-contract'
 import {
@@ -93,10 +94,11 @@ function fixture(construction: object = { resultMaxBytes: 1048576, maxSearchResu
     const parsed = 'failure' in cut ? cut : operation.author.parameters.parse(cut.ok)
     return { operation: operation.author, parsed }
   }
-  async function raw(command: string, params: unknown, web?: WebAccess) {
+  async function raw(command: string, params: unknown, web?: WebAccess, fromProgram = false) {
     const { operation, parsed } = decode(command, params)
     if ('failure' in parsed) throw new Error(JSON.stringify(parsed.failure))
     const execution = web === undefined ? scope() : attachWebAccess(scope(), web)
+    if (fromProgram) markProgramCall(execution)
     const result = await executeTool(parsed.ok, operation.executor, null, execution)
     if ('failure' in result) throw new Error(JSON.stringify(result.failure))
     const checked = operation.output.check({ arguments: parsed.ok, value: result.ok })
@@ -387,6 +389,7 @@ describe('Web author: what a program is given', () => {
       'fetch',
       { url: 'https://example.test/' },
       access({ ok: hits }, { ok: long }),
+      true,
     )
     expect(new TextEncoder().encode(fetched.text).byteLength).toBeLessThanOrEqual(2048)
     expect(fetched.text).toContain('[tool truncated bytes ')
@@ -398,7 +401,9 @@ describe('Web author: what a program is given', () => {
         truncated: false,
       },
     })
-    const searched = await test.raw('search', { query: 'q' }, access({ ok: hits }))
+    const searched = await test.raw('search', { query: 'q' }, access({ ok: hits }), true)
+    const direct = await test.raw('search', { query: 'q' }, access({ ok: hits }))
+    expect(direct.value).toEqual({ text: searched.text })
     expect(searched.value).toMatchObject({
       data: {
         results: hits.map(hit => ({ title: hit.title, url: hit.url, excerpt: hit.excerpt })),
@@ -412,9 +417,10 @@ describe('Web author: what a program is given', () => {
       'fetch',
       { url: 'https://example.test/' },
       access({ ok: hits }, { failure: { kind: 'timeout' } }),
+      true,
     )
     expect(failed.value).toEqual({ text: expect.stringContaining('timeout reason=') })
-    const detached = await test.raw('search', { query: 'q' })
+    const detached = await test.raw('search', { query: 'q' }, undefined, true)
     expect(detached.value).toEqual({ text: expect.stringContaining('unavailable') })
   })
 })

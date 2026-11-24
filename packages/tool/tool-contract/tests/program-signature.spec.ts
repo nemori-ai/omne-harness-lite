@@ -8,8 +8,11 @@ import type {
 import {
   isProgramName,
   judgeToolDefinition,
+  isProgramCall,
+  markProgramCall,
   programFunctions,
   programSignature,
+  schemaType,
 } from '@omne-harness/tool-contract/provider'
 import { adoption, commandsDefinition, functionDefinition, json } from './tool-values.ts'
 
@@ -221,5 +224,82 @@ describe('the functions of a definition and their signatures', () => {
           .replaceAll(/\/\*\*.*?\*\//gs, '')
           .trim(),
       ).toBe('')
+  })
+})
+
+describe('the TypeScript type of a JSON Schema', () => {
+  it.each([
+    ['{}', 'unknown'],
+    ['true', 'unknown'],
+    ['{"type":"string"}', 'string'],
+    ['{"type":"integer"}', 'number'],
+    ['{"type":"number"}', 'number'],
+    ['{"type":"boolean"}', 'boolean'],
+    ['{"type":"null"}', 'null'],
+    ['{"type":"weird"}', 'unknown'],
+    ['{"type":5}', 'unknown'],
+    ['{"type":["string","null"]}', 'string | null'],
+    ['{"type":["integer","number"]}', 'number'],
+    ['{"type":["string",5]}', 'string | unknown'],
+    ['{"enum":["a",1,true,null]}', '"a" | 1 | true | null'],
+    ['{"enum":[false,{"x":1},[1]]}', 'false | unknown'],
+    ['{"enum":[]}', 'never'],
+    ['{"const":false}', 'false'],
+    ['{"const":"only"}', '"only"'],
+    ['{"anyOf":[{"type":"string"},{"type":"number"}]}', 'string | number'],
+    ['{"oneOf":[{"type":"string"},{"type":["string","null"]}]}', 'string | null'],
+    ['{"anyOf":[]}', 'never'],
+    ['{"anyOf":"not a list","type":"string"}', 'string'],
+    ['{"type":"array"}', 'unknown[]'],
+    ['{"type":"array","items":{"type":"string"}}', 'string[]'],
+    ['{"type":"array","items":{"type":["string","null"]}}', '(string | null)[]'],
+    [
+      '{"type":"array","items":{"type":"object","properties":{"a":{"enum":["x","y"]}}}}',
+      '{ a?: "x" | "y" }[]',
+    ],
+    ['{"type":"object"}', 'Record<string, unknown>'],
+    ['{"type":"object","additionalProperties":{"type":"string"}}', 'Record<string, string>'],
+    ['{"type":"object","additionalProperties":false}', 'Record<string, unknown>'],
+    ['{"properties":{"a":{"type":"string"}}}', '{ a?: string }'],
+    [
+      '{"type":"object","required":["a",5,"odd key"],"properties":{"a":{"type":"string"},"odd key":{"type":"null"},"b":{}}}',
+      '{ a: string; "odd key": null; b?: unknown }',
+    ],
+    ['{"type":"object","required":"a","properties":{"a":{"type":"string"}}}', '{ a?: string }'],
+    ['{"type":"object","properties":"none"}', 'Record<string, unknown>'],
+  ])('reads %s as %s', (schema, expected) => {
+    expect(schemaType(json(schema))).toBe(expected)
+  })
+
+  it('prefers an enum to a type, a const to alternatives, and alternatives to a type', () => {
+    expect(schemaType(json('{"type":"string","enum":["a"]}'))).toBe('"a"')
+    expect(schemaType(json('{"const":1,"anyOf":[{"type":"string"}]}'))).toBe('1')
+    expect(schemaType(json('{"anyOf":[{"type":"string"}],"type":"number"}'))).toBe('string')
+    expect(schemaType(json('{"type":"number","properties":{"a":{}}}'))).toBe('number')
+  })
+})
+
+describe('the summary of a function in its declaration', () => {
+  it('keeps the summary on one line and cannot close the comment', () => {
+    const tool = lookupTool()
+    const odd = { ...tool, description: 'Reads  one\n\tfile. */ declare const x: any /*' }
+    expect(programSignature(odd).split('\n')).toEqual([
+      '/** Reads one file. * / declare const x: any /* */',
+      'declare function Lookup(params: { path?: string }): Promise<void>',
+    ])
+  })
+})
+
+describe('the mark of a call a program made', () => {
+  it('is on the scope the host marked, and on no other', () => {
+    const scope = (): Parameters<typeof markProgramCall>[0] => ({
+      context: {} as never,
+      limits: {} as never,
+      finish: async () => ({ ok: undefined }),
+    })
+    const marked = scope()
+    expect(markProgramCall(marked)).toBe(marked)
+    expect(isProgramCall(marked.context)).toBe(true)
+    expect(isProgramCall(scope().context)).toBe(false)
   })
 })

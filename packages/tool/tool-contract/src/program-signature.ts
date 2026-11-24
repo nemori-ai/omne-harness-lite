@@ -12,7 +12,6 @@ export type ProgramFunction = Readonly<{
   command: string | null
   summary: string
   unless: readonly string[]
-  /** `null`: the executor owns the parameters and publishes no schema. */
   parameters: JsonValue | null
   returns: ToolReturnDeclaration
   external: boolean
@@ -69,90 +68,86 @@ export function programFunctions(definition: ToolDefinition): readonly ProgramFu
 
 const member = (schema: JsonValue, key: string): JsonValue | undefined =>
   schema.kind === 'object' ? schema.entries.find(entry => entry.key === key)?.value : undefined
-const literal = (value: JsonValue): string =>
-  value.kind === 'string'
-    ? JSON.stringify(value.value)
-    : value.kind === 'number'
-      ? value.lexeme
-      : value.kind === 'boolean'
-        ? String(value.value)
-        : value.kind === 'null'
-          ? 'null'
-          : 'unknown'
+const items = (value: JsonValue | undefined): readonly JsonValue[] | null =>
+  value?.kind === 'array' ? value.items : null
+const text = (value: JsonValue): string | null => (value.kind === 'string' ? value.value : null)
+const LITERALS: Readonly<Record<JsonValue['kind'], (value: never) => string>> = {
+  string: (value: Extract<JsonValue, { kind: 'string' }>) => JSON.stringify(value.value),
+  number: (value: Extract<JsonValue, { kind: 'number' }>) => value.lexeme,
+  boolean: (value: Extract<JsonValue, { kind: 'boolean' }>) => String(value.value),
+  null: () => 'null',
+  array: () => 'unknown',
+  object: () => 'unknown',
+}
+const literal = (value: JsonValue): string => LITERALS[value.kind](value as never)
 const key = (name: string) =>
   /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name)
 
 function objectType(schema: JsonValue, omit: readonly string[]): string {
   const properties = member(schema, 'properties')
-  const required = member(schema, 'required')
-  const needed = new Set(
-    required?.kind === 'array'
-      ? required.items.flatMap(one => (one.kind === 'string' ? [one.value] : []))
-      : [],
-  )
-  const fields =
-    properties?.kind === 'object'
-      ? properties.entries
-          .filter(entry => !omit.includes(entry.key))
-          .map(
-            entry => `${key(entry.key)}${needed.has(entry.key) ? '' : '?'}: ${typeOf(entry.value)}`,
-          )
-      : []
-  const extra = member(schema, 'additionalProperties')
+  const needed = new Set((items(member(schema, 'required')) ?? []).map(text))
+  const fields = (properties?.kind === 'object' ? properties.entries : [])
+    .filter(entry => !omit.includes(entry.key))
+    .map(
+      entry => `${key(entry.key)}${needed.has(entry.key) ? '' : '?'}: ${schemaType(entry.value)}`,
+    )
   if (fields.length > 0) return `{ ${fields.join('; ')} }`
-  return `Record<string, ${extra?.kind === 'object' ? typeOf(extra) : 'unknown'}>`
+  const extra = member(schema, 'additionalProperties')
+  return `Record<string, ${extra?.kind === 'object' ? schemaType(extra) : 'unknown'}>`
 }
 
-function namedType(name: string, schema: JsonValue): string {
-  switch (name) {
-    case 'string':
-    case 'boolean':
-    case 'null':
-      return name
-    case 'integer':
-    case 'number':
-      return 'number'
-    case 'array': {
-      const items = member(schema, 'items')
-      const parts = items === undefined ? ['unknown'] : alternatives(items)
-      return parts.length > 1 ? `(${parts.join(' | ')})[]` : `${parts.join('')}[]`
-    }
-    case 'object':
-      return objectType(schema, [])
-    default:
-      return 'unknown'
-  }
+function arrayType(schema: JsonValue): string {
+  const element = member(schema, 'items')
+  const parts = element === undefined ? ['unknown'] : alternatives(element)
+  return parts.length > 1 ? `(${parts.join(' | ')})[]` : `${parts.join('')}[]`
 }
 
-/** The alternatives of the TypeScript type of what a JSON Schema accepts, as far as a type can say it. */
+const NAMED: Readonly<Record<string, (schema: JsonValue) => string>> = {
+  string: () => 'string',
+  boolean: () => 'boolean',
+  null: () => 'null',
+  integer: () => 'number',
+  number: () => 'number',
+  array: arrayType,
+  object: schema => objectType(schema, []),
+}
+const named = (name: JsonValue, schema: JsonValue): string =>
+  (NAMED[text(name) ?? ''] ?? (() => 'unknown'))(schema)
+
+const WAYS: readonly ((schema: JsonValue) => readonly string[] | null)[] = [
+  schema => items(member(schema, 'enum'))?.map(literal) ?? null,
+  schema => {
+    const fixed = member(schema, 'const')
+    return fixed === undefined ? null : [literal(fixed)]
+  },
+  schema =>
+    items(member(schema, 'anyOf') ?? member(schema, 'oneOf'))?.flatMap(alternatives) ?? null,
+  schema => {
+    const type = member(schema, 'type')
+    if (type === undefined) return null
+    return (items(type) ?? [type]).map(one => named(one, schema))
+  },
+  schema => (member(schema, 'properties') === undefined ? null : [objectType(schema, [])]),
+]
+
 function alternatives(schema: JsonValue): readonly string[] {
-  const choices = member(schema, 'enum')
-  const fixed = member(schema, 'const')
-  const any = member(schema, 'anyOf') ?? member(schema, 'oneOf')
-  const type = member(schema, 'type')
-  const parts =
-    choices?.kind === 'array'
-      ? choices.items.map(literal)
-      : fixed !== undefined
-        ? [literal(fixed)]
-        : any?.kind === 'array'
-          ? any.items.flatMap(alternatives)
-          : type?.kind === 'string'
-            ? [namedType(type.value, schema)]
-            : type?.kind === 'array'
-              ? type.items.map(one =>
-                  one.kind === 'string' ? namedType(one.value, schema) : 'unknown',
-                )
-              : [member(schema, 'properties') === undefined ? 'unknown' : objectType(schema, [])]
-  return parts.length === 0 ? ['never'] : [...new Set(parts)]
+  for (const way of WAYS) {
+    const parts = way(schema)
+    if (parts !== null) return parts.length === 0 ? ['never'] : [...new Set(parts)]
+  }
+  return ['unknown']
 }
-const typeOf = (schema: JsonValue) => alternatives(schema).join(' | ')
+
+/** The TypeScript type of the values a JSON Schema accepts, as far as a type can say it. */
+export function schemaType(schema: JsonValue): string {
+  return alternatives(schema).join(' | ')
+}
 
 function callOf(one: ProgramFunction): string {
   const params =
     one.parameters === null ? 'Record<string, unknown>' : objectType(one.parameters, one.unless)
   const program = one.returns.program
-  const value = program.kind === 'json' ? typeOf(program.definition.schema) : 'void'
+  const value = program.kind === 'json' ? schemaType(program.definition.schema) : 'void'
   return `(params: ${params}): Promise<${value}>`
 }
 

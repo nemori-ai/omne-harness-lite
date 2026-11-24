@@ -459,6 +459,7 @@
 - `fixedRequestReference` · `request-reference.d.ts`
 - `foldResident` · `dynamics.d.ts`
 - `intentFault` · `command-call.d.ts`
+- `isProgramCall` · `program-call.d.ts`
 - `isProgramName` · `program-signature.d.ts`
 - `isToolSourcePrefix` · `entry-source.d.ts`
 - `judgeCommittedToolResult` · `result-policy.d.ts`
@@ -475,6 +476,7 @@
 - `judgeToolSourceListing` · `entry-source.d.ts`
 - `judgeToolState` · `judge-state.d.ts`
 - `manifestOf` · `body-store.d.ts`
+- `markProgramCall` · `program-call.d.ts`
 - `namesDefinition` · `request-reference.d.ts`
 - `needsIntent` · `command-call.d.ts`
 - `planAdoption` · `dynamics.d.ts`
@@ -491,6 +493,7 @@
 - `sameBindingKey` · `dynamics.d.ts`
 - `sameShape` · `dynamics.d.ts`
 - `sameSourceLayer` · `dynamics.d.ts`
+- `schemaType` · `program-signature.d.ts`
 - `scriptConstructionOf` · `script-tool.d.ts`
 - `scriptParametersSchema` · `script-tool.d.ts`
 - `scriptToolAuthoring` · `script-tool.d.ts`
@@ -3281,6 +3284,14 @@ export interface ToolProvider<P, B extends ContentBlock> {
 }
 ```
 
+## 声明文件 `program-call.d.ts`
+
+```ts
+import type { ToolExecutionContext, ToolExecutionScope } from './author-context.ts';
+export declare function isProgramCall(context: ToolExecutionContext): boolean;
+export declare function markProgramCall(scope: ToolExecutionScope): ToolExecutionScope;
+```
+
 ## 声明文件 `program-signature.d.ts`
 
 ```ts
@@ -3299,6 +3310,7 @@ export type ProgramFunction = Readonly<{
 }>;
 export declare function isProgramName(tool: string, command?: string): boolean;
 export declare function programFunctions(definition: ToolDefinition): readonly ProgramFunction[];
+export declare function schemaType(schema: JsonValue): string;
 export declare function programSignature(definition: ToolDefinition): string;
 ```
 
@@ -3475,9 +3487,10 @@ export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './bac
 export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandGuide, commandSignature, decodeCommandCall, describeCommandArgumentsRejection, encodeCommandCall, INTENT_MAX_BYTES, intentFault, needsIntent, } from './command-call.ts';
 export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts';
 export { attachToolsCapability } from './tools-capability.ts';
+export { isProgramCall, markProgramCall } from './program-call.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
 export { returnGuide } from './return-description.ts';
-export { PROGRAM_FAILURE, isProgramName, programFunctions, programSignature, type ProgramFunction, } from './program-signature.ts';
+export { PROGRAM_FAILURE, isProgramName, programFunctions, programSignature, schemaType, type ProgramFunction, } from './program-signature.ts';
 export { TOOL_ENTRY_SOURCES_POINT, isToolSourcePrefix, judgeToolSourceListing, type ToolCapabilityIdentity, type ToolEntrySource, type ToolSourceBreach, type ToolSourceCall, type ToolSourceEntry, type ToolSourceListing, type ToolSourceWithheld, } from './entry-source.ts';
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts';
 export { SCRIPT_EXECUTOR, SCRIPT_MODULE, SCRIPT_TOOL_FILE, checkScriptArguments, readScriptConstruction, scriptConstructionOf, scriptParametersSchema, scriptToolAuthoring, scriptToolLayout, type ScriptConstruction, type ScriptParameters, type ScriptProperty, } from './script-tool.ts';

@@ -280,6 +280,7 @@ export {
 } from './command-call.ts'
 export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts'
 export { attachToolsCapability } from './tools-capability.ts'
+export { isProgramCall, markProgramCall } from './program-call.ts'
 export type {
   ToolForwardParent,
   ToolForwardBinding,
@@ -293,6 +294,7 @@ export {
   isProgramName,
   programFunctions,
   programSignature,
+  schemaType,
   type ProgramFunction,
 } from './program-signature.ts'
 export {

@@ -7,6 +7,7 @@ import {
   commandGuide,
   deriveDefinition,
   judgeToolDefinition,
+  markProgramCall,
 } from '@omne-harness/tool-contract/provider'
 import {
   attachSkillsAccess,
@@ -119,10 +120,11 @@ function fixture(construction: object = { resultMaxBytes: 1048576 }) {
     const parsed = 'failure' in cut ? cut : operation.author.parameters.parse(cut.ok)
     return { operation: operation.author, parsed }
   }
-  async function raw(command: string, params: unknown, skills?: SkillsAccess) {
+  async function raw(command: string, params: unknown, skills?: SkillsAccess, fromProgram = false) {
     const { operation, parsed } = decode(command, params)
     if ('failure' in parsed) throw new Error(JSON.stringify(parsed.failure))
     const execution = skills === undefined ? scope() : attachSkillsAccess(scope(), skills)
+    if (fromProgram) markProgramCall(execution)
     const result = await executeTool(parsed.ok, operation.executor, null, execution)
     if ('failure' in result) throw new Error(JSON.stringify(result.failure))
     const checked = operation.output.check({ arguments: parsed.ok, value: result.ok })
@@ -531,7 +533,7 @@ describe('Skills author: what a program is given', () => {
     const test = fixture()
     const skills = access()
     const given = async (command: string, params: unknown, port = skills) =>
-      (await test.raw(command, params, port)).value
+      (await test.raw(command, params, port, true)).value
     expect(await given('search', { query: '' })).toMatchObject({
       data: { entries: expect.any(Array) },
     })

@@ -12,6 +12,7 @@ import type {
 import {
   defineToolOperation,
   describedAdoption,
+  isProgramCall,
   type ParameterCodec,
   type ToolExecutionContext,
   type ToolMessageContentBlock,
@@ -216,8 +217,9 @@ export function commandOperation<A, E>(
   const parameters = { kind: 'declared', value: spec.parameters } as const
   const common = { kind: 'ordinary', parameters: spec.arguments, waits: [] } as const
   const bound = async (args: A, environment: E, execution: ToolExecutionContext) => {
-    const answered = await run(args, environment, execution)
-    return { ...answered, text: bounded(answered.text, maximum) }
+    const { text, data } = await run(args, environment, execution)
+    const shown = bounded(text, maximum)
+    return isProgramCall(execution) && data !== undefined ? { text: shown, data } : { text: shown }
   }
   if (side?.kind === 'data')
     return defineToolOperation<A, Answer, E, ToolMessageContentBlock, Declared>({
