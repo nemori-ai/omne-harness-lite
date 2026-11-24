@@ -58,7 +58,6 @@ const canvas = object({
   piles: { rule: array(pile) },
   revision: { rule: count },
 })
-/** A kind now declared; a name declared twice is listed with the ones who declared it. */
 const kindListing = oneOf(
   object({
     kind: kind('declared'),
@@ -73,20 +72,16 @@ const kindListing = oneOf(
 const ofTenant = { tenant: { rule: tenant } } as const
 const ofCanvas = { ...ofTenant, canvas: { rule: text } } as const
 const items = { items: { rule: array(text) } } as const
-/** Where a request does not fit: the canvas it names, or the request as a whole. */
 const invalid = ruleCodec(object({ reason: { rule: literal('request', 'canvas') } }))
-/** What in a request does not fit, and where in the request it is. */
 const notFitting = ruleCodec(
   object({
     reason: { rule: literal('canvas', 'request', 'spot', 'size', 'repeated', 'batch') },
     path: { rule: array(oneOf(string, count)) },
   }),
 )
-/** The entry of a batch an answer is about. */
 const entry = oneOf(object({ item: { rule: text } }), object({ pile: { rule: text } }))
 const changed = ruleCodec(object({ revision: { rule: count } }))
 const none = ruleCodec(object({}))
-/** A batch with an entry not found, or not allowed now, is not done at all; the answer names the entry. */
 const batchOutcomes = {
   succeeded: changed,
   'no-change': none,
@@ -118,19 +113,17 @@ const pileChange = object({
   name: optional(nullable(text)),
 })
 
-/** The canvas of the tenant that acts. A basis that cannot be read answers unavailable, never an empty canvas.
- * Every write sets a state, so after `unknown` the same body again answers `no-change` once it was done. */
+/** The canvas of the tenant that acts. After `unknown`, the same body again answers `no-change` if it was done. */
 export const canvasProtocol = defineProtocol({
   name: 'canvas',
   major: 1,
   operations: {
-    /** The sheet, every item on it from the bottom up, every pile and the revision. */
     look: {
       ...read,
       body: ruleCodec(object(ofCanvas)),
       outcomes: { succeeded: ruleCodec(canvas), invalid },
     },
-    /** The taken records, the newest first. `before` is the `next` of the page before; `next` null on the last. */
+    /** The taken records, the newest first; `before` is the `next` of the page before. */
     'look-away': {
       ...read,
       body: ruleCodec(object({ ...ofCanvas, limit: { rule: positive }, before: optional(count) })),
@@ -141,13 +134,12 @@ export const canvasProtocol = defineProtocol({
         invalid: notFitting,
       },
     },
-    /** The kinds now declared that may be put on the canvas. */
     kinds: {
       ...read,
       body: ruleCodec(object(ofTenant)),
       outcomes: { succeeded: ruleCodec(object({ kinds: { rule: array(kindListing) } })) },
     },
-    /** Puts a reference on: at the spot given, else at the free place nearest `near`, else beside the seat of the shape. */
+    /** At the spot given, else at the free place nearest `near`, else beside the seat of the shape. */
     place: {
       ...write,
       body: ruleCodec(
@@ -161,7 +153,6 @@ export const canvasProtocol = defineProtocol({
       ),
       outcomes: {
         succeeded: ruleCodec(object({ revision: { rule: count }, item: { rule: item } })),
-        /** The reference is on already: here is its item, not moved. */
         'no-change': ruleCodec(object({ item: { rule: item } })),
         invalid: notFitting,
         conflict: ruleCodec(
@@ -169,7 +160,6 @@ export const canvasProtocol = defineProtocol({
         ),
       },
     },
-    /** One batch of changes in one commit: items moved, sized, raised, in or out of a pile; piles moved or named. */
     arrange: {
       ...write,
       body: ruleCodec(
@@ -182,19 +172,17 @@ export const canvasProtocol = defineProtocol({
       outcomes: batchOutcomes,
     },
     take: { ...write, body: ruleCodec(object({ ...ofCanvas, ...items })), outcomes: batchOutcomes },
-    /** The pile is named by the caller: made when it is not there, joined when it is. */
+    /** The caller names the pile: it is made when it is not there. A batch is done whole or not at all. */
     pile: {
       ...write,
       body: ruleCodec(object({ ...ofCanvas, pile: { rule: text }, ...items, at: optional(spot) })),
       outcomes: batchOutcomes,
     },
-    /** A pile that is not there any more answers `no-change`. */
     scatter: {
       ...write,
       body: ruleCodec(object({ ...ofCanvas, pile: { rule: text } })),
       outcomes: batchOutcomes,
     },
-    /** One direction a call: `locked` true locks every item named, false unlocks them. */
     lock: {
       ...write,
       body: ruleCodec(object({ ...ofCanvas, ...items, locked: { rule: boolean } })),

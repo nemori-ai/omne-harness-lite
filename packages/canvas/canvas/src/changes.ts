@@ -32,7 +32,7 @@ export function createCanvasChanges(report: (error: unknown) => void): CanvasCha
       return () => void listeners.delete(mine)
     },
     emit(change) {
-      for (const { tenant, listener } of [...listeners])
+      for (const { tenant, listener } of listeners)
         if (tenant === change.tenant) tell(() => listener.changed(change))
     },
     close() {
