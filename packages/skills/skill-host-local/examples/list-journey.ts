@@ -12,10 +12,11 @@ import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-con
 import type { Resolution } from '@omne-harness/skill-contract/provider'
 import {
   createDirectorySource,
+  directoryPackageReader,
   createSkillDecisions,
   skillInputsFromAssets,
 } from '@omne-harness/skill-host-local'
-import { directoryReader, openStorage, versionBodyOf } from './publish-journey.ts'
+import { openStorage, versionBodyOf } from './publish-journey.ts'
 
 export type ListJourneyOptions = Readonly<{
   packageDir: string
@@ -65,7 +66,7 @@ async function publishAndHold(
   const holdingRef = `held-${name}`
   const published = await assets.packages.publish({
     capability: made.id,
-    from: directoryReader(createDirectorySource(), dir),
+    from: directoryPackageReader(createDirectorySource(), dir),
     operationId: `publish-${name}`,
     holding: {
       holdingRef,

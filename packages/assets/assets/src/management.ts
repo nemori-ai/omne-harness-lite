@@ -488,7 +488,10 @@ async function files<P>(
     const all = readOfficial(official)
     if (all === undefined) return UNAVAILABLE
     const asset = all.find(each => sameCapability(each.capability, input.capability))
-    return asset === undefined ? read : { kind: 'body', version: asset.version, body: asset.body }
+    if (asset === undefined) return read
+    return asset.files === undefined
+      ? { kind: 'body', version: asset.version, body: asset.body }
+      : { kind: 'files', version: asset.version, from: asset.files }
   } catch {
     return UNAVAILABLE
   }
