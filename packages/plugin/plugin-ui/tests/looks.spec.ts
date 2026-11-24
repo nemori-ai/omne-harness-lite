@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Kept } from '@omne-harness/plugin-protocol'
 import { choiceIn, createWear, type LookChoice, type LookStore } from '@omne-harness/plugin-ui'
+import { memoryLookStore } from '../src/looks.ts'
 
 const ALICE = 'alice'
 const BOB = 'bob'
@@ -47,6 +48,7 @@ describe('the choice a kept text says', () => {
     ['nothing kept', null],
     ['not JSON', 'nope'],
     ['a kind it does not know', '{"kind":"theme"}'],
+    ['a kind it does not know that carries a name', '{"kind":"theme","name":"sea"}'],
     ['named without a name', '{"kind":"named"}'],
     ['a name that is not text', '{"kind":"named","name":7}'],
     ['an empty name', '{"kind":"named","name":""}'],
@@ -62,6 +64,39 @@ describe('the choice a kept text says', () => {
 })
 
 describe('the choice as it is kept', () => {
+  it('a store that lasts as long as the run gives back what was written, by tenant, and nothing before', () => {
+    const store = memoryLookStore()
+    expect(store.read(ALICE)).toBeNull()
+    store.write(ALICE, 'one')
+    store.write(BOB, 'two')
+    expect([store.read(ALICE), store.read(BOB)]).toEqual(['one', 'two'])
+  })
+
+  it('a skin remembered that is no longer to load, with no only other: nothing is worn and the choice kept becomes none', () => {
+    const w = world({ [ALICE]: named('sea') })
+    w.wear.open(ALICE)
+    settle(w, { ink: loaded, moss: loaded })
+    expect(w.last()).toBeUndefined()
+    expect(w.written).toEqual([[ALICE, NONE]])
+    expect(w.wear.view()?.choice).toEqual(NONE)
+  })
+
+  it('a choice made before what is to load was read is kept and waits: nothing is worn, nothing throws', () => {
+    const w = world()
+    w.wear.open(ALICE)
+    w.wear.choose(named('sea'))
+    expect(w.last()).toBeUndefined()
+    expect(w.written).toEqual([[ALICE, named('sea')]])
+    expect(w.wear.view()).toEqual({
+      listed: false,
+      skins: [],
+      worn: undefined,
+      choice: named('sea'),
+    })
+    settle(w, { sea: loaded })
+    expect(w.last()).toBe('sea')
+  })
+
   it('is written as a text the same reading gives back, under the tenant', () => {
     const w = world()
     w.wear.open(ALICE)
@@ -110,7 +145,7 @@ describe('the look of the tenant on show', () => {
     expect(w.last()).toBeUndefined()
     settle(w, { sea: loaded, ink: loaded, kelp: failed })
     expect(w.last()).toBe('ink')
-    expect(w.wear.view()).toEqual({
+    expect(w.wear.view()).toStrictEqual({
       listed: true,
       skins: [
         { name: 'ink', state: 'loaded' },

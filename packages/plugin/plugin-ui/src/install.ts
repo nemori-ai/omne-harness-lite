@@ -112,6 +112,58 @@ function called(name: string, call: () => unknown): unknown {
 
 const failed = (reason: string): Outcome => ({ kind: 'failed', reason })
 
+type Step = Readonly<{ label: string; step: Put | Pending }>
+type Ready = Readonly<{ label: string; put: Put }>
+
+function stepsOf(
+  shell: ShellService,
+  members: Listed['members'],
+  scope: Scope,
+  code?: Code,
+): readonly Step[] | string {
+  const places = members.map(member => `${member.point}\n${member.key}`)
+  const steps: Step[] = []
+  for (const [index, member] of members.entries()) {
+    const label = `member ${index + 1} (${member.point} ${member.key})`
+    const twice = places.indexOf(places[index] ?? '') !== index
+    const step = twice
+      ? 'another member of this plugin is at the same place'
+      : stepOf(shell, member, scope, code)
+    if (typeof step === 'string') return `${label}: ${step}`
+    steps.push({ label, step })
+  }
+  return steps
+}
+
+async function readyOf(
+  listed: Listed,
+  steps: readonly Step[],
+  scope: Scope,
+): Promise<readonly Ready[] | string> {
+  const loaded = await Promise.all(
+    steps.map(async ({ label, step }) => ({
+      label,
+      put: typeof step === 'function' ? step : await drawingOf(listed, step, scope),
+    })),
+  )
+  const ready: Ready[] = []
+  for (const { label, put } of loaded) {
+    if (typeof put === 'string') return `${label}: ${put}`
+    ready.push({ label, put })
+  }
+  return ready
+}
+
+function putAll(inside: ShellService, ready: readonly Ready[]): void {
+  for (const { label, put } of ready) {
+    try {
+      put(inside)
+    } catch (error) {
+      throw new Error(`${label}: ${reasonOf(error)}`)
+    }
+  }
+}
+
 /** Puts the members of one plugin in a scope of its own, in the scope it is to count in: all of them, or none. */
 export async function installOn(
   shell: ShellService,
@@ -120,39 +172,12 @@ export async function installOn(
   code?: Code,
 ): Promise<Outcome> {
   if (listed.fault !== undefined) return failed(listed.fault)
-  const { members } = listed
-  const places = members.map(member => `${member.point}\n${member.key}`)
-  const steps: Readonly<{ label: string; step: Put | Pending }>[] = []
-  for (const [index, member] of members.entries()) {
-    const label = `member ${index + 1} (${member.point} ${member.key})`
-    const twice = places.indexOf(places[index] ?? '') !== index
-    const step = twice
-      ? 'another member of this plugin is at the same place'
-      : stepOf(shell, member, scope, code)
-    if (typeof step === 'string') return failed(`${label}: ${step}`)
-    steps.push({ label, step })
-  }
-  const ready = await Promise.all(
-    steps.map(async ({ label, step }) => ({
-      label,
-      put: typeof step === 'function' ? step : await drawingOf(listed, step, scope),
-    })),
-  )
-  const puts: Readonly<{ label: string; put: Put }>[] = []
-  for (const { label, put } of ready) {
-    if (typeof put === 'string') return failed(`${label}: ${put}`)
-    puts.push({ label, put })
-  }
+  const steps = stepsOf(shell, listed.members, scope, code)
+  if (typeof steps === 'string') return failed(steps)
+  const ready = await readyOf(listed, steps, scope)
+  if (typeof ready === 'string') return failed(ready)
   const hosted = await shell
-    .host(fiberOf(listed.name, listed.version), inside => {
-      for (const { label, put } of puts) {
-        try {
-          put(inside)
-        } catch (error) {
-          throw new Error(`${label}: ${reasonOf(error)}`)
-        }
-      }
-    })
+    .host(fiberOf(listed.name, listed.version), inside => putAll(inside, ready))
     .catch((error: unknown) => reasonOf(error))
   if (typeof hosted === 'string') return failed(hosted)
   const [refused] = shell.changesFor(scope ?? []).refused.filter(each => each.by === hosted.by)

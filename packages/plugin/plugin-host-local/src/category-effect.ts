@@ -95,6 +95,14 @@ function clientPoints(clients: readonly ToldByClient[]): readonly KnownPoint[] {
 }
 
 /** What the Plugin category tells of its own: from what the tenant holds, the points that are there, and what the clients told. */
+/** A client tells of the version it loaded: only the version the tenant holds now counts. */
+function toldOf(clients: readonly ToldByClient[], name: string, version: string) {
+  return clients.map(({ client, plugins }) => {
+    const one = plugins.find(each => each.name === name && `sha256:${each.version}` === version)
+    return { client, state: one?.state ?? null, reason: one?.reason ?? null }
+  })
+}
+
 export function pluginEffect(ports: PluginEffectPorts): CategoryEffect {
   return {
     impact: {
@@ -133,20 +141,14 @@ export function pluginEffect(ports: PluginEffectPorts): CategoryEffect {
           each => each.name === capability.name && each.category === capability.category,
         )
         if (mine === undefined) return notHeld(capability.name)
-        // A client tells of the version it loaded: only the version the tenant holds now counts.
-        const clients = ports.clients(tenant)?.map(({ client, plugins }) => {
-          const one = plugins.find(
-            each => each.name === mine.name && `sha256:${each.version}` === mine.held.version,
-          )
-          return { client, state: one?.state ?? null, reason: one?.reason ?? null }
-        })
+        const clients = ports.clients(tenant)
         const server = ports.server(tenant)
         const told = pluginPlacement({
           name: mine.name,
           manifest: mine.manifest,
           enabled: mine.enabled,
           held: sameLayer(mine.manifest, mine.name, holding.plugins),
-          clients: clients ?? null,
+          clients: clients === undefined ? null : toldOf(clients, mine.name, mine.held.version),
           server: server === null ? null : serverTold(server.get(mine.name), mine.held.version),
         })
         return { kind: 'placed', ...told, advice: joined([told.advice, wornAdvice(mine.manifest)]) }
