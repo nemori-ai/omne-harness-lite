@@ -147,12 +147,15 @@ describe('the coding entry of the release mapping', () => {
       )
   })
 
-  it('tells the model how far its files reach by the state of the working directory, and does not call the directory an authorized workspace', () => {
+  it('tells the model to read how far its files reach from the working directory block, holds no value of the rule, and does not call the directory an authorized workspace', () => {
     const environment = instructions.find(section => section.id === 'environment')?.text ?? ''
     expect(environment).toContain('session.working-directory')
-    for (const state of ['"default"', '"attached"', '"unusable"'])
-      expect(environment).toContain(state)
-    expect(environment).toContain('nothing limits the paths that you read or write')
+    for (const field of ['"files.read"', '"files.write"', '"unusable"'])
+      expect(environment).toContain(field)
+    expect(environment).toContain('A side that is not there has no limit')
+    // The rule's values live in the block, not in the prompt.
+    expect(environment).not.toContain('nothing limits the paths')
+    expect(environment).not.toContain('setting for files outside the workspace')
     expect(environment).toContain(
       'Do not tell the user that a path is out of reach before a call has refused it.',
     )
