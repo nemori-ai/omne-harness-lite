@@ -144,6 +144,7 @@
 | [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 人在交付面敲 `/` 发起某件事的入口；绑定目标恰三种：自定义提示词 / 装配的 skill / 系统业务流程；**只由交付面识别、只对人** |
 | [UL-command-parameter-declaration](terms/capabilities-and-composition.md#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration) | 命令参数声明 | Command Parameter Declaration | 斜杠命令可选带的参数说明，**是命令本身、不是设置**；没声明就整段作一个自由参数 |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 列出若干拓展点上的成员的一份定义，成员一起装上、一起退场 |
+| [UL-skin](terms/capabilities-and-composition.md#ul-skin--皮肤--skin) | 皮肤 | Skin | 清单写明自己是皮肤、只改界面样子的一份 plugin；资产里自成一类，界面同一时刻至多用一套 |
 | [UL-agent-definition](terms/capabilities-and-composition.md#ul-agent-definition--agent-定义--agent-definition) | Agent 定义 | Agent Definition | 一个 agent 的静态定义，不是会话也不是实例 |
 | [UL-capability-auto-inheritance](terms/capabilities-and-composition.md#ul-capability-auto-inheritance--能力自动继承--capability-auto-inheritance) | 能力自动继承 | Capability Auto-Inheritance | Agent Definition 声明是否继承额外 Skill、Tool、MCP，来源范围与排除项 |
 | [UL-agent-type](terms/capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type) | agent 类型 | Agent Type | 这份定义**具不具备 master 的那一整套机制**：`master` / `non-master`；**不是「子 agent」那个意思** |
