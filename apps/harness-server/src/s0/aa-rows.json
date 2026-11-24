@@ -169,7 +169,9 @@
       "names": [
         "storage",
         "tenantDomainLookup",
-        "tenantDomainRegistration"
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal",
+        "tenantStanding"
       ]
     },
     {

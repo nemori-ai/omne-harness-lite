@@ -6,6 +6,7 @@ import { bindingSchema, HANDLER, PROTOCOL, recordSchema, revisionSchema } from '
 import { readRequestSchema, type PageRequest, type RepositoryRequest } from './read-schema.ts'
 import { cursorKey, nextCursor, pageRelation, visibleRelation } from './pagination.ts'
 import { readRecord } from './records.ts'
+import { readPending } from './dispatch-read.ts'
 function observation(port: ReadPort, owner: ScheduleOwner): string {
   const row = port.execute('SELECT revision FROM sc_observations WHERE owner = ? LIMIT 1', [
     canonical(owner),
@@ -90,6 +91,10 @@ function page(input: PageRequest, port: ReadPort) {
   }
 }
 function read(input: RepositoryRequest, port: ReadPort) {
+  if (input.kind === 'dispatchPending')
+    return ownerMatches(input.scope, input.owner)
+      ? { kind: 'ok', value: readPending(port, input) }
+      : { kind: 'absent' }
   const owner =
     input.kind === 'schedule'
       ? input.owner

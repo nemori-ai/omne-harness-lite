@@ -5545,6 +5545,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/time-source':
+        specifier: workspace:*
+        version: link:../../assembly/time-source
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

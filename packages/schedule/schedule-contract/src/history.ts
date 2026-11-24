@@ -106,6 +106,8 @@ export const ScheduleExecutionRowSchema = z.strictObject({
   job: ScheduleJobSummarySchema.nullable(),
   notification: ScheduleNotificationSummarySchema.nullable(),
 })
+export type ScheduleJobId = z.infer<typeof ScheduleJobIdSchema>
+export type ScheduleReceiptId = z.infer<typeof ScheduleReceiptIdSchema>
 export type SchedulePreparationSummary = z.infer<typeof SchedulePreparationSummarySchema>
 export type ScheduleReceiptSummary = z.infer<typeof ScheduleReceiptSummarySchema>
 export type ScheduleJobSummary = z.infer<typeof ScheduleJobSummarySchema>

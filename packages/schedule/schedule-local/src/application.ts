@@ -13,6 +13,7 @@ import {
   type ScheduleManagementSqlOptions,
 } from './storage/index.ts'
 import { ScheduleLocalLifetime, stoppedError } from './lifetime.ts'
+import { createScheduleDispatcher, type ScheduleDispatchOptions } from './dispatch.ts'
 
 export type ScheduleLocalOptions = Readonly<{
   sql: ScheduleManagementSqlOptions
@@ -20,11 +21,15 @@ export type ScheduleLocalOptions = Readonly<{
   prediction: Omit<SchedulePredictionDependencies, 'calculator'>
   management: Omit<ScheduleManagementDependencies, 'store' | 'persistence' | 'definitions'>
   query: Omit<ScheduleQueryDependencies, 'store' | 'prediction' | 'clock' | 'monotonicClock'>
+  /** Absent: nothing disposes due slots in this application (a read-only or management-only use). */
+  dispatch?: ScheduleDispatchOptions
 }>
 
 export type ScheduleLocalApplication = Readonly<{
   commands: ScheduleCommands
   queries: ScheduleQueries
+  /** One round of the dispatcher now; absent without dispatch. */
+  round?: () => Promise<unknown>
   close(): Promise<void>
 }>
 
@@ -50,7 +55,19 @@ export async function createScheduleLocalApplication(
       clock: options.management.clock,
       monotonicClock: options.prediction.monotonicClock,
     })
-    return bindLifetime(commands, queries, worker.dispose)
+    const dispatcher =
+      options.dispatch === undefined
+        ? undefined
+        : createScheduleDispatcher(options.sql, prediction, options.dispatch)
+    dispatcher?.start()
+    const dispose = async () => {
+      await dispatcher?.close()
+      await worker.dispose()
+    }
+    return {
+      ...bindLifetime(commands, queries, dispose),
+      ...(dispatcher === undefined ? {} : { round: dispatcher.round }),
+    }
   } catch (error) {
     try {
       await worker.dispose()

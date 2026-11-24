@@ -147,7 +147,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   schedule: {
     provides: ['scheduleCommands', 'scheduleQueries'],
-    injects: ['storage', 'tenantDomainLookup', 'calendarQuery', 'tenantIndependentSettings'],
+    injects: [
+      'storage',
+      'tenantDomainLookup',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+      'tenantStanding',
+      'calendarQuery',
+      'tenantIndependentSettings',
+    ],
     phase: 'composition',
   },
   notification: {

@@ -14,6 +14,9 @@ import {
   RESULT_FACT,
   TABLES,
 } from './schema.ts'
+import { DISPATCH_MIGRATION, DISPATCH_TABLES } from './dispatch-schema.ts'
+
+const OWNED = [...TABLES, ...DISPATCH_TABLES]
 
 export type ScheduleManagementSqlMaterials = Readonly<{
   participants: readonly ParticipantDescriptor[]
@@ -32,6 +35,7 @@ export function scheduleManagementSqlMaterials(): ScheduleManagementSqlMaterials
   const participant = file('participant')
   const migration = file('migration')
   const reader = file('read')
+  const dispatchMigration = file('dispatch-migration')
   return {
     participants: [
       {
@@ -39,7 +43,7 @@ export function scheduleManagementSqlMaterials(): ScheduleManagementSqlMaterials
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: TABLES,
+        ownedTables: OWNED,
         readTables: [],
         requiresFacts: [GUARD_FACT],
         providesFacts: [RESULT_FACT],
@@ -49,6 +53,12 @@ export function scheduleManagementSqlMaterials(): ScheduleManagementSqlMaterials
     ],
     migrations: [
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...DISPATCH_MIGRATION,
+        moduleUrl: dispatchMigration.moduleUrl,
+        checksum: dispatchMigration.digest,
+        requires: [MIGRATION],
+      },
     ],
     readHandlers: [
       {
@@ -57,8 +67,8 @@ export function scheduleManagementSqlMaterials(): ScheduleManagementSqlMaterials
         moduleUrl: reader.moduleUrl,
         codeDigest: reader.digest,
         ordering: 'snapshot',
-        readTables: TABLES,
-        requiresMigrations: [MIGRATION],
+        readTables: OWNED,
+        requiresMigrations: [MIGRATION, DISPATCH_MIGRATION],
         maxRowsRead: 505,
         maxOutputBytes: 8 * 1024 * 1024,
       },
