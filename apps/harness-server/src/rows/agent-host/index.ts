@@ -15,6 +15,7 @@ import {
   agentCompactionKey,
   agentCompactionInputsKey,
   agentExecutionControlKey,
+  agentNestedActionsKey,
   agentExecutionRecoveryKey,
   agentInstanceProvisionKey,
   agentJournalEntriesKey,
@@ -112,6 +113,7 @@ export function createAgentHostRowOver(pluginOf: (ctx: Context) => AgentHostPlug
         agentPublicationAuthorityKey,
         agentExecutionRecoveryKey,
         agentExecutionControlKey,
+        agentNestedActionsKey,
         agentInstanceProvisionKey,
       ],
       injects: [

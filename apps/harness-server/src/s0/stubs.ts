@@ -340,6 +340,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentPublicationAuthority',
       'agentExecutionRecovery',
       'agentExecutionControl',
+      'agentNestedActions',
       'agentInstanceProvision',
     ],
     injects: [

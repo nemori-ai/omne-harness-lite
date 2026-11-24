@@ -58,6 +58,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolRuntime } from '@omne-harness/tool-contract'
 import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { AgentHostConfig } from './host-config.ts'
+import { deadlineOf, nestedEntry } from './nested-entry.ts'
 import { stagePort } from './stage-ports.ts'
 
 export type RuntimeFactory = (
@@ -96,6 +97,7 @@ export type Host = Readonly<{
   authority: AgentPublicationAuthority<unknown>
   recovery: AgentExecutionRecovery<unknown>
   control: AgentExecutionControl<unknown>
+  nested: ReturnType<typeof nestedEntry>
   provision: AgentInstanceProvision<unknown>
   retired(tenant: TenantId, instance: AgentInstanceId, generation: number, reason: string): void
   quiesceAll(input: AgentHostStopInput): Promise<AgentHostStopResult>
@@ -940,16 +942,11 @@ export function createHost(input: HostInput): Host {
     },
   }
 
-  function deadlineOf(signal: AbortSignal) {
-    let release = () => {}
-    const reached = new Promise<'deadline'>(resolve => {
-      if (signal.aborted) return resolve('deadline')
-      const abort = () => resolve('deadline')
-      signal.addEventListener('abort', abort, { once: true })
-      release = () => signal.removeEventListener('abort', abort)
-    })
-    return { reached, release: () => release() }
-  }
+  const nested = nestedEntry({
+    load: asked => recovery.load(asked),
+    runtimeOf: (tenant, instance) => liveRuntimeOf(tenant, instance)?.provider?.nested,
+    record,
+  })
 
   async function judged(
     entry: InstanceRecord,
@@ -1019,6 +1016,7 @@ export function createHost(input: HostInput): Host {
     authority,
     recovery,
     control,
+    nested,
     provision,
     retired(tenant, instance, generation, reason) {
       const text = tenantTextOf(tenant)

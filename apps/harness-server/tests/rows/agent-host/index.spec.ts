@@ -14,6 +14,7 @@ import {
 } from '@omne-harness/agent-contract'
 import {
   agentExecutionControlKey,
+  agentNestedActionsKey,
   agentExecutionRecoveryKey,
   agentInstanceProvisionKey,
   agentInstancesKey,
@@ -129,6 +130,7 @@ describe('the agent-host row: declaration and configuration', () => {
           'agentPublicationAuthority',
           'agentExecutionRecovery',
           'agentExecutionControl',
+          'agentNestedActions',
           'agentInstanceProvision',
         ],
         injects: [...INJECTS, 'telemetry'],
@@ -178,6 +180,7 @@ describe('the agent-host row: on test stand-ins of its eighteen injects', () => 
       agentPublicationAuthorityKey,
       agentExecutionRecoveryKey,
       agentExecutionControlKey,
+      agentNestedActionsKey,
       agentInstanceProvisionKey,
     ])
       expect(tree.service(key), key).toBeDefined()

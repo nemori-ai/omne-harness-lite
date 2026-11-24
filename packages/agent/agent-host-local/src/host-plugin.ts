@@ -11,6 +11,7 @@ import {
 import type { AgentInstanceId } from '@omne-harness/agent-contract'
 import {
   AgentExecutionControlService,
+  AgentNestedActionsService,
   AgentExecutionRecoveryService,
   AgentInstanceHostService,
   AgentInstanceProvisionService,
@@ -120,6 +121,14 @@ class LocalExecutionControl extends AgentExecutionControlService<unknown> {
   constructor(ctx: Context, host: Host) {
     super(ctx)
     this.control = host.control.control
+  }
+}
+
+class LocalNestedActions extends AgentNestedActionsService<unknown> {
+  readonly admit: Host['nested']['admit']
+  constructor(ctx: Context, host: Host) {
+    super(ctx)
+    this.admit = host.nested.admit
   }
 }
 
@@ -253,6 +262,7 @@ export function createAgentHostPlugin(
       new LocalPublicationAuthority(ctx, host)
       new LocalExecutionRecovery(ctx, host)
       new LocalExecutionControl(ctx, host)
+      new LocalNestedActions(ctx, host)
       new LocalInstanceProvision(ctx, host)
     },
   })
