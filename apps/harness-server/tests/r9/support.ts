@@ -383,6 +383,14 @@ export const NOTIFICATION_POLICY = {
   recipients: { person: { channel: 'in-app', minLevel: 'weak' }, agent: null },
 }
 
+export const CANVAS_POLICY = {
+  sheet: { width: 4800, height: 3200, grid: 8 },
+  limits: { placed: 50, away: 50, batch: 20 },
+  size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
+  footprint: { width: 160, height: 80 },
+  admitTimeoutMs: 2000,
+}
+
 // Calendar sources point at a closed loopback port, so a test service never reaches the real
 // authorities; a test that needs the sources serves them itself.
 export const CLOSED_CALENDAR_SOURCES: Readonly<Record<string, string>> = Object.freeze(
@@ -485,6 +493,7 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
       { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
+      { kind: 'replace', id: 'canvas', config: { policy: CANVAS_POLICY } },
       { kind: 'replace', id: 'workspace', config: { node: 'local' } },
       {
         kind: 'replace',

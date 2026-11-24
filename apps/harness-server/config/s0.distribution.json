@@ -446,6 +446,11 @@
       "config": {}
     },
     {
+      "id": "canvas",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "server-entry",
       "plugin": "stubPlugin",
       "config": {}
@@ -517,6 +522,11 @@
     },
     {
       "id": "usage-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "canvas-access",
       "plugin": "stubPlugin",
       "config": {}
     },

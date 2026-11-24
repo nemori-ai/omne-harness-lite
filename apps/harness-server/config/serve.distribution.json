@@ -916,6 +916,11 @@
       "config": {}
     },
     {
+      "id": "canvas",
+      "plugin": "canvasRow",
+      "config": {}
+    },
+    {
       "id": "server-entry",
       "plugin": "serverEntryRow",
       "config": {}
@@ -994,6 +999,11 @@
     {
       "id": "usage-access",
       "plugin": "usageAccessRow",
+      "config": {}
+    },
+    {
+      "id": "canvas-access",
+      "plugin": "canvasAccessRow",
       "config": {}
     },
     {

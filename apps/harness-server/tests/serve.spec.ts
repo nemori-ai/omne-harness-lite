@@ -80,7 +80,7 @@ afterEach(() => {
 })
 
 describe('serve: the release tree of doubles', () => {
-  it('the release tree of 102 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 108 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
@@ -185,6 +185,7 @@ describe('serve: the release tree of doubles', () => {
         'dispatch:real',
         'dispatch-session:real',
         'dispatch-tool:real',
+        'canvas:real',
         'server-entry:real',
         'identity-access:real',
         'session-access:real',
@@ -200,6 +201,7 @@ describe('serve: the release tree of doubles', () => {
         'tool-access:real',
         'model-access:real',
         'usage-access:real',
+        'canvas-access:real',
         'plugin-access:real',
         'plugin-host:real',
         'plugin-notification:real',
@@ -211,9 +213,9 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 108,
+        enabledRows: 110,
         barrierCalls: 1,
-        implementations: { real: 106, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 108, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
@@ -222,32 +224,34 @@ describe('serve: the release tree of doubles', () => {
     }
   })
 
-  it('the release gives the notification row no policy; without one from the operator the tree is not ready and the log names the policy', async () => {
-    expect(release.rows.find(r => r.id === 'notification')).toEqual({
-      id: 'notification',
-      plugin: 'notificationRow',
-      config: {},
-    })
-    const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
-    try {
-      const { ops } = withTelemetry(
-        operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() }),
-      ) as { ops: { id: string }[] }
-      const run = await serveOnce({
-        distribution: release,
-        operator: { ops: ops.filter(op => op.id !== 'notification') },
-        readinessTimeoutMs: 15_000,
-        shutdownDeadlineMs: 5000,
-      })
-      expect(run.result).toMatchObject({ exitCode: 3, accepting: false })
-      const said = run.records
-        .filter(r => r['component'] === 'notification' && r['level'] === 'error')
-        .map(r => String((r['fields'] as { text?: unknown }).text))
-      expect(said.join('\n')).toMatch(/invalid config[^]*at policy/)
-    } finally {
-      rmSync(base, { recursive: true, force: true })
-    }
-  })
+  it.each([
+    ['notification', 'notificationRow'],
+    ['canvas', 'canvasRow'],
+  ])(
+    'the release gives the %s row no policy; without one from the operator the tree is not ready and the log names the policy',
+    async (id, plugin) => {
+      expect(release.rows.find(r => r.id === id)).toEqual({ id, plugin, config: {} })
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
+      try {
+        const { ops } = withTelemetry(
+          operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() }),
+        ) as { ops: { id: string }[] }
+        const run = await serveOnce({
+          distribution: release,
+          operator: { ops: ops.filter(op => op.id !== id) },
+          readinessTimeoutMs: 15_000,
+          shutdownDeadlineMs: 5000,
+        })
+        expect(run.result).toMatchObject({ exitCode: 3, accepting: false })
+        const said = run.records
+          .filter(r => r['component'] === id && r['level'] === 'error')
+          .map(r => String((r['fields'] as { text?: unknown }).text))
+        expect(said.join('\n')).toMatch(/invalid config[^]*at policy/)
+      } finally {
+        rmSync(base, { recursive: true, force: true })
+      }
+    },
+  )
 
   it.each([
     ['agent-journal', 'agentJournalRow'],

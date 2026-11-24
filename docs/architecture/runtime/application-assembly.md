@@ -112,6 +112,7 @@
 | `dispatch` | 应用成员的派发组合：`@omne-harness/dispatch-local` 的 `./cordis` 插件 `createDispatchLocalPlugin`，一个提供者服务全部租户；每个租户的派发登记存在这个租户自己的事务域里（`tenantDomainLookup` 查，未登记时经 `tenantDomainRegistration` 先登记），第一次问到时在那里登记派发的存储组合。本应用在这一行接上派发留的端口：资格（调用方是不是它所说的那个会话核验过的工作主体；派发的系统主体只许读）、Agent 定义的类型（读 `agentDefinitionCatalog`）；会话端口与报告等待端口由 `dispatch-session`、`dispatch-tool` 两行挂上来，每次调用现取，没挂着时读答依据不可用、写不发生 | `dispatching`、`dispatchReconciling` | `storage`、`tenantDomainLookup`、`tenantDomains`、`tenantDomainScannerPrincipal`（受信；启动时与按间隔的对账以部署扫描主体枚举租户）、`dispatchPrincipal`（受信） | `tenantDomainRegistration`（受信；第一次要某个租户的派发时现取）；`agentDefinitionCatalog`；`composition`，行体承载，停止时先不接新的、等在途的各有结局，再停对账，不取消任何派发 | 策略 `policy`：同时开着的派发数上限与对账间隔，由运维层给，发行层不写数值；缺失或无效时这一行不启动 |
 | `dispatch-session` | 行体：`@omne-harness/dispatch-session` 的 `createDispatchSessions`，派发认识会话的那一侧。向 `sessionInputSources` 登记三个来源（`dispatch.instruction`、`dispatch.report`、`dispatch.message`），把会话端口挂给 `dispatch` 行。建会话、送输入、读输入的去向以派发的系统主体经调用方类 `intake` 调；读一个会话的工作快照与当前模式、取消一轮、读一轮的最终回复，以装配签发的该会话的工作主体经调用方类 `maintainer` 与 `reader` 调。建会话时照定义映射补齐定义固定的部分，并带上初始上下文的登记 | 无公开服务 | `session`、`sessionInputSources`、`definitionMappings`（受信）、`sessionModesInstallation`（受信）、`dispatchPrincipal`（受信） | 会话工作主体的签发口（经 Tool 共享状态的逐次读法）；`composition`，行体承载，停止时撤下会话端口与三个来源 | 无 |
 | `dispatch-tool` | 行体：`@omne-harness/dispatch-tool` 的 `createReportBridge` 与 `createReportWaits`，派发认识 Tool 的那一侧。把报告等待的契约与桥登记到 Tool 的决定桥表上，把「交到了没有」的读挂给 `dispatch` 行。桥读派发登记用派发的系统主体；读一次调用的等待记录用该会话的工作主体 | 无公开服务 | `dispatchPrincipal`（受信） | `toolCommands`、`toolInstanceHost`、`dispatching`、`dispatchReconciling`；会话工作主体的签发口；`composition`，行体承载，停止时撤下桥与读 | 无 |
+| `canvas` | 应用成员的画布组合：`@omne-harness/canvas-local` 的 `./cordis` 插件 `createCanvasLocalPlugin`，一个提供者服务全部租户；每个租户的画布存在这个租户自己的事务域里（`tenantDomainLookup` 查，未登记时经 `tenantDomainRegistration` 先登记），第一次问到时在那里登记画布的存储组合，摘要从存储目录现算。提供者的服务声明服务端的点 `canvas.kinds`，`kinds` 每次从登记表现读。本应用在这一行接上画布留的两个端口：权威对为这个租户行事的主体一律放行（主体已由接入行或工具绑定核过）；是谁做的，没有工具调用的是人，有工具调用的是那次调用所在会话的 agent，经在途调用登记表取得，取不到答取不到。行体往 `canvas.kinds` 放画布自己的种类 `canvas.app`，不带 `admit` | `canvas` | `storage`、`dynamis`、`tenantDomainLookup`（受信） | `tenantDomainRegistration`（受信；第一次要某个租户的画布时现取）；`composition`，行体承载，停止时撤下服务与种类，不删事实 | 策略 `policy`：纸的宽、高与网格的步长，摆着的、拿走了的与一批的上限，大小的上下限，缺省占地，`admit` 的时限；由运维层给，发行层不写数值；缺失或无效时这一行不启动 |
 | `server-entry` | `@omne-harness/server-entry` 的插件入口拿到「租户的范围」（资产的 `scopeOfLayer`）：整个部署这一层没挂、调用者为一个租户签发了主体时，在这个租户的范围里再问一次。 | 入口：监听、管道、登记表与观察中枢，不认识任何领域；`accessRegistry`（成员 `./cordis` 的 `AccessRegistryProvider`，装在本行作用域里：领域的接入插件经它挂协议，入口用同一个登记表；各 `*-access` 行 `inject` 它）。一份协议是 `dynamis` 行的登记表上点 `access.protocols` 的一个条目，接入插件就绪时出现、离开时先撤下再取走。新地址的身份端口是身份的 `createAccessIdentity`，本行用按调用读的 `identityOperations`、`identityGovernance` 与受信 `principalIssuer` 构造 | `principalIssuer`（受信）、`telemetry`（管道诊断经它发出，`system` 作用域）、`dynamis` | `identityOperations`；`identityGovernance`（受信，新地址身份端口的认出、复核与成功业务访问的报告；服务缺席时答 `basis-unavailable`，不抛出）。两项与 `identity` 行同一份记录 | `listenPort`（初值 8787）；`maxBodyBytes.small`（初值 16384）；`maxBodyBytes.input`（初值 1048576）；`maxInFlightRequests`（初值 64）；`heartbeatIntervalMs`（初值 15000）；`jsonBudgets`；`observation.perLogin`、`observation.perInstance` |
 | `identity-access` | `@omne-harness/identity-access` 的 `./cordis` 插件 `identityAccessPlugin` | 无服务；把 `identity/v1` 挂上 `accessRegistry`，新地址由此开放身份的六个操作（装这一行就是开放这个协议，卸下这一行协议随之撤下） | `accessRegistry` | `identityOperations`；`identityGovernance`（受信）。两项每次调用现取，缺席时调用答 `basis-unavailable`，协议不撤 | 无 |
 | `session-access` | `@omne-harness/session-access` 的 `./cordis` 插件 `createSessionAccessPlugin`：`session/v1` 的接入插件。装上这一行，新地址才开放 `session/v1` | 无。插件把 `session/v1` 的贡献（18 个操作与观察 `observe-session`）挂上 `accessRegistry`；子插件在 `sessionInputSources` 在场时登记来源 `session.member` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，为目标租户换主体只经后者；资格读口缺席时换不出，调用答 `basis-unavailable`） | `session`（`caller: 'intake'` 取管理与工作面，`'reader'` 取历史面）；`sessionObservation`；`sessionSearch`（搜历史；缺席时 `search-history` 答 `basis-unavailable`）；`definitionMappings`（受信）；读与改权限处理模式按调用读 `sessionModesInstallation`（受信），当前值与权限修订按 `session.modes` 发布物的同一算法现算。读工作区选择按调用以 `caller: 'coordinator'` 读工作快照（`intake` 不能读工作），目录与状态按调用读 `sessionWorkingDirectory`（受信），按步前动作的同一算法现算。换型号时按调用读 `modelProfiles` 与 `sessionWorkPrincipals`（受信）：这次调用的登录已核过可以对这个会话行事，本行再以这个会话的协调者主体读它的模型视图，算出这段历史的原生要求交给档案求值，型号盖不住时把挡路的块带回；模型视图读不到时答 `basis-unavailable`，不当成空历史放行。任一项缺席时，需要它的调用答 `basis-unavailable`，协议不撤下 | `defaultDefinition`（不给定义名的「建会话」用它；缺席时这样的调用答 `invalid`）；`maxPageBytes`（初值 1048576）；`historyKinds`（初值运维者层 `LOCAL_HISTORY_KINDS`） |
@@ -127,6 +128,7 @@
 | `tool-access` | `@omne-harness/tool-access` 的 `./cordis` 插件 `createToolAccessPlugin`：`tool/v1` 的接入插件。装上这一行，新地址才开放 `tool/v1` | 无。插件把 `tool/v1` 的贡献（按调用引用读一次调用与读结果 2 个操作、观察 `observe-call`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createMemberActing`，把登录换成为目标租户行事的主体；资格读口缺席时换不出，调用答 `basis-unavailable`） | `toolRuntime` 的查询、实例与观察。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `model-access` | `@omne-harness/model-access` 的 `./cordis` 插件 `createModelAccessPlugin`：`model/v1` 的接入插件。装上这一行，新地址才开放 `model/v1` | 无。插件把 `model/v1` 的贡献（列出模型 1 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `modelProfiles`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `usage-access` | `@omne-harness/usage-access` 的 `./cordis` 插件 `createUsageAccessPlugin`：`usage/v1` 的接入插件。装上这一行，新地址才开放 `usage/v1` | 无。插件把 `usage/v1` 的贡献（统计、逐笔记录、上下文占比 3 个读操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `usage`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
+| `canvas-access` | `@omne-harness/canvas-access` 的 `./cordis` 插件 `createCanvasAccessPlugin`：`canvas/v1` 的接入插件。装上这一行，新地址才开放 `canvas/v1`。登录能为租户行事时，行事的是这个租户的人，上下文不带工具调用 | 无。插件把 `canvas/v1` 的贡献（读画布 `look` 与读种类 `kinds` 2 个读操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | `canvas`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `plugin-access` | `@omne-harness/plugin-access` 的 `./cordis` 插件 `createPluginAccessPlugin`：`plugin/v1` 的接入插件。装上这一行，新地址才开放 `plugin/v1`另向 `plugin.guest-forms` 放 `access.protocols` 的客人写法：plugin 写的协议翻成一份贡献，再用入口的 `protocolItem` 做成那个点的一项。 | `pluginReports`：每个租户连着的客户端最后报的样子，给 agent 的工具读客户端那棵树用；不受信，`tool-bindings` 行按调用读取。插件把 `plugin/v1` 的贡献（列出一侧要装的、分页读一份的文件 2 个读操作，报告装成了没有 1 个提交操作；观察要装的，帧只说可能变了）挂上 `accessRegistry`。要装的来自两个来源：这个租户持有的 plugin（按调用现取 `tenantAssets` 与 `assetChanges`，不在时答取不到）与本行的开发目录；回报记在本进程里 | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`）；按调用读取 `tenantAssets`、`assetChanges` | 无 | `devDirectory`：可选的绝对路径，开发目录，下面每个子目录是一份 plugin，对所有租户给出同一组；缺省时要装的是空表，观察照常开着 |
 | `plugin-host` | `@omne-harness/plugin-host-local` 的 `./cordis` 插件 `pluginCategory(端口)`：把 Plugin 与皮肤两类贡献给 `assetCategories`，连同它们的点 `plugin.plugins`、`plugin.skins`。皮肤的正文契约是 Plugin 的再收窄。它的正文契约在判一份包时现问别的类别：清单里指向一个类别的点的成员，交给那个类别的正文契约判 | 无 | `assetCategories` | 无 | 无 |
 | `plugin-notification` | 行体：向通知的来源登记面登记来源 `extensions.changes`（一种持续事项：这个租户在持并启用的一份拓展，有客户端装不上它或把它停掉了），并向租户级登记面贡献块 `plugin.load-failures` 与一条不经翻译的需要绑定：通知的「一组持续事项」← 这个块。块按调用现读：在持的 plugin 读自 `tenantAssets`，客户端的回报读自 `pluginReports`，只认在持那一版的回报；任一边读不到答不知道，不答成没有。两个登记面出现时登记、撤下时随之收回，不是必需：通知的行不在时这一行照常启动、什么也不登记。去掉这一行，plugin 照常，通知没有拓展的事项 |另向 `plugin.ports` 放口 `notifications`：plugin 经它发一条通知，进的是通知自己的发送入口，以这次调用者的名义，上下文的租户是持有这份 plugin 的租户。另在所有行起来之后记下此刻服务端声明的点与登记的类别；之后登记表一变，多出来的点与类别作为一次性事件（`point-added`、`category-added`）以来源 `extensions.changes` 自己的身份发给每个已登记的租户（列租户用 `tenantDomainScannerPrincipal`），事件标识就是那个点或类别，再发一遍是认回。
@@ -196,6 +198,9 @@ flowchart LR
   session-ad03 -->|sessionModesInstallation| dispatch-session
   dispatch-session -.-> dispatch
   dispatch-tool -.-> dispatch
+  storage --> canvas
+  session-storage -->|tenantDomainLookup| canvas
+  dynamis -->|dynamis| canvas
   tool-records -.-> dispatch-tool
   session-storage -->|tenantDomainLookup| notification
   session-storage -->|tenantDomains| notification
@@ -350,6 +355,9 @@ flowchart LR
   server-entry --> usage-access
   identity -.-> usage-access
   usage -.-> usage-access
+  server-entry --> canvas-access
+  identity -.-> canvas-access
+  canvas -.-> canvas-access
   server-entry --> plugin-access
   identity -.-> plugin-access
   tenant-assets -.-> plugin-access
@@ -492,6 +500,7 @@ flowchart LR
 | `dispatch` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration`、`tenantDomainScannerPrincipal`、`dispatchPrincipal` |
 | `dispatch-session` | `definitionMappings`、`sessionModesInstallation`、`dispatchPrincipal` |
 | `dispatch-tool` | `dispatchPrincipal` |
+| `canvas` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration` |
 | `server-entry` | `principalIssuer`、`identityGovernance` |
 | `identity-access` | `identityGovernance` |
 | `session-access` | `principalIssuer`、`tenantStanding`、`definitionMappings`、`sessionModesInstallation`、`sessionWorkingDirectory`、`sessionWorkPrincipals` |
@@ -507,6 +516,7 @@ flowchart LR
 | `tool-access` | `principalIssuer`、`tenantStanding` |
 | `model-access` | `principalIssuer`、`tenantStanding` |
 | `usage-access` | `principalIssuer`、`tenantStanding` |
+| `canvas-access` | `principalIssuer`、`tenantStanding` |
 | `plugin-access` | `principalIssuer`、`tenantStanding` |
 | `plugin-notification` | `tenantDomainScannerPrincipal` |
 | `plugin-server` | `tenantDomainScannerPrincipal` |
