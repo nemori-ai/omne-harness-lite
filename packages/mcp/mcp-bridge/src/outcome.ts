@@ -214,9 +214,8 @@ function dataOf(
   program: ProgramData | undefined,
 ): BridgeResult['data'] {
   const value = program === undefined ? undefined : programValue(outcome)
-  return program === undefined || value === undefined
-    ? { kind: 'none' }
-    : { kind: 'json', contract: program.contract, schema: program.schema, value }
+  if (program === undefined || value === undefined) return { kind: 'none' }
+  return { kind: 'json', contract: program.contract, schema: program.schema, value }
 }
 
 function answered(

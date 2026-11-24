@@ -283,7 +283,26 @@ describe('an endpoint its holder opened to programs', () => {
     const [declared, listed] = definition.commands.map(programOf)
     expect(declared).toMatchObject({ external: true, maxBytes: 4_194_304 })
     expect(writeJsonText(declared!.definition.schema)).toBe(writeJsonText(jsonOf(sum)))
-    expect(writeJsonText(listed!.definition.schema)).toContain('"type":"array"')
+    expect(JSON.parse(writeJsonText(listed!.definition.schema))).toEqual({
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: Object.fromEntries(
+          ['type', 'text', 'mediaType', 'uri', 'name', 'reason'].map(key => [
+            key,
+            { type: 'string' },
+          ]),
+        ),
+        required: ['type'],
+      },
+    })
+    expect(listed!.schema).toMatchObject({
+      id: '@omne-harness/mcp-bridge/program-data',
+      revision: '1',
+    })
+    const alone = commandOf(total, shape)
+    if ('failure' in alone) throw new Error(alone.failure)
+    expect([alone.ok.program, alone.ok.returns.program]).toEqual([undefined, { kind: 'none' }])
     expect(declared!.schema.digest).not.toBe(listed!.schema.digest)
     expect(declared!.contract).toEqual(listed!.contract)
     expect(programFunctions(definition).map(one => one.entry)).toEqual([

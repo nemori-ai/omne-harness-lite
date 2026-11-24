@@ -164,7 +164,7 @@ function refused(
 
 export const configure: Handler<'configure'> = async (ready, params) => {
   const { id, category, name, item, value, clear } = params
-  if ((value === undefined) === (clear !== true) || clear === false) return invalid(GIVE_ONE)
+  if ((value === undefined) === (clear !== true)) return invalid(GIVE_ONE)
   const change: Change = clear === true ? { kind: 'clear' } : { kind: 'set', value }
   const asset = { category, name }
   const read = await held(ready, 'configure', asset)

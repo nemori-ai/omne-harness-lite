@@ -542,6 +542,18 @@ describe('an endpoint and the programs of an agent', () => {
     expect(direct.content).toEqual(fromProgram.content)
   })
 
+  it('gives no value for a command that declares none, whoever made the call', async () => {
+    const w = world()
+    w.adopt(home, 'docs')
+    w.offers('docs', [total])
+    await listing(w, alice)
+    w.answers(() => summed)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'total')
+    expect(declared.returns.program).toEqual({ kind: 'none' })
+    const answer = await w.source.execute(callOf(alice, 'mcp__docs', declared, undefined, true))
+    expect(answer.data).toEqual({ kind: 'none' })
+  })
+
   it('still sends a call that was accepted while the endpoint was open after the holder closed it', async () => {
     const w = world()
     w.adopt(home, 'docs')

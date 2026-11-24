@@ -330,6 +330,7 @@ describe('what a call gives a program', () => {
       jsonOf({ type: 'image', data: 'aGk=', mimeType: 'image/png' }),
       jsonOf({ type: 'resource_link', uri: 'file:///a.txt', name: 'a.txt' }),
       jsonOf({ type: 'resource', resource: { uri: 'file:///b.txt', text: 'held' } }),
+      jsonOf({ type: 'resource', resource: { uri: 'file:///c.bin', blob: 'aGk=' } }),
       jsonOf({ type: 'hologram' }),
       jsonOf({ type: 'text', text: 'last' }),
     ])
@@ -339,6 +340,7 @@ describe('what a call gives a program', () => {
         { type: 'image', mediaType: 'image/png' },
         { type: 'resource_link', uri: 'file:///a.txt', name: 'a.txt' },
         { type: 'resource', uri: 'file:///b.txt', text: 'held' },
+        { type: 'resource', uri: 'file:///c.bin' },
         { type: 'undelivered', reason: 'type-unknown' },
         { type: 'text', text: 'last' },
       ]),

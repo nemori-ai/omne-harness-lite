@@ -552,9 +552,29 @@ describe('a call of an entry of a source', () => {
     }
     const long = { ...result('x'.repeat(8192)), data }
     expect(slot?.author.codec.encode(long)).toMatchObject({ failure: {} })
-    expect(slot?.author.codec.decode(new TextEncoder().encode('{"message":1}'))).toMatchObject({
-      failure: {},
-    })
+    const unreadable = { failure: { reason: 'invalid-source-entry-result' } }
+    for (const value of [null, 'text', [], { ...valued, data: 'none' }, { ...valued, data: [] }])
+      expect(slot?.author.codec.encode(value)).toEqual(unreadable)
+    const bytesOf = (text: string) => new TextEncoder().encode(text)
+    const message = JSON.stringify(JSON.stringify(result('read')))
+    for (const saved of [
+      '[]',
+      'null',
+      '{"message":1}',
+      '{"message":1,"data":{"kind":"none"}}',
+      `{"message":${message},"data":[]}`,
+      `{"message":${message}}`,
+      'not json',
+    ])
+      expect(slot?.author.codec.decode(bytesOf(saved))).toEqual(unreadable)
+    expect(slot?.author.codec.decode(new Uint8Array([0xff, 0xfe]))).toEqual(unreadable)
+    const refused = slot?.author.codec.decode(bytesOf('{"message":"{}","data":{"kind":"none"}}'))
+    expect(refused).toMatchObject({ failure: { reason: expect.any(String) } })
+    expect(refused).not.toEqual(unreadable)
+    const program = slot?.author.program
+    if (program?.kind !== 'json') throw new Error('the operation declares no value for a program')
+    expect(program.schema.ref.id).toBe(declared.schema.id)
+    expect(await program.schema.ref.load()).toMatchObject({ origin: 'static' })
     const closed = readToolRegistration(
       (() => {
         const kept = made.registry.selectAndPin(asA, fixed(alpha, 'run'), call)

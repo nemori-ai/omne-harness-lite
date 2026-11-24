@@ -907,6 +907,35 @@ describe('settings', () => {
     )
   })
 
+  it('shows an ordinary setting that has no value and no source, a schema that names no type, and cuts a long value', async () => {
+    const { w, s } = configuring()
+    const base = { kind: 'ordinary', title: 't', revision: '1', writable: 'yes' } as const
+    const unset = { kind: 'unset' } as const
+    w.settings.items.set('note/docs', [
+      { ...base, item: 'bare', schema: true, own: unset, effective: unset, source: null },
+      {
+        ...base,
+        item: 'loose',
+        schema: { minimum: 1 },
+        own: unset,
+        effective: unset,
+        source: null,
+      },
+      {
+        ...base,
+        item: 'long',
+        schema: { type: 7 },
+        own: { kind: 'set', value: 'x'.repeat(300) },
+        effective: { kind: 'set', value: 'x'.repeat(300) },
+        source: 'tenant',
+      },
+    ])
+    const [, bare, loose, long] = (await s.text('settings', DOCS)).split('\n')
+    expect(bare).toMatch(/^bare\s+unset\s+json$/u)
+    expect(loose).toMatch(/^loose\s+unset\s+json$/u)
+    expect(long).toMatch(/^long\s+"x{199}\.\.\.\s+set here\s+json$/u)
+  })
+
   it('an extension with no setting says so', async () => {
     const { w, s } = configuring()
     w.settings.items.set('note/docs', [])
@@ -924,6 +953,7 @@ describe('settings', () => {
     const failure = await configuring(over).s.failure('settings', params)
     expect(failure.kind).toBe(kind)
     expect(failure.reason).toContain(said)
+    if (kind === 'unavailable') expect(failure.operation).toBe('OmneExtensions.settings')
   })
 
   it('a category not there now names the ones that are', async () => {
@@ -992,7 +1022,7 @@ describe('configure', () => {
   it.each([
     ['neither a value nor clear', {}],
     ['both a value and clear', { value: true, clear: true }],
-    ['clear that is not true', { clear: false }],
+    ['clear that is false', { clear: false }],
   ])('%s is invalid, and nothing is read or written', async (_case, given) => {
     const { w, s } = configuring()
     const failure = await s.failure('configure', {
@@ -1004,6 +1034,29 @@ describe('configure', () => {
     expect(failure.kind).toBe('invalid')
     expect(failure.reason).toContain('give value to write the setting, or clear: true to clear')
     expect(w.settings.written).toEqual([])
+  })
+
+  it('a value beside clear: false is written; null is a value, and is written over a setting that is not set', async () => {
+    const { w, s } = configuring()
+    await s.text('configure', { ...OPEN, clear: false })
+    await s.text('configure', { id: 'c6', ...DOCS, item: 'target', value: null })
+    const nulled = configuring()
+    await nulled.s.text('configure', { id: 'c6', ...DOCS, item: 'program-calls', value: null })
+    expect([...w.settings.written, ...nulled.w.settings.written].map(sent => sent.change)).toEqual([
+      { kind: 'set', value: true },
+      { kind: 'set', value: null },
+      { kind: 'set', value: null },
+    ])
+  })
+
+  it('an asset with no ordinary setting says so when asked to write one', async () => {
+    const { w, s } = configuring()
+    w.settings.items.set(
+      'note/docs',
+      DOCS_SETTINGS.filter(one => one.kind !== 'ordinary'),
+    )
+    const failure = await s.failure('configure', { ...OPEN, item: 'colour' })
+    expect(failure.reason).toContain('has no setting "colour". It has no ordinary setting.')
   })
 
   it('a value the layer already has is not written again: the same command after an unknown answer finds it done', async () => {
@@ -1019,7 +1072,14 @@ describe('configure', () => {
           : one,
       ),
     )
-    expect(await s.text('configure', OPEN)).toContain('"value":true,"changed":false}')
+    expect(await s.text('configure', OPEN)).toBe(
+      lines(
+        'done OmneExtensions configure',
+        '{"id":"c1","category":"note","name":"docs","item":"program-calls","value":true,"changed":false}',
+        'this layer already has it so.',
+        'tree rev 7c1f.41',
+      ),
+    )
     expect(w.settings.written).toHaveLength(1)
     const fresh = configuring()
     const unset = { id: 'c9', ...DOCS, item: 'program-calls', clear: true }
@@ -1064,9 +1124,16 @@ describe('configure', () => {
   ] as const)('the write answers %s: %s, saying why', async (next, kind, said) => {
     const { s } = configuring({ next })
     const answer = await s.run('configure', OPEN)
-    if (kind === undefined) expect(answer).toMatchObject({ ok: expect.stringContaining(said) })
-    else {
+    if (kind === undefined) {
+      expect(answer).toMatchObject({ ok: expect.stringContaining(said) })
+      expect(answer).toMatchObject({ ok: expect.stringContaining('this layer already has it so.') })
+      expect(answer).toMatchObject({
+        ok: expect.stringMatching(/^done OmneExtensions configure\n/u),
+      })
+    } else {
       expect(answer).toMatchObject({ failure: { kind } })
+      if (kind === 'unavailable')
+        expect(answer).toMatchObject({ failure: { operation: 'OmneExtensions.configure' } })
       expect((answer as { failure: { reason: string } }).failure.reason).toContain(said)
     }
   })
@@ -1081,6 +1148,7 @@ describe('configure', () => {
     const failure = await s.failure('configure', params)
     expect(failure.kind).toBe(kind)
     expect(failure.reason).toContain(said)
+    if (kind === 'unavailable') expect(failure.operation).toBe('OmneExtensions.configure')
     expect(w.settings.written).toEqual([])
   })
 })
