@@ -5,9 +5,11 @@ import { CanvasDriver, type Schedule } from '../src/model/canvas-driver.ts'
 import type { CanvasClient } from '../src/model/reading.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 
-const TENANT = readTenantText(
+const read = readTenantText(
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}',
 )
+if (read === undefined) throw new Error('the tenant of the cases does not read')
+const TENANT = read
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
 const body = (revision: number) => ({ sheet: {}, items: [], piles: [], revision })
 
