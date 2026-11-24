@@ -18,6 +18,7 @@ import {
   type PaperElementSubject,
   type PaperFrame,
   type PaperPickerSubject,
+  type PaperRow,
 } from '../model/paper.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import { sessionName, type ListedSession } from '../model/session-list.ts'
@@ -89,19 +90,14 @@ function Row({
   )
 }
 
-function DirectoryRow({
-  driver,
-  tenant,
-  archived,
-  subject,
-  onOpen,
-}: {
-  readonly driver: SessionDriver
-  readonly tenant: string
-  readonly archived: ArchivedDirectory
-  readonly subject: PaperElementSubject
-  readonly onOpen: (session: string) => void
-}) {
+type Directory = Readonly<{
+  driver: SessionDriver
+  tenant: string
+  archived: ArchivedDirectory
+}>
+
+/** The row of the directory a session stands on, and the reads the directory still owes it. */
+function usePaperRow({ driver, tenant, archived }: Directory, session: string): PaperRow {
   const { list } = useSyncExternalStore(driver.subscribe, driver.getState)
   const scan = useSyncExternalStore(
     useCallback((listener: () => void) => archived.subscribe(tenant, listener), [archived, tenant]),
@@ -109,7 +105,6 @@ function DirectoryRow({
   )
   const [met, setMet] = useState<number | undefined>(() => readThrough(list))
   const since = met ?? readThrough(list)
-  const session = subject.reference.ref
   const { row, read } = paperRow(list, scan, session, since)
   useEffect(() => {
     if (met === undefined && since !== undefined) setMet(since)
@@ -122,6 +117,18 @@ function DirectoryRow({
     if (read === 'again' && paperRow(now, archived.read(tenant), session, since).read === 'again')
       driver.loadList()
   }, [read, driver, archived, tenant, list, session, since])
+  return row
+}
+
+function DirectoryRow({
+  subject,
+  onOpen,
+  ...directory
+}: Directory & {
+  readonly subject: PaperElementSubject
+  readonly onOpen: (session: string) => void
+}) {
+  const row = usePaperRow(directory, subject.reference.ref)
   const { frame } = subject
   switch (row.kind) {
     case 'reading':
