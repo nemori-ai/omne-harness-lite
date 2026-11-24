@@ -125,10 +125,11 @@ async function resolved<P>(
 ): Promise<Outcome<Message | null, SessionFailure>> {
   const declared = dependencies.resolver
   if (declared === undefined) return MEMBER_ONLY
+  const resolver = current('resolver', 'the utterance resolver', () => declared.current())
+  if ('ok' in resolver && resolver.ok === 'none') return MEMBER_ONLY
   const accepts = acceptsOf(dependencies, input)
   if ('failure' in accepts) return accepts
   if (accepts.ok.subject !== 'member') return MEMBER_ONLY
-  const resolver = current('resolver', 'the utterance resolver', () => declared.current())
   if ('failure' in resolver) return resolver
   if (resolver.ok === 'none') return MEMBER_ONLY
   const { resolve } = resolver.ok

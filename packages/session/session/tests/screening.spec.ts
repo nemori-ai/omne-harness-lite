@@ -437,6 +437,8 @@ describe('the resolver of a member words', () => {
     })
     const declared = await service({ resolver: 'none' })
     succeeded(await accept(declared, withBlocks('in-6', text('b1', '原话'))), 'none declared')
+    const bare = await service({ admission: [], resolver: 'none', sources: null })
+    succeeded(await accept(bare, withBlocks('in-7', text('b1', '原话'))), 'no source registry')
   })
 
   it('hands the resolver what the sender saw and which request this is, and says why it could not tell', async () => {
