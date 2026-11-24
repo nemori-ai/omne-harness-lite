@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -8,9 +8,12 @@ import {
   type PaperBox,
   PaperPage,
   PaperPile,
+  type PaperPoint,
+  PaperSpot,
   PaperSurface,
   type PaperView,
   type PlaceBox,
+  usePaperAt,
 } from '../src/index.ts'
 
 const SHEET = { width: 2000, height: 1600, step: 16 }
@@ -21,6 +24,7 @@ const BOX: PaperBox = { x: 96, y: 96, width: 320, height: 240 }
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   document.documentElement.style.removeProperty('--omne-size')
   delete document.documentElement.dataset['theme']
 })
@@ -29,11 +33,13 @@ function Board({
   view = CENTRE,
   onViewChange = () => undefined,
   magnet = false,
+  onDropAt,
   children,
 }: {
   readonly view?: PaperView
   readonly onViewChange?: (view: PaperView) => void
   readonly magnet?: boolean
+  readonly onDropAt?: (event: React.DragEvent<HTMLDivElement>, at: PaperPoint) => void
   readonly children?: React.ReactNode
 }): React.JSX.Element {
   return (
@@ -47,6 +53,7 @@ function Board({
         limits={LIMITS}
         magnet={magnet}
         showGrid={magnet}
+        {...(onDropAt === undefined ? {} : { onDropAt })}
       >
         {children}
       </PaperSurface>
@@ -474,3 +481,122 @@ it.each(['light', 'dark'] as const)(
     expect(order).toEqual(['挪动报告', '挪动资料', '展开'])
   },
 )
+
+describe('a spot', () => {
+  it('draws what it holds at a point of the paper, and is no page: no handle, no corners, nothing to drag', () => {
+    render(
+      <Board>
+        <PaperSpot at={{ x: 120, y: 80 }}>
+          <span>座位</span>
+        </PaperSpot>
+      </Board>,
+    )
+    const spot = screen.getByText('座位').closest<HTMLElement>('[data-slot="paper-spot"]')
+    expect(spot?.style.getPropertyValue('--omne-paper-x')).toBe('120')
+    expect(spot?.style.getPropertyValue('--omne-paper-y')).toBe('80')
+    expect(screen.queryByRole('group')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(spot?.querySelector('[data-corner]')).toBeNull()
+  })
+
+  it('does not pan the paper when pressed', () => {
+    const onViewChange = vi.fn<(view: PaperView) => void>()
+    render(
+      <Board onViewChange={onViewChange}>
+        <PaperSpot at={{ x: 120, y: 80 }}>座位</PaperSpot>
+      </Board>,
+    )
+    drag(screen.getByText('座位'), [0, 0], [50, 50])
+    release(screen.getByText('座位'), [50, 50])
+    expect(onViewChange).not.toHaveBeenCalled()
+  })
+
+  it('is drawn only inside a paper surface', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expect(() => render(<PaperSpot at={{ x: 0, y: 0 }} />)).toThrow()
+  })
+})
+
+describe('a point of the screen on the paper', () => {
+  function seen(left: number, top: number, width: number, height: number): void {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(width)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(height)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left,
+      top,
+      width,
+      height,
+      x: left,
+      y: top,
+      right: left + width,
+      bottom: top + height,
+      toJSON: () => ({}),
+    } as DOMRect)
+  }
+
+  function asked(view: PaperView, points: readonly PaperPoint[]): PaperPoint[] {
+    let at: ((client: PaperPoint) => PaperPoint) | undefined
+    function Asker(): null {
+      at = usePaperAt()
+      return null
+    }
+    render(
+      <Board view={view}>
+        <Asker />
+      </Board>,
+    )
+    return points.map(point => at!(point))
+  }
+
+  it('is the paper under it, by the view, the zoom and the size step, in whole units', () => {
+    seen(100, 50, 800, 600)
+    expect(
+      asked(CENTRE, [
+        { x: 500, y: 350 },
+        { x: 110.4, y: 60.6 },
+      ]),
+    ).toEqual([
+      { x: 1000, y: 800 },
+      { x: 610, y: 511 },
+    ])
+    cleanup()
+    document.documentElement.style.setProperty('--omne-size', '1.5')
+    expect(asked({ ...CENTRE, zoom: 2 }, [{ x: 530, y: 320 }])).toEqual([{ x: 1010, y: 790 }])
+  })
+
+  it('stays on the paper when the screen point is off it', () => {
+    seen(0, 0, 800, 600)
+    expect(
+      asked(CENTRE, [
+        { x: -99_999, y: 99_999 },
+        { x: 99_999, y: -99_999 },
+      ]),
+    ).toEqual([
+      { x: 0, y: SHEET.height },
+      { x: SHEET.width, y: 0 },
+    ])
+  })
+
+  it('comes with something dropped on the paper, and the drop is taken', () => {
+    seen(100, 50, 800, 600)
+    const onDropAt = vi.fn<(event: React.DragEvent<HTMLDivElement>, at: PaperPoint) => void>()
+    render(<Board onDropAt={onDropAt} />)
+    const surface = screen.getByRole('region', { name: '画布' })
+    const dropped = (type: 'dragOver' | 'drop'): Event => {
+      const event = createEvent[type](surface)
+      Object.defineProperties(event, { clientX: { value: 500 }, clientY: { value: 350 } })
+      return event
+    }
+    expect(fireEvent(surface, dropped('dragOver'))).toBe(false)
+    expect(fireEvent(surface, dropped('drop'))).toBe(false)
+    expect(onDropAt).toHaveBeenCalledTimes(1)
+    expect(onDropAt.mock.calls[0]?.[1]).toEqual({ x: 1000, y: 800 })
+  })
+
+  it('leaves a drop alone when the caller takes none', () => {
+    render(<Board />)
+    const surface = screen.getByRole('region', { name: '画布' })
+    expect(fireEvent.dragOver(surface)).toBe(true)
+    expect(fireEvent.drop(surface)).toBe(true)
+  })
+})

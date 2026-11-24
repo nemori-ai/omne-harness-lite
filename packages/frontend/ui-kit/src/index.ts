@@ -202,6 +202,7 @@ export { ToldNote, type Told } from './ink/told-note.tsx'
 export { type Box } from './ink/travel.ts'
 export {
   type PaperBox,
+  type PaperPoint,
   type PaperSheet,
   type PaperView,
   type SizeLimits,
@@ -210,4 +211,5 @@ export {
 export { type PaperGesture, type PlaceBox } from './paper/carry.ts'
 export { PaperPage } from './paper/paper-page.tsx'
 export { PaperPile, type PileLeaf } from './paper/paper-pile.tsx'
-export { PaperSurface } from './paper/paper-surface.tsx'
+export { PaperSpot } from './paper/paper-spot.tsx'
+export { PaperSurface, usePaperAt } from './paper/paper-surface.tsx'

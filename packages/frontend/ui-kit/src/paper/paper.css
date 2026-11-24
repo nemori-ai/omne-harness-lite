@@ -53,6 +53,13 @@
   user-select: none;
 }
 
+.omne-paper-spot {
+  position: absolute;
+  left: calc(var(--omne-paper-x) * 1px);
+  top: calc(var(--omne-paper-y) * 1px);
+  translate: -50% -50%;
+}
+
 .omne-paper-name {
   display: flex;
   flex: none;

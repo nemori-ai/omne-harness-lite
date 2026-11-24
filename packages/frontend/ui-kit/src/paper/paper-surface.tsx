@@ -7,10 +7,12 @@ import {
   type Lens,
   type Magnet,
   panBy,
+  type PaperPoint,
   type PaperSheet,
   type PaperView,
   type SizeLimits,
   type ZoomLimits,
+  screenToPaper,
   zoomAround,
 } from './geometry.ts'
 import { capture, pastSlop } from './pointer.ts'
@@ -27,6 +29,7 @@ export type PaperFrame = Readonly<{
   limits: SizeLimits
   magnet: Magnet
   scale: number
+  at: (client: PaperPoint) => PaperPoint
 }>
 
 const Frame = createContext<PaperFrame | null>(null)
@@ -35,6 +38,24 @@ export function usePaperFrame(): PaperFrame {
   const frame = useContext(Frame)
   if (frame === null) throw new Error('A page of paper is drawn inside a PaperSurface.')
   return frame
+}
+
+export function usePaperAt(): (client: PaperPoint) => PaperPoint {
+  return usePaperFrame().at
+}
+
+function onPaper(value: number, length: number): number {
+  return Number.isFinite(value) ? Math.min(Math.max(Math.round(value), 0), length) : 0
+}
+
+function paperAt(element: Element | null, now: Looking, client: PaperPoint): PaperPoint {
+  const box = element?.getBoundingClientRect()
+  const point = screenToPaper(
+    { x: client.x - (box?.left ?? 0), y: client.y - (box?.top ?? 0) },
+    now.shown,
+    now.lens,
+  )
+  return { x: onPaper(point.x, now.sheet.width), y: onPaper(point.y, now.sheet.height) }
 }
 
 const PAN_KEYS: Readonly<Record<string, readonly [number, number]>> = {
@@ -196,6 +217,7 @@ export function PaperSurface({
   limits,
   magnet,
   showGrid = false,
+  onDropAt,
   label,
   roleDescription = '纸面',
   className,
@@ -208,6 +230,7 @@ export function PaperSurface({
   readonly limits: SizeLimits
   readonly magnet: boolean
   readonly showGrid?: boolean
+  readonly onDropAt?: (event: React.DragEvent<HTMLDivElement>, at: PaperPoint) => void
   readonly label: string
   readonly roleDescription?: string
   readonly className?: string
@@ -221,6 +244,13 @@ export function PaperSurface({
     if (next.x !== shown.x || next.y !== shown.y || next.zoom !== shown.zoom) onViewChange(next)
   }
   const looking: Looking = { shown, sheet, lens, zoomLimits, hand }
+  const latest = useRef(looking)
+  latest.current = looking
+  const [at] = useState(
+    () =>
+      (client: PaperPoint): PaperPoint =>
+        paperAt(root.current, latest.current, client),
+  )
   useWheel(root, looking)
   const pan = usePan(looking)
 
@@ -245,6 +275,15 @@ export function PaperSurface({
       data-gesture={pan.moving ? 'pan' : undefined}
       className={cn('omne-paper-surface', className)}
       onKeyDown={onKeyDown}
+      {...(onDropAt === undefined
+        ? {}
+        : {
+            onDragOver: (event: React.DragEvent<HTMLDivElement>) => event.preventDefault(),
+            onDrop: (event: React.DragEvent<HTMLDivElement>) => {
+              event.preventDefault()
+              onDropAt(event, at({ x: event.clientX, y: event.clientY }))
+            },
+          })}
       {...pan.handlers}
     >
       <div
@@ -274,6 +313,7 @@ export function PaperSurface({
               limits,
               magnet: { on: magnet, step: sheet.step },
               scale: shown.zoom * (sizeFactor > 0 ? sizeFactor : 1),
+              at,
             }}
           >
             {children}

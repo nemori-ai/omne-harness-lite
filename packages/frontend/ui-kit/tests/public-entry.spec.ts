@@ -152,6 +152,7 @@ const REST = [
   'PageHeader',
   'PaperPage',
   'PaperPile',
+  'PaperSpot',
   'PaperSurface',
   'Popover',
   'PopoverAnchor',
@@ -228,6 +229,7 @@ const REST = [
   'useObjectTransition',
   'usePresenceInert',
   'useReducedMotion',
+  'usePaperAt',
   'useSizeFactor',
   'useSettleCue',
 ]
