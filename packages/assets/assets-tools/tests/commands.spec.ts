@@ -180,7 +180,12 @@ describe('publish', () => {
     [
       'a directory that is not there',
       { category: 'bundle', name: 'b', dir: 'plugins/none' },
-      'dir "plugins/none" is not a directory in this workspace; nothing was changed.',
+      'dir "plugins/none" is not a directory; nothing was changed.',
+    ],
+    [
+      'a directory the files of the call do not reach',
+      { category: 'bundle', name: 'b', dir: '/elsewhere/skin' },
+      'dir "/elsewhere/skin" is outside the workspace of this session, and the setting for files outside the workspace keeps this call from reading there. Tell the user: the setting is theirs to change; nothing was changed.',
     ],
   ])('%s is invalid', async (_, params, reason) => {
     expect(await bound(world()).failure('publish', { id: 'x1', ...params })).toEqual({
@@ -767,12 +772,20 @@ describe('export', () => {
     },
   )
 
-  it('a path that is no place for a directory in the workspace is invalid', async () => {
+  it('a path that is no place for a directory is invalid', async () => {
     const s = await held(world({ place: async () => ({ kind: 'absent' }) }))
     expect(await s.failure('export', EXPORT)).toEqual({
       kind: 'invalid',
+      reason: 'dir "work/pill" is not a place for a directory; nothing was written.',
+    })
+  })
+
+  it('a place the files of the call may not write is invalid, and says whose setting it is', async () => {
+    const s = await held(world({ place: async () => ({ kind: 'outside' }) }))
+    expect(await s.failure('export', EXPORT)).toEqual({
+      kind: 'invalid',
       reason:
-        'dir "work/pill" is not a place for a directory in this workspace: give a relative path inside it; nothing was written.',
+        'dir "work/pill" is outside the workspace of this session, and the setting for files outside the workspace keeps this call from writing there. Tell the user: the setting is theirs to change; nothing was written.',
     })
   })
 

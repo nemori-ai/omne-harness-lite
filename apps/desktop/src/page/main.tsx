@@ -10,6 +10,7 @@ import { watchConnectivity } from './connectivity.ts'
 import { keepBootTokens } from './shell/boot-tokens.ts'
 import { adoptChanges, tokenOf, tokensOf } from './shell/changes-sheet.ts'
 import { shellPlugin } from './shell/service.ts'
+import { storedFloatPlaces } from './shell/float-place.ts'
 import { Shell } from './shell/shell.tsx'
 import { bindSizeKeys, storedSizePreference } from './shell/size.ts'
 import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
@@ -67,6 +68,7 @@ async function main(): Promise<void> {
         connectivity={watched}
         theme={{ initial: preference.read(), select: choice => theme.select(choice) }}
         size={size}
+        floats={storedFloatPlaces(() => window.localStorage)}
         missingAtForwarding={missing}
       />
     </StrictMode>,

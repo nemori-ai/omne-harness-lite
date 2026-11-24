@@ -50,8 +50,7 @@ import {
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { FilesScope } from '@omne-harness/execution-environment-contract'
 import type { OutsideFiles } from '@omne-harness/workspace-local'
-import { tenantIndependentSettingsKey } from '../rows/governance/independent-settings-service.ts'
-import { outsideFilesReader } from '../rows/workspace/outside-files.ts'
+import { workspaceOutsideFilesKey } from '../rows/workspace-outside-files/service.ts'
 import { currentHeldTool, type CurrentHeldTool } from '../rows/tool-host/held-current.ts'
 import { HELD_TOOL_SETTINGS, ownLayer } from '../rows/tool-host/held-tools.ts'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
@@ -87,7 +86,7 @@ export type ToolRequestPorts = Readonly<{
   workingDirectory(
     access: SessionAccess<unknown>,
   ): Promise<Outcome<WorkingDirectory | null, string>>
-  outsideFiles(tenant: TenantId): Promise<OutsideFiles | null>
+  outsideFiles(tenant: TenantId): Promise<Outcome<OutsideFiles, string>>
   held?(access: Access<unknown>, name: string): Promise<CurrentHeldTool>
 }>
 
@@ -398,6 +397,8 @@ const pinned = (directory: ToolCallDirectory | undefined): Pinned =>
 type Placed = Readonly<{ kind: 'pinned' }> & Pinned
 const pinnedTo = (directory: ToolCallDirectory): Placed => ({ kind: 'pinned', directory })
 
+const UNBOUNDED: FilesScope = Object.freeze({})
+
 export function filesScopeOf(outside: OutsideFiles, root: string): FilesScope {
   switch (outside) {
     case 'none':
@@ -411,29 +412,27 @@ export function filesScopeOf(outside: OutsideFiles, root: string): FilesScope {
 
 export async function pinnedDirectory(
   value: WorkingDirectory | null,
-  outsideFiles: () => Promise<OutsideFiles | null>,
+  outsideFiles: () => Promise<Outcome<OutsideFiles, string>>,
 ): Promise<Outcome<Placed | ToolCallAnswer, Failure>> {
   if (value === null) return succeed({ kind: 'answered', text: NO_WORKING_DIRECTORY })
-  switch (value.state) {
-    case 'default':
-      return succeed(pinnedTo({ path: value.directory, workspace: null }))
-    case 'attached': {
-      const id = workspaceCodec.parse(value.workspace)
-      if (!id.ok) return unavailable('the working directory names a workspace that is not one')
-      const outside = await outsideFiles()
-      if (outside === null)
-        return unavailable('the setting for files outside the workspace is not readable')
-      return succeed(
-        pinnedTo({
-          path: value.directory,
-          workspace: { id: id.value, instance: value.instance },
-          files: filesScopeOf(outside, value.directory),
-        }),
-      )
-    }
-    case 'unusable':
-      return succeed({ kind: 'answered', text: unusableDirectory(value.reason) })
-  }
+  if (value.state === 'unusable')
+    return succeed({ kind: 'answered', text: unusableDirectory(value.reason) })
+  if (value.state === 'default')
+    return succeed(pinnedTo({ path: value.directory, workspace: null, files: UNBOUNDED }))
+  const id = workspaceCodec.parse(value.workspace)
+  if (!id.ok) return unavailable('the working directory names a workspace that is not one')
+  const outside = await outsideFiles()
+  if ('failure' in outside)
+    return unavailable(
+      `the setting for files outside the workspace is not readable: ${outside.failure}`,
+    )
+  return succeed(
+    pinnedTo({
+      path: value.directory,
+      workspace: { id: id.value, instance: value.instance },
+      files: filesScopeOf(outside.ok, value.directory),
+    }),
+  )
 }
 
 const CARRIES_DIRECTORY: ReadonlySet<string> = new Set([
@@ -557,7 +556,9 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
       if (ports === null) return fail('the Session or Runtime Context services are absent')
       return readHeldNeed(ports, access, workingDirectoryCallBinding)
     },
-    outsideFiles: outsideFilesReader(() => ctx.get(tenantIndependentSettingsKey)),
+    outsideFiles: async tenant =>
+      (await ctx.get(workspaceOutsideFilesKey)?.read(tenant)) ??
+      fail('the row that reads the setting through Runtime Context is not there'),
     held: (access, name) => currentHeldTool(ctx, access, name),
   })
 }

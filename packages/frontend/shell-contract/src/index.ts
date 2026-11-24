@@ -20,7 +20,7 @@ export {
   type ToastStore,
   type ToastTone,
 } from './toast-store.ts'
-export { ShellAssemblyError, slots } from './slots.ts'
+export { FLOAT_GRIP_ATTRIBUTE, ShellAssemblyError, slots } from './slots.ts'
 export { shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint, defineRenderPoint } from './point.ts'
 export {
@@ -87,6 +87,9 @@ export type {
   AttachedItem,
   AttachedLayout,
   AttachedProps,
+  FloatCorner,
+  FloatItem,
+  FloatProps,
   GateItem,
   GateProps,
   ItemOf,

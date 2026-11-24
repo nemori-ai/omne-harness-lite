@@ -1,8 +1,13 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { dirname, join, sep } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { digestBytes, type PackageReader } from '@omne-harness/assets'
 import type { Placed } from '@omne-harness/assets-tools'
+import {
+  withinScope,
+  type FileEffect,
+  type FilesScope,
+} from '@omne-harness/execution-environment-contract'
 import { nodeFileIo } from '../plugin-access/file-io.ts'
 
 const hidden = (name: string): boolean => name.startsWith('.')
@@ -55,30 +60,43 @@ function directoryPackage(root: string): PackageReader {
   }
 }
 
+export type Working = Readonly<{ path: string; files: FilesScope }>
+
+const named = (path: string): boolean => path !== '' && !path.includes('\0')
+
+async function allowed(scope: FilesScope, effect: FileEffect, real: string): Promise<boolean> {
+  const root = scope[effect]
+  if (root === undefined) return true
+  const inside = await realpath(root).catch(() => undefined)
+  return inside !== undefined && withinScope({ [effect]: inside }, effect, real)
+}
+
 export async function directoryIn(
-  working: string,
+  working: Working,
   path: string,
-): Promise<PackageReader | 'absent' | 'unavailable'> {
-  if (!safe(path)) return 'absent'
+): Promise<PackageReader | 'absent' | 'outside' | 'unavailable'> {
+  if (!named(path)) return 'absent'
   try {
-    const inside = await realpath(working)
-    const root = await realpath(join(inside, ...path.split('/'))).catch(() => undefined)
-    if (root === undefined || !root.startsWith(inside + sep)) return 'absent'
+    const root = await realpath(resolve(await realpath(working.path), path)).catch(() => undefined)
+    if (root === undefined) return 'absent'
+    if (!(await allowed(working.files, 'read', root))) return 'outside'
     return (await stat(root)).isDirectory() ? directoryPackage(root) : 'absent'
   } catch {
     return 'unavailable'
   }
 }
 
-const within = (inside: string, path: string): boolean =>
-  path === inside || path.startsWith(inside + sep)
-
-/** The real path of the deepest part of a path that is there: a link on the way is followed before anything is made under it. */
-async function deepestReal(path: string): Promise<string> {
+/** The deepest part of a path that is there, and what it really is: a link on the way is followed before anything is made under it. */
+async function deepest(path: string): Promise<Readonly<{ at: string; real: string }>> {
   for (let at = path; ; at = dirname(at)) {
     const real = await realpath(at).catch(() => undefined)
-    if (real !== undefined) return real
+    if (real !== undefined) return { at, real }
   }
+}
+
+async function landingOf(path: string): Promise<string> {
+  const { at, real } = await deepest(path)
+  return join(real, relative(at, path))
 }
 
 type Listed = readonly Readonly<{ path: string; bytes: number; digest: string }>[]
@@ -109,15 +127,18 @@ async function writeAll(target: string, exists: boolean, from: PackageReader, fi
   }
 }
 
-/** Writes a package into a directory of the working directory that is missing or holds no file; else tells whether what is there is the same. */
-export async function placeIn(working: string, path: string, from: PackageReader): Promise<Placed> {
-  if (!safe(path)) return { kind: 'absent' }
-  const inside = await realpath(working)
-  const target = join(inside, ...path.split('/'))
-  if (!within(inside, await deepestReal(target))) return { kind: 'absent' }
+/** Writes a package into a directory that is missing or holds no file; else tells whether what is there is the same. Outside: the files scope of the call does not let it be written. */
+export async function placeIn(
+  working: Working,
+  path: string,
+  from: PackageReader,
+): Promise<Placed> {
+  if (!named(path)) return { kind: 'absent' }
+  const target = await landingOf(resolve(await realpath(working.path), path))
+  if (!(await allowed(working.files, 'write', target))) return { kind: 'outside' }
   const found = await stat(target).catch(() => undefined)
   if (found !== undefined && !found.isDirectory()) return { kind: 'absent' }
-  const parent = await stat(await deepestReal(dirname(target)))
+  const parent = await stat((await deepest(dirname(target))).real)
   if (!parent.isDirectory()) return { kind: 'absent' }
   const wanted = await from.manifest()
   if (!('ok' in wanted) || !wanted.ok.entries.every(entry => safe(entry.path)))

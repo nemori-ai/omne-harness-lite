@@ -417,7 +417,7 @@ const tool = author()
 export type World = ReturnType<typeof services> & {
   faces: 'present' | 'absent' | 'throws'
   revision: string | null
-  directories: Map<string, PackageReader | 'unavailable'>
+  directories: Map<string, PackageReader | 'outside' | 'unavailable'>
   impact: ChangeImpact
   impactAsked: Parameters<ChangeImpact['of']>[0][]
   placement: Placement
@@ -437,10 +437,11 @@ export function world(over: Partial<World> = {}): World {
     ...made,
     faces: 'present',
     revision: '7c1f.41',
-    directories: new Map<string, PackageReader | 'unavailable'>([
+    directories: new Map<string, PackageReader | 'outside' | 'unavailable'>([
       ['plugins/pill-send', directoryOf({ 'bundle.json': '{}' })],
       ['plugins/broken', directoryOf({ 'README.md': 'x' })],
       ['plugins/far', 'unavailable'],
+      ['/elsewhere/skin', 'outside'],
     ]),
     impactAsked,
     impact: {

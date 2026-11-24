@@ -42,6 +42,8 @@ system
           session-ui#1  [effective]
         session.tool-call
           session-ui#1  [effective]
+        shell.float
+          DesktopShell#1  [effective]
         shell.gate
           DesktopShell#1  [effective]
         shell.layout
@@ -140,6 +142,8 @@ system
         usage.occupancy  [effective, usage-ui#1]
       session.tool-call  [keyed-one]
     shell
+      shell.float  [list, build]
+        companion  [effective, session-ui#1]
       shell.gate  [one, build]
         identity-ui#1  [effective]
       shell.layout  [keyed-one]
@@ -292,6 +296,12 @@ system
         session.archived.item
           session-ui#1  [effective]
         session.backdrop
+          session-ui#1  [effective]
+        session.companion
+          session-ui#1  [effective]
+        session.companion.figure
+          session-ui#1  [effective]
+        session.companion.panel
           session-ui#1  [effective]
         session.composer
           session-ui#1  [effective]

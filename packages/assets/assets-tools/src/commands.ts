@@ -205,9 +205,9 @@ function placedAnswer(
       )
     }
     case 'absent':
-      return invalid(
-        `dir "${dir}" is not a place for a directory in this workspace: give a relative path inside it; ${NOTHING_WRITTEN}.`,
-      )
+      return invalid(`dir "${dir}" is not a place for a directory; ${NOTHING_WRITTEN}.`)
+    case 'outside':
+      return invalid(`${outside(dir, 'writing')}; ${NOTHING_WRITTEN}.`)
     case 'unavailable':
       return unavailable('export', `the workspace cannot be written now; ${NOTHING_WRITTEN}`)
     case 'written':
@@ -247,6 +247,9 @@ const lastSegment = (path: string) =>
     .filter(part => part !== '')
     .at(-1) ?? path
 
+const outside = (dir: string, doing: 'reading' | 'writing'): string =>
+  `dir "${dir}" is outside the workspace of this session, and the setting for files outside the workspace keeps this call from ${doing} there. Tell the user: the setting is theirs to change`
+
 async function directoryContent(
   source: ExtensionsCallSource,
   command: ExtensionsCommandName,
@@ -255,8 +258,8 @@ async function directoryContent(
   const found = await settle(() => source.directory(dir))
   if (found === undefined || found === 'unavailable')
     return unavailable(command, 'the workspace cannot be read now; nothing was changed')
-  if (found === 'absent')
-    return invalid(`dir "${dir}" is not a directory in this workspace; nothing was changed.`)
+  if (found === 'absent') return invalid(`dir "${dir}" is not a directory; nothing was changed.`)
+  if (found === 'outside') return invalid(`${outside(dir, 'reading')}; nothing was changed.`)
   return { kind: 'directory', from: found }
 }
 

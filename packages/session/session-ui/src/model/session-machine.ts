@@ -89,6 +89,14 @@ export type Open = Readonly<{
   waiting: Waiting
 }>
 
+/** Words on their way to a session, with the ids they are known by from before they are handed over. */
+export type Words = Readonly<{ text: string; acceptId: string; inputId: string; messageId: string }>
+
+/** Whom words are said to: a session made for them, or one there is. */
+export type SayTo =
+  | Readonly<{ kind: 'new'; createCallId: string }>
+  | Readonly<{ kind: 'session'; session: string }>
+
 export type State =
   | Readonly<{ kind: 'none'; notice: Notice | null }>
   | Readonly<{
@@ -96,6 +104,8 @@ export type State =
       createCallId: string
       confirm: 'no' | 'asking' | 'unknown'
       notice: Notice | null
+      /** The words the session is made for: sent the moment it opens. */
+      first: Words | null
     }>
   | Open
   | Readonly<{ kind: 'unavailable'; session: string; notice: Notice; content: Content }>
@@ -119,6 +129,7 @@ export type Event =
       inputId: string
       messageId: string
     }>
+  | Readonly<{ kind: 'say'; to: SayTo; words: Words }>
   | Readonly<{ kind: 'send-answered'; session: string; acceptId: string; answer: SendAnswer }>
   | Readonly<{ kind: 'send-confirm'; acceptId: string }>
   | Readonly<{ kind: 'send-confirmed'; session: string; acceptId: string; answer: SendQueryAnswer }>
@@ -172,7 +183,17 @@ export function reconnectDelay(attempt: number): number {
 
 const same = (state: State): Step => ({ state, effects: [] })
 
-function opened(session: string): Step {
+function pending(words: Words, attachments: readonly UserAttachment[] = []): PendingInput {
+  return { ...words, attachments, status: 'sending', notice: null }
+}
+
+function sending(session: string, input: PendingInput): Effect {
+  const { acceptId, inputId, text, attachments } = input
+  return { kind: 'send-input', session, acceptId, inputId, text, attachments }
+}
+
+function opened(session: string, first: Words | null = null): Step {
+  const inputs = first === null ? [] : [pending(first)]
   const state: Open = {
     kind: 'open',
     session,
@@ -181,7 +202,7 @@ function opened(session: string): Step {
     history: { reading: 1, issued: 1, again: false, failure: null },
     revision: null,
     content: EMPTY_CONTENT,
-    inputs: [],
+    inputs,
     notice: null,
     waiting: NO_WAITING,
   }
@@ -190,6 +211,7 @@ function opened(session: string): Step {
     effects: [
       { kind: 'observe', session, generation: 1 },
       { kind: 'read-history', session, token: 1, request: { cursor: null } },
+      ...inputs.map(input => sending(session, input)),
     ],
   }
 }
@@ -210,6 +232,7 @@ const HANDLERS: Handlers = {
   'create-confirm': state => onCreateConfirm(state),
   'create-confirmed': (state, event) => onCreateConfirmed(state, event),
   send: (state, event) => onSend(state, event),
+  say: (state, event) => onSay(state, event.to, event.words),
   'send-answered': (state, event) => afterSend(state, onSendAnswered(state, event)),
   'send-confirmed': (state, event) => onSendConfirmed(state, event),
   'send-confirm': (state, event) => onSendConfirm(state, event.acceptId),
@@ -295,10 +318,32 @@ function onOpenSession(state: State, session: string): Step {
 function onCreate(state: State, event: Extract<Event, { kind: 'create' }>): Step {
   if (state.kind === 'creating') return same(state)
   const create: Effect = { ...event, kind: 'create-session' }
+  return creating(state, event.createCallId, null, create)
+}
+
+function creating(state: State, createCallId: string, first: Words | null, create: Effect): Step {
   return {
-    state: { kind: 'creating', createCallId: event.createCallId, confirm: 'no', notice: null },
+    state: { kind: 'creating', createCallId, confirm: 'no', notice: null, first },
     effects: [...leave(state), create],
   }
+}
+
+/** Whether words said to this cannot be taken now: a session is being made, as for a create or an open. */
+export function sayBlocked(state: State, to: SayTo): boolean {
+  return to.kind === 'new' ? state.kind === 'creating' : createInFlight(state)
+}
+
+function onSay(state: State, to: SayTo, words: Words): Step {
+  if (words.text.trim().length === 0 || sayBlocked(state, to)) return same(state)
+  if (to.kind === 'new')
+    return creating(state, to.createCallId, words, {
+      kind: 'create-session',
+      createCallId: to.createCallId,
+    })
+  if (state.kind === 'open' && state.session === to.session)
+    return onSend(state, { kind: 'send', ...words })
+  const next = opened(to.session, words)
+  return { state: next.state, effects: [...leave(state), ...next.effects] }
 }
 
 function onCreateAnswered(state: State, event: Extract<Event, { kind: 'create-answered' }>): Step {
@@ -311,7 +356,7 @@ function onCreateAnswered(state: State, event: Extract<Event, { kind: 'create-an
   const answer = event.answer
   switch (answer.outcome) {
     case 'succeeded':
-      return opened(answer.body.session)
+      return opened(answer.body.session, state.first)
     case 'unknown':
     case 'uncertain':
       return askCreate(state)
@@ -346,7 +391,7 @@ function onCreateConfirmed(
   )
     return same(state)
   return event.answer.outcome === 'succeeded'
-    ? opened(event.answer.body.session)
+    ? opened(event.answer.body.session, state.first)
     : same({ ...state, confirm: 'unknown', notice: STILL_UNKNOWN('建会话') })
 }
 
@@ -354,27 +399,11 @@ function onSend(state: State, event: Extract<Event, { kind: 'send' }>): Step {
   const attachments = event.attachments ?? []
   const empty = event.text.trim().length === 0 && attachments.length === 0
   if (state.kind !== 'open' || empty) return same(state)
-  const input: PendingInput = {
-    acceptId: event.acceptId,
-    inputId: event.inputId,
-    messageId: event.messageId,
-    text: event.text,
-    attachments,
-    status: 'sending',
-    notice: null,
-  }
+  const { acceptId, inputId, messageId, text } = event
+  const input = pending({ text, acceptId, inputId, messageId }, attachments)
   return {
     state: { ...state, inputs: [...state.inputs, input] },
-    effects: [
-      {
-        kind: 'send-input',
-        session: state.session,
-        acceptId: event.acceptId,
-        inputId: event.inputId,
-        text: event.text,
-        attachments,
-      },
-    ],
+    effects: [sending(state.session, input)],
   }
 }
 
@@ -709,10 +738,8 @@ function historyDone(merged: Open, upper: string): Open {
   }
 }
 
-function uncommittedInputs(
-  content: Content,
-  inputs: readonly PendingInput[],
-): readonly PendingInput[] {
+/** The ids of the messages of a person the history read so far holds. */
+export function committedMessages(content: Content): ReadonlySet<string> {
   const committed = new Set<string>()
   for (const entry of content.entries) {
     if (entry.kind !== 'message.user' || !isRecord(entry.payload)) continue
@@ -720,5 +747,13 @@ function uncommittedInputs(
     const id = isRecord(message) ? textOf(message['id']) : undefined
     if (id !== undefined) committed.add(id)
   }
+  return committed
+}
+
+function uncommittedInputs(
+  content: Content,
+  inputs: readonly PendingInput[],
+): readonly PendingInput[] {
+  const committed = committedMessages(content)
   return inputs.filter(input => !committed.has(input.messageId))
 }

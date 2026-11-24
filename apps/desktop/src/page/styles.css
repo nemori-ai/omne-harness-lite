@@ -51,6 +51,33 @@ body,
   background: var(--omne-surface-page);
 }
 
+.shell-float {
+  position: fixed;
+  inset: 0;
+  z-index: 31;
+  pointer-events: none;
+}
+
+.shell-float > * {
+  pointer-events: auto;
+}
+
+.shell-float-item {
+  position: absolute;
+  width: max-content;
+  max-width: 100%;
+}
+
+.shell-float-item [data-omne-float-grip] {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.shell-float-item[data-dragging] [data-omne-float-grip] {
+  cursor: grabbing;
+}
+
 .shell-sidebar {
   position: sticky;
   top: 0;

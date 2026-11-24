@@ -11,19 +11,23 @@ import {
   type ExtensionsFaces,
 } from '@omne-harness/assets-tools'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
-import type { FixedToolRequest, ToolCallDirectory } from '@omne-harness/tool-contract'
+import {
+  pinnedFiles,
+  type FixedToolRequest,
+  type ToolCallDirectory,
+} from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import { admittedDirectory } from '../tool-runtime/environment.ts'
 import { extensionRevisionOf } from './extension-points.ts'
-import { directoryIn, placeIn } from './workspace-directory.ts'
+import { directoryIn, placeIn, type Working } from './workspace-directory.ts'
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
 export type ExtensionsPorts = Readonly<{
   faces(): ExtensionsFaces | undefined
-  /** The directory the call works in, admitted now: absent when it has none, unavailable when that cannot be asked. */
-  workingDirectory(): Promise<string | 'absent' | 'unavailable'>
+  /** Where the call works, admitted now, with the files scope pinned to it: absent when it has none, unavailable when that cannot be asked. */
+  workingDirectory(): Promise<Working | 'absent' | 'unavailable'>
   revision(): string | null
 }>
 
@@ -114,7 +118,9 @@ export function bindReleaseExtensions(
           request: { directory },
         })
         if (!('ok' in admitted)) return 'unavailable'
-        return admitted.ok?.path ?? 'absent'
+        return admitted.ok == null
+          ? 'absent'
+          : { path: admitted.ok.path, files: pinnedFiles(directory) }
       },
       revision: () => extensionRevisionOf(ctx),
     },
