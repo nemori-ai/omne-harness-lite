@@ -19,12 +19,12 @@ import {
   laidOut,
   layoutContract,
   layoutEntry,
+  lookScope,
   RENDER_POINT,
   renderContract,
   renderEntry,
   styleContract,
   styleEntry,
-  tenantScope,
   TOKENS_POINT,
   tokensContract,
   tokensEntry,
@@ -137,8 +137,14 @@ export abstract class ShellService extends Service implements ShellSlots {
   private readonly adoptionWatchers = new Set<() => void>()
   private readonly fell = new Map<string, Fallen['why']>()
   private readonly changeWatchers = new Set<() => void>()
+  private worn: string | undefined
   private read:
-    | Readonly<{ registry: Registry; tenant: string | undefined; changes: Changes }>
+    | Readonly<{
+        registry: Registry
+        tenant: string | undefined
+        look: string | undefined
+        changes: Changes
+      }>
     | undefined
   private adopted: Readonly<{ registry: Registry; of: Map<string, Adoption> }> | undefined
 
@@ -176,12 +182,13 @@ export abstract class ShellService extends Service implements ShellSlots {
     part: string,
     tokens: Readonly<Record<string, string>>,
     scope: Scope = [],
+    files?: string,
   ): () => unknown {
-    return this.ctx.dynamis.put([tokensEntry(part, tokens, scope)])
+    return this.ctx.dynamis.put([tokensEntry(part, tokens, scope, false, files)])
   }
 
-  putStyle(part: string, style: PartStyle, scope: Scope = []): () => unknown {
-    return this.ctx.dynamis.put([styleEntry(part, style, scope)])
+  putStyle(part: string, style: PartStyle, scope: Scope = [], files?: string): () => unknown {
+    return this.ctx.dynamis.put([styleEntry(part, style, scope, files)])
   }
 
   putRender<P>(part: string, render: PartRender<P>, scope: Scope = []): () => unknown {
@@ -254,13 +261,29 @@ export abstract class ShellService extends Service implements ShellSlots {
   changes(): Changes {
     const registry = this.registry()
     const tenant = this.scope.get()
-    if (this.read?.registry !== registry || this.read.tenant !== tenant) {
-      const known = (name: string): boolean => this.knowsToken(name)
-      const names = () => this.dataKeysOf(TOKENS_POINT)?.map(token => token.name)
-      const changes = changesOn(registry, tenantScope(tenant), known, names)
-      this.read = { registry, tenant, changes }
+    const look = this.worn
+    let read = this.read
+    if (read?.registry !== registry || read.tenant !== tenant || read.look !== look) {
+      read = { registry, tenant, look, changes: this.changesFor(lookScope(tenant, look)) }
+      this.read = read
     }
-    return this.read.changes
+    return read.changes
+  }
+
+  changesFor(asker: Scope): Changes {
+    const known = (name: string): boolean => this.knowsToken(name)
+    const names = () => this.dataKeysOf(TOKENS_POINT)?.map(token => token.name)
+    return changesOn(this.registry(), asker, known, names)
+  }
+
+  look(): string | undefined {
+    return this.worn
+  }
+
+  wear(look: string | undefined): void {
+    if (look === this.worn) return
+    this.worn = look
+    this.rescope()
   }
 
   drawn(part: string, builtIn: () => ReactNode, props: unknown): ReactNode {
@@ -281,7 +304,7 @@ export abstract class ShellService extends Service implements ShellSlots {
   ): ReactNode {
     const tenant = (): string | undefined => this.scope.get()
     return this.fallingBack(
-      () => drawingOn(this.registry(), point, key, tenantScope(tenant())),
+      () => drawingOn(this.registry(), point, key, lookScope(tenant(), this.worn)),
       render => frame(render({ scope: tenant(), subject: subject as never, generic })),
       generic,
     )

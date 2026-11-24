@@ -418,6 +418,15 @@
   --omne-ink-wash-out: rgb(0 0 0 / 0%);
 
   --omne-tooltip: var(--kami-tooltip-bg);
+  --omne-scrollbar-thumb-rest: color-mix(in srgb, var(--omne-ink-faint) 27%, transparent);
+  --omne-scrollbar-thumb-active: color-mix(in srgb, var(--omne-ink-faint) 48%, transparent);
+  --omne-selection: var(--omne-accent);
+  --omne-selection-ink: var(--omne-accent-ink);
+  --omne-code-surface: var(--omne-surface-panel-soft);
+  --omne-code-ink: var(--omne-ink-primary);
+  --omne-code-keyword: var(--omne-info-ink);
+  --omne-code-literal: var(--omne-caution-ink);
+  --omne-code-comment: var(--omne-ink-faint);
   --omne-tooltip-ink: var(--kami-tooltip-fg);
 
   --omne-chart-1: var(--kami-chart-1);

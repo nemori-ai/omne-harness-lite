@@ -83,12 +83,15 @@ export const sessionListNew = definePart({
   depths: ['tokens', 'style'],
 })
 
-export const sessionListItem = definePart({
+/** A row of the list as a drawing gets it: the name the row shows, and whether it is the session that is open. */
+export type ListItemDrawing = Readonly<{ title: string; selected: boolean }>
+
+export const sessionListItem = definePart<ListItemDrawing>({
   name: 'session.list.item',
   label: '会话的一行',
   summary: '列表里的一段会话',
   within: 'session.list',
-  depths: ['tokens', 'style'],
+  depths: ['tokens', 'style', 'render'],
   when: '有会话时',
 })
 
@@ -109,11 +112,14 @@ export const sessionArchivedItem = definePart({
   when: '展开已归档且有归档时',
 })
 
-export const sessionHeader = definePart({
+/** The header as a drawing gets it: the title it shows. */
+export type HeaderDrawing = Readonly<{ title: string }>
+
+export const sessionHeader = definePart<HeaderDrawing>({
   name: 'session.header',
   label: '对话头',
   summary: '对话页顶上的一栏',
-  depths: ['tokens', 'style'],
+  depths: ['tokens', 'style', 'render'],
   when: '打开一段会话时',
 })
 
@@ -240,11 +246,14 @@ export const sessionQueue = definePart({
   when: '有排队的输入时',
 })
 
-export const sessionComposer = definePart({
+/** The composer as a drawing gets it: whether a turn runs, and whether nothing is written yet. */
+export type ComposerDrawing = Readonly<{ running: boolean; empty: boolean }>
+
+export const sessionComposer = definePart<ComposerDrawing>({
   name: 'session.composer',
   label: '输入区',
   summary: '底部写消息的地方',
-  depths: ['tokens', 'style'],
+  depths: ['tokens', 'style', 'render'],
   when: '打开一段会话时',
 })
 

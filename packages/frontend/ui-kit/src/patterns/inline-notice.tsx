@@ -9,6 +9,7 @@ import {
   WarningIcon,
 } from '../icons/index.ts'
 import { cn } from '../lib/utils.ts'
+import { useRedrawn } from '../redraw/redraw.ts'
 import { useArrival } from '../motion/motion.ts'
 import { Button } from '../controls/button.tsx'
 import { TONE_SURFACE, type Tone } from './ai/tone.ts'
@@ -65,7 +66,8 @@ export function InlineNotice({
   const root = useRef<HTMLDivElement>(null)
   useArrival(root, { still })
   const ToneIcon = TONE_ICON[tone]
-  return (
+  const subject = { tone, title, body: children, detail, action }
+  return useRedrawn('piece', 'inline-notice', subject, () => (
     <div
       ref={root}
       data-inline-notice=""
@@ -106,5 +108,5 @@ export function InlineNotice({
         </IconButton>
       )}
     </div>
-  )
+  ))
 }

@@ -15,59 +15,13 @@ import {
   tenantOf,
 } from '../../support/protocol-clients.ts'
 import {
-  historyOf,
-  onReleaseTree,
-  pollUntil,
-  toolCalls,
-  toolCallsByRequest,
-  toolResults,
-  type ReleaseTree,
-} from '../../support/release-tree.ts'
-
-type Call = Readonly<{ tool: string; command: string; params: Record<string, unknown> }>
-type Message = Readonly<{ role: string; content: unknown; tool_calls?: readonly unknown[] }>
-
-const files = (command: string, params: Record<string, unknown>): Call => ({
-  tool: 'Files',
-  command,
-  params,
-})
-const extensions = (command: string, params: Record<string, unknown>): Call => ({
-  tool: 'OmneExtensions',
-  command,
-  params,
-})
-
-/** A user message that tells the scripted model which calls to make in each of its next steps. */
-const plan = (...steps: readonly (readonly Call[])[]) => `PLAN ${JSON.stringify(steps)} END`
-
-const textOf = (message: Message): string =>
-  typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
-
-// The model makes the calls of the step it is at: one step for each of its earlier turns with calls.
-const planned = toolCallsByRequest(body => {
-  const { messages } = JSON.parse(body) as { messages: readonly Message[] }
-  const at = messages.findLastIndex(
-    message => message.role === 'user' && /PLAN /u.test(textOf(message)),
-  )
-  const found = at < 0 ? null : /PLAN (.*) END/su.exec(textOf(messages[at]!))?.[1]
-  if (found === null || found === undefined) return []
-  const text =
-    typeof messages[at]!.content === 'string' ? found : (JSON.parse(`"${found}"`) as string)
-  const steps = JSON.parse(text) as readonly (readonly Call[])[]
-  const done = messages
-    .slice(at + 1)
-    .filter(message => message.role === 'assistant' && (message.tool_calls?.length ?? 0) > 0).length
-  return (steps[done] ?? []).map((call, index) => ({
-    id: `call_${String(at)}_${String(done)}_${String(index)}`,
-    tool: call.tool,
-    arguments: JSON.stringify(
-      call.tool === 'Files'
-        ? { command: call.command, intent: 'test call', params: call.params }
-        : { command: call.command, params: call.params },
-    ),
-  }))
-})
+  askerIn,
+  extensions,
+  files,
+  plannedModel,
+  type PlannedCall,
+} from '../../support/planned-calls.ts'
+import { onReleaseTree, toolCalls, type ReleaseTree } from '../../support/release-tree.ts'
 
 const manifest = (accent: string) =>
   JSON.stringify({
@@ -101,33 +55,14 @@ describe('OmneExtensions on the release tree', () => {
       const project = realpathSync(mkdtempSync(join(tmpdir(), 'extensions-release-')))
       mkdirSync(join(project, 'notes'))
       writeFileSync(join(project, 'README.md'), '# project\n')
-      const options = { script: planned, permission: 'bypass-permissions' }
+      const options = { script: plannedModel, permission: 'bypass-permissions' }
       const exitCode = await onReleaseTree(options, async tree => {
         const { workspace, instance } = (await ok(tree, ['workspace', 'register', project])).body
         const at = ['--workspace', String(workspace), '--instance', String(instance)]
         const created = await ok(tree, ['create-session', '--definition', 'coding', ...at])
         const session = String(created.body['session'])
-        const progress = new Map<string, { runs: number; results: number }>()
-        const inSession = async (
-          session: string,
-          ...steps: readonly (readonly Call[])[]
-        ): Promise<string> => {
-          const at = progress.get(session) ?? { runs: 0, results: 0 }
-          progress.set(session, at)
-          at.runs += 1
-          await ok(tree, ['send-input', '--session', session, '--text', plan(...steps)])
-          const wanted = at.runs
-          const entries = await pollUntil(
-            `run ${String(wanted)} to end`,
-            () => historyOf(tree, session),
-            seen => seen.filter(entry => entry.kind === 'run.terminal').length >= wanted,
-          )
-          const results = toolResults(entries)
-          const fresh = results.slice(at.results)
-          at.results = results.length
-          return fresh.join('\n')
-        }
-        const ask = (...steps: readonly (readonly Call[])[]) => inSession(session, ...steps)
+        const inSession = askerIn(tree)
+        const ask = (...steps: readonly (readonly PlannedCall[])[]) => inSession(session, ...steps)
 
         const tenant = tenantOf(savedTenant(tree.home))
         const plugins = createClient(
@@ -176,6 +111,7 @@ describe('OmneExtensions on the release tree', () => {
         )
         expect(first).toContain('done OmneExtensions categories')
         expect(first).toMatch(/plugin\s/u)
+        expect(first).toMatch(/^skin\s/mu)
         expect(first).toContain('done OmneExtensions impact')
         expect(first).toContain('+ shell.tokens / shell.app')
         expect(first).toContain('→ in effect')
@@ -271,16 +207,16 @@ describe('OmneExtensions on the release tree', () => {
 
         // Every category of the release answers list, and one held in each of two of them answers show.
         const every = await ask(
-          ['AgentDefinition', 'converter', 'model-provider', 'plugin', 'skill', 'tool'].map(
+          ['AgentDefinition', 'converter', 'model-provider', 'plugin', 'skill', 'skin', 'tool'].map(
             category => extensions('list', { category }),
           ),
           [extensions('show', { category: 'converter', name: 'voice' })],
           [extensions('show', { category: 'tool', name: 'Files' })],
           [extensions('publish', { id: 'op-tool-1', category: 'tool', name: 'mine', data: {} })],
         )
-        expect(every.match(/done OmneExtensions list/gu)).toHaveLength(6)
-        // What the deployment installed and the tenant does not hold is on the tree of points, not here.
-        expect(every).toContain('converter voice is not held by this tenant.')
+        expect(every.match(/done OmneExtensions list/gu)).toHaveLength(7)
+        // What the deployment installed is among the tenant's assets too, and cannot be changed in place.
+        expect(every).toMatch(/converter voice\s+\S+\s+enabled\s+installed with the deployment/u)
         expect(every).toMatch(/tool Files\s+\S+\s+enabled\s+installed with the deployment/u)
         expect(every).toContain(
           'it is installed with the deployment and cannot be changed in place.',
@@ -288,7 +224,10 @@ describe('OmneExtensions on the release tree', () => {
         expect(every).toContain(
           'category tool is made from a directory: write it in the workspace and give dir.',
         )
-        expect(every).not.toContain('to change it: publish a new body as data.')
+        const filesShown = every
+          .split('done OmneExtensions show')
+          .find(part => part.includes('tool Files'))
+        expect(filesShown).not.toContain('to change it: publish a new body as data.')
 
         const off = await ask(
           [extensions('impact', { ...TIDY, change: 'disable' })],

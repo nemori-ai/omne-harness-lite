@@ -4,7 +4,14 @@ import { join } from 'node:path'
 import { act, cleanup, render } from '@testing-library/react'
 import { type ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FIGURE_SIZE, FigureSeat, FigureStage, InkBubble } from '../src/index.ts'
+import {
+  FIGURE_SIZE,
+  FigureSeat,
+  FigureStage,
+  InkBubble,
+  RedrawProvider,
+  type Redraw,
+} from '../src/index.ts'
 import { FigureBody, WRITE, type Doing, type FigureMoment } from '../src/ink/body.ts'
 import { lay } from '../src/ink/bristle.ts'
 import { casual } from '../src/ink/casual.ts'
@@ -297,6 +304,7 @@ afterEach(() => {
   moved.clear()
   folded.clear()
   clipped.clear()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   cleanup()
   document.body.innerHTML = ''
   document.documentElement.removeAttribute('style')
@@ -575,6 +583,54 @@ describe('reduced motion', () => {
       time.wait(step)
       expect(document.querySelectorAll('.omne-figure-remnant')).toHaveLength(0)
     }
+  })
+})
+
+describe('the body of the figure drawn by another hand', () => {
+  it('is drawn in the place of the ink, told its size and what it does; the stage still carries it to its seat and takes the press', () => {
+    reducedMotion()
+    const time = frameClock()
+    placeSeats()
+    const asked: unknown[] = []
+    const redraw: Redraw = (kind, key, subject, builtIn) => {
+      if (key !== 'figure') return builtIn()
+      asked.push({ kind, subject })
+      return <b data-mascot="" />
+    }
+    const pressed = vi.fn()
+    render(
+      <RedrawProvider value={redraw}>
+        <Page seats={[HOME]} doing="writing" waiting={2} onPress={pressed} />
+      </RedrawProvider>,
+    )
+    time.wait(20)
+    expect(asked.at(-1)).toEqual({
+      kind: 'piece',
+      subject: { size: FIGURE_SIZE, phase: 'seated', hover: false, doing: 'writing', waiting: 2 },
+    })
+    expect(carried().querySelector('[data-mascot]')).not.toBeNull()
+    expect(carried().querySelector('[data-figure-ink]')).toBeNull()
+    expect(carried().style.transform).toBe(translateTo(HOME.at, FIGURE_SIZE))
+    expect(carried().querySelector('[data-control="figure"]')).not.toBeNull()
+  })
+
+  it('with nothing to do it is told idle', () => {
+    reducedMotion()
+    const time = frameClock()
+    placeSeats()
+    const doing: unknown[] = []
+    const redraw: Redraw = (_kind, key, subject, builtIn) => {
+      if (key === 'figure') doing.push((subject as { doing: string }).doing)
+      return builtIn()
+    }
+    render(
+      <RedrawProvider value={redraw}>
+        <Page seats={[HOME]} />
+      </RedrawProvider>,
+    )
+    time.wait(20)
+    expect(doing.at(-1)).toBe('idle')
+    expect(carried().querySelector('[data-figure-ink]')).not.toBeNull()
   })
 })
 
