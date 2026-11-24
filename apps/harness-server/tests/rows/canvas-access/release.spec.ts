@@ -143,7 +143,8 @@ const PROBE_KINDS: AddedRow = {
   }),
 }
 
-const EMPTY = { sheet: CANVAS_POLICY.sheet, items: [], piles: [], revision: 0 }
+const { sheet, size, footprint } = CANVAS_POLICY
+const EMPTY = { sheet: { ...sheet, size, footprint }, items: [], piles: [], revision: 0 }
 const HUMAN = { kind: 'human' }
 const OPERATIONS = [
   'look',

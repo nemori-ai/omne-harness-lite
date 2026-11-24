@@ -202,7 +202,13 @@ describe('what the agent reads', () => {
       ['i1', { kind: 'human' }],
       ['i2', { kind: 'agent', session: SESSION }],
     ])
-    expect(value.sheet).toEqual({ width: 4800, height: 3200, grid: 8 })
+    expect(value.sheet).toEqual({
+      width: 4800,
+      height: 3200,
+      grid: 8,
+      size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
+      footprint: { width: 160, height: 80 },
+    })
   })
 
   it('kinds gives each kind with how its ref is written; away pages the taken ones', async () => {

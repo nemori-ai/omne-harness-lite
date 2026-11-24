@@ -451,6 +451,16 @@
       "config": {}
     },
     {
+      "id": "session-canvas",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-canvas",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "server-entry",
       "plugin": "stubPlugin",
       "config": {}

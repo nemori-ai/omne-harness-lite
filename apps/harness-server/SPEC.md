@@ -300,6 +300,7 @@
 - 通知接入行把 `notification/v2` 挂上入口。登录能为租户行事时行事者是 owner。通知的服务面与变化源按调用现取，取不到答依据不可用，协议不撤下。
 - Notifications 的绑定（`src/rows/tool-bindings/notifications.ts`）每次调用现取主体核验与通知的服务：发出者与对象是这次调用验证过的会话，来源是 `agent.posts`，因果深度是 0。主体核验不过或服务不在时工具答不可用。
 - Canvas 的绑定（`src/rows/tool-bindings/canvas.ts`）每次调用现取主体核验与画布的服务：上下文的租户与调用引用都是这次调用的，模型给不了。调用进行期间它登记在在途调用表里，画布行的「是谁做的」端口凭它答这个会话的 agent。主体不是这个租户核验过的会话工作主体、或画布不在时工具答不可用。能力 `canvas.arrangement` 对应画布服务。关口「锁」缺省禁止，跳过询问的运行模式也越不过。
+- 画布上别人的种类是两行：`session-canvas` 声明 `session.session`，不带 `admit`；`media-canvas` 声明 `media.object`，它的 `admit` 每次现取媒体，以持有方 `{ owner: 'canvas', work: 画布给的持有方文本, position: 标识, purpose: 'placement' }` 为行事的租户持有这个对象。两行只注入登记表与画布。去掉任一行，画布照常：那一类答种类没有声明，已经摆着的不动。
 - Sessions 的绑定（`src/rows/tool-bindings/sessions.ts`）每次调用现取会话的读面（经 `reader` 调用方）与历史搜索：主体与租户是这次调用的，模型给不了；主体不是这个租户核验过的会话工作主体时答拒绝，不读；读面或搜索不在时答不可用。两个能力 `session.read`、`session.search` 对应会话服务与搜索服务。
 - Agents 的绑定（`src/rows/tool-bindings/agents.ts`）每次调用现取派发服务、Agent 定义目录与会话目录的读面（经 `reader` 调用方）：哪个会话在派发、交报告、发消息取自这次调用核验过的会话工作主体，模型给不了；派发的身份由租户、这个会话与这次调用的引用派生。主体不是这个租户核验过的会话工作主体时答依据不可用，不问派发。目录以本会话作参照读，每行带它与本会话的关系。这个工具不声明必需能力：派发行不在时工具照常提供，每个命令答依据不可用，调用不挂着等。
 - 去掉通知行与通知接入行，发行树照常启动，会话照常对话，别的工具照常；`notification/v2` 不挂上。Notifications 仍在发行清单与 agent 定义里，它的两个能力对应的服务不在，所以不可用。

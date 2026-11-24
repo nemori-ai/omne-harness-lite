@@ -48,6 +48,9 @@ export type Spot = z.infer<typeof spotSchema>
 export const sizeSchema = z.strictObject({ width: extent, height: extent }).readonly()
 export type Size = z.infer<typeof sizeSchema>
 
+export const sizeRangeSchema = z.strictObject({ min: sizeSchema, max: sizeSchema }).readonly()
+export type SizeRange = z.infer<typeof sizeRangeSchema>
+
 /** Who last changed an arrangement: the person, or the agent of one session. Nothing is done by the system. */
 export const moverSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('human') }).readonly(),
@@ -88,8 +91,10 @@ export const sheetSchema = z
   .readonly()
 export type Sheet = z.infer<typeof sheetSchema>
 
+export type SheetView = Sheet & Readonly<{ size: SizeRange; footprint: Size }>
+
 export type Canvas = Readonly<{
-  sheet: Sheet
+  sheet: SheetView
   items: readonly Item[]
   piles: readonly Pile[]
   revision: number

@@ -27,6 +27,7 @@ import {
   type ReadAnswer,
   type Sheet,
   type Size,
+  type SizeRange,
 } from '@omne-harness/canvas-contract'
 import type { CanvasStore, ChangeResult, Rules, StoreAnswer } from './store.ts'
 
@@ -38,7 +39,7 @@ export interface Clock {
 export type CanvasConfig = Readonly<{
   sheet: Sheet
   limits: Readonly<{ placed: number; away: number; batch: number }>
-  size: Readonly<{ min: Size; max: Size }>
+  size: SizeRange
   footprint: Size
   admitTimeoutMs: number
 }>
@@ -136,6 +137,7 @@ function changed(result: ChangeResult): ChangeAnswer {
 export function createCanvas(ports: CanvasPorts): CanvasOperations {
   const { store, authority, movers, kinds, clock, config } = ports
   const bounds = { sheet: config.sheet, size: config.size, batch: config.limits.batch }
+  const sheet = { ...config.sheet, size: config.size, footprint: config.footprint }
   const rules: Rules = {
     sheet: config.sheet,
     footprint: config.footprint,
@@ -177,7 +179,7 @@ export function createCanvas(ports: CanvasPorts): CanvasOperations {
       if (refused !== null) return refused
       const read = await reading(() => store.look(ctx.tenant, request.ok.canvas))
       if (read?.kind !== 'read') return UNAVAILABLE
-      return { kind: 'done', value: { sheet: config.sheet, ...read.value } }
+      return { kind: 'done', value: { sheet, ...read.value } }
     },
 
     async lookAway(ctx, input) {

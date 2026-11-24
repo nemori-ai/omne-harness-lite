@@ -8,7 +8,7 @@ import {
 import type { Item, Pile } from '@omne-harness/canvas-contract'
 import { CONFIG, kind, world as base } from './fixture.ts'
 
-const SHEET = CONFIG.sheet
+const SHEET = { ...CONFIG.sheet, size: CONFIG.size, footprint: CONFIG.footprint }
 const AT = '2026-11-24T06:00:00.000Z'
 
 function world(store: MemoryStore = createMemoryStore()) {
@@ -40,6 +40,15 @@ describe('look', () => {
       value: { sheet: SHEET, items: [], piles: [], revision: 0 },
     })
     expect(authority.asked()).toEqual([{ tenant: 'tenant-1', action: 'read' }])
+  })
+
+  it('gives the sizes an item may take and the room of one without a size as they are configured', async () => {
+    const size = { min: { width: 96, height: 48 }, max: { width: 640, height: 480 } }
+    const footprint = { width: 200, height: 120 }
+    const { canvas } = base({ config: { size, footprint } })
+    const read = await canvas.look(context(), { canvas: 'main' })
+    if (read.kind !== 'done') throw new Error(read.kind)
+    expect(read.value.sheet).toEqual({ ...CONFIG.sheet, size, footprint })
   })
 
   it('does not ask who the caller is: a read changes nothing to record', async () => {

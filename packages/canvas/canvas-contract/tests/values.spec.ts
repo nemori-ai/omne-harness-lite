@@ -10,6 +10,7 @@ import {
   pileSchema,
   referenceSchema,
   sheetSchema,
+  sizeRangeSchema,
 } from '@omne-harness/canvas-contract'
 
 const AT = '2026-11-24T06:00:00.000Z'
@@ -72,6 +73,17 @@ describe('the values of a canvas', () => {
     expect(pileSchema.parse(pile)).toEqual(pile)
     expect(pileSchema.safeParse({ ...pile, name: '' }).success).toBe(false)
     expect(sheetSchema.safeParse({ width: 100, height: 100, grid: 0 }).success).toBe(false)
+  })
+
+  it('has a range of sizes with a least and a most, each a size', () => {
+    const range = { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } }
+    expect(sizeRangeSchema.parse(range)).toEqual(range)
+    for (const broken of [
+      { min: range.min },
+      { ...range, max: { width: 0, height: 900 } },
+      { ...range, step: 8 },
+    ])
+      expect(sizeRangeSchema.safeParse(broken).success).toBe(false)
   })
 })
 

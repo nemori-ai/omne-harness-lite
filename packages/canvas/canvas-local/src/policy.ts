@@ -1,4 +1,4 @@
-import { sheetSchema, sizeSchema } from '@omne-harness/canvas-contract'
+import { sheetSchema, sizeRangeSchema, sizeSchema } from '@omne-harness/canvas-contract'
 import { z } from 'zod'
 
 const positive = z.number().int().positive()
@@ -11,7 +11,7 @@ export const canvasPolicySchema = z
     /** How many items may be on the sheet, how many taken ones are kept, how many a batch may name. */
     limits: z.strictObject({ placed: positive, away: positive, batch: positive }),
     /** The least and the most an item may be sized to. */
-    size: z.strictObject({ min: sizeSchema, max: sizeSchema }),
+    size: sizeRangeSchema,
     /** The room an item without a size is counted to take when a free spot is looked for. */
     footprint: sizeSchema,
     /** How long the owner of a kind may take to answer admit. */

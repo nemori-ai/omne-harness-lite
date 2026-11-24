@@ -35,6 +35,7 @@ it('the root entry gives the schemas of the values and requests, the readings, t
     'referenceSchema',
     'scatterRequestSchema',
     'sheetSchema',
+    'sizeRangeSchema',
     'sizeSchema',
     'spotSchema',
     'statusOf',

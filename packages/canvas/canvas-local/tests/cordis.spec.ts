@@ -47,14 +47,24 @@ it('starts when the storage and the registry are there, reads the canvas over SQ
   const root = new Context()
   try {
     await root.plugin(DynamisService)
-    const local = root.plugin(createCanvasLocalPlugin(), configuration(world, POLICY))
+    const policy = {
+      ...POLICY,
+      size: { min: { width: 96, height: 48 }, max: { width: 640, height: 480 } },
+      footprint: { width: 200, height: 120 },
+    }
+    const local = root.plugin(createCanvasLocalPlugin(), configuration(world, policy))
     expect(root.get(canvasKey)).toBeUndefined()
     await root.plugin(FixtureStorage, world.storage).await()
     await local.await()
     const canvas = root.get(canvasKey)!
     expect(await canvas.look(context(), { canvas: 'main' })).toEqual({
       kind: 'done',
-      value: { sheet: POLICY.sheet, items: [], piles: [], revision: 0 },
+      value: {
+        sheet: { ...POLICY.sheet, size: policy.size, footprint: policy.footprint },
+        items: [],
+        piles: [],
+        revision: 0,
+      },
     })
     await root.plugin({
       name: 'canvas-row',
