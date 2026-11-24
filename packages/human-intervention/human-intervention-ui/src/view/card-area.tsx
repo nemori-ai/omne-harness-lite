@@ -3,20 +3,25 @@ import {
   Button,
   CloseIcon,
   DoneIcon,
+  DotPager,
   LoadingIndicator,
+  STATE_LABELS,
   WarningIcon,
+  type DotMark,
 } from '@omne-harness/ui-kit'
-import { useId, useRef, useState, type JSX } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type JSX, type RefObject } from 'react'
 import type { CardsDriver } from '../model/cards-driver.ts'
 import {
   EMPTY_DRAFT,
   busy,
+  replyOf,
   sheetOf,
   type Draft,
   type Entry,
   type Sheet,
   type State,
 } from '../model/cards-machine.ts'
+import { pageAfter, type Page } from '../model/pager.ts'
 import { verdictOf, type Exposed } from '../model/verdict.ts'
 import { CardView, itemOf, lastingChosen, type Shown } from './card-view.tsx'
 import {
@@ -24,6 +29,7 @@ import {
   humanInterventionPaperFoot,
   humanInterventionPaperFootSubmit,
   humanInterventionPaperFootActions,
+  humanInterventionPaperPager,
 } from '../parts.ts'
 
 type Props = Readonly<{ driver: CardsDriver; state: State; group: string }>
@@ -47,6 +53,18 @@ function inPlace(shown: readonly Shown[], before: readonly string[]): Shown[] {
     .map((card, index) => ({ card, rank: at.get(card.key) ?? before.length + index }))
     .sort((a, b) => a.rank - b.rank)
     .map(({ card }) => card)
+}
+
+/** What a section's dot says: amber while it waits on the person, ink once answered, danger when it was not taken, faint when neutral. */
+function dotOf(card: Shown): Readonly<{ mark: DotMark; word: string }> {
+  if (card.kind === 'closed') return { mark: 'quiet', word: STATE_LABELS.closed }
+  const submit = card.entry.submit
+  if (submit.kind === 'submitting') return { mark: 'filled', word: '正在提交' }
+  if (submit.kind === 'unknown') return { mark: 'quiet', word: STATE_LABELS.unknown }
+  if (submit.kind === 'refused') return { mark: 'failed', word: '没有记上' }
+  return replyOf(card.draft) === null
+    ? { mark: 'waiting', word: '还没答' }
+    : { mark: 'filled', word: '答好了，还没提交' }
 }
 
 /** A lasting release option is chosen somewhere on the paper: its one submit arms (D8). */
@@ -205,17 +223,24 @@ function Foot({
   )
 }
 
-/** One group of cards is one paper: its questions stacked as sections, one hairline apart, and one submit at its foot. */
-export function CardArea({ driver, state, group }: Props): JSX.Element | null {
-  const paper = useRef<HTMLDivElement>(null)
-  const order = useRef<readonly string[]>([])
-  const [cancels, setCancels] = useState(0)
-  const sheet = sheetOf(state, group)
-  const shown = inPlace(shownOf(state, sheet), order.current)
-  order.current = shown.map(card => card.key)
-  if (shown.length === 0) return null
-  // "还差 n 题" brings the first unanswered section into view and puts focus on its first answer row.
-  const go = (key: string) => {
+type Paging = Readonly<{
+  current: string | undefined
+  turn: (key: string) => void
+  go: (key: string) => void
+}>
+
+/** Which section the paper shows: it follows its card (pager.ts); `go` also brings the section into view and focuses its first answer row. */
+function usePage(
+  paper: RefObject<HTMLDivElement | null>,
+  keys: readonly string[],
+  start: string | undefined,
+): Paging {
+  const focusOn = useRef<string | null>(null)
+  const [page, setPage] = useState<Page>(null)
+  const current = pageAfter(keys, page, start)
+  const now: Page = current === undefined ? null : { key: current, at: keys.indexOf(current) }
+  if (now?.key !== page?.key || now?.at !== page?.at) setPage(now)
+  const reveal = (key: string) => {
     const section = [...(paper.current?.querySelectorAll<HTMLElement>('[data-card]') ?? [])].find(
       candidate => candidate.dataset['card'] === key,
     )
@@ -224,6 +249,72 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
       ?.querySelector<HTMLElement>('textarea:not(:disabled), [role="radio"]:not(:disabled)')
       ?.focus({ preventScroll: true })
   }
+  useLayoutEffect(() => {
+    const key = focusOn.current
+    if (key === null) return
+    focusOn.current = null
+    reveal(key)
+  })
+  const turn = (key: string) => setPage({ key, at: keys.indexOf(key) })
+  const go = (key: string) => {
+    if (key !== current) {
+      focusOn.current = key
+      turn(key)
+    } else reveal(key)
+  }
+  return { current, turn, go }
+}
+
+function Pager({
+  shown,
+  current,
+  ids,
+  turn,
+}: Readonly<{
+  shown: readonly Shown[]
+  current: string
+  ids: string
+  turn: (key: string) => void
+}>) {
+  return (
+    <div className="hitl-pager" {...humanInterventionPaperPager.props}>
+      <DotPager
+        label="这张纸上的题"
+        dots={shown.map((card, at) => {
+          const dot = dotOf(card)
+          return {
+            key: card.key,
+            label: `第 ${at + 1} 题：${dot.word}`,
+            mark: dot.mark,
+            controls: `${ids}-${at}`,
+          }
+        })}
+        current={current}
+        onCurrentChange={turn}
+        previousLabel="上一题"
+        nextLabel="下一题"
+      />
+    </div>
+  )
+}
+
+/** One group of cards is one paper: one section shown at a time under a row of dots, the others stacked unseen in the same cell, and one submit at its foot. */
+export function CardArea({ driver, state, group }: Props): JSX.Element | null {
+  const paper = useRef<HTMLDivElement>(null)
+  const order = useRef<readonly string[]>([])
+  const ids = useId()
+  const [cancels, setCancels] = useState(0)
+  const sheet = sheetOf(state, group)
+  const shown = inPlace(shownOf(state, sheet), order.current)
+  const keys = shown.map(card => card.key)
+  order.current = keys
+  const unanswered = new Set([...sheet.missing, ...sheet.open])
+  const { current, turn, go } = usePage(
+    paper,
+    keys,
+    keys.find(key => unanswered.has(key)),
+  )
+  if (current === undefined) return null
   const buttons = verdictOf(shown.map(itemOf))
   const [only] = sheet.entries
   const draft = only === undefined ? EMPTY_DRAFT : (state.drafts[only.key] ?? EMPTY_DRAFT)
@@ -248,19 +339,22 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
         }
   return (
     <div className="hitl-paper" ref={paper} {...humanInterventionPaper.props}>
-      {shown.map((card, at) => (
-        <CardView
-          key={card.key}
-          card={card}
-          at={at + 1}
-          of={shown.length}
-          optionsAsButtons={buttons !== null}
-          cancels={cancels}
-          disabled={card.kind === 'closed' || sheet.running || busy(card.entry.submit)}
-          driver={driver}
-          onDraft={value => driver.draft(card.key, value)}
-        />
-      ))}
+      {shown.length === 1 ? null : <Pager shown={shown} current={current} ids={ids} turn={turn} />}
+      <div className="omne-paged">
+        {shown.map((card, at) => (
+          <CardView
+            key={card.key}
+            card={card}
+            id={`${ids}-${at}`}
+            shown={card.key === current}
+            optionsAsButtons={buttons !== null}
+            cancels={cancels}
+            disabled={card.kind === 'closed' || sheet.running || busy(card.entry.submit)}
+            driver={driver}
+            onDraft={value => driver.draft(card.key, value)}
+          />
+        ))}
+      </div>
       {sheet.entries.length === 0 ? null : (
         <Foot
           sheet={sheet}

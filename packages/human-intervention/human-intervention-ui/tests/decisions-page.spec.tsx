@@ -360,29 +360,79 @@ it('V14 按会话分组：每组一个标题、一张纸、一个纸底；不属
   }
 })
 
-it('V15 一组三题叠在一张纸上：节间一条细线，种类行尾写 n / m；没有题号条与左右箭头；选了不跳', async () => {
+const shownTitle = () =>
+  screen
+    .getAllByRole('article')
+    .filter(article => !article.hasAttribute('inert'))
+    .map(article => article.querySelector('h3')?.textContent)
+
+const dots = () => screen.getAllByRole('tab')
+
+it('V15 一组三题一次摆一题：纸顶一排圆点，每题一个、说它答没答；点圆点与左右钮翻题；种类行不再写 n / m；选了不跳', async () => {
   await listed([titled('第一问', 'card-a'), titled('第二问', 'card-b'), titled('第三问', 'card-c')])
   const papers = document.querySelectorAll('.hitl-paper')
   expect(papers).toHaveLength(1)
   expect(within(papers[0] as HTMLElement).getAllByRole('article')).toHaveLength(3)
-  expect(screen.queryByRole('tablist')).toBeNull()
-  expect(screen.queryByRole('button', { name: '上一题' })).toBeNull()
-  expect(screen.queryByRole('button', { name: '下一题' })).toBeNull()
-  expect(
-    [...document.querySelectorAll('.hitl-kind-trail')].map(trail => trail.textContent),
-  ).toEqual(['1 / 3', '2 / 3', '3 / 3'])
+  expect(shownTitle()).toEqual(['第一问'])
+  screen.getByRole('tablist', { name: '这张纸上的题' })
+  expect(dots().map(dot => dot.getAttribute('aria-label'))).toEqual([
+    '第 1 题：还没答',
+    '第 2 题：还没答',
+    '第 3 题：还没答',
+  ])
+  expect(dots().map(dot => dot.dataset['mark'])).toEqual(['waiting', 'waiting', 'waiting'])
+  expect(dots().map(dot => dot.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false'])
+  expect(document.querySelector('.hitl-kind-trail')).toBeNull()
+  fireEvent.click(screen.getByRole('tab', { name: '第 3 题：还没答' }))
+  expect(shownTitle()).toEqual(['第三问'])
   const third = section('第三问')
   third.getByRole('radio', { name: '主干' }).focus()
   choose(third, '主干')
   expect(document.activeElement).toBe(third.getByRole('radio', { name: '主干' }))
-  expect(screen.getAllByRole('article')).toHaveLength(3)
+  expect(shownTitle()).toEqual(['第三问'])
+  expect(dots()[2]?.getAttribute('aria-label')).toBe('第 3 题：答好了，还没提交')
+  expect(dots()[2]?.dataset['mark']).toBe('filled')
+  expect(screen.getByRole('button', { name: '下一题' }).getAttribute('aria-disabled')).toBe('true')
+  fireEvent.click(screen.getByRole('button', { name: '上一题' }))
+  fireEvent.click(screen.getByRole('button', { name: '上一题' }))
+  expect(shownTitle()).toEqual(['第一问'])
   words(section('第一问'), '再说')
-  expect(document.activeElement).not.toBe(section('第二问').getAllByRole('radio')[0])
+  expect(shownTitle()).toEqual(['第一问'])
   fireEvent.click(screen.getByRole('button', { name: '还差 1 题' }))
+  expect(shownTitle()).toEqual(['第二问'])
   expect(document.activeElement).toBe(section('第二问').getByRole('radio', { name: '主干' }))
   choose(section('第二问'), '不回答这一题')
   expect(submitButton().disabled).toBe(false)
   expect(screen.queryByRole('button', { name: /还差/ })).toBeNull()
+})
+
+it('V15b 正在看的那一题被切掉时换成站到它位置上的那一题；被关掉的一题圆点是淡墨，没记上的是危险色', async () => {
+  const [a, b, c] = [
+    titled('第一问', 'card-a'),
+    titled('第二问', 'card-b'),
+    titled('第三问', 'card-c'),
+  ]
+  const fake = await listed([a, b, c])
+  fireEvent.click(screen.getByRole('tab', { name: '第 2 题：还没答' }))
+  choose(section('第一问'), '主干')
+  choose(section('第二问'), '下一版')
+  choose(section('第三问'), '主干')
+  fireEvent.click(submitButton())
+  await answer(fake, 'submit-reply', {
+    outcome: 'succeeded',
+    body: { kind: 'invalidated', reason: 'cancelled' },
+  })
+  await answer(fake, 'submit-reply', DECIDED(b))
+  await answer(fake, 'submit-reply', { outcome: 'denied' })
+  expect(shownTitle()).toEqual(['第三问'])
+  expect(dots().map(dot => [dot.getAttribute('aria-label'), dot.dataset['mark']])).toEqual([
+    ['第 1 题：已关闭', 'quiet'],
+    ['第 2 题：没有记上', 'failed'],
+  ])
+  fireEvent.click(screen.getByRole('tab', { name: '第 1 题：已关闭' }))
+  fireEvent.click(section('第一问').getByRole('button', { name: '知道了' }))
+  expect(shownTitle()).toEqual(['第三问'])
+  expect(screen.queryByRole('tablist')).toBeNull()
 })
 
 it('V16 一组三题一次提交：每题各交一次、依次发出；结局逐题，没记上的留着人填的，点「知道了」去掉', async () => {
