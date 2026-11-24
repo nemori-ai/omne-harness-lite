@@ -23,15 +23,12 @@ function random(seed: number) {
 
 const modulo = (value: number, by: number) => ((value % by) + by) % by
 
-/** Moves a value off the grid lines, so that no edge it makes can meet the edge of a spot. */
-const offGrid = (value: number, grid: number) => (modulo(value, grid) === 0 ? value + 1 : value)
-
 type Case = Readonly<{ sheet: Sheet; taken: readonly Rect[]; room: Size; want: Spot }>
 
 /**
  * A sheet, what is taken on it, a room and a wanted spot. A spot sits on the grid and a room is a
- * whole number of steps, so a spot's edges are grid lines; a taken edge never is. No edge is ever
- * shared, and whether a shared edge presses on the other thing does not enter the answer.
+ * whole number of steps, so a spot's edges are grid lines; half the taken edges are too, so that
+ * spots that only share an edge with something taken come up often.
  */
 function caseOf(seed: number): Case {
   const g = random(seed)
@@ -45,18 +42,19 @@ function caseOf(seed: number): Case {
     width: grid * (g.chance(0.05) ? g.between(30, 45) : g.between(1, 8)),
     height: grid * (g.chance(0.05) ? g.between(30, 45) : g.between(1, 8)),
   }
+  const edge = (value: number) => (g.chance(0.5) ? Math.round(value / grid) * grid : value)
   const taken = Array.from({ length: g.int(13) }, () => {
-    const x = offGrid(g.between(-grid * 3, sheet.width), grid)
-    const y = offGrid(g.between(-grid * 3, sheet.height), grid)
-    const right = offGrid(x + g.between(1, Math.ceil(sheet.width / 2)), grid)
-    const bottom = offGrid(y + g.between(1, Math.ceil(sheet.height / 2)), grid)
+    const x = edge(g.between(-grid * 3, sheet.width))
+    const y = edge(g.between(-grid * 3, sheet.height))
+    const right = Math.max(x + 1, edge(x + g.between(1, Math.ceil(sheet.width / 2))))
+    const bottom = Math.max(y + 1, edge(y + g.between(1, Math.ceil(sheet.height / 2))))
     return { x, y, width: right - x, height: bottom - y }
   })
   const want = { x: g.int(sheet.width + grid * 6), y: g.int(sheet.height + grid * 6) }
   return { sheet, taken, room, want }
 }
 
-/** Whether two rects share some area. */
+/** Whether two rects share some area: sharing only an edge does not press. */
 const pressesOn = (a: Rect, b: Rect) =>
   Math.min(a.x + a.width, b.x + b.width) > Math.max(a.x, b.x) &&
   Math.min(a.y + a.height, b.y + b.height) > Math.max(a.y, b.y)
@@ -72,7 +70,7 @@ const clearOf = (taken: readonly Rect[], at: Spot, room: Size) =>
 
 const distance = (a: Spot, b: Spot) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2
 
-/** Every free spot, slowly: each grid point of the sheet in turn. */
+/** Every free spot, slowly: each grid point of the sheet in turn, row by row from the top, each row from the left. */
 function freeSpots({ sheet, taken, room }: Case): Spot[] {
   const spots: Spot[] = []
   for (let y = 0; y + room.height <= sheet.height; y += sheet.grid)
@@ -105,15 +103,50 @@ describe('a found spot is a free spot', () => {
   )
 })
 
-describe('a found spot is the nearest free spot', () => {
-  it.each(SEEDS)('to the wanted spot, as a scan of every grid point finds, seed %i', seed => {
+describe('a found spot is the nearest free spot, the upper and then the left of those as near', () => {
+  it.each(SEEDS)('as a scan of every grid point finds, seed %i', seed => {
     const found = caseOf(seed)
     const spots = freeSpots(found)
     if (spots.length === 0) return
-    const spot = freeSpot(found.sheet, found.taken, found.room, found.want)
     const least = Math.min(...spots.map(free => distance(free, found.want)))
-    expect(spots).toContainEqual(spot)
-    expect(distance(spot, found.want)).toBe(least)
+    const first = spots.find(free => distance(free, found.want) === least)
+    expect(freeSpot(found.sheet, found.taken, found.room, found.want)).toEqual(first)
+  })
+
+  const sheet = { width: 100, height: 100, grid: 10 }
+  const room = { width: 10, height: 10 }
+  /** Takes one grid cell of a room 10 by 10, and nothing of its neighbours. */
+  const cell = (column: number, row: number): Rect => ({
+    x: column * 10 + 3,
+    y: row * 10 + 3,
+    width: 4,
+    height: 4,
+  })
+
+  it('takes the upper of spots as near', () => {
+    expect(freeSpot(sheet, [cell(5, 5)], room, { x: 50, y: 50 })).toEqual({ x: 50, y: 40 })
+  })
+
+  it('takes the left of spots as near on one row', () => {
+    const taken = [cell(5, 5), cell(5, 4), cell(5, 6)]
+    expect(freeSpot(sheet, taken, room, { x: 50, y: 50 })).toEqual({ x: 40, y: 50 })
+  })
+})
+
+describe('sharing only an edge does not press', () => {
+  const sheet = { width: 100, height: 80, grid: 10 }
+  const taken = [{ x: 0, y: 0, width: 20, height: 20 }]
+  const room = { width: 20, height: 20 }
+
+  it('a spot right beside something taken is free', () => {
+    expect(isFree(sheet, taken, { x: 20, y: 0 }, room)).toBe(true)
+    expect(isFree(sheet, taken, { x: 0, y: 20 }, room)).toBe(true)
+    expect(isFree(sheet, taken, { x: 10, y: 0 }, room)).toBe(false)
+  })
+
+  it('is found right beside it', () => {
+    expect(freeSpot(sheet, taken, room, { x: 20, y: 0 })).toEqual({ x: 20, y: 0 })
+    expect(freeSpot(sheet, taken, room, { x: 0, y: 10 })).toEqual({ x: 0, y: 20 })
   })
 })
 
