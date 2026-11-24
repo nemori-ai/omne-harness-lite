@@ -5,7 +5,6 @@ const CHOICE = '/device/screen/choice'
 /** Below this many CSS pixels from the top, the size goes inside the box instead of above it. */
 const LABEL_ROOM = 24
 
-const screen = new URLSearchParams(window.location.search).get('screen') ?? ''
 const surface = document.querySelector('main')
 const frame = document.querySelector<HTMLImageElement>('main img')
 const shade = document.querySelector<HTMLElement>('.shot-shade')
@@ -56,7 +55,7 @@ function crop(pick: Pick): Promise<Blob> {
 async function send(body: Blob | Uint8Array<ArrayBuffer>): Promise<void> {
   if (sent) return
   sent = true
-  await fetch(CHOICE, { method: 'POST', body })
+  await fetch(`${CHOICE}${window.location.search}`, { method: 'POST', body })
 }
 
 const cancel = () => void send(new Uint8Array())
@@ -79,4 +78,4 @@ surface?.addEventListener('contextmenu', event => {
   event.preventDefault()
   cancel()
 })
-if (frame !== null) frame.src = `/device/screen/frame?screen=${encodeURIComponent(screen)}`
+if (frame !== null) frame.src = `/device/screen/frame${window.location.search}`
