@@ -1,6 +1,6 @@
 // @module-tag slow
 import { expect, it, vi } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -56,7 +56,7 @@ it('qualifies a summary without provenance against a real SQLite session with no
 })
 
 it('reads pre-015 inline summary epoch rows through real SQL and closes when the original origin is absent', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'legacy-summary-sql-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'legacy-summary-sql-')))
   const s = await sqlScene('legacy-summary-epoch', { storage: 'real', storageRoot: root })
   const file = join(root, 'storage', 'domains', `${Buffer.from('dom_0').toString('hex')}.sqlite`)
   const db = new DatabaseSync(file)
