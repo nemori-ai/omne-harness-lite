@@ -51,11 +51,9 @@ export type FakeKinds = CanvasKinds &
     declare(declaration: KindDeclaration, by?: string): () => void
     /** How the registry fails from now on; null: it reads. */
     fail(next: 'unavailable' | 'throw' | null): void
-    /** How many entries `place` holds now. */
     held(): number
   }>
 
-/** A registry with no kind until one is declared. */
 export function fakeKinds(): FakeKinds {
   let declared: { declaration: KindDeclaration; by: string }[] = []
   let failing: 'unavailable' | 'throw' | null = null

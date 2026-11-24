@@ -1,4 +1,4 @@
-import { createCanvas, type CanvasConfig, type CanvasStore } from '@omne-harness/canvas'
+import { createCanvas, type CanvasConfig } from '@omne-harness/canvas'
 import {
   context,
   createMemoryStore,
@@ -6,6 +6,7 @@ import {
   fakeClock,
   fakeKinds,
   fakeMovers,
+  type MemoryStore,
 } from '@omne-harness/canvas/testing'
 import type { KindDeclaration, KindName } from '@omne-harness/canvas-contract'
 
@@ -26,7 +27,7 @@ export const kind = (name: string, admit?: KindDeclaration['admit']): KindDeclar
 })
 
 /** A canvas over the memory store with every port faked, the kinds media.object and canvas.app declared. */
-export function world(options: { store?: CanvasStore; config?: Partial<CanvasConfig> } = {}) {
+export function world(options: { store?: MemoryStore; config?: Partial<CanvasConfig> } = {}) {
   const store = options.store ?? createMemoryStore()
   const authority = fakeAuthority()
   const kinds = fakeKinds()

@@ -11,9 +11,7 @@ import type { Arrangement, Placing } from './store.ts'
 
 /** One tenant's facts inside one storage transaction. Synchronous: a script runs to completion in the storage worker. */
 export interface CanvasFacts {
-  /** The revision of the canvas; 0 while nothing was ever committed to it. */
   revision(canvas: CanvasId): number
-  /** The rank the next item put on top gets; 1 while nothing was ever committed. */
   nextRank(canvas: CanvasId): number
   items(canvas: CanvasId, state: Item['state']): readonly Item[]
   item(canvas: CanvasId, id: ItemId): Item | null
@@ -53,7 +51,6 @@ export function awayOf(
   return { items, next: more ? items[items.length - 1]!.rank : null }
 }
 
-/** The read of `place` before the owner of the kind is asked. */
 export function placingOf(facts: CanvasFacts, canvas: CanvasId, reference: Reference): Placing {
   return { item: facts.itemOf(canvas, reference), placed: facts.items(canvas, 'on').length }
 }

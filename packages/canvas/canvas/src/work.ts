@@ -23,11 +23,7 @@ function canonical(value: unknown): string {
 
 const arrangementOnly = ({ by: _by, when: _when, ...rest }: Item | Pile) => canonical(rest)
 
-/**
- * The arrangement of one canvas while one script runs: every item on the sheet and every pile, and the
- * taken items the script names. A script changes it and `save` writes the difference in the same
- * transaction. A change that leaves the values as they were is no change: it does not stamp who.
- */
+/** One canvas while a script runs; `save` writes the difference. An equal change is none and is not stamped. */
 export class Work {
   readonly items = new Map<ItemId, Item>()
   readonly piles = new Map<PileId, Pile>()
@@ -70,14 +66,12 @@ export class Work {
     return stored === null ? null : this.load(stored)
   }
 
-  /** Takes the next rank: the thing that gets it is on top of everything before it. */
   nextRank(): number {
     const rank = this.rank
     this.rank += 1
     return rank
   }
 
-  /** The highest rank on the sheet now. */
   topRank(): number {
     let top = 0
     for (const item of this.items.values()) if (item.state === 'on') top = Math.max(top, item.rank)
@@ -109,7 +103,6 @@ export class Work {
     this.piles.set(id, { id, name: null, at, by: this.by, when: this.when })
   }
 
-  /** A pile none of whose items is in it any more is gone. */
   prune(id: PileId | null): void {
     if (id === null) return
     for (const item of this.items.values()) if (item.state === 'on' && item.pile === id) return
@@ -121,7 +114,6 @@ export class Work {
     this.dropped.add(id)
   }
 
-  /** The spot nearest to `want` where a thing of this size fits clear of everything else on the sheet. */
   freeNear(want: Spot, size: Item['size'], except: ItemId | null = null): Spot {
     const { sheet, footprint } = this.rules
     const others = [...this.items.values()].filter(item => item.id !== except)
@@ -129,7 +121,7 @@ export class Work {
     return freeSpot(sheet, taken, roomOf(size, footprint), want)
   }
 
-  /** Writes what changed and moves the revision on. False when nothing changed: nothing is written. */
+  /** Null when nothing changed: nothing is written. */
   save(): number | null {
     let changed = false
     for (const id of this.dropped) {

@@ -10,7 +10,6 @@ import {
 } from '../scripts.ts'
 import type { CanvasStore, StoreAnswer, StoreRead } from '../store.ts'
 
-/** One canvas's facts, as a store keeps them. */
 export type CanvasRecords = Readonly<{
   revision: number
   items: readonly Item[]
@@ -78,8 +77,7 @@ function factsOver(canvases: Map<CanvasId, Held>): CanvasFacts {
   }
 }
 
-/** The store in memory. A commit runs the same script as the SQL store's on a copy of the tenant's
- * facts and keeps the copy when it ends. */
+/** A commit runs the SQL store's script on a copy of the tenant's facts and keeps the copy. */
 export function createMemoryStore(): MemoryStore {
   const tenants = new Map<TenantId, Map<CanvasId, Held>>()
   let failingReads = false

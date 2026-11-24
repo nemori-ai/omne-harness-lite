@@ -145,7 +145,7 @@ describe('a write sent again once it is done changes nothing', () => {
     if (name === 'look-away') expect(again).toEqual(first)
     else expect(again.kind).toBe('no-change')
     if (name === 'place')
-      expect(again.item).toEqual((first as { value: { item: unknown } }).value.item)
+      expect(again.item).toEqual((first as unknown as { value: { item: unknown } }).value.item)
     expect(await state(w)).toEqual(after)
   })
 })

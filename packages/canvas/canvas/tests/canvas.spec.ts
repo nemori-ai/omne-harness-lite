@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import type { CanvasStore } from '@omne-harness/canvas'
-import { context, createMemoryStore, tenantOf } from '@omne-harness/canvas/testing'
+import {
+  context,
+  createMemoryStore,
+  tenantOf,
+  type MemoryStore,
+} from '@omne-harness/canvas/testing'
 import type { Item, Pile } from '@omne-harness/canvas-contract'
 import { CONFIG, kind, world as base } from './fixture.ts'
 
 const SHEET = CONFIG.sheet
 const AT = '2026-11-24T06:00:00.000Z'
 
-function world(store: CanvasStore = createMemoryStore()) {
+function world(store: MemoryStore = createMemoryStore()) {
   const { authority, kinds, movers, canvas } = base({ store })
   return { authority, kinds, movers, canvas }
 }
@@ -39,7 +43,7 @@ describe('look', () => {
   })
 
   it('does not ask who the caller is: a read changes nothing to record', async () => {
-    const { canvas, kinds, movers } = world()
+    const { canvas, movers } = world()
     movers.set(null)
     expect(await canvas.look(context(), { canvas: 'main' })).toMatchObject({ kind: 'done' })
     expect(await canvas.kinds(context())).toMatchObject({ kind: 'done' })

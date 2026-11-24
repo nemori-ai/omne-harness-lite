@@ -45,7 +45,12 @@ class LocalCanvas extends CanvasService {
   }
 }
 
-const clock = { now: () => instantSchema.parse(new Date().toISOString()) }
+const clock = {
+  now: () =>
+    instantSchema.parse(
+      /* wall-clock: clock-source -- the clock of the canvas in this tree: when an arrangement changed */ new Date().toISOString(),
+    ),
+}
 
 /** The canvas over SQL, its kinds read from the registry at each call, its clock the system's. */
 export function createCanvasLocalPlugin() {

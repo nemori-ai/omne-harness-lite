@@ -27,14 +27,12 @@ export type StoreAnswer<T> =
   | Readonly<{ kind: 'rolled-back' }>
   | Readonly<{ kind: 'unknown' }>
 
-/** What the store holds of one canvas: the items on the sheet, every pile, and the revision. */
 export type Arrangement = Readonly<{
   revision: number
   items: readonly Item[]
   piles: readonly Pile[]
 }>
 
-/** What `place` reads before it asks the owner of the kind. */
 export type Placing = Readonly<{ item: Item | null; placed: number }>
 
 /** The configuration a script needs; a script runs where no configuration is. */

@@ -5,7 +5,6 @@ export const NAME_LINE = 24
 
 export type Rect = Readonly<{ x: number; y: number; width: number; height: number }>
 
-/** Where the form's seat is: the middle of the sheet. */
 export const seatOf = (sheet: Sheet): Spot => ({
   x: Math.floor(sheet.width / 2),
   y: Math.floor(sheet.height / 2),
@@ -53,8 +52,7 @@ export function isFree(sheet: Sheet, taken: readonly Rect[], at: Spot, room: Siz
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high)
 
-/** The spot on the grid nearest to `want`, inside the sheet, where `room` touches nothing taken. With no
- * such spot it is `want` itself, taken to the grid and kept on the sheet. */
+/** The grid spot nearest to `want` where `room` fits on the sheet clear of all taken; else `want` on the grid. */
 export function freeSpot(sheet: Sheet, taken: readonly Rect[], room: Size, want: Spot): Spot {
   const { grid } = sheet
   const columns = room.width > sheet.width ? 0 : Math.floor((sheet.width - room.width) / grid) + 1

@@ -31,7 +31,6 @@ const open = (
   command: Pick<PlaceCommand, 'canvas' | 'by' | 'when' | 'rules'>,
 ) => new Work(facts, command.canvas, command.by, command.when, command.rules)
 
-/** The first cell that stops the batch, as the answer about this entry; null when every cell goes on. */
 function stopping(cells: readonly Cell[], entry: Entry): ChangeResult | null {
   for (const cell of cells) {
     if (cell === 'not-found') return { kind: 'not-found', entry }
@@ -48,7 +47,6 @@ const saved = (work: Work): ChangeResult => {
   return revision === null ? NO_CHANGE : { kind: 'changed', revision }
 }
 
-/** Where an item shows: its own spot when loose, its pile's when in one. */
 function shownAt(work: Work, item: Item): Spot {
   const pile = item.pile === null ? undefined : work.piles.get(item.pile)
   return pile?.at ?? item.at
@@ -74,10 +72,7 @@ function raise(work: Work, item: Item): Item {
   return item.rank === work.topRank() ? item : work.update(item, { rank: work.nextRank() })
 }
 
-/**
- * Puts a reference on the sheet with its conditions checked at the commit: it is still not on, the sheet
- * is still below the limit, the kind was still declared. Otherwise it answers as the state is now.
- */
+/** The conditional commit of place: still not on, still below the limit, the kind still declared. */
 export function placeReference(facts: CanvasFacts, command: PlaceCommand): PlaceResult {
   const work = open(facts, command)
   const existing = facts.itemOf(command.canvas, command.reference)
@@ -187,7 +182,6 @@ export function takeItems(facts: CanvasFacts, command: TakeCommand): ChangeResul
   return saved(work)
 }
 
-/** Puts items in a pile the caller names; a pile that is not there is made, at the spot given or the first item's. */
 export function pileItems(facts: CanvasFacts, command: PileCommand): ChangeResult {
   const work = open(facts, command)
   const items: Item[] = []
@@ -203,7 +197,6 @@ export function pileItems(facts: CanvasFacts, command: PileCommand): ChangeResul
   return saved(work)
 }
 
-/** Spreads a pile's items to free spots beside it, the lowest first; the pile is gone. */
 export function scatterPile(facts: CanvasFacts, command: ScatterCommand): ChangeResult {
   const work = open(facts, command)
   const pile = work.piles.get(command.pile)
@@ -217,7 +210,6 @@ export function scatterPile(facts: CanvasFacts, command: ScatterCommand): Change
   return saved(work)
 }
 
-/** Locks every item named, or unlocks every one. */
 export function lockItems(facts: CanvasFacts, command: LockCommand): ChangeResult {
   const work = open(facts, command)
   const operation = command.locked ? 'lock' : 'unlock'

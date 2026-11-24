@@ -22,9 +22,8 @@ it('the memory store refuses a second item of a reference written past the domai
     reference: { kind: 'media.object', ref: 'a' },
     declared: true,
   })
-  if (placed.kind !== 'committed' || placed.value.kind !== 'changed') throw new Error('not placed')
+  const result = placed.kind === 'committed' ? placed.value : null
+  if (result?.kind !== 'changed') throw new Error('not placed')
   const facts = store.facts(tenantOf('t1'))
-  expect(() => facts.putItem('main', { ...placed.value.item, id: 'i9' as never })).toThrow(
-    /UNIQUE/u,
-  )
+  expect(() => facts.putItem('main', { ...result.item, id: 'i9' as never })).toThrow(/UNIQUE/u)
 })

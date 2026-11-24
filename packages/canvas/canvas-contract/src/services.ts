@@ -45,8 +45,7 @@ export function parseLook(
   return { invalid: onCanvas ? 'canvas' : 'request' }
 }
 
-/** The operations of the canvas. People and agents call the same functions. Every write takes its
- * request unparsed: what does not fit is answered, not thrown. */
+/** People and agents call the same functions. A write takes its request unparsed and answers what does not fit. */
 export interface CanvasOperations {
   look(ctx: CallContext, request: LookRequestInput): Promise<LookAnswer>
   lookAway(ctx: CallContext, request: unknown): Promise<RequestInvalid | ReadAnswer<AwayPage>>

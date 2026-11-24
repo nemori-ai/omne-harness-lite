@@ -46,7 +46,6 @@ export type CanvasConfig = Readonly<{
 export type CanvasPorts = Readonly<{
   store: CanvasStore
   authority: CanvasAuthority
-  /** Who a change is by; a read does not ask it. */
   movers: CanvasMovers
   kinds: CanvasKinds
   clock: Clock
@@ -85,7 +84,6 @@ async function moverOf(movers: CanvasMovers, ctx: CallContext): Promise<Mover | 
   }
 }
 
-/** A store that throws on a read has not read; one that throws on a commit may have written. */
 async function reading<T>(read: () => Promise<T>): Promise<T | null> {
   try {
     return await read()
@@ -145,7 +143,6 @@ export function createCanvas(ports: CanvasPorts): CanvasOperations {
     away: config.limits.away,
   }
 
-  /** Steps one to three of a write: the request, the authority, who it is by. */
   async function stampFor<R extends Readonly<{ canvas: CanvasId }>>(
     ctx: CallContext,
     parsed: Parsed<R>,

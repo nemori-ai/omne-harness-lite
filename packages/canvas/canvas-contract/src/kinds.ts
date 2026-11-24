@@ -35,7 +35,6 @@ export type KindListing =
     }>
   | Readonly<{ kind: 'conflict'; name: KindName; by: readonly string[] }>
 
-/** The kinds now declared, or that they cannot be read. Never an empty list instead. */
 export type KindsRead =
   | Readonly<{ kind: 'read'; kinds: readonly KindListing[] }>
   | Readonly<{ kind: 'unavailable' }>
@@ -45,7 +44,6 @@ export type KindEntry =
   | Readonly<{
       kind: 'declared'
       admit?: KindDeclaration['admit']
-      /** Whether this declaration is still the one declared under its name. */
       declared(): boolean
       leave(): void
     }>
@@ -55,7 +53,6 @@ export type KindEntry =
 
 export interface CanvasKinds {
   read(): KindsRead
-  /** The one declaration of this name now, held until `leave`; or why there is none. */
   enter(name: string): KindEntry
 }
 
