@@ -25,6 +25,10 @@ function rowOf(
   return start === null ? null : rowFrom(rows, start)
 }
 
+// A message is shown in the middle of the page; a run is shown from its start.
+const blockOf = (target: FocusTarget): ScrollLogicalPosition =>
+  'entry' in target ? 'center' : 'start'
+
 // Shows what was asked for once the history of its session is on the page: scrolls its row into
 // view and gives the row's key, so that it can be marked. The ask is taken, not kept.
 export function useShownEntry(
@@ -44,7 +48,7 @@ export function useShownEntry(
     setFound(row)
     if (row === null) return
     const node = scroller.current?.querySelector(`[data-entry="${row}"]`)
-    node?.scrollIntoView({ block: 'entry' in target ? 'center' : 'start' })
+    node?.scrollIntoView({ block: blockOf(target) })
   }, [focus, target, session, loaded, rows, scroller, startOf])
   return found
 }
