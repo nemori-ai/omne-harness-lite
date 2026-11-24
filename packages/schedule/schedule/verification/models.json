@@ -1,7 +1,7 @@
 {
   "member": "schedule",
   "model": "models/CalendarScheduleBoundary.tla",
-  "scope": "finite abstract safety model; no implementation refinement or liveness proof",
+  "scope": "finite abstract models; safety, and one liveness property of the slot scan; no implementation refinement",
   "cases": [
     {
       "name": "follow-latest",
@@ -86,6 +86,162 @@
       "model": "models/ScheduleClockBoundary.tla",
       "config": "models/clock-negative-close.cfg",
       "expected": "NoClosedRead"
+    },
+    {
+      "name": "slot-positive-controls",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-positive-controls.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "slot-positive-catchup",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-positive-catchup.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "slot-positive-two-scanners",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-positive-two-scanners.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "slot-positive-live",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-positive-live.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "slot-negative-dedupe",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-dedupe.cfg",
+      "expected": "AtMostOneJob"
+    },
+    {
+      "name": "slot-negative-control",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-control.cfg",
+      "expected": "AcceptedWhileActive"
+    },
+    {
+      "name": "slot-negative-eligible",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-eligible.cfg",
+      "expected": "EligibleBound"
+    },
+    {
+      "name": "slot-negative-joblimit",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-joblimit.cfg",
+      "expected": "JobBound"
+    },
+    {
+      "name": "slot-negative-paged",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-paged.cfg",
+      "expected": "CatchUpBounded"
+    },
+    {
+      "name": "slot-negative-gap",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-gap.cfg",
+      "expected": "CatchUpBounded"
+    },
+    {
+      "name": "slot-negative-resume",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-resume.cfg",
+      "expected": "CatchUpBounded"
+    },
+    {
+      "name": "slot-negative-order",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-order.cfg",
+      "expected": "InOrder"
+    },
+    {
+      "name": "slot-negative-backfill",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-backfill.cfg",
+      "expected": "DispositionFixed"
+    },
+    {
+      "name": "slot-negative-revive",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-revive.cfg",
+      "expected": "StoppedIsFinal"
+    },
+    {
+      "name": "slot-negative-timer",
+      "model": "models/ScheduleSlotDisposition.tla",
+      "config": "models/slot-negative-timer.cfg",
+      "expected": "temporal"
+    },
+    {
+      "name": "job-positive-wait",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-positive-wait.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "job-positive-replace",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-positive-replace.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "job-positive-parallel",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-positive-parallel.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "job-negative-restart",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-negative-restart.cfg",
+      "expected": "StartAtMostOnce"
+    },
+    {
+      "name": "job-negative-running",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-negative-running.cfg",
+      "expected": "RunningIsReal"
+    },
+    {
+      "name": "job-negative-cancel",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-negative-cancel.cfg",
+      "expected": "CancelIsReal"
+    },
+    {
+      "name": "job-negative-goal",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-negative-goal.cfg",
+      "expected": "SuccessHasEvidence"
+    },
+    {
+      "name": "job-negative-unknown",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-negative-unknown.cfg",
+      "expected": "FailureIsReal"
+    },
+    {
+      "name": "job-negative-confirmed",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-negative-confirmed.cfg",
+      "expected": "StopIsReal"
+    },
+    {
+      "name": "job-negative-stop",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-negative-stop.cfg",
+      "expected": "PredecessorEnded"
+    },
+    {
+      "name": "job-negative-overwrite",
+      "model": "models/ScheduleJobExecution.tla",
+      "config": "models/job-negative-overwrite.cfg",
+      "expected": "OutcomeFixed"
     }
   ]
 }
