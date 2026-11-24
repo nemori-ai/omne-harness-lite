@@ -36,7 +36,11 @@ export type ModelReminderFailure =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-export type ModelHistoryProjection = Readonly<{ epoch: string; blocks: readonly string[] }>
+export type ModelHistoryProjection = Readonly<{
+  epoch: string
+  blocks: readonly string[]
+  restoreOriginals?: true
+}>
 
 export type PreparedReminders = Readonly<{
   projection?: ModelHistoryProjection
@@ -143,14 +147,14 @@ async function projectionFor<P>(
   input: ModelReminderInput<P>,
   history: GuidanceHistory,
   current: Exclude<WorkspaceGuidance, { state: 'unavailable' }>,
-): Promise<Answer<readonly string[]>> {
+): Promise<Answer<Omit<ModelHistoryProjection, 'epoch'>>> {
   const required =
     current.state === 'attached'
       ? [{ workspace: current.workspace, instance: current.instance, root: current.root }]
       : []
   if (ports.inspectHistory === undefined) {
     const qualified = await ports.qualifyHistory?.(input, history.index.scopes)
-    return qualified && 'failure' in qualified ? qualified : succeed([])
+    return qualified && 'failure' in qualified ? qualified : succeed({ blocks: [] })
   }
   const inspected = await ports.inspectHistory(input, [
     ...history.index.scopes,
@@ -162,15 +166,17 @@ async function projectionFor<P>(
     JSON.stringify([scope.workspace, scope.instance])
   const denied = new Set(inspected.ok.map(key))
   if (required.some(scope => denied.has(key(scope)))) return fail({ kind: 'denied' })
-  if (history.summarizedScopes.some(scope => denied.has(key(scope))))
-    return down(
-      'compacted workspace guidance includes a refused source without a separable original; rebuild the summary from qualified originals',
-    )
-  return succeed(
-    [...history.index.sourceScopes]
-      .filter(([, scope]) => denied.has(key(scope)))
-      .map(([block]) => block),
-  )
+  const restore = history.summarizedScopes.some(scope => denied.has(key(scope)))
+  if (restore) {
+    const original = await history.originals?.()
+    if (!original) return down('the original guidance records for summary recovery are unavailable')
+    if ('failure' in original) return original
+    return succeed({ blocks: [...original.ok.blocks], restoreOriginals: true })
+  }
+  const blocks = [...history.index.sourceScopes]
+    .filter(([, scope]) => denied.has(key(scope)))
+    .map(([id]) => id)
+  return succeed({ blocks })
 }
 
 async function eligibilityOf<P>(
@@ -265,9 +271,9 @@ export function createModelReminders<P>(ports: ModelReminderPorts<P>): ModelRemi
           if ('failure' in history) return history
           const projection = await projectionFor(ports, input, history.ok, scope.data)
           if ('failure' in projection) return projection
-          if (projection.ok.length > 0)
+          if (projection.ok.restoreOriginals || projection.ok.blocks.length > 0)
             return succeed({
-              projection: { epoch: history.ok.basis.epoch, blocks: projection.ok },
+              projection: { epoch: history.ok.basis.epoch, ...projection.ok },
               modelView: history.ok.basis,
               messages: [],
               viewRevision: String(snapshot.viewRevision),

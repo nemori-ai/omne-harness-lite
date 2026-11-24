@@ -35,11 +35,14 @@ export function decideModelProjection(
   if (input.value.epoch !== reads.compactionEpoch)
     return rejected({ kind: 'changed', revision: state.revision })
   const blocks = new Set(input.value.blocks)
-  if (blocks.size === 0 || blocks.size !== input.value.blocks.length)
+  const restore = input.value.restoreOriginals === true
+  if ((!restore && blocks.size === 0) || blocks.size !== input.value.blocks.length)
     return invalid('value.blocks', 'empty or duplicate block withdrawal')
   const found = new Set<string>()
+  let hasSummary = false
   for (const row of [...reads.compaction.covered, ...reads.compaction.after]) {
     const message = row.message
+    if (message?.role === 'compaction') hasSummary = true
     for (const block of message?.blocks ?? []) {
       if (!blocks.has(block.id) || message?.role !== 'system_reminder') continue
       if (block.kind !== 'text')
@@ -47,13 +50,15 @@ export function decideModelProjection(
       found.add(block.id)
     }
   }
-  if (found.size !== blocks.size)
+  if (restore && !hasSummary) return invalid('value.restoreOriginals', 'no summary to rebuild')
+  if (!restore && found.size !== blocks.size)
     return invalid('value.blocks', 'a withdrawn block is outside the current model view')
   return entries([
     encodeEntry(
       {
         kind: 'session.model-projected',
         epoch: input.value.epoch,
+        ...(restore ? { restoreOriginals: true as const } : {}),
         blocks: input.value.blocks,
         source: input.value.source,
       },

@@ -16,7 +16,11 @@ import type {
 } from './faces.ts'
 import type { EntryId, SessionId, SessionRevision } from './identity.ts'
 import type { EncodedEntry, DecideReads } from './judgments.ts'
-import { compactionContextForView, type MaterializedModelView } from './model-view.ts'
+import {
+  compactionContextForView,
+  materializeModelView,
+  type MaterializedModelView,
+} from './model-view.ts'
 import type { SessionCommand } from './ports.ts'
 import { encodeCursor, type Cursor } from './testing-history-cursor.ts'
 import { TESTING_OWNER } from './testing-values.ts'
@@ -86,6 +90,22 @@ export type ForkStart = Readonly<{
   fork: MemoryFork
 }>
 type KeyOf = (tenant: TenantId, session: SessionId) => Outcome<string, SessionFailure>
+
+export function committedModelView(
+  store: Held | undefined,
+  start: ForkStart | undefined,
+  entries: readonly HistoryEntry[],
+) {
+  const view = store?.modelView ?? start?.modelView ?? { epoch: 'epoch:0', rows: [] }
+  return materializeModelView(view, entries, () => {
+    const initial = view.past?.get('epoch:0') ?? view.rows
+    const selected = new Set(store?.fork?.prefix ?? start?.fork.prefix ?? [])
+    return {
+      inherited: initial.filter(row => selected.has(row.entry)),
+      entries: store?.entries ?? [],
+    }
+  })
+}
 
 /** What a create with a source starts its session from; nothing when there is no source to read. */
 export function startOf(

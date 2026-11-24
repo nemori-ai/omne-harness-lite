@@ -1,5 +1,7 @@
+import { readModelOriginals } from './model-originals.ts'
 import type { Message } from '@omne-harness/message'
 import {
+  originalModelRows,
   isAcceptedInputRecord,
   projectModelMessage,
   projectModelProvenance,
@@ -37,16 +39,8 @@ function messageOf(entries: readonly HistoryEntry[], index: number): ViewMessage
   return message ?? null
 }
 
-export function maintainModelView(
-  port: ParticipantPort,
-  tenant: string,
-  session: string,
-  epoch: string,
-  entries: readonly HistoryEntry[],
-  limit: number = MAX_VIEW_ROWS,
-): string | null {
-  let current = epoch
-  const writeRow = (
+function modelRowWriter(port: ParticipantPort, tenant: string, session: string) {
+  return (
     at: string,
     seq: bigint,
     entry: string,
@@ -78,9 +72,47 @@ export function maintainModelView(
     )
     return digest
   }
+}
+
+export function maintainModelView(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  epoch: string,
+  entries: readonly HistoryEntry[],
+  limit: number = MAX_VIEW_ROWS,
+): string | null {
+  let current = epoch
+  const writeRow = modelRowWriter(port, tenant, session)
   for (const [index, entry] of entries.entries()) {
     if (entry.kind === 'session.model-projected') {
-      const projection = plainOf(entry.payload) as { blocks: readonly string[] }
+      const projection = plainOf(entry.payload) as {
+        blocks: readonly string[]
+        restoreOriginals?: true
+      }
+      if (projection.restoreOriginals) {
+        const originals = readModelOriginals(port, { tenant, session }, BigInt(entry.id))
+        if (originals === null) return null
+        const rows = originalModelRows(
+          originals.inherited,
+          originals.entries,
+          new Set(projection.blocks),
+        )
+        if (rows.length > limit) return null
+        const next = `epoch:${entry.id}`
+        let prefix = ''
+        for (const [offset, row] of rows.entries())
+          prefix = writeRow(
+            next,
+            BigInt(offset + 1),
+            row.entry,
+            row.message,
+            prefix,
+            row.provenance,
+          )
+        current = next
+        continue
+      }
       const view = viewOf(port, { tenant, session }, current)
       const upper = view.upper()
       if (upper > BigInt(limit)) return null

@@ -1,3 +1,4 @@
+import readEntryMessage from '../src/worker/read-entry-message.ts'
 import { expect, it } from 'vitest'
 import { readJsonText } from '@omne-harness/json-text'
 import type { HistoryEntry } from '@omne-harness/session-contract'
@@ -88,6 +89,25 @@ it('native SQLite projection and compaction input proof agree while the old epoc
     )
     expect(JSON.stringify(rows.map(row => row.message))).not.toContain('withdrawn A')
     expect(JSON.stringify(rows.map(row => row.message))).toContain('legal B')
+    const frozen = (epoch: string) =>
+      readEntryMessage.read(
+        encodeValue({
+          tenant: 't',
+          session: 's',
+          entry: '2',
+          epoch: null,
+          frozenEpoch: modelViewPrefix('t', 's') + epoch,
+        }),
+        port,
+      )
+    expect(frozen(next!)).toMatchObject({
+      kind: 'read',
+      output: { kind: 'message', message: { blocks: [b] } },
+    })
+    expect(frozen(oldEpoch)).toMatchObject({
+      kind: 'read',
+      output: { kind: 'message', message: { blocks: [a, b] } },
+    })
     const old = port.execute('SELECT message FROM sl_model_view WHERE epoch = ? ORDER BY seq', [
       oldEpoch,
     ]).rows

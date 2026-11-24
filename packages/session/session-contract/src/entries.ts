@@ -98,6 +98,7 @@ export type SessionEntry =
   | Readonly<{
       kind: 'session.model-projected'
       epoch: string
+      restoreOriginals?: true
       blocks: readonly string[]
       source: DurableEvidence
     }>

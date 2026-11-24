@@ -484,3 +484,4 @@ export {
   projectModelProvenance,
   UNKNOWN_MODEL_PROVENANCE,
 } from './model-provenance.ts'
+export { originalModelRows } from './model-originals.ts'

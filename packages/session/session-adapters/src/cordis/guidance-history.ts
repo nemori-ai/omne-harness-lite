@@ -1,4 +1,9 @@
 import {
+  readGuidanceOriginals,
+  type GuidanceOrigins,
+  type OriginalHistory,
+} from './guidance-originals.ts'
+import {
   workspaceGuidanceScopeSchema,
   workspaceGuidanceBodySchema,
   workspaceGuidanceManifestSchema,
@@ -14,6 +19,7 @@ import { emptyGuidanceIndex, extendGuidanceIndex, type GuidanceIndex } from './g
 export type GuidanceHistory = Readonly<{
   summaryBoundaries: readonly string[]
   summarizedScopes: readonly WorkspaceGuidanceScope[]
+  originals?: () => Promise<Outcome<GuidanceOrigins, ModelReminderFailure>>
   basis: ModelViewBasis
   resume: string | null
   index: GuidanceIndex
@@ -21,11 +27,19 @@ export type GuidanceHistory = Readonly<{
 
 /** Every read requalifies. Only a verified prefix of the same effective epoch can satisfy a source. */
 export async function readGuidanceHistory<P>(
-  history: Pick<SessionHistory<P>, 'readModelView'>,
+  history: Pick<SessionHistory<P>, 'readModelView'> & Partial<OriginalHistory<P>>,
   access: SessionAccess<P>,
   partition: string,
   previous?: GuidanceHistory,
 ): Promise<Outcome<GuidanceHistory, ModelReminderFailure>> {
+  const originalPort =
+    history.begin && history.next
+      ? { begin: history.begin.bind(history), next: history.next.bind(history) }
+      : undefined
+  const original =
+    originalPort === undefined
+      ? undefined
+      : (before?: string) => readGuidanceOriginals(originalPort, access, partition, before)
   let cached = previous?.resume == null ? undefined : previous
   let index = cached?.index ?? emptyGuidanceIndex()
   const summaries = new Set(cached?.summaryBoundaries ?? [])
@@ -76,12 +90,17 @@ export async function readGuidanceHistory<P>(
         summary &&
         (row.provenance === undefined ||
           row.provenance.some(source => source.owner === UNKNOWN_MODEL_PROVENANCE))
-      )
-        return fail({
-          kind: 'unavailable',
-          diagnostic:
-            'compacted model source provenance is unknown; rebuild from qualified originals',
-        })
+      ) {
+        if (!original)
+          return fail({
+            kind: 'unavailable',
+            diagnostic:
+              'compacted model source provenance is unknown; original history is unavailable',
+          })
+        const legacy = await original(row.entry)
+        if ('failure' in legacy) return legacy
+        for (const scope of legacy.ok.scopes) summarized.set(JSON.stringify(scope), scope)
+      }
       for (const source of row.provenance ?? []) {
         if (source.owner !== WORKSPACE_GUIDANCE_PROVENANCE) continue
         try {
@@ -134,6 +153,7 @@ export async function readGuidanceHistory<P>(
         resume: page.ok.resume ?? null,
         summaryBoundaries,
         summarizedScopes: [...summarized.values()],
+        ...(original ? { originals: original } : {}),
       })
     }
     basis = page.ok.basis

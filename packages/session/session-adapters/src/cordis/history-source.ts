@@ -1,4 +1,4 @@
-import { readGuidanceHistory } from './guidance-history.ts'
+import { readGuidanceHistory, type GuidanceHistory } from './guidance-history.ts'
 import type { StepDirectory } from './working-directory-step.ts'
 import type { EnsureModelHistory } from './model-history-readiness.ts'
 import { contextEpochOf, sessionEpochOf } from './history-epoch.ts'
@@ -234,6 +234,7 @@ type ViewRead =
 class CursorBook {
   readonly key: string
   readonly epoch: string
+  guidance?: { partition: string; window: GuidanceHistory }
   readonly tokens = new Map<bigint, string>()
   private readonly sizes = new Map<bigint, number>()
 
@@ -492,13 +493,19 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
     const qualify = this.shared.input.qualifyHistory
     if (qualify !== undefined) {
+      if (probe.ok.kind !== 'page')
+        return unavailable('the model view changed during the eligibility read')
+      const book = this.bookOf(located, probe.ok.basis.epoch)
+      const partition = JSON.stringify([located.tenant, located.target.scope.ref])
       const window = await readGuidanceHistory(
         this.scope[sessionKey].history,
         located.session,
-        JSON.stringify([located.tenant, located.target.scope.ref]),
+        partition,
+        book.guidance?.partition === partition ? book.guidance.window : undefined,
       )
       if ('failure' in window)
         return window.failure.kind === 'denied' ? DENIED : unavailable(window.failure.diagnostic)
+      if (window.ok.basis.epoch === book.epoch) book.guidance = { partition, window: window.ok }
       const allowed = await qualify(located.access, [
         ...window.ok.index.scopes,
         ...window.ok.summarizedScopes,

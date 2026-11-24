@@ -1,3 +1,4 @@
+import { originalModelRows } from './model-originals.ts'
 import { summarizeModelProvenance, projectModelProvenance } from './model-provenance.ts'
 import { projectModelMessage } from './model-projection.ts'
 import { requiredWorkEntries } from './work-entry-state.ts'
@@ -61,6 +62,7 @@ function numbered(rows: readonly ModelViewRow[]): ModelViewRow[] {
 export function materializeModelView(
   previous: MaterializedModelView,
   committed: readonly HistoryEntry[],
+  originals?: () => { inherited: readonly ModelViewRow[]; entries: readonly HistoryEntry[] },
 ): MaterializedModelView {
   let epoch = previous.epoch
   let rows = [...previous.rows]
@@ -70,6 +72,20 @@ export function materializeModelView(
     if ('ok' in decoded && decoded.ok.kind === 'session.model-projected') {
       const blocks = new Set(decoded.ok.blocks)
       past = new Map(past).set(epoch, numbered(rows))
+      if (decoded.ok.restoreOriginals) {
+        const source = originals?.()
+        if (source === undefined)
+          throw new Error('original history is unavailable for model projection')
+        rows = [
+          ...originalModelRows(
+            source.inherited,
+            [...source.entries, ...committed.slice(0, index)],
+            blocks,
+          ),
+        ]
+        epoch = `epoch:${entry.id}`
+        continue
+      }
       rows = rows.flatMap(row => {
         const message = projectModelMessage(row.message, blocks)
         const provenance = projectModelProvenance(row.provenance, blocks)
@@ -138,6 +154,7 @@ export function compactionReads(
   snapshot: WorkSnapshot,
   through: string,
   inherited = 0,
+  visible?: ReadonlySet<string>,
 ): CompactionContext | null {
   const end = entries.findIndex(entry => entry.id === through)
   const first = entries[0]
@@ -152,7 +169,9 @@ export function compactionReads(
     const row = { ref, message: viewMessageOf(entries, index) }
     ;(index <= end ? covered : after).push(row)
   }
-  const previous = covered.filter(row => row.message?.role === 'compaction').at(-1)
+  const previous = covered
+    .filter(row => row.message?.role === 'compaction' && (!visible || visible.has(row.ref)))
+    .at(-1)
   let window = covered
   if (previous?.message?.role === 'compaction') {
     const prior = previous.message
@@ -226,7 +245,7 @@ export function compactionContextForView(
   const selected = new Set(rows.slice(0, upper).map(row => String(row.entry)))
   through ??= entries.findLast(row => selected.has(row.id))?.id ?? null
   if (through === null) return null
-  const value = compactionReads(entries, snapshot, through, inherited)
+  const value = compactionReads(entries, snapshot, through, inherited, selected)
   if (value === null) return null
   const keep = (row: CoveredEntry) =>
     selected.has(row.ref) ||

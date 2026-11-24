@@ -750,10 +750,7 @@ export function createMemorySessionTransactionPair<P>(
       const inputs = withInputs(store?.inputs, admittedInputs(command, decision.admitted))
       const target: Store = {
         snapshot: committedSnapshot,
-        modelView: materializeModelView(
-          store?.modelView ?? started?.modelView ?? { epoch: 'epoch:0', rows: [] },
-          entries,
-        ),
+        modelView: forks.committedModelView(store, started, entries),
         entries: [...(store?.entries ?? []), ...entries],
         ...forks.kept(store, started),
         operations,

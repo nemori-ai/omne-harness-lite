@@ -267,6 +267,7 @@ export type DerivedMessage =
   | Readonly<{
       kind: 'model-projection'
       epoch: string
+      restoreOriginals?: true
       blocks: readonly string[]
       source: DurableEvidence
     }>
