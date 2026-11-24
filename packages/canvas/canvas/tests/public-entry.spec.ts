@@ -19,12 +19,14 @@ it('the root entry gives the canvas, the reads and the scripts every store runs'
 it('the testing entry gives the memory store, the fakes and the conformance cases', async () => {
   const testing = (await import('@omne-harness/canvas/testing')) as Record<string, unknown>
   expect(Object.keys(testing).sort()).toEqual([
+    'PROPERTY_CONFIG',
     'context',
     'createMemoryStore',
     'fakeAuthority',
     'fakeClock',
     'fakeKinds',
     'fakeMovers',
+    'runCanvasProperties',
     'storeConformanceCases',
     'tenantOf',
   ])
