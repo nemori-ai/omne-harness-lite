@@ -98,7 +98,7 @@
 | `LearnStarted`、`LearnNotStarted`、`Record` | 协调按 `inspect` 的答复落库 |
 | `Cancel`、`SendStop`、`StopUnknown` | 取消命令；`requestStop`；执行方答不知道 |
 
-## 新增配置的预期
+## 时隙处置与 Job 执行的配置预期
 
 | 配置 | 角色 | 预期 |
 | --- | --- | --- |
@@ -114,7 +114,7 @@
 | `slot-negative-order` | 负控：提交不核更早的待处置时隙 | `InOrder` |
 | `slot-negative-backfill` | 负控：跳过之后从错过的里补位 | `DispositionFixed` |
 | `slot-negative-revive` | 负控：结束的安排被恢复 | `StoppedIsFinal` |
-| `slot-negative-timer` | 负控：只靠定时器，没有周期扫描 | 进展性质被打破 |
+| `slot-negative-timer` | 负控：只靠定时器，没有周期扫描 | `AllSettled` 被打破（清单里记 `temporal`） |
 | `job-positive-wait`、`job-positive-replace`、`job-positive-parallel` | 正控 | 完整通过 |
 | `job-negative-restart` | 负控：重试用新的身份开始 | `StartAtMostOnce` |
 | `job-negative-running` | 负控：调用发出就记为开始 | `RunningIsReal` |
