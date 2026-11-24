@@ -4310,6 +4310,9 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/media-protocol':
         specifier: workspace:*
         version: link:../media-protocol
@@ -4660,6 +4663,9 @@ importers:
       '@omne-harness/client-assembly':
         specifier: workspace:*
         version: link:../../access/client-assembly
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/model-protocol':
         specifier: workspace:*
         version: link:../model-protocol

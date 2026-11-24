@@ -14,6 +14,7 @@ it('the cordis entry gives the module and the key of its service', async () => {
   const cordis = (await import('@omne-harness/model-ui/cordis')) as Record<string, unknown>
   expect(Object.keys(cordis).sort()).toEqual([
     'CREDENTIAL_REMEDY_ID',
+    'PROVIDER_BLOCK_ID',
     'PROVIDER_CATEGORY',
     'createModelUiModule',
     'modelChoicesKey',

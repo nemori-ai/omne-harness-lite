@@ -4,6 +4,7 @@ import '@omne-harness/assets-ui/assets-ui.css'
 import {
   assetGovernanceKey,
   assetsCategoryPage,
+  assetsHolding,
   assetsPageTarget,
   assetsUiModule,
 } from '@omne-harness/assets-ui/cordis'
@@ -90,6 +91,8 @@ export const assembly: Assembly = {
     createModelUiModule({
       runFailure: sessionRunFailure,
       providers: assetsPageTarget(PROVIDER_CATEGORY),
+      holding: assetsHolding,
+      assets: assetGovernanceKey,
     }),
     workspaceUiModule,
     createUsageUiModule({
@@ -102,6 +105,8 @@ export const assembly: Assembly = {
       composerAttachments: sessionComposerAttachments,
       block: sessionBlockRender,
       drafts: sessionComposerIntakeKey,
+      holding: assetsHolding,
+      assets: assetGovernanceKey,
     }),
     sessionReadsUiModule,
     createPluginUiModule({

@@ -74,9 +74,13 @@ system
         mcp  [effective, mcp-ui#1]
       assets.governance  [one]
         assets-ui#1  [effective]
+      assets.holding  [keyed-list]
+        converter
+          media-converter  [effective, media-ui#1]
+        model-provider
+          model-provider-access  [effective, model-ui#1]
       assets.category  [keyed-list]
       assets.control  [keyed-one]
-      assets.holding  [keyed-list]
     connection
       connection.protocols  [keyed-one]
         assets/v1
