@@ -45,7 +45,12 @@ export function requestRefusal(request: FileRequest<unknown>): Failure | undefin
 }
 
 export function createMacosPaths(rootIdentity?: () => Promise<RootIdentity | undefined>) {
-  return async (path: string, parents = false, directory = false): Promise<Outcome<Endpoint>> => {
+  return async (
+    path: string,
+    parents = false,
+    directory = false,
+    followParent = false,
+  ): Promise<Outcome<Endpoint>> => {
     if (rootIdentity !== undefined) {
       const root = await rootIdentity()
       if (root === undefined) return fail('unavailable')
@@ -74,7 +79,7 @@ export function createMacosPaths(rootIdentity?: () => Promise<RootIdentity | und
     const segments = last === '.' || last === '..' || last === '' ? [] : [last]
     for (;;) {
       try {
-        const root = await identify(parent)
+        const root = await identify(parent, followParent)
         return ok({
           root: root.path,
           expectedRoot: root.token,

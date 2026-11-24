@@ -1,42 +1,26 @@
-import { spawn } from 'node:child_process'
-import { readlink, type FileHandle } from 'node:fs/promises'
-import { dirname, isAbsolute } from 'node:path'
-import { filesHelper } from './macos-files/transport.ts'
+import { constants } from 'node:fs'
+import { open, readlink, type FileHandle } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join } from 'node:path'
+import type {
+  FacilityResult,
+  FileRequest,
+  FilesScope,
+  FileSystemFacility,
+} from '@omne-harness/execution-environment-contract'
+import { isHostPath, pathWithoutTrailingSlash, type CloseHandle } from './host-paths.ts'
 
-async function descriptorPath(fd: number): Promise<Buffer | undefined> {
-  if (process.platform === 'linux') return readlink(`/proc/self/fd/${fd}`, { encoding: 'buffer' })
-  if (process.platform !== 'darwin') return undefined
-  const helper = await filesHelper()
-  if (helper.kind !== 'ready') return undefined
-  const child = spawn(helper.path, ['--descriptor-path'], {
-    stdio: ['ignore', 'pipe', 'ignore', fd],
-    timeout: 5000,
-  })
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = []
-    child.stdout?.on('data', (chunk: Buffer) => chunks.push(chunk))
-    child.once('error', reject)
-    child.once('close', code => resolve(code === 0 ? Buffer.concat(chunks) : undefined))
-  })
-}
-
-/** Ask the kernel about the descriptor being used. Ambiguous or unavailable names supply no proof. */
+/** Called only with the directory descriptor used by the original Linux operation. */
 export async function openFileDirectory(
   handle: FileHandle,
   observe?: true,
 ): Promise<{ verifiedDirectories?: string[] }> {
   if (!observe) return {}
   try {
-    const bytes = await descriptorPath(handle.fd)
-    if (bytes === undefined) return {}
+    const bytes = await readlink(`/proc/self/fd/${handle.fd}`, { encoding: 'buffer' })
     const path = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
-    if (!isAbsolute(path) || (process.platform === 'linux' && path.endsWith(' (deleted)')))
-      return {}
-    const stat = await handle.stat({ bigint: true })
-    if (stat.isDirectory() && stat.nlink > 0n) return { verifiedDirectories: [path] }
-    if (stat.isFile() && stat.nlink === 1n) return { verifiedDirectories: [dirname(path)] }
+    if (isAbsolute(path) && !path.endsWith(' (deleted)')) return { verifiedDirectories: [path] }
   } catch {
-    // An optional observation cannot change the outcome of the original operation.
+    // A missing directory name does not change the original result.
   }
   return {}
 }
@@ -50,4 +34,59 @@ export async function openDirectories(handles: Iterable<FileHandle>, observe?: t
     }
   }
   return directories.size ? { verifiedDirectories: [...directories].sort() } : {}
+}
+
+export function observeLinuxBasicFiles(
+  files: FileSystemFacility<unknown>,
+  scope: FilesScope,
+  close: CloseHandle,
+) {
+  function pinned<Q extends FileRequest<unknown>, T extends object>(
+    perform: (request: Q) => Promise<FacilityResult<T>>,
+  ) {
+    return async (request: Q): Promise<FacilityResult<T>> => {
+      if (
+        !request.observeDirectory ||
+        request.binding.kind !== 'host_machine' ||
+        !isHostPath(request.path)
+      )
+        return perform(request)
+      request = {
+        ...request,
+        named: request.named && { ...request.named },
+        binding: { ...request.binding },
+        ...('bytes' in request && request.bytes instanceof Uint8Array
+          ? { bytes: Uint8Array.from(request.bytes) }
+          : {}),
+      }
+      const original = pathWithoutTrailingSlash(request.path)
+      let parent: FileHandle
+      try {
+        parent = await open(dirname(original), constants.O_DIRECTORY | constants.O_RDONLY)
+      } catch {
+        return perform(request)
+      }
+      try {
+        const directory = (await openFileDirectory(parent, true)).verifiedDirectories?.[0]
+        if (!directory) return await perform(request)
+        const name = basename(original) || '.'
+        // Keeping the final "." makes lstat of the parent name the held directory, including on create.
+        const path = `/proc/self/fd/${parent.fd}/./${name}${request.path.endsWith('/') ? '/' : ''}`
+        const answer = await perform({ ...request, path })
+        if (answer.kind !== 'done') return answer
+        const entered =
+          'type' in answer.value && answer.value.type === 'directory'
+            ? join(directory, name)
+            : directory
+        return { ...answer, verifiedDirectories: [entered] }
+      } finally {
+        await close(parent)
+      }
+    }
+  }
+  if (scope.read === undefined) {
+    files.read = pinned(files.read)
+    files.stat = pinned(files.stat)
+  }
+  if (scope.write === undefined) files.write = pinned(files.write)
 }

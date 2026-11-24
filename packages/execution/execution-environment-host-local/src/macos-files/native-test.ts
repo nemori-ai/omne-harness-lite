@@ -74,6 +74,12 @@ static int tested_linkat(int from, const char *source, int to, const char *targe
   if (test_two("link", from, source, to, target) != 0) return -1;
   return linkat(from, source, to, target, flags);
 }
+static ssize_t tested_pread(int fd, void *bytes, size_t size, off_t offset) {
+  char path[PATH_MAX];
+  if (fcntl(fd, F_GETPATH, path) != 0) snprintf(path, sizeof path, "/proc/self/fd/%d", fd);
+  if (test_gate("pread", path, NULL) != 0) return -1;
+  return pread(fd, bytes, size, offset);
+}
 static ssize_t tested_write(int fd, const void *bytes, size_t size) {
   char path[PATH_MAX];
   if (fcntl(fd, F_GETPATH, path) != 0) snprintf(path, sizeof path, "/proc/self/fd/%d", fd);
@@ -86,6 +92,7 @@ static ssize_t tested_write(int fd, const void *bytes, size_t size) {
 #define unlinkat(parent, name, flags) tested_unlinkat(parent, name, flags)
 #define renameat(from, source, to, target) tested_renameat(from, source, to, target)
 #define linkat(from, source, to, target, flags) tested_linkat(from, source, to, target, flags)
+#define pread(fd, bytes, size, offset) tested_pread(fd, bytes, size, offset)
 #define write(fd, bytes, size) tested_write(fd, bytes, size)
 #endif
 `

@@ -200,29 +200,16 @@ function scopedIdentities(
   return { read, write: scope.write === scope.read ? read : of(scope.write) }
 }
 
-export function createWindowsFiles(
-  options: Readonly<{
-    scope?: FilesScope
-    rootIdentity?: Readonly<Record<FileEffect, WindowsIdentity | undefined>>
-    limits: HostFilesLimits
-    issue(object: ObjectToken): HandleGeneration
-  }>,
-): Pick<
-  FileSystemFacility<unknown>,
-  'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
-> {
+type WindowsFilesOptions = Readonly<{
+  scope?: FilesScope
+  rootIdentity?: Readonly<Record<FileEffect, WindowsIdentity | undefined>>
+  limits: HostFilesLimits
+  issue(object: ObjectToken): HandleGeneration
+}>
+
+function windowsRequests(options: WindowsFilesOptions) {
   const scope = options.scope ?? {}
   const rootIdentity = options.rootIdentity ?? scopedIdentities(scope)
-  const identity = (info: Metadata): FileIdentity => {
-    const object = { token: info.token }
-    return { object, version: info.version, handle: options.issue(object) }
-  }
-  const information = (info: Metadata): FileInformation => ({
-    ...identity(info),
-    type: info.type,
-    sizeBytes: info.size,
-    modifiedMs: info.modified,
-  })
   /** Where a request starts: below the root of its effect, checked against the recorded root. */
   const startOf = async (path: string, effect: FileEffect): Promise<Outcome<Start>> => {
     const root = scope[effect]
@@ -301,6 +288,26 @@ export function createWindowsFiles(
     })
     return typeof result === 'string' ? failed(request.requestId, result, missing) : result
   }
+  return { startOf, change, run }
+}
+
+export function createWindowsFiles(
+  options: WindowsFilesOptions,
+): Pick<
+  FileSystemFacility<unknown>,
+  'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
+> {
+  const identity = (info: Metadata): FileIdentity => {
+    const object = { token: info.token }
+    return { object, version: info.version, handle: options.issue(object) }
+  }
+  const information = (info: Metadata): FileInformation => ({
+    ...identity(info),
+    type: info.type,
+    sizeBytes: info.size,
+    modifiedMs: info.modified,
+  })
+  const { startOf, change, run } = windowsRequests(options)
   const facility: Pick<
     FileSystemFacility<unknown>,
     'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'

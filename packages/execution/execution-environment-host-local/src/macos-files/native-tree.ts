@@ -41,6 +41,7 @@ static int named_directory(document *d, root r, struct stat *s) {
 static void list_operation(document *d, root r, FILE *out) {
   int64_t offset, limit; page(d, &offset, &limit);
   struct stat s; int fd = named_directory(d, r, &s);
+  char *visited = visited_directory(fd, NULL);
   names entries = directory_names(fd);
   fprintf(out, "{\"info\":"); metadata(out, &s, "."); fprintf(out, ",\"entries\":[");
   size_t start = (uint64_t)offset < entries.count ? (size_t)offset : entries.count;
@@ -52,7 +53,7 @@ static void list_operation(document *d, root r, FILE *out) {
     metadata(out, &entry, entries.values[i]);
   }
   fprintf(out, "],\"next\":%" PRId64, end < entries.count ? (int64_t)end : -1);
-  directory_field(out, "directory", fd);
+  directory_field(out, "directory", visited);
   result_defaults(out, HAS_ENTRIES | HAS_NEXT); fputc('}', out);
   free_names(entries);
 }
@@ -76,15 +77,17 @@ static void mkdir_operation(document *d, root r, FILE *out) {
     }
     if (next == r.segments->count) refuse("conflict");
   }
+  char *visited = NULL;
   struct stat ancestor = descriptor_stat(fd); match_identity(&ancestor, named, "conflict");
   for (; next < r.segments->count; next++) {
     const char *name = r.segments->items[next];
+    if (next + 1 == r.segments->count) visited = visited_directory(fd, name);
     if (mkdirat(fd, name, 0777) != 0) refuse(change_failure(errno));
     changed = 1;
     fd = open_directory_at(fd, name, r.dev, 0);
   }
   struct stat s = descriptor_stat(fd);
-  fprintf(out, "{\"info\":"); metadata(out, &s, r.segments->items[r.segments->count - 1]); directory_field(out, "directory", fd); result_defaults(out, 0); fputc('}', out);
+  fprintf(out, "{\"info\":"); metadata(out, &s, r.segments->items[r.segments->count - 1]); directory_field(out, "directory", visited); result_defaults(out, 0); fputc('}', out);
 }
 
 typedef struct removal { location loc; int directory; struct removal **children; size_t count; } removal;
@@ -114,6 +117,7 @@ static void delete_plan(removal *node) {
 static void remove_operation(document *d, root r, FILE *out) {
   location loc = locate(r);
   if (loc.is_root) refuse("notAuthorized");
+  char *visited = visited_directory(loc.parent, NULL);
   struct stat s = entry_stat(loc);
   match_identity(&s, string_field(d, "named", 0), "conflict");
   match_version(&s, string_field(d, "version", 1));
@@ -123,18 +127,20 @@ static void remove_operation(document *d, root r, FILE *out) {
     if (unlinkat(loc.parent, loc.name, S_ISDIR(s.st_mode) ? AT_REMOVEDIR : 0) != 0) refuse(change_failure(errno));
     changed = 1;
   }
-  fprintf(out, "{\"info\":"); metadata(out, &s, loc.name); directory_field(out, "directory", loc.parent); result_defaults(out, 0); fputc('}', out);
+  fprintf(out, "{\"info\":"); metadata(out, &s, loc.name); directory_field(out, "directory", visited); result_defaults(out, 0); fputc('}', out);
 }
 
-typedef struct { location from, to; struct stat source, target; int exists; int replace; } endpoints;
+typedef struct { location from, to; struct stat source, target; char *from_directory, *to_directory; int exists; int replace; } endpoints;
 static endpoints open_endpoints(document *d, root source) {
   endpoints e = {0}; e.from = locate(source);
   if (e.from.is_root) refuse("notAuthorized");
+  e.from_directory = visited_directory(e.from.parent, NULL);
   e.source = entry_stat(e.from);
   match_identity(&e.source, string_field(d, "named", 0), "conflict");
   match_version(&e.source, string_field(d, "version", 1));
   root target = open_root(d, 1); e.to = locate(target);
   if (e.to.is_root) refuse("notAuthorized");
+  e.to_directory = visited_directory(e.to.parent, NULL);
   e.replace = bool_field(d, "replace");
   e.exists = fstatat(e.to.parent, e.to.name, &e.target, AT_SYMLINK_NOFOLLOW) == 0;
   if (!e.exists && errno != ENOENT) refuse(open_failure(errno));
@@ -152,7 +158,7 @@ static void endpoint_result(FILE *out, endpoints e) {
   char source[96]; identity(&e.source, source, sizeof source);
   fprintf(out, "{\"info\":"); metadata(out, &s, e.to.name);
   fprintf(out, ",\"source\":"); quote(out, source);
-  directory_field(out, "directory", e.from.parent); directory_field(out, "targetDirectory", e.to.parent);
+  directory_field(out, "directory", e.from_directory); directory_field(out, "targetDirectory", e.to_directory);
   result_defaults(out, 0); fputc('}', out);
 }
 static void move_operation(document *d, root r, FILE *out) {

@@ -4,12 +4,12 @@ import { win32 } from 'node:path'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
   FacilityResult,
-  FileBatchRecognition,
   FileIdentity,
   FileRequest,
   FileSystemFacility,
 } from '@omne-harness/execution-environment-contract'
 import {
+  batchRecognitionState,
   entriesRefusal,
   isBatchOf,
   loadManifest,
@@ -29,14 +29,22 @@ const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes
 
 type Staged = Readonly<{ path: string; identity: FileIdentity; target: string; temp: string }>
 
-export function createWindowsBatch(options: {
+const entryRequest = (request: Commit, entry: Commit['entries'][number]): FileRequest<unknown> => ({
+  ...request,
+  path: entry.path,
+  named: entry.named,
+})
+
+type WindowsBatchOptions = {
   files: Files
   stateDirectory?: string
   generation: string
   running: Set<string>
   sealed(): boolean
   diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
-}): FileBatch {
+}
+
+export function createWindowsBatch(options: WindowsBatchOptions): FileBatch {
   const { files } = options
   const report = (diagnostic: HostFileDiagnostic) => {
     try {
@@ -45,10 +53,6 @@ export function createWindowsBatch(options: {
   }
   const location = (tenant: string, id: string) =>
     win32.join(options.stateDirectory ?? '', 'batches', digest(tenant), `${id}.json`)
-  const entryRequest = (
-    request: Commit,
-    entry: Commit['entries'][number],
-  ): FileRequest<unknown> => ({ ...request, path: entry.path, named: entry.named })
   async function check(
     request: FileRequest<unknown>,
     version: string | null,
@@ -109,12 +113,6 @@ export function createWindowsBatch(options: {
     return entry.expectedVersion === null || entry.expectedVersion !== read.value.version
       ? 'conflicting'
       : 'neither'
-  }
-  const stateOf = (manifest: Manifest): FileBatchRecognition['state'] => {
-    if (manifest.receipts.length === manifest.entries.length) return 'complete'
-    if (manifest.state === 'conflict') return 'conflict'
-    if (manifest.generation !== options.generation) return 'interrupted'
-    return options.running.has(manifest.id) ? 'pending' : 'partial'
   }
   return {
     async commitBatch(request) {
@@ -283,7 +281,12 @@ export function createWindowsBatch(options: {
         if (target === 'matching') matchingPrepared.push(entry.path)
         if (target === 'conflicting') conflicting.push(entry.path)
       }
-      const state = stateOf(manifest)
+      const state = batchRecognitionState(
+        manifest,
+        manifest.receipts.length,
+        options.generation,
+        options.running,
+      )
       return {
         kind: 'done',
         requestId: request.requestId,

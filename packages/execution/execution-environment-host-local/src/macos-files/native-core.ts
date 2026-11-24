@@ -2,10 +2,15 @@ export const nativeCoreSource = String.raw`
 typedef struct { int fd; dev_t dev; field *segments; } root;
 typedef struct { int parent; dev_t dev; const char *name; int is_root; } location;
 static int rooted, observe_directory;
-static void directory_field(FILE *out, const char *field, int fd) {
-  char physical[PATH_MAX];
-  if (!observe_directory || fcntl(fd, F_GETPATH, physical) != 0 || !valid_utf8((unsigned char *)physical)) return;
-  fputc(',', out); quote(out, field); fputc(':', out); quote(out, physical);
+static char *visited_directory(int fd, const char *child) {
+  char physical[PATH_MAX], visited[PATH_MAX];
+  if (!observe_directory || fcntl(fd, F_GETPATH, physical) != 0 || !valid_utf8((unsigned char *)physical)) return NULL;
+  if (!child) return strdup(physical);
+  int size = snprintf(visited, sizeof visited, "%s%s%s", physical, strcmp(physical, "/") == 0 ? "" : "/", child);
+  return size >= 0 && (size_t)size < sizeof visited ? strdup(visited) : NULL;
+}
+static void directory_field(FILE *out, const char *field, char *name) {
+  if (name) { fputc(',', out); quote(out, field); fputc(':', out); quote(out, name); free(name); }
 }
 static int64_t modified(const struct stat *s) {
   return (int64_t)s->st_mtimespec.tv_sec * 1000 + s->st_mtimespec.tv_nsec / 1000000;
@@ -127,6 +132,7 @@ static void result_defaults(FILE *out, unsigned fields) {
 }
 static void basic_operation(document *d, root r, FILE *out, const char *operation) {
   location loc = locate(r);
+  char *parent_name = visited_directory(loc.parent, NULL);
   const char *named = string_field(d, "named", 0);
   const char *expected = string_field(d, "version", 1);
   int writing = strcmp(operation, "write") == 0;
@@ -149,6 +155,7 @@ static void basic_operation(document *d, root r, FILE *out, const char *operatio
   } else {
     fd = open_object(loc, writing, writing || reading, &s);
     match_identity(&s, named, "conflict");
+    if (bool_field(d, "trailingSlash") && !S_ISDIR(s.st_mode)) refuse("unresolved");
     if ((writing || reading) && !S_ISREG(s.st_mode)) refuse("unsupported");
     if (writing) {
       match_version(&s, expected);
@@ -160,6 +167,13 @@ static void basic_operation(document *d, root r, FILE *out, const char *operatio
   if (create) s = descriptor_stat(fd);
   if (reading) bytes = read_bytes(fd, start, limit, &size);
   fprintf(out, "{\"info\":"); metadata(out, &s, loc.name);
+  if (parent_name && S_ISDIR(s.st_mode) && !loc.is_root) {
+    char path[PATH_MAX];
+    int size = snprintf(path, sizeof path, "%s%s%s", parent_name, strcmp(parent_name, "/") == 0 ? "" : "/", loc.name);
+    free(parent_name);
+    parent_name = size >= 0 && (size_t)size < sizeof path ? strdup(path) : NULL;
+  }
+  directory_field(out, "directory", parent_name);
   if (reading) {
     fprintf(out, ",\"bytes\":"); encode(out, bytes, size);
     fprintf(out, ",\"next\":%" PRId64 ",\"eof\":%s", start + (int64_t)size, start + (int64_t)size >= s.st_size ? "true" : "false");

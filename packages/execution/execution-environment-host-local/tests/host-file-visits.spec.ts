@@ -1,6 +1,7 @@
 // @module-tag slow
 import { beforeAll, expect, it, vi } from 'vitest'
 import {
+  link,
   lstat,
   mkdir,
   mkdtemp,
@@ -19,8 +20,33 @@ import { createHostFileLookup } from '../src/host-file-lookup.ts'
 import { createHostFiles, createHostFilesEngine, hostObjectToken } from '../src/host-files.ts'
 import { prepareNativeHooks, spawnWithNativeHooks } from './macos-files/native-hooks.ts'
 
-const fault = vi.hoisted(() => ({ armed: false }))
+const fault = vi.hoisted(() => ({
+  armed: false,
+  move: undefined as { from: string; to: string } | undefined,
+  moveParent: undefined as { from: string; to: string } | undefined,
+  moves: 0,
+}))
 async function before(fn: string, paths: readonly unknown[]) {
+  if (
+    fault.moveParent &&
+    fn === 'rename' &&
+    paths.some(path => typeof path === 'string' && path.endsWith('/replace.txt'))
+  ) {
+    const { from, to } = fault.moveParent
+    fault.moveParent = undefined
+    await rename(from, to)
+    fault.moves++
+  }
+  if (
+    fault.move &&
+    (fn === 'pread' || fn === 'file-opened') &&
+    paths.some(path => typeof path === 'string' && path.endsWith('/sample.txt'))
+  ) {
+    const { from, to } = fault.move
+    fault.move = undefined
+    await rename(from, to)
+    fault.moves++
+  }
   if (
     fault.armed &&
     fn === 'rename' &&
@@ -37,6 +63,11 @@ vi.mock('node:fs/promises', async original => {
   const actual = await original<typeof import('node:fs/promises')>()
   return {
     ...actual,
+    open: async (...args: Parameters<typeof actual.open>) => {
+      const handle = await actual.open(...args)
+      await before('file-opened', args)
+      return handle
+    },
     rename: async (...args: Parameters<typeof actual.rename>) => {
       await before('rename', args)
       return actual.rename(...args)
@@ -167,3 +198,87 @@ it('looks up and reads a named file only under the verified root object', async 
     await rm(root, { recursive: true, force: true })
   }
 }, 60000)
+
+it.skipIf(process.platform !== 'linux' && process.platform !== 'darwin').each([false, true])(
+  'C2/C6 a file moved after open retains its original parent, with another hard link %s',
+  async hardLinked => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'visit-open-')))
+    try {
+      const original = join(base, 'opened'),
+        sibling = join(base, 'other')
+      await mkdir(original)
+      await mkdir(sibling)
+      const from = join(original, 'sample.txt'),
+        to = join(sibling, 'moved.txt')
+      await writeFile(from, 'original bytes')
+      if (hardLinked) await link(from, join(sibling, 'other-name'))
+      fault.moves = 0
+      fault.move = { from, to }
+      const request = {
+        requestId: 'moved-read',
+        path: from,
+        named: await hostObjectToken(from),
+        binding: { kind: 'host_machine' as const },
+        origin: originRef('test'),
+        access: { principal: 'test', tenant },
+        observeDirectory: true as const,
+      }
+      const answer = await createHostFiles().read(request)
+      expect(new TextDecoder().decode(done(answer).bytes)).toBe('original bytes')
+      expect(fault.moves).toBe(1)
+      expect(answer).toHaveProperty('verifiedDirectories', [original])
+      expect(await readFile(to, 'utf8')).toBe('original bytes')
+    } finally {
+      fault.move = undefined
+      await rm(base, { recursive: true, force: true })
+    }
+  },
+  60000,
+)
+
+it.skipIf(process.platform !== 'linux' && process.platform !== 'darwin')(
+  'C2/C6 an unbounded batch retains the originally opened directory if its parent name changes during publication',
+  async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'visit-publish-')))
+    const state = join(root, 'state')
+    const original = join(root, 'entered'),
+      moved = join(root, 'renamed')
+    const engine = createHostFilesEngine({ stateDirectory: state })
+    try {
+      await mkdir(state)
+      await mkdir(original)
+      const path = join(original, 'replace.txt')
+      await writeFile(path, 'old bytes')
+      const files = engine.facilityFor('test')
+      const request = {
+        requestId: 'rename-on-publish',
+        access: { principal: 'test', tenant },
+        origin: originRef('test'),
+        binding: { kind: 'host_machine' as const },
+      }
+      const named = await hostObjectToken(path)
+      const version = done(await files.stat({ ...request, path, named })).version
+      fault.moves = 0
+      fault.moveParent = { from: original, to: moved }
+      const publication = await files.commitBatch({
+        ...request,
+        observeDirectory: true,
+        entries: [
+          { path, named, expectedVersion: version, bytes: new TextEncoder().encode('new bytes') },
+        ],
+      })
+      expect(fault.moves).toBe(1)
+      expect(publication).toMatchObject({
+        kind: 'done',
+        value: { kind: 'committed', published: [path] },
+        verifiedDirectories: [original],
+      })
+      expect(await readFile(join(moved, 'replace.txt'), 'utf8')).toBe('new bytes')
+    } finally {
+      fault.moveParent = undefined
+      await engine.closeOwned('test')
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  60000,
+)

@@ -147,6 +147,58 @@ function directoryPrefix(path: string): string {
   return current === '/' ? '' : current
 }
 
+async function entryAt(
+  directory: FileHandle,
+  name: string,
+): Promise<Outcome<FileStats | undefined>> {
+  try {
+    return ok(await lstat(fdPath(directory, name), { bigint: true }))
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return ok(undefined)
+    return fail(mapped(openCodes, error) ?? 'unknown')
+  }
+}
+
+type EndpointRequest = FileRequest<unknown> & {
+  readonly target: FileTarget
+  readonly replace: boolean
+  readonly expectedVersion?: FileVersion
+}
+
+async function checkSource(
+  request: EndpointRequest,
+  source: Located,
+): Promise<FileStats | FacilityResult<never>> {
+  const { requestId } = request
+  if (source.isRoot) return reject(requestId, 'notAuthorized')
+  const entry = await entryAt(source.parent, source.name)
+  if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
+  const stat = entry.value
+  if (stat === undefined) return reject(requestId, 'notFound')
+  if (tokenOf(stat).token !== request.named?.token) return reject(requestId, 'conflict')
+  if (request.expectedVersion !== undefined && versionOf(stat) !== request.expectedVersion)
+    return reject(requestId, 'conflict')
+  return stat
+}
+
+async function checkTarget(
+  request: EndpointRequest,
+  target: Located,
+): Promise<Readonly<{ stat: FileStats | undefined }> | FacilityResult<never>> {
+  const { requestId } = request
+  if (target.isRoot) return reject(requestId, 'notAuthorized')
+  const entry = await entryAt(target.parent, target.name)
+  if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
+  const stat = entry.value
+  const named = request.target.named?.token
+  if (stat !== undefined) {
+    if (!request.replace || tokenOf(stat).token !== named) return reject(requestId, 'conflict')
+  } else if (tokenOf(await target.parent.stat({ bigint: true })).token !== named) {
+    return reject(requestId, 'conflict')
+  }
+  return { stat }
+}
+
 export function createHostFileTree(env: FileTreeEnvironment): FileTree {
   const { paths, limits } = env
 
@@ -183,18 +235,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return gate(paths, requestId, targets)
   }
 
-  async function entryAt(
-    directory: FileHandle,
-    name: string,
-  ): Promise<Outcome<FileStats | undefined>> {
-    try {
-      return ok(await lstat(fdPath(directory, name), { bigint: true }))
-    } catch (error) {
-      if (errorCode(error) === 'ENOENT') return ok(undefined)
-      return fail(mapped(openCodes, error) ?? 'unknown')
-    }
-  }
-
   async function identityAt(
     directory: FileHandle,
     name: string,
@@ -220,6 +260,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     try {
       const stat = await directory.stat({ bigint: true })
       if (tokenOf(stat).token !== request.named?.token) return reject(requestId, 'conflict')
+      const visit = await openFileDirectory(directory, unboundedVisit('read', request))
       const { names } = await entryNames(directory)
       const slice = names.slice(page.offset, page.offset + page.limit)
       const entries: FileEntry[] = []
@@ -232,7 +273,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       return {
         kind: 'done',
         requestId,
-        ...(await openFileDirectory(directory, unboundedVisit('read', request))),
+        ...visit,
         value: {
           directory: identityOf(stat),
           entries,
@@ -265,6 +306,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       const startStat = await start.stat({ bigint: true })
       if (tokenOf(startStat).token !== request.named?.token) return reject(requestId, 'conflict')
 
+      const startVisit = await openFileDirectory(start, unboundedVisit('read', request))
       const pattern = Buffer.from(request.pattern)
       const want = page.offset + page.limit + 1
       const hits: Hit[] = []
@@ -380,7 +422,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       return {
         kind: 'done',
         requestId,
-        ...(await openFileDirectory(start, unboundedVisit('read', request))),
+        ...startVisit,
         value: {
           root: identityOf(startStat),
           hits: hits.slice(page.offset, end),
@@ -642,46 +684,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
   type Opened =
     | Readonly<{ kind: 'opened'; endpoints: Endpoints }>
     | Readonly<{ kind: 'refused'; result: FacilityResult<never> }>
-
-  type EndpointRequest = FileRequest<unknown> & {
-    readonly target: FileTarget
-    readonly replace: boolean
-    readonly expectedVersion?: FileVersion
-  }
-
-  async function checkSource(
-    request: EndpointRequest,
-    source: Located,
-  ): Promise<FileStats | FacilityResult<never>> {
-    const { requestId } = request
-    if (source.isRoot) return reject(requestId, 'notAuthorized')
-    const entry = await entryAt(source.parent, source.name)
-    if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
-    const stat = entry.value
-    if (stat === undefined) return reject(requestId, 'notFound')
-    if (tokenOf(stat).token !== request.named?.token) return reject(requestId, 'conflict')
-    if (request.expectedVersion !== undefined && versionOf(stat) !== request.expectedVersion)
-      return reject(requestId, 'conflict')
-    return stat
-  }
-
-  async function checkTarget(
-    request: EndpointRequest,
-    target: Located,
-  ): Promise<Readonly<{ stat: FileStats | undefined }> | FacilityResult<never>> {
-    const { requestId } = request
-    if (target.isRoot) return reject(requestId, 'notAuthorized')
-    const entry = await entryAt(target.parent, target.name)
-    if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
-    const stat = entry.value
-    const named = request.target.named?.token
-    if (stat !== undefined) {
-      if (!request.replace || tokenOf(stat).token !== named) return reject(requestId, 'conflict')
-    } else if (tokenOf(await target.parent.stat({ bigint: true })).token !== named) {
-      return reject(requestId, 'conflict')
-    }
-    return { stat }
-  }
 
   async function openEndpoints(
     request: EndpointRequest,

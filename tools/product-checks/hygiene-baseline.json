@@ -279,15 +279,15 @@
       },
       "packages/execution/execution-environment-host-local/src/host-file-batch.ts": {
         "count": 1,
-        "longest": 321
+        "longest": 319
       },
       "packages/execution/execution-environment-host-local/src/host-file-tree.ts": {
         "count": 1,
-        "longest": 743
+        "longest": 720
       },
       "packages/execution/execution-environment-host-local/src/host-files.ts": {
         "count": 2,
-        "longest": 624
+        "longest": 615
       },
       "packages/execution/execution-environment-host-local/src/host-paths.ts": {
         "count": 2,
@@ -317,10 +317,6 @@
         "count": 1,
         "longest": 230
       },
-      "packages/execution/execution-environment-host-local/src/macos-files/facility.ts": {
-        "count": 1,
-        "longest": 179
-      },
       "packages/execution/execution-environment-host-local/src/windows-execution/index.ts": {
         "count": 2,
         "longest": 424
@@ -331,11 +327,11 @@
       },
       "packages/execution/execution-environment-host-local/src/windows-files/batch.ts": {
         "count": 1,
-        "longest": 263
+        "longest": 257
       },
       "packages/execution/execution-environment-host-local/src/windows-files/facility.ts": {
         "count": 1,
-        "longest": 339
+        "longest": 272
       },
       "packages/execution/execution-environment-host-local/src/windows-files/helper.ts": {
         "count": 1,
