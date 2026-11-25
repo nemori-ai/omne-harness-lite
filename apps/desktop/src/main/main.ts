@@ -15,7 +15,7 @@ import {
   COOKIE_KEY_UNKNOWN_MESSAGE,
   COOKIE_KEY_WRITER_SWITCH,
 } from '../startup-signals.ts'
-import { serveAppProtocol } from './app-protocol.ts'
+import { firstRoute, serveAppProtocol } from './app-protocol.ts'
 import { APP_HOST, INTERNAL_ORIGIN } from './app-url.ts'
 import { COOKIE_JAR_ORIGIN, createCookieJar, flushForQuit } from './cookie-jar.ts'
 import {
@@ -26,7 +26,9 @@ import {
   cookieKeyWriterCrashHandler,
   storeCookieKeyFirst,
 } from './cookie-key.ts'
+import { deviceFigureDeps, watchMainWindow } from './desk-window.ts'
 import { developmentHost } from './dev-host.ts'
+import { deviceFigure } from './device-figure.ts'
 import { deviceScreenRoute } from './device-screen.ts'
 import { createLogger, type Logger } from './log.ts'
 import type { UtilityState } from './recovery.ts'
@@ -101,6 +103,7 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
     env: { OMNE_SERVER: process.env['OMNE_SERVER'] ?? DEFAULT_SERVER, OMNE_PAGE_ROOT: pageRoot },
     log,
   })
+  const figure = deviceFigure(deviceFigureDeps(() => window))
   serveAppProtocol(appSession, {
     upstream: forwarding.fetch,
     cookies: createCookieJar({
@@ -109,21 +112,25 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
       log,
     }),
     log,
-    local: deviceScreenRoute({
-      backend: () =>
-        screenBackendFor(process.platform, { load: () => loadScreenLibrary(app.isPackaged) }),
-      window: windowShade(() => window),
-      overlays: screenOverlays(),
-      requestAccess: process.platform === 'darwin' ? () => macosRequestScreenAccess() : null,
-      openSettings:
-        process.platform === 'darwin' ? () => shell.openExternal(SCREEN_SETTINGS_URL) : null,
-      now: Date.now,
-    }),
+    local: firstRoute([
+      figure.route,
+      deviceScreenRoute({
+        backend: () =>
+          screenBackendFor(process.platform, { load: () => loadScreenLibrary(app.isPackaged) }),
+        window: windowShade(() => window),
+        overlays: screenOverlays(),
+        requestAccess: process.platform === 'darwin' ? () => macosRequestScreenAccess() : null,
+        openSettings:
+          process.platform === 'darwin' ? () => shell.openExternal(SCREEN_SETTINGS_URL) : null,
+        now: Date.now,
+      }),
+    ]),
   })
   void forwarding.ready().catch(() => {})
 
   const saved = windowStateFile(join(app.getPath('userData'), 'window-state.json'))
   let window: BrowserWindow | undefined = openAppWindow(saved, utility, log)
+  watchMainWindow(window, figure)
   checkCookieKey(log, cookieKey)
   window.on('closed', () => {
     window = undefined

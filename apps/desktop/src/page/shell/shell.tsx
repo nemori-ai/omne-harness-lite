@@ -30,8 +30,11 @@ import {
   useSizeFactor,
   type Box,
   type FaceFlip,
+  type FigureControl,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
+import { NO_FIGURE_DEVICE, type FigureDevice } from './desk/device.ts'
+import { useStay } from './desk/stay.ts'
 import { Float } from './float.tsx'
 import { goHome, homeOf, mergedOf } from './home.ts'
 import type { FloatPlaces } from './float-place.ts'
@@ -69,10 +72,12 @@ export type ShellProps = Readonly<{
   theme: ThemeSwitch
   size: SizeSwitch
   floats: FloatPlaces
+  figureDevice?: FigureDevice
   missingAtForwarding?: readonly string[]
 }>
 
 export const NO_LOGIN_TEXT = '这个部署没有开放登录'
+export const RECALL_TEXT = '叫它回来'
 
 /** What the hidden status line says the figure is written as doing. */
 export const DOING_TEXT: Readonly<Record<FigureDoing, string>> = {
@@ -496,15 +501,35 @@ export function Shell(props: ShellProps) {
   const keys = useMemo(() => shellKeys(state, props.size, palette), [state, props.size, palette])
   useEffect(() => bindShellKeys(window, keys), [keys])
   const homePage = homeOf(merged, pages)
+  const doing = merged.doing === 'idle' ? undefined : merged.doing
+  const figureControl = useRef<FigureControl>(null)
+  const stay = useStay(
+    props.figureDevice ?? NO_FIGURE_DEVICE,
+    figureControl,
+    login === 'signed-in',
+    {
+      doing,
+      moment: merged.moment,
+      waiting: merged.waiting,
+    },
+    state.slots,
+    state.scope,
+  )
   return (
     <RedrawProvider value={state.redraw.draw}>
       <AppTooltipProvider>
         <FigureStage
-          doing={merged.doing === 'idle' ? undefined : merged.doing}
+          doing={doing}
           moment={merged.moment}
           waiting={merged.waiting}
           label={figureText(merged)}
           onPress={pressSeat}
+          liftable
+          onHand={stay.hand}
+          away={stay.away}
+          awayLabel={RECALL_TEXT}
+          onRecall={stay.recall}
+          control={figureControl}
         >
           <a
             className="shell-skip"

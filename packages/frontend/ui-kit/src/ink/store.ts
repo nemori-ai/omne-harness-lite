@@ -1,6 +1,7 @@
 import { FigureBody, type Doing, type FigureMoment } from './body.ts'
 import { casual } from './casual.ts'
 import { DoingPolicy } from './doing.ts'
+import { Hand, type FigureHand, type PointerAt } from './hand.ts'
 import { CANVAS } from './ink.ts'
 import { Journeys, type Placement, type Timed } from './travel.ts'
 
@@ -11,7 +12,7 @@ const BODY_REACH = FIGURE_SIZE * 0.4
 export const SEATLESS_HOLD = 500
 const NEAR = 1.5
 
-export type Phase = 'seated' | 'flying'
+export type Phase = 'seated' | 'flying' | 'held' | 'dropped'
 
 export interface SeatBeside {
   readonly left?: number
@@ -37,6 +38,7 @@ export interface FigureSnapshot {
   readonly seat: string | null
   readonly point: Placement | null
   readonly hover: boolean
+  readonly away: boolean
 }
 
 export type TurnLeg = Readonly<{ to: Placement; ms: number; hold?: boolean; carry?: boolean }>
@@ -54,6 +56,11 @@ interface Turning {
 }
 
 type Listener = () => void
+
+const inHand = (phase: Phase): boolean => phase === 'held' || phase === 'dropped'
+
+const samePoint = (a: Placement | null, b: Placement | null): boolean =>
+  a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y)
 
 const round = (value: number): number => Math.round(value * 100) / 100
 
@@ -75,6 +82,8 @@ export class FigureStore {
   public readonly body = new FigureBody()
   public readonly journeys = new Journeys(FIGURE_SIZE)
   public onPress: (() => void) | null = null
+  public onHand: ((hand: FigureHand) => boolean | void) | null = null
+  public liftable = false
   private readonly policy: DoingPolicy
   private readonly seats = new Map<string, SeatOptions>()
   private readonly listeners = new Set<Listener>()
@@ -86,6 +95,7 @@ export class FigureStore {
     seat: null,
     point: null,
     hover: false,
+    away: false,
   }
   private placement: Placement = { x: -200, y: -200 }
   private seat: string | null = null
@@ -99,6 +109,17 @@ export class FigureStore {
     null
   private turning: Turning | null = null
   private turns = 0
+  private away = false
+  private readonly hand = new Hand({
+    centre: () => this.placement,
+    drawn: () => !this.away,
+    reduced: () => this.reduced,
+    tell: hand => this.onHand?.(hand) === true,
+    lifted: () => this.lifted(),
+    carried: at => this.place(at),
+    ended: (at, taken) => this.ended(at, taken),
+    abandoned: () => this.unpress(),
+  })
 
   public constructor(told: number | null = null) {
     this.policy = new DoingPolicy(this.body, undefined, told)
@@ -148,7 +169,7 @@ export class FigureStore {
   }
 
   public turn(plan: TurnPlan): void {
-    if (!this.snapshot.present) return
+    if (!this.snapshot.present || inHand(this.snapshot.phase)) return
     if (this.turning !== null || this.reduced) this.placeOnSeat()
     if (this.reduced) return
     this.turns += 1
@@ -228,12 +249,7 @@ export class FigureStore {
   }
 
   private placeOnSeat(): void {
-    this.turning = null
-    this.turns += 1
-    if (this.going !== null || this.journeys.travelling) {
-      this.journeys.end(false)
-      this.going = null
-    }
+    this.halt()
     this.journeys.dryQuickly(this.reduced)
     const seat = this.activeSeat()
     this.seat = seat?.id ?? null
@@ -262,13 +278,19 @@ export class FigureStore {
     )
   }
 
-  public pointerDown(): void {
+  public pointerDown(at?: PointerAt): void {
     if (!this.snapshot.present) return
     this.pressed = true
     this.body.setPressed(true)
+    if (this.liftable && at !== undefined) this.hand.down(at)
   }
 
-  public pointerUp(): void {
+  public pointerMove(at: PointerAt): void {
+    this.hand.move(at)
+  }
+
+  public pointerUp(at?: PointerAt): void {
+    if (at !== undefined && this.hand.up(at) !== 'press') return
     const pressed = this.pressed
     this.pressed = false
     if (!pressed) return
@@ -276,13 +298,53 @@ export class FigureStore {
     if (this.seat !== null) this.onPress?.()
   }
 
-  public cancel(): void {
-    if (!this.pressed) return
-    this.pressed = false
-    this.body.setPressed(false)
+  public cancel(pointer?: number): void {
+    if (this.hand.cancel(pointer) !== 'press') return
+    this.unpress()
+  }
+
+  public escape(meta: boolean, shift: boolean): boolean {
+    return this.hand.escape(meta, shift)
+  }
+
+  public goHome(): void {
+    const { phase } = this.snapshot
+    if (phase === 'held') {
+      this.hand.stop()
+      this.unpress()
+    }
+    if (this.away) {
+      if (phase === 'held') this.set({ phase: 'seated' })
+      return
+    }
+    if (inHand(phase)) this.writeHome()
+  }
+
+  public seatPoint(): Placement | null {
+    return this.seatList()?.centre ?? null
+  }
+
+  public setAway(away: boolean): void {
+    if (away === this.away) return
+    if (!away) {
+      this.back()
+      return
+    }
+    this.away = true
+    this.halt()
+    this.journeys.dryQuickly(true)
+    this.body.leave()
+    if (!this.hand.holding) {
+      this.hand.stop()
+      this.pressed = false
+    }
+    this.hover(false)
+    this.set({ phase: this.hand.holding ? 'held' : 'seated', present: false, away: true })
+    this.markSeat()
   }
 
   public dispose(): void {
+    this.hand.stop()
     if (this.heldSeat !== null) clearTimeout(this.heldSeat.timer)
     this.heldSeat = null
     this.policy.dispose()
@@ -290,6 +352,67 @@ export class FigureStore {
     this.journeys.dispose()
     this.listeners.clear()
     this.placed.clear()
+  }
+
+  private halt(): void {
+    this.turning = null
+    this.turns += 1
+    this.stopGoing()
+  }
+
+  private stopGoing(): void {
+    if (this.going === null && !this.journeys.travelling) return
+    this.journeys.end(false)
+    this.going = null
+  }
+
+  private unpress(): void {
+    if (!this.pressed) return
+    this.pressed = false
+    if (!this.away) this.body.setPressed(false)
+  }
+
+  private lifted(): void {
+    this.halt()
+    this.journeys.dryQuickly(true)
+    this.set({ phase: 'held', point: null })
+  }
+
+  private ended(at: Placement, taken: boolean): void {
+    this.unpress()
+    if (this.away) {
+      this.set({ phase: 'seated' })
+      return
+    }
+    this.place(at)
+    if (taken) this.set({ phase: 'dropped' })
+    else this.writeHome()
+  }
+
+  private writeHome(): void {
+    if (!this.fly()) this.leave()
+  }
+
+  private back(): void {
+    this.away = false
+    const at = this.hand.point
+    if (at === null) {
+      this.set({ phase: 'seated', present: false, away: false })
+      this.keepSeat()
+      return
+    }
+    this.place(at)
+    this.set({ phase: 'held', present: true, away: false, size: this.ownSize(), point: null })
+    this.body.writeAnew()
+    this.hand.redrawn()
+  }
+
+  private markSeat(): void {
+    const seat = this.seatList()
+    this.seat = seat?.id ?? null
+    const point = seat?.centre ?? null
+    if (this.snapshot.seat === this.seat && samePoint(this.snapshot.point, point)) return
+    this.set({ seat: this.seat, point })
   }
 
   private hover(on: boolean): void {
@@ -346,14 +469,15 @@ export class FigureStore {
 
   private keepSeat(): void {
     this.keepLastSeat()
+    if (this.away) {
+      this.markSeat()
+      return
+    }
+    if (inHand(this.snapshot.phase)) return
     const seat = this.activeSeat()
     const home = this.home()
     if (!this.snapshot.present) {
-      if (seat === null || home === null) return
-      this.seat = seat.id
-      this.place(home)
-      this.set({ phase: 'seated', present: true, size: this.ownSize(), seat: seat.id, point: home })
-      this.body.writeAnew()
+      this.appear(seat, home)
       return
     }
     if (this.turning !== null) return
@@ -363,6 +487,14 @@ export class FigureStore {
     }
     if (this.snapshot.phase === 'seated') this.staySeated(seat, home)
     else this.keepGoing(home)
+  }
+
+  private appear(seat: Seat | null, home: Placement | null): void {
+    if (seat === null || home === null) return
+    this.seat = seat.id
+    this.place(home)
+    this.set({ phase: 'seated', present: true, size: this.ownSize(), seat: seat.id, point: home })
+    this.body.writeAnew()
   }
 
   private staySeated(seat: Seat, home: Placement): void {
@@ -386,10 +518,7 @@ export class FigureStore {
   }
 
   private leave(): void {
-    if (this.going !== null || this.journeys.travelling) {
-      this.journeys.end(false)
-      this.going = null
-    }
+    this.stopGoing()
     this.seat = null
     this.body.dryAway()
     this.set({ phase: 'seated', present: false, seat: null, point: null })
@@ -470,13 +599,18 @@ export class FigureStore {
   }
 
   private room(): { readonly left: number; readonly right: number } {
-    const centre = this.centre()
-    const { size } = this.snapshot
-    const unit = size / CANVAS
-    const edge = size / 2 + 8
-    return {
-      left: (centre.x - edge) / unit,
-      right: (window.innerWidth - centre.x - edge) / unit,
-    }
+    return roomAround(this.centre(), this.snapshot.size)
+  }
+}
+
+export function roomAround(
+  centre: Placement,
+  size: number,
+): { readonly left: number; readonly right: number } {
+  const unit = size / CANVAS
+  const edge = size / 2 + 8
+  return {
+    left: (centre.x - edge) / unit,
+    right: (window.innerWidth - centre.x - edge) / unit,
   }
 }

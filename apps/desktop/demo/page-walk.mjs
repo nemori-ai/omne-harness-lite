@@ -419,6 +419,47 @@ async function walk(browser, origin, proofs, elsewhere) {
     return { nav: nav(), sidebar: sidebar(), tenant: short }`,
   )
   await step(
+    '浏览器里拿起形拖向视口之外再松手：形出不了页面，写回座位，没有开租约的请求',
+    `
+    const carried = await wait('the figure on its seat', () => document.querySelector('.omne-figure-carried[data-phase=seated]'))
+    await sleep(500)
+    if (carried.dataset.phase !== 'seated') throw new Error('the figure did not settle: ' + carried.dataset.phase)
+    const box = carried.querySelector('.omne-figure-reach').getBoundingClientRect()
+    window.walkFigure = { x: box.x + box.width / 2, y: box.y + box.height / 2, width: innerWidth, height: innerHeight }
+    return window.walkFigure`,
+    async () => {
+      const read = async expression =>
+        (await send('Runtime.evaluate', { expression, returnByValue: true })).result.value
+      const { x, y, width, height } = await read('window.walkFigure')
+      const out = { x: width + 120, y: height / 2 }
+      const mouse = (type, at, buttons) =>
+        send('Input.dispatchMouseEvent', { type, ...at, button: 'left', buttons, clickCount: 1 })
+      await mouse('mouseMoved', { x, y }, 0)
+      await mouse('mousePressed', { x, y }, 1)
+      for (let move = 1; move <= 12; move += 1)
+        await mouse(
+          'mouseMoved',
+          { x: x + ((out.x - x) * move) / 12, y: y + ((out.y - y) * move) / 12 },
+          1,
+        )
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await read(`window.walkHeld = document.querySelector('.omne-figure-carried').dataset.phase`)
+      await mouse('mouseReleased', out, 0)
+    },
+    `
+    if (window.walkHeld !== 'held') throw new Error('the figure was not in the hand past the edge: ' + window.walkHeld)
+    const carried = document.querySelector('.omne-figure-carried')
+    await wait('the figure back on its seat', () => carried.dataset.phase === 'seated')
+    const box = carried.getBoundingClientRect()
+    const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    if (Math.hypot(at.x - window.walkFigure.x, at.y - window.walkFigure.y) > 2)
+      throw new Error('the figure is not back on its seat: ' + JSON.stringify(at))
+    if (document.querySelector('.omne-figure-vacant') !== null) throw new Error('the page shows an empty seat')
+    const asked = performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname)
+    if (asked.includes('/device/figure/lease')) throw new Error('the page asked for a lease')
+    return { held: window.walkHeld, seated: at, askedLeave: asked.includes('/device/figure') }`,
+  )
+  await step(
     '没有会话时主区的一句',
     `
     return await wait('the empty line', () => document.querySelector('.omne-empty[data-empty="none"]')?.textContent.trim())`,

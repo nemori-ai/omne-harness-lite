@@ -325,14 +325,13 @@ describe('what the domain answers becomes an outcome of the protocol', () => {
     expect(await call(world, 'describe-media')).toEqual({ outcome: 'not-found', body: {} })
   })
 
-  it('leaves out why a medium cannot be converted, as the published protocol has no field for it', async () => {
+  it('hands on why a medium cannot be converted; a peer at revision 1 gets the same bytes as before', async () => {
     const source = {
       definition: { name: 'pdf-text', revision: '1' },
       engine: { name: 'e', revision: '2' },
     }
-    const representation = { outcome: 'inconvertible', ...source }
-    const kept = { kind: 'done', representation: { ...representation, reason: 'encrypted' } }
-    const preprocess = { kind: 'done', representation }
+    const bare = { kind: 'done', representation: { outcome: 'inconvertible', ...source } }
+    const kept = { kind: 'done', representation: { ...bare.representation, reason: 'encrypted' } }
     const described = answering('describe-media', { ok: { state: 'held', facts } })
     described.answer('read', { ok: kept })
     const prepared = answering('prepare-media', { ok: kept })
@@ -344,16 +343,29 @@ describe('what the domain answers becomes an outcome of the protocol', () => {
       maxStringLength: 1_024,
       maxNumberLength: 32,
     }
-    for (const [world, name, body] of [
-      [described, 'describe-media', { state: 'held', facts, preprocess }],
-      [prepared, 'prepare-media', { preprocess }],
+    for (const [world, name, body, before] of [
+      [
+        described,
+        'describe-media',
+        { state: 'held', facts, preprocess: kept },
+        { state: 'held', facts, preprocess: bare },
+      ],
+      [prepared, 'prepare-media', { preprocess: kept }, { preprocess: bare }],
     ] as const) {
       expect(await call(world, name)).toEqual({ outcome: 'succeeded', body })
       const codec = mediaProtocol.operations[name].outcomes.succeeded
-      expect(codec.write(body as never, limits).ok).toBe(true)
+      const now = codec.write(body as never, limits, 2)
+      const asBefore = codec.write(before as never, limits, 1)
+      expect(now.ok).toBe(true)
+      expect(JSON.stringify(now)).toContain('encrypted')
+      expect(asBefore.ok).toBe(true)
+      expect(codec.write(body as never, limits, 1)).toEqual(asBefore)
     }
     const prepare = mediaProtocol.operations['prepare-media'].outcomes.succeeded
-    expect(prepare.write({ preprocess: kept } as never, limits).ok).toBe(false)
+    const unknown = {
+      preprocess: { ...kept, representation: { ...kept.representation, reason: 'other' } },
+    }
+    expect(prepare.write(unknown as never, limits).ok).toBe(false)
   })
 
   it('read-media-page hands the target for display on when the body has one', async () => {
