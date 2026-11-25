@@ -9,6 +9,7 @@ import {
 } from '@omne-harness/shell-contract'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { adoptChanges, tokenOf, tokensOf } from '../src/page/shell/changes-sheet.ts'
+import { giveBack, heldFocus } from '../src/page/shell/kept-focus.ts'
 import { CHAT, SETTINGS, current, settle, setup } from './support/shell-setup.tsx'
 
 const ALICE = '{"organization":"org_1","account":"acc_alice"}'
@@ -333,5 +334,112 @@ describe('the drawing of a part in the desktop shell', () => {
     })
     expect(ids()).toEqual(['settings', 'chat'])
     expect(drawn()).toEqual(['settings', 'chat'])
+  })
+})
+
+describe('the focus where a drawing is changed', () => {
+  const editor = definePart({
+    name: 'notes.editor',
+    label: '编辑框',
+    summary: '写字的地方',
+    depths: ['render'],
+  })
+  const field = () => document.querySelector<HTMLTextAreaElement>('[data-omne-part="notes.field"]')
+
+  async function drawn() {
+    const t = await setup({ login: 'signed-in' })
+    const host = await t.module('notes-ui')
+    editor.declare(host.shell)
+    await act(async () => {
+      t.state.scope.set(ALICE)
+      await settle()
+    })
+    render(
+      <>
+        <input aria-label="elsewhere" />
+        {editor.draw(
+          t.service,
+          () => (
+            <div {...editor.props}>
+              <textarea data-omne-part="notes.field" defaultValue="hello world" />
+            </div>
+          ),
+          undefined,
+        )}
+      </>,
+    )
+    const brand = await t.module('brand')
+    const put = async (render: Parameters<typeof brand.shell.putRender>[1]) => {
+      let take: (() => unknown) | undefined
+      await act(async () => {
+        take = brand.shell.putRender('notes.editor', render, tenantScope(ALICE))
+        await settle()
+      })
+      return async () => {
+        await act(async () => {
+          await take?.()
+          await settle()
+        })
+      }
+    }
+    return { put }
+  }
+
+  it('goes back to the field of the same part, with the same selection, each time the drawing is put, changed, or taken back', async () => {
+    const { put } = await drawn()
+    const before = field()!
+    before.focus()
+    before.setSelectionRange(2, 5)
+    const takeFirst = await put(({ part, builtIn }) => <section {...part}>{builtIn()}</section>)
+    expect(field()).not.toBe(before)
+    expect(document.activeElement).toBe(field())
+    expect([field()!.selectionStart, field()!.selectionEnd]).toEqual([2, 5])
+    field()!.setSelectionRange(6, 11)
+    await takeFirst()
+    await put(({ part, builtIn }) => (
+      <article {...part}>
+        <header>mine</header>
+        <div>{builtIn()}</div>
+      </article>
+    ))
+    expect(document.activeElement).toBe(field())
+    expect([field()!.selectionStart, field()!.selectionEnd]).toEqual([6, 11])
+  })
+
+  it('is not taken back once it is on another element, nor given where the part or its field is gone', () => {
+    document.body.innerHTML =
+      '<div data-omne-part="notes.editor"><button>a</button><textarea>hello</textarea></div><input aria-label="other" />'
+    const area = document.querySelector('textarea')!
+    area.focus()
+    const held = heldFocus(document)!
+    expect(held).toMatchObject({ part: 'notes.editor', index: 1, tag: 'TEXTAREA' })
+    const anew = document.createElement('textarea')
+    area.replaceWith(anew)
+    const other = document.querySelector<HTMLInputElement>('[aria-label="other"]')!
+    other.focus()
+    giveBack(document, held)
+    expect(document.activeElement).toBe(other)
+    other.blur()
+    giveBack(document, held)
+    expect(document.activeElement).toBe(anew)
+    anew.blur()
+    anew.remove()
+    giveBack(document, held)
+    expect(document.activeElement).toBe(document.body)
+    document.body.innerHTML = '<p data-omne-part="x&quot;]"><input /></p>'
+    document.querySelector('input')!.focus()
+    const odd = heldFocus(document)!
+    expect(odd.part).toBe('x"]')
+    document.querySelector('input')!.remove()
+    expect(() => giveBack(document, odd)).not.toThrow()
+    document.body.innerHTML = ''
+  })
+
+  it('stays where it is when it was not in the part that is drawn anew', async () => {
+    const { put } = await drawn()
+    const elsewhere = document.querySelector<HTMLInputElement>('[aria-label="elsewhere"]')!
+    elsewhere.focus()
+    await put(({ part, builtIn }) => <section {...part}>{builtIn()}</section>)
+    expect(document.activeElement).toBe(elsewhere)
   })
 })
