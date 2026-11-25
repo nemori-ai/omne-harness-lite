@@ -51,12 +51,10 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
   async function deliver(tenant: string, record: GoalRecord): Promise<void> {
     if (record.wake === null) return
     const wake = { ...record.wake, session: record.session, rendered: renderBody(record.body) }
-    let answer: Awaited<ReturnType<GoalSessions['wake']>> = 'unknown'
-    try {
-      answer = await sessions.wake(tenant, wake)
-    } catch {
-      answer = 'unknown'
-    }
+    const unknown = () => 'unknown' as const
+    const answer = await Promise.resolve()
+      .then(() => sessions.wake(tenant, wake))
+      .catch(unknown)
     if (answer === 'unknown') return deps.hints.wake(tenant)
     const next = { ...record, wake: null }
     await store.commit(tenant, { session: record.session, expected: record.version, next })

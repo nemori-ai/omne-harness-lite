@@ -539,6 +539,7 @@ describe('settling by the exit that paused the goal', () => {
 
   it('settles as that exit, counted as the body says', async () => {
     const { goals } = await pausedBy('X1')
+    expect(refusal(await settle(goals, 'X9'))).toEqual({ kind: 'state', reason: 'not-its-cause' })
     expect(value(await settle(goals, 'X1'))?.state).toMatchObject({
       status: 'settled',
       outcome: { kind: 'exit', exit: 'X1', counts: 'failure' },
