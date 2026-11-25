@@ -62,7 +62,6 @@ function openDeskWindow(gone: () => void): DeskWindow {
 const live = (window: BrowserWindow | undefined): window is BrowserWindow =>
   window !== undefined && !window.isDestroyed()
 
-/** The desk layer's window, the main window and the screens, for the lease. */
 export function deviceFigureDeps(main: () => BrowserWindow | undefined): DeviceFigureDeps {
   return {
     leave: process.platform === 'darwin',

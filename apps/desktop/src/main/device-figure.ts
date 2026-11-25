@@ -1,15 +1,12 @@
 export const DEVICE_FIGURE = '/device/figure'
-/** How often the main process reads the cursor to decide whether the desk layer takes the pointer. */
 export const POINTER_POLL_MS = 16
 
 export type Point = Readonly<{ x: number; y: number }>
 /** In logical points on the screen. */
 export type Rect = Readonly<{ x: number; y: number; width: number; height: number }>
 
-/** What the lease's stream tells the shell: the desk layer's screen, the main window's content on it, whether it can be seen. */
 export type FigureFacts = Readonly<{ screen: Rect; content: Rect; visible: boolean }>
 
-/** The desk layer's window as the lease drives it; an Electron `BrowserWindow` is one. */
 export type DeskWindow = Readonly<{
   showInactive(): void
   hide(): void
@@ -21,31 +18,23 @@ export type DeskWindow = Readonly<{
 }>
 
 export type DeviceFigureDeps = Readonly<{
-  /** Whether the figure can leave the page on this machine: only macOS has the desk layer. */
   leave: boolean
   /** Builds the desk window, hidden, on its page; `gone` once that page went away, did not load or reloaded itself. */
   open(gone: () => void): DeskWindow
   main: Readonly<{
     content(): Rect
     visible(): boolean
-    /** Shows, restores and raises the main window. */
     front(): void
   }>
   cursor(): Point
-  /** The whole rectangle of the screen this point is on. */
   screenAt(point: Point): Rect
-  /** Calls `tick` every `ms` until the returned function is called. */
   every(ms: number, tick: () => void): () => void
 }>
 
 export type DeviceFigure = Readonly<{
-  /** Answers the page's requests under /device/figure; undefined for every other path. */
   route(request: Request): Promise<Response> | undefined
-  /** The main window's page started loading or went away: the lease ends before a new page runs. */
   pageGone(): void
-  /** The main window moved, resized, hid or showed: the lease gets a new line of facts. */
   moved(): void
-  /** The main window closed: the desk window goes with it, so the app still quits. */
   closed(): void
 }>
 
@@ -59,7 +48,7 @@ type Lease = {
   hold: boolean
   keys: boolean
   rects: readonly Rect[]
-  stop: (() => void) | undefined
+  stop?: () => void
 }
 
 const json = (status: number, body: unknown): Response =>
@@ -106,6 +95,21 @@ async function bodyOf(request: Request): Promise<unknown> {
   } catch {
     return undefined
   }
+}
+
+function leaseStream(cancelled: () => void) {
+  const encoder = new TextEncoder()
+  let stream!: ReadableStreamDefaultController<Uint8Array>
+  const body = new ReadableStream<Uint8Array>({
+    start: controller => void (stream = controller),
+    cancel: cancelled,
+  })
+  const write = (line: object) => stream.enqueue(encoder.encode(`${JSON.stringify(line)}\n`))
+  const finish = () => {
+    write({ ended: true })
+    stream.close()
+  }
+  return { body, write, finish }
 }
 
 /** The desk layer's window and its lease: the main process numbers leases and shows the window only for the current one's first `hot`. */
@@ -173,30 +177,13 @@ export function deviceFigure(deps: DeviceFigureDeps): DeviceFigure {
     const on = deskOf()
     place(on, deps.screenAt(deps.cursor()))
     const number = (issued += 1)
-    const encoder = new TextEncoder()
-    let stream!: ReadableStreamDefaultController<Uint8Array>
-    const body = new ReadableStream<Uint8Array>({
-      start: controller => void (stream = controller),
-      cancel: () => {
-        if (lease?.number === number) end(false, 'hide')
-      },
+    const stream = leaseStream(() => {
+      if (lease?.number === number) end(false, 'hide')
     })
-    const open: Lease = {
-      number,
-      write: line => stream.enqueue(encoder.encode(`${JSON.stringify(line)}\n`)),
-      finish: () => {
-        open.write({ ended: true })
-        stream.close()
-      },
-      shown: false,
-      hold: false,
-      keys: false,
-      rects: [],
-      stop: undefined,
-    }
+    const open: Lease = { number, ...stream, shown: false, hold: false, keys: false, rects: [] }
     lease = open
     open.write({ lease: number, facts: facts(on) })
-    return new Response(body, {
+    return new Response(stream.body, {
       status: 200,
       headers: { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store' },
     })
