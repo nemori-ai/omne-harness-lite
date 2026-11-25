@@ -1602,6 +1602,22 @@
       "source": "packages/goal/SPEC.md"
     },
     {
+      "id": "packages/goal/goal-decisions",
+      "paths": ["packages/goal/goal-decisions/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-check",
+      "paths": ["packages/goal/goal-check/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
       "id": "packages/canvas/canvas-contract",
       "paths": [
         "packages/canvas/canvas-contract/src/**"
@@ -2645,7 +2661,9 @@
         "packages/goal/goal-local",
         "packages/goal/goal-session",
         "packages/goal/goal-tools",
-        "packages/goal/goal-command"
+        "packages/goal/goal-command",
+        "packages/goal/goal-decisions",
+        "packages/goal/goal-check"
       ],
       "source": "packages/goal/SPEC.md"
     },
@@ -2706,7 +2724,9 @@
         "packages/goal/goal-local",
         "packages/goal/goal-session",
         "packages/goal/goal-tools",
-        "packages/goal/goal-command"
+        "packages/goal/goal-command",
+        "packages/goal/goal-decisions",
+        "packages/goal/goal-check"
       ],
       "source": "packages/goal/SPEC.md"
     },
@@ -2719,7 +2739,9 @@
         "packages/goal/goal-local",
         "packages/goal/goal-session",
         "packages/goal/goal-tools",
-        "packages/goal/goal-command"
+        "packages/goal/goal-command",
+        "packages/goal/goal-decisions",
+        "packages/goal/goal-check"
       ],
       "to": ["packages/goal/goal-bench"],
       "source": "packages/goal/SPEC.md"

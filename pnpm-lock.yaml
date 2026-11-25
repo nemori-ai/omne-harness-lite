@@ -820,6 +820,9 @@ importers:
       '@omne-harness/goal':
         specifier: workspace:*
         version: link:../../packages/goal/goal
+      '@omne-harness/goal-check':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-check
       '@omne-harness/goal-command':
         specifier: workspace:*
         version: link:../../packages/goal/goal-command
@@ -829,6 +832,9 @@ importers:
       '@omne-harness/goal-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/goal/goal-cordis-contract
+      '@omne-harness/goal-decisions':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-decisions
       '@omne-harness/goal-local':
         specifier: workspace:*
         version: link:../../packages/goal/goal-local
@@ -3684,6 +3690,28 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/goal/goal-check:
+    dependencies:
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-contract
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/goal/goal-command:
     dependencies:
       '@omne-harness/goal-contract':
@@ -3737,6 +3765,31 @@ importers:
         specifier: workspace:*
         version: link:../goal-contract
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-decisions:
+    dependencies:
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../goal
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+    devDependencies:
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
