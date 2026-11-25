@@ -120,18 +120,9 @@
   min-width: 0;
   margin-block: calc(var(--spacing) * -1.25);
 }
-.omne-paper-aside > :not(.omne-paper-quiet, :has(.omne-paper-quiet)),
+.omne-paper-aside > *,
 .omne-paper-name > [data-slot='paper-pile-toggle'] {
   flex: none;
-}
-.omne-paper-aside > :has(.omne-paper-quiet) {
-  min-width: 0;
-}
-.omne-paper-aside .omne-paper-quiet {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .omne-paper-leaf {
@@ -149,8 +140,13 @@
 .omne-paper-pile[aria-busy='true'] .omne-paper-leaf {
   opacity: 0.6;
 }
-.omne-paper-page[data-selected] > .omne-paper-leaf {
-  box-shadow: 0 0 0 1px var(--omne-accent);
+.omne-paper-edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  overflow: visible;
+  pointer-events: none;
 }
 .omne-paper-page[data-gesture] .omne-paper-leaf {
   box-shadow: var(--omne-elevation-raised);
@@ -238,6 +234,43 @@
   color: var(--omne-ink-faint);
 }
 
+.omne-paper-status {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--omne-space-block);
+  height: var(--omne-control-height);
+  padding-inline: var(--omne-space-block)
+    calc(var(--spacing) * 14 + var(--omne-space-section) + var(--omne-space-block));
+  border-top: 1px solid var(--omne-line-subtle);
+  background-color: var(--omne-surface-page);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-ui);
+  color: var(--omne-ink-faint);
+}
+.omne-paper-status-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.omne-paper-status-info {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--omne-space-block);
+  min-width: 0;
+  overflow: clip;
+  overflow-clip-margin: var(--omne-ring-room);
+  white-space: nowrap;
+  transition: opacity var(--omne-motion-feedback) var(--omne-motion-ease);
+}
+.omne-paper-status-info[data-empty] {
+  opacity: 0;
+  transition: opacity var(--omne-motion-state) var(--omne-motion-ease) var(--omne-motion-layout);
+}
+
 .omne-flip {
   position: fixed;
   inset: 0;
@@ -268,7 +301,8 @@
   .omne-paper-corner,
   .omne-paper-quiet,
   .omne-paper-leaf,
-  .omne-paper-pile-leaf {
+  .omne-paper-pile-leaf,
+  .omne-paper-status-info {
     transition: none !important;
   }
 }

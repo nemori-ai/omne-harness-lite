@@ -8,7 +8,7 @@ import {
 } from '@omne-harness/ui-kit'
 import { memo, useRef, type JSX } from 'react'
 import type { KindStanding } from '../model/kinds.ts'
-import { ByLine, LockMark, ThingMenu, type PileChoice } from './aside.tsx'
+import { LockMark, ThingMenu, WhoSaid, type PileChoice } from './aside.tsx'
 import { Element, kindName, type CanvasHost } from './element.tsx'
 import { actOf, type KeyAct } from './keys.ts'
 
@@ -98,9 +98,10 @@ export const ItemPage = memo(function ItemPage(props: ItemPageProps): JSX.Elemen
         box={box}
         name={name}
         handleLabel={`挪动${name} ${item.reference.ref.slice(0, 8)}`}
+        edgeKey={item.id}
         aside={
           <>
-            <ByLine by={item.by} when={item.when} />
+            <WhoSaid by={item.by} when={item.when} />
             {item.locked ? <LockMark onUnlock={() => acts.act(item, 'lock')} /> : null}
             {menu}
           </>

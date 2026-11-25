@@ -2,7 +2,7 @@ import type { CanvasItemBody, CanvasPileBody } from '@omne-harness/canvas-protoc
 import { Input, PaperPile, PaperSpot, type PaperBox } from '@omne-harness/ui-kit'
 import { useState, type JSX } from 'react'
 import type { KindStanding } from '../model/kinds.ts'
-import { ByMark, ThingMenu } from './aside.tsx'
+import { ThingMenu, WhoSaid } from './aside.tsx'
 import { Element, kindName, type CanvasHost } from './element.tsx'
 import { actOf } from './keys.ts'
 
@@ -147,7 +147,7 @@ export function PileView(props: PileViewProps): JSX.Element {
         onPlace={placed => acts.move(pile, placed)}
         aside={
           <>
-            <ByMark by={pile.by} when={pile.when} />
+            <WhoSaid by={pile.by} when={pile.when} />
             <ThingMenu
               label={`${title}的更多操作`}
               acts={[

@@ -170,12 +170,13 @@ it('the kinds of canvas.element and canvas.picker are the kinds the server decla
   expect(canvasAppRender.keys(server)).toEqual({ kind: 'any' })
 })
 
-it('declares its two parts under the whole application', async () => {
+it('declares its three parts under the whole application', async () => {
   const { shell } = await loaded()
   const read = partsOn(shell.registry())
   expect(read.kind === 'read' && read.conflicts).toEqual([])
   expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
     ['canvas.paper', 'canvas.view'],
+    ['canvas.status', 'canvas.view'],
     ['canvas.view', 'shell.app'],
   ])
 })

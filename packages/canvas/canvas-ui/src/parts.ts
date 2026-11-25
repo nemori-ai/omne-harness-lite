@@ -3,7 +3,7 @@ import { definePart } from '@omne-harness/shell-contract'
 export const canvasView = definePart({
   name: 'canvas.view',
   label: '画布',
-  summary: '反面上的画布：纸面，与它上面的提示、磁吸开关和远近的读数',
+  summary: '反面上的画布：纸面、它上面的提示，与下沿的状态栏',
   within: 'shell.app',
   depths: ['tokens', 'style'],
   when: '登录之后',
@@ -18,4 +18,13 @@ export const canvasPaper = definePart({
   when: '读到画布之后',
 })
 
-export const canvasParts = [canvasView, canvasPaper] as const
+export const canvasStatus = definePart({
+  name: 'canvas.status',
+  label: '状态栏',
+  summary: '纸下沿的一条窄栏：查找、磁吸开关、远近的读数，与看着的那一样是什么、谁摆的、什么时候',
+  within: 'canvas.view',
+  depths: ['tokens', 'style'],
+  when: '读到画布之后',
+})
+
+export const canvasParts = [canvasView, canvasPaper, canvasStatus] as const

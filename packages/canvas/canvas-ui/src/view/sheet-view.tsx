@@ -3,10 +3,10 @@ import {
   FigureSeat,
   IconButton,
   InlineNotice,
+  MagnetIcon,
   PaperSpot,
   PaperSurface,
   SearchIcon,
-  Switch,
   type PaperPoint,
   type PaperView,
 } from '@omne-harness/ui-kit'
@@ -33,6 +33,7 @@ import { ItemPage } from './item-page.tsx'
 import { ITEM_DRAG, PileView } from './pile-view.tsx'
 import { droppedOut, itemActs, pileActs, type Selection } from './sheet-acts.ts'
 import { bareAt, FinderKey, FoundMark, useLayers, type Place } from './sheet-layers.tsx'
+import { CanvasStatus, useLookedAt, type LookedAt } from './status.tsx'
 import { useLatest, useSame, useSteady } from './steady.ts'
 
 /** The seat of the figure on the back is in the middle of the sheet, at the first priority. */
@@ -111,7 +112,7 @@ function Tools({
 }: Readonly<{ looking: ReturnType<typeof useLooking>; find: (opener: Element) => void }>) {
   const percent = Math.round(looking.view.zoom * 100)
   return (
-    <div className="canvas-tools">
+    <>
       <IconButton
         label="查找"
         size="icon-compact"
@@ -120,14 +121,18 @@ function Tools({
       >
         <SearchIcon aria-hidden="true" />
       </IconButton>
-      <label className="canvas-tool">
-        <Switch checked={looking.magnet} onCheckedChange={looking.snap} aria-label="磁吸" />
-        <span aria-hidden="true">磁吸</span>
-      </label>
+      <IconButton
+        label="磁吸"
+        size="icon-compact"
+        aria-pressed={looking.magnet}
+        onClick={() => looking.snap(!looking.magnet)}
+      >
+        <MagnetIcon aria-hidden="true" />
+      </IconButton>
       <span className="canvas-zoom" title="远近">
         {percent}%
       </span>
-    </div>
+    </>
   )
 }
 
@@ -152,6 +157,24 @@ function useStanding(kinds: CanvasState['kinds']): (item: CanvasItemBody) => Kin
   }, [kinds])
 }
 
+/** Where the pointer is on bare paper, for `@`; and which thing the pointer and the focus are on, for the status bar. */
+function watching(pointer: React.RefObject<PaperPoint | undefined>, looks: LookedAt) {
+  return {
+    onPointerMove: (event: React.PointerEvent) => {
+      pointer.current = bareAt(event)
+    },
+    onPointerOver: (event: React.PointerEvent) => looks.over(event.target),
+    onPointerLeave: () => {
+      pointer.current = undefined
+      looks.over(null)
+    },
+    onFocus: (event: React.FocusEvent) => looks.focus(event.target),
+    onBlur: (event: React.FocusEvent) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) looks.focus(null)
+    },
+  }
+}
+
 /** The sheet of the canvas, with what the server last said lies on it. */
 export function SheetView(props: SheetViewProps): JSX.Element {
   const { host, scope, canvas, state, preferences, send, dismiss } = props
@@ -163,6 +186,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
   const [selected, select] = useState<Selection>(() => new Set())
   const root = useRef<HTMLDivElement>(null)
   const pointer = useRef<PaperPoint | undefined>(undefined)
+  const looks = useLookedAt()
   const layers = useLayers({ canvas, sheet, looking, place: props.place })
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set())
   const deps = {
@@ -186,12 +210,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
       ref={root}
       className="canvas-paper"
       {...canvasPaper.props}
-      onPointerMove={event => {
-        pointer.current = bareAt(event)
-      }}
-      onPointerLeave={() => {
-        pointer.current = undefined
-      }}
+      {...watching(pointer, looks)}
       onKeyDown={event => {
         if (!letsGo(event, selected)) return
         event.preventDefault()
@@ -289,7 +308,13 @@ export function SheetView(props: SheetViewProps): JSX.Element {
         )}
       </PaperSurface>
       <Notices state={state} dismiss={dismiss} />
-      <Tools looking={looking} find={opener => layers.open(undefined, opener)} />
+      <CanvasStatus
+        looking={looks}
+        canvas={canvas}
+        standing={standing}
+        selected={selected}
+        tools={<Tools looking={looking} find={opener => layers.open(undefined, opener)} />}
+      />
     </div>
   )
 }

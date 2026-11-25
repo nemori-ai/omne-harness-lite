@@ -302,6 +302,8 @@ system
           calendar-ui#1  [effective]
         canvas.paper
           canvas-ui#1  [effective]
+        canvas.status
+          canvas-ui#1  [effective]
         canvas.view
           canvas-ui#1  [effective]
         human-intervention.page

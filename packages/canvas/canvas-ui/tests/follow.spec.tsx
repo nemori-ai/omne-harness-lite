@@ -36,7 +36,7 @@ describe('the canvas follows the server without the page being reloaded', () => 
       canvas([{ ...A, at: { x: 400, y: 240 }, by: { kind: 'agent', session: 's' } }]),
     )
     expect(placedAt(page('a'))).toMatchObject({ x: 400, y: 240 })
-    expect(page('a').querySelector('.canvas-by')?.textContent).toMatch(/^agent · /u)
+    expect(page('a').querySelector('.canvas-said')?.textContent).toMatch(/^最近由 agent 摆放 · /u)
   })
 
   it('reads the kinds again when the keys the server makes public on canvas.kinds change, not otherwise', async () => {

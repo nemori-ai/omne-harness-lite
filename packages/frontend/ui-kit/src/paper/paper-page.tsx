@@ -1,6 +1,7 @@
 import { cn } from '../lib/utils.ts'
 import { KEY_SHORTCUTS, type PlaceBox, useCarry } from './carry.ts'
-import { type PaperBox, type PaperCorner } from './geometry.ts'
+import { PAPER_NAME_LINE, type PaperBox, type PaperCorner } from './geometry.ts'
+import { PaperEdge } from './paper-edge.tsx'
 import { usePaperFrame } from './paper-surface.tsx'
 
 const CORNERS: readonly PaperCorner[] = ['nw', 'ne', 'sw', 'se']
@@ -48,18 +49,6 @@ export function PaperHandle({
   )
 }
 
-export function PaperQuiet({
-  children,
-}: {
-  readonly children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <span data-slot="paper-quiet" className="omne-paper-quiet">
-      {children}
-    </span>
-  )
-}
-
 export function PaperPage({
   box,
   name,
@@ -72,11 +61,13 @@ export function PaperPage({
   roleDescription = '页',
   handleLabel,
   handleDescription = '把手',
+  edgeKey,
   className,
   children,
 }: {
   readonly box: PaperBox
   readonly name: string
+  readonly edgeKey?: string
   readonly aside?: React.ReactNode
   readonly onPlace: PlaceBox
   readonly onPress?: () => void
@@ -121,6 +112,13 @@ export function PaperPage({
         {aside === undefined ? null : <span className="omne-paper-aside">{aside}</span>}
       </div>
       <div className="omne-paper-leaf">{children}</div>
+      {selected ? (
+        <PaperEdge
+          width={carry.shown.width}
+          height={carry.shown.height - PAPER_NAME_LINE}
+          edgeKey={edgeKey ?? name}
+        />
+      ) : null}
       {locked
         ? null
         : CORNERS.map(corner => (
