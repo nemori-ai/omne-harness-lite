@@ -30,7 +30,10 @@ export function lateCalls(holder: GoalHolder): GoalCalls {
 }
 
 export function lateHistory(holder: GoalHolder): GoalHistory {
-  return { calls: (...input) => holder.history?.calls(...input) ?? Promise.resolve(UNAVAILABLE) }
+  return {
+    calls: (...input) => holder.history?.calls(...input) ?? Promise.resolve(UNAVAILABLE),
+    said: (...input) => holder.history?.said(...input) ?? Promise.resolve(UNAVAILABLE),
+  }
 }
 
 export function lateDecisions(holder: GoalHolder): GoalDecisions {

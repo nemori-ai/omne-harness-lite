@@ -3,6 +3,9 @@ import type { SessionCalls } from '@omne-harness/goal-session'
 import { writeJsonText } from '@omne-harness/json-text'
 import type { EntryId, SessionFailure, SessionWorkPrincipals } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
+import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
+import { defaultModesOf } from '../session-conditions/index.ts'
+import { drivesItself, openedIn, ROUND_KINDS, type RoundEntry } from './drive.ts'
 
 const OWNER = 'harness-server/goal-session'
 const ABSENT: { failure: SessionFailure } = {
@@ -18,6 +21,8 @@ const RESULT_KINDS = ['message.tool']
 const CALL_KINDS = ['message.assistant', 'message.tool']
 const HEAD_PAGE_BYTES = 65_536
 const RESULT_PAGE_BYTES = 262_144
+/** How many pages back the beginning of the round in progress is looked for. */
+const ROUND_PAGES = 8
 
 export type SessionCallPorts = Readonly<{
   /** The system principal of goals: it sends the reminders a goal owes its session. */
@@ -94,6 +99,32 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
         pageBytes: HEAD_PAGE_BYTES,
       })
       return 'ok' in page ? { kind: 'read', value: page.ok.entries[0]?.id ?? null } : UNAVAILABLE
+    },
+    async drives(input) {
+      const mappings = ctx.get(definitionMappingsKey)
+      const defaults =
+        mappings === undefined
+          ? undefined
+          : defaultModesOf(mappings, name => mappings.modesFor(name))
+      return drivesItself(input, defaults)
+    },
+    async opened(at) {
+      const found = await historyOf(at)
+      if (found === undefined) return UNAVAILABLE
+      const reading = { ...found.access, kinds: ROUND_KINDS, pageBytes: HEAD_PAGE_BYTES }
+      const entries: RoundEntry[] = []
+      let page = await found.history.begin({ ...reading, from: null, direction: 'backward' })
+      for (let read = 0; read < ROUND_PAGES; read += 1) {
+        if (!('ok' in page)) return UNAVAILABLE
+        for (const { id, kind, payload } of page.ok.entries)
+          entries.push({ id, kind, payload: JSON.parse(writeJsonText(payload)) as unknown })
+        const opened = openedIn(entries)
+        if (opened !== 'more') return { kind: 'read', value: opened }
+        const { next, exhausted } = page.ok
+        if (exhausted || next === null) break
+        page = await found.history.next({ ...found.access, cursor: next })
+      }
+      return { kind: 'read', value: null }
     },
     resultsAfter: input => pageAfter(RESULT_KINDS, input),
     callsAfter: input => pageAfter(CALL_KINDS, input),

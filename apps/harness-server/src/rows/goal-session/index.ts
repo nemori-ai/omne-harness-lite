@@ -6,6 +6,7 @@ import {
 } from '@omne-harness/goal-session'
 import { sessionInputSourcesKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { GOAL_PRINCIPAL_KEY } from '../../entry/goal-principal.ts'
+import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
 import { defineRow } from '../../row.ts'
 import { GOAL_COMPONENT } from '../authorization/grants.ts'
 import { goalHolder } from '../goal/holder.ts'
@@ -19,7 +20,7 @@ export const goalSessionRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [],
-    injects: [sessionKey, sessionInputSourcesKey, GOAL_PRINCIPAL_KEY],
+    injects: [sessionKey, sessionInputSourcesKey, definitionMappingsKey, GOAL_PRINCIPAL_KEY],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },

@@ -97,6 +97,7 @@ describe('the ports the contributing rows mount', () => {
       session: 's',
       rendered: '',
       open: '',
+      implied: false,
     } as const
     expect(await lateSessions(empty).wake('t', wake)).toBe('unknown')
     expect(await lateCalls(empty).cited('t', 's', ['call-1'], '0')).toEqual({ kind: 'unavailable' })
@@ -105,12 +106,15 @@ describe('the ports the contributing rows mount', () => {
     const mounted = holder()
     const sessions = lateSessions(mounted)
     mounted.sessions = {
-      facts: async () => ({ kind: 'read', value: { attendance: 'unattended', moment: '3' } }),
+      facts: async () => ({
+        kind: 'read',
+        value: { attendance: 'unattended', moment: '3', drive: null },
+      }),
       wake: async () => 'sent',
     } satisfies GoalSessions
     expect(await sessions.facts('t', 's')).toEqual({
       kind: 'read',
-      value: { attendance: 'unattended', moment: '3' },
+      value: { attendance: 'unattended', moment: '3', drive: null },
     })
     const wake = {
       kind: 'resume',
@@ -118,6 +122,7 @@ describe('the ports the contributing rows mount', () => {
       session: 's',
       rendered: '',
       open: '',
+      implied: false,
     } as const
     expect(await sessions.wake('t', wake)).toBe('sent')
     const calls = lateCalls(mounted)

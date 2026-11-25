@@ -520,6 +520,7 @@
     {
       "row": "goal-session",
       "names": [
+        "definitionMappings",
         "goalPrincipal"
       ]
     },

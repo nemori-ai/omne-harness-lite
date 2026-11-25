@@ -98,6 +98,11 @@ export async function proposed(tree: ReleaseTree) {
     cards => cards.length === 1,
   )
   const card = (item as unknown as { card: Card }).card
+  return { session, card, ...(await goalsOf(tree, session)) }
+}
+
+/** The goals of this tree, and the agent of a session as their caller. */
+export async function goalsOf(tree: ReleaseTree, session: string) {
   const text = tenantCodec.encode(tree.registrar().tenant)
   if (!text.ok) throw new Error('the tenant has no text')
   const issued = await toolRuntimeHolder(tree.scope)
@@ -111,7 +116,7 @@ export async function proposed(tree: ReleaseTree) {
   const agent: GoalCaller = { tenant: text.value, subject: issued.ok }
   const goals = tree.scope.get(goalsKey)
   if (goals === undefined) throw new Error('no goal service')
-  return { session, card, agent, goals }
+  return { agent, goals }
 }
 
 /** The person confirms the card, and the run the goal stood in comes to its end. */
