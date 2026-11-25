@@ -114,6 +114,18 @@ describe('a revision that does not stand changes nothing and says why', () => {
     ],
     ['an operation nobody knows', [{ op: 'pause' }], ['#1.op']],
     ['a change without the number it needs', [{ op: 'remove' }], ['#1.id']],
+    ['something that is no change at all', [5], ['#1.op']],
+    [
+      'a new entry with a field nobody knows',
+      [{ op: 'add', section: 'rules', entry: { statement: '不改接口。', weight: 3 } }],
+      ['#1.weight'],
+    ],
+    [
+      'a replacement with a field nobody knows, by its number',
+      [{ op: 'replace', id: 'N1', entry: { statement: '不改接口。', weight: 3 } }],
+      ['N1.weight'],
+    ],
+    ['a new entry that is no entry', [{ op: 'add', section: 'rules', entry: 5 }], ['#1.entry']],
     ['a number with a letter no section has', [{ op: 'remove', id: 'ZA1' }], ['#1.id']],
     ['a number with something after it', [{ op: 'remove', id: 'A1x' }], ['#1.id']],
     ['a number of two digits that is not there', [{ op: 'remove', id: 'A10' }], ['A10.id']],

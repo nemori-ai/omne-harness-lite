@@ -198,6 +198,7 @@ describe('a body that does not stand says which entry and which field', () => {
   it('a section of the wrong shape is reported on the body, by the name of the section', () => {
     expect(where(issues({ ...HOME, criteria: '全过' }))).toEqual(['-.criteria'])
     expect(where(issues({ ...HOME, method: [3] }))).toEqual(['-.method'])
+    expect(where(issues({ ...HOME, rules: ['不改公共接口。'] }))).toEqual(['N1.entry'])
   })
 
   const said = (draft: unknown, context: typeof attended | typeof unattended = attended) =>
