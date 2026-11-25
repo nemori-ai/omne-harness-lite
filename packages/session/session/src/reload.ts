@@ -77,7 +77,16 @@ function refusedHandover(failure: DriveFailure): SessionFailure {
 }
 
 const unchanged = (work: WorkSnapshot, adoption: Adopt) =>
+  adoption.residentAdoption === undefined &&
   JSON.stringify(work.definition.adopted) === JSON.stringify(adoption.candidate)
+
+function refusalOf(work: WorkSnapshot): SessionFailure | null {
+  if (work.lifecycle === 'archived') return { kind: 'archived' }
+  if (work.frozen !== null) return { kind: 'frozen', verdict: work.frozen }
+  return work.run.kind === 'active' && cancelEstablished(work, work.run.run)
+    ? { kind: 'cancelled' }
+    : null
+}
 
 type Receipt = Extract<ReloadOutcome, { kind: 'adopted' }>['receipt']
 const AGAIN: ReadonlySet<SessionFailure['kind']> = new Set(['run-active', 'changed'])
@@ -139,6 +148,7 @@ export function createReload<P>(input: ReloadInput<P>) {
       advance,
       reload: asked.operation,
     })
+    pass.retrigger = true
     const handed = await outbound(() => port.handOver({ ...ref, execution, operation, advance }))
     if ('failure' in handed) return fail(refusedHandover(handed.failure))
     let answered: Answer = fail(unavailable(OWNERS.session, 'the reload was not committed'))
@@ -157,10 +167,9 @@ export function createReload<P>(input: ReloadInput<P>) {
     )
     if ('failure' in read) return read
     const work = read.ok
-    if (work.lifecycle === 'archived') return fail({ kind: 'archived' })
-    if (work.frozen !== null) return fail({ kind: 'frozen', verdict: work.frozen })
+    const refused = refusalOf(work)
+    if (refused !== null) return fail(refused)
     const run = work.run.kind === 'active' ? work.run : null
-    if (run !== null && cancelEstablished(work, run.run)) return fail({ kind: 'cancelled' })
     const runAdoption = dependencies.evidence.runAdoption
     if (runAdoption === undefined) return succeed({ kind: 'no-change' })
     const principal = await scheduling.principal('coordinator', ref)
@@ -178,8 +187,7 @@ export function createReload<P>(input: ReloadInput<P>) {
       await freeze(ref, verdict)
       return fail({ kind: 'frozen', verdict })
     }
-    if (unchanged(work, answer) && answer.residentAdoption === undefined)
-      return succeed({ kind: 'no-change' })
+    if (unchanged(work, answer)) return succeed({ kind: 'no-change' })
     if (run !== null) return handOver(asked, { work, answer, run }, pass)
     const committed = await handle(
       'intake',

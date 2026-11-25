@@ -43,11 +43,11 @@ import {
   validateInitializationRecall,
 } from './decide-initialization.ts'
 import {
-  cancelEstablished,
   expectedHolds,
   expectedRevision,
   judgeAdvance,
   judgeRunStart,
+  reloadRefusal,
   resolveOperation,
   routeInput,
   type DecideReads,
@@ -687,12 +687,11 @@ function decideAttempt(
       kind: 'stale-advance',
       current: snapshot.run.kind === 'active' ? snapshot.run.advance : null,
     })
-  if (command.kind === 'reload' && snapshot.frozen !== null)
-    return rejected({ kind: 'frozen', verdict: snapshot.frozen })
-  if (command.kind === 'reload' && cancelEstablished(snapshot, command.input.run))
-    return rejected({ kind: 'cancelled' })
-  if (command.kind === 'reload' && !expectedHolds(snapshot, 'reload', command.input.expected))
-    return rejected({ kind: 'changed', revision: expectedRevision(snapshot, 'reload') })
+  const refused =
+    command.kind === 'reload'
+      ? reloadRefusal(snapshot, snapshot.run.run, command.input.expected)
+      : null
+  if (refused !== null) return rejected(refused)
   if (command.kind === 'claim' && !expectedHolds(snapshot, 'claim', command.input.expected))
     return rejected(
       snapshot.run.advance !== null

@@ -1,6 +1,7 @@
 // @module-tag slow
 // Starts the release tree: a person reloads an idle session, by the protocol and by /reload; the next run uses the new version.
 import { describe, expect, it } from 'vitest'
+import { savedTenant } from '../r9/support.ts'
 import { plan } from '../support/planned-model.ts'
 import { history, pollUntil } from '../support/release-tree.ts'
 import {
@@ -56,6 +57,17 @@ describe('a person reloads an idle session, on the release tree', () => {
           }
           expect(answerOf(theirs.stdout).outcome).not.toBe('succeeded')
           expect(answerOf(theirs.stdout)).toEqual(answerOf(nowhere.stdout))
+          // Acting in a tenant of their own, naming this session reads as naming none.
+          const ownTenant = ['--control-id', 'y', '--tenant', savedTenant(other.home)]
+          const named = await other.cli(['reload-session', '--session', child, ...ownTenant])
+          const unknown = await other.cli([
+            'reload-session',
+            '--session',
+            `${child.slice(0, -1)}${child.endsWith('a') ? 'b' : 'a'}`,
+            ...ownTenant,
+          ])
+          expect(answerOf(named.stdout).outcome).not.toBe('succeeded')
+          expect(answerOf(named.stdout)).toEqual(answerOf(unknown.stdout))
 
           await say(tree, child, plan())
           const after = await pollUntil(

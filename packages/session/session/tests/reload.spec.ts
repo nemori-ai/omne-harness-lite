@@ -199,6 +199,25 @@ describe('a person reloads a session', () => {
     expect(after.definition.adopted).toEqual(before.definition.adopted)
   })
 
+  it('leaves a run handed over without an answer to the recovery, in the old version', async () => {
+    const { h, before } = await running()
+    const ran = before.run
+    if (ran.kind !== 'active') throw new Error('no run')
+    const handOver = h.drive.handOver.bind(h.drive)
+    h.drive.handOver = async input => {
+      await handOver(input)
+      return { failure: { kind: 'commit-unknown', operation: input.operation } }
+    }
+    expect(await reload(h)).toMatchObject({ failure: { kind: 'unavailable' } })
+    await vi.waitFor(async () => {
+      const after = await read(h)
+      if (after.run.kind !== 'active') throw new Error('no run')
+      expect(after.run.advance?.attempt).not.toBe(ran.advance?.attempt)
+      expect(after.run.adoption).toEqual(ran.adoption)
+      expect(after.definition.adopted).toEqual(before.definition.adopted)
+    })
+  })
+
   it('takes the idle branch when the run ends while it is asked', async () => {
     const { h, newer } = await running()
     h.drive.handOver = async () => {

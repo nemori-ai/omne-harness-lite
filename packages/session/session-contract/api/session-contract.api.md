@@ -3371,6 +3371,7 @@ export declare function judgeIdle(snapshot: WorkSnapshot, input: Readonly<{
 export declare function resolveOperation(record: OperationRecord | null, operation: SessionOperationId, digest: string): OperationJudgment;
 export type { GuardCommand, SessionCommand };
 export declare const cancelEstablished: (snapshot: Pick<WorkSnapshot, 'controls'>, run: string) => boolean;
+export declare function reloadRefusal(snapshot: Pick<WorkSnapshot, 'controls' | 'frozen' | 'run' | 'revision'>, run: string, expected: SessionRevision): SessionFailure | null;
 ```
 
 ## 声明文件 `log-interpretation.d.ts`
@@ -4199,8 +4200,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:0a6706c32c3b53569d2880b12fab8170d08dd96ce33780888597cf2ab176fca9";
-export declare const SESSION_RELEASE_DIGEST = "sha256:0a6706c32c3b53569d2880b12fab8170d08dd96ce33780888597cf2ab176fca9";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:1d3b88afa39f9bccb4309296bb7809105b8d7780d39cefd6aac977a66a7e1678";
+export declare const SESSION_RELEASE_DIGEST = "sha256:1d3b88afa39f9bccb4309296bb7809105b8d7780d39cefd6aac977a66a7e1678";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
