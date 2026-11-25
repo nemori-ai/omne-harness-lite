@@ -809,9 +809,8 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
       return false
     }
     const origin =
-      ledger.read(target)?.origin ??
-      (await originRead(input, target, resolved.ok.principal))?.origin
-    if (origin === undefined || origin === null) return false
+      ledger.read(target)?.origin ?? (await originOf(input, target, resolved.ok.principal))
+    if (origin === null) return false
     const delivery = frozen<AccountDelivery>({
       kind: 'account',
       key: { kind: 'account', reference: origin.reference, dispatch, revision },

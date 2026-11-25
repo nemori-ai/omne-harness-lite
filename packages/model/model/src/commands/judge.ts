@@ -319,7 +319,6 @@ export const MALFORMED_FAULT: Termination = Object.freeze({
   }),
 })
 
-/** A failure whose cause is not one the contract describes; other endings carry no cause. */
 export function malformedFault(termination: Readonly<{ kind: string; fault?: unknown }>): boolean {
   return termination.kind === 'failed' && faultProblem(termination.fault) !== null
 }

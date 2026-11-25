@@ -16,6 +16,26 @@ const replay = {
 }
 
 describe('faultProblem', () => {
+  it('accepts each of the fourteen causes', () => {
+    for (const cause of [
+      'profile-withdrawn',
+      'excluded',
+      'modality',
+      'credential',
+      'input-rejected',
+      'upstream-unavailable',
+      'stream-lost',
+      'runtime-lost',
+      'persistence',
+      'policy-unavailable',
+      'upstream-protocol',
+      'unclassified',
+    ])
+      expect(faultProblem({ ...plain, cause })).toBeNull()
+    expect(faultProblem(overLimit)).toBeNull()
+    expect(faultProblem(replay)).toBeNull()
+  })
+
   it('accepts every shape the contract describes', () => {
     for (const fault of [
       plain,
@@ -24,6 +44,8 @@ describe('faultProblem', () => {
       { ...overLimit, replayCarried: true },
       { ...overLimit, reported: { metric: null, limit: null, actual: '12' } },
       { ...overLimit, reported: { metric: 'context-tokens', limit: '0', actual: '1' } },
+      { ...overLimit, reported: { metric: 'input-tokens', limit: null, actual: null } },
+      { ...overLimit, reported: { metric: 'file-bytes', limit: '33554432', actual: null } },
       replay,
       { cause: 'unclassified', diagnostic: 'x'.repeat(200), upstreamStatus: null },
     ])
@@ -54,6 +76,11 @@ describe('faultProblem', () => {
     [
       'a report with an unknown metric',
       { ...overLimit, reported: { metric: 'bytes', limit: null, actual: null } },
+      'reported',
+    ],
+    [
+      'a report whose limit is a number',
+      { ...overLimit, reported: { metric: null, limit: 5, actual: null } },
       'reported',
     ],
     [

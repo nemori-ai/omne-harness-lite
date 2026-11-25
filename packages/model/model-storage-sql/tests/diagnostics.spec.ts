@@ -1084,6 +1084,39 @@ describe('a stored row outside the contract shape', () => {
     expect(JSON.stringify(got)).not.toContain('SECRET-CANARY')
   })
 
+  it('does not hand out a stored ending whose cause the contract does not describe', async () => {
+    const malformed = {
+      kind: 'failed',
+      fault: { cause: 'rate-limited', upstreamStatus: null, diagnostic: 'limited' },
+    }
+    const damages: readonly (readonly [string, (f: Scene, call: ModelCallId) => void])[] = [
+      [
+        'md_dispatch.record',
+        (f, call) => rewriteRecord(f, call, 1, r => ({ ...r, terminal: malformed })),
+      ],
+      [
+        'md_dispatch.logical_terminal',
+        (f, call) => rewriteDispatch(f, call, 2, 'logical_terminal', JSON.stringify(malformed)),
+      ],
+    ]
+    for (const [field, damage] of damages) {
+      const f = scene()
+      const call = callId('ending')
+      await f.seeded(call)
+      expect(await f.store.readCall({ tenant: textOf(A), call, operation: null })).toHaveProperty(
+        'ok',
+      )
+      damage(f, call)
+      expect(await f.store.readCall({ tenant: textOf(A), call, operation: null })).toMatchObject({
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-records',
+          diagnostic: `stored row ${field}: fault-shape`,
+        },
+      })
+    }
+  })
+
   for (const [name, damage] of DAMAGED)
     it(`answers unavailable, without the stored text, for ${name}`, async () => {
       const f = scene()

@@ -168,6 +168,10 @@ function checkedEnding<T extends Termination | null | undefined>(ending: T, fiel
   return ending
 }
 
+function settledEnding(state: CallState): Termination | null {
+  return state.phase === 'settled' ? state.settlement.termination : null
+}
+
 function stored<T>(text: string, field: string): T {
   let raw: unknown
   try {
@@ -251,7 +255,7 @@ function parseCallRow(raw: unknown, scope: CallRowScope): CallHead {
   if (call !== scope.call) throw new RowError('md_call.call', 'scope')
   const state = stored<CallState>(str(row, 'state'), 'md_call.state')
   if (state.call !== call) throw new RowError('md_call.state', 'call')
-  if (state.phase === 'settled') checkedEnding(state.settlement.termination, 'md_call.state')
+  checkedEnding(settledEnding(state), 'md_call.state')
   const execution = optional(row, 'execution', text =>
     stored<ExecutionRef>(text, 'md_call.execution'),
   )
