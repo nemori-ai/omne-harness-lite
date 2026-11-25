@@ -36,7 +36,7 @@ import { compactionEvidenceOf } from '../../model/compaction-evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
 import { observationTiming } from '../../model/observation.ts'
 import { createModelQualification } from '../../model/qualification.ts'
-import { officialSendSources } from '../../model/sources.ts'
+import { decisionSendSources, officialSendSources } from '../../model/sources.ts'
 import { releaseFamilies } from '../../model/families.ts'
 import { defineRow } from '../../row.ts'
 import { providerRoutes } from '../../assets/model-providers.ts'
@@ -136,10 +136,13 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig, input: ModelReco
       }),
       clock: given.modelClock,
       manifestDigest,
-      sources: officialSendSources({
-        profiles: sendStage.profiles,
-        current: qualification.sourceCurrent,
-      }),
+      sources: [
+        ...officialSendSources({
+          profiles: sendStage.profiles,
+          current: qualification.sourceCurrent,
+        }),
+        ...decisionSendSources(qualification.sourceCurrent),
+      ],
       initialRun,
       observation: { timing: observationTiming },
     }),
