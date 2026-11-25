@@ -101,6 +101,7 @@ export {
   executionCommandRow,
   executionEnvironmentRow,
   executionFilesRow,
+  executionProgramRow,
 } from './rows/execution-environment/index.ts'
 export { requestContextRow } from './rows/request-context/index.ts'
 export { agentContextRow } from './rows/agent-context/index.ts'

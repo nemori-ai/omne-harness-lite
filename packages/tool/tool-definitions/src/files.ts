@@ -1,3 +1,4 @@
+import type { FacilityResult, FileIdentity } from '@omne-harness/execution-environment-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -21,8 +22,11 @@ import {
   type WorkingDirectory,
 } from './files-paths.ts'
 import { parseConstruction, type Arguments, type Field } from './protocol.ts'
+import type { Answer } from './program-side.ts'
 import { confirmation, identityText, writeEffectOf } from './text.ts'
 
+/** The most one read takes, whatever the call asks: a page always fits the value a program is given. */
+export const READ_PAGE_MAX_BYTES = 1024 * 1024
 export const resultMaximumField: Field = {
   name: 'resultMaxBytes',
   kind: 'positive',
@@ -131,16 +135,13 @@ async function executeFiles(
   args: Arguments,
   environment: FilesAuthorEnvironment,
   maximum: number,
-): Promise<string> {
-  const { value, note } = await placed(environment, async (files, directory) =>
-    explainedRefusal(await executeCommand(command, args, files, maximum, directory), {
-      command,
-      args,
-      scope: environment.scope,
-      directory,
-    }),
-  )
-  return `${value}${note}`
+): Promise<Answer> {
+  const { value, note } = await placed(environment, async (files, directory) => {
+    const answer = await executeCommand(command, args, files, maximum, directory)
+    const said = { command, args, scope: environment.scope, directory }
+    return { ...answer, text: explainedRefusal(answer.text, said) }
+  })
+  return { ...value, text: `${value.text}${note}` }
 }
 async function openFile(args: Arguments, environment: FilesAuthorEnvironment, limits: OpenLimits) {
   const path = args.text('path')
@@ -152,45 +153,86 @@ async function openFile(args: Arguments, environment: FilesAuthorEnvironment, li
   })
   return pictureResult('Files.open', { ...opened, text: `${opened.text}${note}` }, 'text')
 }
+/** The answer of one facility request: the confirmation as text and, when it was done, a value. */
+function answered<T>(
+  result: FacilityResult<T>,
+  render: (value: T) => string,
+  data: (value: T) => unknown,
+): Answer {
+  const text = confirmation(result, render)
+  return result.kind === 'done' ? { text, data: data(result.value) } : { text }
+}
+type Files = FilesAuthorEnvironment['files']
+async function readPage(files: Files, args: Arguments, header: string, maximum: number) {
+  const offset = args.number('offset_bytes', 0)
+  const result = await files.read({
+    path: args.text('path'),
+    offsetBytes: offset,
+    limitBytes: Math.min(args.number('limit_bytes', maximum), READ_PAGE_MAX_BYTES),
+  })
+  if (result.kind !== 'done') return { text: confirmation(result, () => '') }
+  const page = result.value
+  try {
+    const content = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(page.bytes)
+    return answered(
+      result,
+      value =>
+        `${header} ${identityText(value)}\noffset_bytes=${offset} next_offset_bytes=${value.nextOffsetBytes} eof=${value.eof}\n${content}`,
+      value => ({
+        text: content,
+        offset_bytes: offset,
+        next_offset_bytes: value.nextOffsetBytes,
+        eof: value.eof,
+        version: value.version,
+      }),
+    )
+  } catch {
+    return {
+      text: `rejected reason=unsupported ${header} invalid UTF-8 page; use UTF-8 byte boundaries`,
+    }
+  }
+}
+const isEntryName = (name: unknown): name is string =>
+  typeof name === 'string' && name !== '' && name !== '.' && name !== '..' && !/[/\\]/u.test(name)
+async function listEntries(files: Files, args: Arguments, header: string): Promise<Answer> {
+  const listed = await files.list({ path: args.text('path'), ...page(args) })
+  if (listed.kind !== 'done') return { text: confirmation(listed, () => '') }
+  const lines: string[] = []
+  const entries: unknown[] = []
+  for (const entry of listed.value.entries) {
+    const name = 'name' in entry ? entry.name : undefined
+    if (!isEntryName(name))
+      return { text: 'unavailable reason=entry-name-unavailable no entries returned' }
+    lines.push(`${JSON.stringify(name)}\t${entry.type}\t${entry.sizeBytes}\t${identityText(entry)}`)
+    entries.push({ name, type: entry.type, size_bytes: entry.sizeBytes })
+  }
+  return answered(
+    listed,
+    value =>
+      `${header} ${identityText(value.directory)}\nnext_offset=${value.nextOffset ?? 'end'}\n${lines.join('\n')}`,
+    value => ({ entries, next_offset: value.nextOffset ?? null }),
+  )
+}
 async function executeCommand(
   command: string,
   args: Arguments,
-  files: FilesAuthorEnvironment['files'],
+  files: Files,
   maximum: number,
   directory: WorkingDirectory | undefined,
-): Promise<string> {
+): Promise<Answer> {
   const path = args.text('path')
   const header = headerOf(path, directory)
-  const operations: Record<string, () => Promise<string> | string> = {
-    read: async () => {
-      const offset = args.number('offset_bytes', 0)
-      const result = await files.read({
-        path,
-        offsetBytes: offset,
-        limitBytes: args.number('limit_bytes', maximum),
-      })
-      if (result.kind !== 'done') return confirmation(result, () => '')
-      try {
-        const content = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
-          result.value.bytes,
-        )
-        return confirmation(
-          result,
-          value =>
-            `${header} ${identityText(value)}\noffset_bytes=${offset} next_offset_bytes=${value.nextOffsetBytes} eof=${value.eof}\n${content}`,
-        )
-      } catch {
-        return `rejected reason=unsupported ${header} invalid UTF-8 page; use UTF-8 byte boundaries`
-      }
-    },
+  const identified = (value: FileIdentity) => ({ version: value.version })
+  const operations: Record<string, () => Promise<Answer>> = {
+    read: async () => readPage(files, args, header, maximum),
     write: async () => {
       const parent = args.flag('parents') ? parentOf(path) : undefined
       if (parent !== undefined) {
         const made = await files.mkdir({ path: parent, parents: true })
         if (made.kind !== 'done' && !(made.kind === 'rejected' && made.reason === 'conflict'))
-          return confirmation(made, () => '')
+          return { text: confirmation(made, () => '') }
       }
-      return confirmation(
+      return answered(
         await files.write({
           path,
           bytes: new TextEncoder().encode(args.text('text')),
@@ -198,6 +240,7 @@ async function executeCommand(
           ...expected(args),
         }),
         value => `${header} ${identityText(value)} write_effect=${writeEffectOf(value)}`,
+        value => ({ version: value.version, effect: writeEffectOf(value) }),
       )
     },
     edit: () =>
@@ -212,32 +255,9 @@ async function executeCommand(
         args.edits().map(edit => ({ ...edit, path: placePath(edit.path, directory) })),
         true,
       ),
-    list: async () => {
-      const listed = await files.list({ path, ...page(args) })
-      if (listed.kind !== 'done') return confirmation(listed, () => '')
-      const entries: string[] = []
-      for (const entry of listed.value.entries) {
-        const name = 'name' in entry ? entry.name : undefined
-        if (
-          typeof name !== 'string' ||
-          name === '' ||
-          name === '.' ||
-          name === '..' ||
-          /[/\\]/u.test(name)
-        )
-          return 'unavailable reason=entry-name-unavailable no entries returned'
-        entries.push(
-          `${JSON.stringify(name)}\t${entry.type}\t${entry.sizeBytes}\t${identityText(entry)}`,
-        )
-      }
-      return confirmation(
-        listed,
-        value =>
-          `${header} ${identityText(value.directory)}\nnext_offset=${value.nextOffset ?? 'end'}\n${entries.join('\n')}`,
-      )
-    },
+    list: () => listEntries(files, args, header),
     find: async () =>
-      confirmation(
+      answered(
         await files.search({
           path,
           pattern: new TextEncoder().encode(args.text('pattern')),
@@ -247,23 +267,30 @@ async function executeCommand(
         }),
         value =>
           `${header} match=${args.text('match')} ${identityText(value.root)}\nnext_offset=${value.nextOffset ?? 'end'} facility_truncated=${value.truncated}\n${value.hits.map(hit => `${JSON.stringify(hit.path)} offset_bytes=${hit.offsetBytes ?? 'none'} object=${JSON.stringify(hit.object)}`).join('\n')}`,
+        value => ({
+          hits: value.hits.map(hit => ({ path: hit.path, offset_bytes: hit.offsetBytes ?? null })),
+          next_offset: value.nextOffset ?? null,
+          truncated: value.truncated,
+        }),
       ),
     info: () => fileInfo(files, path, header, maximum),
     mkdir: async () =>
-      confirmation(
+      answered(
         await files.mkdir({ path, parents: args.flag('parents') }),
         value => `${header} ${identityText(value)}`,
+        identified,
       ),
     delete: async () =>
-      confirmation(
+      answered(
         await files.remove({ path, recursive: args.flag('recursive'), ...expected(args) }),
         value => `${header} removed=${JSON.stringify(value.removed)}`,
+        () => ({ removed: true }),
       ),
     move: () => transfer('move'),
     copy: () => transfer('copy'),
   }
   async function transfer(operation: 'move' | 'copy') {
-    return confirmation(
+    return answered(
       await files[operation]({
         path,
         target: { path: args.text('target') },
@@ -272,6 +299,7 @@ async function executeCommand(
       }),
       value =>
         `${header} target=${JSON.stringify(args.text('target'))} source=${JSON.stringify(value.source)} ${identityText(value.target)}`,
+      value => identified(value.target),
     )
   }
   const operation = operations[command]
@@ -284,18 +312,24 @@ function parentOf(path: string): string | undefined {
   return cut <= 0 || parent.endsWith(':') ? undefined : parent
 }
 async function fileInfo(
-  files: FilesAuthorEnvironment['files'],
+  files: Files,
   path: string,
   pathHeader: string,
   maximum: number,
-): Promise<string> {
+): Promise<Answer> {
   const result = await files.stat({ path })
-  if (result.kind !== 'done') return confirmation(result, () => '')
+  if (result.kind !== 'done') return { text: confirmation(result, () => '') }
   const value = result.value
+  const data = {
+    type: value.type,
+    size_bytes: value.sizeBytes,
+    modified_ms: value.modifiedMs,
+    version: value.version,
+  }
   const header = `${pathHeader} ${identityText(value)}\ntype=${value.type} size_bytes=${value.sizeBytes} modified_ms=${value.modifiedMs}`
-  if (value.type !== 'file') return `done\n${header}\nbinary=not-sampled`
+  if (value.type !== 'file') return { text: `done\n${header}\nbinary=not-sampled`, data }
   const sample = await files.read({ path, offsetBytes: 0, limitBytes: Math.min(4096, maximum) })
-  return `done stat\n${header}\n${confirmation(sample, observed => {
+  const sampled = confirmation(sample, observed => {
     if (observed.version !== value.version || observed.object.token !== value.object.token)
       return 'binary=unknown sample-version-conflict'
     let binary = observed.bytes.includes(0)
@@ -305,5 +339,6 @@ async function fileInfo(
       binary = true
     }
     return `binary_sample=${binary ? 'binary-observed' : 'no-binary-observed'} sample_bytes=${observed.bytes.byteLength} sample_eof=${observed.eof} (bounded observation, not a whole-file guarantee)`
-  })}`
+  })
+  return { text: `done stat\n${header}\n${sampled}`, data }
 }

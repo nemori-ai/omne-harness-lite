@@ -12,7 +12,11 @@ import {
   type ToolOperationId,
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
-import { type CallAccess } from '@omne-harness/tool-contract/provider'
+import {
+  owesDisposal,
+  type CallAccess,
+  type ToolChildren,
+} from '@omne-harness/tool-contract/provider'
 import {
   type PreparationProgress,
   type PreparationRecord,
@@ -25,7 +29,7 @@ import {
 import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
 import { createFactDriver } from './driver-facts.ts'
-import { createBindingInvoker } from './driver-binding.ts'
+import { createBindingInvoker, type Invocation } from './driver-binding.ts'
 import { createControlDriver } from './driver-control.ts'
 import { createPreparedEnvironments } from './driver-environment.ts'
 import { preserveSavedFinal } from './driver-settlement.ts'
@@ -123,6 +127,20 @@ export type ToolDriverHandle<P> = ToolDriver<P> &
     later(input: Step<P>): void
   }>
 
+const after = (reply: Outcome<unknown, ToolFailure>): StepResult => {
+  if ('ok' in reply) return CONTINUE
+  return retryable(reply.failure) ? STALLED : { kind: 'failed', failure: reply.failure }
+}
+
+/** TL-70: a closed program whose positions still owe a step is taken one pass further. */
+const programDuty = <P>(children: ToolChildren<P>, step: CallAccess<P>, recovery: ToolRecovery) =>
+  recovery.program !== null && owesDisposal(recovery.program).length > 0
+    ? [{ key: 'program-fence', run: async () => after(await children.dispose(step)) }]
+    : []
+
+const REFUSED = 'the start was refused before it began'
+const owesQueue = (recovery: ToolRecovery) => recovery.tasks.some(task => task.kind === 'queue')
+
 export function createToolDriver<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   policy: DriverPolicy,
@@ -174,11 +192,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     suffix: Suffix,
   ) =>
     context(step, recovery, suffix, start.kind === 'start' ? recovery.admission : start.operation)
-
-  const after = (reply: Outcome<unknown, ToolFailure>): StepResult => {
-    if ('ok' in reply) return CONTINUE
-    return retryable(reply.failure) ? STALLED : { kind: 'failed', failure: reply.failure }
-  }
 
   const scheduleNow = async (tenant: TenantId, call: ToolCallId): Promise<boolean> => {
     try {
@@ -594,7 +607,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     step: Step<P>,
     recovery: ToolRecovery,
     start: ToolStartRecord,
-    invoked: Exclude<Awaited<ReturnType<typeof binding.invoke>>, { kind: 'port-failed' }>,
+    invoked: Exclude<Invocation, { kind: 'port-failed' | 'start-refused' }>,
     recordBindingFailureMarker: () => Promise<StepResult>,
   ): Promise<StepResult> => {
     const afterStart = await authority.inspect({
@@ -672,6 +685,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if (gone !== null) return gone
     const invoked = await binding.invoke(step, recovery, start)
     if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
+    if (invoked.kind === 'start-refused') return rejectUnstarted(step, recovery, start, REFUSED)
     if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
       unconfirmedBindingFailures.add(callKey(step.tenant, step.call))
     return reconcileInvocation(step, recovery, start, invoked, recordBindingFailureMarker)
@@ -734,7 +748,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   type Action = (step: Step<P>, recovery: ToolRecovery) => Promise<StepResult>
 
-  const owesQueue = (recovery: ToolRecovery) => recovery.tasks.some(task => task.kind === 'queue')
   const owing =
     (action: Action): Action =>
     (step, recovery) =>
@@ -778,6 +791,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   ) => readonly Duty[]
 
   const duties: readonly DutyRule[] = [
+    (step, recovery) => programDuty(dependencies.children, step, recovery),
     (step, recovery, cancelled) =>
       recovery.state.phase === 'settled' && owesQueue(recovery)
         ? [{ key: 'queue', run: () => repairRelease(step, recovery, cancelled) }]

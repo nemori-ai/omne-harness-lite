@@ -24,7 +24,6 @@ import type {
   ToolStartLookup,
   ToolStartRecord,
 } from './ports.ts'
-import type { ChildReservation, ProgramEnd } from './program.ts'
 import type { Reply, WaitState } from './results.ts'
 
 export type PhysicalExecution =
@@ -299,13 +298,6 @@ export type ToolTask = Readonly<{
         evidence: DurableEvidence
       }>
     | Readonly<{ kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock'; basis: DurableEvidence }>
-    | Readonly<{
-        kind: 'child'
-        reservation: ChildReservation
-        action: 'reconcile' | 'collect' | 'control'
-        cause: ProgramEnd | null
-      }>
-    | Readonly<{ kind: 'program-fence'; end: ProgramEnd; guard: StartGuard }>
     | Readonly<{
         kind: 'resource-wait'
         wait: Extract<WaitIntent, { kind: 'resource' }>

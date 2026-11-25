@@ -119,7 +119,8 @@ export type ToolProgramOutput<R> =
       kind: 'json'
       adoption: Adoption
       schema: ToolValueSchema<unknown>
-      encode(value: R): Outcome<JsonValue, Readonly<{ reason: string }>>
+      /** `null`: this answer has no value for a program, only text to read (a refusal, a notice). */
+      encode(value: R): Outcome<JsonValue | null, Readonly<{ reason: string }>>
     }>
 export type ToolAuthor<A, R, E, B extends ContentBlock> = Readonly<{
   parameters: ParameterCodec<A>

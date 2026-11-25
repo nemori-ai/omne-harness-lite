@@ -22,6 +22,53 @@ export type Placed =
   | Readonly<{ kind: 'outside' }>
   | Readonly<{ kind: 'unavailable' }>
 
+export type SettingPresence =
+  | Readonly<{ kind: 'unset' }>
+  | Readonly<{ kind: 'set'; value: unknown }>
+
+export type HeldSetting = Readonly<{ item: string; title: string; revision: string }> &
+  (
+    | Readonly<{
+        kind: 'ordinary'
+        schema: unknown
+        own: SettingPresence
+        effective: SettingPresence
+        source: 'default' | 'organization' | 'tenant' | null
+        writable: 'yes' | 'locked' | 'not-a-source' | 'prohibited-above'
+      }>
+    | Readonly<{ kind: 'secret'; configured: 'yes' | 'no' | 'unknown' }>
+    | Readonly<{ kind: 'permission' }>
+  )
+
+export type SettingWritten =
+  | 'written'
+  | 'no-change'
+  | 'denied'
+  | 'gone'
+  | 'invalid'
+  | 'conflict'
+  | 'locked'
+  | 'out-of-bound'
+  | 'prohibited-above'
+  | 'not-a-source'
+  | 'unavailable'
+  | 'unknown'
+
+type HeldAsset = Readonly<{ category: string; name: string }>
+
+export type HeldSettings = Readonly<{
+  list(asset: HeldAsset): Promise<readonly HeldSetting[] | 'denied' | 'not-held' | 'unavailable'>
+  write(
+    input: Readonly<{
+      asset: HeldAsset
+      item: string
+      operation: string
+      revision: string
+      change: Readonly<{ kind: 'set'; value: unknown }> | Readonly<{ kind: 'clear' }>
+    }>,
+  ): Promise<SettingWritten>
+}>
+
 /** What one call needs, given by the binding. The tenant and the principal come from the call; the model cannot give them. */
 export type ExtensionsCallSource = Readonly<{
   tenant: string
@@ -34,6 +81,7 @@ export type ExtensionsCallSource = Readonly<{
   place(dir: string, from: PackageReader): Promise<Placed>
   impact: ChangeImpact
   placement: Placement
+  settings(): HeldSettings | undefined
   /** The revision of the extension tree now; null when it cannot be read. */
   revision(): string | null
 }>

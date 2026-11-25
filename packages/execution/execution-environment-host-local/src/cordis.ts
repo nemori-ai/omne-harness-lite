@@ -8,6 +8,7 @@ import {
 import {
   commandFacility,
   filesFacility,
+  programFacility,
   screenFacility,
   terminalFacility,
   type EnvironmentAuthority,
@@ -324,6 +325,15 @@ export const screenFacilityPlugin = {
   inject: { [executionEnvironmentKey]: { caller: 'provider' } },
   apply(ctx: Context) {
     ctx.executionEnvironment.registerFacility(screenFacility)
+  },
+}
+
+export const programFacilityPlugin = {
+  name: 'programFacility',
+  Config: emptyConfig,
+  inject: { [executionEnvironmentKey]: { caller: 'provider' } },
+  apply(ctx: Context) {
+    ctx.executionEnvironment.registerFacility(programFacility)
   },
 }
 

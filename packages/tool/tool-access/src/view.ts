@@ -1,7 +1,8 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ResultPage, ToolState, ToolTerminal } from '@omne-harness/tool-contract'
-import type { ToolCallResultPage, ToolCallView } from '@omne-harness/tool-protocol'
+import type { ProgramPosition } from '@omne-harness/tool-contract/provider'
+import type { ToolCallChild, ToolCallResultPage, ToolCallView } from '@omne-harness/tool-protocol'
 
 function terminalDetail(terminal: ToolTerminal): string | null {
   switch (terminal.kind) {
@@ -61,5 +62,57 @@ export function resultView(page: ResultPage<ContentBlock>): ToolCallResultPage {
     effect: page.effect.kind,
     content: jsonOf(page.value.content.filter(block => block.visibility.toHuman)),
     next: page.next,
+  }
+}
+
+type ChildState = ToolCallChild['state']
+
+const TERMINALS: Readonly<Record<ToolTerminal['kind'], ChildState>> = {
+  completed: 'completed',
+  failed: 'failed',
+  unavailable: 'failed',
+  interrupted: 'stopped',
+  'no-response': 'unknown',
+}
+const EXCLUSIONS: Readonly<
+  Record<Extract<ProgramPosition, { state: 'excluded' }>['exclusion']['kind'], ChildState>
+> = { denied: 'denied', 'not-accepted': 'failed', unavailable: 'failed', closed: 'stopped' }
+
+/** What the call at a handed position is doing: `missing` before its admission landed, `unread` when it cannot be read. */
+export type ChildProgress = ToolState | 'missing' | 'unread'
+
+function handedState(
+  position: Extract<ProgramPosition, { state: 'handed' }>,
+  progress: ChildProgress,
+): ChildState {
+  if (position.background) return 'background'
+  if (position.stop === 'unknown' || progress === 'unread') return 'unknown'
+  if (progress === 'missing') return 'queued'
+  switch (progress.phase) {
+    case 'accepted':
+    case 'preparing':
+    case 'queued':
+      return 'queued'
+    case 'starting':
+    case 'running':
+      return 'running'
+    case 'suspended':
+      return 'waiting'
+    case 'settled':
+      return TERMINALS[progress.terminal.kind]
+  }
+}
+
+/** One word for a position: a registered one is still in its admission, which is where a person is asked. */
+export function childState(position: ProgramPosition, progress: ChildProgress): ChildState {
+  switch (position.state) {
+    case 'registered':
+      return 'waiting'
+    case 'handed':
+      return handedState(position, progress)
+    case 'excluded':
+      return EXCLUSIONS[position.exclusion.kind]
+    case 'retained':
+      return TERMINALS[position.terminal.kind]
   }
 }

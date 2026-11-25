@@ -56,6 +56,7 @@ import {
   createEndpointEligibility,
   heldEndpointRefs,
   MCP_CATEGORY,
+  programCallsOpen,
   type EndpointFacts,
   type EndpointSettingRead,
 } from './endpoints.ts'
@@ -253,6 +254,7 @@ const mcpPlugin: Plugin.Object = {
       endpoints: asker => held(asker.tenant),
       discovery: discoveryOf(ctx),
       invoker: invokerOf(ctx),
+      programmable: (asker, ref) => programCallsOpen(facts, asker.tenant, ref.name),
       principalKey,
       shape: {
         resultContract: createToolMessageResultCodec(config.bridge.resultMaxBytes).adoption,

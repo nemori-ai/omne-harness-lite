@@ -1,0 +1,37 @@
+diff --git a/package.json b/package.json
+index 0c2f24561b72f67cc05594718c02459587f52e4a..9891473da3454c11d6b8f49924318b7f3964da84 100644
+--- a/package.json
++++ b/package.json
+@@ -7,32 +7,26 @@
+ 	"types": "./dist/index.d.ts",
+ 	"exports": {
+ 		".": {
+-			"source": "./src/index.ts",
+ 			"types": "./dist/index.d.ts",
+ 			"import": "./dist/index.js"
+ 		},
+ 		"./declarations": {
+-			"source": "./src/declarations.ts",
+ 			"types": "./dist/declarations.d.ts",
+ 			"import": "./dist/declarations.js"
+ 		},
+ 		"./source": {
+-			"source": "./src/source.ts",
+ 			"types": "./dist/source.d.ts",
+ 			"import": "./dist/source.js"
+ 		},
+ 		"./portable": {
+-			"source": "./src/portable.ts",
+ 			"types": "./dist/portable.d.ts",
+ 			"import": "./dist/portable.js"
+ 		},
+ 		"./cloudflare": {
+-			"source": "./src/cloudflare.ts",
+ 			"types": "./dist/cloudflare.d.ts",
+ 			"import": "./dist/cloudflare.js"
+ 		},
+ 		"./worker": {
+-			"source": "./src/runtime/worker.ts",
+ 			"types": "./dist/runtime/worker.d.ts",
+ 			"import": "./dist/runtime/worker.js"
+ 		}

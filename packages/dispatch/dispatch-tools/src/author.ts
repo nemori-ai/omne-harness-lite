@@ -198,6 +198,7 @@ export function createAgentsAuthor(
       release: Readonly<{ gate: string }>
       conditions?: readonly string[]
       background?: ToolCommandBackground
+      readOnly: boolean
     }
   > = {}
   for (const name of agentsCommandNames) {
@@ -208,6 +209,7 @@ export function createAgentsAuthor(
       summary: agentsSummaries[name],
       operation: operation.ok,
       release: { gate: AGENTS_GATE_OF[name] },
+      readOnly: AGENTS_GATE_OF[name] === 'read',
       ...(name === 'report' ? { conditions: REPORT_CONDITIONS } : {}),
       ...(name === 'dispatch' ? { background: DISPATCH_IN_BACKGROUND } : {}),
     }

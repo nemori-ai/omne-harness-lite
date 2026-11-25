@@ -1,6 +1,8 @@
 import { defineProtocol, ruleCodec, type Rule, type RuleValue } from '@omne-harness/public-contract'
 
-type Fields = Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
+type Fields = Readonly<
+  Record<string, { readonly rule: Rule; readonly optional?: true; readonly since?: number }>
+>
 
 const text = { kind: 'text' } as const
 const tenant = { kind: 'tenant' } as const
@@ -118,7 +120,13 @@ const question = {
           digest: { rule: text },
         }),
       },
-      origin: { rule: object({ session: { rule: text }, agent: { rule: text } }) },
+      origin: {
+        rule: object({
+          session: { rule: text },
+          agent: { rule: text },
+          program: { rule: { kind: 'literal', values: [true] }, optional: true, since: 2 },
+        }),
+      },
       gateTitle: { rule: text },
       gate: {
         rule: object({

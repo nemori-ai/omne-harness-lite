@@ -34,14 +34,17 @@ const GATES: readonly ToolGate[] = [
   { id: 'read', title: '查看', default: 'auto' },
   { id: 'change', title: '改动', default: 'auto' },
   { id: 'export', title: '取到工作区', default: 'auto' },
+  { id: 'configure', title: '改设置', default: 'ask' },
 ]
 /** Export changes no asset but writes into the workspace: it has a gate of its own. */
-const GATE_OF: Readonly<Partial<Record<ExtensionsCommandName, 'change' | 'export'>>> = {
+type WritingGate = 'change' | 'export' | 'configure'
+const GATE_OF: Readonly<Partial<Record<ExtensionsCommandName, WritingGate>>> = {
   publish: 'change',
   enable: 'change',
   disable: 'change',
   remove: 'change',
   export: 'export',
+  configure: 'configure',
 }
 const ENCODING = 'wrapped' as const
 const encoder = new TextEncoder()
@@ -57,6 +60,7 @@ const guide = [
   'To change an extension that is already held: export it to a directory, edit the files there, ask impact with that directory, then publish from it. The held version is the source; the directory is your working copy.',
   'dir is a path from the working directory of this session, or an absolute path. It reaches as far as the file tools of this call do.',
   'You act for the acting tenant: what you publish is held by this tenant and changes only what this tenant sees.',
+  'settings reads the settings of a held extension and configure writes one. Give configure an id of your own. The user is asked before a setting is written, unless the user chose otherwise.',
   'A failure starts with its reason, then says what to do.',
 ].join('\n\n')
 
@@ -222,16 +226,23 @@ export function createExtensionsAuthor(
     })
   const operations: Record<
     string,
-    { summary: string; operation: Operation; release: Readonly<{ gate: string }> }
+    {
+      summary: string
+      operation: Operation
+      release: Readonly<{ gate: string }>
+      readOnly: boolean
+    }
   > = {}
   for (const name of extensionsCommandNames) {
     const operation = operationOf(name, read.data.resultMaxBytes)
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
+    const gate = GATE_OF[name] ?? 'read'
     operations[name] = {
       summary: extensionsSummaries[name],
       operation: operation.ok,
-      release: { gate: GATE_OF[name] ?? 'read' },
+      release: { gate },
+      readOnly: gate === 'read',
     }
   }
   const author = defineCommandTool({

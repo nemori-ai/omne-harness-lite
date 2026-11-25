@@ -32,6 +32,7 @@ import {
   type ModelReceptionTargets,
   type ToolReceptionTargets,
   type ModelSelection,
+  type NestedActionAdmission,
   type RegisteredReads,
   type Registration,
   type RegistrationState,
@@ -383,6 +384,19 @@ export abstract class AgentExecutionControlService<P>
   abstract readonly control: AgentExecutionControl<P>['control']
 }
 export const agentExecutionControlKey = AgentExecutionControlService.provide
+
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentNestedActionsService<P>
+  extends Service
+  implements NestedActionAdmission<P>
+{
+  static readonly provide = 'agentNestedActions'
+  constructor(ctx: Context) {
+    super(ctx, AgentNestedActionsService.provide)
+  }
+  abstract readonly admit: NestedActionAdmission<P>['admit']
+}
+export const agentNestedActionsKey = AgentNestedActionsService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentInstanceProvisionService<P>
@@ -857,6 +871,7 @@ declare module '@deepseek-ai/cordis' {
     agentModelReceptionTargets: ModelReceptionTargetsService<unknown>
     agentToolReceptionTargets: ToolReceptionTargetsService<unknown>
     agentExecutionControl: AgentExecutionControlService<unknown>
+    agentNestedActions: AgentNestedActionsService<unknown>
     agentInstances: AgentInstancesService<unknown>
     agentInstanceProvision: AgentInstanceProvisionService<unknown>
   }

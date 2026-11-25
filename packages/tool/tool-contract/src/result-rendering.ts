@@ -75,9 +75,10 @@ function programData<B extends ContentBlock>(
   const tree = callAuthor(
     'program',
     () => program.encode(value),
-    encoded => jsonValue(encoded, 'data.value'),
+    encoded => (encoded === null ? succeed(null) : jsonValue(encoded, 'data.value')),
   )
   if ('failure' in tree) return tree
+  if (tree.ok === null) return succeed({ kind: 'none' })
   if (jsonTextBytes(tree.ok) > program.schema.maxBytes) return failed('program', 'too-large')
   return succeed(
     Object.freeze({
@@ -93,8 +94,8 @@ function dataMismatch<B extends ContentBlock>(
   data: ToolResultData,
   program: Structured<B>['program'],
 ): string | undefined {
-  if (program.kind === 'none') return data.kind === 'none' ? undefined : 'program-mismatch'
-  if (data.kind !== 'json') return 'program-mismatch'
+  if (data.kind === 'none') return undefined
+  if (program.kind === 'none') return 'program-mismatch'
   if (!sameAdoption(data.contract, program.adoption)) return 'program-mismatch'
   if (!sameSchemaIdentity(data.schema, program.schema.identity)) return 'program-mismatch'
   const tree = jsonValue(data.value, 'value')

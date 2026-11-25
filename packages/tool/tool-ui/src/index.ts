@@ -1,2 +1,5 @@
 export { CallOutputStore, KEPT_CHARS, type CallOutputView } from './model/call-output.ts'
 export { CallOutput } from './view/call-output.tsx'
+export { CallChildrenStore, type CallChildrenView } from './model/call-children.ts'
+export { CallChildren } from './view/call-children.tsx'
+export { CodeCard, programOf, type ToolCallSubject } from './view/code-card.tsx'

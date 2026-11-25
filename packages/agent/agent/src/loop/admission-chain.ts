@@ -87,7 +87,7 @@ function concluded<O extends ExtensionOutput>(
   }
 }
 
-function fresh(action: Action, id: PassageId): Passage {
+export function freshChain(action: Action, id: PassageId): Passage {
   const input = agentEvidence(`${id}/input`, [action.original.callId, action.effectiveArguments])
   return {
     id,
@@ -128,9 +128,15 @@ export function withChosenRewrite(
     : action
 }
 
+export type Admitted =
+  | Readonly<{ kind: 'judged'; action: Action }>
+  | Readonly<{ kind: 'denied'; action: Action; category: DenialCategory }>
+  | Readonly<{ kind: 'allowed'; action: Action; evidence: DurableEvidence }>
+  | Extract<ToolAdmission, { kind: 'asked' }>
+
 export function afterAdmission(
   passages: readonly Passage[],
-  answer: Exclude<ToolAdmission, { kind: 'unavailable' | 'refused' }>,
+  answer: Admitted,
   before: Passage | null,
   at: AgentInstant,
 ): Step & Readonly<{ opened?: CardRoundId }> {
@@ -138,7 +144,7 @@ export function afterAdmission(
   if (answer.kind === 'asked') {
     if (action.judgment.kind !== 'pending') return succeed({ action, passages })
     const id = action.judgment.passage
-    const chain = before ?? fresh(action, id)
+    const chain = before ?? freshChain(action, id)
     const round = cardRound(id, roundCount(chain) + 1)
     const requests = [cardRequestOf(cardRequestIdentity(round, 1), answer.card)]
     if (repeatsAnsweredRound(chain, requests)) {

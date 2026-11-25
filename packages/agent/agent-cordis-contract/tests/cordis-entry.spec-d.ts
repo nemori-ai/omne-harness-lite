@@ -1,6 +1,7 @@
 import type { Context, Events } from '@deepseek-ai/cordis'
 import type {
   AgentExecutionControl,
+  NestedActionAdmission,
   AgentExecutionId,
   AgentClock,
   AgentJournal,
@@ -28,6 +29,7 @@ import {
   type AgentAccessCheckService,
   type AgentClockService,
   type AgentExecutionControlService,
+  type AgentNestedActionsService,
   type AgentReceivedCommitsService,
   type AgentReceivedRecordsService,
   type ModelReceptionTargetsService,
@@ -67,6 +69,10 @@ it('types the injected Agent services on the context, with the principal left op
 it('types the receiving services on the context with the operations of their ports', () => {
   expectTypeOf(ctx.agentJournalEntries).toEqualTypeOf<AgentJournalEntriesService<unknown>>()
   expectTypeOf(ctx.agentExecutionControl).toEqualTypeOf<AgentExecutionControlService<unknown>>()
+  expectTypeOf(ctx.agentNestedActions).toEqualTypeOf<AgentNestedActionsService<unknown>>()
+  expectTypeOf<AgentNestedActionsService<string>['admit']>().toEqualTypeOf<
+    NestedActionAdmission<string>['admit']
+  >()
   expectTypeOf<AgentJournalEntriesService<string>['record']>().toEqualTypeOf<
     AgentJournalEntries<string>['record']
   >()

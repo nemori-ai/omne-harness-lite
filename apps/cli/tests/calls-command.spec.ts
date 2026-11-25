@@ -354,6 +354,126 @@ describe('calls output reads the result of the call page by page', () => {
   })
 })
 
+describe('calls children lists the positions under a call, page by page', () => {
+  const item = (ordinal: number, rest: Record<string, unknown> = {}) => ({
+    ordinal,
+    tool: 'Files',
+    command: 'read',
+    preview: `a${ordinal}.txt`,
+    state: 'completed',
+    child: `ref-${ordinal}`,
+    ...rest,
+  })
+
+  it('prints one line per position: ordinal, state word, action and the reference of its call', async () => {
+    const service = await serve(seen => {
+      if (seen.operation !== 'list-call-children') return undefined
+      return {
+        outcome: 'succeeded',
+        body:
+          seen.body['cursor'] === null
+            ? { items: [item(1), item(2, { state: 'waiting', child: null })], next: '2' }
+            : {
+                items: [item(3, { tool: 'Shell', command: null, preview: '', state: 'stopped' })],
+                next: null,
+              },
+      }
+    })
+    const result = await cli(['children', '--call', REFERENCE])
+    expect(result).toMatchObject({
+      code: 0,
+      stdout:
+        '1  completed  Files read · a1.txt  ref-1\n' +
+        '2  waiting  Files read · a2.txt\n' +
+        '3  stopped  Shell  ref-3\n',
+      stderr: '',
+    })
+    expect(
+      service.seen.filter(seen => seen.operation === 'list-call-children').map(seen => seen.body),
+    ).toEqual([
+      { tenant: tenantText, reference: REFERENCE, cursor: null },
+      { tenant: tenantText, reference: REFERENCE, cursor: '2' },
+    ])
+  })
+
+  it('says so when the call ran no calls of its own', async () => {
+    await serve(seen =>
+      seen.operation === 'list-call-children'
+        ? { outcome: 'succeeded', body: { items: [], next: null } }
+        : undefined,
+    )
+    expect(await cli(['children', '--call', REFERENCE])).toMatchObject({
+      code: 0,
+      stdout: 'This call ran no calls of its own.\n',
+    })
+  })
+
+  it('prints nothing when the first page is refused, and what it read when a later page is', async () => {
+    await serve(seen => {
+      if (seen.operation !== 'list-call-children') return undefined
+      if (seen.body['reference'] !== REFERENCE) return { outcome: 'denied', body: {} }
+      return seen.body['cursor'] === null
+        ? { outcome: 'succeeded', body: { items: [item(1)], next: '1' } }
+        : { outcome: 'basis-unavailable', body: {} }
+    })
+    expect(await cli(['children', '--call', 'another'])).toMatchObject({
+      code: 3,
+      stdout: '',
+      stderr: 'omne calls children: output incomplete: page 1 was answered denied\n',
+    })
+    const later = await cli(['children', '--call', REFERENCE])
+    expect(later.stdout).toBe('1  completed  Files read · a1.txt  ref-1\n')
+    expect(later.stderr).toBe(
+      'omne calls children: output incomplete: page 2 was answered basis-unavailable\n',
+    )
+    expect(later.code).not.toBe(0)
+  })
+
+  it('takes a short number of the session, and needs the session for it', async () => {
+    const service = await serve(seen => {
+      if (seen.operation === 'list-background-calls')
+        return {
+          outcome: 'succeeded',
+          body: {
+            calls: [
+              {
+                id: 'b1',
+                producer: { kind: 'tool', call: REFERENCE },
+                label: { intent: null, tool: 'Code', command: 'execute', preview: '' },
+                source: 'threshold',
+                status: 'running',
+                stop: null,
+                lastLine: null,
+              },
+            ],
+          },
+        }
+      return seen.operation === 'list-call-children'
+        ? { outcome: 'succeeded', body: { items: [item(1)], next: null } }
+        : undefined
+    })
+    expect((await cli(['children', '--call', 'b1', ...owned])).code).toBe(0)
+    expect(last(service)?.body).toEqual({ tenant: tenantText, reference: REFERENCE, cursor: null })
+    const alone = await cli(['children', '--call', 'b1'])
+    expect(alone).toMatchObject({ code: 2 })
+    expect(alone.stderr).toContain('b1 is a short number: add --session <session>')
+  })
+
+  it('says a page was not sent when the server cannot be reached', async () => {
+    await serve()
+    const port = await closedPort()
+    const result = await cli([
+      'children',
+      '--call',
+      REFERENCE,
+      '--server',
+      `http://127.0.0.1:${port}`,
+    ])
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toContain('page 1 was not sent: the service is unavailable')
+  })
+})
+
 describe('calls show and output, the edges', () => {
   const page = (content: unknown[], next: string | null) => ({
     outcome: 'succeeded',
@@ -506,6 +626,7 @@ describe('usage', () => {
     })
     expect((await cli(['show'])).stderr).toContain('missing --call')
     expect((await cli(['output'])).stderr).toContain('missing --call')
+    expect((await cli(['children'])).stderr).toContain('missing --call')
     expect((await cli(['list'])).stderr).toContain('missing --session')
     expect((await cli(['stop', '--call', REFERENCE])).stderr).toContain('missing --session')
     expect((await cli(['background', '--call', REFERENCE])).stderr).toContain('missing --session')

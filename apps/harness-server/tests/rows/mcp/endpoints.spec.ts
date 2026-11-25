@@ -10,6 +10,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { credentialBinding } from '../../../src/rows/mcp/credential.ts'
 import {
   createEndpointAdoption,
+  programCallsOpen,
   type CredentialPresence,
   type EndpointFacts,
 } from '../../../src/rows/mcp/endpoints.ts'
@@ -86,4 +87,25 @@ it('a secured endpoint adopts its credential once one is kept, and its revision 
 it('an endpoint whose credential cannot be told is not known, not adopted without it', async () => {
   const adoption = createEndpointAdoption(factsWith(() => fail('unknown')))
   expect(await adoption.endpoint({ principal: null, tenant: home }, ref)).toEqual(fail('unknown'))
+})
+
+// MC-26: program calls are open only when the holder set them to true; anything else is not open.
+it.each([
+  ['set to true', new Map([['program-calls', { kind: 'set', value: true, revision: '3' }]]), true],
+  [
+    'set to false',
+    new Map([['program-calls', { kind: 'set', value: false, revision: '3' }]]),
+    false,
+  ],
+  [
+    'set to a text',
+    new Map([['program-calls', { kind: 'set', value: 'true', revision: '3' }]]),
+    false,
+  ],
+  ['not set', new Map([['program-calls', { kind: 'unset', revision: '0' }]]), false],
+  ['not among the settings', new Map(), false],
+  ['not readable', 'unknown', false],
+] as const)('program calls of an endpoint whose setting is %s', async (_state, items, open) => {
+  const settings = (async () => items) as EndpointFacts['settings']
+  expect(await programCallsOpen({ settings }, home, 'docs')).toBe(open)
 })

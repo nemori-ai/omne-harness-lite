@@ -8,7 +8,7 @@ export async function targetResidency(
   source: LocalToolCatalogViewSource<unknown> | undefined,
   access: Access<unknown>,
   target: ToolAvailability,
-  required: 'resident' | 'nonresident',
+  required: 'resident' | 'nonresident' | 'listed',
   sourced?: SourcedEntries,
 ): Reply<void> {
   if (target.kind !== 'available') return fail({ kind: 'denied', action: 'target-unavailable' })
@@ -33,7 +33,7 @@ export async function targetResidency(
   if (entry === undefined && !fromSource)
     return fail({ kind: 'denied', action: 'target-not-included' })
   const resident = entry?.resident === true
-  if (resident === (required === 'resident')) return succeed(undefined)
+  if (required === 'listed' || resident === (required === 'resident')) return succeed(undefined)
   return fail({
     kind: 'denied',
     action: resident

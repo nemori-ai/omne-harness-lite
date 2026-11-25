@@ -6,6 +6,7 @@ import {
 } from '@omne-harness/mcp-contract'
 import { generationOf, jsonOf, taskIdOf } from '@omne-harness/mcp-contract/testing'
 import { describe, expect, it } from 'vitest'
+import { describedAdoption } from '@omne-harness/tool-contract/provider'
 import { PEER_TEXT_BEGIN, PEER_TEXT_END, settle, type Settlement } from '../src/index.ts'
 
 const sent = (outcome: CallOutcome): InvokeResult => ({ kind: 'sent', outcome })
@@ -276,5 +277,91 @@ describe('what a call came to', () => {
       cancelTask: { taskId: 'task-9', issuedAt: 3 },
       message: expect.stringMatching(/long-running task.*not known/u),
     })
+  })
+})
+
+// MC-26: a program is given content that passed the output check, or the items in order; never an unchecked structure.
+describe('what a call gives a program', () => {
+  const program = {
+    kind: 'json',
+    contract: describedAdoption({ owner: 'bridge-tests', name: 'program-data', revision: '1' }),
+    schema: { id: 'bridge-tests/out', revision: '1', digest: 'sha256:out' },
+    definition: {
+      schema: jsonOf({ type: 'object' }),
+      vocabulary: describedAdoption({ owner: 'bridge-tests', name: 'schema', revision: '1' }),
+      descriptions: [],
+    },
+    maxBytes: 1024,
+    external: true,
+  } as const
+  const given = (outcome: CallOutcome) => {
+    const settlement = settle('mcp__docs', 'search', sent(outcome), 65_536, program)
+    if (settlement.effect !== 'happened') throw new Error(`no result: ${settlement.message}`)
+    return settlement.result.data
+  }
+  const text = toContentBlocks([jsonOf({ type: 'text', text: 'x' })])
+  const valued = (value: unknown) => ({
+    kind: 'json',
+    contract: program.contract,
+    schema: program.schema,
+    value: jsonOf(value),
+  })
+
+  it('the structured content, when it conforms to the declared output schema', () => {
+    const structured = jsonOf({ answer: 42 })
+    expect(
+      given({ kind: 'complete', content: text, structured, output: { kind: 'conforms' } }),
+    ).toEqual(valued({ answer: 42 }))
+  })
+
+  it('nothing, when the structured content breaks the declared output schema or is missing', () => {
+    const output = { kind: 'violates', reason: 'answer must be a number' } as const
+    const structured = jsonOf({ answer: 'no' })
+    expect(given({ kind: 'complete', content: text, structured, output })).toEqual({ kind: 'none' })
+    expect(given({ kind: 'complete', content: text, output })).toEqual({ kind: 'none' })
+    expect(given({ kind: 'complete', content: text, output: { kind: 'conforms' } })).toEqual({
+      kind: 'none',
+    })
+  })
+
+  it('the content items in order, when the action declares no output schema', () => {
+    const content = toContentBlocks([
+      jsonOf({ type: 'text', text: 'first' }),
+      jsonOf({ type: 'image', data: 'aGk=', mimeType: 'image/png' }),
+      jsonOf({ type: 'resource_link', uri: 'file:///a.txt', name: 'a.txt' }),
+      jsonOf({ type: 'resource', resource: { uri: 'file:///b.txt', text: 'held' } }),
+      jsonOf({ type: 'resource', resource: { uri: 'file:///c.bin', blob: 'aGk=' } }),
+      jsonOf({ type: 'hologram' }),
+      jsonOf({ type: 'text', text: 'last' }),
+    ])
+    expect(given({ kind: 'complete', content, output: { kind: 'no-schema' } })).toEqual(
+      valued([
+        { type: 'text', text: 'first' },
+        { type: 'image', mediaType: 'image/png' },
+        { type: 'resource_link', uri: 'file:///a.txt', name: 'a.txt' },
+        { type: 'resource', uri: 'file:///b.txt', text: 'held' },
+        { type: 'resource', uri: 'file:///c.bin' },
+        { type: 'undelivered', reason: 'type-unknown' },
+        { type: 'text', text: 'last' },
+      ]),
+    )
+  })
+
+  it('nothing, when the action reported its own error', () => {
+    expect(given({ kind: 'toolError', content: text, structured: jsonOf({ answer: 1 }) })).toEqual({
+      kind: 'none',
+    })
+  })
+
+  it('nothing, when no program made the call', () => {
+    const settlement = came(
+      sent({
+        kind: 'complete',
+        content: text,
+        structured: jsonOf({ answer: 42 }),
+        output: { kind: 'conforms' },
+      }),
+    )
+    expect(settlement).toMatchObject({ effect: 'happened', result: { data: { kind: 'none' } } })
   })
 })
