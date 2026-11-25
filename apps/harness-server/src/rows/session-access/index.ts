@@ -39,6 +39,7 @@ import {
 } from '../../assembly/session-context-initialization.ts'
 import { LOCAL_HISTORY_KINDS } from '../../local/operator-defaults.ts'
 import { defineRow } from '../../row.ts'
+import { sessionCommandsPlugin } from './commands.ts'
 import { accessIdentityOfCall, memberActingOfCall } from '../server-entry/identity.ts'
 import { runFailureCauses } from './causes.ts'
 import { modelTargets } from './model-targets.ts'
@@ -214,5 +215,9 @@ export const sessionAccessRow = defineRow({
     ...plugin,
     inject: [accessRegistryKey, principalIssuerKey],
     Config: sessionAccessConfig,
+    async apply(ctx: Context, config: z.infer<typeof sessionAccessConfig>) {
+      ctx.plugin(sessionCommandsPlugin(principalFacts))
+      await plugin.apply(ctx, config)
+    },
   },
 })

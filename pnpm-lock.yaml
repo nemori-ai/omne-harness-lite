@@ -6121,6 +6121,9 @@ importers:
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../../assets/settings
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../../slash-command/slash-command-contract
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract

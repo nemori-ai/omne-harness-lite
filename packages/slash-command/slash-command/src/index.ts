@@ -7,4 +7,3 @@ export {
   type Resolved,
   type Words,
 } from './resolver.ts'
-export { createSystemCommandSource } from './system.ts'

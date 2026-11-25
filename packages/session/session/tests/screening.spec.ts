@@ -502,7 +502,11 @@ describe('the resolver of a member words', () => {
         kind: 'operation',
         name: 'omne-official:archive',
         args: '',
-        asked: { protocol: 'session', operation: 'archive-session', fields: {} },
+        asked: {
+          protocol: { name: 'session', major: 1 },
+          operation: 'archive-session',
+          fields: {},
+        },
       })),
     })
     const committed = commits(h)
@@ -511,7 +515,11 @@ describe('the resolver of a member words', () => {
       request: {
         name: 'omne-official:archive',
         args: '',
-        asked: { protocol: 'session', operation: 'archive-session', fields: {} },
+        asked: {
+          protocol: { name: 'session', major: 1 },
+          operation: 'archive-session',
+          fields: {},
+        },
       },
     })
     expect(committed).toEqual([])

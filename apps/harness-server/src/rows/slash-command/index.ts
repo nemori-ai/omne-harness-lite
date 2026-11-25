@@ -4,12 +4,7 @@ import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import type { Message } from '@omne-harness/message'
 import type { UtteranceResolver } from '@omne-harness/session-contract'
 import { sessionUtteranceResolverKey } from '@omne-harness/session-cordis-contract/cordis'
-import {
-  createCommandCatalog,
-  createResolver,
-  createSystemCommandSource,
-  type Named,
-} from '@omne-harness/slash-command'
+import { createCommandCatalog, createResolver, type Named } from '@omne-harness/slash-command'
 import {
   CommandCatalogService,
   commandCatalogKey,
@@ -80,7 +75,6 @@ const slashCommandPlugin: Plugin.Object = {
   apply(ctx: Context, raw: unknown) {
     const config = slashCommandRowConfig.parse(raw)
     const sources = new CommandEntrySourcesService<unknown>(ctx)
-    sources.contribute(createSystemCommandSource(), { official: true })
     const catalog = createCommandCatalog<unknown>({
       sources: () => sources.sources(),
       declared: config.declaredSources,

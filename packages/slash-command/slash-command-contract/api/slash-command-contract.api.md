@@ -382,7 +382,10 @@ export type Taken = Readonly<{
     origin: Origin;
 }> | Readonly<{
     kind: 'operation';
-    protocol: string;
+    protocol: Readonly<{
+        name: string;
+        major: number;
+    }>;
     operation: string;
     fields: Readonly<Record<string, unknown>>;
 }> | Readonly<{

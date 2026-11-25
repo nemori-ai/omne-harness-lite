@@ -13,7 +13,11 @@ import {
 
 /** What a command asks to be done: an operation of a protocol with its fields, or why its arguments cannot be taken. */
 export type Asked =
-  | Readonly<{ protocol: string; operation: string; fields: Readonly<Record<string, unknown>> }>
+  | Readonly<{
+      protocol: Readonly<{ name: string; major: number }>
+      operation: string
+      fields: Readonly<Record<string, unknown>>
+    }>
   | Readonly<{ invalid: string }>
 
 /** A text to append after the person's own words, saying where it came from. */

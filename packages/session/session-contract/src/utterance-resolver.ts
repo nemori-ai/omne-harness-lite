@@ -16,7 +16,11 @@ export type Utterance<P> = Readonly<{
 
 /** What a command asks to be done: an operation of a protocol with its fields, or why its arguments cannot be taken. */
 export type OperationAsked =
-  | Readonly<{ protocol: string; operation: string; fields: Readonly<Record<string, unknown>> }>
+  | Readonly<{
+      protocol: Readonly<{ name: string; major: number }>
+      operation: string
+      fields: Readonly<Record<string, unknown>>
+    }>
   | Readonly<{ invalid: string }>
 
 /** A command that asks for an operation: its name and the arguments as written, and what it asks. */

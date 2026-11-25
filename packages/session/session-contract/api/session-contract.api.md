@@ -4096,8 +4096,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:2579ba05833651423bb40532f229eb3999be611d9470bcdf1bd2ab53fddcd8e1";
-export declare const SESSION_RELEASE_DIGEST = "sha256:2579ba05833651423bb40532f229eb3999be611d9470bcdf1bd2ab53fddcd8e1";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:173a944fa1665bede91347d272f32e014ab10d0ce3d47ff903b0d4ee81c8ba10";
+export declare const SESSION_RELEASE_DIGEST = "sha256:173a944fa1665bede91347d272f32e014ab10d0ce3d47ff903b0d4ee81c8ba10";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -5111,7 +5111,10 @@ export type Utterance<P> = Readonly<{
     access: SessionAccess<P>;
 }>;
 export type OperationAsked = Readonly<{
-    protocol: string;
+    protocol: Readonly<{
+        name: string;
+        major: number;
+    }>;
     operation: string;
     fields: Readonly<Record<string, unknown>>;
 }> | Readonly<{

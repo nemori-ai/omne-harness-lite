@@ -50,7 +50,7 @@ function catalogOf(
           return naming.args === ''
             ? succeed({
                 kind: 'operation',
-                protocol: 'session',
+                protocol: { name: 'session', major: 1 },
                 operation: 'archive-session',
                 fields: { session: 's' },
               })
@@ -161,7 +161,12 @@ describe('resolving a member words', () => {
     const odd = createResolver(
       catalogOf({
         take: async () =>
-          succeed({ kind: 'operation', protocol: 'session', operation: 'x', fields: {} }),
+          succeed({
+            kind: 'operation',
+            protocol: { name: 'session', major: 1 },
+            operation: 'x',
+            fields: {},
+          }),
       }).catalog,
     )
     expect(await odd(words('用 /review'))).toEqual({
@@ -183,7 +188,11 @@ describe('resolving a member words', () => {
       kind: 'operation',
       name: 'omne-official:archive',
       args: '',
-      asked: { protocol: 'session', operation: 'archive-session', fields: { session: 's' } },
+      asked: {
+        protocol: { name: 'session', major: 1 },
+        operation: 'archive-session',
+        fields: { session: 's' },
+      },
     })
     expect(namings).toEqual([
       { name: 'prompt:commit', args: '修复 "登录 超时"', request: 'req-1' },

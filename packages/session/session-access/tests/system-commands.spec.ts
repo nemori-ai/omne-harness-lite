@@ -52,15 +52,23 @@ type Asked =
   | Readonly<{ operation: string; fields: Readonly<Record<string, unknown>> }>
   | Readonly<{ invalid: string }>
 
-const requested = (name: string, args: string, asked: Asked): SessionFailure =>
-  ({
-    kind: 'unsupported',
-    request: { name, args, asked: 'invalid' in asked ? asked : { protocol: 'session', ...asked } },
-  }) as SessionFailure
+/** The request as the session's own command source gives it: the fields target the session and carry a control identity. */
+const requested = (name: string, args: string, asked: Asked, session: string): SessionFailure => {
+  const target = { tenant: ALICE.tenant, session, controlId: 'command:accept-op' }
+  const operation =
+    'invalid' in asked
+      ? asked
+      : {
+          protocol: { name: 'session', major: 1 },
+          operation: asked.operation,
+          fields: { ...target, ...asked.fields },
+        }
+  return { kind: 'unsupported', request: { name, args, asked: operation } } as SessionFailure
+}
 
 async function command(name: string, args: string, asked: Asked) {
   const { world, session } = await opened()
-  world.session.controls.failNext(requested(name, args, asked))
+  world.session.controls.failNext(requested(name, args, asked, session))
   const answer = await ops(world)['send-input'](as(loginIdentity(ALICE)), {
     tenant: ALICE.tenant,
     session,
@@ -105,7 +113,7 @@ describe('a system command does its own operation after it is written into the s
   it('/permission names one of the modes; another word is refused with the modes', async () => {
     const done = await command('permission', 'never', {
       operation: 'change-permission-mode',
-      fields: { mode: 'never' },
+      fields: { mode: 'never', expectedRevision: '0' },
     })
     expect(done.answer).toMatchObject({
       outcome: 'succeeded',
