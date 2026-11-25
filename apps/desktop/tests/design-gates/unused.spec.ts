@@ -31,9 +31,7 @@ interface Allowance {
 }
 
 const UNUSED_ON_PURPOSE: ReadonlyMap<string, Allowance> = new Map<string, Allowance>([
-  ['LooseFigure', { reason: '桌面层的页面用，切片 04、05 接上（#1663）', firstUser: '#1663' }],
   ['SayBubble', { reason: '桌面层的页面用，切片 04、05 接上（#1663）', firstUser: '#1663' }],
-  ['FigureLabel', { reason: '桌面层的页面用，切片 04、05 接上（#1663）', firstUser: '#1663' }],
 ])
 
 type Reader = (path: string) => SyntaxNode | undefined
