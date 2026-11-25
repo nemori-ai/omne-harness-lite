@@ -155,6 +155,8 @@ describe('making a representation ready, step by step', () => {
     const ref = await voice(w)
     const first = ok(await ensure(w, ref))
     expect(first).toMatchObject({ kind: 'done', representation: { outcome: 'inconvertible' } })
+    if (first.kind !== 'done') throw new Error('not done')
+    expect(Object.keys(first.representation).sort()).toEqual(['definition', 'engine', 'outcome'])
     expect(ok(await ensure(w, ref))).toEqual(first)
     expect(calls).toHaveLength(1)
   })

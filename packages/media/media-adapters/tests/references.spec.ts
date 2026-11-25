@@ -224,7 +224,7 @@ describe('the processor media.references', () => {
     it('a medium that cannot be converted says so in the snapshot', async () => {
       const { w, ref } = await prepared(async () => ({ kind: 'inconvertible' }))
       const [, block] = blocksOf(await runOver(w, ref)) as [unknown, Record<string, unknown>]
-      expect(block.snapshot).toEqual({
+      expect(block.snapshot).toStrictEqual({
         outcome: 'inconvertible',
         definition: VOICE,
         engine: ENGINE,
