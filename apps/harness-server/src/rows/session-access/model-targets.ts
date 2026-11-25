@@ -41,7 +41,9 @@ export function targetOf(resolution: ProfileResolution): ModelTargetCheck {
   if (resolution.kind === 'absent') return { kind: 'refused', reason: resolution.reason }
   const [reason] = resolution.reasons
   if (!resolution.selectable)
-    return reason === undefined ? { kind: 'unavailable' } : { kind: 'refused', reason }
+    return reason === undefined
+      ? { kind: 'unavailable' }
+      : { kind: 'refused', reason: reason === 'not-enabled' ? 'excluded' : reason }
   const { owner, name, revision, digest } = resolution.profile.adoption
   return {
     kind: 'selectable',

@@ -6,6 +6,8 @@ import {
   type KeyedPoint,
   type Point,
   type PointCodec,
+  type PointContributor,
+  type PointItem,
   type RenderPoint,
 } from '@omne-harness/shell-contract'
 
@@ -60,7 +62,13 @@ export const assetsCategory: KeyedPoint<CategorySubject> = defineKeyedPoint({
   subject: categorySubject,
 })
 
-export const assetsHolding: KeyedPoint<HoldingSubject> = defineKeyedPoint({
+/** An item of `assets.holding`; `claims` names the settings of the asset it draws itself. */
+export type HoldingItem = PointItem<HoldingSubject> & Readonly<{ claims?: readonly string[] }>
+
+export type HoldingPoint = Omit<KeyedPoint<HoldingSubject>, 'contribute'> &
+  Readonly<{ contribute: (shell: PointContributor, key: string, item: HoldingItem) => void }>
+
+export const assetsHolding: HoldingPoint = defineKeyedPoint({
   name: ASSETS_HOLDING,
   summary: 'What is shown in the detail of one asset.',
   key: 'the category of the asset',

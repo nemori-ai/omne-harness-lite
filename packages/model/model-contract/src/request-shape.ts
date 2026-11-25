@@ -131,18 +131,23 @@ function stopParameter(item: unknown, at: string): Checked<Parameter> {
   if (new Set(parsed.ok).size !== parsed.ok.length) return rejected(at, 'duplicate')
   return succeed({ kind: 'stop', value: parsed.ok })
 }
+function unifiedEffort(record: Record<string, unknown>, field: string): Checked<Parameter> {
+  if (record.scale !== 'unified') return rejected(`${field}/scale`, 'value')
+  if (!isReasoningEffort(record.value)) return rejected(`${field}/value`, 'value')
+  const basis = Object.hasOwn(record, 'basis') ? { basis: 'preference' as const } : {}
+  return succeed({ kind: 'reasoning-effort', scale: 'unified', value: record.value, ...basis })
+}
 function reasoningParameter(record: Record<string, unknown>, field: string): Checked<Parameter> {
+  if (
+    Object.hasOwn(record, 'basis') &&
+    (record.basis !== 'preference' || record.scale !== 'unified')
+  )
+    return rejected(`${field}/basis`, 'value')
+  if (Object.hasOwn(record, 'scale')) return unifiedEffort(record, field)
   const item = record.value
-  const at = `${field}/value`
-  if (Object.hasOwn(record, 'scale')) {
-    if (record.scale !== 'unified') return rejected(`${field}/scale`, 'value')
-    return isReasoningEffort(item)
-      ? succeed({ kind: 'reasoning-effort', scale: 'unified', value: item })
-      : rejected(at, 'value')
-  }
   return isReasoningEffort(item) || item === 'none' || item === 'max'
     ? succeed({ kind: 'reasoning-effort', value: item })
-    : rejected(at, 'value')
+    : rejected(`${field}/value`, 'value')
 }
 function extensionParameter(record: Record<string, unknown>, field: string): Checked<Parameter> {
   const definition = adoption(record.definition, `${field}/definition`)
@@ -181,7 +186,7 @@ export function parameter(value: unknown, field: string): Checked<Parameter> {
     value,
     value.kind === 'extension' ? ['kind', 'definition', 'value'] : ['kind', 'value'],
     field,
-    value.kind === 'reasoning-effort' ? ['scale'] : [],
+    value.kind === 'reasoning-effort' ? ['scale', 'basis'] : [],
   )
   return 'failure' in record ? record : parameterValue(record.ok, field)
 }

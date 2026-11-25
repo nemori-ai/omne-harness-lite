@@ -122,6 +122,27 @@ function resolveChecked(
     reasons,
     credential: winner.credential,
     shadowed: shadowedOf(winner, judged.candidates, snapshot.precedence),
+    ...(winner.defaultReasoningEffort === undefined
+      ? {}
+      : { defaultReasoningEffort: winner.defaultReasoningEffort }),
+  }
+}
+
+/** A route every registered profile of which the tenant has turned off: listed, never selectable. */
+function turnedOff(snapshot: ModelProfileSnapshot, route: string): ProfileResolution {
+  const registered = snapshot.candidates.filter(
+    candidate =>
+      candidate.profile.identity.route === route && candidate.profile.availability === 'active',
+  )
+  const winner = mostSpecific(snapshot.precedence, registered)
+  return {
+    kind: 'resolved',
+    profile: winner.profile,
+    source: snapshot.source,
+    selectable: false,
+    reasons: ['not-enabled'],
+    credential: winner.credential,
+    shadowed: [],
   }
 }
 
@@ -149,7 +170,8 @@ export function judgeProfileChoices(
     if (routes.has(route)) continue
     routes.add(route)
     const resolution = resolveChecked(snapshot, route, required)
-    if (resolution.kind === 'resolved' && resolution.selectable) choices.push(resolution)
+    if (resolution.kind === 'resolved') choices.push(resolution)
+    else if (resolution.reason === 'excluded') choices.push(turnedOff(snapshot, route))
   }
   const selection =
     selected === null

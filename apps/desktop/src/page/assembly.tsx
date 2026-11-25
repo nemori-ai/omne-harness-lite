@@ -28,6 +28,7 @@ import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
 import { createMediaUiModule } from '@omne-harness/media-ui/cordis'
 import '@omne-harness/media-ui/media-ui.css'
+import '@omne-harness/model-ui/model-ui.css'
 import {
   PROVIDER_CATEGORY,
   createModelUiModule,

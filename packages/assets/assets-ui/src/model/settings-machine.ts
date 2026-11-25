@@ -251,14 +251,33 @@ function rowOf(state: State, key: string) {
     },
     effects,
   })
+  // The items of one asset share its revision: a write that lands or meets a conflict makes every
+  // idle item of the same owner stale, so each is read again with the written one.
   const reread = (write: Write): Step => {
-    const token = state.issued + 1
-    const target = targetOf(row.view)
-    return put(
-      { ...row, read: { kind: 'reading', token }, write },
-      [{ kind: 'describe', key, token, target }],
-      token,
-    )
+    const owner = JSON.stringify(row.view.owner)
+    let token = state.issued
+    const effects: Effect[] = []
+    const rows = list.rows.map((candidate): Row => {
+      const written = candidate.key === key
+      const sibling =
+        JSON.stringify(candidate.view.owner) === owner &&
+        candidate.read.kind === 'read' &&
+        idle(candidate)
+      if (!written && !sibling) return candidate
+      token += 1
+      effects.push({
+        kind: 'describe',
+        key: candidate.key,
+        token,
+        target: targetOf(candidate.view),
+      })
+      return {
+        ...candidate,
+        read: { kind: 'reading' as const, token },
+        ...(written ? { write } : {}),
+      }
+    })
+    return { state: { issued: token, list: { ...list, rows } }, effects }
   }
   const recognize = (sent: Sent): Step =>
     put({ ...row, write: { kind: 'unknown', sent, confirming: true, notice: CONFIRMING } }, [

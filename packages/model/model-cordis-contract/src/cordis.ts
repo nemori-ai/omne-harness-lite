@@ -20,6 +20,7 @@ import type {
   ModelHostAuthority,
   ModelInstanceHost,
   ModelMediaSource,
+  ModelPreferencesPort,
   ModelProfileMaintenance,
   ModelProfiles,
   ModelRequestPreparation,
@@ -62,6 +63,20 @@ export abstract class ModelCredentialService<P = unknown>
   abstract readonly resolve: CredentialPort<P>['resolve']
 }
 export const modelCredentialKey = ModelCredentialService.provide
+
+export abstract class ModelPreferencesService<P = unknown>
+  extends Service
+  implements ModelPreferencesPort<P>
+{
+  static readonly provide = 'modelPreferences'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelPreferencesService.provide)
+  }
+
+  abstract readonly read: ModelPreferencesPort<P>['read']
+}
+export const modelPreferencesKey = ModelPreferencesService.provide
 
 /**
  * The media seam of the send stage: read at each send, absent when no owner of media is installed.

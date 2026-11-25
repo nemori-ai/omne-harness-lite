@@ -11,6 +11,7 @@ import {
   modelProviderBodyContract,
   modelProviderCategoryDisplay,
   parseModelProviderBody,
+  preferencesOf,
   readModelProviderBody,
 } from '@omne-harness/model-contract/provider-asset'
 import { decodeProviderName } from '@omne-harness/model-contract'
@@ -41,6 +42,7 @@ function plainBody(overrides: Record<string, unknown> = {}): Record<string, unkn
     ],
     accounting: { place: 'test-gateway', costUnit: 'test-credit' },
     credentials: [CREDENTIAL],
+    models: [],
     ...overrides,
   }
 }
@@ -192,14 +194,13 @@ describe('modelProviderBodyContract: judge', () => {
 describe('modelProviderBodyContract: hooks', () => {
   const contract = modelProviderBodyContract()
 
-  it('derives the settings definition without a context, at the unpinned version', () => {
+  it('derives the settings definition: the credential items follow the two preferences', () => {
     const definitions = contract.settings?.(body(plainBody()))
     expect(definitions).toMatchObject({
       providerId: MODEL_PROVIDER_CATEGORY,
       definitionId: 'test-gateway',
-      version: '0',
     })
-    expect(definitions?.items).toEqual([
+    expect(definitions?.items.slice(2)).toEqual([
       {
         id: 'apiKey',
         groupId: 'credentials',
@@ -217,10 +218,6 @@ describe('modelProviderBodyContract: hooks', () => {
         sensitivity: 'secret',
       },
     ])
-  })
-
-  it('derives the settings definition at the pinned definition version', () => {
-    expect(contract.settings?.(body(plainBody()), { definition: '3' })?.version).toBe('3')
   })
 
   it('derives no declarations and no references', () => {
@@ -247,6 +244,7 @@ describe('readModelProviderBody', () => {
       ],
       accounting: { place: 'test-gateway', costUnit: 'test-credit' },
       credentials: [CREDENTIAL],
+      models: [],
     })
   })
 
@@ -295,13 +293,15 @@ describe('modelProviderBodyContract: settings through projectAssetSettings', () 
     if (projection.kind !== 'declared') throw new Error(`projection ${projection.kind}`)
     expect(projection.definition.definitionId).toBe('test-gateway')
     expect(
-      projection.definition.items.map(item => ({
-        id: item.id,
-        category: item.category,
-        sensitivity: item.sensitivity,
-        default: item.default,
-        title: item.presentation.title,
-      })),
+      projection.definition.items
+        .filter(item => item.sensitivity === 'secret')
+        .map(item => ({
+          id: item.id,
+          category: item.category,
+          sensitivity: item.sensitivity,
+          default: item.default,
+          title: item.presentation.title,
+        })),
     ).toEqual([
       {
         id: 'apiKey',
@@ -320,14 +320,181 @@ describe('modelProviderBodyContract: settings through projectAssetSettings', () 
     ])
   })
 
-  it('declares no settings for a provider without credential items', () => {
-    expect(project(plainBody({ credentials: [] })).kind).toBe('none')
-  })
-
   it('refuses to project a body the contract refuses', () => {
     expect(project(plainBody(one({ url: 'http://gateway.test' })))).toEqual({
       kind: 'rejected',
       reason: 'invalid_body',
     })
+  })
+})
+
+const MODEL = {
+  model: 'vendor/model-a',
+  title: 'Model A',
+  input: ['text', 'image'],
+  output: ['text'],
+  window: '200000',
+  efforts: ['low', 'medium', 'high'],
+  enabled: true,
+}
+
+describe('the provider model catalog (C1, C2)', () => {
+  const contract = modelProviderBodyContract()
+
+  it('reads the catalog of models the provider adapts, in its order', () => {
+    const second = { ...MODEL, model: 'vendor/model-b', efforts: [], enabled: false }
+    const parsed = parseModelProviderBody(body(plainBody({ models: [MODEL, second] })))
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    expect(parsed.ok.models).toEqual([MODEL, second])
+  })
+
+  it('reads a model that takes voice', () => {
+    const omni = { ...MODEL, input: ['text', 'voice'] }
+    const parsed = parseModelProviderBody(body(plainBody({ models: [omni] })))
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    expect(parsed.ok.models[0]?.input).toEqual(['text', 'voice'])
+  })
+
+  it.each([
+    ['a body without a catalog', { models: undefined }],
+    ['two entries for one model', { models: [MODEL, MODEL] }],
+    ['an effort outside the four', { models: [{ ...MODEL, efforts: ['max'] }] }],
+    ['efforts out of their order', { models: [{ ...MODEL, efforts: ['high', 'low'] }] }],
+    ['an effort twice', { models: [{ ...MODEL, efforts: ['low', 'low'] }] }],
+    ['a window that is not a positive integer', { models: [{ ...MODEL, window: '0' }] }],
+    ['a model without input', { models: [{ ...MODEL, input: [] }] }],
+    ['an enabled default that is not a boolean', { models: [{ ...MODEL, enabled: 'yes' }] }],
+    ['a catalog that is not a list', { models: { a: MODEL } }],
+    ['a model without an enabled default', { models: [{ ...MODEL, enabled: undefined }] }],
+    ['a model without a title', { models: [{ ...MODEL, title: '' }] }],
+    ['a model without output', { models: [{ ...MODEL, output: undefined }] }],
+    ['a window with a tail', { models: [{ ...MODEL, window: '200000k' }] }],
+    ['a window with a head', { models: [{ ...MODEL, window: 'k200000' }] }],
+    ['a modality that is not text', { models: [{ ...MODEL, input: ['text', 7] }] }],
+    ['a modality no model takes', { models: [{ ...MODEL, input: ['text', 'video'] }] }],
+    ['efforts that are not a list', { models: [{ ...MODEL, efforts: 'low' }] }],
+  ])('refuses %s', (_case, change) => {
+    expect(parseModelProviderBody(body(plainBody(change)))).toEqual({
+      failure: 'invalid-models',
+    })
+  })
+
+  it('declares the two preferences of a tenant, also for a provider with no credential item', () => {
+    const definitions = contract.settings?.(body(plainBody({ models: [MODEL], credentials: [] })))
+    expect(definitions?.items.map(item => [item.id, item.category, item.sensitivity])).toEqual([
+      ['model-switches', 'preference', 'ordinary'],
+      ['model-reasoning-efforts', 'preference', 'ordinary'],
+    ])
+    for (const item of definitions?.items ?? []) expect(item.default).toEqual({ kind: 'absent' })
+    expect(definitions?.groups.map(group => group.id)).toEqual(['models'])
+  })
+
+  it('declares the credential items after the preferences', () => {
+    const definitions = contract.settings?.(body(plainBody({ models: [MODEL] })))
+    expect(definitions?.items.map(item => item.id)).toEqual([
+      'model-switches',
+      'model-reasoning-efforts',
+      'apiKey',
+    ])
+    expect(definitions?.groups.map(group => group.id)).toEqual(['models', 'credentials'])
+  })
+
+  it('a version of the declaration that follows its content, not the catalog or the asset version', () => {
+    const one = contract.settings?.(body(plainBody({ models: [MODEL] })), { definition: '1' })
+    const more = contract.settings?.(
+      body(plainBody({ models: [MODEL, { ...MODEL, model: 'vendor/model-b' }] })),
+      { definition: '2' },
+    )
+    expect(one?.version).toMatch(/^sha256:[a-f0-9]{64}$/u)
+    expect(more?.version).toBe(one?.version)
+    const otherKey = contract.settings?.(
+      body(plainBody({ models: [MODEL], credentials: [{ ...CREDENTIAL, item: 'other' }] })),
+    )
+    expect(otherKey?.version).not.toBe(one?.version)
+  })
+
+  it('a switch takes a boolean per model and an effort one of the four, nothing else', () => {
+    const projection = projectAssetSettings(
+      (() => {
+        const point = createCategoryPoint()
+        point.contribute({
+          contract,
+          display: modelProviderCategoryDisplay,
+          point: 'model.providers',
+        })
+        return point
+      })(),
+      {
+        assetRef: 'official/model-provider/test-gateway',
+        pinned: pinBody({
+          identity: (() => {
+            const id = capabilityId(MODEL_PROVIDER_CATEGORY, 'test-gateway')
+            if (!id.ok) throw new Error('identity')
+            return id.id
+          })(),
+          version: '1',
+          source: 'test',
+          body: body(plainBody({ models: [MODEL] })),
+        }),
+      },
+    )
+    if (projection.kind !== 'declared') throw new Error(`projection ${projection.kind}`)
+    const [switches, efforts] = projection.definition.items
+    expect(switches?.valueSchema).toEqual({
+      type: 'object',
+      additionalProperties: { type: 'boolean' },
+    })
+    expect(efforts?.valueSchema).toEqual({
+      type: 'object',
+      additionalProperties: { enum: ['low', 'medium', 'high', 'xhigh'] },
+    })
+  })
+})
+
+describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
+  const catalog = (() => {
+    const parsed = parseModelProviderBody(
+      body(
+        plainBody({
+          models: [
+            { ...MODEL, model: 'm/on', enabled: true, efforts: ['low', 'high'] },
+            { ...MODEL, model: 'm/off', enabled: false, efforts: [] },
+          ],
+        }),
+      ),
+    )
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    return parsed.ok
+  })()
+
+  it('without settings each model is as the release enables it, with no default effort', () => {
+    const preferences = preferencesOf(catalog, undefined, undefined)
+    expect([...preferences.enabled]).toEqual(['m/on'])
+    expect([...preferences.efforts]).toEqual([])
+  })
+
+  it('a switch of the tenant turns a model on or off', () => {
+    const preferences = preferencesOf(catalog, { 'm/on': false, 'm/off': true }, undefined)
+    expect([...preferences.enabled]).toEqual(['m/off'])
+  })
+
+  it('takes a default effort only where the model supports it', () => {
+    const preferences = preferencesOf(catalog, undefined, { 'm/on': 'high', 'm/off': 'low' })
+    expect([...preferences.efforts]).toEqual([['m/on', 'high']])
+    expect(preferencesOf(catalog, undefined, { 'm/on': 'medium' }).efforts.size).toBe(0)
+  })
+
+  it('ignores what does not belong to the catalog or is not a value of its kind', () => {
+    const preferences = preferencesOf(
+      catalog,
+      { 'm/elsewhere': true, 'm/off': 'yes' },
+      { 'm/elsewhere': 'low', 'm/on': 'max' },
+    )
+    expect([...preferences.enabled]).toEqual(['m/on'])
+    expect(preferences.efforts.size).toBe(0)
+    expect(preferencesOf(catalog, [true], 'high')).toEqual(
+      preferencesOf(catalog, undefined, undefined),
+    )
+    expect(preferencesOf(catalog, null, null)).toEqual(preferencesOf(catalog, undefined, undefined))
   })
 })
