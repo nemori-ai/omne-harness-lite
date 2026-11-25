@@ -469,7 +469,7 @@
 > **EN**: **The spelling `/name` with which a person names a command entry on a delivery surface, and the general term for naming things this way.** Written at the start it is a command (a prompt command or a system command), and everything after it is the command's argument; written anywhere in a sentence it is a slash reference, which binds only to a skill. It is for people only: the model never invokes it, and only input a member sends through a delivery surface is recognized this way. **The command is not the doing; it is a signpost.**
 
 - **形态**：总称
-- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置) · [斜杠怎样被认出来](../../product/slash-commands/design.md#斜杠怎样被认出来)（rev 4）
+- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置) · [斜杠怎样被认出来](../../product/slash-commands/design.md#斜杠怎样被认出来)（rev 5）
 - **别混**：Skill 是方法本身，斜杠引用是**点名它的一种写法**；Skill 不需要谁为它创作命令，可取用的就自动是入口项
 - **注意 ①**：**名字**——见[全名与短名](interaction-and-dispatch.md#ul-command-name--全名与短名--command-name)；系统命令在保留空间 `omne-official` 下，提示词命令与 Skill 不能占用它
 - **注意 ②**：一个会话认得哪些，是它的[会话斜杠命令集](#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)——**没有权限用的，对这个会话就不存在**
@@ -478,21 +478,32 @@
 
 ### UL-command-parameter-declaration · 命令参数声明 · Command Parameter Declaration
 
-> **中**：**一条命令型[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)可选带的那份参数说明，每个参数配一句给人看的提示。**
+> **中**：**一条命令型[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)可选带的那份参数说明：有几个参数，每个的名字（也是给人看的提示），能不能省，有没有[参数候选](#ul-argument-candidate--参数候选--argument-candidate)。**
 > 它是这条命令本身的一部分，**不是设置**——不随持有它的那一层配出不同的值。
 > **声明了的，按声明解析**，解析不通过就当场明说哪里不对、不发送；**没声明的，命令名之后的整段文本作一个自由参数**。
 >
-> **EN**: **The optional description of a command-kind entry's parameters, each carrying a short hint for
-> the person typing it.** It is part of the command itself, **not a setting** — no holding layer can give
+> **EN**: **The optional description of a command-kind entry's parameters: how many there are, the name of
+> each (also the hint for the person typing it), whether it may be left out, and whether it has argument candidates.** It is part of the command itself, **not a setting** — no holding layer can give
 > it a different value. **Where declared, input is parsed against it**, and a failed parse is reported on
 > the spot, saying what is wrong, and nothing is sent; **where not, everything after the command name is
 > one free-form argument**.
 
 - **形态**：属性
-- **出处**：[Slash Command J-SC01](../../product/slash-commands/design.md#j-sc01-发布一条提示词命令)（rev 4）
+- **出处**：[Slash Command J-SC01](../../product/slash-commands/design.md#j-sc01-发布一条提示词命令) · [J-SC02](../../product/slash-commands/design.md#j-sc02-在输入框里找到能点名的东西)（rev 5）
 - **别混**：**不是工具调用的参数**——那是模型给出、按工具定义收齐之后才解析的；这里解析的是人敲进交付面的那一行
 - **注意**：斜杠引用没有参数；引用所在的整句话原样是人的消息
 
+
+### UL-argument-candidate · 参数候选 · Argument Candidate
+
+> **中**：**一条命令型[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)的某个参数此刻能填的一个值**：由交出这条命令的[入口来源](reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source)按发问的租户、主体与会话现算，带给人看的一句话，正在用的那个带标记。它只帮人打对，**不是许可**：候选里没有的值照样可以发出去，由受理与那个操作自己判；候选取不到不是「没有可选的」。
+>
+> **EN**: **One value a parameter of a command-kind entry can take right now**: computed by the command entry source that hands over the command, for the asking tenant, subject and session, with one line for people; the value in use is marked. It only helps the person type correctly and **is not a permission**: a value outside the candidates can still be sent, and intake and the operation itself decide; candidates that cannot be read are not "nothing to choose".
+
+- **形态**：视图
+- **出处**：[Slash Command J-SC02](../../product/slash-commands/design.md#j-sc02-在输入框里找到能点名的东西)（rev 5）
+- **别混**：不是[已校验装配候选](scope-and-resolution.md#ul-validated-assembly-candidate--已校验装配候选--validated-assembly-candidate)，也不是[请求候选](record-and-context.md#ul-request-candidate--请求候选--request-candidate)：那两个是采用与模型请求一侧的「候选」。裸写「候选」在跨 topic 的正文里不作这个术语
+- **注意**：参数有没有候选写在[命令参数声明](#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration)里；候选不存，每次问现算
 
 ### UL-prompt-command · 提示词命令 · Prompt Command
 
@@ -501,7 +512,7 @@
 > **EN**: **One category of asset: a name, one line for people, a prompt and an optional parameter declaration.** A person types `/name arguments` at the start; the arguments are put into the prompt, and the result follows the line the person typed as one text block with an origin tag. It lives in the namespace `prompt` and cannot take the reserved namespace.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[Slash Command J-SC01](../../product/slash-commands/design.md#j-sc01-发布一条提示词命令) · [J-SC03](../../product/slash-commands/design.md#j-sc03-用提示词命令发出一条消息)（rev 4）
+- **出处**：[Slash Command J-SC01](../../product/slash-commands/design.md#j-sc01-发布一条提示词命令) · [J-SC03](../../product/slash-commands/design.md#j-sc03-用提示词命令发出一条消息)（rev 5）
 - **别混**：不是系统提示词，也不是 Agent 定义里的提示词；它展开成的是人的一条消息
 - **注意**：同名替换、持有与锁定照资产的规则；改它是一次修订，不是设置
 
@@ -858,7 +869,7 @@
 > **EN**: **All the command entries a session can name right now**: those obtained by asking every command entry source, at that moment, on behalf of the asking tenant, subject and session. The delivery surface and intake recognize names against this set alone — **a name outside it does not exist for this session**, whether or not it exists elsewhere and whatever the reason the person cannot use it. It is not stored: when an asset or a skill changes, the next read is the new one; when a source cannot answer now, only its part is marked as undecidable.
 
 - **形态**：视图
-- **出处**：[Slash Command J-SC06](../../product/slash-commands/design.md#j-sc06-清单跟着事实走不等刷新) · [J-SC02](../../product/slash-commands/design.md#j-sc02-在输入框里找到能点名的东西)（rev 4）
+- **出处**：[Slash Command J-SC06](../../product/slash-commands/design.md#j-sc06-清单跟着事实走不等刷新) · [J-SC02](../../product/slash-commands/design.md#j-sc02-在输入框里找到能点名的东西)（rev 5）
 - **别混**：[动作空间](#ul-action-space--动作空间--action-space)在权限变了时**不变**，agent 因此知道「存在，只是不许」；
   会话斜杠命令集**恰好相反**——无权使用的**就不在里面**，人得到的回答是「没有这个命令」
 - **注意**：收窄与放宽都从下一次读起生效，不等重新加载，也不重新装配 agent

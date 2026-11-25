@@ -1450,7 +1450,7 @@
 > **EN**: The two spellings of a command entry's name. The full name is "namespace:name"; the namespace is declared by the command entry source that hands the entry over, and full names never collide; `omne-official` is reserved. The short name is the part without the namespace and is resolved by where it is written: at the start, a system command wins over a prompt command, which wins over a skill; inside a sentence, only skills count.
 
 - **形态**：属性
-- **出处**：[Slash Command 名字](../../product/slash-commands/design.md#名字)（rev 4）
+- **出处**：[Slash Command 名字](../../product/slash-commands/design.md#名字)（rev 5）
 - **别混**：不是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)：同一份 Skill 的能力标识是「类别加名字」，它的全名是「空间:名字」，空间不是类别
 - **注意**：拿掉一项可能让一个短名改绑到另一项，所以「少一项不会多出引用」不成立；看得见的标记与[发送方所见](#ul-sender-view--发送方所见--sender-view)守住这一点
 
@@ -1461,7 +1461,7 @@
 > **EN**: A `/name` recognized in a sentence and bound to a reference-kind command entry. It does not rewrite what the person wrote: at intake the person's words stay one block as written, and the referenced skill's body becomes a separate block carrying an origin tag. A skill referenced several times is carried once.
 
 - **形态**：属性
-- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 4）
+- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 5）
 - **别混**：不是 agent 调读取工具读一份 Skill，那是一次工具调用；引用走受理，不运行脚本，不放宽读取权。也不是「按引用找它」里那个泛称的引用，跨 topic 写全称
 
 ### UL-sender-view · 发送方所见 · Sender View
@@ -1471,7 +1471,7 @@
 > **EN**: The recognition result a delivery surface sends along with an input: which command is at the start, if any, and which entries are referenced (full names, without duplicates, in order of first appearance). Intake recognizes the input again against the list as it is now; if the result differs, the whole input is not accepted and the reply says which item changed.
 
 - **形态**：属性
-- **出处**：[Slash Command 看到的就是受理的](../../product/slash-commands/design.md#看到的就是受理的)（rev 4）
+- **出处**：[Slash Command 看到的就是受理的](../../product/slash-commands/design.md#看到的就是受理的)（rev 5）
 - **注意**：只比绑到了哪些名字，不比版本；没带所见的提交照受理侧认出的受理，回执写明绑定了什么
 
 ### UL-shell-action · 外壳动作 · Shell Action
@@ -1481,7 +1481,7 @@
 > **EN**: One thing registered by name in the client shell's action table: a name, a title, whether it can be done now and why not, and how to do it. Keys, the command palette, buttons and the system menu refer to it only by name, and its availability is computed in this one place. A UI module registers it, and it is added and removed with that module's scope. Controls over a running run and the interface's own actions are both shell actions; a control names the run or call the interface sees at that moment.
 
 - **形态**：对象
-- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 4）
+- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 5）
 - **别混**：不是 agent 的[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里的动作，那是模型能发起的；外壳动作只由人触发，模型看不到。裸写「动作」不作术语
 - **注意**：外壳不认识任何一个动作的含义，含义归登记它的界面模块。它是一种[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)：身份是动作表里的名字，随登记它的模块挂上与撤下
 
@@ -1492,7 +1492,7 @@
 > **EN**: One mapping of "in this layer, this key performs this shell action". Layers run from the innermost outwards: overlay, composer or current page, global; a key press looks in the innermost layer first. A default set ships with the application; the person's changes are kept with the account, so another client signed in to the same account reads the same set. Keys bind only to controls and interface actions.
 
 - **形态**：属性
-- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 4）
+- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 5）
 - **注意**：不是某个租户的设置；它是账号的偏好，切换租户不变
 
 ---
