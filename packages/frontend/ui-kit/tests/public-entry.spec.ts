@@ -31,6 +31,7 @@ const ICONS = [
   'ImageIcon',
   'LinkIcon',
   'LockIcon',
+  'MagnetIcon',
   'MailIcon',
   'MaterialIcon',
   'MatterIcon',

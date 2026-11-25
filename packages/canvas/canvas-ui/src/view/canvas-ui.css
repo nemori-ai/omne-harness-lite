@@ -127,11 +127,6 @@
     height: var(--omne-icon-compact);
   }
 
-  .canvas-tool {
-    display: flex;
-    align-items: center;
-    gap: var(--omne-space-inline);
-  }
   .canvas-zoom {
     font-variant-numeric: tabular-nums;
   }

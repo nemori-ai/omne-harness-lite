@@ -318,6 +318,36 @@ export const MEDIA_GLYPHS = {
     motion: 'rise',
   },
 
+  magnet: {
+    still: [
+      brush([
+        [7.2, 4.6],
+        [7, 12.4],
+        [8.2, 16.6],
+        [12, 19.4],
+        [15.8, 16.6],
+        [17, 12.4],
+        [16.8, 4.6],
+      ]),
+      brush(
+        [
+          [5.2, 7.6],
+          [9, 7.4],
+        ],
+        0.85,
+      ),
+      brush(
+        [
+          [15, 7.4],
+          [18.8, 7.6],
+        ],
+        0.85,
+      ),
+    ],
+    moving: [],
+    motion: 'none',
+  },
+
   connection: {
     still: [
       brush([

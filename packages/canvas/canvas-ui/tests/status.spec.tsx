@@ -101,4 +101,15 @@ describe('the status bar under the paper says what is looked at', () => {
     expect(says()).toMatch(/^周报2 页agent/u)
     expect(marks()).toEqual(['assistant'])
   })
+
+  it('holds the magnet as a quiet icon button, pressed while it is on, with no word and no switch', async () => {
+    await opened(canvas([A]))
+    const tools = document.querySelector('[data-slot="paper-status-tools"]')!
+    expect(tools.querySelector('[role="switch"]')).toBeNull()
+    const magnet = screen.getByRole('button', { name: '磁吸' })
+    expect(tools.contains(magnet)).toBe(true)
+    expect(magnet.getAttribute('aria-pressed')).toBe('true')
+    expect(magnet.querySelector('svg[data-icon="magnet"]')).not.toBeNull()
+    expect(tools.textContent).not.toContain('磁吸')
+  })
 })

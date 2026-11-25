@@ -3,10 +3,10 @@ import {
   FigureSeat,
   IconButton,
   InlineNotice,
+  MagnetIcon,
   PaperSpot,
   PaperSurface,
   SearchIcon,
-  Switch,
   type PaperPoint,
   type PaperView,
 } from '@omne-harness/ui-kit'
@@ -121,10 +121,14 @@ function Tools({
       >
         <SearchIcon aria-hidden="true" />
       </IconButton>
-      <label className="canvas-tool">
-        <Switch checked={looking.magnet} onCheckedChange={looking.snap} aria-label="磁吸" />
-        <span aria-hidden="true">磁吸</span>
-      </label>
+      <IconButton
+        label="磁吸"
+        size="icon-compact"
+        aria-pressed={looking.magnet}
+        onClick={() => looking.snap(!looking.magnet)}
+      >
+        <MagnetIcon aria-hidden="true" />
+      </IconButton>
       <span className="canvas-zoom" title="远近">
         {percent}%
       </span>
