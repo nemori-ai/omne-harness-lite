@@ -54,51 +54,45 @@ Not available
 - A failed program is never rerun. Calls that completed before the failure keep their effects, so check before you repeat them.
 - Let the program count, sort and compute. Do not do that by reading.`
 
-const PURPOSE = `Run a short TypeScript program that calls tools as functions and returns only what you choose. The results of the calls stay inside the program and do not enter the conversation. Use it when a result will be large and you need a small part of it, for example a web page, a long file or many matches: make that call inside the program and return only the part you need. Use it also when the work takes several tool calls whose results you only filter, combine or loop over. Call a tool directly when one or two small calls give you the answer.
-- code is the body of an async function: use await and return. Each callable tool is a global object and each command is a function that takes one object and resolves to a value, not to text: const page = await Web.fetch({ url }).
-- Always await a call, or pass the promises to Promise.all.
-- There is no file system, network, timer, import or require. Use the tools.
-- Each execute starts empty: nothing is kept between programs.
-- Let the program count, sort and compute, and return only what you need.`
+const PURPOSE = `Run a TypeScript program that calls tools as functions. Results of the calls stay in the program; only what it returns enters the conversation.
+Use it when the work is many calls whose intermediate results you do not need to read: the same step on many items (files, pages), calls that feed each other, a large result you need a small part of (a web page), or branches and retries. Save a program you will run again to a file and run it by path with input.
+Call tools directly when one or two small calls answer, when you must read a result to decide the next step, or when you need the full text in the conversation.
+- code is the body of an async function. Each tool it names is a global: const page = await Web.fetch({ url }). A call takes one object and resolves to a value, not to text.
+- Await every call; run independent calls with Promise.all.
+- No file system, network, timer or import: use the tools. Nothing is kept between programs.
+- Find a tool that is not among your tools with Tools search and programmable set to true, then call it by name.`
+
+const FINDING = `Finding functions
+- The description of this tool shows the functions of your resident tools. help with name set to one tool shows the functions of that tool.
+- Other tools can be callable too. Find them with Tools search with programmable set to true: the result shows their functions. A program calls them by name; they need no loading.
+- Write the name of each tool you call in the program: a program is given the tools its text names.`
 
 const GUIDE = `${RULES}
 
-help gives the limits here and the functions a program can call now, with their parameter and return types.`
+help gives the limits here. help with name set to a tool gives the functions of that tool. Tools search with programmable set to true finds the other tools a program can call.`
 
 const limitsLine = (limits: Limits) =>
   `Limits: ${limits.computeMs / 1000} s of computing (waiting for a call does not count), ${Math.floor(limits.memoryBytes / 1048576)} MiB of memory, ${limits.calls} tool calls with at most ${limits.inFlight} at once, ${limits.outputBytes} bytes of result, ${limits.sourceBytes} bytes of program.`
 
-function byTool(functions: readonly ProgramFunction[]) {
-  const tools = new Map<string, ProgramFunction[]>()
-  for (const one of functions) tools.set(one.tool, [...(tools.get(one.tool) ?? []), one])
-  return tools
-}
-
 const DECLARED = `declare class ${PROGRAM_FAILURE} extends Error { kind: string; tool: string; command: string | null; effect: "none" | "occurred" | "unknown" }\ndeclare const input: unknown`
 
-/** The capability of this call and what a program can call through it now, or why there is none. */
-async function callable(execution: ToolExecutionContext, command: string) {
-  const tools = programToolsOf(execution)
-  if (tools === undefined)
-    return `rejected reason=unavailable Code ${command}: program calls are not attached to this call`
-  const listed = await tools.functions()
-  return 'failure' in listed
-    ? `rejected reason=unavailable Code ${command}: ${listed.failure.kind}`
-    : { tools, functions: listed.ok }
-}
+const NOT_ATTACHED = 'program calls are not attached to this call'
+const FIND = 'Find the tools a program can call with Tools search and programmable set to true.'
+
+const namesIn = (source: string): readonly string[] => [
+  ...new Set(source.match(/[A-Za-z_$][A-Za-z0-9_$]*/gu) ?? []),
+]
 
 async function helpText(execution: ToolExecutionContext, limits: Limits, name: string | undefined) {
-  const known = await callable(execution, 'help')
-  if (typeof known === 'string') return known
-  const all = byTool(known.functions)
-  if (name === undefined) {
-    const signatures = [...all.values()].map(functionsSignature).join('\n')
-    return `done Code help\n${RULES}\n\n${limitsLine(limits)}\n\nCallable now\n${signatures}\n${DECLARED}`
-  }
-  const one = all.get(name)
-  return one === undefined
-    ? `rejected reason=notFound Code help: ${name} has no function a program can call now. Callable: ${[...all.keys()].join(', ') || 'none'}`
-    : `done Code help ${name}\n${functionsSignature(one)}`
+  const tools = programToolsOf(execution)
+  if (tools === undefined) return `rejected reason=unavailable Code help: ${NOT_ATTACHED}`
+  if (name === undefined)
+    return `done Code help\n${RULES}\n\n${limitsLine(limits)}\n\n${FINDING}\n${DECLARED}`
+  const listed = await tools.functions([name])
+  if ('failure' in listed) return `rejected reason=unavailable Code help: ${listed.failure.kind}`
+  return listed.ok.length === 0
+    ? `rejected reason=notFound Code help: ${name} has no function a program can call now. ${FIND}`
+    : `done Code help ${name}\n${functionsSignature(listed.ok)}`
 }
 
 /** What the program receives for one call: the value, or an error it can catch by its kind. */
@@ -122,6 +116,13 @@ function answerOf(entry: string, answer: ProgramCallAnswer): ProgramAnswer {
 }
 
 const NOTE = 'Calls that completed keep their effects. The program is not rerun.'
+
+function unnamed(outcome: Extract<ProgramOutcome, { kind: 'threw' }>, code: string): string {
+  if (outcome.name === 'ReferenceError') return `\nIf that is a tool: ${FIND}`
+  return outcome.name === 'TypeError' && /\btools\s*\[/u.test(code)
+    ? '\nWrite the name of each tool you call in the program: tools[name] with a computed name finds only the tools the text names.'
+    : ''
+}
 const consoleOf = (text: string) => (text.length === 0 ? '' : `\nconsole:\n${text}`)
 const at = (line: number | null) => (line === null ? '' : ` line=${line}`)
 
@@ -138,7 +139,7 @@ function failed(outcome: Exclude<ProgramOutcome, { kind: 'returned' }>, code: st
     case 'syntax':
       return `Code execute failed kind=syntax${at(outcome.line)}\n${outcome.message}${hint(outcome.message, code)}\nNothing ran.`
     case 'threw':
-      return `Code execute failed kind=threw${at(outcome.line)}\n${outcome.name}: ${outcome.message}\n${NOTE}${consoleOf(outcome.console)}`
+      return `Code execute failed kind=threw${at(outcome.line)}\n${outcome.name}: ${outcome.message}${unnamed(outcome, code)}\n${NOTE}${consoleOf(outcome.console)}`
     case 'exceeded':
       return `Code execute failed kind=exceeded limit=${outcome.limit}\n${NOTE}${consoleOf(outcome.console)}`
     case 'aborted':
@@ -214,6 +215,45 @@ function inputNote(input: JsonValue | undefined): string {
   }
 }
 
+type Picked = Exclude<ReturnType<typeof pickedSource>, string>
+type Prepared = Readonly<{
+  source: string
+  from: string
+  entries: readonly ProgramFunction['entry'][]
+}>
+
+async function sourceOf(
+  picked: Picked,
+  tools: ProgramTools,
+  sourceBytes: number,
+  failures: Answered['failures'],
+) {
+  if ('code' in picked) return givenProgram(picked.code, sourceBytes)
+  const reader = await tools.functions(['Files'])
+  return 'failure' in reader
+    ? `rejected reason=unavailable Code execute: ${reader.failure.kind}`
+    : loadProgram(picked.path, tools, reader.ok, sourceBytes, failures)
+}
+
+async function prepared(
+  picked: Picked,
+  tools: ProgramTools,
+  sourceBytes: number,
+  failures: Answered['failures'],
+): Promise<Prepared | string> {
+  const program = await sourceOf(picked, tools, sourceBytes, failures)
+  if (typeof program === 'string') return program
+  if ('refusal' in program) throw new Error(program.refusal)
+  const { source, from } = program
+  const named = await tools.functions(namesIn(source))
+  if ('failure' in named) {
+    const text = `rejected reason=unavailable Code execute: ${named.failure.kind}`
+    if (from === '') return text
+    throw new Error(`${text}${fileOf(from)}`)
+  }
+  return { source, from, entries: named.ok.map(one => one.entry) }
+}
+
 async function execute(
   args: Arguments,
   environment: CodeAuthorEnvironment,
@@ -222,22 +262,18 @@ async function execute(
 ): Promise<string> {
   const picked = pickedSource(args)
   if (typeof picked === 'string') return picked
-  const known = await callable(execution, 'execute')
-  if (typeof known === 'string') return known
-  const { tools } = known
+  const tools = programToolsOf(execution)
+  if (tools === undefined) return `rejected reason=unavailable Code execute: ${NOT_ATTACHED}`
   const seen: Answered = { failures: new Map(), external: false }
-  const program =
-    'code' in picked
-      ? givenProgram(picked.code, sourceBytes)
-      : await loadProgram(picked.path, tools, known.functions, sourceBytes, seen.failures)
-  if ('refusal' in program) throw new Error(program.refusal)
-  const { source, from } = program
+  const ready = await prepared(picked, tools, sourceBytes, seen.failures)
+  if (typeof ready === 'string') return ready
+  const { source, from } = ready
   const handle = Promise.withResolvers<ProgramRun>()
   const input = args.fields.get('input')
   const started = await environment.program.run({
     source,
     input: input ?? { kind: 'null' },
-    entries: known.functions.map(one => one.entry),
+    entries: ready.entries,
     failures: [PROGRAM_FAILURE],
     limits,
     onCall: caller(tools, inFlight, handle.promise, seen),

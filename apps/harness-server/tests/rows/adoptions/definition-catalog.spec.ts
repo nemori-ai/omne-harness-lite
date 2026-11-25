@@ -64,6 +64,7 @@ const tenantAssets = (options: Tree) => ({
       standing: async () => 'registered',
       layerSources: held.sourcesOf(open),
       official: () => [],
+      heldNames: held.namesOf,
     })
   },
 })

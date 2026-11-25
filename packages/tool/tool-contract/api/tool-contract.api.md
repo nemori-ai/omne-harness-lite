@@ -3482,7 +3482,7 @@ export type ProgramCallAnswer = Readonly<{
     failure: ProgramCallFailure;
 }>;
 export interface ProgramTools {
-    functions(): Reply<readonly ProgramFunction[]>;
+    functions(names: readonly string[]): Reply<readonly ProgramFunction[]>;
     call(input: At & Readonly<{
         entry: string;
         arguments: JsonValue;
@@ -5784,7 +5784,9 @@ import type { ToolCatalog, ToolCatalogSearchEntry, ToolInspection, ToolUsage } f
 import type { ToolAvailability } from './definitions.ts';
 import type { ToolSourceWithheld } from './entry-source.ts';
 import type { ToolInvocationRef } from './reference.ts';
-export type SearchArguments = Pick<Parameters<ToolCatalog<unknown>['search']>[0], 'query' | 'after' | 'limit'>;
+export type SearchArguments = Pick<Parameters<ToolCatalog<unknown>['search']>[0], 'query' | 'after' | 'limit'> & Readonly<{
+    programmable?: true;
+}>;
 export type SearchPage = Readonly<{
     entries: readonly ToolCatalogSearchEntry[];
     withheld?: readonly ToolSourceWithheld[];
