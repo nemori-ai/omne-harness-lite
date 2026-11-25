@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import {
   decodeModelOperationId,
+  mediaLimitMetric,
   type DispatchRecord,
   type FixedModelRequest,
   type MaterializationReceipt,
@@ -101,7 +102,11 @@ export function mediaRefusal(refusal: MediaRefusal): MediaEnd {
       cause: 'input-over-limit',
       diagnostic: 'media-over-limit',
       upstreamStatus: null,
-      reported: { metric: 'image-bytes', limit: refusal.limit, actual: null },
+      reported: {
+        metric: mediaLimitMetric(refusal.reference.mediaType),
+        limit: refusal.limit,
+        actual: null,
+      },
     },
   }
 }

@@ -30,6 +30,7 @@ export { REASONING_EFFORTS, isReasoningEffort } from './root.ts'
 export type * from './result.ts'
 export { faultIsTransient } from './result.ts'
 export { faultProblem } from './fault-shape.ts'
+export { profileProblems } from './profile-problems.ts'
 export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts'
 export { dispatchSend } from './dispatch-facts.ts'
 export type * from './result-delivery-values.ts'
@@ -89,7 +90,14 @@ export type {
   TokenLimit,
   UpstreamLimit,
 } from './profile.ts'
-export { isNativeFileType, profileCovers, supportedReasoningEfforts } from './profile.ts'
+export {
+  isNativeFileType,
+  LIMIT_METRICS,
+  mediaLimitMetric,
+  OVER_LIMIT_METRICS,
+  profileCovers,
+  supportedReasoningEfforts,
+} from './profile.ts'
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts'
 export type {
   ModelPreparationLease,

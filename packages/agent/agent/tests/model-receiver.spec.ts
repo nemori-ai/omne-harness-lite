@@ -8,6 +8,7 @@ import {
   readModelDeliveryMaterial,
 } from '@omne-harness/agent'
 import {
+  OVER_LIMIT_METRICS,
   decodeDispatchId,
   decodeModelCallId,
   decodeModelOperationId,
@@ -894,6 +895,33 @@ const signal = () => new AbortController().signal
 async function drainTasks(state: ModelReceiverState<string>) {
   while (state.tasks.size) await Promise.all(state.tasks)
 }
+
+it('accepts every metric an over-limit failure may report, the file one included', async () => {
+  const s = await setup()
+  if (s.delivery.kind !== 'result') throw new Error('result required')
+  const base = s.delivery
+  for (const metric of OVER_LIMIT_METRICS) {
+    const delivery: ModelDelivery = {
+      ...base,
+      settlement: {
+        ...base.settlement,
+        termination: {
+          kind: 'failed',
+          fault: {
+            cause: 'input-over-limit',
+            diagnostic: 'too-large',
+            upstreamStatus: null,
+            reported: { metric, limit: '4', actual: '5' },
+          },
+        },
+      },
+    }
+    const material = modelDeliveryMaterial(alice, delivery)
+    const expected = modelReceivedDraft(delivery, s.pending.consumption)
+    expect(readModelDeliveryMaterial(alice, material, expected)).not.toBeNull()
+  }
+  expect(OVER_LIMIT_METRICS).toContain('file-bytes')
+})
 
 it('rejects an arbitrary OverLimitMetric in persisted received facts', async () => {
   const s = await setup()

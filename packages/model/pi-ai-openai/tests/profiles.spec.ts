@@ -56,6 +56,15 @@ describe('officialOpenAiProfiles', () => {
             provided: '4194304',
             upstream: [{ supplier, limit: { kind: 'unknown' } }],
           },
+          ...(record.name === 'openai/gpt-5.6-luna'
+            ? [
+                {
+                  metric: 'file-bytes',
+                  provided: '33554432',
+                  upstream: [{ supplier, limit: { kind: 'unknown' } }],
+                },
+              ]
+            : []),
         ],
         parameters: [],
         reasoningEfforts: {

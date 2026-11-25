@@ -1,4 +1,4 @@
-import { LIMIT_METRICS } from './profile.ts'
+import { OVER_LIMIT_METRICS } from './profile.ts'
 import type { ModelFaultCause } from './result.ts'
 
 const CAUSES: ReadonlySet<string> = new Set<ModelFaultCause>([
@@ -17,7 +17,7 @@ const CAUSES: ReadonlySet<string> = new Set<ModelFaultCause>([
   'upstream-protocol',
   'unclassified',
 ])
-const METRICS: ReadonlySet<string> = new Set(['context-tokens', 'input-tokens', ...LIMIT_METRICS])
+const METRICS: ReadonlySet<string> = new Set(OVER_LIMIT_METRICS)
 const DECIMAL = /^(0|[1-9][0-9]*)$/
 const STATUS = /^[0-9]{3}$/
 const MAX_DIAGNOSTIC = 200
@@ -34,7 +34,7 @@ function safeText(value: unknown): boolean {
     typeof value === 'string' &&
     value.length > 0 &&
     value.length <= MAX_DIAGNOSTIC &&
-    !/[\u0000-\u001f\u007f]/u.test(value) &&
+    [...value].every(char => char >= ' ' && char !== '\u007f') &&
     !value.includes('://')
   )
 }
@@ -69,6 +69,10 @@ export function faultProblem(value: unknown): string | null {
   const status = fault.get('upstreamStatus')
   if (status !== null && !(typeof status === 'string' && STATUS.test(status)))
     return 'upstream-status'
+  return marksProblem(cause, fault)
+}
+
+function marksProblem(cause: string, fault: ReadonlyMap<string, unknown>): string | null {
   const carried = fault.get('replayCarried')
   if ((cause === 'replay-rejected' || fault.has('replayCarried')) && carried !== true)
     return 'replay-carried'

@@ -32,8 +32,11 @@ export const LIMIT_METRICS = [
   'request-bytes',
   'voice-bytes',
   'voice-duration-ms',
+  'file-bytes',
 ] as const
 export type LimitMetric = (typeof LIMIT_METRICS)[number]
+/** What an over-limit failure may report: a profile metric, or the context and input tokens. */
+export const OVER_LIMIT_METRICS = ['context-tokens', 'input-tokens', ...LIMIT_METRICS] as const
 export type UpstreamLimit =
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'finite'; amount: string; source: Adoption }>
@@ -97,6 +100,13 @@ export type ModalityRequirement = Readonly<{
   fileTypes?: readonly string[]
   source: DurableEvidence
 }>
+
+/** The byte limit one medium is held to: its modality's, or the file one for any other type. */
+export function mediaLimitMetric(mediaType: string): 'image-bytes' | 'voice-bytes' | 'file-bytes' {
+  const judged = judgeMediaType(mediaType)
+  const modality = 'ok' in judged ? judged.ok.modality : null
+  return modality === 'image' ? 'image-bytes' : modality === 'voice' ? 'voice-bytes' : 'file-bytes'
+}
 
 export function isNativeFileType(value: string): boolean {
   const judged = judgeMediaType(value)

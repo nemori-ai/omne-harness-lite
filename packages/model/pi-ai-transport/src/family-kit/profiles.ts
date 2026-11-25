@@ -50,6 +50,13 @@ function profileOf<R extends GatewayRecord>(
     provided: limit.provided,
     upstream: [{ supplier, limit: upstreamOf(owner, record, limit.upstream) }],
   }))
+  // The file byte limit is the record's own offering on the wire; no upstream value is known.
+  if (record.wire.file !== undefined)
+    limits.push({
+      metric: 'file-bytes',
+      provided: String(record.wire.file.maxBytes),
+      upstream: [{ supplier, limit: { kind: 'unknown' } }],
+    })
   return {
     suppliers: [
       {

@@ -48,6 +48,15 @@ describe('officialAnthropicProfiles', () => {
             provided: '4194304',
             upstream: [{ supplier, limit: { kind: 'unknown' } }],
           },
+          ...(record.name === 'anthropic/claude-haiku-5.5'
+            ? [
+                {
+                  metric: 'file-bytes',
+                  provided: '33554432',
+                  upstream: [{ supplier, limit: { kind: 'unknown' } }],
+                },
+              ]
+            : []),
         ],
         parameters: [],
         reasoningEfforts: { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' },

@@ -519,6 +519,12 @@ describe('createCalibratedMeter', () => {
       sampleRate: '8000',
       channels: '1',
     } as const
+    const file = {
+      reference: reference('file-1'),
+      bytes: '40',
+      mediaType: 'application/pdf',
+      kind: 'file',
+    } as const
     const limit = (metric: MeasureInput['limits'][number]['metric'], provided: string) => ({
       metric,
       provided,
@@ -535,8 +541,9 @@ describe('createCalibratedMeter', () => {
       limit('request-bytes', '64'),
       limit('voice-bytes', '1000'),
       limit('voice-duration-ms', '1000'),
+      limit('file-bytes', '2000'),
     ]
-    const media = [image('image-1', '11'), voice, image('image-2', '12')]
+    const media = [image('image-1', '11'), voice, image('image-2', '12'), file]
     const measured = await createCalibratedMeter(rules()).measure({
       ...metered,
       limits,
@@ -560,10 +567,16 @@ describe('createCalibratedMeter', () => {
       exact('request-bytes', 'request', '7', '64'),
       exact('voice-bytes', 'voice-1', '30', '1000'),
       exact('voice-duration-ms', 'voice-1', '10', '1000'),
+      exact('file-bytes', 'file-1', '40', '2000'),
     ])
     // Pending media are read at the send, each within the limit: an original over it is no excess here.
     // The duration of a voice is known from its block before it is read.
-    const over = [image('image-1', '5000'), image('image-2', '12'), { ...voice, bytes: '5000' }]
+    const over = [
+      image('image-1', '5000'),
+      image('image-2', '12'),
+      { ...voice, bytes: '5000' },
+      { ...file, bytes: '5000' },
+    ]
     const pending = await createCalibratedMeter(rules()).measure({
       ...metered,
       limits,
@@ -572,7 +585,12 @@ describe('createCalibratedMeter', () => {
         adoption: REPRESENTATION,
         tokenInput: metered.representation.tokenInput,
         media: over,
-        references: [reference('image-1'), reference('image-2'), reference('voice-1')],
+        references: [
+          reference('image-1'),
+          reference('image-2'),
+          reference('voice-1'),
+          reference('file-1'),
+        ],
       },
     })
     expect('ok' in pending && pending.ok.checks.slice(1)).toEqual([

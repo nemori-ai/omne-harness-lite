@@ -1,5 +1,10 @@
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { Adoption, ModelProfile, ModelProfileDefinition } from '@omne-harness/model-contract'
+import {
+  profileProblems,
+  type Adoption,
+  type ModelProfile,
+  type ModelProfileDefinition,
+} from '@omne-harness/model-contract'
 import type {
   ModelPreferencesPort,
   ModelProfileSnapshot,
@@ -7,6 +12,7 @@ import type {
 import { createModelProfiles } from '@omne-harness/model'
 import { expect, it } from 'vitest'
 import { createOfficialProfileSource } from '../src/profile-source.ts'
+import { officialProfiles } from '../src/official-profiles.ts'
 import { providerName } from './support/credentials.ts'
 
 const principal = { owner: 'model-host-local-tests', subject: 'reader' }
@@ -435,4 +441,25 @@ it('keeps a credential unavailable when custody denies it, cannot be asked, or i
       throw new Error('custody is down')
     }),
   ).toBe('unavailable')
+})
+
+it('refuses to assemble an official profile that breaks the profile rules, naming its fields', () => {
+  const bad = definitionOf('lab/no-image-limit')
+  expect(() =>
+    createOfficialProfileSource({ definitions: [{ ...bad, limits: [] }], updatedAt: UPDATED_AT }),
+  ).toThrow('the official profile lab/no-image-limit breaks the profile rules: limits.image-bytes')
+  expect(() =>
+    createOfficialProfileSource({
+      definitions: [
+        { ...bad, context: { ...bad.context, output: { provided: '1001', upstream: [] } } },
+      ],
+      updatedAt: UPDATED_AT,
+    }),
+  ).toThrow('context.output')
+})
+
+it('assembles every official profile of the release: each keeps the profile rules', () => {
+  const definitions = officialProfiles({ retryPolicy: RETRY, compactionTriggerPercent: '80' })
+  expect(definitions.map(profileProblems).filter(problems => problems.length > 0)).toEqual([])
+  expect(() => createOfficialProfileSource({ definitions, updatedAt: UPDATED_AT })).not.toThrow()
 })
