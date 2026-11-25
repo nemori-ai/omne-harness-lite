@@ -120,6 +120,7 @@ export type FakeHistory = GoalHistory &
   Readonly<{
     made(...calls: ObservedCall[]): void
     say(text: string | null): void
+    hearable(on: boolean): void
     readable(on: boolean): void
   }>
 
@@ -128,15 +129,17 @@ export function fakeHistory(): FakeHistory {
   const calls: ObservedCall[] = []
   let canRead = true
   let reply: string | null = null
+  let canHear = true
   return {
     made: (...more) => void calls.push(...more),
     say: text => void (reply = text),
+    hearable: on => void (canHear = on),
     readable: on => void (canRead = on),
     async calls() {
       return canRead ? { kind: 'read', value: [...calls] } : { kind: 'unavailable' }
     },
     async said() {
-      return canRead ? { kind: 'read', value: reply } : { kind: 'unavailable' }
+      return canRead && canHear ? { kind: 'read', value: reply } : { kind: 'unavailable' }
     },
   }
 }

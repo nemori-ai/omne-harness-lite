@@ -54,6 +54,11 @@ describe('the supplier of a decision model', () => {
   it('is known by its model, and is the one a request names only with this provider and this exact adoption', () => {
     expect(decisionSupplierOf('openai/gpt-5.6-sol-pro')).toBeUndefined()
     expect(isDecisionSupplier(SUPPLIER)).toBe(true)
+    expect(SUPPLIER.adoption).toMatchObject({
+      owner: '@omne-harness/pi-ai-transport/decisions',
+      name: MODEL,
+      revision: '1',
+    })
     expect(isDecisionSupplier({ ...SUPPLIER, model: 'openai/gpt-5.6-sol-pro' })).toBe(false)
     expect(isDecisionSupplier({ ...SUPPLIER, provider: 'another' as never })).toBe(false)
     for (const field of ['owner', 'name', 'revision', 'digest'] as const) {
@@ -71,6 +76,18 @@ describe('the body of a decision dispatch', () => {
     const encoded = made.encode({ request: requestOf() } as never)
     if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded))
     expect(JSON.parse(writeJsonText(encoded.ok.body))).toEqual({ model: MODEL, ...ask })
+  })
+
+  it('carries nothing of a replay and no media, and has no decoder for a request that is no decision', () => {
+    const made = binding()
+    const encoded = made.encode({ request: requestOf() } as never)
+    if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded))
+    expect(encoded.ok).toMatchObject({ diagnostics: [], replayPrefix: '', replayCarried: false })
+    expect(made.replayFormat).toBeNull()
+    expect(made.mediaLimits({} as never)).toBeNull()
+    expect(() => made.createDecoder({ request: REQUEST, accounting: ACCOUNTING } as never)).toThrow(
+      'not the decision that was encoded',
+    )
   })
 
   it('is refused for a request that is no decision, or one over the byte limit', () => {
@@ -118,6 +135,30 @@ describe('the one body a decision answers with', () => {
     expect(factsOf(reading.end())).toEqual([
       { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } },
     ])
+  })
+
+  it('opens its block as appended text at the first place, and accounts what the body does not say as unknown', () => {
+    const facts = factsOf(decoder().accept(frameOf({ model: MODEL, answers, usage })))
+    expect(facts[0]).toEqual({ kind: 'block-open', index: '0', mode: 'append', content: 'text' })
+    expect(facts[1]).toMatchObject({ kind: 'block-delta', index: '0' })
+    expect(facts[2]).toMatchObject({ kind: 'block-seal', index: '0' })
+    expect(facts[3]).toMatchObject({
+      kind: 'account',
+      event: 'usage',
+      value: {
+        trimmed: { state: 'unknown', unit: 'token' },
+        duration: { state: 'unknown' },
+        revision: '1',
+      },
+    })
+  })
+
+  it('accounts a very small cost as a plain decimal, not in the exponent form a number prints in', () => {
+    const body = { model: MODEL, answers, usage: { ...usage, cost: 1e-7 } }
+    const facts = factsOf(decoder().accept(frameOf(body)))
+    expect(facts.find(fact => fact.kind === 'account')).toMatchObject({
+      value: { cost: [{ state: 'known', lexeme: '0.0000001', unit: 'openrouter-credit' }] },
+    })
   })
 
   it('accounts no cost when the body names none, and names the place unknown when the body names no provider', () => {

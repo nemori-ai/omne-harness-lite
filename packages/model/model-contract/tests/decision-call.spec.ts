@@ -4,6 +4,7 @@ import {
   decisionAnswersOf,
   decisionAskMessage,
   decisionAskOf,
+  DECISION_REPRESENTATION,
   type DecisionAnswers,
   type DecisionAsk,
   type ResultPart,
@@ -51,6 +52,49 @@ describe('a decision as a model call', () => {
     expect(message.role).toBe('user')
     expect(message.blocks).toHaveLength(1)
     expect(decisionAskOf(requestOf(message))).toEqual(ask)
+  })
+
+  it('is a representation of its own, and its two blocks are for the model alone or for nobody', () => {
+    expect(DECISION_REPRESENTATION).toEqual({
+      owner: 'model-contract',
+      name: 'decision-call',
+      revision: '1',
+      digest: '6f03fde97adcc0f91ae9d6c6e8e887d71d685acd774bce8b7fdb2e7d91a93889',
+    })
+    const [asked] = decisionAskMessage(MESSAGE, ask)?.blocks ?? []
+    expect(asked).toMatchObject({
+      id: 'decision-ask',
+      visibility: { toHuman: false, toModel: true },
+    })
+    expect(decisionAnswersBlock(answers)).toMatchObject({
+      id: 'decision-answers',
+      visibility: { toHuman: false, toModel: false },
+    })
+  })
+
+  it('reads answers of every type a decision gives, and none when one of them is no answer', () => {
+    const every: DecisionAnswers = {
+      A1: { type: 'choice', choice: 'holds' },
+      X1: { type: 'noul', noul: 0.2 },
+      S1: { type: 'score', score: 4 },
+      R1: { type: 'refusal' },
+    }
+    expect(decisionAnswersOf(sealed(decisionAnswersBlock(every)))).toEqual(every)
+    const block = decisionAnswersBlock(answers)
+    if (block.kind !== 'text') throw new Error('no text')
+    for (const text of [
+      '{"A1":{"type":"choice","choice":"holds"},"X1":"holds"}',
+      '{"A1":{"type":"choice","choice":"holds"},"X1":null}',
+      '{"A1":{"type":7}}',
+    ])
+      expect(decisionAnswersOf(sealed({ ...block, text }))).toBeNull()
+  })
+
+  it('reads no ask from a message without a block', () => {
+    const message = decisionAskMessage(MESSAGE, ask)
+    if (message === null) throw new Error('no message')
+    const empty = { ...requestOf(message), messages: [{ ...message, blocks: [] }] }
+    expect(decisionAskOf(empty as never)).toBeNull()
   })
 
   it('makes no message under an id that is no message id', () => {

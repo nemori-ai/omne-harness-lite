@@ -3,11 +3,12 @@ import { impliedKey } from '@omne-harness/goal-contract'
 import type {
   CheckAnswer,
   GoalDraft,
+  GoalRecord,
   JudgeAnswer,
   JudgeReply,
   ObservedCall,
 } from '@omne-harness/goal-contract'
-import type { DecisionAsk } from '@omne-harness/goal'
+import type { DecisionAsk, GoalStore } from '@omne-harness/goal'
 import { JOB, OWNER, refusal, SESSION, TENANT, value, world } from './world.ts'
 
 const CHECK = { tenant: TENANT, subject: 'check' }
@@ -492,6 +493,114 @@ describe('a self-driving session nobody set a goal for', () => {
     const deaf = await driving()
     deaf.history.readable(false)
     expect(await deaf.observe()).toEqual({ kind: 'basis-unavailable' })
+    expect(deaf.decisions.asked).toEqual([])
+  })
+})
+
+describe('what a check withstands', () => {
+  const UNAVAILABLE = { kind: 'unavailable' } as const
+  const INPUT = { since: '41', text: '把改动说明写进 CHANGELOG' }
+  const KEY = impliedKey(SESSION)
+  /** A store whose reads of one key cannot be made. */
+  const blindTo =
+    (key: string) =>
+    (store: GoalStore): GoalStore => ({
+      commit: (tenant, command) => store.commit(tenant, command),
+      latest: async (tenant, session) =>
+        session === key ? UNAVAILABLE : store.latest(tenant, session),
+      owing: tenant => store.owing(tenant),
+    })
+  /** A store that answers the commits a test picks as written over by somebody else. */
+  const staleWhen =
+    (pick: (next: GoalRecord, nth: number) => boolean) =>
+    (store: GoalStore): GoalStore => {
+      let seen = 0
+      return {
+        async commit(tenant, command) {
+          seen += 1
+          return pick(command.next, seen)
+            ? { kind: 'committed', value: { kind: 'stale', current: null } }
+            : store.commit(tenant, command)
+        },
+        latest: (tenant, session) => store.latest(tenant, session),
+        owing: tenant => store.owing(tenant),
+      }
+    }
+  const observe = (w: ReturnType<typeof world>, call = CALL, session = SESSION) =>
+    w.goals.observe(CHECK, check(call, 'complete', session))
+
+  it('has no basis when the goal of the session, or the one it implies, cannot be read; neither is taken for no goal', async () => {
+    const own = world(blindTo(SESSION))
+    expect(await observe(own)).toEqual({ kind: 'basis-unavailable' })
+    expect(await own.goals.compacted(CHECK, SESSION)).toEqual({ kind: 'basis-unavailable' })
+    const implied = world(blindTo(KEY))
+    implied.sessions.drive(SESSION, INPUT)
+    expect(await observe(implied)).toEqual({ kind: 'basis-unavailable' })
+    expect(implied.decisions.asked).toEqual([])
+  })
+
+  it('lets a session nobody knows end its round: there are no facts to imply a goal from', async () => {
+    const w = world()
+    expect(value(await observe(w, CALL, 'a-session-nobody-knows'))).toEqual({ kind: 'pass' })
+    expect(w.store.rows(TENANT)).toEqual([])
+  })
+
+  it('begins the implied goal again when somebody wrote over its beginning', async () => {
+    const w = world(staleWhen((next, nth) => next.session === KEY && nth === 1))
+    w.sessions.drive(SESSION, INPUT)
+    w.decisions.answer(ask => replyOf(ask, 'fails'))
+    expect(value(await observe(w))).toEqual({ kind: 'continue' })
+    expect(w.decisions.asked).toHaveLength(1)
+  })
+
+  it('judges three times at most a goal that is written over each time, then has no basis', async () => {
+    const w = world(staleWhen(next => next.observed !== null))
+    const proposal = { kind: 'set', draft: READ } as const
+    value(await w.goals.write(OWNER, w.direct({ proposal })))
+    w.decisions.answer(ask => replyOf(ask, 'fails'))
+    expect(await observe(w)).toEqual({ kind: 'basis-unavailable' })
+    expect(w.decisions.asked).toHaveLength(3)
+  })
+
+  it('reads the number of a metric from the run that measured it, and keeps it as the reading of the system', async () => {
+    const draft: GoalDraft = {
+      purpose: '把首页的加载时间降下来',
+      criteria: [{ statement: 'p95 到 800 毫秒以内', evidence: { kind: 'metric', metric: 'M1' } }],
+      metrics: [
+        {
+          statement: '首页 p95 加载时间，毫秒',
+          measure: { command: 'pnpm bench:home --json', path: '.p95_ms' },
+          direction: 'lower',
+          target: 800,
+        },
+      ],
+    }
+    const w = world()
+    const proposal = { kind: 'set', draft } as const
+    value(await w.goals.write(OWNER, w.direct({ proposal })))
+    const bench = { ...write(1), tool: 'Shell execute', path: null, writes: false, exit: 0 }
+    w.history.made({ ...bench, command: 'pnpm bench:home --json', output: '{"p95_ms": 780}' })
+    expect(value(await observe(w))).toEqual({ kind: 'pass' })
+    const record = w.store.rows(TENANT).at(-1)
+    expect(record?.readings.metrics.M1).toEqual({ value: 780, source: 'system', ref: null })
+    expect(record?.state).toMatchObject({ status: 'settled', outcome: { kind: 'achieved' } })
+    expect(w.decisions.asked).toEqual([])
+  })
+
+  it('shows an implied judging the calls alone when the agent said nothing, and has no basis when what it said cannot be read', async () => {
+    const silent = world()
+    silent.sessions.drive(SESSION, INPUT)
+    silent.history.made(write(1))
+    silent.decisions.answer(ask => replyOf(ask, 'holds'))
+    value(await observe(silent))
+    const state = silent.decisions.asked[0]?.request.state as {
+      evidence: { A1: { ref: string }[] }
+    }
+    expect(state.evidence.A1.map(item => item.ref)).toEqual(['call-1'])
+    const deaf = world()
+    deaf.sessions.drive(SESSION, INPUT)
+    deaf.history.hearable(false)
+    expect(await observe(deaf)).toEqual({ kind: 'basis-unavailable' })
     expect(deaf.decisions.asked).toEqual([])
   })
 })

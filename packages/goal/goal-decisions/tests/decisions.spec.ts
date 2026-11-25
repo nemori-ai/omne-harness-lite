@@ -59,6 +59,46 @@ describe('one decision call of a judging', () => {
       expect(operation).toMatch(/^mop_goal_[0-9a-f]{40}_read_[0-9a-f]{32}$/u)
   })
 
+  it('names each step of a call by an operation of its own under the identity of the call, and closes the read it began', async () => {
+    const done = world()
+    await done.decisions.ask(ask())
+    const [id] = [...done.calls.keys()]
+    const key = id?.slice('mcall_goal_'.length)
+    expect(done.operations).toEqual([`mop_goal_${key}_admit`, `mop_goal_${key}_acknowledge`])
+    expect(done.closed).toEqual([{ call: id, read: 'read-1' }])
+    const late = world()
+    late.state.next.looks = null
+    await late.decisions.ask(ask())
+    expect(late.operations.at(-1)).toMatch(/^mop_goal_[0-9a-f]{40}_cancel$/u)
+  })
+
+  it('gives no answer, and still hands the result over, when the read cannot begin or ends before its last page', async () => {
+    const shut = world()
+    shut.state.fail.add('beginRead')
+    expect(await shut.decisions.ask(ask())).toBeNull()
+    expect(shut.only().acknowledged).toHaveLength(1)
+    expect(shut.closed).toEqual([])
+    const cut = world()
+    cut.state.next.pages = [[], sealed(ANSWERS)]
+    cut.state.endsAt = 1
+    expect(await cut.decisions.ask(ask())).toBeNull()
+    expect(cut.closed).toHaveLength(1)
+  })
+
+  it('reads sixty-four pages of a result and no more: a longer one gives no answer', async () => {
+    const pagesOf = (count: number) => [
+      ...Array.from({ length: count - 1 }, () => []),
+      sealed(ANSWERS),
+    ]
+    const whole = world()
+    whole.state.next.pages = pagesOf(64)
+    expect(await whole.decisions.ask(ask())).toEqual(ANSWERS)
+    const long = world()
+    long.state.next.pages = pagesOf(65)
+    expect(await long.decisions.ask(ask())).toBeNull()
+    expect(long.log.filter(step => step === 'readNext')).toHaveLength(64)
+  })
+
   it('waits for a call that has not settled, a look at a time', async () => {
     const w = world()
     w.state.next.looks = 3
@@ -188,6 +228,22 @@ describe('the proof of a handoff', () => {
   const completion = decisionCompletion(call, result)
   const given = { call, result, consumer, evidence: { kind: 'processed', completion } }
 
+  it('names the call under the owner of the decisions, and the source of a request by its name and revision', () => {
+    expect(completion).toMatchObject({
+      owner: '@omne-harness/goal-decisions',
+      record: call,
+      revision: '1',
+    })
+    expect(completion.digest).toMatch(/^[0-9a-f]{64}$/u)
+    expect(decisionCompletion(call, 'v2' as ResultVersion).digest).not.toBe(completion.digest)
+    expect(GOAL_DECISIONS_SOURCE).toMatchObject({
+      owner: '@omne-harness/goal-decisions',
+      name: 'judge-request',
+      revision: '1',
+    })
+    expect(GOAL_DECISIONS_SOURCE.digest).toMatch(/^[0-9a-f]{64}$/u)
+  })
+
   it('is accepted for the call and the result it names', () => {
     expect(verifyDecisionHandoff(given)).toEqual(completion)
   })
@@ -196,6 +252,9 @@ describe('the proof of a handoff', () => {
     const other = { ...consumer, owner: '@omne-harness/agent' }
     expect(verifyDecisionHandoff({ ...given, consumer: other })).toBeNull()
     expect(verifyDecisionHandoff({ ...given, evidence: { kind: 'retained' } })).toBeNull()
+    expect(
+      verifyDecisionHandoff({ ...given, evidence: { kind: 'retained', completion } }),
+    ).toBeNull()
     expect(verifyDecisionHandoff({ ...given, result: 'v2' as ResultVersion })).toBeNull()
     const another = `${call.slice(0, -1)}8` as ModelCallId
     expect(verifyDecisionHandoff({ ...given, call: another })).toBeNull()

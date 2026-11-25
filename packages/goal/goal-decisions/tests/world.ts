@@ -71,12 +71,16 @@ export function world() {
   const calls = new Map<string, Call>()
   const log: string[] = []
   const reads: string[] = []
+  const operations: string[] = []
+  const closed: unknown[] = []
   const prepared: Parameters<ModelDecisionPreparation<unknown>['prepare']>[0][] = []
   const state = {
     time: 0,
     modelAway: false,
     preparationAway: false,
-    fail: new Set<'prepare' | 'inspect'>(),
+    fail: new Set<'prepare' | 'inspect' | 'beginRead'>(),
+    /** The page a read ends at instead of going on; null: it reads every page. */
+    endsAt: null as number | null,
     /** How many admissions Model has no room for before it takes one. */
     full: 0,
     refuse: false,
@@ -111,6 +115,7 @@ export function world() {
       },
       async admit(input: Asked<'calls', 'admit'>) {
         log.push('admit')
+        operations.push(String(input.operation))
         if (state.refuse) return { failure: { kind: 'denied', diagnostic: 'not this caller' } }
         if (state.full > 0) {
           state.full -= 1
@@ -129,6 +134,7 @@ export function world() {
       },
       async cancel(input: Asked<'calls', 'cancel'>) {
         log.push('cancel')
+        operations.push(String(input.operation))
         const call = calls.get(String(input.call))
         if (call !== undefined) call.cancelled = true
         return { ok: {} }
@@ -138,6 +144,7 @@ export function world() {
       async beginRead(input: Asked<'consumption', 'beginRead'>) {
         log.push('beginRead')
         reads.push(String(input.operation))
+        if (state.fail.has('beginRead')) return AWAY
         const call = calls.get(callOf(input.reference))
         if (call === undefined) return AWAY
         if (call.acknowledged.length > 0) return { ok: { kind: 'acknowledged', custody: {} } }
@@ -146,14 +153,18 @@ export function world() {
       async readNext(input: Asked<'consumption', 'readNext'>) {
         log.push('readNext')
         const call = calls.get(String(input.call))
-        return call === undefined ? AWAY : { ok: reading(call, Number(input.after)) }
+        if (call === undefined) return AWAY
+        if (state.endsAt === Number(input.after)) return { ok: { kind: 'ended', reason: 'closed' } }
+        return { ok: reading(call, Number(input.after)) }
       },
-      async closeRead() {
+      async closeRead(input: Asked<'consumption', 'closeRead'>) {
         log.push('closeRead')
+        closed.push({ call: String(input.call), read: input.read })
         return { ok: { kind: 'ended', reason: 'closed' } }
       },
       async acknowledge(input: Asked<'consumption', 'acknowledge'>) {
         log.push('acknowledge')
+        operations.push(String(input.operation))
         const { result, evidence } = input
         calls.get(String(input.call))?.acknowledged.push({ result, evidence })
         return { ok: {} }
@@ -181,5 +192,5 @@ export function world() {
     if (call === undefined || more.length > 0) throw new Error(`${String(calls.size)} calls`)
     return call
   }
-  return { decisions, calls, log, reads, prepared, state, only }
+  return { decisions, calls, log, reads, operations, closed, prepared, state, only }
 }
