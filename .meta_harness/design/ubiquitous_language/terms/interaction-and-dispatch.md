@@ -30,7 +30,7 @@
 
 - **控制边界**：派发者可显式撤回 spawn／delegate 的工作；父 Run 停止不自动停止子会话执行，报告结束派发而不决定子 Run 终态。
 - **形态**：过程
-- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 22）
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 23）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」——**一个带副本加交代，一个只带交代**；
   `spawn`/`delegate` 与 `handoff` 只差
@@ -62,7 +62,7 @@
 
 - **形态**：属性
 - **出处**：[元能力：三种派发模式](../../product/meta-capabilities/design.md#三种派发模式) ·
-  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 22）
+  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 23）
 - **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [agent 间通信](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)对两者一视同仁
 - **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
@@ -93,7 +93,7 @@
 
 - **归档边界**：接收会话归档期间拒绝新的消息，告知发送方；既有执行的迟到结果和账不丢失，也不作为新任务入队。
 - **形态**：规则
-- **出处**：[元能力：双向通信与消息失败](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 22）
+- **出处**：[元能力：双向通信与消息失败](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 23）
 - **注意 ①**：**「没有归档」就是通路存在的条件**——一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了。
   **没有删除会话的概念，也就没有「会话结束」这回事**
 - **注意 ②**：**发不出去时要说清是哪一条不满足**：对方不存在或不在本租户（两者答同一句）、对方已归档、发给了自己、此刻不许。
@@ -121,7 +121,7 @@
 > **a report comes once**, messages any number of times.
 
 - **形态**：对象
-- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 22）
+- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 23）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
   它的会话不会因此归档，也不据此认定子 Run 终态；后续消息仍须满足[当前通信准入](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
@@ -145,7 +145,7 @@
 > dispatching tool call.**
 
 - **形态**：对象
-- **出处**：[元能力：Agents 派发与通信](../../product/meta-capabilities/design.md#agents-派发与通信)（rev 22）
+- **出处**：[元能力：Agents 派发与通信](../../product/meta-capabilities/design.md#agents-派发与通信)（rev 23）
 - **身份靠什么**：受理时定下的派发标识；建出的会话的身份由它派生，所以重做认回同一个会话
 - **怎么生怎么灭**：受理即生；`spawn`、`delegate` 以报告成立、失败或撤回了结，`handoff` 以会话建成或建不成了结。了结之后仍读得到
 - **别混 ①**：**不是[子会话](agent-runtime-loop.md#ul-child-session--子会话--child-session)**。派发了结了，那个会话照旧在
@@ -334,7 +334,7 @@
 > own**. **Several questions may be asked at once.**
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 22）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 23）
 - **别混**：与系统发起的放行卡片**问的不是一类事**——
   **问询要的是信息或选择，答复交回 agent 接着想；放行卡片问的是许不许，答复交授权的拥有者，不经 agent**。
   agent 不拿问询向人要授权：人在问询里答的话不产生任何许可
@@ -356,7 +356,7 @@
 > is needed the system raises the release card.
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 22）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 23）
 - **别混**：agent 主动问人的只有[问询](#ul-inquiry--问询--inquiry)，它不产生许可
 
 ### UL-session-authorization-context · 会话授权上下文 · Session Authorization Context
@@ -374,7 +374,7 @@
 > the session's run mode.
 
 - **形态**：对象
-- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 22）
+- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 23）
 - **注意 ①**：**流水里的每一笔是一次[授权表达](#ul-authorization-expression--授权表达--authorization-expression)**，
   **三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
   **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）。
@@ -415,7 +415,7 @@
 > that the setting is effective.
 
 - **形态**：对象
-- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 22）
+- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 23）
 - **别混**：**不是[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)**——
   那是流水**整份**，这是流水里的**一笔**
 - **注意 ①**：**撤回也是一笔**——**不是把先前那笔擦掉**，是往后再记一笔
@@ -442,7 +442,7 @@
 > and no other domain copies it.
 
 - **形态**：属性
-- **出处**：[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 22）
+- **出处**：[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 23）
 - **别混**：**不是[放行详情](#ul-release-detail--放行详情--release-detail)**——
   放行详情讲这次调用要做什么，写给人看；授权引用讲这次放行凭什么，记在放行判断的记录里
 - **别混**：**不是一次工具调用的引用**——调用引用点名一次调用，授权引用点名一份授权；
@@ -1513,7 +1513,7 @@
 > **EN**: The two spellings of a command entry's name. The full name is "namespace:name"; the namespace is declared by the command entry source that hands the entry over, and full names never collide; `omne-official` is reserved. The short name is the part without the namespace and is resolved by where it is written: at the start, a system command wins over a prompt command, which wins over a skill; inside a sentence, only skills count.
 
 - **形态**：属性
-- **出处**：[Slash Command 名字](../../product/slash-commands/design.md#名字)（rev 4）
+- **出处**：[Slash Command 名字](../../product/slash-commands/design.md#名字)（rev 5）
 - **别混**：不是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)：同一份 Skill 的能力标识是「类别加名字」，它的全名是「空间:名字」，空间不是类别
 - **注意**：拿掉一项可能让一个短名改绑到另一项，所以「少一项不会多出引用」不成立；看得见的标记与[发送方所见](#ul-sender-view--发送方所见--sender-view)守住这一点
 
@@ -1524,7 +1524,7 @@
 > **EN**: A `/name` recognized in a sentence and bound to a reference-kind command entry. It does not rewrite what the person wrote: at intake the person's words stay one block as written, and the referenced skill's body becomes a separate block carrying an origin tag. A skill referenced several times is carried once.
 
 - **形态**：属性
-- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 4）
+- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 5）
 - **别混**：不是 agent 调读取工具读一份 Skill，那是一次工具调用；引用走受理，不运行脚本，不放宽读取权。也不是「按引用找它」里那个泛称的引用，跨 topic 写全称
 
 ### UL-sender-view · 发送方所见 · Sender View
@@ -1534,7 +1534,7 @@
 > **EN**: The recognition result a delivery surface sends along with an input: which command is at the start, if any, and which entries are referenced (full names, without duplicates, in order of first appearance). Intake recognizes the input again against the list as it is now; if the result differs, the whole input is not accepted and the reply says which item changed.
 
 - **形态**：属性
-- **出处**：[Slash Command 看到的就是受理的](../../product/slash-commands/design.md#看到的就是受理的)（rev 4）
+- **出处**：[Slash Command 看到的就是受理的](../../product/slash-commands/design.md#看到的就是受理的)（rev 5）
 - **注意**：只比绑到了哪些名字，不比版本；没带所见的提交照受理侧认出的受理，回执写明绑定了什么
 
 ### UL-shell-action · 外壳动作 · Shell Action
@@ -1544,7 +1544,7 @@
 > **EN**: One thing registered by name in the client shell's action table: a name, a title, whether it can be done now and why not, and how to do it. Keys, the command palette, buttons and the system menu refer to it only by name, and its availability is computed in this one place. A UI module registers it, and it is added and removed with that module's scope. Controls over a running run and the interface's own actions are both shell actions; a control names the run or call the interface sees at that moment.
 
 - **形态**：对象
-- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 4）
+- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 5）
 - **别混**：不是 agent 的[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里的动作，那是模型能发起的；外壳动作只由人触发，模型看不到。裸写「动作」不作术语
 - **注意**：外壳不认识任何一个动作的含义，含义归登记它的界面模块。它是一种[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)：身份是动作表里的名字，随登记它的模块挂上与撤下
 
@@ -1555,7 +1555,7 @@
 > **EN**: One mapping of "in this layer, this key performs this shell action". Layers run from the innermost outwards: overlay, composer or current page, global; a key press looks in the innermost layer first. A default set ships with the application; the person's changes are kept with the account, so another client signed in to the same account reads the same set. Keys bind only to controls and interface actions.
 
 - **形态**：属性
-- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 4）
+- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 5）
 - **注意**：不是某个租户的设置；它是账号的偏好，切换租户不变
 
 ---

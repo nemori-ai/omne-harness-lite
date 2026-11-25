@@ -86,7 +86,7 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
     direct: [
       {
         name: 'lookup',
-        description: 'lookup\n\nReturns fixture-value@1. Model body: text. Program data: none.',
+        description: 'lookup\n\nReturns fixture-value@1. Model body: text.',
         argumentsSchema: definition.parameters.schema,
       },
     ],
@@ -111,7 +111,7 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
   expect(declared.direct.map(item => item.name)).toEqual(['Files'])
   expect(declared.programmatic).toEqual(declared.direct)
   expect(declared.direct[0]?.description).toBe(
-    'Read and write files.\n\nCall with {"command": <name>, "params": {…fields}}. In signatures, ? marks an optional field and a|b lists the allowed values.\nread {} - read a file. Returns fixture-value@1. Model body: text. Program data: none.\nwrite {} - write a file. Returns fixture-value@1. Model body: text. Program data: none.',
+    'Read and write files.\n\nCall with {"command": <name>, "params": {…fields}}. In signatures, ? marks an optional field and a|b lists the allowed values.\nread {} - read a file. Returns fixture-value@1. Model body: text.\nwrite {} - write a file. Returns fixture-value@1. Model body: text.',
   )
   expect(JSON.stringify(declared.direct[0]?.argumentsSchema)).toContain(
     '{"key":"enum","value":{"kind":"array","items":[{"kind":"string","value":"read"},{"kind":"string","value":"write"}]}}',
@@ -126,7 +126,7 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
   ])
 })
 
-it('a program executor declares the functions of the resident tools a program can call, and no other tool does', () => {
+it('TL-75 no declaration says what a program can call: a program executor declares itself alone, whatever tools are resident', () => {
   const base = {
     kind: 'function' as const,
     description: 'reads one thing',
@@ -174,20 +174,14 @@ it('a program executor declares the functions of the resident tools a program ca
     adopted('Away', {}, false),
     adopted('Plain', { programmable: false }),
   ]
-  const text = described(all, 'Runner')
-  expect(text.startsWith('runs programs\n\nReturns ')).toBe(true)
-  expect(text).toContain('\n\nFunctions a program can call:\n')
-  expect(text).toContain('declare function Lookup(')
-  // A tool that is not resident, and one a program may not call, are not declared.
-  expect(text).not.toContain('Away')
-  expect(text).not.toContain('Plain')
-  expect(described(all, 'Lookup')).not.toContain('Functions a program can call')
-  // With nothing a program can call the executor declares itself alone.
-  expect(described([runner, adopted('Plain', { programmable: false })], 'Runner')).not.toContain(
-    'Functions a program can call',
-  )
-  // The declaration is fixed with the rest: another resident programmable tool changes the digest.
-  expect(declareTools([...all, adopted('More')]).digest).not.toBe(declareTools(all).digest)
+  const alone = described([runner], 'Runner')
+  expect(alone.startsWith('runs programs\n\nReturns ')).toBe(true)
+  expect(described(all, 'Runner')).toBe(alone)
+  expect(described([...all, adopted('More')], 'Runner')).toBe(alone)
+  for (const tool of declareTools(all).direct) {
+    expect(tool.description).not.toContain('declare ')
+    expect(tool.description).not.toContain('Program')
+  }
 })
 it('projection preserves reasoning payload, rewrites at indices and removes dangling pairs', () => {
   const stateIdentity = judgeBlockIdentity({

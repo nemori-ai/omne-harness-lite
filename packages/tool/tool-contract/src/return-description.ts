@@ -12,13 +12,18 @@ function valueSummary(schema: ToolPublishedSchema): string {
   return type?.kind === 'string' ? `${type.value} (${schemaName(schema)})` : schemaName(schema)
 }
 
-export function returnSummary(returns: ToolReturnDeclaration): string {
+/** What every declaration says of a return. What a program receives is told by Tools alone (TL-75). */
+export function declaredReturn(returns: ToolReturnDeclaration): string {
   const value = returns.kind === 'ordinary' ? valueSummary(returns.value.value) : 'ToolResult'
+  return `Returns ${value}. Model body: ${returns.body.kind}.`
+}
+
+export function returnSummary(returns: ToolReturnDeclaration): string {
   const program =
     returns.program.kind === 'none'
       ? 'none'
       : `JSON (${returns.program.schema.id}@${returns.program.schema.revision})`
-  return `Returns ${value}. Model body: ${returns.body.kind}. Program data: ${program}.`
+  return `${declaredReturn(returns)} Program data: ${program}.`
 }
 
 function schemaGuide(label: string, schema: ToolPublishedSchema): string[] {
@@ -30,7 +35,15 @@ function schemaGuide(label: string, schema: ToolPublishedSchema): string[] {
 }
 
 export function returnGuide(returns: ToolReturnDeclaration): string {
-  const lines = [returnSummary(returns)]
+  return guideLines(returns, true).join('\n')
+}
+
+export function declaredReturnGuide(returns: ToolReturnDeclaration): string {
+  return guideLines(returns, false).join('\n')
+}
+
+function guideLines(returns: ToolReturnDeclaration, program: boolean): string[] {
+  const lines = [program ? returnSummary(returns) : declaredReturn(returns)]
   if (returns.kind === 'ordinary') {
     lines.push(`Return codec: ${JSON.stringify(returns.value.codec)}`)
     lines.push(...schemaGuide('Return value', returns.value.value))
@@ -49,7 +62,7 @@ export function returnGuide(returns: ToolReturnDeclaration): string {
       break
   }
   if (returns.body.kind !== 'none') lines.push(`Body codec: ${JSON.stringify(returns.body.codec)}`)
-  if (returns.program.kind === 'json') {
+  if (program && returns.program.kind === 'json') {
     lines.push(`Program contract: ${JSON.stringify(returns.program.contract)}`)
     lines.push(`Program byte limit: ${returns.program.maxBytes}`)
     lines.push(
@@ -60,5 +73,5 @@ export function returnGuide(returns: ToolReturnDeclaration): string {
     )
   }
   lines.push(`Offloading policy: ${JSON.stringify(returns.offloading)}`)
-  return lines.join('\n')
+  return lines
 }

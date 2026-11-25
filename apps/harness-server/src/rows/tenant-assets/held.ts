@@ -13,7 +13,7 @@ import type { AssetCategoriesService } from '@omne-harness/assets-cordis-contrac
 import { tenantListing, type AssetsLocal } from '@omne-harness/assets-local'
 import { registrySources } from './registry-sources.ts'
 
-type Categories = Pick<AssetCategoriesService, 'held' | 'holdingsOf' | 'view'>
+type Categories = Pick<AssetCategoriesService, 'held' | 'holdingsOf' | 'view' | 'official'>
 
 export type HeldNames = Readonly<{ at: Registry; names: ReadonlyMap<string, string> }>
 
@@ -131,6 +131,7 @@ export function heldOnRegistry(
       registrySources(
         {
           held: (capability, ref) => categories().held(capability, ref),
+          official: () => categories().official(),
           current: (ref, capability: CapabilityId) =>
             toldOf(ref, capability.category) !== undefined,
           async listing(ref) {

@@ -312,7 +312,7 @@ describe('the exact texts of a call', () => {
   it('writes the menu: the call form, then one line per command', () => {
     const legend = 'In signatures, ? marks an optional field and a|b lists the allowed values.'
     expect(commandMenu(wrapped)).toBe(
-      `Call with {"command": <name>, "params": {…fields}}. ${legend}\nread {path?} - Read a file. Returns output@1. Model body: text. Program data: none.\nshell {…} - Run a command. Returns ToolResult. Model body: text. Program data: none.`,
+      `Call with {"command": <name>, "params": {…fields}}. ${legend}\nread {path?} - Read a file. Returns output@1. Model body: text.\nshell {…} - Run a command. Returns ToolResult. Model body: text.`,
     )
     expect(commandMenu(flat).split('\n')[0]).toBe(
       `Call with {"command": <name>, …fields}. ${legend}`,
@@ -378,7 +378,7 @@ describe('the exact texts of a call', () => {
       [
         'Usage: files {"command": "shell", "params": {…}}',
         'Run a command.',
-        'Returns ToolResult. Model body: text. Program data: none.',
+        'Returns ToolResult. Model body: text.',
         'Return contract: {"owner":"test-owner","name":"ToolResult","revision":"1","digest":"sha256:ToolResult"}',
         'Body codec: {"owner":"test-owner","name":"utf8","revision":"1","digest":"sha256:utf8"}',
         'Offloading policy: {"inline":{"kind":"system"},"retention":{"kind":"system"}}',

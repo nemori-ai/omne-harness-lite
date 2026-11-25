@@ -101,7 +101,7 @@
 > point is one tool entry, and its actions are the commands of that tool.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 15） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 22） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 7）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 15） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 23） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 7）
 - **别混 ①**：**不是[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)**——定义是条目带着的那份内容；条目是这份内容此刻在入口里的那一项
 - **别混 ②**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里会话已知的那一项**——那一项按会话合法纳入的能力投影、在会话内只增不减；工具条目按主体此刻的事实现算。两者的关系见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)
 - **注意**：主体此刻没有使用资格的不出现；有资格但此刻调不动的，以不可用呈现并说明原因。调一个条目就是一次工具调用
@@ -131,7 +131,7 @@
 > **EN**: The evaluated usability of a tool, skill or MCP capability: current selection and governance must permit it, and required implementations and dependencies must hold. It is evaluated from the facts at the moment on each discovery and at each attempt start, and subsequent use respects effective changes. An unavailable resident entry keeps its identity.
 
 - **形态**：视图
-- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 22） · [PF-006 §4 可用性](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
+- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 23） · [PF-006 §4 可用性](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
 - **别混**：禁用是治理输入，当下可用性是求值结果；禁用可使已知条目不可用，不能使主体此刻没有使用资格的条目凭空可见。一次动作许不许仍由[放行判断](interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)单独判。
 - **注意**：封存的 PF-006 把它限定为「已纳入会话的」能力。现行产品里发现不经纳入，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
@@ -310,7 +310,7 @@
 > offered command is not assembled into that session.**
 
 - **形态**：属性
-- **出处**：[元能力：必需入口、常驻与命令可用性](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 22）
+- **出处**：[元能力：必需入口、常驻与命令可用性](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 23）
 - **别混 ①**：**不是权限。**权限答「许不许」，由治理定；条件答「这里成不成立」，由会话的事实定，对同一种会话人人相同
 - **别混 ②**：**不是[当下可用性](#ul-current-availability--当下可用性--current-availability)里的依赖缺失**——那是设施在不在，这是会话是哪一种
 - **注意**：条件写在命令的定义里，**装配不按入口或命令的名字判断**；一轮当中变得不成立时，调到它的调用不运行并得到原因
@@ -413,18 +413,18 @@
 > **EN**: One thing a session can name right now, as one item of that session's list. A command entry is one of exactly three kinds: a reference (a skill, written anywhere in a sentence), a prompt command, or a system command (these two are written only at the start). The kind decides where it may be written. Each item carries its full and short name, one line for people, and whether it can be used now and why not. The list is computed from the facts of the asking tenant, subject and session at that moment; it is not stored.
 
 - **形态**：视图
-- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置) · [J-SC06](../../product/slash-commands/design.md#j-sc06-清单跟着事实走不等刷新)（rev 4）
+- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置) · [J-SC06](../../product/slash-commands/design.md#j-sc06-清单跟着事实走不等刷新)（rev 5）
 - **别混**：不是[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)这一类资产——提示词命令是资产，Skill 与系统命令不是；入口项是它们在一个会话里能被点名的那一面。也不是[工具条目](#ul-tool-entry--工具条目--tool-entry)：工具条目给 agent 调，入口项给人点名
 - **注意**：客户端的控制与界面动作不在服务端的清单里，它们是[外壳动作](interaction-and-dispatch.md#ul-shell-action--外壳动作--shell-action)
 
 ### UL-command-entry-source · 入口来源 · Command Entry Source
 
-> **中**：另一个领域在与命令的关系里扮演的角色：它向命令登记，被问到时按发问的租户、主体与会话此刻的事实交出一批[入口项](#ul-command-entry--入口项--command-entry)，被点名时交出这一项的内容或一个操作请求。Skill 领域是一个来源，交出可取用的 Skill；资产交出提示词命令；各流程的拥有者交出自己的系统命令。一个来源一个名字空间。
+> **中**：另一个领域在与命令的关系里扮演的角色：它向命令登记，被问到时按发问的租户、主体与会话此刻的事实交出一批[入口项](#ul-command-entry--入口项--command-entry)，被点名时连人敲的参数一起收到，交出这一项的内容、一个操作请求（哪个协议的哪个操作、带哪些字段）或「参数不对」；还可以答一个参数此刻的[参数候选](capabilities-and-composition.md#ul-argument-candidate--参数候选--argument-candidate)。Skill 领域是一个来源，交出可取用的 Skill；资产交出提示词命令；各流程的拥有者交出自己的系统命令。一个来源一个名字空间。
 >
-> **EN**: The role another domain plays toward commands: it registers with them and, when asked, hands over a set of command entries computed from the asking tenant's, subject's and session's facts at that moment; when one of its entries is named, it hands over that entry's content or an operation request. The skill domain is one source and hands over the skills that can be used; assets hand over prompt commands; each flow owner hands over its own system commands. One source has one namespace.
+> **EN**: The role another domain plays toward commands: it registers with them and, when asked, hands over a set of command entries computed from the asking tenant's, subject's and session's facts at that moment; when one of its entries is named, it receives the arguments the person typed and hands over that entry's content, an operation request (which operation of which protocol, with which fields) or "the arguments are wrong"; it may also answer the argument candidates of a parameter. The skill domain is one source and hands over the skills that can be used; assets hand over prompt commands; each flow owner hands over its own system commands. One source has one namespace.
 
 - **形态**：属性
-- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置)（rev 4）
+- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置)（rev 5）
 - **别混**：不是[工具条目来源](#ul-tool-entry-source--工具条目来源--tool-entry-source)，那是对工具入口的同一种角色；两者同构，各归各的入口。来源不把任何东西存进命令，命令也不认识来源是谁
 - **注意**：一个来源此刻答不出，清单里只有它那一部分写明无法判断，不当成空
 
