@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   renderBody,
   type GoalRecord,
+  type ObservedCall,
   type Proposal,
   type Readings,
 } from '@omne-harness/goal-contract'
@@ -693,6 +694,46 @@ describe('the progress list', () => {
     expect(refusal(await track(goals, two))).toMatchObject({
       issues: [{ problem: 'no tool call of this session since the goal was set: call-8, call-9' }],
     })
+  })
+
+  it('the refusal lists the calls that can be cited, the latest twelve, each by what it ran or touched', async () => {
+    const { goals, direct, history } = world()
+    value(await goals.write(OWNER, direct()))
+    const seen = (order: number, more: Partial<ObservedCall>): ObservedCall => ({
+      ref: `call-${String(order)}`,
+      order,
+      tool: 'Files read',
+      command: null,
+      path: null,
+      exit: null,
+      output: 'x',
+      writes: false,
+      ...more,
+    })
+    const long = `node bench.js   && ${'x'.repeat(80)}`
+    history.made(
+      seen(2, { path: 'CHANGELOG.md', tool: 'Files write', writes: true }),
+      seen(3, { tool: 'Shell execute', command: long, exit: 0 }),
+      seen(4, { tool: 'Shell info' }),
+    )
+    const patch = { criteria: { A1: { status: 'doing', refs: ['call-9'], note: '' } } }
+    const problemOf = async () => {
+      const refused = refusal(await track(goals, patch))
+      return refused.kind === 'invalid' ? refused.issues[0]?.problem : refused.kind
+    }
+    expect(await problemOf()).toBe(
+      'no tool call of this session since the goal was set: call-9. Those you can cite: ' +
+        `call-2 Files write CHANGELOG.md; call-3 Shell execute \`node bench.js && ${'x'.repeat(43)}…\`; call-4 Shell info`,
+    )
+    history.made(...Array.from({ length: 12 }, (_, at) => seen(at + 5, { path: `f${String(at)}` })))
+    const listed = (await problemOf())?.split('Those you can cite: ')[1]?.split('; ')
+    expect(listed).toHaveLength(12)
+    expect([listed?.[0], listed?.at(-1)]).toEqual([
+      'call-5 Files read f0',
+      'call-16 Files read f11',
+    ])
+    history.readable(false)
+    expect(await problemOf()).toBe('no tool call of this session since the goal was set: call-9')
   })
 
   it('asks only about the references it has not checked before', async () => {

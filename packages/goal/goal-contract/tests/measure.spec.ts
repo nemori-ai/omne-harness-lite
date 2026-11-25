@@ -46,8 +46,19 @@ describe('the number of a metric, read from what its command printed', () => {
     expect(measuredOf(body, calls)).toEqual({})
   })
 
+  it('reads a first key written without its dot', () => {
+    for (const path of ['p95_ms', ' p95_ms '])
+      expect(
+        measuredOf({ metrics: [metric('M1', BENCH, path)] }, [run(3, BENCH, '{"p95_ms": 7}')]),
+      ).toEqual({ M1: { value: 7, ref: 'call-3' } })
+    const deep = { metrics: [metric('M1', BENCH, 'runs[0].ms')] }
+    expect(measuredOf(deep, [run(1, BENCH, '{"runs":[{"ms":4}]}')])).toEqual({
+      M1: { value: 4, ref: 'call-1' },
+    })
+  })
+
   it('is not read by a path that is no path', () => {
-    for (const path of ['p95_ms', '.a..b', '.a[x]', ''])
+    for (const path of ['the p95 value', '.a..b', '.a[x]', 'a.[0]', '[0]x', ''])
       expect(
         measuredOf({ metrics: [metric('M1', BENCH, path)] }, [run(1, BENCH, '{"a":1}')]),
       ).toEqual({})

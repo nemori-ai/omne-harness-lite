@@ -1,9 +1,11 @@
 import {
   applyTrack,
   citedRefs,
+  excerptOf,
   type GoalChecking,
   type GoalReconciling,
   type Goals,
+  type ObservedCall,
 } from '@omne-harness/goal-contract'
 import { decideCommand, decideWrite, describeProposal } from './decide.ts'
 import { createObserving } from './observing.ts'
@@ -43,11 +45,26 @@ const ask = <T>(read: () => Promise<PortRead<T>>): Promise<PortRead<T>> =>
     .then(read)
     .catch(() => ({ kind: 'unavailable' }) as const)
 
-const uncited = (refs: readonly string[]) => ({
-  entry: null,
-  field: 'refs',
-  problem: `no tool call of this session since the goal was set: ${refs.join(', ')}`,
-})
+const CITABLE_SHOWN = 12
+const COMMAND_SHOWN = 60
+
+function citable(call: ObservedCall): string {
+  const { ref, tool, command, path } = call
+  if (command !== null)
+    return `${ref} ${tool} \`${excerptOf(command.trim().replace(/\s+/gu, ' '), COMMAND_SHOWN, 'head')}\``
+  return path === null ? `${ref} ${tool}` : `${ref} ${tool} ${path}`
+}
+
+/** Why references do not stand, and the latest calls of the session that would: the agent sees no call id anywhere else. */
+function uncited(refs: readonly string[], made: readonly ObservedCall[]) {
+  const missing = `no tool call of this session since the goal was set: ${refs.join(', ')}`
+  const latest = made.toSorted((a, b) => a.order - b.order).slice(-CITABLE_SHOWN)
+  const problem =
+    latest.length === 0
+      ? missing
+      : `${missing}. Those you can cite: ${latest.map(citable).join('; ')}`
+  return { entry: null, field: 'refs', problem }
+}
 
 export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & GoalReconciling {
   const { store } = deps
@@ -133,7 +150,11 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
           const real = await deps.calls.cited(caller.tenant, session, fresh, current.since)
           if (real.kind === 'unavailable') return UNAVAILABLE
           const missing = fresh.filter(ref => !real.value.includes(ref))
-          if (missing.length > 0) return refused({ kind: 'invalid', issues: [uncited(missing)] })
+          if (missing.length > 0) {
+            const made = await ask(() => deps.history.calls(caller.tenant, session, current.since))
+            const known = made.kind === 'read' ? made.value : []
+            return refused({ kind: 'invalid', issues: [uncited(missing, known)] })
+          }
           return { kind: 'next', record: { ...current, progress: checked.progress } }
         }),
       )

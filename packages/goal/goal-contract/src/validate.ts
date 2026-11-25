@@ -7,6 +7,7 @@ import {
   type Issued,
   type SectionLetter,
 } from './body.ts'
+import { stepsOf } from './judge/measure.ts'
 import { BODY_MAX_CHARACTERS, characters, renderBody } from './render.ts'
 import type { Attendance } from './state.ts'
 
@@ -136,6 +137,15 @@ function criterionIssues(body: GoalBody, context: BodyContext): BodyIssue[] {
   return found
 }
 
+const NO_PATH =
+  'the path names where the number is in the JSON the command prints, like .ms or .runs[0].ms'
+
+function metricIssues(body: GoalBody): BodyIssue[] {
+  return body.metrics
+    .filter(metric => stepsOf(metric.measure.path) === null)
+    .map(metric => ({ entry: metric.id, field: 'measure', problem: NO_PATH }))
+}
+
 export const IMPLIED_STATEMENT = '这段输入要的事做完了'
 export const IMPLIED_PURPOSE_MAX = 2000
 
@@ -158,7 +168,7 @@ export function bodyIssues(body: GoalBody, context: BodyContext): readonly BodyI
   const found: BodyIssue[] = []
   if (body.purpose === '')
     found.push({ entry: null, field: 'purpose', problem: 'a goal needs a purpose' })
-  found.push(...criterionIssues(body, context), ...exitIssues(body))
+  found.push(...criterionIssues(body, context), ...metricIssues(body), ...exitIssues(body))
   if (body.method.some(step => step.trim() === ''))
     found.push({ entry: null, field: 'method', problem: 'a line of method is empty' })
   const length = characters(renderBody(body))

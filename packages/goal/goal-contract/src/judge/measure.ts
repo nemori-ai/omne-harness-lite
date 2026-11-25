@@ -4,10 +4,13 @@ import { latestRun } from './pack.ts'
 
 const STEP = /^(?:\.([A-Za-z_][A-Za-z0-9_]*)|\[(0|[1-9][0-9]*)\])/u
 
-/** The steps of a value path such as `.p95_ms` or `.runs[0].ms`; null when it is not such a path. */
-function stepsOf(path: string): readonly (string | number)[] | null {
+const BARE_KEY = /^[A-Za-z_]/u
+
+/** The steps of a value path such as `.p95_ms` or `.runs[0].ms`, the first key with or without its dot; null when it is not such a path. */
+export function stepsOf(path: string): readonly (string | number)[] | null {
   const steps: (string | number)[] = []
-  let rest = path.trim()
+  const written = path.trim()
+  let rest = BARE_KEY.test(written) ? `.${written}` : written
   while (rest !== '') {
     const found = STEP.exec(rest)
     if (found === null) return null

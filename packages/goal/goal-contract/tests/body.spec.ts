@@ -91,6 +91,11 @@ describe('a body that does not stand says which entry and which field', () => {
       ['M1.measure'],
     ],
     ['an exit without what it hands over', change(d => (d.exits[2]!.deliver = '')), ['X3.deliver']],
+    [
+      'a metric whose path names no place in JSON',
+      change(d => (d.metrics[0]!.measure.path = 'the p95 number')),
+      ['M1.measure'],
+    ],
     ['an empty line of method', change(d => (d.method = ['先量', ' '])), ['-.method']],
   ])('required: %s', (_name, draft, expected) => {
     expect(where(issues(draft))).toEqual(expected)
