@@ -1,9 +1,17 @@
+import type { WindowBackend } from '@omne-harness/screen'
+import {
+  pngOf,
+  windowBackendOfScene,
+  type SceneWindow,
+  type WindowScene,
+} from '@omne-harness/screen/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   deviceFigure,
   POINTER_POLL_MS,
   type DeviceFigure,
   type DeviceFigureDeps,
+  type FigureWindowsDeps,
   type Point,
   type Rect,
 } from '../src/main/device-figure.ts'
@@ -74,8 +82,15 @@ const OUTSIDE = { x: 600, y: 600 }
 const contains = (rect: Rect, at: Point) =>
   at.x >= rect.x && at.y >= rect.y && at.x < rect.x + rect.width && at.y < rect.y + rect.height
 
+const NO_WINDOWS: FigureWindowsDeps = {
+  backend: async () => undefined,
+  requestAccess: async () => undefined,
+  ownPid: 1,
+  now: () => 0,
+}
+
 /** Records every call on the desk windows it makes and on the main window; ticks the pointer poll by hand. */
-function harness(leave = true) {
+function harness(leave = true, windows = NO_WINDOWS) {
   const log: string[] = []
   const gone: (() => void)[] = []
   const state = {
@@ -116,6 +131,7 @@ function harness(leave = true) {
         state.tick = null
       }
     },
+    windows,
   }
   const figure = deviceFigure(deps)
   const call = (method: string, path: string, body?: unknown) =>
@@ -691,6 +707,403 @@ describe('点穿', () => {
     h.state.cursor = { x: 2000, y: 500 }
     h.tick()
     expect(h.log).toEqual([])
+  })
+})
+
+// 屏上的窗口，从前到后。omne 的进程号是 SELF；桌面层是它的一块整屏的窗口，层级 status（25），后端不列。
+const SELF = 4100
+const TAKEN_AT = 1_764_000_000_000
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47]
+const windowIn = (
+  id: string,
+  pid: number,
+  app: string,
+  title: string,
+  bounds: Rect,
+  more: Partial<SceneWindow> = {},
+): SceneWindow => ({
+  id,
+  pid,
+  app,
+  title,
+  layer: 0,
+  opacity: 1,
+  onScreen: true,
+  bounds,
+  scale: 2,
+  ...more,
+})
+const DESK = windowIn('1', SELF, 'omne', '', MAIN, { layer: 25 })
+const TIP = windowIn('2', 800, 'Clock', 'tip', { x: 650, y: 150, width: 30, height: 20 })
+const EDITOR = windowIn('3', 700, 'Editor', 'notes.txt', {
+  x: 600,
+  y: 100,
+  width: 700,
+  height: 600,
+})
+const OMNE = windowIn('4', SELF, 'omne', 'omne', CONTENT)
+const BROWSER = windowIn('5', 900, 'Browser', 'docs', MAIN)
+const SCENE: WindowScene = { windows: [DESK, TIP, EDITOR, OMNE, BROWSER], permission: 'satisfied' }
+const AT_EDITOR = { x: 900, y: 400 }
+const AT_TIP = { x: 655, y: 155 }
+const AT_OMNE = { x: 200, y: 200 }
+const AT_BROWSER = { x: 1350, y: 850 }
+const AT_NOTHING = { x: 2000, y: 500 }
+
+/** A window backend over a scene that counts what is asked of it; `loads: false` is a machine without one. */
+function windowsOf(scene: Partial<WindowScene> = {}, loads: boolean | 'throws' = true) {
+  const calls = { loads: 0, list: 0, capture: [] as string[], asked: 0 }
+  const inner = windowBackendOfScene({ ...SCENE, ...scene })
+  const backend: WindowBackend = {
+    ...inner,
+    list: () => ((calls.list += 1), inner.list()),
+    capture: id => (calls.capture.push(id), inner.capture(id)),
+  }
+  const deps: FigureWindowsDeps = {
+    backend: async () => {
+      calls.loads += 1
+      if (loads === 'throws') throw new Error('the library does not load')
+      return loads ? backend : undefined
+    },
+    requestAccess: async () => void (calls.asked += 1),
+    ownPid: SELF,
+    now: () => TAKEN_AT,
+  }
+  return { calls, deps }
+}
+
+const pointed = (route: 'own' | 'window', at: Point) =>
+  `/device/figure/${route}?x=${at.x}&y=${at.y}`
+const answered = async (response: Promise<Response> | undefined) => {
+  const got = await response
+  return [got?.status, await got?.json()]
+}
+
+describe('读窗口：这台机器能不能读', () => {
+  it('有窗口后端时 read 为真，与许可、后端出不出错无关', async () => {
+    for (const scene of [
+      {},
+      { permission: 'unsatisfied' as const },
+      { permission: 'unknown' as const },
+      { fault: 'list' as const },
+    ]) {
+      const h = harness(true, windowsOf(scene).deps)
+      expect(await answered(h.call('GET', '/device/figure'))).toEqual([
+        200,
+        { leave: true, read: true },
+      ])
+    }
+  })
+
+  it('后端没有、或载的时候出错：read 为假，own、window、read 答 404，只载一次', async () => {
+    for (const loads of [false, 'throws'] as const) {
+      const { calls, deps } = windowsOf({}, loads)
+      const h = harness(true, deps)
+      expect(await answered(h.call('GET', '/device/figure'))).toEqual([
+        200,
+        { leave: true, read: false },
+      ])
+      const { lease } = await opened(h)
+      h.take()
+      expect(await answered(h.call('GET', pointed('own', AT_OMNE)))).toEqual([
+        404,
+        { reason: 'not-found' },
+      ])
+      expect(await h.status('GET', pointed('window', AT_EDITOR))).toBe(404)
+      expect(await h.status('POST', `/device/figure/read?lease=${lease}`, { window: '3' })).toBe(
+        404,
+      )
+      expect(calls.loads, String(loads)).toBe(1)
+      expect(h.log).toEqual([])
+    }
+  })
+
+  it('不是 macOS：答 { leave: false, read: false }，own、window、read 答 404，不载后端', async () => {
+    const { calls, deps } = windowsOf()
+    const h = harness(false, deps)
+    expect(await answered(h.call('GET', '/device/figure'))).toEqual([
+      200,
+      { leave: false, read: false },
+    ])
+    expect(await h.status('GET', pointed('own', AT_OMNE))).toBe(404)
+    expect(await h.status('GET', pointed('window', AT_EDITOR))).toBe(404)
+    expect(await h.status('POST', '/device/figure/read?lease=1', { window: '3' })).toBe(404)
+    expect(calls.loads).toBe(0)
+  })
+})
+
+describe('读窗口：own，这一点上最前面的窗口是不是 omne 自己的', () => {
+  const own = async (at: Point, scene: Partial<WindowScene> = {}) => {
+    const { calls, deps } = windowsOf(scene)
+    const got = await harness(true, deps).call('GET', pointed('own', at))
+    return { status: got?.status, text: await got?.text(), calls }
+  }
+
+  it('是 omne 自己的：答 {"own":true}，只有这一个键，不截图、不要许可', async () => {
+    const { status, text, calls } = await own(AT_OMNE)
+    expect([status, text]).toEqual([200, '{"own":true}'])
+    expect(Object.keys(JSON.parse(text!))).toEqual(['own'])
+    expect([calls.capture, calls.asked]).toEqual([[], 0])
+  })
+
+  it('别的应用的窗口压在 omne 的窗口上面：答假', async () => {
+    expect((await own(AT_EDITOR)).text).toBe('{"own":false}')
+  })
+
+  it('最前面的是一块很小的别的应用的窗口：不按大小筛，答假', async () => {
+    expect((await own(AT_TIP)).text).toBe('{"own":false}')
+  })
+
+  it('这一点上没有窗口：答假', async () => {
+    expect((await own(AT_NOTHING)).text).toBe('{"own":false}')
+  })
+
+  it('桌面层整块盖着屏也不算：它的层级后端不列', async () => {
+    expect((await own(AT_BROWSER)).text).toBe('{"own":false}')
+  })
+
+  it('没有读屏幕的许可时照答，不要许可', async () => {
+    for (const permission of ['unsatisfied', 'unknown'] as const) {
+      const { text, calls } = await own(AT_OMNE, { permission })
+      expect(text).toBe('{"own":true}')
+      expect(calls.asked).toBe(0)
+    }
+  })
+
+  it('矩形的边：左与上算在里面，右与下不算', async () => {
+    const only = { windows: [OMNE] }
+    const { x, y, width, height } = CONTENT
+    const inside = [
+      { x, y },
+      { x: x + width - 1, y: y + height - 1 },
+    ]
+    const outside = [
+      { x: x + width, y: y + 10 },
+      { x: x + 10, y: y + height },
+      { x: x - 1, y },
+    ]
+    for (const at of inside)
+      expect((await own(at, only)).text, JSON.stringify(at)).toBe('{"own":true}')
+    for (const at of outside)
+      expect((await own(at, only)).text, JSON.stringify(at)).toBe('{"own":false}')
+  })
+
+  it('x、y 缺了或不是数字答 400；后端出错答 500 带一句原因；都不要租约，桌面层不动', async () => {
+    const h = harness(true, windowsOf().deps)
+    for (const query of ['', '?x=1', '?y=1', '?x=&y=1', '?x=a&y=1', '?x=1&y=Infinity'])
+      expect(await answered(h.call('GET', `/device/figure/own${query}`)), query).toEqual([
+        400,
+        { reason: 'no-point' },
+      ])
+    const failing = harness(true, windowsOf({ fault: 'list' }).deps)
+    const [status, body] = await answered(failing.call('GET', pointed('own', AT_OMNE)))
+    expect(status).toBe(500)
+    expect(body).toEqual({ reason: 'failed', detail: expect.stringMatching(/\S/) })
+    expect([...h.log, ...failing.log]).toEqual([])
+  })
+})
+
+describe('读窗口：window，这一点上最前面的窗口是谁', () => {
+  const look = async (at: Point, scene: Partial<WindowScene> = {}) => {
+    const { calls, deps } = windowsOf(scene)
+    const [status, body] = await answered(harness(true, deps).call('GET', pointed('window', at)))
+    expect(status).toBe(200)
+    expect([calls.capture, calls.asked]).toEqual([[], 0])
+    return body
+  }
+
+  it('别的应用的：标识、应用名、标题、矩形与挡在它前面的矩形', async () => {
+    expect(await look(AT_EDITOR)).toEqual({
+      kind: 'other',
+      id: '3',
+      app: 'Editor',
+      title: 'notes.txt',
+      bounds: EDITOR.bounds,
+      covered: [TIP.bounds],
+    })
+  })
+
+  it('宽或高小于 40 的窗口不算：看它下面那一个，它仍算挡在前面', async () => {
+    expect(await look(AT_TIP)).toMatchObject({ kind: 'other', id: '3', covered: [TIP.bounds] })
+    const w40 = windowIn('6', 800, 'A', 'a', { x: 0, y: 0, width: 40, height: 40 })
+    const narrow = windowIn('7', 800, 'B', 'b', { x: 100, y: 0, width: 39, height: 100 })
+    const low = windowIn('8', 800, 'C', 'c', { x: 200, y: 0, width: 100, height: 39 })
+    const scene = { windows: [w40, narrow, low, BROWSER] }
+    expect(await look({ x: 10, y: 10 }, scene)).toMatchObject({
+      kind: 'other',
+      id: '6',
+      covered: [],
+    })
+    for (const at of [
+      { x: 110, y: 10 },
+      { x: 210, y: 10 },
+    ])
+      expect(await look(at, scene)).toMatchObject({
+        kind: 'other',
+        id: '5',
+        covered: [w40.bounds, narrow.bounds, low.bounds],
+      })
+  })
+
+  it('omne 自己的：只答 { kind: own }', async () => {
+    expect(await look(AT_OMNE)).toEqual({ kind: 'own' })
+  })
+
+  it('没有：答 { kind: none }', async () => {
+    expect(await look(AT_NOTHING)).toEqual({ kind: 'none' })
+  })
+
+  it('桌面层不算挡在前面：后端不列它', async () => {
+    expect(await look(AT_BROWSER)).toEqual({
+      kind: 'other',
+      id: '5',
+      app: 'Browser',
+      title: 'docs',
+      bounds: MAIN,
+      covered: [TIP.bounds, EDITOR.bounds, CONTENT],
+    })
+  })
+
+  it('没有读屏幕的许可：标题照后端给的（空的），应用名照给，不要许可', async () => {
+    expect(await look(AT_EDITOR, { permission: 'unsatisfied' })).toMatchObject({
+      kind: 'other',
+      app: 'Editor',
+      title: '',
+    })
+  })
+
+  it('x、y 缺了或不是数字答 400；后端出错答 500 带一句原因；不要租约', async () => {
+    const h = harness(true, windowsOf().deps)
+    for (const query of ['', '?x=1', '?y=1', '?x=1&y=b'])
+      expect(await answered(h.call('GET', `/device/figure/window${query}`)), query).toEqual([
+        400,
+        { reason: 'no-point' },
+      ])
+    const failing = harness(true, windowsOf({ fault: 'list' }).deps)
+    const [status, body] = await answered(failing.call('GET', pointed('window', AT_EDITOR)))
+    expect([status, body]).toEqual([500, { reason: 'failed', detail: expect.stringMatching(/\S/) }])
+    expect([...h.log, ...failing.log]).toEqual([])
+  })
+})
+
+describe('读窗口：read，按标识读一个窗口此刻的图', () => {
+  async function reading(scene: Partial<WindowScene> = {}) {
+    const { calls, deps } = windowsOf(scene)
+    const h = harness(true, deps)
+    const open = await shown(h)
+    h.take()
+    const read = (window: unknown, lease: number | string = open.lease) =>
+      h.call(
+        'POST',
+        `/device/figure/read?lease=${lease}`,
+        window === undefined ? undefined : { window },
+      )
+    return { h, calls, open, read }
+  }
+  const bytesOf = async (response: Response | undefined) =>
+    new Uint8Array(await response!.arrayBuffer())
+  const hasPng = (bytes: Uint8Array) =>
+    bytes.some((_, at) => PNG_SIGNATURE.every((byte, step) => bytes[at + step] === byte))
+
+  it('有许可、窗口在（前面的窗口盖着它一部分也一样）：答 PNG 与三个头，只截这一个', async () => {
+    const { h, calls, read } = await reading()
+    const got = await read('3')
+    expect(got?.status).toBe(200)
+    expect(Object.fromEntries(got!.headers)).toEqual({
+      'content-type': 'image/png',
+      'cache-control': 'no-store',
+      'x-omne-window-bounds': '600,100,700,600',
+      'x-omne-window-scale': '2',
+      'x-omne-taken-at': String(TAKEN_AT),
+    })
+    expect(await bytesOf(got)).toEqual(pngOf(1400, 1200))
+    expect([calls.capture, calls.asked]).toEqual([['3'], 0])
+    expect(h.log).toEqual([])
+  })
+
+  it('窗口很小也照截：read 只按标识', async () => {
+    const { calls, read } = await reading()
+    const got = await read('2')
+    expect([got?.status, got?.headers.get('x-omne-window-bounds')]).toEqual([200, '650,150,30,20'])
+    expect(calls.capture).toEqual(['2'])
+  })
+
+  it('没有读屏幕的许可：请系统要一次许可，答 403 not-authorized，答复里没有图的字节', async () => {
+    for (const permission of ['unsatisfied', 'unknown'] as const) {
+      const { calls, read } = await reading({ permission })
+      const got = await read('3')
+      expect(got?.status).toBe(403)
+      expect(got?.headers.get('content-type')).toBe('application/json')
+      const bytes = await bytesOf(got)
+      expect(new TextDecoder().decode(bytes)).toBe('{"reason":"not-authorized"}')
+      expect(hasPng(bytes)).toBe(false)
+      expect(calls.asked, permission).toBe(1)
+    }
+  })
+
+  it('窗口不在了：答 404 gone，不要许可', async () => {
+    const { calls, read } = await reading()
+    expect(await answered(read('99'))).toEqual([404, { reason: 'gone' }])
+    expect(await answered(read(''))).toEqual([404, { reason: 'gone' }])
+    expect(calls.asked).toBe(0)
+  })
+
+  it('标识是 omne 自己的窗口：答 404 gone，不截、不要许可，有没有许可都一样', async () => {
+    for (const permission of ['satisfied', 'unsatisfied'] as const) {
+      const { calls, read } = await reading({ permission })
+      expect(await answered(read('4'))).toEqual([404, { reason: 'gone' }])
+      expect([calls.capture, calls.asked]).toEqual([[], 0])
+    }
+  })
+
+  it('桌面层的标识：后端不列它，答 404 gone', async () => {
+    const { read } = await reading()
+    expect(await answered(read('1'))).toEqual([404, { reason: 'gone' }])
+  })
+
+  it('后端出错：截图或列窗口出错都答 500 带一句原因', async () => {
+    for (const fault of ['capture', 'list'] as const) {
+      const { calls, read } = await reading({ fault })
+      expect(await answered(read('3'))).toEqual([
+        500,
+        { reason: 'failed', detail: expect.stringMatching(/\S/) },
+      ])
+      expect(calls.asked, fault).toBe(0)
+    }
+  })
+
+  it('租约号不是现在这一个、没有租约、租约结束了：答 409，不列、不截', async () => {
+    const { calls, open, read } = await reading()
+    expect(await answered(read('3', open.lease + 1))).toEqual([409, { reason: 'not-current' }])
+    await open.lines.abandon()
+    expect(await answered(read('3'))).toEqual([409, { reason: 'not-current' }])
+    const none = harness(true, windowsOf().deps)
+    expect(await none.status('POST', '/device/figure/read?lease=1', { window: '3' })).toBe(409)
+    expect([calls.list, calls.capture, calls.asked]).toEqual([0, [], 0])
+  })
+
+  it('lease= 缺了或不是数字答 400；请求体读不懂答 400；不列、不截', async () => {
+    const { h, calls, open, read } = await reading()
+    for (const query of ['', '?lease=', '?lease=x', '?lease=1.5'])
+      expect(
+        await answered(h.call('POST', `/device/figure/read${query}`, { window: '3' })),
+        query,
+      ).toEqual([400, { reason: 'no-lease' }])
+    for (const window of [undefined, 3, null, { id: '3' }])
+      expect(await answered(read(window)), String(window)).toEqual([400, { reason: 'unreadable' }])
+    const raw = new Request(`${APP}/device/figure/read?lease=${open.lease}`, {
+      method: 'POST',
+      body: '{',
+    })
+    expect((await h.figure.route(raw))?.status).toBe(400)
+    expect([calls.list, calls.capture, calls.asked]).toEqual([0, [], 0])
+  })
+
+  it('读窗口不动租约与桌面层：读过之后 mode 照旧', async () => {
+    const { h, open, read } = await reading()
+    await read('3')
+    expect(h.log).toEqual([])
+    expect(await h.status('POST', ...mode(open.lease, true, false))).toBe(204)
   })
 })
 

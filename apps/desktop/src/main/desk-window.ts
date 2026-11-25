@@ -1,6 +1,8 @@
+import { macosRequestScreenAccess, windowBackendFor } from '@omne-harness/screen'
 import { app, BrowserWindow, screen, type BrowserWindowConstructorOptions } from 'electron'
 import { APP_URL } from './app-url.ts'
 import type { DeskWindow, DeviceFigure, DeviceFigureDeps } from './device-figure.ts'
+import { loadWindowLibrary } from './screen-host.ts'
 import { harden, LOAD_ABORTED, windowOptions } from './window.ts'
 
 const DESK_PAGE = `${APP_URL}desk.html`
@@ -90,6 +92,13 @@ export function deviceFigureDeps(main: () => BrowserWindow | undefined): DeviceF
     every: (ms, tick) => {
       const timer = setInterval(tick, ms)
       return () => clearInterval(timer)
+    },
+    windows: {
+      backend: () =>
+        windowBackendFor(process.platform, { load: () => loadWindowLibrary(app.isPackaged) }),
+      requestAccess: () => macosRequestScreenAccess(),
+      ownPid: process.pid,
+      now: Date.now,
     },
   }
 }
