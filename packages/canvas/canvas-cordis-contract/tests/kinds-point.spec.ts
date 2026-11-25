@@ -228,6 +228,41 @@ describe('a declaration with admit', () => {
     expect(tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT)).toEqual([])
   })
 
+  it('taken back by hand while its contributor stays, it drains as well: no new place takes it, the owner is not asked again, and it goes once the place in flight has its answer', async () => {
+    const { root, tree, kinds } = await world()
+    let answer: (admission: Admission) => void = () => undefined
+    let calls = 0
+    let takeBack: () => unknown = () => undefined
+    await root.plugin({
+      name: 'media-row',
+      inject: [dynamisKey],
+      apply(ctx: Context) {
+        takeBack = putKind(
+          ctx,
+          kind('media.object', 'media', () => {
+            calls += 1
+            return new Promise(resolve => void (answer = resolve))
+          }),
+        )
+      },
+    })
+    const admit = held(tree, 'media.object')!.admit!
+    const placing = asking(kinds, 60_000)
+    const leaving = Promise.resolve(takeBack())
+    await new Promise(resolve => setTimeout(resolve, 5))
+    expect(
+      tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT),
+    ).toHaveLength(1)
+    expect(kinds.enter('media.object')).toEqual({ kind: 'undeclared' })
+    expect(await admit(input)).toEqual({ kind: 'basis-unavailable' })
+    expect(calls).toBe(1)
+    answer({ kind: 'admitted' })
+    expect(await placing).toEqual({ kind: 'admitted' })
+    await leaving
+    expect(tree.registry().placed.filter(placed => placed.point === CANVAS_KINDS_POINT)).toEqual([])
+    await takeBack()
+  })
+
   it('waits for every place asking the owner, not only the first to come back', async () => {
     const { putting, tree, kinds } = await world()
     const answers: ((admission: Admission) => void)[] = []

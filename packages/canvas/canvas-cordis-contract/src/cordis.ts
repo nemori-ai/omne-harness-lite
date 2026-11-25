@@ -131,16 +131,21 @@ export function putKind(ctx: Context, declaration: KindDeclaration): () => unkno
   const { admit } = declaration
   const handed = async (input: AdmitInput): Promise<Admission> =>
     leaving ? NOT_TAKEN : admit!(input)
+  let draining: Promise<void> | undefined
   const drain = (): Promise<void> => {
     leaving = true
-    return inFlight === 0 ? Promise.resolve() : new Promise(resolve => void (drained = resolve))
+    draining ??=
+      inFlight === 0 ? Promise.resolve() : new Promise(resolve => void (drained = resolve))
+    return draining
   }
   const item: Held = Object.freeze({
     ...declaration,
     ...(admit === undefined ? {} : { admit: handed }),
     [HOLD]: hold,
   })
-  return tree.put(by => [entryOf(item, by)], { drain })
+  const off = tree.put(by => [entryOf(item, by)], { drain })
+  // Dynamis drains a batch whose fiber goes; one taken back by hand drains here first.
+  return () => drain().then(off)
 }
 
 const byName = (left: KindListing, right: KindListing) =>
