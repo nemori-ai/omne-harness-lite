@@ -215,6 +215,55 @@ describe('松手问 own：答复与等的那一小会儿', () => {
     expect(device.leases()).toBe(leases + 1)
   })
 
+  it('问过 own 的那一次松手落定、形回了座位之后，下一次在手时租约没了不算已经松了手：形还在手里，不开新租约', async () => {
+    const { device } = await carried({ own: OWN_TRUE })
+    expect(device.hand('drop', 300, 200)).toBe(true)
+    await device.settle()
+    const home = device.last()
+    expect(home.where.mode).toBe('home')
+    device.up({ kind: 'arrived', lease: home.lease, serial: home.serial })
+    const empty = device.last()
+    device.up({ kind: 'cleared', lease: empty.lease, serial: empty.serial })
+    await device.settle()
+    expect(device.stay.away()).toBe(false)
+    device.hand('lift', 300, 200)
+    await device.settle()
+    device.line(device.leases() - 1, { lease: device.leases() + 6, facts: FACTS_SHOWN })
+    await device.settle()
+    const first = device.last()
+    device.up({ kind: 'painted', lease: first.lease, serial: first.serial })
+    device.line(device.leases() - 1, { ended: true })
+    await device.settle()
+    const leases = device.leases()
+    device.hand('lift', 300, 200)
+    await device.settle()
+    expect(device.leases()).toBe(leases)
+  })
+
+  it('不是这只手的松手不读也不问：指针按在页面上时桌面层报来的松手、形落定之后迟到的松手', async () => {
+    const { device, lease } = await carried(LOOKS)
+    await framed(device)
+    device.up({ kind: 'input', lease, input: 'drop', at: { x: 1100, y: 350 }, meta: true })
+    await device.settle()
+    expect(device.asked('read')).toEqual([])
+    expect(device.last().where.mode).toBe('hand')
+    device.hand('drop', 1200, 400)
+    await device.settle()
+    expect(device.last().where.mode).toBe('rest')
+    device.up({ kind: 'input', lease, input: 'drop', at: { x: 400, y: 250 } })
+    await device.settle()
+    expect(device.asked('own')).toEqual([])
+    expect(device.asked('read')).toEqual([])
+  })
+
+  it('松手由外壳接下：读窗口与等 own 的两条路上，页面的手都得知形不回它这里', async () => {
+    const reading = await carried(LOOKS)
+    await framed(reading.device)
+    expect(reading.device.hand('drop', 1000, 300, { meta: true })).toBe(true)
+    const asking = await carried({ own: () => new Promise<Response>(() => undefined) })
+    expect(asking.device.hand('drop', 300, 200)).toBe(true)
+  })
+
   it('最后一次移动带 ⌘、松手不带 ⌘（中间没动）：等 own 时不再问 window，一幕里没有框与窗口的名字（DT-56）', async () => {
     const answer = held<Response>()
     const { device } = await carried({ ...LOOKS, own: () => answer.promise })
@@ -235,6 +284,12 @@ describe('松手问 own：答复与等的那一小会儿', () => {
     expect(device.asked('read')).toEqual([])
   })
 })
+
+const FACTS_SHOWN = {
+  screen: { x: 0, y: 0, width: 1440, height: 900 },
+  content: { x: 100, y: 50, width: 800, height: 600 },
+  visible: true,
+}
 
 const FACTS_HIDDEN = {
   screen: { x: 0, y: 0, width: 1440, height: 900 },
