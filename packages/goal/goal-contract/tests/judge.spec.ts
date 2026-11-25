@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_JUDGE_CONFIG,
   excerptOf,
+  FLAG_NOTES,
   JUDGE_LIMITS,
   NO_PROGRESS,
   packJudge,
@@ -198,7 +199,10 @@ describe('what a request says, word for word', () => {
   it('asks each kind of entry in its own words, with its own options', () => {
     const obstacle = { what: '连不上', tried: ['call-54'], exit: null }
     const input = material({ body: bodyOf(CONDITION), progress: { ...PROGRESS, obstacle } })
-    const { questions } = packJudge(input, config({ instructions: 'bare' })).requests[0]!
+    const { questions } = packJudge(
+      input,
+      config({ instructions: { criterion: 'statement', rules: [] } }),
+    ).requests[0]!
     expect(questions).toEqual({
       A3: {
         type: 'choice',
@@ -572,16 +576,23 @@ describe('the six things a configuration changes', () => {
     ])
     expect(stateOf(each, 1).facts.changedPaths).toEqual(['CHANGELOG.md'])
   })
-  it('writes a question with the statement alone, with the rendered entry, or with the general rules too', () => {
-    const text = (instructions: JudgeConfig['instructions']) =>
-      packJudge(material(), config({ instructions })).requests[0]!.questions.A3!.instructions
-    expect(text('bare')).toBe('判据 A3 现在成立没有：改动说明写进了 CHANGELOG')
-    expect(text('pass')).toBe(
+  it('writes a question with the statement alone or the rendered entry, then the general rules it is given', () => {
+    const text = (criterion: 'statement' | 'rendered', rules: string[] = []) =>
+      packJudge(material(), config({ instructions: { criterion, rules } })).requests[0]!.questions
+        .A3!.instructions
+    expect(text('statement')).toBe('判据 A3 现在成立没有：改动说明写进了 CHANGELOG')
+    expect(text('rendered')).toBe(
       '判据 A3 现在成立没有。\n- [A3] 改动说明写进了 CHANGELOG\n  - 证据: 文件 `CHANGELOG.md`\n  - 通过: 「未发布」一节下有一条讲这次提速的新条目',
     )
-    expect(text('rules')).toBe(
-      `${text('pass')}\n进展清单是 agent 的说法，不是证据。只覆盖一部分的检查不能证明整条判据。证据不确定时不要选成立。`,
+    const rules = ['进展清单是 agent 的说法，不是证据。', '只覆盖一部分的检查不能证明整条判据。']
+    expect(text('rendered', rules)).toBe(
+      `${text('rendered')}\n进展清单是 agent 的说法，不是证据。只覆盖一部分的检查不能证明整条判据。`,
     )
+    expect(text('statement', [rules[0]!])).toBe(
+      `${text('statement')}\n进展清单是 agent 的说法，不是证据。`,
+    )
+    const other = packJudge(material(), config({ instructions: { criterion: 'rendered', rules } }))
+    expect(other.requests[0]!.questions.N1!.instructions).toBe('守则 N1 守住了没有：不改公共接口。')
   })
   it('gives or withholds the agent’s note', () => {
     const noted = (notes: boolean) =>
@@ -616,6 +627,45 @@ describe('the six things a configuration changes', () => {
       { call: 'call-52 Files write CHANGELOG.md', excerpt: CHANGELOG.output },
       { call: 'call-53 Shell run pnpm lint → 1', excerpt: `${'x'.repeat(400)}…` },
       'call-54 Shell run pnpm test:e2e → 0',
+    ])
+    const all = stateOf(packJudge(input, packaging({ activity: 'all', take: 'head' }))).facts
+    expect(all.activity).toEqual([
+      { call: 'call-52 Files write CHANGELOG.md', excerpt: CHANGELOG.output },
+      { call: 'call-53 Shell run pnpm lint → 1', excerpt: `${'x'.repeat(400)}…` },
+      { call: 'call-54 Shell run pnpm test:e2e → 0', excerpt: '148 passed' },
+    ])
+  })
+  it('says beside a flagged evidence item what its flag means, when so configured', () => {
+    const tampered = WRITE(53, 'tests/e2e/home.spec.ts', '- expect(ms).toBeLessThan(800)')
+    const calls = [CHANGELOG, tampered, E2E(54, 0), WRITE(55, 'src/home.tsx')]
+    const keys = stateOf(packJudge(material({ calls }), config())).evidence.A2!
+    for (const item of keys) expect(item).not.toHaveProperty('note')
+    const noted = stateOf(packJudge(material({ calls }), packaging({ flags: 'notes' }))).evidence
+    expect(noted.A2!.map(item => (item as { note?: string }).note)).toEqual([
+      `${FLAG_NOTES.check}${FLAG_NOTES.later}`,
+      FLAG_NOTES.later,
+    ])
+    expect(noted.A3![0]).not.toHaveProperty('note')
+    const draft: GoalDraft = {
+      purpose: HOME.purpose,
+      criteria: [
+        {
+          statement: '用例全过',
+          evidence: { kind: 'command', command: 'pnpm test' },
+          pass: { kind: 'shows', text: '没有跳过的用例' },
+        },
+      ],
+    }
+    const run = (order: number, exit: number) => call(order, { command: 'pnpm test', exit })
+    const progress = {
+      ...NO_PROGRESS,
+      criteria: { A1: { status: 'claimed-done', refs: ['call-1'], note: '' } },
+    } as Progress
+    const input = material({ body: bodyOf(draft), progress, calls: [run(1, 0), run(2, 1)] })
+    const twice = stateOf(packJudge(input, packaging({ flags: 'notes' }))).evidence.A1!
+    expect(twice.map(item => (item as { note?: string }).note)).toEqual([
+      FLAG_NOTES.newer,
+      undefined,
     ])
   })
   it('lets the system call stale evidence stale instead of asking', () => {

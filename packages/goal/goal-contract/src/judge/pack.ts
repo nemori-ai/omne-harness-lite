@@ -47,8 +47,13 @@ export type Packed = Readonly<{
   requests: readonly JudgeRequest[]
 }>
 
-const GENERAL =
-  '进展清单是 agent 的说法，不是证据。只覆盖一部分的检查不能证明整条判据。证据不确定时不要选成立。'
+/** What a flag on an evidence item means, said beside the item when the configuration asks for it. */
+export const FLAG_NOTES = Object.freeze({
+  check:
+    '这次写改了判据所用的测试或基准。先看它是放宽、跳过了已有的检查，还是只新增了检查：放宽或跳过之后的通过不能证明判据成立。',
+  later: '这次调用之后又写过 laterWrites 里的文件，它显示的结果可能已经过时。',
+  newer: '同一条命令之后又跑过一次，结果不同，以后一次为准。',
+})
 const CLAIMS = {
   'not-started': '没开始',
   doing: '在做',
@@ -170,6 +175,12 @@ function evidenceItem(
     .slice(0, JUDGE_LIMITS.laterWrites)
     .map(write => write.path ?? write.ref)
   const check = call.writes && call.path !== null && CHECK_PATH.test(call.path)
+  const newer = newerRun(material.calls, call)
+  const notes = [
+    check ? FLAG_NOTES.check : '',
+    later.length > 0 ? FLAG_NOTES.later : '',
+    newer === undefined ? '' : FLAG_NOTES.newer,
+  ].join('')
   return present({
     ref: call.ref,
     tool: call.tool,
@@ -179,7 +190,8 @@ function evidenceItem(
     changesCheck: check ? true : undefined,
     excerpt: excerptOf(call.output, shape.excerpt, config.packaging.take),
     laterWrites: later.length === 0 ? undefined : later,
-    newerRun: newerRun(material.calls, call),
+    newerRun: newer,
+    note: config.packaging.flags === 'notes' && notes !== '' ? notes : undefined,
   })
 }
 
@@ -192,8 +204,11 @@ type Ask = Readonly<{
 function criterionAsk(config: JudgeConfig, criterion: Criterion, rendered: string): Ask {
   const head = `判据 ${criterion.id} 现在成立没有`
   const text =
-    config.instructions === 'bare' ? `${head}：${criterion.statement}` : `${head}。\n${rendered}`
-  const instructions = config.instructions === 'rules' ? `${text}\n${GENERAL}` : text
+    config.instructions.criterion === 'statement'
+      ? `${head}：${criterion.statement}`
+      : `${head}。\n${rendered}`
+  const rules = config.instructions.rules.join('')
+  const instructions = rules === '' ? text : `${text}\n${rules}`
   return {
     name: criterion.id,
     section: 'criteria',
@@ -288,7 +303,8 @@ function activity(
       const exit = call.exit === null ? '' : ` → ${String(call.exit)}`
       const line = `${call.ref} ${call.tool}${what === '' ? '' : ` ${what}`}${exit}`
       const telling = call.writes || (call.exit !== null && call.exit !== 0)
-      return config.packaging.activity === 'excerpts' && telling
+      const level = config.packaging.activity
+      return level === 'all' || (level === 'excerpts' && telling)
         ? { call: line, excerpt: excerptOf(call.output, max, config.packaging.take) }
         : line
     })

@@ -29,13 +29,17 @@ export type JudgeMaterial = z.infer<typeof JudgeMaterialSchema>
 
 export const JudgeConfigSchema = z.strictObject({
   split: z.enum(['one', 'sections', 'each']),
-  instructions: z.enum(['bare', 'pass', 'rules']),
+  instructions: z.strictObject({
+    criterion: z.enum(['statement', 'rendered']),
+    rules: z.array(z.string().min(1).max(200)).max(8),
+  }),
   packaging: z.strictObject({
     excerpt: z.int().min(200).max(2000),
     take: z.enum(['head', 'tail', 'both']),
     notes: z.boolean(),
     staleness: z.enum(['marked', 'decided']),
-    activity: z.enum(['lines', 'excerpts']),
+    activity: z.enum(['lines', 'excerpts', 'all']),
+    flags: z.enum(['keys', 'notes']),
   }),
   model: z.string().min(1),
   line: z.number().min(0.5).max(0.99),
@@ -47,13 +51,14 @@ export type JudgeConfig = z.infer<typeof JudgeConfigSchema>
 export const DEFAULT_JUDGE_MODEL = 'openai/gpt-6-luna-decisions'
 export const DEFAULT_JUDGE_CONFIG: JudgeConfig = Object.freeze({
   split: 'one',
-  instructions: 'pass',
+  instructions: Object.freeze({ criterion: 'rendered', rules: [] }),
   packaging: Object.freeze({
     excerpt: 2000,
     take: 'both',
     notes: true,
     staleness: 'marked',
     activity: 'lines',
+    flags: 'keys',
   }),
   model: DEFAULT_JUDGE_MODEL,
   line: 0.9,
