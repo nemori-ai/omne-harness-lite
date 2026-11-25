@@ -38,7 +38,6 @@ export type Verdict =
   | Readonly<{ row: 6 | 8 }>
   | Readonly<{ row: 7 | 9; stalled: number; gap: Gap }>
 
-/** Observations in a row that did not bring the goal closer, at which it counts as stalled. */
 export const STALL_LIMIT = 3
 
 const reached = (metric: Metric, reading: number | undefined, mark: number): boolean =>
@@ -51,7 +50,6 @@ function holds(body: GoalBody, findings: Findings, criterion: Criterion): boolea
   return metric !== undefined && reached(metric, findings.metrics[metric.id], metric.target)
 }
 
-/** How far the goal is from done now: the entries still open, and how much each metric is short of its target. */
 export function gapOf(body: GoalBody, findings: Findings): Gap {
   const remaining: Record<MetricId, number> = {}
   let open = 0
@@ -107,31 +105,41 @@ const named = (row: 2 | 3 | 4 | 5, exit: Exit): Verdict => ({
   counts: exit.counts,
 })
 
+const achieved = (body: GoalBody, findings: Findings): boolean =>
+  body.criteria.every(criterion => holds(body, findings, criterion)) &&
+  body.metrics.every(metric => reached(metric, findings.metrics[metric.id], metric.target)) &&
+  !body.rules.some(entry => findings.rules[entry.id] === 'broken')
+
+/** Rows 2 and 3: the budget is reached; a good-enough exit whose standing all holds comes first. */
+function spent(body: GoalBody, rounds: number, findings: Findings): Verdict | undefined {
+  const budget = budgetReached(body, rounds)
+  if (budget === undefined) return undefined
+  const enough = body.exits.find(
+    exit => exit.kind === 'good-enough' && stands(body, findings, exit),
+  )
+  return enough === undefined ? named(3, budget) : named(2, enough)
+}
+
+/** Rows 4 to 6: what the judge saw come about, a condition before a person's call before a dead end. */
+function seen(body: GoalBody, findings: Findings): Verdict | undefined {
+  const exit = (kind: Exit['kind']) =>
+    body.exits.find(entry => entry.kind === kind && findings.exits.includes(entry.id))
+  const condition = exit('condition')
+  if (condition !== undefined) return named(4, condition)
+  const person = exit('person')
+  if (person !== undefined) return named(5, person)
+  return findings.unattainable ? { row: 6 } : undefined
+}
+
 /** The verdict table: what a current observation of an active goal comes to. Attendance is applied by the transition. */
 export function rule(
   body: GoalBody,
   progress: Readonly<{ rounds: number; stalled: number; gap: Gap | null }>,
   findings: Findings,
 ): Verdict {
-  const achieved =
-    body.criteria.every(criterion => holds(body, findings, criterion)) &&
-    body.metrics.every(metric => reached(metric, findings.metrics[metric.id], metric.target)) &&
-    !body.rules.some(entry => findings.rules[entry.id] === 'broken')
-  if (achieved) return { row: 1 }
-  const budget = budgetReached(body, progress.rounds)
-  if (budget !== undefined) {
-    const enough = body.exits.find(
-      exit => exit.kind === 'good-enough' && stands(body, findings, exit),
-    )
-    return enough === undefined ? named(3, budget) : named(2, enough)
-  }
-  const seen = (kind: Exit['kind']) =>
-    body.exits.find(exit => exit.kind === kind && findings.exits.includes(exit.id))
-  const condition = seen('condition')
-  if (condition !== undefined) return named(4, condition)
-  const person = seen('person')
-  if (person !== undefined) return named(5, person)
-  if (findings.unattainable) return { row: 6 }
+  if (achieved(body, findings)) return { row: 1 }
+  const out = spent(body, progress.rounds, findings) ?? seen(body, findings)
+  if (out !== undefined) return out
   // An observation the judge did not answer saw no gap: it neither counts toward a stall nor clears one.
   if (findings.judge === 'unavailable') return { row: 8 }
   const gap = gapOf(body, findings)

@@ -51,35 +51,48 @@ const issueOf = (entry: string | null, issue: z.core.$ZodIssue): BodyIssue => ({
   problem: issue.message,
 })
 
-/** Applies one change to the working body; what is wrong with the change itself comes back as issues. */
-function apply(body: Working, change: Change, position: number, touched: Set<string>): BodyIssue[] {
-  if (change.op === 'purpose') body.purpose = change.text.trim()
-  else if (change.op === 'method') body.method = change.lines
-  else if (change.op === 'add') {
-    const letter = LETTER_OF[change.section]
-    const parsed = ENTRY_SCHEMAS[letter].safeParse(change.entry)
-    if (!parsed.success)
-      return parsed.error.issues.map(issue => issueOf(`#${String(position)}`, issue))
-    const number = body.issued[letter] + 1
-    body.issued = { ...body.issued, [letter]: number }
-    const list = body[change.section] as readonly Entry[]
-    body[change.section] = [...list, { ...parsed.data, id: `${letter}${String(number)}` }] as never
-  } else {
-    const letter = change.id[0] as SectionLetter
-    const name = SECTIONS[letter]
-    const list = body[name] as readonly Entry[]
-    const known = list.some(entry => entry.id === change.id)
-    if (!known || touched.has(change.id))
-      return [{ entry: change.id, field: 'id', problem: known ? 'named twice' : 'no such entry' }]
-    touched.add(change.id)
-    if (change.op === 'remove') body[name] = list.filter(entry => entry.id !== change.id) as never
-    else {
-      const parsed = ENTRY_SCHEMAS[letter].safeParse(change.entry)
-      if (!parsed.success) return parsed.error.issues.map(issue => issueOf(change.id, issue))
-      const next = { ...parsed.data, id: change.id }
-      body[name] = list.map(entry => (entry.id === change.id ? next : entry)) as never
-    }
+type Added = Extract<Change, { op: 'add' }>
+type Named = Extract<Change, { op: 'replace' | 'remove' }>
+
+/** A new entry takes the next number of its section. */
+function add(body: Working, change: Added, position: number): BodyIssue[] {
+  const letter = LETTER_OF[change.section]
+  const parsed = ENTRY_SCHEMAS[letter].safeParse(change.entry)
+  if (!parsed.success)
+    return parsed.error.issues.map(issue => issueOf(`#${String(position)}`, issue))
+  const number = body.issued[letter] + 1
+  body.issued = { ...body.issued, [letter]: number }
+  const list = body[change.section] as readonly Entry[]
+  body[change.section] = [...list, { ...parsed.data, id: `${letter}${String(number)}` }] as never
+  return []
+}
+
+/** An entry named by its number is replaced or removed, once in a revision. */
+function change(body: Working, named: Named, touched: Set<string>): BodyIssue[] {
+  const letter = named.id[0] as SectionLetter
+  const name = SECTIONS[letter]
+  const list = body[name] as readonly Entry[]
+  const known = list.some(entry => entry.id === named.id)
+  if (!known || touched.has(named.id))
+    return [{ entry: named.id, field: 'id', problem: known ? 'named twice' : 'no such entry' }]
+  touched.add(named.id)
+  if (named.op === 'remove') {
+    body[name] = list.filter(entry => entry.id !== named.id) as never
+    return []
   }
+  const parsed = ENTRY_SCHEMAS[letter].safeParse(named.entry)
+  if (!parsed.success) return parsed.error.issues.map(issue => issueOf(named.id, issue))
+  const next = { ...parsed.data, id: named.id }
+  body[name] = list.map(entry => (entry.id === named.id ? next : entry)) as never
+  return []
+}
+
+/** Applies one change to the working body; what is wrong with the change itself comes back as issues. */
+function apply(body: Working, one: Change, position: number, touched: Set<string>): BodyIssue[] {
+  if (one.op === 'add') return add(body, one, position)
+  if (one.op === 'replace' || one.op === 'remove') return change(body, one, touched)
+  if (one.op === 'purpose') body.purpose = one.text.trim()
+  else body.method = one.lines
   return []
 }
 
@@ -97,7 +110,7 @@ export function reviseBody(body: GoalBody, changes: unknown, context: BodyContex
   }
   const working: Working = { ...body }
   const touched = new Set<string>()
-  const wrong = parsed.data.flatMap((change, index) => apply(working, change, index + 1, touched))
+  const wrong = parsed.data.flatMap((one, index) => apply(working, one, index + 1, touched))
   if (wrong.length > 0) return { kind: 'invalid', issues: wrong }
   if (!working.exits.some(exit => exit.kind === 'budget')) {
     const number = working.issued.X + 1

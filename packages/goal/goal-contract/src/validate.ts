@@ -73,33 +73,42 @@ function numbered(draft: z.output<typeof GoalDraftSchema>): GoalBody {
   } as GoalBody
 }
 
-function exitIssues(body: GoalBody): BodyIssue[] {
-  const found: BodyIssue[] = []
-  const say = (entry: string, field: string, problem: string) =>
-    found.push({ entry, field, problem })
-  let budgets = 0
-  for (const exit of body.exits) {
-    if (exit.kind === 'budget') {
-      budgets += 1
-      if (budgets > 1) say(exit.id, 'kind', 'a goal has one budget exit')
-      if (exit.limits.length === 0) say(exit.id, 'limits', 'a budget exit needs a limit')
-    } else if (exit.limits.length > 0) say(exit.id, 'limits', 'only a budget exit has limits')
-    if (exit.kind !== 'good-enough') {
-      if (exit.by.length > 0) say(exit.id, 'by', 'only a good-enough exit stands on entries')
+type Say = (entry: string, field: string, problem: string) => void
+
+/** What a good-enough exit stands on must be there: a criterion, or a metric that has a floor. */
+function standingIssues(body: GoalBody, exit: Exit, say: Say): void {
+  if (exit.by.length === 0)
+    say(exit.id, 'by', 'good enough stands on criteria or metric floors, not on a sentence')
+  for (const standing of exit.by) {
+    if (standing.kind === 'criterion') {
+      if (!body.criteria.some(entry => entry.id === standing.id))
+        say(exit.id, 'by', `there is no criterion ${standing.id}`)
       continue
     }
-    if (exit.by.length === 0)
-      say(exit.id, 'by', 'good enough stands on criteria or metric floors, not on a sentence')
-    for (const standing of exit.by) {
-      if (standing.kind === 'criterion') {
-        if (!body.criteria.some(entry => entry.id === standing.id))
-          say(exit.id, 'by', `there is no criterion ${standing.id}`)
-        continue
-      }
-      const metric = body.metrics.find(entry => entry.id === standing.id)
-      if (metric === undefined) say(exit.id, 'by', `there is no metric ${standing.id}`)
-      else if (metric.floor === null) say(exit.id, 'by', `metric ${standing.id} has no floor`)
-    }
+    const metric = body.metrics.find(entry => entry.id === standing.id)
+    if (metric === undefined) say(exit.id, 'by', `there is no metric ${standing.id}`)
+    else if (metric.floor === null) say(exit.id, 'by', `metric ${standing.id} has no floor`)
+  }
+}
+
+function limitIssues(exit: Exit, budgets: number, say: Say): void {
+  if (exit.kind !== 'budget') {
+    if (exit.limits.length > 0) say(exit.id, 'limits', 'only a budget exit has limits')
+    return
+  }
+  if (budgets > 1) say(exit.id, 'kind', 'a goal has one budget exit')
+  if (exit.limits.length === 0) say(exit.id, 'limits', 'a budget exit needs a limit')
+}
+
+function exitIssues(body: GoalBody): BodyIssue[] {
+  const found: BodyIssue[] = []
+  const say: Say = (entry, field, problem) => found.push({ entry, field, problem })
+  let budgets = 0
+  for (const exit of body.exits) {
+    if (exit.kind === 'budget') budgets += 1
+    limitIssues(exit, budgets, say)
+    if (exit.kind === 'good-enough') standingIssues(body, exit, say)
+    else if (exit.by.length > 0) say(exit.id, 'by', 'only a good-enough exit stands on entries')
   }
   return found
 }
