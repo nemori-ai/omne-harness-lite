@@ -48,6 +48,8 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
   const decisions = fakeDecisions()
   const judging = fakeJudging()
   const hinted: string[] = []
+  const changed: string[] = []
+  const listening = { fails: false }
   let tick = 0
   sessions.add(SESSION, 'attended')
   sessions.add(JOB, 'unattended')
@@ -62,6 +64,12 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
     judging,
     clock: { now: () => `2026-11-25T00:00:${String((tick += 1)).padStart(2, '0')}.000Z` },
     hints: { wake: tenant => void hinted.push(tenant) },
+    changes: {
+      changed(tenant, session) {
+        changed.push(`${tenant}/${session}`)
+        if (listening.fails) throw new Error('a listener failed')
+      },
+    },
   })
   const direct = (change: Partial<DirectWrite> = {}): DirectWrite => ({
     session: SESSION,
@@ -103,6 +111,8 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
     decisions,
     judging,
     hinted,
+    changed,
+    listening,
     direct,
     answered,
   }

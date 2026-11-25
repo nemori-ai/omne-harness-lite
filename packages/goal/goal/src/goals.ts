@@ -12,6 +12,7 @@ import type {
   GoalAuthority,
   GoalCalls,
   GoalCards,
+  GoalChanges,
   GoalDecisions,
   GoalHistory,
   GoalJudging,
@@ -32,6 +33,7 @@ export type GoalsDependencies = Readonly<{
   judging: GoalJudging
   clock: Clock
   hints: ReconcileHints
+  changes?: GoalChanges
 }>
 
 const uncited = (refs: readonly string[]) => ({
@@ -69,10 +71,12 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
       )
     },
 
-    async command(caller, { session, command }) {
+    async command(caller, { session, command, generation }) {
       const stop = await permitted(caller, session, command.kind)
       if (stop !== null) return stop
-      return settle(caller.tenant, session, async current => decideCommand(current, command))
+      return settle(caller.tenant, session, async current =>
+        decideCommand(current, command, generation),
+      )
     },
 
     async propose(caller, { session, proposal }) {

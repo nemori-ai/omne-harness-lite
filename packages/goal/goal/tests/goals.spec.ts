@@ -750,3 +750,51 @@ describe('the progress list', () => {
     expect(revised.progress.rules).toEqual({})
   })
 })
+
+describe('a command that says which goal it was given for', () => {
+  it('is carried out on that goal, and refused untouched when the session has moved on to another', async () => {
+    const { goals, direct, store } = world()
+    value(await goals.write(OWNER, direct()))
+    const seen = { session: SESSION, generation: 1 }
+    const paused = value(await goals.command(OWNER, { ...seen, command: { kind: 'pause' } }))
+    expect(paused?.state.status).toBe('paused')
+    value(await goals.command(OWNER, { ...seen, command: { kind: 'cancel' } }))
+    value(await goals.write(OWNER, direct({ operation: 'op-2' })))
+    const late = await goals.command(OWNER, { ...seen, command: { kind: 'pause' } })
+    expect(refusal(late)).toEqual({ kind: 'another-goal' })
+    expect(store.rows(TENANT).at(-1)?.state).toMatchObject({ status: 'active', generation: 2 })
+    const now = { session: SESSION, generation: 2, command: { kind: 'pause' } } as const
+    expect(value(await goals.command(OWNER, now))?.state.status).toBe('paused')
+  })
+
+  it('is refused where there never was a goal, while a command that names none stays idempotent there', async () => {
+    const { goals } = world()
+    const named = { session: SESSION, generation: 1, command: { kind: 'cancel' } } as const
+    expect(refusal(await goals.command(OWNER, named))).toEqual({ kind: 'another-goal' })
+    const bare = await goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } })
+    expect(bare).toEqual({ kind: 'done', value: null, recalled: false })
+  })
+})
+
+describe('what is told after a goal was written', () => {
+  it('names the tenant and the session once for each write that stood, and nothing for one that did not', async () => {
+    const { goals, direct, changed } = world()
+    value(await goals.write(OWNER, direct()))
+    expect(changed).toEqual([`${TENANT}/${SESSION}`])
+    value(await goals.command(OWNER, { session: SESSION, command: { kind: 'pause' } }))
+    expect(changed).toHaveLength(2)
+    value(await goals.command(OWNER, { session: SESSION, command: { kind: 'pause' } }))
+    value(await goals.write(OWNER, direct()))
+    await goals.command(OWNER, { session: SESSION, generation: 9, command: { kind: 'resume' } })
+    value(await goals.read(OWNER, SESSION))
+    expect(changed).toHaveLength(2)
+  })
+
+  it('does not undo or fail the write when the one told fails', async () => {
+    const { goals, direct, listening, store } = world()
+    listening.fails = true
+    const set = await goals.write(OWNER, direct())
+    expect(set.kind).toBe('done')
+    expect(store.rows(TENANT)).toHaveLength(1)
+  })
+})

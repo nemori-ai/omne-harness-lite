@@ -84,6 +84,11 @@ export interface Clock {
   now(): string
 }
 
+/** Told after a write of a session's goal stood. Whoever listens reads the goal again: nothing of it is carried here. */
+export interface GoalChanges {
+  changed(tenant: string, session: string): void
+}
+
 export interface ReconcileHints {
   wake(tenant: string): void
 }

@@ -21,6 +21,7 @@ export type GoalRefusal =
   | Readonly<{ kind: 'no-such-card' }>
   | Readonly<{ kind: 'invalid'; issues: readonly BodyIssue[] }>
   | Readonly<{ kind: 'state'; reason: Refusal }>
+  | Readonly<{ kind: 'another-goal' }>
   | Readonly<{ kind: 'card'; reason: CardRefusal }>
 
 export type GoalCommand =
@@ -58,7 +59,7 @@ export interface Goals {
   write(caller: GoalCaller, input: DirectWrite): Promise<Outcome<GoalRecord, GoalRefusal>>
   command(
     caller: GoalCaller,
-    input: Readonly<{ session: string; command: GoalCommand }>,
+    input: Readonly<{ session: string; command: GoalCommand; generation?: number }>,
   ): Promise<Outcome<GoalRecord | null, GoalRefusal>>
   propose(
     caller: GoalCaller,

@@ -53,12 +53,22 @@ export function createWriting(deps: GoalsDependencies) {
     await store.commit(tenant, { session: record.session, expected: record.version, next })
   }
 
+  function told(tenant: string, key: string): void {
+    if (isImpliedKey(key)) return
+    try {
+      deps.changes?.changed(tenant, key)
+    } catch {
+      return
+    }
+  }
+
   /** Writes a decision on the version it was made on. `stale`: somebody wrote meanwhile, decide again. */
   async function commit(tenant: string, expected: number, next: GoalRecord) {
     const answer = await store.commit(tenant, { session: next.session, expected, next })
     if (answer.kind === 'unknown') return UNKNOWN
     if (answer.kind === 'rolled-back') return UNAVAILABLE
     if (answer.value.kind === 'stale') return 'stale'
+    told(tenant, next.session)
     await deliver(tenant, answer.value.record)
     return done(answer.value.record)
   }

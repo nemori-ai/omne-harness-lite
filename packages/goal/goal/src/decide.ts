@@ -193,7 +193,13 @@ function eventOf(body: GoalBody | null, command: GoalCommand): GoalEvent | null 
 }
 
 /** A command of the owner: pause, resume, cancel, abort, or settle by the exit that paused it. Null: there is no goal and nothing to do. */
-export function decideCommand(current: GoalRecord | null, command: GoalCommand): Decided | null {
+export function decideCommand(
+  current: GoalRecord | null,
+  command: GoalCommand,
+  generation?: number,
+): Decided | null {
+  if (generation !== undefined && current?.state.generation !== generation)
+    return refused({ kind: 'another-goal' })
   const event = eventOf(current?.body ?? null, command)
   if (event === null)
     return refused({ kind: 'state', reason: current === null ? 'no-live-goal' : 'not-its-cause' })
