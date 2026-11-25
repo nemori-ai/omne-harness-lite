@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { type AssetLayerSource, type OfficialAssets } from '@omne-harness/assets'
+import { type AssetLayerSource, type CapabilityId, type OfficialAssets } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
 import {
   access as accessOf,
@@ -54,6 +54,18 @@ const SKILL = skillBodyContract().category
 const GRANTED = Object.freeze({ kind: 'granted' } as const)
 const REFUSED = Object.freeze({ kind: 'refused' } as const)
 
+/** The Skills the release brings, which every tenant sees; undefined when they cannot be read. */
+function officialSkillIds(assets: OfficialAssets): readonly CapabilityId[] | undefined {
+  try {
+    const read = assets()
+    return read === 'unavailable'
+      ? undefined
+      : read.filter(each => each.capability.category === SKILL).map(each => each.capability)
+  } catch {
+    return undefined
+  }
+}
+
 export function directoryOf(assets: Pick<AssetsLocal, 'packages'>): PackageDirectoryOf {
   return async ({ ref, digest }) => {
     const place = await assets.packages.locate({ assetRef: ref, version: digest })
@@ -82,7 +94,18 @@ export function tenantSkills(
     turnLayers(tenantLayer, workspace, access, turnKeyOf(scope))
   const inputs = (access: Access<unknown>, scope: unknown) => {
     const { sources, body } = layers(access, scope)
-    return skillInputsFromAssets<unknown, unknown>({ sources, body })
+    const listed = skillInputsFromAssets<unknown, unknown>({ sources, body })
+    return {
+      layers: listed.layers,
+      async identities(asker: Access<unknown>, at: unknown) {
+        const held = await listed.identities(asker, at)
+        const brought = officialSkillIds(official.assets)
+        if (!('ok' in held) || brought === undefined) return fail('unknown' as const)
+        const named = new Map(brought.map(id => [id.name, id]))
+        for (const id of held.ok) named.set(id.name, id)
+        return succeed([...named.values()])
+      },
+    }
   }
   const decisionsFor = (asWork: (principal: unknown) => boolean) =>
     createSkillDecisions<unknown, unknown>({

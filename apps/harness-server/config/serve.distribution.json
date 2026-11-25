@@ -440,7 +440,7 @@
               "owner": "harness-server-release",
               "name": "coding",
               "revision": "1",
-              "digest": "sha256:5ecea1131627c6aa29be46271e10e2f9e53118aec1ed9ac2d829d8ef78e61938"
+              "digest": "sha256:1dfdaa3d3f3bdccd7724c279dbb16eda1fdc25fd62651098822f1a9b3c5fd633"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -596,6 +596,13 @@
                   "capability": {
                     "category": "tool",
                     "name": "Skills"
+                  },
+                  "resident": true
+                },
+                {
+                  "capability": {
+                    "category": "skill",
+                    "name": "skill-authoring"
                   },
                   "resident": true
                 }

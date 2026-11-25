@@ -10,6 +10,7 @@ export {
 export { createScriptAuthor, scriptToolModule } from './script.ts'
 export { attachScriptHost, scriptHostOf, type ScriptHost, type ScriptPlace } from './script-port.ts'
 export { createSkillsAuthor, skillsToolModule } from './skills.ts'
+export { skillsCommandNames } from './skills-protocol.ts'
 export { attachSkillsAccess, skillsAccessOf } from './skills-port.ts'
 export type {
   SkillsAccess,

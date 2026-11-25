@@ -140,6 +140,12 @@ describe('assets/v1 asset operations on the release tree', () => {
             body: {
               items: [
                 {
+                  name: 'skill-authoring',
+                  holding: 'official/skill/skill-authoring',
+                  origin: 'official',
+                  enabled: true,
+                },
+                {
                   name: 'skin-authoring',
                   holding: 'official/skill/skin-authoring',
                   origin: 'official',
@@ -191,6 +197,12 @@ describe('assets/v1 asset operations on the release tree', () => {
             outcome: 'succeeded',
             body: {
               items: [
+                {
+                  name: 'skill-authoring',
+                  holding: 'official/skill/skill-authoring',
+                  origin: 'official',
+                  enabled: true,
+                },
                 {
                   name: 'skin-authoring',
                   holding: 'official/skill/skin-authoring',
@@ -288,7 +300,7 @@ describe('assets/v1 asset operations on the release tree', () => {
         const listed = await omne('asset', 'list', 'skill')
         expect(listed.status).toBe(0)
         expect(listed.stdout).toMatch(
-          /^NAME +ENABLED +ORIGIN +VERSION +TITLE\nskin-authoring +yes +official +\S+ +skin-authoring\nreview +yes +customized /,
+          /^NAME +ENABLED +ORIGIN +VERSION +TITLE\nskill-authoring +yes +official +\S+ +skill-authoring\nskin-authoring +yes +official +\S+ +skin-authoring\nreview +yes +customized /,
         )
 
         const shown = await omne('asset', 'show', 'skill:review')
@@ -307,6 +319,12 @@ describe('assets/v1 asset operations on the release tree', () => {
         expect((await omne('asset', 'list', 'skill', '--json')).result).toMatchObject({
           body: {
             items: [
+              {
+                name: 'skill-authoring',
+                holding: 'official/skill/skill-authoring',
+                origin: 'official',
+                enabled: true,
+              },
               {
                 name: 'skin-authoring',
                 holding: 'official/skill/skin-authoring',
@@ -379,6 +397,20 @@ describe('assets/v1 asset operations on the release tree', () => {
             .filter(item => item.name === 'coding')
             .map(item => item.origin),
         ).toEqual(['official'])
+
+        // P3 for a Skill: the meta skill the release brings cannot be replaced.
+        const meta = `---\nname: skill-authoring\ndescription: MARK-FAKE-META.\n---\nMine.\n`
+        const metaRefused = await omne(
+          'asset',
+          'create',
+          'skill:skill-authoring',
+          '--dir',
+          dir('skill-authoring', { 'SKILL.md': meta }),
+        )
+        expect(metaRefused.status).not.toBe(0)
+        expect(metaRefused.stdout).toContain(
+          'irreplaceable-official: skill skill-authoring is held on the official layer and cannot be replaced; nothing was published',
+        )
 
         // P2: a name the deployment brings and lets be replaced: the tenant's own is held and is the one in use.
         const skin = `---\nname: skin-authoring\ndescription: MARK-OWN-SKIN writes skins my way.\n---\nMine.\n`

@@ -2,7 +2,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import { broughtDefinitionsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
-import { OFFICIAL_SKILLS } from '@omne-harness/plugin-host-local'
+import { OFFICIAL_SKILLS as SKIN_SKILLS } from '@omne-harness/plugin-host-local'
+import { OFFICIAL_SKILLS as SKILL_SKILLS } from '@omne-harness/skill-host-local'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
 import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
 import { workspaceSourcesKey } from '@omne-harness/workspace-cordis-contract/cordis'
@@ -66,7 +67,7 @@ export const skillsRow = defineRow({
   async body(ctx, raw) {
     const config = skillsRowConfig.parse(raw)
     ctx.plugin(skillCategoryPlugin)
-    const brought = await officialSkills(OFFICIAL_SKILLS)
+    const brought = await officialSkills([...SKIN_SKILLS, ...SKILL_SKILLS])
     const held = brought.map(({ name, item, body, files }) => ({ name, item, body, files }))
     ctx.plugin(broughtDefinitionsPlugin('skills-official', skillSkillsPoint.name, held))
     const official = officialSkillPorts(brought, () => ctx.tenantAssets.official())
