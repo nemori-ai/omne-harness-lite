@@ -384,6 +384,23 @@ export async function stoppedAt(
   return snapshot.state
 }
 
+/** The drive halted on a failure: the checkpoint stays at the position and the slot is given back (D-31). */
+export async function haltedAt(
+  assembly: LoopAssembly,
+  position: string,
+): Promise<ExecutionSnapshot['state']> {
+  const read = async () => {
+    const loaded = await assembly.controls.journal.port.load({ ...alice, execution: execution() })
+    return 'ok' in loaded ? loaded.ok : null
+  }
+  await eventually(async () => (await read())?.checkpoint.position === position)
+  await eventually(async () => (await shown(assembly)).kind === 'idle')
+  const snapshot = await read()
+  if (snapshot?.checkpoint.position !== position)
+    throw new Error(`the run went on past ${position}: ${snapshot?.checkpoint.position}`)
+  return snapshot.state
+}
+
 export function replyCandidate(
   call: Pick<HandoffPrepare, 'request'> | undefined,
 ): Extract<HandoffRequest, { kind: 'execution' }>['candidate'] | undefined {
