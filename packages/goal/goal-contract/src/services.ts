@@ -9,7 +9,6 @@ export type Outcome<T, R> =
   | Readonly<{ kind: 'basis-unavailable' }>
   | Readonly<{ kind: 'unknown' }>
 
-/** Who calls. The subject is opaque here: the authority of the assembly judges it on every call. */
 export type GoalCaller = Readonly<{ tenant: string; subject: unknown }>
 
 export type Proposal =

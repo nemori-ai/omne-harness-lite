@@ -116,7 +116,6 @@ function stand(current: GoalRecord | null, input: WriteInput): Stood | Decided {
   if (step.kind === 'refused') return refused({ kind: 'state', reason: step.reason })
   const checked = proposedBody(current, proposal, attendance)
   if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })
-  // The transition stood, so there is a body to write and a live state to write it under.
   if (checked.kind !== 'valid' || step.kind !== 'changed' || step.next.status === 'none')
     return refused({ kind: 'state', reason: 'no-live-goal' })
   if (byCard && digestOf(checked.body) !== entrance.card.digest)
