@@ -235,10 +235,13 @@ describe('a turn layer on top of the kept layers', () => {
     const now = registry({ 'weekly-report': 'v1' })
     const lower = counted(() => read('v1'))
     const upper = counted(() => workspace)
-    const turn = stackedInputs(indexedInputs(lower.inputs, () => now.held), {
-      ...upper.inputs,
-      identities: async () => ({ ok: [id('notes-here')] }),
-    })
+    const turn = stackedInputs(
+      indexedInputs(lower.inputs, () => now.held),
+      {
+        ...upper.inputs,
+        identities: async () => ({ ok: [id('notes-here')] }),
+      },
+    )
     expect(await turn.layers(reader, scope, report)).toEqual([...read('v1'), ...workspace])
     await turn.layers(reader, scope, report)
     expect(lower.asked).toHaveLength(1)

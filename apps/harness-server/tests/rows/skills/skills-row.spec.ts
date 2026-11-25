@@ -321,13 +321,11 @@ async function world() {
     },
     async publishAs(tenant: TenantId, name: string, description: string) {
       const dir = await writeSampleSkill(join(root, 'sources', ops()), name, description)
-      const published = await createTenantPublisher(await openedOf(tenant), refOf(tenant)).publish(
-        {
-          operationId: ops(),
-          capability: asCapability(name),
-          content: { kind: 'directory', from: directoryReader(dir) },
-        },
-      )
+      const published = await createTenantPublisher(await openedOf(tenant), refOf(tenant)).publish({
+        operationId: ops(),
+        capability: asCapability(name),
+        content: { kind: 'directory', from: directoryReader(dir) },
+      })
       if (published.kind !== 'published') throw new Error(JSON.stringify(published))
     },
     async change(
@@ -591,9 +589,7 @@ describe('the skills row and the Skills binding over a real store', () => {
         const fresh = await w.fresh(tenant)
         const answers = async (catalog: typeof fresh) => ({
           summaries: await catalog.summaries(asker, null),
-          searches: await Promise.all(
-            queries.map(text => catalog.search(asker, null, { text })),
-          ),
+          searches: await Promise.all(queries.map(text => catalog.search(asker, null, { text }))),
         })
         const expected = await answers(fresh)
         expect(expected.summaries, step).toHaveProperty('ok')

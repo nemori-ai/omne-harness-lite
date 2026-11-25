@@ -70,8 +70,7 @@ describe('a Skill search on the release tree', () => {
         const at = ['--workspace', String(workspace), '--instance', String(instance)]
         const created = await cliOk(other, ['create-session', '--definition', 'coding', ...at])
         const send = planner(other)
-        const theirs: Ask = (...steps) =>
-          send(String(created.body['session']), ...steps)
+        const theirs: Ask = (...steps) => send(String(created.body['session']), ...steps)
         const published = await theirs(
           [write('work/shared-notes/SKILL.md', skill('shared-notes', 'MARK-BETA'))],
           [publish('op-1', 'shared-notes')],

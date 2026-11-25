@@ -97,7 +97,9 @@ export function heldOnRegistry(
     const state = kept.get(tenant)
     return state === undefined || state.stale || state.waiting.has(category) ? undefined : state
   }
-  const pointOf = (category: string): Readonly<{ registry: Registry; point: string }> | undefined => {
+  const pointOf = (
+    category: string,
+  ): Readonly<{ registry: Registry; point: string }> | undefined => {
     const listing = categories().view.describe(category)
     const now = registry()
     return now === undefined || listing === undefined || !('point' in listing)
