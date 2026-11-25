@@ -263,7 +263,6 @@ async function journalTree(base: ReturnType<typeof makeBase>) {
         providerConfig(base.storageRoot, {
           maxCommandsPerCommit: 256,
           maxJsonDepth: 256,
-          maxJsonMembers: 1048576,
         }),
       ),
       declared(policy.plugin),

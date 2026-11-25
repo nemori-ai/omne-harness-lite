@@ -1,6 +1,7 @@
 export const nativeBatchSource = String.raw`
 typedef struct {
   location target;
+  char *directory;
   const char *named, *expected, *temporary;
   unsigned char *bytes;
   size_t size;
@@ -42,6 +43,7 @@ static batch_item prepare_item(document *d) {
   item.expected = string_field(d, "version", 1);
   item.bytes = decode(string_field(d, "bytes", 0), &item.size);
   item.target = locate(open_root(d, 0));
+  item.directory = visited_directory(item.target.parent, NULL);
   if (item.target.is_root) refuse("notAuthorized");
   struct stat s;
   int exists = fstatat(item.target.parent, item.target.name, &s, AT_SYMLINK_NOFOLLOW) == 0;
@@ -140,6 +142,7 @@ static const char *publish_item(batch_item *item, int *cleanup_error) {
 }
 static const char *published_event(batch_item *item, size_t index, int cleanup_error) {
   fprintf(stdout, "{\"event\":\"published\",\"index\":%zu", index);
+  directory_field(stdout, "directory", item->directory);
   if (cleanup_error) {
     fprintf(stdout, ",\"cleanupError\":{\"temp\":"); quote(stdout, item->temporary);
     fprintf(stdout, ",\"code\":"); quote(stdout, errno_name(cleanup_error)); fputc('}', stdout);

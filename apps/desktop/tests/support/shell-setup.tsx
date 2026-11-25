@@ -21,6 +21,7 @@ import { Shell } from '../../src/page/shell/shell.tsx'
 import type { TokenNow } from '../../src/page/shell/changes-sheet.ts'
 import { createShellState } from '../../src/page/shell/state.ts'
 import type { FloatPlaces } from '../../src/page/shell/float-place.ts'
+import type { FacePreference } from '../../src/page/shell/face.ts'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { fakeGate, fakePage, type Gated } from './fake-modules.tsx'
 
@@ -65,6 +66,7 @@ export const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 export const quietConnection = {
   availability: {
     keys: () => undefined,
+    revision: () => undefined,
     standing: () => ({ kind: 'connecting' }) as const,
     subscribe: () => () => undefined,
   },
@@ -90,6 +92,8 @@ export async function setup(
     knowsToken?: (name: string) => boolean
     /** The tokens the page lists for shell.tokens; none unless a case says so. */
     tokens?: () => readonly TokenNow[]
+    /** Which face this device stays on; none kept unless a case says so. */
+    faces?: FacePreference
   } = {},
 ) {
   const login = source<ShellLoginState>(options.login ?? 'signed-out')
@@ -113,6 +117,7 @@ export async function setup(
   const state = createShellState(inner, {
     ...(options.knowsToken === undefined ? {} : { knowsToken: options.knowsToken }),
     ...(options.tokens === undefined ? {} : { tokens: options.tokens }),
+    ...(options.faces === undefined ? {} : { faces: options.faces }),
   })
   const root = new Context()
   await root.plugin(DynamisService)

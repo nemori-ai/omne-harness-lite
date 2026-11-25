@@ -1,3 +1,5 @@
+import { tenantCodec } from '@omne-harness/legal-identity'
+import { guidanceProvenance } from './guidance-window.ts'
 import { createHash } from 'node:crypto'
 import type { Failure } from '@omne-harness/agent-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -31,6 +33,12 @@ export function reminderCommand(
     message: SystemReminderMessage
   }>,
 ): Extract<SessionCommand, { kind: 'commitDerived' }> {
+  const tenant = tenantCodec.encode(input.tenant)
+  if (!tenant.ok) throw new TypeError('the reminder tenant is not minted')
+  const provenance = guidanceProvenance(
+    input.message,
+    JSON.stringify([tenant.value, input.scope.ref]),
+  )
   const source = {
     owner: 'runtime-context',
     record: `${input.scope.ref}/view/${input.viewRevision}/at/${String(input.at)}`,
@@ -48,7 +56,7 @@ export function reminderCommand(
         source,
       }),
       expected: input.at,
-      value: { kind: 'context-reminder', message: input.message, source },
+      value: { kind: 'context-reminder', message: input.message, source, provenance },
     },
   }
 }

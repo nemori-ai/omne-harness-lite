@@ -422,6 +422,7 @@ export function pinnedDirectory(
     pinnedTo({
       path: value.directory,
       workspace: { id: id.value, instance: value.instance },
+      ...(value.generation === undefined ? {} : { generation: value.generation }),
       files: value.files,
     }),
   )

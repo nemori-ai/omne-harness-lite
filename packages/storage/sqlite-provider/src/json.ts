@@ -71,9 +71,8 @@ export function canonicalJson(value: unknown): string {
   return write(value)
 }
 
-export function jsonShape(value: JsonValue): Readonly<{ depth: number; members: number }> {
+export function jsonShape(value: JsonValue): Readonly<{ depth: number }> {
   let depth = 0
-  let members = 0
   const pending: [JsonValue, number][] = [[value, 1]]
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
     const [item, level] = next
@@ -82,8 +81,7 @@ export function jsonShape(value: JsonValue): Readonly<{ depth: number; members: 
     const children = Array.isArray(item)
       ? (item as readonly JsonValue[])
       : Object.values(item as { readonly [key: string]: JsonValue })
-    members += children.length
     for (const child of children) pending.push([child, level + 1])
   }
-  return { depth, members }
+  return { depth }
 }

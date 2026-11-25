@@ -105,6 +105,9 @@ function authorOf<P>(
   const directory = request.request.directory
   return createAuthorEnvironment({
     access: request,
+    reportDirectoryVisits: ['Files', 'Shell'].includes(
+      request.request.availability.definition.name,
+    ),
     origin: plan.acquire.origin,
     lease,
     ...ports,

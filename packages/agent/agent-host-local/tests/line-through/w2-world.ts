@@ -305,7 +305,6 @@ export type W2Options = Readonly<{
 }>
 
 const LONG_RUN_LIMITS = {
-  maxJsonMembers: 200_000_000,
   maxCommandBytes: 1 << 30,
   maxRequestBytes: 1 << 30,
   globalInFlightWriteBytes: 2 ** 31,

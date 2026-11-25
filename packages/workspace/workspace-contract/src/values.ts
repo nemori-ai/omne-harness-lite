@@ -98,6 +98,7 @@ export type Verification =
   | Readonly<{
       kind: 'attachable'
       directory: string
+      rootIdentity?: string
       attachment: Attachment
       evidence: DurableEvidence
     }>

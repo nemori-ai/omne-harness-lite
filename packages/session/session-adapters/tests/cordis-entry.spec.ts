@@ -47,6 +47,7 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'sessionIntakeSettings',
     'sessionIntakeSettingsPlugin',
     'sessionInteractionBinding',
+    'sessionModelHistoryReadinessKey',
     'sessionModesBindings',
     'sessionModesDescriptor',
     'sessionModesModelBinding',
@@ -56,5 +57,7 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'workingDirectoryCallBinding',
     'workingDirectoryDescriptor',
     'workingDirectoryModelBinding',
+    'workspaceGuidanceBindings',
+    'workspaceGuidanceDescriptor',
   ])
 })

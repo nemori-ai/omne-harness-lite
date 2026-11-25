@@ -11,7 +11,6 @@ export type SqliteStorageConfig = Readonly<{
   maxRequestBytes: number
   globalInFlightWriteBytes: number
   maxJsonDepth: number
-  maxJsonMembers: number
   maxResponseBytes: number
   maxOperationResponseBytes: number
   globalWriteResponseBytes: number
@@ -64,7 +63,6 @@ const NUMERIC_FIELDS: readonly NumericField[] = [
   'maxRequestBytes',
   'globalInFlightWriteBytes',
   'maxJsonDepth',
-  'maxJsonMembers',
   'maxResponseBytes',
   'maxOperationResponseBytes',
   'globalWriteResponseBytes',

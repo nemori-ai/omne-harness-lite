@@ -87,6 +87,7 @@ it('mounts one real producer per tenant through the production authority and wit
     expect(initial.blocks.map(item => item.block.item)).toEqual([
       'session.modes',
       'session.working-directory',
+      'session.workspace-guidance',
     ])
     const command = {
       ...original,

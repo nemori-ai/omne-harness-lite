@@ -305,6 +305,7 @@ describe('the serve process with the release', () => {
         'access/v1',
         'assets/v1',
         'calendar/v1',
+        'canvas/v1',
         'human-intervention/v1',
         'identity/v1',
         'mcp/v1',

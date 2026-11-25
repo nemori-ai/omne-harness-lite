@@ -21,6 +21,7 @@ import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts
 import { sessionModesPrincipalsKey } from '../../entry/session-modes-principals.ts'
 import { defaultModesOf } from '../session-conditions/index.ts'
 import { SessionModesInstallation, sessionModesInstallationKey } from './modes.ts'
+import { readWorkspaceGuidance } from './workspace-guidance.ts'
 import {
   reachingTargets,
   SessionWorkingDirectory,
@@ -87,6 +88,7 @@ const plugin: Plugin.Object = {
     })
     new SessionWorkingDirectory(ctx, {
       defaultDirectory: config.defaultDirectory,
+      guidance: readWorkspaceGuidance,
       targets: () =>
         reachingTargets(workspaceTargets(ctx), () => ctx.get(workspaceOutsideFilesKey)),
       recover: input => bundle.recoverSession(input),

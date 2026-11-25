@@ -69,8 +69,12 @@ export class TestShell extends ShellService {
   private chosen: string | undefined = undefined
   private readonly pageListeners = new Set<(page: string | undefined) => void>()
 
-  navigate(pageId: string): void {
+  /** The subject each navigate carried, in order; undefined where it carried none. */
+  readonly subjects: (string | undefined)[] = []
+
+  navigate(pageId: string, subject?: string): void {
     this.navigated.push(pageId)
+    this.subjects.push(subject)
     this.chosen = pageId
     for (const listener of this.pageListeners) listener(pageId)
   }

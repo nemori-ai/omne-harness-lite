@@ -1,3 +1,4 @@
+import { completedInDirectory, outputPolicyOf } from './process-result.ts'
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -192,6 +193,7 @@ type ExecuteRequest = Parameters<TerminalFacility<unknown>['execute']>[0]
 type Deferred<T> = { promise: Promise<T>; settle(value: T): void }
 type Leg = {
   id: string
+  startDirectory?: string
   started: Deferred<boolean>
   result: Deferred<CommandOutcome>
   output: TerminalOutput
@@ -278,7 +280,13 @@ function settleLeg(entry: Entry, code?: number): void {
   leg.result.settle(
     code === undefined
       ? { kind: 'failed', reason: 'effectUnknown', observedDurationMs: durationMs, output }
-      : { kind: 'completed', exit: { kind: 'code', code }, durationMs, output },
+      : {
+          kind: 'completed',
+          exit: { kind: 'code', code },
+          durationMs,
+          output,
+          observedCwd: entry.cwd,
+        },
   )
 }
 function summary(leg: Leg): Extract<OutputSummary, { mode: 'terminal' }> {
@@ -341,6 +349,7 @@ export function createHostTerminals(input: Input): HostTerminals {
         entry.opened.settle(true)
         return
       case 'started':
+        if (entry.leg && value.cwd !== undefined) entry.leg.startDirectory = value.cwd
         entry.leg?.started.settle(true)
         return
       case 'between':
@@ -534,7 +543,7 @@ export function createHostTerminals(input: Input): HostTerminals {
       return rejected(requestId, 'closed')
     }
     if (entry.state === 'invalid' || entry.state === 'closed') return { kind: 'unknown', requestId }
-    return { kind: 'done', requestId, value: { terminal: entry.ref } }
+    return completedInDirectory(requestId, { terminal: entry.ref }, entry.cwd)
   }
   const lookup = (ref: TerminalRef) => {
     const entry = entries.get(ref.id)
@@ -605,15 +614,11 @@ export function createHostTerminals(input: Input): HostTerminals {
       process: Object.freeze({ id, generation: entry.ref.generation }),
       outputMode: 'terminal',
       output: leg.output.output,
-      outputPolicy: Object.freeze({
-        maxBufferedBytes: settings.maxBufferedBytes,
-        maxChunkBytes: settings.maxChunkBytes,
-        overflow: 'discard',
-      }),
+      outputPolicy: outputPolicyOf(settings),
       result: leg.result.promise,
       stop: (mode: 'graceful' | 'forced') => stopLeg(entry, leg, mode),
     })
-    return { kind: 'done', requestId, value: handle }
+    return completedInDirectory(requestId, handle, leg.startDirectory)
   }
   const track = <T>(running: Promise<T>): Promise<T> => {
     inFlight.add(running)

@@ -1531,6 +1531,102 @@
       "domains": ["dispatch"],
       "status": "candidate",
       "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "packages/canvas/canvas-contract",
+      "paths": [
+        "packages/canvas/canvas-contract/src/**"
+      ],
+      "layer": "contract",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "packages/canvas/canvas",
+      "paths": [
+        "packages/canvas/canvas/src/**"
+      ],
+      "layer": "unknown",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "packages/canvas/canvas-cordis-contract",
+      "paths": [
+        "packages/canvas/canvas-cordis-contract/src/**"
+      ],
+      "layer": "unknown",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "packages/canvas/canvas-local",
+      "paths": [
+        "packages/canvas/canvas-local/src/**"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "packages/canvas/canvas-protocol",
+      "paths": [
+        "packages/canvas/canvas-protocol/src/**"
+      ],
+      "layer": "contract",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "packages/canvas/canvas-access",
+      "paths": [
+        "packages/canvas/canvas-access/src/**"
+      ],
+      "layer": "unknown",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "packages/canvas/canvas-tools",
+      "paths": [
+        "packages/canvas/canvas-tools/src/**"
+      ],
+      "layer": "unknown",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "packages/canvas/canvas-ui",
+      "paths": [
+        "packages/canvas/canvas-ui/src/**"
+      ],
+      "layer": "unknown",
+      "domains": [
+        "canvas"
+      ],
+      "status": "candidate",
+      "source": "packages/canvas/SPEC.md"
     }
   ],
   "rules": [
@@ -2443,6 +2539,179 @@
       "from": ["packages/dispatch/dispatch-cordis-contract"],
       "to": ["packages/dispatch/dispatch", "packages/dispatch/dispatch-local"],
       "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "DIR-CORE-CANVAS",
+      "from": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/pi-ai-transport",
+        "packages/tool/tool-access",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-ui"
+      ],
+      "to": [
+        "packages/canvas/canvas",
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-contract",
+        "packages/canvas/canvas-cordis-contract",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-protocol",
+        "packages/canvas/canvas-tools"
+      ],
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "DIR-CANVAS-OUTWARD",
+      "from": [
+        "packages/canvas/canvas",
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-contract",
+        "packages/canvas/canvas-cordis-contract",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-protocol",
+        "packages/canvas/canvas-ui",
+        "packages/canvas/canvas-tools"
+      ],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-access",
+        "packages/media/media-adapters",
+        "packages/media/media-contract",
+        "packages/media/media-cordis-contract",
+        "packages/media/media-engine-pdf",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-image",
+        "packages/media/media-protocol",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-ui",
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/plugin/plugin-access",
+        "packages/plugin/plugin-host-local",
+        "packages/plugin/plugin-protocol",
+        "packages/plugin/plugin-tools",
+        "packages/plugin/plugin-ui"
+      ],
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "DIR-CANVAS-PURE",
+      "from": [
+        "packages/canvas/canvas-contract",
+        "packages/canvas/canvas"
+      ],
+      "to": [
+        "packages/canvas/canvas-cordis-contract",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-protocol",
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-tools"
+      ],
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "DIR-CANVAS-DEFINITION",
+      "from": [
+        "packages/canvas/canvas-cordis-contract"
+      ],
+      "to": [
+        "packages/canvas/canvas",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-protocol",
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-tools"
+      ],
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "DIR-CANVAS-TOOLS",
+      "from": [
+        "packages/canvas/canvas-tools"
+      ],
+      "to": [
+        "packages/canvas/canvas",
+        "packages/canvas/canvas-cordis-contract",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-protocol",
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-ui"
+      ],
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "DIR-CANVAS-PROTOCOL",
+      "from": [
+        "packages/canvas/canvas-protocol"
+      ],
+      "to": [
+        "packages/canvas/canvas-contract",
+        "packages/canvas/canvas",
+        "packages/canvas/canvas-cordis-contract",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-tools"
+      ],
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "DIR-CANVAS-ACCESS",
+      "from": [
+        "packages/canvas/canvas-access"
+      ],
+      "to": [
+        "packages/canvas/canvas",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-tools"
+      ],
+      "source": "packages/canvas/SPEC.md"
+    },
+    {
+      "id": "DIR-CANVAS-UI",
+      "from": [
+        "packages/canvas/canvas-ui"
+      ],
+      "to": [
+        "packages/canvas/canvas-contract",
+        "packages/canvas/canvas",
+        "packages/canvas/canvas-cordis-contract",
+        "packages/canvas/canvas-local",
+        "packages/canvas/canvas-access",
+        "packages/canvas/canvas-tools"
+      ],
+      "source": "packages/canvas/SPEC.md"
     }
   ]
 }
