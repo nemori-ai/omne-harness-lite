@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sortedJsonText } from './support/sorted-json.ts'
+import { sortedJsonText } from '@omne-harness/pi-ai-transport/testing'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { createModelPreparationResources } from '@omne-harness/model'
 import {
@@ -20,7 +20,8 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import type { AnthropicRecord } from '@omne-harness/pi-ai-anthropic'
 import { TOKENIZER } from './support/anthropic.ts'
-import { componentAdoption } from '../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
+import { ANTHROPIC_OWNER } from '../src/owner.ts'
 import { ANCHORED_METHOD } from '../src/meter.ts'
 import {
   assembledOf,
@@ -133,7 +134,7 @@ function recordOf(
     materialization: {
       receipt: {
         supplier: supplierOf(record).adoption,
-        representation: componentAdoption(record, 'representation'),
+        representation: componentAdoption(ANTHROPIC_OWNER, record, 'representation'),
         payloadDigest: 'a'.repeat(64),
       },
       source: { owner: 'materializer', record: 'x', revision: '1', digest: '1'.repeat(64) },
@@ -285,7 +286,7 @@ describe('the continuation anchor', () => {
       amount: String(1000n + delta),
       margin: String(ceil10(delta)),
       method: {
-        ...componentAdoption(SONNET, 'meter'),
+        ...componentAdoption(ANTHROPIC_OWNER, SONNET, 'meter'),
         name: `${SONNET.name}#meter+${ANCHORED_METHOD}`,
       },
       marginSource: CONFIG.margin.source,
@@ -308,7 +309,7 @@ describe('the continuation anchor', () => {
       expect(budget.calibration).toEqual({ anchor: { kind: 'miss', reason } })
       expect(inputCheckOf(budget)).toMatchObject({
         amount: String(await count(representation.tokenInput)),
-        method: componentAdoption(SONNET, 'meter'),
+        method: componentAdoption(ANTHROPIC_OWNER, SONNET, 'meter'),
       })
       await lease.release()
     }
@@ -333,7 +334,7 @@ describe('a carried signed group as the output count of its source (M5)', () => 
       amount: String(estimated),
       margin: String(ceil10(estimated)),
       method: {
-        ...componentAdoption(SONNET, 'meter'),
+        ...componentAdoption(ANTHROPIC_OWNER, SONNET, 'meter'),
         name: `${SONNET.name}#meter+anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`,
       },
       marginSource: CONFIG.margin.source,

@@ -1,21 +1,19 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import { runScenario, type Report } from './install/consumer.ts'
 import { requiredCheckIds } from './install/judgment.ts'
+import { removeAfterAll } from './install-tree.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
 const workDirectory = join(workspaceRoot, 'tmp/install-closure/model-contract-scenario-spec')
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'install-scenario-')))
-afterAll(() => {
-  rmSync(root, { recursive: true, force: true })
-  rmSync(workDirectory, { recursive: true, force: true })
-})
+removeAfterAll(() => [root, workDirectory])
 
 function layout(name: string, script: string): { project: string; script: string } {
   const project = join(root, name, 'project')

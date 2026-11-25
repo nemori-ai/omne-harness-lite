@@ -1,14 +1,15 @@
 // @module-tag slow
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { probeEntries, typeCheck, type Check } from './install/consumer.ts'
+import { removeAfterAll } from './install-tree.ts'
 
 const memberDirectory = fileURLToPath(new URL('..', import.meta.url))
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'install-probe-')))
-afterAll(() => rmSync(root, { recursive: true, force: true }))
+removeAfterAll(() => [root])
 
 type Files = Readonly<Record<string, string>>
 

@@ -9,6 +9,7 @@ it('the public entry is the prompt command category and its entry source', async
     'createPromptEntrySource',
     'heldPrompts',
     'onePrompt',
+    'paramsOf',
     'promptBodyContract',
     'promptCategoryDisplay',
     'promptCommandsPoint',

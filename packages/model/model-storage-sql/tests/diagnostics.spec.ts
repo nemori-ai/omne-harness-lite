@@ -922,6 +922,26 @@ function rewriteRecord(
   rewriteDispatch(f, call, seq, 'record', JSON.stringify(edit(record)))
 }
 
+function rewriteCallState(
+  f: Scene,
+  call: ModelCallId,
+  edit: (state: Record<string, unknown>) => unknown,
+): void {
+  const [row] = f.sqlite.rows(SHARED, 'SELECT state FROM md_call WHERE tenant = ? AND call = ?', [
+    textOf(A),
+    call,
+  ])
+  const cell = row?.[0]
+  const state: unknown = JSON.parse(cell instanceof Uint8Array ? unpackText(cell) : String(cell))
+  if (!isRecord(state)) throw new Error('the stored state is not an object')
+  const text = JSON.stringify(edit(state))
+  f.sqlite.seed(SHARED, 'UPDATE md_call SET state = ? WHERE tenant = ? AND call = ?', [
+    cell instanceof Uint8Array ? packText(text) : text,
+    textOf(A),
+    call,
+  ])
+}
+
 const supplierWith = (record: Record<string, unknown>, change: Record<string, unknown>) => ({
   ...record,
   supplier: { ...(isRecord(record['supplier']) ? record['supplier'] : {}), ...change },
@@ -1017,6 +1037,42 @@ const DAMAGED: readonly (readonly [string, (f: Scene, call: ModelCallId) => void
       })),
   ],
   [
+    'a failed terminal whose cause is outside the contract',
+    (f, call) =>
+      rewriteRecord(f, call, 1, r => ({
+        ...r,
+        terminal: {
+          kind: 'failed',
+          fault: { cause: 'rate-limited', upstreamStatus: null, diagnostic: 'limited' },
+        },
+      })),
+  ],
+  [
+    'a failed terminal whose diagnostic carries a URL',
+    (f, call) =>
+      rewriteRecord(f, call, 1, r => ({
+        ...r,
+        terminal: {
+          kind: 'failed',
+          fault: { cause: 'unclassified', upstreamStatus: null, diagnostic: 'https://x.test/' },
+        },
+      })),
+  ],
+  [
+    'a logical terminal whose cause is outside the contract',
+    (f, call) =>
+      rewriteDispatch(
+        f,
+        call,
+        2,
+        'logical_terminal',
+        JSON.stringify({
+          kind: 'failed',
+          fault: { cause: 'rate-limited', upstreamStatus: null, diagnostic: 'limited' },
+        }),
+      ),
+  ],
+  [
     'a logical terminal that is not JSON',
     (f, call) => rewriteDispatch(f, call, 2, 'logical_terminal', 'not json'),
   ],
@@ -1046,6 +1102,48 @@ describe('a stored row outside the contract shape', () => {
     const got = page(await f.diagnostics.list({ ...f.access(A, call), after: null, limit: 1 }))
     expect(got.entries.map(e => e.outcome)).toEqual([{ kind: 'completed', reason: 'stop' }])
     expect(JSON.stringify(got)).not.toContain('SECRET-CANARY')
+  })
+
+  it('does not hand out a stored ending whose cause the contract does not describe', async () => {
+    const malformed = {
+      kind: 'failed',
+      fault: { cause: 'rate-limited', upstreamStatus: null, diagnostic: 'limited' },
+    }
+    const damages: readonly (readonly [string, (f: Scene, call: ModelCallId) => void])[] = [
+      [
+        'md_dispatch.record',
+        (f, call) => rewriteRecord(f, call, 1, r => ({ ...r, terminal: malformed })),
+      ],
+      [
+        'md_dispatch.logical_terminal',
+        (f, call) => rewriteDispatch(f, call, 2, 'logical_terminal', JSON.stringify(malformed)),
+      ],
+      [
+        'md_call.state',
+        (f, call) =>
+          rewriteCallState(f, call, state => ({
+            ...state,
+            phase: 'settled',
+            settlement: { termination: malformed },
+          })),
+      ],
+    ]
+    for (const [field, damage] of damages) {
+      const f = scene()
+      const call = callId('ending')
+      await f.seeded(call)
+      expect(await f.store.readCall({ tenant: textOf(A), call, operation: null })).toHaveProperty(
+        'ok',
+      )
+      damage(f, call)
+      expect(await f.store.readCall({ tenant: textOf(A), call, operation: null })).toMatchObject({
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-records',
+          diagnostic: `stored row ${field}: fault-shape`,
+        },
+      })
+    }
   })
 
   for (const [name, damage] of DAMAGED)

@@ -4,10 +4,12 @@ it('root entry exports the pure functions that have landed', async () => {
   const root = (await import('@omne-harness/session-adapters')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'SESSION_COLLABORATION_MODE_TRANSLATION',
+    'SESSION_COMMANDS',
     'SESSION_MODES_PUBLICATION',
     'SESSION_PERMISSION_MODE_TRANSLATION',
     'SESSION_WORKING_DIRECTORY',
     'SESSION_WORKSPACE_GUIDANCE',
+    'createSessionCommandSource',
     'createSessionModesPublication',
     'createSessionRuntimeContextTrust',
     'decodeSessionSlotRef',

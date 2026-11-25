@@ -4,6 +4,7 @@ export type * from './engine.ts'
 export type * from './representation.ts'
 export type * from './conversion-ports.ts'
 export { declarationProblem, engineAccepts, isEngineName } from './engine.ts'
+export { isInconvertibleReason } from '@omne-harness/content-block'
 export { definitionNamesOf, isDefinitionName } from './definition-names.ts'
 export { REPRESENTATION_OWNER, representationHolder } from './representation.ts'
 export {

@@ -2,6 +2,7 @@ import { judgeContentBlock } from '@omne-harness/content-block'
 import { judgeJsonValue } from '@omne-harness/json-text'
 import { judgePart } from '@omne-harness/message'
 import {
+  OVER_LIMIT_METRICS,
   decodeModelCallId,
   decodeModelOperationId,
   decodeOutputCursor,
@@ -73,17 +74,7 @@ const modelFault = z.intersection(
     z.object({
       cause: z.literal('input-over-limit'),
       reported: z.object({
-        metric: z
-          .enum([
-            'context-tokens',
-            'input-tokens',
-            'image-bytes',
-            'image-count',
-            'request-bytes',
-            'voice-bytes',
-            'voice-duration-ms',
-          ])
-          .nullable(),
+        metric: z.enum(OVER_LIMIT_METRICS).nullable(),
         limit: text.nullable(),
         actual: text.nullable(),
       }),

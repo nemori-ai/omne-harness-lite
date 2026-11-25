@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 import { tenantCodec, type Access } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
+  faultProblem,
   decodeModelDiagnosticCursor,
   decodeModelDiagnosticId,
   decodeRevision,
@@ -264,13 +265,8 @@ function terminalOf(value: unknown, field: string): Termination | null {
   if (value === null) return null
   if (!isObject(value)) throw new StoredError(field, 'payload')
   const kind = oneOf(value['kind'], TERMINAL_KINDS, `${field}.kind`)
-  if (kind === 'failed') {
-    const fault = value['fault']
-    if (!isObject(fault) || typeof fault['cause'] !== 'string')
-      throw new StoredError(field, 'fault')
-    if (fault['upstreamStatus'] !== null && typeof fault['upstreamStatus'] !== 'string')
-      throw new StoredError(field, 'upstream-status')
-  }
+  if (kind === 'failed' && faultProblem(value['fault']) !== null)
+    throw new StoredError(field, 'fault')
   return value as Termination
 }
 
