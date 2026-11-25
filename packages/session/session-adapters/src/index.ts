@@ -38,3 +38,8 @@ export type {
 export { historySessionOf } from './history-session.ts'
 export { decodeSessionSlotRef, encodeSessionSlotRef } from './slot-ref.ts'
 export type { SessionSlot, SessionSlotRefFailure } from './slot-ref.ts'
+export {
+  createSessionCommandSource,
+  SESSION_COMMANDS,
+  type SessionCommandPorts,
+} from './commands.ts'

@@ -18,6 +18,7 @@ const entries: CommandEntry[] = [
     kind: 'system',
     title: '换模型',
     hint: '<名>',
+    params: [{ name: '名', candidates: true }],
     whileRunning: 'now',
     takesEffect: 'next-request',
   },
@@ -28,6 +29,7 @@ const catalog: CommandCatalog<Principal> = {
     errors: ['prompt: the listing timed out'],
   }),
   take: async () => ({ failure: 'unavailable' }),
+  candidates: async () => ({ failure: 'unavailable' }),
 }
 function ports(over: Partial<SlashCommandAccessPorts> = {}): SlashCommandAccessPorts {
   return { admit: async () => ({ asker }), catalog: () => catalog, watch: () => () => {}, ...over }
@@ -59,6 +61,7 @@ describe('read-catalog', () => {
             kind: 'system',
             title: '换模型',
             hint: '<名>',
+            params: [{ name: '名', candidates: true }],
             whileRunning: 'now',
             takesEffect: 'next-request',
           },

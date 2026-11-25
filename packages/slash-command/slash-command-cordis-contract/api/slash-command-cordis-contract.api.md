@@ -43,6 +43,7 @@ export declare abstract class CommandCatalogService<P> extends Service implement
     constructor(ctx: Context);
     abstract readonly read: CommandCatalog<P>['read'];
     abstract readonly take: CommandCatalog<P>['take'];
+    abstract readonly candidates: CommandCatalog<P>['candidates'];
 }
 export declare const commandCatalogKey = "commandCatalog";
 ```

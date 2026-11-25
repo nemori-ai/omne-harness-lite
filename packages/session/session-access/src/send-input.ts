@@ -1,5 +1,10 @@
 import { MEMBER_INPUT_SOURCE } from './member-source.ts'
-import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
+import type {
+  InProcessAnswer,
+  InProcessCall,
+  LoginIdentity,
+  Principal,
+} from '@omne-harness/access-cordis-contract'
 import { writeJsonText } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { judgeMessage, type Message } from '@omne-harness/message'
@@ -28,7 +33,6 @@ import type {
   SessionAccessFaces,
   TargetTenantPrincipals,
 } from './ports.ts'
-import type { PerformOperation } from './command-operations.ts'
 import type { Admission, RequestDrain } from './request-drain.ts'
 import type { QueuedRequest } from './request-queue.ts'
 
@@ -43,9 +47,23 @@ export type AdmissionPorts = Readonly<{
   principals: Pick<TargetTenantPrincipals, 'resume'>
   facts: PrincipalFacts
   faces(): SessionAccessFaces | undefined
-  /** Does the operation a system command asks for; without it such a command is unsupported. */
-  perform?: PerformOperation
+  /** Does the operation a command asks for, for the login that sent it; without it such a command is unsupported. */
+  perform?: (call: InProcessCall) => Promise<InProcessAnswer>
 }>
+
+type Performed = Readonly<{ outcome: string; detail: string | null }>
+
+const SAID = ['reason', 'mode', 'model', 'kind'] as const
+
+function performedOf(answer: InProcessAnswer, operation: string): Performed {
+  if (answer.kind === 'not-executed')
+    return answer.reason === 'not-offered'
+      ? { outcome: 'unsupported', detail: operation }
+      : { outcome: 'basis-unavailable', detail: null }
+  const body = (answer.body ?? {}) as Record<string, unknown>
+  const said = SAID.map(key => body[key]).find(value => value !== undefined)
+  return { outcome: answer.outcome, detail: typeof said === 'string' ? said : null }
+}
 
 function userMessageOf(text: string): Message | undefined {
   const judged = judgeMessage(JSON.parse(text))
@@ -148,12 +166,30 @@ function commitInput(
     .then(answer => ('ok' in answer ? { ok: { recovered: answer.ok.recovered } } : answer))
 }
 
+async function doneOf(
+  { asked }: OperationRequest,
+  request: QueuedRequest,
+  perform: NonNullable<AdmissionPorts['perform']>,
+): Promise<Performed> {
+  if ('invalid' in asked) return { outcome: 'invalid', detail: asked.invalid }
+  const { protocol, operation, fields } = asked
+  const answer = await perform({
+    protocol,
+    operation,
+    body: fields,
+    login: request.login,
+    tenant: request.tenant,
+    id: `command:${request.acceptId}`,
+  })
+  return performedOf(answer, operation)
+}
+
 /** A system command: written into the session, then its operation done as itself; its answer is the operation's. */
 async function commanded(
   admitted: Admitted,
   request: QueuedRequest,
   asked: OperationRequest,
-  perform: PerformOperation,
+  perform: NonNullable<AdmissionPorts['perform']>,
 ): Promise<Admission> {
   const { access, faces } = admitted
   const operation = acceptOperation(request.tenant, access.session, `command:${request.acceptId}`)
@@ -166,7 +202,7 @@ async function commanded(
     if (kind === 'unavailable' || kind === 'commit-unknown') return RETRY
     return settled(refused('send-input', recorded.failure))
   }
-  const done = await perform(admitted, asked, `command:${request.acceptId}`)
+  const done = await doneOf(asked, request, perform)
   if (done.outcome === 'unknown' || done.outcome === 'basis-unavailable') return RETRY
   if (done.outcome !== 'succeeded' && done.outcome !== 'no-change')
     return settled({

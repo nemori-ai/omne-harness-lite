@@ -80,6 +80,7 @@ describe('a prompt command, on the release tree', () => {
           kind: 'prompt',
           title: '写提交说明。',
           hint: '<scope> [note]',
+          params: [{ name: 'scope' }, { name: 'note', optional: true }],
         })
 
         const send = async (input: string, words: string, seen?: unknown) =>

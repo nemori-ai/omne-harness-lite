@@ -31,8 +31,8 @@ export function createGoalCommandSource<P>(): EntrySource<P> {
     name: GOAL_COMMAND_SOURCE,
     space: GOAL_COMMAND_SPACE,
     list: async () => succeed([ENTRY]),
-    take: async (_asker, name) =>
-      name === GOAL_COMMAND_NAME
+    take: async (_asker, naming) =>
+      naming.name === GOAL_COMMAND_NAME
         ? succeed({ kind: 'text', text: GOAL_COMMAND_PROMPT, origin: ORIGIN })
         : fail('not-listed'),
   }

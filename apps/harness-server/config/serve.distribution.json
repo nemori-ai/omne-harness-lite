@@ -830,7 +830,7 @@
       "id": "slash-command",
       "plugin": "slashCommandRow",
       "config": {
-        "declaredSources": ["system-commands", "skill", "prompt", "goal-command"],
+        "declaredSources": ["session-commands", "skill", "prompt", "goal-command"],
         "timeoutMs": 5000
       }
     },
