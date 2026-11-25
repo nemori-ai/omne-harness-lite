@@ -11,6 +11,7 @@ import {
   quantile,
   sidesWithChange,
   weightedLoss,
+  wilson,
   wilsonUpper,
   type Graded,
 } from '../src/score.ts'
@@ -37,6 +38,14 @@ describe('each number of the report, against a small example worked by hand', ()
     expect(wilsonUpper(1, 10)).toBeCloseTo(0.40415, 4)
     expect(wilsonUpper(10, 10)).toBeCloseTo(1, 12)
     expect(wilsonUpper(0, 0)).toBe(1)
+  })
+  it('gives both ends of the same interval: the upper end is the bound the gate reads', () => {
+    const found = wilson(1, 10)
+    expect(found.low).toBeCloseTo(0.017876, 5)
+    expect(found.high).toBe(wilsonUpper(1, 10))
+    expect(wilson(0, 100).low).toBe(0)
+    expect(wilson(10, 10).low).toBeCloseTo(0.72247, 4)
+    expect(wilson(0, 0)).toEqual({ low: 0, high: 1 })
   })
   it('false holds: 1 of the 4 judged criteria that do not hold was let stand', () => {
     const entries = [

@@ -7,9 +7,9 @@ import { SPLITS, type Case, type Split } from './case.ts'
 import { datasetIssues, parentIssues } from './check.ts'
 import { fileCache, openRouterDecide } from './client.ts'
 import { DATA, digestOf, loadParents, loadSignOffs, unsigned, type SignOff } from './data.ts'
-import { pairedLoss, renderComparison, talliesOf } from './compare.ts'
+import { pairedLoss, renderComparison, spreadOf, talliesOf } from './compare.ts'
 import { configOf } from './config.ts'
-import { graded } from './grade.ts'
+import { graded, pairs } from './grade.ts'
 import { casesOf } from './mutate.ts'
 import { replay, requestKey, type Decide, type Replayed } from './replay.ts'
 import { renderReport, reportOf } from './report.ts'
@@ -26,6 +26,9 @@ const USAGE = `goal-bench: the bench of the goal judge
       and writes the page <out>/<name>/report.md (default: the system's temporary directory)
       --config   a partial configuration merged over the baseline scheme (configs/final.json is the default one)
       --offline  answer from the kept replies only; a request that is not kept fails the run
+  show --case <parent>/<case> [--config <file.json>] [--ids <id>[,<id>…]]
+      print what one case asks the judge under a configuration, what the kept reply answered
+      and what the right answers are; sends nothing
   compare --name <comparison> --split <split>[,<split>…] --config <file.json> [--base <file.json>]
       [--key-file <file>] [--offline] [--max-cost <usd>] [--out <dir>]
       replay two configurations over the same cases and set them side by side;
@@ -187,6 +190,38 @@ async function run(flags: RunFlags): Promise<number> {
   }
 }
 
+type ShowFlags = Readonly<{ case?: string; config?: string; ids?: string }>
+
+/** What one case asks the judge under a configuration, with the kept answers and the right ones beside it. */
+function show(flags: ShowFlags): number {
+  const entry = loadParents()
+    .flatMap(casesOf)
+    .find(candidate => candidate.id === flags.case)
+  if (entry === undefined) {
+    console.error('show needs --case <parent>/<case>, as `validate` lists them')
+    return 2
+  }
+  const config = configOf(flags.config)
+  const cache = fileCache(
+    readdirSync(EXPERIMENTS).map(entry => join(EXPERIMENTS, entry, 'replies.jsonl')),
+  )
+  const wanted = flags.ids?.split(',')
+  const only = <T>(byId: Readonly<Record<string, T>>): Record<string, T> =>
+    Object.fromEntries(Object.entries(byId).filter(([id]) => wanted?.includes(id) ?? true))
+  const packed = packJudge(entry.material, config)
+  const shown = packed.requests.map(request => {
+    const kept = cache.get(requestKey({ ...request, model: config.model }, 0, 0))
+    return {
+      state: request.state,
+      questions: only(request.questions),
+      answers: kept === undefined ? 'no reply is kept for this request' : only(kept.answers),
+    }
+  })
+  const page = { case: entry.id, right: only(entry.expected.entries), requests: shown }
+  console.log(JSON.stringify(page, null, 2))
+  return 0
+}
+
 type CompareFlags = RunFlags & Readonly<{ base?: string }>
 
 /** Replays the base and the candidate over the same cases and keeps the two reports with the paired difference of their loss. */
@@ -226,11 +261,15 @@ async function compare(flags: CompareFlags): Promise<number> {
     ] as const
     const tallies = (replayed: Replayed) => talliesOf(replayed.outcomes.flatMap(graded))
     const paired = pairedLoss(tallies(base), tallies(candidate))
-    const kept = { base: reports[0], candidate: reports[1], paired }
+    const spreads = [
+      spreadOf(tallies(base), pairs(base.outcomes)),
+      spreadOf(tallies(candidate), pairs(candidate.outcomes)),
+    ] as const
+    const kept = { base: reports[0], candidate: reports[1], paired, spreads }
     writeFileSync(join(EXPERIMENTS, name, 'compare.json'), `${JSON.stringify(kept, null, 2)}\n`)
     const pages = join(flags.out ?? join(tmpdir(), 'goal-bench'), name)
     mkdirSync(pages, { recursive: true })
-    const page = `# ${name}\n\n${renderComparison(reports[0], reports[1], paired)}`
+    const page = `# ${name}\n\n${renderComparison(reports[0], reports[1], paired, spreads)}`
     writeFileSync(join(pages, 'compare.md'), page)
     console.log(page)
     return 0
@@ -255,6 +294,8 @@ async function main(): Promise<number> {
       'max-cost': { type: 'string' },
       out: { type: 'string' },
       base: { type: 'string' },
+      case: { type: 'string' },
+      ids: { type: 'string' },
     },
   })
   switch (positionals[0]) {
@@ -269,6 +310,8 @@ async function main(): Promise<number> {
       return run(values)
     case 'compare':
       return compare(values)
+    case 'show':
+      return show(values)
     default:
       console.error(USAGE)
       return 2

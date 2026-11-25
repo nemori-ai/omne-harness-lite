@@ -20,13 +20,19 @@ const rate = (errors: number, n: number): Rate => ({ errors, n, rate: n === 0 ? 
 const share = <T>(items: readonly T[], hit: (item: T) => boolean): Rate =>
   rate(items.filter(hit).length, items.length)
 
-export function wilsonUpper(errors: number, n: number, z = 1.959964): number {
-  if (n === 0) return 1
+export type Interval = Readonly<{ low: number; high: number }>
+
+export function wilson(errors: number, n: number, z = 1.959964): Interval {
+  if (n === 0) return { low: 0, high: 1 }
   const p = errors / n
   const centre = p + (z * z) / (2 * n)
   const spread = z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))
-  return (centre + spread) / (1 + (z * z) / n)
+  const scale = 1 + (z * z) / n
+  return { low: Math.max(0, (centre - spread) / scale), high: (centre + spread) / scale }
 }
+
+export const wilsonUpper = (errors: number, n: number, z = 1.959964): number =>
+  wilson(errors, n, z).high
 
 const judged = (entries: readonly Graded[]) =>
   entries.filter(entry => entry.kind === 'criterion' && entry.asked)

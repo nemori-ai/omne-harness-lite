@@ -2,9 +2,16 @@ import { fileURLToPath } from 'node:url'
 import { BASELINE_JUDGE_CONFIG, DEFAULT_JUDGE_CONFIG } from '@omne-harness/goal-contract'
 import { describe, expect, it } from 'vitest'
 import { configOf, overBaseline } from '../src/config.ts'
-import { pairedLoss, renderComparison, talliesOf, type Tallies } from '../src/compare.ts'
+import {
+  pairedLoss,
+  renderComparison,
+  spreadOf,
+  talliesOf,
+  type Spread,
+  type Tallies,
+} from '../src/compare.ts'
 import type { Report } from '../src/report.ts'
-import { WEIGHTS, type Graded } from '../src/score.ts'
+import { WEIGHTS, type Graded, type Pair } from '../src/score.ts'
 
 const tally = (entries: number, loss: number) => ({ entries, loss, notHolds: 0, falseHolds: 0 })
 
@@ -90,6 +97,55 @@ describe('what each parent came to in a run', () => {
   })
 })
 
+describe('how far one run’s numbers would move over other parents and other pairs', () => {
+  const pair = (family: Pair['family'], parent: boolean, child: boolean): Pair => ({
+    family,
+    parent,
+    child,
+  })
+
+  it('brackets the loss by resampling parents: two parents at 2 and 0 give 0, 1 or 2', () => {
+    const found = spreadOf({ a: tally(2, 4), b: tally(2, 0) }, [], { draws: 4000, seed: 3 })
+    expect(found.loss).toEqual({ low: 0, high: 2 })
+    expect(found.discrimination).toEqual({})
+  })
+  it('has no width where there is nothing to resample differently', () => {
+    const pairs = [pair('exit', false, true), pair('exit', false, true), pair('stale', true, true)]
+    const found = spreadOf({ a: tally(4, 2) }, pairs)
+    expect(found.loss).toEqual({ low: 0.5, high: 0.5 })
+    expect(found.discrimination).toEqual({
+      exit: { low: 1, high: 1 },
+      stale: { low: 0, high: 0 },
+    })
+  })
+  it('brackets each family by resampling its own pairs, not the others’', () => {
+    const pairs = [
+      pair('exit', false, true),
+      pair('exit', false, false),
+      pair('broken', true, true),
+      pair('broken', true, true),
+    ]
+    const found = spreadOf({ a: tally(1, 0) }, pairs, { draws: 4000, seed: 5 })
+    expect(found.discrimination.exit).toEqual({ low: 0, high: 1 })
+    expect(found.discrimination.broken).toEqual({ low: 0, high: 0 })
+  })
+  it('gives the same intervals for the same seed, around the value itself', () => {
+    const pairs = Array.from({ length: 21 }, (_unused, index) =>
+      pair('person-rule', index % 7 === 0, index % 5 !== 0),
+    )
+    const tallies: Tallies = { a: tally(3, 6), b: tally(2, 0), c: tally(5, 5), d: tally(4, 1) }
+    const one = spreadOf(tallies, pairs, { seed: 11 })
+    expect(spreadOf(tallies, pairs, { seed: 11 })).toEqual(one)
+    const value = 16 / 21 - 3 / 21
+    const found = one.discrimination['person-rule']!
+    expect(found.low).toBeLessThan(value)
+    expect(found.high).toBeGreaterThan(value)
+    expect(found.high - found.low).toBeLessThan(0.6)
+    expect(one.loss.low).toBeLessThan(12 / 14)
+    expect(one.loss.high).toBeGreaterThan(12 / 14)
+  })
+})
+
 describe('the page that sets two configurations side by side', () => {
   const rate = (errors: number, n: number) => ({ errors, n, rate: errors / n })
   const report = (change: { falseHolds: number; loss: number; exit: number }) =>
@@ -112,18 +168,32 @@ describe('the page that sets two configurations side by side', () => {
       cost: { requestsPerCase: 1, costPerCase: 0.0003 },
     }) as unknown as Report
 
-  it('gives each gate and each ranking number of both, and the paired difference with its interval', () => {
+  const spread = (low: number, high: number, from: number, to: number): Spread => ({
+    loss: { low, high },
+    discrimination: { exit: { low: from, high: to } },
+  })
+
+  it('gives each gate and each ranking number of both with its interval, and the paired difference', () => {
     const page = renderComparison(
       report({ falseHolds: 6, loss: 0.288, exit: 0.4 }),
       report({ falseHolds: 1, loss: 0.174, exit: 0.95 }),
       { difference: -0.114, low: -0.171, high: -0.062, parents: 16 },
+      [spread(0.2, 0.36, 0.2, 0.6), spread(0.12, 0.23, 0.86, 1)],
     )
     expect(page).toContain(
-      '| 误判成立率 | 4.5%（6/134），95% 上界 5.0% | 0.7%（1/134），95% 上界 5.0% |',
+      '| 误判成立率 | 4.5%（6/134），95% 区间 2.1% 到 9.4% | 0.7%（1/134），95% 区间 0.1% 到 4.1% |',
     )
-    expect(page).toContain('| 目标级的误收场率 | 4.0%（6/150） | 0.7%（1/150） |')
-    expect(page).toContain('| 成对的分辨力 · exit | 0.40（20 对） | 0.95（20 对） |')
-    expect(page).toContain('| 加权损失 | 0.288 | 0.174 |')
+    expect(page).toContain(
+      '| 目标级的误收场率 | 4.0%（6/150），95% 区间 1.8% 到 8.5% | 0.7%（1/150），95% 区间 0.1% 到 3.7% |',
+    )
+    expect(page).toContain(
+      '| 成对的分辨力 · exit | 0.40（20 对），95% 区间 0.20 到 0.60 | 0.95（20 对），95% 区间 0.86 到 1.00 |',
+    )
+    expect(page).toContain('| 漏放率 | 10.0%（10/100），95% 区间 5.5% 到 17.4% |')
+    expect(page).toContain('| 守则漏报率 | 6.7%（1/15），95% 区间 1.2% 到 29.8% |')
+    expect(page).toContain(
+      '| 加权损失 | 0.288，95% 区间 0.200 到 0.360 | 0.174，95% 区间 0.120 到 0.230 |',
+    )
     expect(page).toContain('最终减基线 −0.114，95% 区间 −0.171 到 −0.062（按 16 个母本重抽样）')
     expect(page).toContain('16 个母本，168 个用例')
   })
