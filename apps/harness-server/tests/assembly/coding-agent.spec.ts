@@ -65,6 +65,7 @@ describe('the coding entry of the release mapping', () => {
       { capability: { category: 'tool', name: 'Screen' }, resident: true },
       { capability: { category: 'tool', name: 'Skills' }, resident: true },
       { capability: { category: 'tool', name: 'Code' }, resident: true },
+      { capability: { category: 'skill', name: 'skill-authoring' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])
     expect(instructions.map(section => section.id)).toEqual([

@@ -91,9 +91,13 @@ async function another(tree: ReleaseTree, name: string): Promise<As> {
   return { tree: { ...tree, home, cli } as ReleaseTree, tenant: savedTenant(home) }
 }
 
-/** What the tool says of where the package is on this machine is the one thing that differs: the two are kept in different places. */
+/** Where the package is on this machine and which holding it is read from are what differ: the two are kept and versioned apart. */
 const withoutPlace = (results: readonly string[]) =>
-  results.map(text => text.replace(/^directory=.*$/gmu, 'directory=<place>'))
+  results.map(text =>
+    text
+      .replace(/^directory=.*$/gmu, 'directory=<place>')
+      .replace(/^source=\S+ version=\S+$/gmu, 'source=<holding>'),
+  )
 
 describe('a skill a plugin carries, on the release tree', () => {
   it(

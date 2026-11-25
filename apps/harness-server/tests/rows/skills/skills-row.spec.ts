@@ -14,6 +14,8 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { access, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { createSkillCatalog } from '@omne-harness/skill'
+import { createSkillDecisions, skillInputsFromAssets } from '@omne-harness/skill-host-local'
 import { capabilityId, createCategoryPoint } from '@omne-harness/assets'
 import { categoryContributionPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import { modelProviderCategoryPlugin } from '@omne-harness/model-host-local/cordis'
@@ -52,7 +54,9 @@ import {
   openTenantAssets,
   TenantAssetsHost,
 } from '../../../src/rows/tenant-assets/host.ts'
+import { tenantLayers } from '../../../src/rows/tenant-assets/layers.ts'
 import { createBoundSkills } from '../../../src/rows/tool-bindings/skills.ts'
+import { countedStorage } from '../../skills/world.ts'
 import { productionStorageCatalog } from '../../../src/rows/storage/production-catalog.ts'
 import { governanceStorageCombinations } from '../../../src/rows/governance/storage-combinations.ts'
 import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
@@ -144,8 +148,9 @@ async function world() {
     modelProviderCategoryPlugin,
     skillCategoryPlugin,
   ])
+  const counter = countedStorage(made.storage)
   const store = {
-    storage: made.storage,
+    storage: counter.storage,
     materials,
     packageRoot,
     categories,
@@ -162,7 +167,15 @@ async function world() {
       const assets = await tenantAssets.open(tenantRef)
       return assets === undefined
         ? undefined
-        : tenantSkills(assets, tenant, ranking, NO_WORKSPACE, sourcesOf(tenantRef), NO_OFFICIAL)
+        : tenantSkills(
+            assets,
+            tenant,
+            ranking,
+            NO_WORKSPACE,
+            sourcesOf(tenantRef),
+            NO_OFFICIAL,
+            category => registry.held.namesOf(tenantRef, category),
+          )
     },
   })
   cleanups.push(() => host.close())
@@ -177,6 +190,7 @@ async function world() {
       readWork: readWorkNowhere,
       catalog: () => routed.catalog,
       access: () => routed.access,
+      missingTools: async () => new Set(),
     })
   }
   // These helpers publish through a second store of the same domain; the release has one, which tells on its own.
@@ -223,6 +237,28 @@ async function world() {
       commands: [assetsSettingsProjectionCommand(binding, { excluded })],
     })
   }
+  const refOf = (tenant: TenantId) => {
+    const encoded = tenantCodec.encode(tenant)
+    if (!encoded.ok) throw new Error('tenant')
+    return encoded.value
+  }
+  const openedOf = async (tenant: TenantId) => {
+    const opened = await tenantAssets.open(refOf(tenant))
+    if (opened === undefined) throw new Error('the local assets did not open')
+    return opened
+  }
+  const workOf = (tenant: TenantId) =>
+    access(
+      okOf(sessionWorkIssuerOf(fixture.env)({ tenant, session: 'compared' }), 'principal'),
+      tenant,
+    )
+  let operations = 0
+  const ops = () => `op-${String((operations += 1))}`
+  const asCapability = (name: string) => {
+    const made = capabilityId('skill', name)
+    if (!made.ok) throw new Error(name)
+    return made.id
+  }
   const assets = governanceStorageCombinations(materials).assets
   return {
     capture,
@@ -266,6 +302,50 @@ async function world() {
     breakLookup: () => {
       lookupDown = true
     },
+    reads: counter.reads,
+    work: workOf,
+    /** The catalog of a tenant computed from the ledger at every call, with nothing kept: the reference. */
+    async fresh(tenant: TenantId) {
+      const layer = tenantLayers(
+        await openedOf(tenant),
+        sourcesOf(refOf(tenant)),
+        () => undefined,
+        NO_OFFICIAL.assets,
+      )
+      const decisions = createSkillDecisions<unknown, unknown>({
+        ...skillInputsFromAssets(layer),
+        eligible: async () => 'yes',
+        readable: async () => ({ kind: 'granted' }),
+      })
+      return createSkillCatalog(decisions, { ranking })
+    },
+    async publishAs(tenant: TenantId, name: string, description: string) {
+      const dir = await writeSampleSkill(join(root, 'sources', ops()), name, description)
+      const published = await createTenantPublisher(await openedOf(tenant), refOf(tenant)).publish({
+        operationId: ops(),
+        capability: asCapability(name),
+        content: { kind: 'directory', from: directoryReader(dir) },
+      })
+      if (published.kind !== 'published') throw new Error(JSON.stringify(published))
+    },
+    async change(
+      tenant: TenantId,
+      name: string,
+      change: { kind: 'remove' } | { kind: 'setEnabled'; enabled: boolean },
+    ) {
+      const opened = await openedOf(tenant)
+      const held = await opened.readHeldCapability({ capability: asCapability(name) })
+      if (held.kind !== 'holding') throw new Error(JSON.stringify(held))
+      const changed = await opened.changeHolding({
+        operationId: ops(),
+        holdingRef: held.holding.holdingRef,
+        scopeRef: refOf(tenant),
+        expectedRevision: held.holding.revision,
+        change,
+      })
+      if (changed.kind !== 'committed') throw new Error(JSON.stringify(changed))
+    },
+    betaTenant: beta,
     alphaTenant: alpha,
     alphaRoot: domainRoot(packageRoot, domainOf(alpha, 'tenant-alpha')),
     routed,
@@ -440,10 +520,9 @@ describe('the skills row and the Skills binding over a real store', () => {
     })
   })
 
-  it('answers unavailable when the store cannot be read', async () => {
+  it('answers unavailable when a Skill has to be read and the store cannot be read', async () => {
     const w = await world()
     await w.publish('weekly-report')
-    expect(await search(w.alpha, '')).toHaveProperty('ok')
     await w.storage.control.close({ initiator: 'disposal' })
     expect(await search(w.alpha, '')).toMatchObject({ failure: { kind: 'unavailable' } })
   })
@@ -473,5 +552,64 @@ describe('the skills row and the Skills binding over a real store', () => {
     )
     expect(everything.kind).toBe('rolled_back')
     expect(JSON.stringify(everything)).toContain('limit_exceeded')
+  })
+
+  it('reads nothing from storage for a search while what the tenants hold stays the same (C1, C2)', async () => {
+    const w = await world()
+    await w.publishMany(['skill-0', 'skill-1', 'skill-2'])
+    const first = await search(w.alpha, '')
+    expect(first).toMatchObject({ ok: { entries: [{}, {}, {}] } })
+    const before = w.reads()
+    expect(await search(w.alpha, '')).toEqual(first)
+    expect(w.reads() - before).toBe(0)
+    await w.publishAs(w.betaTenant, 'skill-0', 'Only the other tenant holds this one.')
+    const after = w.reads()
+    expect(await search(w.alpha, '')).toEqual(first)
+    expect(w.reads() - after).toBe(0)
+  })
+
+  it('reads ahead when told the registry changed, so the next search reads nothing from storage', async () => {
+    const w = await world()
+    await w.publishMany(['skill-0', 'skill-1'])
+    await search(w.alpha, '')
+    await w.publish('skill-2')
+    await w.host.warm()
+    const before = w.reads()
+    expect(await search(w.alpha, '')).toMatchObject({ ok: { entries: [{}, {}, {}] } })
+    expect(w.reads() - before).toBe(0)
+  })
+
+  it('answers every search and summary as the catalog computed from the ledger does, through publish, a new version, disable, enable and removal of two tenants (I5)', async () => {
+    const w = await world()
+    const tenants = [w.alphaTenant, w.betaTenant] as const
+    const queries = ['', 'notes', 'weekly', '周报']
+    const same = async (step: string) => {
+      for (const tenant of tenants) {
+        const asker = w.work(tenant)
+        const fresh = await w.fresh(tenant)
+        const answers = async (catalog: typeof fresh) => ({
+          summaries: await catalog.summaries(asker, null),
+          searches: await Promise.all(queries.map(text => catalog.search(asker, null, { text }))),
+        })
+        const expected = await answers(fresh)
+        expect(expected.summaries, step).toHaveProperty('ok')
+        expect(await answers(w.routed.catalog), step).toEqual(expected)
+      }
+    }
+    await same('nothing held')
+    await w.publishAs(w.alphaTenant, 'shared', 'Weekly notes of alpha.')
+    await w.publishAs(w.betaTenant, 'shared', 'Weekly notes of beta.')
+    await w.publishAs(w.alphaTenant, 'alpha-only', '生成周报：alpha 的周报。')
+    await same('published')
+    await w.publishAs(w.alphaTenant, 'shared', 'A second version of the notes.')
+    await same('a new version')
+    await w.change(w.betaTenant, 'shared', { kind: 'setEnabled', enabled: false })
+    await same('disabled')
+    await w.change(w.alphaTenant, 'alpha-only', { kind: 'setEnabled', enabled: false })
+    await w.change(w.alphaTenant, 'alpha-only', { kind: 'setEnabled', enabled: true })
+    await same('enabled again')
+    await w.change(w.betaTenant, 'shared', { kind: 'setEnabled', enabled: true })
+    await w.change(w.alphaTenant, 'shared', { kind: 'remove' })
+    await same('removed')
   })
 })
