@@ -58,19 +58,12 @@ export function runnableText(schedule: Pick<ScheduleCard, 'control' | 'standing'
   return '不会再运行'
 }
 
-const UNPLANNED: Readonly<Record<ScheduleCard['control'], string | undefined>> = {
-  active: undefined,
-  draft: '草稿还没生效，不会到点。',
-  paused: '暂停中，恢复之前不会到点。',
-  stopped: '已停止，不会再到点。',
-  exhausted: '已到期，不会再到点。',
-  discarded: '已丢弃，不会再到点。',
-  superseded: '已被取代，不会再到点。',
-}
-
 /** Why a schedule has no planned times; one in effect has them, so nothing to say. */
 export function unplannedText(control: ScheduleCard['control']): string | undefined {
-  return UNPLANNED[control]
+  if (control === 'active') return undefined
+  if (control === 'draft') return '草稿还没生效，不会到点。'
+  if (control === 'paused') return '暂停中，恢复之前不会到点。'
+  return `${CONTROL_WORDS[control]}，不会再到点。`
 }
 
 /** The calendar and version an upcoming time's working days came from; none when its days need no calendar. */
