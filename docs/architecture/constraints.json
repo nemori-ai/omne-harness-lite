@@ -1586,6 +1586,14 @@
       "source": "packages/goal/SPEC.md"
     },
     {
+      "id": "packages/goal/goal-command",
+      "paths": ["packages/goal/goal-command/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
       "id": "packages/canvas/canvas-contract",
       "paths": [
         "packages/canvas/canvas-contract/src/**"
@@ -2628,7 +2636,8 @@
         "packages/goal/goal-cordis-contract",
         "packages/goal/goal-local",
         "packages/goal/goal-session",
-        "packages/goal/goal-tools"
+        "packages/goal/goal-tools",
+        "packages/goal/goal-command"
       ],
       "source": "packages/goal/SPEC.md"
     },
@@ -2688,7 +2697,8 @@
         "packages/goal/goal-cordis-contract",
         "packages/goal/goal-local",
         "packages/goal/goal-session",
-        "packages/goal/goal-tools"
+        "packages/goal/goal-tools",
+        "packages/goal/goal-command"
       ],
       "source": "packages/goal/SPEC.md"
     },

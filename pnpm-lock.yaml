@@ -820,6 +820,9 @@ importers:
       '@omne-harness/goal':
         specifier: workspace:*
         version: link:../../packages/goal/goal
+      '@omne-harness/goal-command':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-command
       '@omne-harness/goal-contract':
         specifier: workspace:*
         version: link:../../packages/goal/goal-contract
@@ -3649,6 +3652,34 @@ importers:
         specifier: workspace:*
         version: link:../goal-contract
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-command:
+    dependencies:
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../../slash-command/slash-command-contract
+    devDependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/slash-command':
+        specifier: workspace:*
+        version: link:../../slash-command/slash-command
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

@@ -481,6 +481,11 @@
       "config": {}
     },
     {
+      "id": "goal-command",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "canvas",
       "plugin": "stubPlugin",
       "config": {}

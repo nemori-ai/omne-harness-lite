@@ -97,6 +97,7 @@
     "dispatch-tool",
     "goal",
     "goal-session",
+    "goal-command",
     "canvas",
     "session-canvas",
     "media-canvas",

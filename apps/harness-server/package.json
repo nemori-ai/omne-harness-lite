@@ -85,6 +85,7 @@
     "@omne-harness/execution-environment-host-local": "workspace:*",
     "@omne-harness/execution-environment-program": "workspace:*",
     "@omne-harness/goal": "workspace:*",
+    "@omne-harness/goal-command": "workspace:*",
     "@omne-harness/goal-contract": "workspace:*",
     "@omne-harness/goal-cordis-contract": "workspace:*",
     "@omne-harness/goal-local": "workspace:*",
