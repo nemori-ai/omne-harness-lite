@@ -140,7 +140,7 @@ import {
   slotOf,
   refusedTool,
   toolCall,
-  unsent,
+  sendable,
   preserveAllowed,
   associationOf,
 } from './tools.ts'
@@ -2090,7 +2090,7 @@ function coordinate<P>(
       const slotted = await slotDeniedAtJudgment(currentBatch())
       if ('failure' in slotted) return slotted
       let { batch, progressed } = slotted.ok
-      for (const original of unsent(batch, unacceptedToolActions)) {
+      for (const original of sendable(batch, unacceptedToolActions)) {
         const sent = await sendAction(batch, original)
         if ('failure' in sent) return sent
         if (sent.ok.unavailable !== undefined) return waitFor('A2', sent.ok.unavailable, null)
@@ -2099,7 +2099,7 @@ function coordinate<P>(
       }
       if (progressed) return step('dispatched')
       const idle = !batch.slots.some(slot => slot.kind === 'dispatched')
-      if (idle && unsent(batch, unacceptedToolActions).length > 0) return toolWait('A2', batch)
+      if (idle && sendable(batch, unacceptedToolActions).length > 0) return toolWait('A2', batch)
       return step('dispatched', null)
     },
     async T0() {
@@ -2160,7 +2160,7 @@ function coordinate<P>(
       })
       if (complete)
         return step(batch.slots.some(slot => slot.kind !== 'denied') ? 'batch' : 'admit', null)
-      if (unsent(batch, unacceptedToolActions).length > 0) return step('dispatch', null)
+      if (sendable(batch, unacceptedToolActions).length > 0) return step('dispatch', null)
       const received = await anyToolReceived(ports, access, execution, batch)
       if ('failure' in received) return received
       return received.ok ? step('received', null) : toolWait('T3', batch)

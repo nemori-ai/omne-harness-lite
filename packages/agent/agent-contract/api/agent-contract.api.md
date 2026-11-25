@@ -985,6 +985,7 @@ export type ActionJudgment = Readonly<{
     evidence: DurableEvidence;
     request: DurableEvidence;
     notice?: string;
+    concurrent?: true;
 }>;
 export type ActionToolCall = ToolCallPart;
 export type Action = Readonly<{

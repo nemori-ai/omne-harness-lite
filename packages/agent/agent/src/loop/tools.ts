@@ -114,6 +114,7 @@ export type ToolAdmission =
       evidence: DurableEvidence
       request: ToolInvokeRequest
       notice?: string
+      concurrent?: true
     }>
   | Readonly<{ kind: 'asked'; action: Action; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
@@ -136,6 +137,9 @@ function notAnswered(owner: string, failure: Failure): Outcome<ToolAdmission, Fa
 
 const noticed = (notice: string | undefined): Readonly<{ notice?: string }> =>
   notice === undefined ? {} : { notice }
+
+const beside = (concurrent: boolean | undefined): Readonly<{ concurrent?: true }> =>
+  concurrent === true ? { concurrent: true } : {}
 
 function notAllowed(
   action: Action,
@@ -193,6 +197,7 @@ export async function admitToolAction<P>(
   if (described.ok.kind === 'answered')
     return answered(ports, access, execution, action, described.ok.text)
   const definition = described.ok.definition.adoption
+  const { concurrent } = described.ok
   const admitted = await ports.admission.admit({
     ...input,
     advance,
@@ -214,6 +219,7 @@ export async function admitToolAction<P>(
     evidence: admitted.ok.evidence,
     request: request.ok,
     ...noticed(admitted.ok.notice),
+    ...beside(concurrent),
   })
 }
 
@@ -262,7 +268,13 @@ export async function preserveAllowedRequest<P>(
   if ('failure' in stored) return stored
   return succeed({
     ...action,
-    judgment: { kind: 'allowed', evidence, request: stored.ok, ...noticed(allowed.notice) },
+    judgment: {
+      kind: 'allowed',
+      evidence,
+      request: stored.ok,
+      ...noticed(allowed.notice),
+      ...beside(allowed.concurrent),
+    },
   })
 }
 
@@ -401,12 +413,21 @@ export function toolCall(action: Action): AssociatedToolCall | null {
   return pending?.kind === 'tool' && pending.association === 'associated' ? pending : null
 }
 
-export function unsent(batch: ActionBatch, unaccepted: ReadonlySet<ActionId>): readonly Action[] {
-  return batch.actions.filter(action => {
-    if (action.judgment.kind !== 'allowed') return false
+/** The allowed actions to send now, in order: each goes once every allowed action before it has its slot filled or runs beside it (AG-33). */
+export function sendable(batch: ActionBatch, unaccepted: ReadonlySet<ActionId>): readonly Action[] {
+  const ready: Action[] = []
+  let open: 'none' | 'beside' | 'alone' = 'none'
+  for (const action of batch.actions) {
+    if (action.judgment.kind !== 'allowed') continue
     const slot = slotOf(batch, action.id)
-    return slot === undefined || (slot.kind === 'dispatched' && unaccepted.has(action.id))
-  })
+    if (slot !== undefined && slot.kind !== 'dispatched') continue
+    const together = action.judgment.concurrent === true
+    const unsent = slot === undefined || unaccepted.has(action.id)
+    if (unsent && (open === 'none' || (together && open === 'beside'))) ready.push(action)
+    if (!together) break
+    open = 'beside'
+  }
+  return ready
 }
 
 export function openToolCalls(batch: ActionBatch): readonly PendingCall[] {

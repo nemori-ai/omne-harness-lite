@@ -166,6 +166,8 @@ export type ActionJudgment =
       evidence: DurableEvidence
       request: DurableEvidence
       notice?: string
+      /** The action may run beside the other actions of its batch that carry this mark too. */
+      concurrent?: true
     }>
 export type ActionToolCall = ToolCallPart
 export type Action = Readonly<{

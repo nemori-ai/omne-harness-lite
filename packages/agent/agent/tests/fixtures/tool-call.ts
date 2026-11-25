@@ -84,8 +84,10 @@ export async function toolAssembly(
   wrap: NonNullable<Parameters<typeof controlAssembly>[1]> = dependencies => dependencies,
 ) {
   const source: ToolRequests = {
+    // read_file changes nothing: its calls may run beside each other (AG-33), so a batch of them is out together.
     async describe() {
-      return { ok: { kind: 'tool', definition: testToolDefinition(adoption('read_file')) } }
+      const definition = testToolDefinition(adoption('read_file'))
+      return { ok: { kind: 'tool', definition, concurrent: true } }
     },
     async prepare(input) {
       return { ok: fixedToolRequest(input.consumer) }
