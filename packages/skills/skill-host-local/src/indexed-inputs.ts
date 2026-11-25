@@ -27,14 +27,14 @@ export function indexedInputs<P, S>(
   held: () => HeldNames | undefined,
 ): ListedInputs<P, S> {
   const kept = new Map<string, Kept>()
-  const keep = (name: string, now: HeldNames, digest: string, read: Kept['layers']) => {
+  const keep = (name: string, at: unknown, digest: string, read: Kept['layers']) => {
     const entry: Kept = { digest, layers: read }
     kept.set(name, entry)
     const forget = () => {
       if (kept.get(name) === entry) kept.delete(name)
     }
     read.then(layers => {
-      if (layers.some(layer => layer.state === 'unavailable') || held()?.at !== now.at) forget()
+      if (layers.some(layer => layer.state === 'unavailable') || held()?.at !== at) forget()
     }, forget)
     return read
   }
@@ -47,11 +47,12 @@ export function indexedInputs<P, S>(
     },
     layers(access: Access<P>, scope: S, capability: CapabilityId) {
       const now = held()
-      const digest = now?.names.get(capability.name)
-      if (now === undefined || digest === undefined) return inner.layers(access, scope, capability)
+      if (now === undefined) return inner.layers(access, scope, capability)
+      const digest = now.names.get(capability.name)
+      if (digest === undefined) return inner.layers(access, scope, capability)
       const known = kept.get(capability.name)
       if (known?.digest === digest) return known.layers
-      return keep(capability.name, now, digest, inner.layers(access, scope, capability))
+      return keep(capability.name, now.at, digest, inner.layers(access, scope, capability))
     },
   }
 }
@@ -75,7 +76,7 @@ export function stackedInputs<P, S>(
       ])
       if (!('ok' in below) || !('ok' in above)) return UNKNOWN
       const named = new Map(below.ok.map(each => [each.name, each]))
-      for (const each of above.ok) if (!named.has(each.name)) named.set(each.name, each)
+      for (const each of above.ok) named.set(each.name, each)
       return succeed([...named.values()])
     },
   }

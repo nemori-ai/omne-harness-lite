@@ -67,4 +67,20 @@ describe('the search corpus is built once for the same documents', () => {
     expect(await search('plover')).toEqual({ ok: [] })
     expect(built.corpora).toBeGreaterThan(before)
   })
+
+  it('keeps sixteen corpora and lets the least recently used one go', async () => {
+    let description = ''
+    const search = catalogOver(() => description)
+    const searchWith = async (text: string) => {
+      description = text
+      const before = built.corpora
+      await search('')
+      return built.corpora - before
+    }
+    for (let index = 0; index < 16; index += 1) await searchWith(`set ${String(index)}`)
+    expect(await searchWith('set 0')).toBe(0)
+    expect(await searchWith('set 16')).toBe(1)
+    expect(await searchWith('set 0')).toBe(0)
+    expect(await searchWith('set 1')).toBe(1)
+  })
 })

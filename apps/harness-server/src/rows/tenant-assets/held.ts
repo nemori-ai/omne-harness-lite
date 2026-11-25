@@ -93,6 +93,17 @@ export function heldOnRegistry(
       throw error
     }
   }
+  const toldOf = (tenant: string, category: string): Kept | undefined => {
+    const state = kept.get(tenant)
+    return state === undefined || state.stale || state.waiting.has(category) ? undefined : state
+  }
+  const pointOf = (category: string): Readonly<{ registry: Registry; point: string }> | undefined => {
+    const listing = categories().view.describe(category)
+    const now = registry()
+    return now === undefined || listing === undefined || !('point' in listing)
+      ? undefined
+      : { registry: now, point: listing.point }
+  }
   return {
     heldOf(tenant) {
       const state: Kept = {
@@ -118,19 +129,16 @@ export function heldOnRegistry(
       registrySources(
         {
           held: (capability, ref) => categories().held(capability, ref),
-          current(ref, capability: CapabilityId) {
-            const state = kept.get(ref)
-            return state !== undefined && !state.stale && !state.waiting.has(capability.category)
-          },
+          current: (ref, capability: CapabilityId) =>
+            toldOf(ref, capability.category) !== undefined,
           async listing(ref) {
             const assets = await open(ref)
             return assets === undefined ? undefined : tenantListing(assets)
           },
           placed(category, ref) {
-            const listing = categories().view.describe(category)
-            const now = registry()
-            if (now === undefined || listing === undefined || !('point' in listing)) return []
-            const read = list<HeldItem>(now, listing.point, null, scopeOfLayer('tenant', ref))
+            const at = pointOf(category)
+            if (at === undefined) return []
+            const read = list<HeldItem>(at.registry, at.point, null, scopeOfLayer('tenant', ref))
             if (read.kind !== 'read') return []
             return read.items.flatMap(({ entry }) => placedEntry(category, ref, entry))
           },
@@ -138,16 +146,15 @@ export function heldOnRegistry(
         tenantRef,
       ),
     namesOf(tenant, category) {
-      const state = kept.get(tenant)
-      if (state === undefined || state.stale || state.waiting.has(category)) return undefined
-      const now = registry()
-      const listing = categories().view.describe(category)
-      if (now === undefined || listing === undefined || !('point' in listing)) return undefined
+      const state = toldOf(tenant, category)
+      const at = pointOf(category)
+      if (state === undefined || at === undefined) return undefined
       const last = state.names.get(category)
-      if (last?.at === now) return last
-      const read = candidates<HeldItem>(now, listing.point, null, scopeOfLayer('tenant', tenant))
+      if (last?.at === at.registry) return last
+      const scope = scopeOfLayer('tenant', tenant)
+      const read = candidates<HeldItem>(at.registry, at.point, null, scope)
       if (read.kind !== 'read') return undefined
-      const named = namesIn(listing.point, now, read.entries)
+      const named = namesIn(at.point, at.registry, read.entries)
       state.names.set(category, named)
       return named
     },

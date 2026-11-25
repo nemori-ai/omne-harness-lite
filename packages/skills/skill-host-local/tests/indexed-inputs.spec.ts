@@ -6,6 +6,7 @@ import {
   indexedInputs,
   stackedInputs,
   type HeldNames,
+  type LayerInputs,
   type SkillCandidate,
   type SkillLayerInput,
 } from '@omne-harness/skill-host-local'
@@ -59,15 +60,13 @@ function registry(names: Readonly<Record<string, string>>): { held: HeldNames | 
 /** Layer reads that count themselves and answer what `answer` gives at the time of each read. */
 function counted(answer: () => readonly SkillLayerInput[] | Promise<readonly SkillLayerInput[]>) {
   const asked: string[] = []
-  return {
-    asked,
-    inputs: {
-      async layers(_access: unknown, _scope: unknown, capability: CapabilityId) {
-        asked.push(capability.name)
-        return answer()
-      },
+  const inputs: LayerInputs<unknown, unknown> = {
+    async layers(_access, _scope, capability) {
+      asked.push(capability.name)
+      return answer()
     },
   }
+  return { asked, inputs }
 }
 
 describe('the layers of the official and the tenant layer, kept while what is held stays the same', () => {
@@ -173,19 +172,57 @@ describe('the layers of the official and the tenant layer, kept while what is he
     expect(inner.asked).toHaveLength(2)
   })
 
-  it('lists every name held on the registry as a Skill, and forgets the layers of a name no longer held', async () => {
+  it('lists every name held on the registry as a Skill, and forgets the layers of a name no longer held, and only those', async () => {
+    const notes = id('daily-notes')
     const now = registry({ 'weekly-report': 'v1', 'daily-notes': 'v1' })
     const inner = counted(() => read('v1'))
     const index = indexedInputs(inner.inputs, () => now.held)
-    expect(await index.identities(reader, scope)).toEqual({
-      ok: [id('weekly-report'), id('daily-notes')],
-    })
+    expect(await index.identities(reader, scope)).toEqual({ ok: [report, notes] })
     await index.layers(reader, scope, report)
+    await index.layers(reader, scope, notes)
     now.held = registry({ 'daily-notes': 'v1' }).held
-    expect(await index.identities(reader, scope)).toEqual({ ok: [id('daily-notes')] })
+    expect(await index.identities(reader, scope)).toEqual({ ok: [notes] })
     now.held = registry({ 'weekly-report': 'v1', 'daily-notes': 'v1' }).held
     await index.layers(reader, scope, report)
-    expect(inner.asked).toEqual(['weekly-report', 'weekly-report'])
+    await index.layers(reader, scope, notes)
+    expect(inner.asked).toEqual(['weekly-report', 'daily-notes', 'weekly-report'])
+  })
+
+  it('keeps nothing read while what the tenant holds stopped being on the registry', async () => {
+    const now = registry({ 'weekly-report': 'v1' })
+    const told = now.held
+    const inner = counted(() => {
+      if (inner.asked.length === 1) now.held = undefined
+      return read('v1')
+    })
+    const index = indexedInputs(inner.inputs, () => now.held)
+    await index.layers(reader, scope, report)
+    now.held = told
+    await index.layers(reader, scope, report)
+    expect(inner.asked).toHaveLength(2)
+  })
+
+  it('does not let a read of an older digest that ends late forget the read of the newer one', async () => {
+    const now = registry({ 'weekly-report': 'v1' })
+    let release = (): void => undefined
+    const late = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const inner = counted(async () => {
+      if (inner.asked.length === 1) {
+        await late
+        return UNREAD
+      }
+      return read('v2')
+    })
+    const index = indexedInputs(inner.inputs, () => now.held)
+    const older = index.layers(reader, scope, report)
+    now.held = registry({ 'weekly-report': 'v2' }).held
+    await index.layers(reader, scope, report)
+    release()
+    await older
+    expect(await index.layers(reader, scope, report)).toEqual(read('v2'))
+    expect(inner.asked).toHaveLength(2)
   })
 })
 

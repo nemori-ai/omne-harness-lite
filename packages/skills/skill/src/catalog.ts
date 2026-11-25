@@ -99,8 +99,10 @@ function corpora(): (entries: readonly CatalogEntry[]) => Corpus {
     const known = kept.get(key) ?? buildCorpus(documents)
     kept.delete(key)
     kept.set(key, known)
-    const [oldest] = kept.keys()
-    if (kept.size > CORPORA_KEPT && oldest !== undefined) kept.delete(oldest)
+    for (const oldest of kept.keys()) {
+      if (kept.size <= CORPORA_KEPT) break
+      kept.delete(oldest)
+    }
     return known
   }
 }
