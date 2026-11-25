@@ -448,6 +448,13 @@ it('refuses to assemble an official profile that breaks the profile rules, namin
   expect(() =>
     createOfficialProfileSource({ definitions: [{ ...bad, limits: [] }], updatedAt: UPDATED_AT }),
   ).toThrow('the official profile lab/no-image-limit breaks the profile rules: limits.image-bytes')
+  const context = { ...bad.context, compactionTriggerPercent: '0' }
+  expect(() =>
+    createOfficialProfileSource({
+      definitions: [{ ...bad, context, limits: [] }],
+      updatedAt: UPDATED_AT,
+    }),
+  ).toThrow('rules: context.compactionTriggerPercent, limits.image-bytes')
   expect(() =>
     createOfficialProfileSource({
       definitions: [
