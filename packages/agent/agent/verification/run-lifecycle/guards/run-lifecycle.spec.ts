@@ -119,7 +119,7 @@ async function refusing(node: (typeof NODES)[number], reports: AgentRunFailed[])
 
 describe('RunLifecycle guard P3: a refused commit is never silent', () => {
   it.each(CLOSING)(
-    'the Journal refuses the commit of %s: the drive stops visibly, once',
+    'the Journal refuses the commit of %s: the drive stops visibly, once, and gives the slot back',
     async node => {
       const reports: AgentRunFailed[] = []
       const assembly = await refusing(node, reports)
@@ -128,7 +128,8 @@ describe('RunLifecycle guard P3: a refused commit is never silent', () => {
       for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setTimeout(resolve, 0))
       expect(reports).toHaveLength(1)
       expect(reports[0]).toMatchObject({ kind: 'run-failed', node, failure: JOURNAL_REFUSED })
-      expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: handle.execution })
+      expect(reports[0]?.execution).toBe(handle.execution)
+      await eventually(async () => (await shown(assembly)).kind === 'idle')
       const answer = ok(
         await assembly.provider.control.quiesce({
           ...alice,
@@ -136,7 +137,7 @@ describe('RunLifecycle guard P3: a refused commit is never silent', () => {
           reason: evidence('stop'),
         }),
       )
-      expect(answer).toMatchObject({ kind: 'unresolved', remaining: [handle.execution] })
+      expect(answer).toMatchObject({ kind: 'drained', remaining: [] })
     },
   )
 

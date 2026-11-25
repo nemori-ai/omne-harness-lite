@@ -12,6 +12,7 @@ import {
   type AgentClock,
   type AgentExecutionId,
   type AgentInstanceId,
+  type DurableEvidence,
   type AgentJournal,
   type AgentJournalEntries,
   type AgentJournalEntry,
@@ -265,6 +266,8 @@ export type QuiesceScript = 'drained' | 'unresolved' | 'hang' | 'throw' | 'drain
 
 export type WorldOptions = Readonly<{
   factory?: 'plain' | 'duties'
+  /** The assembly's proof source for an instance this host does not run. */
+  lostContact?: (instance: AgentInstanceId) => DurableEvidence | null
   omit?: Injected
   config?: unknown
   plugin?: AgentHostPlugin
@@ -444,7 +447,12 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
       ? withRuntimeDuties({ handles, quiesced, quiesceAnswers })
       : (deps, opts, extras) => createAgentRuntime(deps, opts, extras)
   const configured = 'config' in options
-  const plugin = options.plugin ?? createAgentHostPlugin(factory)
+  const plugin =
+    options.plugin ??
+    createAgentHostPlugin(
+      factory,
+      options.lostContact === undefined ? {} : { lostContact: options.lostContact },
+    )
   const host = root.plugin(plugin, (configured ? options.config : hostConfig) as AgentHostConfig)
   host.then(undefined, () => undefined)
   const directoryFiber = root.plugin(agentInstancesPlugin)

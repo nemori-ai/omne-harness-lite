@@ -167,6 +167,12 @@ describe('边界', () => {
         cursor: () => ({ x: 0, y: 0 }),
         screenAt: () => ({ x: 0, y: 0, width: 1, height: 1 }),
         every: () => () => {},
+        windows: {
+          backend: async () => undefined,
+          requestAccess: async () => {},
+          ownPid: 1,
+          now: () => 0,
+        },
       }).route,
       deviceScreenRoute({
         backend: async () => undefined,

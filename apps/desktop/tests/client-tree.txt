@@ -28,6 +28,8 @@ system
           human-intervention-ui#1  [effective]
         identity.account-preferences
           identity-ui#1  [effective]
+        media.picture-intake
+          media-ui#1  [effective]
         model.choices
           model-ui#1  [effective]
         notification.entry
@@ -172,6 +174,9 @@ system
     identity
       identity.account-preferences  [one]
         identity-ui#1  [effective]
+    media
+      media.picture-intake  [one]
+        media-ui#1  [effective]
     model
       model.choices  [one]
         model-ui#1  [effective]
@@ -549,7 +554,7 @@ system
         workspace.register
           workspace-ui#1  [effective]
       shell.piece  [keyed-one]
-      shell.say  [one, build]
+      shell.say  [one, build, v1.2]
         session-ui#1  [effective]
       shell.sidebar  [list, build]
         session-list  [effective, session-ui#1]

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { DeskPage, type DeskDeps } from '../src/page/desk/desk.tsx'
 import type { Down, Rect, Scene, Up } from '../src/page/desk/scene.ts'
@@ -15,6 +15,7 @@ function scene(lease: number, serial: number, where: Scene['where'], more?: Part
     where,
     label: null,
     note: null,
+    frame: null,
     ...more,
   }
 }
@@ -345,5 +346,185 @@ describe('桌面层的页面：说话笺', () => {
     } finally {
       HTMLElement.prototype.getBoundingClientRect = measured
     }
+  })
+})
+
+describe('桌面层的页面：观测框与按着 ⌘ 的签', () => {
+  const hand = { mode: 'hand', at: { x: 1100, y: 200 } } as const
+  const frame = {
+    rect: { x: 1100, y: 100, width: 400, height: 300 },
+    covered: [{ x: 1400, y: 80, width: 200, height: 100 }],
+    closed: false,
+  }
+  const frames = () => [...document.querySelectorAll<SVGSVGElement>('.omne-observation-frame')]
+
+  it('照一幕画观测框：矩形从屏幕上的点换成视口里的点；它不进 hot', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(9, 1, hand, { frame }) })
+    expect(frames().map(svg => svg.getAttribute('viewBox'))).toEqual(['92 92 416 316'])
+    expect(page.hot.at(-1)?.[1]).toHaveLength(1)
+  })
+
+  it('一幕不画形时不画框', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(9, 1, { mode: 'none' }, { frame }) })
+    expect(frames()).toEqual([])
+  })
+
+  it('按着 ⇧ 时框合口，签的「松手直接发送」一行用提示色', () => {
+    const page = desk()
+    const label = [{ text: 'Safari · 报错' }, { text: '松手直接发送', tone: 'hint' as const }]
+    page.send({
+      kind: 'scene',
+      scene: scene(9, 1, hand, { frame: { ...frame, closed: true }, label }),
+    })
+    expect(frames()[0]?.dataset['closed']).toBe('true')
+    const hint = document.querySelector<HTMLElement>(".omne-figure-label-line[data-tone='hint']")
+    expect(hint?.textContent).toBe('松手直接发送')
+    expect(page.view.container.textContent).toContain('Safari · 报错')
+  })
+
+  it('按着 ⌘ 与 ⇧ 时修饰键随拿起与松手报给外壳', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(6, 1, { mode: 'rest', at: { x: 1300, y: 300 } }) })
+    const reach = page.view.container.querySelector<HTMLElement>('.omne-figure-reach')!
+    const at = (x: number, y: number, buttons: number) => ({
+      pointerId: 1,
+      button: 0,
+      buttons,
+      clientX: x,
+      clientY: y,
+      metaKey: true,
+      shiftKey: true,
+    })
+    act(() => void fireEvent.pointerDown(reach, at(300, 300, 1)))
+    act(() => void fireEvent.pointerMove(reach, at(340, 320, 1)))
+    page.frame()
+    act(() => void fireEvent.pointerUp(reach, at(360, 330, 0)))
+    const inputs = page.posted.flatMap(message => (message.kind === 'input' ? [message] : []))
+    const keys = inputs.map(input => [
+      input.input,
+      'meta' in input && input.meta,
+      'shift' in input && input.shift,
+    ])
+    expect([keys[0], keys.at(-1)]).toEqual([
+      ['lift', true, true],
+      ['drop', true, true],
+    ])
+  })
+})
+
+describe('桌面层的页面：笺里的图', () => {
+  const rest = { mode: 'rest', at: { x: 1200, y: 300 } } as const
+  const PICTURES = [
+    { id: '1', name: '窗口 09.05.07.png' },
+    { id: '2', name: '近看 09.05.07.png' },
+  ]
+  const note = (more: Partial<NonNullable<Scene['note']>> = {}): Scene['note'] => ({
+    targets: [{ key: 's-1', label: '周报' }],
+    to: { kind: 'new' },
+    fate: null,
+    pictures: PICTURES,
+    ...more,
+  })
+  const bytes = (id: string) =>
+    ({ kind: 'picture', id, bytes: new Uint8Array([Number(id)]) }) as const
+  const thumbs = () =>
+    [...document.querySelectorAll<HTMLImageElement>('.omne-say-thumb')].map(img => img.alt)
+  const inputs = (page: ReturnType<typeof desk>) =>
+    page.posted.filter(message => message.kind === 'input')
+  const field = () => document.querySelector<HTMLTextAreaElement>('.omne-say-field')!
+
+  beforeEach(() => {
+    let made = 0
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => `blob:picture-${(made += 1)}`)
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('按标识把字节接到笺上：字节先到或后到都接得上，没到的不画', () => {
+    const page = desk()
+    page.send(bytes('1'))
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note() }) })
+    expect(thumbs()).toEqual(['窗口 09.05.07.png'])
+    page.send(bytes('2'))
+    expect(thumbs()).toEqual(['窗口 09.05.07.png', '近看 09.05.07.png'])
+  })
+
+  it('一幕不再提的图，字节丢掉', () => {
+    const page = desk()
+    page.send(bytes('1'))
+    page.send(bytes('2'))
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 1, rest, { note: note({ pictures: [PICTURES[1]!] }) }),
+    })
+    page.send({ kind: 'scene', scene: scene(10, 2, rest, { note: note() }) })
+    expect(thumbs()).toEqual(['近看 09.05.07.png'])
+  })
+
+  it('去掉一张：报给外壳，带那张的标识', () => {
+    const page = desk()
+    page.send(bytes('1'))
+    page.send(bytes('2'))
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note() }) })
+    fireEvent.click(document.querySelector("[aria-label='去掉近看 09.05.07.png']")!)
+    expect(inputs(page)).toEqual([{ kind: 'input', lease: 10, input: 'unpicture', picture: '2' }])
+  })
+
+  it('发送带上笺里留着的图的标识', () => {
+    const page = desk()
+    page.send(bytes('1'))
+    page.send(bytes('2'))
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note() }) })
+    fireEvent.change(field(), { target: { value: '这是什么意思' } })
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    expect(inputs(page)).toEqual([
+      {
+        kind: 'input',
+        lease: 10,
+        input: 'send',
+        words: '这是什么意思',
+        to: { kind: 'new' },
+        pictures: ['1', '2'],
+      },
+    ])
+  })
+
+  it('窗口失焦：字段里没有字但笺里有图，不报收起', () => {
+    const page = desk()
+    page.send(bytes('1'))
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note() }) })
+    act(() => void window.dispatchEvent(new Event('blur')))
+    expect(inputs(page)).toEqual([])
+  })
+
+  it('没有许可：写说明，按打开系统设置报给外壳', () => {
+    const page = desk()
+    const told = { kind: 'not-authorized' } as const
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note({ pictures: [], told }) }) })
+    expect(page.view.container.textContent).toContain(
+      '需要在系统设置里允许 omne 录制屏幕，才能看这个窗口',
+    )
+    const settings = [...document.querySelectorAll('button')].find(
+      button => button.textContent === '打开系统设置',
+    )
+    fireEvent.click(settings!)
+    expect(inputs(page)).toEqual([{ kind: 'input', lease: 10, input: 'settings', at: null }])
+  })
+
+  it('现在发不了图、没能看这个窗口：照说明写', () => {
+    const page = desk()
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 1, rest, { note: note({ told: { kind: 'cannot-send-pictures' } }) }),
+    })
+    expect(page.view.container.textContent).toContain('现在发不了图')
+    const failed = { kind: 'not-seen', reason: '截这个窗口时出错' } as const
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 2, rest, { note: note({ pictures: [], told: failed }) }),
+    })
+    expect(page.view.container.textContent).toContain('没能看这个窗口：截这个窗口时出错')
   })
 })

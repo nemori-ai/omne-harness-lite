@@ -1,18 +1,14 @@
-import { useCallback, useEffect, useState, useSyncExternalStore, type RefObject } from 'react'
+import type { FigureControl, FigureHand, FigureLabelLine } from '@omne-harness/ui-kit'
+import type { DeskInput, Look, Point, SceneFigure, SceneWhere, Up } from '../../desk/scene.ts'
+import type { FigureDevice, FigureFacts } from './device.ts'
+import { LetGo } from './let-go.ts'
+import { DeskPictures } from './pictures.ts'
+import type { FigureLink } from './link.ts'
+import { firstLabel, insideApp } from './sign.ts'
+import { Talk, type Gift, type TalkDeps } from './talk.ts'
+import { stayHook } from './use-stay.ts'
+import { NO_KEYS, WindowLook, type Clock, type Keys } from './window-look.ts'
 import {
-  FIGURE_SIZE,
-  SIZE_TIERS,
-  type FigureControl,
-  type FigureHand,
-  type FigureLabelLine,
-} from '@omne-harness/ui-kit'
-import type { ShellSlots } from '@omne-harness/shell-contract'
-import type { DeskInput, Look, Point, SceneFigure, Up } from '../../desk/scene.ts'
-import { type FigureDevice, type FigureFacts } from './device.ts'
-import { figureLink, type FigureLink } from './link.ts'
-import { Talk, type TalkDeps } from './talk.ts'
-import {
-  inside,
   pageDraws,
   sceneWhere,
   step,
@@ -29,6 +25,7 @@ export type StayDeps = Readonly<{
   size: () => number
   look: () => Look
   watch: (changed: () => void) => () => void
+  clock: Clock
 }> &
   TalkDeps
 
@@ -41,12 +38,6 @@ export type Stay = Readonly<{
   figure(figure: SceneFigure): void
   dispose(): void
 }>
-
-export const INSIDE_LABEL: readonly FigureLabelLine[] = [{ text: '应用里' }, { text: '松手回去' }]
-export const OUTSIDE_LABEL: readonly FigureLabelLine[] = [
-  { text: '应用外面' },
-  { text: '松手就停在这里，双击回到应用' },
-]
 
 type Lease = { number: number | null; facts: FigureFacts | null; giveUp: () => void }
 
@@ -64,6 +55,7 @@ const deskDraws = (where: Whereabouts): boolean => where.at === 'hand' && where.
 class FigureStay {
   private where: Whereabouts = { at: 'seat' }
   private leave = false
+  private read = false
   private signed = false
   private lease: Lease | null = null
   private serial = 0
@@ -72,16 +64,46 @@ class FigureStay {
   private labelled = false
   private pagePoint: Point = { x: 0, y: 0 }
   private deskPoint: Point = { x: 0, y: 0 }
+  private deskKeys: Keys = NO_KEYS
+  private rewrite = false
+  private readonly pictures: DeskPictures
   private unwatch: () => void = nothing
   private isAway = false
   private readonly listeners = new Set<() => void>()
   private readonly unlisten: () => void
   private readonly talk: Talk
+  private readonly look: WindowLook
+  private readonly letGo: LetGo
 
   public constructor(private readonly deps: StayDeps) {
-    void deps.device.leave().then(yes => void (this.leave = yes))
+    void deps.device.abilities().then(({ leave, read }) => {
+      this.leave = leave
+      this.read = read
+    })
+    this.pictures = new DeskPictures(deps.link)
     this.unlisten = deps.link.listen(message => this.heard(message))
-    this.talk = new Talk(deps, () => this.publish())
+    this.talk = new Talk(
+      deps,
+      () => this.publish(),
+      () => this.accepted(),
+    )
+    this.look = new WindowLook({
+      device: deps.device,
+      clock: deps.clock,
+      can: () => deskDraws(this.where) && this.read && this.talk.present(),
+      changed: () => this.publish(),
+    })
+    this.letGo = new LetGo({
+      look: this.look,
+      where: () => this.where,
+      read: () => this.read,
+      facts: () => this.lease?.facts,
+      lease: () => this.leased(),
+      scope: () => deps.scope(),
+      run: (event, fromPage) => this.run(event, fromPage),
+      seen: gift => this.seen(gift),
+      publish: () => this.publish(),
+    })
   }
 
   public subscribe(listener: () => void): () => void {
@@ -96,12 +118,14 @@ class FigureStay {
   public hand(hand: FigureHand): boolean {
     this.pagePoint = hand.client
     const at = this.toScreen(hand.client)
+    const keys = { meta: hand.meta, shift: hand.shift }
     if (hand.kind === 'lift') return this.run({ kind: 'lift', on: 'page' }, true)
-    if (hand.kind === 'drop' || hand.kind === 'escape')
-      return this.run({ kind: hand.kind, on: 'page', at }, true)
+    if (hand.kind === 'drop') return this.letGo.drop('page', at, keys, true)
+    if (hand.kind === 'escape') return this.run({ kind: 'escape', on: 'page', at }, true)
     const lease = this.leased()
     if (lease !== null && this.where.at === 'hand' && this.where.on === 'page') {
       this.deps.link.send({ kind: 'hand', lease, at })
+      this.look.hand(at, keys)
       this.publish()
     }
     return true
@@ -124,6 +148,7 @@ class FigureStay {
 
   public dispose(): void {
     this.release()
+    this.look.dispose()
     this.talk.dispose()
     this.unlisten()
     this.deps.link.close()
@@ -161,31 +186,53 @@ class FigureStay {
     }
   }
 
-  /** The label goes with the first hand the desk draws after the page loads; never while the page draws the hand. */
+  /** With Command held every hand the desk draws has a label; without it only the first after the page loads. Never while the page draws. */
   private label(): readonly FigureLabelLine[] | null {
-    if (!deskDraws(this.where) || this.labelled) return null
-    const known = this.lease?.facts
-    const back = known != null && known.visible && inside(known.content, this.handPoint())
-    return back ? INSIDE_LABEL : OUTSIDE_LABEL
+    if (!deskDraws(this.where)) return null
+    const back = insideApp(this.lease?.facts, this.handPoint())
+    const looking = this.look.label(back)
+    if (looking !== null || this.labelled) return looking
+    return firstLabel(back, this.read && this.talk.present())
+  }
+
+  /** What reading a window gave: into the open note, or a note opened with it. */
+  private seen(gift: Gift): void {
+    if (noting(this.where)) return this.talk.give(gift)
+    this.run({ kind: 'seen' }, false, gift)
+  }
+
+  private accepted(): void {
+    this.rewrite = true
+    this.run({ kind: 'recall' })
+  }
+
+  private placed(): SceneWhere {
+    const placed = sceneWhere(this.where, this.handPoint())
+    return placed.mode === 'home' && this.rewrite ? { ...placed, rewrite: true } : placed
   }
 
   /** Sends the scene when what it shows changed (the hand's moves go as small messages), or when asked again. */
   private publish(again = false): void {
     const lease = this.leased()
     if (lease === null) return
-    const where = sceneWhere(this.where, this.handPoint())
+    const where = this.placed()
     const note = noting(this.where) ? this.talk.scene() : null
-    const shown = { look: this.deps.look(), figure: this.shape, where, label: this.label(), note }
+    const frame = this.look.frame()
+    const label = this.label()
+    const shown = { look: this.deps.look(), figure: this.shape, where, label, note, frame }
     const key = JSON.stringify({ ...shown, where: where.mode === 'hand' ? 'hand' : where })
     if (!again && key === this.sentKey) return
     this.sentKey = key
     this.serial += 1
+    if (again) this.pictures.forget()
+    this.pictures.send(noting(this.where) ? this.talk.pictures() : [])
     this.deps.link.send({ kind: 'scene', scene: { lease, serial: this.serial, ...shown } })
   }
 
   private forget(): void {
     this.lease = null
     this.sentKey = ''
+    this.pictures.forget()
     this.unwatch()
     this.unwatch = nothing
   }
@@ -214,8 +261,9 @@ class FigureStay {
       },
       ended: () => {
         if (this.lease !== made) return
+        const released = this.letGo.waiting()
         this.forget()
-        this.run({ kind: 'ended' })
+        this.run({ kind: 'ended', released })
       },
     })
   }
@@ -233,20 +281,28 @@ class FigureStay {
   }
 
   /** One step of the whereabouts and what it asks for. From the page's own hand, a stroke home is the hand's to write. */
-  private run(event: WhereEvent, fromPage = false): boolean {
+  private run(event: WhereEvent, fromPage = false, gift?: Gift): boolean {
     const was = this.where
     const { where, effects } = step(was, event, this.facts())
     this.where = where
     if (deskDraws(was) && !deskDraws(where)) this.labelled = true
+    this.moved(was, where)
     for (const effect of effects) this.perform(effect, fromPage)
     const note = noting(where)
     if (note !== noting(was)) {
-      if (note) this.talk.open()
+      if (note) this.talk.open(gift)
       else this.talk.close()
     }
     this.publish()
     this.notify()
     return !fromPage || where.at !== 'seat'
+  }
+
+  private moved(was: Whereabouts, where: Whereabouts): void {
+    if (where !== was) this.letGo.moved()
+    if (where.at !== 'desk') this.look.cancelRead()
+    if (!deskDraws(where)) this.look.stop()
+    if (where.at !== 'home') this.rewrite = false
   }
 
   private perform(effect: Effect, fromPage: boolean): void {
@@ -273,23 +329,33 @@ class FigureStay {
     this.closeNote()
   }
 
+  private settings(): void {
+    if (noting(this.where)) this.deps.device.settings()
+  }
+
   private readonly inputs: Readonly<Record<DeskInput, () => void>> = {
     close: () => this.closeNote(),
     show: () => this.show(),
+    settings: () => this.settings(),
     lift: () => void this.run({ kind: 'lift', on: 'desk' }),
-    drop: () => void this.run({ kind: 'drop', on: 'desk', at: this.deskPoint }),
+    drop: () => void this.letGo.drop('desk', this.deskPoint, this.deskKeys, false),
     cancel: () => void this.run({ kind: 'escape', on: 'desk', at: this.deskPoint }),
     click: () => void this.run({ kind: 'click' }),
     double: () => void this.run({ kind: 'double' }),
-    move: () => this.publish(),
+    move: () => {
+      if (deskDraws(this.where)) this.look.hand(this.deskPoint, this.deskKeys)
+      this.publish()
+    },
   }
 
   private input(message: Extract<Up, { kind: 'input' }>): void {
     if (message.input === 'send') {
-      if (noting(this.where)) this.talk.send(message.words, message.to)
+      if (noting(this.where)) this.talk.send(message.words, message.to, message.pictures ?? [])
       return
     }
+    if (message.input === 'unpicture') return this.talk.unpicture(message.picture)
     if (message.at !== null) this.deskPoint = message.at
+    this.deskKeys = { meta: message.meta === true, shift: message.shift === true }
     this.inputs[message.input]()
   }
 
@@ -305,87 +371,5 @@ class FigureStay {
 
 export const createStay = (deps: StayDeps): Stay => new FigureStay(deps)
 
-const REDUCED = '(prefers-reduced-motion: reduce)'
-
-function pageLook(): Look {
-  const root = document.documentElement
-  const size = SIZE_TIERS.find(tier => tier === root.dataset['size']) ?? 'medium'
-  const reduced = typeof window.matchMedia === 'function' && window.matchMedia(REDUCED).matches
-  return { theme: root.dataset['theme'] === 'dark' ? 'dark' : 'light', size, reduced }
-}
-
-function pageFigureSize(): number {
-  const style = getComputedStyle(document.documentElement).getPropertyValue('--omne-size')
-  const factor = Number.parseFloat(style)
-  return FIGURE_SIZE * (Number.isFinite(factor) ? factor : 1)
-}
-
-/** Whatever on the page may bring a seat or change the look: its nodes, the root's attributes, the system's motion. */
-function watchPage(changed: () => void): () => void {
-  const observer = new MutationObserver(changed)
-  observer.observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-    attributes: true,
-    attributeFilter: ['hidden', 'inert', 'data-width', 'data-theme', 'data-size'],
-  })
-  const motion = typeof window.matchMedia === 'function' ? window.matchMedia(REDUCED) : null
-  motion?.addEventListener('change', changed)
-  window.addEventListener('resize', changed)
-  return () => {
-    observer.disconnect()
-    motion?.removeEventListener('change', changed)
-    window.removeEventListener('resize', changed)
-  }
-}
-
-type Moment = SceneFigure['moment']
-
-const momentOf = (
-  kind: NonNullable<Moment>['kind'] | undefined,
-  serial: number | undefined,
-): Moment => (kind === undefined || serial === undefined ? undefined : { kind, serial })
-
-/** The shell's stay for one page: made on mount, given the login and the merged figure, dropped on unmount. */
-export function useStay(
-  device: FigureDevice,
-  control: RefObject<FigureControl | null>,
-  signedIn: boolean,
-  figure: SceneFigure,
-  slots: ShellSlots,
-  scope: Readonly<{ get(): string | undefined }>,
-): Readonly<{ away: boolean; hand: (hand: FigureHand) => boolean; recall: () => void }> {
-  const [stay, setStay] = useState<Stay | null>(null)
-  useEffect(() => {
-    const made = createStay({
-      device,
-      link: figureLink(),
-      control: () => control.current,
-      size: pageFigureSize,
-      look: pageLook,
-      watch: watchPage,
-      slots,
-      scope: () => scope.get(),
-    })
-    setStay(made)
-    return () => made.dispose()
-  }, [device, control, slots, scope])
-  useEffect(() => stay?.signedIn(signedIn), [stay, signedIn])
-  const { doing, moment, waiting } = figure
-  const kind = moment?.kind
-  const serial = moment?.serial
-  useEffect(
-    () => stay?.figure({ doing, moment: momentOf(kind, serial), waiting }),
-    [stay, doing, kind, serial, waiting],
-  )
-  const subscribe = useCallback(
-    (listener: () => void) => stay?.subscribe(listener) ?? nothing,
-    [stay],
-  )
-  const away = useSyncExternalStore(subscribe, () => stay?.away() ?? false)
-  return {
-    away,
-    hand: hand => stay?.hand(hand) ?? false,
-    recall: () => stay?.recall(),
-  }
-}
+/** The shell's stay for one page (src/page/shell/shell.tsx). */
+export const useStay = stayHook(createStay)

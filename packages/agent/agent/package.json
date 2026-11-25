@@ -43,6 +43,7 @@
     "@omne-harness/message": "workspace:*",
     "@types/node": "catalog:",
     "@typescript/typescript6": "catalog:",
+    "fast-check": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

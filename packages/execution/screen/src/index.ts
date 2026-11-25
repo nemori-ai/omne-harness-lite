@@ -23,3 +23,7 @@ export {
   screenBackendFor,
 } from './platforms.ts'
 export type { BackendSources, ScreenDiagnosis } from './platforms.ts'
+export type { ScreenWindow, WindowBackend, WindowCapture, WindowShot } from './windows.ts'
+export type { LibraryWindow, WindowLibrary } from './window-library.ts'
+export { windowBackendFor } from './window-platforms.ts'
+export type { WindowSources } from './window-platforms.ts'

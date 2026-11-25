@@ -1,5 +1,11 @@
+import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { ElectronApplication, Page } from '@playwright/test'
+import { electronBinary } from '../scripts/launch.ts'
 import { ASK_MARKER, REPLY, expect, test } from './desktop.ts'
 
 // The desk layer is macOS only in this version (apps/desktop/SPEC.md#桌面层); elsewhere the figure stays in the page.
@@ -100,9 +106,9 @@ const recall = (page: Page) => page.getByRole('button', { name: RECALL })
 
 /**
  * Presses the figure at home and drags it past the edge of the viewport with Playwright's mouse, waits until the
- * desk layer has taken it (the page shows the empty seat), then lets go out there.
+ * desk layer has taken it (the page shows the empty seat), then lets go out there unless `letGo` is false.
  */
-async function liftOut(page: Page): Promise<void> {
+async function liftOut(page: Page, letGo = true): Promise<void> {
   const carried = page.locator('.omne-figure-carried')
   await expect(carried).toHaveAttribute('data-phase', 'seated', { timeout: 15_000 })
   const box = await page.locator('.omne-figure-carried').boundingBox()
@@ -115,7 +121,7 @@ async function liftOut(page: Page): Promise<void> {
   await page.mouse.move(x + 12, y + 12, { steps: 3 })
   await page.mouse.move(width + 120, height / 2, { steps: 12 })
   await expect(recall(page)).toBeVisible({ timeout: 15_000 })
-  await page.mouse.up()
+  if (letGo) await page.mouse.up()
 }
 
 async function onDesk(app: ElectronApplication): Promise<Page> {
@@ -324,4 +330,305 @@ test('回来：按空座、桌面层没了、主窗口重新加载、退出登�
   await expect
     .poll(() => launched.exitCode ?? launched.signalCode, { timeout: 15_000 })
     .not.toBeNull()
+})
+
+type Rect = Readonly<{ x: number; y: number; width: number; height: number }>
+type Point = Readonly<{ x: number; y: number }>
+type OtherWindow = Readonly<{ bounds: Rect; title: string; stop(): Promise<void> }>
+
+const OTHER_WINDOW = fileURLToPath(new URL('./other-window.mjs', import.meta.url))
+/** The other window's app name as the window server gives it: the bundle of the Electron executable. */
+const OTHER_APP = 'Electron'
+const middleOf = (rect: Rect): Point => ({
+  x: rect.x + rect.width / 2,
+  y: rect.y + rect.height / 2,
+})
+
+/**
+ * Puts the main window on the left of its screen's work area and answers room for another window right beside it,
+ * level with the middle of its content: a hand moving between the two never crosses a third window.
+ */
+async function besideMain(app: ElectronApplication, page: Page): Promise<Rect> {
+  const room = await app.evaluate(({ BrowserWindow, screen }) => {
+    const main = BrowserWindow.getAllWindows().find(
+      each => !/\/(desk|shot)\.html/.test(each.webContents.getURL()),
+    )!
+    const area = screen.getDisplayMatching(main.getBounds()).workArea
+    const was = main.getBounds()
+    main.setBounds({
+      x: area.x + 24,
+      y: area.y + 24,
+      width: Math.min(was.width, Math.floor(area.width / 2) - 120),
+      height: Math.min(was.height, area.height - 48),
+    })
+    const placed = main.getBounds()
+    const content = main.getContentBounds()
+    const height = 320
+    const y = Math.round(content.y + content.height / 2 - height / 2)
+    const spot = { x: placed.x + placed.width, y, width: 480, height }
+    const fits = spot.x + spot.width <= area.x + area.width && y + height <= area.y + area.height
+    return fits ? spot : null
+  })
+  if (room === null) throw new Error('the screen leaves no room for another window beside omne')
+  const middle = middleOf(await contentOf(app))
+  // The window server reports the moved window where it was put only after a moment.
+  const own = () =>
+    page.evaluate(
+      async where => (await fetch(`/device/figure/own?x=${where.x}&y=${where.y}`)).json(),
+      middle,
+    )
+  await expect.poll(own, { timeout: 10_000 }).toEqual({ own: true })
+  return room
+}
+
+/** Another app's window: the same Electron executable in a process of its own, so its pid is not omne's. */
+async function openOtherWindow(at: Rect): Promise<OtherWindow> {
+  const title = `另一个窗口 ${randomUUID().slice(0, 6)}`
+  const userData = realpathSync(mkdtempSync(join(tmpdir(), 'desk-figure-other-')))
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => key !== 'ELECTRON_RUN_AS_NODE'),
+  )
+  const place = [at.x, at.y, at.width, at.height].map(String)
+  const child = spawn(electronBinary(), [OTHER_WINDOW, ...place, title, '#d9d4c8', userData], {
+    env,
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
+  const exited = new Promise<void>(done => child.once('exit', () => done()))
+  const stop = async () => {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM')
+    await exited
+    rmSync(userData, { recursive: true, force: true })
+  }
+  try {
+    const bounds = await new Promise<Rect>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('the other window did not open')), 20_000)
+      let text = ''
+      child.stdout.on('data', (chunk: Buffer) => {
+        text += chunk.toString()
+        const line = text
+          .split('\n')
+          .slice(0, -1)
+          .find(each => each.startsWith('{'))
+        if (line === undefined) return
+        clearTimeout(timer)
+        resolve((JSON.parse(line) as { ready: Rect }).ready)
+      })
+      child.once('exit', code => {
+        clearTimeout(timer)
+        reject(new Error(`the other window's process exited with ${code}`))
+      })
+    })
+    return { bounds, title, stop }
+  } catch (failure) {
+    await stop()
+    throw failure
+  }
+}
+
+/**
+ * Asks the main process, the way the shell does, which window is frontmost at the other window's middle, and stops
+ * the test unless it is that window: nobody else's window is framed or read.
+ */
+async function inFront(page: Page, other: OtherWindow): Promise<void> {
+  const { x, y } = middleOf(other.bounds)
+  const answer = (await page.evaluate(
+    async where => (await fetch(`/device/figure/window?x=${where.x}&y=${where.y}`)).json(),
+    { x, y },
+  )) as { kind?: string; bounds?: Rect }
+  if (answer.kind !== 'other' || JSON.stringify(answer.bounds) !== JSON.stringify(other.bounds))
+    throw new Error(`the other window is not the frontmost at its middle (${answer.kind})`)
+}
+
+const contentOf = (app: ElectronApplication): Promise<Rect> =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find(each => !/\/(desk|shot)\.html/.test(each.webContents.getURL()))!
+      .getContentBounds(),
+  )
+
+const screenAllowed = async (app: ElectronApplication): Promise<boolean> =>
+  (await app.evaluate(({ systemPreferences }) =>
+    systemPreferences.getMediaAccessStatus('screen'),
+  )) === 'granted'
+
+const labelLines = (desk: Page) => desk.locator('.omne-figure-label-line')
+const frameOn = (desk: Page, closed: boolean) =>
+  desk.locator(`svg.omne-observation-frame[data-closed='${closed}']`)
+
+/** Where the frame drawn on the desk layer says the framed window is, in screen points. */
+async function framedAt(desk: Page, closed: boolean): Promise<Rect> {
+  const box = await frameOn(desk, closed).boundingBox()
+  if (box === null) throw new Error('the desk layer draws no frame')
+  const [left, top] = (await desk.evaluate('[screenX, screenY]')) as [number, number]
+  const PAD = 8
+  return {
+    x: Math.round(box.x + left + PAD),
+    y: Math.round(box.y + top + PAD),
+    width: Math.round(box.width - PAD * 2),
+    height: Math.round(box.height - PAD * 2),
+  }
+}
+
+/** Presses the figure resting on the desk layer and carries it to a point of the screen, without letting go. */
+async function carryOnDesk(desk: Page, to: Point): Promise<void> {
+  const box = await deskFigure(desk).boundingBox()
+  if (box === null) throw new Error('the desk layer draws no figure')
+  const [left, top] = (await desk.evaluate('[screenX, screenY]')) as [number, number]
+  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  await desk.mouse.move(from.x, from.y)
+  await desk.mouse.down()
+  await desk.mouse.move(from.x + 12, from.y + 12, { steps: 3 })
+  await desk.mouse.move(to.x - left, to.y - top, { steps: 12 })
+}
+
+const NO_SCREEN = '需要在系统设置里允许 omne 录制屏幕，才能看这个窗口'
+const userMessage = (page: Page, words: string) =>
+  page.locator('.omne-message[data-role=user]').filter({ hasText: words })
+
+/** Writes words in the open note, sends them, and follows the note to the conversation page. */
+async function sayAndOpen(app: ElectronApplication, page: Page, desk: Page): Promise<string> {
+  const bubble = desk.locator('.omne-say-bubble')
+  const words = `看这个窗口 ${randomUUID().slice(0, 6)}`
+  const field = desk.getByRole('textbox', { name: '说一句话' })
+  await field.fill(words)
+  await field.press('Enter')
+  await expect(bubble.locator('.omne-say-line')).toHaveText('已发送', { timeout: 30_000 })
+  await desk.getByRole('button', { name: '去对话页' }).click()
+  await expect.poll(() => mainFocused(app), { timeout: 10_000 }).toBe(true)
+  await expect(bubble).toHaveCount(0, { timeout: 10_000 })
+  await expect(userMessage(page, words)).toHaveCount(1, { timeout: 30_000 })
+  await expect(page.locator('.omne-message[data-role=assistant]')).toContainText(REPLY, {
+    timeout: 30_000,
+  })
+  return words
+}
+
+/** Pointer on the page, Command held: the frame and label over the other window; letting go reads it. */
+async function lookFromPage(
+  app: ElectronApplication,
+  page: Page,
+  other: OtherWindow,
+  name: string,
+) {
+  const content = await contentOf(app)
+  const centre = middleOf(other.bounds)
+  await liftOut(page, false)
+  await expect.poll(async () => (await deskWindow(app))?.visible).toBe(true)
+  const desk = deskPage(app)
+  await page.keyboard.down('Meta')
+  await page.mouse.move(content.width / 2, content.height / 2, { steps: 8 })
+  await expect(labelLines(desk)).toHaveText(['这里没有可看的窗口', '松手回去'])
+  await expect(frameOn(desk, false)).toHaveCount(0)
+  await page.mouse.move(centre.x - content.x, centre.y - content.y, { steps: 12 })
+  await expect(frameOn(desk, false)).toHaveCount(1)
+  await expect.poll(() => framedAt(desk, false)).toEqual(other.bounds)
+  await expect(labelLines(desk)).toHaveText([name, '松手放进说话笺 · 加按 ⇧ 直接发送'])
+  await page.mouse.up()
+  await page.keyboard.up('Meta')
+  return desk
+}
+
+test('按住 ⌘ 看一个窗口：观测框框住另一个进程的窗口、签上有它的应用名；⌘ 松手，有许可时两张图随一句话发出去，没有许可时笺里是说明与打开系统设置；⌘⇧ 从桌面层拿起再松手', async ({
+  launchApp,
+}) => {
+  test.setTimeout(300_000)
+  const { app, page } = await launchApp()
+  await signUp(page)
+  const other = await openOtherWindow(await besideMain(app, page))
+  try {
+    await inFront(page, other)
+    const granted = await screenAllowed(app)
+    test.info().annotations.push({ type: 'screen recording', description: String(granted) })
+    const name = granted ? `${OTHER_APP} · ${other.title}` : OTHER_APP
+    const desk = await lookFromPage(app, page, other, name)
+    const bubble = desk.locator('.omne-say-bubble')
+    await expect(bubble).toBeVisible({ timeout: 15_000 })
+    await expect(desk.locator('main.desk[data-mode=rest] .omne-figure-ink')).toHaveCount(1)
+    const thumbs = bubble.locator('.omne-say-thumb')
+    if (granted) {
+      await expect(thumbs).toHaveCount(2, { timeout: 15_000 })
+      const names = await thumbs.evaluateAll(all => all.map(each => each.getAttribute('alt')))
+      expect(names).toEqual([
+        expect.stringMatching(/^窗口 \d\d\.\d\d\.\d\d\.png$/),
+        expect.stringMatching(/^近看 \d\d\.\d\d\.\d\d\.png$/),
+      ])
+    } else {
+      await expect(bubble.locator('.omne-say-line')).toHaveText(NO_SCREEN)
+      await expect(bubble.getByRole('button', { name: '打开系统设置' })).toBeVisible()
+      await expect(bubble.locator('.omne-say-picture')).toHaveCount(0)
+    }
+    const words = await sayAndOpen(app, page, desk)
+    const shown = userMessage(page, words).locator('.omne-media-picture')
+    await expect(shown).toHaveCount(granted ? 2 : 0, { timeout: 30_000 })
+
+    await desk.keyboard.down('Meta')
+    await desk.keyboard.down('Shift')
+    const centre = middleOf(other.bounds)
+    await carryOnDesk(desk, { x: centre.x + 60, y: centre.y + 40 })
+    await expect(frameOn(desk, true)).toHaveCount(1)
+    await expect.poll(() => framedAt(desk, true)).toEqual(other.bounds)
+    await expect(labelLines(desk)).toHaveText([name, '松手直接发送'])
+    await expect(desk.locator(".omne-figure-label-line[data-tone='hint']")).toHaveText(
+      '松手直接发送',
+    )
+    await desk.mouse.up()
+    await desk.keyboard.up('Shift')
+    await desk.keyboard.up('Meta')
+    if (granted) {
+      await seated(app, page)
+      const pictures = page.locator('.omne-message[data-role=user] .omne-media-picture')
+      await expect(pictures).toHaveCount(4, { timeout: 30_000 })
+    } else {
+      await expect(bubble.locator('.omne-say-line')).toHaveText(NO_SCREEN, { timeout: 15_000 })
+      await expect(desk.locator('main.desk[data-mode=rest] .omne-figure-ink')).toHaveCount(1)
+      expect(await deskWindow(app)).toMatchObject({ visible: true })
+    }
+  } finally {
+    await other.stop()
+  }
+})
+
+test('不按 ⌘ 拖到另一个进程的窗口上松手、再拖回主窗口：页面没有问过 window 与 read，own 至多一次；按着 ⌘ 移过去时问了 window', async ({
+  launchApp,
+}) => {
+  test.setTimeout(300_000)
+  const { app, page } = await launchApp()
+  await signUp(page)
+  const other = await openOtherWindow(await besideMain(app, page))
+  try {
+    await inFront(page, other)
+    const asked: string[] = []
+    page.on('request', request => {
+      const path = new URL(request.url()).pathname
+      if (path.startsWith('/device/figure/')) asked.push(path)
+    })
+    const content = await contentOf(app)
+    const centre = middleOf(other.bounds)
+    await liftOut(page, false)
+    await expect.poll(async () => (await deskWindow(app))?.visible).toBe(true)
+    await expect(labelLines(deskPage(app)).last()).toHaveText('按住 ⌘ 让它看一个窗口')
+    await page.mouse.move(centre.x - content.x, centre.y - content.y, { steps: 12 })
+    await page.mouse.up()
+    const desk = await onDesk(app)
+    await expect(desk.locator('svg.omne-observation-frame')).toHaveCount(0)
+    await dragOnDesk(desk, middleOf(content))
+    await seated(app, page)
+    const reads = (list: readonly string[]) =>
+      list.filter(each => each === '/device/figure/window' || each === '/device/figure/read')
+    expect(reads(asked)).toEqual([])
+    expect(asked.filter(each => each === '/device/figure/own').length).toBeLessThanOrEqual(1)
+
+    await liftOut(page, false)
+    await page.keyboard.down('Meta')
+    await page.mouse.move(centre.x - content.x, centre.y - content.y, { steps: 12 })
+    await expect(frameOn(deskPage(app), false)).toHaveCount(1)
+    expect(asked).toContain('/device/figure/window')
+    await page.keyboard.up('Meta')
+    await page.mouse.move(centre.x - content.x + 20, centre.y - content.y, { steps: 3 })
+    await page.mouse.up()
+    await expect(deskPage(app).locator('main.desk[data-mode=rest] .omne-figure-ink')).toHaveCount(1)
+    expect(asked).not.toContain('/device/figure/read')
+  } finally {
+    await other.stop()
+  }
 })

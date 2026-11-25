@@ -6,12 +6,14 @@ import {
   type KeyedPointSink,
   type PointSink,
   type RenderPointSink,
+  serviceKey,
   type ServiceKey,
 } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
 import { MEDIA_OBJECT, type PlacedReference, type Placing } from './model/files-intake.ts'
+import { createPictureIntake, type PictureIntake } from './model/picture-intake.ts'
 import type { Microphone } from './model/recorder.ts'
 import type { ScreenSource } from './model/snapper.ts'
 import type { MediaClient } from './model/upload.ts'
@@ -26,6 +28,14 @@ import { browserMicrophone } from './view/microphone.ts'
 export { mediaParts } from './parts.ts'
 export type { DraftOffer, Drafts } from './model/attachment-tray.ts'
 export type { ScreenAnswer, ScreenSource } from './model/snapper.ts'
+export type {
+  Picture,
+  PictureAttachment,
+  PictureIntake,
+  PicturesTaken,
+} from './model/picture-intake.ts'
+
+export const mediaPictureIntakeKey = serviceKey<PictureIntake>('media.picture-intake')
 
 /** The message being written in a session, as the host of the composer names it. */
 export type MediaDraftSubject = Readonly<{ session: string; draft: string }>
@@ -85,8 +95,10 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
       intake: needPoint(options.drafts, { optional: true }),
       assets: needPoint(options.assets, { optional: true }),
     },
-    apply(shell, { media: client, intake, assets }) {
+    apply(shell, { media: client, intake, assets }, provide) {
       for (const part of mediaParts) part.declare(shell)
+      const pictures = createPictureIntake({ client, newId: () => crypto.randomUUID() })
+      provide(mediaPictureIntakeKey, pictures.intake)
       const drafts = () => intake.get() ?? null
       options.composerAttachments?.contribute(shell, {
         id: ITEM,
@@ -160,6 +172,7 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
           )
         },
       })
+      return pictures.close
     },
   })
 }

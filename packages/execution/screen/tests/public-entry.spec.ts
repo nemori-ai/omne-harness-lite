@@ -11,5 +11,15 @@ it('the root entry exports the backend contract, its shared functions and the ch
     'regionWithin',
     'screenBackendFor',
     'selfCheck',
+    'windowBackendFor',
+  ])
+})
+
+it('the testing entry exports the window backend contract suite and a stand-in over a scene', async () => {
+  const testing = (await import('@omne-harness/screen/testing')) as Record<string, unknown>
+  expect(Object.keys(testing).sort()).toEqual([
+    'pngOf',
+    'windowBackendOfScene',
+    'windowContractCases',
   ])
 })

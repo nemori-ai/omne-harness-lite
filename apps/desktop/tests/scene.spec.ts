@@ -107,3 +107,41 @@ describe('从桌面层到外壳的消息', () => {
     for (const message of wrong) expect(readUp(message), JSON.stringify(message)).toBeUndefined()
   })
 })
+
+describe('读窗口多出的消息', () => {
+  it('图的字节单走一条，形状对的原样过，不对的答 undefined', () => {
+    const right = { kind: 'picture', id: '1', bytes: new Uint8Array([1, 2]) }
+    expect(readDown(right)).toBe(right)
+    const wrong: unknown[] = [
+      { kind: 'picture', bytes: new Uint8Array([1]) },
+      { kind: 'picture', id: 1, bytes: new Uint8Array([1]) },
+      { kind: 'picture', id: '1', bytes: [1, 2] },
+      { kind: 'picture', id: '1' },
+    ]
+    for (const message of wrong) expect(readDown(message)).toBeUndefined()
+  })
+
+  it('修饰键、去掉一张图、打开系统设置、发送带图的标识：形状对的原样过', () => {
+    const right = [
+      { kind: 'input', lease: 1, input: 'move', at: { x: 3, y: 4 }, meta: true },
+      { kind: 'input', lease: 1, input: 'drop', at: { x: 3, y: 4 }, meta: true, shift: true },
+      { kind: 'input', lease: 1, input: 'settings', at: null },
+      { kind: 'input', lease: 1, input: 'unpicture', picture: '2' },
+      { kind: 'input', lease: 1, input: 'send', words: '', to: { kind: 'new' }, pictures: ['1'] },
+    ]
+    for (const message of right) expect(readUp(message)).toBe(message)
+  })
+
+  it('形状不对的答 undefined', () => {
+    const wrong: unknown[] = [
+      { kind: 'input', lease: 1, input: 'move', at: null, meta: 'yes' },
+      { kind: 'input', lease: 1, input: 'drop', at: null, shift: 1 },
+      { kind: 'input', lease: 1, input: 'unpicture' },
+      { kind: 'input', lease: 1, input: 'unpicture', picture: 2 },
+      { kind: 'input', input: 'unpicture', picture: '2' },
+      { kind: 'input', lease: 1, input: 'send', words: '', to: { kind: 'new' }, pictures: '1' },
+      { kind: 'input', lease: 1, input: 'send', words: '', to: { kind: 'new' }, pictures: [1] },
+    ]
+    for (const message of wrong) expect(readUp(message), JSON.stringify(message)).toBeUndefined()
+  })
+})

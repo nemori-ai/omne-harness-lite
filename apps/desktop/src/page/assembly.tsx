@@ -28,7 +28,7 @@ import { accountPreferencesKey, identityUiModule } from '@omne-harness/identity-
 import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
-import { createMediaUiModule } from '@omne-harness/media-ui/cordis'
+import { createMediaUiModule, mediaPictureIntakeKey } from '@omne-harness/media-ui/cordis'
 import '@omne-harness/media-ui/media-ui.css'
 import '@omne-harness/model-ui/model-ui.css'
 import {
@@ -104,6 +104,7 @@ export const assembly: Assembly = {
       canvasElement,
       canvasPicker,
       composerAssistant: slashCommandComposerKey,
+      pictureIntake: mediaPictureIntakeKey,
     }),
     createSlashCommandUiModule({
       composer: createComposer,

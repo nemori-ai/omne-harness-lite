@@ -2,6 +2,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { serverPointsContract } from '@omne-harness/client-assembly'
 import { deployment, render, tree } from '@omne-harness/dynamis'
+import { mediaProtocol } from '@omne-harness/media-protocol'
 import { partsOn, type ShellLogin } from '@omne-harness/shell-contract'
 import { servePoint, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { expect, it, vi } from 'vitest'
@@ -27,19 +28,24 @@ const settle = async (): Promise<void> => {
   await new Promise(resolve => setTimeout(resolve, 0))
 }
 
-async function clientRegistry() {
+async function clientRoot(protocols = assembly.protocols) {
   const root = new Context()
+  const state = createShellState(login)
   await root.plugin(DynamisService)
-  await root.plugin(shellPlugin(createShellState(login)))
+  await root.plugin(shellPlugin(state))
   root.reflect.provide('connection', quietConnection)
   await servePoint(root, serverPointsContract, {
     keys: () => undefined,
     subscribe: () => () => undefined,
   })
-  for (const protocol of assembly.protocols) await serveProtocol(root, protocol, silent())
+  for (const protocol of protocols) await serveProtocol(root, protocol, silent())
   for (const module of assembly.modules) await root.plugin(module)
   await settle()
-  return root.dynamis.registry()
+  return { root, state }
+}
+
+async function clientRegistry() {
+  return (await clientRoot()).root.dynamis.registry()
 }
 
 const clientTree = async () => tree(await clientRegistry(), deployment)
@@ -73,6 +79,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'dynamis.points',
     'human-intervention.release-detail',
     'identity.account-preferences',
+    'media.picture-intake',
     'model.choices',
     'notification.entry',
     'notification.inbox-sections',
@@ -105,6 +112,20 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'usage.widget',
     'workspace.choices',
   ])
+})
+
+it('第十三处：媒体的协议挂着时说话位那一项认得图；没挂着时媒体不加载，那一项不认得图', async () => {
+  const TENANT = 'tenant-x'
+  const picturesOn = async (protocols: typeof assembly.protocols) => {
+    const { root, state } = await clientRoot(protocols)
+    state.scope.set(TENANT)
+    const [item] = root.shell.items('say')
+    return item?.pictures?.(TENANT)
+  }
+  expect(await picturesOn(assembly.protocols)).toBe(true)
+  const withoutMedia = assembly.protocols.filter(protocol => protocol.name !== mediaProtocol.name)
+  expect(withoutMedia).toHaveLength(assembly.protocols.length - 1)
+  expect(await picturesOn(withoutMedia)).toBe(false)
 })
 
 it('往没有声明的点上放东西：它不生效，树的问题一栏写出这个点', async () => {

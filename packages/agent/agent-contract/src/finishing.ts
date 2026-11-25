@@ -321,13 +321,14 @@ export type FinishObligation =
       }>)
   | (ObligationHead<'terminal-observation'> &
       Readonly<{ observation: TerminalObservation; terminal: DurableEvidence | null }>)
-/** A node failure and a stop an extension asked for end the execution whatever was accepted since; the untaken input stays held. */
+/** A node failure, an extension's stop and the loop guard end the execution whatever was accepted since; the untaken input stays held. */
 export function endsWithUntakenInput(
   candidate: Pick<FinishCandidateContent, 'conclusion' | 'failure'>,
 ): boolean {
   const kind = candidate.failure?.kind
   return (
-    candidate.conclusion.kind === 'fail' && (kind === 'node-failed' || kind === 'extension-stop')
+    candidate.conclusion.kind === 'fail' &&
+    (kind === 'node-failed' || kind === 'extension-stop' || kind === 'guard')
   )
 }
 export function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory {

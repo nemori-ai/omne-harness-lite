@@ -1,3 +1,4 @@
+import { crc32, deflateSync } from 'node:zlib'
 import { vi } from 'vitest'
 import type {
   ItemOf,
@@ -9,7 +10,7 @@ import type {
   SlotName,
 } from '@omne-harness/shell-contract'
 import type { FigureHand } from '@omne-harness/ui-kit'
-import type { Down, Look, Scene } from '../../src/page/desk/scene.ts'
+import type { Down, Look, Point, Scene } from '../../src/page/desk/scene.ts'
 import { hostFigure } from '../../src/page/shell/desk/device.ts'
 import { figureLink } from '../../src/page/shell/desk/link.ts'
 import { createStay } from '../../src/page/shell/desk/stay.ts'
@@ -22,6 +23,98 @@ export const SCOPE = 'tenant-a'
 const encoder = new TextEncoder()
 
 type Sent = { url: string; method: string; body: unknown }
+type Answer = Response | Promise<Response>
+
+/** The routes `own`, `window` and `read` stood in for; `read` in GET /device/figure says whether there is a window backend. */
+export type Routes = {
+  read: boolean
+  own: (at: Point) => Answer
+  window: (at: Point) => Answer
+  shot: (window: unknown) => Answer
+}
+
+const ROUTES: Routes = {
+  read: false,
+  own: () => Response.json({ reason: 'not-found' }, { status: 404 }),
+  window: () => Response.json({ reason: 'not-found' }, { status: 404 }),
+  shot: () => Response.json({ reason: 'not-found' }, { status: 404 }),
+}
+
+function chunk(type: string, data: Uint8Array): Buffer {
+  const head = Buffer.alloc(8)
+  head.writeUInt32BE(data.length, 0)
+  head.write(type, 4, 'latin1')
+  const tail = Buffer.alloc(4)
+  tail.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), data])), 0)
+  return Buffer.concat([head, data, tail])
+}
+
+/** A plain grey RGB PNG of the given size in physical pixels. */
+export function png(width: number, height: number): Uint8Array<ArrayBuffer> {
+  const header = Buffer.alloc(13)
+  header.writeUInt32BE(width, 0)
+  header.writeUInt32BE(height, 4)
+  header.set([8, 2, 0, 0, 0], 8)
+  const rows = Buffer.alloc((width * 3 + 1) * height, 0x80)
+  for (let row = 0; row < height; row += 1) rows[row * (width * 3 + 1)] = 0
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+  const file = Buffer.concat([
+    signature,
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(rows)),
+    chunk('IEND', new Uint8Array()),
+  ])
+  return new Uint8Array(file)
+}
+
+/** The width and height a PNG says it has. */
+export const sizeOf = (bytes: Uint8Array): readonly [number, number] => {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  return [view.getUint32(16), view.getUint32(20)]
+}
+
+/** The answer of `read` for a picture: the PNG and its three headers. */
+export const shotOf = (
+  picture: Uint8Array<ArrayBuffer>,
+  bounds: Readonly<{ x: number; y: number; width: number; height: number }>,
+  scale: number,
+  takenAt: number,
+) =>
+  new Response(picture, {
+    headers: {
+      'content-type': 'image/png',
+      'x-omne-window-bounds': `${bounds.x},${bounds.y},${bounds.width},${bounds.height}`,
+      'x-omne-window-scale': String(scale),
+      'x-omne-taken-at': String(takenAt),
+    },
+  })
+
+/** A clock moved by hand: `later` runs when `tick` passes its time. */
+function manualClock() {
+  let now = 0
+  let timers: { at: number; run: () => void }[] = []
+  return {
+    clock: {
+      now: () => now,
+      later(ms: number, run: () => void) {
+        const timer = { at: now + ms, run }
+        timers.push(timer)
+        return () => void (timers = timers.filter(each => each !== timer))
+      },
+    },
+    tick(ms: number) {
+      now += ms
+      const due = timers.filter(timer => timer.at <= now)
+      timers = timers.filter(timer => timer.at > now)
+      for (const timer of due) timer.run()
+    },
+  }
+}
+
+const pointOf = (url: string): Point => {
+  const query = new URL(url, 'http://x').searchParams
+  return { x: Number(query.get('x')), y: Number(query.get('y')) }
+}
 
 /** One item for the say slot, with every call it was given written down. */
 export function sayItem(
@@ -30,6 +123,7 @@ export function sayItem(
     targets: () => readonly SayTarget[] | undefined
     current: () => string | undefined
     say: () => Promise<SayOutcome>
+    pictures: () => boolean
   }> = {},
 ) {
   const said: unknown[][] = []
@@ -52,6 +146,7 @@ export function sayItem(
       return (given.say ?? (() => Promise.resolve({ kind: 'sent', key: 's-1' } as const)))()
     },
     show: (...args) => void shown.push(args),
+    ...(given.pictures === undefined ? {} : { pictures: given.pictures }),
   }
   const changed = () => {
     for (const listener of listeners) listener()
@@ -94,7 +189,13 @@ export function sayPlace() {
 type Place = ReturnType<typeof sayPlace>
 
 /** The shell's stay with the routes of /device/figure, the channel and the say slot stood in for. */
-export function harness(device: 'leave' | 'stay' | 'unreadable' = 'leave', place?: Place) {
+export function harness(
+  device: 'leave' | 'stay' | 'unreadable' = 'leave',
+  place?: Place,
+  given: Partial<Routes> = {},
+) {
+  const routes: Routes = { ...ROUTES, ...given }
+  const time = manualClock()
   const sent: Sent[] = []
   const streams: ReadableStreamDefaultController<Uint8Array>[] = []
   const cancelled: number[] = []
@@ -104,8 +205,11 @@ export function harness(device: 'leave' | 'stay' | 'unreadable' = 'leave', place
     sent.push({ url, method: init?.method ?? 'GET', body })
     if (url === '/device/figure') {
       if (device === 'unreadable') throw new TypeError('no route')
-      return Response.json({ leave: device === 'leave', read: false })
+      return Response.json({ leave: device === 'leave', read: routes.read })
     }
+    if (url.startsWith('/device/figure/own?')) return routes.own(pointOf(url))
+    if (url.startsWith('/device/figure/window?')) return routes.window(pointOf(url))
+    if (url.startsWith('/device/figure/read?')) return routes.shot(body)
     if (url === '/device/figure/lease') {
       if (refuse) return new Response(null, { status: 404 })
       const index = streams.length
@@ -143,6 +247,7 @@ export function harness(device: 'leave' | 'stay' | 'unreadable' = 'leave', place
         changed = undefined
       }
     },
+    clock: time.clock,
     slots: (place ?? sayPlace()).slots,
     scope: () => scope,
   })
@@ -156,9 +261,16 @@ export function harness(device: 'leave' | 'stay' | 'unreadable' = 'leave', place
   }
   const scenes = (): Scene[] =>
     posted.flatMap(message => (message.kind === 'scene' ? [message.scene] : []))
-  const hand = (kind: FigureHand['kind'], x: number, y: number): boolean =>
-    stay.hand({ kind, client: { x, y }, screen: { x, y }, meta: false, shift: false })
+  const hand = (
+    kind: FigureHand['kind'],
+    x: number,
+    y: number,
+    keys: Partial<{ meta: boolean; shift: boolean }> = {},
+  ): boolean =>
+    stay.hand({ kind, client: { x, y }, screen: { x, y }, meta: false, shift: false, ...keys })
   const modes = () => sent.filter(each => each.url.startsWith('/device/figure/mode'))
+  const asked = (route: 'own' | 'window' | 'read') =>
+    sent.filter(each => each.url.startsWith(`/device/figure/${route}?`))
   return {
     stay,
     sent,
@@ -171,6 +283,10 @@ export function harness(device: 'leave' | 'stay' | 'unreadable' = 'leave', place
     scenes,
     hand,
     modes,
+    asked,
+    routes,
+    tick: time.tick,
+    pictures: () => posted.flatMap(message => (message.kind === 'picture' ? [message] : [])),
     last: () => scenes().at(-1)!,
     refuse: () => void (refuse = true),
     setSeat: (point: { x: number; y: number } | null) => void (seat = point),
@@ -202,4 +318,75 @@ export async function onDesk(device: Harness) {
   device.up({ kind: 'painted', lease: first.lease, serial: first.serial })
   device.hand('drop', 1200, 300)
   return first.lease
+}
+
+/** Another app's window under the hand, as `window` answers it: in screen points, partly covered by one in front. */
+export const WINDOW = {
+  kind: 'other',
+  id: 'w-1',
+  app: 'Safari',
+  title: '报错',
+  bounds: { x: 1000, y: 100, width: 400, height: 300 },
+  covered: [{ x: 1300, y: 80, width: 200, height: 100 }],
+} as const
+
+/** 2026-11-26 09:05:07 local time: the pictures are named 09.05.07. */
+export const TAKEN_AT = new Date(2026, 10, 26, 9, 5, 7).getTime()
+
+/** A picture of WINDOW at scale 2. */
+export const shot = () => shotOf(png(800, 600), WINDOW.bounds, 2, TAKEN_AT)
+
+/** An answer held back until the test lets it go. */
+export function held<T>() {
+  let settle!: (value: T) => void
+  let fail!: (reason: unknown) => void
+  const promise = new Promise<T>((resolve, reject) => {
+    settle = resolve
+    fail = reject
+  })
+  return { promise, settle, fail }
+}
+
+/**
+ * Waits out the shell's chain of answers until `done` holds or `ms` of real time pass: the PNG work runs off the
+ * event loop, so rounds alone do not bound it. A wait for something not to happen gives the whole `ms`.
+ */
+export async function until(device: Harness, done: () => boolean, ms = 5000) {
+  const end = Date.now() + ms
+  while (!done() && Date.now() < end) await device.settle()
+}
+
+/** Long enough for a read that was not dropped to have been shown: the PNG work of one picture with time to spare. */
+export const DROPPED_WAIT = 400
+
+/** Whether any scene the shell sent carries bytes: they go in their own message, never in a scene. */
+export function bytesIn(value: unknown): boolean {
+  if (value instanceof Uint8Array || value instanceof ArrayBuffer) return true
+  if (typeof value !== 'object' || value === null) return false
+  return Object.values(value).some(bytesIn)
+}
+
+/**
+ * The desk draws the hand, pressed on the page, on a machine that reads windows with one item in the say slot.
+ * `client` points are the page's; FACTS put the content at (100, 50) on the screen.
+ */
+export async function carried(
+  routes: Partial<Routes> = {},
+  given: Parameters<typeof sayItem>[1] = {},
+  slot: 'item' | 'empty' = 'item',
+) {
+  const place = sayPlace()
+  const one = sayItem('session-ui#1', given)
+  if (slot === 'item') place.put(one.item)
+  const device = harness('leave', place, { read: true, ...routes })
+  await lifted(device)
+  const first = device.last()
+  device.up({ kind: 'painted', lease: first.lease, serial: first.serial })
+  return { device, one, place, lease: first.lease }
+}
+
+/** Over WINDOW with Command held (at client (1000, 300), screen (1100, 350)), and its answer taken. */
+export async function framed(device: Harness, shift = false) {
+  device.hand('move', 1000, 300, { meta: true, shift })
+  await device.settle()
 }
