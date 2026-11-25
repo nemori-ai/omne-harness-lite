@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { wrongKinds } from '../src/report.ts'
 import {
   abstained,
   calibration,
@@ -191,5 +192,25 @@ describe('each number of the report, against a small example worked by hand', ()
     expect(quantile(values, 0.95)).toBe(10)
     expect(quantile(values, 0)).toBe(1)
     expect(quantile([], 0.5)).toBe(0)
+  })
+})
+
+describe('the wrong readings of a run, by what was right and what was said', () => {
+  it('counts each kind once with what it cost: the dearest kind first, then the commoner, then as met', () => {
+    const wrong = [
+      { case: 'p01/a', id: 'A1', truth: 'holds', said: 'cannot-tell', probability: 0.6, loss: 1 },
+      { case: 'p01/b', id: 'A2', truth: 'holds', said: 'cannot-tell', probability: 0.8, loss: 1 },
+      { case: 'p02/a', id: 'N1', truth: 'broken', said: 'unclear', probability: null, loss: 10 },
+      { case: 'p02/b', id: 'A1', truth: 'holds', said: 'fails', probability: null, loss: 2 },
+      { case: 'p03/a', id: 'A1', truth: 'stale', said: 'cannot-tell', probability: null, loss: 2 },
+      { case: 'p03/b', id: 'A2', truth: 'stale', said: 'cannot-tell', probability: null, loss: 0 },
+    ]
+    expect(wrongKinds(wrong)).toEqual([
+      { truth: 'broken', said: 'unclear', n: 1, loss: 10 },
+      { truth: 'holds', said: 'cannot-tell', n: 2, loss: 2 },
+      { truth: 'stale', said: 'cannot-tell', n: 2, loss: 2 },
+      { truth: 'holds', said: 'fails', n: 1, loss: 2 },
+    ])
+    expect(wrongKinds([])).toEqual([])
   })
 })

@@ -1,3 +1,6 @@
+import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { BASELINE_JUDGE_CONFIG, DEFAULT_JUDGE_CONFIG } from '@omne-harness/goal-contract'
 import { describe, expect, it } from 'vitest'
@@ -225,5 +228,18 @@ describe('the configuration the bench settled on', () => {
     expect(configOf(file)).toEqual(DEFAULT_JUDGE_CONFIG)
     expect(configOf(undefined)).toEqual(BASELINE_JUDGE_CONFIG)
     expect(overBaseline({ line: 0.7 })).toEqual({ ...BASELINE_JUDGE_CONFIG, line: 0.7 })
+  })
+
+  it('lays several files over the baseline from left to right: one axis moved on the default is the default’s file and the axis', () => {
+    const final = fileURLToPath(new URL('../configs/final.json', import.meta.url))
+    const axis = join(realpathSync(mkdtempSync(join(tmpdir(), 'goal-bench-'))), 'axis.json')
+    writeFileSync(axis, JSON.stringify({ line: 0.7, packaging: { excerpt: 800 } }))
+    expect(configOf(`${final},${axis}`)).toEqual({
+      ...DEFAULT_JUDGE_CONFIG,
+      line: 0.7,
+      packaging: { ...DEFAULT_JUDGE_CONFIG.packaging, excerpt: 800 },
+    })
+    expect(configOf(`${axis},${final}`).packaging.flags).toBe('guarded')
+    expect(configOf(axis).packaging).toEqual({ ...BASELINE_JUDGE_CONFIG.packaging, excerpt: 800 })
   })
 })

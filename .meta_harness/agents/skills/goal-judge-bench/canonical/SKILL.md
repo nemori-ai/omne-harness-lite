@@ -37,11 +37,26 @@ description: >
    pnpm run -s bench show --case <母本>/<用例> --config <配置> --ids A2,N1
    ```
 
-   先分清是哪一种：材料里没有它要的事实（打包的事）；事实在，题目问得不清（题目的事）；选对了但概率不到线（线的事）；判定器读漏了（型号的事）。同一种错出现三次以上才值得改一根轴。
-4. **一次只动一根轴。** 轴就是 `JudgeConfig` 的字段（`packages/goal/goal-contract/src/judge/material.ts`）。配置文件是盖在基线方案上的一部分字段。要一种现有字段表达不了的写法时，在打包函数里加一个可切换的值，旧值仍是缺省，这样以前的实验照样能重放。
-5. **量，记。** `run --name <轴>-<改了什么> --split tune --config <文件>`。每个实验在台账里记一行：改了什么、误判成立、误收场、漏放、守则漏报、加权损失、每次判定的费用、结论。没有采用的也记，写为什么。
-6. **合起来，再各拿掉一样。** 把单轴里有用的合成候选。再从候选各拿掉一样各量一次（消融）：拿掉之后数不变差的那一样不要。
-7. **线最后定。** 用候选存下的答复按几条线各重放一次。线救不了高置信度的错，它只在「少漏放」与「少误判」之间换。
+   编号取自 `wrong` 的 `id`；`U` 是「未声明的不可达」，对应两道是非题。是非题的答复 `noul` 就是「是」的概率。报告页（`--out` 目录下的 `report.md`）有一张「读错的归类」，先看它再挑用例。
+
+   先分清是哪一种，按这个次序问：
+   - 判据要的事实在不在 `state.evidence.<编号>` 或 `state.facts.activity` 里？不在，是打包的事。
+   - 在，而题目的 `instructions` 没说清怎样算？是题目的事。
+   - 选项选对了，概率不到线？是线的事。
+   - 事实在、题目清楚、高概率选错？是判定器读漏了，型号的事。
+
+   同一种错出现三次以上才值得改一根轴。
+4. **一次只动一根轴。** 轴就是 `JudgeConfig` 的字段，取值范围在 `JudgeConfigSchema`（`packages/goal/goal-contract/src/judge/material.ts`）。配置文件只写要改的字段，盖在**基线方案**上。要在现行缺省上动一根轴，把缺省的文件放在前面，几份从左到右叠：
+
+   ```sh
+   echo '{"packaging":{"excerpt":800}}' > /tmp/excerpt-800.json
+   pnpm run -s bench run --name excerpt-800 --split tune --config configs/final.json,/tmp/excerpt-800.json
+   ```
+
+   只给自己那一份，量到的是「基线加这一样」，和缺省不可比。要一种现有字段表达不了的写法时，在打包函数（同目录的 `pack.ts`）里加一个可切换的值，把它加进 `JudgeConfigSchema` 并让旧值作 `.default`：这样以前的实验照样能重放。
+5. **量，记。** 实验名只用小写字母、数字与短横。量完在 `experiments/ledger.json` 加一条：`name`、`axis`（哪根轴）、`changed`（改了什么）、`conclusion`（结论与采不采用）。数不用抄：`pnpm run -s bench ledger` 把每条记录和它自己报告里的数拼成一张表，跑过而没记的排在最后、写着「没有记」。没有采用的也记，写为什么。
+6. **合起来，再各拿掉一样。** 把单轴里有用的写进一份候选文件。消融是对候选的每一样各写一份小文件，把那个字段写回基线的值，叠在候选后面各量一次（`--config <候选>,<拿掉某样>.json`）。拿掉之后数不变差的那一样不要。
+7. **线最后定。** 线只改读法：`--config <候选>,<线>.json`（内容如 `{"line":0.7}`）加 `--offline`，几条线各跑一次，各用一个名字。线救不了高置信度的错，它只在「少漏放」与「少误判」之间换。
 8. **写定候选，再看留出。** 把候选的配置与理由写进台账，然后才跑：
 
    ```sh
@@ -49,9 +64,9 @@ description: >
      --base configs/final.json --config <候选> --key-file <密钥文件>
    ```
 
-   对照表里每项指标带 95% 区间，末尾是加权损失的成对差。
-9. **照规格的采用条件定。** 采用了：改 `DEFAULT_JUDGE_CONFIG` 与 `configs/final.json`（两者要相等，有用例守着），重跑第 1 步第二条并把新的 `compare.json` 留下，再跑 `goal-contract`、`goal-bench` 与服务端 `tests/rows/goal` 的用例。没采用：实验记录照样进仓库。
-10. **交出五样。** 留出的对照表；消融表；留出上的错例（硬错逐条读原文）；花费；全部实验的记录。门槛没过的写差多少。
+   密钥文件的位置由负责人给，不写进仓库。对照表打印在终端，也写进 `experiments/<名>/compare.json`；每项指标带 95% 区间，末尾是加权损失的成对差。
+9. **照规格的采用条件定。** 采用了：改 `material.ts` 里的 `DEFAULT_JUDGE_CONFIG` 与 `configs/final.json`（两者要相等，有用例守着）；不带 `--offline` 重跑第 1 步第二条，留下新的 `compare.json`；在 `packages/goal/goal-contract` 先 `pnpm run build`，再在它和 `packages/goal/goal-bench` 下各跑 `pnpm exec vitest run --mode fast`，在 `apps/harness-server` 下跑 `pnpm exec vitest run --mode slow tests/rows/goal`。没采用：实验记录照样进仓库。
+10. **交出五样。** 留出的对照表（第 8 步的输出）；消融表与全部实验的记录（`bench ledger`）；留出上的错例（`compare.json` 里候选一边的 `wrong`，硬错用 `show` 逐条读原文）；花费（各报告的 `cost`）。门槛没过的写差多少。
 
 ## 加数据
 
@@ -80,7 +95,7 @@ description: >
 ## 容易错的地方
 
 - 评测台从 `dist` 读 `goal-contract`。改了打包函数先在 `packages/goal/goal-contract` 下 `pnpm run build`，否则量的是旧的。
-- `--offline` 时有一个请求没存过答复，整次运行失败。这通常说明打包的输出变了：先确认是不是有意的。
+- `--offline` 时有一个请求没存过答复，整次运行失败，并留下一个空的 `experiments/<名>/`，要自己删。改了进请求的字段而没发过请求，是预期的失败；什么都没改却失败，说明打包的输出变了，先确认是不是有意的。
 - 离线重跑一个已有名字的实验会改写它的 `report.json`。要比新旧，换一个名字。
 - 守则那道题「违反」不过线，哪个选项概率最高就读哪个。读 `wrong` 里「守住了说成违反」的条目时先看概率。
 - 交给判定器的材料里没有的事实，它不会知道。判据提到「今天」「现在」而材料里没有时间，就一定判不准。

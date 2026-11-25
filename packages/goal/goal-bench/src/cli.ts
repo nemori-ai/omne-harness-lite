@@ -1,8 +1,8 @@
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
-import { packJudge } from '@omne-harness/goal-contract'
+import { packJudge, UNATTAINABLE } from '@omne-harness/goal-contract'
 import { SPLITS, type Case, type Split } from './case.ts'
 import { datasetIssues, parentIssues } from './check.ts'
 import { fileCache, openRouterDecide } from './client.ts'
@@ -10,9 +10,10 @@ import { DATA, digestOf, loadParents, loadSignOffs, unsigned, type SignOff } fro
 import { pairedLoss, renderComparison, spreadOf, talliesOf } from './compare.ts'
 import { configOf } from './config.ts'
 import { graded, pairs } from './grade.ts'
-import { casesOf } from './mutate.ts'
+import { loadLedger, renderLedger } from './ledger.ts'
+import { casesOf, DEAD_END } from './mutate.ts'
 import { replay, requestKey, type Decide, type Replayed } from './replay.ts'
-import { renderReport, reportOf } from './report.ts'
+import { renderReport, reportOf, type Report } from './report.ts'
 import { flips } from './score.ts'
 
 const USAGE = `goal-bench: the bench of the goal judge
@@ -24,11 +25,16 @@ const USAGE = `goal-bench: the bench of the goal judge
       [--key-file <file>] [--offline] [--repeats <n>] [--shuffle <seed>] [--max-cost <usd>] [--out <dir>]
       replay the judge over a split; keeps experiments/<name>/{report.json,replies.jsonl}
       and writes the page <out>/<name>/report.md (default: the system's temporary directory)
-      --config   a partial configuration merged over the baseline scheme (configs/final.json is the default one)
+      --config   partial configurations laid over the baseline scheme from left to right, as
+                 a.json,b.json (configs/final.json is the default one: put it first to move one
+                 axis of the default)
       --offline  answer from the kept replies only; a request that is not kept fails the run
   show --case <parent>/<case> [--config <file.json>] [--ids <id>[,<id>…]]
       print what one case asks the judge under a configuration, what the kept reply answered
       and what the right answers are; sends nothing
+  ledger
+      print experiments/ledger.json as a table, each experiment beside the numbers of its own report;
+      an experiment that was run and is not in the ledger is listed last as not written down
   compare --name <comparison> --split <split>[,<split>…] --config <file.json> [--base <file.json>]
       [--key-file <file>] [--offline] [--max-cost <usd>] [--out <dir>]
       replay two configurations over the same cases and set them side by side;
@@ -205,7 +211,9 @@ function show(flags: ShowFlags): number {
   const cache = fileCache(
     readdirSync(EXPERIMENTS).map(entry => join(EXPERIMENTS, entry, 'replies.jsonl')),
   )
-  const wanted = flags.ids?.split(',')
+  const wanted = flags.ids
+    ?.split(',')
+    .flatMap(id => (id === DEAD_END ? [id, ...Object.values(UNATTAINABLE)] : [id]))
   const only = <T>(byId: Readonly<Record<string, T>>): Record<string, T> =>
     Object.fromEntries(Object.entries(byId).filter(([id]) => wanted?.includes(id) ?? true))
   const packed = packJudge(entry.material, config)
@@ -219,6 +227,18 @@ function show(flags: ShowFlags): number {
   })
   const page = { case: entry.id, right: only(entry.expected.entries), requests: shown }
   console.log(JSON.stringify(page, null, 2))
+  return 0
+}
+
+/** Prints the ledger with the numbers of each experiment's own report. */
+function ledger(): number {
+  const reports = new Map(
+    readdirSync(EXPERIMENTS)
+      .map(name => [name, join(EXPERIMENTS, name, 'report.json')] as const)
+      .filter(([, file]) => existsSync(file))
+      .map(([name, file]) => [name, JSON.parse(readFileSync(file, 'utf8')) as Report] as const),
+  )
+  console.log(renderLedger(loadLedger(join(EXPERIMENTS, 'ledger.json')), reports))
   return 0
 }
 
@@ -312,10 +332,15 @@ async function main(): Promise<number> {
       return compare(values)
     case 'show':
       return show(values)
+    case 'ledger':
+      return ledger()
     default:
       console.error(USAGE)
       return 2
   }
 }
 
-process.exitCode = await main()
+process.exitCode = await main().catch((error: unknown) => {
+  console.error(`goal-bench: ${error instanceof Error ? error.message : String(error)}`)
+  return 1
+})

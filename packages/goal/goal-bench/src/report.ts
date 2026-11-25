@@ -167,6 +167,18 @@ export function reportOf(
   }
 }
 
+export type WrongKind = Readonly<{ truth: string; said: string; n: number; loss: number }>
+
+/** The wrong readings by what was right and what was said: where a run loses, before reading any single case. */
+export function wrongKinds(wrong: Report['wrong']): readonly WrongKind[] {
+  const kinds = new Map<string, WrongKind>()
+  for (const { truth, said, loss } of wrong) {
+    const before = kinds.get(`${truth}\n${said}`) ?? { truth, said, n: 0, loss: 0 }
+    kinds.set(`${truth}\n${said}`, { ...before, n: before.n + 1, loss: before.loss + loss })
+  }
+  return [...kinds.values()].toSorted((a, b) => b.loss - a.loss || b.n - a.n)
+}
+
 const pct = (value: number): string => `${(value * 100).toFixed(1)}%`
 const of = (found: Rate): string =>
   `${pct(found.rate)}（${String(found.errors)}/${String(found.n)}）`
@@ -213,6 +225,14 @@ export function renderReport(report: Report): string {
     ...(report.falseSettled.length === 0
       ? ['没有。']
       : report.falseSettled.map(id => `- \`${id}\``)),
+    '',
+    '## 读错的归类',
+    '',
+    '| 该答 | 答了 | 条数 | 损失 |',
+    '| --- | --- | --- | --- |',
+    ...wrongKinds(report.wrong).map(
+      kind => `| ${kind.truth} | ${kind.said} | ${String(kind.n)} | ${String(kind.loss)} |`,
+    ),
     '',
     '## 读错的条目（损失从高到低）',
     '',

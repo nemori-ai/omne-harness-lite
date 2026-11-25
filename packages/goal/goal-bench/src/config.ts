@@ -12,8 +12,20 @@ export function overBaseline(given: Partial<JudgeConfig>): JudgeConfig {
   return JudgeConfigSchema.parse({ ...BASELINE_JUDGE_CONFIG, ...given, packaging, instructions })
 }
 
-/** The configuration a file gives; without a file, the baseline scheme. */
-export function configOf(file: string | undefined): JudgeConfig {
-  if (file === undefined) return BASELINE_JUDGE_CONFIG
-  return overBaseline(JSON.parse(readFileSync(file, 'utf8')) as Partial<JudgeConfig>)
+/** The configuration files give, laid over the baseline from left to right (`a.json,b.json`); without a file, the baseline scheme. */
+export function configOf(files: string | undefined): JudgeConfig {
+  if (files === undefined) return BASELINE_JUDGE_CONFIG
+  const parts = files
+    .split(',')
+    .map(file => JSON.parse(readFileSync(file, 'utf8')) as Partial<JudgeConfig>)
+  const given = parts.reduce<Partial<JudgeConfig>>(
+    (under, over) => ({
+      ...under,
+      ...over,
+      packaging: { ...under.packaging, ...over.packaging } as JudgeConfig['packaging'],
+      instructions: { ...under.instructions, ...over.instructions } as JudgeConfig['instructions'],
+    }),
+    {},
+  )
+  return overBaseline(given)
 }
