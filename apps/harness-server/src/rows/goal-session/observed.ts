@@ -29,6 +29,9 @@ function writtenOf(command: string | null, params: Fields): string | null {
   return params['edits'].map(edit => textOf(fieldsOf(edit)['new_text']) ?? '').join('\n')
 }
 
+const wroteFile = (command: string | null, result: string): boolean =>
+  command !== null && FILE_WRITES.has(command) && result.startsWith('done')
+
 function pathOf(params: Fields): string | null {
   const [first] = Array.isArray(params['edits']) ? params['edits'] : []
   return textOf(params['path']) ?? textOf(fieldsOf(first)['path'])
@@ -42,16 +45,10 @@ export const describeCall: DescribeCall = ({ tool, arguments: given, result }) =
   const name = command === null ? tool : `${tool} ${command}`
   if (tool === 'Shell') {
     const script = command === 'execute' ? textOf(params['script']) : null
-    return {
-      tool: name,
-      command: script,
-      path: null,
-      exit: exitOf(result),
-      writes: false,
-      output: result,
-    }
+    const exit = exitOf(result)
+    return { tool: name, command: script, path: null, exit, writes: false, output: result }
   }
-  const wrote = tool === 'Files' && FILE_WRITES.has(command ?? '') && result.startsWith('done')
-  const output = wrote ? (writtenOf(command, params) ?? result) : result
-  return { tool: name, command: null, path: pathOf(params), exit: null, writes: wrote, output }
+  const writes = tool === 'Files' && wroteFile(command, result)
+  const output = (writes ? writtenOf(command, params) : null) ?? result
+  return { tool: name, command: null, path: pathOf(params), exit: null, writes, output }
 }

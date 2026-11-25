@@ -97,16 +97,24 @@ export function decisionAskMessage(id: string, ask: DecisionAsk): Message | null
   return 'rejected' in judged ? null : judged.ok
 }
 
+/** The text of the one block of the one user message a decision request is; null for a request of any other shape. */
+function askTextOf(
+  request: Pick<FixedModelRequest, 'system' | 'messages' | 'tools'>,
+): string | null {
+  const [message, ...more] = request.messages
+  if (message?.role !== 'user' || more.length > 0) return null
+  if (request.system.length > 0 || request.tools.length > 0) return null
+  const [block, ...rest] = message.blocks
+  if (block?.kind !== 'text' || rest.length > 0) return null
+  return block.id === DECISION_ASK_BLOCK ? block.text : null
+}
+
 /** The ask a fixed request carries, as it was written; null when the request is not one decision message. */
 export function decisionAskOf(
   request: Pick<FixedModelRequest, 'system' | 'messages' | 'tools'>,
 ): Readonly<{ state: unknown; questions: unknown }> | null {
-  const [message, ...more] = request.messages
-  if (message === undefined || more.length > 0) return null
-  if (request.system.length > 0 || request.tools.length > 0 || message.role !== 'user') return null
-  const [block, ...rest] = message.blocks
-  if (block?.kind !== 'text' || rest.length > 0 || block.id !== DECISION_ASK_BLOCK) return null
-  const ask = parsed(block.text)
+  const text = askTextOf(request)
+  const ask = text === null ? null : parsed(text)
   if (!isDict(ask) || Object.keys(ask).toSorted().join() !== 'questions,state') return null
   return { state: ask.state, questions: ask.questions }
 }

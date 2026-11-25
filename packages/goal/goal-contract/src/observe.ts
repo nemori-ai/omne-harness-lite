@@ -1,4 +1,4 @@
-import type { CriterionId, GoalBody, MetricId, RuleId } from './body.ts'
+import type { GoalBody } from './body.ts'
 import { gapTable, renderGap, type Reading, type Readings } from './gap.ts'
 import type { Packed } from './judge/pack.ts'
 import type { GoalRecord, Observed, Wake } from './record.ts'
@@ -14,23 +14,31 @@ const read = <V>(value: V, source: Reading<V>['source']): Reading<V> => ({
   ref: null,
 })
 
+/** The readings of one section with what was found written over them; an entry nothing was found of stays as it was. */
+function readOver<K extends string, V>(
+  before: Partial<Record<K, Reading<V>>>,
+  found: Partial<Record<K, V>>,
+  sourceOf: (id: K) => Reading<V>['source'],
+): Partial<Record<K, Reading<V>>> {
+  const fresh = (Object.entries(found) as [K, V | undefined][])
+    .filter((entry): entry is [K, V] => entry[1] !== undefined)
+    .map(([id, value]) => [id, read(value, sourceOf(id))] as const)
+  return { ...before, ...Object.fromEntries(fresh) }
+}
+
 /** The readings after an observation: what the system settled is the system's, what was asked is the judge's, the rest stays. */
 export function observedReadings(
   before: Readings,
   decided: Packed['decided'],
   findings: Findings,
 ): Readings {
-  const criteria = { ...before.criteria }
-  for (const [id, value] of Object.entries(findings.criteria))
-    if (value !== undefined)
-      criteria[id as CriterionId] = read(value, id in decided ? 'system' : 'judge')
-  const metrics = { ...before.metrics }
-  for (const [id, value] of Object.entries(findings.metrics))
-    if (value !== undefined) metrics[id as MetricId] = read(value, 'system')
-  const rules = { ...before.rules }
-  for (const [id, value] of Object.entries(findings.rules))
-    if (value !== undefined) rules[id as RuleId] = read(value, 'judge')
-  return { criteria, metrics, rules }
+  return {
+    criteria: readOver(before.criteria, findings.criteria, id =>
+      id in decided ? 'system' : 'judge',
+    ),
+    metrics: readOver(before.metrics, findings.metrics, () => 'system'),
+    rules: readOver(before.rules, findings.rules, () => 'judge'),
+  }
 }
 
 export type ObservationStep =

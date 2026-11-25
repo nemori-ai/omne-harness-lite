@@ -125,21 +125,22 @@ type Sources = Readonly<{
   system: readonly EnabledExtension[]
 }>
 
+const NO_TENANT_SOURCE = succeed({ members: [] as readonly EnabledExtension[], basis: null })
+const NO_SYSTEM_SOURCE = succeed([] as readonly EnabledExtension[])
+
 /** The members the tenant enabled and the ones the assembly supplies, read once as a pass begins. */
 async function readSources<P>(
   { host }: Driver<P>,
   place: PassPlace,
 ): Promise<Outcome<Sources, Failure>> {
   const at = { ...host.access, execution: host.execution, ...placeOf(place) }
-  const tenant = await host.ports.enabledExtensions?.read(at)
-  if (tenant !== undefined && 'failure' in tenant) return tenant
-  const system = await host.ports.systemExtensions?.read(at)
-  if (system !== undefined && 'failure' in system) return system
-  return succeed({
-    tenant: tenant?.ok.members ?? [],
-    basis: tenant?.ok.basis ?? null,
-    system: system?.ok ?? [],
-  })
+  const { enabledExtensions, systemExtensions } = host.ports
+  const tenant =
+    enabledExtensions === undefined ? NO_TENANT_SOURCE : await enabledExtensions.read(at)
+  if ('failure' in tenant) return tenant
+  const system = systemExtensions === undefined ? NO_SYSTEM_SOURCE : await systemExtensions.read(at)
+  if ('failure' in system) return system
+  return succeed({ tenant: tenant.ok.members, basis: tenant.ok.basis, system: system.ok })
 }
 
 const sourceOf = (chain: ExtensionChain | null, call: Passage): ChainSource | undefined =>
