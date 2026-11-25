@@ -35,7 +35,6 @@ export const LIMIT_METRICS = [
   'file-bytes',
 ] as const
 export type LimitMetric = (typeof LIMIT_METRICS)[number]
-/** What an over-limit failure may report: a profile metric, or the context and input tokens. */
 export const OVER_LIMIT_METRICS = ['context-tokens', 'input-tokens', ...LIMIT_METRICS] as const
 export type UpstreamLimit =
   | Readonly<{ kind: 'unknown' }>

@@ -412,6 +412,26 @@
               "pending": false
             },
             {
+              "name": "profileProblems",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "LIMIT_METRICS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "OVER_LIMIT_METRICS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "mediaLimitMetric",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "costLookupOf",
               "kind": "value",
               "pending": false
