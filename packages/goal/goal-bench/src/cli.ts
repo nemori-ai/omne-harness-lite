@@ -101,9 +101,14 @@ function casesIn(split: string): readonly Case[] {
   return cases.filter(entry => wanted.includes(entry.split))
 }
 
+const experiments = (): readonly string[] =>
+  readdirSync(EXPERIMENTS, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name)
+
 function replyFiles(name: string): readonly string[] {
   mkdirSync(join(EXPERIMENTS, name), { recursive: true })
-  const others = readdirSync(EXPERIMENTS)
+  const others = experiments()
     .filter(entry => entry !== name)
     .map(entry => join(EXPERIMENTS, entry, 'replies.jsonl'))
   return [...others, join(EXPERIMENTS, name, 'replies.jsonl')]
@@ -208,9 +213,7 @@ function show(flags: ShowFlags): number {
     return 2
   }
   const config = configOf(flags.config)
-  const cache = fileCache(
-    readdirSync(EXPERIMENTS).map(entry => join(EXPERIMENTS, entry, 'replies.jsonl')),
-  )
+  const cache = fileCache(experiments().map(entry => join(EXPERIMENTS, entry, 'replies.jsonl')))
   const wanted = flags.ids
     ?.split(',')
     .flatMap(id => (id === DEAD_END ? [id, ...Object.values(UNATTAINABLE)] : [id]))
@@ -233,7 +236,7 @@ function show(flags: ShowFlags): number {
 /** Prints the ledger with the numbers of each experiment's own report. */
 function ledger(): number {
   const reports = new Map(
-    readdirSync(EXPERIMENTS)
+    experiments()
       .map(name => [name, join(EXPERIMENTS, name, 'report.json')] as const)
       .filter(([, file]) => existsSync(file))
       .map(([name, file]) => [name, JSON.parse(readFileSync(file, 'utf8')) as Report] as const),
