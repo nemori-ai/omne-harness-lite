@@ -17,7 +17,14 @@ const live: GoalState = {
   gap: null,
 }
 const base = baseOf(live)
-const card: AnsweredCard = { card: 'card-1', byMember: true, confirmed: true, digest: 'd1', base }
+const card: AnsweredCard = {
+  card: 'card-1',
+  by: 'acc-1',
+  byMember: true,
+  confirmed: true,
+  digest: 'd1',
+  base,
+}
 const now = { digest: 'd1', base, used: false }
 
 describe('what a confirmation card was drafted against', () => {
