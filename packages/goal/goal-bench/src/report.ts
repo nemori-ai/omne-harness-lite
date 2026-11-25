@@ -178,7 +178,7 @@ export function renderReport(report: Report): string {
   const lines = [
     `# ${report.name}`,
     '',
-    `配置：切法 \`${config.split}\`，题目说明 \`${config.instructions}\`，摘录 ${String(config.packaging.excerpt)} 取 \`${config.packaging.take}\`，说明 ${config.packaging.notes ? '给' : '不给'}，过时 \`${config.packaging.staleness}\`，型号 \`${config.model}\`，线 ${String(config.line)}，问 ${String(config.votes)} 次。`,
+    `配置：切法 \`${config.split}\`，题目引 \`${config.instructions.criterion}\`、通用的话 ${String(config.instructions.rules.length)} 句，摘录 ${String(config.packaging.excerpt)} 取 \`${config.packaging.take}\`，说明 ${config.packaging.notes ? '给' : '不给'}，过时 \`${config.packaging.staleness}\`，活动记录 \`${config.packaging.activity}\`，标记 \`${config.packaging.flags}\`，型号 \`${config.model}\`，线 ${String(config.line)}，问 ${String(config.votes)} 次。`,
     `数据：\`${report.split}\` 这一份，${String(report.parents)} 个母本，${String(report.cases)} 个用例。`,
     '',
     '## 三道门槛',

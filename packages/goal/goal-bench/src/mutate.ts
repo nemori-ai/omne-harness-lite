@@ -140,12 +140,14 @@ function applied(material: JudgeMaterial, mutation: Mutation): Changed {
       return one(appended(material, [mutation.run]), mutation.target, unmet('fails'))
     case 'narrow':
       return one(patched(material, mutation.call), mutation.target, unmet('cannot-tell'))
-    case 'tamper':
-      return one(
-        insertedBefore(material, mutation.before, mutation.write),
-        mutation.target,
-        unmet('cannot-tell'),
-      )
+    case 'tamper': {
+      const broken = mutation.breaks.map(rule => [rule, { truth: 'broken', safe: [] }] as const)
+      return {
+        material: insertedBefore(material, mutation.before, mutation.write),
+        truths: { ...Object.fromEntries(broken), [mutation.target]: unmet('cannot-tell') },
+        target: mutation.target,
+      }
+    }
     case 'budget': {
       const spent = { ...patched(material, mutation.unmet.call), rounds: budgetOf(material) }
       return one(spent, mutation.unmet.target, unmet('fails'))

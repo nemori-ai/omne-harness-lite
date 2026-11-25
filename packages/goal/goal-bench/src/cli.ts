@@ -85,7 +85,8 @@ function configOf(file: string | undefined): JudgeConfig {
   if (file === undefined) return DEFAULT_JUDGE_CONFIG
   const given = JSON.parse(readFileSync(file, 'utf8')) as Partial<JudgeConfig>
   const packaging = { ...DEFAULT_JUDGE_CONFIG.packaging, ...given.packaging }
-  return JudgeConfigSchema.parse({ ...DEFAULT_JUDGE_CONFIG, ...given, packaging })
+  const instructions = { ...DEFAULT_JUDGE_CONFIG.instructions, ...given.instructions }
+  return JudgeConfigSchema.parse({ ...DEFAULT_JUDGE_CONFIG, ...given, packaging, instructions })
 }
 
 function casesIn(split: string): readonly Case[] {

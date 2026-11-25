@@ -309,7 +309,7 @@
         "command": null,
         "path": "k8s/base/hpa.yaml",
         "exit": null,
-        "output": "@@ -9,4 +9,4 @@ spec:\n-  minReplicas: 2\n-  maxReplicas: 8\n+  minReplicas: 2\n+  maxReplicas: 10",
+        "output": "@@ -14,3 +14,3 @@ spec:\n       target:\n         type: Utilization\n-        averageUtilization: 70\n+        averageUtilization: 65",
         "writes": true
       }
     }

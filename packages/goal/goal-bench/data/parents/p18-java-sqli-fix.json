@@ -214,7 +214,7 @@
         "command": null,
         "path": "src/main/java/com/acme/catalog/ProductController.java",
         "exit": null,
-        "output": "@@ -27,7 +27,7 @@ public class ProductController {\n-    @GetMapping(\"/search\")\n+    @GetMapping({\"/search\", \"/find\"})",
+        "output": "@@ -41,6 +41,7 @@ public class ProductController {\n     public List<ProductView> search(@RequestParam String q) {\n+        log.debug(\"search q length={}\", q.length());\n         return service.search(q);",
         "writes": true
       }
     },

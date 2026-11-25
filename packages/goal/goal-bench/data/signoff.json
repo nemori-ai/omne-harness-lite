@@ -1,17 +1,17 @@
 [
   {
     "parent": "p01-home-speedup",
-    "digest": "sha256:500e04ffb34d33e75445ffe0c7426e54b7b0cf7f836b541aff5181d994898969",
+    "digest": "sha256:690b08d778875ee7c07693c0b34716042ce2e20c7e8744a02d25994e21002371",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p02-react-a11y",
-    "digest": "sha256:f8289336c28a05763fc75fe4d3b63910aff8f8da1e2b568c7b2d4ec3c1b9fd35",
+    "digest": "sha256:6d09b3ba7b5de37cef0db551166bd21cf5a76f40567463751aa4d300c67facd6",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p03-bundle-size",
@@ -29,10 +29,10 @@
   },
   {
     "parent": "p05-cli-json-flag",
-    "digest": "sha256:7629503bf21db0268741c3b55d6122a495244395f7eb92c51e4d2eacdd789024",
+    "digest": "sha256:afb1566f44b4b89f955bd598ab28c941ff3be2a82cf68987abd9b354bbd35086",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p06-release-notes",
@@ -43,10 +43,10 @@
   },
   {
     "parent": "p07-ts-strict",
-    "digest": "sha256:5e1c2ad230ec827231fb69cd8016ae269debc0ffe4065b7bc8b14696752998a4",
+    "digest": "sha256:19e842ea66c1b7161e3ce52d02ab96827ced484d3ba0ee22c4900c7d359f44ad",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p08-blog-sitemap",
@@ -64,24 +64,24 @@
   },
   {
     "parent": "p10-login-a11y-canary",
-    "digest": "sha256:0df8367e0986be4a6e4ef982d47f2d0281686178248f07e3b25907e4b2a84406",
+    "digest": "sha256:2954faacabf54bcf88ef471380d2ed955eb9c5b624d264bd93c8cec46a821a22",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p11-cli-release-canary",
-    "digest": "sha256:8070d93aec216cd2c080f22754d4d680ed3f7bc3634c63c4be69e76e27019ba8",
+    "digest": "sha256:2bb14b2710b262f8f4db1f8b8d2cf1f5017f973807f22a899290c0329d50628b",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p12-go-cursor-pagination",
-    "digest": "sha256:53cdd8d979fefaaeab5d49ceb89148d9947ffbfa23dfe69261299c31c2385b2f",
+    "digest": "sha256:42a2b4d4abc69ab0eb54a9bde662ff5fdfdb6dffdfe5988f67ff4b51db0fbde5",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p13-etl-throughput",
@@ -92,10 +92,10 @@
   },
   {
     "parent": "p14-pg-online-migration",
-    "digest": "sha256:6a33298e72be7a67a516da6c74c5b67cc5e11cc880b6dbe02c7acda34f903e56",
+    "digest": "sha256:0c12860a9f969f7567f1ce3fa84bfa9f3f55129a954df3cc921a235cac579407",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p15-docker-image-slim",
@@ -120,38 +120,38 @@
   },
   {
     "parent": "p18-java-sqli-fix",
-    "digest": "sha256:6f848e2ba47d45b34a1d50bf989ba89a9d59e1322e6adaf5b11b0e76288cf938",
+    "digest": "sha256:9433f4a1b2a977b6269ebfdefaf8d2b0cfb9406adc80acef5d547eb777d72cb9",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p19-k8s-probes-pdb",
-    "digest": "sha256:24f1c8e27e53b82184f2fe48640fdfa7235b202749a6f769e13d811a0070f26b",
+    "digest": "sha256:7d9a80aaa3088af0bdc25c2209604e60948144127bb2b4a5b9ffc2d9e30cd0c8",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p20-ci-pnpm-cache",
-    "digest": "sha256:884b2e0782cbc6b6151cc8026c4988ca39199cc25d1914dc116b68a713682fa3",
+    "digest": "sha256:ad1ef799df6f826565931ec8effebd816f89f8c50a709e60398f8e20afaa16e5",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p21-fastapi-token-expiry",
-    "digest": "sha256:1be5c89dfa4129c1c201274100bd6fd3b2a8a548bd0bb193299c53779e792cda",
+    "digest": "sha256:be40e062e46029121a28073ac50cf3e2c9e7a3263df078be176df991ab0edf9b",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p22-fashion-resnet",
-    "digest": "sha256:2ecfb533b546b04d4b6eccd13e180d024a2d10da783cc9c1129edd850c1fd7f3",
+    "digest": "sha256:a86a3e697db11190fb49fef97f9692b4e52075c85f5dc79f9a2ea88ed98bf574",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p23-newsgroups-nb",
@@ -162,10 +162,10 @@
   },
   {
     "parent": "p24-dqn-cartpole",
-    "digest": "sha256:5dbc79ecbe56fd16e161df1e70e3dccac0cb4c37e9fb46f15b3a739001218aa3",
+    "digest": "sha256:2be1b1bb34b3fa3ac80796fbd20084f57e2cfc10e8e18ee99639fe7fc87347d3",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p25-ncf-movielens",
@@ -176,10 +176,10 @@
   },
   {
     "parent": "p26-churn-logreg",
-    "digest": "sha256:a972ee6255a4c527eabada2c1da81be8cc3265cec367afcb67031ef95bb63dbe",
+    "digest": "sha256:7911e72abd896bf2c7c2f7e0bd70ba262cf75c8c689ee68acc0f3fd73733bb02",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p27-rossmann-lstm",
@@ -197,10 +197,10 @@
   },
   {
     "parent": "p29-bart-summaries",
-    "digest": "sha256:d74b7e288824f71dab2b2224a83f5a701b5dee2c191c56c79db5f1bc9adb56d1",
+    "digest": "sha256:7f29a5871cc0cd06fa8fa573b4f544a8a7a859ac9a08a0af3945628dd15d5dab",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p30-cora-gcn",
@@ -211,10 +211,10 @@
   },
   {
     "parent": "p31-lime-titanic",
-    "digest": "sha256:8d0eebb20ff0910a57153b445e6bddf3ab64510cbf998f3d548a7dc54004d07b",
+    "digest": "sha256:9072b165296caf712639e9de6408adb55ae1c1284a688c6be7db760f578a82ff",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:38:04.804Z"
+    "at": "2026-11-25T15:58:27.000Z"
   },
   {
     "parent": "p32-retention-report",
@@ -232,9 +232,9 @@
   },
   {
     "parent": "p34-firmware-i2c-hang",
-    "digest": "sha256:0608e3a9c5b61004cc4b77517de4617a64ce36514e469399fe47cbb4bf8a23d3",
+    "digest": "sha256:fed67b3ea6918b38f2557a69abdebb8552a0748e8c86ce4737f7b57846283116",
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
-    "at": "2026-11-25T14:47:17.645Z"
+    "at": "2026-11-25T15:58:27.000Z"
   }
 ]

@@ -345,7 +345,7 @@
         "command": null,
         "path": "firmware/app/main.c",
         "exit": null,
-        "output": "@@ -88,4 +88,4 @@ void app_loop(void) {\n-    heartbeat_send();\n+    if (sensor_ok) heartbeat_send();",
+        "output": "@@ -88,4 +88,4 @@ void app_loop(void) {\n-    led_toggle(LED_STATUS);\n+    if (sensor_ok) led_toggle(LED_STATUS);",
         "writes": true
       }
     },

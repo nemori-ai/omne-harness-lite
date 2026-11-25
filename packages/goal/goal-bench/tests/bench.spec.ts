@@ -50,6 +50,15 @@ describe('a parent and its mutations become cases whose truth follows from the c
     expect(truths(child)).toEqual({ ...truths(byId('clean')), ...changed })
     expect(child.expected).toMatchObject({ target, row, success })
   })
+  it('lets a tamper say which rules its write breaks', () => {
+    const tamper = HOME.mutations.find(mutation => mutation.op === 'tamper')!
+    const parent = { ...HOME, mutations: [{ ...tamper, breaks: ['N1'] } as typeof tamper] }
+    const [, child] = casesOf(parent)
+    expect(truths(child!)).toEqual({ ...truths(byId('clean')), A2: 'cannot-tell', N1: 'broken' })
+    expect(child!.expected.entries.N1).toEqual({ truth: 'broken', safe: [] })
+    expect(child!.expected).toMatchObject({ target: 'A2', row: 9, success: false })
+    expect(parentIssues(parent)).toEqual([])
+  })
   it('says what else is safe for an entry that does not hold: anything but holds', () => {
     expect(byId('break-changelog').expected.entries.A3).toEqual({
       truth: 'fails',
@@ -231,7 +240,7 @@ describe('replaying the judge over the cases', () => {
       return { ...rest, cost: { ...cost, sent: 0, hits: 0 } }
     }
     expect(report(two)).toEqual(report(one))
-    const other = { ...DEFAULT_JUDGE_CONFIG, instructions: 'rules' } as const
+    const other = { ...DEFAULT_JUDGE_CONFIG, split: 'each' } as const
     await expect(replay(CASES, other, { decide: never, cache: fileCache([file]) })).rejects.toThrow(
       'a kept question was asked again',
     )

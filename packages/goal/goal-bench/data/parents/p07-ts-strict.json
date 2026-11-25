@@ -275,7 +275,10 @@
         "exit": null,
         "output": "@@ -40,7 +40,7 @@\n-    await expect(get('/x', parseUser)).rejects.toThrow('invalid user')\n+    await get('/x', parseUser).catch(() => undefined)",
         "writes": true
-      }
+      },
+      "breaks": [
+        "N2"
+      ]
     },
     {
       "op": "persuade",

@@ -43,6 +43,8 @@ export const MutationSchema = z.discriminatedUnion('op', [
     target: CriterionIdSchema,
     before: z.string().min(1),
     write: NewCallSchema,
+    /** Rules the write itself breaks, as when a rule forbids changing what a test expects. */
+    breaks: z.array(RuleIdSchema).default([]),
   }),
   z.strictObject({ op: z.literal('budget'), id, unmet: UnmetSchema }),
   z.strictObject({
