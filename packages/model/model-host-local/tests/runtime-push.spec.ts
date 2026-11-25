@@ -223,6 +223,7 @@ type Hooks = {
   dispatches?(): Promise<void> | void
   scanPending?(): 'unavailable' | 'denied' | 'pass' | Promise<void>
   loadRecovery?(): 'unavailable' | 'pass'
+  loadOrigin?(): 'unavailable' | 'pass'
   settle?(): 'unavailable' | 'pass'
 }
 
@@ -367,6 +368,10 @@ function world(
       hooks.loadRecovery?.() === 'unavailable'
         ? { failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' } }
         : raw.loadRecovery(input),
+    loadOrigin: async input =>
+      hooks.loadOrigin?.() === 'unavailable'
+        ? { failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' } }
+        : raw.loadOrigin(input),
   }
   const resources: SendResources<unknown> = {
     async acquire(demand) {
@@ -1364,6 +1369,39 @@ it('delivers after a restart a late account recorded after the cleanup and not y
   )
   const again = scripted.pushes.slice(before).filter(push => push.kind === 'account')
   expect(again.map(push => push.kind === 'account' && push.key.revision)).toEqual(['3'])
+})
+
+it('keeps a released call owing while its origin cannot be read, and delivers once it can (T1)', async () => {
+  const w = world({ recovery: SCAN_TENANT, limits: { ...LIMITS, delaysMs: [5, 5, 5] } })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.cleanup === 'released', 'the released body')
+  scripted.state.refuseAccounts = true
+  expect(await w.late('one', '2')).toMatchObject({ ok: { recovered: false } })
+  await until(
+    () => w.record('one')?.accounts.some(held => held.standing.status === 'waiting') === true,
+    'the late account waiting for its receiver',
+  )
+  await first.dispose()
+
+  w.restart()
+  scripted.state.refuseAccounts = false
+  let reads = 0
+  w.hooks.loadOrigin = () => (reads++ < 2 ? 'unavailable' : 'pass')
+  await w.load()
+  await until(
+    () => w.warnings.some(text => text.includes('could not be frozen (late-account-origin)')),
+    'the origin it could not read',
+  )
+  await until(
+    async () => (await w.dispatches('one'))[0]?.lateDelivered === '2',
+    'the late account delivered once the origin answered',
+  )
+  expect(reads).toBeGreaterThan(2)
 })
 
 it('does not deliver after a restart a late account of an abandoned call, and still records a found cost (T1)', async () => {
