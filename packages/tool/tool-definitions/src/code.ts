@@ -53,12 +53,13 @@ Not available
 - A failed program is never rerun. Calls that completed before the failure keep their effects, so check before you repeat them.
 - Let the program count, sort and compute. Do not do that by reading.`
 
-const PURPOSE = `Run a short TypeScript program that calls tools as functions and returns only what you choose. The results of the calls stay inside the program and do not enter the conversation. Use it when a result will be large and you need a small part of it, for example a web page, a long file or many matches: make that call inside the program and return only the part you need. Use it also when the work takes several tool calls whose results you only filter, combine or loop over. Call a tool directly when one or two small calls give you the answer.
-- code is the body of an async function: use await and return. Each callable tool is a global object and each command is a function that takes one object and resolves to a value, not to text: const page = await Web.fetch({ url }).
-- Always await a call, or pass the promises to Promise.all.
-- There is no file system, network, timer, import or require. Use the tools.
-- Each execute starts empty: nothing is kept between programs.
-- Let the program count, sort and compute, and return only what you need.`
+const PURPOSE = `Run a TypeScript program that calls tools as functions. The results of the calls stay inside the program; only what it returns enters the conversation.
+Use it when the work is many calls whose intermediate results you do not need to read: the same step on many items, calls that feed each other, a large result you need a small part of, or branches and retries. Save a program you will run again to a file and run it by path with input.
+Call tools directly when one or two small calls answer, when you must read a result to decide the next step, or when you need the full text in the conversation.
+- code is the body of an async function. Each tool it names is a global: const page = await Web.fetch({ url }). A call takes one object and resolves to a value, not to text.
+- Await every call; run independent calls together with Promise.all.
+- No file system, network, timer or import: use the tools. Nothing is kept between programs.
+- Find a tool that is not among your tools with Tools search and programmable set to true, then call it by name.`
 
 const FINDING = `Finding functions
 - The description of this tool shows the functions of your resident tools. help with name set to one tool shows the functions of that tool.

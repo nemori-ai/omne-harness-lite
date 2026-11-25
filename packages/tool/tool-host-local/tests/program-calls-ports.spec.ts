@@ -313,7 +313,7 @@ describe('one program position, port by port (TL-65, TL-68, TL-72)', () => {
     expect(failureOf(await answer)).toEqual(['interrupted', 'unknown'])
     const late = await w.tools.call({ ordinal: 2, entry: 'Echo.say', arguments: object })
     expect(failureOf(late)).toEqual(['interrupted', 'none'])
-    expect(await w.tools.functions()).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await w.tools.functions(['Echo'])).toMatchObject({ failure: { kind: 'unavailable' } })
     expect(w.log.filter(one => one === 'register')).toHaveLength(1)
   })
 
@@ -477,7 +477,7 @@ describe('one program position, port by port (TL-65, TL-68, TL-72)', () => {
       kind: 'failure',
       failure: { kind: 'interrupted', effect: 'none', message: 'The program has ended.' },
     })
-    expect(await stopped.tools.functions()).toEqual({
+    expect(await stopped.tools.functions(['Echo'])).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: 'program-calls',

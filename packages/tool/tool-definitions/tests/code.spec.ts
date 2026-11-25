@@ -13,6 +13,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createIndependentToolScope, executeTool } from '@omne-harness/tool'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
+import { commandMenu } from '@omne-harness/tool-contract'
 import type {
   ProgramCallAnswer,
   ProgramCallFailureKind,
@@ -863,6 +864,24 @@ describe('the definition of Code', () => {
     )
     if (definition.kind !== 'commands') throw new Error('commands')
     expect(definition.encoding).toBe('flat')
+    // What every request carries says when a program pays and when it does not, within a byte bound.
+    for (const use of [
+      'the same step on many items',
+      'calls that feed each other',
+      'a large result you need a small part of',
+      'branches and retries',
+      'a program you will run again',
+    ])
+      expect(definition.description).toContain(use)
+    for (const direct of [
+      'one or two small calls answer',
+      'read a result to decide the next step',
+      'need the full text in the conversation',
+    ])
+      expect(definition.description).toContain(direct)
+    expect(definition.description).toContain('Tools search and programmable set to true')
+    const bytes = (text: string) => new TextEncoder().encode(text).length
+    expect(bytes(definition.description) + bytes(commandMenu(definition))).toBeLessThanOrEqual(1536)
     expect(definition.backgroundAllowed).toBe(false)
     expect(definition.programmable).not.toBe(true)
     expect(
