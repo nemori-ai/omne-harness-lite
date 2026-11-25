@@ -30,7 +30,7 @@
 | Tool 的 `SourceLayer` | 只承载身份 | [tool-contract](../../../packages/tool/SPEC.md) |
 | Tool 的 `FixedToolRequest` | 身份、实例与受理时钉住的工作目录、文件范围 | [tool-contract](../../../packages/tool/SPEC.md) |
 | `AssemblyContext.workspace` | 只承载文本，不解析 | [request-context-contract](../../../packages/context/SPEC.md#应然设计) |
-| 一次调用的文件范围 | 落点 | [执行环境域](../execution-environments/README.md)。取自固定请求里钉住的那一份；它由实例的范围与「工作区之外的文件」这项设置在受理时算出 |
+| 一次调用的文件范围 | 落点 | [执行环境域](../execution-environments/README.md)。取自固定请求里钉住的那一份；它由实例的范围与「工作区之外的文件」这项设置在每一步开始之前随会话工作目录算出，受理时钉住 |
 
 ## 两层：治理与物理资源
 

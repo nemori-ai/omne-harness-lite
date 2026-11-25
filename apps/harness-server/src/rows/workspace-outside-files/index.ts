@@ -10,7 +10,7 @@ import { createOutsideFilesReader, outsideFilesBlock } from './block.ts'
 import { WorkspaceOutsideFilesService, workspaceOutsideFilesKey } from './service.ts'
 import { outsideFilesReader } from './setting.ts'
 
-/** The setting for files outside the workspace through Runtime Context: contributes its block, and reads it for whoever accepts a tool call. */
+/** The setting for files outside the workspace through Runtime Context: contributes its block, and reads it for the action before a step. */
 export const workspaceOutsideFilesRow = defineRow({
   row: 'workspace-outside-files',
   implementation: 'real',
