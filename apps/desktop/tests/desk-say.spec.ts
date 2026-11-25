@@ -221,6 +221,19 @@ describe('外壳读说话位：收起与去对话页', () => {
     expect(talk.keys()).toEqual({ hold: false, keys: false })
   })
 
+  it('笺是为开它时的那个租户开的：租户换了之后，读候选、say 与 show 问的仍是原来的租户，由那一项自己拒绝', async () => {
+    const talk = await talking({ say: () => Promise.resolve({ kind: 'sent', key: 's-9' }) })
+    talk.click()
+    talk.device.setScope('tenant-b')
+    talk.one.changed()
+    expect(talk.one.asked).toEqual([SCOPE, SCOPE])
+    talk.send('在吗', { kind: 'target', key: 's-1' })
+    await talk.device.settle()
+    expect(talk.one.said).toEqual([[SCOPE, { kind: 'target', key: 's-1' }, '在吗']])
+    talk.input('show')
+    expect(talk.one.shown).toEqual([[SCOPE, 's-9']])
+  })
+
   it('没有受理的那一句时，去对话页不理', async () => {
     const talk = await talking()
     talk.click()

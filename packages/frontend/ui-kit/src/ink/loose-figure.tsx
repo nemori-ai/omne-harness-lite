@@ -106,7 +106,7 @@ export function LooseFigure(props: LooseFigureProps): React.JSX.Element | null {
 
   if (!owns || mode === 'none') return null
   return (
-    <div className="omne-figure-layer omne-loose-figure">
+    <div className="omne-figure-layer">
       <FigureJourneys journeys={store.journeys} />
       <Carried store={store} size={size} mode={mode} />
     </div>

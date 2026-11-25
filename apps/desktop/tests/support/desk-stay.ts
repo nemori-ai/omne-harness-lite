@@ -128,6 +128,7 @@ export function harness(device: 'leave' | 'stay' | 'unreadable' = 'leave', place
     close: () => listeners.clear(),
   }
   let seat: { x: number; y: number } | null = { x: 40, y: 560 }
+  let scope: string | undefined = SCOPE
   const goHome = vi.fn()
   let changed: (() => void) | undefined
   const stay = createStay({
@@ -143,7 +144,7 @@ export function harness(device: 'leave' | 'stay' | 'unreadable' = 'leave', place
       }
     },
     slots: (place ?? sayPlace()).slots,
-    scope: () => SCOPE,
+    scope: () => scope,
   })
   const settle = async () => {
     for (let round = 0; round < 6; round += 1) await new Promise(done => setTimeout(done, 0))
@@ -174,6 +175,7 @@ export function harness(device: 'leave' | 'stay' | 'unreadable' = 'leave', place
     refuse: () => void (refuse = true),
     setSeat: (point: { x: number; y: number } | null) => void (seat = point),
     seatChanged: () => changed?.(),
+    setScope: (next: string | undefined) => void (scope = next),
     close: (index: number) => streams[index]!.close(),
     fail: (index: number) => streams[index]!.error(new Error('gone')),
     leases: () => sent.filter(each => each.url === '/device/figure/lease').length,

@@ -143,13 +143,29 @@ describe('桌面层的页面', () => {
     expect(page.hot).toHaveLength(2)
   })
 
-  it('照一幕写形的状态与待答数、观感；跟手时手的位置走小消息', () => {
+  it('照一幕写形的状态与待答数、观感', () => {
     const page = desk()
     const look = { theme: 'dark', size: 'large', reduced: true } as const
     const figure = { doing: 'thinking', waiting: 1 } as const
     page.send({ kind: 'scene', scene: scene(9, 1, { mode: 'rest', at: ORIGIN }, { look, figure }) })
     expect(page.main().dataset).toMatchObject({ doing: 'thinking', waiting: '1' })
     expect(document.documentElement.dataset).toMatchObject({ theme: 'dark', size: 'large' })
+  })
+
+  it('手的位置只认手里那一幕的租约：别的租约的小消息不挪形', () => {
+    const page = desk()
+    const label = [{ text: '应用外面' }]
+    page.send({
+      kind: 'scene',
+      scene: scene(9, 1, { mode: 'hand', at: { x: 1100, y: 200 } }, { label }),
+    })
+    const placed = () =>
+      page.view.container.querySelector<HTMLElement>('.omne-figure-label')!.style.cssText
+    const before = placed()
+    page.send({ kind: 'hand', lease: 8, at: { x: 1400, y: 600 } })
+    expect(placed()).toBe(before)
+    page.send({ kind: 'hand', lease: 9, at: { x: 1400, y: 600 } })
+    expect(placed()).not.toBe(before)
   })
 
   it('签只在一幕带着它、跟手时画', () => {

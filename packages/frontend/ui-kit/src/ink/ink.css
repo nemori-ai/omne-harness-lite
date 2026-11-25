@@ -214,10 +214,6 @@
   color: var(--omne-ink-primary);
 }
 
-.omne-loose-figure .omne-figure-ink {
-  filter: none;
-}
-
 .omne-say-bubble {
   position: fixed;
   z-index: var(--omne-layer-figure);

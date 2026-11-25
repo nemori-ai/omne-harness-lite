@@ -297,11 +297,13 @@ describe('the same figure as the one on the page (FE-I65)', () => {
     expect(document.querySelector('[data-figure-ink]')).not.toBeNull()
   })
 
-  it('carries no paper, shadow or halo round its ink', () => {
-    const rule = STYLES.split('}').find(text =>
-      text.includes('.omne-loose-figure .omne-figure-ink'),
-    )
-    expect(rule).toMatch(/filter:\s*none/)
+  it('keeps the paper breath round its ink, the same rule as on the page, so it shows on a dark window', () => {
+    render(<LooseFigure mode="rest" at={at([300, 200])} />)
+    expect(document.querySelector('.omne-figure-carried [data-figure-ink]')).not.toBeNull()
+    const rules = STYLES.split('}')
+    const breath = rules.find(text => text.includes('.omne-figure-carried .omne-figure-ink'))
+    expect(breath).toMatch(/filter:\s*drop-shadow/)
+    expect(rules.some(text => /filter:\s*none/.test(text))).toBe(false)
   })
 })
 

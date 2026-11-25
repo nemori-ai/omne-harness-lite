@@ -7,6 +7,7 @@ export type TalkDeps = Readonly<{
 }>
 
 type Note = {
+  readonly scope: string | undefined
   targets: readonly NoteTarget[] | null
   to: NoteTo
   fate: NoteFate | null
@@ -40,7 +41,7 @@ export class Talk {
   }
 
   public open(): void {
-    this.note = { targets: null, to: NEW, fate: null }
+    this.note = { scope: this.deps.scope(), targets: null, to: NEW, fate: null }
     this.follow()
     this.read()
   }
@@ -56,7 +57,7 @@ export class Talk {
     return note === null ? null : { targets: note.targets, to: note.to, fate: note.fate }
   }
 
-  /** One `say` per send; while it is out no other is taken. A throw is not known to have failed. */
+  /** One `say` per send, for the tenant the note was opened for; a throw is not known to have failed. */
   public send(words: string, to: NoteTo): void {
     const { note } = this
     const item = this.item()
@@ -65,7 +66,7 @@ export class Talk {
     this.changed()
     let said: Promise<SayOutcome>
     try {
-      said = Promise.resolve(item.say(this.deps.scope(), to, words))
+      said = Promise.resolve(item.say(note.scope, to, words))
     } catch {
       said = Promise.resolve({ kind: 'unknown' })
     }
@@ -80,10 +81,10 @@ export class Talk {
 
   /** Opens what the last accepted words went to; false when nothing was accepted. */
   public show(): boolean {
-    const key = this.note?.sent
-    if (key === undefined) return false
+    const { note } = this
+    if (note?.sent === undefined) return false
     try {
-      this.item()?.show(this.deps.scope(), key)
+      this.item()?.show(note.scope, note.sent)
     } catch {
       // The item's own failure to show; the main window still comes to the front.
     }
@@ -121,7 +122,7 @@ export class Talk {
     const { note } = this
     if (note === null) return
     const item = this.item()
-    const scope = this.deps.scope()
+    const { scope } = note
     note.targets =
       attempt(() => item?.targets(scope))?.map(({ key, label }) => ({ key, label })) ?? null
     const current = attempt(() => item?.current(scope))
