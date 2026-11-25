@@ -99,3 +99,4 @@ description: >
 - 协议挂着但调用答 `basis-unavailable`：领域的面按调用现取时没取到。这是设计好的答复，查领域那一行起没起来。
 - 界面模块不出现：它 `inject` 的协议客户端不在。协议在服务端没挂着，或客户端装配没拿到这份协议契约。
 - 依赖检查拦了界面模块：它导入了别的领域的成员，或别的领域的界面模块。
+- `lint:deps` 崩溃，报 `Cannot read properties of undefined (reading 'includes')` 并点名一个导入 `./module.tsx` 的文件：这是 dependency-cruiser 18.6.0 的缺陷，18.9.0 已经修好（#1444）。仓库检查用的是 `@omne-harness/repo-toolchain` 钉住的版本，升级之前把那个文件改个名字（`usage-ui` 用的是 `places.tsx`），不要靠排除配置绕开。

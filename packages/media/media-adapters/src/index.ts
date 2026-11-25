@@ -32,8 +32,11 @@ const NO_MEDIUM = 'the content reference names no medium of this tenant that is 
 
 function written(representation: Representation): Readonly<Record<string, unknown>> {
   const { definition, engine } = representation
-  if (representation.outcome === 'inconvertible')
-    return { snapshot: { outcome: 'inconvertible', definition, engine } }
+  if (representation.outcome === 'inconvertible') {
+    const { reason } = representation
+    const why = reason === undefined ? {} : { reason }
+    return { snapshot: { outcome: 'inconvertible', definition, engine, ...why } }
+  }
   const { text, others } = representation
   const inline = typeof text === 'string'
   const snapshot = { outcome: 'converted', definition, engine, text: inline ? null : text, others }

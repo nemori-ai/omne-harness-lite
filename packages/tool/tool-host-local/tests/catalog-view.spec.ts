@@ -279,6 +279,21 @@ describe('legal catalog view and BM25', () => {
       failure: { kind: 'invalid-cursor' },
     })
   })
+  it('a search for what a program can call keeps resident tools, and a search for what to call directly leaves them out', async () => {
+    const w = setup()
+    w.view = {
+      ...w.view,
+      entries: w.rows.map(r => ({ key: r.entry.key, resident: r.definition.name === 'bravo' })),
+    }
+    expect(await names(w.catalog)).toEqual(['charlie', 'alpha'])
+    const callable = await page(w.catalog, { invocation: 'programmatic' })
+    if ('failure' in callable) throw new Error('page')
+    expect(callable.ok.entries.map(e => [e.definition.name, e.resident]).sort()).toEqual([
+      ['alpha', false],
+      ['bravo', true],
+      ['charlie', false],
+    ])
+  })
   it('metadata replacement removes resident search entries while inspect and usage keep fresh metadata', async () => {
     const w = setup()
     const first = await page(w.catalog, { limit: 1 })

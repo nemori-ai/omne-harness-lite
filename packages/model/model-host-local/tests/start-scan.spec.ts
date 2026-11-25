@@ -81,6 +81,7 @@ function loading(
   stopping = new AbortController().signal,
 ) {
   const scheduled: string[] = []
+  const woken: string[] = []
   const loads: string[] = []
   const reports: object[] = []
   const commands = {
@@ -101,12 +102,12 @@ function loading(
       size: 10,
       stopping,
       report: event => reports.push(event),
-      wake: () => {},
+      wake: target => woken.push(target.call),
       schedule: target => scheduled.push(target.call),
     },
     { scopes: () => Promise.resolve({ ok: [{ principal: 'scanner', tenant: A }] }) },
   )
-  return { started, scheduled, loads, reports }
+  return { started, scheduled, woken, loads, reports }
 }
 
 describe('the start scan', () => {
@@ -130,12 +131,13 @@ describe('the start scan', () => {
     expect(s.started.scanned(callOf('admitted-later'))).toBe(false)
   })
 
-  it('takes a call whose material was released as looked at and wakes nothing for it', async () => {
+  it('wakes a listed call whose material was released: it still owes its late accounts or a cost lookup', async () => {
     const s = loading(new Map([[callOf('released'), [released]]]))
     await s.started.run()
     expect(s.scheduled).toEqual([])
+    expect(s.woken).toEqual([callOf('released')])
     expect(s.loads).toEqual([callOf('released')])
-    expect(s.reports).toEqual([{ kind: 'recovered', woken: 0 }])
+    expect(s.reports).toEqual([{ kind: 'recovered', woken: 1 }])
   })
 
   it('reads the tenant again when a call cannot be loaded for now, and gives up on a refused one', async () => {

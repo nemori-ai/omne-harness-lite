@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { commandMenu, type CommandTable } from '@omne-harness/tool-contract'
-import { commandGuide } from '@omne-harness/tool-contract/provider'
+import { commandGuide, returnGuide, returnSummary } from '@omne-harness/tool-contract/provider'
 import { adoption, json, ordinaryReturns, structuredReturns } from './tool-values.ts'
 
 const declaration = {
@@ -46,8 +46,13 @@ const table: CommandTable = {
 
 it('advertises the return shape and body format without repeating full schemas in the menu', () => {
   const menu = commandMenu(table)
-  expect(menu).toContain('Returns array (rows@2). Model body: json-lines. Program data: none.')
+  expect(menu).toContain('Returns array (rows@2). Model body: json-lines.')
   expect(menu).not.toContain('uniqueColumn')
+  // TL-75: what a program receives is told by Tools alone; a declaration says nothing of it.
+  expect(menu).not.toContain('Program')
+  expect(returnSummary(declaration)).toBe(
+    'Returns array (rows@2). Model body: json-lines. Program data: none.',
+  )
 })
 
 it('inspection discloses the exact value and record schemas for executor-owned parameters too', () => {
@@ -77,7 +82,8 @@ it('describes structured returns and no model body without inventing a value sch
     },
     'query',
   )
-  expect(guide).toContain('Returns ToolResult. Model body: none. Program data: none.')
+  expect(guide).toContain('Returns ToolResult. Model body: none.')
+  expect(guide).not.toContain('Program')
   expect(guide).not.toContain('Return value schema')
 })
 
@@ -108,13 +114,23 @@ it('keeps JSON document and program schemas separate in the detailed guide', () 
     },
     'query',
   )
-  expect(guide).toContain(
-    'Returns ToolResult. Model body: json-document. Program data: JSON (count@3).',
-  )
+  expect(guide).toContain('Returns ToolResult. Model body: json-document.')
   expect(guide).toContain(
     'Body document schema row@1 (sha256:row): {"type":"object","required":["uniqueColumn"]}',
   )
-  expect(guide).toContain('Program data schema count@3 (sha256:count): {"type":"integer"}')
-  expect(guide).toContain('Program byte limit: 128')
-  expect(guide).toContain('"name":"program"')
+  // The help of a tool says what the model receives; what a program receives is in the guide Tools gives.
+  expect(guide).not.toContain('Program')
+  const whole = returnGuide(returns)
+  expect(whole).toContain(
+    'Returns ToolResult. Model body: json-document. Program data: JSON (count@3).',
+  )
+  expect(whole).toContain('Program data schema count@3 (sha256:count): {"type":"integer"}')
+  expect(whole).toContain('Program byte limit: 128')
+  expect(whole).toContain('"name":"program"')
+  expect(whole.split('\n')).toContain('Program byte limit: 128')
+  // A return that gives a program nothing says so in one line and adds no program contract.
+  const none = returnGuide(structuredReturns)
+  expect(none).toContain('Program data: none.')
+  expect(none).not.toContain('Program contract')
+  expect(none).not.toContain('Program byte limit')
 })

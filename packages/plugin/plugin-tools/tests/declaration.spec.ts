@@ -32,8 +32,7 @@ const GUIDE = [
   'You see what the acting tenant may see. A client is listed only while it is connected.',
   'A failure starts with its reason, then says what to do.',
 ].join('\n\n')
-const RETURNS =
-  ' Returns string (@omne-harness/plugin-tools/text@1). Model body: text. Program data: none.'
+const RETURNS = ' Returns string (@omne-harness/plugin-tools/text@1). Model body: text.'
 
 describe('the OmneExtensionPoints declaration', () => {
   it('is one wrapped declaration whose purpose, menu and rules are the designed text', () => {

@@ -25,6 +25,7 @@ import {
   judgeFixedModelRequest,
   type ActorRef,
   type CallAccountReport,
+  type CallOrigin,
   type ExecutionRef,
   type LateDispatchFact,
   type ModelConsumerOwnerDeclaration,
@@ -34,7 +35,7 @@ import {
 } from '@omne-harness/model-contract/provider'
 import type { CredentialSelection } from '../send.ts'
 import { arrivalsFit, keepInstant } from './instants.ts'
-import { executionFailed, runtimeLost } from './judge.ts'
+import { executionFailed, MALFORMED_FAULT, malformedFault, runtimeLost } from './judge.ts'
 import {
   checkedActor,
   decimal,
@@ -75,6 +76,14 @@ import type {
   WriteIdentity,
 } from './types.ts'
 
+/** Who a call answers to; it stays readable after the call's material is released. */
+export function originOf(call: CallDocument): CallOrigin {
+  return {
+    admission: call.admission,
+    consumer: structuredClone(call.state.consumer),
+    custody: structuredClone(call.state.custody),
+  }
+}
 export function copyCall(call: CallDocument): CallDocument {
   const { execution, dispatches, ...plain } = call
   return {
@@ -128,10 +137,12 @@ function endDispatch(
 ): ModelFailure | null {
   if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
     return invalid('termination', 'encoded-byte-limit')
-  const completion = completionOf(call, dispatch, termination)
+  // A cause the transport could not describe ends the dispatch as a protocol failure, not unended.
+  const received = malformedFault(termination) ? MALFORMED_FAULT : termination
+  const completion = completionOf(call, dispatch, received)
   if (completion.kind !== 'formed') return completion.failure
   const actual =
-    termination.kind === 'interrupted'
+    received.kind === 'interrupted'
       ? call.state.control.kind === 'requested'
         ? { kind: 'interrupted' as const, control: call.state.control.operation }
         : {
@@ -142,7 +153,7 @@ function endDispatch(
               upstreamStatus: null,
             },
           }
-      : termination
+      : received
   dispatch.logicalTerminal = structuredClone(actual)
   dispatch.record = { ...dispatch.record, terminal: structuredClone(actual) }
   return null
@@ -380,6 +391,7 @@ export function lateTerminal(
   dispatch: DispatchDocument,
   actual: Termination,
 ): ModelFailure | null {
+  if (malformedFault(actual)) return invalid('termination', 'fault-shape')
   dispatch.record = { ...dispatch.record, terminal: structuredClone(actual) }
   if (dispatch.logicalTerminal !== null) return null
   const completion = completionOf(call, dispatch, actual)

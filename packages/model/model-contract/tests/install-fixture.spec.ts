@@ -6,13 +6,12 @@ import {
   mkdirSync,
   mkdtempSync,
   realpathSync,
-  rmSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { readEntryReport, readSetReport, type EntryReport } from './install-reports.ts'
 import {
   compileFixture,
@@ -21,16 +20,14 @@ import {
   runFixture,
 } from './install/fixture-run.ts'
 import { exec } from './install/process.ts'
+import { removeAfterAll } from './install-tree.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
 const template = join(packageDirectory, 'tests/fixtures/consumers/independent-caller/tsconfig.json')
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'install-fixture-')))
 const workDirectory = join(workspaceRoot, 'tmp/install-closure/model-contract-fixture-spec')
-afterAll(() => {
-  rmSync(root, { recursive: true, force: true })
-  rmSync(workDirectory, { recursive: true, force: true })
-})
+removeAfterAll(() => [root, workDirectory])
 
 function write(path: string, text: string): string {
   mkdirSync(join(path, '..'), { recursive: true })

@@ -142,6 +142,7 @@ export declare abstract class ModelCommandsService<P> extends Service implements
     abstract readonly recall: ModelCommands<P>['recall'];
     abstract readonly scanPending: ModelCommands<P>['scanPending'];
     abstract readonly loadRecovery: ModelCommands<P>['loadRecovery'];
+    abstract readonly loadOrigin: ModelCommands<P>['loadOrigin'];
     abstract readonly loadRequest: ModelCommands<P>['loadRequest'];
     abstract readonly claim: ModelCommands<P>['claim'];
     abstract readonly prepareDispatch: ModelCommands<P>['prepareDispatch'];

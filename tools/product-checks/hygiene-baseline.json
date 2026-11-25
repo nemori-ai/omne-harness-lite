@@ -439,7 +439,7 @@
       },
       "packages/model/model-host-local/src/plugins/runtime.ts": {
         "count": 1,
-        "longest": 528
+        "longest": 505
       },
       "packages/model/model-storage-sql/src/commit.ts": {
         "count": 1,
@@ -627,7 +627,7 @@
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,
-        "longest": 154
+        "longest": 151
       },
       "packages/tool/tool-host-local/src/control-subject-adapter.ts": {
         "count": 1,

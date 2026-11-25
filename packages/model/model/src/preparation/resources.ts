@@ -10,11 +10,12 @@ import type {
   Supplier,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type { MessageId } from '@omne-harness/message'
 import type { CalibratedInputMeter } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { sameAdoption } from '../adoption.ts'
-import { readCallFacts, type CallFactsReader, type CallFactsView } from './facts.ts'
-import { judgeAnchor, judgeOutputs } from './judge.ts'
+import { callFacts, type CallFacts, type CallFactsReader } from './facts.ts'
+import { judgeAnchor, judgeOutputs, stateMessages } from './judge.ts'
 import { parseLineage, type Lineage } from './lineage.ts'
 
 export type PreparationBinding = Readonly<{
@@ -97,7 +98,7 @@ function supplierName(binding: PreparationBinding): string {
 function lineageMeter(
   binding: PreparationBinding,
   lineage: Lineage,
-  factsOf: () => CallFactsView | null,
+  factsOf: () => CallFacts | null,
 ): ModelInputMeter {
   const meter: ModelInputMeter = {
     basis: binding.meter.basis,
@@ -105,24 +106,31 @@ function lineageMeter(
       const facts = factsOf()
       if (facts === null) return releasedAnswer()
       const supplier = binding.supplier.adoption
+      const { continues, sources } = lineage
       const anchor = judgeAnchor({
-        continues: lineage.continues,
-        facts,
+        continues,
+        facts: await facts.view(continues === null ? [] : [continues]),
         supplier,
         representation: input.representation,
         messages: input.assembled.messages.map(message => message.id),
       })
-      const outputs = judgeOutputs({
-        sources: lineage.sources,
-        facts,
-        supplier,
-        messages: input.assembled.messages,
+      const hit =
+        anchor.kind === 'hit' ? { covered: anchor.covered, inputTotal: anchor.inputTotal } : null
+      const outputsBeyond = async (covered: readonly MessageId[]) => {
+        const messages = stateMessages(input.assembled.messages, covered)
+        const calls = messages.flatMap(message => sources.get(message.id) ?? [])
+        return judgeOutputs({ sources, facts: await facts.view(calls), supplier, messages })
+      }
+      let measured = await binding.meter.measureCalibrated(input, {
+        anchor: hit,
+        outputs: await outputsBeyond(hit?.covered ?? []),
       })
-      const measured = await binding.meter.measureCalibrated(input, {
-        anchor:
-          anchor.kind === 'hit' ? { covered: anchor.covered, inputTotal: anchor.inputTotal } : null,
-        outputs,
-      })
+      // A measurement that needed an output not yet read fails; read the covered ones and measure again.
+      if (hit !== null && !('ok' in measured))
+        measured = await binding.meter.measureCalibrated(input, {
+          anchor: hit,
+          outputs: await outputsBeyond([]),
+        })
       if (factsOf() === null) return releasedAnswer()
       if (!('ok' in measured)) return measured
       if (anchor.kind === 'miss') return { ok: { ...measured.ok, calibration: { anchor } } }
@@ -140,14 +148,14 @@ function lineageMeter(
 function leaseOf(
   acquired: readonly PreparationBinding[],
   lineage: Lineage | null,
-  facts: CallFactsView,
+  facts: CallFacts,
   controller: AbortController,
 ): ModelPreparationLease {
   const [first, ...rest] = acquired
   if (first === undefined) throw new TypeError('a profile names at least one supplier')
   let released: Promise<Released> | undefined
-  let view: CallFactsView | null = facts
-  const factsOf = (): CallFactsView | null => view
+  let view: CallFacts | null = facts
+  const factsOf = (): CallFacts | null => view
   const pending = new Set<Promise<void>>()
   const guarded = (meter: ModelInputMeter): ModelInputMeter =>
     Object.freeze({
@@ -187,17 +195,16 @@ function leaseOf(
   return Object.freeze(lease)
 }
 
-async function bindThenRead<P>(
+async function bindAll<P>(
   input: Readonly<{
     options: ModelPreparationOptions<P>
     access: Access<P>
     profile: ModelProfile
-    lineage: Lineage | null
     acquired: PreparationBinding[]
     signal: AbortSignal
   }>,
-): Promise<Outcome<CallFactsView, ModelFailure>> {
-  const { options, access, profile, lineage, acquired, signal } = input
+): Promise<Outcome<undefined, ModelFailure>> {
+  const { options, access, profile, acquired, signal } = input
   for (const declared of profile.definition.suppliers) {
     const supplier = options.supplierOf({ ...access, profile, supplier: declared })
     if (!('ok' in supplier)) return supplier
@@ -207,8 +214,7 @@ async function bindThenRead<P>(
     if (!('ok' in binding)) return binding
     acquired.push(binding.ok)
   }
-  if (lineage === null) return { ok: new Map() }
-  return { ok: await readCallFacts({ reader: options.commands, access, calls: lineage.calls }) }
+  return { ok: undefined }
 }
 
 export function createModelPreparationResources<P>(
@@ -223,27 +229,21 @@ export function createModelPreparationResources<P>(
       const profile = structuredClone(input.profile)
       const acquired: PreparationBinding[] = []
       const controller = new AbortController()
-      let facts: Outcome<CallFactsView, ModelFailure>
+      let bound: Outcome<undefined, ModelFailure>
       try {
-        facts = await bindThenRead({
-          options,
-          access,
-          profile,
-          lineage: lineage.ok,
-          acquired,
-          signal: controller.signal,
-        })
+        bound = await bindAll({ options, access, profile, acquired, signal: controller.signal })
       } catch (error) {
         controller.abort()
         await releaseAll(acquired)
         throw error
       }
-      if (!('ok' in facts)) {
+      if (!('ok' in bound)) {
         controller.abort()
         await releaseAll(acquired)
-        return facts
+        return bound
       }
-      return { ok: leaseOf(acquired, lineage.ok, facts.ok, controller) }
+      const facts = callFacts(options.commands, access)
+      return { ok: leaseOf(acquired, lineage.ok, facts, controller) }
     },
   }
   return Object.freeze(resources)

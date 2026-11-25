@@ -249,3 +249,30 @@ async function pngBytes(width: number, height: number) {
   const { pngOf } = await import('./fixtures/libraries.ts')
   return pngOf(width, height)
 }
+
+it('hands on the error of a library that cannot write a frame as PNG; its self-check is unknown and names it', async () => {
+  const { library } = libraryOf(MACOS_RECORDED)
+  const [monitor] = library.monitors()
+  if (monitor === undefined) throw new Error('the fixture has a screen')
+  const unwritable = async () => {
+    const image = await monitor.captureImage()
+    const toPng = async (): Promise<Uint8Array> => {
+      throw new Error('the PNG writer failed')
+    }
+    return { width: image.width, height: image.height, crop: image.crop, toPng }
+  }
+  const backend = libraryBackend({
+    name: 'fixture',
+    verification: 'contract-suite',
+    units: 'points',
+    library: () => ({ monitors: () => [{ ...monitor, captureImage: unwritable }] }),
+    permission: granted,
+  })
+  await expect(backend.capture({ screen: '2', region: null })).rejects.toThrow(
+    'the PNG writer failed',
+  )
+  expect(await selfCheck(backend)).toEqual({
+    kind: 'unknown',
+    reason: 'a frame cannot be taken: the PNG writer failed',
+  })
+})
