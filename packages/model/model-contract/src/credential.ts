@@ -1,5 +1,6 @@
 import type { Access } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
+import type { ProviderPreferences } from './provider-asset.ts'
 import type { CredentialLayer, ProviderName } from './root.ts'
 
 export const MODEL_SEND = 'model-send'
@@ -34,4 +35,11 @@ export type CredentialResolution = Outcome<ReadonlyMap<string, string>, Credenti
 export type CredentialPort<P = unknown> = {
   layerOf(input: CredentialLayerQuery<P>): Outcome<CredentialLayer, CredentialFailure>
   resolve(reference: CredentialReference<P>): CredentialResolution
+}
+
+/** Where the profile source reads what a tenant chose over the catalog of one provider. */
+export type ModelPreferencesPort<P = unknown> = {
+  read(
+    input: Readonly<{ provider: ProviderName; access: Access<P> }>,
+  ): Promise<Outcome<ProviderPreferences, Readonly<{ kind: 'unavailable' }>>>
 }

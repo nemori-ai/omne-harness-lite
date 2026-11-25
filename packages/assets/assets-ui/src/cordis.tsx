@@ -7,6 +7,7 @@ import { Fragment } from 'react'
 import { assetGovernanceKey, governancePort } from './governance-port.ts'
 import { createCategoryNames } from './model/category-names.ts'
 import { createGovernance } from './model/governance.ts'
+import { holdingClaims } from './model/holding-claims.ts'
 import { assetsCategory, assetsCategoryPage, assetsControl, assetsHolding } from './model/points.ts'
 import { assetsParts } from './parts.ts'
 import { AssetsPage } from './view/assets-page.tsx'
@@ -38,6 +39,7 @@ export const assetsUiModule = defineUiModule({
       point.declare(shell)
     const governance = createGovernance({ client })
     const categoryNames = createCategoryNames(client, server.get())
+    const claims = holdingClaims(shell)
     provide(assetGovernanceKey, governancePort(governance, boundRow(shell)))
     shell.contribute('pages', {
       id: ASSETS_PAGE,
@@ -56,6 +58,7 @@ export const assetsUiModule = defineUiModule({
               holdingSlot={(category, name) =>
                 assetsHolding.slot(shell, category, { category, name }, inOrder)
               }
+              claims={claims}
               pages={layout => assetsCategoryPage.slot(shell, {}, layout)}
             />
           </ControlDrawContext.Provider>

@@ -82,7 +82,9 @@
           "title": "凭据服务定义",
           "names": [
             { "name": "ModelCredentialService", "kind": "class", "pending": false },
-            { "name": "modelCredentialKey", "kind": "value", "pending": false }
+            { "name": "modelCredentialKey", "kind": "value", "pending": false },
+            { "name": "ModelPreferencesService", "kind": "class", "pending": false },
+            { "name": "modelPreferencesKey", "kind": "value", "pending": false }
           ]
         },
         {

@@ -1442,6 +1442,11 @@
               "pending": false
             },
             {
+              "name": "ModelPreferencesPort",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "CredentialLayerReading",
               "kind": "type",
               "pending": false
@@ -1885,6 +1890,31 @@
             },
             {
               "name": "modelProviderCategoryDisplay",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CatalogModel",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MODEL_SWITCHES",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "MODEL_REASONING_EFFORTS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ProviderPreferences",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "preferencesOf",
               "kind": "value",
               "pending": false
             }

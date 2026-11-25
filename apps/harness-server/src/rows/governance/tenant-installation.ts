@@ -16,6 +16,8 @@ import { independentTargetsOf } from './independent-settings.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
 import { installToolGovernance, toolInstallationGrants } from './tool-installation.ts'
+import { installReleaseProviders } from './release-provider-installation.ts'
+import type { ReleaseProvider } from '../../assets/model-providers.ts'
 import type {
   TenantAssetsAccess,
   TenantGovernanceAssembly,
@@ -37,7 +39,16 @@ export type InstalledTenantOptions = Omit<
   categories: Pick<CategoryView, 'list' | 'lookup'>
   tenantAssets(): Promise<AssetsLocal | undefined>
   independentSettings(): readonly SettingDefinitions[]
+  /** The model providers the release brings; each is installed into the tenant when it opens. */
+  releaseProviders?(): readonly ReleaseProvider[]
   warn(message: string): void
+}
+
+async function installProvidersOf(options: InstalledTenantOptions, assets: AssetsLocal) {
+  const providers = options.releaseProviders?.()
+  if (providers === undefined) return
+  const tenantRef = options.scope.tenantRef
+  await installReleaseProviders({ owner: assets, tenantRef, providers, warn: options.warn })
 }
 
 // A catalog that could not be read names the closed reason the store gave, never its diagnostic.
@@ -125,6 +136,7 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
     try {
       const assets = await options.tenantAssets()
       if (assets === undefined) throw new Error('the local assets of the tenant are unavailable')
+      await installProvidersOf(options, assets)
       const installed = await installToolGovernance({
         principal: options.installationPrincipal,
         scope: options.scope,

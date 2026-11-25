@@ -9,6 +9,7 @@ import { parseSecretText, type SecretScope } from '@omne-harness/settings'
 import { createSecretVault } from '@omne-harness/settings-local/secrets'
 import { providerCredentialKey, releaseProvider } from '../../../src/assets/model-providers.ts'
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
+import { everyModelOnRow, everyModelSwitchedOnRow } from '../../support/model-preferences.ts'
 import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
 import type { AssembledModelInput, ModelProfile } from '@omne-harness/model-contract'
 import {
@@ -63,6 +64,8 @@ const plugins = {
   commandsStandIn,
   modelCredentialRow,
   secretCustodyRow,
+  everyModelOnRow,
+  everyModelSwitchedOnRow,
 }
 const directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-preparation-row-')))
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
@@ -111,10 +114,12 @@ function credentialRows(path: string) {
   return [
     { id: 'model-credential', plugin: 'modelCredentialRow', config: {} },
     { id: 'secret-custody', plugin: 'secretCustodyRow', config: { path } },
+    { id: 'every-model-switched-on', plugin: 'everyModelSwitchedOnRow', config: {} },
   ]
 }
+const CREDENTIAL_ROWS = ['model-credential', 'secret-custody', 'every-model-switched-on']
 const withoutCredentials = <R extends { id: string }>(over: readonly R[]): R[] =>
-  over.filter(row => row.id !== 'model-credential' && row.id !== 'secret-custody')
+  over.filter(row => !CREDENTIAL_ROWS.includes(row.id))
 const rows = [
   { id: 'model-tokenizers', plugin: 'modelTokenizersRow', config: LOCAL_TOKENIZERS },
   { id: 'model-records', plugin: 'commandsStandIn', config: {} },
@@ -302,7 +307,10 @@ describe('the model-request-preparation row', () => {
   })
 
   it('without the credential row the lease is refused, never completed with a layer', async () => {
-    const value = await leaseCredentials(rows.filter(row => row.id !== 'model-credential'))
+    const value = await leaseCredentials([
+      ...rows.filter(row => row.id !== 'model-credential' && row.id !== 'every-model-switched-on'),
+      { id: 'every-model-on', plugin: 'everyModelOnRow', config: {} },
+    ])
     expect(value).toEqual({
       failure: {
         kind: 'unavailable',

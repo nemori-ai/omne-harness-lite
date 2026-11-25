@@ -16,6 +16,7 @@ import {
 } from '../../support/release-tree.ts'
 import { mediaClientOf } from '../media-access/support.ts'
 import { send, treeOf, uploaded, words, type Reference } from '../media-intake/support.ts'
+import { setModelSwitches } from '../../support/model-switches.ts'
 import { selectModel } from '../session-access/words-only-route.ts'
 
 const READS_WORDS = 'openai/gpt-6.1-sol'
@@ -104,6 +105,8 @@ describe('switching the model of a history with a voice in it (C35)', () => {
       const speech = wav()
       const original = Buffer.from(speech).toString('base64')
       const exitCode = await onReleaseTree({ script, model: READS_WORDS }, async tree => {
+        // The release starts the model that hears off; the tenant turns it on.
+        await setModelSwitches(tree, { [HEARS]: true })
         const created = await tree.cli(['create-session', '--definition', 'coding'])
         expect(created.status, created.stderr).toBe(0)
         const session = String(bodyOf(created)['session'])

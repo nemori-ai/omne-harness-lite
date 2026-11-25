@@ -52,8 +52,19 @@ export type Parameter =
   | Readonly<{ kind: 'top-p'; value: number }>
   | Readonly<{ kind: 'max-output-tokens'; value: string }>
   | Readonly<{ kind: 'stop'; value: readonly string[] }>
-  | Readonly<{ kind: 'reasoning-effort'; value: ReasoningEffort | 'none' | 'max'; scale?: never }>
-  | Readonly<{ kind: 'reasoning-effort'; value: ReasoningEffort; scale: 'unified' }>
+  | Readonly<{
+      kind: 'reasoning-effort'
+      value: ReasoningEffort | 'none' | 'max'
+      scale?: never
+      basis?: never
+    }>
+  | Readonly<{
+      kind: 'reasoning-effort'
+      value: ReasoningEffort
+      scale: 'unified'
+      /** Present when the effort is the tenant's default for the model, not the session's choice. */
+      basis?: 'preference'
+    }>
   | Readonly<{ kind: 'seed'; value: string }>
   | Readonly<{ kind: 'frequency-penalty'; value: number }>
   | Readonly<{ kind: 'presence-penalty'; value: number }>
