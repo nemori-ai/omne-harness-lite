@@ -55,6 +55,28 @@ describe('waking the dispatcher', () => {
     expect(w.rounds()).toBe(2)
   })
 
+  it('reports a woken round that fails: nobody awaits a wake', async () => {
+    const reported: unknown[] = []
+    const down = new Error('the store is down')
+    const dispatcher = createDispatcher({
+      owner: { kind: 'tenant', tenantId: 't', ownerId: 'o' },
+      store: {
+        pending: async () => {
+          throw down
+        },
+        commit: async () => ({ kind: 'committed' }),
+        job: async () => ({ kind: 'ok', value: null }),
+      },
+      time: { now: () => 0, after: () => () => {}, at: () => () => {} },
+      policy: { intervalMs: 1000, gapMs: 1000, roundLimit: 5, classifyPages: 1 },
+      report: (error: unknown) => void reported.push(error),
+    } as never)
+    dispatcher.wake()
+    await settle()
+    await settle()
+    expect(reported).toEqual([down])
+  })
+
   it('does nothing once the dispatcher is closed', async () => {
     const w = world()
     await w.dispatcher.close()
