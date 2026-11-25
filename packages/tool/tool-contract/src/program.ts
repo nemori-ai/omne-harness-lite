@@ -145,7 +145,7 @@ export type ProgramCallAnswer =
   | Readonly<{ kind: 'failure'; failure: ProgramCallFailure }>
 
 export interface ProgramTools {
-  functions(): Reply<readonly ProgramFunction[]>
+  functions(names: readonly string[]): Reply<readonly ProgramFunction[]>
   call(input: At & Readonly<{ entry: string; arguments: JsonValue }>): Promise<ProgramCallAnswer>
   /** The body returned: no further position, and the table once every position is excluded or retained. */
   settle(): Reply<ProgramTable>

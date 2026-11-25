@@ -9,6 +9,7 @@ import {
 import { Context } from '@deepseek-ai/cordis'
 import {
   assetCategoriesPlugin,
+  broughtDefinitionsPlugin,
   categoryContributionPlugin,
 } from '@omne-harness/assets-cordis-contract/cordis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
@@ -254,5 +255,61 @@ describe('the keeper of what tenants hold', () => {
     w.state.fail = new Error('no room')
     expect(() => w.held.registryChanged()).not.toThrow()
     expect(w.warned).toHaveLength(2)
+  })
+})
+
+describe('what a tenant holds on the point of a category, name by name', () => {
+  const told = async () => {
+    const registry = await heldRegistry([categoryPlugin('gadget')])
+    const port = registry.held.heldOf('tenant-a')
+    const tell = (holdings: readonly HeldHolding[]) => port.sync(holdings)
+    return { registry, port, tell, names: () => registry.held.namesOf('tenant-a', 'gadget') }
+  }
+  const alpha = { category: 'gadget', name: 'alpha', item: item('tenant-a/gadget/alpha') }
+  const beta = { category: 'gadget', name: 'beta', item: item('tenant-a/gadget/beta') }
+
+  it('names every name held on the official and the tenant layer, each with a digest of what is held under it', async () => {
+    const w = await told()
+    await w.registry.root.plugin(
+      broughtDefinitionsPlugin('gadgets-official', 'gadget.items', [
+        { name: 'omega', item: item('official/gadget/omega'), body: { kind: 'null' } },
+      ]),
+    )
+    w.tell([alpha, beta])
+    const read = w.names()
+    expect([...(read?.names.keys() ?? [])].sort()).toEqual(['alpha', 'beta', 'omega'])
+    expect(new Set(read?.names.values()).size).toBe(3)
+  })
+
+  it('changes the digest of a name when what is held under it changes, and of no other name', async () => {
+    const w = await told()
+    w.tell([alpha, beta])
+    const before = w.names()
+    w.tell([{ ...alpha, item: { ...alpha.item, disabled: true } }, beta])
+    const after = w.names()
+    expect(after?.at).not.toBe(before?.at)
+    expect(after?.names.get('alpha')).not.toBe(before?.names.get('alpha'))
+    expect(after?.names.get('beta')).toBe(before?.names.get('beta'))
+    w.tell([beta])
+    expect([...(w.names()?.names.keys() ?? [])]).toEqual(['beta'])
+  })
+
+  it('reads the same while the registry stays the same', async () => {
+    const w = await told()
+    w.tell([alpha])
+    expect(w.names()).toBe(w.names())
+  })
+
+  it('is not known for a tenant never told, a telling that failed, or a category waiting for its point', async () => {
+    const w = await told()
+    expect(w.names()).toBeUndefined()
+    expect(w.registry.held.namesOf('tenant-b', 'gadget')).toBeUndefined()
+    w.tell([alpha])
+    expect(w.names()).toBeDefined()
+    w.port.missed('unread')
+    expect(w.names()).toBeUndefined()
+    w.tell([alpha, { category: 'widget', name: 'beta', item: item('tenant-a/widget/beta') }])
+    expect(w.names()).toBeDefined()
+    expect(w.registry.held.namesOf('tenant-a', 'widget')).toBeUndefined()
   })
 })

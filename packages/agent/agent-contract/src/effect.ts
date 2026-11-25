@@ -61,7 +61,7 @@ export function definitionImpact(
       lines: [
         own(
           '!',
-          `→ would be held and not in effect: the definition ${facts.name} of the deployment stands and cannot be replaced`,
+          `→ would be refused: the definition ${facts.name} of the deployment stands and cannot be replaced`,
         ),
       ],
       advice: 'Publish it under another name.',

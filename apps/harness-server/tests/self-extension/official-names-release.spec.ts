@@ -16,7 +16,7 @@ const publish = (id: string, category: string, name: string) =>
 
 describe('a name the release brings, published by a tenant, on the release tree', () => {
   it(
-    'replaces nothing: the tool is refused, the definition is held while the one of the release stands',
+    'replaces nothing: the tool and the definition are both refused',
     { tags: ['slow'], timeout: 240_000 },
     async () => {
       await inWorkspace(async ask => {
@@ -33,16 +33,16 @@ describe('a name the release brings, published by a tenant, on the release tree'
         expect(tool).not.toContain('done OmneExtensions publish')
         expect(tool).toContain('held-by-deployment')
 
-        // A definition under the name of an official one is held, and the official one stands: it says so.
+        // A definition under the name of an irreplaceable official one is refused; nothing is held under it.
         const definition = await ask(
           [publish('op-2', 'AgentDefinition', 'coding')],
           [extensions('show', { category: 'AgentDefinition', name: 'coding' })],
         )
-        expect(definition).toContain('done OmneExtensions publish')
-        expect(definition).toContain('held, and not in effect: blocked by official.')
+        expect(definition).not.toContain('done OmneExtensions publish')
         expect(definition).toContain(
-          'agent.definitions / coding   [not in effect]   blocked by official',
+          'irreplaceable-official: AgentDefinition coding is held on the official layer and cannot be replaced; nothing was published',
         )
+        expect(definition).not.toContain('[not in effect]')
 
         // The Files of the release still reads files; the coding of the release is still the target.
         const after = await ask(

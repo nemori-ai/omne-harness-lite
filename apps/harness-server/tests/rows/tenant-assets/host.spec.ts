@@ -175,3 +175,73 @@ describe('the tenant assets host: one local assets per tenant', () => {
     expect(await other.standing('alpha')).toBe('unknown')
   })
 })
+
+describe('the tenant assets host: a write registers the tenant, a read does not', () => {
+  function registering(answer: 'ready' | 'unavailable' | 'throws' = 'ready') {
+    const registered: string[] = []
+    const asked: string[] = []
+    const w = setup(registered)
+    const host = new TenantAssetsHost({
+      domains: {
+        lookup: async ({ tenant }) =>
+          registered.includes(tenant)
+            ? {
+                kind: 'ready',
+                domain: { scope: { kind: 'tenant', tenant }, transactionDomain: tenant },
+              }
+            : { kind: 'unregistered' },
+      },
+      open: async domain => {
+        w.opened.push(domain.transactionDomain)
+        return fake(domain.transactionDomain).assets
+      },
+      async register(tenant) {
+        asked.push(tenant)
+        if (answer === 'throws') throw new Error('the registry is down')
+        if (answer === 'ready') registered.push(tenant)
+        return answer === 'ready'
+      },
+    })
+    return { host, asked, registered, opened: w.opened }
+  }
+
+  it('P10：从没登记过的租户，写时先登记再开；之后读也开得到', async () => {
+    const w = registering()
+    expect(await w.host.open('alpha')).toBeUndefined()
+    expect(w.asked).toEqual([])
+    expect(await w.host.openForWriting('alpha')).toBeDefined()
+    expect(w.asked).toEqual(['alpha'])
+    expect(await w.host.open('alpha')).toBeDefined()
+    expect(w.opened).toEqual(['alpha'])
+  })
+
+  it('已登记的租户写时不再登记', async () => {
+    const w = registering()
+    w.registered.push('alpha')
+    expect(await w.host.openForWriting('alpha')).toBeDefined()
+    expect(w.asked).toEqual([])
+  })
+
+  it('登记不成或抛出：答没有，不开', async () => {
+    for (const answer of ['unavailable', 'throws'] as const) {
+      const w = registering(answer)
+      expect(await w.host.openForWriting('alpha')).toBeUndefined()
+      expect(w.opened).toEqual([])
+    }
+  })
+
+  it('目录读不出时不登记：不知道不当作没登记', async () => {
+    const asked: string[] = []
+    const host = new TenantAssetsHost({
+      domains: {
+        lookup: async () => {
+          throw new Error('the directory is down')
+        },
+      },
+      open: async () => fake('x').assets,
+      register: async tenant => (asked.push(tenant), true),
+    })
+    expect(await host.openForWriting('alpha')).toBeUndefined()
+    expect(asked).toEqual([])
+  })
+})

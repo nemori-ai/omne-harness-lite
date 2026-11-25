@@ -83,10 +83,10 @@ describe('what is told of a directory before it is published as a definition', (
     })
   })
 
-  it('says a definition of the deployment stands under that name', () => {
+  it('says a publish under the name of a definition of the deployment would be refused', () => {
     const told = impact({ name: 'coding', official: true })
     expect(told.lines.map(line => line.says)).toEqual([
-      '→ would be held and not in effect: the definition coding of the deployment stands and cannot be replaced',
+      '→ would be refused: the definition coding of the deployment stands and cannot be replaced',
     ])
     expect(told.advice).toBe('Publish it under another name.')
   })
