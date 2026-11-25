@@ -1,10 +1,6 @@
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
-import {
-  createCommandCatalog,
-  createResolver,
-  createSystemCommandSource,
-} from '@omne-harness/slash-command'
+import { createCommandCatalog, createResolver } from '@omne-harness/slash-command'
 import type { EntrySource } from '@omne-harness/slash-command-contract'
 import { describe, expect, it } from 'vitest'
 
@@ -18,16 +14,33 @@ function promptSource(space: string): EntrySource<string> {
     space,
     list: async () =>
       succeed([{ space, name: 'goal', kind: 'prompt', title: '给这段会话设一个目标' }]),
-    take: async (_asker, name) =>
-      name === 'goal'
+    take: async (_asker, naming) =>
+      naming.name === 'goal'
         ? succeed({ kind: 'text', text: '人想给这段会话设一个目标。', origin: ORIGIN })
         : fail('not-listed'),
   }
 }
 
+/** The system commands, holding the reserved namespace. */
+const systemSource: EntrySource<string> = {
+  name: 'system',
+  space: 'omne-official',
+  list: async () =>
+    succeed(
+      ['archive', 'model', 'permission'].map(name => ({
+        space: 'omne-official',
+        name,
+        kind: 'system' as const,
+        title: name,
+      })),
+    ),
+  take: async () => fail('not-listed'),
+}
+const naming = (name: string) => ({ name, args: '', request: 'req-1' })
+
 function catalogWith(space: string) {
   const sources = [
-    { source: createSystemCommandSource<string>(), official: true },
+    { source: systemSource, official: true },
     { source: promptSource(space), official: true },
   ]
   return createCommandCatalog<string>({ sources: () => sources, declared: [], timeoutMs: 1000 })
@@ -47,7 +60,12 @@ describe('an official prompt command beside the system commands', () => {
       ],
     )
     expect(
-      await createResolver(catalog)({ text: '/goal 把首页加载降下来', seen: null, asker }),
+      await createResolver(catalog)({
+        text: '/goal 把首页加载降下来',
+        seen: null,
+        asker,
+        request: 'req-1',
+      }),
     ).toEqual({
       kind: 'input',
       appended: [{ text: '人想给这段会话设一个目标。\n\n把首页加载降下来', origin: ORIGIN }],
@@ -57,7 +75,7 @@ describe('an official prompt command beside the system commands', () => {
   it('in the reserved namespace the system commands already hold, neither source can be taken from', async () => {
     const catalog = catalogWith('omne-official')
     expect((await catalog.read(asker)).catalog.entries.map(entry => entry.name)).toContain('goal')
-    expect(await catalog.take(asker, 'omne-official:goal')).toEqual(fail('unavailable'))
-    expect(await catalog.take(asker, 'omne-official:archive')).toEqual(fail('unavailable'))
+    expect(await catalog.take(asker, naming('omne-official:goal'))).toEqual(fail('unavailable'))
+    expect(await catalog.take(asker, naming('omne-official:archive'))).toEqual(fail('unavailable'))
   })
 })

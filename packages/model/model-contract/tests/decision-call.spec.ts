@@ -89,13 +89,14 @@ describe('a decision as a model call', () => {
 
   it('reads no answers from a result that is not one whole decision block', () => {
     const block = decisionAnswersBlock(answers)
-    if (block.kind !== 'text') throw new Error('no text')
+    const [asked] = decisionAskMessage(MESSAGE, ask)?.blocks ?? []
+    if (block.kind !== 'text' || asked === undefined) throw new Error('no text')
     expect(decisionAnswersOf([])).toBeNull()
     expect(decisionAnswersOf([...sealed(block), ...sealed(block)])).toBeNull()
     expect(
       decisionAnswersOf([{ kind: 'partial', content: 'text', value: block.text, trims: [] }]),
     ).toBeNull()
-    expect(decisionAnswersOf(sealed({ ...block, id: 'another' }))).toBeNull()
+    expect(decisionAnswersOf(sealed({ ...block, id: asked.id }))).toBeNull()
     expect(decisionAnswersOf(sealed({ ...block, text: 'not json' }))).toBeNull()
     expect(decisionAnswersOf(sealed({ ...block, text: '[]' }))).toBeNull()
     expect(decisionAnswersOf(sealed({ ...block, text: '{"A1":{"type":"prose"}}' }))).toBeNull()
