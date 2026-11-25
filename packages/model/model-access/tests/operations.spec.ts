@@ -68,7 +68,7 @@ describe('what Model answers becomes an outcome of the protocol', () => {
       resolved('unread', { credential: 'unreadable' }),
       resolved('down', { credential: 'unavailable' }),
     ]
-    const io = { reasoningEfforts: [], input: ['text', 'image'], output: ['text'] }
+    const io = { enabled: true, reasoningEfforts: [], input: ['text', 'image'], output: ['text'] }
     expect(await list()).toEqual({
       outcome: 'succeeded',
       body: {
@@ -100,6 +100,22 @@ describe('what Model answers becomes an outcome of the protocol', () => {
         ],
       },
     })
+  })
+
+  it('marks a model the tenant has turned off as not enabled, with no reason, and carries a default effort', async () => {
+    const { world, list } = assembled()
+    world.state.listing = [
+      resolved('off', { selectable: false, reasons: ['not-enabled'] }),
+      resolved('on', { defaultReasoningEffort: 'high' }, { high: 'high' }),
+    ]
+    const answer = await list()
+    expect(answer.outcome === 'succeeded' && answer.body.models).toMatchObject([
+      { route: 'off', selectable: false, reasons: [], enabled: false },
+      { route: 'on', selectable: true, enabled: true, defaultReasoningEffort: 'high' },
+    ])
+    expect(answer.outcome === 'succeeded' && answer.body.models[0]).not.toHaveProperty(
+      'defaultReasoningEffort',
+    )
   })
 
   it('leaves out a name that resolves to no profile', async () => {

@@ -182,7 +182,10 @@ describe('the governance port: one write, by the table of one submission', () =>
     const { fake, mcp, permissionKey } = await opened()
     mcp.set(permissionKey, 'auto')
     ;(await fake.next('set-setting')).answer({ outcome: 'succeeded', body: { revision: '2' } })
-    ;(await fake.next('describe-setting')).answer({ outcome: 'unavailable' })
+    // The write makes every item of the asset stale: each is read again; this one cannot be.
+    const rereads = [await fake.next('describe-setting'), await fake.next('describe-setting')]
+    const own = rereads.find(call => (call.body as { item: string }).item === MCP_VIEW.item)
+    own?.answer({ outcome: 'unavailable' })
     await settle()
     mcp.retryRow(permissionKey)
     expect((await fake.next('describe-setting')).body).toMatchObject({ item: MCP_VIEW.item })

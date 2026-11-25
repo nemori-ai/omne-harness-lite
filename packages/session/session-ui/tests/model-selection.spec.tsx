@@ -96,6 +96,9 @@ describe('the model of a session, as Session answered it last', () => {
     expect(selectText({ outcome: 'invalid', body: { reason: 'unknown-name' } })).toBe(
       '没有换：没有这个模型',
     )
+    expect(selectText({ outcome: 'invalid', body: { reason: 'excluded' } })).toBe(
+      '没有换：这个模型没有启用',
+    )
     expect(
       selectText({
         outcome: 'invalid',
@@ -208,7 +211,7 @@ describe('the model in the heading of a conversation', () => {
     expect(screen.queryByRole('combobox')).toBeNull()
   })
 
-  it('with a list it offers the models; one that cannot be picked is disabled with its reason', async () => {
+  it('with a list it offers the models that can be picked; one that cannot is left out (C9)', async () => {
     const { store, select } = storeWith([selection(GPT, '1'), selection(CLAUDE, '2')])
     store.attach(sourceOf(LISTED))
     render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
@@ -216,14 +219,58 @@ describe('the model in the heading of a conversation', () => {
     const trigger = screen.getByRole('combobox', { name: '模型' })
     expect(trigger.textContent).toContain(GPT)
     fireEvent.keyDown(trigger, { key: 'Enter' })
-    const locked = await screen.findByRole('option', { name: /locked-z/u })
-    expect(locked.getAttribute('aria-disabled')).toBe('true')
-    expect(locked.textContent).toContain('不能选：被锁定')
+    await screen.findByRole('option', { name: /claude-y/u })
+    expect(screen.queryByRole('option', { name: /locked-z/u })).toBeNull()
     fireEvent.click(screen.getByRole('option', { name: /claude-y/u }))
     await settle()
     expect(select.mock.calls[0]?.[0]).toMatchObject({ session: SESSION, model: CLAUDE })
     expect(screen.getByRole('status').textContent).toBe(`已换成 ${CLAUDE}`)
     expect(screen.getByRole('combobox', { name: '模型' }).textContent).toContain(CLAUDE)
+  })
+
+  it('the current model stays offered when it cannot be picked, disabled with its reason (C9)', async () => {
+    const { store } = storeWith([selection(LOCKED, '1')])
+    store.attach(sourceOf(LISTED))
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'Enter' })
+    const locked = await screen.findByRole('option', { name: /locked-z/u })
+    expect(locked.getAttribute('aria-disabled')).toBe('true')
+    expect(locked.textContent).toContain('不能选：被锁定')
+    expect(screen.getAllByRole('option')).toHaveLength(3)
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    await settle()
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '推理强度' }), { key: 'Enter' })
+    const [first] = await screen.findAllByRole('option')
+    expect(first?.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('the model default says the effort the tenant set for the model, or the provider default (C9)', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    store.attach(
+      sourceOf({
+        kind: 'listed',
+        choices: [
+          {
+            route: GPT,
+            selectable: true,
+            note: null,
+            reasoningEfforts: ['low', 'medium'],
+            defaultReasoningEffort: 'medium',
+          },
+        ],
+      }),
+    )
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    const effort = screen.getByRole('combobox', { name: '推理强度' })
+    expect(effort.textContent).toContain('模型默认（medium）')
+    fireEvent.keyDown(effort, { key: 'Enter' })
+    const [first] = await screen.findAllByRole('option')
+    expect([first?.textContent, first?.getAttribute('aria-disabled')]).toEqual([
+      '模型默认（medium）',
+      null,
+    ])
   })
 
   it('offers the four efforts, disables unsupported xhigh and reads back the selected effort', async () => {
@@ -239,7 +286,7 @@ describe('the model in the heading of a conversation', () => {
     await settle()
     fireEvent.keyDown(screen.getByRole('combobox', { name: '推理强度' }), { key: 'Enter' })
     expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
-      '模型默认',
+      '模型默认（供应商默认）',
       'low',
       'medium',
       'high',

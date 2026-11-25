@@ -49,9 +49,13 @@ function listedOf(resolution: ProfileResolution): readonly Listed[] {
     {
       route: identity.route,
       selectable: resolution.selectable,
-      reasons: [...resolution.reasons],
+      reasons: resolution.reasons.filter(reason => reason !== 'not-enabled'),
+      enabled: !resolution.reasons.includes('not-enabled'),
       credential: CREDENTIAL[resolution.credential],
       reasoningEfforts: supportedReasoningEfforts(definition),
+      ...(resolution.defaultReasoningEffort === undefined
+        ? {}
+        : { defaultReasoningEffort: resolution.defaultReasoningEffort }),
       input: [...definition.input],
       output: [...definition.output],
     },

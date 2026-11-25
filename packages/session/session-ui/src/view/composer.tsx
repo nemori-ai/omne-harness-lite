@@ -5,6 +5,7 @@ import {
   Fragment,
   useContext,
   useEffect,
+  useLayoutEffect,
   useId,
   useRef,
   useState,
@@ -176,6 +177,21 @@ type Latest = Readonly<{
   text: string
 }>
 
+/** Puts the caret where a write asked once that write is drawn, in the same task, so no keystroke comes between. */
+function useCaret(field: RefObject<HTMLTextAreaElement | null>) {
+  const pending = useRef<Readonly<{ text: string; caret: number }> | null>(null)
+  useLayoutEffect(() => {
+    const want = pending.current
+    pending.current = null
+    if (want !== null && field.current?.value === want.text)
+      field.current.setSelectionRange(want.caret, want.caret)
+  })
+  return (text: string, caret: number): void => {
+    if (field.current?.value !== text) pending.current = { text, caret }
+    else field.current.setSelectionRange(caret, caret)
+  }
+}
+
 function useComposerHandle(
   keys: ComposerKeys | null,
   session: string,
@@ -222,6 +238,7 @@ export function Composer({
   const { session } = state
   const [text, setText] = useState('')
   const field = useRef<HTMLTextAreaElement>(null)
+  const place = useCaret(field)
   const layer = useRef<HTMLDivElement>(null)
   const menuId = useId()
   const draft = useSyncExternalStore(drafts.subscribe, () => drafts.read(session))
@@ -237,7 +254,7 @@ export function Composer({
   const write = (next: string, caret: number) => {
     setText(next)
     helper?.input(next, caret)
-    requestAnimationFrame(() => field.current?.setSelectionRange(caret, caret))
+    place(next, caret)
   }
   const send = (words: string, seen = assist.seen, how?: SendWay) => {
     const way = how === 'send' ? undefined : how

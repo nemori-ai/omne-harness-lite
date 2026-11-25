@@ -363,6 +363,28 @@ export function unsettledExecutions(storageRoot: string, session?: string): numb
 
 type LedgerRow = Readonly<{ kind: string; name: string; record: Record<string, unknown> }>
 
+/** The heads of the model requests whose calls are still open, in the order of the calls. */
+export function storedModelRequests(
+  storageRoot: string,
+): readonly Readonly<Record<string, unknown>>[] {
+  const requests: Readonly<Record<string, unknown>>[] = []
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const table = "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'md_call'"
+      if (db.prepare(table).get() === undefined) continue
+      for (const row of db.prepare('SELECT request FROM md_call ORDER BY rowid').all()) {
+        const raw = row['request']
+        if (raw === null) continue
+        requests.push(JSON.parse(typeof raw === 'string' ? raw : unpackText(raw as Uint8Array)))
+      }
+    } finally {
+      db.close()
+    }
+  }
+  return requests
+}
+
 export function executionFailures(storageRoot: string): readonly unknown[] {
   const failures: unknown[] = []
   for (const file of sqliteFiles(storageRoot)) {
@@ -703,6 +725,8 @@ export type ReleaseTree = Readonly<{
   hitl: ToolHitlHolder
   toolRuntime(): ReleaseToolRuntime
   records: readonly S0Record[]
+  /** The authorization header of each request the model gateway received, in order. */
+  modelAuthorizations(): readonly (string | null)[]
   cli(args: readonly string[], credential?: string): ReturnType<typeof runOmne>
   relogin(): Promise<string>
   startSession(text: string, definition?: string): Promise<string>
@@ -801,7 +825,13 @@ export async function onReleaseTreeRuns(
   const serve = async (run: number, body: (tree: ReleaseTree) => Promise<void>) => {
     await options.beforeRun?.(run, dir.storageRoot)
     for (let attempt = 1; ; attempt += 1) {
-      const state = { dir, port, home, modelRoute: gateway.url }
+      const state = {
+        dir,
+        port,
+        home,
+        modelRoute: gateway.url,
+        modelAuthorizations: () => gateway.authorizations(),
+      }
       const left = rowsLeftOut(options.withoutRows, run)
       const outcome = await serveOnce({ ...options, withoutRows: left }, state, run === 0, body)
       if (outcome !== PORT_TAKEN) return outcome
@@ -845,6 +875,7 @@ type ReleaseState = Readonly<{
   port: number
   home: string
   modelRoute: string
+  modelAuthorizations(): readonly (string | null)[]
 }>
 
 async function serveOnce(
@@ -1043,6 +1074,7 @@ async function serveOnce(
       hitl,
       toolRuntime,
       records,
+      modelAuthorizations: state.modelAuthorizations,
       cli,
       relogin,
       startSession,

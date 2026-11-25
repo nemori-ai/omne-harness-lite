@@ -11,7 +11,7 @@ import {
   serveProtocol,
   startShellOf,
 } from '@omne-harness/shell-contract/testing'
-import { PROVIDER_BLOCK_ID, createModelUiModule } from '../src/cordis.ts'
+import { MODELS_BLOCK_ID, PROVIDER_BLOCK_ID, createModelUiModule } from '../src/cordis.ts'
 
 type Holding = Readonly<{ category: string; name: string }>
 
@@ -67,7 +67,13 @@ function portOf(body: unknown | undefined) {
     port: {
       open: (tenant: string, category: string) => {
         opened.push(`${tenant}|${category}`)
-        return { subscribe: () => () => undefined, getSnapshot: () => snapshot, close: () => {} }
+        return {
+          subscribe: () => () => undefined,
+          getSnapshot: () => snapshot,
+          close: () => {},
+          setValue: () => {},
+          confirm: () => {},
+        }
       },
     },
   }
@@ -114,8 +120,9 @@ it('the page of a provider: where its requests go and the interfaces it speaks, 
   expect(screen.getByText('接口').nextElementSibling?.textContent).toBe(
     'Chat Completions、Messages',
   )
-  expect(fake.opened).toEqual([`${TENANT}|model-provider`])
-  expect(shell.items('attached').map(item => item.id)).toEqual([PROVIDER_BLOCK_ID])
+  // The access block and the models block each open the category; the port shares one reading.
+  expect(fake.opened).toEqual([`${TENANT}|model-provider`, `${TENANT}|model-provider`])
+  expect(shell.items('attached').map(item => item.id)).toEqual([PROVIDER_BLOCK_ID, MODELS_BLOCK_ID])
 })
 
 it('before its body is read, the block takes no room', async () => {

@@ -37,6 +37,7 @@ import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
 import { createModelHostRow, modelHostRow } from '../../../src/rows/model-host/index.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
+import { everyModelOnRow } from '../../support/model-preferences.ts'
 import { modelRecordsRow } from '../../../src/rows/model-records/index.ts'
 import { modelRequestPreparationRow } from '../../../src/rows/model-request-preparation/index.ts'
 import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
@@ -178,6 +179,7 @@ function rowsOf(storageRoot: string) {
       },
     },
     { id: 'model-tokenizers', plugin: 'modelTokenizersRow', config: LOCAL_TOKENIZERS },
+    { id: 'every-model-on', plugin: 'everyModelOnRow', config: {} },
     { id: 'model-profiles', plugin: 'modelProfilesRow', config: model.profiles },
     {
       id: 'model-request-preparation',
@@ -198,6 +200,7 @@ function pluginsWith(host: unknown) {
     authorization,
     sessionStorageRow,
     modelProfilesRow,
+    everyModelOnRow,
     modelRequestPreparationRow,
     modelRecordsRow,
     modelHostRow: host,

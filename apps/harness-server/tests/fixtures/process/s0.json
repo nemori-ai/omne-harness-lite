@@ -4,7 +4,7 @@
     "layering": {
       "ops": [
         { "kind": "replace", "id": "model-profiles", "config": { "tuned": true } },
-        { "kind": "disable", "id": "model-credential" },
+        { "kind": "disable", "id": "model-instances" },
         {
           "kind": "insert",
           "after": "model-profiles",

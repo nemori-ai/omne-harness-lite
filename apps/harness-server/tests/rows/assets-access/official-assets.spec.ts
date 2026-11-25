@@ -65,8 +65,10 @@ describe('assets/v1 lists the official assets every tenant holds', () => {
           limit: 100,
         })
         if (keyItems.outcome !== 'succeeded') throw new Error(`settings: ${keyItems.outcome}`)
-        expect(keyItems.body.items.map(item => [item.kind, item.own])).toEqual([
-          ['secret', 'unset'],
+        expect(keyItems.body.items.map(item => [item.item, item.kind, item.own])).toEqual([
+          ['apiKey', 'secret', 'unset'],
+          ['model-reasoning-efforts', expect.anything(), expect.anything()],
+          ['model-switches', expect.anything(), expect.anything()],
         ])
 
         const [provider] = providers

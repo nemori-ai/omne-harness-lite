@@ -403,13 +403,16 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'business',
   },
   'model-instances': { provides: ['modelInstances'], injects: ['modelPublicationAuthority'] },
-  'model-profiles': { provides: ['modelProfiles'] },
+  'model-profiles': { provides: ['modelProfiles'], injects: ['modelPreferences'] },
   'model-tokenizers': { provides: ['modelTokenizers'], phase: 'composition' },
   'model-request-preparation': {
     provides: ['modelRequestPreparation'],
     injects: ['modelCommands', 'modelTokenizers'],
   },
-  'model-credential': { provides: ['modelCredential'], injects: ['settingsSecretCustody'] },
+  'model-credential': {
+    provides: ['modelCredential', 'modelPreferences'],
+    injects: ['settingsSecretCustody'],
+  },
   'secret-custody': { provides: ['settingsSecretCustody'] },
   settings: { provides: ['settingsSecretItems'], injects: ['settingsSecretCustody'] },
   'model-records': {
