@@ -230,8 +230,12 @@ function waitingReport<P, B extends ContentBlock>(
 }
 
 /** The parts of a coordinator that every execution of this provider shares. */
-function coordinatorBase<P, B extends ContentBlock>(entry: ProviderEntry<P, B>) {
+function coordinatorBase<P, B extends ContentBlock>(
+  entry: ProviderEntry<P, B>,
+  handoverAsked: () => boolean,
+) {
   return {
+    handoverAsked,
     ports: entry.dependencies,
     binding: entry.binding,
     jointCommits: entry.configuration.jointCommits,
@@ -455,14 +459,13 @@ export function createProvider<P, B extends ContentBlock>(
     })
     if ('failure' in resolved) return resolved
     return succeed({
-      ...coordinatorBase(entry),
+      ...coordinatorBase(entry, handoverAsked),
       evaluator: resolved.ok.evaluator,
       extensions: resolved.ok.extensions,
       requestCancel,
       access,
       execution,
       idle,
-      handoverAsked,
       ended: (state, candidate) => endedRun(execution, state, candidate),
       waiting: waitingReport(entry, execution),
       toolConcurrency: entry.configuration.toolConcurrency,
@@ -631,7 +634,7 @@ export function createProvider<P, B extends ContentBlock>(
     })
     if ('failure' in resolved) return resolved
     const coordinator = createExecutionCoordinator({
-      ...coordinatorBase(entry),
+      ...coordinatorBase(entry, handoverAsked),
       evaluator: resolved.ok.evaluator,
       extensions: resolved.ok.extensions,
       requestCancel,
@@ -641,7 +644,6 @@ export function createProvider<P, B extends ContentBlock>(
       initial: input.initial,
       grant: input.grant,
       idle: () => {},
-      handoverAsked,
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })
     const opened = await measurer.segment(

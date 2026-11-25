@@ -167,7 +167,7 @@
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
-        "longest": 597
+        "longest": 595
       },
       "packages/agent/agent/src/receiving.ts": {
         "count": 1,
