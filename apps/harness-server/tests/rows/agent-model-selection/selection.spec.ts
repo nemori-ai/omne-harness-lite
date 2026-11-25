@@ -205,14 +205,20 @@ describe('the three failures differ', () => {
     expect(failure).toMatchObject({ owner: 'session' })
   })
 
-  test('the profile cannot be resolved: unavailable, owned by the profiles', async () => {
+  test('a route with no profile at all: invalid, because no such model comes back by waiting', async () => {
     const failure = await failureFor({
       session: () => succeed(savedSelection(ROUTE)),
       profiles: { [ROUTE]: succeed({ kind: 'absent', reason: 'unknown-name' }) },
     })
-    expect(failure.kind).toBe('unavailable')
-    expect(failure).toMatchObject({ owner: 'modelProfiles' })
-    expect(JSON.stringify(failure)).toContain('unknown-name')
+    expect(failure).toEqual({ kind: 'invalid', field: 'model', reason: 'unknown-name' })
+  })
+
+  test('a route whose profiles were all withdrawn: invalid, with its own reason', async () => {
+    const failure = await failureFor({
+      session: () => succeed(savedSelection(ROUTE)),
+      profiles: { [ROUTE]: succeed({ kind: 'absent', reason: 'withdrawn' }) },
+    })
+    expect(failure).toEqual({ kind: 'invalid', field: 'model', reason: 'withdrawn' })
   })
 
   test('the three results are pairwise different', async () => {

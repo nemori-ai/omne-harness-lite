@@ -211,6 +211,11 @@ export type RecoveryRecord = Readonly<{
   unresolved: readonly ModelOperationId[]
   tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[]
 }>
+export type CallOrigin = Readonly<{
+  admission: ModelOperationId
+  consumer: ConsumerRef
+  custody: CustodyState
+}>
 export type LateDispatchFact =
   | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
   | Readonly<{ kind: 'terminal'; event: string; actual: Termination }>
@@ -227,6 +232,7 @@ export interface ModelCommands<P> {
     input: Access<P> & Readonly<{ after: string | null; limit: number }>,
   ): Reply<Readonly<{ calls: readonly ModelCallId[]; next: string | null }>>
   loadRecovery(input: CallAccess<P>): Reply<RecoveryRecord>
+  loadOrigin(input: CallAccess<P>): Reply<CallOrigin>
   loadRequest(input: CallAccess<P>): Reply<FixedModelRequest>
   claim(
     input: CallAccess<P> &

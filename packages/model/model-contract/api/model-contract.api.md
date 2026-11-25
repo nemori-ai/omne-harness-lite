@@ -41,6 +41,7 @@
 - `GrowingContentKind` · `call-surface.d.ts`
 - `Handoff` · `result.d.ts`
 - `Identity` · `root.d.ts`
+- `LIMIT_METRICS` · `profile.d.ts`
 - `LimitMetric` · `profile.d.ts`
 - `LiveRoute` · `call-surface.d.ts`
 - `Lookup` · `result.d.ts`
@@ -110,6 +111,7 @@
 - `ModelStreamSelection` · `model-stream.d.ts`
 - `ModelStreamSnapshot` · `model-stream-values.d.ts`
 - `Mutation` · `root.d.ts`
+- `OVER_LIMIT_METRICS` · `profile.d.ts`
 - `Observation` · `call-surface.d.ts`
 - `OutputCursor` · `root.d.ts`
 - `OverLimitMetric` · `result.d.ts`
@@ -173,12 +175,15 @@
 - `encodeModelInvocationRef` · `reference.d.ts`
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `faultIsTransient` · `result.d.ts`
+- `faultProblem` · `fault-shape.d.ts`
 - `isNativeFileType` · `profile.d.ts`
 - `isReasoningEffort` · `root.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
 - `judgeModelParameters` · `profile-codec.d.ts`
 - `judgeToolDeclarations` · `profile-codec.d.ts`
+- `mediaLimitMetric` · `profile.d.ts`
 - `profileCovers` · `profile.d.ts`
+- `profileProblems` · `profile-problems.d.ts`
 - `profileResolutionValue` · `profile-codec.d.ts`
 - `projectModelOutputV1` · `model-output-v1.d.ts`
 - `readProfileResolution` · `profile-codec.d.ts`
@@ -220,6 +225,7 @@
 - `ActorRef` · `root.d.ts`
 - `CalibratedInputMeter` · `profile.d.ts`
 - `CallAccountReport` · `provider-protocol.d.ts`
+- `CallOrigin` · `provider-protocol.d.ts`
 - `CommitQuery` · `provider-protocol.d.ts`
 - `CostLookupAnswer` · `provider-protocol.d.ts`
 - `CredentialFailure` · `credential.d.ts`
@@ -1281,6 +1287,12 @@ export interface ModelDriverHost<P> extends ModelInstanceHost<P> {
 }
 ```
 
+## 声明文件 `fault-shape.d.ts`
+
+```ts
+export declare function faultProblem(value: unknown): string | null;
+```
+
 ## 声明文件 `guard-control.d.ts`
 
 ```ts
@@ -1326,6 +1338,8 @@ export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, D
 export { REASONING_EFFORTS, isReasoningEffort } from './root.ts';
 export type * from './result.ts';
 export { faultIsTransient } from './result.ts';
+export { faultProblem } from './fault-shape.ts';
+export { profileProblems } from './profile-problems.ts';
 export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts';
 export { dispatchSend } from './dispatch-facts.ts';
 export type * from './result-delivery-values.ts';
@@ -1341,7 +1355,7 @@ export type * from './call-surface.ts';
 export type * from './dispatch-facts.ts';
 export type { MaterializationReceipt, MaterializedMedium, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
 export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ReasoningEffortMapping, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
-export { isNativeFileType, profileCovers, supportedReasoningEfforts } from './profile.ts';
+export { isNativeFileType, LIMIT_METRICS, mediaLimitMetric, OVER_LIMIT_METRICS, profileCovers, supportedReasoningEfforts, } from './profile.ts';
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
 export type { ModelPreparationLease, ModelPreparationResources, ModelRequestRules, PreparationLineage, } from './profile-source.ts';
 export type * from './diagnostics.ts';
@@ -1592,6 +1606,13 @@ export declare function judgeModelParameters(value: unknown): Outcome<readonly P
 export declare function judgeToolDeclarations(value: unknown): Outcome<readonly ToolDeclaration[], ModelInputRejection>;
 ```
 
+## 声明文件 `profile-problems.d.ts`
+
+```ts
+import type { ModelProfileDefinition } from './profile.ts';
+export declare function profileProblems(definition: ModelProfileDefinition): readonly string[];
+```
+
 ## 声明文件 `profile-source.d.ts`
 
 ```ts
@@ -1700,7 +1721,25 @@ export type ProfileIdentity = Readonly<{
     scope: ProfileScope;
     route: string;
 }>;
-export type LimitMetric = 'image-bytes' | 'image-count' | 'request-bytes' | 'voice-bytes' | 'voice-duration-ms';
+export declare const LIMIT_METRICS: readonly [
+    'image-bytes',
+    'image-count',
+    'request-bytes',
+    'voice-bytes',
+    'voice-duration-ms',
+    'file-bytes'
+];
+export type LimitMetric = (typeof LIMIT_METRICS)[number];
+export declare const OVER_LIMIT_METRICS: readonly [
+    "context-tokens",
+    "input-tokens",
+    "image-bytes",
+    "image-count",
+    "request-bytes",
+    "voice-bytes",
+    "voice-duration-ms",
+    "file-bytes"
+];
 export type UpstreamLimit = Readonly<{
     kind: 'unknown';
 }> | Readonly<{
@@ -1781,6 +1820,7 @@ export type ModalityRequirement = Readonly<{
     fileTypes?: readonly string[];
     source: DurableEvidence;
 }>;
+export declare function mediaLimitMetric(mediaType: string): 'image-bytes' | 'voice-bytes' | 'file-bytes';
 export declare function isNativeFileType(value: string): boolean;
 export declare function profileCovers(definition: Pick<ModelProfileDefinition, 'input' | 'fileTypes'>, required: Pick<ModalityRequirement, 'modalities' | 'fileTypes'>): boolean;
 export type ProfileResolution = Readonly<{
@@ -2301,6 +2341,11 @@ export type RecoveryRecord = Readonly<{
     unresolved: readonly ModelOperationId[];
     tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[];
 }>;
+export type CallOrigin = Readonly<{
+    admission: ModelOperationId;
+    consumer: ConsumerRef;
+    custody: CustodyState;
+}>;
 export type LateDispatchFact = Readonly<{
     kind: 'account';
     event: string;
@@ -2339,6 +2384,7 @@ export interface ModelCommands<P> {
         next: string | null;
     }>>;
     loadRecovery(input: CallAccess<P>): Reply<RecoveryRecord>;
+    loadOrigin(input: CallAccess<P>): Reply<CallOrigin>;
     loadRequest(input: CallAccess<P>): Reply<FixedModelRequest>;
     claim(input: CallAccess<P> & Readonly<{
         instance: ModelInstanceId;
@@ -2494,7 +2540,7 @@ export interface ModelProvider<P> {
 
 ```ts
 export type { ActorRef, FixedRequestHead } from '../root.ts';
-export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
+export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, CallOrigin, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
 export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayBinding, ReplayDiagnostic, ReplayOmission, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
@@ -2716,7 +2762,7 @@ import type { DurableEvidence } from '@omne-harness/exchange-refs';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { ReasoningStatePart, ToolCallPart } from '@omne-harness/message';
 import type { ModelInvocationRef } from './reference.ts';
-import type { LimitMetric } from './profile.ts';
+import type { OVER_LIMIT_METRICS } from './profile.ts';
 import type { Adoption, ConsumerRef, ModelCallId, ModelInstanceId, ModelOperationId, Mutation, OutputCursor, ResultVersion, Revision, DispatchId } from './root.ts';
 export type ModelFailure = Readonly<{
     kind: 'denied';
@@ -2754,7 +2800,7 @@ export type ToolSuggestion = ToolCallPart;
 export type ModelBlock = ContentBlock | ToolSuggestion | ReasoningStatePart;
 export type ModelFaultCause = 'profile-withdrawn' | 'excluded' | 'modality' | 'credential' | 'input-rejected' | 'input-over-limit' | 'replay-rejected' | 'upstream-unavailable' | 'stream-lost' | 'runtime-lost' | 'persistence' | 'policy-unavailable' | 'upstream-protocol' | 'unclassified';
 export declare function faultIsTransient(cause: ModelFaultCause): boolean;
-export type OverLimitMetric = 'context-tokens' | 'input-tokens' | LimitMetric;
+export type OverLimitMetric = (typeof OVER_LIMIT_METRICS)[number];
 export type ModelFault = Readonly<{
     diagnostic: string;
     upstreamStatus: string | null;

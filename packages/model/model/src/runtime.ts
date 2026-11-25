@@ -43,6 +43,7 @@ const METHODS = {
     'recall',
     'scanPending',
     'loadRecovery',
+    'loadOrigin',
     'loadRequest',
     'claim',
     'prepareDispatch',

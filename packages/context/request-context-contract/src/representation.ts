@@ -4,6 +4,7 @@ import {
   type ContentBlock,
   type BlockId,
   type ContentReference,
+  type InconvertibleReason,
 } from '@omne-harness/content-block'
 import { judgeMessage, type Message, type MessageId, type MessagePart } from '@omne-harness/message'
 import { judgeMediaType, type Modality } from '@omne-harness/modality'
@@ -69,10 +70,21 @@ type Candidate = Readonly<{
 type Referring = Extract<ContentBlock, { ref: ContentReference }>
 type Position = Readonly<{ message: MessageId; block: BlockId }>
 
+const UNREADABLE: Readonly<Record<InconvertibleReason, string>> = {
+  encrypted: 'This file could not be read: it is encrypted.',
+  damaged: 'This file could not be read: it is damaged.',
+  'no-text': 'This file has no text that could be taken out of it, as with a scan.',
+}
+
+function wordsOf({ transcript, snapshot }: Referring): string | null {
+  if (transcript !== null && transcript !== '') return transcript
+  if (snapshot?.outcome !== 'inconvertible' || snapshot.reason === undefined) return null
+  return UNREADABLE[snapshot.reason]
+}
+
 function fallbacksOf(block: Referring) {
   const made = block.snapshot?.outcome === 'converted' ? block.snapshot : null
-  const inline = (block.transcript ?? '') === '' ? null : block.transcript
-  return { others: made?.others ?? [], inline, kept: made?.text ?? null }
+  return { others: made?.others ?? [], inline: wordsOf(block), kept: made?.text ?? null }
 }
 
 const REFERENCE_KIND: Partial<Record<Modality, 'image' | 'voice'>> = {

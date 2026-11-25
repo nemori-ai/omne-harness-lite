@@ -6,6 +6,7 @@ import {
   type ContentBlock,
 } from '@omne-harness/content-block'
 import {
+  OVER_LIMIT_METRICS,
   decodeOutputCursor,
   decodeModelOperationId,
   decodeResultVersion,
@@ -15,6 +16,8 @@ import {
   type Settlement,
   type Termination,
 } from '@omne-harness/model-contract'
+
+const OVER_LIMITS: ReadonlySet<string> = new Set(OVER_LIMIT_METRICS)
 type Json = Extract<Material<ContentBlock>, { kind: 'facts' }>['value']
 export function json(value: unknown): Json {
   if (value === null) return { kind: 'null' }
@@ -92,17 +95,7 @@ function fault(value: unknown): value is ModelFault {
     const r = value.reported
     return (
       object(r) &&
-      (r.metric === null ||
-        (typeof r.metric === 'string' &&
-          [
-            'context-tokens',
-            'input-tokens',
-            'image-bytes',
-            'image-count',
-            'request-bytes',
-            'voice-bytes',
-            'voice-duration-ms',
-          ].includes(r.metric))) &&
+      (r.metric === null || (typeof r.metric === 'string' && OVER_LIMITS.has(r.metric))) &&
       ['limit', 'actual'].every(key => r[key] === null || typeof r[key] === 'string')
     )
   }

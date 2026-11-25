@@ -1,5 +1,5 @@
 import sharp from 'sharp'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type {
   FacilityResult,
   ScreenFrame,
@@ -21,6 +21,18 @@ import {
   type ScreenAuthorEnvironment,
 } from '@omne-harness/tool-definitions'
 import { run, runRaw, value } from './run-author.ts'
+
+const encoding = vi.hoisted(() => ({ fails: false }))
+vi.mock('@omne-harness/image', async original => {
+  const real = await original<typeof import('@omne-harness/image')>()
+  const open: typeof real.open = async input => {
+    const opened = await real.open(input)
+    if (!encoding.fails || opened.kind !== 'opened') return opened
+    const encode = async () => ({ kind: 'rejected' as const, reason: 'encode' as const })
+    return { ...opened, handle: { ...opened.handle, encode, close: opened.handle.close } }
+  }
+  return { ...real, open }
+})
 
 type Result = ToolResult<ToolMessageContentBlock>
 type Put = Parameters<ToolMediaSink['put']>[0]
@@ -261,6 +273,17 @@ describe('Screen capture hands one frame to the store of products', () => {
     const exact = world({ captureMaxLongSide: 64 })
     await exact.capture()
     expect(Buffer.from(exact.puts[0]!.bytes).equals(await png(64, 48))).toBe(true)
+  })
+
+  it('a frame the library cannot make smaller is damaged, and nothing is stored', async () => {
+    const { capture, puts } = world({ captureMaxLongSide: 32 })
+    encoding.fails = true
+    try {
+      expect(textOf(await capture())).toBe('rejected reason=damaged screen="left"')
+    } finally {
+      encoding.fails = false
+    }
+    expect(puts).toEqual([])
   })
 
   it('a tall frame is limited by its height', async () => {

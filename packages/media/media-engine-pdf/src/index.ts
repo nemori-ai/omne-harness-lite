@@ -3,13 +3,14 @@ import type {
   EngineDeclaration,
   EngineInput,
   EngineOutput,
+  InconvertibleReason,
 } from '@omne-harness/media-contract'
 import { extractText } from 'unpdf'
 import { unifyRadicals } from './radicals.ts'
 
 const DECLARATION: EngineDeclaration = {
   name: 'pdf.extract-text',
-  revision: '1',
+  revision: '2',
   accepts: ['application/pdf'],
   maxBytes: 50 * 1024 * 1024,
   egress: { kind: 'in-process' },
@@ -17,8 +18,16 @@ const DECLARATION: EngineDeclaration = {
   parameters: { type: 'object', properties: {}, additionalProperties: false },
 }
 
-const INCONVERTIBLE: EngineOutput = Object.freeze({ kind: 'inconvertible' })
-const CANCELLED: EngineOutput = Object.freeze({ kind: 'failed', reason: 'error' })
+const FAILED: EngineOutput = Object.freeze({ kind: 'failed', reason: 'error' })
+const inconvertible = (reason: InconvertibleReason): EngineOutput => ({
+  kind: 'inconvertible',
+  reason,
+})
+/** The errors pdf.js names for a PDF it cannot open: one that asks for a password, one it cannot parse. */
+const NAMED = new Map<string, InconvertibleReason>([
+  ['PasswordException', 'encrypted'],
+  ['InvalidPDFException', 'damaged'],
+])
 
 async function bytesOf(input: EngineInput): Promise<Uint8Array> {
   const parts: Uint8Array[] = []
@@ -32,16 +41,23 @@ async function bytesOf(input: EngineInput): Promise<Uint8Array> {
   return whole
 }
 
-/** The text layer of a PDF, radicals written as ideographs. A PDF that cannot be read has no text to give. */
+/** The text layer of a PDF, radicals written as ideographs; or why the PDF has none to give. */
 export function createPdfTextEngine(): ConverterEngine {
   return {
     declaration: DECLARATION,
     async convert(input) {
       const bytes = await bytesOf(input)
-      const read = await extractText(bytes, { mergePages: true }).catch(() => undefined)
-      if (input.signal.aborted) return CANCELLED
-      const text = unifyRadicals(read?.text ?? '').trim()
-      return text === '' ? INCONVERTIBLE : { kind: 'converted', text, derived: [] }
+      const read = await extractText(bytes, { mergePages: true }).then(
+        ({ text }) => ({ text }),
+        (error: unknown) => ({ error }),
+      )
+      if (input.signal.aborted) return FAILED
+      if ('error' in read) {
+        const reason = read.error instanceof Error ? NAMED.get(read.error.name) : undefined
+        return reason === undefined ? FAILED : inconvertible(reason)
+      }
+      const text = unifyRadicals(read.text).trim()
+      return text === '' ? inconvertible('no-text') : { kind: 'converted', text, derived: [] }
     },
   }
 }

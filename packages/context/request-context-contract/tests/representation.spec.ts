@@ -180,6 +180,23 @@ describe('the decision table of one block (T5)', () => {
     },
   )
 
+  it.each([
+    ['encrypted', 'This file could not be read: it is encrypted.'],
+    ['damaged', 'This file could not be read: it is damaged.'],
+    ['no-text', 'This file has no text that could be taken out of it, as with a scan.'],
+  ])(
+    'a medium that cannot be converted because it is %s stands in as words that say so',
+    (reason, said) => {
+      const why = { snapshot: { ...INCONVERTIBLE.snapshot, reason } }
+      const block = medium('b2', 'application/pdf', why)
+      const result = chosen(choose(TEXT, message([words('b1'), block])))
+      expect(result.choices[1]).toMatchObject({ block: 'b2', choice: 'transcript', source: SOURCE })
+      expect(result.messages[0]?.blocks[1]).toMatchObject({ kind: 'text', text: said })
+      expect(nativeRequirement([message([block])]).blocks).toEqual([])
+      expect(chosen(choose(READS_PDF, message([block]))).choices[0]?.choice).toBe('original')
+    },
+  )
+
   it('a file of no modality is judged by its media type, never by a modality', () => {
     const zip = medium('b1', 'application/zip')
     expect(choose(VISION, message([zip])).kind).toBe('unavailable')

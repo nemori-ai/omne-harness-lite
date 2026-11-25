@@ -1,10 +1,6 @@
 import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
-import { recordAdoption } from '@omne-harness/pi-ai-transport'
-import {
-  reasoningTextCodec,
-  usageWithCacheWrites,
-  type VendorHooks,
-} from '@omne-harness/pi-ai-transport/chat-completions'
+import type { ProjectedRequest, VendorHooks } from '@omne-harness/pi-ai-transport/chat-completions'
+import { chatTextHooks } from '@omne-harness/pi-ai-transport/family-kit'
 import { DEEPSEEK_OWNER } from './owner.ts'
 import type { DeepSeekRecord } from './record.ts'
 
@@ -46,14 +42,25 @@ export function projectToolSchema(
 }
 
 export function hooksOf(record: DeepSeekRecord): VendorHooks {
-  const adapter = recordAdoption(DEEPSEEK_OWNER, record)
+  const hooks = chatTextHooks(DEEPSEEK_OWNER, record)
+  return Object.freeze({
+    ...hooks,
+    toolSchema: schema => {
+      const accepted = hooks.toolSchema(schema)
+      return 'ok' in accepted
+        ? { ok: projectToolSchema(record.rules.toolSchema, accepted.ok) }
+        : accepted
+    },
+  })
+}
+
+/** The request as the wire carries it: every tool schema projected by the record's rule. */
+export function projectedTools(record: DeepSeekRecord, view: ProjectedRequest): ProjectedRequest {
   return {
-    reasoning: reasoningTextCodec,
-    usage: usageWithCacheWrites,
-    toolSchema: schema =>
-      schema.kind === 'object'
-        ? { ok: projectToolSchema(record.rules.toolSchema, schema) }
-        : { failure: { kind: 'unsupported', field: 'argumentsSchema', adapter } },
-    check: () => ({ ok: undefined }),
+    ...view,
+    tools: view.tools.map(tool => ({
+      ...tool,
+      argumentsSchema: projectToolSchema(record.rules.toolSchema, tool.argumentsSchema),
+    })),
   }
 }

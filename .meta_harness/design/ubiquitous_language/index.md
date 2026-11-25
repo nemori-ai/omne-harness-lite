@@ -461,7 +461,7 @@
 | [UL-asset-page](terms/interaction-and-dispatch.md#ul-asset-page--资产页--asset-page) | 资产页 | Asset Page | 桌面应用里人管理本租户各类资产的那一部分；按类别在左边的栏里切换；资产自己的设置在这里改 |
 | [UL-asset-category-page](terms/interaction-and-dispatch.md#ul-asset-category-page--资产类别页面--asset-category-page) | 资产类别页面 | Asset Category Page | 一类资产在资产页里自己的那一页；由这一类的界面模块带来，没带来时用通用的页面；**不存事实** |
 | [UL-asset-governance-port](terms/interaction-and-dispatch.md#ul-asset-governance-port--资产治理口--asset-governance-port) | 资产治理口 | Asset Governance Port | 资产的界面模块交给一类资产的界面模块的口：这一类的资产、设置项与改它们的操作；**规则不由它判** |
-| [UL-agent-figure](terms/interaction-and-dispatch.md#ul-agent-figure--agent-形--agent-figure) | Agent 形 | Agent Figure | 桌面应用里代表 agent 的那一个墨圆，**一个窗口里同一时刻只有一个**；用笔画说状态，口外写待答数；**不存事实** |
+| [UL-agent-figure](terms/interaction-and-dispatch.md#ul-agent-figure--agent-形--agent-figure) | Agent 形 | Agent Figure | 桌面应用里代表 agent 的那一个墨圆，**屏幕上同一时刻只有一个**；用笔画说状态，口外写待答数；可以被拿出窗口留在桌面上；**不存事实** |
 | [UL-figure-seat](terms/interaction-and-dispatch.md#ul-figure-seat--形座位--figure-seat) | 形座位 | Figure Seat | 界面里给 Agent 形留出的固定位置：登录门与正面上的门、家、对话头，反面上画布放的一个；**自己不画东西**，收起的一面不给座位 |
 | [UL-figure-port](terms/interaction-and-dispatch.md#ul-figure-port--形口--figure-port) | 形口 | Figure Port | 界面外壳交给界面模块的口：报会话在做什么与待答数；**只交数据，没有结果** |
 | [UL-awaiting-answer-count](terms/interaction-and-dispatch.md#ul-awaiting-answer-count--待答数--awaiting-answer-count) | 待答数 | Awaiting-Answer Count | 决策池里此刻等着人回答的决策卡片的张数；用琥珀写，没了结的通知不算 |
@@ -469,6 +469,9 @@
 | [UL-told-note](terms/interaction-and-dispatch.md#ul-told-note--告知笺--told-note) | 告知笺 | Told Note | 形在家旁用浓墨框写的一句话，同时只有最新一条；**不按时间消失，写过不等于看到** |
 | [UL-companion-entry](terms/interaction-and-dispatch.md#ul-companion-entry--随身入口--companion-entry) | 随身入口 | Companion Entry | 浮在整个窗口与两面之上、能拖到任何地方的一处，在哪一面、哪一页都能对 agent 说一句话；**不是形** |
 | [UL-ink-motes](terms/interaction-and-dispatch.md#ul-ink-motes--墨点--ink-motes) | 墨点 | Ink Motes | 随身入口默认的样子：同一支笔点出的几粒墨，落在一个不画出来的圆上；**只会点与干，不算一个形** |
+| [UL-desk-layer](terms/interaction-and-dispatch.md#ul-desk-layer--桌面层--desk-layer) | 桌面层 | Desk Layer | 桌面应用在自己窗口之外的一块画面：透明、在所有窗口之上、点得穿，只画被拿出窗口的形与它身边写出的东西；**不存事实，界面模块放不进东西** |
+| [UL-say-note](terms/interaction-and-dispatch.md#ul-say-note--说话笺--say-note) | 说话笺 | Say Note | 形在桌面上时人按它写出的一张笺：选说给谁、写一句话、发出去，看过的窗口的图也先放这里；**和随身入口说话是同一件事** |
+| [UL-observation-frame](terms/interaction-and-dispatch.md#ul-observation-frame--观测框--observation-frame) | 观测框 | Observation Frame | 拿着形按住 ⌘ 时围住光标下那个别的应用窗口的一笔墨；**框的是哪个读的就是哪个，没有框就不读** |
 | [UL-size-tier](terms/interaction-and-dispatch.md#ul-size-tier--字号档--size-tier) | 字号档 | Size Tier | 整个界面一起放大缩小的档位，**恰四档**：小楷、中楷、大楷、老花；不是窗口缩放 |
 | [UL-application-face](terms/interaction-and-dispatch.md#ul-application-face--应用的面--application-face) | 应用的面 | Application Face | 桌面应用登录之后的正面或反面，反面是画布；**翻面只换露着的那一面**；不是交付面 |
 | [UL-canvas](terms/interaction-and-dispatch.md#ul-canvas--画布--canvas) | 画布 | Canvas | 一个租户恰一张的有边的纸，人和 agent 共用；**只记什么摆在哪，不存被摆的对象** |

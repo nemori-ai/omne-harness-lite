@@ -18,7 +18,7 @@ import {
 import { recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { bindMessages } from '@omne-harness/pi-ai-transport/messages'
 import { fixtureDirectory, replayStream } from '@omne-harness/pi-ai-transport/testing'
-import { componentAdoption } from '../../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 import { ANTHROPIC_OWNER } from '../../src/owner.ts'
 import { ANTHROPIC_RECORDS } from '../../src/records.ts'
 
@@ -119,7 +119,7 @@ function requestOf(record: (typeof ANTHROPIC_RECORDS)[number]): Readonly<{
     ],
     toolChoice: 'auto',
     declarations: [declared.ok],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(ANTHROPIC_OWNER, record, 'representation'),
     parameterAdoptions: parameters.map(parameter => ({
       supplier: adoption,
       applied: parameter,
@@ -146,7 +146,7 @@ function bindingOf(record: (typeof ANTHROPIC_RECORDS)[number], request: FixedMod
         measureCalibrated: unavailable,
       },
       represent: () => ({
-        adoption: componentAdoption(record, 'representation'),
+        adoption: componentAdoption(ANTHROPIC_OWNER, record, 'representation'),
         tokenInput: { kind: 'null' },
         units: [],
       }),

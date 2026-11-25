@@ -465,6 +465,9 @@ const SNAPSHOTS = [
   },
   { outcome: 'converted', ...source, text: null, others: [other, { ...other, key: 'k-third' }] },
   { outcome: 'inconvertible', ...source },
+  { outcome: 'inconvertible', ...source, reason: 'encrypted' },
+  { outcome: 'inconvertible', ...source, reason: 'damaged' },
+  { outcome: 'inconvertible', ...source, reason: 'no-text' },
 ]
 
 it.each(SNAPSHOTS)(
@@ -519,6 +522,9 @@ it.each([
   ],
   [{ outcome: 'inconvertible', ...source, text: null, others: [] }],
   [{ outcome: 'inconvertible', definition: source.definition }],
+  [{ outcome: 'inconvertible', ...source, reason: 'locked' }],
+  [{ outcome: 'inconvertible', ...source, reason: null }],
+  [{ outcome: 'converted', ...source, text: null, others: [], reason: 'no-text' }],
 ])('refuses a snapshot that is not the snapshot of a representation: %j', snapshot => {
   expect(judgeContentBlock(withFacts({ snapshot }))).toEqual({ rejected: 'snapshot' })
 })

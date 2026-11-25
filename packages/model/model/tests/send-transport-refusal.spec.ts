@@ -4,6 +4,7 @@ import type { ModelOperationId } from '@omne-harness/model-contract'
 import { createModelRuntime } from '../src/runtime.ts'
 import { createTestModelDependencies } from '../src/testing/index.ts'
 import { createModelSendBoundary } from '../src/send.ts'
+import { mediaRefusal } from '../src/send/attempt.ts'
 import { configuration } from '../acceptance/fixtures/runtime.ts'
 import { op, instance, proof, unbox } from './memory-fixture.ts'
 import { sendFixture, signal } from './send-fixture.ts'
@@ -267,4 +268,24 @@ it('keeps the final refusal and retained attempt when resource release fails', a
   })
   expect(f.attempts()).toEqual({ prepares: 1, materializes: 1 })
   expect(f.counts()).toMatchObject({ starts: 0, acquired: 1 })
+})
+
+it('reports the limit of the medium that went over: an image, a voice clip or any other file', () => {
+  for (const [mediaType, metric] of [
+    ['image/png', 'image-bytes'],
+    ['audio/wav', 'voice-bytes'],
+    ['application/pdf', 'file-bytes'],
+    ['text/plain', 'file-bytes'],
+  ] as const) {
+    const refused = mediaRefusal({
+      kind: 'media',
+      reference: { ...PICTURE, mediaType },
+      reason: 'over-limit',
+      limit: '33554432',
+    })
+    expect(refused.fault).toMatchObject({
+      cause: 'input-over-limit',
+      reported: { metric, limit: '33554432', actual: null },
+    })
+  }
 })

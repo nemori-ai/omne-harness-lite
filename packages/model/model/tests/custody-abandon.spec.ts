@@ -3,7 +3,7 @@ import { decodeDispatchId, type AbandonBasis } from '@omne-harness/model-contrac
 import { judgePart } from '@omne-harness/message'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import { contactOf } from '../src/contact.ts'
-import { callId, fixture, instance, op, proof, unbox } from './memory-fixture.ts'
+import { callId, fixture, identity, instance, op, proof, unbox } from './memory-fixture.ts'
 
 const refused: AbandonBasis = { kind: 'refused', refusal: 'denied' }
 
@@ -241,6 +241,29 @@ describe('abandoning a settled result (T4)', () => {
       failure: { kind: 'invalid', field: 'call', reason: 'recovery-material-released' },
     })
     expect(unbox(await f.commands.admit(second)).call).toBe(callId('two'))
+  })
+
+  it('still answers who an abandoned and released call answers to, and to the caller only', async () => {
+    const f = await settled(1)
+    const before = unbox(await f.commands.loadRecovery(f.admit))
+    expect(unbox(await f.commands.loadOrigin(f.admit))).toEqual({
+      admission: before.admission,
+      consumer: before.state.consumer,
+      custody: { kind: 'producer' },
+    })
+    unbox(await f.commands.abandon(f.abandon()))
+    unbox(await f.commands.advanceCleanup({ ...f.execution, operation: op('cleanup') }))
+    const origin = unbox(await f.commands.loadOrigin(f.admit))
+    expect(origin).toMatchObject({
+      admission: before.admission,
+      consumer: before.state.consumer,
+      custody: { kind: 'abandoned', cleanup: 'released' },
+    })
+    const stranger = { ...f.admit, tenant: identity('9') }
+    expect(await f.commands.loadOrigin(stranger)).toEqual(await f.commands.loadRecovery(stranger))
+    expect(await f.commands.loadOrigin({ ...f.admit, call: callId('missing') })).toMatchObject({
+      failure: { kind: 'invalid' },
+    })
   })
 
   it('wakes the start scan for an abandoned result until its cleanup released it', async () => {

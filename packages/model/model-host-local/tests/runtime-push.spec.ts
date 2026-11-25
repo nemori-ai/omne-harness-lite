@@ -223,6 +223,7 @@ type Hooks = {
   dispatches?(): Promise<void> | void
   scanPending?(): 'unavailable' | 'denied' | 'pass' | Promise<void>
   loadRecovery?(): 'unavailable' | 'pass'
+  loadOrigin?(): 'unavailable' | 'pass'
   settle?(): 'unavailable' | 'pass'
 }
 
@@ -367,6 +368,10 @@ function world(
       hooks.loadRecovery?.() === 'unavailable'
         ? { failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' } }
         : raw.loadRecovery(input),
+    loadOrigin: async input =>
+      hooks.loadOrigin?.() === 'unavailable'
+        ? { failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' } }
+        : raw.loadOrigin(input),
   }
   const resources: SendResources<unknown> = {
     async acquire(demand) {
@@ -420,6 +425,7 @@ function world(
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
@@ -1278,6 +1284,175 @@ it('delivers after a restart a late account the last process accepted and did no
   const again = scripted.pushes.slice(before)
   expect(again.some(push => push.kind === 'account' && push.key.revision === '2')).toBe(true)
   await until(() => w.record('one')?.cleanup === 'released', 'the cleanup once delivered')
+})
+
+it('looks a cost up again after a restart for a call already cleaned up while the lookup was pending (T1)', async () => {
+  const asked: unknown[] = []
+  let found = false
+  const w = world({
+    recovery: SCAN_TENANT,
+    limits: { ...LIMITS, delaysMs: [5, 5, 5] },
+    answer: [{ kind: 'response', request: 'gen-released-1' }, ...ANSWER.slice(0, 2)],
+    lookup: input => {
+      asked.push(input)
+      return Promise.resolve(
+        found
+          ? {
+              kind: 'found',
+              cost: [
+                {
+                  state: 'known',
+                  lexeme: '0.0000916',
+                  unit: 'openrouter-credit',
+                  source: 'billable',
+                },
+              ],
+              place: 'openrouter',
+            }
+          : { kind: 'missed' },
+      )
+    },
+  })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(
+    () => w.record('one')?.cleanup === 'released',
+    'the cleanup while the lookup is pending',
+  )
+  await until(() => asked.length >= 1, 'the first lookup')
+  await first.dispose()
+
+  w.restart()
+  const before = asked.length
+  found = true
+  await w.load()
+  await until(() => asked.length > before, 'a lookup after the restart')
+  await until(
+    async () => (await w.dispatches('one'))[0]?.lateDelivered === '1',
+    'the cost found after the restart, delivered and confirmed',
+  )
+  expect((await w.dispatches('one'))[0]).toMatchObject({
+    account: { receipt: 'late', revision: '1', cost: [{ lexeme: '0.0000916' }] },
+  })
+})
+
+it('delivers after a restart a late account recorded after the cleanup and not yet confirmed, once per revision (T1)', async () => {
+  const w = world({ recovery: SCAN_TENANT })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.cleanup === 'released', 'the released body')
+  scripted.state.refuseAccounts = true
+  expect(await w.late('one', '2')).toMatchObject({ ok: { recovered: false } })
+  expect(await w.late('one', '3')).toMatchObject({ ok: { recovered: false } })
+  await until(
+    () => w.record('one')?.accounts.some(held => held.standing.status === 'waiting') === true,
+    'the late accounts waiting for their receiver',
+  )
+  expect((await w.dispatches('one'))[0]?.lateDelivered).toBeUndefined()
+  await first.dispose()
+
+  w.restart()
+  scripted.state.refuseAccounts = false
+  const before = scripted.pushes.length
+  await w.load()
+  await until(
+    async () => (await w.dispatches('one'))[0]?.lateDelivered === '3',
+    'the latest revision delivered again and confirmed',
+  )
+  const again = scripted.pushes.slice(before).filter(push => push.kind === 'account')
+  expect(again.map(push => push.kind === 'account' && push.key.revision)).toEqual(['3'])
+})
+
+it('keeps a released call owing while its origin cannot be read, and delivers once it can (T1)', async () => {
+  const w = world({ recovery: SCAN_TENANT, limits: { ...LIMITS, delaysMs: [5, 5, 5] } })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.cleanup === 'released', 'the released body')
+  scripted.state.refuseAccounts = true
+  expect(await w.late('one', '2')).toMatchObject({ ok: { recovered: false } })
+  await until(
+    () => w.record('one')?.accounts.some(held => held.standing.status === 'waiting') === true,
+    'the late account waiting for its receiver',
+  )
+  await first.dispose()
+
+  w.restart()
+  scripted.state.refuseAccounts = false
+  let reads = 0
+  w.hooks.loadOrigin = () => (reads++ < 2 ? 'unavailable' : 'pass')
+  await w.load()
+  await until(
+    () => w.warnings.some(text => text.includes('could not be frozen (late-account-origin)')),
+    'the origin it could not read',
+  )
+  await until(
+    async () => (await w.dispatches('one'))[0]?.lateDelivered === '2',
+    'the late account delivered once the origin answered',
+  )
+  expect(reads).toBeGreaterThan(2)
+})
+
+it('does not deliver after a restart a late account of an abandoned call, and still records a found cost (T1)', async () => {
+  const asked: unknown[] = []
+  let found = false
+  const w = world({
+    recovery: SCAN_TENANT,
+    limits: { ...LIMITS, delaysMs: [5, 5, 5] },
+    answer: [{ kind: 'response', request: 'gen-abandoned-1' }, ...ANSWER.slice(0, 2)],
+    lookup: input => {
+      asked.push(input)
+      return Promise.resolve(
+        found
+          ? {
+              kind: 'found',
+              cost: [
+                {
+                  state: 'known',
+                  lexeme: '0.0000916',
+                  unit: 'openrouter-credit',
+                  source: 'billable',
+                },
+              ],
+              place: 'openrouter',
+            }
+          : { kind: 'missed' },
+      )
+    },
+  })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  scripted.state.next = ['denied']
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.cleanup === 'released', 'the abandonment and its cleanup')
+  expect(await w.custody('one')).toMatchObject({ kind: 'abandoned' })
+  await until(() => asked.length >= 1, 'the first lookup')
+  await first.dispose()
+
+  w.restart()
+  found = true
+  const before = scripted.pushes.length
+  await w.load()
+  await until(
+    async () => (await w.dispatches('one'))[0]?.account?.receipt === 'late',
+    'the cost recorded after the restart',
+  )
+  expect(scripted.pushes.slice(before)).toEqual([])
+  expect((await w.dispatches('one'))[0]?.lateDelivered).toBeUndefined()
 })
 
 it('drives after a restart a call the last process left unsettled, then pushes and gives the share back', async () => {

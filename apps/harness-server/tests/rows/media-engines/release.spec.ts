@@ -69,7 +69,7 @@ describe('the rows of the two converter engines', () => {
             representation: {
               outcome: 'converted',
               definition: { name: 'application-pdf' },
-              engine: { name: 'pdf.extract-text', revision: '1' },
+              engine: { name: 'pdf.extract-text', revision: '2' },
             },
           },
         })

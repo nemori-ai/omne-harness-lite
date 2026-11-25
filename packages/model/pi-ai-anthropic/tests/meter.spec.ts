@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { sortedJsonText } from './support/sorted-json.ts'
+import { sortedJsonText } from '@omne-harness/pi-ai-transport/testing'
 import { Tiktoken } from 'js-tiktoken/lite'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { MeterRepresentation, ModelInputMeter } from '@omne-harness/model-contract'
 import type { AnthropicRecord } from '@omne-harness/pi-ai-anthropic'
 import { TOKENIZER } from './support/anthropic.ts'
-import { componentAdoption } from '../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
+import { ANTHROPIC_OWNER } from '../src/owner.ts'
 import { IMAGE_RULES } from '../src/images.ts'
 import { claudeRanksOf, TokenizerResourceError } from '../src/tokenizer.ts'
 import {
@@ -184,7 +185,7 @@ describe('measure', () => {
           kind: 'estimate',
           amount: String(amount),
           margin: String(Math.ceil(amount / 10)),
-          method: componentAdoption(SONNET, 'meter'),
+          method: componentAdoption(ANTHROPIC_OWNER, SONNET, 'meter'),
           marginSource: MARGIN_SOURCE,
         },
         limit: '872000',
@@ -263,7 +264,11 @@ describe('measure', () => {
     expect(image).toMatchObject({
       metric: 'image-bytes',
       subject: 'image-1',
-      measurement: { kind: 'exact', amount: '1000', method: componentAdoption(SONNET, 'media') },
+      measurement: {
+        kind: 'exact',
+        amount: '1000',
+        method: componentAdoption(ANTHROPIC_OWNER, SONNET, 'media'),
+      },
       limit: '4194304',
       constraint: { upstream: { kind: 'unknown' } },
     })
@@ -314,7 +319,7 @@ describe('measure', () => {
         failure: {
           kind: 'unsupported',
           field: 'image 0',
-          adapter: componentAdoption(SONNET, 'media'),
+          adapter: componentAdoption(ANTHROPIC_OWNER, SONNET, 'media'),
         },
       })
     }
@@ -325,13 +330,13 @@ describe('measure', () => {
     const opus = recordNamed('anthropic/claude-opus-5')
     const other = await planAndMeasure(SONNET, parts, value => ({
       ...value,
-      adoption: componentAdoption(opus, 'representation'),
+      adoption: componentAdoption(ANTHROPIC_OWNER, opus, 'representation'),
     }))
     expect(other.measured).toEqual({
       failure: {
         kind: 'unsupported',
         field: 'representation',
-        adapter: componentAdoption(SONNET, 'meter'),
+        adapter: componentAdoption(ANTHROPIC_OWNER, SONNET, 'meter'),
       },
     })
   })
