@@ -89,6 +89,16 @@ describe('随身入口的小框：展开与收起', () => {
     expect(figure().getAttribute('aria-expanded')).toBe('false')
   })
 
+  it('展开时按形象：这一下不算在别处，形象自己的点按把小框收起', async () => {
+    await unfolded(createFakeClient())
+    fireEvent.pointerDown(figure())
+    await settle()
+    expect(figure().getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(figure())
+    await settle()
+    expect(figure().getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('被拖起来时收起', async () => {
     const made = await unfolded(createFakeClient())
     act(() => made.rerender(TENANT, { corner: { x: 'end', y: 'end' }, dragging: true }))
@@ -104,6 +114,22 @@ describe('随身入口的小框：说给谁', () => {
     cleanup()
     await withOpen(createFakeClient())
     expect(target().textContent).toContain('甲')
+  })
+
+  it('按下拉里的一项：小框不收，说给谁换成选的那一个；之后在别处按下照样收起', async () => {
+    await unfolded(createFakeClient(), listed('ses_a', '甲'), listed('ses_b', '乙'))
+    fireEvent.keyDown(target(), { key: 'Enter' })
+    const option = (await screen.findAllByRole('option')).find(item => item.textContent === '乙')!
+    await act(async () => {
+      fireEvent.pointerDown(option)
+      fireEvent.click(option)
+    })
+    await settle()
+    expect(figure().getAttribute('aria-expanded')).toBe('true')
+    expect(target().textContent).toContain('乙')
+    fireEvent.pointerDown(document.body)
+    await settle()
+    expect(figure().getAttribute('aria-expanded')).toBe('false')
   })
 
   it('选过之后不再跟着；选的会话不在列表里也说给它', () => {

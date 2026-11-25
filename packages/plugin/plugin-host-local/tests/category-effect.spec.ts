@@ -120,6 +120,38 @@ describe('what a change of a plugin would do', () => {
     expect(asked).toEqual(['listed alice'])
   })
 
+  it('names the images over 2 MiB in its advice and changes nothing else: what would change, and the publishing, stay as they are', async () => {
+    const MiB = 1024 * 1024
+    const sized = (extra: readonly Readonly<{ path: string; bytes: number }>[]): PackageReader => ({
+      manifest: async () => {
+        const read = await tidy.manifest()
+        if (!('ok' in read)) return read
+        const more = extra.map(each => ({ ...each, digest: `sha256:${'b'.repeat(64)}` }))
+        return { ok: { entries: [...read.ok.entries, ...more] } }
+      },
+      open: tidy.open,
+    })
+    const { effect } = world({ clients: () => [client()] })
+    const plain = await effect.impact.of(publish(tidy))
+    const heavy = await effect.impact.of(
+      publish(
+        sized([
+          { path: 'art/bg.png', bytes: 3 * MiB + 200_000 },
+          { path: 'art/edge.webp', bytes: 2 * MiB },
+          { path: 'art/wall.avif', bytes: 2 * MiB + 1 },
+          { path: 'data/big.json', bytes: 5 * MiB },
+        ]),
+      ),
+    )
+    if (plain.kind !== 'changes' || heavy.kind !== 'changes') throw new Error('unread')
+    expect(plain.advice ?? '').not.toContain('MiB')
+    expect(heavy.lines).toEqual(plain.lines)
+    expect(heavy.loads).toEqual(plain.loads)
+    expect(heavy.advice).toContain('art/bg.png (3.2 MiB), art/wall.avif (2.0 MiB)')
+    expect(heavy.advice).not.toContain('edge.webp')
+    expect(heavy.advice).not.toContain('big.json')
+  })
+
   it('takes what a client told of a point: how a member is written, when it may change, and the names its data may use', async () => {
     const told = {
       client: 'desktop-1',
