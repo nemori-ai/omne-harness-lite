@@ -67,7 +67,7 @@ describe('the accepting side', () => {
 describe('completion', () => {
   const index = indexOf(all)
 
-  it('ranks by tier: exact, prefix, a later part, first letters, the title', () => {
+  it('ranks by tier: exact, prefix, a later part, first letters, the title last', () => {
     expect(search(index, 'review', 'mid').items.map(item => [item.entry.full, item.tier])).toEqual([
       ['skill:review', 0],
       ['skill:code-review', 2],
@@ -76,7 +76,7 @@ describe('completion', () => {
       'skill:deploy-check',
     ])
     expect(search(index, '周报', 'mid').items.map(item => [item.entry.full, item.tier])).toEqual([
-      ['skill:status', 4],
+      ['skill:status', 6],
     ])
   })
 

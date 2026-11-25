@@ -32,6 +32,7 @@ const PUBLIC = [
   'shortAt',
   'splitArguments',
   'start',
+  'tierOf',
   'typed',
   'typing',
   'unescape',

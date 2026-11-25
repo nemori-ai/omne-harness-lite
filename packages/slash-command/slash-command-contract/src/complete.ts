@@ -1,12 +1,14 @@
 import { type Lookup, type NamedEntry, placeOf, rankOf, shortAt, type Zone } from './names.ts'
 import { codeMask, firstInk, leftOk, recognize, rightOk } from './recognize.ts'
 
-export type Tier = 0 | 1 | 2 | 3 | 4
+export type Tier = 0 | 1 | 2 | 3 | 4 | 5 | 6
 export const TIERS = [
   '一模一样',
   '开头相同',
   '某一段的开头',
-  '首字母或跳着匹配',
+  '名字里任意位置有',
+  '各段的首字母',
+  '字母按顺序跳着出现',
   '说明里有',
 ] as const
 
@@ -59,21 +61,23 @@ export function indexOf(lookup: Lookup): CompletionIndex {
   return { byName, segments: segments.sort(byKey(segment => segment.key)) }
 }
 
-/** The first letters of the name's parts, or its letters in order. */
-function loose(query: string, name: string): boolean {
-  if (
-    query.length >= 2 &&
-    name
-      .split('-')
-      .map(part => part[0])
-      .join('')
-      .startsWith(query)
-  )
-    return true
-  if (query.length < 3 || name[0] !== query[0]) return false
+const inOrder = (query: string, name: string): boolean => {
   let at = 0
   for (let n = 0; n < name.length && at < query.length; n += 1) if (name[n] === query[at]) at += 1
   return at === query.length
+}
+
+/** The tier a name falls in for a query, most alike first; null when the name is not found by it. */
+export function tierOf(query: string, name: string, separators: string): Tier | null {
+  if (name === query) return 0
+  if (name.startsWith(query)) return 1
+  const parts: number[] = []
+  for (let n = 1; n < name.length; n += 1) if (separators.includes(name[n - 1] ?? '')) parts.push(n)
+  if (parts.some(start => name.startsWith(query, start))) return 2
+  if (name.includes(query)) return 3
+  const initials = [0, ...parts].map(start => name[start]).join('')
+  if (query.length >= 2 && initials.startsWith(query)) return 4
+  return query.length >= 3 && inOrder(query, name) ? 5 : null
 }
 
 type Put = (entry: NamedEntry, tier: Tier) => void
@@ -123,10 +127,14 @@ export function search(
   if (/^[a-z0-9:-]*$/u.test(query)) {
     byPrefix(index, query, put, () => found.size)
     if (query !== '') bySegment(index, query, put)
-    if (short()) for (const entry of index.byName) if (loose(query, entry.name)) put(entry, 3)
+    if (short())
+      for (const entry of index.byName) {
+        const tier = tierOf(query, entry.name, '-')
+        if (tier !== null) put(entry, tier)
+      }
   }
   if (short())
-    for (const entry of index.byName) if (entry.title.toLowerCase().includes(query)) put(entry, 4)
+    for (const entry of index.byName) if (entry.title.toLowerCase().includes(query)) put(entry, 6)
   const items = [...found.values()].sort(compareFound(query))
   return { total: items.length, items: items.slice(0, limit) }
 }

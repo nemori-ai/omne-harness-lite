@@ -40,6 +40,7 @@ export {
   type Item,
   search,
   type Tier,
+  tierOf,
   TIERS,
   type Typing,
   typing,
