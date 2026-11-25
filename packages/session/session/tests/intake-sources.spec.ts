@@ -1,3 +1,4 @@
+import type { StartedRun } from '@omne-harness/session-contract'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   sourceRequestIdentities,
@@ -152,7 +153,7 @@ describe('a source that is withdrawn leaves what was accepted (SE-29)', () => {
         instance: { owner: 'agent', id: 'instance-1' },
       }),
       'startRun',
-    )
+    ) as StartedRun
     expect(started.first).toBe('kept')
   })
 

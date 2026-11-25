@@ -303,6 +303,20 @@ const frozenItem: ItemFrom = (walk, entry) => {
   return { kind: 'marker', key: entry.entryId, label, failedRun: null }
 }
 
+/** Why the run went on with the definition the session stood at, or why it waits: for the person, not the model. */
+const adoptionNoteItem: ItemFrom = (walk, entry) => {
+  const note = isRecord(entry.payload) ? entry.payload['note'] : undefined
+  const kind = isRecord(note) ? textOf(note['kind']) : undefined
+  const reason = isRecord(note) ? textOf(note['reason']) : undefined
+  if (reason === undefined || (kind !== 'kept' && kind !== 'waiting'))
+    return unknownItem(walk, entry)
+  const label =
+    kind === 'kept'
+      ? `这一轮照原来的定义开始，新版没用上：${reason}`
+      : `还没开始这一轮，在等能用的定义：${reason}`
+  return { kind: 'marker', key: entry.entryId, label, failedRun: null }
+}
+
 const terminalItem: ItemFrom = (walk, entry) => {
   for (const callId of walk.openCalls.splice(0)) walk.endedCalls.add(callId)
   return terminalMarker(entry)
@@ -319,6 +333,7 @@ const ENTRY_ITEM: ReadonlyMap<string, ItemFrom> = new Map([
   ['run.terminal', terminalItem],
   ['session.command-recorded', commandItem],
   ['session.frozen', frozenItem],
+  ['session.adoption-noted', adoptionNoteItem],
 ])
 
 export function conversationItems(content: Content, runActive: boolean): readonly Item[] {

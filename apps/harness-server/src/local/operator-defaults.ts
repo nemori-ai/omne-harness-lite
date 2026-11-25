@@ -17,6 +17,7 @@ export const LOCAL_HISTORY_KINDS = [
   'run.terminal',
   'session.command-recorded',
   'session.frozen',
+  'session.adoption-noted',
 ] as const
 
 export const LOCAL_HISTORY_SEARCH = {

@@ -383,6 +383,7 @@ export function applyExtended(
       draft.resident = entry.resident
       return null
     case 'session.command-recorded':
+    case 'session.adoption-noted':
       return null
     case 'session.child-recorded':
       return applyChildRecorded(draft, entry)

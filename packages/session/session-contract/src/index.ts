@@ -20,6 +20,7 @@ export type {
   SessionRevision,
   TodoItemId,
 } from './identity.ts'
+export { startAnswerOf } from './start-answer.ts'
 export { requiredWorkEntries, compactionCallChangeOf } from './work-entry-state.ts'
 export type {
   AutoArchivePolicy,
@@ -33,6 +34,7 @@ export type {
   ControlProgress,
   ControlTarget,
   DeclarationChange,
+  AdoptionNote,
   DerivedMessage,
   ExecutionRef,
   FreezeVerdict,
@@ -100,6 +102,7 @@ export type {
   SessionReconciliation,
   SessionWork,
   StartAdoption,
+  NotedStart,
   StartedRun,
 } from './faces.ts'
 export {

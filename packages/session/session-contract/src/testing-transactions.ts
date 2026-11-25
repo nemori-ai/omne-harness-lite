@@ -1,4 +1,5 @@
 import { runStartInputs, sessionIntakeLimits, type SessionIntakeLimits } from './intake.ts'
+import { startAnswerOf } from './start-answer.ts'
 import {
   createMemorySessionHistorySource,
   entryEvidence,
@@ -54,6 +55,7 @@ import type {
   OperationResolution,
   PendingReason,
   SessionFailure,
+  StartedRun,
   SessionHistory,
 } from './faces.ts'
 import type {
@@ -360,18 +362,8 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
     }
     case 'create':
       return receipt => ({ receipt, state: snapshot })
-    case 'startRun': {
-      if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
-        throw new Error('startRun committed without an active Run')
-      const { advance, adoption, first, execution } = snapshot.run
-      return receipt => ({
-        receipt,
-        advance,
-        adopted: adoption,
-        first,
-        execution: execution.execution,
-      })
-    }
+    case 'startRun':
+      return receipt => startAnswerOf(command, snapshot, receipt)
     case 'claim':
     case 'reload': {
       if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
@@ -1349,8 +1341,8 @@ export function scene<P>(fixture: SessionTransactionsFixture<P>) {
       kind: 'accept',
       input: { ...base, operation: fixture.operation(name), value },
     })
-  const startRun = (name = 'start-run', entry: EntryClass = 'interactive') =>
-    commit<'startRun'>(
+  const startRun = async (name = 'start-run', entry: EntryClass = 'interactive') => {
+    const started = await commit<'startRun'>(
       {
         kind: 'startRun',
         input: {
@@ -1363,6 +1355,9 @@ export function scene<P>(fixture: SessionTransactionsFixture<P>) {
       },
       [],
     )
+    if ('ok' in started && 'noted' in started.ok) throw new Error('the start only noted a wait')
+    return started as Outcome<StartedRun, SessionFailure>
+  }
   const handover = async (execution: string, input: string, name = `handover-${input}`) => {
     const operation = fixture.operation(name)
     const receipt = evidence(`agent/accepted/${input}`)

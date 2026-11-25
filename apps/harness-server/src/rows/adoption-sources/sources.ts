@@ -17,7 +17,9 @@ import {
 } from '../agent-adoptions/definition-mappings.ts'
 import {
   INITIALIZATION_PROTOCOL,
+  type Adoption,
   type AdoptionEvidenceCommand,
+  type AdoptionNote,
   type DurableEvidence,
   type GuardCommand,
   type InitialAdoption,
@@ -54,12 +56,12 @@ export const MAPPING_EVIDENCE_PROTOCOL = Object.freeze({
   digest: 'harness-server:definition-mapping-evidence/1',
 })
 
-/** What a freeze is committed on: the verdict the Tool's function gave at the adoption point, as it was given. */
-export const FREEZE_EVIDENCE_PROTOCOL = Object.freeze({
+/** What a freeze, or a note that a run waits, is committed on: the answer the adoption point gave, as it was given. */
+export const RUN_ADOPTION_EVIDENCE_PROTOCOL = Object.freeze({
   owner: OWNER,
-  name: 'resident-freeze-evidence',
+  name: 'run-adoption-evidence',
   revision: '1',
-  digest: 'harness-server:resident-freeze-evidence/1',
+  digest: 'harness-server:run-adoption-evidence/1',
 })
 
 export const MAPPING_LOOKUP_SCHEMA = Object.freeze({
@@ -319,6 +321,8 @@ async function definitionEvidence<P>(
   command: Extract<AdoptionEvidenceCommand, { kind: 'startRun' | 'reload' }>,
   access: SessionAccess<P> | undefined,
 ): Promise<Prepared> {
+  if (command.kind === 'startRun' && command.input.note?.kind === 'waiting')
+    return succeed([noteMaterial(command.input.note)])
   const given = access as SessionAccess<unknown> | undefined
   const key =
     command.kind === 'startRun' ? await adoptForStartedRun(runSources, command, given) : null
@@ -331,6 +335,14 @@ async function definitionEvidence<P>(
   if (read.kind === 'absent') return invalid('candidate', read.reason)
   return succeed([materialOf(mappings, command.kind, read.entry)])
 }
+
+/** A note that a run waits rests on the answer the adoption source gave: it adopts nothing. */
+const noteMaterial = (note: AdoptionNote): GuardCommand => ({
+  owner: 'run-adoption',
+  participant: 'session-evidence',
+  protocol: RUN_ADOPTION_EVIDENCE_PROTOCOL,
+  facts: jsonOf({ version: 1, command: 'startRun', note }),
+})
 
 const sameKeys = (left: ResidentAdoption['keys'], right: ResidentAdoption['keys']) =>
   left.length === right.length &&
@@ -365,6 +377,20 @@ async function judgedResidents<P>(
   return succeed(unchanged ? undefined : planned.ok)
 }
 
+/** A version in force that cannot be used: the set the session stands at, while it still applies; else none. */
+async function notAdopted(
+  mappings: Mappings,
+  asker: Parameters<Mappings['adopted']>[0],
+  pinned: Adoption,
+  read: Readonly<{ reason: string; held?: true }>,
+): Promise<RunAdoption> {
+  if (read.held === undefined) return { kind: 'none', reason: read.reason }
+  const standing = await mappings.adopted(asker, pinned)
+  if (standing.kind === 'found') return { kind: 'keep', reason: read.reason }
+  const why = standing.kind === 'absent' ? standing.reason : standing.diagnostic
+  return { kind: 'none', reason: `${read.reason}; the one the session stands at: ${why}` }
+}
+
 /** What a run that starts now adopts: the version in force under the name of its definition. */
 async function runAdoption<P>(
   ctx: Context,
@@ -382,17 +408,22 @@ async function runAdoption<P>(
     if (failed !== null) runSources.report(failed)
     turn = { access: given, key: run }
     const read = await mappings.named({ tenant: access.tenant, turn }, name)
-    if (read.kind !== 'found')
-      return unreadable(
-        read.kind === 'absent'
-          ? `the definition of the session cannot be adopted: ${read.reason}`
-          : read.diagnostic,
-      )
+    if (read.kind === 'unavailable') return unreadable(read.diagnostic)
+    if (read.kind === 'absent')
+      return succeed(await notAdopted(mappings, { tenant: access.tenant, turn }, pinned, read))
     entry = read.entry
   }
   const residents = await judgedResidents(ctx, work, entry, access, turn, runSources.leftOut)
+  if ('failure' in residents && !same(entry.candidate, pinned)) {
+    const why =
+      'diagnostic' in residents.failure ? residents.failure.diagnostic : 'cannot be planned'
+    const asker = { tenant: access.tenant, ...(turn === null ? {} : { turn }) }
+    const reason = `the new version of ${name} cannot be adopted: ${why}`
+    return succeed(await notAdopted(mappings, asker, pinned, { reason, held: true }))
+  }
   if ('failure' in residents) return residents
   return succeed({
+    kind: 'adopt',
     candidate: same(entry.candidate, pinned) ? pinned : entry.candidate,
     ...(residents.ok === undefined ? {} : { residentAdoption: residents.ok }),
   })
@@ -447,7 +478,7 @@ async function prepareFrom<P>(
         {
           owner: 'resident-adoption',
           participant: 'session-evidence',
-          protocol: FREEZE_EVIDENCE_PROTOCOL,
+          protocol: RUN_ADOPTION_EVIDENCE_PROTOCOL,
           facts: jsonOf({
             version: 1,
             command: 'freeze',

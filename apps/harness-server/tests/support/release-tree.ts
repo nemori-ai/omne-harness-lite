@@ -187,6 +187,7 @@ function withHistoryKinds(layer: unknown, extra: readonly string[] = []): unknow
                 'run.started',
                 'run.terminal',
                 'session.frozen',
+                'session.adoption-noted',
                 ...extra,
               ],
             },

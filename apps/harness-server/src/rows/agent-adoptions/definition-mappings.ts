@@ -11,7 +11,7 @@ export type DefinitionAsker = Readonly<{
 
 export type DefinitionLookup =
   | Readonly<{ kind: 'found'; entry: DefinitionMappingEntry; side: AgentSide }>
-  | Readonly<{ kind: 'absent'; reason: string }>
+  | Readonly<{ kind: 'absent'; reason: string; held?: true }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /** A definition as one tenant sees it: of the deployment, held by the tenant, or carried by the workspace of a turn. */

@@ -276,13 +276,19 @@ function decideStartRun(
     if (judgment.kind === 'awaiting-person') return rejected({ kind: 'no-input' })
     return rejected({ kind: judgment.kind })
   }
-  const { candidate, instance } = command.input
+  const { candidate, instance, note } = command.input
+  const source = commandEvidence(command.input.operation, 'run-started')
+  if (note !== undefined && note.reason.length === 0) return invalid('note', 'no reason')
+  const noted =
+    note === undefined
+      ? []
+      : [encodeEntry({ kind: 'session.adoption-noted', note }, sessionOrigin(source))]
+  if (note?.kind === 'waiting') return entries(noted)
   if (emptyAdoption(candidate)) return invalid('candidate', 'incomplete adoption')
   if (instance.owner !== 'agent' || instance.id.length === 0)
     return invalid('instance', 'not an Agent instance')
   const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
   const run = runIdOf(snapshot.session, judgment.first, predecessor)
-  const source = commandEvidence(command.input.operation, 'run-started')
   const adopted = adoptionEntries(
     snapshot,
     command.input.residentAdoption,
@@ -291,7 +297,7 @@ function decideStartRun(
     source,
   )
   if (adopted.kind !== 'entries') return adopted
-  const out: EncodedEntry[] = [...adopted.entries]
+  const out: EncodedEntry[] = [...adopted.entries, ...noted]
   out.push(
     encodeEntry(
       {

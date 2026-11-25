@@ -41,6 +41,7 @@ import type {
   DeclarationChange,
   DerivedMessage,
   ModelProvenance,
+  AdoptionNote,
   FreezeVerdict,
   IdleObservation,
   InitializationResult,
@@ -105,6 +106,7 @@ export type StartedRun = Readonly<{
   first: InputId
   execution: string
 }>
+export type NotedStart = Readonly<{ receipt: CommitReceipt; noted: AdoptionNote }>
 export type Completion = Readonly<{
   consumption: ConsumptionId
   result: ProducedResult
@@ -170,8 +172,9 @@ export interface SessionWork<P> {
         candidate: Adoption
         instance: AgentInstanceRef
         residentAdoption?: StartAdoption
+        note?: AdoptionNote
       }>,
-  ): Reply<StartedRun>
+  ): Reply<StartedRun | NotedStart>
   claim(
     input: Mutation<P> &
       Readonly<{

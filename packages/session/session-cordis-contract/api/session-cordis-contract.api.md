@@ -10,6 +10,7 @@
 - `AdmittedSource` · 包 `@omne-harness/session-contract`
 - `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AdoptionEvidenceCommand` · 包 `@omne-harness/session-contract`
+- `AdoptionNote` · 包 `@omne-harness/session-contract`
 - `AdvanceClaim` · 包 `@omne-harness/session-contract`
 - `AdvanceJudgment` · 包 `@omne-harness/session-contract`
 - `AdvanceRef` · 包 `@omne-harness/session-contract`
@@ -142,6 +143,7 @@
 - `Modes` · 包 `@omne-harness/session-contract`
 - `Mutation` · 包 `@omne-harness/session-contract`
 - `MutationName` · 包 `@omne-harness/session-contract`
+- `NotedStart` · 包 `@omne-harness/session-contract`
 - `OnceAuthorization` · 包 `@omne-harness/session-contract`
 - `OpenWork` · 包 `@omne-harness/session-contract`
 - `OperationAsked` · 包 `@omne-harness/session-contract`
@@ -458,6 +460,7 @@
 - `shortCallId` · 包 `@omne-harness/session-contract`
 - `sourceRequestIdentities` · 包 `@omne-harness/session-contract`
 - `standingOf` · 包 `@omne-harness/session-contract`
+- `startAnswerOf` · 包 `@omne-harness/session-contract`
 - `summarizeModelProvenance` · 包 `@omne-harness/session-contract`
 - `uninterpretedCalls` · 包 `@omne-harness/session-contract`
 - `waitingCalls` · 包 `@omne-harness/session-contract`

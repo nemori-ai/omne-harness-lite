@@ -21,6 +21,8 @@ export type SessionOperationElements =
       call: string
     }>
   | Readonly<{ kind: 'startRun'; session: SessionId; first: InputId; predecessor: RunId | null }>
+  /** A run that waits for an adoption: the same reason for the same first input is one note. */
+  | Readonly<{ kind: 'adoption-note'; session: SessionId; first: InputId; reason: string }>
   | Readonly<{
       kind: 'participation'
       execution: string

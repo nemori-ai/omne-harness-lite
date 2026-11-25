@@ -131,6 +131,7 @@ it('exports exactly the declared root runtime surface', () => {
     'shortCallId',
     'sourceRequestIdentities',
     'standingOf',
+    'startAnswerOf',
     'summarizeModelProvenance',
     'uninterpretedCalls',
     'waitingCalls',

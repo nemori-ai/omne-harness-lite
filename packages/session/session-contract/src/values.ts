@@ -41,6 +41,7 @@ export type ResidentSegment = Readonly<{
   sources: readonly ResidentSegmentSource[]
 }>
 export type ResidentSegmentSource = Readonly<{ category: string; name: string; digest: string }>
+export type AdoptionNote = Readonly<{ kind: 'kept' | 'waiting'; reason: string }>
 export type SessionFrozen = Readonly<{
   cause: 'tool-shape-lost'
   capability: string

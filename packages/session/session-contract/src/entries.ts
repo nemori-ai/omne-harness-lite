@@ -44,6 +44,7 @@ import type {
   Waiting,
   ExecutionRef,
   BackgroundDisposition,
+  AdoptionNote,
 } from './values.ts'
 import type { EntryClass, HistoryEntry } from './faces.ts'
 import type { AdmittedSource } from './input-sources.ts'
@@ -248,6 +249,7 @@ export type SessionEntry =
   | Readonly<{ kind: 'session.declaration-adopted'; policy: AutoArchivePolicy }>
   | Readonly<{ kind: 'session.resident'; resident: boolean }>
   | Readonly<{ kind: 'session.command-recorded'; name: string; args: string }>
+  | Readonly<{ kind: 'session.adoption-noted'; note: AdoptionNote }>
   | Readonly<{ kind: 'session.child-recorded'; child: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'session.idle-evidence'; observation: IdleObservation | null }>
   | Readonly<{ kind: 'session.frozen'; capability: string; evidence: DurableEvidence }>
@@ -595,6 +597,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'session.workspace-changed',
   'session.resident',
   'session.command-recorded',
+  'session.adoption-noted',
   'session.child-recorded',
   'session.idle-evidence',
   'session.frozen',

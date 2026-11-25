@@ -199,7 +199,8 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
   ) => {
     if (this.closed) return unavailable(BRIDGE_OWNER, 'the evidence bridge has stopped')
     const source = this.ctx[sessionAdoptionSourceKey] as SessionAdoptionSource<P>
-    if (source.forRun === undefined) return succeed({ candidate: input.work.definition.adopted })
+    if (source.forRun === undefined)
+      return succeed({ kind: 'adopt', candidate: input.work.definition.adopted })
     try {
       return await source.forRun(access, input)
     } catch (cause) {
