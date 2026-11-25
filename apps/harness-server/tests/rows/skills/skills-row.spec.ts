@@ -177,6 +177,7 @@ async function world() {
       readWork: readWorkNowhere,
       catalog: () => routed.catalog,
       access: () => routed.access,
+      missingTools: async () => new Set(),
     })
   }
   // These helpers publish through a second store of the same domain; the release has one, which tells on its own.

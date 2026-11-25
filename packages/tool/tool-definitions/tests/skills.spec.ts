@@ -423,6 +423,89 @@ describe('Skills author: read, list and read_file', () => {
   })
 })
 
+describe('Skills author: where a Skill comes from and what it needs (table 5.4)', () => {
+  const source = { layer: 'tenant', version: 'sha256:9f2c' } as const
+
+  it('R1: read, list and read_file say the layer and the version the text comes from', async () => {
+    const test = fixture()
+    const skills = access({
+      read: { ok: { ...body, source } },
+      list: { ok: { ...listing, source } },
+      readFile: { ok: { ...script, source } },
+    })
+    expect(await test.run('read', { skill: 'weekly-report' }, skills)).toBe(
+      [
+        'done Skills read skill=weekly-report bytes=0-39 total=39',
+        'source=tenant version=sha256:9f2c',
+        `directory=${DIRECTORY}`,
+        '# Weekly report\nRun scripts/collect.mjs.',
+      ].join('\n'),
+    )
+    expect(await test.run('list', { skill: 'weekly-report' }, skills)).toContain(
+      'done Skills list skill=weekly-report files=2\nsource=tenant version=sha256:9f2c\n',
+    )
+    expect(
+      await test.run('read_file', { skill: 'weekly-report', path: 'scripts/collect.mjs' }, skills),
+    ).toContain('\nsource=tenant version=sha256:9f2c\nconsole.log("collected")')
+  })
+
+  it('R2: a tool the Skill needs that this session does not have now is named, and the text is still given whole', async () => {
+    const test = fixture()
+    const skills = access({ read: { ok: { ...body, source, missingTools: ['Browser', 'Mail'] } } })
+    expect(await test.run('read', { skill: 'weekly-report' }, skills)).toBe(
+      [
+        'done Skills read skill=weekly-report bytes=0-39 total=39',
+        'source=tenant version=sha256:9f2c missing-tools=Browser,Mail',
+        `directory=${DIRECTORY}`,
+        '# Weekly report\nRun scripts/collect.mjs.',
+      ].join('\n'),
+    )
+  })
+
+  it('R3: when the tools of this session cannot be read, it says it does not know', async () => {
+    const test = fixture()
+    const skills = access({ read: { ok: { ...body, source, missingTools: 'unknown' } } })
+    expect(await test.run('read', { skill: 'weekly-report' }, skills)).toContain(
+      '\nsource=tenant version=sha256:9f2c missing-tools=unknown\n',
+    )
+  })
+
+  it('R4, R5: a search line names what the Skill needs before its description; a disabled one says only why', async () => {
+    const test = fixture()
+    const skills = access({
+      search: {
+        ok: {
+          entries: [
+            {
+              kind: 'available',
+              name: 'weekly-report',
+              description: 'Write the weekly report.',
+              needs: ['Browser'],
+            },
+            { kind: 'disabled', name: 'meeting-notes', reason: 'disabled by the tenant' },
+          ],
+          next: null,
+        },
+      },
+    })
+    expect(await test.run('search', { query: 'report' }, skills)).toBe(
+      [
+        'done Skills search query="report" results=2',
+        '1. weekly-report [needs: Browser] - Write the weekly report.',
+        '2. meeting-notes [disabled: disabled by the tenant]',
+      ].join('\n'),
+    )
+  })
+
+  it('the guide says what source, version and the tools a Skill needs mean', async () => {
+    const test = fixture()
+    const help = await test.run('help', {}, access())
+    expect(help).toContain('source=<layer> version=<version>')
+    expect(help).toContain('missing-tools=')
+    expect(help).toContain('[needs: ...]')
+  })
+})
+
 describe('Skills author: failures', () => {
   const cases: readonly [SkillsFailure, string][] = [
     [{ kind: 'not-found' }, 'ERROR: not-found (no Skill with this name is available to you)'],

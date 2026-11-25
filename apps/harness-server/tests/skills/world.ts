@@ -138,6 +138,7 @@ export async function skillsWorld(): Promise<SkillsWorld> {
       readWork: readWorkNowhere,
       catalog: () => routed.catalog,
       access: () => routed.access,
+      missingTools: async () => new Set(),
     },
   )
   const settings = readJsonText(JSON.stringify({ resultMaxBytes: 65536 }), LIMITS)

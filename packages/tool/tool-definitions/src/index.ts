@@ -17,7 +17,9 @@ export type {
   SkillsFailure,
   SkillsFile,
   SkillsListing,
+  SkillsMissingTools,
   SkillsPage,
+  SkillsSource,
   SkillsText,
 } from './skills-port.ts'
 export { createToolsAuthor, toolsToolModule } from './tools.ts'
