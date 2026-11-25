@@ -109,11 +109,14 @@ function spotFor(
 ): Spot {
   if (command.near !== undefined) return work.freeNear(command.near, size)
   if (existing === null) return work.freeNear(seatOf(command.rules.sheet), size)
-  const { sheet, footprint } = command.rules
+  return isOpen(work, existing.at, size) ? existing.at : work.freeNear(existing.at, size)
+}
+
+/** Whether a thing of this size fits at `at` pressing on nothing; sharing an edge does not press. */
+function isOpen(work: Work, at: Spot, size: Item['size']): boolean {
+  const { sheet, footprint } = work.rules
   const taken = takenRects(work.items.values(), work.piles.values(), sheet, footprint)
-  return isFree(sheet, taken, existing.at, roomOf(size, footprint))
-    ? existing.at
-    : work.freeNear(existing.at, size)
+  return isFree(sheet, taken, at, roomOf(size, footprint))
 }
 
 /** The operations of the table an item change is checked as: where it goes, then whether it is adjusted. */
@@ -212,12 +215,17 @@ export function scatterPile(facts: CanvasFacts, command: ScatterCommand): Change
   const work = open(facts, command)
   const pile = work.piles.get(command.pile)
   if (pile === undefined) return NO_CHANGE
-  const members = [...work.items.values()]
+  const topDown = [...work.items.values()]
     .filter(item => item.state === 'on' && item.pile === pile.id)
-    .sort((left, right) => left.rank - right.rank)
+    .sort((left, right) => right.rank - left.rank)
   work.piles.delete(pile.id)
-  for (const item of members)
-    work.update(item, { pile: null, at: work.freeNear(pile.at, item.size, item.id) })
+  for (const [n, item] of topDown.entries()) {
+    const stays = n === 0 && isOpen(work, pile.at, item.size)
+    work.update(item, {
+      pile: null,
+      at: stays ? pile.at : work.freeNear(pile.at, item.size, item.id),
+    })
+  }
   return saved(work)
 }
 

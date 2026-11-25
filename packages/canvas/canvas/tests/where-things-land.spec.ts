@@ -41,7 +41,7 @@ describe('an item taken out of a pile', () => {
 })
 
 describe('a scattered pile', () => {
-  it('gives the nearest free spot to its items in their stacking order, the lowest first', async () => {
+  it('leaves its top item where it was and gives the nearest free spot to the others, the higher first', async () => {
     const w = await placed({ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 800, y: 0 })
     await w.canvas.arrange(w.ctx, { canvas: 'main', items: [{ item: 'i1', top: true }] })
     await w.canvas.pile(w.ctx, {
@@ -53,7 +53,7 @@ describe('a scattered pile', () => {
     expect(await w.canvas.scatter(w.ctx, { canvas: 'main', pile: 'p1' })).toMatchObject({
       kind: 'done',
     })
-    const spots = await Promise.all(['i2', 'i3', 'i1'].map(id => spotOf(w, id)))
+    const spots = await Promise.all(['i1', 'i3', 'i2'].map(id => spotOf(w, id)))
     const away = spots.map(spot => Math.hypot(spot!.x - 1600, spot!.y - 800))
     expect(spots[0]).toEqual({ x: 1600, y: 800 })
     expect(away[1]).toBeLessThanOrEqual(away[2]!)

@@ -68,6 +68,14 @@ const onGrid = (sheet: Sheet, at: Spot) =>
 const clearOf = (taken: readonly Rect[], at: Spot, room: Size) =>
   taken.every(other => !pressesOn({ ...at, ...room }, other))
 
+/** Whether a room at this spot keeps at least `step` from everything taken. */
+const apartFrom = (taken: readonly Rect[], at: Spot, room: Size, step: number) =>
+  clearOf(
+    taken,
+    { x: at.x - step, y: at.y - step },
+    { width: room.width + 2 * step, height: room.height + 2 * step },
+  )
+
 const distance = (a: Spot, b: Spot) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2
 
 /** Every free spot, slowly: each grid point of the sheet in turn, row by row from the top, each row from the left. */
@@ -103,13 +111,19 @@ describe('a found spot is a free spot', () => {
   )
 })
 
-describe('a found spot is the nearest free spot, the upper and then the left of those as near', () => {
+/** The first in scan order of the spots nearest to `want`. */
+function nearestOf(spots: readonly Spot[], want: Spot): Spot | undefined {
+  const least = Math.min(...spots.map(free => distance(free, want)))
+  return spots.find(free => distance(free, want) === least)
+}
+
+describe('a found spot is the nearest free spot a step of the grid from everything taken, else the nearest free spot; the upper and then the left of those as near', () => {
   it.each(SEEDS)('as a scan of every grid point finds, seed %i', seed => {
     const found = caseOf(seed)
     const spots = freeSpots(found)
     if (spots.length === 0) return
-    const least = Math.min(...spots.map(free => distance(free, found.want)))
-    const first = spots.find(free => distance(free, found.want) === least)
+    const apart = spots.filter(free => apartFrom(found.taken, free, found.room, found.sheet.grid))
+    const first = nearestOf(apart.length > 0 ? apart : spots, found.want)
     expect(freeSpot(found.sheet, found.taken, found.room, found.want)).toEqual(first)
   })
 
@@ -123,13 +137,14 @@ describe('a found spot is the nearest free spot, the upper and then the left of 
     height: 4,
   })
 
+  // A spot a step of the grid from one cell is clear of the cells around it too.
   it('takes the upper of spots as near', () => {
-    expect(freeSpot(sheet, [cell(5, 5)], room, { x: 50, y: 50 })).toEqual({ x: 50, y: 40 })
+    expect(freeSpot(sheet, [cell(5, 5)], room, { x: 50, y: 50 })).toEqual({ x: 50, y: 30 })
   })
 
   it('takes the left of spots as near on one row', () => {
     const taken = [cell(5, 5), cell(5, 4), cell(5, 6)]
-    expect(freeSpot(sheet, taken, room, { x: 50, y: 50 })).toEqual({ x: 40, y: 50 })
+    expect(freeSpot(sheet, taken, room, { x: 50, y: 50 })).toEqual({ x: 30, y: 50 })
   })
 })
 
@@ -144,9 +159,14 @@ describe('sharing only an edge does not press', () => {
     expect(isFree(sheet, taken, { x: 10, y: 0 }, room)).toBe(false)
   })
 
-  it('is found right beside it', () => {
-    expect(freeSpot(sheet, taken, room, { x: 20, y: 0 })).toEqual({ x: 20, y: 0 })
-    expect(freeSpot(sheet, taken, room, { x: 0, y: 10 })).toEqual({ x: 0, y: 20 })
+  it('is not what a search finds while a spot a step away is left', () => {
+    expect(freeSpot(sheet, taken, room, { x: 20, y: 0 })).toEqual({ x: 30, y: 0 })
+    expect(freeSpot(sheet, taken, room, { x: 0, y: 10 })).toEqual({ x: 0, y: 30 })
+  })
+
+  it('is found right beside it when no spot a step away is left', () => {
+    const narrow = { width: 40, height: 20, grid: 10 }
+    expect(freeSpot(narrow, taken, room, { x: 0, y: 0 })).toEqual({ x: 20, y: 0 })
   })
 })
 
@@ -263,17 +283,11 @@ describe('the search does not stop before the nearest free spot', () => {
     height: 4,
   })
 
+  // A step of the grid from a cell keeps clear of the cells around it: these two leave (6, 4)
+  // a step away, 18 off, and (3, 5) two steps away, 15 off.
   it('a straight spot two steps away beats a slanted one a step away', () => {
     const sheet = { width: 100, height: 100, grid: 10 }
-    const taken = [
-      cell(5, 5),
-      cell(4, 4),
-      cell(4, 5),
-      cell(4, 6),
-      cell(5, 4),
-      cell(5, 6),
-      cell(6, 5),
-    ]
+    const taken = [cell(5, 6), cell(4, 3)]
     expect(freeSpot(sheet, taken, { width: 10, height: 10 }, { x: 45, y: 50 })).toEqual({
       x: 30,
       y: 50,

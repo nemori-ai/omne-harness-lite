@@ -206,7 +206,7 @@ describe('where place puts a reference', () => {
     expect(await spotOf(w, 'a', { at: { x: 13, y: 7 } })).toEqual({ x: 13, y: 7 })
   })
 
-  it('near a spot given: the nearest free spot on the grid', async () => {
+  it('near a spot given: the nearest free spot on the grid, a step of the grid from the others', async () => {
     const w = world()
     w.kinds.declare(kind('media.object'))
     await spotOf(w, 'a', { at: { x: 800, y: 800 } })
@@ -214,20 +214,20 @@ describe('where place puts a reference', () => {
     expect((at.x % 8) + (at.y % 8)).toBe(0)
     expect(at).not.toEqual({ x: 800, y: 800 })
     const room = { width: 160, height: 80 + 22 }
-    const clear =
-      at.x >= 800 + room.width ||
-      at.x + room.width <= 800 ||
-      at.y >= 800 + room.height ||
-      at.y + room.height <= 800
-    expect(clear).toBe(true)
-    expect(Math.hypot(at.x - 801, at.y - 801)).toBeLessThanOrEqual(room.height + 8)
+    const apart =
+      at.x >= 800 + room.width + 8 ||
+      at.x + room.width + 8 <= 800 ||
+      at.y >= 800 + room.height + 8 ||
+      at.y + room.height + 8 <= 800
+    expect(apart).toBe(true)
+    expect(Math.hypot(at.x - 801, at.y - 801)).toBeLessThanOrEqual(room.height + 2 * 8)
   })
 
   it('counts the name line under an item as 22 high, the line the shared sheet draws', async () => {
     const w = world()
     w.kinds.declare(kind('media.object'))
     await spotOf(w, 'a', { at: { x: 800, y: 802 } })
-    expect(await spotOf(w, 'b', { near: { x: 800, y: 904 } })).toEqual({ x: 800, y: 904 })
+    expect(await spotOf(w, 'b', { near: { x: 800, y: 904 } })).toEqual({ x: 800, y: 912 })
   })
 
   it('with no spot: beside the seat in the middle of the sheet', async () => {
