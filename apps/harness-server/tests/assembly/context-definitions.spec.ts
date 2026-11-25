@@ -183,6 +183,7 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
         { capability: { category: 'tool', name: 'Screen' }, resident: true },
         { capability: { category: 'tool', name: 'Skills' }, resident: true },
         { capability: { category: 'tool', name: 'Code' }, resident: true },
+        { capability: { category: 'skill', name: 'skill-authoring' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })
