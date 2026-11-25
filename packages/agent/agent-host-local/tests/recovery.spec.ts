@@ -230,6 +230,7 @@ describe('the judgment of the runtime that holds an attachment (contact)', () =>
   // (D-31), and this answer is what lets a recovering caller take the execution up.
   it.each([
     ['idle', (instance: AgentInstanceId): AgentState => ({ kind: 'idle', instance })],
+    ['disposed', (instance: AgentInstanceId): AgentState => ({ kind: 'disposed', instance })],
     ['occupied by another execution', (instance: AgentInstanceId) => occupied(instance)],
   ] as const)(
     'answers lost with its own proof when its runtime reports %s',
@@ -243,19 +244,33 @@ describe('the judgment of the runtime that holds an attachment (contact)', () =>
       const held = await openExecution(host, instance)
       host.handles.get(instance)?.report({ state: stateOf(instance) })
       const answer = ok(await ask(host, held.authority))
-      expect(answer).toMatchObject({
+      expect(answer).toEqual({
         kind: 'lost',
-        evidence: { owner: 'agent-host', record: 'runtime-released' },
+        evidence: {
+          owner: 'agent-host',
+          record: 'runtime-released',
+          revision: '1',
+          digest: `instance:${instance}/execution:${EXECUTION}`,
+        },
       })
       expect(asked).toEqual([])
     },
   )
 
-  it('answers live while its runtime is between executions (reserved)', async () => {
+  it.each([
+    [
+      'between executions (reserved)',
+      (instance: AgentInstanceId): AgentState => ({ kind: 'reserved', instance }),
+    ],
+    [
+      'draining',
+      (instance: AgentInstanceId): AgentState => ({ kind: 'draining', instance, unresolved: [] }),
+    ],
+  ] as const)('answers live while its runtime is %s', async (_name, stateOf) => {
     const host = await provingWorld(() => evidence('lock'))
     const { instance } = ok(await host.provision.acquire(slotOf('a')))
     const held = await openExecution(host, instance)
-    host.handles.get(instance)?.report({ state: { kind: 'reserved', instance } })
+    host.handles.get(instance)?.report({ state: stateOf(instance) })
     expect(ok(await ask(host, held.authority))).toEqual({ kind: 'live' })
   })
 

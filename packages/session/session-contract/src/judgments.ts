@@ -330,7 +330,7 @@ export function openWork(snapshot: WorkSnapshot): OpenWork {
 export function judgeCompletion(
   snapshot: WorkSnapshot,
   execution: string,
-  conclusion: 'complete' | 'failed' | 'cancelled' = 'complete',
+  conclusion?: 'complete' | 'failed' | 'cancelled',
 ): CompletionJudgment {
   const terminal =
     snapshot.executions?.find(item => item.execution.execution === execution)?.terminal ??

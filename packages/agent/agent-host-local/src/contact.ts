@@ -11,17 +11,15 @@ export type Contact =
   | Readonly<{ kind: 'unknown' }>
 
 /** Between executions (reserved) and while draining the runtime may still be taking this one up. */
+const MAY_HOLD: Readonly<Record<Exclude<AgentState['kind'], 'occupied'>, boolean>> = {
+  reserved: true,
+  draining: true,
+  idle: false,
+  disposed: false,
+}
+
 function holds(reported: AgentState, execution: AgentExecutionId): boolean {
-  switch (reported.kind) {
-    case 'occupied':
-      return reported.execution === execution
-    case 'reserved':
-    case 'draining':
-      return true
-    case 'idle':
-    case 'disposed':
-      return false
-  }
+  return reported.kind === 'occupied' ? reported.execution === execution : MAY_HOLD[reported.kind]
 }
 
 /** A runtime this host runs answers by its own report; for any other instance only the assembly's proof counts. */
