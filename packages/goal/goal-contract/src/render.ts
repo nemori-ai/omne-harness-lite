@@ -24,6 +24,8 @@ function evidenceText(evidence: Criterion['evidence']): string {
       return `指标 ${evidence.metric}`
     case 'person':
       return '人确认'
+    case 'activity':
+      return '这一轮做过的事'
   }
 }
 

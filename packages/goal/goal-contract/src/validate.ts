@@ -37,7 +37,6 @@ function shapeIssue(issue: z.core.$ZodIssue): BodyIssue {
   return { entry: null, field: String(section ?? unknown ?? 'body'), problem: issue.message }
 }
 
-/** The budget a goal gets when it writes none. */
 export const DEFAULT_BUDGET: Omit<Exit, 'id'> = {
   statement: '预算用尽',
   kind: 'budget',
@@ -135,6 +134,23 @@ function criterionIssues(body: GoalBody, context: BodyContext): BodyIssue[] {
       found.push({ entry: entry.id, field: 'pass', problem: 'only a command has an exit code' })
   }
   return found
+}
+
+export const IMPLIED_STATEMENT = '这段输入要的事做完了'
+export const IMPLIED_PURPOSE_MAX = 2000
+
+/** The body of the goal a self-driving session stands on when nobody set one: the input that opened the round is its purpose. Null for an input without words. */
+export function impliedBody(input: string): GoalBody | null {
+  const purpose = [...input.trim()].slice(0, IMPLIED_PURPOSE_MAX).join('').trim()
+  if (purpose === '') return null
+  const empty = numbered(GoalDraftSchema.parse({ purpose }))
+  const criterion = {
+    id: 'A1',
+    statement: IMPLIED_STATEMENT,
+    evidence: { kind: 'activity' },
+    pass: null,
+  } as const
+  return { ...empty, criteria: [criterion], issued: { ...empty.issued, A: 1 } }
 }
 
 /** What is wrong with a numbered body, in the order of its sections; nothing when it stands. */

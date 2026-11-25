@@ -1,6 +1,8 @@
 import {
+  isImpliedKey,
   openGap,
   renderBody,
+  sessionOfKey,
   type GoalCaller,
   type GoalRecord,
   type GoalRefusal,
@@ -33,7 +35,15 @@ export function createWriting(deps: GoalsDependencies) {
     if (record.wake === null) return
     const { body, readings, state } = record
     const open = openGap(body, readings, state.rounds)
-    const wake = { ...record.wake, session: record.session, rendered: renderBody(body), open }
+    const implied = isImpliedKey(record.session)
+    const wake = {
+      kind: record.wake.kind,
+      request: implied ? `implied/${record.wake.request}` : record.wake.request,
+      session: sessionOfKey(record.session),
+      rendered: renderBody(body),
+      open,
+      implied,
+    }
     const unknown = () => 'unknown' as const
     const answer = await Promise.resolve()
       .then(() => sessions.wake(tenant, wake))

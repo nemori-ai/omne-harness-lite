@@ -93,7 +93,7 @@ function writesAfter(
   shown: ObservedCall,
 ): readonly ObservedCall[] {
   const { evidence } = criterion
-  if (evidence.kind === 'person') return []
+  if (evidence.kind === 'person' || evidence.kind === 'activity') return []
   return calls.filter(
     call =>
       call.writes &&
@@ -141,8 +141,9 @@ function evidenceCalls(material: JudgeMaterial, criterion: Criterion): readonly 
         : undefined
   const run = evidence.kind === 'command' ? declared : undefined
   const checks = run === undefined ? [] : checkWrites(calls, run.command ?? '', run).slice(-2)
+  const recent = evidence.kind === 'activity' ? calls.slice(-JUDGE_LIMITS.evidencePerEntry) : []
   const all = new Map(
-    [...found, ...checks, ...(declared === undefined ? [] : [declared])].map(call => [
+    [...found, ...checks, ...recent, ...(declared === undefined ? [] : [declared])].map(call => [
       call.ref,
       call,
     ]),

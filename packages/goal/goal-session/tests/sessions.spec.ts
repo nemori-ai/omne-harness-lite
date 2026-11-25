@@ -17,6 +17,7 @@ const wake = (change: object = {}) =>
     session: SESSION,
     rendered: '## 目的\n做完',
     open: '',
+    implied: false,
     ...change,
   }) as const
 const textOf = (input: { value: { message: unknown } }) =>
@@ -65,14 +66,34 @@ describe('the facts of a session a goal stands on', () => {
     const { sessions, state } = world()
     expect(await sessions.facts(TENANT, SESSION)).toEqual({
       kind: 'read',
-      value: { attendance: 'attended', moment: '41' },
+      value: { attendance: 'attended', moment: '41', drive: null },
     })
     state.work = { kind: 'read', value: work({ attendance: 'unattended' }) }
     state.head = { kind: 'read', value: null }
     expect(await sessions.facts(TENANT, SESSION)).toEqual({
       kind: 'read',
-      value: { attendance: 'unattended', moment: '0' },
+      value: { attendance: 'unattended', moment: '0', drive: null },
     })
+  })
+  it('a session that drives itself says which input opened its round; one that does not is never asked', async () => {
+    const { sessions, state, opens } = world()
+    await sessions.facts(TENANT, SESSION)
+    expect(opens.count).toBe(0)
+    state.drives = { kind: 'read', value: true }
+    expect(await sessions.facts(TENANT, SESSION)).toMatchObject({ value: { drive: null } })
+    state.opened = { kind: 'read', value: { since: '37', text: '把改动说明写进 CHANGELOG' } }
+    expect(await sessions.facts(TENANT, SESSION)).toEqual({
+      kind: 'read',
+      value: {
+        attendance: 'attended',
+        moment: '41',
+        drive: { since: '37', text: '把改动说明写进 CHANGELOG' },
+      },
+    })
+    state.opened = { kind: 'unavailable' }
+    expect(await sessions.facts(TENANT, SESSION)).toEqual({ kind: 'unavailable' })
+    state.drives = { kind: 'unavailable' }
+    expect(await sessions.facts(TENANT, SESSION)).toEqual({ kind: 'unavailable' })
   })
   it('a session this tenant has none of reads as null, and a text that names no tenant too', async () => {
     const { sessions, state } = world()
@@ -158,6 +179,23 @@ describe('what the reminders say', () => {
       expect(text.endsWith('BODY')).toBe(true)
     }
     expect(startText('BODY')).not.toBe(resumeText('BODY'))
+  })
+  it('the one of an implied goal speaks of the input, not of a goal: there is none to show or to track', async () => {
+    const { sessions, accepted } = world()
+    const wake = {
+      kind: 'continue',
+      request: 'implied/continue/1/1/1',
+      session: SESSION,
+      rendered: '## 目的\n写说明',
+      open: '- [A1] 这段输入要的事做完了：证据显示没做到（判定）',
+    } as const
+    await sessions.wake(TENANT, { ...wake, implied: true })
+    await sessions.wake(TENANT, { ...wake, request: 'continue/1/1/1', implied: false })
+    const [implied, own] = accepted.map(input => JSON.stringify(input.value.message))
+    expect(implied).toContain('what the input that opened this run asked for')
+    expect(implied).toContain('[A1] 这段输入要的事做完了')
+    expect(implied).not.toMatch(/goal|track/u)
+    expect(own).toContain('the goal of this session is not met yet')
   })
 })
 

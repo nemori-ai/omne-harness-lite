@@ -345,6 +345,7 @@ describe('the reminder a change owes its session', () => {
         session: SESSION,
         rendered: renderBody(set.body),
         open: '- [A1] 端到端用例全过：没读过',
+        implied: false,
       },
     ])
     expect(store.rows(TENANT)[0]?.wake).toBeNull()

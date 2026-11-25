@@ -7,7 +7,6 @@ import type { HistoryResults, SessionCalls } from './ports.ts'
 const UNAVAILABLE = { kind: 'unavailable' } as const
 type Read = Extract<Awaited<ReturnType<GoalHistory['calls']>>, { kind: 'read' }>
 type ObservedCall = Read['value'][number]
-/** How many pages of history one judging reads before it says it could not tell. */
 export const HISTORY_PAGE_LIMIT = 256
 
 /** One tool call as the history holds it: its name, its arguments as plain data, and the text of its result. */
@@ -81,29 +80,60 @@ export function madeCalls(
   return made
 }
 
+/** What the agent said in the last of these entries it wrote, when it asked for no tool there; null otherwise. */
+export function lastSaid(entries: readonly unknown[]): string | null {
+  const last = entries.findLast(
+    entry => (entry as Entry | null)?.payload?.message?.role === 'assistant',
+  )
+  const blocks = blocksOf(last)
+  if (askedIn(blocks).length > 0) return null
+  const said = blocks
+    .flatMap(block => (block.kind === 'text' && typeof block.text === 'string' ? [block.text] : []))
+    .join('\n')
+    .trim()
+  return said === '' ? null : said
+}
+
 /** The tool calls of a session since a goal was set, read from its history and described by the assembly. */
 export function createGoalHistory(calls: SessionCalls, describe: DescribeCall): GoalHistory {
+  async function entriesAfter(
+    tenant: string,
+    session: string,
+    since: string,
+  ): Promise<PortRead<readonly unknown[]>> {
+    const legal = tenantCodec.parse(tenant)
+    if (!legal.ok) return { kind: 'read', value: [] }
+    const at = { tenant: legal.value, session: session as SessionId }
+    const entries: unknown[] = []
+    let cursor: string | null = null
+    for (let page = 0; page < HISTORY_PAGE_LIMIT; page += 1) {
+      const read: PortRead<HistoryResults> = await calls
+        .callsAfter({ ...at, after: since === NO_ENTRY ? null : since, cursor })
+        .catch(() => UNAVAILABLE)
+      if (read.kind !== 'read') return UNAVAILABLE
+      entries.push(...read.value.entries)
+      cursor = read.value.next
+      if (cursor === null) return { kind: 'read', value: entries }
+    }
+    return UNAVAILABLE
+  }
+
   return {
     async calls(tenant, session, since): Promise<PortRead<readonly ObservedCall[]>> {
-      const legal = tenantCodec.parse(tenant)
-      if (!legal.ok) return { kind: 'read', value: [] }
-      const at = { tenant: legal.value, session: session as SessionId }
-      const entries: unknown[] = []
-      let cursor: string | null = null
-      for (let page = 0; page < HISTORY_PAGE_LIMIT; page += 1) {
-        const read: PortRead<HistoryResults> = await calls
-          .callsAfter({ ...at, after: since === NO_ENTRY ? null : since, cursor })
-          .catch(() => UNAVAILABLE)
-        if (read.kind !== 'read') return UNAVAILABLE
-        entries.push(...read.value.entries)
-        cursor = read.value.next
-        if (cursor === null) {
-          const made = madeCalls(entries)
-          const value = made.map(({ ref, ...call }, order) => ({ ref, order, ...describe(call) }))
-          return { kind: 'read', value }
-        }
-      }
-      return UNAVAILABLE
+      const entries = await entriesAfter(tenant, session, since)
+      if (entries.kind !== 'read') return UNAVAILABLE
+      const value = madeCalls(entries.value).map(({ ref, ...call }, order) => ({
+        ref,
+        order,
+        ...describe(call),
+      }))
+      return { kind: 'read', value }
+    },
+    async said(tenant, session, since) {
+      const entries = await entriesAfter(tenant, session, since)
+      return entries.kind === 'read'
+        ? { kind: 'read', value: lastSaid(entries.value) }
+        : UNAVAILABLE
     },
   }
 }

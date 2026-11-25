@@ -1,10 +1,15 @@
 import {
   compactedNote,
+  impliedBody,
+  impliedKey,
+  impliedRecord,
+  isImpliedKey,
   measuredOf,
   observe,
   packJudge,
   pausedNote,
   readJudge,
+  sessionOfKey,
   validReply,
   type Check,
   type CheckAnswer,
@@ -28,6 +33,7 @@ export const DECISION_RETRIES = 2
 /** An observation made on a goal somebody changed meanwhile is made again, this many times at most. */
 const OBSERVATIONS = 3
 const PASS: CheckAnswer = { kind: 'pass' }
+const NOTHING_SAID = { kind: 'read', value: null } as const
 
 const atOf = ({ state }: GoalRecord): ObservedAt => ({
   generation: state.generation,
@@ -39,6 +45,19 @@ function answered(record: GoalRecord): CheckAnswer {
   const answer = record.observed?.answer ?? 'pass'
   if (answer === 'tell') return { kind: 'tell', note: pausedNote(record) ?? '' }
   return answer === 'continue' ? { kind: 'continue' } : PASS
+}
+
+function replyAs(order: number, text: string): ObservedCall {
+  return {
+    ref: 'reply',
+    order,
+    tool: 'Reply',
+    command: null,
+    path: null,
+    exit: null,
+    output: text,
+    writes: false,
+  }
 }
 
 function numbers(body: GoalRecord['body'], calls: readonly ObservedCall[]) {
@@ -60,8 +79,9 @@ export function createObserving(deps: GoalsDependencies): GoalChecking {
     name: string,
   ): Promise<JudgeReply> {
     for (let attempt = 0; attempt <= DECISION_RETRIES; attempt += 1) {
-      const identity = `${name}/${String(attempt)}`
-      const input = { caller, session: record.session, identity, model: config.model, request }
+      const identity = `${isImpliedKey(record.session) ? 'implied.' : ''}${name}/${String(attempt)}`
+      const session = sessionOfKey(record.session)
+      const input = { caller, session, identity, model: config.model, request }
       const reply = await Promise.resolve()
         .then(() => deps.decisions.ask(input))
         .catch(() => null)
@@ -95,18 +115,24 @@ export function createObserving(deps: GoalsDependencies): GoalChecking {
     call: string,
   ): Promise<Answer<CheckAnswer> | 'again'> {
     const { tenant } = caller
-    const { session, body, progress, state } = record
-    const [calls, config] = await Promise.all([
+    const { body, progress, state } = record
+    const session = sessionOfKey(record.session)
+    const implied = isImpliedKey(record.session)
+    const [made, config, said] = await Promise.all([
       deps.history.calls(tenant, session, record.since),
       deps.judging.config(tenant, session),
+      implied ? deps.history.said(tenant, session, record.since) : NOTHING_SAID,
     ])
-    if (calls.kind === 'unavailable' || config.kind === 'unavailable') return UNAVAILABLE
+    if (made.kind === 'unavailable' || config.kind === 'unavailable' || said.kind === 'unavailable')
+      return UNAVAILABLE
+    const reply = said.value === null ? [] : [replyAs(made.value.length, said.value)]
+    const calls = [...made.value, ...reply]
     const material: JudgeMaterial = {
       body,
       attendance: state.attendance,
       progress,
-      calls: [...calls.value],
-      metrics: numbers(body, calls.value),
+      calls,
+      metrics: numbers(body, made.value),
       rounds: state.rounds,
     }
     const packed = packJudge(material, config.value)
@@ -120,6 +146,44 @@ export function createObserving(deps: GoalsDependencies): GoalChecking {
     return written.kind === 'done' ? done(answered(written.value)) : written
   }
 
+  /** The goal the session implies for the round in progress, begun when the round has none yet. Null: the session implies none. */
+  async function impliedOf(
+    tenant: string,
+    session: string,
+  ): Promise<Answer<GoalRecord | null> | 'again'> {
+    const [facts, kept] = await Promise.all([
+      deps.sessions.facts(tenant, session),
+      store.latest(tenant, impliedKey(session)),
+    ])
+    if (facts.kind === 'unavailable' || kept.kind === 'unavailable') return UNAVAILABLE
+    const drive = facts.value?.drive ?? null
+    if (drive === null) return done(null)
+    if (kept.value?.since === drive.since) return done(kept.value)
+    const body = impliedBody(drive.text)
+    if (body === null) return done(null)
+    const start = { session, body, since: drive.since, at: deps.clock.now() }
+    const begun = impliedRecord(kept.value, start)
+    return commit(tenant, kept.value?.version ?? 0, begun).then(written =>
+      written === 'stale' ? 'again' : written,
+    )
+  }
+
+  /** One look at the goal under a key for a round about to end. `none`: no goal in progress stands under it. */
+  async function looked(
+    caller: GoalCaller,
+    check: Check,
+    record: GoalRecord | null,
+  ): Promise<Answer<CheckAnswer> | 'again' | 'none'> {
+    if (record?.observed?.call === check.call) {
+      await deliver(caller.tenant, record)
+      return done(answered(record), true)
+    }
+    if (check.candidate === 'failed') return done(PASS)
+    if (record?.state.status === 'paused') return done(PASS)
+    if (record?.state.status !== 'active') return 'none'
+    return judged(caller, record, check.call)
+  }
+
   return {
     async observe(caller, check: Check) {
       const stop = await permitted(caller, check.session, 'observe')
@@ -127,14 +191,14 @@ export function createObserving(deps: GoalsDependencies): GoalChecking {
       for (let attempt = 0; attempt < OBSERVATIONS; attempt += 1) {
         const read = await store.latest(caller.tenant, check.session)
         if (read.kind === 'unavailable') return UNAVAILABLE
-        const record = read.value
-        if (record === null) return done(PASS)
-        if (record.observed?.call === check.call) {
-          await deliver(caller.tenant, record)
-          return done(answered(record), true)
-        }
-        if (record.state.status !== 'active' || check.candidate === 'failed') return done(PASS)
-        const answer = await judged(caller, record, check.call)
+        const own = await looked(caller, check, read.value)
+        if (own === 'again') continue
+        if (own !== 'none') return own
+        const implied = await impliedOf(caller.tenant, check.session)
+        if (implied === 'again') continue
+        if (implied.kind !== 'done') return implied
+        const answer = await looked(caller, check, implied.value)
+        if (answer === 'none') return done(PASS)
         if (answer !== 'again') return answer
       }
       return UNAVAILABLE

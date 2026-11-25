@@ -17,10 +17,8 @@ import type {
   GoalDecisions,
   GoalHistory,
   GoalJudging,
-  GoalSessions,
-  SendAnswer,
-  WakeToSend,
 } from '../ports.ts'
+import type { Driven, GoalSessions, SendAnswer, WakeToSend } from '../sessions-port.ts'
 
 export type FakeAuthority = GoalAuthority &
   Readonly<{
@@ -45,6 +43,7 @@ export function fakeAuthority(): FakeAuthority {
 export type FakeSessions = GoalSessions &
   Readonly<{
     add(session: string, attendance: Attendance): void
+    drive(session: string, driven: Driven | null): void
     readable(on: boolean): void
     sendNext(answer: SendAnswer): void
     woken: WakeToSend[]
@@ -53,6 +52,7 @@ export type FakeSessions = GoalSessions &
 /** Sessions with the one fact a goal stands on, and a record of every reminder handed over. */
 export function fakeSessions(): FakeSessions {
   const known = new Map<string, Attendance>()
+  const driven = new Map<string, Driven>()
   const woken: WakeToSend[] = []
   let canRead = true
   let moment = 0
@@ -60,6 +60,8 @@ export function fakeSessions(): FakeSessions {
   return {
     woken,
     add: (session, attendance) => void known.set(session, attendance),
+    drive: (session, input) =>
+      void (input === null ? driven.delete(session) : driven.set(session, input)),
     readable: on => void (canRead = on),
     sendNext: answer => void (next = answer),
     async facts(_tenant, session) {
@@ -67,7 +69,8 @@ export function fakeSessions(): FakeSessions {
       const attendance = known.get(session)
       if (attendance === undefined) return { kind: 'read', value: null }
       moment += 1
-      return { kind: 'read', value: { attendance, moment: String(moment) } }
+      const drive = driven.get(session) ?? null
+      return { kind: 'read', value: { attendance, moment: String(moment), drive } }
     },
     async wake(_tenant, wake) {
       const answer = next
@@ -114,17 +117,26 @@ export function fakeCalls(): FakeCalls {
 }
 
 export type FakeHistory = GoalHistory &
-  Readonly<{ made(...calls: ObservedCall[]): void; readable(on: boolean): void }>
+  Readonly<{
+    made(...calls: ObservedCall[]): void
+    say(text: string | null): void
+    readable(on: boolean): void
+  }>
 
 /** The tool calls a session made, as a judging is shown them. */
 export function fakeHistory(): FakeHistory {
   const calls: ObservedCall[] = []
   let canRead = true
+  let reply: string | null = null
   return {
     made: (...more) => void calls.push(...more),
+    say: text => void (reply = text),
     readable: on => void (canRead = on),
     async calls() {
       return canRead ? { kind: 'read', value: [...calls] } : { kind: 'unavailable' }
+    },
+    async said() {
+      return canRead ? { kind: 'read', value: reply } : { kind: 'unavailable' }
     },
   }
 }

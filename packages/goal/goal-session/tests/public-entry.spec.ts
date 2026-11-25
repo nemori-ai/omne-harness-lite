@@ -12,6 +12,7 @@ it('the public entry exports the sources, the reminder texts and the adapter', a
     'createGoalHistory',
     'createGoalSessions',
     'goalInputSources',
+    'lastSaid',
     'madeCalls',
     'plainOf',
     'resumeText',

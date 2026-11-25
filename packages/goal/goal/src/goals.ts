@@ -15,9 +15,9 @@ import type {
   GoalDecisions,
   GoalHistory,
   GoalJudging,
-  GoalSessions,
   ReconcileHints,
 } from './ports.ts'
+import type { GoalSessions } from './sessions-port.ts'
 import type { GoalStore } from './store.ts'
 import { createWriting, done, refused, UNAVAILABLE } from './writing.ts'
 

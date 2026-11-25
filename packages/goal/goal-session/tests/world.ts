@@ -43,11 +43,14 @@ export function world(describe: DescribeCall = describeRun) {
     work: { kind: 'read', value: work() } as PortRead<WorkSnapshot | null>,
     answer: { ok: null } as Called<unknown> | Error,
     head: { kind: 'read', value: '41' } as PortRead<string | null>,
+    drives: { kind: 'read', value: false } as PortRead<boolean>,
+    opened: { kind: 'read', value: null } as Awaited<ReturnType<SessionCalls['opened']>>,
     pages: [] as PortRead<HistoryResults>[],
   }
   const asked: { after: string | null; cursor: string | null }[] = []
   const read: { tenant: unknown; session: string }[] = []
   let broken = false
+  const opens = { count: 0 }
   const calls: SessionCalls = {
     async accept(input) {
       accepted.push(input)
@@ -59,6 +62,13 @@ export function world(describe: DescribeCall = describeRun) {
     },
     async head() {
       return state.head
+    },
+    async drives() {
+      return state.drives
+    },
+    async opened() {
+      opens.count += 1
+      return state.opened
     },
     async resultsAfter({ after, cursor, tenant, session }) {
       asked.push({ after, cursor })
@@ -80,6 +90,7 @@ export function world(describe: DescribeCall = describeRun) {
     asked,
     read,
     breakHistory: () => void (broken = true),
+    opens,
     state,
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HISTORY_PAGE_LIMIT, madeCalls, plainOf } from '../src/index.ts'
+import { HISTORY_PAGE_LIMIT, lastSaid, madeCalls, plainOf } from '../src/index.ts'
 import { SESSION, TENANT, world } from './world.ts'
 
 const text = (value: string) => ({ kind: 'string', value })
@@ -152,5 +152,36 @@ describe('the tool calls a judging is shown', () => {
     const { history, asked } = world()
     expect(await history.calls('not-a-tenant', SESSION, '41')).toEqual({ kind: 'read', value: [] })
     expect(asked).toEqual([])
+  })
+})
+
+describe('what the agent last said', () => {
+  const saying = (...texts: readonly string[]) => ({
+    kind: 'message.assistant',
+    payload: {
+      message: { role: 'assistant', blocks: texts.map(value => ({ kind: 'text', text: value })) },
+    },
+  })
+
+  it('is the words of the last entry it wrote, when it asked for no tool there', () => {
+    const made = [asking(['c1', 'Shell', run('pnpm test')]), answering('c1', 'all green')]
+    expect(lastSaid([...made, saying('写好了。', '共两处。')])).toBe('写好了。\n共两处。')
+    expect(lastSaid([saying('先看看'), ...made])).toBeNull()
+    expect(lastSaid(made)).toBeNull()
+    expect(lastSaid([answering('c1', 'all green')])).toBeNull()
+    expect(lastSaid([saying('  ')])).toBeNull()
+    expect(lastSaid([])).toBeNull()
+  })
+
+  it('is read from after a moment, page after page; a history that cannot be read is unavailable', async () => {
+    const { history, state, asked, breakHistory } = world()
+    state.pages = [page([saying('早先的话')], 'cursor-1'), page([saying('写好了。')])]
+    expect(await history.said(TENANT, SESSION, '41')).toEqual({ kind: 'read', value: '写好了。' })
+    expect(asked).toEqual([
+      { after: '41', cursor: null },
+      { after: '41', cursor: 'cursor-1' },
+    ])
+    breakHistory()
+    expect(await history.said(TENANT, SESSION, '41')).toEqual({ kind: 'unavailable' })
   })
 })

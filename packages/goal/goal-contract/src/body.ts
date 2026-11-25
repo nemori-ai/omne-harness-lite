@@ -35,9 +35,13 @@ export const EvidenceSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('metric'), metric: MetricIdSchema }),
   z.strictObject({ kind: z.literal('person') }),
 ])
-export type Evidence = z.infer<typeof EvidenceSchema>
+/** Where the evidence of a kept criterion comes from: what a draft may write, or what was done in the round, which only the goal a session implies stands on. */
+export const KeptEvidenceSchema = z.discriminatedUnion('kind', [
+  ...EvidenceSchema.options,
+  z.strictObject({ kind: z.literal('activity') }),
+])
+export type Evidence = z.infer<typeof KeptEvidenceSchema>
 
-/** What the evidence has to show: the command's exit code zero, or something a reader judges. */
 export const PassSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('exit-zero') }),
   z.strictObject({ kind: z.literal('shows'), text: line }),
@@ -95,7 +99,9 @@ export type Issued = z.infer<typeof IssuedSchema>
 /** The body of a goal as it is kept: typed bones, natural-language leaves. Text is rendered from it. */
 export const GoalBodySchema = z.strictObject({
   purpose: line,
-  criteria: z.array(CriterionSchema.extend({ id: CriterionIdSchema })),
+  criteria: z.array(
+    CriterionSchema.extend({ id: CriterionIdSchema, evidence: KeptEvidenceSchema }),
+  ),
   metrics: z.array(MetricSchema.extend({ id: MetricIdSchema })),
   rules: z.array(RuleSchema.extend({ id: RuleIdSchema })),
   exits: z.array(ExitSchema.extend({ id: ExitIdSchema })),

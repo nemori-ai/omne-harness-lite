@@ -1,12 +1,10 @@
 import type {
   AnsweredCard,
-  Attendance,
   GoalCaller,
   JudgeConfig,
   JudgeReply,
   JudgeRequest,
   ObservedCall,
-  Wake,
 } from '@omne-harness/goal-contract'
 
 export type GoalAction =
@@ -45,17 +43,6 @@ export async function ask(
 
 export type PortRead<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'unavailable' }>
 
-export type SessionFacts = Readonly<{ attendance: Attendance; moment: string }>
-export type WakeToSend = Wake & Readonly<{ session: string; rendered: string; open: string }>
-/** `refused`: the session takes no input any more. `unknown`: sent or not, nobody can tell. */
-export type SendAnswer = 'sent' | 'refused' | 'unknown'
-
-export interface GoalSessions {
-  facts(tenant: string, session: string): Promise<PortRead<SessionFacts | null>>
-  /** Sends the reminder a change owes its session. The same request is taken by the session once. */
-  wake(tenant: string, wake: WakeToSend): Promise<SendAnswer>
-}
-
 export interface GoalCards {
   /** A card of this session as its owner holds it answered, or null when it holds no such answered card. */
   answered(tenant: string, session: string, card: string): Promise<PortRead<AnsweredCard | null>>
@@ -73,6 +60,8 @@ export interface GoalCalls {
 
 export interface GoalHistory {
   calls(tenant: string, session: string, since: string): Promise<PortRead<readonly ObservedCall[]>>
+  /** What the agent last said since that moment, when it said it after its last tool call; null when it said nothing. */
+  said(tenant: string, session: string, since: string): Promise<PortRead<string | null>>
 }
 
 export type DecisionAsk = Readonly<{

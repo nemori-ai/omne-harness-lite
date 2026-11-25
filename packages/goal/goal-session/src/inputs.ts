@@ -33,6 +33,15 @@ export function continueText(open: string): string {
   ].join('\n\n')
 }
 
+/** The input that sends the agent on in a session that drives itself and has no goal: it was about to stop, and what it was asked does not look done. */
+export function impliedText(open: string): string {
+  return [
+    'You were about to stop, but what the input that opened this run asked for does not look done yet, so this run goes on.',
+    ...(open === '' ? [] : [`Still open:\n${open}`]),
+    'Go on with it. When you are about to stop again, it is checked again; if nothing more can be done, say plainly what is done and what is not.',
+  ].join('\n\n')
+}
+
 /** One ordinary input a system part sends: a system reminder whose identities come from the input identity. */
 export function reminderInput(source: GoalSource, input: InputId, text: string): Ordinary {
   const id = createHash('sha256').update(`goal-session/1:message/${input}`).digest('hex')

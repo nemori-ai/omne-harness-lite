@@ -22,8 +22,10 @@ export type SessionCalls = Readonly<{
   work(input: At): Promise<PortRead<WorkSnapshot | null>>
   /** The latest entry of the session's history, or null when it has none yet. Read as the session itself. */
   head(input: At): Promise<PortRead<string | null>>
-  /** One page of the tool results of the session after an entry, oldest first; `after` null reads from its beginning.
-   * `next`: where the following page starts, or null at the end. */
+  drives(input: At & Readonly<{ work: WorkSnapshot }>): Promise<PortRead<boolean>>
+  /** The input that opened the round in progress: its words, and its place in the history. Null when the history shows none. */
+  opened(input: At): Promise<PortRead<Readonly<{ since: string; text: string }> | null>>
+  /** One page of the tool results of the session after an entry, oldest first; `after` null reads from its beginning; `next` null: the end. */
   resultsAfter(
     input: At & Readonly<{ after: string | null; cursor: string | null }>,
   ): Promise<PortRead<HistoryResults>>

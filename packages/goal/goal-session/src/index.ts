@@ -5,6 +5,7 @@ export { continueText, resumeText, startText } from './inputs.ts'
 export {
   createGoalHistory,
   HISTORY_PAGE_LIMIT,
+  lastSaid,
   madeCalls,
   plainOf,
   type CallReading,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { impliedKey } from '@omne-harness/goal-contract'
 import type {
   CheckAnswer,
   GoalDraft,
@@ -352,5 +353,145 @@ describe('after a compaction', () => {
     value(await s.goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } }))
     expect(value(await s.goals.compacted(CHECK, SESSION))).toBeNull()
     expect(value(await world().goals.compacted(CHECK, SESSION))).toBeNull()
+  })
+})
+
+describe('a self-driving session nobody set a goal for', () => {
+  const INPUT = { since: '41', text: '把改动说明写进 CHANGELOG' }
+  const KEY = impliedKey(SESSION)
+  async function driving(input: typeof INPUT | null = INPUT) {
+    const w = world()
+    w.sessions.drive(SESSION, input)
+    w.history.made(write(1))
+    w.history.say('写好了。')
+    const implied = () => w.store.rows(TENANT).filter(row => row.session === KEY)
+    const observe = (call = CALL, candidate: 'complete' | 'failed' = 'complete') =>
+      w.goals.observe(CHECK, check(call, candidate))
+    return { ...w, implied, observe }
+  }
+
+  it('is judged by the input that opened the round: one criterion, shown the calls of the round and what the agent said last', async () => {
+    const s = await driving()
+    s.decisions.answer(ask => replyOf(ask, 'holds'))
+    expect(value(await s.observe())).toEqual({ kind: 'pass' })
+    const [asked] = s.decisions.asked
+    expect(asked).toMatchObject({ session: SESSION, identity: 'implied.1.1.0/0/0/0' })
+    expect(Object.keys(asked?.request.questions ?? {})).toEqual(['A1'])
+    const state = asked?.request.state as {
+      goal: { purpose: string }
+      evidence: { A1: { ref: string; tool: string; excerpt: string }[] }
+    }
+    expect(state.goal.purpose).toBe(INPUT.text)
+    expect(state.evidence.A1.map(item => [item.ref, item.tool])).toEqual([
+      ['call-1', 'Files write'],
+      ['reply', 'Reply'],
+    ])
+    expect(state.evidence.A1.at(-1)?.excerpt).toBe('写好了。')
+    expect(s.implied()).toHaveLength(1)
+    expect(s.implied()[0]?.state).toMatchObject({
+      status: 'settled',
+      attendance: 'unattended',
+      outcome: { kind: 'achieved' },
+    })
+  })
+
+  it('is no goal of the session: nothing reads it there, and a person sets a goal as if it were not there', async () => {
+    const s = await driving()
+    s.decisions.answer(ask => replyOf(ask, 'fails'))
+    value(await s.observe())
+    expect(value(await s.goals.read(OWNER, SESSION))).toBeNull()
+    const proposal = { kind: 'set', draft: READ } as const
+    const set = value(await s.goals.write(OWNER, s.direct({ proposal })))
+    expect(set.state).toMatchObject({ status: 'active', generation: 1, revision: 1 })
+    expect(value(await s.observe('call-b'))).toEqual({ kind: 'continue' })
+    expect(s.decisions.asked.at(-1)?.identity).toBe('1.1.0/0/0/0')
+    expect(s.implied()).toHaveLength(1)
+  })
+
+  it('sends the agent on with a reminder of its own while the judge reads the input as not done, a round at a time', async () => {
+    const s = await driving()
+    s.decisions.answer(ask => replyOf(ask, 'fails'))
+    expect(value(await s.observe('c1'))).toEqual({ kind: 'continue' })
+    expect(s.sessions.woken).toEqual([
+      {
+        kind: 'continue',
+        request: 'implied/continue/1/1/1',
+        session: SESSION,
+        rendered: expect.stringContaining(`## 目的\n${INPUT.text}`),
+        open: '- [A1] 这段输入要的事做完了：证据显示没做到（判定）',
+        implied: true,
+      },
+    ])
+    const again = await s.observe('c1')
+    expect(again).toEqual({ kind: 'done', value: { kind: 'continue' }, recalled: true })
+    expect(s.decisions.asked).toHaveLength(1)
+    expect(value(await s.observe('c2'))).toEqual({ kind: 'continue' })
+    expect(s.sessions.woken.map(wake => wake.request)).toEqual([
+      'implied/continue/1/1/1',
+      'implied/continue/1/1/2',
+    ])
+    expect(s.implied()).toHaveLength(1)
+  })
+
+  it('lets the round end, with nobody told anything, once sending it on changed nothing or the judge cannot answer', async () => {
+    const stalled = await driving()
+    stalled.decisions.answer(ask => replyOf(ask, 'fails'))
+    const answers: string[] = []
+    for (const call of ['c1', 'c2', 'c3', 'c4', 'c5'])
+      answers.push(value(await stalled.observe(call)).kind)
+    expect(answers).toEqual(['continue', 'continue', 'continue', 'pass', 'pass'])
+    expect(stalled.implied()[0]?.state).toMatchObject({
+      status: 'settled',
+      outcome: { kind: 'stalled' },
+    })
+    expect(stalled.decisions.asked).toHaveLength(4)
+    const mute = await driving()
+    expect(value(await mute.observe())).toEqual({ kind: 'pass' })
+    expect(mute.implied()[0]?.state).toMatchObject({ outcome: { kind: 'judge-unavailable' } })
+  })
+
+  it('begins anew for the next input, over the one row it keeps', async () => {
+    const s = await driving()
+    s.decisions.answer(ask => replyOf(ask, 'fails'))
+    value(await s.observe('c1'))
+    s.sessions.drive(SESSION, { since: '57', text: '再把版本号改了' })
+    expect(value(await s.observe('c2'))).toEqual({ kind: 'continue' })
+    expect(s.implied()).toHaveLength(1)
+    expect(s.implied()[0]).toMatchObject({
+      since: '57',
+      body: { purpose: '再把版本号改了' },
+      state: { generation: 1, revision: 2, rounds: 1 },
+    })
+    expect(s.decisions.asked.at(-1)?.identity).toBe('implied.1.2.0/0/0/0')
+    expect(s.sessions.woken.at(-1)?.request).toBe('implied/continue/1/2/1')
+  })
+
+  it('implies nothing for a round that proposes to fail, an input without words, a session that does not drive itself, or one whose goal is paused', async () => {
+    const failing = await driving()
+    expect(value(await failing.observe(CALL, 'failed'))).toEqual({ kind: 'pass' })
+    const wordless = await driving({ since: '41', text: '  ' })
+    expect(value(await wordless.observe())).toEqual({ kind: 'pass' })
+    const led = await driving(null)
+    expect(value(await led.observe())).toEqual({ kind: 'pass' })
+    const paused = await driving()
+    const proposal = { kind: 'set', draft: READ } as const
+    value(await paused.goals.write(OWNER, paused.direct({ proposal })))
+    value(await paused.goals.command(OWNER, { session: SESSION, command: { kind: 'pause' } }))
+    expect(value(await paused.observe())).toEqual({ kind: 'pass' })
+    for (const s of [failing, wordless, led, paused]) {
+      expect(s.decisions.asked).toEqual([])
+      expect(s.implied()).toEqual([])
+    }
+  })
+
+  it('answers that its basis is away when the facts of the session or what the agent said cannot be read', async () => {
+    const blind = await driving()
+    blind.sessions.readable(false)
+    expect(await blind.observe()).toEqual({ kind: 'basis-unavailable' })
+    expect(blind.implied()).toEqual([])
+    const deaf = await driving()
+    deaf.history.readable(false)
+    expect(await deaf.observe()).toEqual({ kind: 'basis-unavailable' })
+    expect(deaf.decisions.asked).toEqual([])
   })
 })
