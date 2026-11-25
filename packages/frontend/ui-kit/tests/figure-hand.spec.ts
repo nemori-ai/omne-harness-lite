@@ -251,6 +251,18 @@ describe('a press that does not travel stays a press (FE-I63)', () => {
     expect(figure.store.getSnapshot().phase).toBe('seated')
   })
 
+  it('a press abandoned by a move with the button up is over: a late pointer up does not press the seat', () => {
+    const time = frameClock()
+    placeSeats()
+    const figure = stage()
+    time.wait(700)
+    figure.store.pointerDown(pointer(...HOME))
+    figure.store.pointerMove(up(HOME[0] + 2, HOME[1]))
+    figure.store.pointerUp(up(HOME[0] + 2, HOME[1]))
+    expect(figure.presses()).toBe(0)
+    expect(figure.hands).toEqual([])
+  })
+
   it('Escape before it travelled is not the figure’s to take', () => {
     const time = frameClock()
     placeSeats()

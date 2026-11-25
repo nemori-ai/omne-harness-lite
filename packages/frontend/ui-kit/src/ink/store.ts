@@ -477,11 +477,7 @@ export class FigureStore {
     const seat = this.activeSeat()
     const home = this.home()
     if (!this.snapshot.present) {
-      if (seat === null || home === null) return
-      this.seat = seat.id
-      this.place(home)
-      this.set({ phase: 'seated', present: true, size: this.ownSize(), seat: seat.id, point: home })
-      this.body.writeAnew()
+      this.appear(seat, home)
       return
     }
     if (this.turning !== null) return
@@ -491,6 +487,14 @@ export class FigureStore {
     }
     if (this.snapshot.phase === 'seated') this.staySeated(seat, home)
     else this.keepGoing(home)
+  }
+
+  private appear(seat: Seat | null, home: Placement | null): void {
+    if (seat === null || home === null) return
+    this.seat = seat.id
+    this.place(home)
+    this.set({ phase: 'seated', present: true, size: this.ownSize(), seat: seat.id, point: home })
+    this.body.writeAnew()
   }
 
   private staySeated(seat: Seat, home: Placement): void {

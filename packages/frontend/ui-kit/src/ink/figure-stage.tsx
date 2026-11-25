@@ -34,7 +34,7 @@ export function placeAt(element: HTMLElement, at: Placement, size: number): void
   element.style.transform = translate(at, size)
 }
 
-export const pointerAt = (event: React.PointerEvent): PointerAt => ({
+const pointerAt = (event: React.PointerEvent): PointerAt => ({
   id: event.pointerId,
   buttons: event.buttons,
   client: { x: event.clientX, y: event.clientY },
@@ -43,13 +43,40 @@ export const pointerAt = (event: React.PointerEvent): PointerAt => ({
   shift: event.shiftKey,
 })
 
-export function capture(element: HTMLElement, pointer: number): void {
+function capture(element: HTMLElement, pointer: number): void {
   if (typeof element.setPointerCapture === 'function') element.setPointerCapture(pointer)
 }
 
-export function letGo(element: HTMLElement, pointer: number): void {
+function letGo(element: HTMLElement, pointer: number): void {
   if (typeof element.hasPointerCapture === 'function' && element.hasPointerCapture(pointer))
     element.releasePointerCapture(pointer)
+}
+
+interface Reachable {
+  pointerDown(at: PointerAt): void
+  pointerMove(at: PointerAt): void
+  pointerUp(at: PointerAt): void
+  cancel(pointer: number): void
+}
+
+export function FigureReach({ store }: { readonly store: Reachable }): React.JSX.Element {
+  return (
+    <span
+      className="omne-figure-reach"
+      data-control="figure"
+      onPointerDown={event => {
+        if (event.button !== 0) return
+        capture(event.currentTarget, event.pointerId)
+        store.pointerDown(pointerAt(event))
+      }}
+      onPointerMove={event => store.pointerMove(pointerAt(event))}
+      onPointerUp={event => {
+        letGo(event.currentTarget, event.pointerId)
+        store.pointerUp(pointerAt(event))
+      }}
+      onPointerCancel={event => store.cancel(event.pointerId)}
+    />
+  )
 }
 
 function useLayout(store: FigureStore, owns: boolean): void {
@@ -120,6 +147,54 @@ export function useOnlyFigure(owner: object, name: string): boolean {
   return owns
 }
 
+interface Following {
+  follow(doing: Doing | null, moment: FigureMoment | null): void
+  setWaiting(count: number): void
+  dispose(): void
+}
+
+export function useFollowing(
+  store: Following,
+  owns: boolean,
+  doing: Doing | undefined,
+  moment: FigureMoment | undefined,
+  waiting: number,
+): void {
+  const kind = moment?.kind
+  const serial = moment?.serial
+  useEffect(() => {
+    if (!owns) return
+    store.follow(
+      doing ?? null,
+      kind === undefined || serial === undefined ? null : { kind, serial },
+    )
+  }, [store, owns, doing, kind, serial])
+  useEffect(() => {
+    if (owns) store.setWaiting(waiting)
+  }, [store, owns, waiting])
+  useEffect(() => () => store.dispose(), [store])
+}
+
+interface Lifting {
+  readonly liftable: boolean
+  readonly onHand: ((hand: FigureHand) => boolean | void) | undefined
+  readonly away: boolean
+  readonly control: React.Ref<FigureControl> | undefined
+}
+
+function useLifting(store: FigureStore, { liftable, onHand, away, control }: Lifting): void {
+  useLayoutEffect(() => store.setAway(away), [store, away])
+  useEffect(() => {
+    store.liftable = liftable
+    store.onHand = onHand ?? null
+  }, [store, liftable, onHand])
+  useImperativeHandle(
+    control,
+    () => ({ goHome: () => store.goHome(), seatPoint: () => store.seatPoint() }),
+    [store],
+  )
+}
+
 function Figure({
   store,
   doing,
@@ -151,21 +226,7 @@ function Figure({
       data-hover={hover ? '' : undefined}
       style={{ width: size, height: size }}
     >
-      <span
-        className="omne-figure-reach"
-        data-control="figure"
-        onPointerDown={event => {
-          if (event.button !== 0) return
-          capture(event.currentTarget, event.pointerId)
-          store.pointerDown(pointerAt(event))
-        }}
-        onPointerMove={event => store.pointerMove(pointerAt(event))}
-        onPointerUp={event => {
-          letGo(event.currentTarget, event.pointerId)
-          store.pointerUp(pointerAt(event))
-        }}
-        onPointerCancel={event => store.cancel(event.pointerId)}
-      />
+      <FigureReach store={store} />
       {!away && body}
     </div>
   )
@@ -229,35 +290,14 @@ export function FigureStage({
   const owns = useOnlyFigure(store, 'FigureStage')
   const factor = useSizeFactor()
   const reduced = useReducedMotion()
-  const kind = moment?.kind
-  const serial = moment?.serial
 
   useLayoutEffect(() => store.setAppSize(factor), [store, factor])
   useLayoutEffect(() => store.setReduced(reduced), [store, reduced])
-  useLayoutEffect(() => store.setAway(away), [store, away])
   useEffect(() => {
     store.onPress = onPress ?? null
   }, [store, onPress])
-  useEffect(() => {
-    store.liftable = liftable
-    store.onHand = onHand ?? null
-  }, [store, liftable, onHand])
-  useImperativeHandle(
-    control,
-    () => ({ goHome: () => store.goHome(), seatPoint: () => store.seatPoint() }),
-    [store],
-  )
-  useEffect(() => {
-    if (!owns) return
-    store.follow(
-      doing ?? null,
-      kind === undefined || serial === undefined ? null : { kind, serial },
-    )
-  }, [store, owns, doing, kind, serial])
-  useEffect(() => {
-    if (owns) store.setWaiting(waiting)
-  }, [store, owns, waiting])
-  useEffect(() => () => store.dispose(), [store])
+  useLifting(store, { liftable, onHand, away, control })
+  useFollowing(store, owns, doing, moment, waiting)
   useLayout(store, owns)
   usePointer(store, owns)
   useEscape(store, owns && liftable)

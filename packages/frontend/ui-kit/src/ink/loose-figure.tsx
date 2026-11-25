@@ -1,9 +1,9 @@
-import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 
 import { useReducedMotion } from '../motion/motion.ts'
 import { useSizeFactor } from '../size/use-size-factor.ts'
 import { type Doing, type FigureMoment } from './body.ts'
-import { capture, letGo, placeAt, pointerAt, useOnlyFigure } from './figure-stage.tsx'
+import { FigureReach, placeAt, useFollowing, useOnlyFigure } from './figure-stage.tsx'
 import { FigureInk } from './figure-ink.tsx'
 import { FigureJourneys } from './figure-journeys.tsx'
 import { LooseStore, type LooseHands, type LooseMode, type LooseWhere } from './loose.ts'
@@ -46,24 +46,22 @@ function Carried({
       data-mode={mode}
       style={{ width: size, height: size }}
     >
-      <span
-        className="omne-figure-reach"
-        data-control="figure"
-        onPointerDown={event => {
-          if (event.button !== 0) return
-          capture(event.currentTarget, event.pointerId)
-          store.pointerDown(pointerAt(event))
-        }}
-        onPointerMove={event => store.pointerMove(pointerAt(event))}
-        onPointerUp={event => {
-          letGo(event.currentTarget, event.pointerId)
-          store.pointerUp(pointerAt(event))
-        }}
-        onPointerCancel={event => store.cancel(event.pointerId)}
-      />
+      <FigureReach store={store} />
       <FigureInk body={store.body} size={size} />
     </div>
   )
+}
+
+function useShown(store: LooseStore, owns: boolean, where: LooseWhere): void {
+  const mode = where.mode
+  const x = where.mode === 'none' ? null : where.at.x
+  const y = where.mode === 'none' ? null : where.at.y
+  useLayoutEffect(() => {
+    if (!owns) return
+    store.show(
+      mode === 'none' || x === null || y === null ? { mode: 'none' } : { mode, at: { x, y } },
+    )
+  }, [store, owns, mode, x, y])
 }
 
 export function LooseFigure(props: LooseFigureProps): React.JSX.Element | null {
@@ -74,41 +72,21 @@ export function LooseFigure(props: LooseFigureProps): React.JSX.Element | null {
   const system = useReducedMotion()
   const size = props.size ?? FIGURE_SIZE * factor
   const reduced = props.reduced ?? system
-  const mode = props.mode
-  const x = props.mode === 'none' ? null : props.at.x
-  const y = props.mode === 'none' ? null : props.at.y
-  const kind = moment?.kind
-  const serial = moment?.serial
 
   useLayoutEffect(() => {
     store.hands = props
   })
   useLayoutEffect(() => store.setSize(size), [store, size])
   useLayoutEffect(() => store.setReduced(reduced), [store, reduced])
-  useLayoutEffect(() => {
-    if (!owns) return
-    store.show(
-      mode === 'none' || x === null || y === null ? { mode: 'none' } : { mode, at: { x, y } },
-    )
-  }, [store, owns, mode, x, y])
-  useEffect(() => {
-    if (!owns) return
-    store.follow(
-      doing ?? null,
-      kind === undefined || serial === undefined ? null : { kind, serial },
-    )
-  }, [store, owns, doing, kind, serial])
-  useEffect(() => {
-    if (owns) store.setWaiting(waiting)
-  }, [store, owns, waiting])
-  useEffect(() => () => store.dispose(), [store])
+  useShown(store, owns, props)
+  useFollowing(store, owns, doing, moment, waiting)
   useImperativeHandle(control, () => ({ reach: () => store.reach() }), [store])
 
-  if (!owns || mode === 'none') return null
+  if (!owns || props.mode === 'none') return null
   return (
     <div className="omne-figure-layer">
       <FigureJourneys journeys={store.journeys} />
-      <Carried store={store} size={size} mode={mode} />
+      <Carried store={store} size={size} mode={props.mode} />
     </div>
   )
 }
