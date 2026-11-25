@@ -1,4 +1,12 @@
-import { Component, useSyncExternalStore, type ReactNode } from 'react'
+import {
+  Component,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react'
+import { giveBack, heldFocus, type HeldFocus } from './kept-focus.ts'
 
 type FallbackProps = Readonly<{ fallback: () => ReactNode; children: ReactNode }>
 
@@ -36,9 +44,23 @@ export type DrawnProps<D extends object> = Readonly<{
   fallback: () => ReactNode
 }>
 
-/** Drawn by the drawing that stands; with none, or when that one throws, by the fallback. */
+/** Drawn by the drawing that stands, else by the fallback; focus the change takes away goes back to its part. */
 export function Drawn<D extends object>({ watch, pick, put, fallback }: DrawnProps<D>): ReactNode {
-  const drawing = useSyncExternalStore(watch, pick)
+  const held = useRef<HeldFocus | null>(null)
+  const watching = useCallback(
+    (listener: () => void) =>
+      watch(() => {
+        held.current = heldFocus(document)
+        listener()
+      }),
+    [watch],
+  )
+  const drawing = useSyncExternalStore(watching, pick)
+  useLayoutEffect(() => {
+    const was = held.current
+    held.current = null
+    if (was !== null) giveBack(document, was)
+  }, [drawing])
   if (drawing === undefined) return fallback()
   return (
     <Fallback key={markOf(drawing)} fallback={fallback}>

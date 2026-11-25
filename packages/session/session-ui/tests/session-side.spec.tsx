@@ -2,6 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { moveRegion } from '@omne-harness/ui-kit'
+import { createPortal } from 'react-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 import { SESSION_DOCK, SESSION_SIDE, sessionDock, sessionSide } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
@@ -343,6 +344,39 @@ it('墨框收起：Escape 收起并把焦点还给对话头的控件；点墨框
   fireEvent.click(control())
   expect(control().getAttribute('aria-expanded')).toBe('true')
   fireEvent.pointerDown(document.querySelector('.omne-session-main')!)
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+})
+
+it('墨框里的项经 portal 打开的东西（菜单、下拉）按下不收；按在墨框与控件之外照样收', async () => {
+  stubRoom(1100, boxes)
+  const { root } = await opened()
+  await contribute(root, 'menu', ctx =>
+    sessionSide.contribute(ctx.shell, {
+      id: 'menu',
+      order: 0,
+      render: () => (
+        <p data-testid="menu">{createPortal(<button type="button">一项</button>, document.body)}</p>
+      ),
+    }),
+  )
+  fireEvent.click(control())
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  const item = screen.getByRole('button', { name: '一项' })
+  expect(panel()?.contains(item)).toBe(false)
+  fireEvent.pointerDown(item)
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  fireEvent.pointerDown(document.querySelector('.omne-session-main')!)
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+})
+
+it('墨框开着时按对话头的控件：这一下不算在别处，控件自己的点按把墨框收起', async () => {
+  stubRoom(1100, boxes)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
+  fireEvent.click(control())
+  fireEvent.pointerDown(control(), { button: 0 })
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  fireEvent.click(control())
   expect(control().getAttribute('aria-expanded')).toBe('false')
 })
 
