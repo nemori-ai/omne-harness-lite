@@ -147,6 +147,41 @@ describe('createAccessIdentity', () => {
     })
   })
 
+  it('resumes the login a request was identified as, from its login text and the tenant it acted for; it acts for that tenant as before', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const alice = await signUp(f.operations, 'alice')
+    const login = await loginOf(identity, alice.proof)
+    const acting = await identity.actFor(login, alice.tenantText)
+    if (acting.outcome !== 'issued') throw new Error(`not issued: ${acting.outcome}`)
+    const loginText = (acting.principal as unknown as ActingForTenantPrincipal).work.work
+
+    const resumed = await identity.resumeLogin(loginText, alice.tenantText)
+
+    if (resumed.outcome !== 'identified') throw new Error(`not resumed: ${resumed.outcome}`)
+    const pick = (each: LoginIdentity) => {
+      const { account, login: state, loginText: text } = each as unknown as Record<string, unknown>
+      return { account, state, text }
+    }
+    expect(pick(resumed.login)).toEqual(pick(login))
+    expect(await identity.actFor(resumed.login, alice.tenantText)).toEqual(acting)
+    const bob = await signUp(f.operations, 'bob')
+    expect(await identity.actFor(resumed.login, bob.tenantText)).toEqual({ outcome: 'denied' })
+  })
+
+  it('denies a resumed login for text that is not a login or not a tenant', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const alice = await signUp(f.operations, 'alice')
+    const acting = await identity.actFor(await loginOf(identity, alice.proof), alice.tenantText)
+    if (acting.outcome !== 'issued') throw new Error(`not issued: ${acting.outcome}`)
+    const loginText = (acting.principal as unknown as ActingForTenantPrincipal).work.work
+    expect(await identity.resumeLogin('not-a-login', alice.tenantText)).toEqual({
+      outcome: 'denied',
+    })
+    expect(await identity.resumeLogin(loginText, 'not-a-tenant')).toEqual({ outcome: 'denied' })
+  })
+
   it('denies a resume for text that is not a tenant, without calling the issuer', () => {
     const f = fixture()
     let issued = 0

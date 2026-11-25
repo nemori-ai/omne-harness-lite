@@ -63,6 +63,7 @@ export type Behaviour<T> =
 export type IdentityCall =
   | { readonly method: 'identifyLogin'; readonly proof: string }
   | { readonly method: 'actFor'; readonly login: LoginIdentity; readonly tenant: string }
+  | { readonly method: 'resumeLogin'; readonly login: string; readonly tenant: string }
   | { readonly method: 'reportAccess'; readonly login: LoginIdentity }
 
 export type TestIdentity = {
@@ -72,6 +73,7 @@ export type TestIdentity = {
   readonly principalOf: (login: LoginIdentity, tenant: string) => Principal
   identifyLogin?: Behaviour<LoginResult>
   actFor?: Behaviour<ActForResult>
+  resumeLogin?: Behaviour<LoginResult>
   reportAccess?: Behaviour<void>
   readonly called: (method: IdentityCall['method'], count?: number) => Promise<void>
   readonly returned: (method: IdentityCall['method'], count?: number) => Promise<void>
@@ -164,6 +166,17 @@ export function testIdentity(): TestIdentity {
             outcome: 'issued',
             principal: principalOf(login, tenant),
           })
+        }),
+      resumeLogin: (login, tenant) =>
+        traced('resumeLogin', () => {
+          identity.calls.push({ method: 'resumeLogin', login, tenant })
+          if (identity.resumeLogin !== undefined) return run(identity.resumeLogin)
+          const found = [...logins.values()].find(
+            each => (each as unknown as { label: string }).label === login,
+          )
+          return Promise.resolve<LoginResult>(
+            found === undefined ? { outcome: 'denied' } : { outcome: 'identified', login: found },
+          )
         }),
       reportAccess: login =>
         traced('reportAccess', () => {
