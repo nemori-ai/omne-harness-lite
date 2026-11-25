@@ -40,6 +40,7 @@ export {
   type Item,
   search,
   type Tier,
+  tierOf,
   TIERS,
   type Typing,
   typing,
@@ -58,7 +59,18 @@ export {
   type Origin,
   type Taken,
 } from './source.ts'
-export { type Argument, splitArguments } from './arguments.ts'
+export { type Argument, argumentAt, type ArgumentPlace, splitArguments } from './arguments.ts'
+export {
+  acceptCandidate,
+  type ArgumentCompletion,
+  argumentBlock,
+  argumentCompletion,
+  type Asking,
+  askingAt,
+  type Offer,
+  type Offered,
+  rankCandidates,
+} from './candidates.ts'
 export {
   type Answer,
   type Assist,
@@ -76,6 +88,7 @@ export {
   type Menu,
   type MenuItem,
   moved,
+  offeredTo,
   picked,
   pressed,
   start,
