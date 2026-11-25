@@ -13,3 +13,10 @@ export {
   type AdoptionFingerprint,
   type FingerprintReport,
 } from './adoptions.ts'
+export {
+  fingerprintConfig,
+  sortedJsonText,
+  TEST_DECODER_LIMITS,
+  TEST_EXECUTOR_LIMITS,
+  writeFingerprints,
+} from './family-config.ts'

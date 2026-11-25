@@ -19,7 +19,7 @@ import {
 import { recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { bindResponses } from '@omne-harness/pi-ai-transport/responses'
 import { fixtureDirectory, replayStream } from '@omne-harness/pi-ai-transport/testing'
-import { componentAdoption } from '../../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 import { OPENAI_OWNER } from '../../src/owner.ts'
 import type { OpenAiRecord, OpenAiResponsesRecord } from '../../src/record.ts'
 import { OPENAI_RECORDS } from '../../src/records.ts'
@@ -123,7 +123,7 @@ function requestOf(record: OpenAiResponsesRecord): Readonly<{
     ],
     toolChoice: 'auto',
     declarations: [declared.ok],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(OPENAI_OWNER, record, 'representation'),
     parameterAdoptions: parameters.map(parameter => ({
       supplier: adoption,
       applied: parameter,
@@ -150,7 +150,7 @@ function bindingOf(record: OpenAiResponsesRecord, request: FixedModelRequest) {
         measureCalibrated: unavailable,
       },
       represent: () => ({
-        adoption: componentAdoption(record, 'representation'),
+        adoption: componentAdoption(OPENAI_OWNER, record, 'representation'),
         tokenInput: { kind: 'null' },
         units: [],
       }),

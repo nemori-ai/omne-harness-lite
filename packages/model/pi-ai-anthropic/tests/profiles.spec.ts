@@ -6,7 +6,7 @@ import {
   ANTHROPIC_RECORDS,
   type AnthropicRecord,
 } from '@omne-harness/pi-ai-anthropic'
-import { componentAdoption } from '../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 import { assembledOf, FAMILY, fixedRequest, officialProfile, RETRY } from './support/anthropic.ts'
 
 const RECORDS: readonly AnthropicRecord[] = ANTHROPIC_RECORDS
@@ -24,7 +24,7 @@ describe('officialAnthropicProfiles', () => {
     (_name, record, index) => {
       const supplier = recordAdoption(ANTHROPIC_OWNER, record)
       const unknown = [{ supplier, limit: { kind: 'unknown' } }]
-      const evidence = componentAdoption(record, 'evidence')
+      const evidence = componentAdoption(ANTHROPIC_OWNER, record, 'evidence')
       const upstream = (data: AnthropicRecord['profile']['context']['window']['upstream']) =>
         data.kind === 'finite'
           ? [{ supplier, limit: { kind: 'finite', amount: data.amount, source: evidence } }]
@@ -51,8 +51,8 @@ describe('officialAnthropicProfiles', () => {
         ],
         parameters: [],
         reasoningEfforts: { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' },
-        representation: componentAdoption(record, 'representation'),
-        meter: componentAdoption(record, 'meter'),
+        representation: componentAdoption(ANTHROPIC_OWNER, record, 'representation'),
+        meter: componentAdoption(ANTHROPIC_OWNER, record, 'meter'),
         retryPolicy: RETRY,
       })
     },

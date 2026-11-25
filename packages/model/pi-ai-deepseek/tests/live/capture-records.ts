@@ -11,7 +11,7 @@ import {
 import { composeFamilies, recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { fixtureDirectory, replayStream } from '@omne-harness/pi-ai-transport/testing'
 import { DEEPSEEK_OWNER, DEEPSEEK_RECORDS, type DeepSeekRecord } from '../../src/index.ts'
-import { componentAdoption } from '../../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 import { openTestFamily } from '../support/family-config.ts'
 
 const root = fileURLToPath(new URL('../fixtures/records/', import.meta.url))
@@ -46,7 +46,7 @@ function requestFor(record: DeepSeekRecord) {
         origin: { kind: 'explicit', requested: output, source },
       },
     ],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(DEEPSEEK_OWNER, record, 'representation'),
     declarations: [replay.ok],
     system: [text('s1', 'Use the supplied tool when asked to read a ticket.')],
     messages: [

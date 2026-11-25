@@ -1,25 +1,7 @@
 import type { AssembledModelInput } from '@omne-harness/model-contract'
-import { recordAdoption, type PiFamilyBinding } from '@omne-harness/pi-ai-transport'
-import {
-  reasoningTextCodec,
-  usageWithCacheWrites,
-  type VendorHooks,
-} from '@omne-harness/pi-ai-transport/chat-completions'
-import { GLM_OWNER } from './owner.ts'
+import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
 import type { GlmRecord } from './record.ts'
 
-export function hooksOf(record: GlmRecord): VendorHooks {
-  const adapter = recordAdoption(GLM_OWNER, record)
-  return {
-    reasoning: reasoningTextCodec,
-    usage: usageWithCacheWrites,
-    toolSchema: schema =>
-      schema.kind === 'object'
-        ? { ok: schema }
-        : { failure: { kind: 'unsupported', field: 'argumentsSchema', adapter } },
-    check: () => ({ ok: undefined }),
-  }
-}
 
 export function withToolChoiceRule(
   binding: PiFamilyBinding,

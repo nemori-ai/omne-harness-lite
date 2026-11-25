@@ -27,7 +27,7 @@ import {
   type AnthropicFamilyConfig,
   type AnthropicRecord,
 } from '@omne-harness/pi-ai-anthropic'
-import { componentAdoption } from '../../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 
 export function adoption(name: string): Adoption {
   return { owner: 'pi-ai-anthropic-tests', name, revision: '1', digest: 'a'.repeat(64) }
@@ -206,7 +206,7 @@ export function requestJson(record: AnthropicRecord, parts: RequestParts = {}): 
     tools: parts.tools ?? [],
     toolChoice: parts.toolChoice ?? 'auto',
     declarations: [parts.declaration ?? declarationOf(record)],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(ANTHROPIC_OWNER, record, 'representation'),
     parameterAdoptions:
       parts.parameterAdoptions ??
       parameters.map(requested => ({
