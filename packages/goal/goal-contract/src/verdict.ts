@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type {
   Criterion,
   CriterionId,
@@ -10,8 +11,16 @@ import type {
 } from './body.ts'
 import type { Gap } from './state.ts'
 
-export type CriterionReading = 'holds' | 'fails' | 'no-evidence' | 'stale' | 'cannot-tell'
-export type RuleReading = 'kept' | 'broken' | 'unclear'
+export const CriterionReadingSchema = z.enum([
+  'holds',
+  'fails',
+  'no-evidence',
+  'stale',
+  'cannot-tell',
+])
+export type CriterionReading = z.infer<typeof CriterionReadingSchema>
+export const RuleReadingSchema = z.enum(['kept', 'broken', 'unclear'])
+export type RuleReading = z.infer<typeof RuleReadingSchema>
 
 /** What one observation found, after the line was applied. `exits`: the condition and person exits seen to have come about. */
 export type Findings = Readonly<{
@@ -57,14 +66,15 @@ export function gapOf(body: GoalBody, findings: Findings): Gap {
   return { open, remaining }
 }
 
-/** Closer means fewer entries open, or as many open and some metric nearer with none farther. */
+/** Closer means fewer entries open, or as many open and some metric nearer with none farther. A first reading compares with nothing. */
 export function closer(before: Gap | null, now: Gap): boolean {
   if (before === null || now.open < before.open) return true
   if (now.open > before.open) return false
   let nearer = false
   for (const [id, left] of Object.entries(now.remaining) as [MetricId, number][]) {
     const was = before.remaining[id]
-    if (was === undefined || left > was) return false
+    if (was === undefined) continue
+    if (left > was) return false
     if (left < was) nearer = true
   }
   return nearer

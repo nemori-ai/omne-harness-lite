@@ -8,11 +8,10 @@ import {
   type SectionLetter,
 } from './body.ts'
 import { BODY_MAX_CHARACTERS, characters, renderBody } from './render.ts'
+import type { Attendance } from './state.ts'
 
 export const DEFAULT_BUDGET_ROUNDS = 50
 
-/** Whether a person is in the session: it decides who owns the goal and what the evidence may be. */
-export type Attendance = 'attended' | 'unattended'
 export type BodyContext = Readonly<{ attendance: Attendance }>
 
 /** One thing wrong with a body: which entry, which field, and what. No entry means the body as a whole. */
@@ -132,7 +131,7 @@ function criterionIssues(body: GoalBody, context: BodyContext): BodyIssue[] {
 /** What is wrong with a numbered body, in the order of its sections; nothing when it stands. */
 export function bodyIssues(body: GoalBody, context: BodyContext): readonly BodyIssue[] {
   const found: BodyIssue[] = []
-  if (body.purpose.trim() === '')
+  if (body.purpose === '')
     found.push({ entry: null, field: 'purpose', problem: 'a goal needs a purpose' })
   found.push(...criterionIssues(body, context), ...exitIssues(body))
   if (body.method.some(step => step.trim() === ''))

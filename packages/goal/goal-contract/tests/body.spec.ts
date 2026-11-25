@@ -63,6 +63,17 @@ describe('a body handed in becomes the kept body', () => {
     expect(DEFAULT_BUDGET_ROUNDS).toBe(50)
     expect(valid(HOME).exits.filter(exit => exit.kind === 'budget')).toHaveLength(1)
   })
+
+  it('the default budget comes after the exits written; a budget written is the only one', () => {
+    const other = valid({ ...LEAST, exits: [HOME.exits![2]!] })
+    expect(other.exits.map(exit => [exit.id, exit.kind])).toEqual([
+      ['X1', 'person'],
+      ['X2', 'budget'],
+    ])
+    expect(other.issued.X).toBe(2)
+    const own = valid({ ...LEAST, exits: [HOME.exits![0]!] })
+    expect(own.exits.map(exit => exit.limits)).toEqual([[{ amount: 30, unit: 'rounds' }]])
+  })
 })
 
 describe('a body that does not stand says which entry and which field', () => {
@@ -182,6 +193,46 @@ describe('a body that does not stand says which entry and which field', () => {
   it('something that is no body at all is refused as a whole', () => {
     expect(where(issues('把首页降下来'))).toEqual(['-.body'])
     expect(where(issues({ criteria: [] }))).toEqual(['-.purpose'])
+  })
+
+  it('a section of the wrong shape is reported on the body, by the name of the section', () => {
+    expect(where(issues({ ...HOME, criteria: '全过' }))).toEqual(['-.criteria'])
+    expect(where(issues({ ...HOME, method: [3] }))).toEqual(['-.method'])
+  })
+
+  const said = (draft: unknown, context: typeof attended | typeof unattended = attended) =>
+    issues(draft, context).map(issue => issue.problem)
+  it.each([
+    [change(d => (d.purpose = ' ')), 'a goal needs a purpose'],
+    [change(d => (d.method = [' '])), 'a line of method is empty'],
+    [change(d => (d.exits[0]!.limits = [])), 'a budget exit needs a limit'],
+    [
+      change(d => (d.exits[2]!.limits = [{ amount: 3, unit: 'rounds' }])),
+      'only a budget exit has limits',
+    ],
+    [change(d => d.exits.push({ ...d.exits[0]! })), 'a goal has one budget exit'],
+    [
+      change(d => (d.exits[2]!.by = [{ kind: 'criterion', id: 'A2' }])),
+      'only a good-enough exit stands on entries',
+    ],
+    [
+      change(d => (d.exits[1]!.by = [])),
+      'good enough stands on criteria or metric floors, not on a sentence',
+    ],
+    [change(d => (d.exits[1]!.by = [{ kind: 'criterion', id: 'A9' }])), 'there is no criterion A9'],
+    [change(d => (d.exits[1]!.by = [{ kind: 'floor', id: 'M3' }])), 'there is no metric M3'],
+    [change(d => (d.metrics[0]!.floor = null)), 'metric M1 has no floor'],
+    [
+      change(d => (d.criteria[0]!.evidence = { kind: 'metric', metric: 'M2' })),
+      'there is no metric M2',
+    ],
+    [change(d => (d.criteria[2]!.pass = { kind: 'exit-zero' })), 'only a command has an exit code'],
+  ])('problem %#: %s', (draft, sentence) => {
+    expect(said(draft)).toEqual([sentence])
+  })
+  it('says what is missing where there is no criterion, and why a person cannot confirm', () => {
+    expect(said(change(d => (d.criteria = [])))).toContain('a goal needs one criterion at least')
+    expect(said(LEAST, unattended)).toEqual(['nobody is in an unattended session to confirm'])
   })
 
   it('every problem is reported, not only the first', () => {

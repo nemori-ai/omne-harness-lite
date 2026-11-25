@@ -6,6 +6,7 @@ import {
   type GoalEvent,
   type GoalState,
   type GoalStatus,
+  type Refusal,
   type Verdict,
 } from '@omne-harness/goal-contract'
 
@@ -47,9 +48,10 @@ const CONTINUE: Verdict = { row: 9, stalled: 0, gap: GAP }
 const set: GoalEvent = { kind: 'set', attendance: 'attended' }
 const X3 = 'X3' as const
 
-type Cell = 'refused' | 'unchanged' | GoalStatus
+type Cell = Refusal | 'unchanged' | GoalStatus
 const cell = (state: GoalState, event: GoalEvent): Cell => {
   const result = transition(state, event)
+  if (result.kind === 'refused') return result.reason
   return result.kind === 'changed' ? result.next.status : result.kind
 }
 
@@ -67,41 +69,41 @@ describe('the transition table, cell by cell', () => {
   const TABLE: Readonly<Record<GoalStatus, Readonly<Record<string, Cell>>>> = {
     none: {
       set: 'active',
-      revise: 'refused',
-      pause: 'refused',
-      resume: 'refused',
+      revise: 'no-live-goal',
+      pause: 'no-live-goal',
+      resume: 'no-live-goal',
       cancel: 'unchanged',
-      'settle-by-exit': 'refused',
+      'settle-by-exit': 'no-live-goal',
       observe: 'unchanged',
       abort: 'unchanged',
     },
     active: {
-      set: 'refused',
+      set: 'goal-in-progress',
       revise: 'active',
       pause: 'paused',
       resume: 'unchanged',
       cancel: 'settled',
-      'settle-by-exit': 'refused',
+      'settle-by-exit': 'not-its-cause',
       observe: 'active',
       abort: 'settled',
     },
     paused: {
-      set: 'refused',
+      set: 'goal-in-progress',
       revise: 'paused',
       pause: 'unchanged',
       resume: 'active',
       cancel: 'settled',
-      'settle-by-exit': 'refused',
+      'settle-by-exit': 'not-its-cause',
       observe: 'unchanged',
       abort: 'settled',
     },
     settled: {
       set: 'active',
-      revise: 'refused',
-      pause: 'refused',
-      resume: 'refused',
+      revise: 'no-live-goal',
+      pause: 'no-live-goal',
+      resume: 'no-live-goal',
       cancel: 'unchanged',
-      'settle-by-exit': 'refused',
+      'settle-by-exit': 'no-live-goal',
       observe: 'unchanged',
       abort: 'unchanged',
     },
@@ -179,9 +181,11 @@ describe('what each cell does', () => {
     ).toMatchObject({
       next: { status: 'settled', outcome: { kind: 'exit', exit: X3, counts: 'failure' } },
     })
-    expect(cell(byExit, { kind: 'settle-by-exit', exit: 'X2', counts: 'success' })).toBe('refused')
-    expect(cell(paused({ by: 'verdict', row: 7, exit: null }), EXIT)).toBe('refused')
-    expect(cell(paused({ by: 'person' }), EXIT)).toBe('refused')
+    expect(cell(byExit, { kind: 'settle-by-exit', exit: 'X2', counts: 'success' })).toBe(
+      'not-its-cause',
+    )
+    expect(cell(paused({ by: 'verdict', row: 7, exit: null }), EXIT)).toBe('not-its-cause')
+    expect(cell(paused({ by: 'person' }), EXIT)).toBe('not-its-cause')
   })
   const EXIT: GoalEvent = { kind: 'settle-by-exit', exit: X3, counts: 'failure' }
 
@@ -194,11 +198,11 @@ describe('what each cell does', () => {
 describe('who may send what', () => {
   const unattended = active({ attendance: 'unattended' })
   it.each(['pause', 'resume'] as const)('nobody %ss a goal where nobody is', kind => {
-    expect(cell(unattended, { kind })).toBe('refused')
+    expect(cell(unattended, { kind })).toBe('nobody-attends')
   })
   it('the body is frozen in an unattended session: no revision, no settling by hand', () => {
-    expect(cell(unattended, { kind: 'revise', confirmed: false })).toBe('refused')
-    expect(cell(unattended, EXIT_HERE)).toBe('refused')
+    expect(cell(unattended, { kind: 'revise', confirmed: false })).toBe('nobody-attends')
+    expect(cell(unattended, EXIT_HERE)).toBe('not-its-cause')
   })
   const EXIT_HERE: GoalEvent = { kind: 'settle-by-exit', exit: X3, counts: 'failure' }
   it('the creator of an unattended session cancels, and aborts when its run died', () => {
@@ -210,8 +214,8 @@ describe('who may send what', () => {
     expect(countsAs({ kind: 'aborted' })).toBe('failure')
   })
   it('an attended goal is not aborted: its person decides', () => {
-    expect(cell(active(), { kind: 'abort' })).toBe('refused')
-    expect(cell(paused(), { kind: 'abort' })).toBe('refused')
+    expect(cell(active(), { kind: 'abort' })).toBe('attended')
+    expect(cell(paused(), { kind: 'abort' })).toBe('attended')
   })
 })
 

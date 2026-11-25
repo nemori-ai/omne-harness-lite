@@ -1,6 +1,5 @@
 import type { ExitId } from './body.ts'
-import type { GoalOutcome, GoalState, GoalStatus, Pause } from './state.ts'
-import type { Attendance } from './validate.ts'
+import type { Attendance, GoalOutcome, GoalState, GoalStatus, Pause } from './state.ts'
 import type { Verdict } from './verdict.ts'
 
 type Active = Extract<GoalState, { status: 'active' }>

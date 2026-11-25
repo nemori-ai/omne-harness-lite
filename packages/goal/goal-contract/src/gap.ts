@@ -1,16 +1,32 @@
-import type { CriterionId, GoalBody, Metric, MetricId, RuleId } from './body.ts'
-import type { CriterionReading, RuleReading } from './verdict.ts'
+import { z } from 'zod'
+import {
+  CriterionIdSchema,
+  MetricIdSchema,
+  RuleIdSchema,
+  type GoalBody,
+  type Metric,
+} from './body.ts'
+import {
+  CriterionReadingSchema,
+  RuleReadingSchema,
+  type CriterionReading,
+  type RuleReading,
+} from './verdict.ts'
 
+export const ReadingSourceSchema = z.enum(['system', 'judge', 'agent'])
 /** Who a reading came from: the system following a tool result, the judge's observation, or the agent's own word. */
-export type ReadingSource = 'system' | 'judge' | 'agent'
+export type ReadingSource = z.infer<typeof ReadingSourceSchema>
+const reading = <V extends z.ZodType>(value: V) =>
+  z.strictObject({ value, source: ReadingSourceSchema, ref: z.string().nullable() })
 export type Reading<V> = Readonly<{ value: V; source: ReadingSource; ref: string | null }>
 
+export const ReadingsSchema = z.strictObject({
+  criteria: z.partialRecord(CriterionIdSchema, reading(CriterionReadingSchema)),
+  metrics: z.partialRecord(MetricIdSchema, reading(z.number().finite())),
+  rules: z.partialRecord(RuleIdSchema, reading(RuleReadingSchema)),
+})
 /** The latest reading of each numbered entry. An entry without one was never read. */
-export type Readings = Readonly<{
-  criteria: Readonly<Partial<Record<CriterionId, Reading<CriterionReading>>>>
-  metrics: Readonly<Partial<Record<MetricId, Reading<number>>>>
-  rules: Readonly<Partial<Record<RuleId, Reading<RuleReading>>>>
-}>
+export type Readings = z.infer<typeof ReadingsSchema>
 export const NO_READINGS: Readings = Object.freeze({ criteria: {}, metrics: {}, rules: {} })
 
 /** One row of the gap table: what ought to be, the latest reading, where it came from and what is still short. */

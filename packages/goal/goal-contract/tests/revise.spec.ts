@@ -67,6 +67,24 @@ describe('a revision is a set of changes by number', () => {
     ])
     expect(after.purpose).toBe('把首页与列表页的加载时间降下来。')
     expect(after.method).toEqual(['先量基线。', '一次只改一处。'])
+    expect(revised(home(), [{ op: 'purpose', text: '  只降首页。 ' }]).purpose).toBe('只降首页。')
+  })
+
+  it('adds to every section that carries numbers, exits and references among them', () => {
+    const after = revised(home(), [
+      {
+        op: 'add',
+        section: 'exits',
+        entry: { statement: '测试环境停用', kind: 'condition', deliver: '改动', counts: 'failure' },
+      },
+      {
+        op: 'add',
+        section: 'references',
+        entry: { statement: '压测的做法', at: 'docs/perf/bench.md', readWhen: '量之前' },
+      },
+    ])
+    expect(after.exits.at(-1)).toMatchObject({ id: 'X4', kind: 'condition' })
+    expect(after.references.at(-1)).toMatchObject({ id: 'R2', at: 'docs/perf/bench.md' })
   })
 
   it('gets the default budget back, under a new number, when the budget exit is removed', () => {
@@ -95,6 +113,10 @@ describe('a revision that does not stand changes nothing and says why', () => {
       ['N1.id'],
     ],
     ['an operation nobody knows', [{ op: 'pause' }], ['#1.op']],
+    ['a change without the number it needs', [{ op: 'remove' }], ['#1.id']],
+    ['a number with a letter no section has', [{ op: 'remove', id: 'ZA1' }], ['#1.id']],
+    ['a number with something after it', [{ op: 'remove', id: 'A1x' }], ['#1.id']],
+    ['a number of two digits that is not there', [{ op: 'remove', id: 'A10' }], ['A10.id']],
     [
       'a new entry of the wrong shape',
       [{ op: 'add', section: 'metrics', entry: { statement: '首屏', direction: 'lower' } }],
@@ -128,6 +150,19 @@ describe('a revision that does not stand changes nothing and says why', () => {
   ])('%s', (_name, changes, expected) => {
     const before = home()
     expect(refused(before, changes)).toEqual(expected)
+  })
+
+  it('tells a number that is not there from one named twice', () => {
+    const problems = (changes: unknown) => {
+      const result = reviseBody(home(), changes, attended)
+      return result.kind === 'invalid' ? result.issues.map(issue => issue.problem) : []
+    }
+    expect(problems([{ op: 'remove', id: 'A9' }])).toEqual(['no such entry'])
+    const twice = [
+      { op: 'replace', id: 'N1', entry: rule('不改公共接口与事件名。') },
+      { op: 'replace', id: 'N1', entry: rule('不改公共接口。') },
+    ]
+    expect(problems(twice)).toEqual(['named twice'])
   })
 
   it('checks the evidence against the session: a person cannot confirm where nobody is', () => {

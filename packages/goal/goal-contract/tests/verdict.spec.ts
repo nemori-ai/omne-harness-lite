@@ -105,6 +105,66 @@ describe('rows 2 and 3: the budget is reached', () => {
   })
 })
 
+describe('a goal of two metrics, its budget written after another exit and with two limits', () => {
+  const list = {
+    ...HOME.metrics![0]!,
+    statement: '列表页 p95 加载时间，毫秒',
+    target: 500,
+    floor: 700,
+  }
+  const TWO = body({
+    purpose: '把首页与列表页的加载时间降下来',
+    criteria: [{ statement: '列表页到目标', evidence: { kind: 'metric', metric: 'M2' } }],
+    metrics: [HOME.metrics![0]!, list],
+    exits: [
+      { statement: '要改接口', kind: 'person', deliver: '原因', counts: 'failure' },
+      {
+        statement: '预算用尽',
+        kind: 'budget',
+        limits: [
+          { amount: 10, unit: 'rounds' },
+          { amount: 20, unit: 'rounds' },
+        ],
+        deliver: '改动',
+        counts: 'failure',
+      },
+      {
+        statement: '列表页够用',
+        kind: 'good-enough',
+        by: [{ kind: 'floor', id: 'M2' }],
+        deliver: '改动',
+        counts: 'success',
+      },
+    ],
+  })
+  const read = (M1: number, M2: number): Findings => found({ criteria: {}, metrics: { M1, M2 } })
+  it('is achieved only when every metric is at its target, not when one of them is', () => {
+    expect(rule(TWO, start, read(800, 500))).toEqual({ row: 1 })
+    expect(rule(TWO, start, read(900, 400)).row).toBe(9)
+  })
+  it('a criterion holds by the metric it names, not by the first one', () => {
+    expect(rule(TWO, start, read(700, 600))).toMatchObject({
+      row: 9,
+      gap: { open: 2, remaining: { M2: 100 } },
+    })
+  })
+  it('the budget is found wherever it stands, and is reached at the first of its limits', () => {
+    expect(rule(TWO, { ...start, rounds: 9 }, read(900, 800)).row).toBe(9)
+    expect(rule(TWO, { ...start, rounds: 10 }, read(900, 800))).toEqual({
+      row: 3,
+      exit: 'X2',
+      counts: 'failure',
+    })
+  })
+  it('good enough stands on the floor of the metric it names', () => {
+    expect(rule(TWO, { ...start, rounds: 10 }, read(5000, 650))).toEqual({
+      row: 2,
+      exit: 'X3',
+      counts: 'success',
+    })
+  })
+})
+
 describe('rows 4 to 6: what the judge saw', () => {
   it('row 4: a condition exit came about', () => {
     expect(rule(body(FULL), start, found({ ...OPEN, exits: ['X4'] }))).toEqual({
@@ -200,6 +260,18 @@ describe('the gap and whether it came closer', () => {
       false,
     ],
     ['a metric read for the first time', gap(2), gap(2, { M1: 140 }), false],
+    [
+      'one metric nearer and another read for the first time',
+      gap(2, { M1: 300 }),
+      gap(2, { M1: 100, M2: 5 }),
+      true,
+    ],
+    [
+      'one metric nearer and another where it was',
+      gap(2, { M1: 300, M2: 5 }),
+      gap(2, { M1: 100, M2: 5 }),
+      true,
+    ],
   ])('%s: closer is %s', (_name, before, now, expected) => {
     expect(closer(before as never, now as never)).toBe(expected)
   })
