@@ -268,6 +268,12 @@
 | [UL-graceful-cancellation](terms/agent-runtime-loop.md#ul-graceful-cancellation--优雅取消--graceful-cancellation) | 优雅取消 | Graceful Cancellation | 显式动作：先不接新活，等停当，再释放（旧名**实例退役**） |
 | [UL-forced-stop](terms/agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop) | 强制停止 | Forced Stop | 立刻撤销执行资格，**外部效果收不回来** |
 | [UL-job-session](terms/agent-runtime-loop.md#ul-job-session--作业会话--job-session) | 作业会话 | Job Session | 为选择新会话执行的一个作业建立并专属承接其执行部分的会话子类型，沿用会话身份与生命周期，并附加该作业的成果上报与目标完成检查能力。 |
+| [UL-session-goal](terms/agent-runtime-loop.md#ul-session-goal--会话目标--session-goal) | 会话目标 | Session Goal | 一个会话此刻有一份怎样的委托在身；agent 想结束一轮时按它判 |
+| [UL-goal-criterion](terms/agent-runtime-loop.md#ul-goal-criterion--目标判据--goal-criterion) | 目标判据 | Goal Criterion | 会话目标里的一条达成条件，带证据从哪来 |
+| [UL-goal-exit-path](terms/agent-runtime-loop.md#ul-goal-exit-path--目标退出路径--goal-exit-path) | 目标退出路径 | Goal Exit Path | 事先写下的一种正当的停法，写明算成功还是失败 |
+| [UL-goal-judgment](terms/agent-runtime-loop.md#ul-goal-judgment--目标判定--goal-judgment) | 目标判定 | Goal Judgment | agent 想结束一轮时按目标核一次，得出收场、接着做或暂停 |
+| [UL-goal-progress-list](terms/agent-runtime-loop.md#ul-goal-progress-list--目标进展清单--goal-progress-list) | 目标进展清单 | Goal Progress List | agent 为目标维护的进展记录；是说法，不是证据 |
+| [UL-goal-outcome](terms/agent-runtime-loop.md#ul-goal-outcome--目标结局--goal-outcome) | 目标结局 | Goal Outcome | 目标收场时落下的唯一结论，落下之后不变 |
 
 
 ## [落地与隔离](terms/grounding-and-isolation.md)
