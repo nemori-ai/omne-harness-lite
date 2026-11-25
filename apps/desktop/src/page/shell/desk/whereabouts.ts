@@ -24,10 +24,20 @@ export type Facts = Readonly<{
 
 export type WhereEvent =
   | Readonly<{ kind: 'lift'; on: Side }>
-  | Readonly<{ kind: 'drop' | 'escape'; on: Side; at: Point }>
+  | Readonly<{ kind: 'drop'; on: Side; at: Point; look?: boolean; covered?: boolean }>
+  | Readonly<{ kind: 'escape'; on: Side; at: Point }>
   | Readonly<{ kind: 'signedOut'; at: Point }>
   | Readonly<{
-      kind: 'painted' | 'arrived' | 'cleared' | 'ended' | 'click' | 'double' | 'recall' | 'seat'
+      kind:
+        | 'painted'
+        | 'arrived'
+        | 'cleared'
+        | 'ended'
+        | 'click'
+        | 'double'
+        | 'recall'
+        | 'seat'
+        | 'seen'
     }>
 
 export type Effect =
@@ -68,8 +78,14 @@ const resting = (spot: Point, waiting = false): Whereabouts => ({
 const homeward = (from: Point, facts: Facts): Whereabouts =>
   facts.seat === null ? resting(clamped(from, facts), true) : { at: 'home', to: facts.seat }
 
-function dropped(at: Point, facts: Facts): Whereabouts {
-  const back = facts.content !== null && facts.visible && inside(facts.content, at)
+function dropped(event: Extract<WhereEvent, { kind: 'drop' }>, facts: Facts): Whereabouts {
+  const { at } = event
+  const back =
+    event.look !== true &&
+    event.covered !== true &&
+    facts.content !== null &&
+    facts.visible &&
+    inside(facts.content, at)
   return back ? homeward(at, facts) : resting(clamped(at, facts))
 }
 
@@ -98,7 +114,7 @@ function drawnByPage(on: Side, event: WhereEvent, facts: Facts): Move {
 }
 
 function drawnByDesk(on: Side, event: WhereEvent, facts: Facts): Move {
-  if (event.kind === 'drop' && event.on === on) return { to: dropped(event.at, facts) }
+  if (event.kind === 'drop' && event.on === on) return { to: dropped(event, facts) }
   if ((event.kind === 'escape' && event.on === on) || event.kind === 'signedOut')
     return { to: homeward(event.at, facts) }
   if (event.kind === 'ended')
@@ -132,6 +148,8 @@ function fromDesk(
       return { to: homeward(where.spot, facts) }
     case 'seat':
       return where.waiting && facts.seat !== null ? { to: homeward(where.spot, facts) } : undefined
+    case 'seen':
+      return !where.note && facts.talker ? { to: { ...where, at: 'desk', note: true } } : undefined
     default:
       return undefined
   }

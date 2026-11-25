@@ -10,7 +10,8 @@ import type { ShellSlots } from '@omne-harness/shell-contract'
 import type { DeskInput, Look, Point, SceneFigure, Up } from '../../desk/scene.ts'
 import { type FigureDevice, type FigureFacts } from './device.ts'
 import { figureLink, type FigureLink } from './link.ts'
-import { Talk, type TalkDeps } from './talk.ts'
+import { Talk, type Gift, type TalkDeps } from './talk.ts'
+import { WindowLook, type Clock, type Framed, type Keys, type Seen } from './window-look.ts'
 import {
   inside,
   pageDraws,
@@ -29,6 +30,7 @@ export type StayDeps = Readonly<{
   size: () => number
   look: () => Look
   watch: (changed: () => void) => () => void
+  clock: Clock
 }> &
   TalkDeps
 
@@ -47,6 +49,7 @@ export const OUTSIDE_LABEL: readonly FigureLabelLine[] = [
   { text: '应用外面' },
   { text: '松手就停在这里，双击回到应用' },
 ]
+export const LOOK_HINT: FigureLabelLine = { text: '按住 ⌘ 让它看一个窗口' }
 
 type Lease = { number: number | null; facts: FigureFacts | null; giveUp: () => void }
 
@@ -60,10 +63,17 @@ const UNKNOWN: Pick<Facts, 'content' | 'visible' | 'screen'> = {
 
 const noting = (where: Whereabouts): boolean => where.at === 'desk' && where.note
 const deskDraws = (where: Whereabouts): boolean => where.at === 'hand' && where.drawn === 'desk'
+const NO_KEYS: Keys = { meta: false, shift: false }
+
+function giftOf(seen: Seen): Gift {
+  if (seen.kind === 'pictures') return seen
+  return { pictures: [], told: seen, send: false }
+}
 
 class FigureStay {
   private where: Whereabouts = { at: 'seat' }
   private leave = false
+  private read = false
   private signed = false
   private lease: Lease | null = null
   private serial = 0
@@ -72,16 +82,34 @@ class FigureStay {
   private labelled = false
   private pagePoint: Point = { x: 0, y: 0 }
   private deskPoint: Point = { x: 0, y: 0 }
+  private deskKeys: Keys = NO_KEYS
+  private rewrite = false
+  private gift: Gift | undefined = undefined
+  private readonly sentPictures = new Set<string>()
   private unwatch: () => void = nothing
   private isAway = false
   private readonly listeners = new Set<() => void>()
   private readonly unlisten: () => void
   private readonly talk: Talk
+  private readonly look: WindowLook
 
   public constructor(private readonly deps: StayDeps) {
-    void deps.device.leave().then(yes => void (this.leave = yes))
+    void deps.device.abilities().then(({ leave, read }) => {
+      this.leave = leave
+      this.read = read
+    })
     this.unlisten = deps.link.listen(message => this.heard(message))
-    this.talk = new Talk(deps, () => this.publish())
+    this.talk = new Talk(
+      deps,
+      () => this.publish(),
+      () => this.accepted(),
+    )
+    this.look = new WindowLook({
+      device: deps.device,
+      clock: deps.clock,
+      can: () => deskDraws(this.where) && this.read && this.talk.present(),
+      changed: () => this.publish(),
+    })
   }
 
   public subscribe(listener: () => void): () => void {
@@ -96,12 +124,14 @@ class FigureStay {
   public hand(hand: FigureHand): boolean {
     this.pagePoint = hand.client
     const at = this.toScreen(hand.client)
+    const keys = { meta: hand.meta, shift: hand.shift }
     if (hand.kind === 'lift') return this.run({ kind: 'lift', on: 'page' }, true)
-    if (hand.kind === 'drop' || hand.kind === 'escape')
-      return this.run({ kind: hand.kind, on: 'page', at }, true)
+    if (hand.kind === 'drop') return this.letGo('page', at, keys, true)
+    if (hand.kind === 'escape') return this.run({ kind: 'escape', on: 'page', at }, true)
     const lease = this.leased()
     if (lease !== null && this.where.at === 'hand' && this.where.on === 'page') {
       this.deps.link.send({ kind: 'hand', lease, at })
+      this.look.hand(at, keys)
       this.publish()
     }
     return true
@@ -124,6 +154,7 @@ class FigureStay {
 
   public dispose(): void {
     this.release()
+    this.look.dispose()
     this.talk.dispose()
     this.unlisten()
     this.deps.link.close()
@@ -161,31 +192,86 @@ class FigureStay {
     }
   }
 
-  /** The label goes with the first hand the desk draws after the page loads; never while the page draws the hand. */
+  /** With Command held every hand the desk draws has a label; without it only the first after the page loads. Never while the page draws. */
   private label(): readonly FigureLabelLine[] | null {
-    if (!deskDraws(this.where) || this.labelled) return null
+    if (!deskDraws(this.where)) return null
     const known = this.lease?.facts
     const back = known != null && known.visible && inside(known.content, this.handPoint())
-    return back ? INSIDE_LABEL : OUTSIDE_LABEL
+    const looking = this.look.label(back)
+    if (looking !== null || this.labelled) return looking
+    if (back) return INSIDE_LABEL
+    return this.read && this.talk.present() ? [...OUTSIDE_LABEL, LOOK_HINT] : OUTSIDE_LABEL
+  }
+
+  private letGo(on: 'page' | 'desk', at: Point, keys: Keys, fromPage = false): boolean {
+    const drop = { kind: 'drop', on, at } as const
+    const { where } = this
+    if (!deskDraws(where) || where.at !== 'hand' || where.on !== on) return this.run(drop, fromPage)
+    const framed = keys.meta ? this.look.framed() : null
+    if (framed !== null) {
+      this.run({ ...drop, look: true }, fromPage)
+      this.readWindow(framed, at, keys.shift)
+      return true
+    }
+    const content = this.lease?.facts?.content
+    if (!this.read || content === undefined || !this.lease?.facts?.visible || !inside(content, at))
+      return this.run(drop, fromPage)
+    this.look.own(at, covered => void this.run({ ...drop, covered }, fromPage))
+    return true
+  }
+
+  private readWindow(framed: Framed, at: Point, send: boolean): void {
+    const lease = this.leased()
+    const scope = this.deps.scope()
+    if (lease === null) return
+    const live = () => this.leased() === lease && this.deps.scope() === scope
+    this.look.read(lease, framed.id, at, send, live, seen => this.seen(giftOf(seen)))
+  }
+
+  private seen(gift: Gift): void {
+    if (noting(this.where)) return this.talk.give(gift)
+    this.gift = gift
+    this.run({ kind: 'seen' })
+    this.gift = undefined
+  }
+
+  private accepted(): void {
+    this.rewrite = true
+    this.run({ kind: 'recall' })
   }
 
   /** Sends the scene when what it shows changed (the hand's moves go as small messages), or when asked again. */
   private publish(again = false): void {
     const lease = this.leased()
     if (lease === null) return
-    const where = sceneWhere(this.where, this.handPoint())
+    const placed = sceneWhere(this.where, this.handPoint())
+    const where =
+      placed.mode === 'home' && this.rewrite ? { ...placed, rewrite: true as const } : placed
     const note = noting(this.where) ? this.talk.scene() : null
-    const shown = { look: this.deps.look(), figure: this.shape, where, label: this.label(), note }
+    const frame = this.look.frame()
+    const label = this.label()
+    const shown = { look: this.deps.look(), figure: this.shape, where, label, note, frame }
     const key = JSON.stringify({ ...shown, where: where.mode === 'hand' ? 'hand' : where })
     if (!again && key === this.sentKey) return
     this.sentKey = key
     this.serial += 1
+    if (again) this.sentPictures.clear()
+    this.sendPictures()
     this.deps.link.send({ kind: 'scene', scene: { lease, serial: this.serial, ...shown } })
+  }
+
+  private sendPictures(): void {
+    for (const { id, bytes } of noting(this.where) ? this.talk.pictures() : []) {
+      if (this.sentPictures.has(id)) continue
+      this.sentPictures.add(id)
+      this.deps.link.send({ kind: 'picture', id, bytes })
+    }
   }
 
   private forget(): void {
     this.lease = null
     this.sentKey = ''
+    this.sentPictures.clear()
     this.unwatch()
     this.unwatch = nothing
   }
@@ -238,15 +324,23 @@ class FigureStay {
     const { where, effects } = step(was, event, this.facts())
     this.where = where
     if (deskDraws(was) && !deskDraws(where)) this.labelled = true
+    this.moved(was, where)
     for (const effect of effects) this.perform(effect, fromPage)
     const note = noting(where)
     if (note !== noting(was)) {
-      if (note) this.talk.open()
+      if (note) this.talk.open(this.gift)
       else this.talk.close()
     }
     this.publish()
     this.notify()
     return !fromPage || where.at !== 'seat'
+  }
+
+  private moved(was: Whereabouts, where: Whereabouts): void {
+    if (where !== was) this.look.cancelOwn()
+    if (where.at !== 'desk') this.look.cancelRead()
+    if (!deskDraws(where)) this.look.stop()
+    if (where.at !== 'home') this.rewrite = false
   }
 
   private perform(effect: Effect, fromPage: boolean): void {
@@ -273,23 +367,33 @@ class FigureStay {
     this.closeNote()
   }
 
+  private settings(): void {
+    if (noting(this.where)) this.deps.device.settings()
+  }
+
   private readonly inputs: Readonly<Record<DeskInput, () => void>> = {
     close: () => this.closeNote(),
     show: () => this.show(),
+    settings: () => this.settings(),
     lift: () => void this.run({ kind: 'lift', on: 'desk' }),
-    drop: () => void this.run({ kind: 'drop', on: 'desk', at: this.deskPoint }),
+    drop: () => void this.letGo('desk', this.deskPoint, this.deskKeys),
     cancel: () => void this.run({ kind: 'escape', on: 'desk', at: this.deskPoint }),
     click: () => void this.run({ kind: 'click' }),
     double: () => void this.run({ kind: 'double' }),
-    move: () => this.publish(),
+    move: () => {
+      if (deskDraws(this.where)) this.look.hand(this.deskPoint, this.deskKeys)
+      this.publish()
+    },
   }
 
   private input(message: Extract<Up, { kind: 'input' }>): void {
     if (message.input === 'send') {
-      if (noting(this.where)) this.talk.send(message.words, message.to)
+      if (noting(this.where)) this.talk.send(message.words, message.to, message.pictures ?? [])
       return
     }
+    if (message.input === 'unpicture') return this.talk.unpicture(message.picture)
     if (message.at !== null) this.deskPoint = message.at
+    this.deskKeys = { meta: message.meta === true, shift: message.shift === true }
     this.inputs[message.input]()
   }
 
@@ -306,6 +410,15 @@ class FigureStay {
 export const createStay = (deps: StayDeps): Stay => new FigureStay(deps)
 
 const REDUCED = '(prefers-reduced-motion: reduce)'
+
+const PAGE_CLOCK: Clock = {
+  now: () =>
+    /* wall-clock: operation-timing -- spaces the `window` questions apart; compared only with itself */ performance.now(),
+  later(ms, run) {
+    const timer = setTimeout(run, ms)
+    return () => clearTimeout(timer)
+  },
+}
 
 function pageLook(): Look {
   const root = document.documentElement
@@ -364,6 +477,7 @@ export function useStay(
       size: pageFigureSize,
       look: pageLook,
       watch: watchPage,
+      clock: PAGE_CLOCK,
       slots,
       scope: () => scope.get(),
     })

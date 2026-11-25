@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react'
 import {
   FIGURE_SIZE,
   FigureLabel,
   LooseFigure,
+  ObservationFrame,
   SayBubble,
   useSizeFactor,
   type LooseControl,
@@ -30,7 +39,9 @@ export type DeskDeps = Readonly<{
   origin(): Point
 }>
 
-type HandAt = Readonly<{ client: Point }>
+type HandAt = Readonly<{ client: Point; meta?: boolean; shift?: boolean }>
+type Bytes = ReadonlyMap<string, Uint8Array<ArrayBuffer>>
+type Shown = Readonly<{ id: string; name: string; bytes: Uint8Array<ArrayBuffer> }>
 
 const NEW_ID = 'new'
 const KEY_ID = 'to:'
@@ -87,7 +98,12 @@ function useWords() {
   return { text, setText, chosen, setChosen, took }
 }
 
-function sayNote(note: SceneNote | null, text: string, chosen: string | null): SayNote | null {
+function sayNote(
+  note: SceneNote | null,
+  text: string,
+  chosen: string | null,
+  pictures: readonly Shown[],
+): SayNote | null {
   if (note === null) return null
   const targets = note.targets?.map(({ key, label }) => ({
     id: idOf({ kind: 'target', key }),
@@ -98,18 +114,38 @@ function sayNote(note: SceneNote | null, text: string, chosen: string | null): S
     target: chosen ?? idOf(note.to),
     text,
     fate: note.fate ?? undefined,
+    pictures,
+    told: note.told,
   }
 }
 
-/** With the note open the keyboard is here: Escape closes it; losing focus closes it only when nothing is written. */
-function useNoteKeys(open: boolean, text: string, close: () => void): void {
-  const latest = useRef({ text, close })
+function useShown(note: SceneNote | null, bytes: Bytes): readonly Shown[] {
+  const named = JSON.stringify(note?.pictures ?? [])
+  return useMemo(() => {
+    const pictures = JSON.parse(named) as NonNullable<SceneNote['pictures']>
+    return pictures.flatMap(({ id, name }) => {
+      const got = bytes.get(id)
+      return got === undefined ? [] : [{ id, name, bytes: got }]
+    })
+  }, [named, bytes])
+}
+
+function kept(bytes: Bytes, note: SceneNote | null): Bytes {
+  const named = new Set(note?.pictures?.map(picture => picture.id))
+  const keep = [...bytes].filter(([id]) => named.has(id))
+  return keep.length === bytes.size ? bytes : new Map(keep)
+}
+
+/** With the note open the keyboard is here: Escape closes it; losing focus closes it only when it holds no words and no pictures. */
+function useNoteKeys(open: boolean, text: string, pictures: number, close: () => void): void {
+  const latest = useRef({ text, pictures, close })
   useLayoutEffect(() => {
-    latest.current = { text, close }
+    latest.current = { text, pictures, close }
   })
   useEffect(() => {
     if (!open) return undefined
-    const blurred = () => blank(latest.current.text) && latest.current.close()
+    const blurred = () =>
+      blank(latest.current.text) && latest.current.pictures === 0 && latest.current.close()
     const pressed = (event: KeyboardEvent) =>
       event.key === 'Escape' && !event.defaultPrevented && latest.current.close()
     window.addEventListener('blur', blurred)
@@ -124,6 +160,13 @@ function useNoteKeys(open: boolean, text: string, close: () => void): void {
 const onScreen = (box: Rect, origin: Point): Rect => ({
   x: box.x + origin.x,
   y: box.y + origin.y,
+  width: box.width,
+  height: box.height,
+})
+
+const inView = (box: Rect, origin: Point): Rect => ({
+  x: box.x - origin.x,
+  y: box.y - origin.y,
   width: box.width,
   height: box.height,
 })
@@ -176,10 +219,11 @@ function handoverOf(next: Scene, arrived: string): Up | undefined {
 
 type Took = (was: SceneNote | null | undefined, next: SceneNote | null) => void
 
-/** Holds the newest scene and the hand on it; reports `cleared` on taking, `arrived` again for the same stroke, `painted` on the first shown frame. */
+/** Holds the newest scene, the hand on it and its pictures' bytes; reports `cleared` on taking, `arrived` again for the same stroke, `painted` on the first shown frame. */
 function useScene(deps: DeskDeps, took: Took) {
   const [scene, setScene] = useState<Scene | null>(null)
   const [hand, setHand] = useState<Point | null>(null)
+  const [bytes, setBytes] = useState<Bytes>(() => new Map())
   const held = useRef<Scene | null>(null)
   const arrived = useRef('')
 
@@ -190,12 +234,15 @@ function useScene(deps: DeskDeps, took: Took) {
       held.current = next
       setScene(next)
       setHand(null)
+      setBytes(was => kept(was, next.note ?? null))
       const said = handoverOf(next, arrived.current)
       if (said !== undefined) deps.post(said)
       if (next.where.mode !== 'home') arrived.current = ''
     }
     const stop = deps.listen(message => {
-      if (message.kind !== 'hand') take(message.scene)
+      if (message.kind === 'scene') take(message.scene)
+      else if (message.kind === 'picture')
+        setBytes(was => new Map(was).set(message.id, message.bytes))
       else if (message.lease === held.current?.lease) setHand(message.at)
     })
     deps.post({ kind: 'hello' })
@@ -216,8 +263,13 @@ function useScene(deps: DeskDeps, took: Took) {
     arrived.current = homeOf(now)
     deps.post({ kind: 'arrived', lease: now.lease, serial: now.serial })
   }
-  return { scene, hand, held, onArrived }
+  return { scene, hand, bytes, held, onArrived }
 }
+
+const keysOf = (at: HandAt | undefined) => ({
+  ...(at?.meta === true ? { meta: true } : {}),
+  ...(at?.shift === true ? { shift: true } : {}),
+})
 
 function reports(deps: DeskDeps, held: RefObject<Scene | null>) {
   const report = (input: DeskInput) => (at?: HandAt) => {
@@ -226,14 +278,20 @@ function reports(deps: DeskDeps, held: RefObject<Scene | null>) {
     const origin = deps.origin()
     const screen =
       at === undefined ? null : { x: at.client.x + origin.x, y: at.client.y + origin.y }
-    deps.post({ kind: 'input', lease, input, at: screen })
+    deps.post({ kind: 'input', lease, input, at: screen, ...keysOf(at) })
   }
-  const send = (text: string, target: string) => {
+  const send = (text: string, target: string, pictures: readonly Shown[]) => {
     const lease = held.current?.lease
-    if (lease !== undefined)
-      deps.post({ kind: 'input', lease, input: 'send', words: text, to: toOf(target) })
+    if (lease === undefined) return
+    const kept = pictures.length > 0 ? { pictures: pictures.map(picture => picture.id) } : {}
+    deps.post({ kind: 'input', lease, input: 'send', words: text, to: toOf(target), ...kept })
   }
-  return { report, send }
+  const unpicture = (picture: Shown | undefined) => {
+    const lease = held.current?.lease
+    if (lease !== undefined && picture !== undefined)
+      deps.post({ kind: 'input', lease, input: 'unpicture', picture: picture.id })
+  }
+  return { report, send, unpicture }
 }
 
 function localAt(where: SceneWhere, hand: Point | null, origin: Point): Point | null {
@@ -250,12 +308,14 @@ const figureBox = (at: Point | null, size: number): Rect => {
 const placementOf = (where: SceneWhere, at: Point | null) =>
   at === null || where.mode === 'none' ? { mode: 'none' as const } : { mode: where.mode, at }
 
-type Drawn = Pick<Scene, 'figure' | 'where' | 'label' | 'note'> & Readonly<{ look: Partial<Look> }>
+type Drawn = Pick<Scene, 'figure' | 'where' | 'label' | 'note' | 'frame'> &
+  Readonly<{ look: Partial<Look> }>
 const BLANK: Drawn = {
   figure: { waiting: 0 },
   where: { mode: 'none' },
   label: null,
   note: null,
+  frame: null,
   look: {},
 }
 
@@ -265,17 +325,19 @@ export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Eleme
   const bubble = useRef<HTMLElement>(null)
   const factor = useSizeFactor()
   const words = useWords()
-  const { scene, hand, held, onArrived } = useScene(deps, words.took)
+  const { scene, hand, bytes, held, onArrived } = useScene(deps, words.took)
   useLook(scene)
   useHot(deps, scene, control, bubble)
-  const { report, send } = reports(deps, held)
+  const { report, send, unpicture } = reports(deps, held)
   const close = () => report('close')()
-  const shown = scene ?? BLANK
-  const note = shown.note ?? null
-  useNoteKeys(note !== null, words.text, close)
+  const drawn = scene ?? BLANK
+  const note = drawn.note ?? null
+  const pictures = useShown(note, bytes)
+  useNoteKeys(note !== null, words.text, pictures.length, close)
 
-  const { where, figure: shape, label, look } = shown
-  const at = localAt(where, hand, deps.origin())
+  const { where, figure: shape, label, look, frame } = drawn
+  const origin = deps.origin()
+  const at = localAt(where, hand, origin)
   const figure = figureBox(at, FIGURE_SIZE * factor)
   const bounds = { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight }
   return (
@@ -299,21 +361,33 @@ export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Eleme
         onClick={report('click')}
         onDoubleClick={report('double')}
         onArrived={onArrived}
+        rewriteFirst={where.mode === 'home' && where.rewrite === true}
       />
+      {where.mode === 'none' ? null : (
+        <ObservationFrame
+          rect={frame == null ? null : inView(frame.rect, origin)}
+          covered={frame?.covered.map(box => inView(box, origin)) ?? []}
+          figure={figure}
+          closed={frame?.closed}
+          reduced={look.reduced}
+        />
+      )}
       {label != null && at !== null && where.mode === 'hand' ? (
         <FigureLabel figure={figure} bounds={bounds} lines={label} />
       ) : null}
       <SayBubble
         ref={bubble}
-        note={sayNote(note, words.text, words.chosen)}
+        note={sayNote(note, words.text, words.chosen, pictures)}
         figure={figure}
         bounds={bounds}
         reduced={look.reduced}
         onTarget={words.setChosen}
         onText={words.setText}
-        onSend={said => send(said.text, said.target)}
+        onSend={said => send(said.text, said.target, pictures)}
         onClose={close}
         onOpen={() => report('show')()}
+        onDropPicture={index => unpicture(pictures[index])}
+        onSettings={() => report('settings')()}
       />
     </main>
   )

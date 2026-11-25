@@ -1,7 +1,27 @@
-import type { Rect } from '../../desk/scene.ts'
+import type { Point, Rect } from '../../desk/scene.ts'
 
 /** What the main process says of this machine while a lease is open (src/main/device-figure.ts). */
 export type FigureFacts = Readonly<{ screen: Rect; content: Rect; visible: boolean }>
+
+export type FigureAbilities = Readonly<{ leave: boolean; read: boolean }>
+
+/** The frontmost window at a point: omne's own, another app's, or none. Points are logical points on the screen. */
+export type WindowAt =
+  | Readonly<{ kind: 'none' | 'own' }>
+  | Readonly<{
+      kind: 'other'
+      id: string
+      app: string
+      title: string
+      bounds: Rect
+      covered: readonly Rect[]
+    }>
+
+export type WindowRead =
+  | Readonly<{ kind: 'picture'; png: Uint8Array; bounds: Rect; scale: number; takenAt: number }>
+  | Readonly<{ kind: 'not-authorized' }>
+  | Readonly<{ kind: 'gone' }>
+  | Readonly<{ kind: 'failed'; reason: string }>
 
 export type LeaseListener = Readonly<{
   opened(lease: number, facts: FigureFacts): void
@@ -9,16 +29,22 @@ export type LeaseListener = Readonly<{
   ended(): void
 }>
 
+/** `own` answers null when it cannot tell (no backend, an error): the point counts as not covered. */
 export type FigureDevice = Readonly<{
-  leave(): Promise<boolean>
+  abilities(): Promise<FigureAbilities>
   lease(listener: LeaseListener): () => void
   mode(lease: number, mode: Readonly<{ hold: boolean; keys: boolean }>): void
   front(): void
+  own(at: Point): Promise<boolean | null>
+  window(at: Point): Promise<WindowAt>
+  read(lease: number, window: string): Promise<WindowRead>
+  settings(): void
 }>
 
 type Fetcher = (input: string, init?: RequestInit) => Promise<Response>
 
 const DEVICE_FIGURE = '/device/figure'
+const DEVICE_SCREEN_SETTINGS = '/device/screen/settings'
 
 type Fields = Readonly<Record<string, unknown>>
 const fields = (value: unknown): Fields | undefined =>
@@ -34,6 +60,51 @@ function factsOf(value: unknown): FigureFacts | undefined {
     ? (facts as FigureFacts)
     : undefined
 }
+
+const NONE: WindowAt = { kind: 'none' }
+const FAILED = '读窗口的请求没有成功'
+
+function windowOf(value: unknown): WindowAt {
+  const window = fields(value)
+  const kind = window?.['kind']
+  if (kind === 'own') return { kind }
+  const covered = window?.['covered']
+  const other =
+    kind === 'other' &&
+    typeof window?.['id'] === 'string' &&
+    typeof window['app'] === 'string' &&
+    typeof window['title'] === 'string' &&
+    isRect(window['bounds']) &&
+    Array.isArray(covered) &&
+    covered.every(isRect)
+  return other ? (window as WindowAt) : NONE
+}
+
+function boundsOf(header: string | null): Rect | undefined {
+  const [x, y, width, height] = (header ?? '').split(',').map(Number)
+  const rect = { x, y, width, height }
+  return isRect(rect) ? rect : undefined
+}
+
+async function readOf(response: Response): Promise<WindowRead> {
+  if (response.ok) {
+    const bounds = boundsOf(response.headers.get('x-omne-window-bounds'))
+    const scale = Number(response.headers.get('x-omne-window-scale'))
+    const takenAt = Number(response.headers.get('x-omne-taken-at'))
+    if (bounds === undefined || !(scale > 0) || !(takenAt > 0))
+      return { kind: 'failed', reason: FAILED }
+    const png = new Uint8Array(await response.arrayBuffer())
+    return { kind: 'picture', png, bounds, scale, takenAt }
+  }
+  if (response.status === 404 || response.status === 409) return { kind: 'gone' }
+  const body = fields(await response.json().catch(() => null))
+  if (response.status === 403 && body?.['reason'] === 'not-authorized')
+    return { kind: 'not-authorized' }
+  const detail = body?.['detail']
+  return { kind: 'failed', reason: typeof detail === 'string' ? detail : FAILED }
+}
+
+const pointQuery = (at: Point): string => `?x=${at.x}&y=${at.y}`
 
 function parsed(line: string): Fields | undefined {
   try {
@@ -65,13 +136,17 @@ async function readLines(
 
 /** A page with no host to ask: the figure lifts and goes back, and never leaves. */
 export const NO_FIGURE_DEVICE: FigureDevice = {
-  leave: () => Promise.resolve(false),
+  abilities: () => Promise.resolve({ leave: false, read: false }),
   lease: listener => {
     queueMicrotask(() => listener.ended())
     return () => undefined
   },
   mode: () => undefined,
   front: () => undefined,
+  own: () => Promise.resolve(null),
+  window: () => Promise.resolve(NONE),
+  read: () => Promise.resolve({ kind: 'gone' }),
+  settings: () => undefined,
 }
 
 /** The page's side of `/device/figure`: the routes the shell calls on the desktop app's main process. */
@@ -82,11 +157,11 @@ export function hostFigure(fetcher: Fetcher = (input, init) => fetch(input, init
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }).catch(() => undefined)
   return {
-    async leave() {
+    async abilities() {
       const response = await fetcher(DEVICE_FIGURE).catch(() => null)
-      if (response?.ok !== true) return false
-      const body = await response.json().catch(() => null)
-      return fields(body)?.['leave'] === true
+      if (response?.ok !== true) return { leave: false, read: false }
+      const body = fields(await response.json().catch(() => null))
+      return { leave: body?.['leave'] === true, read: body?.['read'] === true }
     },
     lease(listener) {
       const abort = new AbortController()
@@ -126,5 +201,25 @@ export function hostFigure(fetcher: Fetcher = (input, init) => fetch(input, init
     },
     mode: (lease, mode) => post(`/mode?lease=${lease}`, mode),
     front: () => post('/front'),
+    async own(at) {
+      const response = await fetcher(`${DEVICE_FIGURE}/own${pointQuery(at)}`).catch(() => null)
+      if (response?.ok !== true) return null
+      const own = fields(await response.json().catch(() => null))?.['own']
+      return typeof own === 'boolean' ? own : null
+    },
+    async window(at) {
+      const response = await fetcher(`${DEVICE_FIGURE}/window${pointQuery(at)}`).catch(() => null)
+      if (response?.ok !== true) return NONE
+      return windowOf(await response.json().catch(() => null))
+    },
+    async read(lease, window) {
+      const response = await fetcher(`${DEVICE_FIGURE}/read?lease=${lease}`, {
+        method: 'POST',
+        body: JSON.stringify({ window }),
+      }).catch(() => null)
+      const failed: WindowRead = { kind: 'failed', reason: FAILED }
+      return response === null ? failed : readOf(response).catch(() => failed)
+    },
+    settings: () => void fetcher(DEVICE_SCREEN_SETTINGS, { method: 'POST' }).catch(() => undefined),
   }
 }
