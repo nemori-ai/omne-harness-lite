@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { drivesItself, openedIn, type RoundEntry } from '../../../src/rows/goal-session/drive.ts'
+import {
+  askedIn,
+  drivesItself,
+  openedIn,
+  type RoundEntry,
+} from '../../../src/rows/goal-session/drive.ts'
 
 type Drives = Parameters<typeof drivesItself>[0]
 type Defaults = NonNullable<Parameters<typeof drivesItself>[1]>
@@ -106,5 +111,52 @@ describe('the input that opened the round in progress', () => {
     expect(openedIn([])).toBe('more')
     expect(openedIn([message('50', 'message.user', text('later'))])).toBe('more')
     expect(openedIn([message('50', 'message.user', text('later')), began('32')])).toBe('more')
+  })
+})
+
+describe('what the person last said in a session', () => {
+  const text = (value: string, more: object = {}) => ({
+    kind: 'text',
+    text: value,
+    visibility: { toHuman: true, toModel: true },
+    ...more,
+  })
+  const said = (id: string, ...blocks: readonly object[]): RoundEntry => ({
+    id,
+    kind: 'message.user',
+    payload: { message: { blocks } },
+  })
+  const ORIGIN = { origin: { name: 'goal:goal', layer: 'official' } }
+
+  it('is the newest message of theirs, in their own words: what a command put after their line is not theirs', () => {
+    const entries = [
+      said('50', text('/goal 把首页降下来'), text('The person asks for a goal…', ORIGIN)),
+      said('30', text('hello')),
+    ]
+    expect(askedIn(entries)).toEqual({ at: '50', text: '/goal 把首页降下来' })
+    expect(askedIn([said('70', text('第一行'), text('第二行')), ...entries])).toEqual({
+      at: '70',
+      text: '第一行\n第二行',
+    })
+  })
+
+  it('passes over a message with no words of theirs, such as a picture alone, and over what is not a message of a person', () => {
+    const entries: RoundEntry[] = [
+      {
+        id: '90',
+        kind: 'message.system_reminder',
+        payload: { message: { blocks: [text('到点了')] } },
+      },
+      said('80', { kind: 'image' }),
+      said('70', text('  ')),
+      said('60', text('只有命令带来的话', ORIGIN)),
+      said('30', text('我说的')),
+    ]
+    expect(askedIn(entries)).toEqual({ at: '30', text: '我说的' })
+  })
+
+  it('is not known from entries that hold no words of theirs', () => {
+    expect(askedIn([])).toBe('more')
+    expect(askedIn([said('80', { kind: 'image' })])).toBe('more')
   })
 })

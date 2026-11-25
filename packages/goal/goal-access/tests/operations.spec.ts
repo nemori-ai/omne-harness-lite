@@ -85,7 +85,9 @@ describe('read-goal', () => {
     expect(goal.rendered).toContain('把首页的加载时间降下来')
     expect(goal.body).toEqual(RECORD.body)
     expect(goal.progress).toEqual(RECORD.progress)
-    expect(goal.history).toEqual(RECORD.history)
+    const [first, second] = RECORD.history
+    const { wordsAt: _kept, ...shown } = first!
+    expect(goal.history).toEqual([shown, second])
     expect(goal.gap).toContainEqual({
       id: 'A1',
       ought: '端到端用例全过',

@@ -19,6 +19,7 @@ const UNAVAILABLE = { kind: 'unavailable' } as const
 export function lateSessions(holder: GoalHolder): GoalSessions {
   return {
     facts: (...input) => holder.sessions?.facts(...input) ?? Promise.resolve(UNAVAILABLE),
+    asked: (...input) => holder.sessions?.asked(...input) ?? Promise.resolve(UNAVAILABLE),
     wake: (...input) => holder.sessions?.wake(...input) ?? Promise.resolve('unknown'),
   }
 }

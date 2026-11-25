@@ -45,6 +45,7 @@ export function world(describe: DescribeCall = describeRun) {
     head: { kind: 'read', value: '41' } as PortRead<string | null>,
     drives: { kind: 'read', value: false } as PortRead<boolean>,
     opened: { kind: 'read', value: null } as Awaited<ReturnType<SessionCalls['opened']>>,
+    asked: { kind: 'read', value: null } as Awaited<ReturnType<SessionCalls['asked']>> | Error,
     pages: [] as PortRead<HistoryResults>[],
   }
   const asked: { after: string | null; cursor: string | null }[] = []
@@ -65,6 +66,10 @@ export function world(describe: DescribeCall = describeRun) {
     },
     async drives() {
       return state.drives
+    },
+    async asked() {
+      if (state.asked instanceof Error) throw state.asked
+      return state.asked
     },
     async opened() {
       opens.count += 1

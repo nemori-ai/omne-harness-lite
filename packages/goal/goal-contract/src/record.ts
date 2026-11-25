@@ -8,6 +8,7 @@ export const ProvenanceSchema = z.strictObject({
   revision: z.int().positive(),
   via: z.enum(['card', 'direct']),
   words: z.string().nullable(),
+  wordsAt: z.string().min(1).optional(),
   draftedBy: z.enum(['agent', 'person', 'creator']),
   confirmedBy: z.string().min(1),
   /** The card that was answered, or the operation of the direct caller: a repeat of it is recalled, not written twice. */

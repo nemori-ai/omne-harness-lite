@@ -41,6 +41,27 @@ function wordsOf(payload: unknown): string {
     .join('\n')
 }
 
+type Said = Block & Readonly<{ origin?: unknown; visibility?: { toHuman?: unknown } }>
+function ownWordsOf(payload: unknown): string {
+  const message = (payload as { message?: { blocks?: readonly Said[] } } | null)?.message
+  return (message?.blocks ?? [])
+    .filter(block => block.kind === 'text' && block.origin === undefined)
+    .filter(block => block.visibility?.toHuman !== false)
+    .flatMap(block => (typeof block.text === 'string' ? [block.text] : []))
+    .join('\n')
+    .trim()
+}
+
+export function askedIn(
+  entries: readonly RoundEntry[],
+): Readonly<{ at: string; text: string }> | 'more' {
+  for (const entry of entries) {
+    const text = entry.kind === 'message.user' ? ownWordsOf(entry.payload) : ''
+    if (text !== '') return { at: entry.id, text }
+  }
+  return 'more'
+}
+
 /** The input that opened the latest round among these entries, newest first: the nearest message before
  * the round began. `more`: these entries do not reach back that far. */
 export function openedIn(entries: readonly RoundEntry[]): Opened | 'more' {

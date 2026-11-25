@@ -95,6 +95,20 @@ describe('the facts of a session a goal stands on', () => {
     state.drives = { kind: 'unavailable' }
     expect(await sessions.facts(TENANT, SESSION)).toEqual({ kind: 'unavailable' })
   })
+  it('what the person last said is what the history of the session holds of them, with its place; nothing said reads as null', async () => {
+    const { sessions, state } = world()
+    expect(await sessions.asked(TENANT, SESSION)).toEqual({ kind: 'read', value: null })
+    state.asked = { kind: 'read', value: { at: '30', text: '/goal 把首页降下来' } }
+    expect(await sessions.asked(TENANT, SESSION)).toEqual({
+      kind: 'read',
+      value: { at: '30', text: '/goal 把首页降下来' },
+    })
+    state.asked = { kind: 'unavailable' }
+    expect(await sessions.asked(TENANT, SESSION)).toEqual({ kind: 'unavailable' })
+    state.asked = new Error('down')
+    expect(await sessions.asked(TENANT, SESSION)).toEqual({ kind: 'unavailable' })
+    expect(await sessions.asked('not a tenant', SESSION)).toEqual({ kind: 'read', value: null })
+  })
   it('a session this tenant has none of reads as null, and a text that names no tenant too', async () => {
     const { sessions, state } = world()
     state.work = { kind: 'read', value: null }

@@ -58,7 +58,6 @@ describe('the direct way in', () => {
       session: SESSION,
       card: 'card-9',
       proposal: ADD_RULE,
-      words: null,
     })
     for (const kind of ['pause', 'resume', 'cancel', 'abort'] as const)
       await goals.command(OWNER, { session: SESSION, command: { kind } })
@@ -186,7 +185,7 @@ describe('a result nobody knows', () => {
 
 describe('a confirmation card', () => {
   const confirm = (card: string, proposal: Proposal = SET) =>
-    ({ session: SESSION, card, proposal, words: '/goal 把首页降下来' }) as const
+    ({ session: SESSION, card, proposal }) as const
 
   it('proposing writes nothing; it answers what the card shows and what it is drafted against', async () => {
     const { goals, store } = world()
@@ -203,6 +202,7 @@ describe('a confirmation card', () => {
 
   it('answered by a member for this content on this base, it writes the goal, drafted by the agent', async () => {
     const { goals, answered, sessions } = world()
+    sessions.ask(SESSION, { at: '30', text: '/goal 把首页降下来' })
     await answered('card-1', SET)
     const set = value(await goals.confirm(OWNER, confirm('card-1')))
     expect(set.state).toMatchObject({ status: 'active', revision: 1 })
@@ -390,7 +390,7 @@ describe('every way in asks the authority first', () => {
     authority.answer('denied')
     const denied = { kind: 'refused', reason: { kind: 'denied' } }
     expect(await goals.propose(OWNER, { session: SESSION, proposal: ADD_RULE })).toEqual(denied)
-    const confirm = { session: SESSION, card: 'card-1', proposal: ADD_RULE, words: null }
+    const confirm = { session: SESSION, card: 'card-1', proposal: ADD_RULE }
     expect(await goals.confirm(OWNER, confirm)).toEqual(denied)
     expect(await goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } })).toEqual(
       denied,
@@ -403,7 +403,7 @@ describe('every way in asks the authority first', () => {
     authority.answer('unavailable')
     const none = { kind: 'basis-unavailable' }
     expect(await goals.propose(OWNER, { session: SESSION, proposal: SET })).toEqual(none)
-    const confirm = { session: SESSION, card: 'card-1', proposal: SET, words: null }
+    const confirm = { session: SESSION, card: 'card-1', proposal: SET }
     expect(await goals.confirm(OWNER, confirm)).toEqual(none)
     expect(await goals.command(OWNER, { session: SESSION, command: { kind: 'pause' } })).toEqual(
       none,
@@ -490,7 +490,7 @@ describe('proposing', () => {
     store.readable(true)
     sessions.readable(false)
     expect(await propose(goals, SET)).toEqual({ kind: 'basis-unavailable' })
-    const confirm = { session: SESSION, card: 'card-1', proposal: SET, words: null }
+    const confirm = { session: SESSION, card: 'card-1', proposal: SET }
     expect(await goals.confirm(OWNER, confirm)).toEqual({ kind: 'basis-unavailable' })
   })
 })
@@ -796,5 +796,64 @@ describe('what is told after a goal was written', () => {
     const set = await goals.write(OWNER, direct())
     expect(set.kind).toBe('done')
     expect(store.rows(TENANT)).toHaveLength(1)
+  })
+})
+
+describe('the words of the person in the history of a goal confirmed on a card', () => {
+  const MORE = { kind: 'revise', changes: [{ op: 'purpose', text: '只降首页' }] } as const
+  const confirm = (card: string, proposal: Proposal = SET) => ({ session: SESSION, card, proposal })
+
+  it('are what the person last said in the session, kept with where they stand; nothing the caller hands in is taken for them', async () => {
+    const { goals, answered, sessions } = world()
+    sessions.ask(SESSION, { at: '30', text: '/goal 把首页降下来' })
+    await answered('card-1', SET)
+    const handed = { ...confirm('card-1'), words: 'what the agent says I said' }
+    const set = value(await goals.confirm(OWNER, handed))
+    expect(set.history).toMatchObject([
+      { revision: 1, via: 'card', draftedBy: 'agent', words: '/goal 把首页降下来', wordsAt: '30' },
+    ])
+  })
+
+  it('belong to one revision: a revision the agent proposes without the person having said more has none', async () => {
+    const { goals, answered, sessions } = world()
+    sessions.ask(SESSION, { at: '30', text: '/goal 把首页降下来' })
+    await answered('card-1', SET)
+    value(await goals.confirm(OWNER, confirm('card-1')))
+    await answered('card-2', ADD_RULE)
+    const second = value(await goals.confirm(OWNER, confirm('card-2', ADD_RULE)))
+    expect(second.history[1]).toMatchObject({ revision: 2, words: null })
+    expect(second.history[1]).not.toHaveProperty('wordsAt')
+    sessions.ask(SESSION, { at: '77', text: '只要首页，别的不管了' })
+    await answered('card-3', MORE)
+    const third = value(await goals.confirm(OWNER, confirm('card-3', MORE)))
+    expect(third.history[2]).toMatchObject({
+      revision: 3,
+      words: '只要首页，别的不管了',
+      wordsAt: '77',
+    })
+  })
+
+  it('are null when the person said nothing, cut when they said very much, and no basis when what they said cannot be read now', async () => {
+    const { goals, answered, sessions, store } = world()
+    await answered('card-1', SET)
+    sessions.askable(false)
+    expect(await goals.confirm(OWNER, confirm('card-1'))).toEqual({ kind: 'basis-unavailable' })
+    expect(store.rows(TENANT)).toEqual([])
+    sessions.askable(true)
+    const silent = value(await goals.confirm(OWNER, confirm('card-1')))
+    expect(silent.history[0]).toMatchObject({ words: null })
+    sessions.ask(SESSION, { at: '90', text: '字'.repeat(2500) })
+    await answered('card-2', ADD_RULE)
+    const long = value(await goals.confirm(OWNER, confirm('card-2', ADD_RULE)))
+    expect([...(long.history[1]?.words ?? '')]).toHaveLength(2000)
+  })
+
+  it('are not asked after on the direct way: the caller says them there', async () => {
+    const { goals, direct, sessions } = world()
+    sessions.ask(SESSION, { at: '30', text: '别的话' })
+    sessions.askable(false)
+    const set = value(await goals.write(OWNER, direct()))
+    expect(set.history[0]).toMatchObject({ words: '把首页降下来' })
+    expect(set.history[0]).not.toHaveProperty('wordsAt')
   })
 })

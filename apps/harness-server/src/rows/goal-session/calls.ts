@@ -5,7 +5,7 @@ import type { EntryId, SessionFailure, SessionWorkPrincipals } from '@omne-harne
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
 import { defaultModesOf } from '../session-conditions/index.ts'
-import { drivesItself, openedIn, ROUND_KINDS, type RoundEntry } from './drive.ts'
+import { askedIn, drivesItself, openedIn, ROUND_KINDS, type RoundEntry } from './drive.ts'
 
 const OWNER = 'harness-server/goal-session'
 const ABSENT: { failure: SessionFailure } = {
@@ -18,6 +18,7 @@ const ABSENT: { failure: SessionFailure } = {
 const UNAVAILABLE = { kind: 'unavailable' } as const
 const HEAD_KINDS = ['message.user', 'message.assistant', 'message.tool', 'message.system_reminder']
 const RESULT_KINDS = ['message.tool']
+const PERSON_KINDS = ['message.user']
 const CALL_KINDS = ['message.assistant', 'message.tool']
 const HEAD_PAGE_BYTES = 65_536
 const RESULT_PAGE_BYTES = 262_144
@@ -46,6 +47,28 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
     const service = reader()
     if (issued === undefined || service === undefined || !('ok' in issued)) return undefined
     return { history: service.history, access: { principal: issued.ok, tenant, session } }
+  }
+  async function backward<T>(
+    at: Parameters<SessionCalls['head']>[0],
+    kinds: readonly string[],
+    found: (entries: readonly RoundEntry[]) => T | 'more',
+  ): Promise<{ kind: 'read'; value: T | null } | typeof UNAVAILABLE> {
+    const history = await historyOf(at)
+    if (history === undefined) return UNAVAILABLE
+    const reading = { ...history.access, kinds, pageBytes: HEAD_PAGE_BYTES }
+    const entries: RoundEntry[] = []
+    let page = await history.history.begin({ ...reading, from: null, direction: 'backward' })
+    for (let read = 0; read < ROUND_PAGES; read += 1) {
+      if (!('ok' in page)) return UNAVAILABLE
+      for (const { id, kind, payload } of page.ok.entries)
+        entries.push({ id, kind, payload: JSON.parse(writeJsonText(payload)) as unknown })
+      const answer = found(entries)
+      if (answer !== 'more') return { kind: 'read', value: answer }
+      const { next, exhausted } = page.ok
+      if (exhausted || next === null) break
+      page = await history.history.next({ ...history.access, cursor: next })
+    }
+    return { kind: 'read', value: null }
   }
   type After = Parameters<SessionCalls['resultsAfter']>[0]
   /** One page of the entries of these kinds after an entry, oldest first. */
@@ -108,24 +131,8 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
           : defaultModesOf(mappings, name => mappings.modesFor(name))
       return drivesItself(input, defaults)
     },
-    async opened(at) {
-      const found = await historyOf(at)
-      if (found === undefined) return UNAVAILABLE
-      const reading = { ...found.access, kinds: ROUND_KINDS, pageBytes: HEAD_PAGE_BYTES }
-      const entries: RoundEntry[] = []
-      let page = await found.history.begin({ ...reading, from: null, direction: 'backward' })
-      for (let read = 0; read < ROUND_PAGES; read += 1) {
-        if (!('ok' in page)) return UNAVAILABLE
-        for (const { id, kind, payload } of page.ok.entries)
-          entries.push({ id, kind, payload: JSON.parse(writeJsonText(payload)) as unknown })
-        const opened = openedIn(entries)
-        if (opened !== 'more') return { kind: 'read', value: opened }
-        const { next, exhausted } = page.ok
-        if (exhausted || next === null) break
-        page = await found.history.next({ ...found.access, cursor: next })
-      }
-      return { kind: 'read', value: null }
-    },
+    opened: at => backward(at, ROUND_KINDS, openedIn),
+    asked: at => backward(at, PERSON_KINDS, askedIn),
     resultsAfter: input => pageAfter(RESULT_KINDS, input),
     callsAfter: input => pageAfter(CALL_KINDS, input),
   }

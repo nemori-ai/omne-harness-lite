@@ -92,9 +92,9 @@ describe('the goal rows on the release tree', () => {
             kind: 'refused',
             reason: { kind: 'denied' },
           })
-          expect(
-            await goals.confirm(agent, { session, card: 'no-card', proposal: SET, words: null }),
-          ).toEqual({ kind: 'basis-unavailable' })
+          expect(await goals.confirm(agent, { session, card: 'no-card', proposal: SET })).toEqual({
+            kind: 'basis-unavailable',
+          })
           expect(await goals.read(agent, session)).toMatchObject({ kind: 'done', value: null })
 
           const sessions = goalHolder(tree.scope).sessions

@@ -68,7 +68,7 @@ export interface Goals {
   /** Writes the proposal on the standing of an answered card. The card is read from its owner, not taken from the caller. */
   confirm(
     caller: GoalCaller,
-    input: Readonly<{ session: string; card: string; proposal: Proposal; words: string | null }>,
+    input: Readonly<{ session: string; card: string; proposal: Proposal }>,
   ): Promise<Outcome<GoalRecord, GoalRefusal>>
   /** Updates the progress list of the live goal. It changes what the agent says, never the state of the goal. */
   track(

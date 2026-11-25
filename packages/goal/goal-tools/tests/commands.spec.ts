@@ -169,6 +169,10 @@ describe('propose', () => {
     if ('failure' in first) throw new Error(JSON.stringify(first.failure))
     const card = cardOfRequest(first.request)
     expect(card.title).toBe('修改目标：N2')
+    expect(card.options.map(option => [option.label, option.description])).toEqual([
+      ['确认', '照这份正文修改目标。'],
+      ['不改了', '目标保持原样。'],
+    ])
     const base = { generation: 1, revision: 1, live: true }
     const two = cardOf({ kind: 'revise', rendered: 'x', digest: 'd', base, changed: ['N1', 'N2'] })
     expect(two.title).toBe('修改目标：N1、N2')

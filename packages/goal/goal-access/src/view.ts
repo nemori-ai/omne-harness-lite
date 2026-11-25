@@ -34,6 +34,16 @@ export function viewOf(record: GoalRecord): GoalView | undefined {
     body,
     gap: gapTable(record.body, record.readings, record.state.rounds).map(row => ({ ...row })),
     progress,
-    history: record.history.map(entry => ({ ...entry })),
+    history: record.history.map(
+      ({ revision, via, words, draftedBy, confirmedBy, operation, at }) => ({
+        revision,
+        via,
+        words,
+        draftedBy,
+        confirmedBy,
+        operation,
+        at,
+      }),
+    ),
   }
 }

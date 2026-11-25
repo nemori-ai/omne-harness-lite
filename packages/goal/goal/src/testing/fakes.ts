@@ -18,7 +18,7 @@ import type {
   GoalHistory,
   GoalJudging,
 } from '../ports.ts'
-import type { Driven, GoalSessions, SendAnswer, WakeToSend } from '../sessions-port.ts'
+import type { Asked, Driven, GoalSessions, SendAnswer, WakeToSend } from '../sessions-port.ts'
 
 export type FakeAuthority = GoalAuthority &
   Readonly<{
@@ -44,6 +44,8 @@ export type FakeSessions = GoalSessions &
   Readonly<{
     add(session: string, attendance: Attendance): void
     drive(session: string, driven: Driven | null): void
+    ask(session: string, asked: Asked): void
+    askable(on: boolean): void
     readable(on: boolean): void
     sendNext(answer: SendAnswer): void
     woken: WakeToSend[]
@@ -53,6 +55,8 @@ export type FakeSessions = GoalSessions &
 export function fakeSessions(): FakeSessions {
   const known = new Map<string, Attendance>()
   const driven = new Map<string, Driven>()
+  const said = new Map<string, Asked>()
+  let canAsk = true
   const woken: WakeToSend[] = []
   let canRead = true
   let moment = 0
@@ -63,6 +67,11 @@ export function fakeSessions(): FakeSessions {
     drive: (session, input) =>
       void (input === null ? driven.delete(session) : driven.set(session, input)),
     readable: on => void (canRead = on),
+    ask: (session, asked) => void said.set(session, asked),
+    askable: on => void (canAsk = on),
+    async asked(_tenant, session) {
+      return canAsk ? { kind: 'read', value: said.get(session) ?? null } : { kind: 'unavailable' }
+    },
     sendNext: answer => void (next = answer),
     async facts(_tenant, session) {
       if (!canRead) return { kind: 'unavailable' }

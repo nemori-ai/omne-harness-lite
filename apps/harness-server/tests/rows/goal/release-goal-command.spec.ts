@@ -79,7 +79,7 @@ describe('/goal on the release tree', () => {
               attendance: 'attended',
             },
             body: { purpose: '把改动说明写进 CHANGELOG' },
-            history: [{ via: 'card', draftedBy: 'agent', revision: 1 }],
+            history: [{ via: 'card', draftedBy: 'agent', revision: 1, words: TYPED }],
             readings: { criteria: { A1: { value: 'holds', source: 'judge' } } },
             wake: null,
           },

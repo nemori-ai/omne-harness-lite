@@ -176,6 +176,7 @@ describe('the ports the contributing rows mount', () => {
   it('while nothing is mounted a read is unavailable and a reminder stays owed', async () => {
     const empty = holder()
     expect(await lateSessions(empty).facts('t', 's')).toEqual({ kind: 'unavailable' })
+    expect(await lateSessions(empty).asked('t', 's')).toEqual({ kind: 'unavailable' })
     const wake = {
       kind: 'start',
       request: 'start/1/1',
@@ -195,8 +196,13 @@ describe('the ports the contributing rows mount', () => {
         kind: 'read',
         value: { attendance: 'unattended', moment: '3', drive: null },
       }),
+      asked: async () => ({ kind: 'read', value: { at: '30', text: '把首页降下来' } }),
       wake: async () => 'sent',
     } satisfies GoalSessions
+    expect(await sessions.asked('t', 's')).toEqual({
+      kind: 'read',
+      value: { at: '30', text: '把首页降下来' },
+    })
     expect(await sessions.facts('t', 's')).toEqual({
       kind: 'read',
       value: { attendance: 'unattended', moment: '3', drive: null },

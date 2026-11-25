@@ -38,8 +38,18 @@ const stateAdoption = describedAdoption({
 const encoder = new TextEncoder()
 const TITLE_MAX = 256
 const TEXTS = {
-  set: { title: '确认这个目标', skip: '不设目标，会话照常进行。', confirm: '照这份正文设下目标。' },
-  revise: { title: '修改目标', skip: '目标保持原样。', confirm: '照这份正文修改目标。' },
+  set: {
+    title: '确认这个目标',
+    drop: '不设了',
+    skip: '不设目标，会话照常进行。',
+    confirm: '照这份正文设下目标。',
+  },
+  revise: {
+    title: '修改目标',
+    drop: '不改了',
+    skip: '目标保持原样。',
+    confirm: '照这份正文修改目标。',
+  },
 } as const
 
 const proposalOf = (args: ArgumentsOf<'propose'>): Proposal =>
@@ -63,7 +73,7 @@ export function cardOf(proposed: Proposed) {
         label: '确认',
         description: texts.confirm,
       },
-      { id: DROP_OPTION, label: '不设了', description: texts.skip },
+      { id: DROP_OPTION, label: texts.drop, description: texts.skip },
     ],
   } as const
 }
@@ -154,7 +164,7 @@ export const proposeExecutor: CheckpointedToolExecutor<ArgumentsOf<'propose'>, s
     if (!('reached' in ready)) return ready
     const { goals, caller, session } = ready.reached
     const written = await goals
-      .confirm(caller, { session, card: ready.bound.call, proposal, words: null })
+      .confirm(caller, { session, card: ready.bound.call, proposal })
       .catch(() => ({ kind: 'unknown' }) as const)
     const result = answered('propose', written, record => {
       const { revision } = record.state

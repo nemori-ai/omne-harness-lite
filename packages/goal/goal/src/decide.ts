@@ -25,6 +25,7 @@ import {
   type Provenance,
   type Readings,
 } from '@omne-harness/goal-contract'
+import type { Asked } from './sessions-port.ts'
 
 export type Entrance =
   | Readonly<{ via: 'direct'; draftedBy: 'person' | 'creator'; by: string }>
@@ -38,6 +39,7 @@ export type WriteInput = Readonly<{
   entrance: Entrance
   operation: string
   words: string | null
+  asked: Asked | null
   at: string
 }>
 
@@ -83,13 +85,27 @@ function cardRefusal(entrance: Entrance, state: GoalState, attendance: Attendanc
   return stale === null ? null : refused({ kind: 'card', reason: stale })
 }
 
-function provenanceOf(input: WriteInput, revision: number): Provenance {
+const WORDS_MAX = 2000
+
+/** The words of a revision. On the direct way the caller says them; on a card they are what the person last said, once: words a revision before already has are not this one's. */
+function wordsOf(input: WriteInput, before: readonly Provenance[]) {
+  const { asked, entrance } = input
+  if (entrance.via === 'direct') return { words: input.words }
+  if (asked === null || before.some(entry => entry.wordsAt === asked.at)) return { words: null }
+  return { words: [...asked.text].slice(0, WORDS_MAX).join(''), wordsAt: asked.at }
+}
+
+function provenanceOf(
+  input: WriteInput,
+  revision: number,
+  before: readonly Provenance[],
+): Provenance {
   const { entrance } = input
   const byCard = entrance.via === 'card'
   return {
     revision,
     via: entrance.via,
-    words: input.words,
+    ...wordsOf(input, before),
     draftedBy: byCard ? 'agent' : entrance.draftedBy,
     confirmedBy: byCard ? entrance.card.by : entrance.by,
     operation: input.operation,
@@ -130,13 +146,12 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
   const stood = stand(current, input)
   if ('kind' in stood) return stood
   const { state, body } = stood
-  const provenance = provenanceOf(input, state.revision)
   const before = input.proposal.kind === 'revise' ? current : null
   const version = (current?.version ?? 0) + 1
   const request = `start/${String(state.generation)}/${String(version)}`
   const wake = stood.wakes ? ({ kind: 'start', request } as const) : null
   const kept = before === null ? fresh(input.moment) : carried(before, body)
-  const history = [...kept.history, provenance]
+  const history = [...kept.history, provenanceOf(input, state.revision, kept.history)]
   return {
     kind: 'next',
     record: {
@@ -159,7 +174,6 @@ const fresh = (since: string): Kept => ({
   progress: NO_PROGRESS,
   since,
 })
-/** What a revision carries over: the history, where the goal began, and what was read and said of the entries it left alone. */
 const carried = (before: GoalRecord, body: GoalBody): Kept => ({
   history: before.history,
   readings: keptReadings(before.body, body, before.readings),

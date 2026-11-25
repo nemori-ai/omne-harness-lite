@@ -16,6 +16,7 @@ import type {
   GoalDecisions,
   GoalHistory,
   GoalJudging,
+  PortRead,
   ReconcileHints,
 } from './ports.ts'
 import type { GoalSessions } from './sessions-port.ts'
@@ -35,6 +36,12 @@ export type GoalsDependencies = Readonly<{
   hints: ReconcileHints
   changes?: GoalChanges
 }>
+
+/** A read of a port; one that fails has no basis. */
+const ask = <T>(read: () => Promise<PortRead<T>>): Promise<PortRead<T>> =>
+  Promise.resolve()
+    .then(read)
+    .catch(() => ({ kind: 'unavailable' }) as const)
 
 const uncited = (refs: readonly string[]) => ({
   entry: null,
@@ -66,7 +73,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
       const at = deps.clock.now()
       return written(
         await settle(caller.tenant, session, async current =>
-          decideWrite(current, { ...input, ...facts, entrance, at }),
+          decideWrite(current, { ...input, ...facts, asked: null, entrance, at }),
         ),
       )
     },
@@ -96,14 +103,17 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
       if (stop !== null) return stop
       const facts = await factsOf(caller.tenant, session)
       if ('kind' in facts) return facts
+      const asked = await ask(() => deps.sessions.asked(caller.tenant, session))
+      if (asked.kind === 'unavailable') return UNAVAILABLE
       const at = deps.clock.now()
+      const said = { operation: input.card, words: null, asked: asked.value, at } as const
       return written(
         await settle(caller.tenant, session, async current => {
           const card = await deps.cards.answered(caller.tenant, session, input.card)
           if (card.kind === 'unavailable') return UNAVAILABLE
           if (card.value === null) return refused({ kind: 'no-such-card' })
           const entrance = { via: 'card', card: card.value } as const
-          return decideWrite(current, { ...input, ...facts, operation: input.card, entrance, at })
+          return decideWrite(current, { ...input, ...facts, ...said, entrance })
         }),
       )
     },

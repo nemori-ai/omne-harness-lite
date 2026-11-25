@@ -9,6 +9,8 @@ export type SessionFacts = Readonly<{
   moment: string
   drive: Driven | null
 }>
+/** What the person last said in the session in their own words, and where in its history that stands. */
+export type Asked = Readonly<{ at: string; text: string }>
 /** `implied`: the reminder is of the goal the session implies, which no person set and no tool reads. */
 export type WakeToSend = Wake &
   Readonly<{ session: string; rendered: string; open: string; implied: boolean }>
@@ -17,6 +19,7 @@ export type SendAnswer = 'sent' | 'refused' | 'unknown'
 
 export interface GoalSessions {
   facts(tenant: string, session: string): Promise<PortRead<SessionFacts | null>>
+  asked(tenant: string, session: string): Promise<PortRead<Asked | null>>
   /** Sends the reminder a change owes its session. The same request is taken by the session once. */
   wake(tenant: string, wake: WakeToSend): Promise<SendAnswer>
 }

@@ -93,6 +93,7 @@ export const RECORD: GoalRecord = {
       revision: 1,
       via: 'card',
       words: '把首页降下来',
+      wordsAt: '30',
       draftedBy: 'agent',
       confirmedBy: 'server-entry',
       operation: 'op-1',
