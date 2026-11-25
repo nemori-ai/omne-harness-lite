@@ -208,6 +208,47 @@ describe('Tools complete author', () => {
     })
   })
 
+  it('search with programmable: true asks only for what a program can call and shows the functions of each tool', async () => {
+    const files = value(createFilesAuthor(tree({ resultMaxBytes: 1024, ...OPEN_LIMITS })))
+    const definition = deriveDefinition(
+      { asset: { name: 'Files', adoption }, requiredCapabilities: [], programmable: true },
+      files.facts,
+    )
+    const seen: unknown[] = []
+    const found = capability({
+      search: async args => {
+        seen.push(args)
+        return succeed({
+          entries: [
+            {
+              kind: 'available',
+              definition,
+              executor: filesToolModule.executor,
+              layer: { kind: 'official' },
+              resident: false,
+            },
+          ],
+          next: null,
+        })
+      },
+    })
+    const asked = { query: 'read', after: null, limit: 5 }
+    const narrowed = JSON.parse(
+      textOf(value(await call('search', { ...asked, programmable: true }, found))),
+    )
+    expect(narrowed.tools[0].program).toBe(programSignature(definition))
+    expect(narrowed.tools[0].program).toContain('declare const Files: {')
+    // Without the condition, and with false, the call and its answer are what they were.
+    const plain = textOf(value(await call('search', asked, found)))
+    expect(JSON.parse(plain).tools[0]).not.toHaveProperty('program')
+    expect(textOf(value(await call('search', { ...asked, programmable: false }, found)))).toBe(
+      plain,
+    )
+    expect(seen).toEqual([{ ...asked, programmable: true }, asked, asked])
+    for (const programmable of ['true', 1, null])
+      expect(await call('search', { ...asked, programmable }, found)).toHaveProperty('failure')
+  })
+
   it.each(['schema', 'executor-owned'] as const)(
     'inspect gives the complete %s command parameters',
     async kind => {

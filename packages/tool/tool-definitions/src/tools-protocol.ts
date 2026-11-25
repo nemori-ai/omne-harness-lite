@@ -44,12 +44,18 @@ export const toolsCommands = [
   },
   {
     name: 'search',
-    summary: 'Search current lawful nonresident tools with BM25. Copy next to continue.',
+    summary:
+      'Search current lawful nonresident tools with BM25. Copy next to continue. programmable=true keeps the tools a program can call, with their functions.',
     schema: object(
       {
         query: { type: 'string' },
         after: nullableString,
         limit: { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
+        programmable: {
+          type: 'boolean',
+          description:
+            'true: only the tools a program run by Code can call now, each with its functions.',
+        },
       },
       ['query', 'after', 'limit'],
     ),
@@ -148,15 +154,18 @@ function parseCommand(
     return succeed({ kind: 'help', command: text(map.get('command')) ?? null })
   }
   if (name === 'search') {
-    const map = fields(value, ['query', 'after', 'limit'])
+    const map = fields(value, ['query', 'after', 'limit'], ['programmable'])
     if (map === null) return invalid()
     const query = text(map.get('query'), true),
       after = nullableText(map.get('after')),
-      count = map.get('limit')
+      count = map.get('limit'),
+      narrowed = map.get('programmable')
     const limit = count?.kind === 'number' ? Number(count.lexeme) : NaN
+    if (narrowed !== undefined && narrowed.kind !== 'boolean') return invalid()
+    const only = narrowed?.value === true ? { programmable: true as const } : {}
     return query === undefined || after === undefined || !Number.isSafeInteger(limit) || limit < 1
       ? invalid()
-      : succeed({ kind: 'search', arguments: { query, after, limit } })
+      : succeed({ kind: 'search', arguments: { query, after, limit, ...only } })
   }
   const map = fields(
     value,
