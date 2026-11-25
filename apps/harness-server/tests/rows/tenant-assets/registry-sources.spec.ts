@@ -86,6 +86,7 @@ async function world(options: { opens?: (tenant: string) => boolean } = {}) {
         held: root.assetCategories.held,
         current: (ref, capability) => !stale.has(ref) && !waiting.has(capability.category),
         placed: () => [],
+        official: () => root.assetCategories.official(),
         async listing(ref) {
           if (options.opens?.(ref) === false) return undefined
           return async request => {
@@ -197,17 +198,31 @@ describe('registrySources: the layers of one tenant, read from the points of the
     )
   })
 
-  it('listing still reads the ledger: the official layer lists nothing, the tenant layer asks the store', async () => {
+  it('listing: the official layer lists what the release brings in the category, by name; the tenant layer asks the store', async () => {
     const w = await world()
     const request = { category: 'gadget', after: null, limit: 10 }
+    const spanner = {
+      capability: capability('gadget', 'spanner'),
+      layer: 'official',
+      asset: 'official/gadget/spanner',
+      version: 'v1',
+      selection: 'pinned',
+      enabled: true,
+    }
     expect(await listAssets(w.sources('tenant-a'), request)).toEqual({
       state: 'read',
-      page: { items: [], next: null, completeness: 'complete' },
+      page: { items: [spanner], next: null, completeness: 'complete' },
     })
     expect(w.listed).toEqual(['tenant-a:gadget'])
-    expect(await w.sources('tenant-a')[0]?.list(request)).toEqual({
+    expect(await w.sources('tenant-b')[0]?.list(request)).toEqual({
       layer: 'official',
-      state: 'not-applicable',
+      state: 'read',
+      page: { items: [spanner], next: null, completeness: 'complete' },
+    })
+    expect(await w.sources('tenant-a')[0]?.list({ ...request, category: 'widget' })).toEqual({
+      layer: 'official',
+      state: 'read',
+      page: { items: [], next: null, completeness: 'complete' },
     })
     const closed = await world({ opens: () => false })
     expect(await closed.sources('tenant-a')[1]?.list(request)).toEqual({
@@ -217,6 +232,71 @@ describe('registrySources: the layers of one tenant, read from the points of the
     expect(await listAssets(closed.sources('tenant-a'), request)).toEqual({
       state: 'unavailable',
       layer: 'tenant',
+    })
+  })
+
+  it('listing the official layer pages by name and says unavailable when the release cannot be read', async () => {
+    const w = await world()
+    await w.root.plugin(
+      broughtDefinitionsPlugin('more', 'gadget.items', [
+        { name: 'anvil', item: item('official/gadget/anvil'), body: { kind: 'null' } },
+        { name: 'wrench', item: item('official/gadget/wrench'), body: { kind: 'null' } },
+      ]),
+    )
+    const official = w.sources('tenant-a')[0] as AssetLayerSource
+    const names = async (after: string | null) => {
+      const read = await official.list({ category: 'gadget', after, limit: 2 })
+      if (read.state !== 'read') throw new Error(read.state)
+      return { names: read.page.items.map(entry => entry.capability.name), next: read.page.next }
+    }
+    expect(await names(null)).toEqual({ names: ['anvil', 'spanner'], next: 'spanner' })
+    expect(await names('spanner')).toEqual({ names: ['wrench'], next: null })
+    const shuffled = registrySources(
+      {
+        held: w.root.assetCategories.held,
+        current: () => true,
+        placed: () => [],
+        listing: async () => undefined,
+        official: () => {
+          const all = w.root.assetCategories.official()
+          return all === 'unavailable' ? all : [...all].reverse()
+        },
+      },
+      'tenant-a',
+    )
+    const first = await shuffled[0]?.list({ category: 'gadget', after: null, limit: 2 })
+    expect(first?.state === 'read' && first.page.items.map(entry => entry.capability.name)).toEqual(
+      ['anvil', 'spanner'],
+    )
+    const broken = registrySources(
+      {
+        held: w.root.assetCategories.held,
+        current: () => true,
+        placed: () => [],
+        listing: async () => undefined,
+        official: () => 'unavailable',
+      },
+      'tenant-a',
+    )
+    expect(await broken[0]?.list({ category: 'gadget', after: null, limit: 2 })).toEqual({
+      layer: 'official',
+      state: 'unavailable',
+    })
+    const throwing = registrySources(
+      {
+        held: w.root.assetCategories.held,
+        current: () => true,
+        placed: () => [],
+        listing: async () => undefined,
+        official: () => {
+          throw new Error('the points cannot be read')
+        },
+      },
+      'tenant-a',
+    )
+    expect(await throwing[0]?.list({ category: 'gadget', after: null, limit: 2 })).toEqual({
+      layer: 'official',
+      state: 'unavailable',
     })
   })
 })

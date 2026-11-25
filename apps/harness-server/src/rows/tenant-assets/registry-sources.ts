@@ -1,11 +1,13 @@
 import {
   heldLayerSource,
   type AssetEntry,
+  type AssetLayerListing,
   type AssetLayerSource,
   type AssetListRequest,
   type AssetPage,
   type CapabilityId,
   type HeldReading,
+  type OfficialAsset,
 } from '@omne-harness/assets'
 
 type TenantListing = AssetLayerSource['list']
@@ -19,11 +21,39 @@ export type RegistrySourcePorts = Readonly<{
   listing(tenantRef: string): Promise<TenantListing | undefined>
   /** What plugins placed on the point of a category for this tenant: definitions the ledger does not hold. */
   placed(category: string, tenantRef: string): readonly AssetEntry[]
+  official(): readonly OfficialAsset[] | 'unavailable'
 }>
 
 const UNREAD: HeldReading = Object.freeze({ kind: 'unavailable' })
 
 const orderOf = (category: string, name: string): string => JSON.stringify([category, name])
+
+const officialEntry = ({ capability, asset, version }: OfficialAsset): AssetEntry => ({
+  capability,
+  layer: 'official',
+  asset,
+  version,
+  selection: 'pinned',
+  enabled: true,
+})
+
+function officialListing(ports: RegistrySourcePorts, request: AssetListRequest): AssetLayerListing {
+  let all: readonly OfficialAsset[] | 'unavailable'
+  try {
+    all = ports.official()
+  } catch {
+    all = 'unavailable'
+  }
+  if (all === 'unavailable') return { layer: 'official', state: 'unavailable' }
+  const after = request.after ?? ''
+  const named = all
+    .filter(({ capability }) => capability.category === request.category && capability.name > after)
+    .map(officialEntry)
+    .sort((left, right) => (left.capability.name < right.capability.name ? -1 : 1))
+  const items = named.slice(0, request.limit)
+  const next = named.length > items.length ? (items.at(-1)?.capability.name ?? null) : null
+  return { layer: 'official', state: 'read', page: { items, next, completeness: 'complete' } }
+}
 
 /** A page of the ledger with the placed definitions it does not hold, in the ledger's order; the cursor stays a name. */
 export function withPlaced(
@@ -62,7 +92,7 @@ export function registrySources(
       layer: 'official',
       tenant,
       read: capability => ports.held(capability, tenant),
-      list: async () => ({ layer: 'official', state: 'not-applicable' }),
+      list: async request => officialListing(ports, request),
     }),
     heldLayerSource({
       layer: 'tenant',

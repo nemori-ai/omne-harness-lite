@@ -264,7 +264,7 @@
 > **EN**: **The mark on a text block recording "this text was not typed by the person; it comes from this item"**: the skill body brought in at intake by a slash reference carries the skill's full name, source layer, version and package digest. **It is an attribute of a content block, not another kind of block**: the person's words and the brought-in body sit in one message as separate blocks, and this mark tells them apart. It states provenance only — nothing about who reads the block, and no entitlement is implied by it. Only the step of intake that resolves the person's words may write it; a sender that brings one is refused.
 
 - **形态**：属性
-- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 4）
+- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 5）
 - **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文字上，说的是这段字怎么来的
 - **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注
 - **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
@@ -703,7 +703,7 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 22）·
+- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 23）·
   [PF-015 §5.6 第 13 项](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [元能力：明写它不装在这扇门后面，而设计链里还没有它的家](../../product/meta-capabilities/design.md#meta-todo)
