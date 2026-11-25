@@ -93,12 +93,13 @@ describe('边界', () => {
     expect(offending('main', bad)).toEqual([])
   })
 
-  it('主进程里只有入口、拒绝远程调试、窗口、截图的遮罩窗口与 utility 进程的启动导入 electron，其余换成替身就能测', () => {
+  it('主进程里只有入口、拒绝远程调试、窗口、截图的遮罩窗口、桌面层的窗口与 utility 进程的启动导入 electron，其余换成替身就能测', () => {
     const using = files(join(SRC, 'main'))
       .filter(file => imports(file).includes('electron'))
       .map(file => relative(join(SRC, 'main'), file))
       .toSorted()
     expect(using).toEqual([
+      'desk-window.ts',
       'main.ts',
       'remote-debugging.ts',
       'screen-overlay.ts',
