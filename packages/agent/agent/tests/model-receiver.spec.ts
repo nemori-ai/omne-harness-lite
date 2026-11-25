@@ -896,11 +896,11 @@ async function drainTasks(state: ModelReceiverState<string>) {
   while (state.tasks.size) await Promise.all(state.tasks)
 }
 
-it('accepts every metric an over-limit failure may report, the file one included', async () => {
+it('accepts every metric an over-limit failure may report, the file one and none included', async () => {
   const s = await setup()
   if (s.delivery.kind !== 'result') throw new Error('result required')
   const base = s.delivery
-  for (const metric of OVER_LIMIT_METRICS) {
+  for (const metric of [...OVER_LIMIT_METRICS, null]) {
     const delivery: ModelDelivery = {
       ...base,
       settlement: {
