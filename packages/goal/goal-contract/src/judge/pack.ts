@@ -52,8 +52,18 @@ export const FLAG_NOTES = Object.freeze({
   check:
     '这次写改了判据所用的测试或基准。先看它是放宽、跳过了已有的检查，还是只新增了检查：放宽或跳过之后的通过不能证明判据成立。',
   later: '这次调用之后又写过 laterWrites 里的文件，它显示的结果可能已经过时。',
+  checkGuarded:
+    '这次写动了判据所用的测试或基准。只新增检查不影响判断，照常看后面那次运行的结果；只有它放宽、删掉或跳过了已有的检查时，之后的通过才不能证明判据成立。',
+  laterGuarded:
+    '这次调用之后又写过 laterWrites 里的文件。只有这些文件会改变这次调用的结果时，它才算过时；文档、说明、变更记录这类不影响结果的写入不算。',
   newer: '同一条命令之后又跑过一次，结果不同，以后一次为准。',
+  superseded:
+    '这是同一个文件较早的一稿，之后又写过。以 supersededBy 指到的那一次写入为准，不因为有后一稿就算过时。',
 })
+export const EXIT_GUIDE =
+  '材料里的工具输出直接显示这个情形时答是；只有 agent 的说法、没有工具输出支持时答否。'
+export const DEAD_END_PLAIN =
+  '有没有正文的退出没写到、却让目标达不成的阻碍：被权限或资源挡住，判据互相矛盾，或唯一的办法被守则禁止。材料里的工具输出显示这样的阻碍时答是。'
 const CLAIMS = {
   'not-started': '没开始',
   doing: '在做',
@@ -175,14 +185,20 @@ function evidenceItem(
   criterion: Criterion,
   call: ObservedCall,
 ): JsonObject {
-  const later = writesAfter(material.calls, criterion, call)
-    .slice(0, JUDGE_LIMITS.laterWrites)
-    .map(write => write.path ?? write.ref)
+  const after = writesAfter(material.calls, criterion, call)
+  const drafts = config.packaging.drafts === 'superseded'
+  const superseding = drafts && criterion.evidence.kind === 'file' ? after.at(-1)?.ref : undefined
+  const later =
+    drafts && call.writes
+      ? []
+      : after.slice(0, JUDGE_LIMITS.laterWrites).map(write => write.path ?? write.ref)
   const check = call.writes && call.path !== null && CHECK_PATH.test(call.path)
   const newer = newerRun(material.calls, call)
+  const guarded = config.packaging.flags === 'guarded'
   const notes = [
-    check ? FLAG_NOTES.check : '',
-    later.length > 0 ? FLAG_NOTES.later : '',
+    check ? (guarded ? FLAG_NOTES.checkGuarded : FLAG_NOTES.check) : '',
+    later.length > 0 ? (guarded ? FLAG_NOTES.laterGuarded : FLAG_NOTES.later) : '',
+    superseding === undefined ? '' : FLAG_NOTES.superseded,
     newer === undefined ? '' : FLAG_NOTES.newer,
   ].join('')
   return present({
@@ -194,8 +210,9 @@ function evidenceItem(
     changesCheck: check ? true : undefined,
     excerpt: excerptOf(call.output, shape.excerpt, config.packaging.take),
     laterWrites: later.length === 0 ? undefined : later,
+    supersededBy: superseding,
     newerRun: newer,
-    note: config.packaging.flags === 'notes' && notes !== '' ? notes : undefined,
+    note: config.packaging.flags !== 'keys' && notes !== '' ? notes : undefined,
   })
 }
 
@@ -220,8 +237,10 @@ function criterionAsk(config: JudgeConfig, criterion: Criterion, rendered: strin
   }
 }
 
-function otherAsks(material: JudgeMaterial): readonly Ask[] {
+function otherAsks(material: JudgeMaterial, config: JudgeConfig): readonly Ask[] {
   const { body, progress } = material
+  const { exits: exitWording, unattainable } = config.instructions
+  const guide = exitWording === 'guided' ? `。${EXIT_GUIDE}` : ''
   const rules = body.rules.map((rule): Ask => ({
     name: rule.id,
     section: 'rules',
@@ -238,7 +257,7 @@ function otherAsks(material: JudgeMaterial): readonly Ask[] {
       section: 'exits',
       question: {
         type: 'noul',
-        instructions: `退出 ${exit.id} 写的情形出现了没有：${exit.statement}`,
+        instructions: `退出 ${exit.id} 写的情形出现了没有：${exit.statement}${guide}`,
       },
     }))
   if (progress.obstacle === null) return [...rules, ...exits]
@@ -246,11 +265,14 @@ function otherAsks(material: JudgeMaterial): readonly Ask[] {
     {
       name: UNATTAINABLE.blocked,
       section: 'exits',
-      question: {
-        type: 'choice',
-        instructions: '有没有正文的退出没写到、却让目标达不成的阻碍。',
-        criteria: BLOCK_OPTIONS,
-      },
+      question:
+        unattainable === 'plain'
+          ? { type: 'noul', instructions: DEAD_END_PLAIN }
+          : {
+              type: 'choice',
+              instructions: '有没有正文的退出没写到、却让目标达不成的阻碍。',
+              criteria: BLOCK_OPTIONS,
+            },
     },
     {
       name: UNATTAINABLE.tried,
@@ -398,7 +420,7 @@ export function packJudge(material: JudgeMaterial, config: JudgeConfig): Packed 
     rendered[material.body.criteria.indexOf(criterion)] ?? criterion.statement
   const asks = [
     ...split.asked.map(({ criterion }) => criterionAsk(config, criterion, text(criterion))),
-    ...otherAsks(material),
+    ...otherAsks(material, config),
   ]
   const { excerpt } = config.packaging
   const ladder: readonly Shape[] = [1, 2, 4, 8].map(part => ({

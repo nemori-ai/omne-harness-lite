@@ -1,4 +1,4 @@
-import { DEFAULT_JUDGE_CONFIG, packJudge, type JudgeMaterial } from '@omne-harness/goal-contract'
+import { BASELINE_JUDGE_CONFIG, packJudge, type JudgeMaterial } from '@omne-harness/goal-contract'
 import { FAMILIES, SPLITS, type Case, type Mutation, type Parent } from './case.ts'
 import { casesOf, materialOf } from './mutate.ts'
 
@@ -6,7 +6,7 @@ type Evidence = Readonly<
   Record<string, readonly { laterWrites?: unknown; changesCheck?: unknown }[]>
 >
 const evidenceOf = (material: JudgeMaterial): Evidence => {
-  const packed = packJudge(material, DEFAULT_JUDGE_CONFIG)
+  const packed = packJudge(material, BASELINE_JUDGE_CONFIG)
   return Object.assign({}, ...packed.requests.map(request => request.state.evidence)) as Evidence
 }
 const doubted = (evidence: Evidence, id: string, by: 'laterWrites' | 'changesCheck'): boolean =>
@@ -32,7 +32,7 @@ function childIssues(parent: Parent, clean: Evidence, child: Case, mutation: Mut
   const issues: string[] = []
   const say = (text: string) => issues.push(`${child.id}: ${text}`)
   const { material, expected } = child
-  const packed = packJudge(material, DEFAULT_JUDGE_CONFIG)
+  const packed = packJudge(material, BASELINE_JUDGE_CONFIG)
   for (const [id, reading] of Object.entries(packed.decided)) {
     const entry = expected.entries[id]
     if (entry === undefined || reading === undefined) continue
@@ -75,7 +75,7 @@ export function parentIssues(parent: Parent): readonly string[] {
     if (!refs.includes(ref)) say(`the progress list cites ${ref}, which is no call`)
   const ids = parent.mutations.map(mutation => mutation.id)
   if (new Set(ids).size !== ids.length) say('two mutations share an id')
-  const packed = packJudge(material, DEFAULT_JUDGE_CONFIG)
+  const packed = packJudge(material, BASELINE_JUDGE_CONFIG)
   for (const [id, reading] of Object.entries(packed.decided))
     if (reading !== 'holds') say(`the clean session leaves ${id} at ${reading}`)
   const asked = packed.requests.flatMap(request => Object.keys(request.questions))

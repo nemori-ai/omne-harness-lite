@@ -1,0 +1,11 @@
+{
+  "packaging": {
+    "activity": "all",
+    "flags": "guarded",
+    "drafts": "superseded"
+  },
+  "instructions": {
+    "exits": "guided",
+    "unattainable": "plain"
+  }
+}

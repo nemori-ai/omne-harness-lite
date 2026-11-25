@@ -32,6 +32,8 @@ export const JudgeConfigSchema = z.strictObject({
   instructions: z.strictObject({
     criterion: z.enum(['statement', 'rendered']),
     rules: z.array(z.string().min(1).max(200)).max(8),
+    exits: z.enum(['statement', 'guided']).default('statement'),
+    unattainable: z.enum(['kind', 'plain']).default('kind'),
   }),
   packaging: z.strictObject({
     excerpt: z.int().min(200).max(2000),
@@ -39,7 +41,8 @@ export const JudgeConfigSchema = z.strictObject({
     notes: z.boolean(),
     staleness: z.enum(['marked', 'decided']),
     activity: z.enum(['lines', 'excerpts', 'all']),
-    flags: z.enum(['keys', 'notes']),
+    flags: z.enum(['keys', 'notes', 'guarded']),
+    drafts: z.enum(['later', 'superseded']).default('later'),
   }),
   model: z.string().min(1),
   line: z.number().min(0.5).max(0.99),
@@ -55,9 +58,15 @@ export const JUDGE_MODELS = Object.freeze([
   'typesafe/jev-1.13',
 ] as const)
 export type JudgeModel = (typeof JUDGE_MODELS)[number]
-export const DEFAULT_JUDGE_CONFIG: JudgeConfig = Object.freeze({
+/** How a judging was asked before anything was tuned: the scheme the bench measures every other one against. */
+export const BASELINE_JUDGE_CONFIG: JudgeConfig = Object.freeze({
   split: 'one',
-  instructions: Object.freeze({ criterion: 'rendered', rules: [] }),
+  instructions: Object.freeze({
+    criterion: 'rendered',
+    rules: [],
+    exits: 'statement',
+    unattainable: 'kind',
+  }),
   packaging: Object.freeze({
     excerpt: 2000,
     take: 'both',
@@ -65,8 +74,25 @@ export const DEFAULT_JUDGE_CONFIG: JudgeConfig = Object.freeze({
     staleness: 'marked',
     activity: 'lines',
     flags: 'keys',
+    drafts: 'later',
   }),
   model: DEFAULT_JUDGE_MODEL,
   line: 0.9,
   votes: 1,
+})
+
+/** How a judging is asked now: the scheme the bench settled on. What differs from the baseline is what the measurements earned. */
+export const DEFAULT_JUDGE_CONFIG: JudgeConfig = Object.freeze({
+  ...BASELINE_JUDGE_CONFIG,
+  instructions: Object.freeze({
+    ...BASELINE_JUDGE_CONFIG.instructions,
+    exits: 'guided',
+    unattainable: 'plain',
+  }),
+  packaging: Object.freeze({
+    ...BASELINE_JUDGE_CONFIG.packaging,
+    activity: 'all',
+    flags: 'guarded',
+    drafts: 'superseded',
+  }),
 })

@@ -1,4 +1,6 @@
-import { quantile } from './score.ts'
+import { FAMILIES } from './case.ts'
+import type { Report } from './report.ts'
+import { lossOf, quantile, type Graded, type Rate } from './score.ts'
 
 /** What one parent's cases came to in one run: how many entries were graded and what they cost. */
 export type ParentTally = Readonly<{
@@ -53,4 +55,59 @@ export function pairedLoss(
     high: quantile(draws, 0.975),
     parents: parents.length,
   }
+}
+
+/** What each parent's cases came to: the unit two runs are compared over. */
+export function talliesOf(entries: readonly Graded[]): Tallies {
+  const tallies: Record<string, ParentTally> = {}
+  for (const entry of entries) {
+    const parent = entry.case.split('/')[0] ?? entry.case
+    const before = tallies[parent] ?? { entries: 0, loss: 0, notHolds: 0, falseHolds: 0 }
+    const judged = entry.kind === 'criterion' && entry.asked && entry.truth !== 'holds'
+    tallies[parent] = {
+      entries: before.entries + 1,
+      loss: before.loss + lossOf(entry),
+      notHolds: before.notHolds + (judged ? 1 : 0),
+      falseHolds: before.falseHolds + (judged && entry.said === 'holds' ? 1 : 0),
+    }
+  }
+  return tallies
+}
+
+const pct = (value: number): string => `${(value * 100).toFixed(1)}%`
+const of = (found: Rate): string =>
+  `${pct(found.rate)}（${String(found.errors)}/${String(found.n)}）`
+const signed = (value: number): string => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(3)}`
+
+/** Two runs over the same cases, side by side: the gates, what ranks them, what they cost, and the paired difference of their loss. */
+export function renderComparison(base: Report, candidate: Report, paired: Paired): string {
+  const sides = [base, candidate] as const
+  const row = (name: string, cell: (report: Report) => string): string =>
+    `| ${name} | ${sides.map(cell).join(' | ')} |`
+  const families = FAMILIES.filter(family =>
+    sides.some(report => report.gates.discrimination[family] !== undefined),
+  )
+  return [
+    `数据：\`${candidate.split}\`，${String(candidate.parents)} 个母本，${String(candidate.cases)} 个用例。`,
+    '',
+    '| 指标 | 基线 | 最终 |',
+    '| --- | --- | --- |',
+    row('误判成立率', r => `${of(r.gates.falseHolds)}，95% 上界 ${pct(r.gates.falseHolds.upper)}`),
+    row('目标级的误收场率', r => of(r.gates.falseSettles)),
+    ...families.map(family =>
+      row(`成对的分辨力 · ${family}`, r => {
+        const found = r.gates.discrimination[family]
+        return found === undefined ? '—' : `${found.value.toFixed(2)}（${String(found.n)} 对）`
+      }),
+    ),
+    row('漏放率', r => of(r.ranking.missed)),
+    row('过度弃权率', r => of(r.ranking.abstained)),
+    row('守则漏报率', r => of(r.ranking.missedViolations)),
+    row('加权损失', r => r.ranking.loss.toFixed(3)),
+    row('每个用例的请求数', r => r.cost.requestsPerCase.toFixed(2)),
+    row('每个用例的费用（美元）', r => r.cost.costPerCase.toFixed(5)),
+    '',
+    `加权损失的成对差：最终减基线 ${signed(paired.difference)}，95% 区间 ${signed(paired.low)} 到 ${signed(paired.high)}（按 ${String(paired.parents)} 个母本重抽样）。`,
+    '',
+  ].join('\n')
 }

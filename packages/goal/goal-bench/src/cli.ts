@@ -1,17 +1,14 @@
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
-import {
-  DEFAULT_JUDGE_CONFIG,
-  JudgeConfigSchema,
-  packJudge,
-  type JudgeConfig,
-} from '@omne-harness/goal-contract'
+import { packJudge } from '@omne-harness/goal-contract'
 import { SPLITS, type Case, type Split } from './case.ts'
 import { datasetIssues, parentIssues } from './check.ts'
 import { fileCache, openRouterDecide } from './client.ts'
 import { DATA, digestOf, loadParents, loadSignOffs, unsigned, type SignOff } from './data.ts'
+import { pairedLoss, renderComparison, talliesOf } from './compare.ts'
+import { configOf } from './config.ts'
 import { graded } from './grade.ts'
 import { casesOf } from './mutate.ts'
 import { replay, requestKey, type Decide, type Replayed } from './replay.ts'
@@ -27,8 +24,13 @@ const USAGE = `goal-bench: the bench of the goal judge
       [--key-file <file>] [--offline] [--repeats <n>] [--shuffle <seed>] [--max-cost <usd>] [--out <dir>]
       replay the judge over a split; keeps experiments/<name>/{report.json,replies.jsonl}
       and writes the page <out>/<name>/report.md (default: the system's temporary directory)
-      --config   a partial configuration merged over the default one
+      --config   a partial configuration merged over the baseline scheme (configs/final.json is the default one)
       --offline  answer from the kept replies only; a request that is not kept fails the run
+  compare --name <comparison> --split <split>[,<split>…] --config <file.json> [--base <file.json>]
+      [--key-file <file>] [--offline] [--max-cost <usd>] [--out <dir>]
+      replay two configurations over the same cases and set them side by side;
+      keeps experiments/<name>/compare.json and writes the page <out>/<name>/compare.md
+      --base     the configuration compared against (default: the baseline scheme)
 `
 const EXPERIMENTS = join(DATA, '..', 'experiments')
 const PRICE_GUESS = 0.0002
@@ -81,19 +83,13 @@ function sign(by: string | undefined, at: string): number {
   return all.length === parents.length ? 0 : 1
 }
 
-function configOf(file: string | undefined): JudgeConfig {
-  if (file === undefined) return DEFAULT_JUDGE_CONFIG
-  const given = JSON.parse(readFileSync(file, 'utf8')) as Partial<JudgeConfig>
-  const packaging = { ...DEFAULT_JUDGE_CONFIG.packaging, ...given.packaging }
-  const instructions = { ...DEFAULT_JUDGE_CONFIG.instructions, ...given.instructions }
-  return JudgeConfigSchema.parse({ ...DEFAULT_JUDGE_CONFIG, ...given, packaging, instructions })
-}
-
 function casesIn(split: string): readonly Case[] {
   const cases = loadParents().flatMap(casesOf)
   if (split === 'all') return cases
-  if (!SPLITS.includes(split as Split)) throw new Error(`no split ${split}`)
-  return cases.filter(entry => entry.split === split)
+  const wanted = split.split(',')
+  for (const name of wanted)
+    if (!SPLITS.includes(name as Split)) throw new Error(`no split ${name}`)
+  return cases.filter(entry => wanted.includes(entry.split))
 }
 
 function replyFiles(name: string): readonly string[] {
@@ -191,6 +187,58 @@ async function run(flags: RunFlags): Promise<number> {
   }
 }
 
+type CompareFlags = RunFlags & Readonly<{ base?: string }>
+
+/** Replays the base and the candidate over the same cases and keeps the two reports with the paired difference of their loss. */
+async function compare(flags: CompareFlags): Promise<number> {
+  const { name, split = 'verify,canary' } = flags
+  if (name === undefined || !/^[a-z0-9][a-z0-9-]*$/u.test(name) || flags.config === undefined) {
+    console.error('compare needs --name <comparison> and --config <file.json>')
+    return 2
+  }
+  const sides = [configOf(flags.base), configOf(flags.config)] as const
+  const cases = casesIn(split)
+  const cache = fileCache(replyFiles(name))
+  const unkept = sides.flatMap(config =>
+    cases.flatMap(entry =>
+      packJudge(entry.material, config).requests.filter(
+        request => cache.get(requestKey({ ...request, model: config.model }, 0, 0)) === undefined,
+      ),
+    ),
+  ).length
+  const ceiling = Number(flags['max-cost'] ?? '1')
+  if (unkept * PRICE_GUESS > ceiling) {
+    console.error(`this comparison may cost about ${(unkept * PRICE_GUESS).toFixed(2)} USD`)
+    return 2
+  }
+  const offline: Decide = () =>
+    Promise.reject(new Error('offline: a request is not among the kept replies'))
+  const live = flags.offline === true ? null : openRouterDecide(flags['key-file'] ?? '')
+  try {
+    const options = { decide: live?.decide ?? offline, cache }
+    const [base, candidate] = [
+      await replay(cases, sides[0], options),
+      await replay(cases, sides[1], options),
+    ]
+    const reports = [
+      reportOf(`${name}:base`, sides[0], split, base),
+      reportOf(`${name}:candidate`, sides[1], split, candidate),
+    ] as const
+    const tallies = (replayed: Replayed) => talliesOf(replayed.outcomes.flatMap(graded))
+    const paired = pairedLoss(tallies(base), tallies(candidate))
+    const kept = { base: reports[0], candidate: reports[1], paired }
+    writeFileSync(join(EXPERIMENTS, name, 'compare.json'), `${JSON.stringify(kept, null, 2)}\n`)
+    const pages = join(flags.out ?? join(tmpdir(), 'goal-bench'), name)
+    mkdirSync(pages, { recursive: true })
+    const page = `# ${name}\n\n${renderComparison(reports[0], reports[1], paired)}`
+    writeFileSync(join(pages, 'compare.md'), page)
+    console.log(page)
+    return 0
+  } finally {
+    await live?.close()
+  }
+}
+
 async function main(): Promise<number> {
   const { positionals, values } = parseArgs({
     allowPositionals: true,
@@ -206,6 +254,7 @@ async function main(): Promise<number> {
       shuffle: { type: 'string' },
       'max-cost': { type: 'string' },
       out: { type: 'string' },
+      base: { type: 'string' },
     },
   })
   switch (positionals[0]) {
@@ -218,6 +267,8 @@ async function main(): Promise<number> {
       )
     case 'run':
       return run(values)
+    case 'compare':
+      return compare(values)
     default:
       console.error(USAGE)
       return 2

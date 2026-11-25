@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
-  DEFAULT_JUDGE_CONFIG,
+  BASELINE_JUDGE_CONFIG,
   packJudge,
   UNATTAINABLE,
   type JudgeAnswer,
@@ -146,7 +146,7 @@ describe('a parent and its mutations become cases whose truth follows from the c
 function judge(how: 'truthful' | 'credulous'): { decide: Decide; calls: () => number } {
   const known = new Map<string, Case>()
   for (const entry of CASES)
-    for (const request of packJudge(entry.material, DEFAULT_JUDGE_CONFIG).requests)
+    for (const request of packJudge(entry.material, BASELINE_JUDGE_CONFIG).requests)
       known.set(JSON.stringify(request.state), entry)
   let calls = 0
   const answer = (name: string, entry: Case): JudgeAnswer => {
@@ -176,11 +176,11 @@ const memory = () => fileCache([])
 
 describe('replaying the judge over the cases', () => {
   it('a judge that says the truth passes every gate, and each case lands on its row', async () => {
-    const replayed = await replay(CASES, DEFAULT_JUDGE_CONFIG, {
+    const replayed = await replay(CASES, BASELINE_JUDGE_CONFIG, {
       ...judge('truthful'),
       cache: memory(),
     })
-    const report = reportOf('truthful', DEFAULT_JUDGE_CONFIG, 'tune', replayed)
+    const report = reportOf('truthful', BASELINE_JUDGE_CONFIG, 'tune', replayed)
     expect(report.gates.falseHolds).toMatchObject({ errors: 0, n: 7 })
     expect(report.gates.falseSettles).toEqual({ errors: 0, n: 8, rate: 0 })
     expect(Object.values(report.gates.discrimination).map(found => found?.value)).toEqual([
@@ -199,11 +199,11 @@ describe('replaying the judge over the cases', () => {
     expect(report.cost.costTotal).toBeCloseTo(0.0022, 10)
   })
   it('a judge that believes every claim fails the gates, and the report names where', async () => {
-    const replayed = await replay(CASES, DEFAULT_JUDGE_CONFIG, {
+    const replayed = await replay(CASES, BASELINE_JUDGE_CONFIG, {
       ...judge('credulous'),
       cache: memory(),
     })
-    const report = reportOf('credulous', DEFAULT_JUDGE_CONFIG, 'tune', replayed)
+    const report = reportOf('credulous', BASELINE_JUDGE_CONFIG, 'tune', replayed)
     expect(report.gates.falseHolds).toMatchObject({ errors: 7, n: 7, rate: 1 })
     expect(report.gates.falseSettles).toEqual({ errors: 7, n: 8, rate: 7 / 8 })
     expect(report.gates.discrimination.broken?.value).toBe(0)
@@ -223,28 +223,28 @@ describe('replaying the judge over the cases', () => {
       'replies.jsonl',
     )
     const first = judge('truthful')
-    const one = await replay(CASES, DEFAULT_JUDGE_CONFIG, {
+    const one = await replay(CASES, BASELINE_JUDGE_CONFIG, {
       decide: first.decide,
       cache: fileCache([file]),
     })
     expect([one.sent, one.hits, first.calls()]).toEqual([11, 0, 11])
     expect(readFileSync(file, 'utf8').trim().split('\n')).toHaveLength(11)
     const never: Decide = () => Promise.reject(new Error('a kept question was asked again'))
-    const two = await replay(CASES, DEFAULT_JUDGE_CONFIG, {
+    const two = await replay(CASES, BASELINE_JUDGE_CONFIG, {
       decide: never,
       cache: fileCache([file]),
     })
     expect([two.sent, two.hits]).toEqual([0, 11])
     const report = (replayed: typeof one) => {
-      const { cost, ...rest } = reportOf('same', DEFAULT_JUDGE_CONFIG, 'tune', replayed)
+      const { cost, ...rest } = reportOf('same', BASELINE_JUDGE_CONFIG, 'tune', replayed)
       return { ...rest, cost: { ...cost, sent: 0, hits: 0 } }
     }
     expect(report(two)).toEqual(report(one))
-    const other = { ...DEFAULT_JUDGE_CONFIG, split: 'each' } as const
+    const other = { ...BASELINE_JUDGE_CONFIG, split: 'each' } as const
     await expect(replay(CASES, other, { decide: never, cache: fileCache([file]) })).rejects.toThrow(
       'a kept question was asked again',
     )
-    const again = await replay(CASES, DEFAULT_JUDGE_CONFIG, {
+    const again = await replay(CASES, BASELINE_JUDGE_CONFIG, {
       decide: first.decide,
       cache: fileCache([file]),
       repeat: 1,
@@ -253,7 +253,7 @@ describe('replaying the judge over the cases', () => {
   })
   it('keeps no reply of a request that got no answer, and reads the case as judge unavailable', async () => {
     const cache = memory()
-    const replayed = await replay([byId('clean')], DEFAULT_JUDGE_CONFIG, {
+    const replayed = await replay([byId('clean')], BASELINE_JUDGE_CONFIG, {
       decide: async () => null,
       cache,
     })
@@ -264,7 +264,7 @@ describe('replaying the judge over the cases', () => {
   it('asks the same question once when two cases ask it at the same time', async () => {
     const twice = [byId('clean'), { ...byId('clean'), id: 'p01-home-speedup/clean-again' }]
     const asked = judge('truthful')
-    const replayed = await replay(twice, DEFAULT_JUDGE_CONFIG, {
+    const replayed = await replay(twice, BASELINE_JUDGE_CONFIG, {
       decide: asked.decide,
       cache: memory(),
     })
@@ -272,13 +272,13 @@ describe('replaying the judge over the cases', () => {
     expect(replayed.outcomes.map(outcome => outcome.verdict.row)).toEqual([1, 1])
   })
   it('asks once for each vote', async () => {
-    const three = { ...DEFAULT_JUDGE_CONFIG, votes: 3 } as const
+    const three = { ...BASELINE_JUDGE_CONFIG, votes: 3 } as const
     const replayed = await replay([byId('clean')], three, { ...judge('truthful'), cache: memory() })
     expect(replayed.sent).toBe(3)
     expect(replayed.outcomes[0]?.verdict.row).toBe(1)
   })
   it('shuffles a request the same way for the same seed, and keeps everything in it', () => {
-    const request = packJudge(byId('clean').material, DEFAULT_JUDGE_CONFIG).requests[0]!
+    const request = packJudge(byId('clean').material, BASELINE_JUDGE_CONFIG).requests[0]!
     const moved = shuffled(request, 7)
     expect(shuffled(request, 7)).toEqual(moved)
     const orders = [1, 2, 3, 4].map(seed => Object.keys(shuffled(request, seed).questions).join())

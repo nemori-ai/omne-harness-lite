@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BASELINE_JUDGE_CONFIG,
   DEFAULT_JUDGE_CONFIG,
   excerptOf,
+  DEAD_END_PLAIN,
+  EXIT_GUIDE,
   FLAG_NOTES,
+  JudgeConfigSchema,
   JUDGE_LIMITS,
   NO_PROGRESS,
   packJudge,
@@ -61,11 +65,11 @@ function material(change: Partial<JudgeMaterial> = {}): JudgeMaterial {
   }
 }
 const config = (change: Partial<JudgeConfig> = {}): JudgeConfig => ({
-  ...DEFAULT_JUDGE_CONFIG,
+  ...BASELINE_JUDGE_CONFIG,
   ...change,
 })
 const packaging = (change: Partial<JudgeConfig['packaging']>): JudgeConfig =>
-  config({ packaging: { ...DEFAULT_JUDGE_CONFIG.packaging, ...change } })
+  config({ packaging: { ...BASELINE_JUDGE_CONFIG.packaging, ...change } })
 const names = (requests: ReturnType<typeof packJudge>['requests']) =>
   requests.map(request => Object.keys(request.questions))
 type State = {
@@ -201,7 +205,9 @@ describe('what a request says, word for word', () => {
     const input = material({ body: bodyOf(CONDITION), progress: { ...PROGRESS, obstacle } })
     const { questions } = packJudge(
       input,
-      config({ instructions: { criterion: 'statement', rules: [] } }),
+      config({
+        instructions: { ...BASELINE_JUDGE_CONFIG.instructions, criterion: 'statement', rules: [] },
+      }),
     ).requests[0]!
     expect(questions).toEqual({
       A3: {
@@ -578,8 +584,10 @@ describe('the six things a configuration changes', () => {
   })
   it('writes a question with the statement alone or the rendered entry, then the general rules it is given', () => {
     const text = (criterion: 'statement' | 'rendered', rules: string[] = []) =>
-      packJudge(material(), config({ instructions: { criterion, rules } })).requests[0]!.questions
-        .A3!.instructions
+      packJudge(
+        material(),
+        config({ instructions: { ...BASELINE_JUDGE_CONFIG.instructions, criterion, rules } }),
+      ).requests[0]!.questions.A3!.instructions
     expect(text('statement')).toBe('判据 A3 现在成立没有：改动说明写进了 CHANGELOG')
     expect(text('rendered')).toBe(
       '判据 A3 现在成立没有。\n- [A3] 改动说明写进了 CHANGELOG\n  - 证据: 文件 `CHANGELOG.md`\n  - 通过: 「未发布」一节下有一条讲这次提速的新条目',
@@ -591,7 +599,12 @@ describe('the six things a configuration changes', () => {
     expect(text('statement', [rules[0]!])).toBe(
       `${text('statement')}\n进展清单是 agent 的说法，不是证据。`,
     )
-    const other = packJudge(material(), config({ instructions: { criterion: 'rendered', rules } }))
+    const other = packJudge(
+      material(),
+      config({
+        instructions: { ...BASELINE_JUDGE_CONFIG.instructions, criterion: 'rendered', rules },
+      }),
+    )
     expect(other.requests[0]!.questions.N1!.instructions).toBe('守则 N1 守住了没有：不改公共接口。')
   })
   it('gives or withholds the agent’s note', () => {
@@ -929,5 +942,120 @@ describe('the findings of one observation', () => {
     expect(blockedBy(['call-54'], chose('blocked', 0.95), yes(0.5))).toBe(false)
     expect(blockedBy(['call-999'], chose('blocked', 0.95), yes(0.95))).toBe(false)
     expect(blockedBy([], chose('blocked', 0.95), yes(0.95))).toBe(false)
+  })
+})
+
+describe('the three ways of asking the bench can switch on', () => {
+  const instructing = (change: Partial<JudgeConfig['instructions']>): JudgeConfig =>
+    config({ instructions: { ...BASELINE_JUDGE_CONFIG.instructions, ...change } })
+
+  it('are on in the default scheme, which differs from the baseline in what the bench earned and nothing else', () => {
+    const { instructions, packaging, ...rest } = DEFAULT_JUDGE_CONFIG
+    const { instructions: was, packaging: packed, ...before } = BASELINE_JUDGE_CONFIG
+    expect(rest).toEqual(before)
+    expect(instructions).toEqual({ ...was, exits: 'guided', unattainable: 'plain' })
+    expect(packaging).toEqual({
+      ...packed,
+      activity: 'all',
+      flags: 'guarded',
+      drafts: 'superseded',
+    })
+    expect(JudgeConfigSchema.parse(DEFAULT_JUDGE_CONFIG)).toEqual(DEFAULT_JUDGE_CONFIG)
+  })
+
+  it('keeps asking as before for a configuration written before they were there', () => {
+    const { exits, unattainable, ...instructions } = BASELINE_JUDGE_CONFIG.instructions
+    const { drafts, ...old } = BASELINE_JUDGE_CONFIG.packaging
+    const parsed = JudgeConfigSchema.parse({
+      ...BASELINE_JUDGE_CONFIG,
+      instructions,
+      packaging: old,
+    })
+    expect([exits, unattainable, drafts]).toEqual(['statement', 'kind', 'later'])
+    expect(parsed).toEqual(BASELINE_JUDGE_CONFIG)
+  })
+
+  it('names an earlier draft of the same file as superseded by the latest write, not as possibly out of date', () => {
+    const progress = {
+      ...PROGRESS,
+      criteria: { A3: { status: 'doing', refs: ['call-50'], note: '' } },
+    } as Progress
+    const calls = [WRITE(50, 'CHANGELOG.md'), WRITE(51, 'CHANGELOG.md'), CHANGELOG]
+    const input = material({ calls, progress })
+    const drafts = packaging({ drafts: 'superseded', flags: 'notes' })
+    const items = stateOf(packJudge(input, drafts)).evidence.A3 as Record<string, unknown>[]
+    expect(items.map(item => [item.ref, item.supersededBy, item.laterWrites])).toEqual([
+      ['call-50', 'call-52', undefined],
+      ['call-52', undefined, undefined],
+    ])
+    expect(items[0]?.note).toBe(FLAG_NOTES.superseded)
+    expect(items[1]).not.toHaveProperty('note')
+  })
+
+  it('says of a later write that it matters only when it can change the result, when the flags are guarded', () => {
+    const calls = [CHANGELOG, E2E(54, 0), WRITE(55, 'src/home.tsx')]
+    const noted = (flags: 'notes' | 'guarded') =>
+      (
+        stateOf(packJudge(material({ calls }), packaging({ flags }))).evidence.A2![0] as {
+          note?: string
+        }
+      ).note
+    expect(noted('notes')).toBe(FLAG_NOTES.later)
+    expect(noted('guarded')).toBe(FLAG_NOTES.laterGuarded)
+    expect(FLAG_NOTES.laterGuarded).not.toBe(FLAG_NOTES.later)
+  })
+
+  it('hangs no later write on an item that is itself a write, and says of a changed check that adding one changes nothing', () => {
+    const added = WRITE(53, 'tests/e2e/home.spec.ts', '+ expect(ms).toBeLessThan(800)')
+    const calls = [CHANGELOG, added, E2E(54, 0), WRITE(55, 'src/home.tsx')]
+    const before = stateOf(packJudge(material({ calls }), packaging({ flags: 'notes' }))).evidence
+    expect(before.A2![0]).toMatchObject({ ref: 'call-53', laterWrites: ['src/home.tsx'] })
+    const careful = packaging({ flags: 'guarded', drafts: 'superseded' })
+    const [check, ran] = stateOf(packJudge(material({ calls }), careful)).evidence.A2 as {
+      ref: string
+      note?: string
+      laterWrites?: string[]
+    }[]
+    expect(check).toMatchObject({ ref: 'call-53', note: FLAG_NOTES.checkGuarded })
+    expect(check).not.toHaveProperty('laterWrites')
+    expect(ran).toMatchObject({ ref: 'call-54', laterWrites: ['src/home.tsx'] })
+    expect(ran?.note).toBe(FLAG_NOTES.laterGuarded)
+  })
+
+  it('still marks a write after a command ran as a later write, whichever way drafts are named', () => {
+    const calls = [CHANGELOG, E2E(54, 0), WRITE(55, 'src/home.tsx')]
+    const state = stateOf(packJudge(material({ calls }), packaging({ drafts: 'superseded' })))
+    expect(state.evidence.A2?.[0]).toMatchObject({ laterWrites: ['src/home.tsx'] })
+    expect(state.evidence.A2?.[0]).not.toHaveProperty('supersededBy')
+  })
+
+  it('says with an exit question what counts as the case having come about, when so configured', () => {
+    const plain = packJudge(material(), config()).requests[0]!.questions.X3
+    expect(plain?.instructions).toBe('退出 X3 写的情形出现了没有：要改公共接口才能达标')
+    const guided = packJudge(material(), instructing({ exits: 'guided' })).requests[0]!.questions.X3
+    expect(guided?.instructions).toBe(
+      `退出 X3 写的情形出现了没有：要改公共接口才能达标。${EXIT_GUIDE}`,
+    )
+  })
+
+  it('asks whether there is a dead end as a plain yes or no, and reads it over the line like the kinds', () => {
+    const obstacle = { what: '测试环境连不上', tried: ['call-54'], exit: null }
+    const input = material({ progress: { ...PROGRESS, obstacle } })
+    const plainly = instructing({ unattainable: 'plain' })
+    const packed = packJudge(input, plainly)
+    const asked = packed.requests[0]!.questions
+    expect(asked.U1).toEqual({ type: 'noul', instructions: DEAD_END_PLAIN })
+    expect(asked.U2?.type).toBe('noul')
+    const reply = (blocked: number) => ({
+      A3: { type: 'choice', choice: 'holds', probabilities: { holds: 0.99 } },
+      N1: { type: 'choice', choice: 'kept', probabilities: { kept: 0.99 } },
+      N2: { type: 'choice', choice: 'kept', probabilities: { kept: 0.99 } },
+      X3: { type: 'noul', noul: 0 },
+      U1: { type: 'noul', noul: blocked },
+      U2: { type: 'noul', noul: 1 },
+    })
+    const read = (blocked: number) =>
+      readJudge(input, plainly, packed, [[reply(blocked) as never]]).unattainable
+    expect([read(0.95), read(0.89), read(0)]).toEqual([true, false, false])
   })
 })
