@@ -17,6 +17,7 @@ const POINT = {
   sidebar: 'shell.sidebar',
   float: 'shell.float',
   back: 'shell.back',
+  say: 'shell.say',
   actions: 'shell.actions',
   keymap: 'shell.keymap',
 } as const
@@ -35,7 +36,7 @@ const SHARED = {
   conformance: null,
 } as const
 
-/** The five places of the shell itself. What they hold is fixed when the application is built. */
+/** The six places of the shell itself. What they hold is fixed when the application is built. */
 export const shellContracts: readonly Contract[] = [
   {
     ...SHARED,
@@ -82,6 +83,26 @@ export const shellContracts: readonly Contract[] = [
     binding: 'build',
     onError: 'only this item shows that it cannot be read; the shell still turns to the front',
     summary: `The back of the application: its other face once somebody is signed in. ${FIXED}`,
+  },
+  {
+    ...SHARED,
+    name: POINT.say,
+    arity: 'one',
+    item: {
+      kind: 'pure',
+      fields: {
+        targets: 'function',
+        current: 'function',
+        subscribe: 'function',
+        say: 'function',
+        show: 'function',
+      },
+    },
+    gives: 'nothing: the shell hands the tenant scope with each call',
+    binding: 'build',
+    onError:
+      'a reading that throws or answers undefined lets nothing be said; a say that throws ends unknown and is not said again',
+    summary: `Where the words a person says to the figure go: the item draws nothing, and the shell asks it afresh each time. ${FIXED}`,
   },
 ]
 
@@ -166,6 +187,7 @@ const SPOT: { readonly [K in SlotName]: (item: ItemOf<K>) => Spot } = {
   sidebar: item => ({ point: POINT.sidebar, key: '', id: item.id, rank: item.order }),
   float: item => ({ point: POINT.float, key: '', id: item.id, rank: item.order }),
   back: () => ({ point: POINT.back, key: '', id: '', rank: 0 }),
+  say: () => ({ point: POINT.say, key: '', id: '', rank: 0 }),
   attached: item => ({ ...anchored(item.anchor), id: item.id, rank: item.order }),
   actions: item => ({ point: POINT.actions, key: '', id: item.id, rank: item.order }),
   keymap: () => ({ point: POINT.keymap, key: '', id: '', rank: 0 }),
@@ -190,7 +212,10 @@ function conflictOf(slot: SlotName, entries: readonly Placed[]): SlotConflict {
   return { slot, anchor: first.item.anchor, id: first.id, by }
 }
 
-function oneView<K extends 'gate' | 'back' | 'keymap'>(registry: Registry, slot: K): SlotView<K> {
+function oneView<K extends 'gate' | 'back' | 'say' | 'keymap'>(
+  registry: Registry,
+  slot: K,
+): SlotView<K> {
   const answer = ask<ItemOf<K>>(registry, POINT[slot], '', deployment)
   if (answer.kind === 'one') return { items: [answer.entry.item], conflicts: [] }
   if (answer.kind !== 'conflict') return NOTHING
@@ -236,6 +261,7 @@ const VIEW: { readonly [K in SlotName]: (registry: Registry) => SlotView<K> } = 
   sidebar: registry => listView(registry, 'sidebar', POINT.sidebar),
   float: registry => listView(registry, 'float', POINT.float),
   back: registry => oneView(registry, 'back'),
+  say: registry => oneView(registry, 'say'),
   attached: attachedView,
   actions: registry => listView(registry, 'actions', POINT.actions),
   keymap: registry => oneView(registry, 'keymap'),

@@ -62,6 +62,7 @@ import { EntryFocusContext } from './view/shown-entry.ts'
 import { PermissionModeAction } from './view/permission-mode.tsx'
 import { SessionWork } from './view/session-work.tsx'
 import { sessionPaperItem, sessionPaperPick, sessionParts } from './parts.ts'
+import { sessionSayItem } from './say-item.ts'
 import { sessionKeys } from './session-keys.tsx'
 import { PaperPicker, PaperSession } from './view/paper.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
@@ -330,6 +331,8 @@ const apply = (
       ),
   })
   shell.contribute('float', companionItem(shell, workspaces, background))
+  const spoken = sessionSayItem(shell, workspaces, CONVERSATION_PAGE)
+  shell.contribute('say', spoken.item)
   shell.contribute('sidebar', listItem(shell, { workspaces, places, conversationShown }))
   shell.contribute('sidebar', {
     id: ARCHIVED_SESSIONS,
@@ -415,6 +418,7 @@ const apply = (
   searchPage(shell, new HistorySearchStore(client), workspaces, focus)
   return () => {
     for (const stop of taken) stop()
+    spoken.close()
   }
 }
 
