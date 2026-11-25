@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { profileProblems, type ModelProfileDefinition } from '@omne-harness/model-contract'
+import {
+  mediaLimitMetric,
+  profileProblems,
+  type ModelProfileDefinition,
+} from '@omne-harness/model-contract'
 
 const adoption = { owner: 'tests', name: 'profile', revision: '1', digest: '0'.repeat(64) }
 const supplier = { adoption, provider: 'openrouter', model: 'lab/model' } as never
@@ -64,6 +68,18 @@ describe('profileProblems', () => {
     expect(profileProblems(withContext({ output: limit('1000') }))).toEqual([])
   })
 
+  it('compares a limit with every finite decimal upstream, and with no other', () => {
+    const upstream = (amount: string) => ({
+      supplier: adoption,
+      limit: { kind: 'finite', amount, source: adoption } as const,
+    })
+    const window = (...amounts: string[]) => ({ provided: '1000', upstream: amounts.map(upstream) })
+    expect(profileProblems(withContext({ window: window('5000', '999') }))).toEqual([
+      'context.window',
+    ])
+    expect(profileProblems(withContext({ window: window('5000', 'abc') }))).toEqual([])
+  })
+
   it.each([
     [
       'a window that is not a positive integer',
@@ -100,5 +116,17 @@ describe('profileProblems', () => {
     ['file types without a file byte limit', without('file-bytes'), ['limits.file-bytes']],
   ])('names the field for %s', (_name, definition, fields) => {
     expect(profileProblems(definition as ModelProfileDefinition)).toEqual(fields)
+  })
+})
+
+describe('mediaLimitMetric', () => {
+  it.each([
+    ['image/png', 'image-bytes'],
+    ['audio/wav', 'voice-bytes'],
+    ['application/pdf', 'file-bytes'],
+    ['text/csv', 'file-bytes'],
+    ['no type', 'file-bytes'],
+  ])('holds %s to the %s limit', (mediaType, metric) => {
+    expect(mediaLimitMetric(mediaType)).toBe(metric)
   })
 })

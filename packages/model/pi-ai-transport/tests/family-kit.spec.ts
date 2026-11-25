@@ -116,6 +116,12 @@ describe('officialProfilesOf', () => {
     expect(Object.keys(profile ?? {}).slice(2, 5)).toEqual(['input', 'fileTypes', 'output'])
     expect(profile?.fileTypes).toEqual(['application/pdf'])
     expect(profile?.context.input).toEqual(profile?.context.window)
+    const supplier = recordAdoption(OWNER, record)
+    expect(profile?.limits.at(-1)).toEqual({
+      metric: 'file-bytes',
+      provided: '9',
+      upstream: [{ supplier, limit: { kind: 'unknown' } }],
+    })
   })
 
   it('accepts a compaction trigger from 1 to 100 percent and nothing else', () => {

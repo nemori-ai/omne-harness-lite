@@ -23,8 +23,8 @@ function tokenProblems(context: ContextLimits): string[] {
   for (const [field, limit] of named) {
     if (limit === null) continue
     if (!POSITIVE.test(limit.provided) || exceedsUpstream(limit)) problems.push(field)
-    else if (field !== 'context.window' && POSITIVE.test(window.provided))
-      if (BigInt(limit.provided) > BigInt(window.provided)) problems.push(field)
+    else if (POSITIVE.test(window.provided) && BigInt(limit.provided) > BigInt(window.provided))
+      problems.push(field)
   }
   if (!PERCENT.test(context.compactionTriggerPercent))
     problems.push('context.compactionTriggerPercent')
