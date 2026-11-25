@@ -382,10 +382,17 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
         outcome: 'inconvertible',
       }
       assert.deepEqual(ok(await record(cannot)), cannot)
+      const encrypted: Representation = {
+        ...cannot,
+        definition: definition('4'),
+        reason: 'encrypted',
+      }
+      assert.deepEqual(ok(await record(encrypted)), encrypted)
       const read = (revision: string, tenant = T1, letter = 'a') =>
         index.readRepresentation({ tenant, key: key(letter), definition: definition(revision) })
       assert.deepEqual(ok(await read('1')), first)
       assert.deepEqual(ok(await read('2')), cannot)
+      assert.deepEqual(ok(await read('4')), encrypted)
       assert.equal(ok(await read('3')), null)
       assert.equal(ok(await read('1', T2)), null)
       assert.equal(ok(await read('1', T1, 'z')), null)

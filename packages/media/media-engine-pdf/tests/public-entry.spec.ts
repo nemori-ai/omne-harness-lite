@@ -73,11 +73,13 @@ describe('the engine pdf.extract-text', () => {
 
   it('says a PDF with no text layer, on one page or on two, and a file that is no PDF, cannot be converted', async () => {
     const engine = createPdfTextEngine()
-    expect(await engine.convert(inputOf(sample('no-text-two-pages.pdf')))).toEqual({
+    const noText = { kind: 'inconvertible', reason: 'no-text' }
+    expect(await engine.convert(inputOf(sample('no-text-two-pages.pdf')))).toEqual(noText)
+    expect(await engine.convert(inputOf(sample('no-text.pdf')))).toEqual(noText)
+    expect(await engine.convert(inputOf(sample('broken.pdf')))).toEqual({
       kind: 'inconvertible',
+      reason: 'damaged',
     })
-    expect(await engine.convert(inputOf(sample('no-text.pdf')))).toEqual({ kind: 'inconvertible' })
-    expect(await engine.convert(inputOf(sample('broken.pdf')))).toEqual({ kind: 'inconvertible' })
   })
 
   it('reads the medium in parts, and answers an error once it is cancelled', async () => {

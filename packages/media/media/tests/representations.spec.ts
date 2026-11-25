@@ -159,6 +159,20 @@ describe('making a representation ready, step by step', () => {
     expect(calls).toHaveLength(1)
   })
 
+  it('keeps why a medium cannot be converted, when its engine says', async () => {
+    const w = world()
+    const { calls } = converting(w, async () => ({ kind: 'inconvertible', reason: 'encrypted' }))
+    const ref = await voice(w)
+    const first = ok(await ensure(w, ref))
+    expect(first).toMatchObject({
+      kind: 'done',
+      representation: { outcome: 'inconvertible', reason: 'encrypted' },
+    })
+    w.restart()
+    expect(await read(w, ref)).toEqual(first)
+    expect(calls).toHaveLength(1)
+  })
+
   it('a new version of the definition is another representation; the old one stays', async () => {
     const w = world()
     const { calls, inForce } = converting(w)
@@ -437,6 +451,8 @@ describe('step 6: what the engine hands back is checked, stored and kept', () =>
       { kind: 'converted', text: '', derived: [{ mediaType: 'image/png' }] },
     ],
     ['a medium that is nothing', { kind: 'converted', text: '', derived: [null] }],
+    ['a reason no engine may give', { kind: 'inconvertible', reason: 'locked' }],
+    ['a reason that is not there', { kind: 'inconvertible', reason: undefined }],
     [
       'a medium of no type',
       { kind: 'converted', text: '', derived: [{ bytes: new Uint8Array([1]) }] },
