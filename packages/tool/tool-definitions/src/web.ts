@@ -203,6 +203,7 @@ export function createWebAuthor(
       operation: ToolOperation<null, ToolMessageContentBlock>
       release: ToolCommandRelease
       program?: ToolProgramAccess
+      readOnly: boolean
     }
   > = {}
   for (const command of webCommands) {
@@ -222,6 +223,7 @@ export function createWebAuthor(
       summary: command.summary,
       operation: operation.ok,
       release: webRelease(name),
+      readOnly: true,
       ...(command.program === undefined ? {} : { program: programAccess(command.program) }),
     }
   }

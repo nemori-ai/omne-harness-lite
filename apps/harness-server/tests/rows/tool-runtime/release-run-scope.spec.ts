@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import type { HumanInterventionCardItem as HitlCardItem } from '@omne-harness/human-intervention-protocol'
-import type { ToolInvokeOutcome } from '@omne-harness/tool-contract'
 import {
   historyOf,
   onReleaseTree,
@@ -46,14 +45,9 @@ const script = toolCallsThenText(body =>
         { id: 'call_a', tool: 'Ask', arguments: ASK },
         { id: 'call_b', tool: 'Shell', arguments: waitFor('go-b') },
       ]
-    : body.includes('start: ask and echo')
-      ? [
-          { id: 'call_a', tool: 'Ask', arguments: ASK },
-          { id: 'call_b', tool: 'Shell', arguments: echo('b-done') },
-        ]
-      : body.includes('start: wait x')
-        ? [{ id: 'call_x', tool: 'Shell', arguments: waitFor('go-x') }]
-        : [{ id: 'call_y', tool: 'Shell', arguments: echo('y-done') }],
+    : body.includes('start: wait x')
+      ? [{ id: 'call_x', tool: 'Shell', arguments: waitFor('go-x') }]
+      : [{ id: 'call_y', tool: 'Shell', arguments: echo('y-done') }],
 )
 const options = { script, permission: 'bypass-permissions' }
 
@@ -124,43 +118,32 @@ async function answer(world: ReleaseTree, session: string, text: string): Promis
 const ANSWER = 'Q1 Which port should the dev server use?: the person wrote: "Use 8081"'
 
 describe('the slots of the concurrency scope of one run', () => {
+  // AG-33: the calls of one reply go in the order the model wrote. B has effects, so it is not
+  // sent while A, before it, has no result; the scope budget is capacity only and orders nothing.
   it(
-    'with toolConcurrency 1, B runs while A waits for a person; answered, A queues until B ends',
+    'B is not sent while A, written before it, waits for a person; answered, B runs',
     { timeout: 300_000 },
     async () => {
       const exit = await onReleaseTree(options, async world => {
         const session = await world.startSession('start: ask and wait')
-        const waiting = await callsUntil(
-          world,
-          'A parked and B held',
-          calls => stageOf(calls, 'Ask') === 'parked' && stageOf(calls, 'Shell') === 'held',
-        )
-        expect(waiting.map(row => row.tool)).toEqual(['Ask', 'Shell'])
-        const [a, b] = waiting
-        expect(a?.phase).toBe('suspended')
-        expect(a?.entry?.domain).toBe(b?.entry?.domain)
-        expect([a?.entry?.scopeBudget, b?.entry?.scopeBudget]).toEqual([1, 1])
-
-        await answer(world, session, 'Use 8081')
-        await callsUntil(world, 'A ready', calls => stageOf(calls, 'Ask') === 'ready')
+        await callsUntil(world, 'A parked', calls => stageOf(calls, 'Ask') === 'parked')
         for (let sample = 0; sample < 10; sample += 1, await sleep(200)) {
           const calls = toolCalls(world.storageRoot)
-          expect([stageOf(calls, 'Ask'), stageOf(calls, 'Shell')]).toEqual(['ready', 'held'])
+          expect(calls.map(row => [row.tool, row.entry?.stage])).toEqual([['Ask', 'parked']])
         }
-        expect((await historyOf(world, session)).some(entry => entry.kind === 'message.tool')).toBe(
-          false,
+        expect(callOf(toolCalls(world.storageRoot), 'Ask')?.entry?.scopeBudget).toBe(8)
+
+        await answer(world, session, 'Use 8081')
+        const running = await callsUntil(
+          world,
+          'B held',
+          calls => stageOf(calls, 'Shell') === 'held',
         )
+        expect(running.map(row => row.tool)).toEqual(['Ask', 'Shell'])
+        expect(callOf(running, 'Shell')?.entry?.scopeBudget).toBe(8)
+        expect(callOf(running, 'Ask')?.phase).toBe('settled')
 
         release(world, 'go-b')
-        const seen: string[] = []
-        await callsUntil(world, 'both released', calls => {
-          const ask = stageOf(calls, 'Ask')
-          const shell = stageOf(calls, 'Shell')
-          seen.push(`${ask ?? '-'}/${shell ?? '-'}`)
-          return ask === undefined && shell === undefined
-        })
-        expect(seen.filter(pair => pair.startsWith('held/') && !pair.endsWith('/-'))).toEqual([])
-
         const entries = await settled(world, session)
         expect(entries.map(entry => entry.kind)).toEqual([
           'message.user',
@@ -202,60 +185,6 @@ describe('the slots of the concurrency scope of one run', () => {
         expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
       })
       expect(exit).toBe(0)
-    },
-  )
-
-  it(
-    'with queue capacity 1, a new call of the run after A parked waits for the queue and runs once A is released',
-    { timeout: 300_000 },
-    async () => {
-      await onReleaseTree({ ...options, queueCapacity: 1 }, async world => {
-        const runtime = world.toolRuntime()
-        const invoke = runtime.invoke.bind(runtime)
-        const answers: ToolInvokeOutcome[] = []
-        const parkedAt: (string | undefined)[] = []
-        Object.assign(runtime, {
-          invoke: async (input: Parameters<typeof invoke>[0]) => {
-            if (input.request.availability.name !== 'Shell') return invoke(input)
-            if (parkedAt.length === 0) {
-              await callsUntil(world, 'A parked', calls => stageOf(calls, 'Ask') === 'parked')
-              parkedAt.push(stageOf(toolCalls(world.storageRoot), 'Ask'))
-            }
-            const outcome = await invoke(input)
-            answers.push(outcome)
-            return outcome
-          },
-        })
-
-        const session = await world.startSession('start: ask and echo')
-        for (const end = Date.now() + 120_000; Date.now() < end && answers.length === 0;)
-          await sleep(100)
-        expect(parkedAt).toEqual(['parked'])
-        expect(answers[0]).toMatchObject({
-          kind: 'rejected',
-          failure: { kind: 'unavailable', dependency: 'tool-queue' },
-        })
-        expect(
-          toolCalls(world.storageRoot).map(row => [row.tool, row.entry?.stage ?? null]),
-        ).toEqual([['Ask', 'parked']])
-
-        await answer(world, session, 'Use 8081')
-        const entries = await settled(world, session)
-        expect(entries.map(entry => entry.kind)).toEqual([
-          'message.user',
-          'run.started',
-          'message.assistant',
-          'message.tool',
-          'message.tool',
-          'message.assistant',
-          'run.terminal',
-        ])
-        expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
-        expect(toolResults(entries)).toEqual([ANSWER, expect.stringContaining('b-done')])
-        const refusals = answers.filter(outcome => outcome.kind === 'rejected')
-        expect(refusals.length).toBeGreaterThanOrEqual(1)
-        expect(answers.at(-1)?.kind).toBe('accepted')
-      })
     },
   )
 })

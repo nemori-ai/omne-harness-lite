@@ -110,6 +110,7 @@ type TableEntry<E> = {
   release?: ToolCommandRelease
   program?: ToolProgramAccess
   modalities?: readonly Modality[]
+  readOnly?: boolean
 }
 
 const menuEntry = (
@@ -137,6 +138,7 @@ function tableEntry<E>(
     ...(command.program === undefined ? {} : { program: programAccess(command.program) }),
     ...(gates === undefined ? {} : { release: releaseOf(gates, command.name) }),
     ...(modalities === undefined ? {} : { modalities }),
+    ...(command.readOnly === true ? { readOnly: true } : {}),
   }
 }
 

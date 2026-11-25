@@ -226,16 +226,23 @@ export function createExtensionsAuthor(
     })
   const operations: Record<
     string,
-    { summary: string; operation: Operation; release: Readonly<{ gate: string }> }
+    {
+      summary: string
+      operation: Operation
+      release: Readonly<{ gate: string }>
+      readOnly: boolean
+    }
   > = {}
   for (const name of extensionsCommandNames) {
     const operation = operationOf(name, read.data.resultMaxBytes)
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
+    const gate = GATE_OF[name] ?? 'read'
     operations[name] = {
       summary: extensionsSummaries[name],
       operation: operation.ok,
-      release: { gate: GATE_OF[name] ?? 'read' },
+      release: { gate },
+      readOnly: gate === 'read',
     }
   }
   const author = defineCommandTool({

@@ -56,16 +56,22 @@ describe('definition judgment', () => {
       ok: { readOnly: false },
     })
     for (const readOnly of ['true', 1, null])
-      expect(
-        rejection({ ...base, commands: [{ ...first!, readOnly }, ...rest] } as never),
-      ).toEqual({ field: 'commands[0].readOnly', reason: 'type' })
+      expect(rejection({ ...base, commands: [{ ...first!, readOnly }, ...rest] } as never)).toEqual(
+        { field: 'commands[0].readOnly', reason: 'type' },
+      )
   })
 
   it('a call is read-only only when the command it names says so with true', () => {
     const base = commandsDefinition()
     if (base.kind !== 'commands') throw new Error('fixture')
     const [first, second] = base.commands
-    const marked = { ...base, commands: [{ ...first!, readOnly: true }, { ...second!, readOnly: false }] }
+    const marked = {
+      ...base,
+      commands: [
+        { ...first!, readOnly: true },
+        { ...second!, readOnly: false },
+      ],
+    }
     expect(isReadOnlyCall(marked, first!.name)).toBe(true)
     expect(isReadOnlyCall(marked, second!.name)).toBe(false)
     expect(isReadOnlyCall(base, first!.name)).toBe(false)

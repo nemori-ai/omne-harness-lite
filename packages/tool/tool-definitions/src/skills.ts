@@ -207,6 +207,7 @@ export function createSkillsAuthor(
       summary: string
       operation: ToolOperation<null, ToolMessageContentBlock>
       program?: ToolProgramAccess
+      readOnly: boolean
     }
   > = {}
   for (const command of skillsCommands) {
@@ -225,6 +226,7 @@ export function createSkillsAuthor(
     operations[name] = {
       summary: command.summary,
       operation: operation.ok,
+      readOnly: true,
       ...(command.program === undefined ? {} : { program: programAccess(command.program) }),
     }
   }

@@ -421,7 +421,7 @@ const AGENT_HOST = {
   reconciliationDelaysMs: [1000, 1000, 1000, 2000, 2000, 5000, 5000, 10_000, 30_000],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 1000,
-  toolConcurrency: 1,
+  toolConcurrency: 8,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
   instanceIdleMs: 60_000,
 } as const

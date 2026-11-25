@@ -258,7 +258,7 @@ function agentHostOperatorConfig(): Record<string, unknown> {
     reconciliationDelaysMs: [0],
     reconciliationBatchLimit: 8,
     denialBackoffMs: 0,
-    toolConcurrency: 1,
+    toolConcurrency: 8,
     loopGuardPolicy: { ...MODEL_TEST_ADOPTION, name: 'loop-guard' },
     instanceIdleMs: 60_000,
   }

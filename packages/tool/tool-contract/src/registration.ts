@@ -445,23 +445,21 @@ export function defineCommandTool<E, B extends ContentBlock>(
       encoding,
       ...(guide === undefined ? {} : { guide }),
       ...(gates === undefined ? {} : { gates }),
-      commands: commands.map(
-        ([name, { summary, operation, readOnly, ...declared }]) => ({
-          name,
-          summary,
-          parameters:
-            operation.parameters.kind === 'declared'
-              ? { kind: 'declared', value: operation.parameters.value }
-              : { kind: 'executor-owned' },
-          returns: operation.returns,
-          ...(declared.background === undefined ? {} : { background: declared.background }),
-          ...(declared.program === undefined ? {} : { program: declared.program }),
-          ...(declared.release === undefined ? {} : { release: declared.release }),
-          ...(declared.modalities === undefined ? {} : { modalities: declared.modalities }),
-          ...(declared.conditions === undefined ? {} : { conditions: declared.conditions }),
-          ...(readOnly === undefined ? {} : { readOnly }),
-        }),
-      ),
+      commands: commands.map(([name, { summary, operation, readOnly, ...declared }]) => ({
+        name,
+        summary,
+        parameters:
+          operation.parameters.kind === 'declared'
+            ? { kind: 'declared', value: operation.parameters.value }
+            : { kind: 'executor-owned' },
+        returns: operation.returns,
+        ...(declared.background === undefined ? {} : { background: declared.background }),
+        ...(declared.program === undefined ? {} : { program: declared.program }),
+        ...(declared.release === undefined ? {} : { release: declared.release }),
+        ...(declared.modalities === undefined ? {} : { modalities: declared.modalities }),
+        ...(declared.conditions === undefined ? {} : { conditions: declared.conditions }),
+        ...(readOnly === undefined ? {} : { readOnly }),
+      })),
     },
     {
       kind: 'commands',

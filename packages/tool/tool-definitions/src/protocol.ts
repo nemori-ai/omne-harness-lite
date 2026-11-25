@@ -47,6 +47,8 @@ export type Command = Readonly<{
   fields: readonly Field[]
   background?: ToolCommandBackground
   program?: ProgramSide
+  /** The command changes nothing another call can observe. */
+  readOnly?: true
 }>
 export type ExactEdit = Readonly<{ path: string; old_text: string; new_text: string }>
 export function tree(value: unknown): JsonValue {

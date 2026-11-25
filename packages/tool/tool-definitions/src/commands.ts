@@ -75,6 +75,7 @@ function withHelp(commands: readonly Command[]): readonly Command[] {
     ...commands,
     {
       name: 'help',
+      readOnly: true,
       summary: 'Show the full usage of one command, or list the commands and the rules.',
       program: CLOSED,
       fields: [
@@ -92,6 +93,7 @@ function withHelp(commands: readonly Command[]): readonly Command[] {
 export const filesCommands: readonly Command[] = withHelp([
   {
     name: 'read',
+    readOnly: true,
     summary: 'Read a UTF-8 text page with version and byte offsets.',
     program: value(['text', 'offset_bytes', 'next_offset_bytes', 'eof', 'version'], {
       text,
@@ -116,6 +118,7 @@ export const filesCommands: readonly Command[] = withHelp([
   },
   {
     name: 'open',
+    readOnly: true,
     summary: 'Open one static PNG, JPEG or WebP picture so the model sees it.',
     program: CLOSED,
     fields: [path],
@@ -169,6 +172,7 @@ export const filesCommands: readonly Command[] = withHelp([
   },
   {
     name: 'list',
+    readOnly: true,
     summary: 'List actual entry names and metadata.',
     fields: [path, offset, limit],
     program: value(['entries', 'next_offset'], {
@@ -185,6 +189,7 @@ export const filesCommands: readonly Command[] = withHelp([
   },
   {
     name: 'find',
+    readOnly: true,
     summary: 'Find names or file content with facility pagination.',
     program: value(['hits', 'next_offset', 'truncated'], {
       hits: {
@@ -220,6 +225,7 @@ export const filesCommands: readonly Command[] = withHelp([
   },
   {
     name: 'info',
+    readOnly: true,
     summary: 'Observe metadata and a bounded binary sample.',
     fields: [path],
     program: value(['type', 'size_bytes', 'modified_ms', 'version'], {
@@ -328,6 +334,7 @@ export const shellCommands: readonly Command[] = withHelp([
   },
   {
     name: 'info',
+    readOnly: true,
     summary:
       'Show the current execution environment, live terminal sessions and retained processes.',
     program: CLOSED,
@@ -338,11 +345,13 @@ export const shellCommands: readonly Command[] = withHelp([
 export const screenCommands: readonly Command[] = withHelp([
   {
     name: 'screens',
+    readOnly: true,
     summary: 'List the screens of the machine: identifier, name, pixels, scale and place.',
     fields: [],
   },
   {
     name: 'capture',
+    readOnly: true,
     summary: 'Take a picture of one screen so the model sees it.',
     fields: [
       {
@@ -388,6 +397,7 @@ export const codeCommands: readonly Command[] = [
   },
   {
     name: 'help',
+    readOnly: true,
     summary:
       'Show how to write a program: the rules, the limits here, and the functions it can call with their types.',
     fields: [
