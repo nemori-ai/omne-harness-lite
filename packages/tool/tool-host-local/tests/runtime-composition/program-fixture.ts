@@ -137,10 +137,14 @@ export async function programWorld(options: ProgramWorldOptions) {
       ? { kind: 'allowed' as const }
       : { kind: 'denied' as const, reason: 'fixture-denied' }
   // As a deployment may have it: nobody who calls is qualified to move a start guard.
-  const start = async (input: { principal: unknown; action?: string }) =>
-    options.callersMoveNoGuard === true && input.action === 'invalidate'
+  /** Awaited before each check the start coordinator makes: a test holds a start where it wants. */
+  const hooks: { startCheck?: (input: { action?: string; call?: unknown }) => Promise<void> } = {}
+  const start = async (input: { principal: unknown; action?: string; call?: unknown }) => {
+    await hooks.startCheck?.(input)
+    return options.callersMoveNoGuard === true && input.action === 'invalidate'
       ? { kind: 'unavailable' as const, diagnostic: 'no qualification source' }
       : qualify(input)
+  }
   const access = { guard: { qualify }, start: { qualify: start } }
   const fixed = request()
   if (fixed.availability.definition.kind !== 'function') throw new Error('function fixture')
@@ -682,6 +686,7 @@ export async function programWorld(options: ProgramWorldOptions) {
     asked,
     gate,
     revoke: (action: string, after = 0) => void revoked.set(action, after),
+    hooks,
     principal,
     tenant: tenantA,
     query,

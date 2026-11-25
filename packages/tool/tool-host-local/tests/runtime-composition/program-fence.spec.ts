@@ -192,6 +192,91 @@ it('TL-66 a call that was accepted and had not started when the barrier was set 
   }
 })
 
+it('TL-66 a call admitted while the barrier was being set ends without starting: no position is left without an end', async () => {
+  const asked = Promise.withResolvers<void>()
+  const answer = Promise.withResolvers<void>()
+  const world: World = await programWorld({
+    admission: async () => {
+      asked.resolve()
+      await answer.promise
+      return { kind: 'allowed' }
+    },
+    script: async tools => {
+      await say(tools, 1, { text: 'late' })
+      return 'not reached'
+    },
+  })
+  try {
+    const reference = await world.start('barred-early')
+    await asked.promise
+    expect(
+      await world.api.commands.control({ ...world.query(reference), intent: { kind: 'stop' } }),
+    ).toMatchObject({ kind: 'committed' })
+    answer.resolve()
+    await world.settled(reference)
+    // Whatever the admission answered after the barrier, the position ends and its author never ran.
+    const table = await world.table(reference)
+    const position = table.positions[0]!
+    expect(world.said).toEqual([])
+    if (position.state === 'registered' || position.state === 'excluded') return
+    const child = encodeToolInvocationRef({
+      tenant: world.tenant,
+      call: position.child,
+      admission: position.admission,
+    })
+    if ('failure' in child) throw new Error('reference')
+    expect((await world.settled(child.ok)).phase).toBe('settled')
+  } finally {
+    await world.close()
+  }
+})
+
+it('TL-66 a call whose start was being permitted when the barrier was set ends as not started: its position has an end', async () => {
+  const world: World = await programWorld({
+    script: async tools => {
+      await say(tools, 1, { text: 'late' })
+      return 'not reached'
+    },
+  })
+  try {
+    // Holds the call the program made inside the permit of its start: after its start was recorded.
+    const release = Promise.withResolvers<void>()
+    const checks = new Map<unknown, number>()
+    let held = 0
+    world.hooks.startCheck = async ({ action, call }) => {
+      if (action !== 'start') return
+      checks.set(call, (checks.get(call) ?? 0) + 1)
+      const made = [...checks.keys()].indexOf(call) === 1
+      if (!made || checks.get(call) !== 2 || held > 0) return
+      held += 1
+      await release.promise
+    }
+    const reference = await world.start('barred-in-permit')
+    await expect.poll(() => held).toBe(1)
+    expect(
+      await world.api.commands.control({ ...world.query(reference), intent: { kind: 'stop' } }),
+    ).toMatchObject({ kind: 'committed' })
+    await expect.poll(async () => (await rows(world, reference))[0]?.[2]).not.toBe('running')
+    release.resolve()
+    await world.settled(reference)
+    const position = (await world.table(reference)).positions[0]!
+    const child = encodeToolInvocationRef({
+      tenant: world.tenant,
+      call: position.child,
+      admission: position.admission,
+    })
+    if ('failure' in child) throw new Error('reference')
+    // The call does not stay in its start for ever: it ends, it never ran, and its position has the end.
+    expect((await world.settled(child.ok)).effect).toEqual({ kind: 'not-started' })
+    expect(world.said).toEqual([])
+    await expect
+      .poll(async () => (await rows(world, reference))[0])
+      .toEqual([1, 'retained', 'unavailable'])
+  } finally {
+    await world.close()
+  }
+})
+
 it('a call of a program that is refused where its start is ordered does not start, and the program is told it had no effect', async () => {
   let answer: unknown
   const world: World = await programWorld({

@@ -29,7 +29,7 @@ import {
 import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
 import { createFactDriver } from './driver-facts.ts'
-import { createBindingInvoker } from './driver-binding.ts'
+import { createBindingInvoker, type Invocation } from './driver-binding.ts'
 import { createControlDriver } from './driver-control.ts'
 import { createPreparedEnvironments } from './driver-environment.ts'
 import { preserveSavedFinal } from './driver-settlement.ts'
@@ -137,6 +137,9 @@ const programDuty = <P>(children: ToolChildren<P>, step: CallAccess<P>, recovery
   recovery.program !== null && owesDisposal(recovery.program).length > 0
     ? [{ key: 'program-fence', run: async () => after(await children.dispose(step)) }]
     : []
+
+const REFUSED = 'the start was refused before it began'
+const owesQueue = (recovery: ToolRecovery) => recovery.tasks.some(task => task.kind === 'queue')
 
 export function createToolDriver<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
@@ -604,7 +607,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     step: Step<P>,
     recovery: ToolRecovery,
     start: ToolStartRecord,
-    invoked: Exclude<Awaited<ReturnType<typeof binding.invoke>>, { kind: 'port-failed' }>,
+    invoked: Exclude<Invocation, { kind: 'port-failed' | 'start-refused' }>,
     recordBindingFailureMarker: () => Promise<StepResult>,
   ): Promise<StepResult> => {
     const afterStart = await authority.inspect({
@@ -682,6 +685,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if (gone !== null) return gone
     const invoked = await binding.invoke(step, recovery, start)
     if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
+    if (invoked.kind === 'start-refused') return rejectUnstarted(step, recovery, start, REFUSED)
     if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
       unconfirmedBindingFailures.add(callKey(step.tenant, step.call))
     return reconcileInvocation(step, recovery, start, invoked, recordBindingFailureMarker)
@@ -744,7 +748,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   type Action = (step: Step<P>, recovery: ToolRecovery) => Promise<StepResult>
 
-  const owesQueue = (recovery: ToolRecovery) => recovery.tasks.some(task => task.kind === 'queue')
   const owing =
     (action: Action): Action =>
     (step, recovery) =>
