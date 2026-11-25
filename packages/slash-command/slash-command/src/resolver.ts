@@ -55,6 +55,51 @@ async function taken<P>(catalog: CommandCatalog<P>, asker: Asker<P>, full: strin
     : { stop: { kind: 'unavailable', diagnostic: `${full} cannot be taken now` } }
 }
 
+type Accepted = Extract<Judgment, { kind: 'accepted' }>
+type Commanded = Extract<Accepted['recognition'], { kind: 'command' }>
+
+const plainOf = (judgment: Judgment): boolean =>
+  judgment.kind === 'accepted' &&
+  judgment.view.command === null &&
+  judgment.view.references.length === 0
+
+async function commandOf<P>(
+  catalog: CommandCatalog<P>,
+  asker: Asker<P>,
+  recognition: Commanded,
+): Promise<Resolved> {
+  const answer = await taken(catalog, asker, recognition.name)
+  if ('stop' in answer) return answer.stop
+  const { took } = answer
+  if (took.kind === 'operation')
+    return {
+      kind: 'operation',
+      name: recognition.name,
+      operation: took.operation,
+      args: recognition.args,
+    }
+  return {
+    kind: 'input',
+    appended: [{ text: expandPrompt(took.text, recognition.args), origin: took.origin }],
+  }
+}
+
+async function referencesOf<P>(
+  catalog: CommandCatalog<P>,
+  asker: Asker<P>,
+  references: readonly string[],
+): Promise<Resolved> {
+  const appended: Named[] = []
+  for (const full of references) {
+    const answer = await taken(catalog, asker, full)
+    if ('stop' in answer) return answer.stop
+    if (answer.took.kind !== 'text')
+      return { kind: 'unavailable', diagnostic: `${full} is no text` }
+    appended.push({ text: answer.took.text, origin: answer.took.origin })
+  }
+  return { kind: 'input', appended }
+}
+
 /** Recognize against the list as it is now, compare with what was shown, take what was named; the person's words stay as they are. */
 export function createResolver<P>(
   catalog: CommandCatalog<P>,
@@ -63,41 +108,15 @@ export function createResolver<P>(
     if (!text.includes('/') && !spoken(seen)) return UNCHANGED
     const read = await catalog.read(asker)
     const judgment = judge(text, lookupOf(read.catalog), seen ?? undefined)
-    const plain =
-      judgment.kind === 'accepted' &&
-      judgment.view.command === null &&
-      judgment.view.references.length === 0
-    if (read.catalog.missing.length > 0 && (!plain || spoken(seen)))
+    const { missing } = read.catalog
+    if (missing.length > 0 && (!plainOf(judgment) || spoken(seen)))
       return {
         kind: 'unavailable',
-        diagnostic: `the list cannot be told in full: ${read.catalog.missing.join(', ')}`,
+        diagnostic: `the list cannot be told in full: ${missing.join(', ')}`,
       }
     if (judgment.kind !== 'accepted') return refusalOf(judgment)
-    const { recognition } = judgment
-    if (recognition.kind === 'command') {
-      const answer = await taken(catalog, asker, recognition.name)
-      if ('stop' in answer) return answer.stop
-      const { took } = answer
-      if (took.kind === 'operation')
-        return {
-          kind: 'operation',
-          name: recognition.name,
-          operation: took.operation,
-          args: recognition.args,
-        }
-      return {
-        kind: 'input',
-        appended: [{ text: expandPrompt(took.text, recognition.args), origin: took.origin }],
-      }
-    }
-    const appended: Named[] = []
-    for (const full of judgment.view.references) {
-      const answer = await taken(catalog, asker, full)
-      if ('stop' in answer) return answer.stop
-      if (answer.took.kind !== 'text')
-        return { kind: 'unavailable', diagnostic: `${full} is no text` }
-      appended.push({ text: answer.took.text, origin: answer.took.origin })
-    }
-    return { kind: 'input', appended }
+    if (judgment.recognition.kind === 'command')
+      return commandOf(catalog, asker, judgment.recognition)
+    return referencesOf(catalog, asker, judgment.view.references)
   }
 }

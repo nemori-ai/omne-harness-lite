@@ -112,32 +112,35 @@ function take(c: Composer, at: number): Answer {
   return { kind: 'edit', ...accept(c.text, c.found, item) }
 }
 
-/** What a key does to the menu: the composer does what is passed on. */
-export function pressed(c: Composer, key: Key): Readonly<{ state: Composer; answer: Answer }> {
-  if (c.composing || c.phase !== 'open') return { state: c, answer: PASS }
+type Pressed = Readonly<{ state: Composer; answer: Answer }>
+
+const step = (c: Composer, by: (count: number) => number): Pressed => {
   const count = c.found?.items.length ?? 0
-  switch (key) {
-    case 'up':
-    case 'down': {
-      const step = key === 'up' ? count - 1 : 1
-      return {
-        state: { ...c, selected: count === 0 ? 0 : (c.selected + step) % count },
-        answer: HELD,
-      }
-    }
-    case 'tab':
-      return { state: c, answer: take(c, c.selected) }
-    case 'enter': {
-      const item = c.found?.items[c.selected]
-      const same = item !== undefined && item.shown === c.found?.query
-      return {
-        state: same ? { ...c, phase: 'closed' } : c,
-        answer: same ? SEND : take(c, c.selected),
-      }
-    }
-    case 'escape':
-      return { state: { ...c, phase: 'dismissed' }, answer: HELD }
+  return {
+    state: { ...c, selected: count === 0 ? 0 : (c.selected + by(count)) % count },
+    answer: HELD,
   }
+}
+
+function entered(c: Composer): Pressed {
+  const item = c.found?.items[c.selected]
+  if (item !== undefined && item.shown === c.found?.query)
+    return { state: { ...c, phase: 'closed' }, answer: SEND }
+  return { state: c, answer: take(c, c.selected) }
+}
+
+const KEYS: Readonly<Record<Key, (c: Composer) => Pressed>> = {
+  up: c => step(c, count => count - 1),
+  down: c => step(c, () => 1),
+  tab: c => ({ state: c, answer: take(c, c.selected) }),
+  enter: entered,
+  escape: c => ({ state: { ...c, phase: 'dismissed' }, answer: HELD }),
+}
+
+/** What a key does to the menu: the composer does what is passed on. */
+export function pressed(c: Composer, key: Key): Pressed {
+  if (c.composing || c.phase !== 'open') return { state: c, answer: PASS }
+  return KEYS[key](c)
 }
 
 export const picked = (c: Composer, at: number): Answer =>
@@ -187,6 +190,17 @@ function refusalOf(refused: Extract<Recognition, { kind: 'refused' }>): string {
     : `没有这个命令：/${refused.name}`
 }
 
+function rowOf(item: Completion['items'][number]): MenuItem {
+  const { entry } = item
+  return {
+    id: entry.full,
+    label: `/${item.shown}`,
+    title: entry.hint === undefined ? entry.title : `${entry.title} ${entry.hint}`,
+    kind: KIND[entry.kind] ?? entry.kind,
+    unavailable: entry.unavailable ?? null,
+  }
+}
+
 function menuOf(c: Composer): Menu | null {
   if (c.phase !== 'open') return null
   if (c.known.kind !== 'read') return { items: [], selected: 0, note: '现在取不到能点名的清单' }
@@ -197,14 +211,7 @@ function menuOf(c: Composer): Menu | null {
   const missing = c.known.catalog.missing
   const gap = missing.length === 0 ? '' : `；这一部分取不到：${missing.join('、')}`
   return {
-    items: found.items.map(item => ({
-      id: item.entry.full,
-      label: `/${item.shown}`,
-      title:
-        item.entry.hint === undefined ? item.entry.title : `${item.entry.title} ${item.entry.hint}`,
-      kind: KIND[item.entry.kind] ?? item.entry.kind,
-      unavailable: item.entry.unavailable ?? null,
-    })),
+    items: found.items.map(rowOf),
     selected: c.selected,
     note: `${where}，共 ${String(found.total)} 项${more}${gap}`,
   }

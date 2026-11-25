@@ -225,7 +225,7 @@ function moves(deps: SessionActionDeps): readonly ActionItem[] {
 }
 
 const PROCESS = [sessionTranscriptToolCall, sessionTranscriptReasoning]
-  .map(part => `${partAt(part)} [aria-expanded]`)
+  .map(part => `${partAt(part)} [aria-expanded]:not([aria-haspopup])`)
   .join(',')
 
 /** Opens every process line when one is shut, and shuts them all when all are open. */

@@ -3,7 +3,12 @@ import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contr
 import { writeJsonText } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { judgeMessage, type Message } from '@omne-harness/message'
-import type { InputId, OperationRequest, SessionId } from '@omne-harness/session-contract'
+import type {
+  InputId,
+  OperationRequest,
+  SessionFailure,
+  SessionId,
+} from '@omne-harness/session-contract'
 import {
   commitCall,
   describedBy,
@@ -197,17 +202,19 @@ export async function admitRequest(
   if (result === 'unknown') return RETRY
   if ('ok' in result) return settled({ outcome: 'succeeded', body: result.ok })
   const asked = result.failure.kind === 'unsupported' ? result.failure.request : undefined
-  if (asked !== undefined && ports.perform !== undefined) {
-    const access = {
-      principal: issued.ok,
-      tenant: caller.tenant,
-      session: request.session as SessionId,
-    }
-    return commanded({ access, tenantText: request.tenant, faces }, request, asked, ports.perform)
+  if (asked === undefined || ports.perform === undefined) return notTaken(result.failure)
+  const access = {
+    principal: issued.ok,
+    tenant: caller.tenant,
+    session: request.session as SessionId,
   }
-  const { kind } = result.failure
-  if (kind === 'unavailable' || kind === 'commit-unknown') return RETRY
-  return settled(refused('send-input', result.failure))
+  return commanded({ access, tenantText: request.tenant, faces }, request, asked, ports.perform)
+}
+
+/** An input Session did not take: tried again when the answer may change, refused otherwise. */
+function notTaken(failure: SessionFailure): Admission {
+  if (failure.kind === 'unavailable' || failure.kind === 'commit-unknown') return RETRY
+  return settled(refused('send-input', failure))
 }
 
 export async function querySendInput(
