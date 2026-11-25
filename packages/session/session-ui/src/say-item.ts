@@ -1,12 +1,7 @@
 import { readTenantText } from '@omne-harness/public-contract'
-import type {
-  SayItem,
-  SayOutcome,
-  SayTarget,
-  SayTo,
-  ScopeSource,
-} from '@omne-harness/shell-contract'
+import type { Reader, SayItem, SayTarget, SayTo, ScopeSource } from '@omne-harness/shell-contract'
 import { companionFacts, type CompanionFacts } from './model/companion.ts'
+import { takePictures, type PictureIntake, type PicturesTaken } from './model/pictures.ts'
 import { GONE, type SayTarget as Whom } from './model/say.ts'
 import type { SessionLease, SessionWorkspaces } from './model/session-workspaces.ts'
 
@@ -25,7 +20,10 @@ type Held = {
   shown: Readonly<{ page: CompanionFacts['page']; targets: readonly SayTarget[] }> | null
 }
 
-const failed = (reason: string): SayOutcome => ({ kind: 'failed', reason })
+type Refused = Readonly<{ kind: 'failed'; reason: string }>
+
+const failed = (reason: string): Refused => ({ kind: 'failed', reason })
+const NOTHING_ATTACHED: PicturesTaken = { kind: 'taken', attachments: [] }
 
 const whom = (to: SayTo): Whom => (to.kind === 'new' ? to : { kind: 'session', session: to.key })
 
@@ -34,6 +32,7 @@ export function sessionSayItem(
   host: Host,
   workspaces: SessionWorkspaces,
   conversationPage: string,
+  intake: Reader<PictureIntake>,
 ): Readonly<{ item: SayItem; close: () => void }> {
   const listeners = new Set<() => void>()
   let held: Held | null = null
@@ -81,6 +80,19 @@ export function sessionSayItem(
     tell()
   })
 
+  let intakeThere = intake.get() !== undefined
+  const stopReading = intake.subscribe(() => {
+    if ((intake.get() !== undefined) === intakeThere) return
+    intakeThere = !intakeThere
+    tell()
+  })
+
+  const ready = (scope: string | undefined): Held | Refused => {
+    if (closed) return failed(GONE)
+    if (scope !== host.scope.get()) return failed(TENANT_CHANGED)
+    return heldFor(scope) ?? failed(NO_TENANT)
+  }
+
   const item: SayItem = {
     id: SAY_ITEM,
     targets: scope => {
@@ -94,17 +106,24 @@ export function sessionSayItem(
       return now.shown.targets
     },
     current: scope => heldFor(scope)?.facts.current ?? undefined,
+    pictures: scope =>
+      !closed && scope !== undefined && scope === host.scope.get() && intake.get() !== undefined,
     subscribe: listener => {
       listeners.add(listener)
       heldFor(host.scope.get())
       return () => void listeners.delete(listener)
     },
-    say: async (scope, to, words) => {
-      if (closed) return failed(GONE)
-      if (scope !== host.scope.get()) return failed(TENANT_CHANGED)
-      const now = heldFor(scope)
-      if (now === null) return failed(NO_TENANT)
-      const answer = await now.lease.driver.say(whom(to), words)
+    say: async (scope, to, words, pictures = []) => {
+      const before = ready(scope)
+      if ('reason' in before) return before
+      const taken =
+        pictures.length === 0
+          ? NOTHING_ATTACHED
+          : await takePictures(intake, before.scope, pictures)
+      if (taken.kind === 'failed') return taken
+      const now = ready(scope)
+      if ('reason' in now) return now
+      const answer = await now.lease.driver.say(whom(to), words, taken.attachments)
       return answer.kind === 'sent' ? { kind: 'sent', key: answer.session } : answer
     },
     show: (scope, key) => {
@@ -120,6 +139,7 @@ export function sessionSayItem(
     close: () => {
       closed = true
       stopFollowing()
+      stopReading()
       release()
       listeners.clear()
     },

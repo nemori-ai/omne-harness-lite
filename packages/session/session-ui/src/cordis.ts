@@ -15,6 +15,7 @@ export type {
   ModelChoiceSource,
 } from './model/model-selection.ts'
 export type { ComposerDrafts, DraftOffer } from './model/composer-drafts.ts'
+export type { PictureIntake, PicturesTaken } from './model/pictures.ts'
 export type { SessionComposer } from './model/composer-handles.ts'
 export type {
   Assist,

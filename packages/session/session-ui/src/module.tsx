@@ -27,6 +27,7 @@ import type { ComposerAssistant } from './model/composer-assistant.ts'
 import { ComposerDraftStore, type ComposerDrafts } from './model/composer-drafts.ts'
 import type { SessionComposer } from './model/composer-handles.ts'
 import { ModelSelectionStore, type ModelChoiceSource } from './model/model-selection.ts'
+import type { PictureIntake } from './model/pictures.ts'
 import {
   ArchivedDirectory,
   SESSION_KIND,
@@ -84,6 +85,7 @@ export type SessionUiOptions = Readonly<{
   canvasElement?: RenderPointSink<PaperElementSubject>
   canvasPicker?: RenderPointSink<PaperPickerSubject>
   composerAssistant?: ServiceKey<ComposerAssistant>
+  pictureIntake?: ServiceKey<PictureIntake>
 }>
 
 /** Where a jump to a session goes: the shell's navigate takes these two, and the conversation page opens it. */
@@ -287,6 +289,7 @@ const needsOf = (options: SessionUiOptions) => ({
   workspaceChoices: needPoint(options.workspaceChoices, { optional: true }),
   blockReads: needPoint(options.blockReads, { optional: true }),
   assistant: needPoint(options.composerAssistant, { optional: true }),
+  pictureIntake: needPoint(options.pictureIntake, { optional: true }),
 })
 
 type Apply = UiModuleDefinition<ReturnType<typeof needsOf>>['apply']
@@ -295,7 +298,14 @@ type Given = Parameters<Apply>
 const apply = (
   options: SessionUiOptions,
   shell: Given[0],
-  { session: client, modelChoices, workspaceChoices, blockReads, assistant }: Given[1],
+  {
+    session: client,
+    modelChoices,
+    workspaceChoices,
+    blockReads,
+    assistant,
+    pictureIntake,
+  }: Given[1],
   provide: Given[2],
 ): ReturnType<Apply> => {
   for (const part of sessionParts) part.declare(shell)
@@ -331,7 +341,7 @@ const apply = (
       ),
   })
   shell.contribute('float', companionItem(shell, workspaces, background))
-  const spoken = sessionSayItem(shell, workspaces, CONVERSATION_PAGE)
+  const spoken = sessionSayItem(shell, workspaces, CONVERSATION_PAGE, pictureIntake)
   shell.contribute('say', spoken.item)
   shell.contribute('sidebar', listItem(shell, { workspaces, places, conversationShown }))
   shell.contribute('sidebar', {

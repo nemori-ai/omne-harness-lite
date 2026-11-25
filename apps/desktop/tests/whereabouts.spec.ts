@@ -58,6 +58,7 @@ const EVENTS = {
   recall: { kind: 'recall' },
   signedOut: { kind: 'signedOut', at: OUT },
   seat: { kind: 'seat' },
+  seen: { kind: 'seen' },
 } satisfies Record<string, WhereEvent>
 type EventName = keyof typeof EVENTS
 
@@ -319,6 +320,65 @@ describe('形的所在：每一条路上', () => {
       const { where } = step(from, event, { ...facts, talker: false })
       if (where.at === 'desk' && where.note) expect(from).toEqual(where)
     })
+  })
+})
+
+describe('松手落在哪：读窗口、被盖着乘落点乘主窗口', () => {
+  const HANDS = { handDeskOnPage: 'page', handDeskOnDesk: 'desk' } as const
+  for (const [state, on] of Object.entries(HANDS) as [State, 'page' | 'desk'][])
+    for (const look of [false, true])
+      for (const covered of [false, true])
+        for (const [spot, at] of [
+          ['内容区里', IN],
+          ['内容区外', OUT],
+        ] as const)
+          for (const visible of [true, false]) {
+            const back = !look && !covered && at === IN && visible
+            const name = `${state}：${look ? '读窗口' : '不读'}、${covered ? '被盖着' : '没盖着'}、${spot}、主窗口${visible ? '看得见' : '藏着'} → ${back ? '回程' : '在桌面'}`
+            it(name, () => {
+              const drop = { kind: 'drop', on, at, look, covered } as const
+              const answer = step(STATES[state], drop, { ...FACTS, visible })
+              expect(answer).toEqual({
+                where: back ? HOME : deskAt(at),
+                effects: [hold(false)],
+              })
+            })
+          }
+
+  it('读窗口到在桌面时说话笺先不开，落点照样夹进屏里', () => {
+    const far = { kind: 'drop', on: 'desk', at: { x: 1500, y: -40 }, look: true } as const
+    expect(step(STATES.handDeskOnDesk, far, FACTS).where).toEqual(deskAt({ x: 1412, y: 28 }))
+  })
+
+  it('页面画着时松手带的两个事实不改变落座', () => {
+    const drop = { kind: 'drop', on: 'page', at: OUT, look: true, covered: true } as const
+    expect(step(STATES.handPage, drop, FACTS).where).toEqual(LANDING)
+  })
+})
+
+describe('读到了要给人看的：开说话笺', () => {
+  it('在桌面、笺收着、说话位上有人：开笺，键盘给桌面层', () => {
+    for (const from of [STATES.desk, STATES.deskWaiting])
+      expect(step(from, EVENTS.seen, { ...FACTS, talker: true })).toEqual({
+        where: { ...from, note: true },
+        effects: [hold(false, true)],
+      })
+  })
+
+  it('笺已经开着：不动；说话位上没有人：不开', () => {
+    expect(step(STATES.deskNote, EVENTS.seen, { ...FACTS, talker: true })).toEqual({
+      where: STATES.deskNote,
+      effects: [],
+    })
+    expect(step(STATES.desk, EVENTS.seen, FACTS)).toEqual({ where: STATES.desk, effects: [] })
+  })
+
+  it('不在桌面上的所在都不理', () => {
+    for (const state of ['seat', 'handPage', 'handDeskOnDesk', 'home', 'landingFromHand'] as const)
+      expect(step(STATES[state], EVENTS.seen, { ...FACTS, talker: true })).toEqual({
+        where: STATES[state],
+        effects: [],
+      })
   })
 })
 

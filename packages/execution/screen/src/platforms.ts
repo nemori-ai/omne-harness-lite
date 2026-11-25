@@ -13,7 +13,7 @@ const graphics = (call: string) =>
 const PREFLIGHT = graphics('CGPreflightScreenCaptureAccess')
 const REQUEST = graphics('CGRequestScreenCaptureAccess')
 
-function runMacos(script: string): Promise<string> {
+export function runMacos(script: string): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
       '/usr/bin/osascript',

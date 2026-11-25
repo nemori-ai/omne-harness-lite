@@ -21,6 +21,7 @@ export type LooseFigureProps = LooseWhere &
     readonly waiting?: number
     readonly size?: number | undefined
     readonly reduced?: boolean | undefined
+    readonly rewriteFirst?: boolean | undefined
     readonly control?: React.Ref<LooseControl> | undefined
   }
 
@@ -65,7 +66,7 @@ function useShown(store: LooseStore, owns: boolean, where: LooseWhere): void {
 }
 
 export function LooseFigure(props: LooseFigureProps): React.JSX.Element | null {
-  const { doing, moment, waiting = 0, control } = props
+  const { doing, moment, waiting = 0, rewriteFirst = false, control } = props
   const [store] = useState(() => new LooseStore(moment?.serial ?? null))
   const owns = useOnlyFigure(store, 'LooseFigure')
   const factor = useSizeFactor()
@@ -78,6 +79,7 @@ export function LooseFigure(props: LooseFigureProps): React.JSX.Element | null {
   })
   useLayoutEffect(() => store.setSize(size), [store, size])
   useLayoutEffect(() => store.setReduced(reduced), [store, reduced])
+  useLayoutEffect(() => store.setRewriteFirst(rewriteFirst), [store, rewriteFirst])
   useShown(store, owns, props)
   useFollowing(store, owns, doing, moment, waiting)
   useImperativeHandle(control, () => ({ reach: () => store.reach() }), [store])
