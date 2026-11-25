@@ -47,6 +47,7 @@ it.each(['committed', 'not-submitted'] as const)(
       let lost: SqlIdentity | undefined
       let outage: 'unknown' | 'throw' | null = null
       let restarted = false
+      let lateReceipt: string | undefined
       const queried: SqlIdentity[] = []
       const storage: SqlStorage = {
         ...s.storage,
@@ -74,6 +75,10 @@ it.each(['committed', 'not-submitted'] as const)(
           reminders: {
             forget: () => undefined,
             prepare: async () => {
+              if (restarted && standing === 'not-submitted' && lateReceipt === undefined) {
+                if (!original) throw new Error('missing original SQL operation')
+                lateReceipt = (await s.storage.commit(original)).kind
+              }
               const page = await view()
               return {
                 ok: {
@@ -107,6 +112,7 @@ it.each(['committed', 'not-submitted'] as const)(
       expect(queried).toContainEqual(lost)
       if (standing === 'not-submitted') {
         if (!original) throw new Error('original request missing')
+        expect(lateReceipt).toBe('rolled_back')
         expect(await s.storage.commit(original)).toMatchObject({ kind: 'rolled_back' })
       }
       expect((await view()).rows.filter(row => row.message.id === message.id)).toHaveLength(1)

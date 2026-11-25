@@ -2,54 +2,55 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PassThrough } from 'node:stream'
-import { spawn } from 'node:child_process'
-import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
+import { Duplex, PassThrough } from 'node:stream'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CommandFrame } from '../../src/command-gate-core.ts'
-import { runCommandGate } from '../../src/macos-execution/command-gate-run.ts'
 import { fakeReader, type FakeReader } from './fake-reader.ts'
 
 type Gate = Readonly<{
-  control: PassThrough
+  control: Duplex
   frames: PassThrough
   lines: string[]
   exits: number[]
+  closed: Promise<void>
+  diagnostics: string[]
   write(value: unknown): void
   parsed(): CommandFrame[]
 }>
 
-const runnerDirectory = process.cwd()
+const entry = fileURLToPath(new URL('../../src/macos-execution/command-gate.ts', import.meta.url))
 let reader: FakeReader
 let cwd = ''
 let gatePid = 0
-let intervals: MockInstance<typeof setInterval>
+let gateProcess: ChildProcess | undefined
+let closed: Promise<void> | undefined
 
 beforeEach(async context => {
   if (process.platform === 'win32') return context.skip()
   reader = await fakeReader()
   cwd = await realpath(await mkdtemp(join(tmpdir(), 'omne-macos-gate-')))
-  const sleeper = spawn('/bin/sleep', ['60'], { detached: true, stdio: 'ignore' })
-  sleeper.unref()
-  gatePid = sleeper.pid ?? 0
-  if (gatePid <= 1) throw new Error('no sleeper pid')
-  intervals = vi.spyOn(globalThis, 'setInterval')
 })
 
 afterEach(async () => {
   if (process.platform === 'win32') return
-  // This fixture runs the private gate in the test worker.
-  process.chdir(runnerDirectory)
-  try {
-    if (gatePid > 1) process.kill(-gatePid, 'SIGKILL')
-  } catch {}
-  const pid = Number(await readFile(join(cwd, 'pid'), 'utf8').catch(() => ''))
-  if (Number.isSafeInteger(pid) && pid > 0)
+  if (
+    gateProcess &&
+    gateProcess.exitCode === null &&
+    gateProcess.signalCode === null &&
+    gatePid > 1
+  ) {
     try {
-      process.kill(pid, 'SIGKILL')
-    } catch {}
-  for (const result of intervals.mock.results)
-    if (result.type === 'return') clearInterval(result.value)
-  intervals.mockRestore()
+      process.kill(-gatePid, 'SIGKILL')
+    } catch (error) {
+      if (!error || typeof error !== 'object' || Reflect.get(error, 'code') !== 'ESRCH') throw error
+    }
+  }
+  await closed
+  gateProcess = undefined
+  closed = undefined
+  gatePid = 0
   await reader.remove()
   await rm(cwd, { recursive: true, force: true })
 })
@@ -67,24 +68,39 @@ function collect(frames: PassThrough, lines: string[]): void {
 function startGate(
   options: { unit?: string; frames?: PassThrough; collecting?: boolean } = {},
 ): Gate {
-  const control = new PassThrough()
+  const child = spawn(process.execPath, [entry, options.unit ?? 'omne-command-1', reader.path], {
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
+  })
+  gateProcess = child
+  gatePid = child.pid ?? 0
+  const control = child.stdio[3]
+  if (!(control instanceof Duplex) || !child.stdout || !child.stderr || gatePid <= 1)
+    throw new Error('private gate did not open its channels')
+  control.resume()
+  const diagnostics: string[] = []
+  child.stderr.setEncoding('utf8').on('data', (text: string) => diagnostics.push(text))
   const frames = options.frames ?? new PassThrough()
   const lines: string[] = []
   const exits: number[] = []
   if (options.collecting !== false) collect(frames, lines)
-  runCommandGate({
-    control,
-    frames,
-    unit: options.unit ?? 'omne-command-1',
-    reader: reader.path,
-    pid: gatePid,
-    exit: code => void exits.push(code),
+  const stdout = child.stdout
+  stdout.pipe(frames)
+  frames.on('error', () => stdout.destroy())
+  closed = new Promise<void>((resolve, reject) => {
+    child.once('error', reject)
+    child.once('close', code => {
+      if (code !== null) exits.push(code)
+      resolve()
+    })
   })
   return {
     control,
     frames,
     lines,
     exits,
+    closed,
+    diagnostics,
     write: value => void control.write(`${JSON.stringify(value)}\n`),
     parsed: () => lines.map(line => JSON.parse(line) as CommandFrame),
   }
@@ -116,15 +132,31 @@ function output(gate: Gate, stream: 'stdout' | 'stderr'): Buffer {
   )
 }
 
-async function exited(gate: Gate, timeout = 2_000): Promise<CommandFrame> {
-  return vi.waitFor(
-    () => {
-      const frame = gate.parsed().find(entry => entry.t === 'exit')
-      if (frame === undefined) throw new Error('no exit frame yet')
-      return frame
-    },
-    { timeout, interval: 10 },
-  )
+function waitForFrame(gate: Gate, kind: CommandFrame['t']): Promise<CommandFrame> {
+  return new Promise((resolve, reject) => {
+    let next = 0
+    const inspect = () => {
+      while (next < gate.lines.length) {
+        const frame = JSON.parse(gate.lines[next++]!) as CommandFrame
+        if (frame.t === kind) {
+          cleanup()
+          resolve(frame)
+          return
+        }
+      }
+      if (gate.frames.readableEnded) {
+        cleanup()
+        reject(new Error(`gate output closed before ${kind}`))
+      }
+    }
+    const cleanup = () => {
+      gate.frames.off('data', inspect)
+      gate.frames.off('end', inspect)
+    }
+    gate.frames.on('data', inspect)
+    gate.frames.once('end', inspect)
+    inspect()
+  })
 }
 
 function isAlive(pid: number): boolean {
@@ -147,15 +179,8 @@ async function commandPid(): Promise<number> {
   )
 }
 
-describe('the macOS command gate in this process', () => {
+describe('the macOS command gate in its private process', () => {
   describe('admission', () => {
-    let stderr: MockInstance<typeof process.stderr.write>
-    beforeEach(() => {
-      stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-    })
-    afterEach(() => {
-      stderr.mockRestore()
-    })
     const refused = 'omne-host gate: bad request or not leading its own session\n'
     it.each([
       ['a first line that is no request', { c: 'go' }, 'omne-command-1'],
@@ -168,24 +193,27 @@ describe('the macOS command gate in this process', () => {
     ])('exits with 2 on %s', async (_, first, unit) => {
       const gate = startGate({ unit })
       gate.write(first)
-      await vi.waitFor(() => expect(gate.exits).toEqual([2]), { interval: 10 })
+      await gate.closed
+      expect(gate.exits).toEqual([2])
       expect(gate.lines).toEqual([])
-      expect(stderr).toHaveBeenCalledWith(refused)
+      expect(gate.diagnostics.join('')).toContain(refused)
     })
 
     it('exits with 2 when the gate does not lead its own session', async () => {
       await reader.set('identity', '1 1 1\n')
       const gate = startGate()
       gate.write(request('true'))
-      await vi.waitFor(() => expect(gate.exits).toEqual([2]), { interval: 10 })
+      await gate.closed
+      expect(gate.exits).toEqual([2])
       expect(gate.lines).toEqual([])
-      expect(stderr).toHaveBeenCalledWith(refused)
+      expect(gate.diagnostics.join('')).toContain(refused)
     })
 
     it('answers ready to a valid request and starts nothing before GO', async () => {
       const gate = startGate()
       gate.write(request('echo ran > ran'))
-      await vi.waitFor(() => expect(gate.lines).toEqual(['{"t":"ready"}']), { interval: 10 })
+      await waitForFrame(gate, 'ready')
+      expect(gate.lines).toEqual(['{"t":"ready"}'])
       await new Promise(resolve => setTimeout(resolve, 100))
       expect(gate.lines).toEqual(['{"t":"ready"}'])
       expect(gate.exits).toEqual([])
@@ -199,7 +227,7 @@ describe('the macOS command gate in this process', () => {
       const gate = startGate()
       gate.write(request('printf abcdefghij; exit 3', { maxChunkBytes: 4 }))
       gate.write(go)
-      await exited(gate)
+      await waitForFrame(gate, 'exit')
       await new Promise(resolve => setTimeout(resolve, 50))
       expect(gate.lines).toEqual([
         '{"t":"ready"}',
@@ -220,7 +248,7 @@ describe('the macOS command gate in this process', () => {
       const gate = startGate()
       gate.write({ ...request('pwd -P'), cwd: alias })
       gate.write(go)
-      await exited(gate)
+      await waitForFrame(gate, 'exit')
       expect(output(gate, 'stdout').toString().trim()).toBe(actual)
       expect(gate.parsed().find(frame => frame.t === 'started')).toEqual({
         t: 'started',
@@ -233,14 +261,19 @@ describe('the macOS command gate in this process', () => {
       const gate = startGate()
       gate.write(request('exit 0'))
       gate.write(go)
-      expect(await exited(gate)).toEqual({ t: 'exit', code: 0, signal: null, members: null })
+      expect(await waitForFrame(gate, 'exit')).toEqual({
+        t: 'exit',
+        code: 0,
+        signal: null,
+        members: null,
+      })
     })
 
     it('answers spawnFailed with the error code for an image that does not start', async () => {
       const gate = startGate()
       gate.write(request('true', { executable: join(cwd, 'missing') }))
       gate.write(go)
-      await vi.waitFor(() => expect(gate.lines).toHaveLength(2), { interval: 10 })
+      await gate.closed
       expect(gate.parsed()).toEqual([{ t: 'ready' }, { t: 'spawnFailed', code: 'ENOENT' }])
       expect(gate.control.destroyed).toBe(true)
     })
@@ -251,7 +284,12 @@ describe('the macOS command gate in this process', () => {
       gate.write(go)
       const pid = await commandPid()
       gate.write({ c: 'term' })
-      expect(await exited(gate)).toEqual({ t: 'exit', code: null, signal: 'SIGTERM', members: 0 })
+      expect(await waitForFrame(gate, 'exit')).toEqual({
+        t: 'exit',
+        code: null,
+        signal: 'SIGTERM',
+        members: 0,
+      })
       expect(isAlive(pid)).toBe(false)
     })
 
@@ -260,7 +298,7 @@ describe('the macOS command gate in this process', () => {
       gate.write(request('printf x; echo x >> runs'))
       gate.write(go)
       gate.write(go)
-      await exited(gate)
+      await waitForFrame(gate, 'exit')
       await new Promise(resolve => setTimeout(resolve, 150))
       expect(gate.parsed().map(frame => frame.t)).toEqual(['ready', 'started', 'data', 'exit'])
       expect(await readFile(join(cwd, 'runs'), 'utf8')).toBe('x\n')
@@ -270,7 +308,7 @@ describe('the macOS command gate in this process', () => {
       const gate = startGate()
       gate.write(request('/bin/cat', { stdin: 'hello\nworld\n' }))
       gate.write(go)
-      await exited(gate)
+      await waitForFrame(gate, 'exit')
       expect(output(gate, 'stdout').toString()).toBe('hello\nworld\n')
     })
 
@@ -287,7 +325,7 @@ describe('the macOS command gate in this process', () => {
       expect(frames.writableLength + frames.readableLength).toBeLessThan(1024 * 1024)
       expect(isAlive(pid)).toBe(true)
       collect(frames, gate.lines)
-      expect(await exited(gate)).toMatchObject({ t: 'exit', code: 0, signal: null })
+      expect(await waitForFrame(gate, 'exit')).toMatchObject({ t: 'exit', code: 0, signal: null })
       expect(output(gate, 'stdout').equals(content)).toBe(true)
     })
 
@@ -311,7 +349,12 @@ describe('the macOS command gate in this process', () => {
       const gate = startGate()
       gate.write(request('/bin/sleep 30 & echo $! > pid; printf x'))
       gate.write(go)
-      expect(await exited(gate)).toEqual({ t: 'exit', code: 0, signal: null, members: 0 })
+      expect(await waitForFrame(gate, 'exit')).toEqual({
+        t: 'exit',
+        code: 0,
+        signal: null,
+        members: 0,
+      })
       expect(output(gate, 'stdout').toString()).toBe('x')
       expect(isAlive(await commandPid())).toBe(true)
     })
@@ -321,9 +364,11 @@ describe('the macOS command gate in this process', () => {
     it('exits with 0 before GO and stops nothing', async () => {
       const gate = startGate()
       gate.write(request('true'))
-      await vi.waitFor(() => expect(gate.lines).toEqual(['{"t":"ready"}']), { interval: 10 })
+      await waitForFrame(gate, 'ready')
+      expect(gate.lines).toEqual(['{"t":"ready"}'])
       gate.control.end()
-      await vi.waitFor(() => expect(gate.exits).toEqual([0]), { interval: 10 })
+      await gate.closed
+      expect(gate.exits).toEqual([0])
       expect((await reader.calls()).map(call => call[0])).toEqual(['identity'])
     })
 
@@ -331,9 +376,10 @@ describe('the macOS command gate in this process', () => {
       const gate = startGate()
       gate.write(request('exit 0'))
       gate.write(go)
-      await exited(gate)
+      await waitForFrame(gate, 'exit')
       gate.control.end()
-      await vi.waitFor(() => expect(gate.exits).toEqual([0]), { interval: 10 })
+      await gate.closed
+      expect(gate.exits).toEqual([0])
       expect(await reader.calls()).toContainEqual([
         'stop',
         '10000',

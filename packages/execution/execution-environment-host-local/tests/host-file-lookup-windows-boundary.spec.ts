@@ -81,4 +81,14 @@ describe('createHostFileLookup with simulated Windows native-boundary answers', 
       })
     },
   )
+
+  it('withholds lookup when the helper cannot identify the initial root', async () => {
+    native.request.mockResolvedValue('unavailable')
+    expect(await createHostFileLookup(root)(file)).toEqual({ ok: false, failure: 'unavailable' })
+    expect(native.request).toHaveBeenCalledTimes(1)
+    expect(native.request).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'identify' }),
+      undefined,
+    )
+  })
 })
