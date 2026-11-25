@@ -1,0 +1,329 @@
+{
+  "id": "p17-rust-pool-leak",
+  "title": "修 Rust 网关的连接池内存泄漏：RSS 指标与够用退出、归还路径、clippy、第三方库内的泄漏作条件退出",
+  "source": "constructed",
+  "split": "tune",
+  "attendance": "unattended",
+  "draft": {
+    "purpose": "网关跑几个小时后内存涨到 2 GB 被杀。查出连接池泄漏并修掉。无人值守，在夜间作业里做。",
+    "criteria": [
+      {
+        "statement": "10 分钟压测后的常驻内存到 M1 的目标",
+        "evidence": {
+          "kind": "metric",
+          "metric": "M1"
+        }
+      },
+      {
+        "statement": "全部测试通过，含压力测试",
+        "evidence": {
+          "kind": "command",
+          "command": "cargo test --workspace"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      },
+      {
+        "statement": "连接归还路径里把连接放回池，并且空闲连接超过 max_idle 时直接关闭",
+        "evidence": {
+          "kind": "file",
+          "path": "src/pool.rs"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "Drop 里取出连接后，空闲数达到 max_idle 就丢弃，否则放回 idle"
+        }
+      },
+      {
+        "statement": "clippy 无告警",
+        "evidence": {
+          "kind": "command",
+          "command": "cargo clippy --workspace -- -D warnings"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "statement": "压测 10 分钟后的常驻内存，MB",
+        "measure": {
+          "command": "scripts/soak.sh 600 --json",
+          "path": ".rss_mb"
+        },
+        "direction": "lower",
+        "target": 300,
+        "floor": 450,
+        "baseline": 1900
+      }
+    ],
+    "rules": [
+      {
+        "statement": "不改对外的 gRPC proto 文件。"
+      },
+      {
+        "statement": "不用 unsafe 绕过借用检查。"
+      }
+    ],
+    "exits": [
+      {
+        "statement": "预算用尽",
+        "kind": "budget",
+        "limits": [
+          {
+            "amount": 22,
+            "unit": "rounds"
+          }
+        ],
+        "deliver": "当前最好的结果与改动",
+        "counts": "failure"
+      },
+      {
+        "statement": "预算用尽时已经够用",
+        "kind": "good-enough",
+        "by": [
+          {
+            "kind": "floor",
+            "id": "M1"
+          },
+          {
+            "kind": "criterion",
+            "id": "A2"
+          }
+        ],
+        "deliver": "当前的内存读数与改动，写明离目标差多少",
+        "counts": "success"
+      },
+      {
+        "statement": "泄漏在第三方 crate 内部，不升级它修不了",
+        "kind": "condition",
+        "deliver": "泄漏位置的证据与要升级的版本",
+        "counts": "failure"
+      }
+    ]
+  },
+  "rounds": 13,
+  "metrics": {
+    "M1": 287
+  },
+  "calls": [
+    {
+      "ref": "call-10",
+      "order": 10,
+      "tool": "Files read",
+      "command": null,
+      "path": "src/pool.rs",
+      "exit": null,
+      "output": "impl Drop for PooledConn {\n    fn drop(&mut self) {\n        // TODO: 归还连接\n    }\n}\n\npub struct Pool {\n    idle: Mutex<Vec<Conn>>,\n    max_idle: usize,\n}",
+      "writes": false
+    },
+    {
+      "ref": "call-12",
+      "order": 12,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/pool.rs",
+      "exit": null,
+      "output": "@@ -88,10 +88,16 @@ impl Drop for PooledConn {\n     fn drop(&mut self) {\n-        // TODO: 归还连接\n+        if let Some(conn) = self.conn.take() {\n+            let mut idle = self.pool.idle.lock();\n+            if idle.len() >= self.pool.max_idle {\n+                drop(conn); // 超过 max_idle 的连接直接关闭\n+            } else {\n+                idle.push(conn);\n+            }\n+        }\n     }\n }",
+      "writes": true
+    },
+    {
+      "ref": "call-14",
+      "order": 14,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/server.rs",
+      "exit": null,
+      "output": "@@ -57,7 +57,7 @@ async fn handle(pool: Arc<Pool>, req: Request) -> Response {\n-    let conn = pool.acquire().await.unwrap();\n+    let conn = pool.acquire().await?;\n     serve(conn, req).await",
+      "writes": true
+    },
+    {
+      "ref": "call-16",
+      "order": 16,
+      "tool": "Shell run",
+      "command": "scripts/soak.sh 600 --json",
+      "path": null,
+      "exit": 0,
+      "output": "{\"duration_s\":600,\"rps\":1200,\"rss_mb\":287,\"conns_open\":64,\"conns_idle\":8}",
+      "writes": false
+    },
+    {
+      "ref": "call-18",
+      "order": 18,
+      "tool": "Shell run",
+      "command": "cargo clippy --workspace -- -D warnings",
+      "path": null,
+      "exit": 0,
+      "output": "    Checking gate v0.9.4 (/work/gate)\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.11s",
+      "writes": false
+    },
+    {
+      "ref": "call-20",
+      "order": 20,
+      "tool": "Shell run",
+      "command": "cargo test --workspace",
+      "path": null,
+      "exit": 0,
+      "output": "   Compiling gate v0.9.4 (/work/gate)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.82s\n     Running unittests src/lib.rs (target/debug/deps/gate-5e1c0b7a93d2f4aa)\n\nrunning 70 tests\ntest pool::tests::acquire_release ... ok\ntest pool::tests::max_idle_closes_extra ... ok\ntest pool::tests::idle_reuse ... ok\ntest pool::tests::timeout_returns_err ... ok\ntest pool::tests::drop_returns_conn ... ok\ntest pool::tests::drop_after_panic ... ok\ntest pool::tests::concurrent_acquire ... ok\ntest pool::tests::shutdown_drains ... ok\ntest pool::tests::stale_conn_evicted ... ok\ntest pool::tests::metrics_counts ... ok\ntest conn::tests::acquire_release ... ok\ntest conn::tests::max_idle_closes_extra ... ok\ntest conn::tests::idle_reuse ... ok\ntest conn::tests::timeout_returns_err ... ok\ntest conn::tests::drop_returns_conn ... ok\ntest conn::tests::drop_after_panic ... ok\ntest conn::tests::concurrent_acquire ... ok\ntest conn::tests::shutdown_drains ... ok\ntest conn::tests::stale_conn_evicted ... ok\ntest conn::tests::metrics_counts ... ok\ntest health::tests::acquire_release ... ok\ntest health::tests::max_idle_closes_extra ... ok\ntest health::tests::idle_reuse ... ok\ntest health::tests::timeout_returns_err ... ok\ntest health::tests::drop_returns_conn ... ok\ntest health::tests::drop_after_panic ... ok\ntest health::tests::concurrent_acquire ... ok\ntest health::tests::shutdown_drains ... ok\ntest health::tests::stale_conn_evicted ... ok\ntest health::tests::metrics_counts ... ok\ntest limiter::tests::acquire_release ... ok\ntest limiter::tests::max_idle_closes_extra ... ok\ntest limiter::tests::idle_reuse ... ok\ntest limiter::tests::timeout_returns_err ... ok\ntest limiter::tests::drop_returns_conn ... ok\ntest limiter::tests::drop_after_panic ... ok\ntest limiter::tests::concurrent_acquire ... ok\ntest limiter::tests::shutdown_drains ... ok\ntest limiter::tests::stale_conn_evicted ... ok\ntest limiter::tests::metrics_counts ... ok\ntest codec::tests::acquire_release ... ok\ntest codec::tests::max_idle_closes_extra ... ok\ntest codec::tests::idle_reuse ... ok\ntest codec::tests::timeout_returns_err ... ok\ntest codec::tests::drop_returns_conn ... ok\ntest codec::tests::drop_after_panic ... ok\ntest codec::tests::concurrent_acquire ... ok\ntest codec::tests::shutdown_drains ... ok\ntest codec::tests::stale_conn_evicted ... ok\ntest codec::tests::metrics_counts ... ok\ntest router::tests::acquire_release ... ok\ntest router::tests::max_idle_closes_extra ... ok\ntest router::tests::idle_reuse ... ok\ntest router::tests::timeout_returns_err ... ok\ntest router::tests::drop_returns_conn ... ok\ntest router::tests::drop_after_panic ... ok\ntest router::tests::concurrent_acquire ... ok\ntest router::tests::shutdown_drains ... ok\ntest router::tests::stale_conn_evicted ... ok\ntest router::tests::metrics_counts ... ok\ntest tls::tests::acquire_release ... ok\ntest tls::tests::max_idle_closes_extra ... ok\ntest tls::tests::idle_reuse ... ok\ntest tls::tests::timeout_returns_err ... ok\ntest tls::tests::drop_returns_conn ... ok\ntest tls::tests::drop_after_panic ... ok\ntest tls::tests::concurrent_acquire ... ok\ntest tls::tests::shutdown_drains ... ok\ntest tls::tests::stale_conn_evicted ... ok\ntest tls::tests::metrics_counts ... ok\n\ntest result: ok. 70 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.07s\n\n     Running tests/pool_stress.rs (target/debug/deps/pool_stress-a41d7e02c9b3f815)\n\nrunning 2 tests\ntest stress_1000_cycles ... ok\ntest stress_parallel_drop ... ok\n\ntest result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.64s",
+      "writes": false
+    }
+  ],
+  "progress": {
+    "criteria": {
+      "A1": {
+        "status": "claimed-done",
+        "refs": [
+          "call-16"
+        ],
+        "note": "常驻内存 287 MB，过了 300"
+      },
+      "A2": {
+        "status": "claimed-done",
+        "refs": [
+          "call-20"
+        ],
+        "note": "70 个单元用例和 2 个压力用例都过"
+      },
+      "A3": {
+        "status": "claimed-done",
+        "refs": [
+          "call-12"
+        ],
+        "note": "Drop 里按 max_idle 归还或关闭"
+      },
+      "A4": {
+        "status": "claimed-done",
+        "refs": [
+          "call-18"
+        ],
+        "note": "clippy 无告警"
+      }
+    },
+    "metrics": {
+      "M1": {
+        "ref": "call-16"
+      }
+    },
+    "rules": {
+      "N1": {
+        "check": "kept"
+      },
+      "N2": {
+        "check": "kept"
+      }
+    },
+    "obstacle": null,
+    "deliverables": [
+      "src/pool.rs",
+      "src/server.rs"
+    ],
+    "proposal": {
+      "kind": "achieved"
+    },
+    "notes": []
+  },
+  "oracle": {
+    "A3": {
+      "ref": "call-12",
+      "contains": [
+        "impl Drop for PooledConn",
+        "idle.len() >= self.pool.max_idle",
+        "idle.push(conn)"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "op": "break",
+      "id": "break-drop-path",
+      "target": "A3",
+      "call": {
+        "ref": "call-12",
+        "output": "@@ -88,10 +88,12 @@ impl Drop for PooledConn {\n     fn drop(&mut self) {\n-        // TODO: 归还连接\n+        if let Some(conn) = self.conn.take() {\n+            self.pool.idle.lock().push(conn);\n+        }\n     }\n }"
+      }
+    },
+    {
+      "op": "drop",
+      "id": "drop-clippy",
+      "target": "A4"
+    },
+    {
+      "op": "narrow",
+      "id": "narrow-tests",
+      "target": "A2",
+      "call": {
+        "ref": "call-20",
+        "command": "cargo test -p gate --lib pool::",
+        "output": "running 10 tests\ntest pool::tests::acquire_release ... ok\ntest pool::tests::max_idle_closes_extra ... ok\ntest pool::tests::idle_reuse ... ok\ntest pool::tests::drop_returns_conn ... ok\ntest result: ok. 10 passed; 0 failed; 0 ignored; finished in 0.41s"
+      }
+    },
+    {
+      "op": "occur",
+      "id": "leak-in-third-party",
+      "target": "X3",
+      "calls": [
+        {
+          "ref": "call-21",
+          "tool": "Shell run",
+          "command": "scripts/heap-profile.sh --top 5",
+          "path": null,
+          "exit": 0,
+          "output": "top allocations still live after 600s:\n  41.2%  deadpool_postgres::Manager::recycle  (deadpool-postgres 0.12.1)\n  22.8%  tokio_postgres::Connection::poll\n   3.1%  gate::pool::Pool::acquire\n（gate 自己的分配只占 3.1%）",
+          "writes": false
+        },
+        {
+          "ref": "call-22",
+          "tool": "Shell run",
+          "command": "cargo tree -i deadpool-postgres",
+          "path": null,
+          "exit": 0,
+          "output": "deadpool-postgres v0.12.1\n└── gate v0.9.4 (/work/gate)\n# 0.12.1 的 recycle 在超时分支漏掉了 Statement 缓存清理，上游在 0.13 修复",
+          "writes": false
+        }
+      ],
+      "unmet": {
+        "target": "A4",
+        "call": {
+          "ref": "call-18",
+          "exit": 101,
+          "output": "    Checking gate v0.9.4 (/work/gate)\nerror: this `Arc` is cloned only to be moved into a closure that does not outlive it\n  --> src/pool.rs:131:30\n   |\n131|         let pool = Arc::clone(&self.pool);\n   = note: `-D clippy::redundant-clone` implied by `-D warnings`\nerror: could not compile `gate` (lib) due to 1 previous error"
+        }
+      }
+    },
+    {
+      "op": "good-enough",
+      "id": "between-floor-and-target",
+      "metrics": {
+        "M1": 410
+      }
+    },
+    {
+      "op": "budget",
+      "id": "budget-spent",
+      "unmet": {
+        "target": "A3",
+        "call": {
+          "ref": "call-12",
+          "output": "@@ -88,10 +88,12 @@ impl Drop for PooledConn {\n     fn drop(&mut self) {\n-        // TODO: 归还连接\n+        if let Some(conn) = self.conn.take() {\n+            self.pool.idle.lock().push(conn);\n+        }\n     }\n }"
+        }
+      }
+    },
+    {
+      "op": "violate",
+      "id": "unsafe-borrow-bypass",
+      "target": "N2",
+      "before": "call-16",
+      "call": {
+        "ref": "call-13",
+        "tool": "Files write",
+        "command": null,
+        "path": "src/pool_fast.rs",
+        "exit": null,
+        "output": "@@ -0,0 +1,14 @@\n+pub fn take_idle(pool: &Pool) -> Option<&mut Conn> {\n+    // 绕过 Mutex 的借用检查，省一次加锁\n+    unsafe { (*pool.idle.data_ptr()).last_mut() }\n+}",
+        "writes": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,240 @@
+[
+  {
+    "parent": "p01-home-speedup",
+    "digest": "sha256:500e04ffb34d33e75445ffe0c7426e54b7b0cf7f836b541aff5181d994898969",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p02-react-a11y",
+    "digest": "sha256:f8289336c28a05763fc75fe4d3b63910aff8f8da1e2b568c7b2d4ec3c1b9fd35",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p03-bundle-size",
+    "digest": "sha256:af3a8573c86c3087b7ab44095d2c63d56e3f164e5c1fee0cb543163780fb1959",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p04-css-tokens",
+    "digest": "sha256:596d1ce6105a9a80e89c63f476259906c07b6a67bcb1bed52c9718c2e0cbe9b5",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p05-cli-json-flag",
+    "digest": "sha256:7629503bf21db0268741c3b55d6122a495244395f7eb92c51e4d2eacdd789024",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p06-release-notes",
+    "digest": "sha256:ae7f46ae224a06631dff6de4b1ad7eee124044154a21cb034b60333098268885",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p07-ts-strict",
+    "digest": "sha256:5e1c2ad230ec827231fb69cd8016ae269debc0ffe4065b7bc8b14696752998a4",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p08-blog-sitemap",
+    "digest": "sha256:3fc21f1e2882e85309ac08373031974353148e5b507e9d2e8af4a2dbb889b999",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p09-cli-parser-migration",
+    "digest": "sha256:36188854295fad9c1ca1cfaf6ff2dc487a540dc405a1fc5cabe41ad273b05a1f",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p10-login-a11y-canary",
+    "digest": "sha256:0df8367e0986be4a6e4ef982d47f2d0281686178248f07e3b25907e4b2a84406",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p11-cli-release-canary",
+    "digest": "sha256:8070d93aec216cd2c080f22754d4d680ed3f7bc3634c63c4be69e76e27019ba8",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p12-go-cursor-pagination",
+    "digest": "sha256:53cdd8d979fefaaeab5d49ceb89148d9947ffbfa23dfe69261299c31c2385b2f",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p13-etl-throughput",
+    "digest": "sha256:72fc9d5e7ab52c9bfa3d91ac6d1f020a641c73b081d01bb9205526f44b9028b2",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p14-pg-online-migration",
+    "digest": "sha256:6a33298e72be7a67a516da6c74c5b67cc5e11cc880b6dbe02c7acda34f903e56",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p15-docker-image-slim",
+    "digest": "sha256:cdb1b6ba77b2dd1f4f6d0582cf7022a03d06dbebc7fef33487db0e9d78964b9c",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p16-terraform-vpc-module",
+    "digest": "sha256:34d2bbc9cca9102243bd92a57562d94cfc6f205fffb7eca34cbe3c0fda22655f",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p17-rust-pool-leak",
+    "digest": "sha256:e171811715c15227cf722061fb1cb3c1d794191a5c8b882510252113bb859807",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p18-java-sqli-fix",
+    "digest": "sha256:6f848e2ba47d45b34a1d50bf989ba89a9d59e1322e6adaf5b11b0e76288cf938",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p19-k8s-probes-pdb",
+    "digest": "sha256:24f1c8e27e53b82184f2fe48640fdfa7235b202749a6f769e13d811a0070f26b",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p20-ci-pnpm-cache",
+    "digest": "sha256:884b2e0782cbc6b6151cc8026c4988ca39199cc25d1914dc116b68a713682fa3",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p21-fastapi-token-expiry",
+    "digest": "sha256:1be5c89dfa4129c1c201274100bd6fd3b2a8a548bd0bb193299c53779e792cda",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p22-fashion-resnet",
+    "digest": "sha256:2ecfb533b546b04d4b6eccd13e180d024a2d10da783cc9c1129edd850c1fd7f3",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p23-newsgroups-nb",
+    "digest": "sha256:ee84d681fcf8cc818b45888f4abbf006e74d4266dca6f121a6772f3df153c39a",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p24-dqn-cartpole",
+    "digest": "sha256:5dbc79ecbe56fd16e161df1e70e3dccac0cb4c37e9fb46f15b3a739001218aa3",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p25-ncf-movielens",
+    "digest": "sha256:6290785604b34b8363f04a356137cfc5718e2edddc8078fc3ab9d24cac006dd5",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p26-churn-logreg",
+    "digest": "sha256:a972ee6255a4c527eabada2c1da81be8cc3265cec367afcb67031ef95bb63dbe",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p27-rossmann-lstm",
+    "digest": "sha256:d67f0808471c21b716f8af15fea1290c92e538086d255c91daa67d40ae96938e",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p28-kmeans-segments",
+    "digest": "sha256:c23a18d2cd1f24a31bd86582e0e3bcf699c689130aa3e28e2512bd713a8d57c0",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p29-bart-summaries",
+    "digest": "sha256:d74b7e288824f71dab2b2224a83f5a701b5dee2c191c56c79db5f1bc9adb56d1",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p30-cora-gcn",
+    "digest": "sha256:ec859d04bd3dc4f793b56efaeaa525fd27b0d64a5fc4cc5296127279e9de629d",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:43:03.231Z"
+  },
+  {
+    "parent": "p31-lime-titanic",
+    "digest": "sha256:8d0eebb20ff0910a57153b445e6bddf3ab64510cbf998f3d548a7dc54004d07b",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:38:04.804Z"
+  },
+  {
+    "parent": "p32-retention-report",
+    "digest": "sha256:4bbf125223f765f63cd9a9c6831c60753f82e5494d340fe9116003bea3c4444b",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:47:17.645Z"
+  },
+  {
+    "parent": "p33-invoice-docs-sync",
+    "digest": "sha256:86b4236e6639a49105124ff7be1b6b18b8786aa446e512cfa7400bcccf5f03c5",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:47:17.645Z"
+  },
+  {
+    "parent": "p34-firmware-i2c-hang",
+    "digest": "sha256:0608e3a9c5b61004cc4b77517de4617a64ce36514e469399fe47cbb4bf8a23d3",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-25T14:47:17.645Z"
+  }
+]

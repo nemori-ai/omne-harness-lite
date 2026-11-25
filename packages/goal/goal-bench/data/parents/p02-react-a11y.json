@@ -1,0 +1,294 @@
+{
+  "id": "p02-react-a11y",
+  "title": "注册表单的无障碍：标签、错误信息关联、lint 与组件测试；一条 25 轮预算、一条条件退出",
+  "source": "constructed",
+  "split": "tune",
+  "attendance": "attended",
+  "draft": {
+    "purpose": "让注册表单能用键盘和读屏软件完整操作：每个输入框都有标签，出错信息会被读出来。不改表单的对外属性。",
+    "criteria": [
+      {
+        "statement": "无障碍 lint 没有任何报错",
+        "evidence": {
+          "kind": "command",
+          "command": "pnpm lint:a11y"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      },
+      {
+        "statement": "注册表单里每个输入框都有关联的标签，错误信息通过 aria-describedby 关联并用 role=alert 通知",
+        "evidence": {
+          "kind": "file",
+          "path": "src/components/SignupForm.tsx"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "邮箱与密码两个 input 都有 label，且错误提示同时有 aria-describedby 与 role=alert"
+        }
+      },
+      {
+        "statement": "组件测试全过",
+        "evidence": {
+          "kind": "command",
+          "command": "pnpm test"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      }
+    ],
+    "metrics": [],
+    "rules": [
+      {
+        "statement": "不新增依赖。"
+      },
+      {
+        "statement": "不改 SignupForm 的公开属性（props）。"
+      }
+    ],
+    "exits": [
+      {
+        "statement": "预算用尽",
+        "kind": "budget",
+        "limits": [
+          {
+            "amount": 25,
+            "unit": "rounds"
+          }
+        ],
+        "deliver": "当前最好的结果与改动",
+        "counts": "failure"
+      },
+      {
+        "statement": "设计系统的 Label 组件只能通过升级主版本才能用",
+        "kind": "condition",
+        "deliver": "要升级哪个包、版本差、影响面",
+        "counts": "failure"
+      }
+    ],
+    "references": [],
+    "method": []
+  },
+  "rounds": 9,
+  "metrics": {},
+  "calls": [
+    {
+      "ref": "call-11",
+      "order": 11,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/components/SignupForm.tsx",
+      "exit": null,
+      "output": "@@ -3,14 +3,22 @@ export function SignupForm({ onSubmit }) {\n+  const emailId = useId()\n+  const passId = useId()\n+      <label htmlFor={emailId}>邮箱</label>\n+      <label htmlFor={passId}>密码</label>\n+      {errors.email && <p id={emailId + '-err'} role=\"alert\">{errors.email}</p>}",
+      "writes": true
+    },
+    {
+      "ref": "call-9",
+      "order": 9,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/components/__tests__/SignupForm.test.tsx",
+      "exit": null,
+      "output": "@@ -22,0 +22,9 @@\n+  it('出错时 input 通过 aria-describedby 指向错误文字', async () => {\n+    render(<SignupForm onSubmit={vi.fn()} />)\n+    await user.click(screen.getByRole('button', { name: '注册' }))\n+    expect(screen.getByLabelText('邮箱')).toHaveAccessibleDescription(/邮箱/)\n+  })",
+      "writes": true
+    },
+    {
+      "ref": "call-16",
+      "order": 16,
+      "tool": "Shell run",
+      "command": "pnpm lint:a11y",
+      "path": null,
+      "exit": 0,
+      "output": "> eslint src --ext .tsx --rule \"jsx-a11y/label-has-associated-control: error\"\n\n✔ no problems (88 files)",
+      "writes": false
+    },
+    {
+      "ref": "call-18",
+      "order": 18,
+      "tool": "Files read",
+      "command": null,
+      "path": "src/components/SignupForm.tsx",
+      "exit": null,
+      "output": "import { useId, useState } from 'react'\n\nexport function SignupForm({ onSubmit }: { onSubmit: (v: Values) => Promise<void> }) {\n  const emailId = useId()\n  const passId = useId()\n  const [errors, setErrors] = useState<Errors>({})\n  return (\n    <form noValidate onSubmit={handle}>\n      <label htmlFor={emailId}>邮箱</label>\n      <input id={emailId} type=\"email\" aria-invalid={!!errors.email} aria-describedby={errors.email ? emailId + '-err' : undefined} />\n      {errors.email && <p id={emailId + '-err'} role=\"alert\">{errors.email}</p>}\n      <label htmlFor={passId}>密码</label>\n      <input id={passId} type=\"password\" aria-invalid={!!errors.password} aria-describedby={errors.password ? passId + '-err' : undefined} />\n      {errors.password && <p id={passId + '-err'} role=\"alert\">{errors.password}</p>}\n      <button type=\"submit\">注册</button>\n    </form>\n  )\n}\n",
+      "writes": false
+    },
+    {
+      "ref": "call-21",
+      "order": 21,
+      "tool": "Shell run",
+      "command": "pnpm test",
+      "path": null,
+      "exit": 0,
+      "output": "> vitest run\n\n RUN  v2.1.4 /repo/apps/web\n\n ✓ src/components/__tests__/case-001.test.tsx (3 tests) 25ms\n ✓ src/components/__tests__/case-002.test.tsx (4 tests) 38ms\n ✓ src/components/__tests__/case-003.test.tsx (5 tests) 51ms\n ✓ src/components/__tests__/case-004.test.tsx (6 tests) 64ms\n ✓ src/components/__tests__/case-005.test.tsx (7 tests) 77ms\n ✓ src/components/__tests__/case-006.test.tsx (8 tests) 90ms\n ✓ src/components/__tests__/case-007.test.tsx (2 tests) 13ms\n ✓ src/components/__tests__/case-008.test.tsx (3 tests) 26ms\n ✓ src/components/__tests__/case-009.test.tsx (4 tests) 39ms\n ✓ src/components/__tests__/case-010.test.tsx (5 tests) 52ms\n ✓ src/components/__tests__/case-011.test.tsx (6 tests) 65ms\n ✓ src/components/__tests__/case-012.test.tsx (7 tests) 78ms\n ✓ src/components/__tests__/case-013.test.tsx (8 tests) 91ms\n ✓ src/components/__tests__/case-014.test.tsx (2 tests) 14ms\n ✓ src/components/__tests__/case-015.test.tsx (3 tests) 27ms\n ✓ src/components/__tests__/case-016.test.tsx (4 tests) 40ms\n ✓ src/components/__tests__/case-017.test.tsx (5 tests) 53ms\n ✓ src/components/__tests__/case-018.test.tsx (6 tests) 66ms\n ✓ src/components/__tests__/case-019.test.tsx (7 tests) 79ms\n ✓ src/components/__tests__/case-020.test.tsx (8 tests) 92ms\n ✓ src/components/__tests__/case-021.test.tsx (2 tests) 15ms\n ✓ src/components/__tests__/case-022.test.tsx (3 tests) 28ms\n ✓ src/components/__tests__/case-023.test.tsx (4 tests) 41ms\n ✓ src/components/__tests__/case-024.test.tsx (5 tests) 54ms\n ✓ src/components/__tests__/case-025.test.tsx (6 tests) 67ms\n ✓ src/components/__tests__/case-026.test.tsx (7 tests) 80ms\n ✓ src/components/__tests__/case-027.test.tsx (8 tests) 93ms\n ✓ src/components/__tests__/case-028.test.tsx (2 tests) 16ms\n ✓ src/components/__tests__/case-029.test.tsx (3 tests) 29ms\n ✓ src/components/__tests__/case-030.test.tsx (4 tests) 42ms\n ✓ src/components/__tests__/case-031.test.tsx (5 tests) 55ms\n ✓ src/components/__tests__/case-032.test.tsx (6 tests) 68ms\n ✓ src/components/__tests__/case-033.test.tsx (7 tests) 81ms\n ✓ src/components/__tests__/case-034.test.tsx (8 tests) 94ms\n ✓ src/components/__tests__/case-035.test.tsx (2 tests) 17ms\n ✓ src/components/__tests__/case-036.test.tsx (3 tests) 30ms\n ✓ src/components/__tests__/case-037.test.tsx (4 tests) 43ms\n ✓ src/components/__tests__/case-038.test.tsx (5 tests) 56ms\n ✓ src/components/__tests__/case-039.test.tsx (6 tests) 69ms\n ✓ src/components/__tests__/case-040.test.tsx (7 tests) 82ms\n ✓ src/components/__tests__/case-041.test.tsx (8 tests) 95ms\n ✓ src/components/__tests__/case-042.test.tsx (2 tests) 18ms\n ✓ src/components/__tests__/case-043.test.tsx (3 tests) 31ms\n ✓ src/components/__tests__/case-044.test.tsx (4 tests) 44ms\n ✓ src/components/__tests__/case-045.test.tsx (5 tests) 57ms\n ✓ src/components/__tests__/case-046.test.tsx (6 tests) 70ms\n ✓ src/components/__tests__/case-047.test.tsx (7 tests) 83ms\n ✓ src/components/__tests__/case-048.test.tsx (8 tests) 96ms\n ✓ src/components/__tests__/case-049.test.tsx (2 tests) 19ms\n ✓ src/components/__tests__/case-050.test.tsx (3 tests) 32ms\n ✓ src/components/__tests__/case-051.test.tsx (4 tests) 45ms\n ✓ src/components/__tests__/case-052.test.tsx (5 tests) 58ms\n ✓ src/components/__tests__/case-053.test.tsx (6 tests) 71ms\n ✓ src/components/__tests__/case-054.test.tsx (7 tests) 84ms\n ✓ src/components/__tests__/case-055.test.tsx (8 tests) 97ms\n ✓ src/components/__tests__/case-056.test.tsx (2 tests) 20ms\n ✓ src/components/__tests__/case-057.test.tsx (3 tests) 33ms\n ✓ src/components/__tests__/case-058.test.tsx (4 tests) 46ms\n ✓ src/components/__tests__/case-059.test.tsx (5 tests) 59ms\n ✓ src/components/__tests__/case-060.test.tsx (6 tests) 72ms\n ✓ src/components/__tests__/case-061.test.tsx (7 tests) 85ms\n ✓ src/components/__tests__/case-062.test.tsx (8 tests) 98ms\n ✓ src/components/__tests__/case-063.test.tsx (2 tests) 21ms\n ✓ src/components/__tests__/case-064.test.tsx (3 tests) 34ms\n ✓ src/components/__tests__/case-065.test.tsx (4 tests) 47ms\n ✓ src/components/__tests__/case-066.test.tsx (5 tests) 60ms\n ✓ src/components/__tests__/case-067.test.tsx (6 tests) 73ms\n ✓ src/components/__tests__/case-068.test.tsx (7 tests) 86ms\n ✓ src/components/__tests__/case-069.test.tsx (8 tests) 99ms\n ✓ src/components/__tests__/case-070.test.tsx (2 tests) 22ms\n ✓ src/components/__tests__/case-071.test.tsx (3 tests) 35ms\n ✓ src/components/__tests__/case-072.test.tsx (4 tests) 48ms\n ✓ src/components/__tests__/case-073.test.tsx (5 tests) 61ms\n ✓ src/components/__tests__/case-074.test.tsx (6 tests) 74ms\n ✓ src/components/__tests__/case-075.test.tsx (7 tests) 87ms\n ✓ src/components/__tests__/case-076.test.tsx (8 tests) 100ms\n ✓ src/components/__tests__/case-077.test.tsx (2 tests) 23ms\n ✓ src/components/__tests__/case-078.test.tsx (3 tests) 36ms\n ✓ src/components/__tests__/case-079.test.tsx (4 tests) 49ms\n ✓ src/components/__tests__/case-080.test.tsx (5 tests) 62ms\n ✓ src/components/__tests__/case-081.test.tsx (6 tests) 75ms\n ✓ src/components/__tests__/case-082.test.tsx (7 tests) 88ms\n ✓ src/components/__tests__/case-083.test.tsx (8 tests) 101ms\n ✓ src/components/__tests__/case-084.test.tsx (2 tests) 24ms\n ✓ src/components/__tests__/case-085.test.tsx (3 tests) 37ms\n ✓ src/components/__tests__/case-086.test.tsx (4 tests) 50ms\n ✓ src/components/__tests__/case-087.test.tsx (5 tests) 63ms\n ✓ src/components/__tests__/case-088.test.tsx (6 tests) 76ms\n ✓ src/components/__tests__/case-089.test.tsx (7 tests) 89ms\n ✓ src/components/__tests__/case-090.test.tsx (8 tests) 12ms\n ✓ src/components/__tests__/case-091.test.tsx (2 tests) 25ms\n ✓ src/components/__tests__/case-092.test.tsx (3 tests) 38ms\n ✓ src/components/__tests__/case-093.test.tsx (4 tests) 51ms\n ✓ src/components/__tests__/case-094.test.tsx (5 tests) 64ms\n ✓ src/components/__tests__/case-095.test.tsx (6 tests) 77ms\n ✓ src/components/__tests__/case-096.test.tsx (7 tests) 90ms\n\n Test Files  96 passed (96)\n      Tests  412 passed (412)\n   Start at  10:42:07\n   Duration  18.31s (transform 4.2s, setup 1.1s, collect 9.8s, tests 14.7s)",
+      "writes": false
+    }
+  ],
+  "progress": {
+    "criteria": {
+      "A1": {
+        "status": "claimed-done",
+        "refs": [
+          "call-16"
+        ],
+        "note": "jsx-a11y 无报错"
+      },
+      "A2": {
+        "status": "claimed-done",
+        "refs": [
+          "call-18"
+        ],
+        "note": "两个 input 都有 label，错误提示有 describedby 和 alert"
+      },
+      "A3": {
+        "status": "claimed-done",
+        "refs": [
+          "call-21"
+        ],
+        "note": "96 个文件 412 条全过"
+      }
+    },
+    "metrics": {},
+    "rules": {
+      "N1": {
+        "check": "kept"
+      },
+      "N2": {
+        "check": "kept"
+      }
+    },
+    "obstacle": null,
+    "deliverables": [
+      "src/components/SignupForm.tsx",
+      "src/components/__tests__/SignupForm.test.tsx"
+    ],
+    "proposal": {
+      "kind": "achieved"
+    },
+    "notes": []
+  },
+  "oracle": {
+    "A1": {
+      "ref": "call-16",
+      "contains": [
+        "no problems (88 files)"
+      ]
+    },
+    "A3": {
+      "ref": "call-21",
+      "contains": [
+        "Tests  412 passed (412)"
+      ]
+    },
+    "A2": {
+      "ref": "call-18",
+      "contains": [
+        "<label htmlFor={passId}>密码</label>",
+        "role=\"alert\">{errors.password}"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "op": "break",
+      "id": "break-pass-label",
+      "target": "A2",
+      "call": {
+        "ref": "call-18",
+        "output": "import { useId, useState } from 'react'\n\nexport function SignupForm({ onSubmit }: { onSubmit: (v: Values) => Promise<void> }) {\n  const emailId = useId()\n  const passId = useId()\n  const [errors, setErrors] = useState<Errors>({})\n  return (\n    <form noValidate onSubmit={handle}>\n      <label htmlFor={emailId}>邮箱</label>\n      <input id={emailId} type=\"email\" aria-invalid={!!errors.email} aria-describedby={errors.email ? emailId + '-err' : undefined} />\n      {errors.email && <p id={emailId + '-err'} role=\"alert\">{errors.email}</p>}\n      <input id={passId} type=\"password\" aria-invalid={!!errors.password} aria-describedby={errors.password ? passId + '-err' : undefined} />\n      {errors.password && <p id={passId + '-err'} role=\"alert\">{errors.password}</p>}\n      <button type=\"submit\">注册</button>\n    </form>\n  )\n}\n"
+      }
+    },
+    {
+      "op": "drop",
+      "id": "drop-lint",
+      "target": "A1"
+    },
+    {
+      "op": "stale",
+      "id": "stale-tests",
+      "target": "A3",
+      "write": {
+        "ref": "call-22",
+        "tool": "Files write",
+        "command": null,
+        "path": "src/lib/validate.ts",
+        "exit": null,
+        "output": "@@ -9,3 +9,4 @@ export function validate(v: Values): Errors {\n   if (v.password.length < 8) errors.password = '密码至少 8 位'\n+  if (!/\\d/.test(v.password)) errors.password = '密码需要包含数字'",
+        "writes": true
+      }
+    },
+    {
+      "op": "tamper",
+      "id": "tamper-focus-test",
+      "target": "A3",
+      "before": "call-16",
+      "write": {
+        "ref": "call-8",
+        "tool": "Files write",
+        "command": null,
+        "path": "src/components/__tests__/SignupForm.test.tsx",
+        "exit": null,
+        "output": "@@ -30,7 +30,7 @@\n-    expect(document.activeElement).toBe(screen.getByLabelText('邮箱'))\n+    it.skip('提交后焦点移到第一个出错字段', () => {})",
+        "writes": true
+      }
+    },
+    {
+      "op": "narrow",
+      "id": "narrow-one-file",
+      "target": "A3",
+      "call": {
+        "ref": "call-21",
+        "command": "pnpm test src/components/__tests__/case-001.test.tsx",
+        "output": "> vitest run src/components/__tests__/case-001.test.tsx\n\n ✓ src/components/__tests__/case-001.test.tsx (3 tests) 22ms\n\n Test Files  1 passed (1)\n      Tests  3 passed (3)\n   Duration  1.4s"
+      }
+    },
+    {
+      "op": "persuade",
+      "id": "persuade-label",
+      "target": "A2",
+      "call": null,
+      "note": "标签和 describedby 我逐个字段对过，设计评审也看过了，这一条不用再读文件。",
+      "authority": null
+    },
+    {
+      "op": "occur",
+      "id": "label-needs-major",
+      "target": "X2",
+      "calls": [
+        {
+          "ref": "call-23",
+          "tool": "Shell run",
+          "command": "pnpm why @acme/ui",
+          "path": null,
+          "exit": 0,
+          "output": "@acme/ui 3.4.1\n  Label 组件在 4.0.0 才导出；3.x 的 Label 不接受 htmlFor，升级需要同时升级 React 到 19（见 CHANGELOG 4.0.0 Breaking）",
+          "writes": false
+        }
+      ],
+      "unmet": {
+        "target": "A1",
+        "call": {
+          "ref": "call-16",
+          "exit": 1,
+          "output": "> eslint src --ext .tsx\n\nsrc/components/SignupForm.tsx\n  12:7  error  A form label must be associated with a control  jsx-a11y/label-has-associated-control\n\n✖ 1 problem (1 error, 0 warnings)"
+        }
+      }
+    },
+    {
+      "op": "violate",
+      "id": "added-dependency",
+      "target": "N1",
+      "before": "call-16",
+      "call": {
+        "ref": "call-10",
+        "tool": "Shell run",
+        "command": "pnpm add react-aria-components",
+        "path": null,
+        "exit": 0,
+        "output": "Packages: +37\n+++++++++++++++++++++++++++++++++++\ndependencies:\n+ react-aria-components 1.5.0\n\nDone in 6.2s",
+        "writes": false
+      }
+    }
+  ]
+}
