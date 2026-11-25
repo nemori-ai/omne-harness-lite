@@ -574,6 +574,7 @@ describe('a lease over the real memory Commands', () => {
     const f = fixture()
     const { commands } = createMemoryModelCommands(f.options)
     await settledCall(f, commands, X, requestWith(two), accountFact)
+    const withState = requestWith([...two, assistantWithState('a3')])
     const foreign: Access<Principal> = { principal: f.principal, tenant: identity('6') }
     expect(tenantEquals(foreign.tenant, f.tenant)).toBe(false)
     const outcomes = await Promise.all(
@@ -582,20 +583,20 @@ describe('a lease over the real memory Commands', () => {
           access: foreign,
           lineage: {
             continues: X,
-            sources: [{ message: requestWith(three).messages[2]!.id, call: X }],
+            sources: [{ message: withState.messages[2]!.id, call: X }],
           },
         },
         {
           access: f.admit,
           lineage: {
             continues: callId('missing'),
-            sources: [{ message: requestWith(three).messages[2]!.id, call: callId('missing') }],
+            sources: [{ message: withState.messages[2]!.id, call: callId('missing') }],
           },
         },
       ].map(async ({ access, lineage }) => {
         const family = stubFamily()
         const lease = await acquire({ commands, bindings: family.bindings }, access, lineage)
-        const measured = await measureWith(lease, requestWith(three))
+        const measured = await measureWith(lease, withState)
         await lease.release()
         return { measured, calibrations: family.calibrations }
       }),
@@ -606,7 +607,7 @@ describe('a lease over the real memory Commands', () => {
     })
     expect(outcomes[0]!.calibrations[0]?.outputs).toEqual([
       {
-        message: requestWith(three).messages[2]!.id,
+        message: requestWith([...two, assistantWithState('a3')]).messages[2]!.id,
         kind: 'withheld',
         reason: 'source-unreadable',
       },
@@ -784,15 +785,12 @@ describe('sources: the output count of each declared source, or why it is withhe
     ).toEqual([{ message: a1.id, kind: 'known', outputTokens: '18' }])
   })
 
-  it('source-missing: an assistant message that carries state without a declared source', async () => {
+  it('source-missing: an assistant message that carries state without a declared source; a message without state is not judged', async () => {
     expect(
       await outputsOf(new Map([[Y, { ok: [recordOf()] }]]), {
         sources: [{ message: u1.id, call: Y }],
       }),
-    ).toEqual([
-      { message: u1.id, kind: 'known', outputTokens: '18' },
-      { message: a1.id, kind: 'withheld', reason: 'source-missing' },
-    ])
+    ).toEqual([{ message: a1.id, kind: 'withheld', reason: 'source-missing' }])
   })
 
   it.each([
@@ -880,25 +878,28 @@ describe('sources: the output count of each declared source, or why it is withhe
 describe('acquire: reads, limits and all-or-nothing bindings', () => {
   const f = fixture()
 
-  it('reads each distinct call once with the access of the caller, and nothing else', async () => {
+  it('reads nothing on acquire, then each call a measurement needs once, with the access of the caller', async () => {
     const reads: Reads = []
     const family = stubFamily()
+    const fixed = requestWith([user('u1'), assistantWithState('a2')])
     const lease = await acquire(
       { commands: stubStore(new Map(), reads), bindings: family.bindings },
       f.admit,
       {
         continues: X,
         sources: [
-          { message: requestWith(two).messages[0]!.id, call: X },
-          { message: requestWith(two).messages[1]!.id, call: Y },
+          { message: fixed.messages[0]!.id, call: X },
+          { message: fixed.messages[1]!.id, call: Y },
         ],
       },
     )
+    expect(reads).toEqual([])
+    reportOf(await measureWith(lease, fixed))
     expect(reads.map(read => read.access)).toEqual([
       { principal: f.principal, tenant: f.tenant, call: X },
       { principal: f.principal, tenant: f.tenant, call: Y },
     ])
-    reportOf(await measureWith(lease, requestWith(two)))
+    reportOf(await measureWith(lease, fixed))
     expect(reads).toHaveLength(2)
     await lease.release()
   })
@@ -1001,7 +1002,7 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
     expect(family.released).toBe(1)
   })
 
-  it('gives back the bindings it acquired when the supplier port, the binding source or the store throws', async () => {
+  it('gives back the bindings it acquired when the supplier port or the binding source throws; a store that throws fails the measurement', async () => {
     const wide: ModelProfile = {
       ...profile,
       definition: { ...profile.definition, suppliers: [profileSupplier, profileSupplier] },
@@ -1049,9 +1050,10 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
       supplierOf,
       maxCitedCalls: 2,
     })
-    await expect(store.acquire({ ...f.admit, profile, lineage: { continues: X } })).rejects.toBe(
-      defect,
-    )
+    const held = unbox(await store.acquire({ ...f.admit, profile, lineage: { continues: X } }))
+    await expect(measureWith(held, requestWith(two))).rejects.toBe(defect)
+    expect(throwingStore.released).toBe(0)
+    await held.release()
     expect(throwingStore.released).toBe(1)
   })
 
@@ -1396,14 +1398,21 @@ describe('lineage boundaries', () => {
     },
   )
 
-  it('a lineage of sources only reads exactly the source calls', async () => {
+  it('a lineage of sources only reads exactly the source of each message that carries state', async () => {
     const reads: Reads = []
     const family = stubFamily()
+    const fixed = requestWith([user('u1'), assistantWithState('a2')])
     const lease = await acquire(
       { commands: stubStore(new Map(), reads), bindings: family.bindings },
       f.admit,
-      { sources: [{ message: m1, call: Y }] },
+      {
+        sources: [
+          { message: fixed.messages[0]!.id, call: X },
+          { message: fixed.messages[1]!.id, call: Y },
+        ],
+      },
     )
+    reportOf(await measureWith(lease, fixed))
     expect(reads.map(read => read.access.call)).toEqual([Y])
     await lease.release()
   })
