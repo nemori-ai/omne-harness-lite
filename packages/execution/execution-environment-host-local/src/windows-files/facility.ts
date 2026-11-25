@@ -25,6 +25,12 @@ import type { ChangeInput, Final, Metadata, NativeInput, RunInput, Start } from 
 const invoke = (input: NativeInput, boundMs?: number) =>
   getWindowsFilesHelper().request(input, boundMs)
 
+function visitProof(request: FileRequest<unknown>, ...paths: (string | undefined)[]) {
+  if (!request.observeDirectory) return {}
+  const directories = paths.filter(path => path !== undefined)
+  return directories.length ? { verifiedDirectories: [...new Set(directories)].sort() } : {}
+}
+
 function finalOf(path: string): Final {
   const follow = path.split(/[\\/]/u).findLast(part => part !== '') === '.'
   return { directory: follow || /[\\/]$/u.test(path), follow }
@@ -164,7 +170,11 @@ function snapshot<R extends FileRequest<unknown>>(request: R): R {
   }
 }
 
-export function createWindowsRootIdentity(root: string): () => Promise<string | undefined> {
+export function createWindowsRootIdentity(
+  root: string,
+  expected?: string,
+): () => Promise<string | undefined> {
+  if (expected !== undefined) return async () => 'node-stat:' + expected
   let binding: Promise<string | undefined> | undefined
   return async () => {
     binding ??= windowsObjectInfo(root).then(
@@ -190,29 +200,16 @@ function scopedIdentities(
   return { read, write: scope.write === scope.read ? read : of(scope.write) }
 }
 
-export function createWindowsFiles(
-  options: Readonly<{
-    scope?: FilesScope
-    rootIdentity?: Readonly<Record<FileEffect, WindowsIdentity | undefined>>
-    limits: HostFilesLimits
-    issue(object: ObjectToken): HandleGeneration
-  }>,
-): Pick<
-  FileSystemFacility<unknown>,
-  'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
-> {
+type WindowsFilesOptions = Readonly<{
+  scope?: FilesScope
+  rootIdentity?: Readonly<Record<FileEffect, WindowsIdentity | undefined>>
+  limits: HostFilesLimits
+  issue(object: ObjectToken): HandleGeneration
+}>
+
+function windowsRequests(options: WindowsFilesOptions) {
   const scope = options.scope ?? {}
   const rootIdentity = options.rootIdentity ?? scopedIdentities(scope)
-  const identity = (info: Metadata): FileIdentity => {
-    const object = { token: info.token }
-    return { object, version: info.version, handle: options.issue(object) }
-  }
-  const information = (info: Metadata): FileInformation => ({
-    ...identity(info),
-    type: info.type,
-    sizeBytes: info.size,
-    modifiedMs: info.modified,
-  })
   /** Where a request starts: below the root of its effect, checked against the recorded root. */
   const startOf = async (path: string, effect: FileEffect): Promise<Outcome<Start>> => {
     const root = scope[effect]
@@ -291,6 +288,26 @@ export function createWindowsFiles(
     })
     return typeof result === 'string' ? failed(request.requestId, result, missing) : result
   }
+  return { startOf, change, run }
+}
+
+export function createWindowsFiles(
+  options: WindowsFilesOptions,
+): Pick<
+  FileSystemFacility<unknown>,
+  'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
+> {
+  const identity = (info: Metadata): FileIdentity => {
+    const object = { token: info.token }
+    return { object, version: info.version, handle: options.issue(object) }
+  }
+  const information = (info: Metadata): FileInformation => ({
+    ...identity(info),
+    type: info.type,
+    sizeBytes: info.size,
+    modifiedMs: info.modified,
+  })
+  const { startOf, change, run } = windowsRequests(options)
   const facility: Pick<
     FileSystemFacility<unknown>,
     'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
@@ -349,6 +366,7 @@ export function createWindowsFiles(
       if (typeof published === 'string') return failed(requestId, published, 'notFound')
       return {
         kind: 'done',
+        ...visitProof(request, staged.directory, published.directory),
         requestId,
         value: {
           source: { token: staged.source.token },
@@ -385,6 +403,7 @@ export function createWindowsFiles(
       if (typeof result === 'string') return failed(request.requestId, result, missing)
       return {
         kind: 'done',
+        ...visitProof(request, result.directory, result.targetDirectory),
         requestId: request.requestId,
         value: {
           ...identity(result.info),
@@ -407,6 +426,7 @@ export function createWindowsFiles(
       const bytes = Uint8Array.from(Buffer.from(result.bytes, 'base64'))
       return {
         kind: 'done',
+        ...visitProof(request, result.directory, result.targetDirectory),
         requestId: request.requestId,
         value: {
           ...identity(result.info),
@@ -420,7 +440,12 @@ export function createWindowsFiles(
       request = snapshot(request)
       const result = await run(request, 'stat', 0, 0)
       if ('kind' in result) return result
-      return { kind: 'done', requestId: request.requestId, value: information(result.info) }
+      return {
+        kind: 'done',
+        ...visitProof(request, result.directory, result.targetDirectory),
+        requestId: request.requestId,
+        value: information(result.info),
+      }
     },
     async list(request) {
       request = snapshot(request)
@@ -439,6 +464,7 @@ export function createWindowsFiles(
         if ('kind' in result) return result
         return {
           kind: 'done',
+          ...visitProof(request, result.directory, result.targetDirectory),
           requestId: request.requestId,
           value: {
             directory: identity(result.info),
@@ -473,6 +499,7 @@ export function createWindowsFiles(
       if ('kind' in result) return result
       return {
         kind: 'done',
+        ...visitProof(request, result.directory, result.targetDirectory),
         requestId: request.requestId,
         value: {
           root: identity(result.info),
@@ -491,7 +518,12 @@ export function createWindowsFiles(
       const result = await change({ ...request, recursive: request.parents }, 'mkdir')
       return 'kind' in result
         ? result
-        : { kind: 'done', requestId: request.requestId, value: identity(result.info) }
+        : {
+            kind: 'done',
+            ...visitProof(request, result.directory, result.targetDirectory),
+            requestId: request.requestId,
+            value: identity(result.info),
+          }
     },
     async remove(request) {
       request = snapshot(request)
@@ -500,6 +532,7 @@ export function createWindowsFiles(
         ? result
         : {
             kind: 'done',
+            ...visitProof(request, result.directory, result.targetDirectory),
             requestId: request.requestId,
             value: { removed: { token: result.info.token } },
           }
@@ -522,6 +555,7 @@ export function createWindowsFiles(
         ? result
         : {
             kind: 'done',
+            ...visitProof(request, result.directory, result.targetDirectory),
             requestId: request.requestId,
             value: { source: { token: result.info.token }, target: identity(result.info) },
           }

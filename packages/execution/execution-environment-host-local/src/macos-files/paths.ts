@@ -23,7 +23,11 @@ async function identify(path: string, root = false): Promise<RootIdentity> {
 }
 
 /** A recorded root never silently rebinds to its replacement. */
-export function createMacosRootIdentity(root: string): () => Promise<RootIdentity | undefined> {
+export function createMacosRootIdentity(
+  root: string,
+  expected?: string,
+): () => Promise<RootIdentity | undefined> {
+  if (expected !== undefined) return async () => ({ path: root, token: expected })
   let pending: Promise<RootIdentity | undefined> | undefined
   return async () => {
     const current = (pending ??= identify(root, true).catch(() => undefined))
@@ -41,7 +45,12 @@ export function requestRefusal(request: FileRequest<unknown>): Failure | undefin
 }
 
 export function createMacosPaths(rootIdentity?: () => Promise<RootIdentity | undefined>) {
-  return async (path: string, parents = false, directory = false): Promise<Outcome<Endpoint>> => {
+  return async (
+    path: string,
+    parents = false,
+    directory = false,
+    followParent = false,
+  ): Promise<Outcome<Endpoint>> => {
     if (rootIdentity !== undefined) {
       const root = await rootIdentity()
       if (root === undefined) return fail('unavailable')
@@ -70,7 +79,7 @@ export function createMacosPaths(rootIdentity?: () => Promise<RootIdentity | und
     const segments = last === '.' || last === '..' || last === '' ? [] : [last]
     for (;;) {
       try {
-        const root = await identify(parent)
+        const root = await identify(parent, followParent)
         return ok({
           root: root.path,
           expectedRoot: root.token,

@@ -150,6 +150,7 @@
 - `decodeRegistrationRef` · `refs.d.ts`
 - `decodeSourceGeneration` · `refs.d.ts`
 - `encodeFixedRequestRecord` · `fixed-request.d.ts`
+- `guidanceDirectories` · `guidance-directories.d.ts`
 - `judgeBudget` · `budget.d.ts`
 - `measureCandidate` · `measurement.d.ts`
 - `modalityOfBlock` · `representation.d.ts`
@@ -366,6 +367,12 @@ export declare function encodeFixedRequestRecord(value: FixedRequestRecord): Jso
 export declare function decodeFixedRequestRecord(value: unknown): Outcome<FixedRequestRecord, FixedRequestRecordRejection>;
 ```
 
+## 声明文件 `guidance-directories.d.ts`
+
+```ts
+export declare function guidanceDirectories(root: string, visited: Iterable<string>): readonly string[];
+```
+
 ## 声明文件 `history-read.d.ts`
 
 ```ts
@@ -408,6 +415,7 @@ export type HistoryEvidenceResolver<P> = (input: HistoryResolution<P>) => Promis
 ## 声明文件 `index.d.ts`
 
 ```ts
+export { guidanceDirectories } from './guidance-directories.js';
 export type { ScopeRef, ContextBlockKey } from '@omne-harness/runtime-context-contract';
 export type { Path, Decoded, Decoder } from './schema.js';
 export { standardSchema, compactionPolicySchema, representationPolicyConfigSchema, coverageSchema, } from './schema.js';

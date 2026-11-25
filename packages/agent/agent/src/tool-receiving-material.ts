@@ -150,6 +150,20 @@ function result(value: unknown): value is ToolResult<ContentBlock> {
     !value.attachments.every(reference)
   )
     return false
+  const visit = value.directoryVisit
+  if (
+    visit !== undefined &&
+    !(
+      object(visit) &&
+      typeof visit.workspace === 'string' &&
+      typeof visit.instance === 'string' &&
+      typeof visit.generation === 'string' &&
+      /^\d+$/u.test(visit.generation) &&
+      Array.isArray(visit.directories) &&
+      visit.directories.every(path => typeof path === 'string' && path.length > 0)
+    )
+  )
+    return false
   const data = value.data,
     original = value.original
   if (!object(data) || !object(original)) return false

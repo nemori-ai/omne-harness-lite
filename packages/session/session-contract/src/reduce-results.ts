@@ -1,3 +1,4 @@
+import { applyWorkspaceVisit } from './workspace-visit.ts'
 import { validateResult } from './call-state.ts'
 import { evidenceFields } from './session-validation.ts'
 import type { SessionEntry } from './entries.ts'
@@ -128,6 +129,7 @@ export function applyProducerFact(
       digestOf(call.binding.producer) !== digestOf(fact.producer)
     )
       return 'final delivery without its original binding'
+    if (fact.directoryVisit !== undefined) applyWorkspaceVisit(draft, call.id, fact.directoryVisit)
     draft.consumptions = draft.consumptions.map(item =>
       item.id === call.id ? { ...item, delivered: fact.source } : item,
     )

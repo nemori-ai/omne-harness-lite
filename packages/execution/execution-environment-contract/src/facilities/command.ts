@@ -52,6 +52,8 @@ export type ResidueReport =
 export type CommandOutcome =
   | {
       readonly kind: 'completed'
+      /** Terminal cwd reported by the completion frame of this execution. */
+      readonly observedCwd?: string
       readonly exit:
         | { readonly kind: 'code'; readonly code: number }
         | { readonly kind: 'signal'; readonly signal: string }

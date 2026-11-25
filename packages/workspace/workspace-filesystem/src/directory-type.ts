@@ -81,6 +81,8 @@ export class DirectoryType implements ManagementType {
     if (!('ok' in looked)) return looked
     // Another directory under the same name is another resource. It is not followed.
     if (looked.ok.identity !== known.rootIdentity) return { refused: reason('replaced') }
-    return { ok: { directory: known.scope.root, basis: UNPINNED } }
+    return {
+      ok: { directory: known.scope.root, basis: UNPINNED, rootIdentity: known.rootIdentity },
+    }
   }
 }

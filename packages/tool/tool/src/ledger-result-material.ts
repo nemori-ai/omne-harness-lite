@@ -147,6 +147,7 @@ export function readResultValue<B extends ContentBlock>(
 export function releasedResultValue(value: ResultValue): ResultValue {
   return {
     content: value.original.kind === 'offloaded' ? value.original.summary : [],
+    ...(value.directoryVisit === undefined ? {} : { directoryVisit: value.directoryVisit }),
     data: value.data,
     original: value.original,
     attachments: [],

@@ -26,8 +26,15 @@ import type { ControlRecord, PhysicalExecution, QueuePosition, ToolTiming } from
 
 export type Attachment = ContentReference
 export type ToolMessageContentBlock = TextContentBlock | ReferenceContentBlock
+export type ToolDirectoryVisit = Readonly<{
+  workspace: string
+  instance: string
+  generation: string
+  directories: readonly string[]
+}>
 export type ToolRenderedResult<B extends ContentBlock> = Readonly<{
   content: readonly B[]
+  directoryVisit?: ToolDirectoryVisit
   data: ToolResultData
   original:
     | Readonly<{ kind: 'none' }>

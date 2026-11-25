@@ -90,36 +90,44 @@ async function commit(options: Options, request: Commit, tenant: string, directo
   }
   const file = location(directory, tenant, batch.id)
   const published: string[] = []
+  const directories = new Set<string>()
+  const visits = () => (directories.size ? { verifiedDirectories: [...directories].sort() } : {})
   let manifestFailure = false
   let unavailable = false
   options.running.add(batch.id)
   try {
-    const result = await runBatch(entries, options.rootIdentity !== undefined, async event => {
-      if (event.event === 'beforePublish') return options.sealed() ? 'closed' : 'continue'
-      try {
-        if (event.event === 'checked') {
-          await mkdir(dirname(file), { recursive: true })
-          await writeManifest(file, manifest)
-        } else if (event.event === 'staged') {
-          await writeManifest(file, { ...manifest, state: 'publishing' })
-        } else if (event.event === 'published') {
-          const entry = manifest.entries[event.index]
-          if (entry === undefined) throw new Error('missing batch entry')
-          notify(options, manifest, event)
-          await writeManifest(file, {
-            ...manifest,
-            state: 'publishing',
-            receipts: [...published, entry.path],
-          })
-          published.push(entry.path)
+    const result = await runBatch(
+      entries,
+      options.rootIdentity !== undefined,
+      async event => {
+        if (event.event === 'beforePublish') return options.sealed() ? 'closed' : 'continue'
+        try {
+          if (event.event === 'checked') {
+            await mkdir(dirname(file), { recursive: true })
+            await writeManifest(file, manifest)
+          } else if (event.event === 'staged') {
+            await writeManifest(file, { ...manifest, state: 'publishing' })
+          } else if (event.event === 'published') {
+            const entry = manifest.entries[event.index]
+            if (entry === undefined) throw new Error('missing batch entry')
+            notify(options, manifest, event)
+            await writeManifest(file, {
+              ...manifest,
+              state: 'publishing',
+              receipts: [...published, entry.path],
+            })
+            published.push(entry.path)
+            if (event.directory !== undefined) directories.add(event.directory)
+          }
+          return 'continue'
+        } catch {
+          manifestFailure = true
+          unavailable = event.event === 'checked'
+          return 'effectUnknown'
         }
-        return 'continue'
-      } catch {
-        manifestFailure = true
-        unavailable = event.event === 'checked'
-        return 'effectUnknown'
-      }
-    })
+      },
+      request.observeDirectory && !options.rootIdentity,
+    )
     if (unavailable) return reject(request.requestId, 'unavailable')
     if (typeof result !== 'string' && result.kind === 'stageFailed') {
       if (!result.cleaned) return unknown(request.requestId)
@@ -136,6 +144,7 @@ async function commit(options: Options, request: Commit, tenant: string, directo
       await writeManifest(file, { ...manifest, state: 'committed', receipts: published })
       return {
         kind: 'done' as const,
+        ...visits(),
         requestId: request.requestId,
         value: { kind: 'committed' as const, batch, published },
       }
@@ -144,12 +153,14 @@ async function commit(options: Options, request: Commit, tenant: string, directo
       await writeManifest(file, { ...manifest, state: 'conflict', receipts: published })
     return {
       kind: 'done' as const,
+      ...visits(),
       requestId: request.requestId,
       value: { kind: 'unknown' as const, batch, published, reason: finish.reason },
     }
   } catch {
     return {
       kind: 'done' as const,
+      ...visits(),
       requestId: request.requestId,
       value: { kind: 'unknown' as const, batch, published, reason: 'effectUnknown' as const },
     }

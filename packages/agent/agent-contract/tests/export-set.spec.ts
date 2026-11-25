@@ -69,6 +69,8 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'nestedPositionOf',
     'obligationCategoryOf',
     'openItems',
+    'stepOfToolAction',
+    'toolActionOf',
   ])
 })
 

@@ -81,6 +81,13 @@ export type ResultConsumption = Readonly<{
   completion: DurableEvidence | null
   release: 'pending' | 'confirmed'
 }>
+export type WorkspaceDirectoryVisit = Readonly<{
+  batch?: string
+  workspace: string
+  instance: string
+  generation: string
+  directories: readonly string[]
+}>
 export type Consumption = Readonly<{
   id: ConsumptionId
   binding: CallBinding
@@ -262,9 +269,23 @@ export type BoundedClose =
       reason: string | null
       input: InputId | null
     }>
+export type ModelProvenance = Readonly<{ owner: string; key: string; blocks: readonly string[] }>
+
 export type DerivedMessage =
+  | Readonly<{
+      kind: 'model-projection'
+      epoch: string
+      restoreOriginals?: true
+      blocks: readonly string[]
+      source: DurableEvidence
+    }>
   | Readonly<{ kind: 'compaction'; message: CompactionMessage; epoch: string }>
-  | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'context-reminder'
+      message: Message
+      source: DurableEvidence
+      provenance?: readonly ModelProvenance[]
+    }>
 
 export type Modes = Readonly<{
   permission: 'never' | 'auto_permission' | 'bypass-permissions'
@@ -465,6 +486,12 @@ export type WorkSnapshot = Readonly<{
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]
+  workspaceVisit?: WorkspaceDirectoryVisit
+  workspaceBackgroundVisits?: readonly Readonly<{
+    consumption: ConsumptionId
+    visit: WorkspaceDirectoryVisit
+    input?: InputId
+  }>[]
   changes?: readonly DeclarationChange[]
   initialization?: InitializationState
   historyIndex?: SessionHistoryIndex

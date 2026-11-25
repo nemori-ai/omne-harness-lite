@@ -20,6 +20,7 @@ import {
   LOCAL_OPEN_LIMITS,
   LOCAL_PROGRAM_LIMITS,
   LOCAL_SCREEN_LIMITS,
+  LOCAL_STORAGE_JSON_MEMBERS,
   LOCAL_TOKENIZERS,
   LOCAL_TOOL_RESULT_BYTES,
 } from '../../src/local/operator-defaults.ts'
@@ -419,6 +420,7 @@ export function operatorLayer(options: {
           closeDeadlineMs: deadline - 1000,
           maxResponseBytes: 1_048_576,
           maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
+          maxJsonMembers: LOCAL_STORAGE_JSON_MEMBERS,
         }),
       },
       {
@@ -602,6 +604,8 @@ export type ServerOutcome = Readonly<{
 }>
 
 export type ServerHandle = Readonly<{
+  pid: number | undefined
+  command: readonly string[]
   port: number
   records(): Rec[]
   stdout(): string
@@ -617,6 +621,7 @@ export function startServer(options: {
   operatorPath: string
   port: number
   startupTimeoutMs?: number
+  readinessTimeoutMs?: number
   extraCaPath?: string
   /** Keep only about this many characters of the newest output, cut at a line; a long walk would outgrow a string. */
   logTail?: number
@@ -629,7 +634,7 @@ export function startServer(options: {
     '--operator',
     options.operatorPath,
     '--readiness-timeout-ms',
-    String(READINESS_TIMEOUT_MS),
+    String(options.readinessTimeoutMs ?? READINESS_TIMEOUT_MS),
     '--shutdown-deadline-ms',
     String(SHUTDOWN_DEADLINE_MS),
     '--state-root',
@@ -663,6 +668,8 @@ export function startServer(options: {
     stderr,
   })
   const handle: ServerHandle = {
+    pid: child.pid,
+    command: [process.execPath, ...args],
     port: options.port,
     records: () => parseRecords(stdout),
     stdout: () => stdout,
@@ -684,7 +691,7 @@ export function startServer(options: {
     }
     const timer = setTimeout(
       () => fail('serve did not report startup in time'),
-      options.startupTimeoutMs ?? READINESS_TIMEOUT_MS + 10_000,
+      options.startupTimeoutMs ?? (options.readinessTimeoutMs ?? READINESS_TIMEOUT_MS) + 10_000,
     )
     const poll = setInterval(() => {
       if (stdout.includes('"kind":"startup-result"')) {

@@ -65,6 +65,7 @@ describe('Windows Job commands', () => {
       const result = await manager.facility.start(request)
       expect(result.kind).toBe('done')
       if (result.kind !== 'done') return
+      expect(result.verifiedDirectories).toEqual([root])
       const out: number[] = []
       const err: number[] = []
       for await (const chunk of result.value.output)

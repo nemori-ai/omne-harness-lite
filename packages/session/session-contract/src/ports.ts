@@ -222,9 +222,11 @@ export type SessionCommand = {
             judgment?: DurableEvidence
             expected?: SessionRevision
           }>
-        : K extends 'stopCall'
-          ? Readonly<{ initiator?: import('./background-calls.ts').StopInitiator }>
-          : unknown)
+        : K extends 'change'
+          ? Readonly<{ expected?: SessionRevision }>
+          : K extends 'stopCall'
+            ? Readonly<{ initiator?: import('./background-calls.ts').StopInitiator }>
+            : unknown)
   }>
 }[MutationName]
 export type GuardCommand = Readonly<{
