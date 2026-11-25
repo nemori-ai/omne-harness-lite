@@ -45,6 +45,8 @@ export const modelRecordsAppConfig = z
         streamStallTimeoutMs: count.optional(),
         /** Required: the retries before the request bytes left are an operator decision, never a default. */
         connectRetry: z.strictObject({ backoffMs: z.array(count).max(8) }),
+        /** The most bytes of one decision request. Absent: this release sends no decision. */
+        maxDecisionBytes: count.optional(),
         maxErrorBodyBytes: count,
         maxEventBytes: count,
         json: jsonLimits,

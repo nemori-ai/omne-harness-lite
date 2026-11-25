@@ -39,6 +39,7 @@ export type PiTransportLimits = Readonly<{
   connectTimeoutMs: number | null
   streamStallTimeoutMs?: number
   connectRetry?: ConnectRetryLimits
+  maxDecisionBytes?: number
   maxErrorBodyBytes: number
   maxEventBytes: number
   json: JsonLimits
@@ -60,6 +61,7 @@ export type PiTransportConfig = Readonly<{
 export type CheckedRoute = Readonly<{
   url: URL
   endMarker: string | null
+  framing: 'events' | 'whole'
   accounting: RouteAccounting
   auth: PiRouteAuth
 }>
@@ -80,12 +82,13 @@ export function isEngineEndpoint(name: string): name is EngineEndpoint {
 /** The route a dispatch takes; undefined when the provider has no endpoint for this engine. */
 export function routeFor(
   route: CheckedProviderRoute,
-  endpoint: EngineEndpoint,
+  endpoint: ProviderEndpoint,
 ): CheckedRoute | undefined {
   const found = route.endpoints.get(endpoint)
-  return found === undefined
-    ? undefined
-    : { url: found.url, endMarker: found.endMarker, accounting: route.accounting, auth: route.auth }
+  if (found === undefined) return undefined
+  const { url, endMarker } = found
+  const framing = endpoint === 'decisions' ? 'whole' : 'events'
+  return { url, endMarker, framing, accounting: route.accounting, auth: route.auth }
 }
 
 export type { PiMediaReader } from './media.ts'
@@ -203,6 +206,7 @@ function checkLimits(limits: PiTransportLimits): PiTransportLimits {
     connectTimeoutMs,
     streamStallTimeoutMs,
     connectRetry,
+    maxDecisionBytes,
     maxErrorBodyBytes,
     maxEventBytes,
     json,
@@ -216,6 +220,8 @@ function checkLimits(limits: PiTransportLimits): PiTransportLimits {
       `limits.streamStallTimeoutMs must be absent or a positive integer of at most ${MAX_TIMER_MS}`,
     )
   const checkedRetry = checkConnectRetry(connectRetry)
+  if (maxDecisionBytes !== undefined && !isPositiveInteger(maxDecisionBytes))
+    throw new RangeError('limits.maxDecisionBytes must be absent or a positive integer')
   if (!isPositiveInteger(maxErrorBodyBytes))
     throw new RangeError('limits.maxErrorBodyBytes must be a positive integer')
   if (!isPositiveInteger(maxEventBytes))
@@ -224,6 +230,7 @@ function checkLimits(limits: PiTransportLimits): PiTransportLimits {
     connectTimeoutMs,
     ...(streamStallTimeoutMs === undefined ? {} : { streamStallTimeoutMs }),
     ...(checkedRetry === undefined ? {} : { connectRetry: checkedRetry }),
+    ...(maxDecisionBytes === undefined ? {} : { maxDecisionBytes }),
     maxErrorBodyBytes,
     maxEventBytes,
     json: checkJsonLimits(json),

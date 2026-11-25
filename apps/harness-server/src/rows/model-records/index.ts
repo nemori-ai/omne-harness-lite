@@ -189,6 +189,9 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig, input: ModelReco
           ...(sendStage.transportLimits.streamStallTimeoutMs === undefined
             ? {}
             : { streamStallTimeoutMs: sendStage.transportLimits.streamStallTimeoutMs }),
+          ...(sendStage.transportLimits.maxDecisionBytes === undefined
+            ? {}
+            : { maxDecisionBytes: sendStage.transportLimits.maxDecisionBytes }),
         },
         preparation: {
           maxCitedCalls: sendStage.preparation.maxCitedCalls,

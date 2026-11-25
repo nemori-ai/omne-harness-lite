@@ -123,7 +123,7 @@ async function readOne(
 export async function gatherMedia(
   input: Readonly<{
     request: FixedModelRequest
-    binding: PiFamilyBinding
+    binding: Pick<PiFamilyBinding, 'mediaLimits' | 'adoption'>
     read: PiMediaReader | undefined
     signal: AbortSignal
   }>,

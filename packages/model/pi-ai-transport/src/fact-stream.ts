@@ -6,7 +6,7 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import type { CheckedRoute, PiTransportLimits } from './config.ts'
 import type { PiResponseDecoder } from './family.ts'
-import { readProtocolFrames } from './frames.ts'
+import { readProtocolFrames, readWholeBody } from './frames.ts'
 import {
   ResponseBodyReadError,
   ResponseBodyStalledError,
@@ -143,6 +143,7 @@ async function* decodeSend(
     body,
     decoder,
     endMarker: route.endMarker,
+    framing: route.framing,
     limits,
     received: () => result.body.received(),
     progress,
@@ -153,6 +154,7 @@ export type BodyInput = Readonly<{
   body: AsyncIterable<Uint8Array>
   decoder: PiResponseDecoder
   endMarker: string | null
+  framing?: 'events' | 'whole'
   limits: Pick<PiTransportLimits, 'maxEventBytes' | 'json'>
   received(): boolean
   progress: Progress
@@ -180,10 +182,13 @@ async function* readBody(
   held: Held,
 ): AsyncGenerator<TransportFact, SendEnd | null, undefined> {
   const { body, decoder, endMarker, limits, progress } = input
-  const frames = readProtocolFrames(readSseEvents(body, limits.maxEventBytes), {
-    endMarker,
-    json: limits.json,
-  })
+  const frames =
+    input.framing === 'whole'
+      ? readWholeBody(body, limits.json)
+      : readProtocolFrames(readSseEvents(body, limits.maxEventBytes), {
+          endMarker,
+          json: limits.json,
+        })
   let bodyComplete = true
   try {
     for await (const frame of frames) {

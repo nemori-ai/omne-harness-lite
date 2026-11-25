@@ -164,6 +164,7 @@ const MODEL_HOST = {
 } as const
 
 const MAX_COMMAND_BYTES = 1_048_576
+export const GOAL_DECISIONS_CONSUMER = '@omne-harness/goal-decisions'
 
 function modelRecords(combinationVersion: string) {
   return {
@@ -176,6 +177,11 @@ function modelRecords(combinationVersion: string) {
       {
         consumerOwner: '@omne-harness/context-compaction',
         evidence: { ...ADOPTION, name: 'local-single-user/compaction-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
+      {
+        consumerOwner: GOAL_DECISIONS_CONSUMER,
+        evidence: { ...ADOPTION, name: 'local-single-user/goal-decisions-consumer-evidence' },
         work: { kind: 'exempt' },
       },
     ],
@@ -223,6 +229,7 @@ function modelRecords(combinationVersion: string) {
       transportLimits: {
         connectTimeoutMs: 10_000,
         connectRetry: { backoffMs: [500, 1000] },
+        maxDecisionBytes: 524_288,
         maxErrorBodyBytes: 4096,
         maxEventBytes: 1_048_576,
         json: {

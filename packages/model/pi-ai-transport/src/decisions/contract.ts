@@ -1,3 +1,12 @@
+import type {
+  DecisionAnswer,
+  DecisionAsk,
+  DecisionQuestion,
+  DecisionState,
+} from '@omne-harness/model-contract'
+
+export type { DecisionAnswer, DecisionQuestion, DecisionState }
+
 /** OpenRouter's common text/JSON Decisions vocabulary for Jev and GPT-6 Luna. */
 export const OPENROUTER_DECISION_MODELS = Object.freeze([
   'typesafe/jev-1.13',
@@ -6,33 +15,7 @@ export const OPENROUTER_DECISION_MODELS = Object.freeze([
 ] as const)
 export type DecisionModel = (typeof OPENROUTER_DECISION_MODELS)[number]
 
-type Json = string | number | boolean | null | JsonObject | readonly Json[]
-type JsonObject = { readonly [key: string]: Json }
-export type DecisionState = string | JsonObject | readonly Json[]
-
-export type DecisionQuestion = Readonly<{ instructions?: DecisionState | null }> &
-  (
-    | Readonly<{
-        type: 'noul'
-        criteria?: Partial<Readonly<Record<'true' | 'false', DecisionState | null>>>
-      }>
-    | Readonly<{ type: 'choice'; criteria: Readonly<Record<string, DecisionState | null>> }>
-    | Readonly<{ type: 'score'; criteria: readonly DecisionState[] }>
-  )
-export type DecisionRequest = Readonly<{
-  model: DecisionModel
-  state: DecisionState
-  questions: Readonly<Record<string, DecisionQuestion>>
-}>
-
-type Confidence = Readonly<{ confidence?: number }>
-type Distribution = Confidence & Readonly<{ probabilities?: Readonly<Record<string, number>> }>
-export type DecisionAnswer =
-  | Readonly<{ type: 'refusal' }>
-  | (Readonly<{ type: 'noul'; noul: number }> & Confidence)
-  | (Readonly<{ type: 'choice'; choice: string }> & Distribution)
-  | (Readonly<{ type: 'score'; score: number; legend?: Readonly<Record<string, DecisionState>> }> &
-      Distribution)
+export type DecisionRequest = DecisionAsk & Readonly<{ model: DecisionModel }>
 
 export type DecisionResponse = Readonly<{
   id?: string

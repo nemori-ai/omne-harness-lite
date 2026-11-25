@@ -426,7 +426,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-profiles': { provides: ['modelProfiles'], injects: ['modelPreferences'] },
   'model-tokenizers': { provides: ['modelTokenizers'], phase: 'composition' },
   'model-request-preparation': {
-    provides: ['modelRequestPreparation'],
+    provides: ['modelRequestPreparation', 'modelDecisionPreparation'],
     injects: ['modelCommands', 'modelTokenizers'],
   },
   'model-credential': {

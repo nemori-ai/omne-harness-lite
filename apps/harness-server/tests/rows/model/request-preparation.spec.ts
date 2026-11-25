@@ -14,6 +14,7 @@ import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
 import type { AssembledModelInput, ModelProfile } from '@omne-harness/model-contract'
 import {
   ModelPreparationResourcesService,
+  ModelDecisionPreparationService,
   ModelRequestPreparationService,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
@@ -162,7 +163,7 @@ describe('the model-request-preparation row', () => {
       row: 'model-request-preparation',
       implementation: 'real',
       manifest: {
-        provides: ['modelRequestPreparation'],
+        provides: ['modelRequestPreparation', 'modelDecisionPreparation'],
         injects: ['modelCommands', 'modelTokenizers'],
         phase: null,
         sameProviderGroup: null,
@@ -171,12 +172,13 @@ describe('the model-request-preparation row', () => {
     })
   })
 
-  it('is ACTIVE and provides the preparation service and the metering leases', async () => {
+  it('is ACTIVE and provides the preparation service, the decision preparation and the metering leases', async () => {
     const { value, run } = await withLiveRows({ rows, plugins, probe }, ctx => ({
       prepare: ctx.get('modelRequestPreparation') instanceof ModelRequestPreparationService,
+      decisions: ctx.get('modelDecisionPreparation') instanceof ModelDecisionPreparationService,
       leases: ctx.get('modelPreparationResources') instanceof ModelPreparationResourcesService,
     }))
-    expect(value).toEqual({ prepare: true, leases: true })
+    expect(value).toEqual({ prepare: true, decisions: true, leases: true })
     expect(run.state('model-request-preparation')).toMatchObject({ state: 'ACTIVE', missing: [] })
     expect(run.result.exitCode).toBe(0)
   })
