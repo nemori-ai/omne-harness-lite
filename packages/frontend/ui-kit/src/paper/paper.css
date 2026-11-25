@@ -86,6 +86,17 @@
 .omne-paper-handle:hover {
   color: var(--omne-ink-muted);
 }
+.omne-paper-name > .omne-paper-handle:focus-visible {
+  outline: none;
+}
+.omne-paper-page:not(.omne-paper-pile):has(> .omne-paper-name > .omne-paper-handle:focus-visible)
+  > .omne-paper-leaf,
+.omne-paper-pile:has(> .omne-paper-name > .omne-paper-handle:focus-visible)
+  .omne-paper-pile-leaf[data-depth='0']
+  > .omne-paper-leaf {
+  outline: var(--omne-ring-width) solid var(--omne-line-focus);
+  outline-offset: var(--omne-ring-offset);
+}
 .omne-paper-page[data-gesture] .omne-paper-handle {
   cursor: grabbing;
 }
