@@ -501,14 +501,18 @@ describe('the resolver of a member words', () => {
       resolver: resolverOf(async () => ({
         kind: 'operation',
         name: 'omne-official:archive',
-        operation: 'archive',
         args: '',
+        asked: { protocol: 'session', operation: 'archive-session', fields: {} },
       })),
     })
     const committed = commits(h)
     expect(failureOf(await accept(h, withBlocks('in-7', text('b1', '/archive'))))).toEqual({
       kind: 'unsupported',
-      request: { name: 'omne-official:archive', operation: 'archive', args: '' },
+      request: {
+        name: 'omne-official:archive',
+        args: '',
+        asked: { protocol: 'session', operation: 'archive-session', fields: {} },
+      },
     })
     expect(committed).toEqual([])
   })

@@ -3,16 +3,38 @@ import {
   type CommandEntry,
   type EntrySource,
   RESERVED_SPACE,
+  type Taken,
 } from '@omne-harness/slash-command-contract'
 
-/** The operation of the session protocol each system command asks for; the command does nothing of its own. */
-export const SYSTEM_OPERATIONS = Object.freeze({
-  model: 'select-model',
-  permission: 'change-permission-mode',
-  archive: 'archive-session',
-} as const)
+const PERMISSION_MODES = ['never', 'auto_permission', 'bypass-permissions'] as const
 
-export type SystemOperation = (typeof SYSTEM_OPERATIONS)[keyof typeof SYSTEM_OPERATIONS]
+/** What each system command asks of the session protocol, with the arguments read into the operation's fields. */
+const ASKED: Readonly<Record<string, (args: string) => Taken>> = Object.freeze({
+  model: args =>
+    args === '' || /\s/u.test(args)
+      ? { kind: 'invalid', reason: 'name one model' }
+      : {
+          kind: 'operation',
+          protocol: 'session',
+          operation: 'select-model',
+          fields: { model: args },
+        },
+  permission: args => {
+    const mode = PERMISSION_MODES.find(each => each === args)
+    return mode === undefined
+      ? { kind: 'invalid', reason: `name one mode: ${PERMISSION_MODES.join(', ')}` }
+      : {
+          kind: 'operation',
+          protocol: 'session',
+          operation: 'change-permission-mode',
+          fields: { mode },
+        }
+  },
+  archive: args =>
+    args === ''
+      ? { kind: 'operation', protocol: 'session', operation: 'archive-session', fields: {} }
+      : { kind: 'invalid', reason: 'it takes no arguments' },
+})
 
 const ENTRIES: readonly CommandEntry[] = Object.freeze([
   {
@@ -21,6 +43,7 @@ const ENTRIES: readonly CommandEntry[] = Object.freeze([
     kind: 'system',
     title: '换这段会话用的模型',
     hint: '<模型名>',
+    params: [{ name: '模型名' }],
     whileRunning: 'now',
     takesEffect: 'next-request',
   },
@@ -30,6 +53,7 @@ const ENTRIES: readonly CommandEntry[] = Object.freeze([
     kind: 'system',
     title: '改这段会话的权限处理模式',
     hint: '<never | auto_permission | bypass-permissions>',
+    params: [{ name: '模式' }],
     whileRunning: 'now',
     takesEffect: 'now',
   },
@@ -49,10 +73,9 @@ export function createSystemCommandSource<P>(): EntrySource<P> {
     name: 'system-commands',
     space: RESERVED_SPACE,
     list: async () => succeed(ENTRIES),
-    async take(_asker, name) {
-      if (!Object.hasOwn(SYSTEM_OPERATIONS, name)) return fail('not-listed')
-      const operation = SYSTEM_OPERATIONS[name as keyof typeof SYSTEM_OPERATIONS]
-      return succeed({ kind: 'operation', operation, args: '' })
+    async take(_asker, { name, args }) {
+      const ask = Object.hasOwn(ASKED, name) ? ASKED[name] : undefined
+      return ask === undefined ? fail('not-listed') : succeed(ask(args.trim()))
     },
   }
 }

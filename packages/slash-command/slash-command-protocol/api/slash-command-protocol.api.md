@@ -54,6 +54,42 @@ declare const entry: {
             };
             readonly optional: true;
         };
+        readonly params: {
+            readonly rule: {
+                readonly kind: 'array';
+                readonly item: {
+                    readonly kind: 'object';
+                    readonly fields: {
+                        readonly name: {
+                            rule: {
+                                readonly kind: 'text';
+                            };
+                        };
+                        readonly optional: {
+                            readonly rule: {
+                                readonly kind: 'literal';
+                                readonly values: readonly [
+                                    true
+                                ];
+                            };
+                            readonly optional: true;
+                        };
+                        readonly candidates: {
+                            readonly rule: {
+                                readonly kind: 'literal';
+                                readonly values: readonly [
+                                    true
+                                ];
+                            };
+                            readonly optional: true;
+                        };
+                    };
+                };
+                readonly max: number;
+            };
+            readonly optional: true;
+            readonly since: 2;
+        };
         readonly unavailable: {
             readonly rule: {
                 readonly kind: 'text';
@@ -128,6 +164,42 @@ declare const catalog: {
                             };
                             readonly optional: true;
                         };
+                        readonly params: {
+                            readonly rule: {
+                                readonly kind: 'array';
+                                readonly item: {
+                                    readonly kind: 'object';
+                                    readonly fields: {
+                                        readonly name: {
+                                            rule: {
+                                                readonly kind: 'text';
+                                            };
+                                        };
+                                        readonly optional: {
+                                            readonly rule: {
+                                                readonly kind: 'literal';
+                                                readonly values: readonly [
+                                                    true
+                                                ];
+                                            };
+                                            readonly optional: true;
+                                        };
+                                        readonly candidates: {
+                                            readonly rule: {
+                                                readonly kind: 'literal';
+                                                readonly values: readonly [
+                                                    true
+                                                ];
+                                            };
+                                            readonly optional: true;
+                                        };
+                                    };
+                                };
+                                readonly max: number;
+                            };
+                            readonly optional: true;
+                            readonly since: 2;
+                        };
                         readonly unavailable: {
                             readonly rule: {
                                 readonly kind: 'text';
@@ -181,6 +253,11 @@ export declare const slashCommandProtocol: {
                         readonly hint?: string;
                         readonly kind: "prompt" | "reference" | "system";
                         readonly name: string;
+                        readonly params?: readonly {
+                            readonly candidates?: true;
+                            readonly name: string;
+                            readonly optional?: true;
+                        }[];
                         readonly space: string;
                         readonly takesEffect?: "next-request" | "next-run" | "now";
                         readonly title: string;

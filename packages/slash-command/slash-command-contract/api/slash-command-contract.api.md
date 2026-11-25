@@ -7,8 +7,10 @@
 ## 入口 `.` · `index.d.ts`
 
 - `Answer` · `composer.d.ts`
+- `Argument` · `arguments.d.ts`
 - `Asker` · `source.d.ts`
 - `Assist` · `composer.d.ts`
+- `Candidate` · `source.d.ts`
 - `Catalog` · `names.d.ts`
 - `CatalogRead` · `source.d.ts`
 - `Command` · `recognize.d.ts`
@@ -35,8 +37,10 @@
 - `Message` · `recognize.d.ts`
 - `NAME_MAX` · `names.d.ts`
 - `NamedEntry` · `names.d.ts`
+- `Naming` · `source.d.ts`
 - `Note` · `recognize.d.ts`
 - `Origin` · `source.d.ts`
+- `Param` · `names.d.ts`
 - `Place` · `names.d.ts`
 - `RESERVED_SPACE` · `names.d.ts`
 - `Recognition` · `recognize.d.ts`
@@ -75,11 +79,23 @@
 - `sameView` · `view.d.ts`
 - `search` · `complete.d.ts`
 - `shortAt` · `names.d.ts`
+- `splitArguments` · `arguments.d.ts`
 - `start` · `composer.d.ts`
 - `typed` · `composer.d.ts`
 - `typing` · `complete.d.ts`
 - `unescape` · `recognize.d.ts`
 - `viewOf` · `view.d.ts`
+
+## 声明文件 `arguments.d.ts`
+
+```ts
+export type Argument = Readonly<{
+    from: number;
+    to: number;
+    value: string;
+}>;
+export declare function splitArguments(args: string): readonly Argument[];
+```
 
 ## 声明文件 `complete.d.ts`
 
@@ -225,11 +241,12 @@ export {};
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { type Catalog, type CommandEntry, type EntryKind, fullName, isFullName, isName, type Lookup, lookupOf, NAME_MAX, type NamedEntry, type Place, placeOf, rankOf, RESERVED_SPACE, shortAt, type Zone, } from './names.ts';
+export { type Catalog, type CommandEntry, type EntryKind, fullName, isFullName, isName, type Lookup, lookupOf, NAME_MAX, type NamedEntry, type Param, type Place, placeOf, rankOf, RESERVED_SPACE, shortAt, type Zone, } from './names.ts';
 export { codeMask, type Command, type Message, type Note, type Recognition, recognize, type Reference, type Refusal, type Span, unescape, } from './recognize.ts';
 export { judge, type Judgment, sameView, type SenderView, viewOf } from './view.ts';
 export { accept, complete, type Completion, type CompletionIndex, type Found, indexOf, type Item, search, type Tier, TIERS, type Typing, typing, } from './complete.ts';
-export { type Asker, type CatalogRead, type CommandCatalog, ENTRY_SOURCES_POINT, type EntrySource, type EntrySourceSlot, judgeListing, type ListingBreach, type Origin, type Taken, } from './source.ts';
+export { type Asker, type Candidate, type CatalogRead, type CommandCatalog, ENTRY_SOURCES_POINT, type EntrySource, type EntrySourceSlot, judgeListing, type ListingBreach, type Naming, type Origin, type Taken, } from './source.ts';
+export { type Argument, splitArguments } from './arguments.ts';
 export { type Answer, type Assist, assistOf, type Composer, type ComposerMachine, composing, createComposer, type Key, known, type Known, listed, literal, type Mark, type Menu, type MenuItem, moved, picked, pressed, start, type Tone, typed, } from './composer.ts';
 ```
 
@@ -239,12 +256,18 @@ export { type Answer, type Assist, assistOf, type Composer, type ComposerMachine
 export type EntryKind = 'reference' | 'prompt' | 'system';
 export type Place = 'anywhere' | 'head';
 export type Zone = 'head' | 'mid';
+export type Param = Readonly<{
+    name: string;
+    optional?: true;
+    candidates?: true;
+}>;
 export type CommandEntry = Readonly<{
     space: string;
     name: string;
     kind: EntryKind;
     title: string;
     hint?: string;
+    params?: readonly Param[];
     unavailable?: string;
     whileRunning?: 'now' | 'refuse';
     takesEffect?: 'now' | 'next-request' | 'next-run';
@@ -348,20 +371,36 @@ export type Origin = Readonly<{
     version: string;
     digest: string;
 }>;
+export type Naming = Readonly<{
+    name: string;
+    args: string;
+    request: string;
+}>;
 export type Taken = Readonly<{
     kind: 'text';
     text: string;
     origin: Origin;
 }> | Readonly<{
     kind: 'operation';
+    protocol: string;
     operation: string;
-    args: string;
+    fields: Readonly<Record<string, unknown>>;
+}> | Readonly<{
+    kind: 'invalid';
+    reason: string;
+}>;
+export type Candidate = Readonly<{
+    value: string;
+    title?: string;
+    current?: true;
+    unavailable?: string;
 }>;
 export type EntrySource<P> = Readonly<{
     name: string;
     space: string;
     list(asker: Asker<P>, signal: AbortSignal): Promise<Outcome<readonly CommandEntry[], 'unavailable'>>;
-    take(asker: Asker<P>, name: string, signal: AbortSignal): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>>;
+    take(asker: Asker<P>, naming: Naming, signal: AbortSignal): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>>;
+    candidates?(asker: Asker<P>, name: string, param: number, signal: AbortSignal): Promise<Outcome<readonly Candidate[], 'unavailable' | 'not-listed'>>;
     watch?(tenant: TenantId, changed: () => void): () => void;
 }>;
 export type EntrySourceSlot<P> = Readonly<{
@@ -374,7 +413,8 @@ export type CatalogRead = Readonly<{
 }>;
 export type CommandCatalog<P> = Readonly<{
     read(asker: Asker<P>, signal?: AbortSignal): Promise<CatalogRead>;
-    take(asker: Asker<P>, full: string, signal?: AbortSignal): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>>;
+    take(asker: Asker<P>, naming: Naming, signal?: AbortSignal): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>>;
+    candidates(asker: Asker<P>, full: string, param: number, signal?: AbortSignal): Promise<Outcome<readonly Candidate[], 'unavailable' | 'not-listed'>>;
 }>;
 export type ListingBreach = Readonly<{
     name: string;

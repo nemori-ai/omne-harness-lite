@@ -10,9 +10,26 @@ export type Asker<P> = Readonly<{ principal: P; tenant: TenantId; session: strin
 /** Where a handed-over text came from: the entry's full name and the version that won when it was taken. */
 export type Origin = Readonly<{ name: string; layer: string; version: string; digest: string }>
 
+/** An entry named: its name in the source's space, what the person wrote after it, and the request that brought it. */
+export type Naming = Readonly<{ name: string; args: string; request: string }>
+
+/** A text to hand over, an operation of a protocol to do with these fields, or arguments the entry cannot take. */
 export type Taken =
   | Readonly<{ kind: 'text'; text: string; origin: Origin }>
-  | Readonly<{ kind: 'operation'; operation: string; args: string }>
+  | Readonly<{
+      kind: 'operation'
+      protocol: string
+      operation: string
+      fields: Readonly<Record<string, unknown>>
+    }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+
+export type Candidate = Readonly<{
+  value: string
+  title?: string
+  current?: true
+  unavailable?: string
+}>
 
 export type EntrySource<P> = Readonly<{
   name: string
@@ -23,9 +40,15 @@ export type EntrySource<P> = Readonly<{
   ): Promise<Outcome<readonly CommandEntry[], 'unavailable'>>
   take(
     asker: Asker<P>,
-    name: string,
+    naming: Naming,
     signal: AbortSignal,
   ): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>>
+  candidates?(
+    asker: Asker<P>,
+    name: string,
+    param: number,
+    signal: AbortSignal,
+  ): Promise<Outcome<readonly Candidate[], 'unavailable' | 'not-listed'>>
   watch?(tenant: TenantId, changed: () => void): () => void
 }>
 
@@ -38,9 +61,15 @@ export type CommandCatalog<P> = Readonly<{
   read(asker: Asker<P>, signal?: AbortSignal): Promise<CatalogRead>
   take(
     asker: Asker<P>,
-    full: string,
+    naming: Naming,
     signal?: AbortSignal,
   ): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>>
+  candidates(
+    asker: Asker<P>,
+    full: string,
+    param: number,
+    signal?: AbortSignal,
+  ): Promise<Outcome<readonly Candidate[], 'unavailable' | 'not-listed'>>
 }>
 
 export type ListingBreach = Readonly<{

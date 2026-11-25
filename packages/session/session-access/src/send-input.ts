@@ -166,7 +166,10 @@ async function commanded(
     if (kind === 'unavailable' || kind === 'commit-unknown') return RETRY
     return settled(refused('send-input', recorded.failure))
   }
-  const done = await perform(admitted, asked, `command:${request.acceptId}`)
+  const done =
+    'invalid' in asked.asked
+      ? { outcome: 'invalid', detail: asked.asked.invalid }
+      : await perform(admitted, asked.asked, `command:${request.acceptId}`)
   if (done.outcome === 'unknown' || done.outcome === 'basis-unavailable') return RETRY
   if (done.outcome !== 'succeeded' && done.outcome !== 'no-change')
     return settled({

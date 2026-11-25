@@ -2,12 +2,16 @@ export type EntryKind = 'reference' | 'prompt' | 'system'
 export type Place = 'anywhere' | 'head'
 export type Zone = 'head' | 'mid'
 
+/** One argument of a command: its name, whether it may be left out, and whether its source answers candidates for it. */
+export type Param = Readonly<{ name: string; optional?: true; candidates?: true }>
+
 export type CommandEntry = Readonly<{
   space: string
   name: string
   kind: EntryKind
   title: string
   hint?: string
+  params?: readonly Param[]
   unavailable?: string
   whileRunning?: 'now' | 'refuse'
   takesEffect?: 'now' | 'next-request' | 'next-run'

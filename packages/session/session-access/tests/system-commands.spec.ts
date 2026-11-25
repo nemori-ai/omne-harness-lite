@@ -48,12 +48,19 @@ async function opened(): Promise<Readonly<{ world: World; session: string }>> {
   return { world, session: answer.body.session }
 }
 
-const asked = (name: string, operation: string, args: string): SessionFailure =>
-  ({ kind: 'unsupported', request: { name, operation, args } }) as SessionFailure
+type Asked =
+  | Readonly<{ operation: string; fields: Readonly<Record<string, unknown>> }>
+  | Readonly<{ invalid: string }>
 
-async function command(name: string, operation: string, args: string) {
+const requested = (name: string, args: string, asked: Asked): SessionFailure =>
+  ({
+    kind: 'unsupported',
+    request: { name, args, asked: 'invalid' in asked ? asked : { protocol: 'session', ...asked } },
+  }) as SessionFailure
+
+async function command(name: string, args: string, asked: Asked) {
   const { world, session } = await opened()
-  world.session.controls.failNext(asked(name, operation, args))
+  world.session.controls.failNext(requested(name, args, asked))
   const answer = await ops(world)['send-input'](as(loginIdentity(ALICE)), {
     tenant: ALICE.tenant,
     session,
@@ -72,7 +79,10 @@ const refused = (reason: string) => ({
 
 describe('a system command does its own operation after it is written into the session (C11)', () => {
   it('/model names one model and selects it', async () => {
-    const { answer, methods } = await command('model', 'select-model', ` ${MODEL} `)
+    const { answer, methods } = await command('model', ` ${MODEL} `, {
+      operation: 'select-model',
+      fields: { model: MODEL },
+    })
     expect(answer).toMatchObject({
       outcome: 'succeeded',
       body: { operation: { name: 'model', outcome: 'succeeded' } },
@@ -85,7 +95,7 @@ describe('a system command does its own operation after it is written into the s
 
   it('/model with no model or with two is refused, written but not done', async () => {
     for (const args of ['', `${MODEL} other/model`]) {
-      const { answer, methods } = await command('model', 'select-model', args)
+      const { answer, methods } = await command('model', args, { invalid: 'name one model' })
       expect(answer).toEqual(refused('model: invalid: name one model'))
       expect(methods).toContain('recordCommand')
       expect(methods).not.toContain('change')
@@ -93,14 +103,19 @@ describe('a system command does its own operation after it is written into the s
   })
 
   it('/permission names one of the modes; another word is refused with the modes', async () => {
-    const done = await command('permission', 'change-permission-mode', 'never')
+    const done = await command('permission', 'never', {
+      operation: 'change-permission-mode',
+      fields: { mode: 'never' },
+    })
     expect(done.answer).toMatchObject({
       outcome: 'succeeded',
       body: { operation: { name: 'permission', outcome: 'succeeded' } },
     })
     expect(done.world.modes.calls().length).toBeGreaterThan(0)
     expect(done.methods).toContain('change')
-    const wrong = await command('permission', 'change-permission-mode', 'loud')
+    const wrong = await command('permission', 'loud', {
+      invalid: 'name one mode: never, auto_permission, bypass-permissions',
+    })
     expect(wrong.answer).toEqual(
       refused('permission: invalid: name one mode: never, auto_permission, bypass-permissions'),
     )
@@ -108,9 +123,9 @@ describe('a system command does its own operation after it is written into the s
   })
 
   it('/archive takes no arguments', async () => {
-    const wrong = await command('archive', 'archive-session', 'now')
+    const wrong = await command('archive', 'now', { invalid: 'it takes no arguments' })
     expect(wrong.answer).toEqual(refused('archive: invalid: it takes no arguments'))
-    const done = await command('archive', 'archive-session', '')
+    const done = await command('archive', '', { operation: 'archive-session', fields: {} })
     expect(done.answer).toMatchObject({
       outcome: 'succeeded',
       body: { operation: { name: 'archive', outcome: 'succeeded' } },
@@ -118,7 +133,7 @@ describe('a system command does its own operation after it is written into the s
   })
 
   it('an operation the release does not do is refused by its name', async () => {
-    const { answer } = await command('reload', 'reload-session', '')
+    const { answer } = await command('reload', '', { operation: 'reload-session', fields: {} })
     expect(answer).toEqual(refused('reload: unsupported: reload-session'))
   })
 })

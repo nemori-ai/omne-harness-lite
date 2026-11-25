@@ -1,4 +1,4 @@
-import { fail } from '@omne-harness/operation-result'
+import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   type Asker,
   type CommandCatalog,
@@ -63,6 +63,30 @@ async function ask<P>(
   }
 }
 
+/** The one source whose space the full name is in, and the name within it. */
+function ownerOf<P>(
+  ports: CatalogPorts<P>,
+  full: string,
+): Readonly<{ slot: EntrySourceSlot<P>; name: string }> | undefined {
+  const colon = full.indexOf(':')
+  if (colon < 0) return undefined
+  const owners = ports.sources().filter(slot => slot.source.space === full.slice(0, colon))
+  return owners.length === 1 ? { slot: owners[0]!, name: full.slice(colon + 1) } : undefined
+}
+
+async function asked<P, T, F extends string>(
+  ports: CatalogPorts<P>,
+  signal: AbortSignal | undefined,
+  work: (inner: AbortSignal) => Promise<Outcome<T, F>>,
+): Promise<Outcome<T, F | 'unavailable'>> {
+  try {
+    const answer = await within(ports.timeoutMs, signal, work)
+    return answer === TIMEOUT ? fail('unavailable') : answer
+  } catch {
+    return fail('unavailable')
+  }
+}
+
 /** The list is asked of every source each time; nothing about any source is kept here. */
 export function createCommandCatalog<P>(ports: CatalogPorts<P>): CommandCatalog<P> {
   return {
@@ -91,19 +115,18 @@ export function createCommandCatalog<P>(ports: CatalogPorts<P>): CommandCatalog<
         .sort((a, b) => (fullName(a) < fullName(b) ? -1 : 1))
       return { catalog: { entries, missing: [...missing].sort() }, errors }
     },
-    async take(asker, full, signal) {
-      const colon = full.indexOf(':')
-      const owners = ports.sources().filter(slot => slot.source.space === full.slice(0, colon))
-      const owner = owners.length === 1 ? owners[0] : undefined
-      if (colon < 0 || owner === undefined) return fail('unavailable')
-      try {
-        const taken = await within(ports.timeoutMs, signal, inner =>
-          owner.source.take(asker, full.slice(colon + 1), inner),
-        )
-        return taken === TIMEOUT ? fail('unavailable') : taken
-      } catch {
-        return fail('unavailable')
-      }
+    async take(asker, naming, signal) {
+      const owner = ownerOf(ports, naming.name)
+      if (owner === undefined) return fail('unavailable')
+      const name = { ...naming, name: owner.name }
+      return asked(ports, signal, inner => owner.slot.source.take(asker, name, inner))
+    },
+    async candidates(asker, full, param, signal) {
+      const owner = ownerOf(ports, full)
+      if (owner === undefined) return fail('unavailable')
+      const { source } = owner.slot
+      if (source.candidates === undefined) return fail('not-listed')
+      return asked(ports, signal, inner => source.candidates!(asker, owner.name, param, inner))
     },
   }
 }

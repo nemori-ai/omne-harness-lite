@@ -3,22 +3,34 @@ import {
   type CommandCatalog,
   type Judgment,
   judge,
+  type Naming,
   lookupOf,
   type Origin,
   type SenderView,
+  splitArguments,
   type Taken,
 } from '@omne-harness/slash-command-contract'
+
+/** What a command asks to be done: an operation of a protocol with its fields, or why its arguments cannot be taken. */
+export type Asked =
+  | Readonly<{ protocol: string; operation: string; fields: Readonly<Record<string, unknown>> }>
+  | Readonly<{ invalid: string }>
 
 /** A text to append after the person's own words, saying where it came from. */
 export type Named = Readonly<{ text: string; origin: Origin }>
 
 export type Resolved =
   | Readonly<{ kind: 'input'; appended: readonly Named[] }>
-  | Readonly<{ kind: 'operation'; name: string; operation: string; args: string }>
+  | Readonly<{ kind: 'operation'; name: string; args: string; asked: Asked }>
   | Readonly<{ kind: 'refused'; reason: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-export type Words<P> = Readonly<{ text: string; seen: SenderView | null; asker: Asker<P> }>
+export type Words<P> = Readonly<{
+  text: string
+  seen: SenderView | null
+  asker: Asker<P>
+  request: string
+}>
 
 const UNCHANGED: Resolved = Object.freeze({ kind: 'input', appended: [] })
 const spoken = (view: SenderView | null): boolean =>
@@ -26,7 +38,7 @@ const spoken = (view: SenderView | null): boolean =>
 
 /** `$1`…`$n` take the arguments in order, `$ARGUMENTS` takes them all; a prompt with neither gets them after a blank line. */
 export function expandPrompt(prompt: string, args: string): string {
-  const parts = args.match(/"[^"]*"|\S+/gu)?.map(part => part.replace(/^"|"$/gu, '')) ?? []
+  const parts = splitArguments(args).map(part => part.value)
   if (!/\$(ARGUMENTS|[1-9][0-9]*)/u.test(prompt))
     return args === '' ? prompt : `${prompt}\n\n${args}`
   return prompt.replace(/\$(ARGUMENTS|[1-9][0-9]*)/gu, (_whole, key: string) =>
@@ -47,8 +59,13 @@ function refusalOf(judgment: Exclude<Judgment, { kind: 'accepted' }>): Resolved 
 
 type Took = Readonly<{ took: Taken }> | Readonly<{ stop: Resolved }>
 
-async function taken<P>(catalog: CommandCatalog<P>, asker: Asker<P>, full: string): Promise<Took> {
-  const answer = await catalog.take(asker, full)
+async function taken<P>(
+  catalog: CommandCatalog<P>,
+  asker: Asker<P>,
+  naming: Naming,
+): Promise<Took> {
+  const full = naming.name
+  const answer = await catalog.take(asker, naming)
   if ('ok' in answer) return { took: answer.ok }
   return answer.failure === 'not-listed'
     ? { stop: { kind: 'refused', reason: `what was shown changed: ${full} cannot be named now` } }
@@ -67,17 +84,18 @@ async function commandOf<P>(
   catalog: CommandCatalog<P>,
   asker: Asker<P>,
   recognition: Commanded,
+  request: string,
 ): Promise<Resolved> {
-  const answer = await taken(catalog, asker, recognition.name)
+  const { name, args } = recognition
+  const answer = await taken(catalog, asker, { name, args, request })
   if ('stop' in answer) return answer.stop
   const { took } = answer
-  if (took.kind === 'operation')
-    return {
-      kind: 'operation',
-      name: recognition.name,
-      operation: took.operation,
-      args: recognition.args,
-    }
+  if (took.kind === 'invalid')
+    return { kind: 'operation', name, args, asked: { invalid: took.reason } }
+  if (took.kind === 'operation') {
+    const { protocol, operation, fields } = took
+    return { kind: 'operation', name, args, asked: { protocol, operation, fields } }
+  }
   return {
     kind: 'input',
     appended: [{ text: expandPrompt(took.text, recognition.args), origin: took.origin }],
@@ -88,10 +106,11 @@ async function referencesOf<P>(
   catalog: CommandCatalog<P>,
   asker: Asker<P>,
   references: readonly string[],
+  request: string,
 ): Promise<Resolved> {
   const appended: Named[] = []
   for (const full of references) {
-    const answer = await taken(catalog, asker, full)
+    const answer = await taken(catalog, asker, { name: full, args: '', request })
     if ('stop' in answer) return answer.stop
     if (answer.took.kind !== 'text')
       return { kind: 'unavailable', diagnostic: `${full} is no text` }
@@ -104,7 +123,7 @@ async function referencesOf<P>(
 export function createResolver<P>(
   catalog: CommandCatalog<P>,
 ): (words: Words<P>) => Promise<Resolved> {
-  return async ({ text, seen, asker }) => {
+  return async ({ text, seen, asker, request }) => {
     if (!text.includes('/') && !spoken(seen)) return UNCHANGED
     const read = await catalog.read(asker)
     const judgment = judge(text, lookupOf(read.catalog), seen ?? undefined)
@@ -116,7 +135,7 @@ export function createResolver<P>(
       }
     if (judgment.kind !== 'accepted') return refusalOf(judgment)
     if (judgment.recognition.kind === 'command')
-      return commandOf(catalog, asker, judgment.recognition)
-    return referencesOf(catalog, asker, judgment.view.references)
+      return commandOf(catalog, asker, judgment.recognition, request)
+    return referencesOf(catalog, asker, judgment.view.references, request)
   }
 }

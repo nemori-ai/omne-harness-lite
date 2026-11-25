@@ -7,7 +7,7 @@ const tenant = { kind: 'tenant' } as const
 const session = { kind: 'session' } as const
 
 const object = <const F extends Fields>(fields: F) => ({ kind: 'object', fields }) as const
-const literal = <const V extends readonly string[]>(...values: V) =>
+const literal = <const V extends readonly (string | boolean)[]>(...values: V) =>
   ({ kind: 'literal', values }) as const
 const array = <const R extends Rule>(item: R, max: number) =>
   ({ kind: 'array', item, max }) as const
@@ -25,6 +25,18 @@ const entry = object({
   kind: { rule: literal('reference', 'prompt', 'system') },
   title: { rule: text },
   hint: { rule: text, optional: true },
+  params: {
+    rule: array(
+      object({
+        name: { rule: text },
+        optional: { rule: literal(true), optional: true },
+        candidates: { rule: literal(true), optional: true },
+      }),
+      16,
+    ),
+    optional: true,
+    since: 2,
+  },
   unavailable: { rule: text, optional: true },
   whileRunning: { rule: literal('now', 'refuse'), optional: true },
   takesEffect: { rule: literal('now', 'next-request', 'next-run'), optional: true },

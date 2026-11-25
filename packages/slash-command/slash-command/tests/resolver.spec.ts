@@ -27,15 +27,19 @@ function catalogOf(
 ) {
   const reads: number[] = []
   const takes: string[] = []
+  const namings: unknown[] = []
   const catalog: CommandCatalog<string> = {
+    candidates: async () => fail('not-listed'),
     read: async () => {
       reads.push(1)
       return { catalog: { entries, missing: over.missing ?? [] }, errors: [] }
     },
     take:
       over.take ??
-      (async (_who, full) => {
+      (async (_who, naming) => {
+        const full = naming.name
         takes.push(full)
+        namings.push(naming)
         if (full === 'prompt:commit')
           return succeed({
             kind: 'text',
@@ -43,16 +47,23 @@ function catalogOf(
             origin: origin(full),
           })
         if (full === 'omne-official:archive')
-          return succeed({ kind: 'operation', operation: 'archive', args: '' })
+          return naming.args === ''
+            ? succeed({
+                kind: 'operation',
+                protocol: 'session',
+                operation: 'archive-session',
+                fields: { session: 's' },
+              })
+            : succeed({ kind: 'invalid', reason: 'it takes no arguments' })
         return succeed(body(full))
       }),
   }
-  return { catalog, reads, takes }
+  return { catalog, reads, takes, namings }
 }
 const words = (
   text: string,
   seen: { command: string | null; references: string[] } | null = null,
-) => ({ text, seen, asker })
+) => ({ text, seen, asker, request: 'req-1' })
 
 describe('resolving a member words', () => {
   it('leaves words without a slash as they are, and reads no list', async () => {
@@ -65,7 +76,7 @@ describe('resolving a member words', () => {
   })
 
   it('appends each named body once, in the order first named, and takes nothing else', async () => {
-    const { catalog, takes } = catalogOf()
+    const { catalog, takes, namings } = catalogOf()
     expect(
       await createResolver(catalog)(
         words('先 /review 再 /check，再 /review', {
@@ -81,6 +92,10 @@ describe('resolving a member words', () => {
       ],
     })
     expect(takes).toEqual(['skill:review', 'skill:check'])
+    expect(namings).toEqual([
+      { name: 'skill:review', args: '', request: 'req-1' },
+      { name: 'skill:check', args: '', request: 'req-1' },
+    ])
   })
 
   it('refuses a head that is no command, or not usable now, and what changed since it was shown', async () => {
@@ -144,8 +159,10 @@ describe('resolving a member words', () => {
       reason: 'what was shown changed: prompt:commit cannot be named now',
     })
     const odd = createResolver(
-      catalogOf({ take: async () => succeed({ kind: 'operation', operation: 'x', args: '' }) })
-        .catalog,
+      catalogOf({
+        take: async () =>
+          succeed({ kind: 'operation', protocol: 'session', operation: 'x', fields: {} }),
+      }).catalog,
     )
     expect(await odd(words('用 /review'))).toEqual({
       kind: 'unavailable',
@@ -153,8 +170,9 @@ describe('resolving a member words', () => {
     })
   })
 
-  it('expands a prompt command after the words, and hands a system command over as an operation', async () => {
-    const resolve = createResolver(catalogOf().catalog)
+  it('expands a prompt command after the words, and hands a system command over as the operation its source asks for, with what was written', async () => {
+    const { catalog, namings } = catalogOf()
+    const resolve = createResolver(catalog)
     expect(await resolve(words('/commit 修复 "登录 超时"'))).toEqual({
       kind: 'input',
       appended: [
@@ -164,8 +182,22 @@ describe('resolving a member words', () => {
     expect(await resolve(words('/archive'))).toEqual({
       kind: 'operation',
       name: 'omne-official:archive',
-      operation: 'archive',
       args: '',
+      asked: { protocol: 'session', operation: 'archive-session', fields: { session: 's' } },
+    })
+    expect(namings).toEqual([
+      { name: 'prompt:commit', args: '修复 "登录 超时"', request: 'req-1' },
+      { name: 'omne-official:archive', args: '', request: 'req-1' },
+    ])
+  })
+
+  it('hands over a command whose source says its arguments are wrong, with the reason, so it is recorded and refused as before', async () => {
+    const resolve = createResolver(catalogOf().catalog)
+    expect(await resolve(words('/archive now'))).toEqual({
+      kind: 'operation',
+      name: 'omne-official:archive',
+      args: 'now',
+      asked: { invalid: 'it takes no arguments' },
     })
   })
 })

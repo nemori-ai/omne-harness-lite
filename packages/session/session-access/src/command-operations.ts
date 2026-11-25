@@ -1,5 +1,5 @@
 import type { LoginIdentity } from '@omne-harness/access-cordis-contract'
-import type { OperationRequest } from '@omne-harness/session-contract'
+import type { OperationAsked } from '@omne-harness/session-contract'
 import type { Admitted } from './answers.ts'
 import { archiveSession } from './archive.ts'
 import {
@@ -13,13 +13,14 @@ import { selectModel, type SelectModelPorts } from './select-model.ts'
 export type Performed = Readonly<{ outcome: string; detail: string | null }>
 
 export type CommandOperationPorts = Omit<SelectModelPorts & PermissionModePorts, 'admit'>
+type Operation = Exclude<OperationAsked, { invalid: string }>
+
 export type PerformOperation = (
   admitted: Admitted,
-  request: OperationRequest,
+  request: Operation,
   controlId: string,
 ) => Promise<Performed>
 
-const PERMISSION_MODES = ['never', 'auto_permission', 'bypass-permissions'] as const
 const NO_LOGIN = undefined as unknown as LoginIdentity
 
 const SAID = ['reason', 'mode', 'model', 'kind'] as const
@@ -33,28 +34,24 @@ function performed(answer: Readonly<{ outcome: string; body?: unknown }>): Perfo
 type Ask = Readonly<{
   as: Parameters<typeof selectModel>[0] & Parameters<typeof readPermissionMode>[0]
   target: Readonly<{ tenant: Admitted['access']['tenant']; session: string }>
-  args: string
+  fields: Operation['fields']
   controlId: string
 }>
 
-const invalid = (detail: string): Performed => ({ outcome: 'invalid', detail })
-
-async function pickModel({ as, target, args, controlId }: Ask): Promise<Performed> {
-  if (args === '' || /\s/u.test(args)) return invalid('name one model')
-  return performed(await selectModel(as, NO_LOGIN, { ...target, controlId, model: args }))
+async function pickModel({ as, target, fields, controlId }: Ask): Promise<Performed> {
+  const model = String(fields['model'])
+  return performed(await selectModel(as, NO_LOGIN, { ...target, controlId, model }))
 }
 
-async function changeMode({ as, target, args }: Ask): Promise<Performed> {
-  const mode = PERMISSION_MODES.find(each => each === args)
-  if (mode === undefined) return invalid(`name one mode: ${PERMISSION_MODES.join(', ')}`)
+async function changeMode({ as, target, fields }: Ask): Promise<Performed> {
   const now = await readPermissionMode(as, NO_LOGIN, target)
   if (now.outcome !== 'succeeded') return performed(now)
+  const mode = fields['mode'] as 'never' | 'auto_permission' | 'bypass-permissions'
   const body = { ...target, mode, expectedRevision: now.body.revision }
   return performed(await changePermissionMode(as, NO_LOGIN, body))
 }
 
-async function archive({ as, target, args, controlId }: Ask): Promise<Performed> {
-  if (args !== '') return invalid('it takes no arguments')
+async function archive({ as, target, controlId }: Ask): Promise<Performed> {
   return performed(await archiveSession(as, NO_LOGIN, { ...target, controlId }))
 }
 
@@ -72,7 +69,7 @@ export function createOperationPerformer(ports: CommandOperationPorts): PerformO
     return run({
       as: { ...ports, admit: async () => admitted },
       target: { tenant: admitted.access.tenant, session: admitted.access.session },
-      args: request.args.trim(),
+      fields: request.fields,
       controlId,
     })
   }

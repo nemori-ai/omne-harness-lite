@@ -21,17 +21,47 @@ describe('the system commands', () => {
     ])
   })
 
-  it('each asks for the operation of the session protocol it names, and nothing else is one', async () => {
-    expect(await source.take(asker, 'model', signal)).toEqual({
-      ok: { kind: 'operation', operation: 'select-model', args: '' },
+  it('each reads its arguments into the fields of the session operation it names, and nothing else is one', async () => {
+    const take = (name: string, args = '') =>
+      source.take(asker, { name, args, request: 'req-1' }, signal)
+    expect(await take('model', 'openai/gpt')).toEqual({
+      ok: {
+        kind: 'operation',
+        protocol: 'session',
+        operation: 'select-model',
+        fields: { model: 'openai/gpt' },
+      },
     })
-    expect(await source.take(asker, 'permission', signal)).toMatchObject({
-      ok: { operation: 'change-permission-mode' },
+    expect(await take('permission', ' never ')).toEqual({
+      ok: {
+        kind: 'operation',
+        protocol: 'session',
+        operation: 'change-permission-mode',
+        fields: { mode: 'never' },
+      },
     })
-    expect(await source.take(asker, 'archive', signal)).toMatchObject({
-      ok: { operation: 'archive-session' },
+    expect(await take('archive')).toEqual({
+      ok: { kind: 'operation', protocol: 'session', operation: 'archive-session', fields: {} },
     })
     for (const name of ['nope', 'toString', '__proto__'])
-      expect(await source.take(asker, name, signal)).toEqual({ failure: 'not-listed' })
+      expect(await take(name)).toEqual({ failure: 'not-listed' })
+  })
+
+  it('says what is wrong with the arguments, in the words the operation said before', async () => {
+    const take = (name: string, args: string) =>
+      source.take(asker, { name, args, request: 'req-1' }, signal)
+    expect(await take('model', '')).toEqual({ ok: { kind: 'invalid', reason: 'name one model' } })
+    expect(await take('model', 'a b')).toEqual({
+      ok: { kind: 'invalid', reason: 'name one model' },
+    })
+    expect(await take('permission', 'everything')).toEqual({
+      ok: {
+        kind: 'invalid',
+        reason: 'name one mode: never, auto_permission, bypass-permissions',
+      },
+    })
+    expect(await take('archive', 'now')).toEqual({
+      ok: { kind: 'invalid', reason: 'it takes no arguments' },
+    })
   })
 })

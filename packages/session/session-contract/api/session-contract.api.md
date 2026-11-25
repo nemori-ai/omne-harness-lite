@@ -144,6 +144,7 @@
 - `MutationName` · `ports.d.ts`
 - `OnceAuthorization` · `authorizations.d.ts`
 - `OpenWork` · `judgments.d.ts`
+- `OperationAsked` · `utterance-resolver.d.ts`
 - `OperationJudgment` · `judgments.d.ts`
 - `OperationRecord` · `judgments.d.ts`
 - `OperationRequest` · `utterance-resolver.d.ts`
@@ -2683,7 +2684,7 @@ export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentiti
 export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts';
 export { PENDING_PAGE_LIMIT, PENDING_PREVIEW_CHARS, inputFateOfRows, pendingAcceptances, pendingInputOf, pendingPageOf, previewOf, waitingCalls, type PendingInput, type PendingPage, type WaitingCall, } from './intake-reads.ts';
 export { createBeforeIntakeRegistry, judgeIntakeBlocks, bringsOrigin, keepsTheWords, originalContent, screenInput, type BeforeIntakeRegistry, type IntakeBlockRefusal, type IntakeProcessor, type IntakeScreening, type IntakeVerdict, type Screened, } from './before-intake.ts';
-export { createUtteranceResolverRegistry, type OperationRequest, type Resolution, type SenderView, type Utterance, type UtteranceResolver, type UtteranceResolverRegistry, } from './utterance-resolver.ts';
+export { createUtteranceResolverRegistry, type OperationAsked, type OperationRequest, type Resolution, type SenderView, type Utterance, type UtteranceResolver, type UtteranceResolverRegistry, } from './utterance-resolver.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -4095,8 +4096,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:4df9a37cab60aff262425ee386af5b8a2353c26b610a4aade1a959557d1427a5";
-export declare const SESSION_RELEASE_DIGEST = "sha256:4df9a37cab60aff262425ee386af5b8a2353c26b610a4aade1a959557d1427a5";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:2579ba05833651423bb40532f229eb3999be611d9470bcdf1bd2ab53fddcd8e1";
+export declare const SESSION_RELEASE_DIGEST = "sha256:2579ba05833651423bb40532f229eb3999be611d9470bcdf1bd2ab53fddcd8e1";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -5109,10 +5110,17 @@ export type Utterance<P> = Readonly<{
     }>;
     access: SessionAccess<P>;
 }>;
+export type OperationAsked = Readonly<{
+    protocol: string;
+    operation: string;
+    fields: Readonly<Record<string, unknown>>;
+}> | Readonly<{
+    invalid: string;
+}>;
 export type OperationRequest = Readonly<{
     name: string;
-    operation: string;
     args: string;
+    asked: OperationAsked;
 }>;
 export type Resolution = Readonly<{
     kind: 'input';

@@ -483,6 +483,7 @@ export {
 } from './before-intake.ts'
 export {
   createUtteranceResolverRegistry,
+  type OperationAsked,
   type OperationRequest,
   type Resolution,
   type SenderView,
