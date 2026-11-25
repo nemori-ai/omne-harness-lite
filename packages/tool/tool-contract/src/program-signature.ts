@@ -170,40 +170,6 @@ export function functionsSignature(functions: readonly ProgramFunction[]): strin
 }
 
 export const PROGRAM_RUN_CAPABILITY = 'program.run'
-export const PROGRAM_CATALOGUE_BYTES = 6144
-
-export function isProgramExecutor(definition: ToolDefinition): boolean {
-  return definition.requiredCapabilities.includes(PROGRAM_RUN_CAPABILITY)
-}
-
-const BYTES = new TextEncoder()
-
-export function programCatalogue(
-  definitions: readonly ToolDefinition[],
-  maxBytes: number = PROGRAM_CATALOGUE_BYTES,
-): string {
-  const shown: string[] = []
-  const left: string[] = []
-  let used = 0
-  for (const definition of definitions) {
-    const signature = programSignature(definition)
-    if (signature === '') continue
-    const size = BYTES.encode(signature).length + 1
-    if (left.length === 0 && used + size <= maxBytes) {
-      shown.push(signature)
-      used += size
-    } else left.push(definition.name)
-  }
-  if (shown.length === 0 && left.length === 0) return ''
-  const rest =
-    left.length === 0
-      ? []
-      : [
-          `${left.length} more ${left.length === 1 ? 'tool is' : 'tools are'} callable and not shown: ${left.join(', ')}. help with name set to one of them gives its functions.`,
-        ]
-  const head = shown.length === 0 ? [] : ['Functions a program can call:', ...shown]
-  return [...head, ...rest].join('\n')
-}
 
 /** TL-71: why a program may not make this call, or null when it may. `given` names the arguments it gives. */
 export function programCallRefusal(

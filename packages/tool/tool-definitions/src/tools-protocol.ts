@@ -45,7 +45,7 @@ export const toolsCommands = [
   {
     name: 'search',
     summary:
-      'Search current lawful nonresident tools with BM25. Copy next to continue. programmable=true keeps the tools a program can call, with their functions.',
+      'Search current lawful nonresident tools with BM25. Copy next to continue. programmable=true lists instead the tools a program can call, the tools in your list too, with their functions.',
     schema: object(
       {
         query: { type: 'string' },
@@ -63,7 +63,7 @@ export const toolsCommands = [
   {
     name: 'inspect',
     summary:
-      'Inspect a tool overview (command=null) or one command with its parameters and return schemas.',
+      'Inspect a tool overview (command=null) or one command with its parameters and return schemas. The overview shows the functions a program can call.',
     schema: object({ name: string, command: nullableString }, ['name', 'command']),
   },
   {
