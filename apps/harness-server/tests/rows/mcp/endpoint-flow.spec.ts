@@ -130,6 +130,15 @@ function scripted() {
           command: inspect[2],
         }),
       ]
+    if (said.includes('start: files a program calls'))
+      return [
+        toolsCall('files', 'search', {
+          query: 'read files',
+          after: null,
+          limit: 10,
+          programmable: true,
+        }),
+      ]
     if (said.includes('start: callable'))
       return [
         toolsCall('callable', 'search', {
@@ -588,7 +597,7 @@ it(
   'MC-26 AS-28 a program calls the actions of an endpoint only once program calls are on; the agent turns them on through OmneExtensions after a person allows it, and cannot write a gate or a credential that way',
   { tags: ['slow'], timeout: 600_000 },
   async () => {
-    const { script } = scripted()
+    const { bodies, script } = scripted()
     const peer = await peerWith(COUNT, ECHO)
     const exit = await onReleaseTree(options(script), tree =>
       journey(tree, LIMIT_MS, async at => {
@@ -698,6 +707,26 @@ it(
         expect(peer.calls).toHaveLength(2)
         await sendInput(tree, session, 'start: callable')
         expect(mcpOf(await searched(tree, session, 13))).toEqual([])
+
+        at(
+          'TL-75 what a program can call is told by Tools alone: resident tools too, and no declaration',
+        )
+        await sendInput(tree, session, 'start: files a program calls')
+        const files = (await searched(tree, session, 14)).tools.find(
+          entry => entry.name === 'Files',
+        )
+        expect(files).toMatchObject({ resident: true })
+        expect(files?.program).toContain('declare const Files')
+        const declared = (
+          JSON.parse(bodies.at(-1) ?? '{}') as {
+            tools?: { function: { name: string; description: string } }[]
+          }
+        ).tools
+        expect(declared?.map(tool => tool.function.name)).toContain('Code')
+        for (const tool of declared ?? []) {
+          expect(tool.function.description, tool.function.name).not.toContain('declare const')
+          expect(tool.function.description, tool.function.name).not.toContain('Program data')
+        }
       }),
     )
     expect(exit).toBe(0)
