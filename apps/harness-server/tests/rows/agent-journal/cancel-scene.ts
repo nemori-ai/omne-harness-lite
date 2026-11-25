@@ -157,7 +157,6 @@ export async function cancelTree(cancellation: 'release' | 'absent'): Promise<Ca
         providerConfig(base.storageRoot, {
           maxCommandsPerCommit: 256,
           maxJsonDepth: 256,
-          maxJsonMembers: 1048576,
         }),
       ),
       declared(policy.plugin),

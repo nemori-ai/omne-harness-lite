@@ -308,6 +308,24 @@ export const sessionSearchHit = definePart({
   depths: ['tokens', 'style'],
   when: '搜到东西时',
 })
+export const sessionPaperItem = definePart({
+  name: 'session.paper.item',
+  label: '纸上的会话',
+  summary: '摆在画布上的一段会话',
+  within: 'canvas.paper',
+  depths: ['tokens', 'style'],
+  when: '会话摆在纸上时',
+})
+
+export const sessionPaperPick = definePart({
+  name: 'session.paper.pick',
+  label: '挑一段会话',
+  summary: '画布的查找里能挑的会话',
+  within: 'canvas.view',
+  depths: ['tokens', 'style'],
+  when: '在画布上查找时',
+})
+
 export const sessionParts = [
   sessionCompanion,
   sessionCompanionFigure,

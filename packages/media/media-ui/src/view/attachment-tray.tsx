@@ -47,7 +47,8 @@ const READY: Readonly<Record<'none' | 'converted' | 'inconvertible', string>> = 
   inconvertible: '已备好，没有可转出的文字',
 }
 
-function statusOf(item: Attachment): string {
+/** How far one attachment has come, in words: what its chip and a file handed to a canvas say. */
+export function statusOf(item: Attachment): string {
   const { state } = item
   if (state.kind === 'ready')
     return state.text === null ? READY[state.outcome] : `已转出：${state.text}`
@@ -77,18 +78,18 @@ function useTray(props: AttachmentTrayProps): AttachmentTray | null {
   return tray
 }
 
+export const pickedOf = (file: File): PickedFile => ({
+  name: file.name,
+  type: file.type,
+  size: file.size,
+  read: async () => new Uint8Array(await file.arrayBuffer()),
+  blob: file,
+})
+
 function attach(tray: AttachmentTray | null, files: Iterable<File> | null | undefined): boolean {
   const list = [...(files ?? [])]
   if (tray === null || list.length === 0) return false
-  tray.add(
-    list.map((file): PickedFile => ({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      read: async () => new Uint8Array(await file.arrayBuffer()),
-      blob: file,
-    })),
-  )
+  tray.add(list.map(pickedOf))
   return true
 }
 

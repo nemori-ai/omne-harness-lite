@@ -7,22 +7,7 @@ import {
   pollUntil,
   toolCallsThenText,
 } from '../../support/release-tree.ts'
-import { mediaClientOf } from './support.ts'
-
-const MEDIA_ROWS = [
-  'media-storage-sql',
-  'media-image',
-  'media',
-  'media-storage-local',
-  'media-sweep',
-  'media-intake',
-  'media-model-source',
-  'media-tool-store',
-  'media-converters',
-  'media-engine-transcribe',
-  'media-engine-pdf',
-  'media-access',
-]
+import { MEDIA_ROWS, mediaClientOf } from './support.ts'
 
 describe('the release tree without the media rows (C22)', () => {
   it(
@@ -32,7 +17,8 @@ describe('the release tree without the media rows (C22)', () => {
       const options = { script: toolCallsThenText(() => []), withoutRows: MEDIA_ROWS }
       const exitCode = await onReleaseTree(options, async tree => {
         const loaded = tree.records.filter(r => r['kind'] === 'tree').map(r => String(r['id']))
-        expect(loaded.filter(id => id.startsWith('media'))).toEqual([])
+        // media-canvas declares a kind on the canvas and is not a media row: it stays.
+        expect(loaded.filter(id => id.startsWith('media'))).toEqual(['media-canvas'])
         const session = await tree.startSession('hello')
         const entries = await pollUntil(
           'the Run to end',

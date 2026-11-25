@@ -17,6 +17,7 @@
 @import './patterns/confirm/confirm.css' layer(omne-builtin);
 @import './charts/charts.css' layer(omne-builtin);
 @import './ink/ink.css' layer(omne-builtin);
+@import './paper/paper.css' layer(omne-builtin);
 @import './styles/prose.css' layer(omne-builtin);
 @source ".";
 @source "../node_modules/streamdown/dist";

@@ -23,6 +23,7 @@ const CODING = [
   'Ask',
   'BkgToolCalls',
   'Calendar',
+  'Canvas',
   'Code',
   'Files',
   'Notifications',

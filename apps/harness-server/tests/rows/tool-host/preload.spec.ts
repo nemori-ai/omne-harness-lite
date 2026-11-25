@@ -48,6 +48,7 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         'Ask',
         'BkgToolCalls',
         'Calendar',
+        'Canvas',
         'Code',
         'Files',
         'Jobs',
@@ -108,9 +109,9 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         return { failure: { kind: 'unavailable', diagnostic: 'test' } }
       },
     })
-    expect(seen).toHaveLength(19)
+    expect(seen).toHaveLength(20)
     for (const access of seen) expect(access).toBe(registrant)
-    expect(results.map(result => result.outcome)).toEqual(Array(19).fill('unavailable'))
+    expect(results.map(result => result.outcome)).toEqual(Array(20).fill('unavailable'))
   })
 
   it('a throw while reading the release is kept in the start load: a warning, no rejection', async () => {

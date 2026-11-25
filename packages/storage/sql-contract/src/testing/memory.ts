@@ -55,7 +55,6 @@ export type MemorySqlStorageLimits = Readonly<{
   maxDiagnosticBytes: number
   maxReadInputBytes: number
   maxJsonDepth: number
-  maxJsonMembers: number
 }>
 
 const DEFAULT_LIMITS: MemorySqlStorageLimits = {
@@ -67,7 +66,6 @@ const DEFAULT_LIMITS: MemorySqlStorageLimits = {
   maxDiagnosticBytes: 512,
   maxReadInputBytes: 64 << 10,
   maxJsonDepth: 64,
-  maxJsonMembers: 100_000,
 }
 
 export type MemorySqlStorageInput = Readonly<{
@@ -457,14 +455,11 @@ class MemorySqlStorage implements SqlStorage {
     const { limits } = this
     if (list.length > limits.maxCommandsPerCommit) return false
     if (utf8Length(canonicalJson(input)) > limits.maxRequestBytes) return false
-    let members = 0
     for (const command of list) {
       if (utf8Length(canonicalJson(command)) > limits.maxCommandBytes) return false
-      const shape = jsonShape(command.facts)
-      if (shape.depth > limits.maxJsonDepth) return false
-      members += shape.members
+      if (jsonShape(command.facts).depth > limits.maxJsonDepth) return false
     }
-    return members <= limits.maxJsonMembers
+    return true
   }
 
   private async execute(
@@ -695,11 +690,9 @@ class MemorySqlStorage implements SqlStorage {
       !isStrictJson(raw.input)
     )
       return unavailable('invalid')
-    const shape = jsonShape(raw.input)
     if (
       utf8Length(canonicalJson(raw.input)) > this.limits.maxReadInputBytes ||
-      shape.depth > this.limits.maxJsonDepth ||
-      shape.members > this.limits.maxJsonMembers
+      jsonShape(raw.input).depth > this.limits.maxJsonDepth
     )
       return unavailable('read_limit')
     const handler = this.catalog.readHandlers.find(

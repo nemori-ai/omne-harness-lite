@@ -36,6 +36,8 @@
     "@omne-harness/assets-ui": "workspace:*",
     "@omne-harness/calendar-protocol": "workspace:*",
     "@omne-harness/calendar-ui": "workspace:*",
+    "@omne-harness/canvas-protocol": "workspace:*",
+    "@omne-harness/canvas-ui": "workspace:*",
     "@omne-harness/client-assembly": "workspace:*",
     "@omne-harness/dynamis": "workspace:*",
     "@omne-harness/dynamis-cordis": "workspace:*",
