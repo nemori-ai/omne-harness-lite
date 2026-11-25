@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { succeed } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import type { DriverStop } from '@omne-harness/tool'
 import type { ToolWaitId } from '@omne-harness/tool-contract'
 import type { DecisionValue } from '@omne-harness/tool-contract'
@@ -184,6 +184,32 @@ describe('a decision of a suspended checkpointed call', () => {
       `${FIRST}/resume`,
       `${second}/resume`,
     ])
+  })
+})
+
+describe('a resume whose permit the authority refuses', () => {
+  it('keeps the call for the next run: a resume is not ended as a start that never began', async () => {
+    let refusing = true
+    const built = await suspended({
+      authorityPort: base => ({
+        ...base,
+        prepare: input =>
+          refusing && input.start.kind === 'resume'
+            ? Promise.resolve(fail({ kind: 'denied', action: 'start' }))
+            : base.prepare(input),
+      }),
+    })
+    await answer(built, { kind: 'answer', value: text('a.txt') })
+    expect(built.author.resumed).toEqual([])
+    expect((await built.harness.state('c1')).phase).not.toBe('settled')
+    refusing = false
+    await built.harness.drive('c1')
+    await settle(built.harness)
+    expect(built.author.resumed).toHaveLength(1)
+    expect(await built.harness.state('c1')).toMatchObject({
+      phase: 'settled',
+      terminal: { kind: 'completed' },
+    })
   })
 })
 
