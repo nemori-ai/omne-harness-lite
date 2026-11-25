@@ -1,13 +1,13 @@
 import { encodeValue, plainOf } from '../codec.ts'
 import { judgeMessage, projectMessage } from '@omne-harness/message'
 import { modelViewPrefix } from '../model-view-identity.ts'
-import { readSharedEntry } from './shared-messages.ts'
+import { readSharedEntry, viewMessageText } from './shared-messages.ts'
 import { entrySession, viewOf } from './fork.ts'
 import { handler, oneRow, packed, scopeOf, text } from './support.ts'
 
 export default handler('session.entry-message', (raw, port) => {
   const scope = scopeOf(raw)
-  const input = raw as Readonly<{ entry: unknown; epoch: unknown }>
+  const input = raw as Readonly<{ entry: unknown; epoch: unknown; frozenEpoch?: unknown }>
   if (
     scope === null ||
     typeof input.entry !== 'string' ||
@@ -15,6 +15,26 @@ export default handler('session.entry-message', (raw, port) => {
     (input.epoch !== null && typeof input.epoch !== 'string')
   )
     throw new TypeError('invalid input')
+  if (input.frozenEpoch !== undefined) {
+    const prefix = modelViewPrefix(scope.tenant, scope.session)
+    if (
+      input.epoch !== null ||
+      typeof input.frozenEpoch !== 'string' ||
+      !input.frozenEpoch.startsWith(prefix)
+    )
+      throw new TypeError('invalid frozen view identity')
+    const epoch = input.frozenEpoch.slice(prefix.length)
+    if (!/^epoch:(0|[1-9]\d*)$/u.test(epoch)) throw new TypeError('invalid frozen view epoch')
+    const row = viewOf(port, scope, epoch).rowOf(input.entry)
+    if (!row) return { kind: 'absent' }
+    const value = judgeMessage(
+      JSON.parse(viewMessageText(port, scope.tenant, text(row['message']))),
+    )
+    const projected = 'ok' in value ? projectMessage(value.ok, 'toModel') : null
+    return projected === null
+      ? { kind: 'absent' }
+      : { kind: 'message', message: encodeValue(projected.message) }
+  }
   if (input.epoch !== null) {
     const head = oneRow(
       port,

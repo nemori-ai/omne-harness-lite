@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import {
   admissionPassageOf,
-  decodeActionId,
+  toolActionOf,
   type Access,
   type Action,
   type ActionBatch,
@@ -91,7 +91,7 @@ function argumentsText(value: ActionToolCall['arguments']): string {
 }
 
 export function actionOf(step: StepId, original: ActionToolCall, ordinal: number): Action {
-  const id = minted(decodeActionId(`${step}/tool/${ordinal}`))
+  const id = minted(toolActionOf(step, ordinal))
   return {
     id,
     original: { callId: original.callId },

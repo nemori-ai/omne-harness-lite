@@ -32,6 +32,7 @@
 | [媒体产品设计](media/design.md) | [未决](media/design.md#未决问题与待定事项) | [领域](../../../docs/domains/media/README.md) | [工程与规格](../../../packages/media/SPEC.md#总体架构) |
 | [日程与作业产品设计](schedules-and-jobs/design.md) | [未决](schedules-and-jobs/design.md#未决问题与待定事项) | [领域](../../../docs/domains/schedules-and-jobs/README.md) | [工程与规格](../../../packages/schedule/SPEC.md) |
 | [画布产品设计](canvas/design.md) | [未决](canvas/design.md#未决问题与待定事项) | [领域](../../../docs/domains/canvas/README.md) | [工程与规格](../../../packages/canvas/SPEC.md#总体架构) |
+| [目标产品设计](goals/design.md) | [未决](goals/design.md#未决问题与待定事项) | [领域](../../../docs/domains/goals/README.md) | [工程与规格](../../../packages/goal/SPEC.md) |
 | [桌面应用](desktop-application/design.md) | [未决](desktop-application/design.md#未决问题与待定事项) | 不是一个领域：它是一种交付面，正面各部分的规则归身份、会话、资产、人在回路与用量，反面的规则归画布 | [应用的规格](../../../apps/desktop/SPEC.md) |
 
 Skill、Slash Command、MCP 的工程分解已维护在对应能力组，完整行为候选尚未分配正式成员。其产品末块与组入口继续显示承接缺项，不以组根 SPEC 或空包替代。

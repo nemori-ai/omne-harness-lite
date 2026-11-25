@@ -1,4 +1,5 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { spawnGateChild } from './command-gate-child.ts'
 import { readFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 import type { Readable } from 'node:stream'
@@ -12,9 +13,7 @@ import {
   drainAfterExit,
   relayAfterExit,
   exitFrame,
-  spawnFailedFrame,
   splitLines,
-  standardInput,
   type ChunkRoute,
   type CommandFrame,
   type ControlAction,
@@ -32,7 +31,6 @@ let paused = false
 let request: GateRequest | undefined
 let child: ChildProcess | undefined
 let went = false
-let spawned = false
 let exitStatus: ExitStatus | undefined
 let openStreams = 2
 let quiet: ReturnType<typeof setTimeout> | undefined
@@ -138,29 +136,10 @@ function forward(stream: Readable | null, name: OutputStream, maxChunkBytes: num
   stream.on('error', () => undefined)
 }
 
-function onSpawned(started: ChildProcess, go: GateRequest): void {
-  spawned = true
-  send({ t: 'started' })
-  started.stdin?.end(standardInput(go))
-}
-
-function onSpawnError(error: Error): void {
-  if (spawned) return
-  send(spawnFailedFrame(Reflect.get(error, 'code')))
-  control.destroy()
-}
-
 function run(go: GateRequest): void {
-  const started = spawn(go.executable, [...go.args], {
-    cwd: go.cwd,
-    env: { ...go.env },
-    stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
-  })
+  const started = spawnGateChild(go, send, () => control.destroy())
+  if (!started) return
   child = started
-  started.stdio[3]?.destroy()
-  started.stdin?.on('error', () => undefined)
-  started.once('spawn', () => onSpawned(started, go))
-  started.once('error', onSpawnError)
   started.once('exit', (code, signal) => {
     exitStatus = { code, signal }
     armQuiet()

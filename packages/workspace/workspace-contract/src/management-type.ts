@@ -5,7 +5,7 @@ export type Material = Json
 /** `occupancy` names the physical position. Governance keeps it unique and never reads it. */
 export type Recognised = Readonly<{ material: Material; occupancy: string }>
 
-export type Inspection = Readonly<{ directory: string; basis: LoadBasis }>
+export type Inspection = Readonly<{ directory: string; basis: LoadBasis; rootIdentity?: string }>
 
 /** `refused`: the type looked and the answer is no; `final`, no less specific type may take it either. `unavailable`: the type could not look. */
 export type TypeAnswer<T> =

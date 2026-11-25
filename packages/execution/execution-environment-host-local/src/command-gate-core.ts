@@ -11,7 +11,7 @@ export type OutputStream = 'stdout' | 'stderr'
 
 export type CommandFrame =
   | Readonly<{ t: 'ready' }>
-  | Readonly<{ t: 'started' }>
+  | Readonly<{ t: 'started'; cwd: string }>
   | Readonly<{ t: 'spawnFailed'; code: string }>
   | Readonly<{ t: 'data'; s: OutputStream; b: string }>
   | Readonly<{ t: 'exit'; code: number | null; signal: string | null; members: number | null }>

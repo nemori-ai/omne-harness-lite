@@ -31,7 +31,7 @@ import {
 import { canonical } from '../testing/canonical.ts'
 import type { MemoryExecution } from '../testing/journal.ts'
 import type { CommonRoot } from '../testing/root.ts'
-import { ANSWER_FAMILY } from '../testing/closed-items.ts'
+import { ANSWER_FAMILY, type ItemRef } from '../testing/closed-items.ts'
 import { ASSOCIATION_FAMILY, ENTRY_FAMILY, ORIGIN_FAMILY } from '../testing/closed-rows.ts'
 import { refsIn } from './content-refs.ts'
 import {
@@ -49,6 +49,22 @@ export const unavailable = (diagnostic: string): Failure => ({
   owner: JOURNAL_PROVIDER,
   diagnostic,
 })
+
+export type Settled<T> =
+  | Readonly<{ kind: 'step-changed' }>
+  | Readonly<{ kind: 'answer'; value: Outcome<T, Failure> }>
+  | Readonly<{ kind: 'again' }>
+  | Readonly<{ kind: 'fetch'; refs: readonly ItemRef[] }>
+
+export function publicationRetries() {
+  let conflicts = 0
+  let preparations = 0
+  return (reason: 'again' | 'step-changed'): string | null => {
+    if (reason === 'step-changed')
+      return ++preparations >= 16 ? 'the model step prerequisites kept changing' : null
+    return ++conflicts >= 4 ? 'the Agent records of the session kept changing' : null
+  }
+}
 
 // The head of each execution a write moved: the receipt of the batch, not of the method's answer.
 export function headsOf(

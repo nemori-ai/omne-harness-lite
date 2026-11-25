@@ -1,3 +1,4 @@
+import { openFileDirectory } from './open-file-directory.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
@@ -268,16 +269,28 @@ export async function loadManifest(file: string): Promise<Manifest | 'absent' | 
   return isManifest(parsed) ? parsed : 'unreadable'
 }
 
-export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
-  const manifestLocation = (tenant: string, id: string) => {
-    const directory = join(
-      env.stateDirectory ?? '',
-      'batches',
-      createHash('sha256').update(tenant).digest('hex'),
-    )
-    return { directory, file: join(directory, `${id}.json`) }
-  }
+export function batchRecognitionState(
+  manifest: Manifest,
+  receipts: number,
+  generation: string,
+  running: ReadonlySet<string>,
+): FileBatchRecognition['state'] {
+  if (receipts === manifest.entries.length) return 'complete'
+  if (manifest.state === 'conflict') return 'conflict'
+  if (manifest.generation !== generation) return 'interrupted'
+  return running.has(manifest.id) ? 'pending' : 'partial'
+}
 
+const manifestLocation = (stateDirectory: string | undefined, tenant: string, id: string) => {
+  const directory = join(
+    stateDirectory ?? '',
+    'batches',
+    createHash('sha256').update(tenant).digest('hex'),
+  )
+  return { directory, file: join(directory, `${id}.json`) }
+}
+
+export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
   function report(diagnostic: HostFileDiagnostic): void {
     try {
       env.diagnose?.(diagnostic)
@@ -346,7 +359,19 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
       const id = randomUUID()
       const staged = await checkEntries(requestId, entries, id, held)
       if ('kind' in staged) return staged
-      return await recordAndPublish(requestId, staged, id, tenant.value)
+      const directories = new Map<string, string>()
+      if (request.observeDirectory && !env.paths('write').rooted) {
+        for (const { entry, parent } of staged) {
+          const directory = (await openFileDirectory(parent, true)).verifiedDirectories?.[0]
+          if (directory) directories.set(entry.path, directory)
+        }
+      }
+      const result = await recordAndPublish(requestId, staged, id, tenant.value)
+      if (result.kind !== 'done') return result
+      const published = result.value.published.flatMap(path => directories.get(path) ?? [])
+      return published.length
+        ? { ...result, verifiedDirectories: [...new Set(published)].sort() }
+        : result
     } finally {
       for (const handle of held) await env.close(handle)
     }
@@ -358,7 +383,7 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     id: string,
     tenant: string,
   ): Promise<FacilityResult<FileBatchOutcome>> {
-    const { directory, file } = manifestLocation(tenant, id)
+    const { directory, file } = manifestLocation(env.stateDirectory, tenant, id)
     const manifest: Manifest = {
       version: 1,
       id,
@@ -512,7 +537,9 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     const tenant = tenantCodec.encode(request.access.tenant)
     if (!tenant.ok) return reject(requestId, 'notAuthorized')
 
-    const loaded = await loadManifest(manifestLocation(tenant.value, batch.id).file)
+    const loaded = await loadManifest(
+      manifestLocation(env.stateDirectory, tenant.value, batch.id).file,
+    )
     if (loaded === 'absent') return reject(requestId, 'notFound')
     if (loaded === 'unreadable') return unknown(requestId)
     if (!isBatchOf(loaded, tenant.value, batch)) return reject(requestId, 'notFound')
@@ -542,18 +569,11 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     const ref: FileBatchRef = { id: manifest.id, generation: manifest.generation }
     return {
       batch: ref,
-      state: stateOf(manifest, published.length),
+      state: batchRecognitionState(manifest, published.length, env.generation, env.running),
       published,
       matchingPrepared,
       conflicting,
     }
-  }
-
-  function stateOf(manifest: Manifest, receipts: number): FileBatchRecognition['state'] {
-    if (receipts === manifest.entries.length) return 'complete'
-    if (manifest.state === 'conflict') return 'conflict'
-    if (manifest.generation !== env.generation) return 'interrupted'
-    return env.running.has(manifest.id) ? 'pending' : 'partial'
   }
 
   async function observe(

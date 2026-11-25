@@ -154,7 +154,7 @@ function requestRule(
 const pinnedFields = {
   directory: record(
     { path: filled, workspace: nullable(record({ id: workspaceId, instance: filled })) },
-    { files: record({}, { read: filled, write: filled }) },
+    { generation: filled, files: record({}, { read: filled, write: filled }) },
   ),
 } as const
 
