@@ -3,6 +3,7 @@ import type { GoalAction, GoalSessions } from '@omne-harness/goal'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { tenantCodec, type TenantId as LegalTenant } from '@omne-harness/legal-identity'
 import { SESSION_WORK_OWNER } from '../../../src/rows/authorization/principals.ts'
+import { checkedPrincipal, checkSubject } from '../../../src/rows/goal/check-subject.ts'
 import type { GoalHolder } from '../../../src/rows/goal/holder.ts'
 import { createGoalAuthority, lateCalls, lateSessions } from '../../../src/rows/goal/ports.ts'
 import { SESSION_WORK_COMPONENT } from '../../../src/rows/tool-runtime/session-work.ts'
@@ -69,6 +70,30 @@ describe('who may ask what of the goal of a session on the release', () => {
   ])('%s is denied every action', async (_name, verified) => {
     for (const action of [...OF_THE_AGENT, ...OF_THE_OWNER])
       expect(await decide(verified, action)).toBe('denied')
+  })
+
+  it('the check of the work of a session observes its goal and asks nothing else of it; the agent itself never observes', async () => {
+    const checking = (verified: unknown, action: GoalAction, session = 'session-1') =>
+      authority(verified).decide(
+        { tenant: textOf(A), subject: checkSubject(verified) },
+        session,
+        action,
+      )
+    expect(await checking(work(A), 'observe')).toBe('permitted')
+    for (const action of [...OF_THE_AGENT, ...OF_THE_OWNER])
+      expect(await checking(work(A), action)).toBe('denied')
+    expect(await decide(work(A), 'observe')).toBe('denied')
+    expect(await checking(work(A, 'session-2'), 'observe')).toBe('denied')
+    expect(await checking(work(B), 'observe')).toBe('denied')
+    expect(await checking('unavailable', 'observe')).toBe('unavailable')
+  })
+
+  it('a check subject leads back to the principal it was made around, and nothing else is one', () => {
+    const principal = work(A)
+    expect(checkedPrincipal(checkSubject(principal))).toBe(principal)
+    expect(checkSubject(principal)).not.toBe(checkSubject(principal))
+    for (const other of [principal, { check: 'goal-check' }, 'goal-check', null, undefined])
+      expect(checkedPrincipal(other)).toBeUndefined()
   })
 
   it('a tenant text that names no tenant is denied before anything is verified', async () => {

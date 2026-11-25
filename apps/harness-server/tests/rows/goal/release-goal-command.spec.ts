@@ -33,17 +33,26 @@ const OPTIONS = {
 
 describe('/goal on the release tree', () => {
   it(
-    'the model reads the typed line and the prompt as two blocks, its proposal puts up a card; once the person confirms, the goal stands, the same run is sent on twice while the judge reads it as not met, and ends when it is',
+    'the model reads the typed line and the prompt as two blocks, its proposal puts up a card; once the person confirms, the goal stands, the same run is sent on twice while the judge reads it as not met, and ends when it is; a judge model the tenant sets meanwhile is used from the next judging',
     { timeout: 300_000 },
     async () => {
       const requests: string[] = []
       const judged: AskedDecision[] = []
+      const during = { firstJudging: async () => {} }
       const script = answeringDecisions(
         agentScript(requests),
-        (_ask, nth) => ({ criterion: nth < 2 ? 'fails' : 'holds' }),
+        async (_ask, nth) => {
+          if (nth === 0) await during.firstJudging()
+          return { criterion: nth < 2 ? 'fails' : 'holds' }
+        },
         judged,
       )
       await onReleaseTree({ ...OPTIONS, script }, async tree => {
+        during.firstJudging = async () => {
+          const set = ['setting', 'set', '--independent', 'goal/judge', 'model']
+          const changed = await tree.cli([...set, '--value', '"typesafe/jev-1.14"'])
+          expect(changed.status, changed.stderr).toBe(0)
+        }
         const { session, card, agent, goals } = await proposed(tree)
         expect(card.question.title).toBe('确认这个目标')
         expect(card.question.description).toContain('## 目的\n把改动说明写进 CHANGELOG')
@@ -101,7 +110,11 @@ describe('/goal on the release tree', () => {
         expect(requests[4]?.split(SENT_ON)).toHaveLength(2)
         expect(requests[5]?.split(SENT_ON)).toHaveLength(3)
 
-        expect(judged.map(ask => ask.model)).toEqual(Array(3).fill('openai/gpt-6-luna-decisions'))
+        expect(judged.map(ask => ask.model)).toEqual([
+          'openai/gpt-6-luna-decisions',
+          'typesafe/jev-1.14',
+          'typesafe/jev-1.14',
+        ])
         expect(judged.map(ask => Object.keys(ask.questions))).toEqual(Array(3).fill(['A1', 'N1']))
         expect(JSON.stringify(judged[0]?.state)).toContain('- 首页提速')
         const records = await judgingRecords(tree)
@@ -110,11 +123,11 @@ describe('/goal on the release tree', () => {
           '1.1.1/0/0/0',
           '1.1.2/0/0/0',
         ])
+        expect(records.map(record => record.labels.model)).toEqual(judged.map(ask => ask.model))
         for (const record of records)
           expect(record).toMatchObject({
             outcome: 'completed',
             accounted: true,
-            labels: { model: 'openai/gpt-6-luna-decisions' },
             usage: [
               { name: 'input', state: 'known', lexeme: '120' },
               { name: 'output', state: 'known', lexeme: '8' },

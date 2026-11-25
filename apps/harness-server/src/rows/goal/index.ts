@@ -4,7 +4,12 @@ import {
   goalReconcilingKey,
   goalsKey,
 } from '@omne-harness/goal-cordis-contract/cordis'
-import { goalPersistenceParticipant, goalPolicySchema } from '@omne-harness/goal-local'
+import { independentSettingsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import {
+  goalJudgeSettings,
+  goalPersistenceParticipant,
+  goalPolicySchema,
+} from '@omne-harness/goal-local'
 import { createGoalLocalPlugin } from '@omne-harness/goal-local/cordis'
 import {
   combinationManifest,
@@ -23,6 +28,7 @@ import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-s
 import { defineRow } from '../../row.ts'
 import { GOAL_COMPONENT } from '../authorization/grants.ts'
 import { installRowGrant } from '../authorization/row-grants.ts'
+import { tenantIndependentSettingsKey } from '../governance/independent-settings-service.ts'
 import {
   tenantDomainRegistrationKey,
   type TenantDomainRegistration,
@@ -38,8 +44,8 @@ import {
   lateDecisions,
   lateHistory,
   lateSessions,
-  releaseJudging,
 } from './ports.ts'
+import { releaseJudging } from './judging.ts'
 
 export const goalConfig = z.strictObject({ policy: goalPolicySchema })
 const PARTICIPANTS = [goalPersistenceParticipant]
@@ -99,13 +105,15 @@ export const goalRow = defineRow({
         calls: lateCalls(holder),
         history: lateHistory(holder),
         decisions: lateDecisions(holder),
-        judging: releaseJudging(),
+        judging: releaseJudging(() => ctx.get(tenantIndependentSettingsKey)),
       },
       clock: { now: () => instantTextOf(ctx, 'goal') },
       timers: runTimeOf(ctx),
       report: error => logger.warn('goal work failed: %s', String(error)),
     })
     await provider.await()
+    // Goals declare the setting; the assembly hands it to the independent settings point.
+    ctx.plugin(independentSettingsPlugin('goal-judge-settings', goalJudgeSettings))
     return {
       async stop() {
         await provider.dispose()

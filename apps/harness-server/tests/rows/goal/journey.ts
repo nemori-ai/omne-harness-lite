@@ -62,6 +62,7 @@ export const count = (entries: readonly Entry[], kind: string) =>
 
 export type UsageRecord = Readonly<{
   consumer: { purpose: string; position: string }
+  labels: { model: string }
   outcome: string
   accounted: boolean
 }>

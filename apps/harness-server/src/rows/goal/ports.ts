@@ -4,10 +4,8 @@ import type {
   GoalCalls,
   GoalDecisions,
   GoalHistory,
-  GoalJudging,
   GoalSessions,
 } from '@omne-harness/goal'
-import { DEFAULT_JUDGE_CONFIG } from '@omne-harness/goal-contract'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
@@ -38,10 +36,6 @@ export function lateHistory(holder: GoalHolder): GoalHistory {
 
 export function lateDecisions(holder: GoalHolder): GoalDecisions {
   return { ask: input => holder.decisions?.ask(input) ?? Promise.resolve(null) }
-}
-
-export function releaseJudging(): GoalJudging {
-  return { config: async () => ({ kind: 'read', value: DEFAULT_JUDGE_CONFIG }) }
 }
 
 /** What the agent of a session may ask of its own goal. Nothing here changes the goal without an answered card. */

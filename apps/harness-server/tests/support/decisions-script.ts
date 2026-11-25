@@ -41,14 +41,14 @@ function answerOf(
  */
 export function answeringDecisions(
   script: GatewayScript,
-  judge: (ask: AskedDecision, nth: number) => Judged | null,
+  judge: (ask: AskedDecision, nth: number) => Judged | null | Promise<Judged | null>,
   asked: AskedDecision[] = [],
 ): GatewayScript {
-  return request => {
+  return async request => {
     const ask = decisionOf(request.rawBody)
     if (ask === null) return script(request)
     asked.push(ask)
-    const judged = judge(ask, asked.length - 1)
+    const judged = await judge(ask, asked.length - 1)
     if (judged !== null && 'refused' in judged)
       return {
         status: judged.refused,
