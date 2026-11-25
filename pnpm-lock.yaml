@@ -195,8 +195,8 @@ catalogs:
       specifier: 0.0.8
       version: 0.0.8
     '@omne-harness/repo-toolchain':
-      specifier: 0.0.20
-      version: 0.0.20
+      specifier: 0.0.21
+      version: 0.0.21
     '@playwright/test':
       specifier: 1.64.1
       version: 1.64.1
@@ -391,7 +391,7 @@ importers:
         version: 0.0.8
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(vitest@4.1.11)
@@ -8366,7 +8366,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -8384,7 +8384,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@stryker-mutator/api':
         specifier: 'catalog:'
         version: 10.1.1
@@ -8411,7 +8411,7 @@ importers:
         version: link:../../packages/common/legal-identity
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -8483,7 +8483,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -9527,8 +9527,8 @@ packages:
     resolution: {integrity: sha512-pTPIqo4IEJuGDA2HKV5cIJ1GhfMztTCQNz+BQl2B7nfNHUB0Bu0k4Z9yo2LjnyKkIhGTv9QvatmmAOafUf4P8A==}
     engines: {node: '>=24'}
 
-  '@omne-harness/repo-toolchain@0.0.20':
-    resolution: {integrity: sha512-rpmq9qktyEob8c6Oma6CfOtPrEDp0FHxPXXNO+JZ2duSIMTw8KcQbdBwWAYp7MhIEkRhMGXBC556eHWLTFUxPQ==}
+  '@omne-harness/repo-toolchain@0.0.21':
+    resolution: {integrity: sha512-eYulva9a1nFHOdzFC8sAaOHxrgFpcoYwZionAE+BWl2lNT28hTFo0gOxzut4Kcf8DpahnFVO+EeVWQha4hMKIw==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -12031,10 +12031,6 @@ packages:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
     engines: {node: '>=20'}
 
-  commander@15.0.0:
-    resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
-    engines: {node: '>=22.12.0'}
-
   commander@15.1.0:
     resolution: {integrity: sha512-cgnQ88TRrWcC7pVq46RzJVRMktu3W2RcbnoidnfBsl1bmDCBwJS/udcIZpKoCrbAYYaCqsz1yZCVIgbIaU3ddQ==}
     engines: {node: '>=22.12.0'}
@@ -12356,11 +12352,6 @@ packages:
   depd@2.0.0:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
     engines: {node: '>= 0.8'}
-
-  dependency-cruiser@18.6.0:
-    resolution: {integrity: sha512-It7NW5AmCDBCLMq7I91Nfu8VRKzrIE6S+M/FMQzALDceJ0B1PWRHo77q9YJg/HwyBBEWHVtOuTptIQki+xecOw==}
-    engines: {node: ^22||^24||>=26}
-    hasBin: true
 
   dependency-cruiser@18.9.0:
     resolution: {integrity: sha512-b6fjm/8OI0HYRW3Mo/y6GlUMPk//3LPBxd0CsEaPNDJXospJDYG8rpyoz/Izk5xTkfYWEMYl8cTQWupgpmkBOg==}
@@ -12859,10 +12850,6 @@ packages:
   iconv-lite@0.7.3:
     resolution: {integrity: sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==}
     engines: {node: '>=0.10.0'}
-
-  ignore@7.0.12:
-    resolution: {integrity: sha512-/8UvqAPU9DGTI9k4mxtf49U37Isfwr8Uts96+SBHIkFxPJnHS0Ew4f00sM4Scd8V8EjM0jUNtVDdv1kPdt35lg==}
-    engines: {node: '>= 4'}
 
   ignore@7.0.16:
     resolution: {integrity: sha512-52N+Y4HRMOJmbLmr+DqO4iSRyyB7N52gm7PWCT6h0p978+oKbqHCB7gIJIwZvBUsjlSdWbrBFqUSmIFNZMpn0A==}
@@ -15983,13 +15970,13 @@ snapshots:
 
   '@omne-harness/repo-config@0.0.8': {}
 
-  '@omne-harness/repo-toolchain@0.0.20(vitest@4.1.11)':
+  '@omne-harness/repo-toolchain@0.0.21(vitest@4.1.11)':
     dependencies:
       '@jscpd/core': 4.0.1
       '@jscpd/tokenizer': 4.0.1
       '@types/node': 24.13.6
       '@typescript/typescript6': 6.0.2
-      dependency-cruiser: 18.6.0
+      dependency-cruiser: 18.9.0
       yaml: 2.9.1
     optionalDependencies:
       vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -18403,8 +18390,6 @@ snapshots:
 
   commander@14.0.3: {}
 
-  commander@15.0.0: {}
-
   commander@15.1.0: {}
 
   commander@5.1.0: {}
@@ -18728,28 +18713,6 @@ snapshots:
   delayed-stream@1.0.0: {}
 
   depd@2.0.0: {}
-
-  dependency-cruiser@18.6.0:
-    dependencies:
-      acorn: 8.19.0
-      acorn-jsx: 5.3.2(acorn@8.19.0)
-      acorn-jsx-walk: 2.0.0
-      acorn-loose: 8.5.2
-      acorn-walk: 8.3.5
-      commander: 15.0.0
-      enhanced-resolve: 5.26.0
-      ignore: 7.0.12
-      interpret: 3.1.1
-      is-installed-globally: 1.0.1
-      json5: 2.2.3
-      picomatch: 4.0.7
-      prompts: 2.4.2
-      rechoir: 0.8.0
-      safe-regex: 2.1.1
-      semver: 7.8.5
-      tsconfig-paths-webpack-plugin: 4.2.0
-      typescript: 6.0.3
-      watskeburt: 6.0.0
 
   dependency-cruiser@18.9.0:
     dependencies:
@@ -19466,8 +19429,6 @@ snapshots:
   iconv-lite@0.7.3:
     dependencies:
       safer-buffer: 2.1.2
-
-  ignore@7.0.12: {}
 
   ignore@7.0.16: {}
 
