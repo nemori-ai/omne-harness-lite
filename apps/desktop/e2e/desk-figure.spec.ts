@@ -149,6 +149,64 @@ test('拖出视口再松手：桌面层的窗口显示着、在普通窗口之�
   expect(await cornerAlpha(app, deskPage(app))).toBe(0)
 })
 
+/** Presses the figure on the desk layer and lets go of it at a point of the screen. */
+async function dragOnDesk(desk: Page, to: { x: number; y: number }): Promise<void> {
+  const box = await deskFigure(desk).boundingBox()
+  if (box === null) throw new Error('the desk layer draws no figure')
+  const [left, top] = (await desk.evaluate('[screenX, screenY]')) as [number, number]
+  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  await desk.mouse.move(from.x, from.y)
+  await desk.mouse.down()
+  await desk.mouse.move(from.x + 12, from.y + 12, { steps: 3 })
+  await desk.mouse.move(to.x - left, to.y - top, { steps: 12 })
+  await desk.mouse.up()
+}
+
+test('在桌面上拿起形：放到别处它停在那里；拖回主窗口里松手，它回座位', async ({ launchApp }) => {
+  const { app, page } = await launchApp()
+  await signUp(page)
+  await liftOut(page)
+  const desk = await onDesk(app)
+  const [left, top] = (await desk.evaluate('[screenX, screenY]')) as [number, number]
+  const content = await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find(each => !/\/(desk|shot)\.html/.test(each.webContents.getURL()))!
+      .getContentBounds(),
+  )
+  // A point of this screen well clear of its edges and outside the main window: nothing clamps it.
+  const [width, height] = (await desk.evaluate('[innerWidth, innerHeight]')) as [number, number]
+  const clear = (point: { x: number; y: number }) =>
+    point.x > left + 80 &&
+    point.x < left + width - 80 &&
+    point.y > top + 80 &&
+    point.y < top + height - 80
+  const middle = { x: content.x + content.width / 2, y: content.y + content.height / 2 }
+  const outside = [
+    { x: content.x + content.width + 120, y: middle.y },
+    { x: content.x - 120, y: middle.y },
+    { x: middle.x, y: content.y + content.height + 120 },
+    { x: middle.x, y: content.y - 120 },
+  ].find(clear)
+  if (outside === undefined) throw new Error('the main window leaves no room on its screen')
+  await dragOnDesk(desk, outside)
+  await expect(desk.locator('main.desk[data-mode=rest] .omne-figure-ink')).toHaveCount(1)
+  const rested = async () => {
+    const box = await deskFigure(desk).boundingBox()
+    if (box === null) return null
+    return [
+      Math.round(box.x + box.width / 2 + left - outside.x),
+      Math.round(box.y + box.height / 2 + top - outside.y),
+    ]
+  }
+  await expect.poll(rested).toEqual([0, 0])
+  expect(await deskWindow(app)).toMatchObject({ visible: true })
+  await dragOnDesk(desk, {
+    x: content.x + content.width / 2,
+    y: content.y + content.height / 2,
+  })
+  await seated(app, page)
+})
+
 test('双击桌面上的形：主窗口到前面，形留在桌面', async ({ launchApp }) => {
   const { app, page } = await launchApp()
   await signUp(page)

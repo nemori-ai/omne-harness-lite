@@ -89,21 +89,25 @@ function letGoOnPage(at: Point, facts: Facts): Move {
     : { to: SEAT, also: [RELEASE, STROKE] }
 }
 
-function fromHand(where: { drawn: Side; on: Side }, event: WhereEvent, facts: Facts): Move {
-  const ours = (event.kind === 'drop' || event.kind === 'escape') && event.on === where.on
-  if (where.drawn === 'page') {
-    if (event.kind === 'signedOut' || ((event.kind === 'drop' || event.kind === 'escape') && ours))
-      return letGoOnPage(event.at, facts)
-    if (event.kind === 'painted') return { to: { at: 'hand', drawn: 'desk', on: 'page' } }
-    return undefined
-  }
-  if (event.kind === 'drop' && ours) return { to: dropped(event.at, facts) }
-  if ((event.kind === 'escape' && ours) || event.kind === 'signedOut')
-    return { to: homeward(event.at, facts) }
-  if (event.kind === 'ended')
-    return { to: where.on === 'page' ? { at: 'hand', drawn: 'page', on: 'page' } : SEAT }
+/** In the hand while the page draws; `on` is where the pointer is pressed, whose drop and Escape are this hand's. */
+function drawnByPage(on: Side, event: WhereEvent, facts: Facts): Move {
+  const letGo = (event.kind === 'drop' || event.kind === 'escape') && event.on === on
+  if (event.kind === 'signedOut' || letGo) return letGoOnPage(event.at, facts)
+  if (event.kind === 'painted') return { to: { at: 'hand', drawn: 'desk', on: 'page' } }
   return undefined
 }
+
+function drawnByDesk(on: Side, event: WhereEvent, facts: Facts): Move {
+  if (event.kind === 'drop' && event.on === on) return { to: dropped(event.at, facts) }
+  if ((event.kind === 'escape' && event.on === on) || event.kind === 'signedOut')
+    return { to: homeward(event.at, facts) }
+  if (event.kind === 'ended')
+    return { to: on === 'page' ? { at: 'hand', drawn: 'page', on: 'page' } : SEAT }
+  return undefined
+}
+
+const fromHand = (where: { drawn: Side; on: Side }, event: WhereEvent, facts: Facts): Move =>
+  where.drawn === 'page' ? drawnByPage(where.on, event, facts) : drawnByDesk(where.on, event, facts)
 
 function fromDesk(
   where: { spot: Point; note: boolean; waiting: boolean },

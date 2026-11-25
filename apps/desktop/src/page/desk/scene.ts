@@ -79,17 +79,23 @@ const isTo = (value: unknown): value is NoteTo =>
   fields(value)?.['kind'] === 'new' ||
   (fields(value)?.['kind'] === 'target' && typeof fields(value)?.['key'] === 'string')
 
+const isWhere = (value: unknown): value is SceneWhere => {
+  const where = fields(value)
+  return (
+    MODES.includes(String(where?.['mode'])) &&
+    (where?.['mode'] === 'none' || isPoint(where?.['at']))
+  )
+}
+
 function isScene(value: unknown): value is Scene {
   const scene = fields(value)
-  const where = fields(scene?.['where'])
   return (
     scene !== undefined &&
     isNumber(scene['lease']) &&
     isNumber(scene['serial']) &&
     fields(scene['look']) !== undefined &&
     fields(scene['figure']) !== undefined &&
-    MODES.includes(String(where?.['mode'])) &&
-    (where?.['mode'] === 'none' || isPoint(where?.['at']))
+    isWhere(scene['where'])
   )
 }
 
@@ -101,29 +107,29 @@ export function readDown(data: unknown): Down | undefined {
   return undefined
 }
 
+const isSend = (kind: string, message: Fields): boolean =>
+  kind === 'input' &&
+  message['input'] === 'send' &&
+  isNumber(message['lease']) &&
+  typeof message['words'] === 'string' &&
+  isTo(message['to'])
+
+const isHandover = (kind: string, message: Fields): boolean =>
+  HANDOVERS.includes(kind) && isNumber(message['lease']) && isNumber(message['serial'])
+
+const isInput = (kind: string, message: Fields): boolean =>
+  kind === 'input' &&
+  isNumber(message['lease']) &&
+  INPUTS.includes(String(message['input'])) &&
+  (message['at'] === null || isPoint(message['at']))
+
 export function readUp(data: unknown): Up | undefined {
   const message = fields(data)
-  const kind = String(message?.['kind'])
   if (message === undefined) return undefined
+  const kind = String(message['kind'])
   if (kind === 'hello') return { kind: 'hello' }
-  if (
-    kind === 'input' &&
-    message['input'] === 'send' &&
-    isNumber(message['lease']) &&
-    typeof message['words'] === 'string' &&
-    isTo(message['to'])
-  )
-    return message as Up
-  if (HANDOVERS.includes(kind) && isNumber(message['lease']) && isNumber(message['serial']))
-    return message as Up
-  if (
-    kind === 'input' &&
-    isNumber(message['lease']) &&
-    INPUTS.includes(String(message['input'])) &&
-    (message['at'] === null || isPoint(message['at']))
-  )
-    return message as Up
-  return undefined
+  const known = isSend(kind, message) || isHandover(kind, message) || isInput(kind, message)
+  return known ? (message as Up) : undefined
 }
 
 /** Whether a scene is newer than the one held: a later lease, or a later serial in the same lease. */

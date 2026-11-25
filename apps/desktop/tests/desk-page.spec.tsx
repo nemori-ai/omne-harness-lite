@@ -168,6 +168,31 @@ describe('桌面层的页面', () => {
     expect(placed()).not.toBe(before)
   })
 
+  it('落在形上的拿起、移动与松手报给外壳，点是屏幕上的点：视口里的点加上这块窗口在屏上的原点', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(6, 1, { mode: 'rest', at: { x: 1300, y: 300 } }) })
+    const reach = page.view.container.querySelector<HTMLElement>('.omne-figure-reach')!
+    const at = (x: number, y: number, buttons: number) => ({
+      pointerId: 1,
+      button: 0,
+      buttons,
+      clientX: x,
+      clientY: y,
+    })
+    act(() => void fireEvent.pointerDown(reach, at(300, 300, 1)))
+    act(() => void fireEvent.pointerMove(reach, at(340, 320, 1)))
+    page.frame()
+    act(() => void fireEvent.pointerUp(reach, at(360, 330, 0)))
+    const inputs = page.posted.flatMap(message => (message.kind === 'input' ? [message] : []))
+    expect(inputs[0]).toEqual({ kind: 'input', lease: 6, input: 'lift', at: { x: 1340, y: 320 } })
+    expect(inputs.at(-1)).toEqual({
+      kind: 'input',
+      lease: 6,
+      input: 'drop',
+      at: { x: 1360, y: 330 },
+    })
+  })
+
   it('签只在一幕带着它、跟手时画', () => {
     const page = desk()
     const label = [{ text: '应用外面' }, { text: '松手就停在这里，双击回到应用' }]
@@ -175,6 +200,14 @@ describe('桌面层的页面', () => {
     page.send({ kind: 'scene', scene: scene(9, 1, hand, { label }) })
     expect(page.view.container.textContent).toContain('松手就停在这里，双击回到应用')
     page.send({ kind: 'scene', scene: scene(9, 2, hand) })
+    expect(page.view.container.textContent).not.toContain('应用外面')
+  })
+
+  it('落定或回程的幕带着签也不画', () => {
+    const page = desk()
+    const label = [{ text: '应用外面' }]
+    page.send({ kind: 'scene', scene: scene(9, 1, { mode: 'rest', at: ORIGIN }, { label }) })
+    page.send({ kind: 'scene', scene: scene(9, 2, { mode: 'home', at: ORIGIN }, { label }) })
     expect(page.view.container.textContent).not.toContain('应用外面')
   })
 })

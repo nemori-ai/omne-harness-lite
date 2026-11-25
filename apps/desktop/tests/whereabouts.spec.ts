@@ -194,6 +194,43 @@ describe('形的所在：随事实变的那几格', () => {
     expect(step(STATES.handDeskOnDesk, near, FACTS).where).toEqual(deskAt({ x: 28, y: 872 }))
   })
 
+  it('落点与内容区的边：左与上的边算在里面回程，右与下的边不算；四边外一格留在桌面', () => {
+    const { x, y, width, height } = CONTENT
+    const at = (px: number, py: number) =>
+      step(STATES.handDeskOnPage, { kind: 'drop', on: 'page', at: { x: px, y: py } }, FACTS).where
+        .at
+    expect([
+      at(x, 400),
+      at(500, y),
+      at(x, y),
+      at(x + width - 1, 400),
+      at(500, y + height - 1),
+    ]).toEqual(['home', 'home', 'home', 'home', 'home'])
+    expect([at(x - 1, 400), at(x + width, 400), at(500, y - 1), at(500, y + height)]).toEqual([
+      'desk',
+      'desk',
+      'desk',
+      'desk',
+    ])
+  })
+
+  it('事实里没有屏：落点不夹，原样留在桌面', () => {
+    const far = { kind: 'drop', on: 'desk', at: { x: 1500, y: -40 } } as const
+    expect(step(STATES.handDeskOnDesk, far, { ...FACTS, screen: null }).where).toEqual(
+      deskAt({ x: 1500, y: -40 }),
+    )
+  })
+
+  it('事实里没有主窗口内容区：落在哪里都留在桌面', () => {
+    const drop = { kind: 'drop', on: 'page', at: IN } as const
+    expect(step(STATES.handDeskOnPage, drop, { ...FACTS, content: null }).where).toEqual(deskAt(IN))
+  })
+
+  it('等座位时还没有座位：落定的点不动，哪怕它在屏外', () => {
+    const away: Whereabouts = { at: 'desk', spot: { x: 1500, y: -40 }, note: false, waiting: true }
+    expect(step(away, EVENTS.seat, { ...FACTS, seat: null })).toEqual({ where: away, effects: [] })
+  })
+
   it('要回程而没有看得见的座位：留在桌面，记着在等', () => {
     const none = { ...FACTS, seat: null }
     const drop = { kind: 'drop', on: 'page', at: IN } as const

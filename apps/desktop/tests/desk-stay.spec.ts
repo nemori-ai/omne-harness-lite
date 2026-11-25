@@ -89,6 +89,7 @@ describe('外壳的桌面层：出页', () => {
     await device.settle()
     expect(device.cancelled).toEqual([0])
     expect(device.scenes()).toEqual([])
+    expect(device.goHome).not.toHaveBeenCalled()
   })
 })
 
@@ -122,6 +123,14 @@ describe('外壳的桌面层：在桌面上', () => {
     expect(device.last().where).toEqual({ mode: 'hand', at: { x: 1290, y: 340 } })
     device.up({ kind: 'input', lease, input: 'move', at: { x: 500, y: 300 } })
     device.up({ kind: 'input', lease, input: 'drop', at: { x: 500, y: 300 } })
+    expect(device.last().where).toEqual({ mode: 'home', at: { x: 140, y: 610 } })
+  })
+
+  it('从桌面层拿起后指针取消：回程', async () => {
+    const device = harness()
+    const lease = await onDesk(device)
+    device.up({ kind: 'input', lease, input: 'lift', at: { x: 1290, y: 340 } })
+    device.up({ kind: 'input', lease, input: 'cancel', at: { x: 1250, y: 330 } })
     expect(device.last().where).toEqual({ mode: 'home', at: { x: 140, y: 610 } })
   })
 
@@ -231,6 +240,16 @@ describe('外壳的桌面层：签', () => {
     device.line(1, { lease: 9, facts: FACTS })
     await device.settle()
     expect(device.last()).toMatchObject({ lease: 9, label: null })
+  })
+})
+
+describe('外壳的桌面层：签只有一次', () => {
+  it('第一次出页的签放下之后，再拿起、桌面层画着在手的形也不放签', async () => {
+    const device = harness()
+    await onDesk(device)
+    const lease = device.last().lease
+    device.up({ kind: 'input', lease, input: 'lift', at: { x: 1290, y: 340 } })
+    expect(device.last()).toMatchObject({ where: { mode: 'hand' }, label: null })
   })
 })
 

@@ -82,6 +82,7 @@ function harness(leave = true) {
     cursor: { x: 10, y: 10 } as Point,
     visible: true,
     tick: null as (() => void) | null,
+    screen: null as Rect | null,
   }
   const deps: DeviceFigureDeps = {
     leave,
@@ -106,7 +107,7 @@ function harness(leave = true) {
       front: () => void log.push('front'),
     },
     cursor: () => state.cursor,
-    screenAt: at => (contains(SIDE, at) ? SIDE : MAIN),
+    screenAt: at => state.screen ?? (contains(SIDE, at) ? SIDE : MAIN),
     every(ms, tick) {
       log.push(`poll ${ms}`)
       state.tick = tick
@@ -241,6 +242,59 @@ describe('桌面层的路由', () => {
     expect(h.log).toEqual([])
   })
 
+  it('请求体读不懂答 400，窗口一样不动：不是对象、缺标志、标志不是布尔、矩形不全对', async () => {
+    const h = harness()
+    const { lease } = await shown(h)
+    h.take()
+    const modes = [null, 5, { keys: false }, { hold: true }, { hold: 1, keys: false }]
+    const said = (path: string, body: unknown) =>
+      h.status('POST', `/device/figure/${path}?lease=${lease}`, body)
+    for (const body of modes) expect(await said('mode', body), JSON.stringify(body)).toBe(400)
+    const rects = [
+      null,
+      5,
+      {},
+      { rects: {} },
+      { rects: [FIGURE, { x: 1, y: 2, width: 3 }] },
+      { rects: [FIGURE, null] },
+      { rects: [5] },
+      { rects: [{ ...FIGURE, height: '80' }] },
+    ]
+    for (const body of rects) expect(await said('hot', body), JSON.stringify(body)).toBe(400)
+    const raw = new Request(`${APP}/device/figure/hot?lease=${lease}`, {
+      method: 'POST',
+      body: '{',
+    })
+    expect((await h.figure.route(raw))?.status).toBe(400)
+    expect(h.log).toEqual([])
+  })
+
+  it('答复：错误的正文是 { reason }，JSON 都不缓存；租约的流是 ndjson', async () => {
+    const h = harness()
+    const { response, lease } = await opened(h)
+    expect(response?.headers.get('content-type')).toBe('application/x-ndjson')
+    const answer = async (method: string, path: string, body?: unknown) => {
+      const got = await h.call(method, path, body)
+      const headers = [got?.headers.get('content-type'), got?.headers.get('cache-control')]
+      return [got?.status, ...headers, await got?.json()]
+    }
+    const json = (status: number, body: unknown) => [status, 'application/json', 'no-store', body]
+    expect(await answer('GET', '/device/figure')).toEqual(json(200, { leave: true, read: false }))
+    expect(await answer('POST', '/device/figure/mode', { hold: true, keys: false })).toEqual(
+      json(400, { reason: 'no-lease' }),
+    )
+    expect(await answer('POST', ...mode(lease + 1, true, false))).toEqual(
+      json(409, { reason: 'not-current' }),
+    )
+    expect(await answer('POST', `/device/figure/mode?lease=${lease}`, { hold: 'yes' })).toEqual(
+      json(400, { reason: 'unreadable' }),
+    )
+    expect(await answer('POST', '/device/figure/other')).toEqual(json(404, { reason: 'not-found' }))
+    const stays = harness(false)
+    const got = await stays.call('POST', '/device/figure/lease')
+    expect([got?.status, await got?.json()]).toEqual([404, { reason: 'not-found' }])
+  })
+
   it('租约号由主进程发，应用活着期间只增：窗口没了重建也接着数', async () => {
     const h = harness()
     const numbers = [(await opened(h)).lease, (await opened(h)).lease]
@@ -332,6 +386,45 @@ describe('租约：没有租约时', () => {
     expect(h.take()).toEqual(['destroy #1'])
     await opened(h)
     expect(h.take()).toEqual(['open #2', 'bounds #2 0,0,1440,900'])
+  })
+
+  it('结束了的租约的流没读完就被放弃：什么都不做', async () => {
+    const { lines } = await opened(h)
+    h.figure.pageGone()
+    h.take()
+    await lines.abandon()
+    expect(h.log).toEqual([])
+  })
+
+  it('上一个租约的流在新租约开了之后才被放弃：新租约照旧', async () => {
+    const old = await opened(h)
+    const next = await opened(h)
+    h.take()
+    await old.lines.abandon()
+    expect(h.log).toEqual([])
+    expect(await h.status('POST', ...hot(next.lease, FIGURE))).toBe(204)
+  })
+
+  it('旧窗口的「没了」在新窗口建好之后才到：不结束新租约，不销毁新窗口', async () => {
+    await opened(h)
+    h.figure.closed()
+    const next = await opened(h)
+    h.take()
+    h.deskGone(1)
+    expect(h.log).toEqual([])
+    expect(await h.status('POST', ...hot(next.lease, FIGURE))).toBe(204)
+  })
+
+  it('主窗口挪了：没有租约时不写也不抛，窗口藏着或已经销毁都一样', async () => {
+    h.figure.moved()
+    const { lines } = await opened(h)
+    await lines.abandon()
+    h.take()
+    h.figure.moved()
+    h.figure.closed()
+    h.take()
+    h.figure.moved()
+    expect(h.log).toEqual([])
   })
 
   it('主窗口关了：有窗口就销毁，没有就什么都不做', async () => {
@@ -522,6 +615,73 @@ describe('点穿', () => {
     h.state.cursor = { x: 10, y: 10 }
     h.tick()
     expect(h.log).toEqual([])
+  })
+
+  it('矩形的边：左与上的边算在里面，右与下的边不算；四边外一格放指针过去', async () => {
+    const h = harness()
+    await shown(h)
+    const takes = (x: number, y: number) => {
+      h.state.cursor = IN_FIGURE
+      h.tick()
+      h.take()
+      h.state.cursor = { x, y }
+      h.tick()
+      return !h.take().includes('ignore #1 true')
+    }
+    const { x, y, width, height } = FIGURE
+    const inside = [
+      [x, y + 40],
+      [x + 40, y],
+      [x, y],
+      [x + width - 1, y + 40],
+      [x + 40, y + height - 1],
+    ] as const
+    const outside = [
+      [x - 1, y + 40],
+      [x + width, y + 40],
+      [x + 40, y - 1],
+      [x + 40, y + height],
+    ] as const
+    expect(inside.map(([at, to]) => takes(at, to))).toEqual(inside.map(() => true))
+    expect(outside.map(([at, to]) => takes(at, to))).toEqual(outside.map(() => false))
+  })
+
+  it('两块矩形：光标在任一块里就接，都不在就放过去', async () => {
+    const h = harness()
+    await shown(h)
+    await h.status('POST', ...hot(1, FIGURE, BUBBLE))
+    h.take()
+    const visit = (at: Point) => {
+      h.state.cursor = at
+      h.tick()
+      return h.take()
+    }
+    expect(visit(IN_FIGURE)).toEqual(['ignore #1 false'])
+    expect(visit(OUTSIDE)).toEqual(['ignore #1 true'])
+    expect(visit({ x: 400, y: 200 })).toEqual(['ignore #1 false'])
+    expect(visit({ x: 290, y: 240 })).toEqual(['ignore #1 true'])
+  })
+
+  it('在手时屏只差 x、y、宽或高也算另一块：换过去并多发一行事实；同一块不调也不发', async () => {
+    const h = harness()
+    const { lines } = await shown(h)
+    await h.status('POST', ...mode(1, true, false))
+    h.take()
+    const apart = [{ x: 1 }, { y: 1 }, { width: 1441 }, { height: 901 }]
+    for (const screen of apart.flatMap(one => [{ ...MAIN, ...one }, MAIN])) {
+      h.state.screen = screen
+      h.tick()
+      const { x, y, width, height } = screen
+      expect(h.take()).toEqual([`bounds #1 ${x},${y},${width},${height}`])
+      expect(await lines.next()).toEqual({ facts: { screen, content: CONTENT, visible: true } })
+    }
+    h.tick()
+    expect(h.log).toEqual([])
+    h.state.visible = false
+    h.figure.moved()
+    expect(await lines.next()).toEqual({
+      facts: { screen: MAIN, content: CONTENT, visible: false },
+    })
   })
 
   it('不在手时光标到了另一块屏，窗口不动', async () => {
