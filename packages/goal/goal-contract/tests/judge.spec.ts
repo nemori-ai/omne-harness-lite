@@ -963,6 +963,28 @@ describe('the three ways of asking the bench can switch on', () => {
     expect(JudgeConfigSchema.parse(DEFAULT_JUDGE_CONFIG)).toEqual(DEFAULT_JUDGE_CONFIG)
   })
 
+  it('leaves the baseline scheme as it was measured: every value of it, each one the schema takes', () => {
+    expect(BASELINE_JUDGE_CONFIG).toEqual({
+      split: 'one',
+      instructions: { criterion: 'rendered', rules: [], exits: 'statement', unattainable: 'kind' },
+      packaging: {
+        excerpt: 2000,
+        take: 'both',
+        notes: true,
+        staleness: 'marked',
+        activity: 'lines',
+        flags: 'keys',
+        drafts: 'later',
+      },
+      model: 'openai/gpt-6-luna-decisions',
+      line: 0.9,
+      votes: 1,
+    })
+    expect(JudgeConfigSchema.parse(BASELINE_JUDGE_CONFIG)).toEqual(BASELINE_JUDGE_CONFIG)
+    const noted = packaging({ flags: 'notes' })
+    expect(JudgeConfigSchema.parse(noted)).toEqual(noted)
+  })
+
   it('keeps asking as before for a configuration written before they were there', () => {
     const { exits, unattainable, ...instructions } = BASELINE_JUDGE_CONFIG.instructions
     const { drafts, ...old } = BASELINE_JUDGE_CONFIG.packaging
@@ -980,13 +1002,18 @@ describe('the three ways of asking the bench can switch on', () => {
       ...PROGRESS,
       criteria: { A3: { status: 'doing', refs: ['call-50'], note: '' } },
     } as Progress
-    const calls = [WRITE(50, 'CHANGELOG.md'), WRITE(51, 'CHANGELOG.md'), CHANGELOG]
+    const calls = [
+      WRITE(50, 'CHANGELOG.md'),
+      WRITE(51, 'CHANGELOG.md'),
+      CHANGELOG,
+      WRITE(53, 'CHANGELOG.md'),
+    ]
     const input = material({ calls, progress })
     const drafts = packaging({ drafts: 'superseded', flags: 'notes' })
     const items = stateOf(packJudge(input, drafts)).evidence.A3 as Record<string, unknown>[]
     expect(items.map(item => [item.ref, item.supersededBy, item.laterWrites])).toEqual([
-      ['call-50', 'call-52', undefined],
-      ['call-52', undefined, undefined],
+      ['call-50', 'call-53', undefined],
+      ['call-53', undefined, undefined],
     ])
     expect(items[0]?.note).toBe(FLAG_NOTES.superseded)
     expect(items[1]).not.toHaveProperty('note')
@@ -1032,6 +1059,7 @@ describe('the three ways of asking the bench can switch on', () => {
   it('says with an exit question what counts as the case having come about, when so configured', () => {
     const plain = packJudge(material(), config()).requests[0]!.questions.X3
     expect(plain?.instructions).toBe('退出 X3 写的情形出现了没有：要改公共接口才能达标')
+    expect(EXIT_GUIDE).toContain('工具输出直接显示这个情形时答是')
     const guided = packJudge(material(), instructing({ exits: 'guided' })).requests[0]!.questions.X3
     expect(guided?.instructions).toBe(
       `退出 X3 写的情形出现了没有：要改公共接口才能达标。${EXIT_GUIDE}`,
@@ -1045,6 +1073,7 @@ describe('the three ways of asking the bench can switch on', () => {
     const packed = packJudge(input, plainly)
     const asked = packed.requests[0]!.questions
     expect(asked.U1).toEqual({ type: 'noul', instructions: DEAD_END_PLAIN })
+    expect(DEAD_END_PLAIN).toContain('让目标达不成的阻碍')
     expect(asked.U2?.type).toBe('noul')
     const reply = (blocked: number) => ({
       A3: { type: 'choice', choice: 'holds', probabilities: { holds: 0.99 } },

@@ -11,12 +11,7 @@ import {
 } from './score.ts'
 
 /** What one parent's cases came to in one run: how many entries were graded and what they cost. */
-export type ParentTally = Readonly<{
-  entries: number
-  loss: number
-  notHolds: number
-  falseHolds: number
-}>
+export type ParentTally = Readonly<{ entries: number; loss: number }>
 export type Tallies = Readonly<Record<string, ParentTally>>
 
 function generator(seed: number): () => number {
@@ -77,7 +72,7 @@ export type Spread = Readonly<{
 }>
 
 const shareOf = (pairs: readonly Pair[], side: 'parent' | 'child'): number =>
-  pairs.length === 0 ? 0 : pairs.filter(pair => pair[side]).length / pairs.length
+  pairs.filter(pair => pair[side]).length / pairs.length
 
 /** How far one run's loss and discrimination would move: the loss over other parents, each family over other pairs of its own. */
 export function spreadOf(
@@ -106,14 +101,8 @@ export function talliesOf(entries: readonly Graded[]): Tallies {
   const tallies: Record<string, ParentTally> = {}
   for (const entry of entries) {
     const parent = entry.case.split('/')[0] ?? entry.case
-    const before = tallies[parent] ?? { entries: 0, loss: 0, notHolds: 0, falseHolds: 0 }
-    const judged = entry.kind === 'criterion' && entry.asked && entry.truth !== 'holds'
-    tallies[parent] = {
-      entries: before.entries + 1,
-      loss: before.loss + lossOf(entry),
-      notHolds: before.notHolds + (judged ? 1 : 0),
-      falseHolds: before.falseHolds + (judged && entry.said === 'holds' ? 1 : 0),
-    }
+    const before = tallies[parent] ?? { entries: 0, loss: 0 }
+    tallies[parent] = { entries: before.entries + 1, loss: before.loss + lossOf(entry) }
   }
   return tallies
 }

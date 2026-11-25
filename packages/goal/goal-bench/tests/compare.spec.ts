@@ -13,7 +13,7 @@ import {
 import type { Report } from '../src/report.ts'
 import { WEIGHTS, type Graded, type Pair } from '../src/score.ts'
 
-const tally = (entries: number, loss: number) => ({ entries, loss, notHolds: 0, falseHolds: 0 })
+const tally = (entries: number, loss: number) => ({ entries, loss })
 
 describe('the paired difference of weighted loss between two configurations', () => {
   const base: Tallies = { a: tally(2, 4), b: tally(2, 0) }
@@ -77,7 +77,7 @@ describe('what each parent came to in a run', () => {
     ...change,
   })
 
-  it('counts the entries, their loss, the ones that do not hold and the ones let stand, by the parent of the case', () => {
+  it('counts the entries and their loss by the parent of the case', () => {
     const entries = [
       entry('p01/clean', {}),
       entry('p01/break-a', { truth: 'fails', said: 'holds' }),
@@ -86,13 +86,8 @@ describe('what each parent came to in a run', () => {
       entry('p02/rule', { kind: 'rule', id: 'N1', truth: 'broken', said: 'kept' }),
     ]
     expect(talliesOf(entries)).toEqual({
-      p01: { entries: 3, loss: WEIGHTS.falseHolds, notHolds: 2, falseHolds: 1 },
-      p02: {
-        entries: 2,
-        loss: WEIGHTS.abstain + WEIGHTS.missedViolation,
-        notHolds: 0,
-        falseHolds: 0,
-      },
+      p01: { entries: 3, loss: WEIGHTS.falseHolds },
+      p02: { entries: 2, loss: WEIGHTS.abstain + WEIGHTS.missedViolation },
     })
   })
 })
@@ -108,6 +103,7 @@ describe('how far one run’s numbers would move over other parents and other pa
     const found = spreadOf({ a: tally(2, 4), b: tally(2, 0) }, [], { draws: 4000, seed: 3 })
     expect(found.loss).toEqual({ low: 0, high: 2 })
     expect(found.discrimination).toEqual({})
+    expect(spreadOf({}, []).loss).toEqual({ low: 0, high: 0 })
   })
   it('has no width where there is nothing to resample differently', () => {
     const pairs = [pair('exit', false, true), pair('exit', false, true), pair('stale', true, true)]
@@ -180,22 +176,46 @@ describe('the page that sets two configurations side by side', () => {
       { difference: -0.114, low: -0.171, high: -0.062, parents: 16 },
       [spread(0.2, 0.36, 0.2, 0.6), spread(0.12, 0.23, 0.86, 1)],
     )
-    expect(page).toContain(
+    expect(page.split('\n')).toEqual([
+      '数据：`verify,canary`，16 个母本，168 个用例。',
+      '',
+      '| 指标 | 基线 | 最终 |',
+      '| --- | --- | --- |',
       '| 误判成立率 | 4.5%（6/134），95% 区间 2.1% 到 9.4% | 0.7%（1/134），95% 区间 0.1% 到 4.1% |',
-    )
-    expect(page).toContain(
       '| 目标级的误收场率 | 4.0%（6/150），95% 区间 1.8% 到 8.5% | 0.7%（1/150），95% 区间 0.1% 到 3.7% |',
-    )
-    expect(page).toContain(
       '| 成对的分辨力 · exit | 0.40（20 对），95% 区间 0.20 到 0.60 | 0.95（20 对），95% 区间 0.86 到 1.00 |',
-    )
-    expect(page).toContain('| 漏放率 | 10.0%（10/100），95% 区间 5.5% 到 17.4% |')
-    expect(page).toContain('| 守则漏报率 | 6.7%（1/15），95% 区间 1.2% 到 29.8% |')
-    expect(page).toContain(
+      '| 漏放率 | 10.0%（10/100），95% 区间 5.5% 到 17.4% | 10.0%（10/100），95% 区间 5.5% 到 17.4% |',
+      '| 过度弃权率 | 5.0%（5/100），95% 区间 2.2% 到 11.2% | 5.0%（5/100），95% 区间 2.2% 到 11.2% |',
+      '| 守则漏报率 | 6.7%（1/15），95% 区间 1.2% 到 29.8% | 6.7%（1/15），95% 区间 1.2% 到 29.8% |',
       '| 加权损失 | 0.288，95% 区间 0.200 到 0.360 | 0.174，95% 区间 0.120 到 0.230 |',
+      '| 每个用例的请求数 | 1.00 | 1.00 |',
+      '| 每个用例的费用（美元） | 0.00030 | 0.00030 |',
+      '',
+      '加权损失的成对差：最终减基线 −0.114，95% 区间 −0.171 到 −0.062（按 16 个母本重抽样）。',
+      '',
+    ])
+  })
+
+  it('writes a family only one of the two has as missing on the other, and a difference that is not below zero without a sign', () => {
+    const base = report({ falseHolds: 6, loss: 0.288, exit: 0.4 })
+    const candidate = {
+      ...base,
+      gates: { ...base.gates, discrimination: { stale: { n: 9, parent: 0, child: 1, value: 1 } } },
+    } as unknown as Report
+    const page = renderComparison(
+      base,
+      candidate,
+      { difference: 0, low: -0.02, high: 0.031, parents: 16 },
+      [
+        spread(0.2, 0.36, 0.2, 0.6),
+        { loss: { low: 0.2, high: 0.36 }, discrimination: { stale: { low: 1, high: 1 } } },
+      ],
     )
-    expect(page).toContain('最终减基线 −0.114，95% 区间 −0.171 到 −0.062（按 16 个母本重抽样）')
-    expect(page).toContain('16 个母本，168 个用例')
+    expect(page).toContain(
+      '| 成对的分辨力 · stale | — | 1.00（9 对），95% 区间 1.00 到 1.00 |\n| 成对的分辨力 · exit | 0.40（20 对），95% 区间 0.20 到 0.60 | — |',
+    )
+    expect(page).not.toContain('成对的分辨力 · broken')
+    expect(page).toContain('最终减基线 0.000，95% 区间 −0.020 到 0.031（')
   })
 })
 

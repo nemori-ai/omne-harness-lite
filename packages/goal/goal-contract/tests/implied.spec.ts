@@ -111,6 +111,9 @@ describe('the judging of an implied goal', () => {
     const packed = packJudge(material(calls), config)
     expect(packed.decided).toEqual({})
     expect(Object.keys(packed.requests[0]?.questions ?? {})).toEqual(['A1'])
+    const shown = (only(packed).state as { evidence: { A1: object[] } }).evidence.A1
+    expect(shown).toHaveLength(2)
+    for (const item of shown) expect(item).not.toHaveProperty('laterWrites')
   })
 
   it('is asked with nothing to show when the round made no call', () => {
