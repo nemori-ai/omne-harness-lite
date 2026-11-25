@@ -144,7 +144,6 @@ export function putKind(ctx: Context, declaration: KindDeclaration): () => unkno
     [HOLD]: hold,
   })
   const off = tree.put(by => [entryOf(item, by)], { drain })
-  // Dynamis drains a batch whose fiber goes; one taken back by hand drains here first.
   return () => drain().then(off)
 }
 
