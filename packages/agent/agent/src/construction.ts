@@ -32,6 +32,7 @@ import type {
   DurableEvidence,
   EnabledExtensions,
   ExtensionImplementations,
+  SystemExtensions,
   JournalCapabilities,
   MessageHandoff,
   ModelSelection,
@@ -87,6 +88,8 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   extensions: ExtensionImplementations<P>
   /** The extensions the tenant has enabled; an assembly without this port has no tenant source. */
   enabledExtensions?: EnabledExtensions<P>
+  /** The trusted system extensions of the assembly; an assembly without this port has no system source. */
+  systemExtensions?: SystemExtensions<P>
   cards: DecisionCards<P>
   admission: ActionAdmission<P>
   handoff: MessageHandoff<P>

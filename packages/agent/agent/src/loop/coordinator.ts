@@ -194,6 +194,7 @@ export type LoopPorts<P> = Pick<
   | 'cards'
   | 'extensions'
   | 'enabledExtensions'
+  | 'systemExtensions'
   | 'compaction'
   | 'compactionInputs'
   | 'received'
@@ -385,6 +386,7 @@ const DEPENDENCY_PORTS = [
   'clock',
   'extensions',
   'enabledExtensions',
+  'systemExtensions',
   'compaction',
   'compactionInputs',
   'received',
