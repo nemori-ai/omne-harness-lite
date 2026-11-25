@@ -320,7 +320,7 @@
 
 .omne-observation-frame {
   position: fixed;
-  z-index: var(--omne-layer-figure);
+  z-index: calc(var(--omne-layer-figure) - 1);
   display: block;
   overflow: visible;
   pointer-events: none;
@@ -337,9 +337,9 @@
 }
 
 .omne-observation-frame-wash {
-  fill: color-mix(in oklab, var(--omne-info-fill) 55%, transparent);
+  fill: color-mix(in oklab, var(--omne-info-fill) 18%, transparent);
 }
 
 .omne-observation-frame[data-closed='true'] .omne-observation-frame-wash {
-  fill: color-mix(in oklab, var(--omne-info-fill) 90%, transparent);
+  fill: color-mix(in oklab, var(--omne-info-fill) 32%, transparent);
 }

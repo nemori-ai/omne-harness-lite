@@ -354,8 +354,8 @@ describe('the frame on the screen (FE-I67)', () => {
     const shut = rules.find(text =>
       text.includes("[data-closed='true'] .omne-observation-frame-wash"),
     )
-    expect(plain).toMatch(/--omne-info-fill\) 55%/)
-    expect(shut).toMatch(/--omne-info-fill\) 90%/)
+    expect(plain).toMatch(/--omne-info-fill\) 18%/)
+    expect(shut).toMatch(/--omne-info-fill\) 32%/)
   })
 
   it('takes no pointer and keeps the paper breath round its ink', () => {
