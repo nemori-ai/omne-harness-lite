@@ -1,6 +1,6 @@
 {
   "format": "omne-harness/tool-release/4",
-  "generation": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
+  "generation": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
   "artifacts": [
     {
       "package": "@omne-harness/tool-definitions",
@@ -1067,6 +1067,128 @@
       "digest": "sha256:904f1b8082f96156960a201f495d70d6856548330ae8228f7007edc35e964682"
     },
     {
+      "package": "@omne-harness/canvas-tools",
+      "files": [
+        {
+          "path": "dist/author.d.ts",
+          "sha256": "84b5de94cf015ff9fe590af8ca71503a489b3c0145ca3a9dcfd8b416d78f8313"
+        },
+        {
+          "path": "dist/author.d.ts.map",
+          "sha256": "852294c745d8d4e0d2562cdba6766a586bff42c4b0d472822ade72212822dc30"
+        },
+        {
+          "path": "dist/author.js",
+          "sha256": "7c423ac70fe2a59ec8e44757e8a714fcfe5d2995f75977ce286c74845bbc9c64"
+        },
+        {
+          "path": "dist/author.js.map",
+          "sha256": "8f626a0153ad517148aed7df6422d8ad598593ba82b3ff09ee946c6766009205"
+        },
+        {
+          "path": "dist/commands.d.ts",
+          "sha256": "749b1cad41bdc20623f927fa3fd6a50f6808eb2a0775ad299914320c3972bafc"
+        },
+        {
+          "path": "dist/commands.d.ts.map",
+          "sha256": "8e9449e469941bbf0cde71b06ac3bef9272714596a558a472491c6c1428aad82"
+        },
+        {
+          "path": "dist/commands.js",
+          "sha256": "aaa7b069189818eb0a1c684a21b929f00fdf4f88c2bdc5961931a1886c0cfdc8"
+        },
+        {
+          "path": "dist/commands.js.map",
+          "sha256": "cf202bca0e670d85999feecc8b0a601d20b00c1a4ecd352afef0faecb3123310"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "sha256": "333f849df246c9410f92b75ecb1d57d5af890039c14d2d392a08b544f23ac11c"
+        },
+        {
+          "path": "dist/index.d.ts.map",
+          "sha256": "980012a56c0a97131beb10ea56aa7efad1d561ea4a2466ed822e76bc251edf88"
+        },
+        {
+          "path": "dist/index.js",
+          "sha256": "a8d4ea9f373b129045e9246aa38b9d3f62de1640dfc9439e074dfbb76100b3f8"
+        },
+        {
+          "path": "dist/index.js.map",
+          "sha256": "397774dad52eaa17259e8f0d23d96a1900fa87592cb245ff8df5b11cceb568f3"
+        },
+        {
+          "path": "dist/port.d.ts",
+          "sha256": "24cbef03835e000794fd66591d7c335ecd44d4aff20351713e59acac0f64e6ca"
+        },
+        {
+          "path": "dist/port.d.ts.map",
+          "sha256": "02c0949cf57eb31fdfe73a2b48bb86bce67b3ec82f2421f3fc790091bbbf3884"
+        },
+        {
+          "path": "dist/port.js",
+          "sha256": "8fca53324794b62d4ea7a2e9369364ca0427947fa7668b0104d194ef81e812b7"
+        },
+        {
+          "path": "dist/port.js.map",
+          "sha256": "872a1b8313c43bbdb73da6a01bc8ef314a28efa32123fa2d669aa03e8100dfa7"
+        },
+        {
+          "path": "dist/protocol.d.ts",
+          "sha256": "102fc8b009f4c3d738d15f9a5f02c7c8c9afb290de75daa184fd0d0f8f42c91b"
+        },
+        {
+          "path": "dist/protocol.d.ts.map",
+          "sha256": "074afb50d2a86e6bbd6bc56db3e068258e8ba31e1bf76a73b0bdc5035338273c"
+        },
+        {
+          "path": "dist/protocol.js",
+          "sha256": "f12ca45359e4893612c6897a7aa9dcec535206210d58f06d8264aef12736f015"
+        },
+        {
+          "path": "dist/protocol.js.map",
+          "sha256": "6e23e436b7229680697e5e3e43c28488135bfe1881eeb7a1d8ba9871c54599d5"
+        },
+        {
+          "path": "dist/release.d.ts",
+          "sha256": "9a2d4a6b70dc5017e746cabca43b71ec643275f78e0ea33667a7391ee0c91a81"
+        },
+        {
+          "path": "dist/release.d.ts.map",
+          "sha256": "bc32f6571913486157890a8b08b72bb3dee1eecad5e390d77cddddfff11c705b"
+        },
+        {
+          "path": "dist/release.js",
+          "sha256": "3fd134f6de97f735ef647554ff892f001681275919bffe2b792e5d2ad7538bf3"
+        },
+        {
+          "path": "dist/release.js.map",
+          "sha256": "4f70f91d3519ff5de79c3dbbf5b0c14bd60dc9631abe522ee441867d7478a392"
+        },
+        {
+          "path": "dist/results.d.ts",
+          "sha256": "66ea5e5abe6f54d4f66cb2e0914fa89c37b58a038d960653e37747ba7e228f27"
+        },
+        {
+          "path": "dist/results.d.ts.map",
+          "sha256": "cf26c68ab1df318f9aed90d81dd446192e98b355f8a1dcb19b3f1a9bbce8982d"
+        },
+        {
+          "path": "dist/results.js",
+          "sha256": "7b012b430f3fc20a8c3db55da3679a147429ada2c2dcc6e0b6c2b6ea827e44a0"
+        },
+        {
+          "path": "dist/results.js.map",
+          "sha256": "d6253c0859d364122e5659976ff179c4579310c646126cc0e348413609d8d096"
+        },
+        {
+          "path": "package.json",
+          "sha256": "cfcb485e98fdfc6c4111de92d40d86425771e995a2ea312c3b98364d2da21a94"
+        }
+      ],
+      "digest": "sha256:2e85dbc898f9bf07d415c780662acd4a33c5631f782f90ab701ce248b6abc00f"
+    },
+    {
       "package": "@omne-harness/session-tools",
       "files": [
         {
@@ -1688,15 +1810,15 @@
     "capabilities": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/capabilities",
-      "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-      "digest": "sha256:6400d34edd8910eec70093e21781acf54cfc94a197b2f36f1a6d7afbd8c9780a"
+      "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+      "digest": "sha256:d136740aa5724b11284eca732762d06f4e4bc87396e4f1ccd6bb0f47a1bd7ea5"
     },
     "conversion": null,
     "attachmentAccess": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/attachment-access",
-      "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-      "digest": "sha256:b9e74ebbe80b45ab83fdf38901b5547056bb1bdf919b3527713cd776937b9c5e"
+      "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+      "digest": "sha256:08e39e2f4af37c3d6398174586d1cd6c743fa1cea191105c708d976d6336f4c4"
     }
   },
   "entries": [
@@ -2394,14 +2516,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:d979b0ed8dedacc4489e5c111ecbc06f8be989e620b68ad53fd3abeb33905183"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:d42bf05b4d91c0c354f2ebbca607152d318923a797033253ab5e573db328153c"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:ae58ecbfa691ad71f955e5cb85b04be3a988593db9a3e180399400e1e218f9a2"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:945bb73fc9158f97ed5ad6d63b9541b519cf7d314b412d69b5fcd1bb7b5eae2a"
       }
     },
     {
@@ -3108,14 +3230,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:93a7e8ad3db9e2daa2a9f8ad7330432d4640a9db6cd476e9adb6fcbee74516a0"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:e93af2a76593b8d0cc5735dcd0310e4c3babfc67f98dbdf08eb2a9f6e8392c69"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:43b4914b64b06f07ad1d94c958c614045a685ec51f6f6555b9116a18910ba680"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:1631e16ec2a3eecb1f9dc4f873cb3d5835cbdd0169ab4dca4e71f92b12d58856"
       }
     },
     {
@@ -3809,14 +3931,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:79a40098435179f55e866e435b472e9bd0d8eab030141e23c65a5f3b131391fc"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:25f3dc451c6902035431f047ea500381529ab32972a07de8155255de61ad3897"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:f62693dead30e9614f5c74cd4ff3cb8b459c61023c7d3cb89aceda2b68614ff0"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:f8106ac445fa7438f2aa263154ae85ce9633afac06ed0cbce550bcd448c6ace6"
       }
     },
     {
@@ -4205,14 +4327,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:40480ed7747e667e7395ad5092e10813dc562c20391c8ce85d161f59d74e694c"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:570566ff8ef0a0a081463c41b82b0fdc5982189e2cc6cc230acb76d803fe65a4"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:120d221b60ba2cb5f1042c00d581657e31f44913acebb624e00da614938def0f"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:385feb1a5ec10da1edf5c56a2c878faad1652078199942a1c8e8c941d235211e"
       }
     },
     {
@@ -4600,14 +4722,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#BkgToolCalls/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:48d038c7a9b3f363b19441e519ca46de1387dd5fc635d83562089cc9917ef6bb"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:1803e7e2badc4d176c0e1325fe99e0bb21da018f225d82191abf95f2bf118054"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#BkgToolCalls/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:783cd21c63d7ba9ebc80861f4ac371db3b0c252717ab9a3dc789689ace86a57d"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:6fab590561e8524aa00e11b0f0b346a8bd4869493be8157076cb6842975a46c1"
       }
     },
     {
@@ -4666,14 +4788,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:322da2756e7c89682e9000fb8d72cdae519bdfa84c24bc560f3656fc14c32df6"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:d1bef540bea9ef61d79609b75b3266e059c6bce8b214ce4a293ecb3980457184"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:ed39b3e01b71d3ebe676a9679d561b4ab292fe34b57286201fb42ee31aa5ece3"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:9c0464d9382123ff05fe9207647ccab6feaa4d00f1279bd1543be523a8eaf825"
       }
     },
     {
@@ -5365,14 +5487,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:4357977a4e11ceec750a5a7a09bd08f6625bb4cd139e58a44aa14edc25161062"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:f0cb2505302d07494bf2a4c02c06c407419e1b1b50e16e701d4c02e2895c491b"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:8707f6267d4ce5826ea22d81fce8ea2ecc556107b1df67f194dde0f7ec314a62"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:de1217710f913e9360bbf5b38afeacc7b5a9dde3ace3a6e3207455ec0bcc32ce"
       }
     },
     {
@@ -5761,14 +5883,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:85e268773e7bae688556338641b15a99ca69cdc2f78339d24356e8984e41c638"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:b9758ae0fde1b25f2c7761f3f6a606f18e042f9ae3a4937821ee3a48fbdb026b"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:daba01da7480d04463ece4840ed8f5c815db74f301d93b7903cd3fa807a4f7e8"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:2da10bd2c661d8ef879d0a09fb7b3706f8dd285cb12a75356ce3bea5456927b2"
       }
     },
     {
@@ -6160,14 +6282,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Calendar/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:e5bab9adb0c6e975fe156e398eafb2e7ec169f317ad11c16a8447d63a0336182"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:10d22618dd9bc9b0543a4d91d47efe66325b6da64e9ff150751e32ea6c963f93"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Calendar/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:8de4b54d4e20ed38a103ed13c189d0d568268edec66799848f87342a41699ed2"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:486edce5941a26f5eca27a117aff277e91701369dcc3e94930a54d87fad869b0"
       }
     },
     {
@@ -7178,14 +7300,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Schedules/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:5944d935bee75193e76aaf0746043bbc2ac88e4a1a07ccd7f5ec66e0c2a381c4"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:72e004b435fd9d91392b2419c180c4f372221a8ccf258e31a148acecabbc949a"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Schedules/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:d0d7f4049be360f82bf00955eeec2ec40b2e93b7250048d787a047682273c86d"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:b17c05061f59163210334cc80686bc0d3f542c8fbce74b1398d75a31802f8d8f"
       }
     },
     {
@@ -8185,14 +8307,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Jobs/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:a0a810ad14a48e0e0cb766006bc776005b2458839f0e8fe5932d8ba44ae220d6"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:a4e08421c8e3a6cdb9603bbeeda9f2d26c1ff3f31833809357479ec991700425"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Jobs/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:d25e50ee30a955c89e5b3d483e1c83422ce9bc20263eece05bfd47cdba95449e"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:d38f7d82014697417eeb24311916d909d6dadb3fb641ee5973208e8d63edee3c"
       }
     },
     {
@@ -8584,14 +8706,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Sessions/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:78fb57bac655451965de02f6679e3fe3d16cb989811ef249712a722d37321add"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:26df3caa014bbedd8997de63943aacc932ddf6a68dad1c9bba541ea942790d8c"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Sessions/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:a70e52c2b13ade101f98deac6c25b5ec592407a221c13c1ac1e3aee8ce94265e"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:4dab6ac1c7c8b6303ed2ced35d1aef7f94b9da1fc7f06d09fbefc9c282d02da8"
       }
     },
     {
@@ -9895,14 +10017,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Agents/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:9bdbe50219719293069a5e3a5ac2169aff228fb9b0837649f80c63dac5bd2e7c"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:018b980d5e9fe83f8250dada829a7c4faf668fba4e1b151ab8c41f15c18eac03"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Agents/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:299c89910032d2d0b8ac56f76a095996e4d90564625e6c643cfdb82c598da381"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:2db0dfa0e933bd16b81a3b1de0c4be8a3b17e3634d8357677e4421f1df754619"
       }
     },
     {
@@ -11213,14 +11335,1026 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Notifications/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:a6b117897b10e9e8af3295754efa1f504b7906dab336c84ba8cba86ca2523d95"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:bfc433d7fb0f93391c90692f2d7f3f43bb9f6363aef53a4454b1c31974083cb8"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Notifications/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:0195c9de09a8bb982446618e14a6c627fec4526fd094884afb1403fdf899ae69"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:cc0ec93a7d8dca318a1cc09a87a913aeb63db8e0c7c2c7688e9ad6d4ef3e3cf9"
+      }
+    },
+    {
+      "asset": {
+        "name": "Canvas",
+        "adoption": {
+          "owner": "@omne-harness/harness-server",
+          "name": "Canvas",
+          "revision": "0.0.0",
+          "digest": "sha256:20896f2de8ceaebec57e01071ce28663957c3496d17beea5aea7a08079d5ca03"
+        }
+      },
+      "requiredCapabilities": [
+        "canvas.arrangement"
+      ],
+      "programmable": false,
+      "module": {
+        "package": "@omne-harness/canvas-tools",
+        "export": "canvasToolModule",
+        "executor": {
+          "owner": "@omne-harness/canvas-tools",
+          "name": "Canvas",
+          "revision": "1",
+          "digest": "sha256:b0a758c02eaae93e31d99fc2eddeaf39f0bd82e118f78589150f41361f75dd5a"
+        },
+        "artifacts": "sha256:2e85dbc898f9bf07d415c780662acd4a33c5631f782f90ab701ce248b6abc00f"
+      },
+      "construction": [
+        "resultMaxBytes"
+      ],
+      "settings": {
+        "owner": "@omne-harness/harness-server",
+        "name": "Canvas.settings",
+        "revision": "0.0.0",
+        "digest": "sha256:494f6bd694ebe3160cb2b677750157c60a069cd173d955c1e244a6a0faf800a0"
+      },
+      "definition": "sha256:8ed8ddc7372ca32196b01cdf781945ce72946b1b0b9cf84e9596fff872236d96",
+      "gates": [
+        {
+          "id": "read",
+          "title": "看",
+          "default": "auto",
+          "commands": [
+            "help",
+            "look",
+            "away",
+            "kinds"
+          ]
+        },
+        {
+          "id": "arrange",
+          "title": "摆",
+          "default": "auto",
+          "commands": [
+            "place",
+            "arrange",
+            "take",
+            "pile",
+            "scatter"
+          ]
+        },
+        {
+          "id": "lock",
+          "title": "锁",
+          "default": "deny",
+          "commands": [
+            "lock",
+            "unlock"
+          ]
+        }
+      ],
+      "governance": {
+        "declaration": {
+          "reference": {
+            "ownerId": "harness-server.tool-release",
+            "definitionId": "tool.Canvas",
+            "version": "b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd",
+            "digest": "f1592bcb4e7fb351dfcae78da0b8e9b694761c7607e496705b923ea8ebaa5ab2"
+          },
+          "origin": {
+            "kind": "asset",
+            "assetId": "harness.tool.Canvas",
+            "releaseRef": "harness.tool.Canvas/b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+          },
+          "settings": [
+            {
+              "providerId": "harness-server.tool-release",
+              "definitionId": "tool.Canvas.permissions",
+              "version": "1487ac8937eae98bb51c80bf7253fa1a8eba32c5bf0c8ec30121074063a2fa5f",
+              "groups": [
+                {
+                  "id": "tool.Canvas",
+                  "parentId": null,
+                  "title": "Canvas 工具",
+                  "description": "Canvas 调用的权限规则。",
+                  "order": 0
+                }
+              ],
+              "items": [
+                {
+                  "id": "read",
+                  "groupId": "tool.Canvas",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Canvas：看",
+                    "description": "控制 Canvas 工具里归「看」的命令（help、look、away、kinds）。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "auto",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                },
+                {
+                  "id": "arrange",
+                  "groupId": "tool.Canvas",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Canvas：摆",
+                    "description": "控制 Canvas 工具里归「摆」的命令（place、arrange、take、pile、scatter）。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "auto",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                },
+                {
+                  "id": "lock",
+                  "groupId": "tool.Canvas",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Canvas：锁",
+                    "description": "控制 Canvas 工具里归「锁」的命令（lock、unlock）。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "deny",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                }
+              ]
+            }
+          ],
+          "permissions": [
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Canvas",
+                  "releaseRef": "harness.tool.Canvas/b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+                },
+                "itemId": "read",
+                "revision": "b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+              },
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.read",
+              "title": "Canvas：看",
+              "description": "控制 Canvas 工具里归「看」的命令（help、look、away、kinds）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Canvas.permissions",
+                "version": "1487ac8937eae98bb51c80bf7253fa1a8eba32c5bf0c8ec30121074063a2fa5f",
+                "itemId": "read",
+                "groupId": "tool.Canvas",
+                "groupTitle": "Canvas 工具",
+                "groupDescription": "Canvas 调用的权限规则。"
+              }
+            },
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Canvas",
+                  "releaseRef": "harness.tool.Canvas/b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+                },
+                "itemId": "arrange",
+                "revision": "b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+              },
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.arrange",
+              "title": "Canvas：摆",
+              "description": "控制 Canvas 工具里归「摆」的命令（place、arrange、take、pile、scatter）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Canvas.permissions",
+                "version": "1487ac8937eae98bb51c80bf7253fa1a8eba32c5bf0c8ec30121074063a2fa5f",
+                "itemId": "arrange",
+                "groupId": "tool.Canvas",
+                "groupTitle": "Canvas 工具",
+                "groupDescription": "Canvas 调用的权限规则。"
+              }
+            },
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Canvas",
+                  "releaseRef": "harness.tool.Canvas/b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+                },
+                "itemId": "lock",
+                "revision": "b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+              },
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.lock",
+              "title": "Canvas：锁",
+              "description": "控制 Canvas 工具里归「锁」的命令（lock、unlock）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "deny",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Canvas.permissions",
+                "version": "1487ac8937eae98bb51c80bf7253fa1a8eba32c5bf0c8ec30121074063a2fa5f",
+                "itemId": "lock",
+                "groupId": "tool.Canvas",
+                "groupTitle": "Canvas 工具",
+                "groupDescription": "Canvas 调用的权限规则。"
+              }
+            }
+          ],
+          "enforcementBindings": [
+            {
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.read",
+              "implementationRef": "tool/aca7ea83be8411b9b833aa55f25f66e956defd5ba580f97c301a6ca626205206",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            {
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.arrange",
+              "implementationRef": "tool/aca7ea83be8411b9b833aa55f25f66e956defd5ba580f97c301a6ca626205206",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            {
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.lock",
+              "implementationRef": "tool/aca7ea83be8411b9b833aa55f25f66e956defd5ba580f97c301a6ca626205206",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            }
+          ]
+        },
+        "interpretations": [
+          {
+            "binding": {
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.read",
+              "implementationRef": "tool/aca7ea83be8411b9b833aa55f25f66e956defd5ba580f97c301a6ca626205206",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Canvas",
+                  "releaseRef": "harness.tool.Canvas/b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+                },
+                "itemId": "read",
+                "revision": "b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+              },
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.read",
+              "title": "Canvas：看",
+              "description": "控制 Canvas 工具里归「看」的命令（help、look、away、kinds）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Canvas.permissions",
+                "version": "1487ac8937eae98bb51c80bf7253fa1a8eba32c5bf0c8ec30121074063a2fa5f",
+                "itemId": "read",
+                "groupId": "tool.Canvas",
+                "groupTitle": "Canvas 工具",
+                "groupDescription": "Canvas 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          },
+          {
+            "binding": {
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.arrange",
+              "implementationRef": "tool/aca7ea83be8411b9b833aa55f25f66e956defd5ba580f97c301a6ca626205206",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Canvas",
+                  "releaseRef": "harness.tool.Canvas/b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+                },
+                "itemId": "arrange",
+                "revision": "b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+              },
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.arrange",
+              "title": "Canvas：摆",
+              "description": "控制 Canvas 工具里归「摆」的命令（place、arrange、take、pile、scatter）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Canvas.permissions",
+                "version": "1487ac8937eae98bb51c80bf7253fa1a8eba32c5bf0c8ec30121074063a2fa5f",
+                "itemId": "arrange",
+                "groupId": "tool.Canvas",
+                "groupTitle": "Canvas 工具",
+                "groupDescription": "Canvas 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          },
+          {
+            "binding": {
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.lock",
+              "implementationRef": "tool/aca7ea83be8411b9b833aa55f25f66e956defd5ba580f97c301a6ca626205206",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Canvas",
+                  "releaseRef": "harness.tool.Canvas/b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+                },
+                "itemId": "lock",
+                "revision": "b449b7373df05dfe99766b781553cd3ec4d435e2c9fe8000fa2e9cbf05af29dd"
+              },
+              "capabilityId": "tool.Canvas",
+              "enforcementKey": "tool.lock",
+              "title": "Canvas：锁",
+              "description": "控制 Canvas 工具里归「锁」的命令（lock、unlock）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "deny",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Canvas.permissions",
+                "version": "1487ac8937eae98bb51c80bf7253fa1a8eba32c5bf0c8ec30121074063a2fa5f",
+                "itemId": "lock",
+                "groupId": "tool.Canvas",
+                "groupTitle": "Canvas 工具",
+                "groupDescription": "Canvas 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          }
+        ]
+      },
+      "holding": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Canvas/holding",
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:03cb0c511fd5f3c70d9f41f21004843120f60207d73696ce4327dae12b0fa2ba"
+      },
+      "publication": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Canvas/publication",
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:b71a594adf29e84ce2978fdf73d437373912a5ed713fdf46b5c7307bf6736b9f"
       }
     },
     {
@@ -11605,14 +12739,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#SwitchWorkspace/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:221db915331503f663f5c05b68fc39b728b9eef2d6383542874b2cefb21efa0d"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:298def5fd88873110fb2ce0767095611e26cb601614f1464ffadcd1ed9db1b39"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#SwitchWorkspace/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:ad32853cdb87aee428d43776a02607d25ae458d615e8a49cd68f70a47bc6852d"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:95e82921fe54b744a38651b3a808b084cd4f5a5c3201b5f440c983409bc07b4b"
       }
     },
     {
@@ -12001,14 +13135,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#OmneExtensionPoints/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:5cbaa227d366dac73671fc091b798bde31c7184e192fa075d4dabac2c9d5bb21"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:1cc6b348ac22567861d61ff91bb49f6c959d8dc67b3a4228d848040a4a8e2108"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#OmneExtensionPoints/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:9b1bdecf6f390d6b8201d6364c14c99ba05c0f72e00a315da4e05bae1f4297bb"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:243cfd658e6c23295dd08c6add658147686f014d3f08f4a5b11d0bb3bbf261b7"
       }
     },
     {
@@ -13317,14 +14451,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#OmneExtensions/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:b4c0a6327a4ec2d49acdeaebec5bbf768f544e30ddc31bd0ac529d437f9b8535"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:d9ab9e050264b9e93d82945f00fb12ef799b1bf6d04149646be454def6f8dbf9"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#OmneExtensions/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:114f72562fa2c2222a0383d29e40b6156013608476213edc3fb4f8bd4710aa65"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:b587018616678f3bf94d0c013d578e3bec151b9d2c3de7660829c225a13c5f1b"
       }
     },
     {
@@ -14022,14 +15156,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Screen/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:d32efabf0fe7064ebc7f36fdd55437742b2767cb42ebd64d6d79192b0bfbe04f"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:7d0155240d11ea6fdf85fd901090a037504d81307b1a650fbe05a22cebb57983"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Screen/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:0bda3b1bb46c3fd9b6e72b3bc6b49747e9151eca3626104f9cb60401f30538a3"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:d325c71d6a37b0bda2f68c6353f89cafef084a268cbfadd2dfe1d8b1ba26df70"
       }
     },
     {
@@ -14423,14 +15557,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Code/holding",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:5e2820d887d4b76345f36b8e043e871251d5bcd134b455b041cf9101d16d14d0"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:7723744571e07183c3dc565367e2914e374591fafb018b2371e02bfde7add2b2"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Code/publication",
-        "revision": "sha256:2ee81628e36141cd3b43732a37f676d26a78c6c1be5999a2d79cde2c8b119a92",
-        "digest": "sha256:836b27f42bc2f1c374056288fda7191c90bd32087191b7838dc652e663267ed5"
+        "revision": "sha256:c4e22f5757e38338d2d544a8fee461508c64fbdf0b745cc8cf035154e5b4194e",
+        "digest": "sha256:77d52fc3b2ea236cd30ce5d819708f1e0399c3c7dbdf1d52f80361019447581e"
       }
     }
   ]

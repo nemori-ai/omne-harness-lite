@@ -1,5 +1,6 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createElement, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { deployment, tree, type Registry } from '@omne-harness/dynamis'
 import {
   type AttachedLayout,
@@ -15,11 +16,12 @@ import {
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
 import { Drawn } from './drawn.tsx'
+import { goHome, toFront } from './home.ts'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
 import { redrawKeys, redrawPoints, redrawThrough } from './redraw.ts'
 import type { TokenNow } from './changes-sheet.ts'
-import type { ShellState } from './state.ts'
+import type { Face, ShellState } from './state.ts'
 
 const SLOT_NAMES = Object.keys(slots) as SlotName[]
 const NO_LACKS: readonly Lack[] = Object.freeze([])
@@ -72,6 +74,7 @@ export class DesktopShell extends ShellService {
   /** Why a protocol is missing is the connection's to say: the registry only says that it is. */
   private heed(availability: Context['connection']['availability']): () => void {
     const told = (): void => {
+      this.state.face.told(availability.revision() !== undefined)
       for (const listener of Array.from(this.lackWatchers)) listener()
     }
     this.standing = key => availability.standing(key)
@@ -80,7 +83,8 @@ export class DesktopShell extends ShellService {
     return () => {
       stop()
       this.standing = UNTOLD
-      told()
+      this.state.face.told(false)
+      for (const listener of Array.from(this.lackWatchers)) listener()
     }
   }
 
@@ -167,7 +171,19 @@ export class DesktopShell extends ShellService {
   }
 
   navigate(pageId: string, subject?: string): void {
-    this.state.page.choose(pageId, subject)
+    flushSync(() => this.bringUp(pageId, subject, (id, about) => this.state.page.choose(id, about)))
+  }
+
+  protected override face(): Face {
+    return this.state.face.get()
+  }
+
+  protected override turn(): void {
+    toFront(this.state.face)
+  }
+
+  protected override home(): void {
+    goHome(this.state)
   }
 
   /** Only which page is on show: choosing one stays with `navigate`. */

@@ -36,6 +36,7 @@ import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.t
 import { bindReleaseCalendar } from './calendar.ts'
 import { attachReleaseScheduleReads, bindReleaseJobs, bindReleaseSchedules } from './schedules.ts'
 import { bindReleaseNotifications } from './notifications.ts'
+import { bindReleaseCanvas } from './canvas.ts'
 import { bindReleaseSessions } from './sessions.ts'
 import { bindReleaseAgents } from './agents.ts'
 import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
@@ -63,6 +64,7 @@ const DOMAIN_TOOLS = [
   ['Schedules', bindReleaseSchedules],
   ['Jobs', bindReleaseJobs],
   ['Notifications', bindReleaseNotifications],
+  ['Canvas', bindReleaseCanvas],
   ['Sessions', bindReleaseSessions],
   ['Agents', bindReleaseAgents],
   ['SwitchWorkspace', bindReleaseSwitchWorkspace],

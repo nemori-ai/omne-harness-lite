@@ -38,6 +38,7 @@ export const toolHostConfig = z
         Schedules: z.strictObject({ resultMaxBytes: positive }).optional(),
         Jobs: z.strictObject({ resultMaxBytes: positive }).optional(),
         Notifications: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Canvas: z.strictObject({ resultMaxBytes: positive }).optional(),
         Sessions: z.strictObject({ resultMaxBytes: positive }).optional(),
         Agents: z.strictObject({ resultMaxBytes: positive }).optional(),
         SwitchWorkspace: z.strictObject({ resultMaxBytes: positive }).optional(),

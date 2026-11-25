@@ -203,7 +203,20 @@ export function bubbleLines(shape: BubbleShape): BubbleLines {
   const join = chosen.i
   const nearest = chosen.d
   const { clockwise, along } = arrival(join)
-  const centre: Point = [shape.width / 2, shape.height / 2]
+  const { first, second } = loopLines(walk, join, clockwise, shape, random)
+  const tail = nearest < 6 ? [] : tailTo(lift, walk.points[join]!, along, nearest)
+  return { tail, first, second }
+}
+
+function loopLines(
+  walk: Walk,
+  join: number,
+  clockwise: boolean,
+  size: { readonly width: number; readonly height: number },
+  random: () => number,
+): Omit<BubbleLines, 'tail'> {
+  const n = walk.points.length
+  const centre: Point = [size.width / 2, size.height / 2]
   const loop = waver(loopFrom(walk, join, clockwise, 2), centre, 0.7, random)
   const share = (corner: number): number =>
     ((((clockwise ? corner - join : join - corner) % n) + n) % n) / n
@@ -211,10 +224,22 @@ export function bubbleLines(shape: BubbleShape): BubbleLines {
     Math.abs(share(corner) - 0.52) < Math.abs(share(best) - 0.52) ? corner : best,
   )
   const turn = Math.round(share(turnCorner) * n)
-  const first = loop.slice(0, turn + 1)
-  const second = loop.slice(Math.max(0, turn - 1))
-  const tail = nearest < 6 ? [] : tailTo(lift, walk.points[join]!, along, nearest)
-  return { tail, first, second }
+  return { first: loop.slice(0, turn + 1), second: loop.slice(Math.max(0, turn - 1)) }
+}
+
+export type EdgeShape = Omit<BubbleShape, 'anchor'>
+
+export function edgeLines(shape: EdgeShape): BubbleLines {
+  const random = seeded(shape.seed ^ 0x2545f491)
+  const walk = roundRect(
+    { x: 0, y: 0, width: shape.width, height: shape.height },
+    shape.radius,
+    shape.radius + 8,
+  )
+  const open = walk.points.flatMap((_, i) => (walk.open[i] ? [i] : []))
+  const join = open[Math.floor(random() * open.length)] ?? 0
+  const clockwise = random() < 0.5
+  return { tail: [], ...loopLines(walk, join, clockwise, shape, random) }
 }
 
 function firstPress(tailShare: number): (t: number) => number {
@@ -284,18 +309,26 @@ export const BUBBLE_STRENGTH = {
   light: { outline: FINE * PRESS.thread, ink: 0.55, rest: 0.85 },
 } as const
 
-export function bubbleStrokes(shape: BubbleShape): BubbleStroke[] {
-  const lines = bubbleLines(shape)
-  const { unit, seed } = shape
-  const strength = BUBBLE_STRENGTH[shape.ink ?? 'full']
-  const inked = <T extends { ink: number }>(ink: T): T => ({ ...ink, ink: ink.ink * strength.ink })
-  const units = (line: readonly Point[]): Point[] =>
-    line.map(([x, y]) => [x / unit, y / unit] as const)
-  const restOf = (
-    line: readonly Point[],
-    press: (t: number) => number,
-    weight: number = BUBBLE_WEIGHT.rest,
-  ): string => {
+function pressesOf(lines: BubbleLines) {
+  const firstLine = [...lines.tail, ...lines.first.slice(lines.tail.length > 0 ? 1 : 0)]
+  const f = lines.tail.length === 0 ? 0 : lengthOf(lines.tail) / Math.max(1, lengthOf(firstLine))
+  return {
+    firstLine,
+    f,
+    first: turned(firstPress(f), firstLine),
+    second: turned(secondPress, lines.second),
+  }
+}
+
+export function bubbleRests(
+  lines: BubbleLines,
+  unit: number,
+  ink: BubbleInk = 'full',
+  weight: number = BUBBLE_WEIGHT.rest,
+): readonly [string, string] {
+  const strength = BUBBLE_STRENGTH[ink]
+  const { firstLine, f, first, second } = pressesOf(lines)
+  const restOf = (line: readonly Point[], press: (t: number) => number): string => {
     const { points, half } = strokeSpine(
       line,
       weight * unit,
@@ -304,56 +337,63 @@ export function bubbleStrokes(shape: BubbleShape): BubbleStroke[] {
     )
     return outlinePath(points, half)
   }
-  const strokes: BubbleStroke[] = []
-  const firstLine = [...lines.tail, ...lines.first.slice(lines.tail.length > 0 ? 1 : 0)]
-  const tailShare =
-    lines.tail.length === 0 ? 0 : lengthOf(lines.tail) / Math.max(1, lengthOf(firstLine))
-  const f = tailShare
-  const press1 = turned(firstPress(f), firstLine)
+  return [
+    restOf(firstLine.slice(lines.tail.length > 0 ? 1 : 0), t =>
+      f > 0 ? (Math.min(1, 0.3 + 0.7 * smooth(0, f * 1.1, t)) * first(t)) / 0.85 : first(t) / 0.85,
+    ),
+    restOf(lines.second, t => second(t) / 0.85),
+  ]
+}
+
+export function bubbleStrokes(shape: BubbleShape): BubbleStroke[] {
+  const lines = bubbleLines(shape)
+  const { unit, seed } = shape
+  const strength = BUBBLE_STRENGTH[shape.ink ?? 'full']
+  const inked = <T extends { ink: number }>(ink: T): T => ({ ...ink, ink: ink.ink * strength.ink })
+  const units = (line: readonly Point[]): Point[] =>
+    line.map(([x, y]) => [x / unit, y / unit] as const)
+  const { firstLine, f, first: press1, second: press2 } = pressesOf(lines)
+  const [rest1, rest2] = bubbleRests(lines, unit, shape.ink ?? 'full')
   const drying1 = (t: number): number =>
     (f > 0 ? 0.9 * smooth(f * 0.2, f * 0.6, t) * (1 - smooth(f * 0.75, f, t)) : 0) +
     0.7 * smooth(f + (1 - f) * 0.5, 1, t)
   const parting1 = (t: number): number =>
     f > 0 ? 0.35 * smooth(f * 0.3, f * 0.6, t) * (1 - smooth(f * 0.75, f, t)) : 0
-  strokes.push({
-    part: 'outline',
-    ink: {
-      ...vary(
-        designed(
-          units(firstLine),
-          strength.outline,
-          inked({ ink: 0.92, wet: 0.35, dry: 0.62, drying: drying1, parting: parting1 }),
-        ),
-        seed,
-        { wander: 0.12, freedom: 0.3, endings: { taper: 0.6, split: 0.4 } },
-      ),
-      press: press1,
-    },
-    rest: restOf(firstLine.slice(lines.tail.length > 0 ? 1 : 0), t =>
-      f > 0
-        ? (Math.min(1, 0.3 + 0.7 * smooth(0, f * 1.1, t)) * press1(t)) / 0.85
-        : press1(t) / 0.85,
-    ),
-  })
   const drying2 = (t: number): number => 0.2 + 0.7 * smooth(0.55, 1, t)
-  const press2 = turned(secondPress, lines.second)
-  strokes.push({
-    part: 'outline',
-    ink: {
-      ...vary(
-        designed(
-          units(lines.second),
-          strength.outline,
-          inked({ ink: 0.9, wet: 0.35, dry: 0.6, drying: drying2 }),
+  return [
+    {
+      part: 'outline',
+      ink: {
+        ...vary(
+          designed(
+            units(firstLine),
+            strength.outline,
+            inked({ ink: 0.92, wet: 0.35, dry: 0.62, drying: drying1, parting: parting1 }),
+          ),
+          seed,
+          { wander: 0.12, freedom: 0.3, endings: { taper: 0.6, split: 0.4 } },
         ),
-        seed + 7919,
-        { wander: 0.12, freedom: 0.3, endings: { taper: 1 } },
-      ),
-      press: press2,
+        press: press1,
+      },
+      rest: rest1,
     },
-    rest: restOf(lines.second, t => press2(t) / 0.85),
-  })
-  return strokes
+    {
+      part: 'outline',
+      ink: {
+        ...vary(
+          designed(
+            units(lines.second),
+            strength.outline,
+            inked({ ink: 0.9, wet: 0.35, dry: 0.6, drying: drying2 }),
+          ),
+          seed + 7919,
+          { wander: 0.12, freedom: 0.3, endings: { taper: 1 } },
+        ),
+        press: press2,
+      },
+      rest: rest2,
+    },
+  ]
 }
 
 export function bubbleArea(strokes: readonly BubbleStroke[], pad = 4): Rect {

@@ -35,6 +35,9 @@
 [data-control='button']:not([data-variant='default'], [data-variant='destructive']):active {
   background-color: var(--omne-press);
 }
+[data-control='button'][data-variant='ghost'][aria-pressed='true'] {
+  background-color: var(--omne-selected);
+}
 
 [data-control='button'][data-size='icon'] > svg:not([class*='size-']) {
   width: var(--omne-icon-face);
@@ -144,7 +147,7 @@
     summary,
     [role='option'],
     [role^='menuitem']
-  ):not([data-control='field'], [data-control='choice']):is(
+  ):not([data-control='field'], [data-control='choice'], [data-control='paper']):is(
     :hover,
     :active,
     [data-selected='true'],

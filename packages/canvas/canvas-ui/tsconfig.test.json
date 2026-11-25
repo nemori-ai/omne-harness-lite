@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "rewriteRelativeImportExtensions": true,
+    "jsx": "react-jsx",
+    "customConditions": [],
+    "lib": ["ES2024", "DOM", "DOM.Iterable"]
+  },
+  "include": ["tests/**/*.ts", "tests/**/*.tsx"],
+  "exclude": ["**/*.legacy/**"]
+}

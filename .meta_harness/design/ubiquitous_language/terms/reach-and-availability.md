@@ -332,7 +332,7 @@
 > not declared now.
 
 - **形态**：属性
-- **出处**：[画布「能摆什么」](../../product/canvas/design.md#能摆什么) · [「画不出来的时候」](../../product/canvas/design.md#画不出来的时候)（rev 1）
+- **出处**：[画布「能摆什么」](../../product/canvas/design.md#能摆什么) · [「画不出来的时候」](../../product/canvas/design.md#画不出来的时候)（rev 2）
 - **别混 ①**：不是允许。一类可画布渲染，不表示这一类的每个对象都摆得上：拥有者可以不接受某一个对象。它也不表示这个人能看某一个对象，那由这一类的画法说。
 - **别混 ②**：不是「能从查找里挑」。一类要出现在查找里，拥有者还要另外提供挑法。
 - **注意**：画布不认识任何一类，多一类是拥有它的领域多一份声明。产品要求三类可画布渲染：[媒体对象](record-and-context.md#ul-media-object--媒体对象--media-object)、[会话](agent-runtime-loop.md#ul-session--会话--session)与[画布小应用](capabilities-and-composition.md#ul-canvas-app--画布小应用--canvas-app)；画布小应用这一类由画布自己声明。

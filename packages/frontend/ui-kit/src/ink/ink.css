@@ -76,6 +76,10 @@
 .omne-ink-bubble {
   --omne-ink-bubble-paper: 1;
   isolation: isolate;
+}
+
+.omne-ink-bubble,
+.omne-paper-edge {
   --omne-ink-bubble-edge: light-dark(
     color-mix(in oklab, var(--omne-ink-primary) 46%, transparent),
     color-mix(in oklab, var(--omne-ink-primary) 70%, transparent)
@@ -142,7 +146,8 @@
   color: var(--omne-ink-primary);
 }
 
-.omne-ink-bubble-edge path {
+.omne-ink-bubble-edge path,
+.omne-paper-edge path {
   fill: var(--omne-ink-bubble-edge);
 }
 
