@@ -360,8 +360,11 @@ describe('the frame on the screen (FE-I67)', () => {
 
   it('takes no pointer and keeps the paper breath round its ink', () => {
     show()
-    const rule = STYLES.split('}').find(text => /\.omne-observation-frame\s*\{/.test(text))
+    const rules = STYLES.split('}')
+    const rule = rules.find(text => /\.omne-observation-frame\s*\{/.test(text))
     expect(rule).toMatch(/pointer-events:\s*none/)
-    expect(rule).toMatch(/filter:\s*drop-shadow/)
+    expect(rule).not.toMatch(/filter:/)
+    const line = rules.find(text => /\.omne-observation-frame-line\s*\{/.test(text))
+    expect(line).toMatch(/filter:\s*drop-shadow/)
   })
 })

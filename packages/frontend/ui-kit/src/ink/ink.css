@@ -324,16 +324,16 @@
   display: block;
   overflow: visible;
   pointer-events: none;
+}
+
+.omne-observation-frame-line {
+  fill: var(--omne-ink-primary);
   filter: drop-shadow(
       0 0 var(--omne-ink-breath-near) color-mix(in oklab, var(--omne-surface-page) 92%, transparent)
     )
     drop-shadow(
       0 0 var(--omne-ink-breath-far) color-mix(in oklab, var(--omne-surface-page) 60%, transparent)
     );
-}
-
-.omne-observation-frame-line {
-  fill: var(--omne-ink-primary);
 }
 
 .omne-observation-frame-wash {
