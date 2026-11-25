@@ -269,6 +269,7 @@ export function predictionInput(
     definitionRevision: record.view.definitionRevision,
     activationExclusive: record.activationExclusive,
     eligibleConsumed: record.view.eligibleConsumed,
+    eligibleFrom: record.view.nextOccurrence?.scheduledAt ?? null,
     acceptedJobCount: record.view.acceptedJobCount,
     after,
     count,

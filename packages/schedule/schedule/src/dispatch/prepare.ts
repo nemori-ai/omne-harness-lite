@@ -40,11 +40,12 @@ export type DispatcherTime = Readonly<{
 export type DispatcherPorts = Readonly<{
   owner: ScheduleOwner
   store: DispatchStore
-  /** Up to `count` candidates strictly after the instant, under the schedule's current definition and counts. */
+  /** Up to `count` candidates strictly after the instant; `counted` eligible slots lie at or before it. */
   predict(
     record: ScheduleRecord,
     afterExclusive: ScheduleInstant,
     count: number,
+    counted: number,
   ): Promise<PredictionPage>
   /** The carriers the purpose names that this deployment does not have now. */
   missingCarriers(purpose: SchedulePurpose): readonly string[]
@@ -77,8 +78,9 @@ async function nextAfter(
   ports: DispatcherPorts,
   record: ScheduleRecord,
   after: ScheduleInstant,
+  counted: number,
 ): Promise<Prediction> {
-  const page = await ports.predict(record, after, 1)
+  const page = await ports.predict(record, after, 1, counted)
   if (page.kind === 'unavailable') return page
   const [next] = page.candidates
   if (next !== undefined) return { kind: 'ok', next }
@@ -101,6 +103,11 @@ function watching(
   }
 }
 
+function disposal(state: DispatchState | null, watchedFrom: ScheduleInstant) {
+  if (state === null) return { after: watchedFrom, queued: 0 }
+  return { after: state.disposedThrough ?? state.watchedFrom, queued: state.selected.length }
+}
+
 export async function refreshCommand(
   ports: DispatcherPorts,
   item: DispatchSchedule,
@@ -110,13 +117,8 @@ export async function refreshCommand(
   const watched = watching(item, at)
   let next: ScheduleCandidate | null = null
   if (record.view.control === 'active') {
-    const predicted = await nextAfter(
-      ports,
-      record,
-      item.state === null
-        ? watched.watchedFrom
-        : (item.state.disposedThrough ?? item.state.watchedFrom),
-    )
+    const { after, queued } = disposal(item.state, watched.watchedFrom)
+    const predicted = await nextAfter(ports, record, after, record.view.eligibleConsumed + queued)
     if (predicted.kind === 'unavailable') return null
     next = predicted.next
   }
@@ -163,7 +165,7 @@ async function classifyCommand(
   let after = before(first.scheduledAt)
   let reached = false
   for (let page = 0; page < ports.policy.classifyPages; page += 1) {
-    const result = await ports.predict(record, after, PAGE)
+    const result = await ports.predict(record, after, PAGE, view.eligibleConsumed + counted.length)
     if (result.kind === 'unavailable') return null
     reached = result.candidates.some(candidate => candidate.scheduledAt >= through)
     counted.push(...result.candidates.filter(candidate => candidate.scheduledAt < through))
@@ -185,7 +187,7 @@ async function classifyCommand(
       : classifyMissed(view.definition.purpose, once, cause as MissCause, stretch)
   const more = overBudget && limit !== null
   const resume = more ? (stretch.at(-1)?.scheduledAt ?? before(through)) : before(through)
-  const predicted = await nextAfter(ports, record, resume)
+  const predicted = await nextAfter(ports, record, resume, view.eligibleConsumed + stretch.length)
   if (predicted.kind === 'unavailable') return null
   const notCounted = overBudget && limit === null
   const consumed = notCounted ? 0 : stretch.length - chosen.selected.length
@@ -234,7 +236,12 @@ export async function admitCommand(
   if (standing.kind === 'unknown') return null
   let next = state.next
   if (queued === undefined) {
-    const predicted = await nextAfter(ports, record, slot.scheduledAt)
+    const predicted = await nextAfter(
+      ports,
+      record,
+      slot.scheduledAt,
+      record.view.eligibleConsumed + 1,
+    )
     if (predicted.kind === 'unavailable') return null
     next = predicted.next
   }
