@@ -1,6 +1,6 @@
 # Skill产品设计
 
-状态：产品设计草案，revision 8。尚无整体接受证据。落位不授予运行支持。技术承接从[包组规格](../../../../packages/skills/SPEC.md)展开。
+状态：产品设计草案，revision 9。尚无整体接受证据。落位不授予运行支持。技术承接从[包组规格](../../../../packages/skills/SPEC.md)展开。
 
 ## 产品需求描述
 
@@ -14,7 +14,7 @@ Skill 按三层披露，用到才读下一层。第一层是名称与说明，�
 
 ### 元技能
 
-[元技能](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-skill--元技能--meta-skill)是官方层的一个普通 Skill，教 agent 怎样写 Skill。它常驻，名称与说明一直在模型面前，正文用到才读。它没有特殊机制，按普通 Skill 发现、读取与治理。它的资产定义声明不可替换（`immutable`），租户不能用同名的 Skill 盖住它，同名的提交在出确认卡之前就被拒绝。
+[元技能](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-skill--元技能--meta-skill)是官方层的一个普通 Skill，教 agent 怎样写 Skill。它常驻，名称与说明一直在模型面前，正文用到才读。它没有特殊机制，按普通 Skill 发现、读取与治理。它的资产定义声明不可替换（`immutable`），租户不能用同名的 Skill 盖住它：同名的发布被拒绝，什么都不发布，原因写明与它同名。
 
 ### J-SK01 将合法方法来源交给消费者
 
@@ -179,4 +179,4 @@ Agent 发布一个 Skill 许不许，照[动作放行](../meta-capabilities/desi
 
 结果：发布被拒绝，什么都不发布，原因写明与哪一份官方 Skill 同名、它不可替换。不采用「发布成功但不生效」：人以为发上去了，其实没有用，要再查一次才知道。
 
-落点：[J-SK07](#j-sk07-合法新增或更新方法而不改写原工作) 已按这个结果写。资产的规则里「不可替换不阻止发布新版」这一句与 Skill 的领域正文要随之改，见[资产的规格](../../../../packages/assets/SPEC.md)。
+落点：[J-SK07](#j-sk07-合法新增或更新方法而不改写原工作) 已按这个结果写。同名的判断由资产的发布做，三条发布的路共用，见[资产的规格](../../../../packages/assets/SPEC.md#发布到租户这一层)。

@@ -119,9 +119,11 @@ export type ProfileResolution =
       profile: ModelProfile
       source: DurableEvidence
       selectable: boolean
-      reasons: readonly ('modality' | 'locked' | 'scope')[]
+      reasons: readonly ('modality' | 'locked' | 'scope' | 'not-enabled')[]
       credential: 'available' | 'missing' | 'unreadable' | 'unavailable'
       shadowed: readonly Adoption[]
+      /** The effort the tenant set for this model; the request takes it when the session chose none. */
+      defaultReasoningEffort?: ReasoningEffort
     }>
   | Readonly<{ kind: 'absent'; reason: 'unknown-name' | 'withdrawn' | 'excluded' }>
 export type ModelChoices = Readonly<{

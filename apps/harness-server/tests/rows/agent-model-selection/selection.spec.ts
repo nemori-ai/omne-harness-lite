@@ -84,6 +84,51 @@ describe('the selected model', () => {
     expect(profile.definition.parameters[1].value).toBe('low')
   })
 
+  test('without a session choice the tenant default effort of the model is taken, marked as such (C7)', async () => {
+    const base = profileOf(ROUTE)
+    const profile = {
+      ...base,
+      definition: {
+        ...base.definition,
+        parameters: [
+          { kind: 'max-output-tokens', value: '256' },
+          { kind: 'reasoning-effort', value: 'low' },
+        ] as const,
+        reasoningEfforts: { low: 'low', high: 'high' } as const,
+      },
+    }
+    const state = savedSelection(ROUTE)
+    let chosen: 'low' | undefined
+    const { value } = await withLiveRow(
+      {
+        session: () =>
+          succeed({
+            ...state,
+            selection: {
+              ...state.selection,
+              ...(chosen === undefined ? {} : { reasoningEffort: chosen }),
+            },
+          }),
+        profiles: { [ROUTE]: succeed(resolvedOf(profile, { defaultReasoningEffort: 'high' })) },
+      },
+      async ({ select }) => {
+        const preferred = await select(selectInput)
+        chosen = 'low'
+        return { preferred, chosen: await select(selectInput) }
+      },
+    )
+    const parametersOf = (selected: typeof value.preferred) =>
+      'ok' in selected ? selected.ok.parameters : selected
+    expect(parametersOf(value.preferred)).toEqual([
+      { kind: 'max-output-tokens', value: '256' },
+      { kind: 'reasoning-effort', value: 'high', scale: 'unified', basis: 'preference' },
+    ])
+    expect(parametersOf(value.chosen)).toEqual([
+      { kind: 'max-output-tokens', value: '256' },
+      { kind: 'reasoning-effort', value: 'low', scale: 'unified' },
+    ])
+  })
+
   test('the Session is read as a maintainer with exactly the principal, tenant and session', async () => {
     const { value } = await withLiveRow(happy, async ({ select, session }) => {
       await select(selectInput)
@@ -192,8 +237,26 @@ describe('no other model is chosen', () => {
     [ROUTE]: answer,
   })
 
+  test('a route the tenant has turned off fails as invalid, so the Run ends instead of waiting', async () => {
+    const { value } = await withLiveRow(
+      {
+        session: () => succeed(savedSelection(ROUTE)),
+        profiles: withDefault(succeed({ kind: 'absent', reason: 'excluded' } as const)),
+      },
+      async ({ select, profiles }) => ({
+        outcome: await select(selectInput),
+        asked: profiles.resolves.map(input => (input as { route: string }).route),
+      }),
+    )
+    expect(failureOf(value.outcome)).toEqual({
+      kind: 'invalid',
+      field: 'model',
+      reason: 'not-enabled',
+    })
+    expect(value.asked).toEqual([ROUTE])
+  })
+
   test.each([
-    ['absent', succeed({ kind: 'absent', reason: 'excluded' } as const) as ProfilesAnswer],
     [
       'resolved but not selectable',
       succeed(

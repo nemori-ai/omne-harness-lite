@@ -194,3 +194,45 @@ describe('moving between sessions and to the composer', () => {
     expect(document.activeElement).toBe(box())
   })
 })
+
+describe('the view actions press what a person would press', () => {
+  it('details opens every process line when one is shut and shuts them all when all are open', async () => {
+    const calls = messageEntry('2', '1', 'assistant', [
+      toolCallBlock('call_1', 'shell', {}),
+      toolCallBlock('call_2', 'shell', {}),
+    ])
+    const { action } = await opened('run_1', [calls])
+    const lines = () => [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-omne-part="session.transcript.tool-call"] [aria-expanded]:not([aria-haspopup])',
+      ),
+    ]
+    const menus = () =>
+      [...document.querySelectorAll('[aria-haspopup="menu"]')].map(menu =>
+        menu.getAttribute('aria-expanded'),
+      )
+    const shown = () => lines().map(line => line.getAttribute('aria-expanded'))
+    expect(lines().length).toBe(2)
+    fireEvent.click(lines()[0]!)
+    expect(shown()).toEqual(['true', 'false'])
+    act(() => action('session.details').run())
+    expect(shown()).toEqual(['true', 'true'])
+    act(() => action('session.details').run())
+    expect(shown()).toEqual(['false', 'false'])
+    expect(menus().every(state => state !== 'true')).toBe(true)
+  })
+
+  it('a control that is not on the page says so instead of doing something else', async () => {
+    const { action } = await opened(null)
+    for (const part of document.querySelectorAll('button.omne-session-figure[aria-controls]'))
+      part.remove()
+    expect(() => action('session.side-panel').run()).toThrow('对话页上现在没有这个控件')
+  })
+
+  it('the previous of the first session is the last one', async () => {
+    const { fake, action } = await opened(null)
+    expect(action('session.previous').available()).toBe(true)
+    await act(async () => void action('session.previous').run())
+    expect((await fake.next('read-history')).body).toMatchObject({ session: 'ses_b' })
+  })
+})

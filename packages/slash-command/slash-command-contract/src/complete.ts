@@ -76,6 +76,38 @@ function loose(query: string, name: string): boolean {
   return at === query.length
 }
 
+type Put = (entry: NamedEntry, tier: Tier) => void
+
+function byPrefix(index: CompletionIndex, query: string, put: Put, size: () => number): void {
+  for (let at = lowerBound(index.byName, query, e => e.name); at < index.byName.length; at += 1) {
+    const entry = index.byName[at] as NamedEntry
+    if (!entry.name.startsWith(query) || size() >= SCAN) return
+    put(entry, entry.name === query ? 0 : 1)
+  }
+}
+
+function bySegment(index: CompletionIndex, query: string, put: Put): void {
+  const { segments } = index
+  for (
+    let at = lowerBound(segments, query, segment => segment.key);
+    at < segments.length;
+    at += 1
+  ) {
+    const segment = segments[at] as { key: string; entry: NamedEntry }
+    if (!segment.key.startsWith(query)) return
+    put(segment.entry, 2)
+  }
+}
+
+const compareFound =
+  (query: string) =>
+  (a: Found, b: Found): number =>
+    a.tier - b.tier ||
+    Number(a.entry.unavailable !== undefined) - Number(b.entry.unavailable !== undefined) ||
+    rankOf(a.entry.kind) - rankOf(b.entry.kind) ||
+    (query === '' ? 0 : a.entry.name.length - b.entry.name.length) ||
+    byKey<Found>(one => one.entry.name)(a, b)
+
 export function search(
   index: CompletionIndex,
   query: string,
@@ -83,44 +115,19 @@ export function search(
   limit = 8,
 ): Readonly<{ total: number; items: readonly Found[] }> {
   const found = new Map<string, Found>()
-  const put = (entry: NamedEntry, tier: Tier): void => {
+  const put: Put = (entry, tier) => {
     if ((zone === 'head' || placeOf(entry.kind) === 'anywhere') && !found.has(entry.full))
       found.set(entry.full, { entry, tier })
   }
+  const short = () => query !== '' && found.size < limit
   if (/^[a-z0-9:-]*$/u.test(query)) {
-    for (
-      let at = lowerBound(index.byName, query, entry => entry.name);
-      at < index.byName.length;
-      at += 1
-    ) {
-      const entry = index.byName[at] as NamedEntry
-      if (!entry.name.startsWith(query) || found.size >= SCAN) break
-      put(entry, entry.name === query ? 0 : 1)
-    }
-    if (query !== '') {
-      for (
-        let at = lowerBound(index.segments, query, segment => segment.key);
-        at < index.segments.length;
-        at += 1
-      ) {
-        const segment = index.segments[at] as { key: string; entry: NamedEntry }
-        if (!segment.key.startsWith(query)) break
-        put(segment.entry, 2)
-      }
-      if (found.size < limit)
-        for (const entry of index.byName) if (loose(query, entry.name)) put(entry, 3)
-    }
+    byPrefix(index, query, put, () => found.size)
+    if (query !== '') bySegment(index, query, put)
+    if (short()) for (const entry of index.byName) if (loose(query, entry.name)) put(entry, 3)
   }
-  if (query !== '' && found.size < limit)
+  if (short())
     for (const entry of index.byName) if (entry.title.toLowerCase().includes(query)) put(entry, 4)
-  const items = [...found.values()].sort(
-    (a, b) =>
-      a.tier - b.tier ||
-      Number(a.entry.unavailable !== undefined) - Number(b.entry.unavailable !== undefined) ||
-      rankOf(a.entry.kind) - rankOf(b.entry.kind) ||
-      (query === '' ? 0 : a.entry.name.length - b.entry.name.length) ||
-      byKey<Found>(one => one.entry.name)(a, b),
-  )
+  const items = [...found.values()].sort(compareFound(query))
   return { total: items.length, items: items.slice(0, limit) }
 }
 

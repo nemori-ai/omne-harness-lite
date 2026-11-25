@@ -3,10 +3,11 @@ import type { ModelProfile } from '@omne-harness/model-contract'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
+import { everyModelOnRow } from '../../support/model-preferences.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { TENANT, withLiveRows } from './support.ts'
 
-const plugins = { modelProfilesRow }
+const plugins = { modelProfilesRow, everyModelOnRow }
 const config = {
   retryPolicy: {
     owner: 'harness-server-release',
@@ -17,7 +18,10 @@ const config = {
   compactionTriggerPercent: '80',
   updatedAt: '2026-11-02T00:00:00Z',
 }
-const rows = [{ id: 'model-profiles', plugin: 'modelProfilesRow', config }]
+const rows = [
+  { id: 'every-model-on', plugin: 'everyModelOnRow' },
+  { id: 'model-profiles', plugin: 'modelProfilesRow', config },
+]
 const REQUIRED = {
   modalities: ['text'] as ['text'],
   source: { owner: 'test', record: 'required', revision: '1', digest: '1'.repeat(64) },
@@ -25,11 +29,16 @@ const REQUIRED = {
 const ACCESS = { principal: Object.freeze({ subject: 'test' }), tenant: TENANT }
 
 describe('the model-profiles row', () => {
-  it('declares the formal key, no inject and no shutdown phase', () => {
+  it('declares the formal key, injects the preferences of a tenant and has no shutdown phase', () => {
     expect(rowDeclarationOf(modelProfilesRow)).toEqual({
       row: 'model-profiles',
       implementation: 'real',
-      manifest: { provides: ['modelProfiles'], injects: [], phase: null, sameProviderGroup: null },
+      manifest: {
+        provides: ['modelProfiles'],
+        injects: ['modelPreferences'],
+        phase: null,
+        sameProviderGroup: null,
+      },
       lifecycle: { kind: 'none' },
     })
   })

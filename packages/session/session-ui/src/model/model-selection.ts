@@ -16,6 +16,8 @@ export type ModelChoice = Readonly<{
   selectable: boolean
   note: string | null
   reasoningEfforts?: readonly ReasoningEffort[]
+  /** The effort the tenant set for this model, taken when the session chose none. */
+  defaultReasoningEffort?: ReasoningEffort
 }>
 export type ModelChoiceListing = Listing<ModelChoice>
 
@@ -38,7 +40,7 @@ const UNREAD = { kind: 'unread' } as const
 const REFUSALS: Readonly<Record<Refusal, string>> = {
   'unknown-name': '没有这个模型',
   withdrawn: '这个模型已撤下',
-  excluded: '这个模型被排除了',
+  excluded: '这个模型没有启用',
   modality: '这个模型不支持文字',
   locked: '这个模型被锁定',
   scope: '这个模型不在这个租户能用的范围里',

@@ -4,14 +4,18 @@ import {
   needPoint,
   needProtocol,
   serviceKey,
-  type KeyedPointSink,
+  type PointContributor,
+  type PointItem,
   type PointSink,
   type ServiceKey,
 } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { createModelChoices, type ModelChoices } from './choices.ts'
 import type { AssetPort } from './view/asset-body.ts'
+import { modelParts } from './parts.ts'
 import { CredentialRemedy } from './view/credential-remedy.tsx'
+import { MODEL_REASONING_EFFORTS, MODEL_SWITCHES } from './view/models-table.ts'
+import { ModelsBlock } from './view/models-block.tsx'
 import { ProviderBlock } from './view/provider-block.tsx'
 
 /** The models of a tenant, on the client tree while `model/v1` is mounted. */
@@ -22,6 +26,19 @@ export const PROVIDER_CATEGORY = 'model-provider'
 
 export const CREDENTIAL_REMEDY_ID = 'model-credential'
 export const PROVIDER_BLOCK_ID = 'model-provider-access'
+export const MODELS_BLOCK_ID = 'model-provider-models'
+
+type Holding = Readonly<{ category: string; name: string }>
+
+/** The place on the page of one asset; an item of it may claim settings of the asset it draws itself. */
+export type HoldingSink = Readonly<{
+  name: string
+  contribute: (
+    shell: PointContributor,
+    key: string,
+    item: PointItem<Holding> & Readonly<{ claims?: readonly string[] }>,
+  ) => void
+}>
 
 type RunFailure = Readonly<{ session: string; cause: string; detail: string | null }>
 
@@ -30,7 +47,7 @@ type RunFailure = Readonly<{ session: string; cause: string; detail: string | nu
 export type ModelUiOptions = Readonly<{
   runFailure?: PointSink<RunFailure>
   providers?: Readonly<{ page: string; subject: string }>
-  holding?: KeyedPointSink<Readonly<{ category: string; name: string }>>
+  holding?: HoldingSink
   assets?: ServiceKey<AssetPort>
 }>
 
@@ -72,6 +89,23 @@ export function createModelUiModule(options: ModelUiOptions = {}): UiModule {
           const port = assets.get()
           return scope === undefined || port === undefined ? null : (
             <ProviderBlock
+              port={port}
+              tenant={scope}
+              category={subject.category}
+              name={subject.name}
+            />
+          )
+        },
+      })
+      for (const part of modelParts) part.declare(shell)
+      options.holding?.contribute(shell, PROVIDER_CATEGORY, {
+        id: MODELS_BLOCK_ID,
+        order: 1,
+        claims: [MODEL_SWITCHES, MODEL_REASONING_EFFORTS],
+        render: ({ scope, subject }) => {
+          const port = assets.get()
+          return scope === undefined || port === undefined ? null : (
+            <ModelsBlock
               port={port}
               tenant={scope}
               category={subject.category}

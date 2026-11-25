@@ -23,6 +23,7 @@
 - `ModelInstanceHostService` · `cordis.d.ts`
 - `ModelInstancesService` · `instances.d.ts`
 - `ModelMediaSourceService` · `cordis.d.ts`
+- `ModelPreferencesService` · `cordis.d.ts`
 - `ModelPreparationResourcesService` · `cordis.d.ts`
 - `ModelProfileMaintenanceService` · `cordis.d.ts`
 - `ModelProfilesService` · `cordis.d.ts`
@@ -50,6 +51,7 @@
 - `modelInstanceHostKey` · `cordis.d.ts`
 - `modelInstancesKey` · `instances.d.ts`
 - `modelMediaSourceKey` · `cordis.d.ts`
+- `modelPreferencesKey` · `cordis.d.ts`
 - `modelPreparationResourcesKey` · `cordis.d.ts`
 - `modelProfileMaintenanceKey` · `cordis.d.ts`
 - `modelProfilesKey` · `cordis.d.ts`
@@ -85,7 +87,7 @@
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelDispatchFacts, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
-import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMediaSource, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
+import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMediaSource, ModelPreferencesPort, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelInstancesService } from './instances.ts';
 import { type ModelResultReceiverTable } from './receivers.ts';
 import type { ModelPublicationAuthority } from './registration.ts';
@@ -100,6 +102,12 @@ export declare abstract class ModelCredentialService<P = unknown> extends Servic
     abstract readonly resolve: CredentialPort<P>['resolve'];
 }
 export declare const modelCredentialKey = "modelCredential";
+export declare abstract class ModelPreferencesService<P = unknown> extends Service implements ModelPreferencesPort<P> {
+    static readonly provide = "modelPreferences";
+    constructor(ctx: CordisContext);
+    abstract readonly read: ModelPreferencesPort<P>['read'];
+}
+export declare const modelPreferencesKey = "modelPreferences";
 export declare abstract class ModelMediaSourceService<P = unknown> extends Service implements ModelMediaSource<P> {
     static readonly provide = "modelMediaSource";
     constructor(ctx: CordisContext);

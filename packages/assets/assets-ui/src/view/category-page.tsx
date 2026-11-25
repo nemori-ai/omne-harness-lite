@@ -14,6 +14,7 @@ import type {
   CategoryGovernance,
   GovernanceModel,
 } from '../model/governance.ts'
+import type { HoldingClaims } from '../model/holding-claims.ts'
 import { lacksKey } from '../model/missing-key.ts'
 import {
   assetsCategory,
@@ -30,6 +31,7 @@ export type Extras = Readonly<{
   label: (category: string) => string
   categorySlot: (category: string) => ReactNode
   holdingSlot: (category: string, name: string) => ReactNode
+  claims: HoldingClaims
 }>
 
 type CategoryPageProps = Readonly<{
@@ -64,6 +66,8 @@ const LIST_PARTIAL = {
 
 function CategoryBody({ view, category, extras }: Shown): JSX.Element {
   const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
+  const claimLines = useSyncExternalStore(extras.claims.subscribe, () => extras.claims.of(category))
+  const claimed = claimLines === '' ? [] : claimLines.split('\n')
   const [creating, setCreating] = useState(false)
   const [shown, setShown] = useState<string | null>(null)
   const list = useRef<HTMLDivElement>(null)
@@ -143,6 +147,7 @@ function CategoryBody({ view, category, extras }: Shown): JSX.Element {
           view={view}
           label={extras.label(category)}
           holding={extras.holdingSlot(category, entry.row.name)}
+          claimed={claimed}
           onBack={leave}
         />
       )}
