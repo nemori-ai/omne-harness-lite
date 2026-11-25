@@ -595,13 +595,18 @@ export class FigureStore {
   }
 
   private room(): { readonly left: number; readonly right: number } {
-    const centre = this.centre()
-    const { size } = this.snapshot
-    const unit = size / CANVAS
-    const edge = size / 2 + 8
-    return {
-      left: (centre.x - edge) / unit,
-      right: (window.innerWidth - centre.x - edge) / unit,
-    }
+    return roomAround(this.centre(), this.snapshot.size)
+  }
+}
+
+export function roomAround(
+  centre: Placement,
+  size: number,
+): { readonly left: number; readonly right: number } {
+  const unit = size / CANVAS
+  const edge = size / 2 + 8
+  return {
+    left: (centre.x - edge) / unit,
+    right: (window.innerWidth - centre.x - edge) / unit,
   }
 }

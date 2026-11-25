@@ -19,7 +19,7 @@ import { type FigureHand, type PointerAt } from './hand.ts'
 import { FIGURE_SIZE, FigureStore, type FigureSnapshot } from './store.ts'
 import { type Box, type Placement } from './travel.ts'
 
-let pageStage: FigureStore | null = null
+let pageFigure: object | null = null
 let saidTwice = false
 
 export interface FigureControl {
@@ -30,11 +30,11 @@ export interface FigureControl {
 const translate = ({ x, y }: Placement, size: number): string =>
   `translate(${(x - size / 2).toFixed(2)}px, ${(y - size / 2).toFixed(2)}px)`
 
-function placeAt(element: HTMLElement, at: Placement, size: number): void {
+export function placeAt(element: HTMLElement, at: Placement, size: number): void {
   element.style.transform = translate(at, size)
 }
 
-const pointerAt = (event: React.PointerEvent): PointerAt => ({
+export const pointerAt = (event: React.PointerEvent): PointerAt => ({
   id: event.pointerId,
   buttons: event.buttons,
   client: { x: event.clientX, y: event.clientY },
@@ -43,11 +43,11 @@ const pointerAt = (event: React.PointerEvent): PointerAt => ({
   shift: event.shiftKey,
 })
 
-function capture(element: HTMLElement, pointer: number): void {
+export function capture(element: HTMLElement, pointer: number): void {
   if (typeof element.setPointerCapture === 'function') element.setPointerCapture(pointer)
 }
 
-function letGo(element: HTMLElement, pointer: number): void {
+export function letGo(element: HTMLElement, pointer: number): void {
   if (typeof element.hasPointerCapture === 'function' && element.hasPointerCapture(pointer))
     element.releasePointerCapture(pointer)
 }
@@ -102,21 +102,21 @@ function useEscape(store: FigureStore, on: boolean): void {
   }, [store, on])
 }
 
-function useOwnPage(store: FigureStore): boolean {
+export function useOnlyFigure(owner: object, name: string): boolean {
   const [owns, setOwns] = useState(false)
   useLayoutEffect(() => {
-    if (pageStage !== null && pageStage !== store) {
-      if (!saidTwice) console.error('FigureStage: a page holds one figure; this one draws nothing.')
+    if (pageFigure !== null && pageFigure !== owner) {
+      if (!saidTwice) console.error(`${name}: a page holds one figure; this one draws nothing.`)
       saidTwice = true
       return undefined
     }
-    pageStage = store
+    pageFigure = owner
     setOwns(true)
     return () => {
-      if (pageStage === store) pageStage = null
+      if (pageFigure === owner) pageFigure = null
       setOwns(false)
     }
-  }, [store])
+  }, [owner, name])
   return owns
 }
 
@@ -226,7 +226,7 @@ export function FigureStage({
   readonly children?: React.ReactNode
 }): React.JSX.Element {
   const [store] = useState(() => new FigureStore(moment?.serial ?? null))
-  const owns = useOwnPage(store)
+  const owns = useOnlyFigure(store, 'FigureStage')
   const factor = useSizeFactor()
   const reduced = useReducedMotion()
   const kind = moment?.kind

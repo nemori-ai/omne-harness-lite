@@ -33,21 +33,27 @@ export interface Spring {
 export const travelled = (from: Placement, to: Placement): boolean =>
   Math.hypot(to.x - from.x, to.y - from.y) > LIFT_DISTANCE
 
-function axis(at: number, speed: number, target: number, t: number): readonly [number, number] {
-  const omega = Math.sqrt(FOLLOW)
+function axis(
+  at: number,
+  speed: number,
+  target: number,
+  t: number,
+  omega: number,
+): readonly [number, number] {
   const off = at - target
   const lead = speed + omega * off
   const decay = Math.exp(-omega * t)
   return [target + (off + lead * t) * decay, (speed - omega * lead * t) * decay]
 }
 
-export function follow(spring: Spring, target: Placement, t: number): Spring {
-  const [x, vx] = axis(spring.x, spring.vx, target.x, t)
-  const [y, vy] = axis(spring.y, spring.vy, target.y, t)
+export function follow(spring: Spring, target: Placement, t: number, stiffness = FOLLOW): Spring {
+  const omega = Math.sqrt(stiffness)
+  const [x, vx] = axis(spring.x, spring.vx, target.x, t, omega)
+  const [y, vy] = axis(spring.y, spring.vy, target.y, t, omega)
   return { x, y, vx, vy }
 }
 
-const resting = (spring: Spring, target: Placement): boolean =>
+export const resting = (spring: Spring, target: Placement): boolean =>
   Math.hypot(spring.x - target.x, spring.y - target.y) < REST.off &&
   Math.hypot(spring.vx, spring.vy) < REST.speed
 
@@ -79,7 +85,7 @@ export type Ended = 'press' | 'held' | 'other'
 
 type Way = 'drop' | 'escape'
 
-const pointOf = ({ client, screen, meta, shift }: HandPoint): HandPoint => ({
+export const pointOf = ({ client, screen, meta, shift }: HandPoint): HandPoint => ({
   client,
   screen,
   meta,
