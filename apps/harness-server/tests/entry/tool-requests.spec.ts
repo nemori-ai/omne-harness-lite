@@ -220,6 +220,30 @@ describe('the trusted Tool request source', () => {
     )
   })
 
+  it('AG-33 says of each call whether it may run beside the others: from the readOnly of its command, and for Tools execute from the command it carries', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const beside = async (name: string, args: string) => {
+      const described = await source.describe(actionInput(principalA, TENANT_A, name, args))
+      if ('failure' in described || described.ok.kind !== 'tool')
+        throw new Error(JSON.stringify(described))
+      return described.ok.concurrent
+    }
+    const carried = (name: string, command: string, args: object) =>
+      JSON.stringify({ command: 'execute', params: { name, command, arguments: args } })
+    expect(await beside('Shell', '{"command":"info","params":{}}')).toBe(true)
+    expect(await beside('Shell', EXECUTE)).toBe(false)
+    expect(await beside('TodoItems', LIST_TODOS)).toBe(true)
+    expect(await beside('TodoItems', '{"command":"add","params":{"text":"x"}}')).toBe(false)
+    expect(await beside('Tools', SEARCH_TOOLS)).toBe(true)
+    expect(await beside('Tools', carried('Files', 'read', { path: 'a.txt' }))).toBe(true)
+    expect(await beside('Tools', carried('Files', 'write', { path: 'a.txt', text: '' }))).toBe(
+      false,
+    )
+    expect(await beside('Tools', carried('Nowhere', 'read', {}))).toBe(false)
+    expect(await beside('Tools', carried('Files', 'no-such-command', {}))).toBe(false)
+  })
+
   it('answers an execute without an intent with the usage, and never prepares it (C5)', async () => {
     const { ports, principalA } = await world()
     const source = createReleaseToolRequests(ports)

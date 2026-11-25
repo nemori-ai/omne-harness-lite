@@ -40,6 +40,7 @@ export type McpBridgeDependencies<P> = Readonly<{
   endpoints(access: Access<P>): Promise<Outcome<readonly EndpointRef[], 'unknown'>>
   discovery: Pick<ActionDiscovery<P>, 'current' | 'refresh'>
   invoker: Pick<ActionInvoker<P>, 'invoke' | 'cancelTask'>
+  programmable(access: Access<P>, ref: EndpointRef): Promise<boolean>
   principalKey(principal: P): string
   shape: BridgeShape
   /** What one result of a tool may weigh, as the tool host checks it. */
@@ -146,7 +147,7 @@ async function calling<P>(
       ? view.ok.actions.find(action => action.name === declared.name)
       : undefined
   if (known === undefined) return fail(failureText({ kind: 'action-unavailable' }))
-  const now = commandOf(known, deps.shape)
+  const now = commandOf(known, deps.shape, declared.program !== undefined)
   return 'ok' in now && commandShapeText(now.ok) === commandShapeText(declared)
     ? succeed(known)
     : fail(failureText({ kind: 'definition-changed' }))
@@ -172,7 +173,9 @@ async function send<P>(
     signal: call.signal,
     connectBound: deps.connectBound,
   })
-  const came = settle(call.name, declared.name, result, deps.resultMaxBytes)
+  const { program } = declared.returns
+  const given = call.program && program.kind === 'json' ? program : undefined
+  const came = settle(call.name, declared.name, result, deps.resultMaxBytes, given)
   if (came.effect === 'unknown' && came.cancelTask !== undefined)
     await deps.invoker.cancelTask(access, { ref, ...came.cancelTask })
   return came
@@ -186,8 +189,8 @@ export function createMcpEntrySource<P>(deps: McpBridgeDependencies<P>): McpEntr
   const askerKey = (access: Access<P>) =>
     `${tenantText(access)}\n${deps.principalKey(access.principal)}`
 
-  function convert(ref: EndpointRef, actions: readonly KnownAction[]): Converted {
-    const made = endpointTool(ref.name, actions, deps.shape)
+  function convert(ref: EndpointRef, actions: readonly KnownAction[], open: boolean): Converted {
+    const made = endpointTool(ref.name, actions, deps.shape, open)
     if ('failure' in made)
       return made.failure === 'no-action'
         ? 'the endpoint offers no action that can be called here'
@@ -204,10 +207,15 @@ export function createMcpEntrySource<P>(deps: McpBridgeDependencies<P>): McpEntr
     }
   }
 
-  function rowOf(ref: EndpointRef, actions: readonly KnownAction[]): Row {
-    const content = [ref.name, ...actions.flatMap(contentOf)].join('\n')
+  async function rowOf(
+    access: Access<P>,
+    ref: EndpointRef,
+    actions: readonly KnownAction[],
+  ): Promise<Row> {
+    const open = await deps.programmable(access, ref).catch(() => false)
+    const content = [ref.name, String(open), ...actions.flatMap(contentOf)].join('\n')
     const kept = converted.get(content)
-    const made = kept ?? convert(ref, actions)
+    const made = kept ?? convert(ref, actions, open)
     if (kept === undefined) keep(converted, content, made)
     return typeof made === 'string' ? withheld(ref, made) : { kind: 'entry', ref, entry: made }
   }
@@ -226,7 +234,7 @@ export function createMcpEntrySource<P>(deps: McpBridgeDependencies<P>): McpEntr
   async function endpointRow(access: Access<P>, ref: EndpointRef): Promise<Row> {
     const first = await deps.discovery.current(access, ref)
     if ('failure' in first) return refused(ref, first.failure)
-    if (first.ok.kind === 'acquired') return rowOf(ref, first.ok.actions)
+    if (first.ok.kind === 'acquired') return rowOf(access, ref, first.ok.actions)
     const refreshed = await waited(acquire(access, ref), deps.acquireWaitMs)
     if (refreshed === 'still-running')
       return withheld(ref, 'the actions of the endpoint are still being acquired')
@@ -234,7 +242,7 @@ export function createMcpEntrySource<P>(deps: McpBridgeDependencies<P>): McpEntr
     const second = await deps.discovery.current(access, ref)
     if ('failure' in second) return refused(ref, second.failure)
     return second.ok.kind === 'acquired'
-      ? rowOf(ref, second.ok.actions)
+      ? rowOf(access, ref, second.ok.actions)
       : withheld(ref, 'the actions of the endpoint have not been acquired')
   }
 

@@ -47,6 +47,8 @@ export const extensionsCommandNames = [
   'disable',
   'remove',
   'result',
+  'settings',
+  'configure',
 ] as const
 export type ExtensionsCommandName = (typeof extensionsCommandNames)[number]
 
@@ -86,6 +88,15 @@ const shapes = {
   disable: held,
   remove: held,
   result: z.strictObject({ id }),
+  settings: z.strictObject({ category: name, name }),
+  configure: z.strictObject({
+    id,
+    category: name,
+    name,
+    item: name,
+    value: z.unknown().optional(),
+    clear: z.boolean().optional(),
+  }),
 } as const satisfies Record<ExtensionsCommandName, z.ZodType>
 
 export type ExtensionsArguments = {
@@ -113,6 +124,10 @@ export const extensionsSummaries: Readonly<Record<ExtensionsCommandName, string>
     'Disable a held extension and keep it. It stops taking effect at once; what it had replaced comes back.',
   remove: 'Remove the holding.',
   result: 'Recall what the publish, enable, disable or remove with this id did.',
+  settings:
+    'List the settings of a held extension at the layer of this tenant: each ordinary one with its value now. A secret says only whether it is set; a permission is not read.',
+  configure:
+    'Write one ordinary setting of a held extension with value, or clear what this layer set with clear: true. A secret or a permission is not written here.',
 }
 
 export function extensionsContract(command: ExtensionsCommandName): ParameterContract {

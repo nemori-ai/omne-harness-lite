@@ -45,6 +45,7 @@ function callOf(
   tool: string,
   declared: ToolCommandDeclaration,
   args: JsonValue = jsonOf({ query: 'x' }),
+  program = false,
 ): ToolSourceCall<Principal> {
   return {
     ...asker,
@@ -53,6 +54,7 @@ function callOf(
     declared,
     arguments: args,
     invocation: 'call-1',
+    program,
     signal: new AbortController().signal,
   }
 }
@@ -481,5 +483,101 @@ describe('one endpoint asked for by the name of its tool', () => {
       kind: 'unreadable',
       reason: 'the adopted MCP endpoints could not be read',
     })
+  })
+})
+
+// MC-26: the actions are open to programs only once the holder says so, and a program gets checked content.
+describe('an endpoint and the programs of an agent', () => {
+  const sum = { type: 'object', properties: { sum: { type: 'number' } }, required: ['sum'] }
+  const total = action('total', { outputSchema: sum })
+  const summed: InvokeResult = {
+    kind: 'sent',
+    outcome: {
+      kind: 'complete',
+      content: toContentBlocks([jsonOf({ type: 'text', text: '{"sum":3}' })]),
+      structured: jsonOf({ sum: 3 }),
+      output: { kind: 'conforms' },
+    },
+  }
+  const opennessOf = async (w: World) => {
+    const [entry] = (await listing(w, alice)).entries
+    return entry?.definition.programmable === true
+  }
+
+  it('is closed until the holder opens it, closed again when the holder closes it, and closed when the setting cannot be read', async () => {
+    const w = world()
+    w.adopt(home, 'docs')
+    w.offers('docs', [total])
+    expect(await opennessOf(w)).toBe(false)
+    w.opens('docs')
+    expect(await opennessOf(w)).toBe(true)
+    w.opens('docs', () => false)
+    expect(await opennessOf(w)).toBe(false)
+    w.opens('docs', () => {
+      throw new Error('the setting could not be read')
+    })
+    expect(await opennessOf(w)).toBe(false)
+  })
+
+  it('gives a program the structured content, and a direct call of the same command none', async () => {
+    const w = world()
+    w.adopt(home, 'docs')
+    w.offers('docs', [total])
+    w.opens('docs')
+    await listing(w, alice)
+    w.answers(() => summed)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'total')
+    if (declared.returns.program.kind !== 'json') throw new Error('the command is not open')
+    const fromProgram = await w.source.execute(
+      callOf(alice, 'mcp__docs', declared, undefined, true),
+    )
+    expect(fromProgram.data).toEqual({
+      kind: 'json',
+      contract: declared.returns.program.contract,
+      schema: declared.returns.program.schema,
+      value: jsonOf({ sum: 3 }),
+    })
+    const direct = await w.source.execute(callOf(alice, 'mcp__docs', declared))
+    expect(direct.data).toEqual({ kind: 'none' })
+    expect(direct.content).toEqual(fromProgram.content)
+  })
+
+  it('gives no value for a command that declares none, whoever made the call', async () => {
+    const w = world()
+    w.adopt(home, 'docs')
+    w.offers('docs', [total])
+    await listing(w, alice)
+    w.answers(() => summed)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'total')
+    expect(declared.returns.program).toEqual({ kind: 'none' })
+    const answer = await w.source.execute(callOf(alice, 'mcp__docs', declared, undefined, true))
+    expect(answer.data).toEqual({ kind: 'none' })
+  })
+
+  it('still sends a call that was accepted while the endpoint was open after the holder closed it', async () => {
+    const w = world()
+    w.adopt(home, 'docs')
+    w.offers('docs', [total])
+    w.opens('docs')
+    await listing(w, alice)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'total')
+    w.opens('docs', () => false)
+    w.answers(() => summed)
+    await w.source.execute(callOf(alice, 'mcp__docs', declared))
+    expect(w.invoked).toHaveLength(1)
+  })
+
+  it('does not send a call whose declared output changed after it was accepted', async () => {
+    const w = world()
+    w.adopt(home, 'docs')
+    w.offers('docs', [total])
+    w.opens('docs')
+    await listing(w, alice)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'total')
+    w.offers('docs', [action('total', { outputSchema: { type: 'object' } })])
+    await expect(
+      w.source.execute(callOf(alice, 'mcp__docs', declared, undefined, true)),
+    ).rejects.toThrow(/definition of the action changed/u)
+    expect(w.invoked).toEqual([])
   })
 })

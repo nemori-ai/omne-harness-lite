@@ -1,5 +1,5 @@
-import { createToolForwardRuntime } from '@omne-harness/tool'
-import type { ToolForwardRuntime } from '@omne-harness/tool-contract/provider'
+import { createToolForwardRuntime, createToolProgramRuntime } from '@omne-harness/tool'
+import type { ToolForwardRuntime, ToolProgramRuntime } from '@omne-harness/tool-contract/provider'
 import type { Context } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
@@ -36,6 +36,25 @@ import { createLocalToolControlSubjects } from './control-subject-adapter.ts'
 export type { LocalToolRuntimeInput } from './runtime-composition.ts'
 export type { RuntimeAuthorExecution } from './runtime-author.ts'
 
+function checkRuntimeInput(input: RuntimeCompositionInput): void {
+  if (input.store.durability !== 'durable')
+    throw new TypeError('The production Tool runtime requires a durable store.')
+  for (const [key, value] of Object.entries({
+    capacity: input.capacity,
+    observersPerCall: input.observersPerCall,
+    observerQueueFrames: input.observerQueueFrames,
+    observerResidenceMs: input.observerResidenceMs,
+  }))
+    if (!Number.isSafeInteger(value) || value < 1)
+      throw new TypeError(`${key}: expected a positive safe integer`)
+  const rescan = input.recoveryRescanMs
+  if (
+    rescan !== undefined &&
+    (!Number.isSafeInteger(rescan) || rescan < 1 || rescan > 2_147_483_647)
+  )
+    throw new TypeError('recoveryRescanMs: expected an integer from 1 to 2147483647')
+}
+
 export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   const lifetime = new AbortController()
   const resolveSource = createRuntimeSourceAccess({
@@ -56,22 +75,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       (await waitRuntime(() => resolveSource(wake), lifetime.signal)) ??
       runtimeUnavailable('invocation-source'),
   }
-  if (input.store.durability !== 'durable')
-    throw new TypeError('The production Tool runtime requires a durable store.')
-  for (const [key, value] of Object.entries({
-    capacity: input.capacity,
-    observersPerCall: input.observersPerCall,
-    observerQueueFrames: input.observerQueueFrames,
-    observerResidenceMs: input.observerResidenceMs,
-  }))
-    if (!Number.isSafeInteger(value) || value < 1)
-      throw new TypeError(`${key}: expected a positive safe integer`)
-  const rescan = input.recoveryRescanMs
-  if (
-    rescan !== undefined &&
-    (!Number.isSafeInteger(rescan) || rescan < 1 || rescan > 2_147_483_647)
-  )
-    throw new TypeError('recoveryRescanMs: expected an integer from 1 to 2147483647')
+  checkRuntimeInput(input)
   let environment: RuntimeEnvironment | null = null
   let records: RuntimeRecords | null = null
   let host: LocalToolInstanceHost<unknown> | null = null
@@ -80,6 +84,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   const calls = executorCalls({ executor: () => executor, retired: () => retired })
   const maintenance = createMaintenanceEnvironment()
   let forwarding: ToolForwardRuntime<unknown> | undefined
+  let programs: ToolProgramRuntime<unknown> | undefined
   const bodyUnavailable = (operation: string) =>
     Promise.resolve(
       fail({
@@ -122,6 +127,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   const close = async () => {
     retired = true
     forwarding = undefined
+    programs = undefined
     lifetime.abort()
     const bodyClose = await authorExecution.close()
     await executor?.close()
@@ -137,6 +143,8 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   return {
     authorExecution: publicAuthorExecution,
     forwarding: () => forwarding,
+    programs: () => programs,
+    children: () => (retired ? undefined : records?.children),
     async forwardedResult(request: Parameters<typeof input.sources.forwardedResult>[0]) {
       if (retired) return runtimeUnavailable('forwarded-result')
       const answer = await input.sources.forwardedResult(request)
@@ -223,9 +231,11 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       apply(ctx: Context) {
         const current = dependencies(ctx)
         forwarding = createToolForwardRuntime(current, current.forwardSource)
+        programs = createToolProgramRuntime(current, current.programSource)
         publishRuntimeFacade(ctx, input, current, receivers)
         ctx.effect(() => () => {
           forwarding = undefined
+          programs = undefined
         })
       },
     },

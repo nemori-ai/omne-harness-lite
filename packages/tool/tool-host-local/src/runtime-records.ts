@@ -3,11 +3,16 @@ import { fail } from '@omne-harness/operation-result'
 import {
   createToolAccounts,
   createToolLedger,
+  createToolPositions,
   type ToolAccountsGuard,
   type ToolLedger,
   type ToolLedgerPorts,
 } from '@omne-harness/tool'
-import type { ToolAccounts, ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+import type {
+  ToolAccounts,
+  ToolChildren,
+  ToolMessageContentBlock,
+} from '@omne-harness/tool-contract/provider'
 import {
   ToolAccountsService,
   ToolCommandsService,
@@ -16,6 +21,7 @@ import {
   ToolStartFenceService,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolLedgerGuards } from './ledger-guards.ts'
+import { createProgramDisposal, programFenceTarget, programGuardsOf } from './program-fence.ts'
 import { createLocalStartCoordinator } from './start-coordinator.ts'
 import type { RuntimeCompositionInput, RuntimeStages } from './runtime-composition.ts'
 
@@ -23,6 +29,7 @@ export type RuntimeRecords = Readonly<{
   ledger: ToolLedger<unknown, ToolMessageContentBlock>
   authority: ReturnType<typeof createLocalStartCoordinator<unknown>>
   accounts: ToolAccounts<unknown>
+  children: ToolChildren<unknown>
 }>
 
 const NO_ACCOUNTS_GUARD: ToolAccountsGuard<unknown> = {
@@ -34,16 +41,18 @@ export function createRuntimeRecords(
   input: RuntimeCompositionInput,
   stages: RuntimeStages,
 ): RuntimeRecords {
+  // TL-66: a program call starts under the guard of its position and behind no barrier of its program.
+  const target = programFenceTarget(input.store, input.access.target)
   const authority = createLocalStartCoordinator({
     store: input.store,
     access: input.access.start,
-    ...(input.access.target === undefined ? {} : { target: input.access.target }),
-    guardsOf: input.guardsOf,
+    target,
+    guardsOf: request => [...input.guardsOf(request), ...programGuardsOf(request)],
     permitRequirements: input.permitRequirements,
     commitAttempts: input.configuration.ledgerCommitAttempts,
   })
   const guards = createLocalToolLedgerGuards({
-    access: input.access,
+    access: { ...input.access, target },
     sources: input.sources,
     bindings: stages.bindings,
     grants: input.grants,
@@ -68,7 +77,14 @@ export function createRuntimeRecords(
   }
   const ledger = createToolLedger(input.store, guards, input.clock, input.configuration, ports)
   const accounts = createToolAccounts(input.store, input.access.accounts ?? NO_ACCOUNTS_GUARD)
-  return { ledger, authority, accounts }
+  const children = createToolPositions<unknown>({
+    store: input.store,
+    access: input.access.guard,
+    commitAttempts: input.configuration.ledgerCommitAttempts,
+    lookup: ledger.reads.lookup,
+    ...createProgramDisposal({ moveGuard: authority.moveOwn, commands: ledger.commands }),
+  })
+  return { ledger, authority, accounts, children }
 }
 
 export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): void {

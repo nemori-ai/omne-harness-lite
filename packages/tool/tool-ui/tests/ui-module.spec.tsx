@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { definePoint, partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { toolProtocol } from '@omne-harness/tool-protocol'
-import { CALL_OUTPUT_ID, createToolUiModule } from '../src/cordis.ts'
+import { CALL_CHILDREN_ID, CALL_OUTPUT_ID, createToolUiModule } from '../src/cordis.ts'
 import { CallOutputStore } from '../src/index.ts'
 import { startShell as startBare } from './fixtures/reference-shell.ts'
 
@@ -49,26 +49,28 @@ function client(answers: readonly unknown[]) {
 }
 
 describe('the tool-ui module (C26)', () => {
-  it('with the Tool client, puts the output into the point it was given; without it, nothing', async () => {
+  it('with the Tool client, puts the positions and the output into the point it was given; without it, nothing', async () => {
     const { root } = await startShell()
     await root.plugin(createToolUiModule({ callDetail: detail }))
     expect(attached(root)).toEqual([])
     const served = await serveProtocol(root, toolProtocol, client([]).client)
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(attached(root)).toEqual([CALL_OUTPUT_ID])
+    expect(attached(root)).toEqual([CALL_CHILDREN_ID, CALL_OUTPUT_ID])
     await served.dispose()
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(attached(root)).toEqual([])
   })
 
-  it('M4 declares its one part', async () => {
+  it('M4 declares its parts', async () => {
     const { root, shell } = await startShell()
     await serveProtocol(root, toolProtocol, client([]).client)
     await root.plugin(createToolUiModule({ callDetail: detail }))
     const read = partsOn(shell.registry())
     expect(read.kind === 'read' && read.conflicts).toEqual([])
     expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+      ['tool.call-children', 'session.side.background-call'],
       ['tool.call-output', 'session.side.background-call'],
+      ['tool.code-card', 'session.transcript'],
     ])
   })
 

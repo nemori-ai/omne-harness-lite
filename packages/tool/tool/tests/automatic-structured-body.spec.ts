@@ -49,6 +49,7 @@ it.each(
           contract: data.contract,
           schema: data.schema,
           maxBytes: 1024,
+          external: false,
           definition: {
             schema: schema.value,
             vocabulary: adoption('json-schema'),

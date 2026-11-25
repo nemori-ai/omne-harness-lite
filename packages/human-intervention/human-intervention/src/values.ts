@@ -136,7 +136,11 @@ export const QuestionSchema = z
         .strictObject({ text: bounded(4096), truncated: z.boolean(), digest: HitlIdentifierSchema })
         .readonly(),
       origin: z
-        .strictObject({ session: HitlIdentifierSchema, agent: HitlIdentifierSchema })
+        .strictObject({
+          session: HitlIdentifierSchema,
+          agent: HitlIdentifierSchema,
+          program: z.literal(true).optional(),
+        })
         .readonly(),
       gateTitle: text(256),
       gate: releaseGate.readonly().optional(),

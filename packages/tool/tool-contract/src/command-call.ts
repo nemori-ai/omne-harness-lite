@@ -232,6 +232,22 @@ const INTENT_NOTE = ' The call also needs "intent": one line saying why you make
 const string = (value: string): JsonValue => ({ kind: 'string', value })
 const entry = (key: string, value: JsonValue): JsonEntry => ({ key, value })
 
+/** A flat call writes the fields beside the command, so the declaration names each field of each command once. */
+function flatFields(commands: CommandTable['commands']): JsonEntry[] {
+  const fields = new Map<string, JsonValue>()
+  for (const command of commands) {
+    if (command.parameters.kind === 'executor-owned') continue
+    const properties = member(command.parameters.value.schema, 'properties')
+    if (properties?.kind !== 'object') continue
+    for (const { key, value } of properties.entries) {
+      const known = fields.get(key)
+      const same = known !== undefined && writeJsonText(known) === writeJsonText(value)
+      fields.set(key, known === undefined || same ? value : EMPTY)
+    }
+  }
+  return [...fields].map(([key, value]) => entry(key, value))
+}
+
 export function commandCallSchema(definition: CommandTable): JsonValue {
   const command = {
     kind: 'object' as const,
@@ -258,6 +274,7 @@ export function commandCallSchema(definition: CommandTable): JsonValue {
     properties.push(
       entry(PARAMS_FIELD, { kind: 'object', entries: [entry('type', string('object'))] }),
     )
+  else properties.push(...flatFields(definition.commands))
   return {
     kind: 'object',
     entries: [

@@ -22,6 +22,7 @@ export function action(
     description?: string
     title?: string
     inputSchema?: unknown
+    outputSchema?: unknown
     revision?: string
     unavailable?: 'connection-unavailable' | 'authorization-required' | 'credential-unavailable'
   }> = {},
@@ -39,6 +40,7 @@ export function action(
         ...(facts.title === undefined ? {} : { title: facts.title }),
         ...(facts.description === undefined ? {} : { description: facts.description }),
         inputSchema,
+        ...(facts.outputSchema === undefined ? {} : { outputSchema: facts.outputSchema }),
       }),
     },
     definitionDigest: `sha256:${name}:${facts.revision ?? '1'}` as DefinitionDigest,

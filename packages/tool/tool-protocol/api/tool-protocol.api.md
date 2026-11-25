@@ -7,6 +7,8 @@
 ## 入口 `.` · `index.d.ts`
 
 - `ObserveCallFrame` · `tool-protocol.d.ts`
+- `ToolCallChild` · `tool-protocol.d.ts`
+- `ToolCallChildrenPage` · `tool-protocol.d.ts`
 - `ToolCallOutputView` · `tool-protocol.d.ts`
 - `ToolCallResultPage` · `tool-protocol.d.ts`
 - `ToolCallView` · `tool-protocol.d.ts`
@@ -16,7 +18,7 @@
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { toolProtocol, type ObserveCallFrame, type ToolCallOutputView, type ToolCallResultPage, type ToolCallView, type ToolProtocol, } from './tool-protocol.ts';
+export { toolProtocol, type ObserveCallFrame, type ToolCallChild, type ToolCallChildrenPage, type ToolCallOutputView, type ToolCallResultPage, type ToolCallView, type ToolProtocol, } from './tool-protocol.ts';
 ```
 
 ## 声明文件 `tool-protocol.d.ts`
@@ -276,6 +278,153 @@ declare const callOutput: {
             };
         }
     ];
+};
+declare const child: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly ordinal: {
+            rule: {
+                readonly kind: 'count';
+            };
+        };
+        readonly tool: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly command: {
+            rule: {
+                readonly kind: 'one-of';
+                readonly rules: readonly [
+                    {
+                        readonly kind: 'text';
+                    },
+                    {
+                        readonly kind: 'null';
+                    }
+                ];
+            };
+        };
+        readonly preview: {
+            rule: {
+                readonly kind: 'string';
+            };
+        };
+        readonly state: {
+            rule: {
+                readonly kind: 'literal';
+                readonly values: readonly [
+                    "queued",
+                    "running",
+                    "waiting",
+                    "background",
+                    "completed",
+                    "failed",
+                    "denied",
+                    "stopped",
+                    "unknown"
+                ];
+            };
+        };
+        readonly child: {
+            rule: {
+                readonly kind: 'one-of';
+                readonly rules: readonly [
+                    {
+                        readonly kind: 'text';
+                    },
+                    {
+                        readonly kind: 'null';
+                    }
+                ];
+            };
+        };
+    };
+};
+declare const childrenPage: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly items: {
+            rule: {
+                readonly kind: 'array';
+                readonly item: {
+                    readonly kind: 'object';
+                    readonly fields: {
+                        readonly ordinal: {
+                            rule: {
+                                readonly kind: 'count';
+                            };
+                        };
+                        readonly tool: {
+                            rule: {
+                                readonly kind: 'text';
+                            };
+                        };
+                        readonly command: {
+                            rule: {
+                                readonly kind: 'one-of';
+                                readonly rules: readonly [
+                                    {
+                                        readonly kind: 'text';
+                                    },
+                                    {
+                                        readonly kind: 'null';
+                                    }
+                                ];
+                            };
+                        };
+                        readonly preview: {
+                            rule: {
+                                readonly kind: 'string';
+                            };
+                        };
+                        readonly state: {
+                            rule: {
+                                readonly kind: 'literal';
+                                readonly values: readonly [
+                                    "queued",
+                                    "running",
+                                    "waiting",
+                                    "background",
+                                    "completed",
+                                    "failed",
+                                    "denied",
+                                    "stopped",
+                                    "unknown"
+                                ];
+                            };
+                        };
+                        readonly child: {
+                            rule: {
+                                readonly kind: 'one-of';
+                                readonly rules: readonly [
+                                    {
+                                        readonly kind: 'text';
+                                    },
+                                    {
+                                        readonly kind: 'null';
+                                    }
+                                ];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        readonly next: {
+            rule: {
+                readonly kind: 'one-of';
+                readonly rules: readonly [
+                    {
+                        readonly kind: 'text';
+                    },
+                    {
+                        readonly kind: 'null';
+                    }
+                ];
+            };
+        };
+    };
 };
 declare const observeCallFrame: {
     readonly kind: 'one-of';
@@ -683,6 +832,34 @@ export declare const toolProtocol: {
             }>;
             readonly countsAsAccess: true;
         };
+        readonly 'list-call-children': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly items: readonly {
+                        readonly child: string | null;
+                        readonly command: string | null;
+                        readonly ordinal: number;
+                        readonly preview: string;
+                        readonly state: "background" | "completed" | "denied" | "failed" | "queued" | "running" | "stopped" | "unknown" | "waiting";
+                        readonly tool: string;
+                    }[];
+                    readonly next: string | null;
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly since: 2;
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly cursor: string | null;
+                readonly reference: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
     };
     readonly name: "tool";
     readonly major: 1;
@@ -745,5 +922,7 @@ export type ToolCallView = RuleValue<typeof call>;
 export type ToolCallResultPage = RuleValue<typeof resultPage>;
 export type ObserveCallFrame = RuleValue<typeof observeCallFrame>;
 export type ToolCallOutputView = RuleValue<typeof callOutput>;
+export type ToolCallChild = RuleValue<typeof child>;
+export type ToolCallChildrenPage = RuleValue<typeof childrenPage>;
 export {};
 ```

@@ -16,6 +16,7 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   encodeCommandCall,
+  needsIntent,
   toolAvailabilityReference,
   type ToolAuthority,
   type ToolCapabilityIdentity,
@@ -133,11 +134,14 @@ type Target = Readonly<{
   held?: true
 }>
 
+export type TargetResidency = 'nonresident' | 'listed'
+
 async function heldTarget(
   ports: ForwardRequestPorts,
   access: TargetAccess,
   availability: ToolAvailability,
   held: ToolAuthority,
+  required: TargetResidency,
 ): Reply<Target> {
   if (
     availability.kind !== 'available' ||
@@ -147,7 +151,7 @@ async function heldTarget(
     return unavailable(
       'The version of the tool the tenant holds now is not the one the catalog offers.',
     )
-  const nonresident = await targetResidency(ports.view(), access, availability, 'nonresident')
+  const nonresident = await targetResidency(ports.view(), access, availability, required)
   if ('failure' in nonresident) return nonresident
   return succeed({
     availability,
@@ -162,10 +166,11 @@ async function releaseTarget(
   access: TargetAccess,
   availability: ToolAvailability,
   entry: ReleaseEntry,
+  required: TargetResidency,
 ): Reply<Target> {
   if (!isReleaseAdoption(availability, entry))
     return unavailable('The exact target release adoption is unavailable.')
-  const nonresident = await targetResidency(ports.view(), access, availability, 'nonresident')
+  const nonresident = await targetResidency(ports.view(), access, availability, required)
   if ('failure' in nonresident) return nonresident
   return succeed({
     availability,
@@ -180,17 +185,12 @@ async function sourceTarget(
   access: TargetAccess,
   availability: ToolAvailability,
   entries: SourcedEntries,
+  required: TargetResidency,
 ): Reply<Target> {
   if (availability.kind !== 'available')
     return fail({ kind: 'denied', action: 'target-unavailable' })
-  const nonresident = await targetResidency(
-    ports.view(),
-    access,
-    availability,
-    'nonresident',
-    entries,
-  )
-  if ('failure' in nonresident) return nonresident
+  const placed = await targetResidency(ports.view(), access, availability, required, entries)
+  if ('failure' in placed) return placed
   const entry = sourcedEntryFor(entries, access, availability)
   if (entry === undefined)
     return unavailable('The source no longer lists the target as the catalog answered it.')
@@ -203,6 +203,7 @@ async function inspectTarget(
   intent: ToolForwardIntent,
   release: Trusted,
   origin: TargetOrigin,
+  required: TargetResidency,
 ): Reply<Target> {
   const catalog = ports.catalog()
   if (catalog === undefined) return unavailable('The target catalog is unavailable.')
@@ -214,9 +215,10 @@ async function inspectTarget(
     consumer: releaseToolConsumer(release),
   })
   if ('failure' in inspected) return inspected
-  if (origin.kind === 'release') return releaseTarget(ports, access, inspected.ok, origin.entry)
-  if (origin.kind === 'held') return heldTarget(ports, access, inspected.ok, origin.held)
-  return sourceTarget(ports, access, inspected.ok, origin.entries)
+  if (origin.kind === 'release')
+    return releaseTarget(ports, access, inspected.ok, origin.entry, required)
+  if (origin.kind === 'held') return heldTarget(ports, access, inspected.ok, origin.held, required)
+  return sourceTarget(ports, access, inspected.ok, origin.entries, required)
 }
 
 function functionCall(intent: ToolForwardIntent) {
@@ -227,6 +229,7 @@ function functionCall(intent: ToolForwardIntent) {
 function commandCall(
   definition: Exclude<TargetDefinition, { kind: 'function' }>,
   intent: ToolForwardIntent,
+  said: string | null,
 ) {
   if (intent.command === null || !definition.commands.some(item => item.name === intent.command))
     return invalid('command', 'unknown-target-command')
@@ -241,16 +244,20 @@ function commandCall(
     writeJsonText(
       encodeCommandCall(definition.encoding, {
         command: intent.command,
-        intent: null,
+        intent: needsIntent(definition, intent.command) ? said : null,
         params: intent.arguments,
       }),
     ),
   )
 }
 
-function effectiveCall(definition: TargetDefinition, intent: ToolForwardIntent) {
+function effectiveCall(
+  definition: TargetDefinition,
+  intent: ToolForwardIntent,
+  said: string | null,
+) {
   if (definition.kind === 'function') return functionCall(intent)
-  return commandCall(definition, intent)
+  return commandCall(definition, intent, said)
 }
 
 /** The target a `Tools` execute call names, resolved for this tenant; the same answer forwarding uses. */
@@ -258,14 +265,16 @@ export async function resolveForwardTarget(
   ports: ForwardRequestPorts,
   access: Pick<ToolForwardParent<unknown>, 'principal' | 'tenant'>,
   intent: ToolForwardIntent,
+  required: TargetResidency = 'nonresident',
+  said: string | null = null,
 ) {
   const release = ports.release()
   if (release.kind !== 'trusted') return unavailable('The release snapshot is unavailable.')
   const origin = await targetOrigin(ports, release, access, intent)
   if ('failure' in origin) return origin
-  const target = await inspectTarget(ports, access, intent, release, origin.ok)
+  const target = await inspectTarget(ports, access, intent, release, origin.ok, required)
   if ('failure' in target) return target
-  const effective = effectiveCall(target.ok.availability.definition, intent)
+  const effective = effectiveCall(target.ok.availability.definition, intent, said)
   if ('failure' in effective) return effective
   return succeed({ ...target.ok, effective: effective.ok })
 }

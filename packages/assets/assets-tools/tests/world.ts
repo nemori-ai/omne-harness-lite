@@ -22,7 +22,10 @@ import {
   createExtensionsAuthor,
   extensionsToolModule,
   type ExtensionsCallSource,
+  type HeldSetting,
+  type HeldSettings,
   type Placed,
+  type SettingWritten,
 } from '@omne-harness/assets-tools'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { createIndependentToolScope } from '@omne-harness/tool'
@@ -423,6 +426,77 @@ export type World = ReturnType<typeof services> & {
   placement: Placement
   place: ExtensionsCallSource['place']
   placeAsked: Readonly<{ dir: string; from: PackageReader }>[]
+  settings: SettingsScript
+}
+
+/** The settings of the held assets as the tenant layer answers them; a write changes the item it names. */
+export type SettingsScript = {
+  face: 'present' | 'absent'
+  items: Map<string, HeldSetting[]>
+  read?: 'denied' | 'unavailable'
+  next?: SettingWritten
+  written: Parameters<HeldSettings['write']>[0][]
+}
+
+export const DOCS_SETTINGS: readonly HeldSetting[] = [
+  {
+    kind: 'ordinary',
+    item: 'target',
+    title: '连接目标',
+    revision: '4',
+    schema: { type: 'string' },
+    own: { kind: 'set', value: 'https://docs.example/mcp' },
+    effective: { kind: 'set', value: 'https://docs.example/mcp' },
+    source: 'tenant',
+    writable: 'yes',
+  },
+  {
+    kind: 'ordinary',
+    item: 'program-calls',
+    title: '程序调用',
+    revision: '4',
+    schema: { type: 'boolean' },
+    own: { kind: 'unset' },
+    effective: { kind: 'set', value: false },
+    source: 'default',
+    writable: 'yes',
+  },
+  {
+    kind: 'ordinary',
+    item: 'region',
+    title: '区域',
+    revision: '4',
+    schema: { enum: ['eu', 'us'] },
+    own: { kind: 'unset' },
+    effective: { kind: 'set', value: 'eu' },
+    source: 'organization',
+    writable: 'locked',
+  },
+  { kind: 'secret', item: 'credential', title: '凭据', revision: '0', configured: 'yes' },
+  { kind: 'permission', item: 'invoke', title: '调用这个接入点的动作', revision: '4' },
+]
+
+function settingsFace(script: SettingsScript): HeldSettings {
+  const keyOf = (asset: Readonly<{ category: string; name: string }>) =>
+    `${asset.category}/${asset.name}`
+  return {
+    async list(asset) {
+      return script.read ?? script.items.get(keyOf(asset)) ?? 'not-held'
+    },
+    async write(input) {
+      script.written.push(input)
+      const { next } = script
+      delete script.next
+      if (next !== undefined && next !== 'written') return next
+      const items = script.items.get(keyOf(input.asset)) ?? []
+      const at = items.findIndex(one => one.item === input.item)
+      const found = items[at]
+      if (found?.kind !== 'ordinary') return 'invalid'
+      const own = input.change.kind === 'set' ? input.change : ({ kind: 'unset' } as const)
+      items[at] = { ...found, own, effective: own, source: 'tenant', revision: '5' }
+      return 'written'
+    },
+  }
 }
 
 export function world(over: Partial<World> = {}): World {
@@ -452,6 +526,7 @@ export function world(over: Partial<World> = {}): World {
     },
     placement: { of: async () => PLACED },
     placeAsked,
+    settings: { face: 'present', items: new Map(), written: [] },
     /** Writes into a fresh directory: as many files and bytes as the manifest says. */
     async place(dir, from) {
       placeAsked.push({ dir, from })
@@ -486,6 +561,7 @@ export function bound(w: World) {
     impact: { of: input => w.impact.of(input) },
     placement: { of: input => w.placement.of(input) },
     place: (dir, from) => w.place(dir, from),
+    settings: () => (w.settings.face === 'absent' ? undefined : settingsFace(w.settings)),
     revision: () => w.revision,
   }
   const execution = attachExtensionsSource(scope(), source)

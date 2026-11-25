@@ -5,9 +5,14 @@ import type {
   Adoption,
   ToolCommandDeclaration,
   ToolDefinition,
+  ToolProgramDeclaration,
   ToolReturnDeclaration,
 } from '@omne-harness/tool-contract'
-import { describedAdoption, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
+import {
+  describedAdoption,
+  isProgramName,
+  judgeToolDefinition,
+} from '@omne-harness/tool-contract/provider'
 
 export const MCP_SOURCE_PREFIX = 'mcp__'
 export const MCP_INVOKE_GATE = 'invoke'
@@ -20,6 +25,10 @@ const OWNER = '@omne-harness/mcp-bridge'
 const SUMMARY_MAX = 160
 const NAME_SHOWN_MAX = 80
 const NO_DESCRIPTION = 'The endpoint gave no description.'
+const NOT_WRITABLE =
+  'A program cannot call this endpoint: its name, or the name of each of its actions, is not one a program can write.'
+export const PROGRAM_DATA_MAX_BYTES = 4_194_304
+const PROGRAM_SCHEMA = `${OWNER}/program-data`
 
 const vocabulary = describedAdoption({
   owner: OWNER,
@@ -38,6 +47,7 @@ const declarationsAdoption = describedAdoption({
   name: 'endpoint-declarations',
   revision: '1',
 })
+const programData = describedAdoption({ owner: OWNER, name: 'program-data-json', revision: '1' })
 export const mcpActionExecutor: Adoption = describedAdoption({
   owner: OWNER,
   name: 'action-executor',
@@ -84,23 +94,65 @@ function firstSentence(text: string): string {
   return points.length <= SUMMARY_MAX ? sentence : `${points.slice(0, SUMMARY_MAX - 3).join('')}...`
 }
 
-function returnsOf(shape: BridgeShape): ToolReturnDeclaration {
+const text = (value: string): JsonValue => ({ kind: 'string', value })
+const object = (members: Readonly<Record<string, JsonValue>>): JsonValue => ({
+  kind: 'object',
+  entries: Object.entries(members).map(([key, value]) => ({ key, value })),
+})
+const TEXT = object({ type: text('string') })
+const CONTENT_ITEMS = object({
+  type: text('array'),
+  items: object({
+    type: text('object'),
+    properties: object({
+      type: TEXT,
+      text: TEXT,
+      mediaType: TEXT,
+      uri: TEXT,
+      name: TEXT,
+      reason: TEXT,
+    }),
+    required: { kind: 'array', items: [text('type')] },
+  }),
+})
+
+function programOf(definition: JsonValue): ToolProgramDeclaration {
+  const declared = member(definition, 'outputSchema')
+  const schema = declared?.kind === 'object' ? declared : CONTENT_ITEMS
+  const said = { owner: OWNER, name: PROGRAM_SCHEMA, revision: '1' }
+  const { digest } = describedAdoption({ ...said, schema: writeJsonText(canonical(schema)) })
+  return {
+    kind: 'json',
+    contract: programData,
+    schema: { id: PROGRAM_SCHEMA, revision: '1', digest },
+    definition: { schema, vocabulary, descriptions: [] },
+    maxBytes: PROGRAM_DATA_MAX_BYTES,
+    external: true,
+  }
+}
+
+function returnsOf(shape: BridgeShape, program: ToolProgramDeclaration): ToolReturnDeclaration {
   return {
     kind: 'structured',
     value: { kind: 'tool-result', contract: shape.resultContract },
-    program: { kind: 'none' },
+    program,
     body: { kind: 'text', codec: textBody },
     offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
   }
 }
 
+type Opening = 'closed' | 'open' | 'unwritable'
+
 function shellOf(
   endpoint: string,
   commands: readonly ToolCommandDeclaration[],
   unadmitted: readonly UnadmittedAction[],
+  opening: Opening = 'closed',
 ): ToolDefinition {
   const name = `${MCP_SOURCE_PREFIX}${endpoint}`
-  const description = descriptionOf(endpoint, unadmitted)
+  const programmable = opening === 'open' ? { programmable: true } : {}
+  const told = descriptionOf(endpoint, unadmitted)
+  const description = opening === 'unwritable' ? `${told}\n${NOT_WRITABLE}` : told
   return {
     kind: 'commands',
     adoption: describedAdoption({
@@ -109,9 +161,11 @@ function shellOf(
       revision: '1',
       description,
       commands: commands.map(commandText),
+      ...programmable,
     }),
     name,
     description,
+    ...programmable,
     requiredCapabilities: [],
     backgroundAllowed: false,
     declarations: {
@@ -197,9 +251,23 @@ function described(
   }
 }
 
+const PROBE = 'probe'
+const NOT_FOR_PROGRAMS: ToolProgramDeclaration = { kind: 'none' }
+
+function facing(
+  action: KnownAction,
+  shape: BridgeShape,
+  open: boolean,
+): Pick<ToolCommandDeclaration, 'returns' | 'program'> {
+  if (!open) return { returns: returnsOf(shape, NOT_FOR_PROGRAMS) }
+  const program = programOf(action.lastLawful.definition)
+  return { returns: returnsOf(shape, program), program: accessOf(action.name) }
+}
+
 export function commandOf(
   action: KnownAction,
   shape: BridgeShape,
+  open = false,
 ): Outcome<ToolCommandDeclaration, UnadmittedReason> {
   if (/\s|\p{Cc}/u.test(action.name) || action.name === '') return fail('name')
   const definition = action.lastLawful.definition
@@ -221,12 +289,29 @@ export function commandOf(
         descriptions: [],
       },
     },
-    returns: returnsOf(shape),
+    ...facing(action, shape, open),
     release: { gate: MCP_INVOKE_GATE },
   }
-  return 'failure' in judgeToolDefinition(shellOf('probe', [command], []))
+  return 'failure' in judgeToolDefinition(shellOf(PROBE, [command], []))
     ? fail('declaration')
     : succeed(command)
+}
+
+function accessOf(action: string): NonNullable<ToolCommandDeclaration['program']> {
+  return isProgramName(`${MCP_SOURCE_PREFIX}${PROBE}`, action)
+    ? { kind: 'open', unless: [] }
+    : { kind: 'closed' }
+}
+
+function commandsOf(actions: readonly KnownAction[], shape: BridgeShape, open: boolean) {
+  const commands: ToolCommandDeclaration[] = []
+  const unadmitted: UnadmittedAction[] = []
+  for (const action of actions) {
+    const made = commandOf(action, shape, open)
+    if ('failure' in made) unadmitted.push({ action: action.name, reason: made.failure })
+    else commands.push(made.ok)
+  }
+  return { commands, unadmitted }
 }
 
 /** One endpoint as one multi-command tool: one command for each action that can be offered. */
@@ -234,16 +319,17 @@ export function endpointTool(
   endpoint: EndpointName,
   actions: readonly KnownAction[],
   shape: BridgeShape,
+  open = false,
 ): Outcome<EndpointTool, 'no-action' | 'definition'> {
-  const commands: ToolCommandDeclaration[] = []
-  const unadmitted: UnadmittedAction[] = []
-  for (const action of actions) {
-    const made = commandOf(action, shape)
-    if ('failure' in made) unadmitted.push({ action: action.name, reason: made.failure })
-    else commands.push(made.ok)
-  }
+  const asked = commandsOf(actions, shape, open)
+  const writable =
+    open &&
+    isProgramName(`${MCP_SOURCE_PREFIX}${endpoint}`) &&
+    asked.commands.some(command => command.program?.kind === 'open')
+  const { commands, unadmitted } = open && !writable ? commandsOf(actions, shape, false) : asked
   if (commands.length === 0) return fail('no-action')
-  const definition = shellOf(endpoint, commands, unadmitted)
+  const opening = writable ? 'open' : open ? 'unwritable' : 'closed'
+  const definition = shellOf(endpoint, commands, unadmitted, opening)
   return 'failure' in judgeToolDefinition(definition)
     ? fail('definition')
     : succeed({ definition, unadmitted })

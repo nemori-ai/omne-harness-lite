@@ -12,6 +12,8 @@ import type {
   FilesScope,
   ObjectToken,
   OriginRef,
+  ProgramFacility,
+  ProgramRunRequest,
   ScreenFacility,
   TerminalFacility,
   TerminalRetention,
@@ -57,6 +59,11 @@ export type ToolEnvironmentValue = Readonly<{
   facts: EnvironmentFacts & Readonly<{ os: string }>
   media: ToolMediaSink
   screen: AuthorFacility<ScreenFacility<unknown>>
+  program: Readonly<{
+    run(
+      request: Omit<ProgramRunRequest<unknown>, keyof FacilityRequest<unknown>>,
+    ): ReturnType<ProgramFacility<unknown>['run']>
+  }>
   /** Where the call works by default: the directory pinned in its request. Absent: it has none. */
   directory?: string
   /** The files scope pinned with the directory; absent when none was: a session with no workspace. */
@@ -100,6 +107,7 @@ export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): To
     ...boundFacilities(input),
     media: productSink(input),
     screen: boundScreen(input),
+    program: boundProgram(input),
   }
   const pinned = input.directory
   return pinned === undefined
@@ -168,9 +176,21 @@ function boundScreen<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue[
   } satisfies ToolEnvironmentValue['screen'])
 }
 
+function boundProgram<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue['program'] {
+  return Object.freeze({
+    async run(request) {
+      const common = requestOf(input)
+      const facility = input.lease.facility('program')
+      return facility
+        ? facility.run({ ...request, ...common })
+        : ({ kind: 'rejected', requestId: common.requestId, reason: 'unavailable' } as const)
+    },
+  } satisfies ToolEnvironmentValue['program'])
+}
+
 function boundFacilities<P>(
   input: AuthorEnvironmentInput<P>,
-): Omit<ToolEnvironmentValue, 'media' | 'screen'> {
+): Omit<ToolEnvironmentValue, 'media' | 'screen' | 'program'> {
   const base = () => requestOf(input)
   const name = (
     operation: keyof FileSystemFacility<P>,

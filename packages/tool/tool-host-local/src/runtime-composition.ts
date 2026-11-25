@@ -22,6 +22,7 @@ import {
   type ToolClock,
   type ToolForwardSource,
   type ToolForwardBinding,
+  type ToolProgramSource,
   type CallAccess,
   type ToolDecisionBridge,
 } from '@omne-harness/tool-contract/provider'
@@ -161,6 +162,7 @@ export function createRuntimeDependencies(
   { admit, rejectAdmission, knows, liveness }: CallAdmission,
 ): ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue> & {
   forwardSource: ToolForwardSource<unknown>
+  programSource: ToolProgramSource<unknown>
 } {
   const rejectedCapacity = () => ({
     kind: 'rejected' as const,
@@ -226,7 +228,7 @@ export function createRuntimeDependencies(
     resultPolicy: defaultResultPolicy,
     decisions,
     resources: absent.toolResourceResponses,
-    children: absent.toolChildren,
+    children: records.children,
     operationIdentities: createLocalOperationIdentities(),
     sourceIssuer: {
       async resolve(request) {
@@ -247,6 +249,13 @@ export function createRuntimeDependencies(
         if ('failure' in found || found.ok.kind !== 'bound') return found
         const reserved = await reserveKnownCall(request.tenant, found.ok.binding)
         return 'kind' in reserved && reserved.kind === 'rejected' ? fail(reserved.failure) : found
+      },
+    },
+    programSource: {
+      async resolve(request) {
+        if (!admit(null)) return rejectedCapacity()
+        const bound = await input.sources.programs.source.resolve(request)
+        return bound.kind === 'bound' ? reserveKnownCall(request.tenant, bound) : bound
       },
     },
     instances: {

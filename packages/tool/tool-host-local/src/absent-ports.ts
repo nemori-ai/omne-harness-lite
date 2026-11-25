@@ -1,7 +1,6 @@
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { ToolFailure } from '@omne-harness/tool-contract'
 import type {
-  ToolChildren,
   ToolDecisionBridge,
   ToolResourceResponses,
 } from '@omne-harness/tool-contract/provider'
@@ -25,17 +24,6 @@ const RESOURCE_METHODS = {
   resolve: true,
 } as const satisfies MethodSet<ToolResourceResponses<unknown>>
 
-const CHILD_METHODS = {
-  reserve: true,
-  admitted: true,
-  retain: true,
-  list: true,
-  close: true,
-  closure: true,
-  confirmBarrier: true,
-  finish: true,
-} as const satisfies MethodSet<ToolChildren<unknown>>
-
 function absentPort<T extends object>(port: string, methods: MethodSet<T>): T {
   const answer = (method: string): Promise<Outcome<never, ToolFailure>> =>
     Promise.resolve(
@@ -53,7 +41,6 @@ function absentPort<T extends object>(port: string, methods: MethodSet<T>): T {
 export type AbsentToolPorts<P> = Readonly<{
   toolDecisions: ToolDecisionBridge<P>
   toolResourceResponses: ToolResourceResponses<P>
-  toolChildren: ToolChildren<P>
 }>
 
 export function createAbsentToolPorts<P>(): AbsentToolPorts<P> {
@@ -63,6 +50,5 @@ export function createAbsentToolPorts<P>(): AbsentToolPorts<P> {
       'toolResourceResponses',
       RESOURCE_METHODS,
     ),
-    toolChildren: absentPort<ToolChildren<P>>('toolChildren', CHILD_METHODS),
   })
 }

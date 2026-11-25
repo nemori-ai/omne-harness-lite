@@ -15,6 +15,7 @@ import type {
   ToolSourceListing,
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
+import { markProgramCall } from '@omne-harness/tool-contract/provider'
 import {
   createMemoryToolEntrySource,
   testingSourceEntry,
@@ -480,6 +481,7 @@ describe('a call of an entry of a source', () => {
         declared: alpha.definition.kind === 'commands' ? alpha.definition.commands[1] : null,
         arguments: args,
         invocation: call,
+        program: false,
         signal,
       },
     ])
@@ -489,6 +491,99 @@ describe('a call of an entry of a source', () => {
     expect(held).toEqual(['hold probe__', 'release probe__'])
     expect(selected.ok.repin(asA, call)).toMatchObject({ ok: {} })
     expect(selected.ok.repin(asB, call)).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  // TL-71, TL-73: an entry its source opened to programs gives a program the value the source answered.
+  it('tells the source that a program made the call, and keeps the value the source gave for it', async () => {
+    const open = testingSourceEntry({
+      name: 'probe__open',
+      category: 'probe',
+      program: { maxBytes: 1024 },
+    })
+    const command = open.definition.kind === 'commands' ? open.definition.commands[0] : undefined
+    if (command?.returns.program.kind !== 'json') throw new Error('fixture')
+    const declared = command.returns.program
+    const data = {
+      kind: 'json' as const,
+      contract: declared.contract,
+      schema: declared.schema,
+      value: { kind: 'string' as const, value: 'for the program' },
+    }
+    const source = createMemoryToolEntrySource<string, ContentBlock>({
+      prefix: 'probe__',
+      listing: toA({ entries: [open, alpha], withheld: [] }),
+      execute: call =>
+        Promise.resolve({ ...result('read'), ...(call.program ? { data } : {}) } as never),
+    })
+    const made = world([source])
+    await made.catalog.inspect(inspecting(asA, 'probe__open'))
+    const selected = made.registry.selectAndPin(asA, fixed(open, 'run'), call)
+    if ('failure' in selected) throw new Error(selected.failure.diagnostic)
+    const registration = readToolRegistration(selected.ok.loaded.implementation)
+    if (registration?.kind !== 'commands') throw new Error('registration')
+    const slot = registration.operations[0]?.[1]
+    expect(slot?.author.program).toMatchObject({
+      kind: 'json',
+      adoption: declared.contract,
+      schema: { identity: declared.schema, maxBytes: 1024 },
+    })
+    const args = { kind: 'object', entries: [] } as const
+    const contextOf = () => {
+      const context = { signal: new AbortController().signal } as ToolExecutionContext
+      noteCallFacts(context, { ...asA, call })
+      return context
+    }
+    const direct = await slot?.author.executor.execute(args, undefined, contextOf())
+    expect(direct).toEqual(result('read'))
+    const fromProgram = markProgramCall({ context: contextOf() } as never).context
+    expect(await slot?.author.executor.execute(args, undefined, fromProgram)).toEqual({
+      ...result('read'),
+      data,
+    })
+    expect(source.calls.map(sent => sent.program)).toEqual([false, true])
+
+    // The value is saved beside the message and read back whole; the message keeps its own bound.
+    const valued = { ...result('read'), data }
+    for (const saved of [valued, result('read')]) {
+      const bytes = slot?.author.codec.encode(saved)
+      if (bytes === undefined || 'failure' in bytes) throw new Error(JSON.stringify(bytes))
+      expect(slot?.author.codec.decode(bytes.ok)).toEqual({ ok: saved })
+      expect(slot?.author.output.check({ arguments: args, value: saved })).toEqual({ ok: saved })
+    }
+    const long = { ...result('x'.repeat(8192)), data }
+    expect(slot?.author.codec.encode(long)).toMatchObject({ failure: {} })
+    const unreadable = { failure: { reason: 'invalid-source-entry-result' } }
+    for (const value of [null, 'text', [], { ...valued, data: 'none' }, { ...valued, data: [] }])
+      expect(slot?.author.codec.encode(value)).toEqual(unreadable)
+    const bytesOf = (text: string) => new TextEncoder().encode(text)
+    const message = JSON.stringify(JSON.stringify(result('read')))
+    for (const saved of [
+      '[]',
+      'null',
+      '{"message":1}',
+      '{"message":1,"data":{"kind":"none"}}',
+      `{"message":${message},"data":[]}`,
+      `{"message":${message}}`,
+      'not json',
+    ])
+      expect(slot?.author.codec.decode(bytesOf(saved))).toEqual(unreadable)
+    expect(slot?.author.codec.decode(new Uint8Array([0xff, 0xfe]))).toEqual(unreadable)
+    const refused = slot?.author.codec.decode(bytesOf('{"message":"{}","data":{"kind":"none"}}'))
+    expect(refused).toMatchObject({ failure: { reason: expect.any(String) } })
+    expect(refused).not.toEqual(unreadable)
+    const program = slot?.author.program
+    if (program?.kind !== 'json') throw new Error('the operation declares no value for a program')
+    expect(program.schema.ref.id).toBe(declared.schema.id)
+    expect(await program.schema.ref.load()).toMatchObject({ origin: 'static' })
+    const closed = readToolRegistration(
+      (() => {
+        const kept = made.registry.selectAndPin(asA, fixed(alpha, 'run'), call)
+        if ('failure' in kept) throw new Error(kept.failure.diagnostic)
+        return kept.ok.loaded.implementation
+      })(),
+    )
+    if (closed?.kind !== 'commands') throw new Error('registration')
+    expect(closed.operations[0]?.[1].author.codec.encode(valued)).toMatchObject({ failure: {} })
   })
 
   it('is refused when the executor is asked without the facts of its call', async () => {

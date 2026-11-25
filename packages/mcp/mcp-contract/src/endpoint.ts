@@ -55,9 +55,13 @@ export function parseEndpointBody(
 const TARGET = 'setting:placement-identity:target'
 const CREDENTIAL = 'setting:placement-identity:credential'
 const CONNECT_TIMEOUT = 'setting:preference:connect-timeout'
+/** The setting by which the holder opens the actions of an endpoint to programs. */
+export const PROGRAM_CALLS_SETTING = 'program-calls'
+const PROGRAM_CALLS = `setting:preference:${PROGRAM_CALLS_SETTING}`
 
 function declarationsOf(definition: EndpointDefinition): readonly string[] {
-  return [TARGET, ...(definition.auth === 'none' ? [] : [CREDENTIAL]), CONNECT_TIMEOUT]
+  const credential = definition.auth === 'none' ? [] : [CREDENTIAL]
+  return [TARGET, ...credential, CONNECT_TIMEOUT, PROGRAM_CALLS]
 }
 
 const SCHEMA_LIMITS = {
@@ -106,6 +110,7 @@ type EndpointSettingDefinitions = NonNullable<ReturnType<NonNullable<BodyContrac
 type EndpointSettingItem = EndpointSettingDefinitions['items'][number]
 
 const CONNECTION_GROUP = 'connection'
+const USE_GROUP = 'use'
 const UNPINNED_VERSION = 'unpinned'
 const NO_DEFAULT = { kind: 'absent' as const }
 
@@ -162,6 +167,20 @@ const CONNECT_TIMEOUT_ITEM = settingItem({
   valueSchema: { type: 'integer', minimum: 1 },
   sensitivity: 'ordinary',
 })
+const PROGRAM_CALLS_ITEM: EndpointSettingItem = {
+  ...settingItem({
+    id: PROGRAM_CALLS_SETTING,
+    category: 'preference',
+    title: '程序调用',
+    description: '这个接入点的动作许不许被 agent 写的程序调用。',
+    impact: '开启后，agent 写的程序可以直接调用这个接入点的动作；每次调用仍各自过放行判断。',
+    clear: '这一层不再表态；各层都没有设时不许。',
+    valueSchema: { type: 'boolean' },
+    sensitivity: 'ordinary',
+  }),
+  groupId: USE_GROUP,
+  default: { kind: 'value', value: false },
+}
 
 function settingsOf(definition: EndpointDefinition, version: string): EndpointSettingDefinitions {
   return {
@@ -176,11 +195,19 @@ function settingsOf(definition: EndpointDefinition, version: string): EndpointSe
         description: `怎样连到接入点 ${definition.name}。`,
         order: 0,
       },
+      {
+        id: USE_GROUP,
+        parentId: null,
+        title: '使用',
+        description: `agent 可以怎样用接入点 ${definition.name} 的动作。`,
+        order: 1,
+      },
     ],
     items: [
       TARGET_ITEM,
       ...(definition.auth === 'none' ? [] : [CREDENTIAL_ITEM]),
       CONNECT_TIMEOUT_ITEM,
+      PROGRAM_CALLS_ITEM,
     ],
   }
 }
