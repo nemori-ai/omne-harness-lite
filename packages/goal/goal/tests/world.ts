@@ -4,6 +4,9 @@ import {
   fakeAuthority,
   fakeCalls,
   fakeCards,
+  fakeDecisions,
+  fakeHistory,
+  fakeJudging,
   fakeSessions,
 } from '@omne-harness/goal/testing'
 import type {
@@ -41,6 +44,9 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
   const sessions = fakeSessions()
   const cards = fakeCards()
   const calls = fakeCalls()
+  const history = fakeHistory()
+  const decisions = fakeDecisions()
+  const judging = fakeJudging()
   const hinted: string[] = []
   let tick = 0
   sessions.add(SESSION, 'attended')
@@ -51,6 +57,9 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
     sessions,
     cards,
     calls,
+    history,
+    decisions,
+    judging,
     clock: { now: () => `2026-11-25T00:00:${String((tick += 1)).padStart(2, '0')}.000Z` },
     hints: { wake: tenant => void hinted.push(tenant) },
   })
@@ -83,7 +92,20 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
     cards.answer(held)
     return held
   }
-  return { goals, store, authority, sessions, cards, calls, hinted, direct, answered }
+  return {
+    goals,
+    store,
+    authority,
+    sessions,
+    cards,
+    calls,
+    history,
+    decisions,
+    judging,
+    hinted,
+    direct,
+    answered,
+  }
 }
 
 export function value<T>(outcome: Outcome<T, GoalRefusal>): T {

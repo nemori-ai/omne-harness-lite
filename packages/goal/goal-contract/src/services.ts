@@ -46,6 +46,12 @@ export type DirectWrite = Readonly<{
   by: string
 }>
 
+export type Check = Readonly<{ session: string; call: string; candidate: 'complete' | 'failed' }>
+export type CheckAnswer =
+  | Readonly<{ kind: 'pass' }>
+  | Readonly<{ kind: 'continue' }>
+  | Readonly<{ kind: 'tell'; note: string }>
+
 export interface Goals {
   /** The goal of this session as it stands, or null when it never had one. */
   read(caller: GoalCaller, session: string): Promise<Outcome<GoalRecord | null, GoalRefusal>>
@@ -68,6 +74,11 @@ export interface Goals {
     caller: GoalCaller,
     input: Readonly<{ session: string; patch: unknown }>,
   ): Promise<Outcome<GoalRecord, GoalRefusal>>
+}
+
+export interface GoalChecking {
+  observe(caller: GoalCaller, check: Check): Promise<Outcome<CheckAnswer, GoalRefusal>>
+  compacted(caller: GoalCaller, session: string): Promise<Outcome<string | null, GoalRefusal>>
 }
 
 export interface GoalReconciling {

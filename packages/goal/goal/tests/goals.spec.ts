@@ -339,7 +339,13 @@ describe('the reminder a change owes its session', () => {
     const { goals, direct, sessions, store } = world()
     const set = value(await goals.write(OWNER, direct()))
     expect(sessions.woken).toEqual([
-      { kind: 'start', request: 'start/1/1', session: SESSION, rendered: renderBody(set.body) },
+      {
+        kind: 'start',
+        request: 'start/1/1',
+        session: SESSION,
+        rendered: renderBody(set.body),
+        open: '- [A1] 端到端用例全过：没读过',
+      },
     ])
     expect(store.rows(TENANT)[0]?.wake).toBeNull()
     await goals.reconcile(TENANT)

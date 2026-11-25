@@ -4,6 +4,9 @@ import {
   fakeAuthority,
   fakeCalls,
   fakeCards,
+  fakeDecisions,
+  fakeHistory,
+  fakeJudging,
   fakeSessions,
 } from '@omne-harness/goal/testing'
 import { readConfirmOption, type GoalDraft, type GoalRecord } from '@omne-harness/goal-contract'
@@ -49,6 +52,9 @@ export function world(session = SESSION, call = CALL) {
     sessions,
     cards,
     calls,
+    history: fakeHistory(),
+    decisions: fakeDecisions(),
+    judging: fakeJudging(),
     clock: { now: () => '2026-11-25T00:00:00.000Z' },
     hints: { wake: () => {} },
   })

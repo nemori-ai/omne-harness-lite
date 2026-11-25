@@ -1,6 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { GoalReconciling, Goals } from '@omne-harness/goal-contract'
-import { GoalReconcilingService, GoalsService } from '@omne-harness/goal-cordis-contract/cordis'
+import type { GoalChecking, GoalReconciling, Goals } from '@omne-harness/goal-contract'
+import {
+  GoalCheckingService,
+  GoalReconcilingService,
+  GoalsService,
+} from '@omne-harness/goal-cordis-contract/cordis'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { createGoalLocalApplication, type GoalLocalOptions } from './application.ts'
 
@@ -26,6 +30,16 @@ class LocalGoals extends GoalsService {
   }
 }
 
+class LocalChecking extends GoalCheckingService {
+  readonly observe: GoalChecking['observe']
+  readonly compacted: GoalChecking['compacted']
+  constructor(ctx: Context, face: GoalChecking) {
+    super(ctx)
+    this.observe = face.observe
+    this.compacted = face.compacted
+  }
+}
+
 class LocalReconciling extends GoalReconcilingService {
   readonly reconcile: GoalReconciling['reconcile']
   constructor(ctx: Context, face: GoalReconciling) {
@@ -46,6 +60,7 @@ export function createGoalLocalPlugin() {
       try {
         const bound = [
           ctx.plugin(LocalGoals, application.goals),
+          ctx.plugin(LocalChecking, application.checking),
           ctx.plugin(LocalReconciling, application.reconciling),
         ]
         ctx.effect(() => () => application.close(), 'goal-local-drain')

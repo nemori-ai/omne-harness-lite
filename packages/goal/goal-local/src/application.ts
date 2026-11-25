@@ -4,9 +4,12 @@ import {
   type GoalAuthority,
   type GoalCalls,
   type GoalCards,
+  type GoalDecisions,
+  type GoalHistory,
+  type GoalJudging,
   type GoalSessions,
 } from '@omne-harness/goal'
-import type { GoalReconciling, Goals } from '@omne-harness/goal-contract'
+import type { GoalChecking, GoalReconciling, Goals } from '@omne-harness/goal-contract'
 import { parsePolicy } from './policy.ts'
 import { createSqlGoalStore, type GoalSqlOptions } from './storage/store.ts'
 
@@ -25,6 +28,9 @@ export type GoalLocalOptions = Readonly<{
     sessions: GoalSessions
     cards: GoalCards
     calls: GoalCalls
+    history: GoalHistory
+    decisions: GoalDecisions
+    judging: GoalJudging
   }>
   clock: Clock
   timers: Timers
@@ -33,6 +39,7 @@ export type GoalLocalOptions = Readonly<{
 
 export type GoalLocalApplication = Readonly<{
   goals: Goals
+  checking: GoalChecking
   reconciling: GoalReconciling
   /** Hands over what every tenant's goals still owe. Runs at start and on an interval, so a lost wake-up is made up. */
   scan(): Promise<void>
@@ -96,7 +103,7 @@ export async function createGoalLocalApplication(
   }
 
   const registry = createGoals({ ...options.ports, store, clock: options.clock, hints: { wake } })
-  const { reconcile, ...goals } = registry
+  const { reconcile, observe, compacted, ...goals } = registry
 
   async function scan(): Promise<void> {
     const tenants = await options.sql.tenants()
@@ -118,6 +125,7 @@ export async function createGoalLocalApplication(
   schedule()
   return {
     goals: guarded(goals, lifetime, STOPPED),
+    checking: guarded({ observe, compacted }, lifetime, STOPPED),
     reconciling: {
       reconcile: tenant =>
         lifetime.stopping ? Promise.resolve() : lifetime.track(reconcile(tenant)),

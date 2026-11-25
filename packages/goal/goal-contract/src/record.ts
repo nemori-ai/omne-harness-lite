@@ -17,11 +17,17 @@ export const ProvenanceSchema = z.strictObject({
 export type Provenance = z.infer<typeof ProvenanceSchema>
 
 export const WakeSchema = z.strictObject({
-  kind: z.enum(['start', 'resume']),
+  kind: z.enum(['start', 'resume', 'continue']),
   request: z.string().min(1),
 })
 /** A reminder owed to the session: written with the change that owes it, cleared when it was handed over. */
 export type Wake = z.infer<typeof WakeSchema>
+
+export const ObservedSchema = z.strictObject({
+  call: z.string().min(1),
+  answer: z.enum(['pass', 'continue', 'tell']),
+})
+export type Observed = z.infer<typeof ObservedSchema>
 
 export const GoalRecordSchema = z.strictObject({
   session: z.string().min(1),
@@ -35,6 +41,7 @@ export const GoalRecordSchema = z.strictObject({
   /** Where the history of the session stood when this goal was set: what the agent cites must come after it. */
   since: z.string().min(1),
   wake: WakeSchema.nullable(),
+  observed: ObservedSchema.nullable(),
 })
 /** Everything kept about one goal of a session: the facts live here and nowhere in the session. */
 export type GoalRecord = z.infer<typeof GoalRecordSchema>

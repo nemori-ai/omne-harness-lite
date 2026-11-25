@@ -72,7 +72,10 @@ export function excerptOf(text: string, max: number, take: 'head' | 'tail' | 'bo
   return `${points.slice(0, half).join('')}\n…\n${points.slice(points.length - half).join('')}`
 }
 
-function latestRun(calls: readonly ObservedCall[], command: string): ObservedCall | undefined {
+export function latestRun(
+  calls: readonly ObservedCall[],
+  command: string,
+): ObservedCall | undefined {
   const wanted = squeezed(command)
   const runs = calls.filter(
     call => call.exit !== null && call.command !== null && squeezed(call.command) === wanted,

@@ -24,6 +24,15 @@ export function resumeText(rendered: string): string {
   ].join('\n\n')
 }
 
+/** The input that sends the agent on: it was about to stop, the goal is not met, and these rows are still open. */
+export function continueText(open: string): string {
+  return [
+    'You were about to stop, but the goal of this session is not met yet, so this run goes on.',
+    ...(open === '' ? [] : [`Still open:\n${open}`]),
+    'Work on what is open, and keep the progress list true with track. When you are about to stop again, it is checked again.',
+  ].join('\n\n')
+}
+
 /** One ordinary input a system part sends: a system reminder whose identities come from the input identity. */
 export function reminderInput(source: GoalSource, input: InputId, text: string): Ordinary {
   const id = createHash('sha256').update(`goal-session/1:message/${input}`).digest('hex')

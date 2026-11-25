@@ -1,10 +1,22 @@
-import type { AnsweredCard, Attendance, GoalCaller } from '@omne-harness/goal-contract'
+import {
+  DEFAULT_JUDGE_CONFIG,
+  type AnsweredCard,
+  type Attendance,
+  type GoalCaller,
+  type JudgeConfig,
+  type JudgeReply,
+  type ObservedCall,
+} from '@omne-harness/goal-contract'
 import type {
   AuthorityAnswer,
+  DecisionAsk,
   GoalAction,
   GoalAuthority,
   GoalCalls,
   GoalCards,
+  GoalDecisions,
+  GoalHistory,
+  GoalJudging,
   GoalSessions,
   SendAnswer,
   WakeToSend,
@@ -97,6 +109,58 @@ export function fakeCalls(): FakeCalls {
       asked.push([since, ...refs])
       if (!canRead) return { kind: 'unavailable' }
       return { kind: 'read', value: refs.filter(ref => real.has(ref)) }
+    },
+  }
+}
+
+export type FakeHistory = GoalHistory &
+  Readonly<{ made(...calls: ObservedCall[]): void; readable(on: boolean): void }>
+
+/** The tool calls a session made, as a judging is shown them. */
+export function fakeHistory(): FakeHistory {
+  const calls: ObservedCall[] = []
+  let canRead = true
+  return {
+    made: (...more) => void calls.push(...more),
+    readable: on => void (canRead = on),
+    async calls() {
+      return canRead ? { kind: 'read', value: [...calls] } : { kind: 'unavailable' }
+    },
+  }
+}
+
+export type FakeDecisions = GoalDecisions &
+  Readonly<{
+    /** How each ask is answered, by its request and the identity it was asked under. */
+    answer(next: (ask: DecisionAsk) => JudgeReply | Promise<JudgeReply>): void
+    asked: DecisionAsk[]
+  }>
+
+/** A judge that answers as a test tells it to, and remembers every call it was asked for. */
+export function fakeDecisions(): FakeDecisions {
+  let rule: Parameters<FakeDecisions['answer']>[0] = () => null
+  const asked: DecisionAsk[] = []
+  return {
+    asked,
+    answer: next => void (rule = next),
+    async ask(input) {
+      asked.push(input)
+      return rule(input)
+    },
+  }
+}
+
+export type FakeJudging = GoalJudging &
+  Readonly<{ set(config: Partial<JudgeConfig>): void; readable(on: boolean): void }>
+
+export function fakeJudging(): FakeJudging {
+  let config: JudgeConfig = DEFAULT_JUDGE_CONFIG
+  let canRead = true
+  return {
+    set: change => void (config = { ...config, ...change }),
+    readable: on => void (canRead = on),
+    async config() {
+      return canRead ? { kind: 'read', value: config } : { kind: 'unavailable' }
     },
   }
 }

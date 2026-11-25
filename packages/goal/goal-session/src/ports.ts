@@ -27,5 +27,8 @@ export type SessionCalls = Readonly<{
   resultsAfter(
     input: At & Readonly<{ after: string | null; cursor: string | null }>,
   ): Promise<PortRead<HistoryResults>>
+  callsAfter(
+    input: At & Readonly<{ after: string | null; cursor: string | null }>,
+  ): Promise<PortRead<HistoryResults>>
 }>
 export type HistoryResults = Readonly<{ entries: readonly unknown[]; next: string | null }>

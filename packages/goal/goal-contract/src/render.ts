@@ -67,6 +67,11 @@ function referenceLines(entry: Reference): string[] {
   return lines
 }
 
+/** The references of a body as its text renders them: where the material is. Empty when it names none. */
+export function renderReferences(body: GoalBody): string {
+  return body.references.flatMap(referenceLines).join('\n')
+}
+
 /** The numbered entries of the four sections a judge reads, each as the text the body renders for it. */
 export function entryTexts(
   body: GoalBody,

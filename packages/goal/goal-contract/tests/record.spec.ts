@@ -106,6 +106,7 @@ describe('the record of a goal', () => {
       progress: NO_PROGRESS,
       since: '4172',
       wake: null,
+      observed: null,
     }
     expect(GoalRecordSchema.parse(record)).toEqual(record)
     expect(GoalRecordSchema.safeParse({ ...record, since: '' }).success).toBe(false)

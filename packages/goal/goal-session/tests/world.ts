@@ -3,7 +3,9 @@ import { accountCodec, organizationCodec, tenant, tenantCodec } from '@omne-harn
 import type { SessionFailure, WorkSnapshot } from '@omne-harness/session-contract'
 import {
   createGoalCalls,
+  createGoalHistory,
   createGoalSessions,
+  type DescribeCall,
   type Called,
   type HistoryResults,
   type SessionCalls,
@@ -25,7 +27,16 @@ export const failure = (kind: SessionFailure['kind']): Called<unknown> => ({
   failure: { kind, owner: 'session', diagnostic: kind } as SessionFailure,
 })
 
-export function world() {
+/** Reads every call as a run of its `script` argument that exited 0 and wrote nothing. */
+export const describeRun: DescribeCall = call => ({
+  tool: call.tool,
+  command: (call.arguments as { script?: string } | null)?.script ?? null,
+  path: null,
+  exit: 0,
+  writes: false,
+})
+
+export function world(describe: DescribeCall = describeRun) {
   const accepted: Parameters<SessionCalls['accept']>[0][] = []
   const state = {
     work: { kind: 'read', value: work() } as PortRead<WorkSnapshot | null>,
@@ -54,10 +65,16 @@ export function world() {
       if (broken) throw new Error('down')
       return state.pages[asked.length - 1] ?? { kind: 'read', value: { entries: [], next: null } }
     },
+    async callsAfter({ after, cursor }) {
+      asked.push({ after, cursor })
+      if (broken) throw new Error('down')
+      return state.pages[asked.length - 1] ?? { kind: 'read', value: { entries: [], next: null } }
+    },
   }
   return {
     sessions: createGoalSessions(calls),
     cited: createGoalCalls(calls).cited,
+    history: createGoalHistory(calls, describe),
     accepted,
     asked,
     read,

@@ -1,4 +1,5 @@
 import {
+  openGap,
   renderBody,
   type GoalCaller,
   type GoalRecord,
@@ -30,7 +31,9 @@ export function createWriting(deps: GoalsDependencies) {
   /** Hands the reminder a record owes to its session, then clears the debt. An unknown send stays owed. */
   async function deliver(tenant: string, record: GoalRecord): Promise<void> {
     if (record.wake === null) return
-    const wake = { ...record.wake, session: record.session, rendered: renderBody(record.body) }
+    const { body, readings, state } = record
+    const open = openGap(body, readings, state.rounds)
+    const wake = { ...record.wake, session: record.session, rendered: renderBody(body), open }
     const unknown = () => 'unknown' as const
     const answer = await Promise.resolve()
       .then(() => sessions.wake(tenant, wake))
@@ -80,5 +83,5 @@ export function createWriting(deps: GoalsDependencies) {
   const written = (answer: Answer<GoalRecord | null>): Answer<GoalRecord> =>
     answer.kind === 'done' && answer.value === null ? UNAVAILABLE : (answer as Answer<GoalRecord>)
 
-  return { permitted, settle, factsOf, written, deliver }
+  return { permitted, settle, factsOf, written, deliver, commit }
 }

@@ -1,5 +1,5 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
-import type { GoalReconciling, Goals } from '@omne-harness/goal-contract'
+import type { GoalChecking, GoalReconciling, Goals } from '@omne-harness/goal-contract'
 
 /** @owner packages/goal/goal-cordis-contract */
 export abstract class GoalsService extends Service implements Goals {
@@ -17,6 +17,17 @@ export abstract class GoalsService extends Service implements Goals {
 export const goalsKey = GoalsService.provide
 
 /** @owner packages/goal/goal-cordis-contract */
+export abstract class GoalCheckingService extends Service implements GoalChecking {
+  static readonly provide = 'goalChecking'
+  constructor(ctx: Context) {
+    super(ctx, GoalCheckingService.provide)
+  }
+  abstract readonly observe: GoalChecking['observe']
+  abstract readonly compacted: GoalChecking['compacted']
+}
+export const goalCheckingKey = GoalCheckingService.provide
+
+/** @owner packages/goal/goal-cordis-contract */
 export abstract class GoalReconcilingService extends Service implements GoalReconciling {
   static readonly provide = 'goalReconciling'
   constructor(ctx: Context) {
@@ -29,6 +40,7 @@ export const goalReconcilingKey = GoalReconcilingService.provide
 declare module '@deepseek-ai/cordis' {
   interface Context {
     goals: GoalsService
+    goalChecking: GoalCheckingService
     goalReconciling: GoalReconcilingService
   }
 }

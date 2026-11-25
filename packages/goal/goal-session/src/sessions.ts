@@ -6,7 +6,7 @@ import {
   type SessionFailure,
   type SessionId,
 } from '@omne-harness/session-contract'
-import { reminderInput, resumeText, startText } from './inputs.ts'
+import { continueText, reminderInput, resumeText, startText } from './inputs.ts'
 import { NO_ENTRY } from './calls.ts'
 import type { Called, SessionCalls } from './ports.ts'
 import { GOAL_SOURCES } from './sources.ts'
@@ -15,7 +15,10 @@ const UNAVAILABLE = { kind: 'unavailable' } as const
 const read = <T>(value: T): PortRead<T> => ({ kind: 'read', value })
 /** A session that takes no input any more, or that this tenant has none of: the reminder is owed to nobody. */
 const GONE = new Set<SessionFailure['kind']>(['archived', 'frozen', 'denied', 'not-found'])
-const TEXTS = { start: startText, resume: resumeText } as const
+const textOf = (wake: Parameters<GoalSessions['wake']>[1]): string => {
+  if (wake.kind === 'continue') return continueText(wake.open)
+  return wake.kind === 'start' ? startText(wake.rendered) : resumeText(wake.rendered)
+}
 
 function legalTenantOf(tenant: string) {
   const parsed = tenantCodec.parse(tenant)
@@ -51,7 +54,7 @@ export function createGoalSessions(calls: SessionCalls): GoalSessions {
         request: wake.request,
         session,
       })
-      const value = reminderInput(wake.kind, identities.input, TEXTS[wake.kind](wake.rendered))
+      const value = reminderInput(wake.kind, identities.input, textOf(wake))
       let answer: Called<unknown>
       try {
         answer = await calls.accept({ tenant: legal, session, operation: identities.accept, value })

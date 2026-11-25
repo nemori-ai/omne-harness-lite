@@ -139,7 +139,16 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
   const history = [...kept.history, provenance]
   return {
     kind: 'next',
-    record: { session: input.session, version, state, body, ...kept, history, wake },
+    record: {
+      session: input.session,
+      version,
+      state,
+      body,
+      ...kept,
+      history,
+      wake,
+      observed: null,
+    },
   }
 }
 

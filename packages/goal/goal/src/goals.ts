@@ -1,15 +1,20 @@
 import {
   applyTrack,
   citedRefs,
+  type GoalChecking,
   type GoalReconciling,
   type Goals,
 } from '@omne-harness/goal-contract'
 import { decideCommand, decideWrite, describeProposal } from './decide.ts'
+import { createObserving } from './observing.ts'
 import type {
   Clock,
   GoalAuthority,
   GoalCalls,
   GoalCards,
+  GoalDecisions,
+  GoalHistory,
+  GoalJudging,
   GoalSessions,
   ReconcileHints,
 } from './ports.ts'
@@ -22,6 +27,9 @@ export type GoalsDependencies = Readonly<{
   sessions: GoalSessions
   cards: GoalCards
   calls: GoalCalls
+  history: GoalHistory
+  decisions: GoalDecisions
+  judging: GoalJudging
   clock: Clock
   hints: ReconcileHints
 }>
@@ -32,11 +40,13 @@ const uncited = (refs: readonly string[]) => ({
   problem: `no tool call of this session since the goal was set: ${refs.join(', ')}`,
 })
 
-export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
+export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & GoalReconciling {
   const { store } = deps
   const { permitted, settle, factsOf, written, deliver } = createWriting(deps)
 
   return {
+    ...createObserving(deps),
+
     async read(caller, session) {
       const stop = await permitted(caller, session, 'read')
       if (stop !== null) return stop

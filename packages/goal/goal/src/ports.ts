@@ -1,10 +1,20 @@
-import type { AnsweredCard, Attendance, GoalCaller, Wake } from '@omne-harness/goal-contract'
+import type {
+  AnsweredCard,
+  Attendance,
+  GoalCaller,
+  JudgeConfig,
+  JudgeReply,
+  JudgeRequest,
+  ObservedCall,
+  Wake,
+} from '@omne-harness/goal-contract'
 
 export type GoalAction =
   | 'read'
   | 'propose'
   | 'confirm'
   | 'track'
+  | 'observe'
   | 'set'
   | 'revise'
   | 'pause'
@@ -36,7 +46,7 @@ export async function ask(
 export type PortRead<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'unavailable' }>
 
 export type SessionFacts = Readonly<{ attendance: Attendance; moment: string }>
-export type WakeToSend = Wake & Readonly<{ session: string; rendered: string }>
+export type WakeToSend = Wake & Readonly<{ session: string; rendered: string; open: string }>
 /** `refused`: the session takes no input any more. `unknown`: sent or not, nobody can tell. */
 export type SendAnswer = 'sent' | 'refused' | 'unknown'
 
@@ -59,6 +69,26 @@ export interface GoalCalls {
     refs: readonly string[],
     since: string,
   ): Promise<PortRead<readonly string[]>>
+}
+
+export interface GoalHistory {
+  calls(tenant: string, session: string, since: string): Promise<PortRead<readonly ObservedCall[]>>
+}
+
+export type DecisionAsk = Readonly<{
+  caller: GoalCaller
+  session: string
+  identity: string
+  model: string
+  request: JudgeRequest
+}>
+
+export interface GoalDecisions {
+  ask(input: DecisionAsk): Promise<JudgeReply>
+}
+
+export interface GoalJudging {
+  config(tenant: string, session: string): Promise<PortRead<JudgeConfig>>
 }
 
 export interface Clock {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   answeredCalls,
   CITED_PAGE_LIMIT,
+  continueText,
   goalInputSources,
   GOAL_SOURCES,
   resumeText,
@@ -15,6 +16,7 @@ const wake = (change: object = {}) =>
     request: 'start/1/1',
     session: SESSION,
     rendered: '## 目的\n做完',
+    open: '',
     ...change,
   }) as const
 const textOf = (input: { value: { message: unknown } }) =>
@@ -31,6 +33,30 @@ describe('the input sources of goals', () => {
       })),
     )
     expect(new Set(goalInputSources('goal').map(source => source.label)).size).toBe(3)
+  })
+})
+
+describe('the reminder that sends the agent on', () => {
+  it('goes in through the source of going on, under the identity of its round, with the rows still open', async () => {
+    const { sessions, accepted } = world()
+    const open = '- [A1] 改动说明写进了 CHANGELOG：证据显示没做到（判定）'
+    const sent = await sessions.wake(
+      TENANT,
+      wake({ kind: 'continue', request: 'continue/1/1/2', open }),
+    )
+    expect(sent).toBe('sent')
+    const [input] = accepted
+    if (input === undefined) throw new Error('nothing was accepted')
+    expect(input.value.source).toBe(GOAL_SOURCES.continue)
+    expect(textOf(input)).toBe(continueText(open))
+    expect(continueText(open)).toContain(`Still open:\n${open}`)
+    expect(continueText(open)).toContain('not met yet')
+    expect(continueText('')).not.toContain('Still open')
+    const again = world()
+    await again.sessions.wake(TENANT, wake({ kind: 'continue', request: 'continue/1/1/2', open }))
+    expect(again.accepted[0]?.value.input).toBe(input.value.input)
+    await again.sessions.wake(TENANT, wake({ kind: 'continue', request: 'continue/1/1/3', open }))
+    expect(again.accepted[1]?.value.input).not.toBe(input.value.input)
   })
 })
 
