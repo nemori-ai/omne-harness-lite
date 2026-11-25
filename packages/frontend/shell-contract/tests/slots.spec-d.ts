@@ -28,6 +28,10 @@ import type {
   ItemOf,
   PageItem,
   PageProps,
+  SayItem,
+  SayOutcome,
+  SayTarget,
+  SayTo,
   ScopedProps,
   Toast,
   ShellLogin,
@@ -41,8 +45,9 @@ import { ShellService, defineUiModule } from '@omne-harness/shell-contract/cordi
 
 test('each slot takes its own item', () => {
   expectTypeOf<SlotName>().toEqualTypeOf<
-    'gate' | 'pages' | 'sidebar' | 'float' | 'back' | 'attached' | 'actions' | 'keymap'
+    'gate' | 'pages' | 'sidebar' | 'float' | 'back' | 'say' | 'attached' | 'actions' | 'keymap'
   >()
+  expectTypeOf<ItemOf<'say'>>().toEqualTypeOf<SayItem>()
   expectTypeOf<ItemOf<'actions'>>().toEqualTypeOf<ActionItem>()
   expectTypeOf<ItemOf<'keymap'>>().toEqualTypeOf<KeymapItem>()
   expectTypeOf<ItemOf<'gate'>>().toEqualTypeOf<GateItem>()
@@ -106,6 +111,51 @@ test('each slot takes its own item', () => {
       render: (props: ScopedProps) => ReactNode
     }>
   >()
+})
+
+test('the item of the place words said to the figure go draws nothing, and in revision 1 knows no pictures', () => {
+  expectTypeOf<SayItem>().toEqualTypeOf<
+    Readonly<{
+      id: string
+      targets: (scope: string | undefined) => readonly SayTarget[] | undefined
+      current: (scope: string | undefined) => string | undefined
+      subscribe: (listener: () => void) => () => void
+      say: (scope: string | undefined, to: SayTo, words: string) => Promise<SayOutcome>
+      show: (scope: string | undefined, key: string) => void
+    }>
+  >()
+  expectTypeOf<SayTarget>().toEqualTypeOf<Readonly<{ key: string; label: string }>>()
+  expectTypeOf<SayTo>().toEqualTypeOf<
+    Readonly<{ kind: 'new' }> | Readonly<{ kind: 'target'; key: string }>
+  >()
+  expectTypeOf<SayOutcome>().toEqualTypeOf<
+    | Readonly<{ kind: 'sent'; key: string }>
+    | Readonly<{ kind: 'failed'; reason: string }>
+    | Readonly<{ kind: 'unknown' }>
+  >()
+  const shell = null as unknown as ShellService
+  const item: SayItem = {
+    id: 'session',
+    targets: () => undefined,
+    current: () => undefined,
+    subscribe: () => () => undefined,
+    say: async () => ({ kind: 'unknown' }),
+    show: () => undefined,
+  }
+  shell.contribute('say', item)
+  // @ts-expect-error revision 1 has no pictures on the item
+  shell.contribute('say', { ...item, pictures: () => true })
+  shell.contribute('say', {
+    ...item,
+    // @ts-expect-error revision 1 hands say no pictures
+    say: async (_scope: string, _to: SayTo, _words: string, _pictures: readonly unknown[]) => ({
+      kind: 'unknown' as const,
+    }),
+  })
+  // @ts-expect-error an outcome is one of three
+  shell.contribute('say', { ...item, say: async () => ({ kind: 'sending' as const }) })
+  // @ts-expect-error the item draws nothing
+  shell.contribute('say', { id: 'session', render: () => null })
 })
 
 test('a page always names its icon; a page and a sidebar item may name their group, and a sidebar item its rail', () => {

@@ -135,7 +135,7 @@ type JobSummary = ScheduleJobDetail['job']
 /** Where a Job stands, read the same way for execution and notification bodies. */
 const at = (text: string | null) => (text === null ? null : instantOf(text))
 
-export function jobCardOf(job: JobSummary, run: ScheduleJobRun) {
+export function jobCardOf(job: JobSummary, run: ScheduleJobRun, reason: string | null) {
   const { body } = job
   const concluded =
     body.kind === 'execution'
@@ -156,13 +156,19 @@ export function jobCardOf(job: JobSummary, run: ScheduleJobRun) {
     acceptedAt: instantOf(job.acceptedAt),
     startedAt: at(run.startedAt),
     endedAt: at(run.endedAt),
+    reason,
   }
 }
 
 export function historyRowOf(row: ScheduleExecutionRow) {
   const at = instantOf(row.originalScheduledAt)
   if (row.kind === 'direct')
-    return { kind: 'direct', row: row.rowRef, at, job: jobCardOf(row.job, row.run) } as const
+    return {
+      kind: 'direct',
+      row: row.rowRef,
+      at,
+      job: jobCardOf(row.job, row.run, row.run.reason),
+    } as const
   if (row.kind === 'lapse')
     return {
       kind: 'lapse',
@@ -183,14 +189,14 @@ export function historyRowOf(row: ScheduleExecutionRow) {
     local: row.candidate.adjustedLocal as string,
     disposition: row.receipt?.disposition ?? 'prepared',
     reason: row.receipt?.reasonCode ?? 'prepared',
-    job: row.job === null || row.run === null ? null : jobCardOf(row.job, row.run),
+    job: row.job === null || row.run === null ? null : jobCardOf(row.job, row.run, row.run.reason),
   } as const
 }
 
 export function jobDetailOf(detail: ScheduleJobDetail) {
   const work = detail.purpose.kind === 'execution' ? detail.purpose.work : null
   return {
-    ...jobCardOf(detail.job, detail.run),
+    ...jobCardOf(detail.job, detail.run, detail.reason),
     schedule: detail.scheduleId as string | null,
     slot: detail.slot === null ? null : instantOf(detail.slot.scheduledAt),
     local: (detail.slot?.adjustedLocal ?? null) as string | null,
@@ -198,7 +204,6 @@ export function jobDetailOf(detail: ScheduleJobDetail) {
     version: detail.slot?.basis.calendarVersionId ?? null,
     revision: detail.definitionRevision,
     work: treeOf(work),
-    reason: detail.reason,
     where:
       detail.executionWhere === null
         ? null

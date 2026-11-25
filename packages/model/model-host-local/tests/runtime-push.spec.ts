@@ -1654,13 +1654,14 @@ async function owedAfterRestart(recovery: ResultPushRecovery) {
   return { w, scripted }
 }
 
-const DRIFT_MS = 200
+const PAUSES = [1000, 5000, 30000, 30000]
 
 it('scans a tenant it could not read again after 1 s, 5 s and 30 s, without waiting for the next start', async () => {
   const { w, scripted } = await owedAfterRestart(SCAN_TENANT)
-  const scan = { attempts: 0, readable: false }
+  const scan = { attempts: 0, readable: false, at: [] as number[] }
   w.hooks.scanPending = () => {
     scan.attempts += 1
+    scan.at.push(Date.now())
     return scan.readable ? 'pass' : 'unavailable'
   }
   vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -1670,13 +1671,13 @@ it('scans a tenant it could not read again after 1 s, 5 s and 30 s, without wait
     'the unreadable scan',
   )
   expect(scan.attempts).toBe(1)
-  for (const pause of [1000, 5000, 30000, 30000]) {
-    const before = scan.attempts
-    await vi.advanceTimersByTimeAsync(pause - DRIFT_MS)
-    expect(scan.attempts).toBe(before)
-    await vi.advanceTimersByTimeAsync(DRIFT_MS)
-    await until(() => scan.attempts === before + 1, 'the next scan')
+  for (const [done, pause] of PAUSES.entries()) {
+    await vi.advanceTimersByTimeAsync(pause)
+    await until(() => scan.attempts >= done + 2, 'the next scan')
   }
+  expect(scan.attempts).toBe(PAUSES.length + 1)
+  const gaps = scan.at.slice(1).map((at, index) => at - (scan.at[index] ?? at))
+  gaps.forEach((gap, index) => expect(gap).toBeGreaterThanOrEqual(PAUSES[index] ?? 0))
   expect(scripted.pushes).toHaveLength(1)
   scan.readable = true
   await vi.advanceTimersByTimeAsync(30000)
@@ -1760,7 +1761,7 @@ it('stops scanning again when the plugin is unloaded, without waiting for the pa
   void second.dispose().then(() => {
     unloaded = true
   })
-  await vi.advanceTimersByTimeAsync(1000 - DRIFT_MS * 2)
+  await vi.advanceTimersByTimeAsync(600)
   expect(unloaded).toBe(true)
   await vi.advanceTimersByTimeAsync(120000)
   expect(scan.attempts).toBe(1)

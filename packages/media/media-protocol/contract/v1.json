@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:1f42c623564cf38a98a2fd49b951191f8adcd2c0fb0411a4a3e15b578ec4612a"
+    "1": "sha256:1f42c623564cf38a98a2fd49b951191f8adcd2c0fb0411a4a3e15b578ec4612a",
+    "2": "sha256:bc4bc9d2f5a6dcb6ad35e014a026622a985e8c7aca361562f119fdb4388924a7"
   },
   "major": 1,
   "name": "media",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {
       "observe-media": {
@@ -903,6 +904,18 @@
                                         "inconvertible"
                                       ]
                                     }
+                                  },
+                                  "reason": {
+                                    "optional": true,
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "encrypted",
+                                        "damaged",
+                                        "no-text"
+                                      ]
+                                    },
+                                    "since": 2
                                   }
                                 },
                                 "kind": "object"
@@ -1212,6 +1225,18 @@
                                         "inconvertible"
                                       ]
                                     }
+                                  },
+                                  "reason": {
+                                    "optional": true,
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "encrypted",
+                                        "damaged",
+                                        "no-text"
+                                      ]
+                                    },
+                                    "since": 2
                                   }
                                 },
                                 "kind": "object"

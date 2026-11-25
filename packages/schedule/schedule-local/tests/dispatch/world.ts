@@ -61,6 +61,8 @@ export type DispatchWorldOptions = Readonly<{
   programs?: Readonly<Record<string, ScheduleProgram>>
   standing?: ScheduleDispatchOptions['standing']
   missingCarriers?: ScheduleDispatchOptions['missingCarriers']
+  /** The application runs its own dispatcher, as the release does: started with it, woken by its commands. */
+  watching?: boolean
 }>
 
 /** Real SQLite, real prediction, a simulated time the test moves, and a dispatcher whose rounds the test calls. */
@@ -70,13 +72,6 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
   )
   const time = simulatedTime({ wall: options.wall ?? START + 10_000 })
   const local = localOptions(world)
-  const app = await createScheduleLocalApplication({
-    ...local,
-    management: {
-      ...local.management,
-      clock: { now: () => new Date(time.source.now()).toISOString() as never },
-    },
-  })
   const worker = createScheduleCalculationWorker({ maxConcurrent: 1, maxQueued: 4 })
   const base = localOptions(world)
   const prediction = createSchedulePredictionService({
@@ -97,13 +92,9 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
       facts: { dispatch: requirement as never },
     }),
   }
-  const dispatcher = (
-    generation?: string,
-    clock: TimeSource = time.source,
-    wrap?: (store: DispatchStore) => DispatchStore,
-  ) => {
+  const portsOf = (generation?: string, clock: TimeSource = time.source) => {
     const programs = createProgramExecutor(name => options.programs?.[name], generation)
-    const ports = {
+    return {
       executor: (work: { kind: string }) => (work.kind === 'program' ? programs : undefined),
       owner: context.owner,
       guards,
@@ -117,6 +108,21 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
         classifyPages: 10,
       },
     } satisfies ScheduleDispatchOptions
+  }
+  const app = await createScheduleLocalApplication({
+    ...local,
+    management: {
+      ...local.management,
+      clock: { now: () => new Date(time.source.now()).toISOString() as never },
+    },
+    ...(options.watching ? { dispatch: portsOf() } : {}),
+  })
+  const dispatcher = (
+    generation?: string,
+    clock: TimeSource = time.source,
+    wrap?: (store: DispatchStore) => DispatchStore,
+  ) => {
+    const ports = portsOf(generation, clock)
     if (wrap === undefined) return createScheduleDispatcher(sql, prediction, ports)
     const { guards: held, ...rest } = ports
     return createDispatcher({

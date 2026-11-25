@@ -336,6 +336,7 @@ export declare const mediaProtocol: {
                                 readonly revision: string;
                             };
                             readonly outcome: "inconvertible";
+                            readonly reason?: "damaged" | "encrypted" | "no-text";
                         };
                     } | {
                         readonly kind: "failed";
@@ -404,6 +405,7 @@ export declare const mediaProtocol: {
                                 readonly revision: string;
                             };
                             readonly outcome: "inconvertible";
+                            readonly reason?: "damaged" | "encrypted" | "no-text";
                         };
                     } | {
                         readonly kind: "failed";

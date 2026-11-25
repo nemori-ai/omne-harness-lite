@@ -19,6 +19,7 @@ import {
 } from '../model/attachment-tray.ts'
 import { Recorder, type Microphone, type RecorderState } from '../model/recorder.ts'
 import { Snapper, type ScreenSource, type SnapperState } from '../model/snapper.ts'
+import { UNREADABLE } from '../model/prepare.ts'
 import type { MediaClient } from '../model/upload.ts'
 import {
   mediaTray,
@@ -50,6 +51,8 @@ const READY: Readonly<Record<'none' | 'converted' | 'inconvertible', string>> = 
 /** How far one attachment has come, in words: what its chip and a file handed to a canvas say. */
 export function statusOf(item: Attachment): string {
   const { state } = item
+  if (state.kind === 'ready' && state.reason !== undefined)
+    return `已附上，${UNREADABLE[state.reason]}`
   if (state.kind === 'ready')
     return state.text === null ? READY[state.outcome] : `已转出：${state.text}`
   if (state.kind === 'failed') return state.reason

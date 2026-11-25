@@ -528,6 +528,31 @@ export function startAcceptances(
   return hostRecords(storageRoot).filter(value => value['kind'] === 'acceptance')
 }
 
+export type ToolUsageRow = Readonly<{ call: string; tool: string; outcome: string }>
+
+/** The usage facts of settled calls: one per call, kept after the sweep deletes the call's records. */
+export function toolUsage(storageRoot: string): readonly ToolUsageRow[] {
+  const rows: ToolUsageRow[] = []
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const table = db
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tl_usage'`)
+        .get()
+      if (table === undefined) continue
+      for (const row of db
+        .prepare(`SELECT call, fact FROM tl_usage ORDER BY started_at, call`)
+        .all()) {
+        const fact = JSON.parse(String(row['fact'])) as { tool: string; outcome: { kind: string } }
+        rows.push({ call: String(row['call']), tool: fact.tool, outcome: fact.outcome.kind })
+      }
+    } finally {
+      db.close()
+    }
+  }
+  return rows
+}
+
 export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
   const calls = new Map<string, { tool: string; phase: string; delivery: string | null }>()
   const entries = new Map<string, NonNullable<ToolCallRow['entry']>>()

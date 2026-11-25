@@ -84,6 +84,6 @@ export default {
       ],
     })
     port.provideFact(governanceAdoptionCurrentFact, z.json().parse(current))
-    return { kind: 'participated', response: z.json().parse(current) }
+    return { kind: 'participated', response: null }
   },
 } satisfies ParticipantModule

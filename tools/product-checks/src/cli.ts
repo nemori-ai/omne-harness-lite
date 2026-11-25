@@ -10,6 +10,7 @@ import { RULES, rulesForRoot } from './rules/index.ts'
 import { readLoopConfig } from '@omne-harness/repo-toolchain/loop/config'
 import { toolchainConfigPath } from '@omne-harness/repo-toolchain/core/toolchain-config'
 import { collectRepositorySources, REPOSITORY_RULES } from './repository.ts'
+import { collectTrackedText, noConflictMarkers } from './rules/no-conflict-markers.ts'
 import { applyAttributionBaseline, readAttributionBaseline } from './attribution-baseline.ts'
 import { parseArguments } from './hygiene/arguments.ts'
 import { HYGIENE_CHECK_COUNT, runHygiene } from './hygiene/run.ts'
@@ -35,6 +36,8 @@ const args = parseArguments(process.argv.slice(2))
 const roots = args.paths.map(p => resolve(process.env['OMNE_SUBJECT_ROOT'] ?? process.cwd(), p))
 const violations = roots.flatMap(root => runRules(collectSources(root), rulesForRoot(root)))
 violations.push(...runRules(collectRepositorySources(repositoryRoot), REPOSITORY_RULES))
+const tracked = existsSync(join(repositoryRoot, '.git'))
+if (tracked) violations.push(...runRules(collectTrackedText(repositoryRoot), [noConflictMarkers]))
 let hygieneText = ''
 let hygieneNote: string | undefined
 if (args.hygiene) {
@@ -65,10 +68,11 @@ if (existsSync(join(repositoryRoot, '.git'))) {
 }
 if (violations.length === 0) {
   console.log(
-    `PASS: product-checks ${RULES.length} 包规则 + ${REPOSITORY_RULES.length} 仓库路径规则，扫描 ${roots.join('、')} 及仓库执行模块，` +
+    `PASS: product-checks ${RULES.length} 包规则 + ${REPOSITORY_RULES.length + Number(tracked)} 仓库路径规则，扫描 ${roots.join('、')} 及仓库执行模块，` +
       `${hygieneText}${coverage.declarations.length} 份验收的覆盖声明，${commitsNote}，无违反。`,
   )
   if (hygieneNote !== undefined) console.log(hygieneNote)
+  if (!tracked) console.log('冲突标记 未检查（不在 git 检出内）')
 } else {
   for (const v of violations) console.error(`${v.path}:${v.line} [${v.rule}] ${v.message}`)
   console.error(`FAIL: product-checks 发现 ${violations.length} 处违反。`)
