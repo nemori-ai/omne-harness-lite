@@ -7,6 +7,7 @@ import {
   encodeModelInvocationRef,
   type Access,
   type ConsumerRef,
+  type CustodyState,
   type DispatchId,
   type ModelCallId,
   type ModelDelivery,
@@ -194,19 +195,32 @@ function pendingOf(reservations: ReadonlyMap<string, string>, tenant: string): n
   return count
 }
 
-async function originOf(
+function materialReleased(reply: Readonly<{ failure: ModelFailure }> | object): boolean {
+  if (!('failure' in reply)) return false
+  const { failure } = reply
+  return failure.kind === 'invalid' && failure.reason === 'recovery-material-released'
+}
+
+/** Where a call's results go and whether its custody ended; still readable once it was released. */
+async function originRead(
   { commands, report }: Pick<StageInput, 'commands' | 'report'>,
   target: Target,
   principal: unknown,
-): Promise<ResultPushRecord['origin']> {
-  const origin = await commands.loadOrigin({ ...target, principal })
-  if ('failure' in origin) {
+): Promise<Readonly<{
+  origin: NonNullable<ResultPushRecord['origin']>
+  custody: CustodyState['kind']
+}> | null> {
+  const read = await commands.loadOrigin({ ...target, principal })
+  if ('failure' in read) {
     report({ kind: 'freeze-failed', step: 'late-account-origin' })
     return null
   }
-  const reference = encodeModelInvocationRef({ ...target, admission: origin.ok.admission })
+  const reference = encodeModelInvocationRef({ ...target, admission: read.ok.admission })
   if ('failure' in reference) return null
-  return frozen({ reference: reference.ok, consumer: origin.ok.consumer })
+  return {
+    origin: frozen({ reference: reference.ok, consumer: read.ok.consumer }),
+    custody: read.ok.custody.kind,
+  }
 }
 
 function newOperation(): ModelOperationId {
@@ -459,27 +473,23 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
 
   // A released call left the producer for good: its custody and its consumer still answer.
   async function released(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
-    const read = await commands.loadOrigin({ ...access, call: record.call })
-    if ('failure' in read || read.ok.custody.kind === 'producer') return owing.mark(record)
-    const reference = encodeModelInvocationRef({
-      tenant: record.tenant,
-      call: record.call,
-      admission: read.ok.admission,
+    const read = await originRead(input, record, access.principal)
+    if (read === null || read.custody === 'producer') return owing.mark(record)
+    return save({
+      ...record,
+      origin: read.origin,
+      acknowledgement: read.custody,
+      cleanup: 'released',
     })
-    if ('failure' in reference) return record
-    const origin = frozen({ reference: reference.ok, consumer: read.ok.consumer })
-    return save({ ...record, origin, acknowledgement: read.ok.custody.kind, cleanup: 'released' })
   }
 
   async function freeze(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     const call = { ...access, call: record.call }
     const recovery = await commands.loadRecovery(call)
+    if (materialReleased(recovery)) return released(record, access)
     if ('failure' in recovery) {
-      const { failure } = recovery
-      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released')
-        return released(record, access)
       report({ kind: 'freeze-failed', step: 'recovery' })
-      return owing.mark(record, failure)
+      return owing.mark(record, recovery.failure)
     }
     const { state, admission } = recovery.ok
     if (state.phase !== 'settled') return record
@@ -651,11 +661,9 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     access: Access,
   ): Promise<ExecutionRef | 'released' | null> {
     const recovery = await commands.loadRecovery({ ...access, call: record.call })
+    if (materialReleased(recovery)) return 'released'
     if ('failure' in recovery) {
-      const { failure } = recovery
-      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released')
-        return 'released'
-      report({ kind: 'cleanup-pending', reason: failure.kind })
+      report({ kind: 'cleanup-pending', reason: recovery.failure.kind })
       return null
     }
     const { execution, state } = recovery.ok
@@ -789,8 +797,9 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
       return false
     }
     const origin =
-      ledger.read(target)?.origin ?? (await originOf(input, target, resolved.ok.principal))
-    if (origin === null) return false
+      ledger.read(target)?.origin ??
+      (await originRead(input, target, resolved.ok.principal))?.origin
+    if (origin === undefined || origin === null) return false
     const delivery = frozen<AccountDelivery>({
       kind: 'account',
       key: { kind: 'account', reference: origin.reference, dispatch, revision },

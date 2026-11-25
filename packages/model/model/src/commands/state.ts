@@ -25,6 +25,7 @@ import {
   judgeFixedModelRequest,
   type ActorRef,
   type CallAccountReport,
+  type CallOrigin,
   type ExecutionRef,
   type LateDispatchFact,
   type ModelConsumerOwnerDeclaration,
@@ -75,6 +76,14 @@ import type {
   WriteIdentity,
 } from './types.ts'
 
+/** Who a call answers to; it stays readable after the call's material is released. */
+export function originOf(call: CallDocument): CallOrigin {
+  return {
+    admission: call.admission,
+    consumer: structuredClone(call.state.consumer),
+    custody: structuredClone(call.state.custody),
+  }
+}
 export function copyCall(call: CallDocument): CallDocument {
   const { execution, dispatches, ...plain } = call
   return {

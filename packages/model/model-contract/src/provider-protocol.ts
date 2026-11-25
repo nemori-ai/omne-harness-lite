@@ -211,7 +211,6 @@ export type RecoveryRecord = Readonly<{
   unresolved: readonly ModelOperationId[]
   tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[]
 }>
-/** Who a call's results go to and whether it still owes them; readable after its material is released. */
 export type CallOrigin = Readonly<{
   admission: ModelOperationId
   consumer: ConsumerRef

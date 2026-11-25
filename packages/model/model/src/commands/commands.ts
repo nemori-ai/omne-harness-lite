@@ -336,7 +336,7 @@ export function callCommands<P>(
 export function recoveryCommands<P>(
   core: ModelCommandCore<P>,
   bound?: BoundCommandAccess<P>,
-): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'loadOrigin' | 'loadRequest' | 'claim'> {
+): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'loadRequest' | 'claim'> {
   const scans = new Map<string, { tenant: string; calls: readonly ModelCallId[]; offset: number }>()
   function scanPage(scope: string, after: string | null, limit: number) {
     const root = core.storage.documents(scope)
@@ -377,16 +377,6 @@ export function recoveryCommands<P>(
         return 'failure' in scope ? scope : scanPage(scope.ok, input.after, input.limit)
       })
     },
-    loadOrigin: input =>
-      core.runRead(input, () =>
-        core.read(input, 'recovery', call => ({
-          ok: {
-            admission: call.admission,
-            consumer: structuredClone(call.state.consumer),
-            custody: structuredClone(call.state.custody),
-          },
-        })),
-      ),
     loadRecovery: input =>
       core.runRead(input, () =>
         core.read(input, 'recovery', (call, root) => {
