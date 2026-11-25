@@ -1,6 +1,6 @@
 # 形式模型与规格、代码的对照
 
-本页对照 `session/verification` 下两个有限模型：Agent 推进协调器的等待与重试（`advance-wait`）、控制传播与会话串行队列（`control-propagation`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)。模型检查只说明有限范围内的设计性质。`advance-wait` 的 `expect.txt` 是配置预期的机器形式。
+本页对照 `session/verification` 下三个有限模型：Agent 推进协调器的等待与重试（`advance-wait`）、控制传播与会话串行队列（`control-propagation`）、一个会话里受理、承接与推进的安全与活性（`advance-liveness`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)。模型检查只说明有限范围内的设计性质。`advance-wait` 与 `advance-liveness` 的 `expect.txt` 是配置预期的机器形式。
 
 ## advance-wait
 
@@ -66,3 +66,70 @@
 | `TriggerAdvance`、`OpenRun`      | 推进协调器的检查与在串行段内开 Run                                                           |
 | `RequestClose`、`CloseDone`      | 生命周期的关闭：置关闭、中止、等待全部在途任务；放弃的出站不进入在途集合                     |
 | `Reconcile`                      | 命令处理器对控制接收的提交；环境动作，不建模提交细节                                         |
+
+## advance-liveness
+
+`AdvanceLiveness.tla` 检查一个会话从受理输入到一轮收场的整条链：开轮定批、发起、重放、补交、恢复接手、Agent 的步与收尾，加上人的取消、进程重启、依赖中断与驱动停下。规格见 I-R1、I-R3、I-R10、SE-1 到 SE-3、SE-6 与「条件终结只读核对待交输入」；Agent 一侧见 [`packages/agent/SPEC.md`](../../../agent/SPEC.md) 的 AG-15。跑法：`TLA2TOOLS_JAR=<钉住的 jar> ./run-tlc.sh`，逐份配置对 `expect.txt`。
+
+模型里的环境按发行装配写，下面五条是它依赖的事实：
+
+| 环境假设 | 含义 |
+| --- | --- |
+| 交入回执没有证据来源 | 日志里的「已交入」是空的；Session 只靠进程内的 `known` 记住交过哪些输入，重启就丢 |
+| 待处理资格在取走时解除 | Agent 的一步取走输入并送达的那次提交解除资格，不在交入时 |
+| 收尾核对只挡完成 | 以完成收尾时还有待处理输入就被挡回，Agent 回去再走一步；以失败收尾不挡 |
+| 驱动停下让出执行槽 | 执行在执行记录里仍未终结，留给恢复接手 |
+| 周期扫描兜底 | 有待处理输入或活跃 Run 的会话会被再叫醒；依赖不可用时一次叫醒会被用掉 |
+
+| 状态变量 | 含义 | 拥有者 |
+| --- | --- | --- |
+| `pending`、`answered`、`rejected`、`run`、`awaiting`、`runAns`、`stepped`、`steps` | 会话日志与工作快照：待处理、已回答、被拒收的输入，当前 Run，失败后等人，这一轮答过的输入与步数 | Session |
+| `batch` | 开始 Run 的那次提交记下的一批输入 | Session |
+| `execOpen`、`agentAcc` | Agent 执行记录：执行已创建未终结；已受理的输入 | Agent |
+| `known` | 进程内记下的已交给 Agent 的输入 | Session 进程 |
+| `drive`、`slot` | 在推的驱动；实例的执行槽 | Agent 进程 |
+| `poison`、`depUp` | 环境：这一轮的收尾提交确定地失败；存储与驱动口此刻可用 | 环境 |
+| `wake` | 有一次叫醒在等推进协调器 | Session 进程 |
+| `waiting0`、`split` | 观察量：开轮那一刻全部待处理的输入；第一步有没有落下其中仍待处理的 | 不进代码 |
+
+| 动作 | 抽象边界 |
+| --- | --- |
+| `Send` | 受理一条输入并叫醒推进；人的新输入解除等人 |
+| `OpenRun` | 开始 Run 的提交把当时全部待处理的输入记成这一轮的批，不扣任何输入的资格 |
+| `InvokeOk` | Agent 对批里每条输入做准入，全部通过，创建执行并受理整批，驱动拿到执行槽 |
+| `InvokeRejected` | 准入拒收批里的一条：不创建执行，这一轮有界收束为失败，被拒的那条失去资格，其余保留，会话等人 |
+| `ReplayOk` | 重启后批既没记成交过也没被取走：按原操作身份重放发起，Agent 认回原受理 |
+| `SubmitOk`、`SubmitRejected` | 开轮之后才到的输入逐条补交；补交被拒的那条失去资格，这一轮继续 |
+| `RecoverResume` | 恢复问挂接，宿主答失联，新的驱动接手 |
+| `AgentStep`、`ToolStep` | 一步取走已受理且仍待处理的全部输入并回答；模型多要一次工具的一步不取输入 |
+| `FinishComplete`、`FinishFailedAtLimit` | 以完成收尾要求没有待处理输入；到步数上限以失败收尾，不因待处理输入被挡回 |
+| `Cancel`、`Restart`、`Halt`、`Poison` | 人取消这一轮；进程重启丢掉进程内状态；驱动在一个节点停下并让出执行槽；环境让收尾确定地失败 |
+| `Scan`、`WakeLost`、`WakeDone`、`DepDown`、`DepRecover` | 周期扫描；依赖不可用时叫醒被用掉；没有可做的事时叫醒结束；依赖中断与恢复 |
+
+| 性质 | 检查 | 负控与命中的反例 |
+| --- | --- | --- |
+| 一轮的第一步取走开轮时全部待处理且仍待处理的输入 | `BatchNotSplit` | `bad-first-only`：开轮只记一条，第一步只取走一条 |
+| 已回答的输入不再待处理 | `AnsweredNotPending` | `bad-void-answered`：取消把这一轮已回答的输入退回待处理 |
+| 发出的每条输入不是待处理、就是已回答或被拒收 | `NoSilentLoss` | `bad-reject-drops-batch`：发起被拒时整批都失去资格，没被拒的那条无声丢失 |
+| 只有准入拒收的输入失去资格，它们不会被回答 | `RejectedAreBad` | 正控 `ought-reject` 里成立 |
+| 驱动在推时一定占着执行槽 | `DriveHoldsSlot` | 各配置都查 |
+| 活性：开着的一轮终究收场 | `ActiveRunSettles` | `bad-halt-pins-slot`：驱动停下后不让出执行槽，恢复看到在跑。`bad-failed-finish-blocked`：到步数上限时还有待处理输入，既走不了下一步也收不了尾。`bad-no-scan`：依赖坏着的时候叫醒被用掉，之后没有人再叫醒 |
+| 活性：每条待处理的输入终究被回答、被拒收，或者会话停下等人 | `EveryInputSettles` | 两份正控里成立 |
+
+配置：`ought` 与 `ought-reject`（有一条会被拒收的输入）是正控，预期无反例；`bad-*` 各打开一处缺陷，命中上表对应的性质。`gap-deterministic-halt` 不是负控，是一处还没关上的缺口：收尾提交确定地失败时，驱动停下、恢复接手、再停下，循环不止，`ActiveRunSettles` 不成立。它关上之后这份配置改成正控。
+
+前提：依赖中断的次数有界，之后一直可用；系统动作强公平，扫描与依赖恢复弱公平；人的发送与取消、重启、因会过去的原因停下、模型多要一次工具，都不加公平但次数有界。上界：2 条输入，步数上限 2，取消、重启、依赖中断、会过去的停下各 1 次。
+
+没有覆盖的：归档与撤销归档、卡片与后台调用、插队与推迟到轮结束的输入；多个会话之间的公平；Agent 运行时一步内部的节点（见 `packages/agent/agent/verification/run-lifecycle/`）；模型把取消与让出执行槽写成一步，没有覆盖两者之间那段短暂的忙。
+
+| 模型边界 | 实现的位置 |
+| --- | --- |
+| `OpenRun` | 推进协调器开轮；开始 Run 的决定在提交时的快照上算出这一批并写进开始事实 |
+| `InvokeOk`、`InvokeRejected` | 推进协调器的发起；Agent 运行时受理发起的那段节点；被拒时 Session 的有界收束 |
+| `ReplayOk` | 推进协调器检查到「已授予而批没有交出记录」时的重放 |
+| `SubmitOk`、`SubmitRejected` | 推进协调器的补交 |
+| `RecoverResume` | 恢复协调器的检查；宿主按运行时自己的报告回答挂接 |
+| `AgentStep` | Agent 一步开始时按输入水位线取走并送达 |
+| `FinishComplete`、`FinishFailedAtLimit` | 条件终结与收尾核对；循环守卫 |
+| `Halt` | Agent 提供者里驱动停下的那一处：报告一次并交回执行槽 |
+| `Scan`、`WakeLost` | 周期扫描；推进协调器的有界重试用完 |
