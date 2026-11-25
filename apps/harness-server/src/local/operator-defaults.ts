@@ -1,3 +1,4 @@
+import { GOAL_DECISIONS_CONSUMER } from '@omne-harness/goal-decisions'
 import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
 import { isSecretName, type ServerSettings, type StorageLimits } from './settings.ts'
@@ -164,7 +165,6 @@ const MODEL_HOST = {
 } as const
 
 const MAX_COMMAND_BYTES = 1_048_576
-export const GOAL_DECISIONS_CONSUMER = '@omne-harness/goal-decisions'
 
 function modelRecords(combinationVersion: string) {
   return {
@@ -437,6 +437,7 @@ const LOCAL_NODE = 'local'
 const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
 
 const GOAL_POLICY = { reconcileIntervalMs: 5_000 }
+const GOAL_DECISIONS_POLICY = { pollMs: 50, deadlineMs: 30_000 }
 
 const CANVAS_POLICY = {
   sheet: { width: 6400, height: 4000, grid: 8 },
@@ -629,6 +630,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       : []),
     ...(rows.has('dispatch') ? ([['dispatch', { policy: DISPATCH_POLICY }]] as const) : []),
     ...(rows.has('goal') ? ([['goal', { policy: GOAL_POLICY }]] as const) : []),
+    ...(rows.has('goal-decisions') ? ([['goal-decisions', GOAL_DECISIONS_POLICY]] as const) : []),
     ...(rows.has('canvas') ? ([['canvas', { policy: CANVAS_POLICY }]] as const) : []),
     ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
     ['execution-host', { stateDirectory: locations.hostFilesDir }],

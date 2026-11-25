@@ -253,6 +253,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'notification',
               'dispatch',
               'goal',
+              'goal-decisions',
               'canvas',
               'workspace',
               'session-history-index',

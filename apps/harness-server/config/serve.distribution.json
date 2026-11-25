@@ -1007,6 +1007,23 @@
       "config": {}
     },
     {
+      "id": "goal-decisions",
+      "plugin": "goalDecisionsRow",
+      "config": {}
+    },
+    {
+      "id": "system-extensions",
+      "plugin": "systemExtensionsRow",
+      "config": {
+        "declared": ["goal-check"]
+      }
+    },
+    {
+      "id": "goal-check",
+      "plugin": "goalCheckRow",
+      "config": {}
+    },
+    {
       "id": "canvas",
       "plugin": "canvasRow",
       "config": {}

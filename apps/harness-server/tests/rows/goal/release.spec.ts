@@ -128,6 +128,7 @@ describe('the goal rows on the release tree', () => {
             request: 'start/1/1',
             session,
             rendered: 'THE-GOAL',
+            open: '',
           } as const
           expect(await sessions.wake(text.value, wake)).toBe('sent')
           expect(await sessions.wake(text.value, wake)).toBe('sent')

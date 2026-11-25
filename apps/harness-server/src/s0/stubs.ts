@@ -75,7 +75,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'dispatch-tool': { provides: [], injects: ['dispatchPrincipal'], phase: 'composition' },
   goal: {
-    provides: ['goals', 'goalReconciling'],
+    provides: ['goals', 'goalChecking', 'goalReconciling'],
     injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
     phase: 'composition',
   },
@@ -85,6 +85,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   'goal-command': { provides: [], injects: ['commandEntrySources'] },
+  'goal-decisions': {
+    provides: [],
+    injects: ['modelRuntime', 'modelDecisionPreparation'],
+    phase: 'composition',
+  },
+  'system-extensions': { provides: ['harnessSystemExtensions'] },
+  'goal-check': { provides: [], injects: ['harnessSystemExtensions'] },
   canvas: {
     provides: ['canvas', 'canvasChanges'],
     injects: ['storage', 'dynamis', 'tenantDomainLookup'],

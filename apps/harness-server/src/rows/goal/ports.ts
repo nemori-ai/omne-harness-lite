@@ -1,7 +1,17 @@
-import type { GoalAction, GoalAuthority, GoalCalls, GoalSessions } from '@omne-harness/goal'
+import type {
+  GoalAction,
+  GoalAuthority,
+  GoalCalls,
+  GoalDecisions,
+  GoalHistory,
+  GoalJudging,
+  GoalSessions,
+} from '@omne-harness/goal'
+import { DEFAULT_JUDGE_CONFIG } from '@omne-harness/goal-contract'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
+import { checkedPrincipal } from './check-subject.ts'
 import type { GoalHolder } from './holder.ts'
 
 const UNAVAILABLE = { kind: 'unavailable' } as const
@@ -19,6 +29,18 @@ export function lateCalls(holder: GoalHolder): GoalCalls {
   return { cited: (...input) => holder.calls?.cited(...input) ?? Promise.resolve(UNAVAILABLE) }
 }
 
+export function lateHistory(holder: GoalHolder): GoalHistory {
+  return { calls: (...input) => holder.history?.calls(...input) ?? Promise.resolve(UNAVAILABLE) }
+}
+
+export function lateDecisions(holder: GoalHolder): GoalDecisions {
+  return { ask: input => holder.decisions?.ask(input) ?? Promise.resolve(null) }
+}
+
+export function releaseJudging(): GoalJudging {
+  return { config: async () => ({ kind: 'read', value: DEFAULT_JUDGE_CONFIG }) }
+}
+
 /** What the agent of a session may ask of its own goal. Nothing here changes the goal without an answered card. */
 const OF_THE_AGENT: ReadonlySet<GoalAction> = new Set(['read', 'propose', 'confirm', 'track'])
 
@@ -31,10 +53,13 @@ export function createGoalAuthority(ports: AuthorityPorts): GoalAuthority {
     async decide(caller, session, action) {
       const tenant = tenantCodec.parse(caller.tenant)
       if (!tenant.ok) return 'denied'
-      const work = await verifySessionWork(ports.verifier(), caller.subject, tenant.value)
+      const checked = checkedPrincipal(caller.subject)
+      const principal = checked ?? caller.subject
+      const work = await verifySessionWork(ports.verifier(), principal, tenant.value)
       if (work.kind === 'unavailable') return 'unavailable'
       const own = work.kind === 'session' && work.session === session
-      return own && OF_THE_AGENT.has(action) ? 'permitted' : 'denied'
+      const asked = checked === undefined ? OF_THE_AGENT.has(action) : action === 'observe'
+      return own && asked ? 'permitted' : 'denied'
     },
   }
 }

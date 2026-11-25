@@ -151,6 +151,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
         evidence: { ...MODEL_TEST_ADOPTION, name: 'compaction-consumer-evidence' },
         work: { kind: 'exempt' },
       },
+      {
+        consumerOwner: '@omne-harness/goal-decisions',
+        evidence: { ...MODEL_TEST_ADOPTION, name: 'goal-decisions-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
     ],
     limits: {
       scanPageCalls: 100,
@@ -196,6 +201,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
         connectRetry: { backoffMs: [500, 1000] },
         maxErrorBodyBytes: 4096,
         maxEventBytes: 1_048_576,
+        maxDecisionBytes: 524_288,
         json: {
           maxBytes: 1_048_576,
           maxDepth: 64,
@@ -500,6 +506,7 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
       { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
       { kind: 'replace', id: 'goal', config: { policy: GOAL_POLICY } },
+      { kind: 'replace', id: 'goal-decisions', config: { pollMs: 20, deadlineMs: 30_000 } },
       { kind: 'replace', id: 'canvas', config: { policy: CANVAS_POLICY } },
       { kind: 'replace', id: 'workspace', config: { node: 'local' } },
       {

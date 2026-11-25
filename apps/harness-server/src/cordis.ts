@@ -1,4 +1,5 @@
 import { enabledExtensionsOf } from './rows/agent-host/enabled-extensions.ts'
+import { systemExtensionsOf } from './rows/system-extensions/index.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
 export { createStubPlugin as stubPlugin } from './s0/stub-plugin.ts'
@@ -47,6 +48,9 @@ export { dispatchToolRow } from './rows/dispatch-tool/index.ts'
 export { goalRow } from './rows/goal/index.ts'
 export { goalSessionRow } from './rows/goal-session/index.ts'
 export { goalCommandRow } from './rows/goal-command/index.ts'
+export { goalCheckRow } from './rows/goal-check/index.ts'
+export { goalDecisionsRow } from './rows/goal-decisions/index.ts'
+export { systemExtensionsRow } from './rows/system-extensions/index.ts'
 export { workspaceRow } from './rows/workspace/index.ts'
 export { serverEntryRow } from './rows/server-entry/index.ts'
 export { identityAccessRow } from './rows/identity-access/index.ts'
@@ -124,6 +128,7 @@ export { sessionConditionsRow } from './rows/session-conditions/index.ts'
 export const agentHostRow = createAgentHostRow({
   toolRequestsOf: releaseToolRequestsOf,
   enabledExtensionsOf,
+  systemExtensionsOf,
 })
 
 export { modelTokenizersRow } from './rows/model-tokenizers/index.ts'

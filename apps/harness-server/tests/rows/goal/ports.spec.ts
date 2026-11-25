@@ -87,11 +87,17 @@ describe('who may ask what of the goal of a session on the release', () => {
 })
 
 describe('the ports the contributing rows mount', () => {
-  const holder = (): GoalHolder => ({ sessions: null, calls: null })
+  const holder = (): GoalHolder => ({ sessions: null, calls: null, history: null, decisions: null })
   it('while nothing is mounted a read is unavailable and a reminder stays owed', async () => {
     const empty = holder()
     expect(await lateSessions(empty).facts('t', 's')).toEqual({ kind: 'unavailable' })
-    const wake = { kind: 'start', request: 'start/1/1', session: 's', rendered: '' } as const
+    const wake = {
+      kind: 'start',
+      request: 'start/1/1',
+      session: 's',
+      rendered: '',
+      open: '',
+    } as const
     expect(await lateSessions(empty).wake('t', wake)).toBe('unknown')
     expect(await lateCalls(empty).cited('t', 's', ['call-1'], '0')).toEqual({ kind: 'unavailable' })
   })
@@ -106,7 +112,13 @@ describe('the ports the contributing rows mount', () => {
       kind: 'read',
       value: { attendance: 'unattended', moment: '3' },
     })
-    const wake = { kind: 'resume', request: 'resume/1/2', session: 's', rendered: '' } as const
+    const wake = {
+      kind: 'resume',
+      request: 'resume/1/2',
+      session: 's',
+      rendered: '',
+      open: '',
+    } as const
     expect(await sessions.wake('t', wake)).toBe('sent')
     const calls = lateCalls(mounted)
     mounted.calls = { cited: async (_t, _s, refs) => ({ kind: 'read', value: refs }) }

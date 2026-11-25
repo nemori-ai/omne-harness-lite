@@ -15,6 +15,7 @@ const ABSENT: { failure: SessionFailure } = {
 const UNAVAILABLE = { kind: 'unavailable' } as const
 const HEAD_KINDS = ['message.user', 'message.assistant', 'message.tool', 'message.system_reminder']
 const RESULT_KINDS = ['message.tool']
+const CALL_KINDS = ['message.assistant', 'message.tool']
 const HEAD_PAGE_BYTES = 65_536
 const RESULT_PAGE_BYTES = 262_144
 
@@ -41,6 +42,30 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
     if (issued === undefined || service === undefined || !('ok' in issued)) return undefined
     return { history: service.history, access: { principal: issued.ok, tenant, session } }
   }
+  type After = Parameters<SessionCalls['resultsAfter']>[0]
+  /** One page of the entries of these kinds after an entry, oldest first. */
+  async function pageAfter(
+    kinds: readonly string[],
+    { after, cursor, ...at }: After,
+  ): ReturnType<SessionCalls['resultsAfter']> {
+    const found = await historyOf(at)
+    if (found === undefined) return UNAVAILABLE
+    const reading = { ...found.access, kinds, pageBytes: RESULT_PAGE_BYTES }
+    const first = () =>
+      after === null
+        ? found.history.begin({ ...reading, from: null, direction: 'forward' })
+        : found.history.since({ ...reading, after: after as EntryId })
+    const page = await (cursor === null ? first() : found.history.next({ ...found.access, cursor }))
+    if (!('ok' in page)) return UNAVAILABLE
+    const { next, exhausted } = page.ok
+    const entries = page.ok.entries.map(entry => ({
+      id: entry.id,
+      kind: entry.kind,
+      payload: JSON.parse(writeJsonText(entry.payload)) as unknown,
+    }))
+    return { kind: 'read', value: { entries, next: exhausted ? null : next } }
+  }
+
   return {
     async accept({ tenant, session, operation, value }) {
       const service = intake()
@@ -70,25 +95,7 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
       })
       return 'ok' in page ? { kind: 'read', value: page.ok.entries[0]?.id ?? null } : UNAVAILABLE
     },
-    async resultsAfter({ after, cursor, ...at }) {
-      const found = await historyOf(at)
-      if (found === undefined) return UNAVAILABLE
-      const reading = { ...found.access, kinds: RESULT_KINDS, pageBytes: RESULT_PAGE_BYTES }
-      const first = () =>
-        after === null
-          ? found.history.begin({ ...reading, from: null, direction: 'forward' })
-          : found.history.since({ ...reading, after: after as EntryId })
-      const page = await (cursor === null
-        ? first()
-        : found.history.next({ ...found.access, cursor }))
-      if (!('ok' in page)) return UNAVAILABLE
-      const { next, exhausted } = page.ok
-      const entries = page.ok.entries.map(entry => ({
-        id: entry.id,
-        kind: entry.kind,
-        payload: JSON.parse(writeJsonText(entry.payload)) as unknown,
-      }))
-      return { kind: 'read', value: { entries, next: exhausted ? null : next } }
-    },
+    resultsAfter: input => pageAfter(RESULT_KINDS, input),
+    callsAfter: input => pageAfter(CALL_KINDS, input),
   }
 }

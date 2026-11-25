@@ -1,5 +1,9 @@
 import { z } from 'zod'
-import { goalReconcilingKey, goalsKey } from '@omne-harness/goal-cordis-contract/cordis'
+import {
+  goalCheckingKey,
+  goalReconcilingKey,
+  goalsKey,
+} from '@omne-harness/goal-cordis-contract/cordis'
 import { goalPersistenceParticipant, goalPolicySchema } from '@omne-harness/goal-local'
 import { createGoalLocalPlugin } from '@omne-harness/goal-local/cordis'
 import {
@@ -28,7 +32,14 @@ import { createDomainBindings, type Combination } from '../storage/tenant-bindin
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { goalHolder } from './holder.ts'
 import { createGoalCards } from './cards.ts'
-import { createGoalAuthority, lateCalls, lateSessions } from './ports.ts'
+import {
+  createGoalAuthority,
+  lateCalls,
+  lateDecisions,
+  lateHistory,
+  lateSessions,
+  releaseJudging,
+} from './ports.ts'
 
 export const goalConfig = z.strictObject({ policy: goalPolicySchema })
 const PARTICIPANTS = [goalPersistenceParticipant]
@@ -46,7 +57,7 @@ export const goalRow = defineRow({
   row: 'goal',
   implementation: 'real',
   manifest: {
-    provides: [goalsKey, goalReconcilingKey],
+    provides: [goalsKey, goalCheckingKey, goalReconcilingKey],
     injects: [
       storageKey,
       tenantDomainLookupKey,
@@ -86,6 +97,9 @@ export const goalRow = defineRow({
         sessions: lateSessions(holder),
         cards: createGoalCards(ctx),
         calls: lateCalls(holder),
+        history: lateHistory(holder),
+        decisions: lateDecisions(holder),
+        judging: releaseJudging(),
       },
       clock: { now: () => instantTextOf(ctx, 'goal') },
       timers: runTimeOf(ctx),
