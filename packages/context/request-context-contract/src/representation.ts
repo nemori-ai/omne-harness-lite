@@ -76,13 +76,15 @@ const UNREADABLE: Readonly<Record<InconvertibleReason, string>> = {
   'no-text': 'This file has no text that could be taken out of it, as with a scan.',
 }
 
+function wordsOf({ transcript, snapshot }: Referring): string | null {
+  if (transcript !== null && transcript !== '') return transcript
+  if (snapshot?.outcome !== 'inconvertible' || snapshot.reason === undefined) return null
+  return UNREADABLE[snapshot.reason]
+}
+
 function fallbacksOf(block: Referring) {
-  const { snapshot } = block
-  const made = snapshot?.outcome === 'converted' ? snapshot : null
-  const why = snapshot?.outcome === 'inconvertible' ? snapshot.reason : undefined
-  const told = why === undefined ? null : UNREADABLE[why]
-  const inline = (block.transcript ?? '') === '' ? told : block.transcript
-  return { others: made?.others ?? [], inline, kept: made?.text ?? null }
+  const made = block.snapshot?.outcome === 'converted' ? block.snapshot : null
+  return { others: made?.others ?? [], inline: wordsOf(block), kept: made?.text ?? null }
 }
 
 const REFERENCE_KIND: Partial<Record<Modality, 'image' | 'voice'>> = {

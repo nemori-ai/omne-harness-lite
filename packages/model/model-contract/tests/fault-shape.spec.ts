@@ -48,6 +48,11 @@ describe('faultProblem', () => {
       { ...overLimit, reported: { metric: 'file-bytes', limit: '33554432', actual: null } },
       replay,
       { cause: 'unclassified', diagnostic: 'x'.repeat(200), upstreamStatus: null },
+      {
+        cause: 'unclassified',
+        diagnostic: 'a gateway timeout, then nothing',
+        upstreamStatus: null,
+      },
     ])
       expect(faultProblem(fault)).toBeNull()
   })
@@ -62,6 +67,7 @@ describe('faultProblem', () => {
     ['a diagnostic over 200 characters', { ...plain, diagnostic: 'x'.repeat(201) }, 'diagnostic'],
     ['a diagnostic of two lines', { ...plain, diagnostic: 'one\ntwo' }, 'diagnostic'],
     ['a diagnostic with a control character', { ...plain, diagnostic: 'a\u0007b' }, 'diagnostic'],
+    ['a diagnostic with a delete character', { ...plain, diagnostic: 'a\u007fb' }, 'diagnostic'],
     ['a diagnostic carrying a URL', { ...plain, diagnostic: 'see https://x.test/' }, 'diagnostic'],
     ['a missing status', { cause: 'stream-lost', diagnostic: 'gone' }, 'upstream-status'],
     ['a status of four digits', { ...plain, upstreamStatus: '5030' }, 'upstream-status'],
