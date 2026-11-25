@@ -16,7 +16,6 @@ import {
 import {
   PROGRAM_FAILURE,
   describedAdoption,
-  functionsSignature,
   type ToolExecutionContext,
   type ToolImplementationModule,
   type ToolMessageContentBlock,
@@ -58,18 +57,17 @@ const PURPOSE = `Run a TypeScript program that calls tools as functions. Results
 Use it when the work is many calls whose intermediate results you do not need to read: the same step on many items (files, pages), calls that feed each other, a large result you need a small part of (a web page), or branches and retries. Save a program you will run again to a file and run it by path with input.
 Call tools directly when one or two small calls answer, when you must read a result to decide the next step, or when you need the full text in the conversation.
 - code is the body of an async function. Each tool it names is a global: const page = await Web.fetch({ url }). A call takes one object and resolves to a value, not to text.
+- Which tools a program can call, their functions and the fields they resolve to are told by Tools, not here: before you write a call, inspect that tool, or search with programmable set to true.
 - Await every call; run independent calls with Promise.all.
-- No file system, network, timer or import: use the tools. Nothing is kept between programs.
-- Find a tool that is not among your tools with Tools search and programmable set to true, then call it by name.`
+- No file system, network, timer or import: use the tools. Nothing is kept between programs.`
 
 const FINDING = `Finding functions
-- The description of this tool shows the functions of your resident tools. help with name set to one tool shows the functions of that tool.
-- Other tools can be callable too. Find them with Tools search with programmable set to true: the result shows their functions. A program calls them by name; they need no loading.
-- Write the name of each tool you call in the program: a program is given the tools its text names.`
+- Tools tells which tools a program can call and how. Tools search with programmable set to true lists them with their functions, the tools in your list too. Tools inspect with a tool name shows the functions of that tool.
+- A program calls a tool by name; it needs no loading. Write the name of each tool you call in the program: a program is given the tools its text names.`
 
 const GUIDE = `${RULES}
 
-help gives the limits here. help with name set to a tool gives the functions of that tool. Tools search with programmable set to true finds the other tools a program can call.`
+help gives the limits here. Tools tells which tools a program can call and their functions: search with programmable set to true, or inspect one tool.`
 
 const limitsLine = (limits: Limits) =>
   `Limits: ${limits.computeMs / 1000} s of computing (waiting for a call does not count), ${Math.floor(limits.memoryBytes / 1048576)} MiB of memory, ${limits.calls} tool calls with at most ${limits.inFlight} at once, ${limits.outputBytes} bytes of result, ${limits.sourceBytes} bytes of program.`
@@ -77,22 +75,18 @@ const limitsLine = (limits: Limits) =>
 const DECLARED = `declare class ${PROGRAM_FAILURE} extends Error { kind: string; tool: string; command: string | null; effect: "none" | "occurred" | "unknown" }\ndeclare const input: unknown`
 
 const NOT_ATTACHED = 'program calls are not attached to this call'
-const FIND = 'Find the tools a program can call with Tools search and programmable set to true.'
+const FIND = 'Tools tells which tools a program can call: search with programmable set to true.'
+const FIELDS =
+  '\nIf a field was not there: Tools inspect with the tool name shows what each function resolves to.'
 
 const namesIn = (source: string): readonly string[] => [
   ...new Set(source.match(/[A-Za-z_$][A-Za-z0-9_$]*/gu) ?? []),
 ]
 
-async function helpText(execution: ToolExecutionContext, limits: Limits, name: string | undefined) {
-  const tools = programToolsOf(execution)
-  if (tools === undefined) return `rejected reason=unavailable Code help: ${NOT_ATTACHED}`
-  if (name === undefined)
-    return `done Code help\n${RULES}\n\n${limitsLine(limits)}\n\n${FINDING}\n${DECLARED}`
-  const listed = await tools.functions([name])
-  if ('failure' in listed) return `rejected reason=unavailable Code help: ${listed.failure.kind}`
-  return listed.ok.length === 0
-    ? `rejected reason=notFound Code help: ${name} has no function a program can call now. ${FIND}`
-    : `done Code help ${name}\n${functionsSignature(listed.ok)}`
+async function helpText(execution: ToolExecutionContext, limits: Limits) {
+  return programToolsOf(execution) === undefined
+    ? `rejected reason=unavailable Code help: ${NOT_ATTACHED}`
+    : `done Code help\n${RULES}\n\n${limitsLine(limits)}\n\n${FINDING}\n${DECLARED}`
 }
 
 /** What the program receives for one call: the value, or an error it can catch by its kind. */
@@ -119,9 +113,10 @@ const NOTE = 'Calls that completed keep their effects. The program is not rerun.
 
 function unnamed(outcome: Extract<ProgramOutcome, { kind: 'threw' }>, code: string): string {
   if (outcome.name === 'ReferenceError') return `\nIf that is a tool: ${FIND}`
-  return outcome.name === 'TypeError' && /\btools\s*\[/u.test(code)
+  if (outcome.name !== 'TypeError') return ''
+  return /\btools\s*\[/u.test(code)
     ? '\nWrite the name of each tool you call in the program: tools[name] with a computed name finds only the tools the text names.'
-    : ''
+    : FIELDS
 }
 const consoleOf = (text: string) => (text.length === 0 ? '' : `\nconsole:\n${text}`)
 const at = (line: number | null) => (line === null ? '' : ` line=${line}`)
@@ -340,8 +335,7 @@ export function createCodeAuthor(
         isolation: ['restricted-js'],
         layers: ['stateless_sandbox'],
         gates: CODE_GATES,
-        help: (args, _environment, execution) =>
-          helpText(execution, limits, args.optionalText('name')),
+        help: (_args, _environment, execution) => helpText(execution, limits),
       },
     ),
   )

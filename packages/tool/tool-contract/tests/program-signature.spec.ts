@@ -5,9 +5,7 @@ import type {
   ToolProgramAccess,
   ToolReturnDeclaration,
 } from '@omne-harness/tool-contract'
-import { isProgramExecutor, programCatalogue } from '@omne-harness/tool-contract'
 import {
-  PROGRAM_CATALOGUE_BYTES,
   PROGRAM_RUN_CAPABILITY,
   isProgramName,
   judgeToolDefinition,
@@ -230,51 +228,8 @@ describe('the functions of a definition and their signatures', () => {
   })
 })
 
-describe('what a program executor declares of the functions a program can call', () => {
-  const files = commands([open, open])
-  const lookup = lookupTool()
-  const named = (name: string): ToolDefinition => ({ ...lookupTool(), name })
-  const bytes = (text: string) => new TextEncoder().encode(text).length
-
-  it('is a program executor when it requires the capability to run programs, and only then', () => {
-    expect(PROGRAM_RUN_CAPABILITY).toBe('program.run')
-    expect(isProgramExecutor({ ...files, requiredCapabilities: ['program.run'] })).toBe(true)
-    expect(isProgramExecutor({ ...files, requiredCapabilities: ['other', 'program.run'] })).toBe(
-      true,
-    )
-    expect(isProgramExecutor(files)).toBe(false)
-  })
-
-  it('shows the signature of each tool a program can call, in the order given, and nothing for the others', () => {
-    expect(programCatalogue([files, commandsDefinition(), lookup])).toBe(
-      ['Functions a program can call:', programSignature(files), programSignature(lookup)].join(
-        '\n',
-      ),
-    )
-    expect(programCatalogue([commandsDefinition(), functionDefinition()])).toBe('')
-    expect(programCatalogue([])).toBe('')
-    expect(PROGRAM_CATALOGUE_BYTES).toBe(6144)
-  })
-
-  it('keeps to the byte budget with whole tools, and names what it left out and where to read it', () => {
-    const all = [named('Alpha'), named('Bravo'), named('Gamma')]
-    const one = bytes(programSignature(named('Alpha'))) + 1
-    expect(programCatalogue(all, one * 3)).not.toContain('not shown')
-    const two = programCatalogue(all, one * 3 - 1)
-    expect(two.split('\n').at(-1)).toBe(
-      '1 more tool is callable and not shown: Gamma. help with name set to one of them gives its functions.',
-    )
-    expect(two).toContain('declare function Bravo(')
-    expect(two).not.toContain('declare function Gamma(')
-    // The order is kept: once one tool is left out, a later one that would fit is left out too.
-    const mixed = programCatalogue([named('Alpha'), files, named('Bravo')], one)
-    expect(mixed.split('\n').at(-1)).toContain(
-      '2 more tools are callable and not shown: Files, Bravo.',
-    )
-    expect(programCatalogue(all, 0)).toBe(
-      '3 more tools are callable and not shown: Alpha, Bravo, Gamma. help with name set to one of them gives its functions.',
-    )
-  })
+it('names the capability a program executor requires', () => {
+  expect(PROGRAM_RUN_CAPABILITY).toBe('program.run')
 })
 
 describe('the TypeScript type of a JSON Schema', () => {

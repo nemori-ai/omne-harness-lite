@@ -7,7 +7,7 @@ import {
 } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolArguments, ToolCommandDeclaration, ToolDefinition } from './definitions.ts'
-import { returnGuide, returnSummary } from './return-description.ts'
+import { declaredReturn, declaredReturnGuide } from './return-description.ts'
 
 export const COMMAND_CALL_ENCODINGS = ['wrapped', 'flat'] as const
 export type CommandCallEncoding = (typeof COMMAND_CALL_ENCODINGS)[number]
@@ -222,7 +222,7 @@ export function commandMenu(definition: CommandTable): string {
     `Call with ${form}. In signatures, ? marks an optional field and a|b lists the allowed values.`,
     ...definition.commands.map(
       command =>
-        `${command.name} ${commandSignature(command.parameters)} - ${command.summary} ${returnSummary(command.returns)}${command.background === undefined ? '' : INTENT_NOTE}`,
+        `${command.name} ${commandSignature(command.parameters)} - ${command.summary} ${declaredReturn(command.returns)}${command.background === undefined ? '' : INTENT_NOTE}`,
     ),
   ].join('\n')
 }
@@ -321,13 +321,14 @@ export function commandGuide(definition: CommandTable, command?: string): string
 
 function commandUsage(definition: CommandTable, command: ToolCommandDeclaration): string[] {
   const lines = [`Usage: ${commandExample(definition, command.name)}`, command.summary]
-  if (command.parameters.kind === 'executor-owned') return [...lines, returnGuide(command.returns)]
+  if (command.parameters.kind === 'executor-owned')
+    return [...lines, declaredReturnGuide(command.returns)]
   const { schema, descriptions } = command.parameters.value
   return [
     ...lines,
     `JSON Schema: ${writeJsonText(schema)}`,
     ...descriptions.map(item => `${item.path}: ${item.text}`),
-    returnGuide(command.returns),
+    declaredReturnGuide(command.returns),
   ]
 }
 

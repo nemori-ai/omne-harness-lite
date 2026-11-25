@@ -1,7 +1,6 @@
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { writeJsonText } from '@omne-harness/json-text'
-import { returnSummary } from '@omne-harness/tool-contract'
-import { programSignature, returnGuide } from '@omne-harness/tool-contract/provider'
+import { programSignature, returnGuide, returnSummary } from '@omne-harness/tool-contract/provider'
 import type {
   SearchPage,
   ToolFailure,
