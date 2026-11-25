@@ -70,7 +70,6 @@ type Candidate = Readonly<{
 type Referring = Extract<ContentBlock, { ref: ContentReference }>
 type Position = Readonly<{ message: MessageId; block: BlockId }>
 
-/** What a model is told in place of a medium that cannot be converted, when the engine said why. */
 const UNREADABLE: Readonly<Record<InconvertibleReason, string>> = {
   encrypted: 'This file could not be read: it is encrypted.',
   damaged: 'This file could not be read: it is damaged.',
