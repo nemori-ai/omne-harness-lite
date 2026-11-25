@@ -45,6 +45,13 @@ describe('the release card is its own kind of card', () => {
     expect(QuestionSchema.safeParse(release).success).toBe(true)
   })
 
+  it('takes an origin that says a program made the action, and no other value of that fact', () => {
+    const made = (program: unknown) => ({ ...release, origin: { ...release.origin, program } })
+    expect(QuestionSchema.safeParse(made(true)).success).toBe(true)
+    expect(QuestionSchema.safeParse(made(false)).success).toBe(false)
+    expect(QuestionSchema.safeParse(made('yes')).success).toBe(false)
+  })
+
   it.each([
     ['no target', { target: undefined }],
     ['arguments over the bound', { arguments: { ...release.arguments, text: 'x'.repeat(4097) } }],

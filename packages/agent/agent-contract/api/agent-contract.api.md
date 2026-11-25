@@ -233,6 +233,9 @@
 - `ModelSelection` · `request.d.ts`
 - `NamedCapturedRead` · `passages.d.ts`
 - `NeedDeclaration` · `extensions.d.ts`
+- `NestedActionAdmission` · `passages.d.ts`
+- `NestedActionTarget` · `passages.d.ts`
+- `NestedActionVerdict` · `passages.d.ts`
 - `Next` · `evaluation.d.ts`
 - `ObligationCategory` · `finishing.d.ts`
 - `ObligationDisposition` · `finishing.d.ts`
@@ -365,6 +368,8 @@
 - `judgeHandoffPrepare` · `judge-handoff.d.ts`
 - `judgeInputOrigin` · `judge-handoff.d.ts`
 - `judgeLoopExtensions` · `judge-extensions.d.ts`
+- `nestedActionOf` · `identity.d.ts`
+- `nestedPositionOf` · `identity.d.ts`
 - `obligationCategoryOf` · `finishing.d.ts`
 - `openItems` · `snapshot.d.ts`
 - `stepOfToolAction` · `identity.d.ts`
@@ -982,6 +987,7 @@ export type ActionJudgment = Readonly<{
     evidence: DurableEvidence;
     request: DurableEvidence;
     notice?: string;
+    concurrent?: true;
 }>;
 export type ActionToolCall = ToolCallPart;
 export type Action = Readonly<{
@@ -2606,6 +2612,11 @@ export declare function toolActionOf(step: StepId, ordinal: number): ReturnType<
 export declare function stepOfToolAction(position: string): StepId | null;
 export declare function admissionPassageOf(action: ActionId): ReturnType<typeof decodePassageId>;
 export declare function admissionActionOf(passage: PassageId): ActionId | null;
+export declare function nestedActionOf(parent: ActionId, ordinal: number): ReturnType<typeof decodeActionId>;
+export declare function nestedPositionOf(action: ActionId): Readonly<{
+    parent: ActionId;
+    ordinal: number;
+}> | null;
 export declare const decodeCardRoundId: IdentityDecoder<CardRoundId, "CardRoundId">;
 export declare const decodeActionBatchId: IdentityDecoder<ActionBatchId, "ActionBatchId">;
 export declare const decodeAgentExecutionId: IdentityDecoder<AgentExecutionId, "AgentExecutionId">;
@@ -2639,7 +2650,7 @@ export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
 export { DECISION_CARD_DRAFT_SCHEMA, POSITION_OUTPUTS, cardDraftOf, cardRequestOf, judgeExtensionOutput, } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
 export type { AgentDefinition, AgentDefinitionListing, AgentType, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
-export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, stepOfToolAction, toolActionOf, admissionPassageOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeCompactionOperationId, decodeCompactionTaskId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
+export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, stepOfToolAction, toolActionOf, admissionPassageOf, nestedActionOf, nestedPositionOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeCompactionOperationId, decodeCompactionTaskId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './compaction.ts';
 export { compactionGeneration, compactionRequestText, compactionInputText } from './compaction.ts';
@@ -3352,7 +3363,35 @@ export interface ActionAdmission<P> {
             id: ActionBatchId;
             pass: string;
         }>;
+        nested?: Readonly<{
+            parent: ActionId;
+            ordinal: number;
+        }>;
     }>): Reply<AdmissionDecision>;
+}
+export type NestedActionTarget = Readonly<{
+    definition: Adoption;
+    name: string;
+    command: string | null;
+    arguments: string;
+}>;
+export type NestedActionVerdict = Readonly<{
+    kind: 'allowed';
+}> | Readonly<{
+    kind: 'denied';
+    reason: string;
+}> | Readonly<{
+    kind: 'unanswerable';
+    diagnostic: string;
+}>;
+export interface NestedActionAdmission<P> {
+    admit(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        parent: ActionId;
+        ordinal: number;
+        target: NestedActionTarget;
+        signal: AbortSignal;
+    }>): Promise<NestedActionVerdict>;
 }
 export type MessageSource = Readonly<{
     kind: 'external-input';

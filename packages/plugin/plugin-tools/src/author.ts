@@ -177,7 +177,12 @@ export function createExtensionPointsAuthor(
     })
   const operations: Record<
     string,
-    { summary: string; operation: Operation; release: Readonly<{ gate: string }> }
+    {
+      summary: string
+      operation: Operation
+      release: Readonly<{ gate: string }>
+      readOnly: boolean
+    }
   > = {}
   for (const name of extensionPointsCommandNames) {
     const operation = operationOf(name, read.data.resultMaxBytes)
@@ -187,6 +192,7 @@ export function createExtensionPointsAuthor(
       summary: extensionPointsSummaries[name],
       operation: operation.ok,
       release: { gate: 'read' },
+      readOnly: true,
     }
   }
   const author = defineCommandTool({

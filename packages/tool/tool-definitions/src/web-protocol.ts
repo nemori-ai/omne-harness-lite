@@ -22,6 +22,7 @@ export const webCommands: readonly WebCommand[] = [
   {
     name: 'help',
     summary: 'Read command usage.',
+    program: { kind: 'closed' },
     fields: [
       {
         name: 'name',
@@ -35,6 +36,29 @@ export const webCommands: readonly WebCommand[] = [
     name: 'search',
     summary:
       'Search the web for one natural-language query. Returns titles, urls and short excerpts, not whole pages. Needs the Web setting exa.apiKey.',
+    program: {
+      kind: 'data',
+      external: true,
+      schema: {
+        type: 'object',
+        required: ['results'],
+        properties: {
+          results: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['title', 'url', 'published_at', 'excerpt'],
+              properties: {
+                title: { type: 'string' },
+                url: { type: 'string' },
+                published_at: { type: ['string', 'null'] },
+                excerpt: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
     fields: [
       {
         name: 'query',
@@ -54,6 +78,20 @@ export const webCommands: readonly WebCommand[] = [
     name: 'fetch',
     summary:
       'Read one http or https page with GET and return it as Markdown. Does not run scripts, send cookies or submit forms.',
+    program: {
+      kind: 'data',
+      external: true,
+      schema: {
+        type: 'object',
+        required: ['url', 'media_type', 'markdown', 'truncated'],
+        properties: {
+          url: { type: 'string' },
+          media_type: { type: 'string' },
+          markdown: { type: 'string' },
+          truncated: { type: 'boolean' },
+        },
+      },
+    },
     fields: [
       {
         name: 'url',

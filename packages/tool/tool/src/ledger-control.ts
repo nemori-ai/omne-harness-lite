@@ -30,6 +30,7 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
+import { closingWrites } from './ledger-positions.ts'
 import { TIMERS_OFF, type TimerOrigin } from './ledger-timers.ts'
 import type { PreparedSynthetic, SyntheticDecision } from './ledger-result-preparation.ts'
 import {
@@ -106,7 +107,25 @@ export function decideControl(
       return outOfReach(call, command, mint)
     return decideSuspendedControl(snapshot, call, command, prepared, mint)
   }
-  return decideEnd(snapshot, call, command, reach, prepared, mint)
+  return closingProgram(snapshot, decideEnd(snapshot, call, command, reach, prepared, mint), reach)
+}
+
+const TAKES_EFFECT: ReadonlySet<ControlProgress['kind']> = new Set([
+  'pending',
+  'accepted',
+  'stopped',
+])
+
+/** TL-69: a stop or a withdrawal that takes effect closes the program of the call in the same commit. */
+function closingProgram(
+  snapshot: Snapshot,
+  decided: SyntheticDecision<ControlReceipt>,
+  reach: EndReach,
+): SyntheticDecision<ControlReceipt> {
+  if (decided.kind !== 'commit' || !TAKES_EFFECT.has(decided.value.progress.kind)) return decided
+  const fence = reach === 'foreground-and-unadmitted' ? 'foreground' : 'all'
+  const cause = reach === 'stop' ? 'stopped' : 'withdrawn'
+  return { ...decided, writes: [...decided.writes, ...closingWrites(snapshot, fence, cause)] }
 }
 
 type EndReach = 'stop' | Extract<ToolControl, { kind: 'withdraw' }>['reach']

@@ -89,6 +89,7 @@ export function createJobsAuthor(
       summary: string
       operation: ToolOperation<null, ToolMessageContentBlock>
       release: ToolCommandRelease
+      readOnly: boolean
     }
   > = {}
   for (const name of jobsCommandNames) {
@@ -115,6 +116,7 @@ export function createJobsAuthor(
       summary: jobsSummaries[name],
       operation: operation.ok,
       release: { gate: GATE_OF[name] },
+      readOnly: GATE_OF[name] === 'read',
     }
   }
   const author = defineCommandTool({

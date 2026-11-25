@@ -181,6 +181,7 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
         { capability: { category: 'tool', name: 'OmneExtensions' }, resident: true },
         { capability: { category: 'tool', name: 'Screen' }, resident: true },
         { capability: { category: 'tool', name: 'Skills' }, resident: true },
+        { capability: { category: 'tool', name: 'Code' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })

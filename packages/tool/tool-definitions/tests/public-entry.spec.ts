@@ -74,7 +74,7 @@ it('checks the text a command returns against the byte budget, and codes it as s
   const author = value(createFilesAuthor(filesConstruction({ resultMaxBytes: 8 })))
   const registration = readToolRegistration(author)
   if (registration?.kind !== 'commands') throw new Error('commands')
-  const read = registration.operations.find(([name]) => name === 'read')![1].author
+  const read = registration.operations.find(([name]) => name === 'help')![1].author
   if (read.kind !== 'ordinary') throw new Error('ordinary')
   const check = (candidate: unknown) => read.output.check({ value: candidate } as never)
   expect(check('12345678')).toEqual({ ok: '12345678' })
@@ -85,6 +85,38 @@ it('checks the text a command returns against the byte budget, and codes it as s
   expect(read.codec.encode(1 as never)).toEqual({ failure: { reason: 'text-required' } })
   expect(read.codec.decode(new TextEncoder().encode('中'))).toEqual({ ok: '中' })
   expect(read.codec.decode(new Uint8Array([0xff]))).toEqual({ failure: { reason: 'invalid-utf8' } })
+})
+
+it('checks the answer of a command that gives a program a value, and codes it as JSON', () => {
+  const author = value(createFilesAuthor(filesConstruction({ resultMaxBytes: 8 })))
+  const registration = readToolRegistration(author)
+  if (registration?.kind !== 'commands') throw new Error('commands')
+  const read = registration.operations.find(([name]) => name === 'read')![1].author
+  if (read.kind !== 'ordinary') throw new Error('ordinary')
+  const check = (candidate: unknown) => read.output.check({ value: candidate } as never)
+  const fits = { text: '12345678', data: { text: 'a whole page that is longer than the text' } }
+  expect(check(fits)).toEqual({ ok: fits })
+  expect(check({ text: '123456789' })).toEqual({ failure: { reason: 'bounded-answer-required' } })
+  expect(check('12345678')).toEqual({ failure: { reason: 'bounded-answer-required' } })
+  const coded = read.codec.encode(fits as never)
+  if (!('ok' in coded)) throw new Error('encode')
+  expect(read.codec.decode(coded.ok)).toEqual({ ok: fits })
+  expect(read.codec.encode('text' as never)).toEqual({ failure: { reason: 'answer-required' } })
+  expect(read.codec.decode(new TextEncoder().encode('"text"'))).toEqual({
+    failure: { reason: 'answer-required' },
+  })
+  expect(read.codec.decode(new Uint8Array([0xff]))).toEqual({
+    failure: { reason: 'invalid-answer' },
+  })
+  if (read.program.kind !== 'json') throw new Error('json')
+  expect(read.program.encode(fits as never)).toEqual({
+    ok: {
+      kind: 'object',
+      entries: [{ key: 'text', value: { kind: 'string', value: fits.data.text } }],
+    },
+  })
+  expect(read.program.encode({ text: 'refused' } as never)).toEqual({ ok: null })
+  expect(read.renderer.render(fits as never)).toEqual({ ok: '12345678' })
 })
 
 it('creates missing parents before a write only when asked', async () => {

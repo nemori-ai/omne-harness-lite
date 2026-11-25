@@ -101,6 +101,7 @@ export function createAskAuthor(
       operation: ToolOperation<null, ToolMessageContentBlock>
       release: ToolCommandRelease
       conditions: readonly string[]
+      readOnly: boolean
     }
   > = {}
   for (const command of askCommands) {
@@ -150,6 +151,8 @@ export function createAskAuthor(
       operation: operation.ok,
       release: { gate: null },
       conditions: ASK_CONDITIONS,
+      // A question changes nothing another call can observe: several may wait for a person together.
+      readOnly: true,
     }
   }
   const author = defineCommandTool({

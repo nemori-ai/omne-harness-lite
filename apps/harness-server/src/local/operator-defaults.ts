@@ -129,7 +129,7 @@ export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 const STORAGE_LOCK_WAIT_MS = 5000
 export const LOCAL_READ_WAIT_MS = 2 * STORAGE_LOCK_WAIT_MS
 export const LOCAL_MAX_RESPONSE_BYTES = 1_048_576
-export const LOCAL_STORAGE_JSON_MEMBERS = 2 * 65_536
+export const LOCAL_STORAGE_JSON_MEMBERS = 262_144
 
 const TOOL_ORPHAN_GRACE_MS = 60_000
 
@@ -355,6 +355,15 @@ export const LOCAL_SCREEN_LIMITS = Object.freeze({
   ...LOCAL_IMAGE_BUDGET,
 })
 
+export const LOCAL_PROGRAM_LIMITS = Object.freeze({
+  computeMs: 30_000,
+  memoryBytes: 64 * 1024 * 1024,
+  outputBytes: 512 * 1024,
+  calls: 200,
+  callsInFlight: 8,
+  sourceBytes: 65_536,
+})
+
 function toolRecords(combinationVersion: string) {
   return {
     combinationVersion,
@@ -413,7 +422,7 @@ const AGENT_HOST = {
   reconciliationDelaysMs: [1000, 1000, 1000, 2000, 2000, 5000, 5000, 10_000, 30_000],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 1000,
-  toolConcurrency: 1,
+  toolConcurrency: 8,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
   instanceIdleMs: 60_000,
 } as const
@@ -552,6 +561,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           OmneExtensions: { resultMaxBytes: 131_072 },
           OmneExtensionPoints: { resultMaxBytes: 131_072 },
           Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
+          Code: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_PROGRAM_LIMITS },
         },
       },
     ],

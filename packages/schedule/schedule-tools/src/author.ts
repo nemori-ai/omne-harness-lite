@@ -213,6 +213,7 @@ export function createSchedulesAuthor(
       summary: string
       operation: ToolOperation<null, ToolMessageContentBlock>
       release: ToolCommandRelease
+      readOnly: boolean
     }
   > = {}
   for (const name of schedulesCommandNames) {
@@ -246,6 +247,7 @@ export function createSchedulesAuthor(
             detail: { kind: ACTIVATION_KIND, schema: activationSchema },
           }
         : { gate: SCHEDULES_GATE_OF[name] },
+      readOnly: SCHEDULES_GATE_OF[name] === 'read',
     }
   }
   const author = defineCommandTool({

@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:72a5654332bcefbddf0c1104c185a338a0875110269c43eb39954fea015957dc"
+    "1": "sha256:72a5654332bcefbddf0c1104c185a338a0875110269c43eb39954fea015957dc",
+    "2": "sha256:6aabdbc68ee89c66fc6aeaf973b8883d3850eb45b0e185e95a5f02ac6f5cf6df"
   },
   "major": 1,
   "name": "tool",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {
       "observe-call": {
@@ -352,6 +353,131 @@
       }
     },
     "operations": {
+      "list-call-children": {
+        "body": {
+          "fields": {
+            "cursor": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "kind": "text"
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            },
+            "reference": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "items": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "child": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "text"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "command": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "text"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "ordinal": {
+                        "rule": {
+                          "kind": "count"
+                        }
+                      },
+                      "preview": {
+                        "rule": {
+                          "kind": "string"
+                        }
+                      },
+                      "state": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "queued",
+                            "running",
+                            "waiting",
+                            "background",
+                            "completed",
+                            "failed",
+                            "denied",
+                            "stopped",
+                            "unknown"
+                          ]
+                        }
+                      },
+                      "tool": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "next": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        },
+        "since": 2
+      },
       "read-call": {
         "body": {
           "fields": {

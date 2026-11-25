@@ -21,6 +21,7 @@ import type {
   AgentRegistrationHandle,
   AgentRuntime,
   AgentRuntimeControl,
+  NestedActionAdmission,
   CallerCommit,
   ContextCompaction,
   CompactionInputReader,
@@ -96,7 +97,7 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
 }>
 
 export type ToolCallDescription =
-  | Readonly<{ kind: 'tool'; definition: T.ToolDefinition }>
+  | Readonly<{ kind: 'tool'; definition: T.ToolDefinition; concurrent?: boolean }>
   | Readonly<{ kind: 'answered'; text: string }>
 export type ToolCallAnswer = Extract<ToolCallDescription, { kind: 'answered' }>
 
@@ -114,4 +115,6 @@ export interface AgentProvider<P> {
   readonly observation: AgentHandle<P>
   readonly recovery: AgentExecutionRecovery<P>
   readonly control: AgentRuntimeControl<P>
+  /** Asks the running execution whether an action a program makes under a waiting tool call may run. */
+  readonly nested: NestedActionAdmission<P>
 }

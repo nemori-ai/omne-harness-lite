@@ -70,6 +70,7 @@ export type {
   ToolGateDefault,
   ToolImplementationShape,
   ToolInvocation,
+  ToolProgramAccess,
   ToolProgramDeclaration,
   ToolOffloadingDeclaration,
   ToolPublishedSchema,
@@ -190,6 +191,7 @@ export type {
 } from './command-call.ts'
 export { callLabel } from './call-label.ts'
 export { IMPLICIT_TOOL_GATE, commandGateOf, toolGatesOf } from './gates.ts'
+export { isReadOnlyCall } from './read-only.ts'
 export type {
   ReleaseDescription,
   ReleaseDetail,
@@ -202,6 +204,16 @@ export type {
 export type { ToolActionGate } from './gates.ts'
 export type { ToolCallLabel } from './call-label.ts'
 export { toolsCapabilityOf } from './tools-capability.ts'
+export { programToolsOf } from './program.ts'
+export type {
+  ProgramCallAnswer,
+  ProgramCallEffect,
+  ProgramCallFailure,
+  ProgramCallFailureKind,
+  ProgramTools,
+} from './program.ts'
+export type { ProgramFunction } from './program-signature.ts'
+export { isProgramExecutor, programCatalogue } from './program-signature.ts'
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts'
 export type {
   ToolActionResolution,

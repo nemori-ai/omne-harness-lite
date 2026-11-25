@@ -1,0 +1,40 @@
+{
+  "name": "@omne-harness/execution-environment-program",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The restricted execution domain: how one program runs in a JavaScript domain apart from the host, calls only the entries it was given, under which limits, and how it is ended",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@earendil-works/pi-codemode": "catalog:",
+    "@omne-harness/execution-environment-contract": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "amaro": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

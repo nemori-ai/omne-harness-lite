@@ -2,6 +2,7 @@ import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ParameterContract } from '@omne-harness/tool-contract'
 import { describedAdoption, type ParameterCodec } from '@omne-harness/tool-contract/provider'
 import { contract, parameterCodec, type Arguments, type Command } from './protocol.ts'
+import type { ProgramSide } from './program-side.ts'
 
 export const skillsAdoption = describedAdoption({
   owner: '@omne-harness/tool-definitions',
@@ -33,9 +34,26 @@ const offsetField = {
     'Byte offset to start from. Omit for 0; to read on, copy the offset a cut result gives.',
 } as const
 
+const text = { type: 'string' }
+const whole = { type: 'integer' }
+const maybe = { type: ['string', 'null'] }
+const value = (required: readonly string[], properties: object): ProgramSide => ({
+  kind: 'data',
+  external: false,
+  schema: { type: 'object', required, properties },
+})
+const TEXT_PAGE = value(['text', 'start', 'end', 'total', 'directory'], {
+  text,
+  start: whole,
+  end: whole,
+  total: whole,
+  directory: maybe,
+})
+
 const commandBodies: Readonly<Record<SkillsCommandName, Omit<Command, 'name'>>> = {
   help: {
     summary: 'Read command usage.',
+    program: { kind: 'closed' },
     fields: [
       {
         name: 'name',
@@ -48,6 +66,17 @@ const commandBodies: Readonly<Record<SkillsCommandName, Omit<Command, 'name'>>> 
   search: {
     summary:
       'Find the Skills you may use by keywords, best match first; an empty query lists every Skill. Returns names and descriptions.',
+    program: value(['entries', 'next'], {
+      entries: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['name', 'description', 'disabled'],
+          properties: { name: text, description: maybe, disabled: maybe },
+        },
+      },
+      next: maybe,
+    }),
     fields: [
       {
         name: 'query',
@@ -70,14 +99,27 @@ const commandBodies: Readonly<Record<SkillsCommandName, Omit<Command, 'name'>>> 
   },
   read: {
     summary: 'Read the SKILL.md body of one Skill, with the local directory that holds its files.',
+    program: TEXT_PAGE,
     fields: [skillField, offsetField],
   },
   list: {
     summary: 'List the files in the directory of one Skill, with their sizes.',
+    program: value(['files', 'directory'], {
+      files: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['path', 'size', 'media_type'],
+          properties: { path: text, size: whole, media_type: maybe },
+        },
+      },
+      directory: maybe,
+    }),
     fields: [skillField],
   },
   read_file: {
     summary: 'Read one text file of a Skill by its path inside the Skill directory.',
+    program: TEXT_PAGE,
     fields: [
       skillField,
       {

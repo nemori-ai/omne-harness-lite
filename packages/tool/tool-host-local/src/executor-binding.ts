@@ -17,6 +17,7 @@ import {
   CLOSED_RESULT_MAX_BYTES,
   commandArguments,
   describeCommandArgumentsRejection,
+  markProgramCall,
   type AuthorWait,
   type AuthorSegment,
   type CallAccess,
@@ -105,7 +106,7 @@ type SuspendedSegment = Readonly<{
   intent: WaitIntent
 }>
 
-function operationOf(
+export function operationOf(
   registration: ReturnType<typeof readToolRegistration>,
   command: string | null,
 ): ToolOperationSlot | undefined {
@@ -114,23 +115,32 @@ function operationOf(
   return registration?.operations.find(([name]) => name === command)?.[1]
 }
 
-function argumentsOf<P, E>(input: StartInput<P, E>, operation: ToolOperationSlot): unknown {
-  const { request } = input
+/** The arguments of a call as its command's own parser reads them, or why they do not satisfy its contract. */
+export function readCallArguments(
+  request: Pick<FixedToolRequest, 'availability' | 'command' | 'arguments'>,
+  operation: ToolOperationSlot,
+): Outcome<unknown, Readonly<{ reason: string }>> {
   const { definition } = request.availability
   const invalid = (reason: string) =>
-    definition.kind === 'commands' && request.command !== null
-      ? describeCommandArgumentsRejection(definition, request.command, reason)
-      : reason
+    fail({
+      reason:
+        definition.kind === 'commands' && request.command !== null
+          ? describeCommandArgumentsRejection(definition, request.command, reason)
+          : reason,
+    })
   const cut = commandArguments(definition, request.command, request.arguments)
-  if ('failure' in cut) throw new Error(invalid(cut.failure.reason))
-  const argumentsValue = operation.author.parameters.parse(cut.ok)
-  if ('failure' in argumentsValue)
-    throw new Error(
-      argumentsValue.failure.kind === 'invalid'
-        ? invalid(argumentsValue.failure.reason)
-        : argumentsValue.failure.reason,
-    )
-  return argumentsValue.ok
+  if ('failure' in cut) return invalid(cut.failure.reason)
+  const parsed = operation.author.parameters.parse(cut.ok)
+  if ('ok' in parsed) return parsed
+  return parsed.failure.kind === 'invalid'
+    ? invalid(parsed.failure.reason)
+    : fail({ reason: parsed.failure.reason })
+}
+
+function argumentsOf<P, E>(input: StartInput<P, E>, operation: ToolOperationSlot): unknown {
+  const read = readCallArguments(input.request, operation)
+  if ('failure' in read) throw new Error(read.failure.reason)
+  return read.ok
 }
 
 function waitSchemasOf(contract: AuthorWait['contract']) {
@@ -157,9 +167,12 @@ function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
 }
 
 // The executor of a source entry reads who calls from the context, in the first segment and in each resumed one.
-function noted<P>(scope: ToolExecutionScope, facts: CallAccess<P>): ToolExecutionScope {
+function noted<P>(
+  scope: ToolExecutionScope,
+  facts: CallAccess<P> & Readonly<{ request: FixedToolRequest }>,
+): ToolExecutionScope {
   noteCallFacts(scope.context, facts)
-  return scope
+  return facts.request.invocation.kind === 'programmatic' ? markProgramCall(scope) : scope
 }
 
 function suspendSegment<P>(

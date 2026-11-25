@@ -7,6 +7,7 @@ const anyText = { kind: 'string' } as const
 const tenant = { kind: 'tenant' } as const
 const json = { kind: 'json' } as const
 const nothing = { kind: 'null' } as const
+const count = { kind: 'count' } as const
 
 const object = <const F extends Fields>(fields: F) => ({ kind: 'object', fields }) as const
 const literal = <const V extends readonly string[]>(...values: V) =>
@@ -71,6 +72,30 @@ const callOutput = {
   ],
 } as const
 
+const child = object({
+  ordinal: { rule: count },
+  tool: { rule: text },
+  command: { rule: nullable(text) },
+  preview: { rule: anyText },
+  state: {
+    rule: literal(
+      'queued',
+      'running',
+      'waiting',
+      'background',
+      'completed',
+      'failed',
+      'denied',
+      'stopped',
+      'unknown',
+    ),
+  },
+  /** The reference of the call at this position; null while no call was handed off. */
+  child: { rule: nullable(text) },
+})
+
+const childrenPage = object({ items: { rule: array(child) }, next: { rule: nullable(text) } })
+
 const observeCallFrame = {
   kind: 'one-of',
   rules: [
@@ -113,6 +138,16 @@ export const toolProtocol = defineProtocol({
       outcomes: { succeeded: ruleCodec(callOutput) },
       countsAsAccess: true,
     },
+    // The positions of the program a call ran, by ordinal: empty for a call that ran none.
+    'list-call-children': {
+      since: 2,
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, cursor: { rule: nullable(text) } })),
+      outcomes: { succeeded: ruleCodec(childrenPage) },
+      countsAsAccess: true,
+    },
   },
   observations: {
     'observe-call': {
@@ -130,3 +165,5 @@ export type ToolCallView = RuleValue<typeof call>
 export type ToolCallResultPage = RuleValue<typeof resultPage>
 export type ObserveCallFrame = RuleValue<typeof observeCallFrame>
 export type ToolCallOutputView = RuleValue<typeof callOutput>
+export type ToolCallChild = RuleValue<typeof child>
+export type ToolCallChildrenPage = RuleValue<typeof childrenPage>

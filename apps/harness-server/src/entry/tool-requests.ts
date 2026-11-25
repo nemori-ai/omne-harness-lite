@@ -34,6 +34,7 @@ import {
   callLabel,
   decodeCommandCallText,
   describeCommandCallRejection,
+  isReadOnlyCall,
   selectCommandText,
   type ToolAvailability,
   type ToolCallLabel,
@@ -48,6 +49,7 @@ import {
   toolAvailabilityReference,
 } from '@omne-harness/tool-contract/provider'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import { forwardIntentOfCall } from '@omne-harness/tool-host-local'
 import { sourcedEntriesOf, type SourcedEntries } from './tool-entry-sources.ts'
 import { currentHeldTool, type CurrentHeldTool } from '../rows/tool-host/held-current.ts'
 import { HELD_TOOL_SETTINGS, ownLayer } from '../rows/tool-host/held-tools.ts'
@@ -430,6 +432,7 @@ const CARRIES_DIRECTORY: ReadonlySet<string> = new Set([
   'Tools',
   'SwitchWorkspace',
   'OmneExtensions',
+  'Code',
 ])
 
 async function directoryOf(
@@ -437,8 +440,9 @@ async function directoryOf(
   access: SessionAccess<unknown>,
   definition: ToolAvailability['definition'],
 ): Promise<Outcome<Placed | ToolCallAnswer, Failure>> {
-  const needed = definition.declarations.environment !== null
-  if (!needed && !CARRIES_DIRECTORY.has(definition.name)) return succeed({ kind: 'pinned' })
+  const carries = CARRIES_DIRECTORY.has(definition.name)
+  const needed = definition.declarations.environment !== null && !carries
+  if (!needed && !carries) return succeed({ kind: 'pinned' })
   const read = await ports.workingDirectory(access)
   const placed: Outcome<Placed | ToolCallAnswer, Failure> =
     'failure' in read
@@ -447,6 +451,37 @@ async function directoryOf(
   // Such a tool needs no directory itself: without one it carries none.
   const usable = 'ok' in placed && placed.ok.kind === 'pinned'
   return needed || usable ? placed : succeed({ kind: 'pinned' })
+}
+
+type Call = Readonly<{ definition: ToolDefinition; command: string | null }>
+
+async function runsBeside(
+  ports: ToolRequestPorts,
+  release: Trusted,
+  input: DescribeInput,
+  { definition, command }: Call,
+): Promise<boolean> {
+  if (definition.name !== 'Tools' || command !== 'execute')
+    return isReadOnlyCall(definition, command)
+  const effective = input.effectiveArguments
+  const intent = forwardIntentOfCall({
+    definition,
+    command,
+    arguments: { original: effective, effective, complete: true },
+  })
+  const catalog = ports.catalog()
+  if (intent === null || catalog === undefined) return false
+  const target = await catalog
+    .inspect({
+      principal: input.principal,
+      tenant: input.tenant,
+      name: intent.name,
+      command: null,
+      consumer: consumerOf(release),
+    })
+    .catch(() => undefined)
+  if (target === undefined || 'failure' in target || target.ok.kind !== 'available') return false
+  return isReadOnlyCall(target.ok.definition, intent.command)
 }
 
 export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolRequests {
@@ -464,11 +499,10 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     if ('failure' in session) return session
     const availability = await availabilityOf(ports, release.ok, input, session.ok)
     if ('failure' in availability) return availability
-    return succeed(
-      availability.ok.kind === 'answered'
-        ? availability.ok
-        : { kind: 'tool', definition: availability.ok.definition },
-    )
+    if (availability.ok.kind === 'answered') return succeed(availability.ok)
+    const { definition } = availability.ok
+    const concurrent = await runsBeside(ports, release.ok, input, availability.ok)
+    return succeed({ kind: 'tool', definition, concurrent })
   }
 
   const prepare: ReleaseToolRequests['prepare'] = async (input: PrepareInput) => {

@@ -65,6 +65,8 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'judgeHandoffPrepare',
     'judgeInputOrigin',
     'judgeLoopExtensions',
+    'nestedActionOf',
+    'nestedPositionOf',
     'obligationCategoryOf',
     'openItems',
     'stepOfToolAction',

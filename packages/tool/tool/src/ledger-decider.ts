@@ -30,6 +30,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type {
   ParsedToolArguments,
+  ProgramPosition,
   ToolArgumentsRejection,
   ToolInstant,
   ToolTask,
@@ -58,6 +59,7 @@ import {
   type CallRecord,
   type CheckpointStateRecord,
   type ExclusionRecord,
+  type ProgramTableRecord,
   type LedgerDomain,
   type LedgerRead,
   type LedgerRecord,
@@ -74,6 +76,7 @@ import {
 import {
   acceptedRelation,
   backgroundAllowed,
+  closedToPrograms,
   backgroundPlaceholder,
   type BackgroundPlaceholder,
 } from './ledger-background.ts'
@@ -100,6 +103,8 @@ export type Snapshot = Readonly<{
   waitRequest: WaitRequestRecord | null
   checkpointState: CheckpointStateRecord | null
   exclusions: ReadonlyMap<string, ExclusionRecord>
+  program: ProgramTableRecord | null
+  positions: ReadonlyMap<number, ProgramPosition>
 }>
 
 export function snapshotOf(
@@ -120,6 +125,8 @@ export function snapshotOf(
   const accounts: AccountRecord[] = []
   const tasks: ToolTask[] = []
   const exclusions = new Map<string, ExclusionRecord>()
+  const positions = new Map<number, ProgramPosition>()
+  let program: ProgramTableRecord | null = null
   const suspensions = new Map<string, SuspensionLedgerRecord>()
   const waits = new Map<string, WaitLedgerRecord>()
   let waitRequest: WaitRequestRecord | null = null
@@ -183,6 +190,12 @@ export function snapshotOf(
       case 'checkpoint-state':
         checkpointState = record.checkpointState
         break
+      case 'program':
+        program = record.program
+        break
+      case 'position':
+        positions.set(record.position.ordinal, record.position)
+        break
       default:
         throw new Error(`a ${record.kind} record does not belong to a call domain`)
     }
@@ -208,6 +221,8 @@ export function snapshotOf(
     waitRequest,
     checkpointState,
     exclusions,
+    program,
+    positions,
   }
 }
 
@@ -279,14 +294,9 @@ export function decideAdmit<B extends ContentBlock>(
       mint,
       prepared,
     )
-  if (request.invocation.kind === 'programmatic' && definition.programmable !== true)
-    return reply(
-      fail({
-        kind: 'unsupported',
-        adoption: definition.adoption,
-        reason: 'the definition does not permit programmatic invocation',
-      }),
-    )
+  const closed = request.invocation.kind === 'programmatic' ? closedToPrograms(request) : null
+  if (closed !== null)
+    return reply(fail({ kind: 'unsupported', adoption: definition.adoption, reason: closed }))
   const parsed = tools.arguments(request.arguments)
   if ('failure' in parsed)
     return argumentsFailure(snapshot, command, parsed.failure, mint, prepared)

@@ -175,6 +175,12 @@ const successBodies: Readonly<Record<Name, readonly object[]>> = {
     { item: item({ ...pending, question: asking }) },
     { item: item({ ...pending, question: release }) },
     { item: item({ ...pending, question: { ...release, detail: given } }) },
+    {
+      item: item({
+        ...pending,
+        question: { ...release, origin: { ...release.origin, program: true } },
+      }),
+    },
     { item: item({ ...pending, question: { ...release, detail: largest } }) },
     { item: item({ ...pending, question: { ...release, detail: { state: 'unavailable' } } }) },
   ],
@@ -205,6 +211,12 @@ const invalidSuccess: Readonly<Record<Name, readonly object[]>> = {
     },
     { item: item({ ...pending, question: { ...release, detail: { ...given, rows: [] } } }) },
     { item: item({ ...pending, question: { ...release, detail: { state: 'shown' } } }) },
+    {
+      item: item({
+        ...pending,
+        question: { ...release, origin: { ...release.origin, program: false } },
+      }),
+    },
     {
       item: item({
         ...pending,

@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccessVerdict } from '@omne-harness/tool'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
-import {
-  PROGRAMMATIC_NOT_IN_M2,
-  createLocalStartGuard,
-  type StartCoordinatorAccess,
-} from '@omne-harness/tool-host-local'
+import { createLocalStartGuard, type StartCoordinatorAccess } from '@omne-harness/tool-host-local'
 import { callId, principalA, request, tenantA, type Principal } from './coordinator-values.ts'
 
 type Ask = Parameters<StartCoordinatorAccess<Principal>['qualify']>[0]
@@ -43,14 +39,15 @@ describe('start guard', () => {
     ])
   })
 
-  it('a call that is not direct is refused with the M2 reason and the access is not asked', async () => {
+  it('a call a program made is qualified like a direct one: the guard asks the same access', async () => {
     const { access, asked } = scripted(allowed)
     const verdict = await createLocalStartGuard({ access }).qualifyStart(
       startInput({ invocation: { kind: 'programmatic', source: request().invocation.source } }),
     )
-    expect(verdict).toEqual({ kind: 'refused', reason: PROGRAMMATIC_NOT_IN_M2 })
-    expect(PROGRAMMATIC_NOT_IN_M2).toBe('programmatic-not-in-m2')
-    expect(asked).toEqual([])
+    expect(verdict).toEqual({ kind: 'allowed' })
+    expect(asked).toEqual([
+      { principal: principalA, tenant: tenantA, call: callId('call-1'), action: 'start' },
+    ])
   })
 
   it('a denied qualification is refused', async () => {

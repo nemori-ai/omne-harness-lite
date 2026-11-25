@@ -899,7 +899,7 @@ describe('13 invocation permission', () => {
       failure: {
         kind: 'unsupported',
         adoption: functionDefinition().adoption,
-        reason: 'the definition does not permit programmatic invocation',
+        reason: 'read_file is not open to programs',
       },
     })
     expect(store.commits).toBe(0)

@@ -44,6 +44,8 @@ export {
   stepOfToolAction,
   toolActionOf,
   admissionPassageOf,
+  nestedActionOf,
+  nestedPositionOf,
   decodeActionBatchId,
   decodeActionId,
   decodeAgentExecutionId,
