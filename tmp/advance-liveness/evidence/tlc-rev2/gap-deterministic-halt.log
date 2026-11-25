@@ -1,0 +1,350 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 59 and seed -2147126630418343457 with 2 workers on 12 cores with 1820MB heap and 64MB offheap memory [pid: 65853] (Mac OS X 26.5.1 aarch64, Homebrew 21.0.13.0.2 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/panqiwei/Dev/repos/nemori-ai/omne-harness-lite/tmp/advance-liveness/models/AdvanceLiveness.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Naturals.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AdvanceLiveness
+Starting... (2026-11-26 00:27:23)
+Implied-temporal checking--satisfiability problem has 3 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-26 00:27:28.
+Progress(18) at 2026-11-26 00:27:30: 41,153 states generated, 10,181 distinct states found, 0 states left on queue.
+Checking 3 branches of temporal properties for the complete state space with 30543 total distinct states at (2026-11-26 00:27:30)
+Error: Temporal properties were violated.
+
+Error: The following behavior constitutes a counter-example:
+
+State 1: <Initial predicate>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {}
+/\ slot = "free"
+/\ stepped = FALSE
+/\ pending = {}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = FALSE
+/\ execOpen = FALSE
+/\ awaiting = FALSE
+/\ sent = {}
+/\ restarts = 0
+/\ drive = "none"
+/\ known = {}
+/\ waiting0 = {}
+/\ answered = {}
+/\ run = "none"
+/\ split = FALSE
+/\ batch = {}
+/\ outages = 0
+/\ halts = 0
+
+State 2: <Send line 101, col 3 to line 104, col 94 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {}
+/\ slot = "free"
+/\ stepped = FALSE
+/\ pending = {2}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = FALSE
+/\ awaiting = FALSE
+/\ sent = {2}
+/\ restarts = 0
+/\ drive = "none"
+/\ known = {}
+/\ waiting0 = {}
+/\ answered = {}
+/\ run = "none"
+/\ split = FALSE
+/\ batch = {}
+/\ outages = 0
+/\ halts = 0
+
+State 3: <OpenRun line 189, col 3 to line 195, col 50 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {}
+/\ slot = "free"
+/\ stepped = FALSE
+/\ pending = {2}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = FALSE
+/\ awaiting = FALSE
+/\ sent = {2}
+/\ restarts = 0
+/\ drive = "none"
+/\ known = {}
+/\ waiting0 = {2}
+/\ answered = {}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 0
+/\ halts = 0
+
+State 4: <InvokeOk line 200, col 3 to line 204, col 87 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {2}
+/\ slot = "held"
+/\ stepped = FALSE
+/\ pending = {2}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {2}
+/\ restarts = 0
+/\ drive = "live"
+/\ known = {2}
+/\ waiting0 = {2}
+/\ answered = {}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 0
+/\ halts = 0
+
+State 5: <DepDown line 107, col 3 to line 111, col 41 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {2}
+/\ slot = "held"
+/\ stepped = FALSE
+/\ pending = {2}
+/\ poison = FALSE
+/\ depUp = FALSE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {2}
+/\ restarts = 0
+/\ drive = "live"
+/\ known = {2}
+/\ waiting0 = {2}
+/\ answered = {}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 1
+/\ halts = 0
+
+State 6: <Poison line 166, col 3 to line 169, col 50 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {2}
+/\ slot = "held"
+/\ stepped = FALSE
+/\ pending = {2}
+/\ poison = TRUE
+/\ depUp = FALSE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {2}
+/\ restarts = 0
+/\ drive = "live"
+/\ known = {2}
+/\ waiting0 = {2}
+/\ answered = {}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 1
+/\ halts = 0
+
+State 7: <DepRecover line 114, col 3 to line 117, col 50 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {2}
+/\ slot = "held"
+/\ stepped = FALSE
+/\ pending = {2}
+/\ poison = TRUE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {2}
+/\ restarts = 0
+/\ drive = "live"
+/\ known = {2}
+/\ waiting0 = {2}
+/\ answered = {}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 1
+/\ halts = 0
+
+State 8: <AgentStep line 237, col 3 to line 244, col 73 of module AdvanceLiveness>
+/\ runAns = {2}
+/\ steps = 1
+/\ cancels = 0
+/\ agentAcc = {2}
+/\ slot = "held"
+/\ stepped = TRUE
+/\ pending = {}
+/\ poison = TRUE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {2}
+/\ restarts = 0
+/\ drive = "live"
+/\ known = {2}
+/\ waiting0 = {2}
+/\ answered = {2}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 1
+/\ halts = 0
+
+State 9: <Send line 101, col 3 to line 104, col 94 of module AdvanceLiveness>
+/\ runAns = {2}
+/\ steps = 1
+/\ cancels = 0
+/\ agentAcc = {2}
+/\ slot = "held"
+/\ stepped = TRUE
+/\ pending = {1}
+/\ poison = TRUE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {1, 2}
+/\ restarts = 0
+/\ drive = "live"
+/\ known = {2}
+/\ waiting0 = {2}
+/\ answered = {2}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 1
+/\ halts = 0
+
+State 10: <ToolStep line 248, col 3 to line 252, col 40 of module AdvanceLiveness>
+/\ runAns = {2}
+/\ steps = 2
+/\ cancels = 0
+/\ agentAcc = {2}
+/\ slot = "held"
+/\ stepped = TRUE
+/\ pending = {1}
+/\ poison = TRUE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {1, 2}
+/\ restarts = 0
+/\ drive = "live"
+/\ known = {2}
+/\ waiting0 = {2}
+/\ answered = {2}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 1
+/\ halts = 0
+
+State 11: <Restart line 159, col 3 to line 162, col 91 of module AdvanceLiveness>
+/\ runAns = {2}
+/\ steps = 2
+/\ cancels = 0
+/\ agentAcc = {2}
+/\ slot = "free"
+/\ stepped = TRUE
+/\ pending = {1}
+/\ poison = TRUE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {1, 2}
+/\ restarts = 1
+/\ drive = "none"
+/\ known = {}
+/\ waiting0 = {2}
+/\ answered = {2}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 1
+/\ halts = 0
+
+State 12: <SubmitOk line 217, col 3 to line 221, col 40 of module AdvanceLiveness>
+/\ runAns = {2}
+/\ steps = 2
+/\ cancels = 0
+/\ agentAcc = {1, 2}
+/\ slot = "free"
+/\ stepped = TRUE
+/\ pending = {1}
+/\ poison = TRUE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {1, 2}
+/\ restarts = 1
+/\ drive = "none"
+/\ known = {1}
+/\ waiting0 = {2}
+/\ answered = {2}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 1
+/\ halts = 0
+
+State 13: <RecoverResume line 226, col 3 to line 230, col 40 of module AdvanceLiveness>
+/\ runAns = {2}
+/\ steps = 2
+/\ cancels = 0
+/\ agentAcc = {1, 2}
+/\ slot = "held"
+/\ stepped = TRUE
+/\ pending = {1}
+/\ poison = TRUE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {1, 2}
+/\ restarts = 1
+/\ drive = "live"
+/\ known = {1}
+/\ waiting0 = {2}
+/\ answered = {2}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {2}
+/\ outages = 1
+/\ halts = 0
+
+Back to state 12: <Halt line 174, col 3 to line 181, col 33 of module AdvanceLiveness>
+
+Finished checking temporal properties in 00s at 2026-11-26 00:27:31
+41153 states generated, 10181 distinct states found, 0 states left on queue.
+Finished in 08s at (2026-11-26 00:27:31)

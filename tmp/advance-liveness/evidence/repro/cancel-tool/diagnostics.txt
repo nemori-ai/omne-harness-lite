@@ -1,0 +1,48 @@
+Run run_9b3c47962730664e64ddcbd4e15be990bdcd5d45f31dac3f67503a717f879bb0 (entry interactive, execution run_9b3c47962730664e64ddcbd4e15be990bdcd5d45f31dac3f67503a717f879bb0/execution): completed
+  started: position 101 at unknown
+  attempts: 1 (released: ended 1)
+  model calls: 1
+    main ["model-invocation",2,"mcall_003a01811962ffbaae40040096898b03cc019246_1","mop_003a01811962ffbaae40040096898b03cc019246_1_admit"] -> call mcall_003a01811962ffbaae40040096898b03cc019246_1 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_94350f20-5bab-470e-9db7-a90359fa76b6 openai/gpt-6.1-sol: sent, first content observed, completed stop, reasoning not-carried
+        moments: prepared 2026-11-25T11:46:41.523Z, sent 2026-11-25T11:46:41.550Z, response 2026-11-25T11:46:41.552Z, first content 2026-11-25T11:46:41.552Z, ended 2026-11-25T11:46:41.553Z
+        timing: materialize 27 ms, send to response 2 ms, send to first content 2 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+  tool calls: 0
+  messages: message.assistant 1
+Run run_d9a1e8d87ecae8aadfb2d3b628ae3154cf091770063ea8ef2e7ef66aeecc3961 (entry interactive, execution run_d9a1e8d87ecae8aadfb2d3b628ae3154cf091770063ea8ef2e7ef66aeecc3961/execution): cancelled
+  started: position 30 at unknown
+  attempts: 1 (released: cancelled 1)
+  reason: no-failure cancelled
+  control requested at 77: run control propagating
+  control progress at 78: run control propagating
+  control progress at 92: run control reconciled
+  model calls: 2
+    main ["model-invocation",2,"mcall_923937a52aa62c434880c3a6dc706c10486373dc_1","mop_923937a52aa62c434880c3a6dc706c10486373dc_1_admit"] -> call mcall_923937a52aa62c434880c3a6dc706c10486373dc_1 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_2717fbbe-a705-4c59-beee-06be7b0c0cd2 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T11:46:37.047Z, sent 2026-11-25T11:46:37.097Z, response 2026-11-25T11:46:37.109Z, first content 2026-11-25T11:46:37.110Z, ended 2026-11-25T11:46:37.111Z
+        timing: materialize 50 ms, send to response 12 ms, send to first content 13 ms, execution 14 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_923937a52aa62c434880c3a6dc706c10486373dc_2","mop_923937a52aa62c434880c3a6dc706c10486373dc_2_admit"] -> call mcall_923937a52aa62c434880c3a6dc706c10486373dc_2 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_1740bbe8-c6a9-4b86-b4b8-c5551b8b7ed9 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T11:46:38.803Z, sent 2026-11-25T11:46:38.846Z, response 2026-11-25T11:46:38.849Z, first content 2026-11-25T11:46:38.850Z, ended 2026-11-25T11:46:38.850Z
+        timing: materialize 43 ms, send to response 3 ms, send to first content 4 ms, execution 4 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+  tool calls: 2
+    ["tool-invocation",2,"call-3f97e6718c4cf5ffcce92c55f1ca8e9db5658ac182bc5a46a34805bc3516ddba","admit-3f97e6718c4cf5ffcce92c55f1ca8e9db5658ac182bc5a46a34805bc3516ddba"] -> call call-3f97e6718c4cf5ffcce92c55f1ca8e9db5658ac182bc5a46a34805bc3516ddba (settled, foreground), completed
+      account: none; cost: none; duration PT0.544S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-4ea7edbcd719ec4f0b80c75a72a1ddec317845adb8ed609a8520ae3cead2ecb8","admit-4ea7edbcd719ec4f0b80c75a72a1ddec317845adb8ed609a8520ae3cead2ecb8"] -> call call-4ea7edbcd719ec4f0b80c75a72a1ddec317845adb8ed609a8520ae3cead2ecb8 (settled, foreground), interrupted
+      account: none; cost: none; duration PT0.550S; receipt late
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+  messages: message.system_reminder 1, message.assistant 2, message.tool 2, message.user 1
+gaps: 2
+  tool ["tool-invocation",2,"call-3f97e6718c4cf5ffcce92c55f1ca8e9db5658ac182bc5a46a34805bc3516ddba","admit-3f97e6718c4cf5ffcce92c55f1ca8e9db5658ac182bc5a46a34805bc3516ddba"]: unsupported
+  tool ["tool-invocation",2,"call-4ea7edbcd719ec4f0b80c75a72a1ddec317845adb8ed609a8520ae3cead2ecb8","admit-4ea7edbcd719ec4f0b80c75a72a1ddec317845adb8ed609a8520ae3cead2ecb8"]: unsupported

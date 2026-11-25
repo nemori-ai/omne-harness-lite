@@ -1,0 +1,30 @@
+#28 message.user: probe first input
+#30 run.started: Run run_d9a1e8d87ecae8aadfb2d3b628ae3154cf091770063ea8ef2e7ef66aeecc3961 started (entry interactive)
+#36 message.system_reminder: Runtime context: the current values. They hold from here until a later runtime context reminder changes them.
+    <block key="session.modes" revision="1">
+    {"basis":{"permissionRevision":"0","permissionSource":{"digest":"sha256:fd7599dab4cd2bbce2dc12a2c5f038fd9e174c323bb23f266e3d8462c365c640","owner":"@omne-harness/session-contract","record":"efa81aafe3c3d233367c01b3ea5e5c50948a64efa70051c09009ebe573e8e5cd@1","revision":"1"},"session":"efa81aafe3c3d233367c01b3ea5e5c50948a64efa70051c09009ebe573e8e5cd","sessionRevision":"1","tenant":"{\"organization\":\"org_18gfat27dv72f6v0f16thkhzee\",\"account\":\"acc_e66nc7ytz1p4tegntehpdw7pxt\"}"},"inquiry":{"policy":{"onAsk":"skip-ask"},"source":{"digest":"sha256:f0fb5b7b96cdc0f5a57b2b9ca60b84cf86e63dfb51afbd250fd9bbb968562ef8","owner":"@omne-harness/server-entry","record":"coding/modes","revision":"1"},"translation":{"digest":"sha256:6d3bdb2f05a1b4005a9aba235dbd6c1f568318c661c1a92acb9b2487d70b77dc","name":"permission-mode","owner":"@omne-harness/session-adapters","revision":"2"}},"interaction":{"attendance":"attended","child":false,"humanInteraction":true,"source":{"digest":"sha256:f0fb5b7b96cdc0f5a57b2b9ca60b84cf86e63dfb51afbd250fd9bbb968562ef8","owner":"@omne-harness/server-entry","record":"coding/modes","revision":"1"},"translation":{"digest":"sha256:f031143423f79cc0f6ef4d739b6f488ea5fc9ee73409942b360958bc7e9e28d4","name":"collaboration-mode","owner":"@omne-harness/session-adapters","revision":"3"}},"modes":{"collaboration":"co-work","environment":{"digest":"sha256:local","name":"local","owner":"harness-server-release","revision":"1"},"permission":"bypass-permissions"}}
+    </block>
+    <block key="session.working-directory" revision="1">
+    {"directory":"/private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/probe-midrun-XbLkh9/state/workspace","files":{},"state":"default"}
+    </block>
+    {"key":"session.workspace-guidance","scope":null,"sources":[]}
+#48 message.assistant: [tool call Shell probe_1] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 1"}}],"kind":"object"}}],"kind":"object"}
+#60 message.tool: [tool result probe_1]
+    done process={"id":"4a3eab89-8a2b-4c2d-b4eb-cef0bf5de3bc","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=345
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 1
+    
+    
+#68 message.assistant: [tool call Shell probe_2] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 3; echo step 2"}}],"kind":"object"}}],"kind":"object"}
+#79 message.tool: [tool result probe_2]
+    No result of this call is in the conversation: the run was cancelled before the call returned. The tool was asked to stop. It may have had effects before it stopped. Do not assume that the call completed or was approved.
+#81 run.terminal: Run run_d9a1e8d87ecae8aadfb2d3b628ae3154cf091770063ea8ef2e7ef66aeecc3961 ended: cancelled
+#99 message.user: SECOND_INPUT_MARK please also do this
+#101 run.started: Run run_9b3c47962730664e64ddcbd4e15be990bdcd5d45f31dac3f67503a717f879bb0 started (entry interactive)
+#112 message.assistant: PROBE_DONE_WITH_SECOND
+    [reasoning_state]
+#117 run.terminal: Run run_9b3c47962730664e64ddcbd4e15be990bdcd5d45f31dac3f67503a717f879bb0 ended: completed

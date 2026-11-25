@@ -1,0 +1,435 @@
+Run run_3b1a4a68c8756baa159286e076733b3d11128698eac9537f8515d865d0c9da0c (entry interactive, execution run_3b1a4a68c8756baa159286e076733b3d11128698eac9537f8515d865d0c9da0c/execution): failed
+  started: position 30 at unknown
+  attempts: 1 (released: ended 1)
+  cause: run_3b1a4a68c8756baa159286e076733b3d11128698eac9537f8515d865d0c9da0c/execution/step-50/guard
+  reason: guard
+  model calls: 32
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_1","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_1_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_1 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_64a3242d-9081-435b-bea2-6bc4377f3622 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:01.801Z, sent 2026-11-25T12:12:01.848Z, response 2026-11-25T12:12:01.857Z, first content 2026-11-25T12:12:01.859Z, ended 2026-11-25T12:12:01.860Z
+        timing: materialize 47 ms, send to response 9 ms, send to first content 11 ms, execution 12 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_2","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_2_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_2 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_2417f276-cd7f-44c7-9760-06e10ca8e514 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:04.311Z, sent 2026-11-25T12:12:04.382Z, response 2026-11-25T12:12:04.385Z, first content 2026-11-25T12:12:04.387Z, ended 2026-11-25T12:12:04.388Z
+        timing: materialize 71 ms, send to response 3 ms, send to first content 5 ms, execution 6 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_3","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_3_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_3 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_75e34e76-b19c-40ae-88eb-17258ea83151 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:06.392Z, sent 2026-11-25T12:12:06.447Z, response 2026-11-25T12:12:06.452Z, first content 2026-11-25T12:12:06.453Z, ended 2026-11-25T12:12:06.453Z
+        timing: materialize 55 ms, send to response 5 ms, send to first content 6 ms, execution 6 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_4","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_4_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_4 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_9d4633b7-94f2-4637-a4bb-c32557728664 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:08.667Z, sent 2026-11-25T12:12:08.721Z, response 2026-11-25T12:12:08.724Z, first content 2026-11-25T12:12:08.724Z, ended 2026-11-25T12:12:08.725Z
+        timing: materialize 54 ms, send to response 3 ms, send to first content 3 ms, execution 4 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_5","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_5_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_5 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_0aa4c9a1-afd2-4355-922a-a65910904ab1 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:10.743Z, sent 2026-11-25T12:12:10.781Z, response 2026-11-25T12:12:10.784Z, first content 2026-11-25T12:12:10.785Z, ended 2026-11-25T12:12:10.785Z
+        timing: materialize 38 ms, send to response 3 ms, send to first content 4 ms, execution 4 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_6","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_6_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_6 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_7115c81e-b5b3-46d5-854f-d8940423b1f7 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:12.657Z, sent 2026-11-25T12:12:12.682Z, response 2026-11-25T12:12:12.686Z, first content 2026-11-25T12:12:12.686Z, ended 2026-11-25T12:12:12.687Z
+        timing: materialize 25 ms, send to response 4 ms, send to first content 4 ms, execution 5 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_7","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_7_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_7 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_4e1a4aca-0635-437d-83e5-93c9a74a3d4c openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:14.625Z, sent 2026-11-25T12:12:14.673Z, response 2026-11-25T12:12:14.676Z, first content 2026-11-25T12:12:14.677Z, ended 2026-11-25T12:12:14.678Z
+        timing: materialize 48 ms, send to response 3 ms, send to first content 4 ms, execution 5 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_8","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_8_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_8 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_84e8f485-17f8-4f6c-9715-4867cd403599 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:16.656Z, sent 2026-11-25T12:12:16.699Z, response 2026-11-25T12:12:16.702Z, first content 2026-11-25T12:12:16.702Z, ended 2026-11-25T12:12:16.702Z
+        timing: materialize 43 ms, send to response 3 ms, send to first content 3 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_9","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_9_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_9 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_f2c15386-4537-459b-93bb-34f8f7744e11 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:18.576Z, sent 2026-11-25T12:12:18.626Z, response 2026-11-25T12:12:18.631Z, first content 2026-11-25T12:12:18.631Z, ended 2026-11-25T12:12:18.632Z
+        timing: materialize 50 ms, send to response 5 ms, send to first content 5 ms, execution 6 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_10","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_10_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_10 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_3947d987-81f6-4914-9c55-c5ce74bb9dc5 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:20.682Z, sent 2026-11-25T12:12:20.734Z, response 2026-11-25T12:12:20.737Z, first content 2026-11-25T12:12:20.737Z, ended 2026-11-25T12:12:20.737Z
+        timing: materialize 52 ms, send to response 3 ms, send to first content 3 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_11","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_11_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_11 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_f804b5f3-f9b2-48b2-92db-a3ac946ab628 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:22.559Z, sent 2026-11-25T12:12:22.616Z, response 2026-11-25T12:12:22.620Z, first content 2026-11-25T12:12:22.622Z, ended 2026-11-25T12:12:22.622Z
+        timing: materialize 57 ms, send to response 4 ms, send to first content 6 ms, execution 6 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_12","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_12_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_12 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_0a40a577-ca74-4a34-8753-a007affa308e openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:24.763Z, sent 2026-11-25T12:12:24.812Z, response 2026-11-25T12:12:24.828Z, first content 2026-11-25T12:12:24.828Z, ended 2026-11-25T12:12:24.829Z
+        timing: materialize 49 ms, send to response 16 ms, send to first content 16 ms, execution 17 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_13","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_13_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_13 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_56a6c64c-6f82-45f9-9a5e-522966ed1802 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:26.983Z, sent 2026-11-25T12:12:27.027Z, response 2026-11-25T12:12:27.029Z, first content 2026-11-25T12:12:27.030Z, ended 2026-11-25T12:12:27.030Z
+        timing: materialize 44 ms, send to response 2 ms, send to first content 3 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_14","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_14_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_14 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_8154ebb4-23f7-41f2-9a5b-ee6d3588be59 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:29.174Z, sent 2026-11-25T12:12:29.224Z, response 2026-11-25T12:12:29.228Z, first content 2026-11-25T12:12:29.229Z, ended 2026-11-25T12:12:29.229Z
+        timing: materialize 50 ms, send to response 4 ms, send to first content 5 ms, execution 5 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_15","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_15_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_15 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_95959350-ab62-425f-b487-1a41bd196390 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:30.952Z, sent 2026-11-25T12:12:31.005Z, response 2026-11-25T12:12:31.007Z, first content 2026-11-25T12:12:31.008Z, ended 2026-11-25T12:12:31.008Z
+        timing: materialize 53 ms, send to response 2 ms, send to first content 3 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_16","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_16_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_16 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_f3f23741-3985-403f-b3a9-6c36b774ec8a openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:32.744Z, sent 2026-11-25T12:12:32.797Z, response 2026-11-25T12:12:32.800Z, first content 2026-11-25T12:12:32.801Z, ended 2026-11-25T12:12:32.801Z
+        timing: materialize 53 ms, send to response 3 ms, send to first content 4 ms, execution 4 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_17","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_17_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_17 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_6223e6cb-dcc2-4069-bf29-487aaa958f9a openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:34.946Z, sent 2026-11-25T12:12:35.003Z, response 2026-11-25T12:12:35.005Z, first content 2026-11-25T12:12:35.006Z, ended 2026-11-25T12:12:35.006Z
+        timing: materialize 57 ms, send to response 2 ms, send to first content 3 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_18","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_18_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_18 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_d1607036-469c-46d0-9c01-cdb4514a0465 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:36.847Z, sent 2026-11-25T12:12:36.877Z, response 2026-11-25T12:12:36.879Z, first content 2026-11-25T12:12:36.879Z, ended 2026-11-25T12:12:36.880Z
+        timing: materialize 30 ms, send to response 2 ms, send to first content 2 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_19","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_19_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_19 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_b0103dd2-9290-4d0b-b8c8-d2d3cafefff1 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:38.326Z, sent 2026-11-25T12:12:38.361Z, response 2026-11-25T12:12:38.363Z, first content 2026-11-25T12:12:38.363Z, ended 2026-11-25T12:12:38.363Z
+        timing: materialize 35 ms, send to response 2 ms, send to first content 2 ms, execution 2 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_20","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_20_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_20 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_d8ce4064-92d3-4962-8b20-1035699e7ce7 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:39.873Z, sent 2026-11-25T12:12:39.903Z, response 2026-11-25T12:12:39.909Z, first content 2026-11-25T12:12:39.909Z, ended 2026-11-25T12:12:39.909Z
+        timing: materialize 30 ms, send to response 6 ms, send to first content 6 ms, execution 6 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_21","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_21_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_21 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_8cc62a51-32ff-4e32-a86c-1a6e62b7c735 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:41.470Z, sent 2026-11-25T12:12:41.507Z, response 2026-11-25T12:12:41.509Z, first content 2026-11-25T12:12:41.510Z, ended 2026-11-25T12:12:41.510Z
+        timing: materialize 37 ms, send to response 2 ms, send to first content 3 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_22","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_22_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_22 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_509c1f1e-6bc0-4e2c-939e-5bc42988d4bd openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:43.326Z, sent 2026-11-25T12:12:43.368Z, response 2026-11-25T12:12:43.377Z, first content 2026-11-25T12:12:43.377Z, ended 2026-11-25T12:12:43.378Z
+        timing: materialize 42 ms, send to response 9 ms, send to first content 9 ms, execution 10 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_23","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_23_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_23 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_a32497b6-c0bf-4649-ba3f-b7cbca22c963 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:45.348Z, sent 2026-11-25T12:12:45.394Z, response 2026-11-25T12:12:45.396Z, first content 2026-11-25T12:12:45.396Z, ended 2026-11-25T12:12:45.396Z
+        timing: materialize 46 ms, send to response 2 ms, send to first content 2 ms, execution 2 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_24","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_24_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_24 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_582c4c39-79c8-4b89-aa5a-6908f45bd5b7 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:47.356Z, sent 2026-11-25T12:12:47.409Z, response 2026-11-25T12:12:47.412Z, first content 2026-11-25T12:12:47.412Z, ended 2026-11-25T12:12:47.413Z
+        timing: materialize 53 ms, send to response 3 ms, send to first content 3 ms, execution 4 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_25","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_25_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_25 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_5eb17934-dad7-4b54-aea6-52e5c0770fd4 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:52.319Z, sent 2026-11-25T12:12:52.422Z, response 2026-11-25T12:12:52.425Z, first content 2026-11-25T12:12:52.425Z, ended 2026-11-25T12:12:52.426Z
+        timing: materialize 103 ms, send to response 3 ms, send to first content 3 ms, execution 4 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_26","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_26_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_26 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_fe6008f2-f50e-4b73-a47b-818dcf3a8b75 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:54.303Z, sent 2026-11-25T12:12:54.412Z, response 2026-11-25T12:12:54.414Z, first content 2026-11-25T12:12:54.415Z, ended 2026-11-25T12:12:54.415Z
+        timing: materialize 109 ms, send to response 2 ms, send to first content 3 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_27","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_27_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_27 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_bccd6240-53d6-4a31-b05d-40d8c0e15a60 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:55.969Z, sent 2026-11-25T12:12:56.023Z, response 2026-11-25T12:12:56.029Z, first content 2026-11-25T12:12:56.030Z, ended 2026-11-25T12:12:56.030Z
+        timing: materialize 54 ms, send to response 6 ms, send to first content 7 ms, execution 7 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_28","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_28_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_28 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_3d513649-ccc1-42c6-be60-8635d22a4078 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:57.554Z, sent 2026-11-25T12:12:57.617Z, response 2026-11-25T12:12:57.619Z, first content 2026-11-25T12:12:57.619Z, ended 2026-11-25T12:12:57.620Z
+        timing: materialize 63 ms, send to response 2 ms, send to first content 2 ms, execution 3 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_29","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_29_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_29 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_91cc731e-65e3-4e47-a3f2-47e8723d581b openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:12:59.606Z, sent 2026-11-25T12:12:59.658Z, response 2026-11-25T12:12:59.662Z, first content 2026-11-25T12:12:59.662Z, ended 2026-11-25T12:12:59.663Z
+        timing: materialize 52 ms, send to response 4 ms, send to first content 4 ms, execution 5 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_30","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_30_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_30 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_03b6f551-b2b8-48f9-8be7-cb071de3b766 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:13:01.502Z, sent 2026-11-25T12:13:01.549Z, response 2026-11-25T12:13:01.552Z, first content 2026-11-25T12:13:01.552Z, ended 2026-11-25T12:13:01.553Z
+        timing: materialize 47 ms, send to response 3 ms, send to first content 3 ms, execution 4 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_31","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_31_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_31 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_fe29bbce-969b-49d5-9dd1-321a77698a9f openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:13:03.459Z, sent 2026-11-25T12:13:03.506Z, response 2026-11-25T12:13:03.509Z, first content 2026-11-25T12:13:03.509Z, ended 2026-11-25T12:13:03.510Z
+        timing: materialize 47 ms, send to response 3 ms, send to first content 3 ms, execution 4 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+    main ["model-invocation",2,"mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_32","mop_7b36b013bd9939bcf40724441d763a9aa39d87a3_32_admit"] -> call mcall_7b36b013bd9939bcf40724441d763a9aa39d87a3_32 (settled, sent 1 of 2 allowed), 1 dispatch, coverage complete-through-snapshot
+      mdisp_b3a5ba66-8260-44f1-83f3-ced75a19bf45 openai/gpt-6.1-sol: sent, first content observed, completed tool-suggestions, reasoning not-carried
+        moments: prepared 2026-11-25T12:13:05.366Z, sent 2026-11-25T12:13:05.471Z, response 2026-11-25T12:13:05.478Z, first content 2026-11-25T12:13:05.478Z, ended 2026-11-25T12:13:05.479Z
+        timing: materialize 105 ms, send to response 7 ms, send to first content 7 ms, execution 8 ms
+        connect retries: 0
+        account: input unknown token unknown, output unknown token unknown, cache-read unknown token unknown, cache-write unknown token unknown, reasoning unknown token unknown; cost: none; duration unknown; receipt received
+      facts: execution 2
+  tool calls: 32
+    ["tool-invocation",2,"call-8cb4b8d02edc168c2171354d35e31b873cff15af26343f84e170bde4fd65ed1c","admit-8cb4b8d02edc168c2171354d35e31b873cff15af26343f84e170bde4fd65ed1c"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-f72f56169595c958a12723bc28c6ce8a48b383363a932a0b1540f8b76c1e66a0","admit-f72f56169595c958a12723bc28c6ce8a48b383363a932a0b1540f8b76c1e66a0"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-047d2f7753f0d8f7070bf2f9cd956151695d47be0d33f57cfb0e0cf39ec6baa4","admit-047d2f7753f0d8f7070bf2f9cd956151695d47be0d33f57cfb0e0cf39ec6baa4"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-488a23f4971f2b631237b94ffffaf876701aed18536b3fe3e07ee3049b4dbdff","admit-488a23f4971f2b631237b94ffffaf876701aed18536b3fe3e07ee3049b4dbdff"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-ff9098a4d4c8e27026eb41657b5ac1a9ab0caa140a484b4cc797c44916650b89","admit-ff9098a4d4c8e27026eb41657b5ac1a9ab0caa140a484b4cc797c44916650b89"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-14bd15a9f85bd184f41a8ef611ae1aa8d8f9a710cc75f03fd275d0284ea78e3e","admit-14bd15a9f85bd184f41a8ef611ae1aa8d8f9a710cc75f03fd275d0284ea78e3e"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-4e930324297186ba105842ecc06c2ab95939956c6955c26f8a3b4c6b38d99f7a","admit-4e930324297186ba105842ecc06c2ab95939956c6955c26f8a3b4c6b38d99f7a"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-341f05c62459c8b6cbbd988e08e23fd05d61cdefb5373201cc81f087f625026f","admit-341f05c62459c8b6cbbd988e08e23fd05d61cdefb5373201cc81f087f625026f"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-8ac095fee0f930cc77ea99a28147acd3995bee7fedf7925b9fe5cd21e99fb38c","admit-8ac095fee0f930cc77ea99a28147acd3995bee7fedf7925b9fe5cd21e99fb38c"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-5426341f39f54529a1ac6715e1b1a4826a6072f0c491596d5b576266f594e4cc","admit-5426341f39f54529a1ac6715e1b1a4826a6072f0c491596d5b576266f594e4cc"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-c26f82b51bc1372763eb0d9c66d8a6aff32dfa7b3e53222739004a591b143400","admit-c26f82b51bc1372763eb0d9c66d8a6aff32dfa7b3e53222739004a591b143400"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-8b75f975eb5ede57407622b36363f106a59394c5907b752e89229717835a9baf","admit-8b75f975eb5ede57407622b36363f106a59394c5907b752e89229717835a9baf"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-e486321e4df11cacd0c8de802735fc74b53863f661d5b0efbb01b93a26ecfec8","admit-e486321e4df11cacd0c8de802735fc74b53863f661d5b0efbb01b93a26ecfec8"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-3dcde2925b9663299274c123d1f45b19c58621bcd204760922d2c53b843b929d","admit-3dcde2925b9663299274c123d1f45b19c58621bcd204760922d2c53b843b929d"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-6f770ceda6cb71fe8a7d8575aff26cd06bb1d67894999b2c64714fc285b4c7c2","admit-6f770ceda6cb71fe8a7d8575aff26cd06bb1d67894999b2c64714fc285b4c7c2"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-5a5668b8f554f7736048e2865bd586b20820f1531a619b333336ea80d5cdd975","admit-5a5668b8f554f7736048e2865bd586b20820f1531a619b333336ea80d5cdd975"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-7a1e832f968ba70ab64affb074e9606f5d8fa6701329e49607304f77f347b720","admit-7a1e832f968ba70ab64affb074e9606f5d8fa6701329e49607304f77f347b720"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-b792796dbbc7fd8ab4c116d69046c8ab82e566ec81fce6056ea408052ca949ac","admit-b792796dbbc7fd8ab4c116d69046c8ab82e566ec81fce6056ea408052ca949ac"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-0e2a90df7e4e6755355ce71ab5ffee20b003781b2498b60cdf5c08c5f0cd915d","admit-0e2a90df7e4e6755355ce71ab5ffee20b003781b2498b60cdf5c08c5f0cd915d"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-04ddc6bae4f58ede9d630784386238163ebceac48b909bdd3adf021b7e3b8fcc","admit-04ddc6bae4f58ede9d630784386238163ebceac48b909bdd3adf021b7e3b8fcc"] -> call unknown (not-recorded)
+      account: unknown (unavailable)
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-ecfe6263b3d8988edbdbb7b54da63fcd9ef2d4af5493f2b33413bfbd03423297","admit-ecfe6263b3d8988edbdbb7b54da63fcd9ef2d4af5493f2b33413bfbd03423297"] -> call call-ecfe6263b3d8988edbdbb7b54da63fcd9ef2d4af5493f2b33413bfbd03423297 (settled, foreground), completed
+      account: none; cost: none; duration PT0.559S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-633d4b2ef9b55c74677fbc167629aa5c0ffe659f2135d6b0f92af084a57548d0","admit-633d4b2ef9b55c74677fbc167629aa5c0ffe659f2135d6b0f92af084a57548d0"] -> call call-633d4b2ef9b55c74677fbc167629aa5c0ffe659f2135d6b0f92af084a57548d0 (settled, foreground), completed
+      account: none; cost: none; duration PT0.551S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-90315c7c5f9f4688bd47ef60689783823d1a628598230084d01eae329e8d9995","admit-90315c7c5f9f4688bd47ef60689783823d1a628598230084d01eae329e8d9995"] -> call call-90315c7c5f9f4688bd47ef60689783823d1a628598230084d01eae329e8d9995 (settled, foreground), completed
+      account: none; cost: none; duration PT0.590S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-cf336359f5c168081ef093c6e03326e931fd36bf6cb16efed0be3bbdff66406f","admit-cf336359f5c168081ef093c6e03326e931fd36bf6cb16efed0be3bbdff66406f"] -> call call-cf336359f5c168081ef093c6e03326e931fd36bf6cb16efed0be3bbdff66406f (settled, foreground), completed
+      account: none; cost: none; duration PT0.563S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-b9f98b791fd61519199d68e1f59243680b91b99bb58b1d972d1bc2e80f97f9f6","admit-b9f98b791fd61519199d68e1f59243680b91b99bb58b1d972d1bc2e80f97f9f6"] -> call call-b9f98b791fd61519199d68e1f59243680b91b99bb58b1d972d1bc2e80f97f9f6 (settled, foreground), completed
+      account: none; cost: none; duration PT0.623S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-9f085e5fc03667485d48344b23d5b364f64af658e389b91ba12a40d6ac9b3a0b","admit-9f085e5fc03667485d48344b23d5b364f64af658e389b91ba12a40d6ac9b3a0b"] -> call call-9f085e5fc03667485d48344b23d5b364f64af658e389b91ba12a40d6ac9b3a0b (settled, foreground), completed
+      account: none; cost: none; duration PT0.495S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-d18287e1251ad7af8d7a0fb233e50979d8b8ca0e2eb0437ef81c0f363538e30f","admit-d18287e1251ad7af8d7a0fb233e50979d8b8ca0e2eb0437ef81c0f363538e30f"] -> call call-d18287e1251ad7af8d7a0fb233e50979d8b8ca0e2eb0437ef81c0f363538e30f (settled, foreground), completed
+      account: none; cost: none; duration PT0.446S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-cb7ce911d191d7eee5f24d2fe25cb5a613170ff3cd1cc81107e0f90ecde924ae","admit-cb7ce911d191d7eee5f24d2fe25cb5a613170ff3cd1cc81107e0f90ecde924ae"] -> call call-cb7ce911d191d7eee5f24d2fe25cb5a613170ff3cd1cc81107e0f90ecde924ae (settled, foreground), completed
+      account: none; cost: none; duration PT0.699S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-240533cd602e710f1b77ae2d5a2cb35c0fd08c65317077ed17043bfe052f0dcf","admit-240533cd602e710f1b77ae2d5a2cb35c0fd08c65317077ed17043bfe052f0dcf"] -> call call-240533cd602e710f1b77ae2d5a2cb35c0fd08c65317077ed17043bfe052f0dcf (settled, foreground), completed
+      account: none; cost: none; duration PT0.551S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-56a8c2b04a108f9f9eaa78370256fe026bc834add517aa97c24b1ecc3e962348","admit-56a8c2b04a108f9f9eaa78370256fe026bc834add517aa97c24b1ecc3e962348"] -> call call-56a8c2b04a108f9f9eaa78370256fe026bc834add517aa97c24b1ecc3e962348 (settled, foreground), completed
+      account: none; cost: none; duration PT0.564S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-24b485c495512c57339b5e2ee2202a913781c8532d8c74dd7808a5e421dc9ddf","admit-24b485c495512c57339b5e2ee2202a913781c8532d8c74dd7808a5e421dc9ddf"] -> call call-24b485c495512c57339b5e2ee2202a913781c8532d8c74dd7808a5e421dc9ddf (settled, foreground), completed
+      account: none; cost: none; duration PT0.523S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+    ["tool-invocation",2,"call-02c4fa581e8d1652bd991e79b5bd43d57a6511047e23551a38609f19409fda90","admit-02c4fa581e8d1652bd991e79b5bd43d57a6511047e23551a38609f19409fda90"] -> call call-02c4fa581e8d1652bd991e79b5bd43d57a6511047e23551a38609f19409fda90 (settled, foreground), completed
+      account: none; cost: none; duration PT0.475S; receipt received
+      facts: execution 2
+      diagnostics: unknown (unsupported)
+  messages: message.system_reminder 1, message.assistant 50, message.tool 50, message.user 1
+  facts: execution 72
+gaps: 73
+  tool ["tool-invocation",2,"call-8cb4b8d02edc168c2171354d35e31b873cff15af26343f84e170bde4fd65ed1c","admit-8cb4b8d02edc168c2171354d35e31b873cff15af26343f84e170bde4fd65ed1c"]: not-recorded
+  tool ["tool-invocation",2,"call-8cb4b8d02edc168c2171354d35e31b873cff15af26343f84e170bde4fd65ed1c","admit-8cb4b8d02edc168c2171354d35e31b873cff15af26343f84e170bde4fd65ed1c"]: unavailable
+  tool ["tool-invocation",2,"call-8cb4b8d02edc168c2171354d35e31b873cff15af26343f84e170bde4fd65ed1c","admit-8cb4b8d02edc168c2171354d35e31b873cff15af26343f84e170bde4fd65ed1c"]: unsupported
+  tool ["tool-invocation",2,"call-f72f56169595c958a12723bc28c6ce8a48b383363a932a0b1540f8b76c1e66a0","admit-f72f56169595c958a12723bc28c6ce8a48b383363a932a0b1540f8b76c1e66a0"]: not-recorded
+  tool ["tool-invocation",2,"call-f72f56169595c958a12723bc28c6ce8a48b383363a932a0b1540f8b76c1e66a0","admit-f72f56169595c958a12723bc28c6ce8a48b383363a932a0b1540f8b76c1e66a0"]: unavailable
+  tool ["tool-invocation",2,"call-f72f56169595c958a12723bc28c6ce8a48b383363a932a0b1540f8b76c1e66a0","admit-f72f56169595c958a12723bc28c6ce8a48b383363a932a0b1540f8b76c1e66a0"]: unsupported
+  tool ["tool-invocation",2,"call-047d2f7753f0d8f7070bf2f9cd956151695d47be0d33f57cfb0e0cf39ec6baa4","admit-047d2f7753f0d8f7070bf2f9cd956151695d47be0d33f57cfb0e0cf39ec6baa4"]: not-recorded
+  tool ["tool-invocation",2,"call-047d2f7753f0d8f7070bf2f9cd956151695d47be0d33f57cfb0e0cf39ec6baa4","admit-047d2f7753f0d8f7070bf2f9cd956151695d47be0d33f57cfb0e0cf39ec6baa4"]: unavailable
+  tool ["tool-invocation",2,"call-047d2f7753f0d8f7070bf2f9cd956151695d47be0d33f57cfb0e0cf39ec6baa4","admit-047d2f7753f0d8f7070bf2f9cd956151695d47be0d33f57cfb0e0cf39ec6baa4"]: unsupported
+  tool ["tool-invocation",2,"call-488a23f4971f2b631237b94ffffaf876701aed18536b3fe3e07ee3049b4dbdff","admit-488a23f4971f2b631237b94ffffaf876701aed18536b3fe3e07ee3049b4dbdff"]: not-recorded
+  tool ["tool-invocation",2,"call-488a23f4971f2b631237b94ffffaf876701aed18536b3fe3e07ee3049b4dbdff","admit-488a23f4971f2b631237b94ffffaf876701aed18536b3fe3e07ee3049b4dbdff"]: unavailable
+  tool ["tool-invocation",2,"call-488a23f4971f2b631237b94ffffaf876701aed18536b3fe3e07ee3049b4dbdff","admit-488a23f4971f2b631237b94ffffaf876701aed18536b3fe3e07ee3049b4dbdff"]: unsupported
+  tool ["tool-invocation",2,"call-ff9098a4d4c8e27026eb41657b5ac1a9ab0caa140a484b4cc797c44916650b89","admit-ff9098a4d4c8e27026eb41657b5ac1a9ab0caa140a484b4cc797c44916650b89"]: not-recorded
+  tool ["tool-invocation",2,"call-ff9098a4d4c8e27026eb41657b5ac1a9ab0caa140a484b4cc797c44916650b89","admit-ff9098a4d4c8e27026eb41657b5ac1a9ab0caa140a484b4cc797c44916650b89"]: unavailable
+  tool ["tool-invocation",2,"call-ff9098a4d4c8e27026eb41657b5ac1a9ab0caa140a484b4cc797c44916650b89","admit-ff9098a4d4c8e27026eb41657b5ac1a9ab0caa140a484b4cc797c44916650b89"]: unsupported
+  tool ["tool-invocation",2,"call-14bd15a9f85bd184f41a8ef611ae1aa8d8f9a710cc75f03fd275d0284ea78e3e","admit-14bd15a9f85bd184f41a8ef611ae1aa8d8f9a710cc75f03fd275d0284ea78e3e"]: not-recorded
+  tool ["tool-invocation",2,"call-14bd15a9f85bd184f41a8ef611ae1aa8d8f9a710cc75f03fd275d0284ea78e3e","admit-14bd15a9f85bd184f41a8ef611ae1aa8d8f9a710cc75f03fd275d0284ea78e3e"]: unavailable
+  tool ["tool-invocation",2,"call-14bd15a9f85bd184f41a8ef611ae1aa8d8f9a710cc75f03fd275d0284ea78e3e","admit-14bd15a9f85bd184f41a8ef611ae1aa8d8f9a710cc75f03fd275d0284ea78e3e"]: unsupported
+  tool ["tool-invocation",2,"call-4e930324297186ba105842ecc06c2ab95939956c6955c26f8a3b4c6b38d99f7a","admit-4e930324297186ba105842ecc06c2ab95939956c6955c26f8a3b4c6b38d99f7a"]: not-recorded
+  tool ["tool-invocation",2,"call-4e930324297186ba105842ecc06c2ab95939956c6955c26f8a3b4c6b38d99f7a","admit-4e930324297186ba105842ecc06c2ab95939956c6955c26f8a3b4c6b38d99f7a"]: unavailable
+  tool ["tool-invocation",2,"call-4e930324297186ba105842ecc06c2ab95939956c6955c26f8a3b4c6b38d99f7a","admit-4e930324297186ba105842ecc06c2ab95939956c6955c26f8a3b4c6b38d99f7a"]: unsupported
+  tool ["tool-invocation",2,"call-341f05c62459c8b6cbbd988e08e23fd05d61cdefb5373201cc81f087f625026f","admit-341f05c62459c8b6cbbd988e08e23fd05d61cdefb5373201cc81f087f625026f"]: not-recorded
+  tool ["tool-invocation",2,"call-341f05c62459c8b6cbbd988e08e23fd05d61cdefb5373201cc81f087f625026f","admit-341f05c62459c8b6cbbd988e08e23fd05d61cdefb5373201cc81f087f625026f"]: unavailable
+  tool ["tool-invocation",2,"call-341f05c62459c8b6cbbd988e08e23fd05d61cdefb5373201cc81f087f625026f","admit-341f05c62459c8b6cbbd988e08e23fd05d61cdefb5373201cc81f087f625026f"]: unsupported
+  tool ["tool-invocation",2,"call-8ac095fee0f930cc77ea99a28147acd3995bee7fedf7925b9fe5cd21e99fb38c","admit-8ac095fee0f930cc77ea99a28147acd3995bee7fedf7925b9fe5cd21e99fb38c"]: not-recorded
+  tool ["tool-invocation",2,"call-8ac095fee0f930cc77ea99a28147acd3995bee7fedf7925b9fe5cd21e99fb38c","admit-8ac095fee0f930cc77ea99a28147acd3995bee7fedf7925b9fe5cd21e99fb38c"]: unavailable
+  tool ["tool-invocation",2,"call-8ac095fee0f930cc77ea99a28147acd3995bee7fedf7925b9fe5cd21e99fb38c","admit-8ac095fee0f930cc77ea99a28147acd3995bee7fedf7925b9fe5cd21e99fb38c"]: unsupported
+  tool ["tool-invocation",2,"call-5426341f39f54529a1ac6715e1b1a4826a6072f0c491596d5b576266f594e4cc","admit-5426341f39f54529a1ac6715e1b1a4826a6072f0c491596d5b576266f594e4cc"]: not-recorded
+  tool ["tool-invocation",2,"call-5426341f39f54529a1ac6715e1b1a4826a6072f0c491596d5b576266f594e4cc","admit-5426341f39f54529a1ac6715e1b1a4826a6072f0c491596d5b576266f594e4cc"]: unavailable
+  tool ["tool-invocation",2,"call-5426341f39f54529a1ac6715e1b1a4826a6072f0c491596d5b576266f594e4cc","admit-5426341f39f54529a1ac6715e1b1a4826a6072f0c491596d5b576266f594e4cc"]: unsupported
+  tool ["tool-invocation",2,"call-c26f82b51bc1372763eb0d9c66d8a6aff32dfa7b3e53222739004a591b143400","admit-c26f82b51bc1372763eb0d9c66d8a6aff32dfa7b3e53222739004a591b143400"]: not-recorded
+  tool ["tool-invocation",2,"call-c26f82b51bc1372763eb0d9c66d8a6aff32dfa7b3e53222739004a591b143400","admit-c26f82b51bc1372763eb0d9c66d8a6aff32dfa7b3e53222739004a591b143400"]: unavailable
+  tool ["tool-invocation",2,"call-c26f82b51bc1372763eb0d9c66d8a6aff32dfa7b3e53222739004a591b143400","admit-c26f82b51bc1372763eb0d9c66d8a6aff32dfa7b3e53222739004a591b143400"]: unsupported
+  tool ["tool-invocation",2,"call-8b75f975eb5ede57407622b36363f106a59394c5907b752e89229717835a9baf","admit-8b75f975eb5ede57407622b36363f106a59394c5907b752e89229717835a9baf"]: not-recorded
+  tool ["tool-invocation",2,"call-8b75f975eb5ede57407622b36363f106a59394c5907b752e89229717835a9baf","admit-8b75f975eb5ede57407622b36363f106a59394c5907b752e89229717835a9baf"]: unavailable
+  tool ["tool-invocation",2,"call-8b75f975eb5ede57407622b36363f106a59394c5907b752e89229717835a9baf","admit-8b75f975eb5ede57407622b36363f106a59394c5907b752e89229717835a9baf"]: unsupported
+  tool ["tool-invocation",2,"call-e486321e4df11cacd0c8de802735fc74b53863f661d5b0efbb01b93a26ecfec8","admit-e486321e4df11cacd0c8de802735fc74b53863f661d5b0efbb01b93a26ecfec8"]: not-recorded
+  tool ["tool-invocation",2,"call-e486321e4df11cacd0c8de802735fc74b53863f661d5b0efbb01b93a26ecfec8","admit-e486321e4df11cacd0c8de802735fc74b53863f661d5b0efbb01b93a26ecfec8"]: unavailable
+  tool ["tool-invocation",2,"call-e486321e4df11cacd0c8de802735fc74b53863f661d5b0efbb01b93a26ecfec8","admit-e486321e4df11cacd0c8de802735fc74b53863f661d5b0efbb01b93a26ecfec8"]: unsupported
+  tool ["tool-invocation",2,"call-3dcde2925b9663299274c123d1f45b19c58621bcd204760922d2c53b843b929d","admit-3dcde2925b9663299274c123d1f45b19c58621bcd204760922d2c53b843b929d"]: not-recorded
+  tool ["tool-invocation",2,"call-3dcde2925b9663299274c123d1f45b19c58621bcd204760922d2c53b843b929d","admit-3dcde2925b9663299274c123d1f45b19c58621bcd204760922d2c53b843b929d"]: unavailable
+  tool ["tool-invocation",2,"call-3dcde2925b9663299274c123d1f45b19c58621bcd204760922d2c53b843b929d","admit-3dcde2925b9663299274c123d1f45b19c58621bcd204760922d2c53b843b929d"]: unsupported
+  tool ["tool-invocation",2,"call-6f770ceda6cb71fe8a7d8575aff26cd06bb1d67894999b2c64714fc285b4c7c2","admit-6f770ceda6cb71fe8a7d8575aff26cd06bb1d67894999b2c64714fc285b4c7c2"]: not-recorded
+  tool ["tool-invocation",2,"call-6f770ceda6cb71fe8a7d8575aff26cd06bb1d67894999b2c64714fc285b4c7c2","admit-6f770ceda6cb71fe8a7d8575aff26cd06bb1d67894999b2c64714fc285b4c7c2"]: unavailable
+  tool ["tool-invocation",2,"call-6f770ceda6cb71fe8a7d8575aff26cd06bb1d67894999b2c64714fc285b4c7c2","admit-6f770ceda6cb71fe8a7d8575aff26cd06bb1d67894999b2c64714fc285b4c7c2"]: unsupported
+  tool ["tool-invocation",2,"call-5a5668b8f554f7736048e2865bd586b20820f1531a619b333336ea80d5cdd975","admit-5a5668b8f554f7736048e2865bd586b20820f1531a619b333336ea80d5cdd975"]: not-recorded
+  tool ["tool-invocation",2,"call-5a5668b8f554f7736048e2865bd586b20820f1531a619b333336ea80d5cdd975","admit-5a5668b8f554f7736048e2865bd586b20820f1531a619b333336ea80d5cdd975"]: unavailable
+  tool ["tool-invocation",2,"call-5a5668b8f554f7736048e2865bd586b20820f1531a619b333336ea80d5cdd975","admit-5a5668b8f554f7736048e2865bd586b20820f1531a619b333336ea80d5cdd975"]: unsupported
+  tool ["tool-invocation",2,"call-7a1e832f968ba70ab64affb074e9606f5d8fa6701329e49607304f77f347b720","admit-7a1e832f968ba70ab64affb074e9606f5d8fa6701329e49607304f77f347b720"]: not-recorded
+  tool ["tool-invocation",2,"call-7a1e832f968ba70ab64affb074e9606f5d8fa6701329e49607304f77f347b720","admit-7a1e832f968ba70ab64affb074e9606f5d8fa6701329e49607304f77f347b720"]: unavailable
+  tool ["tool-invocation",2,"call-7a1e832f968ba70ab64affb074e9606f5d8fa6701329e49607304f77f347b720","admit-7a1e832f968ba70ab64affb074e9606f5d8fa6701329e49607304f77f347b720"]: unsupported
+  tool ["tool-invocation",2,"call-b792796dbbc7fd8ab4c116d69046c8ab82e566ec81fce6056ea408052ca949ac","admit-b792796dbbc7fd8ab4c116d69046c8ab82e566ec81fce6056ea408052ca949ac"]: not-recorded
+  tool ["tool-invocation",2,"call-b792796dbbc7fd8ab4c116d69046c8ab82e566ec81fce6056ea408052ca949ac","admit-b792796dbbc7fd8ab4c116d69046c8ab82e566ec81fce6056ea408052ca949ac"]: unavailable
+  tool ["tool-invocation",2,"call-b792796dbbc7fd8ab4c116d69046c8ab82e566ec81fce6056ea408052ca949ac","admit-b792796dbbc7fd8ab4c116d69046c8ab82e566ec81fce6056ea408052ca949ac"]: unsupported
+  tool ["tool-invocation",2,"call-0e2a90df7e4e6755355ce71ab5ffee20b003781b2498b60cdf5c08c5f0cd915d","admit-0e2a90df7e4e6755355ce71ab5ffee20b003781b2498b60cdf5c08c5f0cd915d"]: not-recorded
+  tool ["tool-invocation",2,"call-0e2a90df7e4e6755355ce71ab5ffee20b003781b2498b60cdf5c08c5f0cd915d","admit-0e2a90df7e4e6755355ce71ab5ffee20b003781b2498b60cdf5c08c5f0cd915d"]: unavailable
+  tool ["tool-invocation",2,"call-0e2a90df7e4e6755355ce71ab5ffee20b003781b2498b60cdf5c08c5f0cd915d","admit-0e2a90df7e4e6755355ce71ab5ffee20b003781b2498b60cdf5c08c5f0cd915d"]: unsupported
+  tool ["tool-invocation",2,"call-04ddc6bae4f58ede9d630784386238163ebceac48b909bdd3adf021b7e3b8fcc","admit-04ddc6bae4f58ede9d630784386238163ebceac48b909bdd3adf021b7e3b8fcc"]: not-recorded
+  tool ["tool-invocation",2,"call-04ddc6bae4f58ede9d630784386238163ebceac48b909bdd3adf021b7e3b8fcc","admit-04ddc6bae4f58ede9d630784386238163ebceac48b909bdd3adf021b7e3b8fcc"]: unavailable
+  tool ["tool-invocation",2,"call-04ddc6bae4f58ede9d630784386238163ebceac48b909bdd3adf021b7e3b8fcc","admit-04ddc6bae4f58ede9d630784386238163ebceac48b909bdd3adf021b7e3b8fcc"]: unsupported
+  tool ["tool-invocation",2,"call-ecfe6263b3d8988edbdbb7b54da63fcd9ef2d4af5493f2b33413bfbd03423297","admit-ecfe6263b3d8988edbdbb7b54da63fcd9ef2d4af5493f2b33413bfbd03423297"]: unsupported
+  tool ["tool-invocation",2,"call-633d4b2ef9b55c74677fbc167629aa5c0ffe659f2135d6b0f92af084a57548d0","admit-633d4b2ef9b55c74677fbc167629aa5c0ffe659f2135d6b0f92af084a57548d0"]: unsupported
+  tool ["tool-invocation",2,"call-90315c7c5f9f4688bd47ef60689783823d1a628598230084d01eae329e8d9995","admit-90315c7c5f9f4688bd47ef60689783823d1a628598230084d01eae329e8d9995"]: unsupported
+  tool ["tool-invocation",2,"call-cf336359f5c168081ef093c6e03326e931fd36bf6cb16efed0be3bbdff66406f","admit-cf336359f5c168081ef093c6e03326e931fd36bf6cb16efed0be3bbdff66406f"]: unsupported
+  tool ["tool-invocation",2,"call-b9f98b791fd61519199d68e1f59243680b91b99bb58b1d972d1bc2e80f97f9f6","admit-b9f98b791fd61519199d68e1f59243680b91b99bb58b1d972d1bc2e80f97f9f6"]: unsupported
+  tool ["tool-invocation",2,"call-9f085e5fc03667485d48344b23d5b364f64af658e389b91ba12a40d6ac9b3a0b","admit-9f085e5fc03667485d48344b23d5b364f64af658e389b91ba12a40d6ac9b3a0b"]: unsupported
+  tool ["tool-invocation",2,"call-d18287e1251ad7af8d7a0fb233e50979d8b8ca0e2eb0437ef81c0f363538e30f","admit-d18287e1251ad7af8d7a0fb233e50979d8b8ca0e2eb0437ef81c0f363538e30f"]: unsupported
+  tool ["tool-invocation",2,"call-cb7ce911d191d7eee5f24d2fe25cb5a613170ff3cd1cc81107e0f90ecde924ae","admit-cb7ce911d191d7eee5f24d2fe25cb5a613170ff3cd1cc81107e0f90ecde924ae"]: unsupported
+  tool ["tool-invocation",2,"call-240533cd602e710f1b77ae2d5a2cb35c0fd08c65317077ed17043bfe052f0dcf","admit-240533cd602e710f1b77ae2d5a2cb35c0fd08c65317077ed17043bfe052f0dcf"]: unsupported
+  tool ["tool-invocation",2,"call-56a8c2b04a108f9f9eaa78370256fe026bc834add517aa97c24b1ecc3e962348","admit-56a8c2b04a108f9f9eaa78370256fe026bc834add517aa97c24b1ecc3e962348"]: unsupported
+  tool ["tool-invocation",2,"call-24b485c495512c57339b5e2ee2202a913781c8532d8c74dd7808a5e421dc9ddf","admit-24b485c495512c57339b5e2ee2202a913781c8532d8c74dd7808a5e421dc9ddf"]: unsupported
+  tool ["tool-invocation",2,"call-02c4fa581e8d1652bd991e79b5bd43d57a6511047e23551a38609f19409fda90","admit-02c4fa581e8d1652bd991e79b5bd43d57a6511047e23551a38609f19409fda90"]: unsupported
+  session run_3b1a4a68c8756baa159286e076733b3d11128698eac9537f8515d865d0c9da0c: truncated

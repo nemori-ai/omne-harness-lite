@@ -1,0 +1,27 @@
+#28 message.user: probe first input
+#30 run.started: Run run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2 started (entry interactive)
+#36 message.system_reminder: Runtime context: the current values. They hold from here until a later runtime context reminder changes them.
+    <block key="session.modes" revision="2">
+    {"basis":{"permissionRevision":"0","permissionSource":{"digest":"sha256:684a39ea4c362a1687f394829256ac0435faf270dba08e050bc937d142202265","owner":"@omne-harness/session-contract","record":"f998065c411356799c5ffecba144c0ec0a816800deafceff66facb9ae561479f@1","revision":"1"},"session":"f998065c411356799c5ffecba144c0ec0a816800deafceff66facb9ae561479f","sessionRevision":"2","tenant":"{\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}"},"inquiry":{"policy":{"onAsk":"skip-ask"},"source":{"digest":"sha256:f0fb5b7b96cdc0f5a57b2b9ca60b84cf86e63dfb51afbd250fd9bbb968562ef8","owner":"@omne-harness/server-entry","record":"coding/modes","revision":"1"},"translation":{"digest":"sha256:6d3bdb2f05a1b4005a9aba235dbd6c1f568318c661c1a92acb9b2487d70b77dc","name":"permission-mode","owner":"@omne-harness/session-adapters","revision":"2"}},"interaction":{"attendance":"attended","child":false,"humanInteraction":true,"source":{"digest":"sha256:f0fb5b7b96cdc0f5a57b2b9ca60b84cf86e63dfb51afbd250fd9bbb968562ef8","owner":"@omne-harness/server-entry","record":"coding/modes","revision":"1"},"translation":{"digest":"sha256:f031143423f79cc0f6ef4d739b6f488ea5fc9ee73409942b360958bc7e9e28d4","name":"collaboration-mode","owner":"@omne-harness/session-adapters","revision":"3"}},"modes":{"collaboration":"co-work","environment":{"digest":"sha256:local","name":"local","owner":"harness-server-release","revision":"1"},"permission":"bypass-permissions"}}
+    </block>
+    <block key="session.working-directory" revision="1">
+    {"directory":"/private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/probe-midrun-4xWX3W/state/workspace","files":{},"state":"default"}
+    </block>
+    {"key":"session.workspace-guidance","scope":null,"sources":[]}
+#48 message.assistant: [tool call Shell probe_1] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 1"}}],"kind":"object"}}],"kind":"object"}
+#58 message.tool: [tool result probe_1]
+    done process={"id":"d5110c5f-057e-4b23-8581-7d3c9696dfd2","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=500
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 1
+    
+    
+#68 run.terminal: Run run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2 ended: cancelled
+#81 message.user: SECOND_INPUT_MARK please also do this
+#83 run.started: Run run_1bc5019648789d584a12c55a6bee729b25632020a4135f407cffdb0c907299ae started (entry interactive)
+#94 message.assistant: PROBE_DONE_WITH_SECOND
+    [reasoning_state]
+#99 run.terminal: Run run_1bc5019648789d584a12c55a6bee729b25632020a4135f407cffdb0c907299ae ended: completed

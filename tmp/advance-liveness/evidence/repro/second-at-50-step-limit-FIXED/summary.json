@@ -1,0 +1,17 @@
+{
+  "when": "tool",
+  "secondAt": 50,
+  "steps": 60,
+  "modelRequests": 50,
+  "secondSent": true,
+  "modelRequestsThatSawSecond": [],
+  "ended": true,
+  "runLines": [
+    "Run run_3b1a4a68c8756baa159286e076733b3d11128698eac9537f8515d865d0c9da0c (entry interactive, execution run_3b1a4a68c8756baa159286e076733b3d11128698eac9537f8515d865d0c9da0c/execution): failed"
+  ],
+  "elapsedMs": 122749,
+  "serveExitCode": 0,
+  "diagnosticCounts": {
+    "C2/receive/unavailable": 2
+  }
+}

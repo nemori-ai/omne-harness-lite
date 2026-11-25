@@ -1,0 +1,380 @@
+[
+ {
+  "at": 16330,
+  "kind": "first-input-accepted",
+  "data": null
+ },
+ {
+  "at": 16498,
+  "kind": "diagnostic",
+  "data": {
+   "owner": "C2",
+   "step": "receive",
+   "reason": "unavailable"
+  }
+ },
+ {
+  "at": 29588,
+  "kind": "model-request",
+  "data": {
+   "index": 1,
+   "hasSecond": false,
+   "bytes": 66418
+  }
+ },
+ {
+  "at": 30236,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 32047,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 32656,
+  "kind": "model-request",
+  "data": {
+   "index": 2,
+   "hasSecond": false,
+   "bytes": 67106
+  }
+ },
+ {
+  "at": 33257,
+  "kind": "cancel-run",
+  "data": {
+   "run": "run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2",
+   "status": 0,
+   "out": "{\"result\":\"response\",\"outcome\":\"succeeded\",\"body\":{\"kind\":\"requested\",\"controlId\":\"544ccf08-66b5-473f-aba8-cb3ea90b9fe2\",\"run\":\"run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2\"},\"",
+   "err": ""
+  }
+ },
+ {
+  "at": 33257,
+  "kind": "cancel-accepted",
+  "data": null
+ },
+ {
+  "at": 33306,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 33519,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable"
+  }
+ },
+ {
+  "at": 33521,
+  "kind": "log:session-adapters/model-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable: load answered terminal"
+  }
+ },
+ {
+  "at": 33521,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable"
+  }
+ },
+ {
+  "at": 33523,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable"
+  }
+ },
+ {
+  "at": 33524,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable"
+  }
+ },
+ {
+  "at": 33525,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable"
+  }
+ },
+ {
+  "at": 33526,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable"
+  }
+ },
+ {
+  "at": 33527,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable"
+  }
+ },
+ {
+  "at": 33528,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable"
+  }
+ },
+ {
+  "at": 33529,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution answered unavailable"
+  }
+ },
+ {
+  "at": 34313,
+  "kind": "log:agent-host",
+  "data": {
+   "text": "reception: the maintenance of run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution was denied; it stops"
+  }
+ },
+ {
+  "at": 34689,
+  "kind": "second-input-accepted",
+  "data": null
+ },
+ {
+  "at": 34715,
+  "kind": "diagnostic",
+  "data": {
+   "owner": "C2",
+   "step": "receive",
+   "reason": "unavailable"
+  }
+ },
+ {
+  "at": 35076,
+  "kind": "model-request",
+  "data": {
+   "index": 3,
+   "hasSecond": true,
+   "bytes": 67172
+  }
+ },
+ {
+  "at": 35178,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_1bc5019648789d584a12c55a6bee729b25632020a4135f407cffdb0c907299ae/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 35333,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_1bc5019648789d584a12c55a6bee729b25632020a4135f407cffdb0c907299ae/execution answered unavailable"
+  }
+ },
+ {
+  "at": 35333,
+  "kind": "log:session-adapters/model-log",
+  "data": {
+   "text": "the consumption of run_1bc5019648789d584a12c55a6bee729b25632020a4135f407cffdb0c907299ae/execution answered unavailable: load answered terminal"
+  }
+ },
+ {
+  "at": 35333,
+  "kind": "log:session-adapters/tool-log",
+  "data": {
+   "text": "the consumption of run_1bc5019648789d584a12c55a6bee729b25632020a4135f407cffdb0c907299ae/execution answered unavailable"
+  }
+ },
+ {
+  "at": 36098,
+  "kind": "log:agent-host",
+  "data": {
+   "text": "reception: the maintenance of run_1bc5019648789d584a12c55a6bee729b25632020a4135f407cffdb0c907299ae/execution was denied; it stops"
+  }
+ },
+ {
+  "at": 36409,
+  "kind": "poll-finished",
+  "data": {
+   "ended": true
+  }
+ },
+ {
+  "at": 36872,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held model-provider:openrouter waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36874,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held model-provider:openrouter waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36877,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held model-provider:openrouter waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held model-provider:openrouter waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Agents waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Ask waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:BkgToolCalls waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Calendar waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Canvas waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Code waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Files waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Jobs waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Notifications waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:OmneExtensionPoints waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:OmneExtensions waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Schedules waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Screen waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Sessions waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Shell waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Skills waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:SwitchWorkspace waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:TodoItems waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Tools waits for its category to give a point"
+  }
+ },
+ {
+  "at": 36878,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_vgg4a9yajj7cf2gqv9r8ctsma0\",\"account\":\"acc_hbrbx3a3egj6aqfpagc2gvnvm2\"}: held tool:Web waits for its category to give a point"
+  }
+ }
+]

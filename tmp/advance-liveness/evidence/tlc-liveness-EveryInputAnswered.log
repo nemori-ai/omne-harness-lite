@@ -1,0 +1,25 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 48 and seed -6847373022450910547 with 3 workers on 12 cores with 2731MB heap and 64MB offheap memory [pid: 43975] (Mac OS X 26.5.1 aarch64, Homebrew 21.0.13.0.2 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/panqiwei/Dev/repos/nemori-ai/omne-harness-lite/tmp/advance-liveness/models/AdvanceLiveness.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Naturals.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AdvanceLiveness
+Starting... (2026-11-25 19:52:51)
+Implied-temporal checking--satisfiability problem has 2 branches.
+Computing initial states...
+Finished computing initial states: 2 distinct states generated at 2026-11-25 19:52:57.
+Progress(18) at 2026-11-25 19:52:57: 9,982 states generated, 2,044 distinct states found, 0 states left on queue.
+Checking 2 branches of temporal properties for the complete state space with 4088 total distinct states at (2026-11-25 19:52:57)
+Finished checking temporal properties in 00s at 2026-11-25 19:52:58
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 8.8E-13
+9982 states generated, 2044 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 18.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 3).
+Finished in 06s at (2026-11-25 19:52:58)

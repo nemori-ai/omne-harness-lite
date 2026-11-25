@@ -1,0 +1,8 @@
+ought.cfg pass
+is-after-run1.cfg pass
+bad-first-only.cfg BatchNotSplit
+bad-halt-pins-slot.cfg ActiveRunSettles|EveryInputSettles
+bad-failed-finish-blocked.cfg ActiveRunSettles
+bad-no-scan.cfg ActiveRunSettles|EveryInputSettles
+bad-void-answered.cfg AnsweredNotPending
+gap-deterministic-halt.cfg ActiveRunSettles

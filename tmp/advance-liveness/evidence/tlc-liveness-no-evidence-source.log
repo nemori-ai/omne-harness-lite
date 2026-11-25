@@ -1,0 +1,124 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 101 and seed -6610265593164721011 with 3 workers on 12 cores with 2731MB heap and 64MB offheap memory [pid: 75819] (Mac OS X 26.5.1 aarch64, Homebrew 21.0.13.0.2 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/panqiwei/Dev/repos/nemori-ai/omne-harness-lite/tmp/advance-liveness/models/AdvanceLiveness.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Naturals.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AdvanceLiveness
+Starting... (2026-11-25 20:21:42)
+Implied-temporal checking--satisfiability problem has 3 branches.
+Computing initial states...
+Finished computing initial states: 2 distinct states generated at 2026-11-25 20:21:47.
+Progress(16) at 2026-11-25 20:21:48: 4,742 states generated, 1,128 distinct states found, 0 states left on queue.
+Checking 3 branches of temporal properties for the complete state space with 3384 total distinct states at (2026-11-25 20:21:48)
+Error: Temporal properties were violated.
+
+Error: The following behavior constitutes a counter-example:
+
+State 1: <Initial predicate>
+/\ cancels = 0
+/\ pending = {}
+/\ stepped = FALSE
+/\ depUp = TRUE
+/\ run = "none"
+/\ restarts = 0
+/\ batch = {}
+/\ agent = "none"
+/\ outbox = {}
+/\ handedLog = {}
+/\ sent = {}
+/\ agentAcc = {}
+/\ known = {}
+/\ answered = {}
+/\ split = FALSE
+/\ wake = FALSE
+/\ runAns = {}
+/\ waiting0 = {}
+
+State 2: <Send line 85, col 3 to line 88, col 64 of module AdvanceLiveness>
+/\ cancels = 0
+/\ pending = {2}
+/\ stepped = FALSE
+/\ depUp = TRUE
+/\ run = "none"
+/\ restarts = 0
+/\ batch = {}
+/\ agent = "none"
+/\ outbox = {}
+/\ handedLog = {}
+/\ sent = {2}
+/\ agentAcc = {}
+/\ known = {}
+/\ answered = {}
+/\ split = FALSE
+/\ wake = TRUE
+/\ runAns = {}
+/\ waiting0 = {}
+
+State 3: <OpenRun line 137, col 3 to line 143, col 82 of module AdvanceLiveness>
+/\ cancels = 0
+/\ pending = {2}
+/\ stepped = FALSE
+/\ depUp = TRUE
+/\ run = "open"
+/\ restarts = 0
+/\ batch = {2}
+/\ agent = "none"
+/\ outbox = {}
+/\ handedLog = {}
+/\ sent = {2}
+/\ agentAcc = {}
+/\ known = {}
+/\ answered = {}
+/\ split = FALSE
+/\ wake = TRUE
+/\ runAns = {}
+/\ waiting0 = {2}
+
+State 4: <InvokeOk line 148, col 3 to line 156, col 50 of module AdvanceLiveness>
+/\ cancels = 0
+/\ pending = {2}
+/\ stepped = FALSE
+/\ depUp = TRUE
+/\ run = "open"
+/\ restarts = 0
+/\ batch = {2}
+/\ agent = "live"
+/\ outbox = {2}
+/\ handedLog = {}
+/\ sent = {2}
+/\ agentAcc = {2}
+/\ known = {}
+/\ answered = {}
+/\ split = FALSE
+/\ wake = FALSE
+/\ runAns = {}
+/\ waiting0 = {2}
+
+State 5: <AgentStep line 224, col 3 to line 232, col 43 of module AdvanceLiveness>
+/\ cancels = 0
+/\ pending = {}
+/\ stepped = TRUE
+/\ depUp = TRUE
+/\ run = "open"
+/\ restarts = 0
+/\ batch = {2}
+/\ agent = "live"
+/\ outbox = {2}
+/\ handedLog = {}
+/\ sent = {2}
+/\ agentAcc = {2}
+/\ known = {}
+/\ answered = {2}
+/\ split = FALSE
+/\ wake = TRUE
+/\ runAns = {2}
+/\ waiting0 = {2}
+
+State 6: Stuttering
+Finished checking temporal properties in 00s at 2026-11-25 20:21:48
+4742 states generated, 1128 distinct states found, 0 states left on queue.
+Finished in 05s at (2026-11-25 20:21:48)

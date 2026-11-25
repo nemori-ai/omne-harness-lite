@@ -1,0 +1,140 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 46 and seed -2435171720469866862 with 3 workers on 12 cores with 2731MB heap and 64MB offheap memory [pid: 75776] (Mac OS X 26.5.1 aarch64, Homebrew 21.0.13.0.2 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/panqiwei/Dev/repos/nemori-ai/omne-harness-lite/tmp/advance-liveness/models/AdvanceLiveness.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Naturals.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AdvanceLiveness
+Starting... (2026-11-25 20:21:36)
+Implied-temporal checking--satisfiability problem has 1 branches.
+Computing initial states...
+Finished computing initial states: 2 distinct states generated at 2026-11-25 20:21:41.
+Error: Invariant AnsweredNotPending is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ cancels = 0
+/\ pending = {}
+/\ stepped = FALSE
+/\ depUp = TRUE
+/\ run = "none"
+/\ restarts = 0
+/\ batch = {}
+/\ agent = "none"
+/\ outbox = {}
+/\ handedLog = {}
+/\ sent = {}
+/\ agentAcc = {}
+/\ known = {}
+/\ answered = {}
+/\ split = FALSE
+/\ wake = FALSE
+/\ runAns = {}
+/\ waiting0 = {}
+
+State 2: <Send line 85, col 3 to line 88, col 64 of module AdvanceLiveness>
+/\ cancels = 0
+/\ pending = {1}
+/\ stepped = FALSE
+/\ depUp = TRUE
+/\ run = "none"
+/\ restarts = 0
+/\ batch = {}
+/\ agent = "none"
+/\ outbox = {}
+/\ handedLog = {}
+/\ sent = {1}
+/\ agentAcc = {}
+/\ known = {}
+/\ answered = {}
+/\ split = FALSE
+/\ wake = TRUE
+/\ runAns = {}
+/\ waiting0 = {}
+
+State 3: <OpenRun line 137, col 3 to line 143, col 82 of module AdvanceLiveness>
+/\ cancels = 0
+/\ pending = {1}
+/\ stepped = FALSE
+/\ depUp = TRUE
+/\ run = "open"
+/\ restarts = 0
+/\ batch = {1}
+/\ agent = "none"
+/\ outbox = {}
+/\ handedLog = {}
+/\ sent = {1}
+/\ agentAcc = {}
+/\ known = {}
+/\ answered = {}
+/\ split = FALSE
+/\ wake = TRUE
+/\ runAns = {}
+/\ waiting0 = {1}
+
+State 4: <InvokeOk line 148, col 3 to line 156, col 50 of module AdvanceLiveness>
+/\ cancels = 0
+/\ pending = {1}
+/\ stepped = FALSE
+/\ depUp = TRUE
+/\ run = "open"
+/\ restarts = 0
+/\ batch = {1}
+/\ agent = "live"
+/\ outbox = {1}
+/\ handedLog = {}
+/\ sent = {1}
+/\ agentAcc = {1}
+/\ known = {}
+/\ answered = {}
+/\ split = FALSE
+/\ wake = FALSE
+/\ runAns = {}
+/\ waiting0 = {1}
+
+State 5: <AgentStep line 224, col 3 to line 232, col 43 of module AdvanceLiveness>
+/\ cancels = 0
+/\ pending = {}
+/\ stepped = TRUE
+/\ depUp = TRUE
+/\ run = "open"
+/\ restarts = 0
+/\ batch = {1}
+/\ agent = "live"
+/\ outbox = {1}
+/\ handedLog = {}
+/\ sent = {1}
+/\ agentAcc = {1}
+/\ known = {}
+/\ answered = {1}
+/\ split = FALSE
+/\ wake = TRUE
+/\ runAns = {1}
+/\ waiting0 = {1}
+
+State 6: <Cancel line 114, col 3 to line 121, col 76 of module AdvanceLiveness>
+/\ cancels = 1
+/\ pending = {1}
+/\ stepped = TRUE
+/\ depUp = TRUE
+/\ run = "terminal"
+/\ restarts = 0
+/\ batch = {}
+/\ agent = "stale"
+/\ outbox = {}
+/\ handedLog = {}
+/\ sent = {1}
+/\ agentAcc = {}
+/\ known = {}
+/\ answered = {1}
+/\ split = FALSE
+/\ wake = TRUE
+/\ runAns = {}
+/\ waiting0 = {1}
+
+241 states generated, 104 distinct states found, 59 states left on queue.
+The depth of the complete state graph search is 6.
+The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 8 and the 95th percentile is 7).
+Finished in 05s at (2026-11-25 20:21:41)

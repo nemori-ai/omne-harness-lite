@@ -1,0 +1,169 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 23 and seed -3828010580739689055 with 2 workers on 12 cores with 1820MB heap and 64MB offheap memory [pid: 65683] (Mac OS X 26.5.1 aarch64, Homebrew 21.0.13.0.2 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/panqiwei/Dev/repos/nemori-ai/omne-harness-lite/tmp/advance-liveness/models/AdvanceLiveness.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Naturals.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AdvanceLiveness
+Starting... (2026-11-26 00:27:17)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-26 00:27:22.
+Error: Invariant AnsweredNotPending is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {}
+/\ slot = "free"
+/\ stepped = FALSE
+/\ pending = {}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = FALSE
+/\ execOpen = FALSE
+/\ awaiting = FALSE
+/\ sent = {}
+/\ restarts = 0
+/\ drive = "none"
+/\ known = {}
+/\ waiting0 = {}
+/\ answered = {}
+/\ run = "none"
+/\ split = FALSE
+/\ batch = {}
+/\ outages = 0
+/\ halts = 0
+
+State 2: <Send line 101, col 3 to line 104, col 94 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {}
+/\ slot = "free"
+/\ stepped = FALSE
+/\ pending = {1}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = FALSE
+/\ awaiting = FALSE
+/\ sent = {1}
+/\ restarts = 0
+/\ drive = "none"
+/\ known = {}
+/\ waiting0 = {}
+/\ answered = {}
+/\ run = "none"
+/\ split = FALSE
+/\ batch = {}
+/\ outages = 0
+/\ halts = 0
+
+State 3: <OpenRun line 189, col 3 to line 195, col 50 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {}
+/\ slot = "free"
+/\ stepped = FALSE
+/\ pending = {1}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = FALSE
+/\ awaiting = FALSE
+/\ sent = {1}
+/\ restarts = 0
+/\ drive = "none"
+/\ known = {}
+/\ waiting0 = {1}
+/\ answered = {}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {1}
+/\ outages = 0
+/\ halts = 0
+
+State 4: <InvokeOk line 200, col 3 to line 204, col 87 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 0
+/\ cancels = 0
+/\ agentAcc = {1}
+/\ slot = "held"
+/\ stepped = FALSE
+/\ pending = {1}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {1}
+/\ restarts = 0
+/\ drive = "live"
+/\ known = {1}
+/\ waiting0 = {1}
+/\ answered = {}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {1}
+/\ outages = 0
+/\ halts = 0
+
+State 5: <AgentStep line 237, col 3 to line 244, col 73 of module AdvanceLiveness>
+/\ runAns = {1}
+/\ steps = 1
+/\ cancels = 0
+/\ agentAcc = {1}
+/\ slot = "held"
+/\ stepped = TRUE
+/\ pending = {}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = TRUE
+/\ awaiting = FALSE
+/\ sent = {1}
+/\ restarts = 0
+/\ drive = "live"
+/\ known = {1}
+/\ waiting0 = {1}
+/\ answered = {1}
+/\ run = "open"
+/\ split = FALSE
+/\ batch = {1}
+/\ outages = 0
+/\ halts = 0
+
+State 6: <Cancel line 146, col 3 to line 155, col 40 of module AdvanceLiveness>
+/\ runAns = {}
+/\ steps = 1
+/\ cancels = 1
+/\ agentAcc = {}
+/\ slot = "free"
+/\ stepped = TRUE
+/\ pending = {1}
+/\ poison = FALSE
+/\ depUp = TRUE
+/\ wake = TRUE
+/\ execOpen = FALSE
+/\ awaiting = FALSE
+/\ sent = {1}
+/\ restarts = 0
+/\ drive = "none"
+/\ known = {}
+/\ waiting0 = {1}
+/\ answered = {1}
+/\ run = "terminal"
+/\ split = FALSE
+/\ batch = {}
+/\ outages = 0
+/\ halts = 0
+
+215 states generated, 126 distinct states found, 74 states left on queue.
+The depth of the complete state graph search is 6.
+The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 5 and the 95th percentile is 5).
+Finished in 05s at (2026-11-26 00:27:22)

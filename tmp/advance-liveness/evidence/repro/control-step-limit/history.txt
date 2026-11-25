@@ -1,0 +1,562 @@
+#28 message.user: probe first input
+#30 run.started: Run run_4bbd8d69b3baa3d65cc3b867a6f095188d5df51c1b296fc4bafa171f33c29e55 started (entry interactive)
+#36 message.system_reminder: Runtime context: the current values. They hold from here until a later runtime context reminder changes them.
+    <block key="session.modes" revision="2">
+    {"basis":{"permissionRevision":"0","permissionSource":{"digest":"sha256:ab93bad069c4577d8d7479005ec7cc20b781f0bb9976d0b9865385ba692af84b","owner":"@omne-harness/session-contract","record":"767d478a407d7b91ad03f4b1f95b5fb9733a12911f3fad6429fc90f550bbcde8@1","revision":"1"},"session":"767d478a407d7b91ad03f4b1f95b5fb9733a12911f3fad6429fc90f550bbcde8","sessionRevision":"1","tenant":"{\"organization\":\"org_bjgmcx0c6e2dm268vsdezr7cbp\",\"account\":\"acc_c77ddgt3w6byyypnt64dqa0vmm\"}"},"inquiry":{"policy":{"onAsk":"skip-ask"},"source":{"digest":"sha256:f0fb5b7b96cdc0f5a57b2b9ca60b84cf86e63dfb51afbd250fd9bbb968562ef8","owner":"@omne-harness/server-entry","record":"coding/modes","revision":"1"},"translation":{"digest":"sha256:6d3bdb2f05a1b4005a9aba235dbd6c1f568318c661c1a92acb9b2487d70b77dc","name":"permission-mode","owner":"@omne-harness/session-adapters","revision":"2"}},"interaction":{"attendance":"attended","child":false,"humanInteraction":true,"source":{"digest":"sha256:f0fb5b7b96cdc0f5a57b2b9ca60b84cf86e63dfb51afbd250fd9bbb968562ef8","owner":"@omne-harness/server-entry","record":"coding/modes","revision":"1"},"translation":{"digest":"sha256:f031143423f79cc0f6ef4d739b6f488ea5fc9ee73409942b360958bc7e9e28d4","name":"collaboration-mode","owner":"@omne-harness/session-adapters","revision":"3"}},"modes":{"collaboration":"co-work","environment":{"digest":"sha256:local","name":"local","owner":"harness-server-release","revision":"1"},"permission":"bypass-permissions"}}
+    </block>
+    <block key="session.working-directory" revision="1">
+    {"directory":"/private/var/folders/xt/bn8ht8f10d93f8n1yhgzmlpc0000gn/T/probe-midrun-Vd1C0q/state/workspace","files":{},"state":"default"}
+    </block>
+    {"key":"session.workspace-guidance","scope":null,"sources":[]}
+#48 message.assistant: [tool call Shell probe_1] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 1"}}],"kind":"object"}}],"kind":"object"}
+#60 message.tool: [tool result probe_1]
+    done process={"id":"648fcc54-ef44-45b0-9542-299057669391","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=326
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 1
+    
+    
+#68 message.assistant: [tool call Shell probe_2] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 2"}}],"kind":"object"}}],"kind":"object"}
+#82 message.tool: [tool result probe_2]
+    done process={"id":"2ba80959-d51e-47d3-a4a1-ea96056f26bc","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=317
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 2
+    
+    
+#90 message.assistant: [tool call Shell probe_3] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 3"}}],"kind":"object"}}],"kind":"object"}
+#104 message.tool: [tool result probe_3]
+    done process={"id":"8103c51c-c660-41ac-b1f8-949697c0b742","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=342
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 3
+    
+    
+#112 message.assistant: [tool call Shell probe_4] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 4"}}],"kind":"object"}}],"kind":"object"}
+#126 message.tool: [tool result probe_4]
+    done process={"id":"31393fcb-c3ef-4da2-a3d5-a014f8945150","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=330
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 4
+    
+    
+#134 message.assistant: [tool call Shell probe_5] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 5"}}],"kind":"object"}}],"kind":"object"}
+#148 message.tool: [tool result probe_5]
+    done process={"id":"b49ca6cf-e4d7-4b71-9912-f15e4b88a2a8","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=328
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 5
+    
+    
+#156 message.assistant: [tool call Shell probe_6] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 6"}}],"kind":"object"}}],"kind":"object"}
+#170 message.tool: [tool result probe_6]
+    done process={"id":"1d38cc90-5de3-4974-bdb3-a027d9353075","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=328
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 6
+    
+    
+#178 message.assistant: [tool call Shell probe_7] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 7"}}],"kind":"object"}}],"kind":"object"}
+#192 message.tool: [tool result probe_7]
+    done process={"id":"05672c47-506c-47af-9bc6-46320d202ba5","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=335
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 7
+    
+    
+#200 message.assistant: [tool call Shell probe_8] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 8"}}],"kind":"object"}}],"kind":"object"}
+#214 message.tool: [tool result probe_8]
+    done process={"id":"80695d28-bf1b-43d2-8723-25216fc9d54d","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=323
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 8
+    
+    
+#222 message.assistant: [tool call Shell probe_9] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 9"}}],"kind":"object"}}],"kind":"object"}
+#236 message.tool: [tool result probe_9]
+    done process={"id":"cd1574e5-2309-4df4-9f6b-cf50bb7bcccc","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=332
+    residue=none
+    stdout observed_bytes=7 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 9
+    
+    
+#244 message.assistant: [tool call Shell probe_10] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 10"}}],"kind":"object"}}],"kind":"object"}
+#258 message.tool: [tool result probe_10]
+    done process={"id":"eca17951-9dcc-4d35-994b-18680dd05ca2","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=319
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 10
+    
+    
+#266 message.assistant: [tool call Shell probe_11] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 11"}}],"kind":"object"}}],"kind":"object"}
+#280 message.tool: [tool result probe_11]
+    done process={"id":"4c131215-f60e-47a9-950d-4962742d9851","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=321
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 11
+    
+    
+#290 message.assistant: [tool call Shell probe_12] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 12"}}],"kind":"object"}}],"kind":"object"}
+#302 message.tool: [tool result probe_12]
+    done process={"id":"beaf1ff2-256b-4fd1-a8c3-d6b96ecf07d8","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=349
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 12
+    
+    
+#310 message.assistant: [tool call Shell probe_13] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 13"}}],"kind":"object"}}],"kind":"object"}
+#324 message.tool: [tool result probe_13]
+    done process={"id":"53347e84-9d97-40a2-abad-885fd047fd20","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=345
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 13
+    
+    
+#332 message.assistant: [tool call Shell probe_14] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 14"}}],"kind":"object"}}],"kind":"object"}
+#346 message.tool: [tool result probe_14]
+    done process={"id":"ee183579-1a11-4bd5-babd-d9487d7e6889","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=323
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 14
+    
+    
+#356 message.assistant: [tool call Shell probe_15] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 15"}}],"kind":"object"}}],"kind":"object"}
+#368 message.tool: [tool result probe_15]
+    done process={"id":"e804b6ce-8b18-4928-b958-3fc1adb550bd","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=327
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 15
+    
+    
+#376 message.assistant: [tool call Shell probe_16] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 16"}}],"kind":"object"}}],"kind":"object"}
+#390 message.tool: [tool result probe_16]
+    done process={"id":"d464aec1-1c65-4569-ad34-222ea97223ae","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=331
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 16
+    
+    
+#398 message.assistant: [tool call Shell probe_17] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 17"}}],"kind":"object"}}],"kind":"object"}
+#412 message.tool: [tool result probe_17]
+    done process={"id":"4afeeed6-c472-4a23-84df-495e1c855c45","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=370
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 17
+    
+    
+#422 message.assistant: [tool call Shell probe_18] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 18"}}],"kind":"object"}}],"kind":"object"}
+#434 message.tool: [tool result probe_18]
+    done process={"id":"02adb646-d2c3-4e5a-aded-256fa1154ddb","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=333
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 18
+    
+    
+#442 message.assistant: [tool call Shell probe_19] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 19"}}],"kind":"object"}}],"kind":"object"}
+#456 message.tool: [tool result probe_19]
+    done process={"id":"f51e472f-a85a-46c0-b1a4-0d840c2687d0","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=326
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 19
+    
+    
+#464 message.assistant: [tool call Shell probe_20] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 20"}}],"kind":"object"}}],"kind":"object"}
+#478 message.tool: [tool result probe_20]
+    done process={"id":"09b3c0f3-1699-4320-b1c0-8829e0bacfae","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=330
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 20
+    
+    
+#486 message.assistant: [tool call Shell probe_21] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 21"}}],"kind":"object"}}],"kind":"object"}
+#500 message.tool: [tool result probe_21]
+    done process={"id":"fba6da2d-c0df-4086-a2d7-69c4f20007f6","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=334
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 21
+    
+    
+#508 message.assistant: [tool call Shell probe_22] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 22"}}],"kind":"object"}}],"kind":"object"}
+#522 message.tool: [tool result probe_22]
+    done process={"id":"94c9b45f-921b-4cb4-bc7a-13d022e957dd","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=344
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 22
+    
+    
+#530 message.assistant: [tool call Shell probe_23] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 23"}}],"kind":"object"}}],"kind":"object"}
+#544 message.tool: [tool result probe_23]
+    done process={"id":"45402ff1-aab9-41e3-8996-204095fa86bd","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=321
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 23
+    
+    
+#554 message.assistant: [tool call Shell probe_24] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 24"}}],"kind":"object"}}],"kind":"object"}
+#566 message.tool: [tool result probe_24]
+    done process={"id":"a0d8de1a-65e4-4563-bd6e-a0183c53b537","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=336
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 24
+    
+    
+#576 message.assistant: [tool call Shell probe_25] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 25"}}],"kind":"object"}}],"kind":"object"}
+#588 message.tool: [tool result probe_25]
+    done process={"id":"e303e8f5-98af-4d87-bfab-10471c71413e","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=433
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 25
+    
+    
+#596 message.assistant: [tool call Shell probe_26] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 26"}}],"kind":"object"}}],"kind":"object"}
+#610 message.tool: [tool result probe_26]
+    done process={"id":"33a05979-ad31-4083-bc67-fde634cf34d0","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=324
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 26
+    
+    
+#618 message.assistant: [tool call Shell probe_27] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 27"}}],"kind":"object"}}],"kind":"object"}
+#632 message.tool: [tool result probe_27]
+    done process={"id":"a1402c43-e860-4f7c-86fb-0c3c9f52bb68","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=337
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 27
+    
+    
+#642 message.assistant: [tool call Shell probe_28] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 28"}}],"kind":"object"}}],"kind":"object"}
+#654 message.tool: [tool result probe_28]
+    done process={"id":"8c629a7b-9daf-4a92-a604-7c8cc4cb8db3","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=1681
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 28
+    
+    
+#664 message.assistant: [tool call Shell probe_29] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 29"}}],"kind":"object"}}],"kind":"object"}
+#676 message.tool: [tool result probe_29]
+    done process={"id":"100ae9cc-36f3-4502-931a-c15048ed56e9","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=334
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 29
+    
+    
+#686 message.assistant: [tool call Shell probe_30] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 30"}}],"kind":"object"}}],"kind":"object"}
+#698 message.tool: [tool result probe_30]
+    done process={"id":"b4a9c554-d63d-4555-9f0e-e88d0208a3c8","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=449
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 30
+    
+    
+#706 message.assistant: [tool call Shell probe_31] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 31"}}],"kind":"object"}}],"kind":"object"}
+#720 message.tool: [tool result probe_31]
+    done process={"id":"c82b6c1f-35fa-48f5-9dcc-4004e35ce4ca","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=328
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 31
+    
+    
+#730 message.assistant: [tool call Shell probe_32] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 32"}}],"kind":"object"}}],"kind":"object"}
+#742 message.tool: [tool result probe_32]
+    done process={"id":"b9d7b2a8-e1a1-4947-9e9c-ebf5657bcd65","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=361
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 32
+    
+    
+#750 message.assistant: [tool call Shell probe_33] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 33"}}],"kind":"object"}}],"kind":"object"}
+#764 message.tool: [tool result probe_33]
+    done process={"id":"31750678-e146-4eb5-8c3a-20b31cd5166c","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=335
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 33
+    
+    
+#772 message.assistant: [tool call Shell probe_34] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 34"}}],"kind":"object"}}],"kind":"object"}
+#786 message.tool: [tool result probe_34]
+    done process={"id":"22f8db26-dd81-40f6-9b1e-253bdb773e76","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=326
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 34
+    
+    
+#794 message.assistant: [tool call Shell probe_35] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 35"}}],"kind":"object"}}],"kind":"object"}
+#808 message.tool: [tool result probe_35]
+    done process={"id":"0347958c-17bd-4d0b-9241-4ec61f5e80e9","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=418
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 35
+    
+    
+#816 message.assistant: [tool call Shell probe_36] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 36"}}],"kind":"object"}}],"kind":"object"}
+#830 message.tool: [tool result probe_36]
+    done process={"id":"87605a5c-6152-401b-8d35-6f4f44020661","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=321
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 36
+    
+    
+#838 message.assistant: [tool call Shell probe_37] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 37"}}],"kind":"object"}}],"kind":"object"}
+#852 message.tool: [tool result probe_37]
+    done process={"id":"f217119a-d729-43b8-9e4a-fc4bb8cd9e07","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=331
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 37
+    
+    
+#860 message.assistant: [tool call Shell probe_38] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 38"}}],"kind":"object"}}],"kind":"object"}
+#874 message.tool: [tool result probe_38]
+    done process={"id":"4cefd73c-650b-4ac0-9f8d-ddc18a311920","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=343
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 38
+    
+    
+#882 message.assistant: [tool call Shell probe_39] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 39"}}],"kind":"object"}}],"kind":"object"}
+#896 message.tool: [tool result probe_39]
+    done process={"id":"6299730a-9f6b-4b15-b8c4-754bb10f9034","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=327
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 39
+    
+    
+#904 message.assistant: [tool call Shell probe_40] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 40"}}],"kind":"object"}}],"kind":"object"}
+#918 message.tool: [tool result probe_40]
+    done process={"id":"f75769d6-7e35-47ff-969e-f1d1c5c0456c","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=326
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 40
+    
+    
+#928 message.assistant: [tool call Shell probe_41] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 41"}}],"kind":"object"}}],"kind":"object"}
+#940 message.tool: [tool result probe_41]
+    done process={"id":"c7ae4e12-8805-40a3-9366-d7b6458e45de","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=329
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 41
+    
+    
+#948 message.assistant: [tool call Shell probe_42] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 42"}}],"kind":"object"}}],"kind":"object"}
+#962 message.tool: [tool result probe_42]
+    done process={"id":"f15deb39-4187-4515-86a8-c10a29b63fd6","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=337
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 42
+    
+    
+#970 message.assistant: [tool call Shell probe_43] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 43"}}],"kind":"object"}}],"kind":"object"}
+#984 message.tool: [tool result probe_43]
+    done process={"id":"205d6c2c-ce29-41d0-a6da-2281c0a6efc9","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=368
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 43
+    
+    
+#992 message.assistant: [tool call Shell probe_44] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 44"}}],"kind":"object"}}],"kind":"object"}
+#1006 message.tool: [tool result probe_44]
+    done process={"id":"b91474e2-105c-49f8-afeb-928604028b23","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=335
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 44
+    
+    
+#1014 message.assistant: [tool call Shell probe_45] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 45"}}],"kind":"object"}}],"kind":"object"}
+#1028 message.tool: [tool result probe_45]
+    done process={"id":"1eb0f550-7693-4784-8535-99440b8a8e9f","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=339
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 45
+    
+    
+#1036 message.assistant: [tool call Shell probe_46] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 46"}}],"kind":"object"}}],"kind":"object"}
+#1050 message.tool: [tool result probe_46]
+    done process={"id":"2a432049-6cf5-49be-81c1-eac5116a796c","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=322
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 46
+    
+    
+#1060 message.assistant: [tool call Shell probe_47] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 47"}}],"kind":"object"}}],"kind":"object"}
+#1072 message.tool: [tool result probe_47]
+    done process={"id":"7ba02a8e-2dc5-444e-b556-86decb5cc25b","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=331
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 47
+    
+    
+#1080 message.assistant: [tool call Shell probe_48] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 48"}}],"kind":"object"}}],"kind":"object"}
+#1094 message.tool: [tool result probe_48]
+    done process={"id":"c91138ea-cf5c-4ed1-b012-cb03321c197b","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=325
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 48
+    
+    
+#1104 message.assistant: [tool call Shell probe_49] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 49"}}],"kind":"object"}}],"kind":"object"}
+#1114 message.tool: [tool result probe_49]
+    done process={"id":"68647378-aa48-48d3-a020-b7a097c62fa2","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=333
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 49
+    
+    
+#1124 message.assistant: [tool call Shell probe_50] {"entries":[{"key":"command","value":{"kind":"string","value":"execute"}},{"key":"intent","value":{"kind":"string","value":"probe step"}},{"key":"params","value":{"entries":[{"key":"script","value":{"kind":"string","value":"sleep 0.3; echo step 50"}}],"kind":"object"}}],"kind":"object"}
+#1138 message.tool: [tool result probe_50]
+    done process={"id":"a35c68a3-b61f-49a5-923b-7736dacd7383","generation":"4240EF8D-EB34-4D92-8C73-D4E7E792FC31"} output_mode=separate stop=not-requested
+    completed exit={"kind":"code","code":0} duration_ms=339
+    residue=none
+    stdout observed_bytes=8 facility_discarded_bytes=0
+    stderr observed_bytes=0 facility_discarded_bytes=0
+    stdout facility_gaps=none discarded_observed_bytes=0
+    step 50
+    
+    
+#1141 run.terminal: Run run_4bbd8d69b3baa3d65cc3b867a6f095188d5df51c1b296fc4bafa171f33c29e55 ended: failed
+    cause: run_4bbd8d69b3baa3d65cc3b867a6f095188d5df51c1b296fc4bafa171f33c29e55/execution/step-50/guard

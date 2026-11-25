@@ -1,0 +1,20 @@
+{
+  "when": "cancel-model",
+  "secondAt": 2,
+  "steps": 6,
+  "modelRequests": 3,
+  "secondSent": true,
+  "modelRequestsThatSawSecond": [
+    3
+  ],
+  "ended": true,
+  "runLines": [
+    "Run run_1bc5019648789d584a12c55a6bee729b25632020a4135f407cffdb0c907299ae (entry interactive, execution run_1bc5019648789d584a12c55a6bee729b25632020a4135f407cffdb0c907299ae/execution): completed",
+    "Run run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2 (entry interactive, execution run_a3198135434bb3b933232d931034625bca94d99f74e9d60d3598447ca7bbcad2/execution): cancelled"
+  ],
+  "elapsedMs": 36889,
+  "serveExitCode": 0,
+  "diagnosticCounts": {
+    "C2/receive/unavailable": 2
+  }
+}

@@ -1,0 +1,1453 @@
+[
+ {
+  "at": 9460,
+  "kind": "log:session-ad03-modes",
+  "data": {
+   "text": "mode refresh answered unavailable"
+  }
+ },
+ {
+  "at": 10480,
+  "kind": "first-input-accepted",
+  "data": null
+ },
+ {
+  "at": 10577,
+  "kind": "diagnostic",
+  "data": {
+   "owner": "C2",
+   "step": "receive",
+   "reason": "unavailable"
+  }
+ },
+ {
+  "at": 17409,
+  "kind": "model-request",
+  "data": {
+   "index": 1,
+   "hasSecond": false,
+   "bytes": 66418
+  }
+ },
+ {
+  "at": 17957,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 19028,
+  "kind": "model-request",
+  "data": {
+   "index": 2,
+   "hasSecond": false,
+   "bytes": 67106
+  }
+ },
+ {
+  "at": 19395,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 20127,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 20228,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 2 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 50 ms"
+  }
+ },
+ {
+  "at": 20528,
+  "kind": "model-request",
+  "data": {
+   "index": 3,
+   "hasSecond": false,
+   "bytes": 67794
+  }
+ },
+ {
+  "at": 20622,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 20848,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 21914,
+  "kind": "model-request",
+  "data": {
+   "index": 4,
+   "hasSecond": false,
+   "bytes": 68482
+  }
+ },
+ {
+  "at": 22006,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 22275,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 22944,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 23265,
+  "kind": "model-request",
+  "data": {
+   "index": 5,
+   "hasSecond": false,
+   "bytes": 69170
+  }
+ },
+ {
+  "at": 23392,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 23657,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 24812,
+  "kind": "model-request",
+  "data": {
+   "index": 6,
+   "hasSecond": false,
+   "bytes": 69858
+  }
+ },
+ {
+  "at": 24897,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 25186,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 25894,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 26523,
+  "kind": "model-request",
+  "data": {
+   "index": 7,
+   "hasSecond": false,
+   "bytes": 70546
+  }
+ },
+ {
+  "at": 27097,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 28345,
+  "kind": "model-request",
+  "data": {
+   "index": 8,
+   "hasSecond": false,
+   "bytes": 71234
+  }
+ },
+ {
+  "at": 28795,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 30508,
+  "kind": "model-request",
+  "data": {
+   "index": 9,
+   "hasSecond": false,
+   "bytes": 71922
+  }
+ },
+ {
+  "at": 30669,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 30991,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 31722,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 32209,
+  "kind": "model-request",
+  "data": {
+   "index": 10,
+   "hasSecond": false,
+   "bytes": 72610
+  }
+ },
+ {
+  "at": 32521,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 33611,
+  "kind": "model-request",
+  "data": {
+   "index": 11,
+   "hasSecond": false,
+   "bytes": 73302
+  }
+ },
+ {
+  "at": 33734,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 33966,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 35244,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 35638,
+  "kind": "model-request",
+  "data": {
+   "index": 12,
+   "hasSecond": false,
+   "bytes": 73994
+  }
+ },
+ {
+  "at": 35740,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 35942,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 37094,
+  "kind": "model-request",
+  "data": {
+   "index": 13,
+   "hasSecond": false,
+   "bytes": 74686
+  }
+ },
+ {
+  "at": 37460,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 38566,
+  "kind": "model-request",
+  "data": {
+   "index": 14,
+   "hasSecond": false,
+   "bytes": 75378
+  }
+ },
+ {
+  "at": 38655,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 38944,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 39638,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 40214,
+  "kind": "model-request",
+  "data": {
+   "index": 15,
+   "hasSecond": false,
+   "bytes": 76070
+  }
+ },
+ {
+  "at": 40330,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 40584,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 41686,
+  "kind": "model-request",
+  "data": {
+   "index": 16,
+   "hasSecond": false,
+   "bytes": 76762
+  }
+ },
+ {
+  "at": 41814,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 42020,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 42649,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 42993,
+  "kind": "model-request",
+  "data": {
+   "index": 17,
+   "hasSecond": false,
+   "bytes": 77454
+  }
+ },
+ {
+  "at": 43133,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 43351,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 44370,
+  "kind": "model-request",
+  "data": {
+   "index": 18,
+   "hasSecond": false,
+   "bytes": 78146
+  }
+ },
+ {
+  "at": 44486,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 44700,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 45798,
+  "kind": "model-request",
+  "data": {
+   "index": 19,
+   "hasSecond": false,
+   "bytes": 78838
+  }
+ },
+ {
+  "at": 45900,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 46142,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 47206,
+  "kind": "model-request",
+  "data": {
+   "index": 20,
+   "hasSecond": false,
+   "bytes": 79530
+  }
+ },
+ {
+  "at": 47319,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 47603,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 48243,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 48632,
+  "kind": "model-request",
+  "data": {
+   "index": 21,
+   "hasSecond": false,
+   "bytes": 80222
+  }
+ },
+ {
+  "at": 48767,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 49002,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 50068,
+  "kind": "model-request",
+  "data": {
+   "index": 22,
+   "hasSecond": false,
+   "bytes": 80914
+  }
+ },
+ {
+  "at": 50447,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 51137,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 51472,
+  "kind": "model-request",
+  "data": {
+   "index": 23,
+   "hasSecond": false,
+   "bytes": 81606
+  }
+ },
+ {
+  "at": 51566,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 51791,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 52816,
+  "kind": "model-request",
+  "data": {
+   "index": 24,
+   "hasSecond": false,
+   "bytes": 82298
+  }
+ },
+ {
+  "at": 53159,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 53805,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 54217,
+  "kind": "model-request",
+  "data": {
+   "index": 25,
+   "hasSecond": false,
+   "bytes": 82990
+  }
+ },
+ {
+  "at": 54315,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 54540,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 55250,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 55699,
+  "kind": "model-request",
+  "data": {
+   "index": 26,
+   "hasSecond": false,
+   "bytes": 83682
+  }
+ },
+ {
+  "at": 56016,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 57135,
+  "kind": "model-request",
+  "data": {
+   "index": 27,
+   "hasSecond": false,
+   "bytes": 84374
+  }
+ },
+ {
+  "at": 57270,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 57545,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 58217,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 58674,
+  "kind": "model-request",
+  "data": {
+   "index": 28,
+   "hasSecond": false,
+   "bytes": 85066
+  }
+ },
+ {
+  "at": 58778,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 59013,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 60423,
+  "kind": "model-request",
+  "data": {
+   "index": 29,
+   "hasSecond": false,
+   "bytes": 85758
+  }
+ },
+ {
+  "at": 60516,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 60848,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 61682,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 62137,
+  "kind": "model-request",
+  "data": {
+   "index": 30,
+   "hasSecond": false,
+   "bytes": 86450
+  }
+ },
+ {
+  "at": 62256,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 62550,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 63831,
+  "kind": "model-request",
+  "data": {
+   "index": 31,
+   "hasSecond": false,
+   "bytes": 87142
+  }
+ },
+ {
+  "at": 63972,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 64239,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 65537,
+  "kind": "model-request",
+  "data": {
+   "index": 32,
+   "hasSecond": false,
+   "bytes": 87834
+  }
+ },
+ {
+  "at": 65726,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 68121,
+  "kind": "model-request",
+  "data": {
+   "index": 33,
+   "hasSecond": false,
+   "bytes": 88526
+  }
+ },
+ {
+  "at": 68212,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 69064,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 69788,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 70182,
+  "kind": "model-request",
+  "data": {
+   "index": 34,
+   "hasSecond": false,
+   "bytes": 89218
+  }
+ },
+ {
+  "at": 70309,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 70544,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 71622,
+  "kind": "model-request",
+  "data": {
+   "index": 35,
+   "hasSecond": false,
+   "bytes": 89910
+  }
+ },
+ {
+  "at": 71735,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 71974,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 72658,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 73109,
+  "kind": "model-request",
+  "data": {
+   "index": 36,
+   "hasSecond": false,
+   "bytes": 90602
+  }
+ },
+ {
+  "at": 73463,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 74664,
+  "kind": "model-request",
+  "data": {
+   "index": 37,
+   "hasSecond": false,
+   "bytes": 91294
+  }
+ },
+ {
+  "at": 74803,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 75091,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 75875,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 76539,
+  "kind": "model-request",
+  "data": {
+   "index": 38,
+   "hasSecond": false,
+   "bytes": 91986
+  }
+ },
+ {
+  "at": 76680,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 77050,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 78387,
+  "kind": "model-request",
+  "data": {
+   "index": 39,
+   "hasSecond": false,
+   "bytes": 92678
+  }
+ },
+ {
+  "at": 78485,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 78772,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 80086,
+  "kind": "model-request",
+  "data": {
+   "index": 40,
+   "hasSecond": false,
+   "bytes": 93370
+  }
+ },
+ {
+  "at": 80515,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 81249,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 81654,
+  "kind": "model-request",
+  "data": {
+   "index": 41,
+   "hasSecond": false,
+   "bytes": 94062
+  }
+ },
+ {
+  "at": 82067,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 82718,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 83102,
+  "kind": "model-request",
+  "data": {
+   "index": 42,
+   "hasSecond": false,
+   "bytes": 94754
+  }
+ },
+ {
+  "at": 83437,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 84115,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 84493,
+  "kind": "model-request",
+  "data": {
+   "index": 43,
+   "hasSecond": false,
+   "bytes": 95446
+  }
+ },
+ {
+  "at": 84601,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 84847,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 85874,
+  "kind": "model-request",
+  "data": {
+   "index": 44,
+   "hasSecond": false,
+   "bytes": 96138
+  }
+ },
+ {
+  "at": 85994,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 86212,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 86861,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 87239,
+  "kind": "model-request",
+  "data": {
+   "index": 45,
+   "hasSecond": false,
+   "bytes": 96830
+  }
+ },
+ {
+  "at": 87345,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 87576,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 88794,
+  "kind": "model-request",
+  "data": {
+   "index": 46,
+   "hasSecond": false,
+   "bytes": 97522
+  }
+ },
+ {
+  "at": 88896,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 89138,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 89882,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 90416,
+  "kind": "model-request",
+  "data": {
+   "index": 47,
+   "hasSecond": false,
+   "bytes": 98214
+  }
+ },
+ {
+  "at": 90558,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 90909,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 91647,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 92107,
+  "kind": "model-request",
+  "data": {
+   "index": 48,
+   "hasSecond": false,
+   "bytes": 98906
+  }
+ },
+ {
+  "at": 92281,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 92601,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 93252,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 93667,
+  "kind": "model-request",
+  "data": {
+   "index": 49,
+   "hasSecond": false,
+   "bytes": 99598
+  }
+ },
+ {
+  "at": 93827,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 94032,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 94704,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 95487,
+  "kind": "model-request",
+  "data": {
+   "index": 50,
+   "hasSecond": false,
+   "bytes": 100290
+  }
+ },
+ {
+  "at": 95857,
+  "kind": "second-input-accepted",
+  "data": null
+ },
+ {
+  "at": 95883,
+  "kind": "diagnostic",
+  "data": {
+   "owner": "C2",
+   "step": "receive",
+   "reason": "unavailable"
+  }
+ },
+ {
+  "at": 96039,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 96328,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 1 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered changed; again in 0 ms"
+  }
+ },
+ {
+  "at": 252011,
+  "kind": "poll-finished",
+  "data": {
+   "ended": false
+  }
+ },
+ {
+  "at": 263003,
+  "kind": "log:agent-host",
+  "data": {
+   "text": "ordered stop left 1 unsettled: agent-instance-ea51188b-5442-487d-a854-a270a06f7de9: quiesce gave no answer before the deadline"
+  }
+ },
+ {
+  "at": 263204,
+  "kind": "log:session-adapters/journal-interpretation",
+  "data": {
+   "text": "call 3 of the interpretation of run_5b54e36615aa781fc666b45e48897f9095341b352c9cb4d7fa81fdf6f89c09e1/execution answered unavailable (@omne-harness/session-storage-sql: session binding: the session storage is closing); again in 100 ms"
+  }
+ },
+ {
+  "at": 263262,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held model-provider:openrouter waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263264,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held model-provider:openrouter waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263267,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held model-provider:openrouter waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263268,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held model-provider:openrouter waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263268,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Agents waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263268,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Ask waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263268,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:BkgToolCalls waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263268,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Calendar waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263268,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Canvas waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Code waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Files waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Jobs waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Notifications waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:OmneExtensionPoints waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:OmneExtensions waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Schedules waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Screen waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Sessions waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Shell waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Skills waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:SwitchWorkspace waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:TodoItems waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Tools waits for its category to give a point"
+  }
+ },
+ {
+  "at": 263269,
+  "kind": "log:tenant-assets",
+  "data": {
+   "text": "tenant {\"organization\":\"org_hgph2ynyczesek1shre6d025ck\",\"account\":\"acc_m8q6abbzkgetmmz2kjtstac6f8\"}: held tool:Web waits for its category to give a point"
+  }
+ }
+]
