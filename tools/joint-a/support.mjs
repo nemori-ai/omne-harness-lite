@@ -138,7 +138,6 @@ export function storageConfig(storageRoot, closeDeadlineMs) {
     globalInFlightWriteBytes: 67108864,
     // maxJsonDepth 须不小于 69：首条输入的 Session create 有 69 层，提供者初值 64 会以 command_limit 拒绝。
     maxJsonDepth: 128,
-    maxJsonMembers: 65536,
     maxResponseBytes: 65536,
     maxOperationResponseBytes: 1048576,
     globalWriteResponseBytes: 33554432,

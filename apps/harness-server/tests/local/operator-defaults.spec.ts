@@ -135,10 +135,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(JSON.stringify(layer)).not.toMatch(/factorySecret|must-not-leak/)
   })
 
-  it('keeps the values the release owns: maxJsonDepth, maxJsonMembers, jointCommits, coordination', () => {
+  it('keeps the values the release owns: maxJsonDepth, jointCommits, coordination', () => {
     expect(configOf(layer, 'storage')).toMatchObject({
       maxJsonDepth: releaseRow('storage')?.config?.['maxJsonDepth'],
-      maxJsonMembers: releaseRow('storage')?.config?.['maxJsonMembers'],
       storageRoot: '/h/state/storage',
     })
     expect(configOf(layer, 'agent-host')).toMatchObject({

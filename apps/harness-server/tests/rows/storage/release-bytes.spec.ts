@@ -7,7 +7,6 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import type { CommitRequestV2, SqlStorage } from '@omne-harness/sql-contract'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
-import { releaseMaxJsonMembers } from '../../r9/support.ts'
 import {
   historyOf,
   onReleaseTree,
@@ -16,65 +15,83 @@ import {
   type ReleaseTree,
 } from '../../support/release-tree.ts'
 import { partInput, sessionNamed, systemPart } from '../../support/system-part.ts'
+import { providerConfig } from './fixtures/tree.ts'
 
-/** The share of the release maxJsonMembers the largest commits may take. */
+/** The share of each byte limit of the storage the largest commits may take. */
 const LINE = 0.75
 
-/** The members of a JSON value: every item of an array and every member of an object, at any depth. */
-const members = (value: unknown): number =>
-  value !== null && typeof value === 'object'
-    ? Object.values(value).reduce((sum: number, child) => sum + 1 + members(child), 0)
-    : 0
+/** The limits the release tree runs its storage with. */
+const LIMITS = providerConfig('/limits')
 
-/** The JSON members of one commit, counted as the storage counts them against maxJsonMembers. */
-const membersOf = (input: CommitRequestV2): number =>
-  input.commands.reduce((sum, command) => sum + members(command.facts), 0)
+const bytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value), 'utf8')
 
-/** Every commit the release storage is asked for from here on, by its JSON members. */
-function measuredCommits(tree: ReleaseTree): number[] {
+type Sizes = Readonly<{ command: number; request: number }>
+
+/** One commit by its bytes, as the storage counts them: its largest command and the whole request. */
+const sizesOf = (input: CommitRequestV2): Sizes => ({
+  command: Math.max(0, ...input.commands.map(bytes)),
+  request: bytes(input),
+})
+
+/** Every commit the release storage is asked for from here on, by its bytes. */
+function measuredCommits(tree: ReleaseTree): Sizes[] {
   const storage = tree.env.readTrusted(storageKey).get(storageKey) as SqlStorage | undefined
   if (storage === undefined) throw new Error('no storage service')
   const commit = storage.commit.bind(storage)
-  const members: number[] = []
+  const sizes: Sizes[] = []
   Object.assign(storage, {
     commit: (input: CommitRequestV2, options?: Parameters<SqlStorage['commit']>[1]) => {
-      members.push(membersOf(input))
+      sizes.push(sizesOf(input))
       return commit(input, options)
     },
   })
-  return members
+  return sizes
 }
 
-/** The largest commit made while `act` runs. */
-async function largest(commits: readonly number[], act: () => Promise<unknown>) {
+/** The largest command and the largest request of the commits made while `act` runs. */
+async function largest(commits: readonly Sizes[], act: () => Promise<unknown>): Promise<Sizes> {
   const from = commits.length
   await act()
-  return Math.max(0, ...commits.slice(from))
+  const made = commits.slice(from)
+  return {
+    command: Math.max(0, ...made.map(sizes => sizes.command)),
+    request: Math.max(0, ...made.map(sizes => sizes.request)),
+  }
 }
 
-/** A commit of `kind` measured at `members` stays at or under the line of the release `limit`. */
-function underTheLine(kind: string, members: number, limit: number): void {
-  const line = Math.floor(limit * LINE)
-  const share = `${String(Math.round((members / limit) * 100))}%`
+const share = (value: number, limit: number) => `${String(Math.round((value / limit) * 100))}%`
+
+/** The commits of `kind` measured at `sizes` stay at or under the line of each byte limit. */
+function underTheLine(kind: string, sizes: Sizes): void {
+  const commandLine = Math.floor(LIMITS.maxCommandBytes * LINE)
+  const requestLine = Math.floor(LIMITS.maxRequestBytes * LINE)
   console.log(
-    `release members: ${kind} ${String(members)} (${share}), limit ${String(limit)}, line ${String(line)}`,
+    `release bytes: ${kind}: command ${String(sizes.command)} ` +
+      `(${share(sizes.command, LIMITS.maxCommandBytes)} of ${String(LIMITS.maxCommandBytes)}), ` +
+      `request ${String(sizes.request)} ` +
+      `(${share(sizes.request, LIMITS.maxRequestBytes)} of ${String(LIMITS.maxRequestBytes)})`,
   )
-  expect(members, `${kind}: no commit was measured`).toBeGreaterThan(0)
+  expect(sizes.request, `${kind}: no commit was measured`).toBeGreaterThan(0)
+  const advice =
+    'A create carries the definition of every resident tool twice, so it grows with each ' +
+    'resident tool. Make the commit smaller before raising the limit.'
   expect(
-    members,
-    `${kind}: ${String(members)} members, ${share} of the release maxJsonMembers ${String(limit)}, ` +
-      `over the line ${String(line)} (${String(LINE * 100)}%). A create carries the definition of ` +
-      'every resident tool twice, so it grows with each resident tool. Make the commit smaller ' +
-      'before raising the limit: apps/harness-server/SPEC.md, the storage row and maxJsonMembers.',
-  ).toBeLessThanOrEqual(line)
+    sizes.command,
+    `${kind}: its largest command is ${String(sizes.command)} bytes, over the line ` +
+      `${String(commandLine)} of maxCommandBytes. ${advice}`,
+  ).toBeLessThanOrEqual(commandLine)
+  expect(
+    sizes.request,
+    `${kind}: the request is ${String(sizes.request)} bytes, over the line ` +
+      `${String(requestLine)} of maxRequestBytes. ${advice}`,
+  ).toBeLessThanOrEqual(requestLine)
 }
 
-describe('the JSON members of the largest commits on the release tree', () => {
+describe('the bytes of the largest commits on the release tree', () => {
   it(
-    'a create with an initial input and the create of a dispatched child stay under 75% of the release maxJsonMembers',
+    'a create with an initial input and the create of a dispatched child stay under 75% of maxCommandBytes and maxRequestBytes',
     { tags: ['slow'], timeout: 240_000 },
     async () => {
-      const limit = releaseMaxJsonMembers()
       await onReleaseTree(
         { script: toolCallsThenText(() => []), permission: 'bypass-permissions' },
         async tree => {
@@ -82,12 +99,12 @@ describe('the JSON members of the largest commits on the release tree', () => {
           const part = systemPart(tree)
           let created: unknown
           const withInput = await largest(commits, async () => {
-            created = await part.create(sessionNamed('members'), {
+            created = await part.create(sessionNamed('bytes'), {
               attendance: 'unattended',
-              initial: partInput('members', 'Read the notes and say what you found.'),
+              initial: partInput('bytes', 'Read the notes and say what you found.'),
             })
           })
-          underTheLine('a create with an initial input', withInput, limit)
+          underTheLine('a create with an initial input', withInput)
           expect(created).toHaveProperty('ok')
 
           const parent = await tree.startSession('Say hello.')
@@ -118,7 +135,7 @@ describe('the JSON members of the largest commits on the release tree', () => {
               agent: 'coding',
               instruction: 'Summarize this in one line: the sky is blue.',
               expectation: 'One line.',
-              call: 'call-members',
+              call: 'call-bytes',
             })
             if (accepted.kind !== 'done') throw new Error(JSON.stringify(accepted))
             child = await pollUntil(
@@ -127,7 +144,7 @@ describe('the JSON members of the largest commits on the release tree', () => {
               answer => answer.kind === 'done' && answer.value.state !== 'accepted',
             )
           })
-          underTheLine('the create of a dispatched child', dispatched, limit)
+          underTheLine('the create of a dispatched child', dispatched)
           expect(child).toMatchObject({ kind: 'done', value: { state: 'started' } })
         },
       )
