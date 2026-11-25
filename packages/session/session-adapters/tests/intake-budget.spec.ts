@@ -5,12 +5,15 @@ import { createTestAuthorityPorts } from '@omne-harness/runtime-context-contract
 import { createRuntimeContext } from '@omne-harness/runtime-context'
 import type { SessionCommand, SessionIntakeLimits } from '@omne-harness/session-contract'
 import {
+  adoptedInitializationFixture,
   createMemoryInitializationSource,
   createMemorySessionHistorySource,
   createMemorySessionTransactions,
   createPolicySessionAccessCheck,
   creation,
   evidence,
+  initializationFixtureFacts,
+  initializationFixtureGuard,
   memoryAccess,
   memoryOtherAccess,
   operationId,
@@ -21,7 +24,6 @@ import {
 import { createStaticScopeHolder, staticScopeTenant } from '@omne-harness/static-scope-holder'
 import { TENANT_SCOPE_KIND } from '@omne-harness/static-scope-holder/cordis'
 import { createIntakeBudgetReader, sessionIntakeBudgetBlock } from '../src/cordis/intake-budget.ts'
-import { initializationGuards } from '../../session-contract/tests/initialization-fixture.ts'
 
 const A = memoryAccess<unknown>('budget-a')
 const B = memoryOtherAccess<unknown>('budget-b', 'session-b')
@@ -88,8 +90,8 @@ async function session(w: ReturnType<typeof world>) {
     kind: 'create',
     input: { ...base, operation: operationId('create'), creation: creation({ initial: null }) },
   } satisfies SessionCommand
-  const guards = initializationGuards(command, null)
-  initialization.controls.register(command, guards[0]!)
+  const facts = initializationFixtureFacts(command, null, adoptedInitializationFixture(command))
+  initialization.controls.register(command, initializationFixtureGuard(facts))
   const prepared = succeeded(await initialization.prepare(command), 'prepare')
   succeeded(await port.commit({ access: A, command, guards: prepared }), 'create')
   return (name: string) =>

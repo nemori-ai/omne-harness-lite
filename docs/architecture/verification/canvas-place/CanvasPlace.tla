@@ -16,13 +16,16 @@ VARIABLES
   kind,       \* "on": declared; "retiring": being withdrawn; "off": withdrawn
   rows,       \* per reference: how many records say it is on the paper
   held,       \* per reference: the owner holds it for the canvas
-  pc,         \* per placement: "idle", "admitting" (the owner is being asked), "admitted"
+  pc,         \* per placement: "idle", "admitting" (the owner is being asked), "admitted",
+              \* "committing" (the commit is with the storage)
   want,       \* per placement: the reference it places
   sawFull,    \* history: the paper was full when this placement read the limit
+  sawOn,      \* per placement: the kind was declared when the commit was handed over
   late,       \* owner calls the canvas no longer waits for
-  badCommit   \* history: a record was committed while the kind was not declared
+  badCommit   \* history: a record landed for a kind that was gone, or that was not
+              \* declared when its commit was handed over
 
-vars == <<kind, rows, held, pc, want, sawFull, late, badCommit>>
+vars == <<kind, rows, held, pc, want, sawFull, sawOn, late, badCommit>>
 
 Bug(b) == b \in Bugs
 
@@ -39,6 +42,7 @@ Init ==
   /\ pc = [c \in Callers |-> "idle"]
   /\ want = [c \in Callers |-> CHOOSE r \in Refs : TRUE]
   /\ sawFull = [c \in Callers |-> FALSE]
+  /\ sawOn = [c \in Callers |-> FALSE]
   /\ late = {}
   /\ badCommit = FALSE
 
@@ -54,7 +58,7 @@ Start(c, r) ==
   /\ want' = [want EXCEPT ![c] = r]
   /\ sawFull' = [sawFull EXCEPT ![c] = (OnPaper >= Cap)]
   /\ rows' = IF Bug("commit-before-admit") THEN [rows EXCEPT ![r] = @ + 1] ELSE rows
-  /\ UNCHANGED <<kind, held, late, badCommit>>
+  /\ UNCHANGED <<kind, held, sawOn, late, badCommit>>
 
 (* The owner accepts: it holds the reference. Asking again for a reference   *)
 (* it already holds changes nothing.                                         *)
@@ -62,13 +66,13 @@ AdmitAccept(c) ==
   /\ pc[c] = "admitting"
   /\ held' = [held EXCEPT ![want[c]] = TRUE]
   /\ pc' = [pc EXCEPT ![c] = "admitted"]
-  /\ UNCHANGED <<kind, rows, want, sawFull, late, badCommit>>
+  /\ UNCHANGED <<kind, rows, want, sawFull, sawOn, late, badCommit>>
 
 (* The owner refuses, answers basis-unavailable or unknown, or throws.       *)
 AdmitRefuse(c) ==
   /\ pc[c] = "admitting"
   /\ pc' = [pc EXCEPT ![c] = "idle"]
-  /\ UNCHANGED <<kind, rows, held, want, sawFull, late, badCommit>>
+  /\ UNCHANGED <<kind, rows, held, want, sawFull, sawOn, late, badCommit>>
 
 (* The time limit of the canvas passes. The owner may still act later.       *)
 Timeout(c) ==
@@ -76,73 +80,84 @@ Timeout(c) ==
   /\ pc[c] = "admitting"
   /\ pc' = [pc EXCEPT ![c] = "idle"]
   /\ late' = late \cup {want[c]}
-  /\ UNCHANGED <<kind, rows, held, want, sawFull, badCommit>>
+  /\ UNCHANGED <<kind, rows, held, want, sawFull, sawOn, badCommit>>
 
 LateHold(r) ==
   /\ r \in late
   /\ held' = [held EXCEPT ![r] = TRUE]
   /\ late' = late \ {r}
-  /\ UNCHANGED <<kind, rows, pc, want, sawFull, badCommit>>
+  /\ UNCHANGED <<kind, rows, pc, want, sawFull, sawOn, badCommit>>
 
 LateDrop(r) ==
   /\ r \in late
   /\ late' = late \ {r}
-  /\ UNCHANGED <<kind, rows, held, pc, want, sawFull, badCommit>>
+  /\ UNCHANGED <<kind, rows, held, pc, want, sawFull, sawOn, badCommit>>
 
-(* The commit is one conditional write: the reference is still off the       *)
-(* paper, the paper is still below the limit, the kind is still declared.    *)
-Commit(c) ==
+(* The commit is handed to the storage. The kind is read just before: the   *)
+(* storage runs elsewhere and cannot ask the registry.                       *)
+Check(c) ==
+  /\ pc[c] = "admitted"
+  /\ pc' = [pc EXCEPT ![c] = "committing"]
+  /\ sawOn' = [sawOn EXCEPT ![c] = (kind = "on")]
+  /\ UNCHANGED <<kind, rows, held, want, sawFull, late, badCommit>>
+
+(* The commit lands: one conditional write. The reference is still off the   *)
+(* paper and the paper is still below the limit, read in the same write; the *)
+(* kind was declared when the commit was handed over. A withdrawal may have  *)
+(* begun since; it cannot have ended, see Drained.                           *)
+Write(c) ==
   LET r == want[c]
       refOk == Bug("no-recheck-ref") \/ rows[r] = 0
       capOk == Bug("no-recheck-limit") \/ OnPaper < Cap
-      kindOk == Bug("no-recheck-kind") \/ kind = "on"
+      kindOk == Bug("no-recheck-kind") \/ sawOn[c]
       writes == ~Bug("commit-before-admit") /\ refOk /\ capOk /\ kindOk
-  IN /\ pc[c] = "admitted"
+  IN /\ pc[c] = "committing"
      /\ pc' = [pc EXCEPT ![c] = "idle"]
      /\ rows' = IF writes THEN [rows EXCEPT ![r] = @ + 1] ELSE rows
-     /\ badCommit' = (badCommit \/ (writes /\ kind # "on"))
-     /\ UNCHANGED <<kind, held, want, sawFull, late>>
+     /\ badCommit' = (badCommit \/ (writes /\ (kind = "off" \/ ~sawOn[c])))
+     /\ UNCHANGED <<kind, held, want, sawFull, sawOn, late>>
 
 (* The commit fails or its outcome stays unknown: no record, the hold stays. *)
 Lose(c) ==
-  /\ pc[c] = "admitted"
+  /\ pc[c] \in {"admitted", "committing"}
   /\ pc' = [pc EXCEPT ![c] = "idle"]
-  /\ UNCHANGED <<kind, rows, held, want, sawFull, late, badCommit>>
+  /\ UNCHANGED <<kind, rows, held, want, sawFull, sawOn, late, badCommit>>
 
 (* Taking a reference off the paper. The hold is not released.               *)
 Take(r) ==
   /\ rows[r] > 0
   /\ rows' = [rows EXCEPT ![r] = 0]
-  /\ UNCHANGED <<kind, held, pc, want, sawFull, late, badCommit>>
+  /\ UNCHANGED <<kind, held, pc, want, sawFull, sawOn, late, badCommit>>
 
-(* The contributor of the kind leaves. Its batch drains: no new admit, the   *)
-(* ones in flight end, then the entry is taken.                              *)
+(* The contributor of the kind leaves. Its batch drains: no new placement    *)
+(* takes it, the placements that took it end (a commit in flight included),  *)
+(* then the entry is taken.                                                  *)
 Withdraw ==
   /\ kind = "on"
   /\ kind' = IF Bug("withdraw-without-drain") THEN "off" ELSE "retiring"
-  /\ UNCHANGED <<rows, held, pc, want, sawFull, late, badCommit>>
+  /\ UNCHANGED <<rows, held, pc, want, sawFull, sawOn, late, badCommit>>
 
 Drained ==
   /\ kind = "retiring"
-  /\ \A c \in Callers : pc[c] # "admitting"
+  /\ \A c \in Callers : pc[c] = "idle"
   /\ kind' = "off"
-  /\ UNCHANGED <<rows, held, pc, want, sawFull, late, badCommit>>
+  /\ UNCHANGED <<rows, held, pc, want, sawFull, sawOn, late, badCommit>>
 
 Declare ==
   /\ kind = "off"
   /\ kind' = "on"
-  /\ UNCHANGED <<rows, held, pc, want, sawFull, late, badCommit>>
+  /\ UNCHANGED <<rows, held, pc, want, sawFull, sawOn, late, badCommit>>
 
 Next ==
   \/ \E c \in Callers, r \in Refs : Start(c, r)
-  \/ \E c \in Callers : AdmitAccept(c) \/ AdmitRefuse(c) \/ Timeout(c) \/ Commit(c) \/ Lose(c)
+  \/ \E c \in Callers : AdmitAccept(c) \/ AdmitRefuse(c) \/ Timeout(c) \/ Check(c) \/ Write(c) \/ Lose(c)
   \/ \E r \in Refs : LateHold(r) \/ LateDrop(r) \/ Take(r)
   \/ Withdraw \/ Drained \/ Declare
 
 (* The owner is not assumed to answer. The canvas is: its time limit passes, *)
 (* its commit runs, its drain is reported.                                   *)
 Fairness ==
-  /\ \A c \in Callers : WF_vars(Timeout(c)) /\ WF_vars(Commit(c))
+  /\ \A c \in Callers : WF_vars(Timeout(c)) /\ WF_vars(Check(c)) /\ WF_vars(Write(c))
   /\ WF_vars(Drained)
 
 Spec == Init /\ [][Next]_vars /\ Fairness
@@ -151,9 +166,10 @@ TypeOK ==
   /\ kind \in {"on", "retiring", "off"}
   /\ rows \in [Refs -> 0..Cardinality(Callers)]
   /\ held \in [Refs -> BOOLEAN]
-  /\ pc \in [Callers -> {"idle", "admitting", "admitted"}]
+  /\ pc \in [Callers -> {"idle", "admitting", "admitted", "committing"}]
   /\ want \in [Callers -> Refs]
   /\ sawFull \in [Callers -> BOOLEAN]
+  /\ sawOn \in [Callers -> BOOLEAN]
   /\ late \subseteq Refs
   /\ badCommit \in BOOLEAN
 
@@ -167,7 +183,8 @@ WithinLimit == OnPaper <= Cap
 (* The owner is not asked for a placement that cannot be made.               *)
 NoAdmitWhenFull == \A c \in Callers : pc[c] = "admitting" => ~sawFull[c]
 
-(* CV-13: the kind is declared at the moment of the commit.                  *)
+(* CV-13: a record lands only for a kind that was declared when its commit   *)
+(* was handed over and that is not gone when it lands.                       *)
 CommitWhileDeclared == ~badCommit
 
 (* A withdrawn entry is not called: the batch drained first.                 *)

@@ -17,6 +17,7 @@ export const workingDirectorySchema = z.discriminatedUnion('state', [
   z
     .strictObject({
       state: z.literal('attached'),
+      generation: z.string().optional(),
       workspace: text,
       instance: text,
       directory: text,

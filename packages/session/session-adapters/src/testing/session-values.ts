@@ -227,7 +227,12 @@ export function forkPointRead(
 export function modelViewPage(
   view: MaterializedModelView,
   key: Keyed,
-  input: Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
+  input: Readonly<{
+    basis: ModelViewBasis | null
+    after: string | null
+    pageBytes: number
+    resumeAtEnd?: true
+  }>,
 ): Outcome<ModelViewRead, SessionFailure> {
   if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
     return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
@@ -256,5 +261,11 @@ export function modelViewPage(
     bytes += row.bytes
   }
   const next = after + rows.length < upper ? String(after + rows.length) : null
-  return succeed({ kind: 'page', basis, rows, next })
+  return succeed({
+    kind: 'page',
+    basis,
+    rows,
+    next,
+    ...(next === null && input.resumeAtEnd ? { resume: basis.upper } : {}),
+  })
 }

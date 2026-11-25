@@ -1,3 +1,4 @@
+import { openDirectories, openFileDirectory } from './open-file-directory.ts'
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, readdir, rename, rmdir, unlink } from 'node:fs/promises'
@@ -146,8 +147,63 @@ function directoryPrefix(path: string): string {
   return current === '/' ? '' : current
 }
 
+async function entryAt(
+  directory: FileHandle,
+  name: string,
+): Promise<Outcome<FileStats | undefined>> {
+  try {
+    return ok(await lstat(fdPath(directory, name), { bigint: true }))
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return ok(undefined)
+    return fail(mapped(openCodes, error) ?? 'unknown')
+  }
+}
+
+type EndpointRequest = FileRequest<unknown> & {
+  readonly target: FileTarget
+  readonly replace: boolean
+  readonly expectedVersion?: FileVersion
+}
+
+async function checkSource(
+  request: EndpointRequest,
+  source: Located,
+): Promise<FileStats | FacilityResult<never>> {
+  const { requestId } = request
+  if (source.isRoot) return reject(requestId, 'notAuthorized')
+  const entry = await entryAt(source.parent, source.name)
+  if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
+  const stat = entry.value
+  if (stat === undefined) return reject(requestId, 'notFound')
+  if (tokenOf(stat).token !== request.named?.token) return reject(requestId, 'conflict')
+  if (request.expectedVersion !== undefined && versionOf(stat) !== request.expectedVersion)
+    return reject(requestId, 'conflict')
+  return stat
+}
+
+async function checkTarget(
+  request: EndpointRequest,
+  target: Located,
+): Promise<Readonly<{ stat: FileStats | undefined }> | FacilityResult<never>> {
+  const { requestId } = request
+  if (target.isRoot) return reject(requestId, 'notAuthorized')
+  const entry = await entryAt(target.parent, target.name)
+  if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
+  const stat = entry.value
+  const named = request.target.named?.token
+  if (stat !== undefined) {
+    if (!request.replace || tokenOf(stat).token !== named) return reject(requestId, 'conflict')
+  } else if (tokenOf(await target.parent.stat({ bigint: true })).token !== named) {
+    return reject(requestId, 'conflict')
+  }
+  return { stat }
+}
+
 export function createHostFileTree(env: FileTreeEnvironment): FileTree {
   const { paths, limits } = env
+
+  const unboundedVisit = (effect: FileEffect, request: FileRequest<unknown>) =>
+    paths(effect).rooted ? undefined : request.observeDirectory
 
   const identityOf = (stat: FileStats): FileIdentity => {
     const object = tokenOf(stat)
@@ -179,18 +235,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return gate(paths, requestId, targets)
   }
 
-  async function entryAt(
-    directory: FileHandle,
-    name: string,
-  ): Promise<Outcome<FileStats | undefined>> {
-    try {
-      return ok(await lstat(fdPath(directory, name), { bigint: true }))
-    } catch (error) {
-      if (errorCode(error) === 'ENOENT') return ok(undefined)
-      return fail(mapped(openCodes, error) ?? 'unknown')
-    }
-  }
-
   async function identityAt(
     directory: FileHandle,
     name: string,
@@ -216,6 +260,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     try {
       const stat = await directory.stat({ bigint: true })
       if (tokenOf(stat).token !== request.named?.token) return reject(requestId, 'conflict')
+      const visit = await openFileDirectory(directory, unboundedVisit('read', request))
       const { names } = await entryNames(directory)
       const slice = names.slice(page.offset, page.offset + page.limit)
       const entries: FileEntry[] = []
@@ -228,6 +273,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       return {
         kind: 'done',
         requestId,
+        ...visit,
         value: {
           directory: identityOf(stat),
           entries,
@@ -260,6 +306,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       const startStat = await start.stat({ bigint: true })
       if (tokenOf(startStat).token !== request.named?.token) return reject(requestId, 'conflict')
 
+      const startVisit = await openFileDirectory(start, unboundedVisit('read', request))
       const pattern = Buffer.from(request.pattern)
       const want = page.offset + page.limit + 1
       const hits: Hit[] = []
@@ -375,6 +422,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       return {
         kind: 'done',
         requestId,
+        ...startVisit,
         value: {
           root: identityOf(startStat),
           hits: hits.slice(page.offset, end),
@@ -389,10 +437,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     }
   }
 
-  async function newDirectoryIdentity(
-    parent: FileHandle,
-    name: string,
-  ): Promise<FileIdentity | undefined> {
+  async function newDirectoryIdentity(parent: FileHandle, name: string, observe?: true) {
     let made: FileHandle
     try {
       made = await open(fdPath(parent, name), directoryFlags)
@@ -400,7 +445,10 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       return undefined
     }
     try {
-      return identityOf(await made.stat({ bigint: true }))
+      return {
+        value: identityOf(await made.stat({ bigint: true })),
+        ...(await openFileDirectory(made, observe)),
+      }
     } catch {
       return undefined
     } finally {
@@ -424,8 +472,8 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       } catch (error) {
         return failed(requestId, changeFailure(error), 'notFound')
       }
-      const made = await newDirectoryIdentity(parent, name)
-      return made === undefined ? unknown(requestId) : { kind: 'done', requestId, value: made }
+      const made = await newDirectoryIdentity(parent, name, unboundedVisit('write', request))
+      return made === undefined ? unknown(requestId) : { kind: 'done', requestId, ...made }
     } catch {
       return unknown(requestId)
     } finally {
@@ -458,7 +506,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
         await env.close(current)
         current = next
       }
-      return { kind: 'done', requestId, value: identityOf(await current.stat({ bigint: true })) }
+      return {
+        kind: 'done',
+        requestId,
+        ...(await openFileDirectory(current, unboundedVisit('write', request))),
+        value: identityOf(await current.stat({ bigint: true })),
+      }
     } catch {
       return unknown(requestId)
     } finally {
@@ -607,9 +660,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       if (paths('write').rooted && stat.dev !== (await parent.stat({ bigint: true })).dev)
         return reject(requestId, 'notAuthorized')
       const target = fdPath(parent, name)
-      if (stat.isDirectory() && request.recursive)
-        return await removeSubtree(requestId, target, object, stat.dev)
-      return await removeEntry(requestId, target, object, stat.isDirectory())
+      const visit = await openFileDirectory(parent, unboundedVisit('write', request))
+      const result =
+        stat.isDirectory() && request.recursive
+          ? await removeSubtree(requestId, target, object, stat.dev)
+          : await removeEntry(requestId, target, object, stat.isDirectory())
+      return result.kind === 'done' ? { ...result, ...visit } : result
     } catch {
       return unknown(requestId)
     } finally {
@@ -622,51 +678,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     sourceStat: FileStats
     target: Located
     targetStat: FileStats | undefined
+    visits: { verifiedDirectories?: string[] }
     release(): Promise<void>
   }>
   type Opened =
     | Readonly<{ kind: 'opened'; endpoints: Endpoints }>
     | Readonly<{ kind: 'refused'; result: FacilityResult<never> }>
-
-  type EndpointRequest = FileRequest<unknown> & {
-    readonly target: FileTarget
-    readonly replace: boolean
-    readonly expectedVersion?: FileVersion
-  }
-
-  async function checkSource(
-    request: EndpointRequest,
-    source: Located,
-  ): Promise<FileStats | FacilityResult<never>> {
-    const { requestId } = request
-    if (source.isRoot) return reject(requestId, 'notAuthorized')
-    const entry = await entryAt(source.parent, source.name)
-    if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
-    const stat = entry.value
-    if (stat === undefined) return reject(requestId, 'notFound')
-    if (tokenOf(stat).token !== request.named?.token) return reject(requestId, 'conflict')
-    if (request.expectedVersion !== undefined && versionOf(stat) !== request.expectedVersion)
-      return reject(requestId, 'conflict')
-    return stat
-  }
-
-  async function checkTarget(
-    request: EndpointRequest,
-    target: Located,
-  ): Promise<Readonly<{ stat: FileStats | undefined }> | FacilityResult<never>> {
-    const { requestId } = request
-    if (target.isRoot) return reject(requestId, 'notAuthorized')
-    const entry = await entryAt(target.parent, target.name)
-    if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
-    const stat = entry.value
-    const named = request.target.named?.token
-    if (stat !== undefined) {
-      if (!request.replace || tokenOf(stat).token !== named) return reject(requestId, 'conflict')
-    } else if (tokenOf(await target.parent.stat({ bigint: true })).token !== named) {
-      return reject(requestId, 'conflict')
-    }
-    return { stat }
-  }
 
   async function openEndpoints(
     request: EndpointRequest,
@@ -700,6 +717,13 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
           sourceStat,
           target: target.value,
           targetStat: checked.stat,
+          visits: await openDirectories(
+            [
+              ...(!paths(effects.path).rooted ? [source.value.parent] : []),
+              ...(!paths(effects.target).rooted ? [target.value.parent] : []),
+            ],
+            request.observeDirectory,
+          ),
           release: releaseAll,
         },
       }
@@ -741,7 +765,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       }
       const identity = await identityAt(target.parent, target.name)
       if (identity === undefined) return unknown(requestId)
-      return { kind: 'done', requestId, value: { source: tokenOf(sourceStat), target: identity } }
+      return {
+        kind: 'done',
+        requestId,
+        ...opened.endpoints.visits,
+        value: { source: tokenOf(sourceStat), target: identity },
+      }
     } catch {
       return unknown(requestId)
     } finally {
@@ -776,7 +805,8 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     const opened = await openEndpoints(request, 'copy')
     if (opened.kind === 'refused') return opened.result
     try {
-      return await copyBetween(request, opened.endpoints)
+      const result = await copyBetween(request, opened.endpoints)
+      return result.kind === 'done' ? { ...result, ...opened.endpoints.visits } : result
     } finally {
       await opened.endpoints.release()
     }

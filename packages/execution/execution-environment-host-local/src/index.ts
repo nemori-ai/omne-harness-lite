@@ -1,4 +1,5 @@
 export { createHostFiles, hostObjectToken } from './host-files.ts'
+export { createHostFileLookup } from './host-file-lookup.ts'
 export { hostSegmentsBelowRoot } from './root-segments.ts'
 export { createHostFilesProvider } from './host-provider.ts'
 export { createHostFilesDomain } from './host-domain.ts'

@@ -1,3 +1,4 @@
+import { completedInDirectory, outputPolicyOf } from './process-result.ts'
 import type { ChildProcess } from 'node:child_process'
 import { isAbsolute } from 'node:path'
 import type { Writable } from 'node:stream'
@@ -132,7 +133,7 @@ export function commandSettings(options: HostCommandOptions = {}): CommandSettin
 
 export type GateFrame =
   | Readonly<{ kind: 'ready' }>
-  | Readonly<{ kind: 'started' }>
+  | Readonly<{ kind: 'started'; cwd?: string }>
   | Readonly<{ kind: 'spawnFailed'; code: string }>
   | Readonly<{ kind: 'data'; stream: 'stdout' | 'stderr'; bytes: Uint8Array }>
   | Readonly<{ kind: 'dropped'; stream: 'stdout' | 'stderr'; count: number }>
@@ -194,8 +195,14 @@ function decodeFrame(value: unknown, maxChunkBytes: number): GateFrame | string 
   const type: unknown = Reflect.get(value, 't')
   switch (type) {
     case 'ready':
-    case 'started':
       return { kind: type }
+    case 'started': {
+      const cwd: unknown = Reflect.get(value, 'cwd')
+      if (cwd === undefined) return { kind: type }
+      return typeof cwd === 'string' && isAbsolute(cwd) && !hasNul(cwd)
+        ? { kind: type, cwd }
+        : 'invalid started directory'
+    }
     case 'spawnFailed':
       return decodeSpawnFailed(value)
     case 'data':
@@ -234,6 +241,8 @@ export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
   const maxLine = Math.ceil(input.maxChunkBytes / 3) * 4 + 256
   let pending = Buffer.alloc(0)
   let phase: Phase = 'launching'
+  // The one startup reply may carry a JSON-escaped physical path even with tiny output chunks.
+  const lineLimit = () => (phase === 'ready' ? Math.max(maxLine, 32_768) : maxLine)
   let fault: string | undefined
   const failed = (reason: string, frames: readonly GateFrame[] = []): FrameStep => {
     fault ??= reason
@@ -245,7 +254,7 @@ export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
       pending = Buffer.concat([pending, bytes])
       const frames: GateFrame[] = []
       for (let at = pending.indexOf(0x0a); at !== -1; at = pending.indexOf(0x0a)) {
-        if (at > maxLine) return failed('a frame line exceeds its bound', frames)
+        if (at > lineLimit()) return failed('a frame line exceeds its bound', frames)
         const text = pending.subarray(0, at).toString('utf8')
         pending = pending.subarray(at + 1)
         let value: unknown
@@ -261,7 +270,7 @@ export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
         phase = step.phase
         frames.push(frame)
       }
-      if (pending.length > maxLine) return failed('a frame line exceeds its bound', frames)
+      if (pending.length > lineLimit()) return failed('a frame line exceeds its bound', frames)
       return { kind: 'frames', frames }
     },
   })
@@ -455,6 +464,7 @@ type ProcessEntry = {
   phase: Phase
   custody: Custody
   confirmed: boolean
+  startDirectory?: string
   startedAt: number | undefined
   exit: Extract<GateFrame, { kind: 'exit' }>['exit'] | undefined
   members: number | null
@@ -514,6 +524,7 @@ function applyFrame(entry: ProcessEntry, frame: GateFrame, exited: () => void): 
       break
     case 'started':
       entry.phase = 'running'
+      if (frame.cwd !== undefined) entry.startDirectory = frame.cwd
       entry.startedAt = monotonicMs()
       entry.signal?.('started')
       break
@@ -814,11 +825,7 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       process: Object.freeze({ id: entry.coordinate.unit, generation: entry.coordinate.bootId }),
       outputMode: 'separate',
       output: entry.buffer.output,
-      outputPolicy: Object.freeze({
-        maxBufferedBytes: settings.maxBufferedBytes,
-        maxChunkBytes: settings.maxChunkBytes,
-        overflow: 'discard',
-      }),
+      outputPolicy: outputPolicyOf(settings),
       result: entry.outcome,
       stop: (mode: 'graceful' | 'forced') => stopHandle(entry, tools, mode),
     })
@@ -883,7 +890,8 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     if (sealed) return refuse('closed')
     entry.sendControl({ c: 'go' })
     const started = await nextEvent(entry, deadline)
-    if (started === 'started') return { kind: 'done', requestId, value: handleOf(entry, tools) }
+    if (started === 'started')
+      return completedInDirectory(requestId, handleOf(entry, tools), entry.startDirectory)
     if (started === 'spawnFailed') return refuse('unavailable')
     return { kind: 'unknown', requestId }
   }

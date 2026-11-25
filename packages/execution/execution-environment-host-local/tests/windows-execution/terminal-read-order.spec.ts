@@ -63,6 +63,7 @@ it('answers an invocation only after the broker read its end sentinel, so bytes 
       expect(await first.value.result).toMatchObject({
         kind: 'completed',
         exit: { kind: 'code', code: 0 },
+        observedCwd: moved,
       })
       expect(visible((await outputOf(first.value)).bytes)).toContain(marker)
       expect(backend.information().state).toBe('idle')

@@ -68,6 +68,15 @@ it('reads frames split at any byte boundary, in order, with the data bytes intac
   ])
 })
 
+it('decodes a directory proof longer than a data frame on the startup handshake', () => {
+  const reader = createGateReader({ maxChunkBytes: 1 })
+  const cwd = '/' + 'a/'.repeat(200) + 'work'
+  expect(framesOf(reader.push(joined(line({ t: 'ready' }), line({ t: 'started', cwd }))))).toEqual([
+    { kind: 'ready' },
+    { kind: 'started', cwd },
+  ])
+})
+
 it('reports a signal exit and a spawn failure', () => {
   const signalled = createGateReader({ maxChunkBytes: 64 })
   expect(

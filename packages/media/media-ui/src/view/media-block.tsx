@@ -1,7 +1,7 @@
 import type { TenantId } from '@omne-harness/public-contract'
-import { Button, LoadingState } from '@omne-harness/ui-kit'
+import { Button, LoadingState, Sheet, SheetContent, SheetTitle } from '@omne-harness/ui-kit'
 import type { ContentBlockKind } from '@omne-harness/content-block'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IMAGE_TYPES } from '../model/attachment-tray.ts'
 import { mediaFile, mediaPicture, mediaRead } from '../parts.ts'
 import { readWhole, type DisplayTarget, type MediaClient, type Reference } from '../model/upload.ts'
@@ -14,6 +14,8 @@ export type MediaBlockProps = Readonly<{
   tenant: TenantId
   content: unknown
   modelRead?: string | undefined
+  /** Where the original opens: in place of the thumbnail, as in a message; or over the paper, as on a canvas. */
+  opens?: 'in-place' | 'over'
 }>
 
 const THUMBNAIL: DisplayTarget = {
@@ -85,24 +87,59 @@ function useAddress(props: MediaBlockProps, ref: Reference, whole: boolean): Sho
   return shown
 }
 
-function Picture(props: MediaBlockProps & { readonly read: Read }) {
-  const [whole, setWhole] = useState(false)
-  const shown = useAddress(props, props.read.ref, whole)
+const altOf = (read: Read): string => (read.size === null ? '图片' : `图片 ${read.size}`)
+
+function Shown({ shown, alt }: Readonly<{ shown: Shown; alt: string }>) {
   if (shown.kind === 'reading') return <LoadingState label="正在读图片…" />
   if (shown.kind === 'unreadable')
     return <p className="omne-media-line">图片读不出来：{shown.reason}</p>
-  const { size } = props.read
+  return <img src={shown.url} alt={alt} />
+}
+
+function Original(props: MediaBlockProps & { readonly read: Read }) {
+  return <Shown shown={useAddress(props, props.read.ref, true)} alt={altOf(props.read)} />
+}
+
+function Picture(props: MediaBlockProps & { readonly read: Read }) {
+  const over = props.opens === 'over'
+  const [whole, setWhole] = useState(false)
+  const button = useRef<HTMLButtonElement>(null)
+  const shown = useAddress(props, props.read.ref, whole && !over)
+  if (shown.kind !== 'shown') return <Shown shown={shown} alt="" />
+  const alt = altOf(props.read)
   return (
-    <Button
-      variant="ghost"
-      className="omne-media-picture"
-      {...mediaPicture.props}
-      data-whole={whole}
-      aria-label={whole ? '收起' : '看原图'}
-      onClick={() => setWhole(value => !value)}
-    >
-      <img src={shown.url} alt={size === null ? '图片' : `图片 ${size}`} />
-    </Button>
+    <>
+      <Button
+        ref={button}
+        variant="ghost"
+        className="omne-media-picture"
+        {...mediaPicture.props}
+        data-whole={whole}
+        aria-label={whole && !over ? '收起' : '看原图'}
+        onClick={() => setWhole(value => !value)}
+      >
+        <img src={shown.url} alt={alt} />
+      </Button>
+      {over ? (
+        <Sheet open={whole} onOpenChange={setWhole}>
+          <SheetContent
+            side="top"
+            className="omne-media-original"
+            closeLabel="收起"
+            aria-describedby={undefined}
+            onCloseAutoFocus={event => {
+              event.preventDefault()
+              button.current?.focus({ preventScroll: true })
+            }}
+          >
+            <SheetTitle className="omne-media-original-title">{alt}</SheetTitle>
+            <div className="omne-media-original-frame">
+              <Original {...props} />
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </>
   )
 }
 

@@ -68,14 +68,9 @@ function judge(core: Core, input: CommitRequestV2, signal: AbortSignal | undefin
   if (new Set(commands.map(command => command.participant)).size !== commands.length)
     return rejected('participant_repeated')
   if (!commands.every(command => isStrictJson(command.facts))) return rejected('facts_not_json')
-  let members = 0
-  for (const command of commands) {
-    const shape = jsonShape(command.facts)
-    if (shape.depth > config.maxJsonDepth) return rejected('command_limit')
-    members += shape.members
-  }
-  if (members > config.maxJsonMembers || commands.length > config.maxCommandsPerCommit)
-    return rejected('command_limit')
+  for (const command of commands)
+    if (jsonShape(command.facts).depth > config.maxJsonDepth) return rejected('command_limit')
+  if (commands.length > config.maxCommandsPerCommit) return rejected('command_limit')
   for (const command of commands)
     if (utf8Length(canonicalJson(command)) > config.maxCommandBytes)
       return rejected('command_limit')

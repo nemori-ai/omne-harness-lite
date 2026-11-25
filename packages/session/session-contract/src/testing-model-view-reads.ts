@@ -51,6 +51,7 @@ export function memoryModelViewPage<P>(
     kind: 'page',
     basis,
     rows,
+    ...(input.resumeAtEnd && after + rows.length === upper ? { resume: String(upper) } : {}),
     next: after + rows.length < upper ? String(after + rows.length) : null,
   })
 }

@@ -157,6 +157,10 @@ export abstract class ShellService extends Service implements ShellSlots {
       }>
     | undefined
   private adopted: Readonly<{ registry: Registry; of: Map<string, Adoption> }> | undefined
+  /** What stands on each key a point was asked for, while the registry is the one it was read from. */
+  private drawings:
+    | Readonly<{ registry: Registry; of: Map<string, KeyRender | undefined> }>
+    | undefined
 
   constructor(ctx: Context) {
     super(ctx, ShellService.provide)
@@ -314,10 +318,21 @@ export abstract class ShellService extends Service implements ShellSlots {
   ): ReactNode {
     const tenant = (): string | undefined => this.scope.get()
     return this.fallingBack(
-      () => drawingOn(this.registry(), point, key, lookScope(tenant(), this.worn)),
+      () => this.drawingAt(point, key, lookScope(tenant(), this.worn)),
       render => frame(render({ scope: tenant(), subject: subject as never, generic })),
       generic,
     )
+  }
+
+  private drawingAt(point: string, key: string, asker: Scope): KeyRender | undefined {
+    const registry = this.registry()
+    if (this.drawings?.registry !== registry) this.drawings = { registry, of: new Map() }
+    const known = JSON.stringify([point, key, asker])
+    const { of } = this.drawings
+    if (of.has(known)) return of.get(known)
+    const found = drawingOn(registry, point, key, asker)
+    of.set(known, found)
+    return found
   }
 
   protected fallingBack<D>(
@@ -430,8 +445,7 @@ export abstract class ShellService extends Service implements ShellSlots {
     return this.ctx.dynamis
       .registry()
       .placed.find(
-        placed =>
-          placed.point === point && placed.id === (slot === 'gate' || slot === 'keymap' ? '' : id),
+        placed => placed.point === point && placed.id === (slots[slot].kind === 'one' ? '' : id),
       )?.instance.fiber
   }
 
@@ -533,6 +547,28 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   abstract navigate(pageId: string, subject?: string): void
+
+  protected face(): 'front' | 'back' {
+    return 'front'
+  }
+
+  protected turn(): void {
+    return undefined
+  }
+
+  protected home(): void {
+    return undefined
+  }
+
+  protected bringUp(
+    pageId: string,
+    subject: string | undefined,
+    show: (pageId: string, subject?: string) => void,
+  ): void {
+    if (!this.items('pages').some(page => page.id === pageId)) return
+    if (this.face() === 'back') this.turn()
+    show(pageId, subject)
+  }
 
   get page(): Readonly<{
     get(): string | undefined

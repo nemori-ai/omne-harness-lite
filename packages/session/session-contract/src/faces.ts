@@ -40,6 +40,7 @@ import type {
   ControlProgress,
   DeclarationChange,
   DerivedMessage,
+  ModelProvenance,
   FreezeVerdict,
   IdleObservation,
   InitializationResult,
@@ -234,7 +235,7 @@ export interface SessionWork<P> {
       | (Mutation<P> &
           Readonly<{
             expected: SessionRevision
-            value: Extract<DerivedMessage, { kind: 'context-reminder' }>
+            value: Extract<DerivedMessage, { kind: 'context-reminder' | 'model-projection' }>
           }>),
   ): Reply<CommitReceipt>
   release(
@@ -315,7 +316,12 @@ export type ProducerFact =
         | Readonly<{ kind: 'rejected'; reason: string; rejection: DurableEvidence }>
     }>
   | Readonly<{ kind: 'agent-exit'; advance: AdvanceRef; source: DurableEvidence }>
-  | Readonly<{ kind: 'execution'; producer: ProducerRef; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'execution'
+      producer: ProducerRef
+      source: DurableEvidence
+      directoryVisit?: import('./values.ts').WorkspaceDirectoryVisit
+    }>
   | Readonly<{ kind: 'account'; producer: ProducerRef; source: DurableEvidence }>
   | Readonly<{
       kind: 'release'
@@ -410,6 +416,7 @@ export type HistoryPage = Readonly<{
 }>
 export type ModelViewBasis = Readonly<{ epoch: string; upper: string }>
 export type ModelViewRow = Readonly<{
+  provenance?: readonly ModelProvenance[]
   seq: string
   entry: EntryId
   bytes: number
@@ -421,6 +428,7 @@ export type ModelViewRead =
       kind: 'page'
       basis: ModelViewBasis
       rows: readonly ModelViewRow[]
+      resume?: string
       next: string | null
     }>
   | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
@@ -452,7 +460,12 @@ export interface SessionHistory<P> {
   ): Reply<HistoryPage>
   readModelView(
     input: SessionAccess<P> &
-      Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
+      Readonly<{
+        basis: ModelViewBasis | null
+        after: string | null
+        pageBytes: number
+        resumeAtEnd?: true
+      }>,
   ): Reply<ModelViewRead>
 }
 export type ArchivedBy = 'person' | 'auto' | 'parent'

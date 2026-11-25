@@ -1,15 +1,16 @@
 import { spawn } from 'node:child_process'
-import { deferred } from './bridge.ts'
+import { deferred, directoryObservation } from './bridge.ts'
 
 export type TerminalFrame =
   | { readonly t: 'ready' | 'controlLost' | 'outputLost' | 'inputFault' }
-  | { readonly t: 'opened'; readonly cwd: string }
-  | { readonly t: 'started' | 'legFault'; readonly id: string }
+  | { readonly t: 'opened'; readonly cwd: string; readonly observed?: string }
+  | { readonly t: 'started' | 'legFault'; readonly id: string; readonly observed?: string }
   | ({
       readonly t: 'finished'
       readonly v: 3
       readonly id: string
       readonly cwd: string
+      readonly observed?: string
       readonly restored: boolean
       readonly ended: boolean
     } & (
@@ -32,7 +33,15 @@ const whole = (value: unknown): value is number =>
 function finishedFrame(fields: Fields): TerminalFrame | undefined {
   const { v, id, cwd, restored, completed, elapsedMs, code, ended } = fields
   if (v !== 3 || !text(id) || !text(cwd) || !flag(restored) || !flag(ended)) return undefined
-  const frame = { t: 'finished', v: 3, id, cwd, restored, ended } as const
+  const frame = {
+    t: 'finished',
+    v: 3,
+    id,
+    cwd,
+    restored,
+    ended,
+    ...directoryObservation(fields['observed']),
+  } as const
   if (completed === true && whole(elapsedMs) && elapsedMs >= 0 && whole(code))
     return { ...frame, completed: true, elapsedMs, code }
   if (completed === false && elapsedMs === null && code === null)
@@ -63,10 +72,14 @@ export function parseTerminalFrame(json: string, maxChunkBytes: number): Termina
     case 'fault':
       return { t, stopped: fields['stopped'] === true }
     case 'opened':
-      return text(fields['cwd']) ? { t, cwd: fields['cwd'] } : undefined
+      return text(fields['cwd'])
+        ? { t, cwd: fields['cwd'], ...directoryObservation(fields['observed']) }
+        : undefined
     case 'started':
     case 'legFault':
-      return text(fields['id']) ? { t, id: fields['id'] } : undefined
+      return text(fields['id'])
+        ? { t, id: fields['id'], ...directoryObservation(fields['observed']) }
+        : undefined
     case 'finished':
       return finishedFrame(fields)
     case 'data':
