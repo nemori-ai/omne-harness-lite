@@ -4,11 +4,12 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { GatewayUsage, ReasoningDetail } from '@omne-harness/pi-ai-transport/chat-completions'
-import { hooksOf } from '../src/rules.ts'
+import { chatTextHooks } from '@omne-harness/pi-ai-transport/family-kit'
+import { KIMI_OWNER } from '../src/owner.ts'
 import { KIMI_RECORDS } from '../src/records.ts'
 const RECORD = KIMI_RECORDS[0]
 
-const HOOKS = hooksOf(RECORD)
+const HOOKS = chatTextHooks(KIMI_OWNER, RECORD)
 const str = (value: string): JsonValue => ({ kind: 'string', value })
 const num = (lexeme: string): JsonValue => ({ kind: 'number', lexeme })
 
@@ -147,7 +148,7 @@ describe('the tool schema rule object-root/1', () => {
 
 it.each(KIMI_RECORDS)('preserves a known all-zero terminal usage on $name', record => {
   expect(
-    hooksOf(record).usage({
+    chatTextHooks(KIMI_OWNER, record).usage({
       promptTokens: '0',
       completionTokens: '0',
       cachedTokens: '0',
@@ -244,7 +245,7 @@ it.each(KIMI_RECORDS)(
       )
     const usage = frames.findLast(frame => frame.usage)?.usage
     if (!usage) throw Error('fixture terminal usage absent')
-    const result = hooksOf(record).usage({
+    const result = chatTextHooks(KIMI_OWNER, record).usage({
       promptTokens: String(usage.prompt_tokens),
       completionTokens: String(usage.completion_tokens),
       cachedTokens: String(usage.prompt_tokens_details.cached_tokens),

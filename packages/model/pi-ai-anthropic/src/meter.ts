@@ -2,16 +2,21 @@ import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { MediaMeasurementFact, TransportFailure } from '@omne-harness/model-contract'
 import type { ModelTextTokenizer } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
-import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import {
-  createCalibratedMeter,
   type FamilyMeter,
   type MeterMargin,
   type MeterUnits,
   type ProjectedRequest,
   type ProjectedTurn,
 } from '@omne-harness/pi-ai-transport/chat-completions'
-import { componentAdoption, countingBasis } from './adoptions.ts'
+import {
+  arr,
+  componentAdoption,
+  createGatewayMeter,
+  memberOf,
+  obj,
+  str,
+} from '@omne-harness/pi-ai-transport/family-kit'
 import { IMAGE_MEDIA_TYPES, IMAGE_RULES } from './images.ts'
 import { ANTHROPIC_OWNER } from './owner.ts'
 import type { AnthropicRecord } from './record.ts'
@@ -21,21 +26,6 @@ export const OUTPUT_GROUP_METHOD =
 export { ANCHORED_METHOD, type MeterMargin } from '@omne-harness/pi-ai-transport/chat-completions'
 
 const IMAGE_PLACEHOLDER = '[image]'
-
-function str(value: string): JsonValue {
-  return { kind: 'string', value }
-}
-
-function obj(members: Readonly<Record<string, JsonValue | undefined>>): JsonValue {
-  const entries = Object.entries(members).flatMap(([key, value]) =>
-    value === undefined ? [] : [{ key, value }],
-  )
-  return { kind: 'object', entries }
-}
-
-function arr(items: readonly JsonValue[]): JsonValue {
-  return { kind: 'array', items }
-}
 
 function call(id: string, name: string, args: string): JsonValue {
   return obj({
@@ -152,10 +142,6 @@ type UnitContent = Readonly<{
   reasoning: boolean
 }>
 
-function memberOf(value: JsonValue, key: string): JsonValue | undefined {
-  return value.kind === 'object' ? value.entries.find(entry => entry.key === key)?.value : undefined
-}
-
 function contentOf(tokenInput: JsonValue): readonly UnitContent[] | null {
   const messages = memberOf(tokenInput, 'messages')
   if (messages?.kind !== 'array') return null
@@ -203,7 +189,7 @@ function imageTokens(
         failure: {
           kind: 'unsupported',
           field: `image ${position}`,
-          adapter: componentAdoption(record, 'media'),
+          adapter: componentAdoption(ANTHROPIC_OWNER, record, 'media'),
         },
       }
     extras[owner] = (extras[owner] ?? 0n) + BigInt(tokens)
@@ -216,28 +202,16 @@ export function createAnthropicMeter(
   tokenizer: ModelTextTokenizer,
   margin: MeterMargin,
 ): FamilyMeter {
-  const representation = componentAdoption(record, 'representation')
-  const instance = createCalibratedMeter<UnitContent>({
+  return createGatewayMeter<UnitContent>({
     owner: ANTHROPIC_OWNER,
-    supplier: recordAdoption(ANTHROPIC_OWNER, record),
-    adoptions: {
-      meter: componentAdoption(record, 'meter'),
-      representation,
-      media: componentAdoption(record, 'media'),
-    },
-    basis: countingBasis(record),
+    record,
+    tokenizer,
     margin,
     outputGroup: OUTPUT_GROUP_METHOD,
     uncountable: 'signed-reasoning-not-countable',
-    tokens: { tokenizer, form: 'nfkc' },
+    form: 'nfkc',
     contentOf,
     imageTokens: ({ units, media }) => imageTokens(record, units, media),
-  })
-  return Object.freeze({
-    instance,
-    represent: (view: ProjectedRequest) => ({
-      adoption: representation,
-      ...representationOf(record, view),
-    }),
+    represent: view => representationOf(record, view),
   })
 }

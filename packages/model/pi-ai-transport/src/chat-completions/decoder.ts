@@ -246,7 +246,7 @@ function inBandError(code: number | null): Refusal {
     fault: {
       cause: causeOfStatus(code),
       diagnostic: 'in-band-error',
-      upstreamStatus: String(code),
+      upstreamStatus: code >= 100 && code <= 599 ? String(code) : null,
     },
   }
 }

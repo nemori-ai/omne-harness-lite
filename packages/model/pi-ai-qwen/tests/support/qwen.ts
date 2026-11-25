@@ -29,7 +29,7 @@ import {
   type QwenFamilyConfig,
   type QwenRecord,
 } from '@omne-harness/pi-ai-qwen'
-import { componentAdoption } from '../../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 
 export function adoption(name: string): Adoption {
   return { owner: 'pi-ai-qwen-tests', name, revision: '1', digest: 'a'.repeat(64) }
@@ -186,7 +186,7 @@ export function requestJson(record: QwenRecord, parts: RequestParts = {}): unkno
     tools: parts.tools ?? [],
     toolChoice: parts.toolChoice ?? 'auto',
     declarations: [declared.ok],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(QWEN_OWNER, record, 'representation'),
     parameterAdoptions: parameters.map(requested => ({
       supplier: supplier.adoption,
       applied: requested,

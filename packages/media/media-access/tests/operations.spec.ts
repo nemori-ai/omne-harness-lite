@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { mediaProtocol } from '@omne-harness/media-protocol'
 import { createWorld, fixtureLogin, loginIdentity, type World } from './fixtures/world.ts'
 
 const ALICE = fixtureLogin('a')
@@ -322,6 +323,37 @@ describe('what the domain answers becomes an outcome of the protocol', () => {
     expect(world.calls.map(each => each.method)).toEqual(['describe', 'read'])
     world.answer('read', { failure: { kind: 'invalid-reference' } })
     expect(await call(world, 'describe-media')).toEqual({ outcome: 'not-found', body: {} })
+  })
+
+  it('leaves out why a medium cannot be converted, as the published protocol has no field for it', async () => {
+    const source = {
+      definition: { name: 'pdf-text', revision: '1' },
+      engine: { name: 'e', revision: '2' },
+    }
+    const representation = { outcome: 'inconvertible', ...source }
+    const kept = { kind: 'done', representation: { ...representation, reason: 'encrypted' } }
+    const preprocess = { kind: 'done', representation }
+    const described = answering('describe-media', { ok: { state: 'held', facts } })
+    described.answer('read', { ok: kept })
+    const prepared = answering('prepare-media', { ok: kept })
+    const limits = {
+      maxBytes: 65_536,
+      maxDepth: 16,
+      maxItems: 1_000,
+      maxMembers: 100,
+      maxStringLength: 1_024,
+      maxNumberLength: 32,
+    }
+    for (const [world, name, body] of [
+      [described, 'describe-media', { state: 'held', facts, preprocess }],
+      [prepared, 'prepare-media', { preprocess }],
+    ] as const) {
+      expect(await call(world, name)).toEqual({ outcome: 'succeeded', body })
+      const codec = mediaProtocol.operations[name].outcomes.succeeded
+      expect(codec.write(body as never, limits).ok).toBe(true)
+    }
+    const prepare = mediaProtocol.operations['prepare-media'].outcomes.succeeded
+    expect(prepare.write({ preprocess: kept } as never, limits).ok).toBe(false)
   })
 
   it('read-media-page hands the target for display on when the body has one', async () => {

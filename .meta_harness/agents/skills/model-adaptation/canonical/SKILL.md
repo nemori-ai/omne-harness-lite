@@ -21,7 +21,7 @@ description: >
 
 1. **定范围。** 从 OpenRouter 的模型清单（`/api/v1/models`）与端点清单（`/api/v1/models/<型号>/endpoints`）取上下文窗口、输出上限、价格、支持的参数、服务它的上游。决定这个型号走哪个上游，并在请求里固定它（`provider.order` 加 `allow_fallbacks: false`）。上游不同，推理块的格式名就可能不同。
 2. **列线索。** 读 OpenRouter 的通用文档与迁移指南、厂商的发布说明，列出这个型号可能与同家族其他型号不同的地方。每条线索都是要测的一项，不是事实。
-3. **实测。** 照 [references/facts.md](references/facts.md) 的清单逐项测。先跑 [scripts/probe-model.mjs](scripts/probe-model.mjs) 出一张事实表，再对表里看不清的项单独写请求补测。每次请求的请求体与响应体留在过程目录。
+3. **实测。** 照 [references/facts.md](references/facts.md) 的清单逐项测。先跑 [scripts/probe-model.mjs](scripts/probe-model.mjs) 出一张事实表，再对表里看不清的项单独写请求补测。探针缺省把型号前缀当作上游固定下来；端点清单里上游的标识与前缀不同时（例如 `qwen/` 的上游是 `alibaba`），用 `--provider` 给出第 1 步定下的上游。每次请求的请求体与响应体留在过程目录。
 4. **选引擎。** 通用的 Chat 引擎能做到的先用它。走专用引擎（Claude 的 Messages、OpenAI 的 Responses）要有测到的能力差别，例如只有专用接口能报告推理块被上游丢掉，或只有专用接口能带回推理状态。理由写进记录的依据。
 5. **写记录。** 记录在家族成员的 `src/records.ts`：引擎、线上写法（系统提示词怎样放、缓存怎样写、图片、推理摘要、工具名规则）、参数表、用量规则、修订号与每条事实的依据。依据写测量日期、请求的形状与结果，不写「据文档」。
 6. **定发行缺省开不开。** 型号记录在官方档案里有了，供应商正文的目录就自动多一项（目录由官方档案投影，不手写），资产页的「模型」块随之多一行。要定的只有它在新租户里缺省开不开：开着的列在发行应用的 `src/assets/release-models.ts`，其余一律缺省关。缺省开着的范围由负责人定；没有新的说法时，新一代替换旧一代照旧例走，拿不准就缺省关，交付声明里写明。发行配置里 Agent 定义的初始模型必须在缺省开着的里面，`tests/assets/release-catalog.spec.ts` 守着这一条与条数，改了集合就改它。

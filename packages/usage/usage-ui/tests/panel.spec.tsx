@@ -13,7 +13,7 @@ import {
   type UsageUiOptions,
 } from '../src/cordis.tsx'
 import type { Layouts } from '../src/index.ts'
-import { Present } from '../src/index.ts'
+import { Present, storedLayouts, USAGE_LAYOUTS_KEY } from '../src/index.ts'
 import { stubDom, TENANT } from './fixtures/dom.ts'
 import { fakeUsage, type Answer, type Call } from './fixtures/fake-usage.ts'
 import { startShell } from './fixtures/reference-shell.tsx'
@@ -170,6 +170,29 @@ describe('each item of a layout by the rows of T8 (C28)', () => {
     await click('去掉', card('gone.widget'))
     expect(widgets()).toEqual(['usage.summary'])
     expect(store.read().tenant?.map(item => item.widget)).toEqual(['usage.summary'])
+  })
+
+  it('keeps a change of the layout in the preference store, and a page opened later reads it back', async () => {
+    const kept = new Map<string, string>()
+    const preferences = {
+      getItem: (key: string) => kept.get(key) ?? null,
+      setItem: (key: string, value: string) => void kept.set(key, value),
+    }
+    const store = storedLayouts(() => preferences)
+    store.write({
+      tenant: [
+        { widget: 'gone.widget', width: 1, presentation: null },
+        { widget: 'usage.summary', width: 3, presentation: null },
+      ],
+    })
+    await page({ store })
+    await click('去掉', card('gone.widget'))
+    cleanup()
+    await page({ store: storedLayouts(() => preferences) })
+    expect(widgets()).toEqual(['usage.summary'])
+    expect(JSON.parse(kept.get(USAGE_LAYOUTS_KEY) ?? 'null')).toEqual({
+      tenant: [{ widget: 'usage.summary', width: 3, presentation: null }],
+    })
   })
 
   it('a chosen presentation no longer registered gives the default with a note', async () => {

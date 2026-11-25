@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { sortedJsonText } from './support/sorted-json.ts'
+import { sortedJsonText } from '@omne-harness/pi-ai-transport/testing'
 import { getEncoding } from 'js-tiktoken'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { MeterRepresentation, ModelInputMeter } from '@omne-harness/model-contract'
-import { componentAdoption } from '../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
+import { OPENAI_OWNER } from '../src/owner.ts'
 import { IMAGE_RULES, type ImageDetail } from '../src/images.ts'
 import {
   assembledOf,
@@ -196,7 +197,7 @@ describe('measure', () => {
           kind: 'estimate',
           amount: String(amount),
           margin: String(Math.ceil(amount / 10)),
-          method: componentAdoption(SOL, 'meter'),
+          method: componentAdoption(OPENAI_OWNER, SOL, 'meter'),
           marginSource: MARGIN_SOURCE,
         },
         limit: '922000',
@@ -205,7 +206,7 @@ describe('measure', () => {
           upstream: {
             kind: 'finite',
             amount: '922000',
-            source: componentAdoption(SOL, 'evidence'),
+            source: componentAdoption(OPENAI_OWNER, SOL, 'evidence'),
           },
         },
       },
@@ -312,7 +313,11 @@ describe('measure', () => {
     expect(image).toMatchObject({
       metric: 'image-bytes',
       subject: 'image-1',
-      measurement: { kind: 'exact', amount: '1000', method: componentAdoption(ASTRA, 'media') },
+      measurement: {
+        kind: 'exact',
+        amount: '1000',
+        method: componentAdoption(OPENAI_OWNER, ASTRA, 'media'),
+      },
       limit: '4194304',
       constraint: { upstream: { kind: 'unknown' } },
     })
@@ -370,7 +375,11 @@ describe('measure', () => {
       media: [{ ...fact, widthPixels: '4294967295', heightPixels: '4294967295' }],
     }))
     expect(measured).toEqual({
-      failure: { kind: 'unsupported', field: 'image 0', adapter: componentAdoption(luna, 'media') },
+      failure: {
+        kind: 'unsupported',
+        field: 'image 0',
+        adapter: componentAdoption(OPENAI_OWNER, luna, 'media'),
+      },
     })
   })
 
@@ -378,13 +387,13 @@ describe('measure', () => {
     const parts = { messages: [message('u1', 'user', [textBlock('b1', 'hi')])] }
     const other = await planAndMeasure(SOL, parts, value => ({
       ...value,
-      adoption: componentAdoption(ASTRA, 'representation'),
+      adoption: componentAdoption(OPENAI_OWNER, ASTRA, 'representation'),
     }))
     expect(other.measured).toEqual({
       failure: {
         kind: 'unsupported',
         field: 'representation',
-        adapter: componentAdoption(SOL, 'meter'),
+        adapter: componentAdoption(OPENAI_OWNER, SOL, 'meter'),
       },
     })
   })
