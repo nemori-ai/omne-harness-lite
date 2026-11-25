@@ -1,5 +1,11 @@
 # 会话受理、消费、推进 · 复用论证
 
+> **更正（2026-11-26）**
+>
+> - 「把 `AdvanceWait` 的『用完』改成『延后到下一次叫醒』」不是已定的事：今天的有界重试加周期扫描已经满足活性（模型 `bad-no-scan` 显示去掉扫描才卡死），改不改见 `requirement.md` 的更正 3。
+> - `AdvanceObligation.tla`（#1649 里的草模）与随后的修订 1 模型都已作废，没有带进材料。现行模型是 `models/AdvanceLiveness.tla` 修订 2。
+> - 修订 2 还没有落进仓库。第 1 程用的是仓库里已有的 `packages/agent/agent/verification/run-lifecycle/`。修订 2 随第一个用到它的程（批界那一程）落进 `packages/session/session/verification/advance-liveness/`，照本页写的约定：一份通过的配置、若干负对照、`expect.txt`。
+
 范围由 `impact.md` 的总边界限定。按「直接复用 → 二次开发 → 二次封装 → 自造」的次序，找到就停。
 
 ## 1. 形式化：TLA+ / TLC — 直接复用

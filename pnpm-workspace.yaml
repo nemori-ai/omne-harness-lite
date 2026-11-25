@@ -47,7 +47,7 @@ catalog:
   vitest: 4.1.11
   oxfmt: 0.73.0
   oxlint: 1.88.0
-  dependency-cruiser: 18.6.0
+  dependency-cruiser: 18.9.0
   knip: 6.41.0
   turbo: 2.11.7
   '@vitest/coverage-v8': 4.1.11

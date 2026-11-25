@@ -1,3 +1,5 @@
+> 这是一份只读子代理写给原会话的调查报告，原样保留。文中的「你」指原会话；提到的现场原始输出（`s6b-diag.txt`、`s3-diag.txt`、`s6b-history.txt`、`s6b-server.jsonl`、`dump.sh`）含负责人的会话内容，没有带进材料；`server.log` 的行号指负责人部署上的日志，接手的机器上没有。结论与代码位置仍然有效。
+
 ## F11 根因：撤销归档后新一轮卡在 I1，0 次模型调用
 
 注意：没有写出 tmp/advance-liveness/f11/report.md，Write 工具拒绝子代理写报告文件。完整报告就在下面，可以原样落盘。现场原始输出放在 tmp/advance-liveness/f11/，有 s6b-diag.txt、s3-diag.txt、s6b-history.txt、s6b-server.jsonl，另有只读解码脚本 dump.sh。全程没有执行 send、cancel、archive，也没有重启任何进程。

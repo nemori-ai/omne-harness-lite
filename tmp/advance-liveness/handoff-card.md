@@ -10,13 +10,13 @@
 
 | 程 | 目标 | 依赖前面的什么结论 | 状态 | 包在哪 |
 | --- | --- | --- | --- | --- |
-| 1 | 一轮无论因为什么失败都以明确的结局收场并让出执行槽，下一句话照常开出新的一轮，不用重启服务端 | 无 | 交付中（原会话在本机送进轨道；现状看 #1655 的最后一条评论） | #1655 |
+| 1 | 一轮无论因为什么失败都以明确的结局收场并让出执行槽，下一句话照常开出新的一轮，不用重启服务端 | 无 | 交付中。谁在做看 #1655：原会话贴出 `## 停手` 之前归原会话，之后归接手的会话 | #1655 |
 | 2 | 开轮时把当时全部待处理的输入一并接走，不拆成两步；归档再撤销的会话照常能用；日志里有没收场的一轮时界面一定显示在跑、一定能停 | 第 1 程：失败的收尾不被待处理输入挡回，执行槽在驱动停下后让出 | 未定约 |  |
 | 3 | 性能设施：`tools/perf-harness` 与顶层 `benchmarks/`，先覆盖会话（一轮多步、多轮、冷打开、客户端跟上）；计数门的期望值来自代价模型，每道门有正负对照 | 无。第一份基线已有（接手说明 7.7） | 未定约 |  |
 | 4 | 一步推进的读写量与会话日志总长无关：日志长度翻倍时每步读量不变 | 第 3 程的计数门与调用方归因 | 未定约 |  |
 | 5 | 存储按租户公平排队、有配额，一个租户读得猛不卡住另一个（#1640） | 第 3 程的度量手段 | 未定约 |  |
 
-还没排进任何一程的缺口（接手说明 7.4 到 7.6）：停下的 execution 在有界次数内终结；取消的时序竞争（#1404）；日志解释的永久失败无限重试（R5）；`command_limit` 落在 F2 的成因；开轮风暴。它们是这条线的正确性缺口，不是圈外的事。给第 2 程定约时，和负责人一起定它们并进第 2 程，还是在第 2 程之后单开一程。`goal.md` 里第 1 程的描述是重定之前写的（含 R5），以本表为准。
+还没排进任何一程的缺口（接手说明 7.4 到 7.6）：停下的 execution 在有界次数内终结；取消的时序竞争（#1404）；日志解释的永久失败无限重试（R5）；`command_limit` 落在节点 F2 的成因；开轮风暴。它们是这条线的正确性缺口，不是圈外的事。给第 2 程定约时，和负责人一起定它们并进第 2 程，还是在第 2 程之后单开一程。`goal.md` 里第 1 程的描述是重定之前写的（含 R5），以本表为准。
 
 次序的依据：1、2 是正确性，先做；3 先量后改，是 4 的前提；5 是负责人定的「最后一程」。
 
@@ -34,11 +34,33 @@
 
 读的顺序：本卡 → 材料里的 `goal.md` → `requirement.md` → `as-is.md` → `formal-handoff.md` → 要做的那一程的卡。
 
+## 缩写与编号
+
+同一个字母在不同地方指不同的东西，本卡里这样用：
+
+| 写法 | 指什么 | 出处 |
+| --- | --- | --- |
+| F1 到 F39（如「F1」「F11」「F36」） | 端到端实测发现的缺陷 | 材料 `e2e-010/findings.md` |
+| 节点 E2、I1、I8、F0 到 F4、R0、W0 | Agent 循环里的节点名。本卡提到节点时一律写「节点 F2」这样 | `packages/agent/agent/src/loop/coordinator.ts`；`packages/agent/SPEC.md` |
+| I-1 到 I-10 | 这条线的不变式 | 材料 `requirement.md` |
+| 卡 #1655 里的 I-1 到 I-5、C1 到 C7 | 第 1 程自己的不变式与验收标准，只在那张卡里有效 | #1655 |
+| R1 到 R10 | 原会话读码与读日志列出的缺口 | 材料 `as-is.md` |
+| E1 到 E10 | 模型的环境假设 | 材料 `formal-handoff.md` |
+| G1 到 G9 | #1197 列的差异 | #1197 |
+| U1 到 U6 | #1195 列的性质 | #1195 |
+| `C2 …`（如 `C2 invoke retries-exhausted`、`C2 receive unavailable`） | 服务端日志里 Session 推进协调报的诊断，`C2` 是它的拥有者标记 | `packages/session/session/src/advance.ts` 的 `report(ref, 'C2', …)` |
+| SE-8、SE-17、SE-20 | Session 规格的条款 | `packages/session/SPEC.md` |
+| CAP-SW05、CAP-AG03 | 产品能力条款 | `.meta_harness/design/product/sessions-and-work` |
+| dsh | DeepSeek Harness，本项目内核 Cordis 的出处，也是性能对比的对象 | 材料 `perf-inputs/prior-design-2026-11-03.md` |
+
 ## 接手 0　开工顺序
 
 1. 环境：照 `CONTRIBUTING.md`「开始工作」准备检出与形式工具链；加载技能 `omne-card`、pqw 的 `single-session-dev-flow` 与 `pass-the-baton`。原会话的本机记忆带不过来，其中管用的都写在接手 3 与接手 9。
 2. 取材料（接手 2 的命令），读完本卡与 `requirement.md`、`as-is.md`、`formal-handoff.md`。
-3. 看卡 #1655。关了：第 1 程已进轨道，做轮动。开着且没有 `## 交付声明`：照它最后一条评论的「剩余事项」把第 1 程送完，再做轮动。
+3. 看卡 #1655，分三种情形，避免两个会话同时动第 1 程：
+   - 关了：第 1 程已进轨道，做轮动。
+   - 开着，有第一行是 `## 停手` 的评论：原会话已停手。先核分支 `PanQiWei/advance-liveness` 的远端头等于那条评论写的最终头，再照「现状与剩余事项」评论把第 1 程送完，然后做轮动。
+   - 开着，没有 `## 停手`：原会话还在送。不动第 1 程的分支、不开 PR、不派发 gate；先做第 5 步里不依赖第 1 程合入的事（三件证实、读代码、定义期的产物），隔一段时间再看。
 4. 轮动：把轨道头同步进工作分支，重建，跑 `probe-steps.ts`（接手 8），与 `evidence/probe-steps/steps.json` 比。有回归先修。
 5. 第 2 程，先证实再设计：
    - F11 的区分实验（接手 7.2）；
@@ -82,12 +104,11 @@ git archive FETCH_HEAD tmp/ | tar -x -C <主仓库根>
 | `evidence/probe-steps/` | 每步存储读写量的第一份基线 | 有效，轮动时拿它比 |
 | `probe/` | 两个临时探针（不提交进仓库） | 有效，用法见接手 8 |
 | `f11/report.md` | 撤销归档后卡死（F11）的根因报告 | 有效。原始现场输出含负责人的会话内容，没有带过来 |
-| `run1/` | 第 1 程的卡、spec、PR 正文的底稿 | 已发到卡 #1655 与 PR，以 GitHub 上的为准 |
+| `run1/` | 第 1 程的卡、spec、PR 正文的底稿 | 卡与 spec 已发到 #1655，以 GitHub 上的为准。PR 写这张卡时还没开，`pr.md` 是它的正文底稿 |
 | `perf-inputs/` | 性能工程线的既有设计（2026-11-03 与 11-16 到 11-18 两版）、清点、调研 | 第 3 程的设计输入 |
 | `e2e-010/findings.md`、`e2e-010/ledger.md` | 0.1.0 路线图 #1192 端到端实测的缺陷清单（F1 到 F39）与账本 | 有效。全线做完后负责人要这份 `findings.md` |
-| `todo.md` | 原会话的流程清单 | 只作历史 |
 
-没带过来的：负责人部署上的服务端日志与会话导出（含会话内容）。结论都已写进 `as-is.md`。
+没带过来的，材料里的文件提到它们时都读不到：负责人部署上的服务端日志（`tmp/skins-three/logs/server.log`、`evidence/timeline-1005-1028.txt`、`evidence/incident-1140/`）、F11 的现场导出、R8 的桌面端截图（`evidence/omne-crop.png`）。它们含负责人的会话内容。结论都已写进 `as-is.md` 与 `f11/report.md`；修订 1 模型的源文件也没有保留。
 
 ## 接手 3　负责人对做法的要求
 
@@ -126,14 +147,14 @@ git archive FETCH_HEAD tmp/ | tar -x -C <主仓库根>
 
 ## 接手 4　四次现场与结论
 
-细节与证据在 `as-is.md`。一句话版本：
+第 2、3、4 次的细节与证据在 `as-is.md`；第 1 次没有复盘，材料里没有它的证据。一句话版本：
 
 | 次 | 导火索 | 后果机制 | 状态 |
 | --- | --- | --- | --- |
 | 1 | 原会话在同一个部署上跑端到端长会话，存储读队列被占满（#1640）；负责人那一轮卡在计量 `source-unavailable`，重启后仍不前进 | 没有复盘到机制；只确认了存储队列在租户之间没有隔离 | 存储公平归最后一程 |
 | 2 | 一轮走到第 50 步（步数上限）时界面上还排着两句话 | 到上限后 Agent 不再取输入，Session 不让带着待处理输入收尾，互相等 | **第 1 程已修**，独立装配上改前改后各跑过 |
-| 3 | 取消一轮的时序竞争：驱动撞上 `stale-advance` 停下 | 停下的驱动占着执行槽，新一轮一直交不进去 | **第 1 程修了后果**（让出执行槽）；竞争本身（#1404）没修 |
-| 4 | 收尾提交超过存储的命令上限（`command_limit` 落在 F2） | 同上；之后还出现 20 秒开 17 轮的风暴 | 后果已修；`command_limit` 的成因与开轮风暴**没查** |
+| 3 | 日志证实：取消之后驱动在节点 F1 以 `stale-advance` 停下。为什么会停下是候选（取消的时序竞争，接手 7.5），没有复现 | 停下的驱动占着执行槽，新一轮一直交不进去（成员级证实） | **第 1 程修了后果**（让出执行槽）；导火索没修 |
+| 4 | 收尾提交超过存储的命令上限（`command_limit` 落在节点 F2） | 同上；之后还出现 20 秒开 17 轮的风暴 | 后果已修；`command_limit` 的成因与开轮风暴**没查** |
 
 教训（已写进接手 3）：原会话最初把第 2 次归给「交入事实写不上」，开了 #1649，建了一个带「发件箱」的模型并报告应然通过。时间线与代码表明 `C2 receive unavailable` 在发行装配里是恒定行为，正常的轮次也有。更正已发在 #1649 的评论。
 
@@ -141,9 +162,9 @@ git archive FETCH_HEAD tmp/ | tar -x -C <主仓库根>
 
 内容：驱动停下时交回执行槽；宿主的 `contact` 按运行时自己的报告答；以失败为结论的收尾不因待交输入被挡回；到步数上限时带着没取走的输入终结。范围外的写在卡上。
 
-状态与剩余事项见本卡的「各程」表与卡 #1655 的最后一条评论。原会话在本机负责把它送进轨道；接手时先看 #1655 是关着还是开着。开着且没有 `## 交付声明` 的评论，说明没送完：分支是 `PanQiWei/advance-liveness`，照 #1655 最后一条评论里的「剩余事项」接着做。
+分支 `PanQiWei/advance-liveness`（已推送）。状态与剩余事项在卡 #1655 第一行是「现状与剩余事项」的评论里。谁来送完，照接手 0 第 3 步的三种情形判。
 
-接手后的第一件事是轮动：把轨道头同步进工作分支，重建，跑 `probe/probe-steps.ts`，与 `evidence/probe-steps/steps.json` 比（每步约 1250 次存储读、约 95 次提交）。有回归先修。
+轮动怎样比：`evidence/probe-steps/steps.json` 是 2026-11-25 在原会话的机器上量的，代码是第 1 程起点 `02a9e3103` 附近（当时没有记下确切的提交）。比的是计数，不是时间：每步存储读（约 1250）与每步提交（约 95），以及按处理函数分的读数。接手的机器上先在第 1 程合入后的轨道头量一份，作为之后各程的基线；它与原基线的每步读、每步提交差出 5% 以上，就先查原因。时间类的读数换了机器不可比。
 
 ## 接手 6　推进链路今天是怎样工作的
 
@@ -160,7 +181,9 @@ git archive FETCH_HEAD tmp/ | tar -x -C <主仓库根>
 - 驱动在一个节点上确定不能继续时停下：报告一次，execution 在执行记录里不终结。第 1 程起让出执行槽。
 - 周期扫描（约 30 秒，会话有退避）对有待处理输入或活跃 Run 的会话叫醒推进与恢复。恢复问挂接，得到失联就 `detach`、`claim`、`resume`。
 
-量设计的尺子：每一条推进义务都要能从日志现算出来，进程内的状态只许让推进器多做一次幂等的认回，不许让它少做一步；并且有扫描兜底。这和架构里发件箱的道理是同一个（`docs/architecture/data-and-state.md`「正式消息队列」）：欠别人的事和事实同一次提交落盘，对方持久承接了才销账，没销账的定期扫描。输入的交付已经是这个形状，待处理资格就是那条发件箱记录。
+修订 2 的模型（材料 `models/`）还没有落进仓库。它随第一个用到它的程（批界那一程）落进 `packages/session/session/verification/advance-liveness/`，照仓库里别的模型的约定：一份通过的配置、若干负对照、`expect.txt`。
+
+量设计的尺子：每一条推进义务都要能从日志现算出来，进程内的状态只许让推进器多做一次幂等的认回，不许让它少做一步；并且有扫描兜底。这和架构里发件箱（原文用词 outbox）的道理是同一个（`docs/architecture/data-and-state.md` 讲正式消息队列的那几段）：欠别人的事和事实同一次提交落盘，对方持久承接了才销账，没销账的定期扫描。输入的交付已经是这个形状，待处理资格就是那条发件箱记录。
 
 ## 接手 7　已知的缺口与候选做法
 
@@ -182,7 +205,7 @@ git archive FETCH_HEAD tmp/ | tar -x -C <主仓库根>
 
 ### 7.2 撤销归档后新一轮卡死（F11，R9）：下一程
 
-- 根因（现场只读核实，`f11/report.md`）：撤销归档铸造第 2 代作用域，会话自有的三块注册（`session.modes`、`session.working-directory`、`session.workspace-guidance`）只在创建时写进第 1 代。coding 定义里有带条件的工具，准备请求时读 `session.modes` 被拒；`apps/harness-server/src/rows/agent-context/tools.ts` 把确定的拒绝译成可重试的 `unavailable`，Agent 在 I1 每约 15 秒重查，永不收场。重启救不回。
+- 根因（现场只读核实，`f11/report.md`）：撤销归档铸造第 2 代作用域，会话自有的三块注册（`session.modes`、`session.working-directory`、`session.workspace-guidance`）只在创建时写进第 1 代。coding 定义里有带条件的工具，准备请求时读 `session.modes` 被拒；`apps/harness-server/src/rows/agent-context/tools.ts` 把确定的拒绝译成可重试的 `unavailable`，Agent 在节点 I1 每约 15 秒重查，永不收场。重启救不回。
 - 没证实的一点：后台调用与此无关、任何 coding 会话归档再撤销都会卡。区分实验：另起实例，开 coding 会话，不起后台调用，归档、撤销、发一句，预期出现诊断 `tool-conditions: read: refused`。先做这个实验。
 - 代码事实：
   - 撤销归档的决策（`session-contract/src/decide-management.ts`）只写 `session.unarchived`（带新一代的作用域绑定）与空闲证据。
@@ -205,15 +228,15 @@ git archive FETCH_HEAD tmp/ | tar -x -C <主仓库根>
 - 模型 `gap-deterministic-halt.cfg`：收尾提交确定地失败时，恢复每次接手都再停下一次，这一轮永不收场，人只能取消。
 - 这条接手路（`inspect` 得到失联、`detach`、`claim`、`resume`）只读过码，没有在发行组合上跑过。先跑一次：让一轮在收尾节点确定地失败，看恢复是不是每个扫描周期接手一次、又停一次。
 - 应然：同一个节点连续停下若干次之后，这一轮以失败终结。由谁数、数在哪、几次，没有定。
-- 被取消的一轮的 execution 停下后在执行记录里一直开着：`packages/agent/SPEC.md` 写「新挂接读原取消意图以取消授权收束」，没有兑现。没有已知的用户可见后果。
+- 被取消的一轮的 execution 停下后在执行记录里一直开着：`packages/session/SPEC.md`（讲取消与受理、条件终结、换代的竞争那一段）写「新挂接读原取消意图以取消授权收束」，没有兑现。没有已知的用户可见后果。
 
 ### 7.5 取消的时序竞争（#1404）
 
-取消已提交、取消控制还没写进 Agent 执行记录的窗口里，`E2` 之外的节点撞上 `stale-advance` 直接停下（`coordinator.ts` 的 `failedNode`；只有 `E2` 有 `waitForRevocationCause`）。原会话用探针的 `cancel-model`、`cancel-tool` 各试一次没有触发。第 1 程之后它不再使会话卡死，只是那一轮以「停下」而不是「取消收束」结束。
+**候选，没有复现。** 读码得到的机制：取消已提交、取消控制还没写进 Agent 执行记录的窗口里，节点 E2 之外的节点撞上 `stale-advance` 直接停下（`coordinator.ts` 的 `failedNode`；只有节点 E2 有 `waitForRevocationCause`）。现场三处签名与它相符（本机第 3 次停在节点 F1，#1404 正文停在节点 I1，#1404 评论停在节点 I8）。原会话用探针的 `cancel-model`、`cancel-tool` 各试一次没有触发。第 1 程之后它不再使会话卡死，只是那一轮以「停下」而不是「取消收束」结束。
 
 ### 7.6 没查的
 
-- `command_limit` 落在 F2：收尾那次提交为什么会超过存储对整条命令的上限，是不是随这一轮的长度增长。
+- `command_limit` 落在节点 F2：收尾那次提交为什么会超过存储对整条命令的上限，是不是随这一轮的长度增长。
 - 开轮风暴：20 秒开 17 轮，每轮立刻 `C2 invoke other`。第 1 程修了槽位之后还会不会出现，没有验证。
 - 日志解释的永久失败无限重试（R5）：`required original material is missing` 每 5 秒重试一次，不收场。全化表的表 5 写了应然，分类落在哪个产生者上没有定。
 - 交入回执的证据来源（#1195、#1197 的 G8）：不归这条线，留给原 issue。
@@ -228,7 +251,7 @@ git archive FETCH_HEAD tmp/ | tar -x -C <主仓库根>
 
 ## 接手 8　工具与用法
 
-**探针**（临时文件，不提交）。复制到 `apps/harness-server/tests/long-session/` 下运行，跑完删掉；先构建。
+**探针**（临时文件，不提交）。复制到 `apps/harness-server/tests/long-session/` 下运行，跑完删掉。先在仓库根 `pnpm run build`（探针起的是发行装配，从各成员的 `dist` 加载）。
 
 ```sh
 cd apps/harness-server
@@ -244,7 +267,7 @@ rm tests/long-session/probe-*.ts
 - `probe-midrun-input.ts` 的 `--when`：`tool`（第 `--secondAt` 次模型请求到达时发第二句）、`finish`、`cancel-model`、`cancel-tool`、`none`。旧行为下它会一直等到 `--waitMs`。
 - 旧行为下的成员用例会 100% 占着一个核空转。可能不结束的命令用 `perl -e 'alarm 120; exec @ARGV' <命令>` 包住。
 
-**形式工具**：`source ~/.config/omne/environment.sh` 之后有 `$JAVA_BIN` 与 `$TLA2TOOLS_JAR`（1.7.4）。跑法见 `formal-handoff.md`。仓库里已有的模型：`packages/agent/agent/verification/run-lifecycle/`（一轮在 Agent 内部的节点；第 1 程改了它的 P3）。
+**形式工具**：要一个 JDK（原会话用 OpenJDK 21）与 `tla2tools-1.7.4.jar`（TLA+ 工具的 v1.7.4 发布文件）。`pnpm run check:formal-tools` 检查环境并报告它读了哪些变量，只接受钉住的那个发布文件，摘要不对报 `MISMATCH`；它认的变量是 `TLA2TOOLS_JAR`。原会话的机器上这些变量写在 `~/.config/omne/environment.sh`（另有 `JAVA_BIN`），新机器要自己备，`formal-handoff.md` 里的命令照新机器的变量改。跑法见 `formal-handoff.md`。仓库里已有的模型：`packages/agent/agent/verification/run-lifecycle/`（一轮在 Agent 内部的节点；第 1 程改了它的 P3）。
 
 **fast-check**：4.10.2，已进 catalog；`packages/agent/agent` 与 `packages/session/session-contract` 已有 devDependency。别的成员要用时照样加。
 

@@ -12,7 +12,7 @@
 | 编号 | 缺口 | 位置 | 后果 | 对应的卡死 |
 | --- | --- | --- | --- | --- |
 | R1 | **内存的「已交出」遮住日志里缺的一步**：`submit` 拿到 Agent 受理后先 `known.note` 再 `handOver`；`handOver` 答 `unavailable` 时事实没进日志，`known` 却已记上。之后 `check()` 里 `waitingInputs(snapshot, known)` 把这条输入当作已交出，什么都不做。`known` 只在 Run 变了才清 | advance.ts:385-388（`recorded`）、known-handovers.ts、advance.ts:612 | 日志里缺「交入」事实，内存认为已交；扫描每次都被遮住 | **不是**第 2 次卡死的原因：`receive unavailable` 在发行里恒定出现（见下「2026-11-25 更正」） |
-| R2 | **有界重试用完即弃**：`invoke`、`submit`、`openRun` 对 `busy / unavailable / commit-unknown` 按 `[1s, 5s, 30s]` 重试，用完只 `report('retries-exhausted')` 就返回；`handOver` 只对 `commit-unknown` 安排认回，`unavailable` 直接丢 | advance.ts:239-246、401-417、516-526、567-570 | 放弃之后要等下一次叫醒；叫醒若也被 R1/R3 遮住，就永久悬置 | 第 1、3 次 |
+| R2 | **有界重试用完即弃**：`invoke`、`submit`、`openRun` 对 `busy / unavailable / commit-unknown` 按 `[1s, 5s, 30s]` 重试，用完只 `report('retries-exhausted')` 就返回；`handOver` 只对 `commit-unknown` 安排认回，`unavailable` 直接丢 | advance.ts:239-246、401-417、516-526、567-570 | 放弃之后等下一次叫醒（周期扫描约 30 秒），义务没有丢 | 不是任何一次卡死的原因（见更正节与末尾的状态表）。第 1 次没有复盘到机制，材料里没有它的证据 |
 | R3 | **「活体存在」被当成「在推进」**：`agent-host-local` 的 `contact` 只要内存里有运行体就答 `live`；拿不出证据时答 `unknown`。`session-adapters` 的 `inspect` 只在 `lost` 时给出失联证据；`recover.ts` 的 `check()` 只在 `handsBack`（挂起，或挂接活着且已失联）时接手，否则返回 | agent-host-local/src/host.ts:921-928；session-adapters/src/cordis/agent-drive.ts:374-381；session/src/recover.ts（`handsBack`、`check`） | 运行体还在但不再推进时，Session 无限等 | 代码事实成立；没有任何现场显示它造成了卡死（见下「2026-11-25 更正」） |
 | R4 | **被取消轮次的推进位不让出**：旧轮取消后 Agent 端实例以 `stale-advance` 停下（10:24:02），新一轮 `invoke` 每次三档重试全答可重试失败（10:24:39、10:25:17、10:25:53 `retries-exhausted`，间隔约 37 s，是扫描 → `replay` → `invoke`）；直到重启才通 | agent-host-local/src/host.ts:480-495：`expire` 只在 `entry.reported.kind === 'idle'` 时回收；被 `stale-advance` 停下的执行留在实例上算未了结（`failedRuns`），实例从不报 idle。日志 10:26:30「ordered stop left 1 unsettled: agent-instance-af8596fd…: quiesce left 1 execution(s) unresolved: run_9bbe5385…」。新一轮按 `sessionSlotReference(session, adoption)` 取同一个槽 | 取消后发新消息，新一轮交不进去 | 第 3 次 |
 | R5 | **永久性失败被当成瞬时失败无限重试**：日志解释对 `required original material is missing` 每 5 s 重试，`call 555` 仍在继续；对 `answered changed` 按 0 ms 紧贴重试 | 日志（run_292f…）；session-adapters 的 journal-interpretation | 无止境的读压（F36、#1640 的放大器）；这一轮永不收场 | s18 测试会话 |
@@ -24,6 +24,8 @@
 | R10 | **一步推进的读量随日志变长**：同一会话每步约 80 次 readWork、60–170 页 history.next，pass.run 从 0.5 s 涨到 2.5–3.7 s；快照仅约 40 KB，读慢在于排队（每域 2 个读线程）。调用方待定位：遥测每个翻页是独立 trace | server.log 11:04:53 一步的窗口；sqlite 只读：会话 9401ad… 2905 条、7.2 MB、5 轮 | 会话越长越慢；放大 #1640 的跨租户饥饿 | I-10 |
 
 ## 2026-11-25 更正：第 2 次卡死的归因，与已有 issue 的关系
+
+> 说明：本节引用的 `evidence/timeline-1005-1028.txt`、`evidence/incident-1140/`、`tmp/skins-three/logs/server.log` 与 R8 的截图 `evidence/omne-crop.png` 是负责人部署上的原始日志与屏幕，含会话内容，没有带进材料；结论都在本文件里。`evidence/tlc-liveness-no-evidence-source.log` 是修订 1 模型的读数，模型源没有保留，只作当时推理的记录。
 
 证据：`evidence/timeline-1005-1028.txt`（服务端日志 10:05–10:28Z）；轨道头 `02a9e3103` 的代码；issue #1195、#1197、#1319 的正文与评论；`evidence/tlc-liveness-no-evidence-source.log`。
 
