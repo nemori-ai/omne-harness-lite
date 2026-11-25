@@ -152,6 +152,7 @@ describe('Skills in a real coding session', () => {
         'Canvas',
         'Code',
         'Files',
+        'Goal',
         'Notifications',
         'OmneExtensionPoints',
         'OmneExtensions',
