@@ -142,6 +142,31 @@ function parseRead(
     : succeed({ kind: 'read_result', arguments: { kind, reference: decoded.ok, after: null } })
 }
 
+function pageSize(count: JsonValue | undefined): number | undefined {
+  const limit = count?.kind === 'number' ? Number(count.lexeme) : NaN
+  return Number.isSafeInteger(limit) && limit >= 1 ? limit : undefined
+}
+
+function narrowing(value: JsonValue | undefined): { programmable?: true } | undefined {
+  if (value === undefined) return {}
+  if (value.kind !== 'boolean') return undefined
+  return value.value ? { programmable: true } : {}
+}
+
+function parseSearch(
+  value: JsonValue,
+): Outcome<ParsedToolsCommand, { kind: 'invalid'; reason: string }> {
+  const map = fields(value, ['query', 'after', 'limit'], ['programmable'])
+  if (map === null) return invalid()
+  const query = text(map.get('query'), true),
+    after = nullableText(map.get('after')),
+    limit = pageSize(map.get('limit')),
+    only = narrowing(map.get('programmable'))
+  return query === undefined || after === undefined || limit === undefined || only === undefined
+    ? invalid()
+    : succeed({ kind: 'search', arguments: { query, after, limit, ...only } })
+}
+
 function parseCommand(
   name: ToolsCommandName,
   value: JsonValue,
@@ -153,20 +178,7 @@ function parseCommand(
       return invalid()
     return succeed({ kind: 'help', command: text(map.get('command')) ?? null })
   }
-  if (name === 'search') {
-    const map = fields(value, ['query', 'after', 'limit'], ['programmable'])
-    if (map === null) return invalid()
-    const query = text(map.get('query'), true),
-      after = nullableText(map.get('after')),
-      count = map.get('limit'),
-      narrowed = map.get('programmable')
-    const limit = count?.kind === 'number' ? Number(count.lexeme) : NaN
-    if (narrowed !== undefined && narrowed.kind !== 'boolean') return invalid()
-    const only = narrowed?.value === true ? { programmable: true as const } : {}
-    return query === undefined || after === undefined || !Number.isSafeInteger(limit) || limit < 1
-      ? invalid()
-      : succeed({ kind: 'search', arguments: { query, after, limit, ...only } })
-  }
+  if (name === 'search') return parseSearch(value)
   const map = fields(
     value,
     name === 'inspect' ? ['name', 'command'] : ['name', 'command', 'arguments'],

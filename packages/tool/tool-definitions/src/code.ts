@@ -10,6 +10,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   programToolsOf,
   type ProgramCallAnswer,
+  type ProgramFunction,
   type ProgramTools,
 } from '@omne-harness/tool-contract'
 import {
@@ -215,6 +216,36 @@ function inputNote(input: JsonValue | undefined): string {
   }
 }
 
+type Picked = Exclude<ReturnType<typeof pickedSource>, string>
+type Prepared = Readonly<{
+  source: string
+  from: string
+  entries: readonly ProgramFunction['entry'][]
+}>
+
+async function prepared(
+  picked: Picked,
+  tools: ProgramTools,
+  sourceBytes: number,
+  failures: Answered['failures'],
+): Promise<Prepared | string> {
+  const reader = 'code' in picked ? succeed([]) : await tools.functions(['Files'])
+  if ('failure' in reader) return `rejected reason=unavailable Code execute: ${reader.failure.kind}`
+  const program =
+    'code' in picked
+      ? givenProgram(picked.code, sourceBytes)
+      : await loadProgram(picked.path, tools, reader.ok, sourceBytes, failures)
+  if ('refusal' in program) throw new Error(program.refusal)
+  const { source, from } = program
+  const named = await tools.functions(namesIn(source))
+  if ('failure' in named) {
+    const text = `rejected reason=unavailable Code execute: ${named.failure.kind}`
+    if (from === '') return text
+    throw new Error(`${text}${fileOf(from)}`)
+  }
+  return { source, from, entries: named.ok.map(one => one.entry) }
+}
+
 async function execute(
   args: Arguments,
   environment: CodeAuthorEnvironment,
@@ -226,26 +257,15 @@ async function execute(
   const tools = programToolsOf(execution)
   if (tools === undefined) return `rejected reason=unavailable Code execute: ${NOT_ATTACHED}`
   const seen: Answered = { failures: new Map(), external: false }
-  const reader = 'code' in picked ? succeed([]) : await tools.functions(['Files'])
-  if ('failure' in reader) return `rejected reason=unavailable Code execute: ${reader.failure.kind}`
-  const program =
-    'code' in picked
-      ? givenProgram(picked.code, sourceBytes)
-      : await loadProgram(picked.path, tools, reader.ok, sourceBytes, seen.failures)
-  if ('refusal' in program) throw new Error(program.refusal)
-  const { source, from } = program
-  const named = await tools.functions(namesIn(source))
-  if ('failure' in named) {
-    const text = `rejected reason=unavailable Code execute: ${named.failure.kind}`
-    if (from === '') return text
-    throw new Error(`${text}${fileOf(from)}`)
-  }
+  const ready = await prepared(picked, tools, sourceBytes, seen.failures)
+  if (typeof ready === 'string') return ready
+  const { source, from } = ready
   const handle = Promise.withResolvers<ProgramRun>()
   const input = args.fields.get('input')
   const started = await environment.program.run({
     source,
     input: input ?? { kind: 'null' },
-    entries: named.ok.map(one => one.entry),
+    entries: ready.entries,
     failures: [PROGRAM_FAILURE],
     limits,
     onCall: caller(tools, inFlight, handle.promise, seen),

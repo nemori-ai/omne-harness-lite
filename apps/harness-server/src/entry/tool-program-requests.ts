@@ -78,6 +78,15 @@ export function createProgramTargetRequests(ports: ProgramRequestPorts) {
   }
 }
 
+function knownAmong(
+  names: readonly string[],
+  entries: readonly Readonly<{ key: Readonly<{ asset: Readonly<{ name: string }> }> }>[],
+  sourced: Readonly<{ owns(name: string): boolean }> | undefined,
+): readonly string[] {
+  const kept = new Set(entries.map(entry => entry.key.asset.name))
+  return [...new Set(names)].filter(name => kept.has(name) || sourced?.owns(name) === true)
+}
+
 /** TL-75: the functions of the tools a program names. Names that are no tool cost nothing; no catalogue is read. */
 export function createProgramFunctions(ports: ProgramRequestPorts) {
   return async (parent: Parent, names: readonly string[]): Reply<readonly ProgramFunction[]> => {
@@ -91,9 +100,7 @@ export function createProgramFunctions(ports: ProgramRequestPorts) {
     const access: Access<unknown> = { principal: parent.principal, tenant: parent.tenant }
     const listed = await view.read(access)
     if ('failure' in listed) return listed
-    const kept = new Set(listed.ok.entries.map(entry => entry.key.asset.name))
-    const sourced = ports.sourced?.()
-    const tools = [...new Set(names)].filter(name => kept.has(name) || sourced?.owns(name) === true)
+    const tools = knownAmong(names, listed.ok.entries, ports.sourced?.())
     if (tools.length === 0) return succeed([])
     const consumer = releaseToolConsumer(release)
     const inspected = await catalog.inspectEach({ ...access, names: tools, consumer })
