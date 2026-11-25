@@ -16,7 +16,6 @@ import {
   workspaceBody,
   workspaceLayerSource,
   workspaceReader,
-  type WorkspaceLayerInput,
 } from '@omne-harness/workspace-asset-source'
 import type { WorkspaceSources } from '@omne-harness/workspace-contract'
 
@@ -137,16 +136,18 @@ export function tenantLayers(
   }
 }
 
-function withWorkspace(tenant: AssetLayers, input: WorkspaceLayerInput<unknown>): AssetLayers {
-  const body = workspaceBody(input)
+export function workspaceLayer(
+  workspace: WorkspaceLayerPorts,
+  access: Access<unknown>,
+  key: string,
+): AssetLayers {
+  const sources = workspace.sources() ?? ABSENT_SOURCES
+  const input = { sources, access, key, contractOf: workspace.contractOf }
   const reader = workspaceReader(input)
   return {
-    sources: [...tenant.sources, workspaceLayerSource(input)],
-    body: candidate => (inWorkspace(candidate.asset) ? body(candidate) : tenant.body(candidate)),
-    readerOf: locator =>
-      inWorkspace(locator.ref)
-        ? reader({ assetRef: locator.ref, version: locator.digest })
-        : tenant.readerOf(locator),
+    sources: [workspaceLayerSource(input)],
+    body: workspaceBody(input),
+    readerOf: locator => reader({ assetRef: locator.ref, version: locator.digest }),
   }
 }
 
@@ -158,6 +159,12 @@ export function turnLayers(
   key: string | null,
 ): AssetLayers {
   if (key === null) return tenant
-  const sources = workspace.sources() ?? ABSENT_SOURCES
-  return withWorkspace(tenant, { sources, access, key, contractOf: workspace.contractOf })
+  const turn = workspaceLayer(workspace, access, key)
+  return {
+    sources: [...tenant.sources, ...turn.sources],
+    body: candidate =>
+      inWorkspace(candidate.asset) ? turn.body(candidate) : tenant.body(candidate),
+    readerOf: locator =>
+      inWorkspace(locator.ref) ? turn.readerOf(locator) : tenant.readerOf(locator),
+  }
 }

@@ -2,13 +2,14 @@ import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameCapability, type CatalogEntry, type SkillCatalog } from '@omne-harness/skill-contract'
 import type { CatalogResolution } from '@omne-harness/skill-contract/provider'
-import { buildCorpus, rank, type RankingParameters } from '@omne-harness/text-search'
+import { buildCorpus, rank, type Corpus, type RankingParameters } from '@omne-harness/text-search'
 import { answered, parseLawfulSet, parseVerdict } from './port-answer.ts'
 import type { SkillPorts } from './ports.ts'
 
 type Listing = Outcome<readonly CatalogEntry[], 'unknown'>
 
 const UNKNOWN = Object.freeze({ failure: 'unknown' } as const)
+const CORPORA_KEPT = 16
 
 function byIdentity(left: CatalogEntry, right: CatalogEntry): number {
   const a = left.capability
@@ -89,12 +90,30 @@ function documentsOf(entries: readonly CatalogEntry[]) {
   }))
 }
 
+/** The corpus of the same documents is built once; the least recently used is let go past a few. */
+function corpora(): (entries: readonly CatalogEntry[]) => Corpus {
+  const kept = new Map<string, Corpus>()
+  return entries => {
+    const documents = documentsOf(entries)
+    const key = JSON.stringify(documents)
+    const known = kept.get(key) ?? buildCorpus(documents)
+    kept.delete(key)
+    kept.set(key, known)
+    for (const oldest of kept.keys()) {
+      if (kept.size <= CORPORA_KEPT) break
+      kept.delete(oldest)
+    }
+    return known
+  }
+}
+
 function ranked(
+  corpus: Corpus,
   entries: readonly CatalogEntry[],
   text: string,
   ranking: RankingParameters,
 ): readonly CatalogEntry[] {
-  const order = rank(buildCorpus(documentsOf(entries)), text, ranking)
+  const order = rank(corpus, text, ranking)
   return order.flatMap(name => entries.filter(entry => entry.capability.name === name))
 }
 
@@ -104,6 +123,9 @@ export function createSkillCatalog<P, S>(
 ): SkillCatalog<P, S> {
   const ranking = Object.freeze({ ...options.ranking })
   rank(buildCorpus([]), '', ranking)
+  const corpusOf = corpora()
+  const ordered = (entries: readonly CatalogEntry[], text: string) =>
+    ranked(corpusOf(entries), entries, text, ranking)
   const listing = async (
     access: Access<P>,
     scope: S,
@@ -125,8 +147,8 @@ export function createSkillCatalog<P, S>(
       )
     },
     async search(access, scope, query) {
-      const granted = await listing(access, scope, lawful => ranked(lawful, query.text, ranking))
-      return 'ok' in granted ? succeed(ranked(granted.ok, query.text, ranking)) : granted
+      const granted = await listing(access, scope, lawful => ordered(lawful, query.text))
+      return 'ok' in granted ? succeed(ordered(granted.ok, query.text)) : granted
     },
   }
 }

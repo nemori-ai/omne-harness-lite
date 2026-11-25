@@ -35,6 +35,7 @@ describe('hygiene-document-allowlist', () => {
     'packages/model/model-contract/verification/models/formal-mapping.md',
     'packages/model/tokenizer-tiktoken/verification/proofs/executor.md',
     'packages/plugin/plugin-host-local/skills/skin-authoring/SKILL.md',
+    'packages/skills/skill-host-local/skills/skill-authoring/references/format.md',
   ])('accepts %s', path => {
     expect(isAllowedDocument(path, open)).toBe(true)
   })
@@ -56,6 +57,8 @@ describe('hygiene-document-allowlist', () => {
     'packages/session/session-contract/verification/proofs/README.md',
     'tmp/card/plan.md',
     'packages/plugin/plugin-host-local/skills/skin-authoring/notes.md',
+    'packages/skills/skill-host-local/skills/skill-authoring/references/deep/format.md',
+    'packages/skills/skill-host-local/skills/skill-authoring/scripts/notes.md',
     'packages/plugin/plugin-host-local/skills/SKILL.md',
     'packages/plugin/skills/skin-authoring/SKILL.md',
   ])('rejects %s', path => {

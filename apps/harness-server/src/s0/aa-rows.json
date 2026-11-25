@@ -162,6 +162,7 @@
       "names": [
         "storage",
         "tenantDomainLookup",
+        "tenantDomainRegistration",
         "principalVerifier",
         "tenantStanding"
       ]
