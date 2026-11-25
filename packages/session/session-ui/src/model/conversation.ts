@@ -294,6 +294,15 @@ const commandItem: ItemFrom = (walk, entry) => {
   return { kind: 'marker', key: entry.entryId, label, failedRun: null }
 }
 
+/** The session froze: which resident tool lost the shape it was adopted with; the session takes no new turn after it. */
+const frozenItem: ItemFrom = (walk, entry) => {
+  const { payload } = entry
+  const tool = isRecord(payload) ? textOf(payload['capability']) : undefined
+  if (tool === undefined) return unknownItem(walk, entry)
+  const label = `会话已冻结：常驻工具 ${tool} 的新版与原来的参数不同，原来那一版已用不了。之后不再开始新的一轮`
+  return { kind: 'marker', key: entry.entryId, label, failedRun: null }
+}
+
 const terminalItem: ItemFrom = (walk, entry) => {
   for (const callId of walk.openCalls.splice(0)) walk.endedCalls.add(callId)
   return terminalMarker(entry)
@@ -309,6 +318,7 @@ const ENTRY_ITEM: ReadonlyMap<string, ItemFrom> = new Map([
   ['run.started', markerItem('新的一轮开始')],
   ['run.terminal', terminalItem],
   ['session.command-recorded', commandItem],
+  ['session.frozen', frozenItem],
 ])
 
 export function conversationItems(content: Content, runActive: boolean): readonly Item[] {

@@ -16,6 +16,7 @@ it('an indivisible final batch exceeding capacity leaves neither freeze nor rele
           operation: operationId('large-freeze'),
           verdict: {
             cause: 'tool-shape-lost',
+            capability: 'probe',
             evidence: { ...evidence('freeze'), record: 'large-original-proof'.repeat(131072) },
           },
         },

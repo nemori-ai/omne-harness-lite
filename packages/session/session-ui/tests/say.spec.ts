@@ -277,7 +277,7 @@ describe('结局是对状态的一次读', () => {
   it('已打开，被拒、连不上、已确认没有受理：没发出，原因是这条输入上的那一句', () => {
     expect(sayFate(answered('frozen'), SAID_S)).toEqual({
       kind: 'failed',
-      reason: '没有发出：这个会话已冻结，暂时不能发消息。',
+      reason: '没有发出：这个会话已冻结，不能再发消息。',
     })
     expect(sayFate(answered('unavailable'), SAID_S)).toEqual({
       kind: 'failed',

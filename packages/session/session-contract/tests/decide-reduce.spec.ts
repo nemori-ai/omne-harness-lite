@@ -661,7 +661,12 @@ describe('the pure judgments at their edges', () => {
     })
     const frozen = {
       ...dormant(),
-      frozen: { cause: 'tool-shape-lost' as const, evidence: evidence('f'), commit: evidence('c') },
+      frozen: {
+        cause: 'tool-shape-lost' as const,
+        capability: 'probe',
+        evidence: evidence('f'),
+        commit: evidence('c'),
+      },
     }
     expect(routeInput(frozen, ordinaryInput('d'))).toEqual({ kind: 'rejected', reason: 'frozen' })
     expect(

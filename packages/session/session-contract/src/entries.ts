@@ -250,7 +250,7 @@ export type SessionEntry =
   | Readonly<{ kind: 'session.command-recorded'; name: string; args: string }>
   | Readonly<{ kind: 'session.child-recorded'; child: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'session.idle-evidence'; observation: IdleObservation | null }>
-  | Readonly<{ kind: 'session.frozen'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'session.frozen'; capability: string; evidence: DurableEvidence }>
   | Readonly<{ kind: 'intake.released'; inputs: readonly InputId[] }>
   | Readonly<{ kind: 'intake.routed'; task: Extract<RecoveryTask, { kind: 'routed-input' }> }>
   | Readonly<{

@@ -62,7 +62,7 @@ describe('loading a tool a tenant published, on the release tree', () => {
           version: `sha256:${'0'.repeat(64)}`,
         })
         expect(await generations.ensureLoaded({ authority: forged, access })).toMatchObject({
-          failure: { kind: 'invalid', reason: 'the tenant holds another version now' },
+          failure: { kind: 'missing' },
         })
         const unheld = heldToolAuthority(tenant, 'nosuch', standing.candidate)
         expect(await generations.ensureLoaded({ authority: unheld, access })).toMatchObject({
@@ -91,7 +91,7 @@ describe('loading a tool a tenant published, on the release tree', () => {
         expect(second).not.toBe(standing.candidate.version)
         expect(liveVersions(tree)).toEqual([second])
         expect(await generations.ensureLoaded({ authority: first, access })).toMatchObject({
-          failure: { kind: 'invalid', reason: 'the tenant holds another version now' },
+          failure: { kind: 'missing' },
         })
 
         // Disabled: it is not loaded, and what was loaded is taken down; enabled again, it is back.

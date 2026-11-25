@@ -8,6 +8,7 @@ import { mcpEndpointGates } from '@omne-harness/mcp-contract'
 import { residentToolFacts } from '@omne-harness/tool-contract'
 import type {
   DurableEvidence,
+  FreezeVerdict,
   ResidentAdoption,
   ResidentSegment,
   ResidentTool,
@@ -18,8 +19,10 @@ import type {
 import { residentSkillLine, residentSkillsText } from '@omne-harness/skill'
 import { skillBodyContract } from '@omne-harness/skill-contract'
 import {
+  sameBindingKey,
   shapeOf,
   type ToolAuthority,
+  type ToolBindingKey,
   type ToolSourceEntry,
 } from '@omne-harness/tool-contract/provider'
 import {
@@ -34,14 +37,17 @@ import type { ResidentReference } from '../agent-adoptions/definition-mappings.t
 import { TOOL_CATEGORY } from '../agent-adoptions/table.ts'
 import { ResidentEndpointsService, residentEndpointsKey } from '../mcp/resident-endpoints.ts'
 import { SessionSkillsService, sessionSkillsKey } from '../skills/session-skills.ts'
+import { candidateOfRevision } from '../tenant-assets/layers.ts'
 import type { Turn } from '../tenant-assets/turn.ts'
 import { currentHeldTool } from '../tool-host/held-current.ts'
+import { HELD_TOOL_OWNER, heldToolAuthority } from '../tool-host/held-tools.ts'
 import { createAdoptionPlanner, type AdoptionDefinition } from './planner.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
 type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
-export type ResidentsAnswer = Outcome<ResidentAdoption, SessionFailure>
+export type PlannedResidents = ResidentAdoption & Readonly<{ verdict?: FreezeVerdict }>
+export type ResidentsAnswer = Outcome<PlannedResidents, SessionFailure>
 
 const unavailable = (diagnostic: string): ResidentsAnswer =>
   fail({ kind: 'unavailable', owner: OWNER, diagnostic: `resident tools: ${diagnostic}` })
@@ -108,13 +114,44 @@ const NOTHING_KEPT: KeptResidents = Object.freeze({ residents: [], segments: [],
 const namesOf = (references: readonly ResidentReference[], category: string) =>
   references.filter(reference => reference.category === category).map(({ name }) => name)
 
+/** The authority a recorded version loads under: the release entry when it is that very version, or the tenant's holding of it. */
+function authorityOf(release: Trusted, key: ToolBindingKey): ToolAuthority | undefined {
+  const named =
+    key.layer.kind === 'official'
+      ? releaseDefinitionOf(release, key.asset.name)?.authority
+      : key.layer.kind === 'tenant' && key.asset.adoption.owner === HELD_TOOL_OWNER
+        ? heldToolAuthority(
+            key.layer.tenant,
+            key.asset.name,
+            candidateOfRevision(key.asset.adoption.revision, key.asset.adoption.digest),
+          )
+        : undefined
+  return named !== undefined && sameBindingKey({ layer: named.layer, asset: named.asset }, key)
+    ? named
+    : undefined
+}
+
+type RecordedTool = Readonly<{ capability: string; key: string; shape: ResidentTool['shape'] }>
+
+/** The tools a session keeps by its registry keys, as the planner judges them again; source entries have no key. */
+function recordedTools(kept: KeptResidents): readonly RecordedTool[] {
+  const keys = new Map((kept.residentKeys ?? []).map(pair => [pair.capability, pair.key]))
+  return kept.residents.flatMap(resident => {
+    const key = keys.get(resident.capability)
+    return resident.definition !== undefined || key === undefined
+      ? []
+      : [{ capability: resident.capability, key, shape: resident.shape }]
+  })
+}
+
 async function plannedTools<P>(
   ctx: Context,
   capabilities: readonly string[],
   access: SessionAccess<P> | undefined,
   turn: Turn | null,
+  recorded: readonly RecordedTool[] = [],
 ): Promise<ResidentsAnswer> {
-  if (capabilities.length === 0) return succeed(NO_RESIDENTS)
+  if (capabilities.length === 0 && recorded.length === 0) return succeed(NO_RESIDENTS)
   if (access === undefined) return unavailable('the create carries no access to plan them with')
   const release = releaseOf(ctx)
   if (release.kind !== 'trusted') return unavailable(`tool release: ${release.diagnostic}`)
@@ -126,22 +163,34 @@ async function plannedTools<P>(
     if (typeof definition === 'string') return unavailable(definition)
     definitions.set(capability, definition)
   }
+  // Each kept one is loaded as it stands now, so a newer version can win; one not to be read now is judged without it.
+  for (const { capability } of recorded) {
+    const definition =
+      releaseDefinitionOf(release, capability) ??
+      (await heldDefinitionOf(ctx, access, capability, turn))
+    if (typeof definition !== 'string') definitions.set(capability, definition)
+  }
   if (current(ctx, toolBindingsKey, ToolBindingsService) === undefined)
     return unavailable('the tool binding registry (toolBindings) is absent')
   const planner = createAdoptionPlanner<P>({
     readBindings: () => current(ctx, toolBindingsKey, ToolBindingsService) as never,
     readGenerations: () => current(ctx, toolGenerationsKey, ToolGenerationsService) as never,
     definitionFor: capability => definitions.get(capability),
+    authorityOf: key => authorityOf(release, key),
   })
-  const planned = await planner.plan(access, { recorded: [], capabilities })
+  const planned = await planner.plan(access, { recorded, capabilities })
   if ('failure' in planned)
     return unavailable(
-      `${capabilities.join(', ')} could not be planned: each needs exactly one live contribution ` +
-        'readable to this tenant, or a first load that the tool generations coordinator admits',
+      `${[...recorded.map(item => item.capability), ...capabilities].join(', ')} could not be ` +
+        'planned: each needs exactly one live contribution readable to this tenant, or a first ' +
+        'load that the tool generations coordinator admits',
     )
-  const { material } = planned.ok
+  const { material, verdict } = planned.ok
+  if (verdict !== null) return succeed({ ...material, verdict })
   const covered = new Set(material.keys.map(pair => pair.capability))
-  const missing = capabilities.filter(capability => !covered.has(capability))
+  const missing = [...recorded.map(item => item.capability), ...capabilities].filter(
+    capability => !covered.has(capability),
+  )
   if (missing.length > 0 || material.residents.length !== capabilities.length)
     return unavailable(`the plan left out ${missing.join(', ') || 'a first definition'}`)
   return succeed(material)
@@ -267,8 +316,10 @@ export async function plannedResidents<P>(
     namesOf(references, TOOL_CATEGORY).filter(name => !keptTools.has(name)),
     access,
     turn,
+    recordedTools(kept),
   )
   if ('failure' in tools) return tools
+  if (tools.ok.verdict !== undefined) return tools
   const endpoints = await plannedEndpoints(
     ctx,
     namesOf(references, ENDPOINT_CATEGORY),
@@ -283,9 +334,13 @@ export async function plannedResidents<P>(
     kept.segments?.find(item => item.key === SKILLS_SEGMENT),
     report,
   )
+  const judged = new Set(tools.ok.keys.map(pair => pair.capability))
   return succeed({
     residents: [...tools.ok.residents, ...endpoints],
-    keys: [...(kept.residentKeys ?? []), ...tools.ok.keys],
+    keys: [
+      ...(kept.residentKeys ?? []).filter(pair => !judged.has(pair.capability)),
+      ...tools.ok.keys,
+    ],
     ...(segment === undefined ? {} : { segments: [segment] }),
   })
 }

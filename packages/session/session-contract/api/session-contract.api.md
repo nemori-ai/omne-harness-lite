@@ -1685,6 +1685,7 @@ export type SessionEntry = Readonly<{
     observation: IdleObservation | null;
 }> | Readonly<{
     kind: 'session.frozen';
+    capability: string;
     evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'intake.released';
@@ -4151,8 +4152,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:e4af7a486bd74fe8c41ac49b06f46e2f85acf4251ad5c2827d6f6dd0f9d1fb9f";
-export declare const SESSION_RELEASE_DIGEST = "sha256:e4af7a486bd74fe8c41ac49b06f46e2f85acf4251ad5c2827d6f6dd0f9d1fb9f";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:0fac84ba4686769c68610e4d3e8072736009abe144bb7e35db1627ebf0a52430";
+export declare const SESSION_RELEASE_DIGEST = "sha256:0fac84ba4686769c68610e4d3e8072736009abe144bb7e35db1627ebf0a52430";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -5252,6 +5253,7 @@ export type ResidentSegmentSource = Readonly<{
 }>;
 export type SessionFrozen = Readonly<{
     cause: 'tool-shape-lost';
+    capability: string;
     evidence: DurableEvidence;
     commit: DurableEvidence;
 }>;
@@ -5725,6 +5727,7 @@ export type AutoArchivePolicy = Readonly<{
 }>;
 export type FreezeVerdict = Readonly<{
     cause: 'tool-shape-lost';
+    capability: string;
     evidence: DurableEvidence;
 }>;
 export type WorkSnapshot = Readonly<{

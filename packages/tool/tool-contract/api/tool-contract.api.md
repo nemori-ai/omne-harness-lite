@@ -192,6 +192,7 @@
 - `commandMenu` · `command-call.d.ts`
 - `declaredReturn` · `return-description.d.ts`
 - `decodeCommandCallText` · `command-call.d.ts`
+- `decodeResidentKey` · `resident-key.d.ts`
 - `decodeToolCallId` · `identity.d.ts`
 - `decodeToolOperationId` · `identity.d.ts`
 - `describeCommandCallRejection` · `command-call.d.ts`
@@ -2649,7 +2650,7 @@ export { judgeToolDelivery } from './result-delivery.ts';
 export type { ToolDelivery, ToolDeliveryFailure, ToolDeliveryKey, ToolDeliveryRejection, ToolResultReceiver, ToolSavedReceipt, } from './result-delivery.ts';
 export { backgroundCallsBlock, backgroundCallsSchema } from './background-calls.ts';
 export type { ToolBackgroundCallsValue } from './background-calls.ts';
-export { encodeResidentKey, projectResidentReferences, residentToolFacts } from './resident-key.ts';
+export { decodeResidentKey, encodeResidentKey, projectResidentReferences, residentToolFacts, } from './resident-key.ts';
 export type { ResidentHolderPage, ResidentKeyFailure, ResidentReferencesPage, } from './resident-key.ts';
 export { commandCallSchema, commandMenu, decodeCommandCallText, describeCommandCallRejection, selectCommandText, } from './command-call.ts';
 export type { CommandCall, CommandCallEncoding, CommandCallRejection, CommandShape, CommandTable, IntentFault, } from './command-call.ts';
@@ -4239,6 +4240,7 @@ export type ResidentHolderPage = Readonly<{
     next: string | null;
 }>;
 export declare function encodeResidentKey(key: ToolBindingKey): Outcome<string, ResidentKeyFailure>;
+export declare function decodeResidentKey(encoded: string): Outcome<ToolBindingKey, ResidentKeyFailure>;
 export declare function residentToolFacts(key: ToolBindingKey, shape: ToolShape): Outcome<Readonly<{
     capability: string;
     key: string;

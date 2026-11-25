@@ -168,7 +168,12 @@ export type {
 
 export { backgroundCallsBlock, backgroundCallsSchema } from './background-calls.ts'
 export type { ToolBackgroundCallsValue } from './background-calls.ts'
-export { encodeResidentKey, projectResidentReferences, residentToolFacts } from './resident-key.ts'
+export {
+  decodeResidentKey,
+  encodeResidentKey,
+  projectResidentReferences,
+  residentToolFacts,
+} from './resident-key.ts'
 export type {
   ResidentHolderPage,
   ResidentKeyFailure,

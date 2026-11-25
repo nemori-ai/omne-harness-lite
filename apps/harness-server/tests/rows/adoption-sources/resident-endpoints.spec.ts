@@ -232,7 +232,7 @@ describe('a resident endpoint that cannot be taken as it is', () => {
 })
 
 describe('a definition that gains a resident endpoint: what the next adoption point adds', () => {
-  it('adds only the endpoint the session does not keep, and never plans the kept one again', async () => {
+  it('adds only the endpoint the session does not keep, and never plans the kept endpoint again', async () => {
     const { fixture, asked } = await sourceWith(withEndpoints('docs'), name => ({
       kind: 'entry',
       entry: endpointEntry(name.slice(5)),
@@ -244,29 +244,21 @@ describe('a definition that gains a resident endpoint: what the next adoption po
       admitted: { owner: 'o', record: 'mcp/docs', revision: '1', digest: 'sha256:old' },
       definition: { kind: 'null' },
     }
-    const keptFiles: ResidentTool = {
-      capability: 'Files',
-      version: '1',
-      shape: { kind: 'null' },
-      admitted: { owner: 'o', record: 'Files', revision: '1', digest: 'sha256:files' },
-    }
-    const filesKey = { capability: 'Files', key: 'files-key' as never }
     const planned = await plannedResidents(
       fixture.root,
       [
-        { category: 'tool', name: 'Files' },
         { category: 'mcp', name: 'docs' },
         { category: 'mcp', name: 'more' },
       ],
       access,
       () => {},
       null,
-      { residents: [kept, keptFiles], residentKeys: [filesKey] },
+      { residents: [kept], residentKeys: [] },
     )
     if (!('ok' in planned)) throw new Error(JSON.stringify(planned))
-    // A tool and an endpoint the session keeps are not planned again; the keys it has stay.
+    // An endpoint the session keeps is a source entry: it is not planned again, and has no registry key.
     expect(planned.ok.residents.map(item => item.capability)).toEqual(['mcp__more'])
-    expect(planned.ok.keys).toEqual([filesKey])
+    expect(planned.ok.keys).toEqual([])
     expect(asked.map(item => item.name)).toEqual(['mcp__more'])
   })
 })

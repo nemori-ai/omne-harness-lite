@@ -21,6 +21,7 @@ it('exports on the root only the names members outside the Tool group import, an
     'commandMenu',
     'declaredReturn',
     'decodeCommandCallText',
+    'decodeResidentKey',
     'decodeToolCallId',
     'decodeToolOperationId',
     'describeCommandCallRejection',

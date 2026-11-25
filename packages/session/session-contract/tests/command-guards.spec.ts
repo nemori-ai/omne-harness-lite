@@ -65,7 +65,7 @@ describe('freeze on a session that is already frozen', () => {
       input: {
         ...address,
         operation: operationId(name),
-        verdict: { cause: 'tool-shape-lost', evidence: evidence('lost') },
+        verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('lost') },
       },
     }) as Extract<SessionCommand, { kind: 'freeze' }>
 

@@ -41,7 +41,7 @@ import { prepareInitialContext, type PreparedBlock } from './initial-context.ts'
 import { jsonOf } from './json.ts'
 import { recallInitialContext } from './recall-context.ts'
 import { lastTurnOf, madeFrom, type Turn } from '../tenant-assets/turn.ts'
-import { plannedResidents, type ResidentReport } from './residents.ts'
+import { plannedResidents, type PlannedResidents, type ResidentReport } from './residents.ts'
 import { TOOL_CATEGORY } from '../agent-adoptions/table.ts'
 import { adoptForStartedRun, adoptWorkspace, type RunSourcesPorts } from './run-sources.ts'
 
@@ -52,6 +52,14 @@ export const MAPPING_EVIDENCE_PROTOCOL = Object.freeze({
   name: 'definition-mapping-evidence',
   revision: '1',
   digest: 'harness-server:definition-mapping-evidence/1',
+})
+
+/** What a freeze is committed on: the verdict the Tool's function gave at the adoption point, as it was given. */
+export const FREEZE_EVIDENCE_PROTOCOL = Object.freeze({
+  owner: OWNER,
+  name: 'resident-freeze-evidence',
+  revision: '1',
+  digest: 'harness-server:resident-freeze-evidence/1',
 })
 
 export const MAPPING_LOOKUP_SCHEMA = Object.freeze({
@@ -324,15 +332,21 @@ async function definitionEvidence<P>(
   return succeed([materialOf(mappings, command.kind, read.entry)])
 }
 
-/** The residents a changed definition adds, planned over the ones the session already keeps. */
-async function addedResidents<P>(
+const sameKeys = (left: ResidentAdoption['keys'], right: ResidentAdoption['keys']) =>
+  left.length === right.length &&
+  left.every(pair =>
+    right.some(other => other.capability === pair.capability && other.key === pair.key),
+  )
+
+/** What the residents of the definition come to now, judged over the ones the session keeps; nothing when nothing changed. */
+async function judgedResidents<P>(
   ctx: Context,
   work: WorkSnapshot,
   entry: DefinitionMappingEntry,
   access: SessionAccess<P>,
   turn: Turn | null,
   report: ResidentReport,
-): Promise<Outcome<ResidentAdoption | undefined, SessionFailure>> {
+): Promise<Outcome<PlannedResidents | undefined, SessionFailure>> {
   const planned = await plannedResidents(
     ctx,
     entry.residentReferences ?? [],
@@ -342,8 +356,13 @@ async function addedResidents<P>(
     work,
   )
   if ('failure' in planned) return planned
-  const { residents, segments } = planned.ok
-  return succeed(residents.length === 0 && segments === undefined ? undefined : planned.ok)
+  const { residents, segments, keys, verdict } = planned.ok
+  const unchanged =
+    verdict === undefined &&
+    residents.length === 0 &&
+    segments === undefined &&
+    sameKeys(keys, work.residentKeys ?? [])
+  return succeed(unchanged ? undefined : planned.ok)
 }
 
 /** What a run that starts now adopts: the version in force under the name of its definition. */
@@ -371,11 +390,10 @@ async function runAdoption<P>(
       )
     entry = read.entry
   }
-  if (same(entry.candidate, pinned)) return succeed({ candidate: pinned })
-  const residents = await addedResidents(ctx, work, entry, access, turn, runSources.leftOut)
+  const residents = await judgedResidents(ctx, work, entry, access, turn, runSources.leftOut)
   if ('failure' in residents) return residents
   return succeed({
-    candidate: entry.candidate,
+    candidate: same(entry.candidate, pinned) ? pinned : entry.candidate,
     ...(residents.ok === undefined ? {} : { residentAdoption: residents.ok }),
   })
 }
@@ -423,9 +441,25 @@ async function prepareFrom<P>(
     case 'startRun':
     case 'reload':
       return definitionEvidence(runSources, mappings, command, access)
+    case 'freeze': {
+      const { verdict } = command.input
+      return succeed([
+        {
+          owner: 'resident-adoption',
+          participant: 'session-evidence',
+          protocol: FREEZE_EVIDENCE_PROTOCOL,
+          facts: jsonOf({
+            version: 1,
+            command: 'freeze',
+            cause: verdict.cause,
+            capability: verdict.capability,
+            evidence: verdict.evidence,
+          }),
+        },
+      ])
+    }
     case 'completeInitialization':
     case 'change':
-    case 'freeze':
       return succeed([])
   }
 }

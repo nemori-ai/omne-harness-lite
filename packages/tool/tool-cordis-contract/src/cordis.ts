@@ -181,12 +181,16 @@ export type ToolAuthorityFailure =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'invalid'; reason: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  /** The version is no longer the one its holder holds: the holding as it stands now is the durable evidence. */
+  | Readonly<{ kind: 'missing'; evidence: DurableEvidence }>
+/** What refuses a contribution outright: a version no longer held is refused at loading, never here. */
+export type Refusal = Exclude<ToolAuthorityFailure, { kind: 'missing' }>
 export interface ToolContributionAuthority<P> {
   verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>
   admits(
     access: Access<P>,
     layer: SourceLayer,
-  ): Outcome<void, Exclude<ToolAuthorityFailure, { kind: 'invalid' }>>
+  ): Outcome<void, Exclude<ToolAuthorityFailure, { kind: 'invalid' | 'missing' }>>
 }
 
 /** @owner packages/tool/tool-cordis-contract */

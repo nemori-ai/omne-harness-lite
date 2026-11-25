@@ -10,7 +10,11 @@ import { decide } from '@omne-harness/session-contract'
 import { evidence, operationId, refused } from '@omne-harness/session-contract/testing'
 import { open, scene } from './scene.ts'
 
-const verdict: FreezeVerdict = { cause: 'tool-shape-lost', evidence: evidence('tool/lost') }
+const verdict: FreezeVerdict = {
+  cause: 'tool-shape-lost',
+  capability: 'probe',
+  evidence: evidence('tool/lost'),
+}
 const empty: ResidentAdoption = { residents: [], keys: [] }
 const reads = { compaction: null }
 

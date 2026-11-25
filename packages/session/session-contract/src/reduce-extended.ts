@@ -155,7 +155,12 @@ function applyFrozen(
   if (draft.tasks.some(task => task.kind === 'initialization'))
     return 'session frozen before every initialization item was ready'
   if (draft.frozen !== null) return 'a second freeze'
-  draft.frozen = { cause: 'tool-shape-lost', evidence: entry.evidence, commit: source }
+  draft.frozen = {
+    cause: 'tool-shape-lost',
+    capability: entry.capability,
+    evidence: entry.evidence,
+    commit: source,
+  }
   return null
 }
 
