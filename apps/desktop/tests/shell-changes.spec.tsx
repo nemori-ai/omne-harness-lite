@@ -507,6 +507,32 @@ describe('where the focus is held, and where it is given back', () => {
     expect(select).not.toHaveBeenCalled()
   })
 
+  it('keeps the selection to fields that have one on both sides, when the kind of field changed with the drawing', () => {
+    page('<div data-omne-part="a.b"><input type="checkbox" /></div>')
+    the<HTMLInputElement>('input').focus()
+    const box = heldFocus(document)!
+    redraw('a.b', '<div data-omne-part="a.b"><input value="text" /></div>')
+    expect(() => giveBack(document, box)).not.toThrow()
+    expect(document.activeElement).toBe(the('input'))
+    the<HTMLInputElement>('input').setSelectionRange(1, 3)
+    const text = heldFocus(document)!
+    redraw('a.b', '<div data-omne-part="a.b"><input type="checkbox" /></div>')
+    const select = vi.spyOn(HTMLInputElement.prototype, 'setSelectionRange')
+    giveBack(document, text)
+    expect(document.activeElement).toBe(the('input'))
+    expect(select).not.toHaveBeenCalled()
+  })
+
+  it('is held by nothing where the page has no element with the focus', () => {
+    page('<div data-omne-part="a.b"><textarea>hi</textarea></div>')
+    the<HTMLTextAreaElement>('textarea').focus()
+    const none = new Proxy(document, {
+      get: (target, key) =>
+        key === 'activeElement' ? null : (Reflect.get(target, key, target) as unknown),
+    })
+    expect(heldFocus(none)).toBeNull()
+  })
+
   it('goes back where the page has no element with the focus at all', () => {
     page('<div data-omne-part="a.b"><textarea>hi</textarea></div>')
     the<HTMLTextAreaElement>('textarea').focus()

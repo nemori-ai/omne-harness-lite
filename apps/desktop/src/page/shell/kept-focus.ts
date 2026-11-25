@@ -34,11 +34,12 @@ function selectionOf(node: Element): Selection | null {
 
 export function heldFocus(doc: Document): HeldFocus | null {
   const node = doc.activeElement
-  const host = node?.closest(`[${PART_ATTRIBUTE}]`)
-  if (node === null || host === null || host === undefined) return null
+  if (node === null) return null
+  const host = node.closest(`[${PART_ATTRIBUTE}]`)
+  if (host === null) return null
   return {
     part: String(host.getAttribute(PART_ATTRIBUTE)),
-    index: host === node ? -1 : [...host.querySelectorAll(FOCUSABLE)].indexOf(node),
+    index: [...host.querySelectorAll(FOCUSABLE)].indexOf(node),
     tag: node.tagName,
     selection: selectionOf(node),
   }

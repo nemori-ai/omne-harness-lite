@@ -89,6 +89,16 @@ describe('随身入口的小框：展开与收起', () => {
     expect(figure().getAttribute('aria-expanded')).toBe('false')
   })
 
+  it('展开时按形象：这一下不算在别处，形象自己的点按把小框收起', async () => {
+    await unfolded(createFakeClient())
+    fireEvent.pointerDown(figure())
+    await settle()
+    expect(figure().getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(figure())
+    await settle()
+    expect(figure().getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('被拖起来时收起', async () => {
     const made = await unfolded(createFakeClient())
     act(() => made.rerender(TENANT, { corner: { x: 'end', y: 'end' }, dragging: true }))

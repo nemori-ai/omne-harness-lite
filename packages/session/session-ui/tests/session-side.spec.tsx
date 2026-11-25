@@ -369,6 +369,17 @@ it('墨框里的项经 portal 打开的东西（菜单、下拉）按下不收�
   expect(control().getAttribute('aria-expanded')).toBe('false')
 })
 
+it('墨框开着时按对话头的控件：这一下不算在别处，控件自己的点按把墨框收起', async () => {
+  stubRoom(1100, boxes)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
+  fireEvent.click(control())
+  fireEvent.pointerDown(control(), { button: 0 })
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  fireEvent.click(control())
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+})
+
 /** Enter on the focused control: the browser's keyboard activation is a keydown, then a click. */
 function openFromKeyboard(): void {
   act(() => control().focus())
