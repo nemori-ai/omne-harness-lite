@@ -252,6 +252,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'secret-custody',
               'notification',
               'dispatch',
+              'goal',
               'canvas',
               'workspace',
               'session-history-index',

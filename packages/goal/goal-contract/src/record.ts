@@ -6,7 +6,6 @@ import { GoalStateSchema, type GoalState } from './state.ts'
 export const ProvenanceSchema = z.strictObject({
   revision: z.int().positive(),
   via: z.enum(['card', 'direct']),
-  /** The person's own words this revision came from, when there were any. */
   words: z.string().nullable(),
   draftedBy: z.enum(['agent', 'person', 'creator']),
   confirmedBy: z.string().min(1),
@@ -14,7 +13,6 @@ export const ProvenanceSchema = z.strictObject({
   operation: z.string().min(1),
   at: z.string().min(1),
 })
-/** Where one revision came from: who drafted it, who confirmed it, by which way in, and when. */
 export type Provenance = z.infer<typeof ProvenanceSchema>
 
 export const WakeSchema = z.strictObject({
@@ -42,7 +40,6 @@ export const CardBaseSchema = z.strictObject({
   revision: z.int().nonnegative(),
   live: z.boolean(),
 })
-/** What a confirmation card was drafted against: the goal, its revision, and whether it was still live. */
 export type CardBase = z.infer<typeof CardBaseSchema>
 
 export function baseOf(state: GoalState): CardBase {

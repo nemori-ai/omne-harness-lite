@@ -95,6 +95,8 @@
     "dispatch",
     "dispatch-session",
     "dispatch-tool",
+    "goal",
+    "goal-session",
     "canvas",
     "session-canvas",
     "media-canvas",
@@ -499,6 +501,21 @@
       "row": "dispatch-tool",
       "names": [
         "dispatchPrincipal"
+      ]
+    },
+    {
+      "row": "goal",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal"
+      ]
+    },
+    {
+      "row": "goal-session",
+      "names": [
+        "goalPrincipal"
       ]
     },
     {

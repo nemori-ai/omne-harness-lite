@@ -12,7 +12,6 @@ export type Outcome<T, R> =
 /** Who calls. The subject is opaque here: the authority of the assembly judges it on every call. */
 export type GoalCaller = Readonly<{ tenant: string; subject: unknown }>
 
-/** A body to set, or a set of changes by number to the body that stands. */
 export type Proposal =
   | Readonly<{ kind: 'set'; draft: unknown }>
   | Readonly<{ kind: 'revise'; changes: unknown }>

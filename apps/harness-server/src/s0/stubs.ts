@@ -74,6 +74,16 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   'dispatch-tool': { provides: [], injects: ['dispatchPrincipal'], phase: 'composition' },
+  goal: {
+    provides: ['goals', 'goalReconciling'],
+    injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
+    phase: 'composition',
+  },
+  'goal-session': {
+    provides: [],
+    injects: ['session', 'sessionInputSources', 'goalPrincipal'],
+    phase: 'composition',
+  },
   canvas: {
     provides: ['canvas', 'canvasChanges'],
     injects: ['storage', 'dynamis', 'tenantDomainLookup'],

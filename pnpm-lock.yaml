@@ -817,6 +817,21 @@ importers:
       '@omne-harness/execution-environment-program':
         specifier: workspace:*
         version: link:../../packages/execution/execution-environment-program
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-contract
+      '@omne-harness/goal-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-cordis-contract
+      '@omne-harness/goal-local':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-local
+      '@omne-harness/goal-session':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-session
       '@omne-harness/governance-contract':
         specifier: workspace:*
         version: link:../../packages/governance/governance-contract
@@ -3711,6 +3726,16 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/goal/goal-session:
+    dependencies:
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../goal
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../../session/session-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

@@ -471,6 +471,16 @@
       "config": {}
     },
     {
+      "id": "goal",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-session",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "canvas",
       "plugin": "stubPlugin",
       "config": {}

@@ -429,6 +429,8 @@ const LOCAL_NODE = 'local'
 
 const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
 
+const GOAL_POLICY = { reconcileIntervalMs: 5_000 }
+
 const CANVAS_POLICY = {
   sheet: { width: 6400, height: 4000, grid: 8 },
   limits: { placed: 200, away: 500, batch: 50 },
@@ -618,6 +620,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
       : []),
     ...(rows.has('dispatch') ? ([['dispatch', { policy: DISPATCH_POLICY }]] as const) : []),
+    ...(rows.has('goal') ? ([['goal', { policy: GOAL_POLICY }]] as const) : []),
     ...(rows.has('canvas') ? ([['canvas', { policy: CANVAS_POLICY }]] as const) : []),
     ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
     ['execution-host', { stateDirectory: locations.hostFilesDir }],

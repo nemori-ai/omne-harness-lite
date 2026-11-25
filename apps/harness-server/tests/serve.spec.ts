@@ -190,6 +190,8 @@ describe('serve: the release tree of doubles', () => {
         'dispatch:real',
         'dispatch-session:real',
         'dispatch-tool:real',
+        'goal:real',
+        'goal-session:real',
         'canvas:real',
         'session-canvas:real',
         'media-canvas:real',

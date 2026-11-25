@@ -1,6 +1,12 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('the public entry exports the sources, the reminder texts and the adapter', async () => {
   const root = (await import('@omne-harness/goal-session')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+  expect(Object.keys(root).sort()).toEqual([
+    'GOAL_SOURCES',
+    'createGoalSessions',
+    'goalInputSources',
+    'resumeText',
+    'startText',
+  ])
 })

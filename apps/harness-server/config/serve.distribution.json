@@ -973,6 +973,16 @@
       "config": {}
     },
     {
+      "id": "goal",
+      "plugin": "goalRow",
+      "config": {}
+    },
+    {
+      "id": "goal-session",
+      "plugin": "goalSessionRow",
+      "config": {}
+    },
+    {
       "id": "canvas",
       "plugin": "canvasRow",
       "config": {}

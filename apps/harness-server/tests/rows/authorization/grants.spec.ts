@@ -61,6 +61,7 @@ describe('the release grant table', () => {
     expect(Object.keys(MAINTENANCE_GRANTS).sort()).toEqual([
       'agent-host',
       'dispatch',
+      'goal',
       'sessionPrincipals.maintainer',
       'tenant-domain-scanner',
       'toolResidencyPrincipal',
@@ -72,6 +73,10 @@ describe('the release grant table', () => {
     expect([...record.purposes].sort()).toEqual(AGENT_INSTANCE_PURPOSES)
     expect(Object.isFrozen(record)).toBe(true)
     expect(Object.isFrozen(record.purposes)).toBe(true)
+  })
+
+  it('gives goals the one purpose of sending a session an input, and nothing else', () => {
+    expect(MAINTENANCE_GRANTS.goal.purposes).toEqual(['session-input'])
   })
 
   it('gives dispatch the three purposes of a part of another domain, and nothing else', () => {
