@@ -26,6 +26,7 @@ import {
 import type { SayAnswer, SayTarget } from '../model/say.ts'
 import { sessionCompanionPanel, type CompanionPanelDrawing, type CompanionPort } from '../parts.ts'
 import { AGENT_NAME } from './side-frame.tsx'
+import { usePressElsewhere } from './press-elsewhere.ts'
 import { boxOf, useUnfold } from './side-panel.tsx'
 
 export const PANEL_LABEL = '对 Agent 说一句话'
@@ -196,22 +197,7 @@ export function CompanionPanel({
     })
     return () => cancelAnimationFrame(frame)
   }, [unfolded, there])
-  useEffect(() => {
-    if (!unfolded) return undefined
-    const pressed = (event: PointerEvent): void => {
-      const path = event.composedPath()
-      if (path.some(node => node === figure.current || node === bubble.current)) return
-      if (
-        path.some(
-          node => node instanceof Element && node.hasAttribute('data-radix-popper-content-wrapper'),
-        )
-      )
-        return
-      close(false)
-    }
-    document.addEventListener('pointerdown', pressed, true)
-    return () => document.removeEventListener('pointerdown', pressed, true)
-  }, [unfolded, close, figure])
+  const pressedInside = usePressElsewhere(unfolded, figure, () => close(false))
   if (!there) return null
   const given: CompanionPanelDrawing = { ...port, close: () => close(true) }
   return (
@@ -224,6 +210,7 @@ export function CompanionPanel({
       role="dialog"
       aria-label={PANEL_LABEL}
       inert={unfold.closing}
+      onPointerDownCapture={pressedInside}
       side={corner.y === 'end' ? 'above' : 'below'}
       figure={box}
       closing={unfold.closing}

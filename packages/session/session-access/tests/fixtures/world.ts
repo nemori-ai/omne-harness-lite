@@ -39,6 +39,8 @@ import type {
 } from '../../src/ports.ts'
 import { createRequestDrain, type RequestDrain } from '../../src/request-drain.ts'
 import type { QueuedRequest } from '../../src/request-queue.ts'
+import { describedBy } from '../../src/answers.ts'
+import { createOperationPerformer } from '../../src/command-operations.ts'
 import { admitRequest } from '../../src/send-input.ts'
 import { createJournalDouble, type JournalDouble } from './journal-double.ts'
 import { createSessionDouble, type SessionDouble } from './session-double.ts'
@@ -384,6 +386,11 @@ export function createWorld(
   }
 
   const faces = () => (removed.has('faces') ? undefined : session.faces)
+  const perform = createOperationPerformer({
+    factOf: principal => describedBy(facts, principal),
+    modes: () => (removed.has('permissionModes') ? undefined : permissionModes),
+    targets: () => (removed.has('modelTargets') ? undefined : modelTargets),
+  })
   const complete: SessionAccessSettings = {
     maxPageBytes: 65536,
     historyKinds: ['message.user', 'message.assistant'],
@@ -399,7 +406,7 @@ export function createWorld(
       journal: opened,
       admit: request => {
         admissions.push(request)
-        return admitRequest({ principals, facts, faces }, request)
+        return admitRequest({ principals, facts, faces, perform }, request)
       },
       limit: complete.requestQueueLimit,
       retryDelaysMs: complete.requestRetryDelaysMs,

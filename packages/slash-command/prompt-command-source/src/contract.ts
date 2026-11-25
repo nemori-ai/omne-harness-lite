@@ -60,11 +60,7 @@ const said = (reason: string): Read<never> => fail({ kind: 'invalid-package', re
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 const FIELDS = ['name', 'description', 'argument-hint'] as const
 
-/** The first thing wrong with a prompt command, said for whoever wrote it; undefined when it is whole. */
-export function promptProblem(
-  body: Partial<Record<keyof PromptBody, unknown>>,
-): string | undefined {
-  const { name, description, argumentHint, prompt } = body
+function nameProblem(name: unknown): string | undefined {
   if (typeof name !== 'string' || name === '') return 'name is missing'
   if (name.includes(':'))
     return name.startsWith(`${RESERVED_SPACE}:`)
@@ -72,28 +68,52 @@ export function promptProblem(
       : `name ${name}: write the name alone, without a space and a colon`
   if (!isName(name))
     return `name ${name}: lower-case letters, digits and - between words, at most 64 characters`
+  return undefined
+}
+
+function descriptionProblem(description: unknown): string | undefined {
   if (typeof description !== 'string' || description.trim() === '')
     return 'description is missing: write the line a person reads in the menu'
   if (description.length > DESCRIPTION_LIMIT || description.includes('\n'))
     return `description: one line of at most ${String(DESCRIPTION_LIMIT)} characters`
-  if (
-    argumentHint !== undefined &&
-    (typeof argumentHint !== 'string' || argumentHint.includes('\n'))
-  )
-    return 'argument-hint: one line of text'
+  return undefined
+}
+
+function promptTextProblem(prompt: unknown): string | undefined {
   if (typeof prompt !== 'string' || prompt.trim() === '')
     return `the prompt is missing: write it after the frontmatter of ${PROMPT_FILE}`
   if (new TextEncoder().encode(prompt).length > PROMPT_LIMIT)
     return `the prompt is more than ${String(PROMPT_LIMIT)} UTF-8 bytes`
+  return undefined
+}
+
+function placeholderProblem(prompt: string, argumentHint: unknown): string | undefined {
+  if (argumentHint === undefined) return undefined
   const highest = Math.max(
     0,
     ...[...prompt.matchAll(/\$([1-9][0-9]*)/gu)].map(hit => Number(hit[1])),
   )
   const named =
     typeof argumentHint === 'string' ? argumentHint.split(/\s+/u).filter(Boolean).length : 0
-  if (argumentHint !== undefined && highest > named)
-    return `the prompt uses $${String(highest)}; argument-hint names ${String(named)}`
-  return undefined
+  return highest > named
+    ? `the prompt uses $${String(highest)}; argument-hint names ${String(named)}`
+    : undefined
+}
+
+/** The first thing wrong with a prompt command, said for whoever wrote it; undefined when it is whole. */
+export function promptProblem(
+  body: Partial<Record<keyof PromptBody, unknown>>,
+): string | undefined {
+  const { name, description, argumentHint, prompt } = body
+  const hintBad =
+    argumentHint !== undefined && (typeof argumentHint !== 'string' || argumentHint.includes('\n'))
+  return (
+    nameProblem(name) ??
+    descriptionProblem(description) ??
+    (hintBad ? 'argument-hint: one line of text' : undefined) ??
+    promptTextProblem(prompt) ??
+    placeholderProblem(prompt as string, argumentHint)
+  )
 }
 
 function split(text: string): Readonly<{ yaml: string; rest: string }> | undefined {
@@ -119,7 +139,7 @@ function fieldsOf(yaml: string): Read<Readonly<Record<string, unknown>>> {
       )
 }
 
-async function inspect(pkg: PackageReader): Promise<Read<JsonValue>> {
+async function fileOf(pkg: PackageReader): Promise<Read<Uint8Array>> {
   const manifest = await pkg.manifest()
   if (!('ok' in manifest)) return fail({ kind: 'source-failed', failure: manifest.failure })
   const entry = manifest.ok.entries.find(each => each.path === PROMPT_FILE)
@@ -133,9 +153,13 @@ async function inspect(pkg: PackageReader): Promise<Read<JsonValue>> {
   if (!('ok' in opened)) return fail({ kind: 'source-failed', failure: opened.failure })
   if (digestBytes(opened.ok) !== entry.digest)
     return fail({ kind: 'source-failed', failure: 'material-unavailable' })
+  return succeed(opened.ok)
+}
+
+function bodyOf(bytes: Uint8Array): Read<Readonly<Record<string, unknown>>> {
   let text: string
   try {
-    text = utf8.decode(opened.ok)
+    text = utf8.decode(bytes)
   } catch {
     return said(`${PROMPT_FILE} is not UTF-8`)
   }
@@ -147,15 +171,22 @@ async function inspect(pkg: PackageReader): Promise<Read<JsonValue>> {
   const fields = fieldsOf(parts.yaml)
   if (!('ok' in fields)) return fields
   const hint = fields.ok['argument-hint']
-  const body = {
+  return succeed({
     name: fields.ok['name'],
     description: fields.ok['description'],
     ...(hint === undefined ? {} : { argumentHint: hint }),
     prompt: parts.rest.trim(),
-  }
-  const problem = promptProblem(body)
+  })
+}
+
+async function inspect(pkg: PackageReader): Promise<Read<JsonValue>> {
+  const file = await fileOf(pkg)
+  if (!('ok' in file)) return file
+  const body = bodyOf(file.ok)
+  if (!('ok' in body)) return body
+  const problem = promptProblem(body.ok)
   if (problem !== undefined) return said(`${PROMPT_FILE}: ${problem}`)
-  const read = readBodyText(JSON.stringify(body), {
+  const read = readBodyText(JSON.stringify(body.ok), {
     maxBytes: PROMPT_LIMIT + 4096,
     maxDepth: 4,
     maxItems: 16,

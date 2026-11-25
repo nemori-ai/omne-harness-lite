@@ -150,6 +150,25 @@ function Menu({
   )
 }
 
+/** Why the words cannot go as they are, with the way to send them as plain words; hidden while the menu is open. */
+function Blocked({
+  assist,
+  onLiteral,
+}: {
+  readonly assist: Assist
+  readonly onLiteral: () => void
+}) {
+  if (assist.blocked === null || assist.menu !== null) return null
+  return (
+    <p className="omne-composer-blocked" role="status">
+      {assist.blocked}
+      <Button type="button" variant="link" size="compact" onClick={onLiteral}>
+        按原样发送
+      </Button>
+    </p>
+  )
+}
+
 export type ComposerProps = Readonly<{
   state: Open
   driver: SessionDriver
@@ -275,18 +294,19 @@ export function Composer({
     if (answer.kind === 'edit') write(answer.text, answer.caret)
     if (answer.kind === 'send') submit()
   }
+  const helped = (event: KeyboardEvent<HTMLTextAreaElement>, plainEnter: boolean): boolean => {
+    const key = KEYS[event.key]
+    if (key === undefined || helper === null || (event.key === 'Enter' && !plainEnter)) return false
+    const answer = helper.key(key)
+    if (answer.kind === 'pass') return false
+    event.preventDefault()
+    follow(answer)
+    return true
+  }
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.nativeEvent.isComposing) return
-    const key = KEYS[event.key]
     const plainEnter = event.key === 'Enter' && !event.shiftKey
-    if (key !== undefined && helper !== null && (event.key !== 'Enter' || plainEnter)) {
-      const answer = helper.key(key)
-      if (answer.kind !== 'pass') {
-        event.preventDefault()
-        follow(answer)
-        return
-      }
-    }
+    if (helped(event, plainEnter)) return
     const way = keys === null ? (plainEnter ? 'send' : null) : keys.wayOf(event.nativeEvent)
     if (way === null) return
     event.preventDefault()
@@ -336,19 +356,7 @@ export function Composer({
           onKeyDown={onKeyDown}
         />
       </div>
-      {assist.blocked === null || assist.menu !== null ? null : (
-        <p className="omne-composer-blocked" role="status">
-          {assist.blocked}
-          <Button
-            type="button"
-            variant="link"
-            size="compact"
-            onClick={() => send(helper?.literal(text) ?? text, null)}
-          >
-            按原样发送
-          </Button>
-        </p>
-      )}
+      <Blocked assist={assist} onLiteral={() => send(helper?.literal(text) ?? text, null)} />
       <div>{attachments(session, draft.draft)}</div>
       <div className="omne-composer-actions">
         <div className="omne-session-status">{status}</div>
