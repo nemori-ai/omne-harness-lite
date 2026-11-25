@@ -11,7 +11,6 @@ export function sqliteConfig(storageRoot: string): SqliteStorageConfig {
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
     maxJsonDepth: 64,
-    maxJsonMembers: 65536,
     maxResponseBytes: 65536,
     maxOperationResponseBytes: 1048576,
     globalWriteResponseBytes: 33554432,

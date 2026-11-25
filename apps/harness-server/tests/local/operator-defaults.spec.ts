@@ -1,3 +1,4 @@
+import { canvasConfig } from '../../src/rows/canvas/index.ts'
 import { notificationConfig } from '../../src/rows/notification/index.ts'
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -251,6 +252,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'secret-custody',
               'notification',
               'dispatch',
+              'canvas',
               'workspace',
               'session-history-index',
               'media-storage-local',
@@ -269,6 +271,12 @@ describe('localOperatorLayer over the bundled distribution', () => {
       agent: null,
     })
     expect(parsed.policy.retry.backoffMs.length).toBeLessThan(parsed.policy.retry.maxAttempts)
+  })
+
+  it('gives the canvas row one whole policy that its schema takes', () => {
+    const config = configOf(layer, 'canvas')
+    expect(Object.keys(config ?? {})).toEqual(['policy'])
+    expect(canvasConfig.safeParse(config).success).toBe(true)
   })
 
   it('does not overwrite any key that the release gives a replaced row', () => {
@@ -354,6 +362,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Ask',
       'BkgToolCalls',
       'Calendar',
+      'Canvas',
       'Code',
       'Files',
       'Jobs',
@@ -391,6 +400,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Schedules',
       'Jobs',
       'Notifications',
+      'Canvas',
       'SwitchWorkspace',
       'Screen',
     ])

@@ -122,6 +122,17 @@ it('Input is a labelled textbox that reports typing', () => {
   expect((input as HTMLInputElement).value).toBe('abc')
 })
 
+it('Input as a line is the same field: one line under it, no box, the line taking the focus colour', () => {
+  render(<Input aria-label="查找" variant="line" />)
+  const input = screen.getByRole('textbox', { name: '查找' })
+  expect(input.getAttribute('data-control')).toBe('field')
+  expect(input.dataset['variant']).toBe('line')
+  expect(input.className.split(' ')).toEqual(
+    expect.arrayContaining(['border-b', 'focus-visible:border-line-focus']),
+  )
+  expect(input.className).not.toMatch(/(^| )(rounded-control|border|bg-surface-field)( |$)/u)
+})
+
 it('Textarea is a labelled multi-line field that reports typing', () => {
   const onChange = vi.fn()
   render(<Textarea aria-label="备注" onChange={onChange} />)

@@ -300,6 +300,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Schedules: { resultMaxBytes: 65_536 },
       Jobs: { resultMaxBytes: 65_536 },
       Notifications: { resultMaxBytes: 65_536 },
+      Canvas: { resultMaxBytes: 65_536 },
       Sessions: { resultMaxBytes: 131_072 },
       Agents: { resultMaxBytes: 1_048_576 },
       SwitchWorkspace: { resultMaxBytes: 65_536 },
@@ -384,6 +385,14 @@ export const NOTIFICATION_POLICY = {
   beat: { defaultMinutes: 60, minMinutes: 5, maxMinutes: 1440 },
   scanIntervalMs: 60_000,
   recipients: { person: { channel: 'in-app', minLevel: 'weak' }, agent: null },
+}
+
+export const CANVAS_POLICY = {
+  sheet: { width: 4800, height: 3200, grid: 8 },
+  limits: { placed: 50, away: 50, batch: 20 },
+  size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
+  footprint: { width: 160, height: 80 },
+  admitTimeoutMs: 2000,
 }
 
 // Calendar sources point at a closed loopback port, so a test service never reaches the real
@@ -488,6 +497,7 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
       { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
+      { kind: 'replace', id: 'canvas', config: { policy: CANVAS_POLICY } },
       { kind: 'replace', id: 'workspace', config: { node: 'local' } },
       {
         kind: 'replace',

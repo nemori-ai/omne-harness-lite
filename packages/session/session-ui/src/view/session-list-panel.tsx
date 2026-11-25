@@ -121,7 +121,7 @@ function Panel({
 }
 
 // A normal session says nothing: only these two ask for a word, and replying is the figure's to show.
-const LIFECYCLE: Readonly<Partial<Record<ListedSession['lifecycle'], StateLabel>>> = {
+export const LIFECYCLE: Readonly<Partial<Record<ListedSession['lifecycle'], StateLabel>>> = {
   initializing: 'initializing',
   frozen: 'frozen',
 }

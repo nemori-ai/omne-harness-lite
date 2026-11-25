@@ -2,6 +2,7 @@ import { PART_ATTRIBUTE, type ActionItem, type ActionKey } from '@omne-harness/s
 import {
   blockingOverlay,
   moveRegion,
+  reachable,
   stepSize,
   type SizeController,
   type SizeStep,
@@ -80,7 +81,9 @@ export function sizeActions(size: Pick<SizeController, 'current' | 'set'>): read
 const FOLD = [shellSidebarFold, shellSidebarMenu]
   .map(part => `[${PART_ATTRIBUTE}="${part.name}"]`)
   .join(',')
-const foldButton = (): HTMLElement | null => document.querySelector<HTMLElement>(FOLD)
+/** The sidebar's fold a person could press now: the one on a folded face is not there. */
+const foldButton = (): HTMLElement | undefined =>
+  [...document.querySelectorAll<HTMLElement>(FOLD)].find(reachable)
 
 let closing = false
 
@@ -94,7 +97,7 @@ export function frameActions(): readonly ActionItem[] {
       kind: 'ui',
       order: 30,
       keys: at('global', 'Mod+B'),
-      available: () => (foldButton() === null ? '这时没有侧栏' : true),
+      available: () => (foldButton() === undefined ? '这时没有侧栏' : true),
       run: () => foldButton()?.click(),
     },
     {
@@ -117,6 +120,25 @@ export function frameActions(): readonly ActionItem[] {
           closing = false
         }
       },
+    },
+  ]
+}
+
+type FaceTurn = Readonly<{ two: { get(): boolean }; turn(): void }>
+
+/** Turning to the other face: there is no such action before the login, nor while there is no back to turn to. */
+export function faceActions(face: FaceTurn, signedIn: boolean): readonly ActionItem[] {
+  if (!signedIn || !face.two.get()) return []
+  return [
+    {
+      id: 'shell.turn-face',
+      title: '翻到另一面',
+      group: GROUP,
+      kind: 'ui',
+      order: 32,
+      keys: at('global', 'Mod+Shift+O'),
+      available: always,
+      run: () => face.turn(),
     },
   ]
 }
