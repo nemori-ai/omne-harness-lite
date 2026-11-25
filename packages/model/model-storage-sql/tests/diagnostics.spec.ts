@@ -922,6 +922,26 @@ function rewriteRecord(
   rewriteDispatch(f, call, seq, 'record', JSON.stringify(edit(record)))
 }
 
+function rewriteCallState(
+  f: Scene,
+  call: ModelCallId,
+  edit: (state: Record<string, unknown>) => unknown,
+): void {
+  const [row] = f.sqlite.rows(SHARED, 'SELECT state FROM md_call WHERE tenant = ? AND call = ?', [
+    textOf(A),
+    call,
+  ])
+  const cell = row?.[0]
+  const state: unknown = JSON.parse(cell instanceof Uint8Array ? unpackText(cell) : String(cell))
+  if (!isRecord(state)) throw new Error('the stored state is not an object')
+  const text = JSON.stringify(edit(state))
+  f.sqlite.seed(SHARED, 'UPDATE md_call SET state = ? WHERE tenant = ? AND call = ?', [
+    cell instanceof Uint8Array ? packText(text) : text,
+    textOf(A),
+    call,
+  ])
+}
+
 const supplierWith = (record: Record<string, unknown>, change: Record<string, unknown>) => ({
   ...record,
   supplier: { ...(isRecord(record['supplier']) ? record['supplier'] : {}), ...change },
@@ -1097,6 +1117,15 @@ describe('a stored row outside the contract shape', () => {
       [
         'md_dispatch.logical_terminal',
         (f, call) => rewriteDispatch(f, call, 2, 'logical_terminal', JSON.stringify(malformed)),
+      ],
+      [
+        'md_call.state',
+        (f, call) =>
+          rewriteCallState(f, call, state => ({
+            ...state,
+            phase: 'settled',
+            settlement: { termination: malformed },
+          })),
       ],
     ]
     for (const [field, damage] of damages) {
