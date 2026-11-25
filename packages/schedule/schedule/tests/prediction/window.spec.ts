@@ -539,67 +539,81 @@ function scenario(random: ReturnType<typeof generator>) {
   }
 }
 
-test('the next slots from the window equal the rule counted from its beginning', async () => {
-  const random = generator(20261125)
-  const seen = new Set<string>()
-  let compared = 0
-  let produced = 0
-  for (let round = 0; round < 400; round += 1) {
-    const drawn = scenario(random)
-    const base = definition(drawn.recurrence, {
-      binding: { ...selected, timezone: drawn.timezone },
-      calendarOverlay: drawn.overlay,
-      limits: { eligibleLimit: null, jobLimit: null, excludeDates: drawn.excludeDates },
-    })
-    const unlimited = fromOrigin(base, drawn.timezone, drawn.overrides, drawn.activation)
-    const eligibleLimit =
-      drawn.limitDraw < 0.5 ? null : 1 + Math.floor(drawn.limitDraw * (unlimited.length + 3))
-    const rule = definition(drawn.recurrence, {
-      binding: { ...selected, timezone: drawn.timezone },
-      calendarOverlay: drawn.overlay,
-      limits: { eligibleLimit, jobLimit: null, excludeDates: drawn.excludeDates },
-    })
-    const all = eligibleLimit === null ? unlimited : unlimited.slice(0, eligibleLimit)
-    const after =
-      drawn.onSlot && unlimited.length > 0
-        ? instant(unlimited[Math.floor(drawn.slotDraw * unlimited.length)]!.at)
-        : drawn.after
-    const anchor =
-      eligibleLimit !== null && drawn.anchor !== null && drawn.anchor <= after ? drawn.anchor : null
-    const consumed = unlimited.filter(slot =>
-      anchor === null ? slot.at <= after : slot.at < anchor,
-    ).length
-    const expected = all.filter(slot => slot.at > after).slice(0, drawn.count)
-    seen.add(JSON.stringify([rule, drawn.overrides, drawn.activation, after, anchor, drawn.count]))
-    const { service } = metered(drawn.overrides, drawn.timezone)
-    const preview = value(
-      await service.preview(
-        context,
-        input(rule, {
-          after,
-          count: drawn.count,
-          activationExclusive: drawn.activation,
-          eligibleConsumed: consumed,
-          eligibleFrom: anchor,
-        }),
-      ),
+const seenAcrossSeeds = new Set<string>()
+test.each([
+  [20261125, 200],
+  [20261126, 400],
+])(
+  'the next slots from the window equal the rule counted from its beginning (seed %i)',
+  async (seed, distinct) => {
+    const random = generator(seed)
+    const seen = new Set<string>()
+    let compared = 0
+    let produced = 0
+    for (let round = 0; round < 200; round += 1) {
+      const drawn = scenario(random)
+      const base = definition(drawn.recurrence, {
+        binding: { ...selected, timezone: drawn.timezone },
+        calendarOverlay: drawn.overlay,
+        limits: { eligibleLimit: null, jobLimit: null, excludeDates: drawn.excludeDates },
+      })
+      const unlimited = fromOrigin(base, drawn.timezone, drawn.overrides, drawn.activation)
+      const eligibleLimit =
+        drawn.limitDraw < 0.5 ? null : 1 + Math.floor(drawn.limitDraw * (unlimited.length + 3))
+      const rule = definition(drawn.recurrence, {
+        binding: { ...selected, timezone: drawn.timezone },
+        calendarOverlay: drawn.overlay,
+        limits: { eligibleLimit, jobLimit: null, excludeDates: drawn.excludeDates },
+      })
+      const all = eligibleLimit === null ? unlimited : unlimited.slice(0, eligibleLimit)
+      const after =
+        drawn.onSlot && unlimited.length > 0
+          ? instant(unlimited[Math.floor(drawn.slotDraw * unlimited.length)]!.at)
+          : drawn.after
+      const anchor =
+        eligibleLimit !== null && drawn.anchor !== null && drawn.anchor <= after
+          ? drawn.anchor
+          : null
+      const consumed = unlimited.filter(slot =>
+        anchor === null ? slot.at <= after : slot.at < anchor,
+      ).length
+      const expected = all.filter(slot => slot.at > after).slice(0, drawn.count)
+      seen.add(
+        JSON.stringify([rule, drawn.overrides, drawn.activation, after, anchor, drawn.count]),
+      )
+      const { service } = metered(drawn.overrides, drawn.timezone)
+      const preview = value(
+        await service.preview(
+          context,
+          input(rule, {
+            after,
+            count: drawn.count,
+            activationExclusive: drawn.activation,
+            eligibleConsumed: consumed,
+            eligibleFrom: anchor,
+          }),
+        ),
+      )
+      expect(preview.reason, JSON.stringify(drawn)).toBeNull()
+      expect(
+        preview.candidates.map(candidate => ({
+          at: candidate.scheduledAt,
+          local: candidate.adjustedLocal,
+          originals: [...candidate.originalLocals].sort(),
+          ordinal: candidate.eligibleOrdinal,
+        })),
+        JSON.stringify(drawn),
+      ).toEqual(expected)
+      compared += 1
+      produced += expected.length
+    }
+    for (const key of seen) seenAcrossSeeds.add(key)
+    console.info(
+      `window property (seed ${seed}): ${compared} cases, ${seen.size} distinct inputs, ${produced} slots compared; ${seenAcrossSeeds.size} distinct so far`,
     )
-    expect(preview.reason, JSON.stringify(drawn)).toBeNull()
-    expect(
-      preview.candidates.map(candidate => ({
-        at: candidate.scheduledAt,
-        local: candidate.adjustedLocal,
-        originals: [...candidate.originalLocals].sort(),
-        ordinal: candidate.eligibleOrdinal,
-      })),
-      JSON.stringify(drawn),
-    ).toEqual(expected)
-    compared += 1
-    produced += expected.length
-  }
-  console.info(
-    `window property: ${compared} cases, ${seen.size} distinct inputs, ${produced} slots compared`,
-  )
-  expect(seen.size).toBeGreaterThan(380)
-  expect(produced).toBeGreaterThan(400)
-})
+    expect(seen.size).toBeGreaterThan(190)
+    expect(produced).toBeGreaterThan(200)
+    expect(seenAcrossSeeds.size).toBeGreaterThan(distinct - 20)
+  },
+  60_000,
+)

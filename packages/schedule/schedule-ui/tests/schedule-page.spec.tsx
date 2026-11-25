@@ -276,6 +276,7 @@ it.each([
     expect(screen.getByText(unplanned)).toBeTruthy()
     expect(screen.queryByLabelText('时间表')).toBeNull()
     expect(screen.queryByText('计划中')).toBeNull()
+    expect(screen.queryByText('到点时按当时的定义重新核')).toBeNull()
   },
 )
 

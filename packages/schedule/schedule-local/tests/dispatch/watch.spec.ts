@@ -254,6 +254,30 @@ describe(
       }
     })
 
+    it('the application wakes its dispatcher after a committed command: a resume shows the next time without waiting a round', async () => {
+      const w = await dispatchWorld({ gapMs: 2 * HOUR, watching: true })
+      try {
+        const id = await w.create(hourly({ kind: 'none' }), 'woken')
+        const shown = async () => {
+          for (let tries = 0; tries < 200; tries += 1) {
+            const state = w.rows(`SELECT revision FROM sc_dispatch WHERE schedule_id = '${id}'`)[0]
+            if (state?.['revision'] === w.view(id)['revision']) break
+            await new Promise(resolve => setTimeout(resolve, 10))
+          }
+          return (
+            (w.view(id)['nextOccurrence'] as { scheduledAt: string } | null)?.scheduledAt ?? null
+          )
+        }
+        expect(await shown()).toBe(iso(START + HOUR))
+        await control(w, id, 'pause', 1)
+        expect(await shown()).toBeNull()
+        await control(w, id, 'resume', 2)
+        expect(await shown()).toBe(iso(START + HOUR))
+      } finally {
+        await w.close()
+      }
+    })
+
     it('resumed before any slot passed: the next time is shown again without waiting for that slot', async () => {
       const w = await dispatchWorld({ gapMs: 2 * HOUR })
       try {

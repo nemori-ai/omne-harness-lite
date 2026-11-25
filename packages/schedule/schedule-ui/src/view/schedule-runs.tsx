@@ -82,7 +82,10 @@ export function ScheduleRuns(props: RunsProps): JSX.Element {
         <InlineNotice tone="caution">{blockedText(reasons)}</InlineNotice>
       )}
       <h3 className="schedule-runs-heading">
-        接下来<span className="schedule-runs-aside">到点时按当时的定义重新核</span>
+        接下来
+        {unplanned === undefined && (
+          <span className="schedule-runs-aside">到点时按当时的定义重新核</span>
+        )}
       </h3>
       {unplanned === undefined ? (
         <Drawn reading={preview} reread={rereadPreview} refused={previewRefusal}>
