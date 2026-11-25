@@ -13,6 +13,14 @@ describe('the policy of the canvas', () => {
     ['without the time limit of admit', { ...POLICY, admitTimeoutMs: undefined }],
     ['with a limit of zero', { ...POLICY, limits: { ...POLICY.limits, placed: 0 } }],
     [
+      'with more placed than the storage reads at once',
+      { ...POLICY, limits: { ...POLICY.limits, placed: 20_001 } },
+    ],
+    [
+      'with more taken kept than the storage reads at once',
+      { ...POLICY, limits: { ...POLICY.limits, away: 20_001 } },
+    ],
+    [
       'with a grid larger than the sheet',
       { ...POLICY, sheet: { width: 100, height: 100, grid: 101 } },
     ],

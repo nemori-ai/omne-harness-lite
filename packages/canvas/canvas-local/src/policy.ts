@@ -1,5 +1,6 @@
 import { sheetSchema, sizeRangeSchema, sizeSchema } from '@omne-harness/canvas-contract'
 import { z } from 'zod'
+import { ROW_LIMIT } from './storage/schema.ts'
 
 const positive = z.number().int().positive()
 
@@ -21,7 +22,13 @@ export const canvasPolicySchema = z
     const { sheet, size, footprint } = policy
     const fits = (inner: { width: number; height: number }, outer: typeof inner) =>
       inner.width <= outer.width && inner.height <= outer.height
+    const { placed, away } = policy.limits
     const broken: [boolean, string[], string][] = [
+      [
+        placed <= ROW_LIMIT && away <= ROW_LIMIT,
+        ['limits'],
+        `a limit is above the ${ROW_LIMIT} rows the storage reads at once`,
+      ],
       [
         sheet.grid <= Math.min(sheet.width, sheet.height),
         ['sheet', 'grid'],
