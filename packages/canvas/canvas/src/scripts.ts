@@ -112,7 +112,6 @@ function spotFor(
   return isOpen(work, existing.at, size) ? existing.at : work.freeNear(existing.at, size)
 }
 
-/** Whether a thing of this size fits at `at` pressing on nothing; sharing an edge does not press. */
 function isOpen(work: Work, at: Spot, size: Item['size']): boolean {
   const { sheet, footprint } = work.rules
   const taken = takenRects(work.items.values(), work.piles.values(), sheet, footprint)

@@ -107,7 +107,6 @@ function nearestOpen({ grid, columns, rows, blocked }: Grid, want: Spot): Spot |
   return best === null ? null : (best as { spot: Spot }).spot
 }
 
-/** The rect a step of the grid wider on every side: a spot clear of it keeps that step from the rect. */
 const widened = (rect: Rect, by: number): Rect => ({
   x: rect.x - by,
   y: rect.y - by,
@@ -115,10 +114,7 @@ const widened = (rect: Rect, by: number): Rect => ({
   height: rect.height + 2 * by,
 })
 
-/**
- * The grid spot nearest to `want` where `room` fits on the sheet a step of the grid clear of all
- * taken; else the nearest clear of it, sharing an edge; else `want` on the grid.
- */
+/** The nearest grid spot a step clear of all taken; else one sharing an edge; else `want` on the grid. */
 export function freeSpot(sheet: Sheet, taken: readonly Rect[], room: Size, want: Spot): Spot {
   const { grid } = sheet
   const apart = taken.map(rect => widened(rect, grid))
