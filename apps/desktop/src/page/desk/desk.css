@@ -1,0 +1,16 @@
+@import '@omne-harness/ui-kit/styles.css';
+
+@layer omne-builtin {
+  /* The desk layer is a transparent window over a whole screen: only the figure is drawn on it. */
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    background: transparent;
+  }
+
+  .desk {
+    display: contents;
+  }
+}
