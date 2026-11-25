@@ -12,8 +12,8 @@ export const HISTORY_PAGE_LIMIT = 256
 
 /** One tool call as the history holds it: its name, its arguments as plain data, and the text of its result. */
 export type MadeCall = Readonly<{ tool: string; arguments: unknown; result: string }>
-/** What a tool call was, in the terms a judging reads. The assembly answers it: it knows the tools of the release. */
-export type CallReading = Pick<ObservedCall, 'tool' | 'command' | 'path' | 'exit' | 'writes'>
+/** What a tool call was, and the text of it a judging reads. The assembly answers it: it knows the tools of the release. */
+export type CallReading = Omit<ObservedCall, 'ref' | 'order'>
 export type DescribeCall = (call: MadeCall) => CallReading
 
 type Tagged = Readonly<{ kind?: unknown; value?: unknown; entries?: unknown; items?: unknown }>
@@ -99,12 +99,7 @@ export function createGoalHistory(calls: SessionCalls, describe: DescribeCall): 
         cursor = read.value.next
         if (cursor === null) {
           const made = madeCalls(entries)
-          const value = made.map(({ ref, result, ...call }, order) => ({
-            ref,
-            order,
-            output: result,
-            ...describe({ ...call, result }),
-          }))
+          const value = made.map(({ ref, ...call }, order) => ({ ref, order, ...describe(call) }))
           return { kind: 'read', value }
         }
       }

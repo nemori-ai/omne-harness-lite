@@ -57,6 +57,9 @@ export const sealed = (answers: DecisionAnswers): ResultPart[] => [
   { kind: 'sealed', block: decisionAnswersBlock(answers), trims: [] },
 ]
 const AWAY = { failure: { kind: 'unavailable', dependency: 'test', diagnostic: 'away' } } as const
+const FULL = {
+  failure: { kind: 'unavailable', dependency: 'model-capacity', diagnostic: 'the share is full' },
+} as const
 const callOf = (reference: unknown): string => {
   const parts = resolveModelInvocationRef(reference, LEGAL)
   if ('failure' in parts) throw new Error('the reference names no call of this tenant')
@@ -67,12 +70,16 @@ const callOf = (reference: unknown): string => {
 export function world() {
   const calls = new Map<string, Call>()
   const log: string[] = []
+  const reads: string[] = []
   const prepared: Parameters<ModelDecisionPreparation<unknown>['prepare']>[0][] = []
   const state = {
     time: 0,
     modelAway: false,
     preparationAway: false,
-    fail: new Set<'prepare' | 'admit' | 'inspect'>(),
+    fail: new Set<'prepare' | 'inspect'>(),
+    /** How many admissions Model has no room for before it takes one. */
+    full: 0,
+    refuse: false,
     /** How the next admitted call goes. */
     next: {
       looks: 0 as number | null,
@@ -100,11 +107,15 @@ export function world() {
         const settledNow = call.looks === 0
         if (call.looks !== null && call.looks > 0) call.looks -= 1
         const phase = settledNow ? 'settled' : 'running'
-        return { ok: { kind: 'accepted', state: { phase, settlement: settlementOf(call) } } }
+        return { ok: { kind: 'found', state: { phase, settlement: settlementOf(call) } } }
       },
       async admit(input: Asked<'calls', 'admit'>) {
         log.push('admit')
-        if (state.fail.has('admit')) return AWAY
+        if (state.refuse) return { failure: { kind: 'denied', diagnostic: 'not this caller' } }
+        if (state.full > 0) {
+          state.full -= 1
+          return FULL
+        }
         const { request, consumer } = input
         const fresh = structuredClone(state.next)
         calls.set(String(input.call), {
@@ -126,6 +137,7 @@ export function world() {
     consumption: {
       async beginRead(input: Asked<'consumption', 'beginRead'>) {
         log.push('beginRead')
+        reads.push(String(input.operation))
         const call = calls.get(callOf(input.reference))
         if (call === undefined) return AWAY
         if (call.acknowledged.length > 0) return { ok: { kind: 'acknowledged', custody: {} } }
@@ -169,5 +181,5 @@ export function world() {
     if (call === undefined || more.length > 0) throw new Error(`${String(calls.size)} calls`)
     return call
   }
-  return { decisions, calls, log, prepared, state, only }
+  return { decisions, calls, log, reads, prepared, state, only }
 }

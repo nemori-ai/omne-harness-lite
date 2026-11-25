@@ -27,13 +27,14 @@ export const failure = (kind: SessionFailure['kind']): Called<unknown> => ({
   failure: { kind, owner: 'session', diagnostic: kind } as SessionFailure,
 })
 
-/** Reads every call as a run of its `script` argument that exited 0 and wrote nothing. */
+/** Reads every call as a run of its `script` argument that exited 0 and wrote nothing, and shows its result under a mark. */
 export const describeRun: DescribeCall = call => ({
   tool: call.tool,
   command: (call.arguments as { script?: string } | null)?.script ?? null,
   path: null,
   exit: 0,
   writes: false,
+  output: `shown: ${call.result}`,
 })
 
 export function world(describe: DescribeCall = describeRun) {

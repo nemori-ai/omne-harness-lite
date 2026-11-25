@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import type { DecisionAsk, GoalDecisions } from '@omne-harness/goal'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -100,7 +100,7 @@ export function createGoalDecisions<P>(ports: DecisionPorts<P>): GoalDecisions {
 
   async function admitted(model: Model, access: Access<P>, ids: Ids, input: DecisionAsk) {
     const preparation = ports.preparation()
-    if (preparation === undefined) return false
+    if (preparation === undefined) return 'refused'
     const ask: ModelAsk = input.request
     const prepared = await preparation.prepare({
       ...access,
@@ -109,7 +109,7 @@ export function createGoalDecisions<P>(ports: DecisionPorts<P>): GoalDecisions {
       ask,
       source: GOAL_DECISIONS_SOURCE,
     })
-    if ('failure' in prepared) return false
+    if ('failure' in prepared) return 'refused'
     const admission = await model.calls.admit({
       ...access,
       call: ids.call,
@@ -117,20 +117,28 @@ export function createGoalDecisions<P>(ports: DecisionPorts<P>): GoalDecisions {
       request: prepared.ok,
       consumer: ids.consumer,
     })
-    return 'ok' in admission
+    if ('ok' in admission) return 'taken'
+    return admission.failure.kind === 'unavailable' ? 'no-room' : 'refused'
   }
 
-  /** Looks at the call until it has settled; past the deadline it is cancelled and has no settlement. */
+  /** Looks at the call until it has settled, offering it again while Model has no room for it; past the deadline it is cancelled and has no settlement. */
   async function settled(model: Model, access: Access<P>, ids: Ids, input: DecisionAsk) {
     const until = ports.now() + ports.policy.deadlineMs
     for (;;) {
       const known = await model.calls.inspect({ ...access, reference: ids.reference })
       if ('failure' in known) return null
-      if (known.ok.kind === 'not-accepted') {
-        if (!(await admitted(model, access, ids, input))) return null
-      } else if (known.ok.state.phase === 'settled') return known.ok.state.settlement
+      const offered =
+        known.ok.kind === 'not-accepted' ? await admitted(model, access, ids, input) : 'taken'
+      if (offered === 'refused') return null
+      if (known.ok.kind !== 'not-accepted' && known.ok.state.phase === 'settled')
+        return known.ok.state.settlement
       if (ports.now() >= until) {
-        await model.calls.cancel({ ...access, call: ids.call, operation: ids.operation('cancel') })
+        if (offered === 'taken')
+          await model.calls.cancel({
+            ...access,
+            call: ids.call,
+            operation: ids.operation('cancel'),
+          })
         return null
       }
       await ports.wait(ports.policy.pollMs)
@@ -141,7 +149,7 @@ export function createGoalDecisions<P>(ports: DecisionPorts<P>): GoalDecisions {
     const opened = await model.consumption.beginRead({
       ...access,
       reference: ids.reference,
-      operation: ids.operation(`read_${String(ports.now())}`),
+      operation: ids.operation(`read_${randomUUID().replaceAll('-', '')}`),
       result: settlement.version,
     })
     if ('failure' in opened || opened.ok.kind === 'acknowledged') return null

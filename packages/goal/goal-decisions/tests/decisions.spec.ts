@@ -48,6 +48,17 @@ describe('one decision call of a judging', () => {
     ])
   })
 
+  it('reads under an operation of its own each time, whatever the clock reads', async () => {
+    const w = world()
+    w.state.time = 21072.058083
+    expect(await w.decisions.ask(ask())).toEqual(ANSWERS)
+    expect(await w.decisions.ask(ask())).toBeNull()
+    expect(w.reads).toHaveLength(2)
+    expect(new Set(w.reads).size).toBe(2)
+    for (const operation of w.reads)
+      expect(operation).toMatch(/^mop_goal_[0-9a-f]{40}_read_[0-9a-f]{32}$/u)
+  })
+
   it('waits for a call that has not settled, a look at a time', async () => {
     const w = world()
     w.state.next.looks = 3
@@ -64,6 +75,32 @@ describe('one decision call of a judging', () => {
     expect(w.only().cancelled).toBe(true)
     expect(w.state.time).toBe(100)
     expect(w.log).not.toContain('beginRead')
+  })
+
+  it('that Model has no room for yet is offered again, a look at a time, until it is taken', async () => {
+    const w = world()
+    w.state.full = 2
+    expect(await w.decisions.ask(ask())).toEqual(ANSWERS)
+    expect(w.log.filter(step => step === 'admit')).toHaveLength(3)
+    expect(w.state.time).toBe(30)
+    expect(w.calls.size).toBe(1)
+  })
+
+  it('that Model never has room for gives no answer at its deadline, and nothing is cancelled', async () => {
+    const w = world()
+    w.state.full = Number.POSITIVE_INFINITY
+    expect(await w.decisions.ask(ask())).toBeNull()
+    expect(w.state.time).toBe(100)
+    expect(w.calls.size).toBe(0)
+    expect(w.log).not.toContain('cancel')
+  })
+
+  it('that Model refuses for any other reason gives no answer at once', async () => {
+    const w = world()
+    w.state.refuse = true
+    expect(await w.decisions.ask(ask())).toBeNull()
+    expect(w.state.time).toBe(0)
+    expect(w.log.filter(step => step === 'admit')).toHaveLength(1)
   })
 
   it('asked again under the same identity is the same call: it is not admitted twice', async () => {
@@ -125,11 +162,12 @@ describe('what a decision call stands on', () => {
     unprepared.state.preparationAway = true
     expect(await unprepared.decisions.ask(ask())).toBeNull()
     expect(unprepared.log).toEqual(['inspect'])
-    for (const step of ['prepare', 'admit', 'inspect'] as const) {
+    for (const step of ['prepare', 'inspect'] as const) {
       const w = world()
       w.state.fail.add(step)
       expect(await w.decisions.ask(ask())).toBeNull()
       expect(w.calls.size).toBe(0)
+      expect(w.state.time).toBe(0)
     }
   })
 

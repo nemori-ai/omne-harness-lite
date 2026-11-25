@@ -107,7 +107,7 @@ describe('the tool calls a judging is shown', () => {
           command: 'pnpm test',
           path: null,
           exit: 0,
-          output: 'all green',
+          output: 'shown: all green',
           writes: false,
         },
         {
@@ -117,7 +117,7 @@ describe('the tool calls a judging is shown', () => {
           command: 'pnpm lint',
           path: null,
           exit: 0,
-          output: 'clean',
+          output: 'shown: clean',
           writes: false,
         },
       ],
