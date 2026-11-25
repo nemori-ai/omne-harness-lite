@@ -234,6 +234,29 @@ describe('a drag is a preview; the release sends a command, and the sheet is rea
     expect(page('a').dataset['selected']).toBe('true')
   })
 
+  it('a selected page wears the ink edge, the same ring for the same item each time it is selected', async () => {
+    await opened(canvas([A, item('b', { at: { x: 400, y: 80 }, rank: 2 })]))
+    const edge = (id: string) =>
+      [...page(id).querySelectorAll('svg[data-slot="paper-edge"] path')].map(path =>
+        path.getAttribute('d'),
+      )
+    const press = (id: string) => {
+      fireEvent.pointerDown(handle(id), { pointerId: 1, button: 0, clientX: 0, clientY: 0 })
+      fireEvent.pointerUp(handle(id), { pointerId: 1, clientX: 0, clientY: 0 })
+    }
+    expect(edge('a')).toEqual([])
+    press('a')
+    const ring = edge('a')
+    expect(ring).toHaveLength(2)
+    expect(edge('b')).toEqual([])
+    press('b')
+    expect(edge('a')).toEqual([])
+    expect(edge('b')).toHaveLength(2)
+    expect(edge('b')).not.toEqual(ring)
+    press('a')
+    expect(edge('a')).toEqual(ring)
+  })
+
   it('the tenant of every command is the one the back is drawn for', async () => {
     const world = await dragged()
     const sent = await world.fake.next('arrange')

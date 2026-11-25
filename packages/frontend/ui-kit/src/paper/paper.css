@@ -140,8 +140,13 @@
 .omne-paper-pile[aria-busy='true'] .omne-paper-leaf {
   opacity: 0.6;
 }
-.omne-paper-page[data-selected] > .omne-paper-leaf {
-  box-shadow: 0 0 0 1px var(--omne-accent);
+.omne-paper-edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  overflow: visible;
+  pointer-events: none;
 }
 .omne-paper-page[data-gesture] .omne-paper-leaf {
   box-shadow: var(--omne-elevation-raised);

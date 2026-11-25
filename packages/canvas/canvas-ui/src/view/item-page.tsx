@@ -98,6 +98,7 @@ export const ItemPage = memo(function ItemPage(props: ItemPageProps): JSX.Elemen
         box={box}
         name={name}
         handleLabel={`挪动${name} ${item.reference.ref.slice(0, 8)}`}
+        edgeKey={item.id}
         aside={
           <>
             <WhoSaid by={item.by} when={item.when} />
