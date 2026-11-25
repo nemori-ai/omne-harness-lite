@@ -431,7 +431,9 @@ it('TL-69 stopping a program midway stops the calls it still has: each says stop
       const after = await pollUntil(
         'every position to have an end',
         () => childrenOf(tree, reference),
+        // A list that could not be read now has no items: that is not every position at its end.
         listed =>
+          listed.items.length === 3 &&
           listed.items.every(item => !['running', 'queued', 'waiting'].includes(item.state)),
       )
       expect(after.items.map(item => item.state)).toEqual(['completed', 'stopped', 'stopped'])

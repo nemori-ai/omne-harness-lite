@@ -4,10 +4,12 @@ import { dirname, join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import type { HumanInterventionCardItem as HitlCardItem } from '@omne-harness/human-intervention-protocol'
+import type { ToolInvokeOutcome } from '@omne-harness/tool-contract'
 import {
   historyOf,
   onReleaseTree,
   toolCalls,
+  toolCallsByRequest,
   toolCallsThenText,
   type Entry,
   type ReleaseTree,
@@ -50,6 +52,21 @@ const script = toolCallsThenText(body =>
       : [{ id: 'call_y', tool: 'Shell', arguments: echo('y-done') }],
 )
 const options = { script, permission: 'bypass-permissions' }
+
+const inBackground = JSON.stringify({
+  command: 'execute',
+  intent: 'wait in the background',
+  params: {
+    script: 'while [ ! -f go-x ]; do sleep 0.1; done; echo go-x-done',
+    run_in_background: true,
+  },
+})
+// The first reply starts a call in the background; the reply to its placeholder makes one more call.
+const thenOneMore = toolCallsByRequest(body => {
+  const results = body.split('"role":"tool"').length - 1
+  if (results === 0) return [{ id: 'call_x', tool: 'Shell', arguments: inBackground }]
+  return results === 1 ? [{ id: 'call_q', tool: 'Shell', arguments: echo('q-done') }] : []
+})
 
 const release = (world: ReleaseTree, name: string) =>
   writeFileSync(join(dirname(world.storageRoot), 'workspace', name), '')
@@ -185,6 +202,44 @@ describe('the slots of the concurrency scope of one run', () => {
         expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
       })
       expect(exit).toBe(0)
+    },
+  )
+
+  it(
+    'with queue capacity 1, a new call of the run waits for the queue while an earlier call is in the background, and runs once that one ends',
+    { timeout: 300_000 },
+    async () => {
+      await onReleaseTree({ ...options, script: thenOneMore, queueCapacity: 1 }, async world => {
+        const runtime = world.toolRuntime()
+        const invoke = runtime.invoke.bind(runtime)
+        const answers: ToolInvokeOutcome[] = []
+        Object.assign(runtime, {
+          invoke: async (input: Parameters<typeof invoke>[0]) => {
+            const outcome = await invoke(input)
+            if (input.request.arguments.effective.includes('q-done')) answers.push(outcome)
+            return outcome
+          },
+        })
+
+        const session = await world.startSession('start: background, then one more')
+        for (const end = Date.now() + 120_000; Date.now() < end && answers.length === 0;)
+          await sleep(100)
+        expect(answers[0]).toMatchObject({
+          kind: 'rejected',
+          failure: { kind: 'unavailable', dependency: 'tool-queue' },
+        })
+        expect(toolCalls(world.storageRoot).map(row => row.tool)).toEqual(['Shell'])
+
+        release(world, 'go-x')
+        for (const end = Date.now() + 120_000; Date.now() < end; await sleep(250))
+          if (answers.at(-1)?.kind === 'accepted') break
+        expect(answers.at(-1)?.kind).toBe('accepted')
+        expect(answers.filter(outcome => outcome.kind === 'rejected').length).toBeGreaterThan(0)
+        for (const end = Date.now() + 120_000; Date.now() < end; await sleep(250))
+          if (toolResults(await historyOf(world, session)).some(text => text.includes('q-done')))
+            break
+        expect(toolResults(await historyOf(world, session)).join('\n')).toContain('q-done')
+      })
     },
   )
 })

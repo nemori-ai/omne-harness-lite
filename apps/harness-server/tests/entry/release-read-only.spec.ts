@@ -14,7 +14,7 @@ const READ_ONLY: Readonly<Record<string, readonly string[]>> = {
   Tools: ['help', 'search', 'inspect', 'read_result'],
   TodoItems: ['help', 'list'],
   BkgToolCalls: ['help', 'list', 'output'],
-  Ask: [],
+  Ask: ['ask'],
   Web: ['help', 'search', 'fetch'],
   Skills: ['help', 'search', 'read', 'list', 'read_file'],
   Calendar: ['help', 'day', 'count', 'shift', 'next', 'nth'],
