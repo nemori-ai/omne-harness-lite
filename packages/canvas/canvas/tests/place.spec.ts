@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { tenantOf } from '@omne-harness/canvas/testing'
+import { createMemoryStore, tenantOf, type MemoryStore } from '@omne-harness/canvas/testing'
 import { holderOf, type Admission, type AdmitInput } from '@omne-harness/canvas-contract'
 import { CONFIG, kind, media, world } from './fixture.ts'
 
@@ -130,6 +130,32 @@ describe('place asks the owner before it commits', () => {
     own.answer()
     expect(await placing).toEqual({ kind: 'conflict', reason: 'kind-undeclared' })
     expect(await records(w)).toEqual([])
+  })
+
+  it('commits when the kind is withdrawn after the commit was handed over, and holds the kind until the commit has answered', async () => {
+    const memory = createMemoryStore()
+    let landed: () => void = () => undefined
+    const handed = new Promise<void>(resolve => void (landed = resolve))
+    let release: () => void = () => undefined
+    const gate = new Promise<void>(resolve => void (release = resolve))
+    const store: MemoryStore = {
+      ...memory,
+      place: async (...given) => {
+        landed()
+        await gate
+        return memory.place(...given)
+      },
+    }
+    const w = world({ store })
+    const withdraw = w.kinds.declare(kind('media.object', async () => ({ kind: 'admitted' })))
+    const placing = place(w, 'a')
+    await handed
+    withdraw()
+    expect(w.kinds.held()).toBe(1)
+    release()
+    expect(await placing).toMatchObject({ kind: 'done' })
+    expect(w.kinds.held()).toBe(0)
+    expect((await records(w)).map(item => item.reference.ref)).toEqual(['a'])
   })
 
   it('answers full when the sheet fills while the owner is asked', async () => {

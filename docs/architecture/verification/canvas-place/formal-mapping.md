@@ -16,7 +16,7 @@
 | `OnePerRef` | 一个引用至多一条摆着的记录 | 同一样东西在纸上出现两次 | CV-11 |
 | `WithinLimit` | 摆着的不超过上限 | 两次摆上交错，越过上限 | CV-11 |
 | `NoAdmitWhenFull` | 读上限时已经摆满的摆上，不去问拥有者 | 摆不上的时候让拥有者白留一份事实 | 规格「答复的次序」第 5、6 步的先后 |
-| `CommitWhileDeclared` | 提交的那一刻种类声明着 | 种类撤下之后还多出这一类的记录 | CV-13 |
+| `CommitWhileDeclared` | 写下记录的那次提交，交给存储时种类声明着，落下时种类还没有撤完 | 种类撤下之后还多出这一类的记录 | CV-13 |
 | `NoCallAfterGone` | 取走了的声明不再被调用。已经发出而过了时限的那一次在 `late` 里，不算 | 调一个已经撤下的贡献 | 规格「拓展点」`canvas.kinds` 的撤下 |
 | `PlaceEnds` | 每一次摆上都有结局，拥有者不答也一样 | 一次摆上永远挂着，agent 的调用跟着挂 | 规格里 `admit` 的时限 |
 | `DrainEnds` | 撤下总能完成，拥有者不答也一样 | 一个贡献方卸不掉 | 同上 |
@@ -32,15 +32,16 @@
 | `AdmitRefuse` | 拥有者答拒绝、依据不可用、不知道，或抛出：都没有记录 | 同上 `refusal` 把 `admitted` 的另几种答复交回 `place`，`place` 不提交 |
 | `Timeout` | 过了画布配置的时限：这一次答依据不可用。拥有者之后可能照样做完，见 `LateHold` | 同上 `admitted` 的计时，时限是策略的 `admitTimeoutMs`；时限一到 `place` 就答复并离开这一批（`entry.leave()`） |
 | `LateHold`、`LateDrop` | 过了时限之后，拥有者照样留下它的事实，或不留 | 画布不等也不接：`place` 已经答复，`putKind` 不为拥有者的那次调用持住这一批 |
-| `Commit` | 带条件的提交：引用仍没摆着、仍没到上限、种类仍声明着。不成立时不写 | 种类：提交前同步读 `entry.declared()`，写进命令；一批持到提交答复回来，撤下等它（`canvas-cordis-contract` 的 `putKind`、`kindsOn().enter`）。引用与上限：事务脚本 `placeReference`（`packages/canvas/canvas/src/scripts.ts`）在同一次提交里再核 |
-| `Lose` | 提交失败或结果不知道：没有记录，拥有者留下的事实还在 | `place` 的 `committed` 把提交的 `rolled-back` 答成依据不可用，`unknown` 答成不知道 |
+| `Check` | 把提交交给存储之前读一次种类。存储在别处运行，问不到登记表，所以这一步和落下不是同一刻 | `place` 在调存储之前同步读 `entry.declared()`，写进命令的 `declared` |
+| `Write` | 提交落下，一次带条件的写：引用仍没摆着、仍没到上限，这两样在同一次写里核；种类用交出时读到的。不成立时不写。交出之后撤下可以开始，但撤不完，见 `Drained` | 事务脚本 `placeReference`（`packages/canvas/canvas/src/scripts.ts`）；一批持到提交答复回来（`canvas-cordis-contract` 的 `putKind`、`kindsOn().enter`） |
+| `Lose` | 提交没交出去、失败或结果不知道：没有记录，拥有者留下的事实还在 | `place` 的 `committed` 把提交的 `rolled-back` 答成依据不可用，`unknown` 答成不知道 |
 | `Take` | 拿走。拥有者留下的事实不撤 | 事务脚本 `takeItems` |
-| `Withdraw`、`Drained` | 贡献方离开：这一批先不接新的 `admit`，在途的各有结局，然后才取走 | `putKind` 的排空：离开之后 `enter` 不接，`admit` 不再交给拥有者；持着这一批的 `place` 都有了结局（含过了时限的）才报排空完。只数 `place`，不数拥有者还没回的调用 |
+| `Withdraw`、`Drained` | 贡献方离开：这一批先不接新的 `place`，取了它的 `place` 各有结局（提交在途的也算在内），然后才取走 | `putKind` 的排空：离开之后 `enter` 不接，`admit` 不再交给拥有者；持着这一批的 `place` 都有了结局（含过了时限的）才报排空完。只数 `place`，不数拥有者还没回的调用。贡献方还在而用手取回这一批时同样先排空 |
 | `Declare` | 贡献方回来 | `putKind` 再放一份 |
 
 `held` 为真而 `rows` 为零是规格「不能声称的」里写明的残余：拥有者接受了而提交没有成。模型不把它当错。
 
-公平性只加在画布自己的动作上（时限、提交、报排空完），不加在拥有者的答复上：拥有者可以永远不答。
+公平性只加在画布自己的动作上（时限、交出提交、提交落下、报排空完），不加在拥有者的答复上：拥有者可以永远不答。
 
 ## 配置预期
 
@@ -52,7 +53,7 @@
 | `bad-admit-before-limit` | 违反 | 先问拥有者，后查上限 | `NoAdmitWhenFull` |
 | `bad-no-recheck-ref` | 违反 | 提交时不再核引用仍没摆着 | `OnePerRef` |
 | `bad-no-recheck-limit` | 违反 | 提交时不再核上限 | `WithinLimit` |
-| `bad-no-recheck-kind` | 违反 | 提交时不再核种类 | `CommitWhileDeclared` |
+| `bad-no-recheck-kind` | 违反 | 交出提交时读到种类不在，照样写 | `CommitWhileDeclared` |
 | `bad-withdraw-without-drain` | 违反 | 撤下不排空 | `NoCallAfterGone` |
 | `bad-no-admit-limit` | 违反 | `admit` 没有时限 | `PlaceEnds` |
 
