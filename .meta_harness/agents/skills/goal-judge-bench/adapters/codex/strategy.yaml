@@ -1,0 +1,4 @@
+version: 1
+host: codex
+skill: goal-judge-bench
+mode: copy
