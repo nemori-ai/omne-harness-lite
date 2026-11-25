@@ -14,8 +14,12 @@ import {
   createGatewayMeter,
   defineGatewayFamily,
   O200K_PROXY_TOKENIZER,
+  memberOf,
+  obj,
   officialProfilesOf,
   optionalImageBytes,
+  str,
+  tileImageTokens,
   type GatewayFamilyConfig,
   type ProfileData,
 } from '../src/family-kit/index.ts'
@@ -189,6 +193,15 @@ describe('limits', () => {
       kitRecord({ profile: { ...PROFILE, limits: [] }, meter: { tokenizer, image: rule } }),
     ])
       expect(() => optionalImageBytes(broken)).toThrow('inconsistent image support')
+    const voiceOnly = [{ metric: 'voice-bytes', provided: '10', upstream: { kind: 'unknown' } }]
+    expect(() =>
+      optionalImageBytes(
+        kitRecord({
+          profile: { ...PROFILE, limits: voiceOnly },
+          meter: { tokenizer, image: rule },
+        }),
+      ),
+    ).toThrow('inconsistent image support')
     for (const provided of ['0', '-1', '1.5', 'x'])
       expect(() =>
         optionalImageBytes(
@@ -214,7 +227,7 @@ describe('chatTextHooks', () => {
         adapter: recordAdoption(OWNER, record),
       },
     })
-    expect(hooks.check({ applied: [], treatments: [] } as never)).toEqual({ ok: undefined })
+    expect(hooks.check({ applied: [], treatments: [] } as never)).toStrictEqual({ ok: undefined })
     expect(hooks.reasoning).not.toBeNull()
   })
 })
@@ -453,6 +466,18 @@ describe('defineGatewayFamily', () => {
     })
   })
 
+  it('answers cancelled when the acquire is cancelled after the table admitted it, before any lease', async () => {
+    let reads = 0
+    const signal: AbortSignal = Object.create(AbortSignal.prototype, {
+      aborted: { get: () => reads++ > 0 },
+    })
+    const { family, record, released } = familyWith()
+    expect(await composeFamilies([family]).acquire(supplierOf(record), signal)).toEqual({
+      failure: { kind: 'unavailable', dependency: OWNER, diagnostic: 'cancelled' },
+    })
+    expect(released()).toBe(0)
+  })
+
   it('returns the lease when binding throws, and reports a lease that fails to return', async () => {
     const throwing = familyWith({ limits: { ...TEST_DECODER_LIMITS, maxReasoningText: 0 } })
     await expect(
@@ -466,5 +491,113 @@ describe('defineGatewayFamily', () => {
     )
     if (!('ok' in acquired)) throw new Error(JSON.stringify(acquired.failure))
     await expect(acquired.ok.release()).rejects.toThrow('tokenizer-unavailable')
+  })
+})
+
+describe('the parts of a chat representation', () => {
+  const shape = { instructionRole: 'system', imageDetail: 'high', files: false }
+  const turnOf = (blocks: readonly unknown[]) => ({
+    role: 'assistant',
+    message: 'm',
+    blocks,
+    replay: { kind: 'none' },
+  })
+
+  it('writes each part kind the meter counts, and nothing for the parts it does not', () => {
+    const blocks = [
+      { kind: 'image', ref: { mediaType: 'image/jpeg' } },
+      { kind: 'tool_call', callId: 'c1', name: 'grep', arguments: { kind: 'null' } },
+      { kind: 'tool_call_unparsed', callId: 'c2', name: 'grep', raw: '{oops' },
+      { kind: 'tool_result', callId: 'c1' },
+      { kind: 'thinking' },
+      { kind: 'tool_call_incomplete' },
+      { kind: 'voice' },
+      { kind: 'file' },
+    ]
+    const { tokenInput } = chatRepresentation(
+      view({
+        instruction: [{ kind: 'image' }, { kind: 'text', text: 'rules' }] as never,
+        turns: [turnOf(blocks)] as never,
+      }),
+      shape,
+    )
+    expect(memberOf(tokenInput, 'messages')).toEqual({
+      kind: 'array',
+      items: [
+        obj({
+          role: str('system'),
+          content: { kind: 'array', items: [obj({ type: str('text'), text: str('rules') })] },
+        }),
+        obj({
+          role: str('assistant'),
+          content: {
+            kind: 'array',
+            items: [
+              obj({ type: str('image'), mediaType: str('image/jpeg'), detail: str('high') }),
+              obj({
+                type: str('tool_call'),
+                id: str('c1'),
+                name: str('grep'),
+                arguments: str('null'),
+              }),
+              obj({
+                type: str('tool_call'),
+                id: str('c2'),
+                name: str('grep'),
+                arguments: str('{oops'),
+              }),
+              obj({ type: str('tool_result'), id: str('c1') }),
+            ],
+          },
+        }),
+      ],
+    })
+    expect(memberOf(tokenInput, 'tool_choice')).toEqual(str('auto'))
+    const named = chatRepresentation(view({ toolChoice: { name: 'grep' } } as never), shape)
+    expect(memberOf(named.tokenInput, 'tool_choice')).toEqual(obj({ name: str('grep') }))
+  })
+
+  it('drops an undefined member and keeps the order of the others', () => {
+    expect(obj({ a: str('1'), b: undefined, c: str('3') })).toEqual({
+      kind: 'object',
+      entries: [
+        { key: 'a', value: str('1') },
+        { key: 'c', value: str('3') },
+      ],
+    })
+  })
+
+  it('cannot read an image whose detail is missing when the details are checked', () => {
+    const input = obj({
+      messages: {
+        kind: 'array',
+        items: [obj({ content: { kind: 'array', items: [obj({ type: str('image') })] } })],
+      },
+    })
+    expect(chatUnitsOf(input, ['auto'])).toBeNull()
+    expect(chatUnitsOf(input)).toEqual([
+      { images: [{ detail: '' }], files: false, reasoning: false },
+    ])
+  })
+})
+
+describe('the image tile rule', () => {
+  const image = (width: string, height: string) =>
+    ({ kind: 'image', widthPixels: width, heightPixels: height }) as never
+  it('accepts multi-digit rates and refuses malformed ones by name', () => {
+    const rule = { tilePixels: '28', tokensPerTile: '1', overheadTokens: '16' }
+    expect(
+      tileImageTokens(OWNER, rule, [{ images: [null], files: false }], [image('56', '28')]),
+    ).toEqual({
+      ok: [18n],
+    })
+    expect(() =>
+      tileImageTokens(
+        OWNER,
+        { ...rule, overheadTokens: 'x' },
+        [{ images: [null], files: false }],
+        [image('1', '1')],
+      ),
+    ).toThrow('invalid image token rule')
   })
 })

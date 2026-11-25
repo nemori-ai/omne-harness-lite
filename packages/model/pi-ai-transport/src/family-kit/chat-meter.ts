@@ -143,31 +143,52 @@ export function chatUnitsOf(
   if (messages?.kind !== 'array') return null
   const units: ChatUnit[] = []
   for (const message of messages.items) {
-    const content = memberOf(message, 'content')
-    if (content?.kind !== 'array') return null
-    const images: { detail: string }[] = []
-    let files = false
-    for (const part of content.items) {
-      const type = memberOf(part, 'type')
-      if (type?.kind !== 'string') return null
-      if (type.value === 'file') files = true
-      if (type.value !== 'image') continue
-      if (details === undefined) {
-        images.push({ detail: '' })
-        continue
-      }
-      const detail = memberOf(part, 'detail')
-      const known = details.find(item => detail?.kind === 'string' && item === detail.value)
-      if (known === undefined) return null
-      images.push({ detail: known })
-    }
-    units.push({ images, files, reasoning: memberOf(message, 'reasoning_details') !== undefined })
+    const unit = unitOf(message, details)
+    if (unit === null) return null
+    units.push(unit)
   }
   return units
 }
 
+function unitOf(message: JsonValue, details: readonly string[] | undefined): ChatUnit | null {
+  const content = memberOf(message, 'content')
+  if (content?.kind !== 'array') return null
+  const images: { detail: string }[] = []
+  let files = false
+  for (const part of content.items) {
+    const type = memberOf(part, 'type')
+    if (type?.kind !== 'string') return null
+    if (type.value === 'file') files = true
+    if (type.value !== 'image') continue
+    const detail = details === undefined ? '' : detailOf(part, details)
+    if (detail === null) return null
+    images.push({ detail })
+  }
+  return { images, files, reasoning: memberOf(message, 'reasoning_details') !== undefined }
+}
+
+function detailOf(part: JsonValue, details: readonly string[]): string | null {
+  const detail = memberOf(part, 'detail')
+  if (detail?.kind !== 'string') return null
+  return details.find(item => item === detail.value) ?? null
+}
+
 const POSITIVE = /^[1-9][0-9]*$/
 const NONNEGATIVE = /^(0|[1-9][0-9]*)$/
+
+function tilesOf(rule: ImageTokenRule): Readonly<{ tile: bigint; rate: bigint; overhead: bigint }> {
+  if (
+    !POSITIVE.test(rule.tilePixels) ||
+    !POSITIVE.test(rule.tokensPerTile) ||
+    !NONNEGATIVE.test(rule.overheadTokens)
+  )
+    throw new RangeError('invalid image token rule')
+  return {
+    tile: BigInt(rule.tilePixels),
+    rate: BigInt(rule.tokensPerTile),
+    overhead: BigInt(rule.overheadTokens),
+  }
+}
 
 // Each image's tokens stay on its message, so a suffix calibrates alone. A file reference makes
 // the request uncountable: its text is extracted upstream.
@@ -186,15 +207,7 @@ export function tileImageTokens(
   if (facts.length !== count) return unavailable('image-measurement-missing')
   if (count === 0) return { ok: units.map(() => 0n) }
   if (rule === undefined) return unavailable('image-rule-missing')
-  if (
-    !POSITIVE.test(rule.tilePixels) ||
-    !POSITIVE.test(rule.tokensPerTile) ||
-    !NONNEGATIVE.test(rule.overheadTokens)
-  )
-    throw new RangeError('invalid image token rule')
-  const tile = BigInt(rule.tilePixels)
-  const rate = BigInt(rule.tokensPerTile)
-  const overhead = BigInt(rule.overheadTokens)
+  const { tile, rate, overhead } = tilesOf(rule)
   const extras = []
   let position = 0
   for (const unit of units) {

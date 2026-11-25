@@ -29,6 +29,8 @@ import {
   testRecord,
   textBlock,
 } from './support/chat-record.ts'
+import { componentAdoption, countingBasis, createGatewayMeter } from '../src/family-kit/index.ts'
+import { recordAdoption } from '../src/index.ts'
 
 const METER = adoption('meter')
 const OUTPUT_GROUP = 'family-output-group-estimated/1'
@@ -616,5 +618,73 @@ describe('createCalibratedMeter', () => {
     const measured = await result
     expect(inputAmount(measured)).toBe('123')
     expect('ok' in measured && measured.ok.kind).toBe('complete')
+  })
+
+  it('measures through a gateway meter exactly as through the calibrated meter its record implies', async () => {
+    const owner = 'family'
+    const amounts = new Set<string>()
+    for (const form of ['as-written', 'nfkc'] as const)
+      for (const coldRequestTokens of [undefined, '7']) {
+        const gateway = {
+          ...record,
+          profile: {
+            input: ['text'],
+            output: ['text'],
+            context: {
+              window: { provided: '1', upstream: { kind: 'unknown' } },
+              input: null,
+              output: { provided: '1', upstream: { kind: 'unknown' } },
+            },
+            limits: [],
+            evidence: 'tests',
+          },
+          meter: {
+            tokenizer: tokenizer.definition,
+            ...(coldRequestTokens === undefined ? {} : { coldRequestTokens }),
+          },
+        } as const
+        const representation = componentAdoption(owner, gateway, 'representation')
+        const input = {
+          ...metered,
+          supplier: { ...supplier, adoption: recordAdoption(owner, gateway) },
+          representation: { ...metered.representation, adoption: representation },
+        }
+        const meter = createGatewayMeter({
+          owner,
+          record: gateway,
+          tokenizer,
+          margin: { percent: '0', source: adoption('margin') },
+          outputGroup: OUTPUT_GROUP,
+          uncountable: 'reasoning-not-countable',
+          form,
+          contentOf: rules().contentOf,
+          imageTokens: rules().imageTokens,
+          represent: () => ({ tokenInput: units, units: [U1] }),
+        })
+        const reference = createCalibratedMeter({
+          ...rules(),
+          owner,
+          supplier: recordAdoption(owner, gateway),
+          adoptions: {
+            meter: componentAdoption(owner, gateway, 'meter'),
+            representation,
+            media: componentAdoption(owner, gateway, 'media'),
+          },
+          basis: countingBasis(owner, gateway),
+          ...(coldRequestTokens === undefined ? {} : { coldRequestTokens }),
+          tokens: { tokenizer, form },
+        })
+        const expected = await reference.measure(input)
+        expect('ok' in expected).toBe(true)
+        expect(await meter.instance.measure(input)).toEqual(expected)
+        expect(meter.instance.basis).toEqual(countingBasis(owner, gateway))
+        expect(meter.represent({} as never)).toEqual({
+          adoption: representation,
+          tokenInput: units,
+          units: [U1],
+        })
+        amounts.add(JSON.stringify(inputAmount(expected)))
+      }
+    expect(amounts.size).toBe(4)
   })
 })

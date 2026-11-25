@@ -63,6 +63,13 @@ function sameDefinition(left: TokenizerDefinition, right: TokenizerDefinition): 
   )
 }
 
+function checkMargin(margin: GatewayFamilyConfig['margin']): void {
+  if (typeof margin !== 'object' || margin === null)
+    throw new RangeError('config.margin must be an object')
+  if (typeof margin.percent !== 'string' || !DECIMAL.test(margin.percent))
+    throw new RangeError('config.margin.percent must be a non-negative decimal integer')
+}
+
 function checkConfig(config: GatewayFamilyConfig, title: string): void {
   if (typeof config !== 'object' || config === null)
     throw new RangeError(`the ${title} family configuration must be an object`)
@@ -72,10 +79,7 @@ function checkConfig(config: GatewayFamilyConfig, title: string): void {
     throw new RangeError('config.executor must acquire tokenizer leases')
   if (typeof config.limits !== 'object' || config.limits === null)
     throw new RangeError('config.limits must be the decoder limits')
-  if (typeof config.margin !== 'object' || config.margin === null)
-    throw new RangeError('config.margin must be an object')
-  if (typeof config.margin.percent !== 'string' || !DECIMAL.test(config.margin.percent))
-    throw new RangeError('config.margin.percent must be a non-negative decimal integer')
+  checkMargin(config.margin)
 }
 
 export function byteLimitOf(record: GatewayRecord, metric: string): number | undefined {
