@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { ElectronApplication, Page } from '@playwright/test'
-import { ASK_MARKER, expect, test } from './desktop.ts'
+import { ASK_MARKER, REPLY, expect, test } from './desktop.ts'
 
 // The desk layer is macOS only in this version (apps/desktop/SPEC.md#桌面层); elsewhere the figure stays in the page.
 test.skip(process.platform !== 'darwin', '桌面层这一版只在 macOS 上有，别的系统上形出不了页面')
@@ -22,7 +22,7 @@ async function signUp(page: Page): Promise<string> {
 async function signIn(page: Page, name: string): Promise<void> {
   await page.locator('input[name=loginIdentifier]').fill(name)
   await page.locator('input[name=credential]').fill(PASSWORD)
-  await page.getByRole('button', { name: '登录', exact: true }).click()
+  await page.locator('form').getByRole('button', { name: '登录', exact: true }).click()
   await expect(page.getByRole('button', { name: '新建会话' })).toBeEnabled({ timeout: 30_000 })
 }
 
@@ -56,6 +56,45 @@ const mainWindow = (app: ElectronApplication, act: 'minimize' | 'restore' | 'clo
     main?.[what]()
   }, act)
 
+/** Whether the main window has the focus, read in the main process. */
+const mainFocused = (app: ElectronApplication) =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find(each => !/\/(desk|shot)\.html/.test(each.webContents.getURL()))
+      ?.isFocused(),
+  )
+
+const blurMain = (app: ElectronApplication) =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find(each => !/\/(desk|shot)\.html/.test(each.webContents.getURL()))
+      ?.blur(),
+  )
+
+/** The largest alpha in a 4x4 patch of the desk layer's window at a corner away from the figure. */
+async function cornerAlpha(app: ElectronApplication, desk: Page): Promise<number> {
+  const figure = await desk.locator('.omne-figure-reach').boundingBox()
+  if (figure === null) throw new Error('the desk layer draws no figure')
+  const [width, height] = (await desk.evaluate('[innerWidth, innerHeight]')) as [number, number]
+  const x = figure.x > width / 2 ? 0 : width - 4
+  const y = figure.y > height / 2 ? 0 : height - 4
+  return app.evaluate(
+    async ({ BrowserWindow }, rect) => {
+      const window = BrowserWindow.getAllWindows().find(each =>
+        each.webContents.getURL().includes('/desk.html'),
+      )
+      const image = await window!.webContents.capturePage({ ...rect, width: 4, height: 4 })
+      const bitmap = image.toBitmap()
+      let most = 0
+      for (let index = 3; index < bitmap.length; index += 4) most = Math.max(most, bitmap[index]!)
+      return bitmap.length === 0 ? -1 : most
+    },
+    { x, y },
+  )
+}
+
+const deskFigure = (desk: Page) => desk.locator('.omne-figure-reach')
+
 const inkOnPage = (page: Page) => page.locator('.omne-figure-carried .omne-figure-ink')
 const recall = (page: Page) => page.getByRole('button', { name: RECALL })
 
@@ -64,6 +103,8 @@ const recall = (page: Page) => page.getByRole('button', { name: RECALL })
  * desk layer has taken it (the page shows the empty seat), then lets go out there.
  */
 async function liftOut(page: Page): Promise<void> {
+  const carried = page.locator('.omne-figure-carried')
+  await expect(carried).toHaveAttribute('data-phase', 'seated', { timeout: 15_000 })
   const box = await page.locator('.omne-figure-carried').boundingBox()
   if (box === null) throw new Error('the figure is not on the page')
   const [width, height] = (await page.evaluate('[innerWidth, innerHeight]')) as [number, number]
@@ -105,6 +146,52 @@ test('拖出视口再松手：桌面层的窗口显示着、在普通窗口之�
   })
   await expect(inkOnPage(page)).toHaveCount(0)
   await expect(recall(page)).toBeVisible()
+  expect(await cornerAlpha(app, deskPage(app))).toBe(0)
+})
+
+test('双击桌面上的形：主窗口到前面，形留在桌面', async ({ launchApp }) => {
+  const { app, page } = await launchApp()
+  await signUp(page)
+  await liftOut(page)
+  const desk = await onDesk(app)
+  await blurMain(app)
+  await expect.poll(() => mainFocused(app)).toBe(false)
+  await deskFigure(desk).dblclick()
+  await expect.poll(() => mainFocused(app), { timeout: 10_000 }).toBe(true)
+  await expect(desk.locator('main.desk[data-mode=rest] .omne-figure-ink')).toHaveCount(1)
+  expect(await deskWindow(app)).toMatchObject({ visible: true })
+  await expect(recall(page)).toBeVisible()
+})
+
+test('单击桌面上的形说一句话：缺省说给新会话，笺上写已发送，主窗口没有被聚焦；去对话页，主窗口到前面并打开那个会话', async ({
+  launchApp,
+}) => {
+  const { app, page } = await launchApp()
+  await signUp(page)
+  await liftOut(page)
+  const desk = await onDesk(app)
+  await blurMain(app)
+  await deskFigure(desk).click()
+  const bubble = desk.locator('.omne-say-bubble')
+  await expect(bubble).toBeVisible({ timeout: 10_000 })
+  await expect(bubble.locator('.omne-say-to')).toContainText('新会话')
+  const words = `从桌面上说的话 ${randomUUID().slice(0, 6)}`
+  const field = desk.getByRole('textbox', { name: '说一句话' })
+  await field.fill(words)
+  await field.press('Enter')
+  await expect(bubble.locator('.omne-say-line')).toHaveText('已发送', { timeout: 30_000 })
+  await expect(field).toHaveValue('')
+  expect(await mainFocused(app)).toBe(false)
+  await desk.getByRole('button', { name: '去对话页' }).click()
+  await expect.poll(() => mainFocused(app), { timeout: 10_000 }).toBe(true)
+  await expect(bubble).toHaveCount(0, { timeout: 10_000 })
+  await expect(desk.locator('main.desk[data-mode=rest] .omne-figure-ink')).toHaveCount(1)
+  await expect(page.locator('.omne-message[data-role=user]')).toContainText(words, {
+    timeout: 30_000,
+  })
+  await expect(page.locator('.omne-message[data-role=assistant]')).toContainText(REPLY, {
+    timeout: 30_000,
+  })
 })
 
 test('形在桌面上时开始一轮、让它问一个问题：桌面层的形写出在做事，口外写出 1', async ({

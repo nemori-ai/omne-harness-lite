@@ -512,6 +512,8 @@ export function Shell(props: ShellProps) {
       moment: merged.moment,
       waiting: merged.waiting,
     },
+    state.slots,
+    state.scope,
   )
   return (
     <RedrawProvider value={state.redraw.draw}>

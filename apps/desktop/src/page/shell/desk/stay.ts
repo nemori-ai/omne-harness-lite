@@ -6,9 +6,11 @@ import {
   type FigureHand,
   type FigureLabelLine,
 } from '@omne-harness/ui-kit'
-import type { DeskInput, Look, Point, SceneFigure, Up } from '../../desk/scene.ts'
+import type { ShellSlots } from '@omne-harness/shell-contract'
+import type { Look, Point, SceneFigure, Up } from '../../desk/scene.ts'
 import { type FigureDevice, type FigureFacts } from './device.ts'
 import { figureLink, type FigureLink } from './link.ts'
+import { Talk, type TalkDeps } from './talk.ts'
 import {
   inside,
   pageDraws,
@@ -26,7 +28,8 @@ export type StayDeps = Readonly<{
   size: () => number
   look: () => Look
   watch: (changed: () => void) => () => void
-}>
+}> &
+  TalkDeps
 
 export type Stay = Readonly<{
   subscribe(listener: () => void): () => void
@@ -48,6 +51,8 @@ type Lease = { number: number | null; facts: FigureFacts | null; giveUp: () => v
 
 const nothing = () => undefined
 
+const noting = (where: Whereabouts): boolean => where.at === 'desk' && where.note
+
 class FigureStay {
   private where: Whereabouts = { at: 'seat' }
   private leave = false
@@ -63,10 +68,12 @@ class FigureStay {
   private isAway = false
   private readonly listeners = new Set<() => void>()
   private readonly unlisten: () => void
+  private readonly talk: Talk
 
   public constructor(private readonly deps: StayDeps) {
     void deps.device.leave().then(yes => void (this.leave = yes))
     this.unlisten = deps.link.listen(message => this.heard(message))
+    this.talk = new Talk(deps, () => this.publish())
   }
 
   public subscribe(listener: () => void): () => void {
@@ -109,6 +116,7 @@ class FigureStay {
 
   public dispose(): void {
     this.release()
+    this.talk.dispose()
     this.unlisten()
     this.deps.link.close()
     this.listeners.clear()
@@ -141,7 +149,7 @@ class FigureStay {
       visible: known?.visible ?? false,
       screen: known?.screen ?? null,
       size: this.deps.size(),
-      talker: false,
+      talker: this.talk.present(),
     }
   }
 
@@ -159,7 +167,8 @@ class FigureStay {
     const lease = this.leased()
     if (lease === null) return
     const where = sceneWhere(this.where, this.handPoint())
-    const shown = { look: this.deps.look(), figure: this.shape, where, label: this.label() }
+    const note = noting(this.where) ? this.talk.scene() : null
+    const shown = { look: this.deps.look(), figure: this.shape, where, label: this.label(), note }
     const key = JSON.stringify({ ...shown, where: where.mode === 'hand' ? 'hand' : where })
     if (!again && key === this.sentKey) return
     this.sentKey = key
@@ -232,14 +241,31 @@ class FigureStay {
         const lease = this.leased()
         if (lease !== null) this.deps.device.mode(lease, { hold: effect.hold, keys: effect.keys })
       }
+    if (noting(where) && !noting(was)) this.talk.open()
+    else if (!noting(where) && noting(was)) this.talk.close()
     this.publish()
     this.notify()
     return !fromPage || where.at !== 'seat'
   }
 
-  private input(kind: DeskInput, at: Point | null): void {
+  private closeNote(): void {
+    if (noting(this.where)) this.run({ kind: 'escape', on: 'desk', at: this.deskPoint })
+  }
+
+  private input(message: Extract<Up, { kind: 'input' }>): void {
+    if (message.input === 'send') {
+      if (noting(this.where)) this.talk.send(message.words, message.to)
+      return
+    }
+    const { input: kind, at } = message
     if (at !== null) this.deskPoint = at
-    if (kind === 'lift') this.run({ kind: 'lift', on: 'desk' })
+    if (kind === 'close') this.closeNote()
+    else if (kind === 'show') {
+      if (noting(this.where) && this.talk.show()) {
+        this.deps.device.front()
+        this.closeNote()
+      }
+    } else if (kind === 'lift') this.run({ kind: 'lift', on: 'desk' })
     else if (kind === 'drop' || kind === 'cancel')
       this.run({ kind: kind === 'drop' ? 'drop' : 'escape', on: 'desk', at: this.deskPoint })
     else if (kind === 'click' || kind === 'double') this.run({ kind })
@@ -251,7 +277,7 @@ class FigureStay {
     if (message.kind === 'hello') return this.publish(true)
     const lease = this.leased()
     if (lease === null || message.lease !== lease) return
-    if (message.kind === 'input') return this.input(message.input, message.at)
+    if (message.kind === 'input') return this.input(message)
     if (message.serial === this.serial) this.run({ kind: message.kind })
   }
 }
@@ -298,6 +324,8 @@ export function useStay(
   control: RefObject<FigureControl | null>,
   signedIn: boolean,
   figure: SceneFigure,
+  slots: ShellSlots,
+  scope: Readonly<{ get(): string | undefined }>,
 ): Readonly<{ away: boolean; hand: (hand: FigureHand) => boolean; recall: () => void }> {
   const [stay, setStay] = useState<Stay | null>(null)
   useEffect(() => {
@@ -308,10 +336,12 @@ export function useStay(
       size: pageFigureSize,
       look: pageLook,
       watch: watchPage,
+      slots,
+      scope: () => scope.get(),
     })
     setStay(made)
     return () => made.dispose()
-  }, [device, control])
+  }, [device, control, slots, scope])
   useEffect(() => stay?.signedIn(signedIn), [stay, signedIn])
   const { doing, moment, waiting } = figure
   const kind = moment?.kind

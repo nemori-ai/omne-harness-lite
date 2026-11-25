@@ -17,6 +17,19 @@ export type SceneWhere =
   | Readonly<{ mode: 'none' }>
   | Readonly<{ mode: 'hand' | 'rest' | 'home'; at: Point }>
 
+export type NoteTo = Readonly<{ kind: 'new' }> | Readonly<{ kind: 'target'; key: string }>
+export type NoteTarget = Readonly<{ key: string; label: string }>
+export type NoteFate =
+  | Readonly<{ kind: 'sending' | 'accepted' | 'unknown' }>
+  | Readonly<{ kind: 'failed'; reason: string }>
+
+/** The say note: `targets` null when who can be spoken to cannot be read now; `to` is the default. */
+export type SceneNote = Readonly<{
+  targets: readonly NoteTarget[] | null
+  to: NoteTo
+  fate: NoteFate | null
+}>
+
 /** The whole of what the shell hands the desk page to draw; points are logical points on the screen. */
 export type Scene = Readonly<{
   lease: number
@@ -25,10 +38,11 @@ export type Scene = Readonly<{
   figure: SceneFigure
   where: SceneWhere
   label: readonly FigureLabelLine[] | null
+  note: SceneNote | null
 }>
 
 export type Handover = 'painted' | 'arrived' | 'cleared'
-export type DeskInput = 'lift' | 'move' | 'drop' | 'cancel' | 'click' | 'double'
+export type DeskInput = 'lift' | 'move' | 'drop' | 'cancel' | 'click' | 'double' | 'close' | 'show'
 
 /** From the shell to the desk page. */
 export type Down =
@@ -39,10 +53,20 @@ export type Down =
 export type Up =
   | Readonly<{ kind: Handover; lease: number; serial: number }>
   | Readonly<{ kind: 'input'; lease: number; input: DeskInput; at: Point | null }>
+  | Readonly<{ kind: 'input'; lease: number; input: 'send'; words: string; to: NoteTo }>
   | Readonly<{ kind: 'hello' }>
 
 const HANDOVERS: readonly string[] = ['painted', 'arrived', 'cleared']
-const INPUTS: readonly string[] = ['lift', 'move', 'drop', 'cancel', 'click', 'double']
+const INPUTS: readonly string[] = [
+  'lift',
+  'move',
+  'drop',
+  'cancel',
+  'click',
+  'double',
+  'close',
+  'show',
+]
 const MODES: readonly string[] = ['none', 'hand', 'rest', 'home']
 
 type Fields = Readonly<Record<string, unknown>>
@@ -51,6 +75,9 @@ const fields = (value: unknown): Fields | undefined =>
 const isNumber = (value: unknown): value is number => Number.isFinite(value)
 const isPoint = (value: unknown): value is Point =>
   isNumber(fields(value)?.['x']) && isNumber(fields(value)?.['y'])
+const isTo = (value: unknown): value is NoteTo =>
+  fields(value)?.['kind'] === 'new' ||
+  (fields(value)?.['kind'] === 'target' && typeof fields(value)?.['key'] === 'string')
 
 function isScene(value: unknown): value is Scene {
   const scene = fields(value)
@@ -79,6 +106,14 @@ export function readUp(data: unknown): Up | undefined {
   const kind = String(message?.['kind'])
   if (message === undefined) return undefined
   if (kind === 'hello') return { kind: 'hello' }
+  if (
+    kind === 'input' &&
+    message['input'] === 'send' &&
+    isNumber(message['lease']) &&
+    typeof message['words'] === 'string' &&
+    isTo(message['to'])
+  )
+    return message as Up
   if (HANDOVERS.includes(kind) && isNumber(message['lease']) && isNumber(message['serial']))
     return message as Up
   if (

@@ -30,9 +30,7 @@ interface Allowance {
   readonly firstUser: string
 }
 
-const UNUSED_ON_PURPOSE: ReadonlyMap<string, Allowance> = new Map<string, Allowance>([
-  ['SayBubble', { reason: '桌面层的页面用，切片 04、05 接上（#1663）', firstUser: '#1663' }],
-])
+const UNUSED_ON_PURPOSE: ReadonlyMap<string, Allowance> = new Map<string, Allowance>([])
 
 type Reader = (path: string) => SyntaxNode | undefined
 

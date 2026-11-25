@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { DeskPage, type DeskDeps } from '../src/page/desk/desk.tsx'
 import type { Down, Rect, Scene, Up } from '../src/page/desk/scene.ts'
 
@@ -14,6 +14,7 @@ function scene(lease: number, serial: number, where: Scene['where'], more?: Part
     figure: { waiting: 0 },
     where,
     label: null,
+    note: null,
     ...more,
   }
 }
@@ -159,5 +160,141 @@ describe('桌面层的页面', () => {
     expect(page.view.container.textContent).toContain('松手就停在这里，双击回到应用')
     page.send({ kind: 'scene', scene: scene(9, 2, hand) })
     expect(page.view.container.textContent).not.toContain('应用外面')
+  })
+})
+
+describe('桌面层的页面：说话笺', () => {
+  const rest = { mode: 'rest', at: { x: 1200, y: 300 } } as const
+  const note = (more: Partial<NonNullable<Scene['note']>> = {}): Scene['note'] => ({
+    targets: [{ key: 's-1', label: '周报' }],
+    to: { kind: 'new' },
+    fate: null,
+    ...more,
+  })
+  const bubble = () => document.querySelector<HTMLElement>('.omne-say-bubble')
+  const field = () => document.querySelector<HTMLTextAreaElement>('.omne-say-field')!
+  const type = (text: string) => fireEvent.change(field(), { target: { value: text } })
+  const inputs = (page: ReturnType<typeof desk>) =>
+    page.posted.filter(message => message.kind === 'input')
+
+  it('一幕带笺时画说话笺，不带时不画', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(10, 1, rest) })
+    expect(bubble()).toBeNull()
+    page.send({ kind: 'scene', scene: scene(10, 2, rest, { note: note() }) })
+    expect(bubble()).not.toBeNull()
+  })
+
+  it('回车报发送，带字与说给谁；缺省说给新会话或那个键', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note() }) })
+    type('帮我看一下周报')
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    expect(inputs(page)).toEqual([
+      { kind: 'input', lease: 10, input: 'send', words: '帮我看一下周报', to: { kind: 'new' } },
+    ])
+    const to = { kind: 'target', key: 's-1' } as const
+    page.send({ kind: 'scene', scene: scene(11, 1, rest, { note: note({ to }) }) })
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    expect(inputs(page).at(-1)).toMatchObject({ lease: 11, input: 'send', to })
+  })
+
+  it('Escape 与收起钮报收起', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note() }) })
+    fireEvent.keyDown(field(), { key: 'Escape' })
+    fireEvent.click(document.querySelector('.omne-say-row button')!)
+    expect(inputs(page)).toEqual([
+      { kind: 'input', lease: 10, input: 'close', at: null },
+      { kind: 'input', lease: 10, input: 'close', at: null },
+    ])
+  })
+
+  it('受理了之后按去对话页报 show', () => {
+    const page = desk()
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 1, rest, { note: note({ fate: { kind: 'accepted' } }) }),
+    })
+    fireEvent.click(document.querySelector('.omne-say-row button')!)
+    expect(inputs(page)).toEqual([{ kind: 'input', lease: 10, input: 'show', at: null }])
+  })
+
+  it('窗口失焦：字段里没有字报收起，有字什么都不报；笺收着时不报', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(10, 1, rest) })
+    act(() => void window.dispatchEvent(new Event('blur')))
+    expect(inputs(page)).toEqual([])
+    page.send({ kind: 'scene', scene: scene(10, 2, rest, { note: note() }) })
+    type('写了一半')
+    act(() => void window.dispatchEvent(new Event('blur')))
+    expect(inputs(page)).toEqual([])
+    type('  ')
+    act(() => void window.dispatchEvent(new Event('blur')))
+    expect(inputs(page)).toEqual([{ kind: 'input', lease: 10, input: 'close', at: null }])
+  })
+
+  it('受理了或不知道之后字清掉，确定没发出时字留着', () => {
+    const page = desk()
+    const sending = { fate: { kind: 'sending' } } as const
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note() }) })
+    type('一')
+    page.send({ kind: 'scene', scene: scene(10, 2, rest, { note: note(sending) }) })
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 3, rest, { note: note({ fate: { kind: 'failed', reason: '不行' } }) }),
+    })
+    expect(field().value).toBe('一')
+    page.send({ kind: 'scene', scene: scene(10, 4, rest, { note: note(sending) }) })
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 5, rest, { note: note({ fate: { kind: 'accepted' } }) }),
+    })
+    expect(field().value).toBe('')
+    type('二')
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 6, rest, { note: note({ fate: { kind: 'accepted' } }) }),
+    })
+    expect(field().value).toBe('二')
+    page.send({ kind: 'scene', scene: scene(10, 7, rest, { note: note(sending) }) })
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 8, rest, { note: note({ fate: { kind: 'unknown' } }) }),
+    })
+    expect(field().value).toBe('')
+  })
+
+  it('hot 里有笺的矩形：笺开时、收时重报', () => {
+    const box = { x: 1222, y: 311, width: 360, height: 120 }
+    const measured = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const { x, y, width, height } = this.classList.contains('omne-say-bubble')
+        ? { ...box, x: box.x - ORIGIN.x }
+        : { x: 0, y: 0, width: 0, height: 0 }
+      return {
+        x,
+        y,
+        width,
+        height,
+        left: x,
+        top: y,
+        right: x + width,
+        bottom: y + height,
+      } as DOMRect
+    }
+    try {
+      const page = desk()
+      const around = { x: 1200 - 62, y: 300 - 62, width: 124, height: 124 }
+      page.send({ kind: 'scene', scene: scene(10, 1, rest) })
+      expect(page.hot.at(-1)).toEqual([10, [around]])
+      page.send({ kind: 'scene', scene: scene(10, 2, rest, { note: note() }) })
+      page.frame()
+      expect(page.hot.at(-1)).toEqual([10, [around, box]])
+      page.send({ kind: 'scene', scene: scene(10, 3, rest) })
+      expect(page.hot.at(-1)).toEqual([10, [around]])
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = measured
+    }
   })
 })
