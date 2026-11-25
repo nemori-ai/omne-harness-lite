@@ -33,7 +33,7 @@ import { ItemPage } from './item-page.tsx'
 import { ITEM_DRAG, PileView } from './pile-view.tsx'
 import { droppedOut, itemActs, pileActs, type Selection } from './sheet-acts.ts'
 import { bareAt, FinderKey, FoundMark, useLayers, type Place } from './sheet-layers.tsx'
-import { CanvasStatus, useLookedAt } from './status.tsx'
+import { CanvasStatus, useLookedAt, type LookedAt } from './status.tsx'
 import { useLatest, useSame, useSteady } from './steady.ts'
 
 /** The seat of the figure on the back is in the middle of the sheet, at the first priority. */
@@ -153,6 +153,24 @@ function useStanding(kinds: CanvasState['kinds']): (item: CanvasItemBody) => Kin
   }, [kinds])
 }
 
+/** Where the pointer is on bare paper, for `@`; and which thing the pointer and the focus are on, for the status bar. */
+function watching(pointer: React.RefObject<PaperPoint | undefined>, looks: LookedAt) {
+  return {
+    onPointerMove: (event: React.PointerEvent) => {
+      pointer.current = bareAt(event)
+    },
+    onPointerOver: (event: React.PointerEvent) => looks.over(event.target),
+    onPointerLeave: () => {
+      pointer.current = undefined
+      looks.over(null)
+    },
+    onFocus: (event: React.FocusEvent) => looks.focus(event.target),
+    onBlur: (event: React.FocusEvent) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) looks.focus(null)
+    },
+  }
+}
+
 /** The sheet of the canvas, with what the server last said lies on it. */
 export function SheetView(props: SheetViewProps): JSX.Element {
   const { host, scope, canvas, state, preferences, send, dismiss } = props
@@ -188,18 +206,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
       ref={root}
       className="canvas-paper"
       {...canvasPaper.props}
-      onPointerMove={event => {
-        pointer.current = bareAt(event)
-      }}
-      onPointerOver={event => looks.over(event.target)}
-      onPointerLeave={() => {
-        pointer.current = undefined
-        looks.over(null)
-      }}
-      onFocus={event => looks.focus(event.target)}
-      onBlur={event => {
-        if (!event.currentTarget.contains(event.relatedTarget)) looks.focus(null)
-      }}
+      {...watching(pointer, looks)}
       onKeyDown={event => {
         if (!letsGo(event, selected)) return
         event.preventDefault()
