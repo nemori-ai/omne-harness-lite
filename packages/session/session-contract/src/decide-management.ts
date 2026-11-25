@@ -160,20 +160,6 @@ export function decideControl(
 
 const COMMAND_ARGS_LIMIT = 4096
 
-/** A system command a member typed, written as it was; its operation is done by the one that asked. */
-function decideRecordCommand(
-  snapshot: WorkSnapshot,
-  input: Readonly<{ name: string; args: string }>,
-  origin: ReturnType<typeof originOf>,
-): Decision {
-  if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
-  const { name, args } = input
-  if (!/^[a-z0-9-]+:[a-z0-9:-]+$/u.test(name) || name.length > 200)
-    return invalid('name', 'not the full name of a command')
-  if (args.length > COMMAND_ARGS_LIMIT) return invalid('args', 'longer than a command line')
-  return entries([encodeEntry({ kind: 'session.command-recorded', name, args }, origin)])
-}
-
 export function decideManagement(
   snapshot: WorkSnapshot,
   command: SessionCommand,
@@ -206,8 +192,14 @@ export function decideManagement(
       return entries([
         encodeEntry({ kind: 'session.resident', resident: command.input.resident }, origin),
       ])
-    case 'recordCommand':
-      return decideRecordCommand(snapshot, command.input, origin)
+    case 'recordCommand': {
+      if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
+      const { name, args } = command.input
+      if (!/^[a-z0-9-]+:[a-z0-9:-]+$/u.test(name) || name.length > 200)
+        return invalid('name', 'not the full name of a command')
+      if (args.length > COMMAND_ARGS_LIMIT) return invalid('args', 'longer than a command line')
+      return entries([encodeEntry({ kind: 'session.command-recorded', name, args }, origin)])
+    }
     case 'configureAutoArchive':
       if (command.input.policy.kind === 'enabled' && !/^\d+$/u.test(command.input.policy.idleMs))
         return invalid('policy.idleMs', 'not a nonnegative duration')

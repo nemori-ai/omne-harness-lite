@@ -138,7 +138,7 @@ const KEYS: Readonly<Record<Key, (c: Composer) => Pressed>> = {
 }
 
 /** What a key does to the menu: the composer does what is passed on. */
-export function pressed(c: Composer, key: Key): Pressed {
+export function pressed(c: Composer, key: Key): Readonly<{ state: Composer; answer: Answer }> {
   if (c.composing || c.phase !== 'open') return { state: c, answer: PASS }
   return KEYS[key](c)
 }
