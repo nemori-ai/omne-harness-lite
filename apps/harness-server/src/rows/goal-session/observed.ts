@@ -21,17 +21,37 @@ export function exitOf(result: string): number | null {
   }
 }
 
+/** What a Files call put on disk, as its arguments give it: the result of such a call is a receipt and shows none of it. */
+function writtenOf(command: string | null, params: Fields): string | null {
+  if (command === 'write') return textOf(params['text'])
+  if (command === 'edit') return textOf(params['new_text'])
+  if (command !== 'patch' || !Array.isArray(params['edits'])) return null
+  return params['edits'].map(edit => textOf(fieldsOf(edit)['new_text']) ?? '').join('\n')
+}
+
+function pathOf(params: Fields): string | null {
+  const [first] = Array.isArray(params['edits']) ? params['edits'] : []
+  return textOf(params['path']) ?? textOf(fieldsOf(first)['path'])
+}
+
 /** What a tool call of this release was, in the terms a judging of goals reads: the tools here are the release's own. */
 export const describeCall: DescribeCall = ({ tool, arguments: given, result }) => {
   const args = fieldsOf(given)
   const command = textOf(args['command'])
   const params = 'params' in args ? fieldsOf(args['params']) : args
   const name = command === null ? tool : `${tool} ${command}`
-  const path = textOf(params['path'])
   if (tool === 'Shell') {
     const script = command === 'execute' ? textOf(params['script']) : null
-    return { tool: name, command: script, path: null, exit: exitOf(result), writes: false }
+    return {
+      tool: name,
+      command: script,
+      path: null,
+      exit: exitOf(result),
+      writes: false,
+      output: result,
+    }
   }
   const wrote = tool === 'Files' && FILE_WRITES.has(command ?? '') && result.startsWith('done')
-  return { tool: name, command: null, path, exit: null, writes: wrote }
+  const output = wrote ? (writtenOf(command, params) ?? result) : result
+  return { tool: name, command: null, path: pathOf(params), exit: null, writes: wrote, output }
 }
