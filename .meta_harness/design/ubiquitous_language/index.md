@@ -142,7 +142,8 @@
 | [UL-converter-definition](terms/capabilities-and-composition.md#ul-converter-definition--转换件定义--converter-definition) | 转换件定义 | Converter Definition | 写明一种媒体用哪个引擎、什么参数、内容去哪的资产，类别 `converter`，名字是媒体种类；按层同名替换（父：资产） |
 | [UL-converter-engine](terms/capabilities-and-composition.md#ul-converter-engine--转换引擎--converter-engine) | 转换引擎 | Converter Engine | 可装卸的做转换的部件；定义生效而它不在时答不可用，不退到别的引擎 |
 | [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 人写 `/名字` 点名一个入口项的写法与总称：开头是命令，句中是引用；**只对人** |
-| [UL-command-parameter-declaration](terms/capabilities-and-composition.md#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration) | 命令参数声明 | Command Parameter Declaration | 命令型入口项可选带的参数说明，**是命令本身、不是设置**；没声明就整段作一个自由参数 |
+| [UL-command-parameter-declaration](terms/capabilities-and-composition.md#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration) | 命令参数声明 | Command Parameter Declaration | 命令型入口项可选带的参数说明：几个、名字、能不能省、有没有参数候选；**是命令本身、不是设置**；没声明就整段作一个自由参数 |
+| [UL-argument-candidate](terms/capabilities-and-composition.md#ul-argument-candidate--参数候选--argument-candidate) | 参数候选 | Argument Candidate | 一个命令参数此刻能填的值，入口来源现算；**只帮人打对，不是许可**；取不到不是没有 |
 | [UL-prompt-command](terms/capabilities-and-composition.md#ul-prompt-command--提示词命令--prompt-command) | 提示词命令 | Prompt Command | 资产的一个类别：名字、一句话、提示词、参数；`/名字 参数` 展开成人的一条消息 |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 列出若干拓展点上的成员的一份定义，成员一起装上、一起退场 |
 | [UL-skin](terms/capabilities-and-composition.md#ul-skin--皮肤--skin) | 皮肤 | Skin | 清单写明自己是皮肤、只改界面样子的一份 plugin；资产里自成一类，界面同一时刻至多用一套 |
@@ -341,7 +342,7 @@
 | [UL-mcp-action-catalog](terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | MCP 动作清单 | MCP Action Catalog | 按租户、对端账号与接入点持有保存的最近合法动作集合；对端不再提供的动作从中消失；**整份更新，不是动作空间** |
 | [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里由合法发现取得的一个对端动作，在工具入口里是它的接入点那一个工具条目的一个命令；**不可用在接入点这一级说明**，只有常驻接入点的动作有同形替换件 |
 | [UL-command-entry](terms/reach-and-availability.md#ul-command-entry--入口项--command-entry) | 入口项 | Command Entry | 一个会话此刻能用名字点名的一项：引用型、提示词命令、系统命令；位置由种类定；**是视图**，现算不存 |
-| [UL-command-entry-source](terms/reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source) | 入口来源 | Command Entry Source | 向命令登记、按需交出入口项的角色；Skill、资产、各流程各是一个；一个来源一个名字空间 |
+| [UL-command-entry-source](terms/reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source) | 入口来源 | Command Entry Source | 向命令登记、按需交出入口项的角色；被点名时连参数收到，答内容、操作请求或参数不对；Skill、资产、各流程各是一个；一个来源一个名字空间 |
 
 ## [执行与收场](terms/execution-and-outcome.md)
 
