@@ -131,7 +131,7 @@ describe('officialProfilesOf', () => {
           { ...INPUT, compactionTriggerPercent: percent as string },
           EFFORTS,
         ),
-      ).toThrow(RangeError)
+      ).toThrow('compactionTriggerPercent must be a decimal integer from 1 to 100')
   })
 })
 
@@ -424,6 +424,41 @@ describe('defineGatewayFamily', () => {
         },
       }),
     ).toThrow('the Lab family configuration must be an object')
+    expect(() =>
+      defineGatewayFamily({
+        owner: OWNER,
+        title: 'Lab',
+        records: [],
+        config: 'x' as never,
+        bind: () => {
+          throw new Error()
+        },
+      }),
+    ).toThrow('the Lab family configuration must be an object')
+    expect(() => familyWith({ tokenizer: 'x' as never })).toThrow('config.tokenizer must be')
+    expect(() => familyWith({ executor: undefined as never })).toThrow(RangeError)
+    expect(() => familyWith({ limits: 'x' as never })).toThrow('config.limits must be')
+    expect(() => familyWith({ margin: 'x' as never })).toThrow('config.margin must be an object')
+    expect(() => familyWith({ margin: { ...margin, percent: 5 as never } })).toThrow(
+      'config.margin.percent',
+    )
+    expect(() => familyWith({ margin: { ...margin, percent: '100' } })).not.toThrow()
+  })
+
+  it('binds only the exact tokenizer the record names: every part, every field', async () => {
+    const parts = ['adoption', 'implementation', 'vocabulary', 'configuration'] as const
+    const fields = ['owner', 'name', 'revision', 'digest'] as const
+    for (const part of parts)
+      for (const field of fields) {
+        const definition = {
+          ...O200K_PROXY_TOKENIZER,
+          [part]: { ...O200K_PROXY_TOKENIZER[part], [field]: 'changed' },
+        }
+        const { family, record } = familyWith({ tokenizer: { definition } })
+        expect(await composeFamilies([family]).acquire(supplierOf(record), live())).toMatchObject({
+          failure: { diagnostic: 'tokenizer-definition-mismatch' },
+        })
+      }
   })
 
   it('binds a record with a tokenizer lease that the binding returns on release', async () => {
