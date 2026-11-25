@@ -1,4 +1,4 @@
-import { createGoals } from '@omne-harness/goal'
+import { createGoals, type GoalStore } from '@omne-harness/goal'
 import {
   createMemoryGoalStore,
   fakeAuthority,
@@ -34,7 +34,7 @@ export const ADD_RULE: Proposal = {
   changes: [{ op: 'add', section: 'rules', entry: { statement: '每次提交前跑 lint。' } }],
 }
 
-export function world() {
+export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
   const store = createMemoryGoalStore()
   const authority = fakeAuthority()
   const sessions = fakeSessions()
@@ -44,7 +44,7 @@ export function world() {
   sessions.add(SESSION, 'attended')
   sessions.add(JOB, 'unattended')
   const goals = createGoals({
-    store,
+    store: wrap(store),
     authority,
     sessions,
     cards,

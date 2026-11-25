@@ -75,38 +75,24 @@ function keptReadings(before: GoalBody, after: GoalBody, readings: Readings): Re
   return { criteria: same('criteria'), metrics: same('metrics'), rules: same('rules') } as Readings
 }
 
-const wakeOf = (step: Transition, kind: Wake['kind'], state: GoalState, version: number) =>
-  step.kind === 'changed' && step.effects.includes('wake') && state.status !== 'none'
-    ? { kind, request: `${kind}/${String(state.generation)}/${String(version)}` }
+const wakeOf = (step: Transition, kind: Wake['kind'], generation: number, version: number) =>
+  step.kind === 'changed' && step.effects.includes('wake')
+    ? { kind, request: `${kind}/${String(generation)}/${String(version)}` }
     : null
 
-/** A set or a revision, by the direct way in or on a card: what is written next, or why nothing is. */
-export function decideWrite(current: GoalRecord | null, input: WriteInput): Decided {
-  const { entrance, proposal, attendance } = input
-  if (current?.history.some(entry => entry.operation === input.operation))
-    return { kind: 'recalled', record: current }
-  const state = current?.state ?? NO_GOAL
-  if (entrance.via === 'card') {
-    if (attendance === 'unattended') return refused({ kind: 'state', reason: 'nobody-attends' })
-    const { card } = entrance
-    const stale = judgeCard(card, { digest: card.digest, base: baseOf(state), used: false })
-    if (stale !== null) return refused({ kind: 'card', reason: stale })
-  }
+function cardRefusal(entrance: Entrance, state: GoalState, attendance: Attendance) {
+  if (entrance.via !== 'card') return null
+  if (attendance === 'unattended') return refused({ kind: 'state', reason: 'nobody-attends' })
+  const { card } = entrance
+  const stale = judgeCard(card, { digest: card.digest, base: baseOf(state), used: false })
+  return stale === null ? null : refused({ kind: 'card', reason: stale })
+}
+
+function provenanceOf(input: WriteInput, revision: number): Provenance {
+  const { entrance } = input
   const byCard = entrance.via === 'card'
-  const event: GoalEvent =
-    proposal.kind === 'set' ? { kind: 'set', attendance } : { kind: 'revise', confirmed: byCard }
-  const step = transition(state, event)
-  if (step.kind === 'refused') return refused({ kind: 'state', reason: step.reason })
-  const checked = proposedBody(current, proposal, attendance)
-  if (checked.kind === 'no-live-goal') return refused({ kind: 'state', reason: 'no-live-goal' })
-  if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })
-  if (step.kind !== 'changed' || step.next.status === 'none')
-    return refused({ kind: 'state', reason: 'no-live-goal' })
-  const { body } = checked
-  if (byCard && digestOf(body) !== entrance.card.digest)
-    return refused({ kind: 'card', reason: 'content-differs' })
-  const provenance: Provenance = {
-    revision: step.next.revision,
+  return {
+    revision,
     via: entrance.via,
     words: input.words,
     draftedBy: byCard ? 'agent' : entrance.draftedBy,
@@ -114,9 +100,31 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
     operation: input.operation,
     at: input.at,
   }
-  const revising = proposal.kind === 'revise' && current !== null
+}
+
+export function decideWrite(current: GoalRecord | null, input: WriteInput): Decided {
+  const { entrance, proposal, attendance } = input
+  if (current?.history.some(entry => entry.operation === input.operation))
+    return { kind: 'recalled', record: current }
+  const state = current?.state ?? NO_GOAL
+  const stop = cardRefusal(entrance, state, attendance)
+  if (stop !== null) return stop
+  const byCard = entrance.via === 'card'
+  const event: GoalEvent =
+    proposal.kind === 'set' ? { kind: 'set', attendance } : { kind: 'revise', confirmed: byCard }
+  const step = transition(state, event)
+  if (step.kind === 'refused') return refused({ kind: 'state', reason: step.reason })
+  const checked = proposedBody(current, proposal, attendance)
+  if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })
+  // The transition stood, so there is a body to write and a live state to write it under.
+  if (checked.kind !== 'valid' || step.kind !== 'changed' || step.next.status === 'none')
+    return refused({ kind: 'state', reason: 'no-live-goal' })
+  const { body } = checked
+  if (byCard && digestOf(body) !== entrance.card.digest)
+    return refused({ kind: 'card', reason: 'content-differs' })
+  const provenance = provenanceOf(input, step.next.revision)
+  const before = proposal.kind === 'revise' ? current : null
   const version = (current?.version ?? 0) + 1
-  const kind = proposal.kind === 'set' ? 'start' : 'resume'
   return {
     kind: 'next',
     record: {
@@ -124,10 +132,10 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
       version,
       state: step.next,
       body,
-      history: revising ? [...current.history, provenance] : [provenance],
-      readings: revising ? keptReadings(current.body, body, current.readings) : NO_READINGS,
+      history: before === null ? [provenance] : [...before.history, provenance],
+      readings: before === null ? NO_READINGS : keptReadings(before.body, body, before.readings),
       // On a card the agent that proposed is in its run and reads the answer there: nobody is to be woken.
-      wake: byCard ? null : wakeOf(step, kind, step.next, version),
+      wake: byCard ? null : wakeOf(step, 'start', step.next.generation, version),
     },
   }
 }
@@ -148,6 +156,6 @@ export function decideCommand(current: GoalRecord | null, command: GoalCommand):
   if (current === null) return null
   if (step.kind === 'unchanged') return { kind: 'unchanged', record: current }
   const version = current.version + 1
-  const wake = wakeOf(step, 'resume', step.next, version)
+  const wake = wakeOf(step, 'resume', current.state.generation, version)
   return { kind: 'next', record: { ...current, version, state: step.next, wake } }
 }

@@ -62,6 +62,16 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
     await store.commit(tenant, { session: record.session, expected: record.version, next })
   }
 
+  /** Writes a decision on the version it was made on. `stale`: somebody wrote meanwhile, decide again. */
+  async function commit(tenant: string, expected: number, next: GoalRecord) {
+    const answer = await store.commit(tenant, { session: next.session, expected, next })
+    if (answer.kind === 'unknown') return UNKNOWN
+    if (answer.kind === 'rolled-back') return UNAVAILABLE
+    if (answer.value.kind === 'stale') return 'stale'
+    await deliver(tenant, answer.value.record)
+    return done(answer.value.record)
+  }
+
   /** Decides on what stands and writes on that version; a version written over meanwhile is decided again. */
   async function settle(
     tenant: string,
@@ -76,13 +86,8 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
       if (decided.kind === 'recalled') return done(decided.record, true)
       if (decided.kind === 'unchanged') return done(decided.record)
       if (decided.kind !== 'next') return decided
-      const expected = read.value?.version ?? 0
-      const answer = await store.commit(tenant, { session, expected, next: decided.record })
-      if (answer.kind === 'unknown') return UNKNOWN
-      if (answer.kind === 'rolled-back') return UNAVAILABLE
-      if (answer.value.kind === 'stale') continue
-      await deliver(tenant, answer.value.record)
-      return done(answer.value.record)
+      const answer = await commit(tenant, read.value?.version ?? 0, decided.record)
+      if (answer !== 'stale') return answer
     }
     return UNAVAILABLE
   }
@@ -130,6 +135,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
       if (stop !== null) return stop
       const attendance = await attendanceOf(caller.tenant, session)
       if (typeof attendance !== 'string') return attendance
+      if (attendance === 'unattended') return refused({ kind: 'state', reason: 'nobody-attends' })
       const read = await store.latest(caller.tenant, session)
       if (read.kind === 'unavailable') return UNAVAILABLE
       const checked = proposedBody(read.value, proposal, attendance)

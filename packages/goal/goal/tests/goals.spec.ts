@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { renderBody, type Proposal } from '@omne-harness/goal-contract'
+import {
+  renderBody,
+  type GoalRecord,
+  type Proposal,
+  type Readings,
+} from '@omne-harness/goal-contract'
 import {
   ADD_RULE,
   JOB,
@@ -362,5 +367,256 @@ describe('the reminder a change owes its session', () => {
     const resumes = sessions.woken.filter(wake => wake.kind === 'resume').map(wake => wake.request)
     expect(resumes).toHaveLength(2)
     expect(new Set(resumes).size).toBe(2)
+  })
+})
+
+describe('every way in asks the authority first', () => {
+  it('a caller the authority denies proposes, confirms and commands nothing', async () => {
+    const { goals, direct, authority, answered, store } = world()
+    value(await goals.write(OWNER, direct()))
+    await answered('card-1', ADD_RULE)
+    authority.answer('denied')
+    const denied = { kind: 'refused', reason: { kind: 'denied' } }
+    expect(await goals.propose(OWNER, { session: SESSION, proposal: ADD_RULE })).toEqual(denied)
+    const confirm = { session: SESSION, card: 'card-1', proposal: ADD_RULE, words: null }
+    expect(await goals.confirm(OWNER, confirm)).toEqual(denied)
+    expect(await goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } })).toEqual(
+      denied,
+    )
+    expect(await goals.read(OWNER, SESSION)).toEqual(denied)
+    expect(store.rows(TENANT)[0]?.state).toMatchObject({ status: 'active', revision: 1 })
+  })
+  it('an authority that cannot answer is no basis for any of them', async () => {
+    const { goals, authority } = world()
+    authority.answer('unavailable')
+    const none = { kind: 'basis-unavailable' }
+    expect(await goals.propose(OWNER, { session: SESSION, proposal: SET })).toEqual(none)
+    const confirm = { session: SESSION, card: 'card-1', proposal: SET, words: null }
+    expect(await goals.confirm(OWNER, confirm)).toEqual(none)
+    expect(await goals.command(OWNER, { session: SESSION, command: { kind: 'pause' } })).toEqual(
+      none,
+    )
+  })
+  it('an authority that throws is no basis either', async () => {
+    const { goals, authority } = world()
+    authority.answer(() => {
+      throw new Error('down')
+    })
+    expect(await goals.read(OWNER, SESSION)).toEqual({ kind: 'basis-unavailable' })
+  })
+})
+
+describe('proposing', () => {
+  const propose = (
+    goals: ReturnType<typeof world>['goals'],
+    proposal: Proposal,
+    session = SESSION,
+  ) => goals.propose(OWNER, { session, proposal })
+
+  it('a revision is proposed on the live goal: the card shows the body it would come to', async () => {
+    const { goals, direct } = world()
+    expect(refusal(await propose(goals, ADD_RULE))).toEqual({
+      kind: 'state',
+      reason: 'no-live-goal',
+    })
+    value(await goals.write(OWNER, direct()))
+    const proposed = value(await propose(goals, ADD_RULE))
+    expect(proposed).toMatchObject({
+      kind: 'revise',
+      base: { generation: 1, revision: 1, live: true },
+    })
+    expect(proposed.rendered).toContain('- [N2] 每次提交前跑 lint。')
+    value(await goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } }))
+    expect(refusal(await propose(goals, ADD_RULE))).toEqual({
+      kind: 'state',
+      reason: 'no-live-goal',
+    })
+  })
+  it('a body that does not stand is refused with the entry and the field', async () => {
+    const { goals, direct } = world()
+    const draft = { purpose: '降下来', criteria: [] }
+    expect(refusal(await propose(goals, { kind: 'set', draft }))).toMatchObject({
+      kind: 'invalid',
+      issues: [{ entry: null, field: 'criteria' }],
+    })
+    value(await goals.write(OWNER, direct()))
+    const person = { statement: '人看过', evidence: { kind: 'person' } }
+    const asks = { kind: 'revise', changes: [{ op: 'add', section: 'criteria', entry: person }] }
+    expect(value(await propose(goals, asks as Proposal)).kind).toBe('revise')
+  })
+  it('nothing is proposed where nobody attends, or for a session nobody knows', async () => {
+    const { goals } = world()
+    expect(refusal(await propose(goals, SET, JOB))).toEqual({
+      kind: 'state',
+      reason: 'nobody-attends',
+    })
+    expect(refusal(await propose(goals, SET, 'nowhere'))).toEqual({ kind: 'no-such-session' })
+  })
+  it('no basis while the session or the store cannot be read', async () => {
+    const { goals, sessions, store } = world()
+    store.readable(false)
+    expect(await propose(goals, SET)).toEqual({ kind: 'basis-unavailable' })
+    store.readable(true)
+    sessions.readable(false)
+    expect(await propose(goals, SET)).toEqual({ kind: 'basis-unavailable' })
+    const confirm = { session: SESSION, card: 'card-1', proposal: SET, words: null }
+    expect(await goals.confirm(OWNER, confirm)).toEqual({ kind: 'basis-unavailable' })
+  })
+})
+
+describe('what a revision keeps of the readings', () => {
+  const READ: Readings = {
+    criteria: { A1: { value: 'holds', source: 'system', ref: 'call-1' } },
+    metrics: {},
+    rules: { N1: { value: 'kept', source: 'judge', ref: null } },
+  }
+  async function withReadings() {
+    const made = world()
+    const set = value(await made.goals.write(OWNER, made.direct()))
+    const read = await made.store.latest(TENANT, SESSION)
+    const current = (read.kind === 'read' ? read.value : null) as GoalRecord
+    await made.store.commit(TENANT, {
+      session: SESSION,
+      expected: current.version,
+      next: { ...current, readings: READ },
+    })
+    return { ...made, set }
+  }
+  it('a reading stays while the entry it read stands as it was', async () => {
+    const { goals, direct } = await withReadings()
+    const revised = value(
+      await goals.write(OWNER, direct({ operation: 'op-2', proposal: ADD_RULE })),
+    )
+    expect(revised.readings).toEqual(READ)
+  })
+  it('the reading of an entry that was replaced or removed is dropped; the others stay', async () => {
+    const { goals, direct } = await withReadings()
+    const replace = { op: 'replace', id: 'N1', entry: { statement: '不改公共接口与事件名。' } }
+    const first = value(
+      await goals.write(
+        OWNER,
+        direct({ operation: 'op-2', proposal: { kind: 'revise', changes: [replace] } }),
+      ),
+    )
+    expect(first.readings).toEqual({ ...READ, rules: {} })
+    const criterion = { statement: '新判据', evidence: { kind: 'file', path: 'a.md' } }
+    const changes = [
+      { op: 'add', section: 'criteria', entry: criterion },
+      { op: 'remove', id: 'A1' },
+    ]
+    const second = value(
+      await goals.write(
+        OWNER,
+        direct({ operation: 'op-3', proposal: { kind: 'revise', changes } }),
+      ),
+    )
+    expect(second.readings).toEqual({ criteria: {}, metrics: {}, rules: {} })
+  })
+  it('a new goal starts with no readings', async () => {
+    const { goals, direct } = await withReadings()
+    value(await goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } }))
+    const next = value(await goals.write(OWNER, direct({ operation: 'op-2' })))
+    expect(next.readings).toEqual({ criteria: {}, metrics: {}, rules: {} })
+  })
+})
+
+describe('settling by the exit that paused the goal', () => {
+  async function pausedBy(exit: 'X1' | null) {
+    const made = world()
+    value(await made.goals.write(OWNER, made.direct()))
+    const read = await made.store.latest(TENANT, SESSION)
+    const current = (read.kind === 'read' ? read.value : null) as GoalRecord
+    const state = { ...current.state, status: 'paused', pause: { by: 'verdict', row: 5, exit } }
+    await made.store.commit(TENANT, {
+      session: SESSION,
+      expected: current.version,
+      next: { ...current, state } as GoalRecord,
+    })
+    return made
+  }
+  const settle = (goals: ReturnType<typeof world>['goals'], exit: 'X1' | 'X9') =>
+    goals.command(OWNER, { session: SESSION, command: { kind: 'settle-by-exit', exit } })
+
+  it('settles as that exit, counted as the body says', async () => {
+    const { goals } = await pausedBy('X1')
+    expect(value(await settle(goals, 'X1'))?.state).toMatchObject({
+      status: 'settled',
+      outcome: { kind: 'exit', exit: 'X1', counts: 'failure' },
+    })
+  })
+  it('an exit the body does not have, or one that is not why it paused, settles nothing', async () => {
+    const { goals } = await pausedBy(null)
+    expect(refusal(await settle(goals, 'X9'))).toEqual({ kind: 'state', reason: 'not-its-cause' })
+    expect(refusal(await settle(goals, 'X1'))).toEqual({ kind: 'state', reason: 'not-its-cause' })
+    const fresh = world()
+    expect(refusal(await settle(fresh.goals, 'X1'))).toEqual({
+      kind: 'state',
+      reason: 'no-live-goal',
+    })
+  })
+})
+
+describe('a write somebody else got ahead of', () => {
+  /** A world whose first commits find that somebody wrote meanwhile. */
+  function racing(times: number) {
+    let left = times
+    const commits: number[] = []
+    const made = world(store => ({
+      ...store,
+      async commit(tenant, command) {
+        commits.push(command.expected)
+        if (left === 0) return store.commit(tenant, command)
+        left -= 1
+        return { kind: 'committed', value: { kind: 'stale', current: null } }
+      },
+    }))
+    return { ...made, commits }
+  }
+  it('is decided again on what stands then, and written', async () => {
+    const { goals, direct, commits, store } = racing(2)
+    expect(await goals.write(OWNER, direct())).toMatchObject({ kind: 'done', recalled: false })
+    expect(commits.slice(0, 3)).toEqual([0, 0, 0])
+    expect(store.rows(TENANT)).toHaveLength(1)
+  })
+  it('gives up after three tries with no basis, never with a guess', async () => {
+    const { goals, direct, commits, store } = racing(99)
+    expect(await goals.write(OWNER, direct())).toEqual({ kind: 'basis-unavailable' })
+    expect(commits).toHaveLength(3)
+    expect(store.rows(TENANT)).toEqual([])
+  })
+})
+
+describe('more of the reminder a change owes', () => {
+  it('a send that throws stays owed like one nobody knows the fate of', async () => {
+    const { goals, direct, sessions, store, hinted } = world()
+    const { wake } = sessions
+    let thrown = false
+    Object.assign(sessions, {
+      wake: async (...input: Parameters<typeof wake>) => {
+        if (thrown) return wake(...input)
+        thrown = true
+        throw new Error('down')
+      },
+    })
+    value(await goals.write(OWNER, direct()))
+    expect(store.rows(TENANT)[0]?.wake).toEqual({ kind: 'start', request: 'start/1/1' })
+    expect(hinted).toEqual([TENANT])
+    await goals.reconcile(TENANT)
+    expect(store.rows(TENANT)[0]?.wake).toBeNull()
+  })
+  it('a resume names the goal and the version it was written as', async () => {
+    const { goals, direct, sessions } = world()
+    value(await goals.write(OWNER, direct()))
+    value(await goals.command(OWNER, { session: SESSION, command: { kind: 'pause' } }))
+    value(await goals.command(OWNER, { session: SESSION, command: { kind: 'resume' } }))
+    expect(sessions.woken.at(-1)).toMatchObject({ kind: 'resume', request: 'resume/1/4' })
+  })
+  it('reconciling sends nothing while the store cannot be read', async () => {
+    const { goals, direct, sessions, store } = world()
+    sessions.sendNext('unknown')
+    value(await goals.write(OWNER, direct()))
+    store.readable(false)
+    await expect(goals.reconcile(TENANT)).resolves.toBeUndefined()
+    expect(sessions.woken).toHaveLength(1)
   })
 })
