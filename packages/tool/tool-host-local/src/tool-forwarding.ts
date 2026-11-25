@@ -4,10 +4,12 @@ import {
   encodeToolInvocationRef,
   type Access,
   type Reply,
+  type SearchArguments,
   type ToolCatalog,
   type ToolConsumerProfile,
   type ToolFixedReadArguments,
   type ToolForwardIntent,
+  type ToolInvocation,
   type ToolInvocationRef,
   type ToolInvokeOutcome,
   type ToolInvokeRequest,
@@ -59,6 +61,14 @@ const statusResult = (value: unknown): MessageResult => {
   const result = createLocalTextResults().text(JSON.stringify(value))
   if ('failure' in result) throw new Error('Cannot render Tools capability status')
   return result.ok
+}
+
+/** TL-75: a search for what a program can call is the catalog's own filter for program calls. */
+function searchOf(
+  { programmable, ...asked }: SearchArguments,
+  kind: ToolInvocation['kind'],
+): SearchArguments & Readonly<{ invocation: ToolInvocation['kind'] }> {
+  return { ...asked, invocation: programmable === true ? 'programmatic' : kind }
 }
 
 export function createLocalToolForwarding<P>(
@@ -207,11 +217,11 @@ export function createLocalToolForwarding<P>(
           if (!live()) return fail(unavailable('tools-capability'))
           if ('failure' in consumer) return consumer
           if (catalog === undefined) return fail(unavailable('toolCatalog'))
+          const kind = parent.request.invocation.kind
           const result = await catalog.search({
             ...access,
-            ...argumentsValue,
+            ...searchOf(argumentsValue, kind),
             consumer: consumer.ok,
-            invocation: parent.request.invocation.kind,
           })
           return live() ? result : fail(unavailable('tools-capability'))
         },
