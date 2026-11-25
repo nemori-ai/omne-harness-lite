@@ -1546,6 +1546,14 @@
       "source": "packages/goal/SPEC.md"
     },
     {
+      "id": "packages/goal/goal-bench",
+      "paths": ["packages/goal/goal-bench/src/**"],
+      "layer": "unknown",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
       "id": "packages/goal/goal-cordis-contract",
       "paths": ["packages/goal/goal-cordis-contract/src/**"],
       "layer": "unknown",
@@ -2700,6 +2708,20 @@
         "packages/goal/goal-tools",
         "packages/goal/goal-command"
       ],
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "DIR-GOAL-BENCH",
+      "from": [
+        "packages/goal/goal-contract",
+        "packages/goal/goal",
+        "packages/goal/goal-cordis-contract",
+        "packages/goal/goal-local",
+        "packages/goal/goal-session",
+        "packages/goal/goal-tools",
+        "packages/goal/goal-command"
+      ],
+      "to": ["packages/goal/goal-bench"],
       "source": "packages/goal/SPEC.md"
     },
     {
