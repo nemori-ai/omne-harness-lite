@@ -51,6 +51,8 @@ it(
     const exit = await onReleaseTree(
       {
         model: 'deepseek/deepseek-v3.2',
+        // Leave room for an ordinary control request on this small-window model.
+        nonresident: ['Code', 'OmneExtensions', 'Schedules'],
         script: async input => {
           const answer = await answers(input)
           // The selected release record pins DeepInfra as its serving provider.
@@ -100,7 +102,8 @@ it(
         await setModelSwitches(tree, { 'deepseek/deepseek-v3.2': true })
         const selected = await registered(tree, root)
         const control = await run(tree, await sessionIn(tree, selected))
-        expect(control.find(entry => entry.kind === 'run.terminal')?.payload).toMatchObject({
+        const controlEnd = control.find(entry => entry.kind === 'run.terminal')?.payload
+        expect(controlEnd, JSON.stringify(controlEnd)).toMatchObject({
           terminal: { outcome: 'completed' },
         })
         expect(requests).toHaveLength(1)
