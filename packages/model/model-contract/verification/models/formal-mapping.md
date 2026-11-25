@@ -53,6 +53,7 @@
 | `model/tests/admission-guards.spec.ts`               | P1、P5、P6 | 枚举未知受理的全部合法效果与揭示：揭示前 recall 与重入都答 commit-unknown；揭示后两者一致；换 operation 答 conflict 且记录不变；份额为 2 时第三个调用被拒且不落任何记录，重入已受理的调用不重复占名额；另一租户读不到 | N1 recall 不看未决写：三个枚举用例变红。N2 份额不检查：份额用例变红                   |
 | `model-host-local/tests/runtime-push-bounds.spec.ts` | P3         | 真实插件与脚本接收方：接收方一直答 unavailable 或 backpressured 时一次唤醒只推一次；一直答 outcome-unknown 时一次唤醒推 `1 + maxRedeliveries` 次                                                                      | N3 unavailable 与 backpressured 时继续重推：两个用例变红                              |
 | `model-host-local/tests/runtime-push.spec.ts`        | P2、P4     | 场景用例：saved 四事实缺一不确认、外来回执按 unknown 重投且最终归还份额、unknown 重投、证据不可用时保留份额、晚账超界被拒                                                                                                                | N5 去掉晚账名额检查：两个晚账用例变红。N4 去掉 `clean` 的确认判断：没有用例变红，见下 |
+| `model-host-local/tests/runtime-push.spec.ts`（三条 T1 用例） | 进展（`bad-live-scan-forgets` 的对面） | 已释放清理的调用重启后被启动扫描叫醒：补查进行中的接着查、查到后交付并确认；有未确认的迟到修订的交付最新修订一次；已放弃的照常补录、不交付 | 启动扫描遇到已释放就跳过：三条用例都变红 |
 
 N4 是不可观察的变异。`clean` 只在确认之后被调用，而且 Commands 的 `advanceCleanup` 只在已确认的保管上前进。所以 `ReleaseNeedsCustodyEnd` 由两层守住，插件里这一处判断是冗余守卫。
 

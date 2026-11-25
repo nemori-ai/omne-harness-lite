@@ -12,6 +12,6 @@ export function callCommands<P>(
 }
 export function recoveryCommands<P>(
   store: MemoryState<P>,
-): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'loadRequest' | 'claim'> {
+): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'loadOrigin' | 'loadRequest' | 'claim'> {
   return coreRecoveryCommands(store.core)
 }

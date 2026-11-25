@@ -220,6 +220,7 @@
 - `ActorRef` · `root.d.ts`
 - `CalibratedInputMeter` · `profile.d.ts`
 - `CallAccountReport` · `provider-protocol.d.ts`
+- `CallOrigin` · `provider-protocol.d.ts`
 - `CommitQuery` · `provider-protocol.d.ts`
 - `CostLookupAnswer` · `provider-protocol.d.ts`
 - `CredentialFailure` · `credential.d.ts`
@@ -2301,6 +2302,11 @@ export type RecoveryRecord = Readonly<{
     unresolved: readonly ModelOperationId[];
     tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[];
 }>;
+export type CallOrigin = Readonly<{
+    admission: ModelOperationId;
+    consumer: ConsumerRef;
+    custody: CustodyState;
+}>;
 export type LateDispatchFact = Readonly<{
     kind: 'account';
     event: string;
@@ -2339,6 +2345,7 @@ export interface ModelCommands<P> {
         next: string | null;
     }>>;
     loadRecovery(input: CallAccess<P>): Reply<RecoveryRecord>;
+    loadOrigin(input: CallAccess<P>): Reply<CallOrigin>;
     loadRequest(input: CallAccess<P>): Reply<FixedModelRequest>;
     claim(input: CallAccess<P> & Readonly<{
         instance: ModelInstanceId;
@@ -2494,7 +2501,7 @@ export interface ModelProvider<P> {
 
 ```ts
 export type { ActorRef, FixedRequestHead } from '../root.ts';
-export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
+export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, CallOrigin, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
 export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayBinding, ReplayDiagnostic, ReplayOmission, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';

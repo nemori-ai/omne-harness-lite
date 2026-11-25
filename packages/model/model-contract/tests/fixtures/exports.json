@@ -1152,6 +1152,11 @@
               "pending": false
             },
             {
+              "name": "CallOrigin",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "FixedRequestHead",
               "kind": "type",
               "pending": false

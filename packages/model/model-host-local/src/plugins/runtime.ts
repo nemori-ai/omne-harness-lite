@@ -199,14 +199,14 @@ async function originOf(
   target: Target,
   principal: unknown,
 ): Promise<ResultPushRecord['origin']> {
-  const recovery = await commands.loadRecovery({ ...target, principal })
-  if ('failure' in recovery) {
+  const origin = await commands.loadOrigin({ ...target, principal })
+  if ('failure' in origin) {
     report({ kind: 'freeze-failed', step: 'late-account-origin' })
     return null
   }
-  const reference = encodeModelInvocationRef({ ...target, admission: recovery.ok.admission })
+  const reference = encodeModelInvocationRef({ ...target, admission: origin.ok.admission })
   if ('failure' in reference) return null
-  return frozen({ reference: reference.ok, consumer: recovery.ok.state.consumer })
+  return frozen({ reference: reference.ok, consumer: origin.ok.consumer })
 }
 
 function newOperation(): ModelOperationId {
@@ -457,12 +457,29 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     return save(next)
   }
 
+  // A released call left the producer for good: its custody and its consumer still answer.
+  async function released(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
+    const read = await commands.loadOrigin({ ...access, call: record.call })
+    if ('failure' in read || read.ok.custody.kind === 'producer') return owing.mark(record)
+    const reference = encodeModelInvocationRef({
+      tenant: record.tenant,
+      call: record.call,
+      admission: read.ok.admission,
+    })
+    if ('failure' in reference) return record
+    const origin = frozen({ reference: reference.ok, consumer: read.ok.consumer })
+    return save({ ...record, origin, acknowledgement: read.ok.custody.kind, cleanup: 'released' })
+  }
+
   async function freeze(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     const call = { ...access, call: record.call }
     const recovery = await commands.loadRecovery(call)
     if ('failure' in recovery) {
+      const { failure } = recovery
+      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released')
+        return released(record, access)
       report({ kind: 'freeze-failed', step: 'recovery' })
-      return owing.mark(record, recovery.failure)
+      return owing.mark(record, failure)
     }
     const { state, admission } = recovery.ok
     if (state.phase !== 'settled') return record
