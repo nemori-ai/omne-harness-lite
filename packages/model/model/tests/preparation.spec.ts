@@ -1864,3 +1864,68 @@ it('reads the anchor and nothing it covers when the anchor covers every stateful
   expect(reportOf(measured)).toEqual({ anchor: { kind: 'hit' } })
   expect(reads.map(read => read.access.call)).toEqual([X])
 })
+
+it('reads the covered sources once more, and nothing else, when the anchored measurement shrank', async () => {
+  const f = fixture()
+  const fixed = requestWith([
+    user('c1'),
+    assistantWithState('c2'),
+    user('c3'),
+    assistantWithState('c4'),
+    user('c5'),
+  ])
+  const messages = ids(fixed)
+  const covering = callId('cov')
+  const fresh = callId('fresh')
+  const answers = new Map<ModelCallId, Outcome<readonly DispatchRecord[], ModelFailure>>([
+    [X, { ok: [recordOf({ messages: messages.slice(0, 3) })] }],
+    [covering, { ok: [recordOf()] }],
+    [fresh, { ok: [recordOf()] }],
+  ])
+  const reads: Reads = []
+  const lease = await acquire(
+    { commands: stubStore(answers, reads), bindings: calibratorBindings(true) },
+    f.admit,
+    {
+      continues: X,
+      sources: [
+        { message: messages[1]!, call: covering },
+        { message: messages[3]!, call: fresh },
+      ],
+    },
+  )
+  const measured = await measureWith(lease, fixed)
+  await lease.release()
+  expect(reportOf(measured)).toEqual({ anchor: { kind: 'miss', reason: 'continuation-shrank' } })
+  expect(reads.map(read => read.access.call)).toEqual([X, fresh, covering])
+})
+
+it('does not read the covered sources again when the anchored measurement hit', async () => {
+  const f = fixture()
+  const fixed = requestWith([
+    user('h1'),
+    assistantWithState('h2'),
+    user('h3'),
+    assistantWithState('h4'),
+  ])
+  const messages = ids(fixed)
+  const covering = callId('hcov')
+  const fresh = callId('hfresh')
+  const answers = new Map<ModelCallId, Outcome<readonly DispatchRecord[], ModelFailure>>([
+    [X, { ok: [recordOf({ messages: messages.slice(0, 2) })] }],
+    [covering, { ok: [recordOf()] }],
+    [fresh, { ok: [recordOf()] }],
+  ])
+  const reads: Reads = []
+  const family = calibratorBindings(false)
+  const lease = await acquire({ commands: stubStore(answers, reads), bindings: family }, f.admit, {
+    continues: X,
+    sources: [
+      { message: messages[1]!, call: covering },
+      { message: messages[3]!, call: fresh },
+    ],
+  })
+  expect(reportOf(await measureWith(lease, fixed))).toEqual({ anchor: { kind: 'hit' } })
+  await lease.release()
+  expect(reads.map(read => read.access.call)).toEqual([X, fresh])
+})
