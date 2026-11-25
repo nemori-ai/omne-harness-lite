@@ -1,3 +1,5 @@
+import { useDeferredValue } from 'react'
+
 import { HAND } from '../icons/brush.ts'
 import { bubbleRests, BUBBLE_WEIGHT, edgeLines, type EdgeShape, unitOf } from '../ink/note-ink.ts'
 import { FIGURE_SIZE } from '../ink/store.ts'
@@ -56,7 +58,7 @@ export function PaperEdge({
   height,
   edgeKey,
 }: Size & { readonly edgeKey: string }): React.JSX.Element {
-  const { scale } = usePaperFrame()
+  const scale = useDeferredValue(usePaperFrame().scale)
   const [first, second] = remembered(edgeShape({ width, height }, edgeKey, scale))
   return (
     <svg
