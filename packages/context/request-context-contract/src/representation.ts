@@ -4,6 +4,7 @@ import {
   type ContentBlock,
   type BlockId,
   type ContentReference,
+  type InconvertibleReason,
 } from '@omne-harness/content-block'
 import { judgeMessage, type Message, type MessageId, type MessagePart } from '@omne-harness/message'
 import { judgeMediaType, type Modality } from '@omne-harness/modality'
@@ -69,9 +70,19 @@ type Candidate = Readonly<{
 type Referring = Extract<ContentBlock, { ref: ContentReference }>
 type Position = Readonly<{ message: MessageId; block: BlockId }>
 
+/** What a model is told in place of a medium that cannot be converted, when the engine said why. */
+const UNREADABLE: Readonly<Record<InconvertibleReason, string>> = {
+  encrypted: 'This file could not be read: it is encrypted.',
+  damaged: 'This file could not be read: it is damaged.',
+  'no-text': 'This file has no text that could be taken out of it, as with a scan.',
+}
+
 function fallbacksOf(block: Referring) {
-  const made = block.snapshot?.outcome === 'converted' ? block.snapshot : null
-  const inline = (block.transcript ?? '') === '' ? null : block.transcript
+  const { snapshot } = block
+  const made = snapshot?.outcome === 'converted' ? snapshot : null
+  const why = snapshot?.outcome === 'inconvertible' ? snapshot.reason : undefined
+  const told = why === undefined ? null : UNREADABLE[why]
+  const inline = (block.transcript ?? '') === '' ? told : block.transcript
   return { others: made?.others ?? [], inline, kept: made?.text ?? null }
 }
 
