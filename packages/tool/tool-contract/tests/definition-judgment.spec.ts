@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type ToolDefinition } from '@omne-harness/tool-contract'
+import { isReadOnlyCall, type ToolDefinition } from '@omne-harness/tool-contract'
 import { judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { commandsDefinition, functionDefinition, json, parameters } from './tool-values.ts'
 
@@ -41,6 +41,41 @@ describe('definition judgment', () => {
         field: 'programmable',
         reason: 'type',
       })
+  })
+
+  // TL-74: only an explicit `readOnly: true` makes a command read-only; the judgment keeps what was written.
+  it('definition judgment: keeps readOnly on a command and on a function, and rejects a value that is not a boolean', () => {
+    const base = commandsDefinition()
+    if (base.kind !== 'commands') throw new Error('fixture')
+    const [first, ...rest] = base.commands
+    const marked = { ...base, commands: [{ ...first!, readOnly: true }, ...rest] }
+    const judged = judgeToolDefinition(marked)
+    if (!('ok' in judged) || judged.ok.kind !== 'commands') throw new Error(JSON.stringify(judged))
+    expect(judged.ok.commands.map(command => command.readOnly)).toEqual([true, undefined])
+    expect(judgeToolDefinition({ ...functionDefinition(), readOnly: false })).toMatchObject({
+      ok: { readOnly: false },
+    })
+    for (const readOnly of ['true', 1, null])
+      expect(
+        rejection({ ...base, commands: [{ ...first!, readOnly }, ...rest] } as never),
+      ).toEqual({ field: 'commands[0].readOnly', reason: 'type' })
+  })
+
+  it('a call is read-only only when the command it names says so with true', () => {
+    const base = commandsDefinition()
+    if (base.kind !== 'commands') throw new Error('fixture')
+    const [first, second] = base.commands
+    const marked = { ...base, commands: [{ ...first!, readOnly: true }, { ...second!, readOnly: false }] }
+    expect(isReadOnlyCall(marked, first!.name)).toBe(true)
+    expect(isReadOnlyCall(marked, second!.name)).toBe(false)
+    expect(isReadOnlyCall(base, first!.name)).toBe(false)
+    expect(isReadOnlyCall(marked, 'no-such-command')).toBe(false)
+    expect(isReadOnlyCall(marked, null)).toBe(false)
+    const plain = functionDefinition()
+    if (plain.kind !== 'function') throw new Error('fixture')
+    expect(isReadOnlyCall({ ...plain, readOnly: true }, null)).toBe(true)
+    expect(isReadOnlyCall({ ...plain, readOnly: true }, 'read')).toBe(false)
+    expect(isReadOnlyCall(plain, null)).toBe(false)
   })
 
   it('definition judgment: rejects a repeated command name and names the second one', () => {

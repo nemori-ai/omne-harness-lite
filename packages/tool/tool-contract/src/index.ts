@@ -190,6 +190,7 @@ export type {
 } from './command-call.ts'
 export { callLabel } from './call-label.ts'
 export { IMPLICIT_TOOL_GATE, commandGateOf, toolGatesOf } from './gates.ts'
+export { isReadOnlyCall } from './read-only.ts'
 export type {
   ReleaseDescription,
   ReleaseDetail,

@@ -149,6 +149,38 @@ describe('author registration', () => {
     ])
   })
 
+  // TL-74: what the author wrote about read-only reaches the definition as written, on a command and on a function.
+  it('author registration: carries readOnly from the author to the definition, and rejects one that is not a boolean', () => {
+    const commands = defineCommandTool({
+      encoding: 'wrapped',
+      implementation: declaration(),
+      commands: {
+        read: { summary: 'Read a file.', operation: readOperation(), readOnly: true },
+        shell: { summary: 'Run a command.', operation: shellOperation() },
+      },
+    })
+    if (!('ok' in commands)) throw new Error(commands.failure.field)
+    const shape = commands.ok.facts.implements
+    if (shape.kind !== 'commands') throw new Error('commands')
+    expect(shape.commands.map(command => command.readOnly)).toEqual([true, undefined])
+    const one = defineFunctionTool({
+      implementation: declaration(),
+      operation: readOperation(),
+      readOnly: true,
+    })
+    if (!('ok' in one)) throw new Error(one.failure.field)
+    expect(one.ok.facts.implements).toMatchObject({ kind: 'function', readOnly: true })
+    expect(deriveDefinition(governance(), one.ok.facts)).toMatchObject({ readOnly: true })
+    const wrong = defineCommandTool({
+      encoding: 'wrapped',
+      implementation: declaration(),
+      commands: {
+        read: { summary: 'Read a file.', operation: readOperation(), readOnly: 'yes' as never },
+      },
+    })
+    expect('failure' in wrong && wrong.failure.field).toBe('commands["read"].readOnly')
+  })
+
   it('author registration: takes command names only from the own keys of the table', () => {
     const inherited = { write: { summary: 'Write a file.', operation: readOperation() } }
     const table = Object.assign(Object.create(inherited) as Record<string, unknown>, {

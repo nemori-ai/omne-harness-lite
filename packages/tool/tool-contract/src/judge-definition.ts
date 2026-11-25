@@ -294,6 +294,7 @@ const command = record(commandFields, {
   release: commandRelease,
   modalities: commandModalities,
   conditions: callConditions,
+  readOnly: bool,
 })
 
 // A command names only a gate its tool declares; a tool declaring none has no gate to name.
@@ -340,7 +341,7 @@ const functionShapeFields = {
   parameters: parameterContract,
   returns: returnDeclaration,
 }
-const functionShapeOptional = { conditions: callConditions, program: programAccess }
+const functionShapeOptional = { conditions: callConditions, program: programAccess, readOnly: bool }
 const commandsShapeFields = {
   kind: literal('commands'),
   encoding: literal(...COMMAND_CALL_ENCODINGS),

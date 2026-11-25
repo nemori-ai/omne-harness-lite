@@ -197,6 +197,7 @@
 - `encodeToolInvocationRef` · `reference.d.ts`
 - `encodeToolOperationRef` · `reference.d.ts`
 - `isProgramExecutor` · `program-signature.d.ts`
+- `isReadOnlyCall` · `read-only.d.ts`
 - `judgeToolDelivery` · `result-delivery.d.ts`
 - `offeredDefinition` · `conditions.d.ts`
 - `pinnedFiles` · `call-directory.d.ts`
@@ -1938,6 +1939,7 @@ export type ToolCommandDeclaration = Readonly<{
     release?: ToolCommandRelease;
     modalities?: readonly Modality[];
     conditions?: ToolCallConditions;
+    readOnly?: boolean;
 }>;
 export type ToolCallConditions = readonly string[];
 export type ToolImplementationShape = Readonly<{
@@ -1946,6 +1948,7 @@ export type ToolImplementationShape = Readonly<{
     returns: ToolReturnDeclaration;
     program?: ToolProgramAccess;
     conditions?: ToolCallConditions;
+    readOnly?: boolean;
 }> | Readonly<{
     kind: 'commands';
     encoding: CommandCallEncoding;
@@ -2652,6 +2655,7 @@ export { commandCallSchema, commandMenu, decodeCommandCallText, describeCommandC
 export type { CommandCall, CommandCallEncoding, CommandCallRejection, CommandShape, CommandTable, IntentFault, } from './command-call.ts';
 export { callLabel } from './call-label.ts';
 export { IMPLICIT_TOOL_GATE, commandGateOf, toolGatesOf } from './gates.ts';
+export { isReadOnlyCall } from './read-only.ts';
 export type { ReleaseDescription, ReleaseDetail, ReleaseDetailAnswer, ReleaseDetailPolicy, ReleaseRow, ToolReleaseDescriber, ToolReleaseDetails, } from './release-detail.ts';
 export type { ToolActionGate } from './gates.ts';
 export type { ToolCallLabel } from './call-label.ts';
@@ -3571,6 +3575,13 @@ export { SCRIPT_EXECUTOR, SCRIPT_MODULE, SCRIPT_TOOL_FILE, checkScriptArguments,
 export { scriptToolImpact, scriptToolPlace, type ScriptToolLoad, type ScriptToolPublishFacts, } from './script-tool-effect.ts';
 ```
 
+## 声明文件 `read-only.d.ts`
+
+```ts
+import type { ToolDefinition, ToolImplementationShape } from './definitions.ts';
+export declare function isReadOnlyCall(definition: Pick<ToolDefinition, 'kind'> & ToolImplementationShape, command: string | null): boolean;
+```
+
 ## 声明文件 `records.d.ts`
 
 ```ts
@@ -4104,6 +4115,7 @@ export declare function defineFunctionTool<E, B extends ContentBlock>(input: Rea
     }>>;
     conditions?: ToolCallConditions;
     program?: ToolProgramAccess;
+    readOnly?: boolean;
 }>): Outcome<ToolImplementation<E, B>, Rejection>;
 export declare function defineCommandTool<E, B extends ContentBlock>(input: Readonly<{
     implementation: ToolImplementationDeclaration;
@@ -4118,6 +4130,7 @@ export declare function defineCommandTool<E, B extends ContentBlock>(input: Read
         release?: ToolCommandRelease;
         modalities?: readonly Modality[];
         conditions?: ToolCallConditions;
+        readOnly?: boolean;
     }>>>;
 }>): Outcome<ToolImplementation<E, B>, Rejection>;
 export {};

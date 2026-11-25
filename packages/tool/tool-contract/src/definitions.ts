@@ -97,6 +97,8 @@ export type ToolCommandDeclaration = Readonly<{
   release?: ToolCommandRelease
   modalities?: readonly Modality[]
   conditions?: ToolCallConditions
+  /** `true`: the command changes nothing another call can observe. Omitted, it has effects. */
+  readOnly?: boolean
 }>
 export type ToolCallConditions = readonly string[]
 export type ToolImplementationShape =
@@ -106,6 +108,7 @@ export type ToolImplementationShape =
       returns: ToolReturnDeclaration
       program?: ToolProgramAccess
       conditions?: ToolCallConditions
+      readOnly?: boolean
     }>
   | Readonly<{
       kind: 'commands'

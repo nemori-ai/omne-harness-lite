@@ -38,6 +38,7 @@ import {
   unknownGateAt,
 } from './judge-definition.ts'
 import {
+  bool,
   filled,
   inheritedSlot,
   judgeUnknown,
@@ -320,18 +321,19 @@ export function defineFunctionTool<E, B extends ContentBlock>(
     operation: ToolOperation<E, B, Extract<ToolOperationParameters, { kind: 'declared' }>>
     conditions?: ToolCallConditions
     program?: ToolProgramAccess
+    readOnly?: boolean
   }>,
 ): Outcome<ToolImplementation<E, B>, Rejection> {
   const checked = judgeUnknown(
     record(
       { implementation: implementationDeclaration, operation: operationHandle },
-      { conditions: callConditions, program: programAccess },
+      { conditions: callConditions, program: programAccess, readOnly: bool },
     ),
     input,
     'input',
   )
   if ('failure' in checked) return checked
-  const { implementation, operation, conditions, program } = checked.ok
+  const { implementation, operation, conditions, program, readOnly } = checked.ok
   if (operation.parameters.kind !== 'declared')
     return reject('operation.parameters.kind', 'executor-owned')
   const { value: parameters } = operation.parameters
@@ -341,6 +343,7 @@ export function defineFunctionTool<E, B extends ContentBlock>(
     returns: operation.returns,
     ...(conditions === undefined ? {} : { conditions }),
     ...(program === undefined ? {} : { program }),
+    ...(readOnly === undefined ? {} : { readOnly }),
   } as const
   return implement(implementation, shape, { kind: 'function', operation })
 }
@@ -353,6 +356,7 @@ const commandEntry = record(
     release: commandRelease,
     modalities: commandModalities,
     conditions: callConditions,
+    readOnly: bool,
   },
 )
 type CommandEntry = readonly [
@@ -365,6 +369,7 @@ type CommandEntry = readonly [
     release?: ToolCommandRelease
     modalities?: readonly Modality[]
     conditions?: ToolCallConditions
+    readOnly?: boolean
   }>,
 ]
 
@@ -404,6 +409,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
           release?: ToolCommandRelease
           modalities?: readonly Modality[]
           conditions?: ToolCallConditions
+          readOnly?: boolean
         }>
       >
     >
@@ -440,7 +446,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
       ...(guide === undefined ? {} : { guide }),
       ...(gates === undefined ? {} : { gates }),
       commands: commands.map(
-        ([name, { summary, operation, background, program, release, modalities, conditions }]) => ({
+        ([name, { summary, operation, readOnly, ...declared }]) => ({
           name,
           summary,
           parameters:
@@ -448,11 +454,12 @@ export function defineCommandTool<E, B extends ContentBlock>(
               ? { kind: 'declared', value: operation.parameters.value }
               : { kind: 'executor-owned' },
           returns: operation.returns,
-          ...(background === undefined ? {} : { background }),
-          ...(program === undefined ? {} : { program }),
-          ...(release === undefined ? {} : { release }),
-          ...(modalities === undefined ? {} : { modalities }),
-          ...(conditions === undefined ? {} : { conditions }),
+          ...(declared.background === undefined ? {} : { background: declared.background }),
+          ...(declared.program === undefined ? {} : { program: declared.program }),
+          ...(declared.release === undefined ? {} : { release: declared.release }),
+          ...(declared.modalities === undefined ? {} : { modalities: declared.modalities }),
+          ...(declared.conditions === undefined ? {} : { conditions: declared.conditions }),
+          ...(readOnly === undefined ? {} : { readOnly }),
         }),
       ),
     },
