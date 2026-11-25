@@ -1,6 +1,13 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('the root entry exports the driver and the panel, and the Cordis entry the module', async () => {
   const root = (await import('@omne-harness/goal-ui')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+  expect(Object.keys(root).sort()).toEqual(['GoalDriver', 'GoalPanel'])
+  const cordis = (await import('@omne-harness/goal-ui/cordis')) as Record<string, unknown>
+  expect(Object.keys(cordis).sort()).toEqual([
+    'GOAL_IN_SESSION',
+    'GOAL_TAB_ORDER',
+    'createGoalUiModule',
+    'goalParts',
+  ])
 })

@@ -36,6 +36,7 @@ import {
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { createDomainBindings, type Combination } from '../storage/tenant-bindings.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
+import { createGoalChangePublisher } from './changes.ts'
 import { goalHolder } from './holder.ts'
 import { createGoalCards } from './cards.ts'
 import {
@@ -81,6 +82,8 @@ export const goalRow = defineRow({
     const scanner: unknown = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY)
     installRowGrant(ctx, GOAL_COMPONENT)
     const holder = goalHolder(ctx)
+    const changes = createGoalChangePublisher()
+    holder.changes = changes
     const bindings = createDomainBindings<string>(
       {
         storage: ctx.get(storageKey) as SqlStorage,
@@ -106,6 +109,7 @@ export const goalRow = defineRow({
         history: lateHistory(holder),
         decisions: lateDecisions(holder),
         judging: releaseJudging(() => ctx.get(tenantIndependentSettingsKey)),
+        changes,
       },
       clock: { now: () => instantTextOf(ctx, 'goal') },
       timers: runTimeOf(ctx),
@@ -116,6 +120,8 @@ export const goalRow = defineRow({
     ctx.plugin(independentSettingsPlugin('goal-judge-settings', goalJudgeSettings))
     return {
       async stop() {
+        holder.changes = null
+        changes.close()
         await provider.dispose()
         return { kind: 'settled' }
       },

@@ -1,2 +1,7 @@
-// PACKAGE_TEMPLATE_DRAFT: Bind the accepted mechanism without inventing a business Service.
-export {}
+export {
+  createGoalUiModule,
+  GOAL_IN_SESSION,
+  GOAL_TAB_ORDER,
+  type GoalUiOptions,
+} from './module.tsx'
+export { goalParts } from './parts.ts'

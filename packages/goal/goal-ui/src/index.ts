@@ -1,2 +1,7 @@
-// PACKAGE_TEMPLATE_DRAFT: Pure public functions/types for this mechanism.
-export {}
+export {
+  GoalDriver,
+  type GoalClient,
+  type GoalDriverDeps,
+  type PanelState,
+} from './model/goal-driver.ts'
+export { GoalPanel } from './view/goal-panel.tsx'

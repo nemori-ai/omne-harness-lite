@@ -6,6 +6,7 @@ import {
   type GoalCards,
   type GoalDecisions,
   type GoalHistory,
+  type GoalChanges,
   type GoalJudging,
   type GoalSessions,
 } from '@omne-harness/goal'
@@ -31,6 +32,7 @@ export type GoalLocalOptions = Readonly<{
     history: GoalHistory
     decisions: GoalDecisions
     judging: GoalJudging
+    changes?: GoalChanges
   }>
   clock: Clock
   timers: Timers

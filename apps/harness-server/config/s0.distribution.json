@@ -541,6 +541,11 @@
       "config": {}
     },
     {
+      "id": "goal-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-diagnostics-access",
       "plugin": "stubPlugin",
       "config": {}

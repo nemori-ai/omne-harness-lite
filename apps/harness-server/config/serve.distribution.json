@@ -1066,6 +1066,11 @@
       "config": {}
     },
     {
+      "id": "goal-access",
+      "plugin": "goalAccessRow",
+      "config": {}
+    },
+    {
       "id": "session-diagnostics-access",
       "plugin": "sessionDiagnosticsAccessRow",
       "config": {}

@@ -7,8 +7,9 @@ import type {
   GoalSessions,
 } from '@omne-harness/goal'
 import type { PrincipalVerifier } from '@omne-harness/identity'
-import { tenantCodec } from '@omne-harness/legal-identity'
-import { verifySessionWork } from '../tool-runtime/session-work.ts'
+import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { classify } from '../authorization/principals.ts'
+import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import { checkedPrincipal } from './check-subject.ts'
 import type { GoalHolder } from './holder.ts'
 
@@ -43,20 +44,50 @@ const OF_THE_AGENT: ReadonlySet<GoalAction> = new Set(['read', 'propose', 'confi
 
 export type AuthorityPorts = Readonly<{ verifier(): PrincipalVerifier | undefined }>
 
-/** A caller acts as a session when it is the verified work principal of that session in that tenant.
- * The owner's own ways in are mounted by the rows that know the owner; until then nobody else is permitted. */
+/** What only a person does to the goal of a session of their tenant. Whether somebody attends that session is the goal's own rule, not asked here. */
+const OF_THE_PERSON: ReadonlySet<GoalAction> = new Set([
+  'read',
+  'set',
+  'revise',
+  'pause',
+  'resume',
+  'cancel',
+  'settle-by-exit',
+])
+
+type Standing = 'unavailable' | 'none' | 'person' | Readonly<{ session: string }>
+
+/** Who a subject is to the goals of a tenant, once verified: the work of one session, a person come in by login, or nobody. */
+async function standingOf(
+  verifier: PrincipalVerifier | undefined,
+  subject: unknown,
+  tenant: TenantId,
+): Promise<Standing> {
+  if (verifier === undefined) return 'unavailable'
+  const checked = await Promise.resolve()
+    .then(() => verifier.verify(subject as never))
+    .catch(() => ({ kind: 'unavailable' as const }))
+  if (checked.kind === 'unavailable') return 'unavailable'
+  if (checked.kind !== 'verified') return 'none'
+  const work = sessionWorkOf(checked.principal, tenant)
+  if (work !== undefined) return { session: work.session }
+  const who = classify(checked.principal)
+  return who?.column === 'login' && tenantEquals(who.principal.tenant, tenant) ? 'person' : 'none'
+}
+
 export function createGoalAuthority(ports: AuthorityPorts): GoalAuthority {
   return {
     async decide(caller, session, action) {
       const tenant = tenantCodec.parse(caller.tenant)
       if (!tenant.ok) return 'denied'
       const checked = checkedPrincipal(caller.subject)
-      const principal = checked ?? caller.subject
-      const work = await verifySessionWork(ports.verifier(), principal, tenant.value)
-      if (work.kind === 'unavailable') return 'unavailable'
-      const own = work.kind === 'session' && work.session === session
+      const standing = await standingOf(ports.verifier(), checked ?? caller.subject, tenant.value)
+      if (standing === 'unavailable') return 'unavailable'
+      if (standing === 'none') return 'denied'
+      if (standing === 'person')
+        return checked === undefined && OF_THE_PERSON.has(action) ? 'permitted' : 'denied'
       const asked = checked === undefined ? OF_THE_AGENT.has(action) : action === 'observe'
-      return own && asked ? 'permitted' : 'denied'
+      return standing.session === session && asked ? 'permitted' : 'denied'
     },
   }
 }

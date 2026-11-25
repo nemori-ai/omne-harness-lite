@@ -1,6 +1,7 @@
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { calendarProtocol } from '@omne-harness/calendar-protocol'
 import { canvasProtocol } from '@omne-harness/canvas-protocol'
+import { goalProtocol } from '@omne-harness/goal-protocol'
 import { humanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { mcpProtocol } from '@omne-harness/mcp-protocol'
@@ -24,6 +25,7 @@ export const domainProtocols: readonly ProtocolContract[] = [
   slashCommandProtocol,
   assetsProtocol,
   humanInterventionProtocol,
+  goalProtocol,
   toolProtocol,
   scheduleProtocol,
   calendarProtocol,

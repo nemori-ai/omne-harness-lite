@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GoalAction, GoalSessions } from '@omne-harness/goal'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { tenantCodec, type TenantId as LegalTenant } from '@omne-harness/legal-identity'
-import { SESSION_WORK_OWNER } from '../../../src/rows/authorization/principals.ts'
+import { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from '../../../src/rows/authorization/principals.ts'
 import { checkedPrincipal, checkSubject } from '../../../src/rows/goal/check-subject.ts'
 import type { GoalHolder } from '../../../src/rows/goal/holder.ts'
 import { createGoalAuthority, lateCalls, lateSessions } from '../../../src/rows/goal/ports.ts'
@@ -24,7 +24,23 @@ const work = (tenant: LegalTenant, session = 'session-1') => ({
   tenant,
   work: { owner: SESSION_WORK_OWNER, work: session },
 })
+const login = (tenant: LegalTenant) => ({
+  kind: 'acting-for-tenant',
+  actor: { kind: 'system', component: 'server-entry' },
+  tenant,
+  work: { owner: LOGIN_WORK_OWNER, work: 'login-1' },
+})
 const OF_THE_AGENT = ['read', 'propose', 'confirm', 'track'] as const
+const OF_THE_PERSON = [
+  'read',
+  'set',
+  'revise',
+  'pause',
+  'resume',
+  'cancel',
+  'settle-by-exit',
+] as const
+const NOT_OF_THE_PERSON = ['abort', 'observe', 'propose', 'confirm', 'track'] as const
 const OF_THE_OWNER = [
   'set',
   'revise',
@@ -72,6 +88,27 @@ describe('who may ask what of the goal of a session on the release', () => {
       expect(await decide(verified, action)).toBe('denied')
   })
 
+  it('a person come in by login reads the goal of any session of their tenant and does what only a person does to it', async () => {
+    for (const action of OF_THE_PERSON) {
+      expect(await decide(login(A), action)).toBe('permitted')
+      expect(await decide(login(A), action, 'another-session')).toBe('permitted')
+    }
+  })
+
+  it('a person aborts nothing, observes nothing, and does none of what the agent does through its tool', async () => {
+    for (const action of NOT_OF_THE_PERSON) expect(await decide(login(A), action)).toBe('denied')
+  })
+
+  it('a login of another tenant is denied everything, and one that cannot be verified now has no basis', async () => {
+    for (const action of OF_THE_PERSON) expect(await decide(login(B), action)).toBe('denied')
+    const asLogin = (verified: Parameters<typeof authority>[0]) =>
+      authority(verified).decide({ tenant: textOf(A), subject: login(A) }, 'session-1', 'pause')
+    expect(await asLogin('rejected')).toBe('denied')
+    expect(await asLogin('unavailable')).toBe('unavailable')
+    expect(await asLogin('throws')).toBe('unavailable')
+    expect(await asLogin('absent')).toBe('unavailable')
+  })
+
   it('the check of the work of a session observes its goal and asks nothing else of it; the agent itself never observes', async () => {
     const checking = (verified: unknown, action: GoalAction, session = 'session-1') =>
       authority(verified).decide(
@@ -112,7 +149,13 @@ describe('who may ask what of the goal of a session on the release', () => {
 })
 
 describe('the ports the contributing rows mount', () => {
-  const holder = (): GoalHolder => ({ sessions: null, calls: null, history: null, decisions: null })
+  const holder = (): GoalHolder => ({
+    sessions: null,
+    calls: null,
+    history: null,
+    decisions: null,
+    changes: null,
+  })
   it('while nothing is mounted a read is unavailable and a reminder stays owed', async () => {
     const empty = holder()
     expect(await lateSessions(empty).facts('t', 's')).toEqual({ kind: 'unavailable' })

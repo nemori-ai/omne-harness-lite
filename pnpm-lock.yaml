@@ -513,6 +513,12 @@ importers:
       '@omne-harness/dynamis-cordis':
         specifier: workspace:*
         version: link:../../packages/dynamis/dynamis-cordis
+      '@omne-harness/goal-protocol':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-protocol
+      '@omne-harness/goal-ui':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-ui
       '@omne-harness/human-intervention-protocol':
         specifier: workspace:*
         version: link:../../packages/human-intervention/human-intervention-protocol
@@ -820,6 +826,9 @@ importers:
       '@omne-harness/goal':
         specifier: workspace:*
         version: link:../../packages/goal/goal
+      '@omne-harness/goal-access':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-access
       '@omne-harness/goal-check':
         specifier: workspace:*
         version: link:../../packages/goal/goal-check
@@ -1262,6 +1271,9 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../packages/common/content-block
+      '@omne-harness/goal-protocol':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-protocol
       '@omne-harness/human-intervention-protocol':
         specifier: workspace:*
         version: link:../../packages/human-intervention/human-intervention-protocol
@@ -3954,6 +3966,9 @@ importers:
       '@omne-harness/goal-protocol':
         specifier: workspace:*
         version: link:../goal-protocol
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../access/public-contract

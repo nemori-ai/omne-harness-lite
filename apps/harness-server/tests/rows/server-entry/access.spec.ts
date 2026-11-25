@@ -308,6 +308,7 @@ describe('the serve process with the release', () => {
         'assets/v1',
         'calendar/v1',
         'canvas/v1',
+        'goal/v1',
         'human-intervention/v1',
         'identity/v1',
         'mcp/v1',

@@ -571,6 +571,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'session-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'goal-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'slash-command-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'mcp-access': { injects: ['accessRegistry', 'principalIssuer'] },

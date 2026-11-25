@@ -18,10 +18,11 @@
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
     },
-    "./goal-ui.css": "./src/goal-ui.css"
+    "./goal-ui.css": "./src/view/goal-ui.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/view/goal-ui.css"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
@@ -33,6 +34,7 @@
   "dependencies": {
     "@omne-harness/client-assembly": "workspace:*",
     "@omne-harness/goal-protocol": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/shell-contract": "workspace:*",
