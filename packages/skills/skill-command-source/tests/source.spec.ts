@@ -112,7 +112,7 @@ describe('the Skill catalogue as command entries', () => {
 
   it('hands over the whole body, page by page, pinned to the version of the first page', async () => {
     const { source, seen } = ports({ pages: ['第一页', '第二页'] })
-    expect(await source.take(asker, 'review', signal)).toEqual({
+    expect(await source.take(asker, { name: 'review', args: '', request: 'r' }, signal)).toEqual({
       ok: {
         kind: 'text',
         text: '第一页第二页',
@@ -124,15 +124,31 @@ describe('the Skill catalogue as command entries', () => {
 
   it('answers not listed when the reader may not read it, and unavailable for any other failure', async () => {
     expect(
-      await ports({ readFailure: 'not-available-to-you' }).source.take(asker, 'review', signal),
+      await ports({ readFailure: 'not-available-to-you' }).source.take(
+        asker,
+        { name: 'review', args: '', request: 'r' },
+        signal,
+      ),
     ).toEqual({ failure: 'not-listed' })
     expect(
-      await ports({ readFailure: 'source-unavailable' }).source.take(asker, 'review', signal),
+      await ports({ readFailure: 'source-unavailable' }).source.take(
+        asker,
+        { name: 'review', args: '', request: 'r' },
+        signal,
+      ),
     ).toEqual({ failure: 'unavailable' })
-    expect(await ports({ reader: false }).source.take(asker, 'review', signal)).toEqual({
+    expect(
+      await ports({ reader: false }).source.take(
+        asker,
+        { name: 'review', args: '', request: 'r' },
+        signal,
+      ),
+    ).toEqual({
       failure: 'unavailable',
     })
-    expect(await ports().source.take(asker, 'Not A Name', signal)).toEqual({
+    expect(
+      await ports().source.take(asker, { name: 'Not A Name', args: '', request: 'r' }, signal),
+    ).toEqual({
       failure: 'not-listed',
     })
   })

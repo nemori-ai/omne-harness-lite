@@ -4,12 +4,7 @@ import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import type { Message } from '@omne-harness/message'
 import type { UtteranceResolver } from '@omne-harness/session-contract'
 import { sessionUtteranceResolverKey } from '@omne-harness/session-cordis-contract/cordis'
-import {
-  createCommandCatalog,
-  createResolver,
-  createSystemCommandSource,
-  type Named,
-} from '@omne-harness/slash-command'
+import { createCommandCatalog, createResolver, type Named } from '@omne-harness/slash-command'
 import {
   CommandCatalogService,
   commandCatalogKey,
@@ -27,10 +22,12 @@ export const slashCommandRowConfig = z.strictObject({
 class ReleaseCommandCatalog extends CommandCatalogService<unknown> {
   readonly read: CommandCatalog<unknown>['read']
   readonly take: CommandCatalog<unknown>['take']
+  readonly candidates: CommandCatalog<unknown>['candidates']
   constructor(ctx: Context, catalog: CommandCatalog<unknown>) {
     super(ctx)
     this.read = (asker, signal) => catalog.read(asker, signal)
-    this.take = (asker, full, signal) => catalog.take(asker, full, signal)
+    this.take = (asker, naming, signal) => catalog.take(asker, naming, signal)
+    this.candidates = (asker, full, param, signal) => catalog.candidates(asker, full, param, signal)
   }
 }
 
@@ -58,12 +55,12 @@ function resolverOf(catalog: CommandCatalog<unknown>): UtteranceResolver<unknown
   const resolve = createResolver(catalog)
   return {
     name: 'slash-command',
-    async resolve({ original, seen, access }) {
+    async resolve({ original, seen, access, request }) {
       const text = original.blocks
         .flatMap(block => (block.kind === 'text' ? [block.text] : []))
         .join('\n')
       const asker = { principal: access.principal, tenant: access.tenant, session: access.session }
-      const resolved = await resolve({ text, seen, asker })
+      const resolved = await resolve({ text, seen, asker, request: String(request.operation) })
       return resolved.kind === 'input'
         ? { kind: 'input', effective: withNamed(original, resolved.appended) }
         : resolved
@@ -78,25 +75,28 @@ const slashCommandPlugin: Plugin.Object = {
   apply(ctx: Context, raw: unknown) {
     const config = slashCommandRowConfig.parse(raw)
     const sources = new CommandEntrySourcesService<unknown>(ctx)
-    sources.contribute(createSystemCommandSource(), { official: true })
     const catalog = createCommandCatalog<unknown>({
       sources: () => sources.sources(),
       declared: config.declaredSources,
       timeoutMs: config.timeoutMs,
     })
+    const holding = async <T>(full: string, work: () => Promise<T>): Promise<T> => {
+      const owner = sources
+        .sources()
+        .find(slot => slot.source.space === full.slice(0, full.indexOf(':')))
+      const release = owner === undefined ? () => {} : sources.hold(owner.source.name)
+      try {
+        return await work()
+      } finally {
+        release()
+      }
+    }
     const held: CommandCatalog<unknown> = {
       read: catalog.read,
-      async take(asker, full, signal) {
-        const owner = sources
-          .sources()
-          .find(slot => slot.source.space === full.slice(0, full.indexOf(':')))
-        const release = owner === undefined ? () => {} : sources.hold(owner.source.name)
-        try {
-          return await catalog.take(asker, full, signal)
-        } finally {
-          release()
-        }
-      },
+      take: (asker, naming, signal) =>
+        holding(naming.name, () => catalog.take(asker, naming, signal)),
+      candidates: (asker, full, param, signal) =>
+        holding(full, () => catalog.candidates(asker, full, param, signal)),
     }
     new ReleaseCommandCatalog(ctx, held)
     ctx.get(sessionUtteranceResolverKey)?.register(resolverOf(held))

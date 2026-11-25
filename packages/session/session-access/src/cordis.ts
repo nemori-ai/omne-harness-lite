@@ -1,6 +1,15 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
-import type { Principal } from '@omne-harness/access-cordis-contract'
-import { accessRegistryKey, defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
+import type {
+  InProcessAnswer,
+  InProcessCall,
+  Principal,
+} from '@omne-harness/access-cordis-contract'
+import {
+  accessCallsKey,
+  accessRegistryKey,
+  defineAccessPlugin,
+  type AccessCallsService,
+} from '@omne-harness/access-cordis-contract/cordis'
 import type { SessionDirectory, SessionManagement } from '@omne-harness/session-contract'
 import {
   sessionInputSourcesKey,
@@ -29,8 +38,6 @@ import type {
   TargetTenantPrincipals,
 } from './ports.ts'
 import { createRequestDrain } from './request-drain.ts'
-import { createOperationPerformer } from './command-operations.ts'
-import { describedBy } from './answers.ts'
 import { admitRequest } from './send-input.ts'
 
 export type SessionCreateInput = Parameters<SessionManagement<Principal>['create']>[0]
@@ -53,6 +60,7 @@ export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
 }>
 
 const SESSION_ACCESS_PLUGIN = 'session-access'
+const NOT_EXECUTED: InProcessAnswer = Object.freeze({ kind: 'not-executed', reason: 'unavailable' })
 
 function sessionOf(ctx: Context, caller: 'intake' | 'reader'): SessionService | undefined {
   return ctx.intercept(sessionKey, { caller }).get(sessionKey)
@@ -94,11 +102,10 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
       })
       const principals = input.principals(ctx)
       const faces = () => facesOf(ctx, input.prepareCreation)
-      const perform = createOperationPerformer({
-        factOf: principal => describedBy(input.facts, principal),
-        modes: () => input.permissionModes?.(ctx),
-        targets: () => input.modelTargets?.(ctx),
-      })
+      const perform = async (call: InProcessCall): Promise<InProcessAnswer> => {
+        const calls = ctx.get(accessCallsKey) as AccessCallsService | undefined
+        return calls === undefined ? NOT_EXECUTED : calls.call(call)
+      }
       const opening = input.journal(settings)
       let drain: ReturnType<typeof createRequestDrain> | undefined
       ctx.effect(() => async () => {

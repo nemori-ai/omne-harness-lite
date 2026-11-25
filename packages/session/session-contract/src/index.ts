@@ -497,6 +497,7 @@ export { originalModelRows } from './model-originals.ts'
 
 export {
   createUtteranceResolverRegistry,
+  type OperationAsked,
   type OperationRequest,
   type Resolution,
   type SenderView,

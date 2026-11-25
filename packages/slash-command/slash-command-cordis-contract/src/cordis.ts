@@ -129,5 +129,6 @@ export abstract class CommandCatalogService<P> extends Service implements Comman
   }
   abstract readonly read: CommandCatalog<P>['read']
   abstract readonly take: CommandCatalog<P>['take']
+  abstract readonly candidates: CommandCatalog<P>['candidates']
 }
 export const commandCatalogKey = CommandCatalogService.provide

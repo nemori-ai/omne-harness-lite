@@ -81,7 +81,7 @@ export function createSkillEntrySource<P, W>(ports: SkillEntrySourcePorts<P, W>)
       const found = await catalog.summaries(reader.ok.access, reader.ok.scope)
       return 'ok' in found ? succeed(found.ok.map(entryOf)) : fail('unavailable')
     },
-    async take(asker, name, signal) {
+    async take(asker, { name }, signal) {
       const access = ports.access()
       const reader = await ports.readerOf(asker)
       if (access === undefined || !('ok' in reader)) return fail('unavailable')

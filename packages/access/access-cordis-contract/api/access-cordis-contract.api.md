@@ -19,8 +19,11 @@
 - `FrameOf` · `contribution.d.ts`
 - `FrameSource` · `contribution.d.ts`
 - `IdentityFailure` · `identity.d.ts`
+- `InProcessAnswer` · `calls.d.ts`
+- `InProcessCall` · `calls.d.ts`
 - `LoginIdentity` · `contribution.d.ts`
 - `LoginResult` · `identity.d.ts`
+- `NotExecuted` · `calls.d.ts`
 - `ObservationContext` · `contribution.d.ts`
 - `OpenOf` · `contribution.d.ts`
 - `OperationHandler` · `contribution.d.ts`
@@ -31,12 +34,37 @@
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
+- `AccessCallsService` · `cordis.d.ts`
 - `AccessPluginDefinition` · `cordis.d.ts`
 - `AccessRegistryService` · `cordis.d.ts`
 - `Provide` · `cordis.d.ts`
 - `ServiceKey` · `cordis.d.ts`
+- `accessCallsKey` · `cordis.d.ts`
 - `accessRegistryKey` · `cordis.d.ts`
 - `defineAccessPlugin` · `cordis.d.ts`
+
+## 声明文件 `calls.d.ts`
+
+```ts
+import type { ProtocolKey } from './contribution.ts';
+export type InProcessCall = Readonly<{
+    protocol: ProtocolKey;
+    operation: string;
+    body: unknown;
+    login: string;
+    tenant: string;
+    id: string;
+}>;
+export type NotExecuted = 'not-mounted' | 'not-offered' | 'conflict' | 'unavailable';
+export type InProcessAnswer = Readonly<{
+    kind: 'answered';
+    outcome: string;
+    body: unknown;
+}> | Readonly<{
+    kind: 'not-executed';
+    reason: NotExecuted;
+}>;
+```
 
 ## 声明文件 `change-observation.d.ts`
 
@@ -121,6 +149,7 @@ export {};
 ```ts
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis';
 import type { ProtocolContract } from '@omne-harness/public-contract';
+import type { InProcessAnswer, InProcessCall } from './calls.ts';
 import type { AccessContribution } from './contribution.ts';
 export declare abstract class AccessRegistryService extends Service {
     static readonly provide = "accessRegistry";
@@ -128,9 +157,16 @@ export declare abstract class AccessRegistryService extends Service {
     abstract mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void;
 }
 export declare const accessRegistryKey = "accessRegistry";
+export declare abstract class AccessCallsService extends Service {
+    static readonly provide = "accessCalls";
+    constructor(ctx: Context);
+    abstract call(input: InProcessCall): Promise<InProcessAnswer>;
+}
+export declare const accessCallsKey = "accessCalls";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         accessRegistry: AccessRegistryService;
+        accessCalls: AccessCallsService;
     }
 }
 export type ServiceKey = string & keyof Context;
@@ -161,6 +197,7 @@ export type ActForResult = {
 export type AccessIdentity = {
     readonly identifyLogin: (proof: string) => Promise<LoginResult>;
     readonly actFor: (login: LoginIdentity, tenant: string) => Promise<ActForResult>;
+    readonly resumeLogin: (login: string, tenant: string) => Promise<LoginResult>;
     readonly reportAccess: (login: LoginIdentity) => Promise<void>;
 };
 ```
@@ -170,5 +207,6 @@ export type AccessIdentity = {
 ```ts
 export { createChangeObservation, type ChangeAdmission, type ChangeListener, type ChangeObservationInput, } from './change-observation.ts';
 export type { AccessContribution, AnswerOf, BodyOf, CallContext, EndOf, FrameOf, FrameSource, LoginIdentity, ObservationContext, OpenOf, OperationHandler, Principal, PrincipalFor, ProtocolKey, } from './contribution.ts';
+export type { InProcessAnswer, InProcessCall, NotExecuted } from './calls.ts';
 export type { AccessIdentity, ActForResult, IdentityFailure, LoginResult } from './identity.ts';
 ```

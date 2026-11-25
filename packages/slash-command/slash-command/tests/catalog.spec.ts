@@ -84,6 +84,8 @@ describe('reading the list', () => {
   })
 })
 
+const named = (name: string, args = '') => ({ name, args, request: 'req-1' })
+
 describe('taking an entry', () => {
   const text = {
     kind: 'text',
@@ -91,18 +93,18 @@ describe('taking an entry', () => {
     origin: { name: 'skill:review', layer: 'tenant', version: '1', digest: 'd' },
   } as const
 
-  it('goes to the one source of the namespace, with the bare name', async () => {
-    const seen: string[] = []
+  it('goes to the one source of the namespace, with the bare name, the arguments and the request', async () => {
+    const seen: unknown[] = []
     const catalog = catalogOf([
       slot(
-        source('skill', 'skill', listing(), async (_who, name) => {
-          seen.push(name)
+        source('skill', 'skill', listing(), async (_who, naming) => {
+          seen.push(naming)
           return succeed(text)
         }),
       ),
     ])
-    expect(await catalog.take(asker, 'skill:review')).toEqual({ ok: text })
-    expect(seen).toEqual(['review'])
+    expect(await catalog.take(asker, named('skill:review', 'a b'))).toEqual({ ok: text })
+    expect(seen).toEqual([{ name: 'review', args: 'a b', request: 'req-1' }])
   })
 
   it('answers unavailable when no single source owns the namespace, or the source throws or hangs', async () => {
@@ -111,19 +113,63 @@ describe('taking an entry', () => {
         throw new Error('x')
       }),
     )
-    expect(await catalogOf([throws]).take(asker, 'skill:review')).toEqual({
+    expect(await catalogOf([throws]).take(asker, named('skill:review'))).toEqual({
       failure: 'unavailable',
     })
     expect(
       await catalogOf([slot(source('skill', 'skill', listing(), () => never))]).take(
         asker,
-        'skill:review',
+        named('skill:review'),
       ),
     ).toEqual({ failure: 'unavailable' })
-    expect(await catalogOf([]).take(asker, 'skill:review')).toEqual({ failure: 'unavailable' })
-    expect(await catalogOf([throws, throws]).take(asker, 'skill:review')).toEqual({
+    expect(await catalogOf([]).take(asker, named('skill:review'))).toEqual({
       failure: 'unavailable',
     })
-    expect(await catalogOf([throws]).take(asker, 'review')).toEqual({ failure: 'unavailable' })
+    expect(await catalogOf([throws, throws]).take(asker, named('skill:review'))).toEqual({
+      failure: 'unavailable',
+    })
+    expect(await catalogOf([throws]).take(asker, named('review'))).toEqual({
+      failure: 'unavailable',
+    })
+  })
+})
+
+describe('asking the candidates of an argument', () => {
+  const candidates = [
+    { value: 'a', current: true },
+    { value: 'b', title: 'B' },
+  ] as const
+
+  it('goes to the one source of the namespace, with the bare name and the argument', async () => {
+    const seen: unknown[] = []
+    const answering: EntrySource<string> = {
+      ...source('omne', 'omne', listing()),
+      async candidates(_who, name, param) {
+        seen.push([name, param])
+        return succeed(candidates)
+      },
+    }
+    expect(await catalogOf([slot(answering)]).candidates(asker, 'omne:model', 0)).toEqual({
+      ok: candidates,
+    })
+    expect(seen).toEqual([['model', 0]])
+  })
+
+  it('answers not listed when the source keeps no candidates, and unavailable when none owns the space or it throws', async () => {
+    expect(
+      await catalogOf([slot(source('omne', 'omne', listing()))]).candidates(asker, 'omne:model', 0),
+    ).toEqual({ failure: 'not-listed' })
+    expect(await catalogOf([]).candidates(asker, 'omne:model', 0)).toEqual({
+      failure: 'unavailable',
+    })
+    const throwing: EntrySource<string> = {
+      ...source('omne', 'omne', listing()),
+      candidates: async () => {
+        throw new Error('x')
+      },
+    }
+    expect(await catalogOf([slot(throwing)]).candidates(asker, 'omne:model', 0)).toEqual({
+      failure: 'unavailable',
+    })
   })
 })
