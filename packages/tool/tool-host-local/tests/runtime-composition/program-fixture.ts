@@ -581,7 +581,12 @@ export async function programWorld(options: ProgramWorldOptions) {
     runtime: plugins.programs,
     children: plugins.children,
     admission: () => admission,
-    functions: async () => succeed(loaded.flatMap(one => programFunctions(one.definition))),
+    functions: async (_parent, names) =>
+      succeed(
+        loaded
+          .flatMap(one => programFunctions(one.definition))
+          .filter(one => names.includes(one.tool)),
+      ),
     prepareTarget: async (_parent, intent) => {
       const made = invokeRequest(intent.name, intent.command, plain(intent.arguments), 'program')
       return made === null

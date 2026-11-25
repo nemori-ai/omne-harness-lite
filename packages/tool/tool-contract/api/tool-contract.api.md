@@ -3482,7 +3482,7 @@ export type ProgramCallAnswer = Readonly<{
     failure: ProgramCallFailure;
 }>;
 export interface ProgramTools {
-    functions(): Reply<readonly ProgramFunction[]>;
+    functions(names: readonly string[]): Reply<readonly ProgramFunction[]>;
     call(input: At & Readonly<{
         entry: string;
         arguments: JsonValue;

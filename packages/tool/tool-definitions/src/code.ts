@@ -10,7 +10,6 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   programToolsOf,
   type ProgramCallAnswer,
-  type ProgramFunction,
   type ProgramTools,
 } from '@omne-harness/tool-contract'
 import {
@@ -61,43 +60,37 @@ const PURPOSE = `Run a short TypeScript program that calls tools as functions an
 - Each execute starts empty: nothing is kept between programs.
 - Let the program count, sort and compute, and return only what you need.`
 
+const FINDING = `Finding functions
+- The description of this tool shows the functions of your resident tools. help with name set to one tool shows the functions of that tool.
+- Other tools can be callable too. Find them with Tools search with programmable set to true: the result shows their functions. A program calls them by name; they need no loading.
+- Write the name of each tool you call in the program: a program is given the tools its text names.`
+
 const GUIDE = `${RULES}
 
-help gives the limits here and the functions a program can call now, with their parameter and return types.`
+help gives the limits here. help with name set to a tool gives the functions of that tool. Tools search with programmable set to true finds the other tools a program can call.`
 
 const limitsLine = (limits: Limits) =>
   `Limits: ${limits.computeMs / 1000} s of computing (waiting for a call does not count), ${Math.floor(limits.memoryBytes / 1048576)} MiB of memory, ${limits.calls} tool calls with at most ${limits.inFlight} at once, ${limits.outputBytes} bytes of result, ${limits.sourceBytes} bytes of program.`
 
-function byTool(functions: readonly ProgramFunction[]) {
-  const tools = new Map<string, ProgramFunction[]>()
-  for (const one of functions) tools.set(one.tool, [...(tools.get(one.tool) ?? []), one])
-  return tools
-}
-
 const DECLARED = `declare class ${PROGRAM_FAILURE} extends Error { kind: string; tool: string; command: string | null; effect: "none" | "occurred" | "unknown" }\ndeclare const input: unknown`
 
-/** The capability of this call and what a program can call through it now, or why there is none. */
-async function callable(execution: ToolExecutionContext, command: string) {
-  const tools = programToolsOf(execution)
-  if (tools === undefined)
-    return `rejected reason=unavailable Code ${command}: program calls are not attached to this call`
-  const listed = await tools.functions()
-  return 'failure' in listed
-    ? `rejected reason=unavailable Code ${command}: ${listed.failure.kind}`
-    : { tools, functions: listed.ok }
-}
+const NOT_ATTACHED = 'program calls are not attached to this call'
+const FIND = 'Find the tools a program can call with Tools search and programmable set to true.'
+
+const namesIn = (source: string): readonly string[] => [
+  ...new Set(source.match(/[A-Za-z_$][A-Za-z0-9_$]*/gu) ?? []),
+]
 
 async function helpText(execution: ToolExecutionContext, limits: Limits, name: string | undefined) {
-  const known = await callable(execution, 'help')
-  if (typeof known === 'string') return known
-  const all = byTool(known.functions)
-  if (name === undefined) {
-    const signatures = [...all.values()].map(functionsSignature).join('\n')
-    return `done Code help\n${RULES}\n\n${limitsLine(limits)}\n\nCallable now\n${signatures}\n${DECLARED}`
-  }
-  const one = all.get(name)
-  return one === undefined
-    ? `rejected reason=notFound Code help: ${name} has no function a program can call now. Callable: ${[...all.keys()].join(', ') || 'none'}`
+  const tools = programToolsOf(execution)
+  if (tools === undefined) return `rejected reason=unavailable Code help: ${NOT_ATTACHED}`
+  if (name === undefined)
+    return `done Code help\n${RULES}\n\n${limitsLine(limits)}\n\n${FINDING}\n${DECLARED}`
+  const listed = await tools.functions([name])
+  if ('failure' in listed) return `rejected reason=unavailable Code help: ${listed.failure.kind}`
+  const one = listed.ok.filter(each => each.tool === name)
+  return one.length === 0
+    ? `rejected reason=notFound Code help: ${name} has no function a program can call now. ${FIND}`
     : `done Code help ${name}\n${functionsSignature(one)}`
 }
 
@@ -122,6 +115,13 @@ function answerOf(entry: string, answer: ProgramCallAnswer): ProgramAnswer {
 }
 
 const NOTE = 'Calls that completed keep their effects. The program is not rerun.'
+
+function unnamed(outcome: Extract<ProgramOutcome, { kind: 'threw' }>, code: string): string {
+  if (outcome.name === 'ReferenceError') return `\nIf that is a tool: ${FIND}`
+  return outcome.name === 'TypeError' && /\btools\s*\[/u.test(code)
+    ? '\nWrite the name of each tool you call in the program: tools[name] with a computed name finds only the tools the text names.'
+    : ''
+}
 const consoleOf = (text: string) => (text.length === 0 ? '' : `\nconsole:\n${text}`)
 const at = (line: number | null) => (line === null ? '' : ` line=${line}`)
 
@@ -138,7 +138,7 @@ function failed(outcome: Exclude<ProgramOutcome, { kind: 'returned' }>, code: st
     case 'syntax':
       return `Code execute failed kind=syntax${at(outcome.line)}\n${outcome.message}${hint(outcome.message, code)}\nNothing ran.`
     case 'threw':
-      return `Code execute failed kind=threw${at(outcome.line)}\n${outcome.name}: ${outcome.message}\n${NOTE}${consoleOf(outcome.console)}`
+      return `Code execute failed kind=threw${at(outcome.line)}\n${outcome.name}: ${outcome.message}${unnamed(outcome, code)}\n${NOTE}${consoleOf(outcome.console)}`
     case 'exceeded':
       return `Code execute failed kind=exceeded limit=${outcome.limit}\n${NOTE}${consoleOf(outcome.console)}`
     case 'aborted':
@@ -222,22 +222,29 @@ async function execute(
 ): Promise<string> {
   const picked = pickedSource(args)
   if (typeof picked === 'string') return picked
-  const known = await callable(execution, 'execute')
-  if (typeof known === 'string') return known
-  const { tools } = known
+  const tools = programToolsOf(execution)
+  if (tools === undefined) return `rejected reason=unavailable Code execute: ${NOT_ATTACHED}`
   const seen: Answered = { failures: new Map(), external: false }
+  const reader = 'code' in picked ? succeed([]) : await tools.functions(['Files'])
+  if ('failure' in reader) return `rejected reason=unavailable Code execute: ${reader.failure.kind}`
   const program =
     'code' in picked
       ? givenProgram(picked.code, sourceBytes)
-      : await loadProgram(picked.path, tools, known.functions, sourceBytes, seen.failures)
+      : await loadProgram(picked.path, tools, reader.ok, sourceBytes, seen.failures)
   if ('refusal' in program) throw new Error(program.refusal)
   const { source, from } = program
+  const named = await tools.functions(namesIn(source))
+  if ('failure' in named) {
+    const text = `rejected reason=unavailable Code execute: ${named.failure.kind}`
+    if (from === '') return text
+    throw new Error(`${text}${fileOf(from)}`)
+  }
   const handle = Promise.withResolvers<ProgramRun>()
   const input = args.fields.get('input')
   const started = await environment.program.run({
     source,
     input: input ?? { kind: 'null' },
-    entries: known.functions.map(one => one.entry),
+    entries: named.ok.map(one => one.entry),
     failures: [PROGRAM_FAILURE],
     limits,
     onCall: caller(tools, inFlight, handle.promise, seen),

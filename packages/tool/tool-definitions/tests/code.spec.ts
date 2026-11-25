@@ -167,7 +167,12 @@ const refusal = (kind: ProgramCallFailureKind, message: string): ProgramCallAnsw
 type Handler = (args: Record<string, unknown>, ordinal: number) => Promise<ProgramCallAnswer>
 
 /** The capability a host would attach, scripted: what was called, in what order, how many at once. */
-type Faults = Readonly<{ functions?: boolean; settle?: boolean; none?: boolean }>
+type Faults = Readonly<{
+  functions?: boolean
+  settle?: boolean
+  none?: boolean
+  more?: readonly (typeof FUNCTIONS)[number][]
+}>
 const UNPLACED: ReadonlySet<string> = new Set(['unsupported', 'invalid', 'limit'])
 
 /** The position a real table would hold after this answer; none for a call refused before it had one. */
@@ -206,9 +211,16 @@ function scripted(handlers: Readonly<Record<string, Handler>>, faults: Faults = 
       .map(one => (one.state === 'handed' && asked !== undefined ? { ...one, stop: asked } : one))
     return { phase, positions } as unknown as ProgramTable
   }
+  /** The names each resolution was asked about: a program is given the tools it names, not a catalogue. */
+  const asked: (readonly string[])[] = []
+  const known = faults.none === true ? [] : [...FUNCTIONS, ...(faults.more ?? [])]
   const tools: ProgramTools = {
-    functions: async () =>
-      faults.functions === true ? fail(down) : succeed(faults.none === true ? [] : FUNCTIONS),
+    functions: async names => {
+      asked.push(names)
+      return faults.functions === true
+        ? fail(down)
+        : succeed(known.filter(one => names.includes(one.tool)))
+    },
     call(asked) {
       const args = plain(asked.arguments) as Record<string, unknown>
       calls.push([asked.ordinal, asked.entry, args])
@@ -234,7 +246,14 @@ function scripted(handlers: Readonly<Record<string, Handler>>, faults: Faults = 
       return succeed(tableNow('closing', 'accepted'))
     },
   }
-  return { tools, calls, most: () => most, settled: () => settled, abandoned: () => abandoned }
+  return {
+    tools,
+    calls,
+    asked,
+    most: () => most,
+    settled: () => settled,
+    abandoned: () => abandoned,
+  }
 }
 
 const LIMITS = {
@@ -729,7 +748,7 @@ describe('Code execute by path', () => {
     expect(await execute('return 1', world.tools)).toBe(
       'rejected reason=unavailable Code execute: unavailable',
     )
-    expect(await run('help', {}, world.tools)).toBe(
+    expect(await run('help', { name: 'Files' }, world.tools)).toBe(
       'rejected reason=unavailable Code help: unavailable',
     )
     expect(await run('help', {}, null)).toBe(
@@ -747,37 +766,88 @@ describe('Code execute by path', () => {
 })
 
 describe('Code help', () => {
-  it('gives the rules, the limits here and every function a program can call now, with types', async () => {
-    const text = await run('help', {}, scripted({}).tools)
+  // TL-75: Code keeps no catalogue. What a program can call is found through Tools.
+  it('gives the rules, the limits here and where to find functions, and lists none', async () => {
+    const world = scripted({})
+    const text = await run('help', {}, world.tools)
     expect(text).toMatch(/^done Code help\nProgram\n/u)
     expect(text).toContain(
       'Limits: 2 s of computing (waiting for a call does not count), 64 MiB of memory, 50 tool calls with at most 8 at once, 65536 bytes of result, 4096 bytes of program.',
     )
-    expect(text).toContain(
-      'declare const Files: {\n  /** list of the fixture */\n  list(params: { path?: string }): Promise<{ entries?: unknown[] }>',
-    )
-    expect(text).toContain('  write(params: { path?: string }): Promise<void>')
-    expect(text).toContain(
-      'declare function Lookup(params: { path?: string }): Promise<{ found?: boolean }>',
-    )
+    expect(text).toContain('Tools search with programmable set to true')
     expect(text).toContain('declare class ToolError extends Error')
-    expect(text).toMatch(
-      /Promise<void>\n\}\n\/\*\* Lookup of the fixture \*\/\ndeclare function Lookup/u,
-    )
+    expect(text).not.toContain('declare const Files')
+    expect(text).not.toContain('declare function Lookup')
+    expect(world.asked).toEqual([])
   })
 
-  it('shows one tool when asked, and names the callable ones when the name is not one of them', async () => {
-    const one = await run('help', { name: 'Lookup' }, scripted({}).tools)
+  it('is the same text whether a program can call no tool or a thousand', async () => {
+    const many = Array.from({ length: 1000 }, (_, index) =>
+      declared(`Tool${String(index)}`, 'run', { done: 'boolean' }),
+    )
+    const crowded = scripted({}, { more: many })
+    const text = await run('help', {}, crowded.tools)
+    expect(text).toBe(await run('help', {}, scripted({}, { none: true }).tools))
+    expect(crowded.asked).toEqual([])
+  })
+
+  it('shows one tool when asked, resolving that name alone, and says where to look when it is not callable', async () => {
+    const world = scripted({})
+    const one = await run('help', { name: 'Lookup' }, world.tools)
     expect(one).toMatch(
       /^done Code help Lookup\n\/\*\* Lookup of the fixture \*\/\ndeclare function Lookup/u,
     )
     expect(one).not.toContain('Files')
-    expect(await run('help', { name: 'Shell' }, scripted({}).tools)).toBe(
-      'rejected reason=notFound Code help: Shell has no function a program can call now. Callable: Files, Lookup',
+    expect(await run('help', { name: 'Shell' }, world.tools)).toBe(
+      'rejected reason=notFound Code help: Shell has no function a program can call now. Find the tools a program can call with Tools search and programmable set to true.',
     )
-    expect(await run('help', { name: 'Shell' }, scripted({}, { none: true }).tools)).toBe(
-      'rejected reason=notFound Code help: Shell has no function a program can call now. Callable: none',
+    expect(world.asked).toEqual([['Lookup'], ['Shell']])
+  })
+})
+
+describe('the tools a program names', () => {
+  it('are resolved from the text of the program, and nothing else is', async () => {
+    const world = scripted({ 'Files.read': async () => valued({ text: 'hello' }) })
+    const text = await execute(
+      'const file = await Files.read({ path: "a.txt" })\nreturn file.text.length',
+      world.tools,
     )
+    expect(text).toMatch(/^done Code execute\nresult:\n5\n/u)
+    expect(world.asked).toHaveLength(1)
+    expect(world.asked[0]).toContain('Files')
+    expect(world.asked[0]).not.toContain('Lookup')
+    expect(new Set(world.asked[0]).size).toBe(world.asked[0]?.length)
+  })
+
+  it('a tool the program does not name is not there, and the failure says where to find tools', async () => {
+    const world = scripted({})
+    const failed = (code: string) =>
+      execute(code, world.tools).then(
+        () => 'returned',
+        (error: unknown) => String(error),
+      )
+    const computed = await failed('const name = "Loo" + "kup"\nreturn await tools[name]({})')
+    expect(computed).toContain('Code execute failed kind=threw')
+    expect(computed).toContain('Write the name of each tool you call in the program')
+    const unknown = await failed('return await Nowhere.run({})')
+    expect(unknown).toContain('ReferenceError')
+    expect(unknown).toContain('Nowhere')
+    expect(unknown).toContain('Tools search and programmable set to true')
+  })
+
+  it('a program read from a file resolves Files to read it, then the names in the file', async () => {
+    const source = 'return await Lookup({ path: "x" })'
+    const world = scripted({
+      'Files.read': async () => valued({ text: source, eof: true }),
+      Lookup: async () => valued({ found: true }),
+    })
+    const text = await run('execute', { path: 'prog.ts' }, world.tools)
+    expect(text).toMatch(
+      /^done Code execute\nprogram: prog\.ts sha256:[0-9a-f]{64}\nresult:\n\{"found":true\}/u,
+    )
+    expect(world.asked[0]).toEqual(['Files'])
+    expect(world.asked[1]).toContain('Lookup')
+    expect(world.asked).toHaveLength(2)
   })
 })
 
