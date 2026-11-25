@@ -460,7 +460,7 @@ flowchart LR
 | `storage` | `storage`、`storageHost` |
 | `identity` | `storage`、`tenantStanding`、`identityGovernance`、`standingReservations`、`standingDestinationResolver`、`principalVerifier` |
 | `governance` | `storage`、`tenantDomainLookup`、`principalVerifier`、`identityGovernance`、`tenantStanding`、`standingReservations`、`governanceDirectoryPrincipals`、`governanceInstallationPrincipals`、`sessionPermissionBackend`、`standingDestinationResolver`、`currentToolPermission`、`sessionModesInstallation`、`tenantDomainRegistration` |
-| `tenant-assets` | `storage`、`tenantDomainLookup`、`principalVerifier`、`tenantStanding` |
+| `tenant-assets` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration`、`principalVerifier`、`tenantStanding` |
 | `calendar` | `storage`、`tenantStanding`、`tenantScopePrincipals` |
 | `schedule` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration`、`tenantDomainScannerPrincipal`、`tenantStanding` |
 | `notification` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration`、`tenantDomainScannerPrincipal`、`tenantScopePrincipals` |

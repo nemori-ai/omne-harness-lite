@@ -49,6 +49,7 @@ const kept = (root: string) => ({ path: root, files: { read: root, write: root }
 function world(over: Partial<ExtensionsPorts> = {}) {
   const ports: ExtensionsPorts = {
     faces: () => undefined,
+    standing: () => ({ kind: 'free' }),
     workingDirectory: async () => 'absent',
     revision: () => 'abcd.3',
     ...over,
@@ -87,6 +88,21 @@ describe('a directory of the working directory of the call, as a package', () =>
     expect(await pkg.open('../other/plugin.json', 'sha256:x')).toEqual({
       failure: 'entry-not-found',
     })
+  })
+
+  it('keeps .omne, where a package declares what it needs; other hidden names stay out', async () => {
+    const root = workspace({
+      'skills/tidy/SKILL.md': '---\nname: tidy\n---\n',
+      'skills/tidy/.omne/skill.json': '{"formatVersion":1}',
+      'skills/tidy/.git/HEAD': 'ref',
+      'skills/tidy/scripts/.cache/x': 'x',
+    })
+    const { source } = world({ workingDirectory: async () => kept(root) })
+    const pkg = await source.directory('skills/tidy')
+    if (typeof pkg === 'string') throw new Error(pkg)
+    const manifest = await pkg.manifest()
+    if (!('ok' in manifest)) throw new Error('manifest')
+    expect(manifest.ok.entries.map(entry => entry.path)).toEqual(['.omne/skill.json', 'SKILL.md'])
   })
 
   it.each([
@@ -384,6 +400,51 @@ describe('what a change would do and where a held one stands', () => {
       point: 'skill.skills',
       key: 'review',
     })
+  })
+
+  it('a publish the assets would refuse is told as refused, asked as the tenant of the call, whatever the category tells', async () => {
+    const { faces: given, asked } = faces()
+    const standings: string[] = []
+    const { source } = world({
+      faces: given,
+      standing: (capability, tenant) => {
+        standings.push(`${tenant}:${capability.category}/${capability.name}`)
+        return { kind: 'irreplaceable', layer: 'official' }
+      },
+    })
+    const tidy = capability('plugin', 'tidy')
+    expect(await source.impact.of({ tenant: 'bob', capability: tidy, change: 'publish' })).toEqual({
+      kind: 'changes',
+      lines: [
+        {
+          mark: '!',
+          of: null,
+          point: 'plugin.plugins',
+          key: 'tidy',
+          says: '→ would be refused: irreplaceable-official: plugin tidy is held on the official layer and cannot be replaced; nothing was published',
+        },
+      ],
+      loads: null,
+      advice: 'Publish it under another name.',
+    })
+    expect(standings).toEqual(['alice:plugin/tidy'])
+    expect(asked).toEqual([])
+    expect(await source.impact.of({ tenant: 'bob', capability: tidy, change: 'disable' })).toEqual({
+      kind: 'unavailable',
+      reason: 'told by plugin',
+    })
+    expect(standings).toEqual(['alice:plugin/tidy'])
+  })
+
+  it('a publish whose wider layers cannot be read is not told as free', async () => {
+    const { faces: given, asked } = faces()
+    const { source } = world({ faces: given, standing: () => ({ kind: 'unavailable' }) })
+    const tidy = capability('plugin', 'tidy')
+    expect(await source.impact.of({ tenant: 'a', capability: tidy, change: 'publish' })).toEqual({
+      kind: 'unavailable',
+      reason: 'whether a wider layer holds this name cannot be read now',
+    })
+    expect(asked).toEqual([])
   })
 
   it('says so when the assets cannot be read now', async () => {

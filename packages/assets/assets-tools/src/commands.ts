@@ -370,7 +370,9 @@ function publishRefusal(categories: CategoryView, category: string, reason: stri
     case 'a-directory-category':
       return `category ${category} is made from a directory: write it in the workspace and give dir.`
     default:
-      return `${reason}${layoutPointer(categories.describe(category), category)}`
+      return reason.startsWith('irreplaceable-official')
+        ? `${reason}. Publish it under another name.`
+        : `${reason}${layoutPointer(categories.describe(category), category)}`
   }
 }
 

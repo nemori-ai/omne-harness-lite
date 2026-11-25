@@ -66,15 +66,19 @@ describe('the layout of the skill category', () => {
   })
 
   it.each([
-    ['missing-manifest', 'manifest-missing'],
-    ['format-unsupported', 'declaration-format-unsupported'],
-    ['tool-ref-invalid', 'tool-ref-invalid'],
-    ['malformed-duplicate-key', 'malformed'],
-  ])('gives a named rejection for the illegal directory %s: %s', async (fixture, reason) => {
-    expect(await layout?.inspect(readerOf(fixtureFiles(fixture)))).toEqual({
-      failure: { kind: 'invalid-package', reason },
-    })
-  })
+    ['missing-manifest', 'manifest-missing: the package has no SKILL.md'],
+    ['format-unsupported', 'declaration-format-unsupported: formatVersion is not 1'],
+    ['tool-ref-invalid', /^tool-ref-invalid: \S.* is not a tool identity$/u],
+    ['malformed-duplicate-key', /^malformed: \S/u],
+  ])(
+    'gives a named rejection with its detail for the illegal directory %s: %s',
+    async (fixture, reason) => {
+      const inspected = await layout?.inspect(readerOf(fixtureFiles(fixture)))
+      expect(inspected).toEqual({
+        failure: { kind: 'invalid-package', reason: expect.stringMatching(reason) },
+      })
+    },
+  )
 
   it('gives the failure of the reader as source-failed', async () => {
     const files = fixtureFiles('plain-skill')

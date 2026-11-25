@@ -279,6 +279,8 @@ type Ports<P> = Readonly<{
   categories: Pick<CategoryView, 'describe' | 'lookup'>
   publishing: TenantPublishing<P>
   storeOf(tenant: string): Promise<TenantLayerStore | undefined>
+  /** The store for a write that may be the first of a tenant; without it a write uses storeOf. */
+  writableStoreOf?(tenant: string): Promise<TenantLayerStore | undefined>
   official: OfficialAssets
 }>
 type StoreFor<P> = (
@@ -343,7 +345,11 @@ function publicationOutcome(
   return { kind: 'published', version, holdingRef, changed }
 }
 
-function storeForOf<P>(ports: Ports<P>): StoreFor<P> {
+function storeForOf<P>(ports: Ports<P>, use: 'read' | 'write' = 'read'): StoreFor<P> {
+  const storeOf = (tenant: string) =>
+    use === 'write' && ports.writableStoreOf !== undefined
+      ? ports.writableStoreOf(tenant)
+      : ports.storeOf(tenant)
   return async scope => {
     let answer: 'admitted' | 'denied' | 'unavailable'
     try {
@@ -353,7 +359,7 @@ function storeForOf<P>(ports: Ports<P>): StoreFor<P> {
     }
     if (answer !== 'admitted') return { kind: answer }
     try {
-      return (await ports.storeOf(scope.tenant)) ?? UNAVAILABLE
+      return (await storeOf(scope.tenant)) ?? UNAVAILABLE
     } catch {
       return UNAVAILABLE
     }
@@ -687,6 +693,7 @@ async function recallById<P>(
 
 export function createTenantManagement<P>(ports: Ports<P>): TenantManagement<P> {
   const storeFor = storeForOf(ports)
+  const writableStoreFor = storeForOf(ports, 'write')
   const publish = publisherOf(ports)
   return Object.freeze({
     list: input => list(storeFor, ports, input),
@@ -703,7 +710,7 @@ export function createTenantManagement<P>(ports: Ports<P>): TenantManagement<P> 
       if (body === undefined) return Promise.resolve(BODY_NOT_READ)
       return publish(input, { kind: 'data', body })
     },
-    beginUpload: input => beginUpload(storeFor, ports.categories, input),
+    beginUpload: input => beginUpload(writableStoreFor, ports.categories, input),
     appendUpload: input => appendUpload(storeFor, input),
     createFromUpload: input => createFromUpload(storeFor, publish, input),
     recall: input => recall(storeFor, input),

@@ -1,5 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { heldEffect, type CategoryEffect } from '@omne-harness/assets'
+import {
+  heldEffect,
+  publishRefusal,
+  type CapabilityId,
+  type CategoryEffect,
+  type PublishStanding,
+} from '@omne-harness/assets'
 import {
   assetCategoriesKey,
   assetManagementKey,
@@ -18,6 +24,7 @@ import {
 } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
+import { publishStandingOf } from '../tenant-assets/held-standing.ts'
 import { admittedDirectory } from '../tool-runtime/environment.ts'
 import { extensionRevisionOf } from './extension-points.ts'
 import { directoryIn, placeIn, type Working } from './workspace-directory.ts'
@@ -26,6 +33,8 @@ type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
 export type ExtensionsPorts = Readonly<{
   faces(): ExtensionsFaces | undefined
+  /** How a new holding of the tenant would stand against the wider layers: what the publish itself asks. */
+  standing(capability: CapabilityId, tenant: string): PublishStanding
   /** Where the call works, admitted now, with the files scope pinned to it: absent when it has none, unavailable when that cannot be asked. */
   workingDirectory(): Promise<Working | 'absent' | 'unavailable'>
   revision(): string | null
@@ -55,6 +64,25 @@ export function createExtensionsSource(
     })
   }
   const UNREAD = { kind: 'unavailable', reason: 'the assets cannot be read now' } as const
+  const refusedImpact = (capability: CapabilityId) => {
+    const refused = publishRefusal(ports.standing(capability, tenant), capability)
+    if (refused === undefined) return undefined
+    if (refused.kind !== 'invalid')
+      return {
+        kind: 'unavailable',
+        reason: 'whether a wider layer holds this name cannot be read now',
+      } as const
+    const listing = ports.faces()?.categories.describe(capability.category)
+    const point = listing !== undefined && 'point' in listing ? listing.point : capability.category
+    const says = `→ would be refused: ${refused.reason}`
+    const line = { mark: '!', of: null, point, key: capability.name, says } as const
+    return {
+      kind: 'changes',
+      lines: [line],
+      loads: null,
+      advice: 'Publish it under another name.',
+    } as const
+  }
   return {
     tenant,
     principal,
@@ -72,7 +100,9 @@ export function createExtensionsSource(
     },
     impact: {
       of: async input =>
-        (await effectOf(input.capability.category)?.impact.of({ ...input, tenant })) ?? UNREAD,
+        (input.change === 'publish' ? refusedImpact(input.capability) : undefined) ??
+        (await effectOf(input.capability.category)?.impact.of({ ...input, tenant })) ??
+        UNREAD,
     },
     placement: {
       of: async input =>
@@ -108,6 +138,7 @@ export function bindReleaseExtensions(
           ? undefined
           : { categories, management, publishing }
       },
+      standing: (capability, tenant) => publishStandingOf(ctx, capability, tenant),
       async workingDirectory() {
         const directory = pinnedOf(parent.request)
         if (directory === undefined) return 'absent'

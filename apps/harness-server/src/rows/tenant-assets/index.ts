@@ -1,7 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { createTenantManagement, createTenantPublishing } from '@omne-harness/assets'
-import { createTenantLayerStore, createTenantPublisher } from '@omne-harness/assets-local'
+import {
+  createTenantLayerStore,
+  createTenantPublisher,
+  type AssetsLocal,
+} from '@omne-harness/assets-local'
 import {
   assetCategoriesKey,
   assetChangesKey,
@@ -18,12 +22,17 @@ import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/co
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { every } from '@omne-harness/time-source'
 import { defineRow } from '../../row.ts'
+import {
+  tenantDomainRegistrationKey,
+  type TenantDomainRegistration,
+} from '../governance/tenant-domain-registration-service.ts'
 import { runTimeOf } from '../../entry/time.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { publishActing } from './acting.ts'
 import { createAssetChangeFeed } from './changes.ts'
 import { heldOnRegistry } from './held.ts'
+import { publishStandingOf } from './held-standing.ts'
 import { openTenantAssets, TenantAssetsHost } from './host.ts'
 import { provideTenantAssets, tenantAssetsKey } from './service.ts'
 
@@ -99,6 +108,12 @@ export const tenantAssetsRow = defineRow({
     const host = new TenantAssetsHost({
       domains: ctx.tenantDomainLookup,
       open: domain => openTenantAssets(store, domain),
+      async register(tenant) {
+        const registration = ctx.get(tenantDomainRegistrationKey) as
+          | TenantDomainRegistration
+          | undefined
+        return (await registration?.ensure({ tenant }))?.kind === 'ready'
+      },
     })
     const layerSources = held.sourcesOf(tenantRef => host.open(tenantRef))
     const official = () => ctx.assetCategories.official()
@@ -108,12 +123,17 @@ export const tenantAssetsRow = defineRow({
       layerSources,
       official,
     })
+    const layerStoreOf = (tenant: string, assets: AssetsLocal | undefined) =>
+      assets === undefined
+        ? undefined
+        : createTenantLayerStore(assets, tenant, categories, layerSources(tenant))
     const acting = publishActing({ verifier: ctx.principalVerifier, standing: ctx.tenantStanding })
     const publishing = createTenantPublishing({
       acting,
       categories,
+      standing: async (tenant, capability) => publishStandingOf(ctx, capability, tenant),
       async publisherOf(tenant) {
-        const assets = await host.open(tenant)
+        const assets = await host.openForWriting(tenant)
         return assets === undefined ? undefined : createTenantPublisher(assets, tenant)
       },
     })
@@ -124,12 +144,8 @@ export const tenantAssetsRow = defineRow({
         acting,
         categories,
         publishing,
-        async storeOf(tenant) {
-          const assets = await host.open(tenant)
-          return assets === undefined
-            ? undefined
-            : createTenantLayerStore(assets, tenant, categories, layerSources(tenant))
-        },
+        storeOf: async tenant => layerStoreOf(tenant, await host.open(tenant)),
+        writableStoreOf: async tenant => layerStoreOf(tenant, await host.openForWriting(tenant)),
         official,
       }),
     )

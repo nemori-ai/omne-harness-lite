@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantAssetsKey } from '../../../src/rows/tenant-assets/service.ts'
 import { settledSession } from '../../governance/tenant-settings-support.ts'
 import { runOmne, savedTenant } from '../../r9/support.ts'
 import { until } from '../../support/listening.ts'
@@ -27,14 +28,22 @@ function foreignTenant(tenant: string): string {
   return JSON.stringify({ ...parsed, account: `${parsed.account.slice(0, -1)}${last}` })
 }
 
-async function upload(assets: Assets, tenant: TenantId, operation: string, text: string) {
+const REVIEW = { category: 'skill', name: 'review', path: 'SKILL.md' } as const
+
+async function upload(
+  assets: Assets,
+  tenant: TenantId,
+  operation: string,
+  text: string,
+  { category, name, path }: Readonly<{ category: string; name: string; path: string }> = REVIEW,
+) {
   const bytes = new TextEncoder().encode(text)
   const begun = await assets['begin-asset-upload']({
     tenant,
     operation,
-    category: 'skill',
-    name: 'review',
-    manifest: [{ path: 'SKILL.md', bytes: bytes.length }],
+    category,
+    name,
+    manifest: [{ path, bytes: bytes.length }],
   })
   if (begun.outcome !== 'succeeded') throw new Error(`begin: ${begun.outcome}`)
   const part = Math.min(begun.body.partBytes, 40)
@@ -43,7 +52,7 @@ async function upload(assets: Assets, tenant: TenantId, operation: string, text:
     const sent = await assets['append-asset-upload']({
       tenant,
       upload: operation,
-      path: 'SKILL.md',
+      path,
       offset,
       bytes: bytes.subarray(offset, offset + part),
     })
@@ -308,6 +317,93 @@ describe('assets/v1 asset operations on the release tree', () => {
           },
         })
         expect((await omne('asset', 'create', 'skill:review', '--dir', dir)).status).toBe(0)
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'a tenant whose first request is a write publishes at once; a name the deployment holds irreplaceably is refused on every path and nothing is held; an illegal Skill says what is wrong',
+    { tags: ['slow'], timeout: 240_000 },
+    async () => {
+      const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
+        const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'omne-asset-first-')))
+        const dir = (name: string, files: Readonly<Record<string, string>>) => {
+          for (const [path, text] of Object.entries(files)) {
+            mkdirSync(join(cwd, name, path, '..'), { recursive: true })
+            writeFileSync(join(cwd, name, path), text)
+          }
+          return join(cwd, name)
+        }
+        const omne = (...args: string[]) =>
+          runOmne({ args, home: tree.home, server: `http://127.0.0.1:${tree.port}`, cwd })
+
+        // P10: no session, no setting: the first request of this tenant is a write.
+        const assets = tree.scope.get(tenantAssetsKey)
+        expect(await assets?.standing(savedTenant(tree.home))).toBe('unregistered')
+        const first = await omne(
+          'asset',
+          'create',
+          'skill:review',
+          '--dir',
+          dir('review', { 'SKILL.md': SKILL }),
+        )
+        expect(first.result).toMatchObject({ outcome: 'succeeded', body: { changed: true } })
+        expect(first.status).toBe(0)
+
+        // P3: the CLI, then an upload in parts, under the name of a definition the deployment holds.
+        const coding = `---\nname: coding\nsummary: MARK-FAKE-CODING is not the coding agent.\n---\nNot the coding agent.\n`
+        const refused = await omne(
+          'asset',
+          'create',
+          'AgentDefinition:coding',
+          '--dir',
+          dir('coding', { 'AGENT.md': coding }),
+        )
+        expect(refused.status).not.toBe(0)
+        expect(refused.stdout).toContain(
+          'irreplaceable-official: AgentDefinition coding is held on the official layer and cannot be replaced; nothing was published',
+        )
+        const tenant = tenantOf(savedTenant(tree.home))
+        const uploaded = await upload(tree.clients.assets, tenant, 'upload-coding', coding, {
+          category: 'AgentDefinition',
+          name: 'coding',
+          path: 'AGENT.md',
+        })
+        expect(uploaded).toMatchObject({ outcome: 'invalid' })
+        expect(JSON.stringify(uploaded)).toContain('irreplaceable-official')
+        const held = await omne('asset', 'list', 'AgentDefinition', '--json')
+        expect(JSON.stringify(held.result)).not.toContain('MARK-FAKE-CODING')
+        expect(
+          (held.result as { body: { items: { name: string; origin: string }[] } }).body.items
+            .filter(item => item.name === 'coding')
+            .map(item => item.origin),
+        ).toEqual(['official'])
+
+        // P2: a name the deployment brings and lets be replaced: the tenant's own is held and is the one in use.
+        const skin = `---\nname: skin-authoring\ndescription: MARK-OWN-SKIN writes skins my way.\n---\nMine.\n`
+        const own = await omne(
+          'asset',
+          'create',
+          'skill:skin-authoring',
+          '--dir',
+          dir('skin-authoring', { 'SKILL.md': skin }),
+        )
+        expect(own.status).toBe(0)
+        const shownSkin = (await omne('asset', 'show', 'skill:skin-authoring')).stdout
+        expect(shownSkin).toContain('In use: yes')
+        expect(shownSkin).toContain('About: MARK-OWN-SKIN writes skins my way.')
+
+        // P12: an illegal Skill is refused with its code and what is wrong.
+        const illegal = await omne(
+          'asset',
+          'create',
+          'skill:broken',
+          '--dir',
+          dir('broken', { 'notes.md': 'no SKILL.md here' }),
+        )
+        expect(illegal.status).not.toBe(0)
+        expect(illegal.stdout).toContain('manifest-missing: the package has no SKILL.md')
       })
       expect(exitCode).toBe(0)
     },

@@ -123,6 +123,24 @@ describe('publish', () => {
     )
   })
 
+  it('a name held irreplaceably on a wider layer: the refusal says which one and how to go on, not how the category is written', async () => {
+    const reason =
+      'irreplaceable-official: bundle pill-send is held on the official layer and cannot be replaced; nothing was published'
+    const w = world()
+    const refusing = {
+      ...w,
+      publishing: { publish: async () => ({ kind: 'invalid', reason }) as const },
+    }
+    expect(
+      await bound(refusing).failure('publish', {
+        id: 'p1',
+        category: 'bundle',
+        name: 'pill-send',
+        dir: 'plugins/pill-send',
+      }),
+    ).toEqual({ kind: 'invalid', reason: `${reason}. Publish it under another name.` })
+  })
+
   it('a category that is not there now: the receipt names the categories that are', async () => {
     const failure = await bound(world()).failure('publish', {
       id: 'w1',
