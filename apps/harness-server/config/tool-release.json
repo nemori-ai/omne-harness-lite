@@ -1,6 +1,6 @@
 {
   "format": "omne-harness/tool-release/4",
-  "generation": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
+  "generation": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
   "artifacts": [
     {
       "package": "@omne-harness/tool-definitions",
@@ -1457,15 +1457,15 @@
         },
         {
           "path": "dist/proposing.d.ts.map",
-          "sha256": "9b35ccdaaf513feeddcddbd2c409fb3e796941571ef0ba5a174b9510ac229ef0"
+          "sha256": "c7f86bb2616ee5e99c6b36bb5b5531eda9a2f6827c9cd0019a0b2b4e1ce0d09e"
         },
         {
           "path": "dist/proposing.js",
-          "sha256": "ecb87c5017d7c3ecf0a68a8bcdc1b16ac300104414b4054b49e6349510666b74"
+          "sha256": "aa18616ad886d63ccccff26d5fa31d348618091c3bccb946958eedbc1dacb420"
         },
         {
           "path": "dist/proposing.js.map",
-          "sha256": "6a8d2dd48bf61edae582a76f187431baae6df8651260e6643300a8081aef4cc6"
+          "sha256": "ef2f810949e1c34dd1455c06e1625feb5333a6bd0892b3fd941dd559b4d2bef0"
         },
         {
           "path": "dist/protocol.d.ts",
@@ -1489,22 +1489,22 @@
         },
         {
           "path": "dist/results.d.ts.map",
-          "sha256": "da3db0b978370b37509c6fac022b848e06ee06f79f6d1c135bff47dca52a5d4a"
+          "sha256": "31c319f009b7e4987c71321ffdac3809f01ab835b41dec8f32300951155306e4"
         },
         {
           "path": "dist/results.js",
-          "sha256": "b1180623f874894458a3eff3a1eeb8f2b24a7ebc8634b133fa9ced9a79591fc1"
+          "sha256": "9c0b19c970a8cb34afa65381945c73881c2b420034f14105cd4c1b2948300c03"
         },
         {
           "path": "dist/results.js.map",
-          "sha256": "8a70f43beeeac8b6d00abd09d074eb54ecb067a86e34e176f76b77cc5fce4871"
+          "sha256": "e4eaaed0cbce705f443a11de4dab80defe6cec6b8f3a296878690a947229644b"
         },
         {
           "path": "package.json",
           "sha256": "315aa5140835a57976d14ede6bccc8a5b45bd436e6e8ed07d7b758b99ba61853"
         }
       ],
-      "digest": "sha256:9ddf4a5718232f12e0a9d394314e85561b3370378c646097c2e97cde25e34a69"
+      "digest": "sha256:f49f1630136a7712ac3a20352f37ad8eff42f6af68857d14cfffdb51a792cfb6"
     },
     {
       "package": "@omne-harness/workspace-tools",
@@ -1932,15 +1932,15 @@
     "capabilities": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/capabilities",
-      "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-      "digest": "sha256:a0ea738b265db0b515095352e0ffb05f447e8efe53e8c1536a983f654742d52d"
+      "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+      "digest": "sha256:42cd74bedcef940525c8974155d454ee91aa019a106d85aa29d8f2a2269caa80"
     },
     "conversion": null,
     "attachmentAccess": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/attachment-access",
-      "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-      "digest": "sha256:2b2670d57c7974f6c72c7c92b29d9faa359df7d3dbbdf37ac19701a628d760fb"
+      "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+      "digest": "sha256:a301ed04e2f0bdb7eac374af3856a7b543e70ec3702ee1377639d3a2286777e1"
     }
   },
   "entries": [
@@ -2638,14 +2638,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:8bf826de5b8f4533a823aad846690332aea54bafd047e7ccf323b7ebc3db5787"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:16913a6973a8fccc6539ada53d16ba0d00a21bf01a04de4c1981f2f706c0e99c"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:54b063d9d2c00233067f6a8ec6bd9a34cb97d58377da91324464dcf6dc4fbbfb"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:1a6128efdab516f9e7b8d794db390419a128562a7bb0e1e7ded4344ed3a2beca"
       }
     },
     {
@@ -3352,14 +3352,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:c929cd1b576874413fc9d37e99259d5cded226ba61a8c471817c5cf0baab0110"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:828ef2b090184934dc616d1d572006ebac2d9fa0611f8accd7b822cb01475b4d"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:bf0ac30287d45084c196b5d9e79d85f3d6f469cb68691b808691f149e1504851"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:c71b8dfbf5ecddb1776478c301cc6a624667aa544c0486f65ab98027f50319ca"
       }
     },
     {
@@ -4053,14 +4053,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:232e9960a6495d453f986a362499df77d1bdc0bfd3f4c0ddd27a98e6fe47e114"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:4fb5052b912da7f7f92379badca9181b0f9db75ec36ea75ac6e420397b68f304"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:5d254fab1a9c36d773a141b719aa2aef53e573824e936047e1d420a46d159cd9"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:b4e1270cae8c9ab9b3b84c18a9bddbf9171b440a582bd4ed600acbcbafbe5d7a"
       }
     },
     {
@@ -4449,14 +4449,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:01b307946da8d0210ef9c2ca1fc0ff28a5ce57cb7cb34b05f9fcbffc264f6871"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:0fd6050a48a88aef05ab7c02b87e9a51b794554d7fcb2fad4a358e3efe683a16"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:340b80fba333f986c320601f7fe9733b2cf4835fa0ef44beb1811d60b8667d36"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:f849512d8a81088af84692ef8ef77a9d8a4dba8c5f6edca64b7dfe971c05b3e6"
       }
     },
     {
@@ -4844,14 +4844,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#BkgToolCalls/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:e2205dba9e2bfa785ac3883ad2bcdf9f63c53c280334f3964f6c925941dfedd2"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:52fecad58770084dc054aeafd16072be9b33dda1ae180bc3a83b248eec2f2c3f"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#BkgToolCalls/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:4e3a79097f75473d37d9fc1ddd3c3d7b355a57b554e4a261be51b9ec6e414173"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:66fd6bc1d62033529804348e18ea8895ef7947c5b16a17e52eea18048614dd3e"
       }
     },
     {
@@ -4910,14 +4910,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:d521b090b224f56fa76b4912e22ffa9f910fe7fa82a1469266915edc315b663e"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:95d8a3d38db7e7eadba825a3de94ccc9252213a890e32eab7b3ccb878d2cfc58"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:71635586bad4460ee07204a4301a9341e20253ae3862fe4e0acdf23a03842501"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:3727119dd0611e442b446a2b88b98b668fd4be462b5222a5e5eac2edccd3a2b4"
       }
     },
     {
@@ -5609,14 +5609,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:a5a5c4a9b7472a4fae0ad12725ef778cd2c5a17cc4b184fb9b11eec16d1c23f3"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:52870baa09d6e99296b625da710dd617595837a8c4e6df5de4bfee654317dd2a"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:8d009fcab5473996658f3bc76ad4b3a8b86fd91e11f7c0394050df25cf942590"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:9962b0694018aa0e3f529df4a91f7920d8a94f74e274ca27f28e4176ddea401e"
       }
     },
     {
@@ -6005,14 +6005,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:fe7ad199130e38d36b346ce57f303c66fc9e22373271b168b5bab47da795221e"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:887aa2f0ee2c18292b1404b7df1eadb30c974084fcbfc992a23a7dbea4df2d83"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:5eea4ffdd98ac00efb6a9580c68ba9826d5eff7cd87725cc6227ba439a718faf"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:fb204ec3f69872530b888891c26284d6336bec12f6d7661617b8f62218dc4058"
       }
     },
     {
@@ -6404,14 +6404,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Calendar/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:395215dbfe0e1bdc9db4bc6d0e6ff8aaebc291bb63532cea6a873f402a2606ff"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:42914c707a57b504a3d12a06d9ce7f703426cf49935839dd2103edaf8618df19"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Calendar/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:10e32f5145972822d024130de002d382bd8f803950b69b6d16f3f1029b96fd5f"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:d9ae1bc9251b7355d27bec7a919f80b167aa21a9a323e41418868af7bb82badf"
       }
     },
     {
@@ -7422,14 +7422,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Schedules/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:7669a12b82c869020f17193a6eebf47dbb6e7e623ce9906daac7b3afce0c01ed"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:4365936a3e69b4f9c8f2dcfa8e00bf4d380a9b62d2b7705e517bdff7797401fe"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Schedules/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:ae44552db74184f3e80961cb70f8539a0150157c4184201448a6da2da96c5079"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:49cc98701445722dc79ae9f0251e2bfdea020099899de417416ffc4cffdfdd37"
       }
     },
     {
@@ -8429,14 +8429,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Jobs/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:5bf8274397e666877dcf8e73a05084c917a920f440c24005dd228b4fa1728f64"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:4e053d62fdc16b7f93d6e52f23114f39d81c82333af5e333cc0c80d86e93e2f0"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Jobs/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:bc8302492cb94e512925741fc53bba15408acd57036f1c89445741b609f781d9"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:c0aa91722e38c0e4560e4ef74ff7346fb16964b90191820c97597ad69429938b"
       }
     },
     {
@@ -8828,14 +8828,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Sessions/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:cd41abade4de6cdccc98e0b8d976c8d829eac06dd36a09ffd91db607de2d12d7"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:273588b140e40863cdb5332010d4b2c81b60bdedc0753abcbc588eb1fa4207a7"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Sessions/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:56f2e50b294d3af40607c290325d46a9481eafe3f99d2f97f70b555595aefdc5"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:1d9471776f1659468749cc174969cf2dd5fd3ab3865de41ec6ab3ef675bb5983"
       }
     },
     {
@@ -10139,14 +10139,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Agents/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:3d9ad4d3b9af6e74449bfd1337a62f8ac8d2be6bcef8cf02c1fd4f6cac6eac68"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:c6a525fbd2720f85bd7810e8da8b2431fe603605c111413126ef30cad2a7b77d"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Agents/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:698e460237c277d140ef5d13035a2bd35f85d15f41499546c35a284faefe7306"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:828b945f6e82162e9d68afc9c186765be840c5bcc7c057d6b9f9d3c8355e87c9"
       }
     },
     {
@@ -10156,7 +10156,7 @@
           "owner": "@omne-harness/harness-server",
           "name": "Goal",
           "revision": "0.0.0",
-          "digest": "sha256:c6630aa4da2d4583f73abdf70e6d088b41f7e45db00372e1c28d379a56602f80"
+          "digest": "sha256:bf40ae3c026f6f513d82215c42b7984f8539dcbe11003555795af7bb55522953"
         }
       },
       "requiredCapabilities": [],
@@ -10170,7 +10170,7 @@
           "revision": "1",
           "digest": "sha256:e47c054806caf9cab5ef516b923644781c1172dde919af569a04b583d0bbfaed"
         },
-        "artifacts": "sha256:9ddf4a5718232f12e0a9d394314e85561b3370378c646097c2e97cde25e34a69"
+        "artifacts": "sha256:f49f1630136a7712ac3a20352f37ad8eff42f6af68857d14cfffdb51a792cfb6"
       },
       "construction": [
         "resultMaxBytes"
@@ -10181,7 +10181,7 @@
         "revision": "0.0.0",
         "digest": "sha256:b7c72a94c3688d24abf4e83e37ca7b0968ca87a33dde86c380573aec869561a7"
       },
-      "definition": "sha256:5db1a08155e58f96ca7113c2fcba1d170f377fb79d23e6ab2cbfbf673fb45d37",
+      "definition": "sha256:97fc943cc2745d2d0969931b397b623a20ff7bf1c1eb99acff602a87bea2cafa",
       "gates": [
         {
           "id": "read",
@@ -10214,13 +10214,13 @@
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Goal",
-            "version": "0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8",
-            "digest": "19e257e72df6a8551e8632c098d123e80cd2e88eb9f564a899affc62e5de106d"
+            "version": "9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e",
+            "digest": "3c34836997ec80e94d7242af34c94120c9e47f2f21b509ab0d7c686e58dcfc55"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Goal",
-            "releaseRef": "harness.tool.Goal/0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+            "releaseRef": "harness.tool.Goal/9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
           },
           "settings": [
             {
@@ -10495,10 +10495,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Goal",
-                  "releaseRef": "harness.tool.Goal/0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                  "releaseRef": "harness.tool.Goal/9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
                 },
                 "itemId": "read",
-                "revision": "0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                "revision": "9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
               },
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.read",
@@ -10587,10 +10587,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Goal",
-                  "releaseRef": "harness.tool.Goal/0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                  "releaseRef": "harness.tool.Goal/9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
                 },
                 "itemId": "propose",
-                "revision": "0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                "revision": "9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
               },
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.propose",
@@ -10679,10 +10679,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Goal",
-                  "releaseRef": "harness.tool.Goal/0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                  "releaseRef": "harness.tool.Goal/9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
                 },
                 "itemId": "track",
-                "revision": "0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                "revision": "9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
               },
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.track",
@@ -10771,21 +10771,21 @@
             {
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.read",
-              "implementationRef": "tool/0f45ca7ce0131703566af2aa8b8cae407d739e16ad50d8a7e9e9dd1ec053b40f",
+              "implementationRef": "tool/77b28f083a1854d27eba989684d135e62381f856646e0feccb7f8a0a3c526eaa",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
             {
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.propose",
-              "implementationRef": "tool/0f45ca7ce0131703566af2aa8b8cae407d739e16ad50d8a7e9e9dd1ec053b40f",
+              "implementationRef": "tool/77b28f083a1854d27eba989684d135e62381f856646e0feccb7f8a0a3c526eaa",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
             {
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.track",
-              "implementationRef": "tool/0f45ca7ce0131703566af2aa8b8cae407d739e16ad50d8a7e9e9dd1ec053b40f",
+              "implementationRef": "tool/77b28f083a1854d27eba989684d135e62381f856646e0feccb7f8a0a3c526eaa",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -10796,7 +10796,7 @@
             "binding": {
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.read",
-              "implementationRef": "tool/0f45ca7ce0131703566af2aa8b8cae407d739e16ad50d8a7e9e9dd1ec053b40f",
+              "implementationRef": "tool/77b28f083a1854d27eba989684d135e62381f856646e0feccb7f8a0a3c526eaa",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -10805,10 +10805,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Goal",
-                  "releaseRef": "harness.tool.Goal/0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                  "releaseRef": "harness.tool.Goal/9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
                 },
                 "itemId": "read",
-                "revision": "0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                "revision": "9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
               },
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.read",
@@ -10911,7 +10911,7 @@
             "binding": {
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.propose",
-              "implementationRef": "tool/0f45ca7ce0131703566af2aa8b8cae407d739e16ad50d8a7e9e9dd1ec053b40f",
+              "implementationRef": "tool/77b28f083a1854d27eba989684d135e62381f856646e0feccb7f8a0a3c526eaa",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -10920,10 +10920,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Goal",
-                  "releaseRef": "harness.tool.Goal/0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                  "releaseRef": "harness.tool.Goal/9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
                 },
                 "itemId": "propose",
-                "revision": "0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                "revision": "9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
               },
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.propose",
@@ -11026,7 +11026,7 @@
             "binding": {
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.track",
-              "implementationRef": "tool/0f45ca7ce0131703566af2aa8b8cae407d739e16ad50d8a7e9e9dd1ec053b40f",
+              "implementationRef": "tool/77b28f083a1854d27eba989684d135e62381f856646e0feccb7f8a0a3c526eaa",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -11035,10 +11035,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Goal",
-                  "releaseRef": "harness.tool.Goal/0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                  "releaseRef": "harness.tool.Goal/9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
                 },
                 "itemId": "track",
-                "revision": "0fdfe15bcb5a0f587739bfef60a73d02f5c5da6a6c5e1e2394b4517d2793fad8"
+                "revision": "9efb63d3bd2b9656f9c35690b5313f234dcc91d427ca0757dbfe902a090e5b0e"
               },
               "capabilityId": "tool.Goal",
               "enforcementKey": "tool.track",
@@ -11142,14 +11142,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Goal/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:9c4e68120ee44300f70f7fed57a551c2088fa4d83091408f0f138ac17b976993"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:1fdf05a911efea14624cc15610f259f5ebfa05805bd352fd22157a2bec43e2f4"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Goal/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:a2cfd3116b293d71a62683e9cc437f0ea8aae13174255ab6ef08067ea616afe8"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:5cbfad9a8e7a47f856385bca022f6b2faeb4cb8a9991c280d3b9a794473cda0b"
       }
     },
     {
@@ -12460,14 +12460,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Notifications/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:683534e4bd13bbc670f2a11fe7cf0d68b8f4e1205713163ed81fab12935ab82c"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:6b58b4ebadb20ef9aef63b5d84a861822e9d8a5d9b24576af961d7e738766fa0"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Notifications/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:0eb901401445eaede1a1c2dc05cf5f2b495ba891f13d4c760253e42deb14dfa1"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:947ff0ec6d0fd02313b9d4eeb1d1e85d463df998adbed58cfc8e5337d8f466dc"
       }
     },
     {
@@ -13472,14 +13472,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Canvas/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:05908d22aa9329873495e32b2bda7b14b4b3515add4d6a2cf1df4918f05faf44"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:4018ebb0ac5d6371f9312964c577bc1c7a32d679253d3f9251468ea564422ce1"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Canvas/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:e6d76fdf842ce0f3a86d73bd9333f5878e4910f636001cca3f7922281990cc7b"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:74e318faf06dd8f01a6e2ee052f5145ac634be6b5cda94d040380058f7c17877"
       }
     },
     {
@@ -13864,14 +13864,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#SwitchWorkspace/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:d3642a1ec41a77abcfdf7653890590ced681e537ba716ec54f0ecc59132199cf"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:6d81404779d6e73fd2d4bcdd085bbd3247de285c95508f4aed653db835b63807"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#SwitchWorkspace/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:10064644eedcfd6ba7e8cda44cab63d2e53902f81fb097e29142a9cbc034fbfa"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:c3e09eeac8c09bc1be9bfa4882d96a2adfab26489f30fc968814399484967f68"
       }
     },
     {
@@ -14260,14 +14260,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#OmneExtensionPoints/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:263cd06df3d0b7d1d9e9384b3fc47a54bf37078491ce4f7dcec237495bdbadc1"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:748b10d22baa339e90a76433cc89fe8fd48b7512d5c9a26aafd53f17e9602e9d"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#OmneExtensionPoints/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:b4a02dd9f328c1f79f2e5db079b2255273ce7e44302f79393d18d103f970bc14"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:a08af142b616c43e24ff518173a8f60d1a10efb57ad5c4eb2c9a0b81e7be76e3"
       }
     },
     {
@@ -15576,14 +15576,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#OmneExtensions/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:713f7ade8f9a8e76a1c1bf766b2d57faaad2059a48d926d1288a5805b6d72833"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:95ba3431b84d5ed7b77305dece128baa7f36c7fea08d3dba643beed4dd21bdfb"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#OmneExtensions/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:aa0085502a006b21870ea41dd81218bbe4fad7f9fa57aa96b2f63ff82adca1e7"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:f01edd8970b504ceba76d9e36475c3c1afba049c93ee3b04a2f9915c4a03a83c"
       }
     },
     {
@@ -16281,14 +16281,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Screen/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:9f83edfca6c9671a61641400b562f0fcdda8ae1dc946f12352ef1fd144ab2f67"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:cf365f220eb1ebc58a58b76db6b858ed8a34e89c592ec503468ea40852e64bb0"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Screen/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:44092220adbf2d7c9bf4d884e3812a4e3abb5f81628dc8bd292ad868fd52de60"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:6d61c90619251d11f3cddfdb26acf963ebfe164a87b68a0a7e1d2f4c0f8b3a5a"
       }
     },
     {
@@ -16682,14 +16682,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Code/holding",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:6b2cacbdb1d003317c55de4563086978b080884a267fd461e5ce03e4d1e082d9"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:4ee1cb7ef00d18c6935f8f8119684e3ff4cb71e30bc6e6fadc636f8925680176"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Code/publication",
-        "revision": "sha256:2f8a57d64912cb826a83723a4d244664d7ae0f3c5c3e633ccd1a1013dc1d47c3",
-        "digest": "sha256:acc819959fff664494cce39040297797fbe6061c74e8ba5fd852ce00650190a2"
+        "revision": "sha256:8012756869680436bc5a405853a15267ce1bbc47c236fa225d268adc6daa998e",
+        "digest": "sha256:16d11ade996ced430457a9eefc577711c0279771c75923138cc2e849eb9b5c7d"
       }
     }
   ]

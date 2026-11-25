@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DROP_OPTION, readConfirmOption } from '@omne-harness/goal-contract'
-import { PROPOSE_CLOSED_RESULT, replyOf } from '../src/index.ts'
+import { cardOf, PROPOSE_CLOSED_RESULT, proposeExecutor, replyOf, shown } from '../src/index.ts'
 import { ADD_RULE, CALL, DRAFT, selection, SESSION, TENANT, words, world } from './world.ts'
 
 type Question = {
@@ -41,6 +41,39 @@ describe('show', () => {
     expect(text).toContain('- [A1] 端到端用例全过')
     expect(text).toContain('## Gap\n')
     expect(text).toContain('## Your progress list\n{"criteria":{}')
+    const record = made.record()
+    if (record === null) throw new Error('no goal')
+    const body = '## 目的\n把首页的加载时间降下来\n\n## 达成\n- [A1] 端到端用例全过'
+    expect(
+      shown(record).startsWith(`Goal: in progress (revision 1, 0 rounds used)\n\n${body}`),
+    ).toBe(true)
+    expect(shown(record)).toMatch(/\S\n\n## Gap\n\S[^]*\S\n\n## Your progress list\n\{/u)
+  })
+  it('says where a paused goal and a settled one stand', async () => {
+    const made = world()
+    await standing(made)
+    await made.goals.command(made.caller, { session: SESSION, command: { kind: 'pause' } })
+    expect(ok(await made.run({ command: 'show', params: {} }))).toContain(
+      'Goal: paused by person (revision 1, 0 rounds used)',
+    )
+    await made.goals.command(made.caller, { session: SESSION, command: { kind: 'cancel' } })
+    expect(ok(await made.run({ command: 'show', params: {} }))).toContain(
+      'Goal: settled: cancelled (revision 1, 0 rounds used)',
+    )
+  })
+  it('a read that throws has no basis; an update of the list that throws has an unknown result', async () => {
+    const made = world()
+    await standing(made)
+    const down = async () => {
+      throw new Error('down')
+    }
+    Object.assign(made.goals, { read: down, track: down })
+    expect(await made.run({ command: 'show', params: {} })).toMatchObject({
+      failure: { kind: 'unavailable', operation: 'Goal.show' },
+    })
+    expect(await made.run({ command: 'track', params: { notes: ['x'] } })).toMatchObject({
+      failure: { kind: 'unknown', operation: 'Goal.track' },
+    })
   })
 })
 
@@ -64,6 +97,7 @@ describe('propose', () => {
     expect(card.options[1]!.id).toBe(DROP_OPTION)
     expect(first.wait).toMatchObject({ kind: 'ask', key: 'propose' })
     expect(first.closed).toBe(PROPOSE_CLOSED_RESULT)
+    expect(PROPOSE_CLOSED_RESULT).toContain('The card is still open and nothing was set')
     expect(made.record()).toBeNull()
   })
 
@@ -137,6 +171,12 @@ describe('propose', () => {
     if ('failure' in first) throw new Error(JSON.stringify(first.failure))
     const card = cardOfRequest(first.request)
     expect(card.title).toBe('修改目标：N2')
+    const base = { generation: 1, revision: 1, live: true }
+    const two = cardOf({ kind: 'revise', rendered: 'x', digest: 'd', base, changed: ['N1', 'N2'] })
+    expect(two.title).toBe('修改目标：N1、N2')
+    const changed = Array.from({ length: 200 }, (_, index) => `A${String(index + 1)}`)
+    const many = cardOf({ kind: 'revise', rendered: 'x', digest: 'd', base, changed })
+    expect([...many.title]).toHaveLength(256)
     expect(card.declineConsequence).toBe('目标保持原样。')
     expect(readConfirmOption(card.options[0]!.id)?.base).toEqual({
       generation: 1,
@@ -185,12 +225,20 @@ describe('propose', () => {
     expect(await made.answer(broken, {} as never, selection(DROP_OPTION))).toMatchObject({
       failure: { kind: 'invalid' },
     })
-    for (const value of [
+    const odd = [
       null,
       { answers: [] },
       { answers: [{ cardId: 'goal', kind: 'selection' }] },
-    ])
-      expect(replyOf({ kind: 'answer', value })).toBeUndefined()
+      { answers: [{ cardId: 'goal', kind: 'text', text: 5 }] },
+      { answers: [{ cardId: 'goal', kind: 'ranking', optionId: 'drop', text: 'x' }] },
+    ]
+    for (const value of odd) expect(replyOf({ kind: 'answer', value })).toBeUndefined()
+    expect(replyOf(selection('confirm/0.0.0/x'))).toEqual({ kind: 'confirmed' })
+    expect(replyOf(words('改'))).toEqual({ kind: 'words', text: '改' })
+    const unknownKind = new TextEncoder().encode(JSON.stringify({ kind: 'pause' }))
+    expect(await made.answer(unknownKind, {} as never, selection(DROP_OPTION))).toEqual({
+      failure: { kind: 'invalid', reason: 'the answer is not the answer to the card of this call' },
+    })
   })
 
   it('where nobody attends the domain refuses a proposal even if the command were offered', async () => {
@@ -293,5 +341,55 @@ describe('a call that cannot reach the goal services', () => {
     expect(await answerGoal({ command: 'show', params: {} }, absent)).toMatchObject({
       failure: { reason: 'the goal services are not available now' },
     })
+  })
+})
+
+describe('propose when the goal services cannot be reached or do not answer', () => {
+  const args = { command: 'propose', params: { body: DRAFT } } as never
+  it('fails as unavailable before any card when the call is not attached', async () => {
+    const context = { signal: new AbortController().signal } as never
+    expect(await proposeExecutor.initial(args, null, context)).toEqual({
+      failure: {
+        kind: 'unavailable',
+        operation: 'Goal.propose',
+        reason: 'the goal services are not attached to this call',
+      },
+    })
+    const state = new TextEncoder().encode(JSON.stringify({ kind: 'set', draft: DRAFT }))
+    const resumed = await proposeExecutor.resume(
+      { checkpoint: state, response: selection('confirm/0.0.0/x') },
+      null,
+      context,
+    )
+    expect(resumed).toMatchObject({ failure: { kind: 'unavailable', operation: 'Goal.propose' } })
+  })
+  it('puts up no card when the services have no basis or throw', async () => {
+    const made = world()
+    made.store.readable(false)
+    expect(await made.proposed({ body: DRAFT })).toMatchObject({
+      failure: { kind: 'unavailable', operation: 'Goal.propose' },
+    })
+    made.store.readable(true)
+    Object.assign(made.goals, {
+      propose: async () => {
+        throw new Error('down')
+      },
+    })
+    expect(await made.proposed({ body: DRAFT })).toMatchObject({
+      failure: { kind: 'unavailable', operation: 'Goal.propose' },
+    })
+  })
+  it('a confirmation whose write throws has an unknown result: the call says to read before sending again', async () => {
+    const made = world()
+    const first = await made.proposed({ body: DRAFT })
+    if ('failure' in first) throw new Error('refused')
+    const card = cardOfRequest(first.request)
+    Object.assign(made.goals, {
+      confirm: async () => {
+        throw new Error('down')
+      },
+    })
+    const done = await made.answer(first.state, card as never, selection(card.options[0]!.id))
+    expect(done).toMatchObject({ failure: { kind: 'unknown', operation: 'Goal.propose' } })
   })
 })

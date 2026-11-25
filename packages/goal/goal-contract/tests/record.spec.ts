@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   baseOf,
+  GoalRecordSchema,
+  NO_PROGRESS,
+  NO_READINGS,
+  validateDraft,
   judgeCard,
   NO_GOAL,
   type AnsweredCard,
@@ -72,5 +76,38 @@ describe('an answered card writes a revision only with all three credentials, an
     ],
   ] as const)('%s: refused as %s', (_name, onCard, atNow, refusal) => {
     expect(judgeCard({ ...card, ...onCard }, { ...now, ...atNow })).toBe(refusal)
+  })
+})
+
+describe('the record of a goal', () => {
+  it('keeps where the history of the session stood when the goal was set, as the session names it', () => {
+    const checked = validateDraft(
+      { purpose: '做完', criteria: [{ statement: '做完了', evidence: { kind: 'person' } }] },
+      { attendance: 'attended' },
+    )
+    if (checked.kind !== 'valid') throw new Error('fixture')
+    const record = {
+      session: 's',
+      version: 1,
+      state: live,
+      body: checked.body,
+      history: [
+        {
+          revision: 1,
+          via: 'direct',
+          words: null,
+          draftedBy: 'person',
+          confirmedBy: 'acc-1',
+          operation: 'op-1',
+          at: '2026-11-25T00:00:00.000Z',
+        },
+      ],
+      readings: NO_READINGS,
+      progress: NO_PROGRESS,
+      since: '4172',
+      wake: null,
+    }
+    expect(GoalRecordSchema.parse(record)).toEqual(record)
+    expect(GoalRecordSchema.safeParse({ ...record, since: '' }).success).toBe(false)
   })
 })

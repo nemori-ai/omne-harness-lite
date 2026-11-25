@@ -67,10 +67,12 @@ describe('the direct way in', () => {
       command: { kind: 'settle-by-exit', exit: 'X1' },
     })
     await goals.read(OWNER, SESSION)
+    await goals.track(OWNER, { session: SESSION, patch: {} })
     expect(authority.asked.map(asked => asked.action)).toEqual(
       ['set', 'revise', 'propose', 'confirm', 'pause', 'resume', 'cancel', 'abort'].concat([
         'settle-by-exit',
         'read',
+        'track',
       ]),
     )
   })
@@ -448,6 +450,11 @@ describe('proposing', () => {
       kind: 'state',
       reason: 'no-live-goal',
     })
+    expect(value(await propose(goals, SET))).toMatchObject({
+      kind: 'set',
+      changed: [],
+      base: { generation: 1, revision: 1, live: false },
+    })
   })
   it('a body that does not stand is refused with the entry and the field', async () => {
     const { goals, direct } = world()
@@ -675,6 +682,10 @@ describe('the progress list', () => {
     expect(store.rows(TENANT)[0]?.progress.criteria).toEqual({})
     expect(set.since).toBe('1')
     expect(calls.asked).toEqual([['1', 'call-44', 'call-9']])
+    const two = { criteria: { A1: { status: 'doing', refs: ['call-8', 'call-9'], note: '' } } }
+    expect(refusal(await track(goals, two))).toMatchObject({
+      issues: [{ problem: 'no tool call of this session since the goal was set: call-8, call-9' }],
+    })
   })
 
   it('asks only about the references it has not checked before', async () => {

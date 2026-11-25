@@ -34,6 +34,8 @@ export function world() {
     pages: [] as PortRead<HistoryResults>[],
   }
   const asked: { after: string | null; cursor: string | null }[] = []
+  const read: { tenant: unknown; session: string }[] = []
+  let broken = false
   const calls: SessionCalls = {
     async accept(input) {
       accepted.push(input)
@@ -46,8 +48,10 @@ export function world() {
     async head() {
       return state.head
     },
-    async resultsAfter({ after, cursor }) {
+    async resultsAfter({ after, cursor, tenant, session }) {
       asked.push({ after, cursor })
+      read.push({ tenant, session })
+      if (broken) throw new Error('down')
       return state.pages[asked.length - 1] ?? { kind: 'read', value: { entries: [], next: null } }
     },
   }
@@ -56,6 +60,8 @@ export function world() {
     cited: createGoalCalls(calls).cited,
     accepted,
     asked,
+    read,
+    breakHistory: () => void (broken = true),
     state,
   }
 }

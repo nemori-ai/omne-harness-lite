@@ -20,6 +20,7 @@ import {
   type GoalRefusal,
   type GoalState,
   type Proposal,
+  type Proposed,
   type Provenance,
   type Readings,
 } from '@omne-harness/goal-contract'
@@ -45,7 +46,6 @@ export type Decided =
   | Readonly<{ kind: 'refused'; reason: GoalRefusal }>
   | Readonly<{ kind: 'next'; record: GoalRecord }>
 
-/** What a confirmation card shows is the rendered body; its digest is what the card is checked against. */
 export const digestOf = (body: GoalBody): string =>
   `sha256:${createHash('sha256').update(renderBody(body)).digest('hex')}`
 
@@ -63,7 +63,6 @@ export function proposedBody(
     : { kind: 'no-live-goal' }
 }
 
-/** A reading stays only while the entry it read stands unchanged. */
 function keptReadings(before: GoalBody, after: GoalBody, readings: Readings): Readings {
   const same = (section: 'criteria' | 'metrics' | 'rules') => {
     const was = new Map(before[section].map(entry => [entry.id, JSON.stringify(entry)]))
@@ -134,20 +133,47 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
   const before = input.proposal.kind === 'revise' ? current : null
   const version = (current?.version ?? 0) + 1
   const request = `start/${String(state.generation)}/${String(version)}`
+  const wake = stood.wakes ? ({ kind: 'start', request } as const) : null
+  const kept = before === null ? fresh(input.moment) : carried(before, body)
+  const history = [...kept.history, provenance]
   return {
     kind: 'next',
-    record: {
-      session: input.session,
-      version,
-      state,
-      body,
-      history: before === null ? [provenance] : [...before.history, provenance],
-      readings: before === null ? NO_READINGS : keptReadings(before.body, body, before.readings),
-      progress: before === null ? NO_PROGRESS : keptProgress(before.body, body, before.progress),
-      since: before === null ? input.moment : before.since,
-      wake: stood.wakes ? { kind: 'start', request } : null,
-    },
+    record: { session: input.session, version, state, body, ...kept, history, wake },
   }
+}
+
+type Kept = Pick<GoalRecord, 'history' | 'readings' | 'progress' | 'since'>
+const fresh = (since: string): Kept => ({
+  history: [],
+  readings: NO_READINGS,
+  progress: NO_PROGRESS,
+  since,
+})
+/** What a revision carries over: the history, where the goal began, and what was read and said of the entries it left alone. */
+const carried = (before: GoalRecord, body: GoalBody): Kept => ({
+  history: before.history,
+  readings: keptReadings(before.body, body, before.readings),
+  progress: keptProgress(before.body, body, before.progress),
+  since: before.since,
+})
+
+type Described = Readonly<{ proposed: Proposed }> | Readonly<{ refusal: GoalRefusal }>
+
+/** What a confirmation card of this proposal would show and stand on, or why there is nothing to show. */
+export function describeProposal(
+  current: GoalRecord | null,
+  proposal: Proposal,
+  attendance: Attendance,
+): Described {
+  if (attendance === 'unattended') return { refusal: { kind: 'state', reason: 'nobody-attends' } }
+  const checked = proposedBody(current, proposal, attendance)
+  if (checked.kind === 'no-live-goal') return { refusal: { kind: 'state', reason: 'no-live-goal' } }
+  if (checked.kind === 'invalid') return { refusal: { kind: 'invalid', issues: checked.issues } }
+  const { body } = checked
+  const changed = proposal.kind === 'set' ? [] : changedIn(current?.body, body)
+  const base = baseOf(current?.state ?? NO_GOAL)
+  const rendered = renderBody(body)
+  return { proposed: { kind: proposal.kind, rendered, digest: digestOf(body), base, changed } }
 }
 
 function eventOf(body: GoalBody | null, command: GoalCommand): GoalEvent | null {

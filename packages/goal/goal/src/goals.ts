@@ -1,13 +1,10 @@
 import {
   applyTrack,
-  baseOf,
   citedRefs,
-  NO_GOAL,
-  renderBody,
   type GoalReconciling,
   type Goals,
 } from '@omne-harness/goal-contract'
-import { changedIn, decideCommand, decideWrite, digestOf, proposedBody } from './decide.ts'
+import { decideCommand, decideWrite, describeProposal } from './decide.ts'
 import type {
   Clock,
   GoalAuthority,
@@ -73,17 +70,10 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
       if (stop !== null) return stop
       const facts = await factsOf(caller.tenant, session)
       if ('kind' in facts) return facts
-      const { attendance } = facts
-      if (attendance === 'unattended') return refused({ kind: 'state', reason: 'nobody-attends' })
       const read = await store.latest(caller.tenant, session)
       if (read.kind === 'unavailable') return UNAVAILABLE
-      const checked = proposedBody(read.value, proposal, attendance)
-      if (checked.kind === 'no-live-goal') return refused({ kind: 'state', reason: 'no-live-goal' })
-      if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })
-      const base = baseOf(read.value?.state ?? NO_GOAL)
-      const rendered = renderBody(checked.body)
-      const changed = proposal.kind === 'set' ? [] : changedIn(read.value?.body, checked.body)
-      return done({ kind: proposal.kind, rendered, digest: digestOf(checked.body), base, changed })
+      const described = describeProposal(read.value, proposal, facts.attendance)
+      return 'refusal' in described ? refused(described.refusal) : done(described.proposed)
     },
 
     async confirm(caller, input) {

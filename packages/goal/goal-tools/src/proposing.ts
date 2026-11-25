@@ -119,12 +119,9 @@ export const proposeExecutor: CheckpointedToolExecutor<ArgumentsOf<'propose'>, s
       .catch(() => ({ kind: 'basis-unavailable' }) as const)
     if (asked.kind === 'refused') return refused(asked.reason)
     if (asked.kind !== 'done') return unavailable('propose', NOW_UNAVAILABLE)
-    const state = encoder.encode(JSON.stringify(proposal))
-    if (state.byteLength > STATE_MAX_BYTES)
-      return fail({ kind: 'too-large', reason: 'the proposal is larger than a call can keep' })
     return succeed({
       kind: 'suspended',
-      state,
+      state: encoder.encode(JSON.stringify(proposal)),
       closedResult: PROPOSE_CLOSED_RESULT,
       wait: {
         kind: 'ask',

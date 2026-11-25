@@ -1,4 +1,9 @@
-import type { GoalRefusal, Outcome as DomainOutcome } from '@omne-harness/goal-contract'
+import type {
+  CardRefusal,
+  GoalRefusal,
+  Outcome as DomainOutcome,
+  Refusal,
+} from '@omne-harness/goal-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolPrimitiveFailure } from '@omne-harness/tool-contract/provider'
 import type { BoundGoal, Reached } from './port.ts'
@@ -9,7 +14,7 @@ export type Answer = Outcome<string, ToolPrimitiveFailure>
 export type Failed = Outcome<never, ToolPrimitiveFailure>
 type Kind = 'invalid' | 'unsupported' | 'conflict'
 
-const STATE: Readonly<Record<string, readonly [Kind, string]>> = {
+const STATE: Readonly<Record<Refusal, readonly [Kind, string]>> = {
   'no-live-goal': ['conflict', 'this session has no goal in progress or paused; propose one first'],
   'goal-in-progress': [
     'conflict',
@@ -19,7 +24,7 @@ const STATE: Readonly<Record<string, readonly [Kind, string]>> = {
   attended: ['unsupported', 'a person attends this session and decides that'],
   'not-its-cause': ['conflict', 'the goal is not paused by that exit'],
 }
-const CARD: Readonly<Record<string, string>> = {
+const CARD: Readonly<Record<CardRefusal, string>> = {
   'not-a-member': 'the card was not answered by a member of this session',
   'not-confirmed': 'the card was not answered with the confirm option',
   'already-used': 'the card already wrote its revision',
@@ -42,11 +47,11 @@ export function refused(reason: GoalRefusal): Failed {
     })
   }
   if (reason.kind === 'state') {
-    const [kind, hint] = STATE[reason.reason] ?? ['conflict', 'the goal does not take that now']
+    const [kind, hint] = STATE[reason.reason]
     return fail({ kind, reason: `${reason.reason}: ${hint}` })
   }
   if (reason.kind === 'card')
-    return fail({ kind: 'conflict', reason: `${reason.reason}: ${CARD[reason.reason] ?? ''}` })
+    return fail({ kind: 'conflict', reason: `${reason.reason}: ${CARD[reason.reason]}` })
   const hint = reason.kind === 'denied' ? 'this call may not do that' : 'nothing to act on'
   return fail({ kind: 'unsupported', reason: `${reason.kind}: ${hint}` })
 }

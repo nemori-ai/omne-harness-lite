@@ -137,13 +137,14 @@ describe('what the reminders say', () => {
 
 describe('the tool calls an agent cites', () => {
   it('are the ones a tool result of the session answers after the goal was set', async () => {
-    const { cited, state, asked } = world()
+    const { cited, state, asked, read } = world()
     state.pages = [page([result('call-1'), result('call-2')], null)]
     expect(await cited(TENANT, SESSION, ['call-2', 'call-9'], '41')).toEqual({
       kind: 'read',
       value: ['call-2'],
     })
     expect(asked).toEqual([{ after: '41', cursor: null }])
+    expect(read).toEqual([{ tenant: LEGAL_TENANT, session: SESSION }])
   })
   it('reads on page by page until every one is found or the history ends', async () => {
     const { cited, state, asked } = world()
@@ -187,6 +188,9 @@ describe('the tool calls an agent cites', () => {
     expect(await broken.cited(TENANT, SESSION, ['call-1', 'call-2'], '41')).toEqual({
       kind: 'unavailable',
     })
+    const thrown = world()
+    thrown.breakHistory()
+    expect(await thrown.cited(TENANT, SESSION, ['call-1'], '41')).toEqual({ kind: 'unavailable' })
     const endless = world()
     endless.state.pages = Array.from({ length: CITED_PAGE_LIMIT + 1 }, () => page([], 'more'))
     expect(await endless.cited(TENANT, SESSION, ['call-1'], '41')).toEqual({ kind: 'unavailable' })

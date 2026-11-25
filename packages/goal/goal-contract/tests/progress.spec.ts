@@ -116,8 +116,47 @@ describe('the progress list follows the numbers of the body', () => {
     ],
     ['a field nobody knows', { mood: 'good' }, ['-.mood']],
     ['something that is no update', 5, ['-.progress']],
+    [
+      'an obstacle that says nothing',
+      { obstacle: { what: '', tried: [], exit: null } },
+      ['-.obstacle'],
+    ],
+    ['a section that is no table of entries', { criteria: 5 }, ['-.criteria']],
+    ['an entry that is no entry', { criteria: { A2: 5 } }, ['A2.entry']],
+    [
+      'an entry with a field nobody knows',
+      { criteria: { A2: { status: 'doing', refs: [], note: '', mood: 1 } } },
+      ['A2.mood'],
+    ],
   ])('refused: %s', (_name, patch, expected) => {
     expect(refused(patch)).toEqual(expected)
+  })
+
+  it('says what is wrong: the length of a note, and the number the goal does not have', () => {
+    const problems = (patch: unknown) => {
+      const result = applyTrack(home(), NO_PROGRESS, patch)
+      return result.kind === 'invalid' ? result.issues.map(issue => issue.problem) : []
+    }
+    const long = { criteria: { A2: { status: 'doing', refs: [], note: '字'.repeat(201) } } }
+    expect(problems(long)).toEqual(['a note is 200 characters at most'])
+    expect(problems({ rules: { N9: { check: 'kept' } } })).toEqual(['the goal has no N9'])
+    expect(problems({ proposal: { kind: 'exit', exit: 'X9' } })).toEqual([
+      'the goal has no exit X9',
+    ])
+  })
+
+  it('takes every status and every kind of proposal there is', () => {
+    for (const status of ['not-started', 'doing', 'claimed-done', 'blocked'])
+      expect(
+        tracked({ criteria: { A2: { status, refs: [], note: '' } } }).criteria.A2?.status,
+      ).toBe(status)
+    for (const kind of ['none', 'achieved', 'unattainable'])
+      expect(tracked({ proposal: { kind } }).proposal).toEqual({ kind })
+  })
+
+  it('a part named as undefined is a part not named', () => {
+    const before = tracked({ notes: ['留着'], deliverables: ['a.md'] })
+    expect(tracked({ notes: undefined, deliverables: undefined }, before)).toEqual(before)
   })
 
   it('a note of exactly two hundred characters stands, counted by code points', () => {
@@ -135,6 +174,8 @@ describe('the progress list follows the numbers of the body', () => {
     })
     expect(citedRefs(progress)).toEqual(['call-44', 'call-45', 'call-41', 'call-7'])
     expect(citedRefs(NO_PROGRESS)).toEqual([])
+    const holes = { ...NO_PROGRESS, criteria: { A1: undefined }, metrics: { M1: undefined } }
+    expect(citedRefs(holes as never)).toEqual([])
   })
 
   it('after a revision, what was said of an entry that changed or went is dropped; a proposal by a removed exit too', () => {
@@ -166,6 +207,9 @@ describe('the progress list follows the numbers of the body', () => {
       proposal: { kind: 'none' },
     })
     expect(keptProgress(before, before, progress)).toEqual(progress)
+    expect(keptProgress(before, after, NO_PROGRESS)).toEqual(NO_PROGRESS)
+    const done = { ...NO_PROGRESS, proposal: { kind: 'achieved' } } as const
+    expect(keptProgress(before, after, done).proposal).toEqual({ kind: 'achieved' })
   })
 })
 
@@ -177,6 +221,12 @@ describe('the confirm option of a card carries what the card was drafted against
     expect(id).toBe(`confirm/2.3.1/${digest}`)
     expect(id.length).toBeLessThanOrEqual(256)
     expect(readConfirmOption(id)).toEqual({ base, digest })
+    expect(readConfirmOption(`confirm/12.30.0/${digest}`)?.base).toEqual({
+      generation: 12,
+      revision: 30,
+      live: false,
+    })
+    expect(DROP_OPTION).toBe('drop')
     const none = { generation: 0, revision: 0, live: false }
     expect(readConfirmOption(confirmOptionId(none, digest))).toEqual({ base: none, digest })
   })
@@ -185,8 +235,11 @@ describe('the confirm option of a card carries what the card was drafted against
     'confirm',
     'confirm/2.3.1',
     'confirm/2.3.2/sha256:x',
-    'confirm/a.b.1/sha256:x',
-    `xconfirm/2.3.1/${'d'}`,
+    `xconfirm/2.3.1/${digest}`,
+    `confirm/2.3.1/${digest}x`,
+    `confirm/1x.3.1/${digest}`,
+    `confirm/2.3y.1/${digest}`,
+    `confirm/02.3.1/${digest}`,
   ])('an option that is not a well-formed confirm option reads as none: %s', id =>
     expect(readConfirmOption(id)).toBeNull(),
   )
