@@ -9,7 +9,6 @@ const UNKNOWN = { kind: 'unknown' } as const
 
 function standing(record: GoalRecord): string {
   const { state } = record
-  if (state.status === 'none') return 'none'
   const used = `revision ${String(state.revision)}, ${String(state.rounds)} rounds used`
   if (state.status === 'paused') return `paused by ${state.pause.by} (${used})`
   return state.status === 'settled'
@@ -20,8 +19,7 @@ function standing(record: GoalRecord): string {
 /** The goal as the agent reads it: where it stands, the body, the gap of each entry, and its own list. */
 export function shown(record: GoalRecord | null): string {
   if (record === null) return NO_GOAL
-  const rounds = record.state.status === 'none' ? 0 : record.state.rounds
-  const gap = renderGap(gapTable(record.body, record.readings, rounds))
+  const gap = renderGap(gapTable(record.body, record.readings, record.state.rounds))
   return [
     `Goal: ${standing(record)}`,
     renderBody(record.body).trimEnd(),

@@ -10,7 +10,6 @@ export const GapSchema = z.strictObject({
   open: count,
   remaining: z.record(MetricIdSchema, z.number().nonnegative()),
 })
-/** How far a goal is from done, as much of it as the stall count compares between two observations. */
 export type Gap = z.infer<typeof GapSchema>
 
 export const PauseSchema = z.discriminatedUnion('by', [
@@ -46,11 +45,16 @@ const standing = {
 }
 const progress = { stalled: count, gap: GapSchema.nullable() }
 
-export const GoalStateSchema = z.discriminatedUnion('status', [
-  z.strictObject({ status: z.literal('none'), generation: count }),
+export const SetGoalStateSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('active'), ...standing, ...progress }),
   z.strictObject({ status: z.literal('paused'), ...standing, ...progress, pause: PauseSchema }),
   z.strictObject({ status: z.literal('settled'), ...standing, outcome: GoalOutcomeSchema }),
+])
+/** The state of a goal that was set: in progress, paused or settled. A kept goal is always one of these. */
+export type SetGoalState = z.infer<typeof SetGoalStateSchema>
+export const GoalStateSchema = z.discriminatedUnion('status', [
+  z.strictObject({ status: z.literal('none'), generation: count }),
+  ...SetGoalStateSchema.options,
 ])
 export type GoalState = z.infer<typeof GoalStateSchema>
 export type GoalStatus = GoalState['status']

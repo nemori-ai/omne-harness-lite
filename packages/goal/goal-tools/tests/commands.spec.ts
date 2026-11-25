@@ -165,8 +165,6 @@ describe('propose', () => {
   it('changes to a goal that stands are proposed by number; the title names what changes', async () => {
     const made = world()
     await standing(made)
-    const second = world(SESSION, 'call-ref-2')
-    void second
     const first = await made.proposed({ changes: ADD_RULE })
     if ('failure' in first) throw new Error(JSON.stringify(first.failure))
     const card = cardOfRequest(first.request)
@@ -183,6 +181,21 @@ describe('propose', () => {
       revision: 1,
       live: true,
     })
+  })
+
+  it('confirmed changes revise the goal that stands: the call names the new revision', async () => {
+    const made = world()
+    await standing(made)
+    const later = made.callOf('call-ref-2')
+    const first = await later.proposed({ changes: ADD_RULE })
+    if ('failure' in first) throw new Error(JSON.stringify(first.failure))
+    const card = cardOfRequest(first.request)
+    const done = await later.answer(first.state, card as never, selection(card.options[0]!.id))
+    expect(done).toEqual({
+      text: 'done Goal propose\nThe person confirmed. The goal stands as revision 2. Go on with the work in this turn; use show to read it and how far you are.',
+    })
+    expect(made.record()?.body.rules.map(rule => rule.id)).toEqual(['N1', 'N2'])
+    expect(made.record()?.history.map(entry => entry.operation)).toEqual([CALL, 'call-ref-2'])
   })
 
   it('a card drafted before the goal changed writes nothing: the call fails and says to propose again', async () => {

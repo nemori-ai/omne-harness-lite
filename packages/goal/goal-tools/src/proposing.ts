@@ -12,9 +12,17 @@ import {
   type CheckpointedToolExecutor,
   type ToolSegmentContext,
 } from '@omne-harness/tool-contract/provider'
+import { z } from 'zod'
 import { goalOf } from './port.ts'
 import { tree, type ArgumentsOf } from './protocol.ts'
-import { NOW_UNAVAILABLE, answered, completed, reachFrom, refused, unavailable } from './results.ts'
+import {
+  NOW_UNAVAILABLE,
+  answered,
+  completedText,
+  reachFrom,
+  refused,
+  unavailable,
+} from './results.ts'
 
 /** What the call ends with when its wait is closed before the person answered. */
 export const PROPOSE_CLOSED_RESULT =
@@ -60,6 +68,13 @@ export function cardOf(proposed: Proposed) {
   } as const
 }
 
+const AnswerSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('selection'), cardId: z.literal(CARD_ID), optionId: z.string() }),
+  z.object({ kind: z.literal('text'), cardId: z.literal(CARD_ID), text: z.string() }),
+  z.object({ kind: z.literal('no-answer'), cardId: z.literal(CARD_ID) }),
+])
+const ResponseSchema = z.object({ answers: z.tuple([AnswerSchema]) })
+
 type Reply =
   | Readonly<{ kind: 'confirmed' }>
   | Readonly<{ kind: 'words'; text: string }>
@@ -68,20 +83,12 @@ type Reply =
 /** What the person answered on the card. Only the confirm option confirms; their own words are changes they want. */
 export function replyOf(response: ToolDecision<unknown>): Reply | undefined {
   if (response.kind !== 'answer') return { kind: 'dropped' }
-  const answers = (response.value as { answers?: unknown } | null)?.answers
-  if (!Array.isArray(answers) || answers.length !== 1) return undefined
-  const answer = answers[0] as {
-    cardId?: unknown
-    kind?: unknown
-    optionId?: unknown
-    text?: unknown
-  }
-  if (answer.cardId !== CARD_ID) return undefined
-  if (answer.kind === 'text' && typeof answer.text === 'string')
-    return { kind: 'words', text: answer.text }
-  if (answer.kind === 'no-answer') return { kind: 'dropped' }
-  if (answer.kind !== 'selection' || typeof answer.optionId !== 'string') return undefined
-  return answer.optionId === DROP_OPTION ? { kind: 'dropped' } : { kind: 'confirmed' }
+  const parsed = ResponseSchema.safeParse(response.value)
+  if (!parsed.success) return undefined
+  const [answer] = parsed.data.answers
+  if (answer.kind === 'text') return { kind: 'words', text: answer.text }
+  const dropped = answer.kind === 'no-answer' || answer.optionId === DROP_OPTION
+  return dropped ? { kind: 'dropped' } : { kind: 'confirmed' }
 }
 
 function kept(checkpoint: Uint8Array): Proposal | undefined {
@@ -139,12 +146,8 @@ export const proposeExecutor: CheckpointedToolExecutor<ArgumentsOf<'propose'>, s
         kind: 'invalid',
         reason: 'the answer is not the answer to the card of this call',
       })
-    const done = (text: string) => {
-      const result = completed('propose', text)
-      return 'failure' in result
-        ? result
-        : succeed({ kind: 'completed' as const, value: result.ok })
-    }
+    const done = (text: string) =>
+      succeed({ kind: 'completed' as const, value: completedText('propose', text) })
     if (reply.kind === 'dropped') return done(NOT_SET)
     if (reply.kind === 'words') return done(wants(reply.text))
     const ready = await reachFrom('propose', goalOf(context))
@@ -154,7 +157,7 @@ export const proposeExecutor: CheckpointedToolExecutor<ArgumentsOf<'propose'>, s
       .confirm(caller, { session, card: ready.bound.call, proposal, words: null })
       .catch(() => ({ kind: 'unknown' }) as const)
     const result = answered('propose', written, record => {
-      const revision = record.state.status === 'none' ? 0 : record.state.revision
+      const { revision } = record.state
       return `The person confirmed. The goal stands as revision ${String(revision)}. Go on with the work in this turn; use show to read it and how far you are.`
     })
     return 'failure' in result ? result : succeed({ kind: 'completed', value: result.ok })

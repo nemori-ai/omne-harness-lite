@@ -19,6 +19,7 @@ import {
   type GoalRecord,
   type GoalRefusal,
   type GoalState,
+  type SetGoalState,
   type Proposal,
   type Proposed,
   type Provenance,
@@ -97,7 +98,7 @@ function provenanceOf(input: WriteInput, revision: number): Provenance {
 }
 
 type Stood = Readonly<{
-  state: Exclude<GoalState, { status: 'none' }>
+  state: SetGoalState
   body: GoalBody
   wakes: boolean
 }>
@@ -115,7 +116,7 @@ function stand(current: GoalRecord | null, input: WriteInput): Stood | Decided {
   if (step.kind === 'refused') return refused({ kind: 'state', reason: step.reason })
   const checked = proposedBody(current, proposal, attendance)
   if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })
-  if (checked.kind !== 'valid' || step.kind !== 'changed' || step.next.status === 'none')
+  if (checked.kind !== 'valid' || step.kind !== 'changed')
     return refused({ kind: 'state', reason: 'no-live-goal' })
   if (byCard && digestOf(checked.body) !== entrance.card.digest)
     return refused({ kind: 'card', reason: 'content-differs' })

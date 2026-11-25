@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { GoalBodySchema } from './body.ts'
 import { ReadingsSchema } from './gap.ts'
 import { ProgressSchema } from './progress.ts'
-import { GoalStateSchema, type GoalState } from './state.ts'
+import { SetGoalStateSchema, type GoalState } from './state.ts'
 
 export const ProvenanceSchema = z.strictObject({
   revision: z.int().positive(),
@@ -27,7 +27,7 @@ export const GoalRecordSchema = z.strictObject({
   session: z.string().min(1),
   /** Counts every write of this session's goals: a write names the version it read. */
   version: z.int().positive(),
-  state: GoalStateSchema,
+  state: SetGoalStateSchema,
   body: GoalBodySchema,
   history: z.array(ProvenanceSchema).min(1),
   readings: ReadingsSchema,

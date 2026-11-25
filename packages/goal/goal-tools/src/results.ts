@@ -32,8 +32,10 @@ const CARD: Readonly<Record<CardRefusal, string>> = {
   'content-differs': 'the card showed another body than this proposal; propose again',
 }
 
+export const completedText = (command: GoalCommandName, text: string): string =>
+  `done Goal ${command}\n${text}`
 export const completed = (command: GoalCommandName, text: string): Answer =>
-  succeed(`done Goal ${command}\n${text}`)
+  succeed(completedText(command, text))
 
 /** Every refusal of the domain is a failed result that names the reason and what to do about it. */
 export function refused(reason: GoalRefusal): Failed {

@@ -12,6 +12,7 @@ import {
   answerGoal,
   createGoalAuthor,
   goalCommandNames,
+  goalExecutor,
   goalToolModule,
   PROPOSE_CONDITIONS,
 } from '../src/index.ts'
@@ -52,7 +53,7 @@ function author(maximum = 65_536) {
     if (operation === undefined || operation.author.kind !== 'ordinary') throw new Error('ordinary')
     return operation.author.parameters.parse(cut.ok)
   }
-  return { definition, decode }
+  return { definition, decode, registration }
 }
 
 describe('the Goal declaration', () => {
@@ -113,5 +114,36 @@ describe('the Goal declaration', () => {
     expect(decode('show', { session: 'another' })).toMatchObject({ failure: { kind: 'invalid' } })
     expect(decode('track', { notes: ['a'] })).toMatchObject({ ok: { command: 'track' } })
     expect(decode('track', { state: 'paused' })).toMatchObject({ failure: { kind: 'invalid' } })
+  })
+})
+
+describe('the executor and the bound of a result', () => {
+  const context = { signal: new AbortController().signal } as never
+  it('a completed call returns its text; a failed one throws its reason; propose does not run through it', async () => {
+    expect(await goalExecutor.execute({ command: 'help', params: {} }, null, context)).toContain(
+      'done Goal help',
+    )
+    await expect(
+      goalExecutor.execute({ command: 'show', params: {} }, null, context),
+    ).rejects.toThrow('the goal services are not attached to this call')
+    await expect(
+      goalExecutor.execute({ command: 'propose', params: {} } as never, null, context),
+    ).rejects.toThrow('propose runs through its checkpoint executor')
+  })
+  it('a result is text, and no longer than the bound the author was constructed with', () => {
+    const operation = author(64).registration.operations.find(([name]) => name === 'show')?.[1]
+    if (operation === undefined || operation.author.kind !== 'ordinary') throw new Error('ordinary')
+    const { output, codec } = operation.author
+    expect(output.check({ value: 'x'.repeat(64) } as never)).toEqual({ ok: 'x'.repeat(64) })
+    expect(output.check({ value: 'x'.repeat(65) } as never)).toHaveProperty('failure')
+    expect(output.check({ value: '字'.repeat(22) } as never)).toHaveProperty('failure')
+    expect(output.check({ value: 5 } as never)).toHaveProperty('failure')
+    const bytes = codec.encode('目标' as never)
+    if (!('ok' in bytes)) throw new Error('encode')
+    expect(codec.decode(bytes.ok as never)).toEqual({ ok: '目标' })
+    expect(codec.encode(5 as never)).toEqual({ failure: { reason: 'text-required' } })
+    expect(codec.decode(new Uint8Array([0xff]) as never)).toEqual({
+      failure: { reason: 'invalid-utf8' },
+    })
   })
 })

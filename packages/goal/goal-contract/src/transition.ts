@@ -1,5 +1,12 @@
 import type { ExitId } from './body.ts'
-import type { Attendance, GoalOutcome, GoalState, GoalStatus, Pause } from './state.ts'
+import type {
+  Attendance,
+  GoalOutcome,
+  GoalState,
+  GoalStatus,
+  Pause,
+  SetGoalState,
+} from './state.ts'
 import type { Verdict } from './verdict.ts'
 
 type Active = Extract<GoalState, { status: 'active' }>
@@ -29,7 +36,7 @@ export type Refusal =
   | 'attended'
   | 'not-its-cause'
 export type Transition =
-  | Readonly<{ kind: 'changed'; next: GoalState; effects: readonly Effect[] }>
+  | Readonly<{ kind: 'changed'; next: SetGoalState; effects: readonly Effect[] }>
   | Readonly<{ kind: 'unchanged'; effects: readonly Effect[] }>
   | Readonly<{ kind: 'refused'; reason: Refusal }>
 
@@ -37,13 +44,13 @@ const SAME: Transition = { kind: 'unchanged', effects: [] }
 const PASS: Transition = { kind: 'unchanged', effects: ['pass'] }
 const refused = (reason: Refusal): Transition => ({ kind: 'refused', reason })
 const NO_LIVE = refused('no-live-goal')
-const to = (next: GoalState, ...effects: Effect[]): Transition => ({
+const to = (next: SetGoalState, ...effects: Effect[]): Transition => ({
   kind: 'changed',
   next,
   effects,
 })
 
-const settle = (goal: Live, outcome: GoalOutcome): GoalState => ({
+const settle = (goal: Live, outcome: GoalOutcome): SetGoalState => ({
   status: 'settled',
   attendance: goal.attendance,
   generation: goal.generation,

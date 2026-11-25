@@ -96,4 +96,4 @@ export function refusal<T>(outcome: Outcome<T, GoalRefusal>): GoalRefusal {
   return outcome.reason
 }
 export const revisionOf = (record: GoalRecord | null): number | null =>
-  record === null || record.state.status === 'none' ? null : record.state.revision
+  record === null ? null : record.state.revision

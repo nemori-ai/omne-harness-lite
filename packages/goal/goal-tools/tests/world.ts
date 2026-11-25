@@ -53,56 +53,50 @@ export function world(session = SESSION, call = CALL) {
     hints: { wake: () => {} },
   })
   const caller = { tenant: TENANT, subject: 'work' }
-  const bound = bindGoal({
-    tenant: TENANT,
-    call,
-    goals: () => goals,
-    context: async () => ({ caller, session }),
-  })
-  const signal = new AbortController().signal
-  const context = { signal } as unknown as ToolSegmentContext
-  attachGoal({ context, limits: {}, finish: async () => {} } as never, bound)
   const record = (): GoalRecord | null => store.rows(TENANT).at(-1) ?? null
-  const run = (args: Exclude<GoalArguments, { command: 'propose' }>) => answerGoal(args, context)
 
-  /** Runs propose up to its card. A failure before the card is thrown with its reason. */
-  async function proposed(params: { body?: unknown; changes?: unknown }) {
-    const args = { command: 'propose', params } as Extract<GoalArguments, { command: 'propose' }>
-    const first = await proposeExecutor.initial(args, null, context)
-    if ('failure' in first) return { failure: first.failure }
-    if (first.ok.kind !== 'suspended') throw new Error('propose did not wait')
-    const request = JSON.parse(writeJsonText(first.ok.wait.request)) as unknown
-    return { state: first.ok.state, wait: first.ok.wait, request, closed: first.ok.closedResult }
+  /** One tool call of the session: its own reference, so the card it puts up is its own. */
+  function callOf(call: string) {
+    const bound = bindGoal({
+      tenant: TENANT,
+      call,
+      goals: () => goals,
+      context: async () => ({ caller, session }),
+    })
+    const signal = new AbortController().signal
+    const context = { signal } as unknown as ToolSegmentContext
+    attachGoal({ context, limits: {}, finish: async () => {} } as never, bound)
+    const run = (args: Exclude<GoalArguments, { command: 'propose' }>) => answerGoal(args, context)
+
+    /** Runs propose up to its card. A failure before the card is thrown with its reason. */
+    async function proposed(params: { body?: unknown; changes?: unknown }) {
+      const args = { command: 'propose', params } as Extract<GoalArguments, { command: 'propose' }>
+      const first = await proposeExecutor.initial(args, null, context)
+      if ('failure' in first) return { failure: first.failure }
+      if (first.ok.kind !== 'suspended') throw new Error('propose did not wait')
+      const request = JSON.parse(writeJsonText(first.ok.wait.request)) as unknown
+      return { state: first.ok.state, wait: first.ok.wait, request, closed: first.ok.closedResult }
+    }
+    /** The person answers the card. A confirmation is held by the cards' owner, as human intervention holds it. */
+    async function answer(state: Uint8Array, card: Card, response: ToolDecision<unknown>) {
+      const picked =
+        response.kind === 'answer'
+          ? (response.value as { answers: { optionId?: string }[] }).answers[0]?.optionId
+          : undefined
+      const read = picked === undefined ? null : readConfirmOption(picked)
+      if (read !== null)
+        cards.answer({ card: call, by: 'entry:tenant-1', byMember: true, confirmed: true, ...read })
+      const second = await proposeExecutor.resume({ checkpoint: state, response }, null, context)
+      if ('failure' in second) return { failure: second.failure }
+      if (second.ok.kind !== 'completed') throw new Error('propose did not end')
+      void card
+      return { text: second.ok.value }
+    }
+    return { context, run, proposed, answer }
   }
-  /** The person answers the card. A confirmation is held by the cards' owner, as human intervention holds it. */
-  async function answer(state: Uint8Array, card: Card, response: ToolDecision<unknown>) {
-    const picked =
-      response.kind === 'answer'
-        ? (response.value as { answers: { optionId?: string }[] }).answers[0]?.optionId
-        : undefined
-    const read = picked === undefined ? null : readConfirmOption(picked)
-    if (read !== null)
-      cards.answer({ card: call, by: 'entry:tenant-1', byMember: true, confirmed: true, ...read })
-    const second = await proposeExecutor.resume({ checkpoint: state, response }, null, context)
-    if ('failure' in second) return { failure: second.failure }
-    if (second.ok.kind !== 'completed') throw new Error('propose did not end')
-    void card
-    return { text: second.ok.value }
-  }
-  return {
-    goals,
-    store,
-    sessions,
-    cards,
-    calls,
-    authority,
-    caller,
-    context,
-    run,
-    proposed,
-    answer,
-    record,
-  }
+
+  const first = callOf(call)
+  return { goals, store, sessions, cards, calls, authority, caller, record, callOf, ...first }
 }
 
 export const selection = (optionId: string): ToolDecision<unknown> => ({
