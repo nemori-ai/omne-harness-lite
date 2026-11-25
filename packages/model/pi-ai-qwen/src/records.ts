@@ -3,7 +3,6 @@ import type { ParameterTable } from '@omne-harness/pi-ai-transport/chat-completi
 import { O200K_PROXY_TOKENIZER } from '@omne-harness/pi-ai-transport/family-kit'
 import type { QwenRecord } from './record.ts'
 
-
 /** The payload of a reasoning state: one `reasoning.text` detail as the gateway wrote it. */
 export const QWEN_REASONING_FORMAT = 'qwen-reasoning-text-v1'
 

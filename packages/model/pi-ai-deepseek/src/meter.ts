@@ -26,7 +26,8 @@ export function createDeepSeekMeter(
     uncountable: 'reasoning-not-countable',
     form: 'as-written',
     contentOf: tokenInput => chatUnitsOf(tokenInput),
-    imageTokens: ({ units, media }) => tileImageTokens(DEEPSEEK_OWNER, record.meter.image, units, media),
+    imageTokens: ({ units, media }) =>
+      tileImageTokens(DEEPSEEK_OWNER, record.meter.image, units, media),
     represent: view =>
       chatRepresentation(projectedTools(record, view), {
         instructionRole: record.wire.roles.instruction,

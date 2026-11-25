@@ -41,7 +41,6 @@ export function projectToolSchema(
   }
 }
 
-
 export function hooksOf(record: DeepSeekRecord): VendorHooks {
   const hooks = chatTextHooks(DEEPSEEK_OWNER, record)
   return Object.freeze({

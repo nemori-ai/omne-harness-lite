@@ -2,7 +2,6 @@ import type { AssembledModelInput } from '@omne-harness/model-contract'
 import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
 import type { GlmRecord } from './record.ts'
 
-
 export function withToolChoiceRule(
   binding: PiFamilyBinding,
   check: GlmRecord['rules']['check'],
