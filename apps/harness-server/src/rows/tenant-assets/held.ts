@@ -13,7 +13,7 @@ import type { AssetCategoriesService } from '@omne-harness/assets-cordis-contrac
 import { tenantListing, type AssetsLocal } from '@omne-harness/assets-local'
 import { registrySources } from './registry-sources.ts'
 
-type Categories = Pick<AssetCategoriesService, 'held' | 'holdingsOf' | 'view'>
+type Categories = Pick<AssetCategoriesService, 'held' | 'holdingsOf' | 'view' | 'official'>
 
 export type HeldOnRegistry = Readonly<{
   /** The port the assets of one tenant tell what they hold. The tenant is the one whose assets are opened. */
@@ -101,6 +101,7 @@ export function heldOnRegistry(
       registrySources(
         {
           held: (capability, ref) => categories().held(capability, ref),
+          official: () => categories().official(),
           current(ref, capability: CapabilityId) {
             const state = kept.get(ref)
             return state !== undefined && !state.stale && !state.waiting.has(capability.category)
