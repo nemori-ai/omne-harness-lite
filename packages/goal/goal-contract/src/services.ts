@@ -36,7 +36,6 @@ export type Proposed = Readonly<{
   base: CardBase
 }>
 
-/** The direct way in: the owner of the session hands in a body or changes on its own standing. */
 export type DirectWrite = Readonly<{
   session: string
   operation: string

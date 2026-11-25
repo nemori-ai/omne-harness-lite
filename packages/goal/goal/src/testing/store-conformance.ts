@@ -55,6 +55,7 @@ export function conformanceGoal(change: Partial<GoalRecord> = {}, generation = 1
     ],
     readings: NO_READINGS,
     progress: NO_PROGRESS,
+    since: '0',
     wake: null,
     ...change,
   }

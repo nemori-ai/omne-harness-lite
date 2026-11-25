@@ -4,7 +4,12 @@ import type { PrincipalVerifier } from '@omne-harness/identity'
 import { tenantCodec, type TenantId as LegalTenant } from '@omne-harness/legal-identity'
 import { SESSION_WORK_OWNER } from '../../../src/rows/authorization/principals.ts'
 import type { GoalHolder } from '../../../src/rows/goal/holder.ts'
-import { createGoalAuthority, lateCards, lateSessions } from '../../../src/rows/goal/ports.ts'
+import {
+  createGoalAuthority,
+  lateCalls,
+  lateCards,
+  lateSessions,
+} from '../../../src/rows/goal/ports.ts'
 import { SESSION_WORK_COMPONENT } from '../../../src/rows/tool-runtime/session-work.ts'
 
 const tenantOf = (account: string): LegalTenant => {
@@ -23,7 +28,7 @@ const work = (tenant: LegalTenant, session = 'session-1') => ({
   tenant,
   work: { owner: SESSION_WORK_OWNER, work: session },
 })
-const OF_THE_AGENT = ['read', 'propose', 'confirm'] as const
+const OF_THE_AGENT = ['read', 'propose', 'confirm', 'track'] as const
 const OF_THE_OWNER = [
   'set',
   'revise',
@@ -53,7 +58,7 @@ const decide = (
 ) => authority(verified).decide({ tenant: textOf(A), subject: verified }, session, action)
 
 describe('who may ask what of the goal of a session on the release', () => {
-  it('the agent of the session reads its goal, proposes, and hands in an answered card', async () => {
+  it('the agent of the session reads its goal, proposes, hands in an answered card and keeps its progress list', async () => {
     for (const action of OF_THE_AGENT) expect(await decide(work(A), action)).toBe('permitted')
   })
 
@@ -87,29 +92,36 @@ describe('who may ask what of the goal of a session on the release', () => {
 })
 
 describe('the ports the contributing rows mount', () => {
-  const holder = (): GoalHolder => ({ sessions: null, cards: null })
+  const holder = (): GoalHolder => ({ sessions: null, cards: null, calls: null })
   it('while nothing is mounted a read is unavailable, a reminder stays owed and no card is held', async () => {
     const empty = holder()
     expect(await lateSessions(empty).facts('t', 's')).toEqual({ kind: 'unavailable' })
     const wake = { kind: 'start', request: 'start/1/1', session: 's', rendered: '' } as const
     expect(await lateSessions(empty).wake('t', wake)).toBe('unknown')
     expect(await lateCards(empty).answered('t', 's', 'card')).toEqual({ kind: 'unavailable' })
+    expect(await lateCalls(empty).cited('t', 's', ['call-1'], '0')).toEqual({ kind: 'unavailable' })
   })
   it('once mounted every call goes to what is mounted now', async () => {
     const mounted = holder()
     const sessions = lateSessions(mounted)
     const cards = lateCards(mounted)
     mounted.sessions = {
-      facts: async () => ({ kind: 'read', value: { attendance: 'unattended' } }),
+      facts: async () => ({ kind: 'read', value: { attendance: 'unattended', moment: '3' } }),
       wake: async () => 'sent',
     } satisfies GoalSessions
     mounted.cards = { answered: async () => ({ kind: 'read', value: null }) } satisfies GoalCards
     expect(await sessions.facts('t', 's')).toEqual({
       kind: 'read',
-      value: { attendance: 'unattended' },
+      value: { attendance: 'unattended', moment: '3' },
     })
     const wake = { kind: 'resume', request: 'resume/1/2', session: 's', rendered: '' } as const
     expect(await sessions.wake('t', wake)).toBe('sent')
     expect(await cards.answered('t', 's', 'card')).toEqual({ kind: 'read', value: null })
+    const calls = lateCalls(mounted)
+    mounted.calls = { cited: async (_t, _s, refs) => ({ kind: 'read', value: refs }) }
+    expect(await calls.cited('t', 's', ['call-1'], '0')).toEqual({
+      kind: 'read',
+      value: ['call-1'],
+    })
   })
 })

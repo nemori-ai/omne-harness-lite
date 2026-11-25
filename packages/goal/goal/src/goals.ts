@@ -99,10 +99,11 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
     return UNAVAILABLE
   }
 
-  async function attendanceOf(tenant: string, session: string) {
+  /** The facts of the session, or the answer that ends the operation when there are none to stand on. */
+  async function factsOf(tenant: string, session: string) {
     const facts = await sessions.facts(tenant, session)
     if (facts.kind === 'unavailable') return UNAVAILABLE
-    return facts.value === null ? refused({ kind: 'no-such-session' }) : facts.value.attendance
+    return facts.value === null ? refused({ kind: 'no-such-session' }) : facts.value
   }
 
   const written = (answer: Answer<GoalRecord | null>): Answer<GoalRecord> =>
@@ -120,13 +121,13 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
       const { session, proposal } = input
       const stop = await permitted(caller, session, proposal.kind)
       if (stop !== null) return stop
-      const attendance = await attendanceOf(caller.tenant, session)
-      if (typeof attendance !== 'string') return attendance
+      const facts = await factsOf(caller.tenant, session)
+      if ('kind' in facts) return facts
       const entrance = { via: 'direct', draftedBy: input.draftedBy, by: input.by } as const
       const at = deps.clock.now()
       return written(
         await settle(caller.tenant, session, async current =>
-          decideWrite(current, { ...input, attendance, entrance, at }),
+          decideWrite(current, { ...input, ...facts, entrance, at }),
         ),
       )
     },
@@ -140,8 +141,9 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
     async propose(caller, { session, proposal }) {
       const stop = await permitted(caller, session, 'propose')
       if (stop !== null) return stop
-      const attendance = await attendanceOf(caller.tenant, session)
-      if (typeof attendance !== 'string') return attendance
+      const facts = await factsOf(caller.tenant, session)
+      if ('kind' in facts) return facts
+      const { attendance } = facts
       if (attendance === 'unattended') return refused({ kind: 'state', reason: 'nobody-attends' })
       const read = await store.latest(caller.tenant, session)
       if (read.kind === 'unavailable') return UNAVAILABLE
@@ -157,8 +159,8 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
       const { session } = input
       const stop = await permitted(caller, session, 'confirm')
       if (stop !== null) return stop
-      const attendance = await attendanceOf(caller.tenant, session)
-      if (typeof attendance !== 'string') return attendance
+      const facts = await factsOf(caller.tenant, session)
+      if ('kind' in facts) return facts
       const at = deps.clock.now()
       return written(
         await settle(caller.tenant, session, async current => {
@@ -166,7 +168,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
           if (card.kind === 'unavailable') return UNAVAILABLE
           if (card.value === null) return refused({ kind: 'no-such-card' })
           const entrance = { via: 'card', card: card.value } as const
-          return decideWrite(current, { ...input, operation: input.card, attendance, entrance, at })
+          return decideWrite(current, { ...input, ...facts, operation: input.card, entrance, at })
         }),
       )
     },
@@ -183,8 +185,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
             return refused({ kind: 'invalid', issues: checked.issues })
           const already = new Set(citedRefs(current.progress))
           const fresh = citedRefs(checked.progress).filter(ref => !already.has(ref))
-          const since = current.history[0]?.at ?? ''
-          const real = await deps.calls.cited(caller.tenant, session, fresh, since)
+          const real = await deps.calls.cited(caller.tenant, session, fresh, current.since)
           if (real.kind === 'unavailable') return UNAVAILABLE
           const missing = fresh.filter(ref => !real.value.includes(ref))
           if (missing.length > 0) return refused({ kind: 'invalid', issues: [uncited(missing)] })

@@ -1,4 +1,4 @@
-import { createGoalSessions, goalInputSources } from '@omne-harness/goal-session'
+import { createGoalCalls, createGoalSessions, goalInputSources } from '@omne-harness/goal-session'
 import { sessionInputSourcesKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { GOAL_PRINCIPAL_KEY } from '../../entry/goal-principal.ts'
 import { defineRow } from '../../row.ts'
@@ -19,20 +19,22 @@ export const goalSessionRow = defineRow({
   lifecycle: { kind: 'body', phase: 'composition' },
   async body(ctx) {
     const holder = goalHolder(ctx)
-    const sessions = createGoalSessions(
-      sessionCallsOf(ctx, {
-        system: ctx.get(GOAL_PRINCIPAL_KEY) as unknown,
-        workPrincipals: () => toolRuntimeHolder(ctx).workPrincipals(),
-      }),
-    )
+    const sessionCalls = sessionCallsOf(ctx, {
+      system: ctx.get(GOAL_PRINCIPAL_KEY) as unknown,
+      workPrincipals: () => toolRuntimeHolder(ctx).workPrincipals(),
+    })
+    const sessions = createGoalSessions(sessionCalls)
+    const calls = createGoalCalls(sessionCalls)
     ctx.inject([sessionInputSourcesKey], child => {
       for (const source of goalInputSources(GOAL_COMPONENT))
         child[sessionInputSourcesKey].register(source)
     })
     holder.sessions = sessions
+    holder.calls = calls
     return {
       async stop() {
         if (holder.sessions === sessions) holder.sessions = null
+        if (holder.calls === calls) holder.calls = null
         return { kind: 'settled' }
       },
     }

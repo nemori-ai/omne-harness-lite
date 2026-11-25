@@ -32,6 +32,8 @@ export const GoalRecordSchema = z.strictObject({
   history: z.array(ProvenanceSchema).min(1),
   readings: ReadingsSchema,
   progress: ProgressSchema,
+  /** Where the history of the session stood when this goal was set: what the agent cites must come after it. */
+  since: z.string().min(1),
   wake: WakeSchema.nullable(),
 })
 /** Everything kept about one goal of a session: the facts live here and nowhere in the session. */
@@ -68,7 +70,6 @@ export type CardRefusal =
   | 'stale-base'
   | 'content-differs'
 
-/** Whether an answered card may write the revision now: answered by a member, for this content, on this base, once. */
 export function judgeCard(
   card: AnsweredCard,
   now: Readonly<{ digest: string; base: CardBase; used: boolean }>,

@@ -1,7 +1,13 @@
 import type { PortRead } from '@omne-harness/goal'
 import { accountCodec, organizationCodec, tenant, tenantCodec } from '@omne-harness/legal-identity'
 import type { SessionFailure, WorkSnapshot } from '@omne-harness/session-contract'
-import { createGoalSessions, type Called, type SessionCalls } from '../src/index.ts'
+import {
+  createGoalCalls,
+  createGoalSessions,
+  type Called,
+  type HistoryResults,
+  type SessionCalls,
+} from '../src/index.ts'
 
 const organization = organizationCodec.parse('org_c0nf0rmance000000000000000')
 const account = accountCodec.parse('acc_c0nf0rmance000000000000000')
@@ -24,7 +30,10 @@ export function world() {
   const state = {
     work: { kind: 'read', value: work() } as PortRead<WorkSnapshot | null>,
     answer: { ok: null } as Called<unknown> | Error,
+    head: { kind: 'read', value: '41' } as PortRead<string | null>,
+    pages: [] as PortRead<HistoryResults>[],
   }
+  const asked: { after: string | null; cursor: string | null }[] = []
   const calls: SessionCalls = {
     async accept(input) {
       accepted.push(input)
@@ -34,6 +43,40 @@ export function world() {
     async work() {
       return state.work
     },
+    async head() {
+      return state.head
+    },
+    async resultsAfter({ after, cursor }) {
+      asked.push({ after, cursor })
+      return state.pages[asked.length - 1] ?? { kind: 'read', value: { entries: [], next: null } }
+    },
   }
-  return { sessions: createGoalSessions(calls), accepted, state }
+  return {
+    sessions: createGoalSessions(calls),
+    cited: createGoalCalls(calls).cited,
+    accepted,
+    asked,
+    state,
+  }
 }
+
+/** A history entry holding the result of one tool call, as Session hands it out. */
+export const result = (callId: string) => ({
+  id: callId,
+  kind: 'message.tool',
+  payload: {
+    message: {
+      blocks: [
+        { kind: 'tool_result', callId },
+        { kind: 'text', text: 'ok' },
+      ],
+    },
+  },
+})
+export const page = (
+  entries: readonly unknown[],
+  next: string | null,
+): PortRead<HistoryResults> => ({
+  kind: 'read',
+  value: { entries, next },
+})

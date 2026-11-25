@@ -43,6 +43,7 @@ export function fakeSessions(): FakeSessions {
   const known = new Map<string, Attendance>()
   const woken: WakeToSend[] = []
   let canRead = true
+  let moment = 0
   let next: SendAnswer = 'sent'
   return {
     woken,
@@ -52,7 +53,9 @@ export function fakeSessions(): FakeSessions {
     async facts(_tenant, session) {
       if (!canRead) return { kind: 'unavailable' }
       const attendance = known.get(session)
-      return { kind: 'read', value: attendance === undefined ? null : { attendance } }
+      if (attendance === undefined) return { kind: 'read', value: null }
+      moment += 1
+      return { kind: 'read', value: { attendance, moment: String(moment) } }
     },
     async wake(_tenant, wake) {
       const answer = next

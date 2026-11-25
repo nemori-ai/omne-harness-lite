@@ -7,6 +7,7 @@ import {
   type SessionId,
 } from '@omne-harness/session-contract'
 import { reminderInput, resumeText, startText } from './inputs.ts'
+import { NO_ENTRY } from './calls.ts'
 import type { Called, SessionCalls } from './ports.ts'
 import { GOAL_SOURCES } from './sources.ts'
 
@@ -31,7 +32,13 @@ export function createGoalSessions(calls: SessionCalls): GoalSessions {
         .work({ tenant: legal, session: session as SessionId })
         .catch(() => UNAVAILABLE)
       if (work.kind !== 'read') return UNAVAILABLE
-      return read(work.value === null ? null : { attendance: standingOf(work.value).attendance })
+      if (work.value === null) return read(null)
+      const head = await calls
+        .head({ tenant: legal, session: session as SessionId })
+        .catch(() => UNAVAILABLE)
+      if (head.kind !== 'read') return UNAVAILABLE
+      const { attendance } = standingOf(work.value)
+      return read({ attendance, moment: head.value ?? NO_ENTRY })
     },
 
     async wake(tenant, wake): Promise<SendAnswer> {

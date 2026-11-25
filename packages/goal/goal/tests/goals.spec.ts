@@ -90,6 +90,7 @@ describe('the direct way in', () => {
       await goals.write(OWNER, direct({ operation: 'op-2', proposal: ADD_RULE, words: '加一条' })),
     )
     expect(revisionOf(revised)).toBe(2)
+    expect([set.since, revised.since]).toEqual(['1', '1'])
     expect(revised.body.rules.map(rule => rule.id)).toEqual(['N1', 'N2'])
     expect(revised.body.criteria).toEqual(set.body.criteria)
     expect(revised.history.map(entry => [entry.revision, entry.operation, entry.words])).toEqual([
@@ -119,6 +120,7 @@ describe('the direct way in', () => {
     value(await goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } }))
     const next = value(await goals.write(OWNER, direct({ operation: 'op-2' })))
     expect(next.state).toMatchObject({ status: 'active', generation: 2, revision: 1 })
+    expect(next.since).toBe('2')
     expect(next.history.map(entry => entry.operation)).toEqual(['op-2'])
     expect(store.rows(TENANT).map(row => row.state.status)).toEqual(['settled', 'active'])
   })
@@ -656,7 +658,8 @@ describe('the progress list', () => {
       ],
     })
     expect(store.rows(TENANT)[0]?.progress.criteria).toEqual({})
-    expect(calls.asked).toEqual([[set.history[0]?.at, 'call-44', 'call-9']])
+    expect(set.since).toBe('1')
+    expect(calls.asked).toEqual([['1', 'call-44', 'call-9']])
   })
 
   it('asks only about the references it has not checked before', async () => {

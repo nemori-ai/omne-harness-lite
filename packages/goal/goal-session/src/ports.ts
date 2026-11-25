@@ -20,4 +20,12 @@ export type SessionCalls = Readonly<{
     input: At & Readonly<{ operation: SessionOperationId; value: Ordinary }>,
   ): Promise<Called<unknown>>
   work(input: At): Promise<PortRead<WorkSnapshot | null>>
+  /** The latest entry of the session's history, or null when it has none yet. Read as the session itself. */
+  head(input: At): Promise<PortRead<string | null>>
+  /** One page of the tool results of the session after an entry, oldest first; `after` null reads from its beginning.
+   * `next`: where the following page starts, or null at the end. */
+  resultsAfter(
+    input: At & Readonly<{ after: string | null; cursor: string | null }>,
+  ): Promise<PortRead<HistoryResults>>
 }>
+export type HistoryResults = Readonly<{ entries: readonly unknown[]; next: string | null }>

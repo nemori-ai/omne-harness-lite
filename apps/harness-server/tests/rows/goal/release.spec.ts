@@ -22,6 +22,11 @@ const SET: Proposal = {
     ],
   },
 }
+const HELP = {
+  id: 'call-help-1',
+  tool: 'Agents',
+  arguments: JSON.stringify({ command: 'help', params: {} }),
+}
 const terminals = (entries: readonly { kind: string }[]) =>
   entries.filter(entry => entry.kind === 'run.terminal').length
 
@@ -32,7 +37,9 @@ describe('the goal rows on the release tree', () => {
     async () => {
       await onReleaseTree(
         {
-          script: toolCallsThenText(() => []),
+          script: toolCallsThenText(body =>
+            body.includes('Say hello.') && !body.includes('"role":"tool"') ? [HELP] : [],
+          ),
           permission: 'bypass-permissions',
           extraHistoryKinds: ['message.system_reminder'],
         },
@@ -92,9 +99,25 @@ describe('the goal rows on the release tree', () => {
 
           const sessions = goalHolder(tree.scope).sessions
           if (sessions === null) throw new Error('the session port is not mounted')
-          expect(await sessions.facts(text.value, session)).toEqual({
+          const facts = await sessions.facts(text.value, session)
+          if (facts.kind !== 'read' || facts.value === null) throw new Error(JSON.stringify(facts))
+          expect(facts.value.attendance).toBe('attended')
+          expect(BigInt(facts.value.moment)).toBeGreaterThan(0n)
+
+          const calls = goalHolder(tree.scope).calls
+          if (calls === null) throw new Error('the check of cited calls is not mounted')
+          const cited = ['call-help-1', 'call-nobody-made']
+          expect(await calls.cited(text.value, session, cited, '0')).toEqual({
             kind: 'read',
-            value: { attendance: 'attended' },
+            value: ['call-help-1'],
+          })
+          expect(await calls.cited(text.value, session, cited, facts.value.moment)).toEqual({
+            kind: 'read',
+            value: [],
+          })
+          expect(await goals.track(agent, { session, patch: { notes: ['x'] } })).toEqual({
+            kind: 'refused',
+            reason: { kind: 'state', reason: 'no-live-goal' },
           })
           expect(await sessions.facts(text.value, 'f'.repeat(64))).toEqual({
             kind: 'read',

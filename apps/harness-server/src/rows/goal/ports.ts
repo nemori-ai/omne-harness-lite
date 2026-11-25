@@ -1,4 +1,10 @@
-import type { GoalAction, GoalAuthority, GoalCards, GoalSessions } from '@omne-harness/goal'
+import type {
+  GoalAction,
+  GoalAuthority,
+  GoalCalls,
+  GoalCards,
+  GoalSessions,
+} from '@omne-harness/goal'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
@@ -21,8 +27,13 @@ export function lateCards(holder: GoalHolder): GoalCards {
   }
 }
 
+/** The check of cited calls as it is mounted now: no basis while the row that knows Session is not started. */
+export function lateCalls(holder: GoalHolder): GoalCalls {
+  return { cited: (...input) => holder.calls?.cited(...input) ?? Promise.resolve(UNAVAILABLE) }
+}
+
 /** What the agent of a session may ask of its own goal. Nothing here changes the goal without an answered card. */
-const OF_THE_AGENT: ReadonlySet<GoalAction> = new Set(['read', 'propose', 'confirm'])
+const OF_THE_AGENT: ReadonlySet<GoalAction> = new Set(['read', 'propose', 'confirm', 'track'])
 
 export type AuthorityPorts = Readonly<{ verifier(): PrincipalVerifier | undefined }>
 

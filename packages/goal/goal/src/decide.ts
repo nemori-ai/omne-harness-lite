@@ -31,6 +31,7 @@ export type Entrance =
 export type WriteInput = Readonly<{
   session: string
   attendance: Attendance
+  moment: string
   proposal: Proposal
   entrance: Entrance
   operation: string
@@ -144,6 +145,7 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
       history: before === null ? [provenance] : [...before.history, provenance],
       readings: before === null ? NO_READINGS : keptReadings(before.body, body, before.readings),
       progress: before === null ? NO_PROGRESS : keptProgress(before.body, body, before.progress),
+      since: before === null ? input.moment : before.since,
       wake: stood.wakes ? { kind: 'start', request } : null,
     },
   }

@@ -1,4 +1,5 @@
-export type { Called, Ordinary, SessionCalls } from './ports.ts'
+export type { Called, HistoryResults, Ordinary, SessionCalls } from './ports.ts'
+export { answeredCalls, CITED_PAGE_LIMIT, createGoalCalls } from './calls.ts'
 export { GOAL_SOURCES, goalInputSources, type GoalSource } from './sources.ts'
 export { resumeText, startText } from './inputs.ts'
 export { createGoalSessions } from './sessions.ts'

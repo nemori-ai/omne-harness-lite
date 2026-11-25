@@ -35,7 +35,7 @@ export async function ask(
 
 export type PortRead<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'unavailable' }>
 
-export type SessionFacts = Readonly<{ attendance: Attendance }>
+export type SessionFacts = Readonly<{ attendance: Attendance; moment: string }>
 export type WakeToSend = Wake & Readonly<{ session: string; rendered: string }>
 /** `refused`: the session takes no input any more. `unknown`: sent or not, nobody can tell. */
 export type SendAnswer = 'sent' | 'refused' | 'unknown'
@@ -65,7 +65,6 @@ export interface Clock {
   now(): string
 }
 
-/** A wake-up. It may come early, late, twice or never: the store holds what is owed. */
 export interface ReconcileHints {
   wake(tenant: string): void
 }
