@@ -241,11 +241,19 @@ function Actions({
   return (
     <div className="goal-actions">
       {status === 'active' ? (
-        <IconButton label="暂停目标" disabled={busy} onClick={() => void driver.command('pause')}>
+        <IconButton
+          label="暂停目标"
+          disabled={busy}
+          onClick={() => void driver.command({ kind: 'pause' })}
+        >
           <PauseIcon />
         </IconButton>
       ) : (
-        <IconButton label="恢复目标" disabled={busy} onClick={() => void driver.command('resume')}>
+        <IconButton
+          label="恢复目标"
+          disabled={busy}
+          onClick={() => void driver.command({ kind: 'resume' })}
+        >
           <PlayIcon />
         </IconButton>
       )}
@@ -261,7 +269,7 @@ function Actions({
           consequence="目标照这条退出收场，之后不能恢复。"
           pending={state.busy === 'settle-by-exit'}
           disabled={busy}
-          onConfirm={() => void driver.command('settle-by-exit', exit)}
+          onConfirm={() => void driver.command({ kind: 'settle-by-exit', exit })}
         >
           照 {exit} 收场
         </InlineConfirm>
@@ -274,7 +282,7 @@ function Actions({
         pending={state.busy === 'cancel'}
         disabled={busy}
         aria-label="取消目标"
-        onConfirm={() => void driver.command('cancel')}
+        onConfirm={() => void driver.command({ kind: 'cancel' })}
       >
         <CloseIcon />
       </InlineConfirm>

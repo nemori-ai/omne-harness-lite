@@ -1,11 +1,16 @@
-import type { goalProtocol, GoalIssue, GoalView } from '@omne-harness/goal-protocol'
+import type {
+  goalProtocol,
+  GoalIssue,
+  GoalPanelCommand,
+  GoalView,
+} from '@omne-harness/goal-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { REFUSAL_WORDS, treeOf } from './panel.ts'
 
 export type GoalClient = ClientOf<typeof goalProtocol>
 export type Schedule = (delayMs: number, run: () => void) => () => void
-export type CommandKind = 'pause' | 'resume' | 'cancel' | 'settle-by-exit'
+export type CommandKind = GoalPanelCommand['kind']
 
 export type GoalDriverDeps = Readonly<{
   client: GoalClient
@@ -90,11 +95,10 @@ export class GoalDriver {
 
   dismiss = (): void => this.#set({ notice: null, issues: [] })
 
-  async command(kind: CommandKind, exit?: string): Promise<void> {
+  async command(command: GoalPanelCommand): Promise<void> {
     const goal = this.#state.goal
     if (goal === null || this.#state.busy !== null) return
-    this.#set({ busy: kind, notice: null, issues: [] })
-    const command = kind === 'settle-by-exit' ? { kind, exit: exit ?? '' } : { kind }
+    this.#set({ busy: command.kind, notice: null, issues: [] })
     const body = { ...this.#where, generation: goal.state.generation, command }
     const answer = await sent(() => this.#deps.client['command-goal'](body as never))
     if (answer.outcome === 'conflict') return this.#refused(answer.body.reason, '这件事')
@@ -147,7 +151,7 @@ export class GoalDriver {
       await this.read()
       return
     }
-    this.#set({ busy: null, notice: outcome === 'unsent' ? UNSENT : (WORDS[outcome] ?? UNSENT) })
+    this.#set({ busy: null, notice: WORDS[outcome] ?? UNSENT })
   }
 
   /** Reads at each frame the server sends; when the frames end while somebody still shows the goal, opens them again after a while. */

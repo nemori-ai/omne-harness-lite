@@ -389,6 +389,7 @@ describe('a self-driving session nobody set a goal for', () => {
     ])
     expect(state.evidence.A1.at(-1)?.excerpt).toBe('写好了。')
     expect(s.implied()).toHaveLength(1)
+    expect(s.changed).toEqual([])
     expect(s.implied()[0]?.state).toMatchObject({
       status: 'settled',
       attendance: 'unattended',

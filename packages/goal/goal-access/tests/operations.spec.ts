@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ACTIVE,
   done,
   RECORD,
   refused,
@@ -120,6 +121,39 @@ describe('read-goal', () => {
     script.read = done(null)
     expect(await run('read-goal', WHERE)).toEqual({ outcome: 'succeeded', body: { goal: null } })
   })
+
+  it('carries a goal in progress with no pause and no outcome', async () => {
+    const { script, run } = world()
+    script.read = done(ACTIVE)
+    const active = (await run('read-goal', WHERE)) as { body: { goal: { state: unknown } } }
+    expect(active.body.goal.state).toEqual({
+      status: 'active',
+      attendance: 'attended',
+      generation: 2,
+      revision: 2,
+      rounds: 7,
+      pause: null,
+      outcome: null,
+    })
+  })
+
+  it.each([
+    ['its body', { ...RECORD, body: { ...RECORD.body, purpose: 'x'.repeat(100_001) } }],
+    [
+      'its progress list',
+      { ...RECORD, progress: { ...RECORD.progress, notes: ['x'.repeat(100_001)] } },
+    ],
+  ])(
+    'never answers a goal with %s left out: a read has no basis, and a write or a command that stood is not known to the client',
+    async (_what, record) => {
+      const { script, run } = world()
+      script.read = script.write = script.command = done(record as never)
+      expect(await run('read-goal', WHERE)).toEqual(UNAVAILABLE)
+      expect(await run('query-write-goal', { ...REVISE, operation: 'op-2' })).toEqual(UNAVAILABLE)
+      expect(await run('write-goal', REVISE)).toEqual({ outcome: 'unknown' })
+      expect(await run('command-goal', PAUSE)).toEqual({ outcome: 'unknown' })
+    },
+  )
 
   it('has no basis when the domain has none, fails, or answers what a read cannot be answered', async () => {
     const { script, run } = world()

@@ -120,6 +120,18 @@ export const RECORD: GoalRecord = {
   wake: null,
   observed: null,
 }
+export const ACTIVE: GoalRecord = {
+  ...RECORD,
+  state: {
+    status: 'active',
+    attendance: 'attended',
+    generation: 2,
+    revision: 2,
+    rounds: 7,
+    stalled: 0,
+    gap: null,
+  },
+}
 export const SETTLED: GoalRecord = {
   ...RECORD,
   state: {

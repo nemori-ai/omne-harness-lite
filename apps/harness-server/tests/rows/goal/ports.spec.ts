@@ -99,6 +99,23 @@ describe('who may ask what of the goal of a session on the release', () => {
     for (const action of NOT_OF_THE_PERSON) expect(await decide(login(A), action)).toBe('denied')
   })
 
+  it('a principal of the tenant that is neither a login nor the work of a session is nobody to its goals', async () => {
+    const stranger = { ...work(A), actor: { kind: 'system', component: 'somebody-else' } }
+    for (const action of [...OF_THE_PERSON, ...NOT_OF_THE_PERSON])
+      expect(await decide(stranger, action)).toBe('denied')
+  })
+
+  it('nothing is asked as the check of a person: a check stands on the work of a session only', async () => {
+    for (const action of [...OF_THE_PERSON, 'observe'] as const)
+      expect(
+        await authority(login(A)).decide(
+          { tenant: textOf(A), subject: checkSubject(login(A)) },
+          'session-1',
+          action,
+        ),
+      ).toBe('denied')
+  })
+
   it('a login of another tenant is denied everything, and one that cannot be verified now has no basis', async () => {
     for (const action of OF_THE_PERSON) expect(await decide(login(B), action)).toBe('denied')
     const asLogin = (verified: Parameters<typeof authority>[0]) =>
