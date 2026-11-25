@@ -47,6 +47,52 @@ const centreOf = (box: Box): Point => [box.x + box.width / 2, box.y + box.height
 const width = (from: number, span: number) => (along: number) =>
   widthPx(FRAME.weight) * handPressure(clamp((along - from) / Math.max(1, span)))
 
+interface Progress {
+  readonly written: number
+  readonly settled: number
+  readonly closing: number
+  readonly dried: number
+}
+
+function progress(clock: Clock, now: number, reduced: boolean): Progress {
+  const dried = clock.dryAt === null ? 0 : clamp((now - clock.dryAt) / ms(FRAME.dry))
+  if (reduced) return { written: 1, settled: 1, closing: 1, dried }
+  const done = clock.begun + clock.write
+  const shut = clock.closedAt === null ? 0 : Math.max(clock.closedAt, done)
+  return {
+    written: brushTime((now - clock.begun) / clock.write),
+    settled: clamp((now - done) / ms(FRAME.settle.duration)),
+    closing: brushTime((now - shut) / ms(FRAME.close)),
+    dried,
+  }
+}
+
+function drawLines(svg: SVGSVGElement, lines: FrameLines, { written, closing }: Progress): void {
+  const edges = svg.querySelectorAll<SVGPathElement>("path[data-part='edge']")
+  lines.runs.forEach((run, i) => {
+    edges[i]?.setAttribute('d', inkPath(run, written * lines.length, width(0, lines.length)))
+  })
+  const gap = lines.mouth.reduce((sum, run) => Math.max(sum, run.along.at(-1) ?? 0), 0)
+  const span = gap - lines.length
+  const mouths = svg.querySelectorAll<SVGPathElement>("path[data-part='mouth']")
+  lines.mouth.forEach((run, i) => {
+    mouths[i]?.setAttribute(
+      'd',
+      inkPath(run, lines.length + closing * span, width(lines.length, span)),
+    )
+  })
+}
+
+function stateOf(clock: Clock, now: number, reduced: boolean): string {
+  if (clock.dryAt !== null) return 'drying'
+  return reduced || now >= clock.begun + clock.write ? 'open' : 'writing'
+}
+
+function moving(clock: Clock, { settled, closing, dried }: Progress): boolean {
+  if (clock.dryAt !== null) return dried < 1
+  return settled < 1 || (clock.closedAt !== null && closing < 1)
+}
+
 function paint(
   svg: SVGSVGElement,
   lines: FrameLines,
@@ -54,31 +100,12 @@ function paint(
   now: number,
   reduced: boolean,
 ): boolean {
-  const done = clock.begun + clock.write
-  const written = reduced ? 1 : brushTime((now - clock.begun) / clock.write)
-  const settled = reduced ? 1 : clamp((now - done) / ms(FRAME.settle.duration))
-  const shut = clock.closedAt === null ? 0 : Math.max(clock.closedAt, done)
-  const closing = reduced ? 1 : brushTime((now - shut) / ms(FRAME.close))
-  const dried = clock.dryAt === null ? 0 : clamp((now - clock.dryAt) / ms(FRAME.dry))
-  const edges = svg.querySelectorAll<SVGPathElement>("path[data-part='edge']")
-  lines.runs.forEach((run, i) => {
-    edges[i]?.setAttribute('d', inkPath(run, written * lines.length, width(0, lines.length)))
-  })
-  const gap = lines.mouth.reduce((sum, run) => Math.max(sum, run.along.at(-1) ?? 0), 0)
-  const mouths = svg.querySelectorAll<SVGPathElement>("path[data-part='mouth']")
-  lines.mouth.forEach((run, i) => {
-    const span = gap - lines.length
-    mouths[i]?.setAttribute(
-      'd',
-      inkPath(run, lines.length + closing * span, width(lines.length, span)),
-    )
-  })
-  const opacity = (1 - (1 - FRAME.settle.to) * settled) * (1 - dried)
+  const at = progress(clock, now, reduced)
+  drawLines(svg, lines, at)
+  const opacity = (1 - (1 - FRAME.settle.to) * at.settled) * (1 - at.dried)
   svg.style.opacity = String(Math.round(opacity * 1000) / 1000)
-  svg.dataset['state'] =
-    clock.dryAt !== null ? 'drying' : now >= done || reduced ? 'open' : 'writing'
-  if (clock.dryAt !== null) return dried < 1
-  return settled < 1 || (clock.closedAt !== null && closing < 1)
+  svg.dataset['state'] = stateOf(clock, now, reduced)
+  return moving(clock, at)
 }
 
 function FrameInk({

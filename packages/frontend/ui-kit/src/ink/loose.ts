@@ -145,10 +145,7 @@ export class LooseStore {
     if (was.mode === 'home' && next.mode !== 'home') this.endJourney()
     if (next.mode === 'hand') this.toHand(next.at, was.mode === 'hand')
     else if (next.mode === 'rest') this.glideTo(next.at, SETTLING)
-    else if (this.rewriting !== null) this.rewriting.to = next.at
-    else if (was.mode !== 'home' && this.rewriteFirst && !this.reduced)
-      this.rewriteThenHome(next.at)
-    else this.goHome(next.at)
+    else this.toHome(next.at, was.mode === 'home')
   }
 
   public reach(): Box | null {
@@ -224,6 +221,12 @@ export class LooseStore {
     }
     this.stopGlide()
     this.place(at)
+  }
+
+  private toHome(at: Placement, already: boolean): void {
+    if (this.rewriting !== null) this.rewriting.to = at
+    else if (!already && this.rewriteFirst && !this.reduced) this.rewriteThenHome(at)
+    else this.goHome(at)
   }
 
   private goHome(to: Placement): void {

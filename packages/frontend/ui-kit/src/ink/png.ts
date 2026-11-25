@@ -74,22 +74,28 @@ function header(data: DataView): Header {
   return { width, height, channels }
 }
 
-function chunks(png: Uint8Array): { readonly head: Header; readonly idat: Uint8Array } {
-  if (png.length < 8 || SIGNATURE.some((byte, i) => png[i] !== byte))
-    throw new Error('these bytes are not a PNG')
+function* chunkList(
+  png: Uint8Array,
+): Generator<{ readonly type: string; readonly body: Uint8Array }> {
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength)
-  const idat: Uint8Array[] = []
-  let head: Header | null = null
-  let at = 8
-  while (at + 8 <= png.length) {
+  for (let at = 8; at + 8 <= png.length;) {
     const length = view.getUint32(at)
     const type = String.fromCharCode(...png.subarray(at + 4, at + 8))
     const body = at + 8
     if (body + length + 4 > png.length) throw new Error(`the PNG chunk ${type} is cut short`)
-    if (type === 'IHDR') head = header(new DataView(png.buffer, png.byteOffset + body, length))
-    else if (type === 'IDAT') idat.push(png.subarray(body, body + length))
-    else if (type === 'IEND') break
+    yield { type, body: png.subarray(body, body + length) }
     at = body + length + 4
+  }
+}
+
+function chunks(png: Uint8Array): { readonly head: Header; readonly idat: Uint8Array } {
+  if (SIGNATURE.some((byte, i) => png[i] !== byte)) throw new Error('these bytes are not a PNG')
+  const idat: Uint8Array[] = []
+  let head: Header | null = null
+  for (const { type, body } of chunkList(png)) {
+    if (type === 'IHDR') head = header(new DataView(body.buffer, body.byteOffset, body.byteLength))
+    else if (type === 'IDAT') idat.push(body)
+    else if (type === 'IEND') break
   }
   if (head === null) throw new Error('the PNG has no header')
   if (idat.length === 0) throw new Error('the PNG has no image data')
