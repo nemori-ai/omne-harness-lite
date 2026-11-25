@@ -1,6 +1,7 @@
 import type { GoalView } from '@omne-harness/goal-protocol'
 import { writeJsonText } from '@omne-harness/json-text'
 import {
+  Ago,
   Button,
   CloseIcon,
   EditIcon,
@@ -11,6 +12,7 @@ import {
   LoadingState,
   PauseIcon,
   PlayIcon,
+  Prose,
   StateWord,
   Table,
   TableBody,
@@ -31,6 +33,7 @@ import {
   settlingExit,
   SOURCE_WORDS,
   standingOf,
+  unitOf,
   VIA_WORDS,
   type Body,
   type Edits,
@@ -113,9 +116,9 @@ function History({ goal }: { readonly goal: GoalView }) {
       {goal.history.map(entry => (
         <li key={entry.revision}>
           修订 {entry.revision} · {VIA_WORDS[entry.via]} · {DRAFTER_WORDS[entry.draftedBy]}
-          <span className="goal-quiet">
-            {' '}
-            · 确认者 {entry.confirmedBy} · {entry.at}
+          <span className="goal-quiet" title={`确认者 ${entry.confirmedBy}`}>
+            {' · '}
+            <Ago at={entry.at} />
           </span>
           {entry.words ? <blockquote className="goal-words">{entry.words}</blockquote> : null}
         </li>
@@ -183,12 +186,13 @@ function Form({
                 {limitsOf(entry).map((limit, index) => (
                   <label key={limit.unit} className="goal-amount">
                     <Input
-                      aria-label={`${entry.id} 的上限（${limit.unit}）`}
+                      className="goal-amount-field"
+                      aria-label={`${entry.id} 的上限（${unitOf(limit.unit)}）`}
                       inputMode="numeric"
                       value={edits.amounts[amountKey(entry.id, index)] ?? ''}
                       onChange={event => amounted(amountKey(entry.id, index), event.target.value)}
                     />
-                    <span className="goal-quiet">{limit.unit}</span>
+                    <span className="goal-quiet">{unitOf(limit.unit)}</span>
                   </label>
                 ))}
               </div>
@@ -265,6 +269,7 @@ function Actions({
       <InlineConfirm
         tone="danger"
         confirmLabel="取消目标"
+        cancelLabel="留着"
         consequence="目标收场为被取消，不算成功也不算失败。正在跑的这一轮不会停。"
         pending={state.busy === 'cancel'}
         disabled={busy}
@@ -333,10 +338,12 @@ export function GoalPanel({ driver }: { readonly driver: GoalDriver }) {
           }
         />
       ) : null}
-      <Heading>还差多少</Heading>
+      <Heading>做到哪了</Heading>
       <GapTable goal={goal} />
       <Heading>正文</Heading>
-      <pre className="goal-body">{goal.rendered}</pre>
+      <div className="goal-body">
+        <Prose text={goal.rendered} unlinked />
+      </div>
       <Heading>agent 记的进展</Heading>
       <Progress goal={goal} />
       <Heading>来历</Heading>

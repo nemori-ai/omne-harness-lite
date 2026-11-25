@@ -8,9 +8,9 @@ import {
 export const goalJudgeItems = { model: 'model' } as const
 
 const LABELS: Readonly<Record<JudgeModel, string>> = {
-  'openai/gpt-6-luna-decisions': '发行评测时用的型号。',
-  'typesafe/jev-1.14': '备选的决策型号。',
-  'typesafe/jev-1.13': '备选的决策型号，上一代。',
+  'openai/gpt-6-luna-decisions': '默认。发行的判定方案是在它上面调出来的。',
+  'typesafe/jev-1.14': '每次判定便宜一半；评测里把没做到认成做到的次数约多一倍。',
+  'typesafe/jev-1.13': '上一代。每次判定便宜一半；评测里把没做到认成做到的次数约多一倍。',
 }
 
 export const goalJudgeSettings: SettingDefinitions = SettingDefinitionsSchema.parse({
@@ -34,7 +34,7 @@ export const goalJudgeSettings: SettingDefinitions = SettingDefinitionsSchema.pa
       presentation: {
         title: '判定用的决策型号',
         description:
-          '判定只答选择题与是非题，不写文字。发行的门槛是在缺省的型号上量出来的；换一个型号，判得准不准没有量过。',
+          '判定只答选择题与是非题，不写文字。三个型号都在评测台上量过，数在各自的说明里。',
         impact: '下一次判定起用新值；正在进行的那一次照它开始时的值。',
         clear: '回到默认的型号。',
         adoption: 'next-read',

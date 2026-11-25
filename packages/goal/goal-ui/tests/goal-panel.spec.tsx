@@ -36,12 +36,15 @@ describe('the goal panel', () => {
     expect(text).toContain('处理中修订 1 · 用了 3 轮')
     expect(text).toContain('A1用例全过证据显示没做到（判定）')
     expect(text).toContain('预算20 轮用了 3 轮（系统读的） · 剩 17')
-    expect(text).toContain('## 目的\n把首页的加载时间降下来')
+    expect(view.container.querySelector('.goal-body h2')?.textContent).toBe('目的')
+    expect(view.container.querySelector('.goal-body')?.textContent).toContain('[A1] 用例全过')
     expect(text).toContain('A1在做 · 还差三条')
     expect(text).toContain('dist/report.html')
-    expect(text).toContain(
-      '修订 1 · 确认卡片 · agent 起草 · 确认者 server-entry · 2026-11-25T00:00:01.000Z',
-    )
+    expect(text).toContain('修订 1 · 在确认卡片上确认 · agent 起草 · ')
+    expect(text).not.toContain('server-entry')
+    const when = view.container.querySelector('.goal-list time')
+    expect(when?.getAttribute('datetime')).toBe('2026-11-25T00:00:01.000Z')
+    expect(when?.parentElement?.getAttribute('title')).toBe('确认者 server-entry')
     expect(text).toContain('把首页降下来')
     expect(view.container.querySelector('tr[data-open="yes"]')?.textContent).toContain('A1')
     expect(
@@ -109,7 +112,7 @@ describe('the goal panel', () => {
   it('raises the budget by a direct edit: the exit is replaced by its number, and the panel shows the goal as written', async () => {
     const { calls } = await shown()
     fireEvent.click(button('改目标'))
-    fireEvent.change(screen.getByLabelText('X1 的上限（rounds）'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('X1 的上限（轮）'), { target: { value: '30' } })
     fireEvent.click(button('改成这样'))
     await settle()
     expect(namesOf(calls)).toEqual(['write-goal'])
@@ -122,7 +125,7 @@ describe('the goal panel', () => {
     fireEvent.click(button('改目标'))
     fireEvent.click(button('改成这样'))
     expect(screen.getByRole('alert').textContent).toContain('没有改动')
-    fireEvent.change(screen.getByLabelText('X1 的上限（rounds）'), { target: { value: 'many' } })
+    fireEvent.change(screen.getByLabelText('X1 的上限（轮）'), { target: { value: 'many' } })
     fireEvent.click(button('改成这样'))
     expect(screen.getByRole('alert').textContent).toContain('X1 的数要写成正整数')
     await settle()

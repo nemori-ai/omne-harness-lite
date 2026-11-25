@@ -34,6 +34,9 @@
 .goal-gap tr[data-open='no'] {
   color: var(--omne-ink-muted);
 }
+.goal-gap td.goal-gap-id {
+  white-space: nowrap;
+}
 .goal-gap-id {
   font-variant-numeric: tabular-nums;
   color: var(--omne-ink-muted);
@@ -41,8 +44,6 @@
   white-space: nowrap;
 }
 .goal-body {
-  white-space: pre-wrap;
-  font-family: var(--omne-font-reading);
   font-size: var(--omne-text-ui);
   line-height: var(--omne-leading-reading);
 }
@@ -78,5 +79,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--omne-space-inline);
+  white-space: nowrap;
+}
+.goal-amount-field {
+  inline-size: 6em;
 }
 }

@@ -8,8 +8,10 @@ export type AskedDecision = Readonly<{
   questions: Readonly<Record<string, AskedQuestion>>
 }>
 
-/** What a scripted judge says of every criterion and every rule of one request, or the status it refuses the request with. */
-export type Judged = Readonly<{ criterion: string; rule?: string }> | Readonly<{ refused: number }>
+/** What a scripted judge says of every criterion and every rule of one request, how sure it is that each exit came about, or the status it refuses the request with. */
+export type Judged =
+  | Readonly<{ criterion: string; rule?: string; exit?: number }>
+  | Readonly<{ refused: number }>
 
 /** The decision a request asks for; null when the request is a chat request. */
 export function decisionOf(rawBody: string): AskedDecision | null {
@@ -27,7 +29,7 @@ function answerOf(
   question: AskedQuestion,
   judged: Extract<Judged, { criterion: string }>,
 ): unknown {
-  if (question.type !== 'choice') return { type: 'noul', noul: 0.01 }
+  if (question.type !== 'choice') return { type: 'noul', noul: judged.exit ?? 0.01 }
   const options = question.criteria ?? {}
   const choice =
     'holds' in options ? judged.criterion : 'kept' in options ? (judged.rule ?? 'kept') : 'none'

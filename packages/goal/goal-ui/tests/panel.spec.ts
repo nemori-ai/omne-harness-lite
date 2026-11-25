@@ -8,6 +8,7 @@ import {
   settlingExit,
   standingOf,
   treeOf,
+  unitOf,
 } from '../src/model/panel.ts'
 
 const BODY = {
@@ -198,5 +199,11 @@ describe('how a goal stands', () => {
     ).toBeNull()
     expect(settlingExit(state({ status: 'paused', pause: { by: 'person' } }))).toBeNull()
     expect(settlingExit(state({}))).toBeNull()
+  })
+})
+
+describe('the unit of a limit, in words', () => {
+  it('is the word the body renders it with, and the unit itself when the panel does not know it', () => {
+    expect([unitOf('rounds'), unitOf('minutes')]).toEqual(['轮', 'minutes'])
   })
 })

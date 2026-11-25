@@ -19,6 +19,12 @@ const BUDGET = {
   deliver: '当前的改动',
   counts: 'failure',
 }
+const ASK_ME = {
+  statement: '要改公共接口才能做到',
+  kind: 'person',
+  deliver: '要改的接口与理由',
+  counts: 'failure',
+}
 const SET = { kind: 'set', draft: treeOf({ ...DRAFT, exits: [BUDGET] }) } as const
 const RAISED = [
   { op: 'replace', id: 'X1', entry: { ...BUDGET, limits: [{ amount: 30, unit: 'rounds' }] } },
@@ -166,6 +172,95 @@ describe('goal-access row', () => {
             controller.abort()
             await pumping
           }
+        },
+      )
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'a person pauses a goal while it is being judged and cancels it; another goal the judge handed over for an exit of the person is settled by that exit, and by no other',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      let release = (): void => {}
+      const held = new Promise<void>(resolve => {
+        release = resolve
+      })
+      const script = answeringDecisions(
+        toolCallsByRequest(() => []),
+        async (_ask, nth) => {
+          if (nth === 0) await held
+          return { criterion: 'fails', exit: 0.97 }
+        },
+      )
+      const exitCode = await onReleaseTree(
+        { script, permission: 'bypass-permissions' },
+        async tree => {
+          const { goal } = tree.clients
+          const tenant = tenantOf(savedTenant(tree.home))
+          const of = (session: string) => {
+            const where = { tenant, session: sessionRef(session) }
+            return {
+              read: async () => {
+                const answer = await goal['read-goal'](where as never)
+                if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+                return answer.body.goal
+              },
+              set: (draft: object) =>
+                goal['write-goal']({
+                  ...where,
+                  operation: 'op-set-1',
+                  proposal: { kind: 'set', draft: treeOf(draft) },
+                  words: null,
+                } as never),
+              command: (command: object) =>
+                goal['command-goal']({ ...where, generation: 1, command } as never),
+            }
+          }
+
+          const first = of(await settledSession(tree, 'hello'))
+          expect(await first.set(DRAFT)).toMatchObject({ outcome: 'succeeded' })
+          expect(await first.command({ kind: 'pause' })).toMatchObject({
+            outcome: 'succeeded',
+            body: { goal: { state: { status: 'paused', pause: { by: 'person' } } } },
+          })
+          expect(await first.command({ kind: 'settle-by-exit', exit: 'X1' })).toEqual({
+            outcome: 'conflict',
+            body: { reason: 'not-its-cause' },
+          })
+          expect(await first.command({ kind: 'cancel' })).toMatchObject({
+            outcome: 'succeeded',
+            body: { goal: { state: { status: 'settled', outcome: { kind: 'cancelled' } } } },
+          })
+          expect(await first.command({ kind: 'cancel' })).toMatchObject({ outcome: 'succeeded' })
+          release()
+
+          const second = of(await settledSession(tree, 'hello again'))
+          expect(await second.set({ ...DRAFT, exits: [BUDGET, ASK_ME] })).toMatchObject({
+            outcome: 'succeeded',
+          })
+          const handed = await pollUntil(
+            'the goal to be handed to the person',
+            second.read,
+            found => found?.state.status === 'paused',
+          )
+          expect(handed?.state.pause).toEqual({ by: 'verdict', row: 5, exit: 'X2' })
+          expect(await second.command({ kind: 'settle-by-exit', exit: 'X1' })).toEqual({
+            outcome: 'conflict',
+            body: { reason: 'not-its-cause' },
+          })
+          expect(await second.command({ kind: 'settle-by-exit', exit: 'X2' })).toMatchObject({
+            outcome: 'succeeded',
+            body: {
+              goal: {
+                state: {
+                  status: 'settled',
+                  outcome: { kind: 'exit', exit: 'X2', counts: 'failure' },
+                },
+              },
+            },
+          })
+          expect((await first.read())?.state).toMatchObject({ outcome: { kind: 'cancelled' } })
         },
       )
       expect(exitCode).toBe(0)

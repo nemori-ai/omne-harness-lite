@@ -178,7 +178,10 @@ export const SOURCE_WORDS: Readonly<Record<string, string>> = {
   judge: '判定',
   agent: 'agent 自述',
 }
-export const VIA_WORDS = { card: '确认卡片', direct: '直接改' } as const
+export const VIA_WORDS = { card: '在确认卡片上确认', direct: '在面板上直接改' } as const
+/** The units a limit is written in, as the body renders them; a unit the panel does not know is shown as it is kept. */
+export const UNIT_WORDS: Readonly<Record<string, string>> = { rounds: '轮' }
+export const unitOf = (unit: string): string => UNIT_WORDS[unit] ?? unit
 export const DRAFTER_WORDS = {
   agent: 'agent 起草',
   person: '人起草',
