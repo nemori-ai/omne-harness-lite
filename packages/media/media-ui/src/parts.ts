@@ -72,6 +72,24 @@ export const mediaRead = definePart({
   when: '知道模型读的是哪一份时',
 })
 
+export const mediaObject = definePart({
+  name: 'media.object',
+  label: '纸上的媒体',
+  summary: '纸上的一张图、一个文件或一段语音',
+  within: 'canvas.view',
+  depths: ['tokens', 'style'],
+  when: '纸上摆着媒体时',
+})
+
+export const mediaIntake = definePart({
+  name: 'media.intake',
+  label: '拖到纸上的文件',
+  summary: '拖到纸上的文件各传到了哪一步',
+  within: 'canvas.view',
+  depths: ['tokens', 'style'],
+  when: '有文件拖到纸上时',
+})
+
 export const mediaParts = [
   mediaTray,
   mediaTrayChip,
@@ -81,4 +99,6 @@ export const mediaParts = [
   mediaPicture,
   mediaFile,
   mediaRead,
+  mediaObject,
+  mediaIntake,
 ] as const

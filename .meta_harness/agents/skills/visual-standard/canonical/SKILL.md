@@ -1,6 +1,6 @@
 ---
 name: visual-standard
-description: 本项目桌面应用与共用界面件的视觉规范：设计语言为什么这样定、规则与 token 的索引、推一个新组件的七步、加一页的步骤与清单、Agent 形与墨框的全部规则与验收问题、观感验收的方法。改界面的观感（颜色、字、间距、动效、焦点、图标、空与错的样子）、加一页或一个组件、动 Agent 形、形座位、墨框或告知笺、做观感验收、走查截图或量动效时加载，任务里没出现「视觉规范」这个词也加载。只改领域逻辑、协议、状态机或服务端，不碰看得见的样子时不加载。本技能不授予接受权；契约与承诺归 `packages/frontend/SPEC.md`、`apps/desktop/SPEC.md` 与产品正文。
+description: 本项目桌面应用与共用界面件的视觉规范：设计语言为什么这样定、规则与 token 的索引、推一个新组件的七步、加一页的步骤与清单、Agent 形与墨框的全部规则与验收问题、观感验收的方法。改界面的观感（颜色、字、间距、动效、焦点、图标、空与错的样子）、加一页或一个组件、动 Agent 形、形座位、墨框或告知笺、画纸上的东西或翻面、做观感验收、走查截图或量动效时加载，任务里没出现「视觉规范」这个词也加载。只改领域逻辑、协议、状态机或服务端，不碰看得见的样子时不加载。本技能不授予接受权；契约与承诺归 `packages/frontend/SPEC.md`、`apps/desktop/SPEC.md` 与产品正文。
 ---
 
 # 视觉规范
@@ -36,7 +36,7 @@ description: 本项目桌面应用与共用界面件的视觉规范：设计语�
 ## 数在哪里
 
 - 界面的数只在 `packages/frontend/ui-kit/src/styles/tokens.css`：颜色、字号、行高、间距、圆角、控件高度、图标大小、动效的时长与曲线。组件读语义层的 token，不写死数。本技能与 token 不一致时，以 token 为准，并回来改本技能。
-- 形与墨框的数在 `packages/frontend/ui-kit/src/ink/` 的具名常量里。共用件的代码不写注释，所以每个常量的出处与它守住什么写在本技能的表里：笔法、时长、状态、移动与座位、墨框各有一张。
+- 形与墨框的数在 `packages/frontend/ui-kit/src/ink/` 的具名常量里，翻面的数在 `packages/frontend/ui-kit/src/paper/flip.ts` 的具名常量里。共用件的代码不写注释，所以每个常量的出处与它守住什么写在本技能的表里：笔法、时长、状态、移动与座位、墨框、翻面各有一张。
 - 规则与 token 的对照在[规则与 token 的索引](references/rules-index.md)。
 
 ## 规则在哪里
@@ -63,11 +63,12 @@ description: 本项目桌面应用与共用界面件的视觉规范：设计语�
 | 改对话流里的任何东西：气泡、过程行、回执、决策卡片 | [对话流](references/conversation-stream.md) |
 | 动形：它是什么、不变的十条、为什么、怎么查；不要做的 | [形的前提与十条](references/figure.md) |
 | 写形的一笔：提按、收笔、墨色、真实大小下读不读得出 | [笔法](references/brushwork.md) |
-| 定一笔写多久、停多久、干多久；加随性；查动效 token | [时长](references/timing.md) |
-| 让形换座位、走一程；查座位与优先级 | [移动与座位](references/seats-and-journeys.md) |
+| 定一笔写多久、停多久、干多久；加随性；查动效 token；翻面分几段、各多久 | [时长](references/timing.md) |
+| 让形换座位、走一程；查座位与优先级；翻面时形怎样拿着纸边走 | [移动与座位](references/seats-and-journeys.md) |
+| 把东西摆到纸上；画纸面、页、一叠、纸上的一点，它们的状态、谁摆的、长度怎样随字号档与远近变 | [纸、页、一叠](references/paper.md) |
 | 加或改形上的一个状态；查一件事用哪一笔说；减弱动效下留什么 | [状态](references/states.md) |
 | 做一个从形展开的东西；告知笺的样子 | [墨框与告知笺](references/ink-bubble.md) |
 | 改随身入口默认的样子（墨点）：它是什么、不是什么、状态与数 | [墨点](references/motes.md) |
 | 动手做形或墨框：找参照、写、看、比，文件放哪；交之前过验收问题 | [做法与验收](references/making-and-checks.md) |
 | 验观感：四层、走查、截图矩阵、探针、逐帧量动效、写报告 | [观感验收的方法](references/visual-acceptance.md) |
-| 对照来源的截图与录屏时，哪些是来源自己的毛病 | [不要这样做](references/dont.md) |
+| 对照来源的截图与录屏时，哪些是来源自己的毛病；纸与翻面里定了不做的 | [不要这样做](references/dont.md) |

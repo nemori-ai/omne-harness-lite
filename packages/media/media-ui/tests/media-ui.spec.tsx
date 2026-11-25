@@ -105,7 +105,7 @@ describe('界面模块', () => {
     expect(['image', 'file', 'voice', 'text'].map(put)).toEqual([true, true, true, false])
   })
 
-  it('声明八个部位，协议有没有服务都一样', async () => {
+  it('声明十个部位，协议有没有服务都一样', async () => {
     const { root, shell } = await startShell()
     await root.plugin(createMediaUiModule({ composerAttachments: attachments, block }))
     const read = partsOn(shell.registry())
@@ -114,6 +114,8 @@ describe('界面模块', () => {
       read.kind === 'read' && read.parts.map(part => [part.name, part.within ?? null]),
     ).toEqual([
       ['media.file', 'session.transcript'],
+      ['media.intake', 'canvas.view'],
+      ['media.object', 'canvas.view'],
       ['media.picture', 'session.transcript'],
       ['media.read', 'session.transcript'],
       ['media.tray', 'session.composer'],

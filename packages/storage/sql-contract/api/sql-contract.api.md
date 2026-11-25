@@ -135,7 +135,6 @@ export declare function isStrictJson(value: unknown): value is JsonValue;
 export declare function canonicalJson(value: unknown): string;
 export declare function jsonShape(value: JsonValue): Readonly<{
     depth: number;
-    members: number;
 }>;
 ```
 
@@ -346,7 +345,6 @@ export type MemorySqlStorageLimits = Readonly<{
     maxDiagnosticBytes: number;
     maxReadInputBytes: number;
     maxJsonDepth: number;
-    maxJsonMembers: number;
 }>;
 export type MemorySqlStorageInput = Readonly<{
     materials: SqlMaterialCatalog;

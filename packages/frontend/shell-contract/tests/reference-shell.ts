@@ -1,33 +1,18 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
-import type { ReactNode } from 'react'
 import {
   createFigureStore,
   createToastStore,
   definePoint,
-  type AttachedLayout,
   type FigureBoard,
   type FigureStore,
-  type ScopeSource,
-  type ShellLogin,
   type ToastBoard,
   type ToastStore,
 } from '@omne-harness/shell-contract'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
-import { ShellService } from '@omne-harness/shell-contract/cordis'
+import { ReferenceShell as ExportedShell } from '@omne-harness/shell-contract/testing'
 
-export class ReferenceShell extends ShellService {
-  readonly navigated: string[] = []
-  readonly login: ShellLogin = {
-    state: () => 'signed-out',
-    subscribe: () => () => undefined,
-    login: async () => 'signed-in',
-    logout: async () => 'signed-out',
-  }
-  readonly scope: ScopeSource = {
-    get: () => undefined,
-    set: () => undefined,
-    subscribe: () => () => undefined,
-  }
+/** The exported reference shell, with a toast board and a figure board the cases read. */
+export class ReferenceShell extends ExportedShell {
   /** Two at a time; a toast stays until the test takes it down. */
   readonly toastStore: ToastStore = createToastStore({
     visible: 2,
@@ -35,28 +20,6 @@ export class ReferenceShell extends ShellService {
     schedule: () => () => undefined,
   })
   readonly figureStore: FigureStore = createFigureStore()
-
-  navigate(pageId: string): void {
-    this.navigated.push(pageId)
-  }
-
-  attached(anchor: string, subject: string): ReactNode {
-    return this.items('attached')
-      .filter(item => item.anchor === anchor)
-      .map(item => item.render({ scope: this.scope.get(), subject }))
-  }
-
-  arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
-    return layout(
-      this.items('attached')
-        .filter(item => item.anchor === anchor)
-        .map(item => ({
-          id: item.id,
-          label: item.label,
-          node: item.render({ scope: this.scope.get(), subject }),
-        })),
-    )
-  }
 
   protected override toasts(): ToastBoard {
     return this.toastStore

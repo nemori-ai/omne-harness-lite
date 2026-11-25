@@ -12,6 +12,14 @@ system
           assets-ui#1  [effective]
         assets.holding
           assets-ui#1  [effective]
+        canvas.app-render
+          canvas-ui#1  [effective]
+        canvas.element
+          canvas-ui#1  [effective]
+        canvas.intake
+          canvas-ui#1  [effective]
+        canvas.picker
+          canvas-ui#1  [effective]
         connection.protocols
           served-protocols#1  [effective]
         connection.server-points
@@ -49,6 +57,8 @@ system
         session.tool-call
           session-ui#1  [effective]
         shell.actions
+          DesktopShell#1  [effective]
+        shell.back
           DesktopShell#1  [effective]
         shell.float
           DesktopShell#1  [effective]
@@ -98,12 +108,29 @@ system
           model-provider-access  [effective, model-ui#1]
           model-provider-models  [effective, model-ui#1]
       assets.control  [keyed-one]
+    canvas
+      canvas.element  [keyed-one]
+        canvas.app
+          canvas-ui#1  [effective]
+        media.object
+          media-ui#1  [effective]
+        session.session
+          session-ui#1  [effective]
+      canvas.intake  [keyed-one]
+        files
+          media-ui#1  [effective]
+      canvas.picker  [keyed-one]
+        session.session
+          session-ui#1  [effective]
+      canvas.app-render  [keyed-one]
     connection
       connection.protocols  [keyed-one]
         assets/v1
           served:assets/v1#1  [effective]
         calendar/v1
           served:calendar/v1#1  [effective]
+        canvas/v1
+          served:canvas/v1#1  [effective]
         human-intervention/v1
           served:human-intervention/v1#1  [effective]
         identity/v1
@@ -201,6 +228,8 @@ system
         session.pick-model  [effective, session-ui#1]
         session.pick-permission  [effective, session-ui#1]
         session.side-panel  [effective, session-ui#1]
+      shell.back  [one, build]
+        canvas-ui#1  [effective]
       shell.float  [list, build]
         companion  [effective, session-ui#1]
       shell.gate  [one, build]
@@ -274,6 +303,12 @@ system
           calendar-ui#1  [effective]
         calendar.shipped.item
           calendar-ui#1  [effective]
+        canvas.paper
+          canvas-ui#1  [effective]
+        canvas.status
+          canvas-ui#1  [effective]
+        canvas.view
+          canvas-ui#1  [effective]
         human-intervention.page
           human-intervention-ui#1  [effective]
         human-intervention.page.group
@@ -321,6 +356,10 @@ system
         mcp.page
           mcp-ui#1  [effective]
         media.file
+          media-ui#1  [effective]
+        media.intake
+          media-ui#1  [effective]
+        media.object
           media-ui#1  [effective]
         media.picture
           media-ui#1  [effective]
@@ -415,6 +454,10 @@ system
         session.list.item
           session-ui#1  [effective]
         session.list.new
+          session-ui#1  [effective]
+        session.paper.item
+          session-ui#1  [effective]
+        session.paper.pick
           session-ui#1  [effective]
         session.queue
           session-ui#1  [effective]

@@ -129,7 +129,6 @@ export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 const STORAGE_LOCK_WAIT_MS = 5000
 export const LOCAL_READ_WAIT_MS = 2 * STORAGE_LOCK_WAIT_MS
 export const LOCAL_MAX_RESPONSE_BYTES = 1_048_576
-export const LOCAL_STORAGE_JSON_MEMBERS = 262_144
 
 const TOOL_ORPHAN_GRACE_MS = 60_000
 
@@ -250,7 +249,6 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     maxCommandBytes: MAX_COMMAND_BYTES,
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
-    maxJsonMembers: LOCAL_STORAGE_JSON_MEMBERS,
     maxResponseBytes: LOCAL_MAX_RESPONSE_BYTES,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
@@ -431,6 +429,14 @@ const LOCAL_NODE = 'local'
 
 const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
 
+const CANVAS_POLICY = {
+  sheet: { width: 6400, height: 4000, grid: 8 },
+  limits: { placed: 200, away: 500, batch: 50 },
+  size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
+  footprint: { width: 160, height: 80 },
+  admitTimeoutMs: 5_000,
+}
+
 export const LOCAL_GOVERNANCE_OPENING = { installationConcurrency: 8 } as const
 
 /** A person gets every notification on the application's own surfaces. An agent has no destination until sessions take input from notifications. */
@@ -555,6 +561,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Schedules: { resultMaxBytes: 65_536 },
           Jobs: { resultMaxBytes: 65_536 },
           Notifications: { resultMaxBytes: 65_536 },
+          Canvas: { resultMaxBytes: 65_536 },
           Sessions: { resultMaxBytes: 131_072 },
           Agents: { resultMaxBytes: 1_048_576 },
           SwitchWorkspace: { resultMaxBytes: 65_536 },
@@ -611,6 +618,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
       : []),
     ...(rows.has('dispatch') ? ([['dispatch', { policy: DISPATCH_POLICY }]] as const) : []),
+    ...(rows.has('canvas') ? ([['canvas', { policy: CANVAS_POLICY }]] as const) : []),
     ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
     ['execution-host', { stateDirectory: locations.hostFilesDir }],
     [

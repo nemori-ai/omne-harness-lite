@@ -1,7 +1,7 @@
 import type { ActionItem } from '@omne-harness/shell-contract'
 import { rememberFocus } from '@omne-harness/ui-kit'
 import { bindActionKeys, type ActionKeys } from './dispatch.ts'
-import { frameActions, regionActions, sizeActions } from './layout-actions.ts'
+import { faceActions, frameActions, regionActions, sizeActions } from './layout-actions.ts'
 import { paletteActions, type PaletteSwitch } from './palette.tsx'
 import type { SizeSwitch } from './sidebar.tsx'
 import type { KeyTarget } from './size.ts'
@@ -21,6 +21,7 @@ export function shellKeys(state: ShellState, size: SizeSwitch, palette: PaletteS
       ...regionActions(),
       ...sizeActions(size),
       ...frameActions(),
+      ...faceActions(state.face, state.login.state() === 'signed-in'),
       ...paletteActions(palette),
       ...state.slots.items('actions'),
     ],
