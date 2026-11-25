@@ -424,7 +424,6 @@ export function sendable(batch: ActionBatch, unaccepted: ReadonlySet<ActionId>):
     const together = action.judgment.concurrent === true
     const unsent = slot === undefined || unaccepted.has(action.id)
     if (unsent && (together || !earlierOpen)) ready.push(action)
-    // Nothing after an open action with effects goes before it has its slot.
     if (!together) break
     earlierOpen = true
   }
