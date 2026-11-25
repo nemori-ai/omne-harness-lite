@@ -38,6 +38,7 @@ export type JournalCommitInput = Readonly<{
   recall: JournalRecall
   commands: readonly FactCommandV2[]
   generations: GenerationMemory
+  singleAttempt?: true
 }>
 
 export type GenerationMemory = Map<string, number>
@@ -65,7 +66,10 @@ const identityOf = (
 
 export async function commitJournal(input: JournalCommitInput): Promise<JournalCommitResult> {
   const key = memoryKey(input.domain, input.operation)
-  const result = await commitFrom(input, input.generations.get(key) ?? 1)
+  const result = await commitFrom(
+    input,
+    input.singleAttempt ? 1 : (input.generations.get(key) ?? 1),
+  )
   if (result.outcome.kind === 'committed' || result.attempt === 1) input.generations.delete(key)
   else input.generations.set(key, result.attempt)
   return result.outcome
@@ -98,12 +102,15 @@ async function commitGeneration(
     }
     case 'rolled_back': {
       const { recalled, ...receipt } = result
-      return recalled ? 'rolled back' : { kind: 'rolled-back', receipt }
+      return recalled && !input.singleAttempt ? 'rolled back' : { kind: 'rolled-back', receipt }
     }
     case 'unknown':
       return { kind: 'unknown', diagnostic: result.diagnostic ?? '', attempt }
     case 'identity_conflict':
-      if (result.existing.kind === 'rolled_back') return 'rolled back'
+      if (result.existing.kind === 'rolled_back')
+        return input.singleAttempt
+          ? { kind: 'rolled-back', receipt: result.existing }
+          : 'rolled back'
       return { kind: 'committed', receipt: result.existing, recalled: true }
     case 'rejected_before_accept':
       return beforeAccept(result.reason, attempt)

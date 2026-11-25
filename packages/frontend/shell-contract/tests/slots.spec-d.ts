@@ -17,6 +17,8 @@ import type {
   AttachedItem,
   AttachedLayout,
   AttachedProps,
+  BackItem,
+  BackProps,
   FigureReport,
   FloatCorner,
   FloatItem,
@@ -39,7 +41,7 @@ import { ShellService, defineUiModule } from '@omne-harness/shell-contract/cordi
 
 test('each slot takes its own item', () => {
   expectTypeOf<SlotName>().toEqualTypeOf<
-    'gate' | 'pages' | 'sidebar' | 'float' | 'attached' | 'actions' | 'keymap'
+    'gate' | 'pages' | 'sidebar' | 'float' | 'back' | 'attached' | 'actions' | 'keymap'
   >()
   expectTypeOf<ItemOf<'actions'>>().toEqualTypeOf<ActionItem>()
   expectTypeOf<ItemOf<'keymap'>>().toEqualTypeOf<KeymapItem>()
@@ -47,6 +49,7 @@ test('each slot takes its own item', () => {
   expectTypeOf<ItemOf<'pages'>>().toEqualTypeOf<PageItem>()
   expectTypeOf<ItemOf<'sidebar'>>().toEqualTypeOf<SidebarItem>()
   expectTypeOf<ItemOf<'float'>>().toEqualTypeOf<FloatItem>()
+  expectTypeOf<ItemOf<'back'>>().toEqualTypeOf<BackItem>()
   expectTypeOf<ItemOf<'attached'>>().toEqualTypeOf<AttachedItem>()
   expectTypeOf<FloatItem>().toEqualTypeOf<
     Readonly<{ id: string; order: number; render: (props: FloatProps) => ReactNode }>
@@ -60,6 +63,12 @@ test('each slot takes its own item', () => {
     }>
   >()
   expectTypeOf<FloatCorner>().toEqualTypeOf<Readonly<{ x: 'start' | 'end'; y: 'start' | 'end' }>>()
+  expectTypeOf<BackItem>().toEqualTypeOf<
+    Readonly<{ id: string; render: (props: BackProps) => ReactNode }>
+  >()
+  expectTypeOf<BackProps>().toEqualTypeOf<
+    Readonly<{ scope: string | undefined; turn: () => void; home: () => void }>
+  >()
   expectTypeOf<AttachedItem>().toEqualTypeOf<
     Readonly<{
       id: string
@@ -150,6 +159,7 @@ test('contribute refuses an item that belongs to another slot', () => {
   shell.contribute('gate', { id: 'g', render })
   shell.contribute('pages', { id: 'p', title: 'P', order: 0, icon: 'topics', render })
   shell.contribute('sidebar', { id: 's', order: 0, render })
+  shell.contribute('back', { id: 'b', render })
   shell.contribute('attached', { id: 'a', order: 0, anchor: 'test.x', render })
   // @ts-expect-error an attached item needs an anchor
   shell.contribute('attached', { id: 'a', order: 0, render })
@@ -157,7 +167,13 @@ test('contribute refuses an item that belongs to another slot', () => {
   shell.contribute('pages', { id: 'g', render })
   // @ts-expect-error a page item does not belong in the gate
   shell.contribute('gate', { id: 'p', title: 'P', order: 0, icon: 'topics', render })
-  // @ts-expect-error there is no fifth slot
+  // @ts-expect-error a floating item does not belong on the back
+  shell.contribute('back', { id: 'f', order: 0, render })
+  // @ts-expect-error the back hands its item a way to turn that gives nothing back
+  shell.contribute('back', { id: 'b', render: (props: { turn: () => boolean }) => props.turn() })
+  // @ts-expect-error the back hands its item a way home that gives nothing back
+  shell.contribute('back', { id: 'b', render: (props: { home: () => boolean }) => props.home() })
+  // @ts-expect-error there is no seventh slot
   shell.contribute('footer', { id: 'f', render })
 })
 

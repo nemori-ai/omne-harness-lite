@@ -1,3 +1,7 @@
+import {
+  SessionModelHistoryReadiness,
+  sessionModelHistoryReadinessKey,
+} from './model-history-readiness.ts'
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -37,6 +41,7 @@ import {
   SessionAdoptedRequestsService,
   SessionExecutionLogService,
   sessionAccessCheckKey,
+  sessionKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import {
   EXECUTION_RECORD_HANDLERS,
@@ -59,6 +64,7 @@ import { readerOf } from './journal-read.ts'
 import { resolveDomain } from './journal-state.ts'
 import { announcePublished } from './published-queue.ts'
 import { createSqlCompactionInputs } from './compaction-inputs-sql.ts'
+import { readGuidanceHistory } from './guidance-history.ts'
 import { createModelReminders } from './model-reminders.ts'
 import type { StepDirectory } from './working-directory-step.ts'
 import type { DescriptorCatalog } from '@omne-harness/runtime-context-contract'
@@ -171,21 +177,26 @@ async function resolvedOn<P, T extends Readonly<{ execution: AgentExecutionId }>
     : fail<Failure>({ kind: 'denied', action: 'resolve' })
 }
 
+function rememberRoute<P>(
+  routes: Map<string, Route<P>>,
+  limit: number,
+  key: string,
+  route: Route<P>,
+): void {
+  routes.delete(key)
+  routes.set(key, route)
+  while (routes.size > limit) {
+    const oldest = routes.keys().next().value
+    if (oldest === undefined) break
+    routes.delete(oldest)
+  }
+}
+
 export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalOptions<P>) {
   const journals = createSessionLogJournal<P>(options)
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
   const routes = new Map<string, Route<P>>()
   let closed = false
-
-  function remember(key: string, route: Route<P>): void {
-    routes.delete(key)
-    routes.set(key, route)
-    while (routes.size > limit) {
-      const oldest = routes.keys().next().value
-      if (oldest === undefined) break
-      routes.delete(oldest)
-    }
-  }
 
   async function routeOf(scope: Scope, action: string): Promise<Outcome<Route<P>, Failure>> {
     if (closed) return fail(unavailable('the agentJournal plugin has stopped'))
@@ -198,7 +209,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     if ('failure' in indexed) return indexed
     const session = indexed.ok
     const route = { session, view: journals.forSession({ tenant: scope.tenant, session }) }
-    remember(key, route)
+    rememberRoute(routes, limit, key, route)
     return succeed(route)
   }
 
@@ -406,6 +417,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     toolTargets,
     adoptedRequests,
     openTenant: journals.openTenant,
+    ensureModelHistory: journals.ensureModelHistory,
     compactionInputs,
     close(): void {
       closed = true
@@ -667,6 +679,40 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
         ? {}
         : {
             reminders: createModelReminders<unknown>({
+              inspectHistory: (input, scopes) =>
+                ctx.get(sessionModelHistoryReadinessKey, false)?.qualify(input, scopes) ??
+                Promise.resolve(
+                  fail({
+                    kind: 'unavailable',
+                    diagnostic: 'workspace history inspection is not installed',
+                  }),
+                ),
+              qualifyHistory: (input, scopes) =>
+                directory?.qualifyHistory?.(input, scopes) ??
+                Promise.resolve(
+                  scopes.length === 0
+                    ? succeed(undefined)
+                    : fail({
+                        kind: 'unavailable',
+                        diagnostic: 'workspace guidance history qualification is not installed',
+                      }),
+                ),
+              history: async ({ principal, tenant, session }, partition, previous) => {
+                const history = ctx
+                  .intercept(sessionKey, { caller: 'reader' })
+                  .get(sessionKey, false)?.history
+                if (history === undefined || session === undefined)
+                  return fail({
+                    kind: 'unavailable',
+                    diagnostic: 'the Session model history reader is unavailable',
+                  })
+                return readGuidanceHistory(
+                  history,
+                  { principal, tenant, session },
+                  partition,
+                  previous,
+                )
+              },
               eligibility: {
                 current: request => ctx[runtimeContextReaderEligibilityKey].current(request),
               },
@@ -711,6 +757,20 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.query = journal.query
     this.inputAcceptance = journal.inputAcceptance
     this.output = journal.output
+    new SessionModelHistoryReadiness(
+      ctx,
+      routed.ensureModelHistory,
+      (input, scopes) =>
+        directory?.inspectHistory?.(input, scopes) ??
+        Promise.resolve(
+          scopes.length === 0
+            ? succeed([])
+            : fail({
+                kind: 'unavailable',
+                diagnostic: 'workspace history qualification is not installed',
+              }),
+        ),
+    )
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
     new SessionLogCompactionInputs(ctx, routed.compactionInputs)

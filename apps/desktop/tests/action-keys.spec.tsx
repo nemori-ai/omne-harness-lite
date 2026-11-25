@@ -15,7 +15,12 @@ import { createSizeController } from '@omne-harness/ui-kit'
 import { afterEach, describe, expect, it } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
 import { bindActionKeys } from '../src/page/shell/dispatch.ts'
-import { frameActions, regionActions, sizeActions } from '../src/page/shell/layout-actions.ts'
+import {
+  faceActions,
+  frameActions,
+  regionActions,
+  sizeActions,
+} from '../src/page/shell/layout-actions.ts'
 import { paletteActions, paletteSwitch } from '../src/page/shell/palette.tsx'
 import { shellPlugin } from '../src/page/shell/service.ts'
 import { createShellState } from '../src/page/shell/state.ts'
@@ -49,6 +54,7 @@ async function assembled(): Promise<readonly ActionItem[]> {
     ...regionActions(),
     ...sizeActions(size),
     ...frameActions(),
+    ...faceActions(state.face, state.login.state() === 'signed-in'),
     ...paletteActions(paletteSwitch()),
     ...state.slots.items('actions'),
   ]
@@ -122,6 +128,14 @@ describe('the keys of the first batch (C14)', () => {
     const actions = await assembled()
     expect(keyClashes(keymapOf(actions, {}, true))).toEqual([])
     expect(keyClashes(keymapOf(actions, {}, false))).toEqual([])
+  })
+
+  it('turning the face is among them, on a key no other action holds (the canvas puts the back)', async () => {
+    const actions = await assembled()
+    const keymap = keymapOf(actions, {}, true)
+    const turn = keymap.filter(row => row.action === 'shell.turn-face')
+    expect(turn).toEqual([{ layer: 'global', chord: 'Mod+Shift+O', action: 'shell.turn-face' }])
+    expect(keymap.filter(row => row.chord === 'Mod+Shift+O')).toEqual(turn)
   })
 
   it.each(FIRST_BATCH)(

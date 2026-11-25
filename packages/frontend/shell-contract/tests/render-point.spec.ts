@@ -1,5 +1,5 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
-import { deployment, render as text, tree } from '@omne-harness/dynamis'
+import { deployment, render as text, tree, type Registry } from '@omne-harness/dynamis'
 import { describe, expect, it } from 'vitest'
 import { defineRenderPoint, tenantScope, type KeyRender } from '@omne-harness/shell-contract'
 import { ReferenceShell, startShellOf } from '@omne-harness/shell-contract/testing'
@@ -111,6 +111,59 @@ describe('a point that draws by key', () => {
     )
     expect(w.draw('files.write')).toBe('brand')
     w.shell.tenant = BOB
+    expect(w.draw('files.write')).toBe('diff:done')
+  })
+
+  it('drawn again and again while the registry stays, a key is looked up in it once', async () => {
+    const read = { placed: 0 }
+    const seen = new WeakMap<Registry, Registry>()
+    class Counting extends ReferenceShell {
+      override registry(): Registry {
+        const real = super.registry()
+        const held = seen.get(real)
+        if (held !== undefined) return held
+        const counted = new Proxy(real, {
+          get(target, key, receiver) {
+            if (key === 'placed') read.placed += 1
+            return Reflect.get(target, key, receiver) as unknown
+          },
+        })
+        seen.set(real, counted)
+        return counted
+      }
+    }
+    const started = await startShellOf(Counting)
+    started.shell.tenant = ALICE
+    await place(started.root, 'notes-ui', ctx => calls.declare(ctx.shell))
+    await place(started.root, 'files-ui', ctx => void calls.put(ctx.shell, 'files.write', diff))
+    const draw = () =>
+      calls.draw(started.shell, 'files.write', { name: 'w', state: 'done' }, () => 'generic')
+    expect(draw()).toBe('diff:done')
+    const once = read.placed
+    for (let round = 0; round < 20; round += 1) expect(draw()).toBe('diff:done')
+    expect(read.placed).toBe(once)
+  })
+
+  it('what a key was found to be is forgotten once the registry changes: the next drawing is what stands then', async () => {
+    const w = await world()
+    await place(w.root, 'files-ui', ctx => void calls.put(ctx.shell, 'files.write', diff))
+    expect(w.draw('files.write')).toBe('diff:done')
+    expect(w.draw('files.write')).toBe('diff:done')
+    let take: (() => unknown) | undefined
+    await place(w.root, 'brand', ctx => {
+      take = calls.put(ctx.shell, 'files.write', () => 'brand', alice)
+    })
+    expect(w.draw('files.write')).toBe('brand')
+    expect(w.draw('files.write')).toBe('brand')
+    await take?.()
+    await settle()
+    expect(w.draw('files.write')).toBe('diff:done')
+    w.shell.tenant = BOB
+    expect(w.draw('files.write')).toBe('diff:done')
+    const second = await place(w.root, 'b', ctx => void calls.put(ctx.shell, 'files.write', diff))
+    expect(w.draw('files.write')).toBe('generic:files.write:done')
+    await second.dispose()
+    await settle()
     expect(w.draw('files.write')).toBe('diff:done')
   })
 

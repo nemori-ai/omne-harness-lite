@@ -95,6 +95,9 @@
     "dispatch",
     "dispatch-session",
     "dispatch-tool",
+    "canvas",
+    "session-canvas",
+    "media-canvas",
     "server-entry",
     "identity-access",
     "session-access",
@@ -111,6 +114,7 @@
     "tool-access",
     "model-access",
     "usage-access",
+    "canvas-access",
     "plugin-access",
     "plugin-host",
     "plugin-notification",
@@ -498,6 +502,14 @@
       ]
     },
     {
+      "row": "canvas",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration"
+      ]
+    },
+    {
       "row": "server-entry",
       "names": [
         "principalIssuer",
@@ -620,6 +632,13 @@
     },
     {
       "row": "usage-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "canvas-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

@@ -1,3 +1,4 @@
+import { handlePathSource } from '../windows-native/handle-path.ts'
 export const nativeSource = String.raw`
 using System;
 using System.Collections.Generic;
@@ -238,7 +239,21 @@ public static partial class OmneWindowsBridge {
       } catch(IOException) { } finally { CloseHandle(pipe); }
     });reader.thread=t;t.IsBackground=true;t.Start();return reader;
   }
-  static void Prepare(OmneRequest r,out OutputReader stdout,out OutputReader stderr) {
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateFileW(string path,uint access,uint share,IntPtr sa,uint mode,uint flags,IntPtr template);
+${handlePathSource}
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool SetCurrentDirectoryW(string path);
+
+  // An observation may be unavailable while the underlying command is still allowed to proceed.
+  public static string PhysicalDirectory(string path) {
+    if(String.IsNullOrEmpty(path))return null;
+    IntPtr handle=CreateFileW(path,0,7,IntPtr.Zero,3,0x02000000,IntPtr.Zero);
+    if(handle==new IntPtr(-1))return null;
+    try {
+      return PhysicalHandlePath(handle);
+    } finally { CloseHandle(handle); }
+  }
+
+  static void Prepare(OmneRequest r,out OutputReader stdout,out OutputReader stderr,out string startDirectory) {
     IntPtr ir=IntPtr.Zero,iw=IntPtr.Zero,orr=IntPtr.Zero,ow=IntPtr.Zero,er=IntPtr.Zero,ew=IntPtr.Zero;
     IntPtr env=IntPtr.Zero,list=IntPtr.Zero,handles=IntPtr.Zero,jobs=IntPtr.Zero;
     try {
@@ -265,7 +280,13 @@ public static partial class OmneWindowsBridge {
       SX sx=new SX();sx.si.cb=(uint)Marshal.SizeOf(sx);sx.si.flags=0x100;sx.si.input=ir;sx.si.output=ow;sx.si.error=ew;sx.list=list;
       // CREATE_NO_WINDOW gives a console program its own hidden console, and
       // CREATE_NEW_PROCESS_GROUP keeps that console's events away from the bridge's.
-      Check(CreateProcessW(r.executable,cmd,IntPtr.Zero,IntPtr.Zero,true,0x08080604,env,r.cwd,ref sx,out child));
+      string previous=Environment.CurrentDirectory;
+      string physical=PhysicalDirectory(r.cwd);
+      bool inherited=physical!=null && SetCurrentDirectoryW(physical);
+      try {
+        startDirectory=inherited ? PhysicalDirectory(".") : null;
+        Check(CreateProcessW(r.executable,cmd,IntPtr.Zero,IntPtr.Zero,true,0x08080604,env,inherited?null:r.cwd,ref sx,out child));
+      } finally { if(inherited)SetCurrentDirectoryW(previous); }
       CloseHandle(ir);ir=IntPtr.Zero;CloseHandle(ow);ow=IntPtr.Zero;CloseHandle(ew);ew=IntPtr.Zero;
       stdout=Pump(orr,"stdout",r.maxChunkBytes);orr=IntPtr.Zero;stderr=Pump(er,"stderr",r.maxChunkBytes);er=IntPtr.Zero;
       IntPtr writer=iw;iw=IntPtr.Zero;
@@ -296,10 +317,10 @@ public static partial class OmneWindowsBridge {
       if(r.mode=="members") { Emit(ReadNamedMembers(r.name));return; }
       if(r.mode=="identity") { Emit(Identity());return; }
       if(r.mode=="probe") { bool ok;try { ok=Probe(r.name); } catch(Exception) { Stop();ok=false; } Emit(new { t="probe",ok=ok });return; }
-      OutputReader stdout,stderr;Prepare(r,out stdout,out stderr);Emit(new {t="ready",anchor=anchor.pid});
+      OutputReader stdout,stderr;string startDirectory;Prepare(r,out stdout,out stderr,out startDirectory);Emit(new {t="ready",anchor=anchor.pid});
       string line=Line();
       if(line!="go") { Emit(new {t="stopped",status=Stop()?"confirmed":"unconfirmed"});return; }
-      Check(ResumeThread(child.thread)!=0xFFFFFFFF);Emit(new {t="started"});
+      Check(ResumeThread(child.thread)!=0xFFFFFFFF);Emit(new {t="started",observed=startDirectory});
       // The waiter reports the exit and the Job's other members. It never stops the Job: the
       // provider decides the disposition.
       Thread waiter=new Thread(delegate() {

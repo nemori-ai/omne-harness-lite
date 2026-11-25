@@ -15,6 +15,7 @@ const INPUT = {
 const ATTACHABLE = {
   kind: 'attachable',
   directory: '/srv/blog',
+  rootIdentity: '1:44',
   attachment: {},
   basis: {},
 } as unknown as WorkspaceTargetCheck
@@ -46,7 +47,12 @@ describe('the targets of the action before a step', () => {
     'answer an attachable instance with the reach the setting %s gives, read for the tenant at each check',
     async (setting, files) => {
       const r = reaching(ATTACHABLE, setting)
-      expect(await r.check()).toEqual({ kind: 'attachable', directory: '/srv/blog', files })
+      expect(await r.check()).toEqual({
+        kind: 'attachable',
+        directory: '/srv/blog',
+        rootIdentity: '1:44',
+        files,
+      })
       await r.check()
       expect(r.asked).toEqual([TENANT, TENANT])
     },

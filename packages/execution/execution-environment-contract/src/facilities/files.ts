@@ -10,6 +10,7 @@ export type HandleGeneration = { readonly object: ObjectToken; readonly generati
 export type FileVersion = string
 
 export type FileRequest<P> = FacilityRequest<P> & {
+  readonly observeDirectory?: true
   readonly path: string
   readonly named: ObjectToken | null
 }
@@ -135,6 +136,7 @@ export interface FileSystemFacility<P> {
 
   commitBatch(
     request: FacilityRequest<P> & {
+      readonly observeDirectory?: true
       readonly entries: readonly {
         readonly path: string
         readonly named: ObjectToken | null

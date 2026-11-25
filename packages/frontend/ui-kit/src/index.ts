@@ -137,6 +137,7 @@ export {
   moveRegion,
   navigateWithin,
   ownsTyping,
+  reachable,
   rememberFocus,
 } from './lib/focus.ts'
 export { cn, joinFacts } from './lib/utils.ts'
@@ -199,3 +200,26 @@ export { FigureStage } from './ink/figure-stage.tsx'
 export { FIGURE_SIZE } from './ink/store.ts'
 export { ToldNote, type Told } from './ink/told-note.tsx'
 export { type Box } from './ink/travel.ts'
+export {
+  PAPER_NAME_LINE,
+  type PaperBox,
+  type PaperPoint,
+  type PaperSheet,
+  type PaperView,
+  type SizeLimits,
+  type ZoomLimits,
+} from './paper/geometry.ts'
+export { type PaperGesture, type PlaceBox } from './paper/carry.ts'
+export { PaperPage } from './paper/paper-page.tsx'
+export { PaperStatus } from './paper/paper-status.tsx'
+export { PaperPile, type PileLeaf } from './paper/paper-pile.tsx'
+export { FlipLayer, useFaceFlip } from './paper/flip-layer.tsx'
+export {
+  type FaceFlip,
+  type FlipPhase,
+  type FlipPlan,
+  type FlipState,
+  type FlipToward,
+} from './paper/flip.ts'
+export { PaperSpot } from './paper/paper-spot.tsx'
+export { PaperSurface, usePaperAt } from './paper/paper-surface.tsx'

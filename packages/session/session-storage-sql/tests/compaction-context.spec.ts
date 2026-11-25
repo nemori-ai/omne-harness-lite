@@ -51,6 +51,31 @@ it('reads current compaction evidence from indices maintained with real Session 
   ).toHaveProperty('failure.kind', 'unavailable')
 })
 
+it('resumes a current model view after its observed end and reads only newly committed rows', async () => {
+  const a = await app()
+  expect(await a.create(TENANT_A)).toHaveProperty('ok')
+  expect(await a.accept(TENANT_A, 'session-1', 'next-input')).toHaveProperty('ok')
+  expect(await startRun(a, 'start')).toHaveProperty('ok')
+  const read = (after: string | null) =>
+    a.port.history.readModelView({
+      ...a.access(TENANT_A),
+      after,
+      basis: null,
+      resumeAtEnd: true,
+      pageBytes: 100000,
+    })
+  const before = await read(null)
+  if ('failure' in before || before.ok.kind !== 'page' || !before.ok.resume)
+    throw new Error('missing tail cursor')
+  expect(before.ok.next).toBeNull()
+  expect(await read(before.ok.resume)).toMatchObject({ ok: { kind: 'page', next: null, rows: [] } })
+  expect(await deliver(a, 'next', ['next-input'])).toHaveProperty('ok')
+  const tail = await read(before.ok.resume)
+  if ('failure' in tail || tail.ok.kind !== 'page') throw new Error('tail unavailable')
+  expect(tail.ok.rows).toHaveLength(1)
+  expect(BigInt(tail.ok.rows[0]!.seq)).toBe(BigInt(before.ok.basis.upper) + 1n)
+})
+
 it('keeps a call protected until every reported result version is processed', async () => {
   const a = await app()
   expect(await a.create(TENANT_A)).toHaveProperty('ok')

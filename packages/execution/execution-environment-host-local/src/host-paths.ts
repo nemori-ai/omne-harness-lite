@@ -208,6 +208,7 @@ export type Target = Readonly<{ path: string; effect: FileEffect }>
 
 export type HostPathsOptions = Readonly<{
   root?: string | undefined
+  expectedRoot?: string | undefined
   probeDirectory?: string | undefined
 }>
 
@@ -216,6 +217,14 @@ type RootBinding = Readonly<{
   dev: bigint
   ino: bigint
 }>
+
+function matchesRoot(recorded: RootBinding, actual: FileStats, expected?: string): boolean {
+  return (
+    actual.dev === recorded.dev &&
+    actual.ino === recorded.ino &&
+    (expected === undefined || expected === tokenOf(actual).token)
+  )
+}
 
 async function bindRoot(root: string): Promise<RootBinding | undefined> {
   try {
@@ -280,7 +289,7 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       }
       try {
         const stat = await handle.stat({ bigint: true })
-        if (stat.dev === recorded.dev && stat.ino === recorded.ino)
+        if (matchesRoot(recorded, stat, options.expectedRoot))
           return ok({ handle, dev: stat.dev, binding: recorded })
       } catch {
         await close(handle)

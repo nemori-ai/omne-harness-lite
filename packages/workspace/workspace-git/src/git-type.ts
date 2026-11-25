@@ -52,6 +52,6 @@ export class GitType extends DirectoryType {
     const copy = await readWorkingCopy(directory.ok.directory)
     if (!('ok' in copy)) return copy
     if (!same(repositoryOf(material), copy.ok.repository)) return { refused: reason('replaced') }
-    return { ok: { directory: directory.ok.directory, basis: loadBasis(copy.ok.head) } }
+    return { ok: { ...directory.ok, basis: loadBasis(copy.ok.head) } }
   }
 }

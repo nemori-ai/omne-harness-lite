@@ -20,6 +20,10 @@ export function ownsTyping(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(CONTROL) !== null
 }
 
+export function reachable<T extends Element>(element: T | null | undefined): element is T {
+  return element != null && element.isConnected && element.closest('[inert]') === null
+}
+
 export function focusSurface(surface: HTMLElement, preferred?: HTMLElement | null): void {
   const marked = [...surface.querySelectorAll<HTMLElement>('[data-initial-focus]')].find(visible)
   const editor = [

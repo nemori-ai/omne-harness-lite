@@ -37,7 +37,13 @@ export type FacilityReason =
   | 'effectUnknown'
 
 export type FacilityResult<T> =
-  | { readonly kind: 'done'; readonly requestId: string; readonly value: T }
+  | {
+      readonly kind: 'done'
+      readonly requestId: string
+      readonly value: T
+      /** Canonical absolute directories confirmed by the facility during this operation, never re-resolved after it. */
+      readonly verifiedDirectories?: readonly string[]
+    }
   | { readonly kind: 'unresolved'; readonly requestId: string }
   | { readonly kind: 'rejected'; readonly requestId: string; readonly reason: FacilityReason }
   | { readonly kind: 'unknown'; readonly requestId: string }

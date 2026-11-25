@@ -294,6 +294,8 @@ function apply(
       return applyInitializationItem(draft, entry)
     case 'session.adoption':
       return applyAdoption(draft, entry)
+    case 'session.model-projected':
+      return null
     case 'message.user':
     case 'message.assistant':
     case 'message.tool':

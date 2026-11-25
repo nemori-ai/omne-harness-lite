@@ -11,6 +11,7 @@ import { CONTENT_SECURITY_POLICY } from '../src/shared/page-policy.ts'
 import { SIZE_KEY, bindSizeKeys, storedSizePreference } from '../src/page/shell/size.ts'
 import { THEME_KEY, storedThemePreference } from '../src/page/shell/theme.ts'
 import { TOKENS_KEY, dropBootTokens, storedTokens } from '../src/page/shell/boot-tokens.ts'
+import { FACE_KEY, storedFacePreference } from '../src/page/shell/face.ts'
 
 // The query the theme controller follows (`colorSchemeQuery` in the shared interface kit).
 const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)'
@@ -21,8 +22,11 @@ const source = readFileSync(join(PAGE, 'public', 'theme-boot.js'), 'utf8')
 type Stored = Readonly<Record<string, string | null>> | 'throws'
 
 /** Runs the boot script against a stand-in `window` and `document`; gives what it set on the root. */
-function run(stored: Stored, systemDark: boolean | 'none'): { theme?: string; size?: string } {
-  const dataset: { theme?: string; size?: string } = {}
+function run(
+  stored: Stored,
+  systemDark: boolean | 'none',
+): { theme?: string; size?: string; face?: string } {
+  const dataset: { theme?: string; size?: string; face?: string } = {}
   const queries: string[] = []
   const window = {
     localStorage: {
@@ -96,6 +100,41 @@ describe('首帧之前的字号档', () => {
     }
     createSizeController({ ...storedSizePreference(blocked), root })
     expect('size' in root.dataset).toBe(false)
+  })
+})
+
+describe('首帧之前的面（DT-50）', () => {
+  it('和外壳得出同一面：存的每种取值，两处读同一个键', () => {
+    for (const stored of ['back', 'front', 'Back', 'nonsense', '', null]) {
+      const shell = storedFacePreference(holding(FACE_KEY, stored)).read()
+      expect(run({ [FACE_KEY]: stored }, false).face, String(stored)).toBe(shell)
+    }
+  })
+
+  it('第一次与读不到时两处都是正面', () => {
+    expect(run({}, false).face).toBe('front')
+    expect(run('throws', false).face).toBe('front')
+    const blocked = () => {
+      throw new Error('blocked')
+    }
+    expect(storedFacePreference(blocked).read()).toBe('front')
+  })
+
+  it('外壳存下的是首帧脚本读得回来的那一面；存不进去时不抛出', () => {
+    const held = new Map<string, string>()
+    const store = () => ({
+      getItem: (key: string) => held.get(key) ?? null,
+      setItem: (key: string, value: string) => void held.set(key, value),
+    })
+    storedFacePreference(store).write('back')
+    expect(run(Object.fromEntries(held), false).face).toBe('back')
+    const blocked = () => ({
+      getItem: () => null,
+      setItem: () => {
+        throw new Error('full')
+      },
+    })
+    expect(() => storedFacePreference(blocked).write('back')).not.toThrow()
   })
 })
 

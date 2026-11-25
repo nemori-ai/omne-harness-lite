@@ -1,12 +1,17 @@
-// Runs before the first paint, so the page never shows in the other theme or size first.
-// The same rules as `shell/theme.ts`, `shell/size.ts` and the two controllers; a test keeps the keys in step.
+// Runs before the first paint, so the page never shows in the other theme, size or face first.
+// The same rules as `shell/theme.ts`, `shell/size.ts`, `shell/face.ts` and the two controllers; a test keeps the keys in step.
 ;(function () {
-  var choice = null
-  var size = null
-  try {
-    choice = window.localStorage.getItem('omne.theme')
-    size = window.localStorage.getItem('omne.size')
-  } catch {}
+  function read(key) {
+    try {
+      return window.localStorage.getItem(key)
+    } catch {
+      return null
+    }
+  }
+  var choice = read('omne.theme')
+  var size = read('omne.size')
+  var face = read('omne.face')
+  document.documentElement.dataset.face = face === 'back' ? 'back' : 'front'
   var dark =
     choice === 'dark' ||
     (choice !== 'light' &&
@@ -18,7 +23,7 @@
   // What the whole application was last tinted with: written on the root until the sheet of the changes takes over.
   var tokens = null
   try {
-    tokens = JSON.parse(window.localStorage.getItem('omne.tokens'))
+    tokens = JSON.parse(read('omne.tokens'))
   } catch {}
   if (tokens === null || typeof tokens !== 'object' || Array.isArray(tokens)) return
   var written = []

@@ -584,6 +584,32 @@ for (const port of ['resolve', 'prepare', 'environment'] as const) {
   })
 }
 
+// A start its authority refuses for good is an end; one it cannot answer for stays retryable (above).
+it('21 ports: a permit the authority refuses for good ends the call as not started, and nothing is launched', async () => {
+  const harness = startHarness({
+    authorityPort: base => ({
+      ...base,
+      prepare: input =>
+        input.call === 'c1'
+          ? Promise.resolve(fail<ToolFailure>({ kind: 'denied', action: 'start' }))
+          : base.prepare(input),
+    }),
+  })
+  await admitCall(harness, 'c1')
+  await admitCall(harness, 'c2')
+  await harness.drive('c1', 'c2')
+  await harness.drive('c1', 'c2')
+  expect(harness.authority.excluded).toEqual(['c1'])
+  expect(await harness.state('c1')).toMatchObject({
+    phase: 'settled',
+    terminal: { kind: 'unavailable', reason: 'the start was refused before it began' },
+    effect: { kind: 'not-started' },
+    queue: { kind: 'released' },
+  })
+  expect(harness.binding.controls.launches()).toBe(1)
+  expect((await harness.state('c2')).phase).toBe('running')
+})
+
 it('21 contradiction: a live handle with a not-started authority is retained without exclusion or resend', async () => {
   let lie = false
   const first = startHarness({

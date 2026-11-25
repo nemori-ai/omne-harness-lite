@@ -12,6 +12,22 @@ import {
 
 export type MediaClient = ClientOf<typeof mediaProtocol>
 
+/** The rows of media. `media-canvas` declares a kind on the canvas and is not one of them. */
+export const MEDIA_ROWS = [
+  'media-storage-sql',
+  'media-image',
+  'media',
+  'media-storage-local',
+  'media-sweep',
+  'media-intake',
+  'media-model-source',
+  'media-tool-store',
+  'media-converters',
+  'media-engine-transcribe',
+  'media-engine-pdf',
+  'media-access',
+]
+
 /** media/v1 over HTTP with the login the given client state saved, and the tenant of that login. */
 export function mediaClientOf(port: number, home: string) {
   const client = createClient(

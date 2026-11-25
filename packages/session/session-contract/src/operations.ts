@@ -38,7 +38,11 @@ export type SessionOperationElements =
       version: string
     }>
   | Readonly<{ kind: 'external-call'; binding: CallBinding }>
-  | Readonly<{ kind: 'context-reminder'; session: SessionId; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'context-reminder' | 'model-projection'
+      session: SessionId
+      source: DurableEvidence
+    }>
   /** A value the session commits into a block it holds, on the session revision a step begins at. */
   | Readonly<{
       kind: 'context-step'
