@@ -95,7 +95,8 @@ function supplierName(binding: PreparationBinding): string {
   return `${owner}/${name}@${revision}`
 }
 
-// A hit spends only the outputs the anchor does not cover; anything else is measured again with all.
+// A hit spends only the outputs the anchor does not cover. Anything else may have fallen back to
+// metering in full, which needs the covered outputs too: measure once more with all of them.
 function anchored(measured: Measured): boolean {
   return 'ok' in measured && measured.ok.calibration?.anchor?.kind === 'hit'
 }
