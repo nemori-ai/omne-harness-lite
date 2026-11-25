@@ -34,6 +34,8 @@ export type Proposed = Readonly<{
   rendered: string
   digest: string
   base: CardBase
+  /** What a revision changes, by number; `purpose` and `method` by name. Empty for a new goal. */
+  changed: readonly string[]
 }>
 
 export type DirectWrite = Readonly<{

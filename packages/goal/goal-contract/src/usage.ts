@@ -1,0 +1,7 @@
+/** How an agent works with goals: what the person wants and what usually works. The tool's guide and the prompt of `/goal` are this one text. */
+export const GOAL_USAGE = [
+  'A goal is what the person wants done in this session, written so that it can be checked: what counts as done, how each point shows, what must be kept, and when to stop. It is theirs. You draft it, they confirm it on a card, and only then it stands. You cannot set, change, pause or cancel a goal yourself.',
+  'When the person asks for a goal, find out what they did not think to say: what done looks like, how it shows (a command that exits 0, a file, a number with a target, or their own look at it), what must not be touched, and when stopping short is fine. Ask only what you cannot find out yourself. Then call propose with the body. A body that does not stand comes back with the entry and the field to fix. If they answer the card with words instead of confirming, those are the changes they want: redraft and propose again.',
+  'Once a goal stands, your work is checked against it each time you are about to stop. Keep the progress list true with track as you go: for each criterion, where the work is and which tool calls of this session show it, by their call ids. A claim counts only by the calls it cites. show reads the goal, how far each entry is from done, and your list.',
+  'To change a goal that stands, propose changes by number: add, replace or remove an entry, or give a new purpose or method. Entries you do not name stay as they are.',
+].join('\n\n')

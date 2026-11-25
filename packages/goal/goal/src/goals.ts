@@ -11,7 +11,14 @@ import {
   type Goals,
   type Outcome,
 } from '@omne-harness/goal-contract'
-import { decideCommand, decideWrite, digestOf, proposedBody, type Decided } from './decide.ts'
+import {
+  changedIn,
+  decideCommand,
+  decideWrite,
+  digestOf,
+  proposedBody,
+  type Decided,
+} from './decide.ts'
 import {
   ask,
   type Clock,
@@ -152,7 +159,8 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
       if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })
       const base = baseOf(read.value?.state ?? NO_GOAL)
       const rendered = renderBody(checked.body)
-      return done({ kind: proposal.kind, rendered, digest: digestOf(checked.body), base })
+      const changed = proposal.kind === 'set' ? [] : changedIn(read.value?.body, checked.body)
+      return done({ kind: proposal.kind, rendered, digest: digestOf(checked.body), base, changed })
     },
 
     async confirm(caller, input) {

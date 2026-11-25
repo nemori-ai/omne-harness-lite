@@ -171,3 +171,18 @@ export function decideCommand(current: GoalRecord | null, command: GoalCommand):
   const wake = step.effects.includes('wake') ? ({ kind: 'resume', request } as const) : null
   return { kind: 'next', record: { ...current, version, state: step.next, wake } }
 }
+
+const NUMBERED = ['criteria', 'metrics', 'rules', 'exits', 'references'] as const
+
+/** What differs between two bodies, by number: entries added, replaced or removed, then `purpose` and `method` by name. */
+export function changedIn(before: GoalBody | undefined, after: GoalBody): readonly string[] {
+  if (before === undefined) return []
+  const entries = (body: GoalBody) =>
+    new Map(NUMBERED.flatMap(name => body[name].map(e => [e.id as string, JSON.stringify(e)])))
+  const [was, now] = [entries(before), entries(after)]
+  const ids = [...new Set([...was.keys(), ...now.keys()])].filter(id => was.get(id) !== now.get(id))
+  const named = (['purpose', 'method'] as const).filter(
+    name => JSON.stringify(before[name]) !== JSON.stringify(after[name]),
+  )
+  return [...ids, ...named]
+}

@@ -192,6 +192,7 @@ describe('a confirmation card', () => {
     expect(proposed).toMatchObject({
       kind: 'set',
       base: { generation: 0, revision: 0, live: false },
+      changed: [],
     })
     expect(proposed.rendered).toContain('## 目的\n把首页的加载时间降下来')
     expect(proposed.digest).toMatch(/^sha256:[0-9a-f]{64}$/u)
@@ -426,7 +427,21 @@ describe('proposing', () => {
     expect(proposed).toMatchObject({
       kind: 'revise',
       base: { generation: 1, revision: 1, live: true },
+      changed: ['N2'],
     })
+    const more = [
+      { op: 'replace', id: 'N1', entry: { statement: '不改公共接口与事件名。' } },
+      { op: 'remove', id: 'A1' },
+      {
+        op: 'add',
+        section: 'criteria',
+        entry: { statement: '新判据', evidence: { kind: 'file', path: 'a.md' } },
+      },
+      { op: 'purpose', text: '只降首页' },
+      { op: 'method', lines: ['先量'] },
+    ]
+    const many = value(await propose(goals, { kind: 'revise', changes: more }))
+    expect(many.changed).toEqual(['A1', 'N1', 'A2', 'purpose', 'method'])
     expect(proposed.rendered).toContain('- [N2] 每次提交前跑 lint。')
     value(await goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } }))
     expect(refusal(await propose(goals, ADD_RULE))).toEqual({
