@@ -19,7 +19,8 @@ import {
   calendarText,
   CONTROL_WORDS,
   localText,
-  STANDING_WORDS,
+  nextText,
+  runnableText,
   stateNote,
   type ScheduleDetail,
   type Succeeded,
@@ -114,6 +115,7 @@ function ScheduleReading({
           preview={preview}
           rereadPreview={rereadPreview}
           reasons={reasons}
+          control={detail.kind === 'read' ? detail.value.control : undefined}
           round={round}
           onOpen={row => row.job !== null && onOpen({ job: row.job.job, local: row.local })}
         />
@@ -139,9 +141,13 @@ function Record({ detail }: Readonly<{ detail: ScheduleDetail }>): JSX.Element {
             {note?.word ?? CONTROL_WORDS.active}
           </StatusPill>
         </FactRow>
-        <FactRow term="能否运行">{STANDING_WORDS[detail.standing]}</FactRow>
+        <FactRow term="能否运行">{runnableText(detail)}</FactRow>
         <FactRow term="下一次">
-          {detail.next === null ? '没有下一次' : <Time item={detail.next} />}
+          {detail.control === 'active' && detail.next !== null ? (
+            <Time item={detail.next} />
+          ) : (
+            nextText(detail)
+          )}
         </FactRow>
         <FactRow term="修订">{detail.revision}</FactRow>
       </FactList>

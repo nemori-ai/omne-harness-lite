@@ -17,6 +17,7 @@ import {
   releasedHolding,
   saveState,
   writeAdmission,
+  writeShownNext,
 } from './dispatch-records.ts'
 import { GUARD_FACT, RESULT_FACT } from './schema.ts'
 import { stepJob, writeDirect } from './dispatch-jobs.ts'
@@ -103,7 +104,10 @@ export function executeDispatch(requirement: DispatchRequirement, port: Particip
     const record = readRecord(port, command.owner, command.scheduleId)
     if (record === null || record.view.revision !== command.revision) return stale
     if (command.kind === 'refresh') {
-      if (command.state !== null) saveState(port, command.owner, command.scheduleId, command.state)
+      if (command.state !== null) {
+        saveState(port, command.owner, command.scheduleId, command.state)
+        writeShownNext(port, command.owner, record, command.state)
+      }
       port.execute('DELETE FROM sc_outbox WHERE owner = ? AND schedule_id = ? AND revision <= ?', [
         canonical(command.owner),
         command.scheduleId,

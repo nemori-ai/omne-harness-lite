@@ -101,6 +101,8 @@ export const ScheduleJobRunSchema = z.strictObject({
   startedAt: ScheduleInstantSchema.nullable(),
   endedAt: ScheduleInstantSchema.nullable(),
 })
+/** How the Job of a history row ran, and the reason its executor gave for the way it ended. */
+const ScheduleRowRunSchema = ScheduleJobRunSchema.extend({ reason: z.string().nullable() })
 const ScheduleSlotRowSchema = z.strictObject({
   kind: z.literal('slot'),
   rowRef: ref,
@@ -111,7 +113,7 @@ const ScheduleSlotRowSchema = z.strictObject({
   preparation: SchedulePreparationSummarySchema.nullable(),
   receipt: ScheduleReceiptSummarySchema.nullable(),
   job: ScheduleJobSummarySchema.nullable(),
-  run: ScheduleJobRunSchema.nullable(),
+  run: ScheduleRowRunSchema.nullable(),
   notification: ScheduleNotificationSummarySchema.nullable(),
 })
 const ScheduleLapseRowSchema = z.strictObject({
@@ -130,7 +132,7 @@ const ScheduleDirectRowSchema = z.strictObject({
   rowRef: ref,
   originalScheduledAt: ScheduleInstantSchema,
   job: ScheduleJobSummarySchema,
-  run: ScheduleJobRunSchema,
+  run: ScheduleRowRunSchema,
 })
 /** One row of a schedule's history: a disposed slot, a missed stretch, or a Job started outside any schedule. */
 export const ScheduleExecutionRowSchema = z.discriminatedUnion('kind', [
