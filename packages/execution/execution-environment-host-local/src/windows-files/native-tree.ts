@@ -77,13 +77,17 @@ public static partial class OmneFiles {
     catch(IOException) { return false; }
   }
   public static object Change(string root,string expectedRoot,string[] segments,string named,string operation,bool recursive,string version,bool hasVersion,string targetRoot,string expectedTargetRoot,string[] targetSegments,string targetNamed,bool replace,bool rooted,bool targetRooted) {
-    List<IntPtr> held=new List<IntPtr>(); bool changed=false;
+    List<IntPtr> held=new List<IntPtr>(); bool changed=false; string visited=null,destinationVisit=null;
     try {
       if(segments.Length==0) throw new IOException("notAuthorized");
       IntPtr rootHandle=Root(root,expectedRoot,rooted,held), current;
-      if(operation=="mkdir") current=MakeDirectories(rootHandle,root,segments,named,recursive,rooted,held,ref changed);
+      if(operation=="mkdir") {
+        current=MakeDirectories(rootHandle,root,segments,named,recursive,rooted,held,ref changed);
+        if(!rooted) visited=PhysicalHandlePath(current);
+      }
       else {
         IntPtr parent=Parent(rootHandle,root,segments,rooted,held);
+        if(!rooted) visited=PhysicalHandlePath(parent);
         current=OpenRelative(parent,segments[segments.Length-1],0x10081,false); held.Add(current);
         CheckNamed(current,named,hasVersion?version:null); Info info=Information(current);
         if(info.volume!=Information(rooted?rootHandle:parent).volume) throw new IOException("notAuthorized");
@@ -93,6 +97,7 @@ public static partial class OmneFiles {
         } else if(operation=="move") {
           if(targetSegments.Length==0) throw new IOException("notAuthorized");
           IntPtr destinationRoot=Root(targetRoot,expectedTargetRoot,targetRooted,held), destination=Parent(destinationRoot,targetRoot,targetSegments,targetRooted,held);
+          if(!targetRooted) destinationVisit=PhysicalHandlePath(destination);
           string targetName=targetSegments[targetSegments.Length-1]; IntPtr target=IntPtr.Zero; bool replacing=false;
           try { target=OpenRelative(destination,targetName,0x80,false); }
           catch(IOException error) { if(error.Message!="unresolved") throw; }
@@ -110,7 +115,7 @@ public static partial class OmneFiles {
           changed=true;
         } else throw new IOException("unsupported");
       }
-      return new { info=Metadata(current,""), bytes="", entries=new object[0], next=-1 };
+      return new { info=Metadata(current,""), directory=visited, targetDirectory=destinationVisit, bytes="", entries=new object[0], next=-1 };
     } catch { if(changed) throw new IOException("unknown"); throw; }
     finally { Release(held); }
   }

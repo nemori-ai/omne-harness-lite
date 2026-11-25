@@ -28,6 +28,7 @@ it('publishes exactly the inventoried runtime values', async () => {
     'decodeRegistrationRef',
     'decodeSourceGeneration',
     'encodeFixedRequestRecord',
+    'guidanceDirectories',
     'judgeBudget',
     'measureCandidate',
     'modalityOfBlock',

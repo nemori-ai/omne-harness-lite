@@ -1,0 +1,92 @@
+import { lstat, mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { expect, it, onTestFinished } from 'vitest'
+import { creation, sessionId } from '@omne-harness/session-contract/testing'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
+import { fixtureTenant } from '../../entry/support.ts'
+import { readWorkspaceGuidance } from '../../../src/rows/session-ad03/workspace-guidance.ts'
+
+it('distinguishes a missing rule in a verified directory from an unverified parent', async () => {
+  const base = await realpath(await mkdtemp(join(tmpdir(), 'guidance-path-')))
+  onTestFinished(() => rm(base, { recursive: true, force: true }))
+  const root = join(base, 'workspace')
+  const peer = join(base, 'peer')
+  const child = join(root, 'visited')
+  await mkdir(root)
+  await mkdir(child)
+  await mkdir(peer)
+  const scope = decodeScopeRef({ ref: 'session-scope:guidance' })
+  if ('failure' in scope) throw new Error('fixture scope')
+  const binding = {
+    state: 'attached' as const,
+    workspace: 'workspace',
+    instance: 'instance',
+    directory: root,
+    files: { read: root, write: root },
+  }
+  const input = {
+    tenant: fixtureTenant('a'),
+    principal: 'reader',
+    session: sessionId('scope'),
+    scope: scope.ok,
+    snapshot: {
+      creation: creation(),
+      changes: [],
+      contextRecords: [],
+      workspaceVisit: {
+        workspace: 'workspace',
+        instance: 'instance',
+        generation: '0',
+        directories: [child],
+      },
+    },
+  }
+  const stat = await lstat(root, { bigint: true })
+  const rootIdentity = `${stat.dev}:${stat.ino}`
+  const foreign = await lstat(peer, { bigint: true })
+  await expect(
+    readWorkspaceGuidance(input, binding, `${foreign.dev}:${foreign.ino}`),
+  ).resolves.toMatchObject({
+    state: 'unavailable',
+    path: 'AGENTS.md',
+  })
+  await expect(readWorkspaceGuidance(input, binding, rootIdentity)).resolves.toMatchObject({
+    state: 'attached',
+    absent: ['AGENTS.md', 'visited/AGENTS.md'],
+    sources: [],
+  })
+  const alias = join(root, 'VISITED')
+  const aliasStat = await lstat(alias, { bigint: true }).catch(() => null)
+  const registeredStat = await lstat(child, { bigint: true })
+  if (aliasStat?.ino === registeredStat.ino && aliasStat.dev === registeredStat.dev) {
+    await writeFile(join(child, 'AGENTS.md'), 'case-preserved source')
+    const visitedAs = (directories: string[]) => ({
+      ...input,
+      snapshot: {
+        ...input.snapshot,
+        workspaceVisit: { ...input.snapshot.workspaceVisit, directories },
+      },
+    })
+    const together = await readWorkspaceGuidance(visitedAs([alias, child]), binding, rootIdentity)
+    const again = await readWorkspaceGuidance(visitedAs([alias]), binding, rootIdentity)
+    for (const value of [together, again]) {
+      expect(value.state).toBe('attached')
+      if (value.state === 'attached')
+        expect(value.sources.map(source => source.path)).toEqual(['visited/AGENTS.md'])
+    }
+  }
+  await rm(child, { recursive: true })
+  await symlink(peer, child, 'dir')
+  await expect(readWorkspaceGuidance(input, binding, rootIdentity)).resolves.toMatchObject({
+    state: 'unavailable',
+    path: 'visited/AGENTS.md',
+    reason: 'denied',
+  })
+  await writeFile(join(peer, 'AGENTS.md'), 'other workspace')
+  await expect(readWorkspaceGuidance(input, binding, rootIdentity)).resolves.toMatchObject({
+    state: 'unavailable',
+    path: 'visited/AGENTS.md',
+    reason: 'denied',
+  })
+})

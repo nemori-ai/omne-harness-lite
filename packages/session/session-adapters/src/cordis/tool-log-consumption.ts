@@ -1,3 +1,4 @@
+import { stepOfToolAction } from '@omne-harness/agent-contract'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   AgentExecutionId,
@@ -237,9 +238,27 @@ function interpretationOf(
           how: delivery.source.kind,
         },
       ]
-    case 'result':
+    case 'result': {
+      const { consumer } = entry
+      const step =
+        consumer.owner === '@omne-harness/agent' && consumer.purpose === 'action'
+          ? stepOfToolAction(consumer.position)
+          : null
+      const batch = JSON.stringify([consumer.work, step ?? consumer.position])
       return [
-        { kind: 'execution', producer, source },
+        {
+          kind: 'execution',
+          producer,
+          source,
+          ...(delivery.value.directoryVisit === undefined
+            ? {}
+            : {
+                directoryVisit: {
+                  ...delivery.value.directoryVisit,
+                  ...(backgrounded ? {} : { batch }),
+                },
+              }),
+        },
         ...(delivery.account === null ? [] : [account]),
         ...(backgrounded
           ? [
@@ -253,6 +272,7 @@ function interpretationOf(
             ]
           : []),
       ]
+    }
   }
 }
 

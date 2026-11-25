@@ -1,3 +1,5 @@
+import { observeLinuxBasicFiles } from './open-file-directory.ts'
+import { createHostFileFacade } from './host-file-visits.ts'
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { lstat, open } from 'node:fs/promises'
@@ -135,12 +137,16 @@ export type HostFilesEngine = Readonly<{
 
 export type HostFilesEngineOptions = Readonly<{
   scope?: FilesScope
+  expectedReadRoot?: string | undefined
   stateDirectory?: string
   diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
 }>
 
-export function createHostFiles(): FileSystemFacility<unknown> {
-  return createHostFilesEngine().facilityFor('host-files')
+export function createHostFiles(
+  scope: FilesScope = {},
+  expectedReadRoot?: string,
+): FileSystemFacility<unknown> {
+  return createHostFilesEngine({ scope, expectedReadRoot }).facilityFor('host-files')
 }
 
 function absolutePath(name: string, value: string | undefined): void {
@@ -219,20 +225,38 @@ function bindScoped(cores: Readonly<Record<FileEffect, HostPathsCore>>, close: C
 /** The roots of a scope, checked and bound once per effect: the path cores and each platform's identities. */
 function scopedRoots(options: HostFilesEngineOptions) {
   const scope: FilesScope = Object.freeze({ ...options.scope })
+  if (options.expectedReadRoot !== undefined && scope.read === undefined)
+    throw new TypeError('a verified read root needs its absolute path')
   absolutePath('scope.read', scope.read)
   absolutePath('scope.write', scope.write)
   absolutePath('stateDirectory', options.stateDirectory)
-  const identities = <T>(make: (root: string) => T) =>
-    perEffect(scope, root => (root === undefined ? undefined : make(root)))
+  const expected = (root: string | undefined) =>
+    root === scope.read ? options.expectedReadRoot : undefined
+  const identities = <T>(make: (root: string, expected?: string) => T) =>
+    perEffect(scope, root => (root === undefined ? undefined : make(root, expected(root))))
   return {
     scope,
     cores: perEffect(scope, root =>
-      createHostPathsCore({ root, probeDirectory: options.stateDirectory }),
+      createHostPathsCore({
+        root,
+        expectedRoot: expected(root),
+        probeDirectory: options.stateDirectory,
+      }),
     ),
     // Lazy: an identity is taken only when the platform's backend first asks for it.
     windowsRootIdentity: identities(createWindowsRootIdentity),
     macosRootIdentity: identities(createMacosRootIdentity),
   }
+}
+
+async function writeAll(handle: FileHandle, bytes: Uint8Array): Promise<boolean> {
+  let offset = 0
+  while (offset < bytes.byteLength) {
+    const { bytesWritten } = await handle.write(bytes, offset)
+    if (bytesWritten <= 0) return false
+    offset += bytesWritten
+  }
+  return true
 }
 
 export function createHostFilesEngine(
@@ -452,16 +476,6 @@ export function createHostFilesEngine(
       }
       if (checked.kind !== 'handle') await closeOrTrack(handle)
       return checked
-    }
-
-    async function writeAll(handle: FileHandle, bytes: Uint8Array): Promise<boolean> {
-      let offset = 0
-      while (offset < bytes.byteLength) {
-        const { bytesWritten } = await handle.write(bytes, offset)
-        if (bytesWritten <= 0) return false
-        offset += bytesWritten
-      }
-      return true
     }
 
     async function readRange(
@@ -781,6 +795,8 @@ export function createHostFilesEngine(
       recoverBatch: batch.recoverBatch,
     }
 
+    if (process.platform === 'linux') observeLinuxBasicFiles(operations, scope, closeOrTrack)
+
     if (process.platform === 'win32') {
       const windows = createWindowsFiles({
         scope,
@@ -812,6 +828,7 @@ export function createHostFilesEngine(
     if (process.platform === 'darwin') {
       const macos = createMacosFiles({
         rootIdentity: macosRootIdentity,
+        unbounded: { read: operations.read, stat: operations.stat, write: operations.write },
         limits: bounds,
         prerequisite: macosPrerequisite,
         issue,
@@ -834,33 +851,12 @@ export function createHostFilesEngine(
       })
       operations.commitBatch = macosBatch.commitBatch
       operations.recoverBatch = macosBatch.recoverBatch
-      if (scope.read !== undefined) {
-        operations.read = macos.read
-        operations.stat = macos.stat
-      }
-      if (scope.write !== undefined) operations.write = macos.write
+      operations.read = macos.read
+      operations.stat = macos.stat
+      operations.write = macos.write
     }
 
-    const unlessSealed =
-      <Q extends { readonly requestId: string }, T>(
-        run: (request: Q) => Promise<FacilityResult<T>>,
-      ) =>
-      async (request: Q): Promise<FacilityResult<T>> =>
-        sealed.has(owner) ? reject(request.requestId, 'closed') : run(request)
-    const facility: FileSystemFacility<unknown> = {
-      read: unlessSealed(operations.read),
-      stat: unlessSealed(operations.stat),
-      write: unlessSealed(operations.write),
-      close: unlessSealed(operations.close),
-      list: unlessSealed(operations.list),
-      search: unlessSealed(operations.search),
-      mkdir: unlessSealed(operations.mkdir),
-      remove: unlessSealed(operations.remove),
-      move: unlessSealed(operations.move),
-      copy: unlessSealed(operations.copy),
-      commitBatch: unlessSealed(operations.commitBatch),
-      recoverBatch: unlessSealed(operations.recoverBatch),
-    }
+    const facility = createHostFileFacade(operations, scope, () => sealed.has(owner))
 
     internalState.set(facility, {
       pendingCloseCount: () => [...pendingClose.values()].filter(holder => holder === owner).length,

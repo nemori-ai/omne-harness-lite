@@ -9,6 +9,7 @@ it('exports the host files facility, its object token reader, the root position 
   const root: Record<string, unknown> =
     await import('@omne-harness/execution-environment-host-local')
   expect(Object.keys(root).sort()).toEqual([
+    'createHostFileLookup',
     'createHostFiles',
     'createHostFilesDomain',
     'createHostFilesProvider',

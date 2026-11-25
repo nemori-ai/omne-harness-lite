@@ -14,6 +14,7 @@ import { jsonValue } from './json-tree.ts'
 import type { ToolMessageContentBlock, ToolResult, ToolRenderedResult } from './results.ts'
 import {
   decimal,
+  filled,
   identity,
   refine,
   describeRejection,
@@ -144,11 +145,44 @@ const bodyRetention = refine(
       ? undefined
       : { field: at, reason: 'positive-retention' },
 )
+const visitFields = {
+  directoryVisit: record({
+    workspace: filled,
+    instance: filled,
+    generation: decimal,
+    directories: list(filled),
+  }),
+}
+
 function committedResultShape<B extends ContentBlock>(
   checkedBlock: Check<B>,
 ): Check<ToolResult<B>> {
-  return record({
-    content: list(checkedBlock),
+  return record(
+    {
+      content: list(checkedBlock),
+      data: resultData,
+      attachments: list(contentReference),
+      original: variant('kind', {
+        none: record({ kind: literal('none') }),
+        offloaded: record({
+          kind: literal('offloaded'),
+          source: contentReference,
+          summary: list(checkedBlock),
+          bodyId: identity(decodeToolBodyId),
+          representation: bodyRepresentation,
+          bodyBytes: decimal,
+          previewKind: literal('author-summary', 'mechanical'),
+          retention: bodyRetention,
+        }),
+      }),
+    },
+    visitFields,
+  )
+}
+export const toolResultShape = committedResultShape(block)
+export const toolRenderedResultShape: Check<ToolRenderedResult<ToolMessageContentBlock>> = record(
+  {
+    content: list(block),
     data: resultData,
     attachments: list(contentReference),
     original: variant('kind', {
@@ -156,30 +190,12 @@ function committedResultShape<B extends ContentBlock>(
       offloaded: record({
         kind: literal('offloaded'),
         source: contentReference,
-        summary: list(checkedBlock),
-        bodyId: identity(decodeToolBodyId),
-        representation: bodyRepresentation,
-        bodyBytes: decimal,
-        previewKind: literal('author-summary', 'mechanical'),
-        retention: bodyRetention,
+        summary: list(block),
       }),
     }),
-  })
-}
-export const toolResultShape = committedResultShape(block)
-export const toolRenderedResultShape: Check<ToolRenderedResult<ToolMessageContentBlock>> = record({
-  content: list(block),
-  data: resultData,
-  attachments: list(contentReference),
-  original: variant('kind', {
-    none: record({ kind: literal('none') }),
-    offloaded: record({
-      kind: literal('offloaded'),
-      source: contentReference,
-      summary: list(block),
-    }),
-  }),
-})
+  },
+  visitFields,
+)
 export function judgeCommittedToolResult<B extends ContentBlock>(
   policy: ResultPolicy<B>,
   value: unknown,

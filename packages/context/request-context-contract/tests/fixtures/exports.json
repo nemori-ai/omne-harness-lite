@@ -96,6 +96,11 @@
               "pending": false
             },
             {
+              "name": "guidanceDirectories",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "chooseRepresentations",
               "kind": "value",
               "pending": false

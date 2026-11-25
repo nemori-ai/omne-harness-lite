@@ -1,3 +1,4 @@
+import { handlePathSource } from '../windows-native/handle-path.ts'
 export const nativeSource = String.raw`
 using System;
 using System.IO;
@@ -5,6 +6,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 public static partial class OmneFiles {
+${handlePathSource}
   [StructLayout(LayoutKind.Sequential)] struct Unicode { public ushort length, maximum; public IntPtr buffer; }
   [StructLayout(LayoutKind.Sequential)] struct Attributes { public uint length; public IntPtr root, name; public uint flags; public IntPtr security, qos; }
   [StructLayout(LayoutKind.Sequential)] struct Status { public IntPtr status, information; }
@@ -32,6 +34,7 @@ public static partial class OmneFiles {
     {112,"capacity"},{39,"capacity"},
   };
   static Exception Error(uint code) {
+    if (code == 2) return new FileNotFoundException("unresolved");
     string reason;
     return new IOException(Reasons.TryGetValue(code,out reason)?reason:"unknown");
   }
@@ -84,7 +87,12 @@ public static partial class OmneFiles {
     held.Add(handle); Info info=Information(handle);
     if((info.attributes&16)==0) throw new IOException(rooted?"unavailable":"unsupported");
     if((info.attributes&0x400)!=0) throw new IOException(rooted?"notAuthorized":"unsupported");
-    if(rooted && Token(handle)!=expected) throw new IOException("notAuthorized");
+    if(rooted) {
+      string actual=expected.StartsWith("node-stat:",StringComparison.Ordinal)
+        ? "node-stat:"+info.volume.ToString()+":"+(((ulong)info.indexHigh<<32)|info.indexLow).ToString()
+        : Token(handle);
+      if(actual!=expected) throw new IOException("notAuthorized");
+    }
     return handle;
   }
   // The directory segments[index] below parent. Below a root, a reparse point or another volume is outside
@@ -192,13 +200,15 @@ public static partial class OmneFiles {
   // The object a path names, opened with access. directory: the path ends in a separator or a "." segment,
   // so it must name a directory; follow: it ends in a "." segment, so the last segment is resolved as a
   // directory. The last segment is not followed: a link there is unsupported unless link is true.
-  static IntPtr Final(string root,string expectedRoot,string[] segments,bool rooted,bool directory,bool follow,uint access,bool link,List<IntPtr> held) {
+  static IntPtr Final(string root,string expectedRoot,string[] segments,bool rooted,bool directory,bool follow,uint access,bool link,List<IntPtr> held,bool lookup=false) {
     IntPtr current=Root(root,expectedRoot,rooted,held);
     uint rootVolume=Information(current).volume;
     for(int i=0;i<segments.Length;i++) {
       if(i<segments.Length-1 || follow) { current=Step(current,root,segments,i,rooted,rootVolume,held); continue; }
       uint parentVolume=Information(current).volume;
-      current=OpenRelative(current,segments[i],access,false); held.Add(current);
+      try { current=OpenRelative(current,segments[i],access,false); }
+      catch(FileNotFoundException) { if(lookup) throw new IOException("notFound"); throw; }
+      held.Add(current);
       Info step=Information(current);
       if((step.attributes&0x400)!=0 && !link) throw new IOException("unsupported");
       if(step.volume!=(rooted?rootVolume:parentVolume)) throw new IOException("notAuthorized");
@@ -211,17 +221,25 @@ public static partial class OmneFiles {
     List<IntPtr> held=new List<IntPtr>();
     try {
       uint access=operation=="list" || operation=="search"?0x81u:operation=="read"?0x80000080u:0x80u;
-      IntPtr current=Final(root,expectedRoot,segments,rooted,directory,follow,access,operation=="identify",held);
+      IntPtr current=Final(root,expectedRoot,segments,rooted,directory,follow,access,operation=="identify",held,operation=="lookup");
       Info info=Information(current);
+      if(operation=="lookup") {
+        string name=PhysicalHandlePath(current);
+        if(name==null) throw new IOException("unknown");
+        return new { info=Metadata(current,""), directory=Path.GetDirectoryName(name), bytes="", entries=new object[0], next=-1 };
+      }
       if(operation=="identify") return new { info=Metadata(current,""), bytes="", entries=new object[0], next=-1 };
       if(Token(current)!=named) throw new IOException("conflict");
+      // Final holds the parent used by OpenRelative immediately before the final file handle.
+      IntPtr directoryHandle=(info.attributes&16)!=0 ? current : held[held.Count-2];
+      string visited=rooted?null:PhysicalHandlePath(directoryHandle);
       if(operation=="search") {
         if((info.attributes&16)==0) throw new IOException("unsupported");
         SearchState state=new SearchState { pattern=Convert.FromBase64String(pattern),content=content,recursive=recursive,rooted=rooted,entryBudget=entryBudget,byteBudget=byteBudget,fileBytes=fileBytes,want=offset+limit+1,volume=info.volume };
         Visit(current,requestedPath,state);
         long end=Math.Min(state.hits.Count,offset+limit); List<SearchHit> hits=new List<SearchHit>();
         for(long i=offset;i<end;i++) hits.Add(state.hits[(int)i]);
-        return new { info=Metadata(current,""), bytes="", entries=new object[0], next=state.hits.Count>offset+limit?offset+limit:-1, hits=hits.ToArray(), truncated=state.truncated };
+        return new { info=Metadata(current,""), bytes="", entries=new object[0], next=state.hits.Count>offset+limit?offset+limit:-1, directory=visited, hits=hits.ToArray(), truncated=state.truncated };
       }
       List<object> entries=new List<object>(); string bytes=""; bool eof=false;
       if(operation=="read") {
@@ -240,9 +258,9 @@ public static partial class OmneFiles {
           try { entries.Add(Metadata(child,names[i])); }
           finally { if(!CloseHandle(child)) throw new IOException("unknown"); }
         }
-        return new { info=Metadata(current,""), bytes=bytes, entries=entries.ToArray(), next=end<names.Length?end:-1 };
+        return new { info=Metadata(current,""), bytes=bytes, directory=visited, entries=entries.ToArray(), next=end<names.Length?end:-1 };
       }
-      return new { info=Metadata(current,""), bytes=bytes, entries=entries.ToArray(), next=-1, eof=eof };
+      return new { info=Metadata(current,""), bytes=bytes, directory=visited, entries=entries.ToArray(), next=-1, eof=eof };
     } finally { Release(held); }
   }
 }

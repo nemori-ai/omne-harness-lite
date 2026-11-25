@@ -92,6 +92,7 @@ export type {
   ToolLookup,
   ToolRelation,
   ToolResult,
+  ToolDirectoryVisit,
   ToolRenderedResult,
   ToolOffloadedBody,
   ToolBodyRetention,

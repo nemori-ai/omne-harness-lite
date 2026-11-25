@@ -62,6 +62,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness/execution-environment-host-local": "workspace:*",
     "@types/node": "catalog:",
     "@types/turndown": "5.0.6",
     "@typescript/typescript6": "catalog:",

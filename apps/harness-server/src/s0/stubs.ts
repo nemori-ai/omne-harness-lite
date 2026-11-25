@@ -331,6 +331,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentToolReceptionTargets',
       'sessionAdoptedRequests',
       'sessionExecutionLog',
+      'sessionModelHistoryReadiness',
     ],
     injects: [
       'sessionAccessCheck',

@@ -1,4 +1,4 @@
-import { chmod } from 'node:fs/promises'
+import { lstat, chmod } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DirectoryType } from '@omne-harness/workspace-filesystem'
@@ -92,7 +92,11 @@ describe('inspecting what was recognised', () => {
   it('gives the root and the basis of a resource without versions', async () => {
     const { root, material } = await recognised('blog')
     await writeFile(join(root, 'new.txt'), 'the content may change; it has no version')
-    expect(await type.inspect(material)).toEqual({ ok: { directory: root, basis: 'unpinned' } })
+    const info = await lstat(root, { bigint: true })
+    const rootIdentity = `${info.dev}:${info.ino}`
+    expect(await type.inspect(material)).toEqual({
+      ok: { directory: root, basis: 'unpinned', rootIdentity },
+    })
   })
 
   it('a directory that was moved away is not found, and is itself again when it is back', async () => {

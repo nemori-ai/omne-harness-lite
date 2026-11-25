@@ -1,0 +1,67 @@
+{
+  "member": "goal",
+  "model": "models/Goal.tla",
+  "scope": "finite model Goal: one session, at most two goals one after another, two revisions each and a budget of two rounds. Case attended: a person can confirm a drafted goal, edit, pause, resume, cancel and settle by an exit. Case unattended: the creator of the session sets, cancels and aborts; nobody can pause. Each action is one conditional write of the goal store, one commit of the session, or one step of the run. The judge's verdict is taken from the truth at the moment the observation starts: the model is about races between commands and late observations and about replays after a crash, not about how well a judge judges. Not modelled: the content of a goal and its validation, metrics and readings, the kinds of exits and what counts as success, the progress list, the decision call and its failures, stagnation, the creation of the card, several sessions. Each control switches on one fault through the constant Faults and must violate exactly its invariant. No liveness is checked and there is no refinement proof to the implementation.",
+  "workers": 4,
+  "timeoutSeconds": 900,
+  "cases": [
+    {
+      "name": "attended",
+      "config": "models/attended.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "unattended",
+      "config": "models/unattended.cfg",
+      "expected": "complete"
+    }
+  ],
+  "controls": [
+    {
+      "name": "stale-revision",
+      "config": "models/stale-revision.cfg",
+      "expected": "AchievedIsFresh"
+    },
+    {
+      "name": "replayed-round",
+      "config": "models/replayed-round.cfg",
+      "expected": "CountedOnce"
+    },
+    {
+      "name": "duplicate-reminder",
+      "config": "models/duplicate-reminder.cfg",
+      "expected": "CountedOnce"
+    },
+    {
+      "name": "stale-pass",
+      "config": "models/stale-pass.cfg",
+      "expected": "NoSilentPass"
+    },
+    {
+      "name": "stale-card",
+      "config": "models/stale-card.cfg",
+      "expected": "CardIsCurrent"
+    },
+    {
+      "name": "agent-pause",
+      "config": "models/agent-pause.cfg",
+      "expected": "NeverByAgent"
+    },
+    {
+      "name": "settle-twice",
+      "config": "models/settle-twice.cfg",
+      "expected": "SettledOnce"
+    },
+    {
+      "name": "no-budget",
+      "config": "models/no-budget.cfg",
+      "expected": "RoundsBounded"
+    },
+    {
+      "name": "pause-unattended",
+      "config": "models/pause-unattended.cfg",
+      "expected": "NoPauseUnattended"
+    }
+  ],
+  "mutations": []
+}

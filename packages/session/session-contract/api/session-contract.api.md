@@ -317,6 +317,7 @@
 - `TodoMutationReceipt` · `todos.d.ts`
 - `TodoPage` · `todos.d.ts`
 - `TodoPageCursor` · `todos.d.ts`
+- `UNKNOWN_MODEL_PROVENANCE` · `model-provenance.d.ts`
 - `UnarchivedLifecycle` · `faces.d.ts`
 - `Utterance` · `utterance-resolver.d.ts`
 - `UtteranceResolver` · `utterance-resolver.d.ts`
@@ -400,6 +401,7 @@
 - `onceAuthorizationOf` · `authorizations.d.ts`
 - `openWork` · `judgments.d.ts`
 - `originalContent` · `before-intake.d.ts`
+- `originalModelRows` · `model-originals.d.ts`
 - `ownPositionAfter` · `fork.d.ts`
 - `parseForkPoint` · `fork.d.ts`
 - `parseInputSourceName` · `input-sources.d.ts`
@@ -411,6 +413,8 @@
 - `prepareIntakeTerms` · `input-sources.d.ts`
 - `previewOf` · `intake-reads.d.ts`
 - `projectCompactionCommit` · `compaction-commit.d.ts`
+- `projectModelMessage` · `model-projection.d.ts`
+- `projectModelProvenance` · `model-provenance.d.ts`
 - `projectSessionEntries` · `entries-interpretation.d.ts`
 - `projectSessionLog` · `projection.d.ts`
 - `readAccessRequest` · `access.d.ts`
@@ -438,11 +442,13 @@
 - `shortCallId` · `background-calls.d.ts`
 - `sourceRequestIdentities` · `source-requests.d.ts`
 - `standingOf` · `standing.d.ts`
+- `summarizeModelProvenance` · `model-provenance.d.ts`
 - `uninterpretedCalls` · `uninterpreted-calls.d.ts`
 - `waitingCalls` · `intake-reads.d.ts`
 - `wakingInputs` · `intake.d.ts`
 - `withIntakeTerms` · `input-sources.d.ts`
 - `withoutCommitted` · `committed-bindings.d.ts`
+- `workspaceGeneration` · `workspace-selection.d.ts`
 - `workspaceSelection` · `workspace-selection.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
@@ -1502,7 +1508,7 @@ import type { JsonValue } from '@omne-harness/json-text';
 import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId, TodoItemId } from './identity.ts';
-import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunEnd, RunTerminal, SessionCreation, ResidentAdoption, ResidentSegment, ResidentTool, DeclarationChange, SessionTree, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, ProducerRef, InputBatch, Waiting, ExecutionRef, BackgroundDisposition } from './values.ts';
+import type { BoundedClose, ModelProvenance, InitializationResult, Participation, RecoveryTask, RunEnd, RunTerminal, SessionCreation, ResidentAdoption, ResidentSegment, ResidentTool, DeclarationChange, SessionTree, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, ProducerRef, InputBatch, Waiting, ExecutionRef, BackgroundDisposition } from './values.ts';
 import type { EntryClass, HistoryEntry } from './faces.ts';
 import type { AdmittedSource } from './input-sources.ts';
 import type { EncodedEntry } from './judgments.ts';
@@ -1517,6 +1523,12 @@ export type InitializationItem = Omit<Extract<RecoveryTask, {
     kind: 'initialization';
 }>, 'kind' | 'originalOperation' | 'state' | 'diagnostic'>;
 export type SessionEntry = Readonly<{
+    kind: 'session.model-projected';
+    epoch: string;
+    restoreOriginals?: true;
+    blocks: readonly string[];
+    source: DurableEvidence;
+}> | Readonly<{
     kind: 'session.permission-assigned';
     declaration: Extract<DeclarationChange, {
         kind: 'permission-assignment';
@@ -1570,6 +1582,7 @@ export type SessionEntry = Readonly<{
     }>;
 }> | Readonly<{
     kind: `message.${Message['role']}`;
+    provenance?: readonly ModelProvenance[];
     message: Message;
     source: DurableEvidence;
     admission: DurableEvidence | null;
@@ -1834,7 +1847,7 @@ import type { CompactionContext, Message, RecordEntryRef } from '@omne-harness/m
 import type { Outcome } from '@omne-harness/operation-result';
 import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision, TodoItemId } from './identity.ts';
 import type { ControlOperationResolution, SessionCallTerminal, SessionControlReceipt, SessionModelSelection } from './control-values.ts';
-import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionWaiting, WorkSnapshot, Attendance } from './values.ts';
+import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, ModelProvenance, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionWaiting, WorkSnapshot, Attendance } from './values.ts';
 import type { InputFate } from './input-fate.ts';
 import type { PendingPage, WaitingCall } from './intake-reads.ts';
 export type SessionFailure = Readonly<{
@@ -2046,7 +2059,7 @@ export interface SessionWork<P> {
     }>) | (Mutation<P> & Readonly<{
         expected: SessionRevision;
         value: Extract<DerivedMessage, {
-            kind: 'context-reminder';
+            kind: 'context-reminder' | 'model-projection';
         }>;
     }>)): Reply<CommitReceipt>;
     release(input: Mutation<P> & Readonly<{
@@ -2158,6 +2171,7 @@ export type ProducerFact = Readonly<{
     kind: 'execution';
     producer: ProducerRef;
     source: DurableEvidence;
+    directoryVisit?: import('./values.ts').WorkspaceDirectoryVisit;
 }> | Readonly<{
     kind: 'account';
     producer: ProducerRef;
@@ -2261,6 +2275,7 @@ export type ModelViewBasis = Readonly<{
     upper: string;
 }>;
 export type ModelViewRow = Readonly<{
+    provenance?: readonly ModelProvenance[];
     seq: string;
     entry: EntryId;
     bytes: number;
@@ -2271,6 +2286,7 @@ export type ModelViewRead = Readonly<{
     kind: 'page';
     basis: ModelViewBasis;
     rows: readonly ModelViewRow[];
+    resume?: string;
     next: string | null;
 }> | Readonly<{
     kind: 'epoch-changed';
@@ -2317,6 +2333,7 @@ export interface SessionHistory<P> {
         basis: ModelViewBasis | null;
         after: string | null;
         pageBytes: number;
+        resumeAtEnd?: true;
     }>): Reply<ModelViewRead>;
 }
 export type ArchivedBy = 'person' | 'auto' | 'parent';
@@ -2634,7 +2651,7 @@ export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeId
 export { decide, commandDigest, runIdOf } from './decide.ts';
 export { RELATIONS_TO_REFERENCE, relationToReference, type DirectoryStanding, type RelationToReference, } from './directory-relation.ts';
 export { MAX_SESSION_DEPTH, childRecorded, judgeStanding, relatedOf, relatedSessionOf, standingOf, type ChildRecord, type RelatedSession, } from './standing.ts';
-export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts';
+export { workspaceGeneration, workspaceSelection, type WorkspaceSelection, } from './workspace-selection.ts';
 export { cancellationDriveOf, runCancelledBy } from './decision-support.ts';
 export { batchEvidence } from './batch-evidence.ts';
 export { EMPTY_AUTHORIZATIONS, incompleteAuthorization, onceAuthorizationOf, reduceAuthorizations, retireOnce, type AuthorizationConsumer, type AuthorizationContext, type AuthorizationExpression, type AuthorizationScope, type OnceAuthorization, type SessionAuthorization, } from './authorizations.ts';
@@ -2683,6 +2700,9 @@ export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentiti
 export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts';
 export { PENDING_PAGE_LIMIT, PENDING_PREVIEW_CHARS, inputFateOfRows, pendingAcceptances, pendingInputOf, pendingPageOf, previewOf, waitingCalls, type PendingInput, type PendingPage, type WaitingCall, } from './intake-reads.ts';
 export { createBeforeIntakeRegistry, judgeIntakeBlocks, bringsOrigin, keepsTheWords, originalContent, screenInput, type BeforeIntakeRegistry, type IntakeBlockRefusal, type IntakeProcessor, type IntakeScreening, type IntakeVerdict, type Screened, } from './before-intake.ts';
+export { projectModelMessage } from './model-projection.ts';
+export { summarizeModelProvenance, projectModelProvenance, UNKNOWN_MODEL_PROVENANCE, } from './model-provenance.ts';
+export { originalModelRows } from './model-originals.ts';
 export { createUtteranceResolverRegistry, type OperationRequest, type Resolution, type SenderView, type Utterance, type UtteranceResolver, type UtteranceResolverRegistry, } from './utterance-resolver.ts';
 ```
 
@@ -3335,6 +3355,36 @@ export declare function digestSessionLog(observation: SessionLogCommitObservatio
 export declare function executionReadThrough(snapshot: WorkSnapshot, run: RunId, execution: string): string | null;
 ```
 
+## 声明文件 `model-originals.d.ts`
+
+```ts
+import type { HistoryEntry, ModelViewRow } from './faces.ts';
+export declare function originalModelRows(inherited: readonly ModelViewRow[], entries: readonly HistoryEntry[], denied: ReadonlySet<string>): readonly ModelViewRow[];
+```
+
+## 声明文件 `model-projection.d.ts`
+
+```ts
+import type { Message } from '@omne-harness/message';
+import type { SessionCommand } from './ports.ts';
+import type { DecideReads, Decision } from './judgments.ts';
+import type { DurableEvidence } from './identity.ts';
+import type { WorkSnapshot } from './values.ts';
+export declare function projectModelMessage(message: Message, blocks: ReadonlySet<string>): Message | null;
+export declare function decideModelProjection(state: WorkSnapshot, command: Extract<SessionCommand, {
+    kind: 'commitDerived';
+}>, reads: DecideReads, source: DurableEvidence): Decision;
+```
+
+## 声明文件 `model-provenance.d.ts`
+
+```ts
+import type { ModelProvenance } from './values.ts';
+export declare const UNKNOWN_MODEL_PROVENANCE = "@omne-harness/session-contract/unknown-model-provenance";
+export declare function summarizeModelProvenance(inputs: readonly (readonly ModelProvenance[] | undefined)[], blocks: readonly string[]): readonly ModelProvenance[];
+export declare function projectModelProvenance(sources: readonly ModelProvenance[] | undefined, withdrawn: ReadonlySet<string>): readonly ModelProvenance[] | undefined;
+```
+
 ## 声明文件 `model-view.d.ts`
 
 ```ts
@@ -3348,9 +3398,12 @@ export type MaterializedModelView = Readonly<{
 }>;
 export declare function isAcceptedInputRecord(entries: readonly Pick<HistoryEntry, 'kind'>[], index: number): boolean;
 export declare function viewMessageOf(entries: readonly HistoryEntry[], index: number): Message | null;
-export declare function materializeModelView(previous: MaterializedModelView, committed: readonly HistoryEntry[]): MaterializedModelView;
-export declare function compactionReads(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, through: string, inherited?: number): CompactionContext | null;
-export declare function compactionContextForView(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, rows: readonly ModelViewRow[], upper: number, through: string | null, inherited?: number): CompactionContext | null;
+export declare function materializeModelView(previous: MaterializedModelView, committed: readonly HistoryEntry[], originals?: () => {
+    inherited: readonly ModelViewRow[];
+    entries: readonly HistoryEntry[];
+}): MaterializedModelView;
+export declare function compactionReads(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, through: string, inherited?: number, visible?: ReadonlySet<string>): CompactionContext | null;
+export declare function compactionContextForView(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, rows: readonly ModelViewRow[], upper: number | null, through: string | null, inherited?: number): CompactionContext | null;
 ```
 
 ## 声明文件 `observation-validation.d.ts`
@@ -3439,7 +3492,7 @@ export type SessionOperationElements = Readonly<{
     kind: 'external-call';
     binding: CallBinding;
 }> | Readonly<{
-    kind: 'context-reminder';
+    kind: 'context-reminder' | 'model-projection';
     session: SessionId;
     source: DurableEvidence;
 }> | Readonly<{
@@ -3757,6 +3810,8 @@ export type SessionCommand = {
         input: Omit<Parameters<Mutations[K]>[0], 'principal'> & (K extends 'commitDerived' ? Readonly<{
             participation?: import('./values.ts').Participation;
             judgment?: DurableEvidence;
+            expected?: SessionRevision;
+        }> : K extends 'change' ? Readonly<{
             expected?: SessionRevision;
         }> : K extends 'stopCall' ? Readonly<{
             initiator?: import('./background-calls.ts').StopInitiator;
@@ -4095,8 +4150,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:4df9a37cab60aff262425ee386af5b8a2353c26b610a4aade1a959557d1427a5";
-export declare const SESSION_RELEASE_DIGEST = "sha256:4df9a37cab60aff262425ee386af5b8a2353c26b610a4aade1a959557d1427a5";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:d85db5a8725755e886711a56062470c299d9377b4d8cbe828818c2e5cbce92af";
+export declare const SESSION_RELEASE_DIGEST = "sha256:d85db5a8725755e886711a56062470c299d9377b4d8cbe828818c2e5cbce92af";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4386,9 +4441,9 @@ export declare function sessionEntriesConformance<P>(): readonly ConformanceCase
 import { type ForkFacts, type SessionFork } from './fork.ts';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ForkPointRead, HistoryEntry, HistoryPage, SessionFailure } from './faces.ts';
+import type { ForkPointRead, HistoryEntry, HistoryPage, ModelViewRow, SessionFailure } from './faces.ts';
 import type { EntryId, SessionId, SessionRevision } from './identity.ts';
-import type { EncodedEntry } from './judgments.ts';
+import type { EncodedEntry, DecideReads } from './judgments.ts';
 import { type MaterializedModelView } from './model-view.ts';
 import type { SessionCommand } from './ports.ts';
 import { type Cursor } from './testing-history-cursor.ts';
@@ -4413,6 +4468,11 @@ export type ForkStart = Readonly<{
     fork: MemoryFork;
 }>;
 type KeyOf = (tenant: TenantId, session: SessionId) => Outcome<string, SessionFailure>;
+export declare function committedModelView(store: Held | undefined, start: ForkStart | undefined, entries: readonly HistoryEntry[]): Readonly<{
+    epoch: string;
+    rows: readonly ModelViewRow[];
+    past?: ReadonlyMap<string, readonly ModelViewRow[]>;
+}>;
 export declare function startOf(stores: ReadonlyMap<string, Held>, keyOf: KeyOf, command: SessionCommand, readable: boolean): ForkStart | undefined;
 export declare const reads: (start: ForkStart | undefined) => Readonly<{
     fork?: ForkFacts;
@@ -4451,6 +4511,7 @@ type HistoryAsk = Readonly<{
 }>;
 export declare function inheritedRefusal(input: HistoryAsk): SessionFailure | null;
 export declare function prefixPage(store: Held, cursor: Cursor, issued: Set<string>): HistoryPage | null;
+export declare function contextReads(store: Held | undefined, key: string, command: SessionCommand): Pick<DecideReads, 'compaction' | 'compactionEpoch'>;
 export {};
 ```
 
@@ -4970,6 +5031,12 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
             scope: string;
             declaration: import("./values.ts").DeclarationChange;
         }>[];
+        workspaceVisit?: import("./values.ts").WorkspaceDirectoryVisit;
+        workspaceBackgroundVisits?: readonly Readonly<{
+            consumption: import("./identity.ts").ConsumptionId;
+            visit: import("./values.ts").WorkspaceDirectoryVisit;
+            input?: InputId;
+        }>[];
         changes?: readonly import("./values.ts").DeclarationChange[];
         initialization?: import("./values.ts").InitializationState;
         historyIndex?: import("./history-values.ts").SessionHistoryIndex;
@@ -5216,6 +5283,13 @@ export type ResultConsumption = Readonly<{
     completion: DurableEvidence | null;
     release: 'pending' | 'confirmed';
 }>;
+export type WorkspaceDirectoryVisit = Readonly<{
+    batch?: string;
+    workspace: string;
+    instance: string;
+    generation: string;
+    directories: readonly string[];
+}>;
 export type Consumption = Readonly<{
     id: ConsumptionId;
     binding: CallBinding;
@@ -5428,7 +5502,18 @@ export type BoundedClose = Readonly<{
     reason: string | null;
     input: InputId | null;
 }>;
+export type ModelProvenance = Readonly<{
+    owner: string;
+    key: string;
+    blocks: readonly string[];
+}>;
 export type DerivedMessage = Readonly<{
+    kind: 'model-projection';
+    epoch: string;
+    restoreOriginals?: true;
+    blocks: readonly string[];
+    source: DurableEvidence;
+}> | Readonly<{
     kind: 'compaction';
     message: CompactionMessage;
     epoch: string;
@@ -5436,6 +5521,7 @@ export type DerivedMessage = Readonly<{
     kind: 'context-reminder';
     message: Message;
     source: DurableEvidence;
+    provenance?: readonly ModelProvenance[];
 }>;
 export type Modes = Readonly<{
     permission: 'never' | 'auto_permission' | 'bypass-permissions';
@@ -5697,6 +5783,12 @@ export type WorkSnapshot = Readonly<{
         scope: string;
         declaration: DeclarationChange;
     }>[];
+    workspaceVisit?: WorkspaceDirectoryVisit;
+    workspaceBackgroundVisits?: readonly Readonly<{
+        consumption: ConsumptionId;
+        visit: WorkspaceDirectoryVisit;
+        input?: InputId;
+    }>[];
     changes?: readonly DeclarationChange[];
     initialization?: InitializationState;
     historyIndex?: SessionHistoryIndex;
@@ -5913,4 +6005,18 @@ export type WorkspaceSelection = Readonly<{
     attachment: WorkspaceAttachment;
 }>;
 export declare function workspaceSelection(snapshot: Pick<WorkSnapshot, 'creation' | 'changes'>): WorkspaceSelection | null;
+export declare function workspaceGeneration(snapshot: Pick<WorkSnapshot, 'creation' | 'changes'>): string;
+```
+
+## 声明文件 `workspace-visit.d.ts`
+
+```ts
+import type { ConsumptionId } from './identity.ts';
+import type { WorkSnapshot, WorkspaceDirectoryVisit } from './values.ts';
+export declare function activeWorkspaceVisit(previous: WorkspaceDirectoryVisit | undefined, visit: WorkspaceDirectoryVisit): WorkspaceDirectoryVisit;
+type VisitState = Pick<WorkSnapshot, 'creation' | 'changes'> & {
+    -readonly [K in 'workspaceVisit' | 'workspaceBackgroundVisits']?: NonNullable<WorkSnapshot[K]>;
+};
+export declare function applyWorkspaceVisit(state: VisitState, consumption: ConsumptionId, visit: WorkspaceDirectoryVisit): void;
+export {};
 ```

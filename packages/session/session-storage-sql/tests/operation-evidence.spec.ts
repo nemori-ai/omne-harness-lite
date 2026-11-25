@@ -88,6 +88,7 @@ describe('the migration of the evidence table', () => {
     const ids = migrations.map(item => `${item.owner}/${item.id}`)
     expect(ids).toEqual([
       'session/001-session-log',
+      'session/015-model-provenance',
       'execution-record/001-execution-record',
       'session/002-execution-index',
       'session/003-operation-evidence',

@@ -169,6 +169,7 @@ export type ToolEnvironmentDeclaration = Readonly<{ adoption: Adoption; value: J
 export type ToolCallDirectory = Readonly<{
   path: string
   workspace: Readonly<{ id: WorkspaceId; instance: string }> | null
+  generation?: string
   files?: FilesScope
 }>
 export type ToolCallFields = Readonly<{

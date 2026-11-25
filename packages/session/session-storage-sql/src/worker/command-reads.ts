@@ -1,3 +1,5 @@
+import { readCompactionWindow } from './compaction-window.ts'
+import { modelViewPrefix } from '../model-view-identity.ts'
 import {
   relatedOf,
   relatedSessionOf,
@@ -105,8 +107,31 @@ export function commandReads(
     return definite('read-bound', 'the operation receipts of the session exceed the read bound')
   const related = relatedReads(port, command, tenant, covering)
   if ('kind' in related) return related
+  let projection: Pick<Reads, 'compaction' | 'compactionEpoch'> = { compaction: null }
+  if (command.kind === 'commitDerived' && command.input.value.kind === 'model-projection') {
+    const head = oneRow(
+      port,
+      'SELECT epoch FROM sl_journal WHERE tenant = ? AND session = ? LIMIT 1',
+      [tenant, session],
+    )
+    if (head === undefined) return definite('missing-row', 'model projection without its journal')
+    const epoch = text(head['epoch'])
+    const window = readCompactionWindow(port, {
+      tenant,
+      session,
+      epoch,
+      upper: null,
+      coverTo: null,
+    })
+    if (window.kind !== 'context')
+      return definite('read-bound', 'the model projection basis is unreadable')
+    projection = {
+      compaction: window.value,
+      compactionEpoch: `${modelViewPrefix(tenant, session)}${epoch}`,
+    }
+  }
   return {
-    compaction: null,
+    ...projection,
     ...related,
     ...(frozen === undefined
       ? {}

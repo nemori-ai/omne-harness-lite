@@ -1,3 +1,6 @@
+import { readGuidanceHistory, type GuidanceHistory } from './guidance-history.ts'
+import type { StepDirectory } from './working-directory-step.ts'
+import type { EnsureModelHistory } from './model-history-readiness.ts'
 import { contextEpochOf, sessionEpochOf } from './history-epoch.ts'
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
@@ -72,6 +75,8 @@ export interface SessionHistoryHeads {
 }
 
 export type SessionHistorySourceInput = Readonly<{
+  ensureModelHistory?: EnsureModelHistory<unknown>
+  qualifyHistory?: NonNullable<StepDirectory<unknown>['qualifyHistory']>
   heads: SessionHistoryHeads
   scopeIndexEntries?: number
   pageBytes?: number
@@ -229,6 +234,7 @@ type ViewRead =
 class CursorBook {
   readonly key: string
   readonly epoch: string
+  guidance?: { partition: string; window: GuidanceHistory }
   readonly tokens = new Map<bigint, string>()
   private readonly sizes = new Map<bigint, number>()
 
@@ -484,6 +490,28 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       return refused.kind === 'unknown' || refused.kind === 'invalid'
         ? unavailable(`the eligibility read answered ${probe.failure.kind}`)
         : refused
+    }
+    const qualify = this.shared.input.qualifyHistory
+    if (qualify !== undefined) {
+      if (probe.ok.kind !== 'page')
+        return unavailable('the model view changed during the eligibility read')
+      const book = this.bookOf(located, probe.ok.basis.epoch)
+      const partition = JSON.stringify([located.tenant, located.target.scope.ref])
+      const window = await readGuidanceHistory(
+        this.scope[sessionKey].history,
+        located.session,
+        partition,
+        book.guidance?.partition === partition ? book.guidance.window : undefined,
+      )
+      if ('failure' in window)
+        return window.failure.kind === 'denied' ? DENIED : unavailable(window.failure.diagnostic)
+      if (window.ok.basis.epoch === book.epoch) book.guidance = { partition, window: window.ok }
+      const allowed = await qualify(located.access, [
+        ...window.ok.index.scopes,
+        ...window.ok.summarizedScopes,
+      ])
+      if ('failure' in allowed)
+        return allowed.failure.kind === 'denied' ? DENIED : unavailable(allowed.failure.diagnostic)
     }
     return located
   }
@@ -817,6 +845,22 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     const found = await this.currentScope(work, session, head, headTenant)
     if (!('scope' in found)) return found
     const { scope } = found
+    const ensure = this.shared.input.ensureModelHistory
+    if (ensure !== undefined) {
+      const ready = await ensure({ ...session, scope })
+      if ('failure' in ready) {
+        if (ready.failure.kind === 'denied') return DENIED
+        return unavailable(
+          ready.failure.kind === 'unavailable' ? ready.failure.diagnostic : ready.failure.kind,
+        )
+      }
+      if (ready.ok !== null) {
+        const evidence = evidenceOf({ tenant: head.tenant, scope }, ready.ok)
+        return evidence === undefined
+          ? this.defect('the ready model view has an invalid basis')
+          : { kind: 'value', value: evidence }
+      }
+    }
     const view = await this.call<ModelViewRead>(() =>
       this.scope[sessionKey].history.readModelView({
         ...session,

@@ -1,3 +1,4 @@
+import modelProvenanceMigration from '../../src/worker/model-provenance-migration.ts'
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
 import callLeftMigration from '../../src/worker/call-left-migration.ts'
 import forkMigration from '../../src/worker/fork-migration.ts'
@@ -144,6 +145,7 @@ const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
   [executionRecord.participant, executionRecord],
 ])
 const MIGRATIONS: readonly MigrationModule[] = [
+  modelProvenanceMigration,
   migration,
   recordMigration,
   indexMigration,

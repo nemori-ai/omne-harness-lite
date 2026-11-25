@@ -1,6 +1,7 @@
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { contentDigest } from '../rows/agent-adoptions/definition-mappings.ts'
 import {
+  SESSION_WORKSPACE_GUIDANCE,
   SESSION_MODES_PUBLICATION,
   SESSION_WORKING_DIRECTORY,
 } from '@omne-harness/session-adapters'
@@ -9,6 +10,8 @@ import {
   sessionModesBindings,
   sessionModesDescriptor,
   sessionModesProducer,
+  workspaceGuidanceBindings,
+  workspaceGuidanceDescriptor,
   workingDirectoryBindings,
   workingDirectoryDescriptor,
 } from '@omne-harness/session-adapters/cordis'
@@ -38,6 +41,11 @@ const DECLARED = [
     definition: SESSION_WORKING_DIRECTORY,
     bindings: workingDirectoryBindings,
     descriptor: workingDirectoryDescriptor,
+  },
+  {
+    definition: SESSION_WORKSPACE_GUIDANCE,
+    bindings: workspaceGuidanceBindings,
+    descriptor: workspaceGuidanceDescriptor,
   },
 ] as const
 

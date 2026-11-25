@@ -1,5 +1,12 @@
+import { readModelOriginals } from './model-originals.ts'
+import type { Message } from '@omne-harness/message'
 import {
+  originalModelRows,
   isAcceptedInputRecord,
+  projectModelMessage,
+  projectModelProvenance,
+  summarizeModelProvenance,
+  type ModelViewRow,
   type CommitReceipt,
   type HistoryEntry,
 } from '@omne-harness/session-contract'
@@ -19,9 +26,9 @@ const MAX_VIEW_ROWS = 100_000
 
 type ViewMessage = {
   role?: string
-  blocks?: { visibility?: { toModel?: boolean } }[]
+  blocks?: readonly { visibility?: { toModel?: boolean } }[]
   covers?: { to?: unknown }
-  retained?: unknown[]
+  retained?: readonly unknown[]
 }
 
 function messageOf(entries: readonly HistoryEntry[], index: number): ViewMessage | null {
@@ -32,23 +39,18 @@ function messageOf(entries: readonly HistoryEntry[], index: number): ViewMessage
   return message ?? null
 }
 
-export function maintainModelView(
-  port: ParticipantPort,
-  tenant: string,
-  session: string,
-  epoch: string,
-  entries: readonly HistoryEntry[],
-  limit: number = MAX_VIEW_ROWS,
-): string | null {
-  let current = epoch
-  const writeRow = (
+function modelRowWriter(port: ParticipantPort, tenant: string, session: string) {
+  return (
     at: string,
     seq: bigint,
     entry: string,
     message: ViewMessage,
     prefix: string,
+    provenance?: ModelViewRow['provenance'],
   ): string => {
-    const digest = sha256(canonicalText({ prefix, entry, message }))
+    const digest = sha256(
+      canonicalText({ prefix, entry, message, ...(provenance?.length ? { provenance } : {}) }),
+    )
     port.execute(
       'INSERT INTO sl_model_view (tenant, session, epoch, seq, entry, bytes, prefix_digest, message) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
@@ -64,9 +66,81 @@ export function maintainModelView(
           : JSON.stringify(message),
       ],
     )
+    port.execute(
+      'INSERT INTO sl_model_provenance (tenant,session,epoch,entry,provenance) VALUES (?,?,?,?,?)',
+      [tenant, session, at, entry, provenance === undefined ? null : JSON.stringify(provenance)],
+    )
     return digest
   }
+}
+
+export function maintainModelView(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  epoch: string,
+  entries: readonly HistoryEntry[],
+  limit: number = MAX_VIEW_ROWS,
+): string | null {
+  let current = epoch
+  const writeRow = modelRowWriter(port, tenant, session)
   for (const [index, entry] of entries.entries()) {
+    if (entry.kind === 'session.model-projected') {
+      const projection = plainOf(entry.payload) as {
+        blocks: readonly string[]
+        restoreOriginals?: true
+      }
+      if (projection.restoreOriginals) {
+        const originals = readModelOriginals(port, { tenant, session }, BigInt(entry.id))
+        if (originals === null) return null
+        const rows = originalModelRows(
+          originals.inherited,
+          originals.entries,
+          new Set(projection.blocks),
+        )
+        if (rows.length > limit) return null
+        const next = `epoch:${entry.id}`
+        let prefix = ''
+        for (const [offset, row] of rows.entries())
+          prefix = writeRow(
+            next,
+            BigInt(offset + 1),
+            row.entry,
+            row.message,
+            prefix,
+            row.provenance,
+          )
+        current = next
+        continue
+      }
+      const view = viewOf(port, { tenant, session }, current)
+      const upper = view.upper()
+      if (upper > BigInt(limit)) return null
+      const old = view.rows(0n, upper, limit, 'entry, message')
+      const withdrawn = new Set(projection.blocks)
+      const next = `epoch:${entry.id}`
+      let prefix = ''
+      let seq = 0n
+      for (const row of old) {
+        const original = JSON.parse(viewMessageText(port, tenant, text(row['message']))) as Message
+        const message = projectModelMessage(original, withdrawn)
+        if (message === null) continue
+        seq += 1n
+        prefix = writeRow(
+          next,
+          seq,
+          text(row['entry']),
+          message,
+          prefix,
+          projectModelProvenance(
+            row['provenance'] == null ? undefined : JSON.parse(text(row['provenance'])),
+            withdrawn,
+          ),
+        )
+      }
+      current = next
+      continue
+    }
     const message = messageOf(entries, index)
     if (
       message === null ||
@@ -94,21 +168,42 @@ export function maintainModelView(
         ...kept.map(row => ({
           id: text(row['entry']),
           message: JSON.parse(viewMessageText(port, tenant, text(row['message']))) as ViewMessage,
+          provenance: row['provenance'] == null ? undefined : JSON.parse(text(row['provenance'])),
         })),
-        { id: entry.id, message },
+        {
+          id: entry.id,
+          message,
+          provenance: summarizeModelProvenance(
+            old.map(row =>
+              row['provenance'] == null ? undefined : JSON.parse(text(row['provenance'])),
+            ),
+            (message.blocks ?? []).map(block =>
+              'id' in block && typeof block.id === 'string' ? block.id : '',
+            ),
+          ),
+        },
         ...after.map(row => ({
           id: text(row['entry']),
           message: JSON.parse(viewMessageText(port, tenant, text(row['message']))) as ViewMessage,
+          provenance: row['provenance'] == null ? undefined : JSON.parse(text(row['provenance'])),
         })),
       ]) {
         seq += 1n
-        prefix = writeRow(next, seq, row.id, row.message, prefix)
+        prefix = writeRow(next, seq, row.id, row.message, prefix, row.provenance)
       }
       current = next
       continue
     }
     const last = viewHead(port, { tenant, session }, current) ?? { seq: 0n, digest: '' }
-    writeRow(current, last.seq + 1n, entry.id, message, last.digest)
+    writeRow(
+      current,
+      last.seq + 1n,
+      entry.id,
+      message,
+      last.digest,
+      (plainOf(entry.payload) as { provenance?: ModelViewRow['provenance'] }).provenance ??
+        (message.role === 'system_reminder' ? undefined : []),
+    )
   }
   return current
 }

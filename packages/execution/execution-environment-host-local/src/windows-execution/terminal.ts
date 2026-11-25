@@ -1,3 +1,4 @@
+import { completedInDirectory, outputPolicyOf } from '../process-result.ts'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { access } from 'node:fs/promises'
 import { createRequire } from 'node:module'
@@ -91,6 +92,7 @@ type ReservationInput = Readonly<{
 type Leg = {
   id: string
   sequence: number
+  startDirectory?: string
   acknowledged: boolean
   started: ReturnType<typeof deferred<boolean>>
   outcome: ReturnType<typeof deferred<CommandOutcome>>
@@ -118,6 +120,13 @@ const envValid = (env: Readonly<Record<string, string>>) =>
   )
 const geometryValid = (value: number) => Number.isSafeInteger(value) && value > 0 && value <= 32767
 
+function sealedOutput(current: Leg) {
+  const counts = current.window.seal()
+  return Object.freeze(
+    current.between === undefined ? counts : { ...counts, between: current.between },
+  )
+}
+
 function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTerminalCapacity }) {
   const { settings, ledger, capacity } = input
   const terminal = Object.freeze({ id: randomUUID(), generation: randomUUID() })
@@ -135,11 +144,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       ],
     },
   } satisfies ManagedResource)
-  const policy: OutputPolicy = Object.freeze({
-    maxBufferedBytes: settings.maxBufferedBytes,
-    maxChunkBytes: settings.maxChunkBytes,
-    overflow: 'discard',
-  })
+  const policy: OutputPolicy = outputPolicyOf(settings)
   const reservedTerminal = capacity.terminal()
   if (reservedTerminal === undefined) return undefined
   const releaseTerminal = reservedTerminal
@@ -150,6 +155,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     return undefined
   }
   let state: TerminalInformation['state'] = 'idle'
+  let openedDirectory: string | undefined
   let cwd = input.request.cwd
   let leg: Leg | undefined
   let bridge: TerminalBridge | undefined
@@ -205,10 +211,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     current.foregroundCompleted = completion?.completed === true
     current.started.resolve(false)
     releaseScan()
-    const counts = current.window.seal()
-    const output = Object.freeze(
-      current.between === undefined ? counts : { ...counts, between: current.between },
-    )
+    const output = sealedOutput(current)
     spare = current.next
     leg = undefined
     current.outcome.resolve(
@@ -217,6 +220,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
             kind: 'completed',
             exit: { kind: 'code', code: completion.code },
             durationMs: completion.elapsedMs,
+            ...(completion.observed === undefined ? {} : { observedCwd: completion.observed }),
             output,
           }
         : {
@@ -283,10 +287,11 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         return true
     }
   }
-  const started = (id: string) => {
+  const started = (id: string, observed: string | undefined) => {
     if (completedFrame(id)) return
     if (leg?.id !== id) return invalidate()
     if (leg.acknowledged) return
+    if (observed !== undefined) leg.startDirectory = observed
     leg.acknowledged = true
     leg.startedAt = now()
     leg.started.resolve(true)
@@ -310,11 +315,12 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         ready.resolve(true)
         return
       case 'opened':
+        openedDirectory = value.observed
         cwd = value.cwd
         opened.resolve(true)
         return
       case 'started':
-        return started(value.id)
+        return started(value.id, value.observed)
       case 'data':
         return data(value.b)
       case 'finished':
@@ -495,7 +501,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       }
       if (closed()) return refused('closed')
       if (state === 'invalid') return { kind: 'unknown', requestId: request.requestId }
-      return { kind: 'done', requestId: request.requestId, value: { terminal } }
+      return completedInDirectory(request.requestId, { terminal }, openedDirectory)
     } catch {
       return refused('unavailable')
     } finally {
@@ -581,6 +587,9 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     return {
       kind: 'done',
       requestId: request.requestId,
+      ...(current.startDirectory === undefined
+        ? {}
+        : { verifiedDirectories: [current.startDirectory] }),
       value: Object.freeze({
         process: Object.freeze({ id: name, generation: terminal.generation }),
         outputMode: 'terminal',
