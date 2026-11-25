@@ -115,35 +115,16 @@ async function answerOf(resolve: () => Promise<Resolution>): Promise<Resolution>
   }
 }
 
-/** A member's words as the resolver read them; a refusal is not queued and an operation is not a message. */
-async function resolved<P>(
-  dependencies: Sources<P>,
-  access: SessionAccess<P>,
-  command: SessionCommand,
-  input: Ordinary,
+type Resolver<P> = Exclude<
+  ReturnType<NonNullable<Sources<P>['resolver']>['current']>,
+  'none' | null
+>
+
+function outcomeOf(
+  answer: Resolution,
+  original: Message,
   field: string,
-): Promise<Outcome<Message | null, SessionFailure>> {
-  const declared = dependencies.resolver
-  if (declared === undefined) return MEMBER_ONLY
-  const resolver = current('resolver', 'the utterance resolver', () => declared.current())
-  if ('ok' in resolver && resolver.ok === 'none') return MEMBER_ONLY
-  const accepts = acceptsOf(dependencies, input)
-  if ('failure' in accepts) return accepts
-  if (accepts.ok.subject !== 'member') return MEMBER_ONLY
-  if ('failure' in resolver) return resolver
-  if (resolver.ok === 'none') return MEMBER_ONLY
-  const { resolve } = resolver.ok
-  const original = originalContent(input.message)
-  const { seen } = command.input as Readonly<{ seen?: SenderView }>
-  const answer = await answerOf(() =>
-    resolve({
-      original,
-      seen: seen ?? null,
-      source: input.source,
-      request: { input: input.input, operation: command.input.operation },
-      access,
-    }),
-  )
+): Outcome<Message | null, SessionFailure> {
   switch (answer.kind) {
     case 'input':
       return keepsTheWords(original, answer.effective)
@@ -158,6 +139,47 @@ async function resolved<P>(
     case 'unavailable':
       return fail(unavailable(OWNERS.resolver, answer.diagnostic))
   }
+}
+
+function resolverFor<P>(
+  dependencies: Sources<P>,
+  input: Ordinary,
+): Outcome<Resolver<P> | null, SessionFailure> {
+  const declared = dependencies.resolver
+  if (declared === undefined) return MEMBER_ONLY
+  const resolver = current('resolver', 'the utterance resolver', () => declared.current())
+  if ('ok' in resolver && resolver.ok === 'none') return MEMBER_ONLY
+  const accepts = acceptsOf(dependencies, input)
+  if ('failure' in accepts) return accepts
+  if (accepts.ok.subject !== 'member') return MEMBER_ONLY
+  if ('failure' in resolver) return resolver
+  return resolver.ok === 'none' ? MEMBER_ONLY : succeed(resolver.ok)
+}
+
+/** A member's words as the resolver read them; a refusal is not queued and an operation is not a message. */
+async function resolved<P>(
+  dependencies: Sources<P>,
+  access: SessionAccess<P>,
+  command: SessionCommand,
+  input: Ordinary,
+  field: string,
+): Promise<Outcome<Message | null, SessionFailure>> {
+  const found = resolverFor(dependencies, input)
+  if ('failure' in found) return found
+  const resolver = found.ok
+  if (resolver === null) return MEMBER_ONLY
+  const original = originalContent(input.message)
+  const { seen } = command.input as Readonly<{ seen?: SenderView }>
+  const answer = await answerOf(() =>
+    resolver.resolve({
+      original,
+      seen: seen ?? null,
+      source: input.source,
+      request: { input: input.input, operation: command.input.operation },
+      access,
+    }),
+  )
+  return outcomeOf(answer, original, field)
 }
 
 /** The command to commit: its input as the resolver and the processors before intake left it (SE-37, SE-38). */
