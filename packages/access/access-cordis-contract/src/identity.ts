@@ -13,5 +13,7 @@ export type ActForResult =
 export type AccessIdentity = {
   readonly identifyLogin: (proof: string) => Promise<LoginResult>
   readonly actFor: (login: LoginIdentity, tenant: string) => Promise<ActForResult>
+  /** The login a member of this server recorded when it identified the person, for the tenant they acted for. */
+  readonly resumeLogin: (login: string, tenant: string) => Promise<LoginResult>
   readonly reportAccess: (login: LoginIdentity) => Promise<void>
 }

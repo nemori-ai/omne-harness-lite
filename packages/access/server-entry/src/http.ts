@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import type { InProcessAnswer, InProcessCall } from '@omne-harness/access-cordis-contract'
 import {
   LOOPBACK_ADDRESS,
   OUTPUT_LIMITS,
@@ -10,6 +11,7 @@ import {
 import { accessContribution } from './availability/availability.ts'
 import type { RegistryForEntry } from './registry/registry.ts'
 import { writeBare } from './pipeline/answer.ts'
+import { createInProcessCalls } from './pipeline/in-process.ts'
 import {
   createPipeline,
   type PipelineAccess,
@@ -26,6 +28,7 @@ export type ServerEntryAccess = Omit<PipelineAccess, 'registry'> & {
 export interface ServerEntry {
   start(): Promise<Listening>
   stop(): Promise<void>
+  call(input: InProcessCall): Promise<InProcessAnswer>
 }
 
 export function createServerEntry(input: {
@@ -69,6 +72,15 @@ export function createServerEntry(input: {
           heartbeatMs: config.heartbeatIntervalMs,
         })
 
+  const inProcess =
+    input.access === undefined
+      ? undefined
+      : createInProcessCalls(input.access, {
+          bodyLimits: config.maxBodyBytes,
+          readLimits: maxBytes => readLimits(config, maxBytes),
+          writeLimits: OUTPUT_LIMITS,
+        })
+
   const settle = (): void => {
     inFlight -= 1
     if (inFlight === 0) for (const resolve of drained.splice(0)) resolve()
@@ -100,6 +112,8 @@ export function createServerEntry(input: {
 
   let takeDownAccess: (() => Promise<void>) | undefined
   return {
+    call: async call =>
+      inProcess === undefined ? { kind: 'not-executed', reason: 'unavailable' } : inProcess(call),
     start() {
       if (listening !== undefined) return Promise.resolve(listening)
       if (config.listenAddress !== LOOPBACK_ADDRESS)
