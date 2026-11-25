@@ -5,6 +5,7 @@ import type {
   ToolStreamObservation,
   ToolStreamReferences,
 } from '@omne-harness/tool-contract'
+import type { ToolChildren } from '@omne-harness/tool-contract/provider'
 
 export interface ToolCallPrincipals {
   actingFor(
@@ -18,4 +19,6 @@ export type ToolCallFaces = Readonly<{
   queries: Pick<ToolInvocationQueries<Principal, ContentBlock>, 'readResult' | 'readOutput'>
   instances: ToolStreamReferences<Principal>
   observation: ToolStreamObservation<Principal>
+  /** The position table of a call that ran a program; absent while its records are away. */
+  children: () => Pick<ToolChildren<Principal>, 'table'> | undefined
 }>

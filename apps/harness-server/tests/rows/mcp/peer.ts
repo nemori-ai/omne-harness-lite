@@ -7,8 +7,11 @@ import { z } from 'zod'
 export type PeerAction = Readonly<{
   name: string
   description: string
-  /** What the action answers; `hang` never answers, so the caller sees the connection break. */
-  answer: 'echo' | 'error' | 'hang'
+  /**
+   * What the action answers; `hang` never answers, so the caller sees the connection break. `length`
+   * declares an output schema and answers structured content: the length of the text.
+   */
+  answer: 'echo' | 'error' | 'hang' | 'length'
   /** What the action takes: a text by default, or a count. */
   input?: 'text' | 'count'
 }>
@@ -68,6 +71,23 @@ export async function testPeer(
         : { content: [{ type: 'text' as const, text: `${action.name} answered ${text}` }] }
     }
     const facts = { description: action.description }
+    if (action.answer === 'length')
+      return peer.registerTool(
+        action.name,
+        {
+          ...facts,
+          inputSchema: z.object({ text: z.string() }),
+          outputSchema: z.object({ length: z.number() }),
+        },
+        async ({ text }) => {
+          calls.push({ action: action.name, text })
+          const structuredContent = { length: text.length }
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(structuredContent) }],
+            structuredContent,
+          }
+        },
+      )
     return action.input === 'count'
       ? peer.registerTool(
           action.name,

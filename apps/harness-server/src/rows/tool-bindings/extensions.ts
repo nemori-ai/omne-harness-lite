@@ -15,6 +15,7 @@ import {
   attachExtensionsSource,
   type ExtensionsCallSource,
   type ExtensionsFaces,
+  type HeldSettings,
 } from '@omne-harness/assets-tools'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import {
@@ -24,8 +25,11 @@ import {
 } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
+import { tenantActingSettingsKey } from '../governance/tenant-settings-service.ts'
+import { settingsSecretItemsKey } from '../settings/index.ts'
 import { publishStandingOf } from '../tenant-assets/held-standing.ts'
 import { admittedDirectory } from '../tool-runtime/environment.ts'
+import { heldSettingsOf } from './extension-settings.ts'
 import { extensionRevisionOf } from './extension-points.ts'
 import { directoryIn, placeIn, type Working } from './workspace-directory.ts'
 
@@ -37,6 +41,8 @@ export type ExtensionsPorts = Readonly<{
   standing(capability: CapabilityId, tenant: string): PublishStanding
   /** Where the call works, admitted now, with the files scope pinned to it: absent when it has none, unavailable when that cannot be asked. */
   workingDirectory(): Promise<Working | 'absent' | 'unavailable'>
+  /** The settings of the tenant layer for this call; undefined when they cannot be had now. */
+  settings(): HeldSettings | undefined
   revision(): string | null
 }>
 
@@ -108,6 +114,7 @@ export function createExtensionsSource(
       of: async input =>
         (await effectOf(input.capability.category)?.placement.of({ ...input, tenant })) ?? UNREAD,
     },
+    settings: () => ports.settings(),
     revision: () => ports.revision(),
   }
 }
@@ -128,6 +135,8 @@ export function bindReleaseExtensions(
 ): ToolExecutionScope {
   const encoded = tenantCodec.encode(parent.tenant)
   if (!encoded.ok) return scope
+  const tenantText = encoded.value
+  const { principal, tenant } = parent
   const source = createExtensionsSource(
     {
       faces() {
@@ -139,6 +148,19 @@ export function bindReleaseExtensions(
           : { categories, management, publishing }
       },
       standing: (capability, tenant) => publishStandingOf(ctx, capability, tenant),
+      settings() {
+        const acting = ctx.get(tenantActingSettingsKey, false)
+        const management = ctx.get(assetManagementKey)?.management
+        if (acting === undefined || management === undefined) return undefined
+        return heldSettingsOf({
+          acting,
+          principal,
+          tenant,
+          describe: capability =>
+            management.describe({ tenant: tenantText, principal, capability }),
+          secrets: () => ctx.get(settingsSecretItemsKey, false),
+        })
+      },
       async workingDirectory() {
         const directory = pinnedOf(parent.request)
         if (directory === undefined) return 'absent'

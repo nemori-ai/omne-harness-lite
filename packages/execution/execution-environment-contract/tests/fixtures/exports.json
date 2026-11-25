@@ -422,6 +422,66 @@
           ]
         },
         {
+          "title": "程序设施",
+          "names": [
+            {
+              "name": "programFacility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "isProgramEntry",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "isProgramFailureName",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ProgramAnswer",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProgramCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProgramFacility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProgramLimitName",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProgramLimits",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProgramOutcome",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProgramRun",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProgramRunRequest",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
           "title": "端口与恢复授权",
           "names": [
             {
@@ -1232,6 +1292,26 @@
               "name": "CommandRetentionOptions",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "programConformanceNames",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "programFacilityConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ProgramConformanceSubject",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProgramConformanceOptions",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -1248,7 +1328,7 @@
     {
       "module": "../facility.ts",
       "interface": "EnvironmentFacilities",
-      "members": ["files", "command", "terminal", "screen"],
+      "members": ["files", "command", "terminal", "screen", "program"],
       "pending": false
     }
   ]

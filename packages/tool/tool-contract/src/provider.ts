@@ -248,15 +248,22 @@ export type {
   ToolOffloader,
   ToolReads,
 } from './custody.ts'
+export { attachProgramTools, inReachOf, isProgramSettled, owesDisposal } from './program.ts'
 export type {
-  ChildPosition,
-  ChildReservation,
-  ChildState,
-  ProgramClosure,
-  ProgramEnd,
-  ProgramToolResult,
-  ProgramTools,
+  NestedAdmission,
+  NestedAdmissionInput,
+  PositionExclusion,
+  PositionStop,
+  PositionTarget,
+  ProgramActionAdmission,
+  ProgramFence,
+  ProgramParent,
+  ProgramPosition,
+  ProgramTable,
+  ProgramTargetOutcome,
   ToolChildren,
+  ToolProgramRuntime,
+  ToolProgramSource,
 } from './program.ts'
 
 export { projectToolBackgroundCalls } from './background-calls-projection.ts'
@@ -280,6 +287,7 @@ export {
 } from './command-call.ts'
 export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts'
 export { attachToolsCapability } from './tools-capability.ts'
+export { isProgramCall, markProgramCall } from './program-call.ts'
 export type {
   ToolForwardParent,
   ToolForwardBinding,
@@ -288,6 +296,17 @@ export type {
   ToolForwardRuntime,
 } from './forwarding.ts'
 export { returnGuide } from './return-description.ts'
+export {
+  PROGRAM_FAILURE,
+  functionsSignature,
+  isProgramName,
+  programCallRefusal,
+  programFunctions,
+  PROGRAM_CATALOGUE_BYTES,
+  PROGRAM_RUN_CAPABILITY,
+  programSignature,
+  schemaType,
+} from './program-signature.ts'
 export {
   TOOL_ENTRY_SOURCES_POINT,
   isToolSourcePrefix,

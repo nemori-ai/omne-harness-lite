@@ -5,6 +5,7 @@ import type {
   FacilityRequest,
   FilesScope,
   FileSystemFacility,
+  ProgramFacility,
   ScreenFacility,
   TerminalFacility,
   TerminalRetention,
@@ -64,6 +65,11 @@ export type ShellAuthorEnvironment = Readonly<{
     architecture: string
     facilities: readonly string[]
   }>
+}>
+
+export type CodeAuthorEnvironment = Readonly<{
+  /** Runs one program in a domain apart from the host. */
+  program: BoundFacility<ProgramFacility<unknown>>
 }>
 
 export type ScreenAuthorEnvironment = Readonly<{

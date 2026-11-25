@@ -7,6 +7,7 @@ import {
   commandGuide,
   deriveDefinition,
   judgeToolDefinition,
+  markProgramCall,
 } from '@omne-harness/tool-contract/provider'
 import {
   attachSkillsAccess,
@@ -119,10 +120,11 @@ function fixture(construction: object = { resultMaxBytes: 1048576 }) {
     const parsed = 'failure' in cut ? cut : operation.author.parameters.parse(cut.ok)
     return { operation: operation.author, parsed }
   }
-  async function run(command: string, params: unknown, skills?: SkillsAccess) {
+  async function raw(command: string, params: unknown, skills?: SkillsAccess, fromProgram = false) {
     const { operation, parsed } = decode(command, params)
     if ('failure' in parsed) throw new Error(JSON.stringify(parsed.failure))
     const execution = skills === undefined ? scope() : attachSkillsAccess(scope(), skills)
+    if (fromProgram) markProgramCall(execution)
     const result = await executeTool(parsed.ok, operation.executor, null, execution)
     if ('failure' in result) throw new Error(JSON.stringify(result.failure))
     const checked = operation.output.check({ arguments: parsed.ok, value: result.ok })
@@ -133,9 +135,11 @@ function fixture(construction: object = { resultMaxBytes: 1048576 }) {
     if ('failure' in decoded) throw new Error(JSON.stringify(decoded.failure))
     const rendered = operation.renderer.render(decoded.ok)
     if ('failure' in rendered) throw new Error(JSON.stringify(rendered.failure))
-    return rendered.ok
+    return { text: rendered.ok, value: decoded.ok as unknown }
   }
-  return { implementation, definition, decode, run }
+  const run = async (command: string, params: unknown, skills?: SkillsAccess) =>
+    (await raw(command, params, skills)).text
+  return { implementation, definition, decode, run, raw }
 }
 
 describe('Skills author: declaration and help', () => {
@@ -575,7 +579,7 @@ describe('Skills author: failures', () => {
 describe('Skills author: output check', () => {
   it('accepts only text within resultMaxBytes', () => {
     const test = fixture({ resultMaxBytes: 4 })
-    const { operation, parsed } = test.decode('list', { skill: 's' })
+    const { operation, parsed } = test.decode('help', {})
     if ('failure' in parsed) throw new Error('parsed')
     expect(operation.output.check({ arguments: parsed.ok, value: 'abcd' })).toHaveProperty('ok')
     expect(operation.output.check({ arguments: parsed.ok, value: 'abcde' })).toStrictEqual({
@@ -588,7 +592,7 @@ describe('Skills author: output check', () => {
 describe('Skills author: result codec', () => {
   it('encodes only text and decodes only well-formed UTF-8', () => {
     const test = fixture()
-    const { operation } = test.decode('list', { skill: 's' })
+    const { operation } = test.decode('help', {})
     expect(operation.codec.encode(3)).toStrictEqual({ failure: { reason: 'text-required' } })
     expect(operation.codec.decode(new Uint8Array([0xff, 0xfe]))).toStrictEqual({
       failure: { reason: 'invalid-utf8' },
@@ -596,6 +600,34 @@ describe('Skills author: result codec', () => {
     const bytes = operation.codec.encode('目录')
     if ('failure' in bytes) throw new Error('encode')
     expect(operation.codec.decode(bytes.ok)).toStrictEqual({ ok: '目录' })
+  })
+})
+
+describe('Skills author: what a program is given', () => {
+  it('says of every command how it faces a program', () => {
+    const { facts } = fixture().implementation
+    if (facts.implements.kind !== 'commands') throw new Error('commands')
+    expect(
+      Object.fromEntries(facts.implements.commands.map(one => [one.name, one.program?.kind])),
+    ).toEqual({ help: 'closed', search: 'open', read: 'open', list: 'open', read_file: 'open' })
+  })
+
+  it('gives the page, the listing and the read as values, and no value for a failure', async () => {
+    const test = fixture()
+    const skills = access()
+    const given = async (command: string, params: unknown, port = skills) =>
+      (await test.raw(command, params, port, true)).value
+    expect(await given('search', { query: '' })).toMatchObject({
+      data: { entries: expect.any(Array) },
+    })
+    expect(await given('read', { skill: 'pdf' })).toMatchObject({
+      data: { text: expect.any(String), start: expect.any(Number), total: expect.any(Number) },
+    })
+    expect(await given('list', { skill: 'pdf' })).toMatchObject({
+      data: { files: expect.any(Array) },
+    })
+    const refused = await given('read', { skill: 'pdf' }, failing({ kind: 'not-found' }))
+    expect(refused).toEqual({ text: expect.stringContaining('ERROR: not-found') })
   })
 })
 

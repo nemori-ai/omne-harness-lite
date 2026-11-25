@@ -113,7 +113,11 @@ describe('mcpEndpointBodyContract', () => {
     [
       'Streamable HTTP without authentication',
       { ...http, auth: 'none' },
-      ['setting:placement-identity:target', 'setting:preference:connect-timeout'],
+      [
+        'setting:placement-identity:target',
+        'setting:preference:connect-timeout',
+        'setting:preference:program-calls',
+      ],
     ],
     [
       'Streamable HTTP with OAuth',
@@ -122,6 +126,7 @@ describe('mcpEndpointBodyContract', () => {
         'setting:placement-identity:target',
         'setting:placement-identity:credential',
         'setting:preference:connect-timeout',
+        'setting:preference:program-calls',
       ],
     ],
   ]
@@ -161,6 +166,7 @@ describe('mcpEndpointBodyContract', () => {
     expect(settings.items.map(item => [item.id, item.category, item.sensitivity])).toEqual([
       ['target', 'placement-identity', 'ordinary'],
       ['connect-timeout', 'preference', 'ordinary'],
+      ['program-calls', 'preference', 'ordinary'],
     ])
   })
 
@@ -170,16 +176,31 @@ describe('mcpEndpointBodyContract', () => {
       ['target', 'placement-identity', 'ordinary'],
       ['credential', 'placement-identity', 'secret'],
       ['connect-timeout', 'preference', 'ordinary'],
+      ['program-calls', 'preference', 'ordinary'],
     ])
   })
 
-  it('gives no item a default, and puts every item in its one group', () => {
+  it('gives no connection item a default, and puts each of them in the connection group', () => {
+    const items = settingsOf(http).items.filter(item => item.id !== 'program-calls')
+    expect(items.map(item => item.default)).toEqual(items.map(() => ({ kind: 'absent' })))
+    expect(new Set(items.map(item => item.groupId))).toEqual(new Set(['connection']))
+  })
+
+  // MC-26: the holder opens the actions to programs; until then they are closed.
+  it('defines program calls as a boolean that is off until it is set, in a group of its own', () => {
     const settings = settingsOf(http)
-    expect(settings.items.map(item => item.default)).toEqual(
-      settings.items.map(() => ({ kind: 'absent' })),
-    )
-    expect(settings.groups.map(group => group.id)).toEqual(['connection'])
-    expect(new Set(settings.items.map(item => item.groupId))).toEqual(new Set(['connection']))
+    const item = settings.items.find(candidate => candidate.id === 'program-calls')
+    expect(item).toMatchObject({
+      groupId: 'use',
+      valueSchema: { type: 'boolean' },
+      default: { kind: 'value', value: false },
+      merge: 'override',
+    })
+    expect(item?.presentation.adoption).toBe('next-read')
+    expect(settings.groups.map(group => [group.id, group.order])).toEqual([
+      ['connection', 0],
+      ['use', 1],
+    ])
   })
 
   it('names the definition after the endpoint and the version after the pinned definition', () => {

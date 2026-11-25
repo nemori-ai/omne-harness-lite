@@ -76,3 +76,9 @@ export {
   type CommandRetentionOptions,
   type CommandRetentionSubject,
 } from './command-retention-conformance.ts'
+export {
+  programConformanceNames,
+  programFacilityConformance,
+  type ProgramConformanceSubject,
+  type ProgramConformanceOptions,
+} from './program-conformance.ts'

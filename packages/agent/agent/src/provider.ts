@@ -37,6 +37,7 @@ import {
   type Halted,
   type ResumeEntry,
 } from './loop/coordinator.ts'
+import { nestedInbox } from './nested-inbox.ts'
 import { agentEvidence } from './loop/identities.ts'
 import { reconciliationPacer } from './loop/reconciliation.ts'
 import { createControlWriter, releaseForeground } from './control.ts'
@@ -135,6 +136,8 @@ type Quiescing = {
 
 type Driving = {
   wait: AbortController | null
+  /** Set when something the run must look at arrived in memory: the next wake runs a pass. */
+  poked: boolean
   asked: Readonly<{
     operation: AgentOperationId
     reason: DurableEvidence
@@ -210,6 +213,28 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   endedFailed: AgentRunEndedFailedReceiver | undefined
   waiting: AgentRunWaitingReceiver | undefined
 }>
+
+/** Tells the receiver of this provider that a run waits; a receiver that throws is not the run's fault. */
+function waitingReport<P, B extends ContentBlock>(
+  entry: ProviderEntry<P, B>,
+  execution: AgentExecutionId,
+): NonNullable<ResumeEntry<P>['waiting']> {
+  const { tenant, instance } = entry.binding
+  return (step, node, { owner, diagnostic }) => {
+    try {
+      entry.waiting?.({
+        kind: 'run-waiting',
+        tenant,
+        instance,
+        execution,
+        step,
+        node,
+        owner,
+        diagnostic,
+      })
+    } catch {}
+  }
+}
 
 /** The parts of a coordinator that every execution of this provider shares. */
 function coordinatorBase<P, B extends ContentBlock>(entry: ProviderEntry<P, B>) {
@@ -349,6 +374,11 @@ export function createProvider<P, B extends ContentBlock>(
     if (slot.kind === 'running' && slot.execution === execution) driving?.wait?.abort()
   }
 
+  const nested = nestedInbox(
+    execution => slot.kind === 'running' && slot.execution === execution,
+    execution => (driving === null ? undefined : ((driving.poked = true), hint(execution))),
+  )
+
   function failRun(
     execution: AgentExecutionId,
     attachment: ExecutionAttachmentId,
@@ -435,21 +465,9 @@ export function createProvider<P, B extends ContentBlock>(
       execution,
       idle,
       ended: (state, candidate) => endedRun(execution, state, candidate),
-      waiting: (step, node, failure) => {
-        try {
-          entry.waiting?.({
-            kind: 'run-waiting',
-            tenant: binding.tenant,
-            instance,
-            execution,
-            step,
-            node,
-            owner: failure.owner,
-            diagnostic: failure.diagnostic,
-          })
-        } catch {}
-      },
+      waiting: waitingReport(entry, execution),
       toolConcurrency: entry.configuration.toolConcurrency,
+      nested: { pending: () => nested.pending(execution) },
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })
   }
@@ -459,7 +477,7 @@ export function createProvider<P, B extends ContentBlock>(
     attachment: ExecutionAttachmentId,
     coordinator: ExecutionDrive,
   ): void {
-    const own: Driving = { wait: null, asked: null }
+    const own: Driving = { wait: null, poked: false, asked: null }
     driving = own
     const pacer = reconciliationPacer(entry.configuration.reconciliationDelaysMs)
     const handOver = async (): Promise<boolean> => {
@@ -483,6 +501,7 @@ export function createProvider<P, B extends ContentBlock>(
           )
           for (;;) {
             if (await handOver()) return null
+            if (own.poked) break
             const controller = new AbortController()
             own.wait = controller
             const wake = await coordinator
@@ -495,11 +514,13 @@ export function createProvider<P, B extends ContentBlock>(
             if (wake.ok === 'stopped') return 'failure' in ran ? ran.failure : null
             if (wake.ok === 'ready') break
           }
+          own.poked = false
         }
       } finally {
         own.asked?.settle(false)
         own.asked = null
         if (driving === own) driving = null
+        nested.stopped(execution)
       }
     }
     const stopped = (halted: Halted | null) => {
@@ -820,5 +841,6 @@ export function createProvider<P, B extends ContentBlock>(
     control: {
       quiesce,
     },
+    nested: nested.guarded(input => guard(input, 'submit', onExecution(input.execution))),
   }
 }

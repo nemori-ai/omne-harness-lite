@@ -1,5 +1,6 @@
 import type { CategoryEffect, PublishContent } from '@omne-harness/assets'
 import {
+  IMAGE_SUFFIXES,
   MANIFEST_FILE,
   readManifest,
   type Kept,
@@ -58,7 +59,26 @@ const wornAdvice = (manifest: PluginManifest): string | null =>
 const joined = (advice: readonly (string | null)[]): string | null =>
   advice.filter(each => each !== null).join(' ') || null
 
-type Written = Readonly<{ manifest: PluginManifest; unread: readonly string[] }>
+type Sized = Readonly<{ path: string; bytes: number }>
+
+const MIB = 1024 * 1024
+const LARGE_IMAGE_BYTES = 2 * MIB
+const largeAdvice = (large: readonly Sized[]): string | null =>
+  large.length === 0
+    ? null
+    : `Images over 2 MiB: ${large.map(({ path, bytes }) => `${path} (${(bytes / MIB).toFixed(1)} MiB)`).join(', ')}. The interface decodes an image each time it loads it, so these make it slower to show: make them smaller (compress them, or scale them to the size they are shown) before you publish.`
+
+const largeImages = (entries: readonly Sized[]): readonly Sized[] =>
+  entries.filter(
+    ({ path, bytes }) =>
+      bytes > LARGE_IMAGE_BYTES && IMAGE_SUFFIXES.some(suffix => path.endsWith(suffix)),
+  )
+
+type Written = Readonly<{
+  manifest: PluginManifest
+  unread: readonly string[]
+  large: readonly Sized[]
+}>
 type Listed = Extract<ListedPlugins, { kind: 'read' }>['plugins']
 
 function sameLayer(manifest: PluginManifest, name: string, held: Listed): Listed {
@@ -77,7 +97,7 @@ async function manifestIn(content: PublishContent): Promise<Written | string> {
   if (!('ok' in opened)) return `${MANIFEST_FILE} cannot be read: ${opened.failure}`
   const read = readManifest(new TextDecoder().decode(opened.ok))
   if (read.kind !== 'read') return `${MANIFEST_FILE}: ${read.reason}`
-  return { manifest: read.manifest, unread: read.unread }
+  return { manifest: read.manifest, unread: read.unread, large: largeImages(files.ok.entries) }
 }
 
 /** The points of the clients, each as the first client that tells of it tells it; one told by name alone takes anything. */
@@ -114,11 +134,11 @@ export function pluginEffect(ports: PluginEffectPorts): CategoryEffect {
         )
         const written =
           content === undefined
-            ? mine && { manifest: mine.manifest, unread: [] }
+            ? mine && { manifest: mine.manifest, unread: [], large: [] }
             : await manifestIn(content)
         if (written === undefined) return notHeld(capability.name)
         if (typeof written === 'string') return { kind: 'unavailable', reason: written }
-        const { manifest, unread } = written
+        const { manifest, unread, large } = written
         const clients = ports.clients(tenant) ?? []
         const told = pluginImpact({
           name: capability.name,
@@ -129,7 +149,12 @@ export function pluginEffect(ports: PluginEffectPorts): CategoryEffect {
           unknownSides: clients.length === 0 ? ['client'] : [],
           serverLoads: ports.server(tenant) !== null,
         })
-        const advice = joined([unreadAdvice(unread), told.advice, wornAdvice(manifest)])
+        const advice = joined([
+          unreadAdvice(unread),
+          told.advice,
+          wornAdvice(manifest),
+          largeAdvice(large),
+        ])
         return { kind: 'changes', ...told, advice }
       },
     },

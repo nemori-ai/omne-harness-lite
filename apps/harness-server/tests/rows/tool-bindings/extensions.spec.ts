@@ -51,6 +51,7 @@ function world(over: Partial<ExtensionsPorts> = {}) {
     faces: () => undefined,
     standing: () => ({ kind: 'free' }),
     workingDirectory: async () => 'absent',
+    settings: () => undefined,
     revision: () => 'abcd.3',
     ...over,
   }

@@ -125,7 +125,6 @@ function composition() {
     sourceIssuer: source.issuer,
     instances: host,
     catalog,
-    children: absent.toolChildren,
     guards: {
       access: { qualify: () => Promise.resolve({ kind: 'allowed' }) },
       sources: source.guard,
@@ -181,7 +180,6 @@ describe('the production parts under createToolRuntime', () => {
         catalog,
         decisions: absent.toolDecisions,
         resources: absent.toolResourceResponses,
-        children: absent.toolChildren,
         resultPolicy: defaultResultPolicy,
       },
       configuration,
@@ -200,7 +198,6 @@ describe('the production parts under createToolRuntime', () => {
           clock,
           catalog,
           resources: absent.toolResourceResponses,
-          children: absent.toolChildren,
           resultPolicy: defaultResultPolicy,
         } as never,
         configuration,

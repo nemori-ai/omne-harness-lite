@@ -144,9 +144,8 @@ function countingSource() {
   const source = {
     async describe() {
       seen.describe += 1
-      return {
-        ok: { kind: 'tool' as const, definition: testToolDefinition(adoption('read_file')) },
-      }
+      const definition = testToolDefinition(adoption('read_file'))
+      return { ok: { kind: 'tool' as const, definition, concurrent: true } }
     },
     async prepare(request: { consumer: ToolInvokeRequest['consumer'] }) {
       seen.prepare += 1

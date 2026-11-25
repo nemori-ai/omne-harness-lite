@@ -96,6 +96,7 @@ it('keeps JSON document and program schemas separate in the detailed guide', () 
         descriptions: [],
       },
       maxBytes: 128,
+      external: false,
     },
   } as const
   const guide = commandGuide(

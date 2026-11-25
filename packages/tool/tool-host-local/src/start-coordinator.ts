@@ -564,9 +564,14 @@ function snapshotOf(
   return succeed({ revision: read.revision, records })
 }
 
+/** Moves a guard the host itself owns. No caller is asked: it is not a caller's action, and it is not published. */
+export type OwnGuardMove = (
+  input: Readonly<{ tenant: TenantId; operation: ToolOperationId; guard: StartGuard }>,
+) => Promise<Outcome<DurableEvidence, ToolFailure>>
+
 export function createLocalStartCoordinator<P>(
   input: LocalStartCoordinatorInput<P>,
-): ToolStartAuthority<P> {
+): ToolStartAuthority<P> & Readonly<{ moveOwn: OwnGuardMove }> {
   const { store, access, guardsOf, commitAttempts, permitRequirements, target } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
@@ -945,37 +950,32 @@ export function createLocalStartCoordinator<P>(
     const principal = Reflect.get(raw, 'principal') as P
     const allowed = await qualify(principal, tenant, null, 'invalidate')
     if ('failure' in allowed) return allowed
-    const digest = canonicalDigest(target.ok)
+    return moveOwn({ tenant, operation: operation.ok, guard: target.ok })
+  }
+
+  const moveOwn: OwnGuardMove = ({ tenant, operation, guard }) => {
+    const digest = canonicalDigest(guard)
     return transactOwn<DurableEvidence>(
       guardsDomain(tenant),
       (snapshot, revision) => {
-        const existing = snapshot.records.get(invalidationKey(operation.ok))
+        const existing = snapshot.records.get(invalidationKey(operation))
         if (existing?.kind === 'invalidation') {
-          if (existing.digest !== digest)
-            return reply(fail({ kind: 'conflict', operation: operation.ok }))
+          if (existing.digest !== digest) return reply(fail({ kind: 'conflict', operation }))
           return reply(succeed(existing.evidence))
         }
-        const current = guardOf(snapshot, target.ok)
+        const current = guardOf(snapshot, guard)
         const advanced = (BigInt(current.revision) + 1n).toString()
-        const evidence = mint(tenant, guardKey(target.ok), revision, {
-          guard: advanced,
-          operation: operation.ok,
-        })
-        const record: GuardRecord = {
-          ...current,
-          revision: advanced,
-          operation: operation.ok,
-          evidence,
-        }
+        const evidence = mint(tenant, guardKey(guard), revision, { guard: advanced, operation })
+        const record: GuardRecord = { ...current, revision: advanced, operation, evidence }
         const invalidation: InvalidationRecord = {
           kind: 'invalidation',
-          operation: operation.ok,
+          operation,
           digest,
           evidence,
         }
         return { kind: 'commit', puts: [record, invalidation], value: evidence }
       },
-      () => fail({ kind: 'commit-unknown', operation: operation.ok }),
+      () => fail({ kind: 'commit-unknown', operation }),
     )
   }
 
@@ -1033,5 +1033,5 @@ export function createLocalStartCoordinator<P>(
     )
   }
 
-  return Object.freeze({ exclude, prepare, consume, inspect, invalidate })
+  return Object.freeze({ exclude, prepare, consume, inspect, invalidate, moveOwn })
 }

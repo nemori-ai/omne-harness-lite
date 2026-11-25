@@ -350,6 +350,7 @@
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
 | [UL-tool-definition](terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition) | 工具定义 | Tool Definition | 一个工具在模型与执行面前的完整表示，**装载时由资产与实现派生**，是视图 |
+| [UL-read-only-command](terms/execution-and-outcome.md#ul-read-only-command--只读命令声明--read-only-command-declaration) | 只读命令声明 | Read-only Command Declaration | 作者对一个命令的声明：它不改变别的调用看得到的东西，所以同一批动作里可以与别的动作同时进行 |
 | [UL-tool-programmability](terms/execution-and-outcome.md#ul-tool-programmability--工具可编程调用许可--tool-programmability) | 工具可编程调用许可 | Tool Programmability | 工具定义的 `programmable` 属性，只有显式 true 允许 Agent 脚本组合或编排调用 |
 | [UL-tool-execution](terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) | 工具执行 | Tool Execution | 一次执行，**计算资源，绑会话不绑实例** |
 | [UL-call-acceptance](terms/execution-and-outcome.md#ul-call-acceptance--调用受理--call-acceptance) | 调用受理 | Call Acceptance | Tool 收下一次调用：核参数、可用、资格与环境，写受理记录；**不判许不许**，那是放行判断 |

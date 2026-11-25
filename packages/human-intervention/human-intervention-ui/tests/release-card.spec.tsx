@@ -76,6 +76,19 @@ describe('the release card body', () => {
     expect(card.getByText('工具').closest('dl')!.classList.contains('hitl-facts')).toBe(true)
   })
 
+  it('a card of an action a program made has one more fact, 来源：由程序发起', async () => {
+    const item = releaseItem()
+    const question = item.card.question
+    if (question.kind !== 'release') throw new Error('release fixture')
+    const made = { ...question, origin: { ...question.origin, program: true as const } }
+    const card = await shown({ ...item, card: { ...item.card, question: made } })
+    expect(facts(card)).toEqual([
+      ['工具', 'Shell run ls -la'],
+      ['动作类别', 'Shell：执行'],
+      ['来源', '由程序发起'],
+    ])
+  })
+
   it('keeps the arguments behind a quiet 详情, and says when they are cut short', async () => {
     const card = await shown()
     const fold = card.getByRole('button', { name: '详情' })

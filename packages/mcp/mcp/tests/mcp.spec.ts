@@ -91,7 +91,11 @@ describe('inspection', () => {
     expect(inspection.judge(read.value, { capabilityName: 'files' })).toEqual({ ok: true })
     expect(inspection.judge(jsonOf(http))).toMatchObject({ ok: false })
     expect(inspection.deriveDeclarations(read.value)).toEqual({
-      entries: ['setting:placement-identity:target', 'setting:preference:connect-timeout'],
+      entries: [
+        'setting:placement-identity:target',
+        'setting:preference:connect-timeout',
+        'setting:preference:program-calls',
+      ],
     })
   })
 })

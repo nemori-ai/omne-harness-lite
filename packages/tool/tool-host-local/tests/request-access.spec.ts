@@ -6,7 +6,6 @@ import {
   callHostDomain,
   createLocalStartCoordinator,
   createLocalStartGuard,
-  PROGRAMMATIC_NOT_IN_M2,
   type ToolTargetAvailability,
 } from '@omne-harness/tool-host-local'
 import {
@@ -184,7 +183,7 @@ describe('current target availability at the local start boundary', () => {
     },
   )
 
-  it('recalls started history after the target leaves and keeps the M2 programmatic fence', async () => {
+  it('recalls started history after the target leaves; a start a program asks for meets the same target check', async () => {
     let allow = true
     const f = fixture(() => (allow ? allowed() : denied()))
     const permit = ok(await f.prepare())
@@ -200,8 +199,7 @@ describe('current target availability at the local start boundary', () => {
         ...f.call,
         request: { ...f.fixed, invocation: { ...f.fixed.invocation, kind: 'programmatic' } },
       }),
-    ).toEqual({ kind: 'refused', reason: PROGRAMMATIC_NOT_IN_M2 })
-    expect(f.asked).toHaveLength(2)
+    ).toEqual({ kind: 'refused', reason: 'target-not-included' })
   })
 
   it('records the permit, the executor receipt and the requirement with an acceptance, and nothing else', async () => {

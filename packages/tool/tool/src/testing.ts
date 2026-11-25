@@ -8,7 +8,6 @@ import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type {
   ToolContentReader,
   ToolBindings,
-  ToolChildren,
   ToolExecutorBinding,
   ToolInstanceHost,
   ToolInvocationSourceIssuer,
@@ -43,6 +42,7 @@ import { fixAttachment } from './ledger-content.ts'
 import { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
 import type { ToolLedgerGuards } from './ledger-guards.ts'
 import { createToolLedger, type ToolLedger } from './ledger.ts'
+import { createToolPositions } from './ledger-positions.ts'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from './testing-store.ts'
 
 import type { ToolLedgerStoreFixture } from './testing-ledger-store-types.ts'
@@ -65,7 +65,8 @@ export type TestToolDependenciesInput<P> = Readonly<{
   guards: Omit<ToolLedgerGuards<P, ContentBlock>, 'factAcknowledgements'>
   instances: ToolInstanceHost<P>
   catalog: ToolCatalog<P>
-  children: ToolChildren<P>
+  /** Not read: the ledger gives the position table. A fixture written before that may still pass one. */
+  children?: unknown
   operationIdentities: ToolOperationIdentities
   sourceIssuer: ToolInvocationSourceIssuer<P>
   bindingsFor(
@@ -142,7 +143,12 @@ export function createTestToolDependencies<P>(
       authority: doubles.authority,
       resources: doubles.resources,
       catalog: input.catalog,
-      children: input.children,
+      children: createToolPositions<P>({
+        store,
+        access: input.guards.access,
+        commitAttempts: input.configuration.ledgerCommitAttempts,
+        lookup: ledger.reads.lookup,
+      }),
       operationIdentities: input.operationIdentities,
       sourceIssuer: input.sourceIssuer,
     },

@@ -1,4 +1,5 @@
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { stripTypeScriptTypes } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -13,6 +14,8 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   deriveDefinition,
   judgeToolDefinition,
+  programFunctions,
+  programSignature,
   type ToolAuthority,
 } from '@omne-harness/tool-contract/provider'
 import {
@@ -32,7 +35,12 @@ import {
   governanceOf,
   loadToolRelease,
 } from '../../src/entry/tool-release-manifest.ts'
-import { shellToolModule } from '@omne-harness/tool-definitions'
+import {
+  filesToolModule,
+  shellToolModule,
+  skillsToolModule,
+  webToolModule,
+} from '@omne-harness/tool-definitions'
 import { TOOL_RESIDENCY_PRINCIPAL_KEY } from '../../src/entry/tool-residency-principal.ts'
 import {
   TEST_CONSTRUCTION,
@@ -164,6 +172,64 @@ describe('the current definitions Tool reads by name', () => {
     expect(
       await definitions.current({ principal: 'agent', tenant: fixtureTenant('a'), name: 'Shell' }),
     ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+})
+
+describe('what a program may call in the release', () => {
+  it('marks Files, Web, Skills and Shell programmable, and no other tool', async () => {
+    const fixture = await releaseFixture()
+    const programmable = fixture.manifest.entries.filter(entry => entry.programmable)
+    expect(programmable.map(entry => entry.asset.name).sort()).toEqual([
+      'Files',
+      'Shell',
+      'Skills',
+      'Web',
+    ])
+    for (const entry of fixture.manifest.entries)
+      expect(governanceOf(entry).programmable).toBe(entry.programmable ? true : undefined)
+  })
+
+  it('gives a program exactly these functions, word for word, and TypeScript reads them', async () => {
+    const fixture = await releaseFixture()
+    const made = TEST_CONSTRUCTION
+    const facts = {
+      Shell: okOf(shellToolModule.createAuthor(tree(made.Shell)), 'Shell').facts,
+      Files: okOf(filesToolModule.createAuthor(tree(made.Files)), 'Files').facts,
+      Web: okOf(webToolModule.createAuthor(tree(made.Web)), 'Web').facts,
+      Skills: okOf(skillsToolModule.createAuthor(tree(made.Skills)), 'Skills').facts,
+    } as const
+    const declared = fixture.manifest.entries.flatMap(entry => {
+      const name = entry.asset.name as keyof typeof facts
+      if (!entry.programmable) return []
+      const definition = judgeToolDefinition(deriveDefinition(governanceOf(entry), facts[name]))
+      return [programSignature(okOf(definition, name))]
+    })
+    const text = `${declared.join('\n\n')}\n`
+    const expected = readFileSync(
+      new URL('fixtures/program-signatures.txt', import.meta.url),
+      'utf8',
+    )
+    expect(text).toBe(expected)
+    expect(
+      stripTypeScriptTypes(text)
+        .replaceAll(/\/\*\*.*?\*\//gs, '')
+        .trim(),
+    ).toBe('')
+    expect(Buffer.byteLength(text)).toBeLessThan(6 * 1024)
+  })
+
+  it('opens only the one-shot execute of Shell, closed when the call names a terminal', async () => {
+    const fixture = await releaseFixture()
+    const author = okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'author')
+    const definition = okOf(
+      judgeToolDefinition(
+        deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Shell')), author.facts),
+      ),
+      'definition',
+    )
+    expect(programFunctions(definition).map(one => [one.entry, one.unless])).toEqual([
+      ['Shell.execute', ['terminal']],
+    ])
   })
 })
 

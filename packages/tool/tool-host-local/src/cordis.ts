@@ -7,6 +7,7 @@ export {
   createLocalToolBindingsPlugin,
   type LocalToolBindingsPlugin,
   type LocalToolBindingsPluginInput,
+  type LocalToolBindingsService,
 } from './cordis-bindings.ts'
 export {
   createLocalToolRuntimePlugins,

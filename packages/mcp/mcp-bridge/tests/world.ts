@@ -70,6 +70,7 @@ export function world(acquireWaitMs = 50) {
   const invoked: Array<Readonly<{ asker: Access<Principal>; request: InvokeRequest }>> = []
   const cancelledTasks: TaskRef[] = []
   const refreshed: string[] = []
+  const opened = new Map<string, () => boolean>()
   const bounds: unknown[] = []
   let answer: (request: InvokeRequest) => InvokeResult | Promise<InvokeResult> = () => {
     throw new Error('the world has no answer scripted for a call')
@@ -103,6 +104,7 @@ export function world(acquireWaitMs = 50) {
     },
     discovery,
     invoker,
+    programmable: async (_asker, endpoint) => opened.get(endpoint.name)?.() ?? false,
     principalKey: principal => principal.id,
     shape,
     resultMaxBytes: 65_536,
@@ -136,6 +138,10 @@ export function world(acquireWaitMs = 50) {
     },
     answers(script: typeof answer) {
       answer = script
+    },
+    /** What the holder set for program calls of this endpoint; the script may throw, as an unread setting. */
+    opens(name: string, script: () => boolean = () => true) {
+      opened.set(name, script)
     },
   }
 }

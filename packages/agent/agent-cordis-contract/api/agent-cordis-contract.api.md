@@ -27,6 +27,7 @@
 - `AgentJournalService` · `cordis.d.ts`
 - `AgentLocalRoute` · `index.d.ts`
 - `AgentMaterialsService` · `cordis.d.ts`
+- `AgentNestedActionsService` · `cordis.d.ts`
 - `AgentPublicationAuthority` · `cordis.d.ts`
 - `AgentPublicationAuthorityService` · `cordis.d.ts`
 - `AgentReceivedCommitsService` · `cordis.d.ts`
@@ -66,6 +67,7 @@
 - `agentMessageHandoffKey` · `cordis.d.ts`
 - `agentModelReceptionTargetsKey` · `cordis.d.ts`
 - `agentModelSelectionKey` · `cordis.d.ts`
+- `agentNestedActionsKey` · `cordis.d.ts`
 - `agentPublicationAuthorityKey` · `cordis.d.ts`
 - `agentReadsKey` · `cordis.d.ts`
 - `agentReceivedCommitsKey` · `cordis.d.ts`
@@ -89,7 +91,7 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import { type ActionAdmission, type AgentAccessCheck, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type AgentReceivedRecords, type CurrentConditions, type CompactionInputStore, type ContextCompaction, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelReceptionTargets, type ToolReceptionTargets, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
+import { type ActionAdmission, type AgentAccessCheck, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type AgentReceivedRecords, type CurrentConditions, type CompactionInputStore, type ContextCompaction, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelReceptionTargets, type ToolReceptionTargets, type ModelSelection, type NestedActionAdmission, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
@@ -293,6 +295,12 @@ export declare abstract class AgentExecutionControlService<P> extends Service im
     abstract readonly control: AgentExecutionControl<P>['control'];
 }
 export declare const agentExecutionControlKey = "agentExecutionControl";
+export declare abstract class AgentNestedActionsService<P> extends Service implements NestedActionAdmission<P> {
+    static readonly provide = "agentNestedActions";
+    constructor(ctx: Context);
+    abstract readonly admit: NestedActionAdmission<P>['admit'];
+}
+export declare const agentNestedActionsKey = "agentNestedActions";
 export declare abstract class AgentInstanceProvisionService<P> extends Service implements AgentInstanceProvision<P> {
     static readonly provide = "agentInstanceProvision";
     constructor(ctx: Context);
@@ -354,6 +362,7 @@ declare module '@deepseek-ai/cordis' {
         agentModelReceptionTargets: ModelReceptionTargetsService<unknown>;
         agentToolReceptionTargets: ToolReceptionTargetsService<unknown>;
         agentExecutionControl: AgentExecutionControlService<unknown>;
+        agentNestedActions: AgentNestedActionsService<unknown>;
         agentInstances: AgentInstancesService<unknown>;
         agentInstanceProvision: AgentInstanceProvisionService<unknown>;
     }

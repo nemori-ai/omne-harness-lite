@@ -14,10 +14,11 @@ const call = {
 }
 
 describe('tool/v1', () => {
-  it('is tool major 1 with three login reads and one observation, each counted as access', () => {
+  it('is tool major 1 with four login reads and one observation, each counted as access', () => {
     expect(toolProtocol.name).toBe('tool')
     expect(toolProtocol.major).toBe(1)
     expect(Object.keys(toolProtocol.operations).sort()).toEqual([
+      'list-call-children',
       'read-call',
       'read-call-output',
       'read-call-result',
@@ -96,5 +97,54 @@ describe('observe-call', () => {
     expectRoundTrip(observe.frame, { kind: 'delta', call, process: [{ index: '0' }] })
     expectRoundTrip(observe.frame, { kind: 'gap' })
     expect(readSample(observe.frame, { kind: 'refreshing' })).toEqual({ ok: false })
+  })
+})
+
+describe('list-call-children', () => {
+  const list = toolProtocol.operations['list-call-children']
+  const item = {
+    ordinal: 0,
+    tool: 'Files',
+    command: 'read',
+    preview: 'read a.txt',
+    state: 'completed',
+    child: reference,
+  }
+
+  it('names the parent by its reference with a cursor that may be null', () => {
+    expectRoundTrip(list.body, { tenant, reference, cursor: null })
+    expectRoundTrip(list.body, { tenant, reference, cursor: '49' })
+    expect(readSample(list.body, { tenant, reference })).toEqual({ ok: false })
+    expect(readSample(list.body, { tenant, cursor: null })).toEqual({ ok: false })
+  })
+
+  it('answers a page of positions: ordinal, tool, command, preview, one state word and the child reference', () => {
+    expectRoundTrip(list.outcomes.succeeded, { items: [], next: null })
+    expectRoundTrip(list.outcomes.succeeded, {
+      items: [
+        item,
+        { ...item, ordinal: 3, command: null, preview: '', state: 'waiting', child: null },
+      ],
+      next: '3',
+    })
+    const page = (changed: object) => ({ items: [{ ...item, ...changed }], next: null })
+    expect(readSample(list.outcomes.succeeded, page({ state: 'paused' }))).toEqual({ ok: false })
+    expect(readSample(list.outcomes.succeeded, page({ ordinal: -1 }))).toEqual({ ok: false })
+    expect(readSample(list.outcomes.succeeded, page({ ordinal: 'one' }))).toEqual({ ok: false })
+    expect(readSample(list.outcomes.succeeded, page({ tool: '' }))).toEqual({ ok: false })
+  })
+
+  it.each([
+    'queued',
+    'running',
+    'waiting',
+    'background',
+    'completed',
+    'failed',
+    'denied',
+    'stopped',
+    'unknown',
+  ])('carries the state word %s', state => {
+    expectRoundTrip(list.outcomes.succeeded, { items: [{ ...item, state }], next: null })
   })
 })

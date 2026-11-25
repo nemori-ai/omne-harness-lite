@@ -167,6 +167,7 @@ export const PROVIDED = [
   'agentPublicationAuthority',
   'agentExecutionRecovery',
   'agentExecutionControl',
+  'agentNestedActions',
   'agentInstanceProvision',
 ] as const
 
@@ -242,6 +243,7 @@ export type World = Readonly<{
   instanceHost: Context['agentInstanceHost']
   recovery: Context['agentExecutionRecovery']
   control: Context['agentExecutionControl']
+  nested: Context['agentNestedActions']
   retired: Retirement[]
   errors: string[]
   warnings: string[]
@@ -471,6 +473,9 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     },
     get control() {
       return present(root.get('agentExecutionControl'), 'agentExecutionControl')
+    },
+    get nested() {
+      return present(root.get('agentNestedActions'), 'agentNestedActions')
     },
     retired,
     errors,

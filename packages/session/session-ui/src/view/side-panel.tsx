@@ -16,6 +16,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { usePressElsewhere } from './press-elsewhere.ts'
 import { SideFrameContext, type SideFrame } from './side-frame.tsx'
 import { sessionSide } from '../parts.ts'
 
@@ -180,16 +181,7 @@ function SideBubble({
     })
     return () => cancelAnimationFrame(frameId)
   }, [shown, openedByKeyboard])
-  useEffect(() => {
-    if (!shown) return undefined
-    const pressed = (event: PointerEvent): void => {
-      const path = event.composedPath()
-      if (path.some(node => node === control.current || node === bubble.current)) return
-      close(false)
-    }
-    document.addEventListener('pointerdown', pressed, true)
-    return () => document.removeEventListener('pointerdown', pressed, true)
-  }, [shown, close, control])
+  const pressedInside = usePressElsewhere(shown, control, () => close(false))
   if (!unfold.kept || box === null) return null
   return (
     <InkBubble
@@ -203,6 +195,7 @@ function SideBubble({
       data-keyboard-region="side"
       aria-label={LABEL}
       inert={unfold.closing}
+      onPointerDownCapture={pressedInside}
       ink="light"
       side="below"
       figure={box.figure}

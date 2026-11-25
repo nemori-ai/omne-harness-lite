@@ -84,6 +84,18 @@ export type {
   ScreenSize,
 } from './facilities/screen.ts'
 
+export { isProgramEntry, isProgramFailureName, programFacility } from './facilities/program.ts'
+export type {
+  ProgramAnswer,
+  ProgramCall,
+  ProgramFacility,
+  ProgramLimitName,
+  ProgramLimits,
+  ProgramOutcome,
+  ProgramRun,
+  ProgramRunRequest,
+} from './facilities/program.ts'
+
 export { createRecoveryAccess } from './ports.ts'
 export type {
   FacilityGuard,

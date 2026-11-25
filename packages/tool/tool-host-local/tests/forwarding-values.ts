@@ -79,17 +79,28 @@ export async function forwardingFixture(
   options: {
     durableDeclaration?: boolean
     consumed?: boolean
+    /** The parent also runs programs, and the target is open to them. */
+    programs?: boolean
   } = {},
 ) {
   const memory = createMemoryToolLedgerStore()
   let nextCommit: 'lost' | 'unwritten' | 'unavailable' | 'rejected' | null = null
   let allowed = true
+  /** The read that fails next: the n-th one of its kind from now, once. */
+  let blind: { kind: 'read' | 'record'; left: number } | null = null
+  const blinded = (kind: 'read' | 'record') => {
+    if (blind === null || blind.kind !== kind) return false
+    if (blind.left-- > 0) return false
+    blind = null
+    return true
+  }
+  const away = async () => ({ kind: 'unavailable', diagnostic: 'offline' }) as never
   const store: ToolLedgerStore = {
     durability: options.durableDeclaration ? 'durable' : 'none',
     scanPending: input => memory.scanPending(input),
     usage: query => memory.usage(query),
-    read: memory.read,
-    readRecord: memory.readRecord,
+    read: input => (blinded('read') ? away() : memory.read(input)),
+    readRecord: (domain, key) => (blinded('record') ? away() : memory.readRecord(domain, key)),
     due: memory.due,
     definition: memory.definition,
     async commit(input) {
@@ -105,6 +116,11 @@ export async function forwardingFixture(
       return memory.commit(input)
     },
   }
+  const plain = request().availability.definition
+  const targetDefinition: typeof plain =
+    options.programs === true && plain.kind === 'function'
+      ? { ...plain, programmable: true, program: { kind: 'open', unless: [] } }
+      : plain
   const authority = createLocalStartCoordinator<string>({
     store,
     commitAttempts: 8,
@@ -132,12 +148,22 @@ export async function forwardingFixture(
       decode: (value: unknown) =>
         typeof value === 'string' ? succeed(value) : fail({ reason: 'not a string' }),
     },
-    definitions: currentDefinitions<string>(toolsDefinition(), request().availability.definition),
+    definitions: currentDefinitions<string>(toolsDefinition(), targetDefinition),
     forwarding: {
       authority: () => authority,
       isParent: (fixed: FixedToolRequest) =>
         fixed.availability.definition.adoption.name === 'Tools',
     },
+    ...(options.programs === true
+      ? {
+          programs: {
+            authority: () => authority,
+            isParent: (fixed: FixedToolRequest) =>
+              fixed.availability.definition.adoption.name === 'Tools',
+            children: () => undefined,
+          },
+        }
+      : {}),
   }
   const source = createLocalInvocationSource(input)
   const cleaned = parentRequest()
@@ -198,7 +224,10 @@ export async function forwardingFixture(
   const consume = () =>
     authority.consume({ ...parent, permit, executorReceipt: evidence('parent-executor') })
   if (options.consumed !== false) ok(await consume())
-  const target = toolInvokeRequestOf(request())
+  const target = toolInvokeRequestOf({
+    ...request(),
+    availability: { ...request().availability, definition: targetDefinition },
+  })
   return {
     memory,
     store,
@@ -218,6 +247,14 @@ export async function forwardingFixture(
     },
     revoke: () => {
       allowed = false
+    },
+    blind: (kind: 'read' | 'record', nth: number) => {
+      blind = { kind, left: nth }
+    },
+    sighted: () => {
+      const unused = blind !== null
+      blind = null
+      return unused
     },
   }
 }

@@ -23,7 +23,7 @@ import type {
 } from './identity.ts'
 import type { ControlReceipt, Handoff, ProcessBlock, ToolControl } from './operations.ts'
 import type { ToolStartRecord } from './ports.ts'
-import type { ProgramClosure } from './program.ts'
+import type { ProgramTable } from './program.ts'
 import type {
   Checkpoint,
   ControlProgress,
@@ -96,7 +96,7 @@ export type ToolRecovery = Readonly<{
   suspensions: readonly SuspensionRecord[]
   checkpointState: Readonly<{ payload: DurableEvidence; state: string }> | null
   tasks: readonly ToolTask[]
-  program: ProgramClosure | null
+  program: ProgramTable | null
   scheduling: ProgramScheduling | null
   streams: readonly FactProgress[]
 }>
