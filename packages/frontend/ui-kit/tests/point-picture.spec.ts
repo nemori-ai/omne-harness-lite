@@ -112,6 +112,21 @@ function nodeWrite(
   ])
 }
 
+/** A header that says 4 by 4, and megabytes of image data behind it. */
+function swollen(): Uint8Array {
+  const head = Buffer.alloc(13)
+  head.writeUInt32BE(4, 0)
+  head.writeUInt32BE(4, 4)
+  head[8] = 8
+  head[9] = 2
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    nodeChunk('IHDR', head),
+    nodeChunk('IDAT', deflateSync(Buffer.alloc(4_000_000))),
+    nodeChunk('IEND', new Uint8Array(0)),
+  ])
+}
+
 const pixel = (picture: Plain, x: number, y: number): number[] => {
   const at = (Math.floor(y) * picture.width + Math.floor(x)) * picture.channels
   return [...picture.data.subarray(at, at + picture.channels)]
@@ -176,6 +191,7 @@ describe('the PNG it writes and reads', () => {
     ['grey', () => nodeWrite(made(4, 4), { colour: 0 }), /colour type 0/],
     ['interlaced', () => nodeWrite(made(4, 4), { interlace: 1 }), /interlaced/],
     ['a row filter it does not know', () => nodeWrite(made(4, 4), { filter: () => 7 }), /filter 7/],
+    ['image data that inflates past what its size says', () => swollen(), /longer than its size/],
   ])('refuses %s with the reason, and answers no picture', async (_name, png, reason) => {
     await expect(readPng(png())).rejects.toThrow(reason)
     await expect(pointPicture(png(), { x: 1, y: 1 }, 1)).rejects.toThrow(reason)

@@ -78,4 +78,13 @@ describe('the label beside the figure', () => {
     const rule = STYLES.split('}').find(text => /\.omne-figure-label\s*\{/.test(text))
     expect(rule).toMatch(/pointer-events:\s*none/)
   })
+
+  it('sits on its own paper, so it reads on a window of any colour; a long name is cut, not spread', () => {
+    const rules = STYLES.split('}')
+    const rule = rules.find(text => /\.omne-figure-label\s*\{/.test(text))
+    expect(rule).toMatch(/background:\s*var\(--omne-surface-overlay\)/)
+    expect(rule).toMatch(/max-width:\s*22em/)
+    const line = rules.find(text => /\.omne-figure-label-line\s*\{/.test(text))
+    expect(line).toMatch(/text-overflow:\s*ellipsis/)
+  })
 })

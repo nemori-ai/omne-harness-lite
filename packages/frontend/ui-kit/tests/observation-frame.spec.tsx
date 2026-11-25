@@ -337,6 +337,27 @@ describe('the frame on the screen (FE-I67)', () => {
     expect(time.pending()).toBe(0)
   })
 
+  it('lays a wash inside the rectangle, masked where the covering boxes are; it is stronger when closed', () => {
+    const hidden: Box = { x: RECT.x + 40, y: RECT.y + 30, width: 120, height: 90 }
+    const again = show({ covered: [hidden] })
+    const wash = frames()[0]!.querySelector<SVGRectElement>("rect[data-part='wash']")!
+    expect(Number(wash.getAttribute('x'))).toBe(RECT.x + 4)
+    expect(Number(wash.getAttribute('width'))).toBe(RECT.width - 8)
+    const id = /url\(#(.+)\)/.exec(wash.getAttribute('mask') ?? '')?.[1]
+    const holes = [...document.getElementById(id!)!.querySelectorAll("rect[fill='black']")]
+    expect(holes.map(each => Number(each.getAttribute('x')))).toEqual([hidden.x])
+    expect(holes.map(each => Number(each.getAttribute('width')))).toEqual([hidden.width])
+    again({ covered: [] })
+    expect(document.getElementById(id!)!.querySelectorAll("rect[fill='black']")).toHaveLength(0)
+    const rules = STYLES.split('}')
+    const plain = rules.find(text => /^\s*\.omne-observation-frame-wash\s*\{/.test(text))
+    const shut = rules.find(text =>
+      text.includes("[data-closed='true'] .omne-observation-frame-wash"),
+    )
+    expect(plain).toMatch(/--omne-info-fill\) 55%/)
+    expect(shut).toMatch(/--omne-info-fill\) 90%/)
+  })
+
   it('takes no pointer and keeps the paper breath round its ink', () => {
     show()
     const rule = STYLES.split('}').find(text => /\.omne-observation-frame\s*\{/.test(text))

@@ -84,6 +84,7 @@ class FigureStay {
   private deskPoint: Point = { x: 0, y: 0 }
   private deskKeys: Keys = NO_KEYS
   private rewrite = false
+  private letting = false
   private gift: Gift | undefined = undefined
   private readonly sentPictures = new Set<string>()
   private unwatch: () => void = nothing
@@ -208,6 +209,7 @@ class FigureStay {
     const { where } = this
     if (!deskDraws(where) || where.at !== 'hand' || where.on !== on) return this.run(drop, fromPage)
     const framed = keys.meta ? this.look.framed() : null
+    this.look.stop()
     if (framed !== null) {
       this.run({ ...drop, look: true }, fromPage)
       this.readWindow(framed, at, keys.shift)
@@ -216,7 +218,9 @@ class FigureStay {
     const content = this.lease?.facts?.content
     if (!this.read || content === undefined || !this.lease?.facts?.visible || !inside(content, at))
       return this.run(drop, fromPage)
+    this.letting = true
     this.look.own(at, covered => void this.run({ ...drop, covered }, fromPage))
+    this.publish()
     return true
   }
 
@@ -300,8 +304,9 @@ class FigureStay {
       },
       ended: () => {
         if (this.lease !== made) return
+        const released = this.letting
         this.forget()
-        this.run({ kind: 'ended' })
+        this.run({ kind: 'ended', released })
       },
     })
   }
@@ -337,7 +342,10 @@ class FigureStay {
   }
 
   private moved(was: Whereabouts, where: Whereabouts): void {
-    if (where !== was) this.look.cancelOwn()
+    if (where !== was) {
+      this.look.cancelOwn()
+      this.letting = false
+    }
     if (where.at !== 'desk') this.look.cancelRead()
     if (!deskDraws(where)) this.look.stop()
     if (where.at !== 'home') this.rewrite = false

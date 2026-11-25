@@ -305,6 +305,28 @@ describe('the capture of a macOS window', () => {
     expect(await backend!.capture('44276')).toBe('not-found')
   })
 
+  it('asks the permission anew at every capture: taken away while the app runs, the next one hands out no picture', async () => {
+    let answer = 'true'
+    const window = {
+      id: '44276',
+      pid: 1,
+      app: 'A',
+      title: '',
+      layer: 0,
+      opacity: 1,
+      onScreen: true,
+    }
+    const bounds = { x: 918, y: 649, width: 740, height: 625 }
+    const backend = await windowBackendFor('darwin', {
+      run: async () => JSON.stringify([MACOS_RECORDED_WINDOWS[3]]),
+      load: async () => ({ windows: () => [libraryWindowOf({ ...window, scale: 2, bounds })] }),
+      ask: async () => answer,
+    })
+    expect(await backend!.capture('44276')).toMatchObject({ width: 1480 })
+    answer = 'false'
+    expect(await backend!.capture('44276')).toBe('not-authorized')
+  })
+
   it('takes the place of the window and the scale of its screen from the library when it is taken', async () => {
     const at = { x: 918, y: 649, width: 740, height: 625 }
     const moved = { x: 10, y: 20, width: 740, height: 625 }

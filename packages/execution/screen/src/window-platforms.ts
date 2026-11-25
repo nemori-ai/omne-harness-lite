@@ -95,6 +95,6 @@ export async function windowBackendFor(
           /* wall-clock: operation-timing -- how old a listing of the windows is, a monotonic duration */ performance.now()),
     ),
     library: () => loaded,
-    permission: macosScreenPermission(sources.ask),
+    permission: () => macosScreenPermission(sources.ask)(),
   })
 }

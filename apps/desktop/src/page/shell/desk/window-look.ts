@@ -34,6 +34,7 @@ const HOME_LABEL: readonly FigureLabelLine[] = [
 const INTO_NOTE: FigureLabelLine = { text: '松手放进说话笺 · 加按 ⇧ 直接发送' }
 const SEND_NOW: FigureLabelLine = { text: '松手直接发送', tone: 'hint' }
 const NO_KEYS: Keys = { meta: false, shift: false }
+export const UNREADABLE = '这张图读不懂'
 
 const two = (value: number): string => String(value).padStart(2, '0')
 const clockOf = (at: number): string => {
@@ -61,8 +62,8 @@ async function seenOf(read: WindowRead, at: Point, send: boolean): Promise<Seen 
   if (read.kind === 'failed') return { kind: 'not-seen', reason: read.reason }
   try {
     return { kind: 'pictures', pictures: await picturesOf(read, at), send }
-  } catch (error) {
-    return { kind: 'not-seen', reason: error instanceof Error ? error.message : String(error) }
+  } catch {
+    return { kind: 'not-seen', reason: UNREADABLE }
   }
 }
 

@@ -26,18 +26,10 @@ export type WhereEvent =
   | Readonly<{ kind: 'lift'; on: Side }>
   | Readonly<{ kind: 'drop'; on: Side; at: Point; look?: boolean; covered?: boolean }>
   | Readonly<{ kind: 'escape'; on: Side; at: Point }>
+  | Readonly<{ kind: 'ended'; released?: boolean }>
   | Readonly<{ kind: 'signedOut'; at: Point }>
   | Readonly<{
-      kind:
-        | 'painted'
-        | 'arrived'
-        | 'cleared'
-        | 'ended'
-        | 'click'
-        | 'double'
-        | 'recall'
-        | 'seat'
-        | 'seen'
+      kind: 'painted' | 'arrived' | 'cleared' | 'click' | 'double' | 'recall' | 'seat' | 'seen'
     }>
 
 export type Effect =
@@ -118,7 +110,9 @@ function drawnByDesk(on: Side, event: WhereEvent, facts: Facts): Move {
   if ((event.kind === 'escape' && event.on === on) || event.kind === 'signedOut')
     return { to: homeward(event.at, facts) }
   if (event.kind === 'ended')
-    return { to: on === 'page' ? { at: 'hand', drawn: 'page', on: 'page' } : SEAT }
+    return {
+      to: on === 'page' && !event.released ? { at: 'hand', drawn: 'page', on: 'page' } : SEAT,
+    }
   return undefined
 }
 

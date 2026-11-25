@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { SayOutcome } from '@omne-harness/shell-contract'
 import { pointPicture } from '@omne-harness/ui-kit'
 import {
   SCOPE,
@@ -200,6 +201,38 @@ describe('松手问 own：答复与等的那一小会儿', () => {
     await device.settle()
     expect(device.scenes()).toHaveLength(scenes)
     expect(device.stay.away()).toBe(false)
+  })
+
+  it('等答复时租约没了：手已经松了，形算在座，下一次拿起照样开得出租约', async () => {
+    const answer = held<Response>()
+    const { device } = await carried({ own: () => answer.promise })
+    device.hand('drop', 300, 200)
+    device.line(0, { ended: true })
+    await device.settle()
+    const leases = device.leases()
+    device.hand('lift', 300, 200)
+    await device.settle()
+    expect(device.leases()).toBe(leases + 1)
+  })
+
+  it('最后一次移动带 ⌘、松手不带 ⌘（中间没动）：等 own 时不再问 window，一幕里没有框与窗口的名字（DT-56）', async () => {
+    const answer = held<Response>()
+    const { device } = await carried({ ...LOOKS, own: () => answer.promise })
+    device.hand('move', 300, 200, { meta: true })
+    await device.settle()
+    expect(device.last().frame).not.toBeNull()
+    device.hand('move', 310, 200, { meta: true })
+    device.hand('drop', 310, 200)
+    expect(device.last().frame).toBeNull()
+    expect(texts(device) ?? []).not.toContain('Safari · 报错')
+    device.tick(500)
+    await device.settle()
+    expect(device.asked('window')).toHaveLength(1)
+    expect(device.last().frame).toBeNull()
+    answer.settle(Response.json({ own: false }))
+    await device.settle()
+    expect(device.last().where.mode).toBe('rest')
+    expect(device.asked('read')).toEqual([])
   })
 })
 
@@ -445,9 +478,10 @@ describe('⌘ 松手：读那个窗口', () => {
   })
 
   it('500、请求失败、图读不懂：开笺写没能看这个窗口与原因，不带图', async () => {
-    const reason = await pointPicture(new TextEncoder().encode('not a png'), { x: 1, y: 1 }, 1)
-      .then(() => '')
-      .catch((error: Error) => error.message)
+    const reason = '这张图读不懂'
+    await expect(
+      pointPicture(new TextEncoder().encode('not a png'), { x: 1, y: 1 }, 1),
+    ).rejects.toThrow()
     const cases = [
       [
         () => Response.json({ reason: 'failed', detail: '截这个窗口时出错' }, { status: 500 }),
@@ -456,13 +490,32 @@ describe('⌘ 松手：读那个窗口', () => {
       [() => Promise.reject(new TypeError('gone')), '读窗口的请求没有成功'],
       [() => shotOf(new TextEncoder().encode('not a png'), WINDOW.bounds, 2, TAKEN_AT), reason],
     ] as const
-    expect(reason).not.toBe('')
     for (const [answer, said] of cases) {
       const { device } = await carried({ ...LOOKS, shot: answer })
       await letGoOver(device)
       expect(device.last().note?.told).toEqual({ kind: 'not-seen', reason: said })
       expect(device.last().note?.pictures).toBeUndefined()
     }
+  })
+
+  it('前一句话还在发时图到了：图进笺；那一句受理了，后到的图还在，没有被一起清掉', async () => {
+    const reading = held<Response>()
+    const saying = held<SayOutcome>()
+    const given = { pictures: () => true, say: () => saying.promise }
+    const { device, lease, one } = await carried({ ...LOOKS, shot: () => reading.promise }, given)
+    await framed(device)
+    device.hand('drop', 1000, 300, { meta: true })
+    device.up({ kind: 'input', lease, input: 'click', at: null })
+    device.up({ kind: 'input', lease, input: 'send', words: '先说一句', to: { kind: 'new' } })
+    expect(device.last().note?.fate).toEqual({ kind: 'sending' })
+    reading.settle(await shot())
+    await until(device, () => device.last().note?.pictures != null)
+    expect(device.last().note?.pictures).toHaveLength(2)
+    saying.settle({ kind: 'sent', key: 's-1' })
+    await device.settle()
+    expect(device.last().note?.fate).toEqual({ kind: 'accepted' })
+    expect(device.last().note?.pictures).toHaveLength(2)
+    expect(one.said).toHaveLength(1)
   })
 
   it('说话位那一项不认识图（没有这个成员或答假）：照样放进笺，写现在发不了图', async () => {

@@ -131,7 +131,8 @@ export class Talk {
     } catch {
       said = Promise.resolve({ kind: 'unknown' })
     }
-    void said.catch(() => undefined).then(outcome => this.settled(note, outcome, direct))
+    const there = note.pictures.map(picture => picture.id)
+    void said.catch(() => undefined).then(outcome => this.settled(note, outcome, direct, there))
   }
 
   /** Opens what the last accepted words went to; false when nothing was accepted. */
@@ -151,10 +152,16 @@ export class Talk {
     this.unwatch()
   }
 
-  private settled(note: Note, outcome: SayOutcome | undefined, direct: boolean): void {
+  private settled(
+    note: Note,
+    outcome: SayOutcome | undefined,
+    direct: boolean,
+    there: readonly string[],
+  ): void {
     if (outcome?.kind === 'sent') note.sent = String(outcome.key)
     note.fate = fateOf(outcome)
-    if (outcome?.kind !== 'failed') note.pictures = []
+    if (outcome?.kind !== 'failed')
+      note.pictures = note.pictures.filter(picture => !there.includes(picture.id))
     if (this.note !== note) return
     if (direct && outcome?.kind === 'sent') this.accepted()
     else this.changed()

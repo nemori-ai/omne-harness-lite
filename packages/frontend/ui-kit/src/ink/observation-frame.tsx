@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { handPressure, type Point } from '../icons/brush.ts'
 import { useReducedMotion } from '../motion/motion.ts'
@@ -33,6 +33,7 @@ interface Clock {
 }
 
 const PAD = 8
+const WASH_INSET = 4
 const clamp = (value: number): number => Math.min(1, Math.max(0, value))
 const sameBox = (a: Box | null, b: Box | null): boolean =>
   a === b ||
@@ -141,6 +142,8 @@ function FrameInk({
     }
   }, [clock, lines, shut, drying, reduced, onGone, id])
 
+  const mask = useId()
+  const hidden = JSON.parse(coveredKey) as Box[]
   const box = {
     left: rect.x - PAD,
     top: rect.y - PAD,
@@ -156,6 +159,22 @@ function FrameInk({
       style={box}
       viewBox={`${box.left} ${box.top} ${box.width} ${box.height}`}
     >
+      <mask id={mask} maskUnits="userSpaceOnUse" {...rect}>
+        <rect {...rect} fill="white" />
+        {hidden.map((each, i) => (
+          <rect key={i} {...each} fill="black" />
+        ))}
+      </mask>
+      <rect
+        className="omne-observation-frame-wash"
+        data-part="wash"
+        mask={`url(#${mask})`}
+        x={rect.x + WASH_INSET}
+        y={rect.y + WASH_INSET}
+        width={Math.max(0, rect.width - WASH_INSET * 2)}
+        height={Math.max(0, rect.height - WASH_INSET * 2)}
+        rx={Math.max(0, FRAME.corner - WASH_INSET)}
+      />
       {lines.runs.map((_, i) => (
         <path key={`edge-${i}`} className="omne-observation-frame-line" data-part="edge" d="" />
       ))}

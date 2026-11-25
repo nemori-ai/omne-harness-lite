@@ -21,16 +21,6 @@ function crc32(bytes: Uint8Array): number {
   return (c ^ 0xffffffff) >>> 0
 }
 
-async function through(
-  bytes: Uint8Array,
-  stream: CompressionStream | DecompressionStream,
-): Promise<Uint8Array> {
-  const writer = stream.writable.getWriter()
-  void writer.write(Uint8Array.from(bytes)).catch(() => undefined)
-  void writer.close().catch(() => undefined)
-  return new Uint8Array(await new Response(stream.readable).arrayBuffer())
-}
-
 const concat = (parts: readonly Uint8Array[]): Uint8Array => {
   const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0))
   let at = 0
@@ -39,6 +29,31 @@ const concat = (parts: readonly Uint8Array[]): Uint8Array => {
     at += part.length
   }
   return out
+}
+
+const TOO_LONG = 'the PNG image data is longer than its size says'
+
+async function through(
+  bytes: Uint8Array,
+  stream: CompressionStream | DecompressionStream,
+  most = Infinity,
+): Promise<Uint8Array> {
+  const writer = stream.writable.getWriter()
+  void writer.write(Uint8Array.from(bytes)).catch(() => undefined)
+  void writer.close().catch(() => undefined)
+  const reader = (stream.readable as ReadableStream<Uint8Array>).getReader()
+  const parts: Uint8Array[] = []
+  let length = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) return concat(parts)
+    length += value.length
+    if (length > most) {
+      void reader.cancel().catch(() => undefined)
+      throw new Error(TOO_LONG)
+    }
+    parts.push(value)
+  }
 }
 
 interface Header {
@@ -122,8 +137,10 @@ export async function readPng(png: Uint8Array): Promise<Pixels> {
   const { head, idat } = chunks(png)
   let raw: Uint8Array
   try {
-    raw = await through(idat, new DecompressionStream('deflate'))
+    const most = head.height * (head.width * head.channels + 1)
+    raw = await through(idat, new DecompressionStream('deflate'), most)
   } catch (cause) {
+    if (cause instanceof Error && cause.message === TOO_LONG) throw cause
     throw new Error('the PNG image data does not inflate', { cause })
   }
   return { ...head, data: unfilter(raw, head) }

@@ -290,14 +290,22 @@
   position: fixed;
   z-index: var(--omne-layer-figure);
   display: grid;
+  max-width: 22em;
   margin: 0;
+  padding: calc(var(--omne-space-inline) * 0.75) calc(var(--omne-space-inline) * 1.25);
+  border-radius: var(--omne-radius-control);
+  background: var(--omne-surface-overlay);
+  box-shadow: var(--omne-elevation-raised);
   pointer-events: none;
 }
 
 .omne-figure-label-line {
+  overflow: hidden;
+  min-width: 0;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
   line-height: var(--omne-leading-ui);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -326,4 +334,12 @@
 
 .omne-observation-frame-line {
   fill: var(--omne-ink-primary);
+}
+
+.omne-observation-frame-wash {
+  fill: color-mix(in oklab, var(--omne-info-fill) 55%, transparent);
+}
+
+.omne-observation-frame[data-closed='true'] .omne-observation-frame-wash {
+  fill: color-mix(in oklab, var(--omne-info-fill) 90%, transparent);
 }
