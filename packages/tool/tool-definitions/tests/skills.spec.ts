@@ -484,7 +484,7 @@ describe('Skills author: where a Skill comes from and what it needs (table 5.4)'
               kind: 'available',
               name: 'weekly-report',
               description: 'Write the weekly report.',
-              needs: ['Browser'],
+              needs: ['Browser', 'Mail'],
             },
             { kind: 'disabled', name: 'meeting-notes', reason: 'disabled by the tenant' },
           ],
@@ -495,7 +495,7 @@ describe('Skills author: where a Skill comes from and what it needs (table 5.4)'
     expect(await test.run('search', { query: 'report' }, skills)).toBe(
       [
         'done Skills search query="report" results=2',
-        '1. weekly-report [needs: Browser] - Write the weekly report.',
+        '1. weekly-report [needs: Browser, Mail] - Write the weekly report.',
         '2. meeting-notes [disabled: disabled by the tenant]',
       ].join('\n'),
     )

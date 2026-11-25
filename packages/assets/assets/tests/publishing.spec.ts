@@ -340,6 +340,19 @@ describe('how a new holding on a layer stands against the wider layers', () => {
     }
   })
 
+  it('中间一层有一份禁用的同名副本，挡住新持有的仍是更宽的层上不可替换的那一份', () => {
+    expect(
+      publishStanding(
+        [
+          read('official', candidate('o', { immutable: true })),
+          read('organization', candidate('g', { disabled: true })),
+          read('tenant'),
+        ],
+        'tenant',
+      ),
+    ).toEqual({ kind: 'irreplaceable', layer: 'official' })
+  })
+
   it('这一层已有在持的同名持有（P7）照样被挡', () => {
     expect(
       publishStanding(

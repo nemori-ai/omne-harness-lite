@@ -60,6 +60,8 @@ type Options = {
   recall?: Awaited<ReturnType<TenantLayerStore['recall']>>
   /** A second contribution of the directory category: it is a conflict and gives no contract. */
   rival?: true
+  /** The tenant has no store yet: only a write may open one. */
+  unregistered?: true
 }
 
 function setup(options: Options = {}) {
@@ -135,7 +137,15 @@ function setup(options: Options = {}) {
       },
     },
     official: () => [],
-    storeOf: async () => store,
+    storeOf: async () => (options.unregistered === true ? undefined : store),
+    ...(options.unregistered === true
+      ? {
+          writableStoreOf: async () => {
+            calls.push('open for writing')
+            return store
+          },
+        }
+      : {}),
   })
   return { management, published, discarded, calls }
 }
@@ -254,6 +264,19 @@ describe('beginning an upload', () => {
       },
     })
     expect(await s.management.beginUpload(begin())).toEqual({ kind: 'unavailable' })
+  })
+
+  it('a tenant without a store yet: beginning an upload opens one for writing, and a read still finds none', async () => {
+    const s = setup({ unregistered: true })
+    expect(await s.management.beginUpload(begin())).toMatchObject({ kind: 'accepted' })
+    expect(
+      await s.management.recall({
+        ...scope,
+        operationId: 'op-1',
+        request: { kind: 'create', capability: id('note', 'a') },
+      }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(s.calls).toEqual(['open for writing', 'begin up-1'])
   })
 })
 
