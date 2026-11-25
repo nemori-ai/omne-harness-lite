@@ -229,6 +229,7 @@
 | 导航与列表里的计数 | 共用件的计数胶囊 | 成员自己的胶囊与徽标 |
 | 到达、落定、页面的到达 | `useArrival`、`Arrive`、`useSettleCue`、`useMotionCue` | 新的关键帧或时长 |
 | 形、形座位、一程、墨框、告知笺 | 共用件的墨迹块 | 成员自己画的形、边框或气泡 |
+| 页面之外的形、说话笺、观测框、签、圈出一点的图。样子与数见[拿起、桌面与看窗口](hand-and-desk.md) | 共用件的 `LooseFigure`、`SayBubble`、`ObservationFrame`、`FigureLabel`、`pointPicture` | 应用自己画的桌面精灵、截图标注或浮窗 |
 | 纸上的东西：纸面、页、一叠，摆在纸上一个点的东西（形座位、查找的线、收文件的那一处），屏幕上的点换成纸上的点。样子、状态与用到的规则见[纸、页、一叠](paper.md) | `PaperSurface`、`PaperPage`、`PaperPile`、`PaperSpot`、`usePaperAt`，拖进来的东西用纸面的 `onDropAt` | 成员自己用定位与变换摆在纸上；自己换算纸上的坐标 |
 | 纸下沿的状态栏：纸自己的控件，与此刻看着的那一样是什么、谁摆的。样子见[纸、页、一叠](paper.md)第 4 节 | `PaperStatus` | 每一页上挂元信息的记号；成员自己浮在纸角上的工具条 |
 | 纸上一页选中时叶外沿的墨边。样子见[纸、页、一叠](paper.md)第 3 节「选中的墨边」 | `PaperPage` 的 `selected`，线条来自墨迹块的 `edgeLines` 与 `bubbleRests` | 墨框；一圈 `accent` 的实线；成员自己画的选中框 |
