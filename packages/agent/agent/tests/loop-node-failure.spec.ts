@@ -22,6 +22,7 @@ import {
   ok,
   operation,
   type Principal,
+  withLineage,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
 import { alice, eventually, loopAssembly, type LoopAssembly } from './loop-support.ts'
@@ -760,5 +761,43 @@ describe('an accepted node failure', () => {
       category: 'exception',
     })
     expect(evaluations).toBe(1)
+  })
+
+  it('fixes its failure candidate again over an input accepted before the first fix landed', async () => {
+    let late = false
+    let finishes = 0
+    const assembly = await loopAssembly([execution()], d => ({
+      ...d,
+      journal: {
+        ...d.journal,
+        async commit(input) {
+          if (!late && input.operation.startsWith('F1/')) {
+            late = true
+            const value = acceptedInput('late')
+            const at = { ...alice, execution: execution(), operation: operation('late'), value }
+            ok(await d.journal.submit(withLineage(at)))
+          }
+          return d.journal.commit(input)
+        },
+        tryFinish(input) {
+          finishes += 1
+          if (finishes > 8) throw new Error('the conditional end keeps answering changed')
+          return d.journal.tryFinish(input)
+        },
+      },
+    }))
+    const gone = { kind: 'invalid', field: 'model', reason: 'withdrawn' } as const
+    assembly.controls.selection.select.always(() => fail(gone))
+    const c = coordinator(assembly)
+    ok(await c.accept())
+    ok(await c.runExecution())
+    const read = ok(await assembly.dependencies.journal.load({ ...alice, execution: execution() }))
+    expect(late).toBe(true)
+    expect(read.state.kind).toBe('ended')
+    expect(read.settlement.candidate?.failure).toMatchObject({
+      kind: 'node-failed',
+      node: 'I1',
+      failureKind: 'invalid',
+    })
   })
 })

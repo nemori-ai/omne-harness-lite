@@ -734,7 +734,7 @@ function coordinate<P>(
     if (read.ok.unresolved.length > 0) return succeed('R0')
     if (cancellationOf(read.ok) !== undefined) return succeed('F0')
     if (advancementOf(read.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
-    if (read.ok.state.kind === 'settling')
+    if (read.ok.state.kind === 'settling' && !finishChanged)
       return succeed(read.ok.checkpoint.position === 'F3' ? 'F3' : 'F2')
     return succeed('F1')
   }
@@ -2926,7 +2926,7 @@ function coordinate<P>(
       if (faultDecision !== null) {
         if (advancementOf(latest.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
         takeLatestPosition(latest.ok)
-        if (faultCandidate === null) {
+        if (faultCandidate === null || finishChanged) {
           const conditions = await ports.conditions.read({
             ...access,
             advance: required(authority, 'authority'),
