@@ -952,7 +952,10 @@ describe('author binding command selection', () => {
         'read_file second: expected second.',
         'Usage: read_file {"command": "second", "params": {…}}',
         'Second command',
-        returnGuide(ordinaryReturnFixture(adoption('codec-second'))),
+        returnGuide(ordinaryReturnFixture(adoption('codec-second'))).replace(
+          ' Program data: none.',
+          '',
+        ),
       ].join('\n'),
     })
     expect(fixture.settlements[0]?.operation.author.parameters.adoption.name).toBe(
