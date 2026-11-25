@@ -2,7 +2,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { operationId } from '@omne-harness/session-contract/testing'
 import { intakeAccess, ok } from './world.ts'
-import { entriesOf } from '../host-support.ts'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
 
 const worlds: W2World[] = []
@@ -41,7 +40,6 @@ describe('#1369: the result of a call let go after its Run was cancelled', () =>
     await w.until(() => w.modelCalls.length === 1)
     const { run } = ok(await w.transactions.readWork(intakeAccess))
     if (run.kind !== 'active') throw new Error(`the Run is ${run.kind}`)
-    const execution = await w.execution()
     const operation = operationId('r1-cancel')
     ok(
       await w.intake.work.cancelRun({
@@ -57,8 +55,8 @@ describe('#1369: the result of a call let go after its Run was cancelled', () =>
     release.resolve()
     await w.until(() => w.replies.length === 1)
     const reported = async () =>
-      (await entriesOf(w.freshEntries(), { ...w.agentAccess, execution })).flatMap(entry =>
-        entry.kind === 'received' && 'accounts' in entry.delivery
+      w.receivedEntries.flatMap(entry =>
+        'accounts' in entry.delivery
           ? entry.delivery.accounts.map(kept => kept.account?.cost ?? [])
           : [],
       )

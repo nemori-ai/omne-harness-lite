@@ -11,6 +11,9 @@ import {
   type ExecutionSnapshot,
   type Material,
   type PendingCall,
+  type ReceivedCommitResult,
+  type ReceivedEntry,
+  type Reply,
 } from '@omne-harness/agent-contract'
 import {
   createTestCancellationPolicy,
@@ -340,6 +343,7 @@ export async function openW2World(options: W2Options) {
   }
   const modelCalls: string[] = []
   const receivedFailures: unknown[] = []
+  const receivedEntries: ReceivedEntry[] = []
   const toolPushes: Promise<unknown>[] = []
   const toolLatePushes: Promise<unknown>[] = []
   const toolResults: ToolDelivery<ContentBlock>[] = []
@@ -456,9 +460,10 @@ export async function openW2World(options: W2Options) {
           ...received,
           commit: async (input: never) => {
             const commit = received.commit.bind(received)
-            const answer = await (options.receivedCommit?.(commit, input) ?? commit(input))
-            if (typeof answer === 'object' && answer !== null && 'failure' in answer)
-              receivedFailures.push(answer)
+            const answer = (await (options.receivedCommit?.(commit, input) ??
+              commit(input))) as Awaited<Reply<ReceivedCommitResult>>
+            if ('failure' in answer) receivedFailures.push(answer)
+            else if (answer.ok.kind === 'committed') receivedEntries.push(answer.ok.value.entry)
             return answer
           },
         },
@@ -997,6 +1002,7 @@ export async function openW2World(options: W2Options) {
     toolRequests,
     modelCalls,
     receivedFailures,
+    receivedEntries,
     toolPushes,
     toolLatePushes,
     toolResults,
