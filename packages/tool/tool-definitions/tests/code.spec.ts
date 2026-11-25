@@ -750,9 +750,6 @@ describe('Code execute by path', () => {
     expect(await execute('return 1', world.tools)).toBe(
       'rejected reason=unavailable Code execute: unavailable',
     )
-    expect(await run('help', { name: 'Files' }, world.tools)).toBe(
-      'rejected reason=unavailable Code help: unavailable',
-    )
     expect(await run('help', {}, null)).toBe(
       'rejected reason=unavailable Code help: program calls are not attached to this call',
     )
@@ -776,7 +773,8 @@ describe('Code help', () => {
     expect(text).toContain(
       'Limits: 2 s of computing (waiting for a call does not count), 64 MiB of memory, 50 tool calls with at most 8 at once, 65536 bytes of result, 4096 bytes of program.',
     )
-    expect(text).toContain('Tools search with programmable set to true')
+    expect(text).toContain('Tools search with programmable set to true lists them')
+    expect(text).toContain('Tools inspect with a tool name shows the functions of that tool')
     expect(text).toContain('declare class ToolError extends Error')
     expect(text).not.toContain('declare const Files')
     expect(text).not.toContain('declare function Lookup')
@@ -793,17 +791,10 @@ describe('Code help', () => {
     expect(crowded.asked).toEqual([])
   })
 
-  it('shows one tool when asked, resolving that name alone, and says where to look when it is not callable', async () => {
+  it('takes no argument: the functions of a tool are told by Tools, so a name is refused', async () => {
     const world = scripted({})
-    const one = await run('help', { name: 'Lookup' }, world.tools)
-    expect(one).toMatch(
-      /^done Code help Lookup\n\/\*\* Lookup of the fixture \*\/\ndeclare function Lookup/u,
-    )
-    expect(one).not.toContain('Files')
-    expect(await run('help', { name: 'Shell' }, world.tools)).toBe(
-      'rejected reason=notFound Code help: Shell has no function a program can call now. Find the tools a program can call with Tools search and programmable set to true.',
-    )
-    expect(world.asked).toEqual([['Lookup'], ['Shell']])
+    await expect(run('help', { name: 'Lookup' }, world.tools)).rejects.toThrow('invalid-field:name')
+    expect(world.asked).toEqual([])
   })
 })
 
@@ -834,7 +825,9 @@ describe('the tools a program names', () => {
     const unknown = await failed('return await Nowhere.run({})')
     expect(unknown).toContain('ReferenceError')
     expect(unknown).toContain('Nowhere')
-    expect(unknown).toContain('Tools search and programmable set to true')
+    expect(unknown).toContain(
+      'Tools tells which tools a program can call: search with programmable set to true.',
+    )
   })
 
   it('a program read from a file resolves Files to read it, then the names in the file', async () => {
@@ -905,6 +898,19 @@ describe('the tools a program names, when they cannot be read', () => {
     expect(await failed('return await undefined.run({})')).not.toContain(hint)
     expect(await failed('void tools["Lookup"]\nthrow new RangeError("far")')).not.toContain(hint)
   })
+
+  it('a TypeError of any other program says where the fields of a function are told', async () => {
+    const world = scripted({ 'Files.read': async () => valued({ text: 'hello' }) })
+    const failed = (code: string) => settled(execute(code, world.tools))
+    const fields =
+      'If a field was not there: Tools inspect with the tool name shows what each function resolves to.'
+    const guessed = 'const file = await Files.read({ path: "a" })\nreturn file.content.length'
+    expect(await failed(guessed)).toContain(fields)
+    expect(await failed('const name = "Loo" + "kup"\nreturn await tools[name]({})')).not.toContain(
+      fields,
+    )
+    expect(await failed('throw new RangeError("far")')).not.toContain(fields)
+  })
 })
 
 describe('the definition of Code', () => {
@@ -934,7 +940,13 @@ describe('the definition of Code', () => {
       'need the full text in the conversation',
     ])
       expect(definition.description).toContain(direct)
-    expect(definition.description).toContain('Tools search and programmable set to true')
+    expect(definition.description).toContain(
+      'are told only by Tools. Read them first: Tools {"command":"inspect","params":{"name":"Web","command":null}}.',
+    )
+    expect(definition.description).toContain(
+      'Tools search with programmable set to true lists the callable tools.',
+    )
+    expect(commandMenu(definition)).toContain('help {} - ')
     const bytes = (text: string) => new TextEncoder().encode(text).length
     expect(bytes(definition.description) + bytes(commandMenu(definition))).toBeLessThanOrEqual(1536)
     expect(definition.backgroundAllowed).toBe(false)
