@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CriterionReadingSchema,
   gapTable,
   NO_READINGS,
+  ReadingsSchema,
   renderGap,
+  RuleReadingSchema,
   validateDraft,
   type GoalBody,
   type Readings,
@@ -25,6 +28,27 @@ const READ: Readings = {
     N2: { value: 'broken', source: 'agent', ref: null },
   },
 }
+
+describe('the readings kept with a goal', () => {
+  it('a criterion is read as one of five things and a rule as one of three', () => {
+    expect(CriterionReadingSchema.options).toEqual([
+      'holds',
+      'fails',
+      'no-evidence',
+      'stale',
+      'cannot-tell',
+    ])
+    expect(RuleReadingSchema.options).toEqual(['kept', 'broken', 'unclear'])
+  })
+  it('are kept by number, each with where it came from; a reading outside the closed values is refused', () => {
+    expect(ReadingsSchema.parse(READ)).toEqual(READ)
+    expect(ReadingsSchema.parse(NO_READINGS)).toEqual(NO_READINGS)
+    const odd = { ...READ, rules: { N1: { value: 'bent', source: 'judge', ref: null } } }
+    expect(ReadingsSchema.safeParse(odd).success).toBe(false)
+    const guessed = { ...READ, criteria: { A2: { value: 'holds', source: 'guess', ref: null } } }
+    expect(ReadingsSchema.safeParse(guessed).success).toBe(false)
+  })
+})
 
 describe('the gap table', () => {
   it('lists every criterion, metric and rule by its number, then the budget', () => {
