@@ -1,6 +1,7 @@
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { JsonValue } from '@omne-harness/json-text'
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { defineSchema, jsonSchemaDefinition } from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
 import type {
   Access,
@@ -18,6 +19,7 @@ import {
   defineFunctionTool,
   defineToolOperation,
   describedAdoption,
+  isProgramCall,
   judgeToolSourceListing,
   shapeOf,
   type OutputCodec,
@@ -26,6 +28,7 @@ import {
   type ToolExecutionContext,
   type ToolLoadedRegistration,
   type ToolOperation,
+  type ToolProgramContract,
   type ToolSourceEntry,
   type ToolSourceListing,
   type ToolSourceWithheld,
@@ -116,6 +119,58 @@ type Authoring<B extends ContentBlock> = Readonly<{
 }>
 type Declared = { kind: 'declared'; value: ParameterContract }
 
+function programOf(declared: ToolReturnDeclaration['program']): ToolProgramContract {
+  if (declared.kind === 'none') return declared
+  const { schema: identity, definition, maxBytes } = declared
+  const load = async () =>
+    jsonSchemaDefinition<unknown>({
+      document: JSON.parse(writeJsonText(definition.schema)) as Readonly<Record<string, unknown>>,
+      numbers: 'exact-or-reject',
+    })
+  const ref = defineSchema<unknown>({ id: identity.id, load })
+  return { kind: 'json', adoption: declared.contract, schema: { identity, maxBytes, ref } }
+}
+
+const NO_DATA = Object.freeze({ kind: 'none' as const })
+const unreadable = fail({ reason: 'invalid-source-entry-result' })
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+function carrying<B extends ContentBlock>(
+  message: OutputCodec<ToolRenderedResult<B>>,
+): OutputCodec<ToolRenderedResult<B>> {
+  const adoption = describedAdoption({
+    owner: '@omne-harness/tool-host-local',
+    name: 'source-entry-result-with-program-data',
+    revision: '1',
+    message: message.adoption.digest,
+  })
+  return {
+    adoption,
+    encode(value) {
+      if (!isRecord(value) || !isRecord(value['data'])) return unreadable
+      const encoded = message.encode({ ...value, data: NO_DATA })
+      if ('failure' in encoded) return encoded
+      const saved = { message: new TextDecoder().decode(encoded.ok), data: value['data'] }
+      return succeed(new TextEncoder().encode(JSON.stringify(saved)))
+    },
+    decode(bytes) {
+      let saved: unknown
+      try {
+        saved = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+      } catch {
+        return unreadable
+      }
+      if (!isRecord(saved) || typeof saved['message'] !== 'string' || !isRecord(saved['data']))
+        return unreadable
+      const decoded = message.decode(new TextEncoder().encode(saved['message']))
+      if ('failure' in decoded) return decoded
+      const data = saved['data'] as ToolRenderedResult<B>['data']
+      return succeed({ ...decoded.ok, data })
+    },
+  }
+}
+
 function operationOf<P, E, B extends ContentBlock>(
   authoring: Authoring<B>,
   source: ToolEntrySource<P, B>,
@@ -125,7 +180,8 @@ function operationOf<P, E, B extends ContentBlock>(
   returns: ToolReturnDeclaration,
 ): Outcome<ToolOperation<E, B, Declared>, string> {
   if (returns.kind !== 'structured') return fail('returns-not-structured')
-  const { codec, parameters } = authoring
+  const { parameters } = authoring
+  const codec = returns.program.kind === 'json' ? carrying(authoring.codec) : authoring.codec
   const made = defineToolOperation<JsonValue, ToolRenderedResult<B>, E, B, Declared>({
     parameters: { kind: 'declared', value: contract },
     returns: returns as ToolReturnDeclaration & { kind: 'structured' },
@@ -141,7 +197,7 @@ function operationOf<P, E, B extends ContentBlock>(
           return 'failure' in encoded ? encoded : codec.decode(encoded.ok)
         },
       },
-      program: { kind: 'none' },
+      program: programOf(returns.program),
       executor: {
         execute: (args, _environment, context) => {
           const facts = callFacts.get(context) as CallFacts<P> | undefined
@@ -154,6 +210,7 @@ function operationOf<P, E, B extends ContentBlock>(
             declared,
             arguments: args,
             invocation: facts.call,
+            program: isProgramCall(context),
             signal: context.signal,
           })
         },

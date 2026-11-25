@@ -50,6 +50,7 @@ type ReleaseQuestion = Readonly<{
   kind: 'release'
   target: Readonly<{ tool: string; command: string | null }>
   gateTitle: string
+  origin?: Readonly<{ program?: true }>
   options: readonly Readonly<{ label: string; description: string; offered: boolean }>[]
   detail?: Readonly<{ state: 'given'; rows: readonly Row[] }> | Readonly<{ state: 'unavailable' }>
 }>
@@ -64,6 +65,7 @@ function isRelease(question: unknown): question is ReleaseQuestion {
 function releaseLines(question: ReleaseQuestion): string {
   const call = [question.target.tool, question.target.command].filter(Boolean).join(' ')
   const lines = [`放行卡：${call}`, `关口：${question.gateTitle}`]
+  if (question.origin?.program === true) lines.push('来源：由程序发起')
   for (const option of question.options)
     lines.push(`  ${option.label}：${option.description}${option.offered ? '' : '（现在不能选）'}`)
   const { detail } = question

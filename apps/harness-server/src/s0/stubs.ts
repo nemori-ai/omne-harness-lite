@@ -129,6 +129,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'currentToolPermission',
       'tenantSettings',
       'tenantAssetSettings',
+      'tenantActingSettings',
       'independentSettings',
       'tenantIndependentSettings',
       'loopExtensionSources',
@@ -364,7 +365,9 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentPublicationAuthority',
       'agentExecutionRecovery',
       'agentExecutionControl',
+      'agentNestedActions',
       'agentInstanceProvision',
+      'toolProgramAdmission',
     ],
     injects: [
       'agentJournal',
@@ -497,6 +500,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'execution-environment': { provides: ['executionEnvironment'] },
   'execution-files': { injects: ['executionEnvironment'] },
   'execution-command': { injects: ['executionEnvironment'] },
+  'execution-program': { injects: ['executionEnvironment'] },
   'execution-host': { injects: ['executionEnvironment'] },
   'request-context': {
     provides: ['requestContext'],

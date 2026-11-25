@@ -6,6 +6,7 @@ import { createToolAccessPlugin } from '@omne-harness/tool-access/cordis'
 import { toolRuntimeKey, type ToolRuntimeService } from '@omne-harness/tool-cordis-contract/cordis'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
+import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { memberActingOfCall } from '../server-entry/identity.ts'
 
 export const toolAccessConfig = z.strictObject({})
@@ -25,7 +26,8 @@ function facesOf(ctx: Context): ToolCallFaces | undefined {
   const runtime = ctx.get(toolRuntimeKey) as ToolRuntimeService<unknown, never> | undefined
   if (runtime === undefined) return undefined
   const { queries, instances, observation } = runtime
-  return { queries, instances, observation }
+  const children = () => toolRuntimeHolder(ctx).bundle?.value.children()
+  return { queries, instances, observation, children }
 }
 
 const plugin = createToolAccessPlugin({ principals: toolPrincipals, faces: facesOf })

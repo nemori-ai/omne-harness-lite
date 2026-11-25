@@ -265,7 +265,7 @@ Canvas 包组回答一个问题：一个租户的[画布](../../.meta_harness/de
 ### 给 agent 的工具
 
 - 工具 `Canvas` 是这组操作的投影，和协议落到同一个函数上。命令：`help`、`look`、`away`、`kinds`、`place`、`arrange`、`take`、`pile`、`scatter`、`lock`、`unlock`。
-- 三道关口。`read`「看」：`help`、`look`、`away`、`kinds`，缺省自动。`arrange`「摆」：`place`、`arrange`、`take`、`pile`、`scatter`，缺省自动。`lock`「锁」：`lock`、`unlock`，缺省禁止。租户可以改这些取值。
+- 三道关口。`read`「看」：`help`、`look`、`away`、`kinds`，缺省自动。`arrange`「摆」：`place`、`arrange`、`take`、`pile`、`scatter`，缺省自动。`lock`「锁」：`lock`、`unlock`，缺省禁止。租户可以改这些取值。「看」的四条命令声明只读（[TL-74](../tool/SPEC.md)），别的命令不声明。
 - 来历由这次调用的绑定给，参数里没有是谁做的、租户与会话。
 - 碰到锁着的东西，答复写明它锁着、要人来解开。
 - `kinds` 给出每一类的标识怎样写。`help` 写画布小应用的三步做法：写文件；用 `OmneExtensions` 发布成 plugin 的一个代码成员；用 `Canvas` 把它摆上纸。

@@ -12,8 +12,9 @@ import type { ToolDependencies } from './construction.ts'
 import { tenantKey } from './boundary.ts'
 import { digestOf as canonicalDigest } from './evidence.ts'
 
-type Invocation =
+export type Invocation =
   | Readonly<{ kind: 'port-failed'; failure: ToolFailure }>
+  | Readonly<{ kind: 'start-refused' }>
   | Readonly<{ kind: 'binding-failed' }>
   | Readonly<{ kind: 'binding-unanswered'; failure: ToolFailure }>
   | Readonly<{ kind: 'binding-threw' }>
@@ -61,7 +62,10 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
   ): Promise<Invocation> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
     const permit = await authority.prepare({ ...access, start, request: recovery.request })
-    if ('failure' in permit) return { kind: 'port-failed', failure: permit.failure }
+    if ('failure' in permit)
+      return permit.failure.kind === 'denied' && start.kind === 'start'
+        ? { kind: 'start-refused' }
+        : { kind: 'port-failed', failure: permit.failure }
     const binding = await bindings.resolve({ ...access, request: recovery.request })
     if ('failure' in binding) return { kind: 'port-failed', failure: binding.failure }
     const preparation = recovery.preparations.at(-1)

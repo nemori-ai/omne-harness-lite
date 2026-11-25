@@ -68,6 +68,15 @@ function commanded(definition: ToolDefinition, names?: readonly string[]): ToolD
   }
 }
 
+/** TL-72: a programmable definition says of every command how it faces a program. */
+function openToPrograms(definition: ToolDefinition, programmable?: boolean): ToolDefinition {
+  if (programmable !== true) return definition
+  const program = { kind: 'open', unless: [] } as const
+  return definition.kind === 'function'
+    ? { ...definition, program }
+    : { ...definition, commands: definition.commands.map(command => ({ ...command, program })) }
+}
+
 export function loadedFor(
   authority: ToolAuthority,
   digest = 'digest-1',
@@ -75,7 +84,7 @@ export function loadedFor(
 ): ToolLoadedRegistration<unknown, ContentBlock> {
   const loaded = base.loaded(authority, digest)
   const definition: ToolDefinition = {
-    ...commanded(loaded.definition, options.commands),
+    ...openToPrograms(commanded(loaded.definition, options.commands), options.programmable),
     ...(options.programmable === undefined ? {} : { programmable: options.programmable }),
   }
   return { ...loaded, definition, shape: shapeOf(definition) } as unknown as ToolLoadedRegistration<

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type {
-  ToolChildren,
   ToolDecisionBridge,
   ToolResourceResponses,
 } from '@omne-harness/tool-contract/provider'
@@ -24,16 +23,6 @@ const METHODS = {
     invalidate: true,
     resolve: true,
   } satisfies Methods<ToolResourceResponses<string>>,
-  toolChildren: {
-    reserve: true,
-    admitted: true,
-    retain: true,
-    list: true,
-    close: true,
-    closure: true,
-    confirmBarrier: true,
-    finish: true,
-  } satisfies Methods<ToolChildren<string>>,
 }
 
 type Port = (input: unknown) => Promise<unknown>
@@ -41,7 +30,7 @@ type Port = (input: unknown) => Promise<unknown>
 describe('the absent ports', () => {
   const ports = createAbsentToolPorts<string>()
 
-  it('provides exactly the three named ports', () => {
+  it('provides exactly the two named ports', () => {
     expect(Object.keys(ports).sort()).toEqual(Object.keys(METHODS).sort())
   })
 
@@ -65,8 +54,8 @@ describe('the absent ports', () => {
   }
 
   it('a call does not throw even when the input is not an object', async () => {
-    const children = ports.toolChildren as unknown as Record<string, Port>
+    const decisions = ports.toolDecisions as unknown as Record<string, Port>
     for (const input of [undefined, null, 7])
-      expect(await children['reserve']!(input)).toHaveProperty('failure.kind', 'unavailable')
+      expect(await decisions['ensure']!(input)).toHaveProperty('failure.kind', 'unavailable')
   })
 })

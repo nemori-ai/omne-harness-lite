@@ -18,7 +18,7 @@ const PURPOSE =
   "Manage what extends this system for the acting tenant, in every category the system has now: publish one from a directory or a body, ask what it would change, see whether it is in effect, enable, disable, remove. Write the files in a directory first, then publish here; the app's own files are not edited."
 const MENU = [
   'Call with {"command": <name>, "params": {…fields}}. In signatures, ? marks an optional field and a|b lists the allowed values.',
-  'help {name?=help|categories|list|show|export|impact|publish|enable|disable|remove|result, category?} - Read command usage. With publish and a category: the layout that category asks for.',
+  'help {name?=help|categories|list|show|export|impact|publish|enable|disable|remove|result|settings|configure, category?} - Read command usage. With publish and a category: the layout that category asks for.',
   'categories {} - List the categories that exist now, each with a line from its owner on what it is and how one is made: from a directory, from a body, or not through this tool.',
   'list {category, after?, limit?} - List what the tenant holds in one category: name, version, enabled.',
   'show {category, name} - Read one held extension: version, enabled, origin, summary, what it places and whether each is in effect, with the reason when it is not.',
@@ -29,6 +29,8 @@ const MENU = [
   'disable {id, category, name} - Disable a held extension and keep it. It stops taking effect at once; what it had replaced comes back.',
   'remove {id, category, name} - Remove the holding.',
   'result {id} - Recall what the publish, enable, disable or remove with this id did.',
+  'settings {category, name} - List the settings of a held extension at the layer of this tenant: each ordinary one with its value now. A secret says only whether it is set; a permission is not read.',
+  'configure {id, category, name, item, value?, clear?} - Write one ordinary setting of a held extension with value, or clear what this layer set with clear: true. A secret or a permission is not written here.',
 ]
 const GUIDE = [
   'Give every publish, enable, disable and remove an id of your own. After a failure that says unknown, send the same command with the same id, or ask result: what took effect is recalled, not done twice.',
@@ -37,6 +39,7 @@ const GUIDE = [
   'To change an extension that is already held: export it to a directory, edit the files there, ask impact with that directory, then publish from it. The held version is the source; the directory is your working copy.',
   'dir is a path from the working directory of this session, or an absolute path. It reaches as far as the file tools of this call do.',
   'You act for the acting tenant: what you publish is held by this tenant and changes only what this tenant sees.',
+  'settings reads the settings of a held extension and configure writes one. Give configure an id of your own. The user is asked before a setting is written, unless the user chose otherwise.',
   'A failure starts with its reason, then says what to do.',
 ].join('\n\n')
 const RETURNS =
@@ -64,7 +67,7 @@ describe('the OmneExtensions declaration', () => {
       expect(said).not.toMatch(new RegExp(`\\b${name}\\b`))
   })
 
-  it('reads with one gate, writes into the workspace with another and changes with a third, all released without asking', () => {
+  it('reads with one gate, writes into the workspace with another, changes with a third, all released without asking; writing a setting asks', () => {
     const { definition } = author()
     if (definition.kind !== 'commands') throw new Error('commands')
     const gates = Object.fromEntries(
@@ -82,11 +85,14 @@ describe('the OmneExtensions declaration', () => {
       enable: 'change',
       disable: 'change',
       remove: 'change',
+      settings: 'read',
+      configure: 'configure',
     })
     expect(definition.gates).toEqual([
       { id: 'read', title: '查看', default: 'auto' },
       { id: 'change', title: '改动', default: 'auto' },
       { id: 'export', title: '取到工作区', default: 'auto' },
+      { id: 'configure', title: '改设置', default: 'ask' },
     ])
   })
 
@@ -156,6 +162,10 @@ describe('a call the declaration does not allow', () => {
     ['publish', { id: 'p', category: 'note', name: 'a', tenant: 'tenant-b' }, 'tenant'],
     ['disable', { id: 'd', category: 'note' }, 'name'],
     ['result', {}, 'id'],
+    ['settings', { category: 'note' }, 'name'],
+    ['configure', { category: 'note', name: 'a', item: 'x', value: 1 }, 'id'],
+    ['configure', { id: 'c', category: 'note', name: 'a', value: 1 }, 'item'],
+    ['configure', { id: 'c', category: 'note', name: 'a', item: 'x', clear: 'yes' }, 'clear'],
   ])('%s with %j is invalid and names the field', async (command, params, field) => {
     const failure = await bound(world()).failure(command, params)
     expect(failure.kind).toBe('invalid')

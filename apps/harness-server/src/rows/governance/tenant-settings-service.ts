@@ -15,6 +15,7 @@ import type { PermissionDeclaration } from '../../entry/permission-declarations.
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import type { DeclaredAsset } from '../settings/tenant-secrets.ts'
 import { createSettingsGuard, type CardsReader } from '../authorization/settings-access.ts'
+import { actingAdmit, createActingSettings, type ActingSettings } from './acting-settings.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
 import { createTenantSettingsPermissions } from './tenant-settings-permissions.ts'
 
@@ -33,10 +34,22 @@ export abstract class TenantSettingsService extends Service implements Face {
 }
 export const tenantSettingsKey = TenantSettingsService.provide
 
+/** @owner apps/harness-server/src/rows/governance */
+export abstract class TenantActingSettingsService extends Service implements ActingSettings {
+  static readonly provide = 'tenantActingSettings'
+  constructor(ctx: Context) {
+    super(ctx, TenantActingSettingsService.provide)
+  }
+  abstract readonly list: ActingSettings['list']
+  abstract readonly write: ActingSettings['write']
+}
+export const tenantActingSettingsKey = TenantActingSettingsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     tenantSettings: TenantSettingsService
     tenantAssetSettings: TenantAssetSettingsService
+    tenantActingSettings: TenantActingSettingsService
   }
 }
 
@@ -71,6 +84,16 @@ class TenantSettingsImpl extends TenantSettingsService {
     this.describe = input => face.describe(input)
     this.set = input => writes.counted(input.tenant, face.set(input))
     this.clear = input => writes.counted(input.tenant, face.clear(input))
+  }
+}
+
+class TenantActingSettingsImpl extends TenantActingSettingsService {
+  readonly list: ActingSettings['list']
+  readonly write: ActingSettings['write']
+  constructor(ctx: Context, acting: ActingSettings, writes: WriteCounts) {
+    super(ctx)
+    this.list = input => acting.list(input)
+    this.write = input => writes.counted(input.tenant, acting.write(input))
   }
 }
 
@@ -157,6 +180,12 @@ export function provideTenantSettings(ctx: Context, options: TenantSettingsServi
     createTenantSettingsFace(options, async () => (options.active() ? 'allowed' : 'unavailable')),
     writes,
     declaredOf(options),
+  )
+  const acting = actingAdmit(options.identity, options.active)
+  new TenantActingSettingsImpl(
+    ctx,
+    createActingSettings(createTenantSettingsFace(options, input => acting(input))),
+    writes,
   )
 }
 

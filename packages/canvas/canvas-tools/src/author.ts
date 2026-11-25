@@ -195,7 +195,12 @@ export function createCanvasAuthor(
     return fail({ field: 'construction', reason: 'Canvas takes only resultMaxBytes, at least 64' })
   const operations: Record<
     string,
-    { summary: string; operation: Operation; release: Readonly<{ gate: string }> }
+    {
+      summary: string
+      operation: Operation
+      release: Readonly<{ gate: string }>
+      readOnly: boolean
+    }
   > = {}
   for (const name of canvasCommandNames) {
     const operation = operationOf(name, read.data.resultMaxBytes)
@@ -205,6 +210,7 @@ export function createCanvasAuthor(
       summary: canvasSummaries[name],
       operation: operation.ok,
       release: { gate: CANVAS_GATE_OF[name] },
+      readOnly: CANVAS_GATE_OF[name] === 'read',
     }
   }
   const author = defineCommandTool({

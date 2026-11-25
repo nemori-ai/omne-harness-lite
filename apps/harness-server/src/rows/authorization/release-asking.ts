@@ -133,6 +133,7 @@ export async function askedDecision(
       effectiveArguments: asking.effectiveArguments,
       session: asking.session,
       agent: input.execution,
+      ...(input.nested === undefined ? {} : { program: true as const }),
     },
     offerOf(asking.lasting),
   )

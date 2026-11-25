@@ -16,7 +16,7 @@ import type {
   ToolTerminal,
   WaitState,
 } from '@omne-harness/tool-contract'
-import type { ProgramEnd, StartGuard, ToolTask } from '@omne-harness/tool-contract/provider'
+import type { StartGuard, ToolTask } from '@omne-harness/tool-contract/provider'
 import { expectTypeOf, it } from 'vitest'
 import {
   encodeToolInvocationRef,
@@ -270,14 +270,15 @@ export type {
   ToolOperationIdentities,
   ToolInstanceIdentities,
   ToolInvocationSourceIssuer,
-  ChildPosition,
-  ChildReservation,
-  ChildState,
-  ProgramEnd,
-  ProgramClosure,
+  PositionExclusion,
+  PositionTarget,
+  ProgramPosition,
+  ProgramTable,
   ToolChildren,
-  ProgramToolResult,
-  ProgramTools,
+  ProgramActionAdmission,
+  NestedAdmission,
+  ToolProgramSource,
+  ToolProgramRuntime,
 } from '@omne-harness/tool-contract/provider'
 import type {
   ToolCallId,
@@ -458,9 +459,6 @@ it('renames the outside-actor constructs and keeps no removed public name', () =
   expectTypeOf<Extract<WaitState, { kind: 'ask' }>>().toHaveProperty('registration')
   expectTypeOf<Extract<WaitState, { kind: 'ask' }>>().not.toHaveProperty('card')
   expectTypeOf<Extract<ToolTask, { kind: 'wait-registration' }>>().not.toBeNever()
-  expectTypeOf<
-    Extract<ProgramEnd, { kind: 'stopped' }>['cause']
-  >().toEqualTypeOf<InterruptionCause>()
   expectTypeOf<
     Extract<ToolTerminal, { kind: 'interrupted' }>['cause']
   >().toEqualTypeOf<InterruptionCause>()

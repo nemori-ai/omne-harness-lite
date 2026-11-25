@@ -38,6 +38,36 @@ const ECHO: PeerAction = {
 }
 const FAIL: PeerAction = { name: 'fail', description: 'Always refuses.', answer: 'error' }
 const HANG: PeerAction = { name: 'hang', description: 'Never answers.', answer: 'hang' }
+const COUNT: PeerAction = { name: 'count', description: 'Counts the text.', answer: 'length' }
+
+// What the model writes for `start: code <label>`: each program calls one action of the endpoint shop.
+const guarded = (call: string) =>
+  [
+    `try { return await ${call} }`,
+    'catch (error) { return { refused: String(error), kind: error.kind ?? null } }',
+  ].join('\n')
+const SHOP = { category: 'mcp', name: 'shop' }
+// What the model writes for `start: extensions <label>`: one call of OmneExtensions about the endpoint shop.
+const EXTENSION_CALLS: Readonly<Record<string, readonly [string, object]>> = {
+  settings: ['settings', SHOP],
+  open: ['configure', { id: 'open-1', ...SHOP, item: 'program-calls', value: true }],
+  'grab-gate': ['configure', { id: 'grab-1', ...SHOP, item: 'invoke', value: 'auto' }],
+  'vault-settings': ['settings', { category: 'mcp', name: 'vault' }],
+  'grab-secret': [
+    'configure',
+    {
+      id: 'grab-2',
+      category: 'mcp',
+      name: 'vault',
+      item: 'credential',
+      value: 'sk-from-the-agent',
+    },
+  ],
+}
+const PROGRAMS: Readonly<Record<string, string>> = {
+  count: guarded('mcp__shop.count({ text: "four" })'),
+  plain: guarded('mcp__shop.echo({ text: "plain" })'),
+}
 
 const ownerOf = (name: string) => ({ kind: 'asset', category: 'mcp', name }) as const
 const text = (value: string): JsonValue => ({ kind: 'string', value })
@@ -74,6 +104,17 @@ function scripted() {
     const said = JSON.stringify(last.content)
     const call = /start: call ([a-z]+) ([a-z]+) ([a-z0-9-]+)/.exec(said)
     const inspect = /start: inspect ([a-z]+) ([a-z]+)/.exec(said)
+    const code = PROGRAMS[/start: code ([a-z]+)/.exec(said)?.[1] ?? '']
+    const extension = EXTENSION_CALLS[/start: extensions ([a-z-]+)/.exec(said)?.[1] ?? '']
+    if (extension !== undefined) {
+      const [command, params] = extension
+      const id = `extensions_${String(bodies.length)}`
+      return [{ id, tool: 'OmneExtensions', arguments: JSON.stringify({ command, params }) }]
+    }
+    if (code !== undefined) {
+      const id = `code_${String(bodies.length)}`
+      return [{ id, tool: 'Code', arguments: JSON.stringify({ command: 'execute', code }) }]
+    }
     if (call !== null)
       return [
         toolsCall(`call_${call[3]}`, 'execute', {
@@ -154,6 +195,9 @@ async function registered(
   return holding
 }
 
+const treeOf = (value: unknown): JsonValue =>
+  typeof value === 'boolean' ? { kind: 'boolean', value } : text(value as string)
+
 async function configured(w: World, name: string, item: string, value: unknown, operation: string) {
   const current = await described(w, name, item)
   const written = await w.assets['set-setting']({
@@ -165,7 +209,7 @@ async function configured(w: World, name: string, item: string, value: unknown, 
     value:
       item === 'invoke'
         ? { kind: 'permission', pick: value as string }
-        : { kind: 'ordinary', value: text(value as string) as never },
+        : { kind: 'ordinary', value: treeOf(value) as never },
   })
   expect(written, `set ${item} of ${name}`).toMatchObject({ outcome: 'succeeded' })
 }
@@ -524,6 +568,117 @@ it(
         expect(
           await w.assets['describe-setting']({ tenant: w.tenant, owner: web, item: 'exa.apiKey' }),
         ).toMatchObject({ outcome: 'succeeded', body: { item: { own: 'available' } } })
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'MC-26 AS-28 a program calls the actions of an endpoint only once program calls are on; the agent turns them on through OmneExtensions after a person allows it, and cannot write a gate or a credential that way',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await peerWith(COUNT, ECHO)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        const session = await tree.startSession('start: search')
+        await searched(tree, session, 1)
+        await registered(w, 'shop')
+        await configured(w, 'shop', 'target', peer.target, 'shop-target')
+        expect(await described(w, 'shop', 'program-calls')).toMatchObject({ kind: 'ordinary' })
+
+        at('a program names the endpoint while program calls are off')
+        await sendInput(tree, session, 'start: code count')
+        const closed = await lastResult(tree, session, 2)
+        expect(closed).toContain('refused')
+        expect(closed).toContain('"kind":null')
+        expect(peer.calls).toEqual([])
+        expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
+
+        at('the agent reads the settings of the endpoint: no secret value, no permission')
+        await sendInput(tree, session, 'start: extensions settings')
+        const read = await lastResult(tree, session, 3)
+        expect(read).toContain('done OmneExtensions settings mcp shop')
+        expect(read).toMatch(/program-calls\s+false\s+default\s+boolean/u)
+        expect(read).toMatch(/invoke\s+permission\s+not read here/u)
+
+        at('the agent asks to turn program calls on: a person is asked, then it is written')
+        await sendInput(tree, session, 'start: extensions open')
+        const asking = await pendingCard(tree, session, 'the write of the setting')
+        const shown = JSON.stringify(asking.question)
+        expect(asking.question).toMatchObject({
+          kind: 'release',
+          target: { tool: 'OmneExtensions' },
+        })
+        for (const said of ['改设置', 'mcp', 'shop', 'program-calls', 'true'])
+          expect(shown).toContain(said)
+        expect(await described(w, 'shop', 'program-calls')).toMatchObject({
+          own: { kind: 'unset' },
+        })
+        await answerCard(tree, asking, ['--option', 'allow-once'], 'reply-open')
+        const opened = await lastResult(tree, session, 4)
+        expect(opened).toContain('"item":"program-calls","value":true,"changed":true}')
+        expect(await described(w, 'shop', 'program-calls')).toMatchObject({
+          own: { kind: 'set', value: { kind: 'boolean', value: true } },
+        })
+
+        at(
+          'the agent asks to write the gate of the endpoint: allowed by a person, it is still not written',
+        )
+        await sendInput(tree, session, 'start: extensions grab-gate')
+        const grabbing = await pendingCard(tree, session, 'the write of the gate')
+        await answerCard(tree, grabbing, ['--option', 'allow-once'], 'reply-grab')
+        const grabbed = await lastResult(tree, session, 5)
+        expect(grabbed).toContain('invoke is a permission')
+        expect(await described(w, 'shop', 'invoke')).toMatchObject({
+          kind: 'permission',
+          own: null,
+          effective: { kind: 'value', value: 'ask' },
+        })
+
+        at(
+          'a secured endpoint: the agent reads only whether its credential is set, and cannot write it',
+        )
+        await registered(w, 'vault', 'static')
+        await sendInput(tree, session, 'start: extensions vault-settings')
+        const vault = await lastResult(tree, session, 6)
+        expect(vault).toMatch(/credential\s+secret\s+not set/u)
+        await sendInput(tree, session, 'start: extensions grab-secret')
+        const taking = await pendingCard(tree, session, 'the write of the credential')
+        await answerCard(tree, taking, ['--option', 'allow-once'], 'reply-secret')
+        expect(await lastResult(tree, session, 7)).toContain('credential is a secret')
+        await sendInput(tree, session, 'start: extensions vault-settings')
+        expect(await lastResult(tree, session, 8)).toBe(vault)
+
+        at('program calls are on: the call of the program asks, then answers')
+        await sendInput(tree, session, 'start: code count')
+        const card = await pendingCard(tree, session, 'the call the program made')
+        expect(card.question).toMatchObject({
+          kind: 'release',
+          target: { tool: 'mcp__shop', command: 'count' },
+          origin: { program: true },
+        })
+        expect(peer.calls).toEqual([])
+        await answerCard(tree, card, ['--option', 'allow-session'], 'reply-count')
+        const counted = await lastResult(tree, session, 9)
+        expect(counted).toContain('done Code execute')
+        expect(counted).toContain('"length":4')
+        expect(peer.calls).toEqual([{ action: 'count', text: 'four' }])
+
+        at('an action without an output schema gives the program its content items')
+        await sendInput(tree, session, 'start: code plain')
+        const plain = await lastResult(tree, session, 10)
+        expect(plain).toContain('"type":"text"')
+        expect(plain).toContain('echo answered plain')
+        expect(plain).not.toContain('refused')
+
+        at('the holder turns program calls off again')
+        await configured(w, 'shop', 'program-calls', false, 'shop-closed')
+        await sendInput(tree, session, 'start: code count')
+        expect(await lastResult(tree, session, 11)).toContain('"kind":null')
+        expect(peer.calls).toHaveLength(2)
       }),
     )
     expect(exit).toBe(0)

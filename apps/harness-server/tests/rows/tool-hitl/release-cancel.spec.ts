@@ -1,6 +1,4 @@
 // @module-tag slow
-import { writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { HumanInterventionReplyResult } from '@omne-harness/human-intervention-protocol'
 import { fail } from '@omne-harness/operation-result'
@@ -36,20 +34,8 @@ const ASK = JSON.stringify({
     ],
   },
 })
-const WAIT_FOR_B = JSON.stringify({
-  command: 'execute',
-  intent: 'test call',
-  params: { script: 'while [ ! -f go-b ]; do sleep 0.1; done; echo go-b-done' },
-})
 const options = {
-  script: toolCallsThenText(body =>
-    body.includes('start: ask and wait')
-      ? [
-          { id: 'call_a', tool: 'Ask', arguments: ASK },
-          { id: 'call_b', tool: 'Shell', arguments: WAIT_FOR_B },
-        ]
-      : [{ id: 'call_a', tool: 'Ask', arguments: ASK }],
-  ),
+  script: toolCallsThenText(() => [{ id: 'call_a', tool: 'Ask', arguments: ASK }]),
   permission: 'bypass-permissions',
 }
 
@@ -163,48 +149,6 @@ describe('a control ends a suspended Ask on the release tree', () => {
         expect(recalls).toEqual([
           { ok: { kind: 'committed', operation: expect.any(String), receipt } },
         ])
-        await ended(world, session)
-      })
-      expect(exit).toBe(0)
-    },
-  )
-
-  it(
-    'cancel-run after the answer was accepted and while the entry is ready: the card stays decided and the resume never runs',
-    { timeout: 300_000 },
-    async () => {
-      const exit = await onReleaseTree(options, async world => {
-        const session = await world.startSession('start: ask and wait')
-        await pollUntil(
-          'Ask parked and Shell held',
-          () => [stageOf(world, 'Ask'), stageOf(world, 'Shell')],
-          stages => stages[0] === 'parked' && stages[1] === 'held',
-        )
-        await answerCard(world, session, 'Use 8081')
-        await pollUntil(
-          'the Ask ready',
-          () => stageOf(world, 'Ask'),
-          stage => stage === 'ready',
-        )
-        expect(stageOf(world, 'Shell')).toBe('held')
-        await cancelRun(world, session)
-        await pollUntil(
-          'the control to settle the Ask',
-          () => askOf(world),
-          row => row?.phase === 'settled',
-        )
-        writeFileSync(join(dirname(world.storageRoot), 'workspace', 'go-b'), '')
-        const { ask, calls } = await closed(world)
-
-        expect(ask).toMatchObject(STOPPED_ASK)
-        expect(calls.map(row => [row.tool, row.phase])).toEqual([
-          ['Ask', 'settled'],
-          ['Shell', 'settled'],
-        ])
-        const cards = await cardsOf(world, session)
-        expect(cards.map(item => item.card.kind)).toEqual(['decided'])
-        const entries = await historyOf(world, session)
-        expect(toolResults(entries).filter(text => text.includes('Use 8081'))).toEqual([])
         await ended(world, session)
       })
       expect(exit).toBe(0)

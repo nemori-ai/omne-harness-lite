@@ -29,6 +29,7 @@ import {
   type ToolBindingRegistry,
   type ToolBindingScope,
   type ToolBindings,
+  type ProgramActionAdmission,
   type ToolChildren,
   type ToolClock,
   type ToolCommands,
@@ -466,7 +467,7 @@ const entrySourcesContract: Contract = Object.freeze({
   keyFrom: null,
   key: 'the name prefix the source owns, for example mcp__',
   gives:
-    'the asking principal and tenant; the entry name when one is selected; the command, arguments, fixed command declaration, call id and abort signal when one is executed',
+    'the asking principal and tenant; the entry name when one is selected; the command, arguments, fixed command declaration, call id, whether a program made the call, and abort signal when one is executed',
   item: Object.freeze({
     kind: 'effect',
     fields: Object.freeze({
@@ -481,7 +482,7 @@ const entrySourcesContract: Contract = Object.freeze({
   onError:
     'a source whose listing throws, times out or names an entry outside its prefix answers unavailable; the other sources and the registry answer as usual',
   version: 1,
-  revision: 1,
+  revision: 2,
   keys: 'public',
   conformance: null,
   summary:
@@ -632,16 +633,31 @@ export abstract class ToolChildrenService<P> extends Service implements ToolChil
   constructor(ctx: Context) {
     super(ctx, ToolChildrenService.provide)
   }
-  abstract readonly reserve: ToolChildren<P>['reserve']
-  abstract readonly admitted: ToolChildren<P>['admitted']
+  abstract readonly register: ToolChildren<P>['register']
+  abstract readonly exclude: ToolChildren<P>['exclude']
+  abstract readonly handOff: ToolChildren<P>['handOff']
+  abstract readonly background: ToolChildren<P>['background']
   abstract readonly retain: ToolChildren<P>['retain']
-  abstract readonly list: ToolChildren<P>['list']
+  abstract readonly seal: ToolChildren<P>['seal']
   abstract readonly close: ToolChildren<P>['close']
-  abstract readonly closure: ToolChildren<P>['closure']
-  abstract readonly confirmBarrier: ToolChildren<P>['confirmBarrier']
-  abstract readonly finish: ToolChildren<P>['finish']
+  abstract readonly stopping: ToolChildren<P>['stopping']
+  abstract readonly dispose: ToolChildren<P>['dispose']
+  abstract readonly table: ToolChildren<P>['table']
 }
 export const toolChildrenKey = ToolChildrenService.provide
+
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolProgramAdmissionService<P>
+  extends Service
+  implements ProgramActionAdmission<P>
+{
+  static readonly provide = 'toolProgramAdmission'
+  constructor(ctx: Context) {
+    super(ctx, ToolProgramAdmissionService.provide)
+  }
+  abstract readonly admit: ProgramActionAdmission<P>['admit']
+}
+export const toolProgramAdmissionKey = ToolProgramAdmissionService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolAccountsService<P> extends Service implements ToolAccounts<P> {
@@ -690,6 +706,7 @@ declare module '@deepseek-ai/cordis' {
     toolStartFence: ToolStartFenceService<unknown>
     toolResourceResponses: ToolResourceResponsesService<unknown>
     toolChildren: ToolChildrenService<unknown>
+    toolProgramAdmission: ToolProgramAdmissionService<unknown>
     toolAccounts: ToolAccountsService<unknown>
     toolOffloader: ToolOffloaderService<unknown, ContentBlock>
   }

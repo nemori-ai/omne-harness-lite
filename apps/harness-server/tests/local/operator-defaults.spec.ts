@@ -363,6 +363,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'BkgToolCalls',
       'Calendar',
       'Canvas',
+      'Code',
       'Files',
       'Jobs',
       'Notifications',
@@ -389,6 +390,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Agents',
       'OmneExtensionPoints',
       'OmneExtensions',
+      'Code',
     ])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
     for (const tool of [

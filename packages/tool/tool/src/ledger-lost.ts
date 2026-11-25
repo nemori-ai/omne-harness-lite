@@ -22,6 +22,7 @@ import type {
   SyntheticDecision,
 } from './ledger-result-preparation.ts'
 import { lateVersionOf, releasedQueue } from './ledger-ending.ts'
+import { closingWrites } from './ledger-positions.ts'
 import { dropSuspensionContent, nextState } from './ledger-start.ts'
 import { commonOf, type StateBody } from './ledger-state.ts'
 import { taskKey, type CallRecord, type LedgerWrite } from './ledger-store.ts'
@@ -233,6 +234,7 @@ export function decideSettleLost(
       put(operationRecord(command, { kind: 'settle-lost', state }, mint)),
       ...release,
       ...clock,
+      ...(snapshot.program?.fence === undefined ? closingWrites(snapshot, 'all', 'failed') : []),
     ],
   }
 }

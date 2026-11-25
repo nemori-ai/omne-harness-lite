@@ -33,6 +33,8 @@ export type ToolSourceCall<P> = Access<P> &
     declared: ToolCommandDeclaration | null
     arguments: JsonValue
     invocation: string
+    /** Whether a program made this call: only then does the answer carry a value for a program. */
+    program: boolean
     signal: AbortSignal
   }>
 
@@ -60,8 +62,7 @@ function entryBreach(prefix: string, entry: ToolSourceEntry): string | undefined
     definition.kind === 'function'
       ? [definition.returns]
       : definition.commands.map(command => command.returns)
-  if (returns.some(declared => declared.kind !== 'structured' || declared.program.kind !== 'none'))
-    return 'returns-not-structured'
+  if (returns.some(declared => declared.kind !== 'structured')) return 'returns-not-structured'
   if (
     definition.kind === 'commands' &&
     definition.commands.some(command => command.parameters.kind !== 'declared')

@@ -73,6 +73,7 @@ function world(script: Scripted = {}) {
         return answer(script.current, succeed({ state: running, current: null }))
       },
     },
+    children: () => undefined,
     observation: {
       observe: input => {
         calls.push({ kind: 'observe', input })

@@ -98,6 +98,26 @@ export function admissionActionOf(passage: PassageId): ActionId | null {
   return 'ok' in action ? action.ok : null
 }
 
+const NESTED = /^(.+)\/nested\/(0|[1-9]\d*)$/u
+
+/** The action a program makes at one position under a running tool call (its parent action). */
+export function nestedActionOf(
+  parent: ActionId,
+  ordinal: number,
+): ReturnType<typeof decodeActionId> {
+  return decodeActionId(`${parent}/nested/${String(ordinal)}`)
+}
+
+export function nestedPositionOf(
+  action: ActionId,
+): Readonly<{ parent: ActionId; ordinal: number }> | null {
+  const [, parent, ordinal] = NESTED.exec(action) ?? []
+  const decoded = parent === undefined ? null : decodeActionId(parent)
+  return decoded === null || 'failure' in decoded
+    ? null
+    : { parent: decoded.ok, ordinal: Number(ordinal) }
+}
+
 export const decodeCardRoundId = decoderOf<CardRoundId, 'CardRoundId'>('CardRoundId')
 export const decodeActionBatchId = decoderOf<ActionBatchId, 'ActionBatchId'>('ActionBatchId')
 export const decodeAgentExecutionId = decoderOf<AgentExecutionId, 'AgentExecutionId'>(

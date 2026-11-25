@@ -474,7 +474,15 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       'resolve',
     ]),
     catalog: refusing('catalog', ['inspect', 'usage', 'search']),
-    children: refusing('children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
+    children: refusing('children', [
+      'register',
+      'exclude',
+      'handOff',
+      'background',
+      'retain',
+      'seal',
+      'table',
+    ]),
     operationIdentities: identities.operationIdentities,
     sourceIssuer: source.issuer,
   }

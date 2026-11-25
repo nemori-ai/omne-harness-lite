@@ -44,6 +44,8 @@ export const STATE_LABELS = {
   initializing: '正在初始化',
   frozen: '已冻结',
   outputOpen: '输出还在写',
+  background: '在后台',
+  refused: '被拒',
 } as const
 
 export type StateLabel = keyof typeof STATE_LABELS
@@ -92,4 +94,6 @@ export const STATE_FACT: Record<StateLabel, Fact> = {
   initializing: 'in-progress',
   frozen: 'released',
   outputOpen: 'in-progress',
+  background: 'in-progress',
+  refused: 'released',
 }

@@ -1,7 +1,7 @@
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { writeJsonText } from '@omne-harness/json-text'
 import { returnSummary } from '@omne-harness/tool-contract'
-import { returnGuide } from '@omne-harness/tool-contract/provider'
+import { programSignature, returnGuide } from '@omne-harness/tool-contract/provider'
 import type {
   SearchPage,
   ToolFailure,
@@ -73,9 +73,11 @@ export function presentInspection(view: ToolUsageView): ToolResult<ToolMessageCo
       `${JSON.stringify(overview)}\ncommand: ${view.usage.command ?? 'null'}\n${view.usage.description}\nparameters: ${'schema' in parameters ? writeJsonText(parameters.schema) : parameters.usage}\n${returnGuide(view.usage.returns)}`,
     )
   }
+  const program = programSignature(definition)
   return toolsText(
     JSON.stringify({
       ...overview,
+      ...(program === '' ? {} : { program }),
       commands:
         definition.kind === 'commands'
           ? definition.commands.map(command => ({

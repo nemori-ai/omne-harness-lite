@@ -30,6 +30,7 @@ export type ReleaseCardAction = Readonly<{
   effectiveArguments: string
   session: string
   agent: string
+  program?: true
   detail?: ReleaseCardDetail
 }>
 
@@ -51,7 +52,7 @@ export type ReleaseCard = Readonly<{
   target: Readonly<{ tool: string; command: string | null; preview: string }>
   gateTitle: string
   arguments: Readonly<{ text: string; truncated: boolean; digest: string }>
-  origin: Readonly<{ session: string; agent: string }>
+  origin: Readonly<{ session: string; agent: string; program?: true }>
   detail?: ReleaseCardDetail
   options: readonly [ReleaseCardOption, ...ReleaseCardOption[]]
 }>
@@ -110,7 +111,11 @@ export function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): Rel
     target,
     gateTitle: action.gateTitle,
     arguments: argumentsOf(action.effectiveArguments),
-    origin: { session: action.session, agent: action.agent },
+    origin: {
+      session: action.session,
+      agent: action.agent,
+      ...(action.program === undefined ? {} : { program: true as const }),
+    },
     ...(action.detail === undefined ? {} : { detail: action.detail }),
     options: [optionOf(first), ...rest.map(optionOf)],
   }

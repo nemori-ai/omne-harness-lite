@@ -20,7 +20,7 @@ import { exitCodeOf, report, type RequestEcho } from './report.ts'
 const JSON_SWITCH = '--json'
 const MAX_PAGES = 10_000
 
-type Action = 'list' | 'show' | 'output' | 'stop' | 'background'
+type Action = 'list' | 'show' | 'output' | 'children' | 'stop' | 'background'
 
 const RULES: Readonly<
   Record<Action, { accepted: readonly string[]; required: readonly string[] }>
@@ -31,6 +31,7 @@ const RULES: Readonly<
     accepted: ['--call', '--result', '--after', '--session', '--tenant', serverOption],
     required: ['--call'],
   },
+  children: { accepted: ['--call', '--session', '--tenant', serverOption], required: ['--call'] },
   stop: {
     accepted: ['--session', '--call', '--tenant', '--control-id', '--reason', serverOption],
     required: ['--session', '--call'],
@@ -308,6 +309,51 @@ async function runOutput(given: Invocation, output: CliOutput): Promise<ExitCode
   return written(name, read?.text ?? '', stop?.code ?? 0, output, stop?.reason ?? null)
 }
 
+type Child = Readonly<{
+  ordinal: number
+  tool: string
+  command: string | null
+  preview: string
+  state: string
+  child: string | null
+}>
+
+export function childrenText(items: readonly Child[]): string {
+  if (items.length === 0) return 'This call ran no calls of its own.\n'
+  return items
+    .map(item => {
+      const action = `${item.tool}${item.command === null ? '' : ` ${item.command}`}${item.preview === '' ? '' : ` · ${item.preview}`}`
+      return `${item.ordinal}  ${item.state}  ${action}${item.child === null ? '' : `  ${item.child}`}\n`
+    })
+    .join('')
+}
+
+async function runChildren(given: Invocation, output: CliOutput): Promise<ExitCode> {
+  const { name } = given
+  const call = await referenceOf(given)
+  if ('stop' in call) return written(name, '', call.stop.code, output, call.stop.reason)
+  const items: Child[] = []
+  let cursor: string | null = null
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const result: CallResult | undefined = await given.link.call(
+      toolProtocol,
+      'list-call-children',
+      { tenant: given.owner, reference: call.reference, cursor },
+      given.newId(),
+    )
+    if (result === undefined) return usageError(output, unrecognized(name))
+    if (result.kind !== 'response' || result.outcome !== 'succeeded') {
+      const stop = stopOf(`page ${page}`, result)
+      return written(name, page === 1 ? '' : childrenText(items), stop.code, output, stop.reason)
+    }
+    const body = result.body as { items: readonly Child[]; next: string | null }
+    items.push(...body.items)
+    if (body.next === null) return written(name, childrenText(items), 0, output)
+    cursor = body.next
+  }
+  return written(name, childrenText(items), 1, output, `more than ${MAX_PAGES} pages`)
+}
+
 async function runSessionCall(
   action: 'list' | 'stop' | 'background',
   invocation: Invocation,
@@ -404,6 +450,8 @@ async function runCalls(
       return runShow(invocation, output)
     case 'output':
       return runOutput(invocation, output)
+    case 'children':
+      return runChildren(invocation, output)
     default:
       return runSessionCall(action, invocation, output)
   }
@@ -411,7 +459,8 @@ async function runCalls(
 
 export const callsCommand: CommandSpec = {
   name: 'calls',
-  usage: 'list|show|output|stop|background',
-  summary: 'List the background tool calls of a session, read one, or stop or background it.',
+  usage: 'list|show|output|children|stop|background',
+  summary:
+    'List the background tool calls of a session, read one or the calls under it, or stop or background it.',
   run: runCalls,
 }

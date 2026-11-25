@@ -89,8 +89,6 @@ const callShape: Check<ToolBackgroundCallsValue['calls'][number]> = record({
       'account',
       'facts',
       'clock',
-      'child',
-      'program-fence',
       'resource-wait',
       'fact-ack',
     ),

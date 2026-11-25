@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { createShellAuthor } from '@omne-harness/tool-definitions'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { shellFixture } from './fixtures/shell.ts'
-import { run, value } from './run-author.ts'
+import { run, runForProgram, value } from './run-author.ts'
 import { tree } from '../src/protocol.ts'
 
 it('declares all Shell commands and explains platform, background and terminal semantics', async () => {
@@ -326,4 +326,48 @@ it('judges a segment of a retained terminal by the system of its host, not by th
   const onWindows = { ...onDarwin, facts: { ...onDarwin.facts, os: 'windows' } }
   await run(author, 'execute', { terminal, script: 'cat /etc/hosts' }, onWindows)
   expect(fixture.executions.map(execution => execution.script)).toEqual(['cat /etc/hosts'])
+})
+
+it('says of every command how it faces a program: only one-shot execute is open', () => {
+  const author = value(createShellAuthor(shellFixture().config))
+  if (author.facts.implements.kind !== 'commands') throw new Error('commands')
+  expect(
+    Object.fromEntries(author.facts.implements.commands.map(one => [one.name, one.program])),
+  ).toEqual({
+    create_session: { kind: 'closed' },
+    execute: { kind: 'open', unless: ['terminal'] },
+    close_session: { kind: 'closed' },
+    info: { kind: 'closed' },
+    help: { kind: 'closed' },
+  })
+})
+
+it('gives a program the exit and both streams of a one-shot run, whole', async () => {
+  const fixture = shellFixture('one-shot output')
+  const author = value(createShellAuthor(fixture.config))
+  const answered = await runForProgram(
+    author,
+    'execute',
+    { script: 'echo hi' },
+    fixture.environment,
+  )
+  expect(answered).toMatchObject({
+    text: expect.stringContaining('one-shot output'),
+    data: { exit_code: 0, signal: null, stdout: 'one-shot output', stderr: '' },
+  })
+})
+
+it('gives a program no value when the output was not all kept, and none for a terminal', async () => {
+  const large = shellFixture('x'.repeat(5000))
+  const author = value(createShellAuthor(large.smallConfig))
+  const cut = await runForProgram(author, 'execute', { script: 'yes' }, large.environment)
+  expect('data' in cut).toBe(false)
+  const terminal = { id: 'terminal', generation: '1' }
+  const inTerminal = await runForProgram(
+    author,
+    'execute',
+    { script: 'echo hi', terminal },
+    large.environment,
+  )
+  expect('data' in inTerminal).toBe(false)
 })

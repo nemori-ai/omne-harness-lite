@@ -349,8 +349,9 @@ it('StateWord says the shared word, or the caller words for a named fact', () =>
   expect(screen.getByText('出错了').getAttribute('data-tone')).toBe('danger')
 })
 
-it('the table says a session being set up, a frozen one and output still being written, each neutral', () => {
-  const said = (['initializing', 'frozen', 'outputOpen'] as const).map(state => {
+it('the table says a session being set up, a frozen one, output still being written, a call in the background and a refused one, each neutral', () => {
+  const added = ['initializing', 'frozen', 'outputOpen', 'background', 'refused'] as const
+  const said = added.map(state => {
     const { container } = render(<StateWord state={state} />)
     const word = container.querySelector('[data-state-word]')
     const seen = [word?.textContent, word?.getAttribute('data-tone')]
@@ -361,6 +362,8 @@ it('the table says a session being set up, a frozen one and output still being w
     ['正在初始化', 'neutral'],
     ['已冻结', 'neutral'],
     ['输出还在写', 'neutral'],
+    ['在后台', 'neutral'],
+    ['被拒', 'neutral'],
   ])
 })
 

@@ -185,6 +185,7 @@ system
         voice
           media-ui#1  [effective]
       session.call-detail  [list]
+        tool-call-children  [effective, tool-ui#1]
         tool-call-output  [effective, tool-ui#1]
       session.composer  [one]
         session-ui#1  [effective]
@@ -202,6 +203,8 @@ system
       session.status  [list]
         usage.occupancy  [effective, usage-ui#1]
       session.tool-call  [keyed-one]
+        Code
+          tool-ui#1  [effective]
     shell
       shell.actions  [list]
         assets.settings  [effective, assets-ui#1]
@@ -508,7 +511,11 @@ system
           DesktopShell#1  [effective]
         shell.workspace.page
           DesktopShell#1  [effective]
+        tool.call-children
+          tool-ui#1  [effective]
         tool.call-output
+          tool-ui#1  [effective]
+        tool.code-card
           tool-ui#1  [effective]
         usage.card
           usage-ui#1  [effective]

@@ -46,6 +46,7 @@ import {
   createSessionUiModule,
   sessionBlockRender,
   sessionCallDetail,
+  sessionToolCall,
   sessionComposerAttachments,
   sessionComposerIntakeKey,
   sessionComposerKey,
@@ -113,7 +114,7 @@ export const assembly: Assembly = {
     calendarUiModule,
     assetsUiModule,
     createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
-    createToolUiModule({ callDetail: sessionCallDetail }),
+    createToolUiModule({ callDetail: sessionCallDetail, toolCall: sessionToolCall }),
     createModelUiModule({
       runFailure: sessionRunFailure,
       providers: assetsPageTarget(PROVIDER_CATEGORY),

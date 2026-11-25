@@ -24,6 +24,7 @@ const CODING = [
   'BkgToolCalls',
   'Calendar',
   'Canvas',
+  'Code',
   'Files',
   'Notifications',
   'OmneExtensionPoints',

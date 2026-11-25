@@ -125,6 +125,7 @@ export function createToolsAuthor(
       summary: string
       operation: ToolOperation<unknown, ToolMessageContentBlock>
       release: ToolCommandRelease
+      readOnly: boolean
     }
   > = {}
   for (const command of toolsCommands) {
@@ -155,6 +156,8 @@ export function createToolsAuthor(
       summary: command.summary,
       operation: made.ok,
       release: { gate: TOOLS_GATE_OF[command.name] },
+      // execute carries another call: whether it is read-only is read from its target.
+      readOnly: command.name !== 'execute',
     }
   }
   const made = defineCommandTool({

@@ -33,7 +33,7 @@ import type { LocalToolAvailabilitySource } from '@omne-harness/tool-host-local'
 import { sourcedEntriesOf, sourceListsName } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import type { ToolReleaseManifest } from '../../entry/tool-release-manifest.ts'
-import { hostOffers } from '../execution-host/offers.ts'
+import { hostOffers, programOffered } from '../execution-host/offers.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 
 const unavailable = (diagnostic: string) =>
@@ -197,6 +197,7 @@ function environmentInstalled(ctx: Context): boolean {
 /** What each release capability stands for: it is there while its service is, or while its test holds. */
 const CAPABILITY_SERVICES: Readonly<Record<string, string | ((ctx: Context) => boolean)>> = {
   'screen.read': ctx => hostOffers(ctx)?.has('screen') === true,
+  'program.run': programOffered,
   'calendar.read': calendarCalculatorKey,
   'schedule.read': scheduleQueriesKey,
   'schedule.write': scheduleCommandsKey,

@@ -1,4 +1,5 @@
 import {
+  decodeActionId,
   decodeAgentExecutionId,
   decodeAgentInstanceId,
   decodeAgentOperationId,
@@ -314,5 +315,62 @@ describe('a sudden loss of a dependency', () => {
       await host.controls.journal.port.load({ ...caller('a'), execution: EXECUTION }),
     )
     expect(snapshot.executionAttachment).toEqual(opened.authority)
+  })
+})
+
+const nestedAsk = (tenant: 'a' | 'b') => ({
+  ...caller(tenant),
+  execution: EXECUTION,
+  parent: ok(decodeActionId('action-parent')),
+  ordinal: 1,
+  target: {
+    definition: { owner: 'host-test', name: 'Files', revision: '1', digest: 'test:Files' },
+    name: 'Files',
+    command: 'read',
+    arguments: '{}',
+  },
+  signal: new AbortController().signal,
+})
+
+describe('AG-32 the nested action entry without a live runtime', () => {
+  it('cannot answer now for an execution whose runtime is not on this host', async () => {
+    const host = await world()
+    await openExecution(host, unknownInstance)
+    expect(await host.nested.admit(nestedAsk('a'))).toEqual({
+      kind: 'unanswerable',
+      diagnostic: 'no runtime here runs this execution',
+    })
+  })
+
+  it('refuses a caller that may not read the execution, before any runtime is looked for', async () => {
+    const host = await world()
+    await openExecution(host, unknownInstance)
+    host.refuseNext('load')
+    expect(await host.nested.admit(nestedAsk('a'))).toEqual({
+      kind: 'denied',
+      reason: 'the caller may not ask for this execution',
+    })
+  })
+
+  it('cannot answer for an execution that does not exist, and allows nothing', async () => {
+    const host = await world()
+    expect((await host.nested.admit(nestedAsk('a'))).kind).not.toBe('allowed')
+  })
+
+  it('cannot answer when the Journal throws, and says which read failed', async () => {
+    const host = await openWorld({
+      factory: 'duties',
+      journal: port => ({
+        ...port,
+        load: () => {
+          throw new Error('the store is away')
+        },
+      }),
+    })
+    opened.push(host)
+    expect(await host.nested.admit(nestedAsk('a'))).toEqual({
+      kind: 'unanswerable',
+      diagnostic: 'the execution could not be read: unavailable',
+    })
   })
 })

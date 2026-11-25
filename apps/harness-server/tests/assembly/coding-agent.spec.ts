@@ -64,6 +64,7 @@ describe('the coding entry of the release mapping', () => {
       { capability: { category: 'tool', name: 'OmneExtensions' }, resident: true },
       { capability: { category: 'tool', name: 'Screen' }, resident: true },
       { capability: { category: 'tool', name: 'Skills' }, resident: true },
+      { capability: { category: 'tool', name: 'Code' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])
     expect(instructions.map(section => section.id)).toEqual([
@@ -131,6 +132,11 @@ describe('the coding entry of the release mapping', () => {
       'You have fourteen resident command tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar, Schedules, Notifications, Canvas, Sessions, Agents and Skills.',
     )
     expect(fullText).toContain('## BkgToolCalls')
+    // Code comes with a row, so the prompt names it only as a condition: the sentence holds without the row.
+    expect(fullText).toContain(
+      'A page is often large: with Code among your tools, fetch it inside a program and return only the part that you need.',
+    )
+    expect(fullText).not.toContain('## Code')
     const extending = instructions.find(section => section.id === 'extensions')?.text ?? ''
     for (const word of ['OmneExtensionPoints', 'OmneExtensions', 'Files', 'impact', 'disable'])
       expect(extending, word).toContain(word)

@@ -1,8 +1,9 @@
 import { createIndependentToolScope, executeTool } from '@omne-harness/tool'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
-import type {
-  ToolImplementation,
-  ToolMessageContentBlock,
+import {
+  markProgramCall,
+  type ToolImplementation,
+  type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 
 export async function run<E>(
@@ -13,8 +14,20 @@ export async function run<E>(
   signal = new AbortController().signal,
 ) {
   const answer = await runRaw(implementation, command, args, environment, signal)
-  if (typeof answer !== 'string') throw new Error('Expected readable text')
-  return answer
+  const text = typeof answer === 'string' ? answer : Reflect.get(Object(answer), 'text')
+  if (typeof text !== 'string') throw new Error('Expected readable text')
+  return text
+}
+
+/** What the author returned for a call a program made: its text and, when it has one, its value. */
+export async function runForProgram<E>(
+  implementation: ToolImplementation<E, ToolMessageContentBlock>,
+  command: string,
+  args: unknown,
+  environment: E,
+) {
+  const answer = await runRaw(implementation, command, args, environment, undefined, true)
+  return answer as { text: string; data?: unknown }
 }
 
 /** What the author of the command returned, before any rendering. */
@@ -24,6 +37,7 @@ export async function runRaw<E>(
   args: unknown,
   environment: E,
   signal = new AbortController().signal,
+  fromProgram = false,
 ) {
   const registration = readToolRegistration(implementation)
   if (registration?.kind !== 'commands') throw new Error('Expected commands')
@@ -48,6 +62,7 @@ export async function runRaw<E>(
     waits: null,
   })
   if ('failure' in scope) throw new Error(JSON.stringify(scope.failure))
+  if (fromProgram) markProgramCall(scope.ok)
   const answer = await executeTool(parsed.ok, operation.author.executor, environment, scope.ok)
   if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
   return answer.ok as unknown
