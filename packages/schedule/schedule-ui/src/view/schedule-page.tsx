@@ -206,7 +206,7 @@ function Rows({
           mark={<TimeIcon />}
           title={item.label ?? '未命名'}
           facts={stateNote(item)?.word}
-          time={nextText(item.next)}
+          time={nextText(item)}
           selected={item.schedule === picked?.schedule}
           onSelect={() => onPick({ schedule: item.schedule, label: item.label })}
         />

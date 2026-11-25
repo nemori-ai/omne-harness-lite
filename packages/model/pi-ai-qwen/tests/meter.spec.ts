@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { ModelInputMeter } from '@omne-harness/model-contract'
-import { componentAdoption } from '../src/adoptions.ts'
-import { sortedJsonText } from './support/sorted-json.ts'
+import { sortedJsonText } from '@omne-harness/pi-ai-transport/testing'
 import {
   assembledOf,
   bindingOf,
@@ -19,6 +18,8 @@ import {
   TOKENIZER,
   type RequestParts,
 } from './support/qwen.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
+import { QWEN_OWNER } from '../src/owner.ts'
 
 type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
@@ -72,7 +73,7 @@ describe('measure', () => {
           kind: 'estimate',
           amount: String(amount),
           margin: String(Math.ceil(amount / 10)),
-          method: componentAdoption(RECORD, 'meter'),
+          method: componentAdoption(QWEN_OWNER, RECORD, 'meter'),
           marginSource: MARGIN_SOURCE,
         },
         limit: '983616',
@@ -81,7 +82,7 @@ describe('measure', () => {
           upstream: {
             kind: 'finite',
             amount: '983616',
-            source: componentAdoption(RECORD, 'evidence'),
+            source: componentAdoption(QWEN_OWNER, RECORD, 'evidence'),
           },
         },
       },

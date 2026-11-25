@@ -3,7 +3,7 @@ import type { DurableEvidence } from '@omne-harness/exchange-refs'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ReasoningStatePart, ToolCallPart } from '@omne-harness/message'
 import type { ModelInvocationRef } from './reference.ts'
-import type { LimitMetric } from './profile.ts'
+import type { OVER_LIMIT_METRICS } from './profile.ts'
 import type {
   Adoption,
   ConsumerRef,
@@ -69,7 +69,7 @@ export function faultIsTransient(cause: ModelFaultCause): boolean {
     }
   }
 }
-export type OverLimitMetric = 'context-tokens' | 'input-tokens' | LimitMetric
+export type OverLimitMetric = (typeof OVER_LIMIT_METRICS)[number]
 export type ModelFault = Readonly<{
   diagnostic: string
   upstreamStatus: string | null

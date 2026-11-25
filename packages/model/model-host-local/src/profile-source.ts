@@ -7,7 +7,7 @@ import type {
   ProfileScope,
   ProviderName,
 } from '@omne-harness/model-contract'
-import { decodeRevision } from '@omne-harness/model-contract'
+import { decodeRevision, profileProblems } from '@omne-harness/model-contract'
 import type { Access } from '@omne-harness/legal-identity'
 import type { ProviderPreferences } from '@omne-harness/model-contract/provider-asset'
 import type {
@@ -177,6 +177,11 @@ export function createOfficialProfileSource<P>(
     const profile = profileOf(definition, input.updatedAt)
     if (profiles.some(existing => existing.identity.route === profile.identity.route))
       throw new RangeError(`two official profiles share the route ${profile.identity.route}`)
+    const problems = profileProblems(definition)
+    if (problems.length > 0)
+      throw new RangeError(
+        `the official profile ${profile.identity.route} breaks the profile rules: ${problems.join(', ')}`,
+      )
     profiles.push(profile)
   }
   const snapshot: ModelProfileSnapshot = Object.freeze({

@@ -22,11 +22,12 @@ export default defineConfig({
     emptyOutDir: true,
     modulePreload: { polyfill: false },
     assetsInlineLimit: 0,
-    // The app's page and the overlay a screenshot is picked on (src/main/screen-overlay.ts).
+    // The app's page, the overlay a screenshot is picked on (src/main/screen-overlay.ts) and the desk layer (src/main/desk-window.ts).
     rolldownOptions: {
       input: {
         index: fileURLToPath(new URL('./src/page/index.html', import.meta.url)),
         shot: fileURLToPath(new URL('./src/page/shot.html', import.meta.url)),
+        desk: fileURLToPath(new URL('./src/page/desk.html', import.meta.url)),
       },
     },
   },

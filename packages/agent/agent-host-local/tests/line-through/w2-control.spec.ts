@@ -2,7 +2,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { operationId } from '@omne-harness/session-contract/testing'
 import { intakeAccess, ok } from './world.ts'
-import { entriesOf } from '../host-support.ts'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
 
 const worlds: W2World[] = []
@@ -68,8 +67,8 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
     expect(w.modelCalls).toHaveLength(requests)
     expect(w.tools.invoke.calls).toHaveLength(0)
     const reported = async () =>
-      (await entriesOf(w.freshEntries(), { ...w.agentAccess, execution })).flatMap(entry =>
-        entry.kind === 'received' && 'accounts' in entry.delivery
+      w.receivedEntries.flatMap(entry =>
+        'accounts' in entry.delivery
           ? entry.delivery.accounts.map(kept => kept.account?.cost ?? [])
           : [],
       )

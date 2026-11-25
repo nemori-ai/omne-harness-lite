@@ -4,6 +4,15 @@ import type { WatchCause } from './types.ts'
 /** Why nobody watched a stretch: the host was off (a broken heartbeat), the schedule was paused, or a dependency was out. */
 export type MissCause = 'stopped' | 'paused' | 'recovered' | 'incompatible'
 
+/** The next time a schedule in effect shows: the slot it waits for, unless that slot came due while
+ * nobody watched. That one is disposed as missed, and its disposal says what comes next. */
+export function shownNext(
+  next: ScheduleCandidate | null,
+  watchStart: string,
+): ScheduleCandidate | null {
+  return next !== null && next.scheduledAt >= watchStart ? next : null
+}
+
 export type Classification = Readonly<{
   /** The missed slots to accept, in order; the rest of the stretch is missed. */
   selected: readonly ScheduleCandidate[]

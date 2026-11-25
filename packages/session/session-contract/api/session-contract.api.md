@@ -144,6 +144,7 @@
 - `MutationName` · `ports.d.ts`
 - `OnceAuthorization` · `authorizations.d.ts`
 - `OpenWork` · `judgments.d.ts`
+- `OperationAsked` · `utterance-resolver.d.ts`
 - `OperationJudgment` · `judgments.d.ts`
 - `OperationRecord` · `judgments.d.ts`
 - `OperationRequest` · `utterance-resolver.d.ts`
@@ -2703,7 +2704,7 @@ export { createBeforeIntakeRegistry, judgeIntakeBlocks, bringsOrigin, keepsTheWo
 export { projectModelMessage } from './model-projection.ts';
 export { summarizeModelProvenance, projectModelProvenance, UNKNOWN_MODEL_PROVENANCE, } from './model-provenance.ts';
 export { originalModelRows } from './model-originals.ts';
-export { createUtteranceResolverRegistry, type OperationRequest, type Resolution, type SenderView, type Utterance, type UtteranceResolver, type UtteranceResolverRegistry, } from './utterance-resolver.ts';
+export { createUtteranceResolverRegistry, type OperationAsked, type OperationRequest, type Resolution, type SenderView, type Utterance, type UtteranceResolver, type UtteranceResolverRegistry, } from './utterance-resolver.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -4150,8 +4151,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:4a58b21877274b3749b674f3513666cfeef70bb578d908d1373ad21f3ae8a8e8";
-export declare const SESSION_RELEASE_DIGEST = "sha256:4a58b21877274b3749b674f3513666cfeef70bb578d908d1373ad21f3ae8a8e8";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:9063ca19b7acff8006538a8df778db62b9f4dba621d23320588510e63392d2dd";
+export declare const SESSION_RELEASE_DIGEST = "sha256:9063ca19b7acff8006538a8df778db62b9f4dba621d23320588510e63392d2dd";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -5176,10 +5177,20 @@ export type Utterance<P> = Readonly<{
     }>;
     access: SessionAccess<P>;
 }>;
+export type OperationAsked = Readonly<{
+    protocol: Readonly<{
+        name: string;
+        major: number;
+    }>;
+    operation: string;
+    fields: Readonly<Record<string, unknown>>;
+}> | Readonly<{
+    invalid: string;
+}>;
 export type OperationRequest = Readonly<{
     name: string;
-    operation: string;
     args: string;
+    asked: OperationAsked;
 }>;
 export type Resolution = Readonly<{
     kind: 'input';

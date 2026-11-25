@@ -31,6 +31,24 @@ import { closeApplication, type MainProcess } from './close.ts'
 
 export type Target = LaunchTarget
 export const REPLY = 'hello from the e2e gateway'
+/** A message with this in it gets, after a pause, a turn that asks the person one question. */
+export const ASK_MARKER = 'ask-me-one-question'
+const ASK_PAUSE_MS = 3_000
+const ASK_ARGUMENTS = JSON.stringify({
+  command: 'ask',
+  params: {
+    questions: [
+      {
+        title: 'Which port should the dev server use?',
+        description: 'Port 8080 is taken.',
+        options: [
+          { label: '8081', description: 'The next free port.' },
+          { label: '3000', description: 'The default port.' },
+        ],
+      },
+    ],
+  },
+})
 
 /** The processes of a target still running, helpers included; a failed listing throws. */
 export function targetProcesses(target: Target): number[] {
@@ -103,21 +121,34 @@ async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> 
   let gateway: ModelGateway | undefined
   let server: ServerHandle | undefined
   try {
-    gateway = await startModelGateway(({ body }) => ({
-      status: 200,
-      contentType: 'text/event-stream',
-      body: [
-        {
-          model: JSON.parse(body).model ?? 'm',
-          provider: 'OpenAI',
-          choices: [{ delta: { content: REPLY } }],
-        },
-        { choices: [{ delta: {}, finish_reason: 'stop' }] },
-      ]
-        .map(event => `data: ${JSON.stringify(event)}\n\n`)
-        .concat('data: [DONE]\n\n')
-        .join(''),
-    }))
+    gateway = await startModelGateway(async ({ body }) => {
+      const model = JSON.parse(body).model ?? 'm'
+      const asks = body.includes(ASK_MARKER) && body.includes('"Ask"')
+      if (asks) await new Promise(done => setTimeout(done, ASK_PAUSE_MS))
+      const call = {
+        index: 0,
+        id: 'call_ask_e2e',
+        type: 'function',
+        function: { name: 'Ask', arguments: ASK_ARGUMENTS },
+      }
+      const events = asks
+        ? [
+            { model, provider: 'OpenAI', choices: [{ delta: { tool_calls: [call] } }] },
+            { choices: [{ delta: {}, finish_reason: 'tool_calls' }] },
+          ]
+        : [
+            { model, provider: 'OpenAI', choices: [{ delta: { content: REPLY } }] },
+            { choices: [{ delta: {}, finish_reason: 'stop' }] },
+          ]
+      return {
+        status: 200,
+        contentType: 'text/event-stream',
+        body: events
+          .map(event => `data: ${JSON.stringify(event)}\n\n`)
+          .concat('data: [DONE]\n\n')
+          .join(''),
+      }
+    })
     const port = await freePort()
     const operatorPath = `${scratch.base}/operator.json`
     writeOperator(

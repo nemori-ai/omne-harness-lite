@@ -144,6 +144,7 @@
 - `MutationName` · 包 `@omne-harness/session-contract`
 - `OnceAuthorization` · 包 `@omne-harness/session-contract`
 - `OpenWork` · 包 `@omne-harness/session-contract`
+- `OperationAsked` · 包 `@omne-harness/session-contract`
 - `OperationJudgment` · 包 `@omne-harness/session-contract`
 - `OperationRecord` · 包 `@omne-harness/session-contract`
 - `OperationRequest` · 包 `@omne-harness/session-contract`

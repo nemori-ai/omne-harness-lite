@@ -1,11 +1,12 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { isPathResult, isRecord } from './install/fixture-run.ts'
 import type { FixtureSetReport, FixtureSummary } from './install/fixture-set.ts'
+import { removeAfterAll } from './install-tree.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
@@ -18,7 +19,7 @@ const workDirectory = join(
 const ROLES = ['cordis-plugin']
 const RUN_LIMIT_MS = 300_000
 const ENTRY_LIMIT_MS = 240_000
-afterAll(() => rmSync(workDirectory, { recursive: true, force: true }))
+removeAfterAll(() => [workDirectory])
 
 function isSummary(value: unknown): value is FixtureSummary {
   return (

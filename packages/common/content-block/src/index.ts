@@ -61,6 +61,11 @@ export type MediaFacts =
 
 export type Provenance = Readonly<{ name: string; revision: string }>
 
+export const INCONVERTIBLE_REASONS = ['encrypted', 'damaged', 'no-text'] as const
+export type InconvertibleReason = (typeof INCONVERTIBLE_REASONS)[number]
+export const isInconvertibleReason = (value: unknown): value is InconvertibleReason =>
+  INCONVERTIBLE_REASONS.some(reason => reason === value)
+
 /** What a medium was made into, by which definition and engine. The inline text is the block's `transcript`. */
 export type RepresentationSnapshot = Readonly<{ definition: Provenance; engine: Provenance }> &
   (
@@ -69,7 +74,7 @@ export type RepresentationSnapshot = Readonly<{ definition: Provenance; engine: 
         text: ContentReference | null
         others: readonly ContentReference[]
       }>
-    | Readonly<{ outcome: 'inconvertible' }>
+    | Readonly<{ outcome: 'inconvertible'; reason?: InconvertibleReason }>
   )
 
 export type ReferenceContentBlock = Readonly<{
@@ -271,6 +276,7 @@ const REFERENCE_BLOCK_KEYS = [
 ] as const
 const SOURCE_KEYS = ['definition', 'engine'] as const
 const CONVERTED_KEYS = ['outcome', ...SOURCE_KEYS, 'text', 'others'] as const
+const INCONVERTIBLE_KEYS = ['outcome', ...SOURCE_KEYS, 'reason'] as const
 const FACT_KEYS = {
   image: ['widthPixels', 'heightPixels'],
   voice: ['durationMs', 'sampleRate', 'channels'],
@@ -383,8 +389,10 @@ function snapshotOf(value: unknown): RepresentationSnapshot | undefined {
     const converted = convertedOf(value)
     return converted === undefined ? undefined : { ...converted, definition, engine }
   }
-  const bare = outcome === 'inconvertible' && !hasUnknownKey(value, ['outcome', ...SOURCE_KEYS])
-  return bare ? { outcome: 'inconvertible', definition, engine } : undefined
+  if (outcome !== 'inconvertible' || hasUnknownKey(value, INCONVERTIBLE_KEYS)) return undefined
+  if (!Object.hasOwn(value, 'reason')) return { outcome, definition, engine }
+  const { reason } = value
+  return isInconvertibleReason(reason) ? { outcome, definition, engine, reason } : undefined
 }
 
 function admitReference(

@@ -14,8 +14,17 @@ export type Utterance<P> = Readonly<{
   access: SessionAccess<P>
 }>
 
-/** A request to do an operation the session protocol already has, named by a system command. */
-export type OperationRequest = Readonly<{ name: string; operation: string; args: string }>
+/** What a command asks to be done: an operation of a protocol with its fields, or why its arguments cannot be taken. */
+export type OperationAsked =
+  | Readonly<{
+      protocol: Readonly<{ name: string; major: number }>
+      operation: string
+      fields: Readonly<Record<string, unknown>>
+    }>
+  | Readonly<{ invalid: string }>
+
+/** A command that asks for an operation: its name and the arguments as written, and what it asks. */
+export type OperationRequest = Readonly<{ name: string; args: string; asked: OperationAsked }>
 
 /** An input carries on with its effective content; an operation is handed back to be done as itself; a refusal is not queued. */
 export type Resolution =

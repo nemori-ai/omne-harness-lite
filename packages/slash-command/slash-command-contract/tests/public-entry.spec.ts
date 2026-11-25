@@ -30,6 +30,7 @@ const PUBLIC = [
   'sameView',
   'search',
   'shortAt',
+  'splitArguments',
   'start',
   'typed',
   'typing',

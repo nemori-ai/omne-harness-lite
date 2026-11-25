@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:36e1d06a6100700156a5e79177f0c33bf3fc38dd82c80696243e4c222266f04d",
-    "2": "sha256:1a13ab55b4e313acf5711c6f2839c1cf4ae514a3c8a43bbce1fdef5c36bc5b87"
+    "2": "sha256:1a13ab55b4e313acf5711c6f2839c1cf4ae514a3c8a43bbce1fdef5c36bc5b87",
+    "3": "sha256:f3291e53b733b07a46ff1cfe68e142c0244b9d0bdddd9766f051424a9b700275"
   },
   "major": 2,
   "name": "schedule",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {
       "observe-jobs": {
@@ -733,6 +734,21 @@
                                         ]
                                       }
                                     },
+                                    "reason": {
+                                      "optional": true,
+                                      "rule": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "kind": "text"
+                                          },
+                                          {
+                                            "kind": "null"
+                                          }
+                                        ]
+                                      },
+                                      "since": 3
+                                    },
                                     "startedAt": {
                                       "rule": {
                                         "kind": "one-of",
@@ -934,6 +950,21 @@
                                       }
                                     ]
                                   }
+                                },
+                                "reason": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  },
+                                  "since": 3
                                 },
                                 "startedAt": {
                                   "rule": {

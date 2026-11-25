@@ -37,6 +37,7 @@ export function publicHalf(entry: CommandEntry): SlashCommandEntry {
     kind: entry.kind,
     title: entry.title,
     ...(entry.hint === undefined ? {} : { hint: entry.hint }),
+    ...(entry.params === undefined ? {} : { params: entry.params }),
     ...(entry.unavailable === undefined ? {} : { unavailable: entry.unavailable }),
     ...(entry.whileRunning === undefined ? {} : { whileRunning: entry.whileRunning }),
     ...(entry.takesEffect === undefined ? {} : { takesEffect: entry.takesEffect }),

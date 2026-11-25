@@ -11,6 +11,7 @@ export {
 } from './contract.ts'
 export {
   createPromptEntrySource,
+  paramsOf,
   PROMPT_SPACE,
   type PromptHolding,
   type PromptSourcePorts,

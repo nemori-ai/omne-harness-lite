@@ -77,6 +77,7 @@ function firstEvent(port: number): Promise<{ status: number; type: string; event
 const NO_IDENTITY: AccessIdentity = {
   identifyLogin: async () => ({ outcome: 'basis-unavailable' }),
   actFor: async () => ({ outcome: 'basis-unavailable' }),
+  resumeLogin: async () => ({ outcome: 'basis-unavailable' }),
   reportAccess: async () => {},
 }
 
@@ -166,6 +167,7 @@ describe('server-entry row: the access it gives the entry', () => {
     const port: AccessIdentity = {
       identifyLogin: async () => ({ outcome: 'denied' }),
       actFor: async () => ({ outcome: 'denied' }),
+      resumeLogin: async () => ({ outcome: 'denied' }),
       reportAccess: async () => {},
     }
     const root = new Context()

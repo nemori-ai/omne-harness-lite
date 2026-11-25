@@ -7,6 +7,7 @@ import {
   encodeModelInvocationRef,
   type Access,
   type ConsumerRef,
+  type CustodyState,
   type DispatchId,
   type ModelCallId,
   type ModelDelivery,
@@ -195,18 +196,38 @@ function pendingOf(reservations: ReadonlyMap<string, string>, tenant: string): n
 }
 
 async function originOf(
-  { commands, report }: Pick<StageInput, 'commands' | 'report'>,
+  stage: Pick<StageInput, 'commands' | 'report'>,
   target: Target,
   principal: unknown,
 ): Promise<ResultPushRecord['origin']> {
-  const recovery = await commands.loadRecovery({ ...target, principal })
-  if ('failure' in recovery) {
+  return (await originRead(stage, target, principal))?.origin ?? null
+}
+
+function materialReleased(reply: Readonly<{ failure: ModelFailure }> | object): boolean {
+  if (!('failure' in reply)) return false
+  const { failure } = reply
+  return failure.kind === 'invalid' && failure.reason === 'recovery-material-released'
+}
+
+async function originRead(
+  { commands, report }: Pick<StageInput, 'commands' | 'report'>,
+  target: Target,
+  principal: unknown,
+): Promise<Readonly<{
+  origin: NonNullable<ResultPushRecord['origin']>
+  custody: CustodyState['kind']
+}> | null> {
+  const read = await commands.loadOrigin({ ...target, principal })
+  if ('failure' in read) {
     report({ kind: 'freeze-failed', step: 'late-account-origin' })
     return null
   }
-  const reference = encodeModelInvocationRef({ ...target, admission: recovery.ok.admission })
+  const reference = encodeModelInvocationRef({ ...target, admission: read.ok.admission })
   if ('failure' in reference) return null
-  return frozen({ reference: reference.ok, consumer: recovery.ok.state.consumer })
+  return {
+    origin: frozen({ reference: reference.ok, consumer: read.ok.consumer }),
+    custody: read.ok.custody.kind,
+  }
 }
 
 function newOperation(): ModelOperationId {
@@ -340,6 +361,45 @@ export function createRuntimeStage(
   return createResultPush(input, { ...options, limits: checkedLimits(options.limits) })
 }
 
+async function cleanupExecution(
+  { commands, report }: Pick<StageInput, 'commands' | 'report'>,
+  record: ResultPushRecord,
+  access: Readonly<{ principal: unknown; tenant: TenantId }>,
+): Promise<ExecutionRef | 'released' | null> {
+  const recovery = await commands.loadRecovery({ ...access, call: record.call })
+  if (materialReleased(recovery)) return 'released'
+  if ('failure' in recovery) {
+    report({ kind: 'cleanup-pending', reason: recovery.failure.kind })
+    return null
+  }
+  const { execution, state } = recovery.ok
+  if (state.custody.kind !== 'producer' && state.custody.cleanup === 'released') return 'released'
+  if (execution === null) report({ kind: 'cleanup-pending', reason: 'no-execution' })
+  return execution
+}
+
+async function advanceCleanup(
+  { commands, report }: Pick<StageInput, 'commands' | 'report'>,
+  limits: Readonly<{ maxCleanupSteps: number }>,
+  execution: ExecutionRef,
+): Promise<boolean> {
+  for (let step = 0; step < limits.maxCleanupSteps; step += 1) {
+    const advanced = await commands.advanceCleanup({ ...execution, operation: newOperation() })
+    if ('failure' in advanced) {
+      report({ kind: 'cleanup-pending', reason: advanced.failure.kind })
+      return false
+    }
+    if (advanced.ok.kind === 'producer') continue
+    if (advanced.ok.cleanup === 'released') return true
+    if (advanced.ok.cleanup === 'blocked') {
+      report({ kind: 'cleanup-pending', reason: 'blocked' })
+      return false
+    }
+  }
+  report({ kind: 'cleanup-pending', reason: 'steps' })
+  return false
+}
+
 function createResultPush(input: StageInput, options: ResultPushOptions): RuntimeStage {
   const { commands, authority, clock, report } = input
   const { ledger, limits, recovery } = options
@@ -457,9 +517,22 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     return save(next)
   }
 
+  async function released(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
+    const target = { tenant: record.tenant, call: record.call }
+    const read = await originRead(input, target, access.principal)
+    if (read === null || read.custody === 'producer') return owing.mark(record)
+    return save({
+      ...record,
+      origin: read.origin,
+      acknowledgement: read.custody,
+      cleanup: 'released',
+    })
+  }
+
   async function freeze(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     const call = { ...access, call: record.call }
     const recovery = await commands.loadRecovery(call)
+    if (materialReleased(recovery)) return released(record, access)
     if ('failure' in recovery) {
       report({ kind: 'freeze-failed', step: 'recovery' })
       return owing.mark(record, recovery.failure)
@@ -619,50 +692,14 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
 
   async function clean(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     if (!custodyEnded(record.acknowledgement) || record.cleanup === 'released') return record
-    const execution = await cleanupExecution(record, access)
+    const execution = await cleanupExecution(input, record, access)
     if (execution === null) return record
-    if (execution === 'released' || (await advanceCleanup(execution))) {
+    if (execution === 'released' || (await advanceCleanup(input, limits, execution))) {
       const released = save(dropBody({ ...record, cleanup: 'released' }))
       input.released?.({ tenant: record.tenant, call: record.call })
       return released
     }
     return record
-  }
-
-  async function cleanupExecution(
-    record: ResultPushRecord,
-    access: Access,
-  ): Promise<ExecutionRef | 'released' | null> {
-    const recovery = await commands.loadRecovery({ ...access, call: record.call })
-    if ('failure' in recovery) {
-      const { failure } = recovery
-      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released')
-        return 'released'
-      report({ kind: 'cleanup-pending', reason: failure.kind })
-      return null
-    }
-    const { execution, state } = recovery.ok
-    if (state.custody.kind !== 'producer' && state.custody.cleanup === 'released') return 'released'
-    if (execution === null) report({ kind: 'cleanup-pending', reason: 'no-execution' })
-    return execution
-  }
-
-  async function advanceCleanup(execution: ExecutionRef): Promise<boolean> {
-    for (let step = 0; step < limits.maxCleanupSteps; step += 1) {
-      const advanced = await commands.advanceCleanup({ ...execution, operation: newOperation() })
-      if ('failure' in advanced) {
-        report({ kind: 'cleanup-pending', reason: advanced.failure.kind })
-        return false
-      }
-      if (advanced.ok.kind === 'producer') continue
-      if (advanced.ok.cleanup === 'released') return true
-      if (advanced.ok.cleanup === 'blocked') {
-        report({ kind: 'cleanup-pending', reason: 'blocked' })
-        return false
-      }
-    }
-    report({ kind: 'cleanup-pending', reason: 'steps' })
-    return false
   }
 
   async function pushAccounts(record: ResultPushRecord, access: Access): Promise<void> {

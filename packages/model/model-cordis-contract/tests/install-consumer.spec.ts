@@ -1,22 +1,19 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import type { Report } from './install/consumer.ts'
+import { removeAfterAll } from './install-tree.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'install-consumer-')))
 const consumers = join(workspaceRoot, 'tmp/install-closure')
 const workDirectories = ['model-cordis-contract-spec', 'model-cordis-contract-transitive']
-afterAll(() => {
-  rmSync(temporary, { recursive: true, force: true })
-  for (const name of workDirectories)
-    rmSync(join(consumers, name), { recursive: true, force: true })
-})
+removeAfterAll(() => [temporary, ...workDirectories.map(name => join(consumers, name))])
 
 const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...environment } = process.env
 

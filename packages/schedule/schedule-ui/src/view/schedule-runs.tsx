@@ -13,7 +13,14 @@ import {
   type SlotRow,
 } from '../model/jobs.ts'
 import { readOnce, useReading, type Reading } from '../model/reading.ts'
-import { calendarText, localText, type Succeeded, type Upcoming } from '../model/words.ts'
+import {
+  calendarText,
+  localText,
+  unplannedText,
+  type ScheduleCard,
+  type Succeeded,
+  type Upcoming,
+} from '../model/words.ts'
 import { scheduleHappened, scheduleRun, scheduleUpcoming } from '../parts.ts'
 import { Drawn } from './drawn.tsx'
 import { JobWord } from './job-word.tsx'
@@ -59,24 +66,34 @@ export type RunsProps = Readonly<{
   preview: Reading<Preview>
   rereadPreview: () => void
   reasons: readonly string[] | undefined
+  /** The control of the schedule once its record is read: one not in effect has no planned times. */
+  control: ScheduleCard['control'] | undefined
   round: number
   onOpen: (row: SlotRow) => void
 }>
 
 /** The runs of one schedule: a notice when it is blocked, the next times as planned, then what happened, newest first. */
 export function ScheduleRuns(props: RunsProps): JSX.Element {
-  const { preview, rereadPreview, reasons } = props
+  const { preview, rereadPreview, reasons, control } = props
+  const unplanned = control === undefined ? undefined : unplannedText(control)
   return (
     <Section id="schedule-runs" title="执行">
       {reasons !== undefined && reasons.length > 0 && (
         <InlineNotice tone="caution">{blockedText(reasons)}</InlineNotice>
       )}
       <h3 className="schedule-runs-heading">
-        接下来<span className="schedule-runs-aside">到点时按当时的定义重新核</span>
+        接下来
+        {unplanned === undefined && (
+          <span className="schedule-runs-aside">到点时按当时的定义重新核</span>
+        )}
       </h3>
-      <Drawn reading={preview} reread={rereadPreview} refused={previewRefusal}>
-        {value => <UpcomingList preview={value} />}
-      </Drawn>
+      {unplanned === undefined ? (
+        <Drawn reading={preview} reread={rereadPreview} refused={previewRefusal}>
+          {value => <UpcomingList preview={value} />}
+        </Drawn>
+      ) : (
+        <p className="schedule-note">{unplanned}</p>
+      )}
       <h3 className="schedule-runs-heading">已发生</h3>
       <Happened {...props} />
     </Section>
