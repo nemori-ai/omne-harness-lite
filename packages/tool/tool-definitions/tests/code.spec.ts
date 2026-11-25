@@ -170,6 +170,7 @@ type Handler = (args: Record<string, unknown>, ordinal: number) => Promise<Progr
 /** The capability a host would attach, scripted: what was called, in what order, how many at once. */
 type Faults = Readonly<{
   functions?: boolean
+  functionsAfter?: number
   settle?: boolean
   none?: boolean
   more?: readonly (typeof FUNCTIONS)[number][]
@@ -218,7 +219,7 @@ function scripted(handlers: Readonly<Record<string, Handler>>, faults: Faults = 
   const tools: ProgramTools = {
     functions: async names => {
       asked.push(names)
-      return faults.functions === true
+      return faults.functions === true || asked.length > (faults.functionsAfter ?? Infinity)
         ? fail(down)
         : succeed(known.filter(one => names.includes(one.tool)))
     },
@@ -849,6 +850,60 @@ describe('the tools a program names', () => {
     expect(world.asked[0]).toEqual(['Files'])
     expect(world.asked[1]).toContain('Lookup')
     expect(world.asked).toHaveLength(2)
+  })
+})
+
+describe('the tools a program names, when they cannot be read', () => {
+  const settled = (text: Promise<string>) =>
+    text.then(
+      given => `returned ${given}`,
+      (error: unknown) => `threw ${String(error)}`,
+    )
+
+  it('a program given by path is not read when the functions of Files cannot be', async () => {
+    const world = scripted(
+      { 'Files.read': async () => valued({ text: 'return 1', eof: true }) },
+      {
+        functions: true,
+      },
+    )
+    const text = await settled(run('execute', { path: 'prog.ts' }, world.tools))
+    expect(text).toMatch(/^returned rejected reason=unavailable Code execute: /u)
+    expect(world.calls).toEqual([])
+  })
+
+  it('a program read from a file whose names cannot be resolved fails and names the file', async () => {
+    const world = scripted(
+      { 'Files.read': async () => valued({ text: 'return await Lookup({})', eof: true }) },
+      { functionsAfter: 1 },
+    )
+    const text = await settled(run('execute', { path: 'prog.ts' }, world.tools))
+    expect(text).toMatch(/^threw (Error: )+rejected reason=unavailable Code execute: /u)
+    expect(text).toContain('prog.ts')
+    expect(world.asked).toHaveLength(2)
+  })
+
+  it('a program in the call whose names cannot be resolved is answered, not thrown', async () => {
+    const world = scripted({}, { functions: true })
+    const text = await settled(execute('return await Lookup({})', world.tools))
+    expect(text).toMatch(/^returned rejected reason=unavailable Code execute: /u)
+  })
+
+  it('a program that names nothing asks about no name', async () => {
+    const world = scripted({})
+    expect(await execute('1', world.tools)).toContain('done Code execute')
+    expect(world.asked).toEqual([[]])
+  })
+
+  it('the hint about computed names is given only for a TypeError of a program that indexes tools', async () => {
+    const world = scripted({})
+    const failed = (code: string) => settled(execute(code, world.tools))
+    const hint = 'Write the name of each tool you call in the program'
+    expect(await failed('const name = "Loo" + "kup"\nreturn await tools [name]({})')).toContain(
+      hint,
+    )
+    expect(await failed('return await undefined.run({})')).not.toContain(hint)
+    expect(await failed('void tools["Lookup"]\nthrow new RangeError("far")')).not.toContain(hint)
   })
 })
 

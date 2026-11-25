@@ -34,7 +34,7 @@ export const toolsFailure = (failure: ToolFailure) =>
 /** `functions`: the search asked for what a program can call, so each tool shows how a program calls it. */
 export function presentSearch(
   page: SearchPage,
-  functions = false,
+  functions: boolean,
 ): ToolResult<ToolMessageContentBlock> {
   return toolsText(
     JSON.stringify({

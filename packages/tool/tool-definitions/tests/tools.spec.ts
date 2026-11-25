@@ -249,6 +249,27 @@ describe('Tools complete author', () => {
       expect(await call('search', { ...asked, programmable }, found)).toHaveProperty('failure')
   })
 
+  it('search takes a text query, a cursor that is text or null, and a page of at least one', async () => {
+    const seen: unknown[] = []
+    const found = capability({
+      search: async args => {
+        seen.push(args)
+        return succeed({ entries: [], next: null })
+      },
+    })
+    const asked = { query: 'read', after: null, limit: 1 }
+    expect(await call('search', asked, found)).not.toHaveProperty('failure')
+    expect(await call('search', { ...asked, after: 'cursor' }, found)).not.toHaveProperty('failure')
+    for (const wrong of [
+      { ...asked, limit: 0 },
+      { ...asked, limit: '5' },
+      { ...asked, query: 5 },
+      { ...asked, after: 5 },
+    ])
+      expect(await call('search', wrong, found)).toHaveProperty('failure')
+    expect(seen).toEqual([asked, { ...asked, after: 'cursor' }])
+  })
+
   it.each(['schema', 'executor-owned'] as const)(
     'inspect gives the complete %s command parameters',
     async kind => {

@@ -90,10 +90,9 @@ async function helpText(execution: ToolExecutionContext, limits: Limits, name: s
     return `done Code help\n${RULES}\n\n${limitsLine(limits)}\n\n${FINDING}\n${DECLARED}`
   const listed = await tools.functions([name])
   if ('failure' in listed) return `rejected reason=unavailable Code help: ${listed.failure.kind}`
-  const one = listed.ok.filter(each => each.tool === name)
-  return one.length === 0
+  return listed.ok.length === 0
     ? `rejected reason=notFound Code help: ${name} has no function a program can call now. ${FIND}`
-    : `done Code help ${name}\n${functionsSignature(one)}`
+    : `done Code help ${name}\n${functionsSignature(listed.ok)}`
 }
 
 /** What the program receives for one call: the value, or an error it can catch by its kind. */
@@ -223,18 +222,27 @@ type Prepared = Readonly<{
   entries: readonly ProgramFunction['entry'][]
 }>
 
+async function sourceOf(
+  picked: Picked,
+  tools: ProgramTools,
+  sourceBytes: number,
+  failures: Answered['failures'],
+) {
+  if ('code' in picked) return givenProgram(picked.code, sourceBytes)
+  const reader = await tools.functions(['Files'])
+  return 'failure' in reader
+    ? `rejected reason=unavailable Code execute: ${reader.failure.kind}`
+    : loadProgram(picked.path, tools, reader.ok, sourceBytes, failures)
+}
+
 async function prepared(
   picked: Picked,
   tools: ProgramTools,
   sourceBytes: number,
   failures: Answered['failures'],
 ): Promise<Prepared | string> {
-  const reader = 'code' in picked ? succeed([]) : await tools.functions(['Files'])
-  if ('failure' in reader) return `rejected reason=unavailable Code execute: ${reader.failure.kind}`
-  const program =
-    'code' in picked
-      ? givenProgram(picked.code, sourceBytes)
-      : await loadProgram(picked.path, tools, reader.ok, sourceBytes, failures)
+  const program = await sourceOf(picked, tools, sourceBytes, failures)
+  if (typeof program === 'string') return program
   if ('refusal' in program) throw new Error(program.refusal)
   const { source, from } = program
   const named = await tools.functions(namesIn(source))
