@@ -406,40 +406,139 @@ describe('the focus where a drawing is changed', () => {
     expect([field()!.selectionStart, field()!.selectionEnd]).toEqual([6, 11])
   })
 
-  it('is not taken back once it is on another element, nor given where the part or its field is gone', () => {
-    document.body.innerHTML =
-      '<div data-omne-part="notes.editor"><button>a</button><textarea>hello</textarea></div><input aria-label="other" />'
-    const area = document.querySelector('textarea')!
-    area.focus()
-    const held = heldFocus(document)!
-    expect(held).toMatchObject({ part: 'notes.editor', index: 1, tag: 'TEXTAREA' })
-    const anew = document.createElement('textarea')
-    area.replaceWith(anew)
-    const other = document.querySelector<HTMLInputElement>('[aria-label="other"]')!
-    other.focus()
-    giveBack(document, held)
-    expect(document.activeElement).toBe(other)
-    other.blur()
-    giveBack(document, held)
-    expect(document.activeElement).toBe(anew)
-    anew.blur()
-    anew.remove()
-    giveBack(document, held)
-    expect(document.activeElement).toBe(document.body)
-    document.body.innerHTML = '<p data-omne-part="x&quot;]"><input /></p>'
-    document.querySelector('input')!.focus()
-    const odd = heldFocus(document)!
-    expect(odd.part).toBe('x"]')
-    document.querySelector('input')!.remove()
-    expect(() => giveBack(document, odd)).not.toThrow()
-    document.body.innerHTML = ''
-  })
-
   it('stays where it is when it was not in the part that is drawn anew', async () => {
     const { put } = await drawn()
     const elsewhere = document.querySelector<HTMLInputElement>('[aria-label="elsewhere"]')!
     elsewhere.focus()
     await put(({ part, builtIn }) => <section {...part}>{builtIn()}</section>)
     expect(document.activeElement).toBe(elsewhere)
+  })
+})
+
+describe('where the focus is held, and where it is given back', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+  const page = (html: string) => {
+    document.body.innerHTML = html
+  }
+  const the = <E extends Element>(selector: string) => document.querySelector<E>(selector)!
+  /** The change: what is in the part is drawn anew, so the focus falls back to the page. */
+  const redraw = (part: string, html: string) => {
+    const host = [...document.querySelectorAll('[data-omne-part]')].find(
+      each => each.getAttribute('data-omne-part') === part,
+    )!
+    const anew = document.createElement('div')
+    anew.innerHTML = html
+    host.replaceWith(anew.firstElementChild!)
+  }
+
+  it('is held by nothing on the page itself, nor outside every part', () => {
+    page('<input aria-label="loose" /><div data-omne-part="a.b"><input /></div>')
+    expect(heldFocus(document)).toBeNull()
+    the<HTMLInputElement>('[aria-label="loose"]').focus()
+    expect(heldFocus(document)).toBeNull()
+  })
+
+  it('is held by the part it is in, its place among what takes focus there, its kind, and the selection a field has', () => {
+    page(
+      '<div data-omne-part="a.b"><button>x</button><input value="hello" /><input type="checkbox" /></div><button data-omne-part="a.c">y</button>',
+    )
+    const field = the<HTMLInputElement>('[data-omne-part="a.b"] input')
+    field.focus()
+    field.setSelectionRange(1, 3, 'backward')
+    expect(heldFocus(document)).toEqual({
+      part: 'a.b',
+      index: 1,
+      tag: 'INPUT',
+      selection: { start: 1, end: 3, direction: 'backward' },
+    })
+    the<HTMLInputElement>('[type="checkbox"]').focus()
+    expect(heldFocus(document)).toMatchObject({ index: 2, selection: null })
+    the<HTMLButtonElement>('[data-omne-part="a.c"]').focus()
+    expect(heldFocus(document)).toEqual({ part: 'a.c', index: -1, tag: 'BUTTON', selection: null })
+  })
+
+  it('goes back to the element in the same place, of the same kind, with the selection cut to the new text, without scrolling', () => {
+    page('<div data-omne-part="a.b"><button>x</button><textarea>hello world</textarea></div>')
+    const old = the<HTMLTextAreaElement>('textarea')
+    old.focus()
+    old.setSelectionRange(3, 11)
+    const held = heldFocus(document)!
+    redraw(
+      'a.b',
+      '<section data-omne-part="a.b"><button>x</button><textarea>hello</textarea></section>',
+    )
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+    giveBack(document, held)
+    const now = the<HTMLTextAreaElement>('textarea')
+    expect(document.activeElement).toBe(now)
+    expect([now.selectionStart, now.selectionEnd]).toEqual([3, 5])
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('goes back to the element that carries the part, and to the first of those inside, each to its own', () => {
+    page(
+      '<div data-omne-part="a.b"><button data-omne-part="a.b.c">in</button><button>next</button></div>',
+    )
+    the<HTMLButtonElement>('[data-omne-part="a.b.c"]').focus()
+    const self = heldFocus(document)!
+    redraw('a.b.c', '<button data-omne-part="a.b.c">in</button>')
+    giveBack(document, self)
+    expect(document.activeElement).toBe(the('[data-omne-part="a.b.c"]'))
+    page('<div data-omne-part="a.b" tabindex="-1"><button>first</button></div>')
+    the<HTMLButtonElement>('button').focus()
+    const first = heldFocus(document)!
+    expect(first.index).toBe(0)
+    redraw('a.b', '<div data-omne-part="a.b" tabindex="-1"><button>first</button></div>')
+    giveBack(document, first)
+    expect(document.activeElement).toBe(the('button'))
+  })
+
+  it('goes back to a field without a selection without asking one of it', () => {
+    page('<div data-omne-part="a.b"><input type="checkbox" /></div>')
+    the<HTMLInputElement>('input').focus()
+    const held = heldFocus(document)!
+    redraw('a.b', '<div data-omne-part="a.b"><input type="checkbox" /></div>')
+    const select = vi.spyOn(HTMLInputElement.prototype, 'setSelectionRange')
+    giveBack(document, held)
+    expect(document.activeElement).toBe(the('input'))
+    expect(select).not.toHaveBeenCalled()
+  })
+
+  it('goes back where the page has no element with the focus at all', () => {
+    page('<div data-omne-part="a.b"><textarea>hi</textarea></div>')
+    the<HTMLTextAreaElement>('textarea').focus()
+    const held = heldFocus(document)!
+    redraw('a.b', '<div data-omne-part="a.b"><textarea>hi</textarea></div>')
+    const none = new Proxy(document, {
+      get: (target, key) =>
+        key === 'activeElement' ? null : (Reflect.get(target, key, target) as unknown),
+    })
+    giveBack(none, held)
+    expect(document.activeElement).toBe(the('textarea'))
+  })
+
+  it('stays on an element that has the focus, and gives none where the part, the place, or the kind is gone', () => {
+    page('<div data-omne-part="a.b"><textarea>hi</textarea></div><input aria-label="other" />')
+    the<HTMLTextAreaElement>('textarea').focus()
+    const held = heldFocus(document)!
+    redraw('a.b', '<div data-omne-part="a.b"><textarea>hi</textarea></div>')
+    const other = the<HTMLInputElement>('[aria-label="other"]')
+    other.focus()
+    giveBack(document, held)
+    expect(document.activeElement).toBe(other)
+    other.blur()
+    for (const html of [
+      '<div data-omne-part="a.x"><textarea></textarea></div>',
+      '<div data-omne-part="a.b"></div>',
+      '<div data-omne-part="a.b"><input /></div>',
+      '<p data-omne-part="x&quot;]"><textarea></textarea></p>',
+    ]) {
+      page(html)
+      expect(() => giveBack(document, held)).not.toThrow()
+      expect(document.activeElement).toBe(document.body)
+    }
   })
 })

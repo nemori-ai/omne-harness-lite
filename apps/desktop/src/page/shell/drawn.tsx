@@ -46,23 +46,17 @@ export type DrawnProps<D extends object> = Readonly<{
 
 /** Drawn by the drawing that stands, else by the fallback; focus the change takes away goes back to its part. */
 export function Drawn<D extends object>({ watch, pick, put, fallback }: DrawnProps<D>): ReactNode {
-  const shown = useRef<D | undefined>(undefined)
-  const picking = useRef(pick)
   const held = useRef<HeldFocus | null>(null)
   const watching = useCallback(
     (listener: () => void) =>
       watch(() => {
-        if (picking.current() !== shown.current) held.current = heldFocus(document)
+        held.current = heldFocus(document)
         listener()
       }),
     [watch],
   )
   const drawing = useSyncExternalStore(watching, pick)
   useLayoutEffect(() => {
-    picking.current = pick
-  })
-  useLayoutEffect(() => {
-    shown.current = drawing
     const was = held.current
     held.current = null
     if (was !== null) giveBack(document, was)
