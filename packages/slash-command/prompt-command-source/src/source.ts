@@ -5,6 +5,7 @@ import type {
   CommandEntry,
   EntrySource,
   Origin,
+  Param,
   Taken,
 } from '@omne-harness/slash-command-contract'
 import type { PromptBody } from './contract.ts'
@@ -28,6 +29,18 @@ export type PromptSourcePorts<P> = Readonly<{
 
 const DISABLED = 'This prompt command is disabled.'
 
+/** The arguments an argument hint names, each word one; a word in square brackets may be left out. */
+export function paramsOf(hint: string): readonly Param[] {
+  return hint
+    .split(/\s+/u)
+    .filter(Boolean)
+    .map(word => {
+      const optional = word.startsWith('[') && word.endsWith(']')
+      const name = word.replace(/^[<[]|[>\]]$/gu, '')
+      return optional ? { name, optional: true } : { name }
+    })
+}
+
 function entryOf(holding: PromptHolding): CommandEntry {
   if (holding.kind === 'disabled')
     return {
@@ -43,7 +56,7 @@ function entryOf(holding: PromptHolding): CommandEntry {
     name,
     kind: 'prompt',
     title: description,
-    ...(argumentHint === undefined ? {} : { hint: argumentHint }),
+    ...(argumentHint === undefined ? {} : { hint: argumentHint, params: paramsOf(argumentHint) }),
   }
 }
 
@@ -56,7 +69,7 @@ export function createPromptEntrySource<P>(ports: PromptSourcePorts<P>): EntrySo
       const held = await ports.held(asker)
       return 'ok' in held ? succeed(held.ok.map(entryOf)) : held
     },
-    async take(asker, name): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>> {
+    async take(asker, { name }): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>> {
       const one = await ports.one(asker, name)
       if (!('ok' in one)) return one
       if (one.ok === null || one.ok.kind === 'disabled') return fail('not-listed')

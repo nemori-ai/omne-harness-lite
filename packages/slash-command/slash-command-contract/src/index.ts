@@ -9,6 +9,7 @@ export {
   lookupOf,
   NAME_MAX,
   type NamedEntry,
+  type Param,
   type Place,
   placeOf,
   rankOf,
@@ -45,6 +46,7 @@ export {
 } from './complete.ts'
 export {
   type Asker,
+  type Candidate,
   type CatalogRead,
   type CommandCatalog,
   ENTRY_SOURCES_POINT,
@@ -52,9 +54,11 @@ export {
   type EntrySourceSlot,
   judgeListing,
   type ListingBreach,
+  type Naming,
   type Origin,
   type Taken,
 } from './source.ts'
+export { type Argument, splitArguments } from './arguments.ts'
 export {
   type Answer,
   type Assist,

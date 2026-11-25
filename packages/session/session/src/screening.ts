@@ -133,8 +133,8 @@ function outcomeOf(
     case 'refused':
       return fail({ kind: 'invalid', field, reason: answer.reason })
     case 'operation': {
-      const { name, operation, args } = answer
-      return fail({ kind: 'unsupported', request: { name, operation, args } })
+      const { name, args, asked } = answer
+      return fail({ kind: 'unsupported', request: { name, args, asked } })
     }
     case 'unavailable':
       return fail(unavailable(OWNERS.resolver, answer.diagnostic))
