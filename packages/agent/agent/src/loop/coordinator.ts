@@ -177,27 +177,29 @@ import {
   type InternalSource,
 } from './coordinator-helpers.ts'
 
+const DEPENDENCY_PORTS = [
+  'journal',
+  'entries',
+  'models',
+  'tools',
+  'conditions',
+  'requests',
+  'selection',
+  'admission',
+  'handoff',
+  'materials',
+  'clock',
+  'extensions',
+  'enabledExtensions',
+  'systemExtensions',
+  'compaction',
+  'compactionInputs',
+  'received',
+] as const satisfies readonly (keyof AgentDependencies<unknown, ContentBlock>)[]
+
 export type LoopPorts<P> = Pick<
   AgentDependencies<P, ContentBlock>,
-  | 'journal'
-  | 'models'
-  | 'conditions'
-  | 'requests'
-  | 'selection'
-  | 'handoff'
-  | 'clock'
-  | 'materials'
-  | 'entries'
-  | 'tools'
-  | 'toolRequests'
-  | 'admission'
-  | 'cards'
-  | 'extensions'
-  | 'enabledExtensions'
-  | 'systemExtensions'
-  | 'compaction'
-  | 'compactionInputs'
-  | 'received'
+  (typeof DEPENDENCY_PORTS)[number] | 'toolRequests' | 'cards'
 >
 
 export type ExecutionEntry<P> = Readonly<{
@@ -371,26 +373,6 @@ function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
       return modelUnavailable(node, failure)
   }
 }
-
-const DEPENDENCY_PORTS = [
-  'journal',
-  'entries',
-  'models',
-  'tools',
-  'conditions',
-  'requests',
-  'selection',
-  'admission',
-  'handoff',
-  'materials',
-  'clock',
-  'extensions',
-  'enabledExtensions',
-  'systemExtensions',
-  'compaction',
-  'compactionInputs',
-  'received',
-] as const satisfies readonly Exclude<keyof LoopPorts<unknown>, 'toolRequests'>[]
 
 function savedSlotRequest(
   request: PendingHandoff,

@@ -205,7 +205,6 @@ export interface EnabledExtensions<P> {
 export interface ExtensionImplementations<P> {
   resolve(input: Access<P> & Readonly<{ passage: Passage }>): Reply<LoopExtensionImplementation>
 }
-/** The trusted system extensions of the assembly, in chain order, and their implementations. Unreadable is a failure, never an empty list. */
 export interface SystemExtensions<P> extends ExtensionImplementations<P> {
   read(
     input: Access<P> &
