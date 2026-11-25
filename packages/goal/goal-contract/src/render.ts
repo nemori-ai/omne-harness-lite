@@ -67,6 +67,18 @@ function referenceLines(entry: Reference): string[] {
   return lines
 }
 
+/** The numbered entries of the four sections a judge reads, each as the text the body renders for it. */
+export function entryTexts(
+  body: GoalBody,
+): Readonly<Record<'criteria' | 'metrics' | 'rules' | 'exits', readonly string[]>> {
+  return {
+    criteria: body.criteria.map(entry => criterionLines(entry).join('\n')),
+    metrics: body.metrics.map(entry => metricLines(entry).join('\n')),
+    rules: body.rules.map(entry => `- [${entry.id}] ${entry.statement}`),
+    exits: body.exits.map(entry => exitLines(entry).join('\n')),
+  }
+}
+
 /** The text a person and an agent read. It is rendered from the data and never parsed back. */
 export function renderBody(body: GoalBody): string {
   const sections: [string, readonly string[]][] = [
