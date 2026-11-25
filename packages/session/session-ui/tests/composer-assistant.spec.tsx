@@ -170,3 +170,21 @@ it('tells the helper once why the server refused an input, and closes it with th
   await withdraw()
   expect(told.at(-1)).toBe('close')
 })
+
+it('leaves the caret where the person put it when they type or clear before the taken words are drawn', async () => {
+  const { answers } = await opened()
+  const field = box() as HTMLTextAreaElement
+  answers.set('tab', { kind: 'edit', text: '/release ', caret: 9 })
+  fireEvent.keyDown(field, { key: 'Tab' })
+  fireEvent.change(field, { target: { value: '/release now' } })
+  field.setSelectionRange(12, 12)
+  await act(() => new Promise(resolve => requestAnimationFrame(() => resolve(undefined))))
+  expect([field.value, field.selectionStart]).toEqual(['/release now', 12])
+  fireEvent.keyDown(field, { key: 'Tab' })
+  field.select()
+  await act(() => new Promise(resolve => requestAnimationFrame(() => resolve(undefined))))
+  expect([field.selectionStart, field.selectionEnd]).toEqual([0, 9])
+  fireEvent.change(field, { target: { value: '' } })
+  await act(() => new Promise(resolve => requestAnimationFrame(() => resolve(undefined))))
+  expect([field.value, field.selectionStart]).toEqual(['', 0])
+})
