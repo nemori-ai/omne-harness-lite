@@ -10,7 +10,6 @@ import type { Outcome } from '@omne-harness/operation-result'
 export type Lineage = Readonly<{
   continues: ModelCallId | null
   sources: ReadonlyMap<MessageId, ModelCallId>
-  calls: readonly ModelCallId[]
 }>
 
 function invalid(field: string, reason: string): Outcome<never, ModelFailure> {
@@ -68,7 +67,7 @@ export function parseLineage(
   if (!('ok' in sources)) return sources
   if (continues === null && sources.ok.size === 0) return { ok: null }
   const named = continues === null ? [] : [continues]
-  const calls = [...new Set([...named, ...sources.ok.values()])]
-  if (calls.length > maxCitedCalls) return invalid('lineage', 'too-many-calls')
-  return { ok: { continues, sources: sources.ok, calls } }
+  const calls = new Set([...named, ...sources.ok.values()])
+  if (calls.size > maxCitedCalls) return invalid('lineage', 'too-many-calls')
+  return { ok: { continues, sources: sources.ok } }
 }

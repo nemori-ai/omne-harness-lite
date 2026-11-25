@@ -22,19 +22,28 @@ function lookupOf(result: Outcome<readonly DispatchRecord[], ModelFailure>): Cal
   return kind === 'denied' || kind === 'invalid' ? { kind: 'absent' } : { kind: 'unavailable' }
 }
 
-export async function readCallFacts<P>(
-  input: Readonly<{
-    reader: CallFactsReader<P>
-    access: Access<P>
-    calls: readonly ModelCallId[]
-  }>,
-): Promise<CallFactsView> {
-  const { principal, tenant } = input.access
-  const entries = await Promise.all(
-    input.calls.map(
-      async call =>
-        [call, lookupOf(await input.reader.dispatches({ principal, tenant, call }))] as const,
-    ),
-  )
-  return new Map(entries)
+/** The cited calls of one preparation: each read once, and only when a measurement needs it. */
+export type CallFacts = Readonly<{
+  view(calls: readonly ModelCallId[]): Promise<CallFactsView>
+}>
+
+export function callFacts<P>(reader: CallFactsReader<P>, access: Access<P>): CallFacts {
+  const { principal, tenant } = access
+  const reads = new Map<ModelCallId, Promise<CallFactsLookup>>()
+  const lookup = (call: ModelCallId): Promise<CallFactsLookup> => {
+    let read = reads.get(call)
+    if (read === undefined) {
+      read = reader.dispatches({ principal, tenant, call }).then(lookupOf)
+      reads.set(call, read)
+    }
+    return read
+  }
+  return Object.freeze({
+    async view(calls: readonly ModelCallId[]) {
+      const unique = [...new Set(calls)]
+      return new Map(
+        await Promise.all(unique.map(async call => [call, await lookup(call)] as const)),
+      )
+    },
+  })
 }

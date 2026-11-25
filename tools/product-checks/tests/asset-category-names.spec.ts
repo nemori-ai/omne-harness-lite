@@ -11,6 +11,11 @@ test.each([
   ['packages/assets/assets-protocol/src/assets-protocol.ts', 'const name = `fixture-bundle`'],
   ['apps/cli/src/asset-command.ts', "const special = new Set(['tool'])"],
   ['apps/cli/src/setting-command.ts', "owner.category === 'mcp'"],
+  ['packages/assets/assets-ui/src/view/category-page.tsx', "if (category === 'converter') return"],
+  ['packages/assets/assets-access/src/asset-operations.ts', "const name = 'plugin'"],
+  ['packages/assets/assets-ui/src/view/page.tsx', "category === 'skin'"],
+  ['packages/assets/assets-protocol/src/assets-protocol.ts', 'const name = `prompt`'],
+  ['apps/cli/src/asset-command.ts', 'const name = "loop-extension"'],
 ])('a category name in %s is reported', (path, text) => {
   expect(check(path, text)).toMatchObject([{ rule: 'asset-category-names', path, line: 1 }])
 })

@@ -10,6 +10,7 @@ export function delegatedCommands(commands: ModelCommands<unknown>): ModelComman
     recall: input => commands.recall(input),
     scanPending: input => commands.scanPending(input),
     loadRecovery: input => commands.loadRecovery(input),
+    loadOrigin: input => commands.loadOrigin(input),
     loadRequest: input => commands.loadRequest(input),
     claim: input => commands.claim(input),
     prepareDispatch: input => commands.prepareDispatch(input),

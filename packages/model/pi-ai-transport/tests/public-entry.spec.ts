@@ -39,12 +39,39 @@ it('the subpath entry testing exports the fixture check and the adoption fingerp
   expect(Object.keys(testing).toSorted()).toEqual([
     'FIXTURE_FILES',
     'GATEWAY_END_MARKER',
+    'TEST_DECODER_LIMITS',
+    'TEST_EXECUTOR_LIMITS',
     'appendAdoptionFingerprints',
     'checkAdoptionFingerprints',
     'checkRecordFixtures',
+    'fingerprintConfig',
     'fixtureDirectory',
     'renderFingerprints',
     'replayStream',
+    'sortedJsonText',
+    'writeFingerprints',
+  ])
+})
+
+it('the subpath entry family-kit exports what every gateway family declares with', async () => {
+  const kit: object = await import('@omne-harness/pi-ai-transport/family-kit')
+  expect(Object.keys(kit).toSorted()).toEqual([
+    'O200K_PROXY_TOKENIZER',
+    'arr',
+    'byteLimitOf',
+    'chatRepresentation',
+    'chatTextHooks',
+    'chatUnitsOf',
+    'componentAdoption',
+    'countingBasis',
+    'createGatewayMeter',
+    'defineGatewayFamily',
+    'memberOf',
+    'obj',
+    'officialProfilesOf',
+    'optionalImageBytes',
+    'str',
+    'tileImageTokens',
   ])
 })
 
