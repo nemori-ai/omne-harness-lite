@@ -39,6 +39,7 @@ export { decodeSessionSlotRef, encodeSessionSlotRef } from './slot-ref.ts'
 export type { SessionSlot, SessionSlotRefFailure } from './slot-ref.ts'
 export {
   createSessionCommandSource,
+  type ModelChoice,
   SESSION_COMMANDS,
   type SessionCommandPorts,
 } from './commands.ts'

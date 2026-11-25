@@ -61,6 +61,17 @@ export {
 } from './source.ts'
 export { type Argument, argumentAt, type ArgumentPlace, splitArguments } from './arguments.ts'
 export {
+  acceptCandidate,
+  type ArgumentCompletion,
+  argumentBlock,
+  argumentCompletion,
+  type Asking,
+  askingAt,
+  type Offer,
+  type Offered,
+  rankCandidates,
+} from './candidates.ts'
+export {
   type Answer,
   type Assist,
   assistOf,
@@ -77,6 +88,7 @@ export {
   type Menu,
   type MenuItem,
   moved,
+  offeredTo,
   picked,
   pressed,
   start,
