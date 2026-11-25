@@ -20,8 +20,6 @@ import {
   type Proposal,
   type Provenance,
   type Readings,
-  type Transition,
-  type Wake,
 } from '@omne-harness/goal-contract'
 
 export type Entrance =
@@ -50,7 +48,6 @@ export const digestOf = (body: GoalBody): string =>
 
 const refused = (reason: GoalRefusal): Decided => ({ kind: 'refused', reason })
 
-/** The body this proposal comes to on what stands now. A revision needs a live body to change. */
 export function proposedBody(
   current: GoalRecord | null,
   proposal: Proposal,
@@ -75,11 +72,6 @@ function keptReadings(before: GoalBody, after: GoalBody, readings: Readings): Re
   return { criteria: same('criteria'), metrics: same('metrics'), rules: same('rules') } as Readings
 }
 
-const wakeOf = (step: Transition, kind: Wake['kind'], generation: number, version: number) =>
-  step.kind === 'changed' && step.effects.includes('wake')
-    ? { kind, request: `${kind}/${String(generation)}/${String(version)}` }
-    : null
-
 function cardRefusal(entrance: Entrance, state: GoalState, attendance: Attendance) {
   if (entrance.via !== 'card') return null
   if (attendance === 'unattended') return refused({ kind: 'state', reason: 'nobody-attends' })
@@ -102,10 +94,15 @@ function provenanceOf(input: WriteInput, revision: number): Provenance {
   }
 }
 
-export function decideWrite(current: GoalRecord | null, input: WriteInput): Decided {
+type Stood = Readonly<{
+  state: Exclude<GoalState, { status: 'none' }>
+  body: GoalBody
+  wakes: boolean
+}>
+
+/** The state and the body this write comes to, or why it does not stand: the card, then the state, then the body. */
+function stand(current: GoalRecord | null, input: WriteInput): Stood | Decided {
   const { entrance, proposal, attendance } = input
-  if (current?.history.some(entry => entry.operation === input.operation))
-    return { kind: 'recalled', record: current }
   const state = current?.state ?? NO_GOAL
   const stop = cardRefusal(entrance, state, attendance)
   if (stop !== null) return stop
@@ -119,23 +116,32 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
   // The transition stood, so there is a body to write and a live state to write it under.
   if (checked.kind !== 'valid' || step.kind !== 'changed' || step.next.status === 'none')
     return refused({ kind: 'state', reason: 'no-live-goal' })
-  const { body } = checked
-  if (byCard && digestOf(body) !== entrance.card.digest)
+  if (byCard && digestOf(checked.body) !== entrance.card.digest)
     return refused({ kind: 'card', reason: 'content-differs' })
-  const provenance = provenanceOf(input, step.next.revision)
-  const before = proposal.kind === 'revise' ? current : null
+  // On a card the agent that proposed is in its run and reads the answer there: nobody is to be woken.
+  return { state: step.next, body: checked.body, wakes: !byCard && step.effects.includes('wake') }
+}
+
+export function decideWrite(current: GoalRecord | null, input: WriteInput): Decided {
+  if (current?.history.some(entry => entry.operation === input.operation))
+    return { kind: 'recalled', record: current }
+  const stood = stand(current, input)
+  if ('kind' in stood) return stood
+  const { state, body } = stood
+  const provenance = provenanceOf(input, state.revision)
+  const before = input.proposal.kind === 'revise' ? current : null
   const version = (current?.version ?? 0) + 1
+  const request = `start/${String(state.generation)}/${String(version)}`
   return {
     kind: 'next',
     record: {
       session: input.session,
       version,
-      state: step.next,
+      state,
       body,
       history: before === null ? [provenance] : [...before.history, provenance],
       readings: before === null ? NO_READINGS : keptReadings(before.body, body, before.readings),
-      // On a card the agent that proposed is in its run and reads the answer there: nobody is to be woken.
-      wake: byCard ? null : wakeOf(step, 'start', step.next.generation, version),
+      wake: stood.wakes ? { kind: 'start', request } : null,
     },
   }
 }
@@ -156,6 +162,7 @@ export function decideCommand(current: GoalRecord | null, command: GoalCommand):
   if (current === null) return null
   if (step.kind === 'unchanged') return { kind: 'unchanged', record: current }
   const version = current.version + 1
-  const wake = wakeOf(step, 'resume', current.state.generation, version)
+  const request = `resume/${String(current.state.generation)}/${String(version)}`
+  const wake = step.effects.includes('wake') ? ({ kind: 'resume', request } as const) : null
   return { kind: 'next', record: { ...current, version, state: step.next, wake } }
 }
