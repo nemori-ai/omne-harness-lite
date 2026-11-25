@@ -131,6 +131,7 @@ const conditionsWith = (bindings: readonly Adoption[]): RuntimeConditions => {
     model: binding('model'),
     context: evidence,
     bindings,
+    segments: [],
   }
 }
 

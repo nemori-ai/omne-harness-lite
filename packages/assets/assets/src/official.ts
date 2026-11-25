@@ -2,13 +2,15 @@ import type { CategoryView } from './category-point.ts'
 import type { CapabilityId, JsonValue } from './identity.ts'
 import { admitSummary } from './summary.ts'
 import type { AssetRow } from './management.ts'
+import type { PackageReader } from './package.ts'
 
-/** An official asset on the point of its category, with the body the one who brought it gave. */
+/** An official asset on the point of its category, with the body the one who brought it gave, and the files of this version when its category takes a directory. */
 export type OfficialAsset = Readonly<{
   capability: CapabilityId
   asset: string
   version: string
   body: JsonValue
+  files?: PackageReader
 }>
 
 /** Every official asset there is now; unavailable when the points cannot be read, never an empty list instead. */

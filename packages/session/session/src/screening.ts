@@ -1,12 +1,16 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  bringsOrigin,
   commandInput,
+  keepsTheWords,
   judgeIntakeBlocks,
   originalContent,
   parseInputSourceName,
   screenInput,
   type IntakeProcessor,
+  type Resolution,
   type RoutedInput,
+  type SenderView,
   type SessionAccess,
   type SessionCommand,
   type SessionFailure,
@@ -17,7 +21,7 @@ import { messageOf, OWNERS, unavailable } from './failures.ts'
 type Ordinary = Extract<RoutedInput, { kind: 'ordinary' }>
 type Message = Ordinary['message']
 type Screened = Outcome<SessionCommand, SessionFailure>
-type Sources<P> = Pick<SessionDependencies<P>, 'sources' | 'admission'>
+type Sources<P> = Pick<SessionDependencies<P>, 'sources' | 'admission' | 'resolver'>
 
 const FIELD = { accept: 'value', interrupt: 'urgent', create: 'creation.initial' } as const
 
@@ -29,13 +33,29 @@ function withMessage(command: SessionCommand, message: Message): SessionCommand 
   return command
 }
 
-function current<T>(owner: 'sources' | 'admission', what: string, read: () => T | null) {
+function current<T>(
+  owner: 'sources' | 'admission' | 'resolver',
+  what: string,
+  read: () => T | null,
+) {
   try {
     const value = read()
     return value === null ? fail(unavailable(OWNERS[owner], `${what} is absent`)) : succeed(value)
   } catch (error) {
     return fail(unavailable(OWNERS[owner], `${what} cannot be read: ${messageOf(error)}`))
   }
+}
+
+function acceptsOf<P>(dependencies: Sources<P>, input: Ordinary) {
+  const sources = current('sources', 'the registry of input sources', () =>
+    dependencies.sources.current(),
+  )
+  if ('failure' in sources) return sources
+  const name = parseInputSourceName(input.source)
+  const found = name === null ? null : sources.ok.lookup(name)
+  if (found === null || found.kind === 'absent')
+    return fail(unavailable(OWNERS.sources, `the input source ${input.source} is not registered`))
+  return succeed(found.declaration.accepts)
 }
 
 /** The processors this input goes through: none where none are registered, or its source is unscreened. */
@@ -48,16 +68,9 @@ function processorsOf<P>(
   )
   // With nothing to run the source need not be known here: the commit judges it.
   if ('ok' in processors && processors.ok.length === 0) return processors
-  const sources = current('sources', 'the registry of input sources', () =>
-    dependencies.sources.current(),
-  )
-  if ('failure' in sources) return sources
-  const name = parseInputSourceName(input.source)
-  const found = name === null ? null : sources.ok.lookup(name)
-  if (found === null || found.kind === 'absent')
-    return fail(unavailable(OWNERS.sources, `the input source ${input.source} is not registered`))
-  const { accepts } = found.declaration
-  return accepts.subject !== 'member' && !accepts.screened ? succeed([]) : processors
+  const accepts = acceptsOf(dependencies, input)
+  if ('failure' in accepts) return accepts
+  return accepts.ok.subject !== 'member' && !accepts.ok.screened ? succeed([]) : processors
 }
 
 /** The input as the processors of its source left it; a block names the block it refused. */
@@ -67,12 +80,14 @@ async function processed<P>(
   operation: SessionCommand['input']['operation'],
   input: Ordinary,
   field: string,
+  start: Message,
 ): Promise<Outcome<Message, SessionFailure>> {
   const processors = processorsOf(dependencies, input)
   if ('failure' in processors) return processors
   const original = originalContent(input.message)
   const screened = await screenInput({
     processors: processors.ok,
+    start,
     original,
     source: input.source,
     request: { input: input.input, operation },
@@ -90,7 +105,62 @@ async function processed<P>(
   })
 }
 
-/** The command to commit: its input as the processors before intake left it (SE-37, SE-38). */
+const MEMBER_ONLY = Object.freeze(succeed(null))
+
+async function answerOf(resolve: () => Promise<Resolution>): Promise<Resolution> {
+  try {
+    return await resolve()
+  } catch (error) {
+    return { kind: 'unavailable', diagnostic: `threw: ${messageOf(error)}` }
+  }
+}
+
+/** A member's words as the resolver read them; a refusal is not queued and an operation is not a message. */
+async function resolved<P>(
+  dependencies: Sources<P>,
+  access: SessionAccess<P>,
+  command: SessionCommand,
+  input: Ordinary,
+  field: string,
+): Promise<Outcome<Message | null, SessionFailure>> {
+  const declared = dependencies.resolver
+  if (declared === undefined) return MEMBER_ONLY
+  const resolver = current('resolver', 'the utterance resolver', () => declared.current())
+  if ('ok' in resolver && resolver.ok === 'none') return MEMBER_ONLY
+  const accepts = acceptsOf(dependencies, input)
+  if ('failure' in accepts) return accepts
+  if (accepts.ok.subject !== 'member') return MEMBER_ONLY
+  if ('failure' in resolver) return resolver
+  if (resolver.ok === 'none') return MEMBER_ONLY
+  const { resolve } = resolver.ok
+  const original = originalContent(input.message)
+  const { seen } = command.input as Readonly<{ seen?: SenderView }>
+  const answer = await answerOf(() =>
+    resolve({
+      original,
+      seen: seen ?? null,
+      source: input.source,
+      request: { input: input.input, operation: command.input.operation },
+      access,
+    }),
+  )
+  switch (answer.kind) {
+    case 'input':
+      return keepsTheWords(original, answer.effective)
+        ? succeed(answer.effective)
+        : fail(unavailable(OWNERS.resolver, 'the resolver changed the words it was given'))
+    case 'refused':
+      return fail({ kind: 'invalid', field, reason: answer.reason })
+    case 'operation': {
+      const { name, operation, args } = answer
+      return fail({ kind: 'unsupported', request: { name, operation, args } })
+    }
+    case 'unavailable':
+      return fail(unavailable(OWNERS.resolver, answer.diagnostic))
+  }
+}
+
+/** The command to commit: its input as the resolver and the processors before intake left it (SE-37, SE-38). */
 export async function screenCommand<P>(
   dependencies: Sources<P>,
   access: SessionAccess<P>,
@@ -99,6 +169,12 @@ export async function screenCommand<P>(
   const input = commandInput(command)
   if (input === null) return succeed(command)
   const field = `${FIELD[command.kind as keyof typeof FIELD]}.message`
+  if (bringsOrigin(input.message))
+    return fail({
+      kind: 'invalid',
+      field,
+      reason: 'a text says where it came from only when intake says so',
+    })
   const original = originalContent(input.message)
   const inline = judgeIntakeBlocks(original)
   if (inline?.kind === 'inline')
@@ -108,10 +184,22 @@ export async function screenCommand<P>(
       reason: 'a block of inline bytes is not accepted: upload the media and send its reference',
     })
   // The first input of a new session goes through no processor: it carries words only.
+  const words =
+    command.kind === 'create'
+      ? MEMBER_ONLY
+      : await resolved(dependencies, access, command, input, field)
+  if ('failure' in words) return words
   const effective =
     command.kind === 'create'
       ? succeed(original)
-      : await processed(dependencies, access, command.input.operation, input, field)
+      : await processed(
+          dependencies,
+          access,
+          command.input.operation,
+          input,
+          field,
+          words.ok ?? original,
+        )
   if ('failure' in effective) return effective
   const unmeasured = judgeIntakeBlocks(effective.ok)
   if (unmeasured !== null)

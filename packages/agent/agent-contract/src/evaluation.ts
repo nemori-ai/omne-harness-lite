@@ -325,7 +325,11 @@ export type RuntimeConditions = Readonly<{
   model: Adoption
   context: DurableEvidence
   bindings: readonly Adoption[]
+  /** The resident segments of the system prompt; absent when the session keeps none. */
+  segments?: readonly ResidentSegmentText[]
 }>
+/** A segment of the system prompt the session keeps: placed as written after the sections of the definition. */
+export type ResidentSegmentText = Readonly<{ key: string; text: string }>
 export type ProducerDecisionView =
   | Readonly<{ kind: 'unresolved'; pending: PendingCall; source: DurableEvidence }>
   | Readonly<{

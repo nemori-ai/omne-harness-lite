@@ -140,6 +140,7 @@ const MUTATING = new Set([
   'completeInitialization',
   'change',
   'setResident',
+  'recordCommand',
   'configureAutoArchive',
   'considerAutoArchive',
   'recordIdle',

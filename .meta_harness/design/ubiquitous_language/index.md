@@ -141,8 +141,9 @@
 | [UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) | 模态转换件 | Modality Converter | 媒体把非文字内容转成别的表示的机制，由**转换件定义**与**转换引擎**组成；人发的接纳前转，工具产出的需要时转；结局四种；**不站在拓展点上，不归 Model** |
 | [UL-converter-definition](terms/capabilities-and-composition.md#ul-converter-definition--转换件定义--converter-definition) | 转换件定义 | Converter Definition | 写明一种媒体用哪个引擎、什么参数、内容去哪的资产，类别 `converter`，名字是媒体种类；按层同名替换（父：资产） |
 | [UL-converter-engine](terms/capabilities-and-composition.md#ul-converter-engine--转换引擎--converter-engine) | 转换引擎 | Converter Engine | 可装卸的做转换的部件；定义生效而它不在时答不可用，不退到别的引擎 |
-| [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 人在交付面敲 `/` 发起某件事的入口；绑定目标恰三种：自定义提示词 / 装配的 skill / 系统业务流程；**只由交付面识别、只对人** |
-| [UL-command-parameter-declaration](terms/capabilities-and-composition.md#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration) | 命令参数声明 | Command Parameter Declaration | 斜杠命令可选带的参数说明，**是命令本身、不是设置**；没声明就整段作一个自由参数 |
+| [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 人写 `/名字` 点名一个入口项的写法与总称：开头是命令，句中是引用；**只对人** |
+| [UL-command-parameter-declaration](terms/capabilities-and-composition.md#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration) | 命令参数声明 | Command Parameter Declaration | 命令型入口项可选带的参数说明，**是命令本身、不是设置**；没声明就整段作一个自由参数 |
+| [UL-prompt-command](terms/capabilities-and-composition.md#ul-prompt-command--提示词命令--prompt-command) | 提示词命令 | Prompt Command | 资产的一个类别：名字、一句话、提示词、参数；`/名字 参数` 展开成人的一条消息 |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 列出若干拓展点上的成员的一份定义，成员一起装上、一起退场 |
 | [UL-skin](terms/capabilities-and-composition.md#ul-skin--皮肤--skin) | 皮肤 | Skin | 清单写明自己是皮肤、只改界面样子的一份 plugin；资产里自成一类，界面同一时刻至多用一套 |
 | [UL-canvas-app](terms/capabilities-and-composition.md#ul-canvas-app--画布小应用--canvas-app) | 画布小应用 | Canvas App | agent 做的、只管画的一段界面，是一份 plugin 的一个成员，按名字摆上画布；**不能自己取数据** |
@@ -161,7 +162,7 @@
 | [UL-asset-composition](terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition) | 资产组合 | Asset Composition | 资产之间、资产与 agent 之间的同一种关系 |
 | [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
 | [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 会话已知能力的动作视图；身份单调保留，可用性与准入另判 |
-| [UL-session-slash-command-set](terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) | 会话斜杠命令集 | Session Slash-Command Set | 一个会话此刻认得的斜杠命令：装配时取此人有权用的，**不在里面的就是不存在**；资产增删禁用不让它自己变，**人发对应的 reload 才重填那一张注册表**，权限收回即时去掉 |
+| [UL-session-slash-command-set](terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) | 会话斜杠命令集 | Session Slash-Command Set | 一个会话此刻能点名的全部入口项，向各入口来源现问；**不在里面的就是不存在**；不存，变化下一次读就生效 |
 | [UL-meta-capability](terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | meta 能力 | Meta Capability | 一整类能力的统一入口；已采用提供的入口**必定常驻、不可禁用**，候选与占位不表示已提供；`Tools()` 也按工具的对象链实现，仍不可替换 |
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
 | [UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | 模型档案 | Model Profile | 关于一个可被调用的模型的全部事实，是数据不是资产；身份是（范围, 路由名），同名的几条按层覆盖 |
@@ -305,7 +306,7 @@
 | [UL-environment-provider](terms/grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider) | 环境提供者 | Environment Provider | 向登记表登记、实际造出并掌管环境实例的一方；名加代；退役先拒新租约再排空 |
 | [UL-file-batch](terms/grounding-and-isolation.md#ul-file-batch--文件批次--file-batch) | 文件批次 | File Batch | 全批预检、暂存后逐路径发布的一次多路径写入；是受管资源；恢复只识别五态 |
 | [UL-session-working-directory](terms/grounding-and-isolation.md#ul-session-working-directory--会话工作目录--session-working-directory) | 会话工作目录 | Session Working Directory | 会话当前这一步里文件与命令类工具默认用的目录；由会话的选择算出 |
-| [UL-files-scope](terms/grounding-and-isolation.md#ul-files-scope--文件范围--files-scope) | 文件范围 | Files Scope | 一次工具调用的文件请求读可以到哪、写可以到哪；受理时定下并钉住 |
+| [UL-files-scope](terms/grounding-and-isolation.md#ul-files-scope--文件范围--files-scope) | 文件范围 | Files Scope | 一次工具调用的文件请求读可以到哪、写可以到哪；每一步开始之前随会话工作目录得出，受理时钉住 |
 | [UL-session-base](terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base) | 会话据点 | Session Base | 一个账号的会话、日志、卡片与 runtime 实际所在的那一处，身份是（一处 · 中心 · 账号）；**不是进程**，没人开着屏时照常发生事 |
 | [UL-governance-center](terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | 治理中心 | Governance Center | 治理事实与组织／租户层范围化对象所在的那一处，**一次部署一个、身份不是它的地址**；**它不知道任何会话** |
 | [UL-deployment-key](terms/grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key) | 部署密钥 | Deployment Key | 这一次部署独有的一套秘密，让「只有中心自己能说的话」不可伪造；**不加密任何东西，换了什么都不丢** |
@@ -339,6 +340,8 @@
 | [UL-mcp-connection](terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection) | MCP 连接 | MCP Connection | 接入点为一个租户、以一个对端账号与对端的接通，是协商得到的一组结果，不带进程；**按租户与账号分开，不是连接件** |
 | [UL-mcp-action-catalog](terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | MCP 动作清单 | MCP Action Catalog | 按租户、对端账号与接入点持有保存的最近合法动作集合；对端不再提供的动作从中消失；**整份更新，不是动作空间** |
 | [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里由合法发现取得的一个对端动作，在工具入口里是它的接入点那一个工具条目的一个命令；**不可用在接入点这一级说明**，只有常驻接入点的动作有同形替换件 |
+| [UL-command-entry](terms/reach-and-availability.md#ul-command-entry--入口项--command-entry) | 入口项 | Command Entry | 一个会话此刻能用名字点名的一项：引用型、提示词命令、系统命令；位置由种类定；**是视图**，现算不存 |
+| [UL-command-entry-source](terms/reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source) | 入口来源 | Command Entry Source | 向命令登记、按需交出入口项的角色；Skill、资产、各流程各是一个；一个来源一个名字空间 |
 
 ## [执行与收场](terms/execution-and-outcome.md)
 
@@ -479,6 +482,11 @@
 | [UL-notification-delivered](terms/interaction-and-dispatch.md#ul-notification-delivered--通知送达--notification-delivered) | 通知送达 | Notification Delivered | 一条通知在收件人的收件箱里，收件人随时取得回 |
 | [UL-replace-key](terms/interaction-and-dispatch.md#ul-replace-key--替换键--replace-key) | 替换键 | Replace Key | 发送通知事件时可带的一个键 |
 | [UL-notification-beat](terms/interaction-and-dispatch.md#ul-notification-beat--通知节拍--notification-beat) | 通知节拍 | Notification Beat | 一个通知收件人的定时点 |
+| [UL-command-name](terms/interaction-and-dispatch.md#ul-command-name--全名与短名--command-name) | 全名与短名 | Command Name | 全名「空间:名字」不相撞；短名按位置解析：开头命令先于 Skill，句中只认 Skill |
+| [UL-slash-reference](terms/interaction-and-dispatch.md#ul-slash-reference--斜杠引用--slash-reference) | 斜杠引用 | Slash Reference | 一句话里绑到一份 Skill 的 `/名字`；人的话原样一块，正文另成一块带来路标记 |
+| [UL-sender-view](terms/interaction-and-dispatch.md#ul-sender-view--发送方所见--sender-view) | 发送方所见 | Sender View | 提交时随输入带上的识别结果；受理侧再认，不等就整条不受理 |
+| [UL-shell-action](terms/interaction-and-dispatch.md#ul-shell-action--外壳动作--shell-action) | 外壳动作 | Shell Action | 客户端动作表里按名字登记的一件事；键、面板、按钮只引用名字；裸写「动作」不作术语 |
+| [UL-key-binding](terms/interaction-and-dispatch.md#ul-key-binding--键位绑定--key-binding) | 键位绑定 | Key Binding | 「哪一层、哪个键、哪个外壳动作」；缺省随应用，改动跟账号 |
 
 ## [记录与上下文](terms/record-and-context.md)
 
@@ -496,7 +504,7 @@
 | [UL-placeholder-message](terms/record-and-context.md#ul-placeholder-message--占位消息--placeholder-message) | 占位消息 | Placeholder Message | 交不出真实结果时放在调用位置上的 `ToolMessage`，**必须写明原因**；不是失败 |
 | [UL-placeholder-reason](terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason) | 占位原因 | Placeholder Reason | 占位上写的「为什么此刻没有结果」；**是原因不是收场** |
 | [UL-source-tag](terms/record-and-context.md#ul-source-tag--来源标记--source-tag) | 来源标记 | Source Tag | 入站到达与提醒上的「谁捎来的」，**是属性不是另一类**；**不是资产来源、不是来路标记** |
-| [UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) | 来路标记 | Origin Tag | 一块文本上「这段字从哪条路来」：斜杠命令的留痕、展开物或附带的参数；**是块上的属性，不是来源标记** |
+| [UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) | 来路标记 | Origin Tag | 一块文字上「这段字不是人打的，它来自哪一份」：引用装进来的 Skill 正文；**是块上的属性，不是来源标记** |
 | [UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) | 内容块 | Content Block | 一条消息装的是若干个块，**不是一段文本**；分八类 |
 | [UL-reasoning-state](terms/record-and-context.md#ul-reasoning-state--推理续接状态--reasoning-state) | 推理续接状态 | Reasoning State | 供应商加密或签名的推理状态，单独成块、原样保存，只在模型回复里；**不是思考块**，不给人看 |
 | [UL-reasoning-replay](terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay) | 推理回放 | Reasoning Replay | 每次发出只把能消费的推理续接状态交给这一家，其余略去并留诊断；历史不改；**不是 Agent 接续时的回放** |

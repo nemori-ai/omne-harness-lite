@@ -1,5 +1,6 @@
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
+  heldBack,
   deriveDriveOperation,
   deriveSessionOperation,
   expectedRevision,
@@ -57,7 +58,7 @@ function waitingInputs(
 ): Readonly<{ run: ActiveRun; inputs: readonly InputId[] }> | null {
   const { run } = snapshot
   if (run.kind !== 'active' || run.advance === null) return null
-  const handed = new Set([...snapshot.handed, ...known])
+  const handed = new Set([...snapshot.handed, ...known, ...heldBack(snapshot)])
   const inputs = snapshot.pending.filter(input => input !== run.first && !handed.has(input))
   return inputs.length === 0 ? null : { run, inputs }
 }

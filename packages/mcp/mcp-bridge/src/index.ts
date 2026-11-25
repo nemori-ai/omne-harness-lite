@@ -20,4 +20,9 @@ export {
   type BridgeResult,
   type Settlement,
 } from './outcome.ts'
-export { createMcpEntrySource, type McpBridgeDependencies } from './source.ts'
+export {
+  createMcpEntrySource,
+  type McpBridgeDependencies,
+  type McpEntrySource,
+  type NamedEntry,
+} from './source.ts'

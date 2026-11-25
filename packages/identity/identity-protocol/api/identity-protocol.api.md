@@ -455,6 +455,51 @@ export declare const identityProtocol: {
                 readonly tenantId: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
+        readonly 'read-account-preference': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly revision: string;
+                    readonly value: string | null;
+                }>;
+                readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
+                readonly 'stage-not-provided': true;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly name: string;
+            }>;
+            readonly since: 2;
+        };
+        readonly 'write-account-preference': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly revision: string;
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly revision: string;
+                }>;
+                readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
+                readonly 'stage-not-provided': true;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: "login";
+            readonly effect: "commit";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly expected: string;
+                readonly name: string;
+                readonly value: string | null;
+            }>;
+            readonly since: 2;
+        };
         readonly 'query-organization': {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
@@ -754,6 +799,77 @@ export type { IdentityProtocol } from './identity-protocol.ts';
 export declare const empty: {
     readonly kind: 'object';
     readonly fields: {};
+};
+export declare const preferenceRead: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly name: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+        };
+    };
+};
+export declare const preferenceWrite: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly name: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly value: {
+            readonly rule: {
+                readonly kind: 'one-of';
+                readonly rules: readonly [
+                    {
+                        readonly kind: 'string';
+                    },
+                    {
+                        readonly kind: 'null';
+                    }
+                ];
+            };
+        };
+        readonly expected: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+        };
+    };
+};
+export declare const preferenceHeld: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly value: {
+            readonly rule: {
+                readonly kind: 'one-of';
+                readonly rules: readonly [
+                    {
+                        readonly kind: 'string';
+                    },
+                    {
+                        readonly kind: 'null';
+                    }
+                ];
+            };
+        };
+        readonly revision: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+        };
+    };
+};
+export declare const preferenceRevision: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly revision: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+        };
+    };
 };
 export declare const requests: {
     readonly 'register-and-activate': {

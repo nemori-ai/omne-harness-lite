@@ -21,6 +21,8 @@ export type LocalToolCatalogView = Readonly<{
     key: ToolBindingKey
     resident: boolean
     knownDefinition?: ToolDefinition
+    /** The entry is one a source lists; its known definition is the one the session took. */
+    sourced?: true
   }>[]
 }>
 
@@ -50,6 +52,7 @@ function viewDigest(view: LocalToolCatalogView): string {
       key: entry.key,
       resident: entry.resident,
       knownDefinition: entry.knownDefinition?.adoption ?? null,
+      sourced: entry.sourced === true,
     })),
   })
 }
@@ -104,7 +107,14 @@ export async function readCatalogView<P>(
           field: 'knownDefinition',
           reason: 'definition-key-mismatch',
         })
-      entries.push(Object.freeze({ key, resident: entry.resident, knownDefinition: definition.ok }))
+      entries.push(
+        Object.freeze({
+          key,
+          resident: entry.resident,
+          knownDefinition: definition.ok,
+          ...(entry.sourced === true ? { sourced: true as const } : {}),
+        }),
+      )
     }
     const view: LocalToolCatalogView = Object.freeze({
       scope: Object.freeze({ ...result.ok.scope }),

@@ -2,6 +2,9 @@ import { type Context, type Plugin, Service } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
   createBeforeIntakeRegistry,
+  createUtteranceResolverRegistry,
+  type UtteranceResolver,
+  type UtteranceResolverRegistry,
   createInputSourceRegistry,
   type BeforeIntakeRegistry,
   type DerivedAdmission,
@@ -506,10 +509,32 @@ export class SessionBeforeIntakeService
 }
 export const sessionBeforeIntakeKey = SessionBeforeIntakeService.provide
 
+/** The registration point `session.utterance-resolver`: at most one resolver of a member's words, read at each intake. */
+export class SessionUtteranceResolverService
+  extends Service
+  implements Pick<UtteranceResolverRegistry<unknown>, 'current'>
+{
+  static readonly provide = 'sessionUtteranceResolver'
+  private readonly registry = createUtteranceResolverRegistry<unknown>()
+  constructor(ctx: Context) {
+    super(ctx, SessionUtteranceResolverService.provide)
+  }
+
+  register(resolver: UtteranceResolver<unknown>): void {
+    this.ctx.effect(() => this.registry.register(resolver), 'sessionUtteranceResolver.register')
+  }
+
+  current(): UtteranceResolver<unknown> | null {
+    return this.registry.current()
+  }
+}
+export const sessionUtteranceResolverKey = SessionUtteranceResolverService.provide
+
 export const sessionBeforeIntakePlugin: Plugin.Object = {
   name: 'session-before-intake',
   apply(ctx: Context) {
     new SessionBeforeIntakeService(ctx)
+    new SessionUtteranceResolverService(ctx)
   },
 }
 
@@ -534,6 +559,7 @@ declare module '@deepseek-ai/cordis' {
     session: SessionService<unknown>
     sessionInputSources: SessionInputSourcesService
     sessionBeforeIntake: SessionBeforeIntakeService
+    sessionUtteranceResolver: SessionUtteranceResolverService
     sessionDerivedInputs: SessionDerivedInputsService
     sessionAccessCheck: SessionAccessCheckService<unknown>
     sessionTransactions: SessionTransactionPortService<unknown>

@@ -12,7 +12,7 @@ import {
 } from '@omne-harness/settings'
 import { releaseProviders } from '../../assets/model-providers.ts'
 import { officialHolding, toolAsset, type OfficialHolding } from '../../assets/official-holdings.ts'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { readInstant, runTimeOf } from '../../entry/time.ts'
 import { releaseDefinitionOf, releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
 import { defineRow } from '../../row.ts'
 import { createSettingsGuard } from '../authorization/settings-access.ts'
@@ -220,7 +220,7 @@ const plugin: Plugin.Object = {
       createSecretSettings({
         items,
         qualify: input => guard.qualify(input),
-        now: readSystemInstant,
+        now: () => readInstant(runTimeOf(ctx)),
       }),
     )
   },

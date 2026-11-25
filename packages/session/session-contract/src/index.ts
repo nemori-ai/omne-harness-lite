@@ -266,7 +266,13 @@ export {
   type SessionControlStage,
 } from './control-normalization.ts'
 export { isDeferredFact, type SessionFactKind } from './history-values.ts'
-export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts'
+export type {
+  ResidentAdoption,
+  ResidentSegment,
+  ResidentSegmentSource,
+  RunExecution,
+  ContextScopeBinding,
+} from './values.ts'
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts'
 export type {
   InitialAdoption,
@@ -349,6 +355,7 @@ export {
   inputsToDeliver,
   runStartInputs,
   wakingInputs,
+  heldBack,
 } from './intake.ts'
 export {
   archiveCollapse,
@@ -463,6 +470,8 @@ export {
 export {
   createBeforeIntakeRegistry,
   judgeIntakeBlocks,
+  bringsOrigin,
+  keepsTheWords,
   originalContent,
   screenInput,
   type BeforeIntakeRegistry,
@@ -472,3 +481,12 @@ export {
   type IntakeVerdict,
   type Screened,
 } from './before-intake.ts'
+export {
+  createUtteranceResolverRegistry,
+  type OperationRequest,
+  type Resolution,
+  type SenderView,
+  type Utterance,
+  type UtteranceResolver,
+  type UtteranceResolverRegistry,
+} from './utterance-resolver.ts'

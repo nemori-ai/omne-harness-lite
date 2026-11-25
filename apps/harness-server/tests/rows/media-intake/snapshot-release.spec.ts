@@ -128,7 +128,10 @@ describe('the representation snapshot at intake (C30)', () => {
           ]),
         ).toEqual({
           outcome: 'invalid',
-          body: {},
+          body: {
+            field: 'value.message.blocks[1]',
+            reason: 'media.references: the medium is not ready: its preprocessing has not ended',
+          },
         })
         expect(
           await send(tree, session, 'heard', [

@@ -18,6 +18,8 @@ const allowed = [
   '@omne-harness/sdk',
   '@omne-harness/session-diagnostics-protocol',
   '@omne-harness/session-protocol',
+  '@omne-harness/slash-command-contract',
+  '@omne-harness/slash-command-protocol',
   '@omne-harness/tool-protocol',
   '@omne-harness/usage-protocol',
   '@omne-harness/workspace-protocol',
@@ -67,7 +69,7 @@ function importSpecifiers(source: string): string[] {
 }
 
 describe('install closure', () => {
-  it('declares the SDK, the public contract and the protocol contracts it speaks as its only runtime dependencies, and no peer or optional dependency', () => {
+  it('declares the SDK, the public contract, the protocol contracts it speaks and the pure contract of commands as its only runtime dependencies, and no peer or optional dependency', () => {
     expect(Object.keys(manifest.dependencies ?? {}).sort()).toEqual(allowed)
     expect(Object.values(manifest.dependencies ?? {})).toEqual(allowed.map(() => 'workspace:*'))
     expect(manifest.peerDependencies).toBeUndefined()

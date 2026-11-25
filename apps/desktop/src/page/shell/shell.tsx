@@ -1,6 +1,7 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -29,7 +30,9 @@ import { Float } from './float.tsx'
 import type { FloatPlaces } from './float-place.ts'
 import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
-import { bindRegionKeys } from './keys.ts'
+import { runAction } from './dispatch.ts'
+import { bindShellKeys, shellKeys } from './keys.ts'
+import { paletteSwitch, ShellPalette } from './palette.tsx'
 import { lackText, type Lack, type LackSlot } from './lacks.ts'
 import { shellApp, shellGate, shellWorkspace, shellWorkspacePage } from './parts.ts'
 import { pressSeat, useSeatedHome } from './seats.ts'
@@ -339,7 +342,9 @@ export function Shell(props: ShellProps) {
   const pages = useSlot(state.slots, 'pages')
   const shown = useWatched(state.page)
   const merged = useFigure(state, pages, shown)
-  useEffect(() => bindRegionKeys(window), [])
+  const palette = useMemo(paletteSwitch, [])
+  const keys = useMemo(() => shellKeys(state, props.size, palette), [state, props.size, palette])
+  useEffect(() => bindShellKeys(window, keys), [keys])
   const homePage =
     merged.waiting > 0 && merged.waitingPage !== undefined ? merged.waitingPage : pages[0]?.id
   return (
@@ -372,6 +377,13 @@ export function Shell(props: ShellProps) {
             <Outside state={state} login={login} connectivity={connectivity} missing={missing} />
           )}
         </FigureStage>
+        <ShellPalette
+          palette={palette}
+          actions={keys.actions}
+          mac={keys.mac}
+          changes={keys.changes}
+          run={action => void runAction(action, keys)}
+        />
       </AppTooltipProvider>
     </RedrawProvider>
   )

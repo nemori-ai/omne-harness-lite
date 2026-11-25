@@ -33,7 +33,14 @@ export type ResidentTool = Readonly<{
   version: string
   shape: JsonValue
   admitted: DurableEvidence
+  definition?: JsonValue
 }>
+export type ResidentSegment = Readonly<{
+  key: string
+  text: string
+  sources: readonly ResidentSegmentSource[]
+}>
+export type ResidentSegmentSource = Readonly<{ category: string; name: string; digest: string }>
 export type SessionFrozen = Readonly<{
   cause: 'tool-shape-lost'
   evidence: DurableEvidence
@@ -160,6 +167,7 @@ export type RoutedInput =
       origin: DurableEvidence
       source: InputSourceName
       wake?: boolean
+      afterRun?: true
     }>
   | Readonly<{
       kind: 'card-decision'
@@ -434,6 +442,7 @@ export type WorkSnapshot = Readonly<{
   todos?: readonly TodoItem[]
   executions?: readonly RunExecution[]
   residentKeys?: ResidentAdoption['keys']
+  segments?: readonly ResidentSegment[]
   relation?: Relation
   tree?: SessionTree
   attendance?: Attendance
@@ -450,6 +459,7 @@ export type WorkSnapshot = Readonly<{
   uncountedInputs?: readonly InputId[]
   /** Pending inputs that cannot start a Run on their own; they go in with the next batch. */
   quietInputs?: readonly InputId[]
+  deferredInputs?: readonly Readonly<{ input: InputId; run: RunId | null }>[]
   /** Inputs delivered to the model view since the last assistant message. */
   deliveredTail?: readonly InputId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
@@ -473,6 +483,7 @@ export type SessionWaiting = Readonly<{
 export type ResidentAdoption = Readonly<{
   residents: readonly ResidentTool[]
   keys: readonly Readonly<{ capability: string; key: ResidentKey }>[]
+  segments?: readonly ResidentSegment[]
 }>
 export type RunExecution = Readonly<{
   run: RunId
@@ -531,6 +542,7 @@ export type InitializationAdoption = Readonly<{
   capabilities: ContextMaterial
   residentBindings: ResidentAdoption['keys']
   newResidents: ResidentAdoption['residents']
+  newSegments?: readonly ResidentSegment[]
 }>
 export type InitialAdoption = InitializationAdoption & Readonly<{ candidate: Adoption }>
 export type InitializationConsequence =

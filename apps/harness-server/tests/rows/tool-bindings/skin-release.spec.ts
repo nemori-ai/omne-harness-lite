@@ -14,6 +14,7 @@ import {
   extensions,
   files,
   plannedModel,
+  skills,
 } from '../../support/planned-calls.ts'
 import {
   originOf,
@@ -139,6 +140,18 @@ describe('a skin with an image, made by an agent on the release tree', () => {
         for (const words of ['shell.icon', 'light-dark(', 'file(path)', 'files.url(path)'])
           expect(guide, words).toContain(words)
         expect(guide).toMatch(/^Before you finish: /mu)
+        expect(guide).toContain('the skill skin-authoring')
+
+        const whole = await ask(
+          [skills('search', { query: 'skin' })],
+          [skills('read', { skill: 'skin-authoring' })],
+          [extensions('show', { category: 'skill', name: 'skin-authoring' })],
+        )
+        expect(whole).toContain('skin-authoring')
+        expect(whole).toContain('# Writing a skin')
+        expect(whole).toMatch(
+          /skill skin-authoring\s+\S+\s+enabled\s+installed with the deployment/u,
+        )
 
         const published = await ask(
           [
@@ -204,7 +217,7 @@ describe('a skin with an image, made by an agent on the release tree', () => {
         watching.abort()
         await pumping.catch(() => undefined)
         const calls = toolCalls(tree.storageRoot).filter(row => row.tool === 'OmneExtensions')
-        expect(calls.length).toBe(6)
+        expect(calls.length).toBe(7)
         expect(calls.every(row => row.phase === 'settled')).toBe(true)
       })
       expect(exitCode).toBe(0)

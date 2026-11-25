@@ -12,7 +12,7 @@ import {
   CalendarLocalSupplyProvider,
   type CalendarProviderStop,
 } from '../../src/cordis.ts'
-import { application, context } from '../runner/fixture.ts'
+import { application, context, hostTimers } from '../runner/fixture.ts'
 
 const roots: Context[] = []
 afterEach(async () => {
@@ -363,6 +363,7 @@ it('disposes a provider whose runner context supplier never settles', async () =
         initializationOperationKey: 'init',
         acknowledgementKey: 'ack',
         intervalMs: 1000,
+        timers: hostTimers,
         drainTimeoutMs: 5,
         limit: 10,
         phases: { recover: true, runDue: true, deliverReactions: true },

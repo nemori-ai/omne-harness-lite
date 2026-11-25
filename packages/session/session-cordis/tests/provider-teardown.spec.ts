@@ -166,7 +166,7 @@ describe('what a removal in progress does', () => {
 
 describe('a scanner that is still starting when the removal begins', () => {
   it('is released with the others and reads nothing more once its startup read answers', async () => {
-    const a = await build({ provider: { admission: 'none', disposeWaitMs: 50 } })
+    const a = await build({ provider: { admission: 'none', resolver: 'none', disposeWaitMs: 50 } })
     const intake = await a.caller('intake')
     let open!: () => void
     a.hooks.pendingGate = new Promise<void>(resolve => {
@@ -186,7 +186,9 @@ describe('a scanner that is still starting when the removal begins', () => {
 
 describe('the wait for close', () => {
   it('ends at disposeWaitMs with an incomplete result, a diagnostic, and the command still ends with its receipt', async () => {
-    const { a, intake } = await withScanner({ provider: { admission: 'none', disposeWaitMs: 60 } })
+    const { a, intake } = await withScanner({
+      provider: { admission: 'none', resolver: 'none', disposeWaitMs: 60 },
+    })
     const gate = a.hold()
     const inflight = a.accept(intake, 'slow')
     await gate.arrived

@@ -23,6 +23,7 @@ import {
   writeOperator,
 } from '../../r9/support.ts'
 import { startTree, waitListening } from './support.ts'
+import { holdRunTime, hostTime } from '../../../src/entry/time.ts'
 
 type Rec = { kind: string } & Record<string, unknown>
 
@@ -168,6 +169,7 @@ describe('server-entry row: the access it gives the entry', () => {
       reportAccess: async () => {},
     }
     const root = new Context()
+    holdRunTime(root, hostTime())
     new DynamisService(root)
     const { identity } = entryAccess(root, createCapturingTelemetry().port, port)
     expect(identity).toBe(port)
@@ -175,6 +177,7 @@ describe('server-entry row: the access it gives the entry', () => {
 
   it('gives the entry a clock, and the clock schedules and cancels on the time source it adapts', () => {
     const root = new Context()
+    holdRunTime(root, hostTime())
     new DynamisService(root)
     expect(entryAccess(root, createCapturingTelemetry().port, NO_IDENTITY).clock).toBeDefined()
     const time = simulatedTime()
@@ -192,6 +195,7 @@ describe('server-entry row: the access it gives the entry', () => {
   it('writes access.listener-fault when an availability listener throws', async () => {
     const capture = createCapturingTelemetry()
     const root = new Context()
+    holdRunTime(root, hostTime())
     await root.plugin(DynamisService)
     const { registry } = entryAccess(root, capture.port, NO_IDENTITY)
     registry.subscribe(() => {
@@ -311,6 +315,7 @@ describe('the serve process with the release', () => {
         'schedule/v2',
         'session-diagnostics/v1',
         'session/v1',
+        'slash-command/v1',
         'tool/v1',
         'usage/v1',
         'workspace/v1',

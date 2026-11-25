@@ -15,6 +15,7 @@ function callIdentity(
   name: string,
   body: unknown,
   proof?: string,
+  revision?: number,
 ): Promise<Answer> {
   const text = JSON.stringify(body)
   messages += 1
@@ -31,6 +32,7 @@ function callIdentity(
           'content-length': String(Buffer.byteLength(text)),
           'omne-message-id': `m-identity-${messages}`,
           ...(proof === undefined ? {} : { authorization: `Bearer ${proof}` }),
+          ...(revision === undefined ? {} : { 'omne-contract-revision': String(revision) }),
         },
       },
       res => {
@@ -120,6 +122,65 @@ describe('identity-access row: identity/v1 on the release tree', () => {
           } finally {
             availability.close()
           }
+        },
+      )
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'keeps an account preference: another login reads it; of two writes from one revision the later is refused',
+    { tags: ['slow'], timeout: 120_000 },
+    async () => {
+      const exitCode = await onReleaseTree(
+        { script: () => ({ status: 500, contentType: 'text/plain', body: 'no model call' }) },
+        async tree => {
+          const owner = { loginIdentifier: 'pref-alice', credential: 'pref-secret-1' }
+          expect((await callIdentity(tree, 'register-and-activate', owner)).body.outcome).toBe(
+            'succeeded',
+          )
+          const proofOf = async () =>
+            (await callIdentity(tree, 'issue-login', owner)).body.body?.['loginProof'] as string
+          const [first, second] = [await proofOf(), await proofOf()]
+          const read = (proof?: string) =>
+            callIdentity(tree, 'read-account-preference', { name: 'keys.mac' }, proof, 2)
+          const write = (proof: string, value: string, expected: string) =>
+            callIdentity(
+              tree,
+              'write-account-preference',
+              { name: 'keys.mac', value, expected },
+              proof,
+              2,
+            )
+          expect((await read(first)).body).toEqual({
+            outcome: 'succeeded',
+            body: { value: null, revision: '0' },
+          })
+          expect((await write(first, '{"a":1}', '0')).body).toEqual({
+            outcome: 'succeeded',
+            body: { revision: '1' },
+          })
+          expect((await read(second)).body).toEqual({
+            outcome: 'succeeded',
+            body: { value: '{"a":1}', revision: '1' },
+          })
+          expect((await write(second, '{"b":2}', '0')).body).toEqual({
+            outcome: 'conflict',
+            body: { revision: '1' },
+          })
+          expect((await read(first)).body.body?.['value']).toBe('{"a":1}')
+          const stranger = { loginIdentifier: 'pref-bob', credential: 'pref-secret-2' }
+          await callIdentity(tree, 'register-and-activate', stranger)
+          const bob = (await callIdentity(tree, 'issue-login', stranger)).body.body?.['loginProof']
+          expect((await read(bob as string)).body.body?.['value']).toBeNull()
+          expect((await read()).body.outcome).toBe('denied')
+          const unrevised = await callIdentity(
+            tree,
+            'read-account-preference',
+            { name: 'keys.mac' },
+            first,
+          )
+          expect(unrevised.body.outcome).toBe('protocol-rejected')
         },
       )
       expect(exitCode).toBe(0)

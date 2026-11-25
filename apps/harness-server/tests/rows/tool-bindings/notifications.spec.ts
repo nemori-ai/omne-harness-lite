@@ -9,6 +9,7 @@ import { bindReleaseNotifications } from '../../../src/rows/tool-bindings/notifi
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import { SESSION_WORK_COMPONENT } from '../../../src/rows/tool-runtime/session-work.ts'
 import { StubService } from '../../../src/s0/stub-plugin.ts'
+import { holdRunTime, hostTime } from '../../../src/entry/time.ts'
 
 const tenantOf = (account: string): TenantId => {
   const parsed = tenantCodec.parse(
@@ -36,6 +37,7 @@ const SERVICES = [
 /** A tree where the given services stand and the verifier answers as told. */
 async function world(services: readonly string[] = SERVICES) {
   const root = new Context()
+  holdRunTime(root, hostTime())
   for (const name of services)
     await root.plugin({
       name,

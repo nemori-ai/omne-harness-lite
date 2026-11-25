@@ -1,3 +1,4 @@
+import { acceptedOrdinary } from './accepted-ordinary.ts'
 import { validSelectionEffort } from './control-values.ts'
 import { originalContent } from './before-intake.ts'
 import { decidePermissionAssignment } from './permission-state.ts'
@@ -59,7 +60,6 @@ import { closeControlFailure, decideNamedControl } from './decide-control.ts'
 import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
 import { admitInput, readsWithTerms } from './decide-intake.ts'
-import type { AdmittedSource } from './input-sources.ts'
 import {
   rejected,
   invalid,
@@ -85,7 +85,6 @@ export const PATH_MUTATIONS = Object.freeze([
 ] as const satisfies readonly SessionCommand['kind'][])
 
 type Origin = HistoryEntry['origin']
-
 function emptyAdoption(adoption: Adoption): boolean {
   return [adoption.owner, adoption.name, adoption.revision, adoption.digest].some(
     part => part.length === 0,
@@ -196,33 +195,6 @@ function decideCreate(
     out.push(...acceptedOrdinary(creation.initial, 'next-run', null, admitted.source))
   }
   return entries(out)
-}
-
-type Ordinary = Extract<RoutedInput, { kind: 'ordinary' }>
-
-function acceptedOrdinary(
-  input: Ordinary,
-  destination: 'current-run' | 'next-run',
-  run: RunId | null,
-  source: AdmittedSource,
-): EncodedEntry[] {
-  return [
-    encodeEntry(
-      {
-        kind: `message.${input.message.role}`,
-        message: input.message,
-        source: input.origin,
-        admission: null,
-        consumption: null,
-        participation: null,
-      },
-      { owner: 'user', via: 'intake', source: input.origin },
-    ),
-    encodeEntry(
-      { kind: 'intake.routed', input: input.input, destination, run, origin: input.origin, source },
-      sessionOrigin(input.origin, 'intake'),
-    ),
-  ]
 }
 
 function decideAccept(
@@ -957,6 +929,7 @@ function decideCommand(
       return decideFreeze(previous, command, reads)
     case 'control':
     case 'setResident':
+    case 'recordCommand':
     case 'configureAutoArchive':
     case 'considerAutoArchive':
     case 'recordIdle':

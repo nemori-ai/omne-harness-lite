@@ -33,7 +33,7 @@ export type ToolActionTarget = Readonly<{
   gate: ToolActionGate
 }>
 export type ToolCallAction =
-  | Readonly<{ kind: 'own'; gate: ToolActionGate }>
+  | Readonly<{ kind: 'own'; gate: ToolActionGate; capability?: ToolCapabilityIdentity }>
   | Readonly<{
       kind: 'carried'
       carrier: Readonly<{ name: string; definition: Adoption; gate: ToolActionGate }>

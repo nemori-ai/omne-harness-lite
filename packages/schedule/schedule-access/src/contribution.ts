@@ -7,6 +7,7 @@ import type {
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   ScheduleIdSchema,
+  ScheduleJobIdSchema,
   ScheduleOperationKeySchema,
   ScheduleReasonSchema,
   createScheduleOperationIntent,
@@ -16,17 +17,23 @@ import {
   type ScheduleCommandResult,
   type ScheduleCreateRequest,
   type ScheduleDomainError,
+  type ScheduleJobRecall,
+  type ScheduleJobWrite,
   type ScheduleOperationView,
   type ScheduleQueryResult,
   type ScheduleView,
 } from '@omne-harness/schedule-contract'
 import type { ScheduleProtocol } from '@omne-harness/schedule-protocol'
 import type { ScheduleAccessClock, ScheduleFaces, SchedulePrincipals } from './ports.ts'
+import { createJobObservation } from './observe-jobs.ts'
 import {
   cardOf,
   definitionOf,
   detailOf,
+  historyRowOf,
   instantOf,
+  jobDetailOf,
+  workOf,
   refusalOf,
   revisionOf,
   upcomingOf,
@@ -403,12 +410,125 @@ function writeHandlers({
   }
 }
 
+const JOB_REFUSALS = ['invalid', 'conflict', 'not-visible'] as const
+
+function jobHandlers({
+  prepare,
+  read,
+}: Steps): Pick<
+  Handlers,
+  'list-jobs' | 'read-job' | 'cancel-job' | 'query-cancel-job' | 'start-job' | 'query-start-job'
+> {
+  const scheduleOf = (text: string | null) =>
+    text === null ? null : (ScheduleIdSchema.safeParse(text).data ?? undefined)
+  const jobIdOf = (text: string) => ScheduleJobIdSchema.safeParse(text).data
+  const written = async (call: () => Promise<ScheduleQueryResult<ScheduleJobWrite>>) => {
+    let result: ScheduleQueryResult<ScheduleJobWrite>
+    try {
+      result = await call()
+    } catch {
+      return { outcome: 'unknown' } as const
+    }
+    if (result.kind === 'error') return refused(result.error, JOB_REFUSALS)
+    const { outcome, detail } = result.value
+    if (outcome === 'unknown' || detail === null) return { outcome: 'unknown' } as const
+    return { committed: outcome === 'committed', detail }
+  }
+  const recalled = (found: ScheduleQueryResult<ScheduleJobRecall> | undefined) => {
+    if (found === undefined) return UNAVAILABLE
+    if (found.kind === 'error') return refused(found.error, JOB_REFUSALS)
+    return found.value.committed && found.value.detail !== null
+      ? ({ outcome: 'succeeded', body: jobDetailOf(found.value.detail) } as const)
+      : ({ outcome: 'not-committed', body: {} } as const)
+  }
+  return {
+    async 'list-jobs'(call, body) {
+      const ready = await prepare(call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const scheduleId = scheduleOf(body.schedule)
+      if (scheduleId === undefined) return { outcome: 'not-visible', body: {} }
+      const page = await read(() =>
+        ready.faces.queries.executions(ready.context, {
+          scheduleId,
+          from: null,
+          to: null,
+          cursor: body.cursor,
+          limit: Math.min(body.limit, 200),
+        }),
+      )
+      if (page === undefined) return UNAVAILABLE
+      if (page.kind === 'error') return refused(page.error, ['invalid', 'not-visible'])
+      return {
+        outcome: 'succeeded',
+        body: { items: page.value.items.map(historyRowOf), next: page.value.nextCursor },
+      }
+    },
+    async 'read-job'(call, body) {
+      const ready = await prepare(call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const jobId = jobIdOf(body.job)
+      if (jobId === undefined) return { outcome: 'not-visible', body: {} }
+      const found = await read(() => ready.faces.jobs.get(ready.context, { jobId }))
+      if (found === undefined) return UNAVAILABLE
+      if (found.kind === 'error') return refused(found.error, ['not-visible'])
+      return { outcome: 'succeeded', body: jobDetailOf(found.value) }
+    },
+    async 'cancel-job'(call, body) {
+      const ready = await prepare(call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const jobId = jobIdOf(body.job)
+      if (jobId === undefined) return { outcome: 'not-visible', body: {} }
+      const key = operationKey(ready.tenantText, 'cancel-job', `${body.actionId}:${jobId}`)
+      const answer = await written(() =>
+        ready.faces.jobs.cancel(ready.context, { jobId, operationKey: key }),
+      )
+      if (!('detail' in answer)) return answer
+      return {
+        outcome: 'succeeded',
+        body: { changed: answer.committed === true, job: jobDetailOf(answer.detail) },
+      }
+    },
+    async 'query-cancel-job'(call, body) {
+      const ready = await prepare(call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const jobId = jobIdOf(body.job)
+      if (jobId === undefined) return { outcome: 'not-visible', body: {} }
+      const key = operationKey(ready.tenantText, 'cancel-job', `${body.actionId}:${jobId}`)
+      return recalled(
+        await read(() => ready.faces.jobs.queryCancel(ready.context, { jobId, operationKey: key })),
+      )
+    },
+    async 'start-job'(call, body) {
+      const ready = await prepare(call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const work = workOf(body.work)
+      if (work === undefined) return invalid('invalid_input')
+      const key = operationKey(ready.tenantText, 'start-job', body.startId)
+      const answer = await written(() =>
+        ready.faces.jobs.start(ready.context, { work, operationKey: key }),
+      )
+      if (!('detail' in answer)) return answer
+      return { outcome: 'succeeded', body: jobDetailOf(answer.detail) }
+    },
+    async 'query-start-job'(call, body) {
+      const ready = await prepare(call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const work = workOf(body.work)
+      if (work === undefined) return { outcome: 'not-committed', body: {} }
+      const key = operationKey(ready.tenantText, 'start-job', body.startId)
+      return recalled(
+        await read(() => ready.faces.jobs.queryStart(ready.context, { work, operationKey: key })),
+      )
+    },
+  }
+}
+
 export function createScheduleContribution(
   input: ScheduleContributionInput,
 ): Omit<AccessContribution<ScheduleProtocol>, 'protocol'> {
   const steps = stepsOf(input)
   return {
-    operations: { ...readHandlers(steps, input), ...writeHandlers(steps) },
-    observations: {},
+    operations: { ...readHandlers(steps, input), ...writeHandlers(steps), ...jobHandlers(steps) },
+    observations: { 'observe-jobs': createJobObservation(input) },
   }
 }

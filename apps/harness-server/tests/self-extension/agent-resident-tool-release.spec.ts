@@ -21,6 +21,23 @@ references:
 You count words. MARK-COUNTER
 `
 
+const SKILL_MD = `---
+name: tidy-notes
+description: Tidies notes into decisions and actions. MARK-TIDY
+---
+List the decisions, then the actions.
+`
+
+const systemOf = (body: string): string =>
+  (JSON.parse(body) as { messages: { role: string; content: unknown }[] }).messages
+    .filter(message => message.role === 'system')
+    .map(({ content }) =>
+      typeof content === 'string'
+        ? content
+        : (content as { text?: string }[]).map(part => part.text ?? '').join(''),
+    )
+    .join('\n')
+
 const toolNamesOf = (body: string): string[] =>
   ((JSON.parse(body) as { tools?: { function?: { name?: string } }[] }).tools ?? []).map(
     tool => tool.function?.name ?? '',
@@ -31,7 +48,7 @@ const publish = (id: string, category: string, name: string) =>
 
 describe('a definition that keeps a published tool resident, on the release tree', () => {
   it(
-    'declares the release tool and the published tool in its first request and calls the published one directly; a skill reference is taken and plans nothing',
+    'declares the release tool and the published tool in its first request and calls the published one directly; the published Skill is named in its system prompt, though the session was made by another session',
     { tags: ['slow'], timeout: 240_000 },
     async () => {
       const model = recordingModel()
@@ -42,12 +59,14 @@ describe('a definition that keeps a published tool resident, on the release tree
               write('work/wordcount/tool.json', JSON.stringify(WORDCOUNT)),
               write('work/wordcount/count.py', COUNT_PY),
               write('work/counter/AGENT.md', AGENT_MD),
+              write('work/tidy-notes/SKILL.md', SKILL_MD),
               write('notes.txt', 'the word is plover\n'),
             ],
             [publish('op-1', 'tool', 'wordcount')],
+            [publish('op-4', 'skill', 'tidy-notes')],
             [publish('op-2', 'AgentDefinition', 'counter')],
           )
-          expect(made.match(/done OmneExtensions publish/gu)).toHaveLength(2)
+          expect(made.match(/done OmneExtensions publish/gu)).toHaveLength(3)
 
           // The work goes to the counter: it calls both of its resident tools by their own names.
           const work = plan(
@@ -77,6 +96,10 @@ describe('a definition that keeps a published tool resident, on the release tree
           const own = model.bodies.filter((_, at) => model.systems[at]?.includes('MARK-COUNTER'))
           expect(own.length).toBeGreaterThan(0)
           for (const body of own) expect(toolNamesOf(body)).toEqual(['Files', 'wordcount'])
+          for (const body of own)
+            expect(systemOf(body)).toContain(
+              '- tidy-notes: Tidies notes into decisions and actions. MARK-TIDY',
+            )
 
           // The definition read from the body of the held version is the one it was loaded with.
           const { tenant, principal } = tree.registrar()

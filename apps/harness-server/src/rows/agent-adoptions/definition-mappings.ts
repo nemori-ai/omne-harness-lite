@@ -2,12 +2,7 @@ import { createHash } from 'node:crypto'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { AgentDefinition, LoopExtensionDeclaration } from '@omne-harness/agent-contract'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
-import type {
-  Adoption,
-  Modes,
-  SavedModelSelection,
-  SessionAdoptionPlanInput,
-} from '@omne-harness/session-contract'
+import type { Adoption, Modes, SavedModelSelection } from '@omne-harness/session-contract'
 
 export type DefinitionAsker = Readonly<{
   tenant: TenantId
@@ -39,8 +34,11 @@ export type DefinitionMappingEntry = Readonly<{
   requiredIdentities: readonly Readonly<{ capability: string; name: string }>[]
   modes: Modes
   initialModelSelection?: SavedModelSelection
-  residentCapabilities?: SessionAdoptionPlanInput['capabilities']
+  residentReferences?: readonly ResidentReference[]
 }>
+
+/** A capability a definition keeps resident, by the category it is registered under and its name. */
+export type ResidentReference = Readonly<{ category: string; name: string }>
 
 export interface DefinitionMappings {
   readonly identity: string

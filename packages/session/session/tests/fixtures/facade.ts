@@ -31,6 +31,7 @@ const CALLER: Readonly<Record<SessionCommand['kind'], SessionCallerClass>> = {
   completeInitialization: 'intake',
   change: 'intake',
   setResident: 'intake',
+  recordCommand: 'intake',
   configureAutoArchive: 'intake',
   considerAutoArchive: 'maintainer',
   recordIdle: 'maintainer',

@@ -29,6 +29,9 @@ export function adoptedInitializationFixture(
     },
     residentBindings: command.input.creation.residentAdoption?.keys ?? [],
     newResidents: command.input.creation.residentAdoption?.residents ?? [],
+    ...(command.input.creation.residentAdoption?.segments === undefined
+      ? {}
+      : { newSegments: command.input.creation.residentAdoption.segments }),
   }
 }
 

@@ -53,10 +53,12 @@ export const UNREADABLE_TEXT: Readonly<Record<Unreadable, string>> = {
   'not-sent': '请求没有发出：输入不合规则。',
 }
 
-/** Reads when `key` changes or on `reload`; an answer for an earlier key is dropped, never drawn. */
+/** Reads when `key` changes or on `reload`, both shown as reading; a new `quiet` round reads again behind the value
+ * already shown. An answer for an earlier key is dropped, never drawn. */
 export function useReading<T>(
   key: string,
   read: (signal: AbortSignal) => Promise<Answer>,
+  quiet = 0,
 ): readonly [Reading<T>, () => void] {
   const [state, setState] = useState<Readonly<{ key: string; reading: Reading<T> }>>({
     key,
@@ -65,14 +67,17 @@ export function useReading<T>(
   const [round, setRound] = useState(0)
   const latest = useRef(read)
   latest.current = read
+  const shown = useRef<Readonly<{ key: string; round: number }>>({ key: '', round: -1 })
   useEffect(() => {
     const abort = new AbortController()
-    setState({ key, reading: READING })
+    const loud = shown.current.key !== key || shown.current.round !== round
+    shown.current = { key, round }
+    if (loud) setState({ key, reading: READING })
     void readOnce<T>(() => latest.current(abort.signal)).then(reading => {
       if (!abort.signal.aborted) setState({ key, reading })
     })
     return () => abort.abort()
-  }, [key, round])
+  }, [key, round, quiet])
   const reload = useCallback(() => setRound(value => value + 1), [])
   return [state.key === key ? state.reading : READING, reload]
 }

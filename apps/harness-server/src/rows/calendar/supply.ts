@@ -18,6 +18,7 @@ import {
 } from '@omne-harness/calendar-local'
 import { CalendarLocalSupplyProvider } from '@omne-harness/calendar-local/cordis'
 import { z } from 'zod'
+import { runTimeOf } from '../../entry/time.ts'
 
 export const CALENDAR_OWNER = 'harness-server.calendar'
 const ACTIONS = new Set([
@@ -111,6 +112,7 @@ export function provideCalendarSupply(
         initializationOperationKey: `${CALENDAR_OWNER}.initialize`,
         acknowledgementKey: `${CALENDAR_OWNER}.acknowledge`,
         intervalMs: config.supplyIntervalMs,
+        timers: runTimeOf(ctx),
         drainTimeoutMs: config.supplyDrainTimeoutMs,
         limit: 10,
         phases: { recover: true, runDue: true, deliverReactions: true },

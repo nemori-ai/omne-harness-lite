@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:e7a3729c5efd373af845eabe7f0e7cba8997d81afdecbc3d79b37ddb8d813417",
-    "2": "sha256:46c6ac16c84ea1202c0a6c70b43a9ec65d6811c9aa553e456d8f502779da8eaa"
+    "2": "sha256:46c6ac16c84ea1202c0a6c70b43a9ec65d6811c9aa553e456d8f502779da8eaa",
+    "3": "sha256:b51f99c77214ad84d43653673cc3a107eb5ad7bd39982e78dbd84c2779123f76"
   },
   "major": 1,
   "name": "session",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {
       "observe-session": {
@@ -805,6 +806,37 @@
                 "kind": "user-message"
               }
             },
+            "seen": {
+              "optional": true,
+              "rule": {
+                "fields": {
+                  "command": {
+                    "rule": {
+                      "kind": "one-of",
+                      "rules": [
+                        {
+                          "kind": "text"
+                        },
+                        {
+                          "kind": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "references": {
+                    "rule": {
+                      "item": {
+                        "kind": "text"
+                      },
+                      "kind": "array",
+                      "max": 64
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              "since": 3
+            },
             "session": {
               "rule": {
                 "kind": "session"
@@ -838,7 +870,22 @@
             "kind": "object"
           },
           "invalid": {
-            "fields": {},
+            "fields": {
+              "field": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 3
+              },
+              "reason": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 3
+              }
+            },
             "kind": "object"
           },
           "limited": {
@@ -871,6 +918,38 @@
                     "ordinary"
                   ]
                 }
+              },
+              "operation": {
+                "optional": true,
+                "rule": {
+                  "fields": {
+                    "detail": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "outcome": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "since": 3
               },
               "recovered": {
                 "rule": {
@@ -3338,6 +3417,16 @@
                 "kind": "text"
               }
             },
+            "afterRun": {
+              "optional": true,
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "yes"
+                ]
+              },
+              "since": 3
+            },
             "inputId": {
               "rule": {
                 "kind": "text"
@@ -3347,6 +3436,37 @@
               "rule": {
                 "kind": "user-message"
               }
+            },
+            "seen": {
+              "optional": true,
+              "rule": {
+                "fields": {
+                  "command": {
+                    "rule": {
+                      "kind": "one-of",
+                      "rules": [
+                        {
+                          "kind": "text"
+                        },
+                        {
+                          "kind": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "references": {
+                    "rule": {
+                      "item": {
+                        "kind": "text"
+                      },
+                      "kind": "array",
+                      "max": 64
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              "since": 3
             },
             "session": {
               "rule": {
@@ -3381,7 +3501,22 @@
             "kind": "object"
           },
           "invalid": {
-            "fields": {},
+            "fields": {
+              "field": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 3
+              },
+              "reason": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 3
+              }
+            },
             "kind": "object"
           },
           "limited": {
@@ -3406,6 +3541,38 @@
           "protocol-rejected": true,
           "succeeded": {
             "fields": {
+              "operation": {
+                "optional": true,
+                "rule": {
+                  "fields": {
+                    "detail": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "outcome": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "since": 3
+              },
               "recovered": {
                 "rule": {
                   "kind": "boolean"

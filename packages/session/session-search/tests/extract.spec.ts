@@ -19,6 +19,21 @@ const indexed = (block: string): string =>
   )
 
 describe('the searchable text of a log entry', () => {
+  it('reads the words of a named text, which carries an origin, like any text block', () => {
+    const visibility = { toHuman: true, toModel: true }
+    const origin = { name: 'skill:review', layer: 'tenant', version: '3', digest: 'd' }
+    const message = {
+      id: `msg_${'1'.padStart(22, '0')}`,
+      role: 'user',
+      blocks: [
+        { kind: 'text', id: 'b0', visibility, text: '帮我用 /review 看一下' },
+        { kind: 'text', id: 'b1', visibility, text: '先读改动再说哪里不对', origin },
+      ],
+    }
+    const entry = { ...entryOf('message.user', []), payload: tree({ message }) }
+    expect(blocksOf(entry, 'any')).toEqual(['帮我用 /review 看一下', '先读改动再说哪里不对'])
+  })
+
   it('gives the index and the verification the same blocks, for any entry (SH-1)', () => {
     const seed = 20261119
     const rng = random(seed)

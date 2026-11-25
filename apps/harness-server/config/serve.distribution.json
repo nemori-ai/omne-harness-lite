@@ -81,6 +81,11 @@
               "tool": "Schedules"
             },
             {
+              "id": "jobs",
+              "effect": "allow",
+              "tool": "Jobs"
+            },
+            {
               "id": "notifications",
               "effect": "allow",
               "tool": "Notifications"
@@ -435,7 +440,7 @@
               "owner": "harness-server-release",
               "name": "coding",
               "revision": "1",
-              "digest": "sha256:9874b5e1b31373bf49c18b1779e0d880c98c217a7eac11d7d2e6c9efd04d2b26"
+              "digest": "sha256:5ecea1131627c6aa29be46271e10e2f9e53118aec1ed9ac2d829d8ef78e61938"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -647,7 +652,7 @@
                 },
                 {
                   "id": "environment",
-                  "text": "# Environment\n\nThis prompt contains no runtime facts. The harness gives them to you while you work.\n\n- Harness reminder messages come from the application, not from the user. They contain a JSON list of entries with a key, a revision and a value. Examples are the execution placement, host facts such as the date, and context window usage. Use the latest value of each key.\n- The reminder with the key session.working-directory tells where your file and command tools start, and its state tells how far they reach. State \"default\": this session has no workspace. The directory is only where relative paths start, and nothing limits the paths that you read or write: use an absolute path for a file elsewhere on this machine. State \"attached\": this session works in a workspace. The user has a setting for files outside the workspace, and a call that the setting stops says so. State \"unusable\": the workspace cannot be used now, and each call says why.\n- Do not tell the user that a path is out of reach before a call has refused it. Make the call, and report what it answered.\n- In a long conversation, the harness can replace older messages with a summary. Continue the task from the summary.\n- The harness does not load project instruction files for you. Before a task that changes files, look for AGENTS.md files with Files find. Look on the path from the workspace root to the directories that you will change, and follow these files.\n- If you need the operating system, the shell or the working directory and no reminder gives it, use Shell info."
+                  "text": "# Environment\n\nThis prompt contains no runtime facts. The harness gives them to you while you work.\n\n- Harness reminder messages come from the application, not from the user. They contain a JSON list of entries with a key, a revision and a value. Examples are the execution placement, host facts such as the date, and context window usage. Use the latest value of each key.\n- The reminder with the key session.working-directory tells where your file and command tools work in this step and how far they reach. \"directory\" is where relative paths start. \"files.read\" names the directory that every path you read must be inside, and \"files.write\" names the directory that every path you write must be inside. A side that is not there has no limit: use an absolute path for a file elsewhere on this machine. State \"attached\": this session works in a workspace. State \"default\": it has no workspace. State \"unusable\": the workspace cannot be used now, and each call says why. The reach can change between steps, and a new reminder then says so.\n- Do not tell the user that a path is out of reach before a call has refused it. Make the call, and report what it answered.\n- In a long conversation, the harness can replace older messages with a summary. Continue the task from the summary.\n- The harness does not load project instruction files for you. Before a task that changes files, look for AGENTS.md files with Files find. Look on the path from the workspace root to the directories that you will change, and follow these files.\n- If you need the operating system, the shell or the working directory and no reminder gives it, use Shell info."
                 }
               ]
             },
@@ -779,6 +784,14 @@
       "config": {}
     },
     {
+      "id": "slash-command",
+      "plugin": "slashCommandRow",
+      "config": {
+        "declaredSources": ["system-commands", "skill", "prompt"],
+        "timeoutMs": 5000
+      }
+    },
+    {
       "id": "mcp",
       "plugin": "mcpRow",
       "config": {
@@ -806,6 +819,16 @@
     {
       "id": "skills",
       "plugin": "skillsRow",
+      "config": {}
+    },
+    {
+      "id": "skill-command-source",
+      "plugin": "skillCommandSourceRow",
+      "config": {}
+    },
+    {
+      "id": "prompt-command-source",
+      "plugin": "promptCommandSourceRow",
       "config": {}
     },
     {
@@ -950,6 +973,11 @@
     {
       "id": "session-diagnostics-access",
       "plugin": "sessionDiagnosticsAccessRow",
+      "config": {}
+    },
+    {
+      "id": "slash-command-access",
+      "plugin": "slashCommandAccessRow",
       "config": {}
     },
     {

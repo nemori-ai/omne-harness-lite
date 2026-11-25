@@ -17,12 +17,14 @@ export type SessionProviderConfig = Readonly<{
   policy?: Overrides<SchedulingPolicy>
   disposeWaitMs?: number
   admission?: 'none'
+  resolver?: 'none'
 }>
 
 export type ResolvedProviderConfig = Readonly<{
   policy: SchedulingPolicy
   disposeWaitMs: number
   admission: 'none' | undefined
+  resolver: 'none' | undefined
 }>
 
 export const defaultDisposeWaitMs = 10_000
@@ -32,7 +34,7 @@ type Parsed =
   | Readonly<{ value: SessionProviderConfig; issues?: undefined }>
   | Readonly<{ issues: readonly Issue[] }>
 
-const FIELDS = ['policy', 'disposeWaitMs', 'admission'] as const
+const FIELDS = ['policy', 'disposeWaitMs', 'admission', 'resolver'] as const
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -70,7 +72,7 @@ export function resolveProviderConfig(
     if (!FIELDS.some(field => field === key))
       return { issues: [{ message: `unknown field ${key}`, path: [key] }] }
 
-  const { disposeWaitMs = defaultDisposeWaitMs, admission } = config
+  const { disposeWaitMs = defaultDisposeWaitMs, admission, resolver } = config
   if (typeof disposeWaitMs !== 'number' || !Number.isFinite(disposeWaitMs) || disposeWaitMs <= 0)
     return {
       issues: [
@@ -79,10 +81,12 @@ export function resolveProviderConfig(
     }
   if (admission !== undefined && admission !== 'none')
     return { issues: [{ message: "admission must be omitted or 'none'", path: ['admission'] }] }
+  if (resolver !== undefined && resolver !== 'none')
+    return { issues: [{ message: "resolver must be omitted or 'none'", path: ['resolver'] }] }
 
   const policy = mergePolicy(defaultSchedulingPolicy, config['policy'], ['policy'])
   if ('issue' in policy) return { issues: [policy.issue] }
-  return { value: { policy: policy.value as SchedulingPolicy, disposeWaitMs, admission } }
+  return { value: { policy: policy.value as SchedulingPolicy, disposeWaitMs, admission, resolver } }
 }
 
 const probeDependencies = {

@@ -2,10 +2,15 @@ import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-
 import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import {
   ScheduleDefinitionSchema,
+  ScheduleWorkSchema,
   type ScheduleCandidate,
   type ScheduleDefinition,
   type ScheduleDomainError,
+  type ScheduleExecutionRow,
+  type ScheduleJobDetail,
+  type ScheduleJobRun,
   type ScheduleRevisionView,
+  type ScheduleWork,
   type ScheduleView,
 } from '@omne-harness/schedule-contract'
 
@@ -27,6 +32,11 @@ export function treeOf(value: unknown): JsonValue {
 /** A definition the client sends, judged by the schedule's own schema. */
 export function definitionOf(tree: JsonValue): ScheduleDefinition | undefined {
   const parsed = ScheduleDefinitionSchema.safeParse(JSON.parse(writeJsonText(tree)))
+  return parsed.success ? parsed.data : undefined
+}
+
+export function workOf(tree: JsonValue): ScheduleWork | undefined {
+  const parsed = ScheduleWorkSchema.safeParse(JSON.parse(writeJsonText(tree)))
   return parsed.success ? parsed.data : undefined
 }
 
@@ -70,6 +80,7 @@ export function detailOf(view: ScheduleView) {
     ...cardOf(view),
     createdAt: instantOf(view.createdAt),
     definition: treeOf(view.definition),
+    ...(view.standing.kind === 'ready' ? {} : { reasons: [...view.standing.reasons] }),
   }
 }
 
@@ -117,4 +128,85 @@ export function refusalOf(error: ScheduleDomainError): Refusal {
   if (UNSUPPORTED.has(error.code)) return { outcome: 'unsupported', code: error.code }
   if (CONFLICT.has(error.code)) return { outcome: 'conflict', code: error.code }
   return { outcome: 'basis-unavailable' }
+}
+
+type JobSummary = ScheduleJobDetail['job']
+
+/** Where a Job stands, read the same way for execution and notification bodies. */
+const at = (text: string | null) => (text === null ? null : instantOf(text))
+
+export function jobCardOf(job: JobSummary, run: ScheduleJobRun) {
+  const { body } = job
+  const concluded =
+    body.kind === 'execution'
+      ? body.executionState === 'concluded'
+        ? body.outcome
+        : null
+      : (({ durableAvailable: 'succeeded', failed: 'failed', cancelled: 'cancelled' } as const)[
+          body.primaryOutcome as 'durableAvailable' | 'failed' | 'cancelled'
+        ] ?? null)
+  const state =
+    body.kind === 'execution' ? body.executionState : concluded === null ? 'running' : 'concluded'
+  return {
+    job: job.jobId as string,
+    state,
+    outcome: concluded,
+    stop: job.stopState,
+    origin: run.origin,
+    acceptedAt: instantOf(job.acceptedAt),
+    startedAt: at(run.startedAt),
+    endedAt: at(run.endedAt),
+  }
+}
+
+export function historyRowOf(row: ScheduleExecutionRow) {
+  const at = instantOf(row.originalScheduledAt)
+  if (row.kind === 'direct')
+    return { kind: 'direct', row: row.rowRef, at, job: jobCardOf(row.job, row.run) } as const
+  if (row.kind === 'lapse')
+    return {
+      kind: 'lapse',
+      row: row.rowRef,
+      schedule: row.scheduleId as string,
+      at,
+      through: instantOf(row.through),
+      cause: row.cause,
+      reason: row.reason,
+      count: row.count,
+      selected: row.selected,
+    } as const
+  return {
+    kind: 'slot',
+    row: row.rowRef,
+    schedule: row.scheduleId as string,
+    at,
+    local: row.candidate.adjustedLocal as string,
+    disposition: row.receipt?.disposition ?? 'prepared',
+    reason: row.receipt?.reasonCode ?? 'prepared',
+    job: row.job === null || row.run === null ? null : jobCardOf(row.job, row.run),
+  } as const
+}
+
+export function jobDetailOf(detail: ScheduleJobDetail) {
+  const work = detail.purpose.kind === 'execution' ? detail.purpose.work : null
+  return {
+    ...jobCardOf(detail.job, detail.run),
+    schedule: detail.scheduleId as string | null,
+    slot: detail.slot === null ? null : instantOf(detail.slot.scheduledAt),
+    local: (detail.slot?.adjustedLocal ?? null) as string | null,
+    calendar: detail.slot?.basis.calendarId ?? null,
+    version: detail.slot?.basis.calendarVersionId ?? null,
+    revision: detail.definitionRevision,
+    work: treeOf(work),
+    reason: detail.reason,
+    where:
+      detail.executionWhere === null
+        ? null
+        : {
+            kind: 'program' as const,
+            program: detail.executionWhere.programRef,
+            execution: detail.executionWhere.executionRef,
+          },
+    events: detail.events.map(event => ({ ...event, at: instantOf(event.at) })),
+  } as const
 }

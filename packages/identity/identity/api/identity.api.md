@@ -6,6 +6,8 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `ACCOUNT_PREFERENCE_LIMITS` · `governance.d.ts`
+- `AccountPreferenceOutcome` · `governance.d.ts`
 - `ActingForTenantPrincipal` · `principal.d.ts`
 - `BusinessAccessReport` · `governance.d.ts`
 - `ChangeMemberRoleInput` · `governance.d.ts`
@@ -72,6 +74,7 @@
 - `QueryInvitationInput` · `governance.d.ts`
 - `QueryInvitationOutcome` · `governance.d.ts`
 - `QueryOrganizationMembersInput` · `governance.d.ts`
+- `ReadAccountPreferenceInput` · `governance.d.ts`
 - `RecognizeLoginInput` · `operations.d.ts`
 - `RegisterAndActivateInput` · `operations.d.ts`
 - `RegisterAndActivateOutcome` · `operations.d.ts`
@@ -101,6 +104,8 @@
 - `TenantStandingSource` · `standing.d.ts`
 - `ValidLogin` · `governance.d.ts`
 - `WorkRef` · `principal.d.ts`
+- `WriteAccountPreferenceInput` · `governance.d.ts`
+- `WriteAccountPreferenceOutcome` · `governance.d.ts`
 - `governanceModelEquals` · `qualification.d.ts`
 - `inProcessPrincipalAuthority` · `principal.d.ts`
 - `isQualification` · `qualification.d.ts`
@@ -227,6 +232,8 @@ export declare abstract class IdentityGovernanceService extends Service implemen
     abstract readonly changeMemberRole: IdentityGovernance['changeMemberRole'];
     abstract readonly switchCurrentTenant: IdentityGovernance['switchCurrentTenant'];
     abstract readonly queryCurrentTenant: IdentityGovernance['queryCurrentTenant'];
+    abstract readonly readAccountPreference: IdentityGovernance['readAccountPreference'];
+    abstract readonly writeAccountPreference: IdentityGovernance['writeAccountPreference'];
     abstract readonly revokeLogin: IdentityGovernance['revokeLogin'];
     abstract readonly queryOwnValidLogins: IdentityGovernance['queryOwnValidLogins'];
     abstract readonly reportBusinessAccess: IdentityGovernance['reportBusinessAccess'];
@@ -408,6 +415,30 @@ export type CurrentTenantOutcome = Readonly<{
     kind: 'succeeded';
     tenant: TenantId;
 }> | GovernanceDenied | GovernanceBasisUnavailable;
+export declare const ACCOUNT_PREFERENCE_LIMITS: Readonly<{
+    name: 64;
+    value: 16384;
+}>;
+export type ReadAccountPreferenceInput = GovernanceLogin & Readonly<{
+    name: string;
+}>;
+export type AccountPreferenceOutcome = Readonly<{
+    kind: 'succeeded';
+    value: string | null;
+    revision: string;
+}> | GovernanceDenied | GovernanceBasisUnavailable;
+export type WriteAccountPreferenceInput = GovernanceLogin & Readonly<{
+    name: string;
+    value: string | null;
+    expected: string;
+}>;
+export type WriteAccountPreferenceOutcome = Readonly<{
+    kind: 'succeeded';
+    revision: string;
+}> | Readonly<{
+    kind: 'conflict';
+    revision: string;
+}> | GovernanceDenied | GovernanceBasisUnavailable;
 export type RevokeLoginInput = GovernanceLogin & Readonly<{
     target: LoginStateId;
 }>;
@@ -447,6 +478,8 @@ export interface IdentityGovernance {
     changeMemberRole(input: ChangeMemberRoleInput): Promise<MemberChangeOutcome>;
     switchCurrentTenant(input: SwitchCurrentTenantInput): Promise<SwitchCurrentTenantOutcome>;
     queryCurrentTenant(input: GovernanceLogin): Promise<CurrentTenantOutcome>;
+    readAccountPreference(input: ReadAccountPreferenceInput): Promise<AccountPreferenceOutcome>;
+    writeAccountPreference(input: WriteAccountPreferenceInput): Promise<WriteAccountPreferenceOutcome>;
     revokeLogin(input: RevokeLoginInput): Promise<RevokeLoginOutcome>;
     queryOwnValidLogins(input: GovernanceLogin): Promise<OwnValidLoginsOutcome>;
     reportBusinessAccess(input: GovernanceLogin): Promise<BusinessAccessReport>;
@@ -501,10 +534,11 @@ export { DEFAULT_TEAM_MODEL, DEFAULT_TEAM_ROLES, DEFAULT_TEAM_ROLE_MAPPING, QUAL
 export type { GovernanceModelRef, Qualification, RoleMapping, RoleQualifications, RoleRef, RoleResolutionFailure, } from './qualification.ts';
 export type { StandingEvidence, TenantStandingReading, TenantStandingSource } from './standing.ts';
 export type { ClockReading, IdentityClock, IdentityOperations, IdentityOperationsOptions, IssuedLogin, IssueLoginInput, IssueLoginOutcome, LoginCredentialInput, LoginRecognition, LoginTerms, LoginTermsReading, LoginTermsSource, RecognizeLoginInput, RegisterAndActivateInput, RegisterAndActivateOutcome, } from './operations.ts';
-export type { BusinessAccessReport, ChangeMemberRoleInput, CreatedOrganization, CreateOrganizationInput, CreateOrganizationOutcome, CurrentTenantOutcome, GovernanceActing, GovernanceBasisUnavailable, GovernanceConflict, GovernanceDenied, GovernanceLogin, GovernanceNoChange, GovernanceNotVisible, IdentityGovernance, InvitationDispositionInput, InvitationDispositionOutcome, InvitationListOutcome, InvitationState, InvitationTerminal, InvitationTerms, InvitationTermsReading, InvitationTermsSource, IssueMemberInvitationInput, IssueMemberInvitationOutcome, LeaveOrganizationInput, LeaveOrganizationOutcome, MemberChangeOutcome, MemberInvitation, OrganizationMember, OrganizationMembersOutcome, OwnMembership, OwnMembershipsOutcome, OwnValidLoginsOutcome, QueryCreateOrganizationInput, QueryCreateOrganizationOutcome, QueryInvitationInput, QueryInvitationOutcome, QueryOrganizationMembersInput, RemoveMemberInput, RevokeLoginInput, RevokeLoginOutcome, SwitchCurrentTenantInput, SwitchCurrentTenantOutcome, ValidLogin, } from './governance.ts';
+export type { BusinessAccessReport, ChangeMemberRoleInput, CreatedOrganization, CreateOrganizationInput, CreateOrganizationOutcome, CurrentTenantOutcome, GovernanceActing, GovernanceBasisUnavailable, GovernanceConflict, GovernanceDenied, GovernanceLogin, GovernanceNoChange, GovernanceNotVisible, IdentityGovernance, InvitationDispositionInput, InvitationDispositionOutcome, InvitationListOutcome, InvitationState, InvitationTerminal, InvitationTerms, InvitationTermsReading, InvitationTermsSource, IssueMemberInvitationInput, IssueMemberInvitationOutcome, LeaveOrganizationInput, LeaveOrganizationOutcome, MemberChangeOutcome, MemberInvitation, OrganizationMember, OrganizationMembersOutcome, OwnMembership, OwnMembershipsOutcome, OwnValidLoginsOutcome, QueryCreateOrganizationInput, QueryCreateOrganizationOutcome, QueryInvitationInput, QueryInvitationOutcome, QueryOrganizationMembersInput, RemoveMemberInput, RevokeLoginInput, RevokeLoginOutcome, SwitchCurrentTenantInput, SwitchCurrentTenantOutcome, AccountPreferenceOutcome, ReadAccountPreferenceInput, WriteAccountPreferenceInput, WriteAccountPreferenceOutcome, ValidLogin, } from './governance.ts';
 export { standingPrincipalRef, standingReservationId, isStandingBinding, isStandingReservation, } from './reservations.ts';
 export type { StandingBinding, StandingRequest, StandingReservation, StandingTerminal, StandingDestinationResolver, StandingReserveOutcome, StandingObservation, StandingSettleOutcome, StandingReleaseOutcome, StandingRecoveryPage, StandingReservations, } from './reservations.ts';
 export type { GovernanceOperationRef, GovernanceRecoveryOutcome, IdentityGovernanceRecovery, } from './governance.ts';
+export { ACCOUNT_PREFERENCE_LIMITS } from './governance.ts';
 ```
 
 ## 声明文件 `operations.d.ts`
@@ -953,6 +987,46 @@ export declare function inProcessIdentity(options: InProcessIdentityGovernanceOp
 export declare function inProcessIdentityWithout(options: InProcessIdentityGovernanceOptions, off: readonly DoubleCheck[]): InProcessIdentity;
 ```
 
+## 声明文件 `testing/governance-preferences.d.ts`
+
+```ts
+import type { LoginStateId } from '@omne-harness/legal-identity';
+import type { IdentityGovernance } from '../governance.ts';
+type Login = Readonly<{
+    login: LoginStateId;
+}>;
+type Person = Readonly<{
+    login: Login;
+}>;
+type Context = Readonly<{
+    providers(): Readonly<{
+        governance: IdentityGovernance;
+    }>;
+    person(name: string): Promise<Person>;
+    another(person: Person): Promise<Login>;
+    restart(): Promise<void>;
+    fixture: Readonly<{
+        restart?: unknown;
+    }>;
+}>;
+type Tools = Readonly<{
+    check(condition: boolean, message: string): asserts condition;
+    kindIs<O extends {
+        kind: string;
+    }, K extends O['kind']>(outcome: O, kind: K, what: string): Extract<O, {
+        kind: K;
+    }>;
+}>;
+type PreferenceCase = Readonly<{
+    id: string;
+    rule: string;
+    run(context: Context): Promise<'passed' | 'not-applicable'>;
+}>;
+export declare function preferenceCases(tools: Tools): readonly PreferenceCase[];
+export declare function withPreferenceCases<C>(tools: Tools, cases: readonly C[]): readonly C[];
+export {};
+```
+
 ## 声明文件 `testing/index.d.ts`
 
 ```ts
@@ -966,6 +1040,34 @@ export { checkIdentityGovernanceContract, IDENTITY_GOVERNANCE_CONTRACT_CASES, } 
 export type { IdentityGovernanceContractCaseResult, IdentityGovernanceContractFixture, IdentityGovernanceContractOptions, IdentityGovernanceContractProviderOptions, IdentityGovernanceContractReport, IdentityProviders, } from './governance-contract.ts';
 export { inProcessIdentity } from './governance-double.ts';
 export type { InProcessIdentity, InProcessIdentityGovernanceOptions } from './governance-double.ts';
+```
+
+## 声明文件 `testing/preference-double.d.ts`
+
+```ts
+import type { Instant } from '@omne-harness/utc-instant';
+import { type IdentityGovernance } from '../governance.ts';
+import type { IdentityRecords } from './records.ts';
+type Refused = Readonly<{
+    kind: 'denied';
+}> | Readonly<{
+    kind: 'basis-unavailable';
+    diagnostic: string;
+}>;
+type Deps = Readonly<{
+    begin(): Promise<Readonly<{
+        kind: 'read';
+        instant: Instant;
+    }> | Refused>;
+    caller(input: unknown, now: Instant, acting: boolean): Readonly<{
+        kind: 'caller';
+        account: unknown;
+    }> | Refused;
+    records: IdentityRecords;
+}>;
+declare function preferences(deps: Deps): Pick<IdentityGovernance, 'readAccountPreference' | 'writeAccountPreference'>;
+export declare function withPreferences(deps: Deps): <T extends object>(rest: T) => Readonly<T & ReturnType<typeof preferences>>;
+export {};
 ```
 
 ## 声明文件 `testing/records.d.ts`
@@ -1026,6 +1128,10 @@ export type IdentityRecords = Readonly<{
     loginsById: Map<string, LoginRecord>;
     invitations: Map<string, InvitationRecord>;
     receipts: Map<string, CreateReceipt>;
+    preferences: Map<string, {
+        value: string | null;
+        revision: number;
+    }>;
 }>;
 export declare function newRecords(): IdentityRecords;
 export declare function memberKey(organization: OrganizationId, account: AccountId): string;

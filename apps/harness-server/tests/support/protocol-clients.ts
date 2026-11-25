@@ -13,6 +13,7 @@ import {
 } from '@omne-harness/sdk/core'
 import { sessionDiagnosticsProtocol } from '@omne-harness/session-diagnostics-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
+import { slashCommandProtocol } from '@omne-harness/slash-command-protocol'
 import { savedLoginProof, savedTenant } from '../r9/support.ts'
 
 export type ProtocolClients = Readonly<{
@@ -21,6 +22,7 @@ export type ProtocolClients = Readonly<{
   humanIntervention: ClientOf<typeof humanInterventionProtocol>
   sessionDiagnostics: ClientOf<typeof sessionDiagnosticsProtocol>
   assets: ClientOf<typeof assetsProtocol>
+  slashCommand: ClientOf<typeof slashCommandProtocol>
 }>
 
 type SendBody = Parameters<ClientOf<typeof sessionProtocol>['send-input']>[0]
@@ -36,6 +38,7 @@ export function clientsOver(
     humanIntervention: createClient(humanInterventionProtocol, transport),
     sessionDiagnostics: createClient(sessionDiagnosticsProtocol, transport),
     assets: createClient(assetsProtocol, transport),
+    slashCommand: createClient(slashCommandProtocol, transport),
   }
 }
 
