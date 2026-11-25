@@ -229,12 +229,12 @@ describe('层叠', () => {
   it('替换、停用、插入后的顺序、配置与来源；插入行可见集合为空', async () => {
     const out = await runS0Process(distributionPath, { operator: fixture.operators['layering'] })
     expect(out.code).toBe(0)
-    const expected: string[] = rowIds.filter(id => id !== 'model-credential')
+    const expected: string[] = rowIds.filter(id => id !== 'model-instances')
     expected.splice(expected.indexOf('model-profiles') + 1, 0, 'extra-stub')
     const rows = of(out, 'tree').filter(r => r['disabled'] !== true)
     expect(rows.map(r => r['id'])).toEqual(expected)
     expect(of(out, 'tree').filter(r => r['disabled'] === true)).toMatchObject([
-      { id: 'model-credential', source: 'operator' },
+      { id: 'model-instances', source: 'operator' },
     ])
     const byId = new Map(rows.map(r => [r['id'], r]))
     expect(byId.get('model-profiles')).toMatchObject({

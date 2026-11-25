@@ -86,7 +86,7 @@ describe('the model-credential row', () => {
       row: 'model-credential',
       implementation: 'real',
       manifest: {
-        provides: ['modelCredential'],
+        provides: ['modelCredential', 'modelPreferences'],
         injects: ['settingsSecretCustody'],
         phase: null,
         sameProviderGroup: null,

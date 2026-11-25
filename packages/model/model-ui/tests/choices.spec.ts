@@ -37,6 +37,14 @@ describe('the word said of a model', () => {
       '不能选：被锁定、不在这个租户能用的范围里',
     ],
     [{ selectable: false, reasons: [], credential: 'available' }, '现在不能选'],
+    [
+      { selectable: false, reasons: [], credential: 'available', enabled: false },
+      '不能选：没有启用',
+    ],
+    [
+      { selectable: false, reasons: ['locked'], credential: 'available', enabled: false },
+      '不能选：没有启用、被锁定',
+    ],
   ] as const)('%j is said as %j', (given, said) => {
     expect(noteOf(given as never)).toBe(said)
   })
@@ -74,6 +82,25 @@ describe('the list of models of a tenant', () => {
     })
     expect(asked).toHaveLength(1)
     expect(JSON.stringify(asked[0])).toContain('org_00000000000000000000000000')
+  })
+
+  it('gives the default effort the tenant set for a model, and none where it set none', async () => {
+    const { choices } = choicesOver({
+      outcome: 'succeeded',
+      body: {
+        models: [
+          model('z-ai/glm-5.3', {
+            reasoningEfforts: ['low', 'high'],
+            defaultReasoningEffort: 'high',
+          }),
+          model('z-ai/glm-5.2', { reasoningEfforts: ['high'] }),
+        ],
+      },
+    })
+    const listed = await choices.list(TENANT)
+    if (listed.kind !== 'listed') throw new Error(listed.reason)
+    expect(listed.choices.map(choice => choice.defaultReasoningEffort)).toEqual(['high', undefined])
+    expect(Object.hasOwn(listed.choices[1] ?? {}, 'defaultReasoningEffort')).toBe(false)
   })
 
   it('gives an empty list as an empty list', async () => {

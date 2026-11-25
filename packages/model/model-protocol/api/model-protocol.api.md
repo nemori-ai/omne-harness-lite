@@ -25,6 +25,8 @@ export declare const modelProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly models: readonly {
                         readonly credential: "available" | "missing" | "unknown";
+                        readonly defaultReasoningEffort?: "high" | "low" | "medium" | "xhigh";
+                        readonly enabled?: boolean;
                         readonly input: readonly ("image" | "text" | "voice")[];
                         readonly output: readonly ("image" | "text" | "voice")[];
                         readonly reasoningEfforts?: readonly ("high" | "low" | "medium" | "xhigh")[];

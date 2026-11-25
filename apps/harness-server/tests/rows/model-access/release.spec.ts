@@ -14,6 +14,7 @@ type Listed = Readonly<{
     route: string
     selectable: boolean
     reasons: readonly string[]
+    enabled?: boolean
     credential: string
     input: readonly string[]
     output: readonly string[]
@@ -54,7 +55,7 @@ describe('the release tree and the list of models (C20, C21, C22)', () => {
         expect(new Set(routes).size).toBe(routes.length)
         for (const model of listed.models) {
           expect(model.input).toContain('text')
-          expect(model.selectable).toBe(model.reasons.length === 0)
+          expect(model.selectable).toBe(model.reasons.length === 0 && model.enabled !== false)
         }
         // What the list says can be selected, a session of the member can select.
         const session = await tree.startSession('hello')

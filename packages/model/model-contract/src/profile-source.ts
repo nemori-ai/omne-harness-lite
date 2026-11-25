@@ -1,5 +1,5 @@
 import type { MessageId } from '@omne-harness/message'
-import type { Access, ModelCallId } from './root.ts'
+import type { Access, ModelCallId, ReasoningEffort } from './root.ts'
 import type { DurableEvidence, ModelFailure, Reply } from './result.ts'
 import type { Supplier } from './root.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -21,6 +21,8 @@ export type ModelProfileSnapshot = Readonly<{
     excluded: boolean
     locked: boolean
     credential: 'available' | 'missing' | 'unreadable' | 'unavailable'
+    /** The effort the tenant set for this model, when the model supports it. */
+    defaultReasoningEffort?: ReasoningEffort
   }>[]
   source: DurableEvidence
 }>

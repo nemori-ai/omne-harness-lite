@@ -52,6 +52,7 @@ export async function toolAssetsWorld(
     release?: Extract<ToolRelease, { kind: 'trusted' }>
     releaseParticipant?: SqlMaterialCatalog['participants'][number]
     projectionMembers?: readonly string[]
+    categories?: readonly Parameters<ReturnType<typeof createCategoryPoint>['contribute']>[0][]
   } = {},
 ) {
   const release = options.release ?? (await loadProductionRelease())
@@ -157,6 +158,7 @@ export async function toolAssetsWorld(
     display: toolCategoryDisplay,
     point: 'tool.tools',
   })
+  for (const category of options.categories ?? []) categories.contribute(category)
   const owner = createAssetsLocal({ ...combination, domain, storage: made.storage, categories })
   const target: SettingsTargetProjection['target'] = toolAssetTarget(entry, domain.scope.tenant)
   let closed = false

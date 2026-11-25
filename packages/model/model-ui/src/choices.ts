@@ -12,6 +12,8 @@ export type ModelChoice = Readonly<{
   selectable: boolean
   note: string | null
   reasoningEfforts: NonNullable<Listed['reasoningEfforts']>
+  /** The effort the tenant set for this model, taken when a session chose none. */
+  defaultReasoningEffort?: NonNullable<Listed['defaultReasoningEffort']>
 }>
 
 export type ModelChoiceListing =
@@ -35,12 +37,15 @@ const REFUSALS: Readonly<Record<string, string>> = {
 
 // A model that lacks its credential can still be picked; the note says a call cannot go out yet.
 export function noteOf(
-  model: Pick<Listed, 'selectable' | 'reasons' | 'credential'>,
+  model: Pick<Listed, 'selectable' | 'reasons' | 'credential' | 'enabled'>,
 ): string | null {
-  if (!model.selectable)
-    return model.reasons.length === 0
-      ? '现在不能选'
-      : `不能选：${model.reasons.map(reason => REASONS[reason]).join('、')}`
+  if (!model.selectable) {
+    const reasons = [
+      ...(model.enabled === false ? ['没有启用'] : []),
+      ...model.reasons.map(reason => REASONS[reason]),
+    ]
+    return reasons.length === 0 ? '现在不能选' : `不能选：${reasons.join('、')}`
+  }
   return model.credential === 'missing' ? '还没有配置凭据，选了也暂时调不了' : null
 }
 
@@ -62,6 +67,9 @@ export function createModelChoices(client: Client): ModelChoices {
         selectable: model.selectable,
         note: noteOf(model),
         reasoningEfforts: model.reasoningEfforts ?? [],
+        ...(model.defaultReasoningEffort === undefined
+          ? {}
+          : { defaultReasoningEffort: model.defaultReasoningEffort }),
       }))
       return { kind: 'listed', choices }
     },

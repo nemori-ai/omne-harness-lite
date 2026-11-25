@@ -14,7 +14,8 @@ import { sessionHeaderModel } from '../parts.ts'
 
 const EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const satisfies readonly ReasoningEffort[]
 const DEFAULT = 'default'
-const DEFAULT_LABEL = '模型默认'
+const defaultLabel = (choice: ModelChoice | undefined) =>
+  `模型默认（${choice?.defaultReasoningEffort ?? '供应商默认'}）`
 
 type ChoiceProps = Parameters<typeof FoldedChoice>[0]
 
@@ -59,6 +60,26 @@ function routeOption(choice: ModelChoice, previous: ReasoningEffort | undefined)
   return { value: choice.route, label: choice.route, disabled: !choice.selectable, note, effort }
 }
 
+// A model that cannot be picked is offered only while it is the current one, to say why.
+function routesOf(
+  choices: readonly ModelChoice[],
+  model: string,
+  previous: ReasoningEffort | undefined,
+) {
+  const routes = choices
+    .filter(choice => choice.selectable || choice.route === model)
+    .map(choice => routeOption(choice, previous))
+  if (!choices.some(choice => choice.route === model))
+    routes.unshift({
+      value: model,
+      label: model,
+      disabled: true,
+      note: '不在现在的列表里',
+      effort: undefined,
+    })
+  return routes
+}
+
 type Props = Readonly<{ store: ModelSelectionStore; tenant: string; session: string }>
 
 export function ModelAction({ store, tenant, session }: Props) {
@@ -92,15 +113,7 @@ export function ModelAction({ store, tenant, session }: Props) {
   }
   const choices = listing.kind === 'listed' ? listing.choices : null
   const current = choices?.find(choice => choice.route === view.model)
-  const routes = choices?.map(choice => routeOption(choice, view.reasoningEffort)) ?? null
-  if (routes !== null && current === undefined)
-    routes.unshift({
-      value: view.model,
-      label: view.model,
-      disabled: true,
-      note: '不在现在的列表里',
-      effort: undefined,
-    })
+  const routes = choices === null ? null : routesOf(choices, view.model, view.reasoningEffort)
   const modelChoice = (tell: (text: string) => void): ChoiceProps => ({
     label: '模型',
     value: view.model,
@@ -115,12 +128,12 @@ export function ModelAction({ store, tenant, session }: Props) {
   const effortChoice = (tell: (text: string) => void): ChoiceProps => ({
     label: '推理强度',
     value: view.reasoningEffort ?? DEFAULT,
-    shown: view.reasoningEffort ?? DEFAULT_LABEL,
+    shown: view.reasoningEffort ?? defaultLabel(current),
     options:
       choices === null
         ? null
         : [
-            { value: DEFAULT, label: DEFAULT_LABEL, disabled: !current?.selectable },
+            { value: DEFAULT, label: defaultLabel(current), disabled: !current?.selectable },
             ...EFFORTS.map(value => {
               const supported = current?.reasoningEfforts?.includes(value)
               return {

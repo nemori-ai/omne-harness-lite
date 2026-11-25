@@ -50,7 +50,7 @@ export type ScriptedModelProfiles<P> = Readonly<{
 type ListInput = Parameters<ModelProfiles<unknown>['list']>[0]
 type Resolved = Extract<ProfileResolution, { kind: 'resolved' }>
 
-const REASONS = ['modality', 'locked', 'scope'] as const
+const REASONS = ['modality', 'locked', 'scope', 'not-enabled'] as const
 const CREDENTIALS = ['available', 'missing', 'unreadable', 'unavailable'] as const
 const ABSENT = ['unknown-name', 'withdrawn', 'excluded'] as const
 
