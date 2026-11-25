@@ -10,8 +10,9 @@ Skill 包组回答一个问题：一个目录是不是一个合法的 Skill，�
 | `skill`                 | 目录（摘要与检索）与读取怎样经端口编排：先核读取权，再核对应的材料，再按内容摘要钉住字节。检索的排序用共同成员 `text-search`，语料按文档内容记住。不依赖 Cordis |
 | `skill-cordis-contract` | Skill 在这套系统里以哪些服务出现：目录与读取两个服务的定义与键。本组不带插件，提供者是装配方                                                                  |
 | `skill-host-local`      | 本机目录与已发布的包作为包来源：怎样取一致的快照、读一个条目、说出包在本机的目录，并守住包根；两个判定端口怎样绑定到资产的候选求值；官方与租户两层的解析输入怎样按名字记住；随发行的元技能的包 |
+| `skill-command-source`  | Skill 目录作为人点名的入口来源：实现命令契约的入口来源端口，列出可点名的 Skill、按名字取正文，空间是 `skill`；只经目录与读取两个服务 |
 
-依赖只朝契约：`skill`、`skill-host-local`、`skill-cordis-contract` 都只依赖 `skill-contract`；`skill-host-local` 与 `skill-contract` 另外只认资产的契约，不认资产的本机成员；`skill` 另外只认共同成员 `text-search`。工作时，来源一侧经检查确认一个目录是合法的 Skill 包，资产记下它的声明投影与快照的内容摘要；读者经目录得到此刻合法可用、能读的 Skill 的摘要，再经读取服务读正文或按包内路径读一个资源。每次读取都现场核读取权、现场解析对应的材料，按快照与条目的内容摘要核对字节。agent 经 `Skills` 这一个入口使用 Skill。
+依赖只朝契约：`skill`、`skill-host-local`、`skill-cordis-contract` 都只依赖 `skill-contract`；`skill-host-local` 与 `skill-contract` 另外只认资产的契约，不认资产的本机成员；`skill` 另外只认共同成员 `text-search`；`skill-command-source` 另外只认命令的契约（`slash-command-contract`）。工作时，来源一侧经检查确认一个目录是合法的 Skill 包，资产记下它的声明投影与快照的内容摘要；读者经目录得到此刻合法可用、能读的 Skill 的摘要，再经读取服务读正文或按包内路径读一个资源。每次读取都现场核读取权、现场解析对应的材料，按快照与条目的内容摘要核对字节。agent 经 `Skills` 这一个入口使用 Skill。
 
 ## 领域边界
 

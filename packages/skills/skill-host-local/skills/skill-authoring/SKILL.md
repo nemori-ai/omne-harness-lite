@@ -9,6 +9,17 @@ A Skill is a folder. Its `SKILL.md` tells an agent how to do one kind of task. O
 
 `OmneExtensions help` with `name: publish` and `category: skill` prints the short checklist of this guide.
 
+## The whole job, in order
+
+Do every step in this session. The numbers point to the sections below.
+
+1. Decide whether it is worth a Skill (1), and settle the intent (2).
+2. Write the folder: the description, the body, the scripts and the tools it needs (3 to 7).
+3. Ask `OmneExtensions impact`, then call `OmneExtensions publish` (8).
+4. Try it: find it with `Skills search`, read it with `Skills read`, and run its scripts with Shell (9).
+
+The job is done when the try is done. Then tell the user what the try showed and what you changed.
+
 ## 1. Decide whether it is worth a Skill
 
 Make a Skill for a way of working that will come back: a procedure with steps, a format, checks, or scripts. A one-off task, or a fact that fits in one sentence, needs no Skill. Tell the user so, and do the task.
