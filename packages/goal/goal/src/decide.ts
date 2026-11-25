@@ -200,17 +200,27 @@ export function decideCommand(
 ): Decided | null {
   if (generation !== undefined && current?.state.generation !== generation)
     return refused({ kind: 'another-goal' })
-  const event = eventOf(current?.body ?? null, command)
-  if (event === null)
-    return refused({ kind: 'state', reason: current === null ? 'no-live-goal' : 'not-its-cause' })
-  const step = transition(current?.state ?? NO_GOAL, event)
+  if (current === null) return commandedNothing(command)
+  const event = eventOf(current.body, command)
+  if (event === null) return refused({ kind: 'state', reason: 'not-its-cause' })
+  const step = transition(current.state, event)
   if (step.kind === 'refused') return refused({ kind: 'state', reason: step.reason })
-  if (current === null) return null
-  if (step.kind === 'unchanged') return { kind: 'unchanged', record: current }
+  return step.kind === 'unchanged'
+    ? { kind: 'unchanged', record: current }
+    : { kind: 'next', record: commanded(current, step.next, step.effects.includes('wake')) }
+}
+
+function commandedNothing(command: GoalCommand): Decided | null {
+  const event = eventOf(null, command)
+  if (event === null) return refused({ kind: 'state', reason: 'no-live-goal' })
+  const step = transition(NO_GOAL, event)
+  return step.kind === 'refused' ? refused({ kind: 'state', reason: step.reason }) : null
+}
+
+function commanded(current: GoalRecord, state: GoalRecord['state'], wakes: boolean): GoalRecord {
   const version = current.version + 1
   const request = `resume/${String(current.state.generation)}/${String(version)}`
-  const wake = step.effects.includes('wake') ? ({ kind: 'resume', request } as const) : null
-  return { kind: 'next', record: { ...current, version, state: step.next, wake } }
+  return { ...current, version, state, wake: wakes ? { kind: 'resume', request } : null }
 }
 
 const NUMBERED = ['criteria', 'metrics', 'rules', 'exits', 'references'] as const

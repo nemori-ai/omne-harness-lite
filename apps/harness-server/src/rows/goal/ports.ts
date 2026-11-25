@@ -83,11 +83,20 @@ export function createGoalAuthority(ports: AuthorityPorts): GoalAuthority {
       const checked = checkedPrincipal(caller.subject)
       const standing = await standingOf(ports.verifier(), checked ?? caller.subject, tenant.value)
       if (standing === 'unavailable') return 'unavailable'
-      if (standing === 'none') return 'denied'
-      if (standing === 'person')
-        return checked === undefined && OF_THE_PERSON.has(action) ? 'permitted' : 'denied'
-      const asked = checked === undefined ? OF_THE_AGENT.has(action) : action === 'observe'
-      return standing.session === session && asked ? 'permitted' : 'denied'
+      return allowed(standing, checked !== undefined, session, action) ? 'permitted' : 'denied'
     },
   }
+}
+
+/** What each standing may ask: a person what only a person does; the work of a session what its agent does through its tool; the check of that work only to observe. */
+function allowed(
+  standing: Exclude<Standing, 'unavailable'>,
+  checking: boolean,
+  session: string,
+  action: GoalAction,
+): boolean {
+  if (standing === 'none') return false
+  if (standing === 'person') return !checking && OF_THE_PERSON.has(action)
+  if (standing.session !== session) return false
+  return checking ? action === 'observe' : OF_THE_AGENT.has(action)
 }

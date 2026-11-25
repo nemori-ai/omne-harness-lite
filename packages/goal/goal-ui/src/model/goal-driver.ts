@@ -38,6 +38,12 @@ const timeout: Schedule = (delayMs, run) => {
   const handle = setTimeout(run, delayMs)
   return () => clearTimeout(handle)
 }
+const UNWRITTEN = {
+  'not-committed': { notice: '这次修改没有写下，可以再提交一次。' },
+  invalid: { notice: '正文不合格，没有写下。' },
+} as const
+const issuesOf = (answer: { readonly body?: unknown }): readonly GoalIssue[] =>
+  (answer.body as { readonly issues?: readonly GoalIssue[] } | undefined)?.issues ?? []
 const unsent = { outcome: 'unsent' } as const
 const sent = <T>(call: () => Promise<T>): Promise<T | typeof unsent> =>
   Promise.resolve()
@@ -91,20 +97,11 @@ export class GoalDriver {
     const command = kind === 'settle-by-exit' ? { kind, exit: exit ?? '' } : { kind }
     const body = { ...this.#where, generation: goal.state.generation, command }
     const answer = await sent(() => this.#deps.client['command-goal'](body as never))
-    if (answer.outcome === 'succeeded') {
-      this.#set({ busy: null, ...(answer.body.goal === null ? {} : { goal: answer.body.goal }) })
-      if (answer.body.goal === null) await this.read()
-      return
-    }
-    if (answer.outcome === 'conflict') {
-      this.#set({
-        busy: null,
-        notice: REFUSAL_WORDS[answer.body.reason] ?? '目标现在不接受这件事。',
-      })
-      await this.read()
-      return
-    }
-    await this.#failed(answer.outcome)
+    if (answer.outcome === 'conflict') return this.#refused(answer.body.reason, '这件事')
+    if (answer.outcome !== 'succeeded') return this.#failed(answer.outcome)
+    const after = answer.body.goal
+    this.#set({ busy: null, ...(after === null ? {} : { goal: after }) })
+    if (after === null) await this.read()
   }
 
   async revise(changes: readonly unknown[]): Promise<boolean> {
@@ -113,31 +110,27 @@ export class GoalDriver {
     this.#set({ busy: 'revise', notice: null, issues: [] })
     const operation = (this.#deps.newId ?? (() => crypto.randomUUID()))()
     const proposal = { kind: 'revise' as const, changes: tree }
-    const body = { ...this.#where, operation, proposal, words: null } as never
-    let answer = await sent(() => this.#deps.client['write-goal'](body))
-    if (answer.outcome === 'unknown' || answer.outcome === 'unsent') {
-      const recalled = await sent(() => this.#deps.client['query-write-goal'](body))
-      if (recalled.outcome === 'succeeded') answer = recalled
-      else if (recalled.outcome === 'not-committed') {
-        this.#set({ busy: null, notice: '这次修改没有写下，可以再提交一次。' })
-        return false
-      }
-    }
-    if (answer.outcome === 'succeeded') {
-      this.#set({ busy: null, goal: answer.body.goal })
-      return true
-    }
-    if (answer.outcome === 'invalid') {
-      this.#set({ busy: null, issues: answer.body.issues, notice: '正文不合格，没有写下。' })
-      return false
-    }
-    if (answer.outcome === 'conflict') {
-      this.#set({ busy: null, notice: REFUSAL_WORDS[answer.body.reason] ?? '目标现在不接受修改。' })
-      await this.read()
-      return false
-    }
-    await this.#failed(answer.outcome)
-    return false
+    const answer = await this.#written({ ...this.#where, operation, proposal, words: null })
+    if (answer.outcome === 'succeeded') this.#set({ busy: null, goal: answer.body.goal })
+    else if (answer.outcome === 'conflict') await this.#refused(answer.body.reason, '修改')
+    else if (answer.outcome === 'not-committed' || answer.outcome === 'invalid')
+      this.#set({ busy: null, ...UNWRITTEN[answer.outcome], issues: issuesOf(answer) })
+    else await this.#failed(answer.outcome)
+    return answer.outcome === 'succeeded'
+  }
+
+  /** One write and, when its result is not known, the query of that same write: it is asked after, never sent twice. */
+  async #written(body: object) {
+    const write = await sent(() => this.#deps.client['write-goal'](body as never))
+    if (write.outcome !== 'unknown' && write.outcome !== 'unsent') return write
+    const recalled = await sent(() => this.#deps.client['query-write-goal'](body as never))
+    const told = recalled.outcome === 'succeeded' || recalled.outcome === 'not-committed'
+    return told ? recalled : write
+  }
+
+  async #refused(reason: string, what: string): Promise<void> {
+    this.#set({ busy: null, notice: REFUSAL_WORDS[reason] ?? `目标现在不接受${what}。` })
+    await this.read()
   }
 
   async read(): Promise<void> {
@@ -157,22 +150,11 @@ export class GoalDriver {
     this.#set({ busy: null, notice: outcome === 'unsent' ? UNSENT : (WORDS[outcome] ?? UNSENT) })
   }
 
+  /** Reads at each frame the server sends; when the frames end while somebody still shows the goal, opens them again after a while. */
   async #watch(): Promise<void> {
     const controller = new AbortController()
     this.#watching = controller
-    const frames = this.#deps.client.observe['observe-goal'](this.#where as never, {
-      signal: controller.signal,
-    })
-    let framed = false
-    try {
-      for await (const _frame of frames) {
-        framed = true
-        if (controller.signal.aborted) return
-        await this.read()
-      }
-    } catch {
-      framed = framed || false
-    }
+    const framed = await this.#followed(controller.signal)
     if (controller.signal.aborted || this.#holders === 0) return
     if (!framed) await this.read()
     const schedule = this.#deps.schedule ?? timeout
@@ -180,6 +162,22 @@ export class GoalDriver {
       this.#retry = null
       if (this.#holders > 0) void this.#watch()
     })
+  }
+
+  /** Whether the server sent a frame before the frames ended or failed. */
+  async #followed(signal: AbortSignal): Promise<boolean> {
+    let framed = false
+    try {
+      const frames = this.#deps.client.observe['observe-goal'](this.#where as never, { signal })
+      for await (const _frame of frames) {
+        framed = true
+        if (signal.aborted) break
+        await this.read()
+      }
+    } catch {
+      return framed
+    }
+    return framed
   }
 
   #set(change: Partial<PanelState>): void {

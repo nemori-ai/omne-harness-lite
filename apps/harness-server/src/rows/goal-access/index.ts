@@ -1,4 +1,3 @@
-import type { Context } from '@deepseek-ai/cordis'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import type { GoalEntrance } from '@omne-harness/goal-access'
 import { createGoalAccessPlugin } from '@omne-harness/goal-access/cordis'
@@ -9,9 +8,10 @@ import { defineRow } from '../../row.ts'
 import { goalHolder } from '../goal/holder.ts'
 import { memberActingOfCall } from '../server-entry/identity.ts'
 
+type MemberActing = ReturnType<typeof memberActingOfCall>
+
 /** The person at the panel is a member acting for their own tenant: the goals' authority verifies that principal itself, and the history names the tenant's account. */
-function entrance(ctx: Context): GoalEntrance {
-  const actForMember = memberActingOfCall(ctx)
+export function goalEntrance(actForMember: MemberActing): GoalEntrance {
   return {
     async admit(login, tenant) {
       const text = tenantCodec.encode(tenant)
@@ -27,7 +27,7 @@ function entrance(ctx: Context): GoalEntrance {
 
 const plugin = createGoalAccessPlugin({
   goals: ctx => ctx.get(goalsKey),
-  entrance,
+  entrance: ctx => goalEntrance(memberActingOfCall(ctx)),
   changes: ctx => goalHolder(ctx).changes ?? undefined,
 })
 

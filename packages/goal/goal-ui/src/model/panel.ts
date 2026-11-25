@@ -87,22 +87,29 @@ export type Changes =
 
 const AMOUNT = /^[1-9]\d*$/u
 
+/** The limits of an entry as the form has them: `bad` when one is not a positive whole number, `same` when none moved. */
+function editedLimits(entry: Entry, edits: Edits): readonly Limit[] | 'bad' | 'same' {
+  const before = limitsOf(entry)
+  const texts = before.map((_limit, index) => edits.amounts[amountKey(entry.id, index)]?.trim())
+  if (texts.some(text => text !== undefined && !AMOUNT.test(text))) return 'bad'
+  const after = before.map((limit, index) => ({
+    ...limit,
+    amount: Number(texts[index] ?? limit.amount),
+  }))
+  return after.some((limit, index) => limit.amount !== before[index]?.amount) ? after : 'same'
+}
+
 function replaced(entry: Entry, edits: Edits): Fields | 'unchanged' | 'bad-amount' {
   const { id, ...rest } = entry
-  const statement = edits.statements[id]
-  const limits = limitsOf(entry).map((limit, index) => edits.amounts[amountKey(id, index)])
-  if (limits.some(text => text !== undefined && !AMOUNT.test(text.trim()))) return 'bad-amount'
-  const next = limitsOf(entry).map((limit, index) => {
-    const text = limits[index]
-    return text === undefined ? limit : { ...limit, amount: Number(text.trim()) }
-  })
-  const restated = statement !== undefined && statement.trim() !== entry['statement']
-  const moved = next.some((limit, index) => limit.amount !== limitsOf(entry)[index]?.amount)
-  if (!restated && !moved) return 'unchanged'
+  const limits = editedLimits(entry, edits)
+  if (limits === 'bad') return 'bad-amount'
+  const statement = edits.statements[id]?.trim() ?? entry['statement']
+  const restated = statement !== entry['statement']
+  if (!restated && limits === 'same') return 'unchanged'
   return {
     ...rest,
-    ...(restated ? { statement: statement.trim() } : {}),
-    ...(moved ? { limits: next } : {}),
+    ...(restated ? { statement } : {}),
+    ...(limits === 'same' ? {} : { limits }),
   }
 }
 
@@ -140,25 +147,26 @@ const ENDED: Readonly<Record<string, Standing>> = {
   cancelled: { state: 'cancelled', detail: null },
 }
 
+function pausedFor(pause: GoalStateView['pause']): string {
+  if (pause === null || pause.by === 'person') return '你停的'
+  return VERDICT_WORDS[pause.row ?? 0] ?? '判定让它停下'
+}
+
+function endedBy(outcome: NonNullable<GoalStateView['outcome']>): Standing {
+  if (outcome.kind !== 'exit') return ENDED[outcome.kind] ?? { state: 'stopped', detail: null }
+  const succeeded = outcome.counts === 'success'
+  const counted = succeeded ? '算成功' : '算没做成'
+  return {
+    state: succeeded ? 'completed' : 'failed',
+    detail: `照退出 ${outcome.exit ?? ''} 收场，${counted}`,
+  }
+}
+
 /** How a goal stands: a state of the shared table, and what is particular to goals beside it. An end by an exit never reads as achieved. */
 export function standingOf(state: GoalStateView): Standing {
   if (state.status === 'active') return { state: 'working', detail: null }
-  if (state.status === 'paused') {
-    const pause = state.pause
-    const detail =
-      pause === null || pause.by === 'person'
-        ? '你停的'
-        : (VERDICT_WORDS[pause.row ?? 0] ?? '判定让它停下')
-    return { state: 'paused', detail }
-  }
-  const outcome = state.outcome
-  if (outcome?.kind !== 'exit')
-    return ENDED[outcome?.kind ?? ''] ?? { state: 'stopped', detail: null }
-  const succeeded = outcome.counts === 'success'
-  return {
-    state: succeeded ? 'completed' : 'failed',
-    detail: `照退出 ${outcome.exit ?? ''} 收场，${succeeded ? '算成功' : '算没做成'}`,
-  }
+  if (state.status === 'paused') return { state: 'paused', detail: pausedFor(state.pause) }
+  return state.outcome === null ? { state: 'stopped', detail: null } : endedBy(state.outcome)
 }
 
 /** The exit a paused goal may be settled by: the one whose coming about paused it. */
