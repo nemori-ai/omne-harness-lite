@@ -66,7 +66,7 @@ const ENTRIES: readonly CommandEntry[] = Object.freeze([
     kind: 'system',
     title: '用上这段会话的定义此刻的版本',
     whileRunning: 'now',
-    takesEffect: 'next-run',
+    takesEffect: 'next-request',
   },
 ])
 

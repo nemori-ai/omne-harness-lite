@@ -106,6 +106,7 @@ export interface AgentDrivePort {
     input: DriveTarget & Readonly<{ control: SessionOperationId; intent: Control }>,
   ): DriveReply<DriveReceipt>
   detach(input: DriveTarget & Readonly<{ advance: AdvanceRef }>): DriveReply<DurableEvidence>
+  handOver(input: DriveTarget & Readonly<{ advance: AdvanceRef }>): DriveReply<DurableEvidence>
   recordResult(
     input: DriveTarget &
       Readonly<{
@@ -247,7 +248,12 @@ export type RunAdoption =
     }>
   | Readonly<{ kind: 'keep'; reason: string }>
   | Readonly<{ kind: 'none'; reason: string }>
-export type RunAdoptionInput = Readonly<{ work: WorkSnapshot; run: RunId | null }>
+/** `point` names a reload: the sources read afresh for it, not as the run going on started. */
+export type RunAdoptionInput = Readonly<{
+  work: WorkSnapshot
+  run: RunId | null
+  point?: SessionOperationId
+}>
 export interface SessionEvidenceBridge<P = unknown> {
   prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>
   runAdoption?(access: SessionAccess<P>, input: RunAdoptionInput): Reply<RunAdoption>

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { FreezeVerdict, WorkSnapshot } from '@omne-harness/session-contract'
+import {
+  expectedRevision,
+  type FreezeVerdict,
+  type WorkSnapshot,
+} from '@omne-harness/session-contract'
+import { sessionSlotReference } from '../src/slot-reference.ts'
 import { evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import { memoryBackend } from './fixtures/backends.ts'
 import { harness, type Harness, type HarnessOptions } from './fixtures/harness.ts'
@@ -20,6 +25,62 @@ const read = async (h: Harness): Promise<WorkSnapshot> =>
 
 const reload = (h: Harness, name = 'reload-1') =>
   h.faces('intake').work.reloadSession({ ...h.access(), operation: operationId(name) })
+
+/** A session with a run going on, its Agent drive counted, and a newer version on offer. */
+async function running() {
+  const h = await service()
+  await h.create()
+  await h.accept('input-1')
+  await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('active'))
+  const before = await read(h)
+  const newer = { ...before.definition.adopted, digest: 'sha256:newer' }
+  h.dependencies.evidence.runAdoption = async () => ({
+    ok: { kind: 'adopt' as const, candidate: newer },
+  })
+  const methods: string[] = []
+  h.drive.handOver = counted(methods, 'handOver', h.drive.handOver.bind(h.drive))
+  h.drive.resume = counted(methods, 'resume', h.drive.resume.bind(h.drive))
+  driven.set(h, methods)
+  return { h, before, newer }
+}
+
+const driven = new WeakMap<Harness, string[]>()
+const asked = (h: Harness) => driven.get(h) ?? []
+const counted =
+  <A extends unknown[], R>(into: string[], name: string, call: (...args: A) => R) =>
+  (...args: A): R => {
+    into.push(name)
+    return call(...args)
+  }
+
+async function endRun(h: Harness): Promise<void> {
+  const snapshot = await read(h)
+  if (snapshot.run.kind !== 'active') return
+  const finished = succeeded(
+    await h.backend.transactions.commit({
+      access: h.access(),
+      command: {
+        kind: 'finishRun',
+        input: {
+          ...h.access(),
+          operation: operationId('finish'),
+          run: snapshot.run.run,
+          expected: expectedRevision(snapshot, 'finishRun'),
+          bounded: { kind: 'uninterpretable', evidence: evidence('agent/uninterpretable') },
+        },
+      },
+      guards: [],
+    }),
+    'finishRun',
+  )
+  h.instance.committed({
+    tenant: snapshot.tenant,
+    session: h.access().session,
+    revision: finished.receipt.revision,
+    source: finished.receipt.source,
+    kinds: ['run.terminal'],
+  })
+}
 
 describe('a person reloads a session', () => {
   it('while idle records what the next run adopts, starts no run, and the next run uses it', async () => {
@@ -45,14 +106,127 @@ describe('a person reloads a session', () => {
     })
   })
 
-  it('answers that the run going on takes it at its end, and writes nothing', async () => {
-    const h = await service()
-    await h.create()
-    await h.accept('input-1')
-    await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('active'))
-    const before = await read(h)
-    expect(succeeded(await reload(h), 'reload')).toEqual({ kind: 'next-run' })
-    expect((await read(h)).revision).toBe(before.revision)
+  it('with a run going on, hands it over: the same run goes on in one more attempt, under the new version', async () => {
+    const { h, before, newer } = await running()
+    const answer = succeeded(await reload(h), 'reload')
+    expect(answer.kind).toBe('handed-over')
+    const after = await read(h)
+    if (after.run.kind !== 'active' || before.run.kind !== 'active') throw new Error('no run')
+    expect(after.run.run).toBe(before.run.run)
+    expect(after.run.adoption).toEqual(newer)
+    expect(after.run.advance?.attempt).not.toBe(before.run.advance?.attempt)
+    expect(after.run.advance?.instance).toEqual(sessionSlotReference(h.access().session, newer))
+    expect(asked(h)).toEqual(['handOver', 'resume'])
+  })
+
+  it('refuses a second reload handed the same handover once the first joined it, and writes nothing for it', async () => {
+    const { h, before } = await running()
+    const handOver = h.drive.handOver.bind(h.drive)
+    const firstHanded = Promise.withResolvers<void>()
+    const firstDone = Promise.withResolvers<void>()
+    let calls = 0
+    h.drive.handOver = async input => {
+      calls += 1
+      const call = calls
+      const handed = await handOver(input)
+      if (call === 1) await firstHanded.promise
+      else {
+        firstHanded.resolve()
+        await firstDone.promise
+      }
+      return handed
+    }
+    const first = reload(h, 'reload-1')
+    const second = reload(h, 'reload-2')
+    expect(succeeded(await first, 'first').kind).toBe('handed-over')
+    const joined = await read(h)
+    firstDone.resolve()
+    expect(await second).toEqual({ failure: { kind: 'stale-advance', current: null } })
+    const after = await read(h)
+    expect(after.revision).toBe(joined.revision)
+    if (after.run.kind !== 'active' || before.run.kind !== 'active') throw new Error('no run')
+    expect(BigInt(after.run.ordinal)).toBe(BigInt(before.run.ordinal) + 1n)
+  })
+
+  it('freezes when the new version keeps no resident shape, and the run goes on in the old version untouched', async () => {
+    const { h, before } = await running()
+    const verdict: FreezeVerdict = {
+      cause: 'tool-shape-lost',
+      capability: 'wordcount',
+      evidence: evidence('tool/lost'),
+    }
+    h.dependencies.evidence.runAdoption = async () => ({
+      ok: {
+        kind: 'adopt' as const,
+        candidate: { ...before.definition.adopted, digest: 'sha256:newer' },
+        residentAdoption: { residents: [], keys: [], verdict },
+      },
+    })
+    expect(await reload(h)).toEqual({ failure: { kind: 'frozen', verdict } })
+    expect(asked(h)).toEqual([])
+    const after = await read(h)
+    expect(after.frozen).toMatchObject({ capability: 'wordcount' })
+    if (after.run.kind !== 'active' || before.run.kind !== 'active') throw new Error('no run')
+    expect(after.run.advance).toEqual(before.run.advance)
+    expect(after.run.adoption).toEqual(before.run.adoption)
+  })
+
+  it('does not hand over a run whose cancel came first: the new version waits for the next run', async () => {
+    const { h, before, newer } = await running()
+    if (before.run.kind !== 'active') throw new Error('no run')
+    succeeded(
+      await h.faces('intake').work.cancelRun({
+        ...h.access(),
+        operation: operationId('cancel-1'),
+        run: before.run.run,
+        urgency: 'graceful',
+      }),
+      'cancel',
+    )
+    expect(succeeded(await reload(h), 'reload').kind).toBe('adopted')
+    expect(asked(h)).toEqual([])
+    const after = await read(h)
+    expect(after.run.kind).not.toBe('active')
+    expect(after.definition.adopted).toEqual(newer)
+  })
+
+  it('writes nothing when the Agent does not hand over, and the run goes on as it was', async () => {
+    const { h, before } = await running()
+    h.drive.handOver = async () => ({ failure: { kind: 'stale-advance' } })
+    expect(await reload(h)).toEqual({ failure: { kind: 'stale-advance', current: null } })
+    const after = await read(h)
+    expect(after.revision).toBe(before.revision)
+    expect(after.definition.adopted).toEqual(before.definition.adopted)
+  })
+
+  it('takes the idle branch when the run ends while it is asked', async () => {
+    const { h, newer } = await running()
+    h.drive.handOver = async () => {
+      await endRun(h)
+      return { failure: { kind: 'terminal' } }
+    }
+    expect(succeeded(await reload(h), 'reload').kind).toBe('adopted')
+    const after = await read(h)
+    expect(after.run.kind).not.toBe('active')
+    expect(after.definition.adopted).toEqual(newer)
+  })
+
+  it('writes nothing when the commit is refused after the handover, and the recovery takes the run on in the old version', async () => {
+    const { h, before } = await running()
+    const ran = before.run
+    if (ran.kind !== 'active') throw new Error('no run')
+    const refusal = { kind: 'conflict', operation: operationId('reload-1') } as const
+    h.view.onCommit((input, next) =>
+      input.command.kind === 'reload' ? Promise.resolve({ failure: refusal }) : next(),
+    )
+    expect(await reload(h)).toEqual({ failure: refusal })
+    await vi.waitFor(async () => {
+      const after = await read(h)
+      if (after.run.kind !== 'active') throw new Error('no run')
+      expect(after.run.advance?.attempt).not.toBe(ran.advance?.attempt)
+      expect(after.run.adoption).toEqual(ran.adoption)
+      expect(after.definition.adopted).toEqual(before.definition.adopted)
+    })
   })
 
   it('keeps the adoption and says why when the new version cannot be used', async () => {

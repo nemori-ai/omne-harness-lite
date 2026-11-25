@@ -543,3 +543,9 @@ export function resolveOperation(
 }
 
 export type { GuardCommand, SessionCommand }
+
+export const cancelEstablished = (snapshot: Pick<WorkSnapshot, 'controls'>, run: string): boolean =>
+  snapshot.controls.some(
+    ({ intent }) =>
+      intent.kind === 'control' && intent.value.kind === 'cancel-run' && intent.value.run === run,
+  )

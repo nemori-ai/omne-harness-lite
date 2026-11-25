@@ -1121,7 +1121,7 @@ export declare const sessionProtocol: {
         readonly 'reload-session': {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
-                    readonly kind: "adopted" | "next-run" | "no-change";
+                    readonly kind: "adopted" | "handed-over" | "no-change";
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly reason: string;
@@ -1130,7 +1130,9 @@ export declare const sessionProtocol: {
                 readonly frozen: import("@omne-harness/public-contract").Codec<{
                     readonly capability: string | null;
                 }>;
-                readonly conflict: import("@omne-harness/public-contract").Codec<{}>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: "cancelled" | "changed" | "not-current";
+                }>;
                 readonly "basis-unavailable": true;
                 readonly denied: true;
                 readonly "protocol-rejected": true;

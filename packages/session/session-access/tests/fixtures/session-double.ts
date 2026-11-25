@@ -369,6 +369,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       record('reloadSession', input, {})
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'reloadSession' })
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'reloadSession' })
+      if (forcedFailure !== undefined) return fail(forcedFailure)
       return succeed({ kind: 'no-change' as const })
     },
     async accept(input) {

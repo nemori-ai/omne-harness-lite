@@ -69,6 +69,12 @@ export type DriveOperationElements =
   | Readonly<{ kind: 'submit'; execution: string; input: InputId }>
   | Readonly<{ kind: 'resume'; execution: string; grant: DurableEvidence }>
   | Readonly<{ kind: 'detach'; execution: string; advance: AdvanceRef }>
+  | Readonly<{
+      kind: 'hand-over'
+      execution: string
+      advance: AdvanceRef
+      reload: SessionOperationId
+    }>
   | Readonly<{ kind: 'control'; execution: string; control: SessionOperationId }>
   | Readonly<{
       kind: 'recordResult'

@@ -125,7 +125,7 @@ const successBodies: Samples = {
     { kind: 'unarchived', controlId: 'control' },
     { kind: 'not-archived', controlId: 'control' },
   ],
-  'reload-session': [{ kind: 'adopted' }, { kind: 'no-change' }, { kind: 'next-run' }],
+  'reload-session': [{ kind: 'handed-over' }, { kind: 'adopted' }, { kind: 'no-change' }],
   'cancel-run': [
     { kind: 'requested', controlId: 'control', run: 'run-1' },
     {
@@ -236,7 +236,8 @@ describe('outcome bodies', () => {
     for (const name of operations)
       for (const [outcome, codec] of Object.entries(sessionProtocol.operations[name].outcomes)) {
         if (outcome === 'succeeded' || outcome === 'limited' || codec === true) continue
-        if (name === 'reload-session' && (outcome === 'invalid' || outcome === 'frozen')) continue
+        if (name === 'reload-session' && ['invalid', 'frozen', 'conflict'].includes(outcome))
+          continue
         expect(expectRoundTrip(codec, {})).toEqual({})
         if (outcome === 'invalid' && (name === 'send-input' || name === 'interrupt-input')) continue
         expect(readNew(codec, { reason: 'x' })).toEqual({ ok: false })
@@ -255,6 +256,14 @@ describe('reload-session', () => {
     })
     expect(expectRoundTrip(outcomes.frozen, { capability: null })).toEqual({ capability: null })
     expect(readNew(outcomes.invalid, {})).toEqual({ ok: false })
+  })
+
+  it('says why the run could not be handed over: a cancel came first, another advancer, or the session moved', () => {
+    const { outcomes } = sessionProtocol.operations['reload-session']
+    for (const reason of ['cancelled', 'not-current', 'changed'])
+      expect(expectRoundTrip(outcomes.conflict, { reason })).toEqual({ reason })
+    expect(readNew(outcomes.conflict, { reason: 'other' })).toEqual({ ok: false })
+    expect(readNew(outcomes.conflict, {})).toEqual({ ok: false })
   })
 })
 

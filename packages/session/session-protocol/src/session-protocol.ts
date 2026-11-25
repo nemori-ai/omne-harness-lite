@@ -776,12 +776,14 @@ export const sessionProtocol = defineProtocol({
       body: ruleCodec(object({ ...target, controlId: { rule: text } })),
       outcomes: {
         succeeded: ruleCodec(
-          object({ kind: { rule: literal('adopted', 'no-change', 'next-run') } }),
+          object({ kind: { rule: literal('handed-over', 'adopted', 'no-change') } }),
         ),
         invalid: ruleCodec(object({ reason: { rule: anyText } })),
         archived: empty,
         frozen: ruleCodec(object({ capability: { rule: nullable(text) } })),
-        conflict: empty,
+        conflict: ruleCodec(
+          object({ reason: { rule: literal('cancelled', 'not-current', 'changed') } }),
+        ),
       },
       countsAsAccess: true,
       since: 4,

@@ -177,6 +177,7 @@ export type {
 } from './ports.ts'
 export { sessionModesBlock } from './block.ts'
 export {
+  cancelEstablished,
   expectedHolds,
   expectedRevision,
   judgeAdvance,

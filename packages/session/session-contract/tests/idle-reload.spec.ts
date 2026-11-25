@@ -110,3 +110,70 @@ describe('a reload that names no run', () => {
     })
   })
 })
+
+describe('a reload that names the run going on', () => {
+  const named = (base: Base, snapshot: WorkSnapshot): SessionCommand => {
+    if (snapshot.run.kind !== 'active') throw new Error('no run')
+    return {
+      kind: 'reload',
+      input: {
+        ...base,
+        operation: operationId('reload-run'),
+        run: snapshot.run.run,
+        expected: expectedRevision(snapshot, 'reload'),
+        instance: { owner: 'agent', id: 'reload' },
+        candidate: { ...snapshot.run.adoption, digest: 'sha256:newer' },
+        handover: evidence('handover'),
+      },
+    }
+  }
+  const cancelOf = (snapshot: WorkSnapshot, run: string): WorkSnapshot =>
+    ({
+      ...snapshot,
+      controls: [
+        {
+          operation: operationId('cancel'),
+          target: { kind: 'run', run },
+          intent: { kind: 'control', value: { kind: 'cancel-run', run, urgency: 'graceful' } },
+          state: 'propagating',
+          pending: [],
+        },
+      ],
+    }) as unknown as WorkSnapshot
+
+  it('records the adoption, releases the old attempt and starts one for the reload, in one decision', async () => {
+    const s = await open()
+    const { snapshot } = await s.active()
+    expect(kinds(decide(snapshot, named(s.base, snapshot), [], null, reads))).toEqual([
+      'session.adoption',
+      'run.attempt-released',
+      'run.attempt-started',
+    ])
+  })
+
+  it('is refused when the attempt it read moved', async () => {
+    const s = await open()
+    const { snapshot } = await s.active()
+    const command = named(s.base, snapshot) as Extract<SessionCommand, { kind: 'reload' }>
+    const moved = { ...command, input: { ...command.input, expected: '999' as never } }
+    expect(decide(snapshot, moved, [], null, reads)).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'changed' },
+    })
+  })
+
+  it('is refused once a cancel of that run is committed, and not for a cancel of another run', async () => {
+    const s = await open()
+    const { snapshot } = await s.active()
+    if (snapshot.run.kind !== 'active') throw new Error('no run')
+    const cancelled = cancelOf(snapshot, snapshot.run.run)
+    expect(decide(cancelled, named(s.base, cancelled), [], null, reads)).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'cancelled' },
+    })
+    const elsewhere = cancelOf(snapshot, 'run_another')
+    expect(kinds(decide(elsewhere, named(s.base, elsewhere), [], null, reads))).toContain(
+      'run.attempt-started',
+    )
+  })
+})

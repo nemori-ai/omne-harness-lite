@@ -365,6 +365,7 @@
 - `callKeysIn` · 包 `@omne-harness/session-contract`
 - `callKeysOutside` · 包 `@omne-harness/session-contract`
 - `callWithLate` · 包 `@omne-harness/session-contract`
+- `cancelEstablished` · 包 `@omne-harness/session-contract`
 - `cancellationDriveOf` · 包 `@omne-harness/session-contract`
 - `childRecorded` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
@@ -778,6 +779,7 @@ export declare abstract class AgentDrivePortService extends Service implements A
     abstract readonly resume: AgentDrivePort['resume'];
     abstract readonly control: AgentDrivePort['control'];
     abstract readonly detach: AgentDrivePort['detach'];
+    abstract readonly handOver: AgentDrivePort['handOver'];
     abstract readonly recordResult: AgentDrivePort['recordResult'];
     abstract readonly query: AgentDrivePort['query'];
     abstract readonly inspect: AgentDrivePort['inspect'];

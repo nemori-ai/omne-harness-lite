@@ -350,6 +350,7 @@
 - `callKeysIn` · `call-settlement.d.ts`
 - `callKeysOutside` · `call-settlement.d.ts`
 - `callWithLate` · `call-settlement.d.ts`
+- `cancelEstablished` · `judgments.d.ts`
 - `cancellationDriveOf` · `decision-support.d.ts`
 - `childRecorded` · `standing.d.ts`
 - `commandDigest` · `decide.d.ts`
@@ -1903,7 +1904,7 @@ export type SessionFailure = Readonly<{
     kind: 'frozen';
     verdict: FreezeVerdict | null;
 }> | Readonly<{
-    kind: 'archived' | 'no-input' | 'run-active' | 'not-ready' | 'login-required' | 'not-found' | 'nothing-pending';
+    kind: 'archived' | 'no-input' | 'run-active' | 'not-ready' | 'login-required' | 'not-found' | 'nothing-pending' | 'cancelled';
 }>;
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>;
 export type CommitReceipt = Readonly<{
@@ -1934,7 +1935,8 @@ export type ReloadOutcome = Readonly<{
 }> | Readonly<{
     kind: 'no-change';
 }> | Readonly<{
-    kind: 'next-run';
+    kind: 'handed-over';
+    receipt: CommitReceipt;
 }>;
 export type StartedRun = Readonly<{
     receipt: CommitReceipt;
@@ -2672,7 +2674,7 @@ export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt, } from './interpretation-values.ts';
 export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, RunAdoption, RunAdoptionInput, SessionAdoptionPlanAnswer, SessionAdoptionPlanInput, SessionAdoptionRecorded, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionCallControl, SessionCallStates, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionTransactionPort, SessionWorkPrincipals, } from './ports.ts';
 export { sessionModesBlock } from './block.ts';
-export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, judgeWaiting, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
+export { cancelEstablished, expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, judgeWaiting, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest, runIdOf } from './decide.ts';
 export { RELATIONS_TO_REFERENCE, relationToReference, type DirectoryStanding, type RelationToReference, } from './directory-relation.ts';
 export { MAX_SESSION_DEPTH, childRecorded, judgeStanding, relatedOf, relatedSessionOf, standingOf, type ChildRecord, type RelatedSession, } from './standing.ts';
@@ -3368,6 +3370,7 @@ export declare function judgeIdle(snapshot: WorkSnapshot, input: Readonly<{
 }>): IdleJudgment;
 export declare function resolveOperation(record: OperationRecord | null, operation: SessionOperationId, digest: string): OperationJudgment;
 export type { GuardCommand, SessionCommand };
+export declare const cancelEstablished: (snapshot: Pick<WorkSnapshot, 'controls'>, run: string) => boolean;
 ```
 
 ## 声明文件 `log-interpretation.d.ts`
@@ -3570,6 +3573,11 @@ export type DriveOperationElements = Readonly<{
     execution: string;
     advance: AdvanceRef;
 }> | Readonly<{
+    kind: 'hand-over';
+    execution: string;
+    advance: AdvanceRef;
+    reload: SessionOperationId;
+}> | Readonly<{
     kind: 'control';
     execution: string;
     control: SessionOperationId;
@@ -3764,6 +3772,9 @@ export interface AgentDrivePort {
     detach(input: DriveTarget & Readonly<{
         advance: AdvanceRef;
     }>): DriveReply<DurableEvidence>;
+    handOver(input: DriveTarget & Readonly<{
+        advance: AdvanceRef;
+    }>): DriveReply<DurableEvidence>;
     recordResult(input: DriveTarget & Readonly<{
         consumption: ConsumptionId;
         result: ProducedResult;
@@ -3873,6 +3884,7 @@ export type RunAdoption = Readonly<{
 export type RunAdoptionInput = Readonly<{
     work: WorkSnapshot;
     run: RunId | null;
+    point?: SessionOperationId;
 }>;
 export interface SessionEvidenceBridge<P = unknown> {
     prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>;
@@ -4187,8 +4199,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:3401d7efdfb352f15f2ba8ad52e09dbdac2dfc1df4b82c957f0e80eae2c20c40";
-export declare const SESSION_RELEASE_DIGEST = "sha256:3401d7efdfb352f15f2ba8ad52e09dbdac2dfc1df4b82c957f0e80eae2c20c40";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:0a6706c32c3b53569d2880b12fab8170d08dd96ce33780888597cf2ab176fca9";
+export declare const SESSION_RELEASE_DIGEST = "sha256:0a6706c32c3b53569d2880b12fab8170d08dd96ce33780888597cf2ab176fca9";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

@@ -83,6 +83,7 @@ export type SessionFailure =
         | 'login-required'
         | 'not-found'
         | 'nothing-pending'
+        | 'cancelled'
     }>
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>
 export type CommitReceipt = Readonly<{
@@ -102,7 +103,7 @@ export type EntryClass = 'interactive' | 'dispatch'
 export type ReloadOutcome =
   | Readonly<{ kind: 'adopted'; receipt: CommitReceipt }>
   | Readonly<{ kind: 'no-change' }>
-  | Readonly<{ kind: 'next-run' }>
+  | Readonly<{ kind: 'handed-over'; receipt: CommitReceipt }>
 export type StartedRun = Readonly<{
   receipt: CommitReceipt
   advance: AdvanceRef

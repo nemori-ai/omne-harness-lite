@@ -120,13 +120,6 @@ export function createSessionInstance<P>(
     facesOf.get(caller) ?? made(caller)
   const faces = { coordinator: facesFor('coordinator'), maintainer: facesFor('maintainer') }
   const scheduling = createScheduling(dependencies, lifecycle)
-  reloading = createReload({
-    dependencies,
-    scheduling,
-    reads,
-    handle,
-    coordinator: faces.coordinator,
-  })
   const resolution = createResolution({
     lifecycle,
     policy,
@@ -140,6 +133,14 @@ export function createSessionInstance<P>(
     scheduling,
     coordinator: faces.coordinator,
     known,
+  })
+  reloading = createReload({
+    dependencies,
+    scheduling,
+    reads,
+    handle,
+    coordinator: faces.coordinator,
+    recovery,
   })
   const wired = createAdvance({
     dependencies,

@@ -48,7 +48,7 @@ describe('the commands the session brings', () => {
       ['model', 'system', [{ name: '模型名', candidates: true }], 'now', 'next-request'],
       ['permission', 'system', [{ name: '模式', candidates: true }], 'now', 'now'],
       ['archive', 'system', undefined, 'now', 'now'],
-      ['reload', 'system', undefined, 'now', 'next-run'],
+      ['reload', 'system', undefined, 'now', 'next-request'],
     ])
   })
 

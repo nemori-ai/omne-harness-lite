@@ -26,5 +26,14 @@ export async function reloadSession(
   if (failure.kind === 'invalid') return { outcome: 'invalid', body: { reason: failure.reason } }
   if (failure.kind === 'frozen')
     return { outcome: 'frozen', body: { capability: failure.verdict?.capability ?? null } }
+  const reason = CONFLICTS[failure.kind]
+  if (reason !== undefined) return { outcome: 'conflict', body: { reason } }
   return refused('reload-session', failure)
+}
+
+const CONFLICTS: Readonly<Record<string, 'cancelled' | 'not-current' | 'changed'>> = {
+  cancelled: 'cancelled',
+  'stale-advance': 'not-current',
+  changed: 'changed',
+  conflict: 'changed',
 }

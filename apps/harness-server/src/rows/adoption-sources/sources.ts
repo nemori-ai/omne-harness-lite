@@ -396,17 +396,18 @@ async function runAdoption<P>(
   runSources: AdoptionPorts,
   mappings: Mappings,
   access: SessionAccess<P>,
-  { work, run }: RunAdoptionInput,
+  { work, run, point }: RunAdoptionInput,
 ): Promise<Outcome<RunAdoption, SessionFailure>> {
   const { name, adopted: pinned } = work.definition
   let entry = mappings.byName(name)
   let turn: Turn | null = null
+  const key = point ?? run
   if (entry === undefined) {
     const given = access as SessionAccess<unknown>
-    if (run !== null) {
-      const failed = await adoptWorkspace(runSources, given, work, run)
+    if (key !== null) {
+      const failed = await adoptWorkspace(runSources, given, work, key)
       if (failed !== null) runSources.report(failed)
-      turn = { access: given, key: run }
+      turn = { access: given, key }
     }
     const asker = { tenant: access.tenant, ...(turn === null ? {} : { turn }) }
     const read = await mappings.named(asker, name)

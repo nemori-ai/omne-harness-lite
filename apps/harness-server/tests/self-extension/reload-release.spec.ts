@@ -1,64 +1,21 @@
 // @module-tag slow
 // Starts the release tree: a person reloads an idle session, by the protocol and by /reload; the next run uses the new version.
-import { tenantCodec } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
-import { agents, cliOk, extensions, files, plan } from '../support/planned-model.ts'
-import { history, pollUntil, type ReleaseTree } from '../support/release-tree.ts'
-import { inWorkspace, otherTenant, recordingModel, write } from './support.ts'
-
-const definition = (mark: string) => `---
-name: noter
-summary: Says back what it is told.
-references:
-  - { category: tool, name: Files, resident: true }
----
-You say back what you are told. ${mark}
-`
-
-const publish = (id: string) =>
-  extensions('publish', { id, category: 'AgentDefinition', name: 'noter', dir: 'work/noter' })
-const replace = (path: string, text: string) => files('write', { path, text, mode: 'replace' })
-
-type Ask = Parameters<Parameters<typeof inWorkspace>[0]>[0]
-type Entry = Awaited<ReturnType<typeof history>>[number]
-const of = (entries: readonly Entry[], kind: string) => entries.filter(item => item.kind === kind)
-const adoptionOf = (item: Entry | undefined) =>
-  (item?.payload as { adoption?: { digest?: string } } | undefined)?.adoption?.digest
-
-async function noterSession(ask: Ask, tree: ReleaseTree): Promise<string> {
-  await ask([write('work/noter/AGENT.md', definition('MARK-ONE'))], [publish('op-1')])
-  await ask([agents('dispatch', { mode: 'delegate', agent: 'noter', instruction: plan() })])
-  const listed = await pollUntil(
-    'the session of the noter to be listed',
-    async () => (await cliOk(tree, ['list-sessions', '--definition', 'noter'])).body,
-    body => JSON.stringify(body).includes('"definition":"noter"'),
-  )
-  const child = /"session":"([0-9a-f]{64})"/u.exec(JSON.stringify(listed))?.[1] ?? ''
-  await pollUntil(
-    'the first run of the noter to end',
-    () => history(tree.port, tree.home, child),
-    seen => of(seen, 'run.terminal').length >= 1,
-  )
-  return child
-}
-
-const ownerOf = (tree: ReleaseTree): string => {
-  const owner = tenantCodec.encode(tree.registrar().tenant)
-  if (!owner.ok) throw new Error('the tenant of the tree has no text')
-  return owner.value
-}
-const reload = (tree: ReleaseTree, session: string, controlId: string) =>
-  tree.cli([
-    'reload-session',
-    '--session',
-    session,
-    '--control-id',
-    controlId,
-    '--tenant',
-    ownerOf(tree),
-  ])
-const say = (tree: ReleaseTree, session: string, text: string) =>
-  cliOk(tree, ['send-input', '--session', session, '--text', text, '--tenant', ownerOf(tree)])
+import { plan } from '../support/planned-model.ts'
+import { history, pollUntil } from '../support/release-tree.ts'
+import {
+  adoptionOf,
+  definition,
+  noterSession,
+  of,
+  ownerOf,
+  publish,
+  published,
+  reload,
+  replace,
+  say,
+} from './noter.ts'
+import { inWorkspace, otherTenant, recordingModel } from './support.ts'
 
 describe('a person reloads an idle session, on the release tree', () => {
   it(
@@ -71,6 +28,7 @@ describe('a person reloads an idle session, on the release tree', () => {
           const child = await noterSession(ask, tree)
           const first = of(await history(tree.port, tree.home, child), 'run.started')
           await ask([replace('work/noter/AGENT.md', definition('MARK-TWO'))], [publish('op-2')])
+          await published(model.bodies, 'op-2')
           const reloaded = await reload(tree, child, 'reload-1')
           expect(JSON.parse(reloaded.stdout)).toMatchObject({
             outcome: 'succeeded',
@@ -124,6 +82,7 @@ describe('a person reloads an idle session, on the release tree', () => {
         async (ask, tree) => {
           const child = await noterSession(ask, tree)
           await ask([replace('work/noter/AGENT.md', definition('MARK-TWO'))], [publish('op-2')])
+          await published(model.bodies, 'op-2')
           const requests = model.bodies.length
           await say(tree, child, '/reload')
           const recorded = await pollUntil(
