@@ -43,8 +43,20 @@
   pointer-events: auto;
 }
 
-.omne-figure-carried:is([data-phase='flying'], [data-phase='away']) .omne-figure-reach {
+.omne-figure-carried:is([data-phase='flying'], [data-phase='dropped'], [data-phase='away'])
+  .omne-figure-reach {
   pointer-events: none;
+}
+
+.omne-figure-vacant {
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--omne-radius-pill);
+  background: transparent;
+  pointer-events: auto;
 }
 
 .omne-figure-carried .omne-figure-ink,
