@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { expect, it, vi } from 'vitest'
+import type { Layouts } from '@omne-harness/usage-ui'
 import type { createUsageUiModule as Create } from '@omne-harness/usage-ui/cordis'
 
 const given = vi.hoisted(() => ({ options: [] as Parameters<typeof Create>[0][] }))
@@ -24,7 +25,7 @@ it('reads usage again every 60 seconds and keeps the layouts in the local storag
     setItem: (key: string, value: string) => void kept.set(key, value),
   }
   Object.defineProperty(window, 'localStorage', { value: local, configurable: true })
-  const layouts = { tenant: [{ widget: 'usage.summary', width: 3, presentation: null }] }
+  const layouts: Layouts = { tenant: [{ widget: 'usage.summary', width: 3, presentation: null }] }
   options?.store?.write(layouts)
   expect(JSON.parse(kept.get(USAGE_LAYOUTS_KEY) ?? 'null')).toEqual(layouts)
   expect(options?.store?.read()).toEqual(layouts)
