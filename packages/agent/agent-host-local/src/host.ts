@@ -60,6 +60,7 @@ import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { AgentHostConfig } from './host-config.ts'
 import { deadlineOf, nestedEntry } from './nested-entry.ts'
 import { stagePort } from './stage-ports.ts'
+import { contactOf } from './contact.ts'
 
 export type RuntimeFactory = (
   dependencies: AgentDependencies<unknown, ContentBlock>,
@@ -922,9 +923,8 @@ export function createHost(input: HostInput): Host {
     contact: request =>
       throughJournal<Contact>(request, 'load', onExecution(request.execution), async () => {
         const { instance } = request.authority
-        if (liveRuntimeOf(request.tenant, instance) !== undefined) return succeed({ kind: 'live' })
-        const evidence = input.lostContact?.(instance) ?? null
-        return succeed(evidence === null ? { kind: 'unknown' } : { kind: 'lost', evidence })
+        const running = liveRuntimeOf(request.tenant, instance)?.reported
+        return succeed(contactOf(OWNER, running, request, () => input.lostContact?.(instance)))
       }),
   }
 

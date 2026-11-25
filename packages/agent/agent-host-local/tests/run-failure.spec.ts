@@ -146,19 +146,14 @@ describe('a run that stops on a node failure', () => {
     expect(loaded.state.kind).not.toBe('ended')
   })
 
-  it('answers the ordered stop incomplete and names the failed execution, node and failure', async () => {
-    const { host, instance } = await failing()
+  // The halted drive gave its slot back (D-31), so the runtime holds nothing at the ordered stop:
+  // the stop settles. The failure was already told once, when the drive halted.
+  it('settles the ordered stop: the halted execution is no longer held by the runtime', async () => {
+    const { host } = await failing()
     await until(() => runFailed(host).length > 0)
     const answer = await host.plugin.quiesceAll({ signal: new AbortController().signal })
-    const reason =
-      `quiesce left 1 execution(s) unresolved: ${EXECUTION} ` +
-      '(run stopped: node=F3 failure=invalid)'
-    expect(answer).toEqual({
-      kind: 'incomplete',
-      detail: `${instance}: ${reason}`,
-      instances: [{ instance, reason }],
-    })
-    expect(host.errors).toContain(`ordered stop left 1 unsettled: ${instance}: ${reason}`)
+    expect(answer).toEqual({ kind: 'settled' })
+    expect(host.errors.filter(line => line.includes('ordered stop left'))).toEqual([])
     expect(runFailed(host)).toHaveLength(1)
   })
 })

@@ -17,8 +17,9 @@
 (*                                                                         *)
 (* Bug switches each make one negative control; all FALSE is the design.   *)
 (* `FailTerminates` is not a bug: TRUE is the ought (a node failure ends   *)
-(* the run as failed and frees the slot, D-31), FALSE is the is (R2-D285:  *)
-(* the slot is marked failed and reported once, the run is not ended).     *)
+(* the run as failed and frees the slot, D-31), FALSE is the is on the     *)
+(* closing nodes (R2-D285): the drive stops, tells once and gives the slot *)
+(* back; the run is not ended and stays open for a later attachment.       *)
 (*                                                                         *)
 (* The owner of every rule is packages/agent/agent-contract/SPEC.md and    *)
 (* the Loop algorithm page; the mapping is in README.md next to this file. *)
@@ -55,7 +56,7 @@ VARIABLES
   acts,  \* the actions of the step, one record each
   w,     \* the wait: asleep, woken, timer wakes, ticks
   env,   \* the environment: receiver, crashes, refusals, rejections, unknown answers
-  run    \* the slot of the runtime: running / failed / free, stopped, reports
+  run    \* the slot of the runtime: running / free, stopped, reports
 vars == <<d, m, acts, w, env, run>>
 
 NoAct == [adm |-> "none", intent |-> FALSE, inflight |-> FALSE, logical |-> 0,
@@ -71,7 +72,7 @@ Advance(next, delta) ==
   d' = [d EXCEPT !.node = next, !.ckpt = next, !.commits = @ + delta]
 
 (* The storage refused the commit (command_limit, ...): nothing was written and the node
-   failed. Ought: the run ends as failed. Is: the slot is marked failed and reported once.
+   failed. Ought: the run ends as failed. Is: the drive stops, reports once and frees the slot.
    Bug: the drive stops and nobody is told. *)
 Refuse ==
   /\ env.refusals < MaxRefuse
@@ -82,7 +83,7 @@ Refuse ==
      ELSE IF DriverSwallows
        THEN /\ run' = [run EXCEPT !.stopped = TRUE]
             /\ UNCHANGED d
-     ELSE /\ run' = [run EXCEPT !.stopped = TRUE, !.slot = "failed", !.reported = @ + 1]
+     ELSE /\ run' = [run EXCEPT !.stopped = TRUE, !.slot = "free", !.reported = @ + 1]
           /\ UNCHANGED d
 
 Allowed(i) == i <= d.actions /\ acts[i].adm = "allowed"
@@ -418,7 +419,7 @@ TypeOK ==
   /\ d.barrier \in {"none", "open", "all-denied"}
   /\ d.endReason \in {"none", "complete", "guard", "failed"}
   /\ m.res \in Results /\ \A i \in Acts : acts[i].res \in Results
-  /\ run.slot \in {"running", "failed", "free"}
+  /\ run.slot \in {"running", "free"}
 
 (* P1 at most once: for one step, the Model receives at most one logical main call; for one
    action, the Tool receives at most one logical invocation. Crashes, lost answers and
@@ -431,8 +432,8 @@ P2_StepBound == d.step <= MaxRunSteps /\ d.requests <= MaxRunSteps
 P2_GuardAtLimit == d.endReason = "guard" => d.step = MaxRunSteps
 P2_CompleteIsFinal == d.endReason = "complete" => (d.reply = "admitted" /\ d.actions = 0)
 
-(* P3 failure is not silent: a stopped drive leaves the slot failed and one report. *)
-P3_StopVisible == run.stopped => (run.slot = "failed" /\ run.reported = 1)
+(* P3 failure is not silent and holds nothing: a stopped drive told once and gave the slot back. *)
+P3_StopVisible == run.stopped => (run.slot = "free" /\ run.reported = 1)
 P3_ReportedOnce == run.reported <= 1
 
 (* P4 the committed result wakes the waiting drive; a produced result is never lost. *)

@@ -327,7 +327,11 @@ export function openWork(snapshot: WorkSnapshot): OpenWork {
   }
 }
 
-export function judgeCompletion(snapshot: WorkSnapshot, execution: string): CompletionJudgment {
+export function judgeCompletion(
+  snapshot: WorkSnapshot,
+  execution: string,
+  conclusion: 'complete' | 'failed' | 'cancelled' = 'complete',
+): CompletionJudgment {
   const terminal =
     snapshot.executions?.find(item => item.execution.execution === execution)?.terminal ??
     (snapshot.executions === undefined ? terminalOf(snapshot) : null)
@@ -337,6 +341,7 @@ export function judgeCompletion(snapshot: WorkSnapshot, execution: string): Comp
       : { kind: 'terminal', terminal }
   if (snapshot.run.kind !== 'active' || snapshot.run.execution.execution !== execution)
     return { kind: 'allowed' }
+  if (conclusion === 'failed') return { kind: 'allowed' }
   const handed = new Set([...snapshot.handed, ...heldBack(snapshot)])
   const pendingInputs = snapshot.pending.filter(input => !handed.has(input))
   return pendingInputs.length === 0 ? { kind: 'allowed' } : { kind: 'blocked', pendingInputs }

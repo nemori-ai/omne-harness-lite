@@ -7,7 +7,7 @@ import {
   encodeToolInvocationRef,
   type ToolState,
 } from '@omne-harness/tool-contract'
-import { execution, ok } from './journal-support.ts'
+import { acceptedInput, execution, ok, operation } from './journal-support.ts'
 import { alice, eventually, invoke } from './loop-support.ts'
 import {
   associatedTools,
@@ -60,9 +60,19 @@ async function looping(configuration: { maxRunSteps?: number } = {}) {
     )
     return { kind: 'accepted', reference, state: {} as ToolState, recovered: false }
   })
-  ok(await invoke(assembly))
+  const handle = ok(await invoke(assembly))
+  handles.set(assembly, handle)
   return assembly
 }
+
+const handles = new WeakMap<
+  object,
+  Awaited<ReturnType<typeof invoke>> extends infer R
+    ? R extends { ok: infer H }
+      ? H
+      : never
+    : never
+>()
 
 async function toolStep(assembly: Assembly, k: number) {
   await deliverModelReply(assembly, [toolCall(`tool-call-${k}`, 'read_file')], `tools-${k}`)
@@ -129,6 +139,30 @@ describe('the step limit of one execution', () => {
     expectStepLimitFailure(read, 2)
     expect(await steps(assembly)).toBe(2)
     expect(read.checkpoint.calls.some(call => call.kind === 'model')).toBe(false)
+  })
+
+  // The limit forbids taking more inputs, so an input accepted meanwhile cannot hold the end back:
+  // the run still ends with the guard failure and the input stays held, untaken.
+  it('ends at the limit although an input accepted meanwhile was not taken', async () => {
+    const assembly = await looping({ maxRunSteps: 2 })
+    await toolStep(assembly, 1)
+    const handle = handles.get(assembly)
+    if (handle === undefined) throw new Error('no handle')
+    await deliverModelReply(assembly, [toolCall('tool-call-2', 'read_file')], 'tools-2')
+    const [pending] = await associatedTools(assembly, 1)
+    if (pending === undefined) throw new Error('no associated Tool call at the last step')
+    ok(
+      await handle.input.submit({
+        ...alice,
+        execution: handle.execution,
+        operation: operation('submit-late'),
+        value: acceptedInput('input-late', 'queued while the run was at its limit'),
+      }),
+    )
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'r2' })))
+    const read = await ended(assembly)
+    expectStepLimitFailure(read, 2)
+    expect(await steps(assembly)).toBe(2)
   })
 
   it('negative control: a higher limit opens the third step for the same script', async () => {

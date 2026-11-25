@@ -556,13 +556,13 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         return { kind: 'terminal' }
     }
     if (method === 'tryFinish') {
-      const finish = input as Parameters<AgentJournal<P>['tryFinish']>[0]
-      const checked = judgeCompletion(state.snapshot, input.execution)
-      if (finish.authorization.kind === 'cancel' && checked.kind === 'cancelled') {
+      const { intent, authorization } = input as Parameters<AgentJournal<P>['tryFinish']>[0]
+      const ended = intent.conclusion.kind === 'fail' ? 'failed' : intent.conclusion.kind
+      const checked = judgeCompletion(state.snapshot, input.execution, ended)
+      if (authorization.kind === 'cancel' && checked.kind === 'cancelled') {
         if (
-          finish.intent.conclusion.kind !== 'cancelled' ||
-          cancellationDriveOf(checked.terminal, input.execution) !==
-            String(finish.authorization.control)
+          ended !== 'cancelled' ||
+          cancellationDriveOf(checked.terminal, input.execution) !== String(authorization.control)
         )
           return { kind: 'changed' }
       } else if (checked.kind !== 'allowed') return { kind: 'changed' }

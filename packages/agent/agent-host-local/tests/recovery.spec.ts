@@ -9,13 +9,13 @@ import {
   type AgentCheckpoint,
   type AgentExecutionId,
   type AgentInstanceId,
+  type AgentState,
   type DurableEvidence,
   type OriginalInputAcceptance,
 } from '@omne-harness/agent-contract'
 import { judgeMessage } from '@omne-harness/message'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createAgentHostLocalPlugin } from '../src/cordis.ts'
-import { caller, ok, openWorld, slotOf, turns, type World } from './host-support.ts'
+import { caller, occupied, ok, openWorld, slotOf, turns, type World } from './host-support.ts'
 
 const opened: World[] = []
 afterEach(async () => {
@@ -203,7 +203,7 @@ describe('the recovery entry', () => {
 
 describe('the judgment of the runtime that holds an attachment (contact)', () => {
   async function provingWorld(lostContact: (instance: AgentInstanceId) => DurableEvidence | null) {
-    const made = await openWorld({ plugin: createAgentHostLocalPlugin({ lostContact }) })
+    const made = await openWorld({ factory: 'duties', lostContact })
     opened.push(made)
     return made
   }
@@ -218,8 +218,45 @@ describe('the judgment of the runtime that holds an attachment (contact)', () =>
     })
     const { instance } = ok(await host.provision.acquire(slotOf('a')))
     const held = await openExecution(host, instance)
+    const holding = occupied(instance)
+    if (holding.kind !== 'occupied') throw new Error('occupied state')
+    host.handles.get(instance)?.report({ state: { ...holding, execution: EXECUTION } })
     expect(ok(await ask(host, held.authority))).toEqual({ kind: 'live' })
     expect(asked).toEqual([])
+  })
+
+  // The runtime the host runs said itself that it holds nothing, or another execution: that is
+  // the host's own knowledge, not an inference from absence. A halted drive gives its slot back
+  // (D-31), and this answer is what lets a recovering caller take the execution up.
+  it.each([
+    ['idle', (instance: AgentInstanceId): AgentState => ({ kind: 'idle', instance })],
+    ['occupied by another execution', (instance: AgentInstanceId) => occupied(instance)],
+  ] as const)(
+    'answers lost with its own proof when its runtime reports %s',
+    async (_name, stateOf) => {
+      const asked: AgentInstanceId[] = []
+      const host = await provingWorld(instance => {
+        asked.push(instance)
+        return evidence('lock')
+      })
+      const { instance } = ok(await host.provision.acquire(slotOf('a')))
+      const held = await openExecution(host, instance)
+      host.handles.get(instance)?.report({ state: stateOf(instance) })
+      const answer = ok(await ask(host, held.authority))
+      expect(answer).toMatchObject({
+        kind: 'lost',
+        evidence: { owner: 'agent-host', record: 'runtime-released' },
+      })
+      expect(asked).toEqual([])
+    },
+  )
+
+  it('answers live while its runtime is between executions (reserved)', async () => {
+    const host = await provingWorld(() => evidence('lock'))
+    const { instance } = ok(await host.provision.acquire(slotOf('a')))
+    const held = await openExecution(host, instance)
+    host.handles.get(instance)?.report({ state: { kind: 'reserved', instance } })
+    expect(ok(await ask(host, held.authority))).toEqual({ kind: 'live' })
   })
 
   it('answers lost with the proof of the assembly for an instance the host does not run', async () => {
