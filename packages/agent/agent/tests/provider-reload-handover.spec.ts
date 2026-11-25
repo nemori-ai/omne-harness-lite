@@ -169,6 +169,26 @@ describe('a handover the session asks for, for a reload', () => {
     expect(ok(await again)).toEqual(handed)
   })
 
+  it('answers the failure when the Journal does not take the handover between two steps, and the run goes on to the next step', async () => {
+    const { assembly, admitted } = await counted()
+    const handle = ok(await invoke(assembly))
+    const asked = handOver(assembly.provider)
+    ok(
+      await handle.input.submit({
+        ...input,
+        operation: operation('submit-2'),
+        value: acceptedInput('input-2', 'and one more thing'),
+      }),
+    )
+    assembly.controls.journal.failNext('detach', { kind: 'unavailable' })
+
+    await deliverModelReply(assembly, [textBlock('first answer', 'blk_first')], 'first')
+
+    expect(failure(await asked)).toMatchObject({ kind: 'unavailable' })
+    await eventually(async () => admitted() === 2)
+    expect((await snapshot(assembly)).state.kind).not.toBe('suspended')
+  })
+
   it('answers the failure when the Journal does not take the handover, and the run keeps waiting', async () => {
     const { assembly } = await counted()
     await waitingOnTool(assembly)

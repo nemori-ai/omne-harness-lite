@@ -1,5 +1,6 @@
 import {
   acceptCandidate,
+  argumentBlock,
   argumentCompletion,
   assistOf,
   type Candidate,
@@ -11,6 +12,7 @@ import {
   offeredTo,
   pressed,
   rankCandidates,
+  recognize,
   start,
   typed,
 } from '@omne-harness/slash-command-contract'
@@ -69,6 +71,45 @@ describe('ranking the candidates of an argument', () => {
   })
 })
 
+describe('ranking across tiers', () => {
+  const many: readonly Candidate[] = [
+    { value: 'vendor/plain-sol' },
+    { value: 'sol/first' },
+    { value: 'other', title: 'Says SOL in its title' },
+  ]
+
+  it('puts a closer match first whatever the owner order, and matches a title whatever its case', () => {
+    expect(values(rankCandidates(many, 'sol'))).toEqual(['sol/first', 'vendor/plain-sol', 'other'])
+    const tiers = rankCandidates(many, 'sol').map(each => each.tier)
+    expect(tiers).toEqual(tiers.toSorted((a, b) => a - b))
+    expect(values(rankCandidates(many, 'title'))).toEqual(['other'])
+    expect(values(rankCandidates([{ value: 'x', title: 'Has words' }], ''))).toEqual(['x'])
+  })
+})
+
+describe('why an argument cannot go as written', () => {
+  const offered = { command: 'omne-official:model', param: 0, candidates: MODELS }
+  const block = (text: string, held: Parameters<typeof argumentBlock>[2] = offered) =>
+    argumentBlock(recognize(text, LOOKUP), LOOKUP, held)
+
+  it('names a value that is no candidate, and one that is not to be chosen now', () => {
+    expect(block('/model nope')).toBe('「nope」不在 /model 的模型名候选里')
+    expect(block('/model old/locked-one')).toBe('「old/locked-one」此刻不能选：被锁定')
+    expect(block('/model openai/gpt-6-sol')).toBeNull()
+  })
+
+  it('says nothing for words that are no command, an empty argument, candidates of another command or argument, or none held', () => {
+    expect(block('just words')).toBeNull()
+    expect(block('/model ')).toBeNull()
+    expect(block('/model nope', null)).toBeNull()
+    expect(block('/model nope', { ...offered, candidates: null })).toBeNull()
+    expect(block('/model nope', { ...offered, command: 'omne-official:pair' })).toBeNull()
+    expect(
+      block('/pair a nope', { command: 'omne-official:pair', param: 1, candidates: MODELS }),
+    ).toBeNull()
+  })
+})
+
 describe('the argument at the caret', () => {
   const offered = { command: 'omne-official:model', param: 0, candidates: MODELS }
 
@@ -95,6 +136,11 @@ describe('the argument at the caret', () => {
     expect(acceptCandidate('/pair a', at('/pair a', pair), { value: 'a b' })).toEqual({
       text: '/pair "a b" ',
       caret: 12,
+    })
+    const before = argumentCompletion('/pair a x', 7, LOOKUP, pair)!
+    expect(acceptCandidate('/pair a x', before, { value: 'ab' })).toEqual({
+      text: '/pair ab x',
+      caret: 8,
     })
   })
 })

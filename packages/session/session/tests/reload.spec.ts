@@ -264,6 +264,102 @@ describe('a person reloads a session', () => {
     expect(await reload(h, 'reload-2')).toMatchObject({ failure: { kind: 'frozen' } })
   })
 
+  it('asks the adoption source for the run going on and names itself, and commits the resident material it gives', async () => {
+    const { h, before, newer } = await running()
+    if (before.run.kind !== 'active') throw new Error('no run')
+    const asked: unknown[] = []
+    const residentAdoption = { residents: [], keys: [] }
+    h.dependencies.evidence.runAdoption = async (_access, input) => {
+      asked.push({ run: input.run, point: input.point })
+      return { ok: { kind: 'adopt' as const, candidate: newer, residentAdoption } }
+    }
+    const reloads: unknown[] = []
+    h.view.onCommit((input, next) => {
+      if (input.command.kind === 'reload') reloads.push(input.command.input)
+      return next()
+    })
+    expect(succeeded(await reload(h), 'reload').kind).toBe('handed-over')
+    expect(asked).toEqual([{ run: before.run.run, point: operationId('reload-1') }])
+    expect(reloads).toMatchObject([{ run: before.run.run, residentAdoption }])
+  })
+
+  it('answers a frozen session without asking the adoption source', async () => {
+    const { h, before } = await running()
+    const verdict: FreezeVerdict = {
+      cause: 'tool-shape-lost',
+      capability: 'wordcount',
+      evidence: evidence('tool/lost'),
+    }
+    h.dependencies.evidence.runAdoption = async () => ({
+      ok: {
+        kind: 'adopt' as const,
+        candidate: before.definition.adopted,
+        residentAdoption: { residents: [], keys: [], verdict },
+      },
+    })
+    expect(await reload(h)).toEqual({ failure: { kind: 'frozen', verdict } })
+    let asked = 0
+    h.dependencies.evidence.runAdoption = async () => {
+      asked += 1
+      return {
+        ok: {
+          kind: 'adopt' as const,
+          candidate: { ...before.definition.adopted, digest: 'sha256:newer' },
+        },
+      }
+    }
+    expect(await reload(h, 'reload-2')).toMatchObject({ failure: { kind: 'frozen' } })
+    expect(asked).toBe(0)
+  })
+
+  it('answers no change while no adoption source is wired', async () => {
+    const { h, before } = await running()
+    delete (h.dependencies.evidence as { runAdoption?: unknown }).runAdoption
+    expect(await reload(h)).toEqual({ ok: { kind: 'no-change' } })
+    expect((await read(h)).revision).toBe(before.revision)
+  })
+
+  it('writes nothing when no Agent drive is there to hand the run over', async () => {
+    const { h, before } = await running()
+    h.setDrive(false)
+    expect(await reload(h)).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect((await read(h)).revision).toBe(before.revision)
+  })
+
+  it('leaves a run it could not join to the recovery, in the new version', async () => {
+    const { h, before, newer } = await running()
+    const ran = before.run
+    if (ran.kind !== 'active') throw new Error('no run')
+    const resume = h.drive.resume.bind(h.drive)
+    let refused = 0
+    h.drive.resume = async input => {
+      if (refused === 0) {
+        refused += 1
+        return { failure: { kind: 'busy' } }
+      }
+      return resume(input)
+    }
+    expect(succeeded(await reload(h), 'reload').kind).toBe('handed-over')
+    await vi.waitFor(async () => {
+      const after = await read(h)
+      if (after.run.kind !== 'active') throw new Error('no run')
+      expect(BigInt(after.run.ordinal)).toBe(BigInt(ran.ordinal) + 2n)
+      expect(after.run.adoption).toEqual(newer)
+    })
+  })
+
+  it('asks the Agent at most three times while the run is ending, then says so', async () => {
+    const { h, before } = await running()
+    let asked = 0
+    h.drive.handOver = async () => {
+      asked += 1
+      return { failure: { kind: 'terminal' } }
+    }
+    expect(await reload(h)).toEqual({ failure: { kind: 'run-active' } })
+    expect(asked).toBe(3)
+    expect((await read(h)).revision).toBe(before.revision)
+  })
+
   it('is refused on an archived session', async () => {
     const h = await service()
     await h.create()
