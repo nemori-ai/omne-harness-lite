@@ -416,16 +416,17 @@ export function toolCall(action: Action): AssociatedToolCall | null {
 /** The allowed actions to send now, in order: each goes once every allowed action before it has its slot filled or runs beside it (AG-33). */
 export function sendable(batch: ActionBatch, unaccepted: ReadonlySet<ActionId>): readonly Action[] {
   const ready: Action[] = []
-  let open: 'none' | 'beside' | 'alone' = 'none'
+  let earlierOpen = false
   for (const action of batch.actions) {
     if (action.judgment.kind !== 'allowed') continue
     const slot = slotOf(batch, action.id)
     if (slot !== undefined && slot.kind !== 'dispatched') continue
     const together = action.judgment.concurrent === true
     const unsent = slot === undefined || unaccepted.has(action.id)
-    if (unsent && (open === 'none' || (together && open === 'beside'))) ready.push(action)
+    if (unsent && (together || !earlierOpen)) ready.push(action)
+    // Nothing after an open action with effects goes before it has its slot.
     if (!together) break
-    open = 'beside'
+    earlierOpen = true
   }
   return ready
 }
