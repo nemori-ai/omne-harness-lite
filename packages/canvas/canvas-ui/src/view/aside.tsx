@@ -1,8 +1,5 @@
 import type { CanvasItemBody } from '@omne-harness/canvas-protocol'
 import {
-  Ago,
-  AssistantIcon,
-  ContactIcon,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -15,7 +12,6 @@ import {
   IconButton,
   LockIcon,
   MoreIcon,
-  PaperQuiet,
   useAgeClock,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
@@ -27,31 +23,10 @@ type Placed = Readonly<Pick<CanvasItemBody, 'by' | 'when'>>
 const tipOf = (by: Placed['by']): string =>
   by.kind === 'human' ? '最近由人摆放' : '最近由 agent 摆放'
 
-function Mark({ by }: Readonly<Pick<Placed, 'by'>>): JSX.Element {
-  const Drawn = by.kind === 'human' ? ContactIcon : AssistantIcon
-  return <Drawn aria-hidden="true" className="canvas-by-mark" />
-}
-
-/** Who last arranged it, a person or an agent, never a session: a mark, and words shown while the page is looked at. */
-export function ByLine({ by, when }: Placed): JSX.Element {
-  return (
-    <span className="canvas-by" title={tipOf(by)}>
-      <PaperQuiet>
-        {by.kind === 'human' ? '人' : 'agent'} · <Ago at={encodeInstant(when)} />
-      </PaperQuiet>
-      <Mark by={by} />
-    </span>
-  )
-}
-
-/** Who last arranged a pile: the mark alone takes room in the line; the words are its tip and its name. */
-export function ByMark({ by, when }: Placed): JSX.Element {
+/** Who last arranged a thing and when, for a screen reader on the thing itself; the eye reads it in the status bar. */
+export function WhoSaid({ by, when }: Placed): JSX.Element {
   const said = `${tipOf(by)} · ${formatRelative(encodeInstant(when), useAgeClock(true))}`
-  return (
-    <span className="canvas-by" role="img" aria-label={said} title={said}>
-      <Mark by={by} />
-    </span>
-  )
+  return <span className="canvas-said">{said}</span>
 }
 
 export function LockMark({ onUnlock }: Readonly<{ onUnlock: () => void }>): JSX.Element {

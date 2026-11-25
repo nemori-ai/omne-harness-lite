@@ -48,18 +48,6 @@ export function PaperHandle({
   )
 }
 
-export function PaperQuiet({
-  children,
-}: {
-  readonly children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <span data-slot="paper-quiet" className="omne-paper-quiet">
-      {children}
-    </span>
-  )
-}
-
 export function PaperPage({
   box,
   name,

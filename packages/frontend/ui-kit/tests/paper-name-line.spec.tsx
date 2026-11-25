@@ -10,7 +10,6 @@ import {
   type PaperBox,
   PaperPage,
   PaperPile,
-  PaperQuiet,
   PaperSurface,
 } from '../src/index.ts'
 
@@ -78,7 +77,7 @@ function Board({ children }: { readonly children: React.ReactNode }): React.JSX.
 }
 
 describe('who gives way in a name line: the content before the facts about it', () => {
-  it('on a page the name gives way first, the quiet words next, and the marks and buttons keep their width', () => {
+  it('on a page the name gives way, and the marks and buttons beside it keep their width', () => {
     render(
       <Board>
         <PaperPage
@@ -87,9 +86,6 @@ describe('who gives way in a name line: the content before the facts about it', 
           onPlace={() => undefined}
           aside={
             <>
-              <span data-testid="by">
-                <PaperQuiet>人 · 刚刚</PaperQuiet>
-              </span>
               <span data-testid="mark">记号</span>
               <button type="button">⋯</button>
             </>
@@ -102,10 +98,6 @@ describe('who gives way in a name line: the content before the facts about it', 
     const handle = page.getByRole('button', { name: '挪动报告' })
     expect(givesWay(handle)).toBe(true)
     expect(givesWay(page.getByText('报告', { selector: '.omne-paper-name-text' }))).toBe(true)
-    expect(givesWay(page.getByTestId('by'))).toBe(true)
-    const words = page.getByText('人 · 刚刚')
-    expect(givesWay(words)).toBe(true)
-    expect(declares(words, PAPER, /text-overflow\s*:\s*ellipsis/)).toBe(true)
     expect(keepsItsWidth(page.getByTestId('mark'))).toBe(true)
     expect(keepsItsWidth(page.getByRole('button', { name: '⋯' }))).toBe(true)
     const locked = within(screen.getByRole('group', { name: '锁着' }))

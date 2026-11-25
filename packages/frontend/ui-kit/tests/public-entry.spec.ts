@@ -157,7 +157,7 @@ const REST = [
   'PAPER_NAME_LINE',
   'PaperPage',
   'PaperPile',
-  'PaperQuiet',
+  'PaperStatus',
   'PaperSpot',
   'PaperSurface',
   'Popover',

@@ -210,7 +210,8 @@ export {
   type ZoomLimits,
 } from './paper/geometry.ts'
 export { type PaperGesture, type PlaceBox } from './paper/carry.ts'
-export { PaperPage, PaperQuiet } from './paper/paper-page.tsx'
+export { PaperPage } from './paper/paper-page.tsx'
+export { PaperStatus } from './paper/paper-status.tsx'
 export { PaperPile, type PileLeaf } from './paper/paper-pile.tsx'
 export { FlipLayer, useFaceFlip } from './paper/flip-layer.tsx'
 export {

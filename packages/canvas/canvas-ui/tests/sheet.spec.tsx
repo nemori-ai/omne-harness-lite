@@ -81,7 +81,7 @@ describe('the sheet draws what was read', () => {
     expect(drawn.dataset['state']).toBe('closed')
   })
 
-  it('who placed a thing is a mark, a person apart from an agent, and the words stay there to be read', async () => {
+  it('who placed a thing is not drawn on it, page or pile; a screen reader reads it there, a person apart from an agent', async () => {
     const byAgent = item('b', {
       at: { x: 400, y: 200 },
       rank: 2,
@@ -91,30 +91,30 @@ describe('the sheet draws what was read', () => {
       canvas([A, byAgent], [pile('p', { name: '周报', by: { kind: 'agent', session: 's' } })]),
     )
     const pileGroup = screen.getByRole('group', { name: '周报' })
-    const said = (where: HTMLElement, who: '人' | 'agent') => {
-      const line = within(where).getByTitle(who === '人' ? '最近由人摆放' : '最近由 agent 摆放')
-      const words = within(line).getByText(new RegExp(`^${who} ·`, 'u'))
-      expect(words.closest('[aria-hidden="true"]')).toBeNull()
-      const mark = line.querySelector('svg[data-icon]')?.getAttribute('data-icon')
-      expect(mark).toBeTruthy()
-      return mark
+    for (const [thing, who] of [
+      [page('a'), '人'],
+      [page('b'), 'agent'],
+      [pileGroup, 'agent'],
+    ] as const) {
+      expect(thing.querySelector('svg[data-icon="contact"], svg[data-icon="assistant"]')).toBeNull()
+      expect(thing.textContent).not.toMatch(/(?:人|agent) · /u)
+      const said = within(thing).getByText(new RegExp(`^最近由 ?${who} ?摆放 · \\S`, 'u'))
+      expect(said.closest('[aria-hidden="true"]')).toBeNull()
     }
-    const person = said(page('a'), '人')
-    const agent = said(page('b'), 'agent')
-    expect(person).not.toBe(agent)
-    const pileMark = within(pileGroup).getByRole('img', { name: /^最近由 agent 摆放 · \S/u })
-    expect(pileMark.querySelector('svg[data-icon]')?.getAttribute('data-icon')).toBe(agent)
   })
 
-  it('a pile says who placed it by its mark alone: the words are its tip and its name, not part of the line', async () => {
+  it('the name line of a pile holds its name, its count and what a hand uses, and nothing else to see', async () => {
     await opened(canvas([], [pile('p', { name: '周报' })]))
     const line = screen
       .getByRole('group', { name: '周报' })
       .querySelector<HTMLElement>(':scope > .omne-paper-name')
     if (line === null) throw new Error('no name line')
-    expect(line.textContent).not.toMatch(/人 ·|agent ·|前|刚刚/u)
-    const mark = within(line).getByRole('img', { name: /^最近由人摆放 · \S/u })
-    expect(mark.getAttribute('title')).toBe(mark.getAttribute('aria-label'))
+    const seen = [...line.querySelectorAll<HTMLElement>(':scope > *, .omne-paper-aside > *')]
+      .filter(part => !part.classList.contains('omne-paper-aside'))
+      .filter(part => !part.classList.contains('canvas-said'))
+      .map(part => part.getAttribute('aria-label') ?? part.textContent)
+    expect(seen).toEqual(['挪动周报', '周报的更多操作', '展开'])
+    expect(within(line).queryByRole('img')).toBeNull()
   })
 
   it('an open pile draws each page at its own size, or at the footprint when it has none', async () => {

@@ -10,7 +10,6 @@ import {
   type PaperBox,
   PaperPage,
   PaperPile,
-  PaperQuiet,
   PaperSurface,
 } from '../src/index.ts'
 
@@ -64,23 +63,14 @@ function Board({ children }: { readonly children: React.ReactNode }): React.JSX.
   )
 }
 
-const aside = (
-  <>
-    <PaperQuiet>人 · 刚刚</PaperQuiet>
-    <span data-testid="mark">记号</span>
-  </>
-)
+const aside = <span data-testid="mark">记号</span>
 
 function quietWords(group: HTMLElement): HTMLElement[] {
-  const page = within(group)
-  return [
-    page.getByText('报告', { selector: '.omne-paper-name-text' }),
-    page.getByText('人 · 刚刚'),
-  ]
+  return [within(group).getByText('报告', { selector: '.omne-paper-name-text' })]
 }
 
 describe('the name line of a page', () => {
-  it('hides its words only by opacity, so the line keeps its place and a screen reader still reads them', () => {
+  it('hides its name only by opacity, so the line keeps its place and a screen reader still reads it; what the caller puts beside it stays', () => {
     expect(hiding.length).toBeGreaterThan(0)
     for (const rule of hiding) expect(rule.body.replace(/;$/, '')).toMatch(/^opacity:\s*0$/)
     render(
@@ -109,7 +99,7 @@ describe('the name line of a page', () => {
         expect(group.dataset['gesture']).toBeDefined()
       },
     ],
-  ])('writes the name and the quiet words out while %s', (_, look) => {
+  ])('writes the name out while %s', (_, look) => {
     render(
       <Board>
         <PaperPage box={BOX} name="报告" aside={aside} onPlace={() => undefined} />
@@ -125,7 +115,7 @@ describe('the name line of a page', () => {
     )
   })
 
-  it('writes them out while it is selected, and on a locked page as well as a free one', () => {
+  it('writes the name out while it is selected, and on a locked page as well as a free one', () => {
     render(
       <Board>
         <PaperPage box={BOX} name="报告" aside={aside} onPlace={() => undefined} selected />
@@ -141,7 +131,7 @@ describe('the name line of a page', () => {
     expect(hidden(name)).toBe(false)
   })
 
-  it('fades its words in and out in the feedback time', () => {
+  it('fades its name in and out in the feedback time', () => {
     const fades = rules(OWN).filter(
       rule => rule.selectors.includes('.omne-paper-quiet') && /transition\s*:/.test(rule.body),
     )
@@ -154,7 +144,7 @@ describe('the name line of a page', () => {
 describe('the name line of a pile', () => {
   const LEAVES = ['甲', '乙'].map(name => ({ key: name, name, content: `${name}的正文` }))
 
-  it('keeps the name and the count always, and quiets only the words the caller marks', () => {
+  it('keeps the name, the count and what the caller puts beside them always', () => {
     render(
       <Board>
         <PaperPile
@@ -171,10 +161,7 @@ describe('the name line of a pile', () => {
     const group = screen.getByRole('group', { name: '资料' })
     expect(hidden(within(group).getByText('资料'))).toBe(false)
     expect(hidden(within(group).getByText('2'))).toBe(false)
-    const words = within(group).getByText('人 · 刚刚')
-    expect(hidden(words)).toBe(true)
-    group.setAttribute(PROBES.hover, '')
-    expect(hidden(words)).toBe(false)
+    expect(hidden(within(group).getByTestId('mark'))).toBe(false)
   })
 
   it('quiets the name over each page of an open pile until that page is looked at', () => {

@@ -33,6 +33,7 @@ import { ItemPage } from './item-page.tsx'
 import { ITEM_DRAG, PileView } from './pile-view.tsx'
 import { droppedOut, itemActs, pileActs, type Selection } from './sheet-acts.ts'
 import { bareAt, FinderKey, FoundMark, useLayers, type Place } from './sheet-layers.tsx'
+import { CanvasStatus, useLookedAt } from './status.tsx'
 import { useLatest, useSame, useSteady } from './steady.ts'
 
 /** The seat of the figure on the back is in the middle of the sheet, at the first priority. */
@@ -111,7 +112,7 @@ function Tools({
 }: Readonly<{ looking: ReturnType<typeof useLooking>; find: (opener: Element) => void }>) {
   const percent = Math.round(looking.view.zoom * 100)
   return (
-    <div className="canvas-tools">
+    <>
       <IconButton
         label="查找"
         size="icon-compact"
@@ -127,7 +128,7 @@ function Tools({
       <span className="canvas-zoom" title="远近">
         {percent}%
       </span>
-    </div>
+    </>
   )
 }
 
@@ -163,6 +164,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
   const [selected, select] = useState<Selection>(() => new Set())
   const root = useRef<HTMLDivElement>(null)
   const pointer = useRef<PaperPoint | undefined>(undefined)
+  const looks = useLookedAt()
   const layers = useLayers({ canvas, sheet, looking, place: props.place })
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set())
   const deps = {
@@ -189,8 +191,14 @@ export function SheetView(props: SheetViewProps): JSX.Element {
       onPointerMove={event => {
         pointer.current = bareAt(event)
       }}
+      onPointerOver={event => looks.over(event.target)}
       onPointerLeave={() => {
         pointer.current = undefined
+        looks.over(null)
+      }}
+      onFocus={event => looks.focus(event.target)}
+      onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) looks.focus(null)
       }}
       onKeyDown={event => {
         if (!letsGo(event, selected)) return
@@ -289,7 +297,13 @@ export function SheetView(props: SheetViewProps): JSX.Element {
         )}
       </PaperSurface>
       <Notices state={state} dismiss={dismiss} />
-      <Tools looking={looking} find={opener => layers.open(undefined, opener)} />
+      <CanvasStatus
+        looking={looks}
+        canvas={canvas}
+        standing={standing}
+        selected={selected}
+        tools={<Tools looking={looking} find={opener => layers.open(undefined, opener)} />}
+      />
     </div>
   )
 }
