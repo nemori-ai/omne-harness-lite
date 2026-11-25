@@ -247,7 +247,7 @@ export type RunAdoption =
     }>
   | Readonly<{ kind: 'keep'; reason: string }>
   | Readonly<{ kind: 'none'; reason: string }>
-export type RunAdoptionInput = Readonly<{ work: WorkSnapshot; run: RunId }>
+export type RunAdoptionInput = Readonly<{ work: WorkSnapshot; run: RunId | null }>
 export interface SessionEvidenceBridge<P = unknown> {
   prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>
   runAdoption?(access: SessionAccess<P>, input: RunAdoptionInput): Reply<RunAdoption>

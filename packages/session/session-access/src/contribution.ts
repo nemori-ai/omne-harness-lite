@@ -19,6 +19,7 @@ import { describedBy, UNAVAILABLE, type Admitted, type Refusal, type Target } fr
 import { cancelRun } from './cancel-run.ts'
 import { createSession, queryCreateSession } from './create-session.ts'
 import { retryRun } from './retry-run.ts'
+import { reloadSession } from './reload-session.ts'
 import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
 import { readModelSelection, selectModel } from './select-model.ts'
 import { readWorkspaceSelection, selectWorkspace } from './select-workspace.ts'
@@ -189,6 +190,7 @@ export function createSessionContribution(
       'read-workspace-selection': (call, body) =>
         readWorkspaceSelection(held, call.principal, body),
       'retry-run': (call, body) => retryRun(held, call.principal, body),
+      'reload-session': (call, body) => reloadSession(held, call.principal, body),
       'background-call': (call, body) => backgroundCall(held, call.principal, body),
       'list-background-calls': (call, body) => listBackgroundCalls(held, call.principal, body),
       ...tenantReadOperations(tenant),

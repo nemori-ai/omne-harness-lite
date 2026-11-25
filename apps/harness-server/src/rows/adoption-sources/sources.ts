@@ -336,7 +336,6 @@ async function definitionEvidence<P>(
   return succeed([materialOf(mappings, command.kind, read.entry)])
 }
 
-/** A note that a run waits rests on the answer the adoption source gave: it adopts nothing. */
 const noteMaterial = (note: AdoptionNote): GuardCommand => ({
   owner: 'run-adoption',
   participant: 'session-evidence',
@@ -404,13 +403,15 @@ async function runAdoption<P>(
   let turn: Turn | null = null
   if (entry === undefined) {
     const given = access as SessionAccess<unknown>
-    const failed = await adoptWorkspace(runSources, given, work, run)
-    if (failed !== null) runSources.report(failed)
-    turn = { access: given, key: run }
-    const read = await mappings.named({ tenant: access.tenant, turn }, name)
+    if (run !== null) {
+      const failed = await adoptWorkspace(runSources, given, work, run)
+      if (failed !== null) runSources.report(failed)
+      turn = { access: given, key: run }
+    }
+    const asker = { tenant: access.tenant, ...(turn === null ? {} : { turn }) }
+    const read = await mappings.named(asker, name)
     if (read.kind === 'unavailable') return unreadable(read.diagnostic)
-    if (read.kind === 'absent')
-      return succeed(await notAdopted(mappings, { tenant: access.tenant, turn }, pinned, read))
+    if (read.kind === 'absent') return succeed(await notAdopted(mappings, asker, pinned, read))
     entry = read.entry
   }
   const residents = await judgedResidents(ctx, work, entry, access, turn, runSources.leftOut)

@@ -168,6 +168,7 @@
 - `Relation` · 包 `@omne-harness/session-contract`
 - `RelationToReference` · 包 `@omne-harness/session-contract`
 - `ReleasedScope` · 包 `@omne-harness/session-contract`
+- `ReloadOutcome` · 包 `@omne-harness/session-contract`
 - `Reply` · 包 `@omne-harness/session-contract`
 - `ResidentAdoption` · 包 `@omne-harness/session-contract`
 - `ResidentKey` · 包 `@omne-harness/session-contract`
@@ -349,6 +350,7 @@
 - `admitDerived` · 包 `@omne-harness/session-contract`
 - `admitDerivedOf` · 包 `@omne-harness/session-contract`
 - `admitSource` · 包 `@omne-harness/session-contract`
+- `advanceAnswerOf` · 包 `@omne-harness/session-contract`
 - `archiveCollapse` · 包 `@omne-harness/session-contract`
 - `backgroundCallView` · 包 `@omne-harness/session-contract`
 - `backgroundCalls` · 包 `@omne-harness/session-contract`

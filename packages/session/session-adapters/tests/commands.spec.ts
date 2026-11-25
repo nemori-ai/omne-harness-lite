@@ -30,7 +30,7 @@ function source(
 }
 
 describe('the commands the session brings', () => {
-  it('are three in the reserved space, each saying its arguments, what it does while a run goes on and when it takes effect', async () => {
+  it('are four in the reserved space, each saying its arguments, what it does while a run goes on and when it takes effect', async () => {
     const { commands } = source()
     expect(commands.space).toBe('omne-official')
     expect(commands.name).toBe('session-commands')
@@ -48,6 +48,7 @@ describe('the commands the session brings', () => {
       ['model', 'system', [{ name: '模型名', candidates: true }], 'now', 'next-request'],
       ['permission', 'system', [{ name: '模式', candidates: true }], 'now', 'now'],
       ['archive', 'system', undefined, 'now', 'now'],
+      ['reload', 'system', undefined, 'now', 'next-run'],
     ])
   })
 
@@ -79,6 +80,14 @@ describe('the commands the session brings', () => {
         fields: { ...target, controlId: 'command:accept-op-1' },
       },
     })
+    expect(await take('reload')).toEqual({
+      ok: {
+        kind: 'operation',
+        protocol: SESSION,
+        operation: 'reload-session',
+        fields: { ...target, controlId: 'command:accept-op-1' },
+      },
+    })
   })
 
   it('says what is wrong with the arguments without reading anything, and names nothing else', async () => {
@@ -94,7 +103,10 @@ describe('the commands the session brings', () => {
       ok: { kind: 'invalid', reason: 'it takes no arguments' },
     })
     expect(asked).toEqual([])
-    for (const name of ['reload', 'toString', '__proto__'])
+    expect(await take('reload', 'now')).toEqual({
+      ok: { kind: 'invalid', reason: 'it takes no arguments' },
+    })
+    for (const name of ['compact', 'toString', '__proto__'])
       expect(await take(name)).toEqual({ failure: 'not-listed' })
   })
 

@@ -60,6 +60,14 @@ const ENTRIES: readonly CommandEntry[] = Object.freeze([
     whileRunning: 'now',
     takesEffect: 'now',
   },
+  {
+    space: RESERVED_SPACE,
+    name: 'reload',
+    kind: 'system',
+    title: '用上这段会话的定义此刻的版本',
+    whileRunning: 'now',
+    takesEffect: 'next-run',
+  },
 ])
 
 type Asking<P> = Readonly<{ asker: Asker<P>; naming: Naming; signal: AbortSignal }>
@@ -102,6 +110,10 @@ function takers<P>(ports: SessionCommandPorts<P>): Readonly<Record<string, Take<
     async archive({ asker, naming }) {
       if (naming.args.trim() !== '') return invalid('it takes no arguments')
       return operation(asker, 'archive-session', { controlId: controlOf(naming) })
+    },
+    async reload({ asker, naming }) {
+      if (naming.args.trim() !== '') return invalid('it takes no arguments')
+      return operation(asker, 'reload-session', { controlId: controlOf(naming) })
     },
   }
 }

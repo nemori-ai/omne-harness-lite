@@ -99,6 +99,10 @@ export type OperationResolution =
   | Readonly<{ kind: 'not-committed'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'unknown' }>
 export type EntryClass = 'interactive' | 'dispatch'
+export type ReloadOutcome =
+  | Readonly<{ kind: 'adopted'; receipt: CommitReceipt }>
+  | Readonly<{ kind: 'no-change' }>
+  | Readonly<{ kind: 'next-run' }>
 export type StartedRun = Readonly<{
   receipt: CommitReceipt
   advance: AdvanceRef
@@ -187,14 +191,15 @@ export interface SessionWork<P> {
   reload(
     input: Mutation<P> &
       Readonly<{
-        run: RunId
+        run: RunId | null
         candidate: Adoption
-        instance: AgentInstanceRef
+        instance?: AgentInstanceRef
         expected: SessionRevision
-        handover: DurableEvidence
+        handover?: DurableEvidence
         residentAdoption?: StartAdoption
       }>,
-  ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
+  ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef | null }>>
+  reloadSession(input: Mutation<P>): Reply<ReloadOutcome>
   recordMessage(
     input: Mutation<P> &
       Readonly<{ participation: Participation; value: AdmittedMessage | DeliveredInputs }>,

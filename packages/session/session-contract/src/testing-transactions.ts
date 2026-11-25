@@ -1,5 +1,5 @@
 import { runStartInputs, sessionIntakeLimits, type SessionIntakeLimits } from './intake.ts'
-import { startAnswerOf } from './start-answer.ts'
+import { advanceAnswerOf, startAnswerOf } from './start-answer.ts'
 import {
   createMemorySessionHistorySource,
   entryEvidence,
@@ -347,7 +347,6 @@ function publishedLog(
 }
 
 function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | null {
-  const kind = command.kind
   switch (command.kind) {
     case 'addTodo':
     case 'removeTodo':
@@ -365,12 +364,8 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
     case 'startRun':
       return receipt => startAnswerOf(command, snapshot, receipt)
     case 'claim':
-    case 'reload': {
-      if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
-        throw new Error(`${kind} committed without an advance`)
-      const { advance } = snapshot.run
-      return receipt => ({ receipt, advance })
-    }
+    case 'reload':
+      return receipt => advanceAnswerOf(command, snapshot, receipt)
     case 'finishRun': {
       if (snapshot.run.kind !== 'terminal')
         throw new Error('finishRun committed without a terminal')

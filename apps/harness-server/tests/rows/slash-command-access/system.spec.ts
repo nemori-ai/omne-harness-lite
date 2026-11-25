@@ -71,6 +71,11 @@ describe('a system command, on the release tree', () => {
             whileRunning: 'now',
             takesEffect: 'now',
           }),
+          expect.objectContaining({
+            full: 'omne-official:reload',
+            whileRunning: 'now',
+            takesEffect: 'next-run',
+          }),
         ])
 
         const before = await client['read-model-selection'](target)

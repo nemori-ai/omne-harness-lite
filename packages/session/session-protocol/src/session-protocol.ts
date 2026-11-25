@@ -769,6 +769,23 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
+    'reload-session': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text } })),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ kind: { rule: literal('adopted', 'no-change', 'next-run') } }),
+        ),
+        invalid: ruleCodec(object({ reason: { rule: anyText } })),
+        archived: empty,
+        frozen: ruleCodec(object({ capability: { rule: nullable(text) } })),
+        conflict: empty,
+      },
+      countsAsAccess: true,
+      since: 4,
+    },
     'read-model-selection': {
       identity: 'login',
       effect: 'read',

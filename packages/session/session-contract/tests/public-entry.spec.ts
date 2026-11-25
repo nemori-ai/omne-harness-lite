@@ -20,6 +20,7 @@ it('exports exactly the declared root runtime surface', () => {
     'admitDerived',
     'admitDerivedOf',
     'admitSource',
+    'advanceAnswerOf',
     'archiveCollapse',
     'backgroundCallView',
     'backgroundCalls',

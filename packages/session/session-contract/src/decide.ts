@@ -634,10 +634,30 @@ function decideChange(
   ])
 }
 
+/** A reload that names no run records what the next run adopts; it starts nothing. */
+function decideIdleReload(
+  snapshot: WorkSnapshot,
+  input: Extract<SessionCommand, { kind: 'reload' }>['input'],
+): Decision {
+  if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
+  if (snapshot.frozen !== null) return rejected({ kind: 'frozen', verdict: snapshot.frozen })
+  if (snapshot.run.kind === 'active') return rejected({ kind: 'run-active' })
+  if (!expectedHolds(snapshot, 'reload', input.expected))
+    return rejected({ kind: 'changed', revision: expectedRevision(snapshot, 'reload') })
+  const { candidate } = input
+  if (emptyAdoption(candidate) || candidate.name !== snapshot.definition.adopted.name)
+    return invalid('candidate', 'a reload must preserve the definition identity')
+  const source = commandEvidence(input.operation, 'reload')
+  const current = snapshot.definition.adopted
+  return adoptionEntries(snapshot, input.residentAdoption, candidate, current, source)
+}
+
 function decideAttempt(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'claim' | 'reload' | 'release' }>,
 ): Decision {
+  if (command.kind === 'reload' && command.input.run === null)
+    return decideIdleReload(snapshot, command.input)
   if (command.kind === 'release') {
     const judgment = judgeAdvance(snapshot, {
       kind: 'attempt',
@@ -677,11 +697,8 @@ function decideAttempt(
         : { kind: 'changed', revision: expectedRevision(snapshot, 'claim') },
     )
   const source = command.kind === 'claim' ? command.input.continuity : command.input.handover
-  if (
-    !completeEvidence(source) ||
-    !command.input.instance.id ||
-    command.input.instance.owner !== 'agent'
-  )
+  const { instance } = command.input
+  if (!source || !completeEvidence(source) || instance?.owner !== 'agent' || !instance.id)
     return invalid('instance', 'incomplete instance or handover')
   const out: EncodedEntry[] = []
   if (command.kind === 'reload') {
@@ -720,7 +737,7 @@ function decideAttempt(
         run: snapshot.run.run,
         attempt: attemptIdOf(snapshot.run.run, ordinal),
         ordinal,
-        instance: command.input.instance,
+        instance,
         reason: command.kind,
       },
       sessionOrigin(source),

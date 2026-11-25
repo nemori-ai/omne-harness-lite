@@ -168,6 +168,7 @@
 - `Relation` · `values.d.ts`
 - `RelationToReference` · `directory-relation.d.ts`
 - `ReleasedScope` · `faces.d.ts`
+- `ReloadOutcome` · `faces.d.ts`
 - `Reply` · `faces.d.ts`
 - `ResidentAdoption` · `values.d.ts`
 - `ResidentKey` · `identity.d.ts`
@@ -334,6 +335,7 @@
 - `admitDerived` · `input-sources.d.ts`
 - `admitDerivedOf` · `input-sources.d.ts`
 - `admitSource` · `input-sources.d.ts`
+- `advanceAnswerOf` · `start-answer.d.ts`
 - `archiveCollapse` · `call-control.d.ts`
 - `backgroundCallView` · `background-calls.d.ts`
 - `backgroundCalls` · `call-control.d.ts`
@@ -1926,6 +1928,14 @@ export type OperationResolution = Readonly<{
     kind: 'unknown';
 }>;
 export type EntryClass = 'interactive' | 'dispatch';
+export type ReloadOutcome = Readonly<{
+    kind: 'adopted';
+    receipt: CommitReceipt;
+}> | Readonly<{
+    kind: 'no-change';
+}> | Readonly<{
+    kind: 'next-run';
+}>;
 export type StartedRun = Readonly<{
     receipt: CommitReceipt;
     advance: AdvanceRef;
@@ -2024,16 +2034,17 @@ export interface SessionWork<P> {
         advance: AdvanceRef;
     }>>;
     reload(input: Mutation<P> & Readonly<{
-        run: RunId;
+        run: RunId | null;
         candidate: Adoption;
-        instance: AgentInstanceRef;
+        instance?: AgentInstanceRef;
         expected: SessionRevision;
-        handover: DurableEvidence;
+        handover?: DurableEvidence;
         residentAdoption?: StartAdoption;
     }>): Reply<Readonly<{
         receipt: CommitReceipt;
-        advance: AdvanceRef;
+        advance: AdvanceRef | null;
     }>>;
+    reloadSession(input: Mutation<P>): Reply<ReloadOutcome>;
     recordMessage(input: Mutation<P> & Readonly<{
         participation: Participation;
         value: AdmittedMessage | DeliveredInputs;
@@ -2652,10 +2663,10 @@ export type AdvanceRef = Readonly<{
 
 ```ts
 export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, TodoItemId, } from './identity.ts';
-export { startAnswerOf } from './start-answer.ts';
+export { advanceAnswerOf, startAnswerOf } from './start-answer.ts';
 export { requiredWorkEntries, compactionCallChangeOf } from './work-entry-state.ts';
 export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, AdoptionNote, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, Attendance, SessionTree, ResidentTool, ResultConsumption, RoutedInput, RunEnd, RunFailure, RunState, RunTerminal, ScopeReleaseDisposition, BackgroundDisposition, SessionCreation, SessionFrozen, SessionWaiting, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
-export type { AdmittedMessage, DeliveredInputs, CommitReceipt, CompactionContextRead, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ForkPointRead, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, ArchivedBy, SessionListFilter, SessionListItem, SessionListPage, SessionListRelation, UnarchivedLifecycle, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, NotedStart, StartedRun, } from './faces.ts';
+export type { AdmittedMessage, DeliveredInputs, CommitReceipt, CompactionContextRead, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ForkPointRead, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, ArchivedBy, SessionListFilter, SessionListItem, SessionListPage, SessionListRelation, UnarchivedLifecycle, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, NotedStart, ReloadOutcome, StartedRun, } from './faces.ts';
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
 export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionControlReceipt, SessionModelSelection, SessionRunLookup, } from './control-values.ts';
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt, } from './interpretation-values.ts';
@@ -3861,7 +3872,7 @@ export type RunAdoption = Readonly<{
 }>;
 export type RunAdoptionInput = Readonly<{
     work: WorkSnapshot;
-    run: RunId;
+    run: RunId | null;
 }>;
 export interface SessionEvidenceBridge<P = unknown> {
     prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>;
@@ -4176,8 +4187,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:7506ffc8361e846186fd67eb1edb4f243681cbd16482b43d153b9483243105a0";
-export declare const SESSION_RELEASE_DIGEST = "sha256:7506ffc8361e846186fd67eb1edb4f243681cbd16482b43d153b9483243105a0";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:3401d7efdfb352f15f2ba8ad52e09dbdac2dfc1df4b82c957f0e80eae2c20c40";
+export declare const SESSION_RELEASE_DIGEST = "sha256:3401d7efdfb352f15f2ba8ad52e09dbdac2dfc1df4b82c957f0e80eae2c20c40";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4330,12 +4341,19 @@ export {};
 ## 声明文件 `start-answer.d.ts`
 
 ```ts
+import type { AdvanceRef } from './identity.ts';
 import type { CommitReceipt, NotedStart, StartedRun } from './faces.ts';
 import type { SessionCommand } from './ports.ts';
 import type { WorkSnapshot } from './values.ts';
 export declare function startAnswerOf(command: Extract<SessionCommand, {
     kind: 'startRun';
 }>, snapshot: WorkSnapshot, receipt: CommitReceipt): StartedRun | NotedStart;
+export declare function advanceAnswerOf(command: Extract<SessionCommand, {
+    kind: 'claim' | 'reload';
+}>, snapshot: WorkSnapshot, receipt: CommitReceipt): Readonly<{
+    receipt: CommitReceipt;
+    advance: AdvanceRef | null;
+}>;
 ```
 
 ## 声明文件 `stop-reminder.d.ts`

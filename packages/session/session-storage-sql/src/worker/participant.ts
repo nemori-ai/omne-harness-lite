@@ -25,6 +25,7 @@ import {
   decide,
   judgeIdle,
   reduce,
+  advanceAnswerOf,
   startAnswerOf,
   type CommitReceipt,
   type GuardCommand,
@@ -220,11 +221,8 @@ export function resultOf(
     case 'startRun':
       return startAnswerOf(command, snapshot, receipt)
     case 'claim':
-    case 'reload': {
-      if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
-        throw new Error(`${command.kind} committed without an advance`)
-      return { receipt, advance: snapshot.run.advance }
-    }
+    case 'reload':
+      return advanceAnswerOf(command, snapshot, receipt)
     case 'finishRun': {
       if (snapshot.run.kind !== 'terminal')
         throw new Error('finishRun committed without a terminal')

@@ -36,6 +36,7 @@ type FaceMethod =
   | 'cancelRun'
   | 'stopCall'
   | 'retryRun'
+  | 'reloadSession'
   | 'change'
   | 'recordCommand'
   | 'history.begin'
@@ -278,6 +279,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     | 'cancelRun'
     | 'stopCall'
     | 'retryRun'
+    | 'reloadSession'
     | 'readWaiting'
     | 'readPending'
     | 'readWaitingCalls'
@@ -362,6 +364,12 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'retryRun' })
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'retryRun' })
       return commit('retryRun', input.operation, { kind: 'retryRun', run: input.run })
+    },
+    async reloadSession(input) {
+      record('reloadSession', input, {})
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'reloadSession' })
+      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'reloadSession' })
+      return succeed({ kind: 'no-change' as const })
     },
     async accept(input) {
       record('accept', input, input.value)
