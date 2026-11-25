@@ -67,7 +67,6 @@ function config(storageRoot: string): SqliteStorageConfig {
     maxRequestBytes: 20 << 20,
     globalInFlightWriteBytes: 64 << 20,
     maxJsonDepth: 50,
-    maxJsonMembers: 100000,
     maxResponseBytes: 1 << 20,
     maxOperationResponseBytes: 2 << 20,
     globalWriteResponseBytes: 64 << 20,

@@ -57,6 +57,7 @@ async function world(initial: ProtocolStanding, login: 'signed-in' | 'signed-out
   const connection = {
     availability: {
       keys: () => undefined,
+      revision: () => 1,
       standing: (key: ProtocolKey) =>
         standings.get(`${key.name}/v${key.major}`) ?? { kind: 'absent' },
       subscribe(listener: () => void) {
@@ -203,6 +204,7 @@ describe('a connection that comes after the page', () => {
     const connection = {
       availability: {
         keys: () => undefined,
+        revision: () => 1,
         standing: () => ({ kind: 'absent' }) as const,
         subscribe: () => () => undefined,
       },

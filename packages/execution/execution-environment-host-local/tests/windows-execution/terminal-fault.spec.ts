@@ -16,7 +16,8 @@ it('retains the original Job after real shell control loss without reexecuting t
   const source = join(directory, 'bridge.cs')
   const terminal = join(directory, 'terminal.cs')
   const executable = join(directory, 'bridge.exe')
-  const anchor = 'writer.WriteLine(json.Serialize(new {t="started",id=request.id}));'
+  const anchor =
+    'writer.WriteLine(json.Serialize(new {t="started",id=request.id,observed=startDirectory}));'
   expect(terminalNativeSource.split(anchor)).toHaveLength(2)
   const f = terminalFixture(directory)
   try {

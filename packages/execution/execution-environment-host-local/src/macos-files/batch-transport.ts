@@ -16,7 +16,12 @@ type Reason = 'effectUnknown' | 'conflict' | 'closed'
 export type BatchEvent =
   | Readonly<{ event: 'checked' | 'staged' }>
   | Readonly<{ event: 'beforePublish'; index: number }>
-  | Readonly<{ event: 'published'; index: number; cleanupError?: { temp: string; code: string } }>
+  | Readonly<{
+      event: 'published'
+      index: number
+      directory?: string
+      cleanupError?: { temp: string; code: string }
+    }>
 type Finish = Readonly<{ kind: 'committed' }> | Readonly<{ kind: 'unknown'; reason: Reason }>
 type Result =
   | Failure
@@ -57,7 +62,11 @@ function parse(value: unknown): Message | Failure {
     )
       return 'unknown'
     if (value.event === 'beforePublish') return { event: value.event, index: value.index }
-    if (!('cleanupError' in value)) return { event: value.event, index: value.index }
+    const visit =
+      'directory' in value && typeof value.directory === 'string'
+        ? { directory: value.directory }
+        : {}
+    if (!('cleanupError' in value)) return { event: value.event, index: value.index, ...visit }
     const error = value.cleanupError
     if (
       error === null ||
@@ -71,6 +80,7 @@ function parse(value: unknown): Message | Failure {
     return {
       event: value.event,
       index: value.index,
+      ...visit,
       cleanupError: { temp: error.temp, code: error.code },
     }
   }
@@ -88,6 +98,7 @@ export async function runBatch(
   entries: readonly NativeBatchEntry[],
   rooted: boolean,
   onEvent: (event: BatchEvent) => Promise<'continue' | 'closed' | 'effectUnknown'>,
+  observeDirectory = false,
 ): Promise<Result> {
   const helper = await filesHelper()
   if (helper.kind !== 'ready') return 'unavailable'
@@ -165,7 +176,9 @@ export async function runBatch(
     failed = true
     child.kill('SIGKILL')
   })
-  child.stdin.write(`${JSON.stringify({ operation: 'batch', rooted, entries })}\n`)
+  child.stdin.write(
+    `${JSON.stringify({ operation: 'batch', rooted, entries, observeDirectory })}\n`,
+  )
   const code = await closed
   clearTimeout(timer)
   await messages

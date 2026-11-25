@@ -33,7 +33,7 @@ async function availability(
   const inspection = await inspect(type, record.material)
   if ('unavailable' in inspection) return { kind: 'unknown', diagnostic: inspection.unavailable }
   if ('refused' in inspection) return { kind: 'unavailable', reason: inspection.refused }
-  return { kind: 'available', ...inspection.ok }
+  return { kind: 'available', directory: inspection.ok.directory, basis: inspection.ok.basis }
 }
 
 export function createCatalog<P>(

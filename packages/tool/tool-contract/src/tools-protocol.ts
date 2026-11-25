@@ -6,7 +6,9 @@ import type { ToolInvocationRef } from './reference.ts'
 export type SearchArguments = Pick<
   Parameters<ToolCatalog<unknown>['search']>[0],
   'query' | 'after' | 'limit'
->
+> &
+  /** `true`: only the tools a program can call now. */
+  Readonly<{ programmable?: true }>
 export type SearchPage = Readonly<{
   entries: readonly ToolCatalogSearchEntry[]
   withheld?: readonly ToolSourceWithheld[]

@@ -8,6 +8,7 @@ it('root entry exports the pure functions that have landed', async () => {
     'SESSION_MODES_PUBLICATION',
     'SESSION_PERMISSION_MODE_TRANSLATION',
     'SESSION_WORKING_DIRECTORY',
+    'SESSION_WORKSPACE_GUIDANCE',
     'createSessionCommandSource',
     'createSessionModesPublication',
     'createSessionRuntimeContextTrust',

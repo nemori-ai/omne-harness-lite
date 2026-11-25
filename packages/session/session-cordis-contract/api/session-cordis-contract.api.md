@@ -333,6 +333,7 @@
 - `TodoMutationReceipt` · 包 `@omne-harness/session-contract`
 - `TodoPage` · 包 `@omne-harness/session-contract`
 - `TodoPageCursor` · 包 `@omne-harness/session-contract`
+- `UNKNOWN_MODEL_PROVENANCE` · 包 `@omne-harness/session-contract`
 - `UnarchivedLifecycle` · 包 `@omne-harness/session-contract`
 - `Utterance` · 包 `@omne-harness/session-contract`
 - `UtteranceResolver` · 包 `@omne-harness/session-contract`
@@ -416,6 +417,7 @@
 - `onceAuthorizationOf` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
 - `originalContent` · 包 `@omne-harness/session-contract`
+- `originalModelRows` · 包 `@omne-harness/session-contract`
 - `ownPositionAfter` · 包 `@omne-harness/session-contract`
 - `parseForkPoint` · 包 `@omne-harness/session-contract`
 - `parseInputSourceName` · 包 `@omne-harness/session-contract`
@@ -427,6 +429,8 @@
 - `prepareIntakeTerms` · 包 `@omne-harness/session-contract`
 - `previewOf` · 包 `@omne-harness/session-contract`
 - `projectCompactionCommit` · 包 `@omne-harness/session-contract`
+- `projectModelMessage` · 包 `@omne-harness/session-contract`
+- `projectModelProvenance` · 包 `@omne-harness/session-contract`
 - `projectSessionEntries` · 包 `@omne-harness/session-contract`
 - `projectSessionLog` · 包 `@omne-harness/session-contract`
 - `readAccessRequest` · 包 `@omne-harness/session-contract`
@@ -454,11 +458,13 @@
 - `shortCallId` · 包 `@omne-harness/session-contract`
 - `sourceRequestIdentities` · 包 `@omne-harness/session-contract`
 - `standingOf` · 包 `@omne-harness/session-contract`
+- `summarizeModelProvenance` · 包 `@omne-harness/session-contract`
 - `uninterpretedCalls` · 包 `@omne-harness/session-contract`
 - `waitingCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
 - `withIntakeTerms` · 包 `@omne-harness/session-contract`
 - `withoutCommitted` · 包 `@omne-harness/session-contract`
+- `workspaceGeneration` · 包 `@omne-harness/session-contract`
 - `workspaceSelection` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`

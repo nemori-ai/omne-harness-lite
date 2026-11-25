@@ -56,6 +56,7 @@ describe('the coding entry of the release mapping', () => {
       { capability: { category: 'tool', name: 'Calendar' }, resident: true },
       { capability: { category: 'tool', name: 'Schedules' }, resident: true },
       { capability: { category: 'tool', name: 'Notifications' }, resident: true },
+      { capability: { category: 'tool', name: 'Canvas' }, resident: true },
       { capability: { category: 'tool', name: 'Sessions' }, resident: true },
       { capability: { category: 'tool', name: 'Agents' }, resident: true },
       { capability: { category: 'tool', name: 'SwitchWorkspace' }, resident: true },
@@ -128,12 +129,12 @@ describe('the coding entry of the release mapping', () => {
       expect(fullText).toContain(word)
     for (const word of ['已验证', '部分验证', '未验证', '失败']) expect(fullText).toContain(word)
     expect(fullText).toContain(
-      'You have thirteen resident command tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar, Schedules, Notifications, Sessions, Agents and Skills.',
+      'You have fourteen resident command tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar, Schedules, Notifications, Canvas, Sessions, Agents and Skills.',
     )
     expect(fullText).toContain('## BkgToolCalls')
     // Code comes with a row, so the prompt names it only as a condition: the sentence holds without the row.
     expect(fullText).toContain(
-      'A page is often large: with Code among your tools, fetch it inside a program and return only the part that you need.',
+      'With Code among your tools, use one program when a step repeats over many items, calls feed each other or a result is large.',
     )
     expect(fullText).not.toContain('## Code')
     const extending = instructions.find(section => section.id === 'extensions')?.text ?? ''

@@ -1,0 +1,203 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
+  .canvas-view {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    font-size: var(--omne-text-ui);
+  }
+
+  .canvas-paper {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .canvas-surface {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .canvas-seat {
+    width: var(--omne-control-height);
+    height: var(--omne-control-height);
+  }
+
+  .canvas-thing {
+    display: contents;
+  }
+
+  .canvas-generic {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    height: 100%;
+    padding: var(--omne-space-inline);
+    overflow: clip;
+    overflow-clip-margin: var(--omne-ring-room);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-ui);
+    color: var(--omne-ink-muted);
+  }
+  .canvas-generic-kind {
+    color: var(--omne-ink-primary);
+  }
+  .canvas-generic-ref {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .canvas-generic-note {
+    color: var(--omne-ink-faint);
+  }
+
+  .canvas-said {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .canvas-more {
+    opacity: 0;
+  }
+  .canvas-thing:hover .canvas-more,
+  .canvas-thing:focus-within .canvas-more,
+  .canvas-more[data-state='open'] {
+    opacity: 1;
+  }
+
+  .canvas-leaf {
+    position: relative;
+    height: 100%;
+  }
+  .canvas-leaf > .canvas-more {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+
+  .canvas-rename {
+    width: calc(var(--spacing) * 40);
+  }
+
+  .canvas-notices {
+    position: absolute;
+    top: var(--omne-space-block);
+    left: var(--omne-space-block);
+    right: calc(var(--omne-space-block) * 2 + var(--omne-control-height));
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    pointer-events: none;
+  }
+  .canvas-notices > * {
+    pointer-events: auto;
+  }
+
+  .canvas-status-part {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--omne-space-inline);
+  }
+  .canvas-status-what {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .canvas-status-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .canvas-status-kind,
+  .canvas-status-count {
+    flex: none;
+  }
+  .canvas-status-icon {
+    flex: none;
+    width: var(--omne-icon-compact);
+    height: var(--omne-icon-compact);
+  }
+
+  .canvas-zoom {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .canvas-turn {
+    position: absolute;
+    top: var(--omne-space-block);
+    right: var(--omne-space-block);
+  }
+
+  .canvas-finder-spot {
+    z-index: 2;
+  }
+  .canvas-finder {
+    position: absolute;
+    left: calc(var(--spacing) * -3);
+    top: calc(var(--spacing) * -4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+    width: calc(var(--spacing) * 90);
+    max-height: calc(var(--spacing) * 120);
+    padding: var(--omne-space-block);
+    background-color: var(--omne-surface-page);
+  }
+  .canvas-finder-found {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-block);
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--omne-ring-room);
+  }
+  .canvas-finder-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--omne-space-inline);
+  }
+  .canvas-finder-heading {
+    font-size: var(--omne-text-caption);
+    color: var(--omne-ink-faint);
+  }
+  .canvas-finder-none {
+    font-size: var(--omne-text-caption);
+    color: var(--omne-ink-muted);
+  }
+
+  .canvas-intake {
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--omne-space-inline);
+    width: calc(var(--spacing) * 80);
+  }
+
+  .canvas-found-spot {
+    pointer-events: none;
+  }
+  .canvas-found {
+    border-radius: var(--omne-radius-mark);
+    outline: var(--omne-ring-width) solid var(--omne-line-focus);
+    outline-offset: var(--omne-ring-offset);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .canvas-more {
+      transition-property:
+        color, background-color, border-color, outline-color, text-decoration-color, fill, stroke,
+        box-shadow !important;
+    }
+  }
+}

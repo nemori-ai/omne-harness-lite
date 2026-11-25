@@ -90,7 +90,6 @@ export function providerConfig(
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
     maxJsonDepth: 64,
-    maxJsonMembers: 262_144,
     maxResponseBytes: LOCAL_MAX_RESPONSE_BYTES,
     maxOperationResponseBytes: 1048576,
     globalWriteResponseBytes: 33554432,

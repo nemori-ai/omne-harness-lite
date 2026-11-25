@@ -2,7 +2,10 @@ import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { contextHolderSourcesKey } from '@omne-harness/request-context-cordis-contract/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { historySessionOf } from '@omne-harness/session-adapters'
-import { createSessionHistorySource } from '@omne-harness/session-adapters/cordis'
+import {
+  createSessionHistorySource,
+  sessionModelHistoryReadinessKey,
+} from '@omne-harness/session-adapters/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
@@ -28,6 +31,34 @@ const plugin: Plugin.Object = {
   async apply(ctx: Context, config: SessionAd04Config) {
     const bundle = createSessionHistorySource({
       heads: { sessionOf: sessionHeadOf },
+      qualifyHistory: async (input, sources) => {
+        const qualifier = ctx.get(sessionModelHistoryReadinessKey, false)?.qualify
+        if (qualifier === undefined)
+          return {
+            failure: {
+              kind: 'unavailable',
+              diagnostic: 'workspace history qualification is not installed',
+            },
+          }
+        const checked = await qualifier(input, sources)
+        return 'failure' in checked
+          ? checked
+          : checked.ok.length > 0
+            ? { failure: { kind: 'denied' } }
+            : { ok: undefined }
+      },
+      ensureModelHistory: async input => {
+        const service = ctx.get(sessionModelHistoryReadinessKey, false)
+        return service === undefined
+          ? {
+              failure: {
+                kind: 'unavailable',
+                owner: 'session-ad04',
+                diagnostic: 'the model history readiness service is unavailable',
+              },
+            }
+          : service.ensure(input)
+      },
       scopeIndexEntries: config.scopeIndexEntries,
       pageBytes: config.pageBytes,
     })

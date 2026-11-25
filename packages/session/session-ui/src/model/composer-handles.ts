@@ -6,6 +6,7 @@ export type SendWay = 'send' | SendHow
 /** What the composer on show lets an action do: it stays the one owner of its words. */
 export type ComposerHandle = Readonly<{
   session: string
+  reachable: () => boolean
   focus: () => void
   insert: (text: string) => void
   send: (way: SendWay) => true | string
@@ -24,15 +25,15 @@ export type SessionComposer = Readonly<{
 const NO_COMPOSER = '没有打开的输入框'
 
 export function composerOf(handles: ComposerHandles): SessionComposer {
-  const act = (use: (handle: ComposerHandle) => void) => (): true | string => {
+  const act = (use: (handle: ComposerHandle) => void, within: boolean) => (): true | string => {
     const handle = handles.current()
-    if (handle === undefined) return NO_COMPOSER
+    if (handle === undefined || (within && !handle.reachable())) return NO_COMPOSER
     use(handle)
     return true
   }
   return {
-    write: text => act(handle => handle.write(text))(),
-    say: text => act(handle => handle.say(text))(),
+    write: text => act(handle => handle.write(text), true)(),
+    say: text => act(handle => handle.say(text), false)(),
   }
 }
 

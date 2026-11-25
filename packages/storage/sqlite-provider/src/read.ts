@@ -33,10 +33,8 @@ export function createRead(core: Core): SqlStorage['read'] {
       !isStrictJson(raw.input)
     )
       return unavailable('invalid')
-    const shape = jsonShape(raw.input)
     if (
-      shape.depth > config.maxJsonDepth ||
-      shape.members > config.maxJsonMembers ||
+      jsonShape(raw.input).depth > config.maxJsonDepth ||
       utf8Length(canonicalJson(raw.input)) > config.maxReadInputBytes
     )
       return unavailable('read_limit', 'input_limit')

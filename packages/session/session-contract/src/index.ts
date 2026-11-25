@@ -218,7 +218,11 @@ export {
   type ChildRecord,
   type RelatedSession,
 } from './standing.ts'
-export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts'
+export {
+  workspaceGeneration,
+  workspaceSelection,
+  type WorkspaceSelection,
+} from './workspace-selection.ts'
 export { cancellationDriveOf, runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'
 export {
@@ -481,6 +485,16 @@ export {
   type IntakeVerdict,
   type Screened,
 } from './before-intake.ts'
+
+export { projectModelMessage } from './model-projection.ts'
+
+export {
+  summarizeModelProvenance,
+  projectModelProvenance,
+  UNKNOWN_MODEL_PROVENANCE,
+} from './model-provenance.ts'
+export { originalModelRows } from './model-originals.ts'
+
 export {
   createUtteranceResolverRegistry,
   type OperationAsked,

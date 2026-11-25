@@ -1,3 +1,4 @@
+import { outputPolicyOf } from '../process-result.ts'
 import { randomUUID } from 'node:crypto'
 import { win32 } from 'node:path'
 import type {
@@ -315,6 +316,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       disposition: undefined,
       resolving: undefined,
     }
+    let startDirectory: string | undefined
     let startedAt = now()
     const elapsed = () => Math.max(0, Math.round(now() - startedAt))
     const end = () => {
@@ -372,6 +374,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
             ready.resolve(true)
             break
           case 'started':
+            startDirectory = frame.observed
             startedAt = now()
             started.resolve(true)
             break
@@ -443,15 +446,12 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     return {
       kind: 'done',
       requestId: request.requestId,
+      ...(startDirectory === undefined ? {} : { verifiedDirectories: [startDirectory] }),
       value: Object.freeze({
         process: Object.freeze({ id: name, generation: resource.key }),
         outputMode: 'separate',
         output: entry.buffer.output,
-        outputPolicy: Object.freeze({
-          maxBufferedBytes: settings.maxBufferedBytes,
-          maxChunkBytes: settings.maxChunkBytes,
-          overflow: 'discard',
-        }),
+        outputPolicy: outputPolicyOf(settings),
         result: outcome.promise,
         stop: (mode: 'graceful' | 'forced') => stopHandle(entry, mode),
       }),

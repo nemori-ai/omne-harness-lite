@@ -1,5 +1,6 @@
 import {
   fileEffects,
+  type FacilityResult,
   type FileEffect,
   type FileIdentity,
   type FileInformation,
@@ -13,7 +14,7 @@ import type { HostFilesLimits } from '../host-file-tree.ts'
 import { failed, reject } from '../host-paths.ts'
 import { createMacosPaths, requestRefusal, type RootIdentity } from './paths.ts'
 import type { Metadata, NativeInput, NativeReply } from './protocol.ts'
-import { invoke } from './transport.ts'
+import { filesHelper, invoke } from './transport.ts'
 
 type Identity = () => Promise<RootIdentity | undefined>
 
@@ -48,12 +49,17 @@ type NativeScope = Readonly<{
 
 /** The native call of one request: its path by the root of its effect, a target by the root of the target's. */
 function nativeRunner(at: NativeScope) {
-  return async (
+  return async <T = never>(
     request: FileRequest<unknown>,
     operation: Exclude<NativeInput['operation'], 'observe'> & ScopedFileOperation,
     extra: Partial<NativeInput> = {},
     target?: Readonly<{ path: string; named: ObjectToken | null; effect: FileEffect }>,
+    original?: () => Promise<FacilityResult<T>>,
   ) => {
+    const effect = fileEffects[operation].path
+    const fallback = !at.rooted(effect) ? original : undefined
+    if (fallback && (!request.observeDirectory || (await filesHelper()).kind !== 'ready'))
+      return fallback()
     const refusal = requestRefusal(request)
     if (refusal !== undefined) return failed(request.requestId, refusal, 'unresolved')
     if (target !== undefined) {
@@ -64,12 +70,13 @@ function nativeRunner(at: NativeScope) {
       ['read', 'stat', 'list'].includes(operation) || (operation === 'write' && !extra.create)
         ? 'unresolved'
         : 'notFound'
-    const effect = fileEffects[operation].path
     const source = await at.endpoints[effect](
       request.path,
       operation === 'mkdir' && extra.recursive,
       operation === 'list' || operation === 'search',
+      fallback !== undefined,
     )
+    if (!source.ok && fallback) return fallback()
     if (!source.ok) return failed(request.requestId, source.failure, missing)
     const destination =
       target === undefined ? undefined : await at.endpoints[target.effect](target.path)
@@ -82,6 +89,9 @@ function nativeRunner(at: NativeScope) {
       return reject(request.requestId, 'unavailable')
     const result = await invoke({
       ...source.value,
+      ...(request.observeDirectory && (!at.rooted(effect) || (target && !at.rooted(target.effect)))
+        ? { observeDirectory: true as const }
+        : {}),
       named: request.named?.token ?? '',
       path: request.path,
       rooted: at.rooted(effect),
@@ -97,18 +107,24 @@ function nativeRunner(at: NativeScope) {
           }
         : {}),
     })
-    return typeof result === 'string' ? failed(request.requestId, result, missing) : result
+    if (typeof result === 'string') return failed(request.requestId, result, missing)
+    const directories = [
+      at.rooted(effect) ? undefined : result.directory,
+      target && !at.rooted(target.effect) ? result.targetDirectory : undefined,
+    ].filter(path => path !== undefined)
+    return { ...result, visits: directories.length ? { verifiedDirectories: directories } : {} }
   }
 }
 
-export function createMacosFiles(
-  options: Readonly<{
-    rootIdentity: Readonly<Record<FileEffect, Identity | undefined>>
-    limits: HostFilesLimits
-    prerequisite(): Promise<boolean>
-    issue(object: ObjectToken): HandleGeneration
-  }>,
-): Files {
+type MacosFilesOptions = Readonly<{
+  rootIdentity: Readonly<Record<FileEffect, Identity | undefined>>
+  limits: HostFilesLimits
+  unbounded: Pick<Files, 'read' | 'write' | 'stat'>
+  prerequisite(): Promise<boolean>
+  issue(object: ObjectToken): HandleGeneration
+}>
+
+export function createMacosFiles(options: MacosFilesOptions): Files {
   const roots = options.rootIdentity
   const identity = (info: Metadata): FileIdentity => {
     const object = { token: info.token }
@@ -144,6 +160,7 @@ export function createMacosFiles(
     if ('kind' in result) return result
     return {
       kind: 'done' as const,
+      ...result.visits,
       requestId: request.requestId,
       value: {
         source: { token: result.source ?? result.info.token },
@@ -152,61 +169,7 @@ export function createMacosFiles(
     }
   }
   return {
-    async read(original) {
-      const request = snapshot(original)
-      const offset = request.offsetBytes ?? 0,
-        limit = request.limitBytes ?? -1
-      if (
-        !Number.isSafeInteger(offset) ||
-        offset < 0 ||
-        (request.limitBytes !== undefined && (!Number.isSafeInteger(limit) || limit < 0))
-      )
-        return reject(request.requestId, 'invalidInput')
-      const result = await run(request, 'read', { offset, limit })
-      if ('kind' in result) return result
-      const bytes = Uint8Array.from(Buffer.from(result.bytes, 'base64'))
-      return {
-        kind: 'done',
-        requestId: request.requestId,
-        value: {
-          ...identity(result.info),
-          bytes,
-          nextOffsetBytes: offset + bytes.length,
-          eof: result.eof,
-        },
-      }
-    },
-    async stat(original) {
-      const request = snapshot(original)
-      const result = await run(request, 'stat')
-      return 'kind' in result
-        ? result
-        : { kind: 'done', requestId: request.requestId, value: information(result.info) }
-    },
-    async write(original) {
-      const request = { ...snapshot(original), bytes: Uint8Array.from(original.bytes) }
-      if (
-        request.mode === 'create' &&
-        (request.expectedVersion !== undefined || request.path.endsWith('/'))
-      )
-        return reject(request.requestId, 'invalidInput')
-      const result = await run(request, 'write', {
-        version: request.expectedVersion ?? null,
-        create: request.mode === 'create',
-        bytes: Buffer.from(request.bytes).toString('base64'),
-        trailingSlash: request.path.endsWith('/'),
-      })
-      return 'kind' in result
-        ? result
-        : {
-            kind: 'done',
-            requestId: request.requestId,
-            value: {
-              ...identity(result.info),
-              writeEffect: request.mode === 'create' ? 'created' : 'replaced',
-            },
-          }
-    },
+    ...basicFiles(run, options, identity, information),
     async list(original) {
       const request = snapshot(original)
       const offset = request.offset ?? 0,
@@ -218,6 +181,7 @@ export function createMacosFiles(
         ? result
         : {
             kind: 'done',
+            ...result.visits,
             requestId: request.requestId,
             value: {
               directory: identity(result.info),
@@ -246,6 +210,7 @@ export function createMacosFiles(
         ? result
         : {
             kind: 'done',
+            ...result.visits,
             requestId: request.requestId,
             value: {
               root: identity(result.info),
@@ -260,7 +225,12 @@ export function createMacosFiles(
       const result = await run(request, 'mkdir', { recursive: request.parents })
       return 'kind' in result
         ? result
-        : { kind: 'done', requestId: request.requestId, value: identity(result.info) }
+        : {
+            kind: 'done',
+            ...result.visits,
+            requestId: request.requestId,
+            value: identity(result.info),
+          }
     },
     async remove(original) {
       const request = snapshot(original)
@@ -272,12 +242,109 @@ export function createMacosFiles(
         ? result
         : {
             kind: 'done',
+            ...result.visits,
             requestId: request.requestId,
             value: { removed: { token: result.info.token } },
           }
     },
     move: request => changed(request, 'move'),
     copy: request => changed(request, 'copy'),
+  }
+}
+
+function basicFiles(
+  run: ReturnType<typeof nativeRunner>,
+  options: MacosFilesOptions,
+  identity: (info: Metadata) => FileIdentity,
+  information: (info: Metadata) => FileInformation,
+): Pick<Files, 'read' | 'stat' | 'write'> {
+  const roots = options.rootIdentity
+  return {
+    async read(original) {
+      const request = snapshot(original)
+      const offset = request.offsetBytes ?? 0,
+        limit = request.limitBytes ?? -1
+      if (
+        !Number.isSafeInteger(offset) ||
+        offset < 0 ||
+        (request.limitBytes !== undefined && (!Number.isSafeInteger(limit) || limit < 0))
+      )
+        return reject(request.requestId, 'invalidInput')
+      const result = await run(
+        request,
+        'read',
+        { offset, limit, trailingSlash: request.path.endsWith('/') },
+        undefined,
+        () => options.unbounded.read(request),
+      )
+      if ('kind' in result) return result
+      const bytes = Uint8Array.from(Buffer.from(result.bytes, 'base64'))
+      return {
+        kind: 'done',
+        ...result.visits,
+        requestId: request.requestId,
+        value: {
+          ...identity(result.info),
+          bytes,
+          nextOffsetBytes: offset + bytes.length,
+          eof: result.eof,
+        },
+      }
+    },
+    async stat(original) {
+      const request = snapshot(original)
+      const result = await run(
+        request,
+        'stat',
+        { trailingSlash: request.path.endsWith('/') },
+        undefined,
+        () => options.unbounded.stat(request),
+      )
+      return 'kind' in result
+        ? result
+        : {
+            kind: 'done',
+            ...result.visits,
+            requestId: request.requestId,
+            value: information(result.info),
+          }
+    },
+    async write(original) {
+      const request = { ...snapshot(original), bytes: Uint8Array.from(original.bytes) }
+      if (
+        request.mode === 'create' &&
+        (request.expectedVersion !== undefined || request.path.endsWith('/'))
+      )
+        return reject(request.requestId, 'invalidInput')
+      const result = await run(
+        request,
+        'write',
+        {
+          version: request.expectedVersion ?? null,
+          create: request.mode === 'create',
+          bytes: Buffer.from(request.bytes).toString('base64'),
+          trailingSlash: request.path.endsWith('/'),
+        },
+        undefined,
+        () => options.unbounded.write(request),
+      )
+      return 'kind' in result
+        ? result
+        : {
+            kind: 'done',
+            ...result.visits,
+            requestId: request.requestId,
+            value: {
+              ...identity(result.info),
+              ...(roots.write
+                ? {
+                    writeEffect:
+                      request.mode === 'create' ? ('created' as const) : ('replaced' as const),
+                  }
+                : {}),
+            },
+          }
+    },
   }
 }
 

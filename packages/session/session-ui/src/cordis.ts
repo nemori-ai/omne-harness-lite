@@ -1,6 +1,7 @@
 export {
   CONVERSATION_PAGE,
   SESSION_LIST,
+  conversationTarget,
   createSessionUiModule,
   sessionComposerIntakeKey,
   sessionComposerKey,
@@ -27,6 +28,12 @@ export type {
   ComposerHelper,
   SenderSeen,
 } from './model/composer-assistant.ts'
+export type {
+  PaperElementSubject,
+  PaperFrame,
+  PaperPickerSubject,
+  PaperReference,
+} from './model/paper.ts'
 export type {
   WorkspaceChoice,
   WorkspaceChoiceHolder,

@@ -11,12 +11,14 @@ import {
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
+import { MEDIA_OBJECT, type PlacedReference, type Placing } from './model/files-intake.ts'
 import type { Microphone } from './model/recorder.ts'
 import type { ScreenSource } from './model/snapper.ts'
 import type { MediaClient } from './model/upload.ts'
 import { mediaParts } from './parts.ts'
 import type { AssetPort } from './view/asset-body.ts'
 import { AttachmentTrayView } from './view/attachment-tray.tsx'
+import { CanvasFiles, CanvasObject, type CanvasFrame } from './view/canvas.tsx'
 import { ConverterBlock } from './view/converter-block.tsx'
 import { MEDIA_BLOCKS } from './view/media-block.tsx'
 import { browserMicrophone } from './view/microphone.ts'
@@ -37,6 +39,13 @@ export type MediaBlockSubject = Readonly<{
   read?: string
 }>
 
+export type MediaCanvasElementSubject = Readonly<{ reference: PlacedReference; frame: CanvasFrame }>
+export type MediaCanvasIntakeSubject = Readonly<{
+  files: readonly File[]
+  place: (reference: PlacedReference, placing?: Placing) => void
+  done: () => void
+}>
+
 export type MediaUiOptions = Readonly<{
   composerAttachments?: PointSink<MediaDraftSubject>
   block?: RenderPointSink<MediaBlockSubject>
@@ -47,12 +56,15 @@ export type MediaUiOptions = Readonly<{
   drafts?: ServiceKey<Drafts>
   holding?: KeyedPointSink<Readonly<{ category: string; name: string }>>
   assets?: ServiceKey<AssetPort>
+  canvasElement?: RenderPointSink<MediaCanvasElementSubject>
+  canvasIntake?: RenderPointSink<MediaCanvasIntakeSubject>
 }>
 
 const CONVERTER_CATEGORY = 'converter'
 const CONVERTER_BLOCK_ID = 'media-converter'
 
 const ITEM = 'media'
+const FILES = 'files'
 
 type ScopedProps = Readonly<{
   scope: string | undefined
@@ -108,6 +120,31 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
             )}
           </Scoped>
         ))
+      options.canvasElement?.put(shell, MEDIA_OBJECT, ({ scope, subject }) => (
+        <Scoped scope={scope}>
+          {tenant => (
+            <CanvasObject
+              client={client}
+              tenant={tenant}
+              reference={subject.reference}
+              frame={subject.frame}
+            />
+          )}
+        </Scoped>
+      ))
+      options.canvasIntake?.put(shell, FILES, ({ scope, subject }) => (
+        <Scoped scope={scope}>
+          {tenant => (
+            <CanvasFiles
+              client={client}
+              tenant={tenant}
+              files={subject.files}
+              place={subject.place}
+              done={subject.done}
+            />
+          )}
+        </Scoped>
+      ))
       options.holding?.contribute(shell, CONVERTER_CATEGORY, {
         id: CONVERTER_BLOCK_ID,
         order: 0,

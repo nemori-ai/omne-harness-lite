@@ -66,6 +66,8 @@ export const PermissionIcon = defineIcon('permission', GLYPHS.permission)
 export const ConnectionIcon = defineIcon('connection', GLYPHS.connection)
 export const AssistantIcon = defineIcon('assistant', GLYPHS.assistant)
 export const TurnIcon = defineIcon('turn', GLYPHS.turn)
+export const LockIcon = defineIcon('lock', GLYPHS.lock)
+export const MagnetIcon = defineIcon('magnet', GLYPHS.magnet)
 
 export const ICONS: Readonly<Record<string, Icon>> = {
   material: MaterialIcon,
@@ -127,4 +129,6 @@ export const ICONS: Readonly<Record<string, Icon>> = {
   connection: ConnectionIcon,
   assistant: AssistantIcon,
   turn: TurnIcon,
+  lock: LockIcon,
+  magnet: MagnetIcon,
 }
