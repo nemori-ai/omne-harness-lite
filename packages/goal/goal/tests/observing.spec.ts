@@ -562,7 +562,7 @@ describe('what a check withstands', () => {
     expect(w.decisions.asked).toHaveLength(3)
   })
 
-  it('reads the number of a metric from the run that measured it, and keeps it as the reading of the system', async () => {
+  it('reads the number of a metric from the run that measured it, keeps it as the reading of the system, and reads none before any run', async () => {
     const draft: GoalDraft = {
       purpose: '把首页的加载时间降下来',
       criteria: [{ statement: 'p95 到 800 毫秒以内', evidence: { kind: 'metric', metric: 'M1' } }],
@@ -578,6 +578,8 @@ describe('what a check withstands', () => {
     const w = world()
     const proposal = { kind: 'set', draft } as const
     value(await w.goals.write(OWNER, w.direct({ proposal })))
+    expect(value(await observe(w, 'before-any-run'))).toEqual({ kind: 'continue' })
+    expect(w.store.rows(TENANT).at(-1)?.readings.metrics).toEqual({})
     const bench = { ...write(1), tool: 'Shell execute', path: null, writes: false, exit: 0 }
     w.history.made({ ...bench, command: 'pnpm bench:home --json', output: '{"p95_ms": 780}' })
     expect(value(await observe(w))).toEqual({ kind: 'pass' })
