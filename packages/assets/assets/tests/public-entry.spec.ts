@@ -31,6 +31,8 @@ it('exports the registry, identity, and pin operations', () => {
     'packageDigest',
     'pinBody',
     'projectAssetSettings',
+    'publishRefusal',
+    'publishStanding',
     'readBodyText',
     'readSnapshot',
     'refusal',

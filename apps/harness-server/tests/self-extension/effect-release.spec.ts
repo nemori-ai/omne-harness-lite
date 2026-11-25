@@ -66,7 +66,7 @@ describe('what is told of a tool and of a definition, on the release tree', () =
           '! tidy-notes: skill.skills / tidy-notes   → its resident skill tidy-notes is not there now (this tenant does not hold it): a session with it starts without it',
         )
         expect(coding).toContain(
-          '→ would be held and not in effect: the definition coding of the deployment stands and cannot be replaced',
+          '! agent.definitions / coding   → would be refused: irreplaceable-official: AgentDefinition coding is held on the official layer and cannot be replaced; nothing was published',
         )
         expect(boss).toContain('→ would be refused: AGENT.md: type is master')
 

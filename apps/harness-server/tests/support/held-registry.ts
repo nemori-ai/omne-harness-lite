@@ -1,7 +1,7 @@
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import type { CategoryView } from '@omne-harness/assets'
 import { assetCategoriesPlugin } from '@omne-harness/assets-cordis-contract/cordis'
-import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
+import { DynamisService, dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { heldOnRegistry, type HeldOnRegistry } from '../../src/rows/tenant-assets/held.ts'
 
 export type HeldRegistry = Readonly<{
@@ -24,6 +24,7 @@ export async function heldRegistry(categories: readonly Plugin.Object[]): Promis
       const made = heldOnRegistry(
         () => ctx.assetCategories,
         () => undefined,
+        () => (ctx.get(dynamisKey) as DynamisService | undefined)?.registry(),
       )
       ctx.on('dynamis-cordis/changed', () => made.registryChanged())
       held = made
