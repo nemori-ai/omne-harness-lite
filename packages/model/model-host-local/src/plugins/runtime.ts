@@ -473,7 +473,8 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
 
   // A released call left the producer for good: its custody and its consumer still answer.
   async function released(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
-    const read = await originRead(input, record, access.principal)
+    const target = { tenant: record.tenant, call: record.call }
+    const read = await originRead(input, target, access.principal)
     if (read === null || read.custody === 'producer') return owing.mark(record)
     return save({
       ...record,
