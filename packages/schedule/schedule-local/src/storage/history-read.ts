@@ -69,7 +69,13 @@ function rowOf(row: Record<string, unknown>): ScheduleExecutionRow {
   const rowRef = z.string().parse(row['ref'])
   if (row['kind'] === 'direct') {
     const job = jobRecordSchema.parse(JSON.parse(z.string().parse(row['a'])))
-    return { kind: 'direct', rowRef, originalScheduledAt: at, job: job.summary, run: job.run }
+    return {
+      kind: 'direct',
+      rowRef,
+      originalScheduledAt: at,
+      job: job.summary,
+      run: { ...job.run, reason: job.reason },
+    }
   }
   const scheduleId = ScheduleIdSchema.parse(row['schedule_id'])
   if (row['kind'] === 'lapse') {
@@ -97,7 +103,7 @@ function rowOf(row: Record<string, unknown>): ScheduleExecutionRow {
     preparation: null,
     receipt: stored.receipt,
     job: job?.summary ?? null,
-    run: job?.run ?? null,
+    run: job === null ? null : { ...job.run, reason: job.reason },
     notification: null,
   }
 }

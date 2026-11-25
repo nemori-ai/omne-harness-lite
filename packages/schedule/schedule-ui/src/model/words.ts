@@ -44,9 +44,26 @@ export function localText(local: string): string {
   return local.replace('T', ' ').replace(/:00$/, '')
 }
 
-/** The next time of a schedule as a person reads it, or that there is none. */
-export function nextText(next: Upcoming | null): string {
-  return next === null ? '没有下一次' : localText(next.local)
+/** The next time as a person reads it; a schedule not in effect has none, whatever the answer carries. */
+export function nextText(schedule: Pick<ScheduleCard, 'control' | 'next'>): string {
+  if (schedule.control === 'paused') return '暂停中'
+  if (schedule.control !== 'active' || schedule.next === null) return '没有下一次'
+  return localText(schedule.next.local)
+}
+
+export function runnableText(schedule: Pick<ScheduleCard, 'control' | 'standing'>): string {
+  if (schedule.control === 'active') return STANDING_WORDS[schedule.standing]
+  if (schedule.control === 'draft') return '还没生效'
+  if (schedule.control === 'paused') return '恢复之前不会运行'
+  return '不会再运行'
+}
+
+/** Why a schedule has no planned times; one in effect has them, so nothing to say. */
+export function unplannedText(control: ScheduleCard['control']): string | undefined {
+  if (control === 'active') return undefined
+  if (control === 'draft') return '草稿还没生效，不会到点。'
+  if (control === 'paused') return '暂停中，恢复之前不会到点。'
+  return `${CONTROL_WORDS[control]}，不会再到点。`
 }
 
 /** The calendar and version an upcoming time's working days came from; none when its days need no calendar. */

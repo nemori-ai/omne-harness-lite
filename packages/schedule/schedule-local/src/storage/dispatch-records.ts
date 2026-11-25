@@ -2,6 +2,7 @@ import { z } from 'zod'
 import {
   admissionRefs,
   decideAdmission,
+  shownNext,
   type AdmissionFacts,
   type DispatchState,
   type ScheduleRecord,
@@ -76,6 +77,17 @@ export function lockedWatchStart(
   ]).rows[0]
   const scope = typeof row?.[0] === 'string' ? row[0] : null
   return scope !== null && scope > state.watchedFrom ? scope : state.watchedFrom
+}
+
+export function writeShownNext(
+  port: ParticipantPort,
+  owner: ScheduleOwner,
+  record: ScheduleRecord,
+  state: DispatchState,
+) {
+  const nextOccurrence = shownNext(state.next, lockedWatchStart(port, owner, state))
+  saveRecord(port, { ...record, view: { ...record.view, nextOccurrence } })
+  observed(port, owner)
 }
 
 const queued = (state: DispatchState, at: string) =>
@@ -346,7 +358,7 @@ export function writeClassification(
   const view = {
     ...record.view,
     eligibleConsumed: record.view.eligibleConsumed + missed.length,
-    nextOccurrence: command.selected[0] ?? command.next,
+    nextOccurrence: command.next,
   }
   const next = { ...record, view }
   saveRecord(port, command.exhausts ? exhausted(next, at) : next)

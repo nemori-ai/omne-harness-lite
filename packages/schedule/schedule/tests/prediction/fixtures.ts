@@ -61,6 +61,7 @@ export function input(
     definitionRevision: 0,
     activationExclusive: null,
     eligibleConsumed: 0,
+    eligibleFrom: null,
     acceptedJobCount: 0,
     after: instant('2026-01-01T00:00:00.000Z'),
     count: 10,
