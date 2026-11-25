@@ -57,7 +57,7 @@ const PURPOSE = `Run a TypeScript program that calls tools as functions. Results
 Use it when the work is many calls whose intermediate results you do not need to read: the same step on many items (files, pages), calls that feed each other, a large result you need a small part of (a web page), or branches and retries. Save a program you will run again to a file and run it by path with input.
 Call tools directly when one or two small calls answer, when you must read a result to decide the next step, or when you need the full text in the conversation.
 - code is the body of an async function. Each tool it names is a global: const page = await Web.fetch({ url }). A call takes one object and resolves to a value, not to text.
-- Which tools a program can call, their functions and the fields they resolve to are told by Tools, not here: before you write a call, inspect that tool, or search with programmable set to true.
+- A tool's functions and result fields are told only by Tools. Read them first: Tools {"command":"inspect","params":{"name":"Web","command":null}}. Tools search with programmable set to true lists the callable tools.
 - Await every call; run independent calls with Promise.all.
 - No file system, network, timer or import: use the tools. Nothing is kept between programs.`
 

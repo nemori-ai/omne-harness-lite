@@ -941,7 +941,10 @@ describe('the definition of Code', () => {
     ])
       expect(definition.description).toContain(direct)
     expect(definition.description).toContain(
-      'are told by Tools, not here: before you write a call, inspect that tool, or search with programmable set to true',
+      'are told only by Tools. Read them first: Tools {"command":"inspect","params":{"name":"Web","command":null}}.',
+    )
+    expect(definition.description).toContain(
+      'Tools search with programmable set to true lists the callable tools.',
     )
     expect(commandMenu(definition)).toContain('help {} - ')
     const bytes = (text: string) => new TextEncoder().encode(text).length
