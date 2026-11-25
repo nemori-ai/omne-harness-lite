@@ -463,6 +463,7 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
       expect(outcome).toEqual({
         kind: 'completed',
         exit: { kind: 'code', code: 3 },
+        observedCwd: '/tmp',
         durationMs: expect.any(Number),
         output: {
           mode: 'terminal',
