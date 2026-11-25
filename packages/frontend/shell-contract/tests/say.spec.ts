@@ -101,7 +101,16 @@ describe('the place words said to the figure go, which holds one', () => {
     expect(shell.items('say')).toEqual([])
   })
 
-  it('is a point of the shell with major version 1 and revision 1, fixed when the app is built, whose item gives five functions', () => {
+  it('places an item that knows pictures as it places one that does not, and the shell reads back its pictures as given', async () => {
+    const { root, shell } = await startShell()
+    const pictures = (scope: string | undefined): boolean => scope === 'tenant'
+    const item: SayItem = { ...sayItem('session'), pictures }
+    await place(root, 'a', ctx => ctx.shell.contribute('say', item))
+    expect(shell.items('say')).toEqual([item])
+    expect(shell.items('say')[0]?.pictures).toBe(pictures)
+  })
+
+  it('is a point of the shell with major version 1 and revision 2, fixed when the app is built, whose item gives five functions and may give a sixth', () => {
     const contract = shellContracts.find(each => each.name === 'shell.say')
     expect(contract).toMatchObject({
       tree: 'client',
@@ -110,7 +119,7 @@ describe('the place words said to the figure go, which holds one', () => {
       resolve: 'conflict',
       binding: 'build',
       version: 1,
-      revision: 1,
+      revision: 2,
       item: {
         kind: 'pure',
         fields: {

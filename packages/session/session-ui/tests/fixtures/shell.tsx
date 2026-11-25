@@ -26,6 +26,7 @@ import {
   type WorkspaceChoiceSource,
 } from '../../src/cordis.ts'
 import type { BlockReadsSource } from '../../src/model/block-reads.ts'
+import type { PictureIntake } from '../../src/model/pictures.ts'
 
 /** The keys a case provides under: the session module is mounted taking what is on them. */
 export const TAKEN = {
@@ -33,6 +34,7 @@ export const TAKEN = {
   workspaceChoices: serviceKey<WorkspaceChoiceSource>('test.workspace-choices'),
   blockReads: serviceKey<BlockReadsSource>('test.block-reads'),
   composerAssistant: serviceKey<ComposerAssistant>('test.composer-assistant'),
+  pictureIntake: serviceKey<PictureIntake>('test.picture-intake'),
 }
 
 /** Provides under a key as another module does; what `attach` returns takes it back. */

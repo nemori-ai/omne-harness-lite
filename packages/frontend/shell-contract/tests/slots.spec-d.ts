@@ -30,6 +30,7 @@ import type {
   PageProps,
   SayItem,
   SayOutcome,
+  SayPicture,
   SayTarget,
   SayTo,
   ScopedProps,
@@ -113,17 +114,24 @@ test('each slot takes its own item', () => {
   >()
 })
 
-test('the item of the place words said to the figure go draws nothing, and in revision 1 knows no pictures', () => {
+test('the item of the place words said to the figure go draws nothing, and from revision 2 may know pictures', () => {
   expectTypeOf<SayItem>().toEqualTypeOf<
     Readonly<{
       id: string
       targets: (scope: string | undefined) => readonly SayTarget[] | undefined
       current: (scope: string | undefined) => string | undefined
+      pictures?: (scope: string | undefined) => boolean
       subscribe: (listener: () => void) => () => void
-      say: (scope: string | undefined, to: SayTo, words: string) => Promise<SayOutcome>
+      say: (
+        scope: string | undefined,
+        to: SayTo,
+        words: string,
+        pictures?: readonly SayPicture[],
+      ) => Promise<SayOutcome>
       show: (scope: string | undefined, key: string) => void
     }>
   >()
+  expectTypeOf<SayPicture>().toEqualTypeOf<Readonly<{ name: string; bytes: Uint8Array }>>()
   expectTypeOf<SayTarget>().toEqualTypeOf<Readonly<{ key: string; label: string }>>()
   expectTypeOf<SayTo>().toEqualTypeOf<
     Readonly<{ kind: 'new' }> | Readonly<{ kind: 'target'; key: string }>
@@ -139,16 +147,24 @@ test('the item of the place words said to the figure go draws nothing, and in re
     targets: () => undefined,
     current: () => undefined,
     subscribe: () => () => undefined,
-    say: async () => ({ kind: 'unknown' }),
+    say: async (_scope: string | undefined, _to: SayTo, _words: string) => ({ kind: 'unknown' }),
     show: () => undefined,
   }
   shell.contribute('say', item)
-  // @ts-expect-error revision 1 has no pictures on the item
   shell.contribute('say', { ...item, pictures: () => true })
   shell.contribute('say', {
     ...item,
-    // @ts-expect-error revision 1 hands say no pictures
-    say: async (_scope: string, _to: SayTo, _words: string, _pictures: readonly unknown[]) => ({
+    say: async (_scope, _to, _words, pictures) => {
+      expectTypeOf(pictures).toEqualTypeOf<readonly SayPicture[] | undefined>()
+      return { kind: 'unknown' as const }
+    },
+  })
+  // @ts-expect-error whether the item knows pictures is yes or no
+  shell.contribute('say', { ...item, pictures: () => 'yes' })
+  shell.contribute('say', {
+    ...item,
+    // @ts-expect-error pictures are handed as their bytes, not as a text
+    say: async (_scope: string, _to: SayTo, _words: string, _pictures: readonly string[]) => ({
       kind: 'unknown' as const,
     }),
   })
