@@ -82,12 +82,11 @@ function fromSession(failure: SessionFailure, what: string): Failure {
     : unavailable(`${what} is not readable (${failure.kind})`)
 }
 
-function directiveOf(
-  collaboration: Modes['collaboration'],
-  basis: DurableEvidence,
-): ProgressionDirective {
-  return { kind: collaboration === 'auto-drive' ? 'continue' : 'evaluate-completion', basis }
-}
+// Either collaboration mode evaluates the completion: whether a round that drives itself goes on is checked where it would end.
+const directiveOf = (basis: DurableEvidence): ProgressionDirective => ({
+  kind: 'evaluate-completion',
+  basis,
+})
 
 function openScope(work: WorkSnapshot): ContextScopeBinding | null {
   const open = (work.contextScopes ?? []).filter(binding => binding.ended === null)
@@ -195,10 +194,9 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
       .reverse()
       .find(change => change.kind === 'collaboration-mode')
     if (changed !== undefined && changed.kind === 'collaboration-mode')
-      return succeed(directiveOf(changed.value, changed.authorization))
+      return succeed(directiveOf(changed.authorization))
     const modes = work.creation.modes
-    if (modes.kind === 'explicit')
-      return succeed(directiveOf(modes.value.collaboration, work.declarations))
+    if (modes.kind === 'explicit') return succeed(directiveOf(work.declarations))
     const resolved = await given.defaultModes({
       tenant,
       session,
@@ -209,7 +207,7 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
       return fail(
         unavailable(`the tenant-default modes are not readable: ${resolved.failure.diagnostic}`),
       )
-    return succeed(directiveOf(resolved.ok.modes.collaboration, resolved.ok.basis))
+    return succeed(directiveOf(resolved.ok.basis))
   }
 
   async function read(
