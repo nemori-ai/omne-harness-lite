@@ -95,6 +95,7 @@ export const skillsRow = defineRow({
     new TenantSkillCatalog(ctx, routed.catalog)
     new TenantSkillAccess(ctx, routed.access)
     provideSessionSkills(ctx, sessionSkillsOf(host))
+    ctx.on('dynamis-cordis/changed', () => void host.warm())
     ctx.effect(() => () => host.close(), 'skills.close')
     return {
       async stop() {

@@ -40,6 +40,7 @@ export type TenantSkills = Readonly<{
   catalog: SkillCatalog<unknown, unknown>
   access: SkillAccess<unknown, unknown>
   sessionCatalog: SkillCatalog<unknown, unknown>
+  warm(): Promise<void>
 }>
 
 export type WorkspaceSkillPorts = WorkspaceLayerPorts
@@ -55,6 +56,7 @@ export type TenantSkillsHostOptions = Readonly<{
 }>
 
 const SKILL = skillBodyContract().category
+const SESSION_WORK = Object.freeze({ kind: 'session-work-of-the-tenant' } as const)
 const GRANTED = Object.freeze({ kind: 'granted' } as const)
 const REFUSED = Object.freeze({ kind: 'refused' } as const)
 
@@ -128,12 +130,13 @@ export function tenantSkills(
   // A turn's reads go through its own layers; a call that names no turn shares the tenant's.
   const accessFor = (access: Access<unknown>, scope: unknown) =>
     turnKeyOf(scope) === null ? tenantAccess : accessOver(layers(access, scope).readerOf)
+  const asSession = decisionsFor(() => true)
   return {
     catalog: createSkillCatalog({ resolution, readCheck }, { ranking }),
-    sessionCatalog: createSkillCatalog(
-      decisionsFor(() => true),
-      { ranking },
-    ),
+    sessionCatalog: createSkillCatalog(asSession, { ranking }),
+    async warm() {
+      await asSession.resolution.adopted(accessOf(SESSION_WORK, tenant), null)
+    },
     access: {
       read: (access, scope, target, options) =>
         accessFor(access, scope).read(access, scope, target, options),
@@ -171,10 +174,17 @@ export class TenantSkillsHost {
   private async open(key: string, tenant: TenantId): Promise<TenantSkills | undefined> {
     try {
       const set = await this.options.open(tenant, key)
-      return this.closed ? undefined : set
+      if (this.closed) return undefined
+      void set?.warm()
+      return set
     } catch {
       return undefined
     }
+  }
+
+  /** Every open set reads ahead what changed: the registry changed. */
+  async warm(): Promise<void> {
+    await Promise.all([...this.opening.values()].map(async made => (await made)?.warm()))
   }
 
   close(): void {
@@ -184,7 +194,6 @@ export class TenantSkillsHost {
 }
 
 const CATALOG_UNKNOWN = Object.freeze(fail('unknown' as const))
-const SESSION_WORK = Object.freeze({ kind: 'session-work-of-the-tenant' } as const)
 const ACCESS_UNKNOWN = Object.freeze(fail({ kind: 'unknown' } as const))
 
 /** What the work of a session of the tenant would see for these Skills now: asked at an adoption point. */

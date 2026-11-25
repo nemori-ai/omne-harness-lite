@@ -570,6 +570,17 @@ describe('the skills row and the Skills binding over a real store', () => {
     expect(w.reads() - after).toBe(0)
   })
 
+  it('reads ahead when told the registry changed, so the next search reads nothing from storage', async () => {
+    const w = await world()
+    await w.publishMany(['skill-0', 'skill-1'])
+    await search(w.alpha, '')
+    await w.publish('skill-2')
+    await w.host.warm()
+    const before = w.reads()
+    expect(await search(w.alpha, '')).toMatchObject({ ok: { entries: [{}, {}, {}] } })
+    expect(w.reads() - before).toBe(0)
+  })
+
   it('answers every search and summary as the catalog computed from the ledger does, through publish, a new version, disable, enable and removal of two tenants (I5)', async () => {
     const w = await world()
     const tenants = [w.alphaTenant, w.betaTenant] as const
