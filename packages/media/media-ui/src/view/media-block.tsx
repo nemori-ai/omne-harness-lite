@@ -4,6 +4,7 @@ import type { ContentBlockKind } from '@omne-harness/content-block'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IMAGE_TYPES } from '../model/attachment-tray.ts'
 import { mediaFile, mediaPicture, mediaRead } from '../parts.ts'
+import { UNREADABLE, unreadableOf, type Unreadable } from '../model/prepare.ts'
 import { readWhole, type DisplayTarget, type MediaClient, type Reference } from '../model/upload.ts'
 
 /** The kinds of block that are not words, as both ends name them. */
@@ -150,15 +151,46 @@ const READ: Readonly<Record<string, string>> = {
 }
 
 /** What the model read of a block, in words; null when it is not known. */
-function readText(read: string | undefined, kind: string): string | null {
+function readText(read: string | undefined, kind: string, note: Unreadable | null): string | null {
+  if (read === 'transcript' && note !== null) return `一句说明（${UNREADABLE[note]}）`
   if (read === 'transcript') return kind === 'voice' ? '转写' : '提取的文字'
   return read === undefined ? null : (READ[read] ?? null)
 }
 
-type Said = Readonly<{ kind: MediaBlockKind; modelRead: string | undefined; children: ReactNode }>
+/** A file the model read as words, but nothing could be taken out of it: the words were a sentence saying why. */
+function useNote(
+  props: MediaBlockProps,
+  kind: MediaBlockKind,
+  ref: Reference | null,
+): Unreadable | null {
+  const { client, tenant, modelRead } = props
+  const [note, setNote] = useState<Unreadable | null>(null)
+  const asks = kind === 'file' && modelRead === 'transcript' && ref !== null
+  const key = ref === null ? null : JSON.stringify(ref)
+  useEffect(() => {
+    if (!asks || ref === null) return undefined
+    let live = true
+    void client['describe-media']({ tenant, ref }).then(
+      answer =>
+        live && answer.outcome === 'succeeded' && setNote(unreadableOf(answer.body.preprocess)),
+      () => undefined,
+    )
+    return () => {
+      live = false
+    }
+  }, [client, tenant, key, asks])
+  return note
+}
 
-function WithRead({ kind, modelRead, children }: Said) {
-  const said = readText(modelRead, kind)
+type Said = Readonly<{
+  kind: MediaBlockKind
+  modelRead: string | undefined
+  note?: Unreadable | null
+  children: ReactNode
+}>
+
+function WithRead({ kind, modelRead, note = null, children }: Said) {
+  const said = readText(modelRead, kind, note)
   if (said === null) return children
   return (
     <div className="omne-media-block">
@@ -188,8 +220,9 @@ function ImageBlock(props: MediaBlockProps) {
 const lineBlock = (kind: 'file' | 'voice') =>
   function LineBlock(props: MediaBlockProps) {
     const read = readBlock(props.content)
+    const note = useNote(props, kind, typeof read === 'string' ? null : read.ref)
     return (
-      <WithRead kind={kind} modelRead={props.modelRead}>
+      <WithRead kind={kind} modelRead={props.modelRead} note={note}>
         {typeof read === 'string' ? (
           unread(read)
         ) : (

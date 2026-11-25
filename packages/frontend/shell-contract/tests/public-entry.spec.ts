@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { ShellAssemblyError, slots } from '@omne-harness/shell-contract'
 
-it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the five shell points and of the actions, the key functions, the attribute a floating item is dragged by, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, and nothing else at run time', async () => {
+it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the six shell points and of the actions, the key functions, the attribute a floating item is dragged by, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, and nothing else at run time', async () => {
   const root = (await import('@omne-harness/shell-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'FLOAT_GRIP_ATTRIBUTE',
@@ -47,13 +47,14 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
   ])
 })
 
-it('declares eight slots, three that hold one and five lists', () => {
+it('declares nine slots, four that hold one and five lists', () => {
   expect(slots).toEqual({
     gate: { kind: 'one' },
     pages: { kind: 'list' },
     sidebar: { kind: 'list' },
     float: { kind: 'list' },
     back: { kind: 'one' },
+    say: { kind: 'one' },
     attached: { kind: 'list' },
     actions: { kind: 'list' },
     keymap: { kind: 'one' },
@@ -61,7 +62,7 @@ it('declares eight slots, three that hold one and five lists', () => {
   expect(ShellAssemblyError.prototype).toBeInstanceOf(Error)
 })
 
-it('declares the five points of the shell itself as fixed when the application is built', async () => {
+it('declares the six points of the shell itself as fixed when the application is built', async () => {
   const { shellContracts } = await import('@omne-harness/shell-contract')
   const shared = {
     tree: 'client',
@@ -121,6 +122,26 @@ it('declares the five points of the shell itself as fixed when the application i
       onError: 'only this item shows that it cannot be read; the shell still turns to the front',
       summary:
         'The back of the application: its other face once somebody is signed in. Fixed when the app is built: a plugin cannot add to it while the app runs.',
+    },
+    {
+      ...shared,
+      name: 'shell.say',
+      arity: 'one',
+      item: {
+        kind: 'pure',
+        fields: {
+          targets: 'function',
+          current: 'function',
+          subscribe: 'function',
+          say: 'function',
+          show: 'function',
+        },
+      },
+      gives: 'nothing: the shell hands the tenant scope with each call',
+      onError:
+        'a reading that throws or answers undefined lets nothing be said; a say that throws ends unknown and is not said again',
+      summary:
+        'Where the words a person says to the figure go: the item draws nothing, and the shell asks it afresh each time. Fixed when the app is built: a plugin cannot add to it while the app runs.',
     },
   ])
 })
