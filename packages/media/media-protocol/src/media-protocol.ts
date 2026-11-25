@@ -74,6 +74,7 @@ const representation = oneOf(
     outcome: { rule: literal('inconvertible') },
     definition: { rule: provenance },
     engine: { rule: provenance },
+    reason: { rule: literal('encrypted', 'damaged', 'no-text'), optional: true, since: 2 },
   }),
 )
 const preprocess = oneOf(

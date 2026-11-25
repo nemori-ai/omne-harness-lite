@@ -6,6 +6,8 @@ export type Prepared = Readonly<{
   outcome: 'none' | 'converted' | 'inconvertible'
   /** The words, when they came back in line; many words are kept apart and not shown. */
   text: string | null
+  /** Why nothing could be taken out, when the server said so. */
+  reason?: Unreadable
 }>
 export type Ready = Readonly<{ kind: 'ready'; ref: Reference }> & Prepared
 export type Failed = Readonly<{ kind: 'failed'; reason: string; ref?: Reference }>
@@ -23,13 +25,40 @@ const WORDS: Readonly<Record<string, string>> = {
 }
 type Answer = Awaited<ReturnType<MediaClient['prepare-media']>>
 type Preprocess = Extract<Answer, { outcome: 'succeeded' }>['body']['preprocess']
+type Inconvertible = Extract<
+  Extract<Preprocess, { kind: 'done' }>['representation'],
+  { outcome: 'inconvertible' }
+>
+export type Unreadable = NonNullable<Inconvertible['reason']>
+
+/** Why nothing could be taken out of a file, in words. */
+export const UNREADABLE: Readonly<Record<Unreadable, string>> = {
+  encrypted: '读不出：文件加密了',
+  damaged: '读不出：文件损坏了',
+  'no-text': '里面没有能提取的文字（例如扫描件）',
+}
+
+/** Why nothing could be taken out, when the medium cannot be converted and the server said why. */
+export function unreadableOf(preprocess: Preprocess): Unreadable | null {
+  if (preprocess.kind !== 'done' || preprocess.representation.outcome !== 'inconvertible')
+    return null
+  return preprocess.representation.reason ?? null
+}
 
 function settled(preprocess: Preprocess, ref: Reference): PrepareOutcome {
   if (preprocess.kind === 'not-needed') return { kind: 'ready', ref, outcome: 'none', text: null }
   if (preprocess.kind === 'done') {
     const { representation } = preprocess
-    if (representation.outcome === 'inconvertible')
-      return { kind: 'ready', ref, outcome: 'inconvertible', text: null }
+    if (representation.outcome === 'inconvertible') {
+      const reason = unreadableOf(preprocess)
+      return {
+        kind: 'ready',
+        ref,
+        outcome: 'inconvertible',
+        text: null,
+        ...(reason === null ? {} : { reason }),
+      }
+    }
     const text = typeof representation.text === 'string' ? representation.text : null
     return { kind: 'ready', ref, outcome: 'converted', text }
   }

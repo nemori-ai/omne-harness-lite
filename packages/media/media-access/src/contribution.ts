@@ -5,7 +5,7 @@ import type {
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { Preprocess, UploadStatus } from '@omne-harness/media-contract'
+import type { UploadStatus } from '@omne-harness/media-contract'
 import { mediaProtocol, type MediaProtocol } from '@omne-harness/media-protocol'
 import { createMediaObservation } from './observe-media.ts'
 import type { MediaFace, TargetTenantPrincipals } from './ports.ts'
@@ -29,14 +29,6 @@ const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 const DENIED = Object.freeze({ outcome: 'denied' as const })
 const UNKNOWN = Object.freeze({ outcome: 'unknown' as const })
 const NOT_FOUND = Object.freeze({ outcome: 'not-found' as const, body: {} })
-
-/** The published media/v1 has no field for why a medium cannot be converted; it stays on the server. */
-function published(preprocess: Preprocess): Preprocess {
-  if (preprocess.kind !== 'done' || preprocess.representation.outcome !== 'inconvertible')
-    return preprocess
-  const { reason: _, ...representation } = preprocess.representation
-  return { kind: 'done', representation }
-}
 
 const standing = (status: UploadStatus) => ({
   outcome: 'succeeded' as const,
@@ -199,7 +191,7 @@ export function createMediaContribution(
             if ('failure' in described) return described
             const state = await media.representations.read(body)
             if ('failure' in state) return state
-            return { ok: { ...described.ok, preprocess: published(state.ok) } }
+            return { ok: { ...described.ok, preprocess: state.ok } }
           },
           (ok): Answer<'describe-media'> => ({ outcome: 'succeeded', body: ok }),
           { 'invalid-reference': () => NOT_FOUND },
@@ -213,7 +205,7 @@ export function createMediaContribution(
           () => acted.media.representations.ensure({ access, ref: body.ref, signal: call.signal }),
           (preprocess): Answer<'prepare-media'> => ({
             outcome: 'succeeded',
-            body: { preprocess: published(preprocess) },
+            body: { preprocess },
           }),
           { 'invalid-reference': () => NOT_FOUND },
         )
