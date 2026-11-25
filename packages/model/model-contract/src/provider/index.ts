@@ -70,6 +70,7 @@ export type {
   CredentialItemState,
   CredentialLayerQuery,
   CredentialPort,
+  ModelPreferencesPort,
   CredentialPurpose,
   CredentialReference,
   CredentialResolution,

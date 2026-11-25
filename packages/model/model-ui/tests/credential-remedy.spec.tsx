@@ -55,7 +55,13 @@ function portOf(own: string, official: string) {
     port: {
       open: (tenant: string, category: string) => {
         opened.push(`${tenant}|${category}`)
-        return { subscribe: () => () => undefined, getSnapshot: () => snapshot, close: () => {} }
+        return {
+          subscribe: () => () => undefined,
+          getSnapshot: () => snapshot,
+          close: () => {},
+          setValue: () => {},
+          confirm: () => {},
+        }
       },
     },
   }

@@ -1,6 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { CredentialPort } from '@omne-harness/model-contract/provider'
-import { ModelCredentialService } from '@omne-harness/model-cordis-contract/cordis'
+import type { CredentialPort, ModelPreferencesPort } from '@omne-harness/model-contract/provider'
+import {
+  ModelCredentialService,
+  ModelPreferencesService,
+} from '@omne-harness/model-cordis-contract/cordis'
 
 export function serveModelCredential<P>(
   ctx: Context,
@@ -17,6 +20,21 @@ export function serveModelCredential<P>(
     }
   }
   return new PortCredentialService()
+}
+
+export function serveModelPreferences<P>(
+  ctx: Context,
+  port: ModelPreferencesPort<P>,
+): ModelPreferencesService<P> {
+  class PortPreferencesService extends ModelPreferencesService<P> {
+    readonly read: ModelPreferencesPort<P>['read']
+
+    constructor() {
+      super(ctx)
+      this.read = input => port.read(input)
+    }
+  }
+  return new PortPreferencesService()
 }
 
 export { ModelInstancesLocalPlugin } from './plugins/instances.ts'

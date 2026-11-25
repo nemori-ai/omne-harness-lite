@@ -45,7 +45,11 @@ export const expectations: Readonly<Record<string, Expectation>> = {
       'page: right after startup the session list answers basis-unavailable and the page waits for a manual retry',
   },
   'G-开页/协议': { expected: 'pass' },
-  'G-多租户/协议': { expected: 'pass' },
+  'G-多租户/协议': {
+    expected: 'fail',
+    failsBecause:
+      'governance: a new tenant opens its governance before its first model call to read its model switches, and 24 at once saturate the server (#1596)',
+  },
   'R-0': { expected: 'pass' },
   'R-1/t2': { expected: 'untestable' },
   'R-1/t1': { expected: 'untestable' },

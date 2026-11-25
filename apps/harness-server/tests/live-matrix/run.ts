@@ -259,6 +259,12 @@ async function main(): Promise<number> {
       outcome => outcome === 'succeeded',
     )
     if ((await driver.login()) !== 'succeeded') throw new Error('login failed')
+    // The release starts some models off for a tenant; the matrix measures every one it runs.
+    await until(
+      'the models of the cells to be turned on',
+      () => driver.enableModels([...new Set(cells.flatMap(cell => cell.turns))]),
+      outcome => outcome === 'succeeded',
+    )
     rows = await executeCells(
       cells,
       baseline,

@@ -17,6 +17,7 @@ it('the cordis entry exports the service definitions with their keys, and no oth
     ModelInstanceHostService: 'modelInstanceHost',
     ModelInstancesService: 'modelInstances',
     ModelMediaSourceService: 'modelMediaSource',
+    ModelPreferencesService: 'modelPreferences',
     ModelProfileMaintenanceService: 'modelProfileMaintenance',
     ModelProfilesService: 'modelProfiles',
     ModelPublicationAuthorityService: 'modelPublicationAuthority',
