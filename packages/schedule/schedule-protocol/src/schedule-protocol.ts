@@ -124,6 +124,7 @@ const jobCard = object({
   acceptedAt: { rule: instant },
   startedAt: { rule: nullable(instant) },
   endedAt: { rule: nullable(instant) },
+  reason: { rule: nullable(text), optional: true, since: 3 },
 })
 
 /** One row of history: a disposed slot, a missed stretch, or a Job started outside any schedule. */

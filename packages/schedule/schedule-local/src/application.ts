@@ -85,8 +85,9 @@ export async function createScheduleLocalApplication(
             authorizer: options.query.authorizer,
             dispatcher,
           })
+    const managed = dispatcher === undefined ? commands : waking(commands, dispatcher.wake)
     return {
-      ...bindLifetime(commands, queries, dispose, jobs),
+      ...bindLifetime(managed, queries, dispose, jobs),
       ...(dispatcher === undefined ? {} : { round: dispatcher.round }),
     }
   } catch (error) {
@@ -96,6 +97,20 @@ export async function createScheduleLocalApplication(
       throw new AggregateError([error, cleanup], 'Schedule initialization and cleanup failed')
     }
     throw error
+  }
+}
+
+/** A committed management command wakes the dispatcher: what it changed is seen now, not a round later. */
+function waking(commands: ScheduleCommands, wake: () => void): ScheduleCommands {
+  const told = async <T extends { kind: string }>(answer: Promise<T>): Promise<T> => {
+    const result = await answer
+    if (result.kind === 'committed') wake()
+    return result
+  }
+  return {
+    ...commands,
+    create: (context, input) => told(commands.create(context, input)),
+    execute: (context, input) => told(commands.execute(context, input)),
   }
 }
 

@@ -21,6 +21,7 @@ export function schedulePredictor(prediction: SchedulePredictionService, owner: 
     record: ScheduleRecord,
     after: ScheduleInstant,
     count: number,
+    counted: number,
   ): Promise<PredictionPage> => {
     const { view } = record
     const result = await prediction.preview(
@@ -35,7 +36,8 @@ export function schedulePredictor(prediction: SchedulePredictionService, owner: 
       {
         definition: view.definition,
         definitionRevision: view.definitionRevision,
-        eligibleConsumed: view.eligibleConsumed,
+        eligibleConsumed: counted,
+        eligibleFrom: null,
         acceptedJobCount: view.acceptedJobCount,
         after,
         activationExclusive: record.activationExclusive,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyMissed, missCause } from '../../src/dispatch/classify.ts'
+import { classifyMissed, missCause, shownNext } from '../../src/dispatch/classify.ts'
 
 const slot = (hour: number) =>
   ({ scheduledAt: `2026-11-04T${String(hour).padStart(2, '0')}:00:00.000Z` }) as never
@@ -107,5 +107,17 @@ describe('the outcome of a missed stretch, by kind of schedule and cause', () =>
       selected: [],
       reason: 'lapsed',
     })
+  })
+})
+
+describe('the next time a schedule in effect shows', () => {
+  const watchedFrom = '2026-11-04T09:00:00.000Z'
+  it('is the slot it waits for, from the watch start on', () => {
+    expect(shownNext(slot(10), watchedFrom)).toEqual(slot(10))
+    expect(shownNext(slot(9), watchedFrom)).toEqual(slot(9))
+  })
+  it('is none while that slot came due before anybody watched, or when there is no slot', () => {
+    expect(shownNext(slot(8), watchedFrom)).toBeNull()
+    expect(shownNext(null, watchedFrom)).toBeNull()
   })
 })

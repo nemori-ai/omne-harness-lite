@@ -17,6 +17,18 @@ function hourly(catchUp: { kind: 'none' } | { kind: 'latest'; maximum: number })
   } as typeof base
 }
 
+type World = Awaited<ReturnType<typeof dispatchWorld>>
+async function control(w: World, id: string, action: 'pause' | 'resume', revision: number) {
+  await w.stamp()
+  const done = await w.app.commands.execute(context, {
+    action,
+    scheduleId: id,
+    reason: null,
+    meta: { operationKey: `${action}-${revision}`, expectedRevision: w.view(id)['revision'] },
+  } as never)
+  expect(done.kind).toBe('committed')
+}
+
 describe(
   'watching and catching up: a missed stretch is disposed in one commit',
   { tags: ['slow'], timeout: 300_000 },
@@ -135,6 +147,158 @@ describe(
         w.time.advance(HOUR)
         await dispatcher.round()
         expect(w.receipts(id).map(item => item.at)).toEqual([iso(START + 3 * HOUR)])
+        await dispatcher.close()
+      } finally {
+        await w.close()
+      }
+    })
+
+    it.each([{ kind: 'none' } as const, { kind: 'latest', maximum: 1 } as const])(
+      'paused across two slots, then resumed with catch-up %o: the next time shown is never a past moment',
+      async catchUp => {
+        const w = await dispatchWorld({ gapMs: 2 * HOUR })
+        try {
+          const id = await w.create(hourly(catchUp), 'shown-next')
+          const shown: (string | null)[] = []
+          const look = () => {
+            const next = w.view(id)['nextOccurrence'] as { scheduledAt: string } | null
+            shown.push(next?.scheduledAt ?? null)
+            if (next !== null) expect(next.scheduledAt > iso(w.time.source.now())).toBe(true)
+            return next?.scheduledAt ?? null
+          }
+          const dispatcher = w.dispatcher(undefined, undefined, store => ({
+            ...store,
+            async commit(command) {
+              const result = await store.commit(command)
+              look()
+              return result
+            },
+          }))
+          await dispatcher.round()
+          expect(look()).toBe(iso(START + HOUR))
+          await control(w, id, 'pause', 1)
+          expect(look()).toBeNull()
+          for (const _ of [1, 2]) {
+            w.time.advance(HOUR)
+            await dispatcher.round()
+            expect(look()).toBeNull()
+          }
+          w.time.advance(10 * MINUTE)
+          await control(w, id, 'resume', 2)
+          look()
+          w.time.advance(MINUTE)
+          await dispatcher.round()
+          expect(look()).toBe(iso(START + 3 * HOUR))
+          await dispatcher.round()
+          expect(look()).toBe(iso(START + 3 * HOUR))
+          expect(w.receipts(id).map(item => item.at)).toEqual(
+            catchUp.kind === 'none' ? [] : [iso(START + 2 * HOUR)],
+          )
+          expect(shown.filter(value => value !== null).length).toBeGreaterThan(2)
+          await dispatcher.close()
+        } finally {
+          await w.close()
+        }
+      },
+    )
+
+    it('the ordinal of each slot goes on from the count: accepted on time, counted as missed, and caught up from the queue', async () => {
+      const w = await dispatchWorld({ gapMs: 2 * HOUR })
+      try {
+        const limited = {
+          ...hourly({ kind: 'latest', maximum: 2 }),
+          limits: { eligibleLimit: 20, jobLimit: null, excludeDates: [] },
+        }
+        const id = await w.create(limited, 'ordinals')
+        const state = () =>
+          JSON.parse(
+            String(
+              w.rows(`SELECT state FROM sc_dispatch WHERE schedule_id = '${id}'`)[0]?.['state'],
+            ),
+          ) as { next: { eligibleOrdinal: number } | null }
+        const before = w.dispatcher()
+        await before.round()
+        expect(state().next?.eligibleOrdinal).toBe(1)
+        for (const ordinal of [2, 3]) {
+          w.time.advance(HOUR)
+          await before.round()
+          expect(state().next?.eligibleOrdinal).toBe(ordinal)
+        }
+        await before.close()
+        w.time.setWall(START + 7 * HOUR + 30 * MINUTE)
+        const dispatcher = w.dispatcher()
+        await dispatcher.round()
+        const accepted = () =>
+          w
+            .rows(`SELECT receipt FROM sc_receipts WHERE schedule_id = '${id}' ORDER BY slot_at`)
+            .map(
+              row =>
+                (JSON.parse(String(row['receipt'])) as { candidate: { eligibleOrdinal: number } })
+                  .candidate.eligibleOrdinal,
+            )
+        expect(accepted()).toEqual([1, 2, 6, 7])
+        expect(w.view(id)).toMatchObject({ eligibleConsumed: 7 })
+        expect(state().next?.eligibleOrdinal).toBe(8)
+        await dispatcher.close()
+        await control(w, id, 'pause', 1)
+        w.time.advance(3 * HOUR)
+        await control(w, id, 'resume', 2)
+        const resumed = w.dispatcher()
+        await resumed.round()
+        expect(accepted()).toEqual([1, 2, 6, 7, 9, 10])
+        expect(w.view(id)).toMatchObject({ eligibleConsumed: 10 })
+        expect(state().next?.eligibleOrdinal).toBe(11)
+        await resumed.close()
+      } finally {
+        await w.close()
+      }
+    })
+
+    it('the application wakes its dispatcher after a committed command: a resume shows the next time without waiting a round', async () => {
+      const w = await dispatchWorld({ gapMs: 2 * HOUR, watching: true })
+      try {
+        const id = await w.create(hourly({ kind: 'none' }), 'woken')
+        const shown = async () => {
+          for (let tries = 0; tries < 200; tries += 1) {
+            const state = w.rows(`SELECT revision FROM sc_dispatch WHERE schedule_id = '${id}'`)[0]
+            if (state?.['revision'] === w.view(id)['revision']) break
+            await new Promise(resolve => setTimeout(resolve, 10))
+          }
+          return (
+            (w.view(id)['nextOccurrence'] as { scheduledAt: string } | null)?.scheduledAt ?? null
+          )
+        }
+        expect(await shown()).toBe(iso(START + HOUR))
+        await control(w, id, 'pause', 1)
+        expect(await shown()).toBeNull()
+        await control(w, id, 'resume', 2)
+        expect(await shown()).toBe(iso(START + HOUR))
+      } finally {
+        await w.close()
+      }
+    })
+
+    it('resumed before any slot passed: the next time is shown again without waiting for that slot', async () => {
+      const w = await dispatchWorld({ gapMs: 2 * HOUR })
+      try {
+        const id = await w.create(hourly({ kind: 'none' }), 'short-pause')
+        const dispatcher = w.dispatcher()
+        await dispatcher.round()
+        const control = async (action: 'pause' | 'resume', revision: number) => {
+          await w.stamp()
+          return w.app.commands.execute(context, {
+            action,
+            scheduleId: id,
+            reason: null,
+            meta: { operationKey: `${action}-${revision}`, expectedRevision: revision },
+          } as never)
+        }
+        expect((await control('pause', 1)).kind).toBe('committed')
+        w.time.advance(10 * MINUTE)
+        expect((await control('resume', 2)).kind).toBe('committed')
+        await dispatcher.round()
+        expect(w.view(id)['nextOccurrence']).toMatchObject({ scheduledAt: iso(START + HOUR) })
+        expect(w.view(id)).toMatchObject({ eligibleConsumed: 0, revision: 3 })
         await dispatcher.close()
       } finally {
         await w.close()

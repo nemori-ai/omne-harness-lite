@@ -200,6 +200,24 @@ it('replace preserves predecessor history and uses the verified new author', () 
   })
 })
 
+it('pause clears the next time: nothing comes due while it is paused; resume leaves it to the dispatcher', () => {
+  const active = record('active')
+  expect(active.view.nextOccurrence).not.toBeNull()
+  expect(decide(decisionInput('pause', 'active'))).toMatchObject({
+    kind: 'save',
+    result: { control: 'paused', nextOccurrence: null },
+  })
+  const paused = record('paused')
+  const resumed = decide({
+    ...decisionInput('resume', 'paused'),
+    current: { ...paused, view: { ...paused.view, nextOccurrence: null } },
+  })
+  expect(resumed).toMatchObject({
+    kind: 'save',
+    result: { control: 'active', nextOccurrence: null },
+  })
+})
+
 it('adopts confirmed ordinary dependency recovery on resume', () => {
   const input = decisionInput('resume', 'paused')
   const current = record('paused')

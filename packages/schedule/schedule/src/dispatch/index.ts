@@ -1,5 +1,11 @@
 export { decideAdmission, type Admission, type AdmissionFacts } from './admission.ts'
-export { classifyMissed, missCause, type Classification, type MissCause } from './classify.ts'
+export {
+  classifyMissed,
+  missCause,
+  shownNext,
+  type Classification,
+  type MissCause,
+} from './classify.ts'
 export {
   createDispatcher,
   reminderDeadline,

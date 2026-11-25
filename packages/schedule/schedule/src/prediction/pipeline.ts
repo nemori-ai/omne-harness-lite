@@ -32,21 +32,21 @@ function materialize(civil: ScheduleCivil, basis: ScheduleAdoptedBasis) {
   return result
 }
 const minimumInstant = ScheduleInstantSchema.parse('0000-01-01T00:00:00.000Z')
-function conservativeInstant(date: string): ScheduleInstant {
-  const value = Temporal.PlainDate.from(date)
-    .toPlainDateTime()
-    .toZonedDateTime('UTC')
+/** No valid civil time at or after this one falls on an earlier instant in the zone. */
+function earliestInstant(civil: ScheduleCivil, timezone: string): ScheduleInstant {
+  const value = Temporal.PlainDateTime.from(civil)
+    .toZonedDateTime(timezone, { disambiguation: 'earlier' })
     .toInstant()
-    .subtract({ hours: 24 })
   if (Temporal.Instant.compare(value, minimumInstant) < 0) return minimumInstant
   return ScheduleInstantSchema.parse(value.toString({ smallestUnit: 'millisecond' }))
 }
+const midnight = (date: string) => ScheduleCivilSchema.parse(`${date}T00:00:00`)
 export class PredictionPipeline {
   private readonly pending = new Map<ScheduleInstant, ScheduleCandidate>()
   private readonly candidates: ScheduleCandidate[] = []
   private readonly excluded: ScheduleExcludedCandidate[] = []
-  private rank = 0
-  private futureRank: number
+  private rank: number
+  private readonly countedFrom: ScheduleInstant | null
   private observedThrough: ScheduleInstant
   private readonly activationCivil: ScheduleCivil | null
   private readonly recurrence: ScheduleRecurrence
@@ -67,7 +67,14 @@ export class PredictionPipeline {
     this.calendar = calendar
     this.budget = budget
     this.observedThrough = input.after
-    this.futureRank = input.eligibleConsumed
+    this.rank = input.eligibleConsumed
+    const { eligibleFrom } = input
+    this.countedFrom =
+      input.definition.limits.eligibleLimit !== null &&
+      eligibleFrom !== null &&
+      eligibleFrom <= input.after
+        ? eligibleFrom
+        : null
     this.activationCivil =
       input.activationExclusive === null ? null : civilAt(input.activationExclusive, basis.timezone)
     this.recurrence = input.definition.recurrence
@@ -226,25 +233,24 @@ export class PredictionPipeline {
       dateExplanation: candidate.dateExplanation,
     })
   }
+  private full(): boolean {
+    const limit = this.input.definition.limits.eligibleLimit
+    return limit !== null && this.rank >= limit
+  }
   private seal(frontier: ScheduleInstant | null): boolean {
     const sorted = [...this.pending.values()]
       .filter(candidate => frontier === null || candidate.scheduledAt < frontier)
       .sort((left, right) => (left.scheduledAt < right.scheduledAt ? -1 : 1))
     for (const candidate of sorted) {
       this.pending.delete(candidate.scheduledAt)
-      this.rank++
-      const limit = this.input.definition.limits.eligibleLimit
       if (candidate.scheduledAt <= this.input.after) {
         this.excludeCandidate(candidate, 'beforeReference')
-        if (limit !== null && this.rank >= limit) return true
+        if (this.countedFrom !== null && candidate.scheduledAt >= this.countedFrom) this.rank++
+        if (this.full()) return true
         continue
       }
-      this.futureRank = Math.max(this.rank, this.futureRank + 1)
-      candidate.eligibleOrdinal = this.futureRank
-      if (limit !== null && this.futureRank > limit) {
-        this.excludeCandidate(candidate, 'eligibleLimit')
-        return true
-      }
+      this.rank++
+      candidate.eligibleOrdinal = this.rank
       const jobLimit = this.input.definition.limits.jobLimit
       if (jobLimit !== null && this.input.acceptedJobCount >= jobLimit) {
         this.excludeCandidate(candidate, 'jobLimit')
@@ -252,11 +258,7 @@ export class PredictionPipeline {
       }
       this.candidates.push(candidate)
       this.observedThrough = candidate.scheduledAt
-      if (
-        this.candidates.length >= this.input.count ||
-        (limit !== null && this.futureRank >= limit)
-      )
-        return true
+      if (this.candidates.length >= this.input.count || this.full()) return true
     }
     if (frontier !== null && frontier > minimumInstant) {
       const closed = ScheduleInstantSchema.parse(
@@ -282,21 +284,26 @@ export class PredictionPipeline {
       remainingJobs: jobLimit === null ? null : Math.max(0, jobLimit - this.input.acceptedJobCount),
     }
   }
+  /** Where the scan starts: no source before it can land after the reference. */
   private async startingPoint(): Promise<ScheduleCivil> {
     let start = this.begin
     if (this.activationCivil !== null && this.activationCivil > start) start = this.activationCivil
-    if (this.input.definition.limits.eligibleLimit !== null) return start
-    let date = civilAt(this.input.after, this.basis.timezone).slice(0, 10)
-    if (date <= start.slice(0, 10)) return start
-    if (
-      this.input.definition.calendarOverlay?.adjust === 'nextWorkingDay' &&
-      this.calendar !== null
-    ) {
-      if (date <= this.calendar.version.coverageStart) return start
-      date = await this.calendar.previousBound(date)
-    }
-    const safe = ScheduleCivilSchema.parse(`${date}T00:00:00`)
-    return safe > start ? safe : start
+    const reference = civilAt(this.countedFrom ?? this.input.after, this.basis.timezone)
+    if (reference <= start) return start
+    const window = await this.carriedFrom(reference)
+    return window !== null && window > start ? window : start
+  }
+  /** The reference moved back by the furthest the overlay carries a source forward; null: any distance. */
+  private async carriedFrom(reference: ScheduleCivil): Promise<ScheduleCivil | null> {
+    const overlay = this.input.definition.calendarOverlay
+    if (overlay?.adjust !== 'nextWorkingDay' || this.calendar === null) return reference
+    const date = reference.slice(0, 10)
+    if (date <= this.calendar.version.coverageStart) return null
+    const previous = await this.calendar.previousBound(date)
+    const first = overlay.predicate === 'workingDay' ? dateAfter(previous) : previous
+    return (await this.calendar.day(date)).working
+      ? ScheduleCivilSchema.parse(`${first}${reference.slice(10)}`)
+      : midnight(first)
   }
   async run(): Promise<SchedulePreviewView> {
     const remaining = this.view(null)
@@ -396,14 +403,14 @@ export class PredictionPipeline {
       throw error
     }
   }
+  /** No source at or after the cursor lands before this instant. */
   private async frontier(cursor: ScheduleCivil, wholePeriod: boolean): Promise<ScheduleInstant> {
-    let date = cursor.slice(0, 10)
-    if (wholePeriod) date = dateAfter(date)
+    let bound = wholePeriod ? midnight(dateAfter(cursor.slice(0, 10))) : cursor
     if (
       this.input.definition.calendarOverlay?.adjust === 'previousWorkingDay' &&
       this.calendar !== null
     )
-      date = await this.calendar.previousBound(date)
-    return conservativeInstant(date)
+      bound = midnight(await this.calendar.previousBound(bound.slice(0, 10)))
+    return earliestInstant(bound, this.basis.timezone)
   }
 }

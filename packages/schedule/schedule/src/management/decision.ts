@@ -255,11 +255,12 @@ function decideExisting(
       })
     }
     case 'pause':
-    case 'resume':
       return finalizeUpdate(input, current, {
         ...next,
-        view: { ...view, control: command.action === 'pause' ? 'paused' : 'active' },
+        view: { ...view, control: 'paused', nextOccurrence: null },
       })
+    case 'resume':
+      return finalizeUpdate(input, current, { ...next, view: { ...view, control: 'active' } })
     case 'discard':
     case 'stop': {
       let quota: QuotaEffect = { kind: 'none' }

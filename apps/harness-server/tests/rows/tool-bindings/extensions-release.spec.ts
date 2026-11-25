@@ -21,7 +21,12 @@ import {
   plannedModel,
   type PlannedCall,
 } from '../../support/planned-calls.ts'
-import { onReleaseTree, toolCalls, type ReleaseTree } from '../../support/release-tree.ts'
+import {
+  onReleaseTree,
+  toolCalls,
+  toolUsage,
+  type ReleaseTree,
+} from '../../support/release-tree.ts'
 
 const manifest = (accent: string) =>
   JSON.stringify({
@@ -258,9 +263,10 @@ describe('OmneExtensions on the release tree', () => {
 
         watching.abort()
         await pumping.catch(() => undefined)
-        const calls = toolCalls(tree.storageRoot).filter(row => row.tool === 'OmneExtensions')
-        expect(calls.length).toBeGreaterThanOrEqual(21)
-        expect(calls.every(row => row.phase === 'settled')).toBe(true)
+        const used = toolUsage(tree.storageRoot).filter(row => row.tool === 'OmneExtensions')
+        expect(used.length).toBeGreaterThanOrEqual(21)
+        const kept = toolCalls(tree.storageRoot).filter(row => row.tool === 'OmneExtensions')
+        expect(kept.every(row => row.phase === 'settled')).toBe(true)
       })
       expect(exitCode).toBe(0)
     },

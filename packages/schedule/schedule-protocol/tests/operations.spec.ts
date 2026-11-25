@@ -47,7 +47,28 @@ describe('schedule/v2', () => {
     expect(operations['start-job'].effect).toBe('commit')
     expect(operations['list-jobs'].since).toBe(2)
     expect(Object.keys(scheduleProtocol.observations)).toEqual(['observe-jobs'])
-    expect(revisionOf(scheduleProtocol)).toBe(2)
+    expect(revisionOf(scheduleProtocol)).toBe(3)
+  })
+
+  it('revision 3 adds the reason a Job ended to its history row, and a row without it still reads', () => {
+    const page = operations['list-jobs'].outcomes.succeeded
+    const moment = '2026-11-30T09:00:00.000Z'
+    const job = {
+      job: 'job_1',
+      state: 'concluded',
+      outcome: 'failed',
+      stop: 'none',
+      origin: 'due',
+      acceptedAt: moment,
+      startedAt: moment,
+      endedAt: moment,
+    }
+    const row = { kind: 'direct', row: 'direct:1', at: moment }
+    expectRoundTrip(page, {
+      items: [{ ...row, job: { ...job, reason: 'interrupted' } }],
+      next: null,
+    })
+    expectRoundTrip(page, { items: [{ ...row, job }], next: null })
   })
 
   it('round-trips a history page of the three row kinds and a Job in full; a row of a fourth kind is refused', () => {

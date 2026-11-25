@@ -55,17 +55,21 @@ const SLOT_REASONS: Readonly<Record<string, string>> = {
   'owner-not-member': '所有者已不是这个租户的成员',
 }
 
+const INTERRUPTED = 'interrupted'
+
 /** The one-sentence fact of a row that happened: how long it has run or took, caught up, or why it was not done. */
 export function slotFact(row: SlotRow, now: number): string {
   const job = row.job
   if (job === null) return SLOT_REASONS[row.reason] ?? `原因：${row.reason}`
   const caughtUp = job.origin === 'catchUp' ? '补跑' : undefined
   const ran =
-    job.startedAt === null
-      ? undefined
-      : job.endedAt === null
-        ? `已跑 ${spanText(ms(job.startedAt), now)}`
-        : `用时 ${spanText(ms(job.startedAt), ms(job.endedAt))}`
+    job.reason === INTERRUPTED
+      ? '服务停了，被中断'
+      : job.startedAt === null
+        ? undefined
+        : job.endedAt === null
+          ? `已跑 ${spanText(ms(job.startedAt), now)}`
+          : `用时 ${spanText(ms(job.startedAt), ms(job.endedAt))}`
   return [caughtUp, ran].filter(part => part !== undefined).join(' · ')
 }
 
