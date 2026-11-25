@@ -113,8 +113,16 @@ function fixture(
   command?: EnvironmentFacilities['command'],
 ) {
   const files: FileSystemFacility<unknown> = {
-    read: vi.fn(),
-    write: vi.fn(),
+    read: vi.fn<FileSystemFacility<unknown>['read']>(async request => ({
+      kind: 'rejected',
+      requestId: request.requestId,
+      reason: 'unsupported',
+    })),
+    write: vi.fn<FileSystemFacility<unknown>['write']>(async request => ({
+      kind: 'rejected',
+      requestId: request.requestId,
+      reason: 'unsupported',
+    })),
     stat: vi.fn(),
     close: vi.fn(),
     list: vi.fn(),

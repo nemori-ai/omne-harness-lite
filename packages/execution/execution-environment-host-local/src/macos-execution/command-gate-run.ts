@@ -1,13 +1,12 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { spawnGateChild } from '../command-gate-child.ts'
 import type { Readable, Writable } from 'node:stream'
 import {
   afterExit,
   controlStep,
   dataFrames,
   exitFrame,
-  spawnFailedFrame,
   splitLines,
-  standardInput,
   type CommandFrame,
   type ExitStatus,
   type GateRequest,
@@ -35,7 +34,6 @@ export function runCommandGate(io: CommandGateIo): void {
   let request: GateRequest | undefined
   let child: ChildProcess | undefined
   let went = false
-  let spawned = false
   let exitStatus: ExitStatus | undefined
   let openStreams = 2
   let quiet: ReturnType<typeof setTimeout> | undefined
@@ -111,24 +109,9 @@ export function runCommandGate(io: CommandGateIo): void {
   }
 
   function run(go: GateRequest): void {
-    const started = spawn(go.executable, [...go.args], {
-      cwd: go.cwd,
-      env: { ...go.env },
-      stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
-    })
+    const started = spawnGateChild(go, send, () => control.destroy())
+    if (!started) return
     child = started
-    started.stdio[3]?.destroy()
-    started.stdin?.on('error', () => undefined)
-    started.once('spawn', () => {
-      spawned = true
-      send({ t: 'started' })
-      started.stdin?.end(standardInput(go))
-    })
-    started.once('error', error => {
-      if (spawned) return
-      send(spawnFailedFrame(Reflect.get(error, 'code')))
-      control.destroy()
-    })
     started.once('exit', (code, signal) => {
       exitStatus = { code, signal }
       armQuiet()

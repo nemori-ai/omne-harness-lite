@@ -9,11 +9,14 @@ import type {
 import {
   sessionModesBindings,
   sessionModesDescriptor,
+  workspaceGuidanceBindings,
+  workspaceGuidanceDescriptor,
   workingDirectoryBindings,
   workingDirectoryDescriptor,
   type SessionContextDefinitions,
 } from '@omne-harness/session-adapters/cordis'
 import {
+  SESSION_WORKSPACE_GUIDANCE,
   SESSION_MODES_PUBLICATION,
   SESSION_WORKING_DIRECTORY,
 } from '@omne-harness/session-adapters'
@@ -87,6 +90,11 @@ const ADOPTED: readonly DeclaredContextBlocks[] = [
     bindings: workingDirectoryBindings,
     declarations: [workingDirectoryDescriptor],
   },
+  {
+    definition: SESSION_WORKSPACE_GUIDANCE,
+    bindings: workspaceGuidanceBindings,
+    declarations: [workspaceGuidanceDescriptor],
+  },
 ]
 
 export const adoptedContextDefinitions: SessionContextDefinitions =
@@ -94,6 +102,7 @@ export const adoptedContextDefinitions: SessionContextDefinitions =
 
 // The blocks a session of this release holds; the journal tells the model the ones it may read.
 const SESSION_BLOCKS = new Map<string, ReturnType<DescriptorCatalog['get']>>([
+  [workspaceGuidanceDescriptor.key, workspaceGuidanceDescriptor],
   [sessionModesDescriptor.key, sessionModesDescriptor],
   [workingDirectoryDescriptor.key, workingDirectoryDescriptor],
 ])

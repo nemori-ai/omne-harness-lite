@@ -129,6 +129,7 @@ export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 const STORAGE_LOCK_WAIT_MS = 5000
 export const LOCAL_READ_WAIT_MS = 2 * STORAGE_LOCK_WAIT_MS
 export const LOCAL_MAX_RESPONSE_BYTES = 1_048_576
+export const LOCAL_STORAGE_JSON_MEMBERS = 262_144
 
 const TOOL_ORPHAN_GRACE_MS = 60_000
 
@@ -249,7 +250,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     maxCommandBytes: MAX_COMMAND_BYTES,
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
-    maxJsonMembers: 262_144,
+    maxJsonMembers: LOCAL_STORAGE_JSON_MEMBERS,
     maxResponseBytes: LOCAL_MAX_RESPONSE_BYTES,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,

@@ -13,6 +13,7 @@ export {
   workingDirectoryDescriptor,
   workingDirectoryModelBinding,
 } from './cordis/working-directory-block.ts'
+export { workspaceGuidanceBindings, workspaceGuidanceDescriptor } from './workspace-guidance.ts'
 export { heldBlock, type HeldBlock } from './cordis/context-records.ts'
 export {
   createStepDirectory,
@@ -141,3 +142,5 @@ export {
   sessionIntakeSettings,
   sessionIntakeSettingsPlugin,
 } from './intake-settings.ts'
+
+export { sessionModelHistoryReadinessKey } from './cordis/model-history-readiness.ts'

@@ -91,9 +91,11 @@ static void search_operation(document *d, root r, FILE *out) {
   if (walk.entry_limit < 1 || walk.byte_limit < 1 || walk.file_limit < 1) refuse("invalidInput");
   const char *path = string_field(d, "path", 0);
   struct stat s; int fd = named_directory(d, r, &s); walk.dev = s.st_dev;
+  char *visited = visited_directory(fd, NULL);
   fprintf(out, "{\"info\":"); metadata(out, &s, "."); fprintf(out, ",\"hits\":[");
   search_directory(&walk, fd, path);
   fprintf(out, "],\"next\":%" PRId64 ",\"truncated\":%s", walk.hits > walk.offset + walk.limit ? walk.offset + walk.limit : -1, walk.truncated ? "true" : "false");
+  directory_field(out, "directory", visited);
   result_defaults(out, HAS_HITS | HAS_NEXT | HAS_TRUNCATED); fputc('}', out);
   free(walk.pattern);
 }

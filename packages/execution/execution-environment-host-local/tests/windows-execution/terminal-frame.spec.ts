@@ -65,3 +65,12 @@ it('carries the exit code of the shell host and whether exit ended the shell', (
   for (const ended of [undefined, null, 'true', 1])
     expect(parseTerminalFrame(JSON.stringify({ ...completion, ended }), 1024)).toBeUndefined()
 })
+
+it('carries the physical directory observation separately from the PowerShell location', () => {
+  const frame = { t: 'opened', cwd: 'C:/junction', observed: 'C:/work' }
+  expect(parseTerminalFrame(JSON.stringify(frame), 1024)).toEqual(frame)
+  expect(parseTerminalFrame(JSON.stringify({ ...frame, observed: null }), 1024)).toEqual({
+    t: 'opened',
+    cwd: frame.cwd,
+  })
+})

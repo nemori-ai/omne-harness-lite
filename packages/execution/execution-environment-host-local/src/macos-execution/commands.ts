@@ -1,3 +1,4 @@
+import { completedInDirectory, outputPolicyOf } from '../process-result.ts'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { isAbsolute } from 'node:path'
@@ -94,6 +95,7 @@ type Entry = {
   gateGone: boolean
   ended: boolean
   confirmed: boolean
+  startDirectory?: string
   startedAt: number | undefined
   exit: Extract<GateFrame, { kind: 'exit' }>['exit'] | undefined
   members: number | null
@@ -284,6 +286,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
           entry.signal('ready')
           break
         case 'started':
+          if (frame.cwd !== undefined) entry.startDirectory = frame.cwd
           entry.startedAt = monotonicMs()
           entry.signal('started')
           break
@@ -342,11 +345,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
       process: Object.freeze({ id: entry.resource.key, generation: bootId }),
       outputMode: 'separate',
       output: entry.buffer.output,
-      outputPolicy: Object.freeze({
-        maxBufferedBytes: settings.maxBufferedBytes,
-        maxChunkBytes: settings.maxChunkBytes,
-        overflow: 'discard',
-      }),
+      outputPolicy: outputPolicyOf(settings),
       result: entry.outcome,
       stop: (mode: 'graceful' | 'forced') =>
         mode === 'graceful' ? gracefulStop(entry) : forceStop(entry),
@@ -425,7 +424,8 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
     if (sealed) return refuse('closed')
     entry.sendControl({ c: 'go' })
     const started = await nextEvent(entry, deadline)
-    if (started === 'started') return { kind: 'done', requestId, value: handleOf(entry, bootId) }
+    if (started === 'started')
+      return completedInDirectory(requestId, handleOf(entry, bootId), entry.startDirectory)
     if (started === 'spawnFailed') return refuse('unavailable')
     return { kind: 'unknown', requestId }
   }

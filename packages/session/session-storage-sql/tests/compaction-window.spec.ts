@@ -108,3 +108,37 @@ it('lets the history owner select the last log position, independently of model 
     s.db.close()
   }
 })
+
+it('accepts an own journal fact as a commit boundary without disclosing hidden messages', () => {
+  const s = scene()
+  try {
+    const commit = { ...s.input, upper: null, coverTo: '9' }
+    const add = (owner: string, kind: string) =>
+      s.port.execute('INSERT INTO sl_entry VALUES (?, ?, ?, ?, ?, ?, ?)', [
+        't',
+        owner,
+        9n,
+        1n,
+        kind,
+        new Uint8Array(),
+        0n,
+      ])
+    add('another-session', 'call.result-processed')
+    expect(readCompactionWindow(s.port, commit)).toEqual({ kind: 'invalid-bounds' })
+    add('s', 'message.system_reminder')
+    expect(readCompactionWindow(s.port, commit)).toEqual({ kind: 'invalid-bounds' })
+    s.port.execute("UPDATE sl_entry SET kind = 'call.result-processed' WHERE session = 's'", [])
+    expect(readCompactionWindow(s.port, commit)).toMatchObject({
+      kind: 'context',
+      value: {
+        covered: [{ ref: '6' }, { ref: '7' }, { ref: '8' }, { ref: '9', message: null }],
+        after: [{ ref: '10' }],
+      },
+    })
+    expect(readCompactionWindow(s.port, { ...commit, upper: '2' })).toEqual({
+      kind: 'invalid-bounds',
+    })
+  } finally {
+    s.db.close()
+  }
+})

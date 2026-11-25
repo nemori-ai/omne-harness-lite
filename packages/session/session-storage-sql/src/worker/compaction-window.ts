@@ -88,6 +88,17 @@ function windowOf(port: Executor, input: WindowInput): CompactionWindowRead {
   if (parsedOpen.some(ref => ref === null)) return { kind: 'behind' }
   const open = parsedOpen.filter(ref => ref !== null)
   for (const ref of open) if (!messages.has(ref)) messages.set(ref, { ref, message: null })
+  // The commit cut may also name a journal fact that never supplied any model bytes.
+  if (input.upper === null && input.coverTo !== null && !messages.has(coverTo)) {
+    const ref = parseRecordEntryRef(coverTo)
+    const fact = oneRow(
+      port,
+      `SELECT kind FROM sl_entry WHERE tenant = ? AND session = ? AND position = ?
+        AND kind NOT GLOB 'message.*' LIMIT 1`,
+      [...scope, coverTo],
+    )
+    if (ref !== null && fact !== undefined) messages.set(ref, { ref, message: null })
+  }
   const ordered = [...messages.values()].sort((a, b) => (BigInt(a.ref) < BigInt(b.ref) ? -1 : 1))
   const prior = ordered.filter(row => row.message?.role === 'compaction').at(-1)
   if (prior === undefined && !messages.has(origin)) ordered.unshift({ ref: origin, message: null })
