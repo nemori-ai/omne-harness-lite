@@ -138,17 +138,20 @@ function exitReading(material: JudgeMaterial, criterion: Criterion, command: str
   return checkWrites(calls, command, run).length > 0 ? 'unsettled' : 'holds'
 }
 
+function declaredCall(
+  calls: readonly ObservedCall[],
+  evidence: Criterion['evidence'],
+): ObservedCall | undefined {
+  if (evidence.kind === 'command') return latestRun(calls, evidence.command)
+  return evidence.kind === 'file' ? calls.findLast(call => call.path === evidence.path) : undefined
+}
+
 function evidenceCalls(material: JudgeMaterial, criterion: Criterion): readonly ObservedCall[] {
   const { calls, progress } = material
   const { evidence } = criterion
   const cited = new Set(progress.criteria[criterion.id]?.refs ?? [])
   const found = calls.filter(call => cited.has(call.ref))
-  const declared =
-    evidence.kind === 'command'
-      ? latestRun(calls, evidence.command)
-      : evidence.kind === 'file'
-        ? calls.findLast(call => call.path === evidence.path)
-        : undefined
+  const declared = declaredCall(calls, evidence)
   const run = evidence.kind === 'command' ? declared : undefined
   const checks = run === undefined ? [] : checkWrites(calls, run.command ?? '', run).slice(-2)
   const recent = evidence.kind === 'activity' ? calls.slice(-JUDGE_LIMITS.evidencePerEntry) : []
@@ -178,6 +181,47 @@ function newerRun(calls: readonly ObservedCall[], call: ObservedCall): JsonObjec
   return differs ? { ref: newer.ref, exit: newer.exit } : undefined
 }
 
+type Flags = Readonly<{
+  check: boolean
+  later: readonly string[]
+  superseding: string | undefined
+  newer: JsonObject | undefined
+}>
+
+function flagsOf(
+  material: JudgeMaterial,
+  config: JudgeConfig,
+  criterion: Criterion,
+  call: ObservedCall,
+): Flags {
+  const after = writesAfter(material.calls, criterion, call)
+  const drafts = config.packaging.drafts === 'superseded'
+  return {
+    check: call.writes && call.path !== null && CHECK_PATH.test(call.path),
+    later:
+      drafts && call.writes
+        ? []
+        : after.slice(0, JUDGE_LIMITS.laterWrites).map(write => write.path ?? write.ref),
+    superseding: drafts && criterion.evidence.kind === 'file' ? after.at(-1)?.ref : undefined,
+    newer: newerRun(material.calls, call),
+  }
+}
+
+function noteOf(flags: Flags, wording: JudgeConfig['packaging']['flags']): string | undefined {
+  if (wording === 'keys') return undefined
+  const [check, later] =
+    wording === 'guarded'
+      ? [FLAG_NOTES.checkGuarded, FLAG_NOTES.laterGuarded]
+      : [FLAG_NOTES.check, FLAG_NOTES.later]
+  const notes = [
+    flags.check ? check : '',
+    flags.later.length > 0 ? later : '',
+    flags.superseding === undefined ? '' : FLAG_NOTES.superseded,
+    flags.newer === undefined ? '' : FLAG_NOTES.newer,
+  ].join('')
+  return notes === '' ? undefined : notes
+}
+
 function evidenceItem(
   material: JudgeMaterial,
   config: JudgeConfig,
@@ -185,34 +229,19 @@ function evidenceItem(
   criterion: Criterion,
   call: ObservedCall,
 ): JsonObject {
-  const after = writesAfter(material.calls, criterion, call)
-  const drafts = config.packaging.drafts === 'superseded'
-  const superseding = drafts && criterion.evidence.kind === 'file' ? after.at(-1)?.ref : undefined
-  const later =
-    drafts && call.writes
-      ? []
-      : after.slice(0, JUDGE_LIMITS.laterWrites).map(write => write.path ?? write.ref)
-  const check = call.writes && call.path !== null && CHECK_PATH.test(call.path)
-  const newer = newerRun(material.calls, call)
-  const guarded = config.packaging.flags === 'guarded'
-  const notes = [
-    check ? (guarded ? FLAG_NOTES.checkGuarded : FLAG_NOTES.check) : '',
-    later.length > 0 ? (guarded ? FLAG_NOTES.laterGuarded : FLAG_NOTES.later) : '',
-    superseding === undefined ? '' : FLAG_NOTES.superseded,
-    newer === undefined ? '' : FLAG_NOTES.newer,
-  ].join('')
+  const flags = flagsOf(material, config, criterion, call)
   return present({
     ref: call.ref,
     tool: call.tool,
     command: call.command ?? undefined,
     path: call.path ?? undefined,
     exit: call.exit ?? undefined,
-    changesCheck: check ? true : undefined,
+    changesCheck: flags.check ? true : undefined,
     excerpt: excerptOf(call.output, shape.excerpt, config.packaging.take),
-    laterWrites: later.length === 0 ? undefined : later,
-    supersededBy: superseding,
-    newerRun: newer,
-    note: config.packaging.flags !== 'keys' && notes !== '' ? notes : undefined,
+    laterWrites: flags.later.length === 0 ? undefined : flags.later,
+    supersededBy: flags.superseding,
+    newerRun: flags.newer,
+    note: noteOf(flags, config.packaging.flags),
   })
 }
 
