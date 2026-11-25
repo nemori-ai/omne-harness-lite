@@ -92,7 +92,10 @@ export {
 } from './held.ts'
 export {
   createTenantPublishing,
+  publishRefusal,
+  publishStanding,
   type PublishContent,
+  type PublishStanding,
   type TenantActing,
   type TenantPublisher,
   type TenantPublishing,

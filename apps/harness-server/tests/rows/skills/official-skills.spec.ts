@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { OFFICIAL_SKILLS } from '@omne-harness/plugin-host-local'
 import { skillBodyContract } from '@omne-harness/skill-contract'
+import { OFFICIAL_SKILLS as SKILL_SKILLS } from '@omne-harness/skill-host-local'
 import { officialSkillPorts, officialSkills } from '../../../src/rows/skills/official-skills.ts'
 
 const made: string[] = []
@@ -39,6 +40,24 @@ describe('the skills the release brings', () => {
     const listed = await skill!.files.manifest()
     if (!('ok' in listed)) throw new Error(listed.failure)
     expect(listed.ok.entries.map(entry => entry.path)).toEqual(['SKILL.md'])
+  })
+
+  it('the meta skill of the Skill member is read the same way and is held where no tenant may replace it', async () => {
+    const [skill] = await officialSkills(SKILL_SKILLS)
+    expect(skill?.name).toBe('skill-authoring')
+    expect(skill?.item).toMatchObject({
+      asset: 'official/skill/skill-authoring',
+      disabled: false,
+      immutable: true,
+    })
+    const listed = await skill!.files.manifest()
+    if (!('ok' in listed)) throw new Error(listed.failure)
+    expect(listed.ok.entries.map(entry => entry.path)).toEqual([
+      'SKILL.md',
+      'references/format.md',
+      'references/trying.md',
+      'references/writing.md',
+    ])
   })
 
   it('one that cannot be read as a skill stops the start, naming it', async () => {

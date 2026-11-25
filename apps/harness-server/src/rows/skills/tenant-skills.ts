@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { type AssetLayerSource, type OfficialAssets } from '@omne-harness/assets'
+import type { AssetLayerSource, OfficialAssets } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
 import {
   access as accessOf,
@@ -17,7 +17,10 @@ import {
 import {
   createContentStoreSource,
   createSkillDecisions,
+  indexedInputs,
   skillInputsFromAssets,
+  stackedInputs,
+  type HeldNames,
   type PackageDirectoryOf,
   type PackageReaderOf,
 } from '@omne-harness/skill-host-local'
@@ -27,6 +30,7 @@ import {
   tenantLayers,
   turnKeyOf,
   turnLayers,
+  workspaceLayer,
   type WorkspaceLayerPorts,
 } from '../tenant-assets/layers.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
@@ -36,6 +40,7 @@ export type TenantSkills = Readonly<{
   catalog: SkillCatalog<unknown, unknown>
   access: SkillAccess<unknown, unknown>
   sessionCatalog: SkillCatalog<unknown, unknown>
+  warm(): Promise<void>
 }>
 
 export type WorkspaceSkillPorts = WorkspaceLayerPorts
@@ -51,6 +56,7 @@ export type TenantSkillsHostOptions = Readonly<{
 }>
 
 const SKILL = skillBodyContract().category
+const SESSION_WORK = Object.freeze({ kind: 'session-work-of-the-tenant' } as const)
 const GRANTED = Object.freeze({ kind: 'granted' } as const)
 const REFUSED = Object.freeze({ kind: 'refused' } as const)
 
@@ -75,14 +81,20 @@ export function tenantSkills(
   workspace: WorkspaceSkillPorts,
   sources: readonly AssetLayerSource[],
   official: OfficialSkillPorts,
+  held: (category: string) => HeldNames | undefined,
 ): TenantSkills {
   const contract = () => workspace.contractOf(SKILL)
   const tenantLayer = tenantLayers(assets, sources, contract, official.assets)
   const layers = (access: Access<unknown>, scope: unknown) =>
     turnLayers(tenantLayer, workspace, access, turnKeyOf(scope))
+  const kept = indexedInputs<unknown, unknown>(skillInputsFromAssets(tenantLayer), () =>
+    held(SKILL),
+  )
   const inputs = (access: Access<unknown>, scope: unknown) => {
-    const { sources, body } = layers(access, scope)
-    return skillInputsFromAssets<unknown, unknown>({ sources, body })
+    const key = turnKeyOf(scope)
+    return key === null
+      ? kept
+      : stackedInputs(kept, skillInputsFromAssets(workspaceLayer(workspace, access, key)))
   }
   const decisionsFor = (asWork: (principal: unknown) => boolean) =>
     createSkillDecisions<unknown, unknown>({
@@ -118,12 +130,13 @@ export function tenantSkills(
   // A turn's reads go through its own layers; a call that names no turn shares the tenant's.
   const accessFor = (access: Access<unknown>, scope: unknown) =>
     turnKeyOf(scope) === null ? tenantAccess : accessOver(layers(access, scope).readerOf)
+  const asSession = decisionsFor(() => true)
   return {
     catalog: createSkillCatalog({ resolution, readCheck }, { ranking }),
-    sessionCatalog: createSkillCatalog(
-      decisionsFor(() => true),
-      { ranking },
-    ),
+    sessionCatalog: createSkillCatalog(asSession, { ranking }),
+    async warm() {
+      await asSession.resolution.adopted(accessOf(SESSION_WORK, tenant), null)
+    },
     access: {
       read: (access, scope, target, options) =>
         accessFor(access, scope).read(access, scope, target, options),
@@ -161,10 +174,17 @@ export class TenantSkillsHost {
   private async open(key: string, tenant: TenantId): Promise<TenantSkills | undefined> {
     try {
       const set = await this.options.open(tenant, key)
-      return this.closed ? undefined : set
+      if (this.closed) return undefined
+      void set?.warm()
+      return set
     } catch {
       return undefined
     }
+  }
+
+  /** Every open set reads ahead what changed: the registry changed. */
+  async warm(): Promise<void> {
+    await Promise.all([...this.opening.values()].map(async made => (await made)?.warm()))
   }
 
   close(): void {
@@ -174,7 +194,6 @@ export class TenantSkillsHost {
 }
 
 const CATALOG_UNKNOWN = Object.freeze(fail('unknown' as const))
-const SESSION_WORK = Object.freeze({ kind: 'session-work-of-the-tenant' } as const)
 const ACCESS_UNKNOWN = Object.freeze(fail({ kind: 'unknown' } as const))
 
 /** What the work of a session of the tenant would see for these Skills now: asked at an adoption point. */

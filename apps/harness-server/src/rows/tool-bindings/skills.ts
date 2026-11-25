@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import { capabilityId } from '@omne-harness/assets'
+import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { access as accessOf, type Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -22,14 +22,19 @@ import { skillAccessKey, skillCatalogKey } from '@omne-harness/skill-cordis-cont
 import { decodeCursor, encodeCursor } from '@omne-harness/text-search'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
+import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import {
   attachSkillsAccess,
   type SkillsAccess,
   type SkillsEntry,
   type SkillsFailure,
-  type SkillsPage,
+  type SkillsListing,
+  type SkillsMissingTools,
+  type SkillsSource,
   type SkillsText,
 } from '@omne-harness/tool-definitions'
+import { releaseToolConsumer } from '../../entry/tool-forward-requests.ts'
+import { releaseOf } from '../../entry/tool-release.ts'
 import { sessionWorkReaderOf } from '../../entry/tool-requests.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
@@ -46,6 +51,11 @@ export type SkillsBindingPorts = Readonly<{
   ): Promise<Outcome<WorkSnapshot, SessionFailure>> | undefined
   catalog(): SkillCatalog<unknown, unknown> | undefined
   access(): SkillAccess<unknown, unknown> | undefined
+  /** Which of these tools the asker does not have now, as the tool catalog sees it; unknown when it cannot tell. */
+  missingTools(
+    access: Access<unknown>,
+    names: readonly string[],
+  ): Promise<ReadonlySet<string> | 'unknown'>
 }>
 
 const unavailable = (reason: string) => fail({ kind: 'unavailable', reason } as const)
@@ -77,10 +87,32 @@ function readFailure(failure: ReadFailure): SkillsFailure {
   }
 }
 
-function entryOf(entry: CatalogEntry): SkillsEntry {
+const TOOL = 'tool'
+
+function toolsOf(entry: CatalogEntry | undefined): readonly string[] {
+  if (entry?.kind !== 'adopted') return []
+  return entry.dependencies.filter(id => id.category === TOOL).map(id => id.name)
+}
+
+function lacking(
+  needed: readonly string[],
+  missing: ReadonlySet<string> | 'unknown',
+): SkillsMissingTools | undefined {
+  if (needed.length === 0) return undefined
+  if (missing === 'unknown') return missing
+  const lacked = needed.filter(name => missing.has(name))
+  return lacked.length === 0 ? undefined : lacked
+}
+
+function entryOf(entry: CatalogEntry, needs: SkillsMissingTools | undefined): SkillsEntry {
   const description = entry.description === undefined ? {} : { description: entry.description }
   return entry.kind === 'adopted'
-    ? { kind: 'available', name: entry.name, ...description }
+    ? {
+        kind: 'available',
+        name: entry.name,
+        ...description,
+        ...(needs === undefined ? {} : { needs }),
+      }
     : { kind: 'disabled', name: entry.name, ...description, reason: entry.reason }
 }
 
@@ -99,17 +131,22 @@ function pageOf(
   cursor: Cursor | null,
   limit: number,
   found: readonly CatalogEntry[],
-): Outcome<SkillsPage, SkillsFailure> {
+): Outcome<Readonly<{ entries: readonly CatalogEntry[]; next: string | null }>, SkillsFailure> {
   const binding = bindingOf(query, found)
   if (cursor !== null && (cursor.binding !== binding || cursor.offset >= found.length))
     return INVALID_CURSOR
   const offset = cursor?.offset ?? 0
   const end = offset + limit
   return succeed({
-    entries: found.slice(offset, end).map(entryOf),
+    entries: found.slice(offset, end),
     next: end < found.length ? encodeCursor({ binding, offset: end }) : null,
   })
 }
+
+const sourceOf = ({ basis }: Pick<ReadResult, 'basis'>): SkillsSource => ({
+  layer: basis.layer,
+  version: basis.assetVersion ?? basis.digest,
+})
 
 function textOf(read: ReadResult): Outcome<SkillsText, SkillsFailure> {
   if (read.content.kind !== 'text') return fail({ kind: 'not-text' })
@@ -118,6 +155,7 @@ function textOf(read: ReadResult): Outcome<SkillsText, SkillsFailure> {
     start: read.range.start,
     end: read.range.start + read.range.length,
     total: read.total,
+    source: sourceOf(read),
     ...(read.directory === undefined ? {} : { directory: read.directory }),
   })
 }
@@ -166,6 +204,34 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
     start: offset,
     length: Math.max(1, Math.min(maxBytes, PAGE_BYTES)),
   })
+  async function missingOf(access: Access<unknown>, names: readonly string[]) {
+    if (names.length === 0) return new Set<string>()
+    try {
+      return await ports.missingTools(access, names)
+    } catch {
+      return 'unknown' as const
+    }
+  }
+  async function needsOf(caller: Caller, capability: CapabilityId) {
+    let declared: Awaited<ReturnType<SkillCatalog<unknown, unknown>['summaries']>> | undefined
+    try {
+      declared = await ports.catalog()?.summaries(caller.access, caller.scope, [capability])
+    } catch {
+      declared = undefined
+    }
+    if (declared === undefined || !('ok' in declared)) return 'unknown' as const
+    const needed = toolsOf(declared.ok[0])
+    return lacking(needed, await missingOf(caller.access, needed))
+  }
+  async function withNeeds<T extends SkillsText | SkillsListing>(
+    caller: Caller,
+    capability: CapabilityId,
+    answer: Outcome<T, SkillsFailure>,
+  ): Promise<Outcome<T, SkillsFailure>> {
+    if (!('ok' in answer)) return answer
+    const missingTools = await needsOf(caller, capability)
+    return missingTools === undefined ? answer : succeed({ ...answer.ok, missingTools })
+  }
   return {
     async search(input) {
       const cursor = input.after === null ? null : decodeCursor(input.after)
@@ -177,7 +243,13 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
       const { access, scope } = caller.ok
       const found = await catalog.search(access, scope, { text: input.query })
       if (!('ok' in found)) return unavailable('the Skill store cannot be read now')
-      return pageOf(input.query, cursor, input.limit, found.ok)
+      const page = pageOf(input.query, cursor, input.limit, found.ok)
+      if (!('ok' in page)) return page
+      const missing = await missingOf(access, [...new Set(page.ok.entries.flatMap(toolsOf))])
+      return succeed({
+        entries: page.ok.entries.map(entry => entryOf(entry, lacking(toolsOf(entry), missing))),
+        next: page.ok.next,
+      })
     },
     async read(input, signal) {
       const target = await skillAccess(input.skill)
@@ -189,7 +261,8 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
         { capability, part: { kind: 'body' } },
         { range: range(input.offset, input.maxBytes), signal },
       )
-      return 'ok' in read ? textOf(read.ok) : fail(readFailure(read.failure))
+      const answer = 'ok' in read ? textOf(read.ok) : fail(readFailure(read.failure))
+      return withNeeds(target.ok, capability, answer)
     },
     async list(input, signal) {
       const target = await skillAccess(input.skill)
@@ -197,14 +270,19 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
       const { access, scope, capability, service } = target.ok
       const listed = await service.list(access, scope, capability, { signal })
       if (!('ok' in listed)) return fail(readFailure(listed.failure))
-      return succeed({
-        files: listed.ok.resources.map(entry => ({
-          path: entry.path,
-          size: entry.size,
-          ...(entry.mediaType === undefined ? {} : { mediaType: entry.mediaType }),
-        })),
-        ...(listed.ok.directory === undefined ? {} : { directory: listed.ok.directory }),
-      })
+      return withNeeds(
+        target.ok,
+        capability,
+        succeed({
+          files: listed.ok.resources.map(entry => ({
+            path: entry.path,
+            size: entry.size,
+            ...(entry.mediaType === undefined ? {} : { mediaType: entry.mediaType }),
+          })),
+          source: sourceOf(listed.ok),
+          ...(listed.ok.directory === undefined ? {} : { directory: listed.ok.directory }),
+        }),
+      )
     },
     async readFile(input, signal) {
       const target = await skillAccess(input.skill)
@@ -216,9 +294,35 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
         { capability, part: { kind: 'resource', path: input.path } },
         { range: range(input.offset, input.maxBytes), signal },
       )
-      return 'ok' in read ? textOf(read.ok) : fail(readFailure(read.failure))
+      const answer = 'ok' in read ? textOf(read.ok) : fail(readFailure(read.failure))
+      return withNeeds(target.ok, capability, answer)
     },
   }
+}
+
+async function missingToolsOf(
+  ctx: Context,
+  access: Access<unknown>,
+  names: readonly string[],
+): Promise<ReadonlySet<string> | 'unknown'> {
+  const catalog = ctx.get(toolCatalogKey, false)
+  const release = releaseOf(ctx)
+  if (catalog === undefined || release.kind !== 'trusted') return 'unknown'
+  const answer = await catalog.inspectEach({
+    ...access,
+    names,
+    consumer: releaseToolConsumer(release),
+  })
+  if (!('ok' in answer)) return 'unknown'
+  const missing = new Set<string>()
+  for (const [index, one] of answer.ok.entries()) {
+    const name = names[index] as string
+    if ('ok' in one) {
+      if (one.ok.kind !== 'available') missing.add(name)
+    } else if (one.failure.kind === 'invalid' && one.failure.field === 'name') missing.add(name)
+    else return 'unknown'
+  }
+  return missing
 }
 
 export function bindReleaseSkills(
@@ -233,6 +337,7 @@ export function bindReleaseSkills(
       readWork: sessionWorkReaderOf(ctx),
       catalog: () => ctx.get(skillCatalogKey),
       access: () => ctx.get(skillAccessKey),
+      missingTools: (access, names) => missingToolsOf(ctx, access, names),
     }),
   )
 }

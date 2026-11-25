@@ -14,6 +14,16 @@ export const skillCategoryDisplay: CategoryDisplay = Object.freeze({
   title: '技能',
   summary: '一份说明加配套文件，代理需要时读取。',
   creation: '一个目录，根下有 SKILL.md，配套文件放在它旁边。',
+  authoring: [
+    'A Skill is a folder: SKILL.md at its root, a frontmatter of name and description, then the body; references/ and scripts/ sit beside it.',
+    'name: lower-case letters and digits in words joined by single hyphens, 1 to 64 characters, the same as the name it is published under.',
+    'description: what the Skill does and when to use it, in the words of a user; keep it under 1024 characters.',
+    'Limits: at most 200 files, 1 MiB in one file, 8 MiB in all.',
+    'The tools it uses go in .omne/skill.json: {"formatVersion":1,"dependencies":[{"category":"tool","name":"Shell"}]}.',
+    'Scripts go in scripts/ and run with Shell from the directory that Skills read gives.',
+    'Ask impact with dir before publish. A refusal says code: detail; a name the deployment holds and does not let be replaced is refused.',
+    'The whole guide is the skill skill-authoring (Skills read).',
+  ].join('\n'),
 })
 import { isPackageDigest } from './digest.ts'
 import { skillLayout } from './layout.ts'
