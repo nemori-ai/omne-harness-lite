@@ -12,8 +12,9 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { Report } from './install/consumer.ts'
+import { removeAfterAll } from './install-tree.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
@@ -24,10 +25,7 @@ const consumers = join(workspaceRoot, 'tmp/install-closure')
 const workDirectories = ['negative', 'offline'].map(name =>
   join(consumers, `model-contract-closure-${name}`),
 )
-afterAll(() => {
-  rmSync(temporary, { recursive: true, force: true })
-  for (const directory of workDirectories) rmSync(directory, { recursive: true, force: true })
-})
+removeAfterAll(() => [temporary, ...workDirectories])
 const [negativeDirectory, offlineDirectory] = workDirectories as [string, string]
 
 function cleanEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
