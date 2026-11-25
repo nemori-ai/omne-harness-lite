@@ -71,7 +71,7 @@ describe('the engine pdf.extract-text', () => {
     expect(output.text).not.toMatch(/[\u2E80-\u2FDF]/u)
   })
 
-  it('says a PDF with no text layer, on one page or on two, and a file that is no PDF, cannot be converted', async () => {
+  it('says a PDF with no text layer, on one page or on two, has no text, and a file that is no PDF is damaged', async () => {
     const engine = createPdfTextEngine()
     const noText = { kind: 'inconvertible', reason: 'no-text' }
     expect(await engine.convert(inputOf(sample('no-text-two-pages.pdf')))).toEqual(noText)
