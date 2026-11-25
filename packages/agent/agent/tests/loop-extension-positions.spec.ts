@@ -6,7 +6,14 @@ import {
   decodeToolOperationId,
   encodeToolInvocationRef,
 } from '@omne-harness/tool-contract'
-import { evidence, execution, ok } from './journal-support.ts'
+import {
+  acceptedInput,
+  evidence,
+  execution,
+  ok,
+  operation,
+  withLineage,
+} from './journal-support.ts'
 import { alice, eventsOf, eventually, invoke, loopAssembly } from './loop-support.ts'
 import {
   associatedTools,
@@ -447,6 +454,66 @@ describe('before_terminal', () => {
       waits: [{ kind: 'dependency', owner: 'agentExtensions', position: 'I8' }],
     })
     expect(s.extensions.invocations).toHaveLength(1)
+  })
+
+  it('veto after an input was accepted for the same run: the run takes it in a new step at once, asks the model again, and ends when the next candidate is let through', async () => {
+    const held: { journal: Assembly['dependencies']['journal'] | null } = { journal: null }
+    let asked = 0
+    const s = await plain('before_terminal', async () => {
+      asked += 1
+      if (asked > 1) return observed
+      ok(
+        await held.journal!.submit(
+          withLineage({
+            ...alice,
+            execution: execution(),
+            operation: operation('goal-continue-1'),
+            value: acceptedInput('goal-continue-1', 'not done yet: A2 is open'),
+          }),
+        ),
+      )
+      return veto
+    })
+    held.journal = s.assembly.dependencies.journal
+    expect(kinds(await eventsOf(s.handle)).at(-1)).toBe('ended')
+    const ended = await loaded(s.assembly)
+    expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
+    expect(ended.checkpoint.chain).toBeNull()
+    expect(s.assembly.controls.clock.pending()).toEqual([])
+    const taken = s.assembly.controls.requests.prepare.calls.map(call => call.inputs?.ordered)
+    expect(taken.at(0)).toEqual(['input-exec-1'])
+    expect(taken.at(-1)).toEqual(['goal-continue-1'])
+    const passes = s.extensions.invocations.map(item => item.input.passage)
+    expect(passes).toHaveLength(2)
+    expect(new Set(passes).size).toBe(2)
+  })
+
+  it('veto before the input is accepted: the run waits, and takes the input at its next check time', async () => {
+    let asked = 0
+    const s = await plain('before_terminal', () => {
+      asked += 1
+      return asked === 1 ? veto : observed
+    })
+    await settled(s.assembly, 'waiting')
+    ok(
+      await s.assembly.dependencies.journal.submit(
+        withLineage({
+          ...alice,
+          execution: execution(),
+          operation: operation('goal-continue-1'),
+          value: acceptedInput('goal-continue-1'),
+        }),
+      ),
+    )
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect((await loaded(s.assembly)).state.kind).toBe('waiting')
+    const [due] = s.assembly.controls.clock.pending()
+    if (due === undefined) throw new Error('no check time is armed')
+    ok(s.assembly.controls.clock.advanceTo(due))
+    expect(kinds(await eventsOf(s.handle)).at(-1)).toBe('ended')
+    expect(s.assembly.controls.requests.prepare.calls.at(-1)?.inputs?.ordered).toEqual([
+      'goal-continue-1',
+    ])
   })
 })
 
