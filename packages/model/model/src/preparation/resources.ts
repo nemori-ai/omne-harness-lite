@@ -95,12 +95,6 @@ function supplierName(binding: PreparationBinding): string {
   return `${owner}/${name}@${revision}`
 }
 
-// A hit spends only the outputs the anchor does not cover. Anything else may have fallen back to
-// metering in full, which needs the covered outputs too: measure once more with all of them.
-function anchored(measured: Measured): boolean {
-  return 'ok' in measured && measured.ok.calibration?.anchor?.kind === 'hit'
-}
-
 function lineageMeter(
   binding: PreparationBinding,
   lineage: Lineage,
@@ -131,7 +125,8 @@ function lineageMeter(
         anchor: hit,
         outputs: await outputsBeyond(hit?.covered ?? []),
       })
-      if (hit !== null && !anchored(measured))
+      // A measurement that needed an output not yet read fails; read the covered ones and measure again.
+      if (hit !== null && !('ok' in measured))
         measured = await binding.meter.measureCalibrated(input, {
           anchor: hit,
           outputs: await outputsBeyond([]),
