@@ -10,14 +10,14 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { nodeFileIo } from '../plugin-access/file-io.ts'
 
-const hidden = (name: string): boolean => name.startsWith('.')
+const hidden = (name: string): boolean => name.startsWith('.') && name !== '.omne'
 const safe = (path: string): boolean =>
   path !== '' &&
   !path.startsWith('/') &&
   !path.includes('\\') &&
   path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
 
-/** A directory on disk as a package: its files, none whose name begins with a dot, each opened only as it was listed. */
+/** A directory on disk as a package: its files, none under a name that begins with a dot other than `.omne`, where a package declares what it needs; each opened only as it was listed. */
 function directoryPackage(root: string): PackageReader {
   return {
     async manifest() {

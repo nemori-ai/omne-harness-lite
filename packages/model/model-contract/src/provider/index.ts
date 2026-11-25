@@ -27,6 +27,7 @@ export type {
   ProviderDiagnostic,
   Publication,
   RecoveryRecord,
+  CallOrigin,
   SendDemand,
   SendResult,
   TransportDispatch,

@@ -18,11 +18,10 @@ import {
 import { recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { bindChatCompletions } from '@omne-harness/pi-ai-transport/chat-completions'
 import { fixtureDirectory, replayStream } from '@omne-harness/pi-ai-transport/testing'
-import { componentAdoption } from '../../src/adoptions.ts'
+import { chatTextHooks, componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 import { KIMI_OWNER } from '../../src/owner.ts'
 import type { KimiRecord } from '../../src/record.ts'
 import { KIMI_RECORDS } from '../../src/records.ts'
-import { hooksOf } from '../../src/rules.ts'
 
 const ROOT = fileURLToPath(new URL('../fixtures/records/', import.meta.url))
 const TEST_ADOPTION = (name: string): Adoption => ({
@@ -121,7 +120,7 @@ function requestOf(record: KimiRecord): Readonly<{
     ],
     toolChoice: 'auto',
     declarations: [declared.ok],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(KIMI_OWNER, record, 'representation'),
     parameterAdoptions: parameters.map(parameter => ({
       supplier: adoption,
       applied: parameter,
@@ -140,7 +139,7 @@ function bindingOf(record: KimiRecord, request: FixedModelRequest) {
     ({ failure: { kind: 'unavailable', dependency: 'capture', diagnostic: 'no meter' } }) as const
   return bindChatCompletions({
     record,
-    hooks: hooksOf(record),
+    hooks: chatTextHooks(KIMI_OWNER, record),
     supplier,
     meter: {
       instance: {
@@ -149,7 +148,7 @@ function bindingOf(record: KimiRecord, request: FixedModelRequest) {
         measureCalibrated: unavailable,
       },
       represent: () => ({
-        adoption: componentAdoption(record, 'representation'),
+        adoption: componentAdoption(KIMI_OWNER, record, 'representation'),
         tokenInput: { kind: 'null' },
         units: [],
       }),

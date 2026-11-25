@@ -355,8 +355,10 @@ describe('a Tool result on the release tree reaches the Agent', () => {
       }
       const definition = first.tools.find(tool => tool.function.name === 'TodoItems')
       expect(definition?.function.description).toContain(
-        'Returns string (string-output@1). Model body: text. Program data: none.',
+        'Returns string (string-output@1). Model body: text.',
       )
+      for (const tool of first.tools)
+        expect(tool.function.description).not.toContain('Program data')
       expect(definition?.function.description).not.toContain('Return value schema')
       const second = JSON.parse(seen[1] ?? '') as { messages: { role: string; content: string }[] }
       const replies = second.messages.filter(message => message.role === 'tool')

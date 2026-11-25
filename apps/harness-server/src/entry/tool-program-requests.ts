@@ -4,8 +4,6 @@ import {
   type Access,
   type ProgramFunction,
   type Reply,
-  type ToolCatalog,
-  type ToolConsumerProfile,
   type ToolForwardIntent,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
@@ -80,49 +78,37 @@ export function createProgramTargetRequests(ports: ProgramRequestPorts) {
   }
 }
 
-const SEARCH_PAGE = 50
-
-// TL-71: what the catalog offers a program now beyond the view, such as the entries of a source.
-async function outsideView(
-  catalog: ToolCatalog<unknown>,
-  access: Access<unknown>,
-  consumer: ToolConsumerProfile,
-): Reply<readonly ProgramFunction[]> {
-  const found: ProgramFunction[] = []
-  let after: string | null = null
-  do {
-    const asked = { ...access, query: '', consumer, invocation: 'programmatic', after } as const
-    const page = await catalog.search({ ...asked, limit: SEARCH_PAGE })
-    if ('failure' in page) return page
-    for (const entry of page.ok.entries) found.push(...programFunctions(entry.definition))
-    after = page.ok.next
-  } while (after !== null)
-  return succeed(found)
+function knownAmong(
+  names: readonly string[],
+  entries: readonly Readonly<{ key: Readonly<{ asset: Readonly<{ name: string }> }> }>[],
+  sourced: Readonly<{ owns(name: string): boolean }> | undefined,
+): readonly string[] {
+  const kept = new Set(entries.map(entry => entry.key.asset.name))
+  return [...new Set(names)].filter(name => kept.has(name) || sourced?.owns(name) === true)
 }
 
+/** TL-75: the functions of the tools a program names. Names that are no tool cost nothing; no catalogue is read. */
 export function createProgramFunctions(ports: ProgramRequestPorts) {
-  return async (parent: Parent): Reply<readonly ProgramFunction[]> => {
+  return async (parent: Parent, names: readonly string[]): Reply<readonly ProgramFunction[]> => {
     const release = ports.release()
     const catalog = ports.catalog()
     const view = ports.view()
     if (release.kind !== 'trusted' || catalog === undefined || view === undefined)
       return unavailable('The release snapshot, the catalog or the view is unavailable.')
     if (!isCode(ports, parent)) return unavailable('The exact parent Code adoption is unavailable.')
+    if (names.length === 0) return succeed([])
     const access: Access<unknown> = { principal: parent.principal, tenant: parent.tenant }
     const listed = await view.read(access)
     if ('failure' in listed) return listed
-    const names = [...new Set(listed.ok.entries.map(entry => entry.key.asset.name))]
+    const tools = knownAmong(names, listed.ok.entries, ports.sourced?.())
+    if (tools.length === 0) return succeed([])
     const consumer = releaseToolConsumer(release)
-    const inspected = await catalog.inspectEach({ ...access, names, consumer })
+    const inspected = await catalog.inspectEach({ ...access, names: tools, consumer })
     if ('failure' in inspected) return inspected
-    const viewed = inspected.ok.flatMap(one =>
-      'ok' in one && one.ok.kind === 'available' ? programFunctions(one.ok.definition) : [],
+    return succeed(
+      inspected.ok.flatMap(one =>
+        'ok' in one && one.ok.kind === 'available' ? programFunctions(one.ok.definition) : [],
+      ),
     )
-    const beyond = await outsideView(catalog, access, consumer)
-    if ('failure' in beyond) return beyond
-    const byEntry = new Map<string, ProgramFunction>()
-    for (const one of [...viewed, ...beyond.ok])
-      if (!byEntry.has(one.entry)) byEntry.set(one.entry, one)
-    return succeed([...byEntry.values()])
   }
 }

@@ -129,6 +129,7 @@ it('reads the current catalog and returns a command-tool overview without asking
       digest: 'sha256:attachments',
     },
   }
+  const asked: string[] = []
   const provider = createLocalToolForwarding({
     attemptMs: 20,
     runtime: () => undefined,
@@ -142,7 +143,8 @@ it('reads the current catalog and returns a command-tool overview without asking
     catalog: () => ({
       search: async input => {
         expect(input.consumer).toEqual(profile)
-        expect(input.invocation).toBe(f.parent.request.invocation.kind)
+        asked.push(input.invocation)
+        expect(input).not.toHaveProperty('programmable')
         return succeed({ entries: [{ ...known, resident: true }], next: null })
       },
       inspect: async () => succeed(known),
@@ -164,11 +166,15 @@ it('reads the current catalog and returns a command-tool overview without asking
     ok: { entries: [{ resident: true }] },
   })
   expect(profiles).toBe(2)
+  // TL-75: the condition of a search becomes the catalog's own filter for what a program can call.
+  await capability.search({ query: 'tools', after: null, limit: 5, programmable: true })
+  expect(asked).toEqual([f.parent.request.invocation.kind, 'programmatic'])
+  expect(profiles).toBe(3)
   await attached.finish('returned')
   expect(await capability.search({ query: '', after: null, limit: 5 })).toMatchObject({
     failure: { kind: 'unavailable' },
   })
-  expect(profiles).toBe(2)
+  expect(profiles).toBe(3)
   await provider.close()
 })
 it('clears unknown responsibility using the original parent when another Tools call resumes it', async () => {

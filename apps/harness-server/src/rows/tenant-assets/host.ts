@@ -55,6 +55,8 @@ export async function openTenantAssets(
 export type TenantAssetsHostOptions = Readonly<{
   domains: TenantDomainLookup
   open(domain: DomainRef): Promise<AssetsLocal>
+  /** Registers the domain of a tenant; true when it is ready. Without it a write of a tenant never registered finds nothing. */
+  register?(tenantRef: string): Promise<boolean>
 }>
 
 /** Opens the local assets of a tenant once and recovers it once: the publish order assumes no second one. */
@@ -77,6 +79,15 @@ export class TenantAssetsHost {
       if (assets === undefined) this.opening.delete(tenantRef)
     })
     return made
+  }
+
+  /** The assets of a tenant for a write that was admitted for it: a tenant never registered is registered first. A read never registers. */
+  async openForWriting(tenantRef: string): Promise<AssetsLocal | undefined> {
+    if ((await this.standing(tenantRef)) === 'unregistered') {
+      const ready = await this.options.register?.(tenantRef).catch(() => false)
+      if (ready !== true) return undefined
+    }
+    return this.open(tenantRef)
   }
 
   /** Whether a tenant has assets to speak of. One whose domain was never registered holds nothing; that is not the same as not knowing. */

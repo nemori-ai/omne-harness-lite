@@ -11,7 +11,7 @@ import type {
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import type { BoundCommandAccess } from './initial.ts'
 import { authFailure, missingReceipt, unresolved } from './judge.ts'
-import { bump, expireReads, releaseMaterial, type ModelCommandCore } from './state.ts'
+import { bump, expireReads, originOf, releaseMaterial, type ModelCommandCore } from './state.ts'
 import { digest, invalid } from './value.ts'
 
 const REFUSALS: readonly string[] = ['denied', 'invalid', 'conflict']
@@ -41,8 +41,10 @@ function abandonment(input: AbandonInput<unknown>, revision: Revision): Abandone
 export function custodyCommands<P>(
   core: ModelCommandCore<P>,
   bound?: BoundCommandAccess<P>,
-): Pick<ModelCommands<P>, 'abandon' | 'advanceCleanup' | 'confirmAccount'> {
+): Pick<ModelCommands<P>, 'abandon' | 'advanceCleanup' | 'confirmAccount' | 'loadOrigin'> {
   return {
+    loadOrigin: input =>
+      core.runRead(input, () => core.read(input, 'recovery', call => ({ ok: originOf(call) }))),
     confirmAccount: input =>
       core.runWrite(input, () =>
         core.write<Revision>({

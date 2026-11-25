@@ -119,9 +119,11 @@ export function createStartScan(
     const loaded = await input.commands.loadRecovery({ ...scope, call })
     if ('failure' in loaded) {
       const { failure } = loaded
+      // A released call is still listed only while it owes its late accounts or a cost lookup.
       if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released') {
         seen.add(call)
-        return 'skipped'
+        input.wake({ tenant: scope.tenant, call })
+        return 'woken'
       }
       return failed('load', failure) === 'again' ? 'again' : 'skipped'
     }

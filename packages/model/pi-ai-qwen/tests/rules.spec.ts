@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { GatewayUsage, ReasoningDetail } from '@omne-harness/pi-ai-transport/chat-completions'
-import { hooksOf } from '../src/rules.ts'
 import { RECORD } from './support/qwen.ts'
+import { chatTextHooks } from '@omne-harness/pi-ai-transport/family-kit'
+import { QWEN_OWNER } from '../src/owner.ts'
 
-const HOOKS = hooksOf(RECORD)
+const HOOKS = chatTextHooks(QWEN_OWNER, RECORD)
 const str = (value: string): JsonValue => ({ kind: 'string', value })
 const num = (lexeme: string): JsonValue => ({ kind: 'number', lexeme })
 

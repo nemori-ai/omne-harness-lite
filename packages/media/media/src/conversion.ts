@@ -1,5 +1,6 @@
 import {
   engineAccepts,
+  isInconvertibleReason,
   modalityOf,
   representationHolder,
   type ContentReference,
@@ -41,8 +42,10 @@ type Piece = Readonly<{ item: DerivedMedium; facts: MediaFacts }>
 type Origin = Pick<Representation, 'definition' | 'engine'>
 
 function wellFormed(output: EngineOutput): boolean {
-  const value = output as { kind?: unknown; text?: unknown; derived?: unknown }
-  if (value.kind === 'inconvertible' || value.kind === 'failed') return true
+  const value = output as { kind?: unknown; text?: unknown; derived?: unknown; reason?: unknown }
+  if (value.kind === 'failed') return true
+  if (value.kind === 'inconvertible')
+    return !('reason' in value) || isInconvertibleReason(value.reason)
   if (value.kind !== 'converted' || typeof value.text !== 'string') return false
   return (
     Array.isArray(value.derived) &&
@@ -149,9 +152,13 @@ export function createConversion(deps: MediaDependencies, objects: Objects) {
     if (output.kind === 'failed') return failed(ENGINE_FAILED[output.reason] ?? 'invalid-result')
     const { name, revision } = lease.engine.declaration
     const origin = { definition: resolved.definition, engine: { name, revision } }
-    return output.kind === 'converted'
-      ? keep(row, origin, output)
-      : record(row, { ...origin, outcome: 'inconvertible' })
+    if (output.kind === 'converted') return keep(row, origin, output)
+    const { reason } = output
+    return record(row, {
+      ...origin,
+      outcome: 'inconvertible',
+      ...(reason === undefined ? {} : { reason }),
+    })
   }
 
   /** Step four: the engine is borrowed for this one medium and waits for its turn. */

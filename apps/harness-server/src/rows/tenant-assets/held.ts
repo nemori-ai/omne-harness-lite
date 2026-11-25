@@ -8,12 +8,14 @@ import {
   type HeldItem,
   type HeldPort,
 } from '@omne-harness/assets'
-import { list, type Placed, type Registry } from '@omne-harness/dynamis'
+import { candidates, list, type Placed, type Registry } from '@omne-harness/dynamis'
 import type { AssetCategoriesService } from '@omne-harness/assets-cordis-contract/cordis'
 import { tenantListing, type AssetsLocal } from '@omne-harness/assets-local'
 import { registrySources } from './registry-sources.ts'
 
-type Categories = Pick<AssetCategoriesService, 'held' | 'holdingsOf' | 'view'>
+type Categories = Pick<AssetCategoriesService, 'held' | 'holdingsOf' | 'view' | 'official'>
+
+export type HeldNames = Readonly<{ at: Registry; names: ReadonlyMap<string, string> }>
 
 export type HeldOnRegistry = Readonly<{
   /** The port the assets of one tenant tell what they hold. The tenant is the one whose assets are opened. */
@@ -24,6 +26,7 @@ export type HeldOnRegistry = Readonly<{
   ): (tenantRef: string) => readonly AssetLayerSource[]
   /** The registry changed: when the categories differ, every tenant is told again what it holds. */
   registryChanged(): void
+  namesOf(tenantRef: string, category: string): HeldNames | undefined
 }>
 
 type Kept = {
@@ -32,6 +35,7 @@ type Kept = {
   /** The categories whose holdings found no point at the last telling: they read as unavailable, not as none. */
   waiting: Set<string>
   stale: boolean
+  names: Map<string, HeldNames>
 }
 
 /** A definition a plugin placed for this tenant, within a directory of the plugin's package, as the ledger would list it. */
@@ -57,6 +61,18 @@ function placedEntry(
   ]
 }
 
+function namesIn(point: string, at: Registry, entries: readonly Placed<HeldItem>[]): HeldNames {
+  const under = new Map<string, string[]>()
+  for (const { key, scope, item } of entries) {
+    const held = under.get(key) ?? []
+    held.push(JSON.stringify([scope, item]))
+    under.set(key, held)
+  }
+  const names = new Map<string, string>()
+  for (const [key, held] of under) names.set(key, JSON.stringify([point, held.sort()]))
+  return { at, names }
+}
+
 /** Puts what each tenant holds on the registry and reads it back; what could not be put reads as unavailable. */
 export function heldOnRegistry(
   categories: () => Categories,
@@ -77,6 +93,19 @@ export function heldOnRegistry(
       throw error
     }
   }
+  const toldOf = (tenant: string, category: string): Kept | undefined => {
+    const state = kept.get(tenant)
+    return state === undefined || state.stale || state.waiting.has(category) ? undefined : state
+  }
+  const pointOf = (
+    category: string,
+  ): Readonly<{ registry: Registry; point: string }> | undefined => {
+    const listing = categories().view.describe(category)
+    const now = registry()
+    return now === undefined || listing === undefined || !('point' in listing)
+      ? undefined
+      : { registry: now, point: listing.point }
+  }
   return {
     heldOf(tenant) {
       const state: Kept = {
@@ -87,6 +116,7 @@ export function heldOnRegistry(
         last: undefined,
         waiting: new Set(),
         stale: true,
+        names: new Map(),
       }
       kept.set(tenant, state)
       return {
@@ -101,25 +131,36 @@ export function heldOnRegistry(
       registrySources(
         {
           held: (capability, ref) => categories().held(capability, ref),
-          current(ref, capability: CapabilityId) {
-            const state = kept.get(ref)
-            return state !== undefined && !state.stale && !state.waiting.has(capability.category)
-          },
+          official: () => categories().official(),
+          current: (ref, capability: CapabilityId) =>
+            toldOf(ref, capability.category) !== undefined,
           async listing(ref) {
             const assets = await open(ref)
             return assets === undefined ? undefined : tenantListing(assets)
           },
           placed(category, ref) {
-            const listing = categories().view.describe(category)
-            const now = registry()
-            if (now === undefined || listing === undefined || !('point' in listing)) return []
-            const read = list<HeldItem>(now, listing.point, null, scopeOfLayer('tenant', ref))
+            const at = pointOf(category)
+            if (at === undefined) return []
+            const read = list<HeldItem>(at.registry, at.point, null, scopeOfLayer('tenant', ref))
             if (read.kind !== 'read') return []
             return read.items.flatMap(({ entry }) => placedEntry(category, ref, entry))
           },
         },
         tenantRef,
       ),
+    namesOf(tenant, category) {
+      const state = toldOf(tenant, category)
+      const at = pointOf(category)
+      if (state === undefined || at === undefined) return undefined
+      const last = state.names.get(category)
+      if (last?.at === at.registry) return last
+      const scope = scopeOfLayer('tenant', tenant)
+      const read = candidates<HeldItem>(at.registry, at.point, null, scope)
+      if (read.kind !== 'read') return undefined
+      const named = namesIn(at.point, at.registry, read.entries)
+      state.names.set(category, named)
+      return named
+    },
     registryChanged() {
       const now = JSON.stringify(
         categories()

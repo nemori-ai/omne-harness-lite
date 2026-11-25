@@ -47,7 +47,7 @@ export type LocalProgramCallsInput<P> = Readonly<{
   runtime(): ToolProgramRuntime<P> | undefined
   children(): ToolChildren<P> | undefined
   admission(): ProgramActionAdmission<P> | undefined
-  functions(parent: ProgramParent<P>): Reply<readonly ProgramFunction[]>
+  functions(parent: ProgramParent<P>, names: readonly string[]): Reply<readonly ProgramFunction[]>
   prepareTarget(parent: ProgramParent<P>, intent: ToolForwardIntent): Reply<ToolInvokeRequest>
   checkArguments(access: Access<P>, request: FixedToolRequest): Promise<ArgumentsVerdict>
   retryMs: number
@@ -370,10 +370,10 @@ export function createLocalProgramCalls<P>(input: LocalProgramCallsInput<P>): Lo
       const run: Running<P> = { input, parent, signal, pause: pauseOf(signal, input.retryMs) }
       const calls: Calls = new Map()
       const value: ProgramTools = {
-        functions: () =>
+        functions: names =>
           signal.aborted
             ? Promise.resolve(fail(ended('The program has ended.')))
-            : input.functions(parent),
+            : input.functions(parent, names),
         call(asked) {
           const digest = canonicalDigest([asked.entry, asked.arguments])
           const known = calls.get(asked.ordinal)

@@ -1,7 +1,6 @@
-import { fileURLToPath } from 'node:url'
-import { appendAdoptionFingerprints } from '@omne-harness/pi-ai-transport/testing'
-import { FAMILY } from './openai.ts'
+import { fingerprintConfig, writeFingerprints } from '@omne-harness/pi-ai-transport/testing'
+import { createOpenAiFamily, openAiTokenizerResources } from '../../src/index.ts'
 
-const file = fileURLToPath(new URL('../fixtures/adoptions.json', import.meta.url))
-const added = await appendAdoptionFingerprints(FAMILY, file)
-process.stdout.write(`added ${added.length} fingerprint lines\n`)
+// The fingerprints come from the records alone; this family never acquires a binding.
+const family = createOpenAiFamily(fingerprintConfig(openAiTokenizerResources()))
+await writeFingerprints(family, new URL('../fixtures/adoptions.json', import.meta.url))

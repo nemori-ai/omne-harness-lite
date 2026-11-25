@@ -1,37 +1,13 @@
-import type { LimitMetric, ModelModality, TokenizerDefinition } from '@omne-harness/model-contract'
+import type { TokenizerDefinition } from '@omne-harness/model-contract'
 import type { RecordProvenance } from '@omne-harness/pi-ai-transport'
 import type { ChatCompletionsRecord } from '@omne-harness/pi-ai-transport/chat-completions'
-export type UpstreamData =
-  | Readonly<{ kind: 'finite'; amount: string }>
-  | Readonly<{ kind: 'unknown' }>
-
-export type TokenLimitData = Readonly<{ provided: string; upstream: UpstreamData }>
-
-export type LimitData = Readonly<{ metric: LimitMetric; provided: string; upstream: UpstreamData }>
-
-export type ProfileData = Readonly<{
-  input: readonly [ModelModality, ...ModelModality[]]
-  output: readonly [ModelModality, ...ModelModality[]]
-  context: Readonly<{
-    window: TokenLimitData
-    input: TokenLimitData | null
-    output: TokenLimitData
-  }>
-  limits: readonly LimitData[]
-  evidence: string
-}>
+import type { ImageTokenRule, ProfileData } from '@omne-harness/pi-ai-transport/family-kit'
 
 export type RuleNames = Readonly<{
   reasoning: 'glm-reasoning-text/1'
   usage: 'glm-usage/1'
   toolSchema: 'object-root/1'
   check: 'none/1' | 'no-explicit-tool-none/1'
-}>
-
-export type ImageTokenRule = Readonly<{
-  tilePixels: string
-  tokensPerTile: string
-  overheadTokens: string
 }>
 
 export type MeterData = Readonly<{

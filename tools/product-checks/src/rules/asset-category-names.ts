@@ -13,11 +13,16 @@ export const CATEGORY_BLIND_SOURCES = [
 /** The categories this repository contributes, and the two its server tests add. */
 export const CATEGORY_NAMES = [
   'AgentDefinition',
+  'converter',
   'fixture',
   'fixture-bundle',
+  'loop-extension',
   'mcp',
   'model-provider',
+  'plugin',
+  'prompt',
   'skill',
+  'skin',
   'tool',
 ] as const
 

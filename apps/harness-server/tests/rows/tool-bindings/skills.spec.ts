@@ -56,6 +56,9 @@ async function setup(
     readWork: SkillsBindingPorts['readWork']
     callerTenant: 'a' | 'b'
     results: CatalogEntry[][]
+    /** The tools each Skill declares it needs, by Skill name. */
+    needs: Readonly<Record<string, readonly string[]>>
+    missingTools: SkillsBindingPorts['missingTools']
   }> = {},
 ) {
   const fixture = fixtureEnv([principalIssuerKey])
@@ -70,11 +73,28 @@ async function setup(
     'principal',
   )
   const calls: unknown[][] = []
+  const toolAsks: unknown[][] = []
+  const needing = (entry: CatalogEntry): CatalogEntry =>
+    entry.kind === 'adopted'
+      ? {
+          ...entry,
+          dependencies: (overrides.needs?.[entry.name] ?? []).map(name => {
+            const id = capabilityId('tool', name)
+            if (!id.ok) throw new Error(name)
+            return id.id
+          }),
+        }
+      : entry
   const catalog: SkillCatalog<unknown, unknown> = {
-    summaries: async () => ({ ok: [] }),
+    summaries: async (...args) => {
+      const asked = args[2] ?? []
+      return { ok: asked.map(id => needing(entries(id.name)[0]!)) }
+    },
     search: async (...args) => {
       calls.push(['search', ...args])
-      return { ok: overrides.results?.shift() ?? entries('alpha', 'beta', 'gamma') }
+      return {
+        ok: (overrides.results?.shift() ?? entries('alpha', 'beta', 'gamma')).map(needing),
+      }
     },
   }
   const access: SkillAccess<unknown, unknown> = {
@@ -118,12 +138,15 @@ async function setup(
     readWork: overrides.readWork ?? readWorkNowhere,
     catalog: () => ('catalog' in overrides ? overrides.catalog : catalog),
     access: () => ('access' in overrides ? overrides.access : access),
+    missingTools:
+      overrides.missingTools ??
+      (async (asker, names) => (toolAsks.push([asker, names]), new Set<string>())),
   }
   const bound = createBoundSkills(
     { principal, tenant, request: {} as FixedToolRequest } as never,
     ports,
   )
-  return { bound, calls }
+  return { bound, calls, toolAsks, tenant }
 }
 
 function failingRead(failure: ReadFailure): SkillAccess<unknown, unknown> {
@@ -300,7 +323,14 @@ describe('Skills binding: Skill answers become tool answers (table 2)', () => {
     expect(
       await bound.read({ skill: 'weekly-report', offset: 3, maxBytes: 1_000_000 }, signal),
     ).toStrictEqual({
-      ok: { text: 'body', start: 3, end: 7, total: 10, directory: '/skills/weekly-report' },
+      ok: {
+        text: 'body',
+        start: 3,
+        end: 7,
+        total: 10,
+        source: { layer: 'tenant', version: 'x' },
+        directory: '/skills/weekly-report',
+      },
     })
     expect(calls[0]?.[3]).toStrictEqual({
       capability: skill('weekly-report').capability,
@@ -347,6 +377,7 @@ describe('Skills binding: Skill answers become tool answers (table 2)', () => {
           { path: 'SKILL.md', size: 120 },
           { path: 'scripts/collect.mjs', size: 40, mediaType: 'text/javascript' },
         ],
+        source: { layer: 'tenant', version: 'x' },
         directory: '/skills/weekly-report',
       },
     })
@@ -371,9 +402,11 @@ describe('Skills binding: Skill answers become tool answers (table 2)', () => {
     })
     expect(
       await bound.read({ skill: 'weekly-report', offset: 0, maxBytes: 100 }, signal),
-    ).toStrictEqual({ ok: { text: 'body', start: 0, end: 4, total: 4 } })
+    ).toStrictEqual({
+      ok: { text: 'body', start: 0, end: 4, total: 4, source: { layer: 'tenant', version: 'x' } },
+    })
     expect(await bound.list({ skill: 'weekly-report' }, signal)).toStrictEqual({
-      ok: { files: [] },
+      ok: { files: [], source: { layer: 'tenant', version: 'x' } },
     })
   })
 })
@@ -449,6 +482,60 @@ describe('Skills binding: search pages (table 3)', () => {
         next: null,
       },
     })
+  })
+})
+
+describe('Skills binding: where a Skill comes from and the tools it needs (table 5.4)', () => {
+  const read = { skill: 'weekly-report', offset: 3, maxBytes: 100 }
+
+  it('R1: a read, a listing and a file read carry the layer and the version they come from; a Skill that needs no tool asks Tool nothing', async () => {
+    const { bound, toolAsks } = await setup()
+    const source = { layer: 'tenant', version: 'x' }
+    expect(await bound.read(read, signal)).toMatchObject({ ok: { source } })
+    expect(await bound.list({ skill: 'weekly-report' }, signal)).toMatchObject({ ok: { source } })
+    const file = await bound.readFile({ ...read, path: 'scripts/a.mjs' }, signal)
+    expect(file).toMatchObject({ ok: { source } })
+    expect('ok' in file && 'missingTools' in file.ok).toBe(false)
+    expect(toolAsks).toEqual([])
+  })
+
+  it('R2: the tools a Skill declares that the session does not have are named, asked as the caller, tools only', async () => {
+    const { bound, toolAsks, tenant } = await setup({
+      needs: { 'weekly-report': ['Browser', 'Files'] },
+      missingTools: async (asker, names) => (
+        toolAsks.push([asker.tenant, names]),
+        new Set(['Browser'])
+      ),
+    })
+    expect(await bound.read(read, signal)).toMatchObject({
+      ok: { text: 'body', missingTools: ['Browser'] },
+    })
+    expect(toolAsks).toEqual([[tenant, ['Browser', 'Files']]])
+  })
+
+  it('R3: when Tool cannot tell, the read still gives the text and says it does not know', async () => {
+    const { bound } = await setup({
+      needs: { 'weekly-report': ['Browser'] },
+      missingTools: async () => 'unknown',
+    })
+    expect(await bound.read(read, signal)).toMatchObject({
+      ok: { text: 'body', missingTools: 'unknown' },
+    })
+  })
+
+  it('R4: a search asks once for every tool the page needs and marks each Skill with what it lacks', async () => {
+    let asked: readonly string[] = []
+    const { bound } = await setup({
+      needs: { alpha: ['Browser'], gamma: ['Mail', 'Browser'] },
+      missingTools: async (_asker, names) => ((asked = names), new Set(['Browser'])),
+    })
+    const page = await bound.search({ query: '', after: null, limit: 3 }, signal)
+    expect(asked).toEqual(['Browser', 'Mail'])
+    expect('ok' in page && page.ok.entries).toEqual([
+      { kind: 'available', name: 'alpha', description: 'alpha notes.', needs: ['Browser'] },
+      { kind: 'available', name: 'beta', description: 'beta notes.' },
+      { kind: 'available', name: 'gamma', description: 'gamma notes.', needs: ['Browser'] },
+    ])
   })
 })
 

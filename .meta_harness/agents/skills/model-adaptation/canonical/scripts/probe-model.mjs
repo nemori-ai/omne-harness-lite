@@ -2,8 +2,9 @@
 // Runs the fact cases of one model through the OpenRouter gateway and writes a fact table.
 // Usage:
 //   OPENROUTER_API_KEY=<key> node probe-model.mjs <model> [--interface messages|responses|chat]
-//     [--out <directory>] [--only <case>]...
+//     [--provider <OpenRouter provider>] [--out <directory>] [--only <case>]...
 // The interface defaults by vendor: anthropic/ → messages, openai/ → responses, others → chat.
+// The provider pinned, with no fallback, defaults to the vendor; give it when the two differ.
 // The key is read from the environment and goes only into the Authorization header.
 // Every request and response is written to the output directory; the table is facts.md.
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -14,18 +15,20 @@ const BASE = 'https://openrouter.ai/api/v1'
 function argsOf(argv) {
   const [model, ...rest] = argv
   if (model === undefined || model.startsWith('--')) throw new Error('give a model, as vendor/name')
-  const options = { model, iface: null, out: null, only: [] }
+  const options = { model, iface: null, provider: null, out: null, only: [] }
   for (let index = 0; index < rest.length; index += 1) {
     const flag = rest[index]
     const value = rest[(index += 1)]
     if (value === undefined) throw new Error(`${flag} needs a value`)
     if (flag === '--interface') options.iface = value
+    else if (flag === '--provider') options.provider = value
     else if (flag === '--out') options.out = value
     else if (flag === '--only') options.only.push(value)
     else throw new Error(`unknown argument ${flag}`)
   }
   const vendor = model.split('/')[0]
   options.iface ??= vendor === 'anthropic' ? 'messages' : vendor === 'openai' ? 'responses' : 'chat'
+  options.provider ??= vendor
   if (!['messages', 'responses', 'chat'].includes(options.iface))
     throw new Error(`no such interface: ${options.iface}`)
   options.out ??= join(process.cwd(), `probe-${model.replace(/[/.]/g, '_')}-${Date.now()}`)
@@ -33,6 +36,7 @@ function argsOf(argv) {
 }
 
 const PATHS = { messages: 'messages', responses: 'responses', chat: 'chat/completions' }
+const pin = provider => ({ provider: { order: [provider], allow_fallbacks: false } })
 const TOOL_PARAMETERS = {
   type: 'object',
   properties: { city: { type: 'string' } },
@@ -55,7 +59,6 @@ const SHAPES = {
       max_tokens: 1500,
       messages: [{ role: 'user', content: text }],
     }),
-    pin: vendor => ({ provider: { order: [vendor], allow_fallbacks: false } }),
     effort: effort => ({ output_config: { effort } }),
     reasoningOff: { thinking: { type: 'disabled' } },
     tools: {
@@ -99,7 +102,6 @@ const SHAPES = {
       store: false,
       input: [{ role: 'user', content: text }],
     }),
-    pin: vendor => ({ provider: { order: [vendor], allow_fallbacks: false } }),
     effort: effort => ({ reasoning: { effort } }),
     reasoningOff: { reasoning: { enabled: false } },
     tools: {
@@ -144,7 +146,6 @@ const SHAPES = {
       max_tokens: 1500,
       messages: [{ role: 'user', content: text }],
     }),
-    pin: vendor => ({ provider: { order: [vendor], allow_fallbacks: false } }),
     effort: effort => ({ reasoning: { effort } }),
     reasoningOff: { reasoning: { enabled: false } },
     tools: {
@@ -211,8 +212,8 @@ async function main() {
   if (key === '') throw new Error('OPENROUTER_API_KEY is required')
   mkdirSync(options.out, { recursive: true })
   const shape = SHAPES[options.iface]
-  const vendor = options.model.split('/')[0]
-  const base = { ...shape.base(options.model, ASK), ...shape.pin(vendor) }
+  const pinned = pin(options.provider)
+  const base = { ...shape.base(options.model, ASK), ...pinned }
   const rows = []
   let spent = 0
 
@@ -260,7 +261,7 @@ async function main() {
     ['seed', 7],
   ])
     await fact(`sampling-${name}`, { ...base, [name]: value })
-  const withTool = { ...shape.base(options.model, WEATHER), ...shape.pin(vendor), ...shape.tools }
+  const withTool = { ...shape.base(options.model, WEATHER), ...pinned, ...shape.tools }
   for (const [name, choice] of Object.entries(shape.choices))
     await fact(`tool-${name}`, { ...withTool, tool_choice: choice })
   const lastAssistant =
@@ -272,7 +273,7 @@ async function main() {
   // Carrying reasoning back: the second request appends the first reply as the interface returned it.
   const thinking = {
     ...shape.base(options.model, THINK),
-    ...shape.pin(vendor),
+    ...pinned,
     ...shape.effort('high'),
   }
   const first = await fact('replay-1', thinking, json => ({
@@ -298,7 +299,7 @@ async function main() {
   // The cache as a session uses it: one long prefix, three requests that only append.
   const nonce = `${Date.now()}-${Math.random()}`
   let session = shape.system(
-    { ...shape.base(options.model, ASK), ...shape.pin(vendor) },
+    { ...shape.base(options.model, ASK), ...pinned },
     `Session ${nonce}. ${LONG}`,
   )
   if (options.iface === 'responses') session = { ...session, prompt_cache_key: `probe-${nonce}` }
