@@ -344,11 +344,14 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
 
   describe('the end of a segment', () => {
     it('is completed with the exit code, the duration and the segment counts', async () => {
-      const f = await open({ executes: [leg({ data: ['abc'], code: 255, between: ['q'] })] })
+      const f = await open({
+        executes: [leg({ data: ['abc'], code: 255, between: ['q'], cwd: '/work/final' })],
+      })
       const outcome = await f.done(await f.execute()).result
       expect(outcome).toEqual({
         kind: 'completed',
         exit: { kind: 'code', code: 255 },
+        observedCwd: '/work/final',
         durationMs: expect.any(Number),
         output: {
           mode: 'terminal',
