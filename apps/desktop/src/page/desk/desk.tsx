@@ -26,6 +26,7 @@ import {
   type Point,
   type Rect,
   type Scene,
+  type SceneFrame,
   type SceneNote,
   type SceneWhere,
   type Up,
@@ -319,6 +320,17 @@ const BLANK: Drawn = {
   look: {},
 }
 
+const frameIn = (frame: SceneFrame | null | undefined, origin: Point) => ({
+  rect: frame == null ? null : inView(frame.rect, origin),
+  covered: frame?.covered.map(box => inView(box, origin)) ?? [],
+  closed: frame?.closed,
+})
+
+const handLabel = ({ where, label }: Drawn, at: Point | null) =>
+  where.mode === 'hand' && at !== null ? label : null
+
+const rewrites = (where: SceneWhere): boolean => where.mode === 'home' && where.rewrite === true
+
 /** The desk page draws the scene it holds and tells the shell what happened to it; it has no facts of its own. */
 export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Element {
   const control = useRef<LooseControl>(null)
@@ -335,10 +347,11 @@ export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Eleme
   const pictures = useShown(note, bytes)
   useNoteKeys(note !== null, words.text, pictures.length, close)
 
-  const { where, figure: shape, label, look, frame } = drawn
+  const { where, figure: shape, look, frame } = drawn
   const origin = deps.origin()
   const at = localAt(where, hand, origin)
   const figure = figureBox(at, FIGURE_SIZE * factor)
+  const lines = handLabel(drawn, at)
   const bounds = { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight }
   return (
     <main
@@ -361,20 +374,12 @@ export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Eleme
         onClick={report('click')}
         onDoubleClick={report('double')}
         onArrived={onArrived}
-        rewriteFirst={where.mode === 'home' && where.rewrite === true}
+        rewriteFirst={rewrites(where)}
       />
       {where.mode === 'none' ? null : (
-        <ObservationFrame
-          rect={frame == null ? null : inView(frame.rect, origin)}
-          covered={frame?.covered.map(box => inView(box, origin)) ?? []}
-          figure={figure}
-          closed={frame?.closed}
-          reduced={look.reduced}
-        />
+        <ObservationFrame {...frameIn(frame, origin)} figure={figure} reduced={look.reduced} />
       )}
-      {label != null && at !== null && where.mode === 'hand' ? (
-        <FigureLabel figure={figure} bounds={bounds} lines={label} />
-      ) : null}
+      {lines == null ? null : <FigureLabel figure={figure} bounds={bounds} lines={lines} />}
       <SayBubble
         ref={bubble}
         note={sayNote(note, words.text, words.chosen, pictures)}

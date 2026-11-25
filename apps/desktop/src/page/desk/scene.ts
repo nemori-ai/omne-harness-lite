@@ -136,18 +136,22 @@ function isScene(value: unknown): value is Scene {
   )
 }
 
+type Check = (message: Fields) => boolean
+
+/** What a message down of each kind carries. */
+const DOWNS = new Map<unknown, Check>([
+  ['scene', message => isScene(message['scene'])],
+  ['hand', message => isNumber(message['lease']) && isPoint(message['at'])],
+  [
+    'picture',
+    message => typeof message['id'] === 'string' && message['bytes'] instanceof Uint8Array,
+  ],
+])
+
 export function readDown(data: unknown): Down | undefined {
   const message = fields(data)
-  if (message?.['kind'] === 'scene' && isScene(message['scene'])) return message as Down
-  if (message?.['kind'] === 'hand' && isNumber(message['lease']) && isPoint(message['at']))
-    return message as Down
-  if (
-    message?.['kind'] === 'picture' &&
-    typeof message['id'] === 'string' &&
-    message['bytes'] instanceof Uint8Array
-  )
-    return message as Down
-  return undefined
+  const known = message === undefined ? undefined : DOWNS.get(message['kind'])?.(message)
+  return known === true ? (message as Down) : undefined
 }
 
 const optional = (value: unknown, is: (value: unknown) => boolean): boolean =>

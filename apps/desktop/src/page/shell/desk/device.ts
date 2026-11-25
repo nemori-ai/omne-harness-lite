@@ -64,20 +64,22 @@ function factsOf(value: unknown): FigureFacts | undefined {
 const NONE: WindowAt = { kind: 'none' }
 const FAILED = '读窗口的请求没有成功'
 
+const isText = (value: unknown): boolean => typeof value === 'string'
+const isRects = (value: unknown): boolean => Array.isArray(value) && value.every(isRect)
+const OTHER: Readonly<Record<string, (value: unknown) => boolean>> = {
+  id: isText,
+  app: isText,
+  title: isText,
+  bounds: isRect,
+  covered: isRects,
+}
+const isOther = (window: Fields): boolean =>
+  window['kind'] === 'other' && Object.entries(OTHER).every(([key, is]) => is(window[key]))
+
 function windowOf(value: unknown): WindowAt {
   const window = fields(value)
-  const kind = window?.['kind']
-  if (kind === 'own') return { kind }
-  const covered = window?.['covered']
-  const other =
-    kind === 'other' &&
-    typeof window?.['id'] === 'string' &&
-    typeof window['app'] === 'string' &&
-    typeof window['title'] === 'string' &&
-    isRect(window['bounds']) &&
-    Array.isArray(covered) &&
-    covered.every(isRect)
-  return other ? (window as WindowAt) : NONE
+  if (window?.['kind'] === 'own') return { kind: 'own' }
+  return window !== undefined && isOther(window) ? (window as WindowAt) : NONE
 }
 
 function boundsOf(header: string | null): Rect | undefined {
@@ -86,16 +88,17 @@ function boundsOf(header: string | null): Rect | undefined {
   return isRect(rect) ? rect : undefined
 }
 
-async function readOf(response: Response): Promise<WindowRead> {
-  if (response.ok) {
-    const bounds = boundsOf(response.headers.get('x-omne-window-bounds'))
-    const scale = Number(response.headers.get('x-omne-window-scale'))
-    const takenAt = Number(response.headers.get('x-omne-taken-at'))
-    if (bounds === undefined || !(scale > 0) || !(takenAt > 0))
-      return { kind: 'failed', reason: FAILED }
-    const png = new Uint8Array(await response.arrayBuffer())
-    return { kind: 'picture', png, bounds, scale, takenAt }
-  }
+async function pictureOf(response: Response): Promise<WindowRead> {
+  const bounds = boundsOf(response.headers.get('x-omne-window-bounds'))
+  const scale = Number(response.headers.get('x-omne-window-scale'))
+  const takenAt = Number(response.headers.get('x-omne-taken-at'))
+  if (bounds === undefined || !(scale > 0) || !(takenAt > 0))
+    return { kind: 'failed', reason: FAILED }
+  const png = new Uint8Array(await response.arrayBuffer())
+  return { kind: 'picture', png, bounds, scale, takenAt }
+}
+
+async function refusalOf(response: Response): Promise<WindowRead> {
   if (response.status === 404 || response.status === 409) return { kind: 'gone' }
   const body = fields(await response.json().catch(() => null))
   if (response.status === 403 && body?.['reason'] === 'not-authorized')
@@ -103,6 +106,9 @@ async function readOf(response: Response): Promise<WindowRead> {
   const detail = body?.['detail']
   return { kind: 'failed', reason: typeof detail === 'string' ? detail : FAILED }
 }
+
+const readOf = async (response: Response): Promise<WindowRead> =>
+  response.ok ? pictureOf(response) : refusalOf(response)
 
 const pointQuery = (at: Point): string => `?x=${at.x}&y=${at.y}`
 

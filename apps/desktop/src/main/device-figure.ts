@@ -72,6 +72,7 @@ const done = () => new Response(null, { status: 204 })
 type Mode = Readonly<{ hold: boolean; keys: boolean }>
 type Hot = Readonly<{ rects: readonly Rect[] }>
 type Read = Readonly<{ window: string }>
+type Handler = (request: Request, url: URL) => Promise<Response>
 
 const fields = (value: unknown): Readonly<Record<string, unknown>> | undefined =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined
@@ -100,8 +101,8 @@ function leaseOf(url: URL): number | undefined {
 }
 
 function coordinateOf(url: URL, key: 'x' | 'y'): number {
-  const text = url.searchParams.get(key) ?? ''
-  return text === '' ? NaN : Number(text)
+  const text = url.searchParams.get(key)
+  return text === null || text === '' ? NaN : Number(text)
 }
 
 function pointOf(url: URL): Point | undefined {
@@ -200,9 +201,29 @@ function figureWindows(deps: FigureWindowsDeps) {
   return {
     backend,
     capture,
+    abilities: (leave: boolean) =>
+      (leave ? backend() : Promise.resolve(undefined)).then(screen =>
+        json(200, { leave, read: screen !== undefined }),
+      ),
     own: (url: URL) =>
       atPoint(url, (windows, at) => ({ own: frontAt(windows, at)?.pid === deps.ownPid })),
     window: (url: URL) => atPoint(url, (windows, at) => seenAt(windows, at, deps.ownPid)),
+  }
+}
+
+function figureRoute(
+  leave: boolean,
+  abilities: () => Promise<Response>,
+  routes: ReadonlyMap<string, Handler>,
+): DeviceFigure['route'] {
+  return request => {
+    const url = new URL(request.url)
+    const path = url.pathname
+    if (path !== DEVICE_FIGURE && !path.startsWith(`${DEVICE_FIGURE}/`)) return undefined
+    const route = `${request.method} ${path}`
+    if (route === `GET ${DEVICE_FIGURE}`) return abilities()
+    const handler = leave ? routes.get(route) : undefined
+    return handler === undefined ? Promise.resolve(notFound()) : handler(request, url)
   }
 }
 
@@ -325,31 +346,23 @@ export function deviceFigure(deps: DeviceFigureDeps): DeviceFigure {
     return onLease(request, url, isRead, (_open, { window }) => windows.capture(screen, window))
   }
 
-  function route(request: Request): Promise<Response> | undefined {
-    const url = new URL(request.url)
-    const path = url.pathname
-    if (path !== DEVICE_FIGURE && !path.startsWith(`${DEVICE_FIGURE}/`)) return undefined
-    const route = `${request.method} ${path}`
-    if (route === `GET ${DEVICE_FIGURE}`)
-      return (deps.leave ? windows.backend() : Promise.resolve(undefined)).then(screen =>
-        json(200, { leave: deps.leave, read: screen !== undefined }),
-      )
-    if (!deps.leave) return Promise.resolve(notFound())
-    if (route === `POST ${DEVICE_FIGURE}/lease`) return Promise.resolve(openLease())
-    if (route === `POST ${DEVICE_FIGURE}/mode`) return onLease(request, url, isMode, mode)
-    if (route === `POST ${DEVICE_FIGURE}/hot`) return onLease(request, url, isHot, hot)
-    if (route === `POST ${DEVICE_FIGURE}/front`) {
-      deps.main.front()
-      return Promise.resolve(done())
-    }
-    if (route === `GET ${DEVICE_FIGURE}/own`) return windows.own(url)
-    if (route === `GET ${DEVICE_FIGURE}/window`) return windows.window(url)
-    if (route === `POST ${DEVICE_FIGURE}/read`) return read(request, url)
-    return Promise.resolve(notFound())
+  function front() {
+    deps.main.front()
+    return Promise.resolve(done())
   }
 
+  const routes = new Map<string, Handler>([
+    [`POST ${DEVICE_FIGURE}/lease`, () => Promise.resolve(openLease())],
+    [`POST ${DEVICE_FIGURE}/mode`, (request, url) => onLease(request, url, isMode, mode)],
+    [`POST ${DEVICE_FIGURE}/hot`, (request, url) => onLease(request, url, isHot, hot)],
+    [`POST ${DEVICE_FIGURE}/front`, front],
+    [`GET ${DEVICE_FIGURE}/own`, (_request, url) => windows.own(url)],
+    [`GET ${DEVICE_FIGURE}/window`, (_request, url) => windows.window(url)],
+    [`POST ${DEVICE_FIGURE}/read`, read],
+  ])
+
   return {
-    route,
+    route: figureRoute(deps.leave, () => windows.abilities(deps.leave), routes),
     pageGone: () => end(true, 'hide'),
     moved: () => {
       if (lease !== null && desk !== null) lease.write({ facts: facts(desk) })

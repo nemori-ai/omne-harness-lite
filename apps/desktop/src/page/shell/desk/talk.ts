@@ -120,17 +120,7 @@ export class Talk {
     const handed: SayPicture[] = note.pictures
       .filter(picture => kept.includes(picture.id))
       .map(({ name, bytes }) => ({ name, bytes }))
-    const knows = attempt(() => item.pictures?.(note.scope)) === true
-    let said: Promise<SayOutcome>
-    try {
-      said = Promise.resolve(
-        knows && handed.length > 0
-          ? item.say(note.scope, to, words, handed)
-          : item.say(note.scope, to, words),
-      )
-    } catch {
-      said = Promise.resolve({ kind: 'unknown' })
-    }
+    const said = sayOnce(item, note.scope, to, words, handed)
     const there = note.pictures.map(picture => picture.id)
     void said.catch(() => undefined).then(outcome => this.settled(note, outcome, direct, there))
   }
@@ -211,6 +201,23 @@ export class Talk {
     const current = attempt(() => item?.current(scope))
     note.to = current === undefined ? NEW : { kind: 'target', key: current }
     note.knows = attempt(() => item?.pictures?.(scope)) === true
+  }
+}
+
+function sayOnce(
+  item: SayItem,
+  scope: string | undefined,
+  to: NoteTo,
+  words: string,
+  handed: readonly SayPicture[],
+): Promise<SayOutcome> {
+  const knows = attempt(() => item.pictures?.(scope)) === true
+  try {
+    return Promise.resolve(
+      knows && handed.length > 0 ? item.say(scope, to, words, handed) : item.say(scope, to, words),
+    )
+  } catch {
+    return Promise.resolve({ kind: 'unknown' })
   }
 }
 

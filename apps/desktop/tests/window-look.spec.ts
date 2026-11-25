@@ -148,6 +148,20 @@ describe('框着的窗口与签', () => {
     expect(shell.look.label(false)?.[1]).toEqual({ text: '松手直接发送', tone: 'hint' })
   })
 
+  it('手在应用自己的窗口里而 window 答的不是 own：签的第二行是「松手就停在这里」', async () => {
+    const asking = look({ window: () => held<WindowAt>().promise })
+    asking.look.hand(AT, META)
+    expect(asking.look.label(true)).toEqual(NOTHING_LABEL)
+    const none = look({ window: () => Promise.resolve({ kind: 'none' }) })
+    none.look.hand(AT, META)
+    await settle(() => none.changes() > 0)
+    expect(none.look.label(true)).toEqual(NOTHING_LABEL)
+    const own = look({ window: () => Promise.resolve({ kind: 'own' }) })
+    own.look.hand(AT, META)
+    await settle(() => own.changes() > 0)
+    expect(own.look.label(true)?.[1]).toEqual({ text: '松手回去' })
+  })
+
   it('⌘ 松开：框、签与框住的窗口立刻都没有', async () => {
     const shell = look()
     shell.look.hand(AT, META)
@@ -278,5 +292,103 @@ describe('read：每种答复给人看什么，迟到的丢掉', () => {
     shell.look.cancelRead()
     await settle(() => taken.length > 0, 400)
     expect(taken).toEqual([])
+  })
+})
+
+describe('放弃过的一问：之后再问，先前那一问的答复也不采用', () => {
+  /** Each call of `ask` gets the next held answer, in order. */
+  const queued = <T>(count: number) => {
+    const answers = Array.from({ length: count }, () => held<T>())
+    let next = 0
+    return { answers, ask: () => answers[next++]!.promise }
+  }
+
+  it('window：⌘ 松开再按下问了第二次，第一次的答复迟到：不框它', async () => {
+    const { answers, ask } = queued<WindowAt>(2)
+    const shell = look({ window: ask })
+    shell.look.hand(AT, META)
+    shell.look.hand(AT, PLAIN)
+    shell.tick(ASK_EVERY)
+    shell.look.hand(AT, META)
+    expect(asks(shell.calls)).toHaveLength(2)
+    answers[0]!.settle(WINDOW)
+    await settle()
+    expect([shell.changes(), shell.look.framed()]).toEqual([0, null])
+    answers[1]!.settle({ ...WINDOW, id: 'w-2' })
+    await settle(() => shell.changes() > 0)
+    expect(shell.look.framed()?.id).toBe('w-2')
+  })
+
+  it('own：放弃之后又松手问了一次，第一次的答复迟到：不交', async () => {
+    const { answers, ask } = queued<boolean | null>(2)
+    const shell = look({ own: ask })
+    const taken: string[] = []
+    shell.look.own(AT, covered => taken.push(`first ${covered}`))
+    shell.look.cancelOwn()
+    shell.look.own(AT, covered => taken.push(`second ${covered}`))
+    answers[0]!.settle(false)
+    await settle()
+    expect(taken).toEqual([])
+    answers[1]!.settle(true)
+    await settle(() => taken.length > 0)
+    expect(taken).toEqual(['second false'])
+  })
+
+  it('read：放弃之后又读了一次，第一次的答复迟到：不交', async () => {
+    const { answers, ask } = queued<WindowRead>(2)
+    const shell = look({ read: ask })
+    const taken: string[] = []
+    const read = (name: string) =>
+      shell.look.read(
+        7,
+        'w-1',
+        AT,
+        false,
+        () => true,
+        seen => taken.push(`${name} ${seen.kind}`),
+      )
+    read('first')
+    shell.look.cancelRead()
+    read('second')
+    answers[0]!.settle({ kind: 'not-authorized' })
+    await settle()
+    expect(taken).toEqual([])
+    answers[1]!.settle({ kind: 'failed', reason: '坏了' })
+    await settle(() => taken.length > 0)
+    expect(taken).toEqual(['second not-seen'])
+  })
+})
+
+describe('dispose：收掉之后什么都不再采用', () => {
+  it('在途的 window、own、read 的答复不采用，排着的一问不再问', async () => {
+    const window = held<WindowAt>()
+    const own = held<boolean | null>()
+    const read = held<WindowRead>()
+    const shell = look({
+      window: () => window.promise,
+      own: () => own.promise,
+      read: () => read.promise,
+    })
+    const taken: string[] = []
+    shell.look.hand(AT, META)
+    shell.tick(10)
+    shell.look.hand({ x: 1110, y: 350 }, META)
+    shell.look.own(AT, covered => taken.push(`own ${covered}`))
+    shell.look.read(
+      7,
+      'w-1',
+      AT,
+      false,
+      () => true,
+      seen => taken.push(`read ${seen.kind}`),
+    )
+    shell.look.dispose()
+    shell.tick(1000)
+    window.settle(WINDOW)
+    own.settle(false)
+    read.settle({ kind: 'not-authorized' })
+    await settle()
+    expect(asks(shell.calls)).toEqual(['window 1100,350'])
+    expect([shell.changes(), shell.look.framed(), taken]).toEqual([0, null, []])
   })
 })

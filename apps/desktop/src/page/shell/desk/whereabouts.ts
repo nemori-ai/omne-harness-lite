@@ -119,34 +119,35 @@ function drawnByDesk(on: Side, event: WhereEvent, facts: Facts): Move {
 const fromHand = (where: { drawn: Side; on: Side }, event: WhereEvent, facts: Facts): Move =>
   where.drawn === 'page' ? drawnByPage(where.on, event, facts) : drawnByDesk(where.on, event, facts)
 
-function fromDesk(
-  where: { spot: Point; note: boolean; waiting: boolean },
-  event: WhereEvent,
+type Resting = Extract<Whereabouts, { at: 'desk' }>
+type Kind = WhereEvent['kind']
+type DeskMove<K extends Kind> = (
+  where: Resting,
+  event: Extract<WhereEvent, { kind: K }>,
   facts: Facts,
-): Move {
-  switch (event.kind) {
-    case 'lift':
-      return event.on === 'desk' ? { to: { at: 'hand', drawn: 'desk', on: 'desk' } } : undefined
-    case 'escape':
-      return where.note ? { to: { ...where, at: 'desk', note: false } } : undefined
-    case 'ended':
-      return { to: SEAT }
-    case 'click':
-      return where.note || facts.talker
-        ? { to: { ...where, at: 'desk', note: !where.note } }
-        : undefined
-    case 'double':
-      return { to: { ...where, at: 'desk' }, also: [{ kind: 'front' }] }
-    case 'recall':
-    case 'signedOut':
-      return { to: homeward(where.spot, facts) }
-    case 'seat':
-      return where.waiting && facts.seat !== null ? { to: homeward(where.spot, facts) } : undefined
-    case 'seen':
-      return !where.note && facts.talker ? { to: { ...where, at: 'desk', note: true } } : undefined
-    default:
-      return undefined
-  }
+) => Move
+
+const goHome = (where: Resting, facts: Facts): Move => ({ to: homeward(where.spot, facts) })
+
+const DESK_MOVES: { readonly [K in Kind]?: DeskMove<K> } = {
+  lift: (_where, event) =>
+    event.on === 'desk' ? { to: { at: 'hand', drawn: 'desk', on: 'desk' } } : undefined,
+  escape: where => (where.note ? { to: { ...where, note: false } } : undefined),
+  ended: () => ({ to: SEAT }),
+  click: (where, _event, facts) =>
+    where.note || facts.talker ? { to: { ...where, note: !where.note } } : undefined,
+  double: where => ({ to: where, also: [{ kind: 'front' }] }),
+  recall: (where, _event, facts) => goHome(where, facts),
+  signedOut: (where, _event, facts) => goHome(where, facts),
+  seat: (where, _event, facts) =>
+    where.waiting && facts.seat !== null ? goHome(where, facts) : undefined,
+  seen: (where, _event, facts) =>
+    !where.note && facts.talker ? { to: { ...where, note: true } } : undefined,
+}
+
+function fromDesk(where: Resting, event: WhereEvent, facts: Facts): Move {
+  const move = DESK_MOVES[event.kind] as DeskMove<Kind> | undefined
+  return move?.(where, event, facts)
 }
 
 function fromHome(event: WhereEvent): Move {

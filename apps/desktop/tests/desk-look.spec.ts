@@ -539,6 +539,15 @@ describe('⌘ 松手：读那个窗口', () => {
     expect(device.last().note?.pictures).toHaveLength(2)
   })
 
+  it('笺里每张图的字节只发一次：之后的幕不再带它们', async () => {
+    const { device } = await carried({ ...LOOKS, shot }, { pictures: () => true })
+    await letGoOver(device)
+    expect(device.pictures()).toHaveLength(2)
+    const before = device.posted.length
+    device.stay.figure({ waiting: 1 })
+    expect(device.posted.slice(before).map(message => message.kind)).toEqual(['scene'])
+  })
+
   it('报到之后重发笺里图的字节，在那一幕之前', async () => {
     const { device } = await carried({ ...LOOKS, shot }, { pictures: () => true })
     await letGoOver(device)

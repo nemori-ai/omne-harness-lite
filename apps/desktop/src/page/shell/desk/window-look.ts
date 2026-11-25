@@ -33,7 +33,7 @@ const HOME_LABEL: readonly FigureLabelLine[] = [
 ]
 const INTO_NOTE: FigureLabelLine = { text: '松手放进说话笺 · 加按 ⇧ 直接发送' }
 const SEND_NOW: FigureLabelLine = { text: '松手直接发送', tone: 'hint' }
-const NO_KEYS: Keys = { meta: false, shift: false }
+export const NO_KEYS: Keys = { meta: false, shift: false }
 export const UNREADABLE = '这张图读不懂'
 
 const two = (value: number): string => String(value).padStart(2, '0')

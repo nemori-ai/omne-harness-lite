@@ -972,6 +972,43 @@ describe('读窗口：window，这一点上最前面的窗口是谁', () => {
     })
   })
 
+  describe('挡在前面的矩形：排在它前面而且和它相交的窗口', () => {
+    const TARGET = windowIn('10', 700, 'Target', 't', { x: 1000, y: 1000, width: 200, height: 200 })
+    const OVER = windowIn('11', 700, 'Over', 'o', { x: 1150, y: 1150, width: 100, height: 100 })
+    const AT_TARGET = { x: 1100, y: 1100 }
+    const square = (id: string, x: number, y: number) =>
+      windowIn(id, 800, 'Other', id, { x, y, width: 100, height: 100 })
+    const coveredBy = async (front: readonly SceneWindow[]) =>
+      look(AT_TARGET, { windows: [...front, OVER, TARGET, square('19', 1050, 1050)] })
+
+    it('只贴着边的不算：左、右、上、下各一块', async () => {
+      const touching = [
+        square('12', 900, 1050),
+        square('13', 1200, 1050),
+        square('14', 1050, 900),
+        square('15', 1050, 1200),
+      ]
+      expect(await coveredBy(touching)).toMatchObject({ id: '10', covered: [OVER.bounds] })
+    })
+
+    it('只在一个方向上重叠的不算：上下隔开、左右隔开', async () => {
+      const apart = [
+        square('12', 1050, 800),
+        square('13', 1050, 1300),
+        square('14', 800, 1050),
+        square('15', 1300, 1050),
+      ]
+      expect(await coveredBy(apart)).toMatchObject({ id: '10', covered: [OVER.bounds] })
+    })
+
+    it('两个方向都隔开的不算；排在它后面的相交也不算', async () => {
+      expect(await coveredBy([square('12', 700, 700)])).toMatchObject({
+        id: '10',
+        covered: [OVER.bounds],
+      })
+    })
+  })
+
   it('x、y 缺了或不是数字答 400；后端出错答 500 带一句原因；不要租约', async () => {
     const h = harness(true, windowsOf().deps)
     for (const query of ['', '?x=1', '?y=1', '?x=1&y=b'])
@@ -1096,6 +1133,22 @@ describe('读窗口：read，按标识读一个窗口此刻的图', () => {
       body: '{',
     })
     expect((await h.figure.route(raw))?.status).toBe(400)
+    expect([calls.list, calls.capture, calls.asked]).toEqual([0, [], 0])
+  })
+
+  it('有窗口后端时，/device/figure 下不认识的路径与方法照答 404 not-found，不列、不截', async () => {
+    const { h, calls } = await reading()
+    const asked: (readonly [string, string, object?])[] = [
+      ['POST', '/device/figure/other?lease=1', { window: '3' }],
+      ['GET', '/device/figure/other'],
+      ['GET', '/device/figure/read?lease=1'],
+      ['POST', '/device/figure/window?x=1&y=1'],
+    ]
+    for (const [method, path, body] of asked)
+      expect(await answered(h.call(method, path, body)), `${method} ${path}`).toEqual([
+        404,
+        { reason: 'not-found' },
+      ])
     expect([calls.list, calls.capture, calls.asked]).toEqual([0, [], 0])
   })
 
