@@ -6,6 +6,7 @@ const PUBLIC = [
   'RESERVED_SPACE',
   'TIERS',
   'accept',
+  'argumentAt',
   'assistOf',
   'codeMask',
   'complete',

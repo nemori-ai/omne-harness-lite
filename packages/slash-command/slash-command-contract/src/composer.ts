@@ -1,3 +1,4 @@
+import { argumentAt } from './arguments.ts'
 import { accept, complete, type Completion, type CompletionIndex, indexOf } from './complete.ts'
 import { type Catalog, type Lookup, lookupOf } from './names.ts'
 import { type Recognition, recognize } from './recognize.ts'
@@ -217,6 +218,18 @@ function menuOf(c: Composer): Menu | null {
   }
 }
 
+function argumentsLeft(c: Composer, lookup: Lookup): string {
+  if (c.caret !== c.text.length) return ''
+  const place = argumentAt(c.text, c.caret)
+  if (place === null) return ''
+  const named = lookup.entries.find(entry => entry.full === place.command)
+  const entry = named ?? lookup.head.get(place.command)
+  const left = (entry?.params ?? []).slice(place.query === '' ? place.index : place.index + 1)
+  const words = left.map(param => (param.optional ? `[${param.name}]` : `<${param.name}>`))
+  if (words.length === 0) return ''
+  return `${place.query === '' ? '' : ' '}${words.join(' ')}`
+}
+
 /** What the composer shows and sends for the words as they are now. */
 export function assistOf(c: Composer): Assist {
   if (c.known.kind !== 'read')
@@ -230,7 +243,13 @@ export function assistOf(c: Composer): Assist {
   const open = c.phase === 'open' && !c.composing
   return {
     marks: marksOf(recognition),
-    ghost: open && c.selected === 0 ? (c.found?.ghost ?? '') : '',
+    ghost: open
+      ? c.selected === 0
+        ? (c.found?.ghost ?? '')
+        : ''
+      : c.composing
+        ? ''
+        : argumentsLeft(c, c.known.lookup),
     menu: menuOf(c),
     blocked,
     seen: viewOf(recognition),

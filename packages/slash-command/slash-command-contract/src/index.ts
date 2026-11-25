@@ -59,7 +59,7 @@ export {
   type Origin,
   type Taken,
 } from './source.ts'
-export { type Argument, splitArguments } from './arguments.ts'
+export { type Argument, argumentAt, type ArgumentPlace, splitArguments } from './arguments.ts'
 export {
   type Answer,
   type Assist,

@@ -8,6 +8,7 @@
 
 - `Answer` · `composer.d.ts`
 - `Argument` · `arguments.d.ts`
+- `ArgumentPlace` · `arguments.d.ts`
 - `Asker` · `source.d.ts`
 - `Assist` · `composer.d.ts`
 - `Candidate` · `source.d.ts`
@@ -55,6 +56,7 @@
 - `Typing` · `complete.d.ts`
 - `Zone` · `names.d.ts`
 - `accept` · `complete.d.ts`
+- `argumentAt` · `arguments.d.ts`
 - `assistOf` · `composer.d.ts`
 - `codeMask` · `recognize.d.ts`
 - `complete` · `complete.d.ts`
@@ -96,6 +98,14 @@ export type Argument = Readonly<{
     value: string;
 }>;
 export declare function splitArguments(args: string): readonly Argument[];
+export type ArgumentPlace = Readonly<{
+    command: string;
+    index: number;
+    from: number;
+    to: number;
+    query: string;
+}>;
+export declare function argumentAt(text: string, caret: number): ArgumentPlace | null;
 ```
 
 ## 声明文件 `complete.d.ts`
@@ -250,7 +260,7 @@ export { codeMask, type Command, type Message, type Note, type Recognition, reco
 export { judge, type Judgment, sameView, type SenderView, viewOf } from './view.ts';
 export { accept, complete, type Completion, type CompletionIndex, type Found, indexOf, type Item, search, type Tier, tierOf, TIERS, type Typing, typing, } from './complete.ts';
 export { type Asker, type Candidate, type CatalogRead, type CommandCatalog, ENTRY_SOURCES_POINT, type EntrySource, type EntrySourceSlot, judgeListing, type ListingBreach, type Naming, type Origin, type Taken, } from './source.ts';
-export { type Argument, splitArguments } from './arguments.ts';
+export { type Argument, argumentAt, type ArgumentPlace, splitArguments } from './arguments.ts';
 export { type Answer, type Assist, assistOf, type Composer, type ComposerMachine, composing, createComposer, type Key, known, type Known, listed, literal, type Mark, type Menu, type MenuItem, moved, picked, pressed, start, type Tone, typed, } from './composer.ts';
 ```
 
