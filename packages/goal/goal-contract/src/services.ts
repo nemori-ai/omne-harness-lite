@@ -63,6 +63,11 @@ export interface Goals {
     caller: GoalCaller,
     input: Readonly<{ session: string; card: string; proposal: Proposal; words: string | null }>,
   ): Promise<Outcome<GoalRecord, GoalRefusal>>
+  /** Updates the progress list of the live goal. It changes what the agent says, never the state of the goal. */
+  track(
+    caller: GoalCaller,
+    input: Readonly<{ session: string; patch: unknown }>,
+  ): Promise<Outcome<GoalRecord, GoalRefusal>>
 }
 
 export interface GoalReconciling {

@@ -4,6 +4,7 @@ export type GoalAction =
   | 'read'
   | 'propose'
   | 'confirm'
+  | 'track'
   | 'set'
   | 'revise'
   | 'pause'
@@ -48,6 +49,16 @@ export interface GoalSessions {
 export interface GoalCards {
   /** A card of this session as its owner holds it answered, or null when it holds no such answered card. */
   answered(tenant: string, session: string, card: string): Promise<PortRead<AnsweredCard | null>>
+}
+
+export interface GoalCalls {
+  /** Of these references, the ones that name a tool call of this session made since that moment. */
+  cited(
+    tenant: string,
+    session: string,
+    refs: readonly string[],
+    since: string,
+  ): Promise<PortRead<readonly string[]>>
 }
 
 export interface Clock {

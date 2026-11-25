@@ -3,6 +3,7 @@ import type {
   AuthorityAnswer,
   GoalAction,
   GoalAuthority,
+  GoalCalls,
   GoalCards,
   GoalSessions,
   SendAnswer,
@@ -73,6 +74,26 @@ export function fakeCards(): FakeCards {
     readable: on => void (canRead = on),
     async answered(_tenant, _session, card) {
       return canRead ? { kind: 'read', value: held.get(card) ?? null } : { kind: 'unavailable' }
+    },
+  }
+}
+
+export type FakeCalls = GoalCalls &
+  Readonly<{ made(...refs: string[]): void; readable(on: boolean): void; asked: string[][] }>
+
+/** The tool calls a session is known to have made, and what was asked about them. */
+export function fakeCalls(): FakeCalls {
+  const real = new Set<string>()
+  const asked: string[][] = []
+  let canRead = true
+  return {
+    asked,
+    made: (...refs) => void refs.forEach(ref => real.add(ref)),
+    readable: on => void (canRead = on),
+    async cited(_tenant, _session, refs, since) {
+      asked.push([since, ...refs])
+      if (!canRead) return { kind: 'unavailable' }
+      return { kind: 'read', value: refs.filter(ref => real.has(ref)) }
     },
   }
 }

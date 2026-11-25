@@ -1,4 +1,9 @@
-import { NO_READINGS, validateDraft, type GoalRecord } from '@omne-harness/goal-contract'
+import {
+  NO_PROGRESS,
+  NO_READINGS,
+  validateDraft,
+  type GoalRecord,
+} from '@omne-harness/goal-contract'
 import type { GoalStore, StoreAnswer, StoreRead } from '../store.ts'
 import type { CommitResult } from '../txn.ts'
 
@@ -49,6 +54,7 @@ export function conformanceGoal(change: Partial<GoalRecord> = {}, generation = 1
       },
     ],
     readings: NO_READINGS,
+    progress: NO_PROGRESS,
     wake: null,
     ...change,
   }

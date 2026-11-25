@@ -1,5 +1,7 @@
 import {
+  applyTrack,
   baseOf,
+  citedRefs,
   NO_GOAL,
   renderBody,
   type GoalCaller,
@@ -15,6 +17,7 @@ import {
   type Clock,
   type GoalAction,
   type GoalAuthority,
+  type GoalCalls,
   type GoalCards,
   type GoalSessions,
   type ReconcileHints,
@@ -26,6 +29,7 @@ export type GoalsDependencies = Readonly<{
   authority: GoalAuthority
   sessions: GoalSessions
   cards: GoalCards
+  calls: GoalCalls
   clock: Clock
   hints: ReconcileHints
 }>
@@ -35,6 +39,11 @@ const UNAVAILABLE = { kind: 'basis-unavailable' } as const
 const UNKNOWN = { kind: 'unknown' } as const
 const refused = (reason: GoalRefusal) => ({ kind: 'refused', reason }) as const
 const done = <T>(value: T, recalled = false) => ({ kind: 'done', value, recalled }) as const
+const uncited = (refs: readonly string[]) => ({
+  entry: null,
+  field: 'refs',
+  problem: `no tool call of this session since the goal was set: ${refs.join(', ')}`,
+})
 /** A decision made on a version somebody else wrote over is made again, this many times at most. */
 const ATTEMPTS = 3
 
@@ -158,6 +167,28 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalReconciling {
           if (card.value === null) return refused({ kind: 'no-such-card' })
           const entrance = { via: 'card', card: card.value } as const
           return decideWrite(current, { ...input, operation: input.card, attendance, entrance, at })
+        }),
+      )
+    },
+
+    async track(caller, { session, patch }) {
+      const stop = await permitted(caller, session, 'track')
+      if (stop !== null) return stop
+      return written(
+        await settle(caller.tenant, session, async current => {
+          if (current === null || current.state.status === 'settled')
+            return refused({ kind: 'state', reason: 'no-live-goal' })
+          const checked = applyTrack(current.body, current.progress, patch)
+          if (checked.kind === 'invalid')
+            return refused({ kind: 'invalid', issues: checked.issues })
+          const already = new Set(citedRefs(current.progress))
+          const fresh = citedRefs(checked.progress).filter(ref => !already.has(ref))
+          const since = current.history[0]?.at ?? ''
+          const real = await deps.calls.cited(caller.tenant, session, fresh, since)
+          if (real.kind === 'unavailable') return UNAVAILABLE
+          const missing = fresh.filter(ref => !real.value.includes(ref))
+          if (missing.length > 0) return refused({ kind: 'invalid', issues: [uncited(missing)] })
+          return { kind: 'next', record: { ...current, progress: checked.progress } }
         }),
       )
     },

@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto'
 import {
   baseOf,
   judgeCard,
+  keptProgress,
   NO_GOAL,
+  NO_PROGRESS,
   NO_READINGS,
   renderBody,
   reviseBody,
@@ -141,6 +143,7 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
       body,
       history: before === null ? [provenance] : [...before.history, provenance],
       readings: before === null ? NO_READINGS : keptReadings(before.body, body, before.readings),
+      progress: before === null ? NO_PROGRESS : keptProgress(before.body, body, before.progress),
       wake: stood.wakes ? { kind: 'start', request } : null,
     },
   }

@@ -621,3 +621,96 @@ describe('more of the reminder a change owes', () => {
     expect(sessions.woken).toHaveLength(1)
   })
 })
+
+describe('the progress list', () => {
+  const DONE = { criteria: { A1: { status: 'claimed-done', refs: ['call-44'], note: '全过' } } }
+  const track = (goals: ReturnType<typeof world>['goals'], patch: unknown, session = SESSION) =>
+    goals.track(OWNER, { session, patch })
+
+  it('is kept with the goal and changes nothing of its state', async () => {
+    const { goals, direct, calls } = world()
+    const set = value(await goals.write(OWNER, direct()))
+    calls.made('call-44')
+    const tracked = value(await track(goals, DONE))
+    expect(tracked.progress.criteria).toEqual(DONE.criteria)
+    expect(tracked.state).toEqual(set.state)
+    expect(tracked.history).toEqual(set.history)
+    expect(value(await goals.read(OWNER, SESSION))?.progress.criteria).toEqual(DONE.criteria)
+  })
+
+  it('a reference that names no tool call of this session since the goal was set is refused on the spot', async () => {
+    const { goals, direct, calls, store } = world()
+    const set = value(await goals.write(OWNER, direct()))
+    calls.made('call-44')
+    const patch = {
+      criteria: { A1: { status: 'claimed-done', refs: ['call-44', 'call-9'], note: '' } },
+    }
+    expect(refusal(await track(goals, patch))).toEqual({
+      kind: 'invalid',
+      issues: [
+        {
+          entry: null,
+          field: 'refs',
+          problem: 'no tool call of this session since the goal was set: call-9',
+        },
+      ],
+    })
+    expect(store.rows(TENANT)[0]?.progress.criteria).toEqual({})
+    expect(calls.asked).toEqual([[set.history[0]?.at, 'call-44', 'call-9']])
+  })
+
+  it('asks only about the references it has not checked before', async () => {
+    const { goals, direct, calls } = world()
+    value(await goals.write(OWNER, direct()))
+    calls.made('call-44', 'call-45')
+    value(await track(goals, DONE))
+    value(
+      await track(goals, {
+        metrics: {},
+        obstacle: { what: '挡住了', tried: ['call-44', 'call-45'], exit: null },
+      }),
+    )
+    expect(calls.asked.map(asked => asked.slice(1))).toEqual([['call-44'], ['call-45']])
+  })
+
+  it('an update that does not stand says which entry and which field', async () => {
+    const { goals, direct } = world()
+    value(await goals.write(OWNER, direct()))
+    const patch = { criteria: { A9: { status: 'doing', refs: [], note: '' } } }
+    expect(refusal(await track(goals, patch))).toMatchObject({
+      kind: 'invalid',
+      issues: [{ entry: 'A9', field: 'id' }],
+    })
+  })
+
+  it('there is nothing to track without a live goal, and no basis while the calls cannot be read', async () => {
+    const { goals, direct, calls, authority } = world()
+    expect(refusal(await track(goals, DONE))).toEqual({ kind: 'state', reason: 'no-live-goal' })
+    value(await goals.write(OWNER, direct()))
+    calls.readable(false)
+    expect(await track(goals, DONE)).toEqual({ kind: 'basis-unavailable' })
+    calls.readable(true)
+    authority.answer('denied')
+    expect(refusal(await track(goals, DONE))).toEqual({ kind: 'denied' })
+    authority.answer('permitted')
+    value(await goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } }))
+    expect(refusal(await track(goals, DONE))).toEqual({ kind: 'state', reason: 'no-live-goal' })
+  })
+
+  it('a paused goal is still tracked; a revision drops what was said of the entries it changed', async () => {
+    const { goals, direct, calls } = world()
+    value(await goals.write(OWNER, direct()))
+    calls.made('call-44')
+    value(await goals.command(OWNER, { session: SESSION, command: { kind: 'pause' } }))
+    value(await track(goals, { ...DONE, rules: { N1: { check: 'kept' } } }))
+    const replace = { op: 'replace', id: 'N1', entry: { statement: '不改公共接口与事件名。' } }
+    const revised = value(
+      await goals.write(
+        OWNER,
+        direct({ operation: 'op-2', proposal: { kind: 'revise', changes: [replace] } }),
+      ),
+    )
+    expect(revised.progress.criteria).toEqual(DONE.criteria)
+    expect(revised.progress.rules).toEqual({})
+  })
+})

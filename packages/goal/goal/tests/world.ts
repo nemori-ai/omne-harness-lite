@@ -2,6 +2,7 @@ import { createGoals, type GoalStore } from '@omne-harness/goal'
 import {
   createMemoryGoalStore,
   fakeAuthority,
+  fakeCalls,
   fakeCards,
   fakeSessions,
 } from '@omne-harness/goal/testing'
@@ -39,6 +40,7 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
   const authority = fakeAuthority()
   const sessions = fakeSessions()
   const cards = fakeCards()
+  const calls = fakeCalls()
   const hinted: string[] = []
   let tick = 0
   sessions.add(SESSION, 'attended')
@@ -48,6 +50,7 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
     authority,
     sessions,
     cards,
+    calls,
     clock: { now: () => `2026-11-25T00:00:${String((tick += 1)).padStart(2, '0')}.000Z` },
     hints: { wake: tenant => void hinted.push(tenant) },
   })
@@ -80,7 +83,7 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
     cards.answer(held)
     return held
   }
-  return { goals, store, authority, sessions, cards, hinted, direct, answered }
+  return { goals, store, authority, sessions, cards, calls, hinted, direct, answered }
 }
 
 export function value<T>(outcome: Outcome<T, GoalRefusal>): T {

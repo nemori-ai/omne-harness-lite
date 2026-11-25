@@ -2,6 +2,7 @@ import {
   createGoals,
   type Clock,
   type GoalAuthority,
+  type GoalCalls,
   type GoalCards,
   type GoalSessions,
 } from '@omne-harness/goal'
@@ -19,7 +20,12 @@ export type GoalLocalOptions = Readonly<{
       /** Every tenant that may hold goals now. Null: not known now, so nothing is scanned. */
       tenants(): Promise<readonly string[] | null>
     }>
-  ports: Readonly<{ authority: GoalAuthority; sessions: GoalSessions; cards: GoalCards }>
+  ports: Readonly<{
+    authority: GoalAuthority
+    sessions: GoalSessions
+    cards: GoalCards
+    calls: GoalCalls
+  }>
   clock: Clock
   timers: Timers
   report?: (error: unknown) => void

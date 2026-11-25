@@ -4,7 +4,7 @@ import {
   type GoalLocalOptions,
   type Timers,
 } from '@omne-harness/goal-local'
-import { fakeAuthority, fakeCards, fakeSessions } from '@omne-harness/goal/testing'
+import { fakeAuthority, fakeCalls, fakeCards, fakeSessions } from '@omne-harness/goal/testing'
 import type { SqlWorld } from './storage/world.ts'
 
 export const T1 = 't1'
@@ -53,7 +53,7 @@ export function manualTimers() {
 export function fakePorts() {
   const sessions = fakeSessions()
   sessions.add(SESSION, 'attended')
-  return { authority: fakeAuthority(), sessions, cards: fakeCards() }
+  return { authority: fakeAuthority(), sessions, cards: fakeCards(), calls: fakeCalls() }
 }
 export type Ports = ReturnType<typeof fakePorts>
 

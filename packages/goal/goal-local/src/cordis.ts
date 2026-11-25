@@ -14,6 +14,7 @@ class LocalGoals extends GoalsService {
   readonly command: Goals['command']
   readonly propose: Goals['propose']
   readonly confirm: Goals['confirm']
+  readonly track: Goals['track']
   constructor(ctx: Context, face: Goals) {
     super(ctx)
     this.read = face.read
@@ -21,6 +22,7 @@ class LocalGoals extends GoalsService {
     this.command = face.command
     this.propose = face.propose
     this.confirm = face.confirm
+    this.track = face.track
   }
 }
 

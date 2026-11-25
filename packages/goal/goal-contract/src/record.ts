@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { GoalBodySchema } from './body.ts'
 import { ReadingsSchema } from './gap.ts'
+import { ProgressSchema } from './progress.ts'
 import { GoalStateSchema, type GoalState } from './state.ts'
 
 export const ProvenanceSchema = z.strictObject({
@@ -30,6 +31,7 @@ export const GoalRecordSchema = z.strictObject({
   body: GoalBodySchema,
   history: z.array(ProvenanceSchema).min(1),
   readings: ReadingsSchema,
+  progress: ProgressSchema,
   wake: WakeSchema.nullable(),
 })
 /** Everything kept about one goal of a session: the facts live here and nowhere in the session. */
@@ -51,7 +53,6 @@ export function baseOf(state: GoalState): CardBase {
   }
 }
 
-/** A card as it was answered: who answered, what they chose, what it showed and what it was drafted against. */
 export type AnsweredCard = Readonly<{
   card: string
   by: string
@@ -83,4 +84,21 @@ export function judgeCard(
   )
     return 'stale-base'
   return card.digest === now.digest ? null : 'content-differs'
+}
+
+export const DROP_OPTION = 'drop'
+const CONFIRM = /^confirm\/(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.([01])\/(sha256:[0-9a-f]{64})$/u
+
+/** The confirm option of a card: its id carries what the card was drafted against and the digest of what it shows. */
+export function confirmOptionId(base: CardBase, digest: string): string {
+  const live = base.live ? '1' : '0'
+  return `confirm/${String(base.generation)}.${String(base.revision)}.${live}/${digest}`
+}
+
+export function readConfirmOption(id: string): Readonly<{ base: CardBase; digest: string }> | null {
+  const found = CONFIRM.exec(id)
+  if (found === null) return null
+  const [, generation, revision, live, digest] = found
+  const base = { generation: Number(generation), revision: Number(revision), live: live === '1' }
+  return { base, digest: String(digest) }
 }
