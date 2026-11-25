@@ -17,6 +17,7 @@ import {
   unsettledExecutions,
   type ReleaseTree,
 } from '../support/release-tree.ts'
+import { setModelSwitches } from '../support/model-switches.ts'
 import { command, registered, run, sessionIn } from '../support/workspace-guidance.ts'
 
 function workspace() {
@@ -96,6 +97,7 @@ it(
               '\n',
           )
         })
+        await setModelSwitches(tree, { 'deepseek/deepseek-v3.2': true })
         const selected = await registered(tree, root)
         const control = await run(tree, await sessionIn(tree, selected))
         expect(control.find(entry => entry.kind === 'run.terminal')?.payload).toMatchObject({
