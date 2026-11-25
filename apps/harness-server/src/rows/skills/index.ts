@@ -87,6 +87,7 @@ export const skillsRow = defineRow({
               workspace,
               ctx.tenantAssets.layerSources(tenantRef),
               official,
+              category => ctx.tenantAssets.heldNames(tenantRef, category),
             )
       },
     })

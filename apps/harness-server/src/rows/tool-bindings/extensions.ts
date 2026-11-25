@@ -37,7 +37,6 @@ type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
 export type ExtensionsPorts = Readonly<{
   faces(): ExtensionsFaces | undefined
-  /** How a new holding of the tenant would stand against the wider layers: what the publish itself asks. */
   standing(capability: CapabilityId, tenant: string): PublishStanding
   /** Where the call works, admitted now, with the files scope pinned to it: absent when it has none, unavailable when that cannot be asked. */
   workingDirectory(): Promise<Working | 'absent' | 'unavailable'>

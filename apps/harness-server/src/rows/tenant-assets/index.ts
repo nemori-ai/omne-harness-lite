@@ -122,6 +122,7 @@ export const tenantAssetsRow = defineRow({
       standing: tenantRef => host.standing(tenantRef),
       layerSources,
       official,
+      heldNames: held.namesOf,
     })
     const layerStoreOf = (tenant: string, assets: AssetsLocal | undefined) =>
       assets === undefined
