@@ -363,3 +363,128 @@ describe('its ink', () => {
     expect(bubble()).toBeNull()
   })
 })
+
+describe('the pictures in it (C5)', () => {
+  const PICTURES = [
+    { name: '窗口', bytes: new Uint8Array([1, 2, 3]) },
+    { name: '近看', bytes: new Uint8Array([4, 5, 6]).buffer },
+  ]
+  const WITH: SayNote = { ...NOTE, pictures: PICTURES }
+
+  function urls(): { readonly made: string[]; readonly revoked: string[] } {
+    const made: string[] = []
+    const revoked: string[] = []
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
+      made.push(`blob:picture-${made.length}`)
+      return made.at(-1)!
+    })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(url => {
+      revoked.push(url)
+    })
+    return { made, revoked }
+  }
+
+  const thumbs = (): HTMLImageElement[] => [
+    ...document.querySelectorAll<HTMLImageElement>('.omne-say-thumb'),
+  ]
+
+  it('shows each picture as a small one above the rest, by its name', () => {
+    frameClock()
+    const { made } = urls()
+    open(WITH)
+    expect(thumbs().map(img => [img.alt, img.src])).toEqual([
+      ['窗口', made[0]],
+      ['近看', made[1]],
+    ])
+    const strip = document.querySelector('.omne-say-pictures')
+    expect(strip?.compareDocumentPosition(field()) ?? 0).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
+  it('with no pictures it has no strip', () => {
+    frameClock()
+    open(NOTE)
+    expect(document.querySelector('.omne-say-pictures')).toBeNull()
+  })
+
+  it('each picture can be taken out: its button tells which one', () => {
+    frameClock()
+    urls()
+    const onDropPicture = vi.fn()
+    open(WITH, { onDropPicture })
+    act(() => screen.getByRole('button', { name: '去掉近看' }).click())
+    expect(onDropPicture).toHaveBeenCalledWith(1)
+    act(() => screen.getByRole('button', { name: '去掉窗口' }).click())
+    expect(onDropPicture).toHaveBeenLastCalledWith(0)
+  })
+
+  it('lets go of the small pictures when they change and when it is gone', () => {
+    frameClock()
+    const { made, revoked } = urls()
+    const { again } = open(WITH, { reduced: true })
+    again({ ...WITH, pictures: PICTURES.slice(1) }, { reduced: true })
+    expect(revoked).toEqual(made.slice(0, 2))
+    expect(thumbs().map(img => img.src)).toEqual([made[2]])
+    again(null, { reduced: true })
+    expect(revoked).toEqual(made)
+  })
+
+  it('with pictures and no words it can be sent, with no words', () => {
+    frameClock()
+    urls()
+    const { told: hands } = open(WITH)
+    expect(sendButton().disabled).toBe(false)
+    key(field(), { key: 'Enter' })
+    expect(hands.onSend).toHaveBeenCalledWith({ text: '', target: 'new' })
+  })
+
+  it('with pictures it cannot send and no words it cannot be sent', () => {
+    frameClock()
+    urls()
+    const { told: hands } = open({ ...WITH, told: { kind: 'cannot-send-pictures' } })
+    expect(sendButton().disabled).toBe(true)
+    key(field(), { key: 'Enter' })
+    expect(hands.onSend).not.toHaveBeenCalled()
+  })
+
+  it('with pictures and no words it stays when the focus goes elsewhere', () => {
+    frameClock()
+    urls()
+    const { told: hands } = open(WITH)
+    act(() => {
+      fireEvent.blur(field(), { relatedTarget: null })
+    })
+    expect(hands.onClose).not.toHaveBeenCalled()
+  })
+})
+
+describe('what it tells about the window (C5)', () => {
+  it('without leave to read the screen: says so, with a button to the system settings', () => {
+    frameClock()
+    const onSettings = vi.fn()
+    open({ ...NOTE, told: { kind: 'not-authorized' } }, { onSettings })
+    expect(line().textContent).toBe('需要在系统设置里允许 omne 录制屏幕，才能看这个窗口')
+    expect(line().dataset['tone']).toBe('quiet')
+    act(() => screen.getByRole('button', { name: '打开系统设置' }).click())
+    expect(onSettings).toHaveBeenCalledTimes(1)
+  })
+
+  it('when pictures cannot be sent: 现在发不了图, and no settings button', () => {
+    frameClock()
+    open({ ...NOTE, told: { kind: 'cannot-send-pictures' } })
+    expect(line().textContent).toBe('现在发不了图')
+    expect(screen.queryByRole('button', { name: '打开系统设置' })).toBeNull()
+  })
+
+  it('when the window could not be read: says why', () => {
+    frameClock()
+    open({ ...NOTE, told: { kind: 'not-seen', reason: '窗口已经关了' } })
+    expect(line().textContent).toBe('没能看这个窗口：窗口已经关了')
+    expect(line().dataset['tone']).toBe('failed')
+  })
+
+  it('once a line has a fate, the fate is what it says', () => {
+    frameClock()
+    open({ ...NOTE, told: { kind: 'cannot-send-pictures' }, fate: { kind: 'accepted' } })
+    expect(line().textContent).toBe('已发送')
+  })
+})

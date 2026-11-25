@@ -1,4 +1,4 @@
-import { FigureBody, type Doing, type FigureMoment } from './body.ts'
+import { FigureBody, WRITE, type Doing, type FigureMoment } from './body.ts'
 import { casual } from './casual.ts'
 import { inkNow } from './clock.ts'
 import { DoingPolicy } from './doing.ts'
@@ -61,6 +61,8 @@ export class LooseStore {
   private pressed = false
   private click: ReturnType<typeof setTimeout> | null = null
   private glide: Glide | null = null
+  private rewriteFirst = false
+  private rewriting: { timer: ReturnType<typeof setTimeout>; to: Placement } | null = null
   private frameRequest = 0
   private readonly hand = new Hand({
     centre: () => this.placement,
@@ -106,11 +108,20 @@ export class LooseStore {
     this.journeys.setOwnSize(size)
   }
 
+  public setRewriteFirst(on: boolean): void {
+    this.rewriteFirst = on
+  }
+
   public setReduced(reduced: boolean): void {
     this.reduced = reduced
     casual.setStill(reduced)
     this.body.setReduced(reduced)
     if (!reduced) return
+    const rewriting = this.rewriting
+    if (rewriting !== null) {
+      this.stopRewriting()
+      this.goHome(rewriting.to)
+    }
     const glide = this.glide
     if (glide !== null) {
       this.stopGlide()
@@ -134,6 +145,9 @@ export class LooseStore {
     if (was.mode === 'home' && next.mode !== 'home') this.endJourney()
     if (next.mode === 'hand') this.toHand(next.at, was.mode === 'hand')
     else if (next.mode === 'rest') this.glideTo(next.at, SETTLING)
+    else if (this.rewriting !== null) this.rewriting.to = next.at
+    else if (was.mode !== 'home' && this.rewriteFirst && !this.reduced)
+      this.rewriteThenHome(next.at)
     else this.goHome(next.at)
   }
 
@@ -173,6 +187,7 @@ export class LooseStore {
   public dispose(): void {
     this.hand.stop()
     this.stopGlide()
+    this.stopRewriting()
     this.forgetClick()
     this.policy.dispose()
     this.body.dispose()
@@ -187,6 +202,7 @@ export class LooseStore {
   }
 
   private vanish(): void {
+    this.stopRewriting()
     this.hand.stop()
     this.unpress()
     this.forgetClick()
@@ -225,7 +241,24 @@ export class LooseStore {
     this.place(to)
   }
 
+  private rewriteThenHome(to: Placement): void {
+    this.stopGlide()
+    const took = this.body.rewrite(WRITE.rewrite)
+    const timer = setTimeout(() => {
+      const rewriting = this.rewriting
+      this.rewriting = null
+      if (rewriting !== null) this.goHome(rewriting.to)
+    }, took)
+    this.rewriting = { timer, to }
+  }
+
+  private stopRewriting(): void {
+    if (this.rewriting !== null) clearTimeout(this.rewriting.timer)
+    this.rewriting = null
+  }
+
   private endJourney(): void {
+    this.stopRewriting()
     this.journeys.end(false)
     this.journeys.dryQuickly(true)
   }

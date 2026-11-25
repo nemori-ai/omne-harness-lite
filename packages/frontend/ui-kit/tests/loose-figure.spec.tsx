@@ -493,3 +493,94 @@ describe('reduced motion', () => {
     expect(where()).toEqual([400, 200])
   })
 })
+
+describe('home with the mark to rewrite first (C14)', () => {
+  const REWRITE = 520
+
+  it('the circle is first written again over its own trace where it is, then the stroke goes home', () => {
+    const time = frameClock()
+    const arrived = vi.fn()
+    const rewritten = vi.spyOn(FigureBody.prototype, 'rewrite')
+    const view = render(<LooseFigure mode="rest" at={at([600, 400])} onArrived={arrived} />)
+    time.wait(700)
+    const before = rewritten.mock.calls.length
+    view.rerender(<LooseFigure mode="home" at={at([80, 60])} rewriteFirst onArrived={arrived} />)
+    expect(rewritten.mock.calls.length).toBe(before + 1)
+    expect(rewritten).toHaveBeenLastCalledWith(REWRITE)
+    time.wait(REWRITE - 20)
+    expect(remnants()).toBe(0)
+    expect(where()).toEqual([600, 400])
+    time.wait(70)
+    expect(remnants()).toBeGreaterThan(0)
+    time.wait(3000)
+    expect(arrived).toHaveBeenCalledTimes(1)
+    expect(where()).toEqual([80, 60])
+  })
+
+  it('without the mark the stroke goes at once and nothing is rewritten', () => {
+    const time = frameClock()
+    const rewritten = vi.spyOn(FigureBody.prototype, 'rewrite')
+    const view = render(<LooseFigure mode="rest" at={at([600, 400])} />)
+    time.wait(700)
+    const before = rewritten.mock.calls.length
+    view.rerender(<LooseFigure mode="home" at={at([80, 60])} />)
+    time.wait(50)
+    expect(remnants()).toBeGreaterThan(0)
+    expect(rewritten.mock.calls.length).toBe(before)
+  })
+
+  it('taken into the hand while it rewrites, it never goes home', () => {
+    const time = frameClock()
+    const arrived = vi.fn()
+    const view = render(<LooseFigure mode="rest" at={at([600, 400])} onArrived={arrived} />)
+    time.wait(700)
+    view.rerender(<LooseFigure mode="home" at={at([80, 60])} rewriteFirst onArrived={arrived} />)
+    time.wait(200)
+    view.rerender(<LooseFigure mode="hand" at={at([500, 300])} onArrived={arrived} />)
+    time.wait(3000)
+    expect(remnants()).toBe(0)
+    expect(where()).toEqual([500, 300])
+    expect(arrived).not.toHaveBeenCalled()
+  })
+
+  it('taken away while it rewrites, nothing is drawn and it never arrives', () => {
+    const time = frameClock()
+    const arrived = vi.fn()
+    const view = render(<LooseFigure mode="rest" at={at([600, 400])} onArrived={arrived} />)
+    time.wait(700)
+    view.rerender(<LooseFigure mode="home" at={at([80, 60])} rewriteFirst onArrived={arrived} />)
+    time.wait(200)
+    view.rerender(<LooseFigure mode="none" onArrived={arrived} />)
+    time.wait(3000)
+    expect(carried()).toBeNull()
+    expect(arrived).not.toHaveBeenCalled()
+  })
+
+  it('a new home point while it rewrites is where the stroke goes', () => {
+    const time = frameClock()
+    const arrived = vi.fn()
+    const view = render(<LooseFigure mode="rest" at={at([600, 400])} onArrived={arrived} />)
+    time.wait(700)
+    view.rerender(<LooseFigure mode="home" at={at([80, 60])} rewriteFirst onArrived={arrived} />)
+    time.wait(200)
+    view.rerender(<LooseFigure mode="home" at={at([120, 90])} rewriteFirst onArrived={arrived} />)
+    time.wait(3500)
+    expect(arrived).toHaveBeenCalledTimes(1)
+    expect(where()).toEqual([120, 90])
+  })
+
+  it('under reduced motion it is home at once, with nothing rewritten', () => {
+    const time = frameClock()
+    const arrived = vi.fn()
+    const rewritten = vi.spyOn(FigureBody.prototype, 'rewrite')
+    const view = render(<LooseFigure mode="rest" at={at([600, 400])} reduced onArrived={arrived} />)
+    time.wait(20)
+    const before = rewritten.mock.calls.length
+    view.rerender(
+      <LooseFigure mode="home" at={at([80, 60])} rewriteFirst reduced onArrived={arrived} />,
+    )
+    expect(arrived).toHaveBeenCalledTimes(1)
+    expect(where()).toEqual([80, 60])
+    expect(rewritten.mock.calls.length).toBe(before)
+  })
+})

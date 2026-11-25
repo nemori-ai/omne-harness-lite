@@ -228,6 +228,36 @@
   align-self: flex-start;
 }
 
+.omne-say-pictures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--omne-space-inline);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.omne-say-picture {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.omne-say-thumb {
+  display: block;
+  max-width: 100%;
+  height: calc(var(--omne-control-height) * 2);
+  border-radius: var(--omne-radius-chip);
+  object-fit: cover;
+}
+
+.omne-say-told {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--omne-space-inline);
+}
+
 .omne-say-field {
   min-height: 0;
   padding: 0;
@@ -278,4 +308,22 @@
 
 .omne-figure-label-line[data-tone='hint'] {
   color: var(--omne-info-ink);
+}
+
+.omne-observation-frame {
+  position: fixed;
+  z-index: var(--omne-layer-figure);
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(
+      0 0 var(--omne-ink-breath-near) color-mix(in oklab, var(--omne-surface-page) 92%, transparent)
+    )
+    drop-shadow(
+      0 0 var(--omne-ink-breath-far) color-mix(in oklab, var(--omne-surface-page) 60%, transparent)
+    );
+}
+
+.omne-observation-frame-line {
+  fill: var(--omne-ink-primary);
 }
