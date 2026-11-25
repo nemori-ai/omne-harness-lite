@@ -29,6 +29,7 @@ export type {
 export { REASONING_EFFORTS, isReasoningEffort } from './root.ts'
 export type * from './result.ts'
 export { faultIsTransient } from './result.ts'
+export { faultProblem } from './fault-shape.ts'
 export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts'
 export { dispatchSend } from './dispatch-facts.ts'
 export type * from './result-delivery-values.ts'

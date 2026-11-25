@@ -6,6 +6,7 @@ import {
   decodeModelOperationId,
   decodeOutputCursor,
   decodeRevision,
+  faultProblem,
   type CallState,
   type DispatchRecord,
   type DurableEvidence,
@@ -160,6 +161,13 @@ function decodeValue(value: unknown): unknown {
   return out
 }
 
+/** A stored ending whose cause the contract does not describe is not handed out. */
+function checkedEnding<T extends Termination | null | undefined>(ending: T, field: string): T {
+  if (ending?.kind === 'failed' && faultProblem(ending.fault) !== null)
+    throw new RowError(field, 'fault-shape')
+  return ending
+}
+
 function stored<T>(text: string, field: string): T {
   let raw: unknown
   try {
@@ -243,6 +251,7 @@ function parseCallRow(raw: unknown, scope: CallRowScope): CallHead {
   if (call !== scope.call) throw new RowError('md_call.call', 'scope')
   const state = stored<CallState>(str(row, 'state'), 'md_call.state')
   if (state.call !== call) throw new RowError('md_call.state', 'call')
+  if (state.phase === 'settled') checkedEnding(state.settlement.termination, 'md_call.state')
   const execution = optional(row, 'execution', text =>
     stored<ExecutionRef>(text, 'md_call.execution'),
   )
@@ -304,6 +313,7 @@ function parseDispatchRow(
   const id = identity(decodeDispatchId(str(row, 'dispatch')), 'md_dispatch.dispatch')
   const record = stored<DispatchRecord>(str(row, 'record'), 'md_dispatch.record')
   if (record.dispatch !== id) throw new RowError('md_dispatch.record', 'dispatch')
+  checkedEnding(record.terminal, 'md_dispatch.record')
   const hadContent = stored<unknown>(str(row, 'had_content'), 'md_dispatch.had_content')
   if (!Array.isArray(hadContent) || !hadContent.every(item => typeof item === 'string'))
     throw new RowError('md_dispatch.had_content', 'array')
@@ -312,7 +322,10 @@ function parseDispatchRow(
     dispatch: {
       record,
       logicalTerminal: optional(row, 'logical_terminal', text =>
-        stored<Termination>(text, 'md_dispatch.logical_terminal'),
+        checkedEnding(
+          stored<Termination>(text, 'md_dispatch.logical_terminal'),
+          'md_dispatch.logical_terminal',
+        ),
       ),
       windows: entries(str(row, 'windows'), 'md_dispatch.windows'),
       events: entries(str(row, 'events'), 'md_dispatch.events'),

@@ -173,6 +173,7 @@
 - `encodeModelInvocationRef` · `reference.d.ts`
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `faultIsTransient` · `result.d.ts`
+- `faultProblem` · `fault-shape.d.ts`
 - `isNativeFileType` · `profile.d.ts`
 - `isReasoningEffort` · `root.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
@@ -1282,6 +1283,12 @@ export interface ModelDriverHost<P> extends ModelInstanceHost<P> {
 }
 ```
 
+## 声明文件 `fault-shape.d.ts`
+
+```ts
+export declare function faultProblem(value: unknown): string | null;
+```
+
 ## 声明文件 `guard-control.d.ts`
 
 ```ts
@@ -1327,6 +1334,7 @@ export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, D
 export { REASONING_EFFORTS, isReasoningEffort } from './root.ts';
 export type * from './result.ts';
 export { faultIsTransient } from './result.ts';
+export { faultProblem } from './fault-shape.ts';
 export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts';
 export { dispatchSend } from './dispatch-facts.ts';
 export type * from './result-delivery-values.ts';
@@ -1701,7 +1709,14 @@ export type ProfileIdentity = Readonly<{
     scope: ProfileScope;
     route: string;
 }>;
-export type LimitMetric = 'image-bytes' | 'image-count' | 'request-bytes' | 'voice-bytes' | 'voice-duration-ms';
+export declare const LIMIT_METRICS: readonly [
+    'image-bytes',
+    'image-count',
+    'request-bytes',
+    'voice-bytes',
+    'voice-duration-ms'
+];
+export type LimitMetric = (typeof LIMIT_METRICS)[number];
 export type UpstreamLimit = Readonly<{
     kind: 'unknown';
 }> | Readonly<{

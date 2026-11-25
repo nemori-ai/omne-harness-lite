@@ -47,6 +47,7 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
       'encodeModelInvocationRef',
       'encodeModelOutputV1',
       'faultIsTransient',
+      'faultProblem',
       'isNativeFileType',
       'isReasoningEffort',
       'supportedReasoningEfforts',

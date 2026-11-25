@@ -1017,6 +1017,42 @@ const DAMAGED: readonly (readonly [string, (f: Scene, call: ModelCallId) => void
       })),
   ],
   [
+    'a failed terminal whose cause is outside the contract',
+    (f, call) =>
+      rewriteRecord(f, call, 1, r => ({
+        ...r,
+        terminal: {
+          kind: 'failed',
+          fault: { cause: 'rate-limited', upstreamStatus: null, diagnostic: 'limited' },
+        },
+      })),
+  ],
+  [
+    'a failed terminal whose diagnostic carries a URL',
+    (f, call) =>
+      rewriteRecord(f, call, 1, r => ({
+        ...r,
+        terminal: {
+          kind: 'failed',
+          fault: { cause: 'unclassified', upstreamStatus: null, diagnostic: 'https://x.test/' },
+        },
+      })),
+  ],
+  [
+    'a logical terminal whose cause is outside the contract',
+    (f, call) =>
+      rewriteDispatch(
+        f,
+        call,
+        2,
+        'logical_terminal',
+        JSON.stringify({
+          kind: 'failed',
+          fault: { cause: 'rate-limited', upstreamStatus: null, diagnostic: 'limited' },
+        }),
+      ),
+  ],
+  [
     'a logical terminal that is not JSON',
     (f, call) => rewriteDispatch(f, call, 2, 'logical_terminal', 'not json'),
   ],

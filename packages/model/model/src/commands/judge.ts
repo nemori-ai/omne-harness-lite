@@ -6,7 +6,12 @@ import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { isReplayTag, REPLAY_PREFIX_MAX_LENGTH } from '@omne-harness/message'
 import { parseInstant } from '@omne-harness/utc-instant'
 import type { Outcome } from '@omne-harness/operation-result'
-import { accountUndelivered, costLookupOf, decodeRevision } from '@omne-harness/model-contract'
+import {
+  accountUndelivered,
+  costLookupOf,
+  decodeRevision,
+  faultProblem,
+} from '@omne-harness/model-contract'
 import type {
   MaterializationReceipt,
   ModelBlock,
@@ -305,12 +310,27 @@ export function retryChoiceFailure(
   return null
 }
 
+export const MALFORMED_FAULT: Termination = Object.freeze({
+  kind: 'failed',
+  fault: Object.freeze({
+    cause: 'upstream-protocol',
+    diagnostic: 'malformed-fault',
+    upstreamStatus: null,
+  }),
+})
+
+/** A failure whose cause is not one the contract describes; other endings carry no cause. */
+export function malformedFault(termination: Readonly<{ kind: string; fault?: unknown }>): boolean {
+  return termination.kind === 'failed' && faultProblem(termination.fault) !== null
+}
+
 export function settlementFailure(
   call: CallDocument,
   termination: Termination,
 ): ModelFailure | null {
   if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
     return invalid('termination', 'encoded-byte-limit')
+  if (malformedFault(termination)) return invalid('termination', 'fault-shape')
   if (
     executionFailed(termination) ||
     policyUnavailable(call, termination) ||

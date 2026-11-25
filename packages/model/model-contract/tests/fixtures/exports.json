@@ -407,6 +407,11 @@
               "pending": false
             },
             {
+              "name": "faultProblem",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "costLookupOf",
               "kind": "value",
               "pending": false

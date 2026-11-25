@@ -26,12 +26,14 @@ export type ProfileScope =
   | Readonly<{ kind: 'organization'; organization: OrganizationId }>
   | Readonly<{ kind: 'tenant'; tenant: TenantId }>
 export type ProfileIdentity = Readonly<{ scope: ProfileScope; route: string }>
-export type LimitMetric =
-  | 'image-bytes'
-  | 'image-count'
-  | 'request-bytes'
-  | 'voice-bytes'
-  | 'voice-duration-ms'
+export const LIMIT_METRICS = [
+  'image-bytes',
+  'image-count',
+  'request-bytes',
+  'voice-bytes',
+  'voice-duration-ms',
+] as const
+export type LimitMetric = (typeof LIMIT_METRICS)[number]
 export type UpstreamLimit =
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'finite'; amount: string; source: Adoption }>
