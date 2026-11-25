@@ -5,6 +5,7 @@ import {
   Fragment,
   useContext,
   useEffect,
+  useLayoutEffect,
   useId,
   useRef,
   useState,
@@ -149,6 +150,25 @@ function Menu({
   )
 }
 
+/** Why the words cannot go as they are, with the way to send them as plain words; hidden while the menu is open. */
+function Blocked({
+  assist,
+  onLiteral,
+}: {
+  readonly assist: Assist
+  readonly onLiteral: () => void
+}) {
+  if (assist.blocked === null || assist.menu !== null) return null
+  return (
+    <p className="omne-composer-blocked" role="status">
+      {assist.blocked}
+      <Button type="button" variant="link" size="compact" onClick={onLiteral}>
+        按原样发送
+      </Button>
+    </p>
+  )
+}
+
 export type ComposerProps = Readonly<{
   state: Open
   driver: SessionDriver
@@ -175,6 +195,21 @@ type Latest = Readonly<{
   say: (words: string) => void
   text: string
 }>
+
+/** Puts the caret where a write asked once that write is drawn, in the same task, so no keystroke comes between. */
+function useCaret(field: RefObject<HTMLTextAreaElement | null>) {
+  const pending = useRef<Readonly<{ text: string; caret: number }> | null>(null)
+  useLayoutEffect(() => {
+    const want = pending.current
+    pending.current = null
+    if (want !== null && field.current?.value === want.text)
+      field.current.setSelectionRange(want.caret, want.caret)
+  })
+  return (text: string, caret: number): void => {
+    if (field.current?.value !== text) pending.current = { text, caret }
+    else field.current.setSelectionRange(caret, caret)
+  }
+}
 
 function useComposerHandle(
   keys: ComposerKeys | null,
@@ -222,6 +257,7 @@ export function Composer({
   const { session } = state
   const [text, setText] = useState('')
   const field = useRef<HTMLTextAreaElement>(null)
+  const place = useCaret(field)
   const layer = useRef<HTMLDivElement>(null)
   const menuId = useId()
   const draft = useSyncExternalStore(drafts.subscribe, () => drafts.read(session))
@@ -237,7 +273,7 @@ export function Composer({
   const write = (next: string, caret: number) => {
     setText(next)
     helper?.input(next, caret)
-    requestAnimationFrame(() => field.current?.setSelectionRange(caret, caret))
+    place(next, caret)
   }
   const send = (words: string, seen = assist.seen, how?: SendWay) => {
     const way = how === 'send' ? undefined : how
@@ -257,18 +293,19 @@ export function Composer({
     if (answer.kind === 'edit') write(answer.text, answer.caret)
     if (answer.kind === 'send') submit()
   }
+  const helped = (event: KeyboardEvent<HTMLTextAreaElement>, plainEnter: boolean): boolean => {
+    const key = KEYS[event.key]
+    if (key === undefined || helper === null || (event.key === 'Enter' && !plainEnter)) return false
+    const answer = helper.key(key)
+    if (answer.kind === 'pass') return false
+    event.preventDefault()
+    follow(answer)
+    return true
+  }
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.nativeEvent.isComposing) return
-    const key = KEYS[event.key]
     const plainEnter = event.key === 'Enter' && !event.shiftKey
-    if (key !== undefined && helper !== null && (event.key !== 'Enter' || plainEnter)) {
-      const answer = helper.key(key)
-      if (answer.kind !== 'pass') {
-        event.preventDefault()
-        follow(answer)
-        return
-      }
-    }
+    if (helped(event, plainEnter)) return
     const way = keys === null ? (plainEnter ? 'send' : null) : keys.wayOf(event.nativeEvent)
     if (way === null) return
     event.preventDefault()
@@ -318,19 +355,7 @@ export function Composer({
           onKeyDown={onKeyDown}
         />
       </div>
-      {assist.blocked === null || assist.menu !== null ? null : (
-        <p className="omne-composer-blocked" role="status">
-          {assist.blocked}
-          <Button
-            type="button"
-            variant="link"
-            size="compact"
-            onClick={() => send(helper?.literal(text) ?? text, null)}
-          >
-            按原样发送
-          </Button>
-        </p>
-      )}
+      <Blocked assist={assist} onLiteral={() => send(helper?.literal(text) ?? text, null)} />
       <div>{attachments(session, draft.draft)}</div>
       <div className="omne-composer-actions">
         <div className="omne-session-status">{status}</div>

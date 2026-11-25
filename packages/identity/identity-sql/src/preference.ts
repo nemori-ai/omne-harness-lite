@@ -30,6 +30,23 @@ const nameOf = (request: unknown): string | undefined => {
     : undefined
 }
 
+type Asked = Readonly<{ name: string; value: string | null; expected: string }>
+
+function writeOf(request: unknown): Asked | undefined {
+  const name = nameOf(request)
+  const { value, expected } = request as { value?: unknown; expected?: unknown }
+  const fits =
+    value === null || (typeof value === 'string' && value.length <= ACCOUNT_PREFERENCE_LIMITS.value)
+  return name === undefined || !fits || typeof expected !== 'string'
+    ? undefined
+    : { name, value: value as string | null, expected }
+}
+
+const readValid = (output: Readonly<Record<string, unknown>>): boolean =>
+  output['outcome'] === 'read' &&
+  typeof output['revision'] === 'string' &&
+  (output['value'] === null || typeof output['value'] === 'string')
+
 /** The preferences of the calling account: read under a name, written against the revision read. */
 export function preferenceGovernance(
   deps: PreferenceDeps,
@@ -48,31 +65,24 @@ export function preferenceGovernance(
     if (answered.kind !== 'answered') return answered
     const { outcome, value, revision } = answered.output
     if (outcome === 'denied') return DENIED
-    if (
-      outcome !== 'read' ||
-      typeof revision !== 'string' ||
-      (value !== null && typeof value !== 'string')
-    )
-      return deps.malformed()
-    return Object.freeze({ kind: 'succeeded', value, revision })
+    if (!readValid(answered.output)) return deps.malformed()
+    return Object.freeze({
+      kind: 'succeeded',
+      value: value as string | null,
+      revision: revision as string,
+    })
   }
 
   const writeAccountPreference: IdentityGovernance['writeAccountPreference'] = async request => {
     const begun = await deps.begin(request)
     if (begun.kind !== 'begun') return begun
-    const name = nameOf(request)
-    const { value, expected } = request as { value?: unknown; expected?: unknown }
-    const fits =
-      value === null ||
-      (typeof value === 'string' && value.length <= ACCOUNT_PREFERENCE_LIMITS.value)
-    if (name === undefined || !fits || typeof expected !== 'string') return DENIED
+    const asked = writeOf(request)
+    if (asked === undefined) return DENIED
     const written = await deps.write(OPERATIONS.writePreference, {
       kind: 'write-preference',
       login: begun.login,
       nowKey: begun.nowKey,
-      name,
-      value: value as string | null,
-      expected,
+      ...asked,
     })
     if (written.kind !== 'written') return written
     const { outcome, revision } = written.reply
