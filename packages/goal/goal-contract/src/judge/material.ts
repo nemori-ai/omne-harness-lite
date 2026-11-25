@@ -49,6 +49,12 @@ export const JudgeConfigSchema = z.strictObject({
 export type JudgeConfig = z.infer<typeof JudgeConfigSchema>
 
 export const DEFAULT_JUDGE_MODEL = 'openai/gpt-6-luna-decisions'
+export const JUDGE_MODELS = Object.freeze([
+  DEFAULT_JUDGE_MODEL,
+  'typesafe/jev-1.14',
+  'typesafe/jev-1.13',
+] as const)
+export type JudgeModel = (typeof JUDGE_MODELS)[number]
 export const DEFAULT_JUDGE_CONFIG: JudgeConfig = Object.freeze({
   split: 'one',
   instructions: Object.freeze({ criterion: 'rendered', rules: [] }),

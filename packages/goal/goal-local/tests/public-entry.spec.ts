@@ -6,9 +6,12 @@ it('the root exports the SQL materials, the store, the application and the polic
     'GoalPolicyError',
     'createGoalLocalApplication',
     'createSqlGoalStore',
+    'goalJudgeItems',
+    'goalJudgeSettings',
     'goalPersistenceParticipant',
     'goalPolicySchema',
     'goalSqlMaterials',
+    'judgeModelOf',
   ])
 })
 
