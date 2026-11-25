@@ -18,6 +18,7 @@ import {
   type Arguments,
   type Field,
 } from './protocol.ts'
+import type { Answer } from './program-side.ts'
 import { collectProcess } from './shell-output.ts'
 import { isPosixShell, precheck } from './shell-precheck.ts'
 import {
@@ -269,7 +270,7 @@ async function executeShell(
   environment: ShellAuthorEnvironment,
   execution: ToolExecutionContext,
   config: Arguments,
-): Promise<string> {
+): Promise<string | Answer> {
   if (execution.signal.aborted) return 'rejected reason=cancelled zero starts'
   const terminal = args.terminal()
   switch (command) {
@@ -326,7 +327,7 @@ async function executeScript(
   environment: ShellAuthorEnvironment,
   execution: ToolExecutionContext,
   config: Arguments,
-): Promise<string> {
+): Promise<string | Answer> {
   const terminal = args.terminal()
   if (terminal !== undefined) {
     const denied = await attachTerminal(environment, terminal)

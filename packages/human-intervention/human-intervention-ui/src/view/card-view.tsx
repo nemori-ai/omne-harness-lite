@@ -312,6 +312,7 @@ function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX
           <code className="hitl-call">{call}</code>
         </FactRow>
         <FactRow term="动作类别">{`${target.tool}：${question.gateTitle}`}</FactRow>
+        {question.origin.program === true ? <FactRow term="来源">由程序发起</FactRow> : null}
       </FactList>
       {detail?.state === 'given' ? <ReleaseDetailView detail={detail} /> : null}
       {detail?.state === 'unavailable' ? (

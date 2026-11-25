@@ -87,6 +87,14 @@
 - `PlacementInput` · `environment.d.ts`
 - `PlatformFacts` · `environment.d.ts`
 - `ProcessHandle` · `facilities/command.d.ts`
+- `ProgramAnswer` · `facilities/program.d.ts`
+- `ProgramCall` · `facilities/program.d.ts`
+- `ProgramFacility` · `facilities/program.d.ts`
+- `ProgramLimitName` · `facilities/program.d.ts`
+- `ProgramLimits` · `facilities/program.d.ts`
+- `ProgramOutcome` · `facilities/program.d.ts`
+- `ProgramRun` · `facilities/program.d.ts`
+- `ProgramRunRequest` · `facilities/program.d.ts`
 - `ProviderAcquireInput` · `environment.d.ts`
 - `ProviderAcquisition` · `environment.d.ts`
 - `ProviderAcquisitionStatus` · `environment.d.ts`
@@ -157,6 +165,8 @@
 - `inspectAcquisitionResultSchema` · `operation-schemas.d.ts`
 - `inspectRecoveryAcquisitionParamsSchema` · `operation-schemas.d.ts`
 - `inspectRecoveryAcquisitionResultSchema` · `operation-schemas.d.ts`
+- `isProgramEntry` · `facilities/program.d.ts`
+- `isProgramFailureName` · `facilities/program.d.ts`
 - `judgeRequirement` · `judge.d.ts`
 - `managedResourceSchema` · `operation-schemas.d.ts`
 - `matchProviders` · `judge.d.ts`
@@ -165,6 +175,7 @@
 - `operationSchemas` · `operation-schemas.d.ts`
 - `originRef` · `identity.d.ts`
 - `originalAcquisitionSchema` · `operation-schemas.d.ts`
+- `programFacility` · `facilities/program.d.ts`
 - `providerFactsSchema` · `operation-schemas.d.ts`
 - `recoverOwnedParamsSchema` · `operation-schemas.d.ts`
 - `recoverOwnedResultSchema` · `operation-schemas.d.ts`
@@ -200,6 +211,8 @@
 - `MemoryFileSystemOptions` · `testing/memory-files.d.ts`
 - `MemoryResourceLedger` · `testing/doubles.d.ts`
 - `NotApplicable` · `testing/case.d.ts`
+- `ProgramConformanceOptions` · `testing/program-conformance.d.ts`
+- `ProgramConformanceSubject` · `testing/program-conformance.d.ts`
 - `ProviderConformanceOptions` · `testing/provider-conformance.d.ts`
 - `ProviderConformanceSubject` · `testing/provider-conformance.d.ts`
 - `ProviderScript` · `testing/doubles.d.ts`
@@ -236,6 +249,8 @@
 - `createScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
 - `environmentProviderConformance` · `testing/provider-conformance.d.ts`
 - `executionEnvironmentConformance` · `testing/environment-conformance.d.ts`
+- `programConformanceNames` · `testing/program-conformance.d.ts`
+- `programFacilityConformance` · `testing/program-conformance.d.ts`
 - `runConformanceCase` · `testing/case.d.ts`
 - `screenFacilityConformance` · `testing/screen-conformance.d.ts`
 - `scriptedScreenPng` · `testing/scripted-screen.d.ts`
@@ -892,6 +907,88 @@ declare module '../facility.ts' {
 export declare const filesFacility: FacilityDescriptor<'files'>;
 ```
 
+## 声明文件 `facilities/program.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+import { type FacilityDescriptor, type FacilityRequest, type FacilityResult } from '../facility.ts';
+export type ProgramLimits = Readonly<{
+    computeMs: number;
+    memoryBytes: number;
+    outputBytes: number;
+    calls: number;
+}>;
+export type ProgramLimitName = 'compute-time' | 'memory' | 'output' | 'calls';
+export type ProgramCall = Readonly<{
+    ordinal: number;
+    entry: string;
+    argument: JsonValue;
+}>;
+export type ProgramAnswer = Readonly<{
+    kind: 'value';
+    value: JsonValue;
+}> | Readonly<{
+    kind: 'failure';
+    name: string;
+    message: string;
+    properties: readonly Readonly<{
+        key: string;
+        value: JsonValue;
+    }>[];
+}>;
+export type ProgramOutcome = Readonly<{
+    kind: 'returned';
+    value?: JsonValue;
+    console: string;
+}> | Readonly<{
+    kind: 'threw';
+    name: string;
+    message: string;
+    line: number | null;
+    console: string;
+}> | Readonly<{
+    kind: 'syntax';
+    message: string;
+    line: number | null;
+}> | Readonly<{
+    kind: 'exceeded';
+    limit: ProgramLimitName;
+    console: string;
+}> | Readonly<{
+    kind: 'aborted';
+    console: string;
+}> | Readonly<{
+    kind: 'invalid-output';
+    path: string;
+    console: string;
+}>;
+export type ProgramRun = Readonly<{
+    outcome: Promise<ProgramOutcome>;
+    answer(ordinal: number, answer: ProgramAnswer): 'delivered' | 'not-waiting';
+    abort(): void;
+}>;
+export type ProgramRunRequest<P> = FacilityRequest<P> & Readonly<{
+    source: string;
+    input: JsonValue;
+    entries: readonly string[];
+    failures: readonly string[];
+    limits: ProgramLimits;
+    onCall(call: ProgramCall): void;
+    onIdle(issued: number): void;
+}>;
+export interface ProgramFacility<P> {
+    run(request: ProgramRunRequest<P>): Promise<FacilityResult<ProgramRun>>;
+}
+declare module '../facility.ts' {
+    interface EnvironmentFacilities {
+        program: ProgramFacility<unknown>;
+    }
+}
+export declare const programFacility: FacilityDescriptor<'program'>;
+export declare function isProgramEntry(name: string): boolean;
+export declare function isProgramFailureName(name: string): boolean;
+```
+
 ## 声明文件 `facilities/screen.d.ts`
 
 ```ts
@@ -1142,6 +1239,8 @@ export { terminalFacility } from './facilities/terminal.ts';
 export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetention, TerminalRetentionOperation, } from './facilities/terminal.ts';
 export { imagePointOnScreen, screenFacility, screenPointOnDesktop } from './facilities/screen.ts';
 export type { ScreenFacility, ScreenFrame, ScreenId, ScreenInfo, ScreenPoint, ScreenRegion, ScreenSize, } from './facilities/screen.ts';
+export { isProgramEntry, isProgramFailureName, programFacility } from './facilities/program.ts';
+export type { ProgramAnswer, ProgramCall, ProgramFacility, ProgramLimitName, ProgramLimits, ProgramOutcome, ProgramRun, ProgramRunRequest, } from './facilities/program.ts';
 export { createRecoveryAccess } from './ports.ts';
 export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedProcessLedger, RetainedTerminalLedger, ScopeTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
@@ -1759,6 +1858,7 @@ export { terminalFacilityConformance, type TerminalConformanceAcquisition, type 
 export { createScriptedScreenFacility, scriptedScreenPng, type ScreenScript, type ScriptedScreenFacility, } from './scripted-screen.ts';
 export { screenFacilityConformance, type ScreenConformanceSubject, type ScreenConformanceOptions, } from './screen-conformance.ts';
 export { commandRetentionConformance, type CommandRetentionAcquisition, type CommandRetentionBody, type CommandRetentionOptions, type CommandRetentionSubject, } from './command-retention-conformance.ts';
+export { programConformanceNames, programFacilityConformance, type ProgramConformanceSubject, type ProgramConformanceOptions, } from './program-conformance.ts';
 ```
 
 ## 声明文件 `testing/memory-files.d.ts`
@@ -1781,6 +1881,42 @@ export type MemoryFileSystem<P = unknown> = Readonly<{
     close(): void;
 }>;
 export declare function createMemoryFileSystem<P = unknown>(options?: MemoryFileSystemOptions): MemoryFileSystem<P>;
+```
+
+## 声明文件 `testing/program-conformance.d.ts`
+
+```ts
+import type { FacilityRequest, ProgramFacility } from '../index.ts';
+import { type ConformanceCase } from './case.ts';
+export type ProgramConformanceSubject = Readonly<{
+    facility: ProgramFacility<unknown>;
+    request(): FacilityRequest<unknown>;
+    dispose?(): Promise<void>;
+}>;
+export type ProgramConformanceOptions = Readonly<{
+    subject(): ProgramConformanceSubject | Promise<ProgramConformanceSubject>;
+    waitMs?: number;
+    stallMs?: number;
+}>;
+export declare const programConformanceNames: readonly [
+    'program.returns',
+    'program.calls-in-order',
+    'program.parallel-in-flight',
+    'program.no-host-in-reach',
+    'program.fresh-domain',
+    'program.runaways-end',
+    'program.waiting-is-not-compute',
+    'program.call-and-output-limits',
+    'program.invalid-output',
+    'program.syntax',
+    'program.types-are-erased',
+    'program.failures',
+    'program.thrown-lines',
+    'program.abort',
+    'program.answers',
+    'program.refusals'
+];
+export declare function programFacilityConformance(options: ProgramConformanceOptions): readonly ConformanceCase[];
 ```
 
 ## 声明文件 `testing/provider-conformance.d.ts`

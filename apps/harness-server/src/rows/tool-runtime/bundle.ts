@@ -19,7 +19,7 @@ import { admitMaintainer } from '../../entry/execution-authorities.ts'
 import { sourcedEntriesOf, sourceListsName } from '../../entry/tool-entry-sources.ts'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import { releaseCurrentDefinitions, releaseOf } from '../../entry/tool-release.ts'
-import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
+import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import {
   admittedTargetResidency,
   currentTargetResidency,
@@ -119,6 +119,11 @@ function inputFor(
         pageBytes: config.configuration.resultPageBytes,
       },
     },
+    programs: {
+      authority: () => root.get(toolStartAuthorityKey, false),
+      isParent: request => isReleaseToolRequest(releaseOf(root), request, 'Code'),
+      children: () => holder.bundle?.value.children(),
+    },
   })
   const recoveryAccess = createRecoveryAccess()
   admitMaintainer(root, recoveryAccess)
@@ -183,7 +188,10 @@ export function ensureToolRuntimeBundle(
     return holder.bundle.value
   }
   const input = inputFor(ctx.root, holder, config, lostContact)
-  const value = Object.freeze({ ...createLocalToolRuntimePlugins(input) })
+  const value = Object.freeze({
+    ...createLocalToolRuntimePlugins(input),
+    programSources: () => input.sources.programs,
+  })
   holder.bundle = Object.freeze({ value, configDigest: digest })
   holder.resolve(value)
   return value

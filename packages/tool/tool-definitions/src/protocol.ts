@@ -1,6 +1,7 @@
 import { judgeJsonValue, readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ParameterContract, ToolCommandBackground } from '@omne-harness/tool-contract'
+import type { ProgramSide } from './program-side.ts'
 import {
   createDefaultParameterCodec,
   describedAdoption,
@@ -34,6 +35,7 @@ export type Field = Readonly<{
     | 'terminal'
     | 'edits'
     | 'strings'
+    | 'json'
     | 'region'
   required?: boolean
   choices?: readonly string[]
@@ -44,6 +46,9 @@ export type Command = Readonly<{
   summary: string
   fields: readonly Field[]
   background?: ToolCommandBackground
+  program?: ProgramSide
+  /** The command changes nothing another call can observe. */
+  readOnly?: true
 }>
 export type ExactEdit = Readonly<{ path: string; old_text: string; new_text: string }>
 export function tree(value: unknown): JsonValue {
@@ -127,6 +132,7 @@ const validators: Record<Field['kind'], (value: JsonValue, field: Field) => bool
   env: validEnv,
   terminal: validTerminal,
   edits: validEdits,
+  json: () => true,
   region: validRegion,
 }
 function textValue(value: JsonValue | undefined): string {
@@ -242,6 +248,8 @@ function fieldSchema(field: Field): unknown {
       }
     case 'boolean':
       return { type: 'boolean' }
+    case 'json':
+      return {}
     case 'strings':
       return { type: 'array', items: { type: 'string' } }
     case 'env':

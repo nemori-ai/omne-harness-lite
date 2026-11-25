@@ -16,7 +16,6 @@ import type {
   CallerCommit,
   CommandReceipt,
   ControlRecord,
-  ConsumerRef,
   ConsumptionId,
   ActionId,
   DurableEvidence,
@@ -79,6 +78,8 @@ import {
   needOfAction,
   presentRequest,
 } from './admission-chain.ts'
+import { nestedDrive, nestedWaits, type NestedRequest } from './nested.ts'
+import { advancementBy, callsWithout, mainPositionOf, replyRecordOf } from './snapshot-reads.ts'
 import { cardClosing } from './card-closing.ts'
 import { judgeCancellation } from './cancellation-judgment.ts'
 import { canonical } from '../canonical.ts'
@@ -139,7 +140,7 @@ import {
   slotOf,
   refusedTool,
   toolCall,
-  unsent,
+  sendable,
   preserveAllowed,
   associationOf,
 } from './tools.ts'
@@ -222,6 +223,7 @@ export type ExecutionEntry<P> = Readonly<{
   // 本 run 并发范围的预算：A0 把它写进每个获准请求的 `limits.scopeBudget`，由 Tool 执行。
   // 缺少它时，A0 对获准动作以 invariant 失败。
   toolConcurrency?: number
+  nested?: Readonly<{ pending(): readonly NestedRequest[] }>
   maxRunSteps?: number
   report?: (report: ReplyAdmissionReadReport) => void
   /** The extensions the adopted definition composed, in their declared order. */
@@ -468,6 +470,18 @@ function coordinate<P>(
   const closing = cardClosing(ports, access, execution, unsentRounds)
   const desk = createCardDesk<P>(ports, access, execution, unsentRounds, () =>
     required(authority, 'authority'),
+  )
+  const nested = nestedDrive(
+    {
+      ports,
+      access,
+      execution,
+      unsentRounds,
+      present: desk.present,
+      withdraw: closing.withdrawChain,
+    },
+    entry.nested,
+    () => required(authority, 'authority'),
   )
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
@@ -799,13 +813,8 @@ function coordinate<P>(
     return goingOn(read)
   }
 
-  function advancementOf(read: ExecutionSnapshot): LoopFacts['advancement'] {
-    const own = required(authority, 'authority')
-    const source = read.executionAttachment?.source ?? own.source
-    if (read.state.kind === 'ended') return { kind: 'ended', source }
-    if (!sameAuthority(read.executionAttachment, own)) return { kind: 'superseded', source }
-    return { kind: 'current', source }
-  }
+  const advancementOf = (read: ExecutionSnapshot) =>
+    advancementBy(read, required(authority, 'authority'))
 
   async function readFacts(read: ExecutionSnapshot): Promise<Outcome<LoopFacts, Failure>> {
     const current = required(checkpoint, 'checkpoint')
@@ -974,15 +983,8 @@ function coordinate<P>(
     }
   }
 
-  function replyRecord(step: StepId, call: M.ModelCallId) {
-    return required(snapshot, 'snapshot').handoffs.find(
-      record =>
-        record.request.kind === 'execution' &&
-        record.request.source.kind === 'model-reply' &&
-        record.request.source.call === call &&
-        canonical(record.request.position) === canonical(replyPosition(step)),
-    )
-  }
+  const replyRecord = (step: StepId, call: M.ModelCallId) =>
+    replyRecordOf(required(snapshot, 'snapshot'), step, call)
 
   function admittedReply(): Outcome<
     Readonly<{
@@ -1420,6 +1422,7 @@ function coordinate<P>(
       return step('idle', null)
     },
     async W0() {
+      nested.refuseStray(checkpoint?.batch ?? null)
       resumeState = state.kind === 'waiting' ? resumeState : state
       if (finishWait) {
         finishWait = false
@@ -1655,8 +1658,14 @@ function coordinate<P>(
     if (asked.ok === 'unaccepted') return step(node === 'T3' ? 'dispatch' : 'received', null)
     waitingAt = node
     recheckDependency = null
-    waits = producerWaits(open)
+    waits = [...producerWaits(open), ...nestedWaits(required(checkpoint, 'checkpoint').passages)]
     return step('wait', null)
+  }
+
+  async function nestedStep(batch: ActionBatch) {
+    const turned = await nested.pass(batch, required(checkpoint, 'checkpoint').passages)
+    if ('failure' in turned) return turned
+    return turned.ok === null ? null : step('carded', { checkpoint: { passages: turned.ok } })
   }
 
   async function advancing(): Promise<Outcome<ExecutionSnapshot, Failure>> {
@@ -2081,7 +2090,7 @@ function coordinate<P>(
       const slotted = await slotDeniedAtJudgment(currentBatch())
       if ('failure' in slotted) return slotted
       let { batch, progressed } = slotted.ok
-      for (const original of unsent(batch, unacceptedToolActions)) {
+      for (const original of sendable(batch, unacceptedToolActions)) {
         const sent = await sendAction(batch, original)
         if ('failure' in sent) return sent
         if (sent.ok.unavailable !== undefined) return waitFor('A2', sent.ok.unavailable, null)
@@ -2090,7 +2099,7 @@ function coordinate<P>(
       }
       if (progressed) return step('dispatched')
       const idle = !batch.slots.some(slot => slot.kind === 'dispatched')
-      if (idle && unsent(batch, unacceptedToolActions).length > 0) return toolWait('A2', batch)
+      if (idle && sendable(batch, unacceptedToolActions).length > 0) return toolWait('A2', batch)
       return step('dispatched', null)
     },
     async T0() {
@@ -2101,7 +2110,7 @@ function coordinate<P>(
       if ('failure' in received) return received
       if (received.ok || !batch.slots.some(slot => slot.kind === 'dispatched'))
         return step('received', null)
-      return toolWait('T0', batch)
+      return (await nestedStep(batch)) ?? toolWait('T0', batch)
     },
     async T1() {
       const read = await advancing()
@@ -2139,6 +2148,8 @@ function coordinate<P>(
     },
     async T3() {
       const batch = currentBatch()
+      const nested = await nestedStep(batch)
+      if (nested !== null) return nested
       const complete = batch.actions.every(action => {
         const slot = slotOf(batch, action.id)
         return (
@@ -2149,7 +2160,7 @@ function coordinate<P>(
       })
       if (complete)
         return step(batch.slots.some(slot => slot.kind !== 'denied') ? 'batch' : 'admit', null)
-      if (unsent(batch, unacceptedToolActions).length > 0) return step('dispatch', null)
+      if (sendable(batch, unacceptedToolActions).length > 0) return step('dispatch', null)
       const received = await anyToolReceived(ports, access, execution, batch)
       if ('failure' in received) return received
       return received.ok ? step('received', null) : toolWait('T3', batch)
@@ -2363,9 +2374,7 @@ function coordinate<P>(
     )
   }
 
-  function mainPosition(step: StepId): ConsumerRef {
-    return { owner: AGENT_OWNER, work: `${execution}/${step}`, position: 'I3', purpose: 'main' }
-  }
+  const mainPosition = (step: StepId) => mainPositionOf(execution, step)
 
   function attemptOf(of: StepId): number {
     return voidedModelIntents(required(checkpoint, 'checkpoint').voided, of)
@@ -2629,18 +2638,8 @@ function coordinate<P>(
     return 'failure' in result ? result : succeed({ result: result.ok, completion: source })
   }
 
-  function callsAfterConsumedNoReply(read: ExecutionSnapshot): readonly PendingCall[] {
-    const current = iteration
-    if (current?.result?.kind !== 'unusable' || current.pending === null)
-      return read.checkpoint.calls
-    const pending = current.pending
-    return read.checkpoint.calls.filter(
-      call =>
-        call.kind !== 'model' ||
-        call.consumption !== pending.consumption ||
-        call.reference !== pending.reference,
-    )
-  }
+  const callsAfterConsumedNoReply = (read: ExecutionSnapshot) =>
+    callsWithout(read, iteration?.result?.kind === 'unusable' ? iteration.pending : null)
 
   function producerWait(node: 'M1' | 'M6', pending: PendingCall) {
     waitingAt = node
@@ -2875,6 +2874,7 @@ function coordinate<P>(
       if (read.ok.state.kind === 'ended') return step('terminal', null)
       const control = cancellationOf(read.ok)
       if (control === undefined) return fail(defect('F0 without effective cancellation'))
+      nested.cancelled()
       const revoked = await establishCancellation(journalAt('F0'), access, execution, control)
       if ('failure' in revoked) return revoked
       const task = read.ok.checkpoint.compaction

@@ -7,7 +7,9 @@ const ACTIONS = {
   disable: '禁用',
   remove: '移除',
   export: '取到工作区',
+  configure: '改设置',
 } as const
+const VALUE_SHOWN_MAX = 400
 type Writing = keyof typeof ACTIONS
 
 /** What one write would do, for the person who releases it: the category, the name, where a publish comes from and where an export goes. */
@@ -29,5 +31,17 @@ export const describeWrite: ToolReleaseDescriber<ExtensionsArguments> = async ({
     })
   if (args.command === 'export')
     rows.push({ label: '写到哪', value: `工作区目录 ${args.params.dir}` })
+  if (args.command === 'configure') {
+    const { item, value, clear } = args.params
+    const written = [...(JSON.stringify(value) ?? '没有给值')]
+    const shown =
+      written.length > VALUE_SHOWN_MAX
+        ? `${written.slice(0, VALUE_SHOWN_MAX).join('')}…`
+        : written.join('')
+    rows.push(
+      { label: '设置项', value: item },
+      { label: '要写的值', value: clear === true ? '清除这一层的值' : shown },
+    )
+  }
   return { rows }
 }

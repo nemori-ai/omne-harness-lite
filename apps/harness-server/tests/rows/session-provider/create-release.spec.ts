@@ -92,6 +92,7 @@ const residentNames = [
   'OmneExtensions',
   'Screen',
   'Skills',
+  'Code',
 ]
 const releaseDistribution = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),

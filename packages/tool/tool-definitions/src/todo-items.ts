@@ -87,7 +87,7 @@ export function createTodoItemsAuthor(
   )
   const operations: Record<
     string,
-    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock> }
+    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock>; readOnly: boolean }
   > = {}
   for (const name of todoCommandNames) {
     const command = todoCommand(name)
@@ -138,7 +138,8 @@ export function createTodoItemsAuthor(
     })
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
-    operations[name] = { summary: command.summary, operation: operation.ok }
+    const readOnly = name === 'help' || name === 'list'
+    operations[name] = { summary: command.summary, operation: operation.ok, readOnly }
   }
   const author = defineCommandTool({
     implementation: {

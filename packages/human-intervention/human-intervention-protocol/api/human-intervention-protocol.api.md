@@ -230,6 +230,16 @@ declare const item: {
                                                                     readonly kind: 'text';
                                                                 };
                                                             };
+                                                            readonly program: {
+                                                                readonly rule: {
+                                                                    readonly kind: "literal";
+                                                                    readonly values: readonly [
+                                                                        true
+                                                                    ];
+                                                                };
+                                                                readonly optional: true;
+                                                                readonly since: 2;
+                                                            };
                                                         };
                                                     };
                                                 };
@@ -612,6 +622,16 @@ declare const item: {
                                                                 rule: {
                                                                     readonly kind: 'text';
                                                                 };
+                                                            };
+                                                            readonly program: {
+                                                                readonly rule: {
+                                                                    readonly kind: "literal";
+                                                                    readonly values: readonly [
+                                                                        true
+                                                                    ];
+                                                                };
+                                                                readonly optional: true;
+                                                                readonly since: 2;
                                                             };
                                                         };
                                                     };
@@ -1171,6 +1191,16 @@ declare const item: {
                                                                     readonly kind: 'text';
                                                                 };
                                                             };
+                                                            readonly program: {
+                                                                readonly rule: {
+                                                                    readonly kind: "literal";
+                                                                    readonly values: readonly [
+                                                                        true
+                                                                    ];
+                                                                };
+                                                                readonly optional: true;
+                                                                readonly since: 2;
+                                                            };
                                                         };
                                                     };
                                                 };
@@ -1634,6 +1664,16 @@ declare const cardPage: {
                                                                                     readonly kind: 'text';
                                                                                 };
                                                                             };
+                                                                            readonly program: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "literal";
+                                                                                    readonly values: readonly [
+                                                                                        true
+                                                                                    ];
+                                                                                };
+                                                                                readonly optional: true;
+                                                                                readonly since: 2;
+                                                                            };
                                                                         };
                                                                     };
                                                                 };
@@ -2016,6 +2056,16 @@ declare const cardPage: {
                                                                                 rule: {
                                                                                     readonly kind: 'text';
                                                                                 };
+                                                                            };
+                                                                            readonly program: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "literal";
+                                                                                    readonly values: readonly [
+                                                                                        true
+                                                                                    ];
+                                                                                };
+                                                                                readonly optional: true;
+                                                                                readonly since: 2;
                                                                             };
                                                                         };
                                                                     };
@@ -2574,6 +2624,16 @@ declare const cardPage: {
                                                                                 rule: {
                                                                                     readonly kind: 'text';
                                                                                 };
+                                                                            };
+                                                                            readonly program: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "literal";
+                                                                                    readonly values: readonly [
+                                                                                        true
+                                                                                    ];
+                                                                                };
+                                                                                readonly optional: true;
+                                                                                readonly since: 2;
                                                                             };
                                                                         };
                                                                     };
@@ -3172,6 +3232,7 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3276,6 +3337,7 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3346,6 +3408,7 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3460,6 +3523,7 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3564,6 +3628,7 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3634,6 +3699,7 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {

@@ -401,6 +401,11 @@
       "config": {}
     },
     {
+      "id": "execution-program",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "execution-host",
       "plugin": "stubPlugin",
       "config": {}

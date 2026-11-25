@@ -37,6 +37,9 @@ import type {
   SuspensionRecord,
   ToolExecutionFact,
   PreparationRecord,
+  ProgramFence,
+  ProgramPosition,
+  ProgramTable,
   ToolCommands,
   ToolRecovery,
   ToolTask,
@@ -282,6 +285,9 @@ export type ReleaseBasis =
     }>
   | Readonly<{ kind: 'lost-continuity'; continuity: DurableEvidence }>
 
+/** The table of a program's positions: open until its body returns. */
+export type ProgramTableRecord = Readonly<{ phase: ProgramTable['phase']; fence?: ProgramFence }>
+
 export type HostRecord = Readonly<{ key: string; value: unknown; request?: FixedToolRequest }>
 
 export type LedgerRecord =
@@ -303,6 +309,8 @@ export type LedgerRecord =
   | Readonly<{ kind: 'wait-request'; waitRequest: WaitRequestRecord }>
   | Readonly<{ kind: 'checkpoint-state'; checkpointState: CheckpointStateRecord }>
   | Readonly<{ kind: 'exclusion'; exclusion: ExclusionRecord }>
+  | Readonly<{ kind: 'program'; program: ProgramTableRecord }>
+  | Readonly<{ kind: 'position'; position: ProgramPosition }>
   | Readonly<{ kind: 'queue-entry'; entry: QueueEntryRecord }>
   | Readonly<{ kind: 'queue-counter'; counter: QueueCounterRecord }>
   | Readonly<{ kind: 'host'; host: HostRecord }>
@@ -346,6 +354,10 @@ export function recordKey(record: LedgerRecord): string {
       return CHECKPOINT_STATE_KEY
     case 'exclusion':
       return exclusionKey(record.exclusion.operation)
+    case 'program':
+      return PROGRAM_TABLE_KEY
+    case 'position':
+      return positionKey(record.position.ordinal)
     case 'host':
       return hostKey(record.host.key)
     default: {
@@ -384,6 +396,12 @@ export function exclusionKey(operation: ToolOperationId): string {
 
 export function queueEntryKey(call: ToolCallId): string {
   return `entry:${call}`
+}
+
+export const PROGRAM_TABLE_KEY = 'program'
+
+export function positionKey(ordinal: number): string {
+  return `position:${ordinal}`
 }
 
 export const QUEUE_COUNTER_KEY = 'counter'

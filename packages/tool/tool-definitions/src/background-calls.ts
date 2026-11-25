@@ -314,13 +314,14 @@ export function createBackgroundCallsAuthor(
   const maximum = parsed.ok.number('resultMaxBytes', 0)
   const commands: Record<
     string,
-    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock> }
+    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock>; readOnly: boolean }
   > = {}
   for (const name of commandNames) {
     const operation = operationOf(name, maximum)
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
-    commands[name] = { summary: definitions[name].summary, operation: operation.ok }
+    const readOnly = name !== 'terminate'
+    commands[name] = { summary: definitions[name].summary, operation: operation.ok, readOnly }
   }
   const author = defineCommandTool({
     implementation: {

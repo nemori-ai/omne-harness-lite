@@ -1,0 +1,4 @@
+positive.cfg pass
+bad-eager.cfg ExclusiveAfterEarlier
+bad-shared-overtakes.cfg SharedAfterEarlierExclusive
+bad-background-blocks.cfg EveryAllowedIsSent

@@ -32,6 +32,7 @@ export type ToolProgramDeclaration =
       schema: ToolSchemaIdentity
       definition: ParameterContract
       maxBytes: number
+      external: boolean
     }>
 export type ToolPublishedSchema = Readonly<{
   identity: ToolSchemaIdentity
@@ -72,6 +73,9 @@ export type ToolGovernance = Readonly<{
 }>
 /** Background unless the call gives one of `unless`; with `start: 'launch'` every call starts there. */
 export type ToolCommandBackground = Readonly<{ unless: readonly string[]; start?: 'launch' }>
+export type ToolProgramAccess =
+  | Readonly<{ kind: 'open'; unless: readonly string[] }>
+  | Readonly<{ kind: 'closed' }>
 export type ToolGateDefault = 'deny' | 'ask' | 'auto'
 export type ToolGate = Readonly<{ id: string; title: string; default: ToolGateDefault }>
 /** The kind of a typed release detail, with its major version, and the JSON Schema of its value. */
@@ -89,9 +93,11 @@ export type ToolCommandDeclaration = Readonly<{
     | Readonly<{ kind: 'executor-owned' }>
   returns: ToolReturnDeclaration
   background?: ToolCommandBackground
+  program?: ToolProgramAccess
   release?: ToolCommandRelease
   modalities?: readonly Modality[]
   conditions?: ToolCallConditions
+  readOnly?: boolean
 }>
 export type ToolCallConditions = readonly string[]
 export type ToolImplementationShape =
@@ -99,7 +105,9 @@ export type ToolImplementationShape =
       kind: 'function'
       parameters: ParameterContract
       returns: ToolReturnDeclaration
+      program?: ToolProgramAccess
       conditions?: ToolCallConditions
+      readOnly?: boolean
     }>
   | Readonly<{
       kind: 'commands'

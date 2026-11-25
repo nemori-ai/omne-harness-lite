@@ -4,6 +4,7 @@ import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import { fixedRequestReference } from '@omne-harness/tool-contract/provider'
 import {
   TOOL_FORWARDING_OWNER,
+  TOOL_PROGRAM_OWNER,
   type LocalToolCatalogViewSource,
   type ToolTargetAvailability,
 } from '@omne-harness/tool-host-local'
@@ -43,20 +44,26 @@ export function withTargetResidency(
   }
 }
 
+/** What the view must say of the target, by who consumes the call; a program may call any tool it lists. */
+const REQUIRED: Readonly<Partial<Record<string, Parameters<typeof targetResidency>[3]>>> = {
+  '@omne-harness/agent': 'resident',
+  [TOOL_FORWARDING_OWNER]: 'nonresident',
+  [TOOL_PROGRAM_OWNER]: 'listed',
+}
+
 export function currentTargetResidency(
   view: () => LocalToolCatalogViewSource<unknown> | undefined,
   sourced?: () => SourcedEntries,
 ): ToolTargetAvailability<unknown> {
   return {
     async qualify(input) {
-      const owner = input.request.consumer.owner
-      if (owner !== TOOL_FORWARDING_OWNER && owner !== '@omne-harness/agent')
-        return { kind: 'allowed' }
+      const required = REQUIRED[input.request.consumer.owner]
+      if (required === undefined) return { kind: 'allowed' }
       const target = await targetResidency(
         view(),
         input,
         input.request.availability,
-        owner === TOOL_FORWARDING_OWNER ? 'nonresident' : 'resident',
+        required,
         sourced?.(),
       )
       if ('ok' in target) return { kind: 'allowed' }

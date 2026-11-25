@@ -50,6 +50,7 @@ function world(over: Partial<ExtensionsPorts> = {}) {
   const ports: ExtensionsPorts = {
     faces: () => undefined,
     workingDirectory: async () => 'absent',
+    settings: () => undefined,
     revision: () => 'abcd.3',
     ...over,
   }

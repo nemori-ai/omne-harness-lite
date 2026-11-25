@@ -3,7 +3,7 @@ import { referenceAdmissionCheck } from '@omne-harness/authorization'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { SecretSettings } from './ports.ts'
+import type { SecretItemInput, SecretSettings, SecretView } from './ports.ts'
 import {
   createSettingsRegistry,
   type SettingsAssetQuery,
@@ -17,6 +17,7 @@ import { releaseDefinitionOf, releaseOf, type ToolRelease } from '../../entry/to
 import { defineRow } from '../../row.ts'
 import { createSettingsGuard } from '../authorization/settings-access.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
+import { actingAdmit } from '../governance/acting-settings.ts'
 import { tenantAssetSettingsKey } from '../governance/tenant-settings-service.ts'
 import { createSecretSettings } from './secret-settings.ts'
 import { tenantSecretItems } from './tenant-secrets.ts'
@@ -33,6 +34,8 @@ export abstract class SettingsSecretItemsService extends Service implements Secr
   abstract readonly clear: SecretSettings['clear']
   /** Moves at each write of the tenant's secrets through this process; one whose outcome is not known counts. */
   abstract readonly writes: (tenant: TenantId) => number
+  /** Whether one secret is set, for whoever may act for the tenant: its state and nothing else. */
+  abstract readonly presence: (input: SecretItemInput) => Promise<SecretView['own']>
 }
 export const settingsSecretItemsKey = SettingsSecretItemsService.provide
 
@@ -50,8 +53,10 @@ class SettingsSecretItemsImpl extends SettingsSecretItemsService {
   readonly describe: SecretSettings['describe']
   readonly clear: SecretSettings['clear']
   readonly writes: SettingsSecretItemsService['writes']
-  constructor(ctx: Context, delegate: SecretSettings) {
+  readonly presence: SettingsSecretItemsService['presence']
+  constructor(ctx: Context, delegate: SecretSettings, acting: Pick<SecretSettings, 'describe'>) {
     super(ctx)
+    this.presence = input => presenceOf(acting, input)
     const counts = new Map<string, number>()
     const counted = async <T extends Readonly<{ kind: string }>>(
       tenant: TenantId,
@@ -71,6 +76,18 @@ class SettingsSecretItemsImpl extends SettingsSecretItemsService {
       const key = tenantCodec.encode(tenant)
       return key.ok ? (counts.get(key.value) ?? 0) : 0
     }
+  }
+}
+
+export async function presenceOf(
+  acting: Pick<SecretSettings, 'describe'>,
+  input: SecretItemInput,
+): Promise<SecretView['own']> {
+  try {
+    const read = await acting.describe(input)
+    return read.kind === 'described' ? read.item.own : 'unreadable'
+  } catch {
+    return 'unreadable'
   }
 }
 
@@ -215,13 +232,12 @@ const plugin: Plugin.Object = {
     const { verifier, standing } = identityPorts(ctx)
     const admission = referenceAdmissionCheck({ verifier, standing, permits: null })
     const guard = createSettingsGuard(() => (active ? admission : undefined))
+    const now = () => readInstant(runTimeOf(ctx))
+    const acts = actingAdmit({ verifier, standing }, () => active)
     new SettingsSecretItemsImpl(
       ctx,
-      createSecretSettings({
-        items,
-        qualify: input => guard.qualify(input),
-        now: () => readInstant(runTimeOf(ctx)),
-      }),
+      createSecretSettings({ items, qualify: input => guard.qualify(input), now }),
+      createSecretSettings({ items, qualify: async input => ({ kind: await acts(input) }), now }),
     )
   },
 }

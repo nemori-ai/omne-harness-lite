@@ -15,3 +15,17 @@ export function recordHostOffers(ctx: Context, facilities: readonly string[]): v
     }
   }, 'execution-host.offers')
 }
+
+const restricted = new WeakSet<Context>()
+
+/** HS-53: true while the row of the restricted execution domain is loaded in this tree. */
+export const programOffered = (ctx: Context): boolean => restricted.has(ctx.root)
+
+export function recordProgramOffer(ctx: Context): void {
+  ctx.effect(() => {
+    restricted.add(ctx.root)
+    return () => {
+      restricted.delete(ctx.root)
+    }
+  }, 'execution-program.offer')
+}

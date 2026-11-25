@@ -4,6 +4,7 @@ import type {
   FacilityResult,
 } from '@omne-harness/execution-environment-contract'
 import type { FilesAuthorEnvironment } from './environment.ts'
+import type { Answer } from './program-side.ts'
 import type { ExactEdit } from './protocol.ts'
 import { confirmation, diff, identityText, writeEffectOf } from './text.ts'
 
@@ -96,9 +97,9 @@ export async function editFiles(
   files: Files,
   edits: readonly ExactEdit[],
   batch: boolean,
-): Promise<string> {
+): Promise<Answer> {
   const plan = await prepare(files, edits)
-  if ('error' in plan) return plan.error
+  if ('error' in plan) return { text: plan.error }
   const plannedDiff = plan.prepared
     .map(item => diff(item.path, item.before, item.after, item.identity.version))
     .join('\n')
@@ -110,17 +111,23 @@ export async function editFiles(
         expectedVersion: item.identity.version,
       })),
     })
-    return `${batchConfirmation(result)}\nplanned diff (publication is confirmed only by the range above)\n${plannedDiff}`
+    const text = `${batchConfirmation(result)}\nplanned diff (publication is confirmed only by the range above)\n${plannedDiff}`
+    return result.kind === 'done' && result.value.kind === 'committed'
+      ? { text, data: { published: result.value.published } }
+      : { text }
   }
   const item = plan.prepared[0]
-  if (item === undefined) return 'rejected reason=empty-edit'
+  if (item === undefined) return { text: 'rejected reason=empty-edit' }
   const result = await files.write({
     path: item.path,
     bytes: new TextEncoder().encode(item.after),
     mode: 'replace',
     expectedVersion: item.identity.version,
   })
-  return `${confirmation(result, value => `path=${JSON.stringify(item.path)} ${identityText(value)} write_effect=${writeEffectOf(value)}`)}\n${result.kind === 'done' ? 'applied diff' : 'planned diff (not confirmed)'}\n${plannedDiff}`
+  const text = `${confirmation(result, value => `path=${JSON.stringify(item.path)} ${identityText(value)} write_effect=${writeEffectOf(value)}`)}\n${result.kind === 'done' ? 'applied diff' : 'planned diff (not confirmed)'}\n${plannedDiff}`
+  return result.kind === 'done'
+    ? { text, data: { version: result.value.version, effect: writeEffectOf(result.value) } }
+    : { text }
 }
 function batchConfirmation(result: FacilityResult<FileBatchOutcome>): string {
   if (result.kind !== 'done') return confirmation(result, () => '')

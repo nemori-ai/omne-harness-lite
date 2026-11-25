@@ -44,6 +44,7 @@
     "@omne-harness/image": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/execution-environment-program": "workspace:*",
     "@types/node": "catalog:",
     "sharp": "catalog:",
     "typescript": "catalog:",

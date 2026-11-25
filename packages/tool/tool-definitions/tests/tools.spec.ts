@@ -17,10 +17,15 @@ import {
   decodeToolInvocationRef,
   defaultResultPolicy,
   deriveDefinition,
+  programSignature,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
-import { createToolsAuthor, filesToolModule } from '@omne-harness/tool-definitions'
+import {
+  createFilesAuthor,
+  createToolsAuthor,
+  filesToolModule,
+} from '@omne-harness/tool-definitions'
 import { OPEN_LIMITS } from './fixtures/files.ts'
 import { value } from './run-author.ts'
 
@@ -295,6 +300,43 @@ describe('Tools complete author', () => {
       expect(result).not.toHaveProperty('parameters')
     },
   )
+
+  it('inspect gives the functions of a programmable tool as a TypeScript declaration', async () => {
+    const files = value(createFilesAuthor(tree({ resultMaxBytes: 1024, ...OPEN_LIMITS })))
+    const definition = deriveDefinition(
+      { asset: { name: 'Files', adoption }, requiredCapabilities: [], programmable: true },
+      files.facts,
+    )
+    const view: ToolUsageView = {
+      kind: 'available',
+      definition,
+      executor: adoption,
+      layer: { kind: 'official' },
+      usage: null,
+    }
+    const reply = value(
+      await call(
+        'inspect',
+        { name: 'Files', command: null },
+        capability({ inspect: async () => succeed(view) }),
+      ),
+    )
+    const result = JSON.parse(textOf(reply))
+    expect(result.programmable).toBe(true)
+    expect(result.program).toBe(programSignature(definition))
+    expect(result.program).toContain('declare const Files: {')
+    expect(result.program).toContain('read(params: { path: string;')
+    expect(result.program).not.toContain('open(')
+    const plain = { ...view, definition: { ...definition, programmable: false } }
+    const other = value(
+      await call(
+        'inspect',
+        { name: 'Files', command: null },
+        capability({ inspect: async () => succeed(plain) }),
+      ),
+    )
+    expect(JSON.parse(textOf(other))).not.toHaveProperty('program')
+  })
 
   it.each(['waiting', 'commit-unknown'] as const)(
     'retains both references for %s without calling completion a success',
