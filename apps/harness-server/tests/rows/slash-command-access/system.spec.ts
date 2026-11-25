@@ -74,7 +74,7 @@ describe('a system command, on the release tree', () => {
           expect.objectContaining({
             full: 'omne-official:reload',
             whileRunning: 'now',
-            takesEffect: 'next-run',
+            takesEffect: 'next-request',
           }),
         ])
 
