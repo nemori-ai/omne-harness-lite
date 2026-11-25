@@ -3,7 +3,7 @@ import { assetGovernanceKey, assetsCategoryPage } from '@omne-harness/assets-ui/
 import { canvasElement, canvasIntake, canvasPicker } from '@omne-harness/canvas-ui/cordis'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import { modelChoicesKey } from '@omne-harness/model-ui/cordis'
-import { createMediaUiModule } from '@omne-harness/media-ui/cordis'
+import { createMediaUiModule, mediaPictureIntakeKey } from '@omne-harness/media-ui/cordis'
 import {
   createSessionUiModule,
   sessionComposerIntakeKey,
@@ -70,4 +70,15 @@ it('the canvas points fit what the session interface draws and picks by, and not
   createSessionUiModule({ canvasElement: canvasPicker })
   // @ts-expect-error what is handed in for files is not what the search gives a picker
   createSessionUiModule({ canvasPicker: canvasIntake })
+})
+
+it('the picture intake media provides fits what the session interface takes for one', () => {
+  expectTypeOf(createSessionUiModule).toBeCallableWith({ pictureIntake: mediaPictureIntakeKey })
+  // @ts-expect-error the drafts the session takes in are not what turns bytes into attachments
+  createSessionUiModule({ pictureIntake: sessionComposerIntakeKey })
+  const byBlob = serviceKey<{
+    take: (tenant: string, pictures: readonly { name: string; bytes: Blob }[]) => Promise<never>
+  }>('by.blob')
+  // @ts-expect-error the session hands pictures as bytes, not as blobs
+  createSessionUiModule({ pictureIntake: byBlob })
 })

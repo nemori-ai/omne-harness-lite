@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { SayOutcome } from '@omne-harness/shell-contract'
-import { SCOPE, harness, onDesk, sayItem, sayPlace } from './support/desk-stay.ts'
+import {
+  SCOPE,
+  WINDOW,
+  carried,
+  framed,
+  harness,
+  onDesk,
+  sayItem,
+  sayPlace,
+  shot,
+  until,
+} from './support/desk-stay.ts'
 
 /** On the desk with one item in the say slot; `click` is a single click on the figure out there. */
 async function talking(given: Parameters<typeof sayItem>[1] = {}) {
@@ -241,5 +252,97 @@ describe('外壳读说话位：收起与去对话页', () => {
     expect(talk.one.shown).toEqual([])
     expect(talk.device.fronts()).toBe(0)
     expect(talk.note()).not.toBeNull()
+  })
+})
+
+/** On the desk with the note open on the two pictures of a ⌘ drop over WINDOW. */
+async function withPictures(given: Parameters<typeof sayItem>[1] = {}) {
+  const looked = await carried({ window: () => Response.json(WINDOW), shot }, given)
+  const { device, lease } = looked
+  await framed(device)
+  device.hand('drop', 1000, 300, { meta: true })
+  await until(device, () => device.last().note != null)
+  const ids = () => device.last().note?.pictures?.map(picture => picture.id) ?? []
+  const send = (words: string, pictures = ids()) =>
+    device.up({ kind: 'input', lease, input: 'send', words, to: { kind: 'new' }, pictures })
+  const bytes = () => new Map(device.pictures().map(sent => [sent.id, sent.bytes]))
+  return { ...looked, ids, send, bytes }
+}
+
+describe('外壳读说话位：带图发送', () => {
+  it('那一项答认识图：留着的图作为第四个参数交给 say，名字与字节和笺里的一样', async () => {
+    const talk = await withPictures({ pictures: () => true })
+    const [window, near] = talk.ids()
+    talk.send('这是什么意思')
+    const handed = talk.bytes()
+    expect(talk.one.said).toEqual([
+      [
+        SCOPE,
+        { kind: 'new' },
+        '这是什么意思',
+        [
+          { name: '窗口 09.05.07.png', bytes: handed.get(window!) },
+          { name: '近看 09.05.07.png', bytes: handed.get(near!) },
+        ],
+      ],
+    ])
+  })
+
+  it('去掉一张：笺里拿掉它，发送只交留着的那张', async () => {
+    const talk = await withPictures({ pictures: () => true })
+    const [window, near] = talk.ids()
+    talk.device.up({ kind: 'input', lease: talk.lease, input: 'unpicture', picture: window! })
+    expect(talk.ids()).toEqual([near])
+    talk.send('看近的这张')
+    const handed = talk.one.said[0]?.[3] as { name: string }[]
+    expect(handed.map(picture => picture.name)).toEqual(['近看 09.05.07.png'])
+  })
+
+  it('那一项答不认识或没有这个成员：发送不交图，只交三个参数', async () => {
+    for (const given of [{ pictures: () => false }, {}]) {
+      const talk = await withPictures(given)
+      expect(talk.device.last().note?.told).toEqual({ kind: 'cannot-send-pictures' })
+      talk.send('只发字')
+      expect(talk.one.said).toEqual([[SCOPE, { kind: 'new' }, '只发字']])
+    }
+  })
+
+  it('发送那一刻现问：开笺时认识、发送时不认识了，不交图', async () => {
+    let knows = true
+    const talk = await withPictures({ pictures: () => knows })
+    knows = false
+    talk.send('在吗')
+    expect(talk.one.said[0]).toHaveLength(3)
+  })
+
+  it('那一项叫 subscribe：重问认不认识图，说明跟着变', async () => {
+    let knows = false
+    const talk = await withPictures({ pictures: () => knows })
+    expect(talk.device.last().note?.told).toEqual({ kind: 'cannot-send-pictures' })
+    knows = true
+    talk.one.changed()
+    expect(talk.device.last().note?.told).toBeUndefined()
+  })
+
+  it('受理了或不知道：笺里的图清掉；确定没发出：图留着', async () => {
+    const outcomes: readonly [SayOutcome, number][] = [
+      [{ kind: 'sent', key: 's-1' }, 0],
+      [{ kind: 'unknown' }, 0],
+      [{ kind: 'failed', reason: '图没有收下' }, 2],
+    ]
+    for (const [outcome, left] of outcomes) {
+      const talk = await withPictures({ pictures: () => true, say: () => Promise.resolve(outcome) })
+      talk.send('看一下')
+      await talk.device.settle()
+      expect(talk.ids()).toHaveLength(left)
+      expect(talk.device.last().where.mode).toBe('rest')
+    }
+  })
+
+  it('租户换了：图仍只交给开笺时那个租户的 say', async () => {
+    const talk = await withPictures({ pictures: () => true })
+    talk.device.setScope('tenant-b')
+    talk.send('在吗')
+    expect(talk.one.said[0]?.[0]).toBe(SCOPE)
   })
 })

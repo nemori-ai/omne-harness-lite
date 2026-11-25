@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { Button } from '../controls/button.tsx'
 import {
@@ -9,18 +9,20 @@ import {
   SelectValue,
 } from '../controls/select.tsx'
 import { Textarea } from '../controls/textarea.tsx'
-import { ConversationIcon } from '../icons/index.ts'
+import { CloseIcon, ConversationIcon } from '../icons/index.ts'
 import { IconButton } from '../patterns/icon-button.tsx'
 import { InkBubble, useUnfold } from './ink-bubble.tsx'
 import {
   besideSpot,
   canSay,
+  hasPictures,
   hasWords,
   NOTE_WIDTH,
   SAY_WORDS,
   sayLine,
   type SayLine,
   type SayNote,
+  type SayPicture,
   type SayWords,
   type Spot,
 } from './say.ts'
@@ -40,6 +42,8 @@ export interface SayBubbleProps {
   readonly onSend: (said: SaySaid) => void
   readonly onClose: () => void
   readonly onOpen: () => void
+  readonly onDropPicture?: ((index: number) => void) | undefined
+  readonly onSettings?: (() => void) | undefined
   readonly words?: Partial<SayWords> | undefined
   readonly reduced?: boolean | undefined
   readonly ref?: React.Ref<HTMLElement> | undefined
@@ -162,11 +166,74 @@ function SayField({
   )
 }
 
-function FateLine({ line }: { readonly line: SayLine | null }): React.JSX.Element {
+type Thumbnails = { readonly of: readonly SayPicture[]; readonly urls: readonly string[] }
+
+function useThumbnails(pictures: readonly SayPicture[]): readonly string[] {
+  const [made, setMade] = useState<Thumbnails | null>(null)
+  useEffect(() => {
+    const urls = pictures.map(picture =>
+      URL.createObjectURL(new Blob([picture.bytes], { type: 'image/png' })),
+    )
+    setMade({ of: pictures, urls })
+    return () => {
+      for (const url of urls) URL.revokeObjectURL(url)
+    }
+  }, [pictures])
+  return made?.of === pictures ? made.urls : []
+}
+
+function SayPictures({
+  pictures,
+  words,
+  onDrop,
+}: {
+  readonly pictures: readonly SayPicture[]
+  readonly words: SayWords
+  readonly onDrop: ((index: number) => void) | undefined
+}): React.JSX.Element {
+  const urls = useThumbnails(pictures)
   return (
+    <ul className="omne-say-pictures">
+      {pictures.map((picture, index) => (
+        <li key={index} className="omne-say-picture">
+          {urls[index] !== undefined && (
+            <img className="omne-say-thumb" src={urls[index]} alt={picture.name} />
+          )}
+          <IconButton
+            label={`${words.drop}${picture.name}`}
+            size="icon-compact"
+            onClick={() => onDrop?.(index)}
+          >
+            <CloseIcon />
+          </IconButton>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function FateLine({
+  line,
+  words,
+  onSettings,
+}: {
+  readonly line: SayLine | null
+  readonly words: SayWords
+  readonly onSettings: (() => void) | undefined
+}): React.JSX.Element {
+  const said = (
     <p className="omne-say-line" role="status" data-tone={line?.tone}>
       {line?.words}
     </p>
+  )
+  if (line?.settings !== true) return said
+  return (
+    <div className="omne-say-told">
+      {said}
+      <Button variant="ghost" size="compact" onClick={() => onSettings?.()}>
+        {words.settings}
+      </Button>
+    </div>
   )
 }
 
@@ -216,6 +283,8 @@ export function SayBubble({
   onSend,
   onClose,
   onOpen,
+  onDropPicture,
+  onSettings,
   words: given,
   reduced,
   ref,
@@ -237,7 +306,8 @@ export function SayBubble({
   const send = (): void => {
     if (sayable && shown.target !== undefined) onSend({ text: shown.text, target: shown.target })
   }
-  const keep = (): boolean => choosing.current || unfold.closing || hasWords(shown.text)
+  const keep = (): boolean =>
+    choosing.current || unfold.closing || hasWords(shown.text) || hasPictures(shown)
   return (
     <InkBubble
       key={unfold.serial}
@@ -253,9 +323,12 @@ export function SayBubble({
       style={placed(spot)}
       {...closers(keep, onClose)}
     >
+      {shown.pictures !== undefined && shown.pictures.length > 0 && (
+        <SayPictures pictures={shown.pictures} words={words} onDrop={onDropPicture} />
+      )}
       <SayTo note={shown} label={words.to} onTarget={onTarget} choosing={choosing} />
       <SayField field={field} text={shown.text} label={words.field} onText={onText} onSend={send} />
-      <FateLine line={sayLine(shown, words)} />
+      <FateLine line={sayLine(shown, words)} words={words} onSettings={onSettings} />
       <SayRow
         note={shown}
         words={words}

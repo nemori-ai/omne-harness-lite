@@ -20,11 +20,23 @@ export type SayFate =
   | { readonly kind: 'failed'; readonly reason: string }
   | { readonly kind: 'unknown' }
 
+export interface SayPicture {
+  readonly name: string
+  readonly bytes: ArrayBuffer | Uint8Array<ArrayBuffer>
+}
+
+export type SayTold =
+  | { readonly kind: 'not-authorized' }
+  | { readonly kind: 'cannot-send-pictures' }
+  | { readonly kind: 'not-seen'; readonly reason: string }
+
 export interface SayNote {
   readonly targets: readonly SayTarget[] | undefined
   readonly target: string | undefined
   readonly text: string
   readonly fate?: SayFate | undefined
+  readonly pictures?: readonly SayPicture[] | undefined
+  readonly told?: SayTold | undefined
 }
 
 export interface SayWords {
@@ -37,6 +49,11 @@ export interface SayWords {
   readonly failed: string
   readonly unknown: string
   readonly unreadable: string
+  readonly notAuthorized: string
+  readonly settings: string
+  readonly noPictures: string
+  readonly notSeen: string
+  readonly drop: string
 }
 
 export const SAY_WORDS: SayWords = {
@@ -49,12 +66,22 @@ export const SAY_WORDS: SayWords = {
   failed: '没有发出去：',
   unknown: '不知道有没有发出去，到对话页看一下',
   unreadable: '现在读不到可以说给谁',
+  notAuthorized: '需要在系统设置里允许 omne 录制屏幕，才能看这个窗口',
+  settings: '打开系统设置',
+  noPictures: '现在发不了图',
+  notSeen: '没能看这个窗口：',
+  drop: '去掉',
 }
 
 export const hasWords = (text: string): boolean => text.trim() !== ''
 
+export const hasPictures = (note: SayNote): boolean => (note.pictures?.length ?? 0) > 0
+
+const sendsPictures = (note: SayNote): boolean =>
+  hasPictures(note) && note.told?.kind !== 'cannot-send-pictures'
+
 export const canSay = (note: SayNote): boolean =>
-  hasWords(note.text) &&
+  (hasWords(note.text) || sendsPictures(note)) &&
   note.targets !== undefined &&
   note.target !== undefined &&
   note.fate?.kind !== 'sending'
@@ -62,12 +89,21 @@ export const canSay = (note: SayNote): boolean =>
 export interface SayLine {
   readonly words: string
   readonly tone: 'quiet' | 'failed'
+  readonly settings?: true
+}
+
+function toldLine(told: SayTold | undefined, words: SayWords): SayLine | null {
+  if (told === undefined) return null
+  if (told.kind === 'not-authorized')
+    return { words: words.notAuthorized, tone: 'quiet', settings: true }
+  if (told.kind === 'cannot-send-pictures') return { words: words.noPictures, tone: 'quiet' }
+  return { words: `${words.notSeen}${told.reason}`, tone: 'failed' }
 }
 
 export function sayLine(note: SayNote, words: SayWords = SAY_WORDS): SayLine | null {
   if (note.targets === undefined) return { words: words.unreadable, tone: 'quiet' }
   const fate = note.fate
-  if (fate === undefined || fate.kind === 'sending') return null
+  if (fate === undefined || fate.kind === 'sending') return toldLine(note.told, words)
   if (fate.kind === 'accepted') return { words: words.accepted, tone: 'quiet' }
   if (fate.kind === 'failed') return { words: `${words.failed}${fate.reason}`, tone: 'failed' }
   return { words: words.unknown, tone: 'quiet' }

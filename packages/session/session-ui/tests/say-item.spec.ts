@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
 import { act, cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SayItem, SayOutcome } from '@omne-harness/shell-contract'
+import type { SayItem, SayOutcome, SayPicture, SayTo } from '@omne-harness/shell-contract'
 import { SessionDriver } from '../src/model/session-driver.ts'
+import type { PictureIntake, PicturesTaken } from '../src/model/pictures.ts'
 import type { Event } from '../src/model/session-machine.ts'
 import type { CompanionDrawing } from '../src/parts.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page, userEntry } from './fixtures/frames.ts'
-import { mountModule } from './fixtures/shell.tsx'
+import { mountModule, providerOf, TAKEN } from './fixtures/shell.tsx'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -323,5 +324,237 @@ describe('打开那个对象', () => {
     await settle()
     expect(fake.calls.filter(call => call.operation === 'read-history')).toEqual([])
     expect(shell.navigated).toEqual([])
+  })
+})
+
+const PNG: SayPicture = { name: 'a.png', bytes: new Uint8Array([137, 80, 78, 71]) }
+const JPG: SayPicture = { name: 'b.jpg', bytes: new Uint8Array([255, 216, 255]) }
+const refOf = (key: string) => ({
+  kind: 'image' as const,
+  ref: { storage: 'local', key, mediaType: 'image/png', bytes: '4', digest: `sha256:${key}` },
+})
+const ALL_TAKEN: PicturesTaken = { kind: 'taken', attachments: [refOf('k1'), refOf('k2')] }
+const ONE_FAILED: PicturesTaken = { kind: 'failed', reason: '「b.jpg」：超过大小上限' }
+const NO_PICTURES = '现在发不了图，这句话没有交出去。'
+const PICTURES_GONE = '现在收不了图，这句话没有交出去。'
+const PICTURES_NOT_TAKEN = '图没有收下，这句话没有交出去。'
+
+/** A stand-in for what media provides: each take waits until the case answers it. */
+function intakeStandIn() {
+  const calls: { tenant: string; pictures: readonly SayPicture[] }[] = []
+  const waiting: ((answer: PicturesTaken) => void)[] = []
+  const mode = { throws: false }
+  const intake: PictureIntake = {
+    take: (tenant, pictures) => {
+      if (mode.throws) throw new Error('the intake broke')
+      calls.push({ tenant, pictures })
+      return new Promise(resolve => waiting.push(resolve))
+    },
+  }
+  const answer = async (taken: PicturesTaken) => {
+    await settle()
+    waiting.shift()?.(taken)
+    await settle()
+  }
+  return { intake, calls, answer, mode }
+}
+
+async function withIntake(fake: FakeClient, present: boolean) {
+  const made = await mounted(fake)
+  await listedAs(fake, listed('ses_a', '甲'))
+  const standIn = intakeStandIn()
+  const provider = providerOf(made.root, TAKEN.pictureIntake)
+  let leave = (): void => undefined
+  const come = async () => {
+    leave = provider.attach(standIn.intake)
+    await settle()
+  }
+  if (present) await come()
+  return { ...made, ...standIn, fake, come, leave: async () => (leave(), await settle()) }
+}
+
+const kindsOf = (body: unknown) => {
+  type Tree = { entries: { key: string; value: { value?: string; items?: Tree[] } }[] }
+  const { message } = body as { message: Tree }
+  const blocks = message.entries.find(each => each.key === 'blocks')?.value.items ?? []
+  return blocks.map(block => block.entries.find(each => each.key === 'kind')?.value.value)
+}
+
+describe('这一项认不认识图：现读媒体的那个点', () => {
+  it('点不在答假；点来了答真并叫一声；点走了答假并再叫一声', async () => {
+    const fake = createFakeClient()
+    const made = await withIntake(fake, false)
+    let told = 0
+    made.item.subscribe(() => (told += 1))
+    expect(made.item.pictures?.(TENANT)).toBe(false)
+    await made.come()
+    expect(made.item.pictures?.(TENANT)).toBe(true)
+    expect(told).toBe(1)
+    await made.leave()
+    expect(made.item.pictures?.(TENANT)).toBe(false)
+    expect(told).toBe(2)
+  })
+
+  it('点在，问的不是这个模块当前的租户或没有租户：答假', async () => {
+    const made = await withIntake(createFakeClient(), true)
+    expect(made.item.pictures?.(TENANT)).toBe(true)
+    expect(made.item.pictures?.(OTHER)).toBe(false)
+    expect(made.item.pictures?.(undefined)).toBe(false)
+  })
+})
+
+describe('带图说一句话：点乘图乘说给谁', () => {
+  type Whom = Readonly<{ name: string; to: SayTo; ready: (made: Made) => Promise<void> }>
+  type Made = Awaited<ReturnType<typeof withIntake>>
+  const OPEN_ONE: Whom = {
+    name: '打开着的会话',
+    to: { kind: 'target', key: 'ses_a' },
+    ready: async made => {
+      act(() => made.item.show(TENANT, 'ses_a'))
+      ;(await made.fake.next('read-history')).answer({
+        outcome: 'succeeded',
+        body: page([userEntry('1', '1', '早')], '1'),
+      })
+      await settle()
+    },
+  }
+  const NEW_ONE: Whom = { name: '新会话', to: { kind: 'new' }, ready: async () => undefined }
+
+  async function start(whom: Whom, present: boolean) {
+    const made = await withIntake(createFakeClient(), present)
+    await whom.ready(made)
+    return made
+  }
+
+  /** What the words reached the server as: the send and, for a new session, the create before it. */
+  async function delivered(made: Made, whom: Whom) {
+    if (whom.to.kind === 'new')
+      (await made.fake.next('create-session')).answer({
+        outcome: 'succeeded',
+        body: { session: 'ses_n', recovered: false },
+      })
+    const send = await made.fake.next('send-input')
+    send.answer({ outcome: 'succeeded', body: {} })
+    return send.body
+  }
+
+  const sentTo = (whom: Whom) => ({ kind: 'sent', key: whom.to.kind === 'new' ? 'ses_n' : 'ses_a' })
+  const outbound = (fake: FakeClient) =>
+    fake.calls.filter(
+      call => call.operation === 'send-input' || call.operation === 'create-session',
+    )
+
+  for (const whom of [OPEN_ONE, NEW_ONE]) {
+    describe(`说给${whom.name}`, () => {
+      it('点在，没有图：走原来的路，不碰收法，发出的只有字', async () => {
+        const made = await start(whom, true)
+        const answer = made.item.say(TENANT, whom.to, '你好')
+        expect(kindsOf(await delivered(made, whom))).toEqual(['text'])
+        await expect(answer).resolves.toEqual(sentTo(whom))
+        expect(made.calls).toEqual([])
+      })
+
+      it('点在，图全成了：图先成为引用，再随这句话一起发出，只发一次', async () => {
+        const made = await start(whom, true)
+        const answer = made.item.say(TENANT, whom.to, '看这个', [PNG, JPG])
+        await settle()
+        expect(outbound(made.fake)).toEqual([])
+        expect(made.calls).toEqual([{ tenant: TENANT, pictures: [PNG, JPG] }])
+        await made.answer(ALL_TAKEN)
+        const body = await delivered(made, whom)
+        expect(kindsOf(body)).toEqual(['text', 'image', 'image'])
+        expect(JSON.stringify(body)).toContain('"k2"')
+        await expect(answer).resolves.toEqual(sentTo(whom))
+        expect(sends(made.fake)).toHaveLength(1)
+      })
+
+      it('点在，有一张没成：答没发出并带媒体的原因，不建会话、不发半句', async () => {
+        const made = await start(whom, true)
+        const before = made.item.current(TENANT)
+        const answer = made.item.say(TENANT, whom.to, '看这个', [PNG, JPG])
+        await made.answer(ONE_FAILED)
+        await expect(answer).resolves.toEqual({ kind: 'failed', reason: ONE_FAILED.reason })
+        await settle()
+        expect(outbound(made.fake)).toEqual([])
+        expect(made.item.current(TENANT)).toBe(before)
+      })
+
+      it('点不在，没有图：走原来的路', async () => {
+        const made = await start(whom, false)
+        const answer = made.item.say(TENANT, whom.to, '你好')
+        expect(kindsOf(await delivered(made, whom))).toEqual(['text'])
+        await expect(answer).resolves.toEqual(sentTo(whom))
+      })
+
+      it('点不在，带着图：答没发出，原因是现在发不了图，什么都不发', async () => {
+        const made = await start(whom, false)
+        await expect(made.item.say(TENANT, whom.to, '看这个', [PNG])).resolves.toEqual({
+          kind: 'failed',
+          reason: NO_PICTURES,
+        })
+        await settle()
+        expect(outbound(made.fake)).toEqual([])
+      })
+
+      it('收图途中点走了：答没发出；收法之后答全成了也不发', async () => {
+        const made = await start(whom, true)
+        const answer = made.item.say(TENANT, whom.to, '看这个', [PNG])
+        await settle()
+        await made.leave()
+        await expect(answer).resolves.toEqual({ kind: 'failed', reason: PICTURES_GONE })
+        await made.answer(ALL_TAKEN)
+        expect(outbound(made.fake)).toEqual([])
+      })
+    })
+  }
+
+  it('收图途中点走了，又有一项来了：仍答没发出，不交给新来的那一项', async () => {
+    const made = await start(OPEN_ONE, true)
+    const answer = made.item.say(TENANT, OPEN_ONE.to, '看这个', [PNG])
+    await settle()
+    await made.leave()
+    await made.come()
+    await expect(answer).resolves.toEqual({ kind: 'failed', reason: PICTURES_GONE })
+    expect(made.calls).toHaveLength(1)
+  })
+
+  it('没有字、只有图：受理，发出的这句话只有图', async () => {
+    const made = await start(OPEN_ONE, true)
+    const answer = made.item.say(TENANT, OPEN_ONE.to, '', [PNG])
+    await made.answer({ kind: 'taken', attachments: [refOf('k1')] })
+    expect(kindsOf(await delivered(made, OPEN_ONE))).toEqual(['image'])
+    await expect(answer).resolves.toEqual({ kind: 'sent', key: 'ses_a' })
+  })
+
+  it('收法答没成却没给原因，或收法抛出：答没发出并带一句说得清的原因', async () => {
+    const made = await start(OPEN_ONE, true)
+    const silent = made.item.say(TENANT, OPEN_ONE.to, '看这个', [PNG])
+    await made.answer({ kind: 'failed', reason: ' ' })
+    await expect(silent).resolves.toEqual({ kind: 'failed', reason: PICTURES_NOT_TAKEN })
+    made.mode.throws = true
+    await expect(made.item.say(TENANT, OPEN_ONE.to, '看这个', [PNG])).resolves.toEqual({
+      kind: 'failed',
+      reason: PICTURES_NOT_TAKEN,
+    })
+    expect(outbound(made.fake)).toEqual([])
+  })
+
+  it('收图途中租户换了：答租户换了，什么都不发', async () => {
+    const made = await start(OPEN_ONE, true)
+    const answer = made.item.say(TENANT, OPEN_ONE.to, '看这个', [PNG])
+    await settle()
+    act(() => made.rerender(OTHER))
+    await made.answer(ALL_TAKEN)
+    await expect(answer).resolves.toEqual({ kind: 'failed', reason: TENANT_CHANGED })
+    expect(sends(made.fake)).toEqual([])
+  })
+
+  it('问的不是这个模块当前的租户：答租户换了，不碰收法', async () => {
+    const made = await start(OPEN_ONE, true)
+    await expect(made.item.say(OTHER, OPEN_ONE.to, '看这个', [PNG])).resolves.toEqual({
+      kind: 'failed',
+      reason: TENANT_CHANGED,
+    })
+    expect(made.calls).toEqual([])
   })
 })

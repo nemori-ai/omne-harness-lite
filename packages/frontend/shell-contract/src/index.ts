@@ -104,6 +104,7 @@ export type {
   PageProps,
   SayItem,
   SayOutcome,
+  SayPicture,
   SayTarget,
   SayTo,
   ScopedProps,

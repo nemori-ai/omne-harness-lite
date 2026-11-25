@@ -15,7 +15,8 @@ export type SceneFigure = Readonly<{
 
 export type SceneWhere =
   | Readonly<{ mode: 'none' }>
-  | Readonly<{ mode: 'hand' | 'rest' | 'home'; at: Point }>
+  | Readonly<{ mode: 'hand' | 'rest'; at: Point }>
+  | Readonly<{ mode: 'home'; at: Point; rewrite?: true }>
 
 export type NoteTo = Readonly<{ kind: 'new' }> | Readonly<{ kind: 'target'; key: string }>
 export type NoteTarget = Readonly<{ key: string; label: string }>
@@ -23,14 +24,23 @@ export type NoteFate =
   | Readonly<{ kind: 'sending' | 'accepted' | 'unknown' }>
   | Readonly<{ kind: 'failed'; reason: string }>
 
-/** The say note: `targets` null when who can be spoken to cannot be read now; `to` is the default. */
+export type NotePicture = Readonly<{ id: string; name: string }>
+export type NoteTold =
+  | Readonly<{ kind: 'not-authorized' | 'cannot-send-pictures' }>
+  | Readonly<{ kind: 'not-seen'; reason: string }>
+
+/** The say note: `targets` null when who can be spoken to cannot be read now; `to` is the default; pictures by id only. */
 export type SceneNote = Readonly<{
   targets: readonly NoteTarget[] | null
   to: NoteTo
   fate: NoteFate | null
+  pictures?: readonly NotePicture[]
+  told?: NoteTold
 }>
 
-/** The whole of what the shell hands the desk page to draw; points are logical points on the screen. */
+export type SceneFrame = Readonly<{ rect: Rect; covered: readonly Rect[]; closed: boolean }>
+
+/** The whole of what the shell hands the desk page to draw; points are logical points on the screen. A home `rewrite` rewrites the ring first. */
 export type Scene = Readonly<{
   lease: number
   serial: number
@@ -39,21 +49,47 @@ export type Scene = Readonly<{
   where: SceneWhere
   label: readonly FigureLabelLine[] | null
   note: SceneNote | null
+  frame: SceneFrame | null
 }>
 
 export type Handover = 'painted' | 'arrived' | 'cleared'
-export type DeskInput = 'lift' | 'move' | 'drop' | 'cancel' | 'click' | 'double' | 'close' | 'show'
+export type DeskInput =
+  | 'lift'
+  | 'move'
+  | 'drop'
+  | 'cancel'
+  | 'click'
+  | 'double'
+  | 'close'
+  | 'show'
+  | 'settings'
 
 /** From the shell to the desk page. */
 export type Down =
   | Readonly<{ kind: 'scene'; scene: Scene }>
   | Readonly<{ kind: 'hand'; lease: number; at: Point }>
+  | Readonly<{ kind: 'picture'; id: string; bytes: Uint8Array<ArrayBuffer> }>
 
 /** From the desk page to the shell. */
 export type Up =
   | Readonly<{ kind: Handover; lease: number; serial: number }>
-  | Readonly<{ kind: 'input'; lease: number; input: DeskInput; at: Point | null }>
-  | Readonly<{ kind: 'input'; lease: number; input: 'send'; words: string; to: NoteTo }>
+  | Readonly<{
+      kind: 'input'
+      lease: number
+      input: DeskInput
+      at: Point | null
+      meta?: boolean
+      shift?: boolean
+    }>
+  | Readonly<{
+      kind: 'input'
+      lease: number
+      input: 'send'
+      words: string
+      to: NoteTo
+      pictures?: readonly string[]
+    }>
+  | Readonly<{ kind: 'input'; lease: number; input: 'unpicture'; picture: string }>
   | Readonly<{ kind: 'hello' }>
 
 const HANDOVERS: readonly string[] = ['painted', 'arrived', 'cleared']
@@ -66,6 +102,7 @@ const INPUTS: readonly string[] = [
   'double',
   'close',
   'show',
+  'settings',
 ]
 const MODES: readonly string[] = ['none', 'hand', 'rest', 'home']
 
@@ -99,20 +136,43 @@ function isScene(value: unknown): value is Scene {
   )
 }
 
+type Check = (message: Fields) => boolean
+
+/** What a message down of each kind carries. */
+const DOWNS = new Map<unknown, Check>([
+  ['scene', message => isScene(message['scene'])],
+  ['hand', message => isNumber(message['lease']) && isPoint(message['at'])],
+  [
+    'picture',
+    message => typeof message['id'] === 'string' && message['bytes'] instanceof Uint8Array,
+  ],
+])
+
 export function readDown(data: unknown): Down | undefined {
   const message = fields(data)
-  if (message?.['kind'] === 'scene' && isScene(message['scene'])) return message as Down
-  if (message?.['kind'] === 'hand' && isNumber(message['lease']) && isPoint(message['at']))
-    return message as Down
-  return undefined
+  const known = message === undefined ? undefined : DOWNS.get(message['kind'])?.(message)
+  return known === true ? (message as Down) : undefined
 }
+
+const optional = (value: unknown, is: (value: unknown) => boolean): boolean =>
+  value === undefined || is(value)
+const isFlag = (value: unknown): boolean => typeof value === 'boolean'
+const isIds = (value: unknown): boolean =>
+  Array.isArray(value) && value.every(id => typeof id === 'string')
 
 const isSend = (kind: string, message: Fields): boolean =>
   kind === 'input' &&
   message['input'] === 'send' &&
   isNumber(message['lease']) &&
   typeof message['words'] === 'string' &&
-  isTo(message['to'])
+  isTo(message['to']) &&
+  optional(message['pictures'], isIds)
+
+const isUnpicture = (kind: string, message: Fields): boolean =>
+  kind === 'input' &&
+  message['input'] === 'unpicture' &&
+  isNumber(message['lease']) &&
+  typeof message['picture'] === 'string'
 
 const isHandover = (kind: string, message: Fields): boolean =>
   HANDOVERS.includes(kind) && isNumber(message['lease']) && isNumber(message['serial'])
@@ -121,14 +181,20 @@ const isInput = (kind: string, message: Fields): boolean =>
   kind === 'input' &&
   isNumber(message['lease']) &&
   INPUTS.includes(String(message['input'])) &&
-  (message['at'] === null || isPoint(message['at']))
+  (message['at'] === null || isPoint(message['at'])) &&
+  optional(message['meta'], isFlag) &&
+  optional(message['shift'], isFlag)
 
 export function readUp(data: unknown): Up | undefined {
   const message = fields(data)
   if (message === undefined) return undefined
   const kind = String(message['kind'])
   if (kind === 'hello') return { kind: 'hello' }
-  const known = isSend(kind, message) || isHandover(kind, message) || isInput(kind, message)
+  const known =
+    isSend(kind, message) ||
+    isUnpicture(kind, message) ||
+    isHandover(kind, message) ||
+    isInput(kind, message)
   return known ? (message as Up) : undefined
 }
 

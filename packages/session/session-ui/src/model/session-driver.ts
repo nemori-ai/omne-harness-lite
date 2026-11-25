@@ -21,6 +21,7 @@ import {
   type SayTo,
   type SendHow,
   type Urgency,
+  type Words,
 } from './session-machine.ts'
 
 export type SessionDriverDeps = Readonly<{
@@ -217,9 +218,14 @@ export class SessionDriver {
     })
   }
 
-  /** Hands words to a session in one step, and answers once with how they ended. */
-  async say(target: SayTarget, text: string): Promise<SayAnswer> {
-    if (text.trim().length === 0) return { kind: 'failed', reason: NO_WORDS }
+  /** Hands words, and what is attached to them, to a session in one step, and answers once with how they ended. */
+  async say(
+    target: SayTarget,
+    text: string,
+    attachments: readonly UserAttachment[] = [],
+  ): Promise<SayAnswer> {
+    if (text.trim().length === 0 && attachments.length === 0)
+      return { kind: 'failed', reason: NO_WORDS }
     const inputId = this.#deps.newId()
     const messageId = await userMessageId(inputId)
     if (this.#disposed) return { kind: 'failed', reason: GONE }
@@ -227,7 +233,12 @@ export class SessionDriver {
       target.kind === 'new' ? { kind: 'new', createCallId: this.#deps.newId() } : target
     if (sayBlocked(this.#state.session, to)) return { kind: 'failed', reason: BUSY }
     const said: Said = { to, acceptId: this.#deps.newId(), messageId }
-    this.dispatch({ kind: 'say', to, words: { text, acceptId: said.acceptId, inputId, messageId } })
+    const words: Words = { text, acceptId: said.acceptId, inputId, messageId }
+    this.dispatch({
+      kind: 'say',
+      to,
+      words: attachments.length === 0 ? words : { ...words, attachments },
+    })
     return this.#fateOf(said)
   }
 
