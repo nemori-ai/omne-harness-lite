@@ -89,6 +89,7 @@
     "@omne-harness/goal-cordis-contract": "workspace:*",
     "@omne-harness/goal-local": "workspace:*",
     "@omne-harness/goal-session": "workspace:*",
+    "@omne-harness/goal-tools": "workspace:*",
     "@omne-harness/governance-contract": "workspace:*",
     "@omne-harness/governance-local": "workspace:*",
     "@omne-harness/human-intervention": "workspace:*",

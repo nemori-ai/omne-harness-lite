@@ -1,10 +1,4 @@
-import type {
-  GoalAction,
-  GoalAuthority,
-  GoalCalls,
-  GoalCards,
-  GoalSessions,
-} from '@omne-harness/goal'
+import type { GoalAction, GoalAuthority, GoalCalls, GoalSessions } from '@omne-harness/goal'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
@@ -17,13 +11,6 @@ export function lateSessions(holder: GoalHolder): GoalSessions {
   return {
     facts: (...input) => holder.sessions?.facts(...input) ?? Promise.resolve(UNAVAILABLE),
     wake: (...input) => holder.sessions?.wake(...input) ?? Promise.resolve('unknown'),
-  }
-}
-
-/** The cards as they are mounted now: unreadable while no row that knows the cards is started, so no card writes a goal. */
-export function lateCards(holder: GoalHolder): GoalCards {
-  return {
-    answered: (...input) => holder.cards?.answered(...input) ?? Promise.resolve(UNAVAILABLE),
   }
 }
 

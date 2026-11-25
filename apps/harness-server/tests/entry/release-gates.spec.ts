@@ -60,6 +60,11 @@ const EXPECTED: Readonly<
     ['message', 'auto', ['message']],
     ['report', 'auto', ['report']],
   ],
+  Goal: [
+    ['read', 'auto', ['help', 'show']],
+    ['propose', 'auto', ['propose']],
+    ['track', 'auto', ['track']],
+  ],
   SwitchWorkspace: [['invoke', 'ask', []]],
   OmneExtensionPoints: [['read', 'auto', ['help', 'tree', 'find', 'show', 'changes']]],
   OmneExtensions: [

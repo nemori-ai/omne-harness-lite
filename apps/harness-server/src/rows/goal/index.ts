@@ -27,7 +27,8 @@ import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { createDomainBindings, type Combination } from '../storage/tenant-bindings.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { goalHolder } from './holder.ts'
-import { createGoalAuthority, lateCalls, lateCards, lateSessions } from './ports.ts'
+import { createGoalCards } from './cards.ts'
+import { createGoalAuthority, lateCalls, lateSessions } from './ports.ts'
 
 export const goalConfig = z.strictObject({ policy: goalPolicySchema })
 const PARTICIPANTS = [goalPersistenceParticipant]
@@ -83,7 +84,7 @@ export const goalRow = defineRow({
       ports: {
         authority: createGoalAuthority({ verifier: () => toolRuntimeHolder(ctx).verifier() }),
         sessions: lateSessions(holder),
-        cards: lateCards(holder),
+        cards: createGoalCards(ctx),
         calls: lateCalls(holder),
       },
       clock: { now: () => instantTextOf(ctx, 'goal') },

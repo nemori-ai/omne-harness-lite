@@ -832,6 +832,9 @@ importers:
       '@omne-harness/goal-session':
         specifier: workspace:*
         version: link:../../packages/goal/goal-session
+      '@omne-harness/goal-tools':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-tools
       '@omne-harness/governance-contract':
         specifier: workspace:*
         version: link:../../packages/governance/governance-contract

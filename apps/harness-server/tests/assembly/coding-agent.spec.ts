@@ -59,6 +59,7 @@ describe('the coding entry of the release mapping', () => {
       { capability: { category: 'tool', name: 'Canvas' }, resident: true },
       { capability: { category: 'tool', name: 'Sessions' }, resident: true },
       { capability: { category: 'tool', name: 'Agents' }, resident: true },
+      { capability: { category: 'tool', name: 'Goal' }, resident: true },
       { capability: { category: 'tool', name: 'SwitchWorkspace' }, resident: true },
       { capability: { category: 'tool', name: 'OmneExtensionPoints' }, resident: true },
       { capability: { category: 'tool', name: 'OmneExtensions' }, resident: true },

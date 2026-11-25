@@ -566,6 +566,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Canvas: { resultMaxBytes: 65_536 },
           Sessions: { resultMaxBytes: 131_072 },
           Agents: { resultMaxBytes: 1_048_576 },
+          Goal: { resultMaxBytes: 1_048_576 },
           SwitchWorkspace: { resultMaxBytes: 65_536 },
           OmneExtensions: { resultMaxBytes: 131_072 },
           OmneExtensionPoints: { resultMaxBytes: 131_072 },
