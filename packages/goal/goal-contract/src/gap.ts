@@ -7,7 +7,6 @@ import {
   type CriterionId,
   type GoalBody,
   type Metric,
-  type MetricId,
   type RuleId,
 } from './body.ts'
 import {
@@ -78,16 +77,15 @@ function metricRow(metric: Metric, read: Reading<number> | undefined): GapRow {
   }
 }
 
-function measuredRow(criterion: Criterion, metric: MetricId, measured: GapRow | undefined): GapRow {
-  const open = measured?.open ?? true
+function measuredRow(criterion: Criterion, measured: GapRow): GapRow {
   return {
     id: criterion.id,
     ought: criterion.statement,
-    reading: measured?.source == null ? UNREAD : open ? '未成立' : '成立',
-    source: measured?.source ?? null,
-    ref: measured?.ref ?? null,
-    open,
-    short: measured?.short == null ? null : `${metric} ${measured.short}`,
+    reading: measured.source === null ? UNREAD : measured.open ? '未成立' : '成立',
+    source: measured.source,
+    ref: measured.ref,
+    open: measured.open,
+    short: measured.short === null ? null : `${measured.id} ${measured.short}`,
   }
 }
 
@@ -136,13 +134,11 @@ export function gapTable(body: GoalBody, readings: Readings, rounds: number): re
   const metrics = body.metrics.map(metric => metricRow(metric, readings.metrics[metric.id]))
   const criteria = body.criteria.map(criterion => {
     const { evidence } = criterion
-    return evidence.kind === 'metric'
-      ? measuredRow(
-          criterion,
-          evidence.metric,
-          metrics.find(row => row.id === evidence.metric),
-        )
-      : criterionRow(criterion, readings.criteria[criterion.id])
+    const measured =
+      evidence.kind === 'metric' ? metrics.find(row => row.id === evidence.metric) : undefined
+    return measured === undefined
+      ? criterionRow(criterion, readings.criteria[criterion.id])
+      : measuredRow(criterion, measured)
   })
   const rules = body.rules.map(rule => ruleRow(rule, readings.rules[rule.id]))
   return [...criteria, ...metrics, ...rules, ...budgetRows(body, rounds)]
