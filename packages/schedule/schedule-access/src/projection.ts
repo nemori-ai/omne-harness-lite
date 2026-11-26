@@ -1,9 +1,13 @@
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import {
+  completeAgentWork,
+  completeDefinition,
   ScheduleDefinitionSchema,
   ScheduleInstructionSchema,
   ScheduleWorkSchema,
+  type CompletedWork,
+  type ScheduleSessionDefaults,
   type ScheduleCandidate,
   type ScheduleDefinition,
   type ScheduleDomainError,
@@ -31,9 +35,21 @@ export function treeOf(value: unknown): JsonValue {
   return read.value
 }
 
-/** A definition the client sends, judged by the schedule's own schema. */
-export function definitionOf(tree: JsonValue): ScheduleDefinition | undefined {
-  const parsed = ScheduleDefinitionSchema.safeParse(JSON.parse(writeJsonText(tree)))
+/** Why what the client sent was not read: the completion refused it, or what it leaves out could not be filled in now. */
+export type Unread =
+  | Readonly<{ unread: 'refused'; reason: string }>
+  | Readonly<{ unread: 'basis-unavailable' }>
+const unreadOf = (stop: Exclude<CompletedWork, { kind: 'completed' }>): Unread =>
+  stop.kind === 'refused' ? { unread: 'refused', reason: stop.reason } : { unread: stop.kind }
+
+/** A definition the client sends: completed for a person, then judged by the schedule's own schema. Undefined: the schema refuses it. */
+export function definitionOf(
+  tree: JsonValue,
+  defaults: ScheduleSessionDefaults,
+): ScheduleDefinition | Unread | undefined {
+  const completed = completeDefinition(JSON.parse(writeJsonText(tree)), defaults)
+  if (completed.kind !== 'completed') return unreadOf(completed)
+  const parsed = ScheduleDefinitionSchema.safeParse(completed.definition)
   return parsed.success ? parsed.data : undefined
 }
 
@@ -42,8 +58,13 @@ export function instructionOf(tree: JsonValue): ScheduleInstruction | undefined 
   return parsed.success ? parsed.data : undefined
 }
 
-export function workOf(tree: JsonValue): ScheduleWork | undefined {
-  const parsed = ScheduleWorkSchema.safeParse(JSON.parse(writeJsonText(tree)))
+export function workOf(
+  tree: JsonValue,
+  defaults: ScheduleSessionDefaults,
+): ScheduleWork | Unread | undefined {
+  const completed = completeAgentWork(JSON.parse(writeJsonText(tree)), defaults)
+  if (completed.kind !== 'completed') return unreadOf(completed)
+  const parsed = ScheduleWorkSchema.safeParse(completed.work)
   return parsed.success ? parsed.data : undefined
 }
 

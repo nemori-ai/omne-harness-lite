@@ -86,7 +86,14 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'schedule-session': {
     provides: [],
-    injects: ['session', 'definitionMappings', 'scheduleExecutors', 'schedulePrincipal'],
+    injects: [
+      'session',
+      'definitionMappings',
+      'scheduleExecutors',
+      'scheduleCarriers',
+      'sessionModesInstallation',
+      'schedulePrincipal',
+    ],
     phase: 'composition',
   },
   'goal-command': { provides: [], injects: ['commandEntrySources'] },

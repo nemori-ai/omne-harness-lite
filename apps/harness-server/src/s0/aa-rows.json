@@ -530,7 +530,8 @@
       "row": "schedule-session",
       "names": [
         "definitionMappings",
-        "schedulePrincipal"
+        "schedulePrincipal",
+        "sessionModesInstallation"
       ]
     },
     {

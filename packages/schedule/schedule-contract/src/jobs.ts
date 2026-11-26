@@ -40,6 +40,10 @@ export const ScheduleJobDetailSchema = z.strictObject({
   ),
 })
 export const ScheduleJobRequestSchema = z.strictObject({ jobId: ScheduleJobIdSchema })
+export const ScheduleJobsOfExecutionRequestSchema = z.strictObject({
+  executionRef: ref,
+  limit: z.int().min(1).max(50),
+})
 export const ScheduleJobCancelRequestSchema = z.strictObject({
   jobId: ScheduleJobIdSchema,
   operationKey: ref,
@@ -50,6 +54,7 @@ export const ScheduleJobStartRequestSchema = z.strictObject({
 })
 export type ScheduleJobDetail = z.infer<typeof ScheduleJobDetailSchema>
 export type ScheduleJobRequest = z.infer<typeof ScheduleJobRequestSchema>
+export type ScheduleJobsOfExecutionRequest = z.infer<typeof ScheduleJobsOfExecutionRequestSchema>
 export type ScheduleJobCancelRequest = z.infer<typeof ScheduleJobCancelRequestSchema>
 export type ScheduleJobStartRequest = z.infer<typeof ScheduleJobStartRequestSchema>
 export type ScheduleJobWrite = Readonly<{
@@ -64,6 +69,11 @@ export interface ScheduleJobs {
     ctx: ScheduleCallContext,
     input: ScheduleJobRequest,
   ): Promise<ScheduleQueryResult<ScheduleJobDetail>>
+  /** The Jobs whose execution is this one (the session they run or ran in), newest first; only those the caller may see. */
+  ofExecution(
+    ctx: ScheduleCallContext,
+    input: ScheduleJobsOfExecutionRequest,
+  ): Promise<ScheduleQueryResult<readonly ScheduleJobDetail[]>>
   cancel(
     ctx: ScheduleCallContext,
     input: ScheduleJobCancelRequest,

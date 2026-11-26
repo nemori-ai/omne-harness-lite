@@ -2,6 +2,7 @@ import type {
   ScheduleDefinition,
   SchedulePurpose,
   ScheduleRecurrence,
+  ScheduleSessionDefaults,
   ScheduleView,
 } from '@omne-harness/schedule-contract'
 import type { ReleaseDescription, ReleaseRow } from '@omne-harness/tool-contract'
@@ -85,13 +86,20 @@ type Seen = Readonly<{
 const UNSEEN: Seen = { current: undefined, next: { kind: 'unavailable' }, timezone: undefined }
 const ENDING: ReadonlySet<Activation['command']> = new Set(['pause', 'stop'])
 
-function givenOf(args: Activation): Given {
+const NO_DEFAULTS: ScheduleSessionDefaults = { current: null, forNew: null }
+
+async function defaultsOf(reads: ScheduleReads): Promise<ScheduleSessionDefaults> {
+  const faces = await reads.faces()
+  return 'kind' in faces ? NO_DEFAULTS : faces.defaults()
+}
+
+function givenOf(args: Activation, defaults: ScheduleSessionDefaults): Given {
   if (args.command !== 'create' && args.command !== 'replace')
     return { label: undefined, proposed: undefined, schedule: args.params.schedule }
-  const parsed = definitionOf(args.params.definition)
+  const parsed = definitionOf(args.params.definition, defaults)
   return {
     label: args.params.definition.label,
-    proposed: parsed.success ? parsed.data : undefined,
+    proposed: parsed.kind === 'read' ? parsed.definition : undefined,
     schedule: args.command === 'replace' ? args.params.schedule : undefined,
   }
 }
@@ -166,8 +174,13 @@ export async function describeActivation(
   input: Readonly<{ arguments: Activation; signal: AbortSignal }>,
 ): Promise<ReleaseDescription> {
   const args = input.arguments
-  const given = givenOf(args)
   const reads = scheduleReadsOf(input.signal)
+  const carries = args.command === 'create' || args.command === 'replace'
+  const defaults =
+    reads === undefined || !carries
+      ? NO_DEFAULTS
+      : ((await within(() => defaultsOf(reads), READ_WITHIN_MS)) ?? NO_DEFAULTS)
+  const given = givenOf(args, defaults)
   const seen =
     reads === undefined
       ? UNSEEN

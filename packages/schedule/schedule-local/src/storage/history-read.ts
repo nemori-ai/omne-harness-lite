@@ -30,6 +30,12 @@ export const historyRequestSchemas = [
   z.strictObject({ kind: z.literal('historyRevision'), ...common }),
   z.strictObject({ kind: z.literal('jobDetail'), ...common, jobId: ScheduleJobIdSchema }),
   z.strictObject({
+    kind: z.literal('jobsOfExecution'),
+    ...common,
+    executionRef: ScheduleRefSchema,
+    limit: z.int().min(1).max(50),
+  }),
+  z.strictObject({
     kind: z.literal('jobCancel'),
     ...common,
     jobId: ScheduleJobIdSchema,
@@ -188,6 +194,24 @@ export function readJobDetail(port: ReadPort, owner: ScheduleOwner, jobId: strin
   }
 }
 
+/** The Jobs whose execution is this one, newest first. The stored record holds the reference in canonical text, so the candidates are found by that text and then read exactly. */
+function readJobsOfExecution(
+  port: ReadPort,
+  input: Readonly<{ owner: ScheduleOwner; executionRef: string; limit: number }>,
+) {
+  const rows = port.execute(
+    'SELECT job_id FROM sc_jobs WHERE owner = ? AND instr(job, ?) > 0 ORDER BY slot_at DESC, job_id DESC LIMIT ?',
+    [canonical(input.owner), `"executionRef":${JSON.stringify(input.executionRef)}`, input.limit],
+  ).rows
+  return rows
+    .map(([jobId]) => readJobDetail(port, input.owner, z.string().parse(jobId)))
+    .filter(
+      detail =>
+        detail?.executionWhere?.kind === 'session' &&
+        detail.executionWhere.sessionRef === input.executionRef,
+    )
+}
+
 /** Whether a cancel carrying this operation was committed on the Job. */
 export function cancelRecorded(
   port: ReadPort,
@@ -214,6 +238,8 @@ export function readHistoryRequest(port: ReadPort, input: HistoryRequest) {
       return { kind: 'ok', value: { observationRevision: historyRevision(port, input.owner) } }
     case 'jobDetail':
       return { kind: 'ok', value: readJobDetail(port, input.owner, input.jobId) }
+    case 'jobsOfExecution':
+      return { kind: 'ok', value: readJobsOfExecution(port, input) }
     case 'jobCancel':
       return {
         kind: 'ok',

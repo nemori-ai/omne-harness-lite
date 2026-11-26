@@ -35,7 +35,7 @@ const job = (n: number) => ({
   tenant: TENANT,
   session: `session-${String(n)}`,
   operation: `sop_${String(n)}`,
-  creation: { agent: 'coding', modes: MODES },
+  creation: { agent: 'coding', modes: MODES, workspace: null },
 })
 
 function fixture() {

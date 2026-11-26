@@ -5,6 +5,7 @@ import type {
   ScheduleInstant,
   ScheduleJobs,
   ScheduleQueries,
+  ScheduleSessionDefaults,
 } from '@omne-harness/schedule-contract'
 
 /** The application decides whether this login acts for the tenant; the plugin cannot read a login. */
@@ -30,3 +31,8 @@ export type ScheduleFaces = Readonly<{
 }>
 
 export type ScheduleAccessClock = Readonly<{ now(): ScheduleInstant }>
+
+/** What a new session takes when a person leaves it out: the definition and modes the release defaults to, no workspace. Undefined: it cannot be read now. */
+export type ScheduleNewSessionDefaults = (
+  tenant: string,
+) => Promise<ScheduleSessionDefaults['forNew'] | undefined>

@@ -155,6 +155,8 @@ function bindLifetime(
             start: (context, input) => lifetime.run(() => jobs.start(context, input), failed),
             queryStart: (context, input) =>
               lifetime.run(() => jobs.queryStart(context, input), failed),
+            ofExecution: (context, input) =>
+              lifetime.run(() => jobs.ofExecution(context, input), failed),
           },
         }),
     close: () => lifetime.close(dispose),

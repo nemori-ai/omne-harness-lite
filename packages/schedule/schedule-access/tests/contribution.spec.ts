@@ -3,7 +3,11 @@ import type { BodyOf, LoginIdentity, Principal } from '@omne-harness/access-cord
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { scheduleProtocol } from '@omne-harness/schedule-protocol'
 import { tenant, tenantCodec } from '@omne-harness/legal-identity'
-import type { ScheduleCallContext, ScheduleInstant } from '@omne-harness/schedule-contract'
+import {
+  DEFAULT_AGENT_RESULT_POLICY,
+  type ScheduleCallContext,
+  type ScheduleInstant,
+} from '@omne-harness/schedule-contract'
 import { createScheduleContribution, type ScheduleFaces } from '@omne-harness/schedule-access'
 import type { ScheduleProtocol } from '@omne-harness/schedule-protocol'
 
@@ -61,9 +65,17 @@ const tree = (value: unknown) => {
   return read.value
 }
 
+const FOR_NEW = {
+  agentDefinitionRef: 'coding',
+  modes: { permission: 'never', environmentAdoptionRef: 'env@1', collaboration: 'co-work' },
+  workspace: null,
+} as const
+type NewSessionDefaults = Parameters<typeof createScheduleContribution>[0]['newSessionDefaults']
+
 function world(
   faces: Partial<Record<string, unknown>> | null,
   refused?: 'denied' | 'basis-unavailable',
+  newSessionDefaults: NewSessionDefaults = async () => FOR_NEW,
 ) {
   const asked: [string, unknown][] = []
   const watchers: { tenantText: string; listener: { changed(): void; closed(): void } }[] = []
@@ -109,6 +121,7 @@ function world(
     faces: () => built,
     requestId: () => 'r-1',
     clock: { now: () => at as ScheduleInstant },
+    newSessionDefaults,
   })
   return {
     ops: contribution.operations,
@@ -887,5 +900,120 @@ describe('observe-jobs', () => {
       outcome: 'basis-unavailable',
     })
     expect([...denied.watchers, ...gone.watchers]).toEqual([])
+  })
+})
+
+describe('agent work a person writes is completed before it is read', () => {
+  const instruction = { purpose: '写周报' }
+  const REST = { materials: [], returnTo: null, resultPolicy: DEFAULT_AGENT_RESULT_POLICY }
+  const agent = (session: unknown) => ({ kind: 'agent', instruction, session })
+  const definitionOf = (session: unknown) =>
+    tree({
+      ...(JSON.parse(writeJsonText(DEFINITION)) as object),
+      purpose: {
+        kind: 'execution',
+        work: agent(session),
+        scope: { kind: 'fleet' },
+        catchUp: { kind: 'none' },
+        overlap: 'skip',
+        misfire: null,
+        notifications: [],
+      },
+    })
+  const committed = { kind: 'committed', operationRef: 'o', value: view('active'), replayed: false }
+  const started = { kind: 'ok', value: { outcome: 'committed', detail } }
+  const current = { mode: 'existing', sessionRef: 'current' }
+  const refusal = {
+    outcome: 'invalid',
+    body: {
+      code: 'invalid_input',
+      reason:
+        'session.sessionRef: current names the session of the caller, and this caller is in none',
+    },
+  }
+
+  it('a new session takes the definition and modes the release defaults to, and no workspace; what is saved is whole', async () => {
+    const { ops, asked } = world({ create: committed, 'job.start': started })
+    const made = await ops['create-schedule'](call, {
+      ...create,
+      definition: definitionOf({ mode: 'new' }),
+    })
+    expect(made).toMatchObject({ outcome: 'succeeded' })
+    const [, created] = asked[0] as [string, { definition: { purpose: { work: unknown } } }]
+    expect(created.definition.purpose.work).toEqual({
+      ...agent({ mode: 'new', ...FOR_NEW }),
+      ...REST,
+    })
+    const body = { tenant: tenantId, startId: 's-1', work: tree(agent({ mode: 'new' })) }
+    await ops['start-job'](call, body)
+    expect(((asked[1] ?? [])[1] as { work: unknown }).work).toEqual({
+      ...agent({ mode: 'new', ...FOR_NEW }),
+      ...REST,
+    })
+  })
+
+  it('refuses `current` from a person in every operation that reads work, saying why, and asks the domain nothing', async () => {
+    const { ops, asked } = world({ create: committed, execute: committed, 'job.start': started })
+    const definition = definitionOf(current)
+    expect(await ops['create-schedule'](call, { ...create, definition })).toEqual(refusal)
+    expect(
+      await ops['manage-schedule'](call, manage({ kind: 'replace', definition, reason: '换' })),
+    ).toEqual(refusal)
+    expect(
+      await ops['preview'](call, {
+        tenant: tenantId,
+        source: { kind: 'definition', definition },
+        count: 3,
+      }),
+    ).toEqual(refusal)
+    expect(
+      await ops['start-job'](call, {
+        tenant: tenantId,
+        startId: 's-1',
+        work: tree(agent(current)),
+      }),
+    ).toEqual(refusal)
+    expect(asked).toEqual([])
+  })
+
+  it.each([
+    ['cannot be read', async () => undefined],
+    [
+      'fails to read',
+      async () => {
+        throw new Error('down')
+      },
+    ],
+  ])(
+    'has no basis when the defaults of the release %s and the work leaves something out; a recall of it has none either',
+    async (_, defaults) => {
+      const { ops, asked } = world({ create: committed, 'job.start': started }, undefined, defaults)
+      const definition = definitionOf({ mode: 'new' })
+      const basis = { outcome: 'basis-unavailable' }
+      expect(await ops['create-schedule'](call, { ...create, definition })).toEqual(basis)
+      expect(await ops['query-create-schedule'](call, { ...create, definition })).toEqual(basis)
+      const start = { tenant: tenantId, startId: 's-1', work: tree(agent({ mode: 'new' })) }
+      expect(await ops['start-job'](call, start)).toEqual(basis)
+      expect(await ops['query-start-job'](call, start)).toEqual(basis)
+      expect(asked).toEqual([])
+      const whole = tree({ ...agent({ mode: 'new', ...FOR_NEW }), ...REST })
+      expect(await ops['start-job'](call, { ...start, work: whole })).toMatchObject({
+        outcome: 'succeeded',
+      })
+    },
+  )
+
+  it('a recall of what a person could never have written answers that nothing was committed', async () => {
+    const { ops } = world({})
+    expect(
+      await ops['query-create-schedule'](call, { ...create, definition: definitionOf(current) }),
+    ).toEqual({ outcome: 'not-committed', body: {} })
+    expect(
+      await ops['query-start-job'](call, {
+        tenant: tenantId,
+        startId: 's-1',
+        work: tree(agent(current)),
+      }),
+    ).toEqual({ outcome: 'not-committed', body: {} })
   })
 })

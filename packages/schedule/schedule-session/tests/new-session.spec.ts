@@ -55,7 +55,6 @@ describe('whether work stands, asked before it is saved', () => {
       { materials: [{ resourceRef: 'r', versionRef: 'v' }] },
       /materials are not carried/u,
     ],
-    ['a workspace to attach', { session: WITH_WORKSPACE }, /workspace is not attached/u],
   ])('refuses %s, saying what is wrong', async (_, change, reason) => {
     const answer = await world().executor.accepts?.(workOf(change))
     expect(answer).toMatchObject({ kind: 'refused' })
@@ -120,6 +119,7 @@ describe('start', () => {
             environmentAdoptionRef: 'adoption:1',
             collaboration: 'auto-drive',
           },
+          workspace: null,
         },
       },
     ])
@@ -130,6 +130,16 @@ describe('start', () => {
       { via: 'direct', draftedBy: 'creator', confirmedBy: ids?.by, operation: ids?.goal },
     ])
     expect(w.goalSessions.woken).toMatchObject([{ session: ids?.session, kind: 'start' }])
+  })
+
+  it('creates the session with the workspace the work names', async () => {
+    const w = world()
+    const job = jobOf({ work: workOf({ session: WITH_WORKSPACE }) })
+    expect(await w.executor.accepts?.(job.work)).toEqual({ kind: 'accepted' })
+    expect(await w.executor.start(job)).toMatchObject({ kind: 'started' })
+    expect(w.made).toMatchObject([
+      { creation: { workspace: { workspaceRef: 'w', instanceRef: 'i', basisRef: 'b' } } },
+    ])
   })
 
   it('asked again, recalls the session and the goal: nothing is created or set a second time', async () => {

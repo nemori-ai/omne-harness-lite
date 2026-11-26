@@ -23,7 +23,6 @@ export const refusalText = (refusal: GoalRefusal): string =>
 function refusalOf(work: ScheduleWork): string | null {
   if (work.kind !== 'agent' || work.session.mode !== 'new')
     return 'this executor carries out agent work in a new session only'
-  if (work.session.workspace !== null) return 'a workspace is not attached to a new session yet'
   return instructionRefusal(work)
 }
 
@@ -66,8 +65,8 @@ export function createNewSessionExecutor(calls: ExecutorCalls): ScheduleJobExecu
       const taken = carried(job)
       if (typeof taken === 'string') return never(taken)
       const { ids, work } = taken
-      const { agentDefinitionRef: agent, modes } = work.session
-      const creation = { agent, modes }
+      const { agentDefinitionRef: agent, modes, workspace } = work.session
+      const creation = { agent, modes, workspace }
       const created = await sessions
         .create({ ...at(ids), operation: ids.create, creation })
         .catch(() => UNKNOWN)

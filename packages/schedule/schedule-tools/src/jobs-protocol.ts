@@ -33,8 +33,8 @@ const shapes = {
     limit: z.int().min(1).max(50).optional(),
     after: z.string().min(1).optional(),
   }),
-  show: z.strictObject({ job: schedule.ScheduleJobIdSchema }),
-  start: z.strictObject({ program: schedule.ScheduleRefSchema, input: z.json().optional() }),
+  show: z.strictObject({ job: schedule.ScheduleJobIdSchema.optional() }),
+  start: z.strictObject({ work: schedule.ScheduleWorkAsWrittenSchema }),
   cancel: z.strictObject({ job: schedule.ScheduleJobIdSchema }),
 } as const satisfies Record<JobsCommandName, z.ZodType>
 
@@ -45,8 +45,9 @@ export type JobsArguments = {
 export const jobsSummaries: Readonly<Record<JobsCommandName, string>> = {
   help: 'Read command usage.',
   list: 'The runs of one schedule, or of all schedules and direct starts, newest first: each slot with its Job, and each missed stretch.',
-  show: 'One Job: its work, state, outcome, where it runs and each step it took.',
-  start: 'Run a registered program once now, outside any schedule. It counts toward no schedule.',
+  show: 'One Job: its work, state, outcome, where it runs and each step it took. Without job: the Jobs this session carries out or carried out, newest first.',
+  start:
+    'Start one Job now, outside any schedule: agent work in a new session or in one that exists (current is this session), or a registered program. It counts toward no schedule.',
   cancel: 'Cancel one Job: one not started never starts; a running one is asked to stop.',
 }
 

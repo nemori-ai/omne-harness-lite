@@ -135,6 +135,19 @@ export function createScheduleJobs(ports: Ports): ScheduleJobs {
   }
   return {
     get: (ctx, input) => seen(ctx, input.jobId),
+    async ofExecution(ctx, input) {
+      const found = await readRepository(
+        ports.sql.storage,
+        ports.sql.transactionDomain,
+        { kind: 'jobsOfExecution', scope: ports.sql.scope, owner: ports.owner, ...input },
+        z.array(ScheduleJobDetailSchema),
+      )
+      if (found.kind !== 'ok') return fail(ctx, 'provider_failure')
+      const shown: ScheduleJobDetail[] = []
+      for (const detail of found.value)
+        if (await visible(ctx, detail)) shown.push(await accounted(detail))
+      return { kind: 'ok', value: shown }
+    },
     async cancel(ctx, input) {
       const before = await seen(ctx, input.jobId)
       if (before.kind === 'error') return before

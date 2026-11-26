@@ -1,8 +1,13 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { goalsKey, type GoalsService } from '@omne-harness/goal-cordis-contract/cordis'
 import { GOAL_SOURCES } from '@omne-harness/goal-session'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { Created, ExecutorCalls, SessionStanding } from '@omne-harness/schedule-session'
+import { tenantCodec, workspaceCodec, type TenantId } from '@omne-harness/legal-identity'
+import type {
+  Created,
+  CreationOfJob,
+  ExecutorCalls,
+  SessionStanding,
+} from '@omne-harness/schedule-session'
 import {
   sourceRequestIdentities,
   type RunId,
@@ -26,7 +31,6 @@ const UNKNOWN = { kind: 'unknown' } as const
 const UNSETTLED = new Set<SessionFailure['kind']>(['commit-unknown', 'unavailable', 'quarantined'])
 
 export type ScheduleSessionPorts = Readonly<{
-  /** The system principal of schedule: it creates the session of a Job and owns the goal it sets there. */
   system: unknown
   workPrincipals(): SessionWorkPrincipals<unknown> | undefined
 }>
@@ -48,6 +52,14 @@ export function standingOf(
     run,
     adopted: { name, version: adopted.revision },
   }
+}
+
+/** The workspace a Job saved for its session, as Session takes it: null for none, undefined when the saved id names no workspace. */
+export function placedIn(saved: CreationOfJob['workspace']) {
+  if (saved === null) return null
+  const workspace = workspaceCodec.parse(saved.workspaceRef)
+  const attachment = { instance: saved.instanceRef, basis: saved.basisRef }
+  return workspace.ok ? { workspace: workspace.value, attachment } : undefined
 }
 
 /** The input a goal's start reminder of this request is, as the goal's own adapter derives it. */
@@ -103,12 +115,15 @@ export function executorCallsOf(ctx: Context, ports: ScheduleSessionPorts): Exec
     const { tenantDefaults, ...mapped } = resolved
     const fixed = mappings.modesFor(creation.agent)?.modes
     const { permission, collaboration } = creation.modes
+    const placed = placedIn(creation.workspace)
+    if (placed === undefined)
+      return { kind: 'refused', recoverable: false, reason: 'invalid: workspace: not a workspace' }
     return {
       ...mapped,
       definition: { name: creation.agent, candidate: resolved.candidate },
       purpose: 'schedule',
-      workspace: null,
-      workspaceAttachment: null,
+      workspace: placed?.workspace ?? null,
+      workspaceAttachment: placed?.attachment ?? null,
       modes:
         fixed === undefined
           ? { kind: 'tenant-default', source: tenantDefaults }

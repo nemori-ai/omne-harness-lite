@@ -42,18 +42,37 @@ export const agentDefinitionSchema = z.strictObject({
   label: schedule.ScheduleLabelSchema,
   recurrence: schedule.ScheduleRecurrenceSchema,
   limits: schedule.ScheduleRuleLimitsSchema,
-  purpose: schedule.SchedulePurposeSchema,
+  purpose: schedule.SchedulePurposeAsWrittenSchema,
 })
 export type AgentDefinition = z.infer<typeof agentDefinitionSchema>
 
-/** The full definition: it follows the owner's environment. */
-export function definitionOf(agent: AgentDefinition) {
-  return schedule.ScheduleDefinitionSchema.safeParse({
-    ...agent,
+export type ReadDefinition =
+  | Readonly<{ kind: 'read'; definition: schedule.ScheduleDefinition }>
+  | Readonly<{ kind: 'refused'; reason: string }>
+  | Readonly<{ kind: 'basis-unavailable' }>
+
+/** The full definition: what the place of the call fills in for agent work, then the owner's environment. */
+export function definitionOf(
+  agent: AgentDefinition,
+  defaults: schedule.ScheduleSessionDefaults,
+): ReadDefinition {
+  const completed = schedule.completeDefinition(agent, defaults)
+  if (completed.kind !== 'completed') return completed
+  const parsed = schedule.ScheduleDefinitionSchema.safeParse({
+    ...(completed.definition as object),
     binding: { kind: 'followUserEnvironment' },
     calendarOverlay: null,
   })
+  return parsed.success
+    ? { kind: 'read', definition: parsed.data }
+    : { kind: 'refused', reason: 'the definition does not form a schedule' }
 }
+
+/** One line for agent work or a definition that could not be read as written. */
+export const unreadLine = (stop: Exclude<ReadDefinition, { kind: 'read' }>): string =>
+  stop.kind === 'refused'
+    ? `invalid reason=${stop.reason} code=invalid_input`
+    : 'unavailable reason=the session of this call cannot be read now, so what the new session leaves out cannot be filled in'
 
 const scheduleId = schedule.ScheduleIdSchema
 const revision = z.int().min(1)

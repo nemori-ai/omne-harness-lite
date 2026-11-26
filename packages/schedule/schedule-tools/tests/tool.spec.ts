@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_AGENT_RESULT_POLICY } from '@omne-harness/schedule-contract'
 import {
   CALL,
   DEFINITION,
+  FOR_NEW,
   ID,
   bound,
   committed,
@@ -37,6 +39,75 @@ describe('one call is one write the domain answers', () => {
       expectedRevision: null,
     })
     expect(service.asked[0]?.input.definition.binding).toEqual({ kind: 'followUserEnvironment' })
+  })
+
+  const agentWork = (session: unknown) => ({
+    ...DEFINITION,
+    purpose: {
+      kind: 'execution',
+      work: { kind: 'agent', instruction: { purpose: '写周报' }, session },
+      scope: { kind: 'fleet' },
+      catchUp: { kind: 'none' },
+      overlap: 'skip',
+      misfire: null,
+      notifications: [],
+    },
+  })
+  const savedWork = (service: ReturnType<typeof services>, at = 0) => {
+    const { input } = service.asked[at] ?? { input: {} }
+    return (input.definition ?? input.successor).purpose.work
+  }
+
+  it('saves the session of the call where the definition says current, and what a new session leaves out as that session has it', async () => {
+    const here = await once(
+      parse('create', { definition: agentWork({ mode: 'existing', sessionRef: 'current' }) }),
+      [committed(view('active'))],
+    )
+    expect(here.text).toMatch(/^done Schedules create\n/)
+    expect(savedWork(here.service)).toEqual({
+      kind: 'agent',
+      instruction: { purpose: '写周报' },
+      session: { mode: 'existing', sessionRef: 'session-1' },
+      materials: [],
+      returnTo: null,
+      resultPolicy: DEFAULT_AGENT_RESULT_POLICY,
+    })
+    const fresh = await once(
+      parse('draft', { definition: agentWork({ mode: 'new' }), reason: '先放着' }),
+      [committed(view('draft'))],
+    )
+    expect(savedWork(fresh.service).session).toEqual({ mode: 'new', ...FOR_NEW })
+  })
+
+  it('completes the definition of a replacement and of a revised draft the same way', async () => {
+    const definition = agentWork({ mode: 'existing', sessionRef: 'current' })
+    for (const command of ['replace', 'revise'] as const) {
+      const { service } = await once(
+        parse(command, { schedule: ID, revision: 3, definition, reason: '换' }),
+        [committed(view('active'))],
+      )
+      expect(savedWork(service).session).toEqual({ mode: 'existing', sessionRef: 'session-1' })
+    }
+  })
+
+  it('writes nothing when the session of the call cannot be read and the definition leaves something of a new session out', async () => {
+    const service = services([committed(view('active'))])
+    const blind = bound(service, { newSessionDefaults: async () => undefined })
+    const text = await run(
+      parse('create', { definition: agentWork({ mode: 'new' }) }),
+      scope(blind),
+    )
+    expect(text).toMatch(/^unavailable reason=the session of this call cannot be read now/)
+    expect(service.asked).toEqual([])
+    const read = { calls: 0 }
+    const counting = bound(service, {
+      newSessionDefaults: async () => {
+        read.calls += 1
+        return FOR_NEW
+      },
+    })
+    await run(pause(), scope(counting))
+    expect(read.calls).toBe(0)
   })
 
   it('saves a draft with its reason, which does not take effect', async () => {

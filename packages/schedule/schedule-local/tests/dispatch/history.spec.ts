@@ -218,7 +218,7 @@ describe('reading, cancelling and starting one Job', { tags: ['slow'], timeout: 
     }
   })
 
-  it('a Job of agent work reads with the session it runs in and what its executor says the execution left; without an answer, with the session alone', async () => {
+  it('a Job of agent work reads with the session it runs in and what its executor says the execution left; without an answer, with the session alone; the Jobs of a session are read by that session exactly', async () => {
     const agentWork = ScheduleWorkSchema.parse({
       kind: 'agent',
       instruction: { purpose: '写周报' },
@@ -243,13 +243,16 @@ describe('reading, cancelling and starting one Job', { tags: ['slow'], timeout: 
       outcome: null,
       deliverables: ['report.md'],
     }
+    /** The session a Job of this test runs in: the one its instruction names, or session-9. */
+    const placeOf = (job: { work: unknown }) =>
+      String((job.work as { instruction: { at?: string } }).instruction.at ?? 'session-9')
     const described: unknown[] = []
     let answer: typeof account | null | Error = account
     const w = await dispatchWorld({
       agent: {
         check: async () => ({ kind: 'ready' }),
-        start: async () => ({ kind: 'started', executionRef: 'session-9', running: true }),
-        inspect: async () => ({ kind: 'running', executionRef: 'session-9' }),
+        start: async job => ({ kind: 'started', executionRef: placeOf(job), running: true }),
+        inspect: async job => ({ kind: 'running', executionRef: placeOf(job) }),
         requestStop: async () => ({ kind: 'sent' }),
         async describe(job) {
           described.push(job)
@@ -279,6 +282,33 @@ describe('reading, cancelling and starting one Job', { tags: ['slow'], timeout: 
           executionRef: 'session-9',
         },
       ])
+      const other = await jobs.start(context, { work: agentWork, operationKey: 'agent-2' })
+      const otherId = (other.kind === 'ok' && other.value.detail?.job.jobId) as never
+      await dispatcher.round()
+      const here = await jobs.ofExecution(context, { executionRef: 'session-9', limit: 50 })
+      expect(here.kind === 'ok' && here.value.map(detail => detail.job.jobId).sort()).toEqual(
+        [jobId, otherId].sort(),
+      )
+      expect(here.kind === 'ok' && here.value[0]?.executionWhere).toEqual({
+        kind: 'session',
+        sessionRef: 'session-9',
+        account,
+      })
+      const elsewhere = { ...agentWork, instruction: { purpose: '写周报', at: 'session-90' } }
+      w.time.advance(MINUTE)
+      const later = await jobs.start(context, { work: elsewhere as never, operationKey: 'agent-3' })
+      const laterId = later.kind === 'ok' && later.value.detail?.job.jobId
+      await dispatcher.round()
+      const one = await jobs.ofExecution(context, { executionRef: 'session-9', limit: 1 })
+      expect(one.kind === 'ok' && one.value.map(detail => detail.job.jobId)).toHaveLength(1)
+      expect(one.kind === 'ok' && one.value[0]?.job.jobId).not.toBe(laterId)
+      const there = await jobs.ofExecution(context, { executionRef: 'session-90', limit: 50 })
+      expect(there.kind === 'ok' && there.value.map(detail => detail.job.jobId)).toEqual([laterId])
+      for (const executionRef of ['session-99', 'session-', 'ession-9', '%'])
+        expect(await jobs.ofExecution(context, { executionRef, limit: 50 })).toEqual({
+          kind: 'ok',
+          value: [],
+        })
       answer = null
       expect(await where()).toEqual({ kind: 'session', sessionRef: 'session-9', account: null })
       answer = new Error('lost')

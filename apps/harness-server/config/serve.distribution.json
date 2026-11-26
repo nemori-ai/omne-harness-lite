@@ -1102,7 +1102,9 @@
     {
       "id": "schedule-access",
       "plugin": "scheduleAccessRow",
-      "config": {}
+      "config": {
+        "defaultDefinition": "coding"
+      }
     },
     {
       "id": "notification-access",

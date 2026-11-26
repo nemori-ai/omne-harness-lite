@@ -17,6 +17,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { instantTextOf } from '../../entry/time.ts'
+import { scheduleSessionSide } from '../schedule/session-side.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { domainCallerOf } from './domain-caller.ts'
 import { holdLiveCall } from './live-calls.ts'
@@ -33,10 +34,14 @@ export function attachReleaseScheduleReads(
 ): () => void {
   if (input.name !== 'Schedules') return () => {}
   const tenant = tenantCodec.encode(input.tenant)
+  const caller = () =>
+    domainCallerOf(toolRuntimeHolder(ctx).verifier(), input.principal, input.tenant)
   const reads = bindScheduleReads({
     tenant: tenant.ok ? tenant.value : '',
     queries: () => ctx.get(scheduleQueriesKey),
     now: nowOf(ctx),
+    newSessionDefaults: async () =>
+      scheduleSessionSide(ctx).ofSession?.(input.tenant, (await caller())?.session ?? null),
     async context() {
       const caller = await domainCallerOf(
         toolRuntimeHolder(ctx).verifier(),
@@ -77,6 +82,17 @@ function agentContext(ctx: Context, parent: Parent, tool: string) {
   }
 }
 
+function newSessionDefaults(ctx: Context, parent: Parent) {
+  return async () => {
+    const caller = await domainCallerOf(
+      toolRuntimeHolder(ctx).verifier(),
+      parent.principal,
+      parent.tenant,
+    )
+    return scheduleSessionSide(ctx).ofSession?.(parent.tenant, caller?.session ?? null)
+  }
+}
+
 /** Attaches the schedule services per call with the session agent's context; the call's access stays
  * registered while its scope is open, so the schedule authority can name the session and the call. */
 export function bindReleaseSchedules(
@@ -92,11 +108,11 @@ export function bindReleaseSchedules(
     queries: () => ctx.get(scheduleQueriesKey),
     now: nowOf(ctx),
     context: agentContext(ctx, parent, 'Schedules'),
+    newSessionDefaults: newSessionDefaults(ctx, parent),
   })
   return holdLiveCall(ctx, parent, attachSchedules(scope, schedules))
 }
 
-/** Attaches the Job services per call, with the same context as Schedules. */
 export function bindReleaseJobs(
   ctx: Context,
   parent: Parent,
@@ -110,6 +126,7 @@ export function bindReleaseJobs(
     queries: () => ctx.get(scheduleQueriesKey),
     now: nowOf(ctx),
     context: agentContext(ctx, parent, 'Jobs'),
+    newSessionDefaults: newSessionDefaults(ctx, parent),
   })
   return holdLiveCall(ctx, parent, attachJobs(scope, jobs))
 }
