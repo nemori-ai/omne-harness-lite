@@ -7,6 +7,7 @@
   },
   "instructions": {
     "exits": "guided",
-    "unattainable": "plain"
+    "unattainable": "plain",
+    "unsettled": "covers"
   }
 }

@@ -74,8 +74,11 @@ function chatAnswer(found: ModelScript['steps'][number] | undefined, model: stri
 type Question = Readonly<{ type?: string; criteria?: Readonly<Record<string, unknown>> }>
 type Decision = Readonly<{ model?: string; questions: Readonly<Record<string, Question>> }>
 
-function judged(question: Question, said: Judging): object {
-  if (question.type !== 'choice') return { type: 'noul', noul: said.exit }
+/** A criterion can be asked as a yes or no ("is this pass to be trusted"): the script's word for criteria answers it. */
+function judged(name: string, question: Question, said: Judging): object {
+  const trusted = said.criterion === 'holds' ? SURE : 1 - SURE
+  if (question.type !== 'choice')
+    return { type: 'noul', noul: name.startsWith('A') ? trusted : said.exit }
   const options = question.criteria ?? {}
   const choice = 'holds' in options ? said.criterion : 'kept' in options ? said.rule : 'none'
   return { type: 'choice', choice, probabilities: { [choice]: SURE } }
@@ -88,7 +91,7 @@ function decisionAnswer(found: Judging | undefined, asked: Decision): GatewayAns
       : Object.fromEntries(
           Object.entries(asked.questions).map(([name, question]) => [
             name,
-            judged(question, found),
+            judged(name, question, found),
           ]),
         )
   const usage = { input_tokens: 120, output_tokens: 8, cost: 0 }
