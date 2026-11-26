@@ -9,6 +9,7 @@ import {
   keptExamination,
   NO_EXAMINATION,
   owesExamination,
+  owingVerdict,
   pendingOf,
   received,
   sameKey,
@@ -221,6 +222,13 @@ describe('a batch that is out when something else happens to the goal', () => {
     })
     const untouched = keptExamination(both, new Set([A1, A2, A3]))
     expect(untouched).toEqual({ examination: both, cancelled: null })
+  })
+
+  it('a revised goal that goes on owes a verdict; one that does not go on keeps its examination as it was', () => {
+    const owing = owingVerdict(NO_EXAMINATION, true)
+    expect(owing).toEqual({ ...NO_EXAMINATION, arrived: true })
+    expect(owesExamination(owing)).toBe(true)
+    expect(owingVerdict(NO_EXAMINATION, false)).toBe(NO_EXAMINATION)
   })
 
   it('the body says how many examinations its budget allows', () => {
