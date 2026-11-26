@@ -7,6 +7,7 @@ import {
   equalValue,
   evidenceFields,
   invalidAt,
+  missingAt,
   nonempty,
   unavailableAt,
   unique,
@@ -162,7 +163,7 @@ export function registeredWaiting(
   const waiting: Waiting[] = []
   for (const call of calls) {
     const record = draft.callRegistrations?.find(item => item.consumption === call.consumption)
-    if (record === undefined) unavailableAt('waiting.registration')
+    if (record === undefined) missingAt('waiting.registration')
     const fields =
       record.registration.kind === 'associated' ? record.registration.binding : record.registration
     if (fields.consumer.position !== call.position)

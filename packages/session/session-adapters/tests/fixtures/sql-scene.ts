@@ -831,6 +831,12 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
       ),
       readCurrentScope: gate('readCurrentScope', s.port.readCurrentScope),
       readCall: gate('readWork', s.port.readCall),
+      finishRun: (input: SessionAccess<string> & Readonly<Record<string, unknown>>) =>
+        s.port.commit({
+          access: { principal: input.principal, tenant: input.tenant, session: input.session },
+          command: { kind: 'finishRun', input } as never,
+          guards: [],
+        }),
       readModelSelection: gate('readModelSelection', s.port.readModelSelection),
     }
   }

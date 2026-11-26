@@ -10,13 +10,7 @@ import {
   validateResult,
 } from './call-state.ts'
 import { validateControlIdentity } from './control-state.ts'
-import {
-  equalValue,
-  evidenceFields,
-  invalidAt,
-  nonempty,
-  unavailableAt,
-} from './session-validation.ts'
+import { equalValue, evidenceFields, invalidAt, missingAt, nonempty } from './session-validation.ts'
 
 const CONCLUSIONS: ReadonlySet<string> = new Set(['complete', 'fail', 'cancelled'])
 const KINDS_WITHOUT_DETAIL: ReadonlySet<string> = new Set([
@@ -70,7 +64,7 @@ export function validateReplayedConsequences(
         const prior = snapshot.callRegistrations?.find(
           item => item.consumption === consequence.consumption,
         )
-        if (prior === undefined) unavailableAt('registration.original')
+        if (prior === undefined) missingAt('registration.original')
         let original = prior.registration
         if (
           consequence.registration.kind === 'tool-intent' &&
@@ -90,7 +84,7 @@ export function validateReplayedConsequences(
         const prior = snapshot.callRegistrations?.find(
           item => item.consumption === consequence.consumption,
         )
-        if (prior === undefined) unavailableAt('association.registration')
+        if (prior === undefined) missingAt('association.registration')
         if (
           !equalValue(prior.registration, associated(consequence.binding, 'action')) ||
           !equalValue(prior.association, consequence.source)
@@ -107,7 +101,7 @@ export function validateReplayedConsequences(
           const prior = snapshot.consumptions
             .find(item => item.id === consequence.consumption)
             ?.results.find(item => item.result.version === consequence.result?.version)
-          if (prior === undefined) unavailableAt('result.original')
+          if (prior === undefined) missingAt('result.original')
           if (!equalValue(prior.result, consequence.result)) throw new CallConflict('result')
         }
         break
@@ -123,7 +117,7 @@ export function validateReplayedConsequences(
               item.registration.kind === 'associated' &&
               equalValue(item.registration.binding, wait.binding),
           )
-          if (prior === undefined) unavailableAt('waiting.registration')
+          if (prior === undefined) missingAt('waiting.registration')
           return [{ consumption: prior.consumption, position: wait.position }]
         })
         registeredWaiting(

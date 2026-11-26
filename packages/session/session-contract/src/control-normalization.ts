@@ -1,5 +1,6 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Message } from '@omne-harness/message'
+import { recordsOf } from './call-settlement.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type { SessionFailure } from './faces.ts'
 import type { SessionAttemptRecord } from './history-values.ts'
@@ -7,9 +8,10 @@ import type { AttemptId, DurableEvidence, InputId, RunId, SessionOperationId } f
 import { deriveDriveOperation } from './operations.ts'
 import type { SessionLogConsequence } from './projection.ts'
 import {
-  SessionValidationFailure,
   equalValue,
   inconsistent,
+  missingAt,
+  SessionValidationFailure,
   unavailableAt,
 } from './session-validation.ts'
 import type { CallBinding, ControlProgress, ProducerRef, WorkSnapshot } from './values.ts'
@@ -130,12 +132,12 @@ function selectedOf(rule: Rule, current: ControlProgress): readonly Selected[] {
   const references = rule.snapshot.workEntryIndex?.controls.find(
     item => item.operation === current.operation,
   )
-  if (references === undefined) unavailableAt('control.references')
+  if (references === undefined) missingAt('control.references')
   return references.selected.map(item => {
     const live = rule.snapshot.callRegistrations?.find(
       record => record.consumption === item.consumption,
     )?.registration
-    if (live === undefined) unavailableAt('control.registration')
+    if (live === undefined) missingAt('control.registration')
     return {
       item,
       live,
@@ -223,15 +225,8 @@ function pendingOf(
 ): ProducerRef[] {
   return current.pending.filter(producer => {
     if (current.intent.kind === 'interrupt' && waitEnded(rule, producer)) return false
-    const registrations =
-      rule.snapshot.callRegistrations
-        ?.filter(
-          item =>
-            item.registration.kind === 'associated' &&
-            equalValue(item.registration.binding.producer, producer),
-        )
-        .map(item => item.registration) ?? []
-    if (registrations.length === 0) unavailableAt('control.pending.registration')
+    const registrations = recordsOf(rule.snapshot, producer).map(item => item.registration)
+    if (registrations.length === 0) missingAt('control.pending.registration')
     const confirmed = registrations.every(registration =>
       rule.evidence.records.some(record => confirms(rule, current, origin, record, registration)),
     )

@@ -498,9 +498,11 @@ describe('a Session participant rollback that answers unavailable', () => {
     const f = await interpreted('ad02-rollback-queue', {
       retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
     })
-    f.script.push(rollback, rollback)
+    f.script.push(rollback)
     await started(f.s, f.c.journal())
-    await vi.waitFor(() => expect(f.sent).toHaveLength(2), { timeout: 5000 })
+    await vi.waitFor(() => expect(f.logged.some(line => /; again in /.test(line))).toBe(true), {
+      timeout: 5000,
+    })
     await f.c.ctx.serial(
       'session-adapters/agent-published',
       f.target.tenant,
@@ -508,8 +510,8 @@ describe('a Session participant rollback that answers unavailable', () => {
       f.target.execution,
     )
     await reaches(f.s, '1')
-    expect(f.sent).toHaveLength(3)
-    expect(logOperations(f.s)).toEqual([f.sent[2]?.observation.operation])
+    expect(f.sent).toHaveLength(2)
+    expect(logOperations(f.s)).toEqual([f.sent[1]?.observation.operation])
   })
 
   it('a plugin that stops during the backoff sends no more', async () => {
@@ -525,6 +527,66 @@ describe('a Session participant rollback that answers unavailable', () => {
     await settle()
     expect(f.sent).toHaveLength(after)
     expect(await readThrough(f.s)).toBe('0')
+  })
+})
+
+describe('an event that Session can never take', () => {
+  const gone: SessionFailure = {
+    kind: 'quarantined',
+    diagnostic: 'control.pending.registration: required original material is missing',
+  }
+  const terminalOf = async (s: SqlScene) => {
+    const { run } = await work(s)
+    return run.kind === 'terminal' ? run.terminal : null
+  }
+
+  it.each<readonly [string, SessionFailure, string]>([
+    ['material that is gone for good', gone, `quarantined ${gone.diagnostic}`],
+    [
+      'consequences Session refuses as invalid',
+      { kind: 'invalid', field: 'consequences', reason: 'not the original order' },
+      'invalid consequences not the original order',
+    ],
+  ])(
+    '%s: it is not sent again and the Run closes as uninterpretable, with the answer as its cause',
+    async (_name, failure, cause) => {
+      const f = await interpreted('ad02-uninterpretable')
+      for (let n = 0; n < 4; n += 1) f.script.push(async () => fail(failure))
+      await started(f.s, f.c.journal())
+      await vi.waitFor(async () => expect(await terminalOf(f.s)).not.toBeNull(), { timeout: 5000 })
+      const terminal = await terminalOf(f.s)
+      expect(terminal).toMatchObject({ outcome: 'failed' })
+      expect(terminal?.evidence.record).toBe(`uninterpretable: ${cause}`)
+      await settle()
+      expect(f.sent).toHaveLength(1)
+      expect(f.logged.filter(line => /; again in /.test(line))).toEqual([])
+    },
+  )
+
+  it('a Run that already ended is left as it ended: the event is not sent again and nothing more is closed', async () => {
+    const f = await interpreted('ad02-uninterpretable-ended')
+    f.script.push(async (inner, input) => {
+      ok(
+        await f.s.port.commit({
+          access: f.s.sessionAccess,
+          command: {
+            kind: 'control',
+            input: {
+              ...f.s.sessionAccess,
+              operation: operationId('cancel-before-close'),
+              intent: { kind: 'cancel-run', run: input.observation.run, urgency: 'force' },
+            },
+          },
+          guards: [],
+        }),
+      )
+      return fail(gone)
+    })
+    await started(f.s, f.c.journal())
+    await vi.waitFor(async () => expect(await terminalOf(f.s)).not.toBeNull(), { timeout: 5000 })
+    await settle()
+    expect(await terminalOf(f.s)).toMatchObject({ outcome: 'cancelled' })
+    expect(f.sent).toHaveLength(1)
   })
 })
 
@@ -574,7 +636,7 @@ describe('the backoff of the event queue and its one retry per execution (#1216 
     })
   })
 
-  it('the first call again goes at once; then the waits grow by the multiplier up to maxMs, and the calls are counted', async () => {
+  it('every call again waits: the first for initialMs, then the waits grow by the multiplier up to maxMs, and the calls are counted', async () => {
     const f = await interpreted('ad02-backoff', {
       retry: { initialMs: 1, multiplier: 3, maxMs: 5 },
     })
@@ -582,14 +644,14 @@ describe('the backoff of the event queue and its one retry per execution (#1216 
     await started(f.s, f.c.journal())
     await reaches(f.s, '1')
     expect(retries(f.logged)).toEqual([
-      [1, 'unavailable', '0'],
-      [2, 'unavailable', '1'],
-      [3, 'unavailable', '3'],
+      [1, 'unavailable', '1'],
+      [2, 'unavailable', '3'],
+      [3, 'unavailable', '5'],
       [4, 'unavailable', '5'],
     ])
     // An unavailable answer says who could not answer and why: a stuck execution is not a busy one.
     expect(f.logged.find(line => line.startsWith('call 1 of'))).toMatch(
-      /answered unavailable \(\S+: .+\); again in 0 ms$/,
+      /answered unavailable \(\S+: .+\); again in 1 ms$/,
     )
   })
 
@@ -603,7 +665,7 @@ describe('the backoff of the event queue and its one retry per execution (#1216 
     await reaches(f.s, '1')
     expect(f.sent).toHaveLength(4)
     expect(new Set(f.sent.map(item => item.observation.operation)).size).toBe(1)
-    expect(retries(f.logged)).toEqual([[1, 'commit-unknown', '0']])
+    expect(retries(f.logged)).toEqual([[1, 'commit-unknown', '1']])
     expect(logOperations(f.s)).toHaveLength(1)
   })
 
@@ -618,19 +680,19 @@ describe('the backoff of the event queue and its one retry per execution (#1216 
         f.target.session,
         f.target.execution,
       )
-    f.script.push(rollback, rollback)
+    f.script.push(rollback)
     await started(f.s, f.c.journal())
-    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(2), { timeout: 5000 })
+    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(1), { timeout: 5000 })
     f.script.push(rollback)
     await publish()
-    await vi.waitFor(() => expect(f.sent).toHaveLength(3), { timeout: 5000 })
+    await vi.waitFor(() => expect(f.sent).toHaveLength(2), { timeout: 5000 })
     await publish()
     await reaches(f.s, '1')
     f.script.push(rollback)
     await round(f.s, f.c.journal(), 1)
-    await vi.waitFor(() => expect(f.sent).toHaveLength(5), { timeout: 5000 })
+    await vi.waitFor(() => expect(f.sent).toHaveLength(4), { timeout: 5000 })
     await settle()
-    expect(retries(f.logged)).toHaveLength(2)
+    expect(retries(f.logged)).toHaveLength(1)
     expect(await readThrough(f.s)).toBe('1')
   })
 
@@ -649,9 +711,9 @@ describe('the backoff of the event queue and its one retry per execution (#1216 
     const f = await interpreted('ad02-stop-timer', {
       retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
     })
-    f.script.push(rollback, rollback)
+    f.script.push(rollback)
     await started(f.s, f.c.journal())
-    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(2), { timeout: 5000 })
+    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(1), { timeout: 5000 })
     const timers = () => process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length
     const waiting = timers()
     await f.fiber?.dispose()

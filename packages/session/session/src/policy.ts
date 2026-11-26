@@ -101,7 +101,7 @@ export function checkSessionConfiguration(configuration: unknown): SessionConfig
     if (!Array.isArray(delays) || delays.length === 0)
       throw new SessionConfigurationError(`policy.${path}`, 'empty or not a sequence')
     delays.forEach((delay: unknown, index) => {
-      const reason = refusal(delay, 'delay')
+      const reason = delay === 0 ? 'zero' : refusal(delay, 'delay')
       if (reason !== null)
         throw new SessionConfigurationError(`policy.${path}.${String(index)}`, reason)
     })

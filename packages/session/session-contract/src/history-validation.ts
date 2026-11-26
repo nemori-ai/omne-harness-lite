@@ -11,13 +11,14 @@ import type {
   SessionExecutionPrefix,
 } from './history-values.ts'
 import {
-  SessionValidationFailure,
   decimal,
-  evidenceFields,
   equalValue,
+  evidenceFields,
   inconsistent,
   invalidAt,
+  missingAt,
   nonempty,
+  SessionValidationFailure,
   unavailableAt,
   unique,
 } from './session-validation.ts'
@@ -78,7 +79,7 @@ export function executionBoundary(
       ? context.snapshot.run.execution
       : undefined
   const reference = current ?? historical?.execution
-  if (reference === undefined) unavailableAt('history.execution.started')
+  if (reference === undefined) missingAt('history.execution.started')
   if (reference.execution !== execution)
     inconsistent('history.execution: conflicting SE13 relationship')
   evidenceFields(found.started, 'history.execution.started')
@@ -147,8 +148,7 @@ export function inputAdmissions(
   const pages = context.reads?.admissions.filter(page => page.input === input) ?? []
   unique(pages, page => page.offset, 'history.admissions.offset')
   if (count === 0n) {
-    if (context.snapshot.handed.includes(input))
-      unavailableAt('history.admissions.originalHandOver')
+    if (context.snapshot.handed.includes(input)) missingAt('history.admissions.originalHandOver')
     if (pages.length > 0) invalidAt('history.admissions', 'empty directory has no pages')
     return []
   }
@@ -212,7 +212,7 @@ export function validatePrefix(context: HistoryContext, prefix: SessionExecution
     if (decimal(fact.sequence, 'history.prefix.sequence') !== after + BigInt(index) + 1n)
       invalidAt('history.prefix.sequence', 'event gap')
     const original = boundary.facts.find(item => item.sequence === fact.sequence)
-    if (original === undefined) unavailableAt('history.execution.facts')
+    if (original === undefined) missingAt('history.execution.facts')
     evidenceFields(fact.source, 'history.prefix.source')
     if (
       !equalValue(fact.source, original.source) ||

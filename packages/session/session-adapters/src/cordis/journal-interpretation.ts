@@ -10,8 +10,14 @@ import type {
 import { agentJournalEntriesKey, agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { committedBindings, withoutCommitted } from '@omne-harness/session-contract'
+import {
+  committedBindings,
+  deriveSessionOperation,
+  expectedRevision,
+  withoutCommitted,
+} from '@omne-harness/session-contract'
 import type {
+  SessionFaces,
   ConsumptionId,
   ProducerRef,
   Reply,
@@ -65,6 +71,23 @@ function transient(failure: SessionFailure): boolean {
   )
 }
 
+type Uninterpretable = Extract<SessionFailure, { kind: 'quarantined' | 'invalid' }>
+
+const uninterpretable = (failure: SessionFailure): failure is Uninterpretable =>
+  failure.kind === 'quarantined' || failure.kind === 'invalid'
+
+const causeOf = (failure: Uninterpretable): string =>
+  failure.kind === 'invalid'
+    ? `invalid ${failure.field} ${failure.reason}`
+    : `quarantined ${failure.diagnostic}`
+
+type Retry = Readonly<{ wait: number; calls: number }>
+
+export function nextRetry(policy: JournalInterpretationRetry, retry: Retry | null): Retry {
+  if (retry === null) return { wait: policy.initialMs, calls: 1 }
+  return { wait: Math.min(retry.wait * policy.multiplier, policy.maxMs), calls: retry.calls + 1 }
+}
+
 export type JournalInterpretationTarget = Readonly<{
   tenant: TenantId
   session: SessionId
@@ -92,6 +115,7 @@ type Ports<P> = ReceivedAllPorts<P> &
     entries: AgentJournalEntries<P>['read']
     readCall(access: SessionAccess<P>, producer: ProducerRef): Reply<SessionCallBinding | null>
     commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
+    finishRun: SessionFaces<P>['work']['finishRun']
     interpreted(target: JournalInterpretationTarget): void
     stopped(): boolean
   }>
@@ -150,6 +174,40 @@ function unbound(work: WorkSnapshot, item: SessionLogConsequence): boolean {
 const processes = (key: ReceivedEntry['delivery']['key'], version: string | undefined) =>
   version !== undefined &&
   (key.kind === 'placeholder' || (key.kind === 'result' && String(key.result) === version))
+
+async function closeUninterpretable<P>(
+  ports: Pick<Ports<P>, 'readWork' | 'finishRun' | 'warn'>,
+  access: SessionAccess<P>,
+  target: JournalInterpretationTarget,
+  failure: Uninterpretable,
+): Promise<Answer<JournalInterpreted>> {
+  const work = await ports.readWork(access)
+  if ('failure' in work) return work
+  const { run } = work.ok
+  if (run.kind !== 'active' || run.execution.execution !== target.execution) return fail(failure)
+  const cause = causeOf(failure)
+  const bounded = {
+    kind: 'uninterpretable',
+    evidence: {
+      owner: OWNER,
+      record: `uninterpretable: ${cause}`,
+      revision: '1',
+      digest: `sha256:${createHash('sha256')
+        .update(canonical([target.execution, cause]))
+        .digest('hex')}`,
+    },
+  } as const
+  const answer = await ports.finishRun({
+    ...access,
+    operation: deriveSessionOperation({ kind: 'bounded-close', run: run.run, basis: bounded }),
+    run: run.run,
+    expected: expectedRevision(work.ok, 'finishRun'),
+    bounded,
+  })
+  if ('failure' in answer && transient(answer.failure)) return answer
+  if ('ok' in answer) ports.warn(`the Run of ${target.execution} is closed as ${cause}`)
+  return fail(failure)
+}
 
 function createJournalInterpretation<P>(
   given: SessionJournalInterpretationInput<P>,
@@ -294,18 +352,21 @@ function createJournalInterpretation<P>(
           tenantText: tenantText.value,
           execution: target.execution,
         })
-      if ('ok' in answer || answer.failure.kind !== 'changed' || left <= 1) return answer
+      if ('ok' in answer || answer.failure.kind !== 'changed' || left <= 1)
+        return 'failure' in answer && uninterpretable(answer.failure)
+          ? closeUninterpretable(ports, access, target, answer.failure)
+          : answer
     }
   }
 }
-
-type Retry = Readonly<{ wait: number; calls: number }>
 
 // An unavailable answer names who could not answer and why: without it a stuck execution reads the same as a busy one.
 const told = (failure: SessionFailure): string =>
   failure.kind === 'unavailable'
     ? `unavailable (${failure.owner}: ${failure.diagnostic})`
-    : failure.kind
+    : uninterpretable(failure)
+      ? causeOf(failure)
+      : failure.kind
 
 function reportEnd(
   logger: ReturnType<Context['logger']>,
@@ -363,6 +424,7 @@ export function createSessionJournalInterpretationPlugin<P>(
             transactions.commitLog === undefined
               ? Promise.resolve(unavailable('the Session transactions offer no commitLog'))
               : transactions.commitLog(value),
+          finishRun: value => session.work.finishRun(value),
           interpreted: target => announce(ctx, warn, 'interpreted', target),
           load: value => journal.load(value),
           acknowledge: value => journal.acknowledge(value),
@@ -377,7 +439,6 @@ export function createSessionJournalInterpretationPlugin<P>(
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
-        // Requeue the first retry at once: a moved head is readable right after its write.
         const retrying = new Set<string>()
         const attempt = async (target: JournalInterpretationTarget, retry: Retry | null) => {
           const key = JSON.stringify([target.session, target.execution])
@@ -389,22 +450,11 @@ export function createSessionJournalInterpretationPlugin<P>(
           }
           if (retry === null && retrying.has(key)) return
           retrying.add(key)
-          retryLater(target, retry ?? { wait: 0, calls: 0 }, told(answer.failure))
-        }
-        const retryLater = (target: JournalInterpretationTarget, retry: Retry, kind: string) => {
-          const calls = retry.calls + 1
+          const next = nextRetry(policy, retry)
           logger.warn(
-            `call ${calls} of the interpretation of ${target.execution} answered ${kind}; again in ${retry.wait} ms`,
+            `call ${next.calls} of the interpretation of ${target.execution} answered ${told(answer.failure)}; again in ${next.wait} ms`,
           )
-          const next = {
-            wait:
-              retry.wait === 0
-                ? policy.initialMs
-                : Math.min(retry.wait * policy.multiplier, policy.maxMs),
-            calls,
-          }
-          if (retry.wait === 0) return enqueue(target, () => attempt(target, next))
-          void delay(retry.wait, undefined, { signal: stopping.signal }).then(
+          void delay(next.wait, undefined, { signal: stopping.signal }).then(
             () => enqueue(target, () => attempt(target, next)),
             () => undefined,
           )

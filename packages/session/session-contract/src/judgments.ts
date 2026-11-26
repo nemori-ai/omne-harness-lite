@@ -37,7 +37,7 @@ import type { GuardCommand, MutationName, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
-import type { SessionCall, SessionLateCallFact } from './call-settlement.ts'
+import { producerOut, type SessionCall, type SessionLateCallFact } from './call-settlement.ts'
 import type {
   SessionCallLookup,
   SessionCallTerminal,
@@ -416,7 +416,11 @@ function runScope(
   if (snapshot.run.kind !== 'active' || snapshot.run.run !== run)
     return { kind: 'invalid', reason: 'not the current Run' }
   const producers = distinctProducers(
-    snapshot.waiting.flatMap(item => (item.kind === 'producer' ? [item.binding.producer] : [])),
+    snapshot.waiting.flatMap(item =>
+      item.kind === 'producer' && producerOut(snapshot, item.binding.producer)
+        ? [item.binding.producer]
+        : [],
+    ),
   )
   return {
     kind: 'scope',

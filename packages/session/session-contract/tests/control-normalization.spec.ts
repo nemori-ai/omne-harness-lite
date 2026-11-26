@@ -384,6 +384,7 @@ describe('a cancel checks each foreground producer on the stop the Agent made fo
     model?: true
     intent?: ControlProgress['intent']
     origin?: string
+    registered?: false
   }>
 
   const STOPPED = { command: 'withdraw-tool', reached: ['accepted', 'physically-stopped'] } as const
@@ -406,9 +407,10 @@ describe('a cancel checks each foreground producer on the stop the Agent made fo
       controls: [progress],
       run: { kind: 'none' },
       workEntryIndex: { controls: [{ operation: OPERATION, selected: [] }] },
-      callRegistrations: [
-        { consumption: 'consumption-1', registration: { kind: 'associated', binding } },
-      ],
+      callRegistrations:
+        stop.registered === false
+          ? []
+          : [{ consumption: 'consumption-1', registration: { kind: 'associated', binding } }],
     } as unknown as WorkSnapshot
     const name = stop.names ?? producer.call
     return decideControlConsequences({
@@ -554,4 +556,14 @@ describe('a cancel checks each foreground producer on the stop the Agent made fo
       expect(decideCancel(stop)).toEqual(answer)
     },
   )
+
+  // A control keeps the calls it names in the snapshot: one that is not there will not come back.
+  it('a pending producer the snapshot holds no call of is material gone for good, not a read to make again', () => {
+    expect(decideCancel({ ...STOPPED, registered: false })).toEqual({
+      failure: {
+        kind: 'quarantined',
+        diagnostic: 'control.pending.registration: required original material is missing',
+      },
+    })
+  })
 })
