@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import {
   batchOfRequest,
+  evidence,
   ranOf,
   reran,
   sessionOfKey,
@@ -65,7 +66,7 @@ function decided(step: SubmitStep, current: GoalRecord) {
 export function createSubmitting(
   deps: GoalsDependencies,
   { permitted, settle, briefOf }: Writing,
-): Pick<Goals, 'brief' | 'submit'> & Pick<GoalChecking, 'reran'> {
+): Pick<Goals, 'brief' | 'submit'> & Pick<GoalChecking, 'reran' | 'unexamined'> {
   const { store } = deps
 
   /** What a submission is judged on besides the goal: which cited calls are of the examination, where the last write stands, whether a round is going, and the digest of what was handed in. Null: one of them cannot be read. */
@@ -123,6 +124,28 @@ export function createSubmitting(
         return { kind: 'next', record: step.record }
       })
       return settled.kind === 'done' ? done({ examine: left }) : (settled as Refused)
+    },
+
+    async unexamined(caller, { session, request }) {
+      const stop = await permitted(caller, session, 'unexamined')
+      if (stop !== null) return stop
+      const named = batchOfRequest(request)
+      if (named === null) return refused({ kind: 'invalid', issues: [UNRUN] })
+      const { tenant } = caller
+      const found = await store.latest(tenant, session)
+      if (found.kind === 'unavailable') return UNAVAILABLE
+      if (found.value === null) return NO_LIVE
+      const standing = await standingOf(tenant, found.value)
+      if (standing === null) return UNAVAILABLE
+      const settled = await settle(tenant, session, async current => {
+        if (current === null) return NO_LIVE
+        const mine = current.state.generation === named.generation
+        const step = mine ? evidence(current, { key: named.key, ...standing, answers: null }) : null
+        return step?.kind === 'next'
+          ? { kind: 'next', record: step.record }
+          : { kind: 'unchanged', record: current }
+      })
+      return settled.kind === 'done' ? done(null) : (settled as Refused)
     },
 
     async brief(caller, { examiner }) {

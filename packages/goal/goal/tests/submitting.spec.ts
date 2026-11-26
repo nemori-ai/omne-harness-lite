@@ -87,7 +87,12 @@ describe('a batch handed over to the examining side', () => {
     })
     expect(w.examining.handed).toHaveLength(1)
     const [batch] = w.examining.handed
-    expect(batch).toMatchObject({ session: SESSION, request: BATCH, examiner: null })
+    expect(batch).toMatchObject({
+      session: SESSION,
+      request: BATCH,
+      examiner: null,
+      where: '/work/snake',
+    })
     expect(batch?.criteria.map(entry => [entry.id, entry.evidence.kind])).toEqual([
       ['A1', 'rerun'],
       ['A2', 'examination'],
@@ -257,6 +262,47 @@ describe('the readings of a batch handed in with submit', () => {
     expect(value(await w.submit())).toEqual({ taken: 'counted' })
     expect(w.record().state).toMatchObject({ status: 'active', rounds: 0 })
     expect(w.record().examination.read.A1).toMatchObject({ value: 'holds' })
+    expect(w.record().examination.arrived).toBe(true)
+    expect(w.hinted).toEqual([TENANT])
+  })
+
+  it('when that round was already past its observation, the verdict is given once it is over: nobody waits on a goal whose readings are in', async () => {
+    const w = await handedOver()
+    w.sessions.run(SESSION, true)
+    value(await w.submit())
+    await w.goals.reconcile(TENANT)
+    expect(w.record().state.status).toBe('active')
+    expect(w.record().examination.arrived).toBe(true)
+    w.sessions.run(SESSION, false)
+    await w.goals.reconcile(TENANT)
+    expect(w.record().state).toMatchObject({ status: 'settled', outcome: { kind: 'achieved' } })
+    expect(w.record().examination.arrived).toBe(false)
+    await w.goals.reconcile(TENANT)
+    expect(w.sessions.woken).toEqual([])
+  })
+
+  it('the verdict that is owed sends the agent on when the readings found something not done', async () => {
+    const w = await handedOver()
+    w.sessions.run(SESSION, true)
+    value(await w.submit([one('A1'), one('A2', { value: 'fails', note: '按右键蛇不转向' })]))
+    w.sessions.run(SESSION, false)
+    await w.goals.reconcile(TENANT)
+    expect(w.record().state).toMatchObject({ status: 'active', rounds: 1 })
+    expect(w.sessions.woken.map(wake => wake.kind)).toEqual(['continue'])
+    expect(w.sessions.woken[0]?.open).toContain('按右键蛇不转向')
+  })
+
+  it('the verdict that is owed waits while the session or its history cannot be read', async () => {
+    const w = await handedOver()
+    w.sessions.run(SESSION, true)
+    value(await w.submit())
+    w.sessions.run(SESSION, false)
+    w.history.readable(false)
+    await w.goals.reconcile(TENANT)
+    expect(w.record().state.status).toBe('active')
+    w.history.readable(true)
+    await w.goals.reconcile(TENANT)
+    expect(w.record().state.status).toBe('settled')
   })
 
   it('has no basis when the calls of the examination, the session of the goal or its history cannot be read', async () => {
@@ -379,6 +425,51 @@ describe('the exit codes of the commands run again, handed in by the program', (
       port.readable(true)
     }
     expect(w.record().examination.batch?.ran).toEqual({})
+  })
+
+  it('once the commands passed, the batch is handed on with only the criteria left to examine', async () => {
+    const w = await handedOver(world => world.examining.handNext('unknown'))
+    value(await hand(w))
+    await w.goals.reconcile(TENANT)
+    expect(w.examining.handed).toHaveLength(1)
+    expect(w.record().examination.batch).toMatchObject({ delivery: 'handed', ran: { A1: {} } })
+  })
+
+  it('an examination that ended without its readings leaves the rest untold: with a command passed, the agent is sent on for the examined one alone', async () => {
+    const w = await handedOver()
+    value(await hand(w))
+    const ended = { session: SESSION, request: BATCH }
+    expect(value(await w.goals.unexamined(SYSTEM, ended))).toBeNull()
+    expect(w.authority.asked.at(-1)).toMatchObject({ session: SESSION, action: 'unexamined' })
+    expect(w.record().examination.batch).toBeNull()
+    expect(w.record().readings.criteria).toMatchObject({
+      A1: { value: 'holds' },
+      A2: { value: 'cannot-tell', note: 'the examination ended without handing in its readings' },
+    })
+    expect(w.sessions.woken.map(wake => wake.kind)).toEqual(['continue'])
+    const kept = w.record()
+    expect(value(await w.goals.unexamined(SYSTEM, ended))).toBeNull()
+    expect(
+      value(await w.goals.unexamined(SYSTEM, { ...ended, request: 'examine/2/1/call-1' })),
+    ).toBeNull()
+    expect(w.record()).toEqual(kept)
+  })
+
+  it('unexamined is refused to a caller the authority does not let, for a name that is no batch, and for a session without a goal', async () => {
+    const w = await handedOver()
+    const before = w.record()
+    expect(await w.goals.unexamined(SYSTEM, { session: SESSION, request: 'x' })).toMatchObject({
+      reason: { kind: 'invalid' },
+    })
+    expect(await w.goals.unexamined(SYSTEM, { session: 'no-such', request: BATCH })).toMatchObject({
+      reason: { kind: 'state', reason: 'no-live-goal' },
+    })
+    w.authority.answer(action => (action === 'unexamined' ? 'denied' : 'permitted'))
+    expect(await w.goals.unexamined(SYSTEM, { session: SESSION, request: BATCH })).toEqual({
+      kind: 'refused',
+      reason: { kind: 'denied' },
+    })
+    expect(w.record()).toEqual(before)
   })
 })
 

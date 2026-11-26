@@ -18,6 +18,7 @@ import {
   observe,
   packJudge,
   received,
+  settleArrived,
   validateDraft,
   withAwaited,
   type BatchKey,
@@ -302,13 +303,66 @@ describe('the readings of a batch arriving at the goal', () => {
     })
   })
 
-  it('while a round is going, the readings are kept and the goal is left to that round', () => {
+  it('while a round is going, the readings are kept and the goal is left to that round; a verdict is owed in case that round is already past its observation', () => {
     const step = arrive(waiting(), { running: true })
     if (step.kind !== 'next') throw new Error(step.kind)
     expect(step.record.state).toEqual(active())
     expect(step.told).toBeNull()
     expect(step.record.examination.read[A3]).toMatchObject({ key: NOW, value: 'holds' })
     expect(step.record.readings.criteria.A3?.value).toBe('holds')
+    expect(step.record.examination.arrived).toBe(true)
+  })
+
+  describe('a verdict owed for readings that arrived while a round was going', () => {
+    const owed = () => {
+      const step = arrive(waiting(), { running: true })
+      if (step.kind !== 'next') throw new Error(step.kind)
+      return step.record
+    }
+    const settle = (record: GoalRecord, running = false, written = 'call-9') =>
+      settleArrived(record, { written, running })
+
+    it('is given once no round is going: everything holds, so the goal is achieved', () => {
+      const step = settle(owed())
+      if (step === null) throw new Error('nothing was settled')
+      expect(step.record.state).toMatchObject({ status: 'settled', outcome: { kind: 'achieved' } })
+      expect(step.record.examination.arrived).toBe(false)
+      expect(step.told).toBeNull()
+    })
+
+    it('waits while a round is still going, and is not owed by a goal nothing arrived for', () => {
+      expect(settle(owed(), true)).toBeNull()
+      expect(settle(waiting())).toBeNull()
+    })
+
+    it('sends the agent on when something was found not done', () => {
+      const NOT_DONE: Handed = { value: 'fails', note: '按右键蛇不转向', refs: [] }
+      const first = arrive(waiting(), { running: true, answers: { A2: HOLD, A3: NOT_DONE } })
+      if (first.kind !== 'next') throw new Error(first.kind)
+      const step = settle(first.record)
+      expect(step?.told).toBe('continue')
+      expect(step?.record.state).toMatchObject({ status: 'active', rounds: 4 })
+      expect(step?.record.wake?.kind).toBe('continue')
+    })
+
+    it('is no longer owed once the round made its own observation, or the goal is paused or settled', () => {
+      const observed = seen(owed())
+      if (observed.kind !== 'next') throw new Error(observed.kind)
+      expect(observed.record.examination.arrived).toBe(false)
+      const paused = { ...active(), status: 'paused', pause: { by: 'person' } } as SetGoalState
+      expect(settle({ ...owed(), state: paused })).toBeNull()
+    })
+
+    it('hands a new batch over when a file was written since: the readings that arrived are out of date', () => {
+      const step = settle(owed(), false, 'call-12')
+      if (step === null) throw new Error('nothing was settled')
+      expect(step.record.state.status).toBe('active')
+      expect(step.record.examination).toMatchObject({
+        arrived: false,
+        used: 2,
+        batch: { key: { revision: 2, written: 'call-12' }, criteria: [A2, A3], delivery: 'owed' },
+      })
+    })
   })
 
   it('while the goal is paused, the readings are kept and it stays paused', () => {
@@ -352,6 +406,7 @@ describe('the readings of a batch arriving at the goal', () => {
         [A3]: { key: NOW, value: 'holds', note: null, refs: [] },
       },
       examiner: 'x-session',
+      arrived: true,
       submitted: { key: EARLIER, digest: 'sha256:aa' },
     }
     expect(ExaminationSchema.parse(kept)).toEqual(kept)
@@ -401,7 +456,12 @@ function seeded(seed: number): () => number {
 
 describe('random sequences of what happens to a batch, against a plain reference', () => {
   type Under = 'none' | 'stale' | 'holds' | 'fails' | 'cannot-tell'
-  type Plain = { under: Record<string, Under>; out: { ids: string[]; live: boolean } | null }
+  type Plain = {
+    under: Record<string, Under>
+    out: { ids: string[]; live: boolean } | null
+    /** A batch was handed over under the identity that stands now: no other is, until a write or a revision. */
+    handed: boolean
+  }
   const IDS = [A1, A2, A3]
   const VALUES = ['holds', 'fails', 'cannot-tell'] as const
 
@@ -414,7 +474,11 @@ describe('random sequences of what happens to a batch, against a plain reference
       let revision = 1
       let writes = 0
       let examination: Examination = NO_EXAMINATION
-      const plain: Plain = { under: { A1: 'none', A2: 'none', A3: 'none' }, out: null }
+      const plain: Plain = {
+        under: { A1: 'none', A2: 'none', A3: 'none' },
+        out: null,
+        handed: false,
+      }
       const keyNow = (): BatchKey => ({ revision, written: `w${String(writes)}` })
       const trace: string[] = []
       for (let step = 0; step < 12; step += 1) {
@@ -423,12 +487,14 @@ describe('random sequences of what happens to a batch, against a plain reference
           writes += 1
           for (const id of IDS) if (plain.under[id] !== 'none') plain.under[id] = 'stale'
           if (plain.out !== null) plain.out.live = false
+          plain.handed = false
           trace.push('w')
         } else if (kind === 'hand') {
           const ids = IDS.filter(() => next() < 0.6)
           if (ids.length === 0) continue
           examination = handed(examination, keyNow(), ids).examination
-          if (plain.out === null || !plain.out.live) plain.out = { ids, live: true }
+          if (!plain.handed) plain.out = { ids, live: true }
+          plain.handed = true
           trace.push(`h${ids.join('')}`)
         } else if (kind === 'back' || kind === 'back-late') {
           const key =
@@ -455,6 +521,7 @@ describe('random sequences of what happens to a batch, against a plain reference
             new Set(IDS.filter(id => !touched.includes(id))),
           ).examination
           for (const id of IDS) plain.under[id] = 'none'
+          plain.handed = false
           if (plain.out !== null) {
             if (plain.out.ids.some(id => touched.includes(id as CriterionId))) plain.out = null
             else plain.out.live = false

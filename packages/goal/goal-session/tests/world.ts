@@ -21,7 +21,8 @@ export const TENANT = encoded.value
 export const SESSION = 'a'.repeat(64)
 
 export function work(change: Partial<WorkSnapshot> = {}): WorkSnapshot {
-  return { session: SESSION, lifecycle: 'dormant', ...change } as unknown as WorkSnapshot
+  const run = { kind: 'none' } as const
+  return { session: SESSION, lifecycle: 'dormant', run, ...change } as unknown as WorkSnapshot
 }
 export const failure = (kind: SessionFailure['kind']): Called<unknown> => ({
   failure: { kind, owner: 'session', diagnostic: kind } as SessionFailure,
@@ -46,6 +47,7 @@ export function world(describe: DescribeCall = describeRun) {
     drives: { kind: 'read', value: false } as PortRead<boolean>,
     opened: { kind: 'read', value: null } as Awaited<ReturnType<SessionCalls['opened']>>,
     asked: { kind: 'read', value: null } as Awaited<ReturnType<SessionCalls['asked']>> | Error,
+    where: { kind: 'read', value: null } as PortRead<string | null>,
     pages: [] as PortRead<HistoryResults>[],
   }
   const asked: { after: string | null; cursor: string | null }[] = []
@@ -74,6 +76,9 @@ export function world(describe: DescribeCall = describeRun) {
     async opened() {
       opens.count += 1
       return state.opened
+    },
+    async where() {
+      return state.where
     },
     async resultsAfter({ after, cursor, tenant, session }) {
       asked.push({ after, cursor })

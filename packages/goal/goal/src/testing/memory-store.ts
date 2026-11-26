@@ -1,4 +1,4 @@
-import type { GoalRecord } from '@omne-harness/goal-contract'
+import { owesExamination, type GoalRecord } from '@omne-harness/goal-contract'
 import type { GoalStore, StoreAnswer, StoreRead } from '../store.ts'
 import { commitGoal, type GoalTxn } from '../txn.ts'
 
@@ -24,9 +24,7 @@ export function memoryTxn(rows: TenantGoals): GoalTxn {
   }
 }
 
-const owes = (row: GoalRecord): boolean =>
-  row.wake !== null ||
-  (row.examination.batch !== null && row.examination.batch.delivery !== 'handed')
+const owes = (row: GoalRecord): boolean => row.wake !== null || owesExamination(row.examination)
 const examines = (row: GoalRecord, examiner: string): boolean =>
   row.state.status !== 'settled' && row.examination.examiner === examiner
 

@@ -4,6 +4,7 @@ import { writeJsonText } from '@omne-harness/json-text'
 import type { EntryId, SessionFailure, SessionWorkPrincipals } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
+import { sessionWorkingDirectoryKey } from '../session-ad03/working-directory.ts'
 import { defaultModesOf } from '../session-conditions/index.ts'
 import { askedIn, drivesItself, openedIn, ROUND_KINDS, type RoundEntry } from './drive.ts'
 
@@ -130,6 +131,22 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
           ? undefined
           : defaultModesOf(mappings, name => mappings.modesFor(name))
       return drivesItself(input, defaults)
+    },
+    async where({ tenant, session }) {
+      const issued = await ports
+        .workPrincipals()
+        ?.forSession({ actor: 'maintainer', tenant, session })
+      const service = maintainer()
+      const directories = ctx.get(sessionWorkingDirectoryKey)
+      if (issued === undefined || service === undefined || directories === undefined)
+        return UNAVAILABLE
+      if (!('ok' in issued)) return UNAVAILABLE
+      const principal = issued.ok
+      const work = await service.work.readWork({ principal, tenant, session })
+      if (!('ok' in work)) return UNAVAILABLE
+      const held = await directories.inForce({ principal, tenant, snapshot: work.ok })
+      if ('unavailable' in held) return UNAVAILABLE
+      return { kind: 'read', value: held.state === 'unusable' ? null : held.directory }
     },
     opened: at => backward(at, ROUND_KINDS, openedIn),
     asked: at => backward(at, PERSON_KINDS, askedIn),

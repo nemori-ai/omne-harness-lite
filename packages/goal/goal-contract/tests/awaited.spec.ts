@@ -107,9 +107,16 @@ describe('handing a batch over', () => {
     expect(step.examination).toMatchObject({ batch: { key: NOW, criteria: [A1] }, used: 2 })
   })
 
-  it('is handed once for one identity: the same identity again changes nothing', () => {
+  it('is handed once for one identity: the same identity again changes nothing, while it is out and after a reading came back under it', () => {
     const once = out(NOW)
     expect(handed(once, NOW, [A1, A2])).toEqual({ examination: once, replaced: null })
+    const back = read(NOW, 'fails')
+    expect(handed(back, NOW, [A2])).toEqual({ examination: back, replaced: null })
+    expect(handed(back, { ...NOW, written: 'call-12' }, [A2]).examination.batch?.criteria).toEqual([
+      A2,
+    ])
+    const submitted = { ...NO_EXAMINATION, submitted: { key: NOW, digest: 'sha256:aa' } }
+    expect(handed(submitted, NOW, [A1])).toEqual({ examination: submitted, replaced: null })
   })
 })
 

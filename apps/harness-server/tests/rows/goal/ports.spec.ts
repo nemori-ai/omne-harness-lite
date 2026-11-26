@@ -234,7 +234,14 @@ describe('the ports the contributing rows mount', () => {
     expect(await lateSessions(empty).wake('t', wake)).toBe('unknown')
     expect(await lateCalls(empty).cited('t', 's', ['call-1'], '0')).toEqual({ kind: 'unavailable' })
     expect(await lateSessions(empty).running('t', 's')).toEqual({ kind: 'unavailable' })
-    const batch = { session: 's', request: 'examine/1/1/', examiner: null, brief: '', criteria: [] }
+    const batch = {
+      session: 's',
+      request: 'examine/1/1/',
+      examiner: null,
+      where: null,
+      brief: '',
+      criteria: [],
+    }
     expect(await lateExamining(empty).hand('t', batch)).toEqual({ kind: 'unknown' })
     expect(await lateExamining(empty).cited('t', 'x', 'examine/1/1/', ['x-1'])).toEqual({
       kind: 'unavailable',
@@ -258,7 +265,14 @@ describe('the ports the contributing rows mount', () => {
       hand: async () => ({ kind: 'handed', examiner: 'x' }),
       cited: async (_t, _x, _r, refs) => ({ kind: 'read', value: refs }),
     }
-    const batch = { session: 's', request: 'examine/1/1/', examiner: null, brief: '', criteria: [] }
+    const batch = {
+      session: 's',
+      request: 'examine/1/1/',
+      examiner: null,
+      where: null,
+      brief: '',
+      criteria: [],
+    }
     expect(await examining.hand('t', batch)).toEqual({ kind: 'handed', examiner: 'x' })
     expect(await sessions.asked('t', 's')).toEqual({
       kind: 'read',

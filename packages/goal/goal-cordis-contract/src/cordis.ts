@@ -26,6 +26,7 @@ export abstract class GoalCheckingService extends Service implements GoalCheckin
   }
   abstract readonly observe: GoalChecking['observe']
   abstract readonly reran: GoalChecking['reran']
+  abstract readonly unexamined: GoalChecking['unexamined']
   abstract readonly compacted: GoalChecking['compacted']
 }
 export const goalCheckingKey = GoalCheckingService.provide

@@ -46,8 +46,11 @@ export function createGoalSessions(calls: SessionCalls): GoalSessions {
       if (drives.kind !== 'read') return UNAVAILABLE
       const opened = drives.value ? await calls.opened(at).catch(() => UNAVAILABLE) : read(null)
       if (opened.kind !== 'read') return UNAVAILABLE
+      const where = await calls.where(at).catch(() => UNAVAILABLE)
+      if (where.kind !== 'read') return UNAVAILABLE
       const { attendance } = standingOf(work.value)
-      return read({ attendance, moment: head.value ?? NO_ENTRY, drive: opened.value })
+      const moment = head.value ?? NO_ENTRY
+      return read({ attendance, moment, drive: opened.value, where: where.value })
     },
 
     async running(tenant, session) {

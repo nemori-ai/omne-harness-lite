@@ -17,6 +17,7 @@ export type GoalAction =
   | 'brief'
   | 'submit'
   | 'rerun'
+  | 'unexamined'
   | 'set'
   | 'revise'
   | 'pause'
@@ -66,6 +67,7 @@ export type BatchToHand = Readonly<{
   session: string
   request: string
   examiner: string | null
+  where: string | null
   brief: string
   criteria: readonly Readonly<{ id: string; evidence: Criterion['evidence'] }>[]
 }>

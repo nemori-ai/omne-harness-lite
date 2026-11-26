@@ -39,6 +39,7 @@ export const ExaminationSchema = z.strictObject({
   used: z.int().nonnegative(),
   read: z.partialRecord(CriterionIdSchema, ExaminedSchema),
   examiner: z.string().min(1).nullable().default(null),
+  arrived: z.boolean().default(false),
   submitted: z
     .strictObject({ key: BatchKeySchema, digest: z.string().min(1) })
     .nullable()
@@ -51,6 +52,7 @@ export const NO_EXAMINATION: Examination = Object.freeze({
   used: 0,
   read: {},
   examiner: null,
+  arrived: false,
   submitted: null,
 })
 
@@ -80,6 +82,12 @@ export function awaitedReading(
   return read.key.written === now.written ? read.value : 'stale'
 }
 
+export function handedBefore(examination: Examination, key: BatchKey): boolean {
+  const { batch, read, submitted } = examination
+  const keys = [batch?.key, submitted?.key, ...Object.values(read).map(entry => entry?.key)]
+  return keys.some(used => used !== undefined && sameKey(used, key))
+}
+
 /** Hands a batch over under an identity. The same identity is handed once; a batch of another identity still out is replaced. */
 export function handed(
   examination: Examination,
@@ -87,7 +95,7 @@ export function handed(
   criteria: readonly CriterionId[],
 ): Readonly<{ examination: Examination; replaced: Batch | null }> {
   const { batch } = examination
-  if (batch !== null && sameKey(batch.key, key)) return { examination, replaced: null }
+  if (handedBefore(examination, key)) return { examination, replaced: null }
   const next: Batch = { key, criteria: [...criteria], delivery: 'owed', ran: {} }
   return {
     examination: { ...examination, batch: next, used: examination.used + 1 },
@@ -144,6 +152,10 @@ export function submissionOf(
   const { submitted } = examination
   if (submitted === null || !sameKey(submitted.key, key)) return 'new'
   return submitted.digest === digest ? 'repeat' : 'differs'
+}
+
+export function owesExamination({ batch, arrived }: Examination): boolean {
+  return arrived || (batch !== null && batch.delivery !== 'handed')
 }
 
 type Dropped = Readonly<{ examination: Examination; cancelled: Batch | null }>

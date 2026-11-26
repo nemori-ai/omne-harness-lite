@@ -186,7 +186,10 @@ export const storeConformance: readonly StoreConformanceCase[] = [
       const owed = conformanceGoal({ examination: { ...NO_EXAMINATION, batch, used: 1 } })
       committed(await store.commit(T1, { session: S1, expected: 0, next: owed }))
       hold(read(await store.owing(T1)).length === 1, 'the owed batch is not listed')
-      const lost = { ...owed.examination, batch: { ...batch, delivery: 'unknown' as const, ran: {} } }
+      const lost = {
+        ...owed.examination,
+        batch: { ...batch, delivery: 'unknown' as const, ran: {} },
+      }
       committed(
         await store.commit(T1, { session: S1, expected: 1, next: { ...owed, examination: lost } }),
       )
@@ -194,7 +197,10 @@ export const storeConformance: readonly StoreConformanceCase[] = [
         read(await store.owing(T1)).length === 1,
         'a batch of unknown handing over is not listed',
       )
-      const taken = { ...owed.examination, batch: { ...batch, delivery: 'handed' as const, ran: {} } }
+      const taken = {
+        ...owed.examination,
+        batch: { ...batch, delivery: 'handed' as const, ran: {} },
+      }
       committed(
         await store.commit(T1, { session: S1, expected: 2, next: { ...owed, examination: taken } }),
       )

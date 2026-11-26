@@ -184,7 +184,7 @@ export function observe(
       version: record.version + 1,
       state: step.next,
       readings: awaitedOver(body, read, batches.examination, now),
-      examination: batches.examination,
+      examination: { ...batches.examination, arrived: false },
       wake: wakeOf(answer, step.next),
       observed: { call: input.call, answer },
     },
@@ -200,6 +200,39 @@ const TOLD = [
   ['tell-person', 'tell'],
 ] as const
 
+type Ruled = Readonly<{ record: GoalRecord; told: 'continue' | 'tell' | null }>
+type Live = Extract<GoalRecord['state'], { status: 'active' | 'paused' }>
+
+function ruledOn(
+  record: GoalRecord,
+  state: Live,
+  examination: Examination,
+  how: Readonly<{ written: string; current: boolean; running: boolean }>,
+): Ruled {
+  const { body } = record
+  const now: BatchKey = { revision: state.revision, written: how.written }
+  const findings = withAwaited(body, examination, now, keptFindings(record.readings))
+  const verdict = rule(body, { ...state, examinations: examination.used }, findings)
+  const { current, running } = how
+  const step = arrive(state, { kind: 'evidence', current, running, verdict })
+  const next = step.kind === 'changed' ? step.next : state
+  const told = TOLD.find(([effect]) => step.effects.includes(effect))?.[1] ?? null
+  const hand = step.effects.includes('hand') && verdict.row === 2 ? verdict.hand : []
+  const batches = moved(examination, now, hand, next.status === 'settled')
+  const arrived = current && running && state.status === 'active'
+  return {
+    told,
+    record: {
+      ...record,
+      version: record.version + 1,
+      state: next,
+      readings: awaitedOver(body, record.readings, batches.examination, now),
+      examination: { ...batches.examination, arrived },
+      wake: told === 'continue' ? wakeOf('continue', next) : record.wake,
+    },
+  }
+}
+
 export function evidence(
   record: GoalRecord,
   input: Readonly<{
@@ -211,35 +244,27 @@ export function evidence(
     unread?: readonly CriterionId[]
   }>,
 ): EvidenceStep {
-  const { state, body } = record
+  const { state } = record
   const got = received(record.examination, input.key, input.answers, input.unread)
   if (!got.taken || state.status === 'settled') return { kind: 'dropped' }
-  const now: BatchKey = { revision: state.revision, written: input.written }
-  const current = sameKey(input.key, now)
+  const { written, running, digest } = input
+  const current = sameKey(input.key, { revision: state.revision, written })
   const taken = current ? got.examination : { ...record.examination, batch: null }
-  const { digest } = input
   const submitted = digest === undefined ? taken.submitted : { key: input.key, digest }
-  const examination = { ...taken, submitted }
-  const findings = withAwaited(body, examination, now, keptFindings(record.readings))
-  const verdict = rule(body, { ...state, examinations: examination.used }, findings)
-  const step = arrive(state, { kind: 'evidence', current, running: input.running, verdict })
-  const next = step.kind === 'changed' ? step.next : state
-  const told = TOLD.find(([effect]) => step.effects.includes(effect))?.[1] ?? null
-  return {
-    kind: 'next',
-    told,
-    record: {
-      ...record,
-      version: record.version + 1,
-      state: next,
-      readings: awaitedOver(body, record.readings, examination, now),
-      examination,
-      wake: told === 'continue' ? wakeOf('continue', next) : record.wake,
-    },
-  }
+  const how = { written, current, running }
+  return { kind: 'next', ...ruledOn(record, state, { ...taken, submitted }, how) }
 }
 
-/** The rows of the gap table that are not closed yet, as text. */
+/** The verdict owed for readings that arrived while a round was going, given once no round is going. Null: nothing is owed now. */
+export function settleArrived(
+  record: GoalRecord,
+  seen: Readonly<{ written: string; running: boolean }>,
+): Ruled | null {
+  const { state, examination } = record
+  if (!examination.arrived || state.status !== 'active' || seen.running) return null
+  return ruledOn(record, state, examination, { ...seen, current: true })
+}
+
 export function openGap(body: GoalBody, readings: Readings, rounds: number): string {
   return renderGap(gapTable(body, readings, rounds).filter(row => row.open))
 }

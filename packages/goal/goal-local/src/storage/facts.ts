@@ -1,5 +1,5 @@
 import type { GoalTxn } from '@omne-harness/goal'
-import { GoalRecordSchema, type GoalRecord } from '@omne-harness/goal-contract'
+import { GoalRecordSchema, owesExamination, type GoalRecord } from '@omne-harness/goal-contract'
 import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
 import { ROW_LIMIT } from './schema.ts'
 
@@ -13,7 +13,7 @@ const parsed = (rows: QueryRows['rows']): GoalRecord[] =>
 const flag = (on: boolean) => (on ? 1 : 0)
 const generationOf = (record: GoalRecord) => record.state.generation
 const owes = ({ wake, examination }: GoalRecord): boolean =>
-  wake !== null || (examination.batch !== null && examination.batch.delivery !== 'handed')
+  wake !== null || owesExamination(examination)
 const columns = (record: GoalRecord) =>
   [
     record.version,

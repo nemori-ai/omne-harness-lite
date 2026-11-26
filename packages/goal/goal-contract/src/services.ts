@@ -93,6 +93,10 @@ export interface GoalChecking {
     caller: GoalCaller,
     input: Readonly<{ session: string; request: string; results: unknown }>,
   ): Promise<Outcome<Readonly<{ examine: readonly CriterionId[] }>, GoalRefusal>>
+  unexamined(
+    caller: GoalCaller,
+    input: Readonly<{ session: string; request: string }>,
+  ): Promise<Outcome<null, GoalRefusal>>
   compacted(caller: GoalCaller, session: string): Promise<Outcome<string | null, GoalRefusal>>
 }
 

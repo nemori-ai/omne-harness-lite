@@ -523,7 +523,8 @@
       "row": "goal-session",
       "names": [
         "definitionMappings",
-        "goalPrincipal"
+        "goalPrincipal",
+        "sessionWorkingDirectory"
       ]
     },
     {
