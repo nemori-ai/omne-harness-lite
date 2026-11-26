@@ -3,6 +3,7 @@ import { coordinateJob } from './coordinate.ts'
 import { admitCommand, iso, refreshCommand, type DispatcherPorts } from './prepare.ts'
 import type { ScheduleJobId, ScheduleWork } from '@omne-harness/schedule-contract'
 import { advanceJob, type JobFacts } from './job.ts'
+import { workAcceptance } from './carriers.ts'
 import { directJobId } from './refs.ts'
 import type { DispatchCommand } from './types.ts'
 
@@ -12,6 +13,7 @@ export type CancelAnswer =
 export type DirectAnswer =
   | Readonly<{ kind: 'started'; jobId: ScheduleJobId; replayed: boolean }>
   | Readonly<{ kind: 'unknown' | 'conflict'; jobId: ScheduleJobId }>
+  | Readonly<{ kind: 'refused'; jobId: ScheduleJobId; reason: string }>
 
 export {
   reminderDeadline,
@@ -143,6 +145,9 @@ export function createDispatcher(ports: DispatcherPorts) {
     by: 'human' | 'agent' | 'system' = 'system',
   ): Promise<DirectAnswer> {
     const jobId = directJobId(ports.owner, key)
+    const taken = await workAcceptance(ports.executor(work), work)
+    if (taken.kind === 'refused') return { kind: 'refused', jobId, reason: taken.reason }
+    if (taken.kind === 'unknown') return { kind: 'unknown', jobId }
     const result = await store.commit({
       kind: 'direct',
       owner: ports.owner,

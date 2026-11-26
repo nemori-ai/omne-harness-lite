@@ -1,11 +1,17 @@
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import {
+  completeAgentWork,
+  completeDefinition,
   ScheduleDefinitionSchema,
+  ScheduleInstructionSchema,
   ScheduleWorkSchema,
+  type CompletedWork,
+  type ScheduleSessionDefaults,
   type ScheduleCandidate,
   type ScheduleDefinition,
   type ScheduleDomainError,
+  type ScheduleInstruction,
   type ScheduleExecutionRow,
   type ScheduleJobDetail,
   type ScheduleJobRun,
@@ -29,14 +35,36 @@ export function treeOf(value: unknown): JsonValue {
   return read.value
 }
 
-/** A definition the client sends, judged by the schedule's own schema. */
-export function definitionOf(tree: JsonValue): ScheduleDefinition | undefined {
-  const parsed = ScheduleDefinitionSchema.safeParse(JSON.parse(writeJsonText(tree)))
+/** Why what the client sent was not read: the completion refused it, or what it leaves out could not be filled in now. */
+export type Unread =
+  | Readonly<{ unread: 'refused'; reason: string }>
+  | Readonly<{ unread: 'basis-unavailable' }>
+const unreadOf = (stop: Exclude<CompletedWork, { kind: 'completed' }>): Unread =>
+  stop.kind === 'refused' ? { unread: 'refused', reason: stop.reason } : { unread: stop.kind }
+
+/** A definition the client sends: completed for a person, then judged by the schedule's own schema. Undefined: the schema refuses it. */
+export function definitionOf(
+  tree: JsonValue,
+  defaults: ScheduleSessionDefaults,
+): ScheduleDefinition | Unread | undefined {
+  const completed = completeDefinition(JSON.parse(writeJsonText(tree)), defaults)
+  if (completed.kind !== 'completed') return unreadOf(completed)
+  const parsed = ScheduleDefinitionSchema.safeParse(completed.definition)
   return parsed.success ? parsed.data : undefined
 }
 
-export function workOf(tree: JsonValue): ScheduleWork | undefined {
-  const parsed = ScheduleWorkSchema.safeParse(JSON.parse(writeJsonText(tree)))
+export function instructionOf(tree: JsonValue): ScheduleInstruction | undefined {
+  const parsed = ScheduleInstructionSchema.safeParse(JSON.parse(writeJsonText(tree)))
+  return parsed.success ? parsed.data : undefined
+}
+
+export function workOf(
+  tree: JsonValue,
+  defaults: ScheduleSessionDefaults,
+): ScheduleWork | Unread | undefined {
+  const completed = completeAgentWork(JSON.parse(writeJsonText(tree)), defaults)
+  if (completed.kind !== 'completed') return unreadOf(completed)
+  const parsed = ScheduleWorkSchema.safeParse(completed.work)
   return parsed.success ? parsed.data : undefined
 }
 
@@ -95,7 +123,8 @@ export function revisionOf(view: ScheduleRevisionView) {
 
 type Refusal =
   | Readonly<{ outcome: 'denied' | 'basis-unavailable' | 'limited' | 'not-visible' }>
-  | Readonly<{ outcome: 'invalid' | 'unsupported' | 'conflict'; code: string }>
+  | Readonly<{ outcome: 'unsupported' | 'conflict'; code: string }>
+  | Readonly<{ outcome: 'invalid'; code: string; reason: string }>
 
 const INVALID = new Set([
   'invalid_input',
@@ -124,7 +153,8 @@ export function refusalOf(error: ScheduleDomainError): Refusal {
   if (error.code === 'forbidden' || error.code === 'not_found') return { outcome: 'not-visible' }
   if (error.code === 'unauthenticated') return { outcome: 'denied' }
   if (error.code === 'capacity_exceeded') return { outcome: 'limited' }
-  if (INVALID.has(error.code)) return { outcome: 'invalid', code: error.code }
+  if (INVALID.has(error.code))
+    return { outcome: 'invalid', code: error.code, reason: error.message }
   if (UNSUPPORTED.has(error.code)) return { outcome: 'unsupported', code: error.code }
   if (CONFLICT.has(error.code)) return { outcome: 'conflict', code: error.code }
   return { outcome: 'basis-unavailable' }
@@ -193,6 +223,23 @@ export function historyRowOf(row: ScheduleExecutionRow) {
   } as const
 }
 
+function whereOf(where: ScheduleJobDetail['executionWhere']) {
+  if (where === null) return null
+  if (where.kind === 'program')
+    return { kind: 'program' as const, program: where.programRef, execution: where.executionRef }
+  const account =
+    where.account === null
+      ? null
+      : {
+          definition: where.account.adopted,
+          outcome: where.account.outcome,
+          deliverables: where.account.deliverables,
+          since: where.account.since,
+          run: where.account.run,
+        }
+  return { kind: 'session' as const, session: where.sessionRef, account }
+}
+
 export function jobDetailOf(detail: ScheduleJobDetail) {
   const work = detail.purpose.kind === 'execution' ? detail.purpose.work : null
   return {
@@ -204,14 +251,7 @@ export function jobDetailOf(detail: ScheduleJobDetail) {
     version: detail.slot?.basis.calendarVersionId ?? null,
     revision: detail.definitionRevision,
     work: treeOf(work),
-    where:
-      detail.executionWhere === null
-        ? null
-        : {
-            kind: 'program' as const,
-            program: detail.executionWhere.programRef,
-            execution: detail.executionWhere.executionRef,
-          },
+    where: whereOf(detail.executionWhere),
     events: detail.events.map(event => ({ ...event, at: instantOf(event.at) })),
   } as const
 }

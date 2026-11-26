@@ -27,7 +27,7 @@ import {
   type Upcoming,
 } from '../model/words.ts'
 import { Drawn } from './drawn.tsx'
-import { JobDetailView, type OpenedJob } from './job-detail.tsx'
+import { JobDetailView, type JobDetailProps, type OpenedJob } from './job-detail.tsx'
 import { ScheduleRuns, useJobChanges } from './schedule-runs.tsx'
 import { scheduleTitle } from '../parts.ts'
 
@@ -44,6 +44,7 @@ export type ScheduleDetailProps = Readonly<{
   tenant: TenantId
   picked: Picked
   onBack: () => void
+  onOpenSession?: JobDetailProps['onOpenSession']
 }>
 
 /** The reading pane on one schedule, or on one of its Jobs; a change the server tells of reads both again. */
@@ -65,6 +66,7 @@ export function ScheduleDetailView(props: ScheduleDetailProps): JSX.Element {
         backLabel={`回到${picked.label ?? '未命名'}`}
         onBack={() => setJob(null)}
         round={round}
+        {...(props.onOpenSession === undefined ? {} : { onOpenSession: props.onOpenSession })}
       />
     )
   return <ScheduleReading {...props} round={round} onOpen={setJob} />

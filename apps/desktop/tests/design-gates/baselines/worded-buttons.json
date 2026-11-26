@@ -53,6 +53,9 @@
     "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {
       "name": 1
     },
+    "packages/schedule/schedule-ui/src/view/job-provenance.tsx | {words}": {
+      "name": 1
+    },
     "packages/schedule/schedule-ui/src/view/schedule-runs.tsx | {body}": {
       "name": 1
     },

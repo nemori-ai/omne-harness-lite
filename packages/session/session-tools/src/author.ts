@@ -143,6 +143,7 @@ const READS: { readonly [K in Exclude<SessionsArguments['kind'], 'help'>]: Read<
       direction,
       pageBytes,
       ...(args.inherited ? { inherited: true as const } : {}),
+      ...(args.after === null ? {} : { after: args.after }),
     })
     if ('failure' in read) return failureText(read.failure, args.session)
     const { entries, exhausted, next, from } = read.ok

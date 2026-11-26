@@ -15,6 +15,12 @@ import {
   type SchedulesCommandName,
 } from '@omne-harness/schedule-tools'
 
+/** What a new session takes from the session of the call in these tests. */
+export const FOR_NEW = {
+  agentDefinitionRef: 'coding',
+  modes: { permission: 'never', environmentAdoptionRef: 'env@1', collaboration: 'co-work' },
+  workspace: { workspaceRef: 'w', instanceRef: 'i', basisRef: 'b' },
+} as const
 export const ID = '7d1c2c0e-3b1f-4a52-9c1b-8f3e2a6d5b40'
 export const TENANT = 'tenant/o/a'
 export const CALL = 'call-1'
@@ -152,6 +158,7 @@ export function bound(
     queries: () => service.queries,
     context: async () => context,
     now: () => NOW as never,
+    newSessionDefaults: async () => FOR_NEW,
     ...overrides,
   })
 }

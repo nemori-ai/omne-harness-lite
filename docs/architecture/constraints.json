@@ -1106,6 +1106,14 @@
       "source": "packages/schedule/SPEC.md"
     },
     {
+      "id": "packages/schedule/schedule-session",
+      "paths": ["packages/schedule/schedule-session/src/**"],
+      "layer": "contract",
+      "domains": ["schedule"],
+      "status": "candidate",
+      "source": "packages/schedule/SPEC.md"
+    },
+    {
       "id": "packages/schedule/schedule-tools",
       "paths": ["packages/schedule/schedule-tools/src/**"],
       "layer": "interaction",
@@ -2141,6 +2149,7 @@
       "to": [
         "packages/schedule/schedule-cordis-contract",
         "packages/schedule/schedule-local",
+        "packages/schedule/schedule-session",
         "packages/schedule/schedule-tools"
       ],
       "source": "packages/schedule/SPEC.md"
@@ -2159,6 +2168,27 @@
       "id": "DIR-SCHEDULE-TOOLS",
       "from": ["packages/schedule/schedule-tools"],
       "to": ["packages/schedule/schedule", "packages/schedule/schedule-local"],
+      "source": "packages/schedule/SPEC.md"
+    },
+    {
+      "id": "DIR-SCHEDULE-SESSION",
+      "from": ["packages/schedule/schedule-session"],
+      "to": [
+        "packages/schedule/schedule",
+        "packages/schedule/schedule-cordis-contract",
+        "packages/schedule/schedule-local",
+        "packages/schedule/schedule-tools"
+      ],
+      "source": "packages/schedule/SPEC.md"
+    },
+    {
+      "id": "DIR-SCHEDULE-SESSION-UNKNOWN",
+      "from": [
+        "packages/schedule/schedule-cordis-contract",
+        "packages/schedule/schedule-local",
+        "packages/schedule/schedule-tools"
+      ],
+      "to": ["packages/schedule/schedule-session"],
       "source": "packages/schedule/SPEC.md"
     },
     {

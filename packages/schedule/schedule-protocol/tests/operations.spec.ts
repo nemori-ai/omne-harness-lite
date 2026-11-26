@@ -21,8 +21,8 @@ const detail = {
   definition: { any: 'json' },
 }
 
-describe('schedule/v2', () => {
-  it('has the read and commit operations of the design; revision 2 adds the Job operations and one observation', () => {
+describe('schedule/v3', () => {
+  it('has the read and commit operations of the design, the Job operations and one observation, all from the first revision of this major', () => {
     expect(Object.keys(operations)).toEqual([
       'list-schedules',
       'read-schedule',
@@ -35,6 +35,7 @@ describe('schedule/v2', () => {
       'query-manage-schedule',
       'list-jobs',
       'read-job',
+      'read-session-jobs',
       'cancel-job',
       'query-cancel-job',
       'start-job',
@@ -45,12 +46,12 @@ describe('schedule/v2', () => {
     expect(operations['read-schedule'].effect).toBe('read')
     expect(operations['cancel-job'].effect).toBe('commit')
     expect(operations['start-job'].effect).toBe('commit')
-    expect(operations['list-jobs'].since).toBe(2)
+    expect(Object.values(operations).filter(operation => 'since' in operation)).toEqual([])
     expect(Object.keys(scheduleProtocol.observations)).toEqual(['observe-jobs'])
-    expect(revisionOf(scheduleProtocol)).toBe(3)
+    expect(revisionOf(scheduleProtocol)).toBe(1)
   })
 
-  it('revision 3 adds the reason a Job ended to its history row, and a row without it still reads', () => {
+  it('carries the reason a Job ended in its history row, and a row without it still reads', () => {
     const page = operations['list-jobs'].outcomes.succeeded
     const moment = '2026-11-30T09:00:00.000Z'
     const job = {
@@ -151,7 +152,7 @@ describe('schedule/v2', () => {
     expectRoundTrip(operations['query-create-schedule'].body, create)
     for (const action of [
       { kind: 'rename', label: '新名字' },
-      { kind: 'edit', instruction: '写周报' },
+      { kind: 'edit', instruction: { purpose: '写周报' } },
       { kind: 'revise', definition: { y: 2 }, reason: '改规则' },
       { kind: 'replace', definition: { y: 2 }, reason: '换掉' },
       { kind: 'pause', reason: null },
@@ -178,6 +179,72 @@ describe('schedule/v2', () => {
       count: 3,
     })
     expectRoundTrip(operations.preview.outcomes.succeeded, { upcoming: [upcoming], complete: true })
+  })
+
+  it('a Job reads where it is carried out: the run of a program, or a session with what its execution left; anything else is refused', () => {
+    const read = operations['read-job'].outcomes.succeeded
+    const moment = '2027-01-01T00:01:00.000Z'
+    const carried = (where: unknown) => ({
+      job: 'job-1',
+      state: 'running',
+      outcome: null,
+      stop: 'none',
+      origin: 'due',
+      acceptedAt: moment,
+      startedAt: moment,
+      endedAt: null,
+      schedule: 's',
+      slot: moment,
+      local: null,
+      calendar: null,
+      version: null,
+      revision: 1,
+      work: { kind: 'agent' },
+      reason: null,
+      where,
+      events: [],
+    })
+    const account = {
+      definition: { name: 'coding', version: 'v7' },
+      outcome: 'exit:X2',
+      deliverables: ['report.md'],
+      since: 'entry-3',
+      run: 'run-1',
+    }
+    for (const where of [
+      null,
+      { kind: 'program', program: 'probe', execution: 'program:g:j' },
+      { kind: 'session', session: 's-9', account: null },
+      { kind: 'session', session: 's-9', account },
+      {
+        kind: 'session',
+        session: 's-9',
+        account: { ...account, definition: null, outcome: null, since: null, run: null },
+      },
+    ])
+      expectRoundTrip(read, carried(where))
+    for (const wrong of [
+      { kind: 'session', session: 's-9' },
+      { kind: 'elsewhere', session: 's-9', account: null },
+      { kind: 'session', session: 's-9', account: { ...account, deliverables: 'report.md' } },
+    ])
+      expect(readSample(read, carried(wrong))).toEqual({ ok: false })
+  })
+
+  it('an invalid answer says which code, and may say why in words; an edit carries the instruction as data, not as text', () => {
+    const invalid = operations['manage-schedule'].outcomes.invalid
+    expectRoundTrip(invalid, { code: 'invalid_input' })
+    expectRoundTrip(invalid, { code: 'invalid_input', reason: 'A1.evidence: 要有证据' })
+    expect(readSample(invalid, { reason: '没有代码' })).toEqual({ ok: false })
+    const edit = (instruction: unknown) => ({
+      tenant,
+      actionId: 'a',
+      schedule: 's',
+      revision: 1,
+      action: { kind: 'edit', instruction },
+    })
+    expectRoundTrip(operations['manage-schedule'].body, edit({ purpose: '写周报', criteria: [] }))
+    expect(readSample(operations['manage-schedule'].body, edit(undefined))).toEqual({ ok: false })
   })
 
   it('refuses an unknown action, a negative revision and a bad agenda date', () => {

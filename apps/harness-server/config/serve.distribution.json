@@ -1002,6 +1002,11 @@
       "config": {}
     },
     {
+      "id": "schedule-session",
+      "plugin": "scheduleSessionRow",
+      "config": {}
+    },
+    {
       "id": "goal-command",
       "plugin": "goalCommandRow",
       "config": {}
@@ -1097,7 +1102,9 @@
     {
       "id": "schedule-access",
       "plugin": "scheduleAccessRow",
-      "config": {}
+      "config": {
+        "defaultDefinition": "coding"
+      }
     },
     {
       "id": "notification-access",

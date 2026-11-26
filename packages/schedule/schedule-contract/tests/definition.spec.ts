@@ -40,7 +40,7 @@ const definition = {
 }
 const agent = {
   kind: 'agent',
-  instruction: '继续处理',
+  instruction: { purpose: '继续处理' },
   session: { mode: 'existing', sessionRef: 'session:opaque' },
   materials: [],
   returnTo: null,
@@ -258,12 +258,33 @@ describe('recurrence boundaries', () => {
   })
 })
 
-it('uses code points for labels and UTF-8 bytes for instructions without trimming', () => {
+it('uses code points for labels without trimming', () => {
   expect(ScheduleLabelSchema.parse('😀'.repeat(200))).toBe('😀'.repeat(200))
   expect(ScheduleLabelSchema.safeParse('😀'.repeat(201)).success).toBe(false)
-  expect(ScheduleInstructionSchema.safeParse('😀'.repeat(16384)).success).toBe(true)
-  expect(ScheduleInstructionSchema.safeParse('😀'.repeat(16385)).success).toBe(false)
   expect(ScheduleLabelSchema.parse(' 原文 ')).toBe(' 原文 ')
+})
+it('takes an instruction as the data of a goal body: an object of plain JSON with its purpose, whatever else its executor reads, within 65,536 bytes', () => {
+  const body = {
+    purpose: '每晚跑一遍基准',
+    criteria: [{ statement: '跑完了', evidence: { kind: 'command', command: 'node bench.js' } }],
+    exits: [],
+  }
+  expect(ScheduleInstructionSchema.parse(body)).toEqual(body)
+  const sized = (bytes: number) => ({ purpose: 'p', pad: 'x'.repeat(bytes - 24) })
+  expect(Buffer.byteLength(JSON.stringify(sized(65_536)))).toBe(65_536)
+  expect(ScheduleInstructionSchema.safeParse(sized(65_536)).success).toBe(true)
+  expect(ScheduleInstructionSchema.safeParse(sized(65_537)).success).toBe(false)
+  for (const wrong of [
+    '继续处理',
+    {},
+    { purpose: '' },
+    { purpose: 7 },
+    ['purpose'],
+    null,
+    { purpose: 'p', when: new Date(0) },
+    { purpose: 'p', n: Number.NaN },
+  ])
+    expect(ScheduleInstructionSchema.safeParse(wrong).success, JSON.stringify(wrong)).toBe(false)
 })
 it('checks actual civil dates, fixed precision instants and IANA zones', () => {
   expect(ScheduleCivilSchema.safeParse('2026-02-30T10:00:00').success).toBe(false)
@@ -310,7 +331,10 @@ it('accepts each complete management action while rejecting mixed action fields'
   }
   const actions = [
     { action: 'update', patch: { kind: 'label', label: 'new' } },
-    { action: 'update', patch: { kind: 'executionText', instruction: '继续', label: null } },
+    {
+      action: 'update',
+      patch: { kind: 'executionText', instruction: { purpose: '继续' }, label: null },
+    },
     {
       action: 'update',
       patch: { kind: 'reminderContent', content: { title: null, body: '提醒' }, label: null },

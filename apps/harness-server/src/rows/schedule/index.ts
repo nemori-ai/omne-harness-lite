@@ -378,6 +378,7 @@ class Jobs extends ScheduleJobsService {
   readonly queryCancel: ScheduleJobs['queryCancel']
   readonly start: ScheduleJobs['start']
   readonly queryStart: ScheduleJobs['queryStart']
+  readonly ofExecution: ScheduleJobs['ofExecution']
   constructor(ctx: Context, host: Host) {
     super(ctx)
     const via =
@@ -393,6 +394,7 @@ class Jobs extends ScheduleJobsService {
     this.queryCancel = via((j, c, i) => j.queryCancel(c, i))
     this.start = via((j, c, i) => j.start(c, i))
     this.queryStart = via((j, c, i) => j.queryStart(c, i))
+    this.ofExecution = via((j, c, i) => j.ofExecution(c, i))
     this.watch = (tenant, listener) => host.watchers.add(tenant, listener)
   }
   readonly watch: ScheduleJobsService['watch']

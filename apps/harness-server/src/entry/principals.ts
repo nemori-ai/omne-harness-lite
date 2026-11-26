@@ -23,6 +23,7 @@ import {
 import {
   DISPATCH_COMPONENT,
   GOAL_COMPONENT,
+  SCHEDULE_COMPONENT,
   SESSION_MAINTAINER_COMPONENT,
 } from '../rows/authorization/grants.ts'
 import { SESSION_WORK_OWNER } from '../rows/authorization/principals.ts'
@@ -40,6 +41,7 @@ export const ENTRY_COMPONENTS = Object.freeze({
   tenantScope: 'tenantScopePrincipals',
   dispatch: DISPATCH_COMPONENT,
   goal: GOAL_COMPONENT,
+  schedule: SCHEDULE_COMPONENT,
 })
 
 type EntryPrincipals = Readonly<{
@@ -55,6 +57,7 @@ type EntryPrincipals = Readonly<{
   tenantScopeActor: SystemPrincipal
   dispatchActor: SystemPrincipal
   goalActor: SystemPrincipal
+  scheduleActor: SystemPrincipal
 }>
 
 function issueSystem(issuer: PrincipalIssuer, component: string): SystemPrincipal {
@@ -81,6 +84,7 @@ function createEntryPrincipals(): EntryPrincipals {
     tenantScopeActor: issueSystem(issuer, ENTRY_COMPONENTS.tenantScope),
     dispatchActor: issueSystem(issuer, ENTRY_COMPONENTS.dispatch),
     goalActor: issueSystem(issuer, ENTRY_COMPONENTS.goal),
+    scheduleActor: issueSystem(issuer, ENTRY_COMPONENTS.schedule),
   })
 }
 
@@ -172,6 +176,11 @@ export function dispatchPrincipalOf(env: EntryEnv): SystemPrincipal {
 /** The system principal goals work as: it sends a session the reminders its goal owes it, and nothing else. */
 export function goalPrincipalOf(env: EntryEnv): SystemPrincipal {
   return principalsOf(env).goalActor
+}
+
+/** The system principal Jobs work as: it creates the session of a Job and is the owner of the goal it sets there. */
+export function schedulePrincipalOf(env: EntryEnv): SystemPrincipal {
+  return principalsOf(env).scheduleActor
 }
 
 export type SessionWorkIssue = (

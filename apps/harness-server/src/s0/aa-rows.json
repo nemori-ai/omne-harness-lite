@@ -97,6 +97,7 @@
     "dispatch-tool",
     "goal",
     "goal-session",
+    "schedule-session",
     "goal-command",
     "goal-decisions",
     "system-extensions",
@@ -523,6 +524,14 @@
       "names": [
         "definitionMappings",
         "goalPrincipal"
+      ]
+    },
+    {
+      "row": "schedule-session",
+      "names": [
+        "definitionMappings",
+        "schedulePrincipal",
+        "sessionModesInstallation"
       ]
     },
     {

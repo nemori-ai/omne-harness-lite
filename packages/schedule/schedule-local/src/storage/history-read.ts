@@ -9,6 +9,7 @@ import {
   ScheduleRefSchema,
   type ScheduleExecutionRow,
   type ScheduleOwner,
+  type ScheduleWork,
 } from '@omne-harness/schedule-contract'
 import type { ReadPort, SqlValue } from '@omne-harness/sql-contract/worker'
 import { canonical } from './encoding.ts'
@@ -28,6 +29,12 @@ export const historyRequestSchemas = [
   }),
   z.strictObject({ kind: z.literal('historyRevision'), ...common }),
   z.strictObject({ kind: z.literal('jobDetail'), ...common, jobId: ScheduleJobIdSchema }),
+  z.strictObject({
+    kind: z.literal('jobsOfExecution'),
+    ...common,
+    executionRef: ScheduleRefSchema,
+    limit: z.int().min(1).max(50),
+  }),
   z.strictObject({
     kind: z.literal('jobCancel'),
     ...common,
@@ -148,6 +155,14 @@ export function readHistory(port: ReadPort, input: Extract<HistoryRequest, { kin
   }
 }
 
+/** Where the execution of a Job is: a run of a program, or the session agent work runs in. What the session left is read from its executor when the Job is read, so it is null here. */
+function whereOf(work: ScheduleWork | null, executionRef: string | null) {
+  if (executionRef === null || work === null) return null
+  return work.kind === 'program'
+    ? { kind: 'program' as const, programRef: work.programRef, executionRef }
+    : { kind: 'session' as const, sessionRef: executionRef, account: null }
+}
+
 /** A Job with everything recorded about it: its fixed requirement, where it runs and each step it took. */
 export function readJobDetail(port: ReadPort, owner: ScheduleOwner, jobId: string) {
   const job = readJob(port, owner, jobId)
@@ -174,12 +189,27 @@ export function readJobDetail(port: ReadPort, owner: ScheduleOwner, jobId: strin
     purpose: job.purpose,
     definitionRevision: job.definitionRevision,
     reason: job.reason,
-    executionWhere:
-      executionRef !== null && work?.kind === 'program'
-        ? { kind: 'program' as const, programRef: work.programRef, executionRef }
-        : null,
+    executionWhere: whereOf(work, executionRef),
     events,
   }
+}
+
+/** The Jobs whose execution is this one, newest first. The stored record holds the reference in canonical text, so the candidates are found by that text and then read exactly. */
+function readJobsOfExecution(
+  port: ReadPort,
+  input: Readonly<{ owner: ScheduleOwner; executionRef: string; limit: number }>,
+) {
+  const rows = port.execute(
+    'SELECT job_id FROM sc_jobs WHERE owner = ? AND instr(job, ?) > 0 ORDER BY slot_at DESC, job_id DESC LIMIT ?',
+    [canonical(input.owner), `"executionRef":${JSON.stringify(input.executionRef)}`, input.limit],
+  ).rows
+  return rows
+    .map(([jobId]) => readJobDetail(port, input.owner, z.string().parse(jobId)))
+    .filter(
+      detail =>
+        detail?.executionWhere?.kind === 'session' &&
+        detail.executionWhere.sessionRef === input.executionRef,
+    )
 }
 
 /** Whether a cancel carrying this operation was committed on the Job. */
@@ -208,6 +238,8 @@ export function readHistoryRequest(port: ReadPort, input: HistoryRequest) {
       return { kind: 'ok', value: { observationRevision: historyRevision(port, input.owner) } }
     case 'jobDetail':
       return { kind: 'ok', value: readJobDetail(port, input.owner, input.jobId) }
+    case 'jobsOfExecution':
+      return { kind: 'ok', value: readJobsOfExecution(port, input) }
     case 'jobCancel':
       return {
         kind: 'ok',

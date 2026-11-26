@@ -162,16 +162,40 @@ export function plainOf(tree: unknown): unknown {
   }
 }
 
-/** What the Job was fixed to do when it was accepted. */
 export function requirementText(tree: unknown): string {
   const work = plainOf(tree) as {
     kind?: string
     programRef?: string
     input?: unknown
-    instruction?: string
+    instruction?: { purpose?: string }
   } | null
   if (work?.kind === 'program')
     return `程序 ${work.programRef ?? ''}，输入 ${JSON.stringify(work.input ?? {})}`
-  if (work?.kind === 'agent') return work.instruction ?? ''
+  if (work?.kind === 'agent') return work.instruction?.purpose ?? ''
   return '没有可读的要求'
+}
+
+const ENDED: Readonly<Record<string, string>> = {
+  achieved: '达成',
+  unattainable: '无法达成',
+  stalled: '停滞',
+  'judge-unavailable': '判定不可用',
+  aborted: '执行中止',
+  cancelled: '被取消',
+}
+const endedText = (outcome: string) =>
+  outcome.startsWith('exit:') ? `照退出 ${outcome.slice(5)} 收场` : (ENDED[outcome] ?? outcome)
+
+/** Where a Job is carried out, in one line: the run of a program, or the session with the definition it adopted and how its goal ended. */
+export function carriedText(where: JobDetail['where']): string {
+  if (where === null) return '还没有承接'
+  if (where.kind === 'program') return `程序 ${where.program}（执行 ${where.execution}）`
+  const { account } = where
+  if (account === null) return `会话 ${where.session}`
+  const { definition, outcome } = account
+  return [
+    `会话 ${where.session}`,
+    ...(definition === null ? [] : [`定义 ${definition.name}（${definition.version}）`]),
+    ...(outcome === null ? [] : [`目标${endedText(outcome)}`]),
+  ].join('；')
 }

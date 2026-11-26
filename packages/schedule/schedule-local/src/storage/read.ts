@@ -109,6 +109,7 @@ function read(input: RepositoryRequest, port: ReadPort) {
     input.kind === 'history' ||
     input.kind === 'historyRevision' ||
     input.kind === 'jobDetail' ||
+    input.kind === 'jobsOfExecution' ||
     input.kind === 'jobCancel'
   )
     return ownerMatches(input.scope, input.owner)

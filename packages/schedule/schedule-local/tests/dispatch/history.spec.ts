@@ -1,5 +1,6 @@
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
+import { ScheduleWorkSchema } from '@omne-harness/schedule-contract'
 import type { ScheduleProgram } from '@omne-harness/schedule-local'
 import { context } from '../storage/data.ts'
 import { dispatchWorld, everyMinute, MINUTE, START } from './world.ts'
@@ -180,6 +181,140 @@ describe('reading, cancelling and starting one Job', { tags: ['slow'], timeout: 
         kind: 'error',
         error: { code: 'operation_key_conflict' },
       })
+      await dispatcher.close()
+    } finally {
+      await w.close()
+    }
+  })
+
+  it('work the executor of its path refuses is not saved: not as a schedule, not as a direct Job', async () => {
+    const asked: unknown[] = []
+    const w = await dispatchWorld({
+      programs: { probe: untilStopped },
+      watching: true,
+      accepts: async given => {
+        asked.push(given)
+        return { kind: 'refused', reason: 'input.text: 不能为空' }
+      },
+    })
+    try {
+      const refused = {
+        kind: 'error',
+        error: { code: 'invalid_input', message: 'input.text: 不能为空' },
+      }
+      const created = await w.app.commands.create(context, {
+        definition: everyMinute(),
+        initial: { kind: 'active' },
+        meta: { operationKey: 'refused-create', expectedRevision: null },
+      })
+      expect(created).toMatchObject({ ...refused, kind: 'rejected' })
+      expect(w.rows('SELECT schedule_id FROM sc_schedules')).toEqual([])
+      const started = await w.app.jobs?.start(context, { work, operationKey: 'refused-start' })
+      expect(started).toMatchObject(refused)
+      expect(w.rows('SELECT job_id FROM sc_jobs')).toEqual([])
+      expect(asked).toEqual([work, work])
+    } finally {
+      await w.close()
+    }
+  })
+
+  it('a Job of agent work reads with the session it runs in and what its executor says the execution left; without an answer, with the session alone; the Jobs of a session are read by that session exactly', async () => {
+    const agentWork = ScheduleWorkSchema.parse({
+      kind: 'agent',
+      instruction: { purpose: '写周报' },
+      session: {
+        mode: 'new',
+        agentDefinitionRef: 'coding',
+        modes: { permission: 'never', environmentAdoptionRef: 'e', collaboration: 'co-work' },
+        workspace: null,
+      },
+      materials: [],
+      returnTo: null,
+      resultPolicy: {
+        audience: { kind: 'userDeliverable', target: { kind: 'owner' } },
+        publication: { kind: 'provider', providerRef: 'p' },
+        resultSeriesId: null,
+        attention: 'silent',
+        archive: { kind: 'none' },
+      },
+    })
+    const account = {
+      adopted: { name: 'coding', version: 'v7' },
+      outcome: null,
+      deliverables: ['report.md'],
+      since: 'entry-3',
+      run: 'run-1',
+    }
+    /** The session a Job of this test runs in: the one its instruction names, or session-9. */
+    const placeOf = (job: { work: unknown }) =>
+      String((job.work as { instruction: { at?: string } }).instruction.at ?? 'session-9')
+    const described: unknown[] = []
+    let answer: typeof account | null | Error = account
+    const w = await dispatchWorld({
+      agent: {
+        check: async () => ({ kind: 'ready' }),
+        start: async job => ({ kind: 'started', executionRef: placeOf(job), running: true }),
+        inspect: async job => ({ kind: 'running', executionRef: placeOf(job) }),
+        requestStop: async () => ({ kind: 'sent' }),
+        async describe(job) {
+          described.push(job)
+          if (answer instanceof Error) throw answer
+          return answer
+        },
+      },
+    })
+    try {
+      const dispatcher = w.dispatcher()
+      const jobs = w.facet(dispatcher)
+      const started = await jobs.start(context, { work: agentWork, operationKey: 'agent-1' })
+      const jobId = (started.kind === 'ok' && started.value.detail?.job.jobId) as never
+      expect(started.kind === 'ok' && started.value.detail?.executionWhere).toBeNull()
+      await dispatcher.round()
+      const where = async () => {
+        const read = await jobs.get(context, { jobId })
+        return read.kind === 'ok' ? read.value.executionWhere : read
+      }
+      expect(await where()).toEqual({ kind: 'session', sessionRef: 'session-9', account })
+      expect(described).toMatchObject([
+        {
+          owner: context.owner,
+          jobId,
+          scheduleId: null,
+          work: agentWork,
+          executionRef: 'session-9',
+        },
+      ])
+      const other = await jobs.start(context, { work: agentWork, operationKey: 'agent-2' })
+      const otherId = (other.kind === 'ok' && other.value.detail?.job.jobId) as never
+      await dispatcher.round()
+      const here = await jobs.ofExecution(context, { executionRef: 'session-9', limit: 50 })
+      expect(here.kind === 'ok' && here.value.map(detail => detail.job.jobId).sort()).toEqual(
+        [jobId, otherId].sort(),
+      )
+      expect(here.kind === 'ok' && here.value[0]?.executionWhere).toEqual({
+        kind: 'session',
+        sessionRef: 'session-9',
+        account,
+      })
+      const elsewhere = { ...agentWork, instruction: { purpose: '写周报', at: 'session-90' } }
+      w.time.advance(MINUTE)
+      const later = await jobs.start(context, { work: elsewhere as never, operationKey: 'agent-3' })
+      const laterId = later.kind === 'ok' && later.value.detail?.job.jobId
+      await dispatcher.round()
+      const one = await jobs.ofExecution(context, { executionRef: 'session-9', limit: 1 })
+      expect(one.kind === 'ok' && one.value.map(detail => detail.job.jobId)).toHaveLength(1)
+      expect(one.kind === 'ok' && one.value[0]?.job.jobId).not.toBe(laterId)
+      const there = await jobs.ofExecution(context, { executionRef: 'session-90', limit: 50 })
+      expect(there.kind === 'ok' && there.value.map(detail => detail.job.jobId)).toEqual([laterId])
+      for (const executionRef of ['session-99', 'session-', 'ession-9', '%'])
+        expect(await jobs.ofExecution(context, { executionRef, limit: 50 })).toEqual({
+          kind: 'ok',
+          value: [],
+        })
+      answer = null
+      expect(await where()).toEqual({ kind: 'session', sessionRef: 'session-9', account: null })
+      answer = new Error('lost')
+      expect(await where()).toEqual({ kind: 'session', sessionRef: 'session-9', account: null })
       await dispatcher.close()
     } finally {
       await w.close()

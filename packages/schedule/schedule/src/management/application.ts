@@ -25,7 +25,8 @@ import { createScheduleManagementIdentity, recoveryScopeMatchesContext } from '.
 import { createScheduleManagementOperationRef, managementValueEqual } from './references.ts'
 import { managementError } from './errors.ts'
 import { decideScheduleManagement } from './decision.ts'
-import { requestedDefinition } from './definition.ts'
+import { requestedDefinition, requestedWork } from './definition.ts'
+import { workAcceptance } from '../dispatch/carriers.ts'
 
 function unknown(operationRef: OperationIdentity['operationRef']): ScheduleManagementResult {
   return { kind: 'unknown', operationRef, retryAfterMs: 0 }
@@ -140,6 +141,22 @@ async function recover(
   return result === null ? { kind: 'continue', operation } : { kind: 'return', result }
 }
 
+/** Why the work a request would leave cannot be saved: the executor of its path refuses it, or cannot say now. Null when it stands or the request leaves no work. */
+async function workRefusal(
+  dependencies: ScheduleManagementDependencies,
+  requestId: string,
+  request: ManagementRequest,
+  current: ScheduleRecord | null,
+): Promise<ScheduleDomainError | null> {
+  const work = requestedWork(request, current)
+  if (work === null) return null
+  const taken = await workAcceptance(dependencies.executor?.(work), work)
+  if (taken.kind === 'refused') return managementError(requestId, 'invalid_input', taken.reason)
+  return taken.kind === 'unknown'
+    ? managementError(requestId, 'dependency_blocked', taken.reason, true)
+    : null
+}
+
 async function prepare(
   dependencies: ScheduleManagementDependencies,
   context: ScheduleCallContext,
@@ -187,6 +204,8 @@ async function prepare(
   const preliminary = decideScheduleManagement(input)
   if (preliminary.kind === 'rejected' && preliminary.error.code !== 'dependency_blocked')
     return preliminary.error
+  const unfit = await workRefusal(dependencies, context.requestId, request, current)
+  if (unfit !== null) return unfit
   const definition = requestedDefinition(request, current)
   let resolved = input.definition
   if (definition !== null) {

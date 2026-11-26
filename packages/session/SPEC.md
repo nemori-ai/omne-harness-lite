@@ -15,7 +15,7 @@ Session 管一个会话的业务流程，拥有会话日志。它回答：一个
 | `session-search`、`session-search-sqlite`                    | 搜历史的一次查询怎样变成候选与核对；历史索引这份投影放在哪、怎样追日志、怎样重建                            |
 | `session-protocol`、`session-access`、`session-ui`           | 对客户端开放的三样：协议契约、接入插件、界面模块                                                            |
 | `session-diagnostics-protocol`、`session-diagnostics-access` | 登录的人怎样读一个会话的诊断页：协议契约 `session-diagnostics/v1` 与它的接入插件                            |
-| `session-tools`                                              | 给 agent 的工具 `Sessions`：列、搜、读同一租户的会话，用的是人经协议用的同一批读取                          |
+| `session-tools`                                              | 给 agent 的工具 `Sessions`：列、搜、读同一租户的会话，读可以从一个位置之后读起，用的是人经协议用的同一批读取                          |
 
 一次提交是这样走的：命令进来，判定函数对着当前快照把它判成一组条目，存储在一个事务里把这组条目追加进日志，归约函数把它们并进快照。每次提交之后要做的事挂在写入者上，不挂在各个提交方上：提交之后只发一条唤醒，协调器与调度器读权威状态再决定做什么。
 

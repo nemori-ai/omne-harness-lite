@@ -87,4 +87,14 @@
 .schedule-run-time {
   font-variant-numeric: tabular-nums;
 }
+.schedule-job-provenance {
+  height: auto;
+  padding: 0;
+}
+.schedule-open-session {
+  margin-inline-start: var(--omne-space-inline);
+}
+.schedule-job-provenance {
+  color: var(--omne-ink-muted);
+}
 }

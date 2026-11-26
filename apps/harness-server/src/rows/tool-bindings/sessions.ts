@@ -9,6 +9,7 @@ import type {
   SessionListFilter,
   SessionListItem,
   SessionListPage,
+  EntryId,
 } from '@omne-harness/session-contract'
 import { sessionKey, sessionSearchKey } from '@omne-harness/session-cordis-contract/cordis'
 import type { HistorySearch, HistorySearchFailure, SearchQuery } from '@omne-harness/session-search'
@@ -87,6 +88,11 @@ const pageOf = (page: SessionListPage) => ({
   next: page.next,
   complete: page.completeness === 'complete',
 })
+function namedAs(failure: SessionsFailure, after: string | undefined): SessionsFailure {
+  const renamed = after !== undefined && failure.kind === 'invalid' && failure.field === 'from'
+  return renamed ? { ...failure, field: 'after' } : failure
+}
+
 const millisOf = (instant: string | null) => (instant === null ? null : Date.parse(instant))
 const isoOf = (millis: number | null) =>
   millis === null || Number.isNaN(new Date(millis).getTime())
@@ -163,23 +169,23 @@ export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts)
       }
       return { failure: { kind: 'not-found' } }
     },
-    async read({ session, cursor, direction, pageBytes, inherited }) {
+    async read({ session, cursor, direction, pageBytes, inherited, after }) {
       const history = ports.history()
       if (history === undefined) return absent('the session history')
       if (!(await admitted())) return { failure: { kind: 'denied' } }
       const target = { ...access, session: session as SessionId }
       const page =
-        cursor === null
-          ? await history.begin({
+        cursor !== null
+          ? await history.next({ ...target, cursor })
+          : await history.begin({
               ...target,
               kinds: LOCAL_HISTORY_KINDS,
-              from: null,
+              from: after === undefined ? null : (after as EntryId),
               direction,
               pageBytes,
               ...(inherited === true ? { inherited: true as const } : {}),
             })
-          : await history.next({ ...target, cursor })
-      if ('failure' in page) return { failure: failureOf(page.failure) }
+      if ('failure' in page) return { failure: namedAs(failureOf(page.failure), after) }
       const entries = page.ok.entries.map(entry => ({
         position: entry.id,
         kind: entry.kind,
