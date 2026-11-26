@@ -58,7 +58,6 @@ export function createWriting(deps: GoalsDependencies) {
     await store.commit(tenant, { session: record.session, expected: record.version, next })
   }
 
-  /** What the brief of the batch out says besides the body: where the work is, and the paths written since the batch before it. */
   async function briefOf(tenant: string, record: GoalRecord, batch: Batch): Promise<string | null> {
     const session = sessionOfKey(record.session)
     const [facts, made] = await Promise.all([
@@ -79,7 +78,6 @@ export function createWriting(deps: GoalsDependencies) {
     })
   }
 
-  /** Hands the batch a record owes to the examining side, then writes down that it was taken. An unknown handing over stays owed and is handed again as the same batch. */
   async function hand(tenant: string, record: GoalRecord): Promise<void> {
     const { batch, examiner } = record.examination
     if (batch === null || batch.delivery === 'handed' || record.state.status === 'settled') return

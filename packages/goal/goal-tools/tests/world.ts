@@ -6,6 +6,7 @@ import {
   fakeCards,
   fakeDecisions,
   fakeHistory,
+  fakeExamining,
   fakeJudging,
   fakeSessions,
 } from '@omne-harness/goal/testing'
@@ -55,6 +56,7 @@ export function world(session = SESSION, call = CALL) {
     history: fakeHistory(),
     decisions: fakeDecisions(),
     judging: fakeJudging(),
+    examining: fakeExamining(),
     clock: { now: () => '2026-11-25T00:00:00.000Z' },
     hints: { wake: () => {} },
   })

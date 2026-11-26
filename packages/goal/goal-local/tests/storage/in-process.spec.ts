@@ -1,6 +1,8 @@
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import { conformanceGoal, storeConformance } from '@omne-harness/goal/testing'
+import { NO_EXAMINATION } from '@omne-harness/goal-contract'
+import examinerMigration from '../../src/storage/examiner-migration.ts'
 import migration from '../../src/storage/migration.ts'
 import participant from '../../src/storage/participant.ts'
 import reader from '../../src/storage/read.ts'
@@ -51,6 +53,26 @@ describe('what the storage worker is handed', () => {
     expect(() => reader.read({ read: 'owing', args: [] }, sql)).toThrow(
       'more rows than one statement may return',
     )
+  })
+
+  it('a goal kept before examinations reads in after the migration: it has none, and no session examines for it', () => {
+    const old = port()
+    const { examination: _later, ...kept } = conformanceGoal()
+    old.execute(
+      'INSERT INTO gl_goals (session, generation, version, live, owing, record) VALUES (?, 1, 1, 1, 0, ?)',
+      [kept.session, JSON.stringify(kept)],
+    )
+    examinerMigration.up(old)
+    expect(examinerMigration.verify(old)).toEqual({ kind: 'verified' })
+    expect(reader.read({ read: 'latest', args: [kept.session] }, old)).toEqual({
+      kind: 'read',
+      output: { ...kept, examination: NO_EXAMINATION },
+    })
+    expect(reader.read({ read: 'examinedBy', args: ['examiner-1'] }, old)).toEqual({
+      kind: 'read',
+      output: null,
+    })
+    expect(reader.read({ read: 'owing', args: [] }, old)).toEqual({ kind: 'read', output: [] })
   })
 
   it('a stored row that does not fit the schema fails the read instead of being handed on', () => {

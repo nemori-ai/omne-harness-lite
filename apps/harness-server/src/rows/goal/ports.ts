@@ -3,6 +3,7 @@ import type {
   GoalAuthority,
   GoalCalls,
   GoalDecisions,
+  GoalExamining,
   GoalHistory,
   GoalSessions,
 } from '@omne-harness/goal'
@@ -22,6 +23,14 @@ export function lateSessions(holder: GoalHolder): GoalSessions {
     facts: (...input) => holder.sessions?.facts(...input) ?? Promise.resolve(UNAVAILABLE),
     asked: (...input) => holder.sessions?.asked(...input) ?? Promise.resolve(UNAVAILABLE),
     wake: (...input) => holder.sessions?.wake(...input) ?? Promise.resolve('unknown'),
+    running: (...input) => holder.sessions?.running(...input) ?? Promise.resolve(UNAVAILABLE),
+  }
+}
+
+export function lateExamining(holder: GoalHolder): GoalExamining {
+  return {
+    hand: (...input) => holder.examining?.hand(...input) ?? Promise.resolve({ kind: 'unknown' }),
+    cited: (...input) => holder.examining?.cited(...input) ?? Promise.resolve(UNAVAILABLE),
   }
 }
 
@@ -41,8 +50,15 @@ export function lateDecisions(holder: GoalHolder): GoalDecisions {
   return { ask: input => holder.decisions?.ask(input) ?? Promise.resolve(null) }
 }
 
-/** What the agent of a session may ask of its own goal. Nothing here changes the goal without an answered card. */
-const OF_THE_AGENT: ReadonlySet<GoalAction> = new Set(['read', 'propose', 'confirm', 'track'])
+/** What the work of a session may ask: of its own goal, and of the goal it examines for. Whether it examines for one is the goal's own record, not asked here. Nothing here changes a goal without an answered card or a verdict. */
+const OF_THE_AGENT: ReadonlySet<GoalAction> = new Set([
+  'read',
+  'propose',
+  'confirm',
+  'track',
+  'brief',
+  'submit',
+])
 
 export type AuthorityPorts = Readonly<{ verifier(): PrincipalVerifier | undefined }>
 

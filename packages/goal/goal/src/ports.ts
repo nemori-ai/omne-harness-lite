@@ -61,7 +61,6 @@ export interface GoalCalls {
   ): Promise<PortRead<readonly string[]>>
 }
 
-/** A batch as the examining side takes it: the criteria with what each is examined by, and the brief. */
 export type BatchToHand = Readonly<{
   session: string
   request: string
@@ -75,9 +74,7 @@ export type HandAnswer =
   | Readonly<{ kind: 'refused' }>
 
 export interface GoalExamining {
-  /** Hands a batch to the examining side of a goal. The same request is taken once however often it is handed. */
   hand(tenant: string, batch: BatchToHand): Promise<HandAnswer>
-  /** Of these references, the ones that name a tool call the examining session made in the round of this batch. */
   cited(
     tenant: string,
     examiner: string,

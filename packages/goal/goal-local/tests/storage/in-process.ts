@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import type { GoalStore, StoreAnswer, StoreRead } from '@omne-harness/goal'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { SqlValue } from '@omne-harness/sql-contract/worker'
+import examinerMigration from '../../src/storage/examiner-migration.ts'
 import migration from '../../src/storage/migration.ts'
 import participant from '../../src/storage/participant.ts'
 import reader from '../../src/storage/read.ts'
@@ -38,6 +39,7 @@ export function createInProcessStore(): GoalStore {
     if (db === undefined) {
       db = new DatabaseSync(':memory:')
       migration.up(portOf(db))
+      examinerMigration.up(portOf(db))
       databases.set(tenant, db)
     }
     return db
@@ -76,5 +78,6 @@ export function createInProcessStore(): GoalStore {
     commit: (tenant, command) => commit(tenant, 'commit', command),
     latest: (tenant, session) => read(tenant, 'latest', session),
     owing: tenant => read(tenant, 'owing'),
+    examinedBy: (tenant, examiner) => read(tenant, 'examinedBy', examiner),
   }
 }

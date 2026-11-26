@@ -78,5 +78,6 @@ export function createSqlGoalStore(options: GoalSqlOptions): GoalStore {
     commit: (tenant, command) => commit(tenant, command),
     latest: (tenant, session) => read(tenant, 'latest', session),
     owing: tenant => read(tenant, 'owing'),
+    examinedBy: (tenant, examiner) => read(tenant, 'examinedBy', examiner),
   }
 }

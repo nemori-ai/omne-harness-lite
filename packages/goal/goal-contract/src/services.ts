@@ -76,12 +76,10 @@ export interface Goals {
     caller: GoalCaller,
     input: Readonly<{ session: string; patch: unknown }>,
   ): Promise<Outcome<GoalRecord, GoalRefusal>>
-  /** The brief of the batch that is out, for the session that examines for a goal. `examiner` is that session, not the session of the goal. */
   brief(
     caller: GoalCaller,
     input: Readonly<{ examiner: string }>,
   ): Promise<Outcome<string, GoalRefusal>>
-  /** Hands in the readings of a batch. It writes readings, never the state of the goal: `counted` readings are judged by the verdict table. */
   submit(
     caller: GoalCaller,
     input: Readonly<{ examiner: string; submission: unknown }>,

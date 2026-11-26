@@ -178,6 +178,47 @@ export const storeConformance: readonly StoreConformanceCase[] = [
     },
   },
   {
+    name: 'a goal that owes the examining side a batch is listed until the batch is known to be taken',
+    async run(open) {
+      const store = await open()
+      const key = { revision: 1, written: 'call-1' }
+      const batch = { key, criteria: ['A1' as const], delivery: 'owed' as const }
+      const owed = conformanceGoal({ examination: { ...NO_EXAMINATION, batch, used: 1 } })
+      committed(await store.commit(T1, { session: S1, expected: 0, next: owed }))
+      hold(read(await store.owing(T1)).length === 1, 'the owed batch is not listed')
+      const lost = { ...owed.examination, batch: { ...batch, delivery: 'unknown' as const } }
+      committed(
+        await store.commit(T1, { session: S1, expected: 1, next: { ...owed, examination: lost } }),
+      )
+      hold(
+        read(await store.owing(T1)).length === 1,
+        'a batch of unknown handing over is not listed',
+      )
+      const taken = { ...owed.examination, batch: { ...batch, delivery: 'handed' as const } }
+      committed(
+        await store.commit(T1, { session: S1, expected: 2, next: { ...owed, examination: taken } }),
+      )
+      hold(read(await store.owing(T1)).length === 0, 'a batch that was taken is still listed')
+    },
+  },
+  {
+    name: 'a goal is found by the session that examines for it while it is live, and by no other session',
+    async run(open) {
+      const store = await open()
+      const examined = conformanceGoal({
+        examination: { ...NO_EXAMINATION, examiner: 'examiner-1' },
+      })
+      committed(await store.commit(T1, { session: S1, expected: 0, next: examined }))
+      hold(same(read(await store.examinedBy(T1, 'examiner-1')), examined), 'the goal is not found')
+      hold(read(await store.examinedBy(T1, S1)) === null, 'the goal was found by its own session')
+      hold(read(await store.examinedBy(T1, 'examiner-2')) === null, 'another session found it')
+      hold(read(await store.examinedBy(T2, 'examiner-1')) === null, 'another tenant found it')
+      const done = { ...settled(examined), version: 2 }
+      committed(await store.commit(T1, { session: S1, expected: 1, next: done }))
+      hold(read(await store.examinedBy(T1, 'examiner-1')) === null, 'a settled goal was found')
+    },
+  },
+  {
     name: 'one tenant does not read or write the goals of another',
     async run(open) {
       const store = await open()

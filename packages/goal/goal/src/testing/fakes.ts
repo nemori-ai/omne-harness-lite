@@ -111,7 +111,6 @@ export type FakeExamining = GoalExamining &
     handed: BatchToHand[]
   }>
 
-/** An examining side that takes each request once, into one session for a goal, and knows which calls each round made. */
 export function fakeExamining(): FakeExamining {
   const handed: BatchToHand[] = []
   const rounds = new Map<string, readonly string[]>()

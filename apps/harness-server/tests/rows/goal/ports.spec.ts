@@ -5,7 +5,12 @@ import { tenantCodec, type TenantId as LegalTenant } from '@omne-harness/legal-i
 import { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from '../../../src/rows/authorization/principals.ts'
 import { checkedPrincipal, checkSubject } from '../../../src/rows/goal/check-subject.ts'
 import type { GoalHolder } from '../../../src/rows/goal/holder.ts'
-import { createGoalAuthority, lateCalls, lateSessions } from '../../../src/rows/goal/ports.ts'
+import {
+  createGoalAuthority,
+  lateCalls,
+  lateExamining,
+  lateSessions,
+} from '../../../src/rows/goal/ports.ts'
 import { SESSION_WORK_COMPONENT } from '../../../src/rows/tool-runtime/session-work.ts'
 
 const tenantOf = (account: string): LegalTenant => {
@@ -195,6 +200,7 @@ describe('the ports the contributing rows mount', () => {
     calls: null,
     history: null,
     decisions: null,
+    examining: null,
     changes: null,
   })
   it('while nothing is mounted a read is unavailable and a reminder stays owed', async () => {
@@ -211,6 +217,12 @@ describe('the ports the contributing rows mount', () => {
     } as const
     expect(await lateSessions(empty).wake('t', wake)).toBe('unknown')
     expect(await lateCalls(empty).cited('t', 's', ['call-1'], '0')).toEqual({ kind: 'unavailable' })
+    expect(await lateSessions(empty).running('t', 's')).toEqual({ kind: 'unavailable' })
+    const batch = { session: 's', request: 'examine/1/1/', examiner: null, brief: '', criteria: [] }
+    expect(await lateExamining(empty).hand('t', batch)).toEqual({ kind: 'unknown' })
+    expect(await lateExamining(empty).cited('t', 'x', 'examine/1/1/', ['x-1'])).toEqual({
+      kind: 'unavailable',
+    })
   })
   it('once mounted every call goes to what is mounted now', async () => {
     const mounted = holder()
@@ -222,7 +234,16 @@ describe('the ports the contributing rows mount', () => {
       }),
       asked: async () => ({ kind: 'read', value: { at: '30', text: '把首页降下来' } }),
       wake: async () => 'sent',
+      running: async () => ({ kind: 'read', value: true }),
     } satisfies GoalSessions
+    expect(await sessions.running('t', 's')).toEqual({ kind: 'read', value: true })
+    const examining = lateExamining(mounted)
+    mounted.examining = {
+      hand: async () => ({ kind: 'handed', examiner: 'x' }),
+      cited: async (_t, _x, _r, refs) => ({ kind: 'read', value: refs }),
+    }
+    const batch = { session: 's', request: 'examine/1/1/', examiner: null, brief: '', criteria: [] }
+    expect(await examining.hand('t', batch)).toEqual({ kind: 'handed', examiner: 'x' })
     expect(await sessions.asked('t', 's')).toEqual({
       kind: 'read',
       value: { at: '30', text: '把首页降下来' },

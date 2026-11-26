@@ -8,7 +8,6 @@ export type SessionFacts = Readonly<{
   attendance: Attendance
   moment: string
   drive: Driven | null
-  /** Where the work of the session is, when it has such a place. */
   where?: string | null
 }>
 /** What the person last said in the session in their own words, and where in its history that stands. */
@@ -24,6 +23,5 @@ export interface GoalSessions {
   asked(tenant: string, session: string): Promise<PortRead<Asked | null>>
   /** Sends the reminder a change owes its session. The same request is taken by the session once. */
   wake(tenant: string, wake: WakeToSend): Promise<SendAnswer>
-  /** Whether a round of the session is going now. */
   running(tenant: string, session: string): Promise<PortRead<boolean>>
 }

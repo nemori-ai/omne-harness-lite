@@ -50,6 +50,16 @@ export function createGoalSessions(calls: SessionCalls): GoalSessions {
       return read({ attendance, moment: head.value ?? NO_ENTRY, drive: opened.value })
     },
 
+    async running(tenant, session) {
+      const legal = legalTenantOf(tenant)
+      if (legal === undefined) return UNAVAILABLE
+      const work = await calls
+        .work({ tenant: legal, session: session as SessionId })
+        .catch(() => UNAVAILABLE)
+      if (work.kind !== 'read') return UNAVAILABLE
+      return read(work.value?.run.kind === 'active')
+    },
+
     async asked(tenant, session) {
       const legal = legalTenantOf(tenant)
       if (legal === undefined) return read(null)

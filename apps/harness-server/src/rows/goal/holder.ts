@@ -1,5 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { GoalCalls, GoalDecisions, GoalHistory, GoalSessions } from '@omne-harness/goal'
+import type {
+  GoalCalls,
+  GoalDecisions,
+  GoalExamining,
+  GoalHistory,
+  GoalSessions,
+} from '@omne-harness/goal'
 import type { GoalChangePublisher } from './changes.ts'
 
 /** What the contributing rows of goals mount for the provider: read at each call, absent while a row is not started. */
@@ -8,6 +14,7 @@ export type GoalHolder = {
   calls: GoalCalls | null
   history: GoalHistory | null
   decisions: GoalDecisions | null
+  examining: GoalExamining | null
   changes: GoalChangePublisher | null
 }
 
@@ -22,6 +29,7 @@ export function goalHolder(ctx: Context): GoalHolder {
     calls: null,
     history: null,
     decisions: null,
+    examining: null,
     changes: null,
   }
   holders.set(root, created)

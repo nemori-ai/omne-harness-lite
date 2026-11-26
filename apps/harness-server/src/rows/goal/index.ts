@@ -43,6 +43,7 @@ import {
   createGoalAuthority,
   lateCalls,
   lateDecisions,
+  lateExamining,
   lateHistory,
   lateSessions,
 } from './ports.ts'
@@ -109,6 +110,7 @@ export const goalRow = defineRow({
         history: lateHistory(holder),
         decisions: lateDecisions(holder),
         judging: releaseJudging(() => ctx.get(tenantIndependentSettingsKey)),
+        examining: lateExamining(holder),
         changes,
       },
       clock: { now: () => instantTextOf(ctx, 'goal') },

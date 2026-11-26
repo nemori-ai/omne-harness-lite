@@ -13,6 +13,8 @@ export abstract class GoalsService extends Service implements Goals {
   abstract readonly propose: Goals['propose']
   abstract readonly confirm: Goals['confirm']
   abstract readonly track: Goals['track']
+  abstract readonly brief: Goals['brief']
+  abstract readonly submit: Goals['submit']
 }
 export const goalsKey = GoalsService.provide
 

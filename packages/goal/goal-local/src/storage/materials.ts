@@ -5,7 +5,15 @@ import type {
   ParticipantDescriptor,
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
-import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, ROW_LIMIT, TABLES } from './schema.ts'
+import {
+  EXAMINER_MIGRATION,
+  HANDLER,
+  MIGRATION,
+  PARTICIPANT,
+  PROTOCOL,
+  ROW_LIMIT,
+  TABLES,
+} from './schema.ts'
 
 export type GoalSqlMaterials = Readonly<{
   participants: readonly ParticipantDescriptor[]
@@ -24,6 +32,7 @@ function file(name: string) {
 export function goalSqlMaterials(): GoalSqlMaterials {
   const participant = file('participant')
   const migration = file('migration')
+  const examiner = file('examiner-migration')
   const reader = file('read')
   return {
     participants: [
@@ -42,6 +51,12 @@ export function goalSqlMaterials(): GoalSqlMaterials {
     ],
     migrations: [
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...EXAMINER_MIGRATION,
+        moduleUrl: examiner.moduleUrl,
+        checksum: examiner.digest,
+        requires: [MIGRATION],
+      },
     ],
     readHandlers: [
       {
@@ -51,7 +66,7 @@ export function goalSqlMaterials(): GoalSqlMaterials {
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: TABLES,
-        requiresMigrations: [MIGRATION],
+        requiresMigrations: [MIGRATION, EXAMINER_MIGRATION],
         maxRowsRead: 4 * ROW_LIMIT,
         maxOutputBytes: 8 * 1024 * 1024,
       },
