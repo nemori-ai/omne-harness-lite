@@ -7,6 +7,7 @@ import { ExecutionEnvironmentRegistry } from '@omne-harness/execution-environmen
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { defineRow } from '../../../src/row.ts'
 import { runServe, type RunServeOptions, type S0Record } from '../../../src/run.ts'
+import { stopAfterStartup } from '../../support/stop-after-startup.ts'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -33,7 +34,7 @@ it('creates a separate entry-owned domain before loading each run and clears its
     },
   })
   try {
-    const options: RunServeOptions = {
+    const options = (): RunServeOptions => ({
       distribution: {
         rows: [
           { id: 'execution-environment', plugin: 'registry', config: {} },
@@ -49,12 +50,11 @@ it('creates a separate entry-owned domain before loading each run and clears its
       readinessTimeoutMs: 30,
       shutdownDeadlineMs: 100,
       stateRoot: directory,
-      stop: AbortSignal.abort(),
-      write: record => records.push(record),
+      ...stopAfterStartup(record => records.push(record)),
       stderr: vi.fn(),
-    }
-    expect((await runServe(options)).exitCode).toBe(0)
-    expect((await runServe(options)).exitCode).toBe(0)
+    })
+    expect((await runServe(options())).exitCode).toBe(0)
+    expect((await runServe(options())).exitCode).toBe(0)
     expect(made).toHaveBeenCalledTimes(2)
     expect(made.mock.results[0]?.value).not.toBe(made.mock.results[1]?.value)
     expect(timer.mock.calls.filter(call => call[1] === 60123)).toHaveLength(2)
@@ -100,8 +100,7 @@ it('does not start maintenance when entry-object installation fails', async () =
     readinessTimeoutMs: 30,
     shutdownDeadlineMs: 100,
     stateRoot,
-    stop: AbortSignal.abort(),
-    write: vi.fn(),
+    ...stopAfterStartup(),
     stderr: vi.fn(),
   })
   await rm(stateRoot, { recursive: true, force: true })
@@ -151,8 +150,7 @@ it('clears the periodic timer when a business start fails after the host row loa
       readinessTimeoutMs: 30,
       shutdownDeadlineMs: 100,
       stateRoot: directory,
-      stop: AbortSignal.abort(),
-      write: vi.fn(),
+      ...stopAfterStartup(),
       stderr: vi.fn(),
     })
     expect(result.exitCode).toBe(3)

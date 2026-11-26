@@ -35,17 +35,25 @@ export async function serveOnce(options: ServeOnceOptions): Promise<ServeRun> {
   const controller = new AbortController()
   const records: S0Record[] = []
   const stderr: string[] = []
-  const signal = stop ?? controller.signal
+  // A stop the caller asks while the tree still starts is passed on once the startup result is written: a run of this
+  // fixture starts whole and then stops. A stop while the rows load is tested on `startTree` and on the process.
+  let startupSeen = false
+  const pass = () => controller.abort(stop?.reason ?? 'test: stop')
+  const onStop = () => startupSeen && pass()
+  stop?.addEventListener('abort', onStop, { once: true })
   try {
     const result = await runServe({
       ...rest,
       stateRoot,
       readinessTimeoutMs: readinessTimeoutMs ?? 5000,
       shutdownDeadlineMs: shutdownDeadlineMs ?? 2000,
-      stop: signal,
+      stop: controller.signal,
       write: record => {
         records.push(record)
-        if (record.kind === 'startup-result' && stopAfterStartup !== false)
+        if (record.kind !== 'startup-result') return
+        startupSeen = true
+        if (stop?.aborted === true) pass()
+        else if (stop === undefined && stopAfterStartup !== false)
           controller.abort('test: startup seen')
       },
       stderr: line => stderr.push(line),
@@ -62,6 +70,7 @@ export async function serveOnce(options: ServeOnceOptions): Promise<ServeRun> {
       state: id => byId('row-state', id),
     }
   } finally {
+    stop?.removeEventListener('abort', onStop)
     rmSync(stateRoot, { recursive: true, force: true })
   }
 }

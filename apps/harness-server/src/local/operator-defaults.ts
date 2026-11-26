@@ -5,9 +5,10 @@ import { isSecretName, type ServerSettings, type StorageLimits } from './setting
 import { DEFAULT_COMPACTION_BINDING } from '../assembly/compaction-provider.ts'
 import { SEARCH_RANKING } from '../entry/search-ranking.ts'
 
-export const DEFAULT_READINESS_TIMEOUT_MS = 30_000
+export const DEFAULT_READINESS_TIMEOUT_MS = 60_000
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000
 export const DEFAULT_DRAIN_DEADLINE_MS = 120_000
+export const DEFAULT_ROOT_DISPOSAL_DEADLINE_MS = 10_000
 
 export const LOCAL_HISTORY_KINDS = [
   'message.user',
