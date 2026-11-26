@@ -1437,9 +1437,9 @@ export declare function decide(previous: WorkSnapshot | null, command: SessionCo
 ## 声明文件 `decision-support.d.ts`
 
 ```ts
-import type { DurableEvidence, RunId, SessionOperationId } from './identity.ts';
-import type { WorkSnapshot, ResidentAdoption, RunEnd, RunTerminal } from './values.ts';
-import type { HistoryEntry, SessionFailure } from './faces.ts';
+import type { Adoption, DurableEvidence, RunId, SessionOperationId } from './identity.ts';
+import type { AdoptionNote, WorkSnapshot, ResidentAdoption, RunEnd, RunTerminal } from './values.ts';
+import type { HistoryEntry, SessionFailure, StartAdoption } from './faces.ts';
 import type { Decision, EncodedEntry } from './judgments.ts';
 export declare const rejected: (failure: SessionFailure) => Decision;
 export declare const invalid: (field: string, reason: string) => Decision;
@@ -1451,6 +1451,8 @@ export declare function runCancelledBy(snapshot: WorkSnapshot, operation: Sessio
 export declare const originOf: (source: DurableEvidence) => HistoryEntry['origin'];
 export declare const completeEvidence: (source: DurableEvidence) => boolean;
 export declare function residentEntries(snapshot: Pick<WorkSnapshot, 'residents' | 'segments'> | null, material: ResidentAdoption | undefined, source: DurableEvidence): Decision;
+export declare function adoptionEntries(snapshot: WorkSnapshot, material: StartAdoption | undefined, candidate: Adoption, current: Adoption, source: DurableEvidence): Decision;
+export declare function adoptionNoted(note: AdoptionNote | undefined, source: DurableEvidence): Decision;
 export declare function terminalEntries(snapshot: WorkSnapshot, terminal: RunTerminal, source: DurableEvidence, interpretation?: Readonly<{
     sequence: string | null;
     cause: DurableEvidence | null;
@@ -4200,8 +4202,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:1d3b88afa39f9bccb4309296bb7809105b8d7780d39cefd6aac977a66a7e1678";
-export declare const SESSION_RELEASE_DIGEST = "sha256:1d3b88afa39f9bccb4309296bb7809105b8d7780d39cefd6aac977a66a7e1678";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:2ebb12dc5794eb6dcd59c19e5ed18da88d538d4035b68487bb809526cb24a986";
+export declare const SESSION_RELEASE_DIGEST = "sha256:2ebb12dc5794eb6dcd59c19e5ed18da88d538d4035b68487bb809526cb24a986";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

@@ -144,6 +144,30 @@ function recordedTools(kept: KeptResidents): readonly RecordedTool[] {
   })
 }
 
+/** Each one as it stands now, so a newer version can win; a kept one not to be read now is judged without it. */
+async function definitionsOf<P>(
+  ctx: Context,
+  release: Trusted,
+  access: SessionAccess<P>,
+  turn: Turn | null,
+  capabilities: readonly string[],
+  recorded: readonly RecordedTool[],
+): Promise<Map<string, AdoptionDefinition> | string> {
+  const load = async (capability: string) =>
+    releaseDefinitionOf(release, capability) ?? heldDefinitionOf(ctx, access, capability, turn)
+  const definitions = new Map<string, AdoptionDefinition>()
+  for (const capability of capabilities) {
+    const definition = await load(capability)
+    if (typeof definition === 'string') return definition
+    definitions.set(capability, definition)
+  }
+  for (const { capability } of recorded) {
+    const definition = await load(capability)
+    if (typeof definition !== 'string') definitions.set(capability, definition)
+  }
+  return definitions
+}
+
 async function plannedTools<P>(
   ctx: Context,
   capabilities: readonly string[],
@@ -155,21 +179,8 @@ async function plannedTools<P>(
   if (access === undefined) return unavailable('the create carries no access to plan them with')
   const release = releaseOf(ctx)
   if (release.kind !== 'trusted') return unavailable(`tool release: ${release.diagnostic}`)
-  const definitions = new Map<string, AdoptionDefinition>()
-  for (const capability of capabilities) {
-    const definition =
-      releaseDefinitionOf(release, capability) ??
-      (await heldDefinitionOf(ctx, access, capability, turn))
-    if (typeof definition === 'string') return unavailable(definition)
-    definitions.set(capability, definition)
-  }
-  // Each kept one is loaded as it stands now, so a newer version can win; one not to be read now is judged without it.
-  for (const { capability } of recorded) {
-    const definition =
-      releaseDefinitionOf(release, capability) ??
-      (await heldDefinitionOf(ctx, access, capability, turn))
-    if (typeof definition !== 'string') definitions.set(capability, definition)
-  }
+  const definitions = await definitionsOf(ctx, release, access, turn, capabilities, recorded)
+  if (typeof definitions === 'string') return unavailable(definitions)
   if (current(ctx, toolBindingsKey, ToolBindingsService) === undefined)
     return unavailable('the tool binding registry (toolBindings) is absent')
   const planner = createAdoptionPlanner<P>({
@@ -179,18 +190,16 @@ async function plannedTools<P>(
     authorityOf: key => authorityOf(release, key),
   })
   const planned = await planner.plan(access, { recorded, capabilities })
+  const all = [...recorded.map(item => item.capability), ...capabilities]
   if ('failure' in planned)
     return unavailable(
-      `${[...recorded.map(item => item.capability), ...capabilities].join(', ')} could not be ` +
-        'planned: each needs exactly one live contribution readable to this tenant, or a first ' +
-        'load that the tool generations coordinator admits',
+      `${all.join(', ')} could not be planned: each needs exactly one live contribution ` +
+        'readable to this tenant, or a first load that the tool generations coordinator admits',
     )
   const { material, verdict } = planned.ok
   if (verdict !== null) return succeed({ ...material, verdict })
   const covered = new Set(material.keys.map(pair => pair.capability))
-  const missing = [...recorded.map(item => item.capability), ...capabilities].filter(
-    capability => !covered.has(capability),
-  )
+  const missing = all.filter(capability => !covered.has(capability))
   if (missing.length > 0 || material.residents.length !== capabilities.length)
     return unavailable(`the plan left out ${missing.join(', ') || 'a first definition'}`)
   return succeed(material)

@@ -390,6 +390,36 @@ async function notAdopted(
   return { kind: 'none', reason: `${read.reason}; the one the session stands at: ${why}` }
 }
 
+const askerOf = (tenant: SessionAccess<unknown>['tenant'], turn: Turn | null) =>
+  turn === null ? { tenant } : { tenant, turn }
+
+type Named = Readonly<{ entry: DefinitionMappingEntry; turn: Turn | null }>
+
+/** The entry its name maps to now: bundled, or read from the workspace as this turn or reload sees it. */
+async function namedEntry<P>(
+  runSources: AdoptionPorts,
+  mappings: Mappings,
+  access: SessionAccess<P>,
+  work: WorkSnapshot,
+  key: string | null,
+): Promise<Named | Outcome<RunAdoption, SessionFailure>> {
+  const { name, adopted: pinned } = work.definition
+  const bundled = mappings.byName(name)
+  if (bundled !== undefined) return { entry: bundled, turn: null }
+  const given = access as SessionAccess<unknown>
+  let turn: Turn | null = null
+  if (key !== null) {
+    const failed = await adoptWorkspace(runSources, given, work, key)
+    if (failed !== null) runSources.report(failed)
+    turn = { access: given, key }
+  }
+  const asker = askerOf(access.tenant, turn)
+  const read = await mappings.named(asker, name)
+  if (read.kind === 'unavailable') return unreadable(read.diagnostic)
+  if (read.kind === 'absent') return succeed(await notAdopted(mappings, asker, pinned, read))
+  return { entry: read.entry, turn }
+}
+
 /** What a run that starts now adopts: the version in force under the name of its definition. */
 async function runAdoption<P>(
   ctx: Context,
@@ -398,35 +428,23 @@ async function runAdoption<P>(
   access: SessionAccess<P>,
   { work, run, point }: RunAdoptionInput,
 ): Promise<Outcome<RunAdoption, SessionFailure>> {
-  const { name, adopted: pinned } = work.definition
-  let entry = mappings.byName(name)
-  let turn: Turn | null = null
-  const key = point ?? run
-  if (entry === undefined) {
-    const given = access as SessionAccess<unknown>
-    if (key !== null) {
-      const failed = await adoptWorkspace(runSources, given, work, key)
-      if (failed !== null) runSources.report(failed)
-      turn = { access: given, key }
-    }
-    const asker = { tenant: access.tenant, ...(turn === null ? {} : { turn }) }
-    const read = await mappings.named(asker, name)
-    if (read.kind === 'unavailable') return unreadable(read.diagnostic)
-    if (read.kind === 'absent') return succeed(await notAdopted(mappings, asker, pinned, read))
-    entry = read.entry
-  }
+  const found = await namedEntry(runSources, mappings, access, work, point ?? run)
+  if (!('entry' in found)) return found
+  const { entry, turn } = found
+  const pinned = work.definition.adopted
+  const unchanged = same(entry.candidate, pinned)
   const residents = await judgedResidents(ctx, work, entry, access, turn, runSources.leftOut)
-  if ('failure' in residents && !same(entry.candidate, pinned)) {
+  if ('failure' in residents) {
+    if (unchanged) return residents
     const why =
       'diagnostic' in residents.failure ? residents.failure.diagnostic : 'cannot be planned'
-    const asker = { tenant: access.tenant, ...(turn === null ? {} : { turn }) }
-    const reason = `the new version of ${name} cannot be adopted: ${why}`
+    const reason = `the new version of ${work.definition.name} cannot be adopted: ${why}`
+    const asker = askerOf(access.tenant, turn)
     return succeed(await notAdopted(mappings, asker, pinned, { reason, held: true }))
   }
-  if ('failure' in residents) return residents
   return succeed({
     kind: 'adopt',
-    candidate: same(entry.candidate, pinned) ? pinned : entry.candidate,
+    candidate: unchanged ? pinned : entry.candidate,
     ...(residents.ok === undefined ? {} : { residentAdoption: residents.ok }),
   })
 }
@@ -448,7 +466,7 @@ async function prepareFrom<P>(
       const from = madeFrom(creation.relation)
       const turn = from === null ? null : await lastTurnOf(ctx, tenant, from)
       if (turn === undefined) return unreadable('the session this one is made from cannot be read')
-      const asker = turn === null ? { tenant } : { tenant, turn }
+      const asker = askerOf(tenant, turn)
       const read = await mappings.named(asker, creation.definition.name)
       if (read.kind === 'unavailable') return unreadable(read.diagnostic)
       if (read.kind === 'absent')

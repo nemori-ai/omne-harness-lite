@@ -34,7 +34,7 @@ import type {
   WorkSnapshot,
   WorkspaceAttachment,
 } from './values.ts'
-import type { HistoryEntry, ProducerFact, StartAdoption } from './faces.ts'
+import type { HistoryEntry, ProducerFact } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
 import {
@@ -66,7 +66,8 @@ import {
   rejected,
   invalid,
   entries,
-  residentEntries,
+  adoptionEntries,
+  adoptionNoted,
   completeEvidence,
 } from './decision-support.ts'
 import { judgeFork, judgeStanding } from './standing.ts'
@@ -248,25 +249,6 @@ function decideAccept(
   }
 }
 
-function adoptionEntries(
-  snapshot: WorkSnapshot,
-  material: StartAdoption | undefined,
-  candidate: Adoption,
-  current: Adoption,
-  source: DurableEvidence,
-): Decision {
-  if (material?.verdict !== undefined)
-    return rejected({ kind: 'frozen', verdict: material.verdict })
-  const residents = residentEntries(snapshot, material, source)
-  if (residents.kind !== 'entries') return residents
-  if (digestOf(candidate) === digestOf(current) && material === undefined) return residents
-  const keys = material === undefined ? {} : { residentKeys: material.keys }
-  return entries([
-    ...residents.entries,
-    encodeEntry({ kind: 'session.adoption', adopted: candidate, ...keys }, sessionOrigin(source)),
-  ])
-}
-
 function decideStartRun(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'startRun' }>,
@@ -279,12 +261,8 @@ function decideStartRun(
   }
   const { candidate, instance, note } = command.input
   const source = commandEvidence(command.input.operation, 'run-started')
-  if (note !== undefined && note.reason.length === 0) return invalid('note', 'no reason')
-  const noted =
-    note === undefined
-      ? []
-      : [encodeEntry({ kind: 'session.adoption-noted', note }, sessionOrigin(source))]
-  if (note?.kind === 'waiting') return entries(noted)
+  const noted = adoptionNoted(note, source)
+  if (noted.kind !== 'entries' || note?.kind === 'waiting') return noted
   if (emptyAdoption(candidate)) return invalid('candidate', 'incomplete adoption')
   if (instance.owner !== 'agent' || instance.id.length === 0)
     return invalid('instance', 'not an Agent instance')
@@ -298,7 +276,7 @@ function decideStartRun(
     source,
   )
   if (adopted.kind !== 'entries') return adopted
-  const out: EncodedEntry[] = [...adopted.entries, ...noted]
+  const out: EncodedEntry[] = [...adopted.entries, ...noted.entries]
   out.push(
     encodeEntry(
       {
