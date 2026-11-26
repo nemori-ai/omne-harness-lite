@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import {
   DEFAULT_DRAIN_DEADLINE_MS,
   DEFAULT_READINESS_TIMEOUT_MS,
+  DEFAULT_DEPENDENCY_DEADLINE_MS,
   DEFAULT_ROOT_DISPOSAL_DEADLINE_MS,
   DEFAULT_SHUTDOWN_DEADLINE_MS,
 } from './operator-defaults.ts'
@@ -40,6 +41,7 @@ export const SERVE_OPTIONS = {
   ...COMMON_OPTIONS,
   'drain-deadline-ms': { type: 'string' },
   'root-disposal-deadline-ms': { type: 'string' },
+  'dependency-deadline-ms': { type: 'string' },
   'state-root': { type: 'string' },
   'stop-on-stdin-close': { type: 'boolean' },
 } as const
@@ -51,6 +53,7 @@ export type ServeValues = Readonly<{
       | 'state-root'
       | 'drain-deadline-ms'
       | 'root-disposal-deadline-ms'
+      | 'dependency-deadline-ms'
   ]?: string
 }> &
   Readonly<{ 'stop-on-stdin-close'?: boolean }>
@@ -93,6 +96,7 @@ export type ServeInputs = Readonly<{
   shutdownDeadlineMs: number
   drainDeadlineMs: number
   rootDisposalDeadlineMs: number
+  dependencyDeadlineMs: number
   stateRoot: string
   port?: number
 }>
@@ -143,6 +147,10 @@ export async function serveInputs(values: ServeValues): Promise<ServeInputs> {
       values['root-disposal-deadline-ms'] === undefined
         ? DEFAULT_ROOT_DISPOSAL_DEADLINE_MS
         : positiveInt('root-disposal-deadline-ms', values['root-disposal-deadline-ms']),
+    dependencyDeadlineMs:
+      values['dependency-deadline-ms'] === undefined
+        ? DEFAULT_DEPENDENCY_DEADLINE_MS
+        : positiveInt('dependency-deadline-ms', values['dependency-deadline-ms']),
     stateRoot: resolvedRoot,
     ...(local.kind === 'ready' && local.settings !== undefined
       ? { port: local.settings.port }

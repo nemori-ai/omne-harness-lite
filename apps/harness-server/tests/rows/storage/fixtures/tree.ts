@@ -30,7 +30,9 @@ import {
 import type { SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import { cursorSigning } from '../../../../src/entry/cursor-signing.ts'
 import { storageHost } from '../../../../src/entry/storage-host.ts'
-import { LifecycleRegistry, S0AssemblyLifecycleService } from '../../../../src/lifecycle.ts'
+import { S0AssemblyLifecycleService } from '../../../../src/row.ts'
+import type { RowSupervision } from '../../../../src/shutdown.ts'
+import { rowSupervision } from '../../../support/row-supervision.ts'
 import {
   disposeTree,
   startTree,
@@ -47,7 +49,12 @@ import { defineRow, rowDeclarationOf } from '../../../../src/row.ts'
 import { sessionStorageRow } from '../../../../src/rows/session-storage/index.ts'
 import { prepareTenantDirectory } from '../../../../src/rows/session-storage/initialize.ts'
 import { storageRow } from '../../../../src/rows/storage/index.ts'
-import { monotonicClock, runShutdown, type ShutdownReport } from '../../../../src/shutdown.ts'
+import {
+  monotonicClock,
+  runShutdown,
+  stopPredecessors,
+  type ShutdownReport,
+} from '../../../../src/shutdown.ts'
 import { createTrust } from '../../../../src/trust.ts'
 import type {
   EntryEnv,
@@ -226,7 +233,7 @@ export type TreeOptions = Readonly<{
 export type LoadedTree = Readonly<{
   root: Context
   result: StartResult
-  registry: LifecycleRegistry
+  registry: RowSupervision
   expected: ReadonlyMap<RowId, LifecyclePhase>
   check: ScriptedSessionAccessCheck<string>
   service<T>(name: ServiceName): T
@@ -273,11 +280,7 @@ export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree>
     if (spec.manifest.phase !== null) expected.set(spec.row.id, spec.manifest.phase)
   }
   const effective = options.expected ?? expected
-  const registry = new LifecycleRegistry({
-    expected: effective,
-    clock: monotonicClock,
-    requestStop: () => {},
-  })
+  const registry = rowSupervision()
   await root.plugin(S0AssemblyLifecycleService, registry)
   const made = new Map<symbol, unknown>()
   const env: EntryEnv = {
@@ -325,7 +328,10 @@ export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree>
       return found
     },
     shutdown: (deadlineMs = 5000) =>
-      runShutdown(registry, effective, deadlineMs, monotonicClock, { disposeRoot: dispose }),
+      runShutdown(registry, effective, deadlineMs, monotonicClock, {
+        stopsFirst: stopPredecessors(specs),
+        disposeRoot: dispose,
+      }),
     dispose,
   }
 }

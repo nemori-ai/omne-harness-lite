@@ -1,5 +1,12 @@
-import { Inject, isConstructor, symbols, type Context, type Plugin } from '@deepseek-ai/cordis'
-import { S0_ASSEMBLY_LIFECYCLE_KEY } from './lifecycle.ts'
+import {
+  Inject,
+  isConstructor,
+  Service,
+  symbols,
+  type Context,
+  type Plugin,
+} from '@deepseek-ai/cordis'
+import type { RowSupervision } from './shutdown.ts'
 import type {
   AssemblyLifecycle,
   DeclaredImplementation,
@@ -9,6 +16,27 @@ import type {
   RowManifest,
   ServiceName,
 } from './types.ts'
+
+export const S0_ASSEMBLY_LIFECYCLE_KEY = 's0.assemblyLifecycle'
+
+/**
+ * Where a row hands its handle to the supervision of the assembly. The registration is an effect of the calling
+ * fiber: when that fiber is unloaded, the handle is withdrawn.
+ *
+ * @owner apps/harness-server
+ */
+export class S0AssemblyLifecycleService extends Service implements AssemblyLifecycle {
+  private readonly supervision: RowSupervision
+
+  constructor(ctx: Context, supervision: RowSupervision) {
+    super(ctx, S0_ASSEMBLY_LIFECYCLE_KEY)
+    this.supervision = supervision
+  }
+
+  register(handle: LifecycleHandle): void {
+    this.ctx.effect(() => this.supervision.add(handle), 'assemblyLifecycle.register')
+  }
+}
 
 export type RowHandle = Omit<LifecycleHandle, 'phase' | 'row'>
 

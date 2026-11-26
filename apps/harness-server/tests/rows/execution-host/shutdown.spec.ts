@@ -3,10 +3,10 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createHostFilesDomain } from '@omne-harness/execution-environment-host-local'
 import { createHostFilesRuntime } from '../../../src/host-files.ts'
 import { disposeRow } from '../../../src/loader.ts'
-import { LifecycleRegistry } from '../../../src/lifecycle.ts'
+import { rowSupervision } from '../../support/row-supervision.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { runShutdown, monotonicClock, type ShutdownRecord } from '../../../src/shutdown.ts'
-import type { LifecyclePhase, RowId } from '../../../src/types.ts'
+import type { HostFilesReport, LifecyclePhase, RowId } from '../../../src/types.ts'
 
 afterEach(() => vi.useRealTimers())
 
@@ -58,6 +58,15 @@ it('runs the loader maintenance callback only after the real fiber disposer sett
   await root.fiber.dispose()
 })
 
+/** The step of the host row: the business row needs it and it needs storage, so the graph puts it between the two. */
+const hostStep = (run: () => Promise<HostFilesReport>) => ({
+  withRow: { row: id('execution-host'), run },
+  stopsFirst: new Map([
+    [id('execution-host'), [id('business')]],
+    [id('storage'), [id('business'), id('execution-host')]],
+  ]),
+})
+
 function setup() {
   const events: string[] = []
   const records: ShutdownRecord[] = []
@@ -65,7 +74,7 @@ function setup() {
     [id('business'), 'business'],
     [id('storage'), 'storage'],
   ])
-  const registry = new LifecycleRegistry({ expected, clock: monotonicClock, requestStop() {} })
+  const registry = rowSupervision()
   for (const [row, phase] of expected)
     registry.add({
       row,
@@ -107,7 +116,7 @@ it('waits for queued work and retirement, reports final remaining count, and kee
   const first = runtime.request()
   const reportTask = runShutdown(registry, expected, 1000, monotonicClock, {
     log,
-    afterBusiness: () =>
+    ...hostStep(() =>
       runtime.finish(async () => {
         events.push('retire')
         entered.resolve()
@@ -115,6 +124,7 @@ it('waits for queued work and retirement, reports final remaining count, and kee
         events.push('retired')
         await runtime.request()
       }),
+    ),
     disposeRoot: () => {
       events.push('root')
     },
@@ -157,7 +167,7 @@ it('fixes an unavailable report at D, diagnoses a late result, and still waits f
   let returned = false
   const task = runShutdown(registry, expected, 50, monotonicClock, {
     log,
-    afterBusiness: finish,
+    ...hostStep(finish),
     disposeRoot: async () => {
       await finish()
       events.push('root')
@@ -200,7 +210,7 @@ it('reports unknown maintenance without a zero count or an error payload', async
   })
   const report = await runShutdown(registry, expected, 1000, monotonicClock, {
     log,
-    afterBusiness: () => runtime.finish(async () => undefined),
+    ...hostStep(() => runtime.finish(async () => undefined)),
   })
   expect(report).toMatchObject({
     overall: 'settled',

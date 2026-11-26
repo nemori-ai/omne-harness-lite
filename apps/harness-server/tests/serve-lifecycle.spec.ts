@@ -1,7 +1,9 @@
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { identityClock } from '../src/entry/identity-clock.ts'
-import { LifecycleRegistry, S0AssemblyLifecycleService } from '../src/lifecycle.ts'
+import { S0AssemblyLifecycleService } from '../src/row.ts'
+import type { RowSupervision } from '../src/shutdown.ts'
+import { rowSupervision } from './support/row-supervision.ts'
 import {
   disposeTree,
   startTree,
@@ -36,7 +38,7 @@ const profile = serveProfile()
 type Loaded = {
   root: Context
   result: StartResult
-  registry: LifecycleRegistry
+  registry: RowSupervision
   events: StubEvent[]
 }
 const live: Loaded[] = []
@@ -97,7 +99,7 @@ async function load(
   for (const spec of specs) {
     if (spec.manifest.phase !== null) expected.set(spec.row.id, spec.manifest.phase)
   }
-  const registry = new LifecycleRegistry({ expected, clock: monotonicClock, requestStop: () => {} })
+  const registry = rowSupervision()
   await root.plugin(S0AssemblyLifecycleService, registry)
   const env: EntryEnv = {
     stateRoot: '/unused',

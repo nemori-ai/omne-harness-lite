@@ -21,7 +21,7 @@ import { endProcess } from './process-end.ts'
 const S0_USAGE =
   'usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>'
 const SERVE_USAGE =
-  'usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--root-disposal-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]'
+  'usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--root-disposal-deadline-ms <n>] [--dependency-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]'
 
 type Common = Readonly<{
   distribution: unknown

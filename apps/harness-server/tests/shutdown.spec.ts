@@ -4,12 +4,9 @@ import { stubPlugin } from '../src/cordis.ts'
 import { defineRow } from '../src/row.ts'
 import { serveOnce } from './fixtures/serve/harness.ts'
 import { TELEMETRY_ROW_CONFIG } from './support/listening.ts'
-import {
-  LifecycleRefusedError,
-  LifecycleRegistry,
-  S0AssemblyLifecycleService,
-  S0_ASSEMBLY_LIFECYCLE_KEY,
-} from '../src/lifecycle.ts'
+import { S0AssemblyLifecycleService, S0_ASSEMBLY_LIFECYCLE_KEY } from '../src/row.ts'
+import { SupervisionRefused } from '@omne-harness/assembly-cordis/cordis'
+import { rowSupervision } from './support/row-supervision.ts'
 import {
   runShutdown,
   stopPredecessors,
@@ -96,7 +93,7 @@ function fullSet(calls: Calls, overrides: Partial<Record<string, LifecycleHandle
 
 function setup(calls: Calls, handles: readonly LifecycleHandle[], clock: FakeClock = fakeClock()) {
   const records: ShutdownRecord[] = []
-  const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+  const registry = rowSupervision({ clock })
   for (const h of handles) registry.add(h)
   const log = (record: ShutdownRecord) => {
     records.push(record)
@@ -151,7 +148,7 @@ describe('X-1 关闭次序', () => {
       [row('c'), 'business'],
     ])
     const clock = fakeClock()
-    const registry = new LifecycleRegistry({ expected, clock, requestStop: () => {} })
+    const registry = rowSupervision({ clock })
     registry.add(slow('a'))
     registry.add(slow('b'))
     registry.add(handle(calls, 'c', 'business'))
@@ -175,7 +172,7 @@ describe('X-1 关闭次序', () => {
       [row('other'), 'business'],
     ])
     const clock = fakeClock()
-    const registry = new LifecycleRegistry({ expected, clock, requestStop: () => {} })
+    const registry = rowSupervision({ clock })
     registry.add(
       handle(
         calls,
@@ -205,7 +202,7 @@ describe('X-1 关闭次序', () => {
       [row('provider'), 'business'],
     ])
     const clock = fakeClock()
-    const registry = new LifecycleRegistry({ expected, clock, requestStop: () => {} })
+    const registry = rowSupervision({ clock })
     registry.add(handle(calls, 'consumer', 'business', () => new Promise<StopResult>(() => {})))
     registry.add(handle(calls, 'provider', 'business'))
     const done = runShutdown(registry, expected, DEADLINE_MS, clock, {
@@ -245,7 +242,7 @@ describe('X-1 关闭次序', () => {
   })
 })
 
-describe('同一阶段内的停止次序由行清单推出', () => {
+describe('停止次序由行清单推出', () => {
   const spec = (
     id: string,
     phase: LifecyclePhase | null,
@@ -277,7 +274,10 @@ describe('同一阶段内的停止次序由行清单推出', () => {
       spec('adapter', null, ['adapted'], ['s']),
       spec('provider', 'business', ['s'], []),
     ])
-    expect(pairs(order)).toEqual([['provider', ['consumer']]])
+    expect(pairs(order)).toEqual([
+      ['adapter', ['consumer']],
+      ['provider', ['consumer', 'adapter']],
+    ])
   })
 
   it('互相依赖的两行不分先后', () => {
@@ -288,12 +288,12 @@ describe('同一阶段内的停止次序由行清单推出', () => {
     expect(pairs(order)).toEqual([])
   })
 
-  it('不同阶段的两行不在这里排序：阶段次序已经定了', () => {
+  it('次序不看阶段：注入方的阶段排在提供方之后，提供方照样等它（量过的三处就是这一种）', () => {
     const order = stopPredecessors([
-      spec('consumer', 'business', [], ['s']),
-      spec('provider', 'composition', ['s'], []),
+      spec('consumer', 'composition', [], ['s']),
+      spec('provider', 'business', ['s'], []),
     ])
-    expect(pairs(order)).toEqual([])
+    expect(pairs(order)).toEqual([['provider', ['consumer']]])
   })
 })
 
@@ -361,11 +361,7 @@ describe('X-3 报告闩锁', () => {
 
   it('assemblyReportSettled 被调用时报告已经确定', async () => {
     const calls: Calls = []
-    const registry = new LifecycleRegistry({
-      expected: EXPECTED,
-      clock: fakeClock(),
-      requestStop: () => {},
-    })
+    const registry = rowSupervision({ clock: fakeClock() })
     let fixedAtLatch = false
     const records: ShutdownRecord[] = []
     for (const h of fullSet(calls, {
@@ -398,7 +394,7 @@ describe('X-5 关闭前撤除', () => {
   it('composition 行的 fiber 先撤除：disposed-before-stop，附 disposer 发起的结果，整体 incomplete', async () => {
     const calls: Calls = []
     const clock = fakeClock()
-    const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+    const registry = rowSupervision({ clock })
     const root = new Context()
     await root.plugin(S0AssemblyLifecycleService, registry)
     const fibers = new Map<string, { dispose(): Promise<unknown> }>()
@@ -519,7 +515,7 @@ describe('X-9 排空：业务阶段之前，先让有 drain 的行做完已经�
         },
       },
     )
-    const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+    const registry = rowSupervision({ clock })
     for (const h of fullSet(calls, { 'agent-host': modelHost })) registry.add(h)
     const run = () =>
       runShutdown(registry, EXPECTED, DEADLINE_MS, clock, drainMs === null ? {} : { drainMs })
@@ -618,8 +614,7 @@ describe('X-9 排空：业务阶段之前，先让有 drain 的行做完已经�
 })
 
 describe('登记准入', () => {
-  const newRegistry = () =>
-    new LifecycleRegistry({ expected: EXPECTED, clock: fakeClock(), requestStop: () => {} })
+  const newRegistry = () => rowSupervision({ clock: fakeClock() })
   const refusal = (fn: () => unknown) => {
     try {
       fn()
@@ -629,17 +624,17 @@ describe('登记准入', () => {
     return undefined
   }
 
-  it('预期名单之外的行登记被拒', () => {
+  it('预期名单之外的行登记了：关闭时照样停它，结果进报告', async () => {
     const calls: Calls = []
-    const error = refusal(() => newRegistry().add(handle(calls, 'intruder', 'business')))
-    expect(error).toBeInstanceOf(LifecycleRefusedError)
-    expect((error as LifecycleRefusedError).reason).toBe('unexpected-row')
-  })
-
-  it('阶段与预期不符的登记被拒', () => {
-    const calls: Calls = []
-    const error = refusal(() => newRegistry().add(handle(calls, 'agent-host', 'storage')))
-    expect((error as LifecycleRefusedError).reason).toBe('phase-mismatch')
+    const { registry, run } = setup(calls, fullSet(calls))
+    registry.add(handle(calls, 'intruder', 'business'))
+    const report = await run()
+    expect(calls).toContain('stop:intruder')
+    expect(report.outcomes.at(-1)).toEqual({
+      row: 'intruder',
+      phase: 'business',
+      result: { kind: 'settled' },
+    })
   })
 
   it('同一行已有在册句柄时再登记被拒', () => {
@@ -647,7 +642,8 @@ describe('登记准入', () => {
     const registry = newRegistry()
     registry.add(handle(calls, 'agent-host', 'business'))
     const error = refusal(() => registry.add(handle(calls, 'agent-host', 'business')))
-    expect((error as LifecycleRefusedError).reason).toBe('duplicate')
+    expect(error).toBeInstanceOf(SupervisionRefused)
+    expect((error as SupervisionRefused).reason).toBe('duplicate')
   })
 
   it('进入停止状态后新登记的句柄被拒，且不被调用', async () => {
@@ -656,7 +652,7 @@ describe('登记准入', () => {
     await run()
     const late = handle(calls, 'agent-host', 'business')
     const error = refusal(() => registry.add(late))
-    expect((error as LifecycleRefusedError).reason).toBe('stopping')
+    expect((error as SupervisionRefused).reason).toBe('stopping')
     expect(calls.filter(c => c === 'stop:agent-host')).toEqual([])
   })
 
@@ -669,9 +665,9 @@ describe('登记准入', () => {
       name: 'row-intruder',
       inject: [S0_ASSEMBLY_LIFECYCLE_KEY],
       apply: (ctx: Context) => {
-        ;(ctx.get(S0_ASSEMBLY_LIFECYCLE_KEY) as S0AssemblyLifecycleService).register(
-          handle(calls, 'intruder', 'business'),
-        )
+        const lifecycle = ctx.get(S0_ASSEMBLY_LIFECYCLE_KEY) as S0AssemblyLifecycleService
+        lifecycle.register(handle(calls, 'intruder', 'business'))
+        lifecycle.register(handle(calls, 'intruder', 'business'))
       },
     })
     await expect(fiber).rejects.toBeDefined()
@@ -680,15 +676,11 @@ describe('登记准入', () => {
 })
 
 describe('运行期换代视为计划停止', () => {
-  it('启动后提供者换代使登记行重跑：进入停止，不重新调用 start', async () => {
+  it('启动后提供者换代使登记行重跑：监督让进程有计划地退出，不重新调用 start', async () => {
     const calls: Calls = []
     const clock = fakeClock()
     const stopRequests: string[] = []
-    const registry = new LifecycleRegistry({
-      expected: EXPECTED,
-      clock,
-      requestStop: reason => void stopRequests.push(reason),
-    })
+    const registry = rowSupervision({ clock })
     const root = new Context()
     await root.plugin(S0AssemblyLifecycleService, registry)
     class Dep extends Service {
@@ -699,7 +691,7 @@ describe('运行期换代视为计划停止', () => {
     let generation = 0
     const starts: number[] = []
     const depFiber = await root.plugin(Dep)
-    await root.plugin({
+    const rowFiber = await root.plugin({
       name: 'row-server-entry',
       inject: [S0_ASSEMBLY_LIFECYCLE_KEY, 'dep'],
       apply: (ctx: Context) => {
@@ -712,6 +704,11 @@ describe('运行期换代视为计划停止', () => {
     })
     await registry.startAll()
     expect(starts).toEqual([1])
+    registry.watch(root, [{ id: 'server-entry', fiber: rowFiber, swap: 'restart' }], {
+      dependencyDeadlineMs: 1000,
+      startDeadlineMs: 1000,
+      exit: exit => void stopRequests.push(`${exit.reason}: ${exit.row} (${String(exit.code)})`),
+    })
 
     await depFiber.dispose()
     await root.plugin(Dep)
@@ -719,19 +716,13 @@ describe('运行期换代视为计划停止', () => {
 
     expect(generation).toBe(2)
     expect(starts).toEqual([1])
-    expect(stopRequests).toHaveLength(1)
-    expect(registry.state).toBe('stopping')
-    expect(registry.liveRows()).toEqual([])
+    expect(stopRequests).toEqual(['row-returned: server-entry (0)'])
   })
 
   it('启动前的重跑是正常装载：只留新句柄，不触发停止', async () => {
     const calls: Calls = []
     const stopRequests: string[] = []
-    const registry = new LifecycleRegistry({
-      expected: EXPECTED,
-      clock: fakeClock(),
-      requestStop: reason => void stopRequests.push(reason),
-    })
+    const registry = rowSupervision({ clock: fakeClock() })
     const first = handle(calls, 'server-entry', 'entry')
     const off = registry.add(first)
     off()
@@ -745,11 +736,7 @@ describe('运行期换代视为计划停止', () => {
     const calls: Calls = []
     const clock = fakeClock()
     const stopRequests: string[] = []
-    const registry = new LifecycleRegistry({
-      expected: EXPECTED,
-      clock,
-      requestStop: reason => void stopRequests.push(reason),
-    })
+    const registry = rowSupervision({ clock })
     const off = registry.add(handle(calls, 'server-entry', 'entry'))
     await registry.startAll()
     off()
@@ -759,6 +746,14 @@ describe('运行期换代视为计划停止', () => {
 })
 
 describe('X-5 启动期的停止状态与失败', () => {
+  /** The business row needs the session storage, which needs the storage; the entry row opens admission. */
+  const CHAIN = {
+    after: new Map([
+      ['agent-host', ['session-storage', 'storage']],
+      ['session-storage', ['storage']],
+    ]),
+    last: new Set(['server-entry']),
+  }
   const startable = (calls: Calls, id: string, phase: LifecyclePhase, onStart?: () => void) =>
     handle(calls, id, phase, undefined, {
       start: async () => {
@@ -770,13 +765,13 @@ describe('X-5 启动期的停止状态与失败', () => {
   it('storage 的 start 内触发 runShutdown：此后没有任何 start，停止次序仍为 entry → storage', async () => {
     const calls: Calls = []
     const clock = fakeClock()
-    const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+    const registry = rowSupervision({ clock })
     const stopNow = () => void runShutdown(registry, EXPECTED, DEADLINE_MS, clock)
     registry.add(startable(calls, 'server-entry', 'entry'))
     registry.add(startable(calls, 'agent-host', 'business'))
     registry.add(startable(calls, 'session-storage', 'composition'))
     registry.add(startable(calls, 'storage', 'storage', stopNow))
-    await registry.startAll()
+    await registry.startAll(CHAIN)
     await flush()
     expect(calls).toEqual([
       'start:storage',
@@ -794,7 +789,7 @@ describe('X-5 启动期的停止状态与失败', () => {
       [row('a'), 'entry'],
       [row('b'), 'entry'],
     ])
-    const registry = new LifecycleRegistry({ expected, clock, requestStop: () => {} })
+    const registry = rowSupervision({ clock })
     registry.add(
       startable(
         calls,
@@ -809,17 +804,9 @@ describe('X-5 启动期的停止状态与失败', () => {
     expect(calls.filter(c => c.startsWith('start:'))).toEqual(['start:a'])
   })
 
-  it('阶段间启动次序是关闭次序的逆序，阶段内按登记次序', async () => {
+  it('启动的次序：一行在它需要的行之后，接入行在最后；没有关系的按登记次序', async () => {
     const calls: Calls = []
-    const expected = new Map<RowId, LifecyclePhase>([
-      [row('e1'), 'entry'],
-      [row('e2'), 'entry'],
-      [row('b1'), 'business'],
-      [row('c1'), 'composition'],
-      [row('s1'), 'storage'],
-      [row('s2'), 'storage'],
-    ])
-    const registry = new LifecycleRegistry({ expected, clock: fakeClock(), requestStop: () => {} })
+    const registry = rowSupervision({ clock: fakeClock() })
     const add = (id: string, phase: LifecyclePhase) => registry.add(startable(calls, id, phase))
     add('e2', 'entry')
     add('s1', 'storage')
@@ -827,14 +814,20 @@ describe('X-5 启动期的停止状态与失败', () => {
     add('s2', 'storage')
     add('c1', 'composition')
     add('e1', 'entry')
-    await registry.startAll()
+    await registry.startAll({
+      after: new Map([
+        ['b1', ['c1', 's1']],
+        ['c1', ['s1']],
+      ]),
+      last: new Set(['e1', 'e2']),
+    })
     expect(calls).toEqual(['s1', 's2', 'c1', 'b1', 'e2', 'e1'].map(id => `start:${id}`))
   })
 
-  it('start 抛出：startAll 返回失败句柄，后续阶段不启动；关闭整套照走，该句柄报告 failed', async () => {
+  it('start 抛出：startAll 返回失败句柄，需要它的行与接入行不启动；关闭整套照走，该句柄报告 failed', async () => {
     const calls: Calls = []
     const clock = fakeClock()
-    const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+    const registry = rowSupervision({ clock })
     const boom = handle(calls, 'session-storage', 'composition', undefined, {
       start: async () => {
         calls.push('start:session-storage')
@@ -845,7 +838,7 @@ describe('X-5 启动期的停止状态与失败', () => {
     registry.add(startable(calls, 'agent-host', 'business'))
     registry.add(boom)
     registry.add(startable(calls, 'storage', 'storage'))
-    const failure = await registry.startAll()
+    const failure = await registry.startAll(CHAIN)
     expect(failure).toEqual({ row: 'session-storage', detail: 'boom' })
     expect(calls).toEqual(['start:storage', 'start:session-storage'])
     const report = await runShutdown(registry, EXPECTED, DEADLINE_MS, clock)

@@ -17,11 +17,10 @@ import {
   installToolResultDisclosure,
 } from './model/tool-result-disclosure.ts'
 import { entryObjects as releaseEntryObjects } from './entry/index.ts'
-import {
-  LifecycleRegistry,
-  S0AssemblyLifecycleService,
-  S0_ASSEMBLY_LIFECYCLE_KEY,
-} from './lifecycle.ts'
+import { RowSupervisor } from '@omne-harness/assembly-cordis/cordis'
+import { S0AssemblyLifecycleService, S0_ASSEMBLY_LIFECYCLE_KEY } from './row.ts'
+import { rowOrder, startOrderOf, stopOrderOf } from './row-order.ts'
+import { serveUntilStop } from './serve-watch.ts'
 import {
   createSessionWorkPrincipals,
   disposeRow,
@@ -40,7 +39,7 @@ import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-boun
 import { LAST_FALL_KEY, takeLastFall } from './process-fall.ts'
 import { inTransit, stopOf } from './readiness.ts'
 import { refusedByStamp, stampState } from './state-stamp.ts'
-import { disposeWithin, monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
+import { disposeWithin, monotonicClock, runShutdown, type RowSupervision } from './shutdown.ts'
 import { hostTime, holdRunTime } from './entry/time.ts'
 import { enabledExtensionsOf } from './rows/agent-host/enabled-extensions.ts'
 import { systemExtensionsOf } from './rows/system-extensions/index.ts'
@@ -63,6 +62,7 @@ import type {
   RowId,
   RowManifest,
   ServiceName,
+  ShutdownReport,
   StopResult,
   TreeRow,
   Visibility,
@@ -131,11 +131,11 @@ type Probes = { started: string[]; applied: string[] }
 
 const SETTLED: StopResult = { kind: 'settled' }
 
-class ProbedRegistry extends LifecycleRegistry {
+class ProbedRegistry extends RowSupervisor<LifecycleHandle, ShutdownReport> {
   readonly #started: string[]
 
-  constructor(options: ConstructorParameters<typeof LifecycleRegistry>[0], started: string[]) {
-    super(options)
+  constructor(started: string[]) {
+    super({ clock: monotonicClock })
     this.#started = started
   }
 
@@ -323,21 +323,12 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
       monotonicClock,
       {
         log: write,
-        stopsFirst: stopPredecessors(rows),
+        stopsFirst: stopOrderOf(order),
         disposeRoot: () => disposeTree(root, loaded),
       },
     ))
-  const registry = new ProbedRegistry(
-    {
-      expected,
-      clock: monotonicClock,
-      requestStop: reason => {
-        stderr(`s0: stop requested: ${reason}`)
-        void shutdown()
-      },
-    },
-    probes.started,
-  )
+  const order = rowOrder(rows)
+  const registry = new ProbedRegistry(probes.started)
 
   const omitted = new Set(options.omitEntryObjects ?? [])
   if (!omitted.has(S0_ASSEMBLY_LIFECYCLE_KEY))
@@ -381,7 +372,8 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
   }
 
   loaded = started.rows
-  const startFailure = barrierCalls > 0 ? await registry.startAll() : undefined
+  const startFailure =
+    barrierCalls > 0 ? await registry.startAll(startOrderOf(order, rows)) : undefined
   for (const state of started.report.rows) write({ kind: 'row-state', ...state })
   write({
     kind: 'startup-result',
@@ -410,6 +402,7 @@ export type RunServeOptions = Readonly<{
   shutdownDeadlineMs: number
   drainDeadlineMs?: number
   rootDisposalDeadlineMs?: number
+  dependencyDeadlineMs?: number
   stateRoot: string
   stop: AbortSignal
   write: (record: S0Record) => void
@@ -444,6 +437,14 @@ const NO_ROWS_YET: Record<Implementation, number> = {
   's0-double': 0,
 }
 const ROOT_DISPOSAL_DEADLINE_MS = 10_000
+const DEPENDENCY_DEADLINE_MS = 30_000
+const HOST_ROW = 'execution-host' as RowId
+const watchOf = (options: RunServeOptions) => ({
+  stop: options.stop,
+  stderr: options.stderr,
+  dependencyDeadlineMs: options.dependencyDeadlineMs ?? DEPENDENCY_DEADLINE_MS,
+  startDeadlineMs: options.readinessTimeoutMs,
+})
 const rootDeadlineOf = (options: RunServeOptions): number =>
   options.rootDisposalDeadlineMs ?? ROOT_DISPOSAL_DEADLINE_MS
 
@@ -493,20 +494,6 @@ function placeholderNames(
   return [...new Set(wantedByDoubles)].filter(
     name => !providedByRows.has(name) && !registry.has(name) && !wantedByReal.has(name),
   )
-}
-
-function stopRequest(signal: AbortSignal): { promise: Promise<string>; cancel: () => void } {
-  const reasonOf = () => (typeof signal.reason === 'string' ? signal.reason : 'stop signal')
-  let onAbort = () => {}
-  const promise = new Promise<string>(resolve => {
-    if (signal.aborted) {
-      resolve(reasonOf())
-      return
-    }
-    onAbort = () => resolve(reasonOf())
-    signal.addEventListener('abort', onAbort, { once: true })
-  })
-  return { promise, cancel: () => signal.removeEventListener('abort', onAbort) }
 }
 
 export async function runServe(options: RunServeOptions): Promise<ServeResult> {
@@ -678,7 +665,8 @@ type StartFailure = Exclude<StartResult, { kind: 'started' }>
 
 async function startAndReport(
   input: Readonly<{
-    registry: LifecycleRegistry
+    registry: RowSupervision
+    order: Parameters<RowSupervision['startAll']>[0]
     started: Started
     barrierCalls: number
     enabledRows: number
@@ -688,10 +676,10 @@ async function startAndReport(
     options: RunServeOptions
   }>,
 ): Promise<0 | 3 | 4> {
-  const { registry, started, barrierCalls, probes, write } = input
+  const { started, barrierCalls, probes, write } = input
   const starts =
     barrierCalls > 0
-      ? await startsWithin(registry, input.options.readinessTimeoutMs, input.options.stop)
+      ? await startsWithin(input, input.options.readinessTimeoutMs, input.options.stop)
       : undefined
   const startFailure = typeof starts === 'string' ? undefined : starts
   const startCode =
@@ -720,15 +708,21 @@ async function startAndReport(
 }
 
 async function startsWithin(
-  registry: LifecycleRegistry,
+  {
+    registry,
+    order,
+  }: Readonly<{
+    registry: RowSupervision
+    order: Parameters<RowSupervision['startAll']>[0]
+  }>,
   deadlineMs: number,
   stop: AbortSignal,
-): Promise<Awaited<ReturnType<LifecycleRegistry['startAll']>> | 'start-timeout' | 'stopped'> {
+): Promise<Awaited<ReturnType<RowSupervision['startAll']>> | 'start-timeout' | 'stopped'> {
   const timer = monotonicClock.after(deadlineMs)
   const stopping = stopOf(stop)
   try {
     return await Promise.race([
-      registry.startAll(),
+      registry.startAll(order),
       timer.promise.then(() => 'start-timeout' as const),
       stopping.asked.then(() => 'stopped' as const),
     ])
@@ -764,17 +758,6 @@ function rootOf(stateRoot: string): Context {
   const root = new Context()
   root.provide(LAST_FALL_KEY, takeLastFall(stateRoot))
   return root
-}
-
-async function awaitStop(
-  signal: AbortSignal,
-  registryStop: Promise<void>,
-  stderr: RunServeOptions['stderr'],
-): Promise<void> {
-  const request = stopRequest(signal)
-  const reason = await Promise.race([request.promise, registryStop.then(() => null)])
-  request.cancel()
-  if (reason !== null) stderr(`${SERVE_PREFIX}: stop requested: ${reason}`)
 }
 
 async function settleStartFailure(
@@ -910,9 +893,11 @@ async function runServeWithHostFiles(
       monotonicClock,
       {
         log: write,
-        stopsFirst: stopPredecessors(rows),
+        stopsFirst: stopOrderOf(orderNow()),
         ...(options.drainDeadlineMs === undefined ? {} : { drainMs: options.drainDeadlineMs }),
-        ...(finishHostFiles === undefined ? {} : { afterBusiness: finishHostFiles }),
+        ...(finishHostFiles === undefined
+          ? {}
+          : { withRow: { row: HOST_ROW, run: finishHostFiles } }),
         afterStorage: deadline => telemetry.close(Math.max(0, deadline - monotonicClock.now())),
         disposeRoot: async () => {
           await finishHostFiles?.()
@@ -926,26 +911,12 @@ async function runServeWithHostFiles(
   const finishHostFiles = rows.some(spec => spec.row.plugin === 'executionHost')
     ? () =>
         hostFiles.finish(async () => {
-          const row = loaded.find(candidate => candidate.id === 'execution-host')
+          const row = loaded.find(candidate => candidate.id === HOST_ROW)
           if (row !== undefined) await disposeRow(row, () => hostFiles.request())
         })
     : undefined
-  let stoppedByRegistry = () => {}
-  const registryStop = new Promise<void>(resolve => {
-    stoppedByRegistry = resolve
-  })
-  const registry = new ProbedRegistry(
-    {
-      expected,
-      clock: monotonicClock,
-      requestStop: reason => {
-        stderr(`${SERVE_PREFIX}: stop requested: ${reason}`)
-        void shutdown()
-        stoppedByRegistry()
-      },
-    },
-    probes.started,
-  )
+  const orderNow = () => rowOrder(rows, loaded.length === 0 ? undefined : { root, loaded })
+  const registry = new ProbedRegistry(probes.started)
   await root.plugin(S0AssemblyLifecycleService, registry)
 
   const env = entryEnvOf(root, trust, options)
@@ -966,8 +937,10 @@ async function runServeWithHostFiles(
     return result(await settleStartFailure(started, { write, stderr, root, shutdown, options }))
 
   loaded = started.rows
+  const order = orderNow()
   const startCode = await startAndReport({
     registry,
+    order: startOrderOf(order, rows),
     started,
     barrierCalls,
     enabledRows: tree.rows.length,
@@ -977,8 +950,11 @@ async function runServeWithHostFiles(
     options,
   })
   accepting = startCode === 0
-  if (accepting) await awaitStop(options.stop, registryStop, stderr)
+  const watch = { registry, root, loaded, undeclared: order.undeclared, write }
+  const left = accepting ? await serveUntilStop({ ...watch, ...watchOf(options) }) : undefined
   const report = await shutdown()
   write({ kind: 'shutdown-result', ...report })
-  return result(finalExitCode(startCode, report.overall))
+  return result(
+    left === undefined || left.code === 0 ? finalExitCode(startCode, report.overall) : left.code,
+  )
 }
