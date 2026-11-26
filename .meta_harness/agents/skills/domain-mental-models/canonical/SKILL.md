@@ -26,6 +26,7 @@ description: "本项目各领域的心智模型与跨领域协调的模型：每
 | 谁可以写一类事实；另一个领域要留下事实怎么办；「每次写入之后都要做的事」挂在哪 | [references/cross-domain.md](references/cross-domain.md)「一类事实只有一个写入者」 |
 | 新增一个领域，或判断一个领域还缺什么 | [references/cross-domain.md](references/cross-domain.md)「一个完整的领域提供什么」 |
 | 一个领域要让别的领域拓展自己；要不要开一个拓展点、怎样声明；同一个键来了两份怎样答；贡献放上去生没生效；给 agent 看的拓展树 | [references/dynamis.md](references/dynamis.md) |
+| 进程这一层的装配：官方层与租户层、谁能换官方的行、一行怎样在服务不停时换、坏了怎样自恢复或重启、版本目录与指针 | [references/assembly.md](references/assembly.md) |
 | 装上、卸下、替换；在途的工作怎样处置；Cordis 该做什么 | [references/cross-domain.md](references/cross-domain.md)「动态性与 Cordis」 |
 | 在会话这个领域里：输入、Run、生命周期、会话日志 | [references/session.md](references/session.md) |
 | 在 Agent 这个领域里：循环、拓展点、对 Model 和 Tool 的调用 | [references/agent.md](references/agent.md) |
