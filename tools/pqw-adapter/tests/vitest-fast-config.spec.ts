@@ -4,6 +4,8 @@ import { expect, it, vi } from 'vitest'
 import fastConfigForCwd, {
   fastConfig,
   MUTATION_TEST_TIMEOUT_MS,
+  namedTests,
+  TESTS_ENV,
 } from '../resources/vitest-fast.config.mts'
 import { scratch } from './support.ts'
 
@@ -64,4 +66,21 @@ it('reads the member config from the current directory when used as the default 
   } finally {
     cwd.mockRestore()
   }
+})
+
+it('runs only the named test files when the adapter names them, and the whole fast tier otherwise', async () => {
+  const root = member(
+    'export default ({ mode }: { mode: string }) => ({ test: { include: [mode] } })\n',
+  )
+  const env = { mode: 'test', command: 'serve' }
+  expect(
+    (await fastConfig(root, env, ['tests/a.spec.ts', 'tests/b.spec.ts'])).test.include,
+  ).toEqual(['tests/a.spec.ts', 'tests/b.spec.ts'])
+  expect((await fastConfig(root, env, [])).test.include).toEqual(['fast'])
+  expect(namedTests({ [TESTS_ENV]: 'tests/a.spec.ts,tests/b.spec.ts' })).toEqual([
+    'tests/a.spec.ts',
+    'tests/b.spec.ts',
+  ])
+  expect(namedTests({})).toEqual([])
+  expect(namedTests({ [TESTS_ENV]: '' })).toEqual([])
 })
