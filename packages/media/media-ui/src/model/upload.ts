@@ -28,6 +28,8 @@ export type UploadInput = Readonly<{
   upload: string
   mediaType: string
   bytes: Uint8Array
+  /** The file name, shown with it later; an end that cannot take one gets the upload without it. */
+  name?: string
   progress: (sentBytes: number) => void
   cancelled: () => boolean
 }>
@@ -111,9 +113,11 @@ export async function uploadMedium(input: UploadInput): Promise<UploadOutcome> {
     return { kind: 'committed', ...answer.body }
   }
 
-  const begun = await sent(() =>
-    client['begin-upload']({ tenant, upload, mediaType: input.mediaType, bytes: bytes.byteLength }),
-  )
+  const plain = { tenant, upload, mediaType: input.mediaType, bytes: bytes.byteLength }
+  const named = input.name === undefined ? plain : { ...plain, name: input.name }
+  let begun = await sent(() => client['begin-upload'](named))
+  const nameless = begun.outcome === 'unavailable' || begun.outcome === 'protocol-rejected'
+  if (nameless && named !== plain) begun = await sent(() => client['begin-upload'](plain))
   let turn: Turn
   if (begun.outcome === 'succeeded') turn = begun.body.status
   else if (begun.outcome === 'unknown') turn = await where()

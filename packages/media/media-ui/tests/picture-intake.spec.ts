@@ -56,8 +56,8 @@ describe('图的收法：每张图的结局乘整组的答复', () => {
       ],
     })
     expect(begun.map(call => Object.keys(call.body).sort())).toEqual([
-      ['bytes', 'mediaType', 'tenant', 'upload'],
-      ['bytes', 'mediaType', 'tenant', 'upload'],
+      ['bytes', 'mediaType', 'name', 'tenant', 'upload'],
+      ['bytes', 'mediaType', 'name', 'tenant', 'upload'],
     ])
     expect(media.operations().filter(operation => operation === 'prepare-media')).toHaveLength(2)
   })

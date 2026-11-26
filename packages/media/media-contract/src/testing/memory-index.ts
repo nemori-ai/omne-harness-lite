@@ -96,6 +96,7 @@ export function createMemoryMediaIndex(): MediaIndex {
         parts: [],
         expiresAt: input.expiresAt,
         holderCount: 0,
+        ...(input.name === undefined ? {} : { name: input.name }),
       })
       return succeed(null)
     },

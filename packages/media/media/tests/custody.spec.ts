@@ -170,6 +170,24 @@ describe('hold, describe and sweep while the index does not answer', () => {
     return { w, ...(await w.staged(T1, 'up', IMAGE)) }
   }
 
+  it('describe answers the name an upload was begun with; the same bytes begun under another name keep the first', async () => {
+    const w = world()
+    const bytes = pdf('季度报告')
+    const first = await w.staged(T1, 'named-1', bytes, 'application/pdf', '季度报告.pdf')
+    expect(ok(await w.media.custody.describe({ tenant: T1, ref: first.ref })).name).toBe(
+      '季度报告.pdf',
+    )
+    const again = await w.staged(T1, 'named-2', bytes, 'application/pdf', '另一个名字.pdf')
+    expect(again.ref).toEqual(first.ref)
+    expect(ok(await w.media.custody.describe({ tenant: T1, ref: again.ref })).name).toBe(
+      '季度报告.pdf',
+    )
+    const plain = await w.staged(T1, 'plain', png(2, 2, 1))
+    expect(ok(await w.media.custody.describe({ tenant: T1, ref: plain.ref }))).not.toHaveProperty(
+      'name',
+    )
+  })
+
   it('describe answers the state and the facts, and nothing else', async () => {
     const { w, ref } = await staged()
     const facts = { kind: 'image', widthPixels: 4, heightPixels: 3 }

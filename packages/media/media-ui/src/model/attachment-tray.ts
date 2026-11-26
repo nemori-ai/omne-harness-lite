@@ -156,6 +156,7 @@ export class AttachmentTray {
       upload: id,
       mediaType: file.type,
       bytes,
+      name: file.name,
       progress: sent => this.#set(id, { kind: 'uploading', sent }),
       cancelled: () => !this.#held(id),
     })

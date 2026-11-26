@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
-import { extname } from 'node:path'
+import { basename, extname } from 'node:path'
 import { mediaProtocol, type MediaProtocol } from '@omne-harness/media-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { BodyOf } from '@omne-harness/sdk/core'
@@ -100,12 +100,10 @@ async function sendUpload(
 ): Promise<Readonly<{ result: CallResult | undefined; ref: Reference | null }>> {
   const { tenant } = context
   const { mediaType, bytes } = read
-  const begun = await call(context, 'begin-upload', {
-    tenant,
-    upload,
-    mediaType,
-    bytes: bytes.byteLength,
-  })
+  const plain = { tenant, upload, mediaType, bytes: bytes.byteLength }
+  let begun = await call(context, 'begin-upload', { ...plain, name: basename(read.file) })
+  const refused = begun?.kind === 'response' && begun.outcome === 'protocol-rejected'
+  if (begun?.kind === 'unavailable' || refused) begun = await call(context, 'begin-upload', plain)
   if (!succeeded(begun)) return { result: begun, ref: null }
   const { status } = begun.body as {
     status: { kind: string; nextSequence: number; partBytes: number }
