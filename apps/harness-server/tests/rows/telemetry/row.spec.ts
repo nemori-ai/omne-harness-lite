@@ -11,6 +11,7 @@ import { defineRow } from '../../../src/row.ts'
 import { telemetryRowConfig } from '../../../src/rows/telemetry/config.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 import { serveOnce, type ServeRun } from '../../fixtures/serve/harness.ts'
+import { stopAfterStartup } from '../../support/stop-after-startup.ts'
 
 const BUDGETS = {
   maxRecordBytes: 65_536,
@@ -275,11 +276,10 @@ describe('A8: a record writer that throws', () => {
       readinessTimeoutMs: 5000,
       shutdownDeadlineMs: 2000,
       stateRoot: scratch(),
-      stop: AbortSignal.abort('test: stop'),
-      write: record => {
+      ...stopAfterStartup(record => {
         if (record.kind === 'telemetry') throw new Error('stdout closed')
         records.push(record)
-      },
+      }),
       stderr: line => stderr.push(line),
     })
     expect(result.exitCode).toBe(0)

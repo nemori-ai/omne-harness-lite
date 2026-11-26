@@ -96,7 +96,7 @@ describe('startTree steps', () => {
       },
     })
     const result = await pending
-    expect(result).toEqual({ kind: 'preparation-failed', exitCode: 3, error })
+    expect(result).toEqual({ kind: 'preparation-failed', exitCode: 3, error, deadline: false })
     expect(steps).toEqual([])
     expect(events).toEqual([])
   })
