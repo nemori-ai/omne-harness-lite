@@ -6,6 +6,8 @@ it('exports the close protocol and the pure parts of the process-level assembly'
     'LeaseId',
     'createCloseProtocol',
     'declareRow',
+    'judgeStamp',
+    'parseStamp',
     'planChange',
   ])
 })

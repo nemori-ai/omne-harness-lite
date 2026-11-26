@@ -721,6 +721,9 @@ importers:
       '@omne-harness/agent-host-local':
         specifier: workspace:*
         version: link:../../packages/agent/agent-host-local
+      '@omne-harness/assembly':
+        specifier: workspace:*
+        version: link:../../packages/assembly/assembly
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../packages/assets/assets

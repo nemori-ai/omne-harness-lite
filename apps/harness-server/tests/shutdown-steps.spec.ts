@@ -345,6 +345,45 @@ describe('failures after the report is fixed', () => {
     })
   })
 
+  it('gives up a root disposal that does not settle before its own deadline, and names the rows', async () => {
+    const stuck: string[][] = []
+    const { run, records, clock } = setup(allSettled(), {
+      disposeRoot: () => new Promise<void>(() => {}),
+      disposeRootMs: 400,
+      undisposedRows: () => ['tool-environments', 'execution-environment'],
+      rootStuck: rows => stuck.push([...rows]),
+    })
+    const pending = run()
+    let report: Awaited<ReturnType<typeof run>> | undefined
+    void pending.then(done => {
+      report = done
+    })
+    for (let turn = 0; turn < 20; turn += 1) await flush()
+    expect(report).toBeUndefined()
+    expect(clock.delays.at(-1)).toBe(400)
+    clock.advance(400)
+    expect((await pending).overall).toBe('settled')
+    expect(records.at(-1)).toMatchObject({
+      action: 'diagnostic',
+      detail:
+        'root disposal did not settle within 400 ms; not disposed: tool-environments, execution-environment',
+    })
+    expect(stuck).toEqual([['tool-environments', 'execution-environment']])
+  })
+
+  it('does not report a root disposal that settles before its deadline', async () => {
+    const stuck: string[][] = []
+    const { run, records } = setup(allSettled(), {
+      disposeRoot: async () => {},
+      disposeRootMs: 400,
+      undisposedRows: () => ['x'],
+      rootStuck: rows => stuck.push([...rows]),
+    })
+    await run()
+    expect(records.at(-1)?.action).toBe('dispose-root')
+    expect(stuck).toEqual([])
+  })
+
   it('writes no dispose-root step when the entry gave no root disposer', async () => {
     const { run, records } = setup(allSettled())
     await run()

@@ -15,3 +15,4 @@ export {
   type RowSpec,
   type SwapWay,
 } from './impact.ts'
+export { judgeStamp, parseStamp, type Stamp, type StampVerdict } from './stamp.ts'
