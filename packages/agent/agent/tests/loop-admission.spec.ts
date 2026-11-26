@@ -120,6 +120,44 @@ describe('the input of invoke through U0, Q1, Q2 and Q4', () => {
     assembly.release.open()
   })
 
+  it('an invoke with several initial inputs saves them all in open, and the first step takes them as one batch', async () => {
+    const assembly = await recorded()
+    const initial = [
+      acceptedInput('input-a', 'first'),
+      acceptedInput('input-b', 'second'),
+      acceptedInput('input-c', 'third'),
+    ] as const
+    const handle = ok(await invoke(assembly, 'exec-1', { initial }))
+    const snapshot = ok(
+      await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
+    )
+    const inputs = ok(
+      await assembly.dependencies.journal.inputs({
+        ...alice,
+        execution: execution(),
+        watermark: snapshot.inputWatermark,
+      }),
+    )
+    expect(inputs.messages).toEqual(initial.map(input => input.content))
+    assembly.release.open()
+    const taken = (await eventsOf(handle)).flatMap(event =>
+      event.body.kind === 'input-taken' ? [event.body.batch.ordered] : [],
+    )
+    expect(taken).toEqual([initial.map(input => input.id)])
+  })
+
+  it('an invoke that names the same input twice is invalid; nothing opens and the slot is free', async () => {
+    const assembly = await recorded()
+    const twice = acceptedInput('input-a', 'first')
+    expect(failure(await invoke(assembly, 'exec-1', { initial: [twice, twice] }))).toEqual({
+      kind: 'invalid',
+      field: 'initial',
+      reason: 'an input appears twice',
+    })
+    expect(await shown(assembly)).toEqual(idle)
+    assembly.release.open()
+  })
+
   it('the external input has no P; the Model reply has exactly its P between the producer commit and prepare', async () => {
     const assembly = await recorded()
     assembly.release.open()
@@ -220,7 +258,7 @@ describe('invoke reserves the slot, then open saves the input and the initial ch
         journal: {
           ...wrapped.journal,
           async open(input) {
-            const entry = input.original.entry
+            const entry = input.originals[0].entry
             if (entry.kind !== 'invoke') throw new Error('an invoke entry was expected')
             seen.push({ initial: entry.initial, position: input.checkpoint.position })
             await opening.opened
@@ -429,7 +467,7 @@ describe('the same operation again gets the original handle and runs no second l
           ...alice,
           execution: execution('exec-2'),
           operation: operation('invoke-exec-1'),
-          initial: acceptedInput('input-exec-1', 'hello exec-1'),
+          initial: [acceptedInput('input-exec-1', 'hello exec-1')],
           grant: null,
         }),
       ),
@@ -709,7 +747,7 @@ describe('an open whose outcome is unknown keeps the reservation as an R0 item',
           ...alice,
           execution: execution(),
           operation: operation('other-invoke'),
-          initial: acceptedInput('other-input'),
+          initial: [acceptedInput('other-input')],
           grant: null,
         }),
       ),
@@ -739,7 +777,7 @@ describe('an open whose outcome is unknown keeps the reservation as an R0 item',
           ...alice,
           execution: execution('exec-2'),
           operation: operation('invoke-exec-1'),
-          initial: acceptedInput('input-exec-1', 'hello exec-1'),
+          initial: [acceptedInput('input-exec-1', 'hello exec-1')],
           grant: null,
         }),
       ),
@@ -854,7 +892,7 @@ describe('an open whose outcome is unknown keeps the reservation as an R0 item',
           ...alice,
           execution: execution(),
           operation: operation('new-invoke'),
-          initial: acceptedInput('input-exec-1', 'hello exec-1'),
+          initial: [acceptedInput('input-exec-1', 'hello exec-1')],
           grant: null,
         }),
       ),
@@ -925,6 +963,36 @@ describe('a rejected candidate is disposed at Q5 by its source', () => {
       kind: 'invalid',
       field: 'value',
       reason: 'not for this agent',
+      rejected: { input: acceptedInput('input-exec-1').id, evidence: testEvidence('no') },
+    })
+    expect(opens(record)).toBe(0)
+    expect(record.commits).toHaveLength(0)
+    expect(await shown(assembly)).toEqual(idle)
+    ok(await invoke(assembly, 'exec-2'))
+    assembly.release.open()
+  })
+
+  it('one rejected input of several is the invalid answer of invoke and names that input; nothing opens', async () => {
+    const record: Record = { log: [], prepares: [], commits: [] }
+    const initial = [
+      acceptedInput('input-a', 'first'),
+      acceptedInput('input-b', 'second'),
+      acceptedInput('input-c', 'third'),
+    ] as const
+    const assembly = await loopAssembly(
+      [execution(), execution('exec-2')],
+      rejecting(
+        record,
+        input =>
+          input.request.source.kind === 'external-input' &&
+          input.request.source.input === initial[1].id,
+      ),
+    )
+    expect(failure(await invoke(assembly, 'exec-1', { initial }))).toEqual({
+      kind: 'invalid',
+      field: 'value',
+      reason: 'not for this agent',
+      rejected: { input: initial[1].id, evidence: testEvidence('no') },
     })
     expect(opens(record)).toBe(0)
     expect(record.commits).toHaveLength(0)

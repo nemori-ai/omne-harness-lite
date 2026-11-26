@@ -30,8 +30,13 @@ async function settle(): Promise<void> {
   })
 }
 
+const UNSEEN = Symbol('no state frame')
+
 /** A session open on the conversation page; with `run`, the state frame says that run is going. */
-async function opened(run: string | null, entries = [assistantEntry('1', '1', '内容')]) {
+async function opened(
+  run: string | null | typeof UNSEEN,
+  entries = [assistantEntry('1', '1', '内容')],
+) {
   const fake = createFakeClient()
   const mounted = await mountModule(fake.client, TENANT)
   ;(await fake.next('list-sessions')).answer(
@@ -44,7 +49,7 @@ async function opened(run: string | null, entries = [assistantEntry('1', '1', '�
   await settle()
   const observation = fake.observations.at(-1)
   if (observation === undefined) throw new Error('no observation')
-  act(() => observation.push(stateFrame(run, '1')))
+  if (run !== UNSEEN) act(() => observation.push(stateFrame(run, '1')))
   await settle()
   const action = (id: string): ActionItem => {
     const found = mounted.shell.items('actions').find(item => item.id === id)
@@ -65,9 +70,25 @@ describe('the controls of the run on show (C14)', () => {
     expect(action('session.retry').available()).toBe('没有可以重试的一轮')
   })
 
+  it('before the first state frame, stopping is refused as not known yet, not as nothing going', async () => {
+    const { action } = await opened(UNSEEN)
+    expect(action('session.stop').available()).toBe('还不知道有没有在做的一轮')
+    expect(action('session.force-stop').available()).toBe('还不知道有没有在做的一轮')
+  })
+
+  it('with no session open, force-stop is refused as nothing going', async () => {
+    const fake = createFakeClient()
+    const mounted = await mountModule(fake.client, TENANT)
+    ;(await fake.next('list-sessions')).answer(listPage([listed('ses_a', '甲')]))
+    await settle()
+    const forceStop = mounted.shell.items('actions').find(item => item.id === 'session.force-stop')
+    expect(forceStop?.available?.()).toBe('没有在做的一轮')
+  })
+
   it('stop and force-stop name the run the window sees', async () => {
     const { fake, action } = await opened('run_1')
     expect(action('session.stop').available()).toBe(true)
+    expect(action('session.force-stop').available()).toBe(true)
     await act(async () => void action('session.stop').run())
     expect((await fake.next('cancel-run')).body).toMatchObject({
       run: 'run_1',

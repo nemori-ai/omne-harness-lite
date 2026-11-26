@@ -107,7 +107,12 @@ export type FailureCandidate = Readonly<{
   )
 export type Failure =
   | Readonly<{ kind: 'denied'; action: string }>
-  | Readonly<{ kind: 'invalid'; field: string; reason: string }>
+  | Readonly<{
+      kind: 'invalid'
+      field: string
+      reason: string
+      rejected?: Readonly<{ input: InputId; evidence: DurableEvidence }>
+    }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
   | Readonly<{
       kind:

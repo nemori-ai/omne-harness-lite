@@ -1,5 +1,5 @@
 import type { AgentExecutionId, InputBatchId, InputId } from '@omne-harness/agent-contract'
-import { batchIdOf } from '../testing/journal-values.ts'
+import { batchRangeOf } from '../testing/journal-values.ts'
 import type { ExecutionView } from './view.ts'
 
 // Which inputs a taken batch covers, and which inputs are still open: those of the batch the cursor
@@ -20,14 +20,9 @@ export function takenRange(
     const from = execution.inputs.findIndex(input => input?.id === first)
     return from < 0 ? undefined : { from, to: from + batch.ordered.length }
   }
-  const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(batch.id))
-  if (named === null) return undefined
-  const from = Number(named[1])
-  const to = Number(named[2])
-  return from === to &&
-    to <= execution.inputs.length &&
-    batchIdOf(execution.id, from, to) === batch.id
-    ? { from, to }
+  const named = batchRangeOf(execution.id, batch.id)
+  return named !== undefined && named.from === named.to && named.to <= execution.inputs.length
+    ? named
     : undefined
 }
 
@@ -35,12 +30,9 @@ export function takenRange(
 function takenFrom(view: ExecutionView, batch: Batch): number | undefined {
   const [first] = batch.ordered
   if (first !== undefined) return view.inputs.find(item => item.input === first)?.place
-  const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(batch.id))
-  if (named === null) return undefined
-  const from = Number(named[1])
-  const to = Number(named[2])
-  return from === to && to <= view.accepted && batchIdOf(view.execution, from, to) === batch.id
-    ? from
+  const named = batchRangeOf(view.execution, batch.id)
+  return named !== undefined && named.from === named.to && named.to <= view.accepted
+    ? named.from
     : undefined
 }
 

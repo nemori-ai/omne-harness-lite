@@ -175,7 +175,7 @@ export async function compactionLoop(
     createExecutionCoordinator({
       ...entry,
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1', 'hello exec-1'),
+      initial: [acceptedInput('input-exec-1', 'hello exec-1')],
       grant: null,
     })
   const current = coordinator()

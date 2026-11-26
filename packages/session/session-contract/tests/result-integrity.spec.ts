@@ -525,7 +525,7 @@ describe('historical calls and archived context', () => {
           fact: {
             kind: 'input-handover',
             execution: run.execution.execution,
-            input: run.first,
+            input: run.initial[0],
             result: { kind: 'accepted', receipt: evidence('handed') },
           },
         },
@@ -547,7 +547,7 @@ describe('historical calls and archived context', () => {
               batch: {
                 id: 'successor-batch' as BatchId,
                 watermark: evidence('watermark'),
-                ordered: [run.first],
+                ordered: [run.initial[0]],
               },
             },
           ],
@@ -583,7 +583,7 @@ describe('historical calls and archived context', () => {
       ),
       'late call',
     )
-    expect((await s.read()).taken).toEqual([run.first])
+    expect((await s.read()).taken).toEqual([run.initial[0]])
     expect((await s.read()).run).toEqual(successor)
     succeeded(
       await s.project(

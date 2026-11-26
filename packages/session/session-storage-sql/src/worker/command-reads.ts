@@ -1,6 +1,7 @@
 import { readCompactionWindow } from './compaction-window.ts'
 import { modelViewPrefix } from '../model-view-identity.ts'
 import {
+  deliveryReads,
   relatedOf,
   relatedSessionOf,
   type CommitReceipt,
@@ -13,8 +14,10 @@ import {
   type WorkSnapshot,
   type decide,
 } from '@omne-harness/session-contract'
+import type { Message } from '@omne-harness/message'
+import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort, ParticipantReply } from '@omne-harness/sql-contract/worker'
-import { canonicalText, sha256 } from '../codec.ts'
+import { canonicalText, decodeValue, sha256 } from '../codec.ts'
 import type { CoveringSnapshot } from './log.ts'
 import { forkFacts } from './fork.ts'
 import { big, definite, oneRow, packed, rowsOf, text } from './support.ts'
@@ -24,6 +27,21 @@ const MAX_INITIALIZATION_RECEIPTS = 1000
 
 type Reads = Parameters<typeof decide>[4]
 type Started = Readonly<{ tenant: string; session: string; previous: WorkSnapshot | null }>
+
+function admittedMessage(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  input: string,
+): Message | undefined {
+  const row = oneRow(
+    port,
+    'SELECT value FROM sl_input WHERE tenant = ? AND session = ? AND input = ? LIMIT 1',
+    [tenant, session, input],
+  )
+  if (row === undefined) return undefined
+  return (decodeValue(JSON.parse(text(row['value'])) as JsonValue) as { message: Message }).message
+}
 
 function mint(record: string, content: unknown): DurableEvidence {
   return { owner: OWNER, record, revision: '1', digest: `sha256:${sha256(canonicalText(content))}` }
@@ -137,6 +155,7 @@ export function commandReads(
       ? {}
       : { frozenReceipt: JSON.parse(packed(frozen['receipt'])) as CommitReceipt }),
     ...(previous === null ? {} : controlLookups(command, previous)),
+    ...deliveryReads(command, input => admittedMessage(port, tenant, session, input)),
     ...(command.kind === 'completeInitialization'
       ? {
           initializationReceipts: receipts,

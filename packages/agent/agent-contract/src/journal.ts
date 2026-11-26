@@ -167,7 +167,7 @@ export interface AgentJournalAttachment<P> {
   open(
     input: ExecutionMutation<P> &
       Readonly<{
-        original: OriginalInputAcceptance
+        originals: readonly [OriginalInputAcceptance, ...OriginalInputAcceptance[]]
         runtime: InvokeRuntimeContext
         checkpoint: AgentCheckpoint
       }>,

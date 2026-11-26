@@ -28,7 +28,7 @@ import type { ComposerDraftStore } from '../model/composer-drafts.ts'
 import { conversationItems, type BlockSource, type Item } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import { sessionName, shownBy, type SessionList } from '../model/session-list.ts'
-import type { Open, PendingInput, State } from '../model/session-machine.ts'
+import { underWay, type Open, type PendingInput, type State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import type { Cause, Waiting } from '../model/waiting.ts'
 import type { SessionRunFailureSubject } from '../points.ts'
@@ -440,7 +440,7 @@ function OpenSession({
         <Conversation
           epoch={state.session}
           content={state.content}
-          runActive={state.run.kind !== 'idle'}
+          runActive={underWay(state.run)}
           inputs={state.inputs}
           waiting={state.waiting}
           driver={driver}

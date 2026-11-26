@@ -1,14 +1,15 @@
 import type { SessionPermissionChangeBasis } from './permission-values.ts'
-import { heldBack, wakingInputs, type SessionIntakeLimits } from './intake.ts'
+import { heldBack, runStartInputs, wakingInputs, type SessionIntakeLimits } from './intake.ts'
 import type { IntakeTerms } from './input-sources.ts'
 import { originalAttempt } from './history-validation.ts'
 import { waitKey } from './call-state.ts'
 import { backgroundCalls } from './call-control.ts'
 import { digestOf } from './operations.ts'
 import { deriveSessionOperation } from './operations.ts'
-import type { CompactionContext } from '@omne-harness/message'
+import type { CompactionContext, Message } from '@omne-harness/message'
 import type {
   AdvanceRef,
+  InitialBatch,
   InputId,
   RunId,
   SessionId,
@@ -61,7 +62,7 @@ export type RouteJudgment =
   | Readonly<{ kind: 'business'; owner: string }>
   | Readonly<{ kind: 'rejected'; reason: 'archived' | 'frozen' | 'invalid' }>
 export type RunStartJudgment =
-  | Readonly<{ kind: 'eligible'; first: InputId }>
+  | Readonly<{ kind: 'eligible'; initial: InitialBatch }>
   | Readonly<{
       kind:
         | 'not-ready'
@@ -165,6 +166,7 @@ export type DecideReads = Readonly<{
   runs?: readonly SessionRunLookup[]
   /** The intake terms Session prepared for this commit, read from its guards. */
   intake?: IntakeTerms
+  delivered?: readonly Readonly<{ input: InputId; message: Message }>[]
 }>
 
 export const OFF_PATH_DIAGNOSTIC =
@@ -258,9 +260,9 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
   if (snapshot.lifecycle === 'initializing') return { kind: 'not-ready' }
   if (snapshot.run.kind === 'active') return { kind: 'run-active' }
   if (snapshot.awaitingPerson === true) return { kind: 'awaiting-person' }
-  const first = wakingInputs(snapshot)[0]
+  const [first, ...rest] = runStartInputs(snapshot)
   if (first === undefined) return { kind: 'no-input' }
-  return { kind: 'eligible', first }
+  return { kind: 'eligible', initial: [first, ...rest] }
 }
 
 export function judgeWaiting(snapshot: WorkSnapshot): SessionWaiting | null {

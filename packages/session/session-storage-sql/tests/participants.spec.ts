@@ -94,6 +94,7 @@ describe('the ./participants entry', () => {
       'SESSION_RUN_LIVE_GUARD',
       'SESSION_WORK_HANDLER',
       'SessionCommitBasisSchema',
+      'admittedMessageDigest',
       'afterSessionCommit',
       'blobDigest',
       'decodeExecutionBlobsReply',

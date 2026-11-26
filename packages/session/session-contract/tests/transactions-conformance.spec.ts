@@ -31,7 +31,8 @@ const NAMES = {
   rehand:
     'after a bounded terminal the successor Run re-hands the same input, and judgeCompletion follows',
   accept: 'accept queues an ordinary input and readInput returns it',
-  start: 'startRun fixes the first input, opens the Run and keeps the inputs pending',
+  start:
+    'startRun fixes every pending input as the batch of the Run, opens it and keeps the inputs pending',
   runActive: 'a second startRun on an unfinished Run is run-active, and without input no-input',
   handover: 'the hand-over marks the input handed, keeps it pending, and refuses another execution',
   message:
@@ -166,13 +167,13 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    name: 'startRun reports another first input',
+    name: 'startRun reports another batch',
     fails: [NAMES.start, NAMES.message],
     fixture: variant(real => ({
       commit: (async input => {
         const answer = await real.commit(input)
         if (input.command.kind === 'startRun' && 'ok' in answer)
-          return succeed({ ...(answer.ok as object), first: 'input-other' })
+          return succeed({ ...(answer.ok as object), initial: ['input-other'] })
         return answer
       }) as Port['commit'],
     })),

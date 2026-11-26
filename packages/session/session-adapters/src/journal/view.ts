@@ -255,6 +255,7 @@ export type EventView = Readonly<{
   ord: number
   attachment: Authority | null
   fact: FactBody
+  taken?: InputBatch
 }> &
   Stamp
 
@@ -305,7 +306,6 @@ export type ExecutionView = Readonly<{
     schema: Adoption
     instance: string
     scope: DurableEvidence
-    original: Readonly<{ input: InputId; entry: AgentOperationId; handoff: HandoffReference }>
     coordination: 'standalone' | 'coordinated'
     pub: number
     revision: number

@@ -111,9 +111,9 @@ describe('the reducer keeps the inputs held back until a Run ends (等这一轮�
     const { idle, run, started } = await during()
     const ended = applied(idle, terminal(run, 'failed'))
     const next = 'run-next' as RunId
-    const fromFirst = { ...started, run: next, first: id('first'), predecessor: run }
+    const fromFirst = { ...started, run: next, initial: [id('first')] as const, predecessor: run }
     expect(applied(ended, fromFirst).deferredInputs).toEqual([{ input: 'later', run: next }])
-    expect(apply(ended, { ...fromFirst, first: id('later') })).toMatchObject({
+    expect(apply(ended, { ...fromFirst, initial: [id('first'), id('later')] })).toMatchObject({
       kind: 'quarantined',
     })
   })

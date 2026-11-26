@@ -267,7 +267,7 @@ function decideStartRun(
   if (instance.owner !== 'agent' || instance.id.length === 0)
     return invalid('instance', 'not an Agent instance')
   const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
-  const run = runIdOf(snapshot.session, judgment.first, predecessor)
+  const run = runIdOf(snapshot.session, judgment.initial[0], predecessor)
   const adopted = adoptionEntries(
     snapshot,
     command.input.residentAdoption,
@@ -284,7 +284,7 @@ function decideStartRun(
         run,
         execution: executionIdOf(run),
         entry: command.input.entry,
-        first: judgment.first,
+        initial: judgment.initial,
         predecessor,
         adoption: candidate,
       },
@@ -308,9 +308,10 @@ function decideStartRun(
 function decideRecordMessage(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'recordMessage' }>,
+  reads: DecideReads,
 ): Decision {
   const { participation, value } = command.input
-  if ('deliveries' in value) return decideDelivery(snapshot, participation, value)
+  if ('inputs' in value) return decideDelivery(snapshot, participation, value, reads.delivered)
   if (participation.joint !== 'message')
     return invalid('participation.joint', 'not the message hand-over')
   const judgment = judgeAdvance(snapshot, {
@@ -355,19 +356,17 @@ function decideFinishRun(
   const basis = boundedBasis(command.input.operation, bounded)
   const { rejects } = basis
   const out: EncodedEntry[] = []
-  if (rejects !== null) {
-    if (rejects.input !== active.first)
-      return invalid('bounded.input', 'not the first input of the Run')
-    if (!snapshot.pending.includes(rejects.input))
-      return invalid('bounded.input', 'the first input is no longer pending')
-  }
+  if (rejects.inputs.some(input => !active.initial.includes(input)))
+    return invalid('bounded.input', 'not an initial input of the Run')
+  if (rejects.inputs.some(input => !snapshot.pending.includes(input)))
+    return invalid('bounded.input', 'an initial input is no longer pending')
   if (!completeEvidence(basis.evidence)) return invalid(basis.field, 'incomplete evidence')
-  if (rejects !== null)
+  for (const input of rejects.inputs)
     out.push(
       encodeEntry(
         {
           kind: 'intake.handed-over',
-          input: rejects.input,
+          input,
           execution: active.execution.execution,
           result: { kind: 'rejected', reason: rejects.reason, rejection: basis.evidence },
         },
@@ -399,7 +398,7 @@ function decideFinishRun(
   )
   const remaining = pendingAfterTerminal(snapshot, terminal.outcome)
   if (snapshot.frozen !== null && remaining.length > 0) {
-    const inputs = remaining.filter(input => input !== rejects?.input)
+    const inputs = remaining.filter(input => !rejects.inputs.includes(input))
     out.push(encodeEntry({ kind: 'intake.released', inputs }, sessionOrigin(source)))
   }
   return entries(out)
@@ -408,24 +407,28 @@ function decideFinishRun(
 type BoundedBasis = Readonly<{
   evidence: DurableEvidence
   field: string
-  rejects: Readonly<{ input: InputId; reason: BoundedClose['kind']; origin: Origin }> | null
+  rejects: Readonly<{ inputs: readonly InputId[]; reason: BoundedClose['kind']; origin: Origin }>
 }>
 
 function boundedBasis(operation: SessionOperationId, bounded: BoundedClose): BoundedBasis {
   switch (bounded.kind) {
     case 'uninterpretable':
-      return { evidence: bounded.evidence, field: 'bounded.evidence', rejects: null }
+      return {
+        evidence: bounded.evidence,
+        field: 'bounded.evidence',
+        rejects: { inputs: [], reason: bounded.kind, origin: sessionOrigin(bounded.evidence) },
+      }
     case 'admission-rejected': {
       const { input, rejection } = bounded
       const origin: Origin = { owner: 'agent', via: 'session-adapter', source: rejection }
       return {
         evidence: rejection,
         field: 'bounded.rejection',
-        rejects: { input, reason: bounded.kind, origin },
+        rejects: { inputs: [input], reason: bounded.kind, origin },
       }
     }
     case 'drive-refused': {
-      const { failure, field, reason, input } = bounded
+      const { failure, field, reason, inputs } = bounded
       const named = [failure, field, reason].filter(part => part !== null).join(' ')
       const evidence: DurableEvidence = {
         owner: '@omne-harness/session-contract',
@@ -433,9 +436,11 @@ function boundedBasis(operation: SessionOperationId, bounded: BoundedClose): Bou
         revision: '1',
         digest: `sha256:${digestOf({ operation, what: 'drive-refused', failure, field, reason })}`,
       }
-      const rejects =
-        input === null ? null : { input, reason: bounded.kind, origin: sessionOrigin(evidence) }
-      return { evidence, field: 'bounded', rejects }
+      return {
+        evidence,
+        field: 'bounded',
+        rejects: { inputs, reason: bounded.kind, origin: sessionOrigin(evidence) },
+      }
     }
   }
 }
@@ -904,7 +909,7 @@ function decideCommand(
     case 'startRun':
       return decideStartRun(previous, command)
     case 'recordMessage':
-      return decideRecordMessage(previous, command)
+      return decideRecordMessage(previous, command, reads)
     case 'receive':
       return decideReceive(previous, command, reads.history)
     case 'finishRun':

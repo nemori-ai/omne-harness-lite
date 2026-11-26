@@ -46,7 +46,7 @@ function coordinator(
     access: alice,
     execution: execution(),
     operation: operation('invoke-node-failure'),
-    initial: acceptedInput('input-node-failure', 'original input'),
+    initial: [acceptedInput('input-node-failure', 'original input')],
     grant: null,
     idle() {},
     ...change,

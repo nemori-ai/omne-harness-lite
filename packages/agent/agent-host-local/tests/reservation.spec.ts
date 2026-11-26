@@ -76,7 +76,7 @@ it('the real runtime keeps an opening slot out of idle reclamation, then release
     ...caller('a'),
     execution: ok(decodeAgentExecutionId('reserved-execution')),
     operation: ok(decodeAgentOperationId('reserved-invoke')),
-    initial: initial(),
+    initial: [initial()],
     grant: null,
   })
   try {
@@ -134,7 +134,7 @@ it('an invoke awaiting access cannot admit after idle reclamation starts', async
     ...caller('a'),
     execution: ok(decodeAgentExecutionId('late-execution')),
     operation: ok(decodeAgentOperationId('late-invoke')),
-    initial: initial(),
+    initial: [initial()],
     grant: null,
   })
   try {

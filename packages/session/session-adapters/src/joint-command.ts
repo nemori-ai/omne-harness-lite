@@ -1,5 +1,4 @@
 import type {
-  AcceptedInput,
   AgentJournal,
   CallerCommit,
   CommandReceipt,
@@ -28,7 +27,6 @@ type Tail = Pick<WorkSnapshot, 'deliveredTail'> | null | undefined
 type ResultCaller = Extract<CallerCommit, { kind: 'custody' | 'processed' }>
 /** What a journal knows of the execution a write belongs to. */
 export type JointState = Readonly<{
-  accepted: readonly AcceptedInput[] | undefined
   snapshot: Tail
   resultOf: (caller: ResultCaller) => Outcome<ProducedResult, Failure>
 }>
@@ -40,23 +38,15 @@ function takenBatch<P>(input: ExecutionMutation<P>, method: JournalWrite): Input
   return null
 }
 
-/** What the step that takes `batch` delivers; null when an input has no accepted message. */
-function deliveriesOf(
+/** The inputs the step that takes `batch` delivers. */
+function deliveredOf(
   batch: InputBatch,
-  accepted: readonly AcceptedInput[],
   snapshot: Pick<WorkSnapshot, 'deliveredTail'>,
-): DeliveredInputs['deliveries'] | null {
-  const messages = new Map(accepted.map(item => [String(item.id), item.content]))
-  const deliveries = []
-  for (const input of inputsToDeliver(
+): DeliveredInputs['inputs'] {
+  return inputsToDeliver(
     snapshot,
     batch.ordered.map(id => String(id) as InputId),
-  )) {
-    const message = messages.get(input)
-    if (message === undefined) return null
-    deliveries.push({ input, message })
-  }
-  return deliveries
+  )
 }
 
 /** The delivery a write that takes a batch carries to the Session, in the same commit. */
@@ -65,7 +55,6 @@ function deliveryCommand<P>(
   input: ExecutionMutation<P>,
   method: JournalWrite,
   receipt: CommandReceipt,
-  accepted: readonly AcceptedInput[] | undefined,
   snapshot: Tail,
 ): Outcome<SessionCommand, Failure> | undefined {
   const batch = takenBatch(input, method)
@@ -74,9 +63,8 @@ function deliveryCommand<P>(
     fail<Failure>({ kind: 'unavailable', owner: 'session-delivery', diagnostic })
   if (snapshot === null || snapshot === undefined)
     return unavailable('a batch taken without the current Session state')
-  const deliveries = deliveriesOf(batch, accepted ?? [], snapshot)
-  if (deliveries === null) return unavailable('a taken input without its accepted message')
-  if (deliveries.length === 0) return undefined
+  const inputs = deliveredOf(batch, snapshot)
+  if (inputs.length === 0) return undefined
   return succeed({
     kind: 'recordMessage',
     input: {
@@ -95,7 +83,7 @@ function deliveryCommand<P>(
         written: receipt.revision,
         handover: receipt.evidence,
       },
-      value: { deliveries, source: receipt.evidence, admission: receipt.evidence },
+      value: { inputs, source: receipt.evidence, admission: receipt.evidence },
     },
   })
 }
@@ -187,8 +175,7 @@ export function jointCommandOf<P>(
   caller: CallerCommit,
   state: JointState,
 ): Outcome<SessionCommand, Failure> | undefined {
-  if (caller.kind === 'none')
-    return deliveryCommand(scope, input, method, receipt, state.accepted, state.snapshot)
+  if (caller.kind === 'none') return deliveryCommand(scope, input, method, receipt, state.snapshot)
   if (takenBatch(input, method) !== null)
     return fail({
       kind: 'unavailable',
@@ -203,11 +190,11 @@ export function joinsSession<P>(
   input: ExecutionMutation<P>,
   method: JournalWrite,
   caller: CallerCommit,
-  state: Pick<JointState, 'accepted' | 'snapshot'>,
+  state: Pick<JointState, 'snapshot'>,
 ): boolean {
   if (caller.kind !== 'none') return true
   const batch = takenBatch(input, method)
   if (batch === null) return false
   if (state.snapshot === null || state.snapshot === undefined) return true
-  return deliveriesOf(batch, state.accepted ?? [], state.snapshot)?.length !== 0
+  return deliveredOf(batch, state.snapshot).length !== 0
 }

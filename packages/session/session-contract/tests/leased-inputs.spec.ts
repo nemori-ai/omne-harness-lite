@@ -145,7 +145,10 @@ describe('a failed Run returns the inputs it took and did not answer', () => {
     const after = await s.read()
     expect(after.pending).toEqual(['first', 'second'])
     expect(after.awaitingPerson).toBeUndefined()
-    expect(judgeRunStart(after, 'interactive')).toEqual({ kind: 'eligible', first: 'first' })
+    expect(judgeRunStart(after, 'interactive')).toEqual({
+      kind: 'eligible',
+      initial: ['first', 'second'],
+    })
   })
 
   it('3. an answer closes the lease of the inputs taken before it; later ones return ahead of the pending', async () => {
@@ -201,7 +204,7 @@ describe('a failed Run returns the inputs it took and did not answer', () => {
     expect(after.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'completed' } })
     expect(after.unanswered ?? []).toEqual([])
     expect(after.awaitingPerson).toBeUndefined()
-    expect(judgeRunStart(after, 'interactive')).toEqual({ kind: 'eligible', first: 'second' })
+    expect(judgeRunStart(after, 'interactive')).toEqual({ kind: 'eligible', initial: ['second'] })
   })
 
   it('6. a failed Run that took nothing keeps the pending inputs and waits for a person', async () => {
@@ -314,7 +317,7 @@ describe('a failed Run returns the inputs it took and did not answer', () => {
     await s.accept('second')
     await s.start('start-2')
     const started = await s.active()
-    expect(started.run.first).toBe('first')
+    expect(started.run.initial[0]).toBe('first')
     await handIn(s, 'first')
     await handIn(s, 'second')
     await take(s, '1', ['first', 'second'])

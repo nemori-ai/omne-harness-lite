@@ -133,7 +133,7 @@ describe('each face operation asks the access check exactly once', () => {
         expected: expectedRevision(snapshot, 'finishRun'),
         bounded: {
           kind: 'admission-rejected',
-          input: started.first,
+          input: started.initial[0],
           rejection: started.receipt.source,
         },
       })

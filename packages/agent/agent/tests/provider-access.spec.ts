@@ -44,7 +44,7 @@ const operations: readonly Operation[] = [
       provider.runtime.invoke({
         ...access,
         ...mutation,
-        initial: acceptedInput('input-1'),
+        initial: [acceptedInput('input-1')],
         grant: null,
       }),
   },
@@ -232,7 +232,7 @@ describe('C2 invoke after allowed', () => {
     const invoked = await provider.runtime.invoke({
       ...alice,
       ...mutation,
-      initial: acceptedInput('input-1'),
+      initial: [acceptedInput('input-1')],
       grant: null,
     })
     expect(failure(invoked)).toMatchObject({ kind: 'unavailable', owner: 'agentAdoptions' })

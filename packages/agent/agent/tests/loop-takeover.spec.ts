@@ -293,7 +293,7 @@ describe('a not-accepted answer that names another admission', () => {
     const coordinator = createExecutionCoordinator({
       ...resumeEntry(assembly.dependencies),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1', 'hello exec-1'),
+      initial: [acceptedInput('input-exec-1', 'hello exec-1')],
       grant: null,
     })
     ok(await coordinator.accept())

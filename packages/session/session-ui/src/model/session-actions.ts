@@ -11,7 +11,7 @@ import type { CallControls } from './call-controls.ts'
 import type { ComposerHandles, SendWay } from './composer-handles.ts'
 import { conversationItems, toolCallState } from './conversation.ts'
 import type { SessionDriver } from './session-driver.ts'
-import type { Open } from './session-machine.ts'
+import { underWay, type Open, type Run } from './session-machine.ts'
 
 export type SessionActionDeps = Readonly<{
   scope: () => string | undefined
@@ -35,9 +35,12 @@ const SIDE_PANEL = 'button.omne-session-figure[aria-controls]'
 const partAt = (part: Readonly<{ name: string }>): string => `[${PART_ATTRIBUTE}="${part.name}"]`
 const at = (layer: ActionKey['layer'], chord: string): readonly ActionKey[] => [{ chord, layer }]
 
+const nothingToStop = (run: Run | undefined): string =>
+  run?.kind === 'unseen' ? '还不知道有没有在做的一轮' : '没有在做的一轮'
+
 /** The tool call the run waits on now: the last one with no result yet. */
 export function workingCall(open: Open): string | undefined {
-  const items = conversationItems(open.content, open.run.kind !== 'idle')
+  const items = conversationItems(open.content, underWay(open.run))
   const calls = items.flatMap(item =>
     item.kind === 'message' || item.kind === 'note'
       ? item.parts.flatMap(part =>
@@ -88,7 +91,7 @@ function runControls(deps: SessionActionDeps): readonly ActionItem[] {
   const running = (): true | string => {
     const state = open()
     if (state === undefined) return NO_SESSION
-    if (state.run.kind === 'idle') return '没有在做的一轮'
+    if (!underWay(state.run)) return nothingToStop(state.run)
     return state.run.kind === 'cancelling' && !state.run.unknown ? '这一轮正在停止' : true
   }
   const call = (act: 'background' | 'stop') => async (): Promise<void> => {
@@ -113,7 +116,10 @@ function runControls(deps: SessionActionDeps): readonly ActionItem[] {
       run: () => deps.driver()?.cancel(),
     }),
     control('session.force-stop', '强制停止这一轮', 1, {
-      available: () => ((open()?.run.kind ?? 'idle') === 'idle' ? '没有在做的一轮' : true),
+      available: () => {
+        const run = open()?.run
+        return run !== undefined && underWay(run) ? true : nothingToStop(run)
+      },
       run: () => deps.driver()?.cancel('force'),
     }),
     control('session.background', '把在等的调用转到后台', 2, {

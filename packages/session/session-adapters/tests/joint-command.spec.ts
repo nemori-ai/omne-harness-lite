@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CallerCommit, Failure } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { deriveSessionOperation, type ProducedResult } from '@omne-harness/session-contract'
-import {
-  assistantMessage,
-  evidence,
-  memoryAccess,
-  ordinaryInput,
-} from '@omne-harness/session-contract/testing'
+import { assistantMessage, evidence, memoryAccess } from '@omne-harness/session-contract/testing'
 import { jointCommandOf, joinsSession, type JointState } from '../src/joint-command.ts'
 
 const access = memoryAccess('tester')
@@ -20,13 +15,6 @@ const reply: CallerCommit = {
   source: evidence('source'),
   admission: evidence('admission'),
 }
-const accepted = (...ids: string[]) =>
-  ids.map(id => ({
-    id,
-    content: ordinaryInput(id).message,
-    source: evidence(`source/${id}`),
-    priority: 'ordinary',
-  })) as never
 const write = (ordered: readonly string[] | null) =>
   ({
     ...access,
@@ -39,7 +27,6 @@ const write = (ordered: readonly string[] | null) =>
   }) as never
 const noResult: JointState['resultOf'] = () => fail<Failure>({ kind: 'denied', action: 'result' })
 const state = (over: Partial<JointState> = {}): JointState => ({
-  accepted: accepted('a', 'b'),
   snapshot: {},
   resultOf: noResult,
   ...over,
@@ -68,10 +55,7 @@ describe('the Session command of a joint write', () => {
             handover: evidence('receipt'),
           },
           value: {
-            deliveries: [
-              { input: 'b', message: ordinaryInput('b').message },
-              { input: 'a', message: ordinaryInput('a').message },
-            ],
+            inputs: ['b', 'a'],
             source: evidence('receipt'),
             admission: evidence('receipt'),
           },
@@ -80,7 +64,7 @@ describe('the Session command of a joint write', () => {
     })
     const shown = state({ snapshot: { deliveredTail: ['a'] as never } })
     expect(command(['b', 'a'], none, shown)).toMatchObject({
-      ok: { input: { value: { deliveries: [{ input: 'b' }] } } },
+      ok: { input: { value: { inputs: ['b'] } } },
     })
   })
 
@@ -98,14 +82,9 @@ describe('the Session command of a joint write', () => {
     expect(joinsSession(write(['a']), 'submit', none, state())).toBe(false)
   })
 
-  it('a batch to deliver joins the Session; without the Session state or a message it fails', () => {
+  it('a batch to deliver joins the Session; without the Session state it fails', () => {
     expect(joinsSession(write(['a']), 'commit', none, state())).toBe(true)
-    for (const s of [
-      state({ snapshot: null }),
-      state({ snapshot: undefined }),
-      state({ accepted: undefined }),
-      state({ accepted: accepted('b') }),
-    ]) {
+    for (const s of [state({ snapshot: null }), state({ snapshot: undefined })]) {
       expect(joinsSession(write(['a']), 'commit', none, s)).toBe(true)
       expect(command(['a'], none, s)).toMatchObject({
         failure: { kind: 'unavailable', owner: 'session-delivery' },

@@ -98,7 +98,7 @@ async function run(at: number) {
   const first = createExecutionCoordinator({
     ...entry(assembly),
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1', 'hello exec-1'),
+    initial: [acceptedInput('input-exec-1', 'hello exec-1')],
     grant: null,
   })
   try {
@@ -117,7 +117,7 @@ async function run(at: number) {
       const again = createExecutionCoordinator({
         ...entry(assembly),
         operation: operation('invoke-exec-1'),
-        initial: acceptedInput('input-exec-1', 'hello exec-1'),
+        initial: [acceptedInput('input-exec-1', 'hello exec-1')],
         grant: null,
       })
       ok(await again.accept())

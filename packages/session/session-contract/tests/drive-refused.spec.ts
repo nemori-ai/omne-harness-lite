@@ -6,12 +6,12 @@ import { open } from './scene.ts'
 
 type Scene = Awaited<ReturnType<typeof open>>
 
-const refusal = (input: InputId | null): BoundedClose => ({
+const refusal = (inputs: readonly InputId[]): BoundedClose => ({
   kind: 'drive-refused',
   failure: 'invalid',
   field: 'storage',
   reason: 'command_limit',
-  input,
+  inputs,
 })
 
 async function close(s: Scene, bounded: BoundedClose, name = 'drive-refused') {
@@ -40,24 +40,24 @@ function written(s: Scene, kind: SessionEntry['kind']): SessionEntry[] {
 }
 
 describe('a drive refusal closes the Run as failed', () => {
-  it('on invoke, the first input is rejected with drive-refused and is no longer pending', async () => {
+  it('on invoke, the inputs the invoke carried are rejected with drive-refused and are no longer pending', async () => {
     const s = await open()
     await s.accept('second')
     const { run } = await s.active()
-    succeeded(await close(s, refusal(run.first)), 'finishRun')
+    succeeded(await close(s, refusal(run.initial)), 'finishRun')
 
     const after = await s.read()
     expect(after.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'failed' } })
     expect(after.pending).toEqual(['second'])
     expect(written(s, 'intake.handed-over')).toEqual([
       expect.objectContaining({
-        input: run.first,
+        input: run.initial[0],
         result: expect.objectContaining({ kind: 'rejected', reason: 'drive-refused' }),
       }),
     ])
     const [terminal] = written(s, 'run.terminal')
     if (terminal?.kind !== 'run.terminal') throw new Error('no run.terminal')
-    expect(terminal.bounded).toEqual(refusal(run.first))
+    expect(terminal.bounded).toEqual(refusal(run.initial))
     expect(terminal.cause?.record).toContain('invalid')
     expect(terminal.cause?.record).toContain('storage')
     expect(terminal.cause?.record).toContain('command_limit')
@@ -72,7 +72,7 @@ describe('a drive refusal closes the Run as failed', () => {
         failure: 'unsupported',
         field: null,
         reason: null,
-        input: run.first,
+        inputs: run.initial,
       }),
       'finishRun',
     )
@@ -85,7 +85,7 @@ describe('a drive refusal closes the Run as failed', () => {
     const s = await open()
     await s.accept('second')
     const before = await s.read()
-    succeeded(await close(s, refusal(null)), 'finishRun')
+    succeeded(await close(s, refusal([])), 'finishRun')
 
     const after = await s.read()
     expect(after.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'failed' } })
@@ -98,10 +98,10 @@ describe('a drive refusal closes the Run as failed', () => {
 })
 
 describe('a drive refusal that does not hold leaves the Run active', () => {
-  it('an input that is not the first input of the Run is invalid', async () => {
+  it('an input that is not an initial input of the Run is invalid', async () => {
     const s = await open()
     await s.accept('second')
-    expect(refused(await close(s, refusal('second' as InputId)), 'finishRun')).toMatchObject({
+    expect(refused(await close(s, refusal(['second' as InputId])), 'finishRun')).toMatchObject({
       kind: 'invalid',
       field: 'bounded.input',
     })

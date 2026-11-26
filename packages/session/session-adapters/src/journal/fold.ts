@@ -5,8 +5,10 @@ import type {
   ControlStage,
   DurableEvidence,
   HandoffReference,
+  InputBatch,
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
+import { batchRangeOf } from '../testing/journal-values.ts'
 import {
   eventKindOf,
   holdText,
@@ -171,6 +173,21 @@ function foldExecDetached(draft: Draft, fact: FactOf<'exec.detached'>, revision:
         }
       : item,
   )
+}
+
+const takenPart = (taken: InputBatch | null) => (taken === null ? {} : { taken })
+
+function takenBatch(draft: Draft, batch: FactOf<'step.begun'>['batch']): InputBatch {
+  const range = batchRangeOf(draft.execution, batch.id)
+  const ordered =
+    range === undefined
+      ? []
+      : draft.inputs
+          .filter(item => item.place >= range.from && item.place < range.to)
+          .map(item => item.input)
+  if (range === undefined || ordered.length !== range.to - range.from)
+    throw new TypeError(`the Journal holds no accepted inputs for the batch ${batch.id}`)
+  return { ...batch, ordered }
 }
 
 function foldInputAccepted(
@@ -580,6 +597,7 @@ function foldCursorMoved(draft: Draft, fact: FactOf<'cursor.moved'>, pub: number
 function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
   const { pub, revision } = stamp
   const event = eventOf(draft, fact)
+  let taken: InputBatch | null = null
   switch (fact.kind) {
     case 'exec.opened':
       draft.opened = { ...fact, pub, revision }
@@ -594,7 +612,8 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
       foldInputAccepted(draft, fact, pub, revision)
       break
     case 'step.begun':
-      draft.steps = [...draft.steps, { step: fact.step, batch: fact.batch, pub }]
+      taken = takenBatch(draft, fact.batch)
+      draft.steps = [...draft.steps, { step: fact.step, batch: taken, pub }]
       break
     case 'request.adopted':
       foldRequestAdopted(draft, fact, pub)
@@ -700,6 +719,7 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
         ord,
         attachment: active(draft),
         fact,
+        ...takenPart(taken),
         ...stamp,
       },
     ]

@@ -16,6 +16,7 @@ import type {
   ConsumptionId,
   DurableEvidence,
   EntryId,
+  InitialBatch,
   InputId,
   Mutation,
   ResidentKey,
@@ -108,7 +109,7 @@ export type StartedRun = Readonly<{
   receipt: CommitReceipt
   advance: AdvanceRef
   adopted: Adoption
-  first: InputId
+  initial: InitialBatch
   execution: string
 }>
 export type NotedStart = Readonly<{ receipt: CommitReceipt; noted: AdoptionNote }>
@@ -131,9 +132,9 @@ export type AdmittedMessage = Readonly<{
   consumption: ConsumptionId | null
 }>
 
-/** The inputs a step of the Agent took, with their messages, in the order of the batch. */
+/** The inputs a step of the Agent took, in the order of the batch. */
 export type DeliveredInputs = Readonly<{
-  deliveries: readonly Readonly<{ input: InputId; message: Message }>[]
+  inputs: readonly InputId[]
   source: DurableEvidence
   admission: DurableEvidence
 }>

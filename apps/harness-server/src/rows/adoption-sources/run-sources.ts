@@ -28,7 +28,7 @@ function runKeyOf(snapshot: WorkSnapshot, command: StartRun): string | null {
   const judged = judgeRunStart(snapshot, command.input.entry)
   if (judged.kind !== 'eligible') return null
   const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
-  return runIdOf(snapshot.session, judged.first, predecessor)
+  return runIdOf(snapshot.session, judged.initial[0], predecessor)
 }
 
 /** Reads the workspace of the session once under the key of a run; null when it has none or was read. */

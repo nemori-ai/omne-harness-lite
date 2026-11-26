@@ -146,9 +146,10 @@ export function createMemoryAgentDrive(): MemoryAgentDrive {
     const current = executions.get(key)
     if (method !== 'invoke' && current === undefined)
       return fail({
-        kind: 'invalid' as const,
+        kind: 'refused' as const,
+        failure: 'invalid' as const,
+        field: 'execution',
         reason: 'execution missing',
-        rejection: evidence('missing'),
       })
     if (method === 'invoke' && current !== undefined) return fail({ kind: 'conflict' as const })
     if (current?.state === 'ended' && method !== 'recordResult')
