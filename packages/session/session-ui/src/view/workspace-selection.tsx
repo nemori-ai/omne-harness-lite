@@ -7,7 +7,7 @@ import {
   SelectValue,
 } from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingPlace } from './heading-fold.tsx'
+import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingRead } from './heading-fold.tsx'
 import { useOffered } from './use-offered.ts'
 import {
   reasonText,
@@ -90,7 +90,7 @@ const placeText = (view: Read): string =>
 type Props = Readonly<{ store: WorkspaceSelectionStore; tenant: string; session: string }>
 
 export function WorkspaceAction({ store, tenant, session }: Props) {
-  const inBar = useHeadingPlace() === 'bar'
+  const inBar = useHeadingRead(store, tenant, session)
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, session, listener),
     [store, tenant, session],
@@ -99,9 +99,7 @@ export function WorkspaceAction({ store, tenant, session }: Props) {
   const listing = useOffered(store, tenant, inBar)
   const [said, say] = useState<string | null>(null)
   useEffect(() => {
-    if (!inBar) return
-    say(null)
-    void store.load(tenant, session)
+    if (inBar) say(null)
   }, [store, tenant, session, inBar])
   const told = said === null ? null : <span role="status">{said}</span>
   if (view.kind === 'unread') return null

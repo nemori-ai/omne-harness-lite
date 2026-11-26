@@ -9,7 +9,7 @@ import {
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useOffered } from './use-offered.ts'
 import type { ModelChoice, ModelSelectionStore, ReasoningEffort } from '../model/model-selection.ts'
-import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingPlace } from './heading-fold.tsx'
+import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingRead } from './heading-fold.tsx'
 import { sessionHeaderModel } from '../parts.ts'
 
 const EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const satisfies readonly ReasoningEffort[]
@@ -83,7 +83,7 @@ function routesOf(
 type Props = Readonly<{ store: ModelSelectionStore; tenant: string; session: string }>
 
 export function ModelAction({ store, tenant, session }: Props) {
-  const inBar = useHeadingPlace() === 'bar'
+  const inBar = useHeadingRead(store, tenant, session)
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, session, listener),
     [store, tenant, session],
@@ -92,9 +92,7 @@ export function ModelAction({ store, tenant, session }: Props) {
   const listing = useOffered(store, tenant, inBar)
   const [said, say] = useState<string | null>(null)
   useEffect(() => {
-    if (!inBar) return
-    say(null)
-    void store.load(tenant, session)
+    if (inBar) say(null)
   }, [store, tenant, session, inBar])
   if (view.kind === 'unread') return null
   if (view.kind === 'unreadable') {

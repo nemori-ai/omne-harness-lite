@@ -10,6 +10,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -40,6 +41,21 @@ export const HeadingFoldContext = createContext<HeadingFold>({
 
 export function useHeadingPlace(): HeadingFold['place'] {
   return useContext(HeadingFoldContext).place
+}
+
+/** The log position of the open session the page last saw; the page puts it around its heading. */
+export const HeadingRevisionContext = createContext<string | null>(null)
+
+type HeadingReader = Readonly<{ load(tenant: string, session: string): Promise<void> }>
+
+/** The bar reads a heading item's value at each log position: the server answers, whoever changed it. */
+export function useHeadingRead(store: HeadingReader, tenant: string, session: string): boolean {
+  const inBar = useHeadingPlace() === 'bar'
+  const at = useContext(HeadingRevisionContext)
+  useEffect(() => {
+    if (inBar) void store.load(tenant, session)
+  }, [store, tenant, session, inBar, at])
+  return inBar
 }
 
 export function HeadingChoice({

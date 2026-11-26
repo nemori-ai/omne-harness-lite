@@ -6,13 +6,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@omne-harness/ui-kit'
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import {
   MODE_LABELS,
   type PermissionMode,
   type PermissionModeStore,
 } from '../model/permission-mode.ts'
-import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingPlace } from './heading-fold.tsx'
+import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingRead } from './heading-fold.tsx'
 import { sessionHeaderPermission } from '../parts.ts'
 
 type Props = Readonly<{ store: PermissionModeStore; tenant: string; session: string }>
@@ -25,16 +25,13 @@ const OPTIONS = MODES.map(mode => ({ value: mode, label: MODE_LABELS[mode] }))
 
 /** How the session handles permissions: a quiet dropdown in the heading whose face is the mode in force. */
 export function PermissionModeAction({ store, tenant, session }: Props) {
-  const inBar = useHeadingPlace() === 'bar'
+  const inBar = useHeadingRead(store, tenant, session)
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, session, listener),
     [store, tenant, session],
   )
   const view = useSyncExternalStore(subscribe, () => store.read(tenant, session))
   const [said, say] = useState<string | null>(null)
-  useEffect(() => {
-    if (inBar) void store.load(tenant, session)
-  }, [store, tenant, session, inBar])
   if (view.kind === 'unread') return null
   if (view.kind === 'unreadable') {
     const reason = `权限处理读不到：${view.reason}`
