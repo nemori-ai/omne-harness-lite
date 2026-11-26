@@ -13,6 +13,7 @@ import type {
   AttemptId,
   ConsumptionId,
   DurableEvidence,
+  InitialBatch,
   InputId,
   RunId,
   SessionId,
@@ -195,7 +196,7 @@ export type SessionEntry =
       run: RunId
       execution: string
       entry: EntryClass
-      first: InputId
+      initial: InitialBatch
       predecessor: RunId | null
       adoption: Adoption
     }>

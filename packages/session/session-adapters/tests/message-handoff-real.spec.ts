@@ -80,6 +80,7 @@ describe('recovery after a child is killed', () => {
           kind: 'input-entry',
           execution: request.reference.execution,
           operation: request.reference.entry,
+          input: request.reference.input,
         })
       world.commits.length = 0
       const found = ok(await lookup())

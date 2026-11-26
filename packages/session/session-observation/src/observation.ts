@@ -80,10 +80,19 @@ function targetOf(stream: Stream): Target | null {
   }
 }
 
+// What the session stands at: a client shows these, and they reach no history read.
+const STANDING_KINDS = [
+  'session.model-selected',
+  'session.mode-changed',
+  'session.workspace-changed',
+  'session.archived',
+  'session.unarchived',
+] as const
+
 export function createSessionObservation<P>(
   ports: SessionObservationPorts<P>,
 ): SessionObservation<P> {
-  const wakers = new Set([...LOCATE_KINDS, ...ports.historyKinds])
+  const wakers = new Set([...LOCATE_KINDS, ...STANDING_KINDS, ...ports.historyKinds])
   return {
     async open({ access, signal }) {
       const locator = new Locator(access, ports)
@@ -227,7 +236,7 @@ export function createSessionObservation<P>(
           ports.diagnose({ code: 'observation.locate-transient', detail: target.reference })
         if (next.mainCall === null || next.mainCall === target?.reference) return quiet(cause)
         const selection = await select(next.mainCall)
-        if (selection.kind === 'end') return { frames: [], end: selection.reason }
+        if (selection.kind === 'end') return { frames: state(), end: selection.reason }
         call = selection.call
         if (selection.kind === 'stream') {
           dropTarget()

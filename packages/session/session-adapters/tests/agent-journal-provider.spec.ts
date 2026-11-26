@@ -338,7 +338,7 @@ async function secondSession(s: SqlScene, name: string) {
   const snapshot = ok(await s.port.readWork(access))
   if (snapshot.run.kind !== 'active') throw new Error('not active')
   const execution = ok(decodeAgentExecutionId(snapshot.run.execution.execution))
-  const admitted = ok(await s.port.readInput({ ...access, input: snapshot.run.first }))
+  const admitted = ok(await s.port.readInput({ ...access, input: snapshot.run.initial[0] }))
   const initial: AcceptedInput = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,

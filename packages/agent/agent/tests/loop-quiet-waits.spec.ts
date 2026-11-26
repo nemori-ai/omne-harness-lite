@@ -117,7 +117,7 @@ describe('a waiting run woken by an event', () => {
       access: alice,
       execution: execution(),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1'),
+      initial: [acceptedInput('input-exec-1')],
       grant: null,
       idle() {},
     })

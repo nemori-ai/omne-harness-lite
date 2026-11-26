@@ -40,6 +40,7 @@ import {
   type CommittedBatch,
   type GuardCommand,
   type HistoryEntry,
+  type InputId as SessionInputId,
 } from '@omne-harness/session-contract'
 import type { InitializationSource } from './ports.ts'
 import {
@@ -72,7 +73,7 @@ import {
 import { canonical, digestOf, materializeModelView, rowData } from './session-values.ts'
 import { journalEvidence, operationText } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
-import { cancelBatchRow, sessionCaller } from './factory-values.ts'
+import { admittedBy, cancelBatchRow, recordAdmissions, sessionCaller } from './factory-values.ts'
 import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
@@ -82,9 +83,8 @@ function grantOf<P>(input: OpenInput<P> | AttachInput<P>): DurableEvidence | nul
   return 'runtime' in input ? input.runtime.grant : input.grant
 }
 
-function initialOf<P>(input: OpenInput<P>): AcceptedInput {
-  const entry = input.original.entry
-  return entry.kind === 'invoke' ? entry.initial : entry.value
+function initialOf<P>(input: OpenInput<P>): readonly AcceptedInput[] {
+  return input.originals.map(({ entry }) => (entry.kind === 'invoke' ? entry.initial : entry.value))
 }
 
 export type MemorySessionJournalOptions<P> = Readonly<{
@@ -305,7 +305,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             const admitted =
               method === 'open'
                 ? initialOf(input as OpenInput<P>)
-                : (input as Parameters<AgentJournal<P>['submit']>[0]).value
+                : [(input as Parameters<AgentJournal<P>['submit']>[0]).value]
             const root = cell.state(),
               state = root.session
             if (!state) throw new Error('admission without Session')
@@ -321,23 +321,17 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             const attempt = grantAttempt(cell.state(), input.execution, grant)
             const run = root.sources.runs.get(input.execution)
             if (!run) throw new Error('admission without original run')
-            const id = String(admitted.id) as import('@omne-harness/session-contract').InputId
-            const directory = root.agent.admissions.get(id) ?? []
-            root.agent.admissions.set(id, [
-              ...directory,
-              {
-                ordinal: String(directory.length),
-                run: run.run,
-                execution: input.execution,
-                runStarted: run.source,
-                operation: input.operation,
-                accepted: receipt.evidence,
-                attempt: attempt.attempt,
-                attemptStarted: attempt.started,
-                attachment: attachment.executionAttachment,
-                grant,
-              },
-            ])
+            recordAdmissions(root.agent.admissions, admitted, {
+              run: run.run,
+              execution: input.execution,
+              runStarted: run.source,
+              operation: input.operation,
+              accepted: receipt.evidence,
+              attempt: attempt.attempt,
+              attemptStarted: attempt.started,
+              attachment: attachment.executionAttachment,
+              grant,
+            })
           }
         } catch (error) {
           if (error instanceof HistoryFailure)
@@ -360,7 +354,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     const root = cell.state()
     const execution = root.agent.executions.get(executionKey(root, input.execution))
     return {
-      accepted: execution?.inputs.filter(() => true),
       snapshot: root.session?.snapshot,
       resultOf: caller =>
         execution
@@ -525,30 +518,12 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       const value = input as OpenInput<P> | AttachInput<P>
       if (!grantHoldsFor(cell.state(), input.execution, grantOf(value), method))
         return denied(method)
-      if (method === 'open') {
-        const initial = initialOf(value as OpenInput<P>)
-        const admitted = state.inputs.get(
-          String(initial.id) as import('@omne-harness/session-contract').InputId,
-        )
-        if (
-          !admitted ||
-          canonical(admitted.origin) !== canonical(initial.source) ||
-          canonical(admitted.message) !== canonical(initial.content)
-        )
-          return denied(method)
-      }
+      if (method === 'open' && !initialOf(value as OpenInput<P>).every(admittedBy(state.inputs)))
+        return denied(method)
     }
     if (method === 'submit') {
       const value = input as Parameters<AgentJournal<P>['submit']>[0]
-      const admitted = state.inputs.get(
-        String(value.value.id) as import('@omne-harness/session-contract').InputId,
-      )
-      if (
-        !admitted ||
-        canonical(admitted.origin) !== canonical(value.value.source) ||
-        canonical(admitted.message) !== canonical(value.value.content)
-      )
-        return denied(method)
+      if (!admittedBy(state.inputs)(value.value)) return denied(method)
       if (
         state.snapshot.run.kind !== 'active' ||
         state.snapshot.run.execution.execution !== input.execution
@@ -781,7 +756,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     }
     const admitted = <T>(
       input: ExecutionMutation<P>,
-      id: string,
+      values: readonly AcceptedInput[],
       action: () => Promise<Outcome<T, Failure>>,
     ): Promise<Outcome<T, Failure>> => {
       const authorize = (): SessionFailure | null => {
@@ -809,7 +784,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
               cell,
               () => ({
                 kind: 'selected',
-                inputs: [id as import('@omne-harness/session-contract').InputId],
+                inputs: values.map(value => String(value.id) as SessionInputId),
               }),
               [],
               authorize,
@@ -828,8 +803,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     }
     const journal: AgentJournal<P> = {
       ...view.provider.journal,
-      open: input => admitted(input, initialOf(input).id, () => view!.port.open(input)),
-      submit: input => admitted(input, input.value.id, () => view!.port.submit(input)),
+      open: input => admitted(input, initialOf(input), () => view!.port.open(input)),
+      submit: input => admitted(input, [input.value], () => view!.port.submit(input)),
     }
     return {
       ...view.provider,

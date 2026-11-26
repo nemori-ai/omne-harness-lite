@@ -946,6 +946,9 @@ importers:
       '@omne-harness/media-image':
         specifier: workspace:*
         version: link:../../packages/media/media-image
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../../packages/media/media-protocol
       '@omne-harness/media-storage-local':
         specifier: workspace:*
         version: link:../../packages/media/media-storage-local
@@ -1289,9 +1292,6 @@ importers:
       '@omne-harness/mcp-protocol':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-protocol
-      '@omne-harness/media-protocol':
-        specifier: workspace:*
-        version: link:../../packages/media/media-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -6688,6 +6688,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.10.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -7062,6 +7065,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.10.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

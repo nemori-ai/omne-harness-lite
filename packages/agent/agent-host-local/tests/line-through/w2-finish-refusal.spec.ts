@@ -6,20 +6,21 @@ import { openW2World, replyText } from './w2-world.ts'
 it('waits on Session pending input without replacing the completion candidate', async () => {
   let injected = false
   const handIn = Promise.withResolvers<void>()
+  const first = Promise.withResolvers<void>()
   const second = Promise.withResolvers<void>()
   const w = await openW2World({
     reception: 'routed',
     model: a => ({
       parts: [replyText(`reply-${a.index}`, 'recovered answer')],
       reason: 'stop',
-      ...(a.index === 1 ? { hold: second.promise } : {}),
+      hold: a.index === 0 ? first.promise : second.promise,
     }),
     wrapAgentDependencies: dependencies => ({
       ...dependencies,
       handoff: {
         ...dependencies.handoff,
         async prepare(input) {
-          if (input.kind === 'submit' && String(input.request.reference.input) === 'in-2')
+          if (input.kind === 'submit' && String(input.request.reference.input) === 'in-3')
             await handIn.promise
           return dependencies.handoff.prepare(input)
         },
@@ -48,7 +49,9 @@ it('waits on Session pending input without replacing the completion candidate', 
     })
 
     await w.accept('in-2', 'another input after the failure')
-    await w.until(() => w.modelCalls.length === 1 && w.releases() === 3, 10_000)
+    await w.until(() => w.modelCalls.length === 1, 10_000)
+    await w.accept('in-3', 'an input that arrives after the Run started')
+    first.resolve()
     const active = await w.execution()
     expect(active).not.toBe(failed)
     const access = { ...w.agentAccess, execution: active }
@@ -59,17 +62,17 @@ it('waits on Session pending input without replacing the completion candidate', 
     const snapshot = ok(await w.fresh().load(access))
     expect(snapshot.settlement.candidates).toHaveLength(1)
     expect(snapshot.settlement.candidate?.conclusion.kind).toBe('complete')
-    expect(snapshot.checkpoint.inputBatch?.ordered).toEqual(['in-1'])
+    expect(snapshot.checkpoint.inputBatch?.ordered).toEqual(['in-1', 'in-2'])
     const work = ok(await w.probe.readWork(intakeAccess))
     expect(work.run.kind).toBe('active')
-    expect(work.pending).toContain('in-2')
-    expect(work.handed).not.toContain('in-2')
+    expect(work.pending).toContain('in-3')
+    expect(work.handed).not.toContain('in-3')
     expect(w.modelCalls).toHaveLength(1)
 
     handIn.resolve()
     await w.until(() => w.modelCalls.length === 2, 10_000)
     const asking = ok(await w.probeLog.load(access))
-    expect(asking.checkpoint.inputBatch?.ordered).toEqual(['in-2'])
+    expect(asking.checkpoint.inputBatch?.ordered).toEqual(['in-3'])
     second.resolve()
     await w.until(async () => (await w.lastOutcome()) === 'completed', 10_000)
     expect(w.modelCalls).toHaveLength(2)
@@ -82,6 +85,7 @@ it('waits on Session pending input without replacing the completion candidate', 
     )
   } finally {
     handIn.resolve()
+    first.resolve()
     second.resolve()
     await w.close()
   }

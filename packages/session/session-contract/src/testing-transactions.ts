@@ -5,7 +5,6 @@ import {
   entryEvidence,
   type MemorySessionHistorySource,
 } from './testing-history-source.ts'
-import type { SessionInputScope } from './history-values.ts'
 import assert from 'node:assert/strict'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -66,6 +65,7 @@ import type {
   SessionTransactionPort,
 } from './ports.ts'
 import { decide, commandDigest } from './decide.ts'
+import { deliveryReads } from './decide-delivery.ts'
 import { judgeCompletion, type OperationRecord } from './judgments.ts'
 import {
   frozenOperation,
@@ -86,7 +86,7 @@ import { decodeCursor, encodeCursor, type Cursor } from './testing-history-curso
 import { SESSION_INTERPRETER, decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
-import { admittedInputs, withInputs } from './testing-inputs.ts'
+import { admittedInputs, inputScope, withInputs } from './testing-inputs.ts'
 import { inputSourceName } from './input-sources.ts'
 import { testingWriter, type TestingWriterOptions } from './testing-sources.ts'
 import { digestSessionLog, executionReadThrough } from './log-interpretation.ts'
@@ -612,16 +612,7 @@ export function createMemorySessionTransactionPair<P>(
       }
       const held = store?.operations.get(command.input.operation)
       const frozen = frozenOperation(store)
-      const selected =
-        command.kind === 'startRun'
-          ? runStartInputs(store?.snapshot)
-          : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
-            ? [command.input.fact.input]
-            : undefined
-      const scope: SessionInputScope =
-        selected === undefined
-          ? { kind: 'pending', inputs: store?.snapshot.pending ?? [] }
-          : { kind: 'selected', inputs: selected }
+      const scope = inputScope(command, store?.snapshot)
       const material =
         store === undefined
           ? undefined
@@ -639,6 +630,7 @@ export function createMemorySessionTransactionPair<P>(
         ...relatedReads(stores, keyOf, command),
         ...forks.reads(started),
         ...forks.contextReads(store, key.ok, command),
+        ...deliveryReads(command, input => store?.inputs.get(input)?.message),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
         ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
@@ -1742,14 +1734,14 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 
     conformanceCase(
       'JC-05',
-      'startRun fixes the first input, opens the Run and keeps the inputs pending',
+      'startRun fixes every pending input as the batch of the Run, opens it and keeps the inputs pending',
       async fixture => {
         const s = scene(fixture)
         succeeded(await s.create(), 'create')
         succeeded(await s.accept('input-1'), 'accept 1')
         succeeded(await s.accept('input-2'), 'accept 2')
         const started = succeeded(await s.startRun(), 'startRun')
-        assert.equal(started.first, 'input-1')
+        assert.deepEqual(started.initial, ['input-1', 'input-2'])
         assert.equal(started.advance.run.length > 0 && started.execution.length > 0, true)
         const snapshot = await s.readWork()
         const run = expectKind(snapshot.run, 'active', 'run after startRun')
@@ -1836,10 +1828,10 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
         expectKind(late, 'terminal', 'a message after the terminal')
         succeeded(await s.accept('input-2'), 'accept after the terminal')
         const next = succeeded(await s.startRun('start-second'), 'the next Run')
-        assert.equal(
-          next.first,
-          'input-1',
-          'an input handed over but never taken keeps its eligibility and is re-fixed by the successor Run (PA-08)',
+        assert.deepEqual(
+          next.initial,
+          ['input-1', 'input-2'],
+          'an input handed over but never taken keeps its eligibility and is re-fixed by the successor Run, with what came after it (PA-08)',
         )
         snapshot = await s.readWork()
         assert.deepEqual(snapshot.pending, ['input-1', 'input-2'])

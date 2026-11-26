@@ -42,7 +42,7 @@ export async function createCaptureAgent(
   const work = ok(await port.readWork(access))
   if (work.run.kind !== 'active') throw new Error('No active capture Run')
   const execution = ok(decodeAgentExecutionId(work.run.execution.execution))
-  const admitted = ok(await port.readInput({ ...access, input: work.run.first }))
+  const admitted = ok(await port.readInput({ ...access, input: work.run.initial[0] }))
   const opening = { ...checkpoint(), definition }
   const seed = openInput({
     access: { ...access, principal: 'capture-initial-handoff-fixture' },

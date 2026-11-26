@@ -271,14 +271,14 @@ export function agentDriveConformance(): readonly ConformanceCase<MemoryAgentDri
         assert.ok('ok' in missing && missing.ok.state === 'missing')
         const input = {
           ...target,
-          first: inputId('first'),
+          initial: [inputId('first')] as const,
           source: evidence('input'),
           grant: evidence('grant'),
         }
         const invoked = await port.invoke(input)
         assert.ok('ok' in invoked)
         assert.deepEqual(await port.invoke(input), invoked)
-        const conflict = await port.invoke({ ...input, first: inputId('other') })
+        const conflict = await port.invoke({ ...input, initial: [inputId('other')] })
         assert.ok('failure' in conflict && conflict.failure.kind === 'conflict')
         assert.deepEqual(await port.query(target), { ok: 'committed' })
         assert.deepEqual(await port.query({ ...target, operation: 'unseen' }), { ok: 'unknown' })

@@ -108,10 +108,15 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
   )
 }
 
-function admissionRecord(failure: Extract<Failure, { kind: 'invalid' }>): DurableEvidence | null {
-  if (failure.field !== 'value') return null
-  const rejection = judgeEvidence(Reflect.get(failure, 'rejection'))
-  return 'ok' in rejection ? rejection.ok : null
+type Rejected = Readonly<{ input: InputId; rejection: DurableEvidence }>
+
+/** The input message admission rejected and the evidence of it, when the failure names them. */
+function admissionRecord(failure: Extract<Failure, { kind: 'invalid' }>): Rejected | null {
+  if (failure.field !== 'value' || failure.rejected === undefined) return null
+  const rejection = judgeEvidence(failure.rejected.evidence)
+  return 'ok' in rejection
+    ? { input: String(failure.rejected.input) as InputId, rejection: rejection.ok }
+    : null
 }
 
 function receiptOf(receipt: CommandReceipt): DriveReceipt {
@@ -235,10 +240,16 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       const { mutation, tenant } = prepared.ok
       const slot = await this.slotOf(input, mutation.principal, tenant)
       if ('failure' in slot) return slot
-      const initial = await this.accepted(input, mutation.principal, input.first, input.source)
-      if ('failure' in initial) return initial
+      const accepted: AcceptedInput[] = []
+      for (const one of input.initial) {
+        const initial = await this.accepted(input, mutation.principal, one, input.source)
+        if ('failure' in initial) return initial
+        accepted.push(initial.ok)
+      }
+      const [first, ...rest] = accepted
+      if (first === undefined) return this.defect('invoke', 'an invoke without an initial input')
       const started = await this.onSlot('invoke', mutation, slot.ok, runtime =>
-        runtime.invoke({ ...mutation, initial: initial.ok, grant: input.grant }),
+        runtime.invoke({ ...mutation, initial: [first, ...rest], grant: input.grant }),
       )
       if ('failure' in started) return started
       this.keep(tenant, input, started.ok)
@@ -493,8 +504,8 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     })
   }
 
-  // The urgent input of an interrupt asks the Agent to release the wait of the current step. The
-  // first input of a Run is never one: an interrupt targets a Run that is already active.
+  // The urgent input of an interrupt asks the Agent to release the wait of the current step. An
+  // initial input of a Run is never one: an interrupt targets a Run that is already active.
   private async priorityOf(
     target: DriveTarget,
     principal: unknown,
@@ -591,8 +602,8 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       case 'conflict':
         return fail({ kind: failure.kind })
       case 'invalid': {
-        const rejection = admissionRecord(failure)
-        if (rejection !== null) return fail({ kind: 'invalid', reason: failure.reason, rejection })
+        const rejected = admissionRecord(failure)
+        if (rejected !== null) return fail({ kind: 'invalid', reason: failure.reason, ...rejected })
         if (failure.field !== 'value')
           return this.defect(
             operation,

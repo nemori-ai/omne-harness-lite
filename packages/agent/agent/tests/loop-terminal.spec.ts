@@ -49,7 +49,7 @@ function coordinator(
     access: alice,
     execution: execution(),
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1', 'hello exec-1'),
+    initial: [acceptedInput('input-exec-1', 'hello exec-1')],
     grant: null,
     idle,
   })
@@ -258,7 +258,7 @@ describe('#516 terminal exit', () => {
           ...alice,
           execution: execution(),
           operation: operation('reopen-ended'),
-          initial: acceptedInput('new-in-original'),
+          initial: [acceptedInput('new-in-original')],
           grant: null,
         }),
       ).kind,

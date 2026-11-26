@@ -29,7 +29,6 @@ import {
 
 const UNAVAILABLE = { kind: 'unavailable' } as const
 const UNKNOWN = { kind: 'unknown' } as const
-/** Results that say nothing of whether the call was committed: the same call is made again later. */
 const UNSETTLED = new Set<SessionFailure['kind']>(['commit-unknown', 'unavailable', 'quarantined'])
 
 export type ScheduleSessionPorts = Readonly<{
@@ -73,6 +72,10 @@ export function firstRunIn(entries: readonly Readonly<{ kind: string; payload: J
   const run = members.find(member => member.key === 'run')?.value
   return run?.kind === 'string' ? run.value : null
 }
+
+/** Whether a run is the Job's own: its first batch is the start reminder of the Job's goal and nothing else. */
+export const ownRound = (initial: readonly string[], start: string): boolean =>
+  initial.length === 1 && initial[0] === start
 
 /** The input a goal's start reminder of this request is, as the goal's own adapter derives it. */
 export const startInputOf = (tenant: TenantId, session: SessionId, request: string) =>
@@ -225,7 +228,7 @@ export function executorCallsOf(ctx: Context, ports: ScheduleSessionPorts): Exec
         if (read.run.kind !== 'active') return { kind: 'read', value: null }
         return {
           kind: 'read',
-          value: read.run.first === startInputOf(tenant, session, input.request),
+          value: ownRound(read.run.initial, startInputOf(tenant, session, input.request)),
         }
       },
     },

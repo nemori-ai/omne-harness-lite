@@ -466,11 +466,11 @@
 | [UL-figure-port](terms/interaction-and-dispatch.md#ul-figure-port--形口--figure-port) | 形口 | Figure Port | 界面外壳交给界面模块的口：报会话在做什么与待答数；**只交数据，没有结果** |
 | [UL-awaiting-answer-count](terms/interaction-and-dispatch.md#ul-awaiting-answer-count--待答数--awaiting-answer-count) | 待答数 | Awaiting-Answer Count | 决策池里此刻等着人回答的决策卡片的张数；用琥珀写，没了结的通知不算 |
 | [UL-ink-bubble](terms/interaction-and-dispatch.md#ul-ink-bubble--墨框--ink-bubble) | 墨框 | Ink Bubble | Agent 形展开的内容外面的墨边，浓淡两种；**应用自己的菜单与浮层不是墨框** |
-| [UL-told-note](terms/interaction-and-dispatch.md#ul-told-note--告知笺--told-note) | 告知笺 | Told Note | 形在家旁用浓墨框写的一句话，同时只有最新一条；**不按时间消失，写过不等于看到** |
+| [UL-told-note](terms/interaction-and-dispatch.md#ul-told-note--告知笺--told-note) | 告知笺 | Told Note | 形在自己身边用浓墨框写的一句话，形在哪写在哪，同时只有最新一条；**不按时间消失，写过不等于看到** |
 | [UL-companion-entry](terms/interaction-and-dispatch.md#ul-companion-entry--随身入口--companion-entry) | 随身入口 | Companion Entry | 浮在整个窗口与两面之上、能拖到任何地方的一处，在哪一面、哪一页都能对 agent 说一句话；**不是形** |
 | [UL-ink-motes](terms/interaction-and-dispatch.md#ul-ink-motes--墨点--ink-motes) | 墨点 | Ink Motes | 随身入口默认的样子：同一支笔点出的几粒墨，落在一个不画出来的圆上；**只会点与干，不算一个形** |
-| [UL-desk-layer](terms/interaction-and-dispatch.md#ul-desk-layer--桌面层--desk-layer) | 桌面层 | Desk Layer | 桌面应用在自己窗口之外的一块画面：透明、在所有窗口之上、点得穿，只画被拿出窗口的形与它身边写出的东西；**不存事实，界面模块放不进东西** |
-| [UL-say-note](terms/interaction-and-dispatch.md#ul-say-note--说话笺--say-note) | 说话笺 | Say Note | 形在桌面上时人按它写出的一张笺：选说给谁、写一句话、发出去，看过的窗口的图也先放这里；**和随身入口说话是同一件事** |
+| [UL-desk-layer](terms/interaction-and-dispatch.md#ul-desk-layer--桌面层--desk-layer) | 桌面层 | Desk Layer | 桌面应用在自己窗口之外的一块画面：透明、在所有窗口之上、点得穿，只画被拿出窗口的形与它身边写出的东西，样子和窗口里是同一套；**不存事实，界面模块放不进东西** |
+| [UL-say-note](terms/interaction-and-dispatch.md#ul-say-note--说话笺--say-note) | 说话笺 | Say Note | 随身入口或桌面上的形写出的一张笺：选说给谁、写一句话、发出去，回的话与看过的窗口的图也在这里；**应用里只有一张，同一刻至多开着一处** |
 | [UL-observation-frame](terms/interaction-and-dispatch.md#ul-observation-frame--观测框--observation-frame) | 观测框 | Observation Frame | 拿着形按住 ⌘ 时围住光标下那个别的应用窗口的一笔墨；**框的是哪个读的就是哪个，没有框就不读** |
 | [UL-size-tier](terms/interaction-and-dispatch.md#ul-size-tier--字号档--size-tier) | 字号档 | Size Tier | 整个界面一起放大缩小的档位，**恰四档**：小楷、中楷、大楷、老花；不是窗口缩放 |
 | [UL-application-face](terms/interaction-and-dispatch.md#ul-application-face--应用的面--application-face) | 应用的面 | Application Face | 桌面应用登录之后的正面或反面，反面是画布；**翻面只换露着的那一面**；不是交付面 |

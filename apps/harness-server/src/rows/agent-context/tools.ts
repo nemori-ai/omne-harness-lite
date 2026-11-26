@@ -11,7 +11,11 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sessionInteractionBinding } from '@omne-harness/session-adapters/cordis'
 import type { SessionId } from '@omne-harness/session-contract'
 import { declaresConditions, heldConditions } from '../../entry/meta-capabilities.ts'
-import { publishedViewPortsOf, readPublishedView } from '../session-ad03/published-view.ts'
+import {
+  BLOCK_NOT_REGISTERED,
+  publishedViewPortsOf,
+  readPublishedView,
+} from '../session-ad03/published-view.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import { ToolCatalogService, toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { releaseOf } from '../../entry/tool-release.ts'
@@ -64,6 +68,9 @@ async function heldBy(
   return 'failure' in view ? view : succeed(heldConditions(view.ok.interaction))
 }
 
+const unreadConditions = (failure: string): NoValue =>
+  failure === BLOCK_NOT_REGISTERED ? { kind: 'denied' } : unavailable(`tool-conditions: ${failure}`)
+
 export function catalogToolLookup(ctx: Context): ToolLookup<unknown> {
   return async ({
     access,
@@ -92,7 +99,7 @@ export function catalogToolLookup(ctx: Context): ToolLookup<unknown> {
         continue
       }
       held ??= await heldBy(ctx, access)
-      if ('failure' in held) return unavailable(`tool-conditions: ${held.failure}`)
+      if ('failure' in held) return unreadConditions(held.failure)
       const definition = offeredDefinition(one.ok.definition, held.ok)
       offered.push(definition === null ? null : { ...one.ok, definition })
     }

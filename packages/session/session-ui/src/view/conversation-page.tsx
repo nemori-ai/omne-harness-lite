@@ -28,13 +28,18 @@ import type { ComposerDraftStore } from '../model/composer-drafts.ts'
 import { conversationItems, type BlockSource, type Item } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import { sessionName, shownBy, type SessionList } from '../model/session-list.ts'
-import type { Open, PendingInput, State } from '../model/session-machine.ts'
+import { underWay, type Open, type PendingInput, type State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import type { Cause, Waiting } from '../model/waiting.ts'
 import type { SessionRunFailureSubject } from '../points.ts'
 import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './block-slot.ts'
 import { Composer } from './composer.tsx'
-import { HeadingFoldContext, useHeadingFold, type HeadingFold } from './heading-fold.tsx'
+import {
+  HeadingFoldContext,
+  HeadingRevisionContext,
+  useHeadingFold,
+  type HeadingFold,
+} from './heading-fold.tsx'
 import { NoticeLine } from './notice.tsx'
 import { PartDrawContext } from './part-draw.ts'
 import { Bubble, ItemView, speakerOf } from './parts.tsx'
@@ -188,7 +193,9 @@ function Page({
       <FigureControl frame={frame} />
       <div className="omne-session-bar-end" ref={fold.end}>
         <HeadingFoldContext.Provider value={fold.bar}>
-          {open === null ? null : heading(open)}
+          <HeadingRevisionContext.Provider value={state.kind === 'open' ? state.revision : null}>
+            {open === null ? null : heading(open)}
+          </HeadingRevisionContext.Provider>
         </HeadingFoldContext.Provider>
         {known === null ? null : (
           <SessionMore
@@ -433,7 +440,7 @@ function OpenSession({
         <Conversation
           epoch={state.session}
           content={state.content}
-          runActive={state.run.kind !== 'idle'}
+          runActive={underWay(state.run)}
           inputs={state.inputs}
           waiting={state.waiting}
           driver={driver}

@@ -8,6 +8,7 @@ import {
   expectedRevision,
   judgeAdvance,
   reduce,
+  runStartInputs,
   type HistoryEntry,
   type SessionCommand,
   type WorkSnapshot,
@@ -49,7 +50,7 @@ function log() {
             previous,
             rows,
             command.kind === 'startRun'
-              ? { kind: 'selected', inputs: previous.pending.slice(0, 1) }
+              ? { kind: 'selected', inputs: runStartInputs(previous) }
               : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
                 ? { kind: 'selected', inputs: [command.input.fact.input] }
                 : { kind: 'pending', inputs: previous.pending },

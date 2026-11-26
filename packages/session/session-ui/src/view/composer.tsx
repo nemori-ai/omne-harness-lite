@@ -25,7 +25,7 @@ import {
 import { stopFace } from '../model/composer.ts'
 import type { ComposerDraftStore } from '../model/composer-drafts.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
-import type { Open } from '../model/session-machine.ts'
+import { underWay, type Open } from '../model/session-machine.ts'
 import { sessionComposer, sessionComposerInput } from '../parts.ts'
 import type { ComposerHandles, SendWay } from '../model/composer-handles.ts'
 import { ComposerActionSlot } from './composer-action-slot.tsx'
@@ -335,7 +335,7 @@ export function Composer({
           aria-label="输入消息"
           aria-controls={assist.menu === null ? undefined : menuId}
           aria-expanded={assist.menu !== null}
-          placeholder={placeholderOf(waiting, state.run.kind !== 'idle')}
+          placeholder={placeholderOf(waiting, underWay(state.run))}
           rows={1}
           value={text}
           onChange={event => {
@@ -360,13 +360,13 @@ export function Composer({
       <div>{attachments(session, draft.draft)}</div>
       <div className="omne-composer-actions">
         <div className="omne-session-status">{status}</div>
-        {state.run.kind === 'idle' ? null : (
+        {underWay(state.run) ? (
           <SendWays
             canSend={canSend}
             onSend={way => void sendAs(way)}
             onForceStop={() => driver.cancel('force')}
           />
-        )}
+        ) : null}
         <ComposerActionSlot
           face={stopFace(state.run)}
           canSend={canSend}
@@ -377,7 +377,7 @@ export function Composer({
   )
   if (drawer === null) return builtIn()
   return sessionComposer.draw(drawer, builtIn, {
-    running: state.run.kind !== 'idle',
+    running: underWay(state.run),
     empty: text.trim().length === 0,
   })
 }

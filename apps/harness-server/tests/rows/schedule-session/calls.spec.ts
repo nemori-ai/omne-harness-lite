@@ -5,6 +5,7 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import { sourceRequestIdentities } from '@omne-harness/session-contract'
 import {
   firstRunIn,
+  ownRound,
   refusedBy,
   standingOf,
   startInputOf,
@@ -75,6 +76,16 @@ describe('the input a goal owes its session to start', () => {
     )
     expect(startInputOf(tenant, 'session-1' as never, 'start/2/3')).not.toBe(one)
     expect(startInputOf(tenant, 'session-2' as never, 'start/1/1')).not.toBe(one)
+  })
+})
+
+describe('whether a run is the own round of a Job', () => {
+  it('is its own only when the first batch is the start reminder of its goal alone', () => {
+    expect(ownRound(['in-start'], 'in-start')).toBe(true)
+    expect(ownRound(['in-other'], 'in-start')).toBe(false)
+    expect(ownRound(['in-start', 'in-other'], 'in-start')).toBe(false)
+    expect(ownRound(['in-other', 'in-start'], 'in-start')).toBe(false)
+    expect(ownRound([], 'in-start')).toBe(false)
   })
 })
 

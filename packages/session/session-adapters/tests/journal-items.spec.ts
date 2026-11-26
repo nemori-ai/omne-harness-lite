@@ -198,7 +198,7 @@ describe('the items of the journal view', () => {
   })
 
   it('a later step that takes the same batch closes the earlier one', () => {
-    const batch = { id: 'b-1' as never, watermark: evidence('watermark/b-1'), ordered: [] }
+    const batch = { id: 'exe_steps/batch/0-0' as never, watermark: evidence('watermark/b-1') }
     const step = (n: number, pub: number): PublishedBatch => ({
       execution: 'exe_steps' as never,
       envelope: {
@@ -213,7 +213,7 @@ describe('the items of the journal view', () => {
         {
           kind: 'cursor.moved',
           step: `step-${String(n)}` as never,
-          members: { inputBatch: 'b-1' },
+          members: { inputBatch: batch.id },
         },
       ],
       pub,
@@ -223,7 +223,7 @@ describe('the items of the journal view', () => {
     const steps = second.view.executions.get('exe_steps' as never)!.steps
     expect(steps.map(item => item.step)).toEqual(['step-2'])
     expect(second.changes).toContainEqual(
-      expect.objectContaining({ family: 'step', item: 'step-1#b-1', open: false }),
+      expect.objectContaining({ family: 'step', item: 'step-1#exe_steps/batch/0-0', open: false }),
     )
   })
 

@@ -50,6 +50,18 @@ function recordSubmits(
   return submitted
 }
 
+type Invoked = Parameters<AgentDrivePort['invoke']>[0]
+
+function recordInvokes(h: Harness): Invoked[] {
+  const invoked: Invoked[] = []
+  const original = h.drive.invoke.bind(h.drive)
+  h.drive.invoke = input => {
+    invoked.push(input)
+    return original(input)
+  }
+  return invoked
+}
+
 async function acceptDirectly(h: Harness, input: string): Promise<void> {
   succeeded(
     await h.backend.transactions.commit({
@@ -118,21 +130,47 @@ describe('C2 续入: an input accepted while the Run is active is handed in', ()
     },
   )
 
-  it('opening a Run hands in the inputs already waiting after the first, in arrival order', async () => {
+  it('opening a Run hands every input already waiting over in the one invoke, in arrival order', async () => {
     const h = await service()
     await h.create()
     await acceptDirectly(h, 'input-1')
     await acceptDirectly(h, 'input-2')
     await acceptDirectly(h, 'input-3')
     const submitted = recordSubmits(h)
+    const invoked = recordInvokes(h)
     await notice(h)
     await vi.waitFor(async () => {
       expect((await read(h)).handed).toEqual(['input-1', 'input-2', 'input-3'])
     })
-    expect(submitted.map(item => item.input)).toEqual(['input-2', 'input-3'])
+    expect(invoked.map(item => item.initial)).toEqual([['input-1', 'input-2', 'input-3']])
+    expect(submitted).toEqual([])
+    expect((await read(h)).run).toMatchObject({
+      kind: 'active',
+      initial: ['input-1', 'input-2', 'input-3'],
+    })
   })
 
-  it('when the hand-over of the first input cannot be recorded, opening the Run still hands in the waiting inputs', async () => {
+  it('an input accepted after the Run started is not of its batch: it is submitted', async () => {
+    const h = await service()
+    await h.create()
+    await acceptDirectly(h, 'input-1')
+    await acceptDirectly(h, 'input-2')
+    const submitted = recordSubmits(h)
+    const invoked = recordInvokes(h)
+    await notice(h)
+    await vi.waitFor(async () => {
+      expect((await read(h)).handed).toEqual(['input-1', 'input-2'])
+    })
+    await acceptDirectly(h, 'input-3')
+    await notice(h)
+    await vi.waitFor(async () => {
+      expect((await read(h)).handed).toEqual(['input-1', 'input-2', 'input-3'])
+    })
+    expect(invoked.map(item => item.initial)).toEqual([['input-1', 'input-2']])
+    expect(submitted.map(item => item.input)).toEqual(['input-3'])
+  })
+
+  it('when the hand-over of an initial input cannot be recorded, a later input is still handed in', async () => {
     const h = await service()
     await h.create()
     h.view.onCommit(async (input, next) => {
@@ -147,13 +185,19 @@ describe('C2 续入: an input accepted while the Run is active is handed in', ()
     })
     await acceptDirectly(h, 'input-1')
     await acceptDirectly(h, 'input-2')
-    await acceptDirectly(h, 'input-3')
     const submitted = recordSubmits(h)
+    const invoked = recordInvokes(h)
+    await notice(h)
+    await vi.waitFor(async () => {
+      expect((await read(h)).handed).toEqual(['input-2'])
+    })
+    await acceptDirectly(h, 'input-3')
     await notice(h)
     await vi.waitFor(async () => {
       expect((await read(h)).handed).toEqual(['input-2', 'input-3'])
     })
-    expect(submitted.map(item => item.input)).toEqual(['input-2', 'input-3'])
+    expect(invoked.map(item => item.initial)).toEqual([['input-1', 'input-2']])
+    expect(submitted.map(item => item.input)).toEqual(['input-3'])
     expect(h.diagnostics()).toContainEqual(
       expect.objectContaining({ step: 'receive', reason: 'unavailable' }),
     )
@@ -180,7 +224,12 @@ describe('C2 续入: the failure branches of submit', () => {
     const submitted = recordSubmits(h, (input, original) =>
       input.input === 'input-2'
         ? Promise.resolve(
-            fail({ kind: 'invalid' as const, reason: 'refused', rejection: evidence('agent/no') }),
+            fail({
+              kind: 'invalid' as const,
+              input: input.input,
+              reason: 'refused',
+              rejection: evidence('agent/no'),
+            }),
           )
         : original(input),
     )

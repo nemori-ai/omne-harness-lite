@@ -515,7 +515,12 @@ describe('the discriminants of the evaluation chapter', () => {
       | 'conflict'
     >()
     expectTypeOf<Extract<Failure, { kind: 'invalid' }>>().toEqualTypeOf<
-      Readonly<{ kind: 'invalid'; field: string; reason: string }>
+      Readonly<{
+        kind: 'invalid'
+        field: string
+        reason: string
+        rejected?: Readonly<{ input: InputId; evidence: DurableEvidence }>
+      }>
     >()
     expectTypeOf<
       Extract<Failure, { kind: 'commit-unknown' }>['operation']
@@ -1314,7 +1319,7 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<Parameters<AgentJournalAttachment<string>['open']>[0]>().toEqualTypeOf<
       ExecutionMutation<string> &
         Readonly<{
-          original: OriginalInputAcceptance
+          originals: readonly [OriginalInputAcceptance, ...OriginalInputAcceptance[]]
           runtime: InvokeRuntimeContext
           checkpoint: AgentCheckpoint
         }>

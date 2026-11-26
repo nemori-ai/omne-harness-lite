@@ -22,6 +22,7 @@ import {
   terminalEntries,
 } from './decision-support.ts'
 import type { SessionOperationId } from './identity.ts'
+import { bornRegistrations } from './scope-registrations.ts'
 import { standingOf } from './standing.ts'
 
 export function scopeBinding(
@@ -144,11 +145,10 @@ export function decideControl(
     )
   }
   if (unarchive) {
+    const scope = scopeBinding(snapshot, operation)
     out.push(
-      encodeEntry(
-        { kind: 'session.unarchived', scope: scopeBinding(snapshot, operation) },
-        originOf(source),
-      ),
+      encodeEntry({ kind: 'session.unarchived', scope }, originOf(source)),
+      ...bornRegistrations(snapshot, scope).map(entry => encodeEntry(entry, originOf(source))),
       encodeEntry(
         { kind: 'session.idle-evidence', observation: reads.idleObservation ?? null },
         originOf(source),

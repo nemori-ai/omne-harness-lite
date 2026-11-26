@@ -615,10 +615,7 @@ export async function deliver(a: SceneApp, name: string, inputs: readonly string
           handover: evidence(`deliver-${name}`),
         },
         value: {
-          deliveries: inputs.map(input => ({
-            input: inputId(input),
-            message: ordinaryInput(input).message,
-          })),
+          inputs: inputs.map(inputId),
           source: evidence(`agent/step/${name}`),
           admission: evidence(`agent/step/${name}`),
         },

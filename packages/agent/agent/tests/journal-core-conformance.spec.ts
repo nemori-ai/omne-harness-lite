@@ -103,7 +103,7 @@ const fixture: AgentJournalCoreFixture<string> = {
               ...otherTenant,
               execution: foreign,
               operation: operation(`open-${name}-${label}`),
-              initial: acceptedInput(`input-${label}`),
+              initial: [acceptedInput(`input-${label}`)],
             }),
           ),
         )

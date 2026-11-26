@@ -200,7 +200,7 @@ describe('the agent-host row: ordered stop with the Agent factory of this releas
         ...caller,
         execution: ok(decodeAgentExecutionId('row-stop-execution')),
         operation: ok(decodeAgentOperationId('row-stop-invoke')),
-        initial: heldInput(),
+        initial: [heldInput()],
         grant: null,
       })
       expect(invoked).toMatchObject({ failure: { kind: 'commit-unknown' } })

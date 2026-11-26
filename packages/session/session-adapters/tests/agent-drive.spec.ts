@@ -132,7 +132,7 @@ function activeRun(instance: AgentInstanceRef | null, adopted: Adoption = runAdo
     kind: 'active',
     run: 'run-1' as never,
     adoption: adopted,
-    first: inputId('input-1'),
+    initial: [inputId('input-1')],
     advance:
       instance === null ? null : { run: 'run-1' as never, attempt: 'attempt-1' as never, instance },
     ordinal: '1',
@@ -386,7 +386,7 @@ const target = (access: SessionAccess<unknown> = A, operation = INVOKE): DriveTa
 })
 const invokeInput = (access: SessionAccess<unknown> = A) => ({
   ...target(access),
-  first: inputId('input-1'),
+  initial: [inputId('input-1')] as const,
   source: evidence('se13-receipt'),
   grant: evidence('se15-grant'),
 })
@@ -421,12 +421,14 @@ describe('invoke: the slot of the active Run, then acquire, resolve and invoke',
       tenant: A.tenant,
       execution: EXECUTION,
       operation: INVOKE,
-      initial: {
-        id: 'input-1',
-        content: userMessage('text of input-1'),
-        source: evidence('se13-receipt'),
-        priority: 'ordinary',
-      },
+      initial: [
+        {
+          id: 'input-1',
+          content: userMessage('text of input-1'),
+          source: evidence('se13-receipt'),
+          priority: 'ordinary',
+        },
+      ],
       grant: evidence('se15-grant'),
     })
     for (const call of f.calls)
@@ -579,10 +581,20 @@ describe('the Agent answers map by the result table', () => {
     const f = await assembled()
     const record = evidence('admission-rejection')
     f.script.invoke.push(() =>
-      fail({ kind: 'invalid', field: 'value', reason: 'refused by admission', rejection: record }),
+      fail({
+        kind: 'invalid',
+        field: 'value',
+        reason: 'refused by admission',
+        rejected: { input: 'input-1' as never, evidence: record },
+      }),
     )
     expect(await f.drive().invoke(invokeInput())).toEqual({
-      failure: { kind: 'invalid', reason: 'refused by admission', rejection: record },
+      failure: {
+        kind: 'invalid',
+        input: 'input-1',
+        reason: 'refused by admission',
+        rejection: record,
+      },
     })
   })
 
@@ -824,10 +836,15 @@ describe('submit uses the handle that invoke or resume kept', () => {
     await f.drive().invoke(invokeInput())
     const record = evidence('submit-rejection')
     f.script.submit.push(
-      fail({ kind: 'invalid', field: 'value', reason: 'refused', rejection: record } as Failure),
+      fail({
+        kind: 'invalid',
+        field: 'value',
+        reason: 'refused',
+        rejected: { input: 'input-2' as never, evidence: record },
+      }),
     )
     expect(await f.drive().submit(submitInput)).toEqual({
-      failure: { kind: 'invalid', reason: 'refused', rejection: record },
+      failure: { kind: 'invalid', input: 'input-2', reason: 'refused', rejection: record },
     })
     f.script.submit.push(fail({ kind: 'invalid', field: 'value', reason: 'refused' }))
     const unrecorded = await f.drive().submit(submitInput)

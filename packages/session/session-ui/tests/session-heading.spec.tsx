@@ -466,3 +466,59 @@ it.each([
   expect(items).toContain(said)
   expect(items.filter(text => text?.startsWith('工作区') === true)).toEqual([])
 })
+
+it('头部跟着会话的修订号重读：谁改的都一样，观察到新的修订号，模型、工作区、权限处理都读回服务端此刻的值', async () => {
+  layOut(2000)
+  const fake = createFakeClient()
+  const root = await openLong(fake)
+  await act(async () => {
+    providerOf(root, TAKEN.workspaceChoices).attach({
+      list: async () => ({
+        kind: 'listed',
+        choices: [
+          { ...BLOG, label: 'blog', selectable: true, note: null },
+          { ...SHOP, label: 'shop', selectable: true, note: null },
+        ],
+      }),
+    })
+  })
+  const workspaceAt = (workspace: typeof BLOG, revision: string) => ({
+    outcome: 'succeeded' as const,
+    body: { workspace, state: 'attached', directory: '/srv/x', reason: null, revision },
+  })
+  const answerAll = async (
+    workspace: typeof BLOG,
+    model: string,
+    mode: string,
+    revision: string,
+  ): Promise<void> => {
+    ;(await fake.next('read-workspace-selection')).answer(workspaceAt(workspace, revision))
+    ;(await fake.next('read-model-selection')).answer({
+      outcome: 'succeeded',
+      body: { model, revision },
+    })
+    ;(await fake.next('read-permission-mode')).answer({
+      outcome: 'succeeded',
+      body: { mode, revision },
+    })
+    await settle()
+  }
+  await answerAll(BLOG, 'openai/gpt-x', 'auto_permission', '1')
+  const shown = () => [
+    within(heading()).getByRole('combobox', { name: '工作区' }).textContent,
+    heading().querySelector('.omne-session-model')?.textContent,
+    within(heading()).getByRole('combobox', { name: '权限处理' }).textContent,
+  ]
+  const before = shown()
+  const observation = fake.observations[0]
+  if (observation === undefined) throw new Error('no observation')
+  act(() =>
+    observation.push({ kind: 'state', run: null, revision: '2', phase: null, target: null }),
+  )
+  await settle()
+  await answerAll(SHOP, 'anthropic/claude-y', 'bypass-permissions', '2')
+  expect({ before, after: shown() }).toEqual({
+    before: ['blog', '模型：openai/gpt-x推理强度：模型默认（供应商默认）', '需要时问我'],
+    after: ['shop', '模型：anthropic/claude-y推理强度：模型默认（供应商默认）', '跳过询问'],
+  })
+})
