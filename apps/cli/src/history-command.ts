@@ -10,6 +10,7 @@ import {
   unrecognized,
   usageError,
 } from './command-support.ts'
+import { holdsMedia, readsOfSession } from './history-reads.ts'
 import { renderEntries, type RawEntry } from './history-render.ts'
 import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
@@ -148,11 +149,16 @@ export async function runReadHistory(
   if (reading.kind === 'refused') return usageError(output, unrecognized(name))
 
   const { entries } = reading
+  const json = read.values.has('--json')
+  const reads =
+    json || !holdsMedia(entries)
+      ? undefined
+      : await readsOfSession(loaded.link, { tenant: owner, session, newId })
   try {
     output.stdout(
-      read.values.has('--json')
+      json
         ? `${JSON.stringify(resultObject(reading, { messageId, tenant: encodeTenantText(owner) }))}\n`
-        : renderEntries(entries),
+        : renderEntries(entries, reads),
     )
   } catch {
     output.stderr(`omne ${name}: cannot write standard output\n`)
