@@ -34,13 +34,20 @@ type Listed = Readonly<{
   blocks?: readonly unknown[]
 }>
 
+function whyNot(model: Listed): string | undefined {
+  if (model.enabled === false) return '租户关掉了它'
+  if (model.selectable) return undefined
+  const { blocks } = model
+  const said = model.reasons.map(reason =>
+    reason === 'modality' && blocks !== undefined
+      ? `读不了这段会话里的 ${String(blocks.length)} 块内容`
+      : (REASONS[reason] ?? reason),
+  )
+  return said.length === 0 ? '此刻不能选' : said.join('；')
+}
+
 export function choiceOf(model: Listed): ModelChoice {
-  const stopped =
-    model.blocks === undefined ? [] : [`读不了这段会话里的 ${String(model.blocks.length)} 块内容`]
-  const reasons = model.reasons.filter(reason => stopped.length === 0 || reason !== 'modality')
-  const why = [...stopped, ...reasons.map(reason => REASONS[reason] ?? reason)].join('；')
-  const unavailable =
-    model.enabled === false ? '租户关掉了它' : model.selectable ? undefined : why || '此刻不能选'
+  const unavailable = whyNot(model)
   return {
     name: model.route,
     ...(unavailable === undefined ? {} : { unavailable }),

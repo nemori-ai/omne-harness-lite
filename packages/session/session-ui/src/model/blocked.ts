@@ -1,18 +1,16 @@
 import type { HistoryEntry } from './content.ts'
+import { isRecord, listOf } from './plain.ts'
 
 type Position = Readonly<{ message: string; block: string }>
 
 const KINDS: Readonly<Record<string, string>> = { image: '张图片', voice: '段语音', file: '个文件' }
 const OTHER = '块内容'
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
 function kindOf(entries: readonly HistoryEntry[], { message, block }: Position): string {
-  for (const entry of entries) {
-    const read = isRecord(entry.payload) ? entry.payload['message'] : undefined
-    if (!isRecord(read) || read['id'] !== message || !Array.isArray(read['blocks'])) continue
-    const found: unknown = read['blocks'].find(each => isRecord(each) && each['id'] === block)
+  for (const { payload } of entries) {
+    const read = isRecord(payload) ? payload['message'] : undefined
+    if (!isRecord(read) || read['id'] !== message) continue
+    const found = listOf(read['blocks']).find(each => isRecord(each) && each['id'] === block)
     return isRecord(found) ? (KINDS[String(found['kind'])] ?? OTHER) : OTHER
   }
   return OTHER
@@ -25,8 +23,7 @@ export function blockedText(entries: readonly HistoryEntry[], blocks: readonly P
     const kind = kindOf(entries, position)
     counts.set(kind, (counts.get(kind) ?? 0) + 1)
   }
-  const order = [...Object.values(KINDS), OTHER]
-  return order
+  return [...Object.values(KINDS), OTHER]
     .filter(kind => counts.has(kind))
     .map(kind => `${String(counts.get(kind))} ${kind}`)
     .join('、')

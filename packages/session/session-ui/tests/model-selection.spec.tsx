@@ -24,6 +24,7 @@ const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const SESSION = 's-1'
 const PLACE = { tenant: TENANT, session: SESSION }
+const NONE: ModelChoiceListing = { kind: 'listed', choices: [] }
 const GPT = 'openai/gpt-x'
 const CLAUDE = 'anthropic/claude-y'
 const LOCKED = 'openai/locked-z'
@@ -62,12 +63,14 @@ const LISTED: ModelChoiceListing = {
     { route: LOCKED, selectable: false, note: '不能选：被锁定' },
   ],
 }
-const sourceOf = (listing: ModelChoiceListing): ModelChoiceSource & { asked: string[] } => {
-  const asked: string[] = []
+const sourceOf = (
+  listing: ModelChoiceListing,
+): ModelChoiceSource & { asked: (string | undefined)[][] } => {
+  const asked: (string | undefined)[][] = []
   return {
     asked,
-    list: async tenant => {
-      asked.push(tenant)
+    list: async (tenant, session) => {
+      asked.push([tenant, session])
       return listing
     },
   }
@@ -164,7 +167,7 @@ describe('the list of models, from whoever is attached', () => {
     const source = sourceOf(LISTED)
     const detach = store.attach(source)
     await settle()
-    expect(source.asked).toEqual([TENANT])
+    expect(source.asked).toEqual([[TENANT, SESSION]])
     expect(store.choices(PLACE)).toEqual(LISTED)
     expect(told).toHaveBeenCalled()
 
@@ -357,6 +360,39 @@ describe('the model in the heading of a conversation', () => {
     expect(screen.getByRole('combobox', { name: '推理强度' }).textContent).toContain('medium')
     expect(screen.getByRole('status').textContent).toBe('没有换：这个模型不支持所选推理强度')
     expect(source.asked.length).toBe(count + 1)
+    expect(source.asked.at(-1)).toEqual([TENANT, SESSION])
+  })
+
+  it('each session of a tenant has its own list, and a page that moves to another session asks for it', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    const source = sourceOf(LISTED)
+    store.attach(source)
+    const view = render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    view.rerender(<ModelAction store={store} tenant={TENANT} session="s-2" />)
+    await settle()
+    expect(source.asked).toEqual([
+      [TENANT, SESSION],
+      [TENANT, 's-2'],
+    ])
+    store.attach({ list: async (_tenant, session) => (session === 's-2' ? LISTED : NONE) })
+    await settle()
+    expect(store.choices(PLACE)).toEqual(NONE)
+    expect(store.choices({ tenant: TENANT, session: 's-2' })).toEqual(LISTED)
+  })
+
+  it('a place only watched, and one only read, are both asked again from the next source', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    store.subscribeChoices({ tenant: TENANT, session: 'watched' }, () => undefined)
+    store.attach(sourceOf(LISTED))
+    await store.loadChoices({ tenant: TENANT, session: 'read' })
+    const next = sourceOf(LISTED)
+    store.attach(next)
+    await settle()
+    expect(next.asked).toEqual([
+      [TENANT, 'watched'],
+      [TENANT, 'read'],
+    ])
   })
 
   it('a model the content of this session stops is offered disabled, saying how many blocks; the list is asked for this session', async () => {
@@ -394,6 +430,7 @@ describe('the model in the heading of a conversation', () => {
       { message: 'm-1', block: 'b-1' },
       { message: 'm-3', block: 'b-2' },
       { message: 'm-3', block: 'b-3' },
+      { message: 'm-3', block: 'b-4' },
       { message: 'm-9', block: 'b-9' },
     ]
     const { store } = storeWith([selection(GPT, '1')], {
@@ -410,7 +447,13 @@ describe('the model in the heading of a conversation', () => {
     const entries = [
       message('m-1', 'message.user', { kind: 'text', id: 'b-0' }, { kind: 'image', id: 'b-1' }),
       message('m-2', 'message.assistant', { kind: 'text', id: 'b-x' }),
-      message('m-3', 'message.user', { kind: 'file', id: 'b-2' }, { kind: 'file', id: 'b-3' }),
+      message(
+        'm-3',
+        'message.user',
+        { kind: 'file', id: 'b-2' },
+        { kind: 'file', id: 'b-3' },
+        { kind: 'voice', id: 'b-4' },
+      ),
     ]
     render(
       <HeadingEntriesContext.Provider value={entries}>
@@ -420,7 +463,7 @@ describe('the model in the heading of a conversation', () => {
     await settle()
     await choose('模型', 'claude-y')
     expect(screen.getByRole('status').textContent).toBe(
-      '没有换：这个模型读不了这段会话里的 1 张图片、2 个文件、1 块内容',
+      '没有换：这个模型读不了这段会话里的 1 张图片、1 段语音、2 个文件、1 块内容',
     )
   })
 
@@ -430,6 +473,7 @@ describe('the model in the heading of a conversation', () => {
       '没有换：这个模型读不了这段会话里的 1 块内容',
     )
     expect(refused({ reason: 'modality' })).toBe('没有换：这个模型不支持文字')
+    expect(refused({ reason: 'modality', blocks: [] })).toBe('没有换：这个模型不支持文字')
   })
 
   it('a refused change is said, and the model shown is the one read again', async () => {

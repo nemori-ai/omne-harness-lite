@@ -56,7 +56,7 @@ function refusedText(
   entries: readonly HistoryEntry[],
 ): string {
   if (body.detail === 'unsupported-effort') return '没有换：这个模型不支持所选推理强度'
-  if (body.reason === 'modality' && body.blocks !== undefined && body.blocks.length > 0)
+  if (body.blocks !== undefined && body.blocks.length > 0)
     return `没有换：这个模型读不了这段会话里的 ${blockedText(entries, body.blocks)}`
   return `没有换：${REFUSALS[body.reason]}`
 }
