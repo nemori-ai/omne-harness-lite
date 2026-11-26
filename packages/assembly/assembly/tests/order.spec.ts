@@ -17,6 +17,27 @@ describe('停与起的次序只由依赖图定', () => {
     ])
   })
 
+  it('一行注入自己提供的键不成边；两个键来自同一行只成一条边；互相需要的两行各自只需要对方', () => {
+    const edges = edgesOf([
+      row('self', ['own'], ['own']),
+      row('storage', ['storage', 'blobs'], []),
+      row('session', [], ['storage', 'blobs']),
+    ])
+    expect([...edges]).toEqual([
+      ['self', []],
+      ['storage', []],
+      ['session', ['storage']],
+    ])
+    const mutual: RowEdges = new Map([
+      ['a', ['b']],
+      ['b', ['a']],
+    ])
+    expect([...needsOf(mutual)].map(([name, needs]) => [name, [...needs]])).toEqual([
+      ['a', ['b']],
+      ['b', ['a']],
+    ])
+  })
+
   it('一条链：提供方在注入方结束之后才停，在注入方之前起', () => {
     const edges: RowEdges = new Map([
       ['a', ['b']],

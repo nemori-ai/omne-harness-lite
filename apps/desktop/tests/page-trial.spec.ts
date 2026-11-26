@@ -54,6 +54,35 @@ describe('切过去的一版页面在试用中', () => {
     expect(run.did.filter(each => each === 'reload')).toHaveLength(2)
   })
 
+  it('指针这时已经指着别的一版：起稳与到上限都不算在它头上', async () => {
+    const superseded = { outcome: 'superseded', pointer: pointer('page-3') } as const
+    const base = {
+      stable: async () => true,
+      reload: () => undefined,
+      after: async () => undefined,
+      tell: () => superseded,
+      config,
+    }
+    expect(await runTrial({ ...base, watch: async () => 'mounted' })).toEqual({
+      kind: 'superseded',
+    })
+    expect(await runTrial({ ...base, watch: async () => 'not-mounted' })).toEqual({
+      kind: 'superseded',
+    })
+  })
+
+  it('说退回了却没有给出退回到哪一版：照没有退路停下', async () => {
+    const outcome = await runTrial({
+      watch: async () => 'not-mounted',
+      stable: async () => false,
+      reload: () => undefined,
+      after: async () => undefined,
+      tell: () => ({ outcome: 'rolled-back', pointer: null }),
+      config,
+    })
+    expect(outcome).toEqual({ kind: 'no-fallback' })
+  })
+
   it('窗口关了：试用到此为止，什么都不告诉指针', async () => {
     const run = trial(['not-mounted', 'closed'], [])
     expect(await run.outcome).toEqual({ kind: 'closed' })

@@ -6,9 +6,11 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -157,6 +159,17 @@ describe('版本的名字', () => {
   })
 })
 
+describe('安装根里不是版本的东西', () => {
+  it('版本目录下的一个普通文件不算一版；指针文件只有自己读写得了', () => {
+    const root = emptyRoot()
+    const version = installVersion(root, built('only')).version
+    writeFileSync(join(root, VERSIONS_DIR, 'notes.txt'), 'not a version')
+    expect(readVersions(root).installed).toEqual({ [version]: 'complete' })
+    switchVersion(root, version)
+    expect(statSync(join(root, POINTER_FILE)).mode & 0o777).toBe(0o600)
+  })
+})
+
 describe('应用自带的那一版', () => {
   it('永远装好、定下过：没有指针文件时现在的与退路都是它；装进来的第一版起不来就退回它', () => {
     const root = emptyRoot()
@@ -187,5 +200,48 @@ describe('应用自带的那一版', () => {
     const read = readVersions(root, 'builtin')
     expect(read.installed).toEqual({ builtin: 'complete' })
     expect(read.pointer?.current).toBe(first)
+  })
+})
+
+describe('版本的摘要与指针：边角', () => {
+  it('摘要照文件、目录、软链接各自的写法算：路径不带开头的斜杠，软链接记它指向哪，不读它指着的内容', () => {
+    const root = emptyRoot()
+    const source = join(scratch, `digest-${String(count++)}`)
+    mkdirSync(join(source, 'lib'), { recursive: true })
+    writeFileSync(join(source, 'a.txt'), 'a')
+    writeFileSync(join(source, 'lib', 'b.txt'), 'b')
+    symlinkSync('a.txt', join(source, 'z-link'))
+    const sha = (text: string): string => createHash('sha256').update(text).digest('hex')
+    const expected = sha(`f a.txt ${sha('a')}\nf lib/b.txt ${sha('b')}\nl z-link a.txt\n`)
+    expect(installVersion(root, source, 'page').version).toBe(`page-${expected.slice(0, 12)}`)
+  })
+
+  it('package.json 里的版本不是字符串：被拒', () => {
+    const root = emptyRoot()
+    const source = join(scratch, `unnamed-${String(count++)}`)
+    mkdirSync(source)
+    writeFileSync(join(source, 'package.json'), '{"name":"x"}')
+    expect(() => installVersion(root, source)).toThrow(/got undefined/)
+    writeFileSync(join(source, 'package.json'), '{"version":12}')
+    expect(() => installVersion(root, source)).toThrow(/got 12/)
+  })
+
+  it('版本目录是个文件、指针文件是个目录：读它是一个错，不当成没有', () => {
+    const fileForDirectory = emptyRoot()
+    writeFileSync(join(fileForDirectory, VERSIONS_DIR), '')
+    expect(() => readVersions(fileForDirectory)).toThrow(/ENOTDIR/)
+    const directoryForPointer = emptyRoot()
+    mkdirSync(join(directoryForPointer, POINTER_FILE))
+    expect(() => readVersions(directoryForPointer)).toThrow(/EISDIR/)
+  })
+
+  it('切不过去时不写指针文件；没有指针时说哪一版起稳了都不是说它', () => {
+    const root = emptyRoot()
+    expect(switchVersion(root, 'nowhere', 'builtin').outcome).toBe('not-complete')
+    expect(existsSync(join(root, POINTER_FILE))).toBe(false)
+    expect(tellVersions(root, 'nowhere', 'settled')).toEqual({
+      outcome: 'superseded',
+      pointer: null,
+    })
   })
 })

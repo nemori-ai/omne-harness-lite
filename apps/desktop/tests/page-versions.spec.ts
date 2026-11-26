@@ -18,7 +18,11 @@ const shipped = { version: BUILTIN, root: builtinRoot, settled: true }
 
 describe('页面包的版本', () => {
   it('什么都没装：在服务的是应用自带的那一版', async () => {
-    expect(await versionsOf(fresh('user')).serving()).toEqual(shipped)
+    const versions = versionsOf(fresh('user'))
+    expect(await versions.serving()).toEqual(shipped)
+    expect(versions.rootOf(BUILTIN)).toBe(builtinRoot)
+    // The name on disk: a bundle installed by one build is found by the next.
+    expect(PAGE_VERSIONS_DIR).toBe('page-versions')
   })
 
   it('装一版签过名的：进版本目录，名字带内容摘要；切过去之后在服务的是它；起稳了它成为退路', async () => {

@@ -151,6 +151,74 @@ describe('换一版页面', () => {
     expect(w.updates.route(new Request('omne-app://app/device/figure'))).toBeUndefined()
   })
 
+  it('一次装还没完又来一次、或有一版在试用中：后来的不接；这一次完了之后再来的照接', async () => {
+    let release: (mount: Mount) => void = () => undefined
+    const held = new Promise<Mount>(resolve => (release = resolve))
+    const w = world({ mounts: [] })
+    const candidates: string[] = []
+    const updates = pageUpdates(
+      {
+        versions: {
+          serving: async () => BUILTIN,
+          rootOf: version => `/user/versions/${version}`,
+          install: async directory => ({ kind: 'installed', version: directory.slice(1) }),
+          switchTo: version => ({
+            outcome: 'moved',
+            pointer: { current: version, previous: 'builtin', settled: false },
+          }),
+          tell: version => ({
+            outcome: 'moved',
+            pointer: { current: version, previous: version, settled: true },
+          }),
+        },
+        serve: async () => undefined,
+        nudge: () => undefined,
+        candidate: root => {
+          candidates.push(root)
+          return candidates.length === 1 ? held : Promise.resolve('not-mounted')
+        },
+        window: {
+          watch: async () => 'mounted',
+          stable: async () => true,
+          reload() {},
+          after: async () => undefined,
+        },
+        config,
+        log,
+      },
+      BUILTIN,
+    )
+    const first = updates.install('/one')
+    await w.settle()
+    await updates.install('/two')
+    expect(candidates).toEqual(['/user/versions/one'])
+    release('not-mounted')
+    await first
+    await updates.install('/three')
+    expect(candidates).toEqual(['/user/versions/one', '/user/versions/three'])
+  })
+
+  it('答复是不许缓存的 JSON；别的方法与别的地址不归它答', async () => {
+    const w = world({})
+    const answer = await w.updates.route(new Request(`omne-app://app${DEVICE_PAGE_VERSION}`))
+    expect(answer?.headers.get('content-type')).toBe('application/json')
+    expect(answer?.headers.get('cache-control')).toBe('no-store')
+    const post = (path: string) => new Request(`omne-app://app${path}`, { method: 'POST' })
+    expect(w.updates.route(post(DEVICE_PAGE_VERSION))).toBeUndefined()
+    expect(w.updates.route(post('/device/other'))).toBeUndefined()
+    expect(
+      w.updates.route(new Request(`omne-app://app${DEVICE_PAGE_VERSION_TOLD}`)),
+    ).toBeUndefined()
+  })
+
+  it('启动时在服务的一版已经定下：不试用', async () => {
+    const w = world({})
+    w.updates.resume()
+    await w.settle()
+    expect(w.did).toEqual([])
+    expect(w.updates.onTrial()).toBe(false)
+  })
+
   it('启动时在服务的一版还没起稳：接着试用', async () => {
     const w = world({}, { version: 'page-2', root: '/user/versions/page-2', settled: false })
     w.updates.resume()

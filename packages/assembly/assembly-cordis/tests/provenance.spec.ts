@@ -1,5 +1,13 @@
 import { createHash, generateKeyPairSync, sign, type KeyObject } from 'node:crypto'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -181,14 +189,61 @@ describe('来源：运维者点了名的目录（C20）', () => {
     rmSync(join(made.directory, SIGNATURE_FILE))
     writeFileSync(join(made.directory, 'lib/part.mjs'), 'export const part = 2\n')
     const trust: Trust = { publisherKeys: [], named: [made.directory] }
-    expect(await verifyVersion(made.directory, trust)).toMatchObject({
+    expect(await verifyVersion(made.directory, trust)).toEqual({
       kind: 'verified',
       by: 'operator',
       entry: 'row.mjs',
+      digest: hex("export const version = 'v1'\n"),
     })
     expect(await loadVersion(made.directory, trust)).toMatchObject({
       kind: 'loaded',
       by: 'operator',
+    })
+    // The entry file itself changed: the operator still vouches for the directory as it is.
+    writeFileSync(join(made.directory, 'row.mjs'), "export const version = 'changed'\n")
+    expect(await loadVersion(made.directory, trust, async () => 'the module')).toEqual({
+      kind: 'loaded',
+      by: 'operator',
+      digest: hex("export const version = 'v1'\n"),
+      module: 'the module',
+    })
+  })
+
+  it('清单只差一处不对：每一处都单独被拒，不靠别的检查碰巧拦下', async () => {
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), 'version-')))
+    scratch.push(directory)
+    const trust: Trust = { publisherKeys: [], named: [directory] }
+    const manifests = [
+      'null',
+      '{"format":2,"entry":"a","files":{"a":"00"}}',
+      '{"format":1,"entry":3,"files":{"3":"00"}}',
+      '{"format":1,"entry":"a","files":null}',
+      '{"format":1,"entry":"0","files":"abc"}',
+      '{"format":1,"entry":"0","files":["00"]}',
+      '{"format":1,"entry":"a","files":{"a":"00","b":1}}',
+      '{"format":1,"entry":"a","files":{"a":"00","b/../c":"00"}}',
+      '{"format":1,"entry":"a","files":{"a":"00","./c":"00"}}',
+      '{"format":1,"entry":"a","files":{"a":"00","c//d":"00"}}',
+      '{"format":1,"entry":"a","files":{"a":"00","c\\\\d":"00"}}',
+    ]
+    for (const manifest of manifests) {
+      writeFileSync(join(directory, MANIFEST_FILE), manifest)
+      expect(await verifyVersion(directory, trust), manifest).toMatchObject({
+        kind: 'refused',
+        reason: 'manifest-invalid',
+      })
+    }
+    writeFileSync(join(directory, MANIFEST_FILE), '{"format":1,"entry":"a","files":{"a":"00"}}')
+    expect(await verifyVersion(directory, trust)).toMatchObject({ kind: 'verified', digest: '00' })
+  })
+
+  it('目录里多出来的文件名字里有感叹号：原因里的名字一字不差', async () => {
+    const made = version()
+    writeFileSync(join(made.directory, 'a!b.txt'), 'stray')
+    expect(await verifyVersion(made.directory, publisher(made))).toEqual({
+      kind: 'refused',
+      reason: 'unlisted-file',
+      detail: 'a!b.txt is in the directory and not in the manifest',
     })
   })
 
@@ -232,6 +287,11 @@ describe('装入目录里的一个文件：两层共用的那一段', () => {
       kind: 'refused',
       reason: 'outside',
     })
+    // The directory itself is no file of it.
+    expect(await loadDirectoryFile(made.directory, '.', () => true, never)).toEqual({
+      kind: 'refused',
+      reason: 'outside',
+    })
     expect(await loadDirectoryFile(made.directory, 'row.mjs', () => false, never)).toEqual({
       kind: 'refused',
       reason: 'digest-mismatch',
@@ -239,6 +299,63 @@ describe('装入目录里的一个文件：两层共用的那一段', () => {
     expect(await loadDirectoryFile(made.directory, 'gone.mjs', () => true, never)).toMatchObject({
       kind: 'refused',
       reason: 'unreadable',
+    })
+  })
+})
+
+describe('来源：拒绝时说的话与边角', () => {
+  it('签名文件末尾带换行：照样核得过', async () => {
+    const made = version()
+    const manifest = readFileSync(join(made.directory, MANIFEST_FILE))
+    writeFileSync(
+      join(made.directory, SIGNATURE_FILE),
+      `${sign(null, manifest, made.privateKey).toString('base64')}\n`,
+    )
+    expect(await verifyVersion(made.directory, publisher(made))).toMatchObject({
+      kind: 'verified',
+      by: 'publisher',
+    })
+  })
+
+  it('公钥里有一把读不成钥匙：它核不过任何签名，别的照常', async () => {
+    const made = version()
+    const mixed: Trust = { publisherKeys: ['not a key', made.publicKey], named: [] }
+    expect(await verifyVersion(made.directory, mixed)).toMatchObject({ kind: 'verified' })
+    const broken: Trust = { publisherKeys: ['not a key'], named: [] }
+    expect(await verifyVersion(made.directory, broken)).toMatchObject({
+      kind: 'refused',
+      reason: 'signature-invalid',
+    })
+  })
+
+  it('目录里的软链接：原因里写的是它的路径', async () => {
+    const made = version()
+    symlinkSync('/etc/hosts', join(made.directory, 'lib/link'))
+    expect(await verifyVersion(made.directory, publisher(made))).toEqual({
+      kind: 'refused',
+      reason: 'unlisted-file',
+      detail: 'lib/link is in the directory and not in the manifest',
+    })
+  })
+
+  it('没有清单：原因写明读不到哪个文件', async () => {
+    const empty = realpathSync(mkdtempSync(join(tmpdir(), 'version-')))
+    scratch.push(empty)
+    expect(await verifyVersion(empty, { publisherKeys: [], named: [] })).toEqual({
+      kind: 'refused',
+      reason: 'manifest-missing',
+      detail: `${MANIFEST_FILE} cannot be read`,
+    })
+  })
+
+  it('运维者点了名的目录里入口文件不在：装不上，不当成装入了', async () => {
+    const made = version()
+    rmSync(join(made.directory, 'row.mjs'))
+    const trust: Trust = { publisherKeys: [], named: [made.directory] }
+    expect(await loadVersion(made.directory, trust, async () => 'the module')).toEqual({
+      kind: 'refused',
+      reason: 'file-missing',
+      detail: 'row.mjs is in the manifest and cannot be read',
     })
   })
 })

@@ -257,6 +257,10 @@ describe('页面的恢复', () => {
     expect(first.done).toEqual(['ask-held'])
     await first.answerHeld('retry')
     expect(first.done).toEqual(['ask-held', 'retry-utility'])
+    // Until it reports a new start it is still held: a failure of the page meanwhile asks and reloads nothing.
+    first.made.failed()
+    first.made.unresponsive()
+    expect(first.done).toEqual(['ask-held', 'retry-utility'])
     first.made.utility('starting')
     first.made.utility('ready')
     expect(first.done).toEqual(['ask-held', 'retry-utility', 'reload'])
@@ -264,6 +268,10 @@ describe('页面的恢复', () => {
     const second = recovery()
     second.made.utility('held')
     await second.answerHeld('close')
+    expect(second.done).toEqual(['ask-held', 'close'])
+    // Closed while it is still held: a failure of the page on its way out queues no reload and asks nothing.
+    second.made.failed()
+    second.made.utility('ready')
     expect(second.done).toEqual(['ask-held', 'close'])
   })
 
@@ -280,6 +288,13 @@ describe('页面的恢复', () => {
     expect(done).toHaveLength(4)
     made.utility('ready')
     expect(done.at(-1)).toBe('dismiss-held')
+  })
+
+  it('问着没有响应时 utility 进程停了：收起那一问，改问这一件', () => {
+    const { made, done } = recovery()
+    made.unresponsive()
+    made.utility('held')
+    expect(done).toEqual(['ask-hung', 'dismiss-hung', 'ask-held'])
   })
 
   it('等着的时候 utility 进程启动失败：不再等，问人', async () => {

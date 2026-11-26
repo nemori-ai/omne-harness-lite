@@ -380,3 +380,176 @@ describe('入口：依赖方注入的对象不换，实现在背后换（AS-13�
     expect(() => entry.service.fail()).toThrow('v2')
   })
 })
+
+describe('入口：一代一代之间的账', () => {
+  it('做完的调用不算在途：在服务的一代没了，没有在途就不报未知', async () => {
+    const events: EntryEvent[] = []
+    const entry = greeterEntry(handClock(), events)
+    const { ctx, greeter } = await tree(entry)
+    const only = await ctx.plugin(generation(entry, 'v1'))
+    await settle()
+    expect([await greeter().greet('a'), greeter().version()]).toEqual(['v1:a', 'v1'])
+    await only.dispose()
+    expect(events).toEqual([])
+    expect(entry.offered(only)).toBeUndefined()
+  })
+
+  it('记成未知的调用后来做完了：入口照常，接着还能再换一代', async () => {
+    const clock = handClock()
+    const events: EntryEvent[] = []
+    const entry = greeterEntry(clock, events)
+    const { ctx, greeter } = await tree(entry)
+    const old = await ctx.plugin(generation(entry, 'v1'))
+    await settle()
+    let release: () => void = () => undefined
+    const late = greeter().greet('late', new Promise<void>(resolve => (release = resolve)))
+    const swapped = await swapRow(ctx, { old, next: generation(entry, 'v2'), entries: [entry] })
+    if (swapped.kind !== 'swapped') throw new Error(swapped.detail)
+    clock.expire()
+    await swapped.drained
+    release()
+    expect(await late).toBe('v1:late')
+    expect(entry.standing()).toEqual({ kind: 'serving', generation: 2 })
+    expect(entry.offered(old)).toBeUndefined()
+    const again = await swapRow(ctx, {
+      old: swapped.fiber,
+      next: generation(entry, 'v3'),
+      entries: [entry],
+    })
+    expect(again.kind).toBe('swapped')
+    expect([await greeter().greet('a'), events.length]).toEqual(['v3:a', 1])
+  })
+
+  it('备着的一代：别的 fiber 转不正它，再交一份被拒；它自己的 fiber 转正，答出换下了谁', async () => {
+    const entry = greeterEntry()
+    const { ctx, greeter } = await tree(entry)
+    const first = await ctx.plugin(generation(entry, 'v1'))
+    await settle()
+    const second = await ctx.plugin(generation(entry, 'v2'))
+    expect(entry.offered(second)).toEqual({ generation: 2, state: 'standby' })
+    let refused: unknown
+    try {
+      entry.offer(ctx, made('v3'))
+    } catch (error) {
+      refused = error
+    }
+    expect([(refused as Error).name, (refused as Error).message]).toEqual([
+      'EntryRefused',
+      'greeter: generation 2 stands by already',
+    ])
+    expect(entry.promote(first)).toEqual({ kind: 'refused', reason: 'no-standby' })
+    expect(entry.standing()).toEqual({ kind: 'serving', generation: 1 })
+    expect(entry.promote(second)).toEqual({ kind: 'promoted', serving: 2, superseded: 1 })
+    expect(entry.offered(first)).toBeUndefined()
+    expect(await greeter().greet('a')).toBe('v2:a')
+    expect(entry.promote(second)).toEqual({ kind: 'refused', reason: 'no-standby' })
+  })
+
+  it('在服务的一代自己没了，备着的一代不受牵连：照样转正', async () => {
+    const entry = greeterEntry()
+    const { ctx, greeter } = await tree(entry)
+    const first = await ctx.plugin(generation(entry, 'v1'))
+    await settle()
+    const second = await ctx.plugin(generation(entry, 'v2'))
+    await first.dispose()
+    expect(entry.offered(second)).toEqual({ generation: 2, state: 'standby' })
+    expect(entry.promote(second)).toEqual({ kind: 'promoted', serving: 2, superseded: null })
+    expect(await greeter().greet('a')).toBe('v2:a')
+  })
+
+  it('备着的一代自己没了：入口不再认它，下一代拿新的代数', async () => {
+    const entry = greeterEntry()
+    const { ctx } = await tree(entry)
+    await ctx.plugin(generation(entry, 'v1'))
+    await settle()
+    const second = await ctx.plugin(generation(entry, 'v2'))
+    await second.dispose()
+    expect(entry.offered(second)).toBeUndefined()
+    const third = await ctx.plugin(generation(entry, 'v3'))
+    expect(entry.offered(third)).toEqual({ generation: 3, state: 'standby' })
+  })
+
+  it('第一代还在起：别的 fiber 站稳不算它站稳；它起不来就一直没有在服务的', async () => {
+    const entry = greeterEntry()
+    const { ctx, consumerRuns } = await tree(entry)
+    let open: () => void = () => undefined
+    const gate = new Promise<void>(resolve => (open = resolve))
+    const slow = ctx.plugin({
+      name: 'greeter',
+      async apply(inner: Context) {
+        entry.offer(inner, made('v1'))
+        await gate
+      },
+    })
+    await ctx.plugin({ name: 'bystander', apply: () => undefined })
+    await settle()
+    expect([consumerRuns(), entry.standing()]).toEqual([0, { kind: 'basis-unavailable' }])
+    open()
+    await slow
+    await settle()
+    expect([consumerRuns(), entry.standing()]).toEqual([1, { kind: 'serving', generation: 1 }])
+
+    const failing = greeterEntry()
+    const other = await tree(failing)
+    const broken = other.ctx.plugin({
+      name: 'greeter',
+      async apply(inner: Context) {
+        failing.offer(inner, made('v1'))
+        await settle()
+        throw new Error('cannot start')
+      },
+    })
+    await Promise.resolve(broken).catch(() => undefined)
+    await settle()
+    expect([other.consumerRuns(), failing.standing()]).toEqual([0, { kind: 'basis-unavailable' }])
+  })
+
+  it('树上别处有 fiber 还在等依赖：不碍这一行换', async () => {
+    const entry = greeterEntry()
+    const { ctx, greeter } = await tree(entry)
+    ctx.plugin({ name: 'elsewhere', inject: ['nowhere'], apply: () => undefined })
+    const old = await ctx.plugin(generation(entry, 'v1'))
+    await settle()
+    const swapped = await swapRow(ctx, { old, next: generation(entry, 'v2'), entries: [entry] })
+    expect(swapped.kind).toBe('swapped')
+    expect(await greeter().greet('a')).toBe('v2:a')
+  })
+
+  it('入口晚于第一代装上、卸了再装：装上时就提供；同步方法答 null 或普通对象照原样交回；不给报告口也不抛', async () => {
+    const plain = { label: 'plain' }
+    type Odd = { nothing(): null; plain(): typeof plain; wait(): Promise<void> }
+    const entry = defineEntry<Odd>({
+      key: 'odd',
+      unavailable: { nothing: () => null, plain: () => plain, wait: async () => undefined },
+      drainTimeoutMs: 1000,
+      clock: handClock(),
+    })
+    const ctx = new Context()
+    const only = await ctx.plugin({
+      name: 'odd',
+      apply: (inner: Context) =>
+        entry.offer(inner, {
+          nothing: () => null,
+          plain: () => plain,
+          wait: () => new Promise<void>(() => undefined),
+        }),
+    })
+    await settle()
+    expect(entry.standing()).toEqual({ kind: 'serving', generation: 1 })
+    expect(ctx.get('odd')).toBeUndefined()
+    const installed = await ctx.plugin(entry.plugin)
+    expect(ctx.get('odd')).toBe(entry.service)
+    await installed.dispose()
+    expect(ctx.get('odd')).toBeUndefined()
+    await ctx.plugin(entry.plugin)
+    expect(ctx.get('odd')).toBe(entry.service)
+    expect([entry.service.nothing(), entry.service.plain()]).toEqual([null, plain])
+    expect(entry.service.plain()).toBe(plain)
+    void entry.service.wait()
+    await only.dispose()
+    expect([entry.standing(), entry.offered(only)]).toEqual([
+      { kind: 'basis-unavailable' },
+      undefined,
+    ])
+  })
+})

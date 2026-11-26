@@ -31,6 +31,7 @@ function contents() {
       destroyed = true
       events.emit('destroyed')
     },
+    vanish: () => void (destroyed = true),
   }
 }
 
@@ -64,24 +65,55 @@ describe('一次加载渲染出来没有', () => {
   })
 
   it('主框架加载失败、渲染进程倒下、窗口关了：各是各的原因；取消的加载与子框架不算', async () => {
+    const pending = (mount: Promise<unknown>): (() => Promise<boolean>) => {
+      let settled = false
+      void mount.then(() => (settled = true))
+      return async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        return !settled
+      }
+    }
     const failed = contents()
     const first = watchMount(failed.fake, 5000)
+    const firstPending = pending(first)
     failed.failLoad(-3, true)
+    expect(await firstPending()).toBe(true)
     failed.failLoad(-105, false)
+    expect(await firstPending()).toBe(true)
     failed.failLoad(-105, true)
     expect(await first).toBe('load-failed')
 
     const fell = contents()
     const second = watchMount(fell.fake, 5000)
+    const secondPending = pending(second)
     fell.gone('clean-exit')
+    expect(await secondPending()).toBe(true)
     fell.gone('crashed')
     expect(await second).toBe('renderer-gone')
+
+    const stays = contents()
+    const stable = watchStable(stays.fake, 5000)
+    const stablePending = pending(stable)
+    stays.gone('clean-exit')
+    stays.failLoad(-3, true)
+    expect(await stablePending()).toBe(true)
 
     const closed = contents()
     const third = watchMount(closed.fake, 5000)
     closed.destroy()
     expect(await third).toBe('closed')
     expect(await watchMount(closed.fake, 5000)).toBe('closed')
+    expect(await watchStable(closed.fake, 5000)).toBe(false)
+  })
+
+  it('问的时候窗口已经没了、又没收到关窗的事件：照样算关了，不再去问', async () => {
+    const page = contents()
+    const mount = watchMount(page.fake, 5000)
+    page.finish()
+    page.vanish()
+    await vi.advanceTimersByTimeAsync(100)
+    expect(await mount).toBe('closed')
+    expect(page.asked).toEqual([])
   })
 
   it('渲染出来之后稳住了一段时间才算稳；这段时间里倒下就不算', async () => {
