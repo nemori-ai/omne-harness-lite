@@ -17,6 +17,7 @@ export {
   catalogContract,
   declare,
   list,
+  lockOver,
   report,
   standingOf,
   withdrawOf,

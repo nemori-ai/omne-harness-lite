@@ -155,3 +155,38 @@ describe('what each tenant is to load on the server, brought there one tenant at
     expect(log).not.toContain('install alice late@v1')
   })
 })
+
+describe('a waiting plugin is loaded again when what it lacks is there', () => {
+  it('rechecks only the waiting ones whose lacks are all there, and tells the floor it is not wanted while it waits', async () => {
+    const outcomes: Outcome[] = [{ kind: 'waiting', lacks: ['port store'] }]
+    let there = false
+    const asked: string[] = []
+    const { side, log } = world({
+      install: async (tenant, { name }): Promise<Outcome> => {
+        log.push(`install ${tenant} ${name}`)
+        return outcomes.shift() ?? { kind: 'installed', remove: () => undefined }
+      },
+      present: (tenant, lacks) => (asked.push(`${tenant} ${lacks.join(',')}`), there),
+    })
+    side.converge('alice', [wanted('tidy'), wanted('other')])
+    await side.idle()
+    expect(kinds(side.states('alice'))).toEqual({ tidy: 'waiting', other: 'loaded' })
+    expect(log).toContain(`unwant alice ${fiberOf('tidy', 'v1')}`)
+    expect(log.at(-1)).toBe('settle alice')
+
+    side.recheck()
+    await side.idle()
+    expect(asked).toEqual(['alice port store'])
+    expect(kinds(side.states('alice'))).toEqual({ tidy: 'waiting', other: 'loaded' })
+
+    there = true
+    side.recheck()
+    await side.idle()
+    expect(kinds(side.states('alice'))).toEqual({ tidy: 'loaded', other: 'loaded' })
+    expect(log.filter(line => line === 'install alice tidy')).toHaveLength(2)
+    // Nothing waits now: a further change of the registry loads nothing again.
+    side.recheck()
+    await side.idle()
+    expect(log.filter(line => line.startsWith('install'))).toHaveLength(3)
+  })
+})

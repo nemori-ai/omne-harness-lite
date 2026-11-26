@@ -14,6 +14,7 @@ export type ServerSidePorts = Readonly<{
   floor: FloorPort
   /** Loads one plugin of one tenant: the outcome takes it back when it is loaded. */
   install(tenant: string, wanted: Wanted): Promise<Outcome>
+  present?(tenant: string, lacks: readonly string[]): boolean
 }>
 
 export type ServerSide = Readonly<{
@@ -22,6 +23,8 @@ export type ServerSide = Readonly<{
   /** How each plugin of a tenant stands; undefined for a tenant nothing was ever asked of. */
   states(tenant: string): ReadonlyMap<string, Kept> | undefined
   tenants(): readonly string[]
+  /** The registry changed: every waiting plugin whose lacks are all there now is loaded again. */
+  recheck(): void
   watch(listener: (tenant: string) => void): () => void
   idle(): Promise<void>
   stop(): Promise<void>
@@ -53,7 +56,7 @@ export function createServerSide(ports: ServerSidePorts): ServerSide {
     const latest = new Map<string, Wanted>()
     const known = new Set(risen.want)
     const loader = createLoader({
-      held: risen.held ? heldOf(risen.want) : new Map(),
+      held: heldOf([...(risen.held ? risen.want : []), ...(risen.stopped ?? [])]),
       install(listed) {
         const wanted = latest.get(listed.name)
         if (wanted === undefined || wanted.version !== listed.version)
@@ -83,6 +86,13 @@ export function createServerSide(ports: ServerSidePorts): ServerSide {
     },
     states: name => tenants.get(name)?.loader.states(),
     tenants: () => [...tenants.keys()].sort(),
+    recheck() {
+      if (stopped || ports.present === undefined) return
+      for (const [name, tenant] of tenants)
+        for (const [plugin, state] of tenant.loader.states())
+          if (state.kind === 'waiting' && ports.present(name, state.lacks))
+            tenant.loader.appeared(plugin)
+    },
     watch(listener) {
       listeners.add(listener)
       return () => void listeners.delete(listener)
