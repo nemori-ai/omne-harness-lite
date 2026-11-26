@@ -1,15 +1,17 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { goalsKey, type GoalsService } from '@omne-harness/goal-cordis-contract/cordis'
+import { GOAL_SOURCES } from '@omne-harness/goal-session'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { Created, ExecutorCalls, SessionStanding } from '@omne-harness/schedule-session'
-import type {
-  RunId,
-  SessionCreation,
-  SessionFailure,
-  SessionId,
-  SessionOperationId,
-  SessionWorkPrincipals,
-  WorkSnapshot,
+import {
+  sourceRequestIdentities,
+  type RunId,
+  type SessionCreation,
+  type SessionFailure,
+  type SessionId,
+  type SessionOperationId,
+  type SessionWorkPrincipals,
+  type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { contextInitialization } from '../../assembly/session-context-initialization.ts'
@@ -31,13 +33,26 @@ export type ScheduleSessionPorts = Readonly<{
 
 /** No run going, no input waiting and no call in the background: nothing will move the session by itself. */
 export function standingOf(
-  work: Pick<WorkSnapshot, 'run' | 'pending' | 'backgroundPlaceholders' | 'definition'>,
+  work: Pick<
+    WorkSnapshot,
+    'run' | 'pending' | 'backgroundPlaceholders' | 'definition' | 'lifecycle'
+  >,
 ): SessionStanding {
   const run = work.run.kind === 'active' ? work.run.run : null
   const still = work.pending.length === 0 && (work.backgroundPlaceholders ?? []).length === 0
   const { name, adopted } = work.definition
-  return { quiet: run === null && still, run, adopted: { name, version: adopted.revision } }
+  const usable = work.lifecycle !== 'frozen' && work.lifecycle !== 'archived'
+  return {
+    usable,
+    quiet: run === null && still,
+    run,
+    adopted: { name, version: adopted.revision },
+  }
 }
+
+/** The input a goal's start reminder of this request is, as the goal's own adapter derives it. */
+export const startInputOf = (tenant: TenantId, session: SessionId, request: string) =>
+  sourceRequestIdentities({ tenant, source: GOAL_SOURCES.start, request, session }).input
 
 export function refusedBy(failure: SessionFailure): Created {
   if (UNSETTLED.has(failure.kind)) return UNKNOWN
@@ -61,6 +76,19 @@ export function executorCallsOf(ctx: Context, ports: ScheduleSessionPorts): Exec
   const goals = () => ctx.get(goalsKey) as GoalsService | undefined
   const asSession = async (tenant: TenantId, session: SessionId) =>
     ports.workPrincipals()?.forSession({ actor: 'maintainer', tenant, session })
+
+  /** The work of a session as its maintainer reads it: null when there is no such session, undefined when it cannot be read now. */
+  async function workOf(
+    tenant: TenantId,
+    session: SessionId,
+  ): Promise<WorkSnapshot | null | undefined> {
+    const issued = await asSession(tenant, session)
+    const service = maintainer()
+    if (issued === undefined || service === undefined) return undefined
+    if (!('ok' in issued)) return issued.failure.kind === 'denied' ? null : undefined
+    const read = await service.work.readWork({ principal: issued.ok, tenant, session })
+    return 'ok' in read ? read.ok : undefined
+  }
 
   async function creationOf(
     tenant: TenantId,
@@ -127,14 +155,9 @@ export function executorCallsOf(ctx: Context, ports: ScheduleSessionPorts): Exec
       async standing(at) {
         const tenant = legal(at.tenant)
         if (tenant === undefined) return { kind: 'read', value: null }
-        const session = at.session as SessionId
-        const issued = await asSession(tenant, session)
-        const service = maintainer()
-        if (issued === undefined || service === undefined) return UNAVAILABLE
-        if (!('ok' in issued))
-          return issued.failure.kind === 'denied' ? { kind: 'read', value: null } : UNAVAILABLE
-        const read = await service.work.readWork({ principal: issued.ok, tenant, session })
-        return 'ok' in read ? { kind: 'read', value: standingOf(read.ok) } : UNAVAILABLE
+        const read = await workOf(tenant, at.session as SessionId)
+        if (read === undefined) return UNAVAILABLE
+        return { kind: 'read', value: read === null ? null : standingOf(read) }
       },
       async cancelRun(input) {
         const tenant = legal(input.tenant)
@@ -153,29 +176,47 @@ export function executorCallsOf(ctx: Context, ports: ScheduleSessionPorts): Exec
         })
         return 'ok' in answer ? 'requested' : 'unknown'
       },
+      async opened(input) {
+        const tenant = legal(input.tenant)
+        const session = input.session as SessionId
+        const read = tenant === undefined ? undefined : await workOf(tenant, session)
+        if (tenant === undefined || read === undefined || read === null) return UNAVAILABLE
+        if (read.run.kind !== 'active') return { kind: 'read', value: null }
+        return {
+          kind: 'read',
+          value: read.run.first === startInputOf(tenant, session, input.request),
+        }
+      },
     },
-    goals: {
-      read: async ({ tenant, session }) =>
-        (await goals()?.read({ tenant, subject: system }, session)) ?? {
-          kind: 'basis-unavailable',
+    goals: goalCallsOf(goals, system),
+  }
+}
+
+function goalCallsOf(
+  goals: () => GoalsService | undefined,
+  system: unknown,
+): ExecutorCalls['goals'] {
+  return {
+    read: async ({ tenant, session }) =>
+      (await goals()?.read({ tenant, subject: system }, session)) ?? {
+        kind: 'basis-unavailable',
+      },
+    set: async ({ tenant, session, operation, by, draft }) =>
+      (await goals()?.write(
+        { tenant, subject: system },
+        {
+          session,
+          operation,
+          by,
+          proposal: { kind: 'set', draft },
+          words: null,
+          draftedBy: 'creator',
         },
-      set: async ({ tenant, session, operation, by, draft }) =>
-        (await goals()?.write(
-          { tenant, subject: system },
-          {
-            session,
-            operation,
-            by,
-            proposal: { kind: 'set', draft },
-            words: null,
-            draftedBy: 'creator',
-          },
-        )) ?? { kind: 'basis-unavailable' },
-      command: async ({ tenant, session, command }) =>
-        (await goals()?.command(
-          { tenant, subject: system },
-          { session, command: { kind: command } },
-        )) ?? { kind: 'basis-unavailable' },
-    },
+      )) ?? { kind: 'basis-unavailable' },
+    command: async ({ tenant, session, command }) =>
+      (await goals()?.command(
+        { tenant, subject: system },
+        { session, command: { kind: command } },
+      )) ?? { kind: 'basis-unavailable' },
   }
 }

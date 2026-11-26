@@ -14,14 +14,15 @@ export type JobIdentities = Readonly<{
   by: string
 }>
 
-/** The session of a Job and the operations on it: derived from the tenant and the Job, so doing it again names the same ones. Null: the Job belongs to no tenant. */
+/** The session of a Job and the operations on it: derived from the tenant and the Job, so doing it again names the same ones; `existing` is the session the work names instead of one of its own. Null: the Job belongs to no tenant. */
 export function identitiesOf(
   job: Pick<ScheduleExecutorJob, 'owner' | 'jobId'>,
+  existing?: string,
 ): JobIdentities | null {
   if (job.owner.kind !== 'tenant') return null
   const tenant = job.owner.tenantId
   const from = [tenant, job.jobId]
-  const session = digest([`${FAMILY}:session`, ...from])
+  const session = existing ?? digest([`${FAMILY}:session`, ...from])
   const at = [...from, session]
   return {
     tenant,

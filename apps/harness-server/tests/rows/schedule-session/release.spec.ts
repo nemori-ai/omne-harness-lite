@@ -43,19 +43,20 @@ const PUBLICATION: AddedRow = {
   }),
 }
 
-const workOf = (instruction: unknown = DRAFT) => ({
+const IN_ITS_OWN = {
+  mode: 'new',
+  agentDefinitionRef: 'coding',
+  modes: {
+    permission: 'bypass-permissions',
+    environmentAdoptionRef: 'release',
+    collaboration: 'auto-drive',
+  },
+  workspace: null,
+}
+const workOf = (instruction: unknown = DRAFT, session: unknown = IN_ITS_OWN) => ({
   kind: 'agent',
   instruction,
-  session: {
-    mode: 'new',
-    agentDefinitionRef: 'coding',
-    modes: {
-      permission: 'bypass-permissions',
-      environmentAdoptionRef: 'release',
-      collaboration: 'auto-drive',
-    },
-    workspace: null,
-  },
+  session,
   materials: [],
   returnTo: null,
   resultPolicy: {
@@ -278,6 +279,129 @@ describe('agent work in a new session on the release tree', () => {
               session: sessionOf(tree, jobId)?.session,
               account: { outcome: 'exit:X1', deliverables: [] },
             })
+          },
+        ],
+      )
+    },
+  )
+})
+
+/** The sessions a list names, whatever else each row says. */
+const sessionsIn = (list: Record<string, unknown>) =>
+  (list['sessions'] as { session: string }[]).map(row => row.session).sort()
+
+/** A Job started now, outside any schedule, for a session that exists. */
+async function startIn(tree: ReleaseTree, sessionRef: string, startId: string) {
+  const work = fileOf(tree, `${startId}.json`, workOf(DRAFT, { mode: 'existing', sessionRef }))
+  const started = succeeded(
+    await tree.cli(['schedule', 'start-job', '--work-file', work, '--start-id', startId]),
+  )
+  return String(started['job'])
+}
+
+async function jobOf(
+  tree: ReleaseTree,
+  jobId: string,
+  until: (job: Record<string, unknown>) => boolean,
+) {
+  return pollUntil(
+    `the Job ${jobId} to get there`,
+    async () => {
+      const read = await tree.cli(['schedule', 'job', '--job', jobId])
+      return read.result?.['outcome'] === 'succeeded'
+        ? (bodyOf(read) as Record<string, unknown>)
+        : {}
+    },
+    until,
+  )
+}
+
+describe('agent work in a session that exists, on the release tree', () => {
+  it(
+    'in a quiet session of a person the Job opens a round of its own by setting its goal, which stands for the Job; it succeeds when the goal is achieved, and no session is created for it',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const chat = toolCallsByRequest(body => (body.includes(WRITE.id) ? [] : [WRITE]))
+      await onReleaseTreeRuns(
+        {
+          ...TREE,
+          script: answeringDecisions(chat, () => ({ criterion: 'holds' })),
+          time: fastTime(),
+        },
+        [
+          async tree => {
+            const made = await tree.cli(['create-session', '--definition', 'coding'])
+            const session = String((bodyOf(made) as { session: string }).session)
+            const before = succeeded(await tree.cli(['list-sessions']))
+            const jobId = await startIn(tree, session, 'e-1')
+            const done = await jobOf(tree, jobId, job => job['state'] === 'concluded')
+            expect([done['outcome'], done['reason']]).toEqual(['succeeded', null])
+            expect(done['where']).toMatchObject({
+              kind: 'session',
+              session,
+              account: { outcome: 'achieved' },
+            })
+            const { goals, agent } = await goalsOf(tree, session)
+            expect(await goals.read(agent, session)).toMatchObject({
+              kind: 'done',
+              value: {
+                state: {
+                  status: 'settled',
+                  attendance: 'unattended',
+                  outcome: { kind: 'achieved' },
+                },
+                history: [
+                  { via: 'direct', draftedBy: 'creator', confirmedBy: `schedule-job:${jobId}` },
+                ],
+              },
+            })
+            const entries = await historyOf(tree, session)
+            expect(count(entries, 'run.started')).toBe(1)
+            const after = succeeded(await tree.cli(['list-sessions']))
+            expect(sessionsIn(after)).toEqual(sessionsIn(before))
+          },
+        ],
+      )
+    },
+  )
+
+  it(
+    'a session that does not exist, or that is archived, fails the Job with the reason, and no session is created in its place',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const chat = toolCallsByRequest(() => [])
+      await onReleaseTreeRuns(
+        {
+          ...TREE,
+          script: answeringDecisions(chat, () => ({ criterion: 'holds' })),
+          time: fastTime(),
+        },
+        [
+          async tree => {
+            const made = await tree.cli(['create-session', '--definition', 'coding'])
+            const archived = String((bodyOf(made) as { session: string }).session)
+            await tree.archive(archived)
+            const before = succeeded(await tree.cli(['list-sessions']))
+            const gone = await jobOf(
+              tree,
+              await startIn(tree, 'no-such-session', 'e-2'),
+              job => job['state'] === 'concluded',
+            )
+            expect([gone['outcome'], gone['reason']]).toEqual([
+              'failed',
+              'the session does not exist',
+            ])
+            const closed = await jobOf(
+              tree,
+              await startIn(tree, archived, 'e-3'),
+              job => job['state'] === 'concluded',
+            )
+            expect([closed['outcome'], closed['reason']]).toEqual([
+              'failed',
+              'the session takes no work any more',
+            ])
+            const after = succeeded(await tree.cli(['list-sessions']))
+            expect(sessionsIn(after)).toEqual(sessionsIn(before))
           },
         ],
       )

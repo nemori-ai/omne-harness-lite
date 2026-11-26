@@ -213,7 +213,7 @@ describe('inspect', () => {
   async function started() {
     const w = world()
     await w.executor.start(jobOf())
-    w.move({ run: 'run-1' })
+    w.move({ run: 'run-1', pending: 0 })
     return w
   }
   const execution = (w: ReturnType<typeof world>) => ({ executionRef: w.session() })
@@ -225,11 +225,19 @@ describe('inspect', () => {
     })
   })
 
-  it('answers taken when the session is there and the goal is not yet set', async () => {
+  it('answers not started, to be started again, when the session is there and the goal is not set: the next start sets it', async () => {
     const w = world()
     w.authority.answer(action => (action === 'set' ? 'unavailable' : 'permitted'))
-    await w.executor.start(jobOf())
-    expect(await w.executor.inspect(jobOf())).toEqual({ kind: 'taken', ...execution(w) })
+    expect(await w.executor.start(jobOf())).toMatchObject({ kind: 'unknown' })
+    expect(await w.executor.inspect(jobOf())).toEqual({
+      kind: 'notStarted',
+      recoverable: true,
+      reason: 'the goal of the Job is not set',
+    })
+    w.authority.answer('permitted')
+    expect(await w.executor.start(jobOf())).toMatchObject({ kind: 'started' })
+    expect(w.made).toHaveLength(2)
+    expect(await w.executor.inspect(jobOf())).toEqual({ kind: 'running', ...execution(w) })
   })
 
   it.each([
@@ -346,7 +354,7 @@ describe('inspect', () => {
     expect(await w.executor.inspect(jobOf())).toMatchObject({ kind: 'ended', reason: 'aborted' })
   })
 
-  it('answers unknown, and touches nothing, when the session carries a goal this Job did not set', async () => {
+  it('touches nothing of a goal this Job did not set: not started while its own was never set, unknown once it was', async () => {
     const w = world()
     w.authority.answer(action => (action === 'set' ? 'unavailable' : 'permitted'))
     await w.executor.start(jobOf())
@@ -362,7 +370,12 @@ describe('inspect', () => {
         by: 'someone',
       },
     )
-    expect(await w.executor.inspect(jobOf())).toMatchObject({ kind: 'unknown' })
+    expect(await w.executor.inspect(jobOf())).toMatchObject({
+      kind: 'notStarted',
+      recoverable: true,
+    })
+    const begun = jobOf({ executionRef: w.session() })
+    expect(await w.executor.inspect(begun)).toMatchObject({ kind: 'unknown' })
     expect(await w.executor.requestStop(jobOf(), 'graceful')).toEqual({ kind: 'confirmed' })
     expect((await w.goal())?.state.status).toBe('active')
     expect(w.stopped).toEqual([])
@@ -409,6 +422,7 @@ describe('requestStop', () => {
   it('cancels the goal of a quiet session and stops no run; the Job then reads as stopped', async () => {
     const w = world()
     await w.executor.start(jobOf())
+    w.move({ pending: 0 })
     expect(await w.executor.requestStop(jobOf(), 'graceful')).toEqual({ kind: 'sent' })
     expect(w.stopped).toEqual([])
     expect(await w.executor.inspect(jobOf())).toMatchObject({ kind: 'ended', report: 'stopped' })

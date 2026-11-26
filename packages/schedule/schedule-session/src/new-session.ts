@@ -1,37 +1,30 @@
-import { validateDraft, type GoalRecord, type GoalRefusal } from '@omne-harness/goal-contract'
+import type { GoalRefusal } from '@omne-harness/goal-contract'
 import type {
   ScheduleExecutorJob,
-  ScheduleExecutorUnknown,
   ScheduleJobExecutor,
   ScheduleWork,
 } from '@omne-harness/schedule-contract'
 import { identitiesOf, type JobIdentities } from './identities.ts'
-import { endOf, issuesText } from './outcome.ts'
-import type { ExecutorCalls, SessionStanding } from './ports.ts'
+import { at, instructionRefusal, jobInSession, never, unknown } from './job-in-session.ts'
+import { issuesText } from './outcome.ts'
+import type { ExecutorCalls } from './ports.ts'
 
-type NewWork = Extract<ScheduleWork, { kind: 'agent' }> &
-  Readonly<{
-    session: Extract<Extract<ScheduleWork, { kind: 'agent' }>['session'], { mode: 'new' }>
-  }>
+type AgentWork = Extract<ScheduleWork, { kind: 'agent' }>
+type NewWork = AgentWork & Readonly<{ session: Extract<AgentWork['session'], { mode: 'new' }> }>
 type Carried = Readonly<{ ids: JobIdentities; work: NewWork }>
-type Facts = Readonly<{ standing: SessionStanding; goal: GoalRecord | null }>
 
 const CONFIRMED = { kind: 'confirmed' } as const
 const UNAVAILABLE = { kind: 'unavailable' } as const
 const UNKNOWN = { kind: 'unknown' } as const
-const unknown = (reason: string): ScheduleExecutorUnknown => ({ kind: 'unknown', reason })
-const never = (reason: string) => ({ kind: 'notStarted', recoverable: false, reason }) as const
-const refusalText = (refusal: GoalRefusal): string =>
+export const refusalText = (refusal: GoalRefusal): string =>
   refusal.kind === 'invalid' ? issuesText(refusal.issues) : refusal.kind
 
 /** Why this path never carries out the work as written; null when it does. */
 function refusalOf(work: ScheduleWork): string | null {
   if (work.kind !== 'agent' || work.session.mode !== 'new')
     return 'this executor carries out agent work in a new session only'
-  if (work.materials.length > 0) return 'materials are not carried into a new session yet'
   if (work.session.workspace !== null) return 'a workspace is not attached to a new session yet'
-  const checked = validateDraft(work.instruction, { attendance: 'unattended' })
-  return checked.kind === 'valid' ? null : `instruction: ${issuesText(checked.issues)}`
+  return instructionRefusal(work)
 }
 
 function carried(job: ScheduleExecutorJob): Carried | string {
@@ -44,16 +37,7 @@ function carried(job: ScheduleExecutorJob): Carried | string {
 /** Carries out agent work in a session of its own: the Job's instruction is the goal of that session, and the Job ends as that goal ends. */
 export function createNewSessionExecutor(calls: ExecutorCalls): ScheduleJobExecutor {
   const { sessions, goals } = calls
-  const at = (ids: JobIdentities) => ({ tenant: ids.tenant, session: ids.session })
-  const mine = (goal: GoalRecord, ids: JobIdentities) => goal.history[0]?.operation === ids.goal
-
-  async function factsOf(ids: JobIdentities): Promise<Facts | 'unknown' | 'no-session'> {
-    const standing = await sessions.standing(at(ids)).catch(() => UNAVAILABLE)
-    if (standing.kind !== 'read') return 'unknown'
-    if (standing.value === null) return 'no-session'
-    const goal = await goals.read(at(ids)).catch(() => UNKNOWN)
-    return goal.kind === 'done' ? { standing: standing.value, goal: goal.value } : 'unknown'
-  }
+  const inSession = jobInSession(calls)
 
   return {
     async accepts(work) {
@@ -63,12 +47,7 @@ export function createNewSessionExecutor(calls: ExecutorCalls): ScheduleJobExecu
 
     async describe(job) {
       const taken = carried(job)
-      const facts = typeof taken === 'string' ? 'unknown' : await factsOf(taken.ids)
-      if (typeof taken === 'string' || typeof facts === 'string') return null
-      const goal = facts.goal !== null && mine(facts.goal, taken.ids) ? facts.goal : null
-      const ended = goal?.state.status === 'settled' ? endOf(goal.state.outcome).reason : null
-      const { adopted } = facts.standing
-      return { adopted, outcome: ended, deliverables: goal?.progress.deliverables ?? [] }
+      return typeof taken === 'string' ? null : inSession.describe(taken.ids)
     },
 
     async check(job) {
@@ -100,55 +79,18 @@ export function createNewSessionExecutor(calls: ExecutorCalls): ScheduleJobExecu
         .catch(() => UNKNOWN)
       if (set.kind === 'refused') return never(`goal: ${refusalText(set.reason)}`)
       if (set.kind !== 'done') return unknown('whether the goal was set is not known')
-      const standing = await sessions.standing(at(ids)).catch(() => UNAVAILABLE)
-      const running = standing.kind === 'read' && (standing.value?.run ?? null) !== null
-      return { kind: 'started', executionRef: ids.session, running }
+      return { kind: 'started', executionRef: ids.session, running: await inSession.running(ids) }
     },
 
     async inspect(job) {
       const taken = carried(job)
       if (typeof taken === 'string') return never(taken)
-      const { ids } = taken
-      const facts = await factsOf(ids)
-      if (facts === 'unknown') return unknown('the session or its goal cannot be read now')
-      if (facts === 'no-session')
-        return { kind: 'notStarted', recoverable: true, reason: 'the session is not created' }
-      const { standing, goal } = facts
-      if (goal === null) return { kind: 'taken', executionRef: ids.session }
-      if (!mine(goal, ids)) return unknown('the session carries a goal this Job did not set')
-      if (!standing.quiet || goal.wake !== null)
-        return { kind: 'running', executionRef: ids.session }
-      if (goal.state.status === 'settled') return endOf(goal.state.outcome)
-      const aborted = await goals.command({ ...at(ids), command: 'abort' }).catch(() => UNKNOWN)
-      const state = aborted.kind === 'done' ? aborted.value?.state : undefined
-      return state?.status === 'settled'
-        ? endOf(state.outcome)
-        : unknown('whether the goal was aborted is not known')
+      return inSession.inspect(taken.ids, job.executionRef !== null)
     },
 
     async requestStop(job, urgency) {
       const taken = carried(job)
-      if (typeof taken === 'string') return CONFIRMED
-      const { ids } = taken
-      const facts = await factsOf(ids)
-      if (facts === 'unknown') return unknown('the session or its goal cannot be read now')
-      if (facts === 'no-session') return CONFIRMED
-      const { standing, goal } = facts
-      if (goal === null || !mine(goal, ids)) return CONFIRMED
-      const settled = goal.state.status === 'settled'
-      if (settled && standing.quiet) return CONFIRMED
-      if (!settled) {
-        const cancelled = await goals
-          .command({ ...at(ids), command: 'cancel' })
-          .catch(() => UNKNOWN)
-        if (cancelled.kind !== 'done') return unknown('whether the goal was cancelled is not known')
-      }
-      if (standing.run === null) return { kind: 'sent' }
-      const stop = { ...at(ids), operation: ids.stop, run: standing.run, urgency }
-      const asked = await sessions.cancelRun(stop).catch(() => 'unknown' as const)
-      return asked === 'requested'
-        ? { kind: 'sent' }
-        : unknown('whether the run was asked to stop is not known')
+      return typeof taken === 'string' ? CONFIRMED : inSession.requestStop(taken.ids, urgency)
     },
   }
 }

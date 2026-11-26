@@ -14,8 +14,9 @@ export type Created =
   | Readonly<{ kind: 'refused'; recoverable: boolean; reason: string }>
   | Readonly<{ kind: 'unknown' }>
 
-/** Where the work of a session stands. `quiet`: no run going, no input waiting, no call in the background. */
+/** Where the work of a session stands. `quiet`: no run going, no input waiting, no call in the background. `usable`: it still takes work. */
 export type SessionStanding = Readonly<{
+  usable: boolean
   quiet: boolean
   run: string | null
   adopted: Readonly<{ name: string; version: string }>
@@ -29,6 +30,8 @@ export type SessionCalls = Readonly<{
   cancelRun(
     input: At & Readonly<{ operation: string; run: string; urgency: 'graceful' | 'forced' }>,
   ): Promise<'requested' | 'unknown'>
+  /** Whether the run going now was opened by the goal's own start reminder of this request; null when no run is going. */
+  opened(input: At & Readonly<{ request: string }>): Promise<Read<boolean | null>>
 }>
 
 type Goal<T> = Promise<Outcome<T, GoalRefusal>>

@@ -21,6 +21,7 @@ import {
   type ScheduleWork,
 } from '@omne-harness/schedule-contract'
 import {
+  createExistingSessionExecutor,
   createNewSessionExecutor,
   identitiesOf,
   type Created,
@@ -86,7 +87,15 @@ export function jobOf(change: Partial<ScheduleExecutorJob> = {}): ScheduleExecut
   }
 }
 
-type Held = { run: string | null; pending: number; background: number }
+type Held = {
+  run: string | null
+  pending: number
+  background: number
+  usable: boolean
+  /** Who opened the run going: the goal's own start reminder, or another input. */
+  opener: 'own' | 'other'
+}
+const REST: Held = { run: null, pending: 0, background: 0, usable: true, opener: 'own' }
 
 /** The real goal domain over its memory store, and sessions a test moves by hand. */
 export function world() {
@@ -94,10 +103,23 @@ export function world() {
   const goalSessions = fakeSessions()
   const authority = fakeAuthority()
   let tick = 0
+  const sessions = new Map<string, Held>()
+  const hooks: { handed?: (held: Held) => void } = {}
+  /** A reminder the goal hands over is an input the session holds until a run takes it. */
+  const handing: typeof goalSessions = {
+    ...goalSessions,
+    async wake(tenant, wake) {
+      const answer = await goalSessions.wake(tenant, wake)
+      const held = sessions.get(wake.session)
+      if (answer === 'sent' && held !== undefined) held.pending += 1
+      if (answer === 'sent' && held !== undefined) hooks.handed?.(held)
+      return answer
+    },
+  }
   const goals = createGoals({
     store,
     authority,
-    sessions: goalSessions,
+    sessions: handing,
     cards: fakeCards(),
     calls: fakeCalls(),
     history: fakeHistory(),
@@ -107,7 +129,6 @@ export function world() {
     hints: { wake: () => {} },
     changes: { changed: () => {} },
   })
-  const sessions = new Map<string, Held>()
   const definitions = new Set(['coding'])
   const made: unknown[] = []
   const stopped: unknown[] = []
@@ -124,7 +145,7 @@ export function world() {
         if (faults.create !== null) return faults.create
         made.push(input)
         if (!sessions.has(input.session)) {
-          sessions.set(input.session, { run: null, pending: 0, background: 0 })
+          sessions.set(input.session, { ...REST })
           goalSessions.add(input.session, 'unattended')
         }
         return { kind: 'created' }
@@ -134,6 +155,7 @@ export function world() {
         const held = sessions.get(session)
         if (held === undefined) return { kind: 'read', value: null }
         const value: SessionStanding = {
+          usable: held.usable,
           quiet: held.run === null && held.pending === 0 && held.background === 0,
           run: held.run,
           adopted: { name: 'coding', version: 'v7' },
@@ -144,6 +166,11 @@ export function world() {
         if (faults.stop) return 'unknown'
         stopped.push(input)
         return 'requested'
+      },
+      async opened({ session }) {
+        const held = sessions.get(session)
+        if (faults.standing || held === undefined) return { kind: 'unavailable' }
+        return { kind: 'read', value: held.run === null ? null : held.opener === 'own' }
       },
     },
     goals: {
@@ -171,6 +198,20 @@ export function world() {
   const session = (job = jobOf()) => identitiesOf(job)?.session ?? ''
   return {
     executor: createNewSessionExecutor(calls),
+    existing: createExistingSessionExecutor(calls),
+    hooks,
+    /** A session that was there before any Job: a person's, or one nobody attends. */
+    open(name: string, attendance: 'attended' | 'unattended' = 'attended') {
+      sessions.set(name, { ...REST })
+      goalSessions.add(name, attendance)
+    },
+    at: (name: string, change: Partial<Held>) =>
+      void Object.assign(sessions.get(name) ?? {}, change),
+    goalOf: async (name: string) => {
+      const read = await goals.read(SCHEDULE, name)
+      if (read.kind !== 'done') throw new Error(JSON.stringify(read))
+      return read.value
+    },
     goals,
     store,
     authority,
@@ -190,6 +231,7 @@ export function world() {
     },
     /** The goal of the Job reads as ended this way from now on: the ends only a judging reaches. */
     ended: (outcome: GoalOutcome, job = jobOf()) => void ended.set(session(job), outcome),
+    endedIn: (name: string, outcome: GoalOutcome) => void ended.set(name, outcome),
     settle: (command: Parameters<typeof goals.command>[1]['command'], job = jobOf()) =>
       goals.command({ tenant: TENANT, subject: 'owner' }, { session: session(job), command }),
   }
