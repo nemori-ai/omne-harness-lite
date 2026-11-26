@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import type { ShellLogin } from '@omne-harness/shell-contract'
 import { colorSchemeQuery, createSizeController, createThemeController } from '@omne-harness/ui-kit'
 import type { ForwardingBridge } from '../shared/channel.ts'
+import { PAGE_VERSION_EVENT } from '../shared/page-version.ts'
 import { missingAtForwarding } from '../shared/wire.ts'
 import { assembly, pageFloor } from './assembly.tsx'
 import { connectPageBridge, httpChannel } from './bridge.ts'
@@ -15,6 +16,7 @@ import { storedFloatPlaces } from './shell/float-place.ts'
 import { hostFigure } from './shell/desk/device.ts'
 import { Shell } from './shell/shell.tsx'
 import { storedSizePreference } from './shell/size.ts'
+import { tellPageVersion } from './shell/page-version.ts'
 import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
 import { storedThemePreference } from './shell/theme.ts'
 import { markWindowChrome } from './shell/window-chrome.ts'
@@ -35,8 +37,12 @@ async function main(): Promise<void> {
   const size = createSizeController(storedSizePreference(() => window.localStorage))
   const bridge = await connectPageBridge(httpChannel(window.location.origin))
   const watched = watchConnectivity(bridge.transport)
+  let gate: (text: string) => void = () => undefined
   const state = createShellState(shellLogin(bridge), {
-    notices: show => bridge.onExpired(() => show(LOGIN_EXPIRED_TEXT)),
+    notices: show => {
+      gate = show
+      return bridge.onExpired(() => show(LOGIN_EXPIRED_TEXT))
+    },
     knowsToken: tokenOf(document),
     tokens: tokensOf(document),
     faces: storedFacePreference(() => window.localStorage),
@@ -77,6 +83,14 @@ async function main(): Promise<void> {
       />
     </StrictMode>,
   )
+  const tellVersion = (): void =>
+    void tellPageVersion({
+      signedIn: () => bridge.loginState.state() === 'signed-in',
+      gate: text => gate(text),
+      told: state.told,
+    })
+  window.addEventListener(PAGE_VERSION_EVENT, tellVersion)
+  tellVersion()
 }
 
 void main()

@@ -10,6 +10,8 @@ import {
   parseBuildArgs,
   profileManifest,
 } from './build-profile.ts'
+import { BUNDLE_PROTOCOLS_FILE, bundleProtocolsText } from '../src/shared/bundle-protocols.ts'
+import { domainProtocols } from '../src/shared/protocols.ts'
 import { bundleConfig, desktopDir, pageConfig } from './bundle-build.ts'
 
 /** Writes the manifest Electron starts `dist/<profile>` with. */
@@ -24,6 +26,11 @@ export function writeManifest(profile: BuildProfile): void {
 export async function buildProfile(profile: BuildProfile): Promise<void> {
   rmSync(resolve(desktopDir, bundleDir(profile)), { recursive: true, force: true })
   await build(pageConfig(profile))
+  // A page bundle carries the list of the protocols its page speaks; the forwarding layer reads it from the bundle.
+  writeFileSync(
+    resolve(desktopDir, bundleDir(profile), 'page', BUNDLE_PROTOCOLS_FILE),
+    bundleProtocolsText(domainProtocols),
+  )
   for (const bundle of BUNDLES) await build(bundleConfig(profile, bundle))
   writeManifest(profile)
 }

@@ -16,6 +16,7 @@ import { MAIN_WINDOW_READY_MESSAGE } from '../startup-signals.ts'
 import type { Logger } from './log.ts'
 import { createReadiness } from './readiness.ts'
 import { createRecovery, type UtilityState } from './recovery.ts'
+import { FALL_LIMIT } from './utility-process.ts'
 import { windowChrome } from './window-chrome.ts'
 import {
   DEFAULT_SIZE,
@@ -88,13 +89,19 @@ export function harden(contents: WebContents): void {
   )
 }
 
-/** The utility process's state now, and its changes until the returned function is called. */
+/** The utility process's state now, its changes until the returned function is called, and one more try of it. */
 export type UtilityWatch = Readonly<{
   current(): UtilityState
   subscribe(listener: (state: UtilityState) => void): () => void
+  retry(): void
 }>
 
-function recover(window: BrowserWindow, utility: UtilityWatch, log: Logger): void {
+function recover(
+  window: BrowserWindow,
+  utility: UtilityWatch,
+  log: Logger,
+  taken: () => boolean,
+): void {
   const ask = async <Choice extends string>(
     message: string,
     detail: string,
@@ -131,6 +138,17 @@ function recover(window: BrowserWindow, utility: UtilityWatch, log: Logger): voi
           ],
           signal,
         ),
+      askUtilityHeld: signal =>
+        ask(
+          '连接服务的部件停了',
+          `它连着 ${String(FALL_LIMIT)} 次没有起来，应用不再自动重试。页面里的操作现在都会失败。`,
+          [
+            ['retry', '再试一次'],
+            ['close', '关闭窗口'],
+          ],
+          signal,
+        ),
+      retryUtility: () => utility.retry(),
       askUnresponsive: signal =>
         ask(
           '页面没有响应',
@@ -153,7 +171,7 @@ function recover(window: BrowserWindow, utility: UtilityWatch, log: Logger): voi
   )
   const contents = window.webContents
   contents.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
-    if (isMainFrame && code !== LOAD_ABORTED) recovery.failed()
+    if (isMainFrame && code !== LOAD_ABORTED && !taken()) recovery.failed()
   })
   // A renderer gone mid-close can neither finish nor veto it: reloading it would hold the quit forever.
   let closing = false
@@ -166,7 +184,7 @@ function recover(window: BrowserWindow, utility: UtilityWatch, log: Logger): voi
         'renderer gone while its window was closing; destroying it',
       )
       window.destroy()
-    } else if (details.reason !== 'clean-exit') recovery.failed()
+    } else if (details.reason !== 'clean-exit' && !taken()) recovery.failed()
   })
   window.on('unresponsive', () => {
     log.warn({}, 'window unresponsive')
@@ -194,6 +212,7 @@ export function openAppWindow(
   saved: WindowStateFile,
   utility: UtilityWatch,
   log: Logger,
+  taken: () => boolean = () => false,
 ): BrowserWindow {
   const state = usableState(
     saved.load(),
@@ -204,7 +223,7 @@ export function openAppWindow(
   const afterShown = reportReady(window, log)
   if (state?.maximized === true) window.maximize()
   harden(window.webContents)
-  recover(window, utility, log)
+  recover(window, utility, log, taken)
 
   // macOS sends no `show` while the screen is locked: a window just shown counts if it says visible.
   const show = (): void => {

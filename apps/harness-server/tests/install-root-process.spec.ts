@@ -21,11 +21,13 @@ import {
   readVersions,
   switchVersion,
   VERSIONS_DIR,
-} from '../src/local/install-root.ts'
+} from '@omne-harness/assembly-cordis'
 
 const memberDir = fileURLToPath(new URL('..', import.meta.url))
 const bin = join(memberDir, 'dist', 'bin.js')
-const built = pathToFileURL(join(memberDir, 'dist', 'local', 'install-root.js')).href
+const built = pathToFileURL(
+  join(memberDir, '..', '..', 'packages', 'assembly', 'assembly-cordis', 'dist', 'index.js'),
+).href
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'install-root-process-')))
 afterAll(() => rmSync(scratch, { recursive: true, force: true }))
 
