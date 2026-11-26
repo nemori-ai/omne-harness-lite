@@ -35,7 +35,7 @@ describe('the goal panel', () => {
     const text = view.container.textContent ?? ''
     expect(text).toContain('处理中修订 1 · 用了 3 轮')
     expect(text).toContain('A1用例全过证据显示没做到（判定）')
-    expect(text).toContain('预算20 轮用了 3 轮（系统读的） · 剩 17')
+    expect(text).toContain('预算20 轮剩 17用了 3 轮（系统读的）')
     expect(view.container.querySelector('.goal-body h2')?.textContent).toBe('目的')
     expect(view.container.querySelector('.goal-body')?.textContent).toContain('[A1] 用例全过')
     expect(text).toContain('A1在做 · 还差三条')
@@ -50,6 +50,87 @@ describe('the goal panel', () => {
     expect(
       view.container.querySelector('[data-omne-part], section')?.getAttribute('aria-label'),
     ).toBe('目标')
+  })
+
+  it('says of each criterion how it is judged, reads one whose batch is out as 在查, and names who read it', async () => {
+    const goal = goalOf()
+    const [first, ...rest] = goal.gap
+    const examined = {
+      ...first,
+      reading: '在取证',
+      source: null,
+      verification: 'examination',
+      reader: 'examiner',
+      value: 'gathering',
+    }
+    const { view } = await shown(reading({ ...goal, gap: [examined, ...rest] }))
+    const row = view.container.querySelector('tr[data-reading="gathering"]')
+    expect(row?.textContent).toBe('A1用例全过查验动手在查（查验的一方）')
+    expect(view.container.textContent).not.toContain('在取证')
+    cleanup()
+    const judged = { ...first, verification: 'judge', reader: 'judge', value: 'fails' }
+    const other = await shown(reading({ ...goal, gap: [judged, ...rest] }))
+    expect(other.view.container.querySelector('tr')?.textContent).toBe(
+      'A1用例全过判定读证据证据显示没做到（判定）',
+    )
+    cleanup()
+    const told = {
+      ...examined,
+      value: 'fails',
+      reading: '没做到',
+      short: '按右键蛇不转向，走了三局都一样',
+    }
+    const noted = await shown(reading({ ...goal, gap: [told, ...rest] }))
+    const cells = [...(noted.view.container.querySelector('tr')?.querySelectorAll('td') ?? [])]
+    expect(cells.map(cell => cell.textContent)).toEqual([
+      'A1',
+      '用例全过查验动手按右键蛇不转向，走了三局都一样',
+      '没做到（查验的一方）',
+    ])
+  })
+
+  it('opens the session that examines for the goal, where there is one and somewhere to go', async () => {
+    const examiner = 'e'.repeat(64)
+    const fake = fakeClient()
+    fake.script.read = reading({ ...goalOf(), examiner }) as never
+    const driver = new GoalDriver({ client: fake.client, tenant: TENANT, session: SESSION })
+    const opened: string[] = []
+    const view = render(
+      <GoalPanel driver={driver} onOpenSession={session => opened.push(session)} />,
+    )
+    await settle()
+    fake.streams[0]!.push()
+    await settle()
+    fireEvent.click(button('打开查验会话'))
+    expect(opened).toEqual([examiner])
+    view.unmount()
+    cleanup()
+    await shown(reading({ ...goalOf(), examiner }))
+    expect(screen.queryByRole('button', { name: '打开查验会话' })).toBeNull()
+    cleanup()
+    await shown()
+    expect(screen.queryByRole('button', { name: '打开查验会话' })).toBeNull()
+  })
+
+  it("shows which decision model judges this session only when the server tells it: the session's own choice, or what the tenant set", async () => {
+    const none = await shown()
+    expect(none.view.container.querySelector('.goal-judge')).toBeNull()
+    cleanup()
+    const fake = fakeClient()
+    const models = ['openai/gpt-6-luna-decisions', 'typesafe/jev-1.14']
+    fake.judge.read = { outcome: 'succeeded', body: { model: null, models } }
+    const driver = new GoalDriver({ client: fake.client, tenant: TENANT, session: SESSION })
+    const view = render(<GoalPanel driver={driver} />)
+    await settle()
+    fake.streams[0]!.push()
+    await settle()
+    const row = view.container.querySelector('.goal-judge')
+    expect(row?.textContent).toContain('判定用的型号')
+    expect(row?.textContent).toContain('照租户的设置')
+    expect(screen.getByRole('combobox', { name: '这段会话判定用的型号' })).toBeTruthy()
+    fake.judge.read = { outcome: 'succeeded', body: { model: 'typesafe/jev-1.14', models } }
+    await act(() => driver.read())
+    expect(view.container.querySelector('.goal-judge')?.textContent).toContain('typesafe/jev-1.14')
   })
 
   it('says there is none and how to set one, and says as it is when the goal cannot be read', async () => {

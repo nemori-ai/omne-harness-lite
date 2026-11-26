@@ -9,8 +9,11 @@ import { GoalPanel } from './view/goal-panel.tsx'
 export const GOAL_IN_SESSION = 'goal'
 export const GOAL_TAB_ORDER = 10
 
+type Target = Readonly<{ page: string; subject: string }>
 export type GoalUiOptions = Readonly<{
   sessionSide?: PointSink<{ readonly session: string }>
+  /** Where a jump to another session goes, as the session module writes it. */
+  conversation?: (session: string) => Target
 }>
 
 type UiModule = ReturnType<typeof defineUiModule>
@@ -23,6 +26,8 @@ export function createGoalUiModule(options: GoalUiOptions = {}): UiModule {
     apply(shell, { goal: client }) {
       for (const part of goalParts) part.declare(shell)
       const drivers = new Map<string, GoalDriver>()
+      const { conversation } = options
+      const go = (target: Target): void => shell.navigate(target.page, target.subject)
       const driverOf = (scope: string, session: string): GoalDriver | undefined => {
         const tenant = readTenantText(scope)
         if (tenant === undefined) return undefined
@@ -37,7 +42,12 @@ export function createGoalUiModule(options: GoalUiOptions = {}): UiModule {
         label: '目标',
         render: ({ scope, subject }) => {
           const driver = scope === undefined ? undefined : driverOf(scope, subject.session)
-          return driver === undefined ? null : <GoalPanel driver={driver} />
+          if (driver === undefined) return null
+          return conversation === undefined ? (
+            <GoalPanel driver={driver} />
+          ) : (
+            <GoalPanel driver={driver} onOpenSession={session => go(conversation(session))} />
+          )
         },
       })
       return () => drivers.clear()

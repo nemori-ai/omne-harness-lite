@@ -137,11 +137,11 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
   if (row === undefined) throw new Error('the release has no agent-adoptions row')
   const mappings = agentAdoptionsConfig.parse(row.config).mappings
 
-  it('the release adopts assistant and coding, and no definition has a member that could declare a Context block', () => {
-    expect(mappings.map(entry => entry.name)).toEqual(['assistant', 'coding'])
+  it('the release adopts assistant, coding and the examiner of goals, and no definition has a member that could declare a Context block', () => {
+    expect(mappings.map(entry => entry.name)).toEqual(['assistant', 'coding', 'examiner'])
     for (const entry of mappings) {
       expect(Object.keys(entry.definition).sort()).toEqual(
-        entry.name === 'coding'
+        entry.name !== 'assistant'
           ? ['attributes', 'category', 'instructions', 'name', 'references', 'summary', 'type']
           : ['attributes', 'category', 'name', 'references', 'summary', 'type'],
       )

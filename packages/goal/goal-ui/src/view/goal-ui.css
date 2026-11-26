@@ -31,11 +31,28 @@
   white-space: normal;
   vertical-align: top;
 }
+.goal-how {
+  display: block;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.goal-heading-row,
+.goal-judge {
+  display: flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.goal-heading-row {
+  justify-content: space-between;
+}
 .goal-gap tr[data-open='no'] {
   color: var(--omne-ink-muted);
 }
 .goal-gap td.goal-gap-id {
   white-space: nowrap;
+}
+.goal-gap td.goal-gap-reading {
+  width: 36%;
 }
 .goal-gap-id {
   font-variant-numeric: tabular-nums;

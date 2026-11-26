@@ -62,6 +62,7 @@ import {
   readPublishedView,
 } from '../rows/session-ad03/published-view.ts'
 import { judgeCallConditions, type SessionInteractionRead } from './meta-capabilities.ts'
+import { examiningOf } from '../rows/goal/examines.ts'
 import { toolOperatorSettingsKey } from '../rows/tool-host/operator-settings.ts'
 import { toolLimitsOf } from './tool-limits.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
@@ -574,7 +575,10 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
       const ports = publishedViewPortsOf(ctx)
       if (ports === null) return fail('the Session or Runtime Context services are absent')
       const view = await readPublishedView(ports, access, sessionInteractionBinding)
-      return 'failure' in view ? view : succeed(view.ok.interaction)
+      if ('failure' in view) return view
+      const examining = await examiningOf(ctx, access, access.session)
+      if ('failure' in examining) return examining
+      return succeed({ ...view.ok.interaction, examining: examining.ok })
     },
     workingDirectory: async access => {
       const ports = publishedViewPortsOf(ctx)

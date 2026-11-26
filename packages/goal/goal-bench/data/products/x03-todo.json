@@ -1,0 +1,82 @@
+{
+  "id": "x03-todo",
+  "purpose": "写一个命令行待办 todo.js：add、list、done、rm，存在当前目录的 todo.json 里",
+  "files": {
+    "todo.js": "#!/usr/bin/env node\n'use strict'\nconst fs = require('node:fs')\nconst FILE = 'todo.json'\n\nfunction load() {\n  if (!fs.existsSync(FILE)) return { next: 1, items: [] }\n  return JSON.parse(fs.readFileSync(FILE, 'utf8'))\n}\n\nfunction save(store) {\n  fs.writeFileSync(FILE, JSON.stringify(store, null, 2))\n}\n\nfunction find(store, id) {\n  return store.items.find(item => item.id === Number(id))\n}\n\nfunction main(args) {\n  const store = load()\n  const command = args[0]\n  if (command === 'add') {\n    const item = { id: store.next, text: args.slice(1).join(' '), done: false }\n    store.items.push(item)\n    store.next += 1\n    save(store)\n    console.log('added ' + String(item.id))\n    return 0\n  }\n  if (command === 'list') {\n    for (const item of store.items) {\n      console.log(String(item.id) + ' [' + (item.done ? 'x' : ' ') + '] ' + item.text)\n    }\n    return 0\n  }\n  if (command === 'done' || command === 'rm') {\n    const item = find(store, args[1])\n    if (item === undefined) {\n      console.error('no item ' + String(args[1]))\n      return 1\n    }\n    if (command === 'done') item.done = true\n    else store.items = store.items.filter(other => other !== item)\n    save(store)\n    return 0\n  }\n  console.error('usage: todo add <text> | list | done <id> | rm <id>')\n  return 2\n}\n\nprocess.exitCode = main(process.argv.slice(2))\n",
+    "README.md": "# todo\n\n```\nnode todo.js add buy milk\nnode todo.js list\nnode todo.js done 1\nnode todo.js rm 1\n```\n"
+  },
+  "criteria": [
+    {
+      "statement": "add 后面的整句话都记下来（add buy milk 记成 buy milk），换一个进程 list 还看得到",
+      "method": "在一个空的临时目录里（把 todo.js 拷过去）运行 node todo.js add buy milk，再运行 node todo.js list，要看到一行 1 [ ] buy milk",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.rmSync('todo.json', { force: true })\nconst run = (...args) => execFileSync('node', ['todo.js', ...args], { encoding: 'utf8' })\nrun('add', 'buy', 'milk')\nassert.strictEqual(run('list').trim(), '1 [ ] buy milk')\n"
+    },
+    {
+      "statement": "done 之后这一条在 list 里标成 [x]，换一个进程再 list 仍然是 [x]",
+      "method": "在空的临时目录里：add 一条，done 1，再单独运行一次 list，那一行要以 1 [x] 开头",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.rmSync('todo.json', { force: true })\nconst run = (...args) => execFileSync('node', ['todo.js', ...args], { encoding: 'utf8' })\nrun('add', 'one'); run('done', '1')\nassert.strictEqual(run('list').trim(), '1 [x] one')\n"
+    },
+    {
+      "statement": "done 或 rm 一个不存在的编号时，退出码不是 0，并在标准错误里写明没有这一条",
+      "method": "在空的临时目录里：add 一条，运行 node todo.js rm 9; echo $? ，退出码要不是 0，标准错误里要有 no item 9",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.rmSync('todo.json', { force: true })\nexecFileSync('node', ['todo.js', 'add', 'one'])\nconst ran = spawnSync('node', ['todo.js', 'rm', '9'], { encoding: 'utf8' })\nassert.notStrictEqual(ran.status, 0)\nassert.match(ran.stderr, /no item 9/)\n"
+    },
+    {
+      "statement": "编号不重复使用：删掉一条之后再 add，新的一条拿没用过的新编号",
+      "method": "在空的临时目录里：add a、add b、add c，rm 3，再 add d，然后 list：d 的编号要是 4，不是 3",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.rmSync('todo.json', { force: true })\nconst run = (...args) => execFileSync('node', ['todo.js', ...args], { encoding: 'utf8' })\nrun('add', 'a'); run('add', 'b'); run('add', 'c'); run('rm', '3'); run('add', 'd')\nassert.match(run('list'), /^4 \\[ \\] d$/m)\n"
+    }
+  ],
+  "breaks": [
+    {
+      "name": "first-word-only",
+      "criterion": "A1",
+      "edits": [
+        {
+          "path": "todo.js",
+          "find": "text: args.slice(1).join(' ')",
+          "replace": "text: args[1]"
+        }
+      ]
+    },
+    {
+      "name": "done-not-saved",
+      "criterion": "A2",
+      "edits": [
+        {
+          "path": "todo.js",
+          "find": "    if (command === 'done') item.done = true\n    else store.items = store.items.filter(other => other !== item)\n    save(store)\n    return 0",
+          "replace": "    if (command === 'done') {\n      item.done = true\n      console.log(String(item.id) + ' [x] ' + item.text)\n      return 0\n    }\n    store.items = store.items.filter(other => other !== item)\n    save(store)\n    return 0"
+        }
+      ]
+    },
+    {
+      "name": "missing-is-fine",
+      "criterion": "A3",
+      "edits": [
+        {
+          "path": "todo.js",
+          "find": "      console.error('no item ' + String(args[1]))\n      return 1",
+          "replace": "      return 0"
+        }
+      ]
+    },
+    {
+      "name": "ids-reused",
+      "criterion": "A4",
+      "edits": [
+        {
+          "path": "todo.js",
+          "find": "const item = { id: store.next, text",
+          "replace": "const item = { id: store.items.length + 1, text"
+        }
+      ]
+    }
+  ],
+  "mended": "done-not-saved",
+  "spoiled": [
+    "missing-is-fine",
+    "ids-reused"
+  ],
+  "source": "written for this bench; the breaks are the kinds of half-done work the journeys of card 1720 met"
+}

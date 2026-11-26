@@ -1,0 +1,65 @@
+{
+  "name": "examiner-gauge-truthful",
+  "examiner": "truthful",
+  "definition": "scripted",
+  "products": 8,
+  "score": {
+    "cases": 40,
+    "failed": [],
+    "cutShort": [],
+    "batches": 56,
+    "falseHolds": {
+      "errors": 0,
+      "n": 40,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.08762160245846368
+      }
+    },
+    "timid": {
+      "errors": 0,
+      "n": 184,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.020450537938611096
+      }
+    },
+    "timidFails": 0,
+    "timidCannotTell": 0,
+    "parroted": {
+      "errors": 0,
+      "n": 24,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.13797620655132792
+      }
+    },
+    "usd": {
+      "n": 56,
+      "mean": 0,
+      "interval": {
+        "low": 0,
+        "high": 0
+      },
+      "median": 0,
+      "max": 0
+    },
+    "seconds": {
+      "n": 56,
+      "mean": 9.75,
+      "interval": {
+        "low": 8.854822202374713,
+        "high": 10.645177797625287
+      },
+      "median": 11,
+      "max": 15
+    },
+    "totalUsd": 0,
+    "changedWork": [],
+    "addedToWork": [],
+    "wrong": []
+  }
+}

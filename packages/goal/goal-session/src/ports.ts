@@ -26,6 +26,7 @@ export type SessionCalls = Readonly<{
   /** The input that opened the round in progress: its words, and its place in the history. Null when the history shows none. */
   opened(input: At): Promise<PortRead<Readonly<{ since: string; text: string }> | null>>
   asked(input: At): Promise<PortRead<Readonly<{ at: string; text: string }> | null>>
+  where(input: At): Promise<PortRead<string | null>>
   /** One page of the tool results of the session after an entry, oldest first; `after` null reads from its beginning; `next` null: the end. */
   resultsAfter(
     input: At & Readonly<{ after: string | null; cursor: string | null }>,
@@ -33,5 +34,13 @@ export type SessionCalls = Readonly<{
   callsAfter(
     input: At & Readonly<{ after: string | null; cursor: string | null }>,
   ): Promise<PortRead<HistoryResults>>
+}>
+export type ExaminerCalls = Readonly<{
+  create(
+    input: At & Readonly<{ operation: SessionOperationId; beside: SessionId }>,
+  ): Promise<Called<unknown>>
+  cancelRun(input: At & Readonly<{ operation: SessionOperationId; run: string }>): Promise<void>
+  archive(input: At & Readonly<{ operation: SessionOperationId }>): Promise<void>
+  reminderWith(input: At & Readonly<{ line: string }>): Promise<PortRead<string | null>>
 }>
 export type HistoryResults = Readonly<{ entries: readonly unknown[]; next: string | null }>

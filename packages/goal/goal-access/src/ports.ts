@@ -11,7 +11,7 @@ export interface GoalEntrance {
   admit(login: LoginIdentity, tenant: TenantId): Promise<GoalEntry>
 }
 
-export type GoalFace = Pick<Goals, 'read' | 'write' | 'command'>
+export type GoalFace = Pick<Goals, 'read' | 'write' | 'command' | 'judgeOf' | 'chooseJudge'>
 
 export type GoalChangeListener = Readonly<{ changed(): void; closed(): void }>
 

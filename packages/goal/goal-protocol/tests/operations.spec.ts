@@ -7,12 +7,16 @@ const table = {
   'write-goal': { identity: 'login', effect: 'commit', limit: 'input' },
   'query-write-goal': { identity: 'login', effect: 'read', limit: 'input' },
   'command-goal': { identity: 'login', effect: 'commit', limit: 'small' },
+  'read-judge': { identity: 'login', effect: 'read', limit: 'small' },
+  'choose-judge': { identity: 'login', effect: 'commit', limit: 'small' },
 } as const
 const outcomes = {
   'read-goal': ['not-found'],
   'write-goal': ['invalid', 'conflict', 'not-found', 'unknown'],
   'query-write-goal': ['not-committed', 'not-found'],
   'command-goal': ['conflict', 'not-found', 'unknown'],
+  'read-judge': ['not-found'],
+  'choose-judge': ['invalid', 'not-found', 'unknown'],
 } as const
 const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 const operations = goalProtocol.operations
@@ -24,7 +28,7 @@ const revise = {
 }
 
 describe('goal/v1', () => {
-  it('is goal major 1 with exactly four operations and one observation', () => {
+  it('is goal major 1 with exactly six operations and one observation', () => {
     expect([goalProtocol.name, goalProtocol.major]).toEqual(['goal', 1])
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())
     expect(Object.keys(goalProtocol.observations)).toEqual(['observe-goal'])
@@ -51,6 +55,17 @@ describe('goal/v1', () => {
     expectRoundTrip(answers.succeeded, {
       goal: { ...GOAL, state: { ...GOAL.state, pause: { by: 'person' } } },
     })
+    const [first, ...rest] = GOAL.gap
+    const examined = {
+      ...first,
+      verification: 'examination',
+      reader: 'examiner',
+      value: 'gathering',
+    }
+    expectRoundTrip(answers.succeeded, {
+      goal: { ...GOAL, gap: [examined, ...rest], examiner: 'e'.repeat(64) },
+    })
+    rejected(answers.succeeded, { goal: { ...GOAL, examiner: 'not a session' } })
     rejected(answers.succeeded, { goal: { ...GOAL, state: { ...GOAL.state, status: 'none' } } })
     rejected(answers.succeeded, { goal: { ...GOAL, wake: null } })
     rejected(answers.succeeded, { goal: { ...GOAL, rendered: '' } })
@@ -92,6 +107,22 @@ describe('goal/v1', () => {
     expectRoundTrip(answers.succeeded, { goal: GOAL })
     expectRoundTrip(answers['not-committed'], {})
     rejected(answers['not-committed'], { goal: GOAL })
+  })
+
+  it('the decision model a session chose is read with the models it may choose from, and chosen by name or taken away with null', () => {
+    const read = operations['read-judge']
+    expectRoundTrip(read.body, where)
+    expectRoundTrip(read.outcomes.succeeded, { model: null, models: ['a/one', 'b/two'] })
+    expectRoundTrip(read.outcomes.succeeded, { model: 'b/two', models: ['a/one', 'b/two'] })
+    rejected(read.outcomes.succeeded, { model: 'b/two' })
+    const choose = operations['choose-judge']
+    expectRoundTrip(choose.body, { ...where, model: 'b/two' })
+    expectRoundTrip(choose.body, { ...where, model: null })
+    rejected(choose.body, where)
+    rejected(choose.body, { ...where, model: 3 })
+    expectRoundTrip(choose.outcomes.succeeded, { model: null })
+    const issue = { entry: null, field: 'model', problem: 'choose one of a/one, b/two' }
+    expectRoundTrip(choose.outcomes.invalid, { issues: [issue] })
   })
 
   it('a command names the goal it is given for: pause, resume, cancel, or settle by one exit', () => {

@@ -1,0 +1,82 @@
+{
+  "id": "x05-snake",
+  "purpose": "写贪吃蛇的规则 snake.js：start(size) 给出开局，step(state, key) 走一步（key 是方向键的名字或 null）",
+  "files": {
+    "snake.js": "'use strict'\n\nconst MOVES = {\n  ArrowUp: { x: 0, y: -1 },\n  ArrowDown: { x: 0, y: 1 },\n  ArrowLeft: { x: -1, y: 0 },\n  ArrowRight: { x: 1, y: 0 },\n}\n\nfunction start(size) {\n  return {\n    size,\n    body: [{ x: 2, y: 2 }, { x: 1, y: 2 }],\n    heading: MOVES.ArrowRight,\n    food: { x: 4, y: 2 },\n    over: false,\n  }\n}\n\nfunction turned(heading, key) {\n  const wanted = MOVES[key]\n  if (wanted === undefined) return heading\n  if (wanted.x === -heading.x && wanted.y === -heading.y) return heading\n  return wanted\n}\n\nfunction step(state, key) {\n  if (state.over) return state\n  const heading = turned(state.heading, key)\n  const head = { x: state.body[0].x + heading.x, y: state.body[0].y + heading.y }\n  if (head.x < 0 || head.y < 0 || head.x >= state.size || head.y >= state.size) {\n    return { ...state, heading, over: true }\n  }\n  const ate = head.x === state.food.x && head.y === state.food.y\n  const body = [head, ...(ate ? state.body : state.body.slice(0, -1))]\n  const food = ate ? { x: (head.x * 7 + 3) % state.size, y: (head.y * 5 + 1) % state.size } : state.food\n  return { ...state, body, heading, food }\n}\n\nmodule.exports = { start, step }\n",
+    "README.md": "# snake\n\n`start(8)` 开局：蛇头在 (2,2)，朝右，食物在 (4,2)。`step(state, key)` 走一步，`key` 是 `ArrowUp`、`ArrowDown`、`ArrowLeft`、`ArrowRight` 或 `null`。y 朝下增大。\n"
+  },
+  "criteria": [
+    {
+      "statement": "方向键能转向：按上蛇头往上走一格（y 减 1），按下往下走一格（y 加 1）",
+      "method": "用 node 载入 snake.js：从 start(8) 起 step(state, \"ArrowUp\")，蛇头要到 (2,1)；另从开局 step(state, \"ArrowDown\")，蛇头要到 (2,3)",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { start, step } = require(here + '/snake.js')\nassert.deepStrictEqual(step(start(8), 'ArrowUp').body[0], { x: 2, y: 1 })\nassert.deepStrictEqual(step(start(8), 'ArrowDown').body[0], { x: 2, y: 3 })\n"
+    },
+    {
+      "statement": "不能直接掉头：朝右走的时候按左没有用，蛇继续朝右",
+      "method": "用 node 载入 snake.js：从 start(8) 起 step(state, \"ArrowLeft\")，蛇头要到 (3,2)，不是 (1,2)",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { start, step } = require(here + '/snake.js')\nassert.deepStrictEqual(step(start(8), 'ArrowLeft').body[0], { x: 3, y: 2 })\n"
+    },
+    {
+      "statement": "吃到食物之后蛇长一节",
+      "method": "用 node 载入 snake.js：从 start(8) 起不按键走两步（食物在 (4,2)），蛇身的长度要从 2 变成 3",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { start, step } = require(here + '/snake.js')\nconst after = step(step(start(8), null), null)\nassert.strictEqual(after.body.length, 3)\n"
+    },
+    {
+      "statement": "撞到墙之后这一局结束：state.over 是 true，蛇不会从另一边出来",
+      "method": "用 node 载入 snake.js：从 start(8) 起不按键一直往右走 6 步（第 6 步出界），state.over 要是 true",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { start, step } = require(here + '/snake.js')\nlet state = start(8)\nfor (let turn = 0; turn < 6; turn += 1) state = step(state, null)\nassert.strictEqual(state.over, true)\n"
+    }
+  ],
+  "breaks": [
+    {
+      "name": "up-down-swapped",
+      "criterion": "A1",
+      "edits": [
+        {
+          "path": "snake.js",
+          "find": "  ArrowUp: { x: 0, y: -1 },\n  ArrowDown: { x: 0, y: 1 },",
+          "replace": "  ArrowUp: { x: 0, y: 1 },\n  ArrowDown: { x: 0, y: -1 },"
+        }
+      ]
+    },
+    {
+      "name": "reverse-allowed",
+      "criterion": "A2",
+      "edits": [
+        {
+          "path": "snake.js",
+          "find": "  if (wanted.x === -heading.x && wanted.y === -heading.y) return heading\n",
+          "replace": ""
+        }
+      ]
+    },
+    {
+      "name": "never-grows",
+      "criterion": "A3",
+      "edits": [
+        {
+          "path": "snake.js",
+          "find": "const body = [head, ...(ate ? state.body : state.body.slice(0, -1))]",
+          "replace": "const body = [head, ...state.body.slice(0, -1)]"
+        }
+      ]
+    },
+    {
+      "name": "wraps-around",
+      "criterion": "A4",
+      "edits": [
+        {
+          "path": "snake.js",
+          "find": "  const head = { x: state.body[0].x + heading.x, y: state.body[0].y + heading.y }\n  if (head.x < 0 || head.y < 0 || head.x >= state.size || head.y >= state.size) {\n    return { ...state, heading, over: true }\n  }",
+          "replace": "  const head = {\n    x: (state.body[0].x + heading.x + state.size) % state.size,\n    y: (state.body[0].y + heading.y + state.size) % state.size,\n  }"
+        }
+      ]
+    }
+  ],
+  "mended": "never-grows",
+  "spoiled": [
+    "reverse-allowed",
+    "wraps-around"
+  ],
+  "source": "written for this bench; the breaks are the kinds of half-done work the journeys of card 1720 met"
+}

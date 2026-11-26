@@ -214,6 +214,27 @@ declare const gapRow: {
                 ];
             };
         };
+        readonly verification: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
+            readonly since: 2;
+        };
+        readonly reader: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
+            readonly since: 2;
+        };
+        readonly value: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
+            readonly since: 3;
+        };
     };
 };
 declare const provenance: {
@@ -486,6 +507,27 @@ declare const goal: {
                                 ];
                             };
                         };
+                        readonly verification: {
+                            readonly rule: {
+                                readonly kind: 'text';
+                            };
+                            readonly optional: true;
+                            readonly since: 2;
+                        };
+                        readonly reader: {
+                            readonly rule: {
+                                readonly kind: 'text';
+                            };
+                            readonly optional: true;
+                            readonly since: 2;
+                        };
+                        readonly value: {
+                            readonly rule: {
+                                readonly kind: 'text';
+                            };
+                            readonly optional: true;
+                            readonly since: 3;
+                        };
                     };
                 };
             };
@@ -556,6 +598,13 @@ declare const goal: {
                     };
                 };
             };
+        };
+        readonly examiner: {
+            readonly rule: {
+                readonly kind: 'session';
+            };
+            readonly optional: true;
+            readonly since: 3;
         };
     };
 };
@@ -673,14 +722,18 @@ export declare const goalProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly goal: {
                         readonly body: import("@omne-harness/json-text").JsonValue;
+                        readonly examiner?: string;
                         readonly gap: readonly {
                             readonly id: string;
                             readonly open: boolean;
                             readonly ought: string;
+                            readonly reader?: string;
                             readonly reading: string;
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly value?: string;
+                            readonly verification?: string;
                         }[];
                         readonly history: readonly {
                             readonly at: string;
@@ -730,14 +783,18 @@ export declare const goalProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly goal: {
                         readonly body: import("@omne-harness/json-text").JsonValue;
+                        readonly examiner?: string;
                         readonly gap: readonly {
                             readonly id: string;
                             readonly open: boolean;
                             readonly ought: string;
+                            readonly reader?: string;
                             readonly reading: string;
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly value?: string;
+                            readonly verification?: string;
                         }[];
                         readonly history: readonly {
                             readonly at: string;
@@ -807,14 +864,18 @@ export declare const goalProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly goal: {
                         readonly body: import("@omne-harness/json-text").JsonValue;
+                        readonly examiner?: string;
                         readonly gap: readonly {
                             readonly id: string;
                             readonly open: boolean;
                             readonly ought: string;
+                            readonly reader?: string;
                             readonly reading: string;
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly value?: string;
+                            readonly verification?: string;
                         }[];
                         readonly history: readonly {
                             readonly at: string;
@@ -874,14 +935,18 @@ export declare const goalProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly goal: {
                         readonly body: import("@omne-harness/json-text").JsonValue;
+                        readonly examiner?: string;
                         readonly gap: readonly {
                             readonly id: string;
                             readonly open: boolean;
                             readonly ought: string;
+                            readonly reader?: string;
                             readonly reading: string;
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly value?: string;
+                            readonly verification?: string;
                         }[];
                         readonly history: readonly {
                             readonly at: string;
@@ -933,6 +998,54 @@ export declare const goalProtocol: {
                     readonly kind: "settle-by-exit";
                 };
                 readonly generation: number;
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'read-judge': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly model: string | null;
+                    readonly models: readonly string[];
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly since: 3;
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'choose-judge': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly model: string | null;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly issues: readonly {
+                        readonly entry: string | null;
+                        readonly field: string;
+                        readonly problem: string;
+                    }[];
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly since: 3;
+            readonly identity: "login";
+            readonly effect: "commit";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly model: string | null;
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;

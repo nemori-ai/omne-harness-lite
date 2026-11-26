@@ -54,9 +54,9 @@ export type ScheduleExecutionAccount = Readonly<{
   run: string | null
 }>
 
-/** One way of carrying out a Job's work. Asking it to start the same Job again answers the same execution. `accepts` judges work before it is saved; without it every work of the path stands. `describe` answers null when the account cannot be read now. */
+/** One way of carrying out a Job's work. Asking it to start the same Job again answers the same execution. `accepts` judges work before it is saved, for the owner it would be saved under; without it every work of the path stands. `describe` answers null when the account cannot be read now. */
 export interface ScheduleJobExecutor {
-  accepts?(work: ScheduleWork): Promise<ScheduleExecutorAcceptance>
+  accepts?(work: ScheduleWork, owner: ScheduleOwner): Promise<ScheduleExecutorAcceptance>
   describe?(job: ScheduleExecutorJob): Promise<ScheduleExecutionAccount | null>
   check(job: ScheduleExecutorJob): Promise<ScheduleExecutorCheck>
   start(job: ScheduleExecutorJob): Promise<ScheduleExecutorStart>

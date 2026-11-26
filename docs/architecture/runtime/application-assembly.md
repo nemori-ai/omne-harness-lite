@@ -560,7 +560,7 @@ flowchart LR
 | `dispatch-session` | `definitionMappings`、`sessionModesInstallation`、`dispatchPrincipal` |
 | `dispatch-tool` | `dispatchPrincipal` |
 | `goal` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration`、`tenantDomainScannerPrincipal` |
-| `goal-session` | `definitionMappings`、`goalPrincipal` |
+| `goal-session` | `definitionMappings`、`goalPrincipal`、`sessionWorkingDirectory` |
 | `schedule-session` | `definitionMappings`、`schedulePrincipal`、`sessionModesInstallation` |
 | `canvas` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration` |
 | `server-entry` | `principalIssuer`、`identityGovernance` |

@@ -15,7 +15,7 @@ import {
   type ToolOperation,
   type ToolOperationParameters,
 } from '@omne-harness/tool-contract/provider'
-import { show, track } from './commands.ts'
+import { brief, show, submit, track } from './commands.ts'
 import { goalOf } from './port.ts'
 import { proposeExecutor } from './proposing.ts'
 import {
@@ -34,17 +34,30 @@ export const GOAL_GATES: readonly ToolGate[] = [
   { id: 'read', title: '查看目标', default: 'auto' },
   { id: 'propose', title: '提议目标', default: 'auto' },
   { id: 'track', title: '记进展', default: 'auto' },
+  { id: 'submit', title: '交查验的读数', default: 'auto' },
 ]
 const GOAL_GATE_OF: Readonly<Record<GoalCommandName, string>> = {
   help: 'read',
   show: 'read',
   propose: 'propose',
   track: 'track',
+  brief: 'read',
+  submit: 'submit',
 }
 
 const ENCODING = 'wrapped' as const
 /** A proposal is confirmed by a person on a card: where nobody attends there is nobody to confirm it. */
-export const PROPOSE_CONDITIONS = ['person-present'] as const
+export const PROPOSE_CONDITIONS = ['person-present', 'working'] as const
+/** The two commands of the session that examines for a goal are offered there and nowhere else; what the working agent does with its goal is not offered there. */
+export const EXAMINING_CONDITIONS = ['examining'] as const
+export const WORKING_CONDITIONS = ['working'] as const
+const CONDITIONS_OF: Readonly<Partial<Record<GoalCommandName, readonly string[]>>> = {
+  show: WORKING_CONDITIONS,
+  propose: PROPOSE_CONDITIONS,
+  track: WORKING_CONDITIONS,
+  brief: EXAMINING_CONDITIONS,
+  submit: EXAMINING_CONDITIONS,
+}
 const encoder = new TextEncoder()
 const utf8 = (text: string) => encoder.encode(text)
 const text = (name: string, extra: object) =>
@@ -94,7 +107,9 @@ export async function answerGoal(
     )
   const ready = await reachFrom(args.command, goalOf(execution))
   if (!('reached' in ready)) return ready
-  return args.command === 'show' ? show(ready.reached) : track(ready.reached, args)
+  if (args.command === 'show') return show(ready.reached)
+  if (args.command === 'brief') return brief(ready.reached)
+  return args.command === 'submit' ? submit(ready.reached, args) : track(ready.reached, args)
 }
 
 /** A failed answer is thrown with its reason: the call fails with that reason as its result. */
@@ -177,7 +192,7 @@ export function createGoalAuthor(
       operation: operation.ok,
       release: { gate: GOAL_GATE_OF[name] },
       readOnly: GOAL_GATE_OF[name] === 'read',
-      ...(name === 'propose' ? { conditions: PROPOSE_CONDITIONS } : {}),
+      ...(CONDITIONS_OF[name] === undefined ? {} : { conditions: CONDITIONS_OF[name] }),
     }
   }
   const author = defineCommandTool({

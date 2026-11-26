@@ -22,7 +22,7 @@ const READ_ONLY: Readonly<Record<string, readonly string[]>> = {
   Jobs: ['help', 'list', 'show'],
   Sessions: ['help', 'list', 'search', 'show', 'read'],
   Agents: ['help', 'targets', 'show', 'list'],
-  Goal: ['help', 'show'],
+  Goal: ['help', 'show', 'brief'],
   Notifications: ['help', 'sent', 'inbox', 'read', 'sources', 'subscriptions'],
   SwitchWorkspace: [],
   OmneExtensionPoints: ['help', 'tree', 'find', 'show', 'changes'],

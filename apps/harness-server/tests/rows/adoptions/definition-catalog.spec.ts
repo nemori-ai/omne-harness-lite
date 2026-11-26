@@ -101,6 +101,11 @@ it('lists the definitions of the release to a tenant, each with its name, type a
       type: 'master',
       summary: expect.stringMatching(/^A coding agent with the full tool set/u),
     },
+    {
+      name: 'examiner',
+      type: 'non-master',
+      summary: expect.stringMatching(/^Examines the work of another session for a goal/u),
+    },
   ])
 })
 

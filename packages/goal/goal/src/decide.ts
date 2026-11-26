@@ -4,6 +4,10 @@ import {
   judgeCard,
   keptProgress,
   NO_GOAL,
+  cancelled,
+  keptExamination,
+  owingVerdict,
+  NO_EXAMINATION,
   NO_PROGRESS,
   NO_READINGS,
   renderBody,
@@ -13,6 +17,8 @@ import {
   type AnsweredCard,
   type Attendance,
   type BodyCheck,
+  type BodyContext,
+  type JobAwaited,
   type GoalBody,
   type GoalCommand,
   type GoalEvent,
@@ -31,9 +37,12 @@ export type Entrance =
   | Readonly<{ via: 'direct'; draftedBy: 'person' | 'creator'; by: string }>
   | Readonly<{ via: 'card'; card: AnsweredCard }>
 
+export type Rules = Readonly<{ maxExaminations: number; job: JobAwaited; examining: boolean }>
+
 export type WriteInput = Readonly<{
   session: string
   attendance: Attendance
+  rules: Rules
   moment: string
   proposal: Proposal
   entrance: Entrance
@@ -57,13 +66,17 @@ const refused = (reason: GoalRefusal): Decided => ({ kind: 'refused', reason })
 export function proposedBody(
   current: GoalRecord | null,
   proposal: Proposal,
-  attendance: Attendance,
+  context: BodyContext,
 ): BodyCheck | Readonly<{ kind: 'no-live-goal' }> {
-  if (proposal.kind === 'set') return validateDraft(proposal.draft, { attendance })
+  if (proposal.kind === 'set') return validateDraft(proposal.draft, context)
   const live = current !== null && current.state.status !== 'settled'
-  return live
-    ? reviseBody(current.body, proposal.changes, { attendance })
-    : { kind: 'no-live-goal' }
+  return live ? reviseBody(current.body, proposal.changes, context) : { kind: 'no-live-goal' }
+}
+
+function contextOf(attendance: Attendance, rules: Rules, entrance: Entrance | null): BodyContext {
+  const { maxExaminations, examining, job } = rules
+  const byCreator = entrance?.via === 'direct' && entrance.draftedBy === 'creator'
+  return { attendance, maxExaminations, examining, ...(byCreator ? { job } : {}) }
 }
 
 function keptReadings(before: GoalBody, after: GoalBody, readings: Readings): Readings {
@@ -76,6 +89,15 @@ function keptReadings(before: GoalBody, after: GoalBody, readings: Readings): Re
   }
   return { criteria: same('criteria'), metrics: same('metrics'), rules: same('rules') } as Readings
 }
+
+export function revisedExamination(before: GoalRecord, body: GoalBody) {
+  const was = new Map(before.body.criteria.map(entry => [entry.id, JSON.stringify(entry)]))
+  const same = body.criteria.filter(entry => was.get(entry.id) === JSON.stringify(entry))
+  return keptExamination(before.examination, new Set(same.map(entry => entry.id)))
+}
+
+const revisedOf = (before: GoalRecord, body: GoalBody, state: GoalState) =>
+  owingVerdict(revisedExamination(before, body).examination, state.status === 'active')
 
 function cardRefusal(entrance: Entrance, state: GoalState, attendance: Attendance) {
   if (entrance.via !== 'card') return null
@@ -148,7 +170,7 @@ function stand(current: GoalRecord | null, input: WriteInput): Stood | Decided {
   const byCard = entrance.via === 'card'
   const step = transition(state, writeEventOf(proposal, attendance, byCard))
   if (step.kind === 'refused') return refused({ kind: 'state', reason: step.reason })
-  const checked = proposedBody(current, proposal, attendance)
+  const checked = proposedBody(current, proposal, contextOf(attendance, input.rules, entrance))
   if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })
   if (checked.kind !== 'valid' || step.kind !== 'changed')
     return refused({ kind: 'state', reason: 'no-live-goal' })
@@ -181,6 +203,7 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
       history,
       wake,
       observed: null,
+      examination: before === null ? NO_EXAMINATION : revisedOf(before, body, state),
     },
   }
 }
@@ -205,10 +228,11 @@ export function describeProposal(
   current: GoalRecord | null,
   proposal: Proposal,
   attendance: Attendance,
+  rules: Rules,
 ): Described {
   const owner = standsFor(current, attendance)
   if (owner === 'unattended') return { refusal: { kind: 'state', reason: 'nobody-attends' } }
-  const checked = proposedBody(current, proposal, owner)
+  const checked = proposedBody(current, proposal, contextOf(owner, rules, null))
   if (checked.kind === 'no-live-goal') return { refusal: { kind: 'state', reason: 'no-live-goal' } }
   if (checked.kind === 'invalid') return { refusal: { kind: 'invalid', issues: checked.issues } }
   const { body } = checked
@@ -252,7 +276,14 @@ function commandedNothing(command: GoalCommand): Decided | null {
 function commanded(current: GoalRecord, state: GoalRecord['state'], wakes: boolean): GoalRecord {
   const version = current.version + 1
   const request = `resume/${String(current.state.generation)}/${String(version)}`
-  return { ...current, version, state, wake: wakes ? { kind: 'resume', request } : null }
+  const { examination } = state.status === 'settled' ? cancelled(current.examination) : current
+  return {
+    ...current,
+    version,
+    state,
+    examination,
+    wake: wakes ? { kind: 'resume', request } : null,
+  }
 }
 
 const NUMBERED = ['criteria', 'metrics', 'rules', 'exits', 'references'] as const

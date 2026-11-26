@@ -73,8 +73,8 @@ describe('work is asked of the executor of its path before it is saved', () => {
     const { accepts, executor } = judging({ kind: 'accepted' })
     const fixture = protocolFixture(null, { executor })
     expect(await fixture.commands.create(context, createOf())).toMatchObject({ kind: 'committed' })
-    expect(accepts.mock.calls).toEqual([[agentWork('写周报')]])
-    expect(executor.mock.calls).toEqual(accepts.mock.calls)
+    expect(accepts.mock.calls).toEqual([[agentWork('写周报'), context.owner]])
+    expect(executor.mock.calls).toEqual(accepts.mock.calls.map(([work]) => [work]))
   })
 
   it('refuses a create the executor refuses, with its reason, and saves nothing', async () => {
@@ -116,7 +116,7 @@ describe('work is asked of the executor of its path before it is saved', () => {
       kind: 'rejected',
       error: { code: 'invalid_input', message: 'purpose: 太长' },
     })
-    expect(accepts.mock.calls).toEqual([[agentWork('新的')]])
+    expect(accepts.mock.calls).toEqual([[agentWork('新的'), context.owner]])
     expect(fixture.calls).not.toContain('commit')
   })
 
@@ -124,7 +124,7 @@ describe('work is asked of the executor of its path before it is saved', () => {
     const promoted = judging({ kind: 'accepted' })
     const draft = protocolFixture(agentRecord('draft'), { executor: promoted.executor })
     await draft.commands.execute(context, command('promote'))
-    expect(promoted.accepts.mock.calls).toEqual([[agentWork('旧的')]])
+    expect(promoted.accepts.mock.calls).toEqual([[agentWork('旧的'), context.owner]])
     const replaced = judging({ kind: 'refused', reason: 'no' })
     const active = protocolFixture(agentRecord(), { executor: replaced.executor })
     const successor = ScheduleCommandSchema.parse({
@@ -135,7 +135,7 @@ describe('work is asked of the executor of its path before it is saved', () => {
       kind: 'rejected',
       error: { code: 'invalid_input', message: 'no' },
     })
-    expect(replaced.accepts.mock.calls).toEqual([[agentWork('换一个')]])
+    expect(replaced.accepts.mock.calls).toEqual([[agentWork('换一个'), context.owner]])
   })
 
   it.each(['pause', 'resume', 'stop', 'discard'] as const)(

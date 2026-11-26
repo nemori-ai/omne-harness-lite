@@ -105,7 +105,8 @@ export function createGoalCheck<P>(ports: GoalCheckPorts<P>): GoalCheck<P> {
     const checking = ports.checking()
     if (checking === undefined) return unresolved(input)
     const candidate = subject.proposed.kind === 'complete' ? 'complete' : 'failed'
-    const outcome = await checking.observe(caller, { session, call: input.passage, candidate })
+    const call = `${input.execution}/${input.passage}`
+    const outcome = await checking.observe(caller, { session, call, candidate })
     if (outcome.kind === 'done') return answered(input, outcome.value)
     if (outcome.kind !== 'refused') return unresolved(input)
     const error = `the check of the goal was refused: ${outcome.reason.kind}`

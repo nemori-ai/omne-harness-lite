@@ -5,7 +5,12 @@ import { tenantCodec, type TenantId as LegalTenant } from '@omne-harness/legal-i
 import { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from '../../../src/rows/authorization/principals.ts'
 import { checkedPrincipal, checkSubject } from '../../../src/rows/goal/check-subject.ts'
 import type { GoalHolder } from '../../../src/rows/goal/holder.ts'
-import { createGoalAuthority, lateCalls, lateSessions } from '../../../src/rows/goal/ports.ts'
+import {
+  createGoalAuthority,
+  lateCalls,
+  lateExamining,
+  lateSessions,
+} from '../../../src/rows/goal/ports.ts'
 import { SESSION_WORK_COMPONENT } from '../../../src/rows/tool-runtime/session-work.ts'
 
 const tenantOf = (account: string): LegalTenant => {
@@ -39,6 +44,7 @@ const OF_THE_PERSON = [
   'resume',
   'cancel',
   'settle-by-exit',
+  'choose-judge',
 ] as const
 const NOT_OF_THE_PERSON = ['abort', 'observe', 'propose', 'confirm', 'track'] as const
 const OF_THE_OWNER = [
@@ -49,6 +55,7 @@ const OF_THE_OWNER = [
   'cancel',
   'abort',
   'settle-by-exit',
+  'choose-judge',
 ] as const
 
 function authority(verified: unknown | 'rejected' | 'unavailable' | 'throws' | 'absent') {
@@ -88,6 +95,22 @@ describe('who may ask what of the goal of a session on the release', () => {
       expect(await decide(verified, action)).toBe('denied')
   })
 
+  it('the system principal of goals hands in what the program ran again, and does nothing else; nobody else hands it in', async () => {
+    const system = { kind: 'system', component: 'goal' }
+    expect(await decide(system, 'rerun')).toBe('permitted')
+    for (const action of [...OF_THE_AGENT, ...OF_THE_OWNER, 'observe', 'brief', 'submit'] as const)
+      expect(await decide(system, action as GoalAction)).toBe('denied')
+    const others = [work(A), { kind: 'system', component: 'schedule' }, 'rejected'] as const
+    for (const other of others) expect(await decide(other as never, 'rerun')).toBe('denied')
+  })
+
+  it('the work of a session may ask for the brief and hand in readings: whether it examines for a goal is the record of that goal', async () => {
+    for (const action of ['brief', 'submit'] as const) {
+      expect(await decide(work(A), action)).toBe('permitted')
+      expect(await decide(work(A, 'session-2'), action)).toBe('denied')
+    }
+  })
+
   it('schedule, as the creator of the sessions of its Jobs, reads, sets, cancels and aborts their goals, and does nothing else', async () => {
     const schedule = { kind: 'system', component: 'schedule' }
     for (const action of ['read', 'set', 'cancel', 'abort'] as const)
@@ -101,6 +124,7 @@ describe('who may ask what of the goal of a session on the release', () => {
       'propose',
       'confirm',
       'track',
+      'choose-judge',
     ]
     for (const action of rest as GoalAction[]) expect(await decide(schedule, action)).toBe('denied')
     expect(
@@ -195,7 +219,9 @@ describe('the ports the contributing rows mount', () => {
     calls: null,
     history: null,
     decisions: null,
+    examining: null,
     changes: null,
+    examination: null,
   })
   it('while nothing is mounted a read is unavailable and a reminder stays owed', async () => {
     const empty = holder()
@@ -211,6 +237,23 @@ describe('the ports the contributing rows mount', () => {
     } as const
     expect(await lateSessions(empty).wake('t', wake)).toBe('unknown')
     expect(await lateCalls(empty).cited('t', 's', ['call-1'], '0')).toEqual({ kind: 'unavailable' })
+    expect(await lateSessions(empty).running('t', 's')).toEqual({ kind: 'unavailable' })
+    const batch = {
+      session: 's',
+      request: 'examine/1/1/',
+      examiner: null,
+      where: null,
+      brief: '',
+      criteria: [],
+    }
+    expect(await lateExamining(empty).hand('t', batch)).toEqual({ kind: 'unknown' })
+    const nobody = { session: 's', examiner: 'x', request: 'examine/1/1/' }
+    expect(await lateExamining(empty).ended('t', nobody)).toBe('unknown')
+    await lateExamining(empty).cancel('t', nobody)
+    await lateExamining(empty).close('t', { session: 's', examiner: 'x' })
+    expect(await lateExamining(empty).calls('t', 'x', 'examine/1/1/')).toEqual({
+      kind: 'unavailable',
+    })
   })
   it('once mounted every call goes to what is mounted now', async () => {
     const mounted = holder()
@@ -222,7 +265,30 @@ describe('the ports the contributing rows mount', () => {
       }),
       asked: async () => ({ kind: 'read', value: { at: '30', text: '把首页降下来' } }),
       wake: async () => 'sent',
+      running: async () => ({ kind: 'read', value: true }),
     } satisfies GoalSessions
+    expect(await sessions.running('t', 's')).toEqual({ kind: 'read', value: true })
+    const examining = lateExamining(mounted)
+    mounted.examining = {
+      hand: async () => ({ kind: 'handed', examiner: 'x' }),
+      calls: async () => ({ kind: 'read', value: [] }),
+      ended: async () => 'ended',
+      cancel: async () => undefined,
+      close: async () => undefined,
+    }
+    const out = { session: 's', examiner: 'x', request: 'examine/1/1/' }
+    expect(await examining.ended('t', out)).toBe('ended')
+    await examining.cancel('t', out)
+    await examining.close('t', { session: 's', examiner: 'x' })
+    const batch = {
+      session: 's',
+      request: 'examine/1/1/',
+      examiner: null,
+      where: null,
+      brief: '',
+      criteria: [],
+    }
+    expect(await examining.hand('t', batch)).toEqual({ kind: 'handed', examiner: 'x' })
     expect(await sessions.asked('t', 's')).toEqual({
       kind: 'read',
       value: { at: '30', text: '把首页降下来' },

@@ -3,12 +3,13 @@ import type {
   GoalAuthority,
   GoalCalls,
   GoalDecisions,
+  GoalExamining,
   GoalHistory,
   GoalSessions,
 } from '@omne-harness/goal'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
-import { SCHEDULE_COMPONENT } from '../authorization/grants.ts'
+import { GOAL_COMPONENT, SCHEDULE_COMPONENT } from '../authorization/grants.ts'
 import { classify } from '../authorization/principals.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import { checkedPrincipal } from './check-subject.ts'
@@ -22,6 +23,17 @@ export function lateSessions(holder: GoalHolder): GoalSessions {
     facts: (...input) => holder.sessions?.facts(...input) ?? Promise.resolve(UNAVAILABLE),
     asked: (...input) => holder.sessions?.asked(...input) ?? Promise.resolve(UNAVAILABLE),
     wake: (...input) => holder.sessions?.wake(...input) ?? Promise.resolve('unknown'),
+    running: (...input) => holder.sessions?.running(...input) ?? Promise.resolve(UNAVAILABLE),
+  }
+}
+
+export function lateExamining(holder: GoalHolder): GoalExamining {
+  return {
+    hand: (...input) => holder.examining?.hand(...input) ?? Promise.resolve({ kind: 'unknown' }),
+    calls: (...input) => holder.examining?.calls(...input) ?? Promise.resolve(UNAVAILABLE),
+    ended: (...input) => holder.examining?.ended(...input) ?? Promise.resolve('unknown'),
+    cancel: (...input) => holder.examining?.cancel(...input) ?? Promise.resolve(),
+    close: (...input) => holder.examining?.close(...input) ?? Promise.resolve(),
   }
 }
 
@@ -41,8 +53,15 @@ export function lateDecisions(holder: GoalHolder): GoalDecisions {
   return { ask: input => holder.decisions?.ask(input) ?? Promise.resolve(null) }
 }
 
-/** What the agent of a session may ask of its own goal. Nothing here changes the goal without an answered card. */
-const OF_THE_AGENT: ReadonlySet<GoalAction> = new Set(['read', 'propose', 'confirm', 'track'])
+/** What the work of a session may ask: of its own goal, and of the goal it examines for. Whether it examines for one is the goal's own record, not asked here. Nothing here changes a goal without an answered card or a verdict. */
+const OF_THE_AGENT: ReadonlySet<GoalAction> = new Set([
+  'read',
+  'propose',
+  'confirm',
+  'track',
+  'brief',
+  'submit',
+])
 
 export type AuthorityPorts = Readonly<{ verifier(): PrincipalVerifier | undefined }>
 
@@ -55,11 +74,22 @@ const OF_THE_PERSON: ReadonlySet<GoalAction> = new Set([
   'resume',
   'cancel',
   'settle-by-exit',
+  'choose-judge',
 ])
 
 const OF_THE_CREATOR: ReadonlySet<GoalAction> = new Set(['read', 'set', 'cancel', 'abort'])
+const OF_THE_SYSTEM: Readonly<Record<string, 'creator' | 'examining'>> = {
+  [SCHEDULE_COMPONENT]: 'creator',
+  [GOAL_COMPONENT]: 'examining',
+}
 
-type Standing = 'unavailable' | 'none' | 'person' | 'creator' | Readonly<{ session: string }>
+type Standing =
+  | 'unavailable'
+  | 'none'
+  | 'person'
+  | 'creator'
+  | 'examining'
+  | Readonly<{ session: string }>
 
 /** Who a subject is to the goals of a tenant, once verified: the work of one session, a person come in by login, schedule as the creator of the sessions of its Jobs, or nobody. */
 async function standingOf(
@@ -76,8 +106,7 @@ async function standingOf(
   const work = sessionWorkOf(checked.principal, tenant)
   if (work !== undefined) return { session: work.session }
   const who = classify(checked.principal)
-  if (who?.column === 'system')
-    return who.principal.component === SCHEDULE_COMPONENT ? 'creator' : 'none'
+  if (who?.column === 'system') return OF_THE_SYSTEM[who.principal.component] ?? 'none'
   return who?.column === 'login' && tenantEquals(who.principal.tenant, tenant) ? 'person' : 'none'
 }
 
@@ -104,6 +133,7 @@ function allowed(
   if (standing === 'none') return false
   if (standing === 'person') return !checking && OF_THE_PERSON.has(action)
   if (standing === 'creator') return !checking && OF_THE_CREATOR.has(action)
+  if (standing === 'examining') return !checking && action === 'rerun'
   if (standing.session !== session) return false
   return checking ? action === 'observe' : OF_THE_AGENT.has(action)
 }

@@ -10,6 +10,7 @@ import {
   fakeCards,
   fakeDecisions,
   fakeHistory,
+  fakeExamining,
   fakeJudging,
   fakeSessions,
 } from '@omne-harness/goal/testing'
@@ -69,6 +70,7 @@ export function fakePorts() {
     history: fakeHistory(),
     decisions: fakeDecisions(),
     judging: fakeJudging(),
+    examining: fakeExamining(),
   }
 }
 export type Ports = ReturnType<typeof fakePorts>

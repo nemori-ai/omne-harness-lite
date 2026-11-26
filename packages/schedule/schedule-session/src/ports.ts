@@ -1,4 +1,4 @@
-import type { GoalRecord, GoalRefusal, Outcome } from '@omne-harness/goal-contract'
+import type { GoalRecord, GoalRefusal, JobAwaited, Outcome } from '@omne-harness/goal-contract'
 import type { ScheduleAgentSessionPlan } from '@omne-harness/schedule-contract'
 
 type At = Readonly<{ tenant: string; session: string }>
@@ -46,6 +46,8 @@ export type GoalCalls = Readonly<{
   read(at: At): Goal<GoalRecord | null>
   set(at: At & Readonly<{ operation: string; by: string; draft: unknown }>): Goal<GoalRecord>
   command(at: At & Readonly<{ command: 'cancel' | 'abort' }>): Goal<GoalRecord | null>
+  rules(input: Readonly<{ tenant: string }>): Promise<Read<JobRules>>
 }>
+export type JobRules = Readonly<{ maxExaminations: number; job: JobAwaited }>
 
 export type ExecutorCalls = Readonly<{ sessions: SessionCalls; goals: GoalCalls }>

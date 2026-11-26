@@ -1,14 +1,16 @@
 import { validateDraft, type GoalRecord } from '@omne-harness/goal-contract'
 import type {
   ScheduleExecutionAccount,
+  ScheduleExecutorAcceptance,
   ScheduleExecutorInspection,
   ScheduleExecutorStop,
   ScheduleExecutorUnknown,
+  ScheduleOwner,
   ScheduleWork,
 } from '@omne-harness/schedule-contract'
 import type { JobIdentities } from './identities.ts'
 import { endOf, issuesText } from './outcome.ts'
-import type { ExecutorCalls, SessionStanding } from './ports.ts'
+import type { ExecutorCalls, JobRules, SessionStanding } from './ports.ts'
 
 export type Facts = Readonly<{ standing: SessionStanding; goal: GoalRecord | null }>
 type AgentWork = Extract<ScheduleWork, { kind: 'agent' }>
@@ -28,10 +30,24 @@ export const mine = (goal: GoalRecord, ids: JobIdentities) =>
   goal.history[0]?.operation === ids.goal
 
 /** Why no session carries out this agent work as written, whichever session it is; null when one can. */
-export function instructionRefusal(work: AgentWork): string | null {
+export function instructionRefusal(work: AgentWork, rules?: JobRules): string | null {
   if (work.materials.length > 0) return 'materials are not carried into a session yet'
-  const checked = validateDraft(work.instruction, { attendance: 'unattended' })
+  const checked = validateDraft(work.instruction, { attendance: 'unattended', ...rules })
   return checked.kind === 'valid' ? null : `instruction: ${issuesText(checked.issues)}`
+}
+
+type Refusal = (work: ScheduleWork, rules?: JobRules) => string | null
+/** Judges work before it is saved, for the tenant it would be saved under: as written, and by what the settings of that tenant let the goal of a job write. Settings that cannot be read leave it unknown, never accepted. */
+export function acceptanceOf(calls: ExecutorCalls, refusalOf: Refusal) {
+  return async (work: ScheduleWork, owner: ScheduleOwner): Promise<ScheduleExecutorAcceptance> => {
+    const plain = refusalOf(work)
+    if (plain !== null) return { kind: 'refused', reason: plain }
+    if (owner.kind !== 'tenant') return { kind: 'accepted' }
+    const rules = await calls.goals.rules({ tenant: owner.tenantId }).catch(() => UNAVAILABLE)
+    if (rules.kind !== 'read') return unknown('the settings of goals cannot be read now')
+    const reason = refusalOf(work, rules.value)
+    return reason === null ? { kind: 'accepted' } : { kind: 'refused', reason }
+  }
 }
 
 /** What a Job reads and does in the session it runs in, the same whichever way the session came to be. */

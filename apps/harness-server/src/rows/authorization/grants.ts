@@ -42,7 +42,7 @@ export const MAINTENANCE_GRANTS: Readonly<Record<GrantHolder, ReleaseGrant>> = O
     'session-input',
     'input-fate',
   ]),
-  [GOAL_COMPONENT]: record(GOAL_COMPONENT, ['session-input']),
+  [GOAL_COMPONENT]: record(GOAL_COMPONENT, ['session-create', 'session-input']),
   [SCHEDULE_COMPONENT]: record(SCHEDULE_COMPONENT, ['session-create']),
   [AGENT_HOST_COMPONENT]: record(AGENT_HOST_COMPONENT, [
     'agent-instance-publish',

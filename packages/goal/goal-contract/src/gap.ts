@@ -9,6 +9,7 @@ import {
   type Metric,
   type RuleId,
 } from './body.ts'
+import { examined, verificationOf, type Verification } from './verification.ts'
 import {
   CriterionReadingSchema,
   RuleReadingSchema,
@@ -16,15 +17,23 @@ import {
   type RuleReading,
 } from './verdict.ts'
 
-export const ReadingSourceSchema = z.enum(['system', 'judge', 'agent'])
-/** Who a reading came from: the system following a tool result, the judge's observation, or the agent's own word. */
+export const ReadingSourceSchema = z.enum(['system', 'judge', 'agent', 'examiner'])
+/** Who a reading came from: the system following a tool result, the judge's observation, the examining side, or the agent's own word. */
 export type ReadingSource = z.infer<typeof ReadingSourceSchema>
 const reading = <V extends z.ZodType>(value: V) =>
   z.strictObject({ value, source: ReadingSourceSchema, ref: z.string().nullable() })
-export type Reading<V> = Readonly<{ value: V; source: ReadingSource; ref: string | null }>
+export type Reading<V> = Readonly<{
+  value: V
+  source: ReadingSource
+  ref: string | null
+  note?: string | null | undefined
+}>
 
 export const ReadingsSchema = z.strictObject({
-  criteria: z.partialRecord(CriterionIdSchema, reading(CriterionReadingSchema)),
+  criteria: z.partialRecord(
+    CriterionIdSchema,
+    reading(CriterionReadingSchema).extend({ note: z.string().nullable().optional() }),
+  ),
   metrics: z.partialRecord(MetricIdSchema, reading(z.number().finite())),
   rules: z.partialRecord(RuleIdSchema, reading(RuleReadingSchema)),
 })
@@ -41,6 +50,9 @@ export type GapRow = Readonly<{
   ref: string | null
   open: boolean
   short: string | null
+  /** How a criterion is judged; null for a row that is no criterion. */
+  verification: Verification | null
+  value: CriterionReading | null
 }>
 
 const CRITERION_WORDS: Readonly<Record<CriterionReading, string>> = {
@@ -49,6 +61,12 @@ const CRITERION_WORDS: Readonly<Record<CriterionReading, string>> = {
   'no-evidence': '没有证据',
   stale: '证据过时',
   'cannot-tell': '判不了',
+  gathering: '在取证',
+}
+const AWAITED_SHORT: Readonly<Partial<Record<CriterionReading, string>>> = {
+  'no-evidence': '别的行都成立后，系统把它交给查验的一方',
+  gathering: '现在写文件会让它过时',
+  stale: '之后又写过文件：下一次想收工时系统会再查',
 }
 const STALE_CURE = '之后又写过文件：把它的命令单独再跑一次，或把它的文件再读一次'
 const RULE_WORDS: Readonly<Record<RuleReading, string>> = {
@@ -74,6 +92,8 @@ function metricRow(metric: Metric, read: Reading<number> | undefined): GapRow {
     open: !reached,
     short:
       read === undefined || reached ? null : `还差 ${String(Math.abs(read.value - metric.target))}`,
+    verification: null,
+    value: null,
   }
 }
 
@@ -86,7 +106,15 @@ function measuredRow(criterion: Criterion, measured: GapRow): GapRow {
     ref: measured.ref,
     open: measured.open,
     short: measured.short === null ? null : `${measured.id} ${measured.short}`,
+    verification: 'system',
+    value: null,
   }
+}
+
+function shortOf(criterion: Criterion, read: Readings['criteria'][CriterionId]): string | null {
+  if (read === undefined) return null
+  if (!examined(verificationOf(criterion))) return read.value === 'stale' ? STALE_CURE : null
+  return AWAITED_SHORT[read.value] ?? read.note ?? null
 }
 
 function criterionRow(criterion: Criterion, read: Readings['criteria'][CriterionId]): GapRow {
@@ -97,7 +125,9 @@ function criterionRow(criterion: Criterion, read: Readings['criteria'][Criterion
     source: read?.source ?? null,
     ref: read?.ref ?? null,
     open: read?.value !== 'holds',
-    short: read?.value === 'stale' ? STALE_CURE : null,
+    short: shortOf(criterion, read),
+    verification: verificationOf(criterion),
+    value: read?.value ?? null,
   }
 }
 
@@ -110,11 +140,15 @@ function ruleRow(rule: GoalBody['rules'][number], read: Readings['rules'][RuleId
     ref: read?.ref ?? null,
     open: read?.value === 'broken',
     short: null,
+    verification: null,
+    value: null,
   }
 }
 
 function budgetRows(body: GoalBody, rounds: number): readonly GapRow[] {
-  const limit = body.exits.find(exit => exit.kind === 'budget')?.limits[0]
+  const limit = body.exits
+    .find(exit => exit.kind === 'budget')
+    ?.limits.find(entry => entry.unit === 'rounds')
   if (limit === undefined) return []
   return [
     {
@@ -125,6 +159,8 @@ function budgetRows(body: GoalBody, rounds: number): readonly GapRow[] {
       ref: null,
       open: false,
       short: `剩 ${String(Math.max(0, limit.amount - rounds))}`,
+      verification: null,
+      value: null,
     },
   ]
 }
@@ -148,6 +184,7 @@ const SOURCE_WORDS: Readonly<Record<ReadingSource, string>> = {
   system: '系统',
   judge: '判定',
   agent: '自述',
+  examiner: '查验',
 }
 
 /** The rows as text, one line each: what the agent reads with `Goal show` and in a reminder to go on. */

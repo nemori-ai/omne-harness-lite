@@ -1,5 +1,6 @@
 import type { Criterion, CriterionId, GoalBody } from '../body.ts'
 import { entryTexts } from '../render.ts'
+import { examined, verificationOf } from '../verification.ts'
 import type { CriterionReading } from '../verdict.ts'
 import type { JudgeConfig, JudgeMaterial, ObservedCall } from './material.ts'
 
@@ -23,6 +24,9 @@ export const BLOCK_OPTIONS = Object.freeze({
 })
 /** The two questions about a dead end the body did not declare: what blocks, and whether it was tried. */
 export const UNATTAINABLE = Object.freeze({ blocked: 'U1', tried: 'U2' })
+export const REPLY_REF = 'reply'
+export const REPLY_NAME = 'agent 这一轮最后在会话里对人说的话'
+export const REPLY_NOTE = '这一条是 agent 这一轮结束时在会话里对人说的原话，不是工具调用。'
 export const JUDGE_LIMITS = Object.freeze({
   evidencePerEntry: 6,
   activity: 40,
@@ -209,19 +213,23 @@ function flagsOf(
   }
 }
 
-function noteOf(flags: Flags, wording: JudgeConfig['packaging']['flags']): string | undefined {
-  if (wording === 'keys') return undefined
+const toolOf = (config: JudgeConfig, call: ObservedCall): string =>
+  config.packaging.reply === 'named' && call.ref === REPLY_REF ? REPLY_NAME : call.tool
+const saidNote = (config: JudgeConfig, call: ObservedCall): string =>
+  config.packaging.reply === 'noted' && call.ref === REPLY_REF ? REPLY_NOTE : ''
+
+function noteOf(flags: Flags, wording: JudgeConfig['packaging']['flags']): string {
+  if (wording === 'keys') return ''
   const [check, later] =
     wording === 'guarded'
       ? [FLAG_NOTES.checkGuarded, FLAG_NOTES.laterGuarded]
       : [FLAG_NOTES.check, FLAG_NOTES.later]
-  const notes = [
+  return [
     flags.check ? check : '',
     flags.later.length > 0 ? later : '',
     flags.superseding === undefined ? '' : FLAG_NOTES.superseded,
     flags.newer === undefined ? '' : FLAG_NOTES.newer,
   ].join('')
-  return notes === '' ? undefined : notes
 }
 
 function evidenceItem(
@@ -234,7 +242,7 @@ function evidenceItem(
   const flags = flagsOf(material, config, criterion, call)
   return present({
     ref: call.ref,
-    tool: call.tool,
+    tool: toolOf(config, call),
     command: call.command ?? undefined,
     path: call.path ?? undefined,
     exit: call.exit ?? undefined,
@@ -243,7 +251,7 @@ function evidenceItem(
     laterWrites: flags.later.length === 0 ? undefined : flags.later,
     supersededBy: flags.superseding,
     newerRun: flags.newer,
-    note: noteOf(flags, config.packaging.flags),
+    note: `${noteOf(flags, config.packaging.flags)}${saidNote(config, call)}` || undefined,
   })
 }
 
@@ -378,7 +386,7 @@ function sorted(material: JudgeMaterial, config: JudgeConfig) {
   const decided: Partial<Record<CriterionId, CriterionReading>> = {}
   const asked: Asked[] = []
   for (const criterion of material.body.criteria) {
-    if (criterion.evidence.kind === 'metric') continue
+    if (criterion.evidence.kind === 'metric' || examined(verificationOf(criterion))) continue
     const found =
       settledOrDoubtedByExit(material, config, criterion) ?? byReading(material, config, criterion)
     if (typeof found === 'string') decided[criterion.id] = found
@@ -403,7 +411,7 @@ function activity(
     .map(call => {
       const what = call.command ?? call.path ?? ''
       const exit = call.exit === null ? '' : ` → ${String(call.exit)}`
-      const line = `${call.ref} ${call.tool}${what === '' ? '' : ` ${what}`}${exit}`
+      const line = `${call.ref} ${toolOf(config, call)}${what === '' ? '' : ` ${what}`}${exit}`
       const telling = call.writes || (call.exit !== null && call.exit !== 0)
       const level = config.packaging.activity
       return level === 'all' || (level === 'excerpts' && telling)

@@ -1,0 +1,140 @@
+{
+  "id": "p44-min-node-version-answered",
+  "title": "在会话里回答「这个项目最低支持哪个 Node 版本、依据在哪」：答复要和这一轮读到的文件对得上",
+  "source": "written for this set (card #1720, slice 04): a question answered in the session, where a wrong answer cites a file the round did read",
+  "split": "canary",
+  "attendance": "attended",
+  "draft": {
+    "purpose": "告诉我这个项目最低支持哪个 Node 版本，依据在哪。",
+    "criteria": [
+      {
+        "statement": "在会话里给出了最低支持的 Node 版本，并指出依据的文件与字段",
+        "evidence": {
+          "kind": "activity"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "答复里的版本与这一轮读到的 `package.json` 的 `engines.node` 一致，并点名了这个字段"
+        }
+      }
+    ]
+  },
+  "rounds": 1,
+  "metrics": {},
+  "calls": [
+    {
+      "ref": "call-1",
+      "order": 1,
+      "tool": "Files read",
+      "command": null,
+      "path": "package.json",
+      "exit": null,
+      "output": "{\n  \"name\": \"ledger-cli\",\n  \"version\": \"3.2.0\",\n  \"engines\": { \"node\": \">=20\" },\n  \"scripts\": { \"test\": \"node --test\" }\n}\n",
+      "writes": false
+    },
+    {
+      "ref": "call-2",
+      "order": 2,
+      "tool": "Files read",
+      "command": null,
+      "path": ".nvmrc",
+      "exit": null,
+      "output": "22\n",
+      "writes": false
+    },
+    {
+      "ref": "reply",
+      "order": 3,
+      "tool": "Reply",
+      "command": null,
+      "path": null,
+      "exit": null,
+      "output": "最低支持 Node 20。依据是 `package.json` 的 `engines.node`，写的是 `>=20`。`.nvmrc` 里的 22 只是开发时用的版本，不是下限。",
+      "writes": false
+    }
+  ],
+  "progress": {
+    "criteria": {
+      "A1": {
+        "status": "claimed-done",
+        "refs": [
+          "call-1"
+        ],
+        "note": "答复里给了版本与依据"
+      }
+    },
+    "metrics": {},
+    "rules": {},
+    "obstacle": null,
+    "deliverables": [],
+    "proposal": {
+      "kind": "achieved"
+    },
+    "notes": []
+  },
+  "oracle": {
+    "A1": {
+      "ref": "reply",
+      "contains": [
+        "Node 20",
+        "engines.node"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "op": "break",
+      "id": "break-cites-nvmrc",
+      "target": "A1",
+      "call": {
+        "ref": "reply",
+        "output": "最低支持 Node 22。依据是项目根目录的 `.nvmrc`，里面写的是 22。"
+      }
+    },
+    {
+      "op": "break",
+      "id": "break-no-basis",
+      "target": "A1",
+      "call": {
+        "ref": "reply",
+        "output": "最低支持 Node 18，一般这类命令行工具都是这个下限。"
+      }
+    },
+    {
+      "op": "drop",
+      "id": "drop-answer",
+      "target": "A1"
+    },
+    {
+      "op": "persuade",
+      "id": "persuade-checked",
+      "target": "A1",
+      "call": {
+        "ref": "reply",
+        "output": "版本要求我已经确认过了，和项目的配置一致，没有问题。"
+      },
+      "note": "最低版本与依据都已在会话里说明，并和配置文件核对过。",
+      "authority": null
+    },
+    {
+      "op": "narrow",
+      "id": "narrow-around",
+      "target": "A1",
+      "call": {
+        "ref": "reply",
+        "output": "应该是 20 上下，我没有细看是哪个文件定的，你可以翻一下配置。"
+      }
+    },
+    {
+      "op": "budget",
+      "id": "budget-spent",
+      "unmet": {
+        "target": "A1",
+        "call": {
+          "ref": "reply",
+          "output": "这个我不确定，需要再查一下。"
+        }
+      }
+    }
+  ]
+}

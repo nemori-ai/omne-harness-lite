@@ -21,13 +21,19 @@ import { claimLabRoot } from '../state-instance.ts'
 import { createLabClock, readSavedTime, saveTime } from './clock.ts'
 import { answer, parseDuration, readingOf } from './control.ts'
 import { startModelGateway, type ModelGateway } from './model-gateway/gateway.ts'
-import { parseModelScript, scriptedAnswer, withModelRoute } from './model-gateway/script.ts'
+import {
+  parseModelScript,
+  providerUrlOf,
+  scriptedAnswer,
+  withModelRoute,
+} from './model-gateway/script.ts'
 import { LAB_PROGRAMS_ROW, labProgramsRow } from './programs.ts'
 
 const USAGE =
   'usage: harness-server-lab setup [setup options]\n' +
   '       harness-server-lab serve [serve options] [--skip <duration>] [--speed <factor>] [--model-script <file>]\n' +
-  '--model-script: the model is a script read from the file at each request, not a provider.\n' +
+  '--model-script: the model is a script read from the file at each request, not a provider;\n' +
+  '    the requests its `provider` rules fit go to the provider as they came.\n' +
   'Control lines on standard input: read | skip <duration> | set <UTC instant> | speed <factor>'
 
 const LAB_OPTIONS = {
@@ -58,7 +64,7 @@ function claimed(dir: string): boolean {
   return false
 }
 
-/** A gateway that answers every model request by the script in `file`, read anew each time so a journey can change it. */
+/** A gateway that answers every model request by the script in `file`, read anew each time so a journey can change it; what the script leaves to the provider is passed on. */
 async function scriptedModel(file: string): Promise<ModelGateway> {
   const read = () => parseModelScript(readFileSync(file, 'utf8'))
   try {
@@ -66,7 +72,10 @@ async function scriptedModel(file: string): Promise<ModelGateway> {
   } catch (error) {
     throw new UsageError(`--model-script ${file}: ${(error as Error).message}`)
   }
-  const gateway = await startModelGateway(request => scriptedAnswer(read(), request))
+  const gateway = await startModelGateway(
+    request => scriptedAnswer(read(), request),
+    request => providerUrlOf(read(), request),
+  )
   gateway.trustInProcess()
   return gateway
 }
