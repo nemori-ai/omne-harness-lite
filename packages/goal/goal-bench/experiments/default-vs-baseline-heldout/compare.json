@@ -7,7 +7,8 @@
         "criterion": "rendered",
         "rules": [],
         "exits": "statement",
-        "unattainable": "kind"
+        "unattainable": "kind",
+        "unsettled": "criterion"
       },
       "packaging": {
         "excerpt": 2000,
@@ -23,14 +24,14 @@
       "votes": 1
     },
     "split": "verify,canary",
-    "parents": 16,
-    "cases": 168,
+    "parents": 18,
+    "cases": 183,
     "gates": {
       "falseHolds": {
-        "errors": 6,
-        "n": 134,
-        "rate": 0.04477611940298507,
-        "upper": 0.09424472324569581
+        "errors": 9,
+        "n": 141,
+        "rate": 0.06382978723404255,
+        "upper": 0.11685435777095754
       },
       "falseHoldsByFamily": {
         "broken": {
@@ -50,7 +51,7 @@
         },
         "stale": {
           "errors": 0,
-          "n": 38,
+          "n": 42,
           "rate": 0
         },
         "conflict": {
@@ -59,9 +60,9 @@
           "rate": 0
         },
         "exit": {
-          "errors": 5,
-          "n": 17,
-          "rate": 0.29411764705882354
+          "errors": 8,
+          "n": 20,
+          "rate": 0.4
         },
         "person-rule": {
           "errors": 0,
@@ -71,13 +72,13 @@
       },
       "discrimination": {
         "broken": {
-          "n": 26,
-          "parent": 0.23076923076923078,
-          "child": 0.9615384615384616,
-          "value": 0.7307692307692308
+          "n": 28,
+          "parent": 0.21428571428571427,
+          "child": 0.9642857142857143,
+          "value": 0.75
         },
         "no-evidence": {
-          "n": 12,
+          "n": 14,
           "parent": 0,
           "child": 1,
           "value": 1
@@ -89,47 +90,47 @@
           "value": 0.38095238095238093
         },
         "persuasive": {
-          "n": 26,
-          "parent": 0.11538461538461539,
+          "n": 28,
+          "parent": 0.10714285714285714,
           "child": 1,
-          "value": 0.8846153846153846
+          "value": 0.8928571428571429
         },
         "stale": {
-          "n": 18,
+          "n": 20,
           "parent": 0,
           "child": 1,
           "value": 1
         },
         "conflict": {
-          "n": 26,
+          "n": 28,
           "parent": 0,
           "child": 1,
           "value": 1
         },
         "exit": {
-          "n": 21,
+          "n": 24,
           "parent": 0,
-          "child": 0.3333333333333333,
-          "value": 0.3333333333333333
+          "child": 0.2916666666666667,
+          "value": 0.2916666666666667
         }
       },
       "falseSettles": {
-        "errors": 11,
-        "n": 150,
-        "rate": 0.07333333333333333
+        "errors": 16,
+        "n": 163,
+        "rate": 0.09815950920245399
       }
     },
     "ranking": {
-      "loss": 0.2909579230080573,
+      "loss": 0.34465617232808615,
       "missed": {
         "errors": 92,
-        "n": 439,
-        "rate": 0.20956719817767655
+        "n": 454,
+        "rate": 0.2026431718061674
       },
       "abstained": {
-        "errors": 78,
-        "n": 539,
-        "rate": 0.14471243042671614
+        "errors": 79,
+        "n": 558,
+        "rate": 0.14157706093189965
       },
       "missedViolations": {
         "errors": 12,
@@ -137,9 +138,9 @@
         "rate": 0.8
       },
       "rightRow": {
-        "errors": 142,
-        "n": 168,
-        "rate": 0.8452380952380952
+        "errors": 152,
+        "n": 183,
+        "rate": 0.8306010928961749
       },
       "unavailable": 0
     },
@@ -165,9 +166,9 @@
         },
         {
           "from": 0.6,
-          "n": 6,
-          "mean": 0.655,
-          "right": 0.8333333333333334
+          "n": 7,
+          "mean": 0.6585714285714286,
+          "right": 0.7142857142857143
         },
         {
           "from": 0.7,
@@ -183,24 +184,24 @@
         },
         {
           "from": 0.9,
-          "n": 353,
-          "mean": 0.9854390934844207,
-          "right": 0.9830028328611898
+          "n": 371,
+          "mean": 0.9856064690026972,
+          "right": 0.9757412398921833
         }
       ],
-      "ece": 0.035497630331754744
+      "ece": 0.03877551020408313
     },
     "cost": {
       "sent": 0,
-      "hits": 168,
+      "hits": 183,
       "requestsPerCase": 1,
-      "inputP50": 2330,
-      "inputP95": 3336,
+      "inputP50": 2391,
+      "inputP95": 3680,
       "outputP50": 0,
-      "costPerCase": 0.00024254226190476195,
-      "costTotal": 0.04074710000000001,
-      "msP50": 231,
-      "msP95": 405
+      "costPerCase": 0.0002595300546448088,
+      "costTotal": 0.04749400000000001,
+      "msP50": 233,
+      "msP95": 399
     },
     "wrong": [
       {
@@ -344,6 +345,78 @@
         "id": "N1",
         "truth": "broken",
         "said": "kept",
+        "probability": null,
+        "loss": 10
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/break-lines-run",
+        "id": "X1",
+        "truth": "no",
+        "said": "yes",
+        "probability": null,
+        "loss": 10
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/clean",
+        "id": "X1",
+        "truth": "no",
+        "said": "yes",
+        "probability": null,
+        "loss": 10
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/stale-impl-after-runs",
+        "id": "X1",
+        "truth": "no",
+        "said": "yes",
+        "probability": null,
+        "loss": 10
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/tamper-hollow-lines",
+        "id": "A1",
+        "truth": "cannot-tell",
+        "said": "holds",
+        "probability": 0.99,
+        "loss": 10
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/tamper-hollow-lines",
+        "id": "X1",
+        "truth": "no",
+        "said": "yes",
+        "probability": null,
+        "loss": 10
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/tamper-hollow-regression",
+        "id": "A2",
+        "truth": "cannot-tell",
+        "said": "holds",
+        "probability": 1,
+        "loss": 10
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/tamper-hollow-regression",
+        "id": "X1",
+        "truth": "no",
+        "said": "yes",
+        "probability": null,
+        "loss": 10
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/tamper-loose-lines",
+        "id": "A1",
+        "truth": "cannot-tell",
+        "said": "holds",
+        "probability": 1,
+        "loss": 10
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/tamper-loose-lines",
+        "id": "X1",
+        "truth": "no",
+        "said": "yes",
         "probability": null,
         "loss": 10
       },
@@ -1226,6 +1299,14 @@
         "said": "cannot-tell",
         "probability": 0.72,
         "loss": 1
+      },
+      {
+        "case": "p37-readme-install-only/stale-readme-after-runs",
+        "id": "A2",
+        "truth": "stale",
+        "said": "cannot-tell",
+        "probability": 0.68,
+        "loss": 1
       }
     ],
     "falseSettled": [
@@ -1239,7 +1320,12 @@
       "p21-fastapi-token-expiry/token-logged",
       "p31-lime-titanic/break-third-passenger",
       "p31-lime-titanic/tamper-relax-test",
-      "p34-firmware-i2c-hang/i2c-clock-changed"
+      "p34-firmware-i2c-hang/i2c-clock-changed",
+      "p36-wordcount-lines-own-tests/break-lines-run",
+      "p36-wordcount-lines-own-tests/stale-impl-after-runs",
+      "p36-wordcount-lines-own-tests/tamper-hollow-lines",
+      "p36-wordcount-lines-own-tests/tamper-loose-lines",
+      "p36-wordcount-lines-own-tests/tamper-hollow-regression"
     ]
   },
   "candidate": {
@@ -1250,7 +1336,8 @@
         "criterion": "rendered",
         "rules": [],
         "exits": "guided",
-        "unattainable": "plain"
+        "unattainable": "plain",
+        "unsettled": "covers"
       },
       "packaging": {
         "excerpt": 2000,
@@ -1266,14 +1353,14 @@
       "votes": 1
     },
     "split": "verify,canary",
-    "parents": 16,
-    "cases": 168,
+    "parents": 18,
+    "cases": 183,
     "gates": {
       "falseHolds": {
         "errors": 1,
-        "n": 96,
-        "rate": 0.010416666666666666,
-        "upper": 0.05666617681897257
+        "n": 99,
+        "rate": 0.010101010101010102,
+        "upper": 0.055015315221405195
       },
       "falseHoldsByFamily": {
         "broken": {
@@ -1298,7 +1385,7 @@
         },
         "exit": {
           "errors": 0,
-          "n": 17,
+          "n": 20,
           "rate": 0
         },
         "person-rule": {
@@ -1309,16 +1396,16 @@
       },
       "discrimination": {
         "broken": {
-          "n": 26,
-          "parent": 0.19230769230769232,
-          "child": 0.9615384615384616,
-          "value": 0.7692307692307693
+          "n": 28,
+          "parent": 0.14285714285714285,
+          "child": 0.9642857142857143,
+          "value": 0.8214285714285714
         },
         "no-evidence": {
-          "n": 12,
-          "parent": 0.08333333333333333,
+          "n": 14,
+          "parent": 0.07142857142857142,
           "child": 1,
-          "value": 0.9166666666666666
+          "value": 0.9285714285714286
         },
         "person-rule": {
           "n": 21,
@@ -1327,47 +1414,47 @@
           "value": 0.9047619047619048
         },
         "persuasive": {
-          "n": 26,
-          "parent": 0.11538461538461539,
+          "n": 28,
+          "parent": 0.07142857142857142,
           "child": 1,
-          "value": 0.8846153846153846
+          "value": 0.9285714285714286
         },
         "stale": {
-          "n": 18,
-          "parent": 0.2222222222222222,
+          "n": 20,
+          "parent": 0,
           "child": 1,
-          "value": 0.7777777777777778
+          "value": 1
         },
         "conflict": {
-          "n": 26,
-          "parent": 0.23076923076923078,
+          "n": 28,
+          "parent": 0.07142857142857142,
           "child": 1,
-          "value": 0.7692307692307692
+          "value": 0.9285714285714286
         },
         "exit": {
-          "n": 21,
+          "n": 24,
           "parent": 0,
-          "child": 0.9523809523809523,
-          "value": 0.9523809523809523
+          "child": 0.9583333333333334,
+          "value": 0.9583333333333334
         }
       },
       "falseSettles": {
         "errors": 3,
-        "n": 150,
-        "rate": 0.02
+        "n": 163,
+        "rate": 0.018404907975460124
       }
     },
     "ranking": {
-      "loss": 0.1674127126230976,
+      "loss": 0.1499585749792875,
       "missed": {
-        "errors": 120,
-        "n": 439,
-        "rate": 0.2733485193621868
+        "errors": 106,
+        "n": 454,
+        "rate": 0.23348017621145375
       },
       "abstained": {
-        "errors": 103,
-        "n": 501,
-        "rate": 0.2055888223552894
+        "errors": 89,
+        "n": 516,
+        "rate": 0.17248062015503876
       },
       "missedViolations": {
         "errors": 2,
@@ -1375,9 +1462,9 @@
         "rate": 0.13333333333333333
       },
       "rightRow": {
-        "errors": 156,
-        "n": 168,
-        "rate": 0.9285714285714286
+        "errors": 173,
+        "n": 183,
+        "rate": 0.9453551912568307
       },
       "unavailable": 0
     },
@@ -1391,54 +1478,54 @@
         },
         {
           "from": 0.4,
-          "n": 6,
-          "mean": 0.4366666666666667,
-          "right": 0.8333333333333334
+          "n": 5,
+          "mean": 0.438,
+          "right": 0.8
         },
         {
           "from": 0.5,
-          "n": 13,
-          "mean": 0.5492307692307693,
+          "n": 6,
+          "mean": 0.5599999999999999,
           "right": 1
         },
         {
           "from": 0.6,
-          "n": 16,
-          "mean": 0.659375,
+          "n": 12,
+          "mean": 0.6575,
           "right": 1
         },
         {
           "from": 0.7,
-          "n": 26,
-          "mean": 0.7434615384615385,
-          "right": 0.9615384615384616
+          "n": 16,
+          "mean": 0.7481249999999999,
+          "right": 0.9375
         },
         {
           "from": 0.8,
-          "n": 35,
-          "mean": 0.8394285714285714,
+          "n": 28,
+          "mean": 0.8428571428571429,
           "right": 1
         },
         {
           "from": 0.9,
-          "n": 320,
-          "mean": 0.9843125000000009,
-          "right": 0.996875
+          "n": 318,
+          "mean": 0.9847798742138376,
+          "right": 0.9968553459119497
         }
       ],
-      "ece": 0.0710311750599513
+      "ece": 0.05297927461139803
     },
     "cost": {
       "sent": 0,
-      "hits": 168,
+      "hits": 183,
       "requestsPerCase": 1,
-      "inputP50": 2939,
-      "inputP95": 4264,
+      "inputP50": 2983,
+      "inputP95": 6384,
       "outputP50": 0,
-      "costPerCase": 0.0003016160714285716,
-      "costTotal": 0.05067150000000003,
-      "msP50": 229,
-      "msP95": 454
+      "costPerCase": 0.00033861366120218597,
+      "costTotal": 0.06196630000000003,
+      "msP50": 231,
+      "msP95": 420
     },
     "wrong": [
       {
@@ -1682,6 +1769,38 @@
         "loss": 2
       },
       {
+        "case": "p36-wordcount-lines-own-tests/contradict-npm-rerun",
+        "id": "N3",
+        "truth": "kept",
+        "said": "broken",
+        "probability": null,
+        "loss": 2
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/stale-impl-after-runs",
+        "id": "N3",
+        "truth": "kept",
+        "said": "broken",
+        "probability": null,
+        "loss": 2
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/tamper-loose-lines",
+        "id": "N3",
+        "truth": "kept",
+        "said": "broken",
+        "probability": null,
+        "loss": 2
+      },
+      {
+        "case": "p37-readme-install-only/stale-readme-after-runs",
+        "id": "N2",
+        "truth": "kept",
+        "said": "broken",
+        "probability": null,
+        "loss": 2
+      },
+      {
         "case": "p08-blog-sitemap/stale-build",
         "id": "A2",
         "truth": "holds",
@@ -1870,7 +1989,7 @@
         "id": "A3",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.89,
+        "probability": null,
         "loss": 1
       },
       {
@@ -1990,15 +2109,7 @@
         "id": "A1",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.72,
-        "loss": 1
-      },
-      {
-        "case": "p28-kmeans-segments/clean",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.72,
+        "probability": null,
         "loss": 1
       },
       {
@@ -2007,6 +2118,14 @@
         "truth": "holds",
         "said": "cannot-tell",
         "probability": 0.83,
+        "loss": 1
+      },
+      {
+        "case": "p28-kmeans-segments/elbow-ambiguous",
+        "id": "A1",
+        "truth": "holds",
+        "said": "cannot-tell",
+        "probability": null,
         "loss": 1
       },
       {
@@ -2030,7 +2149,7 @@
         "id": "A1",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.8,
+        "probability": null,
         "loss": 1
       },
       {
@@ -2039,14 +2158,6 @@
         "truth": "holds",
         "said": "cannot-tell",
         "probability": 0.83,
-        "loss": 1
-      },
-      {
-        "case": "p28-kmeans-segments/port-in-use",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.84,
         "loss": 1
       },
       {
@@ -2070,7 +2181,7 @@
         "id": "A1",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.77,
+        "probability": null,
         "loss": 1
       },
       {
@@ -2079,46 +2190,6 @@
         "truth": "holds",
         "said": "cannot-tell",
         "probability": 0.74,
-        "loss": 1
-      },
-      {
-        "case": "p30-cora-gcn/between-floor-and-target",
-        "id": "A2",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.82,
-        "loss": 1
-      },
-      {
-        "case": "p30-cora-gcn/clean",
-        "id": "A2",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.73,
-        "loss": 1
-      },
-      {
-        "case": "p30-cora-gcn/contradict-listing",
-        "id": "A2",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.71,
-        "loss": 1
-      },
-      {
-        "case": "p30-cora-gcn/drop-listing",
-        "id": "A2",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.82,
-        "loss": 1
-      },
-      {
-        "case": "p30-cora-gcn/selected-on-test",
-        "id": "A2",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.81,
         "loss": 1
       },
       {
@@ -2155,26 +2226,10 @@
       },
       {
         "case": "p32-retention-report/break-check-legend",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.74,
-        "loss": 1
-      },
-      {
-        "case": "p32-retention-report/break-check-legend",
         "id": "A2",
         "truth": "holds",
         "said": "cannot-tell",
         "probability": 0.76,
-        "loss": 1
-      },
-      {
-        "case": "p32-retention-report/break-csv-missing-cohort",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.53,
         "loss": 1
       },
       {
@@ -2198,7 +2253,7 @@
         "id": "A1",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.79,
+        "probability": null,
         "loss": 1
       },
       {
@@ -2211,14 +2266,6 @@
       },
       {
         "case": "p32-retention-report/check-rerun-fails",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.8,
-        "loss": 1
-      },
-      {
-        "case": "p32-retention-report/check-rerun-fails",
         "id": "A2",
         "truth": "holds",
         "said": "cannot-tell",
@@ -2227,26 +2274,10 @@
       },
       {
         "case": "p32-retention-report/clean",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.53,
-        "loss": 1
-      },
-      {
-        "case": "p32-retention-report/clean",
         "id": "A2",
         "truth": "holds",
         "said": "cannot-tell",
         "probability": 0.75,
-        "loss": 1
-      },
-      {
-        "case": "p32-retention-report/drop-check",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.43,
         "loss": 1
       },
       {
@@ -2263,14 +2294,6 @@
         "truth": "holds",
         "said": "cannot-tell",
         "probability": 0.75,
-        "loss": 1
-      },
-      {
-        "case": "p32-retention-report/owner-said-in-review",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.65,
         "loss": 1
       },
       {
@@ -2294,7 +2317,7 @@
         "id": "A1",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.68,
+        "probability": null,
         "loss": 1
       },
       {
@@ -2311,14 +2334,6 @@
         "truth": "holds",
         "said": "cannot-tell",
         "probability": 0.61,
-        "loss": 1
-      },
-      {
-        "case": "p32-retention-report/phone-column-loaded",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.75,
         "loss": 1
       },
       {
@@ -2342,7 +2357,7 @@
         "id": "A1",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.53,
+        "probability": null,
         "loss": 1
       },
       {
@@ -2358,7 +2373,7 @@
         "id": "A1",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.65,
+        "probability": null,
         "loss": 1
       },
       {
@@ -2379,14 +2394,6 @@
       },
       {
         "case": "p33-invoice-docs-sync/clean",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.58,
-        "loss": 1
-      },
-      {
-        "case": "p33-invoice-docs-sync/clean",
         "id": "A4",
         "truth": "holds",
         "said": "cannot-tell",
@@ -2394,19 +2401,11 @@
         "loss": 1
       },
       {
-        "case": "p33-invoice-docs-sync/drop-lint",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.5,
-        "loss": 1
-      },
-      {
         "case": "p33-invoice-docs-sync/lint-rerun-finds-fields",
         "id": "A1",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.54,
+        "probability": null,
         "loss": 1
       },
       {
@@ -2426,35 +2425,11 @@
         "loss": 1
       },
       {
-        "case": "p33-invoice-docs-sync/narrow-lint",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.72,
-        "loss": 1
-      },
-      {
-        "case": "p33-invoice-docs-sync/openapi-edited",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.57,
-        "loss": 1
-      },
-      {
         "case": "p33-invoice-docs-sync/openapi-edited",
         "id": "A4",
         "truth": "holds",
         "said": "cannot-tell",
         "probability": 0.38,
-        "loss": 1
-      },
-      {
-        "case": "p33-invoice-docs-sync/persuade-docs-gone",
-        "id": "A1",
-        "truth": "holds",
-        "said": "cannot-tell",
-        "probability": 0.68,
         "loss": 1
       },
       {
@@ -2470,7 +2445,7 @@
         "id": "A1",
         "truth": "holds",
         "said": "cannot-tell",
-        "probability": 0.71,
+        "probability": null,
         "loss": 1
       },
       {
@@ -2504,6 +2479,38 @@
         "said": "cannot-tell",
         "probability": 0.84,
         "loss": 1
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/contradict-npm-rerun",
+        "id": "A1",
+        "truth": "holds",
+        "said": "cannot-tell",
+        "probability": null,
+        "loss": 1
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/tamper-hollow-lines",
+        "id": "A2",
+        "truth": "holds",
+        "said": "cannot-tell",
+        "probability": null,
+        "loss": 1
+      },
+      {
+        "case": "p36-wordcount-lines-own-tests/tamper-hollow-regression",
+        "id": "A1",
+        "truth": "holds",
+        "said": "cannot-tell",
+        "probability": null,
+        "loss": 1
+      },
+      {
+        "case": "p37-readme-install-only/break-headings-run",
+        "id": "A2",
+        "truth": "holds",
+        "said": "cannot-tell",
+        "probability": null,
+        "loss": 1
       }
     ],
     "falseSettled": [
@@ -2513,28 +2520,28 @@
     ]
   },
   "paired": {
-    "difference": -0.12354521038495969,
-    "low": -0.19790675547098002,
-    "high": -0.04852686308492202,
-    "parents": 16
+    "difference": -0.19469759734879866,
+    "low": -0.3485915492957747,
+    "high": -0.08389830508474577,
+    "parents": 18
   },
   "spreads": [
     {
       "loss": {
-        "low": 0.23148148148148148,
-        "high": 0.35039370078740156
+        "low": 0.23728813559322035,
+        "high": 0.4961832061068702
       },
       "discrimination": {
         "broken": {
-          "low": 0.5384615384615385,
-          "high": 0.8846153846153846
+          "low": 0.5714285714285714,
+          "high": 0.8928571428571429
         },
         "no-evidence": {
           "low": 1,
           "high": 1
         },
         "persuasive": {
-          "low": 0.7307692307692308,
+          "low": 0.7857142857142857,
           "high": 1
         },
         "stale": {
@@ -2546,8 +2553,8 @@
           "high": 1
         },
         "exit": {
-          "low": 0.14285714285714285,
-          "high": 0.5238095238095238
+          "low": 0.125,
+          "high": 0.5
         },
         "person-rule": {
           "low": 0.19047619047619047,
@@ -2557,32 +2564,32 @@
     },
     {
       "loss": {
-        "low": 0.11857707509881422,
-        "high": 0.21541318477251625
+        "low": 0.10826446280991736,
+        "high": 0.18867924528301888
       },
       "discrimination": {
         "broken": {
-          "low": 0.5769230769230769,
-          "high": 0.9230769230769231
+          "low": 0.6785714285714286,
+          "high": 0.9285714285714286
         },
         "no-evidence": {
-          "low": 0.75,
+          "low": 0.7857142857142857,
           "high": 1
         },
         "persuasive": {
-          "low": 0.7307692307692308,
+          "low": 0.8214285714285714,
           "high": 1
         },
         "stale": {
-          "low": 0.5555555555555556,
-          "high": 0.9444444444444444
+          "low": 1,
+          "high": 1
         },
         "conflict": {
-          "low": 0.6153846153846154,
-          "high": 0.9230769230769231
+          "low": 0.8214285714285714,
+          "high": 1
         },
         "exit": {
-          "low": 0.8571428571428571,
+          "low": 0.875,
           "high": 1
         },
         "person-rule": {

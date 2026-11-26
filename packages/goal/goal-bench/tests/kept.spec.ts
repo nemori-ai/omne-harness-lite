@@ -18,12 +18,23 @@ const HELD_OUT = loadParents()
 const unkept: Decide = request =>
   Promise.reject(new Error(`a request to ${request.model} is not among the kept replies`))
 const SIDES = [
-  ['the baseline scheme', BASELINE_JUDGE_CONFIG, 'base', ['baseline-verify', 'baseline-canary']],
+  [
+    'the baseline scheme',
+    BASELINE_JUDGE_CONFIG,
+    'base',
+    ['baseline-verify', 'baseline-canary', 'default-vs-baseline-heldout'],
+  ],
   [
     'the default scheme',
     DEFAULT_JUDGE_CONFIG,
     'candidate',
-    ['final-verify', 'final-canary', 'f01-staleness-decided-heldout'],
+    [
+      'final-verify',
+      'final-canary',
+      'f01-staleness-decided-heldout',
+      'default-vs-baseline-heldout',
+      'k02-trust-question-heldout',
+    ],
   ],
 ] as const
 const replayed = (side: (typeof SIDES)[number]): Promise<Replayed> =>

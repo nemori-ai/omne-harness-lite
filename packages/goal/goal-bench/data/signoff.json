@@ -236,5 +236,33 @@
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
     "at": "2026-11-25T15:58:27.000Z"
+  },
+  {
+    "parent": "p35-wordcount-lines-revised",
+    "digest": "sha256:f625103c928e7d96c9aa98778e748f2395b1f6c2637d90360118d4e180181be9",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-26T10:28:43.065Z"
+  },
+  {
+    "parent": "p36-wordcount-lines-own-tests",
+    "digest": "sha256:9ca2046f52100809115a20d051c5c7b7886a3f4f3cddc939b7deca3aa721bab8",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-26T10:28:43.065Z"
+  },
+  {
+    "parent": "p37-readme-install-only",
+    "digest": "sha256:9452a547dab861fe1f9a046aa7fd109de70565643eed80839bc6468b4defd317",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-26T10:27:44.831Z"
+  },
+  {
+    "parent": "p38-wordcount-lines-cache-cleanup",
+    "digest": "sha256:1ccfb330fd48a9eb2718a421dede6e9d60aa9750027e6391765282f5b6b29146",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
+    "at": "2026-11-26T10:46:51.123Z"
   }
 ]
