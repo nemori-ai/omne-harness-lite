@@ -37,6 +37,7 @@ import { loadTree, type ResolvedTree } from './plugin-tree.ts'
 import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts'
 import type { LoadedRow } from './readiness.ts'
 import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-bound.ts'
+import { LAST_FALL_KEY, takeLastFall } from './process-fall.ts'
 import { inTransit, stopOf } from './readiness.ts'
 import { refusedByStamp, stampState } from './state-stamp.ts'
 import { disposeWithin, monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
@@ -758,6 +759,13 @@ function rootRetirement(
   }
 }
 
+/** The root of one run; it carries what the process before it left when it went down. */
+function rootOf(stateRoot: string): Context {
+  const root = new Context()
+  root.provide(LAST_FALL_KEY, takeLastFall(stateRoot))
+  return root
+}
+
 async function awaitStop(
   signal: AbortSignal,
   registryStop: Promise<void>,
@@ -888,7 +896,7 @@ async function runServeWithHostFiles(
   for (const record of entryObjectRecords(modules, placeholders, trust)) write(record)
 
   const expected = expectedPhases(rows)
-  const root = new Context()
+  const root = rootOf(options.stateRoot)
   root.logger.exporter(telemetry.bridge.exporter)
   installToolResultDisclosure(root, disclosure)
   let loaded: readonly LoadedRow[] = []

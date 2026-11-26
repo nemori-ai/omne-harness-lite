@@ -14,7 +14,7 @@ export const SUPERVISE_USAGE =
   'usage: supervise [--fall-limit <n>] [--stable-ms <n>] [--backoff-base-ms <n>] [--backoff-max-ms <n>] [--stop-on-stdin-close] [serve options]'
 
 const OWN = {
-  '--fall-limit': 2,
+  '--fall-limit': 3,
   '--stable-ms': 30_000,
   '--backoff-base-ms': 500,
   '--backoff-max-ms': 5_000,

@@ -23,7 +23,11 @@ export type ServerPoint =
   | Readonly<{ kind: 'takes'; takes: 'data' | 'code'; when: 'running' | 'build' }>
   | Readonly<{ kind: 'category'; place(directory: string): unknown }>
 
-export type GuestContext = Readonly<{ key: string; bind: (principal: unknown) => Bound }>
+export type GuestContext = Readonly<{
+  key: string
+  bind: (principal: unknown) => Bound
+  within?: <T>(run: () => T) => T
+}>
 
 /** What the owner of a point makes of what the code of a plugin gave: the item the point holds. It throws on what it cannot take. */
 export type GuestForm = (made: unknown, context: GuestContext) => unknown
@@ -41,11 +45,14 @@ export type ServerInstallPorts = Readonly<{
   load(file: PackageFile): Promise<unknown>
   /** Puts the entries as this plugin; the answer takes them back. It rejects when the registry refuses them. */
   put(entries: readonly ServerEntry[]): Promise<() => unknown>
+  lockedBy?(point: string, key: string): string | undefined
+  within?<T>(run: () => T): T
 }>
 
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 const failed = (reason: string): Outcome => ({ kind: 'failed', reason })
+const ABSENT = ' is not a point now'
 const WAY = { data: 'data', directory: 'a directory', module: 'code' } as const
 const wayOf = (member: Member): keyof typeof WAY =>
   'module' in member ? 'module' : 'directory' in member ? 'directory' : 'data'
@@ -58,7 +65,7 @@ function stepOf(
   files: readonly PackageFile[],
 ): Readonly<{ item: unknown }> | Pending | string {
   const point = ports.point(member.point)
-  if (point === undefined) return `${member.point} is not a point now`
+  if (point === undefined) return `${member.point}${ABSENT}`
   const way = wayOf(member)
   if (point.kind === 'category') {
     if (!('directory' in member))
@@ -88,7 +95,9 @@ async function madeBy(
   bind: GuestContext['bind'],
 ): Promise<unknown> {
   const { member, file, form } = pending
-  const loaded = await ports.load(file).catch((error: unknown) => {
+  const within = ports.within === undefined ? undefined : ports.within.bind(ports)
+  const traced = <T>(run: () => T): T => (within === undefined ? run() : within(run))
+  const loaded = await traced(() => ports.load(file)).catch((error: unknown) => {
     throw new Error(`${file.path} could not be loaded: ${reasonOf(error)}`)
   })
   const made = (loaded as Readonly<Record<string, unknown>> | null)?.[member.export]
@@ -96,12 +105,12 @@ async function madeBy(
     throw new Error(`${file.path} exports no function named ${member.export}`)
   let given: unknown
   try {
-    given = (made as (host: typeof HOST) => unknown)(HOST)
+    given = traced(() => (made as (host: typeof HOST) => unknown)(HOST))
   } catch (error) {
     throw new Error(`${member.export} threw: ${reasonOf(error)}`)
   }
   try {
-    return form(given, { key: member.key, bind })
+    return form(given, { key: member.key, bind, ...(within !== undefined && { within }) })
   } catch (error) {
     throw new Error(`the point refused what ${member.export} made: ${reasonOf(error)}`)
   }
@@ -111,17 +120,32 @@ async function madeBy(
 export function serverInstall(ports: ServerInstallPorts): (wanted: Wanted) => Promise<Outcome> {
   return async ({ members, needs, files }) => {
     const needed = ports.needs(needs)
-    if (needed.kind === 'missing')
-      return failed(`needs ${needed.names.join(', ')}: there is no port by that name here`)
     const places = members.map(member => `${member.point}\n${member.key}`)
+    const steps = members.map((member, index) => {
+      const twice = places.indexOf(places[index] ?? '') !== index
+      const lock = ports.lockedBy?.(member.point, member.key)
+      return twice
+        ? 'another member of this plugin is at the same place'
+        : lock !== undefined
+          ? `the key is locked by ${lock}: an entry of the deployment holds it and a tenant cannot replace it`
+          : stepOf(ports, member, files)
+    })
+    const labelOf = (index: number): string =>
+      `member ${index + 1} (${members[index]?.point} ${members[index]?.key})`
+    const broken = steps.findIndex(step => typeof step === 'string' && !step.endsWith(ABSENT))
+    if (broken >= 0) return failed(`${labelOf(broken)}: ${steps[broken] as string}`)
+    const lacks = [
+      ...(needed.kind === 'missing' ? needed.names.map(name => `port ${name}`) : []),
+      ...members.flatMap((member, index) =>
+        typeof steps[index] === 'string' ? [`point ${member.point}`] : [],
+      ),
+    ]
+    if (lacks.length > 0 || needed.kind === 'missing')
+      return { kind: 'waiting', lacks: [...new Set(lacks)] }
     const entries: ServerEntry[] = []
     for (const [index, member] of members.entries()) {
-      const label = `member ${index + 1} (${member.point} ${member.key})`
-      const twice = places.indexOf(places[index] ?? '') !== index
-      const step = twice
-        ? 'another member of this plugin is at the same place'
-        : stepOf(ports, member, files)
-      if (typeof step === 'string') return failed(`${label}: ${step}`)
+      const label = labelOf(index)
+      const step = steps[index] as Exclude<(typeof steps)[number], string>
       const made =
         'item' in step
           ? step

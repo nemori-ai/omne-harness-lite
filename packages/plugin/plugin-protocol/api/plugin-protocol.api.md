@@ -73,6 +73,7 @@ export type FloorPort = Readonly<{
     rise(tenant: string): Readonly<{
         want: readonly string[];
         held: boolean;
+        stopped?: readonly string[];
     }>;
     want(tenant: string, fiber: string): void;
     unwant(tenant: string, fiber: string): void;
@@ -124,6 +125,9 @@ export type Outcome = Readonly<{
     kind: 'failed';
     reason: string;
 }> | Readonly<{
+    kind: 'waiting';
+    lacks: readonly string[];
+}> | Readonly<{
     kind: 'held';
 }>;
 export type LoaderDeps = Readonly<{
@@ -134,6 +138,7 @@ export type Loader = Readonly<{
     converge(list: readonly Listed[]): void;
     states(): ReadonlyMap<string, Kept>;
     held(): ReadonlyMap<string, string>;
+    appeared(name: string): void;
     watch(listener: () => void): () => void;
     idle(): Promise<void>;
     stop(): Promise<void>;
@@ -668,6 +673,10 @@ export type SideState = Readonly<{
     version: string;
     reason: string;
 }> | Readonly<{
+    kind: 'waiting';
+    version: string;
+    lacks: readonly string[];
+}> | Readonly<{
     kind: 'held';
     version: string;
 }>;
@@ -683,6 +692,11 @@ export type SideEvent = Readonly<{
 }> | Readonly<{
     kind: 'broke';
     reason: string;
+}> | Readonly<{
+    kind: 'lacking';
+    lacks: readonly string[];
+}> | Readonly<{
+    kind: 'appeared';
 }> | Readonly<{
     kind: 'held';
 }>;

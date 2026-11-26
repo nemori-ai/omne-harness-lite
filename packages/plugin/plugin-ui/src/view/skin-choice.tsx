@@ -16,6 +16,7 @@ const NOTES: Readonly<Record<SkinNow['state'], (now: SkinNow, chosen: boolean) =
   loaded: () => '',
   loading: (_, chosen) => (chosen ? '已选，正在装，装上就换' : '正在装'),
   failed: ({ reason }) => `没装上：${reason ?? '没有说原因'}`,
+  waiting: () => '在等它要的东西出现，出现了自己装上',
   held: () => '应用连着两次没起来，这一套已停下。发布新的一版，或禁用它',
 }
 

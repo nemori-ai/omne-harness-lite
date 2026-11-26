@@ -47,6 +47,9 @@ export function reportsOf(
     .flatMap(([name, state]): PluginReport[] => {
       if (state.kind === 'loading') return []
       const { version, kind } = state
+      // A waiting plugin is told as one that did not load, with what it waits for as the reason.
+      if (kind === 'waiting')
+        return [{ name, version, state: 'failed', reason: `waits for ${state.lacks.join(', ')}` }]
       const reason = kind === 'failed' ? state.reason : clash(fiberOf(name, version))
       return [{ name, version, state: kind, reason }]
     })

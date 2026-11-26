@@ -2,7 +2,7 @@ import { byScope, byText, type Instance, type Placed, type Scope } from './regis
 
 export type Filtered<I = unknown> = Readonly<{
   entry: Placed<I>
-  reason: 'overridden' | 'breach'
+  reason: 'overridden' | 'breach' | 'locked'
   detail: string
 }>
 
@@ -37,6 +37,27 @@ export type Listing<I = unknown> =
 /** An entry is seen by an asker whose scope starts with the scope of the entry. */
 export function visible(scope: Scope, asker: Scope): boolean {
   return scope.every((part, index) => part === asker[index])
+}
+
+/** The lock comes before the rules: on a key with a locked entry, entries at a deeper scope are out. */
+export function unlocked<I>(entries: readonly Placed<I>[]): {
+  entries: Placed<I>[]
+  out: Filtered<I>[]
+} {
+  const locks = new Map<string, Placed<I>>()
+  for (const entry of entries) {
+    const held = locks.get(entry.key)
+    if (entry.lock === true && (held === undefined || entry.scope.length < held.scope.length))
+      locks.set(entry.key, entry)
+  }
+  const kept: Placed<I>[] = []
+  const out: Filtered<I>[] = []
+  for (const entry of entries) {
+    const lock = locks.get(entry.key)
+    if (lock === undefined || entry.scope.length <= lock.scope.length) kept.push(entry)
+    else out.push({ entry, reason: 'locked', detail: lock.instance.fiber })
+  }
+  return { entries: kept, out }
 }
 
 /** Entries with one key, id, scope and digest are one item; the first in registry order stands for it. */
