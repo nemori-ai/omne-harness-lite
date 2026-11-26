@@ -12,6 +12,7 @@ import {
 import { processSecretReader } from './secret-input.ts'
 import { localServeInputs } from './serve-local.ts'
 import { runSetup } from './setup.ts'
+import { watchProcessFalls } from '../process-fall.ts'
 import {
   lineWriter,
   recordLineWriter,
@@ -176,6 +177,7 @@ export async function serveUntilStopped(
     if (port !== undefined && record.kind === 'startup-result' && record['accepting'] === true)
       stderrWriter(`serve: accepting on http://127.0.0.1:${port}`)
   }
+  const unwatch = watchProcessFalls(inputs.stateRoot)
   try {
     const result = await runServe({
       ...rest,
@@ -186,6 +188,7 @@ export async function serveUntilStopped(
     })
     return result.exitCode
   } finally {
+    unwatch()
     clearInterval(keepAlive)
     process.off('SIGINT', onSigint)
     process.off('SIGTERM', onSigterm)

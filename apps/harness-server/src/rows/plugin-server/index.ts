@@ -1,10 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import { attributed } from '@omne-harness/assembly-cordis'
 import { scopeOfLayer, type HeldItem } from '@omne-harness/assets'
 import { assetCategoriesKey, assetChangesKey } from '@omne-harness/assets-cordis-contract'
 import type { AssetChanges } from '@omne-harness/assets-cordis-contract/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
-import { adopt, ask, declare, type Binding, type Scope } from '@omne-harness/dynamis'
+import { adopt, ask, declare, lockOver, type Binding, type Scope } from '@omne-harness/dynamis'
 import {
   GUEST_FORMS_POINT,
   PORTS_POINT,
@@ -32,6 +33,7 @@ import {
 import type { TenantDomains } from '@omne-harness/sql-contract'
 import { tenantDomainsKey } from '@omne-harness/sql-contract/cordis'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
+import { LAST_FALL_KEY, type Fall } from '../../process-fall.ts'
 import { defineRow } from '../../row.ts'
 import { heldPluginPorts } from '../plugin-host/held-ports.ts'
 import { serverPointsOf } from '../plugin-host/effect-ports.ts'
@@ -45,7 +47,24 @@ import { providePluginServer, pluginServerKey } from './service.ts'
 export const pluginServerRowConfig = z.strictObject({ floorDirectory: z.string().min(1) })
 
 const assetsOf = (ctx: Context) => ctx.get(tenantAssetsKey) as TenantAssetsService | undefined
+const fallMark = (tenant: string, fiber: string): string => JSON.stringify([tenant, fiber])
+function fallOf(who: string | null | undefined): { tenant: string; fiber: string } | undefined {
+  try {
+    const [tenant, fiber] = JSON.parse(who ?? '') as unknown[]
+    return typeof tenant === 'string' && typeof fiber === 'string' ? { tenant, fiber } : undefined
+  } catch {
+    return undefined
+  }
+}
+
 const registryOf = (ctx: Context) => (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
+const lockedBy = (
+  registry: ReturnType<typeof registryOf>,
+  point: string,
+  key: string,
+  scope: Scope,
+): string | undefined =>
+  registry === undefined ? undefined : lockOver(registry, point, key, scope)?.fiber
 
 function guestFormOf(ctx: Context, point: string): GuestForm | undefined {
   const registry = registryOf(ctx)
@@ -53,7 +72,7 @@ function guestFormOf(ctx: Context, point: string): GuestForm | undefined {
   return answer?.kind === 'one' ? answer.entry.item.form : undefined
 }
 
-/** The port a plugin was loaded with, while it is still the one on the point: an owner that left or was replaced lends nothing. */
+/** The port a plugin was loaded with: an owner that left lends nothing; a later generation of the same owner is pinned anew. */
 function pinned(ctx: Context, scope: Scope, binding: Binding) {
   return (): PortFactory<PortCaller> | undefined => {
     const registry = registryOf(ctx)
@@ -61,7 +80,7 @@ function pinned(ctx: Context, scope: Scope, binding: Binding) {
     if (now?.kind !== 'one' || now.entry.digest !== binding.digest) return undefined
     const { instance } = now.entry
     const same = instance.fiber === binding.instance.fiber
-    return same && instance.generation === binding.instance.generation
+    return same && instance.generation >= binding.instance.generation
       ? now.entry.item.make
       : undefined
   }
@@ -169,6 +188,8 @@ export const pluginServerRow = defineRow({
     const warn = (message: string): void => logger.warn(message)
     const bare = pluginParent(ctx)
     const floor = fileFloor({ directory: config.floorDirectory, warn })
+    const fall = fallOf((ctx.get(LAST_FALL_KEY) as Fall | null | undefined)?.who)
+    if (fall !== undefined) floor.fell(fall.tenant, fall.fiber)
     ;(ctx.get(dynamisKey) as DynamisService).put([
       declare(portsContract),
       declare(guestFormsContract),
@@ -186,9 +207,19 @@ export const pluginServerRow = defineRow({
           return loadHeldFile((await assetsOf(ctx)?.open(tenant))?.packages, held, file)
         },
         put: entries => putAs(bare, fiberOf(wanted.name, wanted.version), entries),
+        lockedBy: (point, key) =>
+          lockedBy(registryOf(ctx), point, key, scopeOfLayer('tenant', tenant)),
+        within: run => attributed(fallMark(tenant, fiberOf(wanted.name, wanted.version)), run),
       })(wanted)
     }
-    const side = createServerSide({ floor, install })
+    const present = (tenant: string, lacks: readonly string[]): boolean =>
+      lacks.every(lack => {
+        const [kind, name = ''] = lack.split(' ')
+        return kind === 'port'
+          ? needsOf(ctx, tenant, [name]).kind === 'adopted'
+          : pointOf(ctx, name, () => undefined) !== undefined
+      })
+    const side = createServerSide({ floor, install, present })
     providePluginServer(ctx, tenant => side.states(tenant))
     const converge = (tenant: string, plugins: readonly HeldPlugin[]): void => {
       refs.set(tenant, new Map(plugins.map(each => [`${each.name}\n${each.version}`, each.held])))
@@ -229,6 +260,7 @@ export const pluginServerRow = defineRow({
     }
     // A tenant registered after the start shows on the registry once its assets are opened.
     ctx.on('dynamis-cordis/changed', discover)
+    ctx.on('dynamis-cordis/changed', () => side.recheck())
     ctx.effect(() => {
       const first = setTimeout(discover, 0)
       return () => {

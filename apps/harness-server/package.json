@@ -50,6 +50,7 @@
     "@omne-harness/agent-cordis-contract": "workspace:*",
     "@omne-harness/agent-host-local": "workspace:*",
     "@omne-harness/assembly": "workspace:*",
+    "@omne-harness/assembly-cordis": "workspace:*",
     "@omne-harness/assets": "workspace:*",
     "@omne-harness/assets-access": "workspace:*",
     "@omne-harness/assets-cordis-contract": "workspace:*",

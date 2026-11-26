@@ -26,10 +26,13 @@ export function decisionOf(rawBody: string): AskedDecision | null {
 }
 
 function answerOf(
+  name: string,
   question: AskedQuestion,
   judged: Extract<Judged, { criterion: string }>,
 ): unknown {
-  if (question.type !== 'choice') return { type: 'noul', noul: judged.exit ?? 0.01 }
+  const trusted = judged.criterion === 'holds' ? 0.97 : 0.03
+  if (question.type !== 'choice')
+    return { type: 'noul', noul: name.startsWith('A') ? trusted : (judged.exit ?? 0.01) }
   const options = question.criteria ?? {}
   const choice =
     'holds' in options ? judged.criterion : 'kept' in options ? (judged.rule ?? 'kept') : 'none'
@@ -63,7 +66,7 @@ export function answeringDecisions(
       judged === null
         ? {}
         : Object.fromEntries(
-            Object.entries(ask.questions).map(([name, q]) => [name, answerOf(q, judged)]),
+            Object.entries(ask.questions).map(([name, q]) => [name, answerOf(name, q, judged)]),
           )
     return {
       status: 200,

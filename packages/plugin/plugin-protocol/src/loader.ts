@@ -16,6 +16,7 @@ export type Kept = Exclude<SideState, { kind: 'unwanted' }>
 export type Outcome =
   | Readonly<{ kind: 'installed'; remove: () => unknown }>
   | Readonly<{ kind: 'failed'; reason: string }>
+  | Readonly<{ kind: 'waiting'; lacks: readonly string[] }>
   | Readonly<{ kind: 'held' }>
 
 export type LoaderDeps = Readonly<{
@@ -28,6 +29,8 @@ export type Loader = Readonly<{
   converge(list: readonly Listed[]): void
   states(): ReadonlyMap<string, Kept>
   held(): ReadonlyMap<string, string>
+  /** What a waiting plugin lacks is there now: it is loaded again in the same version. */
+  appeared(name: string): void
   watch(listener: () => void): () => void
   idle(): Promise<void>
   stop(): Promise<void>
@@ -80,6 +83,7 @@ export function createLoader(deps: LoaderDeps): Loader {
       live.set(tagOf(name, version), outcome.remove)
       return move(name, { kind: 'done' })
     }
+    if (outcome.kind === 'waiting') return move(name, { kind: 'lacking', lacks: outcome.lacks })
     move(
       name,
       outcome.kind === 'held' ? { kind: 'held' } : { kind: 'broke', reason: outcome.reason },
@@ -131,6 +135,9 @@ export function createLoader(deps: LoaderDeps): Loader {
           state.kind === 'held' ? [[name, state.version] as const] : [],
         ),
       ),
+    appeared(name) {
+      if (!stopped && latest.has(name)) move(name, { kind: 'appeared' })
+    },
     watch(listener) {
       listeners.add(listener)
       return () => void listeners.delete(listener)

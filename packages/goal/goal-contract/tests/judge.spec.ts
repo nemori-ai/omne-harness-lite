@@ -1052,7 +1052,12 @@ describe('the three ways of asking the bench can switch on', () => {
     const { instructions, packaging, ...rest } = DEFAULT_JUDGE_CONFIG
     const { instructions: was, packaging: packed, ...before } = BASELINE_JUDGE_CONFIG
     expect(rest).toEqual(before)
-    expect(instructions).toEqual({ ...was, exits: 'guided', unattainable: 'plain' })
+    expect(instructions).toEqual({
+      ...was,
+      exits: 'guided',
+      unattainable: 'plain',
+      unsettled: 'covers',
+    })
     expect(packaging).toEqual({
       ...packed,
       staleness: 'decided',

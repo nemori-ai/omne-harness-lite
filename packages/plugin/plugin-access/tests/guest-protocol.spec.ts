@@ -262,3 +262,32 @@ describe('a protocol written by the code of a plugin', () => {
     )
   })
 })
+
+describe('a handler runs inside the scope the loader names', () => {
+  it('every call of the handler is run through `within`, and nothing else of the call is', async () => {
+    const w = world()
+    let inside = false
+    const seen: boolean[] = []
+    const contribution = guestProtocol(
+      made({
+        greet: async () => (seen.push(inside), { outcome: 'succeeded', body: 'hi' }),
+      }),
+      {
+        key: 'tidy/v1',
+        bind: principal => (seen.push(inside), w.bind(principal)),
+        within: run => {
+          inside = true
+          try {
+            return run()
+          } finally {
+            inside = false
+          }
+        },
+      },
+    )
+    const greet = contribution.operations['greet'] as (c: unknown, b: unknown) => Promise<unknown>
+    expect(await greet(call, { who: 'bob' })).toEqual({ outcome: 'succeeded', body: 'hi' })
+    // The ports were opened outside the scope; the handler started inside it.
+    expect(seen).toEqual([false, true])
+  })
+})
