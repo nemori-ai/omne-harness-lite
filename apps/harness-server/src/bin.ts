@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import {
   COMMON_OPTIONS,
@@ -13,6 +14,7 @@ import {
   setupCommand,
   stderrWriter,
 } from './local/serve-command.ts'
+import { SUPERVISE_USAGE, superviseCommand } from './local/supervise-command.ts'
 import { runS0 } from './run.ts'
 import { endProcess } from './process-end.ts'
 
@@ -92,7 +94,19 @@ function selectedSubcommand(argv: readonly string[]): Subcommand {
   }
 }
 
+async function mainSupervise(argv: readonly string[]): Promise<number> {
+  try {
+    return await superviseCommand(argv, fileURLToPath(import.meta.url))
+  } catch (error) {
+    if (!(error instanceof UsageError)) throw error
+    process.stderr.write(`supervise: ${error.message}\n${SUPERVISE_USAGE}\n`)
+    return 2
+  }
+}
+
 async function main(argv: readonly string[]): Promise<number> {
+  // The supervisor is named first: the rest of the line belongs to the `serve` it starts.
+  if (argv[0] === 'supervise') return mainSupervise(argv.slice(1))
   const subcommand = selectedSubcommand(argv)
   if (subcommand === 'setup') {
     try {
