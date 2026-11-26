@@ -54,6 +54,7 @@ export const SERVE_OPTIONS = {
   'root-disposal-deadline-ms': { type: 'string' },
   'dependency-deadline-ms': { type: 'string' },
   'state-root': { type: 'string' },
+  'install-root': { type: 'string' },
   'stop-on-stdin-close': { type: 'boolean' },
 } as const
 
@@ -62,6 +63,7 @@ export type ServeValues = Readonly<{
     K in
       | keyof typeof COMMON_OPTIONS
       | 'state-root'
+      | 'install-root'
       | 'drain-deadline-ms'
       | 'root-disposal-deadline-ms'
       | 'dependency-deadline-ms'

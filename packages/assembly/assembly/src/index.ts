@@ -53,3 +53,15 @@ export {
   type SuperviseStep,
   type Supervision,
 } from './supervise.ts'
+export {
+  noVersions,
+  parsePointer,
+  standingOfVersion,
+  stepVersions,
+  type VersionEvent,
+  type VersionOutcome,
+  type VersionPointer,
+  type VersionStanding,
+  type VersionStep,
+  type Versions,
+} from './versions.ts'

@@ -135,6 +135,7 @@ describe('监督者的全化表：每个状态下每个事件都有答复', () =
     { kind: 'settled' },
     { kind: 'waited' },
     { kind: 'stop' },
+    { kind: 'replaced' },
   ]
   const told = (step: SuperviseStep): string =>
     `${step.state.kind}${'falls' in step.state ? `(${String(step.state.falls)})` : ''}${step.actions.map(action => ` +${action.kind}`).join('')}`
@@ -153,6 +154,7 @@ describe('监督者的全化表：每个状态下每个事件都有答复', () =
         'running(0)',
         'running(0)',
         'stopping +stop-child',
+        'running(0)',
       ],
       // waiting(1): no child is up, so no exit and no settling can come; they change nothing
       [
@@ -164,19 +166,43 @@ describe('监督者的全化表：每个状态下每个事件都有答复', () =
         'waiting(1)',
         'running(1) +start',
         'stopped +cancel-wait',
+        'waiting(1)',
       ],
       // stopping: it waits for the exit and for nothing else
-      ['stopped', 'stopped', 'stopped', 'stopped', 'stopped', 'stopping', 'stopping', 'stopping'],
-      still('held(0)'),
-      still('held(2)'),
+      [
+        'stopped',
+        'stopped',
+        'stopped',
+        'stopped',
+        'stopped',
+        'stopping',
+        'stopping',
+        'stopping',
+        'stopping',
+      ],
+      // held: what it starts is another version now, so it starts again from nothing
+      [...still('held(0)').slice(1), 'running(0) +start'],
+      [...still('held(2)').slice(1), 'running(0) +start'],
       still('stopped'),
     ])
   })
 
   it('停下了的不再有动作', () => {
-    for (const state of [held('configuration', 2, 0), held('fall-limit', 3, 2), stopped(0)])
+    const atLimit = held('fall-limit', 3, 2)
+    for (const state of [held('configuration', 2, 0), atLimit, stopped(0)])
       for (const event of events)
-        expect(supervise(state, event, config)).toEqual({ state, actions: [] })
+        if (state.kind !== 'held' || event.kind !== 'replaced')
+          expect(supervise(state, event, config)).toEqual({ state, actions: [] })
+  })
+
+  it('停下之后，要起的换了一版：从头算，再拉起', () => {
+    for (const state of [held('fall-limit', 3, 2), held('configuration', 2, 0)])
+      expect(supervise(state, { kind: 'replaced' }, config)).toEqual({
+        state: running(0),
+        actions: [{ kind: 'start' }],
+      })
+    const again = run([exited(1), { kind: 'waited' }, exited(1), { kind: 'replaced' }, exited(1)])
+    expect(again.state).toEqual(waiting(1))
   })
 
   it('HeldAfterLimit：不管事件怎样排，没有起稳过就不会倒下超过上限次', () => {
