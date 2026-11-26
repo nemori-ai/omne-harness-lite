@@ -5,6 +5,7 @@ import { afterAll, expect, it, vi } from 'vitest'
 import { stubPlugin } from '../../../src/cordis.ts'
 import { defineRow } from '../../../src/row.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
+import { stopAfterStartup } from '../../support/stop-after-startup.ts'
 
 const root = process.platform === 'win32' ? 'C:/host-files' : '/host-files'
 const config = { stateDirectory: `${root}/state` }
@@ -31,8 +32,7 @@ async function run(distribution: unknown, operator?: unknown) {
     readinessTimeoutMs: 20,
     shutdownDeadlineMs: 100,
     stateRoot,
-    stop: AbortSignal.abort(),
-    write: record => records.push(record),
+    ...stopAfterStartup(record => records.push(record)),
     stderr: line => errors.push(line),
   })
   return { result, records, errors }

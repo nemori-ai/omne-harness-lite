@@ -51,6 +51,7 @@ import {
   runOmne,
   savedTenant,
 } from '../../r9/support.ts'
+import { stopAfterStartup } from '../../support/stop-after-startup.ts'
 
 const CREDENTIAL = 'alice-pw-MEASURE-7c1d'
 const SESSION_OWNER = '@omne-harness/session'
@@ -564,10 +565,9 @@ describe('a record with an error object or a secret-like text, through the real 
         },
         entryObjects: [],
         stateRoot: dir.stateRoot,
-        stop: AbortSignal.abort('test: stop'),
         readinessTimeoutMs: 5000,
         shutdownDeadlineMs: 2000,
-        write: recordLineWriter(stdout.stream),
+        ...stopAfterStartup(recordLineWriter(stdout.stream)),
         stderr: lineWriter(stderr.stream),
       })
       expect(result.exitCode).toBe(0)

@@ -47,7 +47,6 @@ describe('A11: the telemetry row is required', () => {
     const tree = startTree({
       config: { listenPort: await freePort() },
       withoutTelemetry: true,
-      readinessTimeoutMs: 300,
     })
     const run = await tree.finished
     expect(run.result.exitCode).toBe(4)

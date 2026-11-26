@@ -59,6 +59,11 @@ export type ShutdownOptions = Readonly<{
   afterBusiness?: () => Promise<HostFilesReport>
   afterStorage?: (deadlineMonotonicMs: number) => Promise<TelemetryShutdownReport>
   disposeRoot?: () => Promise<unknown> | unknown
+  /** How long the root disposal may take. Past it the shutdown goes on without it; absent, it waits. */
+  disposeRootMs?: number
+  /** The rows not disposed yet, asked when the root disposal passed its deadline. */
+  undisposedRows?: () => readonly string[]
+  rootStuck?: (rows: readonly string[]) => void
 }>
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
@@ -286,11 +291,38 @@ function announceReportSettled(live: Frozen['live'], log: StepLog): void {
   }
 }
 
-async function retireRoot(dispose: ShutdownOptions['disposeRoot'], log: StepLog): Promise<void> {
-  if (dispose === undefined) return
+/** Waits for a disposal up to a deadline: 'late' means it had not settled and is left behind. */
+export async function disposeWithin(
+  dispose: () => Promise<unknown> | unknown,
+  deadlineMs: number | undefined,
+  clock: ShutdownClock,
+): Promise<'done' | 'late'> {
+  const disposal = Promise.resolve().then(dispose)
+  if (deadlineMs === undefined) return disposal.then(() => 'done')
+  const timer = clock.after(deadlineMs)
+  const won = await Promise.race([
+    disposal.then(() => 'done' as const),
+    timer.promise.then(() => 'late' as const),
+  ])
+  timer.cancel()
+  if (won === 'late') disposal.catch(() => {})
+  return won
+}
+
+async function retireRoot(
+  options: ShutdownOptions,
+  clock: ShutdownClock,
+  log: StepLog,
+): Promise<void> {
+  const { disposeRoot, disposeRootMs } = options
+  if (disposeRoot === undefined) return
   log('dispose-root', null, null)
   try {
-    await dispose()
+    if ((await disposeWithin(disposeRoot, disposeRootMs, clock)) === 'done') return
+    const rows = options.undisposedRows?.() ?? []
+    const named = rows.length === 0 ? '' : `; not disposed: ${rows.join(', ')}`
+    log('diagnostic', null, null, `root disposal did not settle within ${disposeRootMs} ms${named}`)
+    options.rootStuck?.(rows)
   } catch (error) {
     log('diagnostic', null, null, `root disposal failed: ${messageOf(error)}`)
   }
@@ -356,6 +388,6 @@ async function execute(
   log('report-fixed', null, null, report.overall)
 
   announceReportSettled(frozen.live, log)
-  await retireRoot(options.disposeRoot, log)
+  await retireRoot(options, clock, log)
   return report
 }
