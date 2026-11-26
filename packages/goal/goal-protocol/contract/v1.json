@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:3e4e07988ba9e83aca5f94a54746f35ef5993acb76780ff99b11c9c33842f63f",
-    "2": "sha256:0d0ba6c0056352283db52cb4538f22190efc433ab821c5e08820cc8f25071462"
+    "2": "sha256:0d0ba6c0056352283db52cb4538f22190efc433ab821c5e08820cc8f25071462",
+    "3": "sha256:e3182af5190ec74ae312c935582e9341702fef67979deb025ea53228ece148b5"
   },
   "major": 1,
   "name": "goal",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {
       "observe-goal": {
@@ -42,6 +43,106 @@
       }
     },
     "operations": {
+      "choose-judge": {
+        "body": {
+          "fields": {
+            "model": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "kind": "text"
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            },
+            "session": {
+              "rule": {
+                "kind": "session"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "issues": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "entry": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "text"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "field": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "problem": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "model": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        },
+        "since": 3
+      },
       "command-goal": {
         "body": {
           "fields": {
@@ -1194,6 +1295,62 @@
             "kind": "object"
           }
         }
+      },
+      "read-judge": {
+        "body": {
+          "fields": {
+            "session": {
+              "rule": {
+                "kind": "session"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "model": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "models": {
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        },
+        "since": 3
       },
       "write-goal": {
         "body": {

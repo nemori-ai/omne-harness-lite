@@ -106,9 +106,11 @@ export function createJudging(deps: GoalsDependencies) {
     const { tenant } = caller
     const { body, progress, state } = record
     const session = sessionOfKey(record.session)
+    const chosen = await deps.store.chosen(tenant, session)
+    if (chosen.kind === 'unavailable') return null
     const [shown, config] = await Promise.all([
       shownOf(tenant, session, record.since, body.criteria.some(standsOnTheRound)),
-      deps.judging.config(tenant, session),
+      deps.judging.config(tenant, session, chosen.value),
     ])
     if (shown === null || config.kind === 'unavailable') return null
     const material: JudgeMaterial = {

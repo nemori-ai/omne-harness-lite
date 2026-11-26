@@ -8,7 +8,7 @@ import {
   type GoalRefusal,
   type Outcome,
 } from '@omne-harness/goal-contract'
-import type { Decided } from './decide.ts'
+import type { Decided, Rules } from './decide.ts'
 import type { GoalsDependencies } from './goals.ts'
 import { createHanding } from './handing.ts'
 import { ask, type GoalAction } from './ports.ts'
@@ -100,11 +100,21 @@ export function createWriting(deps: GoalsDependencies) {
     return UNAVAILABLE
   }
 
-  /** The facts of the session, or the answer that ends the operation when there are none to stand on. */
+  /** The facts of the session and the rules a body is checked against there, or the answer that ends the operation when one of them cannot be stood on. Settings that cannot be read are no basis, never their defaults. */
   async function factsOf(tenant: string, session: string) {
-    const facts = await sessions.facts(tenant, session)
+    const unread = () => ({ kind: 'unavailable' }) as const
+    const [facts, settings, examined] = await Promise.all([
+      sessions.facts(tenant, session),
+      Promise.resolve()
+        .then(() => deps.judging.examination(tenant))
+        .catch(unread),
+      store.examinedBy(tenant, session),
+    ])
     if (facts.kind === 'unavailable') return UNAVAILABLE
-    return facts.value === null ? refused({ kind: 'no-such-session' }) : facts.value
+    if (facts.value === null) return refused({ kind: 'no-such-session' })
+    if (settings.kind === 'unavailable' || examined.kind === 'unavailable') return UNAVAILABLE
+    const rules: Rules = { ...settings.value, examining: examined.value !== null }
+    return { ...facts.value, rules }
   }
 
   const written = (answer: Answer<GoalRecord | null>): Answer<GoalRecord> =>

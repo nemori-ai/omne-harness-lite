@@ -65,8 +65,14 @@ function examiners() {
     const next = works.shift()
     if (next !== undefined) w.state.work = next
   }
-  const open = () => createSessionExamining({ ...w.calls, ...own }, { now: () => clock.now, wait })
-  return { ...w, made, own: state, clock, open, examining: open(), waited, works }
+  const limit = { ms: 600_000 as number | null | Error }
+  const limitMs = async () => {
+    if (limit.ms instanceof Error) throw limit.ms
+    return limit.ms
+  }
+  const open = () =>
+    createSessionExamining({ ...w.calls, ...own }, { now: () => clock.now, wait, limitMs })
+  return { ...w, made, own: state, clock, open, examining: open(), waited, works, limit }
 }
 
 describe('a batch handed to a session that examines', () => {
@@ -259,6 +265,44 @@ describe('what became of the round an examining session gave a batch', () => {
     expect(await w.examining.ended(TENANT, { ...out, examiner: null })).toBe('unknown')
     w.calls.work = () => Promise.reject(new Error('down'))
     expect(await w.open().ended(TENANT, out)).toBe('unknown')
+  })
+
+  it('an examination that takes longer than the tenant allows is stopped, once that is known: its round is then over with nothing handed in', async () => {
+    const w = examiners()
+    const first = idsOf().session
+    await w.examining.hand(TENANT, batchOf())
+    const mine = { ...out, examiner: first }
+    w.state.work = { kind: 'read', value: active([idsOf(BATCH, first).input]) }
+    w.clock.now += 600_000
+    expect(await w.examining.ended(TENANT, mine)).toBe('going')
+    expect(w.made.map(([name]) => name)).toEqual(['create'])
+    w.clock.now += 1
+    for (const limit of [null, new Error('down')]) {
+      w.limit.ms = limit
+      expect(await w.examining.ended(TENANT, mine)).toBe('going')
+    }
+    expect(w.made.map(([name]) => name)).toEqual(['create'])
+    w.limit.ms = 600_000
+    expect(await w.examining.ended(TENANT, mine)).toBe('going')
+    expect(w.made.at(-1)).toMatchObject(['cancelRun', { session: first, run: 'run-3' }])
+    w.made.length = 0
+    w.state.work = { kind: 'read', value: work({ pending: ['in-2'] as never }) }
+    expect(await w.examining.ended(TENANT, mine)).toBe('going')
+    expect(w.made).toEqual([])
+    w.state.work = { kind: 'read', value: quiet() }
+    expect(await w.examining.ended(TENANT, mine)).toBe('ended')
+  })
+
+  it('after a restart how long an examination has taken is counted from the first look at it', async () => {
+    const w = examiners()
+    w.state.work = { kind: 'read', value: active(['in-1']) }
+    expect(await w.examining.ended(TENANT, out)).toBe('going')
+    w.clock.now += 600_000
+    expect(await w.examining.ended(TENANT, out)).toBe('going')
+    expect(w.made).toEqual([])
+    w.clock.now += 1
+    expect(await w.examining.ended(TENANT, out)).toBe('going')
+    expect(w.made.map(([name]) => name)).toEqual(['cancelRun'])
   })
 
   it('a batch taken back stops the run its brief opened, and no other run', async () => {

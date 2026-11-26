@@ -47,7 +47,7 @@ import {
   lateHistory,
   lateSessions,
 } from './ports.ts'
-import { releaseJudging } from './judging.ts'
+import { examinationSettingsFor, releaseJudging } from './judging.ts'
 
 export const goalConfig = z.strictObject({ policy: goalPolicySchema })
 const PARTICIPANTS = [goalPersistenceParticipant]
@@ -85,6 +85,8 @@ export const goalRow = defineRow({
     const holder = goalHolder(ctx)
     const changes = createGoalChangePublisher()
     holder.changes = changes
+    const settings = () => ctx.get(tenantIndependentSettingsKey)
+    holder.examination = tenant => examinationSettingsFor(settings, tenant)
     const bindings = createDomainBindings<string>(
       {
         storage: ctx.get(storageKey) as SqlStorage,
@@ -109,7 +111,7 @@ export const goalRow = defineRow({
         calls: lateCalls(holder),
         history: lateHistory(holder),
         decisions: lateDecisions(holder),
-        judging: releaseJudging(() => ctx.get(tenantIndependentSettingsKey)),
+        judging: releaseJudging(settings),
         examining: lateExamining(holder),
         changes,
       },
@@ -123,6 +125,7 @@ export const goalRow = defineRow({
     return {
       async stop() {
         holder.changes = null
+        holder.examination = null
         changes.close()
         await provider.dispose()
         return { kind: 'settled' }

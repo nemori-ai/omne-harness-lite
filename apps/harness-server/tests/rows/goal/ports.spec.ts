@@ -44,6 +44,7 @@ const OF_THE_PERSON = [
   'resume',
   'cancel',
   'settle-by-exit',
+  'choose-judge',
 ] as const
 const NOT_OF_THE_PERSON = ['abort', 'observe', 'propose', 'confirm', 'track'] as const
 const OF_THE_OWNER = [
@@ -54,6 +55,7 @@ const OF_THE_OWNER = [
   'cancel',
   'abort',
   'settle-by-exit',
+  'choose-judge',
 ] as const
 
 function authority(verified: unknown | 'rejected' | 'unavailable' | 'throws' | 'absent') {
@@ -122,6 +124,7 @@ describe('who may ask what of the goal of a session on the release', () => {
       'propose',
       'confirm',
       'track',
+      'choose-judge',
     ]
     for (const action of rest as GoalAction[]) expect(await decide(schedule, action)).toBe('denied')
     expect(
@@ -218,6 +221,7 @@ describe('the ports the contributing rows mount', () => {
     decisions: null,
     examining: null,
     changes: null,
+    examination: null,
   })
   it('while nothing is mounted a read is unavailable and a reminder stays owed', async () => {
     const empty = holder()

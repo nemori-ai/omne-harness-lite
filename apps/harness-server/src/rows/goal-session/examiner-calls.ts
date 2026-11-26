@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { Examiner } from '@omne-harness/goal-local'
 import type { ExaminerCalls } from '@omne-harness/goal-session'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
@@ -29,24 +30,25 @@ export type ExaminerCallPorts = Readonly<{
   /** The system principal of goals: it creates the sessions that examine for them. */
   system: unknown
   workPrincipals(): SessionWorkPrincipals<unknown> | undefined
-  /** The Agent definition of the tenant an examination runs as. */
-  definition(): string
+  /** The Agent definition and the model an examination of this tenant runs as; undefined when that cannot be read now. */
+  examiner(tenant: TenantId): Promise<Examiner | undefined>
 }>
 type Create = Parameters<ExaminerCalls['create']>[0]
 type Resolved = Awaited<ReturnType<typeof mappedDefinitionFor>>
 
 /** What an examining session is created with: nobody attends it, it asks nobody, it does not drive itself, and it is placed where the work it examines is placed now. Undefined: the definition cannot be used now. */
 export function examinerCreation(
-  agent: string,
+  { definition: agent, model }: Examiner,
   resolved: Resolved,
   fixed: Modes | undefined,
   work: Pick<WorkSnapshot, 'creation' | 'changes'>,
 ): SessionCreation | undefined {
   if (resolved === undefined || resolved === 'unavailable' || fixed === undefined) return undefined
-  const { tenantDefaults: _defaults, ...mapped } = resolved
+  const { tenantDefaults: _defaults, initialModelSelection: first, ...mapped } = resolved
   const placed = workspaceSelection(work)
   return {
     ...mapped,
+    ...(first === undefined ? {} : { initialModelSelection: { ...first, name: model } }),
     definition: { name: agent, candidate: resolved.candidate },
     purpose: EXAMINATION_PURPOSE,
     workspace: placed?.workspace ?? null,
@@ -86,9 +88,11 @@ export function examinerCallsOf(
     if (mappings === undefined || worker === undefined) return 'the session of the goal'
     const work = await worker.service.work.readWork(worker.at)
     if (!('ok' in work)) return 'the session of the goal'
-    const agent = ports.definition()
+    const examiner = await ports.examiner(tenant)
+    if (examiner === undefined) return 'the settings of examinations'
+    const agent = examiner.definition
     const resolved = await mappedDefinitionFor(mappings, { tenant }, agent)
-    const made = examinerCreation(agent, resolved, mappings.modesFor(agent)?.modes, work.ok)
+    const made = examinerCreation(examiner, resolved, mappings.modesFor(agent)?.modes, work.ok)
     return made ?? `the Agent definition ${agent}`
   }
 

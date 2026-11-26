@@ -145,7 +145,7 @@ export function createDispatcher(ports: DispatcherPorts) {
     by: 'human' | 'agent' | 'system' = 'system',
   ): Promise<DirectAnswer> {
     const jobId = directJobId(ports.owner, key)
-    const taken = await workAcceptance(ports.executor(work), work)
+    const taken = await workAcceptance(ports.executor(work), work, ports.owner)
     if (taken.kind === 'refused') return { kind: 'refused', jobId, reason: taken.reason }
     if (taken.kind === 'unknown') return { kind: 'unknown', jobId }
     const result = await store.commit({

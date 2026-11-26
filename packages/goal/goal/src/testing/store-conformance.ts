@@ -230,6 +230,23 @@ export const storeConformance: readonly StoreConformanceCase[] = [
     },
   },
   {
+    name: 'a session has one choice of decision model: the last one written, none after it was taken away, and its own alone',
+    async run(open) {
+      const store = await open()
+      hold(read(await store.chosen(T1, S1)) === null, 'a session that chose none has a choice')
+      const wrote = (answer: { kind: string }) => hold(answer.kind === 'committed', 'not written')
+      wrote(await store.choose(T1, S1, 'typesafe/jev-1.14'))
+      wrote(await store.choose(T1, S1, 'typesafe/jev-1.13'))
+      hold(read(await store.chosen(T1, S1)) === 'typesafe/jev-1.13', 'the last choice is not read')
+      hold(read(await store.chosen(T1, 'another-session')) === null, 'another session reads it')
+      hold(read(await store.chosen(T2, S1)) === null, 'another tenant reads it')
+      wrote(await store.choose(T1, S1, null))
+      wrote(await store.choose(T1, S1, null))
+      hold(read(await store.chosen(T1, S1)) === null, 'a choice taken away is still read')
+      hold(read(await store.latest(T1, S1)) === null, 'a choice made a goal')
+    },
+  },
+  {
     name: 'one tenant does not read or write the goals of another',
     async run(open) {
       const store = await open()

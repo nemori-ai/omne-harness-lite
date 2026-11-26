@@ -1,7 +1,7 @@
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { z } from 'zod'
-import { examinedBy, owingGoals, sqlTxn, type SqlPort } from './facts.ts'
+import { chosenBy, examinedBy, owingGoals, sqlTxn, type SqlPort } from './facts.ts'
 import { HANDLER, PROTOCOL } from './schema.ts'
 
 /** One request per read of the registry. `args` are the arguments of that read, in order. */
@@ -12,6 +12,7 @@ const READS = {
   latest: (port: SqlPort, session: string) => sqlTxn(port).latest(session),
   owing: owingGoals,
   examinedBy,
+  chosen: chosenBy,
 } as const
 
 const requestSchema = z.strictObject({

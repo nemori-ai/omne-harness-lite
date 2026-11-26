@@ -47,6 +47,21 @@ export function sqlTxn(port: SqlPort): GoalTxn {
   }
 }
 
+/** The decision model a session chose for its judging, or null. */
+export function chosenBy(port: SqlPort, session: string): string | null {
+  const sql = 'SELECT judge FROM gl_session_choices WHERE session = ? LIMIT 1'
+  const found = port.execute(sql, [session])
+  const judge = found.rows[0]?.[0]
+  return typeof judge === 'string' ? judge : null
+}
+
+/** Writes the choice of a session over the one before; null takes it away. */
+export function choose(port: SqlPort, session: string, judge: string | null): void {
+  port.execute('DELETE FROM gl_session_choices WHERE session = ?', [session])
+  if (judge !== null)
+    port.execute('INSERT INTO gl_session_choices (session, judge) VALUES (?, ?)', [session, judge])
+}
+
 /** The live goal a session examines for, or null. */
 export function examinedBy(port: SqlPort, examiner: string): GoalRecord | null {
   const sql =

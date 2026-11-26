@@ -571,6 +571,8 @@ describe('what a check withstands', () => {
         session === key ? UNAVAILABLE : store.latest(tenant, session),
       owing: tenant => store.owing(tenant),
       examinedBy: (tenant, examiner) => store.examinedBy(tenant, examiner),
+      chosen: (tenant, session) => store.chosen(tenant, session),
+      choose: (tenant, session, model) => store.choose(tenant, session, model),
     })
   /** A store that answers the commits a test picks as written over by somebody else. */
   const staleWhen =
@@ -587,6 +589,8 @@ describe('what a check withstands', () => {
         latest: (tenant, session) => store.latest(tenant, session),
         owing: tenant => store.owing(tenant),
         examinedBy: (tenant, examiner) => store.examinedBy(tenant, examiner),
+        chosen: (tenant, session) => store.chosen(tenant, session),
+        choose: (tenant, session, model) => store.choose(tenant, session, model),
       }
     }
   const observe = (w: ReturnType<typeof world>, call = CALL, session = SESSION) =>

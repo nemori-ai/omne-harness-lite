@@ -19,6 +19,7 @@ import type {
   GoalHistory,
   BatchToHand,
   HandAnswer,
+  ExaminationRules,
   GoalJudging,
 } from '../ports.ts'
 import type { Asked, Driven, GoalSessions, SendAnswer, WakeToSend } from '../sessions-port.ts'
@@ -249,16 +250,30 @@ export function fakeDecisions(): FakeDecisions {
 }
 
 export type FakeJudging = GoalJudging &
-  Readonly<{ set(config: Partial<JudgeConfig>): void; readable(on: boolean): void }>
+  Readonly<{
+    set(config: Partial<JudgeConfig>): void
+    rule(rules: Partial<ExaminationRules>): void
+    lock(on: boolean): void
+    readable(on: boolean): void
+  }>
 
 export function fakeJudging(): FakeJudging {
   let config: JudgeConfig = DEFAULT_JUDGE_CONFIG
+  let rules: ExaminationRules = { maxExaminations: 3, job: 'rerun' }
   let canRead = true
+  let locked = false
   return {
     set: change => void (config = { ...config, ...change }),
+    rule: change => void (rules = { ...rules, ...change }),
+    lock: on => void (locked = on),
     readable: on => void (canRead = on),
-    async config() {
-      return canRead ? { kind: 'read', value: config } : { kind: 'unavailable' }
+    async config(_tenant, _session, chosen) {
+      if (!canRead) return { kind: 'unavailable' }
+      const model = locked || chosen === null ? config.model : chosen
+      return { kind: 'read', value: { ...config, model } }
+    },
+    async examination() {
+      return canRead ? { kind: 'read', value: rules } : { kind: 'unavailable' }
     },
   }
 }

@@ -16,6 +16,8 @@ import {
   type AnsweredCard,
   type Attendance,
   type BodyCheck,
+  type BodyContext,
+  type JobAwaited,
   type GoalBody,
   type GoalCommand,
   type GoalEvent,
@@ -34,9 +36,12 @@ export type Entrance =
   | Readonly<{ via: 'direct'; draftedBy: 'person' | 'creator'; by: string }>
   | Readonly<{ via: 'card'; card: AnsweredCard }>
 
+export type Rules = Readonly<{ maxExaminations: number; job: JobAwaited; examining: boolean }>
+
 export type WriteInput = Readonly<{
   session: string
   attendance: Attendance
+  rules: Rules
   moment: string
   proposal: Proposal
   entrance: Entrance
@@ -60,13 +65,16 @@ const refused = (reason: GoalRefusal): Decided => ({ kind: 'refused', reason })
 export function proposedBody(
   current: GoalRecord | null,
   proposal: Proposal,
-  attendance: Attendance,
+  context: BodyContext,
 ): BodyCheck | Readonly<{ kind: 'no-live-goal' }> {
-  if (proposal.kind === 'set') return validateDraft(proposal.draft, { attendance })
+  if (proposal.kind === 'set') return validateDraft(proposal.draft, context)
   const live = current !== null && current.state.status !== 'settled'
-  return live
-    ? reviseBody(current.body, proposal.changes, { attendance })
-    : { kind: 'no-live-goal' }
+  return live ? reviseBody(current.body, proposal.changes, context) : { kind: 'no-live-goal' }
+}
+
+function contextOf(attendance: Attendance, rules: Rules, byCreator: boolean): BodyContext {
+  const { maxExaminations, examining, job } = rules
+  return { attendance, maxExaminations, examining, ...(byCreator ? { job } : {}) }
 }
 
 function keptReadings(before: GoalBody, after: GoalBody, readings: Readings): Readings {
@@ -157,7 +165,8 @@ function stand(current: GoalRecord | null, input: WriteInput): Stood | Decided {
   const byCard = entrance.via === 'card'
   const step = transition(state, writeEventOf(proposal, attendance, byCard))
   if (step.kind === 'refused') return refused({ kind: 'state', reason: step.reason })
-  const checked = proposedBody(current, proposal, attendance)
+  const byCreator = entrance.via === 'direct' && entrance.draftedBy === 'creator'
+  const checked = proposedBody(current, proposal, contextOf(attendance, input.rules, byCreator))
   if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })
   if (checked.kind !== 'valid' || step.kind !== 'changed')
     return refused({ kind: 'state', reason: 'no-live-goal' })
@@ -215,10 +224,11 @@ export function describeProposal(
   current: GoalRecord | null,
   proposal: Proposal,
   attendance: Attendance,
+  rules: Rules,
 ): Described {
   const owner = standsFor(current, attendance)
   if (owner === 'unattended') return { refusal: { kind: 'state', reason: 'nobody-attends' } }
-  const checked = proposedBody(current, proposal, owner)
+  const checked = proposedBody(current, proposal, contextOf(owner, rules, false))
   if (checked.kind === 'no-live-goal') return { refusal: { kind: 'state', reason: 'no-live-goal' } }
   if (checked.kind === 'invalid') return { refusal: { kind: 'invalid', issues: checked.issues } }
   const { body } = checked

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { identitiesOf } from '@omne-harness/schedule-session'
-import { DRAFT, jobOf, TENANT, workOf, world } from './world.ts'
+import { DRAFT, jobOf, OWNER, TENANT, workOf, world } from './world.ts'
 
 const HERE = 'session-9'
 const SYSTEM = { kind: 'system', systemScopeRef: 'fleet' } as const
@@ -42,7 +42,7 @@ describe('the identities of a Job in a session that exists', () => {
 
 describe('whether work for a session that exists stands', () => {
   it('takes a goal body that stands for a goal nobody of the session owns', async () => {
-    expect(await world().existing.accepts?.(there())).toEqual({ kind: 'accepted' })
+    expect(await world().existing.accepts?.(there(), OWNER)).toEqual({ kind: 'accepted' })
   })
 
   it.each([
@@ -58,7 +58,7 @@ describe('whether work for a session that exists stands', () => {
       /materials/u,
     ],
   ])('refuses %s', async (_, work, reason) => {
-    const answer = await world().existing.accepts?.(work)
+    const answer = await world().existing.accepts?.(work, OWNER)
     expect(answer?.kind === 'refused' && answer.reason).toMatch(reason)
   })
 })

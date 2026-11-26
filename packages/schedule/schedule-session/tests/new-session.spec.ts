@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GoalOutcome } from '@omne-harness/goal-contract'
 import { endOf, identitiesOf, issuesText } from '@omne-harness/schedule-session'
-import { DRAFT, jobOf, TENANT, workOf, world } from './world.ts'
+import { DRAFT, jobOf, OWNER, TENANT, workOf, world } from './world.ts'
 
 const SYSTEM = { kind: 'system', systemScopeRef: 'fleet' } as const
 const WITH_WORKSPACE = {
@@ -35,7 +35,7 @@ describe('the identities of a Job', () => {
 
 describe('whether work stands, asked before it is saved', () => {
   it('takes a goal body that stands for a session nobody attends', async () => {
-    expect(await world().executor.accepts?.(workOf())).toEqual({ kind: 'accepted' })
+    expect(await world().executor.accepts?.(workOf(), OWNER)).toEqual({ kind: 'accepted' })
   })
 
   it.each([
@@ -56,9 +56,60 @@ describe('whether work stands, asked before it is saved', () => {
       /materials are not carried/u,
     ],
   ])('refuses %s, saying what is wrong', async (_, change, reason) => {
-    const answer = await world().executor.accepts?.(workOf(change))
+    const answer = await world().executor.accepts?.(workOf(change), OWNER)
     expect(answer).toMatchObject({ kind: 'refused' })
     expect(answer?.kind === 'refused' && answer.reason).toMatch(reason)
+  })
+
+  const EXAMINED = {
+    ...DRAFT,
+    criteria: [
+      { statement: '能走一局', evidence: { kind: 'examination', method: '用 node 走一局' } },
+    ],
+  }
+  const RERUN = {
+    ...DRAFT,
+    criteria: [{ statement: '验收过', evidence: { kind: 'rerun', command: 'node accept.js' } }],
+  }
+
+  it('judges the goal by what the settings of the owning tenant let the goal of a job wait for: by default a command run again stands and an examination does not, and the refusal names the entry and the field', async () => {
+    const w = world()
+    expect(await w.executor.accepts?.(workOf({ instruction: RERUN }), OWNER)).toEqual({
+      kind: 'accepted',
+    })
+    expect(await w.executor.accepts?.(workOf({ instruction: EXAMINED }), OWNER)).toEqual({
+      kind: 'refused',
+      reason:
+        'instruction: A1.evidence: the settings of this tenant do not let the goal of a job use an examination: it costs model calls',
+    })
+    expect(w.askedRules).toEqual([TENANT, TENANT])
+    w.hooks.rules = { kind: 'read', value: { maxExaminations: 3, job: 'all' } }
+    expect(await w.executor.accepts?.(workOf({ instruction: EXAMINED }), OWNER)).toEqual({
+      kind: 'accepted',
+    })
+    w.hooks.rules = { kind: 'read', value: { maxExaminations: 3, job: 'none' } }
+    expect(await w.executor.accepts?.(workOf({ instruction: RERUN }), OWNER)).toMatchObject({
+      kind: 'refused',
+    })
+  })
+
+  it('does not accept work while the settings cannot be read, and does not ask them for work it refuses as written or for an owner that is no tenant', async () => {
+    const w = world()
+    for (const rules of [{ kind: 'unavailable' } as const, new Error('down')]) {
+      w.hooks.rules = rules
+      expect(await w.executor.accepts?.(workOf(), OWNER)).toEqual({
+        kind: 'unknown',
+        reason: 'the settings of goals cannot be read now',
+      })
+    }
+    expect(w.askedRules).toHaveLength(2)
+    const materials = workOf({ materials: [{ resourceRef: 'r', versionRef: 'v' }] })
+    expect(await w.executor.accepts?.(materials, OWNER)).toMatchObject({ kind: 'refused' })
+    const system = { kind: 'system', systemScopeRef: 'system:maintenance' } as const
+    expect(await w.executor.accepts?.(workOf({ instruction: EXAMINED }), system)).toEqual({
+      kind: 'accepted',
+    })
+    expect(w.askedRules).toHaveLength(2)
   })
 })
 
@@ -135,7 +186,7 @@ describe('start', () => {
   it('creates the session with the workspace the work names', async () => {
     const w = world()
     const job = jobOf({ work: workOf({ session: WITH_WORKSPACE }) })
-    expect(await w.executor.accepts?.(job.work)).toEqual({ kind: 'accepted' })
+    expect(await w.executor.accepts?.(job.work, OWNER)).toEqual({ kind: 'accepted' })
     expect(await w.executor.start(job)).toMatchObject({ kind: 'started' })
     expect(w.made).toMatchObject([
       { creation: { workspace: { workspaceRef: 'w', instanceRef: 'i', basisRef: 'b' } } },

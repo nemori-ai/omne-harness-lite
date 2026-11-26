@@ -9,6 +9,7 @@ import {
   type ObservedCall,
 } from '@omne-harness/goal-contract'
 import { decideCommand, decideWrite, describeProposal } from './decide.ts'
+import { createChoosing } from './choosing.ts'
 import { createObserving } from './observing.ts'
 import { createSubmitting } from './submitting.ts'
 import type {
@@ -128,7 +129,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
       if ('kind' in facts) return facts
       const read = await store.latest(caller.tenant, session)
       if (read.kind === 'unavailable') return UNAVAILABLE
-      const described = describeProposal(read.value, proposal, facts.attendance)
+      const described = describeProposal(read.value, proposal, facts.attendance, facts.rules)
       return 'refusal' in described ? refused(described.refusal) : done(described.proposed)
     },
 
@@ -179,6 +180,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
     },
 
     ...createSubmitting(deps, writing),
+    ...createChoosing(deps, writing),
 
     async reconcile(tenant) {
       const owing = await store.owing(tenant)

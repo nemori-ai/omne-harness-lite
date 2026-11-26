@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { JUDGE_MODELS, type JudgeModel } from '@omne-harness/goal-contract'
 import {
   ACTIVE,
   done,
@@ -20,12 +21,22 @@ const REVISE = {
   words: '只管首页',
 }
 const PAUSE = { ...WHERE, generation: 2, command: { kind: 'pause' } }
-const NAMES = ['read-goal', 'write-goal', 'query-write-goal', 'command-goal'] as const
+const CHOOSE = { ...WHERE, model: 'typesafe/jev-1.14' }
+const NAMES = [
+  'read-goal',
+  'write-goal',
+  'query-write-goal',
+  'command-goal',
+  'read-judge',
+  'choose-judge',
+] as const
 const SAMPLE = {
   'read-goal': WHERE,
   'write-goal': REVISE,
   'query-write-goal': REVISE,
   'command-goal': PAUSE,
+  'read-judge': WHERE,
+  'choose-judge': CHOOSE,
 } as const
 const UNAVAILABLE = { outcome: 'basis-unavailable' }
 
@@ -59,9 +70,13 @@ describe('who gets in', () => {
     '%s: what the domain refuses for want of standing or of the session is said as such',
     async name => {
       const { script, run } = world()
-      script.read = script.write = script.command = refused({ kind: 'denied' })
+      script.read = script.write = script.command = script.judge = refused({ kind: 'denied' })
       expect(await run(name, SAMPLE[name])).toEqual({ outcome: 'denied' })
-      script.read = script.write = script.command = refused({ kind: 'no-such-session' })
+      script.read =
+        script.write =
+        script.command =
+        script.judge =
+          refused({ kind: 'no-such-session' })
       expect(await run(name, SAMPLE[name])).toEqual({ outcome: 'not-found', body: {} })
     },
   )
@@ -301,5 +316,60 @@ describe('command-goal', () => {
     expect(await run('command-goal', PAUSE)).toEqual(UNAVAILABLE)
     script.command = refused({ kind: 'invalid', issues: [] })
     expect(await run('command-goal', PAUSE)).toEqual(UNAVAILABLE)
+  })
+})
+
+describe('read-judge and choose-judge', () => {
+  it('reads the decision model the session chose, with the models it may choose from', async () => {
+    const { script, asked, run } = world()
+    expect(await run('read-judge', WHERE)).toEqual({
+      outcome: 'succeeded',
+      body: { model: null, models: [...JUDGE_MODELS] },
+    })
+    expect(asked).toEqual([['judgeOf', CALLER, { session: SESSION }]])
+    script.judge = done<JudgeModel | null>('typesafe/jev-1.14')
+    expect(await run('read-judge', WHERE)).toMatchObject({ body: { model: 'typesafe/jev-1.14' } })
+    for (const answer of [{ kind: 'basis-unavailable' } as const, new Error('down')]) {
+      script.judge = answer
+      expect(await run('read-judge', WHERE)).toEqual(UNAVAILABLE)
+    }
+    script.judge = { kind: 'unknown' }
+    expect(await run('read-judge', WHERE)).toEqual(UNAVAILABLE)
+  })
+
+  it('hands the domain the choice as the admitted subject, a model or none, and answers what stands after', async () => {
+    const { script, asked, run } = world()
+    script.judge = done<JudgeModel | null>('typesafe/jev-1.14')
+    expect(await run('choose-judge', CHOOSE)).toEqual({
+      outcome: 'succeeded',
+      body: { model: 'typesafe/jev-1.14' },
+    })
+    script.judge = done<JudgeModel | null>(null)
+    expect(await run('choose-judge', { ...WHERE, model: null })).toEqual({
+      outcome: 'succeeded',
+      body: { model: null },
+    })
+    expect(asked).toEqual([
+      ['chooseJudge', CALLER, { session: SESSION, model: 'typesafe/jev-1.14' }],
+      ['chooseJudge', CALLER, { session: SESSION, model: null }],
+    ])
+  })
+
+  it('says which field is wrong when the model is none that was measured; does not know when the domain does not know or fails; has no basis when the domain has none', async () => {
+    const { script, run } = world()
+    const issue = { entry: null, field: 'model', problem: 'choose one of …' }
+    script.judge = refused({ kind: 'invalid', issues: [issue] })
+    expect(await run('choose-judge', CHOOSE)).toEqual({
+      outcome: 'invalid',
+      body: { issues: [issue] },
+    })
+    script.judge = { kind: 'unknown' }
+    expect(await run('choose-judge', CHOOSE)).toEqual({ outcome: 'unknown' })
+    script.judge = new Error('lost')
+    expect(await run('choose-judge', CHOOSE)).toEqual({ outcome: 'unknown' })
+    script.judge = { kind: 'basis-unavailable' }
+    expect(await run('choose-judge', CHOOSE)).toEqual(UNAVAILABLE)
+    script.judge = refused({ kind: 'state', reason: 'no-live-goal' })
+    expect(await run('choose-judge', CHOOSE)).toEqual(UNAVAILABLE)
   })
 })

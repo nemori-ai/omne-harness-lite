@@ -6,6 +6,7 @@ import {
   createSessionExamining,
   goalInputSources,
 } from '@omne-harness/goal-session'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { sessionInputSourcesKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { GOAL_PRINCIPAL_KEY } from '../../entry/goal-principal.ts'
 import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
@@ -21,8 +22,6 @@ import { describeCall } from './observed.ts'
 
 /** How long one command run again may take before it is stopped. */
 const RERUN_TIMEOUT_MS = 600_000
-/** The Agent definition an examination runs as. */
-const EXAMINER_DEFINITION = 'examiner'
 
 /** The side of goals that knows Session: its input sources, the session port of the provider, and the examining side. */
 export const goalSessionRow = defineRow({
@@ -42,7 +41,12 @@ export const goalSessionRow = defineRow({
       workPrincipals: () => toolRuntimeHolder(ctx).workPrincipals(),
     })
     const workPrincipals = () => toolRuntimeHolder(ctx).workPrincipals()
-    const examinerPorts = { system, workPrincipals, definition: () => EXAMINER_DEFINITION }
+    const settingsOf = async (tenant: string) => (await holder.examination?.(tenant)) ?? null
+    const examiner = async (tenant: TenantId) => {
+      const text = tenantCodec.encode(tenant)
+      return text.ok ? (await settingsOf(text.value))?.examiner : undefined
+    }
+    const examinerPorts = { system, workPrincipals, examiner }
     const examinerCalls = examinerCallsOf(ctx, examinerPorts, sessionCalls.reminderWith)
     const examining = createExamining({
       rerun: { runner: shellRunner, timeoutMs: RERUN_TIMEOUT_MS },
@@ -55,6 +59,10 @@ export const goalSessionRow = defineRow({
           now: () =>
             /* wall-clock: operation-timing -- how long ago a batch went to an examining session */ performance.now(),
           wait: ms => new Promise(resolve => void setTimeout(resolve, ms).unref()),
+          limitMs: async tenant => {
+            const set = await settingsOf(tenant)
+            return set === null ? null : set.minutes * 60_000
+          },
         },
       ),
     })

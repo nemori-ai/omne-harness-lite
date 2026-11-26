@@ -74,6 +74,7 @@ const OF_THE_PERSON: ReadonlySet<GoalAction> = new Set([
   'resume',
   'cancel',
   'settle-by-exit',
+  'choose-judge',
 ])
 
 const OF_THE_CREATOR: ReadonlySet<GoalAction> = new Set(['read', 'set', 'cancel', 'abort'])

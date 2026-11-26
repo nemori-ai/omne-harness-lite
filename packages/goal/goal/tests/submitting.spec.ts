@@ -365,6 +365,8 @@ describe('the readings of a batch handed in with submit', () => {
       commit: (tenant, command) => store.commit(tenant, command),
       owing: tenant => store.owing(tenant),
       examinedBy: (tenant, examiner) => store.examinedBy(tenant, examiner),
+      chosen: (tenant, session) => store.chosen(tenant, session),
+      choose: (tenant, session, model) => store.choose(tenant, session, model),
       async latest(tenant, session) {
         const read = await store.latest(tenant, session)
         if (!swapped.on || read.kind !== 'read' || read.value === null) return read
@@ -546,6 +548,8 @@ describe('what a write takes from the examining side', () => {
       latest: (tenant, session) => store.latest(tenant, session),
       owing: tenant => store.owing(tenant),
       examinedBy: (tenant, examiner) => store.examinedBy(tenant, examiner),
+      chosen: (tenant, session) => store.chosen(tenant, session),
+      choose: (tenant, session, model) => store.choose(tenant, session, model),
       async commit(tenant, command) {
         const naming = command.next.examination.examiner === 'a-new-examiner'
         if (stale.on && naming) return stale.answers.shift() as never

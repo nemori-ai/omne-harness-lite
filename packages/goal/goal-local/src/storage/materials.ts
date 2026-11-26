@@ -6,6 +6,7 @@ import type {
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
 import {
+  CHOICE_MIGRATION,
   EXAMINER_MIGRATION,
   HANDLER,
   MIGRATION,
@@ -33,6 +34,7 @@ export function goalSqlMaterials(): GoalSqlMaterials {
   const participant = file('participant')
   const migration = file('migration')
   const examiner = file('examiner-migration')
+  const choice = file('choice-migration')
   const reader = file('read')
   return {
     participants: [
@@ -57,6 +59,12 @@ export function goalSqlMaterials(): GoalSqlMaterials {
         checksum: examiner.digest,
         requires: [MIGRATION],
       },
+      {
+        ...CHOICE_MIGRATION,
+        moduleUrl: choice.moduleUrl,
+        checksum: choice.digest,
+        requires: [EXAMINER_MIGRATION],
+      },
     ],
     readHandlers: [
       {
@@ -66,7 +74,7 @@ export function goalSqlMaterials(): GoalSqlMaterials {
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: TABLES,
-        requiresMigrations: [MIGRATION, EXAMINER_MIGRATION],
+        requiresMigrations: [MIGRATION, EXAMINER_MIGRATION, CHOICE_MIGRATION],
         maxRowsRead: 4 * ROW_LIMIT,
         maxOutputBytes: 8 * 1024 * 1024,
       },

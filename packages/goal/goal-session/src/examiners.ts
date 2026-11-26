@@ -29,6 +29,7 @@ function requestOf(tenant: TenantId, batch: Pick<BatchOut, 'session' | 'request'
   return { tenant, source: GOAL_SOURCES.examine, request }
 }
 
+type At = Readonly<{ tenant: TenantId; session: SessionId }>
 type Standing = 'gone' | 'quiet' | Readonly<{ run: string | null; initial: readonly string[] }>
 /** Where an examining session stands. `quiet`: no run going, no input waiting, no call in the background, so nothing more comes of it. */
 export function examinerStanding(work: WorkSnapshot | null): Standing {
@@ -45,6 +46,7 @@ export const CLOSE_LOOKS = 60
 export type ExaminerOptions = Readonly<{
   now(): number
   wait(ms: number): Promise<void>
+  limitMs(tenant: string): Promise<number | null>
   reuseMs?: number
 }>
 export type SessionExamining = GoalExamining & Readonly<{ idle(): Promise<void> }>
@@ -114,8 +116,7 @@ export function createSessionExamining(
     return work.kind === 'read' ? { at, standing: examinerStanding(work.value) } : null
   }
 
-  /** Archives a session once nothing more comes of it. It is often let go from inside its own round, which is left to end first. */
-  async function archived(tenant: string, at: Readonly<{ tenant: TenantId; session: SessionId }>) {
+  async function archived(tenant: string, at: At) {
     for (let look = 0; look < CLOSE_LOOKS; look += 1) {
       const work = await calls.work(at).catch(() => UNAVAILABLE)
       const standing = work.kind === 'read' ? examinerStanding(work.value) : 'gone'
@@ -124,6 +125,16 @@ export function createSessionExamining(
       await options.wait(CLOSE_WAIT_MS)
     }
     await calls.archive({ ...at, operation: operation('archive', [tenant, at.session]) })
+  }
+
+  /** Stops the round of an examination that took longer than the tenant allows. From then on it is over, with nothing handed in. */
+  async function expired(tenant: string, batch: BatchOut, at: At, run: string | null) {
+    const began = lastHanded.get(at.session) ?? options.now()
+    lastHanded.set(at.session, began)
+    const limit = await options.limitMs(tenant).catch(() => null)
+    if (run === null || limit === null || options.now() - began <= limit) return
+    const name = operation('expire', [tenant, at.session, batch.request])
+    await calls.cancelRun({ ...at, operation: name, run })
   }
 
   return {
@@ -158,8 +169,9 @@ export function createSessionExamining(
       if (batch.examiner === null) return 'unknown'
       const found = await standingOf(tenant, batch.examiner)
       if (found === null) return 'unknown'
-      if (found === 'gone') return 'ended'
-      return found.standing === 'gone' || found.standing === 'quiet' ? 'ended' : 'going'
+      if (found === 'gone' || typeof found.standing === 'string') return 'ended'
+      await expired(tenant, batch, found.at, found.standing.run)
+      return 'going'
     },
 
     async cancel(tenant, batch) {

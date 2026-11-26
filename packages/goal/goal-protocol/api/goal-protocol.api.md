@@ -973,6 +973,54 @@ export declare const goalProtocol: {
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
+        readonly 'read-judge': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly model: string | null;
+                    readonly models: readonly string[];
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly since: 3;
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'choose-judge': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly model: string | null;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly issues: readonly {
+                        readonly entry: string | null;
+                        readonly field: string;
+                        readonly problem: string;
+                    }[];
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly since: 3;
+            readonly identity: "login";
+            readonly effect: "commit";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly model: string | null;
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
     };
     readonly name: "goal";
     readonly major: 1;

@@ -15,10 +15,13 @@ import { examined, verificationOf } from './verification.ts'
 export const DEFAULT_BUDGET_ROUNDS = 50
 export const DEFAULT_BUDGET_EXAMINATIONS = 3
 
+export const JOB_AWAITED = Object.freeze(['none', 'rerun', 'all'] as const)
+export type JobAwaited = (typeof JOB_AWAITED)[number]
 export type BodyContext = Readonly<{
   attendance: Attendance
   examining?: boolean
   maxExaminations?: number
+  job?: JobAwaited
 }>
 
 /** One thing wrong with a body: which entry, which field, and what. No entry means the body as a whole. */
@@ -168,8 +171,19 @@ function criterionIssues(body: GoalBody, context: BodyContext): BodyIssue[] {
         field: 'evidence',
         problem: 'a session that examines for a goal does not wait for an examination itself',
       })
+    const barred = jobProblem(evidence.kind, context.job)
+    if (barred !== null) found.push({ entry: entry.id, field: 'evidence', problem: barred })
   }
   return found
+}
+
+function jobProblem(kind: string, allowed: JobAwaited | undefined): string | null {
+  if (allowed === undefined || allowed === 'all') return null
+  if (kind === 'examination')
+    return 'the settings of this tenant do not let the goal of a job use an examination: it costs model calls'
+  return kind === 'rerun' && allowed === 'none'
+    ? 'the settings of this tenant do not let the goal of a job run a command again'
+    : null
 }
 
 const NO_PATH =

@@ -1,4 +1,5 @@
 import type { CriterionId, ExitId } from './body.ts'
+import type { JudgeModel } from './judge/material.ts'
 import type { CardBase, CardRefusal, GoalRecord } from './record.ts'
 import type { Refusal } from './transition.ts'
 import type { BodyIssue } from './validate.ts'
@@ -88,6 +89,14 @@ export interface Goals {
     caller: GoalCaller,
     input: Readonly<{ examiner: string }>,
   ): Promise<Outcome<boolean, GoalRefusal>>
+  judgeOf(
+    caller: GoalCaller,
+    input: Readonly<{ session: string }>,
+  ): Promise<Outcome<JudgeModel | null, GoalRefusal>>
+  chooseJudge(
+    caller: GoalCaller,
+    input: Readonly<{ session: string; model: unknown }>,
+  ): Promise<Outcome<JudgeModel | null, GoalRefusal>>
 }
 export type Taken = Readonly<{ taken: 'counted' | 'stale' | 'repeat' }>
 

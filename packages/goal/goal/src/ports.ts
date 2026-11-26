@@ -2,7 +2,9 @@ import type {
   AnsweredCard,
   Criterion,
   GoalCaller,
+  JobAwaited,
   JudgeConfig,
+  JudgeModel,
   JudgeReply,
   JudgeRequest,
   ObservedCall,
@@ -24,6 +26,7 @@ export type GoalAction =
   | 'cancel'
   | 'abort'
   | 'settle-by-exit'
+  | 'choose-judge'
 export type AuthorityAnswer = 'permitted' | 'denied' | 'unavailable'
 
 export interface GoalAuthority {
@@ -108,8 +111,11 @@ export interface GoalDecisions {
   ask(input: DecisionAsk): Promise<JudgeReply>
 }
 
+export type ExaminationRules = Readonly<{ maxExaminations: number; job: JobAwaited }>
+
 export interface GoalJudging {
-  config(tenant: string, session: string): Promise<PortRead<JudgeConfig>>
+  config(tenant: string, session: string, chosen: JudgeModel | null): Promise<PortRead<JudgeConfig>>
+  examination(tenant: string): Promise<PortRead<ExaminationRules>>
 }
 
 export interface Clock {

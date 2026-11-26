@@ -18,6 +18,7 @@ const DRAFT = {
 const write = (proposal: WriteInput['proposal'], operation: string): WriteInput => ({
   session: 's',
   attendance: 'attended',
+  rules: { maxExaminations: 3, job: 'rerun', examining: false },
   moment: '41',
   proposal,
   entrance: { via: 'direct', draftedBy: 'person', by: 'acc-1' },

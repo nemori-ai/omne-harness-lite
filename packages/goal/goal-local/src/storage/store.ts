@@ -23,7 +23,11 @@ const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value)) as
 export function createSqlGoalStore(options: GoalSqlOptions): GoalStore {
   const scopeOf = (tenant: string) => ({ kind: 'tenant', tenant }) as const
 
-  async function commit<T>(tenant: string, command: unknown): Promise<StoreAnswer<T>> {
+  async function commit<T>(
+    tenant: string,
+    command: unknown,
+    script: 'commit' | 'choose' = 'commit',
+  ): Promise<StoreAnswer<T>> {
     try {
       const binding = await options.bind(tenant)
       if (binding === null) return { kind: 'rolled-back' }
@@ -32,16 +36,14 @@ export function createSqlGoalStore(options: GoalSqlOptions): GoalStore {
         identity: {
           scope: scopeOf(tenant),
           transactionDomain,
-          operation: 'goal.commit',
+          operation: `goal.${script}`,
           protocolVersion: '2',
           operationKey: randomUUID(),
           recall: 'never',
         },
         combinationVersion,
         manifestDigest,
-        commands: [
-          { participant: PARTICIPANT, facts: { script: 'commit', command: json(command) } },
-        ],
+        commands: [{ participant: PARTICIPANT, facts: { script, command: json(command) } }],
       })
       if (result.kind === 'unknown') return { kind: 'unknown' }
       if (result.kind !== 'committed') return { kind: 'rolled-back' }
@@ -79,5 +81,7 @@ export function createSqlGoalStore(options: GoalSqlOptions): GoalStore {
     latest: (tenant, session) => read(tenant, 'latest', session),
     owing: tenant => read(tenant, 'owing'),
     examinedBy: (tenant, examiner) => read(tenant, 'examinedBy', examiner),
+    chosen: (tenant, session) => read(tenant, 'chosen', session),
+    choose: (tenant, session, judge) => commit(tenant, { session, judge }, 'choose'),
   }
 }

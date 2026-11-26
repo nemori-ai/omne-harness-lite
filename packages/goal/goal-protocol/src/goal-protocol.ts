@@ -168,6 +168,31 @@ export const goalProtocol = defineProtocol({
         'not-found': empty,
       },
     },
+    'read-judge': {
+      since: 3,
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(where)),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ model: { rule: nullable(text) }, models: { rule: list(text) } }),
+        ),
+        'not-found': empty,
+      },
+    },
+    'choose-judge': {
+      since: 3,
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...where, model: { rule: nullable(text) } })),
+      outcomes: {
+        succeeded: ruleCodec(object({ model: { rule: nullable(text) } })),
+        invalid: ruleCodec(object({ issues: { rule: list(issue) } })),
+        'not-found': empty,
+      },
+    },
   },
   observations: {
     'observe-goal': {

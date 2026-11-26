@@ -1,11 +1,13 @@
 import type { AccessContribution, AnswerOf, BodyOf } from '@omne-harness/access-cordis-contract'
-import type {
-  GoalCaller,
-  GoalCommand,
-  GoalRecord,
-  GoalRefusal,
-  Outcome,
-  Proposal,
+import {
+  JUDGE_MODELS,
+  type GoalCaller,
+  type GoalCommand,
+  type GoalRecord,
+  type GoalRefusal,
+  type JudgeModel,
+  type Outcome,
+  type Proposal,
 } from '@omne-harness/goal-contract'
 import { goalProtocol } from '@omne-harness/goal-protocol'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -63,6 +65,8 @@ function refusalOf<K extends Name>(
 const READS = Object.freeze({ invalid: false, state: false })
 const WRITES = Object.freeze({ invalid: true, state: true })
 const COMMANDS = Object.freeze({ invalid: false, state: true })
+const CHOICES = Object.freeze({ invalid: true, state: false })
+type Chosen = Outcome<JudgeModel | null, GoalRefusal>
 
 export function createGoalContribution(
   input: GoalContributionInput,
@@ -154,6 +158,28 @@ export function createGoalContribution(
         if (done.value === null) return { outcome: 'succeeded', body: { goal: null } }
         const goal = viewOf(done.value)
         return goal === undefined ? UNKNOWN : { outcome: 'succeeded', body: { goal } }
+      },
+      async 'read-judge'(call, body): Promise<Answer<'read-judge'>> {
+        const admitted = await admit(call.principal, body.tenant)
+        if ('outcome' in admitted) return admitted
+        const found = await Promise.resolve()
+          .then(() => admitted.goals.judgeOf(admitted.caller, { session: body.session }))
+          .catch((): Chosen => ({ kind: 'basis-unavailable' }))
+        if (found.kind === 'refused') return refusalOf<'read-judge'>(found.reason, READS)
+        if (found.kind !== 'done') return UNAVAILABLE
+        return { outcome: 'succeeded', body: { model: found.value, models: [...JUDGE_MODELS] } }
+      },
+      async 'choose-judge'(call, body): Promise<Answer<'choose-judge'>> {
+        const admitted = await admit(call.principal, body.tenant)
+        if ('outcome' in admitted) return admitted
+        const { session, model } = body
+        const chosen = await Promise.resolve()
+          .then(() => admitted.goals.chooseJudge(admitted.caller, { session, model }))
+          .catch((): Chosen => ({ kind: 'unknown' }))
+        if (chosen.kind === 'refused') return refusalOf<'choose-judge'>(chosen.reason, CHOICES)
+        if (chosen.kind === 'basis-unavailable') return UNAVAILABLE
+        if (chosen.kind === 'unknown') return UNKNOWN
+        return { outcome: 'succeeded', body: { model: chosen.value } }
       },
     },
     observations: {

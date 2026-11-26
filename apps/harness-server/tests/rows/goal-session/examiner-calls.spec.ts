@@ -24,6 +24,7 @@ const FIXED = {
   collaboration: 'auto-drive',
 } as const
 const ATTACHED = { instance: 'i-1', basis: 'b-1' }
+const EXAMINER = { definition: 'examiner', model: 'some/model' }
 const workOf = (change: object = {}) =>
   ({
     creation: { workspace: null, workspaceAttachment: null },
@@ -32,7 +33,7 @@ const workOf = (change: object = {}) =>
 
 describe('what a session that examines for a goal is created with', () => {
   it('nobody attends it, it asks nobody and does not drive itself, whatever the definition fixes; it runs as that definition in the environment the definition fixes', () => {
-    expect(examinerCreation('examiner', RESOLVED, FIXED, workOf())).toEqual({
+    expect(examinerCreation(EXAMINER, RESOLVED, FIXED, workOf())).toEqual({
       candidate: adoption('examiner'),
       execution: adoption('generic'),
       entryContract: adoption('chat'),
@@ -55,9 +56,21 @@ describe('what a session that examines for a goal is created with', () => {
     expect(EXAMINATION_PURPOSE).toBe('goal-examination')
   })
 
+  it('starts on the model the tenant set for examinations, where the definition names a model to start on', () => {
+    const basis = { owner: 'release', record: 'examiner/model', revision: '1', digest: 'sha256:m' }
+    const first = { name: 'the/definition-default', basis }
+    const withModel = { ...(RESOLVED as object), initialModelSelection: first } as never
+    expect(examinerCreation(EXAMINER, withModel, FIXED, workOf())).toMatchObject({
+      initialModelSelection: { name: 'some/model', basis },
+    })
+    expect(examinerCreation(EXAMINER, RESOLVED, FIXED, workOf())).not.toHaveProperty(
+      'initialModelSelection',
+    )
+  })
+
   it('is placed where the work it examines is placed now: the workspace that session was created in, or the one it changed to since', () => {
     const created = workOf({ creation: { workspace: 'ws_1', workspaceAttachment: ATTACHED } })
-    expect(examinerCreation('examiner', RESOLVED, FIXED, created)).toMatchObject({
+    expect(examinerCreation(EXAMINER, RESOLVED, FIXED, created)).toMatchObject({
       workspace: 'ws_1',
       workspaceAttachment: ATTACHED,
     })
@@ -66,15 +79,15 @@ describe('what a session that examines for a goal is created with', () => {
       creation: { workspace: 'ws_1', workspaceAttachment: ATTACHED },
       changes: [{ kind: 'workspace', value: 'ws_2', workspaceAttachment: moved }],
     })
-    expect(examinerCreation('examiner', RESOLVED, FIXED, changed)).toMatchObject({
+    expect(examinerCreation(EXAMINER, RESOLVED, FIXED, changed)).toMatchObject({
       workspace: 'ws_2',
       workspaceAttachment: moved,
     })
   })
 
   it('is not made while the definition cannot be used: the tenant has none of that name, it cannot be read, or it fixes no modes', () => {
-    expect(examinerCreation('examiner', undefined, FIXED, workOf())).toBeUndefined()
-    expect(examinerCreation('examiner', 'unavailable', FIXED, workOf())).toBeUndefined()
-    expect(examinerCreation('examiner', RESOLVED, undefined, workOf())).toBeUndefined()
+    expect(examinerCreation(EXAMINER, undefined, FIXED, workOf())).toBeUndefined()
+    expect(examinerCreation(EXAMINER, 'unavailable', FIXED, workOf())).toBeUndefined()
+    expect(examinerCreation(EXAMINER, RESOLVED, undefined, workOf())).toBeUndefined()
   })
 })

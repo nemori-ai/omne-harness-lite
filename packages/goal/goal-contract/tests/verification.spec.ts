@@ -3,6 +3,7 @@ import {
   DEFAULT_BUDGET_EXAMINATIONS,
   awaited,
   renderBody,
+  JOB_AWAITED,
   validateDraft,
   verificationOf,
   type BodyContext,
@@ -165,6 +166,34 @@ describe('what a draft may write about evidence', () => {
     ])
     expect(where(issues(third(EXAMINED), examining))).toEqual(['A3.evidence'])
     expect(issues(third(ACTIVITY), examining)).toEqual([])
+  })
+
+  it('the goal of a job writes only the evidence that waits which the settings of its tenant let it: an examination costs model calls, a run again does not', () => {
+    const job = (allowed: BodyContext['job']): BodyContext => ({
+      attendance: 'unattended',
+      job: allowed,
+    })
+    const EXAMINATION = {
+      entry: 'A3',
+      field: 'evidence',
+      problem:
+        'the settings of this tenant do not let the goal of a job use an examination: it costs model calls',
+    }
+    const RUN = {
+      entry: 'A3',
+      field: 'evidence',
+      problem: 'the settings of this tenant do not let the goal of a job run a command again',
+    }
+    expect(issues(third(EXAMINED), job('rerun'))).toEqual([EXAMINATION])
+    expect(issues(third(RERUN), job('rerun'))).toEqual([])
+    expect(issues(third(EXAMINED), job('none'))).toEqual([EXAMINATION])
+    expect(issues(third(RERUN), job('none'))).toEqual([RUN])
+    for (const evidence of [EXAMINED, RERUN])
+      expect(issues(third(evidence), job('all'))).toEqual([])
+    for (const allowed of ['none', 'rerun', 'all'] as const)
+      expect(issues(third(ACTIVITY), job(allowed))).toEqual([])
+    expect(issues(third(EXAMINED), { attendance: 'unattended' })).toEqual([])
+    expect(JOB_AWAITED).toEqual(['none', 'rerun', 'all'])
   })
 })
 

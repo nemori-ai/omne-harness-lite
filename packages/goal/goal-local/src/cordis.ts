@@ -22,6 +22,8 @@ class LocalGoals extends GoalsService {
   readonly brief: Goals['brief']
   readonly submit: Goals['submit']
   readonly examines: Goals['examines']
+  readonly judgeOf: Goals['judgeOf']
+  readonly chooseJudge: Goals['chooseJudge']
   constructor(ctx: Context, face: Goals) {
     super(ctx)
     this.read = face.read
@@ -33,6 +35,8 @@ class LocalGoals extends GoalsService {
     this.brief = face.brief
     this.submit = face.submit
     this.examines = face.examines
+    this.judgeOf = face.judgeOf
+    this.chooseJudge = face.chooseJudge
   }
 }
 

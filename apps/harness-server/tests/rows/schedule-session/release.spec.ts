@@ -159,6 +159,46 @@ function fileOf(tree: ReleaseTree, name: string, content: unknown): string {
   return file
 }
 
+const EXAMINED = {
+  ...DRAFT,
+  criteria: [
+    { statement: '能走一局', evidence: { kind: 'examination', method: '用 node 走一局' } },
+  ],
+}
+
+describe('what the goal of a job may wait for, asked when the schedule is created', () => {
+  it(
+    'a goal that waits for an examination is refused under the default setting, naming the entry and the field; once the tenant lets jobs use examinations the same schedule is created',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const chat = toolCallsByRequest(() => [])
+      await onReleaseTreeRuns({ ...TREE, script: chat, time: fastTime() }, [
+        async tree => {
+          const file = fileOf(tree, 'examined.json', everyMinute(EXAMINED))
+          const create = (id: string) =>
+            tree.cli(['schedule', 'create', '--definition-file', file, '--create-id', id])
+          const refused = await create('e-0')
+          expect((refused.result?.['body'] as { reason?: string } | undefined)?.reason).toBe(
+            'instruction: A1.evidence: the settings of this tenant do not let the goal of a job use an examination: it costs model calls',
+          )
+          expect(refused.result).toMatchObject({
+            outcome: 'invalid',
+            body: {
+              code: 'invalid_input',
+              reason:
+                'instruction: A1.evidence: the settings of this tenant do not let the goal of a job use an examination: it costs model calls',
+            },
+          })
+          const set = ['setting', 'set', '--independent', 'goal/judge', 'job-awaited']
+          const changed = await tree.cli([...set, '--value', '"all"'])
+          expect(changed.status, changed.stderr).toBe(0)
+          succeeded(await create('e-1'))
+        },
+      ])
+    },
+  )
+})
+
 describe('agent work in a new session on the release tree', () => {
   it(
     'at the due minute a session nobody attends is created for the Job, the goal the Job carries is set in it, the agent works by it, and the Job succeeds when the goal is achieved',
