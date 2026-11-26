@@ -56,6 +56,7 @@ export function qualifyingDispatchFacts(
 ): ModelDispatchFacts<unknown> {
   return {
     list: qualifying(input => reader.list(input), qualify, 'read-account', 'read-account'),
+    ofCall: qualifying(input => reader.ofCall(input), qualify, 'read-account', 'read-account'),
   }
 }
 
@@ -74,11 +75,13 @@ export function mountReads(ctx: Context, reads: Reads): void {
       qualify,
     ).list
   }
+  const facts = qualifyingDispatchFacts(
+    createSqlModelDispatchFacts({ storage, domains, authority }),
+    qualify,
+  )
   class DispatchFacts extends ModelDispatchFactsService<unknown> {
-    readonly list = qualifyingDispatchFacts(
-      createSqlModelDispatchFacts({ storage, domains, authority }),
-      qualify,
-    ).list
+    readonly list = facts.list
+    readonly ofCall = facts.ofCall
   }
   new Diagnostics(ctx)
   new DispatchFacts(ctx)

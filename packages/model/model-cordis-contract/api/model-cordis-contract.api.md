@@ -251,6 +251,7 @@ export declare abstract class ModelDispatchFactsService<P> extends Service imple
     static readonly provide = "modelDispatchFacts";
     constructor(ctx: CordisContext);
     abstract readonly list: ModelDispatchFacts<P>['list'];
+    abstract readonly ofCall: ModelDispatchFacts<P>['ofCall'];
 }
 export declare const modelDispatchFactsKey = "modelDispatchFacts";
 declare module '@deepseek-ai/cordis' {

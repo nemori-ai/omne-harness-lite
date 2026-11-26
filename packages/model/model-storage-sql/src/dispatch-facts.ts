@@ -3,6 +3,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
+  DispatchEffort,
   Adoption,
   ContextWindow,
   ModelDispatchFact,
@@ -29,7 +30,7 @@ export const DISPATCH_FACTS_PAGE_MAX = 200
 export const DISPATCH_FACTS_WORKS_MAX = 100
 export const DISPATCH_FACTS_READ_MAX_ROWS = DISPATCH_FACTS_PAGE_MAX + 2
 export const DISPATCH_FACTS_READ_MAX_OUTPUT_BYTES = 4 * 1024 * 1024
-export const DISPATCH_FACT_KEPT_COLUMNS: readonly string[] = ['profile', 'context_window']
+export const DISPATCH_FACT_KEPT_COLUMNS: readonly string[] = ['profile', 'context_window', 'effort']
 
 const CURSOR_PREFIX = 'mdfc_'
 const MAC_LENGTH = 43
@@ -53,7 +54,7 @@ export function dispatchFactRows(
     const seq = Number(row['seq'])
     const dispatch = call.dispatches[seq]
     if (dispatch === undefined) throw new Error('a changed dispatch row has no dispatch')
-    const { profile, contextWindow, ...fact } = dispatchFactOf(call, dispatch)
+    const { profile, contextWindow, effort, ...fact } = dispatchFactOf(call, dispatch)
     return {
       tenant,
       call: fact.call,
@@ -64,6 +65,7 @@ export function dispatchFactRows(
       consumer_work: fact.consumer.work,
       profile: profile === null ? null : JSON.stringify(profile),
       context_window: contextWindow === null ? null : JSON.stringify(contextWindow),
+      effort: effort === undefined ? null : JSON.stringify(effort),
       fact: JSON.stringify(fact),
     }
   })
@@ -82,8 +84,18 @@ function scopeOf(input: Readonly<Record<string, unknown>>): { where: string[]; p
   return { where, params }
 }
 
+const COLUMNS = 'rowid AS rid, call, seq, dispatch, prepared, profile, context_window, effort, fact'
+
 function readDispatchFactRows(input: JsonValue, port: ReadPort): JsonValue {
   if (!isObject(input)) throw new Error('invalid input')
+  if (input['call'] !== undefined) {
+    const found = rows(
+      port,
+      `SELECT ${COLUMNS} FROM ${DISPATCH_FACT.name} WHERE tenant = ? AND call = ? ORDER BY seq LIMIT ?`,
+      [textInput(input, 'tenant'), textInput(input, 'call'), BigInt(DISPATCH_FACTS_READ_MAX_ROWS)],
+    )
+    return { undated: 0, rows: found }
+  }
   const { where, params } = scopeOf(input)
   const limit = countInput(input, 'limit', DISPATCH_FACTS_PAGE_MAX)
   const ascending = input['order'] === 'ascending'
@@ -108,7 +120,7 @@ function readDispatchFactRows(input: JsonValue, port: ReadPort): JsonValue {
   const direction = ascending ? 'ASC' : 'DESC'
   const found = rows(
     port,
-    `SELECT rowid AS rid, call, seq, dispatch, prepared, profile, context_window, fact
+    `SELECT ${COLUMNS}
       FROM ${DISPATCH_FACT.name} WHERE ${clauses.join(' AND ')}
       ORDER BY prepared ${direction}, rowid ${direction} LIMIT ?`,
     [...dated, BigInt(limit + 1)],
@@ -209,11 +221,10 @@ function queryFailure(input: ModelDispatchFactsQuery): ModelFailure | null {
   return consumerValid(input.consumer) ? null : invalid('consumer', 'shape')
 }
 
-function admit<P>(
+function accountOf<P>(
   options: SqlModelDispatchFactsOptions<P>,
-  key: Uint8Array,
-  input: ListInput<P>,
-): Outcome<Admitted, ModelFailure> {
+  input: Readonly<{ principal: P; tenant: ListInput<P>['tenant'] }>,
+): Outcome<string, ModelFailure> {
   const tenant = tenantCodec.encode(input.tenant)
   if (!tenant.ok) return fail({ kind: 'denied', action: 'read-account' })
   const qualified = options.authority.authorize({
@@ -225,15 +236,25 @@ function admit<P>(
     return qualified.failure.kind === 'denied'
       ? fail({ kind: 'denied', action: 'read-account' })
       : qualified
+  return succeed(tenant.value)
+}
+
+function admit<P>(
+  options: SqlModelDispatchFactsOptions<P>,
+  key: Uint8Array,
+  input: ListInput<P>,
+): Outcome<Admitted, ModelFailure> {
+  const tenant = accountOf(options, input)
+  if ('failure' in tenant) return tenant
   const refused = queryFailure(input)
   if (refused !== null) return fail(refused)
   const range = rangeOf(input.range)
   if ('failure' in range) return range
   const [from, to] = range.ok ?? [null, null]
   const fingerprint = JSON.stringify([from, to, input.consumer, input.order])
-  const admitted = { tenant: tenant.value, from, to, fingerprint, after: null }
+  const admitted = { tenant: tenant.ok, from, to, fingerprint, after: null }
   if (input.after === null) return succeed(admitted)
-  const after = openCursor(key, tenant.value, fingerprint, input.after)
+  const after = openCursor(key, tenant.ok, fingerprint, input.after)
   return 'failure' in after ? after : succeed({ ...admitted, after: after.ok })
 }
 
@@ -248,28 +269,32 @@ function jsonOf(value: unknown, field: string): unknown {
   }
 }
 
+function storedFact(raw: Readonly<Record<string, unknown>>): ModelDispatchFact {
+  const fact = jsonOf(raw['fact'], 'fact')
+  const profile = jsonOf(raw['profile'], 'profile')
+  const window =
+    raw['context_window'] === null ? null : jsonOf(raw['context_window'], 'context_window')
+  const effort = raw['effort'] == null ? undefined : jsonOf(raw['effort'], 'effort')
+  if (!isObject(fact) || fact['call'] !== raw['call'] || fact['dispatch'] !== raw['dispatch'])
+    throw new StoredError('fact')
+  if (!isObject(profile)) throw new StoredError('profile')
+  return {
+    ...(fact as Omit<DispatchFactDraft, 'profile' | 'contextWindow' | 'effort'>),
+    profile: profile as Adoption,
+    contextWindow: window as ContextWindow | null,
+    ...(effort === undefined ? {} : { effort: effort as DispatchEffort }),
+  }
+}
+
 function factOf(
   raw: unknown,
   tenant: string,
 ): Readonly<{ fact: ModelDispatchFact; position: Position }> {
   if (!isObject(raw)) throw new StoredError('row')
-  const fact = jsonOf(raw['fact'], 'fact')
-  const profile = jsonOf(raw['profile'], 'profile')
-  const window =
-    raw['context_window'] === null ? null : jsonOf(raw['context_window'], 'context_window')
-  if (!isObject(fact) || fact['call'] !== raw['call'] || fact['dispatch'] !== raw['dispatch'])
-    throw new StoredError('fact')
-  if (!isObject(profile)) throw new StoredError('profile')
+  const fact = storedFact(raw)
   if (typeof raw['prepared'] !== 'string' || typeof raw['rid'] !== 'number')
     throw new StoredError(`position of ${tenant}`)
-  return {
-    fact: {
-      ...(fact as Omit<DispatchFactDraft, 'profile' | 'contextWindow'>),
-      profile: profile as Adoption,
-      contextWindow: window as ContextWindow | null,
-    },
-    position: { prepared: raw['prepared'], row: raw['rid'] },
-  }
+  return { fact, position: { prepared: raw['prepared'], row: raw['rid'] } }
 }
 
 function pageOf(
@@ -334,9 +359,38 @@ async function list<P>(
   }
 }
 
+type OfCallInput<P> = Parameters<ModelDispatchFacts<P>['ofCall']>[0]
+
+async function ofCall<P>(
+  options: SqlModelDispatchFactsOptions<P>,
+  input: OfCallInput<P>,
+): Promise<Outcome<readonly ModelDispatchFact[], ModelFailure>> {
+  const tenant = accountOf(options, input)
+  if ('failure' in tenant) return tenant
+  const domain = await domainOf(options.domains, tenant.ok)
+  if ('failure' in domain) return domain
+  if (domain.ok.kind === 'unregistered') return succeed([])
+  const read = { tenant: tenant.ok, call: String(input.call) }
+  const output = await readHandler(options.storage, domain.ok.domain, DISPATCH_FACTS_HANDLER, read)
+  if ('failure' in output) return output
+  try {
+    if (!isObject(output.ok) || !Array.isArray(output.ok['rows'])) throw new StoredError('read')
+    return succeed(
+      output.ok['rows'].map(raw => {
+        if (!isObject(raw)) throw new StoredError('row')
+        return storedFact(raw)
+      }),
+    )
+  } catch (error) {
+    if (error instanceof StoredError)
+      return fail(unavailable(`stored dispatch fact ${error.message}`))
+    throw error
+  }
+}
+
 export function createSqlModelDispatchFacts<P>(
   options: SqlModelDispatchFactsOptions<P>,
 ): ModelDispatchFacts<P> {
   const key = options.cursorKey ?? randomBytes(32)
-  return { list: input => list(options, key, input) }
+  return { list: input => list(options, key, input), ofCall: input => ofCall(options, input) }
 }

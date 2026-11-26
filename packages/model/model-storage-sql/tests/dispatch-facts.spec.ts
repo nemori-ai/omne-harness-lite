@@ -270,11 +270,38 @@ describe('the dispatch facts of the Model records (C17)', () => {
         connectRetries: 0,
         account: expect.objectContaining({ usage: REPORT.usage, cost: REPORT.cost }),
         costLookup: 'not-needed',
+        effort: { value: null, basis: 'provider' },
       },
     ])
     const text = JSON.stringify(page)
     expect(text).not.toContain(PROMPT_CANARY)
     expect(text).not.toContain(REPLY_CANARY)
+  })
+
+  it('reads the facts of one call with the effort its request carried; another tenant reads none', async () => {
+    const s = scene()
+    const { call, dispatch } = await s.dispatched('effort', { clean: true })
+    await s.dispatched('other')
+    const mine = { principal: s.principalOf(A), tenant: A, call }
+    const read = unbox(await s.facts.ofCall(mine))
+    expect(read.map(fact => [fact.dispatch, fact.effort])).toEqual([
+      [dispatch, { value: null, basis: 'provider' }],
+    ])
+    expect(
+      unbox(await s.facts.ofCall({ ...mine, principal: s.principalOf(B), tenant: B })),
+    ).toEqual([])
+    expect(await s.facts.ofCall({ ...mine, tenant: B })).toEqual({
+      failure: { kind: 'denied', action: 'read-account' },
+    })
+  })
+
+  it('reads a fact written before the effort was kept without one: not known', async () => {
+    const s = scene()
+    const { call, dispatch } = await s.dispatched('older')
+    s.built.sqlite.seed(s.built.domain, 'UPDATE md_dispatch_fact SET effort = NULL', [])
+    const [fact] = unbox(await s.facts.ofCall({ principal: s.principalOf(A), tenant: A, call }))
+    expect(fact?.dispatch).toBe(dispatch)
+    expect(fact !== undefined && 'effort' in fact).toBe(false)
   })
 
   it('keeps the fact, its profile and its window after the call is cleaned up', async () => {
