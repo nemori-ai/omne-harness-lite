@@ -110,6 +110,7 @@ export type FakeExamining = GoalExamining &
     readable(on: boolean): void
     handed: BatchToHand[]
     asked: string[]
+    seen: BatchToHand[]
     end(request: string): void
     cancelled: string[]
     closed: string[]
@@ -118,6 +119,7 @@ export type FakeExamining = GoalExamining &
 export function fakeExamining(): FakeExamining {
   const handed: BatchToHand[] = []
   const asked: string[] = []
+  const seen: BatchToHand[] = []
   const over = new Set<string>()
   const cancelled: string[] = []
   const closed: string[] = []
@@ -127,6 +129,7 @@ export function fakeExamining(): FakeExamining {
   return {
     handed,
     asked,
+    seen,
     cancelled,
     closed,
     end: request => void over.add(request),
@@ -144,9 +147,11 @@ export function fakeExamining(): FakeExamining {
     readable: on => void (canRead = on),
     async hand(_tenant, batch) {
       asked.push(batch.request)
+      seen.push(batch)
       const answer = next
       next = 'handed'
       if (answer === 'refused') return { kind: 'refused' }
+      if (answer === 'taking') return { kind: 'taking' }
       if (!handed.some(taken => taken.request === batch.request)) handed.push(batch)
       const examiner = batch.examiner ?? `examiner-of-${batch.session}`
       return answer === 'unknown' ? { kind: 'unknown' } : { kind: 'handed', examiner }

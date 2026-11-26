@@ -125,7 +125,56 @@ describe('a batch handed to a session that examines', () => {
     expect(later).not.toBe(first)
     const restarted = await w.open().hand(TENANT, batchOf({ request: NEXT, examiner: later }))
     expect(restarted).toEqual({ kind: 'handed', examiner: idsOf(NEXT).session })
+    expect(EXAMINER_REUSE_MS).toBe(900_000)
   })
+
+  it('each batch that goes into a kept session keeps it warm for the next: the quarter of an hour runs from the last batch, not the first', async () => {
+    const w = examiners()
+    const first = idsOf().session
+    await w.examining.hand(TENANT, batchOf())
+    for (const request of ['examine/1/1/call-3', 'examine/1/1/call-5', 'examine/1/1/call-7']) {
+      w.clock.now += EXAMINER_REUSE_MS - 1
+      const answer = await w.examining.hand(TENANT, batchOf({ request, examiner: first }))
+      expect(answer).toEqual({ kind: 'handed', examiner: first })
+    }
+    expect(w.made.map(([name]) => name)).toEqual(['create'])
+  })
+
+  it('a brief that is not known to have gone into a kept session is not known to be handed, and a session nothing went into is not kept warm', async () => {
+    const w = examiners()
+    const first = idsOf().session
+    await w.examining.hand(TENANT, batchOf())
+    const NEXT = batchOf({ request: 'examine/1/1/call-7', examiner: first })
+    for (const answer of [failure('unavailable'), new Error('down')]) {
+      w.state.answer = answer
+      expect(await w.examining.hand(TENANT, NEXT)).toEqual({ kind: 'unknown' })
+    }
+    expect(w.made.map(([name]) => name)).toEqual(['create'])
+    const cold = examiners()
+    cold.state.answer = failure('unavailable')
+    expect(await cold.examining.hand(TENANT, batchOf())).toEqual({ kind: 'unknown' })
+    cold.state.answer = { ok: null }
+    await cold.examining.hand(TENANT, batchOf({ request: 'examine/1/1/call-7', examiner: first }))
+    expect(cold.made.map(([name, input]) => [name, input.session])).toEqual([
+      ['create', first],
+      ['create', idsOf('examine/1/1/call-7').session],
+    ])
+  })
+
+  it.each(['archived', 'frozen', 'denied', 'not-found'] as const)(
+    'a session that answers %s takes no input any more: a new one is made, and a new one that answers so is refused',
+    async kind => {
+      const w = examiners()
+      const first = idsOf().session
+      await w.examining.hand(TENANT, batchOf())
+      w.state.answer = failure(kind)
+      const NEXT = batchOf({ request: 'examine/1/1/call-7', examiner: first })
+      expect(await w.examining.hand(TENANT, NEXT)).toEqual({ kind: 'refused' })
+      expect(w.made.map(([name]) => name)).toEqual(['create', 'create'])
+      w.own.create = failure(kind)
+      expect(await w.open().hand(TENANT, batchOf())).toEqual({ kind: 'refused' })
+    },
+  )
 
   it('a kept session that takes no input any more is left for a new one', async () => {
     const w = examiners()
@@ -190,6 +239,7 @@ describe('what became of the round an examining session gave a batch', () => {
     }
     w.state.work = { kind: 'read', value: null }
     expect(await ended()).toBe('ended')
+    w.state.work = { kind: 'read', value: active(['in-1']) }
     expect(await w.examining.ended('no-tenant', out)).toBe('ended')
   })
 
@@ -205,7 +255,10 @@ describe('what became of the round an examining session gave a batch', () => {
     expect(await ended()).toBe('going')
     w.state.work = { kind: 'unavailable' }
     expect(await ended()).toBe('unknown')
+    w.state.work = { kind: 'read', value: quiet() }
     expect(await w.examining.ended(TENANT, { ...out, examiner: null })).toBe('unknown')
+    w.calls.work = () => Promise.reject(new Error('down'))
+    expect(await w.open().ended(TENANT, out)).toBe('unknown')
   })
 
   it('a batch taken back stops the run its brief opened, and no other run', async () => {
@@ -221,6 +274,10 @@ describe('what became of the round an examining session gave a batch', () => {
       { tenant: LEGAL_TENANT, session: out.examiner, run: 'run-3' },
     ])
     expect(w.made[0]?.[1].operation).toMatch(/^sop_[0-9a-f]{64}$/u)
+    const other = { ...out, request: 'examine/1/1/call-7' }
+    w.state.work = { kind: 'read', value: active([idsOf(other.request, out.examiner).input]) }
+    await w.examining.cancel(TENANT, other)
+    expect(w.made[2]?.[1].operation).not.toBe(w.made[0]?.[1].operation)
     w.made.length = 0
     w.state.work = { kind: 'read', value: active(['another-input']) }
     await w.examining.cancel(TENANT, out)
@@ -248,6 +305,10 @@ describe('what became of the round an examining session gave a batch', () => {
     expect(archives[0]).toEqual(archives[1])
     expect(archives[0]?.[1]).toMatchObject({ tenant: LEGAL_TENANT, session: first })
     expect(w.waited).toEqual([])
+    await w.examining.close(TENANT, { session: SESSION, examiner: 'f'.repeat(64) })
+    await w.examining.idle()
+    expect(w.made.at(-1)?.[1].operation).not.toBe(archives[0]?.[1].operation)
+    w.made.pop()
     await w.examining.close('no-tenant', { session: SESSION, examiner: first })
     await w.examining.idle()
     expect(w.made.filter(([name]) => name === 'archive')).toHaveLength(2)

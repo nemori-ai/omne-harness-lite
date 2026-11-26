@@ -3,11 +3,13 @@ import type { ExaminerCalls } from '@omne-harness/goal-session'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
   workspaceSelection,
+  type Modes,
   type RunId,
   type SessionCreation,
   type SessionFailure,
   type SessionId,
   type SessionWorkPrincipals,
+  type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { contextInitialization } from '../../assembly/session-context-initialization.ts'
@@ -31,6 +33,32 @@ export type ExaminerCallPorts = Readonly<{
   definition(): string
 }>
 type Create = Parameters<ExaminerCalls['create']>[0]
+type Resolved = Awaited<ReturnType<typeof mappedDefinitionFor>>
+
+/** What an examining session is created with: nobody attends it, it asks nobody, it does not drive itself, and it is placed where the work it examines is placed now. Undefined: the definition cannot be used now. */
+export function examinerCreation(
+  agent: string,
+  resolved: Resolved,
+  fixed: Modes | undefined,
+  work: Pick<WorkSnapshot, 'creation' | 'changes'>,
+): SessionCreation | undefined {
+  if (resolved === undefined || resolved === 'unavailable' || fixed === undefined) return undefined
+  const { tenantDefaults: _defaults, ...mapped } = resolved
+  const placed = workspaceSelection(work)
+  return {
+    ...mapped,
+    definition: { name: agent, candidate: resolved.candidate },
+    purpose: EXAMINATION_PURPOSE,
+    workspace: placed?.workspace ?? null,
+    workspaceAttachment: placed?.attachment ?? null,
+    modes: {
+      kind: 'explicit',
+      value: { ...fixed, permission: 'bypass-permissions', collaboration: 'co-work' },
+    },
+    initial: null,
+    attendance: 'unattended',
+  }
+}
 
 /** The calls of Session only the examining side of goals makes. A session is created as the system principal of goals; its run is stopped and it is archived as the session itself. */
 export function examinerCallsOf(
@@ -52,33 +80,16 @@ export function examinerCallsOf(
     return { service, at: { principal: issued.ok, tenant, session } }
   }
 
-  /** Unattended, asking nobody, not driving itself, placed where the work it examines is placed now. */
   async function creationOf({ tenant, beside }: Create): Promise<SessionCreation | string> {
     const mappings = ctx.get(definitionMappingsKey)
     const worker = await asSession(tenant, beside)
     if (mappings === undefined || worker === undefined) return 'the session of the goal'
     const work = await worker.service.work.readWork(worker.at)
+    if (!('ok' in work)) return 'the session of the goal'
     const agent = ports.definition()
     const resolved = await mappedDefinitionFor(mappings, { tenant }, agent)
-    const fixed = mappings.modesFor(agent)?.modes
-    if (!('ok' in work)) return 'the session of the goal'
-    if (resolved === undefined || resolved === 'unavailable' || fixed === undefined)
-      return `the Agent definition ${agent}`
-    const { tenantDefaults: _defaults, ...mapped } = resolved
-    const placed = workspaceSelection(work.ok)
-    return {
-      ...mapped,
-      definition: { name: agent, candidate: resolved.candidate },
-      purpose: EXAMINATION_PURPOSE,
-      workspace: placed?.workspace ?? null,
-      workspaceAttachment: placed?.attachment ?? null,
-      modes: {
-        kind: 'explicit',
-        value: { ...fixed, permission: 'bypass-permissions', collaboration: 'co-work' },
-      },
-      initial: null,
-      attendance: 'unattended',
-    }
+    const made = examinerCreation(agent, resolved, mappings.modesFor(agent)?.modes, work.ok)
+    return made ?? `the Agent definition ${agent}`
   }
 
   return {

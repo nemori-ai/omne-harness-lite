@@ -62,8 +62,8 @@ export function createSessionExamining(
     return parsed.ok ? parsed.value : undefined
   }
   const warm = (examiner: string | null): examiner is string => {
-    const at = examiner === null ? undefined : lastHanded.get(examiner)
-    return at !== undefined && options.now() - at < reuseMs
+    const last = lastHanded.get(examiner ?? '') ?? Number.NEGATIVE_INFINITY
+    return options.now() - last < reuseMs
   }
 
   async function send(

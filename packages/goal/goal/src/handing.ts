@@ -113,7 +113,7 @@ export function createHanding(deps: GoalsDependencies, commit: Commit) {
     if (answer === 'ended') await untaken(tenant, record, batch)
   }
 
-  /** Tells the examining side what a write took from it: a batch that went without coming back, and the session it kept for a goal that settled or took another. */
+  /** Tells the examining side what a write took from it: a batch that went without coming back, and the session it kept for a goal that settled. */
   async function released(tenant: string, before: GoalRecord | null, now: GoalRecord) {
     if (before === null) return
     const back = takenBack(before.examination, now.examination)
@@ -121,10 +121,8 @@ export function createHanding(deps: GoalsDependencies, commit: Commit) {
       await Promise.resolve()
         .then(() => examining.cancel(tenant, outOf(before, back)))
         .catch(quiet)
-    const { examiner } = before.examination
-    if (examiner === null) return
-    const settled = now.state.status === 'settled' && before.state.status !== 'settled'
-    if (settled || now.examination.examiner !== examiner) await letGo(tenant, before, examiner)
+    const { examiner } = now.examination
+    if (now.state.status === 'settled' && examiner !== null) await letGo(tenant, now, examiner)
   }
 
   async function settleOwed(tenant: string, record: GoalRecord): Promise<void> {

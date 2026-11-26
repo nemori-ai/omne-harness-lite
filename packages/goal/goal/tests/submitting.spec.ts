@@ -110,8 +110,10 @@ describe('a batch handed over to the examining side', () => {
     const w = await handedOver(world => world.examining.handNext('unknown'))
     expect(w.record().examination.examiner).toBeNull()
     w.sessions.readable(false)
+    const version = w.record().version
     await w.goals.reconcile(TENANT)
     expect(w.record().examination.batch?.delivery).toBe('unknown')
+    expect(w.record().version).toBe(version)
     expect(w.examining.asked).toEqual([BATCH])
     expect(w.hinted).toEqual([TENANT, TENANT])
     w.sessions.readable(true)
@@ -155,6 +157,39 @@ describe('a batch handed over to the examining side', () => {
     await w.goals.reconcile(TENANT)
     expect(w.examining.handed.map(batch => batch.request)).toEqual([BATCH])
     expect(w.record().examination.batch?.delivery).toBe('handed')
+  })
+
+  it('that the examining side is taking stays owed and unwritten until it is known to be taken; a port that throws while the brief is read is no basis, not a crash', async () => {
+    const w = await handedOver(world => world.examining.handNext('taking'))
+    expect(w.record().examination).toMatchObject({ batch: { delivery: 'owed' }, examiner: null })
+    expect(w.hinted).toEqual([])
+    const version = w.record().version
+    w.examining.handNext('taking')
+    await w.goals.reconcile(TENANT)
+    expect(w.record().version).toBe(version)
+    const down = () => Promise.reject(new Error('down'))
+    const real = { facts: w.sessions.facts, calls: w.history.calls }
+    Object.assign(w.sessions, { facts: down })
+    await w.goals.reconcile(TENANT)
+    Object.assign(w.sessions, { facts: real.facts })
+    Object.assign(w.history, { calls: down })
+    await w.goals.reconcile(TENANT)
+    Object.assign(w.history, { calls: real.calls })
+    expect(w.record().version).toBe(version)
+    expect(w.hinted).toEqual([TENANT, TENANT])
+    await w.goals.reconcile(TENANT)
+    expect(w.record().examination).toMatchObject({ batch: { delivery: 'handed' } })
+  })
+
+  it('is handed over with no place named when the session of the goal has none', async () => {
+    const w = world()
+    value(await w.goals.write(OWNER, w.direct({ proposal: { kind: 'set', draft: SNAKE } })))
+    w.history.made(write(1))
+    w.decisions.answer(reply)
+    const check = { session: SESSION, call: 'exec-1/cand-1/before_terminal/call/0' }
+    value(await w.goals.observe(CHECK, { ...check, candidate: 'complete' } as never))
+    expect(w.examining.seen[0]).toMatchObject({ where: null })
+    expect(w.examining.seen[0]?.brief).not.toContain('Where the work is')
   })
 
   it('that the examining side will not take cannot be told: the agent is sent on and reads why', async () => {
@@ -433,6 +468,11 @@ describe('the exit codes of the commands run again, handed in by the program', (
     await w.goals.reconcile(TENANT)
     expect(w.examining.handed).toHaveLength(1)
     expect(w.record().examination.batch).toMatchObject({ delivery: 'handed', ran: { A1: {} } })
+    expect(w.examining.seen.map(batch => batch.criteria.map(entry => entry.id))).toEqual([
+      ['A1', 'A2'],
+      ['A2'],
+    ])
+    expect(w.examining.seen.at(-1)?.brief).not.toContain('node accept.js')
   })
 
   it('an examination whose round ended without its readings leaves the rest untold: with a command passed, the agent is sent on for the examined one alone', async () => {
@@ -484,6 +524,42 @@ describe('the exit codes of the commands run again, handed in by the program', (
 describe('what a write takes from the examining side', () => {
   const cancel = (w: Awaited<ReturnType<typeof handedOver>>) =>
     w.goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } })
+
+  it('a goal that settles before any session examined for it has none to let go of', async () => {
+    const w = await handedOver(world => world.examining.handNext('unknown'))
+    value(await cancel(w))
+    expect(w.examining.cancelled).toEqual([BATCH])
+    expect(w.examining.closed).toEqual([])
+  })
+
+  it('the session of the examiner before is let go of only when the write that names the new one stood', async () => {
+    const stale = { on: false }
+    const w = await handedOver(undefined, store => ({
+      ...store,
+      latest: (tenant, session) => store.latest(tenant, session),
+      owing: tenant => store.owing(tenant),
+      examinedBy: (tenant, examiner) => store.examinedBy(tenant, examiner),
+      async commit(tenant, command) {
+        const naming = command.next.examination.examiner === 'a-new-examiner'
+        if (stale.on && naming) return { kind: 'committed', value: { kind: 'stale' } } as never
+        return store.commit(tenant, command)
+      },
+    }))
+    value(await w.submit([one('A1'), one('A2', { value: 'fails' })]))
+    w.history.made(write(2, 'snake.js'))
+    const real = w.examining.hand
+    Object.assign(w.examining, {
+      hand: async (...args: Parameters<typeof real>) => {
+        await real(...args)
+        return { kind: 'handed', examiner: 'a-new-examiner' }
+      },
+    })
+    stale.on = true
+    const check = { session: SESSION, call: 'exec-2/cand-1/before_terminal/call/0' }
+    value(await w.goals.observe(CHECK, { ...check, candidate: 'complete' } as never))
+    expect(w.record().examination.examiner).toBe(EXAMINER)
+    expect(w.examining.closed).toEqual([])
+  })
 
   it('a batch taken back is told to it, as the batch it was handed: the goal was cancelled, so it lets go of the session too', async () => {
     const w = await handedOver()

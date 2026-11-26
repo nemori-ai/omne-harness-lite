@@ -22,7 +22,7 @@ import { describeCall } from './observed.ts'
 /** How long one command run again may take before it is stopped. */
 const RERUN_TIMEOUT_MS = 600_000
 /** The Agent definition an examination runs as. */
-const EXAMINER_DEFINITION = 'coding'
+const EXAMINER_DEFINITION = 'examiner'
 
 /** The side of goals that knows Session: its input sources, the session port of the provider, and the examining side. */
 export const goalSessionRow = defineRow({

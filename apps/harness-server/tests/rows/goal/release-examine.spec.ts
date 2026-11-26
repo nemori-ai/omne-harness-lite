@@ -146,6 +146,13 @@ describe('a criterion examined by a session of its own, on the release tree', ()
           ].join('\n\n'),
         ])
         expect(commandsOfGoal(seen.examiner[0]!).sort()).toEqual(['brief', 'help', 'submit'])
+        const toolsOf = (body: string) =>
+          (JSON.parse(body) as { tools: { function: { name: string } }[] }).tools
+            .map(tool => tool.function.name)
+            .sort()
+        expect(toolsOf(seen.examiner[0]!)).toEqual(['Files', 'Goal', 'Shell'])
+        expect(seen.examiner[0]).toContain('You examine work that another agent did')
+        expect(seen.examiner[0]).not.toContain('You are the coding agent')
         expect(commandsOfGoal(seen.worker.at(-1)!).sort()).toEqual([
           'help',
           'propose',

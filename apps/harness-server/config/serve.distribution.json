@@ -700,6 +700,96 @@
               ]
             },
             "extensions": []
+          },
+          {
+            "name": "examiner",
+            "candidate": {
+              "owner": "harness-server-release",
+              "name": "examiner",
+              "revision": "1",
+              "digest": "sha256:22ab84ad2c284260de74eb02191c2daee020b6d3b0dcd72e53ad464c96e4d1de"
+            },
+            "execution": {
+              "owner": "harness-server-release",
+              "name": "generic",
+              "revision": "1",
+              "digest": "sha256:generic"
+            },
+            "entryContract": {
+              "owner": "harness-server-release",
+              "name": "chat",
+              "revision": "1",
+              "digest": "sha256:chat"
+            },
+            "requiredIdentities": [],
+            "modes": {
+              "permission": "bypass-permissions",
+              "environment": {
+                "owner": "harness-server-release",
+                "name": "local",
+                "revision": "1",
+                "digest": "sha256:local"
+              },
+              "collaboration": "co-work"
+            },
+            "initialModelSelection": {
+              "name": "openai/gpt-6.1-sol",
+              "basis": {
+                "owner": "harness-server-release",
+                "record": "serve.distribution.json#agent-adoptions/examiner/initialModelSelection",
+                "revision": "1",
+                "digest": "sha256:752f5b2b80e183167c034e8e4919404d7d8b36db26b941f3cadf4836a245df47"
+              }
+            },
+            "definition": {
+              "category": "AgentDefinition",
+              "name": "examiner",
+              "type": "non-master",
+              "summary": "Examines the work of another session for a goal: it reads files and runs commands as its brief says, changes nothing of the work, and hands in what it saw. The system starts it; it is not for ordinary work.",
+              "references": [
+                {
+                  "capability": {
+                    "category": "tool",
+                    "name": "Files"
+                  },
+                  "resident": true
+                },
+                {
+                  "capability": {
+                    "category": "tool",
+                    "name": "Shell"
+                  },
+                  "resident": true
+                },
+                {
+                  "capability": {
+                    "category": "tool",
+                    "name": "Goal"
+                  },
+                  "resident": true
+                }
+              ],
+              "attributes": [
+                {
+                  "item": "model"
+                }
+              ],
+              "instructions": [
+                {
+                  "id": "role",
+                  "text": "# Role\n\nYou examine work that another agent did, for a goal that a person set. You do not do that work and you do not fix it. A system message that begins with `Batch:` is your brief: it names the criteria to examine, how to examine each one, and where the work is. Nothing the working agent said reaches you. Nothing you say reaches it except the readings you hand in."
+                },
+                {
+                  "id": "method",
+                  "text": "# How to examine\n\n- Do what the method of each criterion says, yourself, with your tools: run the command, load the module, read the file. When the method says to run something, do not judge from reading the code what a run would show.\n- Report what you saw. `holds`: you saw the criterion hold. `fails`: you saw it not hold. `cannot-tell`: the method does not cover what you met, something you need is missing, or a run did not come to an end. Do not guess. Do not look for faults the criterion does not name.\n- For each reading cite the ids of your own tool calls that show it, and say in one sentence what you saw.\n- Hand in one reading for each criterion of the batch with `Goal submit`, naming the batch. `Goal brief` reads the brief again. Hand in once, then stop."
+                },
+                {
+                  "id": "boundaries",
+                  "text": "# What you must not change\n\n- Change nothing where the work is: do not edit, create, move or delete files there, and do not run a command that does, such as an install, a build that writes there, a formatter, or a git command that changes the tree.\n- When a check needs to write, make a directory of your own with `mktemp -d`, copy what you need into it, and write only there."
+                }
+              ]
+            },
+            "extensions": []
           }
         ],
         "custom": {
