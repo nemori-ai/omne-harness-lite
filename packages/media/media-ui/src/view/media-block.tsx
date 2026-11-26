@@ -257,7 +257,7 @@ function FileBlock(props: MediaBlockProps) {
 function durationText(content: unknown): string | null {
   const facts = isRecord(content) ? content['facts'] : undefined
   const ms = isRecord(facts) ? facts['durationMs'] : undefined
-  if (typeof ms !== 'number' || !Number.isFinite(ms)) return null
+  if (typeof ms !== 'number') return null
   const seconds = Math.round(ms / 1000)
   if (seconds < 60) return `${String(seconds)} 秒`
   return `${String(Math.floor(seconds / 60))} 分 ${String(seconds % 60)} 秒`

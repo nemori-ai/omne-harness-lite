@@ -649,6 +649,70 @@ describe('消息里一块非文字内容', () => {
     expect(document.querySelector('audio')).toBeNull()
   })
 
+  it('语音满一分钟写分与秒，没有时长写媒体类型；按「播放」后先说正在读', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const { shell } = await mounted(media)
+    const lasting = (durationMs: number | undefined, id: string) =>
+      drawn(shell, {
+        ...voice,
+        id,
+        facts: durationMs === undefined ? { kind: 'voice' } : { ...voice.facts, durationMs },
+      })
+    render(
+      <>
+        {lasting(60_000, 'blk_a')}
+        {lasting(125_000, 'blk_b')}
+        {lasting(undefined, 'blk_c')}
+      </>,
+    )
+    await settle()
+    const lines = [...document.querySelectorAll('[data-omne-part="media.file"]')]
+    expect(lines.map(line => line.textContent)).toEqual([
+      '〔voice〕1 分 0 秒 · 10 B',
+      '〔voice〕2 分 5 秒 · 10 B',
+      '〔voice〕audio/wav · 10 B',
+    ])
+    fireEvent.click(screen.getAllByRole('button', { name: '播放' })[0]!)
+    expect(screen.getByText('正在读语音…')).not.toBeNull()
+    await settle()
+    expect(document.querySelectorAll('audio')).toHaveLength(1)
+  })
+
+  it('描述答不出、转写转不出时不写转写；读不懂的语音与文件照样说出来，不去问', async () => {
+    const media = fakeMedia(4)
+    const engine = { name: 'transcribe', revision: '1' }
+    const representation = { outcome: 'inconvertible', definition: engine, engine }
+    media.once('describe-media', () => ({
+      outcome: 'succeeded',
+      body: { state: 'held', facts: voice.facts, preprocess: { kind: 'done', representation } },
+    }))
+    media.once('describe-media', () => ({ outcome: 'basis-unavailable', body: {} }))
+    const { shell } = await mounted(media)
+    const file = { ...picture, kind: 'file', ref: { ...ref, mediaType: 'application/pdf' } }
+    const told = (content: unknown, id: string) =>
+      block.draw(
+        shell,
+        kindOf(content),
+        { session: 'ses_a', message: 'msg_1', block: id, content, read: 'transcript' },
+        () => null,
+      )
+    render(
+      <>
+        {drawn(shell, { ...voice, transcript: null })}
+        {told(file, 'b2')}
+        {told({ kind: 'file' }, 'b3')}
+        {told({ kind: 'voice' }, 'b4')}
+      </>,
+    )
+    await settle()
+    expect(document.querySelector('.omne-media-transcript')).toBeNull()
+    expect(screen.getAllByText('模型读的是提取的文字')).toHaveLength(2)
+    expect(screen.getByText('〔file〕这一块的内容读不懂')).not.toBeNull()
+    expect(screen.getByText('〔voice〕这一块的内容读不懂')).not.toBeNull()
+    expect(media.calls.filter(call => call.operation === 'describe-media')).toHaveLength(2)
+  })
+
   it('语音与文件画成一行：种类、媒体类型与大小；读不懂的内容照样说出来', async () => {
     const media = fakeMedia(4)
     const { shell } = await mounted(media)
