@@ -67,9 +67,11 @@ test('转发层连着倒下到上限：不再重启，界面上写明；人选�
   expect((await forwarding(app)).filter(pid => !killed.includes(pid))).toEqual([])
 
   // The person answers "one more try": a sixth process comes up, the page loads again, the login is still there.
+  const reloaded = page.waitForEvent('load', { timeout: 60_000 })
   await app.evaluate(() =>
     (globalThis as unknown as { answer: (response: number) => void }).answer(0),
   )
+  await reloaded
   await expect
     .poll(async () => (await forwarding(app)).filter(pid => !killed.includes(pid)).length, {
       timeout: 30_000,
