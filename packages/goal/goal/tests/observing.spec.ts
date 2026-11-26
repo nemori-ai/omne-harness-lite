@@ -347,16 +347,12 @@ describe('what a check stands on', () => {
 
 describe('a goal whose criterion stands on what was done in the round', () => {
   /** What a person wants told in the session: nothing is left behind but the words. */
-  const TOLD: GoalDraft = {
-    purpose: '把 todo.md 里没打勾的事项列给我',
-    criteria: [
-      {
-        statement: '在会话里列出了 todo.md 里全部没打勾的事项',
-        evidence: { kind: 'activity' },
-        pass: { kind: 'shows', text: '答复里有三件：续保、体检、护照' },
-      },
-    ],
-  }
+  const SAID = {
+    statement: '在会话里列出了 todo.md 里全部没打勾的事项',
+    evidence: { kind: 'activity' },
+    pass: { kind: 'shows', text: '答复里有三件：续保、体检、护照' },
+  } as const
+  const TOLD: GoalDraft = { purpose: '把 todo.md 里没打勾的事项列给我', criteria: [SAID] }
   const read: ObservedCall = { ...write(1), tool: 'Files read', path: 'todo.md', writes: false }
 
   it('is shown the calls of the session and what the agent said last, as the goal a session implies is', async () => {
@@ -376,6 +372,19 @@ describe('a goal whose criterion stands on what was done in the round', () => {
       '没打勾的有三件：给车续保、预约年度体检、护照换新。',
     )
     expect(s.record()?.state).toMatchObject({ status: 'settled', outcome: { kind: 'achieved' } })
+  })
+
+  it('is shown what the agent said when only one of its criteria stands on the round', async () => {
+    const kept = {
+      statement: '清单留在了 todo.md',
+      evidence: { kind: 'file', path: 'todo.md' },
+    } as const
+    const s = await standing(SESSION, { ...TOLD, criteria: [SAID, kept] })
+    s.history.say('没打勾的有三件。')
+    s.decisions.answer(ask => replyOf(ask, 'holds'))
+    value(await s.observe())
+    const state = s.decisions.asked[0]?.request.state as { evidence: { A1: { ref: string }[] } }
+    expect(state.evidence.A1.map(item => item.ref)).toEqual(['call-1', 'reply'])
   })
 
   it('has no basis when what the agent said cannot be read', async () => {
