@@ -199,6 +199,7 @@ describe('reads from the session diagnostics', () => {
             runOf('r5', '5', [sent(null, { value: 'high', basis: 'selection' })]),
             runOf('r6', '6', [{}]),
             runOf('r7', '7', []),
+            runOf('r8', '8', [sent('a/older')]),
           ],
           null,
         ),
@@ -210,6 +211,7 @@ describe('reads from the session diagnostics', () => {
         ['r2', 'a/model · medium（缺省推理强度）'],
         ['r3', 'a/model · 供应商默认'],
         ['r4', 'a/model'],
+        ['r8', 'a/older'],
       ]),
     )
     const reads = new BlockReads()
