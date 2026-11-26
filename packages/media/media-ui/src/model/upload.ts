@@ -84,7 +84,7 @@ function unsettled(answer: Left, status: Uploading, resume: string): Turn | 'ask
 async function begin(input: UploadInput) {
   const { client, tenant, upload, bytes, name } = input
   const plain = { tenant, upload, mediaType: input.mediaType, bytes: bytes.byteLength }
-  if (name === undefined) return sent(() => client['begin-upload'](plain))
+  if (name === undefined || name === '') return sent(() => client['begin-upload'](plain))
   const begun = await sent(() => client['begin-upload']({ ...plain, name }))
   const older = begun.outcome === 'unavailable' || begun.outcome === 'protocol-rejected'
   return older ? sent(() => client['begin-upload'](plain)) : begun

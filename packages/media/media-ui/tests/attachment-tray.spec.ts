@@ -350,6 +350,21 @@ describe('附件的预处理', () => {
     expect(tray.read().map(item => item.state.kind)).toEqual(['ready', 'ready', 'ready'])
   })
 
+  it('文件名是空的，开始上传时就不带名字这一项', async () => {
+    const media = fakeMedia(4)
+    const { tray } = trayOver(media)
+    tray.add([picked('', [7], 'application/pdf')])
+    await settled()
+    const [begin] = media.calls.filter(call => call.operation === 'begin-upload')
+    expect(Object.keys(begin?.body ?? {}).sort()).toEqual([
+      'bytes',
+      'mediaType',
+      'tenant',
+      'upload',
+    ])
+    expect(tray.read().map(item => item.state.kind)).toEqual(['ready'])
+  })
+
   it('转换失败时说原因，整份草稿没备好；重试一次再请服务端备好', async () => {
     const media = fakeMedia(2)
     media.once('prepare-media', preparing({ kind: 'failed', reason: 'engine-unavailable' }))
