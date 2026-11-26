@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { cpSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -69,17 +70,37 @@ export type Launched = Readonly<{
 // A launch whose exit is unconfirmed takes its directory off this list, so the fixture keeps it.
 const removableProfiles = new Set<string>()
 
-async function launch(target: Target, userDataDir: string, server: string): Promise<Launched> {
+/** What a test adds to a launch: variables of its own, and a place to keep what the main process writes. */
+export type LaunchExtra = Readonly<{ env?: Record<string, string>; output?: string[] }>
+
+/** A second start of the app on the same user data: it hands its command line to the one running, and leaves. */
+export function secondInstance(target: Target, userDataDir: string, args: readonly string[]): void {
+  const spec = launchSpec(target, 'test', { userDataDir })
+  const done = spawnSync(spec.command, [...spec.args, ...args], {
+    cwd: spec.cwd,
+    env: launchEnvironment(process.env),
+    timeout: 60_000,
+  })
+  if (done.error !== undefined) throw done.error
+}
+
+async function launch(
+  target: Target,
+  userDataDir: string,
+  server: string,
+  extra: LaunchExtra = {},
+): Promise<Launched> {
   const spec = launchSpec(target, 'test', { userDataDir })
   await checkLaunchInputs(spec)
   const app = await electron.launch({
     executablePath: spec.command,
     args: spec.args,
     cwd: spec.cwd,
-    env: launchEnvironment(process.env, { OMNE_SERVER: server }),
+    env: launchEnvironment(process.env, { OMNE_SERVER: server, ...extra.env }),
     chromiumSandbox: !spec.args.includes('--no-sandbox'),
   })
   const launcher = app.process()
+  launcher.stdout?.on('data', (chunk: Buffer) => extra.output?.push(chunk.toString('utf8')))
   let main: MainProcess | undefined
   const close = () =>
     closeApplication(app, launcher, main, () => {
@@ -199,7 +220,7 @@ async function startStack(
   }
 }
 
-type Fixtures = { userDataDir: string; launchApp: () => Promise<Launched> }
+type Fixtures = { userDataDir: string; launchApp: (extra?: LaunchExtra) => Promise<Launched> }
 type Options = { target: Target }
 type Worker = { server: string; pluginsFrom: string | undefined }
 
@@ -226,8 +247,8 @@ export const test = base.extend<Fixtures & Options, Worker>({
   },
   launchApp: async ({ target, server, userDataDir }, provide) => {
     const launched: Launched[] = []
-    await provide(async () => {
-      const app = await launch(target, userDataDir, server)
+    await provide(async extra => {
+      const app = await launch(target, userDataDir, server, extra)
       launched.push(app)
       return app
     })

@@ -14,6 +14,7 @@ import type { FigureHand } from '@omne-harness/ui-kit'
 import type { Down, Look, LookDown, Point, Scene } from '../../src/page/desk/scene.ts'
 import { hostFigure } from '../../src/page/shell/desk/device.ts'
 import { figureLink } from '../../src/page/shell/desk/link.ts'
+import { createShellNote } from '../../src/page/shell/say-note.ts'
 import { createStay } from '../../src/page/shell/desk/stay.ts'
 import { createToldBoard, type Watched } from '../../src/page/shell/state.ts'
 
@@ -262,6 +263,7 @@ export function harness(
   const navigated: unknown[][] = []
   const told = createToldBoard()
   told.room(true)
+  const note = createShellNote({ slots: (place ?? sayPlace()).slots, scope: () => scope })
   const stay = createStay({
     device: hostFigure(fetcher),
     link: figureLink(channel),
@@ -275,8 +277,8 @@ export function harness(
       }
     },
     clock: time.clock,
-    slots: (place ?? sayPlace()).slots,
     scope: () => scope,
+    note,
     changes: {
       projection: projection.watched,
       outside: {
@@ -309,6 +311,7 @@ export function harness(
     sent.filter(each => each.url.startsWith(`/device/figure/${route}?`))
   return {
     stay,
+    note,
     sent,
     posted,
     cancelled,
@@ -327,7 +330,10 @@ export function harness(
     refuse: () => void (refuse = true),
     setSeat: (point: { x: number; y: number } | null) => void (seat = point),
     seatChanged: () => changed?.(),
-    setScope: (next: string | undefined) => void (scope = next),
+    setScope: (next: string | undefined) => {
+      scope = next
+      note.rescope()
+    },
     project: projection.make,
     warned,
     navigated,

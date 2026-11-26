@@ -41,6 +41,28 @@ describe('一代的全化表：每个状态下每个操作都有答复', () => {
     for (const [state, at] of Object.entries(AT)) expect(stateOfGeneration(at(), 1)).toBe(state)
   })
 
+  it('一开始什么都没有；不是发过的代数一律答没有这一代', () => {
+    expect(noGenerations).toEqual({
+      issued: 0,
+      standby: null,
+      serving: null,
+      retiring: [],
+      failed: [],
+      held: {},
+    })
+    const two = prepared(AT.serving()).generations
+    for (const generation of [0, -1, 1.5, 3])
+      expect(stateOfGeneration(two, generation)).toBe('absent')
+  })
+
+  it('第一代进入服务：没有谁被换下，也没有谁撤完；一次调用做完之后名下不留零', () => {
+    const first = must(promoteGeneration(AT.standby()), 'promoted')
+    expect(first.drained).toEqual([])
+    const call = admitted(first.generations)
+    expect(call.generations.held).toEqual({ 1: 1 })
+    expect(must(finishCall(call.generations, 1), 'finished').generations.held).toEqual({})
+  })
+
   it('备：只有没有一代备着时成立；代数只增不重用', () => {
     expect(prepareGeneration(AT.absent())).toMatchObject({ kind: 'prepared', generation: 1 })
     expect(prepareGeneration(AT.standby())).toEqual({ kind: 'refused', reason: 'standby-exists' })

@@ -15,14 +15,12 @@ import {
   SayBubble,
   useSizeFactor,
   type LooseControl,
-  type SayNote,
 } from '@omne-harness/ui-kit'
 import {
   newer,
   type DeskInput,
   type Down,
   type Look,
-  type NoteTo,
   type Point,
   type Rect,
   type Scene,
@@ -41,6 +39,7 @@ import {
   FIGURE_PART,
   partOf,
 } from '../surface/parts.ts'
+import { idOf, sayNote, toOf, type Shown } from '../surface/say-note.ts'
 
 export type DeskDeps = Readonly<{
   look: LookHost
@@ -53,18 +52,8 @@ export type DeskDeps = Readonly<{
 
 type HandAt = Readonly<{ client: Point; meta?: boolean; shift?: boolean }>
 type Bytes = ReadonlyMap<string, Uint8Array<ArrayBuffer>>
-type Shown = Readonly<{ id: string; name: string; bytes: Uint8Array<ArrayBuffer> }>
 
-const NEW_ID = 'new'
-const KEY_ID = 'to:'
-export const NEW_TARGET = '新会话'
-
-const idOf = (to: NoteTo): string => (to.kind === 'new' ? NEW_ID : `${KEY_ID}${to.key}`)
-const toOf = (id: string): NoteTo =>
-  id.startsWith(KEY_ID) ? { kind: 'target', key: id.slice(KEY_ID.length) } : { kind: 'new' }
 const blank = (text: string): boolean => text.trim() === ''
-const taken = (note: SceneNote | null | undefined): boolean =>
-  note?.fate?.kind === 'accepted' || note?.fate?.kind === 'unknown'
 
 const homeOf = (scene: Scene): string =>
   scene.where.mode === 'home' ? `${scene.lease} ${scene.where.at.x} ${scene.where.at.y}` : ''
@@ -97,37 +86,46 @@ function useLook(scene: Scene | null): void {
   }, [theme, size])
 }
 
-/** The words and who they go to stay on this page: afresh with every note, gone once a `say` took them. */
-function useWords() {
-  const [text, setText] = useState('')
-  const [chosen, setChosen] = useState<string | null>(null)
-  const took = useCallback((was: SceneNote | null | undefined, next: SceneNote | null) => {
-    if (next !== null && (was == null || (was.fate?.kind === 'sending' && taken(next)))) {
-      setText('')
-      if (was == null) setChosen(null)
-    }
-  }, [])
-  return { text, setText, chosen, setChosen, took }
-}
+type Fields = Readonly<{ text: string; chosen: string | null }>
+type Unsent = Fields & Readonly<{ lease: number; edit: number }>
 
-function sayNote(
-  note: SceneNote | null,
-  text: string,
-  chosen: string | null,
-  pictures: readonly Shown[],
-): SayNote | null {
-  if (note === null) return null
-  const targets = note.targets?.map(({ key, label }) => ({
-    id: idOf({ kind: 'target', key }),
-    name: label,
-  }))
+/** The fields only buffer the shell's note: they take its words when it opens or its `edit` moves, and hand each change back as `unsent`, one a frame. */
+function useWords(deps: DeskDeps) {
+  const [fields, setFields] = useState<Fields>({ text: '', chosen: null })
+  const now = useRef({ text: '', chosen: null as string | null, lease: 0, edit: 0 })
+  const pending = useRef<Unsent | null>(null)
+  const flush = useCallback(() => {
+    const unsent = pending.current
+    pending.current = null
+    if (unsent === null) return
+    const { lease, text, chosen, edit } = unsent
+    const to = chosen === null ? {} : { chosen: toOf(chosen) }
+    deps.post({ kind: 'input', lease, input: 'unsent', words: text, ...to, edit })
+  }, [deps])
+  const took = useCallback((was: SceneNote | null | undefined, next: Scene) => {
+    const note = next.note ?? null
+    now.current.lease = next.lease
+    if (note === null || (was != null && was.edit === note.edit)) return
+    const taken = { text: note.words, chosen: note.chosen === undefined ? null : idOf(note.chosen) }
+    now.current = { ...now.current, ...taken, edit: note.edit }
+    setFields(taken)
+  }, [])
+  const edited = (next: Partial<Fields>) => {
+    const { lease, edit, text, chosen } = now.current
+    const changed = { text, chosen, ...next }
+    now.current = { ...now.current, ...changed }
+    setFields(changed)
+    const first = pending.current === null
+    pending.current = { lease, edit, ...changed }
+    if (first) deps.frame(flush)
+  }
   return {
-    targets: targets === undefined ? undefined : [{ id: NEW_ID, name: NEW_TARGET }, ...targets],
-    target: chosen ?? idOf(note.to),
-    text,
-    fate: note.fate ?? undefined,
-    pictures,
-    told: note.told,
+    ...fields,
+    took,
+    flush,
+    drop: () => void (pending.current = null),
+    setText: (text: string) => edited({ text }),
+    setChosen: (chosen: string) => edited({ chosen }),
   }
 }
 
@@ -149,15 +147,21 @@ function kept(bytes: Bytes, note: SceneNote | null): Bytes {
 }
 
 /** With the note open the keyboard is here: Escape closes it; losing focus closes it only when it holds no words and no pictures. */
-function useNoteKeys(open: boolean, text: string, pictures: number, close: () => void): void {
-  const latest = useRef({ text, pictures, close })
+function useNoteKeys(
+  open: boolean,
+  text: string,
+  pictures: number,
+  close: () => void,
+  away: () => void,
+): void {
+  const latest = useRef({ text, pictures, close, away })
   useLayoutEffect(() => {
-    latest.current = { text, pictures, close }
+    latest.current = { text, pictures, close, away }
   })
   useEffect(() => {
     if (!open) return undefined
     const blurred = () =>
-      blank(latest.current.text) && latest.current.pictures === 0 && latest.current.close()
+      blank(latest.current.text) && latest.current.pictures === 0 && latest.current.away()
     const pressed = (event: KeyboardEvent) =>
       event.key === 'Escape' && !event.defaultPrevented && latest.current.close()
     window.addEventListener('blur', blurred)
@@ -229,7 +233,7 @@ function handoverOf(next: Scene, arrived: string): Up | undefined {
   return undefined
 }
 
-type Took = (was: SceneNote | null | undefined, next: SceneNote | null) => void
+type Took = (was: SceneNote | null | undefined, next: Scene) => void
 
 const drawable = (
   look: SceneLook,
@@ -248,7 +252,7 @@ function useScene(deps: DeskDeps, took: Took) {
   useEffect(() => {
     const draw = (next: Scene) => {
       aside.current = null
-      took(held.current?.note, next.note ?? null)
+      took(held.current?.note, next)
       held.current = next
       setScene(next)
       setHand(null)
@@ -373,16 +377,21 @@ export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Eleme
   const control = useRef<LooseControl>(null)
   const bubble = useRef<HTMLElement>(null)
   const factor = useSizeFactor()
-  const words = useWords()
+  const words = useWords(deps)
   const { scene, hand, bytes, held, onArrived } = useScene(deps, words.took)
   useLook(scene)
   useHot(deps, scene, control, bubble)
   const { report, send, unpicture } = reports(deps, held)
-  const close = () => report('close')()
+  const away = () => report('close')()
+  const close = () => {
+    words.flush()
+    away()
+  }
   const drawn = scene ?? BLANK
   const note = drawn.note ?? null
+  const sending = note?.fate?.kind === 'sending'
   const pictures = useShown(note, bytes)
-  useNoteKeys(note !== null, words.text, pictures.length, close)
+  useNoteKeys(note !== null, words.text, pictures.length, close, away)
 
   const { where, figure: shape, look, frame } = drawn
   const origin = deps.origin()
@@ -439,8 +448,11 @@ export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Eleme
           bounds={bounds}
           reduced={look.reduced}
           onTarget={words.setChosen}
-          onText={words.setText}
-          onSend={said => send(said.text, said.target, pictures)}
+          onText={text => sending || words.setText(text)}
+          onSend={said => {
+            words.drop()
+            send(said.text, said.target, pictures)
+          }}
           onClose={close}
           onOpen={() => report('show')()}
           onDropPicture={index => unpicture(pictures[index])}

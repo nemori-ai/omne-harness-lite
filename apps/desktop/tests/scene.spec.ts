@@ -284,6 +284,68 @@ describe('读窗口多出的消息', () => {
   })
 })
 
+describe('说话笺的字跟着外壳的状态', () => {
+  const NOTE = {
+    targets: [{ key: 's-1', label: '周报' }],
+    to: { kind: 'new' },
+    fate: null,
+    words: '写了一半',
+    edit: 2,
+  }
+  const noteWith = (more: object) => sceneWith({ note: { ...NOTE, ...more } })
+  const noteWithout = (key: keyof typeof NOTE) =>
+    sceneWith({ note: Object.fromEntries(Object.entries(NOTE).filter(([name]) => name !== key)) })
+  const UNSENT = { kind: 'input', lease: 1, input: 'unsent', words: '写了一半', edit: 2 }
+
+  it('一幕的笺带整段字与 edit 号，人选过说给谁时也带它：形状对的原样过', () => {
+    const right = [
+      noteWith({}),
+      noteWith({ words: '' }),
+      noteWith({ chosen: { kind: 'new' } }),
+      noteWith({ chosen: { kind: 'target', key: 's-1' } }),
+    ]
+    for (const message of right) expect(readDown(message)).toBe(message)
+  })
+
+  it('一幕的笺缺字或 edit 号、类型不对，或说给谁形状不对：答 undefined', () => {
+    const wrong: unknown[] = [
+      noteWithout('words'),
+      noteWithout('edit'),
+      noteWith({ words: 5 }),
+      noteWith({ edit: '2' }),
+      noteWith({ edit: Number.NaN }),
+      noteWith({ chosen: { kind: 'target' } }),
+      noteWith({ chosen: 'new' }),
+    ]
+    for (const message of wrong) expect(readDown(message), JSON.stringify(message)).toBeUndefined()
+  })
+
+  it('上行 unsent 带租约号、整段字、对着的 edit 号，人选过时带说给谁：形状对的原样过', () => {
+    const right = [
+      UNSENT,
+      { ...UNSENT, words: '' },
+      { ...UNSENT, chosen: { kind: 'new' } },
+      { ...UNSENT, chosen: { kind: 'target', key: 's-1' } },
+    ]
+    for (const message of right) expect(readUp(message)).toBe(message)
+  })
+
+  it('unsent 缺租约号、字或 edit 号，类型不对，或说给谁形状不对：答 undefined', () => {
+    const without = (key: keyof typeof UNSENT) =>
+      Object.fromEntries(Object.entries(UNSENT).filter(([name]) => name !== key))
+    const wrong: unknown[] = [
+      without('lease'),
+      without('words'),
+      without('edit'),
+      { ...UNSENT, words: 5 },
+      { ...UNSENT, edit: '2' },
+      { ...UNSENT, chosen: { kind: 'target', key: 9 } },
+      { ...UNSENT, chosen: null },
+    ]
+    for (const message of wrong) expect(readUp(message), JSON.stringify(message)).toBeUndefined()
+  })
+})
+
 describe('从外壳到桌面层：一条消息往哪走', () => {
   const PROJECTION = {
     kind: 'look',

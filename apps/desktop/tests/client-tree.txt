@@ -454,8 +454,6 @@ system
           session-ui#1  [effective]
         session.companion.figure
           session-ui#1  [effective]
-        session.companion.panel
-          session-ui#1  [effective]
         session.composer
           session-ui#1  [effective]
         session.composer.input

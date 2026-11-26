@@ -1,7 +1,7 @@
 import type { Point } from '../../desk/scene.ts'
 import type { FigureFacts } from './device.ts'
 import { insideApp } from './sign.ts'
-import type { Gift } from './talk.ts'
+import type { Gift } from '../say-note.ts'
 import type { Framed, Keys, Seen, WindowLook } from './window-look.ts'
 import type { WhereEvent, Whereabouts } from './whereabouts.ts'
 

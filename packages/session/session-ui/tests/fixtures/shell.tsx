@@ -8,6 +8,7 @@ import {
   type AttachedLayout,
   type FigureBoard,
   type FigureReport,
+  type FloatNote,
   type FloatProps,
   type ItemOf,
   serviceKey,
@@ -147,13 +148,41 @@ export type Floating = Readonly<Pick<FloatProps, 'corner' | 'dragging'>>
 const RESTING: Floating = { corner: { x: 'end', y: 'end' }, dragging: false }
 const GRIP = { [FLOAT_GRIP_ATTRIBUTE]: '' } as const
 
+/** The shell's note port as a case sets it: whether a say item is there and the note open, and every call it got. */
+export type NoteDouble = FloatNote & {
+  there: boolean
+  open: boolean
+  readonly calls: ({ kind: 'toggle'; element: Element } | { kind: 'close' })[]
+}
+
+export function noteDouble(): NoteDouble {
+  const calls: NoteDouble['calls'] = []
+  return {
+    there: true,
+    open: false,
+    calls,
+    toggle: element => void calls.push({ kind: 'toggle', element }),
+    close: () => void calls.push({ kind: 'close' }),
+  }
+}
+
+/** The note port when a case does not look at it: there is no say item to open a note for. */
+const NO_NOTE: FloatNote = {
+  there: false,
+  open: false,
+  toggle: () => undefined,
+  close: () => undefined,
+}
+
 export function ShellView({
   shell,
   scope,
+  note = NO_NOTE,
   floating = RESTING,
 }: {
   readonly shell: TestShell
   readonly scope: string | undefined
+  readonly note?: FloatNote
   readonly floating?: Floating
 }) {
   const sidebar = useSlot(shell, 'sidebar')
@@ -164,7 +193,7 @@ export function ShellView({
       <div data-float-layer="">
         {float.map(item => (
           <div key={item.id} data-float={item.id}>
-            {item.render({ scope, grip: GRIP, ...floating })}
+            {item.render({ scope, grip: GRIP, ...floating, note })}
           </div>
         ))}
       </div>
@@ -189,26 +218,24 @@ export const startShell = (): Promise<Started<TestShell>> => startShellOf(TestSh
 export async function mountModule(
   client: ClientOf<SessionProtocol>,
   scope: string | undefined,
-  options: {
-    readonly strict?: boolean
-    readonly companionNote?: Readonly<Record<`data-${string}`, string>>
-  } = {},
+  options: { readonly strict?: boolean } = {},
 ) {
   const { root, shell } = await startShell()
   const served = await serveProtocol(root, sessionProtocol, client)
-  const { companionNote } = options
-  await root.plugin(
-    createSessionUiModule(companionNote === undefined ? TAKEN : { ...TAKEN, companionNote }),
-  )
+  await root.plugin(createSessionUiModule(TAKEN))
   shell.tenant = scope
+  const note = noteDouble()
   const tree = (next: string | undefined, floating?: Floating) => {
-    const view = <ShellView shell={shell} scope={next} {...(floating ? { floating } : {})} />
+    const view = (
+      <ShellView shell={shell} scope={next} note={note} {...(floating ? { floating } : {})} />
+    )
     return options.strict === true ? <StrictMode>{view}</StrictMode> : view
   }
   const view = render(tree(scope))
   return {
     root,
     shell,
+    note,
     withdraw: async () => {
       await act(async () => {
         await served.dispose()

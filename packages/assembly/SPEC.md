@@ -198,6 +198,7 @@ Assembly 包组回答装配与交接领域里与 Cordis 贴得最近的三个问
 | 起不来 | 拒绝：这一代废了，要再试就是新的一代 | 不可达 | 不变 | 拒绝 | 不可达 | 不可达 | 不变 |
 
 - 「不可达」由状态机的构造排除：只有备着的一代能被换上去；只有在服务与正在撤下的一代名下有调用。
+- 安装根的文件这一半在 `assembly-cordis` 的根入口（不导入 Cordis），服务端与桌面共用：`readVersions`、`installVersion`、`switchVersion`、`tellVersions` 与 `writeWhole`。布局：`<安装根>/versions/<版本>/` 一版一个目录，`<安装根>/current.json` 是指针；装的时候先复制进 `<版本>.partial`，复制完改名。应用自带、永远装好并定下过的那一版可以作为参数给它们：没有指针文件时，现在的与退路都是它。
 - 这张表是 `assembly` 的纯函数：`prepareGeneration`、`promoteGeneration`、`standbyFailed`、`admitCall`、`finishCall`、`generationFell`，状态用 `stateOfGeneration` 读。一行同时至多一代备着、一代在服务；代数只增不重用。「名下没有在途的了」不是单独的操作：最后一次调用做完的那一步、或换的那一步里旧的一代名下本来就没有调用时，它就撤完，答复里写明。
 - 一步换代用 `dynamis-cordis` 座位的换代操作：一步里把旧的定为正在撤下、新的定为在位。算法是登记表已有的[换代](../dynamis/SPEC.md#换代)，本组不另写。新的一代的 fiber 在登记表上用被接替者的名字，代数取下一个，所以登记表的换代成立；全文见 Dynamis 的规格。
 - 正在撤下的一代的排空用[关闭协议](#关闭协议一组租约)：入口为每一代建一个实例。

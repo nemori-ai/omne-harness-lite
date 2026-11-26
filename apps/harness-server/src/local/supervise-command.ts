@@ -9,7 +9,8 @@ import {
   type Supervision,
 } from '@omne-harness/assembly'
 import { monotonicClock, type Timer } from '../shutdown.ts'
-import { entryOfVersion, readVersions, tellVersions } from './install-root.ts'
+import { entryOfVersion } from './install-root.ts'
+import { readVersions, tellVersions, type Told } from '@omne-harness/assembly-cordis'
 import { UsageError } from './serve-command.ts'
 
 export const SUPERVISE_USAGE =
@@ -60,7 +61,6 @@ export function supervisePlan(argv: readonly string[]): Plan {
   }
 }
 
-type Told = ReturnType<typeof tellVersions>
 type Io = Readonly<{
   start: (serveArgs: readonly string[], version: string | undefined) => ChildProcess
   versions?: Readonly<{
