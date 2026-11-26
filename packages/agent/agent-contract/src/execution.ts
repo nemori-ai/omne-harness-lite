@@ -278,6 +278,10 @@ export interface AgentExecutionRecovery<P> {
   detach(
     input: ExecutionMutation<P> & Readonly<{ authority: Authority; reason: DurableEvidence }>,
   ): Reply<DurableEvidence>
+  /** Asks the runtime that holds the attachment to hand the execution over at its next safe point. */
+  handOver(
+    input: ExecutionMutation<P> & Readonly<{ authority: Authority; reason: DurableEvidence }>,
+  ): Reply<DurableEvidence>
   contact(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; authority: Authority }>,
   ): Reply<
@@ -354,6 +358,10 @@ export interface AgentRuntimeControl<P> {
   quiesce(
     input: Access<P> & Readonly<{ operation: AgentOperationId; reason: DurableEvidence }>,
   ): Reply<QuiesceResult>
+  /** Hands the execution over at its next safe point: `terminal` while it ends, `stale-advance` when not driven here. */
+  handOver(
+    input: ExecutionMutation<P> & Readonly<{ reason: DurableEvidence }>,
+  ): Reply<DurableEvidence>
 }
 export type AgentAccessOperation =
   | 'invoke'

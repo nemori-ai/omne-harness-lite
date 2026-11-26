@@ -205,6 +205,17 @@ export interface EnabledExtensions<P> {
 export interface ExtensionImplementations<P> {
   resolve(input: Access<P> & Readonly<{ passage: Passage }>): Reply<LoopExtensionImplementation>
 }
+export interface SystemExtensions<P> extends ExtensionImplementations<P> {
+  read(
+    input: Access<P> &
+      Readonly<{
+        execution: AgentExecutionId
+        position: Position
+        dimension: Dimension | null
+        purpose: 'main' | null
+      }>,
+  ): Reply<readonly EnabledExtension[]>
+}
 export interface DecisionCards<P> {
   present(
     input: Access<P> &

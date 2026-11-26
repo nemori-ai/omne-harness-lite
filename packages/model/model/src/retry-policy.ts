@@ -89,6 +89,39 @@ export function createDefaultRetryPolicy<P>(
   }
 }
 
+export const NO_RESEND_RETRY_POLICY: Adoption = Object.freeze({
+  owner: '@omne-harness/model',
+  name: 'retry-policy/no-resend',
+  revision: '1',
+  digest: '3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866',
+})
+
+/** The policy of a call that is sent once: whatever the failure, it stops on its first dispatch. */
+export function createNoResendRetryPolicy<P>(): ModelRetryPolicy<P> {
+  const provided = digest(NO_RESEND_RETRY_POLICY)
+  return {
+    async decide({ position, failure }) {
+      if (digest(position.policy) !== provided) return unavailable('policy-not-provided')
+      const decision: RetryDecision = { kind: 'stop', fault: failure }
+      return { ok: { kind: 'decided', position, decision, source: evidenceOf(position, decision) } }
+    },
+    inspect: async () => unavailable('decision-kept-in-call-record'),
+  }
+}
+
+export function routeRetryPolicies<P>(
+  policies: readonly Readonly<{ adoption: Adoption; policy: ModelRetryPolicy<P> }>[],
+): ModelRetryPolicy<P> {
+  const named = new Map(policies.map(item => [digest(item.adoption), item.policy]))
+  const of = (position: RetryPosition) => named.get(digest(position.policy))
+  return {
+    decide: async input =>
+      (await of(input.position)?.decide(input)) ?? unavailable('policy-not-provided'),
+    inspect: async input =>
+      (await of(input.position)?.inspect(input)) ?? unavailable('policy-not-provided'),
+  }
+}
+
 export function verifyRetryDecision(
   input: Readonly<{
     position: RetryPosition

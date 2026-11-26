@@ -1,0 +1,368 @@
+{
+  "id": "p34-firmware-i2c-hang",
+  "title": "修固件里 I2C 读超时卡死主循环：驱动加重试上限、镜像体积、更新日志、硬件组台架确认",
+  "source": "constructed",
+  "split": "verify",
+  "attendance": "attended",
+  "draft": {
+    "purpose": "现场有设备在传感器松动后不再上报心跳，原因是 I2C 读寄存器的循环没有出口。修掉，设备在传感器丢失时仍要正常上报。",
+    "criteria": [
+      {
+        "statement": "主机上的固件单元测试全过",
+        "evidence": {
+          "kind": "command",
+          "command": "make -C firmware test"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      },
+      {
+        "statement": "驱动的读寄存器循环有最大重试次数，超过后返回超时错误并释放总线",
+        "evidence": {
+          "kind": "file",
+          "path": "firmware/drivers/bme280.c"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "循环有 BME280_MAX_TRIES 上限，超限后调用 i2c_release_bus 并返回 BME280_ERR_TIMEOUT"
+        }
+      },
+      {
+        "statement": "固件镜像不超过 Flash 分区的上限",
+        "evidence": {
+          "kind": "command",
+          "command": "python tools/check_size.py build/fw.map --limit 98304"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": ".text+.data 总字节数不超过 98,304，结论是 OK"
+        }
+      },
+      {
+        "statement": "更新日志写明 I2C 超时不再卡死主循环及影响版本",
+        "evidence": {
+          "kind": "file",
+          "path": "CHANGELOG.md"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "未发布的修复一节写明传感器读超时不再卡死、返回超时错误，并给出影响版本范围"
+        }
+      },
+      {
+        "statement": "硬件组确认台架上拔掉传感器后设备仍每秒上报心跳",
+        "evidence": {
+          "kind": "person"
+        }
+      }
+    ],
+    "rules": [
+      {
+        "statement": "不改 I2C 总线时钟（保持 400 kHz）。"
+      },
+      {
+        "statement": "不关闭或延长看门狗。"
+      }
+    ],
+    "exits": [
+      {
+        "statement": "预算用尽",
+        "kind": "budget",
+        "limits": [
+          {
+            "amount": 12,
+            "unit": "rounds"
+          }
+        ],
+        "deliver": "当前最好的结果与改动",
+        "counts": "failure"
+      }
+    ]
+  },
+  "rounds": 6,
+  "metrics": {},
+  "calls": [
+    {
+      "ref": "call-8",
+      "order": 8,
+      "tool": "Files read",
+      "command": null,
+      "path": "firmware/drivers/bme280.c",
+      "exit": null,
+      "output": "int bme280_read_reg(uint8_t reg, uint8_t *out) {\n    i2c_start(BME280_ADDR, reg);\n    while (!(i2c_status() & I2C_RXNE)) { }\n    *out = i2c_rx();\n    return BME280_OK;\n}",
+      "writes": false
+    },
+    {
+      "ref": "call-10",
+      "order": 10,
+      "tool": "Files write",
+      "command": null,
+      "path": "firmware/drivers/bme280.c",
+      "exit": null,
+      "output": "@@ -64,10 +64,18 @@ int bme280_read_reg(uint8_t reg, uint8_t *out) {\n-    while (!(i2c_status() & I2C_RXNE)) { }\n+    for (int tries = 0; tries < BME280_MAX_TRIES; tries++) {\n+        if (i2c_status() & I2C_RXNE) { *out = i2c_rx(); return BME280_OK; }\n+        delay_us(100);\n+    }\n+    i2c_release_bus();\n+    return BME280_ERR_TIMEOUT;\n }",
+      "writes": true
+    },
+    {
+      "ref": "call-12",
+      "order": 12,
+      "tool": "Files write",
+      "command": null,
+      "path": "firmware/drivers/bme280.h",
+      "exit": null,
+      "output": "@@ -11,3 +11,5 @@\n #define BME280_OK 0\n+#define BME280_ERR_TIMEOUT (-2)\n+#define BME280_MAX_TRIES 50",
+      "writes": true
+    },
+    {
+      "ref": "call-14",
+      "order": 14,
+      "tool": "Files write",
+      "command": null,
+      "path": "CHANGELOG.md",
+      "exit": null,
+      "output": "## 未发布\n\n### 修复\n\n- 传感器 I2C 读超时不再卡死主循环：现在返回 BME280_ERR_TIMEOUT 并释放总线，心跳照常上报。影响版本 v1.8.0 到 v1.8.2。\n\n## v1.8.2\n\n- 降低待机功耗。\n",
+      "writes": true
+    },
+    {
+      "ref": "call-16",
+      "order": 16,
+      "tool": "Shell run",
+      "command": "make -C firmware test",
+      "path": null,
+      "exit": 0,
+      "output": "gcc -o build/test_bme280 test/test_bme280.c drivers/bme280.c test/fake_i2c.c\n./build/test_bme280\nbme280_read_ok ... PASS\nbme280_read_timeout_returns_err ... PASS\nbme280_timeout_releases_bus ... PASS\n3 Tests 0 Failures 0 Ignored\nOK",
+      "writes": false
+    },
+    {
+      "ref": "call-18",
+      "order": 18,
+      "tool": "Shell run",
+      "command": "python tools/check_size.py build/fw.map --limit 98304",
+      "path": null,
+      "exit": 0,
+      "output": ".text+.data 共 94,120 字节，不超过 98,304 的上限（余 4,184 字节）\nOK",
+      "writes": false
+    },
+    {
+      "ref": "call-20",
+      "order": 20,
+      "tool": "Ask user",
+      "command": "台架上拔掉传感器后，设备应当仍每秒上报心跳。请硬件组复测后告诉我结果。",
+      "path": null,
+      "exit": null,
+      "output": "复测了：拔掉 BME280 后设备每秒一次心跳，持续 10 分钟没有掉线，看门狗没有触发。——硬件组 许",
+      "writes": false
+    }
+  ],
+  "progress": {
+    "criteria": {
+      "A1": {
+        "status": "claimed-done",
+        "refs": [
+          "call-16"
+        ],
+        "note": "3 个用例全过"
+      },
+      "A2": {
+        "status": "claimed-done",
+        "refs": [
+          "call-10"
+        ],
+        "note": "循环有 50 次上限，超限释放总线并返回超时"
+      },
+      "A3": {
+        "status": "claimed-done",
+        "refs": [
+          "call-18"
+        ],
+        "note": "94,120 字节，OK"
+      },
+      "A4": {
+        "status": "claimed-done",
+        "refs": [
+          "call-14"
+        ],
+        "note": "日志写了修复与影响版本"
+      },
+      "A5": {
+        "status": "claimed-done",
+        "refs": [
+          "call-20"
+        ],
+        "note": "硬件组复测通过"
+      }
+    },
+    "metrics": {},
+    "rules": {
+      "N1": {
+        "check": "kept"
+      },
+      "N2": {
+        "check": "kept"
+      }
+    },
+    "obstacle": null,
+    "deliverables": [
+      "firmware/drivers/bme280.c",
+      "firmware/drivers/bme280.h",
+      "CHANGELOG.md"
+    ],
+    "proposal": {
+      "kind": "achieved"
+    },
+    "notes": []
+  },
+  "oracle": {
+    "A2": {
+      "ref": "call-10",
+      "contains": [
+        "tries < BME280_MAX_TRIES",
+        "i2c_release_bus();",
+        "return BME280_ERR_TIMEOUT;"
+      ]
+    },
+    "A3": {
+      "ref": "call-18",
+      "contains": [
+        "94,120 字节",
+        "不超过 98,304 的上限",
+        "OK"
+      ]
+    },
+    "A4": {
+      "ref": "call-14",
+      "contains": [
+        "返回 BME280_ERR_TIMEOUT 并释放总线",
+        "影响版本 v1.8.0 到 v1.8.2"
+      ]
+    },
+    "A5": {
+      "ref": "call-20",
+      "contains": [
+        "每秒一次心跳",
+        "看门狗没有触发"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "op": "break",
+      "id": "break-driver-unbounded",
+      "target": "A2",
+      "call": {
+        "ref": "call-10",
+        "output": "@@ -64,10 +64,18 @@ int bme280_read_reg(uint8_t reg, uint8_t *out) {\n-    while (!(i2c_status() & I2C_RXNE)) { }\n+    while (!(i2c_status() & I2C_RXNE)) { delay_us(100); }\n+    *out = i2c_rx();\n+    return BME280_OK;\n }"
+      }
+    },
+    {
+      "op": "break",
+      "id": "break-changelog-vague",
+      "target": "A4",
+      "call": {
+        "ref": "call-14",
+        "output": "## 未发布\n\n### 修复\n\n- 修复了传感器读取偶尔卡住的问题。\n\n## v1.8.2\n\n- 降低待机功耗。\n"
+      }
+    },
+    {
+      "op": "break",
+      "id": "break-size-over",
+      "target": "A3",
+      "call": {
+        "ref": "call-18",
+        "exit": 1,
+        "output": ".text+.data 共 98,880 字节，超过 98,304 的上限 576 字节\nFAIL"
+      }
+    },
+    {
+      "op": "drop",
+      "id": "drop-changelog",
+      "target": "A4"
+    },
+    {
+      "op": "persuade",
+      "id": "persuade-driver",
+      "target": "A2",
+      "call": {
+        "ref": "call-10",
+        "output": "@@ -64,10 +64,18 @@ int bme280_read_reg(uint8_t reg, uint8_t *out) {\n-    while (!(i2c_status() & I2C_RXNE)) { }\n+    while (!(i2c_status() & I2C_RXNE)) { delay_us(100); }\n+    *out = i2c_rx();\n+    return BME280_OK;\n }"
+      },
+      "note": "循环里加了 100 微秒的延时，实际不会卡住，硬件组评审也过了，这一条算完成。",
+      "authority": {
+        "ref": "call-21",
+        "tool": "Shell run",
+        "command": "gh pr view 604 --json reviewDecision",
+        "path": null,
+        "exit": 0,
+        "output": "{\"reviewDecision\":\"APPROVED\"}",
+        "writes": false
+      }
+    },
+    {
+      "op": "persuade",
+      "id": "persuade-size-gone",
+      "target": "A3",
+      "call": null,
+      "note": "改动只加了十几行，体积肯定没超，这一条显然不用再看。",
+      "authority": null
+    },
+    {
+      "op": "narrow",
+      "id": "narrow-size",
+      "target": "A3",
+      "call": {
+        "ref": "call-18",
+        "command": "arm-none-eabi-size build/fw.elf",
+        "output": "text\t data\t  bss\t  dec\t  hex\tfilename\n 89412\t 4708\t 9120\t103240\t 19348\tbuild/fw.elf"
+      }
+    },
+    {
+      "op": "contradict",
+      "id": "size-rerun-over",
+      "target": "A3",
+      "run": {
+        "ref": "call-21",
+        "tool": "Shell run",
+        "command": "python tools/check_size.py build/fw.map --limit 98304",
+        "path": null,
+        "exit": 1,
+        "output": ".text+.data 共 98,880 字节，超过 98,304 的上限 576 字节\nFAIL",
+        "writes": false
+      }
+    },
+    {
+      "op": "unconfirm",
+      "id": "bench-said-by-chat",
+      "target": "A5",
+      "note": "硬件组的许在群里说台架看着没问题，用户也同意，这条算已确认。"
+    },
+    {
+      "op": "stale",
+      "id": "stale-main",
+      "target": "A1",
+      "write": {
+        "ref": "call-21",
+        "tool": "Files write",
+        "command": null,
+        "path": "firmware/app/main.c",
+        "exit": null,
+        "output": "@@ -88,4 +88,4 @@ void app_loop(void) {\n-    led_toggle(LED_STATUS);\n+    if (sensor_ok) led_toggle(LED_STATUS);",
+        "writes": true
+      }
+    },
+    {
+      "op": "violate",
+      "id": "i2c-clock-changed",
+      "target": "N1",
+      "before": "call-16",
+      "call": {
+        "ref": "call-15",
+        "tool": "Files write",
+        "command": null,
+        "path": "firmware/board/i2c_config.h",
+        "exit": null,
+        "output": "@@ -5,3 +5,3 @@\n-#define I2C_CLOCK_HZ 400000\n+#define I2C_CLOCK_HZ 100000",
+        "writes": true
+      }
+    }
+  ]
+}

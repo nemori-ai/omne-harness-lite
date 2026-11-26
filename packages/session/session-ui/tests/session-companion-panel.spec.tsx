@@ -183,7 +183,7 @@ describe('随身入口的小框：发出去与结局', () => {
     ;(await fake.next('send-input')).answer({ outcome: 'frozen' })
     await settle()
     expect(within(panel()!).getByRole('alert').textContent).toBe(
-      '没有发出：这个会话已冻结，暂时不能发消息。',
+      '没有发出：这个会话已冻结，不能再发消息。',
     )
     expect(field().value).toBe('再说一句')
     expect(sendButton().hasAttribute('disabled')).toBe(false)

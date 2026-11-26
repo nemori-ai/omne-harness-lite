@@ -135,6 +135,8 @@ system
           served:calendar/v1#1  [effective]
         canvas/v1
           served:canvas/v1#1  [effective]
+        goal/v1
+          served:goal/v1#1  [effective]
         human-intervention/v1
           served:human-intervention/v1#1  [effective]
         identity/v1
@@ -206,6 +208,7 @@ system
       session.run-failure  [list]
         model-credential  [effective, model-ui#1]
       session.side  [list]
+        goal  [effective, goal-ui#1]
         usage  [effective, usage-ui#1]
       session.status  [list]
         usage.occupancy  [effective, usage-ui#1]
@@ -316,6 +319,8 @@ system
           canvas-ui#1  [effective]
         canvas.view
           canvas-ui#1  [effective]
+        goal.panel
+          goal-ui#1  [effective]
         human-intervention.page
           human-intervention-ui#1  [effective]
         human-intervention.page.group

@@ -2,6 +2,7 @@ import type {
   MutationName,
   Reply,
   SessionCallerClass,
+  SessionWork,
   SessionId,
   SessionRevision,
   DurableEvidence,
@@ -18,6 +19,9 @@ import { Lifecycle } from './lifecycle.ts'
 import { createSessionMeasurer, type SessionMeasure } from './measure.ts'
 import { checkSessionConfiguration, type SessionConfiguration } from './policy.ts'
 import { createReads } from './reads.ts'
+import { createReload } from './reload.ts'
+import { OWNERS, unavailable } from './failures.ts'
+import { fail } from '@omne-harness/operation-result'
 import { createResolution } from './resolution.ts'
 import { createRecovery } from './recover.ts'
 import { createScan, type MaintenanceHandle } from './scan.ts'
@@ -98,11 +102,22 @@ export function createSessionInstance<P>(
         advance?.trigger({ tenant: command.input.tenant, session: command.input.session })
     },
   })
+  let reloading: ReturnType<typeof createReload<P>> | undefined
+  const reload: SessionWork<P>['reloadSession'] = value =>
+    reloading === undefined
+      ? Promise.resolve(fail(unavailable(OWNERS.session, 'the session is not wired yet')))
+      : reloading(value)
+  const withReload = (faces: SessionFacesWithDirectory<P>, caller: SessionCallerClass) =>
+    caller === 'intake'
+      ? { ...faces, work: Object.freeze({ ...faces.work, reloadSession: reload }) }
+      : faces
+  const made = (caller: SessionCallerClass): SessionFacesWithDirectory<P> =>
+    withReload(createFaces({ caller, handle, reads, dependencies }), caller)
   const facesOf = new Map<SessionCallerClass, SessionFacesWithDirectory<P>>(
-    CALLERS.map(caller => [caller, createFaces({ caller, handle, reads, dependencies })]),
+    CALLERS.map(caller => [caller, made(caller)]),
   )
   const facesFor = (caller: SessionCallerClass): SessionFacesWithDirectory<P> =>
-    facesOf.get(caller) ?? createFaces({ caller, handle, reads, dependencies })
+    facesOf.get(caller) ?? made(caller)
   const faces = { coordinator: facesFor('coordinator'), maintainer: facesFor('maintainer') }
   const scheduling = createScheduling(dependencies, lifecycle)
   const resolution = createResolution({
@@ -118,6 +133,14 @@ export function createSessionInstance<P>(
     scheduling,
     coordinator: faces.coordinator,
     known,
+  })
+  reloading = createReload({
+    dependencies,
+    scheduling,
+    reads,
+    handle,
+    coordinator: faces.coordinator,
+    recovery,
   })
   const wired = createAdvance({
     dependencies,

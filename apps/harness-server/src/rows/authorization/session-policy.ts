@@ -67,7 +67,9 @@ export const SESSION_POLICY = Object.freeze({
   ),
   claim: row(deny(NO_SOURCE), member('SS:555，DA4 §4.1'), deny(OUTSIDE_MATRIX)),
   reload: row(
-    deny(`${NO_SOURCE}。用户显式 reload 的入口未定（SW:213）`),
+    member(
+      'packages/session/SPEC.md「重装由人显式要求」：登录的人对自己有继续资格的会话能重装；会话协议的 `reload-session` 与会话带来的 `/reload`（产品正文「会话与工作」的显式 reload，卡 #1630 授权改这一格）',
+    ),
     member('SS:556，DA4 §4.1'),
     deny(OUTSIDE_MATRIX),
   ),

@@ -67,6 +67,7 @@ function dutiesFactory(duties: Duties): AgentHostRuntimeFactory {
     return succeed({
       ...made.ok,
       control: {
+        handOver: input => made.ok.control.handOver(input),
         async quiesce(input) {
           duties.quiesced.push(instance)
           const script = duties.scripts.shift() ?? 'drained'

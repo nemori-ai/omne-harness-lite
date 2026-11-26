@@ -43,7 +43,7 @@ async function startRun(h: Harness, name = 'start'): Promise<StartedRun> {
       instance: { owner: 'agent', id: 'instance-1' },
     }),
     'startRun',
-  )
+  ) as StartedRun
 }
 
 function finishRun(h: Harness, started: StartedRun, expected: string, name = 'finish') {

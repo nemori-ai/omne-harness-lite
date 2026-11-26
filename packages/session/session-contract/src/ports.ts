@@ -107,6 +107,7 @@ export interface AgentDrivePort {
     input: DriveTarget & Readonly<{ control: SessionOperationId; intent: Control }>,
   ): DriveReply<DriveReceipt>
   detach(input: DriveTarget & Readonly<{ advance: AdvanceRef }>): DriveReply<DurableEvidence>
+  handOver(input: DriveTarget & Readonly<{ advance: AdvanceRef }>): DriveReply<DurableEvidence>
   recordResult(
     input: DriveTarget &
       Readonly<{
@@ -239,11 +240,21 @@ export type GuardCommand = Readonly<{
 export interface SessionIdentityBridge<P> {
   prepare(input: SessionAccess<P>, command: SessionCommand): Reply<GuardCommand>
 }
-export type RunAdoption = Readonly<{
-  candidate: Adoption
-  residentAdoption?: ResidentAdoption & Readonly<{ verdict?: FreezeVerdict }>
+/** What a run that starts now adopts: this set; the one it stands at, the new one not to be used and why; or none, and why. */
+export type RunAdoption =
+  | Readonly<{
+      kind: 'adopt'
+      candidate: Adoption
+      residentAdoption?: ResidentAdoption & Readonly<{ verdict?: FreezeVerdict }>
+    }>
+  | Readonly<{ kind: 'keep'; reason: string }>
+  | Readonly<{ kind: 'none'; reason: string }>
+/** `point` names a reload: the sources read afresh for it, not as the run going on started. */
+export type RunAdoptionInput = Readonly<{
+  work: WorkSnapshot
+  run: RunId | null
+  point?: SessionOperationId
 }>
-export type RunAdoptionInput = Readonly<{ work: WorkSnapshot; run: RunId }>
 export interface SessionEvidenceBridge<P = unknown> {
   prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>
   runAdoption?(access: SessionAccess<P>, input: RunAdoptionInput): Reply<RunAdoption>

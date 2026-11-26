@@ -52,6 +52,14 @@ export type {
   ModelOutputV1Failure,
 } from './model-output-v1.ts'
 export type * from './call-surface.ts'
+export type * from './decision-call.ts'
+export {
+  DECISION_REPRESENTATION,
+  decisionAnswersBlock,
+  decisionAnswersOf,
+  decisionAskMessage,
+  decisionAskOf,
+} from './decision-call.ts'
 export type * from './dispatch-facts.ts'
 export type {
   MaterializationReceipt,

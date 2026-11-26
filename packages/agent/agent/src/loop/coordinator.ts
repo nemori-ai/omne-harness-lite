@@ -166,6 +166,7 @@ import { compactionNodes, invalidCompaction, originalCompactionOf } from './comp
 import {
   adoptedRequestOf,
   capabilityResult,
+  handoverReady,
   recordedOutcome,
   replaceAction,
   replaceSlot,
@@ -178,26 +179,29 @@ import {
   type InternalSource,
 } from './coordinator-helpers.ts'
 
+const DEPENDENCY_PORTS = [
+  'journal',
+  'entries',
+  'models',
+  'tools',
+  'conditions',
+  'requests',
+  'selection',
+  'admission',
+  'handoff',
+  'materials',
+  'clock',
+  'extensions',
+  'enabledExtensions',
+  'systemExtensions',
+  'compaction',
+  'compactionInputs',
+  'received',
+] as const satisfies readonly (keyof AgentDependencies<unknown, ContentBlock>)[]
+
 export type LoopPorts<P> = Pick<
   AgentDependencies<P, ContentBlock>,
-  | 'journal'
-  | 'models'
-  | 'conditions'
-  | 'requests'
-  | 'selection'
-  | 'handoff'
-  | 'clock'
-  | 'materials'
-  | 'entries'
-  | 'tools'
-  | 'toolRequests'
-  | 'admission'
-  | 'cards'
-  | 'extensions'
-  | 'enabledExtensions'
-  | 'compaction'
-  | 'compactionInputs'
-  | 'received'
+  (typeof DEPENDENCY_PORTS)[number] | 'toolRequests' | 'cards'
 >
 
 export type ExecutionEntry<P> = Readonly<{
@@ -212,6 +216,7 @@ export type ExecutionEntry<P> = Readonly<{
   initial: InitialInputs
   grant: DurableEvidence | null
   idle(): void
+  handoverAsked?(): boolean
   ended?(
     state: Extract<ExecutionState, { kind: 'ended' }>,
     candidate: FailureCandidate | null,
@@ -257,7 +262,7 @@ export interface ExecutionDrive {
     input: Readonly<{ pacer: ReconciliationPacer; signal: AbortSignal }>,
   ): Promise<Outcome<'ready' | 'stopped' | 'cancelled', Halted>>
   handOver(
-    input: Readonly<{ operation: AgentOperationId; reason: DurableEvidence }>,
+    input: Readonly<{ operation: AgentOperationId; reason: DurableEvidence; at?: 'safe-point' }>,
   ): Promise<Outcome<DurableEvidence | null, Halted>>
 }
 
@@ -372,25 +377,6 @@ function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
   }
 }
 
-const DEPENDENCY_PORTS = [
-  'journal',
-  'entries',
-  'models',
-  'tools',
-  'conditions',
-  'requests',
-  'selection',
-  'admission',
-  'handoff',
-  'materials',
-  'clock',
-  'extensions',
-  'enabledExtensions',
-  'compaction',
-  'compactionInputs',
-  'received',
-] as const satisfies readonly Exclude<keyof LoopPorts<unknown>, 'toolRequests'>[]
-
 function savedSlotRequest(
   request: PendingHandoff,
   slot: ActionSlot,
@@ -487,6 +473,7 @@ function coordinate<P>(
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
   let savedWait = false
+  let atBoundary = false
   let waking = false
   let changedAt: ExecutionRevision | null = null
   let resumeState: OpenState = state
@@ -657,9 +644,11 @@ function coordinate<P>(
         return 'failure' in next ? next : succeed({ to: next.ok, yielded: false })
       }
     }
+    atBoundary = at === 'I8' && to === 'I0' && entry.handoverAsked?.() === true
     return succeed({
       to,
-      yielded: at === 'W0' && (ran.on === 'saved-wait' || ran.on === 'unsaved-wait'),
+      yielded:
+        atBoundary || (at === 'W0' && (ran.on === 'saved-wait' || ran.on === 'unsaved-wait')),
     })
   }
 
@@ -1400,12 +1389,8 @@ function coordinate<P>(
       }
       return step(to === 'E3' ? 'passage-pending' : `resume-${to}`, null)
     },
-    async E3() {
-      return positions.started(required(facts, 'facts').conditions.source)
-    },
-    async O0() {
-      return step('delivered', null)
-    },
+    E3: async () => positions.started(required(facts, 'facts').conditions.source),
+    O0: async () => step('delivered', null),
     async E9() {
       entry.idle()
       return step('idle', null)
@@ -2154,9 +2139,7 @@ function coordinate<P>(
       if ('failure' in received) return received
       return received.ok ? step('received', null) : toolWait('T3', batch)
     },
-    async T4() {
-      return positions.afterBatch(currentBatch())
-    },
+    T4: async () => positions.afterBatch(currentBatch()),
     async T5() {
       const read = await advancing()
       if ('failure' in read) return read
@@ -3114,7 +3097,8 @@ function coordinate<P>(
     },
     async handOver(input) {
       return exclusive('W0', async () => {
-        if (!savedWait || pendingCommit !== null || reconciliationOperations.length > 0)
+        const ready = handoverReady(input.at, { atBoundary, savedWait, checkpoint })
+        if (!ready || pendingCommit !== null || reconciliationOperations.length > 0)
           return succeed(null)
         const detached = await ports.journal.detach({
           ...access,

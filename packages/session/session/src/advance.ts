@@ -11,6 +11,7 @@ import {
   type BoundedClose,
   type DriveFailure,
   type DriveReceipt,
+  type AdoptionNote,
   type DurableEvidence,
   type FreezeVerdict,
   type InputId,
@@ -19,6 +20,7 @@ import {
   type RunId,
   type SessionFaces,
   type SessionFailure,
+  type StartAdoption,
   type StartedRun,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -148,14 +150,15 @@ function runStarts<P>(
   dependencies: SessionDependencies<P>,
   coordinator: SessionFaces<P>['work'],
   as: As<P>,
+  refused: (ref: SessionRef, failure: Outcome<unknown, SessionFailure>) => void,
 ) {
-  const start = (
+  const start = async (
     ref: SessionRef,
     first: InputId,
     predecessor: RunId | null,
-    { candidate, residentAdoption }: RunAdoption,
-  ) =>
-    as('coordinator', ref, principal =>
+    { candidate, residentAdoption, note }: Starting,
+  ): Promise<Outcome<StartedRun, SessionFailure>> => {
+    const answer = await as('coordinator', ref, principal =>
       coordinator.startRun({
         principal,
         ...ref,
@@ -169,6 +172,30 @@ function runStarts<P>(
         candidate,
         instance: sessionSlotReference(ref.session, candidate),
         ...(residentAdoption === undefined ? {} : { residentAdoption }),
+        ...(note === undefined ? {} : { note }),
+      }),
+    )
+    // A start that names no wait begins a run: the answer of one that only noted a wait is not this one.
+    return 'ok' in answer && 'noted' in answer.ok
+      ? fail(NOT_STARTED)
+      : (answer as Outcome<StartedRun, SessionFailure>)
+  }
+  // A run that waits notes why once for its first input: the same reason again is the same note.
+  const wait = (ref: SessionRef, work: WorkSnapshot, first: InputId, reason: string) =>
+    as('coordinator', ref, principal =>
+      coordinator.startRun({
+        principal,
+        ...ref,
+        operation: deriveSessionOperation({
+          kind: 'adoption-note',
+          session: ref.session,
+          first,
+          reason,
+        }),
+        entry: 'interactive',
+        candidate: work.definition.adopted,
+        instance: sessionSlotReference(ref.session, work.definition.adopted),
+        note: { kind: 'waiting', reason },
       }),
     )
   const adoptionFor = async (
@@ -177,7 +204,7 @@ function runStarts<P>(
     first: InputId,
     predecessor: RunId | null,
   ): Promise<Outcome<RunAdoption, SessionFailure>> => {
-    const pinned = { ok: { candidate: work.definition.adopted } }
+    const pinned = { ok: { kind: 'adopt' as const, candidate: work.definition.adopted } }
     const { evidence } = dependencies
     if (evidence.runAdoption === undefined) return pinned
     const run = runIdOf(work.session, first, predecessor)
@@ -188,7 +215,54 @@ function runStarts<P>(
         (await evidence.runAdoption?.({ principal, ...ref }, { work, run })) ?? pinned,
     )
   }
-  return { start, adoptionFor }
+  /** Starts on what the adoption source answers; with no usable adoption it notes the wait instead. */
+  const begin = async (
+    ref: SessionRef,
+    work: WorkSnapshot,
+    first: InputId,
+    predecessor: RunId | null,
+  ) => {
+    const adoption = await adoptionFor(ref, work, first, predecessor)
+    if ('failure' in adoption) return { started: adoption, unanswered: true }
+    const started =
+      adoption.ok.kind === 'none'
+        ? await wait(ref, work, first, adoption.ok.reason)
+        : await start(ref, first, predecessor, startingOf(work, adoption.ok))
+    return { started, unanswered: false }
+  }
+  const noteWait = async (
+    ref: SessionRef,
+    work: WorkSnapshot,
+    first: InputId,
+    failure: SessionFailure,
+  ) => refused(ref, await wait(ref, work, first, waitingFor(failure)))
+  return { start, begin, noteWait }
+}
+
+const NOT_STARTED: SessionFailure = Object.freeze({
+  kind: 'unavailable',
+  owner: 'session',
+  diagnostic: 'the run start only noted a wait',
+})
+
+const waitingFor = (failure: SessionFailure): string =>
+  `the adoption cannot be had now: ${'diagnostic' in failure ? failure.diagnostic : failure.kind}`
+
+type Starting = Readonly<{
+  candidate: StartedRun['adopted']
+  residentAdoption?: StartAdoption
+  note?: AdoptionNote
+}>
+
+/** What a run starts on: the set adopted now, or the one the session stands at with why the new one is not used. */
+function startingOf(
+  work: WorkSnapshot,
+  adoption: Exclude<RunAdoption, { kind: 'none' }>,
+): Starting {
+  if (adoption.kind === 'keep')
+    return { candidate: work.definition.adopted, note: { kind: 'kept', reason: adoption.reason } }
+  const { candidate, residentAdoption } = adoption
+  return { candidate, ...(residentAdoption === undefined ? {} : { residentAdoption }) }
 }
 
 export function createAdvance<P>(
@@ -563,7 +637,9 @@ export function createAdvance<P>(
     unknownTo(ref, answer, () => freeze(ref, verdict))
   }
 
-  const { start, adoptionFor } = runStarts(dependencies, coordinator, as)
+  const { start, begin, noteWait } = runStarts(dependencies, coordinator, as, (ref, answer) =>
+    reportFailure(ref, 'startRun', null, answer),
+  )
 
   // A Run that cannot start yet for a passing reason (its predecessor not read through, a moved
   // revision) is tried again after each configured delay, judged again on a fresh read.
@@ -573,19 +649,17 @@ export function createAdvance<P>(
     let first = opener
     for (let attempt = 0; ; attempt += 1) {
       const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
-      const adoption = await adoptionFor(ref, snapshot, first, predecessor)
-      const started =
-        'failure' in adoption ? adoption : await start(ref, first, predecessor, adoption.ok)
-      if ('ok' in started) return invoke(ref, started.ok)
+      const { started, unanswered } = await begin(ref, snapshot, first, predecessor)
+      if ('ok' in started) return 'noted' in started.ok ? undefined : invoke(ref, started.ok)
       const failure = started.failure
-      if (failure.kind === 'frozen') {
-        if (failure.verdict !== null) return freeze(ref, failure.verdict)
-        return
-      }
+      if (failure.kind === 'frozen')
+        return failure.verdict === null ? undefined : freeze(ref, failure.verdict)
       if (failure.kind === 'unavailable' || failure.kind === 'changed') {
         const delay = delays[attempt]
-        if (delay === undefined)
-          return report(ref, 'C2', 'startRun', null, 'retries-exhausted', failure)
+        if (delay === undefined) {
+          report(ref, 'C2', 'startRun', null, 'retries-exhausted', failure)
+          return unanswered ? noteWait(ref, snapshot, first, failure) : undefined
+        }
         if (!(await retryWait(ref, null, delay, 'startRun', () => Promise.resolve(true)))) return
         const fresh = await as('coordinator', ref, principal =>
           coordinator.readWork({ principal, ...ref }),

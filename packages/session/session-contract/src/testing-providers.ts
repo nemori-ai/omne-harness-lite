@@ -183,6 +183,10 @@ export function createMemoryAgentDrive(): MemoryAgentDrive {
       const result = await write('detach', input, input)
       return 'failure' in result ? result : succeed(result.ok.evidence)
     },
+    handOver: async input => {
+      const result = await write('detach', input, input)
+      return 'failure' in result ? result : succeed(result.ok.evidence)
+    },
     query: async input => {
       const blocked = refusal()
       return blocked === null

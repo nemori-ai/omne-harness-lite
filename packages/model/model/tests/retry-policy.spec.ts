@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { DispatchRecord, ModelFault } from '@omne-harness/model-contract'
 import type { ModelRetryPolicy } from '@omne-harness/model-contract/provider'
-import { createDefaultRetryPolicy, verifyRetryDecision } from '../src/retry-policy.ts'
+import {
+  NO_RESEND_RETRY_POLICY,
+  createDefaultRetryPolicy,
+  createNoResendRetryPolicy,
+  routeRetryPolicies,
+  verifyRetryDecision,
+} from '../src/retry-policy.ts'
 import { createManualModelClock } from '../src/testing/clock.ts'
 import { fixture, op } from './memory-fixture.ts'
 
@@ -269,5 +275,50 @@ describe('the default retry policy after a refusal of reasoning state', () => {
       ask({ dispatches: [earlier(), earlier('resend'), failed(first, 'later')] }),
     )
     expect(spent.decision).toEqual({ kind: 'stop', fault: fault503 })
+  })
+})
+
+describe('the policy of a call that is sent once', () => {
+  const once = NO_RESEND_RETRY_POLICY
+  const named = { ...position, policy: once }
+
+  it('stops on the first dispatch, a transient failure included, and its decision verifies', async () => {
+    const made = createNoResendRetryPolicy<Principal>()
+    const decided = await decisionOf(made, ask({ position: named }))
+    expect(decided.decision).toEqual({ kind: 'stop', fault: fault503 })
+    expect(
+      verifyRetryDecision({ ...decided, request: { retryPolicy: once } as Decide['request'] }),
+    ).toEqual({ ok: decided.source })
+  })
+
+  it('decides no position that names another policy', async () => {
+    const made = createNoResendRetryPolicy<Principal>()
+    expect(await made.decide(ask())).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'policy-not-provided' },
+    })
+  })
+})
+
+describe('several policies as one', () => {
+  const once = NO_RESEND_RETRY_POLICY
+  const routed = routeRetryPolicies<Principal>([
+    { adoption: request.retryPolicy, policy: policy() },
+    { adoption: once, policy: createNoResendRetryPolicy<Principal>() },
+  ])
+
+  it('a position is decided by the policy it names', async () => {
+    expect((await decisionOf(routed, ask())).decision.kind).toBe('retry')
+    const named = { ...position, policy: once }
+    expect((await decisionOf(routed, ask({ position: named }))).decision.kind).toBe('stop')
+  })
+
+  it('a position that names none of them is decided by none, and inspected by none', async () => {
+    const other = { ...position, policy: { ...once, name: 'another' } }
+    const failure = { kind: 'unavailable', diagnostic: 'policy-not-provided' }
+    expect(await routed.decide(ask({ position: other }))).toMatchObject({ failure })
+    const { principal, tenant, call } = ask()
+    expect(await routed.inspect({ principal, tenant, call, position: other })).toMatchObject({
+      failure,
+    })
   })
 })

@@ -1,0 +1,330 @@
+{
+  "id": "p27-rossmann-lstm",
+  "title": "Rossmann 销量预测（LSTM 序列到序列）：测试、模型文件、可切换步长的报告、误差，无人值守",
+  "source": "devai:19_Time_Series_Forecasting_Seq2Seq_LSTM_Rossmann_ML.json",
+  "split": "verify",
+  "attendance": "unattended",
+  "draft": {
+    "purpose": "用 Rossmann 门店销量数据做销量预测：按时间切分训练集与测试集，训练基于 LSTM 的序列到序列模型并存下来，出预测图和预测与实际的对比图，生成一份能切换预测步长的 HTML 报告。",
+    "criteria": [
+      {
+        "statement": "单元测试全过",
+        "evidence": {
+          "kind": "command",
+          "command": "python -m pytest tests -q"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      },
+      {
+        "statement": "训练好的模型存到了 models/saved_models/，不是空文件",
+        "evidence": {
+          "kind": "command",
+          "command": "ls -l models/saved_models/"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "目录里有 seq2seq_lstm.pt，大小不为零"
+        }
+      },
+      {
+        "statement": "HTML 报告里有切换预测步长（7、14、28 天）的控件，并引用了预测图和对比图",
+        "evidence": {
+          "kind": "file",
+          "path": "results/report.html"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "有 7、14、28 天三个选项的下拉框，页面引用了 forecast_results.png 和 comparison_plot.png"
+        }
+      },
+      {
+        "statement": "28 天步长的预测误差在可接受范围",
+        "evidence": {
+          "kind": "command",
+          "command": "python -m src.evaluate --horizon 28"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "MAPE 低于 15%"
+        }
+      }
+    ],
+    "rules": [
+      {
+        "statement": "按时间切分，测试集的日期必须晚于训练集，不随机打乱。"
+      },
+      {
+        "statement": "HTML 报告不依赖外网脚本，图放在同目录的 figures 下。"
+      }
+    ],
+    "exits": [
+      {
+        "statement": "预算用尽",
+        "kind": "budget",
+        "limits": [
+          {
+            "amount": 20,
+            "unit": "rounds"
+          }
+        ],
+        "deliver": "当前最好的指标与改动",
+        "counts": "failure"
+      },
+      {
+        "statement": "Kaggle 的数据要登录才能下载，本地也没有副本",
+        "kind": "condition",
+        "deliver": "已经试过的下载方式与各自的报错",
+        "counts": "failure"
+      }
+    ]
+  },
+  "rounds": 8,
+  "metrics": {},
+  "calls": [
+    {
+      "ref": "call-10",
+      "order": 10,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/data_loader.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,44 @@\n+import pandas as pd\n+\n+def load_sales(path='data/train.csv'):\n+    df = pd.read_csv(path, parse_dates=['Date'])\n+    return df[df.Open == 1].sort_values('Date')\n+\n+def split_by_time(df, cutoff='2015-06-01'):\n+    return df[df.Date < cutoff], df[df.Date >= cutoff]",
+      "writes": true
+    },
+    {
+      "ref": "call-12",
+      "order": 12,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/model.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,63 @@\n+import torch, torch.nn as nn\n+\n+class Seq2SeqLSTM(nn.Module):\n+    def __init__(self, n_feat, hidden=64, horizon=28):\n+        super().__init__()\n+        self.enc = nn.LSTM(n_feat, hidden, batch_first=True)\n+        self.dec = nn.LSTM(1, hidden, batch_first=True)",
+      "writes": true
+    },
+    {
+      "ref": "call-14",
+      "order": 14,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/report.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,38 @@\n+def build_report(out='results/report.html'):\n+    html = TEMPLATE.format(options=''.join(f'<option value=\"{h}\">{h} 天</option>' for h in (7, 14, 28)))\n+    Path(out).write_text(html)",
+      "writes": true
+    },
+    {
+      "ref": "call-20",
+      "order": 20,
+      "tool": "Shell run",
+      "command": "python -m src.train --epochs 30",
+      "path": null,
+      "exit": 0,
+      "output": "train rows: 781,410 (2013-01-01 .. 2015-05-31)  test rows: 35,320 (2015-06-01 .. 2015-07-31)\nweekly + yearly seasonality features added (sin/cos of day-of-week and day-of-year)\nepoch  5/30  train_loss=0.0412  val_loss=0.0388\nepoch 10/30  train_loss=0.0301  val_loss=0.0295\nepoch 20/30  train_loss=0.0244  val_loss=0.0261\nepoch 30/30  train_loss=0.0219  val_loss=0.0257\nsaved models/saved_models/seq2seq_lstm.pt\nwrote results/figures/forecast_results.png, results/figures/comparison_plot.png, results/report.html\n",
+      "writes": false
+    },
+    {
+      "ref": "call-22",
+      "order": 22,
+      "tool": "Shell run",
+      "command": "python -m pytest tests -q",
+      "path": null,
+      "exit": 0,
+      "output": "============================= test session starts ==============================\nplatform linux -- Python 3.11.9, pytest-8.2.0\ncollected 6 items\n\ntests/test_split.py ...                                                  [ 50%]\ntests/test_model.py ...                                                  [100%]\n\n============================== 6 passed in 7.45s ===============================\n",
+      "writes": false
+    },
+    {
+      "ref": "call-24",
+      "order": 24,
+      "tool": "Shell run",
+      "command": "python -m src.evaluate --horizon 28",
+      "path": null,
+      "exit": 0,
+      "output": "horizon=28  windows=1180  MAPE=11.8%  RMSPE=0.141  MAE=624.3\nbaseline (seasonal naive, lag 7): MAPE=17.9%\nmodel beats baseline on 83% of windows\n",
+      "writes": false
+    },
+    {
+      "ref": "call-26",
+      "order": 26,
+      "tool": "Shell run",
+      "command": "ls -l models/saved_models/",
+      "path": null,
+      "exit": 0,
+      "output": "total 1440\n-rw-r--r--  1 agent  staff  738214 Nov 25 15:02 seq2seq_lstm.pt\n-rw-r--r--  1 agent  staff     912 Nov 25 15:02 seq2seq_lstm.config.json\n",
+      "writes": false
+    },
+    {
+      "ref": "call-28",
+      "order": 28,
+      "tool": "Files read",
+      "command": null,
+      "path": "results/report.html",
+      "exit": null,
+      "output": "<!doctype html>\n<html><body>\n<h1>Rossmann 销量预测报告</h1>\n<label>预测步长\n<select id=\"horizon\" onchange=\"show(this.value)\">\n  <option value=\"7\">7 天</option>\n  <option value=\"14\">14 天</option>\n  <option value=\"28\">28 天</option>\n</select></label>\n<img id=\"forecast\" src=\"figures/forecast_results.png\">\n<img id=\"compare\" src=\"figures/comparison_plot.png\">\n<script>function show(h){document.getElementById('forecast').src='figures/forecast_h'+h+'.png'}</script>\n</body></html>\n",
+      "writes": false
+    }
+  ],
+  "progress": {
+    "criteria": {
+      "A1": {
+        "status": "claimed-done",
+        "refs": [
+          "call-22"
+        ],
+        "note": "6 个用例全过"
+      },
+      "A2": {
+        "status": "claimed-done",
+        "refs": [
+          "call-26"
+        ],
+        "note": "模型文件 738214 字节"
+      },
+      "A3": {
+        "status": "claimed-done",
+        "refs": [
+          "call-28"
+        ],
+        "note": "报告里有步长下拉框，两张图都引用了"
+      },
+      "A4": {
+        "status": "claimed-done",
+        "refs": [
+          "call-24"
+        ],
+        "note": "28 天 MAPE 11.8%"
+      }
+    },
+    "metrics": {},
+    "rules": {
+      "N1": {
+        "check": "kept"
+      },
+      "N2": {
+        "check": "kept"
+      }
+    },
+    "obstacle": null,
+    "deliverables": [
+      "src/data_loader.py",
+      "src/model.py",
+      "src/report.py",
+      "models/saved_models/seq2seq_lstm.pt"
+    ],
+    "proposal": {
+      "kind": "achieved"
+    },
+    "notes": []
+  },
+  "oracle": {
+    "A1": {
+      "ref": "call-22",
+      "contains": [
+        "6 passed"
+      ]
+    },
+    "A2": {
+      "ref": "call-26",
+      "contains": [
+        "seq2seq_lstm.pt",
+        "738214"
+      ]
+    },
+    "A3": {
+      "ref": "call-28",
+      "contains": [
+        "<select id=\"horizon\"",
+        "28 天",
+        "forecast_results.png",
+        "comparison_plot.png"
+      ]
+    },
+    "A4": {
+      "ref": "call-24",
+      "contains": [
+        "horizon=28",
+        "MAPE=11.8%"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "op": "break",
+      "id": "break-no-selector",
+      "target": "A3",
+      "call": {
+        "ref": "call-28",
+        "output": "<!doctype html>\n<html><body>\n<h1>Rossmann 销量预测报告</h1>\n<label>预测步长\n<span id=\"horizon\">28 天</span></label>\n<img id=\"forecast\" src=\"figures/forecast_results.png\">\n<img id=\"compare\" src=\"figures/comparison_plot.png\">\n<script>function show(h){document.getElementById('forecast').src='figures/forecast_h'+h+'.png'}</script>\n</body></html>\n"
+      }
+    },
+    {
+      "op": "drop",
+      "id": "drop-model-listing",
+      "target": "A2"
+    },
+    {
+      "op": "narrow",
+      "id": "narrow-split-tests",
+      "target": "A1",
+      "call": {
+        "ref": "call-22",
+        "command": "python -m pytest tests/test_split.py -q",
+        "output": "============================= test session starts ==============================\ncollected 3 items\n\ntests/test_split.py ...                                                  [100%]\n\n============================== 3 passed in 1.12s ===============================\n"
+      }
+    },
+    {
+      "op": "stale",
+      "id": "stale-model-edit",
+      "target": "A4",
+      "write": {
+        "ref": "call-31",
+        "tool": "Files write",
+        "command": null,
+        "path": "src/model.py",
+        "exit": null,
+        "output": "@@ -9,4 +9,4 @@ class Seq2SeqLSTM(nn.Module):\n-        self.enc = nn.LSTM(n_feat, hidden, batch_first=True)\n+        self.enc = nn.LSTM(n_feat, hidden, num_layers=2, batch_first=True)",
+        "writes": true
+      }
+    },
+    {
+      "op": "budget",
+      "id": "budget-spent",
+      "unmet": {
+        "target": "A4",
+        "call": {
+          "ref": "call-24",
+          "output": "horizon=28  windows=1180  MAPE=19.4%  RMSPE=0.231  MAE=811.7\nbaseline (seasonal naive, lag 7): MAPE=17.9%\nmodel beats baseline on 41% of windows\n"
+        }
+      }
+    },
+    {
+      "op": "violate",
+      "id": "random-split",
+      "target": "N1",
+      "before": "call-20",
+      "call": {
+        "ref": "call-19",
+        "tool": "Shell run",
+        "command": "python -m src.data_loader --split random --seed 3",
+        "path": null,
+        "exit": 0,
+        "output": "split mode: random shuffle (seed 3)\ntrain rows: 653,512 (2013-01-01 .. 2015-07-31)  test rows: 163,218 (2013-01-02 .. 2015-07-31)\nsaved splits to data/splits/\n",
+        "writes": false
+      }
+    },
+    {
+      "op": "contradict",
+      "id": "contradict-mape",
+      "target": "A4",
+      "run": {
+        "ref": "call-31",
+        "tool": "Shell run",
+        "command": "python -m src.evaluate --horizon 28",
+        "path": null,
+        "exit": 0,
+        "output": "horizon=28  windows=1180  MAPE=18.6%  RMSPE=0.219  MAE=790.2\nbaseline (seasonal naive, lag 7): MAPE=17.9%\nmodel beats baseline on 44% of windows\n",
+        "writes": false
+      }
+    }
+  ]
+}

@@ -17,6 +17,7 @@
 - `ModelClockService` · `cordis.d.ts`
 - `ModelCommandsService` · `cordis.d.ts`
 - `ModelCredentialService` · `cordis.d.ts`
+- `ModelDecisionPreparationService` · `cordis.d.ts`
 - `ModelDiagnosticsService` · `cordis.d.ts`
 - `ModelDispatchFactsService` · `cordis.d.ts`
 - `ModelHostAuthorityService` · `cordis.d.ts`
@@ -45,6 +46,7 @@
 - `modelClockKey` · `cordis.d.ts`
 - `modelCommandsKey` · `cordis.d.ts`
 - `modelCredentialKey` · `cordis.d.ts`
+- `modelDecisionPreparationKey` · `cordis.d.ts`
 - `modelDiagnosticsKey` · `cordis.d.ts`
 - `modelDispatchFactsKey` · `cordis.d.ts`
 - `modelHostAuthorityKey` · `cordis.d.ts`
@@ -87,7 +89,7 @@
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelDispatchFacts, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
-import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMediaSource, ModelPreferencesPort, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
+import type { CredentialPort, ModelClock, ModelCommands, ModelDecisionPreparation, ModelHostAuthority, ModelInstanceHost, ModelMediaSource, ModelPreferencesPort, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelInstancesService } from './instances.ts';
 import { type ModelResultReceiverTable } from './receivers.ts';
 import type { ModelPublicationAuthority } from './registration.ts';
@@ -221,6 +223,12 @@ export declare abstract class ModelRequestPreparationService<P> extends Service 
     abstract readonly prepare: ModelRequestPreparation<P>['prepare'];
 }
 export declare const modelRequestPreparationKey = "modelRequestPreparation";
+export declare abstract class ModelDecisionPreparationService<P> extends Service implements ModelDecisionPreparation<P> {
+    static readonly provide = "modelDecisionPreparation";
+    constructor(ctx: CordisContext);
+    abstract readonly prepare: ModelDecisionPreparation<P>['prepare'];
+}
+export declare const modelDecisionPreparationKey = "modelDecisionPreparation";
 export declare abstract class ModelPreparationResourcesService<P> extends Service implements ModelPreparationResources<P> {
     static readonly provide = "modelPreparationResources";
     constructor(ctx: CordisContext);
@@ -259,6 +267,7 @@ declare module '@deepseek-ai/cordis' {
         modelProfiles: ModelProfilesService<unknown>;
         modelProfileMaintenance: ModelProfileMaintenanceService<unknown>;
         modelRequestPreparation: ModelRequestPreparationService<unknown>;
+        modelDecisionPreparation?: ModelDecisionPreparationService<unknown>;
         modelPreparationResources: ModelPreparationResourcesService<unknown>;
         modelHostAuthority: ModelHostAuthorityService<unknown>;
         modelInstances: ModelInstancesService<unknown>;

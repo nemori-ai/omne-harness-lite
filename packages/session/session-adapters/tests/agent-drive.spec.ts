@@ -182,6 +182,7 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     query: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['query']>>[],
     load: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['load']>>[],
     contact: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['contact']>>[],
+    handOver: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['handOver']>>[],
     submit: [] as Outcome<CommandReceipt, Failure>[],
     control: [] as Outcome<CommandReceipt, Failure>[],
   }
@@ -270,6 +271,10 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     readonly detach: AgentExecutionRecoveryService<unknown>['detach'] = async input => {
       calls.push({ method: 'detach', input })
       return succeed(evidence('handed-back'))
+    }
+    readonly handOver: AgentExecutionRecoveryService<unknown>['handOver'] = async input => {
+      calls.push({ method: 'handOver', input })
+      return script.handOver.shift() ?? succeed(evidence('handed-over'))
     }
     readonly contact: AgentExecutionRecoveryService<unknown>['contact'] = async input => {
       calls.push({ method: 'contact', input })
@@ -1073,6 +1078,48 @@ describe('detach hands back the loaded attachment', () => {
     expect(await f.drive().detach(detachInput)).toHaveProperty('failure.kind', 'unavailable')
     expect(f.methods()).toEqual(['load'])
   })
+})
+
+describe('handOver asks the runtime that holds the attachment, for a reload', () => {
+  const handOverInput = {
+    ...target(A, 'dop_handover-1'),
+    advance: {
+      run: 'run-1' as never,
+      attempt: 'attempt-1' as never,
+      instance: encodeSessionSlotRef({ session: A.session, adoption: runAdoption }),
+    },
+  }
+
+  it('loads the Authority and asks with it and a reason basis; it does not detach by force', async () => {
+    const f = await assembled()
+    f.script.load.push(succeed(snapshot({ kind: 'advancing' }, authority)))
+    expect(await f.drive().handOver(handOverInput)).toEqual({ ok: evidence('handed-over') })
+    expect(f.methods()).toEqual(['load', 'handOver'])
+    expect(f.calls[1]!.input).toMatchObject({
+      operation: 'dop_handover-1',
+      authority,
+      reason: { owner: 'session', record: 'dop_handover-1' },
+    })
+  })
+
+  it('answers the handoff of an execution that is suspended already, and asks nothing', async () => {
+    const f = await assembled()
+    f.script.load.push(
+      succeed(snapshot({ kind: 'suspended', handoff: evidence('handover') }, null)),
+    )
+    expect(await f.drive().handOver(handOverInput)).toEqual({ ok: evidence('handover') })
+    expect(f.methods()).toEqual(['load'])
+  })
+
+  it.each(['terminal', 'stale-advance', 'busy'] as const)(
+    'passes the refusal %s on as it is',
+    async kind => {
+      const f = await assembled()
+      f.script.load.push(succeed(snapshot({ kind: 'advancing' }, authority)))
+      f.script.handOver.push(fail({ kind }))
+      expect(await f.drive().handOver(handOverInput)).toEqual({ failure: { kind } })
+    },
+  )
 })
 
 describe('inspect maps the snapshot and never says missing', () => {

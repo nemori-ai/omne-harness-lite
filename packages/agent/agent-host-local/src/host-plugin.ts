@@ -105,6 +105,7 @@ class LocalExecutionRecovery extends AgentExecutionRecoveryService<unknown> {
   readonly load: Host['recovery']['load']
   readonly reconcile: Host['recovery']['reconcile']
   readonly detach: Host['recovery']['detach']
+  readonly handOver: Host['recovery']['handOver']
   readonly contact: Host['recovery']['contact']
   constructor(ctx: Context, host: Host) {
     super(ctx)
@@ -112,6 +113,7 @@ class LocalExecutionRecovery extends AgentExecutionRecoveryService<unknown> {
     this.load = host.recovery.load
     this.reconcile = host.recovery.reconcile
     this.detach = host.recovery.detach
+    this.handOver = host.recovery.handOver
     this.contact = host.recovery.contact
   }
 }
@@ -285,14 +287,17 @@ export type AgentHostLocalPluginInput = Readonly<{
   toolRequests?: AgentDependencies<unknown, ContentBlock>['toolRequests']
   /** The tenant source of enabled loop extensions. Without it an extension chain has no tenant members. */
   enabledExtensions?: AgentDependencies<unknown, ContentBlock>['enabledExtensions']
+  /** The trusted system extensions of the assembly. Without it an extension chain has no system members. */
+  systemExtensions?: AgentDependencies<unknown, ContentBlock>['systemExtensions']
   lostContact?: LostContact
 }>
 
 export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}): AgentHostPlugin {
-  const { measure, toolRequests, enabledExtensions, lostContact } = input
+  const { measure, toolRequests, enabledExtensions, systemExtensions, lostContact } = input
   const supplied = {
     ...(toolRequests === undefined ? {} : { toolRequests }),
     ...(enabledExtensions === undefined ? {} : { enabledExtensions }),
+    ...(systemExtensions === undefined ? {} : { systemExtensions }),
   }
   return createAgentHostPlugin(
     (dependencies, options, extras) =>

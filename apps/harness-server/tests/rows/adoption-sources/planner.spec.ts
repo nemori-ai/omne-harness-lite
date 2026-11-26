@@ -27,6 +27,7 @@ function setup() {
   const options = {
     readBindings: () => ({ snapshot }),
     readGenerations: () => scripted.generations,
+    authorityOf: () => undefined,
     definitionFor: (capability: string) =>
       capability === fixture.authority.asset.name ? definition : undefined,
   }
@@ -143,7 +144,7 @@ describe('adoption planner over the RD-COORD memory registry', () => {
     expect(f.scripted.calls).toEqual([])
   })
 
-  it('rejects multiple live versions instead of selecting the largest ordinal', async () => {
+  it('takes the version the definition names as the winner among several live ones, not the largest ordinal', async () => {
     const f = setup()
     const other = f.fixture.otherAuthority
     if (other === undefined) throw new Error('fixture has another version')
@@ -158,6 +159,20 @@ describe('adoption planner over the RD-COORD memory registry', () => {
       await createAdoptionPlanner(f.options).plan(f.access, {
         recorded: [f.recorded],
         capabilities: [],
+      }),
+    ).toEqual(
+      succeed({
+        material: {
+          residents: [],
+          keys: [{ capability: f.recorded.capability, key: f.recorded.key }],
+        },
+        verdict: null,
+      }),
+    )
+    expect(
+      await createAdoptionPlanner(f.options).plan(f.access, {
+        recorded: [],
+        capabilities: [f.recorded.capability],
       }),
     ).toEqual(fail({ kind: 'unavailable' }))
     expect(f.scripted.calls).toEqual([])
@@ -233,7 +248,7 @@ describe('adoption planner over the RD-COORD memory registry', () => {
     expect(f.scripted.calls).toEqual([])
   })
 
-  it('rejects an empty registry when the trusted definition cannot recover the recorded key', async () => {
+  it('keeps the recorded key as a stand-in when the registry is empty and the recorded version cannot be loaded now', async () => {
     const f = setup()
     const other = f.fixture.otherAuthority
     if (other === undefined) throw new Error('fixture has another version')
@@ -243,9 +258,73 @@ describe('adoption planner over the RD-COORD memory registry', () => {
           recorded: [f.recorded],
           capabilities: [],
         }),
-      ).toEqual(fail({ kind: 'unavailable' }))
+      ).toEqual({
+        ok: {
+          material: {
+            residents: [],
+            keys: [{ capability: f.recorded.capability, key: f.recorded.key }],
+          },
+          verdict: null,
+        },
+      })
     }
     expect(f.scripted.calls).toEqual([])
+  })
+
+  it('freezes, naming the tool, when the recorded version reloads as missing and a version of another shape wins', async () => {
+    const f = setup()
+    const other = f.fixture.otherAuthority
+    if (other === undefined || f.loaded.shape.kind !== 'function') throw new Error('fixture')
+    f.fixture.registry.register({
+      ...f.access,
+      authority: other,
+      loaded: f.fixture.loaded(other, 'sha256:second'),
+    })
+    const changed = {
+      ...f.loaded.shape,
+      parameters: { ...f.loaded.shape.parameters, schema: '{"type":"object","required":["unit"]}' },
+    }
+    const recordedFacts = residentToolFacts(f.loaded.key, changed as typeof f.loaded.shape)
+    if ('failure' in recordedFacts) throw new Error('changed facts failed')
+    const evidence = {
+      owner: 'assets',
+      record: 'tool-holding/t/read_file',
+      revision: 'r2',
+      digest: 'sha256:held',
+    }
+    f.scripted.answer(f.loaded.key, fail({ kind: 'missing', evidence }))
+    const planner = createAdoptionPlanner({
+      ...f.options,
+      authorityOf: () => f.definition.authority,
+    })
+    expect(
+      await planner.plan(f.access, { recorded: [recordedFacts.ok], capabilities: [] }),
+    ).toEqual(
+      succeed({
+        material: { residents: [], keys: [] },
+        verdict: { cause: 'tool-shape-lost', capability: f.recorded.capability, evidence },
+      }),
+    )
+    expect(f.scripted.calls.map(call => call.verb)).toEqual(['ensureLoaded'])
+  })
+
+  it('reloads the recorded version when nothing is live and keeps its key once it loads', async () => {
+    const f = setup()
+    f.scripted.answer(f.loaded.key, succeed({ key: f.loaded.key, state: 'loaded' }), f.loaded)
+    const planner = createAdoptionPlanner({
+      ...f.options,
+      authorityOf: () => f.definition.authority,
+    })
+    expect(await planner.plan(f.access, { recorded: [f.recorded], capabilities: [] })).toEqual(
+      succeed({
+        material: {
+          residents: [],
+          keys: [{ capability: f.recorded.capability, key: f.recorded.key }],
+        },
+        verdict: null,
+      }),
+    )
+    expect(f.scripted.calls.map(call => call.verb)).toEqual(['ensureLoaded'])
   })
 
   it('does not reconstruct unknown recorded keys and shapes', async () => {

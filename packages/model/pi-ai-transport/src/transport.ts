@@ -19,7 +19,8 @@ import {
   type CheckedRoute,
   type PiTransportConfig,
 } from './config.ts'
-import type { PiFamilyBinding } from './family.ts'
+import { decisionBinding, isDecisionSupplier } from './decisions/binding.ts'
+import type { PiSendBinding } from './family.ts'
 import { lookupGenerationCost } from './cost-lookup.ts'
 import { materialize, type MaterializedHandle } from './materialized.ts'
 
@@ -31,13 +32,13 @@ export type PiTransport = Readonly<{
 }>
 
 type PreparedPhase =
-  | Readonly<{ kind: 'open'; binding: PiFamilyBinding }>
+  | Readonly<{ kind: 'open'; binding: PiSendBinding }>
   | Readonly<{
       kind: 'materializing'
-      binding: PiFamilyBinding
+      binding: PiSendBinding
       settled: Promise<MaterializedHandle | null>
     }>
-  | Readonly<{ kind: 'materialized'; binding: PiFamilyBinding; child: MaterializedHandle | null }>
+  | Readonly<{ kind: 'materialized'; binding: PiSendBinding; child: MaterializedHandle | null }>
   | Readonly<{ kind: 'closing'; done: Promise<void> }>
   | Readonly<{ kind: 'closed'; done: Promise<void> }>
 
@@ -64,7 +65,7 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
       }
     const declaration = declarationOf(request, supplier)
     if (declaration === null) return { failure: NOT_IN_REQUEST }
-    const acquired = await checked.families.acquire(supplier, closing.signal)
+    const acquired = await bindingOf(supplier)
     if (!('ok' in acquired)) return acquired
     if (phase.kind !== 'open') {
       await acquired.ok.release()
@@ -88,6 +89,17 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     })
     open.add(prepared)
     return { ok: prepared }
+  }
+
+  // A decision model is no member of a family: its binding is this transport's own.
+  async function bindingOf(supplier: Supplier): Promise<Outcome<PiSendBinding, TransportFailure>> {
+    if (!isDecisionSupplier(supplier)) return checked.families.acquire(supplier, closing.signal)
+    const { maxDecisionBytes, json } = checked.limits
+    if (maxDecisionBytes === undefined)
+      return {
+        failure: { kind: 'unsupported', field: 'limits.decisions', adapter: supplier.adoption },
+      }
+    return { ok: decisionBinding(supplier, { maxRequestBytes: maxDecisionBytes, json }) }
   }
 
   async function drain(): Promise<void> {
@@ -185,7 +197,7 @@ function createPrepared(
     supplier: Supplier
     declaration: ReplayDeclaration
     resent: TransportDispatch['resent']
-    binding: PiFamilyBinding
+    binding: PiSendBinding
     onClosed: () => void
   }>,
 ): PreparedTransport {
@@ -194,7 +206,7 @@ function createPrepared(
   let phase: PreparedPhase = { kind: 'open', binding: input.binding }
 
   async function runMaterialize(
-    binding: PiFamilyBinding,
+    binding: PiSendBinding,
     signal: AbortSignal,
   ): Promise<Outcome<MaterializedHandle, MaterializeFailure>> {
     return materialize({

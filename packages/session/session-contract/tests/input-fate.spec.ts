@@ -21,7 +21,7 @@ const handed = (input: InputId, result: Record<string, unknown>) =>
   entry({ kind: 'intake.handed-over', input, execution: 'x', result })
 const released = (...inputs: InputId[]) => entry({ kind: 'intake.released', inputs })
 const archived = () => entry({ kind: 'session.archived', tasks: [], scope: {} })
-const frozen = () => entry({ kind: 'session.frozen', evidence: {} })
+const frozen = () => entry({ kind: 'session.frozen', capability: 'probe', evidence: {} })
 
 const fate = (...entries: SessionEntry[]) => foldInputFate(I, entries)
 

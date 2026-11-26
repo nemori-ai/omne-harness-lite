@@ -49,6 +49,7 @@ async function factsOf(
     route: {
       url: new URL('https://gateway.test/'),
       endMarker: null,
+      framing: 'events',
       accounting: { ...OPENROUTER_ACCOUNTING, place: options.place ?? OPENROUTER_ACCOUNTING.place },
       auth: null,
     },

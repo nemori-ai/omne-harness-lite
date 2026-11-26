@@ -127,7 +127,7 @@ export async function freeze(s: Scene) {
         tenant: s.access.tenant,
         session: s.access.session,
         operation: operationId('freeze'),
-        verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+        verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
       },
     },
     guards: [],

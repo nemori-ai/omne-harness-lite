@@ -222,19 +222,34 @@ describe('an unknown definition produces no business write', () => {
       expect(failureOf(outcome)).toMatchObject({ kind: 'invalid', field: 'candidate' })
   })
 
-  test('commands without a definition give no material and are not refused', async () => {
+  test('commands without a definition give no material and are not refused; a freeze carries its verdict', async () => {
+    const verdict = {
+      cause: 'tool-shape-lost',
+      capability: 'wordcount',
+      evidence: {
+        owner: 'assets',
+        record: 'tool-holding/t/wordcount',
+        revision: 'r2',
+        digest: 'sha256:d',
+      },
+    }
     const { value } = await withLiveTree(mappingConfig(), async ({ source }) => {
       const outcomes = []
       for (const kind of ['completeInitialization', 'change', 'freeze'] as const)
         outcomes.push(
           await source.prepare({
             kind,
-            input: { ...access },
+            input: { ...access, verdict },
           } as unknown as AdoptionEvidenceCommand),
         )
       return outcomes
     })
-    for (const outcome of value) expect(outcome).toEqual({ ok: [] })
+    const [initialization, change, freeze] = value
+    expect([initialization, change]).toEqual([{ ok: [] }, { ok: [] }])
+    expect(freeze).toMatchObject({
+      ok: [{ owner: 'resident-adoption', participant: 'session-evidence' }],
+    })
+    expect(JSON.stringify(freeze)).toContain('wordcount')
   })
 
   test('the Agent face resolves a known adoption and refuses an unknown one without a reservation', async () => {

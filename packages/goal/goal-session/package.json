@@ -1,0 +1,37 @@
+{
+  "name": "@omne-harness/goal-session",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Goal adapter that knows Session: the three input sources, the reminders a goal sends its session, and the facts of a session a goal stands on",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/goal": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/session-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

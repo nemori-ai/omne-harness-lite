@@ -41,6 +41,7 @@ export const toolHostConfig = z
         Canvas: z.strictObject({ resultMaxBytes: positive }).optional(),
         Sessions: z.strictObject({ resultMaxBytes: positive }).optional(),
         Agents: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Goal: z.strictObject({ resultMaxBytes: positive }).optional(),
         SwitchWorkspace: z.strictObject({ resultMaxBytes: positive }).optional(),
         OmneExtensions: z.strictObject({ resultMaxBytes: positive }).optional(),
         OmneExtensionPoints: z.strictObject({ resultMaxBytes: positive }).optional(),

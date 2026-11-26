@@ -6,6 +6,7 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `SlashCommandCandidate` · `index.d.ts`
 - `SlashCommandCatalog` · `index.d.ts`
 - `SlashCommandEntry` · `index.d.ts`
 - `SlashCommandProtocol` · `index.d.ts`
@@ -243,6 +244,37 @@ declare const catalog: {
         };
     };
 };
+declare const candidate: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly value: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly title: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
+        };
+        readonly current: {
+            readonly rule: {
+                readonly kind: 'literal';
+                readonly values: readonly [
+                    true
+                ];
+            };
+            readonly optional: true;
+        };
+        readonly unavailable: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
+        };
+    };
+};
 export declare const slashCommandProtocol: {
     readonly operations: {
         readonly 'read-catalog': {
@@ -283,6 +315,37 @@ export declare const slashCommandProtocol: {
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
+        readonly 'read-candidates': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly candidates: readonly {
+                        readonly current?: true;
+                        readonly title?: string;
+                        readonly unavailable?: string;
+                        readonly value: string;
+                    }[];
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly limited: import("@omne-harness/public-contract").Codec<{
+                    readonly limit: number;
+                    readonly resource: string;
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly command: string;
+                readonly param: number;
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly since: 3;
+        };
     };
     readonly name: "slash-command";
     readonly major: 1;
@@ -304,5 +367,6 @@ export declare const slashCommandProtocol: {
 export type SlashCommandProtocol = typeof slashCommandProtocol;
 export type SlashCommandCatalog = RuleValue<typeof catalog>;
 export type SlashCommandEntry = RuleValue<typeof entry>;
+export type SlashCommandCandidate = RuleValue<typeof candidate>;
 export {};
 ```

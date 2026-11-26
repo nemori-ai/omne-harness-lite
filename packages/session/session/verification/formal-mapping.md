@@ -1,6 +1,6 @@
 # 形式模型与规格、代码的对照
 
-本页对照 `session/verification` 下三个有限模型：Agent 推进协调器的等待与重试（`advance-wait`）、控制传播与会话串行队列（`control-propagation`）、一个会话里受理、承接与推进的安全与活性（`advance-liveness`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)。模型检查只说明有限范围内的设计性质。`advance-wait` 与 `advance-liveness` 的 `expect.txt` 是配置预期的机器形式。
+本页对照 `session/verification` 下四个有限模型：Agent 推进协调器的等待与重试（`advance-wait`）、控制传播与会话串行队列（`control-propagation`）、一个会话里受理、承接与推进的安全与活性（`advance-liveness`）、一轮在跑时的重装（`reload-handover`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)。模型检查只说明有限范围内的设计性质。`advance-wait` 与 `advance-liveness` 的 `expect.txt` 是配置预期的机器形式。
 
 ## advance-wait
 
@@ -133,3 +133,37 @@
 | `FinishComplete`、`FinishFailedAtLimit` | 条件终结与收尾核对；循环守卫 |
 | `Halt` | Agent 提供者里驱动停下的那一处：报告一次并交回执行槽 |
 | `Scan`、`WakeLost` | 周期扫描；推进协调器的有界重试用完 |
+
+## reload-handover
+
+`ReloadHandover.tla` 检查一轮在跑时人要求的重装，与取消、这一轮结束、故障后的接手、另一次重装的交错。规则在包组规格「重装由人显式要求」。运行：`check.py --jar <tla2tools.jar> --out <工作树外的目录>`，它逐个配置跑 TLC 并按下表判读。
+
+| 性质                | 说的是什么                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `AllOrNothing`      | 这一轮的采用是新版，当且仅当它有一个原因是重装的接手                               |
+| `AtMostOneAdvancer` | 同一时刻至多一个运行时推进这一轮，它推进的是会话此刻站着的接手；交出之后没有人推进 |
+| `CancelFirst`       | 取消已提交之后没有重装被提交                                                       |
+
+配置：`handover`（两次重装、接手上限 4、故障至多一次）与 `handover-wide`（三次重装、上限 5、故障至多两次）是正控，无反例。`bad-no-handover` 不要交接就提交，`bad-no-recheck` 提交前不再核执行仍是已交出，两者命中 `AtMostOneAdvancer`；`bad-no-cancel-check` 不核取消，命中 `CancelFirst`；`bad-split-commit` 把采用与接手分两次提交，命中 `AllOrNothing`。
+
+| 模型动作                  | 实现                                                                                         |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| `Ask`                     | 重装读快照（读等人的同一资格），取消已成立就拒绝，向采用来源要候选；不写任何条目             |
+| `HandOver`                | 会话向 Agent 要交接证明；已交出的执行答那一份；Agent 在安全点交出，收尾或不是推进者时拒绝    |
+| `Commit`、`Refusable`     | 串行段里先核执行仍是已交出，再按交接之前读到的修订提交重装：采用、撤旧、开新在一次提交里     |
+| `Join`                    | 新的一次接手照故障后接手的路恢复执行；Agent 日志不认已被取代的授予                           |
+| `Release`、`Claim`        | 重装结束才放开对恢复的挡；被拒或没接上时再叫一次恢复，恢复照会话站着的采用接管               |
+| `Fault`、`Cancel`、`End`  | 环境：挂接丢失、取消提交、这一轮收尾                                                         |
+
+模型里的交错与用例：
+
+| 交错                                         | 用例                                                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 要候选、交出、提交、接上                     | `session-contract` 的 `idle-reload.spec.ts`（一次判定写采用、撤旧、开新）；`session` 的 `reload.spec.ts`（同一轮、多一次接手、新版） |
+| 取消先提交，再重装                           | `idle-reload.spec.ts`（取消了这一轮就拒绝）；`reload.spec.ts`（取消在先，这一轮不交接）                |
+| 交出之后提交被拒，恢复照原来的采用接回       | `reload.spec.ts`（提交被拒之后恢复接管，采用不变）                                                     |
+| 要交接时这一轮收尾                           | `reload.spec.ts`（改走空闲的一支）；`agent` 的 `provider-reload-handover.spec.ts`（收尾时拒绝）        |
+| 挂接丢失或不是推进者，Agent 交不出           | `reload.spec.ts`（Agent 不交出就什么都不写）；`provider-reload-handover.spec.ts`（不是推进者时拒绝）   |
+| 读到之后接手挪了（恢复先接管）               | `idle-reload.spec.ts`（读到的接手挪了就拒绝）                                                          |
+| 两次重装拿到同一份交接，第一次已接上         | `reload.spec.ts`（第二次被拒，什么都不写）                                                             |
+

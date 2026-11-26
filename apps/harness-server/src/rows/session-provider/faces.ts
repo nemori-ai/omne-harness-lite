@@ -80,6 +80,7 @@ const UNIMPLEMENTED_WORK = {
   startRun: unimplemented,
   claim: unimplemented,
   reload: unimplemented,
+  reloadSession: unimplemented,
   recordMessage: unimplemented,
   preserveResult: unimplemented,
   completeConsumption: unimplemented,

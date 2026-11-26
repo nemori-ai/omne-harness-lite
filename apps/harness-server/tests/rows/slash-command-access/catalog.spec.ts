@@ -129,7 +129,13 @@ describe('slash-command/1 on the release tree', () => {
           })
           expect(read).toMatchObject({ outcome: 'succeeded', body: { missing: ['skill'] } })
           const { entries } = (read as { body: { entries: readonly { kind: string }[] } }).body
-          expect(entries.map(entry => entry.kind)).toEqual(['system', 'system', 'system'])
+          expect(entries.map(entry => entry.kind)).toEqual([
+            'prompt',
+            'system',
+            'system',
+            'system',
+            'system',
+          ])
         },
       )
       expect(exitCode).toBe(0)

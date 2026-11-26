@@ -48,6 +48,7 @@ import type {
   AgentRunWaitingReceiver,
 } from './run-failure.ts'
 import { submitInput } from './submit.ts'
+import { askPlanned, handOverAsked, settlePlanned, type Held } from './planned-handover.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -127,16 +128,8 @@ type Quiescing = {
   step: Promise<Outcome<QuiesceResult, Failure>> | null
 }
 
-type Driving = {
-  wait: AbortController | null
-  /** Set when something the run must look at arrived in memory: the next wake runs a pass. */
-  poked: boolean
-  asked: Readonly<{
-    operation: AgentOperationId
-    reason: DurableEvidence
-    settle(handed: boolean): void
-  }> | null
-}
+/** `poked`: something the run must look at arrived in memory, so the next wake runs a pass. */
+type Driving = Held
 
 /** A stop an extension asked for is a control request: the same qualification check, the same write. */
 function cancelCommand<P>(input: Parameters<NonNullable<ExecutionEntry<P>['requestCancel']>>[0]) {
@@ -229,12 +222,29 @@ function waitingReport<P, B extends ContentBlock>(
 }
 
 /** The parts of a coordinator that every execution of this provider shares. */
-function coordinatorBase<P, B extends ContentBlock>(entry: ProviderEntry<P, B>) {
+function coordinatorBase<P, B extends ContentBlock>(
+  entry: ProviderEntry<P, B>,
+  handoverAsked: () => boolean,
+) {
   return {
+    handoverAsked,
     ports: entry.dependencies,
     binding: entry.binding,
     jointCommits: entry.configuration.jointCommits,
     compactionProvider: entry.configuration.compactionProvider,
+  }
+}
+
+function notYet<P>(guard: AccessGuard<P>) {
+  return async (
+    input: Access<P>,
+    operation: AgentAccessOperation,
+    target: AgentAccessTarget,
+    stage: Stage,
+  ): Promise<Outcome<never, Failure>> => {
+    const passed = await guard(input, operation, target)
+    if ('failure' in passed) return passed
+    return fail(notImplemented(operation, stage))
   }
 }
 
@@ -249,6 +259,7 @@ export function createProvider<P, B extends ContentBlock>(
     execution,
   })
 
+  const guarded = notYet(guard)
   const writeControl = createControlWriter(dependencies)
   const requestCancel: NonNullable<ExecutionEntry<P>['requestCancel']> = async input => {
     const passed = await guard(input, 'control', onExecution(input.execution))
@@ -256,6 +267,7 @@ export function createProvider<P, B extends ContentBlock>(
   }
   let slot: Slot = { kind: 'free' }
   let driving: Driving | null = null
+  const handoverAsked = () => driving !== null && driving.planned !== null
   let current: AgentState = { kind: 'idle', instance }
   const listeners = new Set<() => void>()
 
@@ -275,17 +287,6 @@ export function createProvider<P, B extends ContentBlock>(
     try {
       dependencies.registration?.report({ state })
     } catch {}
-  }
-
-  async function guarded(
-    input: Access<P>,
-    operation: AgentAccessOperation,
-    target: AgentAccessTarget,
-    stage: Stage,
-  ): Promise<Outcome<never, Failure>> {
-    const passed = await guard(input, operation, target)
-    if ('failure' in passed) return passed
-    return fail(notImplemented(operation, stage))
   }
 
   async function* observe(
@@ -446,7 +447,7 @@ export function createProvider<P, B extends ContentBlock>(
     })
     if ('failure' in resolved) return resolved
     return succeed({
-      ...coordinatorBase(entry),
+      ...coordinatorBase(entry, handoverAsked),
       evaluator: resolved.ok.evaluator,
       extensions: resolved.ok.extensions,
       requestCancel,
@@ -466,19 +467,15 @@ export function createProvider<P, B extends ContentBlock>(
     attachment: ExecutionAttachmentId,
     coordinator: ExecutionDrive,
   ): void {
-    const own: Driving = { wait: null, poked: false, asked: null }
+    const own: Driving = { wait: null, poked: false, asked: null, planned: null }
     driving = own
+    let ended: Failure = { kind: 'terminal' }
     const pacer = reconciliationPacer(entry.configuration.reconciliationDelaysMs)
-    const handOver = async (): Promise<boolean> => {
-      const asked = own.asked
-      if (asked === null) return false
-      own.asked = null
-      const handed = await coordinator.handOver(asked)
-      const done = 'ok' in handed && handed.ok !== null
-      if (done && slot.kind === 'running' && slot.execution === execution) occupy({ kind: 'free' })
-      asked.settle(done)
-      return done
-    }
+    const handOver = () =>
+      handOverAsked(own, coordinator, () => {
+        if (slot.kind === 'running' && slot.execution === execution) occupy({ kind: 'free' })
+        ended = { kind: 'stale-advance' }
+      })
     const drive = async (): Promise<Halted | null> => {
       try {
         for (;;) {
@@ -508,6 +505,7 @@ export function createProvider<P, B extends ContentBlock>(
       } finally {
         own.asked?.settle(false)
         own.asked = null
+        settlePlanned(own, fail(ended))
         if (driving === own) driving = null
         nested.stopped(execution)
       }
@@ -624,7 +622,7 @@ export function createProvider<P, B extends ContentBlock>(
     })
     if ('failure' in resolved) return resolved
     const coordinator = createExecutionCoordinator({
-      ...coordinatorBase(entry),
+      ...coordinatorBase(entry, handoverAsked),
       evaluator: resolved.ok.evaluator,
       extensions: resolved.ok.extensions,
       requestCancel,
@@ -790,6 +788,13 @@ export function createProvider<P, B extends ContentBlock>(
     return held.step
   }
 
+  const handOver: AgentProvider<P>['control']['handOver'] = async input => {
+    const passed = await guard(input, 'detach', onExecution(input.execution))
+    if ('failure' in passed) return passed
+    const here = slot.kind === 'running' && slot.execution === input.execution
+    return askPlanned(here ? driving : null, input)
+  }
+
   const quiesce: AgentProvider<P>['control']['quiesce'] = async input => {
     checking += 1
     let passed: Awaited<ReturnType<AccessGuard<P>>>
@@ -825,10 +830,12 @@ export function createProvider<P, B extends ContentBlock>(
       load: input => guarded(input, 'load', onExecution(input.execution), 'stage 5'),
       reconcile: input => guarded(input, 'reconcile', onExecution(input.execution), 'stage 5'),
       detach: input => guarded(input, 'detach', onExecution(input.execution), 'stage 5'),
+      handOver: input => guarded(input, 'detach', onExecution(input.execution), 'stage 5'),
       contact: input => guarded(input, 'load', onExecution(input.execution), 'stage 5'),
     },
     control: {
       quiesce,
+      handOver,
     },
     nested: nested.guarded(input => guard(input, 'submit', onExecution(input.execution))),
   }

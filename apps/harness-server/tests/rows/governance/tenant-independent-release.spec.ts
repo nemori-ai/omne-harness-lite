@@ -47,6 +47,11 @@ it('a login principal lists the independent settings with their defaults apart f
           { value: { kind: 'set', value: 'Asia/Shanghai' }, source: 'default' },
         ],
         [
+          'goal/judge/model',
+          '目标的判定',
+          { value: { kind: 'set', value: 'openai/gpt-6-luna-decisions' }, source: 'default' },
+        ],
+        [
           'session/intake/pending-limit',
           '输入排队',
           { value: { kind: 'set', value: 64 }, source: 'default' },

@@ -1,0 +1,362 @@
+[
+  {
+    "name": "baseline-tune",
+    "axis": "起点",
+    "changed": "基线方案",
+    "conclusion": "起点"
+  },
+  {
+    "name": "e01-activity-excerpts",
+    "axis": "打包",
+    "changed": "活动记录里写文件与失败的命令带摘录",
+    "conclusion": "守则漏报 11→3，误收场 12→7；被后面的「每次调用都带摘录」取代"
+  },
+  {
+    "name": "e02-notes-off",
+    "axis": "打包",
+    "changed": "不给 agent 的说明",
+    "conclusion": "没有好处，不采用"
+  },
+  {
+    "name": "e03-staleness-decided",
+    "axis": "打包",
+    "changed": "过时由系统直接判",
+    "conclusion": "指标几乎不变，少问 11 题；留作备选"
+  },
+  {
+    "name": "e04-excerpt-800",
+    "axis": "打包",
+    "changed": "摘录 800 字符",
+    "conclusion": "更差，不采用"
+  },
+  {
+    "name": "e05-take-tail",
+    "axis": "打包",
+    "changed": "摘录只取结尾",
+    "conclusion": "更差，不采用"
+  },
+  {
+    "name": "e06-instructions-bare",
+    "axis": "题目的说明",
+    "changed": "只引判据的陈述",
+    "conclusion": "误判成立 9，明显更差，不采用"
+  },
+  {
+    "name": "e07-instructions-rules",
+    "axis": "题目的说明",
+    "changed": "加三句通用的话（含「证据不确定时不要选成立」）",
+    "conclusion": "误判成立 0，但成立的漏掉三分之二，分辨力塌了；不采用"
+  },
+  {
+    "name": "e08-split-sections",
+    "axis": "怎样切请求",
+    "changed": "按节分三次",
+    "conclusion": "没有好处，不采用"
+  },
+  {
+    "name": "e09-split-each",
+    "axis": "怎样切请求",
+    "changed": "一题一次",
+    "conclusion": "漏放少一些，误判成立不变，贵 2.2 倍"
+  },
+  {
+    "name": "e10-model-jev-114",
+    "axis": "型号",
+    "changed": "typesafe/jev-1.14",
+    "conclusion": "便宜一半，误判成立翻倍，不采用"
+  },
+  {
+    "name": "e11-model-jev-113",
+    "axis": "型号",
+    "changed": "typesafe/jev-1.13",
+    "conclusion": "同上，更差，不采用"
+  },
+  {
+    "name": "e12-votes-3",
+    "axis": "问几次",
+    "changed": "三次取多数",
+    "conclusion": "与一次完全相同（判定器是确定的），不采用"
+  },
+  {
+    "name": "c1-rules-excerpts",
+    "axis": "组合",
+    "changed": "三句通用的话加摘录",
+    "conclusion": "误判成立 1、误收场 0，漏放 167/260；线挪到哪都不行"
+  },
+  {
+    "name": "c1-split-each",
+    "axis": "组合",
+    "changed": "上一条加一题一次",
+    "conclusion": "误判成立 0、误收场 0，漏放仍然多"
+  },
+  {
+    "name": "f1-activity-all",
+    "axis": "打包",
+    "changed": "活动记录里每次调用都带摘录",
+    "conclusion": "守则漏报 11→1，误收场 12→3，损失最低的单轴改动；采用为新的起点"
+  },
+  {
+    "name": "f2-all-check-rule",
+    "axis": "题目的说明",
+    "changed": "f1 加一句「检查被改过的通过不能单独证明」",
+    "conclusion": "两道硬门槛在调的那一份上都到 0，但漏放 101/260：一句话也会让整体信心下降"
+  },
+  {
+    "name": "f3-all-three-rules",
+    "axis": "题目的说明",
+    "changed": "f1 加三句（不含「不确定不要选成立」）",
+    "conclusion": "同上，漏放 125/260"
+  },
+  {
+    "name": "f4-excerpts-check-rule",
+    "axis": "题目的说明",
+    "changed": "e01 加那一句",
+    "conclusion": "不如 f2"
+  },
+  {
+    "name": "g1-all-each",
+    "axis": "怎样切请求",
+    "changed": "f1 加一题一次",
+    "conclusion": "损失最低 0.129，漏放最少；改测试过关的三处仍被高置信度认成成立"
+  },
+  {
+    "name": "g2-all-notes",
+    "axis": "打包",
+    "changed": "f1，标记旁边写一句它的意思",
+    "conclusion": "误判成立 1、误收场 0；但「之后又写过」那一句让同一个文件的前一稿被判成过时，漏放 76/260"
+  },
+  {
+    "name": "g3-all-notes-each",
+    "axis": "组合",
+    "changed": "g2 加一题一次",
+    "conclusion": "误判成立 2、误收场 2，漏放 55/260"
+  },
+  {
+    "name": "h1-tune",
+    "axis": "组合",
+    "changed": "标记带话，旧稿标 `supersededBy`",
+    "conclusion": "与 g2 的请求完全相同（发 0）：调的这一份里没有「同一文件两稿」的证据条目，前一段对漏放原因的判断不准"
+  },
+  {
+    "name": "h2-tune",
+    "axis": "组合",
+    "changed": "h1 加退出题的说明",
+    "conclusion": "退出一类 0.51 到 0.57"
+  },
+  {
+    "name": "h3-tune",
+    "axis": "组合",
+    "changed": "h1 加不可达改是非题",
+    "conclusion": "退出一类 0.51 到 0.68；不可达漏认 9 到 3"
+  },
+  {
+    "name": "h4-tune",
+    "axis": "组合",
+    "changed": "h1 加上两样",
+    "conclusion": "退出一类 0.51 到 0.73"
+  },
+  {
+    "name": "i1-tune",
+    "axis": "组合",
+    "changed": "h4，「之后又写过」换成谨慎的说法",
+    "conclusion": "成立被读成过时 25 到 13"
+  },
+  {
+    "name": "i2-tune",
+    "axis": "组合",
+    "changed": "i1，再加：写文件的条目不挂「之后又写过」，「改了检查」换成谨慎的说法",
+    "conclusion": "损失最低；剩下的漏放 59 条是选了「成立」但概率在 0.36 到 0.89，过不了 0.9 的线"
+  },
+  {
+    "name": "j1-no-exit-guide",
+    "axis": "消融",
+    "changed": "从最终方案拿掉：退出题的说明",
+    "conclusion": "+0.004，影响最小"
+  },
+  {
+    "name": "j2-dead-end-kinds",
+    "axis": "消融",
+    "changed": "从最终方案拿掉：不可达题改回四选一",
+    "conclusion": "+0.019；退出一类的分辨力掉到 0.57"
+  },
+  {
+    "name": "j5-drafts-later",
+    "axis": "消融",
+    "changed": "从最终方案拿掉：旧稿改回挂「之后又写过」",
+    "conclusion": "+0.023"
+  },
+  {
+    "name": "j4-flags-keys",
+    "axis": "消融",
+    "changed": "从最终方案拿掉：标记旁边不带话",
+    "conclusion": "+0.026；漏放少了，但误判成立 1 到 6、误收场 0 到 5：两道硬门槛靠的是这一样"
+  },
+  {
+    "name": "j3-activity-lines",
+    "axis": "消融",
+    "changed": "从最终方案拿掉：活动记录不带摘录",
+    "conclusion": "+0.160；守则漏报 0 到 11：守则靠的是这一样"
+  },
+  {
+    "name": "c1-notes-off",
+    "axis": "组合",
+    "changed": "`c1-rules-excerpts` 去掉给 agent 的说明",
+    "conclusion": "没有好处，不采用。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "c1-split-sections",
+    "axis": "组合",
+    "changed": "`c1-rules-excerpts` 加按节分三次",
+    "conclusion": "漏放更多，不采用。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "c1-staleness-decided",
+    "axis": "组合",
+    "changed": "`c1-rules-excerpts` 加过时由系统直接判",
+    "conclusion": "几乎不变，不采用。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "b-line-050",
+    "axis": "线",
+    "changed": "基线方案，线 0.5",
+    "conclusion": "基线方案只换线：线救不了高置信度的错，误判成立在线 0.95 还剩 4 条。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "b-line-070",
+    "axis": "线",
+    "changed": "基线方案，线 0.7",
+    "conclusion": "基线方案只换线：线救不了高置信度的错，误判成立在线 0.95 还剩 4 条。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "b-line-080",
+    "axis": "线",
+    "changed": "基线方案，线 0.8",
+    "conclusion": "基线方案只换线：线救不了高置信度的错，误判成立在线 0.95 还剩 4 条。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "b-line-095",
+    "axis": "线",
+    "changed": "基线方案，线 0.95",
+    "conclusion": "基线方案只换线：线救不了高置信度的错，误判成立在线 0.95 还剩 4 条。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "c1-line-050",
+    "axis": "线",
+    "changed": "`c1-rules-excerpts`，线 0.5",
+    "conclusion": "`c1-rules-excerpts` 只换线：加了通用的话之后信心一起降，线挪到哪都不行。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "c1-line-060",
+    "axis": "线",
+    "changed": "`c1-rules-excerpts`，线 0.6",
+    "conclusion": "`c1-rules-excerpts` 只换线：加了通用的话之后信心一起降，线挪到哪都不行。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "c1-line-070",
+    "axis": "线",
+    "changed": "`c1-rules-excerpts`，线 0.7",
+    "conclusion": "`c1-rules-excerpts` 只换线：加了通用的话之后信心一起降，线挪到哪都不行。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "c1-line-080",
+    "axis": "线",
+    "changed": "`c1-rules-excerpts`，线 0.8",
+    "conclusion": "`c1-rules-excerpts` 只换线：加了通用的话之后信心一起降，线挪到哪都不行。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "c1-line-095",
+    "axis": "线",
+    "changed": "`c1-rules-excerpts`，线 0.95",
+    "conclusion": "`c1-rules-excerpts` 只换线：加了通用的话之后信心一起降，线挪到哪都不行。量具改过两处之前记的（守则 14 条），没有重算。"
+  },
+  {
+    "name": "i2-line-060",
+    "axis": "线",
+    "changed": "最终方案的配置，线 0.6",
+    "conclusion": "漏放最少，但误判成立 3、误收场 3，不采用"
+  },
+  {
+    "name": "i2-line-070",
+    "axis": "线",
+    "changed": "最终方案的配置，线 0.7",
+    "conclusion": "分辨力只差一类、漏放少一半多，但多一条误判成立、一次误收场。先保不误收场，没有采用；数交负责人定线"
+  },
+  {
+    "name": "i2-line-080",
+    "axis": "线",
+    "changed": "最终方案的配置，线 0.8",
+    "conclusion": "介于 0.7 与 0.9 之间，不采用"
+  },
+  {
+    "name": "i2-line-085",
+    "axis": "线",
+    "changed": "最终方案的配置，线 0.85",
+    "conclusion": "多出来的一条误判是「要人确认而没有确认」的判据被 0.89 认成成立，不采用"
+  },
+  {
+    "name": "baseline-verify",
+    "axis": "留出",
+    "changed": "基线方案，只用来验的一份",
+    "conclusion": "对照的起点。与 `baseline-canary` 合起来见 `final-vs-baseline-heldout`"
+  },
+  {
+    "name": "baseline-canary",
+    "axis": "留出",
+    "changed": "基线方案，永不参与调的一份",
+    "conclusion": "同上"
+  },
+  {
+    "name": "final-verify",
+    "axis": "留出",
+    "changed": "最终方案，只用来验的一份",
+    "conclusion": "候选写定之后看的那一次。合起来见 `final-vs-baseline-heldout`"
+  },
+  {
+    "name": "final-canary",
+    "axis": "留出",
+    "changed": "最终方案，永不参与调的一份",
+    "conclusion": "同上"
+  },
+  {
+    "name": "final-vs-baseline-heldout",
+    "axis": "留出",
+    "changed": "基线对最终，留出的两份合起来（`compare.json`）",
+    "conclusion": "误判成立 6/134 到 1/134，误收场 11/150 到 3/150，加权损失的成对差 −0.117（95% 区间 −0.191 到 −0.045）。三道门槛没有全过；采用为缺省"
+  },
+  {
+    "name": "final-line-070-heldout",
+    "axis": "留出",
+    "changed": "最终方案线 0.9 对线 0.7，留出的两份（`compare.json`）",
+    "conclusion": "事后从存下的答复重读，没有用它选方案：误判成立 1/134 到 2/134，漏放 27.6% 到 15.0%。交负责人定线"
+  },
+  {
+    "name": "f01-staleness-decided-tune",
+    "axis": "打包",
+    "changed": "缺省方案上把「过时」改成由系统直接判（`staleness: decided`），调优那一份（`compare.json`）；起因是真实模型的旅程里两次因证据过时被判「判不了」而收不了场",
+    "conclusion": "与缺省打平：误判成立 1/88 对 1/77（少问 11 题），误收场 0/125 对 0/125，各族分辨力相同，漏放 63/260 对 64/260，加权损失 0.111 对 0.111。候选写定，去看留出"
+  },
+  {
+    "name": "f01-staleness-decided-heldout",
+    "axis": "留出",
+    "changed": "同一候选对缺省，留出的两份，只看这一次（`compare.json`）",
+    "conclusion": "误判成立仍是 1 次（1/134 对 1/96：系统自己答了 38 题，分母变小，点估计 0.7% 到 1.0%），误收场 3/150 对 3/150，各族分辨力相同，漏放 121/439 对 120/439，加权损失的成对差 −0.006（95% 区间 −0.013 到 −0.001）。采用为缺省；三道门槛仍没有全过"
+  },
+  {
+    "name": "default-vs-baseline-heldout",
+    "axis": "留出",
+    "changed": "基线对现行缺省（含「过时由系统判」），留出的两份，从存下的答复重放，没有新请求（`compare.json`）",
+    "conclusion": "误判成立 6/134 到 1/96，误收场 11/150 到 3/150，加权损失的成对差 −0.124（95% 区间 −0.198 到 −0.049）。`tests/kept.spec.ts` 守的是这一份"
+  },
+  {
+    "name": "g01-unsettled-covers-tune",
+    "axis": "题目",
+    "changed": "命令通过之前 agent 写过它所用的测试时，不再问「判据成立没有」，改问一道是非题，只给每个测试文件的最后一稿与那次运行（`unsettled: covers`）。这一次的问法是「最后一稿的测试有没有实际检查陈述说的事」，之后换了问法，代码里不再有它；调优那一份（`compare.json`）。起因是真实模型的旅程里 agent 改目标后重写了自己的测试，被读成「证据显示没做到」",
+    "conclusion": "与缺省打平：误判成立 1/77 对 1/77，误收场 0/125 对 0/125，漏放 64/260 对 66/260，加权损失 0.111 对 0.113。没有采用，换问法再量"
+  },
+  {
+    "name": "g02-unsettled-trust-tune",
+    "axis": "题目",
+    "changed": "同一根轴，问法换成「这次通过可信吗」（契约里的 `CHECK_COVERS`），调优那一份（`compare.json`）",
+    "conclusion": "漏放 64/260 到 46/260，过度弃权 62/310 到 44/310，加权损失的成对差 −0.019（95% 区间 −0.039 到 −0.004）；误判成立仍是同一条（1/77）。但误收场 0/125 到 1/125：`p23-newsgroups-nb/break-missing-class` 里那条本来就认错的 A3（0.98，两份方案都错）原先被另一条判据的弃权挡着，这条判据现在读对了，旧错就到了目标一级。规则是门槛没过时先比误判成立与误收场的次数：没有采用，没有去看留出的两份。开关留在契约里，缺省关闭"
+  }
+]

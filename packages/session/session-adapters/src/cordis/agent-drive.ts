@@ -315,8 +315,13 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
         : this.agentFailure('control', answer.failure)
     })
 
-  readonly detach: AgentDrivePort['detach'] = input =>
-    this.guarded('detach', async () => {
+  readonly detach: AgentDrivePort['detach'] = input => this.handBack('detach', input)
+
+  readonly handOver: AgentDrivePort['handOver'] = input => this.handBack('handOver', input)
+
+  /** A suspended execution answers its handoff; otherwise the attachment is detached, or asked to hand over. */
+  private handBack(method: 'detach' | 'handOver', input: Parameters<AgentDrivePort['detach']>[0]) {
+    return this.guarded(method, async () => {
       const prepared = await this.prepare(input)
       if ('failure' in prepared) return prepared
       const { mutation, tenant } = prepared.ok
@@ -326,17 +331,18 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
         tenant: mutation.tenant,
         execution: mutation.execution,
       })
-      if ('failure' in loaded) return this.agentFailure('detach', loaded.failure)
+      if ('failure' in loaded) return this.agentFailure(method, loaded.failure)
       if (loaded.ok.state.kind === 'suspended') return succeed(loaded.ok.state.handoff)
       const authority = loaded.ok.executionAttachment
       if (authority === null) return unavailable('the execution has no attachment to hand back')
-      const answer = await recovery.detach({
+      const answer = await recovery[method]({
         ...mutation,
         authority,
         reason: sessionBasis(tenant, input.session, input.operation),
       })
-      return 'ok' in answer ? succeed(answer.ok) : this.agentFailure('detach', answer.failure)
+      return 'ok' in answer ? succeed(answer.ok) : this.agentFailure(method, answer.failure)
     })
+  }
 
   readonly recordResult: AgentDrivePort['recordResult'] = async () =>
     unavailable('recordResult has no Agent entry yet (NP-04)')

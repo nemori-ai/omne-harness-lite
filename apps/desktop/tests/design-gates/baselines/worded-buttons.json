@@ -20,6 +20,9 @@
     "packages/calendar/calendar-ui/src/view/calendar-page.tsx | 查": {
       "commit": 1
     },
+    "packages/goal/goal-ui/src/view/goal-panel.tsx | 改成这样": {
+      "commit": 1
+    },
     "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | {option.label}": {
       "choice": 1
     },

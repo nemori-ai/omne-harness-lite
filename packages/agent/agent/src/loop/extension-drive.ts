@@ -6,6 +6,7 @@ import type {
   AgentExecutionId,
   CardReply,
   CardRoundId,
+  ChainSource,
   Conclusion,
   DurableEvidence,
   EnabledExtension,
@@ -18,12 +19,14 @@ import type {
   Passage,
   PassageId,
   Subject,
+  SystemExtensions,
   Waiting,
 } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { presentRequest } from './admission-chain.ts'
 import {
   askedRound,
+  callId,
   callsOf,
   chainState,
   closedPass,
@@ -90,6 +93,7 @@ export type PassHost<P> = Readonly<{
   ports: Readonly<{
     extensions: ExtensionImplementations<P>
     enabledExtensions?: EnabledExtensions<P>
+    systemExtensions?: SystemExtensions<P>
     clock: AgentClock
   }>
   definition: readonly EnabledExtension[]
@@ -115,11 +119,34 @@ const waitingOn = (failure: Failure, recheck: Recheck): Outcome<PassResult, Fail
 const inputOf = (chain: ExtensionChain, ordinal: number, item: PassSubject) =>
   agentEvidence(`${chain.pass}/${item.action ?? ''}/input/${ordinal}`, item.subject)
 
-async function readTenant<P>({ host }: Driver<P>, place: PassPlace) {
-  const port = host.ports.enabledExtensions
-  if (port === undefined) return null
-  return port.read({ ...host.access, execution: host.execution, ...placeOf(place) })
+type Sources = Readonly<{
+  tenant: readonly EnabledExtension[]
+  basis: DurableEvidence | null
+  system: readonly EnabledExtension[]
+}>
+
+const NO_TENANT_SOURCE = succeed({ members: [] as readonly EnabledExtension[], basis: null })
+const NO_SYSTEM_SOURCE = succeed([] as readonly EnabledExtension[])
+
+/** The members the tenant enabled and the ones the assembly supplies, read once as a pass begins. */
+async function readSources<P>(
+  { host }: Driver<P>,
+  place: PassPlace,
+): Promise<Outcome<Sources, Failure>> {
+  const at = { ...host.access, execution: host.execution, ...placeOf(place) }
+  const { enabledExtensions, systemExtensions } = host.ports
+  const tenant =
+    enabledExtensions === undefined ? NO_TENANT_SOURCE : await enabledExtensions.read(at)
+  if ('failure' in tenant) return tenant
+  const system = systemExtensions === undefined ? NO_SYSTEM_SOURCE : await systemExtensions.read(at)
+  if ('failure' in system) return system
+  return succeed({ tenant: tenant.ok.members, basis: tenant.ok.basis, system: system.ok })
 }
+
+const sourceOf = (chain: ExtensionChain | null, call: Passage): ChainSource | undefined =>
+  chain !== null && callId(chain.pass, call.action, call.ordinal) === call.id
+    ? chain.members[call.ordinal]?.source
+    : undefined
 
 async function open<P>(
   driver: Driver<P>,
@@ -128,19 +155,18 @@ async function open<P>(
 ): Promise<Outcome<ExtensionChain | PassResult, Failure>> {
   const { host, mine } = driver
   if (host.cancelled()) return succeed({ kind: 'cancelled' })
-  const read = await readTenant(driver, pass)
-  if (read !== null && 'failure' in read)
-    return waitingOn(read.failure, async () => (await readTenant(driver, pass)) ?? succeed(null))
+  const read = await readSources(driver, pass)
+  if ('failure' in read) return waitingOn(read.failure, () => readSources(driver, pass))
   const members = membersAt(pass, {
     definition: host.definition,
-    tenant: read === null ? [] : read.ok.members,
-    system: pass.system ?? [],
+    tenant: read.ok.tenant,
+    system: [...(pass.system ?? []), ...read.ok.system],
   })
   if (members.length === 0) return succeed({ kind: 'none' })
   const subjects = await pass.subjects()
   if ('failure' in subjects) return waitingOn(subjects.failure, pass.subjects)
   if (subjects.ok.length === 0) return succeed({ kind: 'none' })
-  const basis = read === null ? null : read.ok.basis
+  const { basis } = read.ok
   const chain: ExtensionChain = { ...placeOf(pass), pass: pass.id, members, basis }
   const first = subjects.ok.map(item =>
     requestedCall(chain, 0, item.action, inputOf(chain, 0, item)),
@@ -160,8 +186,10 @@ async function invoke<P>(
   earlier: readonly Conclusion[],
   fresh: boolean,
 ): Promise<ExtensionInvocationResult> {
-  const resolved = await host.ports.extensions.resolve({ ...host.access, passage: call })
-  if ('failure' in resolved) return { kind: 'notStartedUnavailable' }
+  const system = sourceOf(host.checkpoint().chain, call) === 'system'
+  const owner = system ? host.ports.systemExtensions : host.ports.extensions
+  const resolved = await owner?.resolve({ ...host.access, passage: call })
+  if (resolved === undefined || 'failure' in resolved) return { kind: 'notStartedUnavailable' }
   const mode: ExtensionInvocationMode = fresh
     ? { kind: 'fresh' }
     : { kind: 'replay', binding: replayBinding(call) }
@@ -395,19 +423,16 @@ async function planObservers<P>(
   at: Pick<AgentCheckpoint, 'passages'>,
 ): Promise<Outcome<PassState | null, Failure>> {
   const chain: ExtensionChain = { ...placeOf(pass), pass: pass.id, members: [], basis: null }
-  const read = await readTenant(driver, pass)
-  if (read !== null && 'failure' in read) {
+  const read = await readSources(driver, pass)
+  if ('failure' in read) {
     if (read.failure.kind !== 'unavailable') return read
     const unread = agentEvidence(`${pass.id}/unread`, read.failure)
     return succeed({ chain: { ...chain, unread }, passages: at.passages })
   }
-  const members = membersAt(pass, {
-    definition: driver.host.definition,
-    tenant: read === null ? [] : read.ok.members,
-    system: [],
-  })
+  const { tenant, system, basis } = read.ok
+  const members = membersAt(pass, { definition: driver.host.definition, tenant, system })
   if (members.length === 0) return succeed(null)
-  const formed = { ...chain, members, basis: read === null ? null : read.ok.basis }
+  const formed = { ...chain, members, basis }
   const calls = members.map((_, ordinal) =>
     requestedCall(formed, ordinal, null, agentEvidence(`${pass.id}/input/${ordinal}`)),
   )

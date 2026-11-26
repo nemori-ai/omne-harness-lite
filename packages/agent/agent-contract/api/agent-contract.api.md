@@ -305,6 +305,7 @@
 - `StructureFailure` · `identity.d.ts`
 - `Subject` · `passages.d.ts`
 - `SubmitDelivery` · `passages.d.ts`
+- `SystemExtensions` · `passages.d.ts`
 - `TerminalObservation` · `execution.d.ts`
 - `TerminalParticipantFact` · `finishing.d.ts`
 - `TerminalParticipantFacts` · `finishing.d.ts`
@@ -1625,6 +1626,10 @@ export interface AgentExecutionRecovery<P> {
         authority: Authority;
         reason: DurableEvidence;
     }>): Reply<DurableEvidence>;
+    handOver(input: ExecutionMutation<P> & Readonly<{
+        authority: Authority;
+        reason: DurableEvidence;
+    }>): Reply<DurableEvidence>;
     contact(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
         authority: Authority;
@@ -1702,6 +1707,9 @@ export interface AgentRuntimeControl<P> {
         operation: AgentOperationId;
         reason: DurableEvidence;
     }>): Reply<QuiesceResult>;
+    handOver(input: ExecutionMutation<P> & Readonly<{
+        reason: DurableEvidence;
+    }>): Reply<DurableEvidence>;
 }
 export type AgentAccessOperation = 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge' | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce' | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation' | 'receive-result' | 'read-message-handoff' | 'record-message-handoff' | 'exclude-message-handoff' | 'settle' | 'migrate-cancellation' | 'compaction.admit' | 'compaction.inspect' | 'compaction.cancel' | 'compaction.acknowledge';
 export type AgentAccessTarget = Readonly<{
@@ -3291,6 +3299,14 @@ export interface ExtensionImplementations<P> {
     resolve(input: Access<P> & Readonly<{
         passage: Passage;
     }>): Reply<LoopExtensionImplementation>;
+}
+export interface SystemExtensions<P> extends ExtensionImplementations<P> {
+    read(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        position: Position;
+        dimension: Dimension | null;
+        purpose: 'main' | null;
+    }>): Reply<readonly EnabledExtension[]>;
 }
 export interface DecisionCards<P> {
     present(input: Access<P> & Readonly<{

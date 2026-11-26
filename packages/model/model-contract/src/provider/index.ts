@@ -52,6 +52,7 @@ export type {
   ReplayTreatment,
 } from '../profile.ts'
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts'
+export type { ModelDecisionPreparation } from '../decision-preparation.ts'
 export type {
   ModelBindingFailure,
   ModelDriveInput,

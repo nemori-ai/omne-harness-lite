@@ -39,6 +39,7 @@ import { bindReleaseNotifications } from './notifications.ts'
 import { bindReleaseCanvas } from './canvas.ts'
 import { bindReleaseSessions } from './sessions.ts'
 import { bindReleaseAgents } from './agents.ts'
+import { bindReleaseGoal } from './goal.ts'
 import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
 import { bindReleaseExtensionPoints } from './extension-points.ts'
 import { bindReleaseExtensions } from './extensions.ts'
@@ -67,6 +68,7 @@ const DOMAIN_TOOLS = [
   ['Canvas', bindReleaseCanvas],
   ['Sessions', bindReleaseSessions],
   ['Agents', bindReleaseAgents],
+  ['Goal', bindReleaseGoal],
   ['SwitchWorkspace', bindReleaseSwitchWorkspace],
   ['OmneExtensionPoints', bindReleaseExtensionPoints],
   ['OmneExtensions', bindReleaseExtensions],

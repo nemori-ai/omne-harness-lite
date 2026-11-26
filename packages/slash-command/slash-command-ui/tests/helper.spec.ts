@@ -16,14 +16,23 @@ const TENANT =
 
 type Stream = { push(): void; end(): void; signal: AbortSignal }
 
-function fake() {
+function fake(catalog: unknown = CATALOG) {
   const reads: unknown[] = []
+  const offers: unknown[] = []
   const streams: Stream[] = []
-  let answer: () => unknown = () => ({ outcome: 'succeeded', body: CATALOG })
+  let answer: () => unknown = () => ({ outcome: 'succeeded', body: catalog })
+  let offer: () => unknown = () => ({
+    outcome: 'succeeded',
+    body: { candidates: [{ value: 'openai/gpt-6-astra' }, { value: 'z-ai/glm-5.3' }] },
+  })
   const client = {
     'read-catalog': async (body: unknown) => {
       reads.push(body)
       return answer()
+    },
+    'read-candidates': async (body: unknown) => {
+      offers.push(body)
+      return offer()
     },
     observe: {
       'observe-catalog': (_open: unknown, { signal }: { signal: AbortSignal }) => {
@@ -47,7 +56,14 @@ function fake() {
       },
     },
   } as unknown as SlashCommandClient
-  return { client, reads, streams, answerWith: (next: () => unknown) => (answer = next) }
+  return {
+    client,
+    reads,
+    offers,
+    streams,
+    answerWith: (next: () => unknown) => (answer = next),
+    offerWith: (next: () => unknown) => (offer = next),
+  }
 }
 const settle = () => new Promise(go => setTimeout(go, 0))
 
@@ -107,5 +123,64 @@ describe('the helper of one composer', () => {
     await settle()
     helper.input('/re', 3)
     expect([reads, helper.read().seen]).toEqual([[], null])
+  })
+
+  describe('at an argument with candidates', () => {
+    const WITH_MODEL = {
+      entries: [
+        {
+          full: 'omne-official:model',
+          space: 'omne-official',
+          name: 'model',
+          kind: 'system',
+          title: '换模型',
+          params: [{ name: '模型名', candidates: true }],
+        },
+      ],
+      missing: [],
+    }
+    const where = { tenant: TENANT, session: 'session-1' }
+
+    it('asks for them once each time the caret comes to another argument, and again after the list changed', async () => {
+      const { client, offers, streams } = fake(WITH_MODEL)
+      const helper = openHelper(client, createComposer(), where, () => () => {})
+      await settle()
+      helper.input('/model ', 7)
+      helper.input('/model a', 8)
+      await settle()
+      expect(offers).toEqual([
+        {
+          tenant: readTenantText(TENANT),
+          session: 'session-1',
+          command: 'omne-official:model',
+          param: 0,
+        },
+      ])
+      expect(helper.read().menu?.items.map(item => item.label)).toEqual([
+        'openai/gpt-6-astra',
+        'z-ai/glm-5.3',
+      ])
+      helper.input('/mo', 3)
+      helper.input('/model ', 7)
+      await settle()
+      expect(offers).toHaveLength(2)
+      streams[0]?.push()
+      await settle()
+      expect(offers).toHaveLength(3)
+      helper.close()
+    })
+
+    it('holds nothing back when they are not to be had', async () => {
+      const { client, offerWith } = fake(WITH_MODEL)
+      offerWith(() => {
+        throw new Error('down')
+      })
+      const helper = openHelper(client, createComposer(), where, () => () => {})
+      await settle()
+      helper.input('/model nope', 11)
+      await settle()
+      expect(helper.read().blocked).toBeNull()
+      helper.close()
+    })
   })
 })

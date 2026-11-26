@@ -10,6 +10,7 @@
 - `AdmittedSource` · 包 `@omne-harness/session-contract`
 - `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AdoptionEvidenceCommand` · 包 `@omne-harness/session-contract`
+- `AdoptionNote` · 包 `@omne-harness/session-contract`
 - `AdvanceClaim` · 包 `@omne-harness/session-contract`
 - `AdvanceJudgment` · 包 `@omne-harness/session-contract`
 - `AdvanceRef` · 包 `@omne-harness/session-contract`
@@ -143,6 +144,7 @@
 - `Modes` · 包 `@omne-harness/session-contract`
 - `Mutation` · 包 `@omne-harness/session-contract`
 - `MutationName` · 包 `@omne-harness/session-contract`
+- `NotedStart` · 包 `@omne-harness/session-contract`
 - `OnceAuthorization` · 包 `@omne-harness/session-contract`
 - `OpenWork` · 包 `@omne-harness/session-contract`
 - `OperationAsked` · 包 `@omne-harness/session-contract`
@@ -167,6 +169,7 @@
 - `Relation` · 包 `@omne-harness/session-contract`
 - `RelationToReference` · 包 `@omne-harness/session-contract`
 - `ReleasedScope` · 包 `@omne-harness/session-contract`
+- `ReloadOutcome` · 包 `@omne-harness/session-contract`
 - `Reply` · 包 `@omne-harness/session-contract`
 - `ResidentAdoption` · 包 `@omne-harness/session-contract`
 - `ResidentKey` · 包 `@omne-harness/session-contract`
@@ -348,6 +351,7 @@
 - `admitDerived` · 包 `@omne-harness/session-contract`
 - `admitDerivedOf` · 包 `@omne-harness/session-contract`
 - `admitSource` · 包 `@omne-harness/session-contract`
+- `advanceAnswerOf` · 包 `@omne-harness/session-contract`
 - `archiveCollapse` · 包 `@omne-harness/session-contract`
 - `backgroundCallView` · 包 `@omne-harness/session-contract`
 - `backgroundCalls` · 包 `@omne-harness/session-contract`
@@ -362,6 +366,7 @@
 - `callKeysIn` · 包 `@omne-harness/session-contract`
 - `callKeysOutside` · 包 `@omne-harness/session-contract`
 - `callWithLate` · 包 `@omne-harness/session-contract`
+- `cancelEstablished` · 包 `@omne-harness/session-contract`
 - `cancellationDriveOf` · 包 `@omne-harness/session-contract`
 - `childRecorded` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
@@ -460,6 +465,7 @@
 - `shortCallId` · 包 `@omne-harness/session-contract`
 - `sourceRequestIdentities` · 包 `@omne-harness/session-contract`
 - `standingOf` · 包 `@omne-harness/session-contract`
+- `startAnswerOf` · 包 `@omne-harness/session-contract`
 - `summarizeModelProvenance` · 包 `@omne-harness/session-contract`
 - `uninterpretedCalls` · 包 `@omne-harness/session-contract`
 - `waitingCalls` · 包 `@omne-harness/session-contract`
@@ -775,6 +781,7 @@ export declare abstract class AgentDrivePortService extends Service implements A
     abstract readonly resume: AgentDrivePort['resume'];
     abstract readonly control: AgentDrivePort['control'];
     abstract readonly detach: AgentDrivePort['detach'];
+    abstract readonly handOver: AgentDrivePort['handOver'];
     abstract readonly recordResult: AgentDrivePort['recordResult'];
     abstract readonly query: AgentDrivePort['query'];
     abstract readonly inspect: AgentDrivePort['inspect'];

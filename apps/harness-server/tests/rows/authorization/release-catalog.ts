@@ -33,6 +33,7 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Canvas: { resultMaxBytes: 64 },
   Sessions: { resultMaxBytes: 4096 },
   Agents: { resultMaxBytes: 4096 },
+  Goal: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },
   OmneExtensionPoints: { resultMaxBytes: 4096 },
   OmneExtensions: { resultMaxBytes: 4096 },

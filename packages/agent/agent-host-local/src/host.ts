@@ -58,9 +58,9 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolRuntime } from '@omne-harness/tool-contract'
 import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { AgentHostConfig } from './host-config.ts'
+import { recoveryEntry } from './recovery-entry.ts'
 import { deadlineOf, nestedEntry } from './nested-entry.ts'
 import { stagePort } from './stage-ports.ts'
-import { contactOf } from './contact.ts'
 
 export type RuntimeFactory = (
   dependencies: AgentDependencies<unknown, ContentBlock>,
@@ -84,11 +84,6 @@ export type HostInput = Readonly<{
 }>
 
 export type LostContact = (instance: AgentInstanceId) => DurableEvidence | null
-
-type Contact = Extract<
-  Awaited<ReturnType<AgentExecutionRecovery<unknown>['contact']>>,
-  { ok: unknown }
->['ok']
 
 export type Host = Readonly<{
   instanceHost: AgentInstanceHost<unknown> &
@@ -894,39 +889,14 @@ export function createHost(input: HostInput): Host {
     }
   }
 
-  const recovery: AgentExecutionRecovery<unknown> = {
-    query: request =>
-      throughJournal(request, 'query', onExecution(request.execution), () =>
-        statics.journal.query(request),
-      ),
-    load: request =>
-      throughJournal(request, 'load', onExecution(request.execution), () =>
-        statics.journal.load(request),
-      ),
-    reconcile: request =>
-      throughJournal(request, 'reconcile', onExecution(request.execution), async () =>
-        fail(
-          unavailable(
-            OWNER,
-            'reconcile through the recovery entry is not implemented yet (#502 stage 5)',
-          ),
-        ),
-      ),
-    detach: request =>
-      throughJournal(request, 'detach', onExecution(request.execution), async () => {
-        if (liveRuntimeOf(request.tenant, request.authority.instance) !== undefined) {
-          const refused = await qualify(request, 'takeover', onExecution(request.execution))
-          if (refused !== undefined) return fail(refused)
-        }
-        return statics.journal.detach(request)
-      }),
-    contact: request =>
-      throughJournal<Contact>(request, 'load', onExecution(request.execution), async () => {
-        const { instance } = request.authority
-        const running = liveRuntimeOf(request.tenant, instance)?.reported
-        return succeed(contactOf(OWNER, running, request, () => input.lostContact?.(instance)))
-      }),
-  }
+  const recovery = recoveryEntry({
+    through: throughJournal,
+    qualify,
+    live: (tenant, instance) => liveRuntimeOf(tenant, instance) ?? null,
+    journal: statics.journal,
+    lostContact: input.lostContact,
+    owner: OWNER,
+  })
 
   const control: AgentExecutionControl<unknown> = {
     async control(request) {

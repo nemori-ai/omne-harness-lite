@@ -29,7 +29,7 @@ const SESSION_GOLDEN = {
   ],
   startRun: WORK_ONLY,
   claim: WORK_ONLY,
-  reload: WORK_ONLY,
+  reload: BOTH,
   recordMessage: WORK_ONLY,
   preserveResult: WORK_ONLY,
   completeConsumption: WORK_ONLY,

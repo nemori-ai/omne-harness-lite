@@ -166,11 +166,10 @@ function requestFor(row: SystemActionRow, principal: SystemPrincipal): SystemAct
 }
 
 describe('system principals against the release action matrix (验收 2)', () => {
-  const holderOf = new Map<string, string>(
-    Object.entries(MAINTENANCE_GRANTS).flatMap(([component, grant]) =>
-      grant.purposes.map(purpose => [purpose, component] as const),
-    ),
-  )
+  const holdersOf = (purpose: string): readonly string[] =>
+    Object.entries(MAINTENANCE_GRANTS)
+      .filter(([, grant]) => grant.purposes.some(held => held === purpose))
+      .map(([component]) => component)
 
   it('covers every row: each holder is allowed and other system principals are denied', async () => {
     const { fixture, issuer, principals } = await installed()
@@ -188,14 +187,15 @@ describe('system principals against the release action matrix (验收 2)', () =>
       [TENANT_DOMAIN_SCANNER_COMPONENT]: systemOf(issuer, TENANT_DOMAIN_SCANNER_COMPONENT),
       [ENTRY_COMPONENTS.sessionMaintainer]: maintainer,
       [ENTRY_COMPONENTS.dispatch]: systemOf(issuer, ENTRY_COMPONENTS.dispatch),
+      [ENTRY_COMPONENTS.goal]: systemOf(issuer, ENTRY_COMPONENTS.goal),
     }
     const outsiders: Principal[] = [principals.coordinator, systemOf(issuer, 'restart-scanner')]
     expect(SYSTEM_ACTION_MATRIX).toHaveLength(13)
     for (const row of SYSTEM_ACTION_MATRIX) {
-      const holder = holderOf.get(row.purpose)
+      const holding = holdersOf(row.purpose)
       for (const [component, principal] of Object.entries(holders)) {
         const decision = await authorization.check(requestFor(row, principal))
-        if (component === holder)
+        if (holding.includes(component))
           expect(decision, `${component} on ${row.purpose}`).toMatchObject({
             kind: 'allowed',
             basis: { grant: { record: `maintenance-grant/${component}` } },
@@ -261,6 +261,7 @@ describe('system principals against the release action matrix (验收 2)', () =>
     expect(principals.coordinator).not.toBe(principals.maintainer)
     expect(Object.values(ENTRY_COMPONENTS).sort()).toEqual([
       'dispatch',
+      'goal',
       'governanceDirectoryPrincipals',
       'governanceInstallationPrincipals',
       'sessionModesPrincipals',

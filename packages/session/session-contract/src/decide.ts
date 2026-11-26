@@ -34,7 +34,7 @@ import type {
   WorkSnapshot,
   WorkspaceAttachment,
 } from './values.ts'
-import type { HistoryEntry, ProducerFact, StartAdoption } from './faces.ts'
+import type { HistoryEntry, ProducerFact } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
 import {
@@ -47,6 +47,7 @@ import {
   expectedRevision,
   judgeAdvance,
   judgeRunStart,
+  reloadRefusal,
   resolveOperation,
   routeInput,
   type DecideReads,
@@ -65,7 +66,8 @@ import {
   rejected,
   invalid,
   entries,
-  residentEntries,
+  adoptionEntries,
+  adoptionNoted,
   completeEvidence,
 } from './decision-support.ts'
 import { judgeFork, judgeStanding } from './standing.ts'
@@ -247,25 +249,6 @@ function decideAccept(
   }
 }
 
-function adoptionEntries(
-  snapshot: WorkSnapshot,
-  material: StartAdoption | undefined,
-  candidate: Adoption,
-  current: Adoption,
-  source: DurableEvidence,
-): Decision {
-  if (material?.verdict !== undefined)
-    return rejected({ kind: 'frozen', verdict: material.verdict })
-  const residents = residentEntries(snapshot, material, source)
-  if (residents.kind !== 'entries') return residents
-  if (digestOf(candidate) === digestOf(current) && material === undefined) return residents
-  const keys = material === undefined ? {} : { residentKeys: material.keys }
-  return entries([
-    ...residents.entries,
-    encodeEntry({ kind: 'session.adoption', adopted: candidate, ...keys }, sessionOrigin(source)),
-  ])
-}
-
 function decideStartRun(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'startRun' }>,
@@ -276,13 +259,15 @@ function decideStartRun(
     if (judgment.kind === 'awaiting-person') return rejected({ kind: 'no-input' })
     return rejected({ kind: judgment.kind })
   }
-  const { candidate, instance } = command.input
+  const { candidate, instance, note } = command.input
+  const source = commandEvidence(command.input.operation, 'run-started')
+  const noted = adoptionNoted(note, source)
+  if (noted.kind !== 'entries' || note?.kind === 'waiting') return noted
   if (emptyAdoption(candidate)) return invalid('candidate', 'incomplete adoption')
   if (instance.owner !== 'agent' || instance.id.length === 0)
     return invalid('instance', 'not an Agent instance')
   const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
   const run = runIdOf(snapshot.session, judgment.initial[0], predecessor)
-  const source = commandEvidence(command.input.operation, 'run-started')
   const adopted = adoptionEntries(
     snapshot,
     command.input.residentAdoption,
@@ -291,7 +276,7 @@ function decideStartRun(
     source,
   )
   if (adopted.kind !== 'entries') return adopted
-  const out: EncodedEntry[] = [...adopted.entries]
+  const out: EncodedEntry[] = [...adopted.entries, ...noted.entries]
   out.push(
     encodeEntry(
       {
@@ -633,10 +618,30 @@ function decideChange(
   ])
 }
 
+/** A reload that names no run records what the next run adopts; it starts nothing. */
+function decideIdleReload(
+  snapshot: WorkSnapshot,
+  input: Extract<SessionCommand, { kind: 'reload' }>['input'],
+): Decision {
+  if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
+  if (snapshot.frozen !== null) return rejected({ kind: 'frozen', verdict: snapshot.frozen })
+  if (snapshot.run.kind === 'active') return rejected({ kind: 'run-active' })
+  if (!expectedHolds(snapshot, 'reload', input.expected))
+    return rejected({ kind: 'changed', revision: expectedRevision(snapshot, 'reload') })
+  const { candidate } = input
+  if (emptyAdoption(candidate) || candidate.name !== snapshot.definition.adopted.name)
+    return invalid('candidate', 'a reload must preserve the definition identity')
+  const source = commandEvidence(input.operation, 'reload')
+  const current = snapshot.definition.adopted
+  return adoptionEntries(snapshot, input.residentAdoption, candidate, current, source)
+}
+
 function decideAttempt(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'claim' | 'reload' | 'release' }>,
 ): Decision {
+  if (command.kind === 'reload' && command.input.run === null)
+    return decideIdleReload(snapshot, command.input)
   if (command.kind === 'release') {
     const judgment = judgeAdvance(snapshot, {
       kind: 'attempt',
@@ -665,10 +670,11 @@ function decideAttempt(
       kind: 'stale-advance',
       current: snapshot.run.kind === 'active' ? snapshot.run.advance : null,
     })
-  if (command.kind === 'reload' && snapshot.frozen !== null)
-    return rejected({ kind: 'frozen', verdict: snapshot.frozen })
-  if (command.kind === 'reload' && !expectedHolds(snapshot, 'reload', command.input.expected))
-    return rejected({ kind: 'changed', revision: expectedRevision(snapshot, 'reload') })
+  const refused =
+    command.kind === 'reload'
+      ? reloadRefusal(snapshot, snapshot.run.run, command.input.expected)
+      : null
+  if (refused !== null) return rejected(refused)
   if (command.kind === 'claim' && !expectedHolds(snapshot, 'claim', command.input.expected))
     return rejected(
       snapshot.run.advance !== null
@@ -676,11 +682,8 @@ function decideAttempt(
         : { kind: 'changed', revision: expectedRevision(snapshot, 'claim') },
     )
   const source = command.kind === 'claim' ? command.input.continuity : command.input.handover
-  if (
-    !completeEvidence(source) ||
-    !command.input.instance.id ||
-    command.input.instance.owner !== 'agent'
-  )
+  const { instance } = command.input
+  if (!source || !completeEvidence(source) || instance?.owner !== 'agent' || !instance.id)
     return invalid('instance', 'incomplete instance or handover')
   const out: EncodedEntry[] = []
   if (command.kind === 'reload') {
@@ -719,7 +722,7 @@ function decideAttempt(
         run: snapshot.run.run,
         attempt: attemptIdOf(snapshot.run.run, ordinal),
         ordinal,
-        instance: command.input.instance,
+        instance,
         reason: command.kind,
       },
       sessionOrigin(source),

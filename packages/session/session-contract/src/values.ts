@@ -42,8 +42,10 @@ export type ResidentSegment = Readonly<{
   sources: readonly ResidentSegmentSource[]
 }>
 export type ResidentSegmentSource = Readonly<{ category: string; name: string; digest: string }>
+export type AdoptionNote = Readonly<{ kind: 'kept' | 'waiting'; reason: string }>
 export type SessionFrozen = Readonly<{
   cause: 'tool-shape-lost'
+  capability: string
   evidence: DurableEvidence
   commit: DurableEvidence
 }>
@@ -432,7 +434,11 @@ export type IdleObservation =
 export type AutoArchivePolicy =
   | Readonly<{ kind: 'disabled' }>
   | Readonly<{ kind: 'enabled'; idleMs: string }>
-export type FreezeVerdict = Readonly<{ cause: 'tool-shape-lost'; evidence: DurableEvidence }>
+export type FreezeVerdict = Readonly<{
+  cause: 'tool-shape-lost'
+  capability: string
+  evidence: DurableEvidence
+}>
 
 export type WorkSnapshot = Readonly<{
   workEntryIndex?: SessionWorkEntryIndex

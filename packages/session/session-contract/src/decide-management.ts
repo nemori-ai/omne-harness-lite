@@ -181,7 +181,14 @@ export function decideManagement(
       if (!completeEvidence(command.input.verdict.evidence))
         return invalid('verdict', 'incomplete evidence')
       return entries([
-        encodeEntry({ kind: 'session.frozen', evidence: command.input.verdict.evidence }, origin),
+        encodeEntry(
+          {
+            kind: 'session.frozen',
+            capability: command.input.verdict.capability,
+            evidence: command.input.verdict.evidence,
+          },
+          origin,
+        ),
         ...(snapshot.run.kind !== 'active' && snapshot.pending.length > 0
           ? [encodeEntry({ kind: 'intake.released', inputs: snapshot.pending }, origin)]
           : []),

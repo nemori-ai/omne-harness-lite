@@ -208,6 +208,29 @@ describe('对话的条目', () => {
       '这一轮已完成',
     ])
   })
+  it('V6b 冻结与采用的说明画成给人看的标记；缺了要写的字画成占位', () => {
+    const content = mergeHistory(EMPTY_CONTENT, [
+      plainEntry('1', '1', 'session.frozen', { capability: 'wordcount' }),
+      plainEntry('2', '2', 'session.adoption-noted', {
+        note: { kind: 'kept', reason: '新版引用了不存在的工具' },
+      }),
+      plainEntry('3', '3', 'session.adoption-noted', {
+        note: { kind: 'waiting', reason: '定义还没有能用的版本' },
+      }),
+      plainEntry('4', '4', 'session.frozen', {}),
+      plainEntry('5', '5', 'session.adoption-noted', { note: { kind: 'other', reason: 'x' } }),
+      plainEntry('6', '6', 'session.adoption-noted', { note: { kind: 'kept' } }),
+    ])
+    const items = conversationItems(content, false)
+    expect(items.map(item => (item.kind === 'marker' ? item.label : item.kind))).toEqual([
+      '会话已冻结：常驻工具 wordcount 的新版与原来的参数不同，原来那一版已用不了。之后不再开始新的一轮',
+      '这一轮照原来的定义开始，新版没用上：新版引用了不存在的工具',
+      '还没开始这一轮，在等能用的定义：定义还没有能用的版本',
+      'unknown',
+      'unknown',
+      'unknown',
+    ])
+  })
   it('V7 进行中的回复画在最后，标为进行中；推理状态块不画', () => {
     const content = withLive([['0', '思考']])
     const items = conversationItems(content, true)

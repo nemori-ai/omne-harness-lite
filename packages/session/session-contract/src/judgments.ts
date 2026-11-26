@@ -550,3 +550,20 @@ export function resolveOperation(
 }
 
 export type { GuardCommand, SessionCommand }
+
+export const cancelEstablished = (snapshot: Pick<WorkSnapshot, 'controls'>, run: string): boolean =>
+  snapshot.controls.some(
+    ({ intent }) =>
+      intent.kind === 'control' && intent.value.kind === 'cancel-run' && intent.value.run === run,
+  )
+
+export function reloadRefusal(
+  snapshot: Pick<WorkSnapshot, 'controls' | 'frozen' | 'run' | 'revision'>,
+  run: string,
+  expected: SessionRevision,
+): SessionFailure | null {
+  if (snapshot.frozen !== null) return { kind: 'frozen', verdict: snapshot.frozen }
+  if (cancelEstablished(snapshot, run)) return { kind: 'cancelled' }
+  if (expectedHolds(snapshot, 'reload', expected)) return null
+  return { kind: 'changed', revision: expectedRevision(snapshot, 'reload') }
+}

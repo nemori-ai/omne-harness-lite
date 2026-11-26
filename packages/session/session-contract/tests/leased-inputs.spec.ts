@@ -226,7 +226,7 @@ describe('a failed Run returns the inputs it took and did not answer', () => {
         input: {
           ...s.base,
           operation: operationId('freeze'),
-          verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+          verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
         },
       }),
       'freeze',
@@ -286,7 +286,7 @@ describe('a failed Run returns the inputs it took and did not answer', () => {
         input: {
           ...s.base,
           operation: operationId('freeze'),
-          verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+          verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
         },
       }),
       'freeze',
