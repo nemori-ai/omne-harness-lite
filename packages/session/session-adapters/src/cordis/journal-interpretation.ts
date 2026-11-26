@@ -83,6 +83,17 @@ const causeOf = (failure: Uninterpretable): string =>
 
 type Retry = Readonly<{ wait: number; calls: number }>
 
+const SAID_EXECUTIONS = 4096
+
+function remember(said: Set<string>, key: string): void {
+  said.add(key)
+  if (said.size <= SAID_EXECUTIONS) return
+  for (const oldest of said) {
+    said.delete(oldest)
+    return
+  }
+}
+
 export function nextRetry(policy: JournalInterpretationRetry, retry: Retry | null): Retry {
   if (retry === null) return { wait: policy.initialMs, calls: 1 }
   return { wait: Math.min(retry.wait * policy.multiplier, policy.maxMs), calls: retry.calls + 1 }
@@ -440,12 +451,15 @@ export function createSessionJournalInterpretationPlugin<P>(
           }
         }
         const retrying = new Set<string>()
+        const said = new Set<string>()
         const attempt = async (target: JournalInterpretationTarget, retry: Retry | null) => {
           const key = JSON.stringify([target.session, target.execution])
+          if (said.has(key)) return
           const answer = await guarded(target)
           if ('ok' in answer || stopped || !transient(answer.failure)) {
             if (retry !== null) retrying.delete(key)
             reportEnd(logger, target.execution, answer)
+            if ('failure' in answer && uninterpretable(answer.failure)) remember(said, key)
             return
           }
           if (retry === null && retrying.has(key)) return

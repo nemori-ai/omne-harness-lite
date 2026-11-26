@@ -560,6 +560,18 @@ describe('an event that Session can never take', () => {
       await settle()
       expect(f.sent).toHaveLength(1)
       expect(f.logged.filter(line => /; again in /.test(line))).toEqual([])
+      // Whatever wakes the interpretation of this execution again finds it said: nothing is sent or logged twice.
+      const said = f.logged.length
+      for (let n = 0; n < 3; n += 1)
+        await f.c.ctx.serial(
+          'session-adapters/agent-published',
+          f.target.tenant,
+          f.target.session,
+          f.target.execution,
+        )
+      await settle()
+      expect(f.sent).toHaveLength(1)
+      expect(f.logged).toHaveLength(said)
     },
   )
 
