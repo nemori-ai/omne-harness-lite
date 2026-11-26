@@ -152,7 +152,10 @@ function changeRows(args: Activation): ReleaseRow[] {
   return [
     {
       label: '改成',
-      value: label === undefined ? `指令：${instruction ?? ''}`.slice(0, 200) : `名字「${label}」`,
+      value:
+        label === undefined
+          ? `指令：${instruction?.purpose ?? ''}`.slice(0, 200)
+          : `名字「${label}」`,
     },
   ]
 }

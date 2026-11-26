@@ -25,7 +25,8 @@ import { createScheduleManagementIdentity, recoveryScopeMatchesContext } from '.
 import { createScheduleManagementOperationRef, managementValueEqual } from './references.ts'
 import { managementError } from './errors.ts'
 import { decideScheduleManagement } from './decision.ts'
-import { requestedDefinition } from './definition.ts'
+import { requestedDefinition, requestedWork } from './definition.ts'
+import { workAcceptance } from '../dispatch/carriers.ts'
 
 function unknown(operationRef: OperationIdentity['operationRef']): ScheduleManagementResult {
   return { kind: 'unknown', operationRef, retryAfterMs: 0 }
@@ -187,6 +188,12 @@ async function prepare(
   const preliminary = decideScheduleManagement(input)
   if (preliminary.kind === 'rejected' && preliminary.error.code !== 'dependency_blocked')
     return preliminary.error
+  const work = requestedWork(request, current)
+  const taken = work === null ? null : await workAcceptance(dependencies.executor?.(work), work)
+  if (taken?.kind === 'refused')
+    return managementError(context.requestId, 'invalid_input', taken.reason)
+  if (taken?.kind === 'unknown')
+    return managementError(context.requestId, 'dependency_blocked', taken.reason, true)
   const definition = requestedDefinition(request, current)
   let resolved = input.definition
   if (definition !== null) {

@@ -57,7 +57,7 @@ it('M1 the schedule client present: one schedule page, before the calendar and a
   expect(shell.items('sidebar')).toEqual([])
   expect(shell.adoption('schedule-ui')).toMatchObject({
     kind: 'adopted',
-    bindings: { schedule: { key: 'schedule/v2' } },
+    bindings: { schedule: { key: 'schedule/v3' } },
   })
 })
 

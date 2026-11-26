@@ -136,7 +136,7 @@ describe('what an activating call would do, for the release card', () => {
     const { signal } = reading(services([]))
     const instructed = await describing(
       'update',
-      { schedule: ID, revision: 3, instruction: '改成每周一' },
+      { schedule: ID, revision: 3, instruction: { purpose: '改成每周一' } },
       signal,
     )
     expect(rows(instructed)['改成']).toBe('指令：改成每周一')

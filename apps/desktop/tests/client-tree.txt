@@ -151,8 +151,8 @@ system
           served:notification/v2#1  [effective]
         plugin/v1
           served:plugin/v1#1  [effective]
-        schedule/v2
-          served:schedule/v2#1  [effective]
+        schedule/v3
+          served:schedule/v3#1  [effective]
         session-diagnostics/v1
           served:session-diagnostics/v1#1  [effective]
         session/v1

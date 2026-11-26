@@ -17,11 +17,15 @@ import { access, now, observation, scheduleId, scope } from './fixtures.ts'
 export function error(code: ScheduleDomainError['code']): ScheduleDomainError {
   return { code, message: code, requestId: 'request:test', retryable: false, details: {} }
 }
-export function protocolFixture(initial: ScheduleRecord | null = null) {
+export function protocolFixture(
+  initial: ScheduleRecord | null = null,
+  extra: Pick<ScheduleManagementDependencies, 'executor'> = {},
+) {
   let current = initial
   const receipts = new Map<string, { fingerprint: string; view: ScheduleOperationView }>()
   const calls: string[] = []
   const dependency: ScheduleManagementDependencies = {
+    ...extra,
     clock: {
       now: vi.fn(() => {
         calls.push('now')

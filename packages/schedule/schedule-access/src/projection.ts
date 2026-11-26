@@ -2,10 +2,12 @@ import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-
 import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import {
   ScheduleDefinitionSchema,
+  ScheduleInstructionSchema,
   ScheduleWorkSchema,
   type ScheduleCandidate,
   type ScheduleDefinition,
   type ScheduleDomainError,
+  type ScheduleInstruction,
   type ScheduleExecutionRow,
   type ScheduleJobDetail,
   type ScheduleJobRun,
@@ -32,6 +34,11 @@ export function treeOf(value: unknown): JsonValue {
 /** A definition the client sends, judged by the schedule's own schema. */
 export function definitionOf(tree: JsonValue): ScheduleDefinition | undefined {
   const parsed = ScheduleDefinitionSchema.safeParse(JSON.parse(writeJsonText(tree)))
+  return parsed.success ? parsed.data : undefined
+}
+
+export function instructionOf(tree: JsonValue): ScheduleInstruction | undefined {
+  const parsed = ScheduleInstructionSchema.safeParse(JSON.parse(writeJsonText(tree)))
   return parsed.success ? parsed.data : undefined
 }
 
@@ -95,7 +102,8 @@ export function revisionOf(view: ScheduleRevisionView) {
 
 type Refusal =
   | Readonly<{ outcome: 'denied' | 'basis-unavailable' | 'limited' | 'not-visible' }>
-  | Readonly<{ outcome: 'invalid' | 'unsupported' | 'conflict'; code: string }>
+  | Readonly<{ outcome: 'unsupported' | 'conflict'; code: string }>
+  | Readonly<{ outcome: 'invalid'; code: string; reason: string }>
 
 const INVALID = new Set([
   'invalid_input',
@@ -124,7 +132,8 @@ export function refusalOf(error: ScheduleDomainError): Refusal {
   if (error.code === 'forbidden' || error.code === 'not_found') return { outcome: 'not-visible' }
   if (error.code === 'unauthenticated') return { outcome: 'denied' }
   if (error.code === 'capacity_exceeded') return { outcome: 'limited' }
-  if (INVALID.has(error.code)) return { outcome: 'invalid', code: error.code }
+  if (INVALID.has(error.code))
+    return { outcome: 'invalid', code: error.code, reason: error.message }
   if (UNSUPPORTED.has(error.code)) return { outcome: 'unsupported', code: error.code }
   if (CONFLICT.has(error.code)) return { outcome: 'conflict', code: error.code }
   return { outcome: 'basis-unavailable' }

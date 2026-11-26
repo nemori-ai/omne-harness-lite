@@ -1,12 +1,10 @@
 {
   "digests": {
-    "1": "sha256:36e1d06a6100700156a5e79177f0c33bf3fc38dd82c80696243e4c222266f04d",
-    "2": "sha256:1a13ab55b4e313acf5711c6f2839c1cf4ae514a3c8a43bbce1fdef5c36bc5b87",
-    "3": "sha256:f3291e53b733b07a46ff1cfe68e142c0244b9d0bdddd9766f051424a9b700275"
+    "1": "sha256:6d7b03de682149674b602cb664c1f4f420f512ed5dc8f6a845110a45c8532125"
   },
-  "major": 2,
+  "major": 3,
   "name": "schedule",
-  "revision": 3,
+  "revision": 1,
   "rules": {
     "observations": {
       "observe-jobs": {
@@ -34,8 +32,7 @@
             }
           },
           "kind": "object"
-        },
-        "since": 2
+        }
       }
     },
     "operations": {
@@ -327,8 +324,7 @@
             "kind": "object"
           },
           "unknown": true
-        },
-        "since": 2
+        }
       },
       "create-schedule": {
         "body": {
@@ -393,6 +389,12 @@
           "invalid": {
             "fields": {
               "code": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "reason": {
+                "optional": true,
                 "rule": {
                   "kind": "text"
                 }
@@ -553,8 +555,7 @@
                     "kind": "text"
                   },
                   "kind": "array"
-                },
-                "since": 2
+                }
               },
               "revision": {
                 "rule": {
@@ -644,6 +645,12 @@
           "invalid": {
             "fields": {
               "code": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "reason": {
+                "optional": true,
                 "rule": {
                   "kind": "text"
                 }
@@ -746,8 +753,7 @@
                                             "kind": "null"
                                           }
                                         ]
-                                      },
-                                      "since": 3
+                                      }
                                     },
                                     "startedAt": {
                                       "rule": {
@@ -963,8 +969,7 @@
                                         "kind": "null"
                                       }
                                     ]
-                                  },
-                                  "since": 3
+                                  }
                                 },
                                 "startedAt": {
                                   "rule": {
@@ -1045,8 +1050,7 @@
             },
             "kind": "object"
           }
-        },
-        "since": 2
+        }
       },
       "list-schedules": {
         "body": {
@@ -1114,6 +1118,12 @@
           "invalid": {
             "fields": {
               "code": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "reason": {
+                "optional": true,
                 "rule": {
                   "kind": "text"
                 }
@@ -1330,7 +1340,7 @@
                     "fields": {
                       "instruction": {
                         "rule": {
-                          "kind": "text"
+                          "kind": "json"
                         }
                       },
                       "kind": {
@@ -1444,6 +1454,12 @@
           "invalid": {
             "fields": {
               "code": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "reason": {
+                "optional": true,
                 "rule": {
                   "kind": "text"
                 }
@@ -1608,8 +1624,7 @@
                     "kind": "text"
                   },
                   "kind": "array"
-                },
-                "since": 2
+                }
               },
               "revision": {
                 "rule": {
@@ -1716,6 +1731,12 @@
           "invalid": {
             "fields": {
               "code": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "reason": {
+                "optional": true,
                 "rule": {
                   "kind": "text"
                 }
@@ -2075,8 +2096,7 @@
             },
             "kind": "object"
           }
-        },
-        "since": 2
+        }
       },
       "query-create-schedule": {
         "body": {
@@ -2281,8 +2301,7 @@
                     "kind": "text"
                   },
                   "kind": "array"
-                },
-                "since": 2
+                }
               },
               "revision": {
                 "rule": {
@@ -2338,7 +2357,7 @@
                     "fields": {
                       "instruction": {
                         "rule": {
-                          "kind": "text"
+                          "kind": "json"
                         }
                       },
                       "kind": {
@@ -2596,8 +2615,7 @@
                     "kind": "text"
                   },
                   "kind": "array"
-                },
-                "since": 2
+                }
               },
               "revision": {
                 "rule": {
@@ -2909,8 +2927,7 @@
             },
             "kind": "object"
           }
-        },
-        "since": 2
+        }
       },
       "read-agenda": {
         "body": {
@@ -2961,6 +2978,12 @@
           "invalid": {
             "fields": {
               "code": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "reason": {
+                "optional": true,
                 "rule": {
                   "kind": "text"
                 }
@@ -3303,8 +3326,7 @@
             },
             "kind": "object"
           }
-        },
-        "since": 2
+        }
       },
       "read-revisions": {
         "body": {
@@ -3583,8 +3605,7 @@
                     "kind": "text"
                   },
                   "kind": "array"
-                },
-                "since": 2
+                }
               },
               "revision": {
                 "rule": {
@@ -3652,6 +3673,12 @@
           "invalid": {
             "fields": {
               "code": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "reason": {
+                "optional": true,
                 "rule": {
                   "kind": "text"
                 }
@@ -3903,8 +3930,7 @@
             "kind": "object"
           },
           "unknown": true
-        },
-        "since": 2
+        }
       }
     }
   }

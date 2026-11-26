@@ -24,7 +24,10 @@ export type ScheduleLocalOptions = Readonly<{
   sql: ScheduleManagementSqlOptions
   worker: Parameters<typeof createScheduleCalculationWorker>[0]
   prediction: Omit<SchedulePredictionDependencies, 'calculator'>
-  management: Omit<ScheduleManagementDependencies, 'store' | 'persistence' | 'definitions'>
+  management: Omit<
+    ScheduleManagementDependencies,
+    'store' | 'persistence' | 'definitions' | 'executor'
+  >
   query: Omit<
     ScheduleQueryDependencies,
     'store' | 'prediction' | 'clock' | 'monotonicClock' | 'history'
@@ -57,6 +60,7 @@ export async function createScheduleLocalApplication(
       ...options.management,
       ...backend,
       definitions: prediction.definitions,
+      ...(options.dispatch === undefined ? {} : { executor: options.dispatch.executor }),
     })
     const { queries } = createScheduleQueryApplication({
       ...options.query,

@@ -108,7 +108,7 @@ describe('the Schedules declaration and reads', () => {
     ['draft', { definition: DEFINITION }],
     ['pause', { schedule: 'not-an-id', revision: 1 }],
     ['update', { schedule: ID, revision: 1 }],
-    ['update', { schedule: ID, revision: 1, label: 'a', instruction: 'b' }],
+    ['update', { schedule: ID, revision: 1, label: 'a', instruction: { purpose: 'b' } }],
     ['list', { limit: 500 }],
   ])('refuses %s %j before any service is asked', async (command, params) => {
     const { schedulesParameterCodec } = await import('@omne-harness/schedule-tools')
@@ -198,8 +198,11 @@ describe('each human change as its domain command', () => {
     ],
     [
       'update',
-      { schedule: ID, revision: 2, instruction: '写周报' },
-      { action: 'update', patch: { kind: 'executionText', instruction: '写周报', label: null } },
+      { schedule: ID, revision: 2, instruction: { purpose: '写周报' } },
+      {
+        action: 'update',
+        patch: { kind: 'executionText', instruction: { purpose: '写周报' }, label: null },
+      },
     ],
     [
       'revise',

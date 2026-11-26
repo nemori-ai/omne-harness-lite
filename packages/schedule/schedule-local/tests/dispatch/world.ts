@@ -6,6 +6,7 @@ import {
   ScheduleDefinitionSchema,
   type ScheduleDefinition,
   type ScheduleId,
+  type ScheduleJobExecutor,
 } from '@omne-harness/schedule-contract'
 import {
   createProgramExecutor,
@@ -61,6 +62,8 @@ export type DispatchWorldOptions = Readonly<{
   programs?: Readonly<Record<string, ScheduleProgram>>
   standing?: ScheduleDispatchOptions['standing']
   missingCarriers?: ScheduleDispatchOptions['missingCarriers']
+  /** How the executor of program work judges work before it is saved; absent: it does not judge. */
+  accepts?: NonNullable<ScheduleJobExecutor['accepts']>
   /** The application runs its own dispatcher, as the release does: started with it, woken by its commands. */
   watching?: boolean
 }>
@@ -93,7 +96,9 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
     }),
   }
   const portsOf = (generation?: string, clock: TimeSource = time.source) => {
-    const programs = createProgramExecutor(name => options.programs?.[name], generation)
+    const run = createProgramExecutor(name => options.programs?.[name], generation)
+    const programs: ScheduleJobExecutor =
+      options.accepts === undefined ? run : { ...run, accepts: options.accepts }
     return {
       executor: (work: { kind: string }) => (work.kind === 'program' ? programs : undefined),
       owner: context.owner,

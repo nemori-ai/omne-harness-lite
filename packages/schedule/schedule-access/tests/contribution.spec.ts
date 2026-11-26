@@ -225,7 +225,10 @@ describe('writes', () => {
   it.each([
     ['revision_conflict', { outcome: 'conflict', body: { code: 'revision_conflict' } }],
     ['capacity_exceeded', { outcome: 'limited', body: {} }],
-    ['invalid_transition', { outcome: 'invalid', body: { code: 'invalid_transition' } }],
+    [
+      'invalid_transition',
+      { outcome: 'invalid', body: { code: 'invalid_transition', reason: 'invalid_transition' } },
+    ],
     ['forbidden', { outcome: 'not-visible', body: {} }],
     ['provider_failure', { outcome: 'basis-unavailable' }],
   ])('maps the refusal %s', async (code, outcome) => {
@@ -233,6 +236,17 @@ describe('writes', () => {
     expect(await ops['manage-schedule'](call, manage({ kind: 'stop', reason: null }))).toEqual(
       outcome,
     )
+  })
+
+  it('hands on why the domain found the input invalid: the reason an executor gave for refusing work reaches the person', async () => {
+    const why = { ...error('invalid_input'), message: 'A1.evidence: 无人值守的目标要有证据' }
+    const { ops } = world({ execute: { kind: 'rejected', error: why } })
+    expect(
+      await ops['manage-schedule'](
+        call,
+        manage({ kind: 'edit', instruction: tree({ purpose: '写周报' }) }),
+      ),
+    ).toEqual({ outcome: 'invalid', body: { code: 'invalid_input', reason: why.message } })
   })
 
   it('derives the same operation key from the same client id, and refuses an invalid definition before the domain', async () => {
@@ -475,7 +489,10 @@ describe('the remaining human actions', () => {
 
   it('sends an edit, a revision of a draft and a replacement as their domain commands', async () => {
     const { ops, asked } = world({ execute: committed })
-    await ops['manage-schedule'](call, manage({ kind: 'edit', instruction: '写周报' }))
+    await ops['manage-schedule'](
+      call,
+      manage({ kind: 'edit', instruction: tree({ purpose: '写周报' }) }),
+    )
     await ops['manage-schedule'](
       call,
       manage({ kind: 'revise', definition: DEFINITION, reason: '改时间' }),
@@ -485,7 +502,10 @@ describe('the remaining human actions', () => {
       manage({ kind: 'replace', definition: DEFINITION, reason: '换' }),
     )
     expect(asked.map(([, input]) => input)).toMatchObject([
-      { action: 'update', patch: { kind: 'executionText', instruction: '写周报', label: null } },
+      {
+        action: 'update',
+        patch: { kind: 'executionText', instruction: { purpose: '写周报' }, label: null },
+      },
       { action: 'reviseDraft', reason: '改时间', definition: { label: '交月报' } },
       { action: 'replace', reason: '换', successor: { label: '交月报' } },
     ])

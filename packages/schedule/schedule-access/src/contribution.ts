@@ -29,6 +29,7 @@ import { createJobObservation } from './observe-jobs.ts'
 import {
   cardOf,
   definitionOf,
+  instructionOf,
   detailOf,
   historyRowOf,
   instantOf,
@@ -71,11 +72,8 @@ function refused(error: ScheduleDomainError, declared: readonly string[]): never
   if (refusal.outcome === 'denied' || refusal.outcome === 'basis-unavailable')
     return refusal as never
   if (!declared.includes(refusal.outcome)) return UNAVAILABLE as never
-  return (
-    'code' in refusal
-      ? { outcome: refusal.outcome, body: { code: refusal.code } }
-      : { outcome: refusal.outcome, body: {} }
-  ) as never
+  const { outcome, ...body } = refusal
+  return { outcome, body } as never
 }
 
 /** The business identity of a write is derived from the tenant and the client's id, so a resend is the same write. */
@@ -120,12 +118,15 @@ function commandOf(tenant: string, body: Manage): ScheduleCommand | undefined {
         action: 'update',
         patch: { kind: 'label', label: action.label },
       } as ScheduleCommand
-    case 'edit':
+    case 'edit': {
+      const instruction = instructionOf(action.instruction)
+      if (instruction === undefined) return undefined
       return {
         ...common,
         action: 'update',
-        patch: { kind: 'executionText', instruction: action.instruction, label: null },
+        patch: { kind: 'executionText', instruction, label: null },
       } as ScheduleCommand
+    }
     case 'revise':
     case 'replace': {
       const definition = definitionOf(action.definition)

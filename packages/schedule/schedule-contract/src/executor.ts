@@ -20,6 +20,11 @@ export type ScheduleExecutorCheck =
   | Readonly<{ kind: 'unavailable' | 'unsupported'; reason: string }>
   | ScheduleExecutorUnknown
 
+export type ScheduleExecutorAcceptance =
+  | Readonly<{ kind: 'accepted' }>
+  | Readonly<{ kind: 'refused'; reason: string }>
+  | ScheduleExecutorUnknown
+
 export type ScheduleExecutorStart =
   | Readonly<{ kind: 'started'; executionRef: string; running: boolean }>
   | Readonly<{ kind: 'notStarted'; recoverable: boolean; reason: string }>
@@ -40,8 +45,9 @@ export type ScheduleExecutorStop =
   | Readonly<{ kind: 'sent' | 'confirmed' }>
   | ScheduleExecutorUnknown
 
-/** One way of carrying out a Job's work. Asking it to start the same Job again answers the same execution. */
+/** One way of carrying out a Job's work. Asking it to start the same Job again answers the same execution. `accepts` judges work before it is saved; without it every work of the path stands. */
 export interface ScheduleJobExecutor {
+  accepts?(work: ScheduleWork): Promise<ScheduleExecutorAcceptance>
   check(job: ScheduleExecutorJob): Promise<ScheduleExecutorCheck>
   start(job: ScheduleExecutorJob): Promise<ScheduleExecutorStart>
   inspect(job: ScheduleExecutorJob): Promise<ScheduleExecutorInspection>

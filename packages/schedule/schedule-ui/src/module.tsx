@@ -13,7 +13,7 @@ export const SCHEDULE_PAGE_ORDER = 12
 /** Where a release card draws a typed detail: the assembly hands in the point, keyed by kind. */
 export type ScheduleUiOptions = Readonly<{ releaseDetail?: RenderPointSink<string> }>
 
-/** The schedule page, placed whether or not `schedule/v2` is served; and, when the assembly
+/** The schedule page, placed whether or not `schedule/v3` is served; and, when the assembly
  * hands in the point, how a release card draws a call that would bring a schedule into effect. */
 export function createScheduleUiModule(options: ScheduleUiOptions = {}) {
   return defineUiModule({

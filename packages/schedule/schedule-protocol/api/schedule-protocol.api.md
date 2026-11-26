@@ -48,6 +48,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly "basis-unavailable": true;
                 readonly denied: true;
@@ -145,6 +146,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly unsupported: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
@@ -178,6 +180,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly unsupported: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
@@ -231,6 +234,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly unsupported: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
@@ -327,6 +331,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly unsupported: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
@@ -350,7 +355,7 @@ export declare const scheduleProtocol: {
                     readonly kind: "rename";
                     readonly label: string;
                 } | {
-                    readonly instruction: string;
+                    readonly instruction: import("@omne-harness/json-text").JsonValue;
                     readonly kind: "edit";
                 } | {
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -407,7 +412,7 @@ export declare const scheduleProtocol: {
                     readonly kind: "rename";
                     readonly label: string;
                 } | {
-                    readonly instruction: string;
+                    readonly instruction: import("@omne-harness/json-text").JsonValue;
                     readonly kind: "edit";
                 } | {
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -475,6 +480,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
                 readonly "basis-unavailable": true;
@@ -485,7 +491,6 @@ export declare const scheduleProtocol: {
             readonly effect: 'read';
             readonly limit: 'small';
             readonly countsAsAccess: true;
-            readonly since: 2;
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly cursor: string | null;
                 readonly limit: number;
@@ -532,7 +537,6 @@ export declare const scheduleProtocol: {
             readonly effect: 'read';
             readonly limit: 'small';
             readonly countsAsAccess: true;
-            readonly since: 2;
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly job: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
@@ -581,7 +585,6 @@ export declare const scheduleProtocol: {
             readonly effect: 'commit';
             readonly limit: 'small';
             readonly countsAsAccess: true;
-            readonly since: 2;
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly actionId: string;
                 readonly job: string;
@@ -628,7 +631,6 @@ export declare const scheduleProtocol: {
             readonly effect: 'read';
             readonly limit: 'small';
             readonly countsAsAccess: true;
-            readonly since: 2;
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly actionId: string;
                 readonly job: string;
@@ -667,6 +669,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly conflict: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
@@ -680,7 +683,6 @@ export declare const scheduleProtocol: {
             readonly effect: 'commit';
             readonly limit: 'small';
             readonly countsAsAccess: true;
-            readonly since: 2;
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly startId: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
@@ -729,7 +731,6 @@ export declare const scheduleProtocol: {
             readonly effect: 'read';
             readonly limit: 'small';
             readonly countsAsAccess: true;
-            readonly since: 2;
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly startId: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
@@ -738,10 +739,9 @@ export declare const scheduleProtocol: {
         };
     };
     readonly name: "schedule";
-    readonly major: 2;
+    readonly major: 3;
     readonly observations: {
         readonly 'observe-jobs': {
-            readonly since: 2;
             readonly identity: "login";
             readonly open: import("@omne-harness/public-contract").Codec<{
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;

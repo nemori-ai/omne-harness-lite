@@ -62,7 +62,10 @@ export type JobsDispatcher = Readonly<{
     work: ScheduleWork,
     key: string,
     by: 'human' | 'agent' | 'system',
-  ): Promise<Readonly<{ kind: 'started' | 'unknown' | 'conflict'; jobId: string }>>
+  ): Promise<
+    | Readonly<{ kind: 'started' | 'unknown' | 'conflict'; jobId: string }>
+    | Readonly<{ kind: 'refused'; jobId: string; reason: string }>
+  >
 }>
 
 type Ports = Readonly<{
@@ -149,6 +152,11 @@ export function createScheduleJobs(ports: Ports): ScheduleJobs {
         ctx.actor.kind,
       )
       if (answer.kind === 'conflict') return fail(ctx, 'operation_key_conflict')
+      if (answer.kind === 'refused')
+        return {
+          kind: 'error',
+          error: domainError('invalid_input', ctx.requestId, answer.reason),
+        }
       if (answer.kind === 'unknown')
         return { kind: 'ok', value: { outcome: 'unknown', detail: null } }
       return {

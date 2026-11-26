@@ -131,7 +131,8 @@ export const schedulesSummaries: Readonly<Record<SchedulesCommandName, string>> 
   list: 'List schedules, newest first.',
   show: 'One schedule: definition, state, author and the next time.',
   history: 'The revisions of one schedule.',
-  update: 'Rename a schedule or change its instruction text. Give the revision you read.',
+  update:
+    'Rename a schedule or change its instruction: the goal body its agent work is to achieve. Give the revision you read.',
   revise: 'Rewrite a draft. Give the revision you read.',
   replace: 'Replace the rule of an active schedule; the old one becomes superseded.',
   promote: 'Bring a draft into effect.',

@@ -168,10 +168,10 @@ export function requirementText(tree: unknown): string {
     kind?: string
     programRef?: string
     input?: unknown
-    instruction?: string
+    instruction?: { purpose?: string }
   } | null
   if (work?.kind === 'program')
     return `程序 ${work.programRef ?? ''}，输入 ${JSON.stringify(work.input ?? {})}`
-  if (work?.kind === 'agent') return work.instruction ?? ''
+  if (work?.kind === 'agent') return work.instruction?.purpose ?? ''
   return '没有可读的要求'
 }

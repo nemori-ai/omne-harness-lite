@@ -231,10 +231,10 @@ const SPECS: Readonly<Record<string, Spec>> = {
     kind: 'rename',
     label: text(read.values, '--label'),
   })),
-  edit: manage(['--instruction'], ['--instruction'], read => ({
-    kind: 'edit',
-    instruction: text(read.values, '--instruction'),
-  })),
+  edit: manage(['--instruction-file'], ['--instruction-file'], read => {
+    const instruction = read.file('--instruction-file')
+    return typeof instruction === 'string' ? instruction : { kind: 'edit', instruction }
+  }),
   revise: rework('revise'),
   replace: rework('replace'),
   promote: control('promote'),

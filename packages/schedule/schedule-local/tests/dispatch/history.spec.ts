@@ -185,4 +185,35 @@ describe('reading, cancelling and starting one Job', { tags: ['slow'], timeout: 
       await w.close()
     }
   })
+
+  it('work the executor of its path refuses is not saved: not as a schedule, not as a direct Job', async () => {
+    const asked: unknown[] = []
+    const w = await dispatchWorld({
+      programs: { probe: untilStopped },
+      watching: true,
+      accepts: async given => {
+        asked.push(given)
+        return { kind: 'refused', reason: 'input.text: 不能为空' }
+      },
+    })
+    try {
+      const refused = {
+        kind: 'error',
+        error: { code: 'invalid_input', message: 'input.text: 不能为空' },
+      }
+      const created = await w.app.commands.create(context, {
+        definition: everyMinute(),
+        initial: { kind: 'active' },
+        meta: { operationKey: 'refused-create', expectedRevision: null },
+      })
+      expect(created).toMatchObject({ ...refused, kind: 'rejected' })
+      expect(w.rows('SELECT schedule_id FROM sc_schedules')).toEqual([])
+      const started = await w.app.jobs?.start(context, { work, operationKey: 'refused-start' })
+      expect(started).toMatchObject(refused)
+      expect(w.rows('SELECT job_id FROM sc_jobs')).toEqual([])
+      expect(asked).toEqual([work, work])
+    } finally {
+      await w.close()
+    }
+  })
 })
