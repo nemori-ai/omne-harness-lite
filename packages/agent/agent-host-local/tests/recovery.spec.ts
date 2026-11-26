@@ -201,6 +201,46 @@ describe('the recovery entry', () => {
   })
 })
 
+describe('a handover asked through the recovery entry', () => {
+  const asked = (host: World, authority: Awaited<ReturnType<typeof openExecution>>['authority']) =>
+    host.recovery.handOver({
+      ...caller('a'),
+      execution: EXECUTION,
+      operation: operation('hand-over-1'),
+      authority,
+      reason: evidence('reload'),
+    })
+
+  it('answers unavailable when no runtime here holds the attachment, and leaves it', async () => {
+    const host = await world()
+    const opened = await openExecution(host, unknownInstance)
+    expect(await asked(host, opened.authority)).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'agent-host' },
+    })
+    expect(host.controls.access.check.calls.map(call => call.operation)).toEqual(['detach'])
+    const snapshot = ok(await host.recovery.load({ ...caller('a'), execution: EXECUTION }))
+    expect(snapshot.executionAttachment).toEqual(opened.authority)
+  })
+
+  it('keeps a refusal of the access check and asks no runtime', async () => {
+    const host = await world()
+    const opened = await openExecution(host, unknownInstance)
+    host.refuseNext('detach')
+    expect(await asked(host, opened.authority)).toEqual({
+      failure: { kind: 'denied', action: 'detach' },
+    })
+  })
+
+  it('asks the runtime the host runs, which answers for itself', async () => {
+    const host = await world()
+    const { instance } = ok(await host.provision.acquire(slotOf('a')))
+    const opened = await openExecution(host, instance)
+    expect(await asked(host, opened.authority)).toEqual({ failure: { kind: 'stale-advance' } })
+    const snapshot = ok(await host.recovery.load({ ...caller('a'), execution: EXECUTION }))
+    expect(snapshot.executionAttachment).toEqual(opened.authority)
+  })
+})
+
 describe('the judgment of the runtime that holds an attachment (contact)', () => {
   async function provingWorld(lostContact: (instance: AgentInstanceId) => DurableEvidence | null) {
     const made = await openWorld({ factory: 'duties', lostContact })
