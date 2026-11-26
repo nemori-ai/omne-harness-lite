@@ -32,8 +32,8 @@ describe('what a run that starts now adopts', () => {
           run,
         }),
       }))
-      expect(value.same).toEqual({ ok: { candidate: candidateOf('alpha') } })
-      expect(value.stale).toEqual({ ok: { candidate: candidateOf('alpha') } })
+      expect(value.same).toEqual({ ok: { kind: 'adopt', candidate: candidateOf('alpha') } })
+      expect(value.stale).toEqual({ ok: { kind: 'adopt', candidate: candidateOf('alpha') } })
     },
   )
 

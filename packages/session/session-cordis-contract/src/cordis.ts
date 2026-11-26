@@ -278,6 +278,7 @@ export abstract class AgentDrivePortService extends Service implements AgentDriv
   abstract readonly resume: AgentDrivePort['resume']
   abstract readonly control: AgentDrivePort['control']
   abstract readonly detach: AgentDrivePort['detach']
+  abstract readonly handOver: AgentDrivePort['handOver']
   abstract readonly recordResult: AgentDrivePort['recordResult']
   abstract readonly query: AgentDrivePort['query']
   abstract readonly inspect: AgentDrivePort['inspect']

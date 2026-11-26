@@ -19,8 +19,9 @@ import { heldDefinitionOf } from '../rows/tool-host/held-definitions.ts'
 import { currentHeldTool } from '../rows/tool-host/held-current.ts'
 import { heldReadingOf } from '../rows/tool-host/held-now.ts'
 import { workspaceToolBody } from '../rows/tool-host/workspace-tools.ts'
-import { inWorkspace } from '../rows/tenant-assets/layers.ts'
+import { inWorkspace, revisionOf } from '../rows/tenant-assets/layers.ts'
 import {
+  HELD_TOOL_OWNER,
   heldCandidateOf,
   heldToolAuthority,
   heldToolStanding,
@@ -131,8 +132,18 @@ function verifyHeld(read: HeldRead, authority: ToolAuthority): ReturnType<Verify
   const standing = heldToolStanding(read.held, layer.tenant, asset.name)
   if (standing.kind === 'unavailable') return unavailable('what the tenant holds cannot be read')
   if (standing.kind === 'none') return fail({ kind: 'denied' })
-  if (!sameHeld(authority, standing.candidate))
-    return fail({ kind: 'invalid', reason: 'the tenant holds another version now' })
+  if (!sameHeld(authority, standing.candidate)) {
+    const tenant = tenantCodec.encode(layer.tenant)
+    return fail({
+      kind: 'missing',
+      evidence: Object.freeze({
+        owner: HELD_TOOL_OWNER,
+        record: `tool-holding/${tenant.ok ? tenant.value : ''}/${asset.name}`,
+        revision: revisionOf(standing.candidate),
+        digest: standing.candidate.version,
+      }),
+    })
+  }
   // The verified value is built from what the registry holds, never from the caller's object.
   return succeed(
     heldToolAuthority(layer.tenant, asset.name, standing.candidate) as VerifiedAuthority,

@@ -293,7 +293,7 @@ describe('release catalog lawful inclusion', () => {
           tenant: w.tenant,
           session: w.session,
           lifecycle: 'active',
-          frozen: { cause: 'tool-shape-lost', evidence, commit: evidence },
+          frozen: { cause: 'tool-shape-lost', capability: 'probe', evidence, commit: evidence },
           residents: [],
           definition: { name: 'coding', adopted: w.adopted },
         }),

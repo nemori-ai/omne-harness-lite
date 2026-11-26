@@ -153,7 +153,7 @@ describe('Session Todo facts', () => {
         input: {
           ...s.base,
           operation: operationId('freeze'),
-          verdict: { cause: 'tool-shape-lost', evidence: evidence('frozen') },
+          verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('frozen') },
         },
       }),
       'freeze',

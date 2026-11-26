@@ -28,6 +28,7 @@ Commands
   omne list-models [--tenant <tenant>]                                                                                    List the models of the tenant: which can be selected, and why one cannot.
   omne archive-session --session <id>                                                                                     Archive a session: its run ends and its background calls are withdrawn.
   omne unarchive-session --session <id>                                                                                   Take a session back from the archive.
+  omne reload-session --session <id>                                                                                      Take the definition of a session as it is now: idle, the next run uses it.
   omne read-permission-mode --session <id>                                                                                Read the permission mode of a session and the revision it stands at.
   omne change-permission-mode --session <id> --mode <mode> --expected-revision <n>                                        Change the permission mode of a session (never, auto_permission or bypass-permissions) at the revision read.
   omne list-sessions [--relation <kind>] [--parent <id>] [--attendance <who>] [--definition <name>]                       List the sessions that are not archived, each with its relation (main, child or handoff) and who attends it (attended or unattended).

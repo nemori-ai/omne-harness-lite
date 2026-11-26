@@ -462,9 +462,15 @@ const cancelRun: ExistingCommand<Targeted & { run: string; urgency: 'graceful' |
   },
 }
 
-// Archive and unarchive are controls of the session: a control id makes a retry the same one.
+const SESSION_CONTROLS = [
+  ['archive-session', 'Archive a session: its run ends and its background calls are withdrawn.'],
+  ['unarchive-session', 'Take a session back from the archive.'],
+  ['reload-session', 'Take the definition of a session as it is now: idle, the next run uses it.'],
+] as const
+
+// Archive, unarchive and reload are controls of the session: a control id makes a retry the same one.
 const sessionControl = (
-  name: 'archive-session' | 'unarchive-session',
+  name: 'archive-session' | 'unarchive-session' | 'reload-session',
 ): ExistingCommand<Targeted> => ({
   kind: 'existing',
   name,
@@ -944,20 +950,13 @@ export const productionCommands: readonly CommandSpec[] = [
     summary: 'List the models of the tenant: which can be selected, and why one cannot.',
     run: (args, output, environment) => runSession(listModels, args, output, environment),
   },
-  {
-    name: 'archive-session',
+  ...SESSION_CONTROLS.map(([name, summary]) => ({
+    name,
     usage: '--session <id>',
-    summary: 'Archive a session: its run ends and its background calls are withdrawn.',
-    run: (args, output, environment) =>
-      runSession(sessionControl('archive-session'), args, output, environment),
-  },
-  {
-    name: 'unarchive-session',
-    usage: '--session <id>',
-    summary: 'Take a session back from the archive.',
-    run: (args, output, environment) =>
-      runSession(sessionControl('unarchive-session'), args, output, environment),
-  },
+    summary,
+    run: (args: readonly string[], output: CliOutput, environment: CommandEnvironment) =>
+      runSession(sessionControl(name), args, output, environment),
+  })),
   {
     name: 'read-permission-mode',
     usage: '--session <id>',

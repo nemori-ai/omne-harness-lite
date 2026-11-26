@@ -1,6 +1,6 @@
-import type { DurableEvidence, RunId, SessionOperationId } from './identity.ts'
-import type { WorkSnapshot, ResidentAdoption, RunEnd, RunTerminal } from './values.ts'
-import type { HistoryEntry, SessionFailure } from './faces.ts'
+import type { Adoption, DurableEvidence, RunId, SessionOperationId } from './identity.ts'
+import type { AdoptionNote, WorkSnapshot, ResidentAdoption, RunEnd, RunTerminal } from './values.ts'
+import type { HistoryEntry, SessionFailure, StartAdoption } from './faces.ts'
 import { encodeEntry } from './entries.ts'
 import { deriveDriveOperation, digestOf } from './operations.ts'
 import type { Decision, EncodedEntry } from './judgments.ts'
@@ -122,6 +122,31 @@ export function residentEntries(
   )
     return invalid('residentAdoption.keys', 'keys must cover the complete resident capability set')
   return entries([...out, ...segments.entries])
+}
+
+export function adoptionEntries(
+  snapshot: WorkSnapshot,
+  material: StartAdoption | undefined,
+  candidate: Adoption,
+  current: Adoption,
+  source: DurableEvidence,
+): Decision {
+  if (material?.verdict !== undefined)
+    return rejected({ kind: 'frozen', verdict: material.verdict })
+  const residents = residentEntries(snapshot, material, source)
+  if (residents.kind !== 'entries') return residents
+  if (digestOf(candidate) === digestOf(current) && material === undefined) return residents
+  const keys = material === undefined ? {} : { residentKeys: material.keys }
+  return entries([
+    ...residents.entries,
+    encodeEntry({ kind: 'session.adoption', adopted: candidate, ...keys }, originOf(source)),
+  ])
+}
+
+export function adoptionNoted(note: AdoptionNote | undefined, source: DurableEvidence): Decision {
+  if (note === undefined) return entries([])
+  if (note.reason.length === 0) return invalid('note', 'no reason')
+  return entries([encodeEntry({ kind: 'session.adoption-noted', note }, originOf(source))])
 }
 
 export function terminalEntries(

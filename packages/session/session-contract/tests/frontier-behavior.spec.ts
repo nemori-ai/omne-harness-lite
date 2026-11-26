@@ -315,7 +315,11 @@ describe('same-root Session frontier', () => {
       input: {
         ...f.scene.base,
         operation: operationId('freeze'),
-        verdict: { cause: 'tool-shape-lost' as const, evidence: evidence('shape-lost') },
+        verdict: {
+          cause: 'tool-shape-lost' as const,
+          capability: 'probe',
+          evidence: evidence('shape-lost'),
+        },
       },
     }
     const result = decide(snapshot, command, [], null, { compaction: null, history: reads })
@@ -323,7 +327,7 @@ describe('same-root Session frontier', () => {
     const revision = String(BigInt(snapshot.revision) + 1n) as WorkSnapshot['revision']
     const rows = [
       encodeEntry(
-        { kind: 'session.frozen', evidence: evidence('shape-lost') },
+        { kind: 'session.frozen', capability: 'probe', evidence: evidence('shape-lost') },
         { owner: 'session', via: 'test', source: evidence('freeze') },
       ),
     ].map((entry, i) => ({ ...entry, id: String(i) as HistoryEntry['id'], revision }))
@@ -490,7 +494,7 @@ describe('whole release batches and historical taken', () => {
       input: {
         ...s.base,
         operation: operationId('freeze-active'),
-        verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+        verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
       },
     })
     expect('ok' in frozen).toBe(true)

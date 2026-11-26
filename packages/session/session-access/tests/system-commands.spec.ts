@@ -140,8 +140,17 @@ describe('a system command does its own operation after it is written into the s
     })
   })
 
+  it('/reload asks the session to reload, as the person who said it', async () => {
+    const done = await command('reload', '', { operation: 'reload-session', fields: {} })
+    expect(done.answer).toMatchObject({
+      outcome: 'succeeded',
+      body: { operation: { name: 'reload', outcome: 'succeeded' } },
+    })
+    expect(done.methods).toContain('reloadSession')
+  })
+
   it('an operation the release does not do is refused by its name', async () => {
-    const { answer } = await command('reload', '', { operation: 'reload-session', fields: {} })
-    expect(answer).toEqual(refused('reload: unsupported: reload-session'))
+    const { answer } = await command('compact', '', { operation: 'compact-session', fields: {} })
+    expect(answer).toEqual(refused('compact: unsupported: compact-session'))
   })
 })

@@ -18,16 +18,12 @@ export type ArgumentCompletion = ArgumentPlace &
 
 const SEPARATORS = '-/'
 
-const entryAt = (lookup: Lookup, command: string): NamedEntry | undefined =>
-  lookup.entries.find(entry => entry.full === command) ?? lookup.head.get(command)
-
 function placed(text: string, caret: number, lookup: Lookup) {
   const place = argumentAt(text, caret)
-  const entry = place === null ? undefined : entryAt(lookup, place.command)
-  const param = place === null ? undefined : entry?.params?.[place.index]
-  return place === null || entry === undefined || param?.candidates !== true
-    ? null
-    : { place, entry, param }
+  if (place === null) return null
+  const entry = lookup.head.get(place.command)
+  const param = entry?.params?.[place.index]
+  return entry === undefined || param?.candidates !== true ? null : { place, entry, param }
 }
 
 export function askingAt(text: string, caret: number, lookup: Lookup): Asking | null {
@@ -45,10 +41,9 @@ function tierOfCandidate(query: string, candidate: Candidate): Tier | null {
 /** The candidates that match what is typed, most alike first; ties keep the order the owner gave. */
 export function rankCandidates(candidates: readonly Candidate[], query: string): readonly Offer[] {
   return candidates
-    .map((candidate, at) => ({ candidate, at, tier: tierOfCandidate(query, candidate) }))
-    .filter((offer): offer is Offer & { at: number } => offer.tier !== null)
-    .sort((a, b) => a.tier - b.tier || a.at - b.at)
-    .map(({ candidate, tier }) => ({ candidate, tier }))
+    .map(candidate => ({ candidate, tier: tierOfCandidate(query, candidate) }))
+    .filter((offer): offer is Offer => offer.tier !== null)
+    .toSorted((a, b) => a.tier - b.tier)
 }
 
 export function argumentCompletion(
@@ -94,7 +89,7 @@ export function argumentBlock(
   offered: Offered | null,
 ): string | null {
   if (recognition.kind !== 'command' || offered === null || offered.candidates === null) return null
-  const entry = entryAt(lookup, recognition.name)
+  const entry = lookup.head.get(recognition.name)
   const param = entry?.params?.[offered.param]
   if (entry?.full !== offered.command || param?.candidates !== true) return null
   const word = splitArguments(recognition.args)[offered.param]

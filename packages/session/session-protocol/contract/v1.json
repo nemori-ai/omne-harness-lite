@@ -2,11 +2,12 @@
   "digests": {
     "1": "sha256:e7a3729c5efd373af845eabe7f0e7cba8997d81afdecbc3d79b37ddb8d813417",
     "2": "sha256:46c6ac16c84ea1202c0a6c70b43a9ec65d6811c9aa553e456d8f502779da8eaa",
-    "3": "sha256:b51f99c77214ad84d43653673cc3a107eb5ad7bd39982e78dbd84c2779123f76"
+    "3": "sha256:b51f99c77214ad84d43653673cc3a107eb5ad7bd39982e78dbd84c2779123f76",
+    "4": "sha256:50b9c0c46734022478ad91cdbff98ad5440ec49c318fde0e22f4d2a65c5d6c64"
   },
   "major": 1,
   "name": "session",
-  "revision": 3,
+  "revision": 4,
   "rules": {
     "observations": {
       "observe-session": {
@@ -2720,6 +2721,101 @@
             "kind": "object"
           }
         }
+      },
+      "reload-session": {
+        "body": {
+          "fields": {
+            "controlId": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "session": {
+              "rule": {
+                "kind": "session"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "archived": {
+            "fields": {},
+            "kind": "object"
+          },
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "cancelled",
+                    "not-current",
+                    "changed"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "denied": true,
+          "frozen": {
+            "fields": {
+              "capability": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "string"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "kind": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "handed-over",
+                    "adopted",
+                    "no-change"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        },
+        "since": 4
       },
       "retry-run": {
         "body": {

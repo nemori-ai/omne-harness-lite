@@ -41,6 +41,7 @@ import type {
   DeclarationChange,
   DerivedMessage,
   ModelProvenance,
+  AdoptionNote,
   FreezeVerdict,
   IdleObservation,
   InitializationResult,
@@ -82,6 +83,7 @@ export type SessionFailure =
         | 'login-required'
         | 'not-found'
         | 'nothing-pending'
+        | 'cancelled'
     }>
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>
 export type CommitReceipt = Readonly<{
@@ -98,6 +100,10 @@ export type OperationResolution =
   | Readonly<{ kind: 'not-committed'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'unknown' }>
 export type EntryClass = 'interactive' | 'dispatch'
+export type ReloadOutcome =
+  | Readonly<{ kind: 'adopted'; receipt: CommitReceipt }>
+  | Readonly<{ kind: 'no-change' }>
+  | Readonly<{ kind: 'handed-over'; receipt: CommitReceipt }>
 export type StartedRun = Readonly<{
   receipt: CommitReceipt
   advance: AdvanceRef
@@ -105,6 +111,7 @@ export type StartedRun = Readonly<{
   first: InputId
   execution: string
 }>
+export type NotedStart = Readonly<{ receipt: CommitReceipt; noted: AdoptionNote }>
 export type Completion = Readonly<{
   consumption: ConsumptionId
   result: ProducedResult
@@ -170,8 +177,9 @@ export interface SessionWork<P> {
         candidate: Adoption
         instance: AgentInstanceRef
         residentAdoption?: StartAdoption
+        note?: AdoptionNote
       }>,
-  ): Reply<StartedRun>
+  ): Reply<StartedRun | NotedStart>
   claim(
     input: Mutation<P> &
       Readonly<{
@@ -184,14 +192,15 @@ export interface SessionWork<P> {
   reload(
     input: Mutation<P> &
       Readonly<{
-        run: RunId
+        run: RunId | null
         candidate: Adoption
-        instance: AgentInstanceRef
+        instance?: AgentInstanceRef
         expected: SessionRevision
-        handover: DurableEvidence
+        handover?: DurableEvidence
         residentAdoption?: StartAdoption
       }>,
-  ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
+  ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef | null }>>
+  reloadSession(input: Mutation<P>): Reply<ReloadOutcome>
   recordMessage(
     input: Mutation<P> &
       Readonly<{ participation: Participation; value: AdmittedMessage | DeliveredInputs }>,

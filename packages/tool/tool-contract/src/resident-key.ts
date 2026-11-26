@@ -107,6 +107,64 @@ export function encodeResidentKey(key: ToolBindingKey): Outcome<string, Resident
   return succeed(JSON.stringify(parts))
 }
 
+function layerOf(kind: string, id: string): Outcome<SourceLayer, ResidentKeyFailure> {
+  switch (kind) {
+    case 'official':
+      return id === '' ? succeed({ kind: 'official' }) : refuse('layer', 'identity')
+    case 'organization': {
+      const parsed = organizationCodec.parse(id)
+      return parsed.ok
+        ? succeed({ kind: 'organization', organization: parsed.value })
+        : refuse('layer.organization', 'identity')
+    }
+    case 'tenant': {
+      const parsed = tenantCodec.parse(id)
+      return parsed.ok
+        ? succeed({ kind: 'tenant', tenant: parsed.value })
+        : refuse('layer.tenant', 'identity')
+    }
+    case 'workspace': {
+      const parsed = workspaceCodec.parse(id)
+      return parsed.ok
+        ? succeed({ kind: 'workspace', workspace: parsed.value })
+        : refuse('layer.workspace', 'identity')
+    }
+    default:
+      return refuse('layer.kind', 'type')
+  }
+}
+
+/** The binding key a resident key was encoded from; it fails on any text encodeResidentKey does not make. */
+export function decodeResidentKey(encoded: string): Outcome<ToolBindingKey, ResidentKeyFailure> {
+  let parts: unknown
+  try {
+    parts = JSON.parse(encoded)
+  } catch {
+    return refuse('key', 'type')
+  }
+  if (!Array.isArray(parts) || parts.length !== 8 || parts.some(part => typeof part !== 'string'))
+    return refuse('key', 'type')
+  const [version, kind, id, name, owner, adoptionName, revision, digest] = parts as string[]
+  if (version !== KEY_VERSION) return refuse('key', 'type')
+  const layer = layerOf(kind ?? '', id ?? '')
+  if ('failure' in layer) return layer
+  const key: ToolBindingKey = {
+    layer: layer.ok,
+    asset: {
+      name: name ?? '',
+      adoption: {
+        owner: owner ?? '',
+        name: adoptionName ?? '',
+        revision: revision ?? '',
+        digest: digest ?? '',
+      },
+    },
+  }
+  const again = encodeResidentKey(key)
+  if ('failure' in again) return again
+  return again.ok === encoded ? succeed(Object.freeze(key)) : refuse('key', 'identity')
+}
+
 const jsonText = (value: string): JsonValue => ({ kind: 'string', value })
 const jsonObject = (entries: readonly (readonly [string, JsonValue])[]): JsonValue => ({
   kind: 'object',

@@ -27,6 +27,7 @@ function setup() {
   const options = {
     readBindings: () => ({ snapshot: fixture.registry.snapshot }),
     readGenerations: () => scripted.generations,
+    authorityOf: () => undefined,
     definitionFor: (capability: string) =>
       capability === fixture.authority.asset.name ? definition : undefined,
   } satisfies AdoptionPlannerOptions<string>
@@ -173,6 +174,7 @@ describe('adoption planner: a capability that was not recorded', () => {
     if ('failure' in otherFacts) throw new Error('fixture facts failed')
     const planner = createAdoptionPlanner({
       ...withBindings(f, [entryOf(f, f.fixture.authority, 'live', '1'), otherEntry]),
+      authorityOf: () => undefined,
       definitionFor: () => undefined,
     })
     expect(

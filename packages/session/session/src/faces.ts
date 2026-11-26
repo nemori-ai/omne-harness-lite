@@ -202,6 +202,10 @@ function directoryOf<P>(reads: Reads<P>, caller: SessionCallerClass): SessionDir
   }
 }
 
+/** Only a person reloads a session: the session wires the faces of its intake to the reload it runs. */
+const notReloading = () =>
+  Promise.resolve(fail(unavailable(OWNERS.session, 'only a person reloads')))
+
 export function createFaces<P>(
   input: Readonly<{
     caller: SessionCallerClass
@@ -238,6 +242,7 @@ export function createFaces<P>(
     startRun: mutation('startRun'),
     claim: mutation('claim'),
     reload: mutation('reload'),
+    reloadSession: notReloading,
     recordMessage: mutation('recordMessage'),
     preserveResult: mutation('preserveResult'),
     completeConsumption: mutation('completeConsumption'),
@@ -342,13 +347,11 @@ export function createFaces<P>(
     ...modelViewReads(reads, caller),
   }
 
-  const directory = directoryOf(reads, caller)
-
   return Object.freeze({
     work: Object.freeze(work),
     management: Object.freeze(management),
     reconciliation: Object.freeze(reconciliation),
     history: Object.freeze(history),
-    directory: Object.freeze(directory),
+    directory: Object.freeze(directoryOf(reads, caller)),
   })
 }

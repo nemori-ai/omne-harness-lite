@@ -10,6 +10,7 @@
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
+- `Refusal` · `cordis.d.ts`
 - `ResultPolicyService` · `cordis.d.ts`
 - `ToolAccountsService` · `cordis.d.ts`
 - `ToolAuthorityFailure` · `cordis.d.ts`
@@ -222,11 +223,17 @@ export type ToolAuthorityFailure = Readonly<{
 }> | Readonly<{
     kind: 'unavailable';
     diagnostic: string;
+}> | Readonly<{
+    kind: 'missing';
+    evidence: DurableEvidence;
+}>;
+export type Refusal = Exclude<ToolAuthorityFailure, {
+    kind: 'missing';
 }>;
 export interface ToolContributionAuthority<P> {
     verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>;
     admits(access: Access<P>, layer: SourceLayer): Outcome<void, Exclude<ToolAuthorityFailure, {
-        kind: 'invalid';
+        kind: 'invalid' | 'missing';
     }>>;
 }
 export declare abstract class ToolContributionAuthorityService<P> extends Service implements ToolContributionAuthority<P> {
@@ -707,7 +714,7 @@ import { type TenantId } from '@omne-harness/legal-identity';
 import { type Access, type DurableEvidence, type SourceLayer } from '@omne-harness/tool-contract';
 import { type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolLoadedRegistration, type ToolLoader } from '@omne-harness/tool-contract/provider';
 import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
-import type { ToolAuthorityFailure, ToolGenerations, ToolResidencyReader, ToolResidencyReference, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
+import type { Refusal, ToolGenerations, ToolResidencyReader, ToolResidencyReference, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
 import { type ResidentKeyRoundTripFixture } from './testing-resident-key.ts';
 import { type ScriptedToolGenerations } from './testing-adoption-scripts.ts';
 export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
@@ -779,7 +786,7 @@ export interface MemoryToolBindingRegistry<P> extends ToolBindingRegistryService
     readonly controls: Readonly<{
         asFiber<T>(fiber: string, work: () => T): T;
         endFiber(fiber: string): Promise<void>;
-        verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>;
+        verify(authority: ToolAuthority): Outcome<VerifiedAuthority, Refusal>;
     }>;
 }
 export type ToolBindingGrant = Readonly<{

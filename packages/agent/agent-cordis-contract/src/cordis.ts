@@ -298,6 +298,7 @@ export abstract class AgentExecutionRecoveryService<P>
   abstract readonly load: AgentExecutionRecovery<P>['load']
   abstract readonly reconcile: AgentExecutionRecovery<P>['reconcile']
   abstract readonly detach: AgentExecutionRecovery<P>['detach']
+  abstract readonly handOver: AgentExecutionRecovery<P>['handOver']
   abstract readonly contact: AgentExecutionRecovery<P>['contact']
 }
 export const agentExecutionRecoveryKey = AgentExecutionRecoveryService.provide

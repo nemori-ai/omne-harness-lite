@@ -85,6 +85,7 @@ describe('command catalog', () => {
       'list-models',
       'archive-session',
       'unarchive-session',
+      'reload-session',
       'read-permission-mode',
       'change-permission-mode',
       'list-sessions',
