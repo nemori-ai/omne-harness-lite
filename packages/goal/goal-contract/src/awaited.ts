@@ -45,7 +45,7 @@ export const ExaminationSchema = z.strictObject({
     .nullable()
     .default(null),
 })
-/** What a goal keeps of its examinations: the batch that is out, how many were handed over, and what each criterion was last read as. */
+/** What a goal keeps of its examinations: the batch that is out, how many were handed over, what each criterion was last read as, and `arrived`: a verdict is owed once no round is going (readings came in while one was, or the goal was revised). */
 export type Examination = z.infer<typeof ExaminationSchema>
 export const NO_EXAMINATION: Examination = Object.freeze({
   batch: null,
@@ -157,6 +157,9 @@ export function submissionOf(
 export function owesExamination({ batch, arrived }: Examination): boolean {
   return arrived || batch !== null
 }
+
+export const owingVerdict = (examination: Examination, going: boolean): Examination =>
+  going ? { ...examination, arrived: true } : examination
 
 export function takenBack(before: Examination, now: Examination): Batch | null {
   const was = before.batch

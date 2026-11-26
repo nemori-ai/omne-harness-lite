@@ -6,6 +6,7 @@ import {
   NO_GOAL,
   cancelled,
   keptExamination,
+  owingVerdict,
   NO_EXAMINATION,
   NO_PROGRESS,
   NO_READINGS,
@@ -94,6 +95,9 @@ export function revisedExamination(before: GoalRecord, body: GoalBody) {
   const same = body.criteria.filter(entry => was.get(entry.id) === JSON.stringify(entry))
   return keptExamination(before.examination, new Set(same.map(entry => entry.id)))
 }
+
+const revisedOf = (before: GoalRecord, body: GoalBody, state: GoalState) =>
+  owingVerdict(revisedExamination(before, body).examination, state.status === 'active')
 
 function cardRefusal(entrance: Entrance, state: GoalState, attendance: Attendance) {
   if (entrance.via !== 'card') return null
@@ -199,7 +203,7 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
       history,
       wake,
       observed: null,
-      examination: before === null ? NO_EXAMINATION : revisedExamination(before, body).examination,
+      examination: before === null ? NO_EXAMINATION : revisedOf(before, body, state),
     },
   }
 }

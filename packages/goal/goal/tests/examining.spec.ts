@@ -84,12 +84,25 @@ describe('a batch that is out when the owner changes the goal', () => {
     const touched = decideWrite(waiting(), write({ kind: 'revise', changes: touching }, 'op-2'))
     if (touched.kind !== 'next') throw new Error(touched.kind)
     expect(touched.record.state.revision).toBe(2)
-    expect(touched.record.examination).toEqual({ ...OUT, batch: null })
+    expect(touched.record.examination).toEqual({ ...OUT, batch: null, arrived: true })
     const beside = [
       { op: 'replace', id: 'A3', entry: { ...DRAFT.criteria[2], statement: '写了中文说明' } },
     ]
     const left = decideWrite(waiting(), write({ kind: 'revise', changes: beside }, 'op-3'))
     if (left.kind !== 'next') throw new Error(left.kind)
-    expect(left.record.examination).toEqual(OUT)
+    expect(left.record.examination).toEqual({ ...OUT, arrived: true })
+  })
+
+  it('a revision of a goal that is going owes a verdict once no round is going; one of a paused goal does not', () => {
+    const beside = [
+      { op: 'replace', id: 'A3', entry: { ...DRAFT.criteria[2], statement: '写了中文说明' } },
+    ]
+    const going = decideWrite(waiting(), write({ kind: 'revise', changes: beside }, 'op-2'))
+    if (going.kind !== 'next') throw new Error(going.kind)
+    expect(going.record.examination.arrived).toBe(true)
+    const paused = after(decideCommand(waiting(), { kind: 'pause' }))
+    const still = decideWrite(paused, write({ kind: 'revise', changes: beside }, 'op-3'))
+    if (still.kind !== 'next') throw new Error(still.kind)
+    expect([still.record.state.status, still.record.examination.arrived]).toEqual(['paused', false])
   })
 })

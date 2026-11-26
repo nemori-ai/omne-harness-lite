@@ -368,6 +368,67 @@ describe('a criterion examined by a session of its own, on the release tree', ()
   )
 
   it(
+    'the person revises the goal while a batch is out and no round is going: the examiner is stopped on the old batch, the new revision is handed over without the agent stopping again, and what counts is its reading',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const gate = join(realpathSync(mkdtempSync(join(tmpdir(), 'examine-gate-'))), 'go')
+      const WAIT = 'x-wait-for-the-gate'
+      const script = `n=0; while [ ! -f '${gate}' ] && [ $n -lt 300 ]; do sleep 0.2; n=$((n+1)); done`
+      const params = { command: 'execute', intent: 'play a long game', params: { script } }
+      const waiting = { id: WAIT, tool: 'Shell', arguments: JSON.stringify(params) }
+      const { script: model, seen } = scripted({
+        worker: body =>
+          body.includes(FIRST_RIGHT.id) || !body.includes('A goal was set') ? [] : [FIRST_RIGHT],
+        examiner: (body, batch) => {
+          if (batch.startsWith('examine/1/2/'))
+            return examinerCalls(body, batch, { value: 'holds', note: '照新的正文走了一局' })
+          return body.includes(WAIT) ? [] : [waiting]
+        },
+      })
+      await onReleaseTree({ ...OPTIONS, script: model }, async tree => {
+        const session = await settledSession(tree, 'hello')
+        await setGoal(tree, session)
+        const out = await pollUntil(
+          'the first batch to be taken',
+          () => recordOf(tree, session),
+          record => record.examination.batch?.delivery === 'handed',
+        )
+        const workerRequests = seen.worker.length
+        const entry = { ...SNAKE.criteria[0], statement: '方向键与 WASD 都能控制蛇' }
+        const changes = treeOf([{ op: 'replace', id: 'A1', entry }])
+        const where = { tenant: tenantOf(savedTenant(tree.home)), session: sessionRef(session) }
+        const revised = await tree.clients.goal['write-goal']({
+          ...where,
+          operation: 'op-revise-1',
+          proposal: { kind: 'revise', changes },
+          words: null,
+        } as never)
+        expect(revised).toMatchObject({ outcome: 'succeeded' })
+        const again = await pollUntil(
+          'the batch of the new revision to be out',
+          () => recordOf(tree, session),
+          record => record.examination.batch?.key.revision === 2,
+        )
+        expect(again.examination.used).toBe(2)
+        writeFileSync(gate, '')
+        const done = await settled(tree, session)
+        expect(done.state).toMatchObject({ outcome: { kind: 'achieved' }, revision: 2, rounds: 0 })
+        expect(done.examination.read.A1).toMatchObject({
+          key: { revision: 2 },
+          value: 'holds',
+          note: '照新的正文走了一局',
+        })
+        expect(done.examination.examiner).toBe(out.examination.examiner)
+        expect(seen.worker).toHaveLength(workerRequests)
+        const ended = (await historyOf(tree, done.examination.examiner!))
+          .filter(found => found.kind === 'run.terminal')
+          .map(found => (found.payload as { terminal: { outcome: string } }).terminal.outcome)
+        expect(ended[0]).toBe('cancelled')
+      })
+    },
+  )
+
+  it(
     'once the examinations of the budget are used up no further batch is handed over: the goal ends by its budget, with what the last examination saw',
     { tags: ['slow'], timeout: 300_000 },
     async () => {

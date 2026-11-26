@@ -361,6 +361,49 @@ describe('the readings of a batch handed in with submit', () => {
     expect(w.sessions.woken[0]?.open).toContain('按右键蛇不转向')
   })
 
+  it('a revision that takes back the batch while no round is going owes a verdict too: the criteria of the new revision are handed over at once, nobody has to stop again first', async () => {
+    const w = await handedOver()
+    const entry = { ...SNAKE.criteria[1], statement: '方向键与 WASD 都能控制蛇' }
+    const proposal = { kind: 'revise', changes: [{ op: 'replace', id: 'A2', entry }] } as const
+    value(await w.goals.write(OWNER, w.direct({ proposal, operation: 'op-2' })))
+    expect(w.record().state).toMatchObject({ status: 'active', revision: 2, rounds: 0 })
+    expect(w.record().examination).toMatchObject({ batch: null, arrived: true })
+    await w.goals.reconcile(TENANT)
+    expect(w.examining.cancelled).toEqual([BATCH])
+    expect(w.examining.asked).toEqual([BATCH, 'examine/1/2/call-1'])
+    expect(w.record().examination).toMatchObject({ arrived: false, used: 2 })
+    expect(w.record().examination.batch?.key).toEqual({ revision: 2, written: 'call-1' })
+    expect(w.sessions.woken).toEqual([])
+  })
+
+  it('a revision that leaves something for the agent to do sends it on, when no round is going', async () => {
+    const w = await handedOver()
+    const entry = {
+      ...SNAKE.criteria[2],
+      statement: '写了中文说明',
+      evidence: { kind: 'file', path: 'docs/说明.md' },
+    }
+    const proposal = { kind: 'revise', changes: [{ op: 'replace', id: 'A3', entry }] } as const
+    value(await w.goals.write(OWNER, w.direct({ proposal, operation: 'op-2' })))
+    await w.goals.reconcile(TENANT)
+    expect(w.record().state).toMatchObject({ status: 'active', revision: 2, rounds: 1 })
+    expect(w.sessions.woken.map(wake => wake.kind)).toEqual(['continue'])
+    expect(w.sessions.woken[0]?.open).toContain('写了中文说明')
+    expect(w.examining.asked).toEqual([BATCH])
+  })
+
+  it('a revision made while a round is going leaves the verdict to that round', async () => {
+    const w = await handedOver()
+    w.sessions.run(SESSION, true)
+    const entry = { ...SNAKE.criteria[1], statement: '方向键与 WASD 都能控制蛇' }
+    const proposal = { kind: 'revise', changes: [{ op: 'replace', id: 'A2', entry }] } as const
+    value(await w.goals.write(OWNER, w.direct({ proposal, operation: 'op-2' })))
+    await w.goals.reconcile(TENANT)
+    expect(w.examining.asked).toEqual([BATCH])
+    expect(w.sessions.woken).toEqual([])
+    expect(w.record().state).toMatchObject({ status: 'active', rounds: 0 })
+  })
+
   it('the verdict that is owed waits while the session or its history cannot be read', async () => {
     const w = await handedOver()
     w.sessions.run(SESSION, true)
