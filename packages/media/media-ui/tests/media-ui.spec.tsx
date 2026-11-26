@@ -571,6 +571,84 @@ describe('消息里一块非文字内容', () => {
     )
   })
 
+  const voice = {
+    ...picture,
+    kind: 'voice',
+    ref: { ...ref, mediaType: 'audio/wav' },
+    transcript: '今天下午三点开会',
+    facts: { kind: 'voice', durationMs: 7000, sampleRate: 16000, channels: 1 },
+  }
+  const keptBlobs = () => {
+    const blobs: Blob[] = []
+    Object.assign(URL, {
+      createObjectURL: (blob: Blob) => {
+        blobs.push(blob)
+        return `blob:made-${String(blobs.length)}`
+      },
+    })
+    return blobs
+  }
+
+  it('语音写时长与大小，旁边是转写；按「播放」之前不读字节，按了读原件交给播放器', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const blobs = keptBlobs()
+    const { shell } = await mounted(media)
+    render(<>{drawn(shell, voice)}</>)
+    await settle()
+    expect(screen.getByText('〔voice〕7 秒 · 10 B')).not.toBeNull()
+    expect(screen.getByText('今天下午三点开会')).not.toBeNull()
+    expect(media.calls).toEqual([])
+    fireEvent.click(screen.getByRole('button', { name: '播放' }))
+    await settle()
+    expect(reads(media).every(body => !('target' in body))).toBe(true)
+    expect(reads(media).length).toBeGreaterThan(0)
+    const audio = document.querySelector('audio')
+    expect(audio?.getAttribute('src')).toBe('blob:made-1')
+    expect([...new Uint8Array(await blobs[0]!.arrayBuffer())]).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ])
+  })
+
+  it('块里没有转写时取描述里转出来的文字；转写另存的只写一句', async () => {
+    const media = fakeMedia(4)
+    const engine = { name: 'transcribe', revision: '1' }
+    const said = (text: unknown) => () => ({
+      outcome: 'succeeded',
+      body: {
+        state: 'held',
+        facts: voice.facts,
+        preprocess: {
+          kind: 'done',
+          representation: { outcome: 'converted', definition: engine, engine, text, others: [] },
+        },
+      },
+    })
+    media.once('describe-media', said('会议纪要在第二页'))
+    media.once('describe-media', said({ ...ref, key: 'key-text', mediaType: 'text/plain' }))
+    const { shell } = await mounted(media)
+    render(
+      <>
+        {drawn(shell, { ...voice, id: 'blk_a', transcript: null })}
+        {drawn(shell, { ...voice, id: 'blk_b', transcript: null })}
+      </>,
+    )
+    await settle()
+    expect(screen.getByText('会议纪要在第二页')).not.toBeNull()
+    expect(screen.getByText('转写较长，已另存')).not.toBeNull()
+  })
+
+  it('语音的原件读不到时说读不到，不抛', async () => {
+    const media = fakeMedia(4)
+    const { shell } = await mounted(media)
+    render(<>{drawn(shell, voice)}</>)
+    await settle()
+    fireEvent.click(screen.getByRole('button', { name: '播放' }))
+    await settle()
+    expect(screen.getByText(/^语音读不出来：/)).not.toBeNull()
+    expect(document.querySelector('audio')).toBeNull()
+  })
+
   it('语音与文件画成一行：种类、媒体类型与大小；读不懂的内容照样说出来', async () => {
     const media = fakeMedia(4)
     const { shell } = await mounted(media)
