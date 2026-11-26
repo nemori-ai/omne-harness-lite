@@ -6,20 +6,29 @@ import type {
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { supportedReasoningEfforts, type ProfileResolution } from '@omne-harness/model-contract'
 import type { ModelProtocol } from '@omne-harness/model-protocol'
-import type { ModelAccessPrincipals, ModelAccessSettings, ModelChoiceReader } from './ports.ts'
+import type {
+  ModelAccessPrincipals,
+  ModelAccessSettings,
+  ModelChoiceReader,
+  ModelSessionRequirements,
+  SessionRequirement,
+} from './ports.ts'
 
 export type ModelAccessContributionInput = Readonly<{
   profiles: () => ModelChoiceReader | undefined
   principals: ModelAccessPrincipals
   settings: ModelAccessSettings
+  sessions?: () => ModelSessionRequirements | undefined
 }>
 
 type Handler = AccessContribution<ModelProtocol>['operations']['list-models']
+type Body = Parameters<Handler>[1]
 type Answer = Awaited<ReturnType<Handler>>
 type Listed = Extract<Answer, { outcome: 'succeeded' }>['body']['models'][number]
 type Refusal = Readonly<{ outcome: 'denied' | 'basis-unavailable' }>
 
 const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
+const NAMED_BLOCKS = 16
 
 const CREDENTIAL = {
   available: 'available',
@@ -41,8 +50,32 @@ async function actingFor(
   }
 }
 
+async function requirementOf(
+  sessions: ModelSessionRequirements | undefined,
+  tenant: Body['tenant'],
+  session: string,
+): Promise<SessionRequirement | null> {
+  try {
+    return (await sessions?.of({ tenant, session })) ?? null
+  } catch {
+    return null
+  }
+}
+
+function blocksOf(resolution: ProfileResolution, session: SessionRequirement | null) {
+  if (session === null || resolution.kind === 'absent') return {}
+  if (!resolution.reasons.includes('modality')) return {}
+  const blocks = session.unmetBy(resolution.profile.definition).slice(0, NAMED_BLOCKS)
+  return blocks.length === 0
+    ? {}
+    : { blocks: blocks.map(({ message, block }) => ({ message, block })) }
+}
+
 // A name that resolves to no profile is not a model of the tenant: it is left out of the list.
-function listedOf(resolution: ProfileResolution): readonly Listed[] {
+function listedOf(
+  resolution: ProfileResolution,
+  session: SessionRequirement | null,
+): readonly Listed[] {
   if (resolution.kind === 'absent') return []
   const { identity, definition } = resolution.profile
   return [
@@ -58,6 +91,7 @@ function listedOf(resolution: ProfileResolution): readonly Listed[] {
         : { defaultReasoningEffort: resolution.defaultReasoningEffort }),
       input: [...definition.input],
       output: [...definition.output],
+      ...blocksOf(resolution, session),
     },
   ]
 }
@@ -74,20 +108,27 @@ export function createModelAccessContribution(
     if ('outcome' in issued) return issued
     const profiles = input.profiles()
     if (profiles === undefined) return UNAVAILABLE
+    // A history that cannot be read is not an empty history: the list is not judged without it.
+    const session =
+      body.session === undefined
+        ? null
+        : await requirementOf(input.sessions?.(), body.tenant, body.session)
+    if (body.session !== undefined && session === null) return UNAVAILABLE
     let listed: Awaited<ReturnType<ModelChoiceReader['list']>>
     try {
       listed = await profiles.list({
         principal: issued.principal,
         tenant: body.tenant,
         selected: null,
-        required: settings.required,
+        required: session?.required ?? settings.required,
       })
     } catch {
       return UNAVAILABLE
     }
     if ('failure' in listed)
       return listed.failure.kind === 'denied' ? { outcome: 'denied' } : UNAVAILABLE
-    return { outcome: 'succeeded', body: { models: listed.ok.choices.flatMap(listedOf) } }
+    const models = listed.ok.choices.flatMap(choice => listedOf(choice, session))
+    return { outcome: 'succeeded', body: { models } }
   }
 
   return { operations: { 'list-models': listModels }, observations: {} }
