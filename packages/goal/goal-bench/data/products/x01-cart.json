@@ -1,0 +1,83 @@
+{
+  "id": "x01-cart",
+  "purpose": "给小店的结算页写购物车的金额计算：cart.js 导出 total 与 shipping",
+  "files": {
+    "cart.js": "'use strict'\n\nfunction round(value) {\n  return Math.round(value * 100) / 100\n}\n\nfunction checked(item) {\n  if (!Number.isInteger(item.qty) || item.qty <= 0) {\n    throw new Error('quantity must be a positive whole number: ' + String(item.qty))\n  }\n  return item\n}\n\nfunction subtotal(items) {\n  return round(items.map(checked).reduce((sum, item) => sum + item.price * item.qty, 0))\n}\n\nfunction total(items, coupon) {\n  const before = subtotal(items)\n  if (coupon === undefined) return before\n  if (coupon.type === 'percent') return round(before * (1 - coupon.value / 100))\n  throw new Error('unknown coupon type: ' + String(coupon.type))\n}\n\nfunction shipping(amount) {\n  return amount >= 100 ? 0 : 8\n}\n\nmodule.exports = { subtotal, total, shipping }\n",
+    "test.js": "'use strict'\nconst assert = require('node:assert')\nconst { total, shipping } = require('./cart.js')\n\nassert.strictEqual(total([{ price: 50, qty: 2 }]), 100)\nassert.strictEqual(total([{ price: 50, qty: 2 }], { type: 'percent', value: 10 }), 90)\nassert.throws(() => total([{ price: 5, qty: -1 }]))\nassert.strictEqual(shipping(250), 0)\nassert.strictEqual(shipping(20), 8)\nconsole.log('ok')\n",
+    "README.md": "# cart\n\n`total(items, coupon)` 算合计，`shipping(amount)` 算运费。`node test.js` 跑自带的用例。\n"
+  },
+  "criteria": [
+    {
+      "statement": "合计等于每件的单价乘数量之和，结果保留到分（两位小数），没有浮点的尾数",
+      "method": "用 node 载入 cart.js：放 0.1 元与 0.2 元各一件，合计要正好是 0.3；再放单价 19.9 的 3 件，要正好是 59.7",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { total } = require(here + '/cart.js')\nassert.strictEqual(total([{ price: 0.1, qty: 1 }, { price: 0.2, qty: 1 }]), 0.3)\nassert.strictEqual(total([{ price: 19.9, qty: 3 }]), 59.7)\n"
+    },
+    {
+      "statement": "九折券（{type: \"percent\", value: 10}）按百分比减，任何金额都对",
+      "method": "用 node 载入 cart.js：合计 50 的购物车用九折券要得 45，合计 200 的要得 180。不要只试合计正好 100 的",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { total } = require(here + '/cart.js')\nconst coupon = { type: 'percent', value: 10 }\nassert.strictEqual(total([{ price: 50, qty: 1 }], coupon), 45)\nassert.strictEqual(total([{ price: 100, qty: 2 }], coupon), 180)\n"
+    },
+    {
+      "statement": "数量不是正整数（0、负数、小数）时报错，不出金额",
+      "method": "用 node 载入 cart.js：数量分别传 0、-1、1.5，三种都要抛出错误",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { total } = require(here + '/cart.js')\nfor (const qty of [0, -1, 1.5]) assert.throws(() => total([{ price: 5, qty }]))\n"
+    },
+    {
+      "statement": "合计满 100 元免运费（正好 100 也免），不满收 8 元",
+      "method": "用 node 载入 cart.js：shipping 传 99.99、100、100.01，依次要得 8、0、0",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { shipping } = require(here + '/cart.js')\nassert.deepStrictEqual([99.99, 100, 100.01].map(shipping), [8, 0, 0])\n"
+    }
+  ],
+  "breaks": [
+    {
+      "name": "no-rounding",
+      "criterion": "A1",
+      "edits": [
+        {
+          "path": "cart.js",
+          "find": "return round(items.map(checked).reduce((sum, item) => sum + item.price * item.qty, 0))",
+          "replace": "return items.map(checked).reduce((sum, item) => sum + item.price * item.qty, 0)"
+        }
+      ]
+    },
+    {
+      "name": "coupon-subtracts",
+      "criterion": "A2",
+      "edits": [
+        {
+          "path": "cart.js",
+          "find": "return round(before * (1 - coupon.value / 100))",
+          "replace": "return round(before - coupon.value)"
+        }
+      ]
+    },
+    {
+      "name": "fraction-allowed",
+      "criterion": "A3",
+      "edits": [
+        {
+          "path": "cart.js",
+          "find": "if (!Number.isInteger(item.qty) || item.qty <= 0) {",
+          "replace": "if (item.qty <= 0) {"
+        }
+      ]
+    },
+    {
+      "name": "exactly-hundred-pays",
+      "criterion": "A4",
+      "edits": [
+        {
+          "path": "cart.js",
+          "find": "return amount >= 100 ? 0 : 8",
+          "replace": "return amount > 100 ? 0 : 8"
+        }
+      ]
+    }
+  ],
+  "mended": "fraction-allowed",
+  "spoiled": [
+    "exactly-hundred-pays",
+    "coupon-subtracts"
+  ],
+  "source": "written for this bench; the breaks are the kinds of half-done work the journeys of card 1720 met"
+}

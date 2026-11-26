@@ -1,0 +1,82 @@
+{
+  "id": "x07-limiter",
+  "purpose": "写一个令牌桶限流 limiter.js：createLimiter({capacity, refillPerSecond, now}) 返回 take(key)，now 是可以换掉的取毫秒时刻的函数",
+  "files": {
+    "limiter.js": "'use strict'\n\nfunction createLimiter(options) {\n  const capacity = options.capacity\n  const perSecond = options.refillPerSecond\n  const now = options.now || (() => Date.now())\n  const buckets = new Map()\n\n  function bucketOf(key) {\n    let bucket = buckets.get(key)\n    if (bucket === undefined) {\n      bucket = { tokens: capacity, at: now() }\n      buckets.set(key, bucket)\n    }\n    return bucket\n  }\n\n  function take(key) {\n    const bucket = bucketOf(key)\n    const elapsed = (now() - bucket.at) / 1000\n    bucket.tokens = Math.min(capacity, bucket.tokens + elapsed * perSecond)\n    bucket.at = now()\n    if (bucket.tokens < 1) return false\n    bucket.tokens -= 1\n    return true\n  }\n\n  return { take }\n}\n\nmodule.exports = { createLimiter }\n",
+    "README.md": "# limiter\n\n```js\nconst { createLimiter } = require(\"./limiter.js\")\nconst limiter = createLimiter({ capacity: 3, refillPerSecond: 1, now: () => Date.now() })\nlimiter.take(\"user-1\") // true 或 false\n```\n\n`now` 返回毫秒。测试时传一个自己拨的时钟。\n"
+  },
+  "criteria": [
+    {
+      "statement": "一开始可以连着取 capacity 次，再取就被拒",
+      "method": "用 node 载入 limiter.js，传一个自己拨的时钟：capacity 3 时，不拨时钟连取四次，要依次得到 true、true、true、false",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { createLimiter } = require(here + '/limiter.js')\nlet time = 1000\nconst now = () => time\nconst drain = (limiter, key) => { let n = 0; while (n < 100 && limiter.take(key)) n += 1; return n }\nconst limiter = createLimiter({ capacity: 3, refillPerSecond: 1, now })\nassert.deepStrictEqual([1, 2, 3, 4].map(() => limiter.take('a')), [true, true, true, false])\n"
+    },
+    {
+      "statement": "过了时间按速率补回：每秒补 refillPerSecond 个",
+      "method": "用 node 载入 limiter.js，传自己拨的时钟（毫秒）：capacity 3、每秒补 1 个，先取空，把时钟拨后 2000 毫秒，这时要正好能再取 2 次，第 3 次被拒",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { createLimiter } = require(here + '/limiter.js')\nlet time = 1000\nconst now = () => time\nconst drain = (limiter, key) => { let n = 0; while (n < 100 && limiter.take(key)) n += 1; return n }\nconst limiter = createLimiter({ capacity: 3, refillPerSecond: 1, now })\ndrain(limiter, 'a')\ntime += 2000\nassert.strictEqual(drain(limiter, 'a'), 2)\n"
+    },
+    {
+      "statement": "补回不超过 capacity：闲了很久之后也只能连取 capacity 次",
+      "method": "用 node 载入 limiter.js，传自己拨的时钟：capacity 3、每秒补 1 个，先取一次，把时钟拨后一小时，之后要只能连取 3 次",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { createLimiter } = require(here + '/limiter.js')\nlet time = 1000\nconst now = () => time\nconst drain = (limiter, key) => { let n = 0; while (n < 100 && limiter.take(key)) n += 1; return n }\nconst limiter = createLimiter({ capacity: 3, refillPerSecond: 1, now })\nlimiter.take('a')\ntime += 3600000\nassert.strictEqual(drain(limiter, 'a'), 3)\n"
+    },
+    {
+      "statement": "不同的 key 各算各的：一个 key 取空了不影响另一个",
+      "method": "用 node 载入 limiter.js，传自己拨的时钟：capacity 2，把 key \"a\" 取到被拒之后，马上取 key \"b\"，要取得到（take(\"b\") 是 true）",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { createLimiter } = require(here + '/limiter.js')\nlet time = 1000\nconst now = () => time\nconst drain = (limiter, key) => { let n = 0; while (n < 100 && limiter.take(key)) n += 1; return n }\nconst limiter = createLimiter({ capacity: 2, refillPerSecond: 1, now })\ndrain(limiter, 'a')\nassert.strictEqual(limiter.take('b'), true)\n"
+    }
+  ],
+  "breaks": [
+    {
+      "name": "starts-one-short",
+      "criterion": "A1",
+      "edits": [
+        {
+          "path": "limiter.js",
+          "find": "bucket = { tokens: capacity, at: now() }",
+          "replace": "bucket = { tokens: capacity - 1, at: now() }"
+        }
+      ]
+    },
+    {
+      "name": "refill-in-wrong-unit",
+      "criterion": "A2",
+      "edits": [
+        {
+          "path": "limiter.js",
+          "find": "const elapsed = (now() - bucket.at) / 1000",
+          "replace": "const elapsed = (now() - bucket.at) / 1000 / 1000"
+        }
+      ]
+    },
+    {
+      "name": "no-ceiling",
+      "criterion": "A3",
+      "edits": [
+        {
+          "path": "limiter.js",
+          "find": "bucket.tokens = Math.min(capacity, bucket.tokens + elapsed * perSecond)",
+          "replace": "bucket.tokens = bucket.tokens + elapsed * perSecond"
+        }
+      ]
+    },
+    {
+      "name": "one-shared-bucket",
+      "criterion": "A4",
+      "edits": [
+        {
+          "path": "limiter.js",
+          "find": "    let bucket = buckets.get(key)\n    if (bucket === undefined) {\n      bucket = { tokens: capacity, at: now() }\n      buckets.set(key, bucket)\n    }",
+          "replace": "    let bucket = buckets.get('all')\n    if (bucket === undefined) {\n      bucket = { tokens: capacity, at: now() }\n      buckets.set('all', bucket)\n    }"
+        }
+      ]
+    }
+  ],
+  "mended": "no-ceiling",
+  "spoiled": [
+    "one-shared-bucket",
+    "refill-in-wrong-unit"
+  ],
+  "source": "written for this bench; the breaks are the kinds of half-done work the journeys of card 1720 met"
+}

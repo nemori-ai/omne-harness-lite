@@ -1,0 +1,82 @@
+{
+  "id": "x02-slug",
+  "purpose": "写一个命令行小工具 slug.js：把标题变成网址里用的短名",
+  "files": {
+    "slug.js": "#!/usr/bin/env node\n'use strict'\n\nfunction slugify(text) {\n  return text\n    .toLowerCase()\n    .replace(/[^a-z0-9\\s-]/g, '')\n    .trim()\n    .replace(/[\\s-]+/g, '-')\n    .replace(/^-+|-+$/g, '')\n}\n\nfunction main() {\n  const given = process.argv.slice(2).join(' ')\n  if (given !== '') {\n    console.log(slugify(given))\n    return\n  }\n  let input = ''\n  process.stdin.setEncoding('utf8')\n  process.stdin.on('data', chunk => (input += chunk))\n  process.stdin.on('end', () => console.log(slugify(input)))\n}\n\nif (require.main === module) main()\nmodule.exports = { slugify }\n",
+    "README.md": "# slug\n\n```\nnode slug.js \"Hello World\"   # hello-world\necho \"Hello World\" | node slug.js\n```\n"
+  },
+  "criteria": [
+    {
+      "statement": "全部变成小写，词之间用一个连字符连起来",
+      "method": "运行 node slug.js \"Hello Big World\"，要输出 hello-big-world；再试 \"MiXed CASE Title\"，要输出 mixed-case-title",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst run = text => execFileSync('node', ['slug.js', text], { encoding: 'utf8' }).trim()\nassert.strictEqual(run('Hello Big World'), 'hello-big-world')\nassert.strictEqual(run('MiXed CASE Title'), 'mixed-case-title')\n"
+    },
+    {
+      "statement": "标点都去掉，包括问号、冒号、引号与撇号",
+      "method": "运行 node slug.js \"what's up: now?\"，要输出 whats-up-now；再试带双引号与感叹号的一句",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst run = text => execFileSync('node', ['slug.js', text], { encoding: 'utf8' }).trim()\nassert.strictEqual(run(\"what's up: now?\"), 'whats-up-now')\nassert.strictEqual(run('say \"hi\", ok!'), 'say-hi-ok')\n"
+    },
+    {
+      "statement": "连着的空格或连字符只留一个连字符，开头与结尾没有连字符",
+      "method": "运行 node slug.js \"  a   b -- c  \"，要输出 a-b-c；再试 \"- lead and trail -\"，要输出 lead-and-trail",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst run = text => execFileSync('node', ['slug.js', text], { encoding: 'utf8' }).trim()\nassert.strictEqual(run('  a   b -- c  '), 'a-b-c')\nassert.strictEqual(run('- lead and trail -'), 'lead-and-trail')\n"
+    },
+    {
+      "statement": "不给参数时从标准输入读一行标题",
+      "method": "运行 echo \"from the pipe\" | node slug.js，要输出 from-the-pipe",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst out = execFileSync('node', ['slug.js'], { input: 'from the pipe\\n', encoding: 'utf8' }).trim()\nassert.strictEqual(out, 'from-the-pipe')\n"
+    }
+  ],
+  "breaks": [
+    {
+      "name": "case-kept",
+      "criterion": "A1",
+      "edits": [
+        {
+          "path": "slug.js",
+          "find": "    .toLowerCase()\n    .replace(/[^a-z0-9\\s-]/g, '')",
+          "replace": "    .replace(/[^a-zA-Z0-9\\s-]/g, '')"
+        }
+      ]
+    },
+    {
+      "name": "some-punctuation-kept",
+      "criterion": "A2",
+      "edits": [
+        {
+          "path": "slug.js",
+          "find": ".replace(/[^a-z0-9\\s-]/g, '')",
+          "replace": ".replace(/[.,!]/g, '')"
+        }
+      ]
+    },
+    {
+      "name": "edge-dashes-kept",
+      "criterion": "A3",
+      "edits": [
+        {
+          "path": "slug.js",
+          "find": "\n    .replace(/^-+|-+$/g, '')",
+          "replace": ""
+        }
+      ]
+    },
+    {
+      "name": "stdin-ignored",
+      "criterion": "A4",
+      "edits": [
+        {
+          "path": "slug.js",
+          "find": "  process.stdin.on('end', () => console.log(slugify(input)))",
+          "replace": "  process.stdin.on('end', () => console.log(slugify(given)))"
+        }
+      ]
+    }
+  ],
+  "mended": "stdin-ignored",
+  "spoiled": [
+    "case-kept",
+    "edge-dashes-kept"
+  ],
+  "source": "written for this bench; the breaks are the kinds of half-done work the journeys of card 1720 met"
+}

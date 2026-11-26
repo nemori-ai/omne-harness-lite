@@ -7,6 +7,7 @@ import { SPLITS, type Case, type Split } from './case.ts'
 import { datasetIssues, parentIssues } from './check.ts'
 import { fileCache, openRouterDecide } from './client.ts'
 import { DATA, digestOf, loadParents, loadSignOffs, unsigned, type SignOff } from './data.ts'
+import { EXAMINE_USAGE, examineMain } from './examine/cli.ts'
 import { pairedLoss, renderComparison, spreadOf, talliesOf } from './compare.ts'
 import { configOf } from './config.ts'
 import { graded, pairs } from './grade.ts'
@@ -40,7 +41,7 @@ const USAGE = `goal-bench: the bench of the goal judge
       replay two configurations over the same cases and set them side by side;
       keeps experiments/<name>/compare.json and writes the page <out>/<name>/compare.md
       --base     the configuration compared against (default: the baseline scheme)
-`
+${EXAMINE_USAGE}`
 const EXPERIMENTS = join(DATA, '..', 'experiments')
 const PRICE_GUESS = 0.0002
 
@@ -302,6 +303,7 @@ async function compare(flags: CompareFlags): Promise<number> {
 }
 
 async function main(): Promise<number> {
+  if (process.argv[2] === 'examine') return examineMain(process.argv.slice(3))
   const { positionals, values } = parseArgs({
     allowPositionals: true,
     options: {

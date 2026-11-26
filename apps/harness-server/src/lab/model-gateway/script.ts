@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { GatewayAnswer, GatewayScript } from './gateway.ts'
+import { interfacePath } from './wire.ts'
 
 const words = z.array(z.string().min(1)).default([])
 const when = z.strictObject({ has: words, lacks: words })
@@ -20,7 +21,11 @@ const judging = z.strictObject({
   rule: z.string().min(1).default('kept'),
   exit: z.number().min(0).max(1).default(0.01),
 })
-const script = z.strictObject({ steps: z.array(step), judgings: z.array(judging).default([]) })
+const script = z.strictObject({
+  steps: z.array(step),
+  judgings: z.array(judging).default([]),
+  provider: z.array(when).default([]),
+})
 
 /** What the agent answers at each step, and what the judge says of a goal: the first entry that fits a request answers it. */
 export type ModelScript = z.infer<typeof script>
@@ -107,6 +112,23 @@ function decisionOf(rawBody: string): Decision | null {
   } catch {
     return null
   }
+}
+
+export const PROVIDER_ORIGIN = 'https://openrouter.ai'
+const DECISIONS_PATH = '/api/alpha/decisions'
+
+/** Where the provider takes a request the script leaves to it (`provider`: the first rule that fits); null when the script answers it. */
+export function providerUrlOf(
+  given: ModelScript,
+  request: Parameters<GatewayScript>[0],
+  origin = PROVIDER_ORIGIN,
+): string | null {
+  if (!given.provider.some(rule => fits(rule, request.rawBody))) return null
+  const path =
+    decisionOf(request.rawBody) === null
+      ? interfacePath(request.path, request.rawBody)
+      : DECISIONS_PATH
+  return `${origin}${path}`
 }
 
 /** The answer a script gives one request: a judging by `judgings`, any other request by `steps`. */

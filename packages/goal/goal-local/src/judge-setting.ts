@@ -32,12 +32,15 @@ export const EXAMINERS = Object.freeze([
     definition: 'examiner',
     model: 'openai/gpt-6.1-sol',
     description:
-      '默认。发行带的查验用定义，只有读写文件、跑命令与交读数三个工具。开工时量过一批像查验的活：约 0.12 美元、两分半钟。',
+      '默认。发行带的查验用定义，只有读写文件、跑命令与交读数三个工具。评测台上量过四遍（8 份小成品，每遍 40 条没做到的判据、184 条做到的）：没做到的没有一条被认成成立，做到的没有一条不敢认；一批约 0.02 美元、半分钟。活大的更贵：量到过一批 0.11 美元、两分半钟。',
   },
 ] as const)
 export type Examiner = Readonly<{ definition: string; model: string }>
 
 const COUNTS = ['1', '2', '3', '5'] as const
+/** What each option was measured as, in the words of the item itself: the page shows the description of an item, not of its options. */
+const told = (options: readonly (readonly [string, string])[]): string =>
+  options.map(([value, description]) => ` ${value}：${description}`).join('')
 const MINUTES = ['5', '10', '20', '30'] as const
 const DEFAULT_MINUTES = '10'
 const JOB_LABELS: Readonly<Record<JobAwaited, string>> = {
@@ -76,8 +79,7 @@ export const goalJudgeSettings: SettingDefinitions = SettingDefinitionsSchema.pa
       category: 'preference',
       presentation: {
         title: '判定用的决策型号',
-        description:
-          '判定只答选择题与是非题，不写文字。三个型号都在评测台上量过，数在各自的说明里。一个会话可以在目标面板上另选，只管它自己。',
+        description: `判定只答选择题与是非题，不写文字。三个型号都在评测台上量过。一个会话可以在目标面板上另选，只管它自己。${told(JUDGE_MODELS.map(value => [value, LABELS[value]]))}`,
         impact: '下一次判定起用新值；正在进行的那一次照它开始时的值。',
         clear: '回到默认的型号。',
         adoption: 'next-read',
@@ -98,7 +100,7 @@ export const goalJudgeSettings: SettingDefinitions = SettingDefinitionsSchema.pa
       category: 'preference',
       presentation: {
         title: '查验用的定义与型号',
-        description: '查验的 agent 用哪份 Agent 定义、哪个型号。只列量过的组合。',
+        description: `查验的 agent 用哪份 Agent 定义、哪个型号。只列量过的组合。${told(EXAMINERS.map(({ value, description }) => [value, description]))}`,
         impact: '下一批查验起用新值；已经交出去的那一批照它交出时的值。',
         clear: '回到默认的组合。',
         adoption: 'next-read',
@@ -120,11 +122,11 @@ export const goalJudgeSettings: SettingDefinitions = SettingDefinitionsSchema.pa
       presentation: {
         title: '一个目标至多几次查验',
         description:
-          '目标的预算里「查验的次数」不能写得比它多；没写时取它与 3 的小者。次数用完，目标照预算那条退出收场。',
+          '目标的预算里「查验的次数」不能写得比它多；没写时取它与 3 的小者。次数用完，目标照预算那条退出收场。一次查验小的约 0.02 美元，量到过的大的 0.11 美元。',
         impact: '之后设或修订的目标照新值校验；已经成立的目标不变。',
         clear: '回到 3 次。',
         adoption: 'next-read',
-        enumLabels: labelled(COUNTS, value => `至多 ${value} 次。一次约 0.12 美元。`),
+        enumLabels: labelled(COUNTS, value => `至多 ${value} 次。`),
       },
       valueSchema: { type: 'string', enum: COUNTS },
       default: { kind: 'value', value: String(DEFAULT_BUDGET_EXAMINATIONS) },

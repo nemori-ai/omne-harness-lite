@@ -1,0 +1,83 @@
+{
+  "id": "x04-csvsum",
+  "purpose": "写一个命令行小工具 csvsum.js：node csvsum.js <文件> <列名>，打印这一列的和",
+  "files": {
+    "csvsum.js": "#!/usr/bin/env node\n'use strict'\nconst fs = require('node:fs')\n\nfunction cells(line) {\n  const out = []\n  let cell = ''\n  let quoted = false\n  for (const char of line) {\n    if (char === '\"') quoted = !quoted\n    else if (char === ',' && !quoted) {\n      out.push(cell)\n      cell = ''\n    } else cell += char\n  }\n  out.push(cell)\n  return out.map(text => text.trim())\n}\n\nfunction main(file, column) {\n  const lines = fs.readFileSync(file, 'utf8').split(/\\r?\\n/).filter(line => line.trim() !== '')\n  const header = cells(lines[0] || '')\n  const at = header.indexOf(column)\n  if (at === -1) {\n    console.error('no column ' + column + '; the columns are: ' + header.join(', '))\n    return 1\n  }\n  const sum = lines.slice(1).reduce((total, line) => total + parseFloat(cells(line)[at]), 0)\n  console.log(String(Math.round(sum * 100) / 100))\n  return 0\n}\n\nprocess.exitCode = main(process.argv[2], process.argv[3])\n",
+    "sample.csv": "name,amount\ntea,3\ncoffee,4\n",
+    "README.md": "# csvsum\n\n```\nnode csvsum.js sample.csv amount   # 7\n```\n"
+  },
+  "criteria": [
+    {
+      "statement": "按表头的列名取列求和，小数照算（1.5 加 2.25 得 3.75）",
+      "method": "自己写一份两行数据的 csv，amount 列是 1.5 与 2.25，运行 node csvsum.js <文件> amount，要输出 3.75",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.writeFileSync('c1.csv', 'name,amount\\na,1.5\\nb,2.25\\n')\nassert.strictEqual(execFileSync('node', ['csvsum.js', 'c1.csv', 'amount'], { encoding: 'utf8' }).trim(), '3.75')\n"
+    },
+    {
+      "statement": "带引号的字段里有逗号时不串列",
+      "method": "写一份 csv，第一列有一格是 \"Smith, John\"（带引号、里面有逗号），amount 列是 5 与 6，求和要输出 11",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.writeFileSync('c2.csv', 'name,amount\\n\"Smith, John\",5\\nplain,6\\n')\nassert.strictEqual(execFileSync('node', ['csvsum.js', 'c2.csv', 'amount'], { encoding: 'utf8' }).trim(), '11')\n"
+    },
+    {
+      "statement": "文件中间的空行与结尾多出来的换行不影响结果",
+      "method": "写一份 csv，数据行之间夹一个空行、结尾多两个换行，amount 列是 2 与 3，求和要输出 5，不能是 NaN",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.writeFileSync('c3.csv', 'name,amount\\na,2\\n\\nb,3\\n\\n\\n')\nassert.strictEqual(execFileSync('node', ['csvsum.js', 'c3.csv', 'amount'], { encoding: 'utf8' }).trim(), '5')\n"
+    },
+    {
+      "statement": "列名不存在时退出码不是 0，并在标准错误里列出有哪些列",
+      "method": "运行 node csvsum.js sample.csv price; echo $? ，退出码要不是 0，标准错误里要写出 name 与 amount 两个列名",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst ran = spawnSync('node', ['csvsum.js', 'sample.csv', 'price'], { encoding: 'utf8' })\nassert.notStrictEqual(ran.status, 0)\nassert.match(ran.stderr, /name/); assert.match(ran.stderr, /amount/)\n"
+    }
+  ],
+  "breaks": [
+    {
+      "name": "whole-numbers-only",
+      "criterion": "A1",
+      "edits": [
+        {
+          "path": "csvsum.js",
+          "find": "parseFloat(cells(line)[at])",
+          "replace": "parseInt(cells(line)[at], 10)"
+        }
+      ]
+    },
+    {
+      "name": "naive-split",
+      "criterion": "A2",
+      "edits": [
+        {
+          "path": "csvsum.js",
+          "find": "  const out = []\n  let cell = ''\n  let quoted = false\n  for (const char of line) {\n    if (char === '\"') quoted = !quoted\n    else if (char === ',' && !quoted) {\n      out.push(cell)\n      cell = ''\n    } else cell += char\n  }\n  out.push(cell)\n  return out.map(text => text.trim())",
+          "replace": "  return line.split(',').map(text => text.trim())"
+        }
+      ]
+    },
+    {
+      "name": "blank-lines-counted",
+      "criterion": "A3",
+      "edits": [
+        {
+          "path": "csvsum.js",
+          "find": ".split(/\\r?\\n/).filter(line => line.trim() !== '')",
+          "replace": ".trimEnd().split(/\\r?\\n/)"
+        }
+      ]
+    },
+    {
+      "name": "missing-column-is-zero",
+      "criterion": "A4",
+      "edits": [
+        {
+          "path": "csvsum.js",
+          "find": "    console.error('no column ' + column + '; the columns are: ' + header.join(', '))\n    return 1",
+          "replace": "    console.log('0')\n    return 0"
+        }
+      ]
+    }
+  ],
+  "mended": "naive-split",
+  "spoiled": [
+    "blank-lines-counted",
+    "whole-numbers-only"
+  ],
+  "source": "written for this bench; the breaks are the kinds of half-done work the journeys of card 1720 met"
+}
