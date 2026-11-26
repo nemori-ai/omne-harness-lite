@@ -42,6 +42,7 @@ import {
 import {
   callHandler,
   createSqlModelCommands,
+  dispatchFactEffortMigration,
   dispatchFactsMigration,
   modelMigration,
   pendingHandler,
@@ -192,6 +193,8 @@ function openDatabase(file: string): DatabaseSync {
   const port: ReadPort = { execute: (sql, params) => rowsOf(db, sql, params) }
   if (modelMigration.verify(port).kind !== 'verified') modelMigration.up(port)
   if (dispatchFactsMigration.verify(port).kind !== 'verified') dispatchFactsMigration.up(port)
+  if (dispatchFactEffortMigration.verify(port).kind !== 'verified')
+    dispatchFactEffortMigration.up(port)
   db.exec('CREATE TABLE IF NOT EXISTS e2e_receipt (key TEXT PRIMARY KEY, receipt TEXT NOT NULL)')
   return db
 }
