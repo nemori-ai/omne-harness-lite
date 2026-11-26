@@ -41,7 +41,7 @@ import {
   type ConformanceCase,
 } from '@omne-harness/tool-contract/testing'
 import type {
-  ToolAuthorityFailure,
+  Refusal,
   ToolGenerations,
   ToolResidencyReader,
   ToolResidencyReference,
@@ -1021,7 +1021,7 @@ export interface MemoryToolBindingRegistry<P> extends ToolBindingRegistryService
   readonly controls: Readonly<{
     asFiber<T>(fiber: string, work: () => T): T
     endFiber(fiber: string): Promise<void>
-    verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>
+    verify(authority: ToolAuthority): Outcome<VerifiedAuthority, Refusal>
   }>
 }
 
@@ -1050,7 +1050,7 @@ export function createMemoryToolBindingRegistry<P>(
 
   const find = (key: ToolBindingKey): BindingEntry | undefined =>
     entries.find(entry => sameBindingKey(entry.key, key))
-  const verify = (authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure> => {
+  const verify = (authority: ToolAuthority): Outcome<VerifiedAuthority, Refusal> => {
     const grant = grants.find(candidate =>
       sameEvidence(candidate.authority.holding, authority.holding),
     )

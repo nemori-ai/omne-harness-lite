@@ -113,6 +113,7 @@ export type SessionAccessFaces = Readonly<{
     | 'cancelRun'
     | 'stopCall'
     | 'retryRun'
+    | 'reloadSession'
     | 'readWaiting'
     | 'readPending'
     | 'readWaitingCalls'

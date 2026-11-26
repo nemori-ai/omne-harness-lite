@@ -95,7 +95,7 @@ describe('Session governance beyond the first path', () => {
       input: {
         ...idle.base,
         operation: operationId('freeze'),
-        verdict: { cause: 'tool-shape-lost', evidence: evidence('lost') },
+        verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('lost') },
       },
     } satisfies SessionCommand
     const first = succeeded(await idle.commit(freeze), 'freeze')

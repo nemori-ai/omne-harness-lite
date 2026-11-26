@@ -37,7 +37,11 @@ describe('every frozen terminal release gate', () => {
           input: {
             ...s.base,
             operation: operationId('freeze'),
-            verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+            verdict: {
+              cause: 'tool-shape-lost',
+              capability: 'probe',
+              evidence: evidence('freeze'),
+            },
           },
         }),
         'freeze',
@@ -102,7 +106,7 @@ describe('every frozen terminal release gate', () => {
       input: {
         ...s.base,
         operation: operationId('freeze'),
-        verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+        verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
       },
     }
     const cancel: SessionCommand = {

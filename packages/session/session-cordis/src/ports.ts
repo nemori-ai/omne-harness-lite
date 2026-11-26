@@ -63,7 +63,7 @@ export function createPorts(ctx: Context, diagnose: Diagnose): CurrentPorts {
       runAdoption: (access, input) =>
         through('sessionEvidence', async (bridge: SessionEvidenceBridge) =>
           bridge.runAdoption === undefined
-            ? { ok: { candidate: input.work.definition.adopted } }
+            ? { ok: { kind: 'adopt' as const, candidate: input.work.definition.adopted } }
             : bridge.runAdoption(access, input),
         ),
     },

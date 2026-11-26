@@ -5,7 +5,7 @@ const SENTENCES: Readonly<Record<string, string>> = {
   invalid: '服务端认为这个请求的内容不合规定。',
   conflict: '和服务端已有的记录冲突。',
   archived: '这个会话已归档，不能再发消息。',
-  frozen: '这个会话已冻结，暂时不能发消息。',
+  frozen: '这个会话已冻结，不能再发消息。',
   denied: '没有权限，或登录已失效。',
   'not-found': '服务端找不到这一轮。',
   'protocol-rejected': '服务端不认这个请求的格式。',

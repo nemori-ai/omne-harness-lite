@@ -4,6 +4,7 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Access,
+  DurableEvidence,
   FixedToolRequest,
   SourceLayer,
   ToolAvailability,
@@ -32,13 +33,23 @@ export type LocalToolAuthorityFailure =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'invalid'; reason: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  | Readonly<{ kind: 'missing'; evidence: DurableEvidence }>
+
+/** A version no longer held cannot be contributed: to the registry that is an invalid contribution. */
+export function contributionFailure(
+  failure: LocalToolAuthorityFailure,
+): Exclude<LocalToolAuthorityFailure, { kind: 'missing' }> {
+  return failure.kind === 'missing'
+    ? { kind: 'invalid', reason: 'the version is no longer held' }
+    : failure
+}
 
 export interface LocalToolContributionVerifier<P> {
   verify(authority: ToolAuthority): Outcome<ToolAuthority, LocalToolAuthorityFailure>
   admits(
     access: Access<P>,
     layer: SourceLayer,
-  ): Outcome<void, Exclude<LocalToolAuthorityFailure, { kind: 'invalid' }>>
+  ): Outcome<void, Exclude<LocalToolAuthorityFailure, { kind: 'invalid' | 'missing' }>>
 }
 
 export type LocalToolBindingRegistryInput<P> = Readonly<{
@@ -172,7 +183,7 @@ export function createLocalToolBindingRegistry<
       return fail({ kind: 'unavailable', diagnostic: 'the caller fiber has exited' })
     const access = { principal: request.principal, tenant: request.tenant }
     const verified = verifier.verify(request.authority)
-    if ('failure' in verified) return verified
+    if ('failure' in verified) return fail(contributionFailure(verified.failure))
     const admitted = verifier.admits(access, verified.ok.layer)
     if ('failure' in admitted) return admitted
     const key: ToolBindingKey = { layer: verified.ok.layer, asset: verified.ok.asset }

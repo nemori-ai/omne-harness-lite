@@ -44,7 +44,7 @@ it('frozen cancellation first interprets the complete captured suffix, including
           tenant: access.tenant,
           session: access.session,
           operation: operationId('freeze'),
-          verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+          verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
         },
       },
       guards: [],

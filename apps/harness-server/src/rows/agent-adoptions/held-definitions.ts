@@ -37,6 +37,8 @@ export type DefinitionReadingInput = Readonly<{
 }>
 
 const absent = (reason: string): DefinitionLookup => ({ kind: 'absent', reason })
+/** The name is held in force, and the version held under it cannot be used. */
+const unusable = (reason: string): DefinitionLookup => ({ kind: 'absent', reason, held: true })
 const unavailable = (diagnostic: string): DefinitionLookup => ({ kind: 'unavailable', diagnostic })
 
 function candidateOf(name: string, held: Candidate): Adoption {
@@ -76,9 +78,9 @@ export function createDefinitionReading(input: DefinitionReadingInput): Definiti
     if (body === undefined) return unavailable(`the definition ${name} is held and cannot be read`)
     const definition = await writtenDefinitionOf(body)
     if (typeof definition === 'string')
-      return absent(`the definition ${name} is not used: ${definition}`)
+      return unusable(`the definition ${name} is not used: ${definition}`)
     if (definition.name !== name)
-      return absent(`the definition ${name} is not used: its body names ${definition.name}`)
+      return unusable(`the definition ${name} is not used: its body names ${definition.name}`)
     if (custom === undefined)
       return unavailable(
         'the deployment gives no agent-adoptions.custom: how a definition of a tenant runs is not configured',

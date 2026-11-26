@@ -79,6 +79,7 @@ async function treeWith(preload: boolean, construction: unknown) {
   const planner = createAdoptionPlanner<unknown>({
     readBindings: () => fixture.root.get(toolBindingsKey) as never,
     readGenerations: () => fixture.root.get(toolGenerationsKey) as never,
+    authorityOf: () => undefined,
     definitionFor: name => definitionOf(fixture, name),
   })
   const plan = () => planner.plan(access as never, { recorded: [], capabilities: CODING })

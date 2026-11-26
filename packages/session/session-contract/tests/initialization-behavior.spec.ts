@@ -313,7 +313,11 @@ describe('persistent source obligations and result identity', () => {
           input: {
             ...s.base,
             operation: operationId('freeze'),
-            verdict: { cause: 'tool-shape-lost' as const, evidence: evidence('freeze') },
+            verdict: {
+              cause: 'tool-shape-lost' as const,
+              capability: 'probe',
+              evidence: evidence('freeze'),
+            },
           },
         },
       ]

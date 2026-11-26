@@ -35,7 +35,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   readInputFate: [I],
   startRun: [C, M],
   claim: [C, M],
-  reload: [C],
+  reload: [I, C],
   recordMessage: [C],
   preserveResult: [C, M],
   completeConsumption: [C],

@@ -49,6 +49,7 @@ async function restarted(name: string) {
       c.journal().load({ ...s.access, execution: input.execution })
     readonly reconcile: AgentExecutionRecoveryService<string>['reconcile'] = unsupported
     readonly detach: AgentExecutionRecoveryService<string>['detach'] = unsupported
+    readonly handOver: AgentExecutionRecoveryService<string>['handOver'] = unsupported
     readonly contact: AgentExecutionRecoveryService<string>['contact'] = unsupported
   }
   class Control extends AgentExecutionControlService<string> {

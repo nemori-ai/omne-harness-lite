@@ -155,7 +155,12 @@ function applyFrozen(
   if (draft.tasks.some(task => task.kind === 'initialization'))
     return 'session frozen before every initialization item was ready'
   if (draft.frozen !== null) return 'a second freeze'
-  draft.frozen = { cause: 'tool-shape-lost', evidence: entry.evidence, commit: source }
+  draft.frozen = {
+    cause: 'tool-shape-lost',
+    capability: entry.capability,
+    evidence: entry.evidence,
+    commit: source,
+  }
   return null
 }
 
@@ -378,6 +383,7 @@ export function applyExtended(
       draft.resident = entry.resident
       return null
     case 'session.command-recorded':
+    case 'session.adoption-noted':
       return null
     case 'session.child-recorded':
       return applyChildRecorded(draft, entry)

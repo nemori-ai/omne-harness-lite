@@ -614,7 +614,7 @@ it('failed initialization blocks start and freeze until the same required item b
         input: {
           ...s.base,
           operation: operationId('freeze-init'),
-          verdict: { cause: 'tool-shape-lost', evidence: evidence('shape') },
+          verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('shape') },
         },
       }),
       'freeze',

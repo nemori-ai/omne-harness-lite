@@ -1118,6 +1118,37 @@ export declare const sessionProtocol: {
             }>;
             readonly countsAsAccess: true;
         };
+        readonly 'reload-session': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly kind: "adopted" | "handed-over" | "no-change";
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: string;
+                }>;
+                readonly archived: import("@omne-harness/public-contract").Codec<{}>;
+                readonly frozen: import("@omne-harness/public-contract").Codec<{
+                    readonly capability: string | null;
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: "cancelled" | "changed" | "not-current";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: "login";
+            readonly effect: "commit";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly controlId: string;
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+            readonly since: 4;
+        };
         readonly 'read-model-selection': {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{

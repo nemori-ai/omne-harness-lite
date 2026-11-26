@@ -49,6 +49,7 @@ const validBodies: Samples = {
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'graceful' }],
   'archive-session': [{ ...target, controlId: 'control' }],
   'unarchive-session': [{ ...target, controlId: 'control' }],
+  'reload-session': [{ ...target, controlId: 'control' }],
   'stop-call': [
     { ...target, controlId: 'control', producer },
     { ...target, controlId: 'control', producer, reason: 'not needed' },
@@ -82,6 +83,7 @@ const invalidBodies: Samples = {
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'soon' }],
   'archive-session': [{ ...target }, { ...target, controlId: 'control', run: 'run-1' }],
   'unarchive-session': [{ ...target, controlId: '' }],
+  'reload-session': [{ ...target, controlId: '' }],
   'stop-call': [
     { ...target, controlId: 'control', producer: { kind: 'agent', call: 'c' } },
     { ...target, controlId: 'control', producer, reason: 7 },
@@ -123,6 +125,7 @@ const successBodies: Samples = {
     { kind: 'unarchived', controlId: 'control' },
     { kind: 'not-archived', controlId: 'control' },
   ],
+  'reload-session': [{ kind: 'handed-over' }, { kind: 'adopted' }, { kind: 'no-change' }],
   'cancel-run': [
     { kind: 'requested', controlId: 'control', run: 'run-1' },
     {
@@ -233,10 +236,34 @@ describe('outcome bodies', () => {
     for (const name of operations)
       for (const [outcome, codec] of Object.entries(sessionProtocol.operations[name].outcomes)) {
         if (outcome === 'succeeded' || outcome === 'limited' || codec === true) continue
+        if (name === 'reload-session' && ['invalid', 'frozen', 'conflict'].includes(outcome))
+          continue
         expect(expectRoundTrip(codec, {})).toEqual({})
         if (outcome === 'invalid' && (name === 'send-input' || name === 'interrupt-input')) continue
         expect(readNew(codec, { reason: 'x' })).toEqual({ ok: false })
       }
+  })
+})
+
+describe('reload-session', () => {
+  it('says why it is refused: the reason the candidate is not used, and which tool froze the session', () => {
+    const { outcomes } = sessionProtocol.operations['reload-session']
+    expect(expectRoundTrip(outcomes.invalid, { reason: 'the new version is refused' })).toEqual({
+      reason: 'the new version is refused',
+    })
+    expect(expectRoundTrip(outcomes.frozen, { capability: 'wordcount' })).toEqual({
+      capability: 'wordcount',
+    })
+    expect(expectRoundTrip(outcomes.frozen, { capability: null })).toEqual({ capability: null })
+    expect(readNew(outcomes.invalid, {})).toEqual({ ok: false })
+  })
+
+  it('says why the run could not be handed over: a cancel came first, another advancer, or the session moved', () => {
+    const { outcomes } = sessionProtocol.operations['reload-session']
+    for (const reason of ['cancelled', 'not-current', 'changed'])
+      expect(expectRoundTrip(outcomes.conflict, { reason })).toEqual({ reason })
+    expect(readNew(outcomes.conflict, { reason: 'other' })).toEqual({ ok: false })
+    expect(readNew(outcomes.conflict, {})).toEqual({ ok: false })
   })
 })
 

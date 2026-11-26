@@ -1,22 +1,22 @@
 import { expectTypeOf, it } from 'vitest'
-import type { ResidentAdoption, SessionAccess } from '@omne-harness/session-contract'
-import type {
-  AdoptionPointInput,
-  ScriptedAdoptionPoint,
-} from '@omne-harness/tool-cordis-contract/testing'
+import type { Outcome } from '@omne-harness/operation-result'
+import type { FreezeVerdict, ResidentAdoption, SessionAccess } from '@omne-harness/session-contract'
+import type { AdoptionPointInput } from '@omne-harness/tool-cordis-contract/testing'
 import {
   createAdoptionPlanner,
   type AdoptionPlannerInput,
 } from '../../../src/rows/adoption-sources/planner.ts'
 
-it('consumes the frozen input shape and returns Session material with explicit session access', () => {
+it('consumes the frozen input shape and returns Session material, a freeze naming the tool, with explicit session access', () => {
   type Planner = ReturnType<typeof createAdoptionPlanner<string>>
-  type Scripted = ScriptedAdoptionPoint<
-    string,
-    ResidentAdoption['residents'][number],
-    ResidentAdoption['keys'][number]
+  type Answer = Outcome<
+    Readonly<{
+      material: Pick<ResidentAdoption, 'residents' | 'keys'>
+      verdict: FreezeVerdict | null
+    }>,
+    Readonly<{ kind: 'unavailable' }>
   >
   expectTypeOf<AdoptionPlannerInput>().toEqualTypeOf<AdoptionPointInput>()
   expectTypeOf<Parameters<Planner['plan']>[0]>().toEqualTypeOf<SessionAccess<string>>()
-  expectTypeOf<ReturnType<Planner['plan']>>().toEqualTypeOf<ReturnType<Scripted['plan']>>()
+  expectTypeOf<Awaited<ReturnType<Planner['plan']>>>().toEqualTypeOf<Answer>()
 })

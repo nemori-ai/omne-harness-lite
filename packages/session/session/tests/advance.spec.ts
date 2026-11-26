@@ -543,7 +543,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     const asked: string[] = []
     h.dependencies.evidence.runAdoption = async (access, input) => {
       asked.push(`${access.session}/${input.run}/${input.work.definition.adopted.digest}`)
-      return { ok: { candidate: newer } }
+      return { ok: { kind: 'adopt' as const, candidate: newer } }
     }
     await h.accept('input-1')
     await vi.waitFor(async () => {
@@ -554,6 +554,53 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     })
     expect(asked).toHaveLength(1)
     expect(asked[0]).toContain(`/${pinned.digest}`)
+  })
+
+  it('a run starts on the definition the session stands at when the new one cannot be used, and notes why once', async () => {
+    const h = await service()
+    await h.create()
+    const pinned = (await read(h)).definition.adopted
+    h.dependencies.evidence.runAdoption = async () => ({
+      ok: { kind: 'keep' as const, reason: 'the new version is refused' },
+    })
+    await h.accept('input-1')
+    await vi.waitFor(async () => {
+      const work = await read(h)
+      expect(work.run.kind).toBe('active')
+      expect(work.run.kind === 'active' && work.run.adoption).toEqual(pinned)
+    })
+    expect(await historyOf(h, ['session.adoption-noted'])).toEqual([
+      {
+        kind: 'session.adoption-noted',
+        value: { note: { kind: 'kept', reason: 'the new version is refused' } },
+      },
+    ])
+  })
+
+  it('a run with no usable adoption does not start, keeps its input, and notes what it waits for once however often it is asked', async () => {
+    const h = await service()
+    await h.create()
+    let asked = 0
+    h.dependencies.evidence.runAdoption = async () => {
+      asked += 1
+      return { ok: { kind: 'none' as const, reason: 'no definition is named reviewer' } }
+    }
+    await h.accept('input-1')
+    await vi.waitFor(async () => {
+      expect(await historyOf(h, ['session.adoption-noted'])).toHaveLength(1)
+    })
+    await h.accept('input-2')
+    await vi.waitFor(() => expect(asked).toBe(2))
+    await vi.waitFor(async () => expect((await read(h)).pending).toEqual(['input-1', 'input-2']))
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const work = await read(h)
+    expect(work.run.kind).not.toBe('active')
+    expect(await historyOf(h, ['session.adoption-noted'])).toEqual([
+      {
+        kind: 'session.adoption-noted',
+        value: { note: { kind: 'waiting', reason: 'no definition is named reviewer' } },
+      },
+    ])
   })
 
   it('a run does not start while the adoption source cannot say what it adopts; the input stays pending', async () => {

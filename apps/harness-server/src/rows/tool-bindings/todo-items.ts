@@ -63,6 +63,7 @@ function failure(value: SessionFailure): TodoAuthorFailure {
     case 'login-required':
     case 'not-found':
     case 'nothing-pending':
+    case 'cancelled':
     case 'limited':
       return {
         kind: 'unavailable',

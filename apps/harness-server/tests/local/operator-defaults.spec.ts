@@ -338,7 +338,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
     ).toBe(true)
   })
 
-  it('lists the Run frame and the tool messages in the history and uses the settings port', () => {
+  it('lists the Run frame, the tool messages and why a session froze in the history, and uses the settings port', () => {
     expect(configOf(layer, 'server-entry')).toEqual({ listenPort: 8965 })
     expect(LOCAL_HISTORY_KINDS).toEqual(
       expect.arrayContaining([
@@ -346,6 +346,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
         'run.terminal',
         'message.tool',
         'message.system_reminder',
+        'session.frozen',
       ]),
     )
   })

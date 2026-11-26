@@ -315,6 +315,7 @@ function withRuntimeDuties(
         },
       },
       control: {
+        handOver: input => made.ok.control.handOver(input),
         async quiesce(input) {
           draining = true
           world.quiesced.push(instance)
