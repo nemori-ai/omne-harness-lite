@@ -54,14 +54,20 @@ function pointerOf(root: string): VersionPointer | null {
 }
 
 /** What the install root holds now: a directory under its last name is a whole version, one under the temporary name is not. */
-export function readVersions(root: string): Versions {
+export function readVersions(root: string, shipped?: string): Versions {
   const installed: Record<string, 'partial' | 'complete'> = {}
   for (const entry of listed(join(root, VERSIONS_DIR))) {
     if (!entry.isDirectory()) continue
     if (!entry.name.endsWith(PARTIAL)) installed[entry.name] = 'complete'
     else installed[entry.name.slice(0, -PARTIAL.length)] ??= 'partial'
   }
-  return { installed, pointer: pointerOf(root) }
+  const pointer = pointerOf(root)
+  if (shipped === undefined) return { installed, pointer }
+  // The version an application ships with is always there, and it settled: it is what a first install goes back to.
+  return {
+    installed: { ...installed, [shipped]: 'complete' },
+    pointer: pointer ?? { current: shipped, previous: shipped, settled: true },
+  }
 }
 
 function digestOf(directory: string): string {
@@ -124,8 +130,8 @@ function moved(root: string, before: Versions, step: ReturnType<typeof stepVersi
 }
 
 /** Points at a version that is wholly installed; the next start is of it. */
-export function switchVersion(root: string, version: string): Told {
-  const before = readVersions(root)
+export function switchVersion(root: string, version: string, shipped?: string): Told {
+  const before = readVersions(root, shipped)
   return moved(root, before, stepVersions(before, { kind: 'switch', version }))
 }
 
@@ -134,8 +140,9 @@ export function tellVersions(
   root: string,
   started: string,
   kind: 'settled' | 'fell-to-limit',
+  shipped?: string,
 ): Told {
-  const before = readVersions(root)
+  const before = readVersions(root, shipped)
   if (before.pointer?.current !== started) return { outcome: 'superseded', pointer: before.pointer }
   return moved(root, before, stepVersions(before, { kind }))
 }

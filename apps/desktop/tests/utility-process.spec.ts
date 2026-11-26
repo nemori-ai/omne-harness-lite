@@ -188,6 +188,45 @@ describe('startServerProcess', () => {
     },
   )
 
+  it('a planned restart replaces the running process: the old one is asked to shut down, the new one serves, nothing failed', async () => {
+    const h = harness()
+    await h.server.ready()
+    await h.server.restart()
+    await flush()
+
+    expect(h.children).toHaveLength(2)
+    expect(h.children[0]!.posted.at(-1)).toEqual({ type: 'shutdown' })
+    expect(h.children[0]!.alive).toBe(false)
+    expect(h.server.state).toBe('running')
+    expect(h.lifecycle.map(event => event.state)).toEqual([
+      'starting',
+      'ready',
+      'starting',
+      'ready',
+    ])
+    expect(h.logs).toEqual([])
+    expect((await h.server.fetch(new Request('http://app.desktop/'))).status).toBe(200)
+    // The next crash backs off as the first one of this run: the planned restart did not count.
+    h.children[1]!.exit(1)
+    await vi.advanceTimersByTimeAsync(500)
+    expect(h.children).toHaveLength(3)
+  })
+
+  it('a planned restart during the backoff starts at once; after shutdown it is refused', async () => {
+    const h = harness()
+    await h.server.ready()
+    h.children[0]!.exit(1)
+    await flush()
+    expect(h.children).toHaveLength(1)
+    await h.server.restart()
+    expect(h.children).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(RESTART_MAX_MS)
+    expect(h.children).toHaveLength(2)
+
+    await h.server.shutdown()
+    await expect(h.server.restart()).rejects.toThrow('shutting down')
+  })
+
   it('starts one process, becomes ready and serves', async () => {
     const h = harness()
     await h.server.ready()

@@ -13,7 +13,7 @@ export interface ServerProcessOptions {
   utilityPath: string
   log: Logger
   onRestart?: () => void
-  env?: Record<string, string>
+  env?: Record<string, string> | (() => Record<string, string>)
   onLifecycle?: (event: {
     generation: number
     state: 'starting' | 'ready' | 'failed'
@@ -24,6 +24,7 @@ export interface ServerProcessOptions {
 export interface ServerProcess {
   fetch: PortFetch
   ready(): Promise<void>
+  restart(): Promise<void>
   shutdown(): Promise<void>
   readonly state: ServerState
   stats(): PortStats | undefined
@@ -58,7 +59,10 @@ function electronDeps(options: ServerProcessOptions): ServerProcessDeps {
       const child = utilityProcess.fork(options.utilityPath, [], {
         stdio: 'pipe',
         serviceName: 'omne-forwarding',
-        env: { ...stringEnv(process.env), ...options.env },
+        env: {
+          ...stringEnv(process.env),
+          ...(typeof options.env === 'function' ? options.env() : options.env),
+        },
       })
       // The utility's own JSON lines, passed through a sink that survives a closed reader.
       child.stdout?.on('data', writeStdout)
@@ -264,6 +268,18 @@ class Lifecycle {
     return inst
   }
 
+  restart(): Promise<void> {
+    if (this.#isStopping) return Promise.reject(new Error('The server is shutting down'))
+    clearTimeout(this.#restartTimer)
+    this.#restartTimer = undefined
+    const inst = this.instance
+    if (inst !== undefined) {
+      this.#retire(inst, new PortClosedError('The server is restarting'))
+      if (!inst.exited) void this.#exited(inst)
+    }
+    return this.start()
+  }
+
   shutdown(): Promise<void> {
     return (this.#stopping ??= this.#stop())
   }
@@ -328,6 +344,7 @@ export function startServerProcess(
     ready: async () => {
       await lifecycle.start()
     },
+    restart: () => lifecycle.restart(),
     shutdown: () => lifecycle.shutdown(),
   }
 }

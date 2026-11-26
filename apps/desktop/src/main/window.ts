@@ -94,7 +94,12 @@ export type UtilityWatch = Readonly<{
   subscribe(listener: (state: UtilityState) => void): () => void
 }>
 
-function recover(window: BrowserWindow, utility: UtilityWatch, log: Logger): void {
+function recover(
+  window: BrowserWindow,
+  utility: UtilityWatch,
+  log: Logger,
+  taken: () => boolean,
+): void {
   const ask = async <Choice extends string>(
     message: string,
     detail: string,
@@ -153,7 +158,7 @@ function recover(window: BrowserWindow, utility: UtilityWatch, log: Logger): voi
   )
   const contents = window.webContents
   contents.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
-    if (isMainFrame && code !== LOAD_ABORTED) recovery.failed()
+    if (isMainFrame && code !== LOAD_ABORTED && !taken()) recovery.failed()
   })
   // A renderer gone mid-close can neither finish nor veto it: reloading it would hold the quit forever.
   let closing = false
@@ -166,7 +171,7 @@ function recover(window: BrowserWindow, utility: UtilityWatch, log: Logger): voi
         'renderer gone while its window was closing; destroying it',
       )
       window.destroy()
-    } else if (details.reason !== 'clean-exit') recovery.failed()
+    } else if (details.reason !== 'clean-exit' && !taken()) recovery.failed()
   })
   window.on('unresponsive', () => {
     log.warn({}, 'window unresponsive')
@@ -194,6 +199,7 @@ export function openAppWindow(
   saved: WindowStateFile,
   utility: UtilityWatch,
   log: Logger,
+  taken: () => boolean = () => false,
 ): BrowserWindow {
   const state = usableState(
     saved.load(),
@@ -204,7 +210,7 @@ export function openAppWindow(
   const afterShown = reportReady(window, log)
   if (state?.maximized === true) window.maximize()
   harden(window.webContents)
-  recover(window, utility, log)
+  recover(window, utility, log, taken)
 
   // macOS sends no `show` while the screen is locked: a window just shown counts if it says visible.
   const show = (): void => {

@@ -156,3 +156,36 @@ describe('版本的名字', () => {
     expect(() => installVersion(root, source, 'x.partial')).toThrow(/a version is named by/)
   })
 })
+
+describe('应用自带的那一版', () => {
+  it('永远装好、定下过：没有指针文件时现在的与退路都是它；装进来的第一版起不来就退回它', () => {
+    const root = emptyRoot()
+    const shipped = { current: 'builtin', previous: 'builtin', settled: true }
+    expect(readVersions(root, 'builtin')).toEqual({
+      installed: { builtin: 'complete' },
+      pointer: shipped,
+    })
+    expect(existsSync(join(root, POINTER_FILE))).toBe(false)
+    const first = installVersion(root, built('first')).version
+    expect(switchVersion(root, first, 'builtin')).toEqual({
+      outcome: 'moved',
+      pointer: { current: first, previous: 'builtin', settled: false },
+    })
+    expect(tellVersions(root, first, 'fell-to-limit', 'builtin')).toEqual({
+      outcome: 'rolled-back',
+      pointer: shipped,
+    })
+    expect(readVersions(root, 'builtin').pointer).toEqual(shipped)
+    expect(tellVersions(root, 'builtin', 'fell-to-limit', 'builtin').outcome).toBe('no-fallback')
+  })
+
+  it('版本目录全删了：指针指着的那一版不在，读到的还是指针写的；自带的那一版照样在', () => {
+    const root = emptyRoot()
+    const first = installVersion(root, built('gone')).version
+    switchVersion(root, first, 'builtin')
+    rmSync(join(root, VERSIONS_DIR), { recursive: true })
+    const read = readVersions(root, 'builtin')
+    expect(read.installed).toEqual({ builtin: 'complete' })
+    expect(read.pointer?.current).toBe(first)
+  })
+})
