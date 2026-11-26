@@ -157,24 +157,24 @@ function criterionIssues(body: GoalBody, context: BodyContext): BodyIssue[] {
         field: 'evidence',
         problem: `there is no metric ${evidence.metric}`,
       })
-    if (evidence.kind === 'person' && context.attendance === 'unattended')
-      found.push({
-        entry: entry.id,
-        field: 'evidence',
-        problem: 'nobody is in an unattended session to confirm',
-      })
+    const [first, ...later] = whereProblems(entry, context)
+    if (first !== undefined) found.push({ entry: entry.id, field: 'evidence', problem: first })
     const problem = passProblem(entry)
     if (problem !== null) found.push({ entry: entry.id, field: 'pass', problem })
-    if (context.examining === true && examined(verificationOf(entry)))
-      found.push({
-        entry: entry.id,
-        field: 'evidence',
-        problem: 'a session that examines for a goal does not wait for an examination itself',
-      })
-    const barred = jobProblem(evidence.kind, context.job)
-    if (barred !== null) found.push({ entry: entry.id, field: 'evidence', problem: barred })
+    for (const more of later) found.push({ entry: entry.id, field: 'evidence', problem: more })
   }
   return found
+}
+
+function whereProblems(entry: GoalBody['criteria'][number], context: BodyContext): string[] {
+  const { kind } = entry.evidence
+  const found: string[] = []
+  if (kind === 'person' && context.attendance === 'unattended')
+    found.push('nobody is in an unattended session to confirm')
+  if (context.examining === true && examined(verificationOf(entry)))
+    found.push('a session that examines for a goal does not wait for an examination itself')
+  const barred = jobProblem(kind, context.job)
+  return barred === null ? found : [...found, barred]
 }
 
 function jobProblem(kind: string, allowed: JobAwaited | undefined): string | null {

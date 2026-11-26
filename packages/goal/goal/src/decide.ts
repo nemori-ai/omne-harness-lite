@@ -72,8 +72,9 @@ export function proposedBody(
   return live ? reviseBody(current.body, proposal.changes, context) : { kind: 'no-live-goal' }
 }
 
-function contextOf(attendance: Attendance, rules: Rules, byCreator: boolean): BodyContext {
+function contextOf(attendance: Attendance, rules: Rules, entrance: Entrance | null): BodyContext {
   const { maxExaminations, examining, job } = rules
+  const byCreator = entrance?.via === 'direct' && entrance.draftedBy === 'creator'
   return { attendance, maxExaminations, examining, ...(byCreator ? { job } : {}) }
 }
 
@@ -165,8 +166,7 @@ function stand(current: GoalRecord | null, input: WriteInput): Stood | Decided {
   const byCard = entrance.via === 'card'
   const step = transition(state, writeEventOf(proposal, attendance, byCard))
   if (step.kind === 'refused') return refused({ kind: 'state', reason: step.reason })
-  const byCreator = entrance.via === 'direct' && entrance.draftedBy === 'creator'
-  const checked = proposedBody(current, proposal, contextOf(attendance, input.rules, byCreator))
+  const checked = proposedBody(current, proposal, contextOf(attendance, input.rules, entrance))
   if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })
   if (checked.kind !== 'valid' || step.kind !== 'changed')
     return refused({ kind: 'state', reason: 'no-live-goal' })
@@ -228,7 +228,7 @@ export function describeProposal(
 ): Described {
   const owner = standsFor(current, attendance)
   if (owner === 'unattended') return { refusal: { kind: 'state', reason: 'nobody-attends' } }
-  const checked = proposedBody(current, proposal, contextOf(owner, rules, false))
+  const checked = proposedBody(current, proposal, contextOf(owner, rules, null))
   if (checked.kind === 'no-live-goal') return { refusal: { kind: 'state', reason: 'no-live-goal' } }
   if (checked.kind === 'invalid') return { refusal: { kind: 'invalid', issues: checked.issues } }
   const { body } = checked
