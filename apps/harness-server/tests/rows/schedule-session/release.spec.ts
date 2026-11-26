@@ -13,10 +13,12 @@ import { describe, expect, it } from 'vitest'
 import { defineRow } from '../../../src/row.ts'
 import { bodyOf, type CliRun } from '../../r9/support.ts'
 import { answeringDecisions, type AskedDecision } from '../../support/decisions-script.ts'
+import type { GatewayScript } from '../../fixtures/model-gateway.ts'
 import {
   historyOf,
   onReleaseTreeRuns,
   pollUntil,
+  sse,
   toolCallsByRequest,
   type AddedRow,
   type ReleaseTree,
@@ -286,6 +288,27 @@ describe('agent work in a new session on the release tree', () => {
   )
 })
 
+/** A model that takes a request and does not answer until released: the round it serves stays open. */
+function holding() {
+  let seen = () => {}
+  let free = () => {}
+  const asked = new Promise<void>(resolve => (seen = resolve))
+  const freed = new Promise<void>(resolve => (free = resolve))
+  const script: GatewayScript = async () => {
+    seen()
+    await freed
+    return {
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sse([
+        { choices: [{ delta: { content: 'late' } }] },
+        { choices: [{ delta: {}, finish_reason: 'stop' }] },
+      ]),
+    }
+  }
+  return { script, asked, release: () => free() }
+}
+
 /** The sessions a list names, whatever else each row says. */
 const sessionsIn = (list: Record<string, unknown>) =>
   (list['sessions'] as { session: string }[]).map(row => row.session).sort()
@@ -402,6 +425,168 @@ describe('agent work in a session that exists, on the release tree', () => {
             ])
             const after = succeeded(await tree.cli(['list-sessions']))
             expect(sessionsIn(after)).toEqual(sessionsIn(before))
+          },
+        ],
+      )
+    },
+  )
+
+  it(
+    'cancelling a Job that is running cancels its goal and its round, and nothing else: the Job ends cancelled with the stop confirmed',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const held = holding()
+      await onReleaseTreeRuns(
+        {
+          ...TREE,
+          script: answeringDecisions(held.script, () => ({ criterion: 'holds' })),
+          time: fastTime(),
+        },
+        [
+          async tree => {
+            const made = await tree.cli(['create-session', '--definition', 'coding'])
+            const session = String((bodyOf(made) as { session: string }).session)
+            const jobId = await startIn(tree, session, 'c-1')
+            await jobOf(tree, jobId, job => job['state'] === 'running')
+            await held.asked
+            succeeded(
+              await tree.cli(['schedule', 'cancel-job', '--job', jobId, '--action-id', 'x-1']),
+            )
+            const done = await jobOf(tree, jobId, job => job['state'] === 'concluded')
+            expect([done['outcome'], done['stop']]).toEqual(['cancelled', 'confirmed'])
+            const { goals, agent } = await goalsOf(tree, session)
+            expect(await goals.read(agent, session)).toMatchObject({
+              value: { state: { status: 'settled', outcome: { kind: 'cancelled' } } },
+            })
+            const entries = await historyOf(tree, session)
+            expect(count(entries, 'run.started')).toBe(1)
+            expect(JSON.stringify(entries.find(entry => entry.kind === 'run.terminal'))).toContain(
+              'cancelled',
+            )
+            held.release()
+          },
+        ],
+      )
+    },
+  )
+
+  it(
+    'when the person stops the round of the Job in their session, the goal of the Job ends aborted and the Job fails, saying so',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const held = holding()
+      await onReleaseTreeRuns(
+        {
+          ...TREE,
+          script: answeringDecisions(held.script, () => ({ criterion: 'holds' })),
+          time: fastTime(),
+        },
+        [
+          async tree => {
+            const made = await tree.cli(['create-session', '--definition', 'coding'])
+            const session = String((bodyOf(made) as { session: string }).session)
+            const jobId = await startIn(tree, session, 'a-1')
+            await jobOf(tree, jobId, job => job['state'] === 'running')
+            await held.asked
+            const started = (await historyOf(tree, session)).find(
+              entry => entry.kind === 'run.started',
+            )
+            const run = String(started?.payload['run'])
+            const stopped = await tree.cli(['cancel-run', '--session', session, '--run', run])
+            expect(stopped.status, stopped.stderr).toBe(0)
+            const done = await jobOf(tree, jobId, job => job['state'] === 'concluded')
+            expect([done['outcome'], done['reason']]).toEqual(['failed', 'aborted'])
+            expect(done['where']).toMatchObject({ account: { outcome: 'aborted' } })
+            held.release()
+          },
+        ],
+      )
+    },
+  )
+
+  it(
+    'a session that already has a goal in progress blocks the Job with that reason; once that goal ended the Job starts there',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const chat = toolCallsByRequest(body => (body.includes(WRITE.id) ? [] : [WRITE]))
+      const held = holding()
+      let first = true
+      const script: typeof chat = request => {
+        const mine = first
+        first = false
+        return mine ? held.script(request) : chat(request)
+      }
+      await onReleaseTreeRuns(
+        {
+          ...TREE,
+          script: answeringDecisions(script, () => ({ criterion: 'holds' })),
+          time: fastTime(),
+        },
+        [
+          async tree => {
+            const made = await tree.cli(['create-session', '--definition', 'coding'])
+            const session = String((bodyOf(made) as { session: string }).session)
+            const earlier = await startIn(tree, session, 'g-1')
+            await jobOf(tree, earlier, job => job['state'] === 'running')
+            await held.asked
+            const later = await startIn(tree, session, 'g-2')
+            const blocked = await jobOf(tree, later, job => job['state'] === 'blocked')
+            expect(blocked['reason']).toBe('the session already has a goal in progress')
+            succeeded(
+              await tree.cli(['schedule', 'cancel-job', '--job', earlier, '--action-id', 'x-2']),
+            )
+            await jobOf(tree, earlier, job => job['state'] === 'concluded')
+            held.release()
+            const done = await jobOf(tree, later, job => job['state'] === 'concluded')
+            expect([done['outcome'], done['reason']]).toEqual(['succeeded', null])
+            const { goals, agent } = await goalsOf(tree, session)
+            expect(await goals.read(agent, session)).toMatchObject({
+              value: {
+                state: { generation: 2, outcome: { kind: 'achieved' } },
+                history: [{ confirmedBy: `schedule-job:${later}` }],
+              },
+            })
+          },
+        ],
+      )
+    },
+  )
+
+  it(
+    'a session with a round of its own going blocks the Job as busy, and nothing of the Job enters that round; once the session is quiet the Job runs in a round of its own',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const chat = toolCallsByRequest(body => (body.includes(WRITE.id) ? [] : [WRITE]))
+      const held = holding()
+      let first = true
+      const script: typeof chat = request => {
+        const mine = first
+        first = false
+        return mine ? held.script(request) : chat(request)
+      }
+      await onReleaseTreeRuns(
+        {
+          ...TREE,
+          script: answeringDecisions(script, () => ({ criterion: 'holds' })),
+          time: fastTime(),
+        },
+        [
+          async tree => {
+            const session = await tree.startSession('先做这件事')
+            await held.asked
+            const jobId = await startIn(tree, session, 'b-1')
+            const blocked = await jobOf(tree, jobId, job => job['state'] === 'blocked')
+            expect(blocked['reason']).toBe('the session is busy')
+            const { goals, agent } = await goalsOf(tree, session)
+            expect(await goals.read(agent, session)).toMatchObject({ kind: 'done', value: null })
+            held.release()
+            const done = await jobOf(tree, jobId, job => job['state'] === 'concluded')
+            expect([done['outcome'], done['reason']]).toEqual(['succeeded', null])
+            const entries = await historyOf(tree, session)
+            expect(count(entries, 'run.started')).toBe(2)
+            expect(await goals.read(agent, session)).toMatchObject({
+              value: { state: { generation: 1, outcome: { kind: 'achieved' } } },
+            })
           },
         ],
       )

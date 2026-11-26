@@ -87,6 +87,12 @@ export function jobOf(change: Partial<ScheduleExecutorJob> = {}): ScheduleExecut
   }
 }
 
+const standingOf = (held: Held): SessionStanding => ({
+  usable: held.usable,
+  quiet: held.run === null && held.pending === 0 && held.background === 0,
+  run: held.run,
+  adopted: { name: 'coding', version: 'v7' },
+})
 type Held = {
   run: string | null
   pending: number
@@ -104,7 +110,13 @@ export function world() {
   const authority = fakeAuthority()
   let tick = 0
   const sessions = new Map<string, Held>()
-  const hooks: { handed?: (held: Held) => void } = {}
+  const hooks: {
+    handed?: (held: Held) => void
+    /** Runs after the executor read the goal of a session and before it acts on what it read. */
+    reading?: () => Promise<void>
+    /** Runs when the executor asks who opened the run going, after the goal was set. */
+    asking?: () => void
+  } = {}
   /** A reminder the goal hands over is an input the session holds until a run takes it. */
   const handing: typeof goalSessions = {
     ...goalSessions,
@@ -153,14 +165,7 @@ export function world() {
       async standing({ session }) {
         if (faults.standing) return { kind: 'unavailable' }
         const held = sessions.get(session)
-        if (held === undefined) return { kind: 'read', value: null }
-        const value: SessionStanding = {
-          usable: held.usable,
-          quiet: held.run === null && held.pending === 0 && held.background === 0,
-          run: held.run,
-          adopted: { name: 'coding', version: 'v7' },
-        }
-        return { kind: 'read', value }
+        return { kind: 'read', value: held === undefined ? null : standingOf(held) }
       },
       async cancelRun(input) {
         if (faults.stop) return 'unknown'
@@ -170,12 +175,14 @@ export function world() {
       async opened({ session }) {
         const held = sessions.get(session)
         if (faults.standing || held === undefined) return { kind: 'unavailable' }
+        hooks.asking?.()
         return { kind: 'read', value: held.run === null ? null : held.opener === 'own' }
       },
     },
     goals: {
       async read({ session }) {
         const read = await goals.read(SCHEDULE, session)
+        await hooks.reading?.()
         const outcome = ended.get(session)
         if (read.kind !== 'done' || read.value === null || outcome === undefined) return read
         const { attendance, generation, revision, rounds } = read.value.state

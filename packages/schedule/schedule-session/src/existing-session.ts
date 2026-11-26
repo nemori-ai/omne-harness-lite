@@ -62,7 +62,7 @@ export function createExistingSessionExecutor(calls: ExecutorCalls): ScheduleJob
       .catch(() => UNKNOWN)
     if (set.kind === 'refused') {
       const { reason } = set
-      const taken = reason.kind === 'another-goal' || reason.kind === 'state'
+      const taken = reason.kind === 'state' && reason.reason === 'goal-in-progress'
       return taken ? later(HAS_GOAL) : never(`goal: ${refusalText(reason)}`)
     }
     if (set.kind !== 'done') return unknown('whether the goal was set is not known')

@@ -83,6 +83,14 @@ describe('check', () => {
     expect(await w.existing.check(job())).toEqual({ kind: 'unavailable', reason: BUSY })
   })
 
+  it('is ready again for the Job whose goal is already set there, though the session is then busy with it', async () => {
+    const w = opened()
+    await w.existing.start(job())
+    w.at(HERE, { run: 'run-1', pending: 0 })
+    expect(await w.existing.check(job())).toEqual({ kind: 'ready' })
+    expect(await w.existing.check(job('job-2'))).toEqual({ kind: 'unavailable', reason: HAS_GOAL })
+  })
+
   it('is blocked while the session has a goal in progress that is not of this Job, and says that before busy', async () => {
     const w = opened()
     await personGoal(w)
@@ -170,6 +178,65 @@ describe('start', () => {
       outcome: { kind: 'cancelled' },
     })
     expect(w.stopped).toEqual([])
+  })
+
+  it('waits when a goal of another came between its reading and its setting: the goal it found is left alone', async () => {
+    const w = opened()
+    w.hooks.reading = async () => {
+      delete w.hooks.reading
+      await personGoal(w)
+      w.at(HERE, { pending: 0 })
+    }
+    expect(await w.existing.start(job())).toEqual({
+      kind: 'notStarted',
+      recoverable: true,
+      reason: HAS_GOAL,
+    })
+    expect((await w.goalOf(HERE))?.history).toMatchObject([{ operation: 'person-1' }])
+  })
+
+  it('answers unknown when the goal it set in a round of another may or may not be cancelled; asked again it finds its goal and takes it as started', async () => {
+    const w = opened()
+    w.hooks.handed = held => Object.assign(held, { run: 'run-x', pending: 0, opener: 'other' })
+    w.hooks.asking = () => w.store.failNext('unknown-before-commit')
+    expect(await w.existing.start(job())).toMatchObject({ kind: 'unknown' })
+    expect((await w.goalOf(HERE))?.state.status).toBe('active')
+    delete w.hooks.asking
+    expect(await w.existing.start(job())).toMatchObject({ kind: 'started', running: true })
+  })
+
+  it('a start asked again for a goal already set does not look at who opened the run now going: the goal stays', async () => {
+    const w = opened()
+    await w.existing.start(job())
+    w.at(HERE, { run: 'run-2', pending: 0, opener: 'other' })
+    expect(await w.existing.start(job())).toMatchObject({ kind: 'started', running: true })
+    expect((await w.goalOf(HERE))?.state.status).toBe('active')
+  })
+
+  it('two starts of one Job at once set the goal once: the one that finds it set by the other does not cancel it over a later round', async () => {
+    const w = opened()
+    w.hooks.reading = async () => {
+      delete w.hooks.reading
+      await w.existing.start(job())
+      w.at(HERE, { run: 'run-2', pending: 0, opener: 'other' })
+    }
+    expect(await w.existing.start(job())).toEqual({
+      kind: 'started',
+      executionRef: HERE,
+      running: true,
+    })
+    expect((await w.goalOf(HERE))?.state.status).toBe('active')
+    expect(w.store.rows(TENANT)).toHaveLength(1)
+  })
+
+  it('never starts when Goal refuses the goal for another reason than one in progress, and says why', async () => {
+    const w = opened()
+    w.authority.answer(action => (action === 'set' ? 'denied' : 'permitted'))
+    expect(await w.existing.start(job())).toEqual({
+      kind: 'notStarted',
+      recoverable: false,
+      reason: 'goal: denied',
+    })
   })
 
   it('asked again, recalls the goal it set: nothing is set a second time, also after the goal ended', async () => {
