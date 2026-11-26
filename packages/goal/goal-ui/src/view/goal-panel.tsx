@@ -10,9 +10,15 @@ import {
   InlineNotice,
   Input,
   LoadingState,
+  OpenIcon,
   PauseIcon,
   PlayIcon,
   Prose,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   StateWord,
   Table,
   TableBody,
@@ -28,7 +34,10 @@ import {
   changesOf,
   DRAFTER_WORDS,
   editsOf,
+  howOf,
   limitsOf,
+  readerOf,
+  readingOf,
   SECTION_WORDS,
   settlingExit,
   SOURCE_WORDS,
@@ -61,13 +70,18 @@ function GapTable({ goal }: { readonly goal: GoalView }) {
     <Table className="goal-gap">
       <TableBody>
         {goal.gap.map(row => (
-          <TableRow key={row.id} data-open={row.open ? 'yes' : 'no'}>
+          <TableRow key={row.id} data-open={row.open ? 'yes' : 'no'} data-reading={row.value}>
             <TableCell className="goal-gap-id">{row.id}</TableCell>
-            <TableCell>{row.ought}</TableCell>
             <TableCell>
-              {row.reading}
-              {row.source === null ? null : (
-                <span className="goal-quiet">（{SOURCE_WORDS[row.source] ?? row.source}）</span>
+              {row.ought}
+              {howOf(row) === null ? null : <span className="goal-how">{howOf(row)}</span>}
+            </TableCell>
+            <TableCell>
+              {readingOf(row)}
+              {readerOf(row) === null ? null : (
+                <span className="goal-quiet">
+                  （{SOURCE_WORDS[readerOf(row) ?? ''] ?? readerOf(row)}）
+                </span>
               )}
               {row.short === null || row.short === '' ? null : (
                 <span className="goal-quiet"> · {row.short}</span>
@@ -290,8 +304,44 @@ function Actions({
   )
 }
 
-/** The goal of one session, as a person reads it and acts on it. It shows what the driver read and nothing it guessed. */
-export function GoalPanel({ driver }: { readonly driver: GoalDriver }) {
+const TENANT_SET = 'tenant'
+
+/** Which decision model judges this session: the one the session chose for itself, or what the tenant set. Shown only when the server told the choice. */
+function JudgeChoiceRow({ state, driver }: Readonly<{ state: PanelState; driver: GoalDriver }>) {
+  const { judge } = state
+  if (judge === null) return null
+  const chosen = judge.model ?? TENANT_SET
+  const wordOf = (value: string) => (value === TENANT_SET ? '照租户的设置' : value)
+  return (
+    <div className="goal-judge">
+      <span className="goal-quiet">判定用的型号</span>
+      <Select
+        value={chosen}
+        disabled={state.busy !== null}
+        onValueChange={value => void driver.chooseJudge(value === TENANT_SET ? null : value)}
+      >
+        <SelectTrigger aria-label="这段会话判定用的型号" size="sm">
+          <SelectValue>{wordOf(chosen)}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {[TENANT_SET, ...judge.models].map(value => (
+            <SelectItem key={value} value={value}>
+              {wordOf(value)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+export type GoalPanelProps = Readonly<{
+  driver: GoalDriver
+  /** Opens another session; absent where the panel is shown with nowhere to go. */
+  onOpenSession?: (session: string) => void
+}>
+
+export function GoalPanel({ driver, onOpenSession }: GoalPanelProps) {
   const state = useSyncExternalStore(driver.subscribe, driver.getState)
   const [editing, setEditing] = useState(false)
   useEffect(() => driver.retain(), [driver])
@@ -316,6 +366,7 @@ export function GoalPanel({ driver }: { readonly driver: GoalDriver }) {
       </section>
     )
   const standing = standingOf(goal.state)
+  const { examiner } = goal
   return (
     <section className="goal-panel" {...goalPanel.props} aria-label="目标">
       <header className="goal-head">
@@ -346,8 +397,16 @@ export function GoalPanel({ driver }: { readonly driver: GoalDriver }) {
           }
         />
       ) : null}
-      <Heading>做到哪了</Heading>
+      <div className="goal-heading-row">
+        <Heading>做到哪了</Heading>
+        {examiner === undefined || onOpenSession === undefined ? null : (
+          <IconButton label="打开查验会话" onClick={() => onOpenSession(examiner)}>
+            <OpenIcon aria-hidden="true" />
+          </IconButton>
+        )}
+      </div>
       <GapTable goal={goal} />
+      <JudgeChoiceRow state={state} driver={driver} />
       <Heading>正文</Heading>
       <div className="goal-body">
         <Prose text={goal.rendered} unlinked />

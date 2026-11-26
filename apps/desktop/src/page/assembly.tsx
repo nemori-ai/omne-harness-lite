@@ -115,7 +115,7 @@ export const assembly: Assembly = {
       preferences: accountPreferencesKey,
     }),
     createHumanInterventionUiModule({ sessionDock }),
-    createGoalUiModule({ sessionSide }),
+    createGoalUiModule({ sessionSide, conversation: conversationTarget }),
     notificationUiModule,
     createScheduleUiModule({ releaseDetail, conversation: conversationTarget, sessionStatus }),
     calendarUiModule,

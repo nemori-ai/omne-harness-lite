@@ -228,6 +228,13 @@ declare const gapRow: {
             readonly optional: true;
             readonly since: 2;
         };
+        readonly value: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
+            readonly since: 3;
+        };
     };
 };
 declare const provenance: {
@@ -514,6 +521,13 @@ declare const goal: {
                             readonly optional: true;
                             readonly since: 2;
                         };
+                        readonly value: {
+                            readonly rule: {
+                                readonly kind: 'text';
+                            };
+                            readonly optional: true;
+                            readonly since: 3;
+                        };
                     };
                 };
             };
@@ -584,6 +598,13 @@ declare const goal: {
                     };
                 };
             };
+        };
+        readonly examiner: {
+            readonly rule: {
+                readonly kind: 'session';
+            };
+            readonly optional: true;
+            readonly since: 3;
         };
     };
 };
@@ -701,6 +722,7 @@ export declare const goalProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly goal: {
                         readonly body: import("@omne-harness/json-text").JsonValue;
+                        readonly examiner?: string;
                         readonly gap: readonly {
                             readonly id: string;
                             readonly open: boolean;
@@ -710,6 +732,7 @@ export declare const goalProtocol: {
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly value?: string;
                             readonly verification?: string;
                         }[];
                         readonly history: readonly {
@@ -760,6 +783,7 @@ export declare const goalProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly goal: {
                         readonly body: import("@omne-harness/json-text").JsonValue;
+                        readonly examiner?: string;
                         readonly gap: readonly {
                             readonly id: string;
                             readonly open: boolean;
@@ -769,6 +793,7 @@ export declare const goalProtocol: {
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly value?: string;
                             readonly verification?: string;
                         }[];
                         readonly history: readonly {
@@ -839,6 +864,7 @@ export declare const goalProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly goal: {
                         readonly body: import("@omne-harness/json-text").JsonValue;
+                        readonly examiner?: string;
                         readonly gap: readonly {
                             readonly id: string;
                             readonly open: boolean;
@@ -848,6 +874,7 @@ export declare const goalProtocol: {
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly value?: string;
                             readonly verification?: string;
                         }[];
                         readonly history: readonly {
@@ -908,6 +935,7 @@ export declare const goalProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly goal: {
                         readonly body: import("@omne-harness/json-text").JsonValue;
+                        readonly examiner?: string;
                         readonly gap: readonly {
                             readonly id: string;
                             readonly open: boolean;
@@ -917,6 +945,7 @@ export declare const goalProtocol: {
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly value?: string;
                             readonly verification?: string;
                         }[];
                         readonly history: readonly {

@@ -2,7 +2,7 @@
   "digests": {
     "1": "sha256:3e4e07988ba9e83aca5f94a54746f35ef5993acb76780ff99b11c9c33842f63f",
     "2": "sha256:0d0ba6c0056352283db52cb4538f22190efc433ab821c5e08820cc8f25071462",
-    "3": "sha256:e3182af5190ec74ae312c935582e9341702fef67979deb025ea53228ece148b5"
+    "3": "sha256:3bdb5f0555fe5f6f59a3a544d509fb5ee4122ff64eeaa0e1bef60ffcc61c2e50"
   },
   "major": 1,
   "name": "goal",
@@ -246,6 +246,13 @@
                             "kind": "json"
                           }
                         },
+                        "examiner": {
+                          "optional": true,
+                          "rule": {
+                            "kind": "session"
+                          },
+                          "since": 3
+                        },
                         "gap": {
                           "rule": {
                             "item": {
@@ -320,6 +327,13 @@
                                       }
                                     ]
                                   }
+                                },
+                                "value": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
                                 },
                                 "verification": {
                                   "optional": true,
@@ -653,6 +667,13 @@
                         "kind": "json"
                       }
                     },
+                    "examiner": {
+                      "optional": true,
+                      "rule": {
+                        "kind": "session"
+                      },
+                      "since": 3
+                    },
                     "gap": {
                       "rule": {
                         "item": {
@@ -727,6 +748,13 @@
                                   }
                                 ]
                               }
+                            },
+                            "value": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 3
                             },
                             "verification": {
                               "optional": true,
@@ -992,6 +1020,13 @@
                             "kind": "json"
                           }
                         },
+                        "examiner": {
+                          "optional": true,
+                          "rule": {
+                            "kind": "session"
+                          },
+                          "since": 3
+                        },
                         "gap": {
                           "rule": {
                             "item": {
@@ -1066,6 +1101,13 @@
                                       }
                                     ]
                                   }
+                                },
+                                "value": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
                                 },
                                 "verification": {
                                   "optional": true,
@@ -1506,6 +1548,13 @@
                         "kind": "json"
                       }
                     },
+                    "examiner": {
+                      "optional": true,
+                      "rule": {
+                        "kind": "session"
+                      },
+                      "since": 3
+                    },
                     "gap": {
                       "rule": {
                         "item": {
@@ -1580,6 +1629,13 @@
                                   }
                                 ]
                               }
+                            },
+                            "value": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 3
                             },
                             "verification": {
                               "optional": true,

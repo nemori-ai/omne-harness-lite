@@ -55,6 +55,17 @@ describe('goal/v1', () => {
     expectRoundTrip(answers.succeeded, {
       goal: { ...GOAL, state: { ...GOAL.state, pause: { by: 'person' } } },
     })
+    const [first, ...rest] = GOAL.gap
+    const examined = {
+      ...first,
+      verification: 'examination',
+      reader: 'examiner',
+      value: 'gathering',
+    }
+    expectRoundTrip(answers.succeeded, {
+      goal: { ...GOAL, gap: [examined, ...rest], examiner: 'e'.repeat(64) },
+    })
+    rejected(answers.succeeded, { goal: { ...GOAL, examiner: 'not a session' } })
     rejected(answers.succeeded, { goal: { ...GOAL, state: { ...GOAL.state, status: 'none' } } })
     rejected(answers.succeeded, { goal: { ...GOAL, wake: null } })
     rejected(answers.succeeded, { goal: { ...GOAL, rendered: '' } })

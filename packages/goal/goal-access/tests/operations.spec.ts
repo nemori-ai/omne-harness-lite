@@ -83,6 +83,29 @@ describe('who gets in', () => {
 })
 
 describe('read-goal', () => {
+  it('tells which session examines for the goal when one does, and how a row that waits reads now', async () => {
+    const { script, run } = world()
+    const examiner = 'e'.repeat(64)
+    script.read = done<typeof RECORD | null>({
+      ...RECORD,
+      examination: { ...RECORD.examination, examiner },
+      readings: {
+        ...RECORD.readings,
+        criteria: { A1: { value: 'gathering', source: 'examiner', ref: null, note: null } },
+      },
+    })
+    const answer = (await run('read-goal', WHERE)) as {
+      body: { goal: { examiner: string; gap: Record<string, unknown>[] } }
+    }
+    expect(answer.body.goal.examiner).toBe(examiner)
+    expect(answer.body.goal.gap[0]).toMatchObject({
+      id: 'A1',
+      source: null,
+      reader: 'examiner',
+      value: 'gathering',
+    })
+  })
+
   it('asks as the admitted subject for the tenant and lays the goal out for the panel', async () => {
     const { asked, run } = world()
     const answer = (await run('read-goal', WHERE)) as { body: { goal: Record<string, unknown> } }
@@ -113,7 +136,9 @@ describe('read-goal', () => {
       short: null,
       verification: 'judge',
       reader: 'judge',
+      value: 'fails',
     })
+    expect(goal).not.toHaveProperty('examiner')
     expect(goal.gap).toContainEqual({
       id: '预算',
       ought: '20 轮',

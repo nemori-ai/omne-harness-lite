@@ -52,6 +52,7 @@ export type GapRow = Readonly<{
   short: string | null
   /** How a criterion is judged; null for a row that is no criterion. */
   verification: Verification | null
+  value: CriterionReading | null
 }>
 
 const CRITERION_WORDS: Readonly<Record<CriterionReading, string>> = {
@@ -92,6 +93,7 @@ function metricRow(metric: Metric, read: Reading<number> | undefined): GapRow {
     short:
       read === undefined || reached ? null : `还差 ${String(Math.abs(read.value - metric.target))}`,
     verification: null,
+    value: null,
   }
 }
 
@@ -105,6 +107,7 @@ function measuredRow(criterion: Criterion, measured: GapRow): GapRow {
     open: measured.open,
     short: measured.short === null ? null : `${measured.id} ${measured.short}`,
     verification: 'system',
+    value: null,
   }
 }
 
@@ -124,6 +127,7 @@ function criterionRow(criterion: Criterion, read: Readings['criteria'][Criterion
     open: read?.value !== 'holds',
     short: shortOf(criterion, read),
     verification: verificationOf(criterion),
+    value: read?.value ?? null,
   }
 }
 
@@ -137,6 +141,7 @@ function ruleRow(rule: GoalBody['rules'][number], read: Readings['rules'][RuleId
     open: read?.value === 'broken',
     short: null,
     verification: null,
+    value: null,
   }
 }
 
@@ -155,6 +160,7 @@ function budgetRows(body: GoalBody, rounds: number): readonly GapRow[] {
       open: false,
       short: `剩 ${String(Math.max(0, limit.amount - rounds))}`,
       verification: null,
+      value: null,
     },
   ]
 }

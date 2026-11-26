@@ -60,6 +60,7 @@ const gapRow = object({
   short: { rule: nullable(words) },
   verification: { rule: text, optional: true, since: 2 },
   reader: { rule: text, optional: true, since: 2 },
+  value: { rule: text, optional: true, since: 3 },
 })
 const provenance = object({
   revision: { rule: number },
@@ -78,6 +79,7 @@ const goal = object({
   gap: { rule: list(gapRow) },
   progress: { rule: json },
   history: { rule: list(provenance) },
+  examiner: { rule: session, optional: true, since: 3 },
 })
 
 const where = { tenant: { rule: tenant }, session: { rule: session } } as const

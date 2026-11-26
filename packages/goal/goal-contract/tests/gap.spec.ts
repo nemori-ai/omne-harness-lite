@@ -70,6 +70,20 @@ describe('the gap table', () => {
 - 预算 30 轮：用了 12 轮（系统），剩 18`)
   })
 
+  it('a row of a criterion that was read carries the reading as a value, beside the words for it; a row that is no criterion, or that reads a metric, carries none', () => {
+    const rows = gapTable(home(), READ, 12)
+    expect(rows.map(row => [row.id, row.value])).toEqual([
+      ['A1', null],
+      ['A2', 'holds'],
+      ['A3', 'no-evidence'],
+      ['M1', null],
+      ['N1', null],
+      ['N2', null],
+      ['预算', null],
+    ])
+    expect(gapTable(home(), NO_READINGS, 0).every(row => row.value === null)).toBe(true)
+  })
+
   it('with nothing read yet every criterion and metric is open, no rule is, and nothing is short', () => {
     const rows = gapTable(home(), NO_READINGS, 0)
     expect(rows.map(row => [row.id, row.reading, row.open, row.short])).toEqual([

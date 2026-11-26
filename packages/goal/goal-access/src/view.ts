@@ -25,12 +25,13 @@ function stateOf({ state }: GoalRecord): GoalView['state'] {
 
 /** A row as goal/v1 carries it. `source` keeps the values of its first revision: a reading of the examining side is told in `reader` alone. */
 function rowOf(row: GapRow): GoalView['gap'][number] {
-  const { verification, source, ...rest } = row
+  const { verification, source, value, ...rest } = row
   return {
     ...rest,
     source: source === 'examiner' ? null : source,
     ...(verification === null ? {} : { verification }),
     ...(source === null ? {} : { reader: source }),
+    ...(value === null ? {} : { value }),
   }
 }
 
@@ -39,7 +40,9 @@ export function viewOf(record: GoalRecord): GoalView | undefined {
   const body = treeOf(record.body)
   const progress = treeOf(record.progress)
   if (body === undefined || progress === undefined) return undefined
+  const { examiner } = record.examination
   return {
+    ...(examiner === null ? {} : { examiner }),
     state: stateOf(record),
     rendered: renderBody(record.body),
     body,
