@@ -9,6 +9,7 @@ import {
 import { useCallback, useEffect, useRef, useState, type JSX, type RefObject } from 'react'
 import type { Placed, Size, Spot } from '../model/commands.ts'
 import { fitSize, itemBox, pileBox, type Sheet } from '../model/sheet.ts'
+import { canvasMark } from '../parts.ts'
 import type { CanvasPlacing, CanvasReference } from '../points.ts'
 import type { Dropped } from './intake.tsx'
 
@@ -144,7 +145,11 @@ export function FinderKey(
 export function FoundMark({ box }: Readonly<{ box: PaperBox }>): JSX.Element {
   return (
     <PaperSpot at={middle(box)} className="canvas-found-spot">
-      <div className="canvas-found" style={{ width: box.width, height: box.height }} />
+      <div
+        className="canvas-found"
+        {...canvasMark.props}
+        style={{ width: box.width, height: box.height }}
+      />
     </PaperSpot>
   )
 }

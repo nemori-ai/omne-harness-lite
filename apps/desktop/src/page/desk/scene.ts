@@ -7,6 +7,27 @@ export type Rect = Readonly<{ x: number; y: number; width: number; height: numbe
 
 export type Look = Readonly<{ theme: 'light' | 'dark'; size: SizeTier; reduced: boolean }>
 
+export type SceneLook = Look & Readonly<{ issuer: string; version: number }>
+
+export type LookSource = Readonly<{ module: string; export: string; files?: string }>
+export type LookDrawing = Readonly<{ point: string; key: string; source: LookSource }>
+
+export type LookProjection = Readonly<{
+  issuer: string
+  version: number
+  scope?: string
+  css: string
+  drawings: readonly LookDrawing[]
+}>
+
+export type DeskToast = Readonly<{
+  id: string
+  tone: 'info' | 'attention'
+  title: string
+  body?: string
+  action?: Readonly<{ label: string; page: string; subject?: string }>
+}>
+
 export type SceneFigure = Readonly<{
   doing?: Doing | undefined
   moment?: FigureMoment | undefined
@@ -29,7 +50,7 @@ export type NoteTold =
   | Readonly<{ kind: 'not-authorized' | 'cannot-send-pictures' }>
   | Readonly<{ kind: 'not-seen'; reason: string }>
 
-/** The say note: `targets` null when who can be spoken to cannot be read now; `to` is the default; pictures by id only. */
+/** The say note: `targets` null when who can be spoken to cannot be read; `to` is the default; pictures by id. */
 export type SceneNote = Readonly<{
   targets: readonly NoteTarget[] | null
   to: NoteTo
@@ -40,11 +61,11 @@ export type SceneNote = Readonly<{
 
 export type SceneFrame = Readonly<{ rect: Rect; covered: readonly Rect[]; closed: boolean }>
 
-/** The whole of what the shell hands the desk page to draw; points are logical points on the screen. A home `rewrite` rewrites the ring first. */
+/** What the shell hands the desk page to draw: points on the screen; a home `rewrite` rewrites the ring first. */
 export type Scene = Readonly<{
   lease: number
   serial: number
-  look: Look
+  look: SceneLook
   figure: SceneFigure
   where: SceneWhere
   label: readonly FigureLabelLine[] | null
@@ -70,6 +91,22 @@ export type Down =
   | Readonly<{ kind: 'hand'; lease: number; at: Point }>
   | Readonly<{ kind: 'picture'; id: string; bytes: Uint8Array<ArrayBuffer> }>
 
+export type LookDown = Readonly<{ kind: 'look'; look: LookProjection }>
+
+export type Asked =
+  | Readonly<{
+      kind: 'undrawn'
+      issuer: string
+      scope?: string
+      point: string
+      key: string
+      module: string
+      export: string
+      reason: string
+    }>
+  | Readonly<{ kind: 'navigate'; issuer: string; scope: string; page: string; subject?: string }>
+  | Readonly<{ kind: 'toast'; issuer: string; scope: string; toast: DeskToast }>
+
 /** From the desk page to the shell. */
 export type Up =
   | Readonly<{ kind: Handover; lease: number; serial: number }>
@@ -91,6 +128,7 @@ export type Up =
     }>
   | Readonly<{ kind: 'input'; lease: number; input: 'unpicture'; picture: string }>
   | Readonly<{ kind: 'hello' }>
+  | Asked
 
 const HANDOVERS: readonly string[] = ['painted', 'arrived', 'cleared']
 const INPUTS: readonly string[] = [
@@ -110,6 +148,9 @@ type Fields = Readonly<Record<string, unknown>>
 const fields = (value: unknown): Fields | undefined =>
   typeof value === 'object' && value !== null ? (value as Fields) : undefined
 const isNumber = (value: unknown): value is number => Number.isFinite(value)
+const isText = (value: unknown): value is string => typeof value === 'string'
+const optional = (value: unknown, is: (value: unknown) => boolean): boolean =>
+  value === undefined || is(value)
 const isPoint = (value: unknown): value is Point =>
   isNumber(fields(value)?.['x']) && isNumber(fields(value)?.['y'])
 const isTo = (value: unknown): value is NoteTo =>
@@ -124,15 +165,54 @@ const isWhere = (value: unknown): value is SceneWhere => {
   )
 }
 
+const isSceneLook = (value: unknown): boolean => {
+  const look = fields(value)
+  return look !== undefined && isText(look['issuer']) && isNumber(look['version'])
+}
+
 function isScene(value: unknown): value is Scene {
   const scene = fields(value)
   return (
     scene !== undefined &&
     isNumber(scene['lease']) &&
     isNumber(scene['serial']) &&
-    fields(scene['look']) !== undefined &&
+    isSceneLook(scene['look']) &&
     fields(scene['figure']) !== undefined &&
     isWhere(scene['where'])
+  )
+}
+
+const isSource = (value: unknown): boolean => {
+  const source = fields(value)
+  return (
+    source !== undefined &&
+    isText(source['module']) &&
+    isText(source['export']) &&
+    optional(source['files'], isText)
+  )
+}
+
+const isDrawing = (value: unknown): boolean => {
+  const drawing = fields(value)
+  return (
+    drawing !== undefined &&
+    isText(drawing['point']) &&
+    isText(drawing['key']) &&
+    isSource(drawing['source'])
+  )
+}
+
+const isProjection = (value: unknown): boolean => {
+  const look = fields(value)
+  const drawings = look?.['drawings']
+  return (
+    look !== undefined &&
+    isText(look['issuer']) &&
+    isNumber(look['version']) &&
+    optional(look['scope'], isText) &&
+    isText(look['css']) &&
+    Array.isArray(drawings) &&
+    drawings.every(isDrawing)
   )
 }
 
@@ -154,8 +234,21 @@ export function readDown(data: unknown): Down | undefined {
   return known === true ? (message as Down) : undefined
 }
 
-const optional = (value: unknown, is: (value: unknown) => boolean): boolean =>
-  value === undefined || is(value)
+export function readLook(data: unknown): LookDown | undefined {
+  const message = fields(data)
+  const known = message?.['kind'] === 'look' && isProjection(message['look'])
+  return known ? (message as LookDown) : undefined
+}
+
+export function readIn(data: unknown, takeLook: (look: LookProjection) => void): Down | undefined {
+  const projection = readLook(data)
+  if (projection !== undefined) {
+    takeLook(projection.look)
+    return undefined
+  }
+  return readDown(data)
+}
+
 const isFlag = (value: unknown): boolean => typeof value === 'boolean'
 const isIds = (value: unknown): boolean =>
   Array.isArray(value) && value.every(id => typeof id === 'string')
@@ -177,6 +270,48 @@ const isUnpicture = (kind: string, message: Fields): boolean =>
 const isHandover = (kind: string, message: Fields): boolean =>
   HANDOVERS.includes(kind) && isNumber(message['lease']) && isNumber(message['serial'])
 
+const UNDRAWN_FIELDS = ['issuer', 'point', 'key', 'module', 'export', 'reason']
+const TONES: readonly unknown[] = ['info', 'attention']
+
+const isUndrawn = (kind: string, message: Fields): boolean =>
+  kind === 'undrawn' &&
+  UNDRAWN_FIELDS.every(name => isText(message[name])) &&
+  optional(message['scope'], isText)
+
+const isTenants = (message: Fields): boolean =>
+  isText(message['issuer']) && isText(message['scope'])
+
+const isNavigate = (kind: string, message: Fields): boolean =>
+  kind === 'navigate' &&
+  isTenants(message) &&
+  isText(message['page']) &&
+  optional(message['subject'], isText)
+
+const isAction = (value: unknown): boolean => {
+  const action = fields(value)
+  return (
+    action !== undefined &&
+    isText(action['label']) &&
+    isText(action['page']) &&
+    optional(action['subject'], isText)
+  )
+}
+
+const isToast = (value: unknown): boolean => {
+  const toast = fields(value)
+  return (
+    toast !== undefined &&
+    isText(toast['id']) &&
+    TONES.includes(toast['tone']) &&
+    isText(toast['title']) &&
+    optional(toast['body'], isText) &&
+    optional(toast['action'], isAction)
+  )
+}
+
+const isTold = (kind: string, message: Fields): boolean =>
+  kind === 'toast' && isTenants(message) && isToast(message['toast'])
+
 const isInput = (kind: string, message: Fields): boolean =>
   kind === 'input' &&
   isNumber(message['lease']) &&
@@ -194,7 +329,10 @@ export function readUp(data: unknown): Up | undefined {
     isSend(kind, message) ||
     isUnpicture(kind, message) ||
     isHandover(kind, message) ||
-    isInput(kind, message)
+    isInput(kind, message) ||
+    isUndrawn(kind, message) ||
+    isNavigate(kind, message) ||
+    isTold(kind, message)
   return known ? (message as Up) : undefined
 }
 

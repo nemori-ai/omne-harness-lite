@@ -43,6 +43,7 @@ import {
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { CALENDAR_DOMAIN, CALENDAR_PARTICIPANTS, calendarAuthority } from './authority.ts'
 import { calendarContext } from './context.ts'
+import { calendarEntries } from './entries.ts'
 import {
   CALENDAR_OWNER,
   SEED_CONTEXT,
@@ -132,9 +133,12 @@ export const calendarRow = defineRow({
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
+  swap: 'implementation',
+  entries: calendarEntries(),
+  // The declaration of the calendar's own settings is not of a generation: a version that changes it is no swap.
+  fixed: [calendarEnvironmentSettingsPlugin],
   async body(ctx, config) {
     const rowConfig = calendarRowConfig.parse(config ?? {})
-    ctx.plugin(calendarEnvironmentSettingsPlugin)
     const storage = ctx.get(storageKey) as SqlStorage
     const combination = await registered(storage)
     const stores = {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LifecycleRegistry } from '../src/lifecycle.ts'
+import { rowSupervision } from './support/row-supervision.ts'
 import { runShutdown, type ShutdownClock, type ShutdownRecord } from '../src/shutdown.ts'
 import type {
   HostFilesReport,
@@ -51,6 +51,16 @@ function fakeClock() {
 
 const flush = () => new Promise<void>(resolve => setImmediate(resolve))
 
+/** The step of the host row: `agent-host` needs it and it needs `storage`, so the graph puts it between the two. */
+const HOST = row('execution-host')
+const hostStep = (run: () => Promise<HostFilesReport>) => ({
+  withRow: { row: HOST, run },
+  stopsFirst: new Map([
+    [HOST, [row('agent-host')]],
+    [row('storage'), [row('agent-host'), HOST]],
+  ]),
+})
+
 function handle(
   id: string,
   phase: LifecyclePhase,
@@ -66,7 +76,7 @@ function setup(
 ) {
   const clock = fakeClock()
   const records: ShutdownRecord[] = []
-  const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+  const registry = rowSupervision({ clock })
   for (const h of handles) registry.add(h)
   const run = () =>
     runShutdown(registry, EXPECTED, DEADLINE_MS, clock, {
@@ -147,29 +157,31 @@ describe('host-files maintenance after the business phase', () => {
         return { kind: 'settled' }
       },
     }))
-    const { run } = setup(stops, {
-      afterBusiness: async () => {
+    const { run } = setup(
+      stops,
+      hostStep(async () => {
         order.push('maintenance')
         return settled
-      },
-    })
+      }),
+    )
     const report = await run()
     expect(report.hostFiles).toEqual(settled)
     expect(order).toEqual(['stop:server-entry', 'stop:agent-host', 'maintenance', 'stop:storage'])
   })
 
   it('turns a failing maintenance into unavailable and a diagnostic, and goes on', async () => {
-    const { run, records } = setup(allSettled(), {
-      afterBusiness: async () => {
+    const { run, records } = setup(
+      allSettled(),
+      hostStep(async () => {
         throw new Error('maintenance broke')
-      },
-    })
+      }),
+    )
     const report = await run()
     expect(report.hostFiles).toEqual({ kind: 'unavailable', diagnostic: 'maintenance-failed' })
     expect(records).toContainEqual(
       expect.objectContaining({
         action: 'diagnostic',
-        phase: 'business',
+        phase: null,
         row: null,
         detail: 'host-files maintenance failed',
       }),
@@ -179,9 +191,10 @@ describe('host-files maintenance after the business phase', () => {
 
   it('bounds maintenance by the one deadline D and notes a late completion', async () => {
     let finish: (report: HostFilesReport) => void = () => {}
-    const { run, clock, records } = setup(allSettled(), {
-      afterBusiness: () => new Promise<HostFilesReport>(resolve => (finish = resolve)),
-    })
+    const { run, clock, records } = setup(
+      allSettled(),
+      hostStep(() => new Promise<HostFilesReport>(resolve => (finish = resolve))),
+    )
     clock.advance(300)
     const done = run()
     await flush()
@@ -195,7 +208,7 @@ describe('host-files maintenance after the business phase', () => {
     expect(records.length).toBe(before + 1)
     expect(records.at(-1)).toMatchObject({
       action: 'late-result',
-      phase: 'business',
+      phase: null,
       row: null,
       detail: 'host-files maintenance completed after deadline',
     })

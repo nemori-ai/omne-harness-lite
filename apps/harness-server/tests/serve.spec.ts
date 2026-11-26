@@ -282,6 +282,31 @@ describe('serve: the release tree of doubles', () => {
     },
   )
 
+  it('a provider is asked to stop after the rows that need it, whatever phase each declares; the entry row is first', async () => {
+    const run = await serveOnce({
+      distribution: release,
+      operator: await releaseOperator(),
+      readinessTimeoutMs: 15_000,
+      shutdownDeadlineMs: 5000,
+    })
+    expect(run.result.exitCode).toBe(0)
+    const stops = run
+      .of('shutdown-step')
+      .filter(r => r['action'] === 'stop-call')
+      .map(r => String(r['row']))
+    const before = (first: string, then: string) =>
+      expect([first, then, stops.indexOf(first) < stops.indexOf(then)]).toEqual([first, then, true])
+    // The three places where the order of the phases ran against the dependencies.
+    before('dispatch-session', 'session-provider')
+    before('goal-session', 'session-provider')
+    before('goal-decisions', 'model-host')
+    expect(stops[0]).toBe('server-entry')
+    expect(stops.at(-1)).toBe('storage')
+    // The live tree has edges no manifest declares: the injections of child fibers. They are told once.
+    const undeclared = run.of('row-edges')[0]?.['undeclared']
+    expect(Array.isArray(undeclared) && undeclared.length > 0).toBe(true)
+  })
+
   it('only s0.assemblyLifecycle carries the s0. prefix', async () => {
     const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
     const profile = serveProfile()
@@ -536,29 +561,40 @@ describe('serve: checks before loading', () => {
   })
 })
 
-describe('serve: the four phases with fixture rows', () => {
-  it('start runs storage → composition → business → entry, stop runs the reverse, the report is fixed before assemblyReportSettled', async () => {
+describe('serve: the order of start and stop with fixture rows', () => {
+  it('a row starts after what it needs and the entry row last, stop runs the reverse, the report is fixed before assemblyReportSettled', async () => {
     const log: string[] = []
     const run = await serveOnce({
       distribution: tree([
         { id: 'fx-entry', plugin: 'fxEntry' },
-        { id: 'fx-business', plugin: 'fxBusiness' },
         { id: 'fx-composition', plugin: 'fxComposition' },
+        { id: 'fx-business', plugin: 'fxBusiness' },
         { id: 'storage', plugin: 'fixtureStorage' },
       ]),
       plugins: {
         stubPlugin,
         fixtureStorage: fixturePlugins.fixtureStorage,
         fxEntry: syntheticRow({ id: 'fx-entry', phase: 'entry', log }),
-        fxBusiness: syntheticRow({ id: 'fx-business', phase: 'business', log }),
-        fxComposition: syntheticRow({ id: 'fx-composition', phase: 'composition', log }),
+        fxBusiness: syntheticRow({
+          id: 'fx-business',
+          phase: 'business',
+          log,
+          injects: ['fxComposed'],
+        }),
+        fxComposition: syntheticRow({
+          id: 'fx-composition',
+          phase: 'composition',
+          log,
+          provides: ['fxComposed'],
+        }),
       },
       entryObjects: [fixtureStorageHost()],
     })
     expect(run.result.exitCode).toBe(0)
+    // The storage row and the fixture rows need nothing of each other here: they start and stop side by side.
     expect(run.startup['startedRows']).toEqual([
-      'storage',
       'fx-composition',
+      'storage',
       'fx-business',
       'fx-entry',
     ])
@@ -574,8 +610,8 @@ describe('serve: the four phases with fixture rows', () => {
     expect(stops.map(r => r['row'])).toEqual([
       'fx-entry',
       'fx-business',
-      'fx-composition',
       'storage',
+      'fx-composition',
     ])
     expect(seq(run, 'report-fixed')[0]).toBeLessThan(seq(run, 'report-settled-call')[0]!)
     expect(storageEvents).toEqual(['start', 'close:assembly', 'report-settled'])

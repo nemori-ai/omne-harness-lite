@@ -801,6 +801,10 @@ export type ReleaseTreeOptions = Readonly<{
   reconciliationDelaysMs?: readonly number[]
   /** The one time of every run; absent: the system time. */
   time?: NonNullable<Parameters<typeof runServe>[0]['time']>
+  /** How long a row that left may wait for what it depends on; absent: the default of the entry. */
+  dependencyDeadlineMs?: number
+  /** The public keys of the publisher whose version directories this tree takes. */
+  publisherKeys?: readonly string[]
 }>
 
 export type AddedRow = Readonly<{
@@ -948,6 +952,10 @@ async function serveOnce(
   const finished = runServe({
     ...(options.hostScreen === undefined ? {} : { hostScreen: options.hostScreen }),
     ...(options.time === undefined ? {} : { time: options.time }),
+    ...(options.dependencyDeadlineMs === undefined
+      ? {}
+      : { dependencyDeadlineMs: options.dependencyDeadlineMs }),
+    ...(options.publisherKeys === undefined ? {} : { publisherKeys: options.publisherKeys }),
     distribution: withAddedRows(
       withoutRows(
         withRowConfig(releaseDistribution(options), options.rowConfig),

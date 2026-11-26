@@ -4,6 +4,7 @@ import {
   type FigureStore,
   type ItemOf,
   type LogoutResult,
+  type Projection,
   type ScopeSource,
   type ShellLogin,
   type ShellSlots,
@@ -140,6 +141,27 @@ function lackRelay(): LackRelay {
   }
 }
 
+export type Outside = Readonly<{
+  warn(text: string): void
+  navigate(pageId: string, subject?: string): void
+}>
+
+export type OutsideRelay = Outside & { bind(source: Outside): () => void }
+
+function outsideRelay(): OutsideRelay {
+  let source: Outside | undefined
+  return {
+    warn: text => source?.warn(text),
+    navigate: (pageId, subject) => source?.navigate(pageId, subject),
+    bind(next) {
+      source = next
+      return () => {
+        if (source === next) source = undefined
+      }
+    },
+  }
+}
+
 export type ShellState = {
   readonly slots: SlotRelay
   readonly lacks: LackRelay
@@ -154,6 +176,8 @@ export type ShellState = {
   readonly face: FaceChoice
   readonly notice: Watched<string | undefined>
   readonly sheet: Watched<string> & { set(css: string): void }
+  readonly projection: Watched<Projection | undefined> & { set(projection: Projection): void }
+  readonly outside: OutsideRelay
   readonly fallen: Watched<readonly Fallen[]> & { set(fallen: readonly Fallen[]): void }
   readonly appTokens: Watched<Tokens> & { set(tokens: Tokens): void }
   readonly knowsToken: (name: string) => boolean
@@ -363,6 +387,8 @@ export function createShellState(
     face,
     notice: { get: notice.get, subscribe: notice.subscribe },
     sheet: cell(''),
+    projection: cell<Projection | undefined>(undefined),
+    outside: outsideRelay(),
     fallen: cell<readonly Fallen[]>([]),
     appTokens: cell<Tokens>({}),
     knowsToken: options.knowsToken ?? (() => false),

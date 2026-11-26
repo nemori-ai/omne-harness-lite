@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { CategoryView } from '@omne-harness/assets'
+import { scopeOfLayer, type CategoryView } from '@omne-harness/assets'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
-import { CATALOG, list, type Contract, type Registry } from '@omne-harness/dynamis'
+import { CATALOG, list, lockOver, type Contract, type Registry } from '@omne-harness/dynamis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import {
   listedPlugins,
@@ -49,6 +49,11 @@ export function pluginEffectPorts(ctx: Context): PluginEffectPorts {
     server: tenant => {
       const loading = ctx.get(pluginServerKey) as PluginServerService | undefined
       return loading === undefined ? null : (loading.states(tenant) ?? new Map())
+    },
+    lockedBy: (tenant, point, key) => {
+      const registry = (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
+      if (registry === undefined) return undefined
+      return lockOver(registry, point, key, scopeOfLayer('tenant', tenant))?.fiber
     },
   }
 }

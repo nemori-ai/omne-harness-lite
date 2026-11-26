@@ -11,5 +11,6 @@ it('根入口的导出名固定', async () => {
     'noSeats',
     'put',
     'ready',
+    'rollout',
   ])
 })

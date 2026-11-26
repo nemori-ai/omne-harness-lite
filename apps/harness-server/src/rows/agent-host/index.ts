@@ -34,6 +34,7 @@ import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { defineRow, type RowBody, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { processInstance } from '../telemetry/instance.ts'
+import { agentHostEntries } from './entries.ts'
 import { ReleaseProgramAdmission } from './program-admission.ts'
 
 const AGENT_HOST_PRINCIPAL = 'agentHostPrincipal'
@@ -93,6 +94,8 @@ function signalAt(deadline: number): AbortSignal {
 
 function handleOf(plugin: AgentHostPlugin): RowHandle {
   return {
+    // The host receives results from its start on: a generation that stands by does not hold the receivers.
+    start: async () => plugin.startReceiving(),
     async stop(deadline) {
       const answer = await plugin.quiesceAll({ signal: signalAt(deadline) })
       return answer.kind === 'settled'
@@ -146,6 +149,8 @@ export function createAgentHostRowOver(pluginOf: (ctx: Context) => AgentHostPlug
       sameProviderGroup: null,
     },
     lifecycle: { kind: 'body', phase: 'business' },
+    swap: 'implementation',
+    entries: agentHostEntries(),
     Config: agentHostRowConfig,
     body: bodyOver(pluginOf),
   })
@@ -162,6 +167,7 @@ export function createAgentHostRow(input: AgentHostRowInput = {}) {
         ? {}
         : { systemExtensions: input.systemExtensionsOf(ctx) }),
       measure: input.measure ?? agentMeasureOf(ctx),
+      deferReception: true,
       ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
     }),
   )

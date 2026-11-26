@@ -44,7 +44,14 @@ import { runAction } from './dispatch.ts'
 import { bindShellKeys, shellKeys } from './keys.ts'
 import { paletteSwitch, ShellPalette } from './palette.tsx'
 import { lackText, type Lack, type LackSlot } from './lacks.ts'
-import { shellApp, shellGate, shellWorkspace, shellWorkspacePage } from './parts.ts'
+import {
+  shellApp,
+  shellBack,
+  shellFigure,
+  shellGate,
+  shellWorkspace,
+  shellWorkspacePage,
+} from './parts.ts'
 import { pressSeat, useSeatedHome } from './seats.ts'
 import {
   NarrowNavigation,
@@ -342,6 +349,7 @@ function Back(props: {
       ref={props.element}
       id="shell-back"
       className="shell-face shell-back"
+      {...shellBack.props}
       data-face="back"
       data-flip-leaving={props.leaving ? '' : undefined}
       aria-label="反面"
@@ -514,6 +522,7 @@ export function Shell(props: ShellProps) {
     },
     state.slots,
     state.scope,
+    state,
   )
   return (
     <RedrawProvider value={state.redraw.draw}>
@@ -530,6 +539,7 @@ export function Shell(props: ShellProps) {
           awayLabel={RECALL_TEXT}
           onRecall={stay.recall}
           control={figureControl}
+          {...shellFigure.props}
         >
           <a
             className="shell-skip"

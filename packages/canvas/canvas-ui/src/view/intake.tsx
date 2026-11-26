@@ -6,6 +6,7 @@ import {
   type PaperPoint,
 } from '@omne-harness/ui-kit'
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
+import { canvasMark } from '../parts.ts'
 import { CANVAS_INTAKE, canvasIntake, type CanvasPlacing, type CanvasReference } from '../points.ts'
 import { inConflict, OneThing, type CanvasHost } from './element.tsx'
 import type { PlaceNear } from './sheet-layers.tsx'
@@ -72,7 +73,7 @@ export function IntakeSpot(props: IntakeProps): JSX.Element {
     )
   }
   return (
-    <PaperSpot at={dropped.at} className="canvas-intake">
+    <PaperSpot at={dropped.at} className="canvas-intake" {...canvasMark.props}>
       <OneThing again={round} fallback={fallback}>
         {canvasIntake.draw(host, FILES, subject, fallback)}
       </OneThing>

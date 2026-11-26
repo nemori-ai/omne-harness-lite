@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 
+import { type DataAttributes } from '../patterns/ai/data-attributes.ts'
+import { dataApart } from './data-apart.ts'
 import { besideSpot, type Spot } from './say.ts'
 import { type Box } from './travel.ts'
 
@@ -14,7 +16,8 @@ export function FigureLabel({
   figure,
   bounds,
   lines,
-}: {
+  ...rest
+}: DataAttributes & {
   readonly figure: Box
   readonly bounds: Box
   readonly lines: readonly FigureLabelLine[]
@@ -33,6 +36,7 @@ export function FigureLabel({
   })
   return (
     <div
+      {...dataApart(rest)[0]}
       ref={own}
       className="omne-figure-label"
       style={spot === null ? { visibility: 'hidden' } : { left: spot.left, top: spot.top }}
