@@ -12,7 +12,7 @@ import {
 } from '@omne-harness/goal-contract'
 import type { GoalsDependencies } from './goals.ts'
 import { lastWrite } from './judging.ts'
-import type { BatchOut, BatchToHand, PortRead } from './ports.ts'
+import type { BatchOut, BatchToHand, HandAnswer, PortRead } from './ports.ts'
 
 type Seen = Readonly<{ where: string | null; calls: readonly ObservedCall[] }>
 type Commit = (tenant: string, before: GoalRecord | null, next: GoalRecord) => Promise<unknown>
@@ -78,8 +78,25 @@ export function createHanding(deps: GoalsDependencies, commit: Commit) {
       .then(() => examining.close(tenant, { session: sessionOfKey(record.session), examiner }))
       .catch(quiet)
 
+  /** Writes down what became of handing a batch over: taken by a session, or not known. The session of the examiner before is let go of once the write that names the new one stood. */
+  async function noted(
+    tenant: string,
+    record: GoalRecord,
+    batch: Batch,
+    answer: Exclude<HandAnswer, { kind: 'taking' | 'refused' }>,
+  ): Promise<void> {
+    const { examiner } = record.examination
+    const taken = delivered(record.examination, batch.key, answer.kind)
+    const to = answer.kind === 'handed' ? answer.examiner : examiner
+    const next = { ...record, examination: { ...taken, examiner: to } }
+    const { session, version: expected } = record
+    const written = await store.commit(tenant, { session, expected, next })
+    const stood = written.kind === 'committed' && written.value.kind !== 'stale'
+    if (stood && examiner !== null && to !== examiner) await letGo(tenant, record, examiner)
+  }
+
   async function hand(tenant: string, record: GoalRecord): Promise<void> {
-    const { batch, examiner } = record.examination
+    const { batch } = record.examination
     if (batch === null || batch.delivery === 'handed') return
     const seen = await seenOf(tenant, record)
     if (seen === null) return deps.hints.wake(tenant)
@@ -90,16 +107,7 @@ export function createHanding(deps: GoalsDependencies, commit: Commit) {
     if (answer.kind === 'refused') return untaken(tenant, record, batch)
     if (answer.kind === 'taking') return
     if (answer.kind === 'unknown') deps.hints.wake(tenant)
-    const taken = delivered(record.examination, batch.key, answer.kind)
-    const to = answer.kind === 'handed' ? answer.examiner : examiner
-    const next = { ...record, examination: { ...taken, examiner: to } }
-    const written = await store.commit(tenant, {
-      session: record.session,
-      expected: record.version,
-      next,
-    })
-    const stood = written.kind === 'committed' && written.value.kind !== 'stale'
-    if (stood && examiner !== null && to !== examiner) await letGo(tenant, record, examiner)
+    await noted(tenant, record, batch, answer)
   }
 
   /** A batch that was taken: once the round the examining side gave it is over with nothing handed in, what is left of it cannot be told. */

@@ -533,7 +533,14 @@ describe('what a write takes from the examining side', () => {
   })
 
   it('the session of the examiner before is let go of only when the write that names the new one stood', async () => {
-    const stale = { on: false }
+    const stale = {
+      on: false,
+      answers: [
+        { kind: 'committed', value: { kind: 'stale' } },
+        { kind: 'rolled-back' },
+        { kind: 'unknown' },
+      ] as unknown[],
+    }
     const w = await handedOver(undefined, store => ({
       ...store,
       latest: (tenant, session) => store.latest(tenant, session),
@@ -541,7 +548,7 @@ describe('what a write takes from the examining side', () => {
       examinedBy: (tenant, examiner) => store.examinedBy(tenant, examiner),
       async commit(tenant, command) {
         const naming = command.next.examination.examiner === 'a-new-examiner'
-        if (stale.on && naming) return { kind: 'committed', value: { kind: 'stale' } } as never
+        if (stale.on && naming) return stale.answers.shift() as never
         return store.commit(tenant, command)
       },
     }))
@@ -557,6 +564,9 @@ describe('what a write takes from the examining side', () => {
     stale.on = true
     const check = { session: SESSION, call: 'exec-2/cand-1/before_terminal/call/0' }
     value(await w.goals.observe(CHECK, { ...check, candidate: 'complete' } as never))
+    await w.goals.reconcile(TENANT)
+    await w.goals.reconcile(TENANT)
+    expect(stale.answers).toEqual([])
     expect(w.record().examination.examiner).toBe(EXAMINER)
     expect(w.examining.closed).toEqual([])
   })
