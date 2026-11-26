@@ -71,11 +71,21 @@ async function scriptedModel(file: string): Promise<ModelGateway> {
   return gateway
 }
 
-function routedTo(inputs: ServeInputs, gateway: ModelGateway | undefined): ServeInputs {
-  if (gateway === undefined) return inputs
-  const layer = inputs.operator as Parameters<typeof withModelRoute>[0] | undefined
-  if (layer === undefined) throw new UsageError('--model-script needs an operator layer')
-  return { ...inputs, operator: withModelRoute(layer, gateway.url) }
+type LabModel = Readonly<{ route(inputs: ServeInputs): ServeInputs; close(): Promise<void> }>
+const PROVIDERS: LabModel = { route: inputs => inputs, close: async () => {} }
+
+/** Where the model requests of this run go: to the providers, or to the script the option names. */
+async function labModel(script: string | undefined): Promise<LabModel> {
+  if (script === undefined) return PROVIDERS
+  const gateway = await scriptedModel(script)
+  return {
+    route(inputs) {
+      const layer = inputs.operator as Parameters<typeof withModelRoute>[0] | undefined
+      if (layer === undefined) throw new UsageError('--model-script needs an operator layer')
+      return { ...inputs, operator: withModelRoute(layer, gateway.url) }
+    },
+    close: () => gateway.close(),
+  }
 }
 
 /** The release distribution and, after its rows, the rows only the lab assembly has. */
@@ -108,18 +118,17 @@ async function serve(argv: readonly string[]): Promise<number> {
     recordWriter({ kind: 'lab-time', ...reply })
   })
   recordWriter({ kind: 'lab-time', ok: true, command: 'start', ...readingOf(clock), fired: 0 })
-  const script = values['model-script']
-  const gateway = script === undefined ? undefined : await scriptedModel(script)
+  const { 'model-script': script, ...given } = values
+  const model = await labModel(script)
   try {
-    const { 'model-script': _script, ...given } = values
-    const inputs = routedTo(await serveInputs({ ...given, 'state-root': dir }), gateway)
+    const inputs = model.route(await serveInputs({ ...given, 'state-root': dir }))
     return await serveUntilStopped(withLabRows(inputs), values['stop-on-stdin-close'] === true, {
       time: { source: clock.source, protocol: PROTOCOL },
       instance: 'lab',
       extraPlugins: { [LAB_PROGRAMS_ROW.plugin]: labProgramsRow },
     })
   } finally {
-    await gateway?.close()
+    await model.close()
     control.close()
     stopPersisting()
     persist()
