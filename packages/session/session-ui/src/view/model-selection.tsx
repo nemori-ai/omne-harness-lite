@@ -6,10 +6,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@omne-harness/ui-kit'
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useOffered } from './use-offered.ts'
 import type { ModelChoice, ModelSelectionStore, ReasoningEffort } from '../model/model-selection.ts'
-import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingRead } from './heading-fold.tsx'
+import {
+  FOLD_RANK,
+  FoldedChoice,
+  HeadingChoice,
+  HeadingEntriesContext,
+  useHeadingRead,
+} from './heading-fold.tsx'
 import { sessionHeaderModel } from '../parts.ts'
 
 const EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const satisfies readonly ReasoningEffort[]
@@ -60,14 +66,15 @@ function routeOption(choice: ModelChoice, previous: ReasoningEffort | undefined)
   return { value: choice.route, label: choice.route, disabled: !choice.selectable, note, effort }
 }
 
-// A model that cannot be picked is offered only while it is the current one, to say why.
+// A model that cannot be picked is offered while it is the current one, or while this session's
+// content is what stops it, to say why.
 function routesOf(
   choices: readonly ModelChoice[],
   model: string,
   previous: ReasoningEffort | undefined,
 ) {
   const routes = choices
-    .filter(choice => choice.selectable || choice.route === model)
+    .filter(choice => choice.selectable || choice.route === model || (choice.blocks ?? 0) > 0)
     .map(choice => routeOption(choice, previous))
   if (!choices.some(choice => choice.route === model))
     routes.unshift({
@@ -89,7 +96,9 @@ export function ModelAction({ store, tenant, session }: Props) {
     [store, tenant, session],
   )
   const view = useSyncExternalStore(subscribe, () => store.read(tenant, session))
-  const listing = useOffered(store, tenant, inBar)
+  const where = useMemo(() => ({ tenant, session }), [tenant, session])
+  const listing = useOffered(store, where, inBar)
+  const entries = useContext(HeadingEntriesContext)
   const [said, say] = useState<string | null>(null)
   useEffect(() => {
     if (inBar) say(null)
@@ -120,7 +129,7 @@ export function ModelAction({ store, tenant, session }: Props) {
     onPick(model) {
       const selected = routes?.find(option => option.value === model)
       if (selected !== undefined && !selected.disabled)
-        void store.select(tenant, session, model, selected.effort).then(tell)
+        void store.select(tenant, session, model, selected.effort, entries).then(tell)
     },
   })
   const effortChoice = (tell: (text: string) => void): ChoiceProps => ({

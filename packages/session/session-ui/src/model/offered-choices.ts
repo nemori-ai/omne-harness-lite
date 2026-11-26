@@ -47,37 +47,47 @@ export class Cells<V> {
 }
 
 /** A source of choices; one that can say its lists changed is read again when it does. */
-export type ChoiceSource<C> = Readonly<{
-  list(tenant: string): Promise<Listing<C>>
+export type ChoiceSource<C, W = string> = Readonly<{
+  list(where: W): Promise<Listing<C>>
   changed?(listener: () => void): () => void
 }>
 
-/** The lists one handed-over source gives, per tenant; a source taken away lists nothing. */
-export class OfferedChoices<C> {
+/** The lists one handed-over source gives, per place asked for; a source taken away lists nothing. */
+export class OfferedChoices<C, W = string> {
   private readonly lists = new Cells<Exclude<ChoicesView<C>, { kind: 'absent' }>>(UNREAD)
-  private source: ChoiceSource<C> | null = null
+  private readonly places = new Map<string, W>()
+  private readonly keyOf: (where: W) => string
+  private source: ChoiceSource<C, W> | null = null
 
-  choices(tenant: string): ChoicesView<C> {
-    return this.source === null ? ABSENT : this.lists.read(tenant)
+  constructor(keyOf: (where: W) => string = String) {
+    this.keyOf = keyOf
   }
 
-  subscribe(tenant: string, listener: () => void): () => void {
-    return this.lists.subscribe(tenant, listener)
+  choices(where: W): ChoicesView<C> {
+    return this.source === null ? ABSENT : this.lists.read(this.keyOf(where))
   }
 
-  async load(tenant: string): Promise<void> {
+  subscribe(where: W, listener: () => void): () => void {
+    const key = this.keyOf(where)
+    this.places.set(key, where)
+    return this.lists.subscribe(key, listener)
+  }
+
+  async load(where: W): Promise<void> {
+    const key = this.keyOf(where)
+    this.places.set(key, where)
     const source = this.source
     if (source === null) return
     const listing = await source
-      .list(tenant)
+      .list(where)
       .catch((): Listing<C> => ({ kind: 'unavailable', reason: '没有送达' }))
-    if (this.source === source) this.lists.show(tenant, listing)
+    if (this.source === source) this.lists.show(key, listing)
   }
 
-  attach(source: ChoiceSource<C>): () => void {
+  attach(source: ChoiceSource<C, W>): () => void {
     this.replace(source)
     const stop = source.changed?.(() => {
-      for (const tenant of this.lists.keys()) void this.load(tenant)
+      for (const where of this.places.values()) void this.load(where)
     })
     return () => {
       stop?.()
@@ -86,11 +96,11 @@ export class OfferedChoices<C> {
   }
 
   // What an earlier source listed is not shown as the list of the next one.
-  private replace(source: ChoiceSource<C> | null): void {
+  private replace(source: ChoiceSource<C, W> | null): void {
     this.source = source
-    for (const tenant of this.lists.keys()) {
-      this.lists.show(tenant, UNREAD)
-      void this.load(tenant)
+    for (const [key, where] of this.places) {
+      this.lists.show(key, UNREAD)
+      void this.load(where)
     }
   }
 }

@@ -36,6 +36,7 @@ import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './bloc
 import { Composer } from './composer.tsx'
 import {
   HeadingFoldContext,
+  HeadingEntriesContext,
   HeadingRevisionContext,
   useHeadingFold,
   type HeadingFold,
@@ -158,6 +159,8 @@ type Parts = Readonly<{
   waitingCalls: WaitingCalls | undefined
 }>
 
+const NO_ENTRIES: readonly HistoryEntry[] = []
+
 function Page({
   driver,
   side,
@@ -194,7 +197,11 @@ function Page({
       <div className="omne-session-bar-end" ref={fold.end}>
         <HeadingFoldContext.Provider value={fold.bar}>
           <HeadingRevisionContext.Provider value={state.kind === 'open' ? state.revision : null}>
-            {open === null ? null : heading(open)}
+            <HeadingEntriesContext.Provider
+              value={state.kind === 'open' ? state.content.entries : NO_ENTRIES}
+            >
+              {open === null ? null : heading(open)}
+            </HeadingEntriesContext.Provider>
           </HeadingRevisionContext.Provider>
         </HeadingFoldContext.Provider>
         {known === null ? null : (

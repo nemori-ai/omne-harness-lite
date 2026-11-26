@@ -31,10 +31,14 @@ type Listed = Readonly<{
   enabled?: boolean
   reasoningEfforts?: readonly string[]
   defaultReasoningEffort?: string
+  blocks?: readonly unknown[]
 }>
 
-function choiceOf(model: Listed): ModelChoice {
-  const why = model.reasons.map(reason => REASONS[reason] ?? reason).join('；')
+export function choiceOf(model: Listed): ModelChoice {
+  const stopped =
+    model.blocks === undefined ? [] : [`读不了这段会话里的 ${String(model.blocks.length)} 块内容`]
+  const reasons = model.reasons.filter(reason => stopped.length === 0 || reason !== 'modality')
+  const why = [...stopped, ...reasons.map(reason => REASONS[reason] ?? reason)].join('；')
   const unavailable =
     model.enabled === false ? '租户关掉了它' : model.selectable ? undefined : why || '此刻不能选'
   return {
@@ -92,7 +96,7 @@ export function sessionCommandsPlugin(facts: PrincipalFacts): Plugin.Object {
           return succeed(typeof revision === 'string' ? revision : '')
         },
         async models(asker) {
-          const read = await ask(asker, MODEL, 'list-models', { tenant: asker.tenant })
+          const read = await ask(asker, MODEL, 'list-models', located(asker))
           if (!('ok' in read) || read.ok.outcome !== 'succeeded') return fail('unavailable')
           return succeed((read.ok.body as { models: readonly Listed[] }).models.map(choiceOf))
         },
