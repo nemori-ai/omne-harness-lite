@@ -126,7 +126,7 @@ shell.back | 反面 | 应用翻过来的一面的外框，里面是放在反面�
 shell.figure | 形 | Agent 的形：在窗口里，也在拿出窗口之后的桌面上 | shell.app | tokens style | 一直在 | DesktopShell
 shell.figure.frame | 观测框 | 按着 ⌘ 拿着形时，圈住手下那个窗口的框 | shell.app | tokens style | 按着 ⌘ 拿着形经过一个窗口时 | DesktopShell
 shell.figure.label | 签 | 拿着形时写在旁边的一两行：松手会去哪，按着 ⌘ 看的是哪个窗口 | shell.app | tokens style | 形在桌面上被拿着时 | DesktopShell
-shell.figure.note | 说话笺 | 单击桌面上的形打开的笺：对它说一句话，带上看到的窗口 | shell.app | tokens style | 单击桌面上的形之后 | DesktopShell
+shell.figure.note | 说话笺 | 对 Agent 说一句话的笺：桌面上单击形打开的那一块，与窗口里随身入口展开的小框 | shell.app | tokens style | 单击桌面上的形之后 | DesktopShell
 shell.figure.told | 告知笺 | 形在家里说给人听的一句：一个模块的提示 | shell.sidebar | tokens style | 有提示时 | DesktopShell
 shell.gate | 登录门 | 没登录时屏幕中间的一块 | shell.app | tokens style | 没登录时 | DesktopShell
 shell.sidebar | 侧栏 | 左边放家、导航与账号的一列 | shell.app | tokens style | 登录之后 | DesktopShell

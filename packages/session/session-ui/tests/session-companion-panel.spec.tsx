@@ -22,6 +22,7 @@ async function settle(): Promise<void> {
 const figure = () => screen.getByRole('button', { name: '对 Agent 说一句话' })
 const panel = () =>
   document.querySelector<HTMLElement>('[data-omne-part="session.companion.panel"]')
+const bubble = () => document.querySelector<HTMLElement>('[role="dialog"]')
 const field = () => panel()!.querySelector<HTMLTextAreaElement>('textarea')!
 const sendButton = () => within(panel()!).getByRole('button', { name: '发送' })
 const target = () => within(panel()!).getByRole('combobox', { name: '说给谁' })
@@ -62,14 +63,14 @@ describe('随身入口的小框：展开与收起', () => {
   it('按形象展开，小框是一个有名字的框，字段拿到焦点；再按收起', async () => {
     await unfolded(createFakeClient())
     expect(figure().getAttribute('aria-expanded')).toBe('true')
-    expect(panel()?.getAttribute('role')).toBe('dialog')
-    expect(panel()?.getAttribute('aria-label')).toBe('对 Agent 说一句话')
-    expect(panel()?.classList.contains('omne-ink-bubble')).toBe(true)
+    expect(bubble()?.getAttribute('aria-label')).toBe('对 Agent 说一句话')
+    expect(bubble()?.classList.contains('omne-ink-bubble')).toBe(true)
+    expect(bubble()?.contains(panel())).toBe(true)
     expect(document.activeElement).toBe(field())
     fireEvent.click(figure())
     await settle()
     expect(figure().getAttribute('aria-expanded')).toBe('false')
-    expect(panel()?.hasAttribute('inert') ?? true).toBe(true)
+    expect(bubble()?.hasAttribute('inert') ?? true).toBe(true)
   })
 
   it('Escape 收起，焦点回到形象', async () => {
@@ -235,14 +236,19 @@ describe('随身入口的小框：换画法', () => {
     const seen: CompanionPanelDrawing[] = []
     made.shell.putRender<CompanionPanelDrawing>('session.companion.panel', given => {
       seen.push(given.props)
-      return <p data-drawn="panel">自己的小框</p>
+      return (
+        <p {...given.part} data-drawn="panel">
+          自己的小框
+        </p>
+      )
     })
     act(() => made.rerender(TENANT))
     fireEvent.click(figure())
     await settle()
-    expect(panel()?.classList.contains('omne-ink-bubble')).toBe(true)
-    expect(panel()?.querySelector('[data-drawn="panel"]')).not.toBeNull()
-    expect(panel()?.querySelector('textarea')).toBeNull()
+    expect(bubble()?.classList.contains('omne-ink-bubble')).toBe(true)
+    expect(panel()?.getAttribute('data-drawn')).toBe('panel')
+    expect(bubble()?.contains(panel())).toBe(true)
+    expect(bubble()?.querySelector('textarea')).toBeNull()
     const last = seen.at(-1)!
     expect(last.sessions).toEqual([{ session: 'ses_a', name: '甲' }])
     expect(last.current).toBeNull()
@@ -251,5 +257,30 @@ describe('随身入口的小框：换画法', () => {
     act(() => last.close())
     await settle()
     expect(figure().getAttribute('aria-expanded')).toBe('false')
+  })
+})
+
+describe('小框和桌面上的说话笺是同一样东西：墨框带着装配给的名字', () => {
+  const NOTE = { 'data-omne-part': 'shell.figure.note' } as const
+
+  it('装配给了一组 data-*：写在墨框上；自带的内容自己带 session.companion.panel，在墨框里面', async () => {
+    const fake = createFakeClient()
+    await mountModule(fake.client, TENANT, { companionNote: NOTE })
+    ;(await fake.next('list-sessions')).answer(listPage([]))
+    await settle()
+    fireEvent.click(figure())
+    await settle()
+    expect(bubble()?.getAttribute('data-omne-part')).toBe('shell.figure.note')
+    expect(panel()).not.toBeNull()
+    expect(panel()).not.toBe(bubble())
+    expect(bubble()?.contains(panel())).toBe(true)
+    expect(panel()!.querySelector('textarea')).not.toBeNull()
+  })
+
+  it('装配没给：墨框上没有部位的名字，内容照样带自己的', async () => {
+    const fake = createFakeClient()
+    await unfolded(fake)
+    expect(bubble()?.hasAttribute('data-omne-part')).toBe(false)
+    expect(bubble()?.contains(panel())).toBe(true)
   })
 })
