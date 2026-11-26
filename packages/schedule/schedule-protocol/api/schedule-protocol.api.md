@@ -533,6 +533,8 @@ export declare const scheduleProtocol: {
                             } | null;
                             readonly deliverables: readonly string[];
                             readonly outcome: string | null;
+                            readonly run: string | null;
+                            readonly since: string | null;
                         } | null;
                         readonly kind: "session";
                         readonly session: string;
@@ -550,6 +552,64 @@ export declare const scheduleProtocol: {
             readonly countsAsAccess: true;
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly job: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'read-session-jobs': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly items: readonly {
+                        readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                        readonly calendar: string | null;
+                        readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly events: readonly {
+                            readonly at: import("@omne-harness/utc-instant").Instant;
+                            readonly kind: string;
+                            readonly seq: number;
+                        }[];
+                        readonly job: string;
+                        readonly local: string | null;
+                        readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
+                        readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                        readonly reason: string | null;
+                        readonly revision: number;
+                        readonly schedule: string | null;
+                        readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                        readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
+                        readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                        readonly version: string | null;
+                        readonly where: {
+                            readonly execution: string;
+                            readonly kind: "program";
+                            readonly program: string;
+                        } | {
+                            readonly account: {
+                                readonly definition: {
+                                    readonly name: string;
+                                    readonly version: string;
+                                } | null;
+                                readonly deliverables: readonly string[];
+                                readonly outcome: string | null;
+                                readonly run: string | null;
+                                readonly since: string | null;
+                            } | null;
+                            readonly kind: "session";
+                            readonly session: string;
+                        } | null;
+                        readonly work: import("@omne-harness/json-text").JsonValue;
+                    }[];
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
@@ -590,6 +650,8 @@ export declare const scheduleProtocol: {
                                 } | null;
                                 readonly deliverables: readonly string[];
                                 readonly outcome: string | null;
+                                readonly run: string | null;
+                                readonly since: string | null;
                             } | null;
                             readonly kind: "session";
                             readonly session: string;
@@ -648,6 +710,8 @@ export declare const scheduleProtocol: {
                             } | null;
                             readonly deliverables: readonly string[];
                             readonly outcome: string | null;
+                            readonly run: string | null;
+                            readonly since: string | null;
                         } | null;
                         readonly kind: "session";
                         readonly session: string;
@@ -705,6 +769,8 @@ export declare const scheduleProtocol: {
                             } | null;
                             readonly deliverables: readonly string[];
                             readonly outcome: string | null;
+                            readonly run: string | null;
+                            readonly since: string | null;
                         } | null;
                         readonly kind: "session";
                         readonly session: string;
@@ -768,6 +834,8 @@ export declare const scheduleProtocol: {
                             } | null;
                             readonly deliverables: readonly string[];
                             readonly outcome: string | null;
+                            readonly run: string | null;
+                            readonly since: string | null;
                         } | null;
                         readonly kind: "session";
                         readonly session: string;
