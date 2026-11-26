@@ -62,6 +62,13 @@ describe('a system command, on the release tree', () => {
             takesEffect: 'now',
           }),
           expect.objectContaining({
+            full: 'omne-official:effort',
+            hint: '<档位>',
+            params: [{ name: '档位', candidates: true }],
+            whileRunning: 'now',
+            takesEffect: 'next-request',
+          }),
+          expect.objectContaining({
             full: 'omne-official:model',
             whileRunning: 'now',
             takesEffect: 'next-request',
@@ -117,6 +124,36 @@ describe('a system command, on the release tree', () => {
           body: { reason: expect.stringContaining('name one mode') },
         })
 
+        type Listed = { route: string; selectable: boolean; reasoningEfforts?: string[] }
+        const listedModels = (
+          JSON.parse((await tree.cli(['list-models'])).stdout) as { body: { models: Listed[] } }
+        ).body.models
+        const tunable = listedModels.find(
+          model => model.selectable && (model.reasoningEfforts?.length ?? 0) > 1,
+        )
+        if (tunable === undefined) throw new Error('the release lists no model with efforts')
+        const efforts = tunable.reasoningEfforts ?? []
+        const effort = efforts.at(-1)
+        expect(await send('in-e1', `/model ${tunable.route}`)).toMatchObject({
+          outcome: 'succeeded',
+          body: { operation: { name: 'omne-official:model', outcome: 'succeeded' } },
+        })
+        expect(await send('in-e2', `/effort ${effort}`)).toMatchObject({
+          outcome: 'succeeded',
+          body: { operation: { name: 'omne-official:effort', outcome: 'succeeded' } },
+        })
+        expect(await client['read-model-selection'](target)).toMatchObject({
+          body: { model: tunable.route, reasoningEffort: effort },
+        })
+        expect(await send('in-e3', '/effort loud')).toMatchObject({
+          outcome: 'invalid',
+          body: {
+            reason: expect.stringContaining(
+              `name one effort ${tunable.route} offers: ${efforts.join(', ')}`,
+            ),
+          },
+        })
+
         const pending = await client['read-pending']({ ...target, after: null, limit: 10 } as never)
         expect(pending).toMatchObject({ outcome: 'succeeded', body: { inputs: [] } })
         let history = await historyOf(tree, session)
@@ -128,6 +165,9 @@ describe('a system command, on the release tree', () => {
           expect.objectContaining({ name: 'omne-official:model', args: 'no/such-model' }),
           expect.objectContaining({ name: 'omne-official:permission', args: 'never' }),
           expect.objectContaining({ name: 'omne-official:permission', args: 'everything' }),
+          expect.objectContaining({ name: 'omne-official:model', args: tunable.route }),
+          expect.objectContaining({ name: 'omne-official:effort', args: effort }),
+          expect.objectContaining({ name: 'omne-official:effort', args: 'loud' }),
         ])
 
         expect(await send('in-5', '/archive')).toMatchObject({

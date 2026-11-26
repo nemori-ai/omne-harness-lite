@@ -55,6 +55,27 @@ describe('the candidates of an argument, on the release tree', () => {
             ],
           },
         })
+        type Listed = {
+          route: string
+          reasoningEfforts?: string[]
+          defaultReasoningEffort?: string
+        }
+        const listedModels = (
+          JSON.parse((await tree.cli(['list-models'])).stdout) as { body: { models: Listed[] } }
+        ).body.models
+        const used = listedModels.find(model => model.route === inUse)
+        const own = (selection as { body: { reasoningEffort?: string } }).body.reasoningEffort
+        const marked = own ?? used?.defaultReasoningEffort
+        const efforts = used?.reasoningEfforts ?? []
+        expect(efforts.length).toBeGreaterThan(0)
+        expect(await asked('effort')).toEqual({
+          outcome: 'succeeded',
+          body: {
+            candidates: efforts.map(value =>
+              value === marked ? { value, current: true } : { value },
+            ),
+          },
+        })
         expect((await asked('archive')).outcome).toBe('not-found')
 
         const foreign = tenantOf(foreignTenant(savedTenant(tree.home)))
