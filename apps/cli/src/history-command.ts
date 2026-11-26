@@ -115,6 +115,22 @@ function resultObject(
   return { result: 'response', outcome, body, request }
 }
 
+async function historyText(
+  link: Link,
+  reading: Exclude<Reading, { kind: 'refused' }>,
+  at: Readonly<{ tenant: TenantId; session: string; messageId: string; newId: () => string }>,
+  json: boolean,
+): Promise<string> {
+  if (json) {
+    const request = { messageId: at.messageId, tenant: encodeTenantText(at.tenant) }
+    return `${JSON.stringify(resultObject(reading, request))}\n`
+  }
+  const reads = holdsMedia(reading.entries)
+    ? await readsOfSession(link, { tenant: at.tenant, session: at.session, newId: at.newId })
+    : undefined
+  return renderEntries(reading.entries, reads)
+}
+
 export async function runReadHistory(
   args: readonly string[],
   output: CliOutput,
@@ -149,17 +165,14 @@ export async function runReadHistory(
   if (reading.kind === 'refused') return usageError(output, unrecognized(name))
 
   const { entries } = reading
-  const json = read.values.has('--json')
-  const reads =
-    json || !holdsMedia(entries)
-      ? undefined
-      : await readsOfSession(loaded.link, { tenant: owner, session, newId })
+  const text = await historyText(
+    loaded.link,
+    reading,
+    { tenant: owner, session, messageId, newId },
+    read.values.has('--json'),
+  )
   try {
-    output.stdout(
-      json
-        ? `${JSON.stringify(resultObject(reading, { messageId, tenant: encodeTenantText(owner) }))}\n`
-        : renderEntries(entries, reads),
-    )
+    output.stdout(text)
   } catch {
     output.stderr(`omne ${name}: cannot write standard output\n`)
     return 1
