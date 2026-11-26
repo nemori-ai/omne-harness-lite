@@ -157,37 +157,6 @@
     width: auto;
     height: auto;
   }
-  /* The panel is an ink bubble written out of the figure: a field, whom the words go to and send in one row under it,
-   and one line for how the words ended. */
-  .omne-companion-panel {
-    position: fixed;
-    z-index: 1;
-    width: min(22em, calc(100vw - var(--omne-space-page) * 2));
-    padding: var(--omne-space-block);
-  }
-  .omne-companion-form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--omne-space-inline);
-    min-width: 0;
-  }
-  .omne-companion-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--omne-space-inline);
-    min-width: 0;
-  }
-  .omne-companion-receipt {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--omne-space-inline);
-    margin: 0;
-    color: var(--omne-ink-muted);
-    font-size: var(--omne-text-caption);
-    line-height: var(--omne-leading-ui);
-  }
   .omne-session-page:has(> .omne-session-backdrop:not(:empty)) {
     position: relative;
     isolation: isolate;

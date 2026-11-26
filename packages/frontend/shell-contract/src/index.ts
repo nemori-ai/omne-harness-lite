@@ -103,6 +103,7 @@ export type {
   BackProps,
   FloatCorner,
   FloatItem,
+  FloatNote,
   FloatProps,
   KeymapItem,
   GateItem,

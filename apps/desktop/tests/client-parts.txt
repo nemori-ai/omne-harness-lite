@@ -93,8 +93,7 @@ session.archived | 已归档 | 收起来的归档会话 | shell.sidebar | tokens
 session.archived.item | 归档的一行 | 一段已归档的会话 | session.archived | tokens style | 展开已归档且有归档时 | session-ui
 session.backdrop | 对话页的背景 | 垫在对话页一切之下的一层，自带的什么都不画 | – | render | 有画法放在它上面时 | session-ui
 session.companion | 随身入口 | 浮在整个应用之上、能拖到任何地方的一处，在哪一页都能对 Agent 说一句话 | – | tokens style render | 登录之后 | session-ui
-session.companion.figure | 随身入口的形象 | 随身入口长什么样，按它展开小框，按住它拖；自带的是几粒墨点 | session.companion | tokens style render | 登录之后 | session-ui
-session.companion.panel | 随身入口的小框 | 写一句话、选说给谁、发出去的地方 | session.companion | tokens style render | 小框展开时 | session-ui
+session.companion.figure | 随身入口的形象 | 随身入口长什么样，按它开说话笺，按住它拖；自带的是几粒墨点 | session.companion | tokens style render | 登录之后 | session-ui
 session.composer | 输入区 | 底部写消息的地方 | – | tokens style render | 打开一段会话时 | session-ui
 session.composer.input | 输入框 | 写消息的框 | session.composer | tokens style | 打开一段会话时 | session-ui
 session.composer.send | 发送按钮 | 发出这条消息；一轮在跑时是停止 | session.composer | tokens style | 打开一段会话时 | session-ui
@@ -126,7 +125,7 @@ shell.back | 反面 | 应用翻过来的一面的外框，里面是放在反面�
 shell.figure | 形 | Agent 的形：在窗口里，也在拿出窗口之后的桌面上 | shell.app | tokens style | 一直在 | DesktopShell
 shell.figure.frame | 观测框 | 按着 ⌘ 拿着形时，圈住手下那个窗口的框 | shell.app | tokens style | 按着 ⌘ 拿着形经过一个窗口时 | DesktopShell
 shell.figure.label | 签 | 拿着形时写在旁边的一两行：松手会去哪，按着 ⌘ 看的是哪个窗口 | shell.app | tokens style | 形在桌面上被拿着时 | DesktopShell
-shell.figure.note | 说话笺 | 对 Agent 说一句话的笺：桌面上单击形打开的那一块，与窗口里随身入口展开的小框 | shell.app | tokens style | 单击桌面上的形之后 | DesktopShell
+shell.figure.note | 说话笺 | 对 Agent 说一句话的笺，只有一块：桌面上单击形、窗口里按随身入口，开的都是它 | shell.app | tokens style | 说话笺开着时 | DesktopShell
 shell.figure.told | 告知笺 | 形在家里说给人听的一句：一个模块的提示 | shell.sidebar | tokens style | 有提示时 | DesktopShell
 shell.gate | 登录门 | 没登录时屏幕中间的一块 | shell.app | tokens style | 没登录时 | DesktopShell
 shell.sidebar | 侧栏 | 左边放家、导航与账号的一列 | shell.app | tokens style | 登录之后 | DesktopShell

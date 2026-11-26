@@ -50,13 +50,16 @@ export type NoteTold =
   | Readonly<{ kind: 'not-authorized' | 'cannot-send-pictures' }>
   | Readonly<{ kind: 'not-seen'; reason: string }>
 
-/** The say note: `targets` null when who can be spoken to cannot be read; `to` is the default; pictures by id. */
+/** The say note: `targets` null when who can be spoken to cannot be read; `to` is the default; pictures by id; the unsent words, who the person chose and the `edit` they stand at. */
 export type SceneNote = Readonly<{
   targets: readonly NoteTarget[] | null
   to: NoteTo
   fate: NoteFate | null
   pictures?: readonly NotePicture[]
   told?: NoteTold
+  words: string
+  chosen?: NoteTo
+  edit: number
 }>
 
 export type SceneFrame = Readonly<{ rect: Rect; covered: readonly Rect[]; closed: boolean }>
@@ -127,6 +130,14 @@ export type Up =
       pictures?: readonly string[]
     }>
   | Readonly<{ kind: 'input'; lease: number; input: 'unpicture'; picture: string }>
+  | Readonly<{
+      kind: 'input'
+      lease: number
+      input: 'unsent'
+      words: string
+      chosen?: NoteTo
+      edit: number
+    }>
   | Readonly<{ kind: 'hello' }>
   | Asked
 
@@ -170,6 +181,17 @@ const isSceneLook = (value: unknown): boolean => {
   return look !== undefined && isText(look['issuer']) && isNumber(look['version'])
 }
 
+const isNote = (value: unknown): boolean => {
+  if (value === null || value === undefined) return true
+  const note = fields(value)
+  return (
+    note !== undefined &&
+    isText(note['words']) &&
+    isNumber(note['edit']) &&
+    optional(note['chosen'], isTo)
+  )
+}
+
 function isScene(value: unknown): value is Scene {
   const scene = fields(value)
   return (
@@ -178,7 +200,8 @@ function isScene(value: unknown): value is Scene {
     isNumber(scene['serial']) &&
     isSceneLook(scene['look']) &&
     fields(scene['figure']) !== undefined &&
-    isWhere(scene['where'])
+    isWhere(scene['where']) &&
+    isNote(scene['note'])
   )
 }
 
@@ -261,6 +284,17 @@ const isSend = (kind: string, message: Fields): boolean =>
   isTo(message['to']) &&
   optional(message['pictures'], isIds)
 
+const isUnsent = (kind: string, message: Fields): boolean =>
+  kind === 'input' &&
+  message['input'] === 'unsent' &&
+  isNumber(message['lease']) &&
+  isText(message['words']) &&
+  optional(message['chosen'], isTo) &&
+  isNumber(message['edit'])
+
+const isWords = (kind: string, message: Fields): boolean =>
+  isSend(kind, message) || isUnsent(kind, message)
+
 const isUnpicture = (kind: string, message: Fields): boolean =>
   kind === 'input' &&
   message['input'] === 'unpicture' &&
@@ -326,7 +360,7 @@ export function readUp(data: unknown): Up | undefined {
   const kind = String(message['kind'])
   if (kind === 'hello') return { kind: 'hello' }
   const known =
-    isSend(kind, message) ||
+    isWords(kind, message) ||
     isUnpicture(kind, message) ||
     isHandover(kind, message) ||
     isInput(kind, message) ||

@@ -98,9 +98,9 @@ test('穿着皮肤把形拖出窗口还是皮肤的样子；在窗口里换一�
   const seaAccent = await accentOf(page)
   expect(seaAccent).not.toBe(builtInAccent)
 
-  await test.step('在窗口里按随身入口：小框的墨框是同一个部位，带着 e2e-sea 写的样式', async () => {
+  await test.step('在窗口里按随身入口：外壳画的说话笺是同一个部位，带着 e2e-sea 写的样式', async () => {
     await page.getByRole('button', { name: '对 Agent 说一句话' }).click()
-    const note = '[role="dialog"][data-omne-part="shell.figure.note"]'
+    const note = '.shell-float .omne-say-bubble[data-omne-part="shell.figure.note"]'
     await expect(page.locator(note)).toBeVisible({ timeout: 10_000 })
     const spacing = await page.evaluate(
       `getComputedStyle(document.querySelector('${note}')).letterSpacing`,
