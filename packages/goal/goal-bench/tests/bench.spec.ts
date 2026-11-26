@@ -103,6 +103,30 @@ describe('a parent and its mutations become cases whose truth follows from the c
     })
     expect(byId('stale-e2e').material.calls).toHaveLength(clean.calls.length + 1)
   })
+  it('takes the last reply away with the evidence of a criterion that stands on what was done in the round', () => {
+    const [first, second, third] = HOME.draft.criteria ?? []
+    const said = { statement: '在会话里说了改动', evidence: { kind: 'activity' } } as const
+    const reply = {
+      ...HOME.calls.at(-1)!,
+      ref: 'reply',
+      order: 99,
+      tool: 'Reply',
+      output: '加了一条。',
+    }
+    const told = {
+      ...HOME,
+      draft: {
+        ...HOME.draft,
+        criteria: [first!, second!, { ...third!, ...said, pass: undefined }],
+      },
+      calls: [...HOME.calls, reply],
+      mutations: [{ op: 'drop', id: 'drop-said', target: 'A3' }],
+    } as typeof HOME
+    const [clean, dropped] = casesOf(told)
+    expect(clean!.material.calls.at(-1)?.ref).toBe('reply')
+    expect(dropped!.material.calls.map(call => call.ref)).not.toContain('reply')
+    expect(dropped!.expected.entries.A3?.truth).toBe('no-evidence')
+  })
   it('finds what is wrong with a parent', () => {
     const wrong = (change: Partial<typeof HOME>) => parentIssues({ ...HOME, ...change })
     const [first, ...rest] = HOME.calls

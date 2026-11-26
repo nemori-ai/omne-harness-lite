@@ -13,6 +13,9 @@ import {
   packJudge,
   readAnswer,
   readJudge,
+  REPLY_NAME,
+  REPLY_NOTE,
+  REPLY_REF,
   rule,
   validateDraft,
   validReply,
@@ -1086,6 +1089,7 @@ describe('the three ways of asking the bench can switch on', () => {
         activity: 'lines',
         flags: 'keys',
         drafts: 'later',
+        reply: 'call',
       },
       model: 'openai/gpt-6-luna-decisions',
       line: 0.9,
@@ -1098,14 +1102,45 @@ describe('the three ways of asking the bench can switch on', () => {
 
   it('keeps asking as before for a configuration written before they were there', () => {
     const { exits, unattainable, ...instructions } = BASELINE_JUDGE_CONFIG.instructions
-    const { drafts, ...old } = BASELINE_JUDGE_CONFIG.packaging
+    const { drafts, reply, ...old } = BASELINE_JUDGE_CONFIG.packaging
     const parsed = JudgeConfigSchema.parse({
       ...BASELINE_JUDGE_CONFIG,
       instructions,
       packaging: old,
     })
-    expect([exits, unattainable, drafts]).toEqual(['statement', 'kind', 'later'])
+    expect([exits, unattainable, drafts, reply]).toEqual(['statement', 'kind', 'later', 'call'])
     expect(parsed).toEqual(BASELINE_JUDGE_CONFIG)
+  })
+
+  it('says of what the agent said last what it is: in its name, or in a note beside it, when so configured', () => {
+    const said = call(60, { ref: REPLY_REF, tool: 'Reply', output: '加了一条，在「未发布」下面。' })
+    const progress = {
+      ...PROGRESS,
+      criteria: { ...PROGRESS.criteria, A3: { ...PROGRESS.criteria.A3!, refs: [REPLY_REF] } },
+    }
+    const input = material({ calls: [CHANGELOG, E2E(54, 0), said], progress })
+    type Item = { ref: string; tool: string; note?: string }
+    const shown = (how: JudgeConfig) => {
+      const state = stateOf(packJudge(input, how))
+      const item = (state.evidence['A3'] as unknown as Item[]).find(
+        entry => entry.ref === REPLY_REF,
+      )
+      return { tool: item?.tool, note: item?.note, line: state.facts.activity?.at(-1) }
+    }
+    expect(shown(config())).toEqual({ tool: 'Reply', note: undefined, line: 'reply Reply' })
+    expect(shown(packaging({ reply: 'named' }))).toEqual({
+      tool: REPLY_NAME,
+      note: undefined,
+      line: `reply ${REPLY_NAME}`,
+    })
+    expect(shown(packaging({ reply: 'noted' }))).toEqual({
+      tool: 'Reply',
+      note: REPLY_NOTE,
+      line: 'reply Reply',
+    })
+    const other = call(61, { ref: 'call-61', tool: 'Reply', output: 'x' })
+    const state = stateOf(packJudge(material({ calls: [other] }), packaging({ reply: 'named' })))
+    expect(state.facts.activity).toEqual(['call-61 Reply'])
   })
 
   it('names an earlier draft of the same file as superseded by the latest write, not as possibly out of date', () => {

@@ -2,6 +2,7 @@ import {
   isImpliedKey,
   measuredOf,
   packJudge,
+  REPLY_REF,
   readJudge,
   sessionOfKey,
   validReply,
@@ -29,7 +30,7 @@ export type Judged = Readonly<{ decided: Packed['decided']; findings: Findings }
 
 function replyAs(order: number, text: string): ObservedCall {
   return {
-    ref: 'reply',
+    ref: REPLY_REF,
     order,
     tool: 'Reply',
     command: null,

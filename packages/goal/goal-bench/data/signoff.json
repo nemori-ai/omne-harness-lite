@@ -264,5 +264,47 @@
     "checks": "passed",
     "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1636）",
     "at": "2026-11-26T10:46:51.123Z"
+  },
+  {
+    "parent": "p39-todo-open-items-said",
+    "digest": "sha256:df63cb2e5dee068207320ab5ae9d38d2c4ba2c146a3cd4c2569d27b9de4a7333",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1720）",
+    "at": "2026-11-26T15:21:51.418Z"
+  },
+  {
+    "parent": "p40-low-stock-said",
+    "digest": "sha256:3f760f128c5d399d54dc6bcf1dad37d6d86ab1be59776537c4b1a710873ae226",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1720）",
+    "at": "2026-11-26T15:21:51.418Z"
+  },
+  {
+    "parent": "p41-longest-note-said",
+    "digest": "sha256:65a90ef712bcb58ab919165424e0f593ddabf6b26ade9e9b578d6c014d3cb221",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1720）",
+    "at": "2026-11-26T15:21:51.418Z"
+  },
+  {
+    "parent": "p42-due-date-fix-explained",
+    "digest": "sha256:9110d7cb9ed5fe4900a2200d37bf2bd8e1d90434a08a70840acf006943e58bcc",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1720）",
+    "at": "2026-11-26T15:26:26.690Z"
+  },
+  {
+    "parent": "p43-nightly-backup-reported",
+    "digest": "sha256:ac292bf2a1e2c7e675a227406e9b2a8f892376a7ec5468cbcaf0356bcad905b8",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1720）",
+    "at": "2026-11-26T15:21:51.418Z"
+  },
+  {
+    "parent": "p44-min-node-version-answered",
+    "digest": "sha256:7388520d943e9446dc1865b0f70370fd5e549edc10710371b2b9a0b7b06cdea6",
+    "checks": "passed",
+    "signedBy": "交付会话（claude-code，Agent-Role main，卡 #1720）",
+    "at": "2026-11-26T15:21:51.418Z"
   }
 ]

@@ -86,7 +86,8 @@ function withoutEvidence(material: JudgeMaterial, target: CriterionId): JudgeMat
   const rests = (call: ObservedCall): boolean =>
     cited.has(call.ref) ||
     (evidence.kind === 'command' && call.command === evidence.command) ||
-    (evidence.kind === 'file' && call.path === evidence.path)
+    (evidence.kind === 'file' && call.path === evidence.path) ||
+    (evidence.kind === 'activity' && call.tool === 'Reply')
   const calls = material.calls.filter(call => !rests(call))
   return claimed({ ...material, calls }, target, { status: 'claimed-done', refs: [] })
 }
