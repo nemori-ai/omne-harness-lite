@@ -310,7 +310,9 @@ describe('each human change as its domain command', () => {
       parse('revise', { schedule: ID, revision: 2, definition: onceOnly, reason: 'r' }),
       [],
     )
-    expect(bad.text).toMatch(/^invalid reason=the definition does not form a schedule/)
+    expect(bad.text).toMatch(
+      /^invalid reason=the definition does not form a schedule: limits\.eligibleLimit: .+ code=invalid_input$/u,
+    )
     expect(bad.service.asked).toEqual([])
   })
 })

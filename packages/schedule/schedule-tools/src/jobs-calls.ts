@@ -7,7 +7,7 @@ import {
 } from '@omne-harness/schedule-contract'
 import type { BoundJobs, JobsFaces } from './port.ts'
 import type { JobsArguments } from './jobs-protocol.ts'
-import { unreadLine } from './protocol.ts'
+import { unreadLine, whereOf } from './protocol.ts'
 import { refusalLine } from './text.ts'
 
 type Of<K extends JobsArguments['command']> = Extract<JobsArguments, { command: K }>
@@ -107,7 +107,11 @@ export async function runJobs(
   const completed = completeAgentWork(args.params.work, await faces.defaults())
   if (completed.kind !== 'completed') return unreadLine(completed)
   const work = ScheduleWorkSchema.safeParse(completed.work)
-  if (!work.success) return unreadLine({ kind: 'refused', reason: 'the work does not form a Job' })
+  if (!work.success)
+    return unreadLine({
+      kind: 'refused',
+      reason: `the work does not form a Job: ${whereOf(work.error)}`,
+    })
   const answer = await faces.jobs.start(context, {
     work: work.data,
     operationKey: bound.operationKey('start'),

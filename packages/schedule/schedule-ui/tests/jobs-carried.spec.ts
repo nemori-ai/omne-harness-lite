@@ -22,7 +22,7 @@ describe('where a Job is carried out, in one line', () => {
     ['aborted', '目标执行中止'],
     ['cancelled', '目标被取消'],
   ])(
-    'reads the end %s of the goal in words, after the definition adopted and before what was delivered',
+    'reads the end %s of the goal in words, after the definition adopted; what was delivered is not said here',
     (outcome, words) => {
       const account = {
         definition: { name: 'coding', version: 'v7' },
@@ -32,7 +32,7 @@ describe('where a Job is carried out, in one line', () => {
         run: 'run-1',
       }
       expect(carriedText({ kind: 'session', session: 's-9', account })).toBe(
-        `会话 s-9；定义 coding（v7）；${words}；交付物：report.md、notes.md`,
+        `会话 s-9；定义 coding（v7）；${words}`,
       )
     },
   )

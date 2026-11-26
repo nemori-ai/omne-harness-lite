@@ -65,8 +65,19 @@ export function definitionOf(
   })
   return parsed.success
     ? { kind: 'read', definition: parsed.data }
-    : { kind: 'refused', reason: 'the definition does not form a schedule' }
+    : {
+        kind: 'refused',
+        reason: `the definition does not form a schedule: ${whereOf(parsed.error)}`,
+      }
 }
+
+const SAID = 3
+/** Where a value does not stand, for the agent to correct it: the first fields refused, each with why. */
+export const whereOf = (error: z.ZodError): string =>
+  error.issues
+    .slice(0, SAID)
+    .map(issue => `${issue.path.join('.') || 'the whole value'}: ${issue.message}`)
+    .join('; ')
 
 /** One line for agent work or a definition that could not be read as written. */
 export const unreadLine = (stop: Exclude<ReadDefinition, { kind: 'read' }>): string =>

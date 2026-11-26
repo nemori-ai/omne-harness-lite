@@ -186,17 +186,16 @@ const ENDED: Readonly<Record<string, string>> = {
 const endedText = (outcome: string) =>
   outcome.startsWith('exit:') ? `照退出 ${outcome.slice(5)} 收场` : (ENDED[outcome] ?? outcome)
 
-/** Where a Job is carried out, in one line: the run of a program, or the session with the definition it adopted, how its goal ended and what it delivered. */
+/** Where a Job is carried out, in one line: the run of a program, or the session with the definition it adopted and how its goal ended. */
 export function carriedText(where: JobDetail['where']): string {
   if (where === null) return '还没有承接'
   if (where.kind === 'program') return `程序 ${where.program}（执行 ${where.execution}）`
   const { account } = where
   if (account === null) return `会话 ${where.session}`
-  const { definition, outcome, deliverables } = account
+  const { definition, outcome } = account
   return [
     `会话 ${where.session}`,
     ...(definition === null ? [] : [`定义 ${definition.name}（${definition.version}）`]),
     ...(outcome === null ? [] : [`目标${endedText(outcome)}`]),
-    ...(deliverables.length === 0 ? [] : [`交付物：${deliverables.join('、')}`]),
   ].join('；')
 }

@@ -227,7 +227,7 @@ describe('the Jobs tool', () => {
     }
     const work = { ...agent({ mode: 'existing', sessionRef: 's-2' }), resultPolicy: internal }
     expect(await w.run(parse('start', { work }))).toBe(
-      'invalid reason=the work does not form a Job code=invalid_input',
+      'invalid reason=the work does not form a Job: the whole value: Master results require an explicit return target code=invalid_input',
     )
     expect(w.asked).toEqual([])
   })

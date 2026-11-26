@@ -24,7 +24,7 @@ import {
   stepText,
   type JobDetail,
 } from '../model/jobs.ts'
-import { beganAt, sessionOf } from '../model/job-session.ts'
+import { beganAt, deliveredOf, sessionOf } from '../model/job-session.ts'
 import { readOnce, useReading } from '../model/reading.ts'
 import { localText } from '../model/words.ts'
 import { scheduleJob, scheduleJobCancel } from '../parts.ts'
@@ -141,6 +141,7 @@ function Job({ detail, onOpenSession }: JobProps): JSX.Element {
   const word = jobWord(detail)
   const place = sessionOf(detail.where)
   const began = beganAt(detail.events)
+  const delivered = deliveredOf(detail.where)
   const open = place !== null && onOpenSession !== undefined && (
     <IconButton
       label="打开会话"
@@ -182,7 +183,22 @@ function Job({ detail, onOpenSession }: JobProps): JSX.Element {
         </ol>
       </Section>
       <Section id="schedule-job-results" title="成果">
-        <p className="schedule-note">这份作业没有要交的成果。</p>
+        {delivered === null ? (
+          <p className="schedule-note">这份作业没有要交的成果。</p>
+        ) : delivered === 'unread' ? (
+          <p className="schedule-note">交付物此刻读不到。</p>
+        ) : delivered.length === 0 ? (
+          <p className="schedule-note">还没有交付物。</p>
+        ) : (
+          <>
+            <p className="schedule-note">交付物留在作业会话里：</p>
+            <ul className="schedule-steps" aria-label="交付物">
+              {delivered.map(name => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          </>
+        )}
       </Section>
     </>
   )

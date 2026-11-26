@@ -140,7 +140,7 @@ async function jumped(job: object, handed: 'both' | 'neither' = 'both') {
 
 it('S1 a jump that names a Job opens the page on that Job, and 回到日程 goes back to the list', async () => {
   const { fake } = await jumped(JOB)
-  expect(screen.getByLabelText('作业详情').textContent).toContain('承接会话 s-9')
+  expect(screen.getByLabelText('作业详情').textContent).toContain('承接会话 s-9；定义 coding（v7）')
   expect(scheduleJobTarget('job_1')).toEqual({ page: 'schedules', subject: 'job_1' })
   fireEvent.click(screen.getByRole('button', { name: '回到日程' }))
   expect(screen.queryByLabelText('作业详情')).toBeNull()
@@ -179,6 +179,28 @@ it.each([
   await jumped(job)
   expect(screen.getByLabelText('作业详情')).toBeTruthy()
   expect(screen.queryByRole('button', { name: '打开会话' })).toBeNull()
+})
+
+it.each([
+  [
+    'a session delivered two files',
+    { ...JOB.where, account: { ...ACCOUNT, deliverables: ['a.md', 'b.md'] } },
+    '交付物留在作业会话里：a.mdb.md',
+  ],
+  ['a session delivered nothing yet', JOB.where, '还没有交付物。'],
+  ['what the session left cannot be read', { ...JOB.where, account: null }, '交付物此刻读不到。'],
+  [
+    'a program carries it out',
+    { kind: 'program', program: 'p', execution: 'x' },
+    '这份作业没有要交的成果。',
+  ],
+  ['nothing carries it out yet', null, '这份作业没有要交的成果。'],
+])('S6 %s: the results say so', async (_name, where, said) => {
+  await jumped({ ...JOB, where })
+  const results = document.querySelector('#schedule-job-results')
+  expect(results?.textContent).toBe(`成果${said}`)
+  const listed = [...(results?.querySelectorAll('li') ?? [])].map(item => item.textContent)
+  expect(listed).toEqual(said.startsWith('交付物留在') ? ['a.md', 'b.md'] : [])
 })
 
 it('S5 an assembly that hands in no way to a session: no 打开会话, and nothing on a status line', async () => {

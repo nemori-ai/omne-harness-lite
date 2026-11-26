@@ -18,6 +18,12 @@ export function openerOf(items: readonly JobDetail[]): JobDetail | undefined {
   })
 }
 
+/** What a Job in a session delivered, as its session keeps it: null for a Job no session carries out, `unread` while it cannot be read. */
+export function deliveredOf(where: JobDetail['where']): readonly string[] | 'unread' | null {
+  if (where?.kind !== 'session') return null
+  return where.account === null ? 'unread' : where.account.deliverables
+}
+
 export const DIRECT_PROVENANCE = '由一份直接发起的作业开启'
 /** The one line a session says of the Job of a schedule that opened it. */
 export const provenanceText = (label: string | null): string =>
