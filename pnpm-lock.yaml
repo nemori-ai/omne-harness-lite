@@ -8814,6 +8814,9 @@ importers:
 
   tools/artifact-builder:
     devDependencies:
+      '@omne-harness/assembly-cordis':
+        specifier: workspace:*
+        version: link:../../packages/assembly/assembly-cordis
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
