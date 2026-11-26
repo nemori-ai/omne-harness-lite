@@ -125,18 +125,28 @@ type Stood = Readonly<{
   wakes: boolean
 }>
 
+function attendanceOf(current: GoalRecord | null, input: WriteInput): Attendance {
+  const { entrance } = input
+  const byCreator = entrance.via === 'direct' && entrance.draftedBy === 'creator'
+  return standsFor(current, byCreator ? 'unattended' : input.attendance)
+}
+
+const writeEventOf = (
+  proposal: WriteInput['proposal'],
+  attendance: Attendance,
+  confirmed: boolean,
+): GoalEvent =>
+  proposal.kind === 'set' ? { kind: 'set', attendance } : { kind: 'revise', confirmed }
+
 /** The state and the body this write comes to, or why it does not stand: the card, then the state, then the body. */
 function stand(current: GoalRecord | null, input: WriteInput): Stood | Decided {
   const { entrance, proposal } = input
   const state = current?.state ?? NO_GOAL
-  const byCreator = entrance.via === 'direct' && entrance.draftedBy === 'creator'
-  const attendance = standsFor(current, byCreator ? 'unattended' : input.attendance)
+  const attendance = attendanceOf(current, input)
   const stop = cardRefusal(entrance, state, attendance)
   if (stop !== null) return stop
   const byCard = entrance.via === 'card'
-  const event: GoalEvent =
-    proposal.kind === 'set' ? { kind: 'set', attendance } : { kind: 'revise', confirmed: byCard }
-  const step = transition(state, event)
+  const step = transition(state, writeEventOf(proposal, attendance, byCard))
   if (step.kind === 'refused') return refused({ kind: 'state', reason: step.reason })
   const checked = proposedBody(current, proposal, attendance)
   if (checked.kind === 'invalid') return refused({ kind: 'invalid', issues: checked.issues })

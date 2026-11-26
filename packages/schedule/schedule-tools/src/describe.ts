@@ -168,6 +168,17 @@ function changeRows(args: Activation): ReleaseRow[] {
   ]
 }
 
+type Reads = NonNullable<ReturnType<typeof scheduleReadsOf>>
+/** One read of the description, within its time: what it could not read is `otherwise`. */
+async function readOr<T>(
+  reads: Reads | undefined,
+  otherwise: T,
+  ask: (reads: Reads) => Promise<T>,
+): Promise<T> {
+  if (reads === undefined) return otherwise
+  return (await within(() => ask(reads), READ_WITHIN_MS)) ?? otherwise
+}
+
 /** Reads the schedule the call touches and the next times, never a write; a slow or failed read
  * says what it could not tell. */
 export async function describeActivation(
@@ -176,15 +187,9 @@ export async function describeActivation(
   const args = input.arguments
   const reads = scheduleReadsOf(input.signal)
   const carries = args.command === 'create' || args.command === 'replace'
-  const defaults =
-    reads === undefined || !carries
-      ? NO_DEFAULTS
-      : ((await within(() => defaultsOf(reads), READ_WITHIN_MS)) ?? NO_DEFAULTS)
+  const defaults = carries ? await readOr(reads, NO_DEFAULTS, defaultsOf) : NO_DEFAULTS
   const given = givenOf(args, defaults)
-  const seen =
-    reads === undefined
-      ? UNSEEN
-      : ((await within(() => seenOf(args, given, reads), READ_WITHIN_MS)) ?? UNSEEN)
+  const seen = await readOr(reads, UNSEEN, found => seenOf(args, given, found))
   const name = seen.current?.definition.label ?? given.label ?? '未命名'
   const next: Next = ENDING.has(args.command) ? { kind: 'none' } : seen.next
   return {
