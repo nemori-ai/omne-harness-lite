@@ -1,7 +1,7 @@
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { identityClock } from '../src/entry/identity-clock.ts'
-import { S0AssemblyLifecycleService } from '../src/row.ts'
+import { declaredParts, S0AssemblyLifecycleService } from '../src/row.ts'
 import type { RowSupervision } from '../src/shutdown.ts'
 import { rowSupervision } from './support/row-supervision.ts'
 import {
@@ -61,14 +61,7 @@ function treeRow(id: string, plugin: string, source: TreeRow['source'] = 'distri
 function declared(id: string, plugin: Plugin, source?: TreeRow['source']): RowSpec {
   const declaration = rowDeclarationOf(plugin)
   if (declaration === undefined) throw new Error('not a declared row')
-  const via = declaration.lifecycle.kind === 'entry-object' ? declaration.lifecycle.via : null
-  return {
-    row: treeRow(id, 'declared', source),
-    manifest: declaration.manifest,
-    plugin,
-    implementation: declaration.implementation,
-    declared: { row: declaration.row, via },
-  }
+  return { row: treeRow(id, 'declared', source), ...declaredParts(declaration), plugin }
 }
 
 function stub(id: string, events: StubEvent[], source?: TreeRow['source']): RowSpec {

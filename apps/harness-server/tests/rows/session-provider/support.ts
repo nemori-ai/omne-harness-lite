@@ -24,7 +24,7 @@ import {
 } from '@omne-harness/session-cordis-contract/cordis'
 import { principalIssuer, sessionPrincipals } from '../../../src/entry/principals.ts'
 import { sessionWorkPrincipals } from '../../../src/entry/session-work-principals.ts'
-import { S0AssemblyLifecycleService } from '../../../src/row.ts'
+import { declaredParts, S0AssemblyLifecycleService } from '../../../src/row.ts'
 import { rowSupervision } from '../../support/row-supervision.ts'
 import { disposeTree, startTree, type EntryObject, type RowSpec } from '../../../src/loader.ts'
 import { serveProfile } from '../../../src/profile.ts'
@@ -124,9 +124,8 @@ function declared(plugin: Plugin.Object): RowSpec {
   if (declaration === undefined) throw new Error('not a declared row')
   return {
     row: treeRow(declaration.row, 'declared'),
-    manifest: declaration.manifest,
+    ...declaredParts(declaration),
     plugin,
-    implementation: declaration.implementation,
     declared: { row: declaration.row, via: null },
   }
 }

@@ -76,6 +76,41 @@ describe('行的句柄', () => {
     expect(frozen.withdrawn.get('a')?.detail).toBe('disposer stop settled')
   })
 
+  it('换一代：备着的那一代的句柄先放在一边，换的时候替掉旧的；旧的那一代卸载不再动它', async () => {
+    const log: string[] = []
+    const supervisor = new RowSupervisor({ clock: handClock() })
+    const removeOld = supervisor.add(handle('a', log))
+    supervisor.stage('a')
+    const removeNext = supervisor.add({
+      ...handle('a', log),
+      stop: async () => void log.push('stop:a2'),
+    })
+    expect(() => supervisor.add(handle('a'))).toThrow(SupervisionRefused)
+    const swapped = supervisor.promote('a')
+    await swapped?.replaced?.stop(0)
+    removeOld()
+    await settle()
+    expect(log).toEqual(['stop:a'])
+    expect(supervisor.liveRows()).toEqual(['a'])
+    await supervisor.freeze().live.get('a')?.handle.stop(0)
+    expect(log).toEqual(['stop:a', 'stop:a2'])
+    removeNext()
+    expect(supervisor.promote('a')).toBeUndefined()
+  })
+
+  it('备着的那一代没起来：它的句柄收回，在位的不动；没说要换时再交一个照样被拒', async () => {
+    const log: string[] = []
+    const supervisor = new RowSupervisor({ clock: handClock() })
+    supervisor.add(handle('a', log))
+    supervisor.stage('a')
+    const removeNext = supervisor.add(handle('a', log))
+    removeNext()
+    supervisor.unstage('a')
+    await settle()
+    expect([log, supervisor.liveRows()]).toEqual([[], ['a']])
+    expect(() => supervisor.add(handle('a'))).toThrow(SupervisionRefused)
+  })
+
   it('once：再次请求得到同一个结果，不再执行', async () => {
     const supervisor = new RowSupervisor<SupervisedHandle, number>({ clock: handClock() })
     let runs = 0

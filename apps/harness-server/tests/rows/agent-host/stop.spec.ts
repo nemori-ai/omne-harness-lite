@@ -216,7 +216,12 @@ describe('the agent-host row: ordered stop with the Agent factory of this releas
 describe('the agent-host row: ordered stop over a runtime that drains', () => {
   it('is the same row as `agentHostRow`', () => {
     const row = createAgentHostRowOver(() => createAgentHostPluginOver(dutiesFactory(newDuties())))
-    expect(rowDeclarationOf(row)).toEqual(rowDeclarationOf(agentHostRow))
+    // Each row has its own entries; what they are entries of is the same.
+    const told = (declaration: ReturnType<typeof rowDeclarationOf>) => ({
+      ...declaration,
+      entries: declaration?.entries?.map(entry => entry.key),
+    })
+    expect(told(rowDeclarationOf(row))).toEqual(told(rowDeclarationOf(agentHostRow)))
   })
 
   it(

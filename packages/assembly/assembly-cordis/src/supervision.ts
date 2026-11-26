@@ -91,6 +91,8 @@ export class RowSupervisor<H extends SupervisedHandle, Report = unknown> {
   readonly #live = new Map<string, HandleEntry<H>>()
   readonly #withdrawn = new Map<string, WithdrawnEntry<H>>()
   readonly #standings = new Map<string, RowStanding>()
+  readonly #staging = new Set<string>()
+  readonly #staged = new Map<string, HandleEntry<H>>()
   #state: 'running' | 'stopping' = 'running'
   #started = false
   #frozen = false
@@ -121,8 +123,16 @@ export class RowSupervisor<H extends SupervisedHandle, Report = unknown> {
   add(handle: H): () => void {
     const { row } = handle
     if (this.#state === 'stopping') throw new SupervisionRefused('stopping', row)
-    if (this.#live.has(row)) throw new SupervisionRefused('duplicate', row)
     const entry: HandleEntry<H> = { handle, stopCalled: false }
+    if (this.#live.has(row)) {
+      if (!this.#staging.has(row) || this.#staged.has(row))
+        throw new SupervisionRefused('duplicate', row)
+      this.#staged.set(row, entry)
+      return () => {
+        if (this.#staged.get(row) === entry) this.#staged.delete(row)
+        else this.#withdraw(row, entry)
+      }
+    }
     this.#live.set(row, entry)
     this.#withdrawn.delete(row)
     let removed = false
@@ -131,6 +141,25 @@ export class RowSupervisor<H extends SupervisedHandle, Report = unknown> {
       removed = true
       this.#withdraw(row, entry)
     }
+  }
+
+  stage(row: string): void {
+    this.#staging.add(row)
+  }
+
+  unstage(row: string): void {
+    this.#staging.delete(row)
+    this.#staged.delete(row)
+  }
+
+  promote(row: string): Readonly<{ serving: H; replaced: H | undefined }> | undefined {
+    const next = this.#staged.get(row)
+    this.#staging.delete(row)
+    if (next === undefined) return undefined
+    const old = this.#live.get(row)
+    this.#staged.delete(row)
+    this.#live.set(row, next)
+    return { serving: next.handle, replaced: old?.handle }
   }
 
   /** Calls `start` of every row: a row after the rows it needs, the last ones after all. The first to throw ends it. */

@@ -30,7 +30,7 @@ import {
 import type { SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import { cursorSigning } from '../../../../src/entry/cursor-signing.ts'
 import { storageHost } from '../../../../src/entry/storage-host.ts'
-import { S0AssemblyLifecycleService } from '../../../../src/row.ts'
+import { declaredParts, S0AssemblyLifecycleService } from '../../../../src/row.ts'
 import type { RowSupervision } from '../../../../src/shutdown.ts'
 import { rowSupervision } from '../../../support/row-supervision.ts'
 import {
@@ -199,13 +199,10 @@ export function treeRow(id: string, plugin: string, config: unknown = {}): TreeR
 export function declared(plugin: Plugin, config: unknown = {}): RowSpec {
   const declaration = rowDeclarationOf(plugin)
   if (declaration === undefined) throw new Error('not a declared row')
-  const via = declaration.lifecycle.kind === 'entry-object' ? declaration.lifecycle.via : null
   return {
     row: treeRow(declaration.row, 'declared', config),
-    manifest: declaration.manifest,
+    ...declaredParts(declaration),
     plugin,
-    implementation: declaration.implementation,
-    declared: { row: declaration.row, via },
   }
 }
 

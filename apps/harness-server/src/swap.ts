@@ -5,6 +5,7 @@ import { swapRow } from '@omne-harness/assembly-cordis/cordis'
 import { z } from 'zod'
 import type { RowSpec } from './loader.ts'
 import type { LoadedRow } from './readiness.ts'
+import type { RowSupervision } from './shutdown.ts'
 import type { RowId } from './types.ts'
 
 type Line = Readonly<Record<string, unknown>>
@@ -84,6 +85,8 @@ export type SwapInput = Readonly<{
   wrap: (id: RowId, plugin: Plugin.Object) => Plugin.Object
   /** The row has a new generation: whoever keeps its fiber is told in the step that swaps. */
   swapped: (row: LoadedRow, fiber: Fiber) => void
+  handles: Pick<RowSupervision, 'stage' | 'unstage' | 'promote'>
+  stopWithin: Readonly<{ ms: number; now: () => number }>
   /** What was swapped is not what the impact said: the process is to take a new one. */
   mismatched: (row: string) => void
   write: (record: Line & { kind: string }) => void
@@ -144,14 +147,26 @@ export function createSwapper(input: SwapInput) {
       )
     const before = input.applied.length
     const next = input.wrap(live.id, { ...plugin, name: row })
+    const { handles, stopWithin } = input
+    if (spec.manifest.phase !== null) handles.stage(row)
     const swapped = await swapRow(live.ctx, {
       old: live.fiber,
       next,
       config: spec.row.config,
-      entries: [],
-      swapped: fiber => input.swapped(live, fiber),
+      entries: spec.entries ?? [],
+      // The generation that left stops as it does at a shutdown; then the new one starts, and the old is unloaded.
+      swapped: async fiber => {
+        input.swapped(live, fiber)
+        const handle = handles.promote(row)
+        if (handle === undefined) return
+        await handle.replaced?.stop(stopWithin.now() + stopWithin.ms).catch(() => undefined)
+        await handle.serving.start?.()
+      },
     })
-    if (swapped.kind === 'refused') return refuse(tell, swapped.reason, swapped.detail)
+    if (swapped.kind === 'refused') {
+      handles.unstage(row)
+      return refuse(tell, swapped.reason, swapped.detail)
+    }
     input.write({ kind: 'row-swap', row, source: version.by, digest: version.digest, ...impact })
     tell({ kind: 'result', outcome: 'swapped', row, digest: version.digest })
     void swapped.drained

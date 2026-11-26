@@ -17,7 +17,8 @@ export type ServeWatch = Readonly<{
   write: (record: Record) => void
   stderr: (line: string) => void
   /** Where the control port of this run is opened, and what a swap needs of the tree. */
-  control?: Readonly<{ stateRoot: string }> & Pick<SwapInput, 'rows' | 'trust' | 'applied' | 'wrap'>
+  control?: Readonly<{ stateRoot: string }> &
+    Pick<SwapInput, 'rows' | 'trust' | 'applied' | 'wrap' | 'stopWithin'>
 }>
 
 export type Leaving = Readonly<{ code: 0 | 3 | 4; reason: string; row: string }>
@@ -44,7 +45,8 @@ async function controlOf(
   const { control, write, stderr } = input
   if (control === undefined) return undefined
   const { stateRoot, ...tree } = control
-  const swapper = createSwapper({ ...tree, loaded: input.loaded, write, ...hooks })
+  const handles = input.registry
+  const swapper = createSwapper({ ...tree, loaded: input.loaded, write, handles, ...hooks })
   try {
     const port = await openControl(stateRoot, swapper)
     // The record does not carry the path: it is the state directory, which stays off the output.

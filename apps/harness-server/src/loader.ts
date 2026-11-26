@@ -1,6 +1,7 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { ConfigError, distributionSchema, operatorSchema, parseBoundary } from './config-schema.ts'
 import { awaitReadiness, stopOf, type LoadedRow, type ReadinessReport } from './readiness.ts'
+import type { RowEntry } from './row.ts'
 import type { Trust } from './trust.ts'
 import type { Implementation, RowId, RowManifest, ServiceName, TreeRow } from './types.ts'
 
@@ -34,6 +35,7 @@ export type RowSpec = Readonly<{
   contracts?: Readonly<Record<ServiceName, string>>
   /** The row plugin the release ships for this row, as a new generation of it would apply it. */
   shipped?: Plugin.Object
+  entries?: readonly RowEntry[]
 }>
 
 export type EntryObject = Readonly<{
@@ -259,9 +261,10 @@ async function loadRows(
   const { root, trust } = options
   const loaded: LoadedRow[] = []
   let stalled = false
-  for (const { row, manifest, plugin } of options.rows) {
+  for (const { row, manifest, plugin, entries } of options.rows) {
     if (budget.stopped()) return { loaded, complete: false }
     const ctx = trust.contextForRow(root, row.id)
+    for (const entry of entries ?? []) ctx.plugin(entry.plugin)
     const fiber = ctx.plugin(plugin, row.config)
     const entry: LoadedRow = {
       id: row.id,

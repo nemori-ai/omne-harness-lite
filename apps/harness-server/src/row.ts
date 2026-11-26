@@ -7,6 +7,7 @@ import {
   type Plugin,
 } from '@deepseek-ai/cordis'
 import type { SwapWay } from '@omne-harness/assembly'
+import type { Entry } from '@omne-harness/assembly-cordis/cordis'
 import type { RowSupervision } from './shutdown.ts'
 import type {
   AssemblyLifecycle,
@@ -56,7 +57,13 @@ type Common = Readonly<{
   swap?: SwapWay
   /** For each service key the row provides, the digest of its contract. */
   contracts?: Readonly<Record<ServiceName, string>>
+  /** The entries the dependents inject: a generation provides these keys to itself and offers them to the entries. */
+  entries?: readonly RowEntry[]
+  isolates?: readonly ServiceName[]
 }>
+
+export type RowEntry = Pick<Entry<unknown>, 'key' | 'plugin' | 'offered' | 'promote'> &
+  Readonly<{ offer(ctx: Context, implementation: never): void }>
 
 export type RowDefinition = Common &
   (
@@ -80,6 +87,7 @@ export type RowDeclaration = Readonly<{
   /** Absent: the row takes a new process. */
   swap?: SwapWay
   contracts?: Readonly<Record<ServiceName, string>>
+  entries?: readonly RowEntry[]
 }>
 
 const declarations = new WeakMap<object, RowDeclaration>()
@@ -132,6 +140,15 @@ function register(ctx: Context, handle: LifecycleHandle): void {
   lifecycle.register(handle)
 }
 
+/** The context a generation provides into: the keys of its entries and its private keys are its own there. */
+function privateTo(ctx: Context, definition: RowDefinition): Context {
+  const keys = [
+    ...(definition.entries ?? []).map(entry => entry.key),
+    ...(definition.isolates ?? []),
+  ]
+  return keys.reduce((scope, key) => scope.isolate(key), ctx)
+}
+
 export function defineRow(definition: RowDefinition): Plugin.Object {
   const row = rowIdOf(definition.row)
   checkNames(definition.manifest)
@@ -149,7 +166,10 @@ export function defineRow(definition: RowDefinition): Plugin.Object {
       inject,
       ...(definition.Config === undefined ? {} : { Config: definition.Config }),
       apply: async (ctx: Context, config: unknown) => {
-        const handle = await body(ctx, config)
+        const scope = privateTo(ctx, definition)
+        const handle = await body(scope, config)
+        for (const entry of definition.entries ?? [])
+          entry.offer(ctx, scope.get(entry.key, false) as never)
         register(ctx, { ...handle, phase: bodyLifecycle.phase, row })
       },
     }
@@ -174,8 +194,25 @@ export function defineRow(definition: RowDefinition): Plugin.Object {
     lifecycle,
     ...(definition.swap === undefined ? {} : { swap: definition.swap }),
     ...(definition.contracts === undefined ? {} : { contracts: definition.contracts }),
+    ...(definition.entries === undefined ? {} : { entries: definition.entries }),
   })
   return wrapper
+}
+
+/** What the loader's spec of a row takes from its declaration, the same for the release and for a test tree. */
+export function declaredParts(declaration: RowDeclaration) {
+  const { lifecycle, swap, contracts, entries } = declaration
+  return {
+    manifest: declaration.manifest,
+    implementation: declaration.implementation,
+    declared: {
+      row: declaration.row,
+      via: lifecycle.kind === 'entry-object' ? lifecycle.via : null,
+    },
+    ...(swap === undefined ? {} : { swap }),
+    ...(contracts === undefined ? {} : { contracts }),
+    ...(entries === undefined ? {} : { entries }),
+  }
 }
 
 export function rowDeclarationOf(plugin: unknown): RowDeclaration | undefined {

@@ -18,7 +18,7 @@ import {
 } from './model/tool-result-disclosure.ts'
 import { entryObjects as releaseEntryObjects } from './entry/index.ts'
 import { RowSupervisor } from '@omne-harness/assembly-cordis/cordis'
-import { S0AssemblyLifecycleService, S0_ASSEMBLY_LIFECYCLE_KEY } from './row.ts'
+import { declaredParts, S0AssemblyLifecycleService, S0_ASSEMBLY_LIFECYCLE_KEY } from './row.ts'
 import { rowOrder, startOrderOf, stopOrderOf } from './row-order.ts'
 import { serveUntilStop } from './serve-watch.ts'
 import {
@@ -580,18 +580,10 @@ function rowSpecOf(
   if (declared === undefined)
     throw new ConfigError('unknown-plugin', `plugin "${row.plugin}" carries no row declaration`)
   const { declaration, plugin } = declared
-  const { lifecycle } = declaration
   return {
     row,
-    manifest: declaration.manifest,
+    ...declaredParts(declaration),
     plugin: declaredRowPlugin(row.id, plugin, probes),
-    implementation: declaration.implementation,
-    declared: {
-      row: declaration.row,
-      via: lifecycle.kind === 'entry-object' ? lifecycle.via : null,
-    },
-    ...(declaration.swap === undefined ? {} : { swap: declaration.swap }),
-    ...(declaration.contracts === undefined ? {} : { contracts: declaration.contracts }),
     shipped: plugin,
   }
 }
@@ -986,6 +978,7 @@ async function serveAndClose(
     rows,
     trust: { publisherKeys: options.publisherKeys ?? [], named: tree.named },
     applied: probes.applied,
+    stopWithin: { ms: options.shutdownDeadlineMs, now: monotonicClock.now },
     wrap: (id: RowId, plugin: Plugin.Object) => declaredRowPlugin(id, plugin, probes),
   }
   const watch = { registry, root, loaded, undeclared: order.undeclared, write, control }
