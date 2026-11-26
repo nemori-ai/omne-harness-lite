@@ -8,7 +8,10 @@
 
 - `Answer` · `composer.d.ts`
 - `Argument` · `arguments.d.ts`
+- `ArgumentCompletion` · `candidates.d.ts`
+- `ArgumentPlace` · `arguments.d.ts`
 - `Asker` · `source.d.ts`
+- `Asking` · `candidates.d.ts`
 - `Assist` · `composer.d.ts`
 - `Candidate` · `source.d.ts`
 - `Catalog` · `names.d.ts`
@@ -39,6 +42,8 @@
 - `NamedEntry` · `names.d.ts`
 - `Naming` · `source.d.ts`
 - `Note` · `recognize.d.ts`
+- `Offer` · `candidates.d.ts`
+- `Offered` · `candidates.d.ts`
 - `Origin` · `source.d.ts`
 - `Param` · `names.d.ts`
 - `Place` · `names.d.ts`
@@ -55,6 +60,11 @@
 - `Typing` · `complete.d.ts`
 - `Zone` · `names.d.ts`
 - `accept` · `complete.d.ts`
+- `acceptCandidate` · `candidates.d.ts`
+- `argumentAt` · `arguments.d.ts`
+- `argumentBlock` · `candidates.d.ts`
+- `argumentCompletion` · `candidates.d.ts`
+- `askingAt` · `candidates.d.ts`
 - `assistOf` · `composer.d.ts`
 - `codeMask` · `recognize.d.ts`
 - `complete` · `complete.d.ts`
@@ -71,9 +81,11 @@
 - `literal` · `composer.d.ts`
 - `lookupOf` · `names.d.ts`
 - `moved` · `composer.d.ts`
+- `offeredTo` · `composer.d.ts`
 - `picked` · `composer.d.ts`
 - `placeOf` · `names.d.ts`
 - `pressed` · `composer.d.ts`
+- `rankCandidates` · `candidates.d.ts`
 - `rankOf` · `names.d.ts`
 - `recognize` · `recognize.d.ts`
 - `sameView` · `view.d.ts`
@@ -81,6 +93,7 @@
 - `shortAt` · `names.d.ts`
 - `splitArguments` · `arguments.d.ts`
 - `start` · `composer.d.ts`
+- `tierOf` · `complete.d.ts`
 - `typed` · `composer.d.ts`
 - `typing` · `complete.d.ts`
 - `unescape` · `recognize.d.ts`
@@ -95,18 +108,62 @@ export type Argument = Readonly<{
     value: string;
 }>;
 export declare function splitArguments(args: string): readonly Argument[];
+export type ArgumentPlace = Readonly<{
+    command: string;
+    index: number;
+    from: number;
+    to: number;
+    query: string;
+}>;
+export declare function argumentAt(text: string, caret: number): ArgumentPlace | null;
+```
+
+## 声明文件 `candidates.d.ts`
+
+```ts
+import { type ArgumentPlace } from './arguments.ts';
+import { type Tier } from './complete.ts';
+import type { Lookup, NamedEntry, Param } from './names.ts';
+import type { Recognition } from './recognize.ts';
+import type { Candidate } from './source.ts';
+export type Asking = Readonly<{
+    command: string;
+    param: number;
+}>;
+export type Offered = Asking & Readonly<{
+    candidates: readonly Candidate[] | null;
+}>;
+export type Offer = Readonly<{
+    candidate: Candidate;
+    tier: Tier;
+}>;
+export type ArgumentCompletion = ArgumentPlace & Readonly<{
+    entry: NamedEntry;
+    param: Param;
+    items: readonly Offer[] | null;
+}>;
+export declare function askingAt(text: string, caret: number, lookup: Lookup): Asking | null;
+export declare function rankCandidates(candidates: readonly Candidate[], query: string): readonly Offer[];
+export declare function argumentCompletion(text: string, caret: number, lookup: Lookup, offered: Offered | null): ArgumentCompletion | null;
+export declare function acceptCandidate(text: string, found: ArgumentCompletion, candidate: Candidate): Readonly<{
+    text: string;
+    caret: number;
+}>;
+export declare function argumentBlock(recognition: Recognition, lookup: Lookup, offered: Offered | null): string | null;
 ```
 
 ## 声明文件 `complete.d.ts`
 
 ```ts
 import { type Lookup, type NamedEntry, type Zone } from './names.ts';
-export type Tier = 0 | 1 | 2 | 3 | 4;
+export type Tier = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export declare const TIERS: readonly [
     '一模一样',
     '开头相同',
     '某一段的开头',
-    '首字母或跳着匹配',
+    '名字里任意位置有',
+    '各段的首字母',
+    '字母按顺序跳着出现',
     '说明里有'
 ];
 export type CompletionIndex = Readonly<{
@@ -136,6 +193,7 @@ export type Completion = Typing & Readonly<{
     ghost: string;
 }>;
 export declare function indexOf(lookup: Lookup): CompletionIndex;
+export declare function tierOf(query: string, name: string, separators: string): Tier | null;
 export declare function search(index: CompletionIndex, query: string, zone: Zone, limit?: number): Readonly<{
     total: number;
     items: readonly Found[];
@@ -151,8 +209,10 @@ export declare function accept(text: string, completion: Completion, item: Item)
 ## 声明文件 `composer.d.ts`
 
 ```ts
+import { type ArgumentCompletion, type Asking, type Offered } from './candidates.ts';
 import { type Completion, type CompletionIndex } from './complete.ts';
 import { type Catalog, type Lookup } from './names.ts';
+import type { Candidate } from './source.ts';
 import { type SenderView } from './view.ts';
 export type Tone = 'reference' | 'command' | 'refused' | 'note';
 export type Mark = Readonly<{
@@ -179,6 +239,7 @@ export type Assist = Readonly<{
     menu: Menu | null;
     blocked: string | null;
     seen: SenderView | null;
+    asking: Asking | null;
 }>;
 export type Key = 'up' | 'down' | 'tab' | 'enter' | 'escape';
 export type Answer = Readonly<{
@@ -212,12 +273,15 @@ export type Composer = Readonly<{
     selected: number;
     known: Known;
     found: Completion | null;
+    offered: Offered | null;
+    argument: ArgumentCompletion | null;
 }>;
 export declare const start: (state?: Known) => Composer;
 export declare function typed(c: Composer, text: string, caret: number): Composer;
 export declare function moved(c: Composer, caret: number): Composer;
 export declare function composing(c: Composer, on: boolean): Composer;
 export declare function listed(c: Composer, state: Known): Composer;
+export declare function offeredTo(c: Composer, offered: Offered): Composer;
 export declare function pressed(c: Composer, key: Key): Readonly<{
     state: Composer;
     answer: Answer;
@@ -227,6 +291,7 @@ export declare function assistOf(c: Composer): Assist;
 export declare function literal(text: string): string;
 export type ComposerMachine = Readonly<{
     listed(catalog: Catalog | null): void;
+    offered(command: string, param: number, candidates: readonly Candidate[] | null): void;
     input(text: string, caret: number): void;
     composing(on: boolean): void;
     key(key: Key): Answer;
@@ -244,10 +309,11 @@ export {};
 export { type Catalog, type CommandEntry, type EntryKind, fullName, isFullName, isName, type Lookup, lookupOf, NAME_MAX, type NamedEntry, type Param, type Place, placeOf, rankOf, RESERVED_SPACE, shortAt, type Zone, } from './names.ts';
 export { codeMask, type Command, type Message, type Note, type Recognition, recognize, type Reference, type Refusal, type Span, unescape, } from './recognize.ts';
 export { judge, type Judgment, sameView, type SenderView, viewOf } from './view.ts';
-export { accept, complete, type Completion, type CompletionIndex, type Found, indexOf, type Item, search, type Tier, TIERS, type Typing, typing, } from './complete.ts';
+export { accept, complete, type Completion, type CompletionIndex, type Found, indexOf, type Item, search, type Tier, tierOf, TIERS, type Typing, typing, } from './complete.ts';
 export { type Asker, type Candidate, type CatalogRead, type CommandCatalog, ENTRY_SOURCES_POINT, type EntrySource, type EntrySourceSlot, judgeListing, type ListingBreach, type Naming, type Origin, type Taken, } from './source.ts';
-export { type Argument, splitArguments } from './arguments.ts';
-export { type Answer, type Assist, assistOf, type Composer, type ComposerMachine, composing, createComposer, type Key, known, type Known, listed, literal, type Mark, type Menu, type MenuItem, moved, picked, pressed, start, type Tone, typed, } from './composer.ts';
+export { type Argument, argumentAt, type ArgumentPlace, splitArguments } from './arguments.ts';
+export { acceptCandidate, type ArgumentCompletion, argumentBlock, argumentCompletion, type Asking, askingAt, type Offer, type Offered, rankCandidates, } from './candidates.ts';
+export { type Answer, type Assist, assistOf, type Composer, type ComposerMachine, composing, createComposer, type Key, known, type Known, listed, literal, type Mark, type Menu, type MenuItem, moved, offeredTo, picked, pressed, start, type Tone, typed, } from './composer.ts';
 ```
 
 ## 声明文件 `names.d.ts`

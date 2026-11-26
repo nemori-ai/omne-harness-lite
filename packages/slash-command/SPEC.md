@@ -132,7 +132,7 @@ Session 的受理流水线在取到来源声明、算出「文字要解析」之
 ### 成员与协议
 
 - 成员：纯契约 `slash-command-contract`（值、识别、匹配、补全、所见、核对、入口来源的形状与判定）；实现 `slash-command`（合成清单，之后的解析器）；Cordis 契约 `slash-command-cordis-contract`（入口来源拓展点的服务与清单服务）；协议 `slash-command-protocol`；接入插件 `slash-command-access`；界面模块 `slash-command-ui`（输入框的帮手：读清单、听「可能变了」、断线重连与被拒收「变了」之后重读，把输入框的逻辑接上会话的界面模块给的助手口）。输入框的逻辑（菜单的四个状态与九种操作、标记、灰字、发不出去的原因与所见）是纯契约里的 `createComposer`。界面模块不依赖纯契约，由应用的装配把它交给界面模块（`createSlashCommandUiModule({ composer })`），所以客户端用的就是受理侧的那个识别函数。命令行直接调纯契约：文字里有斜杠时先读清单、认出所见，随输入交出，回执写所见。Skill 一侧的来源在 `packages/skills/skill-command-source`。提示词命令的类别、哪一份生效与它的入口来源在 `prompt-command-source`，由服务端的一行登记类别、接上来源。系统命令的来源在各自操作的拥有者那里。
-- 协议 `slash-command/1`：读清单 `read-catalog`（租户与会话，答清单与 `missing`）；读候选 `read-candidates`（租户、会话、命令的全名与第几个参数，答候选，或答取不到）；观察 `observe-catalog`（开在一个会话上，帧只说「可能变了」）。读候选与读清单同一个资格：会话自己许这个登录读这个会话。一个登录读某个会话的清单，先要会话自己许它读这个会话；清单按会话的工作主体与这一轮的作用域合成，与这个会话里 agent 经 `Skills` 读到的同一份。
+- 协议 `slash-command/1`：读清单 `read-catalog`（租户与会话，答清单与 `missing`）；读候选 `read-candidates`（租户、会话、命令的全名与第几个参数，答候选；这条命令或这个参数没有候选时答 `not-found`；或答取不到）；观察 `observe-catalog`（开在一个会话上，帧只说「可能变了」）。读候选与读清单同一个资格：会话自己许这个登录读这个会话。一个登录读某个会话的清单，先要会话自己许它读这个会话；清单按会话的工作主体与这一轮的作用域合成，与这个会话里 agent 经 `Skills` 读到的同一份。
 
 ### 失败、取消与生命周期
 
