@@ -47,11 +47,14 @@ const GOAL_GATE_OF: Readonly<Record<GoalCommandName, string>> = {
 
 const ENCODING = 'wrapped' as const
 /** A proposal is confirmed by a person on a card: where nobody attends there is nobody to confirm it. */
-export const PROPOSE_CONDITIONS = ['person-present'] as const
-/** The two commands of the session that examines for a goal are offered there and nowhere else. */
+export const PROPOSE_CONDITIONS = ['person-present', 'working'] as const
+/** The two commands of the session that examines for a goal are offered there and nowhere else; what the working agent does with its goal is not offered there. */
 export const EXAMINING_CONDITIONS = ['examining'] as const
+export const WORKING_CONDITIONS = ['working'] as const
 const CONDITIONS_OF: Readonly<Partial<Record<GoalCommandName, readonly string[]>>> = {
+  show: WORKING_CONDITIONS,
   propose: PROPOSE_CONDITIONS,
+  track: WORKING_CONDITIONS,
   brief: EXAMINING_CONDITIONS,
   submit: EXAMINING_CONDITIONS,
 }

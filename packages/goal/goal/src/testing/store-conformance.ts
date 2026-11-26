@@ -178,7 +178,7 @@ export const storeConformance: readonly StoreConformanceCase[] = [
     },
   },
   {
-    name: 'a goal that owes the examining side a batch is listed until the batch is known to be taken',
+    name: 'a goal with a batch out is listed, taken or not, until the batch is back',
     async run(open) {
       const store = await open()
       const key = { revision: 1, written: 'call-1' }
@@ -204,7 +204,12 @@ export const storeConformance: readonly StoreConformanceCase[] = [
       committed(
         await store.commit(T1, { session: S1, expected: 2, next: { ...owed, examination: taken } }),
       )
-      hold(read(await store.owing(T1)).length === 0, 'a batch that was taken is still listed')
+      hold(read(await store.owing(T1)).length === 1, 'a batch that was taken is not listed')
+      const back = { ...owed.examination, batch: null }
+      committed(
+        await store.commit(T1, { session: S1, expected: 3, next: { ...owed, examination: back } }),
+      )
+      hold(read(await store.owing(T1)).length === 0, 'a batch that is back is still listed')
     },
   },
   {

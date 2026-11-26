@@ -110,17 +110,35 @@ export type FakeExamining = GoalExamining &
     readable(on: boolean): void
     handed: BatchToHand[]
     asked: string[]
+    end(request: string): void
+    cancelled: string[]
+    closed: string[]
   }>
 
 export function fakeExamining(): FakeExamining {
   const handed: BatchToHand[] = []
   const asked: string[] = []
+  const over = new Set<string>()
+  const cancelled: string[] = []
+  const closed: string[] = []
   const rounds = new Map<string, readonly string[]>()
   let next: HandAnswer['kind'] = 'handed'
   let canRead = true
   return {
     handed,
     asked,
+    cancelled,
+    closed,
+    end: request => void over.add(request),
+    async ended(_tenant, batch) {
+      return over.has(batch.request) ? 'ended' : 'going'
+    },
+    async cancel(_tenant, batch) {
+      cancelled.push(batch.request)
+    },
+    async close(_tenant, goal) {
+      closed.push(goal.examiner)
+    },
     handNext: answer => void (next = answer),
     made: (examiner, request, refs) => void rounds.set(`${examiner}|${request}`, refs),
     readable: on => void (canRead = on),

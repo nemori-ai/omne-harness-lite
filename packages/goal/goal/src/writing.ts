@@ -1,15 +1,8 @@
 import {
-  batchRequest,
-  briefFor,
-  delivered,
-  evidence,
   isImpliedKey,
   openGap,
   renderBody,
-  settleArrived,
   sessionOfKey,
-  type Batch,
-  type ObservedCall,
   type GoalCaller,
   type GoalRecord,
   type GoalRefusal,
@@ -17,33 +10,21 @@ import {
 } from '@omne-harness/goal-contract'
 import type { Decided } from './decide.ts'
 import type { GoalsDependencies } from './goals.ts'
-import { lastWrite } from './judging.ts'
-import { ask, type BatchToHand, type GoalAction } from './ports.ts'
+import { createHanding } from './handing.ts'
+import { ask, type GoalAction } from './ports.ts'
 
 export type Answer<T> = Outcome<T, GoalRefusal>
 export const UNAVAILABLE = { kind: 'basis-unavailable' } as const
 export const UNKNOWN = { kind: 'unknown' } as const
 export const refused = (reason: GoalRefusal) => ({ kind: 'refused', reason }) as const
 export const done = <T>(value: T, recalled = false) => ({ kind: 'done', value, recalled }) as const
-type Seen = Readonly<{ where: string | null; calls: readonly ObservedCall[] }>
-
-function toHand(record: GoalRecord, batch: Batch, seen: Seen): BatchToHand {
-  const criteria = record.body.criteria
-    .filter(entry => batch.criteria.includes(entry.id) && batch.ran[entry.id] === undefined)
-    .map(({ id, evidence: by }) => ({ id, evidence: by }))
-  const request = batchRequest(record.state.generation, batch.key)
-  const { examiner } = record.examination
-  const brief = briefFor(record, batch, seen)
-  const session = sessionOfKey(record.session)
-  return { session, request, examiner, where: seen.where, brief, criteria }
-}
-
 /** A decision made on a version somebody else wrote over is made again, this many times at most. */
 const ATTEMPTS = 3
 
 /** What every operation of the registry is made of: asking the authority, reading the session, and the write that stands on a version. */
 export function createWriting(deps: GoalsDependencies) {
   const { store, sessions } = deps
+  const handing = createHanding(deps, (tenant, before, next) => commit(tenant, before, next))
 
   async function permitted(caller: GoalCaller, session: string, action: GoalAction) {
     const answer = await ask(deps.authority, caller, session, action)
@@ -74,58 +55,6 @@ export function createWriting(deps: GoalsDependencies) {
     await store.commit(tenant, { session: record.session, expected: record.version, next })
   }
 
-  async function seenOf(tenant: string, record: GoalRecord): Promise<Seen | null> {
-    const session = sessionOfKey(record.session)
-    const [facts, made] = await Promise.all([
-      sessions.facts(tenant, session),
-      deps.history.calls(tenant, session, record.since),
-    ])
-    if (facts.kind !== 'read' || made.kind !== 'read') return null
-    return { where: facts.value?.where ?? null, calls: made.value }
-  }
-
-  async function briefOf(tenant: string, record: GoalRecord, batch: Batch): Promise<string | null> {
-    const seen = await seenOf(tenant, record)
-    return seen === null ? null : briefFor(record, batch, seen)
-  }
-
-  async function untaken(tenant: string, record: GoalRecord, { key }: Batch): Promise<void> {
-    const step = evidence(record, { key, written: key.written, running: false, answers: null })
-    if (step.kind === 'next') await commit(tenant, record.version, step.record)
-  }
-
-  async function hand(tenant: string, record: GoalRecord): Promise<void> {
-    const { batch, examiner } = record.examination
-    if (batch === null || batch.delivery === 'handed') return
-    const seen = await seenOf(tenant, record)
-    if (seen === null) return deps.hints.wake(tenant)
-    const unknown = () => ({ kind: 'unknown' }) as const
-    const answer = await Promise.resolve()
-      .then(() => deps.examining.hand(tenant, toHand(record, batch, seen)))
-      .catch(unknown)
-    if (answer.kind === 'refused') return untaken(tenant, record, batch)
-    if (answer.kind === 'taking') return
-    if (answer.kind === 'unknown') deps.hints.wake(tenant)
-    const taken = delivered(record.examination, batch.key, answer.kind)
-    const to = answer.kind === 'handed' ? answer.examiner : examiner
-    const next = { ...record, examination: { ...taken, examiner: to } }
-    await store.commit(tenant, { session: record.session, expected: record.version, next })
-  }
-
-  async function settleOwed(tenant: string, record: GoalRecord): Promise<void> {
-    if (!record.examination.arrived) return
-    const session = sessionOfKey(record.session)
-    const [made, running] = await Promise.all([
-      deps.history.calls(tenant, session, record.since),
-      sessions.running(tenant, session),
-    ])
-    if (made.kind !== 'read' || running.kind !== 'read') return deps.hints.wake(tenant)
-    const seen = { written: lastWrite(made.value), running: running.value }
-    const step = settleArrived(record, seen)
-    if (step === null) return deps.hints.wake(tenant)
-    await commit(tenant, record.version, step.record)
-  }
-
   function told(tenant: string, key: string): void {
     if (isImpliedKey(key)) return
     try {
@@ -135,17 +64,20 @@ export function createWriting(deps: GoalsDependencies) {
     }
   }
 
-  /** Writes a decision on the version it was made on. `stale`: somebody wrote meanwhile, decide again. */
-  async function commit(tenant: string, expected: number, next: GoalRecord) {
+  /** Writes a decision on the record it was made on. `stale`: somebody wrote meanwhile, decide again. */
+  async function commit(tenant: string, before: GoalRecord | null, next: GoalRecord) {
+    const expected = before?.version ?? 0
     const answer = await store.commit(tenant, { session: next.session, expected, next })
     if (answer.kind === 'unknown') return UNKNOWN
     if (answer.kind === 'rolled-back') return UNAVAILABLE
     if (answer.value.kind === 'stale') return 'stale'
+    const { record } = answer.value
     told(tenant, next.session)
-    await deliver(tenant, answer.value.record)
-    await hand(tenant, answer.value.record)
-    if (answer.value.record.examination.arrived) deps.hints.wake(tenant)
-    return done(answer.value.record)
+    await handing.released(tenant, before, record)
+    await deliver(tenant, record)
+    await handing.hand(tenant, record)
+    if (record.examination.arrived) deps.hints.wake(tenant)
+    return done(record)
   }
 
   /** Decides on what stands and writes on that version; a version written over meanwhile is decided again. */
@@ -162,7 +94,7 @@ export function createWriting(deps: GoalsDependencies) {
       if (decided.kind === 'recalled') return done(decided.record, true)
       if (decided.kind === 'unchanged') return done(decided.record)
       if (decided.kind !== 'next') return decided
-      const answer = await commit(tenant, read.value?.version ?? 0, decided.record)
+      const answer = await commit(tenant, read.value, decided.record)
       if (answer !== 'stale') return answer
     }
     return UNAVAILABLE
@@ -178,5 +110,7 @@ export function createWriting(deps: GoalsDependencies) {
   const written = (answer: Answer<GoalRecord | null>): Answer<GoalRecord> =>
     answer.kind === 'done' && answer.value === null ? UNAVAILABLE : (answer as Answer<GoalRecord>)
 
-  return { permitted, settle, factsOf, written, deliver, hand, settleOwed, briefOf, commit }
+  const { briefOf, standingOf, hand, watch, settleOwed } = handing
+  const owed = { briefOf, standingOf, hand, watch, settleOwed }
+  return { permitted, settle, factsOf, written, deliver, commit, ...owed }
 }

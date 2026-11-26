@@ -107,7 +107,7 @@ export async function createGoalLocalApplication(
   }
 
   const registry = createGoals({ ...options.ports, store, clock: options.clock, hints: { wake } })
-  const { reconcile, observe, compacted, reran, unexamined, ...goals } = registry
+  const { reconcile, observe, compacted, reran, ...goals } = registry
 
   async function scan(): Promise<void> {
     const tenants = await options.sql.tenants()
@@ -129,7 +129,7 @@ export async function createGoalLocalApplication(
   schedule()
   return {
     goals: guarded(goals, lifetime, STOPPED),
-    checking: guarded({ observe, compacted, reran, unexamined }, lifetime, STOPPED),
+    checking: guarded({ observe, compacted, reran }, lifetime, STOPPED),
     reconciling: {
       reconcile: tenant =>
         lifetime.stopping ? Promise.resolve() : lifetime.track(reconcile(tenant)),

@@ -3,6 +3,7 @@ import {
   createGoalCalls,
   createGoalHistory,
   createGoalSessions,
+  createSessionExamining,
   goalInputSources,
 } from '@omne-harness/goal-session'
 import { sessionInputSourcesKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
@@ -13,14 +14,17 @@ import { GOAL_COMPONENT } from '../authorization/grants.ts'
 import { goalHolder } from '../goal/holder.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { sessionCallsOf } from './calls.ts'
+import { examinerCallsOf } from './examiner-calls.ts'
 import { createExamining } from './examining.ts'
 import { shellRunner } from './rerun.ts'
 import { describeCall } from './observed.ts'
 
 /** How long one command run again may take before it is stopped. */
 const RERUN_TIMEOUT_MS = 600_000
+/** The Agent definition an examination runs as. */
+const EXAMINER_DEFINITION = 'coding'
 
-/** The side of goals that knows Session: its three input sources, the session port of the provider, and the examining side. */
+/** The side of goals that knows Session: its input sources, the session port of the provider, and the examining side. */
 export const goalSessionRow = defineRow({
   row: 'goal-session',
   implementation: 'real',
@@ -37,11 +41,22 @@ export const goalSessionRow = defineRow({
       system,
       workPrincipals: () => toolRuntimeHolder(ctx).workPrincipals(),
     })
+    const workPrincipals = () => toolRuntimeHolder(ctx).workPrincipals()
+    const examinerPorts = { system, workPrincipals, definition: () => EXAMINER_DEFINITION }
+    const examinerCalls = examinerCallsOf(ctx, examinerPorts, sessionCalls.reminderWith)
     const examining = createExamining({
       rerun: { runner: shellRunner, timeoutMs: RERUN_TIMEOUT_MS },
       system,
       checking: () => ctx.get(goalCheckingKey),
       report: error => ctx.logger('goal-session').warn(error),
+      sessions: createSessionExamining(
+        { ...sessionCalls, ...examinerCalls },
+        {
+          now: () =>
+            /* wall-clock: operation-timing -- how long ago a batch went to an examining session */ performance.now(),
+          wait: ms => new Promise(resolve => void setTimeout(resolve, ms).unref()),
+        },
+      ),
     })
     const sessions = createGoalSessions(sessionCalls)
     const calls = createGoalCalls(sessionCalls)

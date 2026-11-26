@@ -17,7 +17,6 @@ export type GoalAction =
   | 'brief'
   | 'submit'
   | 'rerun'
-  | 'unexamined'
   | 'set'
   | 'revise'
   | 'pause'
@@ -85,7 +84,11 @@ export interface GoalExamining {
     request: string,
     refs: readonly string[],
   ): Promise<PortRead<readonly string[]>>
+  ended(tenant: string, batch: BatchOut): Promise<'going' | 'ended' | 'unknown'>
+  cancel(tenant: string, batch: BatchOut): Promise<void>
+  close(tenant: string, goal: Readonly<{ session: string; examiner: string }>): Promise<void>
 }
+export type BatchOut = Readonly<{ session: string; examiner: string | null; request: string }>
 
 export interface GoalHistory {
   calls(tenant: string, session: string, since: string): Promise<PortRead<readonly ObservedCall[]>>

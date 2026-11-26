@@ -57,7 +57,7 @@ export function createObserving(
     const step = observe(record, { call, at, written: lastWrite(made.value), decided, findings })
     if (step.kind === 'pass') return done(PASS)
     if (step.kind === 'reobserve') return 'again'
-    const written = await commit(caller.tenant, record.version, step.record)
+    const written = await commit(caller.tenant, record, step.record)
     if (written === 'stale') return 'again'
     return written.kind === 'done' ? done(answered(written.value)) : written
   }
@@ -89,7 +89,7 @@ export function createObserving(
     const body = impliedBody(drive.text)
     if (body === null) return done(null)
     const start = { session, body, since: drive.since, at: deps.clock.now() }
-    const written = await commit(tenant, before?.version ?? 0, impliedRecord(before, start))
+    const written = await commit(tenant, before, impliedRecord(before, start))
     return written === 'stale' ? 'again' : written
   }
 

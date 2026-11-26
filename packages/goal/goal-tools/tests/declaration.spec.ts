@@ -71,7 +71,7 @@ describe('the Goal declaration', () => {
     expect(definition.backgroundAllowed).toBe(false)
   })
 
-  it('offers propose only where a person attends, and brief and submit only in a session that examines for a goal', () => {
+  it('offers brief and submit only in a session that examines for a goal, the working commands only in one that does not, and propose only where a person attends as well', () => {
     const { definition } = author()
     if (definition.kind !== 'commands') throw new Error('commands')
     const conditions = Object.fromEntries(
@@ -79,13 +79,13 @@ describe('the Goal declaration', () => {
     )
     expect(conditions).toEqual({
       help: null,
-      show: null,
-      propose: ['person-present'],
-      track: null,
+      show: ['working'],
+      propose: ['person-present', 'working'],
+      track: ['working'],
       brief: ['examining'],
       submit: ['examining'],
     })
-    expect(PROPOSE_CONDITIONS).toEqual(['person-present'])
+    expect(PROPOSE_CONDITIONS).toEqual(['person-present', 'working'])
     expect(EXAMINING_CONDITIONS).toEqual(['examining'])
   })
 

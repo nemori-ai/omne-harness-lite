@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BatchToHand } from '@omne-harness/goal'
+import type { BatchToHand, GoalExamining } from '@omne-harness/goal'
 import type { GoalChecking } from '@omne-harness/goal-contract'
 import { createExamining } from '../../../src/rows/goal-session/examining.ts'
 import type { Runner } from '../../../src/rows/goal-session/rerun.ts'
@@ -19,6 +19,27 @@ const batchOf = (change: Partial<BatchToHand> = {}): BatchToHand => ({
 
 function world(left: readonly string[] = []) {
   const calls: unknown[][] = []
+  const asked: unknown[][] = []
+  const sessions: GoalExamining = {
+    async hand(...input) {
+      asked.push(['hand', ...input])
+      return { kind: 'handed', examiner: 'examiner-1' }
+    },
+    async cited(...input) {
+      asked.push(['cited', ...input])
+      return { kind: 'read', value: ['x-1'] }
+    },
+    async ended(...input) {
+      asked.push(['ended', ...input])
+      return 'going'
+    },
+    async cancel(...input) {
+      asked.push(['cancel', ...input])
+    },
+    async close(...input) {
+      asked.push(['close', ...input])
+    },
+  }
   let release = () => {}
   const held = new Promise<void>(resolve => (release = resolve))
   const hold = { on: false }
@@ -31,10 +52,6 @@ function world(left: readonly string[] = []) {
       calls.push(['reran', caller, input])
       return { kind: 'done', value: { examine: left }, recalled: false }
     },
-    async unexamined(caller: unknown, input: unknown) {
-      calls.push(['unexamined', caller, input])
-      return { kind: 'done', value: null, recalled: false }
-    },
   } as unknown as GoalChecking
   const mounted = { checking: checking as GoalChecking | undefined }
   const reported: unknown[] = []
@@ -43,8 +60,9 @@ function world(left: readonly string[] = []) {
     system: SYSTEM,
     checking: () => mounted.checking,
     report: error => void reported.push(error),
+    sessions,
   })
-  return { examining, calls, hold, release, mounted, reported }
+  return { examining, calls, asked, hold, release, mounted, reported }
 }
 
 describe('the examining side of goals on the release', () => {
@@ -85,22 +103,43 @@ describe('the examining side of goals on the release', () => {
     expect(w.calls.filter(([name]) => name === 'reran')).toHaveLength(2)
   })
 
-  it('with nobody to examine what is left after the commands passed, says so: the rest cannot be told', async () => {
+  it('runs the commands of a mixed batch itself and leaves the rest to the goal: what is left comes back as a batch without commands', async () => {
     const w = world(['A2'])
-    await w.examining.hand('t-1', batchOf({ criteria: [RERUN, EXAMINED] }))
+    const mixed = batchOf({ criteria: [RERUN, EXAMINED] })
+    expect(await w.examining.hand('t-1', mixed)).toEqual({ kind: 'taking' })
     await w.examining.idle()
-    expect(w.calls.map(([name]) => name)).toEqual(['reran', 'unexamined'])
-    expect(w.calls[1]?.[2]).toEqual({ session: 's-1', request: 'examine/1/1/call-1' })
+    expect(w.calls.map(([name]) => name)).toEqual(['reran'])
+    expect(w.asked).toEqual([])
   })
 
-  it('refuses a batch with nothing to run again: nobody here examines by hand', async () => {
+  it('hands a batch with no command to the session that examines, and answers what it answers; while its commands run, that same batch without them is handed on all the same', async () => {
     const w = world()
-    expect(await w.examining.hand('t-1', batchOf({ criteria: [EXAMINED] }))).toEqual({
-      kind: 'refused',
+    const rest = batchOf({ criteria: [EXAMINED] })
+    expect(await w.examining.hand('t-1', rest)).toEqual({ kind: 'handed', examiner: 'examiner-1' })
+    expect(w.asked).toEqual([['hand', 't-1', rest]])
+    w.hold.on = true
+    await w.examining.hand('t-1', batchOf({ where: process.cwd(), criteria: [RERUN, EXAMINED] }))
+    expect(await w.examining.hand('t-1', rest)).toEqual({ kind: 'handed', examiner: 'examiner-1' })
+    w.release()
+    await w.examining.idle()
+  })
+
+  it('asks the session that examines about the calls it cites, whether its round is over, to stop, and to let go', async () => {
+    const w = world()
+    const out = { session: 's-1', examiner: 'examiner-1', request: 'examine/1/1/call-1' }
+    expect(await w.examining.cited('t-1', 'examiner-1', out.request, ['x-1'])).toEqual({
+      kind: 'read',
+      value: ['x-1'],
     })
-    expect(await w.examining.cited('t-1', 'x', 'examine/1/1/call-1', ['x-1'])).toEqual({
-      kind: 'unavailable',
-    })
+    expect(await w.examining.ended('t-1', out)).toBe('going')
+    await w.examining.cancel('t-1', out)
+    await w.examining.close('t-1', { session: 's-1', examiner: 'examiner-1' })
+    expect(w.asked).toEqual([
+      ['cited', 't-1', 'examiner-1', out.request, ['x-1']],
+      ['ended', 't-1', out],
+      ['cancel', 't-1', out],
+      ['close', 't-1', { session: 's-1', examiner: 'examiner-1' }],
+    ])
   })
 
   it('hands nothing in while the goal services are not there, and reports it; the batch stays owed', async () => {

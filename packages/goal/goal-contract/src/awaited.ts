@@ -155,7 +155,14 @@ export function submissionOf(
 }
 
 export function owesExamination({ batch, arrived }: Examination): boolean {
-  return arrived || (batch !== null && batch.delivery !== 'handed')
+  return arrived || batch !== null
+}
+
+export function takenBack(before: Examination, now: Examination): Batch | null {
+  const was = before.batch
+  if (was === null || (now.batch !== null && sameKey(now.batch.key, was.key))) return null
+  const keys = [now.submitted?.key, ...Object.values(now.read).map(entry => entry?.key)]
+  return keys.some(key => key !== undefined && sameKey(key, was.key)) ? null : was
 }
 
 type Dropped = Readonly<{ examination: Examination; cancelled: Batch | null }>

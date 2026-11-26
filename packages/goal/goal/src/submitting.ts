@@ -1,10 +1,8 @@
 import { createHash } from 'node:crypto'
 import {
   batchOfRequest,
-  evidence,
   ranOf,
   reran,
-  sessionOfKey,
   SubmissionSchema,
   submissionText,
   submit,
@@ -20,7 +18,6 @@ import {
   type Taken,
 } from '@omne-harness/goal-contract'
 import type { GoalsDependencies } from './goals.ts'
-import { lastWrite } from './judging.ts'
 import type { PortRead } from './ports.ts'
 import { done, refused, UNAVAILABLE, type createWriting } from './writing.ts'
 
@@ -35,7 +32,10 @@ const ask = <T>(read: () => Promise<PortRead<T>>): Promise<PortRead<T>> =>
     .then(read)
     .catch(() => ({ kind: 'unavailable' }) as const)
 
-type Writing = Pick<ReturnType<typeof createWriting>, 'permitted' | 'settle' | 'briefOf'>
+type Writing = Pick<
+  ReturnType<typeof createWriting>,
+  'permitted' | 'settle' | 'briefOf' | 'standingOf'
+>
 type Refused = Exclude<Outcome<never, GoalRefusal>, { kind: 'done' }>
 type Named = NonNullable<ReturnType<typeof batchOfRequest>>
 type HandedIn = Named & Readonly<{ batch: string; readings: readonly Submitted[] }>
@@ -65,8 +65,8 @@ function decided(step: SubmitStep, current: GoalRecord) {
 /** What the session that examines for a goal asks of it: the brief of the batch that is out, and to hand in its readings. The goal is found by that session; no other session reaches it this way. */
 export function createSubmitting(
   deps: GoalsDependencies,
-  { permitted, settle, briefOf }: Writing,
-): Pick<Goals, 'brief' | 'submit'> & Pick<GoalChecking, 'reran' | 'unexamined'> {
+  { permitted, settle, briefOf, standingOf }: Writing,
+): Pick<Goals, 'brief' | 'submit' | 'examines'> & Pick<GoalChecking, 'reran'> {
   const { store } = deps
 
   /** What a submission is judged on besides the goal: which cited calls are of the examination, where the last write stands, whether a round is going, and the digest of what was handed in. Null: one of them cannot be read. */
@@ -89,17 +89,6 @@ export function createSubmitting(
     const found = await store.examinedBy(caller.tenant, examiner)
     if (found.kind === 'unavailable') return UNAVAILABLE
     return found.value ?? DENIED
-  }
-
-  /** Where the last write stands and whether a round is going in the session of a goal. Null: not readable now. */
-  async function standingOf(tenant: string, record: GoalRecord) {
-    const session = sessionOfKey(record.session)
-    const [made, running] = await Promise.all([
-      ask(() => deps.history.calls(tenant, session, record.since)),
-      ask(() => deps.sessions.running(tenant, session)),
-    ])
-    if (made.kind !== 'read' || running.kind !== 'read') return null
-    return { written: lastWrite(made.value), running: running.value }
   }
 
   return {
@@ -126,26 +115,10 @@ export function createSubmitting(
       return settled.kind === 'done' ? done({ examine: left }) : (settled as Refused)
     },
 
-    async unexamined(caller, { session, request }) {
-      const stop = await permitted(caller, session, 'unexamined')
-      if (stop !== null) return stop
-      const named = batchOfRequest(request)
-      if (named === null) return refused({ kind: 'invalid', issues: [UNRUN] })
-      const { tenant } = caller
-      const found = await store.latest(tenant, session)
-      if (found.kind === 'unavailable') return UNAVAILABLE
-      if (found.value === null) return NO_LIVE
-      const standing = await standingOf(tenant, found.value)
-      if (standing === null) return UNAVAILABLE
-      const settled = await settle(tenant, session, async current => {
-        if (current === null) return NO_LIVE
-        const mine = current.state.generation === named.generation
-        const step = mine ? evidence(current, { key: named.key, ...standing, answers: null }) : null
-        return step?.kind === 'next'
-          ? { kind: 'next', record: step.record }
-          : { kind: 'unchanged', record: current }
-      })
-      return settled.kind === 'done' ? done(null) : (settled as Refused)
+    async examines(caller, { examiner }) {
+      const found = await examinedFor(caller, examiner, 'brief')
+      if ('kind' in found) return found.kind === 'refused' ? done(false) : found
+      return done(found.state.status !== 'settled')
     },
 
     async brief(caller, { examiner }) {

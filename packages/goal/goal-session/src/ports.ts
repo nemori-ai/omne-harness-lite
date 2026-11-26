@@ -35,4 +35,12 @@ export type SessionCalls = Readonly<{
     input: At & Readonly<{ after: string | null; cursor: string | null }>,
   ): Promise<PortRead<HistoryResults>>
 }>
+export type ExaminerCalls = Readonly<{
+  create(
+    input: At & Readonly<{ operation: SessionOperationId; beside: SessionId }>,
+  ): Promise<Called<unknown>>
+  cancelRun(input: At & Readonly<{ operation: SessionOperationId; run: string }>): Promise<void>
+  archive(input: At & Readonly<{ operation: SessionOperationId }>): Promise<void>
+  reminderWith(input: At & Readonly<{ line: string }>): Promise<PortRead<string | null>>
+}>
 export type HistoryResults = Readonly<{ entries: readonly unknown[]; next: string | null }>

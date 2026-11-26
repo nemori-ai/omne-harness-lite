@@ -243,6 +243,10 @@ describe('the ports the contributing rows mount', () => {
       criteria: [],
     }
     expect(await lateExamining(empty).hand('t', batch)).toEqual({ kind: 'unknown' })
+    const nobody = { session: 's', examiner: 'x', request: 'examine/1/1/' }
+    expect(await lateExamining(empty).ended('t', nobody)).toBe('unknown')
+    await lateExamining(empty).cancel('t', nobody)
+    await lateExamining(empty).close('t', { session: 's', examiner: 'x' })
     expect(await lateExamining(empty).cited('t', 'x', 'examine/1/1/', ['x-1'])).toEqual({
       kind: 'unavailable',
     })
@@ -264,7 +268,14 @@ describe('the ports the contributing rows mount', () => {
     mounted.examining = {
       hand: async () => ({ kind: 'handed', examiner: 'x' }),
       cited: async (_t, _x, _r, refs) => ({ kind: 'read', value: refs }),
+      ended: async () => 'ended',
+      cancel: async () => undefined,
+      close: async () => undefined,
     }
+    const out = { session: 's', examiner: 'x', request: 'examine/1/1/' }
+    expect(await examining.ended('t', out)).toBe('ended')
+    await examining.cancel('t', out)
+    await examining.close('t', { session: 's', examiner: 'x' })
     const batch = {
       session: 's',
       request: 'examine/1/1/',

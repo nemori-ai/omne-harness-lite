@@ -12,6 +12,7 @@ import {
   pendingOf,
   received,
   sameKey,
+  takenBack,
   validateDraft,
   type BatchKey,
   type CriterionId,
@@ -124,15 +125,37 @@ describe('handing a batch over', () => {
 })
 
 describe('what a goal owes for its examination', () => {
-  it('is a batch not known to be taken, or a verdict for readings that arrived while a round was going; nothing else', () => {
+  it('is a batch that is out, taken or not, or a verdict for readings that arrived while a round was going; nothing else', () => {
     const owed = handed(NO_EXAMINATION, NOW, [A1]).examination
     expect(owesExamination(owed)).toBe(true)
     expect(owesExamination(delivered(owed, NOW, 'unknown'))).toBe(true)
-    expect(owesExamination(delivered(owed, NOW, 'handed'))).toBe(false)
+    expect(owesExamination(delivered(owed, NOW, 'handed'))).toBe(true)
     expect(owesExamination(NO_EXAMINATION)).toBe(false)
     expect(ExaminationSchema.parse({ batch: null, used: 0, read: {} })).toEqual(NO_EXAMINATION)
     expect(owesExamination({ ...NO_EXAMINATION, arrived: true })).toBe(true)
     expect(owesExamination({ ...delivered(owed, NOW, 'handed'), arrived: true })).toBe(true)
+  })
+})
+
+describe('a batch taken back from the examining side', () => {
+  const out = handed(NO_EXAMINATION, NOW, [A1]).examination
+  const LATER: BatchKey = { ...NOW, written: 'call-12' }
+
+  it('is the batch that was out and is not any more with nothing of it read: cancelled, or replaced by another', () => {
+    expect(takenBack(out, cancelled(out).examination)).toEqual(out.batch)
+    expect(takenBack(out, handed(out, LATER, [A1]).examination)).toEqual(out.batch)
+  })
+
+  it('is none while the same batch is out, when none was out, and when the batch came back: read, or handed in', () => {
+    expect(takenBack(out, delivered(out, NOW, 'handed'))).toBeNull()
+    expect(takenBack(NO_EXAMINATION, out)).toBeNull()
+    expect(takenBack(NO_EXAMINATION, NO_EXAMINATION)).toBeNull()
+    const read = received(out, NOW, { [A1]: { value: 'holds', note: null, refs: [] } })
+    expect(takenBack(out, read.examination)).toBeNull()
+    const late = { ...cancelled(out).examination, submitted: { key: NOW, digest: 'sha256:aa' } }
+    expect(takenBack(out, late)).toBeNull()
+    const other = { ...cancelled(out).examination, submitted: { key: LATER, digest: 'sha256:aa' } }
+    expect(takenBack(out, other)).toEqual(out.batch)
   })
 })
 

@@ -1,0 +1,110 @@
+import type { Context } from '@deepseek-ai/cordis'
+import type { ExaminerCalls } from '@omne-harness/goal-session'
+import type { TenantId } from '@omne-harness/legal-identity'
+import {
+  workspaceSelection,
+  type RunId,
+  type SessionCreation,
+  type SessionFailure,
+  type SessionId,
+  type SessionWorkPrincipals,
+} from '@omne-harness/session-contract'
+import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
+import { contextInitialization } from '../../assembly/session-context-initialization.ts'
+import {
+  definitionMappingsKey,
+  mappedDefinitionFor,
+} from '../agent-adoptions/definition-mappings.ts'
+
+const OWNER = 'harness-server/goal-session'
+const absent = (what: string): { failure: SessionFailure } => ({
+  failure: { kind: 'unavailable', owner: OWNER, diagnostic: `${what} is not available` },
+})
+/** What an examining session is created for. It is in the log. */
+export const EXAMINATION_PURPOSE = 'goal-examination'
+
+export type ExaminerCallPorts = Readonly<{
+  /** The system principal of goals: it creates the sessions that examine for them. */
+  system: unknown
+  workPrincipals(): SessionWorkPrincipals<unknown> | undefined
+  /** The Agent definition of the tenant an examination runs as. */
+  definition(): string
+}>
+type Create = Parameters<ExaminerCalls['create']>[0]
+
+/** The calls of Session only the examining side of goals makes. A session is created as the system principal of goals; its run is stopped and it is archived as the session itself. */
+export function examinerCallsOf(
+  ctx: Context,
+  ports: ExaminerCallPorts,
+  reminderWith: ExaminerCalls['reminderWith'],
+): ExaminerCalls {
+  const faceOf = (caller: 'intake' | 'maintainer') => {
+    const scope = ctx.intercept(sessionKey, { caller })
+    return () => scope.get(sessionKey, false) as SessionService | undefined
+  }
+  const [intake, maintainer] = [faceOf('intake'), faceOf('maintainer')]
+  const asSession = async (tenant: TenantId, session: SessionId) => {
+    const issued = await ports
+      .workPrincipals()
+      ?.forSession({ actor: 'maintainer', tenant, session })
+    const service = maintainer()
+    if (issued === undefined || service === undefined || !('ok' in issued)) return undefined
+    return { service, at: { principal: issued.ok, tenant, session } }
+  }
+
+  /** Unattended, asking nobody, not driving itself, placed where the work it examines is placed now. */
+  async function creationOf({ tenant, beside }: Create): Promise<SessionCreation | string> {
+    const mappings = ctx.get(definitionMappingsKey)
+    const worker = await asSession(tenant, beside)
+    if (mappings === undefined || worker === undefined) return 'the session of the goal'
+    const work = await worker.service.work.readWork(worker.at)
+    const agent = ports.definition()
+    const resolved = await mappedDefinitionFor(mappings, { tenant }, agent)
+    const fixed = mappings.modesFor(agent)?.modes
+    if (!('ok' in work)) return 'the session of the goal'
+    if (resolved === undefined || resolved === 'unavailable' || fixed === undefined)
+      return `the Agent definition ${agent}`
+    const { tenantDefaults: _defaults, ...mapped } = resolved
+    const placed = workspaceSelection(work.ok)
+    return {
+      ...mapped,
+      definition: { name: agent, candidate: resolved.candidate },
+      purpose: EXAMINATION_PURPOSE,
+      workspace: placed?.workspace ?? null,
+      workspaceAttachment: placed?.attachment ?? null,
+      modes: {
+        kind: 'explicit',
+        value: { ...fixed, permission: 'bypass-permissions', collaboration: 'co-work' },
+      },
+      initial: null,
+      attendance: 'unattended',
+    }
+  }
+
+  return {
+    reminderWith,
+    async create(input) {
+      const service = intake()
+      const creation = await creationOf(input)
+      if (service === undefined) return absent('the Session service')
+      if (typeof creation === 'string') return absent(creation)
+      const { tenant, session, operation } = input
+      const request = { principal: ports.system, tenant, session, operation, creation }
+      const { initialization } = contextInitialization(request)
+      return service.management.create({ ...request, creation: { ...creation, initialization } })
+    },
+    async cancelRun({ tenant, session, operation, run }) {
+      const own = await asSession(tenant, session)
+      await own?.service.work.cancelRun({
+        ...own.at,
+        operation,
+        run: run as RunId,
+        urgency: 'graceful',
+      })
+    },
+    async archive({ tenant, session, operation }) {
+      const own = await asSession(tenant, session)
+      await own?.service.work.control({ ...own.at, operation, intent: { kind: 'archive' } })
+    },
+  }
+}

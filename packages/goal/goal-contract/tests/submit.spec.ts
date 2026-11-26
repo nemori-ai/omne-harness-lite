@@ -350,6 +350,29 @@ describe('readings handed in to a goal', () => {
     expect(extra).toMatchObject({ kind: 'refused', issues: [{ entry: 'A3' }] })
   })
 
+  it('the brief is put together by the system alone, word for word: the batch, what to do, each criterion as it was confirmed, where the work is; what the program already ran is not asked again', () => {
+    const facts = { where: '/work', calls: [] }
+    expect(briefFor(recordOf(), OUT.batch!, facts)).toBe(
+      [
+        'Batch: examine/1/2/call-9',
+        'Examine each of these criteria yourself and hand in one reading for each with Goal submit, naming this batch.',
+        [
+          '- [A1] 验收脚本通过',
+          '  - 证据: 复跑 `node accept.js`',
+          '- [A2] 方向键能控制蛇',
+          '  - 证据: 查验',
+          '  - 查法: 用 node 载入 snake.js，喂四个方向键，看蛇头的位置',
+        ].join('\n'),
+        'Where the work is: /work',
+        'Written since the last batch: nothing',
+      ].join('\n\n'),
+    )
+    const ran = { A1: { value: 'holds', note: 'exit 0', refs: [] } } as Batch['ran']
+    const rest = briefFor(recordOf(), { ...OUT.batch!, ran }, facts)
+    expect(rest).toContain('A2')
+    expect(rest).not.toContain('node accept.js')
+  })
+
   it('the brief of the batch out names the goal it is of and what was written since the batch handed in before', () => {
     const calls = [
       {

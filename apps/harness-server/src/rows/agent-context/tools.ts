@@ -16,6 +16,7 @@ import {
   publishedViewPortsOf,
   readPublishedView,
 } from '../session-ad03/published-view.ts'
+import { examiningOf } from '../goal/examines.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import { ToolCatalogService, toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { releaseOf } from '../../entry/tool-release.ts'
@@ -65,7 +66,10 @@ async function heldBy(
   if (ports === null) return fail('the Session or Runtime Context services are absent')
   const session = work.session as SessionId
   const view = await readPublishedView(ports, { ...access, session }, sessionInteractionBinding)
-  return 'failure' in view ? view : succeed(heldConditions(view.ok.interaction))
+  if ('failure' in view) return view
+  const examining = await examiningOf(ctx, access, session)
+  if ('failure' in examining) return examining
+  return succeed(heldConditions({ ...view.ok.interaction, examining: examining.ok }))
 }
 
 const unreadConditions = (failure: string): NoValue =>

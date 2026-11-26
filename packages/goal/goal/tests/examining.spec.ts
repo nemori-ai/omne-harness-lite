@@ -30,7 +30,12 @@ const A1 = 'A1' as CriterionId
 const A2 = 'A2' as CriterionId
 const OUT: Examination = {
   ...NO_EXAMINATION,
-  batch: { key: { revision: 1, written: 'call-9' }, criteria: [A1, A2], delivery: 'handed', ran: {} },
+  batch: {
+    key: { revision: 1, written: 'call-9' },
+    criteria: [A1, A2],
+    delivery: 'handed',
+    ran: {},
+  },
   used: 1,
 }
 

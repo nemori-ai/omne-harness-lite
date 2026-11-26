@@ -93,6 +93,7 @@ export function world(describe: DescribeCall = describeRun) {
     },
   }
   return {
+    calls,
     sessions: createGoalSessions(calls),
     cited: createGoalCalls(calls).cited,
     history: createGoalHistory(calls, describe),

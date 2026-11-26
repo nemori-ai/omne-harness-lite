@@ -1,12 +1,19 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionCalls } from '@omne-harness/goal-session'
+import type { ExaminerCalls, SessionCalls } from '@omne-harness/goal-session'
 import { writeJsonText } from '@omne-harness/json-text'
 import type { EntryId, SessionFailure, SessionWorkPrincipals } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
 import { sessionWorkingDirectoryKey } from '../session-ad03/working-directory.ts'
 import { defaultModesOf } from '../session-conditions/index.ts'
-import { askedIn, drivesItself, openedIn, ROUND_KINDS, type RoundEntry } from './drive.ts'
+import {
+  askedIn,
+  drivesItself,
+  openedIn,
+  reminderIn,
+  ROUND_KINDS,
+  type RoundEntry,
+} from './drive.ts'
 
 const OWNER = 'harness-server/goal-session'
 const ABSENT: { failure: SessionFailure } = {
@@ -20,6 +27,7 @@ const UNAVAILABLE = { kind: 'unavailable' } as const
 const HEAD_KINDS = ['message.user', 'message.assistant', 'message.tool', 'message.system_reminder']
 const RESULT_KINDS = ['message.tool']
 const PERSON_KINDS = ['message.user']
+const REMINDER_KINDS = ['message.system_reminder']
 const CALL_KINDS = ['message.assistant', 'message.tool']
 const HEAD_PAGE_BYTES = 65_536
 const RESULT_PAGE_BYTES = 262_144
@@ -34,7 +42,10 @@ export type SessionCallPorts = Readonly<{
 
 /** The calls of Session as this release makes them: the system principal through the intake caller class,
  * the work principal of the session itself through the maintainer class. */
-export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCalls {
+export function sessionCallsOf(
+  ctx: Context,
+  ports: SessionCallPorts,
+): SessionCalls & Pick<ExaminerCalls, 'reminderWith'> {
   const faceOf = (caller: 'intake' | 'maintainer' | 'reader') => {
     const scope = ctx.intercept(sessionKey, { caller })
     return () => scope.get(sessionKey, false) as SessionService | undefined
@@ -149,6 +160,7 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
       return { kind: 'read', value: held.state === 'unusable' ? null : held.directory }
     },
     opened: at => backward(at, ROUND_KINDS, openedIn),
+    reminderWith: ({ line, ...at }) => backward(at, REMINDER_KINDS, reminderIn(line)),
     asked: at => backward(at, PERSON_KINDS, askedIn),
     resultsAfter: input => pageAfter(RESULT_KINDS, input),
     callsAfter: input => pageAfter(CALL_KINDS, input),

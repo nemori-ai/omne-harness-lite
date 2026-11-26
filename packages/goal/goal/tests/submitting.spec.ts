@@ -435,41 +435,113 @@ describe('the exit codes of the commands run again, handed in by the program', (
     expect(w.record().examination.batch).toMatchObject({ delivery: 'handed', ran: { A1: {} } })
   })
 
-  it('an examination that ended without its readings leaves the rest untold: with a command passed, the agent is sent on for the examined one alone', async () => {
+  it('an examination whose round ended without its readings leaves the rest untold: with a command passed, the agent is sent on for the examined one alone', async () => {
     const w = await handedOver()
     value(await hand(w))
-    const ended = { session: SESSION, request: BATCH }
-    expect(value(await w.goals.unexamined(SYSTEM, ended))).toBeNull()
-    expect(w.authority.asked.at(-1)).toMatchObject({ session: SESSION, action: 'unexamined' })
+    await w.goals.reconcile(TENANT)
+    expect(w.record().examination.batch).not.toBeNull()
+    w.examining.end(BATCH)
+    await w.goals.reconcile(TENANT)
     expect(w.record().examination.batch).toBeNull()
     expect(w.record().readings.criteria).toMatchObject({
       A1: { value: 'holds' },
       A2: { value: 'cannot-tell', note: 'the examination ended without handing in its readings' },
     })
     expect(w.sessions.woken.map(wake => wake.kind)).toEqual(['continue'])
+    expect(w.examining.cancelled).toEqual([])
     const kept = w.record()
-    expect(value(await w.goals.unexamined(SYSTEM, ended))).toBeNull()
-    expect(
-      value(await w.goals.unexamined(SYSTEM, { ...ended, request: 'examine/2/1/call-1' })),
-    ).toBeNull()
+    await w.goals.reconcile(TENANT)
     expect(w.record()).toEqual(kept)
   })
 
-  it('unexamined is refused to a caller the authority does not let, for a name that is no batch, and for a session without a goal', async () => {
+  it('a round that ended is not acted on while it cannot be told: the port fails, or where the work stands cannot be read; a batch not taken yet is not asked about', async () => {
     const w = await handedOver()
     const before = w.record()
-    expect(await w.goals.unexamined(SYSTEM, { session: SESSION, request: 'x' })).toMatchObject({
-      reason: { kind: 'invalid' },
-    })
-    expect(await w.goals.unexamined(SYSTEM, { session: 'no-such', request: BATCH })).toMatchObject({
-      reason: { kind: 'state', reason: 'no-live-goal' },
-    })
-    w.authority.answer(action => (action === 'unexamined' ? 'denied' : 'permitted'))
-    expect(await w.goals.unexamined(SYSTEM, { session: SESSION, request: BATCH })).toEqual({
-      kind: 'refused',
-      reason: { kind: 'denied' },
-    })
+    Object.assign(w.examining, { ended: () => Promise.reject(new Error('down')) })
+    await w.goals.reconcile(TENANT)
     expect(w.record()).toEqual(before)
+    Object.assign(w.examining, { ended: async () => 'ended' })
+    w.history.readable(false)
+    await w.goals.reconcile(TENANT)
+    expect(w.record()).toEqual(before)
+    expect(w.hinted).toEqual([TENANT])
+    w.history.readable(true)
+    const owed = await handedOver(world => world.examining.handNext('unknown'))
+    const asked: string[] = []
+    Object.assign(owed.examining, {
+      ended: async (_tenant: string, batch: { request: string }) => {
+        asked.push(batch.request)
+        return 'ended'
+      },
+      hand: async () => ({ kind: 'unknown' }),
+    })
+    await owed.goals.reconcile(TENANT)
+    expect(asked).toEqual([])
+    expect(owed.record().examination.batch?.delivery).toBe('unknown')
+  })
+})
+
+describe('what a write takes from the examining side', () => {
+  const cancel = (w: Awaited<ReturnType<typeof handedOver>>) =>
+    w.goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } })
+
+  it('a batch taken back is told to it, as the batch it was handed: the goal was cancelled, so it lets go of the session too', async () => {
+    const w = await handedOver()
+    value(await cancel(w))
+    expect(w.examining.cancelled).toEqual([BATCH])
+    expect(w.examining.closed).toEqual([EXAMINER])
+  })
+
+  it('a batch that came back with its readings is not: when they settle the goal, the examining side lets go of the session, once', async () => {
+    const w = await handedOver()
+    value(await w.submit())
+    expect(w.record().state.status).toBe('settled')
+    expect(w.examining.cancelled).toEqual([])
+    expect(w.examining.closed).toEqual([EXAMINER])
+    await w.goals.reconcile(TENANT)
+    expect(w.examining.closed).toEqual([EXAMINER])
+  })
+
+  it('readings that leave the goal going keep the session for the next batch', async () => {
+    const w = await handedOver()
+    value(await w.submit([one('A1'), one('A2', { value: 'fails' })]))
+    expect(w.record().state.status).toBe('active')
+    expect([w.examining.cancelled, w.examining.closed]).toEqual([[], []])
+  })
+
+  it('a batch replaced by a later one is told to it before the new one is handed over', async () => {
+    const w = await handedOver()
+    w.history.made(write(2, 'snake.js'))
+    const check = { session: SESSION, call: 'exec-2/cand-1/before_terminal/call/0' }
+    value(await w.goals.observe(CHECK, { ...check, candidate: 'complete' } as never))
+    expect(w.record().examination.batch?.key.written).toBe('call-2')
+    expect(w.examining.cancelled).toEqual([BATCH])
+    expect(w.examining.asked).toEqual([BATCH, 'examine/1/1/call-2'])
+    expect(w.examining.closed).toEqual([])
+  })
+
+  it('telling it is best effort: a port that fails changes nothing of what was written', async () => {
+    const w = await handedOver()
+    const down = () => Promise.reject(new Error('down'))
+    Object.assign(w.examining, { cancel: down, close: down })
+    expect(value(await cancel(w))).toMatchObject({ state: { status: 'settled' } })
+  })
+
+  it('a goal handed to another examining session lets go of the one before', async () => {
+    const w = await handedOver()
+    value(await w.submit([one('A1'), one('A2', { value: 'fails' })]))
+    w.history.made(write(2, 'snake.js'))
+    const real = w.examining.hand
+    Object.assign(w.examining, {
+      hand: async (...args: Parameters<typeof real>) => {
+        await real(...args)
+        return { kind: 'handed', examiner: 'a-new-examiner' }
+      },
+    })
+    const check = { session: SESSION, call: 'exec-2/cand-1/before_terminal/call/0' }
+    value(await w.goals.observe(CHECK, { ...check, candidate: 'complete' } as never))
+    expect(w.record().examination.examiner).toBe('a-new-examiner')
+    expect(w.examining.closed).toEqual([EXAMINER])
   })
 })
 
@@ -498,6 +570,22 @@ describe('who may ask what of a goal that is examined', () => {
     w.sessions.run(SESSION, true)
     value(await w.submit())
     expect(await read()).toEqual({ kind: 'refused', reason: { kind: 'denied' } })
+  })
+
+  it('a session examines for a goal while that goal is not settled; no other session does, and one of a settled goal does not', async () => {
+    const w = await handedOver()
+    const examines = (examiner: string) => w.goals.examines(AGENT, { examiner })
+    expect(value(await examines(EXAMINER))).toBe(true)
+    expect(w.authority.asked.at(-1)).toMatchObject({ session: EXAMINER, action: 'brief' })
+    expect(value(await examines(SESSION))).toBe(false)
+    w.store.readable(false)
+    expect(await examines(EXAMINER)).toEqual({ kind: 'basis-unavailable' })
+    w.store.readable(true)
+    w.authority.answer('denied')
+    expect(value(await examines(EXAMINER))).toBe(false)
+    w.authority.answer('permitted')
+    value(await w.submit())
+    expect(value(await examines(EXAMINER))).toBe(false)
   })
 
   it('the examining session is refused what the working agent does: propose and track', async () => {

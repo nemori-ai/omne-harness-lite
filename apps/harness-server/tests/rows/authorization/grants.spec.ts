@@ -76,8 +76,8 @@ describe('the release grant table', () => {
     expect(Object.isFrozen(record.purposes)).toBe(true)
   })
 
-  it('gives goals the one purpose of sending a session an input, and nothing else', () => {
-    expect(MAINTENANCE_GRANTS.goal.purposes).toEqual(['session-input'])
+  it('gives goals two purposes and nothing else: creating the session that examines for a goal, and sending a session an input', () => {
+    expect(MAINTENANCE_GRANTS.goal.purposes).toEqual(['session-create', 'session-input'])
   })
 
   it('gives schedule the one purpose of creating the session of a Job, and nothing else', () => {

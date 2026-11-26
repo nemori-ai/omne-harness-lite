@@ -31,6 +31,9 @@ export function lateExamining(holder: GoalHolder): GoalExamining {
   return {
     hand: (...input) => holder.examining?.hand(...input) ?? Promise.resolve({ kind: 'unknown' }),
     cited: (...input) => holder.examining?.cited(...input) ?? Promise.resolve(UNAVAILABLE),
+    ended: (...input) => holder.examining?.ended(...input) ?? Promise.resolve('unknown'),
+    cancel: (...input) => holder.examining?.cancel(...input) ?? Promise.resolve(),
+    close: (...input) => holder.examining?.close(...input) ?? Promise.resolve(),
   }
 }
 

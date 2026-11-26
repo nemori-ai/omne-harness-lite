@@ -72,8 +72,8 @@ function uncited(refs: readonly string[], made: readonly ObservedCall[]) {
 
 export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & GoalReconciling {
   const { store } = deps
-  const { permitted, settle, factsOf, written, deliver, hand, settleOwed, briefOf } =
-    createWriting(deps)
+  const writing = createWriting(deps)
+  const { permitted, settle, factsOf, written, deliver, hand, watch, settleOwed } = writing
 
   /** What the working agent asks of its own goal. A session that examines for a goal is refused it: it has two commands, and they are of that goal. */
   async function ofTheWorker(
@@ -178,7 +178,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
       )
     },
 
-    ...createSubmitting(deps, { permitted, settle, briefOf }),
+    ...createSubmitting(deps, writing),
 
     async reconcile(tenant) {
       const owing = await store.owing(tenant)
@@ -186,6 +186,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
       for (const record of owing.value) {
         await deliver(tenant, record)
         await hand(tenant, record)
+        await watch(tenant, record)
         await settleOwed(tenant, record)
       }
     },

@@ -24,16 +24,16 @@ const textOf = (input: { value: { message: unknown } }) =>
   (input.value.message as { blocks: { text: string }[] }).blocks[0]?.text
 
 describe('the input sources of goals', () => {
-  it('are three, each taken from the system component of goals, each waking the session', () => {
+  it('are four: three into the session of a goal and one into the session that examines for it; each taken from the system component of goals, each waking the session', () => {
     expect(goalInputSources('goal')).toEqual(
-      ['goal.start', 'goal.resume', 'goal.continue'].map(name => ({
+      ['goal.start', 'goal.resume', 'goal.continue', 'goal.examine'].map(name => ({
         name,
         label: expect.any(String),
         accepts: { subject: 'system', component: 'goal', screened: false },
         wake: 'always',
       })),
     )
-    expect(new Set(goalInputSources('goal').map(source => source.label)).size).toBe(3)
+    expect(new Set(goalInputSources('goal').map(source => source.label)).size).toBe(4)
   })
 })
 

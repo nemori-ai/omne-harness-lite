@@ -110,7 +110,7 @@ export type BriefFacts = Readonly<{
 export function renderBrief(body: GoalBody, batch: Batch, facts: BriefFacts): string {
   const texts = entryTexts(body).criteria
   const asked = body.criteria.flatMap((entry, at) =>
-    batch.criteria.includes(entry.id) ? [texts[at]] : [],
+    batch.criteria.includes(entry.id) && batch.ran[entry.id] === undefined ? [texts[at]] : [],
   )
   const changed = facts.changed.length === 0 ? 'nothing' : facts.changed.join(', ')
   return [
