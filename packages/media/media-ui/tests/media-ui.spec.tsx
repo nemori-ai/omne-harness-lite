@@ -4,7 +4,7 @@ import { definePoint, defineRenderPoint, partsOn } from '@omne-harness/shell-con
 import { serviceKey } from '@omne-harness/shell-contract'
 import { provideOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createMediaUiModule,
   type DraftOffer,
@@ -49,7 +49,10 @@ beforeEach(() => {
     revokeObjectURL: () => undefined,
   })
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -713,6 +716,82 @@ describe('消息里一块非文字内容', () => {
     expect(media.calls.filter(call => call.operation === 'describe-media')).toHaveLength(2)
   })
 
+  const file = { ...picture, kind: 'file', ref: { ...ref, mediaType: 'application/pdf' } }
+  const named = (name: string) => () => ({
+    outcome: 'succeeded',
+    body: { state: 'held', facts: { kind: 'file' }, preprocess: { kind: 'not-needed' }, name },
+  })
+  const handedOver = () => {
+    const links: { download: string; href: string }[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      links.push({ download: this.download, href: this.href })
+    })
+    return links
+  }
+
+  it('文件写名字、类型与大小；按「取回」读原件，以名字交给宿主存下，取回中再按不算', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    media.once('describe-media', named('季度报告.pdf'))
+    const blobs = keptBlobs()
+    const links = handedOver()
+    const { shell } = await mounted(media)
+    render(<>{drawn(shell, file)}</>)
+    await settle()
+    expect(screen.getByText('〔file〕季度报告.pdf · application/pdf · 10 B')).not.toBeNull()
+    expect(reads(media)).toEqual([])
+    const retrieve = screen.getByRole('button', { name: '取回' })
+    fireEvent.click(retrieve)
+    fireEvent.click(retrieve)
+    await settle()
+    expect(links).toEqual([{ download: '季度报告.pdf', href: 'blob:made-1' }])
+    expect(reads(media).map(body => body['offset'])).toEqual([0, 4, 8])
+    expect(reads(media).every(body => !('target' in body))).toBe(true)
+    expect([...new Uint8Array(await blobs[0]!.arrayBuffer())]).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ])
+  })
+
+  it('没有名字的文件写类型，以「附件」加扩展名存', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const links = handedOver()
+    const { shell } = await mounted(media)
+    render(
+      <>
+        {drawn(shell, file)}
+        {drawn(shell, { ...file, ref: { ...ref, mediaType: 'audio/mpeg' } })}
+        {drawn(shell, { ...file, ref: { ...ref, mediaType: 'application/x-made-up' } })}
+      </>,
+    )
+    await settle()
+    expect(screen.getByText('〔file〕application/pdf · 10 B')).not.toBeNull()
+    for (const button of screen.getAllByRole('button', { name: '取回' })) {
+      fireEvent.click(button)
+      await settle()
+    }
+    expect(links.map(link => link.download)).toEqual(['附件.pdf', '附件.mp3', '附件.x-made-up'])
+  })
+
+  it('原件读不到时说取回失败，不交给宿主，可以再取', async () => {
+    const media = fakeMedia(4)
+    const links = handedOver()
+    const { shell } = await mounted(media)
+    render(<>{drawn(shell, file)}</>)
+    await settle()
+    fireEvent.click(screen.getByRole('button', { name: '取回' }))
+    await settle()
+    expect(screen.getByText(/^取回失败：/)).not.toBeNull()
+    expect(links).toEqual([])
+    stored(media)
+    fireEvent.click(screen.getByRole('button', { name: '取回' }))
+    await settle()
+    expect(links.map(link => link.download)).toEqual(['附件.pdf'])
+    expect(screen.queryByText(/^取回失败：/)).toBeNull()
+  })
+
   it('语音与文件画成一行：种类、媒体类型与大小；读不懂的内容照样说出来', async () => {
     const media = fakeMedia(4)
     const { shell } = await mounted(media)
@@ -736,6 +815,6 @@ describe('消息里一块非文字内容', () => {
       '〔image〕这一块的内容读不懂',
     ])
     expect(lines.every(line => line.classList.contains('omne-media-line'))).toBe(true)
-    expect(media.calls).toEqual([])
+    expect(reads(media)).toEqual([])
   })
 })

@@ -61,7 +61,7 @@
     display: grid;
     gap: var(--spacing);
   }
-  .omne-media-voice-row {
+  .omne-media-row {
     display: flex;
     align-items: center;
     gap: var(--spacing);

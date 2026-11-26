@@ -1,6 +1,7 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import {
   Button,
+  DownloadIcon,
   IconButton,
   LoadingState,
   PlayIcon,
@@ -13,6 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IMAGE_TYPES } from '../model/attachment-tray.ts'
 import { mediaFile, mediaPicture, mediaRead } from '../parts.ts'
 import { UNREADABLE, unreadableOf, type Unreadable } from '../model/prepare.ts'
+import { saveName } from '../model/save-name.ts'
 import { readWhole, type DisplayTarget, type MediaClient, type Reference } from '../model/upload.ts'
 
 /** The kinds of block that are not words, as both ends name them. */
@@ -236,19 +238,95 @@ function ImageBlock(props: MediaBlockProps) {
   )
 }
 
+type Retrieving =
+  | Readonly<{ kind: 'idle' }>
+  | Readonly<{ kind: 'reading' }>
+  | Readonly<{ kind: 'failed'; reason: string }>
+
+type RetrieveProps = Readonly<{
+  client: MediaClient
+  tenant: TenantId
+  medium: Reference
+  name?: string
+}>
+
+function Retrieve({ client, tenant, medium, name }: RetrieveProps) {
+  const [state, setState] = useState<Retrieving>({ kind: 'idle' })
+  const live = useRef(true)
+  const kept = useRef<string | null>(null)
+  useEffect(() => {
+    live.current = true
+    return () => {
+      live.current = false
+      if (kept.current !== null) URL.revokeObjectURL(kept.current)
+    }
+  }, [])
+  const retrieve = async () => {
+    setState({ kind: 'reading' })
+    const read = await readWhole({ client, tenant, ref: medium, target: null })
+    if (!live.current) return
+    if (read.kind === 'unreadable') return setState({ kind: 'failed', reason: read.reason })
+    if (kept.current !== null) URL.revokeObjectURL(kept.current)
+    kept.current = URL.createObjectURL(
+      new Blob([new Uint8Array(read.bytes)], { type: read.mediaType }),
+    )
+    const link = document.createElement('a')
+    link.href = kept.current
+    link.download = saveName(name, medium.mediaType)
+    link.click()
+    setState({ kind: 'idle' })
+  }
+  return (
+    <>
+      <IconButton
+        type="button"
+        size="icon-compact"
+        label="取回"
+        aria-busy={state.kind === 'reading' || undefined}
+        disabled={state.kind === 'reading'}
+        onClick={() => void retrieve()}
+      >
+        <DownloadIcon />
+      </IconButton>
+      {state.kind === 'failed' ? <span role="status">取回失败：{state.reason}</span> : null}
+    </>
+  )
+}
+
+function FileLine(
+  props: MediaBlockProps & { readonly read: Read; readonly described: Described | null },
+) {
+  const { ref } = props.read
+  const name = props.described?.name
+  return (
+    <div className="omne-media-row">
+      <p className="omne-media-line" {...mediaFile.props}>
+        〔{props.read.kind}〕{name === undefined ? '' : `${name} · `}
+        {ref.mediaType} · {sizeText(ref.bytes)}
+      </p>
+      <Retrieve
+        client={props.client}
+        tenant={props.tenant}
+        medium={ref}
+        {...(name === undefined ? {} : { name })}
+      />
+    </div>
+  )
+}
+
 function FileBlock(props: MediaBlockProps) {
   const read = readBlock(props.content)
-  const ref = typeof read === 'string' ? null : read.ref
-  const described = useDescription(props, ref, props.modelRead === 'transcript')
-  const note = described === null ? null : unreadableOf(described.preprocess)
+  const described = useDescription(props, typeof read === 'string' ? null : read.ref, true)
+  const note =
+    props.modelRead === 'transcript' && described !== null
+      ? unreadableOf(described.preprocess)
+      : null
   return (
     <WithRead kind="file" modelRead={props.modelRead} note={note}>
       {typeof read === 'string' ? (
         unread(read)
       ) : (
-        <p className="omne-media-line" {...mediaFile.props}>
-          〔{read.kind}〕{read.ref.mediaType} · {sizeText(read.ref.bytes)}
-        </p>
+        <FileLine {...props} read={read} described={described} />
       )}
     </WithRead>
   )
@@ -280,7 +358,7 @@ function Voice(props: MediaBlockProps & { readonly read: Read }) {
   const length = durationText(props.content) ?? ref.mediaType
   return (
     <div className="omne-media-voice">
-      <div className="omne-media-voice-row">
+      <div className="omne-media-row">
         <p className="omne-media-line" {...mediaFile.props}>
           〔{props.read.kind}〕{length} · {sizeText(ref.bytes)}
         </p>
