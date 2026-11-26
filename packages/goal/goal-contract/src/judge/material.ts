@@ -34,6 +34,7 @@ export const JudgeConfigSchema = z.strictObject({
     rules: z.array(z.string().min(1).max(200)).max(8),
     exits: z.enum(['statement', 'guided']).default('statement'),
     unattainable: z.enum(['kind', 'plain']).default('kind'),
+    unsettled: z.enum(['criterion', 'covers']).default('criterion'),
   }),
   packaging: z.strictObject({
     excerpt: z.int().min(200).max(2000),
@@ -66,6 +67,7 @@ export const BASELINE_JUDGE_CONFIG: JudgeConfig = Object.freeze({
     rules: [],
     exits: 'statement',
     unattainable: 'kind',
+    unsettled: 'criterion',
   }),
   packaging: Object.freeze({
     excerpt: 2000,

@@ -44,6 +44,7 @@ const SEEN_ORDER = ['no', 'yes'] as const
 
 function criterionReading(answer: JudgeAnswer, line: number): string {
   if (answer.type === 'refusal') return 'cannot-tell'
+  if (answer.type === 'noul') return over(answer, line) ? 'holds' : 'cannot-tell'
   if (answer.choice !== 'holds') return String(answer.choice)
   return over(answer, line) ? 'holds' : 'cannot-tell'
 }

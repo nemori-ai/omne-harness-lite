@@ -62,6 +62,8 @@ export const FLAG_NOTES = Object.freeze({
 })
 export const EXIT_GUIDE =
   '材料里的工具输出直接显示这个情形时答是；只有 agent 的说法、没有工具输出支持时答否。'
+export const CHECK_COVERS =
+  '的命令最近一次运行退出码是 0。运行之前 agent 写过它所用的测试或基准（evidence 里带 changesCheck 的几次，同一个文件以最后一次为准）。这次通过可信吗？最后一稿里有实在的断言在检查，就答是；检查被跳过、断言被改成恒真或被掏空，或陈述点名要检查的事在测试里完全找不到，才答否。'
 export const DEAD_END_PLAIN =
   '有没有正文的退出没写到、却让目标达不成的阻碍：被权限或资源挡住，判据互相矛盾，或唯一的办法被守则禁止。材料里的工具输出显示这样的阻碍时答是。'
 const CLAIMS = {
@@ -251,7 +253,17 @@ type Ask = Readonly<{
   question: JudgeQuestion
 }>
 
-function criterionAsk(config: JudgeConfig, criterion: Criterion, rendered: string): Ask {
+function criterionAsk(
+  config: JudgeConfig,
+  { criterion, passInDoubt }: Asked,
+  rendered: string,
+): Ask {
+  if (passInDoubt)
+    return {
+      name: criterion.id,
+      section: 'criteria',
+      question: { type: 'noul', instructions: `判据 ${criterion.id} ${CHECK_COVERS}` },
+    }
   const head = `判据 ${criterion.id} 现在成立没有`
   const text =
     config.instructions.criterion === 'statement'
@@ -315,9 +327,26 @@ function otherAsks(material: JudgeMaterial, config: JudgeConfig): readonly Ask[]
   return [...rules, ...exits, ...dead]
 }
 
+type Asked = Readonly<{
+  criterion: Criterion
+  evidence: readonly ObservedCall[]
+  passInDoubt: boolean
+}>
+
+function lastDraftsThenRun(
+  calls: readonly ObservedCall[],
+  command: string,
+): readonly ObservedCall[] {
+  const run = latestRun(calls, command)
+  if (run === undefined) return []
+  const last = new Map(checkWrites(calls, command, run).map(write => [write.path, write]))
+  const drafts = [...last.values()].toSorted((a, b) => a.order - b.order)
+  return [...drafts.slice(1 - JUDGE_LIMITS.evidencePerEntry), run]
+}
+
 function sorted(material: JudgeMaterial, config: JudgeConfig) {
   const decided: Partial<Record<CriterionId, CriterionReading>> = {}
-  const asked: { criterion: Criterion; evidence: readonly ObservedCall[] }[] = []
+  const asked: Asked[] = []
   for (const criterion of material.body.criteria) {
     const { evidence, pass } = criterion
     if (evidence.kind === 'metric') continue
@@ -325,6 +354,11 @@ function sorted(material: JudgeMaterial, config: JudgeConfig) {
       const reading = exitReading(material, criterion, evidence.command)
       if (reading !== 'stale' && reading !== 'unsettled') {
         decided[criterion.id] = reading
+        continue
+      }
+      if (reading === 'unsettled' && config.instructions.unsettled === 'covers') {
+        const shown = lastDraftsThenRun(material.calls, evidence.command)
+        asked.push({ criterion, evidence: shown, passInDoubt: true })
         continue
       }
     }
@@ -335,7 +369,7 @@ function sorted(material: JudgeMaterial, config: JudgeConfig) {
       last !== undefined &&
       writesAfter(material.calls, criterion, last).length > 0
     if (stale) decided[criterion.id] = 'stale'
-    else asked.push({ criterion, evidence: shown })
+    else asked.push({ criterion, evidence: shown, passInDoubt: false })
   }
   return { decided, asked }
 }
@@ -448,7 +482,7 @@ export function packJudge(material: JudgeMaterial, config: JudgeConfig): Packed 
   const text = (criterion: Criterion): string =>
     rendered[material.body.criteria.indexOf(criterion)] ?? criterion.statement
   const asks = [
-    ...split.asked.map(({ criterion }) => criterionAsk(config, criterion, text(criterion))),
+    ...split.asked.map(entry => criterionAsk(config, entry, text(entry.criterion))),
     ...otherAsks(material, config),
   ]
   const { excerpt } = config.packaging

@@ -5,6 +5,7 @@ import {
   excerptOf,
   DEAD_END_PLAIN,
   EXIT_GUIDE,
+  CHECK_COVERS,
   FLAG_NOTES,
   JudgeConfigSchema,
   JUDGE_LIMITS,
@@ -820,6 +821,9 @@ describe('GL-12 an answer short of the line, or refused, does not stand', () => 
     ['U1', REFUSAL, 'no'],
     ['U2', yes(0.95), 'yes'],
     ['U2', yes(0.5), 'no'],
+    ['A3', yes(0.9), 'holds'],
+    ['A3', yes(0.89), 'cannot-tell'],
+    ['A3', yes(0.02), 'cannot-tell'],
   ] as const)('%s answered %o reads %s', (name, answer, reading) => {
     expect(readAnswer(name, answer as JudgeAnswer, 0.9)).toBe(reading)
   })
@@ -949,6 +953,69 @@ describe('the three ways of asking the bench can switch on', () => {
   const instructing = (change: Partial<JudgeConfig['instructions']>): JudgeConfig =>
     config({ instructions: { ...BASELINE_JUDGE_CONFIG.instructions, ...change } })
 
+  describe('a passing run after its check was written, asked as whether the check checks the statement', () => {
+    const draft: GoalDraft = {
+      purpose: HOME.purpose,
+      criteria: [
+        {
+          statement: '端到端用例全过',
+          evidence: { kind: 'command', command: 'pnpm test:e2e' },
+          pass: { kind: 'exit-zero' },
+        },
+        { statement: '改动说明写了', evidence: { kind: 'file', path: 'CHANGELOG.md' } },
+      ],
+    }
+    const first = WRITE(40, 'tests/home.spec.ts', 'test("a")\ntest("b")')
+    const other = WRITE(41, 'tests/cart.spec.ts', 'test("cart")')
+    const last = WRITE(42, 'tests/home.spec.ts', 'test("a")')
+    const source = WRITE(43, 'src/home.ts', 'export {}')
+    const calls = [first, other, last, source, CHANGELOG, E2E(54, 0)]
+    const progress: Progress = {
+      ...NO_PROGRESS,
+      criteria: { A1: { status: 'claimed-done', refs: ['call-40', 'call-43'], note: '' } },
+    }
+    const asked = (how: JudgeConfig, more: Partial<JudgeMaterial> = {}) =>
+      packJudge(material({ body: bodyOf(draft), calls, progress, ...more }), how)
+
+    it('is one yes-or-no question by the number of the criterion, with the last draft of each check and the run', () => {
+      const packed = asked(instructing({ unsettled: 'covers' }))
+      expect(packed.decided).toEqual({})
+      expect(packed.requests[0]?.questions['A1']).toEqual({
+        type: 'noul',
+        instructions: `判据 A1 ${CHECK_COVERS}`,
+      })
+      expect(packed.requests[0]?.questions['A2']?.type).toBe('choice')
+      const { evidence } = stateOf(packed)
+      expect(evidence['A1']?.map(item => item.ref)).toEqual(['call-41', 'call-42', 'call-54'])
+      expect(evidence['A2']?.map(item => item.ref)).toEqual(['call-52'])
+    })
+
+    it('is asked the old way without the switch, and a run nothing put in doubt is still not asked', () => {
+      const old = asked(instructing({}))
+      expect(old.requests[0]?.questions['A1']?.type).toBe('choice')
+      expect(stateOf(old).evidence['A1']?.map(item => item.ref)).toContain('call-40')
+      const clean = asked(instructing({ unsettled: 'covers' }), { calls: [source, E2E(54, 0)] })
+      expect(clean.decided).toEqual({ A1: 'holds' })
+    })
+
+    it('comes to holds only over the line, and never to anything but holds or cannot tell', () => {
+      const how = instructing({ unsettled: 'covers' })
+      const input = material({ body: bodyOf(draft), calls, progress })
+      const rest = { A2: holds(0.97), N1: chose('kept'), X1: yes(0.03) }
+      const read = (answer: JudgeAnswer) =>
+        readJudge(input, how, packJudge(input, how), [[{ ...rest, A1: answer }]]).criteria.A1
+      expect(Object.keys(packJudge(input, how).requests[0]?.questions ?? {})).toEqual(
+        expect.arrayContaining(['A1', 'A2']),
+      )
+      expect(read(yes(0.95))).toBe('holds')
+      expect(read(yes(0.5))).toBe('cannot-tell')
+      expect(read(REFUSAL)).toBe('cannot-tell')
+      expect(validReply(packJudge(input, how).requests[0]!, { ...rest, A1: holds(0.99) })).toBe(
+        false,
+      )
+    })
+  })
+
   it('are on in the default scheme, which differs from the baseline in what the bench earned and nothing else', () => {
     const { instructions, packaging, ...rest } = DEFAULT_JUDGE_CONFIG
     const { instructions: was, packaging: packed, ...before } = BASELINE_JUDGE_CONFIG
@@ -967,7 +1034,13 @@ describe('the three ways of asking the bench can switch on', () => {
   it('leaves the baseline scheme as it was measured: every value of it, each one the schema takes', () => {
     expect(BASELINE_JUDGE_CONFIG).toEqual({
       split: 'one',
-      instructions: { criterion: 'rendered', rules: [], exits: 'statement', unattainable: 'kind' },
+      instructions: {
+        criterion: 'rendered',
+        rules: [],
+        exits: 'statement',
+        unattainable: 'kind',
+        unsettled: 'criterion',
+      },
       packaging: {
         excerpt: 2000,
         take: 'both',
