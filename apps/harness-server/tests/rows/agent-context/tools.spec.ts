@@ -10,6 +10,13 @@ import {
   runtimeContextReaderEligibilityKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
+import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
+import {
+  encodeInitialContextRegistration,
+  sessionModesBindings,
+  sessionModesDescriptor,
+} from '@omne-harness/session-adapters/cordis'
+import { adoptedContextDefinitions } from '../../../src/assembly/context-definitions.ts'
 import {
   commandCallSchema,
   commandMenu,
@@ -258,7 +265,8 @@ describe('agent-context row: the sixth group over the release Catalog', () => {
     ])
   })
 
-  it('reads the facts of the session once for a table with two tools that declare conditions', async () => {
+  /** A table of two tools that declare conditions, read in a session whose log holds `records`. */
+  async function conditionedTable(records: readonly unknown[]) {
     const fixture = await releaseFixture()
     const conditioned = (name: 'Files' | 'Shell', condition: string): ToolDefinition => {
       const definition = releaseDefinition(fixture, name)
@@ -323,7 +331,7 @@ describe('agent-context row: the sixth group over the release Catalog', () => {
                 tenant: input.tenant,
                 session: input.session,
                 contextScopes: [{ scope, ended: null }],
-                contextRecords: [],
+                contextRecords: records,
               })
             },
           },
@@ -354,14 +362,44 @@ describe('agent-context row: the sixth group over the release Catalog', () => {
       access: workAccess(fixture),
       conditions: conditionsWith([binding('Files'), binding('Shell')]),
     })
+    return { read, definitions, scope, reads: () => reads }
+  }
+
+  function modesRegistered(scope: string) {
+    const materials = encodeInitialContextRegistration(
+      {
+        definition: SESSION_MODES_PUBLICATION,
+        key: sessionModesDescriptor.key,
+        bindings: sessionModesBindings,
+        parameters: undefined,
+      },
+      adoptedContextDefinitions,
+    )
+    if ('failure' in materials) throw new Error(materials.failure)
+    const registered = { owner: 'test', record: 'modes', revision: '1', digest: 'sha256:0' }
+    return {
+      scope,
+      declaration: { kind: 'context-registration', registration: registered, ...materials.ok },
+    }
+  }
+
+  it('reads the facts of the session once for a table with two tools that declare conditions', async () => {
+    const table = await conditionedTable([modesRegistered('forward-test-scope')])
+    const { read } = table
     if (read.kind !== 'value') throw new Error(`expected tools, got ${JSON.stringify(read)}`)
     expect(read.value.map(tool => tool.availability.definition)).toEqual(
-      definitions.flatMap(definition => {
+      table.definitions.flatMap(definition => {
         const offered = offeredDefinition(definition, new Set(['person-present']))
         return offered === null ? [] : [offered]
       }),
     )
-    expect(reads).toBe(1)
+    expect(table.reads()).toBe(1)
+  })
+
+  it('answers a refusal, not a wait, when the open scope never registered the facts of the session', async () => {
+    const table = await conditionedTable([])
+    expect(table.read).toEqual({ kind: 'denied' })
+    expect(table.reads()).toBe(1)
   })
 
   it('closes the group for a principal that is not a session work principal of the tenant', async () => {

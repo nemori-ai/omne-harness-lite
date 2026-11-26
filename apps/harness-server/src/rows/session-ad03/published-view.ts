@@ -44,6 +44,9 @@ export type PublishedViewBinding<V extends Basis> = PublishedNeedBinding<V> &
 
 export type PublishedViewRead<V> = Outcome<V, string>
 
+/** The log shows the open scope never registered the block: no wait makes it readable. */
+export const BLOCK_NOT_REGISTERED = 'read: the open scope never registered the block'
+
 type Current = Readonly<{
   scope: ScopeRef
   records: NonNullable<WorkSnapshot['contextRecords']>
@@ -85,7 +88,9 @@ export async function readPublishedView<V extends Basis>(
   input: SessionAccess<unknown>,
   binding: PublishedViewBinding<V>,
 ): Promise<PublishedViewRead<V>> {
-  const view = await readPublishedNeed(ports, input, binding)
+  const view = await readIn(ports, input, binding, current =>
+    holds(current, binding) ? null : fail(BLOCK_NOT_REGISTERED),
+  )
   if ('failure' in view) return view
   if (view.ok === null) return fail('read: missing')
   const tenant = tenantCodec.encode(input.tenant)
@@ -102,7 +107,7 @@ export async function readPublishedNeed<V>(
   input: SessionAccess<unknown>,
   binding: PublishedNeedBinding<V>,
 ): Promise<PublishedViewRead<V | null>> {
-  return readIn(ports, input, binding, () => true)
+  return readIn(ports, input, binding, () => null)
 }
 
 // A need of a block the session holds in its own log. Null, reading nothing, when the scope never
@@ -112,25 +117,24 @@ export async function readHeldNeed<V>(
   input: SessionAccess<unknown>,
   binding: PublishedNeedBinding<V>,
 ): Promise<PublishedViewRead<V | null>> {
-  return readIn(
-    ports,
-    input,
-    binding,
-    current => heldBlock(current.records, current.scope, binding.key).kind === 'held',
-  )
+  return readIn(ports, input, binding, current => (holds(current, binding) ? null : succeed(null)))
 }
+
+const holds = (current: Current, binding: PublishedNeedBinding<unknown>): boolean =>
+  heldBlock(current.records, current.scope, binding.key).kind === 'held'
 
 async function readIn<V>(
   ports: PublishedViewPorts,
   input: SessionAccess<unknown>,
   binding: PublishedNeedBinding<V>,
-  holds: (current: Current) => boolean,
+  unregistered: (current: Current) => PublishedViewRead<V | null> | null,
 ): Promise<PublishedViewRead<V | null>> {
   const access = { ...input }
   try {
     const current = await currentScope(ports, access)
     if ('failure' in current) return current
-    if (!holds(current.ok)) return succeed(null)
+    const settled = unregistered(current.ok)
+    if (settled !== null) return settled
     const { scope } = current.ok
     const recovered = await ports.recoverSession({
       tenant: access.tenant,
