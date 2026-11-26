@@ -1704,6 +1704,15 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assembly':
+        specifier: workspace:*
+        version: link:../assembly
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

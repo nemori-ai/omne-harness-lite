@@ -4,12 +4,20 @@ it('exports the close protocol and the pure parts of the process-level assembly'
   const root = (await import('@omne-harness/assembly')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'LeaseId',
+    'admitCall',
     'beginSupervision',
     'createCloseProtocol',
     'declareRow',
+    'finishCall',
+    'generationFell',
     'judgeStamp',
+    'noGenerations',
     'parseStamp',
     'planChange',
+    'prepareGeneration',
+    'promoteGeneration',
+    'standbyFailed',
+    'stateOfGeneration',
     'supervise',
   ])
 })
