@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import {
   DEFAULT_DRAIN_DEADLINE_MS,
   DEFAULT_READINESS_TIMEOUT_MS,
+  DEFAULT_DEPENDENCY_DEADLINE_MS,
   DEFAULT_ROOT_DISPOSAL_DEADLINE_MS,
   DEFAULT_SHUTDOWN_DEADLINE_MS,
 } from './operator-defaults.ts'
@@ -29,6 +30,17 @@ export const BUNDLED_DISTRIBUTION = fileURLToPath(
   new URL('../../config/serve.distribution.json', import.meta.url),
 )
 
+const PUBLISHER_KEYS = fileURLToPath(new URL('../../config/publisher-keys.json', import.meta.url))
+
+/** The public keys the release ships: a version directory signed with one of them is taken as the publisher's. */
+async function publisherKeys(): Promise<string[]> {
+  const shipped = (await readJson('publisher keys', PUBLISHER_KEYS, true)) as { keys?: unknown }
+  const { keys } = shipped
+  if (!Array.isArray(keys) || keys.some(key => typeof key !== 'string'))
+    throw new UsageError('publisher-keys.json: expected { keys: string[] }')
+  return keys as string[]
+}
+
 export const COMMON_OPTIONS = {
   distribution: { type: 'string' },
   operator: { type: 'string' },
@@ -40,7 +52,9 @@ export const SERVE_OPTIONS = {
   ...COMMON_OPTIONS,
   'drain-deadline-ms': { type: 'string' },
   'root-disposal-deadline-ms': { type: 'string' },
+  'dependency-deadline-ms': { type: 'string' },
   'state-root': { type: 'string' },
+  'install-root': { type: 'string' },
   'stop-on-stdin-close': { type: 'boolean' },
 } as const
 
@@ -49,8 +63,10 @@ export type ServeValues = Readonly<{
     K in
       | keyof typeof COMMON_OPTIONS
       | 'state-root'
+      | 'install-root'
       | 'drain-deadline-ms'
       | 'root-disposal-deadline-ms'
+      | 'dependency-deadline-ms'
   ]?: string
 }> &
   Readonly<{ 'stop-on-stdin-close'?: boolean }>
@@ -93,6 +109,8 @@ export type ServeInputs = Readonly<{
   shutdownDeadlineMs: number
   drainDeadlineMs: number
   rootDisposalDeadlineMs: number
+  dependencyDeadlineMs: number
+  publisherKeys: readonly string[]
   stateRoot: string
   port?: number
 }>
@@ -143,6 +161,11 @@ export async function serveInputs(values: ServeValues): Promise<ServeInputs> {
       values['root-disposal-deadline-ms'] === undefined
         ? DEFAULT_ROOT_DISPOSAL_DEADLINE_MS
         : positiveInt('root-disposal-deadline-ms', values['root-disposal-deadline-ms']),
+    dependencyDeadlineMs:
+      values['dependency-deadline-ms'] === undefined
+        ? DEFAULT_DEPENDENCY_DEADLINE_MS
+        : positiveInt('dependency-deadline-ms', values['dependency-deadline-ms']),
+    publisherKeys: await publisherKeys(),
     stateRoot: resolvedRoot,
     ...(local.kind === 'ready' && local.settings !== undefined
       ? { port: local.settings.port }

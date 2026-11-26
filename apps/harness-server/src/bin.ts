@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import {
@@ -15,13 +16,16 @@ import {
   stderrWriter,
 } from './local/serve-command.ts'
 import { SUPERVISE_USAGE, superviseCommand } from './local/supervise-command.ts'
+import { refusedByPointer } from './local/install-root.ts'
+import { SWAP_USAGE, swapCommand } from './local/swap-command.ts'
+import { VERSIONS_USAGE, versionsCommand } from './local/versions-command.ts'
 import { runS0 } from './run.ts'
 import { endProcess } from './process-end.ts'
 
 const S0_USAGE =
   'usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>'
 const SERVE_USAGE =
-  'usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--root-disposal-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]'
+  'usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--root-disposal-deadline-ms <n>] [--dependency-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]'
 
 type Common = Readonly<{
   distribution: unknown
@@ -68,6 +72,16 @@ async function mainServe(argv: readonly string[]): Promise<number> {
   })
   if (positionals.length !== 1 || positionals[0] !== 'serve')
     throw new UsageError('expected subcommand serve')
+  const root = values['install-root']
+  if (root !== undefined) {
+    if (!isAbsolute(root)) throw new UsageError('--install-root must be an absolute path')
+    // The first step of coming up: a build the pointer does not name takes no lock and reads no state.
+    const refused = refusedByPointer(root, process.argv[1] ?? '')
+    if (refused !== null) {
+      process.stderr.write(`serve: ${refused}\n`)
+      return 2
+    }
+  }
   return serveUntilStopped(await serveInputs(values), values['stop-on-stdin-close'] === true)
 }
 
@@ -104,9 +118,33 @@ async function mainSupervise(argv: readonly string[]): Promise<number> {
   }
 }
 
+async function mainSwap(argv: readonly string[]): Promise<number> {
+  const line = (stream: NodeJS.WriteStream) => (text: string) => void stream.write(`${text}\n`)
+  try {
+    return await swapCommand(argv, line(process.stdout), line(process.stderr))
+  } catch (error) {
+    if (!isUsageError(error)) throw error
+    process.stderr.write(`swap: ${(error as Error).message}\n${SWAP_USAGE}\n`)
+    return 2
+  }
+}
+
+function mainVersions(argv: readonly string[]): number {
+  const line = (stream: NodeJS.WriteStream) => (text: string) => void stream.write(`${text}\n`)
+  try {
+    return versionsCommand(argv, line(process.stdout), line(process.stderr))
+  } catch (error) {
+    if (!isUsageError(error)) throw error
+    process.stderr.write(`versions: ${(error as Error).message}\n${VERSIONS_USAGE}\n`)
+    return 2
+  }
+}
+
 async function main(argv: readonly string[]): Promise<number> {
   // The supervisor is named first: the rest of the line belongs to the `serve` it starts.
   if (argv[0] === 'supervise') return mainSupervise(argv.slice(1))
+  if (argv[0] === 'swap') return mainSwap(argv.slice(1))
+  if (argv[0] === 'versions') return mainVersions(argv.slice(1))
   const subcommand = selectedSubcommand(argv)
   if (subcommand === 'setup') {
     try {

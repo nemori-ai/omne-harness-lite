@@ -33,6 +33,7 @@ export type PluginEffectPorts = Readonly<{
   clients(tenant: string): readonly ToldByClient[] | undefined
   /** How the server stands with each plugin of one tenant, by name; null when this tree loads no plugin on the server. */
   server(tenant: string): ReadonlyMap<string, Kept> | null
+  lockedBy?(tenant: string, point: string, key: string): string | undefined
 }>
 
 function serverTold(kept: Kept | undefined, held: string): ServerTold {
@@ -149,6 +150,9 @@ export function pluginEffect(ports: PluginEffectPorts): CategoryEffect {
           points: [...ports.serverPoints(), ...clientPoints(clients)],
           unknownSides: clients.length === 0 ? ['client'] : [],
           serverLoads: ports.server(tenant) !== null,
+          ...(ports.lockedBy === undefined
+            ? {}
+            : { lockedBy: (point, key) => ports.lockedBy?.(tenant, point, key) }),
         })
         const advice = joined([
           unreadAdvice(unread),

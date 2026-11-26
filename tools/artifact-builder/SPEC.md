@@ -2,7 +2,7 @@
 
 ## 总体架构
 
-artifact-builder 是开发期的应用归档库，不发布，也不是产品的运行依赖。公共入口 `src/index.ts` 导出 `inventory`（文件清单）、`digest`（摘要）、`packageArtifact` 与 `runPackaging`。应用的打包脚本静态适配它，由 `scripts/package-cli.sh` 这类入口调用。它没有自己的命令。
+artifact-builder 是开发期的应用归档库，不发布，也不是产品的运行依赖。公共入口 `src/index.ts` 导出 `inventory`（文件清单）、`digest`（摘要）、`packageArtifact`、`runPackaging` 与 `signVersion`（给一个版本目录写摘要清单并签名）。应用的打包脚本静态适配它，由 `scripts/package-cli.sh` 这类入口调用。它没有自己的命令。
 
 运行入口指向 `src`，固定的 Node 版本可以直接去类型执行。类型声明由 `build` 生成，`typecheck` 按 `source` 条件读源码，不先构建。首次打包不要求已经有 `dist/`。
 
@@ -26,6 +26,7 @@ artifact-builder 是开发期的应用归档库，不发布，也不是产品的
 - 打包前后比较 `pnpm-lock.yaml` 与 `pnpm-workspace.yaml` 的摘要，不同则报 `build-input-changed`，不发布。
 - 归档经独占的硬链接发布到输出路径。发布之后的输出或清理失败时，有效的归档可能已经留在输出路径上。
 - 工具只清理自己的暂存目录。
+- `signVersion(目录, { entry, privateKey })` 把一个版本目录做成部署认得的发行方制品：写 `manifest.json`（格式号 1、入口、每个文件的 SHA-256）与 `manifest.sig`（对清单原字节的 Ed25519 签名，base64）。格式与核法归[装配的「装载与来源」](../../packages/assembly/SPEC.md#装载与来源)。目录里有软链接，或入口不是目录里的文件，就拒绝：部署不认这样的目录。再签一次会按现在的文件重写两个文件。私钥由调用方交入，本工具不从任何地方读它，也不写出它。
 
 ## 原则与约束
 
@@ -36,3 +37,4 @@ artifact-builder 是开发期的应用归档库，不发布，也不是产品的
 
 - 部署后检查失败时，输出路径上不出现归档。
 - 已有的输出路径不被覆盖。
+- `signVersion` 签出来的目录，部署的 `verifyVersion` 用对应的公钥核得过；签完之后改一个文件就核不过。由 `tests/sign-version.spec.ts` 守，它用的是部署那一半的实现。

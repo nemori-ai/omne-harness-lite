@@ -46,6 +46,40 @@ const lines = (answer: ReturnType<typeof pluginImpact>): readonly string[] =>
   )
 
 describe('what publishing a plugin would change', () => {
+  it('a server member under a key the deployment holds with a lock would not load: the preview says who holds it', () => {
+    const SERVER: readonly KnownPoint[] = [
+      { name: 'access.protocols', side: 'server', takes: 'code', when: 'running' },
+    ]
+    const members = [
+      { point: 'access.protocols', key: 'usage/v1', module: 'p.js', export: 'make' },
+      { point: 'access.protocols', key: 'mine/v1', module: 'p.js', export: 'make' },
+    ]
+    const answer = pluginImpact({
+      name: 'rival',
+      change: 'publish',
+      manifest: manifest('rival', [], members),
+      held: [],
+      points: SERVER,
+      lockedBy: (point, key) =>
+        point === 'access.protocols' && key === 'usage/v1' ? 'usage-access' : undefined,
+    })
+    expect(lines(answer)).toEqual([
+      "! access.protocols / usage/v1   → locked by usage-access: the deployment holds this key and a tenant's member does not replace it. The plugin would not load.",
+      '+ access.protocols / mine/v1   → in effect',
+    ])
+    expect(answer.advice).toBe('Leave this member out, or give it another key.')
+    // A client member is not asked: the lock is of the server tree.
+    const client = pluginImpact({
+      name: 'pill',
+      change: 'publish',
+      manifest: manifest('pill', [SEND]),
+      held: [],
+      points: POINTS,
+      lockedBy: () => 'someone',
+    })
+    expect(lines(client)).toEqual(['+ shell.part-style / session.composer.send   → in effect'])
+  })
+
   it('each member of a point that is there would be in effect; nothing else changes', () => {
     const answer = pluginImpact({
       name: 'pill',

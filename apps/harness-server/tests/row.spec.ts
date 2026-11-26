@@ -2,19 +2,14 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, test } from 'vitest'
 import { z } from 'zod'
 import { stubPlugin } from '../src/cordis.ts'
-import { LifecycleRegistry, S0AssemblyLifecycleService } from '../src/lifecycle.ts'
+import { S0AssemblyLifecycleService } from '../src/row.ts'
+import { rowSupervision } from './support/row-supervision.ts'
 import { defineRow, rowDeclarationOf, type RowDefinition } from '../src/row.ts'
-import { monotonicClock } from '../src/shutdown.ts'
 import type { LifecyclePhase, RowId } from '../src/types.ts'
 
 const manifest = { provides: ['fxA'], injects: [], sameProviderGroup: null } as const
 
-function registryFor(entries: Record<string, LifecyclePhase>) {
-  const expected = new Map(
-    Object.entries(entries).map(([row, phase]) => [row as RowId, phase] as const),
-  )
-  return new LifecycleRegistry({ expected, clock: monotonicClock, requestStop: () => {} })
-}
+const registryFor = (_expected: Record<string, LifecyclePhase>) => rowSupervision()
 
 describe('defineRow: shape of the wrapper', () => {
   test('a row without phase: inject is the declared injects, the declaration reads back', () => {
@@ -180,8 +175,13 @@ describe('defineRow: body-borne registration', () => {
     expect(registry.liveRows()).toEqual([])
   })
 
-  test('a refused registration (phase mismatch) fails the row instead of passing silently', async () => {
-    const registry = registryFor({ 'fx-body': 'storage' })
+  test('a refused registration (the row is registered already) fails the row instead of passing silently', async () => {
+    const registry = registryFor({ 'fx-body': 'entry' })
+    registry.add({
+      row: 'fx-body' as RowId,
+      phase: 'entry',
+      stop: async () => ({ kind: 'settled' }),
+    })
     const root = new Context()
     await root.plugin(S0AssemblyLifecycleService, registry)
     const plugin = defineRow({
@@ -191,7 +191,7 @@ describe('defineRow: body-borne registration', () => {
       lifecycle: { kind: 'body', phase: 'entry' },
       body: async () => ({ stop: async () => ({ kind: 'settled' }) }),
     })
-    await expect(root.plugin(plugin)).rejects.toThrow(/phase-mismatch/)
-    expect(registry.liveRows()).toEqual([])
+    await expect(root.plugin(plugin)).rejects.toThrow(/duplicate/)
+    expect(registry.liveRows()).toEqual(['fx-body'])
   })
 })

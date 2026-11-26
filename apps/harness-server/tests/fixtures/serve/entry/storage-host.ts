@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../../../../src/lifecycle.ts'
+import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../../../../src/row.ts'
 import type {
   AssemblyLifecycle,
   EntryObjectModule,
