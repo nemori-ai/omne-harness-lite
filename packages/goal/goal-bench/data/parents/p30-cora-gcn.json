@@ -1,0 +1,354 @@
+{
+  "id": "p30-cora-gcn",
+  "title": "Cora 上的 GCN 节点分类：准确率指标、调参结果、模型与网络图，无人值守，含一段长的调参日志",
+  "source": "devai:43_Social_Network_Analysis_GCN_Cora_ML.json",
+  "split": "verify",
+  "attendance": "unattended",
+  "draft": {
+    "purpose": "用 GCN 在 Cora 引文网络上做论文类别的节点分类：数据加载里做归一化，训练脚本里调学习率和隐藏层大小，存下选出的最优模型和测试结果，并画出引文网络图。",
+    "criteria": [
+      {
+        "statement": "测试集准确率到 M1 的目标",
+        "evidence": {
+          "kind": "metric",
+          "metric": "M1"
+        }
+      },
+      {
+        "statement": "单元测试全过",
+        "evidence": {
+          "kind": "command",
+          "command": "python -m pytest tests -q"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      },
+      {
+        "statement": "结果文件写明选定的学习率、隐藏层大小和测试准确率",
+        "evidence": {
+          "kind": "file",
+          "path": "results/metrics/node_classification_results.txt"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "lr、hidden 和 test accuracy 三项都在"
+        }
+      },
+      {
+        "statement": "模型文件和引文网络图都在",
+        "evidence": {
+          "kind": "command",
+          "command": "ls -l models/saved_models results/figures"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "有 gcn_cora.pt 和 citation_network_visualization.png，大小都不为零"
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "statement": "Cora 测试集节点分类准确率",
+        "measure": {
+          "command": "python -m src.train --eval --json",
+          "path": ".test_acc"
+        },
+        "direction": "higher",
+        "target": 0.81,
+        "floor": 0.78,
+        "baseline": "measure-first"
+      }
+    ],
+    "rules": [
+      {
+        "statement": "超参只在验证集上选，测试集只在最后评一次。"
+      },
+      {
+        "statement": "数据集名通过配置传入，训练代码里不写死 Cora。"
+      }
+    ],
+    "exits": [
+      {
+        "statement": "预算用尽",
+        "kind": "budget",
+        "limits": [
+          {
+            "amount": 30,
+            "unit": "rounds"
+          }
+        ],
+        "deliver": "当前最好的指标与改动",
+        "counts": "failure"
+      },
+      {
+        "statement": "预算用尽时已经够用",
+        "kind": "good-enough",
+        "by": [
+          {
+            "kind": "floor",
+            "id": "M1"
+          },
+          {
+            "kind": "criterion",
+            "id": "A2"
+          }
+        ],
+        "deliver": "当前的准确率与改动，写明离目标差多少",
+        "counts": "success"
+      }
+    ]
+  },
+  "rounds": 16,
+  "metrics": {
+    "M1": 0.813
+  },
+  "calls": [
+    {
+      "ref": "call-10",
+      "order": 10,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/data_loader.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,47 @@\n+import torch\n+from torch_geometric.datasets import Planetoid\n+import torch_geometric.transforms as T\n+\n+def load(name):\n+    ds = Planetoid('data', name, transform=T.Compose([T.NormalizeFeatures(), T.GCNNorm()]))\n+    return ds[0], ds.num_classes",
+      "writes": true
+    },
+    {
+      "ref": "call-12",
+      "order": 12,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/model.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,19 @@\n+import torch.nn.functional as F\n+from torch_geometric.nn import GCNConv\n+\n+class GCN(torch.nn.Module):\n+    def __init__(self, n_in, hidden, n_out, dropout=0.5):\n+        super().__init__()\n+        self.c1, self.c2 = GCNConv(n_in, hidden), GCNConv(hidden, n_out)",
+      "writes": true
+    },
+    {
+      "ref": "call-14",
+      "order": 14,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/train.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,88 @@\n+import itertools, json\n+\n+GRID = {'lr': [0.05, 0.02, 0.01, 0.005], 'hidden': [16, 32, 64, 128]}\n+\n+def tune(cfg):\n+    best = max(itertools.product(*GRID.values()), key=lambda p: fit(cfg, *p).val_acc)\n+    ...",
+      "writes": true
+    },
+    {
+      "ref": "call-16",
+      "order": 16,
+      "tool": "Files write",
+      "command": null,
+      "path": "tests/test_gcn.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,26 @@\n+import torch\n+from src.model import GCN\n+\n+def test_forward_shape():\n+    out = GCN(1433, 16, 7)(x, edge_index)\n+    assert out.shape == (2708, 7)\n+\n+def test_dataset_name_comes_from_config():\n+    ...",
+      "writes": true
+    },
+    {
+      "ref": "call-20",
+      "order": 20,
+      "tool": "Shell run",
+      "command": "python -m src.train --tune --config configs/cora.yaml",
+      "path": null,
+      "exit": 0,
+      "output": "dataset=cora (config: data.name) nodes=2708 edges=10556 features=1433 classes=7  split=140/500/1000 (train/val/test)\npreprocess: row-normalize features, symmetric-normalize adjacency with self loops, drop 0 isolated-node edges\ngrid: lr in {0.05,0.02,0.01,0.005} x hidden in {16,32,64,128}, dropout=0.5, weight_decay=5e-4, 200 epochs each, select by val_acc\n[ 1/16] lr=0.05   hidden= 16  epoch 200  train_loss=0.426  val_acc=0.7620  best_epoch=67\n       time=4.3s  params=23,040  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_01.pt\n[ 2/16] lr=0.05   hidden= 32  epoch 200  train_loss=0.433  val_acc=0.7740  best_epoch=74\n       time=4.5s  params=46,080  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_02.pt\n[ 3/16] lr=0.05   hidden= 64  epoch 200  train_loss=0.446  val_acc=0.7860  best_epoch=81\n       time=4.9s  params=92,160  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_03.pt\n[ 4/16] lr=0.05   hidden=128  epoch 200  train_loss=0.471  val_acc=0.7880  best_epoch=88\n       time=5.6s  params=184,320  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_04.pt\n[ 5/16] lr=0.02   hidden= 16  epoch 200  train_loss=0.486  val_acc=0.7780  best_epoch=95\n       time=4.3s  params=23,040  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_05.pt\n[ 6/16] lr=0.02   hidden= 32  epoch 200  train_loss=0.493  val_acc=0.7920  best_epoch=102\n       time=4.5s  params=46,080  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_06.pt\n[ 7/16] lr=0.02   hidden= 64  epoch 200  train_loss=0.506  val_acc=0.7980  best_epoch=109\n       time=4.9s  params=92,160  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_07.pt\n[ 8/16] lr=0.02   hidden=128  epoch 200  train_loss=0.531  val_acc=0.8000  best_epoch=116\n       time=5.6s  params=184,320  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_08.pt\n[ 9/16] lr=0.01   hidden= 16  epoch 200  train_loss=0.506  val_acc=0.7900  best_epoch=123\n       time=4.3s  params=23,040  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_09.pt\n[10/16] lr=0.01   hidden= 32  epoch 200  train_loss=0.513  val_acc=0.7980  best_epoch=130\n       time=4.5s  params=46,080  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_10.pt\n[11/16] lr=0.01   hidden= 64  epoch 200  train_loss=0.526  val_acc=0.8040  best_epoch=137\n       time=4.9s  params=92,160  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_11.pt\n[12/16] lr=0.01   hidden=128  epoch 200  train_loss=0.551  val_acc=0.8020  best_epoch=144\n       time=5.6s  params=184,320  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_12.pt\n[13/16] lr=0.005  hidden= 16  epoch 200  train_loss=0.516  val_acc=0.7840  best_epoch=151\n       time=4.3s  params=23,040  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_13.pt\n[14/16] lr=0.005  hidden= 32  epoch 200  train_loss=0.523  val_acc=0.7960  best_epoch=158\n       time=4.5s  params=46,080  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_14.pt\n[15/16] lr=0.005  hidden= 64  epoch 200  train_loss=0.536  val_acc=0.8000  best_epoch=165\n       time=4.9s  params=92,160  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_15.pt\n[16/16] lr=0.005  hidden=128  epoch 200  train_loss=0.561  val_acc=0.8000  best_epoch=172\n       time=5.6s  params=184,320  early_stop_patience=50 (not triggered)  checkpoint tmp/grid_16.pt\nbest by val_acc: lr=0.01 hidden=64 val_acc=0.8040\nretrain on train split with best setting, evaluate once on test: test_acc=0.8130\nsaved models/saved_models/gcn_cora.pt; wrote results/metrics/node_classification_results.txt",
+      "writes": false
+    },
+    {
+      "ref": "call-22",
+      "order": 22,
+      "tool": "Shell run",
+      "command": "python -m pytest tests -q",
+      "path": null,
+      "exit": 0,
+      "output": "============================= test session starts ==============================\nplatform linux -- Python 3.11.9, pytest-8.2.0\ncollected 5 items\n\ntests/test_gcn.py .....                                                  [100%]\n\n============================== 5 passed in 9.12s ===============================\n",
+      "writes": false
+    },
+    {
+      "ref": "call-24",
+      "order": 24,
+      "tool": "Shell run",
+      "command": "python -m src.train --eval --json",
+      "path": null,
+      "exit": 0,
+      "output": "{\"dataset\":\"cora\",\"model\":\"models/saved_models/gcn_cora.pt\",\"lr\":0.01,\"hidden\":64,\"val_acc\":0.8040,\"test_acc\":0.8130,\"test_nodes\":1000}",
+      "writes": false
+    },
+    {
+      "ref": "call-26",
+      "order": 26,
+      "tool": "Files read",
+      "command": null,
+      "path": "results/metrics/node_classification_results.txt",
+      "exit": null,
+      "output": "GCN on Cora (config data.name=cora)\nselected on validation: lr=0.01, hidden=64, dropout=0.5\ntest accuracy: 0.8130 (1000 test nodes)\nvalidation accuracy: 0.8040\nmacro F1 (test): 0.8029\n",
+      "writes": false
+    },
+    {
+      "ref": "call-28",
+      "order": 28,
+      "tool": "Shell run",
+      "command": "ls -l models/saved_models results/figures",
+      "path": null,
+      "exit": 0,
+      "output": "models/saved_models:\ntotal 184\n-rw-r--r--  1 agent  staff  92471 Nov 25 18:05 gcn_cora.pt\n\nresults/figures:\ntotal 1904\n-rw-r--r--  1 agent  staff  968420 Nov 25 18:06 citation_network_visualization.png\n",
+      "writes": false
+    }
+  ],
+  "progress": {
+    "criteria": {
+      "A1": {
+        "status": "claimed-done",
+        "refs": [
+          "call-24"
+        ],
+        "note": "测试准确率 0.8130，过了 0.81"
+      },
+      "A2": {
+        "status": "claimed-done",
+        "refs": [
+          "call-22"
+        ],
+        "note": "5 个用例全过"
+      },
+      "A3": {
+        "status": "claimed-done",
+        "refs": [
+          "call-26"
+        ],
+        "note": "结果文件写明 lr、hidden 和测试准确率"
+      },
+      "A4": {
+        "status": "claimed-done",
+        "refs": [
+          "call-28"
+        ],
+        "note": "模型文件和网络图都在"
+      }
+    },
+    "metrics": {
+      "M1": {
+        "ref": "call-24"
+      }
+    },
+    "rules": {
+      "N1": {
+        "check": "kept"
+      },
+      "N2": {
+        "check": "kept"
+      }
+    },
+    "obstacle": null,
+    "deliverables": [
+      "src/data_loader.py",
+      "src/model.py",
+      "src/train.py",
+      "models/saved_models/gcn_cora.pt"
+    ],
+    "proposal": {
+      "kind": "achieved"
+    },
+    "notes": []
+  },
+  "oracle": {
+    "A2": {
+      "ref": "call-22",
+      "contains": [
+        "5 passed"
+      ]
+    },
+    "A3": {
+      "ref": "call-26",
+      "contains": [
+        "lr=0.01",
+        "hidden=64",
+        "test accuracy: 0.8130"
+      ]
+    },
+    "A4": {
+      "ref": "call-28",
+      "contains": [
+        "gcn_cora.pt",
+        "citation_network_visualization.png",
+        "968420"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "op": "break",
+      "id": "break-no-hidden",
+      "target": "A3",
+      "call": {
+        "ref": "call-26",
+        "output": "GCN on Cora (config data.name=cora)\nselected on validation: lr=0.01, dropout=0.5\ntest accuracy: 0.8130 (1000 test nodes)\nvalidation accuracy: 0.8040\nmacro F1 (test): 0.8029\n"
+      }
+    },
+    {
+      "op": "drop",
+      "id": "drop-listing",
+      "target": "A4"
+    },
+    {
+      "op": "narrow",
+      "id": "narrow-one-test",
+      "target": "A2",
+      "call": {
+        "ref": "call-22",
+        "command": "python -m pytest tests/test_gcn.py::test_forward_shape -q",
+        "output": "============================= test session starts ==============================\ncollected 1 item\n\ntests/test_gcn.py .                                                      [100%]\n\n============================== 1 passed in 2.41s ===============================\n"
+      }
+    },
+    {
+      "op": "stale",
+      "id": "stale-loader-edit",
+      "target": "A2",
+      "write": {
+        "ref": "call-31",
+        "tool": "Files write",
+        "command": null,
+        "path": "src/data_loader.py",
+        "exit": null,
+        "output": "@@ -6,5 +6,5 @@ def load(name):\n-    ds = Planetoid('data', name, transform=T.Compose([T.NormalizeFeatures(), T.GCNNorm()]))\n+    ds = Planetoid('data', name, transform=T.NormalizeFeatures())",
+        "writes": true
+      }
+    },
+    {
+      "op": "good-enough",
+      "id": "between-floor-and-target",
+      "metrics": {
+        "M1": 0.79
+      }
+    },
+    {
+      "op": "contradict",
+      "id": "contradict-listing",
+      "target": "A4",
+      "run": {
+        "ref": "call-31",
+        "tool": "Shell run",
+        "command": "ls -l models/saved_models results/figures",
+        "path": null,
+        "exit": 0,
+        "output": "models/saved_models:\ntotal 184\n-rw-r--r--  1 agent  staff  92471 Nov 25 18:05 gcn_cora.pt\n\nresults/figures:\ntotal 0\n(citation_network_visualization.png was deleted by `git clean -fdx` during a branch switch)\n",
+        "writes": false
+      }
+    },
+    {
+      "op": "violate",
+      "id": "selected-on-test",
+      "target": "N1",
+      "before": "call-20",
+      "call": {
+        "ref": "call-19",
+        "tool": "Shell run",
+        "command": "python -m src.train --tune --select-by test_acc",
+        "path": null,
+        "exit": 0,
+        "output": "grid search selecting by test_acc (!)\nbest by test_acc: lr=0.02 hidden=64 test_acc=0.8190\nsaved models/saved_models/gcn_cora.pt\n",
+        "writes": false
+      }
+    }
+  ]
+}

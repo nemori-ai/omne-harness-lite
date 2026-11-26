@@ -40,6 +40,7 @@ import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-boun
 import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
 import { hostTime, holdRunTime } from './entry/time.ts'
 import { enabledExtensionsOf } from './rows/agent-host/enabled-extensions.ts'
+import { systemExtensionsOf } from './rows/system-extensions/index.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
 import { createModelHostRow } from './rows/model-host/index.ts'
@@ -530,6 +531,7 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
     agentHostRow: createAgentHostRow({
       toolRequestsOf: releaseToolRequestsOf,
       enabledExtensionsOf,
+      systemExtensionsOf,
       lostContact: lostContactBy(() => lock, 'instance'),
     }),
     modelHostRow: createModelHostRow({ lostContact: lostContactBy(() => lock, 'call') }),

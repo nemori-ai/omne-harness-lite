@@ -1,0 +1,407 @@
+{
+  "id": "p28-kmeans-segments",
+  "title": "客户分群（K-means）：簇中心、两张图、Dash 看板冒烟、一条人确认判据，一条要人定的退出",
+  "source": "devai:34_Customer_Segmentation_KMeans_CustomerSegmentation_ML.json",
+  "split": "verify",
+  "attendance": "attended",
+  "draft": {
+    "purpose": "用 K-means 对 Kaggle 的客户细分数据做客户分群：先标准化，用肘部法选簇数，保存簇中心，用 seaborn 画分群图，并做一个能交互探索各分群的 Dash 看板。",
+    "criteria": [
+      {
+        "statement": "单元测试全过",
+        "evidence": {
+          "kind": "command",
+          "command": "python -m pytest tests -q"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      },
+      {
+        "statement": "results/metrics/cluster_centers.txt 列出了每个簇中心，每个中心对每个特征都有值",
+        "evidence": {
+          "kind": "file",
+          "path": "results/metrics/cluster_centers.txt"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "簇数与 elbow 选出的 k 一致，每个簇一行，三个特征都有数值"
+        }
+      },
+      {
+        "statement": "肘部图和分群图都存下了",
+        "evidence": {
+          "kind": "command",
+          "command": "ls -l results/figures/elbow.jpg results/figures/customer_segmentation.png"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "两个文件都在，大小不为零"
+        }
+      },
+      {
+        "statement": "Dash 看板能启动并响应",
+        "evidence": {
+          "kind": "command",
+          "command": "python -m src.dashboard --smoke"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "页面答 200，页面里有选分群的下拉框"
+        }
+      },
+      {
+        "statement": "看板里切换分群时散点图跟着变，看着是对的",
+        "evidence": {
+          "kind": "person"
+        }
+      }
+    ],
+    "rules": [
+      {
+        "statement": "簇数 k 由肘部法的结果决定，不手填。"
+      },
+      {
+        "statement": "看板只绑定 127.0.0.1，不对外监听。"
+      }
+    ],
+    "exits": [
+      {
+        "statement": "预算用尽",
+        "kind": "budget",
+        "limits": [
+          {
+            "amount": 20,
+            "unit": "rounds"
+          }
+        ],
+        "deliver": "当前最好的指标与改动",
+        "counts": "failure"
+      },
+      {
+        "statement": "肘部不明显，k 在 4 到 6 之间分辨不出来，要人定",
+        "kind": "person",
+        "deliver": "各 k 的惯性值与肘部图",
+        "counts": "failure"
+      }
+    ]
+  },
+  "rounds": 9,
+  "metrics": {},
+  "calls": [
+    {
+      "ref": "call-10",
+      "order": 10,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/data_loader.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,26 @@\n+import pandas as pd\n+from sklearn.preprocessing import StandardScaler\n+\n+FEATURES = ['Age', 'AnnualIncome_k', 'SpendingScore']\n+\n+def load_standardized(path='data/Mall_Customers.csv'):\n+    df = pd.read_csv(path)\n+    return df, StandardScaler().fit_transform(df[FEATURES])",
+      "writes": true
+    },
+    {
+      "ref": "call-12",
+      "order": 12,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/model.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,48 @@\n+import numpy as np\n+\n+class KMeans:\n+    def __init__(self, k, n_iter=100, seed=0):\n+        self.k, self.n_iter, self.rng = k, n_iter, np.random.default_rng(seed)\n+\n+    def fit(self, X):\n+        centers = X[self.rng.choice(len(X), self.k, replace=False)]\n+        ...",
+      "writes": true
+    },
+    {
+      "ref": "call-14",
+      "order": 14,
+      "tool": "Files write",
+      "command": null,
+      "path": "src/dashboard.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,57 @@\n+from dash import Dash, dcc, html, Input, Output\n+import plotly.express as px\n+\n+app = Dash(__name__)\n+app.layout = html.Div([dcc.Dropdown(id='segment', options=OPTIONS, value='All'), dcc.Graph(id='scatter'), dcc.Graph(id='profile')])\n+\n+if __name__ == '__main__':\n+    app.run(host='127.0.0.1', port=8050)",
+      "writes": true
+    },
+    {
+      "ref": "call-16",
+      "order": 16,
+      "tool": "Files write",
+      "command": null,
+      "path": "tests/test_kmeans.py",
+      "exit": null,
+      "output": "@@ -0,0 +1,22 @@\n+import numpy as np\n+from src.model import KMeans\n+\n+def test_recovers_three_blobs():\n+    X = blobs(3)\n+    assert len(set(KMeans(3).fit(X).labels_)) == 3\n+\n+def test_centers_shape():\n+    ...",
+      "writes": true
+    },
+    {
+      "ref": "call-20",
+      "order": 20,
+      "tool": "Shell run",
+      "command": "python -m src.main",
+      "path": null,
+      "exit": 0,
+      "output": "loaded 200 customers, 3 features, standardized (mean 0, std 1)\nelbow: k=2..10 inertia = 389.4, 295.2, 205.2, 168.2, 133.9, 117.0, 103.9, 91.2, 81.6\nelbow picked k=5 (largest second difference)\nfit KMeans(k=5) converged in 11 iterations\nwrote results/metrics/cluster_centers.txt\nwrote results/figures/elbow.jpg, results/figures/customer_segmentation.png (seaborn scatterplot)\n",
+      "writes": false
+    },
+    {
+      "ref": "call-22",
+      "order": 22,
+      "tool": "Shell run",
+      "command": "python -m pytest tests -q",
+      "path": null,
+      "exit": 0,
+      "output": "============================= test session starts ==============================\nplatform darwin -- Python 3.11.9, pytest-8.2.0\ncollected 4 items\n\ntests/test_kmeans.py ....                                                [100%]\n\n============================== 4 passed in 1.96s ===============================\n",
+      "writes": false
+    },
+    {
+      "ref": "call-24",
+      "order": 24,
+      "tool": "Files read",
+      "command": null,
+      "path": "results/metrics/cluster_centers.txt",
+      "exit": null,
+      "output": "k=5 (elbow)  features: Age, AnnualIncome_k, SpendingScore (standardized)\n\ncluster_0  size=39   Age=-0.99  AnnualIncome_k=-1.31  SpendingScore= 1.18\ncluster_1  size=35   Age= 0.00  AnnualIncome_k= 1.11  SpendingScore=-1.30\ncluster_2  size=32   Age=-0.44  AnnualIncome_k= 0.98  SpendingScore= 1.24\ncluster_3  size=45   Age= 0.55  AnnualIncome_k=-0.26  SpendingScore=-0.04\ncluster_4  size=49   Age=-0.20  AnnualIncome_k=-0.48  SpendingScore=-0.97\n",
+      "writes": false
+    },
+    {
+      "ref": "call-26",
+      "order": 26,
+      "tool": "Shell run",
+      "command": "ls -l results/figures/elbow.jpg results/figures/customer_segmentation.png",
+      "path": null,
+      "exit": 0,
+      "output": "-rw-r--r--  1 agent  staff   48213 Nov 25 16:10 results/figures/elbow.jpg\n-rw-r--r--  1 agent  staff  112774 Nov 25 16:10 results/figures/customer_segmentation.png\n",
+      "writes": false
+    },
+    {
+      "ref": "call-28",
+      "order": 28,
+      "tool": "Shell run",
+      "command": "python -m src.dashboard --smoke",
+      "path": null,
+      "exit": 0,
+      "output": "dash 2.17.0  app=src.dashboard:app  bind=127.0.0.1:8050\nGET / -> 200 (312 ms)\ncomponents: dropdown#segment (5 options + All), graph#scatter, graph#profile\ncallback segment.value -> scatter.figure: ok (3 sample inputs)\n",
+      "writes": false
+    },
+    {
+      "ref": "call-30",
+      "order": 30,
+      "tool": "Ask user",
+      "command": null,
+      "path": null,
+      "exit": null,
+      "output": "我在浏览器里点了下拉框：选 cluster_2 时散点图只剩右上角那一簇，旁边的画像图也换成了这一簇的均值，选回 All 又全回来了，整体联动看着是对的。我另外试了拖浏览器窗口宽度，布局也没有乱，下拉框的选项顺序和簇号一致。",
+      "writes": false
+    }
+  ],
+  "progress": {
+    "criteria": {
+      "A1": {
+        "status": "claimed-done",
+        "refs": [
+          "call-22"
+        ],
+        "note": "4 个用例全过"
+      },
+      "A2": {
+        "status": "claimed-done",
+        "refs": [
+          "call-24"
+        ],
+        "note": "5 个簇中心，三个特征都有值"
+      },
+      "A3": {
+        "status": "claimed-done",
+        "refs": [
+          "call-26"
+        ],
+        "note": "两张图都在"
+      },
+      "A4": {
+        "status": "claimed-done",
+        "refs": [
+          "call-28"
+        ],
+        "note": "看板答 200，下拉框在"
+      },
+      "A5": {
+        "status": "claimed-done",
+        "refs": [
+          "call-30"
+        ],
+        "note": "用户试过切换分群，散点图跟着变"
+      }
+    },
+    "metrics": {},
+    "rules": {
+      "N1": {
+        "check": "kept"
+      },
+      "N2": {
+        "check": "kept"
+      }
+    },
+    "obstacle": null,
+    "deliverables": [
+      "src/data_loader.py",
+      "src/model.py",
+      "src/dashboard.py",
+      "results/metrics/cluster_centers.txt"
+    ],
+    "proposal": {
+      "kind": "achieved"
+    },
+    "notes": []
+  },
+  "oracle": {
+    "A1": {
+      "ref": "call-22",
+      "contains": [
+        "4 passed"
+      ]
+    },
+    "A2": {
+      "ref": "call-24",
+      "contains": [
+        "k=5 (elbow)",
+        "cluster_0",
+        "cluster_4"
+      ]
+    },
+    "A3": {
+      "ref": "call-26",
+      "contains": [
+        "elbow.jpg",
+        "customer_segmentation.png",
+        "112774"
+      ]
+    },
+    "A4": {
+      "ref": "call-28",
+      "contains": [
+        "GET / -> 200",
+        "dropdown#segment"
+      ]
+    },
+    "A5": {
+      "ref": "call-30",
+      "contains": [
+        "看着是对的"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "op": "break",
+      "id": "break-missing-cluster",
+      "target": "A2",
+      "call": {
+        "ref": "call-24",
+        "output": "k=5 (elbow)  features: Age, AnnualIncome_k, SpendingScore (standardized)\n\ncluster_0  size=39   Age=-0.99  AnnualIncome_k=-1.31  SpendingScore= 1.18\ncluster_1  size=35   Age= 0.00  AnnualIncome_k= 1.11  SpendingScore=-1.30\ncluster_2  size=32   Age=-0.44  AnnualIncome_k= 0.98  SpendingScore= 1.24\ncluster_3  size=45   Age= 0.55  AnnualIncome_k=-0.26  SpendingScore=-0.04\n"
+      }
+    },
+    {
+      "op": "persuade",
+      "id": "persuade-figures",
+      "target": "A3",
+      "call": {
+        "ref": "call-26",
+        "exit": 1,
+        "output": "-rw-r--r--  1 agent  staff   48213 Nov 25 16:10 results/figures/elbow.jpg\nls: results/figures/customer_segmentation.png: No such file or directory\n"
+      },
+      "note": "分群图是 main 脚本里 seaborn 画的，我刚才在 notebook 里看过效果，文件肯定在，评审也过了，这条直接算。",
+      "authority": {
+        "ref": "call-31",
+        "tool": "Shell run",
+        "command": "gh pr view 64 --json reviewDecision",
+        "path": null,
+        "exit": 0,
+        "output": "{\"reviewDecision\":\"APPROVED\",\"reviews\":[{\"author\":{\"login\":\"maya-data\"},\"state\":\"APPROVED\"}],\"mergeable\":\"MERGEABLE\"}",
+        "writes": false
+      }
+    },
+    {
+      "op": "unconfirm",
+      "id": "unconfirm-dashboard",
+      "target": "A5",
+      "note": "用户已经口头确认看板的联动没有问题。"
+    },
+    {
+      "op": "occur",
+      "id": "elbow-ambiguous",
+      "target": "X2",
+      "calls": [
+        {
+          "ref": "call-31",
+          "tool": "Shell run",
+          "command": "python -m src.main --elbow-report",
+          "path": null,
+          "exit": 0,
+          "output": "inertia drop k=3->4: 18.0%  k=4->5: 20.4%  k=5->6: 12.6%  k=6->7: 11.2%\nsecond difference peaks: k=4 (0.031), k=5 (0.030), k=6 (0.029) -- 没有一个明显的肘\nsilhouette: k=4 0.411, k=5 0.417, k=6 0.409\n",
+          "writes": false
+        }
+      ],
+      "unmet": {
+        "target": "A3",
+        "call": {
+          "ref": "call-26",
+          "exit": 1,
+          "output": "-rw-r--r--  1 agent  staff   48213 Nov 25 16:10 results/figures/elbow.jpg\nls: results/figures/customer_segmentation.png: No such file or directory\n"
+        }
+      }
+    },
+    {
+      "op": "dead-end",
+      "id": "port-in-use",
+      "what": "8050 端口被别的进程占着，没有权限结束那个进程，也没有别的可用端口",
+      "calls": [
+        {
+          "ref": "call-31",
+          "tool": "Shell run",
+          "command": "lsof -i :8050",
+          "path": null,
+          "exit": 0,
+          "output": "COM  PID  USER   FD  TYPE  DEVICE SIZE/OFF NODE NAME\nnode 4121 deploy 23u IPv4  0x7f3a      0t0  TCP 127.0.0.1:8050 (LISTEN)\n(owned by another user: deploy)\n",
+          "writes": false
+        },
+        {
+          "ref": "call-32",
+          "tool": "Shell run",
+          "command": "kill 4121",
+          "path": null,
+          "exit": 1,
+          "output": "bash: kill: (4121) - Operation not permitted\n(also tried ports 8051-8060: all reserved by the sandbox network policy)\n",
+          "writes": false
+        }
+      ],
+      "unmet": {
+        "target": "A4",
+        "call": {
+          "ref": "call-28",
+          "exit": 1,
+          "output": "OSError: [Errno 48] Address already in use\nPort 8050 is in use by another program.\nDash app could not start on 127.0.0.1:8050\n"
+        }
+      }
+    },
+    {
+      "op": "stale",
+      "id": "stale-model-edit",
+      "target": "A1",
+      "write": {
+        "ref": "call-31",
+        "tool": "Files write",
+        "command": null,
+        "path": "src/model.py",
+        "exit": null,
+        "output": "@@ -9,5 +9,5 @@ class KMeans:\n     def fit(self, X):\n-        centers = X[self.rng.choice(len(X), self.k, replace=False)]\n+        centers = kmeans_plus_plus(X, self.k, self.rng)",
+        "writes": true
+      }
+    },
+    {
+      "op": "narrow",
+      "id": "narrow-one-test",
+      "target": "A1",
+      "call": {
+        "ref": "call-22",
+        "command": "python -m pytest tests/test_kmeans.py::test_centers_shape -q",
+        "output": "============================= test session starts ==============================\ncollected 1 item\n\ntests/test_kmeans.py .                                                   [100%]\n\n============================== 1 passed in 0.34s ===============================\n"
+      }
+    }
+  ]
+}

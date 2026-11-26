@@ -74,6 +74,24 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   'dispatch-tool': { provides: [], injects: ['dispatchPrincipal'], phase: 'composition' },
+  goal: {
+    provides: ['goals', 'goalChecking', 'goalReconciling'],
+    injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
+    phase: 'composition',
+  },
+  'goal-session': {
+    provides: [],
+    injects: ['session', 'sessionInputSources', 'definitionMappings', 'goalPrincipal'],
+    phase: 'composition',
+  },
+  'goal-command': { provides: [], injects: ['commandEntrySources'] },
+  'goal-decisions': {
+    provides: [],
+    injects: ['modelRuntime', 'modelDecisionPreparation'],
+    phase: 'composition',
+  },
+  'system-extensions': { provides: ['harnessSystemExtensions'] },
+  'goal-check': { provides: [], injects: ['harnessSystemExtensions'] },
   canvas: {
     provides: ['canvas', 'canvasChanges'],
     injects: ['storage', 'dynamis', 'tenantDomainLookup'],
@@ -415,7 +433,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-profiles': { provides: ['modelProfiles'], injects: ['modelPreferences'] },
   'model-tokenizers': { provides: ['modelTokenizers'], phase: 'composition' },
   'model-request-preparation': {
-    provides: ['modelRequestPreparation'],
+    provides: ['modelRequestPreparation', 'modelDecisionPreparation'],
     injects: ['modelCommands', 'modelTokenizers'],
   },
   'model-credential': {
@@ -553,6 +571,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'session-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'goal-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'slash-command-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'mcp-access': { injects: ['accessRegistry', 'principalIssuer'] },

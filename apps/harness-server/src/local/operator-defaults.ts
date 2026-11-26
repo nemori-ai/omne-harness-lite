@@ -1,3 +1,4 @@
+import { GOAL_DECISIONS_CONSUMER } from '@omne-harness/goal-decisions'
 import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
 import { isSecretName, type ServerSettings, type StorageLimits } from './settings.ts'
@@ -180,6 +181,11 @@ function modelRecords(combinationVersion: string) {
         evidence: { ...ADOPTION, name: 'local-single-user/compaction-consumer-evidence' },
         work: { kind: 'exempt' },
       },
+      {
+        consumerOwner: GOAL_DECISIONS_CONSUMER,
+        evidence: { ...ADOPTION, name: 'local-single-user/goal-decisions-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
     ],
     limits: {
       scanPageCalls: 100,
@@ -225,6 +231,7 @@ function modelRecords(combinationVersion: string) {
       transportLimits: {
         connectTimeoutMs: 10_000,
         connectRetry: { backoffMs: [500, 1000] },
+        maxDecisionBytes: 524_288,
         maxErrorBodyBytes: 4096,
         maxEventBytes: 1_048_576,
         json: {
@@ -425,11 +432,15 @@ const AGENT_HOST = {
   toolConcurrency: 8,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
   instanceIdleMs: 60_000,
+  maxRunSteps: 500,
 } as const
 
 const LOCAL_NODE = 'local'
 
 const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
+
+const GOAL_POLICY = { reconcileIntervalMs: 5_000 }
+const GOAL_DECISIONS_POLICY = { pollMs: 50, deadlineMs: 30_000 }
 
 const CANVAS_POLICY = {
   sheet: { width: 6400, height: 4000, grid: 8 },
@@ -566,6 +577,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Canvas: { resultMaxBytes: 65_536 },
           Sessions: { resultMaxBytes: 131_072 },
           Agents: { resultMaxBytes: 1_048_576 },
+          Goal: { resultMaxBytes: 1_048_576 },
           SwitchWorkspace: { resultMaxBytes: 65_536 },
           OmneExtensions: { resultMaxBytes: 131_072 },
           OmneExtensionPoints: { resultMaxBytes: 131_072 },
@@ -620,6 +632,8 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
       : []),
     ...(rows.has('dispatch') ? ([['dispatch', { policy: DISPATCH_POLICY }]] as const) : []),
+    ...(rows.has('goal') ? ([['goal', { policy: GOAL_POLICY }]] as const) : []),
+    ...(rows.has('goal-decisions') ? ([['goal-decisions', GOAL_DECISIONS_POLICY]] as const) : []),
     ...(rows.has('canvas') ? ([['canvas', { policy: CANVAS_POLICY }]] as const) : []),
     ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
     ['execution-host', { stateDirectory: locations.hostFilesDir }],

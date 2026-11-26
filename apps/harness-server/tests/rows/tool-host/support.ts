@@ -96,6 +96,7 @@ export const TEST_CONSTRUCTION = Object.freeze({
   Canvas: { resultMaxBytes: 4096 },
   Sessions: { resultMaxBytes: 4096 },
   Agents: { resultMaxBytes: 4096 },
+  Goal: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },
   OmneExtensionPoints: { resultMaxBytes: 4096 },
   OmneExtensions: { resultMaxBytes: 4096 },

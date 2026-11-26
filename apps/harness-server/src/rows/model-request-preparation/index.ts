@@ -2,9 +2,14 @@ import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   modelCommandsKey,
   modelCredentialKey,
+  modelDecisionPreparationKey,
   modelRequestPreparationKey,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { createModelRequestPreparationPlugin } from '@omne-harness/model-host-local/cordis'
+import { createDecisionPreparation } from '@omne-harness/model-host-local'
+import {
+  createModelRequestPreparationPlugin,
+  serveModelDecisionPreparation,
+} from '@omne-harness/model-host-local/cordis'
 import { modelTokenizersKey } from '@omne-harness/tokenizer-tiktoken/cordis'
 import { defineRow } from '../../row.ts'
 import { modelRequestPreparationConfig, type ModelRequestPreparationConfig } from './config.ts'
@@ -27,9 +32,12 @@ const plugin: Plugin.Object = {
         'model-request-preparation: the modelHostAuthority entry object of this release is not installed',
       )
     const reader = readers.bindReader(ctx)
+    const supplierOf = credentialLayerSupplier(() => ctx.get(modelCredentialKey))
+    // A decision request stands on no profile of the chat selection: only the credential layer is shared.
+    serveModelDecisionPreparation(ctx, createDecisionPreparation({ supplierOf }))
     const preparation = createModelRequestPreparationPlugin({
       bindings,
-      supplierOf: credentialLayerSupplier(() => ctx.get(modelCredentialKey)),
+      supplierOf,
       readFacts: commands => qualifyingReads(commands, access => reader.qualifyRead(access)),
     })
     await ctx.plugin(preparation.plugin, { maxCitedCalls: config.maxCitedCalls })
@@ -40,7 +48,7 @@ export const modelRequestPreparationRow = defineRow({
   row: 'model-request-preparation',
   implementation: 'real',
   manifest: {
-    provides: [modelRequestPreparationKey],
+    provides: [modelRequestPreparationKey, modelDecisionPreparationKey],
     injects: [modelCommandsKey, modelTokenizersKey],
     sameProviderGroup: null,
   },

@@ -13,6 +13,12 @@ import { isDecisionResponse, prepareDecision } from './codec.ts'
 import type { DecisionFailure, DecisionRequest, DecisionResponse } from './contract.ts'
 
 export { OPENROUTER_DECISION_MODELS } from './contract.ts'
+export {
+  DECISIONS_OWNER,
+  decisionSupplierOf,
+  isDecisionSupplier,
+  type DecisionSupplier,
+} from './binding.ts'
 export type * from './contract.ts'
 
 export type OpenRouterDecisionsConfig = Readonly<{

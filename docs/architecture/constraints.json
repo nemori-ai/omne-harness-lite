@@ -97,6 +97,11 @@
       "source": "packages/dispatch/SPEC.md"
     },
     {
+      "id": "goal",
+      "label": "目标",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
       "id": "plugin",
       "label": "Plugin 的清单与送达",
       "source": "packages/plugin/SPEC.md"
@@ -1533,6 +1538,110 @@
       "source": "packages/dispatch/SPEC.md"
     },
     {
+      "id": "packages/goal/goal-contract",
+      "paths": ["packages/goal/goal-contract/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "adopted",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-bench",
+      "paths": ["packages/goal/goal-bench/src/**"],
+      "layer": "unknown",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-cordis-contract",
+      "paths": ["packages/goal/goal-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-local",
+      "paths": ["packages/goal/goal-local/src/**"],
+      "layer": "assembly",
+      "domains": ["goal"],
+      "status": "adopted",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal",
+      "paths": ["packages/goal/goal/src/**"],
+      "layer": "unknown",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-session",
+      "paths": ["packages/goal/goal-session/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-tools",
+      "paths": ["packages/goal/goal-tools/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-command",
+      "paths": ["packages/goal/goal-command/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-decisions",
+      "paths": ["packages/goal/goal-decisions/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-check",
+      "paths": ["packages/goal/goal-check/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-protocol",
+      "paths": ["packages/goal/goal-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-access",
+      "paths": ["packages/goal/goal-access/src/**"],
+      "layer": "unknown",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "packages/goal/goal-ui",
+      "paths": ["packages/goal/goal-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["goal"],
+      "status": "candidate",
+      "source": "packages/goal/SPEC.md"
+    },
+    {
       "id": "packages/canvas/canvas-contract",
       "paths": [
         "packages/canvas/canvas-contract/src/**"
@@ -2539,6 +2648,139 @@
       "from": ["packages/dispatch/dispatch-cordis-contract"],
       "to": ["packages/dispatch/dispatch", "packages/dispatch/dispatch-local"],
       "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "DIR-CORE-GOAL",
+      "from": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/pi-ai-transport",
+        "packages/tool/tool-access",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-ui"
+      ],
+      "to": [
+        "packages/goal/goal-contract",
+        "packages/goal/goal",
+        "packages/goal/goal-cordis-contract",
+        "packages/goal/goal-local",
+        "packages/goal/goal-session",
+        "packages/goal/goal-tools",
+        "packages/goal/goal-command",
+        "packages/goal/goal-decisions",
+        "packages/goal/goal-check"
+      ],
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "DIR-GOAL-OUTWARD",
+      "from": ["packages/goal/goal-contract", "packages/goal/goal"],
+      "to": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/schedule/schedule",
+        "packages/schedule/schedule-access",
+        "packages/schedule/schedule-contract",
+        "packages/schedule/schedule-cordis-contract",
+        "packages/schedule/schedule-local",
+        "packages/schedule/schedule-protocol",
+        "packages/schedule/schedule-tools",
+        "packages/schedule/schedule-ui",
+        "packages/calendar/calendar",
+        "packages/calendar/calendar-access",
+        "packages/calendar/calendar-contract",
+        "packages/calendar/calendar-cordis-contract",
+        "packages/calendar/calendar-local",
+        "packages/calendar/calendar-protocol",
+        "packages/calendar/calendar-tools",
+        "packages/calendar/calendar-ui",
+        "packages/human-intervention/human-intervention-access",
+        "packages/human-intervention/human-intervention-protocol",
+        "packages/human-intervention/human-intervention-tool",
+        "packages/human-intervention/human-intervention-ui",
+        "packages/notification/notification-contract",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local",
+        "packages/notification/notification",
+        "packages/notification/notification-ui",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-access"
+      ],
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "DIR-GOAL-PURE",
+      "from": ["packages/goal/goal-contract", "packages/goal/goal"],
+      "to": [
+        "packages/goal/goal-cordis-contract",
+        "packages/goal/goal-local",
+        "packages/goal/goal-session",
+        "packages/goal/goal-tools",
+        "packages/goal/goal-command",
+        "packages/goal/goal-decisions",
+        "packages/goal/goal-check",
+        "packages/goal/goal-protocol",
+        "packages/goal/goal-access",
+        "packages/goal/goal-ui"
+      ],
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "DIR-GOAL-BENCH",
+      "from": [
+        "packages/goal/goal-contract",
+        "packages/goal/goal",
+        "packages/goal/goal-cordis-contract",
+        "packages/goal/goal-local",
+        "packages/goal/goal-session",
+        "packages/goal/goal-tools",
+        "packages/goal/goal-command",
+        "packages/goal/goal-decisions",
+        "packages/goal/goal-check",
+        "packages/goal/goal-protocol",
+        "packages/goal/goal-access",
+        "packages/goal/goal-ui"
+      ],
+      "to": ["packages/goal/goal-bench"],
+      "source": "packages/goal/SPEC.md"
+    },
+    {
+      "id": "DIR-GOAL-DEFINITION",
+      "from": ["packages/goal/goal-cordis-contract"],
+      "to": ["packages/goal/goal", "packages/goal/goal-local"],
+      "source": "packages/goal/SPEC.md"
     },
     {
       "id": "DIR-CORE-CANVAS",

@@ -72,6 +72,7 @@ describe('calendar and calendar-access rows', () => {
         )
         expect([...groups].sort()).toEqual([
           'calendar/environment',
+          'goal/judge',
           'session/intake',
           'workspace/outside-files',
         ])

@@ -31,6 +31,13 @@
 - `CostLookupState` · `cost-lookup.d.ts`
 - `CredentialLayer` · `root.d.ts`
 - `CustodyState` · `result.d.ts`
+- `DECISION_REPRESENTATION` · `decision-call.d.ts`
+- `DecisionAnswer` · `decision-call.d.ts`
+- `DecisionAnswers` · `decision-call.d.ts`
+- `DecisionAsk` · `decision-call.d.ts`
+- `DecisionJson` · `decision-call.d.ts`
+- `DecisionQuestion` · `decision-call.d.ts`
+- `DecisionState` · `decision-call.d.ts`
 - `DispatchId` · `root.d.ts`
 - `DispatchInstants` · `call-surface.d.ts`
 - `DispatchProgress` · `result.d.ts`
@@ -157,6 +164,10 @@
 - `applyModelStreamDelta` · `model-stream-values.d.ts`
 - `compareOutputCursors` · `identity-values.d.ts`
 - `costLookupOf` · `cost-lookup.d.ts`
+- `decisionAnswersBlock` · `decision-call.d.ts`
+- `decisionAnswersOf` · `decision-call.d.ts`
+- `decisionAskMessage` · `decision-call.d.ts`
+- `decisionAskOf` · `decision-call.d.ts`
 - `decodeDispatchId` · `identity-values.d.ts`
 - `decodeModelCallId` · `identity-values.d.ts`
 - `decodeModelDiagnosticCursor` · `identity-values.d.ts`
@@ -254,6 +265,7 @@
 - `ModelCommands` · `provider-protocol.d.ts`
 - `ModelConsumerOwnerDeclaration` · `consumer-owner.d.ts`
 - `ModelContentAuthority` · `profile-source.d.ts`
+- `ModelDecisionPreparation` · `decision-preparation.d.ts`
 - `ModelDriveInput` · `driver.d.ts`
 - `ModelDriver` · `driver.d.ts`
 - `ModelDriverBinding` · `driver.d.ts`
@@ -1137,6 +1149,78 @@ export type ModelPreferencesPort<P = unknown> = {
 };
 ```
 
+## 声明文件 `decision-call.d.ts`
+
+```ts
+import { type Message } from '@omne-harness/message';
+import type { ResultPart } from './call-surface.ts';
+import type { ModelBlock } from './result.ts';
+import type { Adoption, FixedModelRequest } from './root.ts';
+export type DecisionJson = string | number | boolean | null | {
+    readonly [key: string]: DecisionJson;
+} | readonly DecisionJson[];
+export type DecisionState = Exclude<DecisionJson, number | boolean | null>;
+export type DecisionQuestion = Readonly<{
+    instructions?: DecisionState | null;
+}> & (Readonly<{
+    type: 'noul';
+    criteria?: Partial<Readonly<Record<'true' | 'false', DecisionState | null>>>;
+}> | Readonly<{
+    type: 'choice';
+    criteria: Readonly<Record<string, DecisionState | null>>;
+}> | Readonly<{
+    type: 'score';
+    criteria: readonly DecisionState[];
+}>);
+export type DecisionAsk = Readonly<{
+    state: DecisionState;
+    questions: Readonly<Record<string, DecisionQuestion>>;
+}>;
+export type DecisionAnswer = Readonly<{
+    type: 'refusal';
+}> | Readonly<{
+    type: 'noul';
+    noul: number;
+    confidence?: number;
+}> | Readonly<{
+    type: 'choice';
+    choice: string;
+    confidence?: number;
+    probabilities?: Readonly<Record<string, number>>;
+}> | Readonly<{
+    type: 'score';
+    score: number;
+    legend?: Readonly<Record<string, DecisionState>>;
+    confidence?: number;
+    probabilities?: Readonly<Record<string, number>>;
+}>;
+export type DecisionAnswers = Readonly<Record<string, DecisionAnswer>>;
+export declare const DECISION_REPRESENTATION: Adoption;
+export declare function decisionAskMessage(id: string, ask: DecisionAsk): Message | null;
+export declare function decisionAskOf(request: Pick<FixedModelRequest, 'system' | 'messages' | 'tools'>): Readonly<{
+    state: unknown;
+    questions: unknown;
+}> | null;
+export declare function decisionAnswersBlock(answers: DecisionAnswers): ModelBlock;
+export declare function decisionAnswersOf(parts: readonly ResultPart[]): DecisionAnswers | null;
+```
+
+## 声明文件 `decision-preparation.d.ts`
+
+```ts
+import type { DecisionAsk } from './decision-call.ts';
+import type { Reply } from './result.ts';
+import type { Access, Adoption, FixedModelRequest } from './root.ts';
+export interface ModelDecisionPreparation<P> {
+    prepare(input: Access<P> & Readonly<{
+        model: string;
+        message: string;
+        ask: DecisionAsk;
+        source: Adoption;
+    }>): Reply<FixedModelRequest>;
+}
+```
+
 ## 声明文件 `diagnostics.d.ts`
 
 ```ts
@@ -1352,6 +1436,8 @@ export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts
 export { encodeModelOutputV1, decodeModelOutputV1, projectModelOutputV1, } from './model-output-v1.ts';
 export type { ModelOutputV1, ModelOutputV1Snapshot, ModelOutputV1Delta, ModelOutputV1Failure, } from './model-output-v1.ts';
 export type * from './call-surface.ts';
+export type * from './decision-call.ts';
+export { DECISION_REPRESENTATION, decisionAnswersBlock, decisionAnswersOf, decisionAskMessage, decisionAskOf, } from './decision-call.ts';
 export type * from './dispatch-facts.ts';
 export type { MaterializationReceipt, MaterializedMedium, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
 export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ReasoningEffortMapping, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
@@ -2543,6 +2629,7 @@ export type { ActorRef, FixedRequestHead } from '../root.ts';
 export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, CallOrigin, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
 export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayBinding, ReplayDiagnostic, ReplayOmission, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
+export type { ModelDecisionPreparation } from '../decision-preparation.ts';
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
 export type { ModelContentAuthority, ModelProfileSnapshot, ModelProfileSource, } from '../profile-source.ts';
 export type { ModelConsumerOwnerDeclaration } from '../consumer-owner.ts';

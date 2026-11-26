@@ -16,7 +16,7 @@ import type {
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ConnectionReservation } from './capacity.ts'
 import type { CheckedConfig, CheckedRoute } from './config.ts'
-import type { PiFamilyBinding } from './family.ts'
+import type { PiSendBinding } from './family.ts'
 import { startExchange, type ExchangeRefusal, type HttpExchange } from './http.ts'
 import { endedBeforeSend, factsOfSend, noFacts } from './fact-stream.ts'
 import { retryBeforeRequestSent } from './retry.ts'
@@ -33,7 +33,7 @@ export type MaterializeInput = Readonly<{
   supplier: Supplier
   declaration: ReplayDeclaration
   resent: TransportDispatch['resent']
-  binding: PiFamilyBinding
+  binding: PiSendBinding
   signal: AbortSignal
 }>
 
@@ -143,7 +143,7 @@ function createMaterialized(
       headers: {
         ...(secret !== null && { authorization: `Bearer ${secret}` }),
         'content-type': 'application/json',
-        accept: 'text/event-stream',
+        accept: route.framing === 'whole' ? 'application/json' : 'text/event-stream',
       },
       body: held.body,
       connectTimeoutMs: config.limits.connectTimeoutMs,

@@ -14,8 +14,9 @@ import type {
 import { verifyRetryDecision } from '@omne-harness/model'
 import { COST_LOOKUP_OWNER } from '@omne-harness/model-host-local'
 import type { ModelCommandsEvidence, ModelInitialExecution } from '@omne-harness/model/commands'
-import { fail } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { DEFAULT_COMPACTION_CONSUMER } from '@omne-harness/context-compaction'
+import { GOAL_DECISIONS_CONSUMER, verifyDecisionHandoff } from '@omne-harness/goal-decisions'
 import type { CompactionModelEvidence } from './compaction-evidence.ts'
 
 export type EvidenceSources = Readonly<{
@@ -62,6 +63,15 @@ export function createModelEvidence(
           sources.compaction?.()?.verify(given) ??
           unavailable('compaction-evidence', 'provider-not-attached')
         )
+      if (given.consumer.owner === GOAL_DECISIONS_CONSUMER) {
+        const proof = verifyDecisionHandoff(given)
+        return proof === null
+          ? fail<ModelFailure>({
+              kind: 'handoff-invalid',
+              reason: 'not the proof of this decision call',
+            })
+          : succeed(proof)
+      }
       if (given.consumer.owner !== AGENT_CONSUMER_OWNER)
         return unavailable('consumer-evidence', 'owner-not-wired')
       return (

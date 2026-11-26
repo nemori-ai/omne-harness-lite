@@ -34,6 +34,7 @@ export const NOTIFICATION_TOOLS_PACKAGE = '@omne-harness/notification-tools' as 
 export const CANVAS_TOOLS_PACKAGE = '@omne-harness/canvas-tools' as const
 export const SESSION_TOOLS_PACKAGE = '@omne-harness/session-tools' as const
 export const DISPATCH_TOOLS_PACKAGE = '@omne-harness/dispatch-tools' as const
+export const GOAL_TOOLS_PACKAGE = '@omne-harness/goal-tools' as const
 export const WORKSPACE_TOOLS_PACKAGE = '@omne-harness/workspace-tools' as const
 export const PLUGIN_TOOLS_PACKAGE = '@omne-harness/plugin-tools' as const
 export const ASSETS_TOOLS_PACKAGE = '@omne-harness/assets-tools' as const
@@ -46,6 +47,7 @@ export const RELEASE_PACKAGES = Object.freeze([
   CANVAS_TOOLS_PACKAGE,
   SESSION_TOOLS_PACKAGE,
   DISPATCH_TOOLS_PACKAGE,
+  GOAL_TOOLS_PACKAGE,
   WORKSPACE_TOOLS_PACKAGE,
   PLUGIN_TOOLS_PACKAGE,
   ASSETS_TOOLS_PACKAGE,
@@ -150,6 +152,13 @@ export const RELEASE_TOOLS = Object.freeze([
     package: DISPATCH_TOOLS_PACKAGE,
     capabilities: Object.freeze([] as string[]),
     export: 'agentsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Goal',
+    package: GOAL_TOOLS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
+    export: 'goalToolModule',
     construction: Object.freeze(['resultMaxBytes']),
   }),
   Object.freeze({

@@ -471,6 +471,36 @@
       "config": {}
     },
     {
+      "id": "goal",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-session",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-command",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-decisions",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "system-extensions",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-check",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "canvas",
       "plugin": "stubPlugin",
       "config": {}
@@ -507,6 +537,11 @@
     },
     {
       "id": "human-intervention-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-access",
       "plugin": "stubPlugin",
       "config": {}
     },

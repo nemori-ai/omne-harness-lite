@@ -988,6 +988,66 @@
               "pending": false
             }
           ]
+        },
+        {
+          "title": "结构化决策的请求与答案",
+          "names": [
+            {
+              "name": "DecisionJson",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionState",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionQuestion",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionAsk",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionAnswer",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionAnswers",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DECISION_REPRESENTATION",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decisionAskMessage",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decisionAskOf",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decisionAnswersBlock",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decisionAnswersOf",
+              "kind": "value",
+              "pending": false
+            }
+          ]
         }
       ]
     },
@@ -1489,6 +1549,16 @@
             {
               "name": "selectCredentialLayer",
               "kind": "value",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "结构化决策的请求与答案",
+          "names": [
+            {
+              "name": "ModelDecisionPreparation",
+              "kind": "type",
               "pending": false
             }
           ]

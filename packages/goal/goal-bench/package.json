@@ -1,0 +1,38 @@
+{
+  "name": "@omne-harness/goal-bench",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The bench of the goal judge: cases, replay with a reply cache, scoring and reports. It is not part of the release",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "bench": "node --experimental-strip-types src/cli.ts"
+  },
+  "dependencies": {
+    "@omne-harness/goal-contract": "workspace:*",
+    "@omne-harness/pi-ai-transport": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

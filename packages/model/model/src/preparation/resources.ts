@@ -33,7 +33,8 @@ export interface PreparationBindingSource {
 }
 
 export type SupplierPort<P> = (
-  input: Access<P> & Readonly<{ profile: ModelProfile; supplier: ProfileSupplier }>,
+  input: Access<P> &
+    Readonly<{ profile: Pick<ModelProfile, 'identity'>; supplier: ProfileSupplier }>,
 ) => Outcome<Supplier, ModelFailure>
 
 export type ModelPreparationOptions<P> = Readonly<{

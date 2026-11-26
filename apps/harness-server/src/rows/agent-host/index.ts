@@ -45,6 +45,7 @@ export type AgentHostRowInput = Readonly<{
   enabledExtensionsOf?: (
     ctx: Context,
   ) => NonNullable<AgentHostLocalPluginInput['enabledExtensions']>
+  systemExtensionsOf?: (ctx: Context) => NonNullable<AgentHostLocalPluginInput['systemExtensions']>
   measure?: AgentMeasure
   lostContact?: NonNullable<AgentHostLocalPluginInput['lostContact']>
 }>
@@ -157,6 +158,9 @@ export function createAgentHostRow(input: AgentHostRowInput = {}) {
       ...(input.enabledExtensionsOf === undefined
         ? {}
         : { enabledExtensions: input.enabledExtensionsOf(ctx) }),
+      ...(input.systemExtensionsOf === undefined
+        ? {}
+        : { systemExtensions: input.systemExtensionsOf(ctx) }),
       measure: input.measure ?? agentMeasureOf(ctx),
       ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
     }),

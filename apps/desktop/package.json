@@ -41,6 +41,8 @@
     "@omne-harness/client-assembly": "workspace:*",
     "@omne-harness/dynamis": "workspace:*",
     "@omne-harness/dynamis-cordis": "workspace:*",
+    "@omne-harness/goal-protocol": "workspace:*",
+    "@omne-harness/goal-ui": "workspace:*",
     "@omne-harness/human-intervention-protocol": "workspace:*",
     "@omne-harness/human-intervention-ui": "workspace:*",
     "@omne-harness/identity-protocol": "workspace:*",

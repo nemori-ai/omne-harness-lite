@@ -151,6 +151,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
         evidence: { ...MODEL_TEST_ADOPTION, name: 'compaction-consumer-evidence' },
         work: { kind: 'exempt' },
       },
+      {
+        consumerOwner: '@omne-harness/goal-decisions',
+        evidence: { ...MODEL_TEST_ADOPTION, name: 'goal-decisions-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
     ],
     limits: {
       scanPageCalls: 100,
@@ -196,6 +201,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
         connectRetry: { backoffMs: [500, 1000] },
         maxErrorBodyBytes: 4096,
         maxEventBytes: 1_048_576,
+        maxDecisionBytes: 524_288,
         json: {
           maxBytes: 1_048_576,
           maxDepth: 64,
@@ -303,6 +309,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Canvas: { resultMaxBytes: 65_536 },
       Sessions: { resultMaxBytes: 131_072 },
       Agents: { resultMaxBytes: 1_048_576 },
+      Goal: { resultMaxBytes: 1_048_576 },
       SwitchWorkspace: { resultMaxBytes: 65_536 },
       OmneExtensionPoints: { resultMaxBytes: 131_072 },
       OmneExtensions: { resultMaxBytes: 131_072 },
@@ -374,6 +381,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
 /** A whole policy, as an operator gives it: the release layer carries no numbers. */
 /** The registry is walked often, so a test does not wait long for a step a lost wake-up left. */
 export const DISPATCH_POLICY = { maxOpen: 3, reconcileIntervalMs: 1000 }
+export const GOAL_POLICY = { reconcileIntervalMs: 1000 }
 
 export const NOTIFICATION_POLICY = {
   bodyLength: 4096,
@@ -497,6 +505,8 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
       { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
+      { kind: 'replace', id: 'goal', config: { policy: GOAL_POLICY } },
+      { kind: 'replace', id: 'goal-decisions', config: { pollMs: 20, deadlineMs: 30_000 } },
       { kind: 'replace', id: 'canvas', config: { policy: CANVAS_POLICY } },
       { kind: 'replace', id: 'workspace', config: { node: 'local' } },
       {

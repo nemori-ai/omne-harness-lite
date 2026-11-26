@@ -123,9 +123,12 @@ describe('the conditions of a current Authority', () => {
     expect(second).toEqual(first)
   })
 
-  it('an auto-drive tenant default is the continue directive', async () => {
+  it('an auto-drive tenant default asks for the completion to be evaluated too: whether the round goes on is checked where it would end', async () => {
     const f = await provided('conditions-auto-default', { defaults: 'auto-drive' })
-    expect(ok(await f.read()).progression).toEqual({ kind: 'continue', basis: MODES_BASIS })
+    expect(ok(await f.read()).progression).toEqual({
+      kind: 'evaluate-completion',
+      basis: MODES_BASIS,
+    })
   })
 
   it('a declared collaboration change wins over the tenant default, with its own authorization', async () => {
@@ -139,7 +142,7 @@ describe('the conditions of a current Authority', () => {
       }),
     )
     const read = ok(await f.read())
-    expect(read.progression).toEqual({ kind: 'continue', basis: authorization })
+    expect(read.progression).toEqual({ kind: 'evaluate-completion', basis: authorization })
     expect(f.asked).toEqual([])
     ok(
       await change(f.s, 'mode-2', {

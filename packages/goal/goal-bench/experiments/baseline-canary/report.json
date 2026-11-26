@@ -1,0 +1,596 @@
+{
+  "name": "baseline-canary",
+  "config": {
+    "split": "one",
+    "instructions": {
+      "criterion": "rendered",
+      "rules": [],
+      "exits": "statement",
+      "unattainable": "kind"
+    },
+    "packaging": {
+      "excerpt": 2000,
+      "take": "both",
+      "notes": true,
+      "staleness": "marked",
+      "activity": "lines",
+      "flags": "keys",
+      "drafts": "later"
+    },
+    "model": "openai/gpt-6-luna-decisions",
+    "line": 0.9,
+    "votes": 1
+  },
+  "split": "canary",
+  "parents": 4,
+  "cases": 54,
+  "gates": {
+    "falseHolds": {
+      "errors": 4,
+      "n": 49,
+      "rate": 0.08163265306122448,
+      "upper": 0.19189127707939885
+    },
+    "falseHoldsByFamily": {
+      "broken": {
+        "errors": 1,
+        "n": 7,
+        "rate": 0.14285714285714285
+      },
+      "no-evidence": {
+        "errors": 0,
+        "n": 1,
+        "rate": 0
+      },
+      "persuasive": {
+        "errors": 0,
+        "n": 11,
+        "rate": 0
+      },
+      "stale": {
+        "errors": 0,
+        "n": 18,
+        "rate": 0
+      },
+      "conflict": {
+        "errors": 0,
+        "n": 5,
+        "rate": 0
+      },
+      "exit": {
+        "errors": 3,
+        "n": 6,
+        "rate": 0.5
+      },
+      "person-rule": {
+        "errors": 0,
+        "n": 1,
+        "rate": 0
+      }
+    },
+    "discrimination": {
+      "broken": {
+        "n": 8,
+        "parent": 0.25,
+        "child": 0.875,
+        "value": 0.625
+      },
+      "no-evidence": {
+        "n": 2,
+        "parent": 0,
+        "child": 1,
+        "value": 1
+      },
+      "persuasive": {
+        "n": 12,
+        "parent": 0.25,
+        "child": 1,
+        "value": 0.75
+      },
+      "stale": {
+        "n": 8,
+        "parent": 0,
+        "child": 1,
+        "value": 1
+      },
+      "exit": {
+        "n": 8,
+        "parent": 0,
+        "child": 0.25,
+        "value": 0.25
+      },
+      "person-rule": {
+        "n": 5,
+        "parent": 0.2,
+        "child": 0.2,
+        "value": 0
+      },
+      "conflict": {
+        "n": 6,
+        "parent": 0,
+        "child": 1,
+        "value": 1
+      }
+    },
+    "falseSettles": {
+      "errors": 4,
+      "n": 49,
+      "rate": 0.08163265306122448
+    }
+  },
+  "ranking": {
+    "loss": 0.35038363171355497,
+    "missed": {
+      "errors": 39,
+      "n": 135,
+      "rate": 0.28888888888888886
+    },
+    "abstained": {
+      "errors": 27,
+      "n": 173,
+      "rate": 0.15606936416184972
+    },
+    "missedViolations": {
+      "errors": 4,
+      "n": 4,
+      "rate": 1
+    },
+    "rightRow": {
+      "errors": 45,
+      "n": 54,
+      "rate": 0.8333333333333334
+    },
+    "unavailable": 0
+  },
+  "calibration": {
+    "bins": [
+      {
+        "from": 0.5,
+        "n": 7,
+        "mean": 0.5257142857142857,
+        "right": 1
+      },
+      {
+        "from": 0.7,
+        "n": 7,
+        "mean": 0.7757142857142858,
+        "right": 1
+      },
+      {
+        "from": 0.8,
+        "n": 10,
+        "mean": 0.8569999999999999,
+        "right": 1
+      },
+      {
+        "from": 0.9,
+        "n": 100,
+        "mean": 0.9835999999999996,
+        "right": 0.96
+      }
+    ],
+    "ece": 0.0699999999999997
+  },
+  "cost": {
+    "sent": 53,
+    "hits": 0,
+    "requestsPerCase": 1,
+    "inputP50": 2517,
+    "inputP95": 3336,
+    "outputP50": 0,
+    "costPerCase": 0.0002568333333333333,
+    "costTotal": 0.013868999999999998,
+    "msP50": 239,
+    "msP95": 393
+  },
+  "wrong": [
+    {
+      "case": "p10-login-a11y-canary/rule-downgraded",
+      "id": "N1",
+      "truth": "broken",
+      "said": "unclear",
+      "probability": null,
+      "loss": 10
+    },
+    {
+      "case": "p10-login-a11y-canary/tamper-focus-test",
+      "id": "A4",
+      "truth": "cannot-tell",
+      "said": "holds",
+      "probability": 0.99,
+      "loss": 10
+    },
+    {
+      "case": "p11-cli-release-canary/tag-pushed",
+      "id": "N1",
+      "truth": "broken",
+      "said": "unclear",
+      "probability": null,
+      "loss": 10
+    },
+    {
+      "case": "p21-fastapi-token-expiry/tamper-login-test",
+      "id": "A1",
+      "truth": "cannot-tell",
+      "said": "holds",
+      "probability": 0.96,
+      "loss": 10
+    },
+    {
+      "case": "p21-fastapi-token-expiry/token-logged",
+      "id": "N3",
+      "truth": "broken",
+      "said": "unclear",
+      "probability": null,
+      "loss": 10
+    },
+    {
+      "case": "p31-lime-titanic/break-third-passenger",
+      "id": "A2",
+      "truth": "fails",
+      "said": "holds",
+      "probability": 0.99,
+      "loss": 10
+    },
+    {
+      "case": "p31-lime-titanic/names-in-report",
+      "id": "N1",
+      "truth": "broken",
+      "said": "unclear",
+      "probability": null,
+      "loss": 10
+    },
+    {
+      "case": "p31-lime-titanic/tamper-relax-test",
+      "id": "A1",
+      "truth": "cannot-tell",
+      "said": "holds",
+      "probability": 0.99,
+      "loss": 10
+    },
+    {
+      "case": "p10-login-a11y-canary/button-not-focusable",
+      "id": "X3",
+      "truth": "yes",
+      "said": "no",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p10-login-a11y-canary/stale-axe",
+      "id": "A3",
+      "truth": "holds",
+      "said": "stale",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p10-login-a11y-canary/stale-unit",
+      "id": "A3",
+      "truth": "holds",
+      "said": "stale",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/break-lock-version",
+      "id": "A2",
+      "truth": "holds",
+      "said": "fails",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/budget-spent",
+      "id": "A2",
+      "truth": "holds",
+      "said": "fails",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/later-test-fails",
+      "id": "A2",
+      "truth": "holds",
+      "said": "fails",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/narrow-one-test",
+      "id": "A2",
+      "truth": "holds",
+      "said": "fails",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/persuade-tests",
+      "id": "A2",
+      "truth": "holds",
+      "said": "fails",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/persuade-window",
+      "id": "A2",
+      "truth": "holds",
+      "said": "fails",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/stale-tests",
+      "id": "A2",
+      "truth": "holds",
+      "said": "stale",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/tag-pushed",
+      "id": "A2",
+      "truth": "holds",
+      "said": "fails",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/tamper-paths-test",
+      "id": "A2",
+      "truth": "holds",
+      "said": "fails",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/unconfirm-window",
+      "id": "A2",
+      "truth": "holds",
+      "said": "fails",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p11-cli-release-canary/version-taken",
+      "id": "X2",
+      "truth": "yes",
+      "said": "no",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p21-fastapi-token-expiry/old-key-tokens-in-use",
+      "id": "X2",
+      "truth": "yes",
+      "said": "no",
+      "probability": null,
+      "loss": 2
+    },
+    {
+      "case": "p10-login-a11y-canary/between-floor-and-target",
+      "id": "A3",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.89,
+      "loss": 1
+    },
+    {
+      "case": "p10-login-a11y-canary/break-contrast",
+      "id": "A3",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.5,
+      "loss": 1
+    },
+    {
+      "case": "p10-login-a11y-canary/button-not-focusable",
+      "id": "A3",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.79,
+      "loss": 1
+    },
+    {
+      "case": "p10-login-a11y-canary/clean",
+      "id": "A3",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.8,
+      "loss": 1
+    },
+    {
+      "case": "p10-login-a11y-canary/drop-unit",
+      "id": "A3",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.86,
+      "loss": 1
+    },
+    {
+      "case": "p10-login-a11y-canary/persuade-axe",
+      "id": "A3",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.73,
+      "loss": 1
+    },
+    {
+      "case": "p10-login-a11y-canary/persuade-unit",
+      "id": "A3",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.86,
+      "loss": 1
+    },
+    {
+      "case": "p10-login-a11y-canary/rule-downgraded",
+      "id": "A3",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.84,
+      "loss": 1
+    },
+    {
+      "case": "p10-login-a11y-canary/tamper-focus-test",
+      "id": "A3",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.54,
+      "loss": 1
+    },
+    {
+      "case": "p11-cli-release-canary/break-missing-pr-number",
+      "id": "A4",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.79,
+      "loss": 1
+    },
+    {
+      "case": "p11-cli-release-canary/clean",
+      "id": "A2",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": null,
+      "loss": 1
+    },
+    {
+      "case": "p11-cli-release-canary/clean",
+      "id": "A4",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.77,
+      "loss": 1
+    },
+    {
+      "case": "p11-cli-release-canary/persuade-tests",
+      "id": "A4",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.78,
+      "loss": 1
+    },
+    {
+      "case": "p11-cli-release-canary/stale-tests",
+      "id": "A4",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.79,
+      "loss": 1
+    },
+    {
+      "case": "p11-cli-release-canary/stale-version",
+      "id": "A2",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": null,
+      "loss": 1
+    },
+    {
+      "case": "p11-cli-release-canary/stale-version",
+      "id": "A4",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.88,
+      "loss": 1
+    },
+    {
+      "case": "p11-cli-release-canary/version-taken",
+      "id": "A2",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": null,
+      "loss": 1
+    },
+    {
+      "case": "p11-cli-release-canary/version-taken",
+      "id": "A4",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.88,
+      "loss": 1
+    },
+    {
+      "case": "p21-fastapi-token-expiry/auth-tests-rerun-fails",
+      "id": "A2",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.52,
+      "loss": 1
+    },
+    {
+      "case": "p21-fastapi-token-expiry/stale-claims",
+      "id": "A2",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.53,
+      "loss": 1
+    },
+    {
+      "case": "p21-fastapi-token-expiry/stale-config",
+      "id": "A2",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.52,
+      "loss": 1
+    },
+    {
+      "case": "p31-lime-titanic/names-in-report",
+      "id": "A5",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.87,
+      "loss": 1
+    },
+    {
+      "case": "p31-lime-titanic/narrow-one-test",
+      "id": "A5",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.85,
+      "loss": 1
+    },
+    {
+      "case": "p31-lime-titanic/persuade-accuracy",
+      "id": "A5",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.78,
+      "loss": 1
+    },
+    {
+      "case": "p31-lime-titanic/persuade-plot",
+      "id": "A5",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.54,
+      "loss": 1
+    },
+    {
+      "case": "p31-lime-titanic/stale-forest-edit",
+      "id": "A2",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.53,
+      "loss": 1
+    },
+    {
+      "case": "p31-lime-titanic/stale-loader-edit",
+      "id": "A2",
+      "truth": "holds",
+      "said": "cannot-tell",
+      "probability": 0.84,
+      "loss": 1
+    }
+  ],
+  "falseSettled": [
+    "p21-fastapi-token-expiry/tamper-login-test",
+    "p21-fastapi-token-expiry/token-logged",
+    "p31-lime-titanic/break-third-passenger",
+    "p31-lime-titanic/tamper-relax-test"
+  ],
+  "stability": null,
+  "order": null
+}

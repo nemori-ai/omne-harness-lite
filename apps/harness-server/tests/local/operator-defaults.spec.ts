@@ -146,6 +146,10 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
+  it('gives the Agent a step limit a goal can use its rounds under: 500 steps a run', () => {
+    expect(configOf(layer, 'agent-host')).toMatchObject({ maxRunSteps: 500 })
+  })
+
   it('gives the retry values to the Model host, and none to the Agent', () => {
     expect(configOf(layer, 'agent-host')).not.toHaveProperty('modelRetry')
     expect(configOf(layer, 'model-host')).toMatchObject({
@@ -252,6 +256,8 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'secret-custody',
               'notification',
               'dispatch',
+              'goal',
+              'goal-decisions',
               'canvas',
               'workspace',
               'session-history-index',
@@ -366,6 +372,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Canvas',
       'Code',
       'Files',
+      'Goal',
       'Jobs',
       'Notifications',
       'OmneExtensionPoints',
@@ -389,6 +396,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Skills',
       'Sessions',
       'Agents',
+      'Goal',
       'OmneExtensionPoints',
       'OmneExtensions',
       'Code',

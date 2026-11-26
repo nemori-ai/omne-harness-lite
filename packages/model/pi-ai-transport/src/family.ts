@@ -1,4 +1,4 @@
-import type { EngineEndpoint, RouteAccounting } from './config.ts'
+import type { EngineEndpoint, ProviderEndpoint, RouteAccounting } from './config.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
@@ -74,6 +74,18 @@ export type PiFamilyBinding = Readonly<{
   ): PiResponseDecoder
   release(): Promise<void>
 }>
+type Encoded = Extract<ReturnType<PiFamilyBinding['encode']>, { ok: unknown }>['ok']
+/** What one dispatch needs of a binding: where it goes, how the request is written, how the answer is read. */
+export type PiSendBinding = Pick<
+  PiFamilyBinding,
+  'adoption' | 'mediaLimits' | 'replayFormat' | 'createDecoder' | 'release'
+> &
+  Readonly<{
+    endpoint: ProviderEndpoint
+    encode(
+      input: Parameters<PiFamilyBinding['encode']>[0],
+    ): Outcome<Omit<Encoded, 'representation'>, TransportFailure>
+  }>
 export interface PiFamilyContributions {
   acquire(
     supplier: Supplier,

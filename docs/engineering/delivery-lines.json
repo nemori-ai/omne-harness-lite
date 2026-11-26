@@ -71,6 +71,7 @@
         "packages/media/media-protocol",
         "packages/workspace/workspace-protocol",
         "packages/schedule/schedule-protocol",
+        "packages/goal/goal-protocol",
         "packages/slash-command/slash-command-protocol"
       ]
     },

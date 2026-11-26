@@ -304,6 +304,7 @@
 - `StructureFailure` · `identity.d.ts`
 - `Subject` · `passages.d.ts`
 - `SubmitDelivery` · `passages.d.ts`
+- `SystemExtensions` · `passages.d.ts`
 - `TerminalObservation` · `execution.d.ts`
 - `TerminalParticipantFact` · `finishing.d.ts`
 - `TerminalParticipantFacts` · `finishing.d.ts`
@@ -3286,6 +3287,14 @@ export interface ExtensionImplementations<P> {
     resolve(input: Access<P> & Readonly<{
         passage: Passage;
     }>): Reply<LoopExtensionImplementation>;
+}
+export interface SystemExtensions<P> extends ExtensionImplementations<P> {
+    read(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        position: Position;
+        dimension: Dimension | null;
+        purpose: 'main' | null;
+    }>): Reply<readonly EnabledExtension[]>;
 }
 export interface DecisionCards<P> {
     present(input: Access<P> & Readonly<{

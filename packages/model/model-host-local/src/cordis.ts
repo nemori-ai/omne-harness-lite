@@ -1,7 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialPort, ModelPreferencesPort } from '@omne-harness/model-contract/provider'
+import type { ModelDecisionPreparation } from '@omne-harness/model-contract/provider'
 import {
   ModelCredentialService,
+  ModelDecisionPreparationService,
   ModelPreferencesService,
 } from '@omne-harness/model-cordis-contract/cordis'
 
@@ -35,6 +37,22 @@ export function serveModelPreferences<P>(
     }
   }
   return new PortPreferencesService()
+}
+
+/** Serves the decision preparation on this context: it leaves with the scope that asked for it. */
+export function serveModelDecisionPreparation<P>(
+  ctx: Context,
+  port: ModelDecisionPreparation<P>,
+): ModelDecisionPreparationService<P> {
+  class PortDecisionPreparation extends ModelDecisionPreparationService<P> {
+    readonly prepare: ModelDecisionPreparation<P>['prepare']
+
+    constructor() {
+      super(ctx)
+      this.prepare = input => port.prepare(input)
+    }
+  }
+  return new PortDecisionPreparation()
 }
 
 export { ModelInstancesLocalPlugin } from './plugins/instances.ts'

@@ -17,6 +17,8 @@ import {
   canvasPicker,
   createCanvasUiModule,
 } from '@omne-harness/canvas-ui/cordis'
+import { createGoalUiModule } from '@omne-harness/goal-ui/cordis'
+import '@omne-harness/goal-ui/goal-ui.css'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import {
   createHumanInterventionUiModule,
@@ -110,6 +112,7 @@ export const assembly: Assembly = {
       preferences: accountPreferencesKey,
     }),
     createHumanInterventionUiModule({ sessionDock }),
+    createGoalUiModule({ sessionSide }),
     notificationUiModule,
     createScheduleUiModule({ releaseDetail }),
     calendarUiModule,

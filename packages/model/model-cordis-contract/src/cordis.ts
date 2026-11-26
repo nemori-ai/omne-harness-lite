@@ -17,6 +17,7 @@ import type {
   CredentialPort,
   ModelClock,
   ModelCommands,
+  ModelDecisionPreparation,
   ModelHostAuthority,
   ModelInstanceHost,
   ModelMediaSource,
@@ -310,6 +311,21 @@ export abstract class ModelRequestPreparationService<P>
 }
 export const modelRequestPreparationKey = ModelRequestPreparationService.provide
 
+/** @owner packages/model/model-cordis-contract */
+export abstract class ModelDecisionPreparationService<P>
+  extends Service
+  implements ModelDecisionPreparation<P>
+{
+  static readonly provide = 'modelDecisionPreparation'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelDecisionPreparationService.provide)
+  }
+
+  abstract readonly prepare: ModelDecisionPreparation<P>['prepare']
+}
+export const modelDecisionPreparationKey = ModelDecisionPreparationService.provide
+
 /**
  * The metering leases of request preparation. The request assembler takes a lease for a profile
  * before it plans and meters each candidate, and gives it back. It is a key of its own, not a
@@ -390,6 +406,7 @@ declare module '@deepseek-ai/cordis' {
     modelProfiles: ModelProfilesService<unknown>
     modelProfileMaintenance: ModelProfileMaintenanceService<unknown>
     modelRequestPreparation: ModelRequestPreparationService<unknown>
+    modelDecisionPreparation?: ModelDecisionPreparationService<unknown>
     modelPreparationResources: ModelPreparationResourcesService<unknown>
     modelHostAuthority: ModelHostAuthorityService<unknown>
     modelInstances: ModelInstancesService<unknown>
