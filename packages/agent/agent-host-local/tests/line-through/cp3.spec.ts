@@ -96,7 +96,7 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     await until(() => w.admits.length > 0)
     const work = ok(await w.transactions.readWork(intakeAccess))
     if (work.run.kind !== 'active') throw new Error(`the Run is ${work.run.kind}`)
-    expect(work.run.first).toBe('cp3-input')
+    expect(work.run.initial).toEqual(['cp3-input'])
     const execution = await w.runExecution()
     if (execution === null) throw new Error('no execution')
     expect(String(execution)).toBe(work.run.execution.execution)

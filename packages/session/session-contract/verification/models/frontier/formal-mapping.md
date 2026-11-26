@@ -5,13 +5,13 @@
 | 模型            | 范围与前提                                                                                                                                                            |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `frontier`      | 原承接与 Session 解释分离、完整捕获前缀、最终根、终态与解除。一个本租户会话、至多两个输入、两个顺序 Run；两个相关执行、一个无关旧执行、一个仅提供错误材料的外租户执行 |
-| `pm02`          | 首条发起被拒收且没有执行时，冻结精确解除其余输入。一个 active Run、至多三个输入，两个准备者                                                                           |
+| `pm02`          | 发起被拒收且没有执行时，冻结精确解除其余输入。模型里被拒的是初始批的第一条。一个 active Run、至多三个输入，两个准备者                                                 |
 | `gap-isolation` | 权威缺口生效后，旧准备、新解释者与新命令受共享隔离门约束。两个执行、一个权威缺口                                                                                      |
 | `frozen-active` | 已有执行的冻结 active Run 在准备期间接收新输入。一个 Run、两个输入                                                                                                    |
 
 四个模型都假定原日志不可变、连续，目录完整可验证，单个发布动作原子成立；没有搜索深度截断，关闭死锁检查；进展需要有限相关历史、材料最终可读、公平调度与最终提交机会，不证明无条件活性。观察字段只记录已发生的事实，不作为产品状态或业务守卫。
 
-覆盖边界：`frontier` 在外部合法收束的前提下检查前缀机制，不覆盖新 Run 的首条拒收，也不独立覆盖冻结后新受理的完整链与共享缺口门；`pm02` 不含已有执行的一般前缀、后继 Run、完整恢复资格；`gap-isolation` 不含持久隔离、重启、修复与解除权限；`frozen-active` 没有完整的恢复资格、真实 head 修订、动态保管、未知、恢复、后继 Run 与缺口门的组合证明。
+覆盖边界：`frontier` 在外部合法收束的前提下检查前缀机制，不覆盖新 Run 的发起被拒，也不独立覆盖冻结后新受理的完整链与共享缺口门；`pm02` 不含已有执行的一般前缀、后继 Run、完整恢复资格，也不单独建模初始批里第一条之外的成员被拒与整批被拒（由契约成员的 property test `initial-batch.spec.ts` 覆盖）；`gap-isolation` 不含持久隔离、重启、修复与解除权限；`frozen-active` 没有完整的恢复资格、真实 head 修订、动态保管、未知、恢复、后继 Run 与缺口门的组合证明。
 
 TLA 原子动作表示提供者必须兑现的提交边界。只读准备、原事实发布、Session 后果发布和调用者认回分别建模。
 
@@ -22,7 +22,7 @@ TLA 原子动作表示提供者必须兑现的提交边界。只读准备、原�
 | FR-03，捕获集合与重算            | CapturedDone 后 Refresh；CapturedPrefixRetained                                                                                       | 一个 SE14 缩小 Q 后仍完成原 E 的必要前缀。再取最新根与目录，只补新增关系及必要后缀                                                                                |
 | FR-03、FR-04，最终竞争           | PublishRelease、FinalConflict、PublishTake、PublishNormalEnd；NoFalseRelease、HistoryCoverage、NoPostTerminalTake、WholeReleaseBatch  | 在真实共同发布点重核根、当前 grant、Run、完整范围与唯一终态。Agent taken 先胜出使旧发布失效，Session 先胜出拒绝旧 grant 的新 taken。不能只有 CAS 而缺纯层材料核验 |
 | FR-04、I-F3/I-F4                 | FreezeActive 与 FrozenActive 的 Accept/Admit                                                                                          | active freeze 不取消 Run。冻结后仍 active 的合法受理可扩张 pending，并与原目录/taken/前缀链竞争。原 admission 与目录共同建立，不以 SE35 为空推断未交入            |
-| FR-04、PM-02、PA-09              | PM02 的 InvokeReject、Prepare、Publish、Conflict；AtomicRejection、FirstOnlyRejected、RemainingExact                                  | 原 invoke invalid 且 execution 未创建。首条只 SE35 rejected，failed、首条资格解除、其余精确 SE38 和原答案同批。未冻结时保留其余 pending                           |
+| FR-04、PM-02、PA-09              | PM02 的 InvokeReject、Prepare、Publish、Conflict；AtomicRejection、FirstOnlyRejected、RemainingExact                                  | 原 invoke invalid 且 execution 未创建。被拒的那条只 SE35 rejected，failed、它的资格解除、其余精确 SE38 和原答案同批。未冻结时保留其余 pending                           |
 | PA-07、EC-02                     | Frontier/PM02 的 FailBefore、Query、ReplayOriginal；UnknownSound、AnswerSound、ReleaseAtMostOnce                                      | 发布前失败没有业务结果，提交后丢答复保持未知，以原身份认回。重试不得重复终态或解除                                                                                |
 | FR-05                            | Frontier 的 head/cursor 分离；HeadCursorSeparate                                                                                      | 使用同根真实 head revision/receipt，事件序号只推进 readThrough。原 fact/result.source 与 head evidence 分开。FrozenActive 没有重建这项性质                        |
 | PA-08                            | CancelWindow、TerminalStable、独立正常解释者                                                                                          | frontier 停在 ended 前，正常解释者独立形成完成终态，按唯一先成立者裁定。取消准备不得自行解释 ended 抢占窗口                                                       |

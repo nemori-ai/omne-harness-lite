@@ -29,7 +29,7 @@ export function validateFrontierBatch(
 ): void {
   const starts = entries.filter(entry => entry.kind === 'run.started')
   for (const start of starts)
-    requirePrepared(historyContext(snapshot, reads), { kind: 'selected', inputs: [start.first] })
+    requirePrepared(historyContext(snapshot, reads), { kind: 'selected', inputs: start.initial })
   for (const entry of entries)
     if (entry.kind === 'intake.handed-over' && entry.result.kind === 'accepted')
       requirePrepared(historyContext(snapshot, reads), { kind: 'selected', inputs: [entry.input] })

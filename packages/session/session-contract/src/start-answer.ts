@@ -13,8 +13,8 @@ export function startAnswerOf(
   if (note?.kind === 'waiting') return { receipt, noted: note }
   if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
     throw new Error('startRun committed without an active Run')
-  const { advance, adoption, first, execution } = snapshot.run
-  return { receipt, advance, adopted: adoption, first, execution: execution.execution }
+  const { advance, adoption, initial, execution } = snapshot.run
+  return { receipt, advance, adopted: adoption, initial, execution: execution.execution }
 }
 
 /** What a committed claim or reload answers: the advance it granted; a reload that names no run grants none. */

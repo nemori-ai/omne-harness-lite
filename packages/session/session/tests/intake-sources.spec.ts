@@ -154,7 +154,7 @@ describe('a source that is withdrawn leaves what was accepted (SE-29)', () => {
       }),
       'startRun',
     ) as StartedRun
-    expect(started.first).toBe('kept')
+    expect(started.initial).toEqual(['kept'])
   })
 
   it('recall comes before the source is looked at: the registry is not asked for an accepted request', async () => {

@@ -17,7 +17,7 @@ describe('I1 names the adopted definition to the request preparation', () => {
       access: alice,
       execution: execution(),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1', 'hello exec-1'),
+      initial: [acceptedInput('input-exec-1', 'hello exec-1')],
       grant: null,
       idle() {},
     })

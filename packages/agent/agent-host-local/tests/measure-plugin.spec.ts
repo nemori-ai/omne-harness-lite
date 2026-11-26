@@ -79,7 +79,7 @@ async function invokeThrough(plugin: ReturnType<typeof createAgentHostLocalPlugi
     ...caller('a'),
     execution,
     operation: ok(decodeAgentOperationId('measured-invoke')),
-    initial: acceptedInput(),
+    initial: [acceptedInput()],
     grant: null,
   })
   await turns()

@@ -118,7 +118,7 @@ async function failing() {
       ...caller('a'),
       execution: EXECUTION,
       operation: ok(decodeAgentOperationId('failing-invoke')),
-      initial: input(),
+      initial: [input()],
       grant: null,
     }),
   )

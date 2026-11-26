@@ -105,6 +105,13 @@ function rejectingPrepare(input: Parameters<MessageHandoff<Principal>['prepare']
   })
 }
 
+const tooLong = {
+  kind: 'invalid',
+  field: 'value',
+  reason: 'too long',
+  rejected: { input: acceptedInput('input-2').id, evidence: evidence('rejection') },
+} as const
+
 async function turns(count: number): Promise<void> {
   for (let turn = 0; turn < count; turn += 1) await new Promise(resolve => setTimeout(resolve, 0))
 }
@@ -211,7 +218,7 @@ describe('input.submit of an input that admission rejects (C5)', () => {
 
     const refused = await submit(handle, 'submit-2')
 
-    expect(refused).toEqual(fail({ kind: 'invalid', field: 'value', reason: 'too long' }))
+    expect(refused).toEqual(fail(tooLong))
     expect((await snapshotOf(assembly)).revision).toBe(before.revision)
     expect(await submit(handle, 'submit-2')).toEqual(refused)
     expect((await snapshotOf(assembly)).revision).toBe(before.revision)
@@ -251,9 +258,7 @@ describe('the wake hint after an accepted submit (C6, C7)', () => {
     const slept = passes.count()
     assembly.controls.handoff.prepare.always(rejectingPrepare)
 
-    expect(await submit(handle, 'submit-2')).toEqual(
-      fail({ kind: 'invalid', field: 'value', reason: 'too long' }),
-    )
+    expect(await submit(handle, 'submit-2')).toEqual(fail(tooLong))
 
     await turns(40)
     expect(passes.count()).toBe(slept)

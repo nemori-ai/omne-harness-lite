@@ -55,6 +55,7 @@ it('exports exactly the declared root runtime surface', () => {
     'decide',
     'decideCompactionCommit',
     'decideControlConsequences',
+    'deliveryReads',
     'deriveDriveOperation',
     'deriveIngressOperation',
     'deriveSessionOperation',

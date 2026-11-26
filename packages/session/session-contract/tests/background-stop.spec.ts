@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { expectedRevision, judgeRunStart, reduce } from '@omne-harness/session-contract'
+import {
+  expectedRevision,
+  judgeRunStart,
+  reduce,
+  wakingInputs,
+} from '@omne-harness/session-contract'
 import { judgeRetryRun } from '../src/judgments.ts'
 import type {
   InputId,
@@ -254,9 +259,10 @@ describe('the outcome of a stopped call (C20)', () => {
       'outcome',
     )
     const snapshot = await c.s.read()
-    expect(judgeRunStart(snapshot, 'interactive')).toMatchObject({
+    expect(wakingInputs(snapshot)).toEqual([backgroundInputId(producer, 'rv-1')])
+    expect(judgeRunStart(snapshot, 'interactive')).toEqual({
       kind: 'eligible',
-      first: backgroundInputId(producer, 'rv-1'),
+      initial: snapshot.pending,
     })
   })
 
@@ -302,10 +308,13 @@ describe('only a waking input opens a Run (C20)', () => {
       }),
       'accept',
     )
-    expect(judgeRunStart(await c.s.read(), 'interactive')).toMatchObject({
+    const waiting = await c.s.read()
+    expect(wakingInputs(waiting)).toEqual([ordinaryInput('next').input])
+    expect(judgeRunStart(waiting, 'interactive')).toEqual({
       kind: 'eligible',
-      first: ordinaryInput('next').input,
+      initial: waiting.pending,
     })
+    expect(waiting.pending).toHaveLength(2)
     expect(pendingReasonsOf(await c.s.read())).toContain('inputs')
     await c.s.start('start-next')
     const started = await c.s.read()
@@ -511,7 +520,11 @@ describe('a returned input keeps what it was accepted as', () => {
     const waiting = await c.s.read()
     expect(waiting.awaitingPerson).toBeUndefined()
     expect(waiting.pending).toEqual([...quiet, later.input])
-    expect(judgeRunStart(waiting, 'interactive')).toEqual({ kind: 'eligible', first: later.input })
+    expect(wakingInputs(waiting)).toEqual([later.input])
+    expect(judgeRunStart(waiting, 'interactive')).toEqual({
+      kind: 'eligible',
+      initial: [...quiet, later.input],
+    })
     await c.s.start('start-later')
     expect((await c.s.read()).run.kind).toBe('active')
   })

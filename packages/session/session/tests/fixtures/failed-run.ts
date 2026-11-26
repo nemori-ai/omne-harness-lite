@@ -172,7 +172,7 @@ export async function failedAfterTaking(open: Harness[]) {
   const submit = h.drive.submit.bind(h.drive)
   h.drive.invoke = (async input => {
     starts.push(input.execution)
-    handed.push(input.first)
+    handed.push(...input.initial)
     return invoke(input)
   }) satisfies AgentDrivePort['invoke']
   h.drive.submit = (async input => {

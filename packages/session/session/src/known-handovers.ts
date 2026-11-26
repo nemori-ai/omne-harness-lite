@@ -2,20 +2,37 @@ import type { InputId, RunId, WorkSnapshot } from '@omne-harness/session-contrac
 import { sessionKey, type SessionRef } from './scheduling.ts'
 
 export type KnownHandovers = Readonly<{
-  note(ref: SessionRef, run: RunId, input: InputId): void
+  note(ref: SessionRef, run: RunId, inputs: readonly InputId[]): void
   of(ref: SessionRef, snapshot: WorkSnapshot): ReadonlySet<InputId>
 }>
 
+type ActiveRun = Extract<WorkSnapshot['run'], { kind: 'active' }>
+
 const NONE: ReadonlySet<InputId> = new Set()
+
+export function handedRun(
+  snapshot: WorkSnapshot,
+  known: ReadonlySet<InputId> = NONE,
+): ActiveRun | null {
+  const { run } = snapshot
+  if (run.kind !== 'active') return null
+  const held = run.initial.some(
+    input =>
+      known.has(input) || snapshot.handed.includes(input) || !snapshot.pending.includes(input),
+  )
+  return held ? run : null
+}
 
 export function createKnownHandovers(): KnownHandovers {
   const known = new Map<string, { run: RunId; inputs: Set<InputId> }>()
   return {
-    note: (ref, run, input) => {
+    note: (ref, run, inputs) => {
       const key = sessionKey(ref)
       const entry = known.get(key)
-      if (entry?.run === run) entry.inputs.add(input)
-      else known.set(key, { run, inputs: new Set([input]) })
+      known.set(key, {
+        run,
+        inputs: new Set([...(entry?.run === run ? entry.inputs : []), ...inputs]),
+      })
     },
     of: (ref, { run }) => {
       const key = sessionKey(ref)

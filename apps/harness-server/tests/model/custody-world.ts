@@ -210,27 +210,29 @@ function openInputOf(
     ...access,
     execution,
     operation: entry,
-    original: {
-      entry: invoke,
-      handoff,
-      outcome: {
-        request: {
-          kind: 'input',
-          reference: handoff,
-          entry: invoke,
-          source: { kind: 'external-input', input: initial.id },
-        },
-        origin: { kind: 'invoke', ...runtime },
-        provider: PROVIDER,
-        qualification: evidence(`qualification/${entry}`),
-        record: evidence(`record/${entry}`),
-        decision: {
-          kind: 'prepared',
-          message: initial.content,
-          admission: evidence(`admission/${entry}`),
+    originals: [
+      {
+        entry: invoke,
+        handoff,
+        outcome: {
+          request: {
+            kind: 'input',
+            reference: handoff,
+            entry: invoke,
+            source: { kind: 'external-input', input: initial.id },
+          },
+          origin: { kind: 'invoke', ...runtime },
+          provider: PROVIDER,
+          qualification: evidence(`qualification/${entry}`),
+          record: evidence(`record/${entry}`),
+          decision: {
+            kind: 'prepared',
+            message: initial.content,
+            admission: evidence(`admission/${entry}`),
+          },
         },
       },
-    },
+    ],
     runtime,
     checkpoint: checkpoint(),
   }
@@ -336,7 +338,7 @@ async function openRun(t: JournalTree, access: SessionAccess<string>) {
   const snapshot = ok(await port.readWork(access))
   if (snapshot.run.kind !== 'active') throw new Error('not active')
   const execution = must(decodeAgentExecutionId(snapshot.run.execution.execution))
-  const admitted = ok(await port.readInput({ ...access, input: snapshot.run.first }))
+  const admitted = ok(await port.readInput({ ...access, input: snapshot.run.initial[0] }))
   const initial: AcceptedInput = {
     id: must(decodeInputId(admitted.input)),
     content: admitted.message,

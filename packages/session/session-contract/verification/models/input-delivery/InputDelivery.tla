@@ -3,17 +3,18 @@
    a model request shows, and whether the brackets (packages/session/SPEC.md, "输入的括号") agree
    with it. Each action is one session commit or one Agent step.
 
+   A Run starts from every pending input: the Agent knows them all before its first step.
+
    The four switches turn single design decisions back into the behaviour before this model:
      RowsAtAccept  the message of an input enters the model view when the Session accepts it
      PruneOnTake   an input loses its quiet mark when a Run takes it
      OriginGuard   starting a Run is refused again by the origin of the first waking input
      LateRows      the taking and the delivery to the model view are two commits
-     FirstTakeOnly a returned input is never delivered a second time
    With all of them FALSE the model is the design. *)
 EXTENDS Naturals, Sequences, FiniteSets
 
 CONSTANTS Inputs, Quiet, Stops, MaxRuns, MaxReplies,
-          RowsAtAccept, PruneOnTake, OriginGuard, LateRows, FirstTakeOnly
+          RowsAtAccept, PruneOnTake, OriginGuard, LateRows
 
 ASSUME Stops \subseteq Quiet /\ Quiet \subseteq Inputs
 
@@ -69,7 +70,7 @@ StartRun ==
   /\ Eligible /\ runs < MaxRuns
   /\ StartGuard(Head(Waking))
   /\ run' = "active" /\ runs' = runs + 1
-  /\ submitted' = {Head(Waking)} /\ startedBy' = startedBy \cup {Head(Waking)}
+  /\ submitted' = SetOf(pending) /\ startedBy' = startedBy \cup {Head(Waking)}
   /\ taken' = {} /\ phase' = "idle"
   /\ UNCHANGED <<acc, pending, mark, awaiting, open, answered, delivered, tail, takenEver, owed,
                  view, upper, replies>>
@@ -83,8 +84,7 @@ Submit(i) ==
 Take ==
   /\ run = "active" /\ phase = "idle" /\ Batch # {}
   /\ LET ordered == SelectSeq(pending, LAMBDA i : i \in Batch)
-         fresh == SelectSeq(ordered,
-                    LAMBDA i : IF FirstTakeOnly THEN i \notin delivered ELSE i \notin tail)
+         fresh == SelectSeq(ordered, LAMBDA i : i \notin tail)
          rows == [k \in 1..Len(fresh) |-> Row(fresh[k])]
      IN /\ pending' = SelectSeq(pending, LAMBDA i : i \notin Batch)
         /\ taken' = taken \cup Batch

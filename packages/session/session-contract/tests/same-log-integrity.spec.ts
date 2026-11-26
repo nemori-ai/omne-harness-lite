@@ -218,7 +218,7 @@ describe('atomic interpretation of original Session history', () => {
           fact: {
             kind: 'input-handover',
             execution: f.current.run.execution.execution,
-            input: f.current.run.first,
+            input: f.current.run.initial[0],
             result: { kind: 'accepted', receipt: evidence('successor-accepted') },
           },
         },
@@ -236,7 +236,7 @@ describe('atomic interpretation of original Session history', () => {
               kind: 'input-taken',
               batch: {
                 id: 'successor-batch' as never,
-                ordered: [f.current.run.first],
+                ordered: [f.current.run.initial[0]],
                 watermark: evidence('successor-watermark'),
               },
             },
@@ -279,7 +279,7 @@ describe('atomic interpretation of original Session history', () => {
       consequences: [{ kind: 'call-registration', consumption, registration }],
     }
     const { snapshot, reads } = await material(f.scene, observation)
-    expect(snapshot.taken).toEqual([f.current.run.first])
+    expect(snapshot.taken).toEqual([f.current.run.initial[0]])
     expect(snapshot.callWaits).toHaveLength(1)
     const reduced = reduce(snapshot, batch(snapshot, observation, reads), reads)
     if (reduced.kind !== 'reduced') throw new Error(reduced.diagnostic)
@@ -354,7 +354,7 @@ describe('one transition for a taken batch', () => {
           fact: {
             kind: 'input-handover',
             execution: f.current.run.execution.execution,
-            input: f.current.run.first,
+            input: f.current.run.initial[0],
             result: { kind: 'accepted', receipt: evidence('successor-accepted') },
           },
         },
@@ -387,7 +387,7 @@ describe('one transition for a taken batch', () => {
       ).reads
       return { snapshot, reads }
     }
-    return { ...f, first: f.current.run.first, taken, selected }
+    return { ...f, first: f.current.run.initial[0], taken, selected }
   }
 
   it('the projection and the reducer refuse a batch that repeats a member', async () => {

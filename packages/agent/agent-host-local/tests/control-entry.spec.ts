@@ -140,7 +140,7 @@ async function running() {
       ...caller('a'),
       execution: EXECUTION,
       operation: operation('controlled-invoke'),
-      initial: input(),
+      initial: [input()],
       grant: null,
     }),
   )

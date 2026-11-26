@@ -114,7 +114,7 @@ async function openExecution(host: World, instance: AgentInstanceId) {
       ...caller('a'),
       execution: EXECUTION,
       operation: OPEN,
-      original,
+      originals: [original],
       runtime,
       checkpoint: checkpoint(),
     }),

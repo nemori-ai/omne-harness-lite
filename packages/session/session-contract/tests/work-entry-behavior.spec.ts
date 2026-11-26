@@ -8,12 +8,7 @@ import {
   type InputId,
   type SessionLogObservation,
 } from '@omne-harness/session-contract'
-import {
-  evidence,
-  operationId,
-  ordinaryInput,
-  succeeded,
-} from '@omne-harness/session-contract/testing'
+import { evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import { compactionReads } from '../src/model-view.ts'
 import { requiredWorkEntries } from '../src/work-entry-state.ts'
 import { open, participation } from './scene.ts'
@@ -30,7 +25,7 @@ async function controlledIntent() {
         operation: operationId('deliver-first'),
         participation: { ...participation(run.execution.execution, 'delivered'), written: '0' },
         value: {
-          deliveries: [{ input: 'first' as InputId, message: ordinaryInput('first').message }],
+          inputs: ['first' as InputId],
           source: evidence('step-one'),
           admission: evidence('step-one'),
         },

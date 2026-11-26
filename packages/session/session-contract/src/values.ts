@@ -18,6 +18,7 @@ import type {
   ConsumerRef,
   ConsumptionId,
   DurableEvidence,
+  InitialBatch,
   InputId,
   ResidentKey,
   BatchId,
@@ -135,7 +136,7 @@ export type RunState =
       kind: 'active'
       run: RunId
       adoption: Adoption
-      first: InputId
+      initial: InitialBatch
       advance: AdvanceRef | null
       ordinal: string
       execution: ExecutionRef
@@ -269,7 +270,7 @@ export type BoundedClose =
       failure: 'invalid' | 'unsupported'
       field: string | null
       reason: string | null
-      input: InputId | null
+      inputs: readonly InputId[]
     }>
 export type ModelProvenance = Readonly<{ owner: string; key: string; blocks: readonly string[] }>
 

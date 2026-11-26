@@ -186,8 +186,13 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
   it('bounded close waits after changed, then retries the original operation with a fresh read', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [100] } } })
     await h.create()
-    h.drive.invoke = async () =>
-      fail({ kind: 'invalid', reason: 'refused', rejection: evidence('agent/refused') })
+    h.drive.invoke = async input =>
+      fail({
+        kind: 'invalid',
+        input: input.initial[0],
+        reason: 'refused',
+        rejection: evidence('agent/refused'),
+      })
     const operations: string[] = []
     h.view.onCommit(async (input, next) => {
       if (input.command.kind === 'finishRun') {
@@ -215,8 +220,13 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
       policy: { command: { retriesOnChanged: 2 }, advance: { retryDelaysMs: [100] } },
     })
     await h.create()
-    h.drive.invoke = async () =>
-      fail({ kind: 'invalid', reason: 'refused', rejection: evidence('agent/refused') })
+    h.drive.invoke = async input =>
+      fail({
+        kind: 'invalid',
+        input: input.initial[0],
+        reason: 'refused',
+        rejection: evidence('agent/refused'),
+      })
     let attempts = 0
     h.view.onCommit(async (input, next) => {
       if (input.command.kind !== 'finishRun') return next()
@@ -251,8 +261,13 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     await h.create()
     const original = h.drive.invoke.bind(h.drive)
     h.drive.invoke = async input =>
-      input.first === 'input-1'
-        ? fail({ kind: 'invalid', reason: 'refused', rejection: evidence('agent/refused') })
+      input.initial[0] === 'input-1'
+        ? fail({
+            kind: 'invalid',
+            input: input.initial[0],
+            reason: 'refused',
+            rejection: evidence('agent/refused'),
+          })
         : original(input)
     const requests: unknown[] = []
     h.view.onCommit(async (input, next) => {
@@ -443,13 +458,13 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     })
     expect(invoked).toHaveLength(1)
     const call = invoked[0]
-    expect(call?.first).toBe('input-1')
+    expect(call?.initial).toEqual(['input-1'])
     expect(call?.execution).toBe(snapshot.run.execution.execution)
     expect(call?.operation).toBe(
       deriveDriveOperation({
         kind: 'invoke',
         execution: snapshot.run.execution.execution,
-        first: snapshot.run.first,
+        initial: snapshot.run.initial,
         started: call?.source ?? evidence('none'),
       }),
     )
@@ -661,9 +676,14 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
   it('a first input that the message admission refuses closes the Run as failed (PM-02)', async () => {
     const h = await service()
     await h.create()
-    h.drive.invoke = () =>
+    h.drive.invoke = input =>
       Promise.resolve(
-        fail({ kind: 'invalid' as const, reason: 'refused', rejection: evidence('agent/refused') }),
+        fail({
+          kind: 'invalid' as const,
+          input: input.initial[0],
+          reason: 'refused',
+          rejection: evidence('agent/refused'),
+        }),
       )
     await h.accept('input-1')
     await vi.waitFor(async () => {
@@ -747,9 +767,14 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
   it('a bounded close whose read revision went stale reads again and still closes the Run (PM-02)', async () => {
     const h = await service()
     await h.create()
-    h.drive.invoke = () =>
+    h.drive.invoke = input =>
       Promise.resolve(
-        fail({ kind: 'invalid' as const, reason: 'refused', rejection: evidence('agent/refused') }),
+        fail({
+          kind: 'invalid' as const,
+          input: input.initial[0],
+          reason: 'refused',
+          rejection: evidence('agent/refused'),
+        }),
       )
     let moved = false
     h.view.onCommit(async (input, next) => {

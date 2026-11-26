@@ -246,13 +246,18 @@ function withProgramLimits(
   return { ops: ops.map(op => (op.id === 'tool-host' ? { ...op, config: given(op.config) } : op)) }
 }
 
-function withObservationPolicy(
+function withObservation(
   layer: unknown,
   policy: Readonly<Record<string, number>> | undefined,
+  locatePages: number | undefined,
 ): unknown {
-  if (policy === undefined) return layer
+  if (policy === undefined && locatePages === undefined) return layer
   const { ops } = layer as { ops: readonly object[] }
-  return { ops: [...ops, { kind: 'replace', id: 'session-observation', config: { policy } }] }
+  const config = {
+    ...(policy === undefined ? {} : { policy }),
+    ...(locatePages === undefined ? {} : { locatePages }),
+  }
+  return { ops: [...ops, { kind: 'replace', id: 'session-observation', config }] }
 }
 
 function withAgentWaitInterval(layer: unknown, delays: readonly number[] = [50]): unknown {
@@ -773,6 +778,7 @@ export type ReleaseTreeOptions = Readonly<{
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number
   observationPolicy?: Readonly<Record<string, number>>
+  observationLocatePages?: number
   compactionProvider?: ContextCompactionRowInput
   compactionTriggerPercent?: string
   /** History kinds read through session/v1 besides the five every tree reads. */
@@ -953,7 +959,7 @@ async function serveOnce(
     operator: withoutRows(
       withProgramLimits(
         withToolSettings(
-          withObservationPolicy(
+          withObservation(
             withAgentWaitInterval(
               withQueueCapacity(
                 withHistoryKinds(
@@ -972,6 +978,7 @@ async function serveOnce(
               options.reconciliationDelaysMs,
             ),
             options.observationPolicy,
+            options.observationLocatePages,
           ),
           options.toolSettings,
         ),

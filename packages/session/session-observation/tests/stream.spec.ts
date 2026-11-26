@@ -274,17 +274,38 @@ describe('the result table with the Model', () => {
     stop()
   })
 
-  it('result, Model denied: ends with denied', async () => {
+  it('result, Model denied: the state frame names the run first, then it ends with denied', async () => {
     const w = world(new FakeLog(started('run_1'), mainCall('m-1')))
     w.model.answer('m-1', { failure: { kind: 'denied' } })
-    expect(await (await open(w)).next()).toEqual({ done: true, value: 'denied' })
+    const frames = await open(w)
+    expect(await frames.next()).toMatchObject({
+      done: false,
+      value: { kind: 'state', run: 'run_1', target: null },
+    })
+    expect(await frames.next()).toEqual({ done: true, value: 'denied' })
     expect(w.notices.active).toBe(0)
   })
 
-  it('result, Model answers the reference invalid: ends with unavailable', async () => {
+  it('result, Model answers the reference invalid: the state frame first, then it ends with unavailable', async () => {
     const w = world(new FakeLog(started('run_1'), mainCall('m-1')))
     w.model.answer('m-1', { failure: { kind: 'invalid', reason: 'malformed' } })
-    expect(await (await open(w)).next()).toEqual({ done: true, value: 'unavailable' })
+    const frames = await open(w)
+    expect(await frames.next()).toMatchObject({ value: { kind: 'state', run: 'run_1' } })
+    expect(await frames.next()).toEqual({ done: true, value: 'unavailable' })
+  })
+
+  it('result, Model denied a later main call: the state frame of the new revision first, then denied', async () => {
+    const log = new FakeLog(started('run_1'))
+    const w = world(log)
+    const frames = await open(w)
+    expect(await frames.next()).toMatchObject({ value: { kind: 'state', revision: '1' } })
+    log.append(mainCall('m-1'))
+    w.model.answer('m-1', { failure: { kind: 'denied' } })
+    w.notices.commit('call.bound')
+    expect(await frames.next()).toMatchObject({
+      value: { kind: 'state', run: 'run_1', revision: '2' },
+    })
+    expect(await frames.next()).toEqual({ done: true, value: 'denied' })
   })
 
   it('result, Model has the call registered but not accepted: no stream yet, the observation goes on', async () => {

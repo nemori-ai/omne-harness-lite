@@ -34,7 +34,7 @@ import type {
 } from '@omne-harness/session-contract'
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { canonicalText, decodeValue, encodeValue, itemContent, sha256 } from './codec.ts'
+import { decodeValue, encodeValue, itemContent } from './codec.ts'
 import type { ExecutionItemContentRecord, ExecutionItemKeyRecord } from './codec.ts'
 import { readCachedSessionWork } from './work-cache.ts'
 
@@ -104,41 +104,14 @@ export function sessionCommandFacts(
   }
 }
 
-// In the open and submit checks, origin is the source basis of the Agent's AcceptedInput, not the origin Session recorded.
-export type SessionAdmittedInput = Pick<
-  Extract<RoutedInput, { kind: 'ordinary' }>,
-  'input' | 'origin' | 'message'
->
-
-type CheckScope = Readonly<{ tenant: TenantId; session: SessionId; execution: string }>
-
-export type SessionCheck =
-  | (CheckScope & Readonly<{ kind: 'open'; grant: DurableEvidence; initial: SessionAdmittedInput }>)
-  | (CheckScope & Readonly<{ kind: 'submit'; value: SessionAdmittedInput }>)
-  | (CheckScope & Readonly<{ kind: 'attach'; grant: DurableEvidence }>)
-  | (CheckScope &
-      Readonly<{
-        kind: 'finish'
-        conclusion: 'complete' | 'failed' | 'cancelled'
-        control: string | null
-      }>)
-
-export type SessionCheckResult = Readonly<{
-  kind: 'checked'
-  attempt: string | null
-  advance: 'ordinary' | 'wind-down' | null
-}>
-
-export function sessionCheckFacts(check: SessionCheck): FactCommandV2 {
-  return {
-    participant: SESSION_PARTICIPANT,
-    facts: { intent: 'check', check: encodeValue(check) },
-  }
-}
-
-export function sessionCheckDigest(check: SessionCheck): string {
-  return `sha256:${sha256(canonicalText(encodeValue(check)))}`
-}
+export {
+  admittedMessageDigest,
+  sessionCheckDigest,
+  sessionCheckFacts,
+  type SessionAdmittedInput,
+  type SessionCheck,
+  type SessionCheckResult,
+} from './session-check.ts'
 
 export {
   decodeSessionReply,

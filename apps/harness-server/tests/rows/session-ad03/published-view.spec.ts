@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { SessionId } from '@omne-harness/session-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
+  BLOCK_NOT_REGISTERED,
   readHeldNeed,
   readPublishedNeed,
   readPublishedView,
@@ -10,10 +11,15 @@ import {
 } from '../../../src/rows/session-ad03/published-view.ts'
 import {
   encodeInitialContextRegistration,
+  sessionModesBindings,
+  sessionModesDescriptor,
   workingDirectoryBindings,
   workingDirectoryDescriptor,
 } from '@omne-harness/session-adapters/cordis'
-import { SESSION_WORKING_DIRECTORY } from '@omne-harness/session-adapters'
+import {
+  SESSION_MODES_PUBLICATION,
+  SESSION_WORKING_DIRECTORY,
+} from '@omne-harness/session-adapters'
 import { adoptedContextDefinitions } from '../../../src/assembly/context-definitions.ts'
 import { fixtureTenant } from '../../entry/support.ts'
 
@@ -284,8 +290,36 @@ describe('a view that names the session it was computed for', () => {
         return read() as never
       },
     }
-    return world(read, { reader }).ports
+    return world(read, { reader, ...holding([modesRegistration()]) }).ports
   }
+  const modesRegistration = (scope = SCOPE) => {
+    const materials = encodeInitialContextRegistration(
+      {
+        definition: SESSION_MODES_PUBLICATION,
+        key: sessionModesDescriptor.key,
+        bindings: sessionModesBindings,
+        parameters: undefined,
+      },
+      adoptedContextDefinitions,
+    )
+    if ('failure' in materials) throw new Error(materials.failure)
+    const registered = { owner: 'test', record: 'modes', revision: '1', digest: 'sha256:0' }
+    return {
+      scope,
+      declaration: { kind: 'context-registration', registration: registered, ...materials.ok },
+    }
+  }
+
+  it.each<[string, readonly unknown[]]>([
+    ['never registered the block', []],
+    ['registered it in another scope only', [modesRegistration('session-scope:other')]],
+  ])('is refused for good, reading nothing, when the scope %s', async (_name, records) => {
+    const w = world(named(encoded.value, SESSION), holding(records))
+    expect(await readPublishedView(w.ports, access, view)).toEqual({
+      failure: BLOCK_NOT_REGISTERED,
+    })
+    expect(w.asked).toEqual({})
+  })
 
   it('is given when it names this tenant and this session', async () => {
     const own = { basis: { tenant: encoded.value, session: SESSION } }

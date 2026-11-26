@@ -123,27 +123,29 @@ export async function assembleModelReceiverFixture(
       execution,
       operation: open,
       checkpoint,
-      original: {
-        entry: invokeEntry,
-        handoff,
-        outcome: {
-          request: {
-            kind: 'input',
-            reference: handoff,
-            entry: invokeEntry,
-            source: { kind: 'external-input', input: initial.id },
-          },
-          origin: { kind: 'invoke', ...runtime },
-          provider: testAdoption('message-handoff'),
-          qualification: testEvidence('qualification'),
-          record: testEvidence('handoff/receiver-open'),
-          decision: {
-            kind: 'prepared',
-            message: initial.content,
-            admission: testEvidence('admission/receiver-open'),
+      originals: [
+        {
+          entry: invokeEntry,
+          handoff,
+          outcome: {
+            request: {
+              kind: 'input',
+              reference: handoff,
+              entry: invokeEntry,
+              source: { kind: 'external-input', input: initial.id },
+            },
+            origin: { kind: 'invoke', ...runtime },
+            provider: testAdoption('message-handoff'),
+            qualification: testEvidence('qualification'),
+            record: testEvidence('handoff/receiver-open'),
+            decision: {
+              kind: 'prepared',
+              message: initial.content,
+              admission: testEvidence('admission/receiver-open'),
+            },
           },
         },
-      },
+      ],
       runtime,
     }),
   )

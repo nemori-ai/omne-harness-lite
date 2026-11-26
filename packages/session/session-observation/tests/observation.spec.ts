@@ -348,17 +348,51 @@ describe('the locate axis', () => {
     expect(log.reads('since')).toBe(1)
   })
 
-  it('locate, reading backward stops at the page limit', async () => {
+  it('locate, the page limit bounds the search for the main call, not for the run: the run is read on its own', async () => {
     const log = new FakeLog(
       started('run_1'),
+      mainCall('m-1'),
       otherCall('tool', 't-1', 'action'),
       otherCall('tool', 't-2', 'action'),
       otherCall('tool', 't-3', 'action'),
     )
     log.pageSize = 1
     const w = world(log, {}, 2)
-    expect(await frame(await open(w))).toMatchObject({ run: null })
-    expect(log.calls.map(call => call.face)).toEqual(['begin', 'next'])
+    expect(await frame(await open(w))).toMatchObject({ run: 'run_1', target: null, revision: '5' })
+    expect(w.model.asked).toEqual([])
+    expect(log.calls.map(call => call.face)).toEqual(['begin', 'next', 'begin'])
+    expect(log.calls[2]?.input['kinds']).toEqual(['run.started', 'run.terminal'])
+  })
+
+  it('locate, the run read on its own goes on to the newest start, past the terminal of the run after it', async () => {
+    const log = new FakeLog(
+      started('run_1'),
+      started('run_2'),
+      ended('run_1'),
+      otherCall('tool', 't-1', 'action'),
+    )
+    log.pageSize = 1
+    const w = world(log, {}, 1)
+    expect(await frame(await open(w))).toMatchObject({ run: 'run_2' })
+    expect(log.calls.map(call => call.face)).toEqual(['begin', 'begin', 'next'])
+  })
+
+  it('locate, the run read on its own, the log not available: open answers unavailable', async () => {
+    const log = new FakeLog(
+      started('run_1'),
+      started('run_2'),
+      ended('run_1'),
+      otherCall('tool', 't-1', 'action'),
+    )
+    log.pageSize = 1
+    log.failures.next = [{ kind: 'unavailable', owner: 'session', diagnostic: 'busy' }]
+    const w = world(log, {}, 1)
+    expect(
+      await createSessionObservation(w.ports).open({
+        access: ACCESS,
+        signal: new AbortController().signal,
+      }),
+    ).toEqual({ kind: 'unavailable' })
   })
 
   it('locate, reading forward goes on to the next page until the log is done', async () => {
@@ -376,7 +410,7 @@ describe('the locate axis', () => {
     expect(log.calls.map(call => call.face)).toEqual(['begin', 'since', 'next'])
   })
 
-  it('result, pages full before finding: what was read stands, the rest counts as not found', async () => {
+  it('result, pages full before the run: what was read of the calls stands, and the run is read on its own', async () => {
     const log = new FakeLog(
       started('run_1'),
       mainCall('m-1'),
@@ -386,8 +420,9 @@ describe('the locate axis', () => {
     )
     log.pageSize = 1
     const w = world(log, {}, 1)
-    expect(await frame(await open(w))).toMatchObject({ run: null, revision: '5' })
-    expect(log.reads()).toBe(1)
+    expect(await frame(await open(w))).toMatchObject({ run: 'run_1', revision: '5' })
+    expect(w.model.asked).toEqual(['m-1'])
+    expect(log.reads()).toBe(2)
   })
 
   it('result, own cursor invalid: the cursor is dropped and the next locate reads backward', async () => {
