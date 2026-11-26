@@ -148,6 +148,8 @@ describe('what the person last said in a session', () => {
         payload: { message: { blocks: [text('到点了')] } },
       },
       said('80', { kind: 'image' }),
+      said('75', { kind: 'reference', text: 'notes.md' }),
+      said('72', { ...text('没给人看的那一段'), visibility: { toHuman: false } }),
       said('70', text('  ')),
       said('60', text('只有命令带来的话', ORIGIN)),
       said('30', text('我说的')),

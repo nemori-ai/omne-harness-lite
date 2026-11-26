@@ -77,6 +77,13 @@ describe('a body handed in becomes the kept body', () => {
 })
 
 describe('a body that does not stand says which entry and which field', () => {
+  it('says how a path is written when the path of a metric is none', () => {
+    const found = issues(change(d => (d.metrics[0]!.measure.path = 'the p95 number')))
+    expect(found[0]?.problem).toBe(
+      'the path names where the number is in the JSON the command prints, like .ms or .runs[0].ms',
+    )
+  })
+
   it.each([
     ['no purpose', change(d => (d.purpose = '  ')), ['-.purpose']],
     ['no criterion', change(d => (d.criteria = [])), ['-.criteria', 'X2.by']],

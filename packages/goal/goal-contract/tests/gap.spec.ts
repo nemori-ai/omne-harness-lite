@@ -117,6 +117,47 @@ describe('the gap table', () => {
       expect(shortOf(value)).toBeNull()
   })
 
+  it('a criterion that stands on a metric reads that metric and no other; a rule shows the call its reading came from', () => {
+    const body = home({
+      metrics: [
+        ...(HOME.metrics ?? []),
+        { ...HOME.metrics![0]!, statement: '包体积', target: 300 },
+      ],
+      criteria: [
+        ...(HOME.criteria ?? []),
+        { statement: '包体积够小', evidence: { kind: 'metric', metric: 'M2' } },
+      ],
+    })
+    const read: Readings = {
+      ...NO_READINGS,
+      metrics: {
+        M1: { value: 2000, source: 'system', ref: 'call-1' },
+        M2: { value: 250, source: 'system', ref: 'call-2' },
+      },
+      rules: { N1: { value: 'kept', source: 'judge', ref: 'call-7' } },
+    }
+    const rows = gapTable(body, read, 0)
+    const last = body.criteria.at(-1)!.id
+    expect(rows.find(row => row.id === last)).toMatchObject({
+      reading: '成立',
+      open: false,
+      ref: 'call-2',
+    })
+    expect(rows.find(row => row.id === 'N1')?.ref).toBe('call-7')
+  })
+
+  it('the budget row is the budget exit, wherever it stands among the exits', () => {
+    const [budget, ...others] = HOME.exits ?? []
+    const body = home({ exits: [...others, budget] })
+    expect(body.exits[0]?.kind).not.toBe('budget')
+    const limit = body.exits.find(exit => exit.kind === 'budget')?.limits[0]
+    expect(gapTable(body, NO_READINGS, 2).at(-1)).toMatchObject({
+      id: '预算',
+      ought: `${String(limit?.amount)} 轮`,
+      reading: '用了 2 轮',
+    })
+  })
+
   it.each(['fails', 'stale', 'cannot-tell'] as const)('a criterion read as %s is open', value => {
     const read = { ...READ, criteria: { A2: { value, source: 'judge' as const, ref: null } } }
     expect(gapTable(home(), read, 1).find(row => row.id === 'A2')?.open).toBe(true)

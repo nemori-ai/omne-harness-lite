@@ -710,11 +710,11 @@ describe('the progress list', () => {
       writes: false,
       ...more,
     })
-    const long = `node bench.js   && ${'x'.repeat(80)}`
+    const long = `  node bench.js   && ${'x'.repeat(80)}  `
     history.made(
+      seen(4, { tool: 'Shell info' }),
       seen(2, { path: 'CHANGELOG.md', tool: 'Files write', writes: true }),
       seen(3, { tool: 'Shell execute', command: long, exit: 0 }),
-      seen(4, { tool: 'Shell info' }),
     )
     const patch = { criteria: { A1: { status: 'doing', refs: ['call-9'], note: '' } } }
     const problemOf = async () => {
@@ -881,6 +881,10 @@ describe('the words of the person in the history of a goal confirmed on a card',
     expect(await goals.confirm(OWNER, confirm('card-1'))).toEqual({ kind: 'basis-unavailable' })
     expect(store.rows(TENANT)).toEqual([])
     sessions.askable(true)
+    const { asked } = sessions
+    Object.assign(sessions, { asked: () => Promise.reject(new Error('the port is down')) })
+    expect(await goals.confirm(OWNER, confirm('card-1'))).toEqual({ kind: 'basis-unavailable' })
+    Object.assign(sessions, { asked })
     const silent = value(await goals.confirm(OWNER, confirm('card-1')))
     expect(silent.history[0]).toMatchObject({ words: null })
     sessions.ask(SESSION, { at: '90', text: '字'.repeat(2500) })

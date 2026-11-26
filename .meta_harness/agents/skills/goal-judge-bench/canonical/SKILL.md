@@ -27,7 +27,7 @@ description: >
 
    ```sh
    pnpm run -s bench validate
-   pnpm run -s bench compare --name final-vs-baseline-heldout --config configs/final.json --offline
+   pnpm run -s bench compare --name default-vs-baseline-heldout --config configs/final.json --offline
    ```
 
 2. **在调的那一份上量现行缺省。** `run --name <名> --split tune --config configs/final.json`。报告在 `experiments/<名>/report.json`：`gates` 是三道门槛，`ranking` 是排序用的数，`wrong` 是读错的条目（按代价排）。
@@ -91,9 +91,13 @@ description: >
 - 一题一次请求：贵 2.3 倍，硬门槛不变好。
 - 摘录截短或只取结尾：更差。
 - `typesafe/jev-1.14` 与 `jev-1.13`：便宜一半，误判成立翻倍。
+- 命令通过之前 agent 写过它所用的测试时，只问「这次通过可信吗」（`unsettled: covers`）：漏放少约三成，但误收场从 0 到 1，没有采用。见下面「容易错的地方」的头两条。
 
 ## 容易错的地方
 
+- 减少「判不了」会把旧的认错放出来。一个用例里有一条高把握的认错时，旁边那条真成立的判据一读对，这个用例就成了误收场。所以先比误判成立与误收场的次数，再看漏放与加权损失；漏放降了而误收场升了，不采用。
+- 把一类题从判定器挪给系统（例如证据过时由系统判），误判成立率的分母会变小：错的次数不变，比例也会变。对照时连分母一起读，结论里两个都写。
+- 真实旅程里判定不对时，先把那次会话重建成判定器的请求再看：用发行版自己的 `describeCall` 与 `packJudge`，从整份会话历史与目标的读回算出 `state` 与题目，再拿去单问、一次只改一处。重建出来的请求里看得出是哪一种错（打包、题目、线、型号），和读评测台的错例是同一套问法。
 - 评测台从 `dist` 读 `goal-contract`。改了打包函数先在 `packages/goal/goal-contract` 下 `pnpm run build`，否则量的是旧的。
 - `--offline` 时有一个请求没存过答复，整次运行失败，并留下一个空的 `experiments/<名>/`，要自己删。改了进请求的字段而没发过请求，是预期的失败；什么都没改却失败，说明打包的输出变了，先确认是不是有意的。
 - 离线重跑一个已有名字的实验会改写它的 `report.json`。要比新旧，换一个名字。

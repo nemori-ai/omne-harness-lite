@@ -984,10 +984,42 @@ describe('the three ways of asking the bench can switch on', () => {
         type: 'noul',
         instructions: `判据 A1 ${CHECK_COVERS}`,
       })
+      expect(CHECK_COVERS).toBe(
+        '的命令最近一次运行退出码是 0。运行之前 agent 写过它所用的测试或基准（evidence 里带 changesCheck 的几次，同一个文件以最后一次为准）。这次通过可信吗？最后一稿里有实在的断言在检查，就答是；检查被跳过、断言被改成恒真或被掏空，或陈述点名要检查的事在测试里完全找不到，才答否。',
+      )
+      const parted = asked({ ...instructing({ unsettled: 'covers' }), split: 'sections' })
+      expect(names(parted.requests)[0]).toEqual(['A1', 'A2'])
+      expect(stateOf(parted).facts.activity).toBeUndefined()
       expect(packed.requests[0]?.questions['A2']?.type).toBe('choice')
       const { evidence } = stateOf(packed)
       expect(evidence['A1']?.map(item => item.ref)).toEqual(['call-41', 'call-42', 'call-54'])
       expect(evidence['A2']?.map(item => item.ref)).toEqual(['call-52'])
+    })
+
+    it('shows five checks at most, the latest ones, and leaves a run that went stale to the rule for stale evidence', () => {
+      const many = Array.from({ length: 7 }, (_, at) =>
+        WRITE(30 + at, `tests/t${String(at)}.spec.ts`),
+      )
+      const crowded = asked(instructing({ unsettled: 'covers' }), { calls: [...many, E2E(54, 0)] })
+      expect(stateOf(crowded).evidence['A1']?.map(item => item.ref)).toEqual([
+        'call-32',
+        'call-33',
+        'call-34',
+        'call-35',
+        'call-36',
+        'call-54',
+      ])
+      const after = [last, E2E(54, 0), WRITE(60, 'src/home.ts')]
+      const stale = asked(instructing({ unsettled: 'covers' }), { calls: after })
+      expect(stale.requests[0]?.questions['A1']?.type).toBe('choice')
+    })
+
+    it('is a value the configuration schema takes, and old configurations without it read as the old way', () => {
+      const { unsettled: _, ...old } = BASELINE_JUDGE_CONFIG.instructions
+      const read = JudgeConfigSchema.parse({ ...BASELINE_JUDGE_CONFIG, instructions: old })
+      expect(read.instructions.unsettled).toBe('criterion')
+      const on = instructing({ unsettled: 'covers' })
+      expect(JudgeConfigSchema.parse(on).instructions.unsettled).toBe('covers')
     })
 
     it('is asked the old way without the switch, and a run nothing put in doubt is still not asked', () => {

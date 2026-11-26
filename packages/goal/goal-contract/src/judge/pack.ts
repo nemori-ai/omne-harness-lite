@@ -344,32 +344,45 @@ function lastDraftsThenRun(
   return [...drafts.slice(1 - JUDGE_LIMITS.evidencePerEntry), run]
 }
 
+type Sorting = CriterionReading | Asked | null
+
+function settledOrDoubtedByExit(
+  material: JudgeMaterial,
+  config: JudgeConfig,
+  criterion: Criterion,
+): Sorting {
+  const { evidence, pass } = criterion
+  if (evidence.kind !== 'command' || pass?.kind !== 'exit-zero') return null
+  const reading = exitReading(material, criterion, evidence.command)
+  if (reading !== 'stale' && reading !== 'unsettled') return reading
+  if (reading !== 'unsettled' || config.instructions.unsettled !== 'covers') return null
+  const shown = lastDraftsThenRun(material.calls, evidence.command)
+  return { criterion, evidence: shown, passInDoubt: true }
+}
+
+function byReading(
+  material: JudgeMaterial,
+  config: JudgeConfig,
+  criterion: Criterion,
+): CriterionReading | Asked {
+  const shown = evidenceCalls(material, criterion)
+  const last = shown.at(-1)
+  const stale =
+    config.packaging.staleness === 'decided' &&
+    last !== undefined &&
+    writesAfter(material.calls, criterion, last).length > 0
+  return stale ? 'stale' : { criterion, evidence: shown, passInDoubt: false }
+}
+
 function sorted(material: JudgeMaterial, config: JudgeConfig) {
   const decided: Partial<Record<CriterionId, CriterionReading>> = {}
   const asked: Asked[] = []
   for (const criterion of material.body.criteria) {
-    const { evidence, pass } = criterion
-    if (evidence.kind === 'metric') continue
-    if (evidence.kind === 'command' && pass?.kind === 'exit-zero') {
-      const reading = exitReading(material, criterion, evidence.command)
-      if (reading !== 'stale' && reading !== 'unsettled') {
-        decided[criterion.id] = reading
-        continue
-      }
-      if (reading === 'unsettled' && config.instructions.unsettled === 'covers') {
-        const shown = lastDraftsThenRun(material.calls, evidence.command)
-        asked.push({ criterion, evidence: shown, passInDoubt: true })
-        continue
-      }
-    }
-    const shown = evidenceCalls(material, criterion)
-    const last = shown.at(-1)
-    const stale =
-      config.packaging.staleness === 'decided' &&
-      last !== undefined &&
-      writesAfter(material.calls, criterion, last).length > 0
-    if (stale) decided[criterion.id] = 'stale'
-    else asked.push({ criterion, evidence: shown, passInDoubt: false })
+    if (criterion.evidence.kind === 'metric') continue
+    const found =
+      settledOrDoubtedByExit(material, config, criterion) ?? byReading(material, config, criterion)
+    if (typeof found === 'string') decided[criterion.id] = found
+    else asked.push(found)
   }
   return { decided, asked }
 }

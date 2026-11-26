@@ -3,8 +3,12 @@ import {
   CriterionIdSchema,
   MetricIdSchema,
   RuleIdSchema,
+  type Criterion,
+  type CriterionId,
   type GoalBody,
   type Metric,
+  type MetricId,
+  type RuleId,
 } from './body.ts'
 import {
   CriterionReadingSchema,
@@ -74,63 +78,74 @@ function metricRow(metric: Metric, read: Reading<number> | undefined): GapRow {
   }
 }
 
+function measuredRow(criterion: Criterion, metric: MetricId, measured: GapRow | undefined): GapRow {
+  const open = measured?.open ?? true
+  return {
+    id: criterion.id,
+    ought: criterion.statement,
+    reading: measured?.source == null ? UNREAD : open ? '未成立' : '成立',
+    source: measured?.source ?? null,
+    ref: measured?.ref ?? null,
+    open,
+    short: measured?.short == null ? null : `${metric} ${measured.short}`,
+  }
+}
+
+function criterionRow(criterion: Criterion, read: Readings['criteria'][CriterionId]): GapRow {
+  return {
+    id: criterion.id,
+    ought: criterion.statement,
+    reading: read === undefined ? UNREAD : CRITERION_WORDS[read.value],
+    source: read?.source ?? null,
+    ref: read?.ref ?? null,
+    open: read?.value !== 'holds',
+    short: read?.value === 'stale' ? STALE_CURE : null,
+  }
+}
+
+function ruleRow(rule: GoalBody['rules'][number], read: Readings['rules'][RuleId]): GapRow {
+  return {
+    id: rule.id,
+    ought: rule.statement,
+    reading: read === undefined ? UNREAD : RULE_WORDS[read.value],
+    source: read?.source ?? null,
+    ref: read?.ref ?? null,
+    open: read?.value === 'broken',
+    short: null,
+  }
+}
+
+function budgetRows(body: GoalBody, rounds: number): readonly GapRow[] {
+  const limit = body.exits.find(exit => exit.kind === 'budget')?.limits[0]
+  if (limit === undefined) return []
+  return [
+    {
+      id: '预算',
+      ought: `${String(limit.amount)} 轮`,
+      reading: `用了 ${String(rounds)} 轮`,
+      source: 'system',
+      ref: null,
+      open: false,
+      short: `剩 ${String(Math.max(0, limit.amount - rounds))}`,
+    },
+  ]
+}
+
 /** The gap table: every criterion, metric and rule by its number, then the budget. */
 export function gapTable(body: GoalBody, readings: Readings, rounds: number): readonly GapRow[] {
   const metrics = body.metrics.map(metric => metricRow(metric, readings.metrics[metric.id]))
-  const criteria = body.criteria.map((criterion): GapRow => {
+  const criteria = body.criteria.map(criterion => {
     const { evidence } = criterion
-    if (evidence.kind === 'metric') {
-      const measured = metrics.find(row => row.id === evidence.metric)
-      const open = measured?.open ?? true
-      return {
-        id: criterion.id,
-        ought: criterion.statement,
-        reading: measured?.source == null ? UNREAD : open ? '未成立' : '成立',
-        source: measured?.source ?? null,
-        ref: measured?.ref ?? null,
-        open,
-        short: measured?.short == null ? null : `${evidence.metric} ${measured.short}`,
-      }
-    }
-    const read = readings.criteria[criterion.id]
-    return {
-      id: criterion.id,
-      ought: criterion.statement,
-      reading: read === undefined ? UNREAD : CRITERION_WORDS[read.value],
-      source: read?.source ?? null,
-      ref: read?.ref ?? null,
-      open: read?.value !== 'holds',
-      short: read?.value === 'stale' ? STALE_CURE : null,
-    }
+    return evidence.kind === 'metric'
+      ? measuredRow(
+          criterion,
+          evidence.metric,
+          metrics.find(row => row.id === evidence.metric),
+        )
+      : criterionRow(criterion, readings.criteria[criterion.id])
   })
-  const rules = body.rules.map((rule): GapRow => {
-    const read = readings.rules[rule.id]
-    return {
-      id: rule.id,
-      ought: rule.statement,
-      reading: read === undefined ? UNREAD : RULE_WORDS[read.value],
-      source: read?.source ?? null,
-      ref: read?.ref ?? null,
-      open: read?.value === 'broken',
-      short: null,
-    }
-  })
-  const limit = body.exits.find(exit => exit.kind === 'budget')?.limits[0]
-  const budget: GapRow[] =
-    limit === undefined
-      ? []
-      : [
-          {
-            id: '预算',
-            ought: `${String(limit.amount)} 轮`,
-            reading: `用了 ${String(rounds)} 轮`,
-            source: 'system',
-            ref: null,
-            open: false,
-            short: `剩 ${String(Math.max(0, limit.amount - rounds))}`,
-          },
-        ]
-  return [...criteria, ...metrics, ...rules, ...budget]
+  const rules = body.rules.map(rule => ruleRow(rule, readings.rules[rule.id]))
+  return [...criteria, ...metrics, ...rules, ...budgetRows(body, rounds)]
 }
 
 const SOURCE_WORDS: Readonly<Record<ReadingSource, string>> = {
