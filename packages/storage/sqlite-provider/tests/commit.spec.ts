@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { CommitResultV2, RolledBackV2 } from '@omne-harness/sql-contract'
+import type { CommitResultV2, FactCommandV2, RolledBackV2 } from '@omne-harness/sql-contract'
 import { unpackText } from '@omne-harness/sql-contract/worker'
 import { tick } from './gate.ts'
 import {
@@ -349,6 +349,62 @@ describe('rejection order (SPEC 7.2, adjacent steps)', () => {
     )
     expect(kindOf(full)).toBe('rejected_before_accept/queue_full')
     expect((await holding).kind).toBe('committed')
+  })
+
+  // One word for four limits tells nobody which one a commit met, nor by how much.
+  describe('a commit over a limit says which limit, what it measured and whose command it was', () => {
+    const nested = (depth: number): FactCommandV2['facts'] =>
+      depth === 0 ? {} : { inner: nested(depth - 1) }
+    const diagnosticOf = (result: CommitResultV2): string =>
+      result.kind === 'rejected_before_accept'
+        ? String(result.diagnostic)
+        : `not rejected: ${result.kind}`
+
+    it('the depth of the facts of one command', async () => {
+      const { storage } = await ready({ maxJsonDepth: 4 })
+      const result = await storage.commit(
+        commitRequest(built, { commands: [command('ledger'), command('auditor', nested(6))] }),
+      )
+      expect(kindOf(result)).toBe('rejected_before_accept/command_limit')
+      expect(diagnosticOf(result)).toBe('command_limit: maxJsonDepth 7 > 4 (participant auditor)')
+    })
+
+    it('the number of commands', async () => {
+      const { storage } = await ready({ maxCommandsPerCommit: 2 })
+      const result = await storage.commit(
+        commitRequest(built, {
+          commands: [command('ledger'), command('auditor'), command('extra')],
+        }),
+      )
+      expect(diagnosticOf(result)).toBe('command_limit: maxCommandsPerCommit 3 > 2')
+    })
+
+    it('the bytes of one command', async () => {
+      const { storage } = await ready({ maxCommandBytes: 2000 })
+      const result = await storage.commit(
+        commitRequest(built, {
+          commands: [command('ledger'), command('auditor', { text: 'x'.repeat(3000) })],
+        }),
+      )
+      expect(kindOf(result)).toBe('rejected_before_accept/command_limit')
+      expect(diagnosticOf(result)).toMatch(
+        /^command_limit: maxCommandBytes 30\d\d > 2000 \(participant auditor\)$/,
+      )
+    })
+
+    it('the bytes of the whole request, when each command is within its own limit', async () => {
+      const { storage } = await ready({ maxCommandBytes: 3000, maxRequestBytes: 5000 })
+      const result = await storage.commit(
+        commitRequest(built, {
+          commands: [
+            command('ledger', { text: 'x'.repeat(2500) }),
+            command('auditor', { text: 'y'.repeat(2500) }),
+          ],
+        }),
+      )
+      expect(kindOf(result)).toBe('rejected_before_accept/command_limit')
+      expect(diagnosticOf(result)).toMatch(/^command_limit: maxRequestBytes 5\d\d\d > 5000$/)
+    })
   })
 
   it('step 11 combination_unregistered before step 12 manifest_mismatch', async () => {

@@ -678,13 +678,13 @@ function reporting(
 }
 
 const refusing =
-  (reason: CommitRejectReason): SqlStorage['commit'] =>
+  (reason: CommitRejectReason, diagnostic: string | null = null): SqlStorage['commit'] =>
   request =>
     Promise.resolve({
       kind: 'rejected_before_accept',
       identity: request.identity,
       reason,
-      diagnostic: null,
+      diagnostic,
     } as never)
 
 function lateLanding(s: SqlScene) {
@@ -786,6 +786,20 @@ describe('the publication report (SPEC 发布观测)', () => {
     expect(reports[0]!.bytes).toBeGreaterThan(reports[0]!.recordBytes)
     ok(await reporting(s, reports, sent).load({ ...s.access, execution: s.execution }))
     expect(reports).toHaveLength(1)
+  })
+
+  it('a publication over a limit of the storage is refused in the words of the storage: which limit, how much, whose command', async () => {
+    const { s, open } = await opened('report-refused-limit')
+    const request = await messageRequest(s, open.authority)
+    const reports: JournalPublicationReport[] = []
+    const said = 'command_limit: maxCommandBytes 2100000 > 1048576 (participant execution-record)'
+    const storage = refusing('command_limit', said)
+    expect(await reporting(s, reports, [], storage).commit(request)).toEqual({
+      failure: { kind: 'invalid', field: 'storage', reason: said },
+    })
+    expect(reports).toEqual([
+      expect.objectContaining({ diagnostic: `storage rejected the commit: ${said}` }),
+    ])
   })
 
   it('a refused publication and an unknown one each report once, with the diagnostic of the answer', async () => {

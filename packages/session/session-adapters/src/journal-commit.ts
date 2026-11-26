@@ -18,15 +18,20 @@ export type JournalCommitResult =
   | Readonly<{ kind: 'rolled-back'; receipt: RolledBackV2 }>
   | Readonly<{ kind: 'unknown'; diagnostic: string; attempt: number }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-  | Readonly<{ kind: 'refused'; reason: CommitRejectReason; diagnostic: string }>
+  | Readonly<{ kind: 'refused'; reason: CommitRejectReason; said: string; diagnostic: string }>
 
 const UNSUPPORTED: ReadonlySet<CommitRejectReason> = new Set([
   'combination_unregistered',
   'participant_not_in_combination',
 ])
 
-export const refusalFailure = (reason: CommitRejectReason): Failure =>
-  UNSUPPORTED.has(reason) ? { kind: 'unsupported' } : { kind: 'invalid', field: 'storage', reason }
+type Refused = Extract<JournalCommitResult, { kind: 'refused' }>
+
+// The reason the Agent reads is what the storage said: for a limit it names which one and by how much.
+export const refusalFailure = ({ reason, said }: Pick<Refused, 'reason' | 'said'>): Failure =>
+  UNSUPPORTED.has(reason)
+    ? { kind: 'unsupported' }
+    : { kind: 'invalid', field: 'storage', reason: said }
 
 export type JournalRecall = SqlIdentity['recall']
 
@@ -113,17 +118,21 @@ async function commitGeneration(
           : 'rolled back'
       return { kind: 'committed', receipt: result.existing, recalled: true }
     case 'rejected_before_accept':
-      return beforeAccept(result.reason, attempt)
+      return beforeAccept(result.reason, result.diagnostic ?? result.reason, attempt)
   }
 }
 
-function beforeAccept(reason: CommitRejectReason, attempt: number): JournalCommitResult {
+function beforeAccept(
+  reason: CommitRejectReason,
+  said: string,
+  attempt: number,
+): JournalCommitResult {
   if (reason === 'writer_not_current')
     return { kind: 'unknown', diagnostic: 'the writer is not current', attempt }
-  const diagnostic = `storage rejected the commit: ${reason}`
+  const diagnostic = `storage rejected the commit: ${said}`
   return commitRejectionNature(reason) === 'temporary'
     ? { kind: 'unavailable', diagnostic }
-    : { kind: 'refused', reason, diagnostic }
+    : { kind: 'refused', reason, said, diagnostic }
 }
 
 // not-run does not prove the generation was sent and dropped: the storage cannot tell that from never sent. Only a caller that knows it sent it may read it so.

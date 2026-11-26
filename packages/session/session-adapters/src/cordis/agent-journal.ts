@@ -1079,7 +1079,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       chunk = []
       chunkBytes = 0
       if (outcome.kind === 'committed') return null
-      if (outcome.kind === 'refused') return refusalFailure(outcome.reason)
+      if (outcome.kind === 'refused') return refusalFailure(outcome)
       return unavailable(
         outcome.kind === 'unavailable' || outcome.kind === 'unknown'
           ? `the content blocks were not stored: ${outcome.diagnostic}`
@@ -1397,7 +1397,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       case 'unavailable':
         return { kind: 'answer', value: fail(unavailable(outcome.diagnostic)) }
       case 'refused':
-        return { kind: 'answer', value: fail(refusalFailure(outcome.reason)) }
+        return { kind: 'answer', value: fail(refusalFailure(outcome)) }
     }
   }
 
