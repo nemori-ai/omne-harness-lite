@@ -37,7 +37,9 @@ import { loadTree, type ResolvedTree } from './plugin-tree.ts'
 import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts'
 import type { LoadedRow } from './readiness.ts'
 import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-bound.ts'
-import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
+import { inTransit, stopOf } from './readiness.ts'
+import { refusedByStamp, stampState } from './state-stamp.ts'
+import { disposeWithin, monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
 import { hostTime, holdRunTime } from './entry/time.ts'
 import { enabledExtensionsOf } from './rows/agent-host/enabled-extensions.ts'
 import { systemExtensionsOf } from './rows/system-extensions/index.ts'
@@ -406,6 +408,7 @@ export type RunServeOptions = Readonly<{
   readinessTimeoutMs: number
   shutdownDeadlineMs: number
   drainDeadlineMs?: number
+  rootDisposalDeadlineMs?: number
   stateRoot: string
   stop: AbortSignal
   write: (record: S0Record) => void
@@ -434,6 +437,14 @@ export type ServeResult = Readonly<{
 }>
 
 const SERVE_PREFIX = 'serve'
+const NO_ROWS_YET: Record<Implementation, number> = {
+  real: 0,
+  'contract-double': 0,
+  's0-double': 0,
+}
+const ROOT_DISPOSAL_DEADLINE_MS = 10_000
+const rootDeadlineOf = (options: RunServeOptions): number =>
+  options.rootDisposalDeadlineMs ?? ROOT_DISPOSAL_DEADLINE_MS
 
 /** The entry's environment for this run; the one time of the run is held on its root for the rows. */
 function entryEnvOf(root: Context, trust: Trust, options: RunServeOptions): EntryEnv {
@@ -514,13 +525,20 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
     diagnose: diagnostic => options.stderr(`${SERVE_PREFIX}: ${diagnostic.kind}`),
   })
   let lock: StateLock | undefined
+  // The stamp is read before the lock, so a refused directory is not written at all, and again under the lock.
   const lockState = (): string | null => {
     try {
+      const unknown = refusedByStamp(options.stateRoot)
+      if (unknown !== null) return unknown
       const taken = acquireStateLock(options.stateRoot)
       if (taken.kind === 'in-use')
         return `state-root-in-use: another serve process works on ${options.stateRoot}`
       lock = taken.lock
-      return null
+      const changed = refusedByStamp(options.stateRoot)
+      if (changed === null) return null
+      lock.release()
+      lock = undefined
+      return changed
     } catch (error) {
       return `state-root-unusable: ${error instanceof Error ? error.message : String(error)}`
     }
@@ -540,8 +558,14 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
     }),
     toolRecordsRow: createToolRecordsRow({ lostContact: lostContactBy(() => lock, 'instance') }),
   }
+  // A start that came to accept wrote this directory with the formats of this build: the stamp says so.
+  const write: RunServeOptions['write'] = record => {
+    if (record.kind === 'startup-result' && record['accepting'] === true)
+      stampState(options.stateRoot)
+    options.write(record)
+  }
   try {
-    return await runServeWithHostFiles({ ...options, plugins }, hostFiles, lockState)
+    return await runServeWithHostFiles({ ...options, plugins, write }, hostFiles, lockState)
   } finally {
     await hostFiles.close()
     lock?.release()
@@ -660,11 +684,17 @@ async function startAndReport(
     implementations: Record<Implementation, number>
     probes: Probes
     write: RunServeOptions['write']
+    options: RunServeOptions
   }>,
 ): Promise<0 | 3 | 4> {
   const { registry, started, barrierCalls, probes, write } = input
-  const startFailure = barrierCalls > 0 ? await registry.startAll() : undefined
-  const startCode = startFailure === undefined ? started.report.exitCode : 3
+  const starts =
+    barrierCalls > 0
+      ? await startsWithin(registry, input.options.readinessTimeoutMs, input.options.stop)
+      : undefined
+  const startFailure = typeof starts === 'string' ? undefined : starts
+  const startCode =
+    starts === undefined ? started.report.exitCode : typeof starts === 'string' ? 4 : 3
   for (const state of started.report.rows) write({ kind: 'row-state', ...state })
   write({
     kind: 'startup-result',
@@ -672,7 +702,13 @@ async function startAndReport(
     scope: 'serving',
     accepting: startCode === 0,
     enabledRows: input.enabledRows,
-    outcome: startFailure === undefined ? started.report.outcome : 'start-failed',
+    outcome:
+      starts === undefined
+        ? started.report.outcome
+        : typeof starts === 'string'
+          ? starts
+          : 'start-failed',
+    stuck: started.report.stuck,
     ...(startFailure === undefined ? {} : { startFailure }),
     implementations: input.implementations,
     barrierCalls,
@@ -680,6 +716,46 @@ async function startAndReport(
     appliedRows: probes.applied,
   })
   return startCode
+}
+
+async function startsWithin(
+  registry: LifecycleRegistry,
+  deadlineMs: number,
+  stop: AbortSignal,
+): Promise<Awaited<ReturnType<LifecycleRegistry['startAll']>> | 'start-timeout' | 'stopped'> {
+  const timer = monotonicClock.after(deadlineMs)
+  const stopping = stopOf(stop)
+  try {
+    return await Promise.race([
+      registry.startAll(),
+      timer.promise.then(() => 'start-timeout' as const),
+      stopping.asked.then(() => 'stopped' as const),
+    ])
+  } finally {
+    timer.cancel()
+    stopping.cancel()
+  }
+}
+
+function rootRetirement(
+  deadlineMs: number,
+  loaded: () => readonly LoadedRow[],
+  stderr: RunServeOptions['stderr'],
+): Pick<
+  NonNullable<Parameters<typeof runShutdown>[4]>,
+  'disposeRootMs' | 'undisposedRows' | 'rootStuck'
+> {
+  return {
+    disposeRootMs: deadlineMs,
+    undisposedRows: () =>
+      loaded()
+        .filter(inTransit)
+        .map(row => row.id),
+    rootStuck: stuck =>
+      stderr(
+        `${SERVE_PREFIX}: root disposal did not settle within ${deadlineMs} ms; the process ends without it; stuck rows: ${stuck.join(', ') || 'none named'}`,
+      ),
+  }
 }
 
 async function awaitStop(
@@ -700,23 +776,32 @@ async function settleStartFailure(
     stderr: RunServeOptions['stderr']
     root: Context
     shutdown: () => ReturnType<typeof runShutdown>
+    options: RunServeOptions
   }>,
 ): Promise<ServeResult['exitCode']> {
+  const past = (deadline: boolean): string => (deadline ? ': the start deadline passed' : '')
+  const retire = async (): Promise<void> => {
+    const dispose = () => io.root.fiber.dispose()
+    if ((await disposeWithin(dispose, rootDeadlineOf(io.options), monotonicClock)) === 'late')
+      io.stderr(`${SERVE_PREFIX}: root disposal did not settle; the process ends without it`)
+  }
   switch (started.kind) {
     case 'rejected':
       for (const diagnostic of started.diagnostics)
         io.stderr(`${SERVE_PREFIX}: ${describeDiagnostic(diagnostic)}`)
-      await io.root.fiber.dispose()
+      await retire()
       return started.exitCode
     case 'entry-failed': {
-      io.stderr(`${SERVE_PREFIX}: entry-object ${started.name}: install failed`)
+      io.stderr(
+        `${SERVE_PREFIX}: entry-object ${started.name}: install failed${past(started.deadline)}`,
+      )
       const report = await io.shutdown()
       io.write({ kind: 'shutdown-result', ...report })
       return started.exitCode
     }
     case 'preparation-failed':
-      io.stderr(`${SERVE_PREFIX}: tenant directory preparation failed`)
-      await io.root.fiber.dispose()
+      io.stderr(`${SERVE_PREFIX}: tenant directory preparation failed${past(started.deadline)}`)
+      await retire()
       return started.exitCode
   }
 }
@@ -743,11 +828,7 @@ async function runServeWithHostFiles(
   const probes: Probes = { started: [], applied: [] }
   let barrierCalls = 0
   let accepting = false
-  let implementations: Record<Implementation, number> = {
-    real: 0,
-    'contract-double': 0,
-    's0-double': 0,
-  }
+  let implementations = NO_ROWS_YET
   const result = (exitCode: ServeResult['exitCode']): ServeResult => ({
     exitCode,
     accepting,
@@ -830,6 +911,7 @@ async function runServeWithHostFiles(
           await hostFiles.close()
           await disposeTree(root, loaded)
         },
+        ...rootRetirement(rootDeadlineOf(options), () => loaded, stderr),
       },
     ))
   }
@@ -869,10 +951,11 @@ async function runServeWithHostFiles(
     barrier: () => {
       barrierCalls += 1
     },
+    stop: options.stop,
   })
 
   if (started.kind !== 'started')
-    return result(await settleStartFailure(started, { write, stderr, root, shutdown }))
+    return result(await settleStartFailure(started, { write, stderr, root, shutdown, options }))
 
   loaded = started.rows
   const startCode = await startAndReport({
@@ -883,6 +966,7 @@ async function runServeWithHostFiles(
     implementations,
     probes,
     write,
+    options,
   })
   accepting = startCode === 0
   if (accepting) await awaitStop(options.stop, registryStop, stderr)
