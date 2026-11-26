@@ -3,7 +3,11 @@ import type { BodyOf, LoginIdentity, Principal } from '@omne-harness/access-cord
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { scheduleProtocol } from '@omne-harness/schedule-protocol'
 import { tenant, tenantCodec } from '@omne-harness/legal-identity'
-import type { ScheduleCallContext, ScheduleInstant } from '@omne-harness/schedule-contract'
+import {
+  DEFAULT_AGENT_RESULT_POLICY,
+  type ScheduleCallContext,
+  type ScheduleInstant,
+} from '@omne-harness/schedule-contract'
 import { createScheduleContribution, type ScheduleFaces } from '@omne-harness/schedule-access'
 import type { ScheduleProtocol } from '@omne-harness/schedule-protocol'
 
@@ -61,9 +65,17 @@ const tree = (value: unknown) => {
   return read.value
 }
 
+const FOR_NEW = {
+  agentDefinitionRef: 'coding',
+  modes: { permission: 'never', environmentAdoptionRef: 'env@1', collaboration: 'co-work' },
+  workspace: null,
+} as const
+type NewSessionDefaults = Parameters<typeof createScheduleContribution>[0]['newSessionDefaults']
+
 function world(
   faces: Partial<Record<string, unknown>> | null,
   refused?: 'denied' | 'basis-unavailable',
+  newSessionDefaults: NewSessionDefaults = async () => FOR_NEW,
 ) {
   const asked: [string, unknown][] = []
   const watchers: { tenantText: string; listener: { changed(): void; closed(): void } }[] = []
@@ -87,6 +99,7 @@ function world(
           },
           jobs: {
             get: reply('job.get'),
+            ofExecution: reply('job.ofExecution'),
             cancel: reply('job.cancel'),
             queryCancel: reply('job.queryCancel'),
             start: reply('job.start'),
@@ -109,6 +122,7 @@ function world(
     faces: () => built,
     requestId: () => 'r-1',
     clock: { now: () => at as ScheduleInstant },
+    newSessionDefaults,
   })
   return {
     ops: contribution.operations,
@@ -225,7 +239,10 @@ describe('writes', () => {
   it.each([
     ['revision_conflict', { outcome: 'conflict', body: { code: 'revision_conflict' } }],
     ['capacity_exceeded', { outcome: 'limited', body: {} }],
-    ['invalid_transition', { outcome: 'invalid', body: { code: 'invalid_transition' } }],
+    [
+      'invalid_transition',
+      { outcome: 'invalid', body: { code: 'invalid_transition', reason: 'invalid_transition' } },
+    ],
     ['forbidden', { outcome: 'not-visible', body: {} }],
     ['provider_failure', { outcome: 'basis-unavailable' }],
   ])('maps the refusal %s', async (code, outcome) => {
@@ -233,6 +250,17 @@ describe('writes', () => {
     expect(await ops['manage-schedule'](call, manage({ kind: 'stop', reason: null }))).toEqual(
       outcome,
     )
+  })
+
+  it('hands on why the domain found the input invalid: the reason an executor gave for refusing work reaches the person', async () => {
+    const why = { ...error('invalid_input'), message: 'A1.evidence: 无人值守的目标要有证据' }
+    const { ops } = world({ execute: { kind: 'rejected', error: why } })
+    expect(
+      await ops['manage-schedule'](
+        call,
+        manage({ kind: 'edit', instruction: tree({ purpose: '写周报' }) }),
+      ),
+    ).toEqual({ outcome: 'invalid', body: { code: 'invalid_input', reason: why.message } })
   })
 
   it('derives the same operation key from the same client id, and refuses an invalid definition before the domain', async () => {
@@ -475,7 +503,10 @@ describe('the remaining human actions', () => {
 
   it('sends an edit, a revision of a draft and a replacement as their domain commands', async () => {
     const { ops, asked } = world({ execute: committed })
-    await ops['manage-schedule'](call, manage({ kind: 'edit', instruction: '写周报' }))
+    await ops['manage-schedule'](
+      call,
+      manage({ kind: 'edit', instruction: tree({ purpose: '写周报' }) }),
+    )
     await ops['manage-schedule'](
       call,
       manage({ kind: 'revise', definition: DEFINITION, reason: '改时间' }),
@@ -485,7 +516,10 @@ describe('the remaining human actions', () => {
       manage({ kind: 'replace', definition: DEFINITION, reason: '换' }),
     )
     expect(asked.map(([, input]) => input)).toMatchObject([
-      { action: 'update', patch: { kind: 'executionText', instruction: '写周报', label: null } },
+      {
+        action: 'update',
+        patch: { kind: 'executionText', instruction: { purpose: '写周报' }, label: null },
+      },
       { action: 'reviseDraft', reason: '改时间', definition: { label: '交月报' } },
       { action: 'replace', reason: '换', successor: { label: '交月报' } },
     ])
@@ -656,6 +690,52 @@ describe('Jobs: list, read, cancel, start', () => {
     ).toEqual({
       outcome: 'basis-unavailable',
     })
+  })
+
+  it('reads a Job that runs in a session with what its execution left, or with the session alone when that could not be read; the answer goes over the wire', async () => {
+    const read = async (account: unknown) => {
+      const where = { kind: 'session', sessionRef: 's-9', account }
+      const { ops } = world({ 'job.get': ok({ ...detail, executionWhere: where }) })
+      const answer = wire('read-job', await ops['read-job'](call, { tenant: tenantId, job: JOB }))
+      return (answer as { body: { where: unknown } }).body.where
+    }
+    expect(await read(null)).toEqual({ kind: 'session', session: 's-9', account: null })
+    expect(
+      await read({
+        adopted: { name: 'coding', version: 'v7' },
+        outcome: 'achieved',
+        deliverables: ['report.md'],
+        since: 'entry-3',
+        run: 'run-1',
+      }),
+    ).toEqual({
+      kind: 'session',
+      session: 's-9',
+      account: {
+        definition: { name: 'coding', version: 'v7' },
+        outcome: 'achieved',
+        deliverables: ['report.md'],
+        since: 'entry-3',
+        run: 'run-1',
+      },
+    })
+  })
+
+  it('reads the Jobs a session carries out or carried out, as Job details; a refusal or a throw is an unavailable basis', async () => {
+    const body = { tenant: tenantId, session: 's-9' }
+    const { ops, asked } = world({ 'job.ofExecution': ok([detail, detail]) })
+    expect(wire('read-session-jobs', await ops['read-session-jobs'](call, body))).toEqual({
+      outcome: 'succeeded',
+      body: { items: [shownJob, shownJob] },
+    })
+    expect(asked).toEqual([['job.ofExecution', { executionRef: 's-9', limit: 20 }]])
+    for (const answer of [failed('not_found'), new Error('x')])
+      expect(
+        await world({ 'job.ofExecution': answer }).ops['read-session-jobs'](call, body),
+      ).toEqual({ outcome: 'basis-unavailable' })
+    expect(await world({ 'job.ofExecution': ok([]) }).ops['read-session-jobs'](call, body)).toEqual(
+      { outcome: 'succeeded', body: { items: [] } },
+    )
   })
 
   it('reads one Job in full; another tenant and a missing one answer the same; a throw is an unavailable basis', async () => {
@@ -842,5 +922,120 @@ describe('observe-jobs', () => {
       outcome: 'basis-unavailable',
     })
     expect([...denied.watchers, ...gone.watchers]).toEqual([])
+  })
+})
+
+describe('agent work a person writes is completed before it is read', () => {
+  const instruction = { purpose: '写周报' }
+  const REST = { materials: [], returnTo: null, resultPolicy: DEFAULT_AGENT_RESULT_POLICY }
+  const agent = (session: unknown) => ({ kind: 'agent', instruction, session })
+  const definitionOf = (session: unknown) =>
+    tree({
+      ...(JSON.parse(writeJsonText(DEFINITION)) as object),
+      purpose: {
+        kind: 'execution',
+        work: agent(session),
+        scope: { kind: 'fleet' },
+        catchUp: { kind: 'none' },
+        overlap: 'skip',
+        misfire: null,
+        notifications: [],
+      },
+    })
+  const committed = { kind: 'committed', operationRef: 'o', value: view('active'), replayed: false }
+  const started = { kind: 'ok', value: { outcome: 'committed', detail } }
+  const current = { mode: 'existing', sessionRef: 'current' }
+  const refusal = {
+    outcome: 'invalid',
+    body: {
+      code: 'invalid_input',
+      reason:
+        'session.sessionRef: current names the session of the caller, and this caller is in none',
+    },
+  }
+
+  it('a new session takes the definition and modes the release defaults to, and no workspace; what is saved is whole', async () => {
+    const { ops, asked } = world({ create: committed, 'job.start': started })
+    const made = await ops['create-schedule'](call, {
+      ...create,
+      definition: definitionOf({ mode: 'new' }),
+    })
+    expect(made).toMatchObject({ outcome: 'succeeded' })
+    const [, created] = asked[0] as [string, { definition: { purpose: { work: unknown } } }]
+    expect(created.definition.purpose.work).toEqual({
+      ...agent({ mode: 'new', ...FOR_NEW }),
+      ...REST,
+    })
+    const body = { tenant: tenantId, startId: 's-1', work: tree(agent({ mode: 'new' })) }
+    await ops['start-job'](call, body)
+    expect(((asked[1] ?? [])[1] as { work: unknown }).work).toEqual({
+      ...agent({ mode: 'new', ...FOR_NEW }),
+      ...REST,
+    })
+  })
+
+  it('refuses `current` from a person in every operation that reads work, saying why, and asks the domain nothing', async () => {
+    const { ops, asked } = world({ create: committed, execute: committed, 'job.start': started })
+    const definition = definitionOf(current)
+    expect(await ops['create-schedule'](call, { ...create, definition })).toEqual(refusal)
+    expect(
+      await ops['manage-schedule'](call, manage({ kind: 'replace', definition, reason: '换' })),
+    ).toEqual(refusal)
+    expect(
+      await ops['preview'](call, {
+        tenant: tenantId,
+        source: { kind: 'definition', definition },
+        count: 3,
+      }),
+    ).toEqual(refusal)
+    expect(
+      await ops['start-job'](call, {
+        tenant: tenantId,
+        startId: 's-1',
+        work: tree(agent(current)),
+      }),
+    ).toEqual(refusal)
+    expect(asked).toEqual([])
+  })
+
+  it.each([
+    ['cannot be read', async () => undefined],
+    [
+      'fails to read',
+      async () => {
+        throw new Error('down')
+      },
+    ],
+  ])(
+    'has no basis when the defaults of the release %s and the work leaves something out; a recall of it has none either',
+    async (_, defaults) => {
+      const { ops, asked } = world({ create: committed, 'job.start': started }, undefined, defaults)
+      const definition = definitionOf({ mode: 'new' })
+      const basis = { outcome: 'basis-unavailable' }
+      expect(await ops['create-schedule'](call, { ...create, definition })).toEqual(basis)
+      expect(await ops['query-create-schedule'](call, { ...create, definition })).toEqual(basis)
+      const start = { tenant: tenantId, startId: 's-1', work: tree(agent({ mode: 'new' })) }
+      expect(await ops['start-job'](call, start)).toEqual(basis)
+      expect(await ops['query-start-job'](call, start)).toEqual(basis)
+      expect(asked).toEqual([])
+      const whole = tree({ ...agent({ mode: 'new', ...FOR_NEW }), ...REST })
+      expect(await ops['start-job'](call, { ...start, work: whole })).toMatchObject({
+        outcome: 'succeeded',
+      })
+    },
+  )
+
+  it('a recall of what a person could never have written answers that nothing was committed', async () => {
+    const { ops } = world({})
+    expect(
+      await ops['query-create-schedule'](call, { ...create, definition: definitionOf(current) }),
+    ).toEqual({ outcome: 'not-committed', body: {} })
+    expect(
+      await ops['query-start-job'](call, {
+        tenant: tenantId,
+        startId: 's-1',
+        work: tree(agent(current)),
+      }),
+    ).toEqual({ outcome: 'not-committed', body: {} })
   })
 })

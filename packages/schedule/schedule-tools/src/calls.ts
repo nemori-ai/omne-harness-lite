@@ -3,10 +3,11 @@ import type {
   ScheduleCommandResult,
   ScheduleCreateRequest,
   ScheduleInstant,
+  ScheduleSessionDefaults,
   ScheduleView,
 } from '@omne-harness/schedule-contract'
 import type { ScheduleFaces } from './port.ts'
-import { definitionOf, type SchedulesArguments } from './protocol.ts'
+import { definitionOf, unreadLine, type SchedulesArguments } from './protocol.ts'
 import { doneLine, refusalLine, summaryOf, upcomingOf } from './text.ts'
 
 type Of<K extends SchedulesArguments['command']> = Extract<SchedulesArguments, { command: K }>
@@ -34,20 +35,21 @@ const NO_FILTER = {
   purpose: null,
 } as const
 
-const invalidDefinition =
-  'invalid reason=the definition does not form a schedule code=invalid_input'
-
 type Meta = Readonly<{ operationKey: string }>
 type WriteRequest = Readonly<
   { create: ScheduleCreateRequest } | { execute: ScheduleCommand } | { invalid: string }
 >
 
-function createRequestOf(args: Of<'create' | 'draft'>, meta: Meta): WriteRequest {
-  const definition = definitionOf(args.params.definition)
-  if (!definition.success) return { invalid: invalidDefinition }
+function createRequestOf(
+  args: Of<'create' | 'draft'>,
+  meta: Meta,
+  defaults: ScheduleSessionDefaults,
+): WriteRequest {
+  const read = definitionOf(args.params.definition, defaults)
+  if (read.kind !== 'read') return { invalid: unreadLine(read) }
   return {
     create: {
-      definition: definition.data,
+      definition: read.definition,
       initial:
         args.command === 'create'
           ? { kind: 'active' }
@@ -57,7 +59,10 @@ function createRequestOf(args: Of<'create' | 'draft'>, meta: Meta): WriteRequest
   }
 }
 
-function changeOf(args: Exclude<WriteArguments, Of<'create' | 'draft'>>): object | undefined {
+function changeOf(
+  args: Exclude<WriteArguments, Of<'create' | 'draft'>>,
+  defaults: ScheduleSessionDefaults,
+): object | string {
   switch (args.command) {
     case 'update': {
       const { label, instruction } = args.params
@@ -71,22 +76,28 @@ function changeOf(args: Exclude<WriteArguments, Of<'create' | 'draft'>>): object
     }
     case 'revise':
     case 'replace': {
-      const definition = definitionOf(args.params.definition)
-      if (!definition.success) return undefined
+      const read = definitionOf(args.params.definition, defaults)
+      if (read.kind !== 'read') return unreadLine(read)
       const { reason } = args.params
       return args.command === 'revise'
-        ? { action: 'reviseDraft', definition: definition.data, reason }
-        : { action: 'replace', successor: definition.data, reason }
+        ? { action: 'reviseDraft', definition: read.definition, reason }
+        : { action: 'replace', successor: read.definition, reason }
     }
     default:
       return { action: args.command, reason: args.params.reason ?? null }
   }
 }
 
-export function writeRequestOf(args: WriteArguments, meta: Meta): WriteRequest {
-  if (args.command === 'create' || args.command === 'draft') return createRequestOf(args, meta)
-  const change = changeOf(args)
-  if (change === undefined) return { invalid: invalidDefinition }
+/** The domain request of one write. `defaults` is what the place of the call fills in for agent work a definition carries. */
+export function writeRequestOf(
+  args: WriteArguments,
+  meta: Meta,
+  defaults: ScheduleSessionDefaults,
+): WriteRequest {
+  if (args.command === 'create' || args.command === 'draft')
+    return createRequestOf(args, meta, defaults)
+  const change = changeOf(args, defaults)
+  if (typeof change === 'string') return { invalid: change }
   return {
     execute: {
       scheduleId: args.params.schedule,
@@ -111,16 +122,16 @@ type Reader<K extends ReadArguments['command']> = (
   now: ScheduleInstant,
 ) => Promise<string>
 
-const preview: Reader<'preview'> = async ({ queries, context }, params, now) => {
+const preview: Reader<'preview'> = async ({ queries, context, defaults }, params, now) => {
   const { definition, schedule, count } = params
   if ((definition === undefined) === (schedule === undefined))
     return 'invalid reason=preview takes exactly one of definition and schedule code=invalid_input'
-  const full = definition === undefined ? undefined : definitionOf(definition)
-  if (full !== undefined && !full.success) return invalidDefinition
+  const full = definition === undefined ? undefined : definitionOf(definition, await defaults())
+  if (full !== undefined && full.kind !== 'read') return unreadLine(full)
   const source =
     full === undefined
       ? { kind: 'schedule' as const, scheduleId: schedule! }
-      : { kind: 'inline' as const, definition: full.data }
+      : { kind: 'inline' as const, definition: full.definition }
   const answer = await queries.preview(context, { source, after: now, count: count ?? 5 })
   return answer.kind === 'error'
     ? refusalLine(answer.error)

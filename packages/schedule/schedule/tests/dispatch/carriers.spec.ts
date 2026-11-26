@@ -25,7 +25,7 @@ function agent(policy: Record<string, unknown>, returnTo: string | null): Schedu
     ...program(),
     work: {
       kind: 'agent',
-      instruction: 'do it',
+      instruction: { purpose: 'do it' },
       session: { mode: 'existing', sessionRef: 's-1' },
       materials: [],
       returnTo: returnTo === null ? null : { kind: 'external', targetRef: returnTo },

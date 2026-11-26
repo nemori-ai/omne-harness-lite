@@ -157,6 +157,47 @@ describe('the direct way in', () => {
       issues: [{ entry: 'A1', field: 'evidence' }],
     })
   })
+
+  it('a goal its creator sets stands for the creator even in a session a person attends: frozen, never paused, to be aborted, and no evidence of a person', async () => {
+    const { goals, direct } = world()
+    const job = { session: SESSION, draftedBy: 'creator', by: 'schedule-job:1' } as const
+    const set = value(await goals.write(OWNER, direct(job)))
+    expect(set.state).toMatchObject({ status: 'active', attendance: 'unattended' })
+    const nobody = { kind: 'state', reason: 'nobody-attends' }
+    const revise = direct({ operation: 'op-2', proposal: ADD_RULE })
+    expect(refusal(await goals.write(OWNER, revise))).toEqual(nobody)
+    const pause = { session: SESSION, command: { kind: 'pause' } } as const
+    expect(refusal(await goals.command(OWNER, pause))).toEqual(nobody)
+    expect(refusal(await goals.propose(OWNER, { session: SESSION, proposal: ADD_RULE }))).toEqual(
+      nobody,
+    )
+    const aborted = await goals.command(OWNER, { session: SESSION, command: { kind: 'abort' } })
+    expect(value(aborted)?.state).toMatchObject({
+      status: 'settled',
+      attendance: 'unattended',
+      outcome: { kind: 'aborted' },
+    })
+    const person = {
+      purpose: '做完',
+      criteria: [{ statement: '人看过', evidence: { kind: 'person' } }],
+    }
+    const asks = direct({ ...job, operation: 'op-3', proposal: { kind: 'set', draft: person } })
+    expect(refusal(await goals.write(OWNER, asks))).toMatchObject({
+      kind: 'invalid',
+      issues: [{ entry: 'A1', field: 'evidence' }],
+    })
+  })
+
+  it('after the goal of a creator ended, the person of the session sets their own goal, which stands for them', async () => {
+    const { goals, direct } = world()
+    const job = { session: SESSION, draftedBy: 'creator', by: 'schedule-job:1' } as const
+    await goals.write(OWNER, direct(job))
+    const mine = direct({ operation: 'op-2' })
+    expect(refusal(await goals.write(OWNER, mine))).toMatchObject({ kind: 'state' })
+    await goals.command(OWNER, { session: SESSION, command: { kind: 'cancel' } })
+    const set = value(await goals.write(OWNER, mine))
+    expect(set.state).toMatchObject({ status: 'active', attendance: 'attended', generation: 2 })
+  })
 })
 
 describe('a result nobody knows', () => {

@@ -481,6 +481,11 @@
       "config": {}
     },
     {
+      "id": "schedule-session",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "goal-command",
       "plugin": "stubPlugin",
       "config": {}

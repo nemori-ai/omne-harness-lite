@@ -2,13 +2,19 @@ import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { accessRegistryKey, defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
 import { scheduleProtocol } from '@omne-harness/schedule-protocol'
 import { createScheduleContribution } from './contribution.ts'
-import type { ScheduleAccessClock, ScheduleFaces, SchedulePrincipals } from './ports.ts'
+import type {
+  ScheduleAccessClock,
+  ScheduleFaces,
+  ScheduleNewSessionDefaults,
+  SchedulePrincipals,
+} from './ports.ts'
 
 export type ScheduleAccessPluginInput = Readonly<{
   principals: (ctx: Context) => SchedulePrincipals
   faces: (ctx: Context) => ScheduleFaces | undefined
   requestId: () => string
   clock: ScheduleAccessClock
+  newSessionDefaults: (ctx: Context) => ScheduleNewSessionDefaults
 }>
 
 const SCHEDULE_ACCESS_PLUGIN = 'schedule-access'
@@ -28,6 +34,7 @@ export function createScheduleAccessPlugin(input: ScheduleAccessPluginInput): Pl
               faces: () => input.faces(ctx),
               requestId: input.requestId,
               clock: input.clock,
+              newSessionDefaults: tenant => input.newSessionDefaults(ctx)(tenant),
             }),
         }),
       )

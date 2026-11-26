@@ -60,7 +60,7 @@ const detail = object({
   createdAt: { rule: instant },
   definition: { rule: json },
   /** Why it cannot run now, while its standing is not ready. */
-  reasons: { rule: array(text), optional: true, since: 2 },
+  reasons: { rule: array(text), optional: true },
 })
 
 const revision = object({
@@ -92,7 +92,7 @@ const create = object({
 
 const action = oneOf(
   object({ kind: { rule: literal('rename') }, label: { rule: text } }),
-  object({ kind: { rule: literal('edit') }, instruction: { rule: text } }),
+  object({ kind: { rule: literal('edit') }, instruction: { rule: json } }),
   object({
     kind: { rule: literal('revise', 'replace') },
     definition: { rule: json },
@@ -124,7 +124,7 @@ const jobCard = object({
   acceptedAt: { rule: instant },
   startedAt: { rule: nullable(instant) },
   endedAt: { rule: nullable(instant) },
-  reason: { rule: nullable(text), optional: true, since: 3 },
+  reason: { rule: nullable(text), optional: true },
 })
 
 /** One row of history: a disposed slot, a missed stretch, or a Job started outside any schedule. */
@@ -171,11 +171,30 @@ const jobDetail = object({
   reason: { rule: nullable(text) },
   where: {
     rule: nullable(
-      object({
-        kind: { rule: literal('program') },
-        program: { rule: text },
-        execution: { rule: text },
-      }),
+      oneOf(
+        object({
+          kind: { rule: literal('program') },
+          program: { rule: text },
+          execution: { rule: text },
+        }),
+        object({
+          kind: { rule: literal('session') },
+          session: { rule: text },
+          account: {
+            rule: nullable(
+              object({
+                definition: {
+                  rule: nullable(object({ name: { rule: text }, version: { rule: text } })),
+                },
+                outcome: { rule: nullable(text) },
+                deliverables: { rule: array(text) },
+                since: { rule: nullable(text) },
+                run: { rule: nullable(text) },
+              }),
+            ),
+          },
+        }),
+      ),
     ),
   },
   events: {
@@ -187,7 +206,7 @@ const cancelJob = object({ ...ofTenant, actionId: { rule: text }, job: { rule: t
 const startJob = object({ ...ofTenant, startId: { rule: text }, work: { rule: json } })
 
 const refused = {
-  invalid: ruleCodec(object({ code: { rule: text } })),
+  invalid: ruleCodec(object({ code: { rule: text }, reason: { rule: text, optional: true } })),
   unsupported: ruleCodec(object({ code: { rule: text } })),
   conflict: ruleCodec(object({ code: { rule: text } })),
   limited: ruleCodec(object({})),
@@ -196,11 +215,10 @@ const refused = {
 
 const read = { identity: 'login', effect: 'read', limit: 'small', countsAsAccess: true } as const
 const write = { identity: 'login', effect: 'commit', limit: 'small', countsAsAccess: true } as const
-const since2 = { since: 2 } as const
 
 export const scheduleProtocol = defineProtocol({
   name: 'schedule',
-  major: 2,
+  major: 3,
   operations: {
     'list-schedules': {
       ...read,
@@ -311,7 +329,6 @@ export const scheduleProtocol = defineProtocol({
     },
     'list-jobs': {
       ...read,
-      ...since2,
       body: ruleCodec(
         object({
           ...ofTenant,
@@ -328,13 +345,16 @@ export const scheduleProtocol = defineProtocol({
     },
     'read-job': {
       ...read,
-      ...since2,
       body: ruleCodec(object({ ...ofTenant, job: { rule: text } })),
       outcomes: { succeeded: ruleCodec(jobDetail), 'not-visible': refused['not-visible'] },
     },
+    'read-session-jobs': {
+      ...read,
+      body: ruleCodec(object({ ...ofTenant, session: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(object({ items: { rule: array(jobDetail) } })) },
+    },
     'cancel-job': {
       ...write,
-      ...since2,
       body: ruleCodec(cancelJob),
       outcomes: {
         succeeded: ruleCodec(object({ changed: { rule: boolean }, job: { rule: jobDetail } })),
@@ -343,7 +363,6 @@ export const scheduleProtocol = defineProtocol({
     },
     'query-cancel-job': {
       ...read,
-      ...since2,
       body: ruleCodec(cancelJob),
       outcomes: {
         succeeded: ruleCodec(jobDetail),
@@ -353,7 +372,6 @@ export const scheduleProtocol = defineProtocol({
     },
     'start-job': {
       ...write,
-      ...since2,
       body: ruleCodec(startJob),
       outcomes: {
         succeeded: ruleCodec(jobDetail),
@@ -363,7 +381,6 @@ export const scheduleProtocol = defineProtocol({
     },
     'query-start-job': {
       ...read,
-      ...since2,
       body: ruleCodec(startJob),
       outcomes: {
         succeeded: ruleCodec(jobDetail),
@@ -375,7 +392,6 @@ export const scheduleProtocol = defineProtocol({
   observations: {
     'observe-jobs': {
       identity: 'login',
-      ...since2,
       open: ruleCodec(object({ ...ofTenant })),
       frame: ruleCodec(object({ kind: { rule: literal('changed') } })),
       ends: [],
