@@ -9,17 +9,49 @@ import type { RowId } from './types.ts'
 
 type Line = Readonly<Record<string, unknown>>
 
-/** What the installation gives the entry module of a version directory: its own packages, by name. */
-export type RowKit = Readonly<{ use(specifier: string): Promise<unknown> }>
+type VersionRow = Readonly<{
+  declaration: Readonly<{
+    row: string
+    provides: readonly string[]
+    injects: readonly string[]
+    swap?: 'implementation' | 'rerun' | 'restart'
+    contracts?: Readonly<Record<string, string>>
+  }>
+  plugin: Plugin.Object
+}>
+
+export type RowKit = Readonly<{
+  /** A package the server depends on, by name: the same instance the process runs. */
+  use(specifier: string): Promise<unknown>
+  /** The row as the release ships it: a version that only changes a part starts from it. */
+  shipped(row: string): VersionRow
+}>
 
 const SHARED = /^@(omne-harness|deepseek-ai)\//u
 
-export const rowKit: RowKit = {
-  use(specifier) {
-    if (!SHARED.test(specifier))
-      throw new Error(`${specifier} is not a package of the installation`)
-    return import(specifier)
-  },
+function kitOf(rows: readonly RowSpec[]): RowKit {
+  return {
+    use(specifier) {
+      if (!SHARED.test(specifier))
+        throw new Error(`${specifier} is not a package of the installation`)
+      return import(specifier)
+    },
+    shipped(row) {
+      const spec = rows.find(each => each.row.id === row)
+      if (spec?.shipped === undefined) throw new Error(`the release ships no row ${row}`)
+      const { provides, injects } = spec.manifest
+      return {
+        declaration: {
+          row,
+          provides,
+          injects,
+          ...(spec.swap === undefined ? {} : { swap: spec.swap }),
+          ...(spec.contracts === undefined ? {} : { contracts: spec.contracts }),
+        },
+        plugin: spec.shipped,
+      }
+    },
+  }
 }
 
 const versionRow = z.strictObject({
@@ -48,11 +80,8 @@ export type SwapInput = Readonly<{
   rows: readonly RowSpec[]
   loaded: readonly LoadedRow[]
   trust: Trust
-  /** The id of a row, once for each time its plugin was applied; it grows as rows run. */
   applied: readonly string[]
-  /** Wraps the plugin of a generation the way the rows of the tree are wrapped. */
   wrap: (id: RowId, plugin: Plugin.Object) => Plugin.Object
-  kit?: RowKit
   /** The row has a new generation: whoever keeps its fiber is told in the step that swaps. */
   swapped: (row: LoadedRow, fiber: Fiber) => void
   /** What was swapped is not what the impact said: the process is to take a new one. */
@@ -75,6 +104,7 @@ const messageOf = (error: unknown): string =>
 /** Answers the swap requests of the control port, one at a time: the impact first, then what became of it. */
 export function createSwapper(input: SwapInput) {
   let busy = false
+  const kit = kitOf(input.rows)
   const refuse = (tell: (line: Line) => void, reason: string, detail: string): void =>
     tell({ kind: 'result', outcome: 'refused', reason, detail })
 
@@ -88,7 +118,7 @@ export function createSwapper(input: SwapInput) {
     const make: unknown = Reflect.get(Object(version.module), 'row')
     if (typeof make !== 'function')
       return refuse(tell, 'not-a-row', 'the entry file exports no function `row`')
-    const made = versionRow.safeParse(await make(input.kit ?? rowKit))
+    const made = versionRow.safeParse(await make(kit))
     if (!made.success)
       return refuse(tell, 'not-a-row', 'the entry file gives no { declaration, plugin }')
     const { declaration, plugin } = made.data

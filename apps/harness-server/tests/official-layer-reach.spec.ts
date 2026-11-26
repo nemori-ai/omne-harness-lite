@@ -1,10 +1,10 @@
 // @module-tag slow
 import { statSync } from 'node:fs'
 import { request } from 'node:http'
-import type { Fiber } from '@deepseek-ai/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { describe, expect, it } from 'vitest'
 import { controlPath } from '../src/control-port.ts'
+import { officialLayer } from './support/official-layer.ts'
 import { settledSession } from './governance/tenant-settings-support.ts'
 import { savedLoginProof, savedTenant } from './r9/support.ts'
 import {
@@ -62,17 +62,6 @@ function post(tree: ReleaseTree, path: string): Promise<number> {
     req.on('error', reject)
     req.end('{}')
   })
-}
-
-/** The official layer as it is held now: for every row, the fiber that serves it and the state of that fiber. */
-function officialLayer(tree: ReleaseTree): Map<string, Readonly<{ fiber: Fiber; state: number }>> {
-  const rows = new Set(tree.records.filter(r => r.kind === 'row-state').map(r => String(r['id'])))
-  const held = new Map<string, Readonly<{ fiber: Fiber; state: number }>>()
-  for (const runtime of tree.scope.root.registry.values())
-    for (const fiber of runtime.fibers)
-      if (runtime.name !== undefined && rows.has(runtime.name) && fiber.parent.fiber.uid === 0)
-        held.set(runtime.name, { fiber, state: fiber.state as number })
-  return held
 }
 
 /** Every operation of every protocol the entry serves now, read from the registry, not listed by hand. */

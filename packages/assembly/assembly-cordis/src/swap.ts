@@ -1,6 +1,27 @@
 import type { Context, Fiber, Plugin } from '@deepseek-ai/cordis'
 import type { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
-import { fiberItself, type Entry } from './entry.ts'
+import { fiberItself, isUnder, type Entry } from './entry.ts'
+
+type CordisFiberState = typeof import('@deepseek-ai/cordis').FiberState
+
+const ACTIVE = 2 satisfies CordisFiberState['ACTIVE']
+
+function fibersUnder(ctx: Context, root: Fiber): Fiber[] {
+  const found: Fiber[] = []
+  for (const runtime of ctx.registry.values())
+    for (const fiber of runtime.fibers) if (isUnder(fiber, root)) found.push(fiber)
+  return found
+}
+
+/** A fiber is active while a child of it still applies: waits for every fiber under it, names one not active. */
+async function notStoodUp(ctx: Context, root: Fiber): Promise<string | undefined> {
+  for (let seen = -1; ;) {
+    const fibers = fibersUnder(ctx, root)
+    if (fibers.length === seen) return fibers.find(each => (each.state as number) !== ACTIVE)?.name
+    seen = fibers.length
+    await Promise.all(fibers.map(each => each.await()))
+  }
+}
 
 export type SwapRefusal = 'did-not-start' | 'not-ready' | 'not-offered' | 'seats'
 
@@ -22,7 +43,6 @@ export type SwapInput = Readonly<{
   entries: readonly SwappedEntry[]
   /** The row's own word that the generation stood up. Not given: `apply` returned. */
   ready?: () => boolean | Promise<boolean>
-  /** Called in the step that swaps, before the old generation begins to unload. */
   swapped?: (fiber: Fiber) => void
 }>
 
@@ -38,14 +58,16 @@ export async function swapRow(ctx: Context, input: SwapInput): Promise<Swapped> 
     await staged.dispose()
     return { kind: 'refused', reason, detail }
   }
+  const next = fiberItself(staged)
   try {
     await staged.await()
+    const waiting = await notStoodUp(ctx, next)
+    if (waiting !== undefined) return await refused('not-ready', `${waiting} is not active`)
     if (input.ready !== undefined && !(await input.ready()))
       return await refused('not-ready', 'the row says the generation did not stand up')
   } catch (error) {
     return await refused('did-not-start', messageOf(error))
   }
-  const next = fiberItself(staged)
   const missing = input.entries.find(entry => entry.offered(next) === undefined)
   if (missing !== undefined)
     return await refused('not-offered', `the generation offered nothing to ${missing.key}`)

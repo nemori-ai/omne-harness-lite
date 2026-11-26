@@ -32,6 +32,8 @@ export type RowSpec = Readonly<{
   declared?: Readonly<{ row: RowId; via: ServiceName | null }>
   swap?: 'implementation' | 'rerun' | 'restart'
   contracts?: Readonly<Record<ServiceName, string>>
+  /** The row plugin the release ships for this row, as a new generation of it would apply it. */
+  shipped?: Plugin.Object
 }>
 
 export type EntryObject = Readonly<{

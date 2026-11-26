@@ -271,6 +271,83 @@ describe('入口：依赖方注入的对象不换，实现在背后换（AS-13�
     expect(events).toEqual([{ kind: 'unknown', key: 'greeter', generation: 1, calls: 1 }])
   })
 
+  it('新的一代里的子 fiber 晚一步才放东西：等它也站稳了才换，登记表只变一次', async () => {
+    const entry = greeterEntry()
+    const { ctx } = await tree(entry)
+    const dynamis = ctx.get('dynamis') as DynamisService
+    const placed = (id: string) => ({
+      point: 'host.list',
+      key: 'k',
+      id,
+      scope: [],
+      rank: 0,
+      digest: id,
+      item: {},
+    })
+    const row = (version: string, fails = false): Plugin.Object => ({
+      name: 'greeter',
+      apply(inner: Context) {
+        entry.offer(inner, made(version))
+        inner.plugin({
+          name: 'greeter-late',
+          inject: ['dynamis'],
+          async apply(child: Context) {
+            await new Promise(resolve => setTimeout(resolve, 20))
+            if (fails) throw new Error('the late part cannot start')
+            child.dynamis.put([placed(version)])
+          },
+        })
+      },
+    })
+    const ids = (): string[] => dynamis.registry().placed.map(each => each.id)
+    const old = await ctx.plugin(row('v1'))
+    await new Promise(resolve => setTimeout(resolve, 40))
+    expect(ids()).toEqual(['v1'])
+    const changes: string[][] = []
+    ctx.on('dynamis-cordis/changed', () => void changes.push(ids()))
+    const swapped = await swapRow(ctx, { old, next: row('v2'), entries: [entry] })
+    if (swapped.kind !== 'swapped') throw new Error(swapped.detail)
+    await swapped.drained
+    expect(changes).toEqual([['v2']])
+    // A late part that cannot start refuses the step: the generation did not stand up.
+    const failed = await swapRow(ctx, {
+      old: swapped.fiber,
+      next: row('v3', true),
+      entries: [entry],
+    })
+    expect(failed).toMatchObject({ kind: 'refused', reason: 'did-not-start' })
+    expect(failed.kind === 'refused' && failed.detail).toContain('the late part cannot start')
+    expect([ids(), entry.standing()]).toEqual([['v2'], { kind: 'serving', generation: 2 }])
+  })
+
+  it('新的一代里有一个 fiber 等着一样没有的依赖：没站稳，被拒并点名，旧的照常', async () => {
+    const entry = greeterEntry()
+    const { ctx, greeter } = await tree(entry)
+    const old = await ctx.plugin(generation(entry, 'v1'))
+    await settle()
+    const swapped = await swapRow(ctx, {
+      old,
+      next: {
+        name: 'greeter',
+        apply(inner: Context) {
+          entry.offer(inner, made('v2'))
+          inner.plugin({
+            name: 'greeter-needs',
+            inject: ['nobody-provides-this'],
+            apply: () => undefined,
+          })
+        },
+      },
+      entries: [entry],
+    })
+    expect(swapped).toEqual({
+      kind: 'refused',
+      reason: 'not-ready',
+      detail: 'greeter-needs is not active',
+    })
+    expect(await greeter().greet('a')).toBe('v1:a')
+  })
+
   it('同步抛出的方法：照样放开这次调用', async () => {
     const entry = defineEntry<{ fail(): never }>({
       key: 'thrower',

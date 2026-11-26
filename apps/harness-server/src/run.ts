@@ -592,6 +592,7 @@ function rowSpecOf(
     },
     ...(declaration.swap === undefined ? {} : { swap: declaration.swap }),
     ...(declaration.contracts === undefined ? {} : { contracts: declaration.contracts }),
+    shipped: plugin,
   }
 }
 
