@@ -7,6 +7,7 @@ import {
   type Open,
   type State,
 } from '../src/model/session-machine.ts'
+import { stopFace } from '../src/model/composer.ts'
 import { stepList, UNREAD, type SessionList } from '../src/model/session-list.ts'
 import { INITIAL_WORKSPACE, stepWorkspace, type Workspace } from '../src/model/workspace.ts'
 import {
@@ -50,6 +51,12 @@ function open(): Open {
 function asOpen(state: State): Open {
   if (state.kind !== 'open') throw new Error(`expected open, got ${state.kind}`)
   return state
+}
+
+function idle(): Open {
+  return asOpen(
+    step(open(), { kind: 'frame', session: S, generation: 1, frame: stateFrame(null, '0') }).state,
+  )
 }
 
 function running(runId = 'run_1'): Open {
@@ -126,7 +133,7 @@ describe('建会话的答复', () => {
     expect(next.state).toMatchObject({
       kind: 'open',
       session: S,
-      run: { kind: 'idle' },
+      run: { kind: 'unseen' },
       observation: { kind: 'connecting' },
     })
     expect(next.effects.slice(1)).toEqual([
@@ -395,9 +402,55 @@ describe('发消息与认回', () => {
   })
 })
 
+describe('还没收到状态帧：这一轮在不在做还不知道', () => {
+  it('刚打开的会话不声称空闲；没有编号，所以没有停止钮', () => {
+    expect(open().run).toEqual({ kind: 'unseen' })
+    expect(stopFace(open().run)).toBe('none')
+  })
+  it('第一帧定下来：run 为空是空闲，带 run 是进行中', () => {
+    expect(idle().run).toEqual({ kind: 'idle' })
+    expect(running().run).toEqual({ kind: 'running', run: 'run_1' })
+  })
+  it('还不知道时按停止：没有编号可停，什么也不发', () => {
+    for (const urgency of [undefined, 'force'] as const) {
+      const state = open()
+      const next = step(state, {
+        kind: 'cancel',
+        controlId: 'k1',
+        ...(urgency === undefined ? {} : { urgency }),
+      })
+      expect(next.state).toBe(state)
+      expect(next.effects).toEqual([])
+    }
+  })
+  it('观察没发过帧就结束、在重连：仍是不知道', () => {
+    const next = step(open(), {
+      kind: 'observation-ended',
+      session: S,
+      generation: 1,
+      end: { kind: 'ended', reason: 'unavailable' },
+    })
+    expect(asOpen(next.state).run).toEqual({ kind: 'unseen' })
+    expect(asOpen(next.state).observation.kind).toBe('reconnecting')
+  })
+  it('不知道到空闲不是一轮结束：不重读列表', () => {
+    const before: Workspace = {
+      session: open(),
+      list: { kind: 'read', issued: 1, page: listPage([]).body },
+    }
+    const next = stepWorkspace(before, {
+      kind: 'frame',
+      session: S,
+      generation: 1,
+      frame: stateFrame(null, '1'),
+    })
+    expect(next.effects).not.toContainEqual({ kind: 'list-sessions', token: 2, cursor: null })
+  })
+})
+
 describe('取消这一轮', () => {
   it('就绪：没有一轮，不变', () => {
-    const state = open()
+    const state = idle()
     expect(step(state, { kind: 'cancel', controlId: 'k1' }).state).toBe(state)
   })
   it('进行中：转到取消中，带状态帧给的编号发 cancel-run', () => {
@@ -905,7 +958,7 @@ describe('打开会话', () => {
     expect(next.state).toMatchObject({
       kind: 'open',
       session: OTHER,
-      run: { kind: 'idle' },
+      run: { kind: 'unseen' },
       observation: { kind: 'connecting', generation: 1 },
       inputs: [],
     })
@@ -1252,6 +1305,7 @@ describe('活动之后重读列表；列表与会话互不干扰', () => {
         },
       ],
       [idle, { kind: 'open-session', session: 'ses_2' }],
+      [workspace(running()), { kind: 'cancel', controlId: 'k1' }],
       [
         workspace(step(open(), send).state),
         { kind: 'send-answered', session: S, acceptId: 'a1', answer: { outcome: 'unavailable' } },

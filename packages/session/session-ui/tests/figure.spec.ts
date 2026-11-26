@@ -88,6 +88,13 @@ describe('what the session is doing, as the figure says it (figureDoing)', () =>
     ],
     ['no turn running', open(read(asked), IDLE), false, 'idle'],
     ['no turn, calls in the background', open(read(asked), IDLE), true, 'background'],
+    ['no state frame seen yet', open(read(asked), { kind: 'unseen' }), false, 'idle'],
+    [
+      'no state frame seen yet, calls in the background',
+      open(read(asked), { kind: 'unseen' }),
+      true,
+      'background',
+    ],
     ['a turn waiting for its first words', open(read(asked)), false, 'thinking'],
     [
       'its reasoning arriving',

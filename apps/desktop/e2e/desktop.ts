@@ -33,6 +33,8 @@ export type Target = LaunchTarget
 export const REPLY = 'hello from the e2e gateway'
 /** A message with this in it gets, after a pause, a turn that asks the person one question. */
 export const ASK_MARKER = 'ask-me-one-question'
+/** A message with this in it gets a reply that begins and never ends: its turn stays under way. */
+export const HOLD_MARKER = 'hold-this-turn-open'
 const ASK_PAUSE_MS = 3_000
 const ASK_ARGUMENTS = JSON.stringify({
   command: 'ask',
@@ -123,6 +125,13 @@ async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> 
   try {
     gateway = await startModelGateway(async ({ body }) => {
       const model = JSON.parse(body).model ?? 'm'
+      if (body.includes(HOLD_MARKER))
+        return {
+          status: 200,
+          contentType: 'text/event-stream',
+          body: `data: ${JSON.stringify({ model, provider: 'OpenAI', choices: [{ delta: { content: '' } }] })}\n\n`,
+          rest: { after: new Promise<void>(() => undefined), body: '' },
+        }
       const asks = body.includes(ASK_MARKER) && body.includes('"Ask"')
       if (asks) await new Promise(done => setTimeout(done, ASK_PAUSE_MS))
       const call = {

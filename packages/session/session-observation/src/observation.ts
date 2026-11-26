@@ -227,7 +227,7 @@ export function createSessionObservation<P>(
           ports.diagnose({ code: 'observation.locate-transient', detail: target.reference })
         if (next.mainCall === null || next.mainCall === target?.reference) return quiet(cause)
         const selection = await select(next.mainCall)
-        if (selection.kind === 'end') return { frames: [], end: selection.reason }
+        if (selection.kind === 'end') return { frames: state(), end: selection.reason }
         call = selection.call
         if (selection.kind === 'stream') {
           dropTarget()

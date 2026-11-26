@@ -12,7 +12,9 @@ import {
 } from '@omne-harness/session-contract'
 import type { SessionObservationPorts } from './ports.ts'
 
-export const LOCATE_KINDS = ['call.bound', 'run.started', 'run.terminal'] as const
+const RUN_KINDS = ['run.started', 'run.terminal'] as const
+
+export const LOCATE_KINDS = ['call.bound', ...RUN_KINDS] as const
 
 const PAGE_BYTES = 65_536
 
@@ -31,6 +33,9 @@ type Read = Awaited<ReturnType<SessionObservationPorts<unknown>['history']['begi
 
 type Failed = Readonly<{ failure: SessionFailure; face: 'begin' | 'since' | 'next' }>
 type Scanned = Readonly<{ ok: Located }> | Failed
+type Swept =
+  | Readonly<{ ok: Readonly<{ scan: BackwardScan; revision: SessionRevision; whole: boolean }> }>
+  | Failed
 
 function mainCallOf(entry: HistoryEntry): ModelInvocationRef | undefined {
   const found = readCallRegistration(entry.payload)
@@ -59,11 +64,10 @@ class BackwardScan {
     this.run = boundary.run
     this.open = !this.#ended.has(boundary.run)
   }
-
-  complete(): boolean {
-    return this.run !== undefined && this.mainCall !== undefined
-  }
 }
+
+const hasRun = (scan: BackwardScan): boolean => scan.run !== undefined
+const hasRunAndCall = (scan: BackwardScan): boolean => hasRun(scan) && scan.mainCall !== undefined
 
 export class Locator<P> {
   readonly #access: SessionAccess<P>
@@ -116,10 +120,28 @@ export class Locator<P> {
   }
 
   async #backward(): Promise<Scanned> {
+    const calls = await this.#sweep(LOCATE_KINDS, hasRunAndCall, this.#ports.locatePages)
+    if ('failure' in calls) return calls
+    const runs =
+      hasRun(calls.ok.scan) || calls.ok.whole
+        ? calls
+        : await this.#sweep(RUN_KINDS, hasRun, Number.POSITIVE_INFINITY)
+    if ('failure' in runs) return runs
+    this.#after = calls.ok.scan.newest
+    this.#run = runs.ok.scan.run ?? null
+    this.#open = runs.ok.scan.open
+    return { ok: this.#settle(runs.ok.revision, calls.ok.scan.mainCall ?? null) }
+  }
+
+  async #sweep(
+    kinds: readonly string[],
+    enough: (scan: BackwardScan) => boolean,
+    pages: number,
+  ): Promise<Swept> {
     const at = this.#access
     let read: Read = await this.#ports.history.begin({
       ...at,
-      kinds: LOCATE_KINDS,
+      kinds,
       from: null,
       direction: 'backward',
       pageBytes: PAGE_BYTES,
@@ -127,16 +149,13 @@ export class Locator<P> {
     if ('failure' in read) return { failure: read.failure, face: 'begin' }
     const revision = read.ok.upper
     const scan = new BackwardScan()
-    for (let pages = 1; ; pages++) {
+    for (let page = 1; ; page++) {
       for (const entry of read.ok.entries) scan.add(entry)
-      if (scan.complete() || this.#done(read.ok) || pages >= this.#ports.locatePages) break
+      const whole = this.#done(read.ok)
+      if (whole || enough(scan) || page >= pages) return { ok: { scan, revision, whole } }
       read = await this.#ports.history.next({ ...at, cursor: read.ok.next as string })
       if ('failure' in read) return { failure: read.failure, face: 'next' }
     }
-    this.#after = scan.newest
-    this.#run = scan.run ?? null
-    this.#open = scan.open
-    return { ok: this.#settle(revision, scan.mainCall ?? null) }
   }
 
   async #forward(after: EntryId): Promise<Scanned> {
