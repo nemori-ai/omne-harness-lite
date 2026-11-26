@@ -98,15 +98,21 @@ export function createReload<P>(input: ReloadInput<P>) {
   const freeze = async (
     ref: SessionRef,
     verdict: Parameters<SessionFaces<P>['management']['freeze']>[0]['verdict'],
-  ): Promise<void> => {
+  ): Promise<Answer> => {
     const principal = await scheduling.principal('coordinator', ref)
-    if ('failure' in principal) return
+    if ('failure' in principal) return principal
     const operation = deriveSessionOperation({
       kind: 'freeze',
       session: ref.session,
       evidence: verdict.evidence,
     })
-    await coordinator.management.freeze({ principal: principal.ok, ...ref, operation, verdict })
+    const frozen = await coordinator.management.freeze({
+      principal: principal.ok,
+      ...ref,
+      operation,
+      verdict,
+    })
+    return 'failure' in frozen ? frozen : fail({ kind: 'frozen', verdict })
   }
 
   /** In the serial section, at the revision read before the handover: commit the reload and join the new attempt. */
@@ -183,10 +189,7 @@ export function createReload<P>(input: ReloadInput<P>) {
     if (answer.kind !== 'adopt')
       return fail({ kind: 'invalid', field: 'candidate', reason: answer.reason })
     const verdict = answer.residentAdoption?.verdict
-    if (verdict !== undefined) {
-      await freeze(ref, verdict)
-      return fail({ kind: 'frozen', verdict })
-    }
+    if (verdict !== undefined) return freeze(ref, verdict)
     if (unchanged(work, answer)) return succeed({ kind: 'no-change' })
     if (run !== null) return handOver(asked, { work, answer, run }, pass)
     const committed = await handle(

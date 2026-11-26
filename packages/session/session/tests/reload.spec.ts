@@ -320,6 +320,30 @@ describe('a person reloads a session', () => {
     expect(await reload(h, 'reload-2')).toMatchObject({ failure: { kind: 'frozen' } })
   })
 
+  it('answers the failure, not frozen, when the freeze is not written', async () => {
+    const h = await service()
+    await h.create()
+    const verdict: FreezeVerdict = {
+      cause: 'tool-shape-lost',
+      capability: 'wordcount',
+      evidence: evidence('tool/lost'),
+    }
+    const pinned = (await read(h)).definition.adopted
+    h.dependencies.evidence.runAdoption = async () => ({
+      ok: {
+        kind: 'adopt' as const,
+        candidate: pinned,
+        residentAdoption: { residents: [], keys: [], verdict },
+      },
+    })
+    const down = { kind: 'unavailable', owner: 'test', diagnostic: 'the store is down' } as const
+    h.view.onCommit((input, next) =>
+      input.command.kind === 'freeze' ? Promise.resolve({ failure: down }) : next(),
+    )
+    expect(await reload(h)).toEqual({ failure: down })
+    expect((await read(h)).frozen).toBeNull()
+  })
+
   it('asks the adoption source for the run going on and names itself, and commits the resident material it gives', async () => {
     const { h, before, newer } = await running()
     if (before.run.kind !== 'active') throw new Error('no run')
