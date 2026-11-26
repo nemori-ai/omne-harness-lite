@@ -5,13 +5,7 @@ import type {
   ModelViewRow,
   SessionCreation,
 } from '@omne-harness/session-contract'
-import {
-  creation,
-  evidence,
-  operationId,
-  ordinaryInput,
-  succeeded,
-} from '@omne-harness/session-contract/testing'
+import { creation, evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import { open, participation, scene } from './scene.ts'
 
 export type Scene = ReturnType<typeof scene>
@@ -74,10 +68,7 @@ export async function deliver(s: Scene, name: string, inputs: readonly string[])
         operation: `agent-deliver-${name}`,
       },
       value: {
-        deliveries: inputs.map(input => ({
-          input: input as InputId,
-          message: ordinaryInput(input).message,
-        })),
+        inputs: inputs as readonly InputId[],
         source: evidence(`agent/step/${name}`),
         admission: evidence(`agent/step/${name}`),
       },

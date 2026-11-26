@@ -181,7 +181,7 @@ async function startWithoutOpen(s: Scene) {
   const snapshot = ok(await s.backend.transactions.readWork(s.access))
   if (snapshot.run.kind !== 'active') throw new Error('active Run expected')
   const admitted = ok(
-    await s.backend.transactions.readInput({ ...s.access, input: snapshot.run.first }),
+    await s.backend.transactions.readInput({ ...s.access, input: snapshot.run.initial[0] }),
   )
   return {
     access: s.access,

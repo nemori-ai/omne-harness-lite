@@ -6,11 +6,11 @@ import type {
 } from '@omne-harness/shell-contract'
 import { terminalOf, type Content, type HistoryEntry } from './content.ts'
 import { isRecord, listOf, textOf, type Plain } from './plain.ts'
-import type { State } from './session-machine.ts'
+import { underWay, type State } from './session-machine.ts'
 
 /** What the session does now, from facts the model holds, mapped as the source's assistant/activity.ts. */
 export function figureDoing(state: State, background: boolean): FigureDoing {
-  if (state.kind !== 'open' || state.run.kind === 'idle') return background ? 'background' : 'idle'
+  if (state.kind !== 'open' || !underWay(state.run)) return background ? 'background' : 'idle'
   if (toolRunning(state.content.entries)) return 'looking'
   return wordsWritten(state.content) ? 'writing' : 'thinking'
 }

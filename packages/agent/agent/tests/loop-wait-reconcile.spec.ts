@@ -72,7 +72,7 @@ describe('R0 preserves the original conditional operation', () => {
         access: alice,
         execution: execution(),
         operation: operation('invoke-exec-1'),
-        initial: acceptedInput('input-exec-1', 'hello exec-1'),
+        initial: [acceptedInput('input-exec-1', 'hello exec-1')],
         grant: null,
         idle() {},
       })
@@ -224,7 +224,7 @@ describe('W0 rereads the original producer', () => {
       access: alice,
       execution: execution(),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1'),
+      initial: [acceptedInput('input-exec-1')],
       grant: null,
       idle() {},
     })
@@ -340,7 +340,7 @@ describe('W0 local ownership', () => {
       access: alice,
       execution: execution(),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1'),
+      initial: [acceptedInput('input-exec-1')],
       grant: null,
       idle() {},
     })
@@ -403,7 +403,7 @@ describe('W0 local ownership', () => {
       access: alice,
       execution: execution(),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1'),
+      initial: [acceptedInput('input-exec-1')],
       grant: null,
       idle() {},
     })
@@ -445,7 +445,7 @@ it('a zero interval yields to other tasks and does not fabricate a positive dead
     access: alice,
     execution: execution(),
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1'),
+    initial: [acceptedInput('input-exec-1')],
     grant: null,
     idle() {},
   })
@@ -516,7 +516,7 @@ it('an abort during a pending clock read cannot miss the local stop', async () =
     access: alice,
     execution: execution(),
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1'),
+    initial: [acceptedInput('input-exec-1')],
     grant: null,
     idle() {},
   })
@@ -571,7 +571,7 @@ it.each(['observer', 'clock'] as const)(
       access: alice,
       execution: execution(),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1'),
+      initial: [acceptedInput('input-exec-1')],
       grant: null,
       idle() {},
     })
@@ -634,7 +634,7 @@ it('an input arriving as observation starts is reread before sleeping under the 
     access: alice,
     execution: execution(),
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1'),
+    initial: [acceptedInput('input-exec-1')],
     grant: null,
     idle() {},
   })
@@ -758,7 +758,7 @@ it('an input racing the waiting commit is reread without abandoning the original
     access: alice,
     execution: execution(),
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1'),
+    initial: [acceptedInput('input-exec-1')],
     grant: null,
     idle() {},
   })
@@ -845,7 +845,7 @@ describe('review regressions preserve the original wait responsibility', () => {
           access: alice,
           execution: execution(),
           operation: operation('invoke-exec-1'),
-          initial: acceptedInput('input-exec-1'),
+          initial: [acceptedInput('input-exec-1')],
           grant: null,
           idle() {},
         })
@@ -929,7 +929,7 @@ describe('review regressions preserve the original wait responsibility', () => {
       access: alice,
       execution: execution(),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1'),
+      initial: [acceptedInput('input-exec-1')],
       grant: null,
       idle() {},
     })
@@ -1049,7 +1049,7 @@ describe('review regressions preserve the original wait responsibility', () => {
         access: alice,
         execution: execution(),
         operation: operation('invoke-exec-1'),
-        initial: acceptedInput('input-exec-1'),
+        initial: [acceptedInput('input-exec-1')],
         grant: null,
         idle() {},
       })

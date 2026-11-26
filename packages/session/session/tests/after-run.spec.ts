@@ -61,7 +61,7 @@ describe('an input sent to wait for this run to end (等这一轮结束再发)',
   it('with no unfinished run it is an ordinary input: it starts the next run', async () => {
     const h = await service()
     succeeded(await later(h, 'alone'), 'accept')
-    await vi.waitFor(async () => expect((await runOf(h)).first).toBe('alone'))
+    await vi.waitFor(async () => expect((await runOf(h)).initial).toEqual(['alone']))
     expect((await read(h)).deferredInputs ?? []).toEqual([])
   })
 
@@ -111,7 +111,7 @@ describe('an input sent to wait for this run to end (等这一轮结束再发)',
     expect((await read(h)).run.kind).toBe('terminal')
     expect((await read(h)).deferredInputs).toEqual([{ input: 'after', run: null }])
     await h.accept('person')
-    await vi.waitFor(async () => expect((await runOf(h)).first).toBe('person'))
+    await vi.waitFor(async () => expect((await runOf(h)).initial).toEqual(['person']))
     const retried = await runOf(h)
     expect(retried.run).not.toBe(failing.run)
     expect((await read(h)).deferredInputs).toEqual([{ input: 'after', run: retried.run }])

@@ -8,7 +8,8 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { evidence, succeeded } from '@omne-harness/session-contract/testing'
-import { acceptedRun as acceptedRunOf, handsBack } from '../src/recover.ts'
+import { handedRun } from '../src/known-handovers.ts'
+import { handsBack } from '../src/recover.ts'
 import { sessionSlotReference } from '../src/slot-reference.ts'
 import { memoryBackend } from './fixtures/backends.ts'
 import { harness, TENANT_A, type Harness } from './fixtures/harness.ts'
@@ -466,20 +467,20 @@ describe('the Run that the Agent accepted', () => {
   }
 
   it('a first input that is still pending without a hand-over is not accepted: C2 replays the invoke', async () => {
-    expect(acceptedRunOf(await shaped(['input-1'], []))).toBe(null)
+    expect(handedRun(await shaped(['input-1'], []))).toBe(null)
   })
 
   it('a first input with a hand-over is accepted', async () => {
-    expect(acceptedRunOf(await shaped(['input-1'], ['input-1']))?.first).toBe('input-1')
-    expect(acceptedRunOf(await shaped([], ['input-1']))?.first).toBe('input-1')
+    expect(handedRun(await shaped(['input-1'], ['input-1']))?.initial).toEqual(['input-1'])
+    expect(handedRun(await shaped([], ['input-1']))?.initial).toEqual(['input-1'])
   })
 
   it('a first input that the Agent took in a batch is accepted, also when no hand-over was recorded', async () => {
-    expect(acceptedRunOf(await shaped([], []))?.first).toBe('input-1')
+    expect(handedRun(await shaped([], []))?.initial).toEqual(['input-1'])
   })
 
   it('a Run that is not active is not one', async () => {
     const terminal = { ...(await shaped([], [])), run: { kind: 'none' } } as unknown as WorkSnapshot
-    expect(acceptedRunOf(terminal)).toBe(null)
+    expect(handedRun(terminal)).toBe(null)
   })
 })

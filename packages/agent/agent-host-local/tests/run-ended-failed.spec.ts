@@ -127,7 +127,7 @@ async function ending(
       ...caller('a'),
       execution: EXECUTION,
       operation: ok(decodeAgentOperationId('ending-invoke')),
-      initial: input(),
+      initial: [input()],
       grant: null,
     }),
   )

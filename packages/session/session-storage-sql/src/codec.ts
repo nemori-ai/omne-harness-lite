@@ -72,6 +72,9 @@ export const isCount = (value: unknown): value is string =>
 
 export const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
 
+export const valueDigest = (value: unknown): string =>
+  `sha256:${sha256(canonicalText(encodeValue(value)))}`
+
 export function plainOf(tree: unknown): unknown {
   if (!isRecord(tree)) return null
   switch (tree['kind']) {

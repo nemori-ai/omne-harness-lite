@@ -57,6 +57,7 @@ function lookupOf(input: HandoffPrepare) {
         kind: 'input-entry' as const,
         execution: request.reference.execution,
         operation: request.reference.entry,
+        input: request.reference.input,
       }
 }
 

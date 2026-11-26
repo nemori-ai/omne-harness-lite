@@ -73,22 +73,22 @@
       "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4084,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,
       "packages/agent/agent-host-local/src/host.ts": 1005,
-      "packages/agent/agent/src/loop/coordinator.ts": 3176,
-      "packages/agent/agent/src/testing/journal.ts": 3589,
+      "packages/agent/agent/src/loop/coordinator.ts": 3165,
+      "packages/agent/agent/src/testing/journal.ts": 3575,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
       "packages/execution/execution-environment/src/registry.ts": 1040,
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
       "packages/model/model-storage-sql/src/commit.ts": 1097,
       "packages/model/model/src/commands/commands.ts": 1054,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1625,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1604,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1109,
-      "packages/session/session-adapters/src/testing/factory.ts": 1239,
+      "packages/session/session-adapters/src/testing/factory.ts": 1214,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1262,
-      "packages/session/session-adapters/src/testing/journal.ts": 4190,
-      "packages/session/session-adapters/src/testing/session.ts": 1193,
-      "packages/session/session-contract/src/testing-transactions.ts": 2432,
+      "packages/session/session-adapters/src/testing/journal.ts": 4157,
+      "packages/session/session-adapters/src/testing/session.ts": 1185,
+      "packages/session/session-contract/src/testing-transactions.ts": 2424,
       "packages/session/session-storage-sql/src/worker/participant.ts": 1021,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
@@ -163,7 +163,7 @@
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 2777
+        "longest": 2765
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
@@ -183,7 +183,7 @@
       },
       "packages/agent/agent/src/testing/journal.ts": {
         "count": 6,
-        "longest": 2904
+        "longest": 2889
       },
       "packages/agent/agent/src/tool-receiving.ts": {
         "count": 1,
@@ -491,7 +491,7 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1081
+        "longest": 1061
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,
@@ -507,7 +507,7 @@
       },
       "packages/session/session-adapters/src/testing/factory.ts": {
         "count": 3,
-        "longest": 1109
+        "longest": 1084
       },
       "packages/session/session-adapters/src/testing/journal-finishing.ts": {
         "count": 1,
@@ -519,7 +519,7 @@
       },
       "packages/session/session-adapters/src/testing/journal.ts": {
         "count": 6,
-        "longest": 3422
+        "longest": 3388
       },
       "packages/session/session-adapters/src/testing/root.ts": {
         "count": 1,
@@ -527,7 +527,7 @@
       },
       "packages/session/session-adapters/src/testing/session.ts": {
         "count": 2,
-        "longest": 866
+        "longest": 858
       },
       "packages/session/session-contract/src/projection.ts": {
         "count": 1,
@@ -559,7 +559,7 @@
       },
       "packages/session/session/src/advance.ts": {
         "count": 1,
-        "longest": 490
+        "longest": 477
       },
       "packages/session/session/src/command.ts": {
         "count": 1,

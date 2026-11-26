@@ -188,9 +188,10 @@ function applyRunStarted(
   if (draft.tasks.some(task => task.kind === 'initialization'))
     return 'a Run started before every initialization item was ready'
   if (draft.run.kind === 'active') return 'a second Run started while one is unfinished'
-  if (!draft.pending.includes(entry.first)) return 'the first input of the Run is not pending'
-  if (draft.deferredInputs?.some(held => held.input === entry.first))
-    return 'the first input of the Run is held back until a Run ends'
+  if (entry.initial.some(input => !draft.pending.includes(input)))
+    return 'an initial input of the Run is not pending'
+  if (draft.deferredInputs?.some(held => entry.initial.includes(held.input)))
+    return 'an initial input of the Run is held back until a Run ends'
   if (draft.deferredInputs !== undefined)
     draft.deferredInputs = draft.deferredInputs.map(held =>
       held.run === null ? { ...held, run: entry.run } : held,
@@ -199,7 +200,7 @@ function applyRunStarted(
     kind: 'active',
     run: entry.run,
     adoption: entry.adoption,
-    first: entry.first,
+    initial: entry.initial,
     advance: null,
     ordinal: '0',
     execution: { execution: entry.execution, revision: null, evidence: null, readThrough: '0' },

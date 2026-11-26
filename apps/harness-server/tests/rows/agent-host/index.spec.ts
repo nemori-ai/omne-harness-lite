@@ -375,7 +375,7 @@ async function invoke(row: Plugin, execution: AgentExecutionId) {
     ...caller,
     execution,
     operation: ok(decodeAgentOperationId(`${execution}-invoke`)),
-    initial: acceptedInput(),
+    initial: [acceptedInput()],
     grant: evidence('grant'),
   })
   return { ...started, answer }

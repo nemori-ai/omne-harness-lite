@@ -150,7 +150,7 @@ async function waitingAtM1(given: HostOptions = {}) {
       ...caller('a'),
       execution: EXECUTION,
       operation: ok(decodeAgentOperationId('reception-invoke')),
-      initial: input(),
+      initial: [input()],
       grant: null,
     }),
   )

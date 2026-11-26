@@ -220,7 +220,7 @@ async function suggestTool(
       ...caller('a'),
       execution: EXECUTION,
       operation: ok(decodeAgentOperationId('tool-request-invoke')),
-      initial: input(),
+      initial: [input()],
       grant: null,
     }),
   )

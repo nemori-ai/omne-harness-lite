@@ -15,6 +15,7 @@ import {
   decodeInputBatchId,
   decodeReplyAdmissionSequence,
   type AcceptedInput,
+  type InitialInputs,
   type AgentEvent,
   type AgentExecutionHandle,
   type AgentExecutionId,
@@ -314,13 +315,13 @@ export function losingEntryNotifications(
 export function invoke(
   assembly: Pick<LoopAssembly, 'provider'>,
   id = 'exec-1',
-  change: Readonly<{ input?: AcceptedInput }> = {},
+  change: Readonly<{ input?: AcceptedInput; initial?: InitialInputs }> = {},
 ) {
   return assembly.provider.runtime.invoke({
     ...alice,
     execution: execution(id),
     operation: operation(`invoke-${id}`),
-    initial: change.input ?? acceptedInput(`input-${id}`, `hello ${id}`),
+    initial: change.initial ?? [change.input ?? acceptedInput(`input-${id}`, `hello ${id}`)],
     grant: null,
   })
 }

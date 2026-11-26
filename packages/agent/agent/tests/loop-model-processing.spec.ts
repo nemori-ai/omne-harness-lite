@@ -36,7 +36,7 @@ it.each(['known', 'applied', 'dropped'] as const)(
       access: alice,
       execution: execution(),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1', 'hello'),
+      initial: [acceptedInput('input-exec-1', 'hello')],
       grant: null,
       idle() {},
     })

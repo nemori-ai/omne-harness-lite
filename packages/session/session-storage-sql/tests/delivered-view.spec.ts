@@ -41,3 +41,14 @@ it('an accepted input enters the model view when a step takes it, not when it is
     },
   })
 })
+
+it('a delivery that names an input Session never admitted is refused for good, and nothing enters the model view', async () => {
+  const a = await app()
+  expect(await a.create(TENANT_A)).toHaveProperty('ok')
+  expect(await a.accept(TENANT_A, 'session-1', 'first')).toHaveProperty('ok')
+  expect(await startRun(a, 'start')).toHaveProperty('ok')
+  expect(await deliver(a, 'step', ['first', 'never-admitted'])).toMatchObject({
+    failure: { kind: 'invalid', field: 'value.inputs' },
+  })
+  expect((await viewOf(a)).rows).toEqual([])
+})

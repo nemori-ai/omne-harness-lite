@@ -350,7 +350,7 @@ describe('a backgrounded call: the outcome with no Run', () => {
     })
     succeeded(started, 'start from reminder')
     const run = (await newEntries(c, before)).find(entry => entry.kind === 'run.started')
-    expect(run).toMatchObject({ first: backgroundInputId(producer, 'rv-1') })
+    expect(run).toMatchObject({ initial: [backgroundInputId(producer, 'rv-1')] })
   })
 })
 

@@ -69,6 +69,7 @@ export type PendingInput = Readonly<{
 }>
 
 export type Run =
+  | Readonly<{ kind: 'unseen' }>
   | Readonly<{ kind: 'idle' }>
   | Readonly<{ kind: 'running'; run: string }>
   | Readonly<{ kind: 'cancelling'; run: string; controlId: string; unknown: boolean }>
@@ -234,7 +235,7 @@ function opened(session: string, first: Words | null = null): Step {
   const state: Open = {
     kind: 'open',
     session,
-    run: { kind: 'idle' },
+    run: { kind: 'unseen' },
     observation: { kind: 'connecting', generation: 1 },
     history: { reading: 1, issued: 1, again: false, failure: null },
     revision: null,
@@ -535,7 +536,7 @@ function onSendConfirm(state: State, acceptId: string): Step {
 function onCancel(state: State, controlId: string, urgency: Urgency): Step {
   if (state.kind !== 'open') return same(state)
   const run = state.run
-  if (run.kind === 'idle') return same(state)
+  if (!underWay(run)) return same(state)
   const again = run.kind === 'cancelling' && !run.unknown
   if (again && urgency === 'graceful') return same(state)
   const control = run.kind === 'cancelling' && !again ? run.controlId : controlId
@@ -552,6 +553,10 @@ function onCancel(state: State, controlId: string, urgency: Urgency): Step {
 }
 
 type Cancelling = Extract<Run, { kind: 'cancelling' }>
+
+export function underWay(run: Run): run is Exclude<Run, { kind: 'unseen' | 'idle' }> {
+  return run.kind === 'running' || run.kind === 'cancelling'
+}
 
 function cancelling(state: State, session: string, controlId: string): Open | null {
   if (state.kind !== 'open' || state.session !== session) return null
@@ -651,7 +656,7 @@ const FRAME: FrameHandlers = {
       content: { ...live.content, liveStatus: { kind: 'gap', reason: frame.reason } },
     }),
   refreshing: live =>
-    live.run.kind === 'idle' || live.content.liveStatus !== null
+    !underWay(live.run) || live.content.liveStatus !== null
       ? same(live)
       : same({ ...live, content: { ...live.content, liveStatus: { kind: 'refreshing' } } }),
 }

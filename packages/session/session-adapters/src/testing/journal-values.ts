@@ -77,6 +77,17 @@ export function batchIdOf(execution: string, from: number, to: number): InputBat
   return minted(decodeInputBatchId(text), text)
 }
 
+export function batchRangeOf(
+  execution: string,
+  id: InputBatchId,
+): Readonly<{ from: number; to: number }> | undefined {
+  const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(id))
+  if (named === null) return undefined
+  const from = Number(named[1])
+  const to = Number(named[2])
+  return from <= to && batchIdOf(execution, from, to) === id ? { from, to } : undefined
+}
+
 export function journalEvidence(record: string, revision: number): DurableEvidence {
   return {
     owner: JOURNAL_OWNER,

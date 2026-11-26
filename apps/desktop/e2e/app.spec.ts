@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { Page } from '@playwright/test'
-import { REPLY, expect, quit, test } from './desktop.ts'
+import { HOLD_MARKER, REPLY, expect, quit, test } from './desktop.ts'
 
 // The tests share one server: each signs up a name of its own.
 async function signUp(page: Page): Promise<void> {
@@ -137,4 +137,27 @@ test('退出应用再打开，凭 cookie 直接进工作区；打包的应用把
   const { page } = await launchApp()
   await expect(page.getByRole('button', { name: '新建会话' })).toBeVisible({ timeout: 30_000 })
   await expect(page.locator('input[name=loginIdentifier]')).toHaveCount(0)
+})
+
+test('一轮没收场时退出再打开：这个会话显示在跑、有停止；按停止，这一轮收场，回到能发送', async ({
+  launchApp,
+}, testInfo) => {
+  const first = await launchApp()
+  await signUp(first.page)
+  await first.page.getByRole('button', { name: '新建会话' }).click()
+  await first.page.getByRole('textbox', { name: '输入消息' }).fill(`${HOLD_MARKER} 先别回答`)
+  await first.page.getByRole('button', { name: '发送' }).click()
+  await expect(first.page.getByRole('button', { name: '停止', exact: true })).toBeVisible({
+    timeout: 30_000,
+  })
+  await quit(first)
+  const { page } = await launchApp()
+  await page.locator('.omne-session-item').first().click({ timeout: 30_000 })
+  const stop = page.getByRole('button', { name: '停止', exact: true })
+  await expect(stop).toBeVisible({ timeout: 30_000 })
+  await page.screenshot({ path: testInfo.outputPath('under-way.png') })
+  await stop.click()
+  await expect(page.getByRole('button', { name: '发送' })).toBeVisible({ timeout: 30_000 })
+  await expect(stop).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('stopped.png') })
 })

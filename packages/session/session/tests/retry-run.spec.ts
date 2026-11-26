@@ -29,7 +29,7 @@ describe('S1 after a retry of the failed Run', () => {
     expect(receipt.recovered).toBe(false)
     await vi.waitFor(async () => expect((await read(h)).handed).toEqual(['input-1']))
     const after = await read(h)
-    expect(after.run).toMatchObject({ kind: 'active', first: 'input-1' })
+    expect(after.run).toMatchObject({ kind: 'active', initial: ['input-1'] })
     expect(after.awaitingPerson).toBeUndefined()
     expect(starts).toHaveLength(2)
     expect(handed).toEqual(['input-1'])

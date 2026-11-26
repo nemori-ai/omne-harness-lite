@@ -1,9 +1,14 @@
 import {
+  type AcceptedInput,
   type AgentJournal,
   type CallerCommit,
   type ExecutionMutation,
 } from '@omne-harness/agent-contract'
-import { type HistoryEntry, type RunTerminal } from '@omne-harness/session-contract'
+import {
+  type HistoryEntry,
+  type InputId as SessionInputId,
+  type RunTerminal,
+} from '@omne-harness/session-contract'
 import { type CommonRoot } from './root.ts'
 import { type JournalWrite } from './journal.ts'
 import { canonical } from './session-values.ts'
@@ -31,4 +36,32 @@ export function cancelBatchRow(root: CommonRoot, terminal: RunTerminal): History
     )
       return row
   throw new Error('session double defect: a Run terminal without its SE26 row')
+}
+
+type AdmittedInputs = ReadonlyMap<
+  SessionInputId,
+  Readonly<{ origin: unknown; message: unknown }> | undefined
+>
+
+export const admittedBy =
+  (inputs: AdmittedInputs) =>
+  (input: AcceptedInput): boolean => {
+    const admitted = inputs.get(String(input.id) as SessionInputId)
+    return (
+      admitted !== undefined &&
+      canonical(admitted.origin) === canonical(input.source) &&
+      canonical(admitted.message) === canonical(input.content)
+    )
+  }
+
+export function recordAdmissions<Row extends { ordinal: string }>(
+  directory: Pick<Map<SessionInputId, readonly Row[]>, 'get' | 'set'>,
+  admitted: readonly AcceptedInput[],
+  row: Omit<Row, 'ordinal'>,
+): void {
+  for (const { id } of admitted) {
+    const key = String(id) as SessionInputId
+    const rows = directory.get(key) ?? []
+    directory.set(key, [...rows, { ordinal: String(rows.length), ...row } as Row])
+  }
 }

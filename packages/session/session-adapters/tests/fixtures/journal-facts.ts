@@ -155,7 +155,6 @@ function openBatches(builder: Builder, rng: Random): void {
       schema: adoption('checkpoint'),
       instance: builder.authority.instance,
       scope: evidence(`${builder.execution}/scope`),
-      original: { input, entry, handoff },
       coordination: rng.chance(1, 2) ? 'standalone' : 'coordinated',
     },
     {
@@ -216,7 +215,7 @@ function roundBatches(builder: Builder, rng: Random): void {
     purpose: 'main',
   }
   // As the Journal writes it: the batch a step takes is the cursor's batch in the same commit.
-  const taken = minted(decodeInputBatchId(`${builder.execution}/batch/${builder.step}`), 'batch')
+  const taken = minted(decodeInputBatchId(`${builder.execution}/batch/1-1`), 'batch')
   const intend = batch(builder, 'intend', [
     {
       kind: 'step.begun',
@@ -224,7 +223,6 @@ function roundBatches(builder: Builder, rng: Random): void {
       batch: {
         id: taken,
         watermark: evidence(`${builder.execution}/watermark/${builder.step}`),
-        ordered: [],
       },
     },
     {

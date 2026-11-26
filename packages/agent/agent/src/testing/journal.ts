@@ -96,6 +96,7 @@ import {
   sequenceOf,
   JOURNAL_OWNER,
 } from './journal-values.ts'
+import { initialInputs, openedHandoffs, openRefusal } from './journal-open.ts'
 import { canonical } from '../canonical.ts'
 import {
   checkedCaller,
@@ -2087,9 +2088,8 @@ export function createMemoryAgentJournal<P>(
 
     open(input) {
       const key = openKey(input)
-      const { original: acceptance, runtime } = input
-      const entry = acceptance.entry
-      const initial = entry.kind === 'invoke' ? entry.initial : entry.value
+      const { originals, runtime } = input
+      const initial = initialInputs(originals)
       const prepare = (): Attempt<{ receipt: CommandReceipt; authority: Authority }> => {
         const existing = executions.get(executionKey(input.tenant, input.execution))
         if (existing !== undefined && !tenantEquals(existing.tenant, input.tenant)) {
@@ -2098,20 +2098,13 @@ export function createMemoryAgentJournal<P>(
         const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
         if (original !== undefined) return answer(original)
         if (existing !== undefined) return answer(fail(conflict(input.operation)))
-        const malformed = acceptanceFailure('open', input, acceptance)
+        const malformed =
+          originals.map(item => acceptanceFailure('open', input, item)).find(Boolean) ??
+          openRefusal(originals, runtime)
         if (malformed !== undefined) return answer(fail(malformed))
-        if (entry.kind !== 'invoke') return answer(fail(invalid('original.entry', 'not an invoke')))
-        const origin = acceptance.outcome.origin
-        if (
-          origin?.kind === 'invoke' &&
-          (!sameValue(origin.scope, runtime.scope) ||
-            !sameValue(origin.definition, runtime.definition))
-        )
-          return answer(
-            fail(invalid('runtime', 'not the scope and definition of the invoke origin')),
-          )
         if (!grantHolds({ ...input, grant: runtime.grant })) return answer(fail(denied('open')))
-        if (!sourceHolds({ ...input, source: initial.source })) return answer(fail(denied('open')))
+        if (!initial.every(value => sourceHolds({ ...input, source: value.source })))
+          return answer(fail(denied('open')))
         const refused = coordinated<{ receipt: CommandReceipt; authority: Authority }>('open', () =>
           answer(fail(denied('open'))),
         )
@@ -2123,8 +2116,8 @@ export function createMemoryAgentJournal<P>(
           state: { kind: 'advancing' },
           checkpoint: copy(input.checkpoint),
           attachments: [],
-          inputs: [copy(initial)],
-          inputRevisions: new Map([[initial.id, 1]]),
+          inputs: initial.map(value => copy(value)),
+          inputRevisions: new Map(initial.map(value => [value.id, 1])),
           batches: new Map(),
           watermarks: new Map(),
           events: [],
@@ -2160,14 +2153,7 @@ export function createMemoryAgentJournal<P>(
           generation: '1',
           source: evidence,
         }
-        execution.handoffs.push({
-          handoff: copy(acceptance.handoff),
-          request: copy(acceptance.outcome.request),
-          prepared: null,
-          resolution: { kind: 'recorded', outcome: copy(acceptance.outcome) },
-          history: { kind: 'committed', operation: input.operation, revision: revisionOf(1) },
-          retirement: null,
-        })
+        execution.handoffs.push(...openedHandoffs(originals, input.operation))
         execution.attachments.push({
           authority,
           status: 'active',
@@ -2186,7 +2172,7 @@ export function createMemoryAgentJournal<P>(
         }
       }
       return write('open', input, key, prepare, () =>
-        standaloneRefusal(runtime.grant, initial.source),
+        standaloneRefusal(runtime.grant, ...initial.map(value => value.source)),
       )
     },
 
