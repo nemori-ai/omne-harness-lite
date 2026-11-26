@@ -11,21 +11,22 @@ export type BatchKey = z.infer<typeof BatchKeySchema>
 export const sameKey = (a: BatchKey, b: BatchKey): boolean =>
   a.revision === b.revision && a.written === b.written
 
-export const BatchSchema = z.strictObject({
-  key: BatchKeySchema,
-  criteria: z.array(CriterionIdSchema).min(1),
-  delivery: z.enum(['owed', 'handed', 'unknown']),
-})
-/** The criteria handed to the examining side together. `owed`: written down, not yet taken. `unknown`: whether it was taken is not known; it is handed again as the same batch. */
-export type Batch = z.infer<typeof BatchSchema>
-
 export const ExaminedValueSchema = z.enum(['holds', 'fails', 'cannot-tell'])
-export const ExaminedSchema = z.strictObject({
-  key: BatchKeySchema,
+const HandedSchema = z.strictObject({
   value: ExaminedValueSchema,
   note: z.string().nullable(),
   refs: z.array(z.string().min(1)),
 })
+export const BatchSchema = z.strictObject({
+  key: BatchKeySchema,
+  criteria: z.array(CriterionIdSchema).min(1),
+  delivery: z.enum(['owed', 'handed', 'unknown']),
+  ran: z.partialRecord(CriterionIdSchema, HandedSchema).default({}),
+})
+/** The criteria handed to the examining side together. `owed`: written down, not yet taken. `unknown`: whether it was taken is not known; it is handed again as the same batch. */
+export type Batch = z.infer<typeof BatchSchema>
+
+export const ExaminedSchema = HandedSchema.extend({ key: BatchKeySchema })
 export type Examined = z.infer<typeof ExaminedSchema>
 export type Handed = Readonly<{
   value: Examined['value']
@@ -87,18 +88,19 @@ export function handed(
 ): Readonly<{ examination: Examination; replaced: Batch | null }> {
   const { batch } = examination
   if (batch !== null && sameKey(batch.key, key)) return { examination, replaced: null }
-  const next: Batch = { key, criteria: [...criteria], delivery: 'owed' }
+  const next: Batch = { key, criteria: [...criteria], delivery: 'owed', ran: {} }
   return {
     examination: { ...examination, batch: next, used: examination.used + 1 },
     replaced: batch,
   }
 }
 
-/** The readings of a batch come in, or its round ended without them (`null`). Readings of a batch that is not the one out are dropped. */
+/** The readings of a batch come in, or its round ended without them (`null`): what the program ran is joined with what is handed in now. `unread`: criteria left without a reading. Readings of a batch that is not the one out are dropped. */
 export function received(
   examination: Examination,
   key: BatchKey,
   answers: Readonly<Partial<Record<CriterionId, Handed>>> | null,
+  unread: readonly CriterionId[] = [],
 ): Readonly<{ examination: Examination; taken: boolean }> {
   const { batch } = examination
   if (batch === null || !sameKey(batch.key, key)) return { examination, taken: false }
@@ -107,10 +109,13 @@ export function received(
     note: answers === null ? NOT_HANDED_IN : LEFT_OUT,
     refs: [],
   }
-  const read = batch.criteria.map(id => {
-    const { value, note, refs } = answers?.[id] ?? missing
-    return [id, { key, value, note, refs: [...refs] }] as const
-  })
+  const given = { ...batch.ran, ...answers }
+  const read = batch.criteria
+    .filter(id => !unread.includes(id))
+    .map(id => {
+      const { value, note, refs } = given[id] ?? missing
+      return [id, { key, value, note, refs: [...refs] }] as const
+    })
   return {
     examination: {
       ...examination,

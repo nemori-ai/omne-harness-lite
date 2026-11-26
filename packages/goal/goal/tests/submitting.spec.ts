@@ -125,7 +125,7 @@ describe('a batch handed over to the examining side', () => {
     expect(w.hinted).toEqual([TENANT])
     await w.goals.reconcile(TENANT)
     expect(w.record().examination).toMatchObject({
-      batch: { delivery: 'handed' },
+      batch: { delivery: 'handed', ran: {} },
       examiner: EXAMINER,
     })
     expect(w.examining.handed.map(batch => batch.request)).toEqual([BATCH])

@@ -208,10 +208,11 @@ export function evidence(
     running: boolean
     answers: Readonly<Partial<Record<CriterionId, Handed>>> | null
     digest?: string
+    unread?: readonly CriterionId[]
   }>,
 ): EvidenceStep {
   const { state, body } = record
-  const got = received(record.examination, input.key, input.answers)
+  const got = received(record.examination, input.key, input.answers, input.unread)
   if (!got.taken || state.status === 'settled') return { kind: 'dropped' }
   const now: BatchKey = { revision: state.revision, written: input.written }
   const current = sameKey(input.key, now)

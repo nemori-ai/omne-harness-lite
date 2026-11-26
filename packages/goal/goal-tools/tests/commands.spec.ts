@@ -321,7 +321,7 @@ describe('brief and submit, in the session that examines for a goal', () => {
     await made.goals.write(made.caller, { session: SESSION, proposal, ...direct })
     const set = made.record()!
     const key = { revision: 1, written: '' }
-    const batch = { key, criteria: ['A1' as const], delivery: 'handed' as const }
+    const batch = { key, criteria: ['A1' as const], delivery: 'handed' as const, ran: {} }
     const examination = { ...set.examination, batch, used: 1, examiner: EXAMINER }
     await made.store.commit(TENANT, {
       session: SESSION,

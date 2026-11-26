@@ -25,7 +25,7 @@ const BEFORE_REVISION: BatchKey = { revision: 1, written: 'call-9' }
 const out = (key: BatchKey, delivery: 'handed' | 'unknown' = 'handed'): Examination => ({
   ...NO_EXAMINATION,
   used: 1,
-  batch: { key, criteria: [A1, A2], delivery },
+  batch: { key, criteria: [A1, A2], delivery, ran: {} },
 })
 const read = (key: BatchKey, value: 'holds' | 'fails' | 'cannot-tell'): Examination => ({
   ...NO_EXAMINATION,
@@ -94,7 +94,7 @@ describe('handing a batch over', () => {
     expect(handed(NO_EXAMINATION, NOW, [A1, A2])).toEqual({
       examination: {
         ...NO_EXAMINATION,
-        batch: { key: NOW, criteria: [A1, A2], delivery: 'owed' },
+        batch: { key: NOW, criteria: [A1, A2], delivery: 'owed', ran: {} },
         used: 1,
       },
       replaced: null,
@@ -103,7 +103,7 @@ describe('handing a batch over', () => {
 
   it('replaces a batch of another identity that is still out, and says which', () => {
     const step = handed(out(EARLIER), NOW, [A1])
-    expect(step.replaced).toEqual({ key: EARLIER, criteria: [A1, A2], delivery: 'handed' })
+    expect(step.replaced).toEqual({ key: EARLIER, criteria: [A1, A2], delivery: 'handed', ran: {} })
     expect(step.examination).toMatchObject({ batch: { key: NOW, criteria: [A1] }, used: 2 })
   })
 
@@ -153,7 +153,7 @@ describe('a batch that is out when something else happens to the goal', () => {
   it('is cancelled by a cancel, an abort or a settling: the examination keeps its count and no batch', () => {
     expect(cancelled(out(NOW))).toEqual({
       examination: { ...out(NOW), batch: null },
-      cancelled: { key: NOW, criteria: [A1, A2], delivery: 'handed' },
+      cancelled: { key: NOW, criteria: [A1, A2], delivery: 'handed', ran: {} },
     })
     expect(cancelled(NO_EXAMINATION)).toEqual({ examination: NO_EXAMINATION, cancelled: null })
   })

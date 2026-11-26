@@ -112,7 +112,7 @@ const seen = (record: GoalRecord, findings: Findings = FOUND, written = 'call-9'
 const out = (key: BatchKey = NOW, criteria = [A2, A3]): Examination => ({
   ...NO_EXAMINATION,
   used: 1,
-  batch: { key, criteria, delivery: 'owed' },
+  batch: { key, criteria, delivery: 'owed', ran: {} },
 })
 const HOLD: Handed = { value: 'holds', note: null, refs: ['x-3'] }
 const BOTH = { A2: HOLD, A3: HOLD } as const
@@ -122,7 +122,7 @@ describe('an observation of a goal with criteria that wait', () => {
     const step = seen(recordOf())
     if (step.kind !== 'next') throw new Error(step.kind)
     expect(step.answer).toBe('pass')
-    expect(step.handed).toEqual({ key: NOW, criteria: [A2, A3], delivery: 'owed' })
+    expect(step.handed).toEqual({ key: NOW, criteria: [A2, A3], delivery: 'owed', ran: {} })
     expect(step.cancelled).toBeNull()
     expect(step.record.state).toEqual(active())
     expect(step.record.examination).toEqual(out())
@@ -344,7 +344,7 @@ describe('the readings of a batch arriving at the goal', () => {
 
   it('an examination is kept as it stands: a batch whose handing over is not known, and each of the three readings', () => {
     const kept: Examination = {
-      batch: { key: NOW, criteria: [A2], delivery: 'unknown' },
+      batch: { key: NOW, criteria: [A2], delivery: 'unknown', ran: {} },
       used: 2,
       read: {
         [A1]: { key: EARLIER, value: 'fails', note: '没过', refs: ['x-1'] },

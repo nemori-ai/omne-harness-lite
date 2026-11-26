@@ -9,6 +9,8 @@ import {
   NO_PROGRESS,
   handed,
   handedOf,
+  NOT_RUN,
+  reran,
   NO_EXAMINATION,
   renderBrief,
   submissionIssues,
@@ -31,7 +33,7 @@ const A1 = 'A1' as CriterionId
 const A2 = 'A2' as CriterionId
 const A3 = 'A3' as CriterionId
 const NOW: BatchKey = { revision: 2, written: 'call-9' }
-const BATCH: Batch = { key: NOW, criteria: [A1, A2], delivery: 'handed' }
+const BATCH: Batch = { key: NOW, criteria: [A1, A2], delivery: 'handed', ran: {} }
 const one = (criterion: CriterionId, change: Partial<Submitted> = {}): Submitted => ({
   criterion,
   value: 'holds',
@@ -167,7 +169,7 @@ describe('the brief of a batch', () => {
   const body = bodyOf()
   const brief = renderBrief(
     body,
-    { key: NOW, criteria: [A1, A2], delivery: 'owed' },
+    { key: NOW, criteria: [A1, A2], delivery: 'owed', ran: {} },
     {
       generation: 1,
       where: '/work/snake',
@@ -380,6 +382,106 @@ describe('readings handed in to a goal', () => {
     })
     expect(second).toContain('Written since the last batch: b.js')
     expect(second).toContain('Where the work is: /work')
+  })
+
+  describe('the program hands in the exit codes of the commands run again', () => {
+    const ran = (exit: number | null, note = '退出码') => [{ criterion: A1, exit, note }]
+    const run = (record: GoalRecord, change: Partial<Parameters<typeof reran>[1]> = {}) =>
+      reran(record, {
+        generation: 1,
+        key: NOW,
+        results: ran(0),
+        written: 'call-9',
+        running: false,
+        ...change,
+      })
+    const onlyRuns = () => recordOf({ examination: handed(NO_EXAMINATION, NOW, [A1]).examination })
+
+    it('a batch of commands only is back at once: exit 0 holds, and the verdict table is applied', () => {
+      const step = run(onlyRuns())
+      if (step.kind !== 'next') throw new Error(step.kind)
+      expect(step.examine).toEqual([])
+      expect(step.record.examination).toMatchObject({
+        batch: null,
+        read: { A1: { value: 'holds', key: NOW } },
+      })
+      expect(step.record.readings.criteria.A1).toMatchObject({ value: 'holds', source: 'system' })
+    })
+
+    it.each([
+      [1, 'fails'],
+      [137, 'fails'],
+      [null, 'cannot-tell'],
+    ] as const)('exit %s reads as %s, with what was seen beside it', (exit, value) => {
+      const step = run(onlyRuns(), { results: ran(exit, '断言失败：蛇没有转向') })
+      if (step.kind !== 'next') throw new Error(step.kind)
+      expect(step.record.examination.read[A1]).toMatchObject({
+        value,
+        note: '断言失败：蛇没有转向',
+      })
+      expect(step.told).toBe('continue')
+    })
+
+    it('a command the program handed in nothing of cannot be told: it was not run', () => {
+      const step = run(onlyRuns(), { results: [] })
+      if (step.kind !== 'next') throw new Error(step.kind)
+      expect(step.record.examination.read[A1]).toMatchObject({
+        value: 'cannot-tell',
+        note: NOT_RUN,
+      })
+    })
+
+    it('with an examination in the batch and every command passing, the batch stays out for the examining session: what ran is kept with it', () => {
+      const step = run(recordOf())
+      if (step.kind !== 'next') throw new Error(step.kind)
+      expect(step.examine).toEqual([A2])
+      expect(step.told).toBeNull()
+      expect(step.record.state.status).toBe('active')
+      expect(step.record.examination.batch).toMatchObject({
+        key: NOW,
+        ran: { A1: { value: 'holds' } },
+      })
+      expect(step.record.examination.read).toEqual({})
+      expect(step.record.version).toBe(8)
+    })
+
+    it('then the examining session hands in the examined criteria only, and the batch is back with both', () => {
+      const first = run(recordOf())
+      if (first.kind !== 'next') throw new Error(first.kind)
+      expect(hand(first.record, { readings: [one(A1), one(A2)] })).toMatchObject({
+        kind: 'refused',
+        issues: [{ entry: 'A1', problem: 'it is not of this batch' }],
+      })
+      const both = hand(first.record, { readings: [one(A2)] })
+      if (both.kind !== 'next') throw new Error(both.kind)
+      expect(both.record.state).toMatchObject({ status: 'settled', outcome: { kind: 'achieved' } })
+      expect(both.record.examination.read).toMatchObject({
+        A1: { value: 'holds' },
+        A2: { value: 'holds', refs: ['x-1'] },
+      })
+    })
+
+    it('with a command that did not pass, the batch is back without the examination: no examination is spent, and the examined criterion keeps no reading', () => {
+      const step = run(recordOf(), { results: ran(1) })
+      if (step.kind !== 'next') throw new Error(step.kind)
+      expect(step.examine).toEqual([])
+      expect(step.told).toBe('continue')
+      expect(step.record.examination.batch).toBeNull()
+      expect(Object.keys(step.record.examination.read)).toEqual(['A1'])
+      expect(step.record.readings.criteria.A2?.value).toBe('no-evidence')
+    })
+
+    it('of a batch that is not the awaited one count for nothing: written since, another batch, another goal', () => {
+      const late = run(recordOf(), { written: 'call-12' })
+      if (late.kind !== 'next') throw new Error(late.kind)
+      expect(late.examine).toEqual([])
+      expect(late.record.examination).toMatchObject({ batch: null, read: {} })
+      expect(run(recordOf(), { key: { revision: 2, written: 'call-4' } })).toEqual({
+        kind: 'dropped',
+      })
+      expect(run(recordOf(), { generation: 2 })).toEqual({ kind: 'dropped' })
+      expect(run(recordOf({ examination: NO_EXAMINATION }))).toEqual({ kind: 'dropped' })
+    })
   })
 
   it('never names a state: what it takes is readings, and what it answers is whether they were taken', () => {
