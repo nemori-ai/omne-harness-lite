@@ -6,7 +6,8 @@ import { alice, eventually, invoke } from './loop-support.ts'
 
 it('settles a cancellation when the advance is revoked before the wait can be saved', async () => {
   let revoked = false
-  const assembly = await controlAssembly({}, ports => ({
+  const waits: string[] = []
+  const wrap: Parameters<typeof controlAssembly>[1] = ports => ({
     ...ports,
     conditions: {
       ...ports.conditions,
@@ -36,10 +37,22 @@ it('settles a cancellation when the advance is revoked before the wait can be sa
         return ports.journal.commit(input)
       },
     },
-  }))
+  })
+  const assembly = await controlAssembly(
+    {},
+    wrap,
+    {},
+    {
+      waiting: ({ step, node, owner, diagnostic }) =>
+        waits.push(`${step} ${node} ${owner}: ${diagnostic}`),
+    },
+  )
   const handle = ok(await invoke(assembly))
   const input = { ...alice, execution: handle.execution }
   await eventually(async () => revoked && assembly.controls.clock.pending().length > 0)
+  expect(waits.at(-1)).toBe(
+    'step-1 E2 @omne-harness/agent: the advance is revoked and its cause is not in the Journal yet',
+  )
   ok(
     await handle.control.control({
       ...input,

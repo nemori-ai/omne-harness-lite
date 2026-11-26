@@ -1,11 +1,13 @@
 import { decodeAgentExecutionId, decodeStepId } from '@omne-harness/agent-contract'
 import { describe, expect, it } from 'vitest'
-import { createHaltLedger } from '../src/halt-ledger.ts'
+import { fail, succeed } from '@omne-harness/operation-result'
+import { createHaltLedger, haltBounded } from '../src/halt-ledger.ts'
+import type { RuntimeFactory } from '../src/host.ts'
 import { ok } from './host-support.ts'
 
 const execution = (name: string) => ok(decodeAgentExecutionId(name))
 const step = (ordinal: number) => ok(decodeStepId(`step-${String(ordinal)}`))
-const halt = (at: number, node = 'F3') => ({ step: step(at), node, failure: 'invalid' })
+const halt = (at: number, node = 'F3') => ({ step: step(at), node, failure: 'invalid' as const })
 
 describe('the halts of an execution at one step', () => {
   it('refuses the resume once the execution halted the limit of times at one step', () => {
@@ -74,5 +76,66 @@ describe('the halts of an execution at one step', () => {
           `${String(limit)}: ${steps.join(',')}`,
         ).toBe(run >= limit)
       }
+  })
+})
+
+describe('a runtime factory whose resumes are bounded by the halts', () => {
+  type Extras = Parameters<RuntimeFactory>[2]
+
+  function world(created: 'runtime' | 'failure' = 'runtime') {
+    const told: string[] = []
+    const resumed: string[] = []
+    const warnings: string[] = []
+    let extras: Extras | undefined
+    const factory: RuntimeFactory = (_dependencies, _options, received) => {
+      extras = received
+      if (created === 'failure')
+        return Promise.resolve(fail({ kind: 'invalid', field: 'options', reason: 'refused' }))
+      return Promise.resolve(
+        succeed({
+          runtime: {
+            resume: (input: { execution: string }) => {
+              resumed.push(input.execution)
+              return Promise.resolve(succeed('resumed'))
+            },
+          },
+        } as never),
+      )
+    }
+    const bounded = haltBounded(factory, createHaltLedger({ limit: 2, capacity: 8 }), text =>
+      warnings.push(text),
+    )
+    const made = bounded({} as never, { configuration: {} } as never, {
+      failed: event => told.push(`failed ${event.execution}`),
+      endedFailed: event => told.push(`ended ${event.execution}`),
+      waiting: () => {},
+    })
+    const halted = (name: string) =>
+      extras?.failed({ execution: execution(name), ...halt(1), failure: REFUSED } as never)
+    const ended = (name: string) => extras?.endedFailed({ execution: execution(name) } as never)
+    return { made, told, resumed, warnings, halted, ended }
+  }
+
+  const REFUSED = { kind: 'invalid', field: 'storage', reason: 'command_limit' } as const
+  const resume = async (made: ReturnType<typeof world>['made'], name: string) =>
+    ok(await made).runtime.resume({ execution: execution(name) } as never)
+
+  it('answers the failure of the factory as it is', async () => {
+    expect(await world('failure').made).toEqual({
+      failure: { kind: 'invalid', field: 'options', reason: 'refused' },
+    })
+  })
+
+  it('passes each report on, and an execution that ended is resumed again', async () => {
+    const { made, told, resumed, warnings, halted, ended } = world()
+    await made
+    halted('a')
+    halted('a')
+    expect(await resume(made, 'a')).toMatchObject({ failure: { kind: 'invalid' } })
+    expect(warnings).toHaveLength(1)
+    ended('a')
+    expect(await resume(made, 'a')).toEqual({ ok: 'resumed' })
+    expect(resumed).toEqual(['a'])
+    expect(told).toEqual(['failed a', 'failed a', 'ended a'])
   })
 })

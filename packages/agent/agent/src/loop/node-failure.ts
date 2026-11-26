@@ -1,4 +1,5 @@
 import type { Failure, FailureCandidate } from '@omne-harness/agent-contract'
+import { AGENT_OWNER } from './identities.ts'
 
 export type NodeFailureCategory = Extract<FailureCandidate, { kind: 'node-failed' }>['category']
 
@@ -62,13 +63,12 @@ export function namedStop(): Failure {
 export function revocationWait(
   failure: Failure,
   advancement: Readonly<{ kind: string }>,
-  owner: string,
 ): Extract<Failure, { kind: 'unavailable' }> | null {
   if (failure.kind !== 'stale-advance' || namedStops.has(failure)) return null
   if (advancement.kind !== 'current') return null
   return {
     kind: 'unavailable',
-    owner,
+    owner: AGENT_OWNER,
     diagnostic: 'the advance is revoked and its cause is not in the Journal yet',
   }
 }
