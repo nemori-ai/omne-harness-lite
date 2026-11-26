@@ -64,11 +64,16 @@ const sampleFrames = (desk: Page): Promise<void> =>
     record()
   })()`)
 
+/** Reads the frames after two more have passed: what a poll just saw is in the DOM before the next frame records it. */
 const framesSampled = (desk: Page): Promise<[string | null, string][]> =>
-  desk.evaluate(`(() => {
-    cancelAnimationFrame(window.e2eFrame)
-    return window.e2eFrames
-  })()`)
+  desk.evaluate(`new Promise(done =>
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        cancelAnimationFrame(window.e2eFrame)
+        done(window.e2eFrames)
+      }),
+    ),
+  )`)
 
 async function expectBuiltInFigure(desk: Page): Promise<void> {
   await expect(figureOn(desk).locator('[data-e2e-skin]')).toHaveCount(0, { timeout: DESK_LAG_MS })
@@ -92,6 +97,17 @@ test('穿着皮肤把形拖出窗口还是皮肤的样子；在窗口里换一�
   await wear(page, 'e2e-sea')
   const seaAccent = await accentOf(page)
   expect(seaAccent).not.toBe(builtInAccent)
+
+  await test.step('在窗口里按随身入口：小框的墨框是同一个部位，带着 e2e-sea 写的样式', async () => {
+    await page.getByRole('button', { name: '对 Agent 说一句话' }).click()
+    const note = '[role="dialog"][data-omne-part="shell.figure.note"]'
+    await expect(page.locator(note)).toBeVisible({ timeout: 10_000 })
+    const spacing = await page.evaluate(
+      `getComputedStyle(document.querySelector('${note}')).letterSpacing`,
+    )
+    expect(spacing).toBe(SPACING['e2e-sea'])
+    await page.keyboard.press('Escape')
+  })
 
   const desk =
     await test.step('穿着 e2e-sea 拖出窗口：桌面上的形是 sea 的画法，令牌与主窗口的相同；主窗口的家空着', async () => {
