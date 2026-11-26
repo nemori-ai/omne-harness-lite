@@ -93,7 +93,13 @@ import {
 } from './admission-read.ts'
 import { successor, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
-import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
+import {
+  localFailure,
+  namedStop,
+  nodeFailureCategory,
+  revocationWait,
+  type NodeFailureCategory,
+} from './node-failure.ts'
 import { acceptanceOf, nextInitialHandoff, nonEmpty, rejectedInput } from './initial-admission.ts'
 import { readBatchToolCalls } from './action-source.ts'
 import { judgeBatch } from './batch-judging.ts'
@@ -254,7 +260,7 @@ export type ReplyAdmissionReadReport = Readonly<{
   facts: number
 }>
 
-export type Halted = Readonly<{ node: LoopNode; failure: Failure }>
+export type Halted = Readonly<{ node: LoopNode; failure: Failure; step: StepId | null }>
 
 export interface ExecutionDrive {
   runExecution(): Promise<Outcome<void, Halted>>
@@ -488,11 +494,16 @@ function coordinate<P>(
   let rejectedMessage: Readonly<{ source: InternalSource; evidence: DurableEvidence }> | null = null
   let lastSent: Readonly<{ operation: AgentOperationId; read: ReplyAdmissionRead }> | null = null
   let held: HeldPosition | null = null
+  const haltedAt = (node: LoopNode, failure: Failure): Halted => ({
+    node,
+    failure,
+    step: checkpoint?.step ?? null,
+  })
   async function exclusive<T>(
     node: LoopNode,
     run: () => Promise<Outcome<T, Halted>>,
   ): Promise<Outcome<T, Halted>> {
-    if (activeDrive || activeWait) return fail({ node, failure: { kind: 'busy' } })
+    if (activeDrive || activeWait) return fail(haltedAt(node, { kind: 'busy' }))
     activeDrive = true
     try {
       return await run()
@@ -669,19 +680,6 @@ function coordinate<P>(
     return succeed('W0')
   }
 
-  function waitForRevocationCause() {
-    finishWait = true
-    return waitFor(
-      'E2',
-      {
-        kind: 'unavailable',
-        owner: AGENT_OWNER,
-        diagnostic: 'the advance is revoked and its cause is not in the Journal yet',
-      },
-      null,
-    )
-  }
-
   function waitForFault(at: LoopNode, failure: Extract<Failure, { kind: 'unavailable' }>) {
     finishWait = true
     waitFor(at, failure, null)
@@ -701,6 +699,8 @@ function coordinate<P>(
         takeLatestPosition(latest.ok)
         if (latest.ok.state.kind === 'ended') return succeed('F4')
         if (cancellationOf(latest.ok) !== undefined) return succeed('F0')
+        const revoked = revocationWait(failure, advancementOf(latest.ok), AGENT_OWNER)
+        if (revoked !== null) return waitForFault('E2', revoked)
       }
     }
     if (fault !== null) return fail(failure)
@@ -754,7 +754,7 @@ function coordinate<P>(
       const moved = await advanceNode(at)
       if ('failure' in moved) {
         const next = await failedNode(at, moved.failure)
-        if ('failure' in next) return fail({ node: at, failure: next.failure })
+        if ('failure' in next) return fail(haltedAt(at, next.failure))
         node = next.ok
         continue
       }
@@ -926,7 +926,7 @@ function coordinate<P>(
           { kind: 'unavailable', owner: AGENT_OWNER, diagnostic: 'execution is suspended' },
           null,
         )
-      return fail({ kind: 'stale-advance' })
+      return fail(namedStop())
     }
     let next = evaluated.ok
     if (next.kind === 'take-inputs') {
@@ -1361,7 +1361,6 @@ function coordinate<P>(
       const read = await readFacts(snapshot)
       if ('failure' in read) {
         if (read.failure.kind === 'unavailable') return waitFor('E2', read.failure, readFacts)
-        if (read.failure.kind === 'stale-advance') return waitForRevocationCause()
         return read
       }
       facts = read.ok
@@ -3027,19 +3026,15 @@ function coordinate<P>(
         const start = originalOpen === null ? 'U0' : 'E0'
         if (originalOpen !== null) {
           if (confirmedOpen === undefined)
-            return fail({
-              node: 'E0',
-              failure: { kind: 'commit-unknown', operation: originalOpen.operation },
-            })
+            return fail(
+              haltedAt('E0', { kind: 'commit-unknown', operation: originalOpen.operation }),
+            )
           if (
             confirmedOpen.operation !== originalOpen.operation ||
             confirmedOpen.execution !== originalOpen.execution ||
             authority !== null
           )
-            return fail({
-              node: 'E0',
-              failure: { kind: 'conflict', operation: originalOpen.operation },
-            })
+            return fail(haltedAt('E0', { kind: 'conflict', operation: originalOpen.operation }))
           pendingCommit = null
         }
         const ran = await drive(start, 'E1')
@@ -3051,9 +3046,9 @@ function coordinate<P>(
       return exclusive('E1', async () => {
         authority = original
         const read = await load()
-        if ('failure' in read) return fail({ node: 'E1', failure: read.failure })
+        if ('failure' in read) return fail(haltedAt('E1', read.failure))
         if (!sameAuthority(read.ok.executionAttachment, original))
-          return fail({ node: 'E1', failure: { kind: 'stale-advance' } })
+          return fail(haltedAt('E1', { kind: 'stale-advance' }))
         const at = read.ok.checkpoint
         const finishingFault =
           read.ok.state.kind === 'settling' &&
@@ -3067,7 +3062,7 @@ function coordinate<P>(
             pending?.kind !== 'model' ||
             pending.purpose !== 'main')
         )
-          return fail({ node: 'E4', failure: { kind: 'unsupported' } })
+          return fail(haltedAt('E4', { kind: 'unsupported' }))
         revision = read.ok.revision
         checkpoint = at
         iteration = beforeIntent || finishingFault ? null : mainCallIteration(at)
@@ -3090,7 +3085,7 @@ function coordinate<P>(
           recovery: input.recovery,
           takeover: null,
         })
-        if ('failure' in attached) return fail({ node: 'E1', failure: attached.failure })
+        if ('failure' in attached) return fail(haltedAt('E1', attached.failure))
         authority = attached.ok.authority
         return succeed(attached.ok.authority)
       })
@@ -3107,14 +3102,14 @@ function coordinate<P>(
           authority: required(authority, 'authority'),
           reason: input.reason,
         })
-        if ('failure' in detached) return fail({ node: 'W0', failure: detached.failure })
+        if ('failure' in detached) return fail(haltedAt('W0', detached.failure))
         yieldedWait = false
         savedWait = false
         return succeed(detached.ok)
       })
     },
     async waitForWake(input) {
-      if (activeDrive || activeWait) return fail({ node: 'W0', failure: { kind: 'busy' } })
+      if (activeDrive || activeWait) return fail(haltedAt('W0', { kind: 'busy' }))
       if (!yieldedWait && pendingCommit === null && reconciliationOperations.length === 0)
         return succeed('stopped')
       const operations = [
@@ -3137,13 +3132,13 @@ function coordinate<P>(
           position: waitingAt,
           ...input,
         })
-        if ('failure' in result) return fail({ node: 'W0', failure: result.failure })
+        if ('failure' in result) return fail(haltedAt('W0', result.failure))
         if (result.ok !== 'unheld') return succeed(result.ok)
         heldTools.clear()
         if (iteration?.admission === 'accepted') iteration.admission = 'unknown'
         return succeed('ready')
       } catch (error) {
-        return fail({ node: 'W0', failure: defect(diagnosticOf(error)) })
+        return fail(haltedAt('W0', defect(diagnosticOf(error))))
       } finally {
         activeWait = false
       }

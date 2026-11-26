@@ -286,6 +286,28 @@ describe('what a step of the recovery leaves when it fails', () => {
     expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
   })
 
+  it('a resume that the Agent refuses because the execution cannot go on closes the Run as failed, with the refusal as its cause', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    const reason = 'halted 3 times at step-2, last at F3 on invalid'
+    agent.resume.mockImplementation(async () => ({
+      failure: { kind: 'refused', failure: 'invalid', field: 'execution', reason },
+    }))
+
+    await scan(h)
+    await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('terminal'))
+    const closed = (await read(h)).run
+    if (closed.kind !== 'terminal') throw new Error('the Run is not closed')
+    expect(closed.terminal).toMatchObject({ run: run.run, outcome: 'failed' })
+    expect(closed.terminal.evidence.record).toBe(`drive refused: invalid execution ${reason}`)
+    expect(agent.resume).toHaveBeenCalledTimes(1)
+    expect(reported(h)).toEqual([])
+
+    await scan(h)
+    await settle()
+    expect(agent.detach).toHaveBeenCalledTimes(1)
+  })
+
   it.each(['unavailable', 'busy', 'commit-unknown'] as const)(
     'a resume that answers %s is left to the next scan without a report',
     async kind => {

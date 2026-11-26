@@ -50,3 +50,25 @@ export function nodeFailureCategory(failure: Failure): NodeFailureCategory | nul
       return null
   }
 }
+
+const namedStops = new WeakSet<Failure>()
+
+export function namedStop(): Failure {
+  const stop: Failure = { kind: 'stale-advance' }
+  namedStops.add(stop)
+  return stop
+}
+
+export function revocationWait(
+  failure: Failure,
+  advancement: Readonly<{ kind: string }>,
+  owner: string,
+): Extract<Failure, { kind: 'unavailable' }> | null {
+  if (failure.kind !== 'stale-advance' || namedStops.has(failure)) return null
+  if (advancement.kind !== 'current') return null
+  return {
+    kind: 'unavailable',
+    owner,
+    diagnostic: 'the advance is revoked and its cause is not in the Journal yet',
+  }
+}

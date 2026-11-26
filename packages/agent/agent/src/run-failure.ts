@@ -14,6 +14,7 @@ export type AgentRunFailed = Readonly<{
   tenant: TenantId
   instance: AgentInstanceId
   execution: AgentExecutionId
+  step: StepId | null
   node: string | null
   failure: Failure
 }>

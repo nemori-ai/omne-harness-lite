@@ -432,6 +432,7 @@ const AGENT_HOST = {
   toolConcurrency: 8,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
   instanceIdleMs: 60_000,
+  haltLimit: 3,
   maxRunSteps: 500,
 } as const
 

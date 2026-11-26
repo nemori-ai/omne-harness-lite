@@ -11,10 +11,11 @@
 (*   "no-scan"               no periodic scan                               *)
 (*   "void-answered"         a cancel returns answered inputs to pending    *)
 (*   "reject-drops-batch"    a rejected invoke drops the whole batch        *)
-(* Bugs = {} with Deterministic = FALSE is the design.                     *)
-(* Deterministic = TRUE opens a gap that is not closed yet: when the       *)
-(* finishing commit of a Run fails for a reason that does not pass, each   *)
-(* take-over halts again and the Run never settles.                        *)
+(*   "no-halt-bound"         halts at one step are resumed without a bound  *)
+(* Bugs = {} is the design, with Deterministic either way.                 *)
+(* Deterministic = TRUE lets the finishing commit of a Run fail for a      *)
+(* reason that does not pass: each take-over halts again, and after        *)
+(* HaltLimit halts the Run is closed as failed.                            *)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
@@ -25,13 +26,15 @@ CONSTANTS Inputs,        \* the inputs a person sends
           MaxRestarts,
           MaxOutages,    \* after the last outage the dependencies stay up
           MaxHalts,      \* halts for a reason that passes
+          HaltLimit,     \* policy: halts at one step before the Agent refuses the resume
           Deterministic, \* the environment may make a finishing commit fail for good
           Bugs
 
 ASSUME Bad \subseteq Inputs
 ASSUME Deterministic \in BOOLEAN
 ASSUME Bugs \subseteq {"first-only", "halt-pins-slot", "failed-finish-blocked",
-                       "no-scan", "void-answered", "reject-drops-batch"}
+                       "no-scan", "void-answered", "reject-drops-batch", "no-halt-bound"}
+ASSUME HaltLimit \in Nat \ {0}
 
 VARIABLES
   sent,      \* the inputs sent so far
@@ -54,11 +57,12 @@ VARIABLES
   wake,      \* a wake-up waits for the advance coordinator
   depUp,     \* storage and the Agent drive port are available
   cancels, restarts, outages, halts,
+  streak,    \* Agent process: halts of the current execution at one step, gone on a restart
   split      \* sentinel: a first step left behind an input that waited at the start
 
 vars == <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns, stepped,
           steps, execOpen, agentAcc, known, drive, slot, poison, wake, depUp,
-          cancels, restarts, outages, halts, split>>
+          cancels, restarts, outages, halts, streak, split>>
 
 Active == run = "open"
 
@@ -80,7 +84,7 @@ Init ==
   /\ batch = {} /\ waiting0 = {} /\ runAns = {} /\ stepped = FALSE /\ steps = 0
   /\ execOpen = FALSE /\ agentAcc = {} /\ known = {} /\ drive = "none" /\ slot = "free"
   /\ poison = FALSE /\ wake = FALSE /\ depUp = TRUE
-  /\ cancels = 0 /\ restarts = 0 /\ outages = 0 /\ halts = 0 /\ split = FALSE
+  /\ cancels = 0 /\ restarts = 0 /\ outages = 0 /\ halts = 0 /\ streak = 0 /\ split = FALSE
 
 ---------------------------------------------------------------------------
 \* The person and the environment
@@ -90,34 +94,34 @@ Send(i) ==
   /\ sent' = sent \cup {i} /\ pending' = pending \cup {i} /\ wake' = TRUE /\ awaiting' = FALSE
   /\ UNCHANGED <<answered, rejected, run, batch, waiting0, runAns, stepped, steps, execOpen,
                  agentAcc, known, drive, slot, poison, depUp, cancels, restarts, outages,
-                 halts, split>>
+                 halts, streak, split>>
 
 DepDown ==
   /\ depUp /\ outages < MaxOutages
   /\ depUp' = FALSE /\ outages' = outages + 1
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, agentAcc, known, drive, slot, poison, wake,
-                 cancels, restarts, halts, split>>
+                 cancels, restarts, halts, streak, split>>
 
 DepRecover ==
   /\ ~depUp /\ depUp' = TRUE
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, agentAcc, known, drive, slot, poison, wake,
-                 cancels, restarts, outages, halts, split>>
+                 cancels, restarts, outages, halts, streak, split>>
 
 \* The bounded retries run out while a dependency is down: the wake-up is spent.
 WakeLost ==
   /\ wake /\ ~depUp /\ wake' = FALSE
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, agentAcc, known, drive, slot, poison, depUp,
-                 cancels, restarts, outages, halts, split>>
+                 cancels, restarts, outages, halts, streak, split>>
 
 WakeDone ==
   /\ wake /\ depUp /\ ~CanOpen /\ ~CanInvoke /\ ~CanReplay /\ ~CanSubmit /\ ~CanResume
   /\ wake' = FALSE
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, agentAcc, known, drive, slot, poison, depUp,
-                 cancels, restarts, outages, halts, split>>
+                 cancels, restarts, outages, halts, streak, split>>
 
 Scan ==
   /\ "no-scan" \notin Bugs
@@ -125,7 +129,7 @@ Scan ==
   /\ wake' = TRUE
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, agentAcc, known, drive, slot, poison, depUp,
-                 cancels, restarts, outages, halts, split>>
+                 cancels, restarts, outages, halts, streak, split>>
 
 \* The person cancels the Run: the Session writes the terminal, the driver stops.
 Cancel ==
@@ -138,12 +142,12 @@ Cancel ==
                ELSE {"free"}
   /\ wake' = TRUE
   /\ UNCHANGED <<sent, answered, rejected, awaiting, waiting0, stepped, steps, depUp,
-                 restarts, outages, halts, split>>
+                 restarts, outages, halts, streak, split>>
 
 \* The process restarts: what it held in memory is gone, the log and the record stay.
 Restart ==
   /\ restarts < MaxRestarts /\ restarts' = restarts + 1
-  /\ known' = {} /\ drive' = "none" /\ slot' = "free" /\ wake' = TRUE
+  /\ known' = {} /\ drive' = "none" /\ slot' = "free" /\ wake' = TRUE /\ streak' = 0
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, agentAcc, poison, depUp, cancels, outages, halts,
                  split>>
@@ -152,7 +156,7 @@ Poison ==
   /\ Deterministic /\ Active /\ ~poison /\ poison' = TRUE
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, agentAcc, known, drive, slot, wake, depUp,
-                 cancels, restarts, outages, halts, split>>
+                 cancels, restarts, outages, halts, streak, split>>
 
 \* The driver cannot go on at a node and halts: it reports once and gives the slot back;
 \* the execution stays open in the record. No commit, so no wake-up.
@@ -160,6 +164,7 @@ Halt ==
   /\ Active /\ drive = "live"
   /\ poison \/ halts < MaxHalts
   /\ halts' = IF poison THEN halts ELSE halts + 1
+  /\ streak' = IF poison /\ streak < HaltLimit THEN streak + 1 ELSE streak
   /\ drive' = "none"
   /\ slot' = IF "halt-pins-slot" \in Bugs THEN "held" ELSE "free"
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
@@ -175,7 +180,7 @@ OpenRun ==
   /\ batch' \in IF "first-only" \in Bugs THEN {{i} : i \in pending} ELSE {pending}
   /\ waiting0' = pending
   /\ run' = "open" /\ runAns' = {} /\ stepped' = FALSE /\ steps' = 0
-  /\ execOpen' = FALSE /\ agentAcc' = {} /\ known' = {} /\ poison' = FALSE
+  /\ execOpen' = FALSE /\ agentAcc' = {} /\ known' = {} /\ poison' = FALSE /\ streak' = 0
   /\ UNCHANGED <<sent, pending, answered, rejected, awaiting, drive, slot, wake, depUp,
                  cancels, restarts, outages, halts, split>>
 
@@ -186,7 +191,7 @@ InvokeOk ==
   /\ drive' = "live" /\ slot' = "held"
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, poison, wake, depUp, cancels, restarts, outages, halts,
-                 split>>
+                 streak, split>>
 
 \* Admission rejects one input of the batch: no execution is created, the Run closes as
 \* failed, that input loses its pending standing, the others keep theirs.
@@ -198,7 +203,7 @@ InvokeRejected ==
   /\ run' = "terminal" /\ awaiting' = TRUE
   /\ batch' = {} /\ runAns' = {} /\ agentAcc' = {} /\ known' = {} /\ wake' = TRUE
   /\ UNCHANGED <<sent, answered, waiting0, stepped, steps, execOpen, drive, slot, poison,
-                 depUp, cancels, restarts, outages, halts, split>>
+                 depUp, cancels, restarts, outages, halts, streak, split>>
 
 \* After a restart the batch is not noted and not taken: the invoke is replayed under its
 \* original identity, the Agent answers with the original acceptance.
@@ -207,7 +212,7 @@ ReplayOk ==
   /\ known' = known \cup batch
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, agentAcc, drive, slot, poison, wake, depUp,
-                 cancels, restarts, outages, halts, split>>
+                 cancels, restarts, outages, halts, streak, split>>
 
 \* An input that arrived after the start is handed in.
 SubmitOk ==
@@ -215,7 +220,7 @@ SubmitOk ==
   /\ \E i \in Due \ Bad : agentAcc' = agentAcc \cup {i} /\ known' = known \cup {i}
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, drive, slot, poison, wake, depUp, cancels,
-                 restarts, outages, halts, split>>
+                 restarts, outages, halts, streak, split>>
 
 \* Admission rejects a handed-in input: it loses its pending standing, the Run goes on.
 SubmitRejected ==
@@ -223,15 +228,27 @@ SubmitRejected ==
   /\ \E i \in Due \cap Bad : pending' = pending \ {i} /\ rejected' = rejected \cup {i}
   /\ UNCHANGED <<sent, answered, run, awaiting, batch, waiting0, runAns, stepped, steps,
                  execOpen, agentAcc, known, drive, slot, poison, wake, depUp, cancels,
-                 restarts, outages, halts, split>>
+                 restarts, outages, halts, streak, split>>
 
 \* Recovery asks the attachment, the host answers lost, a new driver takes over.
 RecoverResume ==
   /\ wake /\ CanResume
+  /\ "no-halt-bound" \in Bugs \/ streak < HaltLimit
   /\ drive' = "live" /\ slot' = "held"
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, steps, execOpen, agentAcc, known, poison, wake, depUp, cancels,
-                 restarts, outages, halts, split>>
+                 restarts, outages, halts, streak, split>>
+
+\* The execution halted HaltLimit times at one step: the Agent refuses the resume for good and
+\* the Session closes the Run as failed. The execution stays open in the record.
+CloseHalted ==
+  /\ wake /\ CanResume
+  /\ "no-halt-bound" \notin Bugs /\ streak >= HaltLimit
+  /\ run' = "terminal" /\ awaiting' = TRUE
+  /\ batch' = {} /\ runAns' = {} /\ agentAcc' = {} /\ known' = {}
+  /\ execOpen' = FALSE /\ wake' = TRUE
+  /\ UNCHANGED <<sent, pending, answered, rejected, waiting0, stepped, steps, drive, slot,
+                 poison, depUp, cancels, restarts, outages, halts, streak, split>>
 
 ---------------------------------------------------------------------------
 \* The Agent. The commit of each step and of the finish wakes the Session.
@@ -245,7 +262,7 @@ AgentStep ==
        /\ answered' = answered \cup S /\ pending' = pending \ S /\ runAns' = runAns \cup S
   /\ stepped' = TRUE /\ steps' = steps + 1 /\ wake' = TRUE
   /\ UNCHANGED <<sent, rejected, run, awaiting, batch, waiting0, execOpen, agentAcc, known,
-                 drive, slot, poison, depUp, cancels, restarts, outages, halts>>
+                 drive, slot, poison, depUp, cancels, restarts, outages, halts, streak>>
 
 \* The model asks for one more tool: a step that takes no input. Not fair.
 ToolStep ==
@@ -253,14 +270,14 @@ ToolStep ==
   /\ steps' = steps + 1 /\ wake' = TRUE
   /\ UNCHANGED <<sent, pending, answered, rejected, run, awaiting, batch, waiting0, runAns,
                  stepped, execOpen, agentAcc, known, drive, slot, poison, depUp, cancels,
-                 restarts, outages, halts, split>>
+                 restarts, outages, halts, streak, split>>
 
 Close(failed) ==
   /\ run' = "terminal" /\ awaiting' = failed
   /\ batch' = {} /\ runAns' = {} /\ agentAcc' = {} /\ known' = {}
   /\ execOpen' = FALSE /\ drive' = "none" /\ slot' = "free" /\ wake' = TRUE
   /\ UNCHANGED <<sent, pending, answered, rejected, waiting0, stepped, steps, poison, depUp,
-                 cancels, restarts, outages, halts, split>>
+                 cancels, restarts, outages, halts, streak, split>>
 
 \* A finish that concludes complete is turned back while an input is pending.
 FinishComplete ==
@@ -277,7 +294,7 @@ FinishFailedAtLimit ==
 ---------------------------------------------------------------------------
 
 Session == OpenRun \/ InvokeOk \/ InvokeRejected \/ ReplayOk \/ SubmitOk \/ SubmitRejected
-           \/ RecoverResume \/ WakeLost \/ WakeDone
+           \/ RecoverResume \/ CloseHalted \/ WakeLost \/ WakeDone
 Agent   == AgentStep \/ ToolStep \/ FinishComplete \/ FinishFailedAtLimit
 Env     == (\E i \in Inputs : Send(i)) \/ DepDown \/ DepRecover \/ Scan \/ Cancel \/ Restart
            \/ Poison \/ Halt
@@ -290,6 +307,7 @@ Fairness ==
   /\ WF_vars(DepRecover) /\ WF_vars(Scan)
   /\ SF_vars(OpenRun) /\ SF_vars(InvokeOk) /\ SF_vars(InvokeRejected) /\ SF_vars(ReplayOk)
   /\ SF_vars(SubmitOk) /\ SF_vars(SubmitRejected) /\ SF_vars(RecoverResume)
+  /\ SF_vars(CloseHalted)
   /\ SF_vars(AgentStep) /\ SF_vars(FinishComplete) /\ SF_vars(FinishFailedAtLimit)
   /\ WF_vars(Halt /\ poison)
 
@@ -306,7 +324,8 @@ TypeOK ==
   /\ drive \in {"none", "live"} /\ slot \in {"free", "held"} /\ poison \in BOOLEAN
   /\ wake \in BOOLEAN /\ depUp \in BOOLEAN
   /\ cancels \in 0..MaxCancels /\ restarts \in 0..MaxRestarts
-  /\ outages \in 0..MaxOutages /\ halts \in 0..MaxHalts /\ split \in BOOLEAN
+  /\ outages \in 0..MaxOutages /\ halts \in 0..MaxHalts /\ streak \in 0..HaltLimit
+  /\ split \in BOOLEAN
 
 \* An input is answered at most once: answered, it is pending no more.
 AnsweredNotPending == answered \cap pending = {}

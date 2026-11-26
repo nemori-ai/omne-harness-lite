@@ -8,6 +8,7 @@ import {
   judgeRunStart,
   runIdOf,
   type AgentDrivePort,
+  type AdvanceRef,
   type BoundedClose,
   type DriveFailure,
   type DriveReceipt,
@@ -26,7 +27,7 @@ import {
 } from '@omne-harness/session-contract'
 import type { SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnostic } from './diagnostics.ts'
-import { messageOf } from './failures.ts'
+import { messageOf, type DriveRefusal } from './failures.ts'
 import { handedRun, type KnownHandovers } from './known-handovers.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import type { SchedulingPolicy } from './policy.ts'
@@ -37,7 +38,21 @@ import { sessionSlotReference } from './slot-reference.ts'
 export type Advance = Readonly<{
   trigger(ref: SessionRef): void
   interrupt(ref: SessionRef): boolean
+  closeRefused(ref: SessionRef, advance: AdvanceRef, refusal: DriveRefusal): Promise<void>
 }>
+
+type Advancing = Pick<StartedRun, 'advance'>
+
+const driveRefused = (
+  { failure, field, reason }: DriveRefusal,
+  inputs: readonly InputId[],
+): Extract<BoundedClose, { kind: 'drive-refused' }> => ({
+  kind: 'drive-refused',
+  failure,
+  field,
+  reason,
+  inputs,
+})
 
 type Faces<P> = Readonly<Record<Actor, SessionFaces<P>>>
 
@@ -355,7 +370,7 @@ export function createAdvance<P>(
 
   const closeRefused = async (
     ref: SessionRef,
-    started: StartedRun,
+    started: Advancing,
     bounded: Extract<BoundedClose, { kind: 'admission-rejected' | 'drive-refused' }>,
     changes = 0,
   ): Promise<void> => {
@@ -408,7 +423,7 @@ export function createAdvance<P>(
     return send()
   }
 
-  const stillAdvancing = async (ref: SessionRef, started: StartedRun): Promise<Holding> => {
+  const stillAdvancing = async (ref: SessionRef, started: Advancing): Promise<Holding> => {
     const snapshot = await as('coordinator', ref, principal =>
       coordinator.readWork({ principal, ...ref }),
     )
@@ -587,13 +602,7 @@ export function createAdvance<P>(
           rejection: failure.rejection,
         })
       if (failure.kind === 'refused')
-        return closeRefused(ref, started, {
-          kind: 'drive-refused',
-          failure: failure.failure,
-          field: failure.field,
-          reason: failure.reason,
-          inputs: initial,
-        })
+        return closeRefused(ref, started, driveRefused(failure, initial))
       if (failure.kind === 'denied') {
         const again = await stillAdvancing(ref, started)
         if (typeof again !== 'boolean') return reportFailure(ref, 'invoke', run, again)
@@ -719,6 +728,8 @@ export function createAdvance<P>(
       stop?.abort()
       return stop !== undefined
     },
+    closeRefused: (ref, advance, refusal) =>
+      closeRefused(ref, { advance }, driveRefused(refusal, [])),
     trigger: ref => {
       if (lifecycle.closed) return
       const key = sessionKey(ref)
