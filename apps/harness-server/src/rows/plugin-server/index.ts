@@ -60,7 +60,7 @@ function guestFormOf(ctx: Context, point: string): GuestForm | undefined {
   return answer?.kind === 'one' ? answer.entry.item.form : undefined
 }
 
-/** The port a plugin was loaded with, while it is still the one on the point: an owner that left or was replaced lends nothing. */
+/** The port a plugin was loaded with: an owner that left lends nothing; a later generation of the same owner is pinned anew. */
 function pinned(ctx: Context, scope: Scope, binding: Binding) {
   return (): PortFactory<PortCaller> | undefined => {
     const registry = registryOf(ctx)
@@ -68,7 +68,7 @@ function pinned(ctx: Context, scope: Scope, binding: Binding) {
     if (now?.kind !== 'one' || now.entry.digest !== binding.digest) return undefined
     const { instance } = now.entry
     const same = instance.fiber === binding.instance.fiber
-    return same && instance.generation === binding.instance.generation
+    return same && instance.generation >= binding.instance.generation
       ? now.entry.item.make
       : undefined
   }
@@ -197,7 +197,14 @@ export const pluginServerRow = defineRow({
           lockedBy(registryOf(ctx), point, key, scopeOfLayer('tenant', tenant)),
       })(wanted)
     }
-    const side = createServerSide({ floor, install })
+    const present = (tenant: string, lacks: readonly string[]): boolean =>
+      lacks.every(lack => {
+        const [kind, name = ''] = lack.split(' ')
+        return kind === 'port'
+          ? needsOf(ctx, tenant, [name]).kind === 'adopted'
+          : pointOf(ctx, name, () => undefined) !== undefined
+      })
+    const side = createServerSide({ floor, install, present })
     providePluginServer(ctx, tenant => side.states(tenant))
     const converge = (tenant: string, plugins: readonly HeldPlugin[]): void => {
       refs.set(tenant, new Map(plugins.map(each => [`${each.name}\n${each.version}`, each.held])))
@@ -238,6 +245,7 @@ export const pluginServerRow = defineRow({
     }
     // A tenant registered after the start shows on the registry once its assets are opened.
     ctx.on('dynamis-cordis/changed', discover)
+    ctx.on('dynamis-cordis/changed', () => side.recheck())
     ctx.effect(() => {
       const first = setTimeout(discover, 0)
       return () => {

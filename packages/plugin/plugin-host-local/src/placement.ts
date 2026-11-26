@@ -11,7 +11,7 @@ export type ClientTold = Readonly<{
 
 /** How the server stands with the version the tenant holds; `state` is null when it has not taken it up yet. */
 export type ServerTold = Readonly<{
-  state: 'loading' | 'loaded' | 'failed' | 'held' | null
+  state: 'loading' | 'loaded' | 'failed' | 'waiting' | 'held' | null
   reason: string | null
 }>
 
@@ -80,6 +80,11 @@ function serverStanding(server: ServerTold | null): Standing {
       return {
         standing: 'not in effect',
         says: `the server could not load it: ${server.reason ?? 'no reason was told'}`,
+      }
+    case 'waiting':
+      return {
+        standing: 'not in effect',
+        says: `the server waits for ${server.reason ?? 'what it lacks'}: it loads by itself when that is there`,
       }
     case 'held':
       return {

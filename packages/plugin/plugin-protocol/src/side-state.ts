@@ -9,6 +9,7 @@ export type SideState =
     }>
   | Readonly<{ kind: 'loaded'; version: string }>
   | Readonly<{ kind: 'failed'; version: string; reason: string }>
+  | Readonly<{ kind: 'waiting'; version: string; lacks: readonly string[] }>
   | Readonly<{ kind: 'held'; version: string }>
 
 export type SideEvent =
@@ -17,6 +18,8 @@ export type SideEvent =
   | Readonly<{ kind: 'restarted' }>
   | Readonly<{ kind: 'done' }>
   | Readonly<{ kind: 'broke'; reason: string }>
+  | Readonly<{ kind: 'lacking'; lacks: readonly string[] }>
+  | Readonly<{ kind: 'appeared' }>
   | Readonly<{ kind: 'held' }>
 
 export type SideEffect =
@@ -93,6 +96,13 @@ export function stepSide(state: SideState, event: SideEvent): SideStep {
       const { version } = state
       return ended(state, { kind: 'failed', version, reason: event.reason }, undefined)
     }
+    case 'lacking': {
+      if (state.kind !== 'loading') return stay(state)
+      const { version } = state
+      return ended(state, { kind: 'waiting', version, lacks: event.lacks }, undefined)
+    }
+    case 'appeared':
+      return state.kind === 'waiting' ? begin(state.version) : stay(state)
     case 'held':
       if (state.kind !== 'loading') return stay(state)
       return ended(state, { kind: 'held', version: state.version }, undefined)

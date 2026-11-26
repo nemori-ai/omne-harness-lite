@@ -47,6 +47,7 @@ export type ServerInstallPorts = Readonly<{
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 const failed = (reason: string): Outcome => ({ kind: 'failed', reason })
+const ABSENT = ' is not a point now'
 const WAY = { data: 'data', directory: 'a directory', module: 'code' } as const
 const wayOf = (member: Member): keyof typeof WAY =>
   'module' in member ? 'module' : 'directory' in member ? 'directory' : 'data'
@@ -59,7 +60,7 @@ function stepOf(
   files: readonly PackageFile[],
 ): Readonly<{ item: unknown }> | Pending | string {
   const point = ports.point(member.point)
-  if (point === undefined) return `${member.point} is not a point now`
+  if (point === undefined) return `${member.point}${ABSENT}`
   const way = wayOf(member)
   if (point.kind === 'category') {
     if (!('directory' in member))
@@ -112,20 +113,32 @@ async function madeBy(
 export function serverInstall(ports: ServerInstallPorts): (wanted: Wanted) => Promise<Outcome> {
   return async ({ members, needs, files }) => {
     const needed = ports.needs(needs)
-    if (needed.kind === 'missing')
-      return failed(`needs ${needed.names.join(', ')}: there is no port by that name here`)
     const places = members.map(member => `${member.point}\n${member.key}`)
-    const entries: ServerEntry[] = []
-    for (const [index, member] of members.entries()) {
-      const label = `member ${index + 1} (${member.point} ${member.key})`
+    const steps = members.map((member, index) => {
       const twice = places.indexOf(places[index] ?? '') !== index
       const lock = ports.lockedBy?.(member.point, member.key)
-      const step = twice
+      return twice
         ? 'another member of this plugin is at the same place'
         : lock !== undefined
           ? `the key is locked by ${lock}: an entry of the deployment holds it and a tenant cannot replace it`
           : stepOf(ports, member, files)
-      if (typeof step === 'string') return failed(`${label}: ${step}`)
+    })
+    const labelOf = (index: number): string =>
+      `member ${index + 1} (${members[index]?.point} ${members[index]?.key})`
+    const broken = steps.findIndex(step => typeof step === 'string' && !step.endsWith(ABSENT))
+    if (broken >= 0) return failed(`${labelOf(broken)}: ${steps[broken] as string}`)
+    const lacks = [
+      ...(needed.kind === 'missing' ? needed.names.map(name => `port ${name}`) : []),
+      ...members.flatMap((member, index) =>
+        typeof steps[index] === 'string' ? [`point ${member.point}`] : [],
+      ),
+    ]
+    if (lacks.length > 0 || needed.kind === 'missing')
+      return { kind: 'waiting', lacks: [...new Set(lacks)] }
+    const entries: ServerEntry[] = []
+    for (const [index, member] of members.entries()) {
+      const label = labelOf(index)
+      const step = steps[index] as Exclude<(typeof steps)[number], string>
       const made =
         'item' in step
           ? step

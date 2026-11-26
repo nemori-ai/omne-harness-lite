@@ -42,7 +42,7 @@ export function standingOf(states: ReadonlyMap<string, Kept>): FloorStanding {
   const held = new Set<string>()
   let loading = false
   for (const [name, state] of states) {
-    if (state.kind === 'failed') continue
+    if (state.kind === 'failed' || state.kind === 'waiting') continue
     wanted.add(fiberOf(name, state.version))
     if (state.kind === 'held') held.add(fiberOf(name, state.version))
     if (state.kind !== 'loading') continue
