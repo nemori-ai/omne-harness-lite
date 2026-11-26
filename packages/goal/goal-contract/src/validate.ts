@@ -55,22 +55,22 @@ export const DEFAULT_BUDGET: Omit<Exit, 'id'> = {
 
 type DraftExit = z.output<typeof GoalDraftSchema>['exits'][number]
 
-function withExaminations(exit: DraftExit, context: BodyContext): DraftExit {
+function withExaminations(exit: DraftExit, most: number): DraftExit {
   if (exit.kind !== 'budget' || exit.limits.some(limit => limit.unit === 'examinations'))
     return exit
-  const amount = Math.min(DEFAULT_BUDGET_EXAMINATIONS, context.maxExaminations ?? Infinity)
+  const amount = Math.min(DEFAULT_BUDGET_EXAMINATIONS, most)
   return { ...exit, limits: [...exit.limits, { amount, unit: 'examinations' }] }
 }
 
 /** Numbers the entries in the order they stand, and adds the default budget when none is written. */
-function numbered(draft: z.output<typeof GoalDraftSchema>, context: BodyContext): GoalBody {
+function numbered(draft: z.output<typeof GoalDraftSchema>, most = Infinity): GoalBody {
   const number = <T>(letter: SectionLetter, list: readonly T[]) =>
     list.map((entry, index) => ({ ...entry, id: `${letter}${String(index + 1)}` }))
   const budgeted = draft.exits.some(exit => exit.kind === 'budget')
     ? draft.exits
     : [...draft.exits, DEFAULT_BUDGET]
   const waits = draft.criteria.some(entry => examined(verificationOf(entry)))
-  const exits = waits ? budgeted.map(exit => withExaminations(exit, context)) : budgeted
+  const exits = waits ? budgeted.map(exit => withExaminations(exit, most)) : budgeted
   const issued: Issued = {
     A: draft.criteria.length,
     M: draft.metrics.length,
@@ -115,8 +115,8 @@ function limitIssues(exit: Exit, budgets: number, context: BodyContext, say: Say
   }
   if (budgets > 1) say(exit.id, 'kind', 'a goal has one budget exit')
   if (exit.limits.length === 0) say(exit.id, 'limits', 'a budget exit needs a limit')
-  const most = context.maxExaminations
-  if (most !== undefined && exit.limits.some(l => l.unit === 'examinations' && l.amount > most))
+  const most = context.maxExaminations ?? Infinity
+  if (exit.limits.some(limit => limit.unit === 'examinations' && limit.amount > most))
     say(exit.id, 'limits', `the settings allow ${String(most)} examinations at most`)
 }
 
@@ -188,7 +188,7 @@ export const IMPLIED_PURPOSE_MAX = 2000
 export function impliedBody(input: string): GoalBody | null {
   const purpose = [...input.trim()].slice(0, IMPLIED_PURPOSE_MAX).join('').trim()
   if (purpose === '') return null
-  const empty = numbered(GoalDraftSchema.parse({ purpose }), { attendance: 'unattended' })
+  const empty = numbered(GoalDraftSchema.parse({ purpose }))
   const criterion = {
     id: 'A1',
     statement: IMPLIED_STATEMENT,
@@ -220,7 +220,7 @@ export function bodyIssues(body: GoalBody, context: BodyContext): readonly BodyI
 export function validateDraft(draft: unknown, context: BodyContext): BodyCheck {
   const parsed = GoalDraftSchema.safeParse(draft)
   if (!parsed.success) return { kind: 'invalid', issues: parsed.error.issues.map(shapeIssue) }
-  const body = numbered(parsed.data, context)
+  const body = numbered(parsed.data, context.maxExaminations)
   const issues = bodyIssues(body, context)
   return issues.length === 0 ? { kind: 'valid', body } : { kind: 'invalid', issues }
 }

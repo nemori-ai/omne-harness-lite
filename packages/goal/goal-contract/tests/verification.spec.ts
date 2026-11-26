@@ -137,13 +137,32 @@ describe('what a draft may write about evidence', () => {
     expect(where(issues(third(evidence, pass)))).toEqual(expected)
   })
 
+  it.each([
+    [
+      'A3',
+      'pass',
+      EXAMINED,
+      { kind: 'shows', text: '能玩' },
+      'what an examination must see is in its method',
+    ],
+    ['A3', 'pass', RERUN, { kind: 'shows', text: 'pass' }, 'a run again is read by its exit code'],
+  ])('the refusal says what is wrong with %s.%s', (entry, field, evidence, pass, problem) => {
+    expect(issues(third(evidence, pass))).toEqual([{ entry, field, problem }])
+  })
+
   it('a run again may say that it is read by its exit code: it always is', () => {
     expect(issues(third(RERUN, { kind: 'exit-zero' }))).toEqual([])
   })
 
   it('the goal of a session that examines cannot itself wait for an examination', () => {
     const examining: BodyContext = { attendance: 'unattended', examining: true }
-    expect(where(issues(third(RERUN), examining))).toEqual(['A3.evidence'])
+    expect(issues(third(RERUN), examining)).toEqual([
+      {
+        entry: 'A3',
+        field: 'evidence',
+        problem: 'a session that examines for a goal does not wait for an examination itself',
+      },
+    ])
     expect(where(issues(third(EXAMINED), examining))).toEqual(['A3.evidence'])
     expect(issues(third(ACTIVITY), examining)).toEqual([])
   })
@@ -192,7 +211,9 @@ describe('the examinations of the budget', () => {
         { amount: 5, unit: 'examinations' },
       ]
     })
-    expect(where(issues(draft, capped))).toEqual(['X1.limits'])
+    expect(issues(draft, capped)).toEqual([
+      { entry: 'X1', field: 'limits', problem: 'the settings allow 2 examinations at most' },
+    ])
     expect(limitsOf(valid(third(RERUN), capped))).toContainEqual({
       amount: 2,
       unit: 'examinations',
