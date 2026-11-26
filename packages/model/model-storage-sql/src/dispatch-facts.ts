@@ -86,16 +86,18 @@ function scopeOf(input: Readonly<Record<string, unknown>>): { where: string[]; p
 
 const COLUMNS = 'rowid AS rid, call, seq, dispatch, prepared, profile, context_window, effort, fact'
 
+function readFactsOfCall(input: Readonly<Record<string, unknown>>, port: ReadPort): JsonValue {
+  const found = rows(
+    port,
+    `SELECT ${COLUMNS} FROM ${DISPATCH_FACT.name} WHERE tenant = ? AND call = ? ORDER BY seq LIMIT ?`,
+    [textInput(input, 'tenant'), textInput(input, 'call'), BigInt(DISPATCH_FACTS_READ_MAX_ROWS)],
+  )
+  return { undated: 0, rows: found }
+}
+
 function readDispatchFactRows(input: JsonValue, port: ReadPort): JsonValue {
   if (!isObject(input)) throw new Error('invalid input')
-  if (input['call'] !== undefined) {
-    const found = rows(
-      port,
-      `SELECT ${COLUMNS} FROM ${DISPATCH_FACT.name} WHERE tenant = ? AND call = ? ORDER BY seq LIMIT ?`,
-      [textInput(input, 'tenant'), textInput(input, 'call'), BigInt(DISPATCH_FACTS_READ_MAX_ROWS)],
-    )
-    return { undated: 0, rows: found }
-  }
+  if (input['call'] !== undefined) return readFactsOfCall(input, port)
   const { where, params } = scopeOf(input)
   const limit = countInput(input, 'limit', DISPATCH_FACTS_PAGE_MAX)
   const ascending = input['order'] === 'ascending'

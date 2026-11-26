@@ -37,6 +37,9 @@ function effortOf(parameters: readonly Parameter[]): DispatchEffort {
   return { value: effort.value, basis: effort.basis === 'preference' ? 'preference' : 'selection' }
 }
 
+const effortField = (request: CallDocument['request']) =>
+  request === null ? {} : { effort: effortOf(request.parameters) }
+
 export function dispatchFactOf(call: CallDocument, dispatch: DispatchDocument): DispatchFactDraft {
   const { record } = dispatch
   return structuredClone({
@@ -52,6 +55,6 @@ export function dispatchFactOf(call: CallDocument, dispatch: DispatchDocument): 
     connectRetries: record.connectRetries?.length ?? 0,
     account: record.account,
     costLookup: costLookupOf(record),
-    ...(call.request === null ? {} : { effort: effortOf(call.request.parameters) }),
+    ...effortField(call.request),
   })
 }
