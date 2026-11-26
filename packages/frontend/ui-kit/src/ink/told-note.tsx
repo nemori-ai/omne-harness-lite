@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 
+import { type DataAttributes } from '../patterns/ai/data-attributes.ts'
+import { dataApart } from './data-apart.ts'
 import { InkBubble, useUnfold } from './ink-bubble.tsx'
 import { figureBox, useFigureWhere } from './figure-stage.tsx'
 import { type Placement } from './travel.ts'
@@ -56,7 +58,8 @@ export function ToldNote({
   said,
   onOpen,
   maxLines,
-}: {
+  ...rest
+}: DataAttributes & {
   readonly said: Told | null
   readonly onOpen?: ((told: Told) => void) | undefined
   readonly maxLines?: number | undefined
@@ -70,6 +73,7 @@ export function ToldNote({
   return (
     <InkBubble
       key={telling.id}
+      {...dataApart(rest)[0]}
       as="figure"
       className="omne-told-note"
       figure={figureBox(at, size)}

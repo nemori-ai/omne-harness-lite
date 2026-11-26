@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 
 import { type Point } from '../icons/brush.ts'
 import { useReducedMotion } from '../motion/motion.ts'
+import { type DataAttributes } from '../patterns/ai/data-attributes.ts'
+import { dataApart } from './data-apart.ts'
 import { NoteInk } from './note-bubble.tsx'
 import { type BubbleInk } from './note-ink.ts'
 import { type Box } from './travel.ts'
@@ -151,19 +153,20 @@ export function InkBubble({
   style,
   children,
   ...rest
-}: Omit<React.HTMLAttributes<HTMLElement>, 'children'> & {
-  readonly as?: Element
-  readonly figure: Box
-  readonly side?: BubbleSide
-  readonly bounds?: Box | null
-  readonly origin?: Point | null
-  readonly ink?: BubbleInk
-  readonly closing?: boolean
-  readonly onGone?: (() => void) | null
-  readonly reduced?: boolean
-  readonly ref?: React.Ref<HTMLElement>
-  readonly children?: React.ReactNode
-}): React.JSX.Element {
+}: Omit<React.HTMLAttributes<HTMLElement>, 'children'> &
+  DataAttributes & {
+    readonly as?: Element
+    readonly figure: Box
+    readonly side?: BubbleSide
+    readonly bounds?: Box | null
+    readonly origin?: Point | null
+    readonly ink?: BubbleInk
+    readonly closing?: boolean
+    readonly onGone?: (() => void) | null
+    readonly reduced?: boolean
+    readonly ref?: React.Ref<HTMLElement>
+    readonly children?: React.ReactNode
+  }): React.JSX.Element {
   const system = useReducedMotion()
   const reduced = told ?? system
   const own = useRef<HTMLElement | null>(null)
@@ -177,14 +180,16 @@ export function InkBubble({
   )
   const { placed, at } = usePlacement(own, figure, side, bounds, origin)
   const unplaced = side !== undefined && placed === null
+  const [data, others] = dataApart(rest)
   return (
     <Tag
       ref={attach}
+      {...data}
       className={className === undefined ? 'omne-ink-bubble' : `omne-ink-bubble ${className}`}
       data-ink-strength={ink}
       data-side={placed?.side}
       data-ink={reduced ? 'open' : 'writing'}
-      {...rest}
+      {...others}
       style={{
         ...style,
         ...(placed !== null && { left: placed.left, top: placed.top }),

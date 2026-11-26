@@ -193,6 +193,7 @@ export { AreaChart, LineChart, StackedBarChart, type SeriesChartProps } from './
 export { ShareBar, Sparkline, StatBlock, type SharePart } from './charts/simple.tsx'
 export { type Doing, type FigureMoment } from './ink/body.ts'
 export { InkBubble } from './ink/ink-bubble.tsx'
+export { inkLookChanged } from './ink/ink-canvas.ts'
 export { InkMotes, type InkMotesDoing } from './ink/motes-ink.tsx'
 export { type BubbleInk } from './ink/note-ink.ts'
 export { FigureSeat } from './ink/seat.tsx'

@@ -4,6 +4,7 @@ import type { FigureDevice, FigureFacts } from './device.ts'
 import { LetGo } from './let-go.ts'
 import { DeskPictures } from './pictures.ts'
 import type { FigureLink } from './link.ts'
+import { createLookPublisher, type LookFeed, type LookPublisher } from './look.ts'
 import { firstLabel, insideApp } from './sign.ts'
 import { Talk, type Gift, type TalkDeps } from './talk.ts'
 import { stayHook } from './use-stay.ts'
@@ -26,6 +27,8 @@ export type StayDeps = Readonly<{
   look: () => Look
   watch: (changed: () => void) => () => void
   clock: Clock
+  changes: LookFeed
+  issuer?: string
 }> &
   TalkDeps
 
@@ -74,6 +77,7 @@ class FigureStay {
   private readonly talk: Talk
   private readonly look: WindowLook
   private readonly letGo: LetGo
+  private readonly changes: LookPublisher
 
   public constructor(private readonly deps: StayDeps) {
     void deps.device.abilities().then(({ leave, read }) => {
@@ -103,6 +107,13 @@ class FigureStay {
       run: (event, fromPage) => this.run(event, fromPage),
       seen: gift => this.seen(gift),
       publish: () => this.publish(),
+    })
+    this.changes = createLookPublisher({
+      ...deps.changes,
+      scope: () => deps.scope(),
+      send: look => deps.link.send({ kind: 'look', look }),
+      changed: () => this.publish(),
+      ...(deps.issuer === undefined ? {} : { issuer: deps.issuer }),
     })
   }
 
@@ -148,6 +159,7 @@ class FigureStay {
 
   public dispose(): void {
     this.release()
+    this.changes.dispose()
     this.look.dispose()
     this.talk.dispose()
     this.unlisten()
@@ -219,7 +231,8 @@ class FigureStay {
     const note = noting(this.where) ? this.talk.scene() : null
     const frame = this.look.frame()
     const label = this.label()
-    const shown = { look: this.deps.look(), figure: this.shape, where, label, note, frame }
+    const look = { ...this.deps.look(), ...this.changes.stamp() }
+    const shown = { look, figure: this.shape, where, label, note, frame }
     const key = JSON.stringify({ ...shown, where: where.mode === 'hand' ? 'hand' : where })
     if (!again && key === this.sentKey) return
     this.sentKey = key
@@ -230,6 +243,7 @@ class FigureStay {
   }
 
   private forget(): void {
+    this.changes.ended()
     this.lease = null
     this.sentKey = ''
     this.pictures.forget()
@@ -253,6 +267,7 @@ class FigureStay {
         made.facts = known
         this.unwatch = this.deps.watch(() => this.changed())
         this.deps.device.mode(number, { hold: this.where.at === 'hand', keys: false })
+        this.changes.send()
         this.publish()
       },
       facts: known => {
@@ -359,9 +374,14 @@ class FigureStay {
     this.inputs[message.input]()
   }
 
-  /** Handovers count for the current lease and the last scene sent; inputs only for the lease; hello for neither. */
+  /** Handovers count for the current lease and the last scene sent; inputs only for the lease; hello and what a drawing asks for neither. */
   private heard(message: Up): void {
-    if (message.kind === 'hello') return this.publish(true)
+    if (message.kind === 'hello') {
+      this.changes.send()
+      return this.publish(true)
+    }
+    if (message.kind === 'undrawn' || message.kind === 'navigate' || message.kind === 'toast')
+      return this.changes.heard(message)
     const lease = this.leased()
     if (lease === null || message.lease !== lease) return
     if (message.kind === 'input') return this.input(message)

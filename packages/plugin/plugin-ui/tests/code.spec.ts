@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import * as React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { Member } from '@omne-harness/plugin-protocol'
+import { fiberOf, type Member } from '@omne-harness/plugin-protocol'
 import { installOn, type Code, type Listed } from '@omne-harness/plugin-ui'
 import {
   RENDER_POINT,
@@ -69,7 +69,7 @@ type Given = Readonly<{
 
 const ui = { Badge: ({ text }: { text: string }) => React.createElement('b', null, text) }
 
-async function world(files: Readonly<Record<string, unknown>> = {}) {
+async function world(files: Readonly<Record<string, unknown>> = {}, more: Partial<Code> = {}) {
   const started = await startShellOf(Framed)
   let inside: ShellService | undefined
   await started.root.plugin({
@@ -98,6 +98,7 @@ async function world(files: Readonly<Record<string, unknown>> = {}) {
       if (file instanceof Error) throw file
       return file
     },
+    ...more,
   }
   const install = (listed: Listed, given: Code | undefined = code) =>
     installOn(shell, listed, tenantScope(ALICE), given)
@@ -353,5 +354,48 @@ describe('a member that is code', () => {
     expect(await failure(brand(sendCode), {}, 'none')).toBe(
       'member 1 (shell.part-render notes.send): this application loads no code',
     )
+  })
+})
+
+describe('the source a member of code is put with', () => {
+  const files = {
+    'send.js': { send: () => () => null },
+    'cards/todo.js': { todo: () => () => null },
+  }
+  const range = { points: [card.name], parts: [send.name] }
+  const place = (name: string, version: string): string => `/bridge/plugins/${name}/${version}/`
+
+  it('is the module under the files of this version, the export it names, and the files', async () => {
+    const t = await world(files, { files: place })
+    expect((await t.install(brand(sendCode, cardCode))).kind).toBe('installed')
+    const at = '/bridge/plugins/brand/v1/'
+    expect(t.shell.projection(range)).toMatchObject({
+      drawings: [
+        {
+          point: RENDER_POINT,
+          key: 'notes.send',
+          source: { module: `${at}send.js`, export: 'send', files: at },
+        },
+        {
+          point: 'notes.card',
+          key: 'todo',
+          source: { module: `${at}cards/todo.js`, export: 'todo', files: at },
+        },
+      ],
+      unreachable: [],
+    })
+  })
+
+  it('is not given where the application gives no place for the files: the drawing counts here and reaches no other surface', async () => {
+    const t = await world(files)
+    expect((await t.install(brand(sendCode, cardCode))).kind).toBe('installed')
+    const by = [fiberOf('brand', 'v1')]
+    expect(t.shell.projection(range)).toMatchObject({
+      drawings: [],
+      unreachable: [
+        { point: RENDER_POINT, key: 'notes.send', by },
+        { point: 'notes.card', key: 'todo', by },
+      ],
+    })
   })
 })

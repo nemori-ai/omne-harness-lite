@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { readDown, readUp } from '../src/page/desk/scene.ts'
+import { readDown, readIn, readLook, readUp } from '../src/page/desk/scene.ts'
 
 const SCENE = {
   lease: 3,
   serial: 2,
-  look: { theme: 'light', size: 'medium', reduced: false },
+  look: { theme: 'light', size: 'medium', reduced: false, issuer: 'shell-1', version: 1 },
   figure: { waiting: 0 },
   where: { mode: 'rest', at: { x: 10, y: 20 } },
   label: null,
@@ -108,6 +108,144 @@ describe('从桌面层到外壳的消息', () => {
   })
 })
 
+const SOURCE = { module: '/bridge/plugins/sea/1/icons.js', export: 'send' }
+const LOOK = {
+  issuer: 'shell-1',
+  version: 2,
+  scope: 'tenant-a',
+  css: '@layer omne-changes{}',
+  drawings: [
+    { point: 'shell.icon', key: 'send', source: SOURCE },
+    {
+      point: 'shell.piece',
+      key: 'figure',
+      source: { ...SOURCE, export: 'figure', files: '/bridge/plugins/sea/1/' },
+    },
+  ],
+}
+const lookWith = (more: object) => ({ kind: 'look', look: { ...LOOK, ...more } })
+const lookWithout = (key: keyof typeof LOOK) => ({
+  kind: 'look',
+  look: Object.fromEntries(Object.entries(LOOK).filter(([name]) => name !== key)),
+})
+const drawingWith = (more: object) => lookWith({ drawings: [{ ...LOOK.drawings[0], ...more }] })
+
+describe('改动的投影：下行', () => {
+  it('形状对的投影原样过：没登录时没有 scope，一个出处都没列也行', () => {
+    const right = [{ kind: 'look', look: LOOK }, lookWithout('scope'), lookWith({ drawings: [] })]
+    for (const message of right) expect(readLook(message), JSON.stringify(message)).toBe(message)
+  })
+
+  it('投影不是一幕、一幕也不是投影：各自的读法不认对方', () => {
+    expect(readDown({ kind: 'look', look: LOOK })).toBeUndefined()
+    expect(readLook({ kind: 'scene', scene: SCENE })).toBeUndefined()
+  })
+
+  it('一幕的观感带着 issuer 与 version 时原样过', () => {
+    const message = sceneWith({ look: { ...SCENE.look, issuer: 'shell-1', version: 3 } })
+    expect(readDown(message)).toBe(message)
+  })
+
+  it('一幕的观感里 issuer 或 version 缺了或类型不对，答 undefined', () => {
+    const wrong = [
+      sceneWith({ look: { ...SCENE.look, issuer: 1, version: 3 } }),
+      sceneWith({ look: { ...SCENE.look, issuer: 'shell-1', version: '3' } }),
+      sceneWith({ look: { theme: 'light', size: 'medium', reduced: false, version: 3 } }),
+      sceneWith({ look: { theme: 'light', size: 'medium', reduced: false, issuer: 'shell-1' } }),
+    ]
+    for (const message of wrong) expect(readDown(message), JSON.stringify(message)).toBeUndefined()
+  })
+
+  it('形状不对的投影答 undefined：缺字段、类型不对、出处不全', () => {
+    const wrong: unknown[] = [
+      undefined,
+      'look',
+      { kind: 'look' },
+      { kind: 'look', look: null },
+      lookWithout('issuer'),
+      lookWithout('version'),
+      lookWithout('css'),
+      lookWithout('drawings'),
+      lookWith({ issuer: 1 }),
+      lookWith({ version: '2' }),
+      lookWith({ scope: null }),
+      lookWith({ css: null }),
+      lookWith({ drawings: {} }),
+      lookWith({ drawings: [null] }),
+      drawingWith({ point: 1 }),
+      drawingWith({ key: undefined }),
+      drawingWith({ source: null }),
+      drawingWith({ source: { export: 'send' } }),
+      drawingWith({ source: { module: 'x.js' } }),
+      drawingWith({ source: { ...SOURCE, files: 3 } }),
+    ]
+    for (const message of wrong) expect(readLook(message), JSON.stringify(message)).toBeUndefined()
+  })
+})
+
+const UNDRAWN = {
+  kind: 'undrawn',
+  issuer: 'shell-1',
+  scope: 'tenant-a',
+  point: 'shell.icon',
+  key: 'send',
+  module: SOURCE.module,
+  export: 'send',
+  reason: 'the export is not a function',
+}
+const NAVIGATE = { kind: 'navigate', issuer: 'shell-1', scope: 'tenant-a', page: 'chat' }
+const TOAST = {
+  kind: 'toast',
+  issuer: 'shell-1',
+  scope: 'tenant-a',
+  toast: { id: 't-1', tone: 'info', title: '画好了' },
+}
+const upWith = (message: Readonly<Record<string, unknown>>, more: object) => ({
+  ...message,
+  ...more,
+})
+const upWithout = (message: Readonly<Record<string, unknown>>, key: string) =>
+  Object.fromEntries(Object.entries(message).filter(([name]) => name !== key))
+const toastWith = (more: object) => ({ ...TOAST, toast: { ...TOAST.toast, ...more } })
+
+describe('画法宿主的上行', () => {
+  it('形状对的没得到画法、切页与提示原样过', () => {
+    const right = [
+      UNDRAWN,
+      upWithout(UNDRAWN, 'scope'),
+      NAVIGATE,
+      upWith(NAVIGATE, { subject: 'session-1' }),
+      TOAST,
+      toastWith({ tone: 'attention', body: '一行', action: { label: '去看', page: 'chat' } }),
+      toastWith({ action: { label: '去看', page: 'chat', subject: 'session-1' } }),
+    ]
+    for (const message of right) expect(readUp(message), JSON.stringify(message)).toBe(message)
+  })
+
+  it('形状不对的答 undefined：缺字段、类型不对', () => {
+    const wrong: unknown[] = [
+      ...['issuer', 'point', 'key', 'module', 'export', 'reason'].map(key =>
+        upWithout(UNDRAWN, key),
+      ),
+      upWith(UNDRAWN, { scope: 4 }),
+      upWith(UNDRAWN, { reason: null }),
+      ...['issuer', 'scope', 'page'].map(key => upWithout(NAVIGATE, key)),
+      upWith(NAVIGATE, { page: 5 }),
+      upWith(NAVIGATE, { subject: 5 }),
+      ...['issuer', 'scope', 'toast'].map(key => upWithout(TOAST, key)),
+      upWith(TOAST, { scope: null }),
+      upWith(TOAST, { toast: 'hi' }),
+      toastWith({ id: 1 }),
+      toastWith({ tone: 'loud' }),
+      toastWith({ title: undefined }),
+      toastWith({ body: 2 }),
+      toastWith({ action: { page: 'chat' } }),
+      toastWith({ action: { label: '去看', page: 'chat', subject: 1 } }),
+    ]
+    for (const message of wrong) expect(readUp(message), JSON.stringify(message)).toBeUndefined()
+  })
+})
+
 describe('读窗口多出的消息', () => {
   it('图的字节单走一条，形状对的原样过，不对的答 undefined', () => {
     const right = { kind: 'picture', id: '1', bytes: new Uint8Array([1, 2]) }
@@ -143,5 +281,40 @@ describe('读窗口多出的消息', () => {
       { kind: 'input', lease: 1, input: 'send', words: '', to: { kind: 'new' }, pictures: [1] },
     ]
     for (const message of wrong) expect(readUp(message), JSON.stringify(message)).toBeUndefined()
+  })
+})
+
+describe('从外壳到桌面层：一条消息往哪走', () => {
+  const PROJECTION = {
+    kind: 'look',
+    look: {
+      issuer: 'shell-1',
+      version: 2,
+      css: '',
+      drawings: [],
+    },
+  }
+
+  it('投影先进换画口，不回给页面：命名它的那一幕到的时候它已经在手里', () => {
+    const taken: unknown[] = []
+    const takeLook = (look: unknown) => void taken.push(look)
+    expect(readIn(PROJECTION, takeLook)).toBeUndefined()
+    expect(taken).toEqual([PROJECTION.look])
+  })
+
+  it('别的小消息读得过就交给页面', () => {
+    const hand = { kind: 'hand', lease: 3, at: { x: 4, y: 5 } }
+    expect(readIn(hand, () => undefined)).toBe(hand)
+    expect(readIn({ kind: 'scene', scene: SCENE }, () => undefined)).toMatchObject({
+      kind: 'scene',
+    })
+  })
+
+  it('读不过的哪一边都不给', () => {
+    const taken: unknown[] = []
+    const takeLook = (look: unknown) => void taken.push(look)
+    expect(readIn({ kind: 'look', look: { issuer: 'shell-1' } }, takeLook)).toBeUndefined()
+    expect(readIn({ kind: 'other' }, takeLook)).toBeUndefined()
+    expect(taken).toEqual([])
   })
 })

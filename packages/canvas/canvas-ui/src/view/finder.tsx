@@ -12,6 +12,7 @@ import { encodeInstant } from '@omne-harness/utc-instant'
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { standingOf } from '../model/kinds.ts'
 import type { AwayPage, Reading } from '../model/reading.ts'
+import { canvasFinder } from '../parts.ts'
 import { CANVAS_PICKER, canvasPicker, type CanvasPickerSubject } from '../points.ts'
 import { Element, inConflict, kindName, OneThing, type CanvasHost } from './element.tsx'
 import type { PlaceNear } from './sheet-layers.tsx'
@@ -223,6 +224,7 @@ export function Finder(props: FinderProps): JSX.Element {
         className="canvas-finder"
         role="dialog"
         aria-label="查找"
+        {...canvasFinder.props}
         onKeyDown={onKeyDown}
       >
         <Input

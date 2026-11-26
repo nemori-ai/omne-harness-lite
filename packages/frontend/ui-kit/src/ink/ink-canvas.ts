@@ -78,6 +78,17 @@ export const INK_TIMING = {
   },
 }
 
+const looks = new Set<() => void>()
+
+export function watchInkLook(changed: () => void): () => void {
+  looks.add(changed)
+  return () => looks.delete(changed)
+}
+
+export function inkLookChanged(): void {
+  for (const changed of looks) changed()
+}
+
 export class InkCanvas {
   private readonly canvas: HTMLCanvasElement
   private readonly size: number
@@ -114,9 +125,11 @@ export class InkCanvas {
       attributeFilter: ['data-theme', 'class', 'style'],
     })
     scheme?.addEventListener('change', stale)
+    const unlook = watchInkLook(stale)
     this.unwatch = () => {
       observer?.disconnect()
       scheme?.removeEventListener('change', stale)
+      unlook()
     }
   }
 

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useState, useSyncExternalStore, type RefObject } from 'react'
 import type { Toast } from '@omne-harness/shell-contract'
 import { FIGURE_SIZE, ToldNote, useSizeFactor, type Told } from '@omne-harness/ui-kit'
+import { shellFigureTold } from './parts.ts'
 import type { ShellState } from './state.ts'
 
 /** How far the note stands past the figure's edge: the kit's bubble gap (`BESIDE.gap`, ink-bubble.tsx). */
@@ -75,7 +76,7 @@ export function ToldAtHome(props: { state: ShellState; sidebar: RefObject<HTMLEl
   }
   return (
     <div className="shell-told" style={room === undefined ? undefined : { maxWidth: room.width }}>
-      <ToldNote said={telling} onOpen={open} maxLines={room?.lines} />
+      <ToldNote said={telling} onOpen={open} maxLines={room?.lines} {...shellFigureTold.props} />
     </div>
   )
 }
