@@ -15,7 +15,10 @@ import type {
   GoalCalls,
   GoalCards,
   GoalDecisions,
+  GoalExamining,
   GoalHistory,
+  BatchToHand,
+  HandAnswer,
   GoalJudging,
 } from '../ports.ts'
 import type { Asked, Driven, GoalSessions, SendAnswer, WakeToSend } from '../sessions-port.ts'
@@ -49,6 +52,8 @@ export type FakeSessions = GoalSessions &
     readable(on: boolean): void
     sendNext(answer: SendAnswer): void
     woken: WakeToSend[]
+    run(session: string, on: boolean): void
+    at(session: string, where: string): void
   }>
 
 /** Sessions with the one fact a goal stands on, and a record of every reminder handed over. */
@@ -61,8 +66,15 @@ export function fakeSessions(): FakeSessions {
   let canRead = true
   let moment = 0
   let next: SendAnswer = 'sent'
+  const going = new Set<string>()
+  const places = new Map<string, string>()
   return {
     woken,
+    run: (session, on) => void (on ? going.add(session) : going.delete(session)),
+    at: (session, where) => void places.set(session, where),
+    async running(_tenant, session) {
+      return canRead ? { kind: 'read', value: going.has(session) } : { kind: 'unavailable' }
+    },
     add: (session, attendance) => void known.set(session, attendance),
     drive: (session, input) =>
       void (input === null ? driven.delete(session) : driven.set(session, input)),
@@ -79,13 +91,49 @@ export function fakeSessions(): FakeSessions {
       if (attendance === undefined) return { kind: 'read', value: null }
       moment += 1
       const drive = driven.get(session) ?? null
-      return { kind: 'read', value: { attendance, moment: String(moment), drive } }
+      const where = places.get(session) ?? null
+      return { kind: 'read', value: { attendance, moment: String(moment), drive, where } }
     },
     async wake(_tenant, wake) {
       const answer = next
       next = 'sent'
       if (answer !== 'refused') woken.push(wake)
       return answer
+    },
+  }
+}
+
+export type FakeExamining = GoalExamining &
+  Readonly<{
+    handNext(answer: HandAnswer['kind']): void
+    made(examiner: string, request: string, refs: readonly string[]): void
+    readable(on: boolean): void
+    handed: BatchToHand[]
+  }>
+
+/** An examining side that takes each request once, into one session for a goal, and knows which calls each round made. */
+export function fakeExamining(): FakeExamining {
+  const handed: BatchToHand[] = []
+  const rounds = new Map<string, readonly string[]>()
+  let next: HandAnswer['kind'] = 'handed'
+  let canRead = true
+  return {
+    handed,
+    handNext: answer => void (next = answer),
+    made: (examiner, request, refs) => void rounds.set(`${examiner}|${request}`, refs),
+    readable: on => void (canRead = on),
+    async hand(_tenant, batch) {
+      const answer = next
+      next = 'handed'
+      if (answer === 'refused') return { kind: 'refused' }
+      if (!handed.some(taken => taken.request === batch.request)) handed.push(batch)
+      const examiner = batch.examiner ?? `examiner-of-${batch.session}`
+      return answer === 'unknown' ? { kind: 'unknown' } : { kind: 'handed', examiner }
+    },
+    async cited(_tenant, examiner, request, refs) {
+      if (!canRead) return { kind: 'unavailable' }
+      const made = rounds.get(`${examiner}|${request}`) ?? []
+      return { kind: 'read', value: refs.filter(ref => made.includes(ref)) }
     },
   }
 }

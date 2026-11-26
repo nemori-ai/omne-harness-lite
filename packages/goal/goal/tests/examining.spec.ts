@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { CriterionId, Examination, GoalRecord } from '@omne-harness/goal-contract'
+import {
+  NO_EXAMINATION,
+  type CriterionId,
+  type Examination,
+  type GoalRecord,
+} from '@omne-harness/goal-contract'
 import { decideCommand, decideWrite, type WriteInput } from '@omne-harness/goal'
 
 const DRAFT = {
@@ -24,15 +29,15 @@ const write = (proposal: WriteInput['proposal'], operation: string): WriteInput 
 const A1 = 'A1' as CriterionId
 const A2 = 'A2' as CriterionId
 const OUT: Examination = {
+  ...NO_EXAMINATION,
   batch: { key: { revision: 1, written: 'call-9' }, criteria: [A1, A2], delivery: 'handed' },
   used: 1,
-  read: {},
 }
 
 function waiting(): GoalRecord {
   const set = decideWrite(null, write({ kind: 'set', draft: DRAFT }, 'op-1'))
   if (set.kind !== 'next') throw new Error(set.kind)
-  expect(set.record.examination).toEqual({ batch: null, used: 0, read: {} })
+  expect(set.record.examination).toEqual(NO_EXAMINATION)
   return { ...set.record, examination: OUT }
 }
 function after(step: ReturnType<typeof decideCommand>): GoalRecord {

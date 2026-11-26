@@ -1,13 +1,22 @@
+import { createHash } from 'node:crypto'
 import {
   applyTrack,
+  batchOfRequest,
   citedRefs,
   excerptOf,
+  sessionOfKey,
+  SubmissionSchema,
+  submissionText,
+  submit,
+  type GoalCaller,
+  type Taken,
   type GoalChecking,
   type GoalReconciling,
   type Goals,
   type ObservedCall,
 } from '@omne-harness/goal-contract'
 import { decideCommand, decideWrite, describeProposal } from './decide.ts'
+import { lastWrite } from './judging.ts'
 import { createObserving } from './observing.ts'
 import type {
   Clock,
@@ -16,6 +25,7 @@ import type {
   GoalCards,
   GoalChanges,
   GoalDecisions,
+  GoalExamining,
   GoalHistory,
   GoalJudging,
   PortRead,
@@ -34,6 +44,7 @@ export type GoalsDependencies = Readonly<{
   history: GoalHistory
   decisions: GoalDecisions
   judging: GoalJudging
+  examining: GoalExamining
   clock: Clock
   hints: ReconcileHints
   changes?: GoalChanges
@@ -45,6 +56,12 @@ const ask = <T>(read: () => Promise<PortRead<T>>): Promise<PortRead<T>> =>
     .then(read)
     .catch(() => ({ kind: 'unavailable' }) as const)
 
+const UNREADABLE = {
+  entry: null,
+  field: 'submission',
+  problem:
+    'give batch, the name the brief gave, and readings: one {criterion, value, refs, note} for each criterion',
+} as const
 const CITABLE_SHOWN = 12
 const COMMAND_SHOWN = 60
 
@@ -68,7 +85,20 @@ function uncited(refs: readonly string[], made: readonly ObservedCall[]) {
 
 export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & GoalReconciling {
   const { store } = deps
-  const { permitted, settle, factsOf, written, deliver } = createWriting(deps)
+  const { permitted, settle, factsOf, written, deliver, hand, briefOf } = createWriting(deps)
+
+  /** What the working agent asks of its own goal. A session that examines for a goal is refused it: it has two commands, and they are of that goal. */
+  async function ofTheWorker(
+    caller: GoalCaller,
+    session: string,
+    action: 'propose' | 'confirm' | 'track',
+  ) {
+    const stop = await permitted(caller, session, action)
+    if (stop !== null) return stop
+    const examined = await store.examinedBy(caller.tenant, session)
+    if (examined.kind === 'unavailable') return UNAVAILABLE
+    return examined.value === null ? null : refused({ kind: 'denied' })
+  }
 
   return {
     ...createObserving(deps),
@@ -104,7 +134,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
     },
 
     async propose(caller, { session, proposal }) {
-      const stop = await permitted(caller, session, 'propose')
+      const stop = await ofTheWorker(caller, session, 'propose')
       if (stop !== null) return stop
       const facts = await factsOf(caller.tenant, session)
       if ('kind' in facts) return facts
@@ -116,7 +146,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
 
     async confirm(caller, input) {
       const { session } = input
-      const stop = await permitted(caller, session, 'confirm')
+      const stop = await ofTheWorker(caller, session, 'confirm')
       if (stop !== null) return stop
       const facts = await factsOf(caller.tenant, session)
       if ('kind' in facts) return facts
@@ -136,7 +166,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
     },
 
     async track(caller, { session, patch }) {
-      const stop = await permitted(caller, session, 'track')
+      const stop = await ofTheWorker(caller, session, 'track')
       if (stop !== null) return stop
       return written(
         await settle(caller.tenant, session, async current => {
@@ -160,10 +190,77 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
       )
     },
 
+    async brief(caller, { examiner }) {
+      const stop = await permitted(caller, examiner, 'brief')
+      if (stop !== null) return stop
+      const found = await store.examinedBy(caller.tenant, examiner)
+      if (found.kind === 'unavailable') return UNAVAILABLE
+      const batch = found.value?.examination.batch ?? null
+      if (found.value === null || batch === null) return refused({ kind: 'denied' })
+      const brief = await briefOf(caller.tenant, found.value, batch)
+      return brief === null ? UNAVAILABLE : done(brief)
+    },
+
+    async submit(caller, { examiner, submission }) {
+      const stop = await permitted(caller, examiner, 'submit')
+      if (stop !== null) return stop
+      const parsed = SubmissionSchema.safeParse(submission)
+      const named = parsed.success ? batchOfRequest(parsed.data.batch) : null
+      if (!parsed.success || named === null)
+        return refused({ kind: 'invalid', issues: [UNREADABLE] })
+      const { tenant } = caller
+      const found = await store.examinedBy(tenant, examiner)
+      if (found.kind === 'unavailable') return UNAVAILABLE
+      if (found.value === null) return refused({ kind: 'denied' })
+      const { readings, batch } = parsed.data
+      const session = sessionOfKey(found.value.session)
+      const [real, made, running] = await Promise.all([
+        ask(() =>
+          deps.examining.cited(
+            tenant,
+            examiner,
+            batch,
+            readings.flatMap(r => r.refs),
+          ),
+        ),
+        ask(() => deps.history.calls(tenant, session, found.value?.since ?? '')),
+        ask(() => deps.sessions.running(tenant, session)),
+      ])
+      if (real.kind !== 'read' || made.kind !== 'read' || running.kind !== 'read')
+        return UNAVAILABLE
+      const digest = `sha256:${createHash('sha256').update(submissionText(readings)).digest('hex')}`
+      const facts = {
+        digest,
+        real: real.value,
+        written: lastWrite(made.value),
+        running: running.value,
+      }
+      let taken: Taken['taken'] = 'stale'
+      const settled = await settle(tenant, found.value.session, async current => {
+        if (current === null || current.examination.examiner !== examiner)
+          return refused({ kind: 'denied' })
+        const step = submit(current, { ...named, readings, ...facts })
+        if (step.kind === 'refused')
+          return refused(
+            step.reason === 'differs'
+              ? { kind: 'differs' }
+              : { kind: 'invalid', issues: step.issues },
+          )
+        taken = step.taken
+        return step.kind === 'kept'
+          ? { kind: 'unchanged', record: current }
+          : { kind: 'next', record: step.record }
+      })
+      return settled.kind === 'done' ? done({ taken }) : settled
+    },
+
     async reconcile(tenant) {
       const owing = await store.owing(tenant)
       if (owing.kind === 'unavailable') return
-      for (const record of owing.value) await deliver(tenant, record)
+      for (const record of owing.value) {
+        await deliver(tenant, record)
+        await hand(tenant, record)
+      }
     },
   }
 }

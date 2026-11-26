@@ -12,6 +12,8 @@ export type StoreRead<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kin
 export interface GoalStore {
   commit(tenant: string, command: CommitCommand): Promise<StoreAnswer<CommitResult>>
   latest(tenant: string, session: string): Promise<StoreRead<GoalRecord | null>>
-  /** The goals that still owe their session a reminder. */
+  /** The goals that still owe their session a reminder, or the examining side a batch. */
   owing(tenant: string): Promise<StoreRead<readonly GoalRecord[]>>
+  /** The live goal this session examines for, or null when it examines for none. */
+  examinedBy(tenant: string, examiner: string): Promise<StoreRead<GoalRecord | null>>
 }

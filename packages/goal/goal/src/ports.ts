@@ -1,5 +1,6 @@
 import type {
   AnsweredCard,
+  Criterion,
   GoalCaller,
   JudgeConfig,
   JudgeReply,
@@ -13,6 +14,8 @@ export type GoalAction =
   | 'confirm'
   | 'track'
   | 'observe'
+  | 'brief'
+  | 'submit'
   | 'set'
   | 'revise'
   | 'pause'
@@ -55,6 +58,31 @@ export interface GoalCalls {
     session: string,
     refs: readonly string[],
     since: string,
+  ): Promise<PortRead<readonly string[]>>
+}
+
+/** A batch as the examining side takes it: the criteria with what each is examined by, and the brief. */
+export type BatchToHand = Readonly<{
+  session: string
+  request: string
+  examiner: string | null
+  brief: string
+  criteria: readonly Readonly<{ id: string; evidence: Criterion['evidence'] }>[]
+}>
+export type HandAnswer =
+  | Readonly<{ kind: 'handed'; examiner: string }>
+  | Readonly<{ kind: 'unknown' }>
+  | Readonly<{ kind: 'refused' }>
+
+export interface GoalExamining {
+  /** Hands a batch to the examining side of a goal. The same request is taken once however often it is handed. */
+  hand(tenant: string, batch: BatchToHand): Promise<HandAnswer>
+  /** Of these references, the ones that name a tool call the examining session made in the round of this batch. */
+  cited(
+    tenant: string,
+    examiner: string,
+    request: string,
+    refs: readonly string[],
   ): Promise<PortRead<readonly string[]>>
 }
 
