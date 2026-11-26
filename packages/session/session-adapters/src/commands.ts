@@ -14,7 +14,15 @@ export const SESSION_COMMANDS = 'session-commands'
 const SESSION = Object.freeze({ name: 'session', major: 1 })
 
 /** A model the session could be pointed at, as its owner lists it for the asker now. */
-export type ModelChoice = Readonly<{ name: string; unavailable?: string; note?: string }>
+export type ModelChoice = Readonly<{
+  name: string
+  unavailable?: string
+  note?: string
+  reasoningEfforts?: readonly string[]
+  defaultReasoningEffort?: string
+}>
+
+export type SelectedModel = Readonly<{ model: string; reasoningEffort?: string }>
 
 export type SessionCommandPorts<P> = Readonly<{
   permissionRevision(asker: Asker<P>, signal: AbortSignal): Promise<Outcome<string, 'unavailable'>>
@@ -22,7 +30,10 @@ export type SessionCommandPorts<P> = Readonly<{
     asker: Asker<P>,
     signal: AbortSignal,
   ): Promise<Outcome<readonly ModelChoice[], 'unavailable'>>
-  selectedModel(asker: Asker<P>, signal: AbortSignal): Promise<Outcome<string, 'unavailable'>>
+  selectedModel(
+    asker: Asker<P>,
+    signal: AbortSignal,
+  ): Promise<Outcome<SelectedModel, 'unavailable'>>
 }>
 
 const MODES: readonly Candidate[] = Object.freeze([
@@ -68,9 +79,41 @@ const ENTRIES: readonly CommandEntry[] = Object.freeze([
     whileRunning: 'now',
     takesEffect: 'next-request',
   },
+  {
+    space: RESERVED_SPACE,
+    name: 'effort',
+    kind: 'system',
+    title: '换这段会话用的推理档位；模型不变',
+    hint: '<档位>',
+    params: [{ name: '档位', candidates: true }],
+    whileRunning: 'now',
+    takesEffect: 'next-request',
+  },
 ])
 
+const EFFORTS: readonly string[] = Object.freeze(['low', 'medium', 'high', 'xhigh'])
+const NO_EFFORTS = '这个型号不能调推理档位'
+
 type Asking<P> = Readonly<{ asker: Asker<P>; naming: Naming; signal: AbortSignal }>
+
+type InUse = SelectedModel & Readonly<{ choice: ModelChoice | undefined }>
+
+async function inUse<P>(
+  ports: SessionCommandPorts<P>,
+  asker: Asker<P>,
+  signal: AbortSignal,
+): Promise<Outcome<InUse, 'unavailable'>> {
+  const [models, selected] = await Promise.all([
+    ports.models(asker, signal),
+    ports.selectedModel(asker, signal),
+  ])
+  if (!('ok' in models)) return models
+  if (!('ok' in selected)) return selected
+  return succeed({
+    ...selected.ok,
+    choice: models.ok.find(choice => choice.name === selected.ok.model),
+  })
+}
 type Take<P> = (asking: Asking<P>) => Promise<Outcome<Taken, 'unavailable'>>
 
 const invalid = (reason: string) => succeed({ kind: 'invalid', reason } as const)
@@ -115,6 +158,23 @@ function takers<P>(ports: SessionCommandPorts<P>): Readonly<Record<string, Take<
       if (naming.args.trim() !== '') return invalid('it takes no arguments')
       return operation(asker, 'reload-session', { controlId: controlOf(naming) })
     },
+    async effort({ asker, naming, signal }) {
+      const effort = naming.args.trim()
+      if (effort === '' || /\s/u.test(effort)) return invalid('name one effort')
+      const found = await inUse(ports, asker, signal)
+      if (!('ok' in found)) return found
+      const { model, choice } = found.ok
+      const offered = choice?.reasoningEfforts ?? []
+      if (offered.length === 0)
+        return invalid(`the model in use, ${model}, has no reasoning efforts`)
+      if (!offered.includes(effort))
+        return invalid(`name one effort ${model} offers: ${offered.join(', ')}`)
+      return operation(asker, 'select-model', {
+        controlId: controlOf(naming),
+        model,
+        reasoningEffort: effort,
+      })
+    },
   }
 }
 
@@ -132,7 +192,7 @@ function offers<P>(ports: SessionCommandPorts<P>): Readonly<Record<string, Offer
         ports.selectedModel(asker, signal),
       ])
       if (!('ok' in models)) return models
-      const current = 'ok' in selected ? selected.ok : undefined
+      const current = 'ok' in selected ? selected.ok.model : undefined
       return succeed(
         models.ok.map(({ name, unavailable, note }) => ({
           value: name,
@@ -143,6 +203,18 @@ function offers<P>(ports: SessionCommandPorts<P>): Readonly<Record<string, Offer
       )
     },
     permission: async () => succeed(MODES),
+    async effort(asker, signal) {
+      const found = await inUse(ports, asker, signal)
+      if (!('ok' in found)) return found
+      const { choice, reasoningEffort } = found.ok
+      const offered = choice?.reasoningEfforts ?? []
+      if (offered.length === 0)
+        return succeed(EFFORTS.map(value => ({ value, unavailable: NO_EFFORTS })))
+      const current = reasoningEffort ?? choice?.defaultReasoningEffort
+      return succeed(
+        offered.map(value => (value === current ? { value, current: true as const } : { value })),
+      )
+    },
   }
 }
 

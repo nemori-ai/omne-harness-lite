@@ -135,6 +135,7 @@ describe('slash-command/1 on the release tree', () => {
             'system',
             'system',
             'system',
+            'system',
           ])
         },
       )
