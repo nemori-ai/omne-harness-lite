@@ -137,6 +137,12 @@ describe('a model script of the lab assembly', () => {
   ])('refuses a script that is %s, naming what is wrong', (_, text) => {
     expect(() => parseModelScript(text)).toThrow(/model script/u)
   })
+
+  it('says where a script is wrong and what a step may be', () => {
+    expect(() => parseModelScript('{"steps":[{"when":{},"say":"a"},{"when":{}}]}')).toThrow(
+      /a step either says a sentence \(say\) or calls tools \(call\), one of the two[\s\S]*steps\[1\]/u,
+    )
+  })
 })
 
 describe('the operator layer with the model route of the lab gateway', () => {

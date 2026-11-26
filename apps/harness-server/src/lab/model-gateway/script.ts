@@ -8,10 +8,12 @@ const call = z.strictObject({
   tool: z.string().min(1),
   arguments: z.record(z.string(), z.unknown()),
 })
-const step = z.union([
-  z.strictObject({ when, say: z.string().min(1) }),
-  z.strictObject({ when, call: z.array(call).min(1) }),
-])
+const step = z
+  .strictObject({ when, say: z.string().min(1).optional(), call: z.array(call).min(1).optional() })
+  .refine(
+    given => (given.say === undefined) !== (given.call === undefined),
+    'a step either says a sentence (say) or calls tools (call), one of the two',
+  )
 const judging = z.strictObject({
   when,
   criterion: z.string().min(1),
@@ -25,17 +27,18 @@ export type ModelScript = z.infer<typeof script>
 type When = z.infer<typeof when>
 type Judging = z.infer<typeof judging>
 
-export function parseModelScript(text: string): ModelScript {
-  let read: unknown
+function jsonOf(text: string): unknown {
   try {
-    read = JSON.parse(text)
+    return JSON.parse(text)
   } catch {
     throw new Error('model script: the file is not JSON')
   }
-  const parsed = script.safeParse(read)
+}
+
+export function parseModelScript(text: string): ModelScript {
+  const parsed = script.safeParse(jsonOf(text))
   if (parsed.success) return parsed.data
-  const [issue] = parsed.error.issues
-  throw new Error(`model script: ${issue?.path.join('.') ?? ''}: ${issue?.message ?? 'not valid'}`)
+  throw new Error(`model script: ${z.prettifyError(parsed.error)}`)
 }
 
 const fits = (rule: When, body: string): boolean =>
@@ -51,7 +54,7 @@ function stream(frames: readonly object[]): GatewayAnswer {
 
 function chatAnswer(found: ModelScript['steps'][number] | undefined, model: string): GatewayAnswer {
   const serving = { model, provider: 'OpenAI' }
-  if (found === undefined || 'say' in found)
+  if (found?.call === undefined)
     return stream([
       { ...serving, choices: [{ delta: { content: found?.say ?? NO_STEP } }] },
       { choices: [{ delta: {}, finish_reason: 'stop' }] },
