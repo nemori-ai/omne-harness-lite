@@ -1,0 +1,30 @@
+name: notify-time-machine
+
+# On a push to any branch, ask nemori-ai/omne-time-machine to rebuild its
+# commit replay site (https://nemori-ai.github.io/omne-time-machine/).
+# TIME_MACHINE_TOKEN is a fine-grained token with Contents: Read and write on
+# that repository only. Without the secret the job skips. A failed request is
+# a warning, not a failure, so it never turns a commit's checks red.
+
+on:
+  push:
+    branches: ["**"]
+  delete:
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ask omne-time-machine to rebuild
+        env:
+          GH_TOKEN: ${{ secrets.TIME_MACHINE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "TIME_MACHINE_TOKEN is not set, skipping"
+            exit 0
+          fi
+          gh api repos/nemori-ai/omne-time-machine/dispatches -f event_type=source-updated \
+            || echo "::warning::omne-time-machine was not notified. Check that TIME_MACHINE_TOKEN is valid and not expired."
