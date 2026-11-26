@@ -79,7 +79,7 @@ description: >
 
 ## 查验的评测
 
-查验的一方是一个真的会话，量它要真的起它。规则归同一节规格的末几条；什么时候必须重跑见那里的回归表。
+查验的一方是一个真的会话，量它要真的起它。规则归同一节规格的末几条；什么时候必须重跑见那里的回归表。下面的命令除第 1 步外都在 `packages/goal/goal-bench` 下跑。`<名>` 是实验的名字，结果留在 `experiments/<名>/`。
 
 1. **先构建。** 在仓库根 `pnpm run -s build`：运行器起的是 `apps/harness-server/dist/lab/bin.js` 与 `apps/cli/dist/bin.js`。
 2. **核成品。** `pnpm run -s bench examine validate`：每份成品的每条判据有一个检查程序，干净的要全过，每处改坏要只让自己那条不过。列出的就是用例：成品原样、每处改坏单独查、一处「查过再改好」、一处「查过再换成另一处坏」。
@@ -90,7 +90,8 @@ description: >
    pnpm run -s bench examine run --name <名>-lenient --examiner lenient --key-file <密钥文件> --credential-file <登录凭据文件>
    ```
 
-   `truthful` 的报告要一处不错；`lenient` 要把没做到的全答成成立、做到的一条不错。不是这样就先修运行器，不跑真的。
+   `truthful` 的报告要一处不错；`lenient` 要把没做到的全答成成立、做到的一条不错。不是这样就先修运行器，不跑真的。看的是「读错的」那张表与前两行的分子；「门槛」一段在条数少时一定写没过，那是分母小，不是量具坏了。
+   只想跑一部分时加 `--only <成品编号或用例名>[,…]`。每个用例起一台自己的服务：`--parallel <几台>`（缺省 1），端口从 `--port`（缺省 47400）起每台加一，运行目录在 `--work`（缺省在系统临时目录），页面写到 `--out`。
 4. **跑真的。** 同一条命令，`--examiner real`（缺省），加 `--parallel 4`。一批约 0.03 美元、一分钟上下；`--max-cost` 缺省 3 美元，到了就不再起新用例。存下的用例不重跑：中断了再跑同一个 `--name` 就接着做。两个文件的位置由负责人给，不写进仓库；它们只经标准输入交给服务与命令行。
 5. **读报告。** 页面写到 `<out>/<名>/examination.md`（缺省在系统临时目录），数留在 `experiments/<名>/examination.json`，每个用例的读数、查验一方的每次调用与花费留在 `answers.jsonl`。先看「没做到的被答成成立」与它的区间，再看「做到了却不敢认」、每批的花费与用时、「它动了被查的活吗」。读错的逐条在 `answers.jsonl` 里看它跑了什么。`examine report --name <名>` 只凭存下的重出页面。
 6. **记台账，改说明。** 在 `experiments/ledger.json` 加一条。设置项里这个选项的说明（`packages/goal/goal-local/src/judge-setting.ts` 的 `EXAMINERS`）照量出来的数改。门槛没过照实写差多少。
