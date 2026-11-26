@@ -81,6 +81,15 @@ function unsettled(answer: Left, status: Uploading, resume: string): Turn | 'ask
     : refusal(answer)
 }
 
+async function begin(input: UploadInput) {
+  const { client, tenant, upload, bytes, name } = input
+  const plain = { tenant, upload, mediaType: input.mediaType, bytes: bytes.byteLength }
+  if (name === undefined) return sent(() => client['begin-upload'](plain))
+  const begun = await sent(() => client['begin-upload']({ ...plain, name }))
+  const older = begun.outcome === 'unavailable' || begun.outcome === 'protocol-rejected'
+  return older ? sent(() => client['begin-upload'](plain)) : begun
+}
+
 /** Begins, appends part after part and commits; a lost answer is asked for by the upload's name. */
 export async function uploadMedium(input: UploadInput): Promise<UploadOutcome> {
   const { client, tenant, upload, bytes } = input
@@ -113,11 +122,7 @@ export async function uploadMedium(input: UploadInput): Promise<UploadOutcome> {
     return { kind: 'committed', ...answer.body }
   }
 
-  const plain = { tenant, upload, mediaType: input.mediaType, bytes: bytes.byteLength }
-  const named = input.name === undefined ? plain : { ...plain, name: input.name }
-  let begun = await sent(() => client['begin-upload'](named))
-  const nameless = begun.outcome === 'unavailable' || begun.outcome === 'protocol-rejected'
-  if (nameless && named !== plain) begun = await sent(() => client['begin-upload'](plain))
+  const begun = await begin(input)
   let turn: Turn
   if (begun.outcome === 'succeeded') turn = begun.body.status
   else if (begun.outcome === 'unknown') turn = await where()

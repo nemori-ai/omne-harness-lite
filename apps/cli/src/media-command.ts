@@ -102,8 +102,8 @@ async function sendUpload(
   const { mediaType, bytes } = read
   const plain = { tenant, upload, mediaType, bytes: bytes.byteLength }
   let begun = await call(context, 'begin-upload', { ...plain, name: basename(read.file) })
-  const refused = begun?.kind === 'response' && begun.outcome === 'protocol-rejected'
-  if (begun?.kind === 'unavailable' || refused) begun = await call(context, 'begin-upload', plain)
+  if (begun?.kind === 'response' && begun.outcome === 'protocol-rejected')
+    begun = await call(context, 'begin-upload', plain)
   if (!succeeded(begun)) return { result: begun, ref: null }
   const { status } = begun.body as {
     status: { kind: string; nextSequence: number; partBytes: number }
