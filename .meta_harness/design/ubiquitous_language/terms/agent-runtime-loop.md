@@ -1086,19 +1086,19 @@
 > **EN**: A finite commission on one session that states what counts as done, how it is measured and when to stop. It has its own identity and revisions, spans several runs of the session, is set, revised, paused and cancelled by its owner, and ends with one outcome. A session has at most one that has not ended.
 
 - **形态**：对象
-- **出处**：[目标](../../product/goals/design.md#产品需求描述)（rev 1）
+- **出处**：[目标](../../product/goals/design.md#产品需求描述)（rev 2）
 - **别混**：不是[运行](#ul-run--运行--run)：一个目标跨若干运行。不是[会话协作模式](#ul-session-collaboration-mode--会话协作模式--session-collaboration-mode)：设目标不改模式。它不授予任何权限，也不决定什么时候再触发一次工作。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
 
 ### UL-goal-criterion · 目标判据 · Goal Criterion
 
-> **中**：会话目标正文里的一条达成条件：一句「成立是什么样子」的陈述，加上证据从哪来、证据要显示出什么才算数。全部判据成立才算达成。
+> **中**：会话目标正文里的一条达成条件：一句「成立是什么样子」的陈述，加上证据从哪来、证据要显示出什么才算数。证据从哪来定下这一条由谁判。全部判据成立才算达成。
 >
-> **EN**: One condition of achievement in a session goal: a statement of what holding looks like, with where its evidence comes from and what that evidence must show. The goal is achieved only when every criterion holds.
+> **EN**: One condition of achievement in a session goal: a statement of what holding looks like, with where its evidence comes from and what that evidence must show. Where the evidence comes from fixes who judges the criterion. The goal is achieved only when every criterion holds.
 
 - **形态**：属性
-- **出处**：[目标](../../product/goals/design.md#目标的正文)（rev 1）
+- **出处**：[目标](../../product/goals/design.md#目标的正文)（rev 2）
 - **别混**：不是做的步骤，也不是进度。判据之间没有权重：做到一部分也行，只能写成一条退出路径。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
@@ -1110,22 +1110,32 @@
 > **EN**: A legitimate way to stop that a session goal declares in advance: the situation in which to stop, what to hand over, and whether stopping this way counts as success or failure.
 
 - **形态**：属性
-- **出处**：[目标](../../product/goals/design.md#目标的正文)（rev 1）
+- **出处**：[目标](../../product/goals/design.md#目标的正文)（rev 2）
 - **别混**：不是取消：取消是主人的动作，不算成功也不算失败。不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
 
 ### UL-goal-judgment · 目标判定 · Goal Judgment
 
-> **中**：agent 想结束一次运行时，按会话目标的正文核一次：先对每条判据与每条退出路径得出一份观察，再由固定的规则算出目标收场、接着做，还是暂停交给人。
+> **中**：agent 想结束一次运行时，按会话目标的正文核一次：先对每条判据与每条退出路径得出一份观察，再由固定的规则算出目标收场、接着做、等证据，还是暂停交给人。要等的证据到了而没有运行在跑时也核一次。
 >
-> **EN**: The check made against a session goal when the agent is about to end a run. It first yields an observation for every criterion and exit path; fixed rules then decide whether the goal ends, continues, or pauses for a person.
+> **EN**: The check made against a session goal when the agent is about to end a run. It first yields an observation for every criterion and exit path; fixed rules then decide whether the goal ends, continues, waits for evidence, or pauses for a person. The same check is made when awaited evidence arrives while no run is going.
 
 - **形态**：过程
-- **出处**：[目标](../../product/goals/design.md#推进与收场)（rev 1）
+- **出处**：[目标](../../product/goals/design.md#推进与收场)（rev 2）
 - **别混**：不是放行判断：放行判断回答一个动作许不许，目标判定回答这份委托完没完。判定不要求目标必须达成。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
+
+### UL-goal-examination · 目标查验 · Goal Examination
+
+> **中**：为一个会话目标里要等的判据取证的一次：一批判据交给独立于干活的 agent 的一方，由它把命令在干净的副本里再跑一遍，或照写好的查法动手去验，交回每条判据的读数。
+>
+> **EN**: One taking of evidence for the criteria of a session goal that cannot be judged on the spot: a batch of criteria goes to a party independent of the working agent, which runs a command again in a clean copy or checks by hand as the written method says, and hands back a reading for each criterion.
+
+- **形态**：对象
+- **出处**：[目标](../../product/goals/design.md#一条判据由谁判)（rev 2）
+- **别混**：不是目标判定：判定读干活的 agent 留下的证据，不动手；查验自己动手。查验交回的是读数，不是结论，目标达没达成仍由判定的规则算。也不是派发：派发是会话里的 agent 交出一份工作，查验由系统发起，干活的 agent 加不进一个字。同一个目标、同一个修订、之后没有再写过文件的，是同一次查验。
 
 ### UL-goal-progress-list · 目标进展清单 · Goal Progress List
 
@@ -1134,7 +1144,7 @@
 > **EN**: The record a working agent keeps for a session goal: where each criterion stands, which tool call its evidence points to, blockers and deliverables. It is the agent's claim, not evidence.
 
 - **形态**：属性
-- **出处**：[目标](../../product/goals/design.md#谁说了算)（rev 1）
+- **出处**：[目标](../../product/goals/design.md#谁说了算)（rev 2）
 - **别混**：不是目标的正文：正文由主人确认，清单由 agent 维护。算不算成立看它指到的真实工具结果，不看清单怎样写。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
@@ -1146,5 +1156,5 @@
 > **EN**: The single conclusion recorded when a session goal ends: achieved, ended by an exit path, unattainable, stalled, judgment unavailable, aborted, or cancelled. It does not change afterwards.
 
 - **形态**：状态
-- **出处**：[目标](../../product/goals/design.md#推进与收场)（rev 1）
+- **出处**：[目标](../../product/goals/design.md#推进与收场)（rev 2）
 - **别混**：不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)：一个目标跨若干运行，运行完成不等于目标达成。暂停不是结局。

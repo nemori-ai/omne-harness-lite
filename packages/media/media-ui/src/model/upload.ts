@@ -28,6 +28,8 @@ export type UploadInput = Readonly<{
   upload: string
   mediaType: string
   bytes: Uint8Array
+  /** The file name, shown with it later; an end that cannot take one gets the upload without it. */
+  name?: string
   progress: (sentBytes: number) => void
   cancelled: () => boolean
 }>
@@ -79,6 +81,15 @@ function unsettled(answer: Left, status: Uploading, resume: string): Turn | 'ask
     : refusal(answer)
 }
 
+async function begin(input: UploadInput) {
+  const { client, tenant, upload, bytes, name } = input
+  const plain = { tenant, upload, mediaType: input.mediaType, bytes: bytes.byteLength }
+  if (name === undefined || name === '') return sent(() => client['begin-upload'](plain))
+  const begun = await sent(() => client['begin-upload']({ ...plain, name }))
+  const older = begun.outcome === 'unavailable' || begun.outcome === 'protocol-rejected'
+  return older ? sent(() => client['begin-upload'](plain)) : begun
+}
+
 /** Begins, appends part after part and commits; a lost answer is asked for by the upload's name. */
 export async function uploadMedium(input: UploadInput): Promise<UploadOutcome> {
   const { client, tenant, upload, bytes } = input
@@ -111,9 +122,7 @@ export async function uploadMedium(input: UploadInput): Promise<UploadOutcome> {
     return { kind: 'committed', ...answer.body }
   }
 
-  const begun = await sent(() =>
-    client['begin-upload']({ tenant, upload, mediaType: input.mediaType, bytes: bytes.byteLength }),
-  )
+  const begun = await begin(input)
   let turn: Turn
   if (begun.outcome === 'succeeded') turn = begun.body.status
   else if (begun.outcome === 'unknown') turn = await where()

@@ -105,6 +105,7 @@ export declare const mediaProtocol: {
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly bytes: number;
                 readonly mediaType: string;
+                readonly name?: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
                 readonly upload: string;
             }>;
@@ -298,6 +299,7 @@ export declare const mediaProtocol: {
                     } | {
                         readonly kind: "file";
                     };
+                    readonly name?: string;
                     readonly preprocess: {
                         readonly kind: "not-needed" | "not-started" | "running";
                     } | {

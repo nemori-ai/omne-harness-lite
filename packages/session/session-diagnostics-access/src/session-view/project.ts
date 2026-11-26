@@ -6,6 +6,7 @@ import type {
   Lookup,
   ModelAttemptDiagnostic,
   ModelDiagnosticsPage,
+  ModelDispatchFact,
 } from '@omne-harness/model-contract'
 import type {
   SessionCallAccountView,
@@ -285,6 +286,7 @@ export type ModelAnswers = Readonly<{
   lookup: SourceAnswer<Lookup>
   attempts: SourceAnswer<ModelDiagnosticsPage> | null
   dispatches: SourceAnswer<readonly DispatchRecord[]> | null
+  facts: SourceAnswer<readonly ModelDispatchFact[]> | null
   choices: SourceAnswer<readonly RequestBlockChoice[]> | null
 }>
 export type ToolAnswers = Readonly<{
@@ -413,6 +415,30 @@ function dispatchAccountsOf(
 }
 
 type Reasoning = NonNullable<SessionModelAttemptDiagnostic['reasoning']>
+type FromFact = Required<Pick<SessionModelAttemptDiagnostic, 'profile' | 'effort'>>
+
+// The profile and the effort are Model's as it kept them; without a fact, or in it, not known.
+function dispatchFactsOf(facts: ModelAnswers['facts']): (dispatch: string) => FromFact {
+  if (facts === null || facts.kind === 'gap') {
+    const missing = unknown(facts === null ? 'not-recorded' : facts.reason)
+    return () => ({ profile: missing, effort: missing })
+  }
+  const kept = new Map(facts.value.map(fact => [fact.dispatch as string, fact]))
+  return dispatch => {
+    const fact = kept.get(dispatch)
+    if (fact === undefined)
+      return { profile: unknown('not-recorded'), effort: unknown('not-recorded') }
+    const { owner, name, revision, digest } = fact.profile
+    const { effort } = fact
+    return {
+      profile: { owner, name, revision, digest },
+      effort:
+        effort === undefined
+          ? unknown('not-recorded')
+          : { value: effort.value, basis: effort.basis },
+    }
+  }
+}
 
 // The receipt says whether the request carried reasoning back; no receipt is not knowing.
 function dispatchReasoningOf(
@@ -433,6 +459,7 @@ function attemptOf(
   attempt: ModelAttemptDiagnostic,
   accounts: DispatchAccounts,
   reasoning: (dispatch: string) => Reasoning,
+  fromFact: (dispatch: string) => FromFact,
 ): SessionModelAttemptDiagnostic {
   const { adapter, outcome } = attempt
   return {
@@ -460,12 +487,13 @@ function attemptOf(
     connectRetries: [...attempt.connectRetries],
     account: accounts(attempt.dispatch),
     reasoning: reasoning(attempt.dispatch),
+    ...fromFact(attempt.dispatch),
   }
 }
 
 function attemptsOf(
   reference: string,
-  answers: Pick<ModelAnswers, 'attempts' | 'dispatches'>,
+  answers: Pick<ModelAnswers, 'attempts' | 'dispatches' | 'facts'>,
 ): Projected<Pick<SessionModelCallDiagnostic, 'dispatches' | 'coverage'>> {
   const { attempts } = answers
   if (attempts === null) return { value: { dispatches: [], coverage: 'unknown' }, gaps: [] }
@@ -481,10 +509,13 @@ function attemptsOf(
   if (page.next !== null) gaps.push({ source: 'model', subject: reference, reason: 'truncated' })
   const accounts = dispatchAccountsOf(reference, answers.dispatches)
   const reasoning = dispatchReasoningOf(answers.dispatches)
+  const fromFact = dispatchFactsOf(answers.facts)
   gaps.push(...accounts.gaps)
   return {
     value: {
-      dispatches: page.entries.map(attempt => attemptOf(attempt, accounts.value, reasoning)),
+      dispatches: page.entries.map(attempt =>
+        attemptOf(attempt, accounts.value, reasoning, fromFact),
+      ),
       coverage: page.coverage,
     },
     gaps,
@@ -512,7 +543,7 @@ function modelCallOf(
       gaps: [{ source: 'model', subject: reference, reason: 'not-accepted' }],
     }
   const { state } = lookup.value
-  const given = answers ?? { attempts: null, dispatches: null, choices: null }
+  const given = answers ?? { attempts: null, dispatches: null, facts: null, choices: null }
   const attempts = attemptsOf(reference, given)
   const reads = readsOf(reference, given, blocks)
   return {

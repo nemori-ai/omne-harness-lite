@@ -112,7 +112,9 @@ async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promis
     }
     const drawing = called(name, () => made(Object.freeze(handed)))
     if (typeof drawing !== 'function') throw new Error(`${name} gave no drawing`)
-    shell.putDrawing(point, key, drawing as KeyRender, scope)
+    const source =
+      files === undefined ? undefined : { module: `${files}${path}`, export: name, files }
+    shell.putDrawing(point, key, drawing as KeyRender, scope, source)
   }
 }
 

@@ -368,6 +368,25 @@ describe('what the domain answers becomes an outcome of the protocol', () => {
     expect(prepare.write(unknown as never, limits).ok).toBe(false)
   })
 
+  it('hands the name of an upload to the media on begin, and the name of a medium back on describe', async () => {
+    const begun = answering('begin-upload', {
+      ok: { kind: 'uploading', nextSequence: 0, partBytes: 4 },
+    })
+    await call(begun, 'begin-upload', { ...OPERATIONS['begin-upload'].body, name: '季度报告.pdf' })
+    expect(begun.calls[0]?.input).toEqual({
+      ...OPERATIONS['begin-upload'].input,
+      name: '季度报告.pdf',
+    })
+    const described = answering('describe-media', {
+      ok: { state: 'held', facts, name: '季度报告.pdf' },
+    })
+    described.answer('read', { ok: { kind: 'not-needed' } })
+    expect(await call(described, 'describe-media')).toEqual({
+      outcome: 'succeeded',
+      body: { state: 'held', facts, preprocess: { kind: 'not-needed' }, name: '季度报告.pdf' },
+    })
+  })
+
   it('read-media-page hands the target for display on when the body has one', async () => {
     const world = answering('read-media-page', { ok: page })
     await call(world, 'read-media-page', { ...OPERATIONS['read-media-page'].body, target })

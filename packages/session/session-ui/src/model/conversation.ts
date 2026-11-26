@@ -37,7 +37,13 @@ export type Item =
       live: boolean
     }>
   | Readonly<{ kind: 'note'; key: string; label: string; parts: readonly Part[] }>
-  | Readonly<{ kind: 'marker'; key: string; label: string; failedRun: string | null }>
+  | Readonly<{
+      kind: 'marker'
+      key: string
+      label: string
+      failedRun: string | null
+      run?: string
+    }>
   | Readonly<{ kind: 'unknown'; key: string; entryKind: string }>
 
 type Block = { readonly [key: string]: Plain }
@@ -194,6 +200,7 @@ function terminalMarker(entry: HistoryEntry): Item {
     key: entry.entryId,
     label: TERMINAL[outcome] ?? '这一轮已结束',
     failedRun: outcome === 'failed' ? (terminal?.run ?? null) : null,
+    ...(terminal?.run == null ? {} : { run: terminal.run }),
   }
 }
 

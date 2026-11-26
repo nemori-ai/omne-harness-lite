@@ -1,4 +1,5 @@
-import { realpathSync } from 'node:fs'
+import { cpSync, realpathSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   _electron as electron,
   type ElectronApplication,
@@ -117,8 +118,13 @@ async function launch(target: Target, userDataDir: string, server: string): Prom
 /** Quits the way a person does, so `before-quit` flushes the cookies, and waits for the process. */
 export const quit = ({ close }: Launched): Promise<void> => close()
 
-/** A real server with a stand-in model gateway that answers every request with `REPLY`. */
-async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> {
+/**
+ * A real server with a stand-in model gateway that answers every request with `REPLY`. Given `pluginsFrom`, its
+ * subdirectories are copied into a fresh directory that the `plugin-access` row serves as its dev directory.
+ */
+async function startStack(
+  pluginsFrom?: string,
+): Promise<{ origin: string; stop(): Promise<void> }> {
   const scratch = newScratch('desktop-e2e-')
   let gateway: ModelGateway | undefined
   let server: ServerHandle | undefined
@@ -160,10 +166,17 @@ async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> 
     })
     const port = await freePort()
     const operatorPath = `${scratch.base}/operator.json`
-    writeOperator(
-      operatorPath,
-      operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gateway.url }),
-    )
+    const layer = operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gateway.url })
+    if (pluginsFrom !== undefined) {
+      const devDirectory = join(scratch.base, 'plugins')
+      cpSync(pluginsFrom, devDirectory, { recursive: true })
+      ;(layer as { ops: unknown[] }).ops.push({
+        kind: 'replace',
+        id: 'plugin-access',
+        config: { devDirectory },
+      })
+    }
+    writeOperator(operatorPath, layer)
     server = await startServer({
       stateRoot: scratch.stateRoot,
       operatorPath,
@@ -188,14 +201,14 @@ async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> 
 
 type Fixtures = { userDataDir: string; launchApp: () => Promise<Launched> }
 type Options = { target: Target }
-type Worker = { server: string }
+type Worker = { server: string; pluginsFrom: string | undefined }
 
 export const test = base.extend<Fixtures & Options, Worker>({
   target: ['unpackaged', { option: true }],
+  pluginsFrom: [undefined, { option: true, scope: 'worker' }],
   server: [
-    // oxlint-disable-next-line no-empty-pattern -- Playwright fixtures destructure their dependencies
-    async ({}, provide) => {
-      const stack = await startStack()
+    async ({ pluginsFrom }, provide) => {
+      const stack = await startStack(pluginsFrom)
       await provide(stack.origin)
       await stack.stop()
     },

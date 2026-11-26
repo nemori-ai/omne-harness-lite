@@ -18,6 +18,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
+import type { HistoryEntry } from '../model/content.ts'
 
 /** In the bar a choice reports its element, so its width is known while folded; in the `⋯` it tells `say`. */
 export type HeadingFold =
@@ -44,6 +45,7 @@ export function useHeadingPlace(): HeadingFold['place'] {
 }
 
 export const HeadingRevisionContext = createContext<string | null>(null)
+export const HeadingEntriesContext = createContext<readonly HistoryEntry[]>([])
 
 type HeadingReader = Readonly<{ load(tenant: string, session: string): Promise<void> }>
 
@@ -105,12 +107,14 @@ export function FoldedChoice({
   shown,
   options,
   onPick,
+  onOpen,
 }: {
   readonly label: string
   readonly value: string
   readonly shown: string
   readonly options: readonly FoldedOption[] | null
   readonly onPick: (value: string) => void
+  readonly onOpen?: () => void
 }) {
   const face = (
     <>
@@ -120,7 +124,7 @@ export function FoldedChoice({
   )
   if (options === null) return <DropdownMenuItem disabled>{face}</DropdownMenuItem>
   return (
-    <DropdownMenuSub>
+    <DropdownMenuSub onOpenChange={open => open && onOpen?.()}>
       <DropdownMenuSubTrigger>{face}</DropdownMenuSubTrigger>
       <DropdownMenuSubContent>
         <DropdownMenuRadioGroup value={value} onValueChange={onPick}>

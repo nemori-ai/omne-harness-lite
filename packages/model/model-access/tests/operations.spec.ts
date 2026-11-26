@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createModelAccessContribution } from '@omne-harness/model-access'
+import { createModelAccessContribution, type SessionRequirement } from '@omne-harness/model-access'
+import type { ModalityRequirement } from '@omne-harness/model-contract'
 import { createWorld, fixtureLogin, loginIdentity, REQUIRED, resolved } from './fixtures/world.ts'
 
 const ALICE = fixtureLogin('a')
@@ -153,4 +154,100 @@ describe('what Model answers becomes an outcome of the protocol', () => {
     world.state.listing = 'throw'
     expect(await list()).toEqual({ outcome: 'basis-unavailable' })
   })
+})
+
+describe('list-models for a session judges as selecting a model in that session does', () => {
+  const SESSION = '0123456789abcdef'.repeat(4)
+  const PICTURES: ModalityRequirement = {
+    modalities: ['text', 'image'],
+    source: { owner: 'test', record: 'select-model', revision: '1', digest: '0'.repeat(64) },
+  }
+  const twenty = Array.from({ length: 20 }, (_, at) => ({ message: 'msg_1', block: `blk_${at}` }))
+
+  function forSession(answer: SessionRequirement | null | 'throw' | 'absent') {
+    const world = createWorld()
+    const seen: unknown[] = []
+    const sessions = {
+      async of(at: unknown) {
+        seen.push(at)
+        if (answer === 'throw') throw new Error('history down')
+        return answer === 'absent' ? null : answer
+      },
+    }
+    const contribution = createModelAccessContribution({
+      profiles: world.profiles,
+      principals: world.principals,
+      settings: { required: REQUIRED },
+      ...(answer === 'absent' ? {} : { sessions: () => sessions }),
+    })
+    const list = () =>
+      contribution.operations['list-models'](
+        { principal: loginIdentity(ALICE), messageId: 'm-1', signal },
+        { tenant: ALICE.tenant, session: SESSION } as never,
+      )
+    return { world, seen, list }
+  }
+
+  it('lists with the requirement of the session; a model stopped by it names at most 16 of the blocks', async () => {
+    const { world, seen, list } = forSession({ required: PICTURES, unmetBy: () => twenty })
+    world.state.listing = [
+      resolved('text-only', { selectable: false, reasons: ['modality'] }),
+      resolved('locked', { selectable: false, reasons: ['locked'] }),
+      resolved('anthropic/claude-sonnet-5'),
+    ]
+    const answer = await list()
+    expect(seen).toEqual([{ tenant: ALICE.tenant, session: SESSION }])
+    expect(world.listed.map(call => call.required)).toEqual([PICTURES])
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    const named = answer.body.models.map(model => [model.route, model.blocks?.length])
+    expect(named).toEqual([
+      ['text-only', 16],
+      ['locked', undefined],
+      ['anthropic/claude-sonnet-5', undefined],
+    ])
+    expect(answer.body.models[0]?.blocks?.[0]).toEqual({ message: 'msg_1', block: 'blk_0' })
+  })
+
+  it('without a session in the body, does not ask for one; a model stopped by modality names no block', async () => {
+    const world = createWorld()
+    world.state.listing = [resolved('text-only', { selectable: false, reasons: ['modality'] })]
+    const seen: unknown[] = []
+    const contribution = createModelAccessContribution({
+      profiles: world.profiles,
+      principals: world.principals,
+      settings: { required: REQUIRED },
+      sessions: () => ({
+        of: async at => (seen.push(at), { required: PICTURES, unmetBy: () => twenty }),
+      }),
+    })
+    const answer = await contribution.operations['list-models'](
+      { principal: loginIdentity(ALICE), messageId: 'm-1', signal },
+      { tenant: ALICE.tenant },
+    )
+    expect(seen).toEqual([])
+    expect(world.listed.map(call => call.required)).toEqual([REQUIRED])
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    expect('blocks' in answer.body.models[0]!).toBe(false)
+  })
+
+  it('names no block when the definition takes every block, though it was stopped by modality', async () => {
+    const { world, list } = forSession({ required: PICTURES, unmetBy: () => [] })
+    world.state.listing = [resolved('text-only', { selectable: false, reasons: ['modality'] })]
+    const answer = await list()
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    expect('blocks' in answer.body.models[0]!).toBe(false)
+  })
+
+  it.each([
+    ['cannot be read', null],
+    ['throws', 'throw'],
+    ['is not wired', 'absent'],
+  ] as const)(
+    'answers basis-unavailable when the history %s, and does not ask Model',
+    async (_name, answer) => {
+      const { world, list } = forSession(answer)
+      expect(await list()).toEqual({ outcome: 'basis-unavailable' })
+      expect(world.listed).toEqual([])
+    },
+  )
 })

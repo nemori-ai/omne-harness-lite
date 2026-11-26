@@ -141,15 +141,25 @@ describe('边界', () => {
     expect([...offending('main', bad), ...offending('utility', bad)]).toEqual([])
   })
 
-  it('桌面层的页面只导入共用界面件、React 与它自己目录的文件：不导入界面模块、协议客户端、SDK 与外壳', () => {
+  it('桌面层的页面只导入共用界面件、React、它自己目录与画法宿主的文件：不导入界面模块、协议客户端、SDK 与外壳', () => {
     const tree = entryTree('desk.html')
     expect(tree.files.length).toBeGreaterThan(1)
-    expect(tree.files.filter(file => !file.startsWith('desk/'))).toEqual([])
+    expect(tree.files.some(file => file.startsWith('surface/'))).toBe(true)
+    expect(tree.files.filter(file => !/^(desk|surface)\//.test(file))).toEqual([])
     expect(
       tree.bare.filter(
         specifier => !/^(@omne-harness\/ui-kit(\/.*)?|react|react-dom\/client)$/.test(specifier),
       ),
     ).toEqual([])
+  })
+
+  it('画法宿主所在的目录不导入界面模块、协议客户端、SDK 与外壳', () => {
+    const bad = (specifier: string) =>
+      DOMAIN_MEMBERS.has(memberOf(specifier)) ||
+      /^@omne-harness\/(sdk|client-assembly|shell-contract)(\/|$)/.test(specifier) ||
+      /(^|\/)shell(\/|$)/.test(specifier)
+    expect(files(join(SRC, 'page', 'surface')).length).toBeGreaterThan(0)
+    expect(offending('page/surface', bad)).toEqual([])
   })
 
   it('/device/ 下除截屏与 figure 之外仍答 404', async () => {

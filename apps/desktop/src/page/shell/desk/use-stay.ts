@@ -4,6 +4,7 @@ import type { ShellSlots } from '@omne-harness/shell-contract'
 import type { SceneFigure } from '../../desk/scene.ts'
 import type { FigureDevice } from './device.ts'
 import { figureLink } from './link.ts'
+import type { LookFeed } from './look.ts'
 import { PAGE_CLOCK, pageFigureSize, pageLook, watchPage } from './page-look.ts'
 import type { Stay, StayDeps } from './stay.ts'
 
@@ -25,6 +26,7 @@ export function stayHook(create: (deps: StayDeps) => Stay) {
     figure: SceneFigure,
     slots: ShellSlots,
     scope: Readonly<{ get(): string | undefined }>,
+    changes: LookFeed,
   ): Readonly<{ away: boolean; hand: (hand: FigureHand) => boolean; recall: () => void }> {
     const [stay, setStay] = useState<Stay | null>(null)
     useEffect(() => {
@@ -38,10 +40,11 @@ export function stayHook(create: (deps: StayDeps) => Stay) {
         clock: PAGE_CLOCK,
         slots,
         scope: () => scope.get(),
+        changes,
       })
       setStay(made)
       return () => made.dispose()
-    }, [device, control, slots, scope])
+    }, [device, control, slots, scope, changes])
     useEffect(() => stay?.signedIn(signedIn), [stay, signedIn])
     const { doing, moment, waiting } = figure
     const kind = moment?.kind

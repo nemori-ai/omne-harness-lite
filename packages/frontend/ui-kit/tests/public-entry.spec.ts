@@ -138,6 +138,7 @@ const REST = [
   'InlineNotice',
   'InkBubble',
   'InkMotes',
+  'inkLookChanged',
   'Input',
   'Label',
   'LoadingIndicator',

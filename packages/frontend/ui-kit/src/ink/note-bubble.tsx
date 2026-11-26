@@ -4,7 +4,7 @@ import { type Point } from '../icons/brush.ts'
 import { useSizeFactor } from '../size/use-size-factor.ts'
 import { brushTime, ms, WRITE } from './body.ts'
 import { inkNow } from './clock.ts'
-import { InkCanvas, type InkMark } from './ink-canvas.ts'
+import { InkCanvas, watchInkLook, type InkMark } from './ink-canvas.ts'
 import {
   bubbleArea,
   bubbleLines,
@@ -358,6 +358,26 @@ class BubbleInk {
   }
 }
 
+const CORNER = 12
+
+function cornerOf(element: HTMLElement): number {
+  const value = getComputedStyle(element).getPropertyValue('--omne-radius-window').trim()
+  const corner = value.endsWith('px') ? Number.parseFloat(value) : Number.NaN
+  return Number.isFinite(corner) ? corner : CORNER
+}
+
+function useCorner(wet: React.RefObject<HTMLDivElement | null>, app: number): number {
+  const [corner, setCorner] = useState(CORNER)
+  useLayoutEffect(() => {
+    const element = wet.current?.parentElement
+    if (!element) return undefined
+    const read = (): void => setCorner(cornerOf(element))
+    read()
+    return watchInkLook(read)
+  }, [wet, app])
+  return corner
+}
+
 export function NoteInk({
   anchor,
   origin,
@@ -379,6 +399,7 @@ export function NoteInk({
   const [seed] = useState(freshSeed)
   const [ink] = useState(() => new BubbleInk(reduced))
   const wet = useRef<HTMLDivElement>(null)
+  const corner = useCorner(wet, app)
   const [size, setSize] = useState<{
     width: number
     height: number
@@ -392,13 +413,13 @@ export function NoteInk({
         : {
             width: size.width,
             height: size.height,
-            radius: (12 * unit) / unitOf(FIGURE_SIZE),
+            radius: corner,
             anchor: [ax - ox, ay - oy],
             unit,
             seed,
             ink: strength,
           },
-    [size, ax, ay, ox, oy, seed, unit, strength],
+    [size, corner, ax, ay, ox, oy, seed, unit, strength],
   )
   const strokes = useMemo(() => (shape === null ? [] : bubbleStrokes(shape)), [shape])
   const area = useMemo(() => (strokes.length === 0 ? null : bubbleArea(strokes)), [strokes])

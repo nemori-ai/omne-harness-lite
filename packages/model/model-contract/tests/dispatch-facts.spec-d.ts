@@ -2,6 +2,7 @@ import { expectTypeOf, it } from 'vitest'
 import type {
   ContextWindow,
   CostLookupState,
+  DispatchEffort,
   FixedModelRequest,
   ModelDispatchFact,
   ModelDispatchFacts,
@@ -23,7 +24,9 @@ it('a dispatch fact names the call, the consumer and the adoptions, and carries 
     | 'connectRetries'
     | 'account'
     | 'costLookup'
+    | 'effort'
   >()
+  expectTypeOf<ModelDispatchFact['effort']>().toEqualTypeOf<DispatchEffort | undefined>()
   expectTypeOf<ModelDispatchFact['costLookup']>().toEqualTypeOf<CostLookupState>()
   expectTypeOf<CostLookupState>().toEqualTypeOf<
     'not-needed' | 'pending' | 'found' | 'not-found' | 'no-request-id'

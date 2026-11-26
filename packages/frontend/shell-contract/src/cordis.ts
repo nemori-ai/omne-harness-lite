@@ -29,6 +29,8 @@ import {
   tokensContract,
   tokensEntry,
   type Changes,
+  type Known,
+  type Names,
   type PartStyle,
 } from './change.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
@@ -51,7 +53,8 @@ import {
   type PartDeclaration,
   type PartRender,
 } from './part.ts'
-import { drawingOn, type KeyRender } from './point.ts'
+import { drawingOn, type DrawingSource, type KeyRender } from './point.ts'
+import { projectionOn, type Projection, type ProjectionRange } from './projection.ts'
 import type { ServiceKey } from './service-key.ts'
 import {
   actionsContract,
@@ -205,13 +208,24 @@ export abstract class ShellService extends Service implements ShellSlots {
     return this.ctx.dynamis.put([styleEntry(part, style, scope, files)])
   }
 
-  putRender<P>(part: string, render: PartRender<P>, scope: Scope = []): () => unknown {
-    return this.putDrawing(RENDER_POINT, part, render as never, scope)
+  putRender<P>(
+    part: string,
+    render: PartRender<P>,
+    scope: Scope = [],
+    source?: DrawingSource,
+  ): () => unknown {
+    return this.putDrawing(RENDER_POINT, part, render as never, scope, source)
   }
 
-  putDrawing(point: string, key: string, render: KeyRender, scope: Scope = []): () => unknown {
+  putDrawing(
+    point: string,
+    key: string,
+    render: KeyRender,
+    scope: Scope = [],
+    source?: DrawingSource,
+  ): () => unknown {
     return this.ctx.dynamis.put(instance => [
-      renderEntry(point, key, render, scope, `${instance.fiber}#${instance.generation}`),
+      renderEntry(point, key, render, scope, `${instance.fiber}#${instance.generation}`, source),
     ])
   }
 
@@ -285,9 +299,18 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   changesFor(asker: Scope): Changes {
-    const known = (name: string): boolean => this.knowsToken(name)
-    const names = () => this.dataKeysOf(TOKENS_POINT)?.map(token => token.name)
-    return changesOn(this.registry(), asker, known, names)
+    return changesOn(this.registry(), asker, ...this.tokenNames())
+  }
+
+  projection(range: ProjectionRange): Projection {
+    const asker = lookScope(this.scope.get(), this.worn)
+    return projectionOn(this.registry(), asker, range, ...this.tokenNames())
+  }
+
+  private tokenNames(): readonly [Known, Names] {
+    const known: Known = name => this.knowsToken(name)
+    const names: Names = () => this.dataKeysOf(TOKENS_POINT)?.map(token => token.name)
+    return [known, names]
   }
 
   look(): string | undefined {

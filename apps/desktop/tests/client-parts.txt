@@ -24,8 +24,14 @@ calendar.lookup.ask | 查的按钮 | 按填的日期去查 | calendar.lookup | t
 calendar.page | 日历页 | 用哪份日历，查某一天 | shell.workspace.page | tokens style | 一直在 | calendar-ui
 calendar.shipped | 供应的日历 | 部署给出的日历清单 | calendar.page | tokens style | 一直在 | calendar-ui
 calendar.shipped.item | 一份日历 | 清单里的一份日历 | calendar.shipped | tokens style | 清单里有日历时 | calendar-ui
+canvas.finder | 查找 | 在纸上打开的查找：一行字，下面按类列出能摆上来的，与拿走了的 | canvas.paper | tokens style | 查找打开时 | canvas-ui
+canvas.home | 回正面的钮 | 纸正中的钮，里面坐着 Agent 形；按它回到正面 | canvas.paper | tokens style | 读到画布之后 | canvas-ui
+canvas.item | 纸上的一页 | 纸上摆着的一样东西：能挪、改大小、选中、锁上；里面画的归那一类东西的领域 | canvas.paper | tokens style | 纸上摆着东西时 | canvas-ui
+canvas.mark | 落点与找到的记号 | 纸上暂时的记号：拖文件进来时的落点，与圈出被找到的、已经摆着的那一样 | canvas.paper | tokens style | 拖文件进来之后，或找到一样已经摆着的东西之后 | canvas-ui
 canvas.paper | 纸 | 画布上有边的一张纸，大小与网格由服务端给；能平移、缩放，纸上摆着东西 | canvas.view | tokens style | 读到画布之后 | canvas-ui
+canvas.pile | 一摞 | 叠成一叠的几页：能挪、打开、改名、散开 | canvas.paper | tokens style | 纸上有一叠时 | canvas-ui
 canvas.status | 状态栏 | 纸下沿的一条窄栏：查找、磁吸开关、远近的读数，与看着的那一样是什么、谁摆的、什么时候 | canvas.view | tokens style | 读到画布之后 | canvas-ui
+canvas.turn | 「翻到正面」的记号 | 反面一角的记号，按它翻到正面 | canvas.view | tokens style | 登录之后 | canvas-ui
 canvas.view | 画布 | 反面上的画布：纸面、它上面的提示，与下沿的状态栏 | shell.app | tokens style | 登录之后 | canvas-ui
 goal.panel | 目标面板 | 这段会话的目标：差多少、正文、进展与来历 | session.side | tokens style | 打开一段会话时 | goal-ui
 human-intervention.page | 待你决定页 | 等你回答或放行的卡 | shell.workspace.page | tokens style | 一直在 | human-intervention-ui
@@ -116,6 +122,12 @@ session.transcript.reasoning | 推理行 | Agent 想的过程 | session.transcri
 session.transcript.tool-call | 工具调用行 | 一次工具调用的过程行 | session.transcript | tokens style | 有工具调用时 | session-ui
 session.transcript.user-message | 你的消息 | 你说的一条话 | session.transcript | tokens style render | 有消息时 | session-ui
 shell.app | 整个应用 | 窗口里的一切。换主题、换品牌色，就是给它放令牌。 | – | tokens style | 一直在 | DesktopShell
+shell.back | 反面 | 应用翻过来的一面的外框，里面是放在反面的那一样 | shell.app | tokens style | 有反面时 | DesktopShell
+shell.figure | 形 | Agent 的形：在窗口里，也在拿出窗口之后的桌面上 | shell.app | tokens style | 一直在 | DesktopShell
+shell.figure.frame | 观测框 | 按着 ⌘ 拿着形时，圈住手下那个窗口的框 | shell.app | tokens style | 按着 ⌘ 拿着形经过一个窗口时 | DesktopShell
+shell.figure.label | 签 | 拿着形时写在旁边的一两行：松手会去哪，按着 ⌘ 看的是哪个窗口 | shell.app | tokens style | 形在桌面上被拿着时 | DesktopShell
+shell.figure.note | 说话笺 | 对 Agent 说一句话的笺：桌面上单击形打开的那一块，与窗口里随身入口展开的小框 | shell.app | tokens style | 单击桌面上的形之后 | DesktopShell
+shell.figure.told | 告知笺 | 形在家里说给人听的一句：一个模块的提示 | shell.sidebar | tokens style | 有提示时 | DesktopShell
 shell.gate | 登录门 | 没登录时屏幕中间的一块 | shell.app | tokens style | 没登录时 | DesktopShell
 shell.sidebar | 侧栏 | 左边放家、导航与账号的一列 | shell.app | tokens style | 登录之后 | DesktopShell
 shell.sidebar.appearance | 外观钮 | 换主题与字号 | shell.sidebar.footer | tokens style | 登录之后 | DesktopShell
@@ -125,6 +137,7 @@ shell.sidebar.home | 家 | Agent 的形平时在的地方，点了回对话 | sh
 shell.sidebar.menu | 导航开关 | 窄窗口里打开导航 | shell.sidebar | tokens style | 窄窗口时 | DesktopShell
 shell.sidebar.nav | 导航 | 各个页面的入口 | shell.sidebar | tokens style | 登录之后 | DesktopShell
 shell.sidebar.nav.row | 导航的一行 | 一个页面的入口 | shell.sidebar.nav | tokens style | 登录之后 | DesktopShell
+shell.sidebar.turn | 翻面的记号 | 侧栏底栏里「翻到反面」的钮 | shell.sidebar.footer | tokens style | 有反面时 | DesktopShell
 shell.sidebar.utility | 靠下的导航 | 不常去的页面的入口 | shell.sidebar | tokens style | 有这样的页面时 | DesktopShell
 shell.workspace | 主区 | 右边放页面的地方 | shell.app | tokens style | 登录之后 | DesktopShell
 shell.workspace.page | 一页 | 主区里一个页面的容器 | shell.workspace | tokens style | 登录之后 | DesktopShell

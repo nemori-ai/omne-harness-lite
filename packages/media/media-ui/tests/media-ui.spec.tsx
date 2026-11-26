@@ -4,7 +4,7 @@ import { definePoint, defineRenderPoint, partsOn } from '@omne-harness/shell-con
 import { serviceKey } from '@omne-harness/shell-contract'
 import { provideOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createMediaUiModule,
   type DraftOffer,
@@ -49,7 +49,10 @@ beforeEach(() => {
     revokeObjectURL: () => undefined,
   })
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -571,6 +574,259 @@ describe('消息里一块非文字内容', () => {
     )
   })
 
+  const voice = {
+    ...picture,
+    kind: 'voice',
+    ref: { ...ref, mediaType: 'audio/wav' },
+    transcript: '今天下午三点开会',
+    facts: { kind: 'voice', durationMs: 7000, sampleRate: 16000, channels: 1 },
+  }
+  const keptBlobs = () => {
+    const blobs: Blob[] = []
+    Object.assign(URL, {
+      createObjectURL: (blob: Blob) => {
+        blobs.push(blob)
+        return `blob:made-${String(blobs.length)}`
+      },
+    })
+    return blobs
+  }
+
+  it('语音写时长与大小，旁边是转写；按「播放」之前不读字节，按了读原件交给播放器', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const blobs = keptBlobs()
+    const { shell } = await mounted(media)
+    render(<>{drawn(shell, voice)}</>)
+    await settle()
+    expect(screen.getByText('〔voice〕7 秒 · 10 B')).not.toBeNull()
+    expect(screen.getByText('今天下午三点开会')).not.toBeNull()
+    expect(media.calls).toEqual([])
+    fireEvent.click(screen.getByRole('button', { name: '播放' }))
+    await settle()
+    expect(reads(media).every(body => !('target' in body))).toBe(true)
+    expect(reads(media).length).toBeGreaterThan(0)
+    const audio = document.querySelector('audio')
+    expect(audio?.getAttribute('src')).toBe('blob:made-1')
+    expect([...new Uint8Array(await blobs[0]!.arrayBuffer())]).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ])
+  })
+
+  it('块里没有转写时取描述里转出来的文字；转写另存的只写一句', async () => {
+    const media = fakeMedia(4)
+    const engine = { name: 'transcribe', revision: '1' }
+    const said = (text: unknown) => () => ({
+      outcome: 'succeeded',
+      body: {
+        state: 'held',
+        facts: voice.facts,
+        preprocess: {
+          kind: 'done',
+          representation: { outcome: 'converted', definition: engine, engine, text, others: [] },
+        },
+      },
+    })
+    media.once('describe-media', said('会议纪要在第二页'))
+    media.once('describe-media', said({ ...ref, key: 'key-text', mediaType: 'text/plain' }))
+    const { shell } = await mounted(media)
+    render(
+      <>
+        {drawn(shell, { ...voice, id: 'blk_a', transcript: null })}
+        {drawn(shell, { ...voice, id: 'blk_b', transcript: null })}
+      </>,
+    )
+    await settle()
+    expect(screen.getByText('会议纪要在第二页')).not.toBeNull()
+    expect(screen.getByText('转写较长，已另存')).not.toBeNull()
+  })
+
+  it('语音的原件读不到时说读不到，不抛', async () => {
+    const media = fakeMedia(4)
+    const { shell } = await mounted(media)
+    render(<>{drawn(shell, voice)}</>)
+    await settle()
+    fireEvent.click(screen.getByRole('button', { name: '播放' }))
+    await settle()
+    expect(screen.getByText(/^语音读不出来：/)).not.toBeNull()
+    expect(document.querySelector('audio')).toBeNull()
+  })
+
+  it('语音满一分钟写分与秒，没有时长写媒体类型；按「播放」后先说正在读', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const { shell } = await mounted(media)
+    const lasting = (durationMs: number | undefined, id: string) =>
+      drawn(shell, {
+        ...voice,
+        id,
+        facts: durationMs === undefined ? { kind: 'voice' } : { ...voice.facts, durationMs },
+      })
+    render(
+      <>
+        {lasting(60_000, 'blk_a')}
+        {lasting(125_000, 'blk_b')}
+        {lasting(undefined, 'blk_c')}
+      </>,
+    )
+    await settle()
+    const lines = [...document.querySelectorAll('[data-omne-part="media.file"]')]
+    expect(lines.map(line => line.textContent)).toEqual([
+      '〔voice〕1 分 0 秒 · 10 B',
+      '〔voice〕2 分 5 秒 · 10 B',
+      '〔voice〕audio/wav · 10 B',
+    ])
+    fireEvent.click(screen.getAllByRole('button', { name: '播放' })[0]!)
+    expect(screen.getByText('正在读语音…')).not.toBeNull()
+    await settle()
+    expect(document.querySelectorAll('audio')).toHaveLength(1)
+  })
+
+  it('描述答不出、转写转不出时不写转写；读不懂的语音与文件照样说出来，不去问', async () => {
+    const media = fakeMedia(4)
+    const engine = { name: 'transcribe', revision: '1' }
+    const representation = { outcome: 'inconvertible', definition: engine, engine }
+    media.once('describe-media', () => ({
+      outcome: 'succeeded',
+      body: { state: 'held', facts: voice.facts, preprocess: { kind: 'done', representation } },
+    }))
+    media.once('describe-media', () => ({ outcome: 'basis-unavailable', body: {} }))
+    const { shell } = await mounted(media)
+    const file = { ...picture, kind: 'file', ref: { ...ref, mediaType: 'application/pdf' } }
+    const told = (content: unknown, id: string) =>
+      block.draw(
+        shell,
+        kindOf(content),
+        { session: 'ses_a', message: 'msg_1', block: id, content, read: 'transcript' },
+        () => null,
+      )
+    render(
+      <>
+        {drawn(shell, { ...voice, transcript: null })}
+        {told(file, 'b2')}
+        {told({ kind: 'file' }, 'b3')}
+        {told({ kind: 'voice' }, 'b4')}
+      </>,
+    )
+    await settle()
+    expect(document.querySelector('.omne-media-transcript')).toBeNull()
+    expect(screen.getAllByText('模型读的是提取的文字')).toHaveLength(2)
+    expect(screen.getByText('〔file〕这一块的内容读不懂')).not.toBeNull()
+    expect(screen.getByText('〔voice〕这一块的内容读不懂')).not.toBeNull()
+    expect(media.calls.filter(call => call.operation === 'describe-media')).toHaveLength(2)
+  })
+
+  const file = { ...picture, kind: 'file', ref: { ...ref, mediaType: 'application/pdf' } }
+  const named = (name: string) => () => ({
+    outcome: 'succeeded',
+    body: { state: 'held', facts: { kind: 'file' }, preprocess: { kind: 'not-needed' }, name },
+  })
+  const handedOver = () => {
+    const links: { download: string; href: string }[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      links.push({ download: this.download, href: this.href })
+    })
+    return links
+  }
+
+  it('文件写名字、类型与大小；按「取回」读原件，以名字交给宿主存下，取回中再按不算', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    media.once('describe-media', named('季度报告.pdf'))
+    const blobs = keptBlobs()
+    const links = handedOver()
+    const { shell } = await mounted(media)
+    render(<>{drawn(shell, file)}</>)
+    await settle()
+    expect(screen.getByText('〔file〕季度报告.pdf · application/pdf · 10 B')).not.toBeNull()
+    expect(reads(media)).toEqual([])
+    const retrieve = screen.getByRole('button', { name: '取回' })
+    fireEvent.click(retrieve)
+    fireEvent.click(retrieve)
+    expect(retrieve.getAttribute('aria-busy')).toBe('true')
+    await settle()
+    expect(retrieve.getAttribute('aria-busy')).toBeNull()
+    expect(blobs[0]?.type).toBe('image/png')
+    expect(links).toEqual([{ download: '季度报告.pdf', href: 'blob:made-1' }])
+    expect(reads(media).map(body => body['offset'])).toEqual([0, 4, 8])
+    expect(reads(media).every(body => !('target' in body))).toBe(true)
+    expect([...new Uint8Array(await blobs[0]!.arrayBuffer())]).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ])
+  })
+
+  it('没有名字的文件写类型，以「附件」加扩展名存', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const links = handedOver()
+    const { shell } = await mounted(media)
+    render(
+      <>
+        {drawn(shell, file)}
+        {drawn(shell, { ...file, ref: { ...ref, mediaType: 'audio/mpeg' } })}
+        {['image/jpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'application/x-made-up'].map(
+          mediaType => drawn(shell, { ...file, ref: { ...ref, mediaType } }),
+        )}
+      </>,
+    )
+    await settle()
+    expect(screen.getByText('〔file〕application/pdf · 10 B')).not.toBeNull()
+    for (const button of screen.getAllByRole('button', { name: '取回' })) {
+      fireEvent.click(button)
+      await settle()
+    }
+    expect(links.map(link => link.download)).toEqual([
+      '附件.pdf',
+      '附件.mp3',
+      '附件.jpg',
+      '附件.wav',
+      '附件.wav',
+      '附件.m4a',
+      '附件.x-made-up',
+    ])
+  })
+
+  it('再取一次时还回上一次的地址，块卸下时还回最后一次的；读到一半卸下的不交给宿主', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const links = handedOver()
+    const revoked: string[] = []
+    Object.assign(URL, { revokeObjectURL: (url: string) => void revoked.push(url) })
+    const { shell } = await mounted(media)
+    const view = render(<>{drawn(shell, file)}</>)
+    await settle()
+    for (let round = 0; round < 2; round += 1) {
+      fireEvent.click(screen.getByRole('button', { name: '取回' }))
+      await settle()
+    }
+    expect(links.map(link => link.href)).toEqual(['blob:made-1', 'blob:made-2'])
+    expect(revoked).toEqual(['blob:made-1'])
+    fireEvent.click(screen.getByRole('button', { name: '取回' }))
+    view.unmount()
+    await settle()
+    expect(links).toHaveLength(2)
+    expect(revoked).toEqual(['blob:made-1', 'blob:made-2'])
+  })
+
+  it('原件读不到时说取回失败，不交给宿主，可以再取', async () => {
+    const media = fakeMedia(4)
+    const links = handedOver()
+    const { shell } = await mounted(media)
+    render(<>{drawn(shell, file)}</>)
+    await settle()
+    fireEvent.click(screen.getByRole('button', { name: '取回' }))
+    await settle()
+    expect(screen.getByText(/^取回失败：/)).not.toBeNull()
+    expect(links).toEqual([])
+    stored(media)
+    fireEvent.click(screen.getByRole('button', { name: '取回' }))
+    await settle()
+    expect(links.map(link => link.download)).toEqual(['附件.pdf'])
+    expect(screen.queryByText(/^取回失败：/)).toBeNull()
+  })
+
   it('语音与文件画成一行：种类、媒体类型与大小；读不懂的内容照样说出来', async () => {
     const media = fakeMedia(4)
     const { shell } = await mounted(media)
@@ -594,6 +850,6 @@ describe('消息里一块非文字内容', () => {
       '〔image〕这一块的内容读不懂',
     ])
     expect(lines.every(line => line.classList.contains('omne-media-line'))).toBe(true)
-    expect(media.calls).toEqual([])
+    expect(reads(media)).toEqual([])
   })
 })

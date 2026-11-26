@@ -1,6 +1,7 @@
 import {
   defineRenderPoint,
   type Declared,
+  type ProjectionRange,
   type RenderDrawer,
   type RenderPoint,
 } from '@omne-harness/shell-contract'
@@ -45,7 +46,7 @@ export const piecePoint: RenderPoint<object> = defineRenderPoint({
   summary:
     'How one shared piece of the interface is drawn wherever a page shows it: the loading mark, an empty state, a notice in a page, the body of the figure of the agent.',
   subject:
-    'what the page asks the piece to show. loading: size (sm or md), active, counted, className. empty-state: title, hint, action, role, className. inline-notice: tone, title, body, detail, action. figure: size in pixels, phase (seated or flying), hover, doing (idle, thinking, looking, writing or background), waiting, the count of what waits for the person; the shell still places the figure, moves it and takes the press',
+    'what the page asks the piece to show. loading: size (sm or md), active, counted, className. empty-state: title, hint, action, role, className. inline-notice: tone, title, body, detail, action. figure: size in pixels, phase (seated: still, on a seat or set down at a point; flying: on its way by itself; held: following the hand, or left where the hand let go), hover, doing (idle, thinking, looking, writing or background), waiting, the count of what waits for the person; the shell still places the figure, moves it and takes the press',
   example: PIECE_EXAMPLE,
 })
 
@@ -64,6 +65,12 @@ const THROUGH: Readonly<Record<RedrawKind, Through | undefined>> = {
 
 /** The points the shell declares for what the shared kit draws by name. */
 export const redrawPoints: readonly Declared[] = [iconPoint, piecePoint]
+
+/** What another surface draws of the changes: the drawings on the two points of the kit; the shell's own parts open no drawing. */
+export const projectedRange: ProjectionRange = {
+  points: [iconPoint.name, piecePoint.name],
+  parts: [],
+}
 
 /** The names a point of the kit draws by; none for a point that is not one of them. */
 export function redrawKeys(point: string): readonly string[] | undefined {

@@ -13,6 +13,11 @@ export type ToolCallSlot = (part: ToolCallPart, generic: () => ReactNode) => Rea
 
 export const ToolCallSlotContext = createContext<ToolCallSlot | null>(null)
 
+/** Draws the line under the reply of a run: its model and reasoning effort, when they are known. */
+export type ReplySlot = (run: string) => ReactNode
+
+export const ReplySlotContext = createContext<ReplySlot | null>(null)
+
 /** What a person can do to a call the run waits on: send it to the background, or stop it. */
 export type CallControlSlot = Readonly<{
   background: (call: string) => void

@@ -16,6 +16,7 @@ import {
   type FakeService,
   type Seen,
 } from './support/fake-service.ts'
+import { modelCall, page as diagnosticsPage, run } from './support/diagnostics-page.ts'
 import { runInProcess, type InProcessOptions } from './support/in-process.ts'
 
 let root: string
@@ -366,6 +367,152 @@ describe('read-history', () => {
           '',
         ].join('\n'),
       )
+    })
+
+    it('says after a block that is not words which form of it the model read, from the session diagnostics', async () => {
+      const ref = (mediaType: string) => ({
+        storage: 'local',
+        key: 'k',
+        mediaType,
+        bytes: '512',
+        digest: 'sha256:d',
+      })
+      const media = (id: string, kind: string, mediaType: string, transcript: string | null) => ({
+        ...block({ kind, ref: ref(mediaType), transcript }),
+        id,
+      })
+      const pictured = entry('7', 'message.user', {
+        message: {
+          id: 'm7',
+          role: 'user',
+          blocks: [
+            media('b1', 'image', 'image/png', null),
+            media('b2', 'voice', 'audio/wav', 'hello'),
+            media('b3', 'file', 'application/pdf', null),
+          ],
+        },
+      })
+      const readOf = (blockId: string, read: string) => ({ message: 'm7', block: blockId, read })
+      const runOf = (position: string, ...reads: object[]) =>
+        run({
+          run: `run-${position}`,
+          started: { position, at: { kind: 'unknown' } },
+          modelCalls: [modelCall({ reads })],
+        })
+      const diagnosed: unknown[] = []
+      const histories = historyService([page([pictured], null)])
+      const service = await serve(seen => {
+        if (seen.operation !== 'read-session-diagnostics') return histories(seen)
+        diagnosed.push(seen.body)
+        const runs = [
+          runOf('20', readOf('b1', 'fitted')),
+          runOf('10', readOf('b1', 'original'), readOf('b2', 'transcript')),
+        ]
+        return { outcome: 'succeeded', body: diagnosticsPage(runs, null) }
+      })
+      await loginOwningSession(service)
+      const result = await cli(['read-history', '--session', sessionId])
+      expect(result.stdout).toBe(
+        [
+          '#7 message.user: [image image/png 512 B] · model read: fitted',
+          '    [voice audio/wav 512 B] hello · model read: transcript',
+          '    [file application/pdf 512 B]',
+          '',
+        ].join('\n'),
+      )
+      expect(diagnosed).toHaveLength(1)
+      await cli(['read-history', '--session', sessionId, '--json'])
+      expect(diagnosed).toHaveLength(1)
+    })
+
+    it('reads no diagnostics for a history without blocks that are not words, and writes nothing when they cannot be read', async () => {
+      const operations: string[] = []
+      const histories = historyService([page([history.user], null)])
+      const words = await serve(seen => {
+        operations.push(seen.operation)
+        return histories(seen)
+      })
+      await loginOwningSession(words)
+      await cli(['read-history', '--session', sessionId])
+      expect(operations).not.toContain('read-session-diagnostics')
+    })
+
+    it.each(['image', 'voice', 'file'])(
+      'reads the diagnostics for a history whose only block that is not words is a %s, page after page',
+      async kind => {
+        const held = entry('7', 'message.user', {
+          message: {
+            id: 'm7',
+            role: 'user',
+            blocks: [
+              block({ kind: 'text', text: 'see' }),
+              {
+                ...block({
+                  kind,
+                  ref: { storage: 'local', key: 'k', mediaType: 'x/y', bytes: '1', digest: 'd' },
+                }),
+                id: 'b1',
+              },
+            ],
+          },
+        })
+        const pages = [
+          diagnosticsPage(
+            [
+              run({
+                run: 'r1',
+                started: { position: '1', at: { kind: 'unknown' } },
+                modelCalls: [modelCall({ reads: [] })],
+              }),
+            ],
+            'cursor-1',
+          ),
+          diagnosticsPage(
+            [
+              run({
+                run: 'r2',
+                started: { position: '2', at: { kind: 'unknown' } },
+                modelCalls: [
+                  modelCall({ reads: [{ message: 'm7', block: 'b1', read: 'derived' }] }),
+                ],
+              }),
+            ],
+            null,
+          ),
+        ]
+        const asked: unknown[] = []
+        const histories = historyService([page([held], null)])
+        const service = await serve(seen => {
+          if (seen.operation !== 'read-session-diagnostics') return histories(seen)
+          asked.push(seen.body['cursor'])
+          const at = seen.body['cursor'] === null ? 0 : 1
+          return { outcome: 'succeeded', body: pages[at] }
+        })
+        await loginOwningSession(service)
+        const result = await cli(['read-history', '--session', sessionId])
+        expect(asked).toEqual([null, 'cursor-1'])
+        expect(result.stdout).toContain(' · model read: derived')
+      },
+    )
+
+    it('writes no form when the diagnostics are refused, and the history as it is', async () => {
+      const held = entry('7', 'message.user', {
+        message: {
+          id: 'm7',
+          role: 'user',
+          blocks: [{ ...block({ kind: 'image', mediaType: 'image/png' }), id: 'b1' }],
+        },
+      })
+      const histories = historyService([page([held], null)])
+      const service = await serve(seen =>
+        seen.operation === 'read-session-diagnostics'
+          ? { outcome: 'denied', body: {} }
+          : histories(seen),
+      )
+      await loginOwningSession(service)
+      const result = await cli(['read-history', '--session', sessionId])
+      expect(result.code).toBe(0)
+      expect(result.stdout).toBe('#7 message.user: [image image/png]\n')
     })
 
     it('shows the command of a one-slot call after the tool name, and other calls as they are', async () => {

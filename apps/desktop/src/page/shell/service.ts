@@ -19,7 +19,7 @@ import { Drawn } from './drawn.tsx'
 import { goHome, toFront } from './home.ts'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
-import { redrawKeys, redrawPoints, redrawThrough } from './redraw.ts'
+import { projectedRange, redrawKeys, redrawPoints, redrawThrough } from './redraw.ts'
 import type { TokenNow } from './changes-sheet.ts'
 import type { Face, ShellState } from './state.ts'
 
@@ -46,6 +46,14 @@ export class DesktopShell extends ShellService {
     for (const point of redrawPoints) point.declare(this)
     ctx.effect(() => state.redraw.bind(redrawThrough(this)), 'desktop-shell.redraw')
     ctx.effect(() => state.slots.bind(this), 'desktop-shell.slots')
+    ctx.effect(
+      () =>
+        state.outside.bind({
+          warn: text => this.ctx.logger.warn(`shell: ${text}`),
+          navigate: (pageId, subject) => this.navigate(pageId, subject),
+        }),
+      'desktop-shell.outside',
+    )
     for (const slot of SLOT_NAMES)
       ctx.effect(
         () => this.subscribe(slot, () => this.reportConflicts(slot)),
@@ -121,13 +129,19 @@ export class DesktopShell extends ShellService {
 
   private restyle(): void {
     const { css, refused, conflicts, app } = this.changes()
+    const projection = this.projection(projectedRange)
     this.state.sheet.set(css)
     this.state.appTokens.set(app)
+    this.state.projection.set(projection)
     const said = [
       ...refused.map(
         out => `${out.point} ${out.key} put by ${out.by} does not count: ${out.reason}`,
       ),
       ...conflicts.map(out => `${out.point} ${out.key} is put two ways by ${out.by.join(', ')}`),
+      ...projection.unreachable.map(
+        out =>
+          `${out.point} ${out.key} put by ${out.by.join(', ')} has no source: no other surface can draw it`,
+      ),
     ]
     for (const text of said) if (!this.unsound.has(text)) this.ctx.logger.warn(`shell: ${text}`)
     this.unsound = new Set(said)

@@ -38,6 +38,18 @@ describe('the word said of a model', () => {
     ],
     [{ selectable: false, reasons: [], credential: 'available' }, '现在不能选'],
     [
+      {
+        selectable: false,
+        reasons: ['modality'],
+        credential: 'available',
+        blocks: [
+          { message: 'm-1', block: 'b-1' },
+          { message: 'm-2', block: 'b-2' },
+        ],
+      },
+      '不能选：读不了这段会话里的 2 块内容',
+    ],
+    [
       { selectable: false, reasons: [], credential: 'available', enabled: false },
       '不能选：没有启用',
     ],
@@ -82,6 +94,30 @@ describe('the list of models of a tenant', () => {
     })
     expect(asked).toHaveLength(1)
     expect(JSON.stringify(asked[0])).toContain('org_00000000000000000000000000')
+  })
+
+  it('asks for a session when given one, and gives how many of its blocks stop a model', async () => {
+    const SESSION = '0123456789abcdef'.repeat(4)
+    const blocks = [{ message: 'm-1', block: 'b-1' }]
+    const { asked, choices } = choicesOver({
+      outcome: 'succeeded',
+      body: {
+        models: [
+          model('text-only', { selectable: false, reasons: ['modality'], blocks }),
+          model('anthropic/claude-sonnet-5'),
+        ],
+      },
+    })
+    const listed = await choices.list(TENANT, SESSION)
+    expect((asked[0] as { session?: string }).session).toBe(SESSION)
+    expect(
+      listed.kind === 'listed' && listed.choices.map(each => [each.route, each.blocks]),
+    ).toEqual([
+      ['text-only', 1],
+      ['anthropic/claude-sonnet-5', undefined],
+    ])
+    await choices.list(TENANT)
+    expect('session' in (asked[1] as object)).toBe(false)
   })
 
   it('gives the default effort the tenant set for a model, and none where it set none', async () => {

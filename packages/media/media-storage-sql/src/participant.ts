@@ -39,6 +39,7 @@ const fresh = (input: NewRow): Stored => ({
   received: 0,
   parts: [],
   expiresAt: input.expiresAt,
+  ...(input.name === undefined ? {} : { name: input.name }),
 })
 
 /** The commands come from this member's own index adapter, so their shape is not parsed again here. */

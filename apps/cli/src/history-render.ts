@@ -1,4 +1,8 @@
+import { readKey, type BlockReads } from './history-reads.ts'
+
 export type RawEntry = Readonly<Record<string, unknown>>
+
+const NO_READS: BlockReads = new Map()
 
 const clipAt = 500
 
@@ -44,17 +48,23 @@ function sizeText(bytes: string): string {
   return ` ${scaled.toFixed(1)} ${unit}`
 }
 
-/** A block that is not words: its kind, its media type and its size, then its words if it has any. */
-function renderMedia(kind: string, fields: Readonly<Record<string, unknown>>): string {
+/** A block that is not words: its kind, its media type and its size, its words if it has any, and what the model read. */
+function renderMedia(
+  kind: string,
+  fields: Readonly<Record<string, unknown>>,
+  read?: string,
+): string {
   const ref = record(fields['ref'])
   const type = word(ref?.['mediaType']) || word(fields['mediaType'])
   const shown = `[${kind}${type === '' ? '' : ` ${type}`}${sizeText(word(ref?.['bytes']))}]`
   const words = word(fields['transcript'])
-  return words === '' ? shown : `${shown} ${clip(words)}`
+  const said = words === '' ? shown : `${shown} ${clip(words)}`
+  return read === undefined ? said : `${said} · model read: ${read}`
 }
 
 type Fields = Readonly<Record<string, unknown>>
-const BLOCKS: Readonly<Record<string, (kind: string, fields: Fields) => string>> = {
+type Render = (kind: string, fields: Fields, read?: string) => string
+const BLOCKS: Readonly<Record<string, Render>> = {
   text: (_kind, fields) => word(fields['text']),
   tool_call: renderToolCall,
   tool_call_incomplete: renderToolCall,
@@ -65,23 +75,26 @@ const BLOCKS: Readonly<Record<string, (kind: string, fields: Fields) => string>>
   file: renderMedia,
 }
 
-function renderBlock(block: unknown): string {
+function renderBlock(block: unknown, message: string, reads: BlockReads): string {
   const fields = record(block)
   if (fields === undefined) return clip(JSON.stringify(block) ?? '')
   const kind = word(fields['kind'])
   const render = Object.hasOwn(BLOCKS, kind) ? BLOCKS[kind] : undefined
-  return render?.(kind, fields) ?? `[${kind === '' ? 'unknown block' : kind}]`
+  const read = reads.get(readKey(message, word(fields['id'])))
+  return render?.(kind, fields, read) ?? `[${kind === '' ? 'unknown block' : kind}]`
 }
 
-function renderMessage(payload: Readonly<Record<string, unknown>>): string {
-  const blocks = record(payload['message'])?.['blocks']
+function renderMessage(payload: Readonly<Record<string, unknown>>, reads: BlockReads): string {
+  const message = record(payload['message'])
+  const blocks = message?.['blocks']
   if (!Array.isArray(blocks)) return clip(JSON.stringify(payload))
-  return blocks.map(renderBlock).join('\n')
+  const id = word(message?.['id'])
+  return blocks.map(block => renderBlock(block, id, reads)).join('\n')
 }
 
-function renderBody(kind: string, payload: unknown): string {
+function renderBody(kind: string, payload: unknown, reads: BlockReads): string {
   const fields = record(payload)
-  if (fields !== undefined && kind.startsWith('message.')) return renderMessage(fields)
+  if (fields !== undefined && kind.startsWith('message.')) return renderMessage(fields, reads)
   if (fields !== undefined && kind === 'run.started')
     return `Run ${word(fields['run'])} started (entry ${word(fields['entry'])})`
   if (fields !== undefined && kind === 'run.terminal') {
@@ -95,14 +108,14 @@ function renderBody(kind: string, payload: unknown): string {
   return clip(JSON.stringify(payload) ?? '')
 }
 
-export function renderEntry(entry: RawEntry): string {
+export function renderEntry(entry: RawEntry, reads: BlockReads = NO_READS): string {
   const kind = word(entry['kind'])
-  const body = renderBody(kind, entry['payload']).split('\n').join('\n    ')
+  const body = renderBody(kind, entry['payload'], reads).split('\n').join('\n    ')
   return `#${word(entry['entryId'])} ${kind}: ${body}\n`
 }
 
 /** The entries as lines; where the session whose log holds them changes, one line says whose follow. */
-export function renderEntries(entries: readonly RawEntry[]): string {
+export function renderEntries(entries: readonly RawEntry[], reads: BlockReads = NO_READS): string {
   const lines: string[] = []
   let last: unknown
   for (const entry of entries) {
@@ -114,7 +127,7 @@ export function renderEntries(entries: readonly RawEntry[]): string {
           : '--- this session ---\n',
       )
     last = source
-    lines.push(renderEntry(entry))
+    lines.push(renderEntry(entry, reads))
   }
   return lines.join('')
 }

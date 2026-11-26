@@ -8,6 +8,7 @@ import {
   type Scope,
 } from '@omne-harness/dynamis'
 import { PART_ATTRIBUTE, PARTS_POINT, partsOn, type DeclaredPart, type PartRender } from './part.ts'
+import type { DrawingSource } from './point.ts'
 
 export const TOKENS_POINT = 'shell.tokens'
 export const STYLE_POINT = 'shell.part-style'
@@ -35,7 +36,7 @@ export type PartStyle = Readonly<
 
 export type StyleItem = Readonly<{ style: PartStyle; files?: string }>
 
-export type RenderItem = Readonly<{ render: PartRender }>
+export type RenderItem = Readonly<{ render: PartRender; source?: DrawingSource }>
 
 export type LayoutItem = Readonly<{ order: readonly string[] }>
 
@@ -261,8 +262,10 @@ export function renderEntry(
   render: unknown,
   scope: Scope,
   by: string,
-): Entry<Readonly<{ render: unknown }>> {
-  return { point, key, id: '', scope, rank: 0, digest: by, item: { render } }
+  source?: DrawingSource,
+): Entry<Readonly<{ render: unknown; source?: DrawingSource }>> {
+  const item = source === undefined ? { render } : { render, source }
+  return { point, key, id: '', scope, rank: 0, digest: by, item }
 }
 
 export function layoutEntry(
@@ -293,9 +296,9 @@ export function tokensEntry(
   }
 }
 
-type Known = (token: string) => boolean
+export type Known = (token: string) => boolean
 
-type Names = () => readonly string[] | undefined
+export type Names = () => readonly string[] | undefined
 
 type Tokens = Readonly<{ known: Known; names: Names }>
 
@@ -503,6 +506,8 @@ function rulesOf<I>(stands: Map<string, I>, write: (key: string, item: I) => str
   ].join('')
 }
 
+export type ChangesRead = Readonly<{ changes: Changes; drawn: ReadonlyMap<string, RenderItem> }>
+
 /** What the changes put on the parts come to for one asker: the sheet, the drawings, the layouts, who stands on each key, and what does not count. */
 export function changesOn(
   registry: Registry,
@@ -510,6 +515,15 @@ export function changesOn(
   known: Known,
   names: Names = () => undefined,
 ): Changes {
+  return readChanges(registry, asker, known, names).changes
+}
+
+export function readChanges(
+  registry: Registry,
+  asker: Scope,
+  known: Known,
+  names: Names = () => undefined,
+): ChangesRead {
   const found: Found = { standing: [], refused: [], conflicts: [] }
   const declared = partsOn(registry)
   const parts = declared.kind === 'read' ? declared.parts : []
@@ -518,14 +532,13 @@ export function changesOn(
   const css = rulesOf(tokens, tokensRules) + rulesOf(standingOn(STYLE, asked), styleRules)
   const tint = Object.entries(tokens.get(APP)?.tokens ?? {})
   const app = Object.fromEntries(tint.map(([name, value]) => [name, value.trim()]))
-  const renders = new Map(
-    Array.from(standingOn(RENDER, asked), ([key, item]) => [key, item.render] as const),
-  )
+  const drawn = standingOn(RENDER, asked)
+  const renders = new Map(Array.from(drawn, ([key, item]) => [key, item.render] as const))
   const layouts = Object.fromEntries(
     Array.from(standingOn(LAYOUT, asked), ([key, item]) => [key, item.order] as const),
   )
   found.refused.sort((left, right) => (placeOf(left) < placeOf(right) ? -1 : 1))
-  return { css: `@layer ${LAYER}{${css}}`, ...found, renders, layouts, app }
+  return { changes: { css: `@layer ${LAYER}{${css}}`, ...found, renders, layouts, app }, drawn }
 }
 
 /** The pages in the order of a layout: the ids it names first, in its order; the rest as they were. */

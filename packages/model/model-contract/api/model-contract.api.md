@@ -38,6 +38,7 @@
 - `DecisionJson` · `decision-call.d.ts`
 - `DecisionQuestion` · `decision-call.d.ts`
 - `DecisionState` · `decision-call.d.ts`
+- `DispatchEffort` · `dispatch-facts.d.ts`
 - `DispatchId` · `root.d.ts`
 - `DispatchInstants` · `call-surface.d.ts`
 - `DispatchProgress` · `result.d.ts`
@@ -1282,11 +1283,17 @@ export interface ModelDiagnostics<P> {
 ## 声明文件 `dispatch-facts.d.ts`
 
 ```ts
-import type { Access, Adoption, ConsumerRef, ContextWindow, DispatchId, ModelCallId, Supplier } from './root.ts';
+import type { Access, Adoption, ConsumerRef, ContextWindow, DispatchId, ModelCallId, Parameter, Supplier } from './root.ts';
 import type { CallAccount } from '@omne-harness/call-account';
 import type { ModelFault, Reply } from './result.ts';
 import type { DispatchInstants, DispatchRecord } from './call-surface.ts';
 import type { CostLookupState } from './cost-lookup.ts';
+export type DispatchEffort = Readonly<{
+    value: Extract<Parameter, {
+        kind: 'reasoning-effort';
+    }>['value'] | null;
+    basis: 'selection' | 'preference' | 'provider';
+}>;
 export type ModelDispatchFact = Readonly<{
     call: ModelCallId;
     dispatch: DispatchId;
@@ -1311,6 +1318,7 @@ export type ModelDispatchFact = Readonly<{
     connectRetries: number;
     account: CallAccount | null;
     costLookup: CostLookupState;
+    effort?: DispatchEffort;
 }>;
 export declare function dispatchSend(record: Pick<DispatchRecord, 'send' | 'materialization'>): ModelDispatchFact['send'];
 export type ModelDispatchFactsQuery = Readonly<{
@@ -1333,6 +1341,9 @@ export type ModelDispatchFactsPage = Readonly<{
 }>;
 export interface ModelDispatchFacts<P> {
     list(input: Access<P> & ModelDispatchFactsQuery): Reply<ModelDispatchFactsPage>;
+    readonly ofCall?: (input: Access<P> & Readonly<{
+        call: ModelCallId;
+    }>) => Reply<readonly ModelDispatchFact[]>;
 }
 ```
 

@@ -3,7 +3,14 @@ import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
 import { SESSION_BLOCK_RENDER, sessionBlockRender } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
-import { listed, listPage, messageEntry, page } from './fixtures/frames.ts'
+import {
+  assistantEntry,
+  listed,
+  listPage,
+  messageEntry,
+  page,
+  plainEntry,
+} from './fixtures/frames.ts'
 import { mountModule, providerOf, TAKEN } from './fixtures/shell.tsx'
 
 const TENANT =
@@ -41,7 +48,9 @@ async function opened(
   const fake = createFakeClient()
   const mounted = await mountModule(fake.client, TENANT)
   if (reads !== undefined) {
-    providerOf(mounted.root, TAKEN.blockReads).attach({ readsOf: async () => reads })
+    providerOf(mounted.root, TAKEN.blockReads).attach({
+      readsOf: async () => ({ blocks: reads, replies: new Map() }),
+    })
   }
   ;(await fake.next('list-sessions')).answer(listPage([listed('ses_a', '甲')]))
   await settle()
@@ -113,4 +122,39 @@ it('交来了读法的来源时，块的位置还收到模型这一次读的是�
 it('没有画法时宿主画占位的文字：种类与行内的文字兜底或媒体类型', async () => {
   await opened(() => {})
   expect(screen.getByText(/〔image〕/u).textContent).toBe('〔image〕image/png')
+})
+
+it('一轮好好结束时，回复下面一行写这一轮最后一次发出的模型与推理强度；读不到不写；失败的一轮照旧写失败', async () => {
+  const fake = createFakeClient()
+  const mounted = await mountModule(fake.client, TENANT)
+  const replies = new Map([['run_1', 'a/model · high（会话选择）']])
+  providerOf(mounted.root, TAKEN.blockReads).attach({
+    readsOf: async () => ({ blocks: new Map(), replies }),
+  })
+  ;(await fake.next('list-sessions')).answer(listPage([listed('ses_a', '甲')]))
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '甲' }))
+  await settle()
+  ;(await fake.next('read-history')).answer({
+    outcome: 'succeeded',
+    body: page(
+      [
+        plainEntry('1', '1', 'run.started', { run: 'run_1' }),
+        assistantEntry('2', '2', '第一轮的回复'),
+        plainEntry('3', '3', 'run.terminal', { terminal: { run: 'run_1', outcome: 'completed' } }),
+        plainEntry('4', '4', 'run.started', { run: 'run_2' }),
+        assistantEntry('5', '5', '第二轮的回复'),
+        plainEntry('6', '6', 'run.terminal', { terminal: { run: 'run_2', outcome: 'completed' } }),
+        plainEntry('7', '7', 'run.started', { run: 'run_3' }),
+        plainEntry('8', '8', 'run.terminal', { terminal: { run: 'run_3', outcome: 'failed' } }),
+      ],
+      '8',
+    ),
+  })
+  await settle()
+  await settle()
+  const lines = [...document.querySelectorAll('.omne-session-reply-receipt')]
+  expect(lines.map(line => line.textContent)).toEqual(['a/model · high（会话选择）'])
+  expect(screen.queryByText('这一轮已完成')).toBeNull()
+  expect(screen.getByText('这一轮失败了')).not.toBeNull()
 })

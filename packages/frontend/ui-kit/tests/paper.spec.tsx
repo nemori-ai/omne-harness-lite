@@ -559,6 +559,19 @@ describe('a spot', () => {
     expect(spot?.querySelector('[data-corner]')).toBeNull()
   })
 
+  it('carries the data attributes its caller gives on its root, and keeps its own', () => {
+    render(
+      <Board>
+        <PaperSpot at={{ x: 120, y: 80 }} data-omne-part="some.part" data-slot="other">
+          座位
+        </PaperSpot>
+      </Board>,
+    )
+    const spot = screen.getByText('座位').closest<HTMLElement>('[data-slot="paper-spot"]')
+    expect(spot?.getAttribute('data-omne-part')).toBe('some.part')
+    expect(spot?.hasAttribute('data-paper-item')).toBe(true)
+  })
+
   it('does not pan the paper when pressed', () => {
     const onViewChange = vi.fn<(view: PaperView) => void>()
     render(

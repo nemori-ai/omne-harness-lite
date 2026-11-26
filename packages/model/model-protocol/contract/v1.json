@@ -2,17 +2,25 @@
   "digests": {
     "1": "sha256:69f341e1b9334e9b03d9767cc3e709ecdd31710149f3166354e88d6d887093eb",
     "2": "sha256:9f26498ce0add4c058e17b08425c8b2401d9d49a7a46a62fcd59b84ce0bd6226",
-    "3": "sha256:050259eaa5eff88845777912efd9dc16f07cbf1a89bffbceb2d13dfad9c876d8"
+    "3": "sha256:050259eaa5eff88845777912efd9dc16f07cbf1a89bffbceb2d13dfad9c876d8",
+    "4": "sha256:6db509c927923331b7644393f7e43fc7f0ec323fe059005ada7304e9884567fb"
   },
   "major": 1,
   "name": "model",
-  "revision": 3,
+  "revision": 4,
   "rules": {
     "observations": {},
     "operations": {
       "list-models": {
         "body": {
           "fields": {
+            "session": {
+              "optional": true,
+              "rule": {
+                "kind": "session"
+              },
+              "since": 4
+            },
             "tenant": {
               "rule": {
                 "kind": "tenant"
@@ -35,6 +43,29 @@
                 "rule": {
                   "item": {
                     "fields": {
+                      "blocks": {
+                        "optional": true,
+                        "rule": {
+                          "item": {
+                            "fields": {
+                              "block": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "message": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          "kind": "array",
+                          "max": 16
+                        },
+                        "since": 4
+                      },
                       "credential": {
                         "rule": {
                           "kind": "literal",

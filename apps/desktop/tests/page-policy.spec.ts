@@ -15,6 +15,10 @@ describe('页面策略', () => {
     expect(directives.get('img-src')).toEqual(["'self'", 'data:', 'blob:'])
   })
 
+  it('语音只放行页面自己造的 blob: 地址：按了「播放」读回原件交给播放器', () => {
+    expect(directives.get('media-src')).toEqual(['blob:'])
+  })
+
   it('别的指令没有为图片放宽：脚本、样式、连接只有应用自己，缺省什么都不许', () => {
     expect(directives.get('default-src')).toEqual(["'none'"])
     for (const name of ['script-src', 'style-src', 'connect-src', 'font-src'])
@@ -27,6 +31,7 @@ describe('页面策略', () => {
       'form-action',
       'frame-ancestors',
       'img-src',
+      'media-src',
       'script-src',
       'style-src',
     ])

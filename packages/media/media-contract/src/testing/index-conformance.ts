@@ -115,6 +115,16 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
     },
   },
   {
+    name: 'the name an upload is begun with is kept on its row; an upload without one has none',
+    async run(create) {
+      const index = await create()
+      ok(await index.insertUploading({ ...uploading('a'), name: '季度报告.pdf' }))
+      ok(await index.insertUploading(uploading('b')))
+      assert.equal(ok(await index.readUpload(T1, 'up-a')).name, '季度报告.pdf')
+      assert.equal('name' in ok(await index.readUpload(T1, 'up-b')), false)
+    },
+  },
+  {
     name: 'a key that is taken is not inserted again, and the refused insert leaves no upload behind',
     async run(create) {
       const index = await create()

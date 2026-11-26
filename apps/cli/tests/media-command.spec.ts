@@ -115,6 +115,7 @@ describe('omne media put', () => {
       upload,
       mediaType: 'image/png',
       bytes: BYTES.byteLength,
+      name: 'picture.png',
     })
     expect(upload).toMatch(/^.+$/)
     expect(rest.slice(0, 3)).toEqual(
@@ -133,6 +134,22 @@ describe('omne media put', () => {
       request: { tenant: tenantText, upload, file: join(root, 'picture.png') },
     })
     expect(run.stderr).toBe('')
+  })
+
+  it('begins again without the name when the server cannot take one, and the upload goes through', async () => {
+    let refused = false
+    const service = await serve(
+      media(seen => {
+        if (seen.operation !== 'begin-upload' || !('name' in seen.body) || refused) return undefined
+        refused = true
+        return { outcome: 'protocol-rejected', body: {} }
+      }),
+    )
+    const run = await cli(['media', 'put', '--file', picture()])
+    expect(run.code).toBe(0)
+    const begins = mediaCalls(service).filter(seen => seen.operation === 'begin-upload')
+    expect(begins.map(seen => 'name' in seen.body)).toEqual([true, false])
+    expect(printed(run).body).toEqual({ ref: REF, facts: FACTS })
   })
 
   it('goes on from the part the server says is next when the upload was begun before', async () => {
