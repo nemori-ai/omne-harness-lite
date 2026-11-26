@@ -274,6 +274,7 @@
 | [UL-goal-criterion](terms/agent-runtime-loop.md#ul-goal-criterion--目标判据--goal-criterion) | 目标判据 | Goal Criterion | 会话目标里的一条达成条件，带证据从哪来 |
 | [UL-goal-exit-path](terms/agent-runtime-loop.md#ul-goal-exit-path--目标退出路径--goal-exit-path) | 目标退出路径 | Goal Exit Path | 事先写下的一种正当的停法，写明算成功还是失败 |
 | [UL-goal-judgment](terms/agent-runtime-loop.md#ul-goal-judgment--目标判定--goal-judgment) | 目标判定 | Goal Judgment | agent 想结束一轮时按目标核一次，得出收场、接着做或暂停 |
+| [UL-goal-examination](terms/agent-runtime-loop.md#ul-goal-examination--目标查验--goal-examination) | 目标查验 | Goal Examination | 要等的判据交给独立的一方复跑或动手去验的一次，交回每条的读数 |
 | [UL-goal-progress-list](terms/agent-runtime-loop.md#ul-goal-progress-list--目标进展清单--goal-progress-list) | 目标进展清单 | Goal Progress List | agent 为目标维护的进展记录；是说法，不是证据 |
 | [UL-goal-outcome](terms/agent-runtime-loop.md#ul-goal-outcome--目标结局--goal-outcome) | 目标结局 | Goal Outcome | 目标收场时落下的唯一结论，落下之后不变 |
 
