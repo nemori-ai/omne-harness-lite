@@ -1,6 +1,7 @@
 import type {
   AcceptedInput,
   AgentOperationId,
+  ExecutionRevision,
   Failure,
   InvokeRuntimeContext,
   OriginalInputAcceptance,
@@ -37,7 +38,19 @@ function foreignOrigin(
   )
 }
 
-export const openedHandoffs = (originals: Originals, operation: AgentOperationId) =>
+type OpenedHandoff = {
+  handoff: OriginalInputAcceptance['handoff']
+  request: OriginalInputAcceptance['outcome']['request']
+  prepared: null
+  resolution: { kind: 'recorded'; outcome: OriginalInputAcceptance['outcome'] }
+  history: { kind: 'committed'; operation: AgentOperationId; revision: ExecutionRevision }
+  retirement: null
+}
+
+export const openedHandoffs = (
+  originals: Originals,
+  operation: AgentOperationId,
+): OpenedHandoff[] =>
   originals.map(acceptance => ({
     handoff: copy(acceptance.handoff),
     request: copy(acceptance.outcome.request),
