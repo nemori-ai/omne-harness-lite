@@ -6,8 +6,10 @@ import {
   FIGURE_SIZE,
   FigureSeat,
   FigureStage,
+  RedrawProvider,
   type FigureControl,
   type FigureHand,
+  type Redraw,
 } from '../src/index.ts'
 import { casual } from '../src/ink/casual.ts'
 import { inkClock } from '../src/ink/clock.ts'
@@ -537,6 +539,45 @@ describe('goHome and seatPoint, through control', () => {
     time.wait(3000)
     expect(carried().dataset['phase']).toBe('seated')
     expect(carried().style.transform).toBe(at(HOME))
+  })
+
+  it('the redraw of its body is told seated, held and flying: left where it was let go, it is held', () => {
+    const time = frameClock()
+    placeSeats()
+    seats.set('home', HOME)
+    const control = createRef<FigureControl>()
+    const told: string[] = []
+    const redraw: Redraw = (_kind, key, subject, builtIn) => {
+      if (key === 'figure') told.push((subject as { readonly phase: string }).phase)
+      return builtIn()
+    }
+    render(
+      createElement(
+        RedrawProvider,
+        { value: redraw },
+        createElement(
+          FigureStage,
+          { label: '形', liftable: true, control, onHand: () => true },
+          createElement(FigureSeat, { name: 'home' }),
+        ),
+      ),
+    )
+    const step = (phase: string, to: string): void => {
+      expect(carried().dataset['phase']).toBe(phase)
+      expect(told.at(-1)).toBe(to)
+    }
+    time.wait(700)
+    step('seated', 'seated')
+    fire('pointerdown', ...HOME, 1)
+    fire('pointermove', 260, 180, 1)
+    step('held', 'held')
+    fire('pointerup', 260, 180, 0)
+    step('dropped', 'held')
+    act(() => control.current?.goHome())
+    step('flying', 'flying')
+    time.wait(3000)
+    step('seated', 'seated')
+    expect(new Set(told)).toEqual(new Set(['seated', 'held', 'flying']))
   })
 
   it('goHome while the figure is in the hand ends the hand: it writes back and hears nothing more from that pointer', () => {

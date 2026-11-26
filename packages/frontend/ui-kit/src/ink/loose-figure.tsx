@@ -1,8 +1,11 @@
 import { useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 
 import { useReducedMotion } from '../motion/motion.ts'
+import { type DataAttributes } from '../patterns/ai/data-attributes.ts'
+import { useRedrawn } from '../redraw/redraw.ts'
 import { useSizeFactor } from '../size/use-size-factor.ts'
 import { type Doing, type FigureMoment } from './body.ts'
+import { dataApart } from './data-apart.ts'
 import { FigureReach, placeAt, useFollowing, useOnlyFigure } from './figure-stage.tsx'
 import { FigureInk } from './figure-ink.tsx'
 import { FigureJourneys } from './figure-journeys.tsx'
@@ -15,7 +18,8 @@ export interface LooseControl {
 }
 
 export type LooseFigureProps = LooseWhere &
-  LooseHands & {
+  LooseHands &
+  DataAttributes & {
     readonly doing?: Doing | undefined
     readonly moment?: FigureMoment | undefined
     readonly waiting?: number
@@ -25,15 +29,27 @@ export type LooseFigureProps = LooseWhere &
     readonly control?: React.Ref<LooseControl> | undefined
   }
 
+const PHASE = { hand: 'held', rest: 'seated', home: 'flying' } as const
+
 function Carried({
   store,
   size,
   mode,
+  doing,
+  waiting,
 }: {
   readonly store: LooseStore
   readonly size: number
-  readonly mode: LooseMode
+  readonly mode: Exclude<LooseMode, 'none'>
+  readonly doing: Doing | undefined
+  readonly waiting: number
 }): React.JSX.Element {
+  const body = useRedrawn(
+    'piece',
+    'figure',
+    { size, phase: PHASE[mode], hover: false, doing: doing ?? 'idle', waiting },
+    () => <FigureInk body={store.body} size={size} />,
+  )
   const carried = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const element = carried.current
@@ -48,7 +64,7 @@ function Carried({
       style={{ width: size, height: size }}
     >
       <FigureReach store={store} />
-      <FigureInk body={store.body} size={size} />
+      {body}
     </div>
   )
 }
@@ -86,9 +102,9 @@ export function LooseFigure(props: LooseFigureProps): React.JSX.Element | null {
 
   if (!owns || props.mode === 'none') return null
   return (
-    <div className="omne-figure-layer">
+    <div {...dataApart(props)[0]} className="omne-figure-layer">
       <FigureJourneys journeys={store.journeys} />
-      <Carried store={store} size={size} mode={props.mode} />
+      <Carried store={store} size={size} mode={props.mode} doing={doing} waiting={waiting} />
     </div>
   )
 }

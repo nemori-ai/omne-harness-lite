@@ -283,20 +283,6 @@ describe('the same figure as the one on the page (FE-I65)', () => {
     expect(moment).not.toHaveBeenCalled()
   })
 
-  it('draws its own body: another hand for the figure key is not asked', () => {
-    const time = frameClock()
-    const redraw: Redraw = (_kind, key, _subject, builtIn) =>
-      key === 'figure' ? <b data-mascot="" /> : builtIn()
-    render(
-      <RedrawProvider value={redraw}>
-        <LooseFigure mode="rest" at={at([300, 200])} />
-      </RedrawProvider>,
-    )
-    time.wait(20)
-    expect(document.querySelector('[data-mascot]')).toBeNull()
-    expect(document.querySelector('[data-figure-ink]')).not.toBeNull()
-  })
-
   it('keeps the paper breath round its ink, the same rule as on the page, so it shows on a dark window', () => {
     render(<LooseFigure mode="rest" at={at([300, 200])} />)
     expect(document.querySelector('.omne-figure-carried [data-figure-ink]')).not.toBeNull()
@@ -304,6 +290,83 @@ describe('the same figure as the one on the page (FE-I65)', () => {
     const breath = rules.find(text => text.includes('.omne-figure-carried .omne-figure-ink'))
     expect(breath).toMatch(/filter:\s*drop-shadow/)
     expect(rules.some(text => /filter:\s*none/.test(text))).toBe(false)
+  })
+})
+
+describe('its body is asked of the redraw under the figure key, as on the page (FE-I69)', () => {
+  const asking =
+    (asked: unknown[]): Redraw =>
+    (kind, key, subject, builtIn) => {
+      if (key !== 'figure') return builtIn()
+      asked.push({ kind, subject })
+      return <b data-mascot="" />
+    }
+
+  it('is drawn by the redraw, told what the page figure is told; it is still placed and takes the pointer', () => {
+    const time = frameClock()
+    const asked: unknown[] = []
+    render(
+      <RedrawProvider value={asking(asked)}>
+        <LooseFigure mode="rest" at={at([300, 200])} doing="writing" waiting={2} />
+      </RedrawProvider>,
+    )
+    time.wait(20)
+    expect(asked.at(-1)).toEqual({
+      kind: 'piece',
+      subject: { size: FIGURE_SIZE, phase: 'seated', hover: false, doing: 'writing', waiting: 2 },
+    })
+    expect(carried()?.querySelector('[data-mascot]')).not.toBeNull()
+    expect(document.querySelector('[data-figure-ink]')).toBeNull()
+    expect(carried()?.style.transform).toBe(translated([300, 200]))
+    expect(reachable()).not.toBeNull()
+  })
+
+  it('with nothing to do it is told idle', () => {
+    const time = frameClock()
+    const asked: unknown[] = []
+    render(
+      <RedrawProvider value={asking(asked)}>
+        <LooseFigure mode="rest" at={at([300, 200])} />
+      </RedrawProvider>,
+    )
+    time.wait(20)
+    expect(asked.at(-1)).toMatchObject({ subject: { doing: 'idle', waiting: 0 } })
+  })
+
+  it.each([
+    ['hand', 'held'],
+    ['rest', 'seated'],
+    ['home', 'flying'],
+  ] as const)('%s is told as the phase %s', (mode, phase) => {
+    const time = frameClock()
+    const asked: { subject: { phase: string } }[] = []
+    render(
+      <RedrawProvider value={asking(asked)}>
+        <LooseFigure mode={mode} at={at([300, 200])} />
+      </RedrawProvider>,
+    )
+    time.wait(20)
+    expect(asked.length).toBeGreaterThan(0)
+    expect(new Set(asked.map(each => each.subject.phase))).toEqual(new Set([phase]))
+  })
+
+  it('a redraw that gives back its own drawing is the same markup as no redraw', () => {
+    const html = (redraw?: Redraw): string => {
+      const time = frameClock()
+      const figure = <LooseFigure mode="rest" at={at([300, 200])} doing="thinking" />
+      const { container } = render(
+        redraw === undefined ? figure : <RedrawProvider value={redraw}>{figure}</RedrawProvider>,
+      )
+      time.wait(20)
+      const drawn = container.innerHTML
+      cleanup()
+      vi.useRealTimers()
+      return drawn
+    }
+    const own: Redraw = (_kind, _key, _subject, builtIn) => builtIn()
+    const bare = html()
+    expect(bare).toContain('data-figure-ink')
+    expect(html(own)).toBe(bare)
   })
 })
 

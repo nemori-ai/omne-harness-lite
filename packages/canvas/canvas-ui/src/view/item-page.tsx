@@ -8,6 +8,7 @@ import {
 } from '@omne-harness/ui-kit'
 import { memo, useRef, type JSX } from 'react'
 import type { KindStanding } from '../model/kinds.ts'
+import { canvasItem } from '../parts.ts'
 import { LockMark, ThingMenu, WhoSaid, type PileChoice } from './aside.tsx'
 import { Element, kindName, type CanvasHost } from './element.tsx'
 import { actOf, type KeyAct } from './keys.ts'
@@ -76,6 +77,7 @@ export const ItemPage = memo(function ItemPage(props: ItemPageProps): JSX.Elemen
     <div
       className="canvas-thing"
       data-item={item.id}
+      {...canvasItem.props}
       onPointerDownCapture={event => {
         how.current = event.shiftKey || event.metaKey ? 'toggle' : 'only'
         under.current = undefined

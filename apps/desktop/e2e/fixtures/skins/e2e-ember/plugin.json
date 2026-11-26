@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "name": "e2e-ember",
+  "summary": "An ember skin the desk-skin end-to-end test switches to.",
+  "kind": "skin",
+  "client": {
+    "members": [
+      {
+        "point": "shell.tokens",
+        "key": "shell.app",
+        "data": {
+          "--omne-accent": "#c2410c"
+        }
+      },
+      {
+        "point": "shell.part-style",
+        "key": "shell.figure.note",
+        "data": {
+          "base": {
+            "letter-spacing": "5px"
+          }
+        }
+      },
+      {
+        "point": "shell.piece",
+        "key": "figure",
+        "module": "figure.js",
+        "export": "figure"
+      }
+    ]
+  }
+}

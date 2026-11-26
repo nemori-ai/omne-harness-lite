@@ -10,7 +10,9 @@ import {
 } from '../controls/select.tsx'
 import { Textarea } from '../controls/textarea.tsx'
 import { CloseIcon, ConversationIcon } from '../icons/index.ts'
+import { type DataAttributes } from '../patterns/ai/data-attributes.ts'
 import { IconButton } from '../patterns/icon-button.tsx'
+import { dataApart } from './data-apart.ts'
 import { InkBubble, useUnfold } from './ink-bubble.tsx'
 import {
   besideSpot,
@@ -33,7 +35,7 @@ export interface SaySaid {
   readonly target: string
 }
 
-export interface SayBubbleProps {
+export interface SayBubbleProps extends DataAttributes {
   readonly note: SayNote | null
   readonly figure: Box
   readonly bounds: Box
@@ -288,6 +290,7 @@ export function SayBubble({
   words: given,
   reduced,
   ref,
+  ...rest
 }: SayBubbleProps): React.JSX.Element | null {
   const words: SayWords = { ...SAY_WORDS, ...given }
   const unfold = useUnfold(note)
@@ -311,6 +314,7 @@ export function SayBubble({
   return (
     <InkBubble
       key={unfold.serial}
+      {...dataApart(rest)[0]}
       ref={attach}
       className="omne-say-bubble"
       ink="light"

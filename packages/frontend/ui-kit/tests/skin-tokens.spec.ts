@@ -7,6 +7,7 @@ const read = (path: string): string =>
 const TOKENS = read('styles/tokens.css')
 const BASE = read('styles/base.css')
 const HIGHLIGHT = read('prose/code-highlight.ts')
+const INK = read('ink/ink.css')
 
 const DEFAULTS: Readonly<Record<string, string>> = {
   '--omne-scrollbar-thumb-rest': 'color-mix(in srgb, var(--omne-ink-faint) 27%, transparent)',
@@ -37,5 +38,34 @@ describe('the colours a theme may set on their own: the scrollbar, the selection
     for (const name of ['surface', 'ink', 'keyword', 'literal', 'comment'])
       expect(HIGHLIGHT).toContain(`var(--omne-code-${name})`)
     expect(HIGHLIGHT).not.toMatch(/var\(--omne-(info-ink|caution-ink|ink-faint|ink-primary)\)/u)
+  })
+})
+
+const EDGES: Readonly<Record<string, string>> = {
+  '--omne-ink-bubble-edge-full':
+    'light-dark( color-mix(in oklab, var(--omne-ink-primary) 46%, transparent), color-mix(in oklab, var(--omne-ink-primary) 70%, transparent) )',
+  '--omne-ink-bubble-edge-light':
+    'light-dark( color-mix(in oklab, var(--omne-ink-primary) 26%, transparent), color-mix(in oklab, var(--omne-ink-primary) 46%, transparent) )',
+}
+
+const declared = (css: string, name: string): string[] =>
+  [...css.matchAll(new RegExp(`(?:^|[;{\\s])${name}:([^;]*);`, 'gu'))].map(found =>
+    found[1]!.replace(/\s+/gu, ' ').trim(),
+  )
+
+describe('the two inks of the edge of a bubble (FE-I69)', () => {
+  it.each(Object.entries(EDGES))(
+    '%s is a token of the root, and by default it is what the edge was before it had a name',
+    (name, value) => {
+      expect(declared(TOKENS, name)).toEqual([value])
+    },
+  )
+
+  it('the edge of a bubble and of a paper reads these tokens, not the colours they default to', () => {
+    expect(declared(INK, '--omne-ink-bubble-edge')).toEqual([
+      'var(--omne-ink-bubble-edge-full)',
+      'var(--omne-ink-bubble-edge-light)',
+    ])
+    expect(INK).not.toContain('color-mix(in oklab, var(--omne-ink-primary) 46%')
   })
 })

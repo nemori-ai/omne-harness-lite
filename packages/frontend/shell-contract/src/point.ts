@@ -107,8 +107,16 @@ export type KeyDrawing<S> = Readonly<{
 
 export type KeyRender<S = never> = (given: KeyDrawing<S>) => ReactNode
 
+export type DrawingSource = Readonly<{ module: string; export: string; files?: string }>
+
 export type RenderPutter = Readonly<{
-  putDrawing: (point: string, key: string, render: KeyRender, scope?: Scope) => () => unknown
+  putDrawing: (
+    point: string,
+    key: string,
+    render: KeyRender,
+    scope?: Scope,
+    source?: DrawingSource,
+  ) => () => unknown
 }>
 
 export type RenderDrawer = Readonly<{
@@ -123,7 +131,13 @@ export type RenderDrawer = Readonly<{
 
 export type RenderPointSink<S> = Readonly<{
   name: string
-  put: (shell: RenderPutter, key: string, render: KeyRender<S>, scope?: Scope) => () => unknown
+  put: (
+    shell: RenderPutter,
+    key: string,
+    render: KeyRender<S>,
+    scope?: Scope,
+    source?: DrawingSource,
+  ) => () => unknown
 }>
 
 export type PublicKeys = Readonly<{ keys: (point: string) => readonly string[] | undefined }>
@@ -173,10 +187,25 @@ export function defineRenderPoint<S>(declaration: RenderPointDeclaration): Rende
     keysFrom,
     keys: server => keysOf(keysFrom, server),
     ...declared(drawingContract({ name, ...words })),
-    put: (shell, key, render, scope) => shell.putDrawing(name, key, render, scope),
+    put: (shell, key, render, scope, source) => shell.putDrawing(name, key, render, scope, source),
     draw: (shell, key, subject, generic, frame) =>
       shell.drawnAt(name, key, subject, generic, frame),
   }
+}
+
+export type DrawingItem = Readonly<{ render: KeyRender; source?: DrawingSource }>
+
+export type StandingDrawing = Readonly<{ item: DrawingItem; by: readonly string[] }>
+
+export function standingDrawing(
+  registry: Registry,
+  point: string,
+  key: string,
+  asker: Scope,
+): StandingDrawing | undefined {
+  const answer = ask<DrawingItem>(registry, point, key, asker)
+  if (answer.kind !== 'one') return undefined
+  return { item: answer.entry.item, by: answer.holders.map(holder => holder.fiber) }
 }
 
 /** The drawing that stands on one key of a point for one asker; none when nothing does. */
@@ -186,6 +215,5 @@ export function drawingOn(
   key: string,
   asker: Scope,
 ): KeyRender | undefined {
-  const answer = ask<Readonly<{ render: KeyRender }>>(registry, point, key, asker)
-  return answer.kind === 'one' ? answer.entry.item.render : undefined
+  return standingDrawing(registry, point, key, asker)?.item.render
 }

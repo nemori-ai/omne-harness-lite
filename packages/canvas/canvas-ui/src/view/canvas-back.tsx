@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type J
 import { CanvasDriver } from '../model/canvas-driver.ts'
 import type { CanvasPreferences } from '../model/preferences.ts'
 import { UNREADABLE_TEXT, type CanvasClient } from '../model/reading.ts'
-import { canvasView } from '../parts.ts'
+import { canvasTurn, canvasView } from '../parts.ts'
 import type { CanvasHost } from './element.tsx'
 import type { Place } from './sheet-layers.tsx'
 import { SheetView } from './sheet-view.tsx'
@@ -34,7 +34,12 @@ export function CanvasBack(props: CanvasBackProps): JSX.Element {
       ) : (
         <Canvas key={props.tenant} {...props} owner={owner} />
       )}
-      <IconButton label="翻到正面" className="canvas-turn" onClick={() => props.turn()}>
+      <IconButton
+        label="翻到正面"
+        className="canvas-turn"
+        {...canvasTurn.props}
+        onClick={() => props.turn()}
+      >
         <TurnIcon aria-hidden="true" />
       </IconButton>
     </div>

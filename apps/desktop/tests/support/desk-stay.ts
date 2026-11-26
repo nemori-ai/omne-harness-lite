@@ -2,6 +2,7 @@ import { crc32, deflateSync } from 'node:zlib'
 import { vi } from 'vitest'
 import type {
   ItemOf,
+  Projection,
   SayItem,
   SayOutcome,
   SayTarget,
@@ -10,10 +11,11 @@ import type {
   SlotName,
 } from '@omne-harness/shell-contract'
 import type { FigureHand } from '@omne-harness/ui-kit'
-import type { Down, Look, Point, Scene } from '../../src/page/desk/scene.ts'
+import type { Down, Look, LookDown, Point, Scene } from '../../src/page/desk/scene.ts'
 import { hostFigure } from '../../src/page/shell/desk/device.ts'
 import { figureLink } from '../../src/page/shell/desk/link.ts'
 import { createStay } from '../../src/page/shell/desk/stay.ts'
+import { createToldBoard, type Watched } from '../../src/page/shell/state.ts'
 
 const SCREEN = { x: 0, y: 0, width: 1440, height: 900 }
 const CONTENT = { x: 100, y: 50, width: 800, height: 600 }
@@ -188,6 +190,26 @@ export function sayPlace() {
 
 type Place = ReturnType<typeof sayPlace>
 
+/** The projection the shell's service made, stood in for: none until a case makes one. */
+function projected() {
+  let value: Projection | undefined
+  const listeners = new Set<(value: Projection | undefined) => void>()
+  const watched: Watched<Projection | undefined> = {
+    get: () => value,
+    subscribe: listener => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+  }
+  const make = (next: Projection) => {
+    value = next
+    for (const listener of Array.from(listeners)) listener(next)
+  }
+  return { watched, make }
+}
+
+export const ISSUER = 'shell-1'
+
 /** The shell's stay with the routes of /device/figure, the channel and the say slot stood in for. */
 export function harness(
   device: 'leave' | 'stay' | 'unreadable' = 'leave',
@@ -222,9 +244,9 @@ export function harness(
     return new Response(null, { status: 204 })
   }
   const listeners = new Set<(event: MessageEvent) => void>()
-  const posted: Down[] = []
+  const posted: (Down | LookDown)[] = []
   const channel = {
-    postMessage: (data: Down) => void posted.push(structuredClone(data)),
+    postMessage: (data: Down | LookDown) => void posted.push(structuredClone(data)),
     addEventListener: (_type: 'message', listener: (event: MessageEvent) => void) =>
       void listeners.add(listener),
     removeEventListener: (_type: 'message', listener: (event: MessageEvent) => void) =>
@@ -235,6 +257,11 @@ export function harness(
   let scope: string | undefined = SCOPE
   const goHome = vi.fn()
   let changed: (() => void) | undefined
+  const projection = projected()
+  const warned: string[] = []
+  const navigated: unknown[][] = []
+  const told = createToldBoard()
+  told.room(true)
   const stay = createStay({
     device: hostFigure(fetcher),
     link: figureLink(channel),
@@ -250,6 +277,15 @@ export function harness(
     clock: time.clock,
     slots: (place ?? sayPlace()).slots,
     scope: () => scope,
+    changes: {
+      projection: projection.watched,
+      outside: {
+        warn: text => void warned.push(text),
+        navigate: (...args) => void navigated.push(args),
+      },
+      told,
+    },
+    issuer: ISSUER,
   })
   const settle = async () => {
     for (let round = 0; round < 6; round += 1) await new Promise(done => setTimeout(done, 0))
@@ -292,6 +328,12 @@ export function harness(
     setSeat: (point: { x: number; y: number } | null) => void (seat = point),
     seatChanged: () => changed?.(),
     setScope: (next: string | undefined) => void (scope = next),
+    project: projection.make,
+    warned,
+    navigated,
+    told,
+    looks: () => posted.flatMap(message => (message.kind === 'look' ? [message.look] : [])),
+    kinds: () => posted.map(message => message.kind),
     close: (index: number) => streams[index]!.close(),
     fail: (index: number) => streams[index]!.error(new Error('gone')),
     leases: () => sent.filter(each => each.url === '/device/figure/lease').length,
