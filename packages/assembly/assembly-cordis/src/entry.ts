@@ -51,6 +51,8 @@ export type EntryPromoted =
 
 export type Entry<Service> = Readonly<{
   key: string
+  /** For every method the entry forwards: the answer when nothing can take the call. */
+  unavailable: Methods<Service>
   service: Methods<Service>
   plugin: Plugin.Object
   standing(): EntryStanding
@@ -181,6 +183,7 @@ export function defineEntry<Service>(shape: EntryShape<Service>): Entry<Service>
 
   return {
     key,
+    unavailable,
     service,
     plugin: {
       name: `entry:${key}`,

@@ -57,13 +57,14 @@ type Common = Readonly<{
   swap?: SwapWay
   /** For each service key the row provides, the digest of its contract. */
   contracts?: Readonly<Record<ServiceName, string>>
-  /** The entries the dependents inject: a generation provides these keys to itself and offers them to the entries. */
   entries?: readonly RowEntry[]
   isolates?: readonly ServiceName[]
+  /** What the row brings that no generation changes: loaded once beside the entries. */
+  fixed?: readonly Plugin.Object[]
 }>
 
 export type RowEntry = Pick<Entry<unknown>, 'key' | 'plugin' | 'offered' | 'promote'> &
-  Readonly<{ offer(ctx: Context, implementation: never): void }>
+  Readonly<{ unavailable: object; offer(ctx: Context, implementation: never): void }>
 
 export type RowDefinition = Common &
   (
@@ -88,6 +89,7 @@ export type RowDeclaration = Readonly<{
   swap?: SwapWay
   contracts?: Readonly<Record<ServiceName, string>>
   entries?: readonly RowEntry[]
+  fixed?: readonly Plugin.Object[]
 }>
 
 const declarations = new WeakMap<object, RowDeclaration>()
@@ -149,6 +151,21 @@ function privateTo(ctx: Context, definition: RowDefinition): Context {
   return keys.reduce((scope, key) => scope.isolate(key), ctx)
 }
 
+type Method = (...args: unknown[]) => unknown
+
+/** What a generation gives an entry: each call reads the service the generation provides to itself then, so a part that comes up late is found. */
+function providedIn(scope: Context, entry: RowEntry): never {
+  const forward = ([name, none]: [string, Method]): [string, Method] => [
+    name,
+    (...args) => {
+      const service: unknown = scope.get(entry.key, false)
+      const method = service === undefined ? none : (Reflect.get(Object(service), name) as Method)
+      return Reflect.apply(method, service, args)
+    },
+  ]
+  return Object.fromEntries(Object.entries(entry.unavailable).map(forward)) as never
+}
+
 export function defineRow(definition: RowDefinition): Plugin.Object {
   const row = rowIdOf(definition.row)
   checkNames(definition.manifest)
@@ -168,8 +185,7 @@ export function defineRow(definition: RowDefinition): Plugin.Object {
       apply: async (ctx: Context, config: unknown) => {
         const scope = privateTo(ctx, definition)
         const handle = await body(scope, config)
-        for (const entry of definition.entries ?? [])
-          entry.offer(ctx, scope.get(entry.key, false) as never)
+        for (const entry of definition.entries ?? []) entry.offer(ctx, providedIn(scope, entry))
         register(ctx, { ...handle, phase: bodyLifecycle.phase, row })
       },
     }
@@ -195,13 +211,13 @@ export function defineRow(definition: RowDefinition): Plugin.Object {
     ...(definition.swap === undefined ? {} : { swap: definition.swap }),
     ...(definition.contracts === undefined ? {} : { contracts: definition.contracts }),
     ...(definition.entries === undefined ? {} : { entries: definition.entries }),
+    ...(definition.fixed === undefined ? {} : { fixed: definition.fixed }),
   })
   return wrapper
 }
 
-/** What the loader's spec of a row takes from its declaration, the same for the release and for a test tree. */
 export function declaredParts(declaration: RowDeclaration) {
-  const { lifecycle, swap, contracts, entries } = declaration
+  const { lifecycle, swap, contracts, entries, fixed } = declaration
   return {
     manifest: declaration.manifest,
     implementation: declaration.implementation,
@@ -212,6 +228,7 @@ export function declaredParts(declaration: RowDeclaration) {
     ...(swap === undefined ? {} : { swap }),
     ...(contracts === undefined ? {} : { contracts }),
     ...(entries === undefined ? {} : { entries }),
+    ...(fixed === undefined ? {} : { fixed }),
   }
 }
 

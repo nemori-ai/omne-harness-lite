@@ -36,6 +36,7 @@ export type RowSpec = Readonly<{
   /** The row plugin the release ships for this row, as a new generation of it would apply it. */
   shipped?: Plugin.Object
   entries?: readonly RowEntry[]
+  fixed?: readonly Plugin.Object[]
 }>
 
 export type EntryObject = Readonly<{
@@ -261,10 +262,11 @@ async function loadRows(
   const { root, trust } = options
   const loaded: LoadedRow[] = []
   let stalled = false
-  for (const { row, manifest, plugin, entries } of options.rows) {
+  for (const { row, manifest, plugin, entries, fixed } of options.rows) {
     if (budget.stopped()) return { loaded, complete: false }
     const ctx = trust.contextForRow(root, row.id)
-    for (const entry of entries ?? []) ctx.plugin(entry.plugin)
+    for (const beside of [...(entries ?? []).map(entry => entry.plugin), ...(fixed ?? [])])
+      ctx.plugin(beside)
     const fiber = ctx.plugin(plugin, row.config)
     const entry: LoadedRow = {
       id: row.id,
