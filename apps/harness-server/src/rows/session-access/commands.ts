@@ -29,6 +29,8 @@ type Listed = Readonly<{
   reasons: readonly string[]
   credential: string
   enabled?: boolean
+  reasoningEfforts?: readonly string[]
+  defaultReasoningEffort?: string
 }>
 
 function choiceOf(model: Listed): ModelChoice {
@@ -39,6 +41,10 @@ function choiceOf(model: Listed): ModelChoice {
     name: model.route,
     ...(unavailable === undefined ? {} : { unavailable }),
     ...(model.credential === 'missing' ? { note: '还没有凭据' } : {}),
+    ...(model.reasoningEfforts === undefined ? {} : { reasoningEfforts: model.reasoningEfforts }),
+    ...(model.defaultReasoningEffort === undefined
+      ? {}
+      : { defaultReasoningEffort: model.defaultReasoningEffort }),
   }
 }
 
@@ -93,7 +99,11 @@ export function sessionCommandsPlugin(facts: PrincipalFacts): Plugin.Object {
         async selectedModel(asker) {
           const read = await ask(asker, SESSION, 'read-model-selection', located(asker))
           if (!('ok' in read) || read.ok.outcome !== 'succeeded') return fail('unavailable')
-          return succeed((read.ok.body as { model: string }).model)
+          const { model, reasoningEffort } = read.ok.body as {
+            model: string
+            reasoningEffort?: string
+          }
+          return succeed({ model, ...(reasoningEffort === undefined ? {} : { reasoningEffort }) })
         },
       })
       const sources = ctx.get(commandEntrySourcesKey) as CommandEntrySourcesService<unknown>

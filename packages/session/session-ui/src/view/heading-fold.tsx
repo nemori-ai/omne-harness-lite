@@ -43,7 +43,6 @@ export function useHeadingPlace(): HeadingFold['place'] {
   return useContext(HeadingFoldContext).place
 }
 
-/** The log position of the open session the page last saw; the page puts it around its heading. */
 export const HeadingRevisionContext = createContext<string | null>(null)
 
 type HeadingReader = Readonly<{ load(tenant: string, session: string): Promise<void> }>

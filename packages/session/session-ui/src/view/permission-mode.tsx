@@ -25,7 +25,7 @@ const OPTIONS = MODES.map(mode => ({ value: mode, label: MODE_LABELS[mode] }))
 
 /** How the session handles permissions: a quiet dropdown in the heading whose face is the mode in force. */
 export function PermissionModeAction({ store, tenant, session }: Props) {
-  const inBar = useHeadingRead(store, tenant, session)
+  useHeadingRead(store, tenant, session)
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, session, listener),
     [store, tenant, session],
