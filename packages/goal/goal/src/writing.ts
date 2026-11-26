@@ -1,11 +1,11 @@
 import {
   batchRequest,
+  briefFor,
   delivered,
   evidence,
   isImpliedKey,
   openGap,
   renderBody,
-  renderBrief,
   sessionOfKey,
   type Batch,
   type GoalCaller,
@@ -15,13 +15,22 @@ import {
 } from '@omne-harness/goal-contract'
 import type { Decided } from './decide.ts'
 import type { GoalsDependencies } from './goals.ts'
-import { ask, type GoalAction } from './ports.ts'
+import { ask, type BatchToHand, type GoalAction } from './ports.ts'
 
 export type Answer<T> = Outcome<T, GoalRefusal>
 export const UNAVAILABLE = { kind: 'basis-unavailable' } as const
 export const UNKNOWN = { kind: 'unknown' } as const
 export const refused = (reason: GoalRefusal) => ({ kind: 'refused', reason }) as const
 export const done = <T>(value: T, recalled = false) => ({ kind: 'done', value, recalled }) as const
+function toHand(record: GoalRecord, batch: Batch, brief: string): BatchToHand {
+  const criteria = record.body.criteria
+    .filter(entry => batch.criteria.includes(entry.id))
+    .map(({ id, evidence: by }) => ({ id, evidence: by }))
+  const request = batchRequest(record.state.generation, batch.key)
+  const { examiner } = record.examination
+  return { session: sessionOfKey(record.session), request, examiner, brief, criteria }
+}
+
 /** A decision made on a version somebody else wrote over is made again, this many times at most. */
 const ATTEMPTS = 3
 
@@ -64,49 +73,30 @@ export function createWriting(deps: GoalsDependencies) {
       sessions.facts(tenant, session),
       deps.history.calls(tenant, session, record.since),
     ])
-    if (facts.kind === 'unavailable' || made.kind === 'unavailable') return null
-    const last = record.examination.submitted?.key.written ?? ''
-    const after = made.value.slice(made.value.findIndex(call => call.ref === last) + 1)
-    const changed = [
-      ...new Set(after.flatMap(call => (call.writes && call.path ? [call.path] : []))),
-    ]
-    const { generation } = record.state
-    return renderBrief(record.body, batch, {
-      generation,
-      where: facts.value?.where ?? null,
-      changed,
-    })
+    if (facts.kind !== 'read' || made.kind !== 'read') return null
+    return briefFor(record, batch, { where: facts.value?.where ?? null, calls: made.value })
+  }
+
+  async function untaken(tenant: string, record: GoalRecord, { key }: Batch): Promise<void> {
+    const step = evidence(record, { key, written: key.written, running: false, answers: null })
+    if (step.kind === 'next') await commit(tenant, record.version, step.record)
   }
 
   async function hand(tenant: string, record: GoalRecord): Promise<void> {
     const { batch, examiner } = record.examination
-    if (batch === null || batch.delivery === 'handed' || record.state.status === 'settled') return
+    if (batch === null || batch.delivery === 'handed') return
     const brief = await briefOf(tenant, record, batch)
     if (brief === null) return deps.hints.wake(tenant)
-    const criteria = record.body.criteria
-      .filter(entry => batch.criteria.includes(entry.id))
-      .map(({ id, evidence }) => ({ id, evidence }))
-    const request = batchRequest(record.state.generation, batch.key)
-    const session = sessionOfKey(record.session)
     const unknown = () => ({ kind: 'unknown' }) as const
     const answer = await Promise.resolve()
-      .then(() => deps.examining.hand(tenant, { session, request, examiner, brief, criteria }))
+      .then(() => deps.examining.hand(tenant, toHand(record, batch, brief)))
       .catch(unknown)
-    const write = (next: GoalRecord) =>
-      store.commit(tenant, { session: record.session, expected: record.version, next })
-    if (answer.kind === 'refused') {
-      const { key } = batch
-      const step = evidence(record, { key, written: key.written, running: false, answers: null })
-      if (step.kind !== 'next') return
-      const written = await write(step.record)
-      if (written.kind === 'committed' && written.value.kind === 'written')
-        await deliver(tenant, written.value.record)
-      return
-    }
-    const taken = delivered(record.examination, batch.key, answer.kind)
+    if (answer.kind === 'refused') return untaken(tenant, record, batch)
     if (answer.kind === 'unknown') deps.hints.wake(tenant)
+    const taken = delivered(record.examination, batch.key, answer.kind)
     const to = answer.kind === 'handed' ? answer.examiner : examiner
-    await write({ ...record, examination: { ...taken, examiner: to } })
+    const next = { ...record, examination: { ...taken, examiner: to } }
+    await store.commit(tenant, { session: record.session, expected: record.version, next })
   }
 
   function told(tenant: string, key: string): void {

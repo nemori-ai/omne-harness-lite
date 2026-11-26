@@ -45,8 +45,11 @@ const one = (criterion: string, change: Partial<Submitted> = {}) => ({
 const BOTH = [one('A1'), one('A2')]
 
 /** A goal whose two criteria that wait were handed over as one batch: the round ended and no round is going. */
-async function handedOver(how: (w: ReturnType<typeof world>) => void = () => undefined) {
-  const w = world()
+async function handedOver(
+  how: (w: ReturnType<typeof world>) => void = () => undefined,
+  wrap: Parameters<typeof world>[0] = store => store,
+) {
+  const w = world(wrap)
   const proposal = { kind: 'set', draft: SNAKE } as const
   value(await w.goals.write(OWNER, w.direct({ proposal })))
   w.history.made(write(1))
@@ -91,6 +94,29 @@ describe('a batch handed over to the examining side', () => {
     ])
     expect(batch?.brief).toContain('Where the work is: /work/snake')
     expect(batch?.brief).toContain('Written since the last batch: README.md')
+    expect(w.hinted).toEqual([])
+    await w.goals.reconcile(TENANT)
+    await w.goals.reconcile(TENANT)
+    value(await w.goals.track(AGENT, { session: SESSION, patch: { notes: ['在等查验'] } }))
+    expect(w.examining.asked).toEqual([BATCH])
+  })
+
+  it('is not handed over while what its brief needs cannot be read: it stays owed and is tried again', async () => {
+    const w = await handedOver(world => world.examining.handNext('unknown'))
+    expect(w.record().examination.examiner).toBeNull()
+    w.sessions.readable(false)
+    await w.goals.reconcile(TENANT)
+    expect(w.record().examination.batch?.delivery).toBe('unknown')
+    expect(w.examining.asked).toEqual([BATCH])
+    expect(w.hinted).toEqual([TENANT, TENANT])
+    w.sessions.readable(true)
+    w.history.readable(false)
+    await w.goals.reconcile(TENANT)
+    expect(w.examining.asked).toEqual([BATCH])
+    w.history.readable(true)
+    await w.goals.reconcile(TENANT)
+    expect(w.examining.asked).toEqual([BATCH, BATCH])
+    expect(w.record().examination.batch?.delivery).toBe('handed')
   })
 
   it('whose handing over is not known stays owed and is handed again as the same batch; the examining side takes it once', async () => {
@@ -188,8 +214,17 @@ describe('the readings of a batch handed in with submit', () => {
     expect(await w.submit([...BOTH, one('A3')])).toMatchObject({
       reason: { kind: 'invalid', issues: [{ entry: 'A3' }] },
     })
-    expect(await w.submit('not readings')).toMatchObject({ reason: { kind: 'invalid' } })
-    expect(await w.submit(BOTH, 'no-batch')).toMatchObject({ reason: { kind: 'invalid' } })
+    const unreadable = {
+      kind: 'refused',
+      reason: {
+        kind: 'invalid',
+        issues: [
+          { entry: null, field: 'submission', problem: expect.stringContaining('readings') },
+        ],
+      },
+    }
+    expect(await w.submit('not readings')).toEqual(unreadable)
+    expect(await w.submit(BOTH, 'no-batch')).toEqual(unreadable)
     expect(w.record()).toEqual(before)
   })
 
@@ -231,7 +266,51 @@ describe('the readings of a batch handed in with submit', () => {
     w.examining.readable(true)
     w.history.readable(false)
     expect(await w.submit()).toEqual({ kind: 'basis-unavailable' })
+    w.history.readable(true)
+    w.sessions.readable(false)
+    expect(await w.submit()).toEqual({ kind: 'basis-unavailable' })
+    w.sessions.readable(true)
+    w.store.readable(false)
+    expect(await w.submit()).toEqual({ kind: 'basis-unavailable' })
+    w.store.readable(true)
     expect(w.record().examination.batch).not.toBeNull()
+    expect(w.record().examination.submitted).toBeNull()
+  })
+
+  it('is refused when the goal no longer has this session examine for it by the time the readings are written', async () => {
+    const swapped = { on: false }
+    const w = await handedOver(undefined, store => ({
+      ...store,
+      commit: (tenant, command) => store.commit(tenant, command),
+      owing: tenant => store.owing(tenant),
+      examinedBy: (tenant, examiner) => store.examinedBy(tenant, examiner),
+      async latest(tenant, session) {
+        const read = await store.latest(tenant, session)
+        if (!swapped.on || read.kind !== 'read' || read.value === null) return read
+        const examination = { ...read.value.examination, examiner: 'another-examiner' }
+        return { kind: 'read', value: { ...read.value, examination } }
+      },
+    }))
+    swapped.on = true
+    expect(await w.submit()).toEqual({ kind: 'refused', reason: { kind: 'denied' } })
+    swapped.on = false
+    expect(w.record().examination.read).toEqual({})
+  })
+
+  it('has no basis when the port that knows the calls of the examination throws', async () => {
+    const w = await handedOver()
+    Object.assign(w.examining, { cited: () => Promise.reject(new Error('down')) })
+    expect(await w.submit()).toEqual({ kind: 'basis-unavailable' })
+  })
+
+  it('keeps the identity of the batch and a digest of what was handed in, so a repeat is known', async () => {
+    const w = await handedOver()
+    w.sessions.run(SESSION, true)
+    value(await w.submit())
+    expect(w.record().examination.submitted).toEqual({
+      key: { revision: 1, written: 'call-1' },
+      digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
+    })
   })
 })
 
@@ -241,11 +320,25 @@ describe('who may ask what of a goal that is examined', () => {
     const brief = value(await w.goals.brief(AGENT, { examiner: EXAMINER }))
     expect(brief).toContain(`Batch: ${BATCH}`)
     expect(brief).toContain('- [A2] 方向键能控制蛇')
+    const DENIED = { kind: 'refused', reason: { kind: 'denied' } }
     for (const other of [SESSION, 'another-session'])
-      expect(await w.goals.brief(AGENT, { examiner: other })).toEqual({
-        kind: 'refused',
-        reason: { kind: 'denied' },
-      })
+      expect(await w.goals.brief(AGENT, { examiner: other })).toEqual(DENIED)
+    w.authority.answer(action => (action === 'brief' ? 'denied' : 'permitted'))
+    expect(await w.goals.brief(AGENT, { examiner: EXAMINER })).toEqual(DENIED)
+    expect(w.authority.asked.at(-1)).toMatchObject({ session: EXAMINER, action: 'brief' })
+  })
+
+  it('the brief has no basis while the goal, its session or its history cannot be read; with no batch out there is none to read', async () => {
+    const w = await handedOver()
+    const read = () => w.goals.brief(AGENT, { examiner: EXAMINER })
+    for (const port of [w.store, w.sessions, w.history]) {
+      port.readable(false)
+      expect(await read()).toEqual({ kind: 'basis-unavailable' })
+      port.readable(true)
+    }
+    w.sessions.run(SESSION, true)
+    value(await w.submit())
+    expect(await read()).toEqual({ kind: 'refused', reason: { kind: 'denied' } })
   })
 
   it('the examining session is refused what the working agent does: propose and track', async () => {

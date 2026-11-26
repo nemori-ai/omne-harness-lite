@@ -9,6 +9,7 @@ import {
   type Handed,
 } from './awaited.ts'
 import { CriterionIdSchema, type CriterionId, type GoalBody } from './body.ts'
+import type { ObservedCall } from './judge/material.ts'
 import { evidence, type EvidenceStep } from './observe.ts'
 import type { GoalRecord } from './record.ts'
 import { entryTexts } from './render.ts'
@@ -82,6 +83,21 @@ export function submissionText(readings: readonly Submitted[]): string {
   return JSON.stringify(
     sorted.map(({ criterion, value, refs, note }) => [criterion, value, refs, note]),
   )
+}
+
+export function writtenSince(calls: readonly ObservedCall[], last: string): readonly string[] {
+  const after = calls.slice(calls.findIndex(call => call.ref === last) + 1)
+  return [...new Set(after.flatMap(call => (call.writes && call.path !== null ? [call.path] : [])))]
+}
+
+export function briefFor(
+  record: GoalRecord,
+  batch: Batch,
+  seen: Readonly<{ where: string | null; calls: readonly ObservedCall[] }>,
+): string {
+  const changed = writtenSince(seen.calls, record.examination.submitted?.key.written ?? '')
+  const { generation } = record.state
+  return renderBrief(record.body, batch, { generation, where: seen.where, changed })
 }
 
 export type BriefFacts = Readonly<{

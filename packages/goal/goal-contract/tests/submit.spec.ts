@@ -3,6 +3,7 @@ import {
   awaitedReading,
   batchOfRequest,
   batchRequest,
+  briefFor,
   delivered,
   GoalRecordSchema,
   NO_PROGRESS,
@@ -17,10 +18,12 @@ import {
   submit,
   UNCITED,
   validateDraft,
+  writtenSince,
   type Batch,
   type BatchKey,
   type CriterionId,
   type GoalRecord,
+  type ObservedCall,
   type Submitted,
 } from '@omne-harness/goal-contract'
 
@@ -80,8 +83,19 @@ describe('what the examining side hands in', () => {
     const slashed: BatchKey = { revision: 1, written: 'call/9/x' }
     expect(batchOfRequest(batchRequest(1, slashed))).toEqual({ generation: 1, key: slashed })
     expect(batchOfRequest(batchRequest(1, { revision: 1, written: '' }))?.key.written).toBe('')
-    for (const odd of ['', 'examine/1', 'continue/1/2/3', 'examine/0/2/x', 'examine/1/x/y'])
-      expect(batchOfRequest(odd)).toBeNull()
+    expect(batchOfRequest('examine/12/30/call-9')).toEqual({
+      generation: 12,
+      key: { revision: 30, written: 'call-9' },
+    })
+    const ODD = [
+      '',
+      'examine/1',
+      'continue/1/2/3',
+      'examine/0/2/x',
+      'examine/1/x/y',
+      'xexamine/1/2/y',
+    ]
+    for (const odd of ODD) expect(batchOfRequest(odd)).toBeNull()
   })
 
   it.each([
@@ -108,6 +122,7 @@ describe('what the examining side hands in', () => {
       A1: { value: 'holds', note: '脚本退出码 0', refs: ['x-1', 'x-2'] },
       A2: { value: 'cannot-tell', note: UNCITED, refs: [] },
     })
+    expect(UNCITED).toBe('it cites a call that is not of this examination')
     expect(handedOf([one(A1, { refs: [] })], [])).toEqual({
       A1: { value: 'holds', note: '脚本退出码 0', refs: [] },
     })
@@ -176,8 +191,48 @@ describe('the brief of a batch', () => {
     const bare = { generation: 1, where: null, changed: [] }
     const again = renderBrief(body, BATCH, bare)
     expect(renderBrief(body, BATCH, bare)).toBe(again)
-    expect(again).not.toContain('Where the work is')
-    expect(again).toContain('Written since the last batch: nothing')
+    expect(again).toBe(
+      [
+        'Batch: examine/1/2/call-9',
+        'Examine each of these criteria yourself and hand in one reading for each with Goal submit, naming this batch.',
+        '- [A1] 验收脚本通过\n  - 证据: 复跑 `node accept.js`\n- [A2] 方向键能控制蛇\n  - 证据: 查验\n  - 查法: 用 node 载入 snake.js，喂四个方向键，看蛇头的位置',
+        'Written since the last batch: nothing',
+      ].join('\n\n'),
+    )
+  })
+})
+
+describe('what was written since the batch before', () => {
+  const call = (ref: string, path: string | null, writes = true): ObservedCall => ({
+    ref,
+    order: 0,
+    tool: writes ? 'Files write' : 'Files read',
+    command: null,
+    path,
+    exit: null,
+    output: '',
+    writes,
+  })
+  const CALLS = [
+    call('c1', 'snake.js'),
+    call('c2', 'README.md'),
+    call('c3', 'snake.js', false),
+    call('c4', 'snake.js'),
+    call('c5', null),
+    call('c6', 'accept.js'),
+    call('c7', 'snake.js'),
+  ]
+
+  it('is each path written after that call, once, in the order of the first write; a read and a write of no path are left out', () => {
+    expect(writtenSince(CALLS, 'c2')).toEqual(['snake.js', 'accept.js'])
+    expect(writtenSince(CALLS, 'c6')).toEqual(['snake.js'])
+    expect(writtenSince(CALLS, 'c7')).toEqual([])
+  })
+
+  it('is everything written when there was no batch before, or its call is not among these', () => {
+    expect(writtenSince(CALLS, '')).toEqual(['snake.js', 'README.md', 'accept.js'])
+    expect(writtenSince(CALLS, 'gone')).toEqual(['snake.js', 'README.md', 'accept.js'])
+    expect(writtenSince([], '')).toEqual([])
   })
 })
 
@@ -290,6 +345,41 @@ describe('readings handed in to a goal', () => {
     })
     const extra = hand(recordOf(), { readings: [...BOTH, one(A3)] })
     expect(extra).toMatchObject({ kind: 'refused', issues: [{ entry: 'A3' }] })
+  })
+
+  it('the brief of the batch out names the goal it is of and what was written since the batch handed in before', () => {
+    const calls = [
+      {
+        ref: 'call-9',
+        order: 1,
+        tool: 'Files write',
+        command: null,
+        path: 'a.js',
+        exit: null,
+        output: '',
+        writes: true,
+      },
+      {
+        ref: 'call-12',
+        order: 2,
+        tool: 'Files write',
+        command: null,
+        path: 'b.js',
+        exit: null,
+        output: '',
+        writes: true,
+      },
+    ]
+    const first = briefFor(recordOf(), OUT.batch!, { where: null, calls })
+    expect(first).toContain('Batch: examine/1/2/call-9')
+    expect(first).toContain('Written since the last batch: a.js, b.js')
+    const before = { ...OUT, submitted: { key: NOW, digest: 'sha256:aa' } }
+    const second = briefFor(recordOf({ examination: before }), OUT.batch!, {
+      where: '/work',
+      calls,
+    })
+    expect(second).toContain('Written since the last batch: b.js')
+    expect(second).toContain('Where the work is: /work')
   })
 
   it('never names a state: what it takes is readings, and what it answers is whether they were taken', () => {

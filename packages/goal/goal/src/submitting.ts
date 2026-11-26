@@ -5,7 +5,13 @@ import {
   SubmissionSchema,
   submissionText,
   submit,
+  type GoalCaller,
+  type GoalRecord,
+  type GoalRefusal,
   type Goals,
+  type Outcome,
+  type SubmitStep,
+  type Submitted,
   type Taken,
 } from '@omne-harness/goal-contract'
 import type { GoalsDependencies } from './goals.ts'
@@ -25,6 +31,25 @@ const ask = <T>(read: () => Promise<PortRead<T>>): Promise<PortRead<T>> =>
     .catch(() => ({ kind: 'unavailable' }) as const)
 
 type Writing = Pick<ReturnType<typeof createWriting>, 'permitted' | 'settle' | 'briefOf'>
+type Refused = Exclude<Outcome<never, GoalRefusal>, { kind: 'done' }>
+type Named = NonNullable<ReturnType<typeof batchOfRequest>>
+type HandedIn = Named & Readonly<{ batch: string; readings: readonly Submitted[] }>
+const DENIED = refused({ kind: 'denied' })
+
+/** What was handed in, when it has the shape of a submission and names a batch. */
+function handedIn(submission: unknown): HandedIn | null {
+  const parsed = SubmissionSchema.safeParse(submission)
+  const named = parsed.success ? batchOfRequest(parsed.data.batch) : null
+  return parsed.success && named !== null ? { ...named, ...parsed.data } : null
+}
+
+function decided(step: SubmitStep, current: GoalRecord) {
+  if (step.kind === 'kept') return { kind: 'unchanged', record: current } as const
+  if (step.kind === 'next') return { kind: 'next', record: step.record } as const
+  return refused(
+    step.reason === 'differs' ? { kind: 'differs' } : { kind: 'invalid', issues: step.issues },
+  )
+}
 
 /** What the session that examines for a goal asks of it: the brief of the batch that is out, and to hand in its readings. The goal is found by that session; no other session reaches it this way. */
 export function createSubmitting(
@@ -32,69 +57,57 @@ export function createSubmitting(
   { permitted, settle, briefOf }: Writing,
 ): Pick<Goals, 'brief' | 'submit'> {
   const { store } = deps
+
+  /** What a submission is judged on besides the goal: which cited calls are of the examination, where the last write stands, whether a round is going, and the digest of what was handed in. Null: one of them cannot be read. */
+  async function seenFor(tenant: string, examiner: string, found: GoalRecord, handed: HandedIn) {
+    const session = sessionOfKey(found.session)
+    const refs = handed.readings.flatMap(reading => reading.refs)
+    const [real, made, running] = await Promise.all([
+      ask(() => deps.examining.cited(tenant, examiner, handed.batch, refs)),
+      ask(() => deps.history.calls(tenant, session, found.since)),
+      ask(() => deps.sessions.running(tenant, session)),
+    ])
+    if (real.kind !== 'read' || made.kind !== 'read' || running.kind !== 'read') return null
+    const text = submissionText(handed.readings)
+    const digest = `sha256:${createHash('sha256').update(text).digest('hex')}`
+    return { digest, real: real.value, written: lastWrite(made.value), running: running.value }
+  }
+
+  /** The goal this session examines for, once the authority let the call through; or the answer that ends the call. */
+  async function examinedFor(caller: GoalCaller, examiner: string, action: 'brief' | 'submit') {
+    const stop = await permitted(caller, examiner, action)
+    if (stop !== null) return stop
+    const found = await store.examinedBy(caller.tenant, examiner)
+    if (found.kind === 'unavailable') return UNAVAILABLE
+    return found.value ?? DENIED
+  }
+
   return {
     async brief(caller, { examiner }) {
-      const stop = await permitted(caller, examiner, 'brief')
-      if (stop !== null) return stop
-      const found = await store.examinedBy(caller.tenant, examiner)
-      if (found.kind === 'unavailable') return UNAVAILABLE
-      const batch = found.value?.examination.batch ?? null
-      if (found.value === null || batch === null) return refused({ kind: 'denied' })
-      const brief = await briefOf(caller.tenant, found.value, batch)
+      const found = await examinedFor(caller, examiner, 'brief')
+      if ('kind' in found) return found
+      const { batch } = found.examination
+      if (batch === null) return DENIED
+      const brief = await briefOf(caller.tenant, found, batch)
       return brief === null ? UNAVAILABLE : done(brief)
     },
 
     async submit(caller, { examiner, submission }) {
-      const stop = await permitted(caller, examiner, 'submit')
-      if (stop !== null) return stop
-      const parsed = SubmissionSchema.safeParse(submission)
-      const named = parsed.success ? batchOfRequest(parsed.data.batch) : null
-      if (!parsed.success || named === null)
-        return refused({ kind: 'invalid', issues: [UNREADABLE] })
-      const { tenant } = caller
-      const found = await store.examinedBy(tenant, examiner)
-      if (found.kind === 'unavailable') return UNAVAILABLE
-      if (found.value === null) return refused({ kind: 'denied' })
-      const { readings, batch } = parsed.data
-      const session = sessionOfKey(found.value.session)
-      const [real, made, running] = await Promise.all([
-        ask(() =>
-          deps.examining.cited(
-            tenant,
-            examiner,
-            batch,
-            readings.flatMap(r => r.refs),
-          ),
-        ),
-        ask(() => deps.history.calls(tenant, session, found.value?.since ?? '')),
-        ask(() => deps.sessions.running(tenant, session)),
-      ])
-      if (real.kind !== 'read' || made.kind !== 'read' || running.kind !== 'read')
-        return UNAVAILABLE
-      const digest = `sha256:${createHash('sha256').update(submissionText(readings)).digest('hex')}`
-      const facts = {
-        digest,
-        real: real.value,
-        written: lastWrite(made.value),
-        running: running.value,
-      }
-      let taken: Taken['taken'] = 'stale'
-      const settled = await settle(tenant, found.value.session, async current => {
-        if (current === null || current.examination.examiner !== examiner)
-          return refused({ kind: 'denied' })
-        const step = submit(current, { ...named, readings, ...facts })
-        if (step.kind === 'refused')
-          return refused(
-            step.reason === 'differs'
-              ? { kind: 'differs' }
-              : { kind: 'invalid', issues: step.issues },
-          )
-        taken = step.taken
-        return step.kind === 'kept'
-          ? { kind: 'unchanged', record: current }
-          : { kind: 'next', record: step.record }
+      const found = await examinedFor(caller, examiner, 'submit')
+      if ('kind' in found) return found
+      const handed = handedIn(submission)
+      if (handed === null) return refused({ kind: 'invalid', issues: [UNREADABLE] })
+      const seen = await seenFor(caller.tenant, examiner, found, handed)
+      if (seen === null) return UNAVAILABLE
+      const out: Taken[] = []
+      const settled = await settle(caller.tenant, found.session, async current => {
+        if (current?.examination.examiner !== examiner) return DENIED
+        const step = submit(current, { ...handed, ...seen })
+        if (step.kind !== 'refused') out.push({ taken: step.taken })
+        return decided(step, current)
       })
-      return settled.kind === 'done' ? done({ taken }) : settled
+      const taken = out.at(-1)
+      return settled.kind === 'done' && taken !== undefined ? done(taken) : (settled as Refused)
     },
   }
 }

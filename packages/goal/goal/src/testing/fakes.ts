@@ -109,19 +109,23 @@ export type FakeExamining = GoalExamining &
     made(examiner: string, request: string, refs: readonly string[]): void
     readable(on: boolean): void
     handed: BatchToHand[]
+    asked: string[]
   }>
 
 export function fakeExamining(): FakeExamining {
   const handed: BatchToHand[] = []
+  const asked: string[] = []
   const rounds = new Map<string, readonly string[]>()
   let next: HandAnswer['kind'] = 'handed'
   let canRead = true
   return {
     handed,
+    asked,
     handNext: answer => void (next = answer),
     made: (examiner, request, refs) => void rounds.set(`${examiner}|${request}`, refs),
     readable: on => void (canRead = on),
     async hand(_tenant, batch) {
+      asked.push(batch.request)
       const answer = next
       next = 'handed'
       if (answer === 'refused') return { kind: 'refused' }
