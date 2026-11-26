@@ -56,7 +56,7 @@ export function createServerSide(ports: ServerSidePorts): ServerSide {
     const latest = new Map<string, Wanted>()
     const known = new Set(risen.want)
     const loader = createLoader({
-      held: risen.held ? heldOf(risen.want) : new Map(),
+      held: heldOf([...(risen.held ? risen.want : []), ...(risen.stopped ?? [])]),
       install(listed) {
         const wanted = latest.get(listed.name)
         if (wanted === undefined || wanted.version !== listed.version)

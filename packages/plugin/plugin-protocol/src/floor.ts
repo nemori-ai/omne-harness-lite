@@ -2,8 +2,10 @@ import type { Kept } from './loader.ts'
 
 /** The floor of the application: what it remembers across its runs of what was being loaded, and whether it holds that back. */
 export type FloorPort = Readonly<{
-  /** Called when loading for a tenant starts: what the last run wanted, and whether the floor holds it back now. */
-  rise(tenant: string): Readonly<{ want: readonly string[]; held: boolean }>
+  /** Called when loading for a tenant starts: what the last run wanted, whether the floor holds all of it back now, and which of it the floor stopped one by one. */
+  rise(
+    tenant: string,
+  ): Readonly<{ want: readonly string[]; held: boolean; stopped?: readonly string[] }>
   /** Called before each load: from here until `settle`, a run that ends went down while it loaded. */
   want(tenant: string, fiber: string): void
   unwant(tenant: string, fiber: string): void

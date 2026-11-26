@@ -73,6 +73,7 @@ export type FloorPort = Readonly<{
     rise(tenant: string): Readonly<{
         want: readonly string[];
         held: boolean;
+        stopped?: readonly string[];
     }>;
     want(tenant: string, fiber: string): void;
     unwant(tenant: string, fiber: string): void;

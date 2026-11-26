@@ -172,3 +172,72 @@ describe('the floor under the loading of the server', () => {
     }
   })
 })
+
+describe('a fall of the server traced to one plugin while it was running', () => {
+  const BOMB = fiberOf('bomb', 'v1')
+  /** A run in which both were loaded and settled, and then the server went down in a call of `fiber`. */
+  function fellIn(directory: string, fiber: string) {
+    const { floor, settled } = run(directory)
+    floor.fell('alice', fiber)
+    const risen = floor.rise('alice')
+    for (const each of [TIDY, BOMB])
+      if (!(risen.stopped ?? []).includes(each)) floor.want('alice', each)
+    floor.settle('alice')
+    settled()
+    return risen
+  }
+  const quiet = (directory: string) => {
+    const { floor, settled } = run(directory)
+    const risen = floor.rise('alice')
+    floor.want('alice', TIDY)
+    floor.want('alice', BOMB)
+    floor.settle('alice')
+    settled()
+    return risen
+  }
+
+  it(`stops that one, and only that one, after ${FLOOR_LIMIT} falls traced to it, though every run settled in between`, () => {
+    const directory = fresh()
+    quiet(directory)
+    expect(fellIn(directory, BOMB)).toEqual({ want: [BOMB, TIDY], held: false })
+    const third = run(directory)
+    third.floor.fell('alice', BOMB)
+    expect(third.floor.rise('alice')).toEqual({ want: [BOMB, TIDY], held: false, stopped: [BOMB] })
+    expect(third.warned).toEqual([
+      `tenant alice: the server went down ${FLOOR_LIMIT} times in calls of ${BOMB}; it does not load it until there is a new version, or until it is disabled and enabled again`,
+    ])
+    // It stays stopped over the runs that follow.
+    expect(run(directory).floor.rise('alice').stopped).toEqual([BOMB])
+  })
+
+  it('lets it go when the tenant no longer wants that version', () => {
+    const directory = fresh()
+    quiet(directory)
+    fellIn(directory, BOMB)
+    const third = run(directory)
+    third.floor.fell('alice', BOMB)
+    third.floor.rise('alice')
+    third.floor.unwant('alice', BOMB)
+    expect(run(directory).floor.rise('alice').stopped).toBeUndefined()
+  })
+
+  it('counts each plugin and each tenant on its own', () => {
+    const directory = fresh()
+    quiet(directory)
+    fellIn(directory, BOMB)
+    fellIn(directory, TIDY)
+    const { floor } = run(directory)
+    floor.fell('bob', BOMB)
+    expect(floor.rise('alice').stopped).toBeUndefined()
+    expect(floor.rise('bob').stopped).toBeUndefined()
+  })
+
+  it('a fall traced to one is not a fall while loading: it does not hold the others back', () => {
+    const directory = fresh()
+    quiet(directory)
+    fellIn(directory, BOMB)
+    const third = run(directory)
+    third.floor.fell('alice', BOMB)
+    expect(third.floor.rise('alice').held).toBe(false)
+  })
+})

@@ -23,7 +23,11 @@ export type ServerPoint =
   | Readonly<{ kind: 'takes'; takes: 'data' | 'code'; when: 'running' | 'build' }>
   | Readonly<{ kind: 'category'; place(directory: string): unknown }>
 
-export type GuestContext = Readonly<{ key: string; bind: (principal: unknown) => Bound }>
+export type GuestContext = Readonly<{
+  key: string
+  bind: (principal: unknown) => Bound
+  within?: <T>(run: () => T) => T
+}>
 
 /** What the owner of a point makes of what the code of a plugin gave: the item the point holds. It throws on what it cannot take. */
 export type GuestForm = (made: unknown, context: GuestContext) => unknown
@@ -42,6 +46,7 @@ export type ServerInstallPorts = Readonly<{
   /** Puts the entries as this plugin; the answer takes them back. It rejects when the registry refuses them. */
   put(entries: readonly ServerEntry[]): Promise<() => unknown>
   lockedBy?(point: string, key: string): string | undefined
+  within?<T>(run: () => T): T
 }>
 
 const reasonOf = (error: unknown): string =>
@@ -90,7 +95,9 @@ async function madeBy(
   bind: GuestContext['bind'],
 ): Promise<unknown> {
   const { member, file, form } = pending
-  const loaded = await ports.load(file).catch((error: unknown) => {
+  const within = ports.within === undefined ? undefined : ports.within.bind(ports)
+  const traced = <T>(run: () => T): T => (within === undefined ? run() : within(run))
+  const loaded = await traced(() => ports.load(file)).catch((error: unknown) => {
     throw new Error(`${file.path} could not be loaded: ${reasonOf(error)}`)
   })
   const made = (loaded as Readonly<Record<string, unknown>> | null)?.[member.export]
@@ -98,12 +105,12 @@ async function madeBy(
     throw new Error(`${file.path} exports no function named ${member.export}`)
   let given: unknown
   try {
-    given = (made as (host: typeof HOST) => unknown)(HOST)
+    given = traced(() => (made as (host: typeof HOST) => unknown)(HOST))
   } catch (error) {
     throw new Error(`${member.export} threw: ${reasonOf(error)}`)
   }
   try {
-    return form(given, { key: member.key, bind })
+    return form(given, { key: member.key, bind, ...(within !== undefined && { within }) })
   } catch (error) {
     throw new Error(`the point refused what ${member.export} made: ${reasonOf(error)}`)
   }

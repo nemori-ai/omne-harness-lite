@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import { attributed } from '@omne-harness/assembly-cordis'
 import { scopeOfLayer, type HeldItem } from '@omne-harness/assets'
 import { assetCategoriesKey, assetChangesKey } from '@omne-harness/assets-cordis-contract'
 import type { AssetChanges } from '@omne-harness/assets-cordis-contract/cordis'
@@ -32,6 +33,7 @@ import {
 import type { TenantDomains } from '@omne-harness/sql-contract'
 import { tenantDomainsKey } from '@omne-harness/sql-contract/cordis'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
+import { LAST_FALL_KEY, type Fall } from '../../process-fall.ts'
 import { defineRow } from '../../row.ts'
 import { heldPluginPorts } from '../plugin-host/held-ports.ts'
 import { serverPointsOf } from '../plugin-host/effect-ports.ts'
@@ -45,6 +47,16 @@ import { providePluginServer, pluginServerKey } from './service.ts'
 export const pluginServerRowConfig = z.strictObject({ floorDirectory: z.string().min(1) })
 
 const assetsOf = (ctx: Context) => ctx.get(tenantAssetsKey) as TenantAssetsService | undefined
+const fallMark = (tenant: string, fiber: string): string => JSON.stringify([tenant, fiber])
+function fallOf(who: string | null | undefined): { tenant: string; fiber: string } | undefined {
+  try {
+    const [tenant, fiber] = JSON.parse(who ?? '') as unknown[]
+    return typeof tenant === 'string' && typeof fiber === 'string' ? { tenant, fiber } : undefined
+  } catch {
+    return undefined
+  }
+}
+
 const registryOf = (ctx: Context) => (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
 const lockedBy = (
   registry: ReturnType<typeof registryOf>,
@@ -176,6 +188,8 @@ export const pluginServerRow = defineRow({
     const warn = (message: string): void => logger.warn(message)
     const bare = pluginParent(ctx)
     const floor = fileFloor({ directory: config.floorDirectory, warn })
+    const fall = fallOf((ctx.get(LAST_FALL_KEY) as Fall | null | undefined)?.who)
+    if (fall !== undefined) floor.fell(fall.tenant, fall.fiber)
     ;(ctx.get(dynamisKey) as DynamisService).put([
       declare(portsContract),
       declare(guestFormsContract),
@@ -195,6 +209,7 @@ export const pluginServerRow = defineRow({
         put: entries => putAs(bare, fiberOf(wanted.name, wanted.version), entries),
         lockedBy: (point, key) =>
           lockedBy(registryOf(ctx), point, key, scopeOfLayer('tenant', tenant)),
+        within: run => attributed(fallMark(tenant, fiberOf(wanted.name, wanted.version)), run),
       })(wanted)
     }
     const present = (tenant: string, lacks: readonly string[]): boolean =>

@@ -366,3 +366,37 @@ describe('a plugin that lacks only what is not there now waits; anything else wr
     })
   })
 })
+
+describe('the code of a plugin runs traced to it', () => {
+  it('its file is loaded, its export is called and its form is given the scope the loader names', async () => {
+    const order: string[] = []
+    let depth = 0
+    const within = <T>(run: () => T): T => {
+      depth += 1
+      try {
+        return run()
+      } finally {
+        depth -= 1
+      }
+    }
+    let given: { within?: unknown } = {}
+    const w = world({
+      within,
+      load: async () => (
+        order.push(`load ${String(depth)}`),
+        { make: () => (order.push(`make ${String(depth)}`), 'hello') }
+      ),
+      guestForm: () => (made, context) => ((given = context), { greet: made }),
+    })
+    expect((await w.install(wanted(GREETER))).kind).toBe('installed')
+    expect(order).toEqual(['load 1', 'make 1'])
+    expect(given.within).toBeTypeOf('function')
+  })
+
+  it('without a scope from the loader, the form is given none', async () => {
+    let given: object = {}
+    const w = world({ guestForm: () => (made, context) => ((given = context), { greet: made }) })
+    await w.install(wanted(GREETER))
+    expect('within' in given).toBe(false)
+  })
+})

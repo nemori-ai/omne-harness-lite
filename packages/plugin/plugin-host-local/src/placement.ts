@@ -89,7 +89,7 @@ function serverStanding(server: ServerTold | null): Standing {
     case 'held':
       return {
         standing: 'not in effect',
-        says: 'the server stopped loading it: it went down twice in a row while loading it. Publish a new version, or disable it and enable it again.',
+        says: 'the server stopped loading it: it went down twice in a row while loading it or in calls of it. Publish a new version, or disable it and enable it again.',
       }
   }
 }

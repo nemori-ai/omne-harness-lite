@@ -412,7 +412,7 @@ describe('where a held plugin is placed now', () => {
       'the server could not load it: labels.js threw: boom',
     ])
     expect(at('held')[1]?.[2]).toBe(
-      'the server stopped loading it: it went down twice in a row while loading it. Publish a new version, or disable it and enable it again.',
+      'the server stopped loading it: it went down twice in a row while loading it or in calls of it. Publish a new version, or disable it and enable it again.',
     )
     expect(at('loading')[1]?.slice(1)).toEqual(['not known', 'the server is loading it'])
     expect(at(null)[1]?.slice(1)).toEqual(['not known', 'the server has not loaded it yet'])
