@@ -199,8 +199,17 @@ export { FigureSeat } from './ink/seat.tsx'
 export { FigureStage, type FigureControl } from './ink/figure-stage.tsx'
 export { LooseFigure, type LooseControl, type LooseFigureProps } from './ink/loose-figure.tsx'
 export { SayBubble, type SayBubbleProps, type SaySaid } from './ink/say-bubble.tsx'
-export { type SayFate, type SayNote, type SayTarget, type SayWords } from './ink/say.ts'
+export {
+  type SayFate,
+  type SayNote,
+  type SayPicture,
+  type SayTarget,
+  type SayTold,
+  type SayWords,
+} from './ink/say.ts'
 export { FigureLabel, type FigureLabelLine } from './ink/figure-label.tsx'
+export { ObservationFrame, type ObservationFrameProps } from './ink/observation-frame.tsx'
+export { pointPicture, type PicturePoint, type PointedPictures } from './ink/point-picture.ts'
 export { type LooseHands, type LooseMode, type LooseWhere } from './ink/loose.ts'
 export { type FigureHand } from './ink/hand.ts'
 export { FIGURE_SIZE } from './ink/store.ts'

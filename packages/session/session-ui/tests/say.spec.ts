@@ -157,6 +157,85 @@ describe('说一句话：全化表', () => {
   })
 })
 
+describe('带着附件说一句话：全化表的附件这一格', () => {
+  const PICTURE = {
+    kind: 'image',
+    ref: { storage: 'local', key: 'k1', mediaType: 'image/png', bytes: '11', digest: 'sha256:k1' },
+  } as const
+  const WITH: Words = { ...WORDS, attachments: [PICTURE] }
+  const ONLY: Words = { ...WITH, text: '' }
+  const SEND_WITH = { ...SEND, attachments: [PICTURE] }
+
+  it('说给新会话：建会话，记着的第一句话带着附件，建成时这句话连图已经在发', () => {
+    const asked = step(INITIAL, say(NEW, WITH))
+    expect(asked.state).toMatchObject({ kind: 'creating', createCallId: 'c9', first: WITH })
+    expect(asked.effects).toEqual([CREATE])
+    const next = step(asked.state, created(S, 'c9'))
+    expect(asOpen(next.state).inputs).toMatchObject([
+      { acceptId: 'a1', text: '你好', attachments: [PICTURE], status: 'sending' },
+    ])
+    expect(next.effects).toEqual([...OPEN(S), { ...SEND_WITH, session: S }])
+  })
+
+  it('说给新会话，认回成了：附件跟着这句话', () => {
+    const asked = run(INITIAL, say(NEW, WITH), {
+      kind: 'create-answered',
+      createCallId: 'c9',
+      answer: { outcome: 'unknown' },
+    })
+    const next = step(asked.state, {
+      kind: 'create-confirmed',
+      createCallId: 'c9',
+      answer: { outcome: 'succeeded', body: { session: S } },
+    })
+    expect(next.effects).toEqual([...OPEN(S), { ...SEND_WITH, session: S }])
+  })
+
+  it('已打开 S：展开成一个带附件的发送，和输入框带附件发的相同', () => {
+    const before = opened(S)
+    const next = step(before, say(TO_S, WITH))
+    const viaComposer = step(before, { kind: 'send', ...WORDS, attachments: [PICTURE] })
+    expect(next).toEqual(viaComposer)
+    expect(next.effects).toEqual([{ ...SEND_WITH, session: S }])
+  })
+
+  it('S 没打开（还没有、已打开别的、不可用）：打开 S，这句话连图在发', () => {
+    for (const [state, leaving] of [
+      [INITIAL, []],
+      [opened(T), [LEAVE]],
+      [unavailable(), []],
+    ] as const) {
+      const next = step(state, say(TO_S, WITH))
+      expect(asOpen(next.state).inputs).toMatchObject([{ acceptId: 'a1', attachments: [PICTURE] }])
+      expect(next.effects).toEqual([...leaving, ...OPEN(S), { ...SEND_WITH, session: S }])
+    }
+  })
+
+  it('建会话中：带着附件也不受理', () => {
+    for (const state of [creating(), creatingUnknown()])
+      expect(step(state, say(NEW, WITH))).toEqual({ state, effects: [] })
+    expect(step(creating(), say(TO_S, WITH))).toEqual({ state: creating(), effects: [] })
+  })
+
+  it('没有字、只有附件：照有字时一样受理，发出的这句话没有字', () => {
+    expect(step(INITIAL, say(NEW, ONLY)).state).toMatchObject({ kind: 'creating', first: ONLY })
+    expect(step(opened(S), say(TO_S, ONLY)).effects).toEqual([
+      { ...SEND_WITH, text: '', session: S },
+    ])
+    expect(step(INITIAL, say(TO_S, ONLY)).effects).toEqual([
+      ...OPEN(S),
+      { ...SEND_WITH, text: '', session: S },
+    ])
+  })
+
+  it('没有字、附件表是空的：在哪一格都不受理', () => {
+    const blank: Words = { ...WORDS, text: ' ', attachments: [] }
+    for (const state of [INITIAL, creating(), creatingUnknown(), opened(S), unavailable()])
+      for (const to of [NEW, TO_S])
+        expect(step(state, say(to, blank))).toEqual({ state, effects: [] })
+  })
+})
+
 describe('建会话，带着这句话', () => {
   const saying = step(INITIAL, say(NEW)).state
 
@@ -390,6 +469,44 @@ describe('驱动器的 say', () => {
     ;(await fake.next('query-send-input')).answer({ outcome: 'unknown' })
     await expect(answer).resolves.toEqual({ kind: 'unknown' })
     expect(fake.calls.filter(call => call.operation === 'send-input')).toHaveLength(1)
+  })
+
+  it('带着附件说给已有的会话：发出的这句话带着附件，受理了答受理', async () => {
+    const { fake, driver } = started()
+    const picture = {
+      kind: 'image',
+      ref: { storage: 'local', key: 'k7', mediaType: 'image/png', bytes: '9', digest: 'sha256:k7' },
+    } as const
+    const answer = driver.say({ kind: 'session', session: T }, '看这个', [picture])
+    const send = await fake.next('send-input')
+    expect(JSON.stringify(body(send)['message'])).toContain('"k7"')
+    expect(JSON.stringify(body(send)['message'])).toContain('看这个')
+    send.answer({ outcome: 'succeeded', body: {} })
+    await expect(answer).resolves.toEqual({ kind: 'sent', session: T })
+  })
+
+  it('没有字、带着附件：受理，发出的这句话只有附件', async () => {
+    const { fake, driver } = started()
+    const picture = {
+      kind: 'image',
+      ref: { storage: 'local', key: 'k8', mediaType: 'image/png', bytes: '9', digest: 'sha256:k8' },
+    } as const
+    void driver.say({ kind: 'new' }, '', [picture])
+    ;(await fake.next('create-session')).answer({
+      outcome: 'succeeded',
+      body: { session: S, recovered: false },
+    })
+    const send = await fake.next('send-input')
+    expect(JSON.stringify(body(send)['message'])).toContain('"k8"')
+  })
+
+  it('没有字、附件表是空的：答没发出，什么都不发', async () => {
+    const { fake, driver } = started()
+    await expect(driver.say({ kind: 'new' }, ' ', [])).resolves.toEqual({
+      kind: 'failed',
+      reason: '没有字，没有发出。',
+    })
+    expect(fake.calls).toEqual([])
   })
 
   it('没有字：答没发出，什么都不发', async () => {

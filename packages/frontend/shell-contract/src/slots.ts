@@ -84,12 +84,20 @@ export type SayOutcome =
   | Readonly<{ kind: 'failed'; reason: string }>
   | Readonly<{ kind: 'unknown' }>
 
+export type SayPicture = Readonly<{ name: string; bytes: Uint8Array }>
+
 export type SayItem = Readonly<{
   id: string
   targets: (scope: string | undefined) => readonly SayTarget[] | undefined
   current: (scope: string | undefined) => string | undefined
+  pictures?: (scope: string | undefined) => boolean
   subscribe: (listener: () => void) => () => void
-  say: (scope: string | undefined, to: SayTo, words: string) => Promise<SayOutcome>
+  say: (
+    scope: string | undefined,
+    to: SayTo,
+    words: string,
+    pictures?: readonly SayPicture[],
+  ) => Promise<SayOutcome>
   show: (scope: string | undefined, key: string) => void
 }>
 

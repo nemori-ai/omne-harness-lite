@@ -127,6 +127,7 @@ it('declares the six points of the shell itself as fixed when the application is
       ...shared,
       name: 'shell.say',
       arity: 'one',
+      revision: 2,
       item: {
         kind: 'pure',
         fields: {

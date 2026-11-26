@@ -270,7 +270,7 @@ function runCheck(port: ParticipantPort, check: SessionCheck): ParticipantReply 
         : stopped({ kind: 'stale-advance', current: run.advance })
     }
     case 'finish': {
-      const judged = judgeCompletion(snapshot, execution)
+      const judged = judgeCompletion(snapshot, execution, check.conclusion)
       const changed = stopped({ kind: 'changed', revision: snapshot.revision })
       switch (judged.kind) {
         case 'allowed':

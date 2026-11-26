@@ -892,10 +892,10 @@ export function createHost(input: HostInput): Host {
   const recovery = recoveryEntry({
     through: throughJournal,
     qualify,
-    live: (tenant, instance) => liveRuntimeOf(tenant, instance)?.provider ?? null,
+    live: (tenant, instance) => liveRuntimeOf(tenant, instance) ?? null,
     journal: statics.journal,
     lostContact: input.lostContact,
-    unavailable: diagnostic => unavailable(OWNER, diagnostic),
+    owner: OWNER,
   })
 
   const control: AgentExecutionControl<unknown> = {

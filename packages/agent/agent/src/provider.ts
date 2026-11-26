@@ -111,13 +111,6 @@ type Slot =
       execution: AgentExecutionId
       attachment: ExecutionAttachmentId
     }>
-  | Readonly<{
-      kind: 'failed'
-      execution: AgentExecutionId
-      attachment: ExecutionAttachmentId
-      node: string | null
-      failure: Failure
-    }>
 
 type Accepted = Readonly<{
   operation: AgentOperationId
@@ -151,7 +144,6 @@ function stateOf(instance: AgentInstanceId, held: Slot): AgentState {
     case 'reserved':
       return { kind: 'reserved', instance }
     case 'running':
-    case 'failed':
       return {
         kind: 'occupied',
         instance,
@@ -243,7 +235,6 @@ function coordinatorBase<P, B extends ContentBlock>(
   }
 }
 
-/** An operation of a later stage: checked like any other, then refused as not implemented. */
 function notYet<P>(guard: AccessGuard<P>) {
   return async (
     input: Access<P>,
@@ -381,14 +372,11 @@ export function createProvider<P, B extends ContentBlock>(
     execution => (driving === null ? undefined : ((driving.poked = true), hint(execution))),
   )
 
-  function failRun(
-    execution: AgentExecutionId,
-    attachment: ExecutionAttachmentId,
-    node: string | null,
-    failure: Failure,
-  ): void {
+  function failRun(execution: AgentExecutionId, node: string | null, failure: Failure): void {
     if (slot.kind !== 'running' || slot.execution !== execution) return
-    occupy({ kind: 'failed', execution, attachment, node, failure })
+    // The drive cannot go on and holds nothing more: the slot is given back, so the next execution
+    // is taken and a later attachment may resume this one. The execution stays open in the Journal.
+    occupy({ kind: 'free' })
     try {
       entry.failed?.({
         kind: 'run-failed',
@@ -523,10 +511,10 @@ export function createProvider<P, B extends ContentBlock>(
       }
     }
     const stopped = (halted: Halted | null) => {
-      if (halted !== null) failRun(execution, attachment, halted.node, halted.failure)
+      if (halted !== null) failRun(execution, halted.node, halted.failure)
     }
     void drive().then(stopped, (error: unknown) =>
-      failRun(execution, attachment, null, {
+      failRun(execution, null, {
         kind: 'unavailable',
         owner: OWNER,
         diagnostic: `the drive threw: ${thrownText(error)}`,

@@ -6,12 +6,20 @@ import type {
   AgentExecutionRecovery,
   AgentInstanceId,
   AgentJournal,
+  AgentState,
   DurableEvidence,
   Failure,
   Reply,
 } from '@omne-harness/agent-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { contactOf } from './contact.ts'
+
+const unavailable = (owner: string, diagnostic: string): Failure => ({
+  kind: 'unavailable',
+  owner,
+  diagnostic,
+})
 
 type Contact = Extract<
   Awaited<ReturnType<AgentExecutionRecovery<unknown>['contact']>>,
@@ -31,10 +39,13 @@ export type RecoveryEntryInput = Readonly<{
     operation: AgentAccessOperation,
     target: AgentAccessTarget,
   ): Promise<Failure | undefined>
-  live(tenant: TenantId, instance: AgentInstanceId): AgentProvider<unknown> | null
+  live(
+    tenant: TenantId,
+    instance: AgentInstanceId,
+  ): Readonly<{ provider: AgentProvider<unknown> | null; reported: AgentState }> | null
   journal: AgentJournal<unknown>
   lostContact: ((instance: AgentInstanceId) => DurableEvidence | null) | undefined
-  unavailable(diagnostic: string): Failure
+  owner: string
 }>
 
 /** The recovery entry of a host: Journal reads, a detach that takes over a live runtime only when allowed, a handover asked of the runtime that holds the attachment. */
@@ -49,7 +60,8 @@ export function recoveryEntry(input: RecoveryEntryInput): AgentExecutionRecovery
     reconcile: request =>
       through(request, 'reconcile', on(request.execution), async () =>
         fail(
-          input.unavailable(
+          unavailable(
+            input.owner,
             'reconcile through the recovery entry is not implemented yet (#502 stage 5)',
           ),
         ),
@@ -64,17 +76,18 @@ export function recoveryEntry(input: RecoveryEntryInput): AgentExecutionRecovery
       }),
     handOver: request =>
       through(request, 'detach', on(request.execution), async () => {
-        const runtime = live(request.tenant, request.authority.instance)
+        const runtime = live(request.tenant, request.authority.instance)?.provider ?? null
         if (runtime === null)
-          return fail(input.unavailable('no runtime here holds the attachment to hand over'))
+          return fail(unavailable(input.owner, 'no runtime here holds the attachment to hand over'))
         return runtime.control.handOver(request)
       }),
     contact: request =>
       through<Contact>(request, 'load', on(request.execution), async () => {
         const { instance } = request.authority
-        if (live(request.tenant, instance) !== null) return succeed({ kind: 'live' })
-        const evidence = input.lostContact?.(instance) ?? null
-        return succeed(evidence === null ? { kind: 'unknown' } : { kind: 'lost', evidence })
+        const running = live(request.tenant, instance)?.reported
+        return succeed(
+          contactOf(input.owner, running, request, () => input.lostContact?.(instance)),
+        )
       }),
   }
 }

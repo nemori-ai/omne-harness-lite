@@ -3362,7 +3362,7 @@ export declare function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass
 export declare function judgeWaiting(snapshot: WorkSnapshot): SessionWaiting | null;
 export declare function judgeRetryRun(snapshot: WorkSnapshot, run: RunId): 'archived' | 'frozen' | 'not-found' | 'nothing-pending' | null;
 export declare function openWork(snapshot: WorkSnapshot): OpenWork;
-export declare function judgeCompletion(snapshot: WorkSnapshot, execution: string): CompletionJudgment;
+export declare function judgeCompletion(snapshot: WorkSnapshot, execution: string, conclusion?: 'complete' | 'failed' | 'cancelled'): CompletionJudgment;
 export declare function resolveControlScope(snapshot: WorkSnapshot, intent: ControlIntent): ControlScope;
 export declare function resolveCascade(snapshot: WorkSnapshot, children: readonly SessionId[]): readonly RecoveryTask[];
 export declare function judgeIdle(snapshot: WorkSnapshot, input: Readonly<{
@@ -4202,8 +4202,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:2ebb12dc5794eb6dcd59c19e5ed18da88d538d4035b68487bb809526cb24a986";
-export declare const SESSION_RELEASE_DIGEST = "sha256:2ebb12dc5794eb6dcd59c19e5ed18da88d538d4035b68487bb809526cb24a986";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:cf186e5201216b1dfcc5c0f170297918b3d7c5a275563029d0cace064fe43f23";
+export declare const SESSION_RELEASE_DIGEST = "sha256:cf186e5201216b1dfcc5c0f170297918b3d7c5a275563029d0cace064fe43f23";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

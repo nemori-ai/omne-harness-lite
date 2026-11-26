@@ -88,6 +88,7 @@ export const shellContracts: readonly Contract[] = [
     ...SHARED,
     name: POINT.say,
     arity: 'one',
+    revision: 2,
     item: {
       kind: 'pure',
       fields: {
