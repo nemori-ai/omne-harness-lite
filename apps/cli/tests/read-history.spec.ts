@@ -437,6 +437,84 @@ describe('read-history', () => {
       expect(operations).not.toContain('read-session-diagnostics')
     })
 
+    it.each(['image', 'voice', 'file'])(
+      'reads the diagnostics for a history whose only block that is not words is a %s, page after page',
+      async kind => {
+        const held = entry('7', 'message.user', {
+          message: {
+            id: 'm7',
+            role: 'user',
+            blocks: [
+              block({ kind: 'text', text: 'see' }),
+              {
+                ...block({
+                  kind,
+                  ref: { storage: 'local', key: 'k', mediaType: 'x/y', bytes: '1', digest: 'd' },
+                }),
+                id: 'b1',
+              },
+            ],
+          },
+        })
+        const pages = [
+          diagnosticsPage(
+            [
+              run({
+                run: 'r1',
+                started: { position: '1', at: { kind: 'unknown' } },
+                modelCalls: [modelCall({ reads: [] })],
+              }),
+            ],
+            'cursor-1',
+          ),
+          diagnosticsPage(
+            [
+              run({
+                run: 'r2',
+                started: { position: '2', at: { kind: 'unknown' } },
+                modelCalls: [
+                  modelCall({ reads: [{ message: 'm7', block: 'b1', read: 'derived' }] }),
+                ],
+              }),
+            ],
+            null,
+          ),
+        ]
+        const asked: unknown[] = []
+        const histories = historyService([page([held], null)])
+        const service = await serve(seen => {
+          if (seen.operation !== 'read-session-diagnostics') return histories(seen)
+          asked.push(seen.body['cursor'])
+          const at = seen.body['cursor'] === null ? 0 : 1
+          return { outcome: 'succeeded', body: pages[at] }
+        })
+        await loginOwningSession(service)
+        const result = await cli(['read-history', '--session', sessionId])
+        expect(asked).toEqual([null, 'cursor-1'])
+        expect(result.stdout).toContain(' · model read: derived')
+      },
+    )
+
+    it('writes no form when the diagnostics are refused, and the history as it is', async () => {
+      const held = entry('7', 'message.user', {
+        message: {
+          id: 'm7',
+          role: 'user',
+          blocks: [{ ...block({ kind: 'image', mediaType: 'image/png' }), id: 'b1' }],
+        },
+      })
+      const histories = historyService([page([held], null)])
+      const service = await serve(seen =>
+        seen.operation === 'read-session-diagnostics'
+          ? { outcome: 'denied', body: {} }
+          : histories(seen),
+      )
+      await loginOwningSession(service)
+      const result = await cli(['read-history', '--session', sessionId])
+      expect(result.code).toBe(0)
+      expect(result.stdout).toBe('#7 message.user: [image image/png]\n')
+    })
+
     it('shows the command of a one-slot call after the tool name, and other calls as they are', async () => {
       const call = (callId: string, name: string, args: unknown) =>
         block({ kind: 'tool_call', callId, name, arguments: args })

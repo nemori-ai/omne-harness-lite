@@ -224,6 +224,23 @@ describe('reads from the session diagnostics', () => {
     ])
   })
 
+  it('stops after sixteen pages and gives what it read in them', async () => {
+    let asked = 0
+    const endless = {
+      'read-session-diagnostics': async () => {
+        asked += 1
+        return page(
+          [run(String(asked), read('msg_1', `blk_${String(asked)}`, 'original'))],
+          `c${String(asked)}`,
+        )
+      },
+    }
+    const got = await diagnosticsReads(endless as never).readsOf(TENANT, 'ses_a')
+    expect(asked).toBe(16)
+    expect(got?.blocks.size).toBe(16)
+    expect(got?.replies).toEqual(new Map())
+  })
+
   it('a tenant it cannot read is not asked about at all', async () => {
     let asked = 0
     const answering = {
