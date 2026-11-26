@@ -42,5 +42,6 @@ export {
   createSessionCommandSource,
   type ModelChoice,
   SESSION_COMMANDS,
+  type SelectedModel,
   type SessionCommandPorts,
 } from './commands.ts'

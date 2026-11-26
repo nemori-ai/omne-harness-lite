@@ -192,6 +192,35 @@ describe('the locate axis', () => {
     expect((await second).value).toMatchObject({ kind: 'state', revision: '2' })
   })
 
+  it.each([
+    'session.model-selected',
+    'session.mode-changed',
+    'session.workspace-changed',
+    'session.archived',
+    'session.unarchived',
+  ])(
+    'notice-standing: %s changes what the session stands at, so it locates and the state frame takes the new revision',
+    async kind => {
+      const log = new FakeLog(started('run_1'))
+      const w = world(log)
+      const frames = await open(w)
+      await frame(frames)
+      const step = frames.next()
+      await settle()
+      log.append({ kind, payload: {} })
+      w.notices.commit(kind)
+      expect((await step).value).toEqual({
+        kind: 'state',
+        run: 'run_1',
+        revision: '2',
+        phase: null,
+        attempts: null,
+        target: null,
+      })
+      expect(w.log.reads()).toBe(2)
+    },
+  )
+
   it('notice-unrelated: a notice whose kinds do not meet the set is ignored', async () => {
     const w = world(new FakeLog(started('run_1')))
     const frames = await open(w)

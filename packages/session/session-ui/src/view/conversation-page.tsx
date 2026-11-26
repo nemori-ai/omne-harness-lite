@@ -34,7 +34,12 @@ import type { Cause, Waiting } from '../model/waiting.ts'
 import type { SessionRunFailureSubject } from '../points.ts'
 import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './block-slot.ts'
 import { Composer } from './composer.tsx'
-import { HeadingFoldContext, useHeadingFold, type HeadingFold } from './heading-fold.tsx'
+import {
+  HeadingFoldContext,
+  HeadingRevisionContext,
+  useHeadingFold,
+  type HeadingFold,
+} from './heading-fold.tsx'
 import { NoticeLine } from './notice.tsx'
 import { PartDrawContext } from './part-draw.ts'
 import { Bubble, ItemView, speakerOf } from './parts.tsx'
@@ -188,7 +193,9 @@ function Page({
       <FigureControl frame={frame} />
       <div className="omne-session-bar-end" ref={fold.end}>
         <HeadingFoldContext.Provider value={fold.bar}>
-          {open === null ? null : heading(open)}
+          <HeadingRevisionContext.Provider value={state.kind === 'open' ? state.revision : null}>
+            {open === null ? null : heading(open)}
+          </HeadingRevisionContext.Provider>
         </HeadingFoldContext.Provider>
         {known === null ? null : (
           <SessionMore

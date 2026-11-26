@@ -30,7 +30,7 @@ function source(
 }
 
 describe('the commands the session brings', () => {
-  it('are four in the reserved space, each saying its arguments, what it does while a run goes on and when it takes effect', async () => {
+  it('are five in the reserved space, each saying its arguments, what it does while a run goes on and when it takes effect', async () => {
     const { commands } = source()
     expect(commands.space).toBe('omne-official')
     expect(commands.name).toBe('session-commands')
@@ -49,6 +49,7 @@ describe('the commands the session brings', () => {
       ['permission', 'system', [{ name: '模式', candidates: true }], 'now', 'now'],
       ['archive', 'system', undefined, 'now', 'now'],
       ['reload', 'system', undefined, 'now', 'next-request'],
+      ['effort', 'system', [{ name: '档位', candidates: true }], 'now', 'next-request'],
     ])
   })
 
@@ -110,6 +111,69 @@ describe('the commands the session brings', () => {
       expect(await take(name)).toEqual({ failure: 'not-listed' })
   })
 
+  describe('/effort', () => {
+    const models = async () =>
+      succeed([
+        { name: 'a/one', reasoningEfforts: ['low', 'high'], defaultReasoningEffort: 'high' },
+        { name: 'b/plain' },
+      ])
+    const at = (model: string, reasoningEffort?: string) => ({
+      models,
+      selectedModel: async () =>
+        succeed({ model, ...(reasoningEffort === undefined ? {} : { reasoningEffort }) }),
+    })
+
+    it('selects the model in use again with the effort named: the model stays as it is', async () => {
+      const { take } = source(succeed('7'), at('a/one', 'low'))
+      expect(await take('effort', ' high ')).toEqual({
+        ok: {
+          kind: 'operation',
+          protocol: SESSION,
+          operation: 'select-model',
+          fields: {
+            tenant,
+            session: 's-1',
+            controlId: 'command:accept-op-1',
+            model: 'a/one',
+            reasoningEffort: 'high',
+          },
+        },
+      })
+    })
+
+    it('says what is wrong: no effort named, one the model in use does not offer, or a model with none', async () => {
+      const read: string[] = []
+      const counted = {
+        models: async () => {
+          read.push('models')
+          return models()
+        },
+      }
+      expect(await source(succeed('7'), { ...at('a/one'), ...counted }).take('effort')).toEqual({
+        ok: { kind: 'invalid', reason: 'name one effort' },
+      })
+      expect(read).toEqual([])
+      expect(await source(succeed('7'), at('a/one')).take('effort', 'medium')).toEqual({
+        ok: { kind: 'invalid', reason: 'name one effort a/one offers: low, high' },
+      })
+      expect(await source(succeed('7'), at('b/plain')).take('effort', 'high')).toEqual({
+        ok: { kind: 'invalid', reason: 'the model in use, b/plain, has no reasoning efforts' },
+      })
+    })
+
+    it('cannot be taken while the model in use or the models cannot be read', async () => {
+      expect(await source(succeed('7'), { models }).take('effort', 'high')).toEqual({
+        failure: 'unavailable',
+      })
+      expect(
+        await source(succeed('7'), {
+          ...at('a/one'),
+          models: async () => fail('unavailable'),
+        }).take('effort', 'high'),
+      ).toEqual({ failure: 'unavailable' })
+    })
+  })
+
   it('cannot take /permission while the revision it changes at cannot be read', async () => {
     const { take } = source(fail('unavailable'))
     expect(await take('permission', 'never')).toEqual({ failure: 'unavailable' })
@@ -127,7 +191,10 @@ describe('the commands the session brings', () => {
           { name: 'c/three', unavailable: '被锁定' },
         ])
       expect(
-        await offered('model', 0, { models, selectedModel: async () => succeed('b/two') }),
+        await offered('model', 0, {
+          models,
+          selectedModel: async () => succeed({ model: 'b/two' }),
+        }),
       ).toEqual({
         ok: [
           { value: 'a/one' },
@@ -142,6 +209,27 @@ describe('the commands the session brings', () => {
           { value: 'c/three', unavailable: '被锁定' },
         ],
       })
+    })
+
+    it('of /effort are the efforts the model in use offers; the one in force is marked, the default when none was chosen', async () => {
+      const models = async () =>
+        succeed([
+          { name: 'a/one', reasoningEfforts: ['low', 'high'], defaultReasoningEffort: 'high' },
+          { name: 'b/plain' },
+        ])
+      const selectedAt = (model: string, reasoningEffort?: string) => async () =>
+        succeed({ model, ...(reasoningEffort === undefined ? {} : { reasoningEffort }) })
+      expect(
+        await offered('effort', 0, { models, selectedModel: selectedAt('a/one', 'low') }),
+      ).toEqual({ ok: [{ value: 'low', current: true }, { value: 'high' }] })
+      expect(await offered('effort', 0, { models, selectedModel: selectedAt('a/one') })).toEqual({
+        ok: [{ value: 'low' }, { value: 'high', current: true }],
+      })
+      const none = '这个型号不能调推理档位'
+      expect(await offered('effort', 0, { models, selectedModel: selectedAt('b/plain') })).toEqual({
+        ok: ['low', 'medium', 'high', 'xhigh'].map(value => ({ value, unavailable: none })),
+      })
+      expect(await offered('effort', 0, { models })).toEqual({ failure: 'unavailable' })
     })
 
     it('of /model are not to be had while the models cannot be listed: not an empty list', async () => {
@@ -166,6 +254,7 @@ describe('the commands the session brings', () => {
         ['model', 1],
         ['permission', 1],
         ['reload', 0],
+        ['effort', 1],
         ['__proto__', 0],
       ] as const)
         expect(await offered(name, param)).toEqual({ failure: 'not-listed' })
