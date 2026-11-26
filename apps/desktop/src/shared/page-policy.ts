@@ -3,6 +3,7 @@ export const CONTENT_SECURITY_POLICY = [
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self' data: blob:",
+  'media-src blob:',
   "font-src 'self'",
   "connect-src 'self'",
   "base-uri 'none'",

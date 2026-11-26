@@ -68,6 +68,7 @@ async function begin(
     bytes: input.bytes,
     upload: input.upload,
     expiresAt: later(deps.clock, config.uploadTtlMs),
+    ...(input.name === undefined ? {} : { name: input.name }),
   })
   if ('failure' in inserted) {
     if (inserted.failure.kind === 'exists')

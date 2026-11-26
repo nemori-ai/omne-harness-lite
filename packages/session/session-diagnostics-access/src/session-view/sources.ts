@@ -6,6 +6,8 @@ import type {
   ModelCalls,
   ModelDiagnostics,
   ModelDiagnosticsPage,
+  ModelDispatchFact,
+  ModelDispatchFacts,
   ModelFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -20,6 +22,7 @@ import type { SessionDiagnosticUnknown } from '../view-types.ts'
 
 export type ModelCallInspector<P> = Pick<ModelCalls<P>, 'inspect' | 'dispatches'>
 export type ModelAttemptReader<P> = ModelDiagnostics<P>
+export type ModelFactReader<P> = Required<Pick<ModelDispatchFacts<P>, 'ofCall'>>
 export type ToolCallReader<P> = Pick<ToolStreamReferences<P>, 'current'> &
   Pick<ToolInvocationQueries<P, never>, 'account' | 'readDiagnostics'>
 export type CallAccount = Extract<
@@ -45,6 +48,7 @@ export interface ModelRequestReader<P> {
 export type DiagnosticPorts<P> = Readonly<{
   modelCalls?: ModelCallInspector<P>
   modelDiagnostics?: ModelAttemptReader<P>
+  modelFacts?: ModelFactReader<P>
   modelRequests?: ModelRequestReader<P>
   toolQueries?: ToolCallReader<P>
 }>
@@ -115,6 +119,7 @@ export interface DiagnosticSources {
   inspectModelCall(reference: string): Promise<SourceAnswer<Lookup>>
   listModelAttempts(call: string): Promise<SourceAnswer<ModelDiagnosticsPage>>
   listModelDispatches(call: string): Promise<SourceAnswer<readonly DispatchRecord[]>>
+  listModelFacts(call: string): Promise<SourceAnswer<readonly ModelDispatchFact[]>>
   readRequestChoices(reference: string): Promise<SourceAnswer<readonly RequestBlockChoice[]>>
   readToolState(reference: string): Promise<SourceAnswer<ToolStreamSelection>>
   readToolAccount(reference: string): Promise<SourceAnswer<CallAccount>>
@@ -140,7 +145,7 @@ export function sourcesOf<P>(
   ports: DiagnosticPorts<P>,
   session: string,
 ): DiagnosticSources {
-  const { modelCalls, modelDiagnostics, modelRequests, toolQueries } = ports
+  const { modelCalls, modelDiagnostics, modelFacts, modelRequests, toolQueries } = ports
   return {
     inspectModelCall: reference =>
       modelCalls === undefined
@@ -166,6 +171,10 @@ export function sourcesOf<P>(
       modelCalls === undefined
         ? Promise.resolve(UNSUPPORTED)
         : answerOf(() => modelCalls.dispatches({ ...access, call: call as never }), 'call'),
+    listModelFacts: call =>
+      modelFacts === undefined
+        ? Promise.resolve(UNSUPPORTED)
+        : answerOf(() => modelFacts.ofCall({ ...access, call: call as never }), 'call'),
     readRequestChoices: reference =>
       modelRequests === undefined
         ? Promise.resolve(UNSUPPORTED)

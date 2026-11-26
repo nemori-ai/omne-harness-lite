@@ -64,7 +64,7 @@ import {
 } from './reads.ts'
 import { requestChunks } from './request-body.ts'
 import { DISPATCH_FACT_KEPT_COLUMNS, dispatchFactRows } from './dispatch-facts.ts'
-import { DISPATCH_FACT } from './fact-schema.ts'
+import { DISPATCH_FACT_WRITTEN } from './fact-effort-schema.ts'
 import { columnNames, cellValue, insert, upsertRows } from './rows.ts'
 import { MODEL_PARTICIPANT, PROTOCOL, TABLES, type Table } from './schema.ts'
 
@@ -934,7 +934,7 @@ function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
     row,
     binding,
     dispatches: rowList(facts['dispatches'], TABLES.dispatch, tenant, call),
-    dispatchFacts: rowList(facts['dispatchFacts'], DISPATCH_FACT, tenant, call),
+    dispatchFacts: rowList(facts['dispatchFacts'], DISPATCH_FACT_WRITTEN, tenant, call),
     removeParts: partKeys(facts['removeParts']),
     parts: rowList(facts['parts'], TABLES.part, tenant, call),
     share: shareOf(facts['share']),
@@ -972,7 +972,7 @@ function writeCall(port: ParticipantPort, facts: WriteFacts): string | null {
 function writeChildren(port: ParticipantPort, facts: WriteFacts): void {
   const { tenant, call } = facts
   upsertRows(port, TABLES.dispatch, facts.dispatches)
-  upsertRows(port, DISPATCH_FACT, facts.dispatchFacts, DISPATCH_FACT_KEPT_COLUMNS)
+  upsertRows(port, DISPATCH_FACT_WRITTEN, facts.dispatchFacts, DISPATCH_FACT_KEPT_COLUMNS)
   for (const key of facts.removeParts)
     port.execute(
       'DELETE FROM md_part WHERE tenant = ? AND call = ? AND seq = ? AND block = ? AND part = ?',

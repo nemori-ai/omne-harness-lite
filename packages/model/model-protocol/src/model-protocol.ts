@@ -4,6 +4,7 @@ type Fields = Readonly<Record<string, { readonly rule: Rule; readonly optional?:
 
 const text = { kind: 'text' } as const
 const tenant = { kind: 'tenant' } as const
+const session = { kind: 'session' } as const
 const boolean = { kind: 'boolean' } as const
 
 const object = <const F extends Fields>(fields: F) => ({ kind: 'object', fields }) as const
@@ -12,6 +13,7 @@ const literal = <const V extends readonly string[]>(...values: V) =>
 const array = <const R extends Rule>(item: R) => ({ kind: 'array', item }) as const
 
 const modalities = { rule: array(literal('text', 'image', 'voice')) } as const
+const blockPosition = object({ message: { rule: text }, block: { rule: text } })
 
 // One profile as it resolves for the tenant now. A route that lacks its credential stays
 // selectable: `credential` says a call to it cannot go out yet.
@@ -35,6 +37,8 @@ const model = object({
   },
   input: modalities,
   output: modalities,
+  // Asked for a session: the blocks of its history this model cannot take natively.
+  blocks: { rule: { kind: 'array', item: blockPosition, max: 16 }, optional: true, since: 4 },
 })
 
 export const modelProtocol = defineProtocol({
@@ -45,7 +49,9 @@ export const modelProtocol = defineProtocol({
       identity: 'login',
       effect: 'read',
       limit: 'small',
-      body: ruleCodec(object({ tenant: { rule: tenant } })),
+      body: ruleCodec(
+        object({ tenant: { rule: tenant }, session: { rule: session, optional: true, since: 4 } }),
+      ),
       outcomes: { succeeded: ruleCodec(object({ models: { rule: array(model) } })) },
       countsAsAccess: true,
     },

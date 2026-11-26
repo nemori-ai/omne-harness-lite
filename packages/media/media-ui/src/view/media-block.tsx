@@ -1,10 +1,20 @@
 import type { TenantId } from '@omne-harness/public-contract'
-import { Button, LoadingState, Sheet, SheetContent, SheetTitle } from '@omne-harness/ui-kit'
+import {
+  Button,
+  DownloadIcon,
+  IconButton,
+  LoadingState,
+  PlayIcon,
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from '@omne-harness/ui-kit'
 import type { ContentBlockKind } from '@omne-harness/content-block'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IMAGE_TYPES } from '../model/attachment-tray.ts'
 import { mediaFile, mediaPicture, mediaRead } from '../parts.ts'
 import { UNREADABLE, unreadableOf, type Unreadable } from '../model/prepare.ts'
+import { saveName } from '../model/save-name.ts'
 import { readWhole, type DisplayTarget, type MediaClient, type Reference } from '../model/upload.ts'
 
 /** The kinds of block that are not words, as both ends name them. */
@@ -157,29 +167,40 @@ function readText(read: string | undefined, kind: string, note: Unreadable | nul
   return read === undefined ? null : (READ[read] ?? null)
 }
 
-/** A file the model read as words, but nothing could be taken out of it: the words were a sentence saying why. */
-function useNote(
+type Described = Extract<
+  Awaited<ReturnType<MediaClient['describe-media']>>,
+  { outcome: 'succeeded' }
+>['body']
+
+function useDescription(
   props: MediaBlockProps,
-  kind: MediaBlockKind,
   ref: Reference | null,
-): Unreadable | null {
-  const { client, tenant, modelRead } = props
-  const [note, setNote] = useState<Unreadable | null>(null)
-  const asks = kind === 'file' && modelRead === 'transcript' && ref !== null
+  asks: boolean,
+): Described | null {
+  const { client, tenant } = props
+  const [described, setDescribed] = useState<Described | null>(null)
   const key = ref === null ? null : JSON.stringify(ref)
   useEffect(() => {
     if (!asks || ref === null) return undefined
     let live = true
     void client['describe-media']({ tenant, ref }).then(
-      answer =>
-        live && answer.outcome === 'succeeded' && setNote(unreadableOf(answer.body.preprocess)),
+      answer => live && answer.outcome === 'succeeded' && setDescribed(answer.body),
       () => undefined,
     )
     return () => {
       live = false
     }
   }, [client, tenant, key, asks])
-  return note
+  return described
+}
+
+/** The words a voice was made into: inline, or a sentence when they were kept aside. */
+function transcriptOf(content: unknown, described: Described | null): string | null {
+  if (isRecord(content) && typeof content['transcript'] === 'string') return content['transcript']
+  const preprocess = described?.preprocess
+  if (preprocess?.kind !== 'done' || preprocess.representation.outcome !== 'converted') return null
+  const { text } = preprocess.representation
+  return typeof text === 'string' ? text : '转写较长，已另存'
 }
 
 type Said = Readonly<{
@@ -217,27 +238,152 @@ function ImageBlock(props: MediaBlockProps) {
   )
 }
 
-const lineBlock = (kind: 'file' | 'voice') =>
-  function LineBlock(props: MediaBlockProps) {
-    const read = readBlock(props.content)
-    const note = useNote(props, kind, typeof read === 'string' ? null : read.ref)
-    return (
-      <WithRead kind={kind} modelRead={props.modelRead} note={note}>
-        {typeof read === 'string' ? (
-          unread(read)
-        ) : (
-          <p className="omne-media-line" {...mediaFile.props}>
-            〔{read.kind}〕{read.ref.mediaType} · {sizeText(read.ref.bytes)}
-          </p>
-        )}
-      </WithRead>
-    )
-  }
+type Retrieving =
+  | Readonly<{ kind: 'idle' }>
+  | Readonly<{ kind: 'reading' }>
+  | Readonly<{ kind: 'failed'; reason: string }>
 
-/** How each kind of block that is not words is drawn: a picture as a thumbnail, a file or a voice as a line. */
+type RetrieveProps = Readonly<{
+  client: MediaClient
+  tenant: TenantId
+  medium: Reference
+  name: string | undefined
+}>
+
+function Retrieve({ client, tenant, medium, name }: RetrieveProps) {
+  const [state, setState] = useState<Retrieving>({ kind: 'idle' })
+  const live = useRef(true)
+  const kept = useRef<string | null>(null)
+  useEffect(() => {
+    live.current = true
+    return () => {
+      live.current = false
+      if (kept.current !== null) URL.revokeObjectURL(kept.current)
+    }
+  }, [])
+  const retrieve = async () => {
+    setState({ kind: 'reading' })
+    const read = await readWhole({ client, tenant, ref: medium, target: null })
+    if (!live.current) return
+    if (read.kind === 'unreadable') return setState({ kind: 'failed', reason: read.reason })
+    if (kept.current !== null) URL.revokeObjectURL(kept.current)
+    kept.current = URL.createObjectURL(
+      new Blob([new Uint8Array(read.bytes)], { type: read.mediaType }),
+    )
+    const link = document.createElement('a')
+    link.href = kept.current
+    link.download = saveName(name, medium.mediaType)
+    link.click()
+    setState({ kind: 'idle' })
+  }
+  return (
+    <>
+      <IconButton
+        type="button"
+        size="icon-compact"
+        label="取回"
+        aria-busy={state.kind === 'reading' || undefined}
+        disabled={state.kind === 'reading'}
+        onClick={() => void retrieve()}
+      >
+        <DownloadIcon />
+      </IconButton>
+      {state.kind === 'failed' ? <span role="status">取回失败：{state.reason}</span> : null}
+    </>
+  )
+}
+
+function FileLine(
+  props: MediaBlockProps & { readonly read: Read; readonly described: Described | null },
+) {
+  const { ref } = props.read
+  const name = props.described?.name
+  return (
+    <div className="omne-media-row">
+      <p className="omne-media-line" {...mediaFile.props}>
+        〔{props.read.kind}〕{name === undefined ? '' : `${name} · `}
+        {ref.mediaType} · {sizeText(ref.bytes)}
+      </p>
+      <Retrieve client={props.client} tenant={props.tenant} medium={ref} name={name} />
+    </div>
+  )
+}
+
+function FileBlock(props: MediaBlockProps) {
+  const read = readBlock(props.content)
+  const described = useDescription(props, typeof read === 'string' ? null : read.ref, true)
+  const note = described === null ? null : unreadableOf(described.preprocess)
+  return (
+    <WithRead kind="file" modelRead={props.modelRead} note={note}>
+      {typeof read === 'string' ? (
+        unread(read)
+      ) : (
+        <FileLine {...props} read={read} described={described} />
+      )}
+    </WithRead>
+  )
+}
+
+function durationText(content: unknown): string | null {
+  const facts = isRecord(content) ? content['facts'] : undefined
+  const ms = isRecord(facts) ? facts['durationMs'] : undefined
+  if (typeof ms !== 'number') return null
+  const seconds = Math.round(ms / 1000)
+  if (seconds < 60) return `${String(seconds)} 秒`
+  return `${String(Math.floor(seconds / 60))} 分 ${String(seconds % 60)} 秒`
+}
+
+function Player(props: MediaBlockProps & { readonly medium: Reference }) {
+  const shown = useAddress(props, props.medium, true)
+  if (shown.kind === 'reading') return <LoadingState label="正在读语音…" />
+  if (shown.kind === 'unreadable')
+    return <p className="omne-media-line">语音读不出来：{shown.reason}</p>
+  return <audio className="omne-media-player" controls autoPlay src={shown.url} />
+}
+
+function Voice(props: MediaBlockProps & { readonly read: Read }) {
+  const { ref } = props.read
+  const [playing, setPlaying] = useState(false)
+  const inline = isRecord(props.content) && typeof props.content['transcript'] === 'string'
+  const described = useDescription(props, ref, !inline)
+  const transcript = transcriptOf(props.content, described)
+  const length = durationText(props.content) ?? ref.mediaType
+  return (
+    <div className="omne-media-voice">
+      <div className="omne-media-row">
+        <p className="omne-media-line" {...mediaFile.props}>
+          〔{props.read.kind}〕{length} · {sizeText(ref.bytes)}
+        </p>
+        {playing ? null : (
+          <IconButton
+            type="button"
+            size="icon-compact"
+            label="播放"
+            onClick={() => setPlaying(true)}
+          >
+            <PlayIcon />
+          </IconButton>
+        )}
+      </div>
+      {playing ? <Player {...props} medium={ref} /> : null}
+      {transcript === null ? null : <p className="omne-media-transcript">{transcript}</p>}
+    </div>
+  )
+}
+
+function VoiceBlock(props: MediaBlockProps) {
+  const read = readBlock(props.content)
+  return (
+    <WithRead kind="voice" modelRead={props.modelRead}>
+      {typeof read === 'string' ? unread(read) : <Voice {...props} read={read} />}
+    </WithRead>
+  )
+}
+
+/** How each kind of block that is not words is drawn: a picture as a thumbnail, a file as a line, a voice as a line that plays. */
 export const MEDIA_BLOCKS: Readonly<Record<MediaBlockKind, (props: MediaBlockProps) => ReactNode>> =
   {
     image: ImageBlock,
-    file: lineBlock('file'),
-    voice: lineBlock('voice'),
+    file: FileBlock,
+    voice: VoiceBlock,
   }

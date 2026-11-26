@@ -110,7 +110,14 @@ export const mediaProtocol = defineProtocol({
   operations: {
     'begin-upload': {
       ...write,
-      body: ruleCodec(object({ ...ofUpload, mediaType: { rule: text }, bytes: { rule: count } })),
+      body: ruleCodec(
+        object({
+          ...ofUpload,
+          mediaType: { rule: text },
+          bytes: { rule: count },
+          name: { rule: text, optional: true, since: 3 },
+        }),
+      ),
       outcomes: {
         succeeded: standing,
         limited: limit,
@@ -189,6 +196,7 @@ export const mediaProtocol = defineProtocol({
             state: { rule: literal('staged', 'held') },
             facts: { rule: facts },
             preprocess: { rule: preprocess },
+            name: { rule: text, optional: true, since: 3 },
           }),
         ),
         'not-found': empty,

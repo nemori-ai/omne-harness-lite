@@ -7,6 +7,7 @@ import {
   type ModelChoiceListing,
   type ModelChoiceSource,
 } from '../src/model/model-selection.ts'
+import { HeadingEntriesContext } from '../src/view/heading-fold.tsx'
 import { ModelAction } from '../src/view/model-selection.tsx'
 
 beforeAll(() => {
@@ -22,6 +23,8 @@ afterEach(cleanup)
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const SESSION = 's-1'
+const PLACE = { tenant: TENANT, session: SESSION }
+const NONE: ModelChoiceListing = { kind: 'listed', choices: [] }
 const GPT = 'openai/gpt-x'
 const CLAUDE = 'anthropic/claude-y'
 const LOCKED = 'openai/locked-z'
@@ -60,12 +63,14 @@ const LISTED: ModelChoiceListing = {
     { route: LOCKED, selectable: false, note: '不能选：被锁定' },
   ],
 }
-const sourceOf = (listing: ModelChoiceListing): ModelChoiceSource & { asked: string[] } => {
-  const asked: string[] = []
+const sourceOf = (
+  listing: ModelChoiceListing,
+): ModelChoiceSource & { asked: (string | undefined)[][] } => {
+  const asked: (string | undefined)[][] = []
   return {
     asked,
-    list: async tenant => {
-      asked.push(tenant)
+    list: async (tenant, session) => {
+      asked.push([tenant, session])
       return listing
     },
   }
@@ -154,43 +159,43 @@ describe('the list of models, from whoever is attached', () => {
   it('there is no list until a source is attached, and none again once it is taken away', async () => {
     const { store } = storeWith([selection(GPT, '1')])
     const told = vi.fn()
-    store.subscribeChoices(TENANT, told)
-    expect(store.choices(TENANT)).toEqual({ kind: 'absent' })
-    await store.loadChoices(TENANT)
-    expect(store.choices(TENANT)).toEqual({ kind: 'absent' })
+    store.subscribeChoices(PLACE, told)
+    expect(store.choices(PLACE)).toEqual({ kind: 'absent' })
+    await store.loadChoices(PLACE)
+    expect(store.choices(PLACE)).toEqual({ kind: 'absent' })
 
     const source = sourceOf(LISTED)
     const detach = store.attach(source)
     await settle()
-    expect(source.asked).toEqual([TENANT])
-    expect(store.choices(TENANT)).toEqual(LISTED)
+    expect(source.asked).toEqual([[TENANT, SESSION]])
+    expect(store.choices(PLACE)).toEqual(LISTED)
     expect(told).toHaveBeenCalled()
 
     told.mockClear()
     detach()
-    expect(store.choices(TENANT)).toEqual({ kind: 'absent' })
+    expect(store.choices(PLACE)).toEqual({ kind: 'absent' })
     expect(told).toHaveBeenCalledTimes(1)
   })
 
   it('a source that throws is a list that could not be read', async () => {
     const { store } = storeWith([selection(GPT, '1')])
     store.attach({ list: () => Promise.reject(new Error('down')) })
-    await store.loadChoices(TENANT)
-    expect(store.choices(TENANT)).toEqual({ kind: 'unavailable', reason: '没有送达' })
+    await store.loadChoices(PLACE)
+    expect(store.choices(PLACE)).toEqual({ kind: 'unavailable', reason: '没有送达' })
   })
 
   it('a list that arrives after its source was taken away is dropped', async () => {
     const { store } = storeWith([selection(GPT, '1')])
     let answer: (listing: ModelChoiceListing) => void = () => {}
     const detach = store.attach({ list: () => new Promise(resolve => (answer = resolve)) })
-    const loading = store.loadChoices(TENANT)
+    const loading = store.loadChoices(PLACE)
     detach()
     const later = sourceOf({ kind: 'unavailable', reason: '模型的列表暂时读不到' })
     store.attach(later)
-    await store.loadChoices(TENANT)
+    await store.loadChoices(PLACE)
     answer(LISTED)
     await loading
-    expect(store.choices(TENANT)).toEqual({ kind: 'unavailable', reason: '模型的列表暂时读不到' })
+    expect(store.choices(PLACE)).toEqual({ kind: 'unavailable', reason: '模型的列表暂时读不到' })
   })
 
   it('taking away an earlier source does not take away the one attached after it', () => {
@@ -198,7 +203,7 @@ describe('the list of models, from whoever is attached', () => {
     const detachFirst = store.attach(sourceOf(LISTED))
     store.attach(sourceOf(LISTED))
     detachFirst()
-    expect(store.choices(TENANT).kind).not.toBe('absent')
+    expect(store.choices(PLACE).kind).not.toBe('absent')
   })
 })
 
@@ -355,6 +360,150 @@ describe('the model in the heading of a conversation', () => {
     expect(screen.getByRole('combobox', { name: '推理强度' }).textContent).toContain('medium')
     expect(screen.getByRole('status').textContent).toBe('没有换：这个模型不支持所选推理强度')
     expect(source.asked.length).toBe(count + 1)
+    expect(source.asked.at(-1)).toEqual([TENANT, SESSION])
+  })
+
+  it('each session of a tenant has its own list, and a page that moves to another session asks for it', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    const source = sourceOf(LISTED)
+    store.attach(source)
+    const view = render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    view.rerender(<ModelAction store={store} tenant={TENANT} session="s-2" />)
+    await settle()
+    expect(source.asked).toEqual([
+      [TENANT, SESSION],
+      [TENANT, 's-2'],
+    ])
+    store.attach({ list: async (_tenant, session) => (session === 's-2' ? LISTED : NONE) })
+    await settle()
+    expect(store.choices(PLACE)).toEqual(NONE)
+    expect(store.choices({ tenant: TENANT, session: 's-2' })).toEqual(LISTED)
+  })
+
+  it('a place only watched, and one only read, are both asked again from the next source', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    store.subscribeChoices({ tenant: TENANT, session: 'watched' }, () => undefined)
+    store.attach(sourceOf(LISTED))
+    await store.loadChoices({ tenant: TENANT, session: 'read' })
+    const next = sourceOf(LISTED)
+    store.attach(next)
+    await settle()
+    expect(next.asked).toEqual([
+      [TENANT, 'watched'],
+      [TENANT, 'read'],
+    ])
+  })
+
+  it('a model the content of this session stops is offered disabled, saying how many blocks; the list is asked for this session', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    const asked: unknown[] = []
+    store.attach({
+      list: async (tenant, session) => {
+        asked.push([tenant, session])
+        return {
+          kind: 'listed',
+          choices: [
+            ...LISTED.choices,
+            {
+              route: 'text/only',
+              selectable: false,
+              note: '不能选：读不了这段会话里的 2 块内容',
+              blocks: 2,
+            },
+          ],
+        }
+      },
+    })
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    expect(asked).toEqual([[TENANT, SESSION]])
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'Enter' })
+    const stopped = await screen.findByRole('option', { name: /text\/only/u })
+    expect(stopped.getAttribute('aria-disabled')).toBe('true')
+    expect(stopped.textContent).toContain('读不了这段会话里的 2 块内容')
+    expect(screen.queryByRole('option', { name: /locked-z/u })).toBeNull()
+  })
+
+  it('opening the choice of model reads the list for this session again: what it holds may have changed', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    const asked: unknown[] = []
+    const stopped = {
+      route: 'text/only',
+      selectable: false,
+      note: '不能选：读不了这段会话里的 1 块内容',
+      blocks: 1,
+    }
+    const open = { route: 'text/only', selectable: true, note: null }
+    store.attach({
+      list: async (tenant, session) => {
+        asked.push([tenant, session])
+        return { kind: 'listed', choices: [...LISTED.choices, asked.length === 1 ? open : stopped] }
+      },
+    })
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    expect(asked).toHaveLength(1)
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'Enter' })
+    await settle()
+    expect(asked).toEqual([
+      [TENANT, SESSION],
+      [TENANT, SESSION],
+    ])
+    const option = await screen.findByRole('option', { name: /text\/only/u })
+    expect(option.getAttribute('aria-disabled')).toBe('true')
+    expect(option.textContent).toContain('读不了这段会话里的 1 块内容')
+  })
+
+  it('a change refused for blocks of this session names them by kind and count', async () => {
+    const blocks = [
+      { message: 'm-1', block: 'b-1' },
+      { message: 'm-3', block: 'b-2' },
+      { message: 'm-3', block: 'b-3' },
+      { message: 'm-3', block: 'b-4' },
+      { message: 'm-9', block: 'b-9' },
+    ]
+    const { store } = storeWith([selection(GPT, '1')], {
+      outcome: 'invalid',
+      body: { reason: 'modality', blocks },
+    })
+    store.attach(sourceOf(LISTED))
+    const message = (id: string, kind: string, ...shown: Readonly<Record<string, string>>[]) => ({
+      entryId: id,
+      revision: '1',
+      kind,
+      payload: { message: { id, role: 'user', blocks: shown } },
+    })
+    const entries = [
+      message('m-1', 'message.user', { kind: 'text', id: 'b-0' }, { kind: 'image', id: 'b-1' }),
+      message('m-2', 'message.assistant', { kind: 'text', id: 'b-x' }),
+      message(
+        'm-3',
+        'message.user',
+        { kind: 'file', id: 'b-2' },
+        { kind: 'file', id: 'b-3' },
+        { kind: 'voice', id: 'b-4' },
+      ),
+    ]
+    render(
+      <HeadingEntriesContext.Provider value={entries}>
+        <ModelAction store={store} tenant={TENANT} session={SESSION} />
+      </HeadingEntriesContext.Provider>,
+    )
+    await settle()
+    await choose('模型', 'claude-y')
+    expect(screen.getByRole('status').textContent).toBe(
+      '没有换：这个模型读不了这段会话里的 1 张图片、1 段语音、2 个文件、1 块内容',
+    )
+  })
+
+  it('a change refused for blocks it cannot find says how many; one refused without blocks says words', () => {
+    const refused = (body: unknown) => selectText({ outcome: 'invalid', body } as never)
+    expect(refused({ reason: 'modality', blocks: [{ message: 'm', block: 'b' }] })).toBe(
+      '没有换：这个模型读不了这段会话里的 1 块内容',
+    )
+    expect(refused({ reason: 'modality' })).toBe('没有换：这个模型不支持文字')
+    expect(refused({ reason: 'modality', blocks: [] })).toBe('没有换：这个模型不支持文字')
   })
 
   it('a refused change is said, and the model shown is the one read again', async () => {

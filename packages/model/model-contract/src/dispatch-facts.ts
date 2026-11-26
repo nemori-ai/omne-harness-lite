@@ -5,12 +5,18 @@ import type {
   ContextWindow,
   DispatchId,
   ModelCallId,
+  Parameter,
   Supplier,
 } from './root.ts'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ModelFault, Reply } from './result.ts'
 import type { DispatchInstants, DispatchRecord } from './call-surface.ts'
 import type { CostLookupState } from './cost-lookup.ts'
+
+export type DispatchEffort = Readonly<{
+  value: Extract<Parameter, { kind: 'reasoning-effort' }>['value'] | null
+  basis: 'selection' | 'preference' | 'provider'
+}>
 
 /** One real dispatch as Model shows it outside: numbers and identities only, never a body. */
 export type ModelDispatchFact = Readonly<{
@@ -30,6 +36,7 @@ export type ModelDispatchFact = Readonly<{
   connectRetries: number
   account: CallAccount | null
   costLookup: CostLookupState
+  effort?: DispatchEffort
 }>
 /** A materialized request may already be out: until its start is recorded, its send is unknown, never not-sent. */
 export function dispatchSend(
@@ -64,4 +71,7 @@ export type ModelDispatchFactsPage = Readonly<{
 }>
 export interface ModelDispatchFacts<P> {
   list(input: Access<P> & ModelDispatchFactsQuery): Reply<ModelDispatchFactsPage>
+  readonly ofCall?: (
+    input: Access<P> & Readonly<{ call: ModelCallId }>,
+  ) => Reply<readonly ModelDispatchFact[]>
 }

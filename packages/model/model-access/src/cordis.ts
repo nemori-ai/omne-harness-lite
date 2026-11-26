@@ -2,11 +2,17 @@ import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { accessRegistryKey, defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
 import { modelProtocol } from '@omne-harness/model-protocol'
 import { createModelAccessContribution } from './contribution.ts'
-import type { ModelAccessPrincipals, ModelAccessSettings, ModelChoiceReader } from './ports.ts'
+import type {
+  ModelAccessPrincipals,
+  ModelAccessSettings,
+  ModelChoiceReader,
+  ModelSessionRequirements,
+} from './ports.ts'
 
 export type ModelAccessPluginInput = Readonly<{
   principals: (ctx: Context) => ModelAccessPrincipals
   profiles: (ctx: Context) => ModelChoiceReader | undefined
+  sessions?: (ctx: Context) => ModelSessionRequirements | undefined
 }>
 
 const MODEL_ACCESS_PLUGIN = 'model-access'
@@ -27,6 +33,7 @@ export function createModelAccessPlugin<S extends ModelAccessSettings = ModelAcc
               profiles: () => input.profiles(ctx),
               principals: input.principals(ctx),
               settings,
+              sessions: () => input.sessions?.(ctx),
             }),
         }),
       )

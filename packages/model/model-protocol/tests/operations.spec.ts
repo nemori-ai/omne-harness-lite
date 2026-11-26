@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { modelProtocol } from '@omne-harness/model-protocol'
-import { expectRoundTrip, readSample, tenant } from './fixtures/samples.ts'
+import { expectRoundTrip, limits, readSample, session, tenant, tree } from './fixtures/samples.ts'
 
 const operation = modelProtocol.operations['list-models']
 const sonnet = {
@@ -46,6 +46,12 @@ describe('the body of list-models', () => {
     expect(readSample(operation.body, { tenant: 'not a tenant' }).ok).toBe(false)
     expect(readSample(operation.body, { tenant, selected: 'x' }).ok).toBe(false)
   })
+
+  it('may name a session from revision 4 on; an end at revision 3 is not sent one', () => {
+    expectRoundTrip(operation.body, { tenant, session })
+    expect(readSample(operation.body, { tenant, session: 'not a session' }).ok).toBe(false)
+    expect(operation.body.read(tree({ tenant, session }), limits, 3).ok).toBe(false)
+  })
 })
 
 describe('what list-models answers', () => {
@@ -81,6 +87,25 @@ describe('what list-models answers', () => {
     ['a model that lacks a member', { route: 'x', selectable: true }],
   ])('refuses %s', (_name, model) => {
     expect(readSample(answered, { models: [model] }).ok).toBe(false)
+  })
+
+  it('names, from revision 4 on, the blocks of the session that stop a model; at most 16', () => {
+    const blocked = {
+      ...sonnet,
+      route: 'text-only',
+      selectable: false,
+      reasons: ['modality'],
+      input: ['text'],
+      blocks: [{ message: 'msg_1', block: 'blk_1' }],
+    }
+    expectRoundTrip(answered, { models: [blocked] })
+    const many = Array.from({ length: 17 }, (_, at) => ({ message: 'msg_1', block: `blk_${at}` }))
+    expect(readSample(answered, { models: [{ ...blocked, blocks: many }] }).ok).toBe(false)
+    expect(answered.read(tree({ models: [blocked] }), limits, 3).ok).toBe(false)
+    const read = readSample(answered, { models: [blocked] })
+    if (!read.ok) throw new Error('not read')
+    const told = answered.write(read.value, limits, 3)
+    expect(told.ok && JSON.stringify(told.value).includes('blocks')).toBe(false)
   })
 
   it('refuses a page without the list', () => {

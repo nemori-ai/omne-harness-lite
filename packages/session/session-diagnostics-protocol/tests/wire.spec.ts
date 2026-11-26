@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sessionDiagnosticsProtocol } from '@omne-harness/session-diagnostics-protocol'
-import { expectRoundTrip, readSample, session, tenant } from './fixtures/samples.ts'
+import { expectRoundTrip, limits, readSample, session, tenant, tree } from './fixtures/samples.ts'
 
 const operation = sessionDiagnosticsProtocol.operations['read-session-diagnostics']
 const target = { tenant, session }
@@ -186,6 +186,40 @@ describe('read-session-diagnostics outcome bodies', () => {
     expect(
       readSample(operation.outcomes.succeeded, withAttempt({ ...attempt, reasoning: 'maybe' })),
     ).toEqual({ ok: false })
+  })
+
+  it('carries, from revision 2 on, the reasoning effort of each attempt and where it came from, or that it is not known', () => {
+    const withAttempt = (dispatch: unknown) => ({
+      ...page,
+      runs: [{ ...run, modelCalls: [{ ...run.modelCalls[0], dispatches: [dispatch] }] }],
+    })
+    const answered = operation.outcomes.succeeded
+    for (const effort of [
+      { value: 'high', basis: 'selection' },
+      { value: 'medium', basis: 'preference' },
+      { value: null, basis: 'provider' },
+      { value: 'max', basis: 'selection' },
+      unknownValue,
+    ])
+      expectRoundTrip(answered, withAttempt({ ...attempt, effort }))
+    expect(
+      readSample(answered, withAttempt({ ...attempt, effort: { value: 'high', basis: 'guess' } })),
+    ).toEqual({ ok: false })
+    const profile = {
+      owner: 'model',
+      name: 'anthropic/claude-sonnet-5',
+      revision: '3',
+      digest: 'd',
+    }
+    expectRoundTrip(answered, withAttempt({ ...attempt, profile }))
+    expectRoundTrip(answered, withAttempt({ ...attempt, profile: unknownValue }))
+    expect(answered.read(tree(withAttempt({ ...attempt, profile })), limits, 1).ok).toBe(false)
+    const told = withAttempt({ ...attempt, effort: { value: 'high', basis: 'selection' } })
+    expect(answered.read(tree(told), limits, 1).ok).toBe(false)
+    const read = readSample(answered, told)
+    if (!read.ok) throw new Error('not read')
+    const older = answered.write(read.value, limits, 1)
+    expect(older.ok && JSON.stringify(older.value).includes('effort')).toBe(false)
   })
 
   it('carries the moments, the span to the response, the connect retries and the dispatch progress, and takes a recording without them', () => {

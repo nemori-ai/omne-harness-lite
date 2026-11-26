@@ -57,6 +57,23 @@
     color: var(--omne-ink-muted);
     font-size: var(--omne-text-caption);
   }
+  .omne-media-voice {
+    display: grid;
+    gap: var(--spacing);
+  }
+  .omne-media-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing);
+  }
+  .omne-media-player {
+    display: block;
+    max-width: 100%;
+  }
+  .omne-media-transcript {
+    margin: 0;
+    white-space: pre-wrap;
+  }
   .omne-media-picture {
     display: block;
     height: auto;
