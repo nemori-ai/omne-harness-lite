@@ -24,6 +24,10 @@ export declare const modelProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly models: readonly {
+                        readonly blocks?: readonly {
+                            readonly block: string;
+                            readonly message: string;
+                        }[];
                         readonly credential: "available" | "missing" | "unknown";
                         readonly defaultReasoningEffort?: "high" | "low" | "medium" | "xhigh";
                         readonly enabled?: boolean;
@@ -43,6 +47,7 @@ export declare const modelProtocol: {
             readonly effect: "read";
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly session?: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
             readonly countsAsAccess: true;

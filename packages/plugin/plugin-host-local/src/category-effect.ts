@@ -37,6 +37,7 @@ export type PluginEffectPorts = Readonly<{
 
 function serverTold(kept: Kept | undefined, held: string): ServerTold {
   if (kept === undefined || `sha256:${kept.version}` !== held) return { state: null, reason: null }
+  if (kept.kind === 'waiting') return { state: 'waiting', reason: kept.lacks.join(', ') }
   return { state: kept.kind, reason: kept.kind === 'failed' ? kept.reason : null }
 }
 

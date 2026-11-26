@@ -90,6 +90,7 @@ export const DEFAULT_JUDGE_CONFIG: JudgeConfig = Object.freeze({
     ...BASELINE_JUDGE_CONFIG.instructions,
     exits: 'guided',
     unattainable: 'plain',
+    unsettled: 'covers',
   }),
   packaging: Object.freeze({
     ...BASELINE_JUDGE_CONFIG.packaging,

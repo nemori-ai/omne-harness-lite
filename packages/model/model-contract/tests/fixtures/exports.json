@@ -628,6 +628,11 @@
               "pending": false
             },
             {
+              "name": "DispatchEffort",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "ModelDispatchFact",
               "kind": "type",
               "pending": false

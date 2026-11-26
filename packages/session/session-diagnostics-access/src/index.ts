@@ -10,6 +10,7 @@ export type {
 export type {
   DiagnosticPorts,
   ModelAttemptReader,
+  ModelFactReader,
   ModelCallInspector,
   ModelRequestReader,
   RequestBlockChoice,

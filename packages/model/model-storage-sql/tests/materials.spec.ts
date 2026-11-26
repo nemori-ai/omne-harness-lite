@@ -8,6 +8,7 @@ import {
   DISPATCH_FACT,
   DISPATCH_FACTS_HANDLER,
   DISPATCH_FACTS_PAGE_MAX,
+  FACT_EFFORT_MIGRATION,
   FACT_MIGRATION,
   MIGRATION,
   MODEL_PARTICIPANT,
@@ -42,6 +43,7 @@ describe('the materials of the Model records', () => {
     expect(materials.migrations.map(item => [item.owner, item.id, item.requires])).toEqual([
       [MIGRATION.owner, MIGRATION.id, []],
       [FACT_MIGRATION.owner, FACT_MIGRATION.id, [{ owner: MIGRATION.owner, id: MIGRATION.id }]],
+      [FACT_EFFORT_MIGRATION.owner, FACT_EFFORT_MIGRATION.id, [{ ...FACT_MIGRATION }]],
     ])
   })
 
@@ -56,10 +58,11 @@ describe('the materials of the Model records', () => {
     expect(new Set(materials.readHandlers.map(item => item.moduleUrl)).size).toBe(5)
     const record = { owner: MIGRATION.owner, id: MIGRATION.id }
     const facts = { owner: FACT_MIGRATION.owner, id: FACT_MIGRATION.id }
+    const effort = { ...FACT_EFFORT_MIGRATION }
     for (const handler of materials.readHandlers) {
       expect(handler.protocol).toBe(PROTOCOL)
       expect(handler.requiresMigrations).toEqual(
-        handler.handler === DISPATCH_FACTS_HANDLER ? [record, facts] : [record],
+        handler.handler === DISPATCH_FACTS_HANDLER ? [record, facts, effort] : [record],
       )
       expect(handler.maxOutputBytes).toBeLessThanOrEqual(4 * 1024 * 1024)
       if (handler.handler === DISPATCH_FACTS_HANDLER)
@@ -75,7 +78,7 @@ describe('the materials of the Model records', () => {
       ...materials.migrations.map(item => [item.moduleUrl, item.checksum] as const),
       ...materials.readHandlers.map(item => [item.moduleUrl, item.codeDigest] as const),
     ]
-    expect(new Set(modules.map(([url]) => url)).size).toBe(8)
+    expect(new Set(modules.map(([url]) => url)).size).toBe(9)
     for (const [url, digest] of modules) {
       expect(url.startsWith('file:')).toBe(true)
       expect(sha256(url)).toBe(digest)

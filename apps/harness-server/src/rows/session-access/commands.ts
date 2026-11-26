@@ -31,12 +31,23 @@ type Listed = Readonly<{
   enabled?: boolean
   reasoningEfforts?: readonly string[]
   defaultReasoningEffort?: string
+  blocks?: readonly unknown[]
 }>
 
-function choiceOf(model: Listed): ModelChoice {
-  const why = model.reasons.map(reason => REASONS[reason] ?? reason).join('；')
-  const unavailable =
-    model.enabled === false ? '租户关掉了它' : model.selectable ? undefined : why || '此刻不能选'
+function whyNot(model: Listed): string | undefined {
+  if (model.enabled === false) return '租户关掉了它'
+  if (model.selectable) return undefined
+  const { blocks } = model
+  const said = model.reasons.map(reason =>
+    reason === 'modality' && blocks !== undefined
+      ? `读不了这段会话里的 ${String(blocks.length)} 块内容`
+      : (REASONS[reason] ?? reason),
+  )
+  return said.length === 0 ? '此刻不能选' : said.join('；')
+}
+
+export function choiceOf(model: Listed): ModelChoice {
+  const unavailable = whyNot(model)
   return {
     name: model.route,
     ...(unavailable === undefined ? {} : { unavailable }),
@@ -92,7 +103,7 @@ export function sessionCommandsPlugin(facts: PrincipalFacts): Plugin.Object {
           return succeed(typeof revision === 'string' ? revision : '')
         },
         async models(asker) {
-          const read = await ask(asker, MODEL, 'list-models', { tenant: asker.tenant })
+          const read = await ask(asker, MODEL, 'list-models', located(asker))
           if (!('ok' in read) || read.ok.outcome !== 'succeeded') return fail('unavailable')
           return succeed((read.ok.body as { models: readonly Listed[] }).models.map(choiceOf))
         },

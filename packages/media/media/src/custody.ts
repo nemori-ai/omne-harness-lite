@@ -56,9 +56,11 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
     async describe(input) {
       const row = await objects.resolve(tenantText(input.tenant), input.ref)
       if ('failure' in row) return row
+      const { name } = row.ok
       return succeed({
         state: row.ok.state === 'held' ? 'held' : 'staged',
         facts: objects.committed(row.ok).facts,
+        ...(name === undefined ? {} : { name }),
       })
     },
 

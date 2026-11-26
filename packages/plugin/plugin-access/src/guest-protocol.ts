@@ -36,7 +36,11 @@ export type GuestProtocolMade = Readonly<{
   handlers: Readonly<Record<string, GuestHandler>>
 }>
 
-type Context = Readonly<{ key: string; bind: (principal: unknown) => Bound }>
+type Context = Readonly<{
+  key: string
+  bind: (principal: unknown) => Bound
+  within?: <T>(run: () => T) => T
+}>
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -77,12 +81,13 @@ function contractOf(name: string, operation: GuestOperation): OperationContract 
 function handlerOf(
   handler: GuestHandler,
   effect: GuestOperation['effect'],
-  bind: Context['bind'],
+  { bind, within }: Context,
 ): OperationHandler<OperationContract> {
   return async (call, body) => {
     const bound = bind(call.principal)
     try {
-      const answer: unknown = await handler(body as PortData, { ports: bound.ports })
+      const run = () => handler(body as PortData, { ports: bound.ports })
+      const answer: unknown = await (within === undefined ? run() : within(run))
       if (isRecord(answer) && answer['outcome'] === 'succeeded' && 'body' in answer)
         return { outcome: 'succeeded', body: answer['body'] }
       if (isRecord(answer) && PASSED.has(String(answer['outcome'])))
@@ -121,7 +126,7 @@ export function guestProtocol(
   const operations = Object.fromEntries(
     names.map(name => {
       const { effect } = contract.operations[name] as GuestOperation
-      return [name, handlerOf(handlers[name] as GuestHandler, effect, context.bind)]
+      return [name, handlerOf(handlers[name] as GuestHandler, effect, context)]
     }),
   )
   return { protocol, operations, observations: {} } as AccessContribution<ProtocolContract>

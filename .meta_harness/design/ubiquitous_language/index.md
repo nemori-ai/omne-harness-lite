@@ -166,7 +166,8 @@
 | [UL-session-slash-command-set](terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) | 会话斜杠命令集 | Session Slash-Command Set | 一个会话此刻能点名的全部入口项，向各入口来源现问；**不在里面的就是不存在**；不存，变化下一次读就生效 |
 | [UL-meta-capability](terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | meta 能力 | Meta Capability | 一整类能力的统一入口；已采用提供的入口**必定常驻、不可禁用**，候选与占位不表示已提供；`Tools()` 也按工具的对象链实现，仍不可替换 |
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
-| [UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | 模型档案 | Model Profile | 关于一个可被调用的模型的全部事实，是数据不是资产；身份是（范围, 路由名），同名的几条按层覆盖 |
+| [UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | 模型档案 | Model Profile | 关于一个可被调用的模型的全部事实，是数据不是资产；身份是（范围, 模型类型, 路由名），同名的几条按层覆盖 |
+| [UL-model-kind](terms/capabilities-and-composition.md#ul-model-kind--模型类型--model-kind) | 模型类型 | Model Kind | 一条模型档案按调用的方式属于的那一类，取 llm、decisions、live 之一；说怎样调用，**不是模态** |
 | [UL-official-model-profile](terms/capabilities-and-composition.md#ul-official-model-profile--官方档案--official-model-profile) | 官方档案 | Official Model Profile | 随系统发布、在出厂默认层的档案；同名的自建档案按层盖过它；**不是官方件** |
 | [UL-custom-model-profile](terms/capabilities-and-composition.md#ul-custom-model-profile--自建档案--custom-model-profile) | 自建档案 | Custom Model Profile | 组织超管或租户在自己那层建的档案，可修订（路由名与来源除外）；同名时按层覆盖；**不是自定义件** |
 | [UL-profile-listing-status](terms/capabilities-and-composition.md#ul-profile-listing-status--档案在册状态--profile-listing-status) | 档案在册状态 | Profile Listing Status | 在册 ⇄ 已撤回，**来回都走得通、没有终态、行还在**；「已下架」说的是一个名字（链上同名的都撤回了）；「范围不允许」不是它的取值 |

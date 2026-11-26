@@ -45,6 +45,7 @@ export type MediaRow = Readonly<{
   expiresAt: Instant | null
   /** How many holders hold it; the same holder counts once. */
   holderCount: number
+  name?: string
 }>
 
 export type NewRow = Readonly<{
@@ -55,6 +56,7 @@ export type NewRow = Readonly<{
   bytes: number
   upload: string | null
   expiresAt: Instant
+  name?: string
 }>
 
 export type Staging = Readonly<{

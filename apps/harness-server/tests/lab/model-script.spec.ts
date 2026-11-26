@@ -93,6 +93,7 @@ describe('a model script of the lab assembly', () => {
         questions: {
           A1: { type: 'choice', criteria: { holds: '', fails: '', 'no-evidence': '' } },
           N1: { type: 'choice', criteria: { kept: '', broken: '', unclear: '' } },
+          A2: { type: 'noul' },
           X1: { type: 'noul' },
           U1: { type: 'choice', criteria: { none: '', blocked: '' } },
         },
@@ -104,6 +105,7 @@ describe('a model script of the lab assembly', () => {
       provider: 'OpenAI',
       answers: {
         A1: { type: 'choice', choice: 'holds', probabilities: { holds: 0.97 } },
+        A2: { type: 'noul', noul: 0.97 },
         N1: { type: 'choice', choice: 'kept', probabilities: { kept: 0.97 } },
         X1: { type: 'noul', noul: 0.02 },
         U1: { type: 'choice', choice: 'none', probabilities: { none: 0.97 } },
@@ -115,9 +117,10 @@ describe('a model script of the lab assembly', () => {
     }
     expect([
       open.answers['A1']?.choice,
+      open.answers['A2']?.noul,
       open.answers['N1']?.choice,
       open.answers['X1']?.noul,
-    ]).toEqual(['no-evidence', 'kept', 0.01])
+    ]).toEqual(['no-evidence', 0.030000000000000027, 'kept', 0.01])
   })
 
   it('answers nothing to a judging no rule fits: the judge is then unavailable, not wrong', () => {

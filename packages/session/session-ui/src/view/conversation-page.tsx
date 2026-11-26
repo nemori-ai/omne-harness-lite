@@ -32,10 +32,16 @@ import { underWay, type Open, type PendingInput, type State } from '../model/ses
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import type { Cause, Waiting } from '../model/waiting.ts'
 import type { SessionRunFailureSubject } from '../points.ts'
-import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './block-slot.ts'
+import {
+  BlockSlotContext,
+  ReplySlotContext,
+  ToolCallSlotContext,
+  type ToolCallPart,
+} from './block-slot.ts'
 import { Composer } from './composer.tsx'
 import {
   HeadingFoldContext,
+  HeadingEntriesContext,
   HeadingRevisionContext,
   useHeadingFold,
   type HeadingFold,
@@ -76,6 +82,7 @@ export type ConversationPageProps = Readonly<{
   assistant?: Reader<ComposerAssistant>
   block?: Parts['block']
   toolCall?: Parts['toolCall']
+  reply?: Parts['reply']
   heading?: (session: string) => ReactNode
   /** Verbs on the open session in its `⋯`, such as archiving it; each tells what came of it through `say`. */
   more?: (session: string, say: (text: string) => void) => ReactNode
@@ -97,6 +104,7 @@ export function ConversationPage({
   assistant,
   block = (_session, _kind, _source, fallback) => fallback,
   toolCall = (_session, _part, generic) => generic(),
+  reply = () => null,
   heading = () => null,
   more = () => null,
   work = () => null,
@@ -129,6 +137,7 @@ export function ConversationPage({
           assistant={assistant}
           block={block}
           toolCall={toolCall}
+          reply={reply}
           heading={heading}
           more={more}
           work={work}
@@ -154,9 +163,12 @@ type Parts = Readonly<{
     revision: string | null,
   ) => ReactNode
   toolCall: (session: string, part: ToolCallPart, generic: () => ReactNode) => ReactNode
+  reply: (session: string, run: string, revision: string | null) => ReactNode
   work: (session: string, revision: string | null) => ReactNode
   waitingCalls: WaitingCalls | undefined
 }>
+
+const NO_ENTRIES: readonly HistoryEntry[] = []
 
 function Page({
   driver,
@@ -194,7 +206,11 @@ function Page({
       <div className="omne-session-bar-end" ref={fold.end}>
         <HeadingFoldContext.Provider value={fold.bar}>
           <HeadingRevisionContext.Provider value={state.kind === 'open' ? state.revision : null}>
-            {open === null ? null : heading(open)}
+            <HeadingEntriesContext.Provider
+              value={state.kind === 'open' ? state.content.entries : NO_ENTRIES}
+            >
+              {open === null ? null : heading(open)}
+            </HeadingEntriesContext.Provider>
           </HeadingRevisionContext.Provider>
         </HeadingFoldContext.Provider>
         {known === null ? null : (
@@ -417,6 +433,7 @@ function OpenSession({
   assistant,
   block,
   toolCall,
+  reply,
   work,
   waitingCalls,
 }: Parts & { readonly state: Open; readonly driver: SessionDriver }) {
@@ -432,34 +449,40 @@ function OpenSession({
     () => (part: ToolCallPart, generic: () => ReactNode) => toolCall(session, part, generic),
     [toolCall, session],
   )
+  const replied = useMemo(
+    () => (run: string) => reply(session, run, revision),
+    [reply, session, revision],
+  )
   return (
     <BlockSlotContext.Provider value={drawn}>
       <ToolCallSlotContext.Provider value={called}>
-        {state.notice === null ? null : <NoticeLine notice={state.notice} />}
-        {state.history.failure === null ? null : <NoticeLine notice={state.history.failure} />}
-        <Conversation
-          epoch={state.session}
-          content={state.content}
-          runActive={underWay(state.run)}
-          inputs={state.inputs}
-          waiting={state.waiting}
-          driver={driver}
-          dock={dock(state.session)}
-          failure={cause =>
-            failure({ session: state.session, cause: cause.kind, detail: cause.detail })
-          }
-        />
-        {work(state.session, state.revision)}
-        <Composer
-          state={state}
-          driver={driver}
-          scope={scope}
-          status={status(state.session)}
-          waiting={waiting}
-          drafts={drafts}
-          attachments={attachments}
-          {...(assistant === undefined ? {} : { assistant })}
-        />
+        <ReplySlotContext.Provider value={replied}>
+          {state.notice === null ? null : <NoticeLine notice={state.notice} />}
+          {state.history.failure === null ? null : <NoticeLine notice={state.history.failure} />}
+          <Conversation
+            epoch={state.session}
+            content={state.content}
+            runActive={underWay(state.run)}
+            inputs={state.inputs}
+            waiting={state.waiting}
+            driver={driver}
+            dock={dock(state.session)}
+            failure={cause =>
+              failure({ session: state.session, cause: cause.kind, detail: cause.detail })
+            }
+          />
+          {work(state.session, state.revision)}
+          <Composer
+            state={state}
+            driver={driver}
+            scope={scope}
+            status={status(state.session)}
+            waiting={waiting}
+            drafts={drafts}
+            attachments={attachments}
+            {...(assistant === undefined ? {} : { assistant })}
+          />
+        </ReplySlotContext.Provider>
       </ToolCallSlotContext.Provider>
     </BlockSlotContext.Provider>
   )
@@ -484,15 +507,15 @@ function useWaitingCalls(
   )
 }
 
-type MarkerWeight = 'unspoken' | 'failed'
+type MarkerWeight = 'unspoken' | 'receipt' | 'failed'
 
 /** The normal start and completion of a run are not drawn; a failed run's line is in the failure colour. */
 function markerWeights(entries: readonly HistoryEntry[]): ReadonlyMap<string, MarkerWeight> {
   const weights = new Map<string, MarkerWeight>()
   for (const entry of entries) {
     const outcome = terminalOf(entry)?.outcome
-    if (entry.kind === 'run.started' || outcome === 'completed')
-      weights.set(entry.entryId, 'unspoken')
+    if (entry.kind === 'run.started') weights.set(entry.entryId, 'unspoken')
+    else if (outcome === 'completed') weights.set(entry.entryId, 'receipt')
     else if (outcome === 'failed') weights.set(entry.entryId, 'failed')
   }
   return weights
@@ -572,7 +595,11 @@ function Conversation({
             entry={item.key}
             found={item.key === found}
           >
-            <ItemView item={item} failed={weights.get(item.key) === 'failed'} />
+            <ItemView
+              item={item}
+              failed={weights.get(item.key) === 'failed'}
+              receipt={weights.get(item.key) === 'receipt'}
+            />
           </TranscriptRow>
           {item.key === anchor ? notice : null}
         </Fragment>

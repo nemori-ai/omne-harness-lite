@@ -585,6 +585,8 @@ describe('the Run skeleton and the call branches', () => {
               receipt: 'received',
             },
             reasoning: 'unknown',
+            profile: { kind: 'unknown', reason: 'unsupported' },
+            effort: { kind: 'unknown', reason: 'unsupported' },
           },
         ],
         coverage: 'complete-through-snapshot',
@@ -1621,6 +1623,60 @@ describe('the account of each dispatch', () => {
       ['d4', 'unknown'],
     ])
   })
+
+  it('takes the reasoning effort of each attempt from the dispatch fact of the same identity; one without it is not known', async () => {
+    const model = modelDouble(twoAttempts, { c1: attemptsPage(['d1', 'd2', 'd3', 'd4']) })
+    const shown = { owner: 'model', name: 'anthropic/claude-sonnet-5', revision: '3', digest: 'd' }
+    const kept = { ...shown, extra: 'not shown' }
+    const read: string[] = []
+    const modelFacts = {
+      ofCall: async (input: { call: string }) => {
+        read.push(input.call)
+        return succeed([
+          { dispatch: 'd1', profile: kept, effort: { value: 'high', basis: 'selection' } },
+          { dispatch: 'd2', profile: kept, effort: { value: null, basis: 'provider' } },
+          { dispatch: 'd3', profile: kept },
+        ])
+      },
+    }
+    const page = await project({
+      entries: [started('e1', 'r1'), bound('e2', 'model', 'm1')],
+      ports: { ...model, modelFacts: modelFacts as never },
+    })
+    const dispatches = page.runs[0]!.modelCalls[0]!.dispatches
+    expect(read).toEqual(['c1'])
+    expect(dispatches.map(dispatch => dispatch.profile)).toEqual([
+      shown,
+      shown,
+      shown,
+      { kind: 'unknown', reason: 'not-recorded' },
+    ])
+    expect(dispatches.map(dispatch => [dispatch.dispatch, dispatch.effort])).toEqual([
+      ['d1', { value: 'high', basis: 'selection' }],
+      ['d2', { value: null, basis: 'provider' }],
+      ['d3', { kind: 'unknown', reason: 'not-recorded' }],
+      ['d4', { kind: 'unknown', reason: 'not-recorded' }],
+    ])
+  })
+
+  it.each([
+    ['refused', async () => fail({ kind: 'denied', action: 'read-account' }), 'denied'],
+    ['throwing', async () => Promise.reject(new Error('down')), 'unavailable'],
+  ] as const)(
+    'says unknown of every effort when the fact read is %s',
+    async (_name, ofCall, reason) => {
+      const model = modelDouble(twoAttempts, { c1: attemptsPage(['d1']) })
+      const page = await project({
+        entries: [started('e1', 'r1'), bound('e2', 'model', 'm1')],
+        ports: { ...model, modelFacts: { ofCall } as never },
+      })
+      const [attempt] = page.runs[0]!.modelCalls[0]!.dispatches
+      expect([attempt?.profile, attempt?.effort]).toEqual([
+        { kind: 'unknown', reason },
+        { kind: 'unknown', reason },
+      ])
+    },
+  )
 
   it('says unknown of the reasoning of every attempt when the dispatch read fails', async () => {
     const model = modelDouble(twoAttempts, { c1: attemptsPage(['d1']) }, { c1: 'throw' })

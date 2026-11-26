@@ -26,6 +26,7 @@ it('根入口的导出名固定（DY-14）', async () => {
     'install',
     'list',
     'listed',
+    'lockOver',
     'lost',
     'mint',
     'mostSpecific',
