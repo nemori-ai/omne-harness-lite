@@ -269,6 +269,16 @@ async function readWhole(reach: WorkReach, cache: WorkCache, key: string): Promi
       diagnostic: `read ${WORK_HANDLER}: the snapshot does not decode: ${error instanceof Error ? error.message : String(error)}`,
     }
   }
+  return keptWhole(reach, cache, key, whole, snapshot)
+}
+
+async function keptWhole(
+  reach: WorkReach,
+  cache: WorkCache,
+  key: string,
+  whole: Record,
+  snapshot: WorkSnapshot,
+): Promise<WorkRead> {
   const tail = textOf(whole['tail'])
   const published = textOf(whole['published'])
   const bytes = whole['bytes']
@@ -276,11 +286,11 @@ async function readWhole(reach: WorkReach, cache: WorkCache, key: string): Promi
     cache.delete(key)
     return { kind: 'state', snapshot }
   }
-  if (snapshot.historyIndex !== undefined) {
-    cache.set(key, { version: { tail, published }, bytes, snapshot })
-    return { kind: 'state', snapshot }
-  }
-  const indexed = await withIndex(reach, { tail, published }, snapshot)
+  const version = { tail, published }
+  const indexed =
+    snapshot.historyIndex === undefined
+      ? await withIndex(reach, version, snapshot)
+      : { version, snapshot }
   if (indexed === null) {
     cache.delete(key)
     return { kind: 'unavailable', diagnostic: `read ${WORK_HANDLER}: ${INDEX_UNFINISHED}` }

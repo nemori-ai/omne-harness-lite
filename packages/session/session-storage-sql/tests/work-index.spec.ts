@@ -4,7 +4,8 @@ import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from '../src/codec.ts'
 import { createSessionStorage } from '../src/index.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
-import { activeRun, cancelRun, startRun, workOf } from './fixtures/real-provider.ts'
+import { evidence } from '@omne-harness/session-contract/testing'
+import { activeRun, agentPublisher, cancelRun, startRun, workOf } from './fixtures/real-provider.ts'
 
 type Module = typeof import('../src/worker/history-index.ts')
 type Port = Parameters<Module['workIndexOf']>[0]
@@ -112,6 +113,47 @@ describe('the work index of a session with a long history', () => {
       2 * work.pending.length + 2,
     )
   })
+
+  it('carries what the active execution admitted of a pending input, as a whole read does', async () => {
+    const { a, work } = await sessionOf(2)
+    const run = activeRun(work)
+    await agentPublisher({
+      storage: a.provider.storage,
+      combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
+      domainOf: () => DOMAIN,
+    }).admit({
+      tenant: TENANT_A,
+      session: SESSION,
+      execution: run.execution,
+      input: 'input-pending',
+      operation: 'aop-submit-pending',
+      accepted: evidence('agent/accepted/pending'),
+      grant: evidence('agent/receipt/pending'),
+      attachment: 'attachment-1',
+      attempt: run.attempt,
+    })
+    const { port } = counting(a)
+    const scope: SessionInputScope = { kind: 'pending', inputs: work.pending }
+    const whole = (await coldWorker()).readHistory(port, textOf(TENANT_A), SESSION, work, scope)
+    const paged = (await coldWorker()).workIndexOf(port, textOf(TENANT_A), SESSION, work)
+    if (whole === 'too-many' || paged === 'too-many') throw new Error('the read is over its bound')
+    const admitted = (index: typeof paged.index) =>
+      index.inputs.find(item => item.input === 'input-pending')
+    expect(admitted(paged.index)).toMatchObject({ count: '1' })
+    expect(admitted(paged.index)).toEqual(admitted(whole.index))
+  })
+
+  it('reads nothing of the Agent record for a session with no active Run', async () => {
+    const a = await app()
+    ok(await a.create(TENANT_A))
+    ok(await a.accept(TENANT_A, SESSION, 'input-1'))
+    const work = await workOf(a)
+    const { port, reads } = counting(a)
+    const answer = (await coldWorker()).workIndexOf(port, textOf(TENANT_A), SESSION, work)
+    if (answer === 'too-many') throw new Error('the read is over its page')
+    expect(answer.index.inputs).toMatchObject([{ input: 'input-1', count: '0', members: [] }])
+    expect(reads.filter(item => /AND input = \?/u.test(item.sql))).toEqual([])
+  })
 })
 
 describe('a work index that one read does not finish', () => {
@@ -155,6 +197,28 @@ describe('a work index that one read does not finish', () => {
     const read = ok<WorkSnapshot>(await slow.port.readWork(a.access(TENANT_A)))
     expect(read.historyIndex).toEqual(work.historyIndex)
     expect(slow.asked()).toBe(4)
+    // The whole snapshot is kept with its index: the next read asks the store for neither again.
+    const from = whole(a)
+    expect(ok<WorkSnapshot>(await slow.port.readWork(a.access(TENANT_A)))).toBe(read)
+    expect([whole(a) - from, slow.asked()]).toEqual([0, 4])
+  })
+
+  it('a whole read that carries the index asks for no index', async () => {
+    const { a, work } = await sessionOf(1)
+    let asked = 0
+    const storage: SqlStorage = {
+      ...a.provider.storage,
+      database: {},
+      async read(request) {
+        if (request.handler === 'session.work-index') asked += 1
+        return a.provider.storage.read(request)
+      },
+    }
+    const port = createSessionStorage<string>({ ...a.storageOptions, storage })
+    expect(ok<WorkSnapshot>(await port.readWork(a.access(TENANT_A))).historyIndex).toEqual(
+      work.historyIndex,
+    )
+    expect(asked).toBe(0)
   })
 
   it('answers unavailable while it is not whole, keeps nothing, and the next read goes on', async () => {
@@ -162,9 +226,12 @@ describe('a work index that one read does not finish', () => {
     const slow = unfinished(a, 100)
     const from = whole(a)
     expect(await slow.port.readWork(a.access(TENANT_A))).toMatchObject({
-      failure: { kind: 'unavailable' },
+      failure: {
+        kind: 'unavailable',
+        diagnostic: 'read session.work: the index of the session rows is still being read',
+      },
     })
-    expect(slow.asked()).toBeLessThan(100)
+    expect(slow.asked()).toBe(64)
     const again = unfinished(a, 0)
     ok(await again.port.readWork(a.access(TENANT_A)))
     expect(whole(a) - from).toBe(2)

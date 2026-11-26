@@ -321,8 +321,12 @@ function sessionRows(
     throw error
   }
   if (committed) keep(key, index)
+  return whole(after, viewOf(index))
+}
+
+function whole(after: RowsAfter, view: SessionRowsView): SessionRowsView {
   if (after.more) throw new TooMany()
-  return viewOf(index)
+  return view
 }
 
 function sessionRowsThrough(
@@ -383,20 +387,43 @@ type RowsAfter = Readonly<{
   more: boolean
 }>
 
-type Paged = Readonly<{ rows: readonly Row[]; end: bigint | undefined }>
+type Paged = Readonly<{ rows: readonly Row[]; end: bigint | undefined; more: boolean }>
 
 const INDEXED_AFTER = `FROM sl_entry
       WHERE tenant = ? AND session = ? AND kind IN ${INDEXED_KINDS} AND position > ?`
 
-function pagedRows(port: Executor, scope: Scope, from: bigint, page: number): Paged {
+function pagedRows(
+  port: Executor,
+  scope: Scope,
+  from: bigint,
+  upto: bigint | undefined,
+  page: number,
+): Paged {
   const rows = rowsOf(
     port,
     `SELECT position, revision, entry ${INDEXED_AFTER} ORDER BY position LIMIT ?`,
     [scope.tenant, scope.session, from, BigInt(page + 1)],
   )
-  if (rows.length <= page) return { rows, end: undefined }
+  if (rows.length <= page) return { rows, end: upto, more: false }
   const kept = rows.slice(0, page)
-  return { rows: kept, end: big(kept[page - 1]?.['position']) }
+  return { rows: kept, end: big(kept[page - 1]?.['position']), more: true }
+}
+
+function indexedRows(
+  read: Reader,
+  port: Executor,
+  scope: Scope,
+  from: bigint,
+  upto: bigint | undefined,
+  page: number | undefined,
+): Paged {
+  if (page !== undefined) return pagedRows(port, scope, from, upto, page)
+  const bounded = upto === undefined ? '' : ' AND position <= ?'
+  const rows = read(
+    `SELECT position, revision, entry ${INDEXED_AFTER}${bounded} ORDER BY position LIMIT ?`,
+    [scope.tenant, scope.session, ...(upto === undefined ? [from] : [from, upto])],
+  )
+  return { rows, end: upto, more: false }
 }
 
 function grantsAfter(
@@ -429,17 +456,9 @@ function rowsAfter(
   upto?: bigint,
   page?: number,
 ): RowsAfter {
-  const paged = page === undefined ? undefined : pagedRows(port, scope, from, page)
-  const end = paged?.end ?? upto
+  const { rows, end, more } = indexedRows(read, port, scope, from, upto, page)
   const bounded = end === undefined ? '' : ' AND position <= ?'
   const bounds = end === undefined ? [from] : [from, end]
-  const rows =
-    paged?.rows ??
-    read(`SELECT position, revision, entry ${INDEXED_AFTER}${bounded} ORDER BY position LIMIT ?`, [
-      scope.tenant,
-      scope.session,
-      ...bounds,
-    ])
   const after = oneRow(
     port,
     `SELECT COUNT(*) AS n, MAX(position) AS last, MAX(revision) AS top FROM sl_entry
@@ -448,7 +467,6 @@ function rowsAfter(
   )
   const added = after === undefined ? 0n : big(after['n'])
   const grants = rows.length === 0 ? new Map() : grantsAfter(read, scope, from, end)
-  const more = paged?.end !== undefined
   return added === 0n
     ? { rows, grants, added, last: from, top: 0n, more }
     : { rows, grants, added, last: big(after?.['last']), top: big(after?.['top']), more }

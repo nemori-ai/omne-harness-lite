@@ -214,6 +214,22 @@ describe('the Run row: the producers the Run waits on, the tool intents its atte
     })
   })
 
+  it.each(intentsOf())(
+    '%s takes no producer from a snapshot that records no call',
+    (_name, intent) => {
+      const bare = snapshot({
+        consumptions: [],
+        callRegistrations: undefined,
+        callWaits: undefined,
+      })
+      expect(resolveControlScope(bare, intent(RUN))).toMatchObject({
+        kind: 'scope',
+        producers: [],
+        unassociatedWaiting: [],
+      })
+    },
+  )
+
   // The Agent ends its wait with its next batch: until then the wait is there and the call is not.
   it.each(intentsOf())('%s takes no producer whose call left the snapshot', (_name, intent) => {
     const left = snapshot({

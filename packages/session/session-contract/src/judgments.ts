@@ -349,6 +349,15 @@ export function judgeCompletion(
   return pendingInputs.length === 0 ? { kind: 'allowed' } : { kind: 'blocked', pendingInputs }
 }
 
+const waitedOut = (snapshot: WorkSnapshot): readonly ProducerRef[] =>
+  distinctProducers(
+    snapshot.waiting.flatMap(item =>
+      item.kind === 'producer' && producerOut(snapshot, item.binding.producer)
+        ? [item.binding.producer]
+        : [],
+    ),
+  )
+
 function distinctProducers(producers: readonly ProducerRef[]): readonly ProducerRef[] {
   return [...new Map(producers.map(producer => [digestOf(producer), producer])).values()]
 }
@@ -415,13 +424,7 @@ function runScope(
     return { kind: 'terminal', terminal: snapshot.run.terminal }
   if (snapshot.run.kind !== 'active' || snapshot.run.run !== run)
     return { kind: 'invalid', reason: 'not the current Run' }
-  const producers = distinctProducers(
-    snapshot.waiting.flatMap(item =>
-      item.kind === 'producer' && producerOut(snapshot, item.binding.producer)
-        ? [item.binding.producer]
-        : [],
-    ),
-  )
+  const producers = waitedOut(snapshot)
   return {
     kind: 'scope',
     unassociatedWaiting: toolIntentWaits(

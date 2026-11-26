@@ -22,6 +22,7 @@ type Material = Readonly<{
   attemptOf: string
   advance: 'held' | 'released'
   waits: boolean
+  gone?: 'references' | 'registration'
 }>
 
 function decide(material: Material) {
@@ -52,22 +53,26 @@ function decide(material: Material) {
           }
         : { kind: 'none' },
     workEntryIndex: {
-      controls: [{ operation: OPERATION, selected: material.waits ? [WAIT] : [] }],
+      controls:
+        material.gone === 'references'
+          ? []
+          : [{ operation: OPERATION, selected: material.waits ? [WAIT] : [] }],
     },
-    callRegistrations: material.waits
-      ? [
-          {
-            consumption: WAIT.consumption,
-            registration: {
-              kind: 'tool-intent',
-              action: 'action-1',
-              request: evidence('request'),
-              initiatingAttempt: ATTEMPT,
-              purpose: 'action',
+    callRegistrations:
+      material.waits && material.gone !== 'registration'
+        ? [
+            {
+              consumption: WAIT.consumption,
+              registration: {
+                kind: 'tool-intent',
+                action: 'action-1',
+                request: evidence('request'),
+                initiatingAttempt: ATTEMPT,
+                purpose: 'action',
+              },
             },
-          },
-        ]
-      : [],
+          ]
+        : [],
   } as unknown as WorkSnapshot
   const input: SessionControlDecisionInput = {
     snapshot,
@@ -145,6 +150,20 @@ describe('a cancel reconciles its control only on the original execution and onc
       expect(decide(material)).toEqual(answer)
     },
   )
+})
+
+describe('what a control names and the snapshot no longer holds is gone for good', () => {
+  it.each([
+    ['its references in the work entry index', 'references', 'control.references'],
+    ['the registration of a call it selected', 'registration', 'control.registration'],
+  ] as const)('%s: quarantined, with the name of what is missing', (_name, gone, field) => {
+    expect(decide({ attemptOf: EXECUTION, advance: 'released', waits: true, gone })).toEqual({
+      failure: {
+        kind: 'quarantined',
+        diagnostic: `${field}: required original material is missing`,
+      },
+    })
+  })
 })
 
 describe('an urgent input reconciles its control once the Agent released each foreground call', () => {

@@ -186,6 +186,17 @@ const processes = (key: ReceivedEntry['delivery']['key'], version: string | unde
   version !== undefined &&
   (key.kind === 'placeholder' || (key.kind === 'result' && String(key.result) === version))
 
+function settled<P>(
+  ports: Pick<Ports<P>, 'readWork' | 'finishRun' | 'warn'>,
+  access: SessionAccess<P>,
+  target: JournalInterpretationTarget,
+  answer: Answer<JournalInterpreted>,
+): Answer<JournalInterpreted> | Promise<Answer<JournalInterpreted>> {
+  return 'failure' in answer && uninterpretable(answer.failure)
+    ? closeUninterpretable(ports, access, target, answer.failure)
+    : answer
+}
+
 async function closeUninterpretable<P>(
   ports: Pick<Ports<P>, 'readWork' | 'finishRun' | 'warn'>,
   access: SessionAccess<P>,
@@ -364,9 +375,7 @@ function createJournalInterpretation<P>(
           execution: target.execution,
         })
       if ('ok' in answer || answer.failure.kind !== 'changed' || left <= 1)
-        return 'failure' in answer && uninterpretable(answer.failure)
-          ? closeUninterpretable(ports, access, target, answer.failure)
-          : answer
+        return settled(ports, access, target, answer)
     }
   }
 }

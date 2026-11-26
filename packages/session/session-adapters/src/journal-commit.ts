@@ -2,6 +2,7 @@ import type { Failure } from '@omne-harness/agent-contract'
 import {
   commitRejectionNature,
   type CommitRejectReason,
+  type CommitRejectedV2,
   type CommitRequestV2,
   type CommittedV2,
   type DomainRef,
@@ -118,15 +119,15 @@ async function commitGeneration(
           : 'rolled back'
       return { kind: 'committed', receipt: result.existing, recalled: true }
     case 'rejected_before_accept':
-      return beforeAccept(result.reason, result.diagnostic ?? result.reason, attempt)
+      return beforeAccept(result, attempt)
   }
 }
 
 function beforeAccept(
-  reason: CommitRejectReason,
-  said: string,
+  { reason, diagnostic: words }: Pick<CommitRejectedV2, 'reason' | 'diagnostic'>,
   attempt: number,
 ): JournalCommitResult {
+  const said = words ?? reason
   if (reason === 'writer_not_current')
     return { kind: 'unknown', diagnostic: 'the writer is not current', attempt }
   const diagnostic = `storage rejected the commit: ${said}`
