@@ -297,6 +297,33 @@ describe('read-session-diagnostics', () => {
       )
     })
 
+    it('says under each dispatch the reasoning effort its request carried and where it came from', async () => {
+      const efforts = run({
+        modelCalls: [
+          modelCall({
+            dispatches: [
+              dispatch({ effort: { value: 'high', basis: 'selection' } }),
+              dispatch({ dispatch: 'd-2', effort: { value: 'medium', basis: 'preference' } }),
+              dispatch({ dispatch: 'd-3', effort: { value: null, basis: 'provider' } }),
+              dispatch({ dispatch: 'd-4', effort: { kind: 'unknown', reason: 'not-recorded' } }),
+              dispatch({ dispatch: 'd-5' }),
+            ],
+          }),
+        ],
+      })
+      const service = await serve(diagnosticsService([page([efforts], null)]))
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      expect(result.code).toBe(0)
+      const said = result.stdout.split('\n').filter(line => line.trimStart().startsWith('effort'))
+      expect(said).toEqual([
+        '        effort: high (session choice)',
+        '        effort: medium (default reasoning effort)',
+        '        effort: provider default',
+        '        effort: unknown (not-recorded)',
+      ])
+    })
+
     it('says under each model call which form of each block the model read, and nothing when no block had a reference', async () => {
       const read = (block: string, form: string) => ({ message: 'msg-1', block, read: form })
       const withReads = run({

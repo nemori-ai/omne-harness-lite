@@ -54,7 +54,7 @@ import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
 import { Companion, COMPANION } from './view/companion.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
 import { FigureReport } from './view/figure-report.tsx'
-import { ReadBlock } from './view/read-block.tsx'
+import { ReadBlock, ReplyReceipt } from './view/read-block.tsx'
 import { HistorySearch } from './view/history-search.tsx'
 import { ModelAction } from './view/model-selection.tsx'
 import type { ToolCallPart } from './view/block-slot.ts'
@@ -138,6 +138,12 @@ function blockDrawer(shell: ShellService, reads: BlockReads, scope: string | und
         )
       }
     />
+  )
+}
+
+function replyDrawer(reads: BlockReads, scope: string | undefined) {
+  return (session: string, run: string, revision: string | null) => (
+    <ReplyReceipt reads={reads} tenant={scope} session={session} revision={revision} run={run} />
   )
 }
 
@@ -404,6 +410,7 @@ const apply = (
                 sessionComposerAttachments.slot(shell, { session, draft }, fragments)
               }
               block={blockDrawer(shell, reads, scope)}
+              reply={replyDrawer(reads, scope)}
               toolCall={toolCallDrawer(shell)}
               side={session =>
                 sessionSide.slot(shell, { session }, entries =>

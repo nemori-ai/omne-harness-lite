@@ -4,13 +4,16 @@ import { BlockReads, diagnosticsReads, type BlockReadsSource } from '../src/mode
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const settled = () => new Promise(resolve => setTimeout(resolve, 0))
+const only = (blocks: ReadonlyMap<string, string>) =>
+  ({ blocks, replies: new Map<string, string>() }) as never
 
 function sourceOf(answers: ReadonlyMap<string, 'original' | 'transcript'>[]) {
   const asked: string[] = []
   const source: BlockReadsSource = {
     readsOf: async (tenant, session) => {
       asked.push(`${tenant}/${session}`)
-      return answers.shift() ?? null
+      const next = answers.shift()
+      return next === undefined ? null : only(next)
     },
   }
   return { source, asked }
@@ -58,7 +61,7 @@ describe('the reads of the blocks of a session', () => {
   it('an answer that comes after its source was taken away is dropped', async () => {
     const reads = new BlockReads()
     const late = Promise.withResolvers<ReadonlyMap<string, 'original'>>()
-    const detach = reads.attach({ readsOf: () => late.promise })
+    const detach = reads.attach({ readsOf: () => late.promise.then(only) })
     reads.want(TENANT, 'ses_a', '1')
     detach()
     late.resolve(new Map([['msg_1\nblk_1', 'original']]))
@@ -70,8 +73,8 @@ describe('the reads of the blocks of a session', () => {
 describe('the reads of the blocks of a session, more', () => {
   it('a source taken away after another was handed over leaves the new one in place', async () => {
     const reads = new BlockReads()
-    const old = reads.attach({ readsOf: async () => new Map([['msg_1\nblk_1', 'original']]) })
-    reads.attach({ readsOf: async () => new Map([['msg_1\nblk_1', 'transcript']]) })
+    const old = reads.attach({ readsOf: async () => only(new Map([['msg_1\nblk_1', 'original']])) })
+    reads.attach({ readsOf: async () => only(new Map([['msg_1\nblk_1', 'transcript']])) })
     old()
     reads.want(TENANT, 'ses_a', '1')
     await settled()
@@ -133,7 +136,7 @@ describe('reads from the session diagnostics', () => {
       },
     }
     const got = await diagnosticsReads(client as never).readsOf(TENANT, 'ses_a')
-    expect(got).toEqual(
+    expect(got?.blocks).toEqual(
       new Map([
         ['msg_1\nblk_1', 'transcript'],
         ['msg_2\nblk_9', 'fitted'],
@@ -161,7 +164,62 @@ describe('reads from the session diagnostics', () => {
         ),
     }
     const got = await diagnosticsReads(client as never).readsOf(TENANT, 'ses_a')
-    expect(got?.get('msg_1\nblk_1')).toBe('transcript')
+    expect(got?.blocks.get('msg_1\nblk_1')).toBe('transcript')
+  })
+
+  it('gives each run the model and reasoning effort of its last dispatch; none where the model is not known', async () => {
+    const profile = (name: string) => ({ owner: 'model', name, revision: '1', digest: 'd' })
+    const sent = (name: string | null, effort?: object) => ({
+      ...(name === null
+        ? { profile: { kind: 'unknown', reason: 'not-recorded' } }
+        : { profile: profile(name) }),
+      ...(effort === undefined ? {} : { effort }),
+    })
+    const runOf = (id: string, position: string, ...calls: object[][]) => ({
+      run: id,
+      started: { position },
+      modelCalls: calls.map(dispatches => ({ reads: [], dispatches })),
+    })
+    const client = {
+      'read-session-diagnostics': async () =>
+        page(
+          [
+            runOf(
+              'r1',
+              '1',
+              [sent('a/first', { value: 'low', basis: 'selection' })],
+              [
+                sent('a/old', { value: 'low', basis: 'selection' }),
+                sent('a/model', { value: 'high', basis: 'selection' }),
+              ],
+            ),
+            runOf('r2', '2', [sent('a/model', { value: 'medium', basis: 'preference' })]),
+            runOf('r3', '3', [sent('a/model', { value: null, basis: 'provider' })]),
+            runOf('r4', '4', [sent('a/model', { kind: 'unknown', reason: 'not-recorded' })]),
+            runOf('r5', '5', [sent(null, { value: 'high', basis: 'selection' })]),
+            runOf('r6', '6', [{}]),
+            runOf('r7', '7', []),
+          ],
+          null,
+        ),
+    }
+    const got = await diagnosticsReads(client as never).readsOf(TENANT, 'ses_a')
+    expect(got?.replies).toEqual(
+      new Map([
+        ['r1', 'a/model · high（会话选择）'],
+        ['r2', 'a/model · medium（缺省推理强度）'],
+        ['r3', 'a/model · 供应商默认'],
+        ['r4', 'a/model'],
+      ]),
+    )
+    const reads = new BlockReads()
+    reads.attach(diagnosticsReads(client as never))
+    reads.want(TENANT, 'ses_a', '1')
+    await settled()
+    expect([reads.replyOf(TENANT, 'ses_a', 'r1'), reads.replyOf(TENANT, 'ses_a', 'r5')]).toEqual([
+      'a/model · high（会话选择）',
+      undefined,
+    ])
   })
 
   it('a tenant it cannot read is not asked about at all', async () => {

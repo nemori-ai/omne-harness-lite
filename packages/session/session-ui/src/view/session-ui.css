@@ -780,6 +780,12 @@
     height: 1px;
     background: var(--omne-line-subtle);
   }
+  .omne-session-reply-receipt {
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
+  }
   .omne-placeholder {
     color: var(--omne-ink-muted);
     font-size: var(--omne-text-caption);
