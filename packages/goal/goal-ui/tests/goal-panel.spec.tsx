@@ -35,7 +35,7 @@ describe('the goal panel', () => {
     const text = view.container.textContent ?? ''
     expect(text).toContain('处理中修订 1 · 用了 3 轮')
     expect(text).toContain('A1用例全过证据显示没做到（判定）')
-    expect(text).toContain('预算20 轮用了 3 轮（系统读的） · 剩 17')
+    expect(text).toContain('预算20 轮剩 17用了 3 轮（系统读的）')
     expect(view.container.querySelector('.goal-body h2')?.textContent).toBe('目的')
     expect(view.container.querySelector('.goal-body')?.textContent).toContain('[A1] 用例全过')
     expect(text).toContain('A1在做 · 还差三条')
@@ -73,6 +73,20 @@ describe('the goal panel', () => {
     expect(other.view.container.querySelector('tr')?.textContent).toBe(
       'A1用例全过判定读证据证据显示没做到（判定）',
     )
+    cleanup()
+    const told = {
+      ...examined,
+      value: 'fails',
+      reading: '没做到',
+      short: '按右键蛇不转向，走了三局都一样',
+    }
+    const noted = await shown(reading({ ...goal, gap: [told, ...rest] }))
+    const cells = [...(noted.view.container.querySelector('tr')?.querySelectorAll('td') ?? [])]
+    expect(cells.map(cell => cell.textContent)).toEqual([
+      'A1',
+      '用例全过查验动手按右键蛇不转向，走了三局都一样',
+      '没做到（查验的一方）',
+    ])
   })
 
   it('opens the session that examines for the goal, where there is one and somewhere to go', async () => {

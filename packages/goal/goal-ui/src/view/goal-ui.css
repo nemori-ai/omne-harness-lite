@@ -51,6 +51,9 @@
 .goal-gap td.goal-gap-id {
   white-space: nowrap;
 }
+.goal-gap td.goal-gap-reading {
+  width: 36%;
+}
 .goal-gap-id {
   font-variant-numeric: tabular-nums;
   color: var(--omne-ink-muted);

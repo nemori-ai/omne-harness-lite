@@ -75,16 +75,16 @@ function GapTable({ goal }: { readonly goal: GoalView }) {
             <TableCell>
               {row.ought}
               {howOf(row) === null ? null : <span className="goal-how">{howOf(row)}</span>}
+              {row.short === null || row.short === '' ? null : (
+                <span className="goal-how">{row.short}</span>
+              )}
             </TableCell>
-            <TableCell>
+            <TableCell className="goal-gap-reading">
               {readingOf(row)}
               {readerOf(row) === null ? null : (
                 <span className="goal-quiet">
                   （{SOURCE_WORDS[readerOf(row) ?? ''] ?? readerOf(row)}）
                 </span>
-              )}
-              {row.short === null || row.short === '' ? null : (
-                <span className="goal-quiet"> · {row.short}</span>
               )}
             </TableCell>
           </TableRow>
