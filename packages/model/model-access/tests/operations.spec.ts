@@ -208,6 +208,28 @@ describe('list-models for a session judges as selecting a model in that session 
     expect(answer.body.models[0]?.blocks?.[0]).toEqual({ message: 'msg_1', block: 'blk_0' })
   })
 
+  it('without a session in the body, does not ask for one; a model stopped by modality names no block', async () => {
+    const world = createWorld()
+    world.state.listing = [resolved('text-only', { selectable: false, reasons: ['modality'] })]
+    const seen: unknown[] = []
+    const contribution = createModelAccessContribution({
+      profiles: world.profiles,
+      principals: world.principals,
+      settings: { required: REQUIRED },
+      sessions: () => ({
+        of: async at => (seen.push(at), { required: PICTURES, unmetBy: () => twenty }),
+      }),
+    })
+    const answer = await contribution.operations['list-models'](
+      { principal: loginIdentity(ALICE), messageId: 'm-1', signal },
+      { tenant: ALICE.tenant },
+    )
+    expect(seen).toEqual([])
+    expect(world.listed.map(call => call.required)).toEqual([REQUIRED])
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    expect('blocks' in answer.body.models[0]!).toBe(false)
+  })
+
   it('names no block when the definition takes every block, though it was stopped by modality', async () => {
     const { world, list } = forSession({ required: PICTURES, unmetBy: () => [] })
     world.state.listing = [resolved('text-only', { selectable: false, reasons: ['modality'] })]

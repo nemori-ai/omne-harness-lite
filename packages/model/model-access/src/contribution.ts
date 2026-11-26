@@ -50,21 +50,23 @@ async function actingFor(
   }
 }
 
+// A history that cannot be read is not an empty history: the list is not judged without it.
 async function requirementOf(
   sessions: ModelSessionRequirements | undefined,
-  tenant: Body['tenant'],
-  session: string,
-): Promise<SessionRequirement | null> {
+  { tenant, session }: Body,
+): Promise<SessionRequirement | null | 'unreadable'> {
+  if (session === undefined) return null
   try {
-    return (await sessions?.of({ tenant, session })) ?? null
+    return (await sessions?.of({ tenant, session })) ?? 'unreadable'
   } catch {
-    return null
+    return 'unreadable'
   }
 }
 
-function blocksOf(resolution: ProfileResolution, session: SessionRequirement | null) {
-  if (session === null || resolution.kind === 'absent') return {}
-  if (!resolution.reasons.includes('modality')) return {}
+type Resolved = Extract<ProfileResolution, { kind: 'resolved' }>
+
+function blocksOf(resolution: Resolved, session: SessionRequirement | null) {
+  if (session === null || !resolution.reasons.includes('modality')) return {}
   const blocks = session.unmetBy(resolution.profile.definition).slice(0, NAMED_BLOCKS)
   return blocks.length === 0
     ? {}
@@ -108,12 +110,8 @@ export function createModelAccessContribution(
     if ('outcome' in issued) return issued
     const profiles = input.profiles()
     if (profiles === undefined) return UNAVAILABLE
-    // A history that cannot be read is not an empty history: the list is not judged without it.
-    const session =
-      body.session === undefined
-        ? null
-        : await requirementOf(input.sessions?.(), body.tenant, body.session)
-    if (body.session !== undefined && session === null) return UNAVAILABLE
+    const session = await requirementOf(input.sessions?.(), body)
+    if (session === 'unreadable') return UNAVAILABLE
     let listed: Awaited<ReturnType<ModelChoiceReader['list']>>
     try {
       listed = await profiles.list({
