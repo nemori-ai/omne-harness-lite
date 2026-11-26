@@ -425,6 +425,36 @@ describe('the model in the heading of a conversation', () => {
     expect(screen.queryByRole('option', { name: /locked-z/u })).toBeNull()
   })
 
+  it('opening the choice of model reads the list for this session again: what it holds may have changed', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    const asked: unknown[] = []
+    const stopped = {
+      route: 'text/only',
+      selectable: false,
+      note: '不能选：读不了这段会话里的 1 块内容',
+      blocks: 1,
+    }
+    const open = { route: 'text/only', selectable: true, note: null }
+    store.attach({
+      list: async (tenant, session) => {
+        asked.push([tenant, session])
+        return { kind: 'listed', choices: [...LISTED.choices, asked.length === 1 ? open : stopped] }
+      },
+    })
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    expect(asked).toHaveLength(1)
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'Enter' })
+    await settle()
+    expect(asked).toEqual([
+      [TENANT, SESSION],
+      [TENANT, SESSION],
+    ])
+    const option = await screen.findByRole('option', { name: /text\/only/u })
+    expect(option.getAttribute('aria-disabled')).toBe('true')
+    expect(option.textContent).toContain('读不了这段会话里的 1 块内容')
+  })
+
   it('a change refused for blocks of this session names them by kind and count', async () => {
     const blocks = [
       { message: 'm-1', block: 'b-1' },

@@ -25,7 +25,7 @@ const defaultLabel = (choice: ModelChoice | undefined) =>
 
 type ChoiceProps = Parameters<typeof FoldedChoice>[0]
 
-function InlineChoice({ label, value, shown, options, onPick }: ChoiceProps) {
+function InlineChoice({ label, value, shown, options, onPick, onOpen }: ChoiceProps) {
   if (options === null)
     return (
       <span>
@@ -33,7 +33,7 @@ function InlineChoice({ label, value, shown, options, onPick }: ChoiceProps) {
       </span>
     )
   return (
-    <Select value={value} onValueChange={onPick}>
+    <Select value={value} onValueChange={onPick} onOpenChange={open => open && onOpen?.()}>
       <SelectTrigger aria-label={label} size="sm">
         <SelectValue>{shown}</SelectValue>
       </SelectTrigger>
@@ -126,6 +126,8 @@ export function ModelAction({ store, tenant, session }: Props) {
     value: view.model,
     shown: view.model,
     options: routes,
+    // What the session holds changes as it goes: the list is read again whenever it is opened.
+    onOpen: () => void store.loadChoices(where),
     onPick(model) {
       const selected = routes?.find(option => option.value === model)
       if (selected !== undefined && !selected.disabled)
