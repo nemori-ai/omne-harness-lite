@@ -10,6 +10,7 @@ const log = { debug() {}, info() {}, warn() {}, error() {} }
 
 type World = Readonly<{
   installed?: Installed
+  installFails?: Error | string
   candidate?: Mount
   mounts?: readonly Mount[]
   stable?: boolean
@@ -22,7 +23,10 @@ function world(input: World, started: Serving = BUILTIN) {
   const versions: PageVersions = {
     serving: async () => started,
     rootOf: version => (version === 'builtin' ? '/app/page' : `/user/versions/${version}`),
-    install: async () => input.installed ?? { kind: 'installed', version: 'page-2' },
+    install: async () => {
+      if (input.installFails !== undefined) throw input.installFails
+      return input.installed ?? { kind: 'installed', version: 'page-2' }
+    },
     switchTo(version) {
       did.push(`switch ${version}`)
       pointer = { current: version, previous: 'builtin', settled: false }
@@ -91,6 +95,24 @@ describe('换一版页面', () => {
     expect(await w.asked()).toEqual({
       version: 'builtin',
       notice: { kind: 'refused', reason: 'signature-invalid' },
+    })
+  })
+
+  it('装的时候出了错：不切，把错写给人；之后再来的照接', async () => {
+    const w = world({ installFails: new Error('no space left on the disk') })
+    await w.updates.install('/downloads/bundle')
+    expect(w.did).toEqual(['nudge'])
+    expect(await w.asked()).toEqual({
+      version: 'builtin',
+      notice: { kind: 'refused', reason: 'no space left on the disk' },
+    })
+    const text = world({ installFails: 'not an error object' })
+    await text.updates.install('/downloads/bundle')
+    await text.updates.install('/downloads/bundle')
+    expect(text.did).toEqual(['nudge', 'nudge'])
+    expect(await text.asked()).toEqual({
+      version: 'builtin',
+      notice: { kind: 'refused', reason: 'not an error object' },
     })
   })
 
