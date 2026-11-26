@@ -16,6 +16,7 @@ import {
   type FakeService,
   type Seen,
 } from './support/fake-service.ts'
+import { dispatch, modelCall, page, run, type PageBody } from './support/diagnostics-page.ts'
 import { runInProcess, type InProcessOptions } from './support/in-process.ts'
 
 const name = 'read-session-diagnostics'
@@ -31,58 +32,6 @@ beforeEach(() => {
 afterEach(async () => {
   await Promise.all(services.splice(0).map(service => service.close()))
   rmSync(root, { recursive: true, force: true })
-})
-
-const adapter = {
-  owner: '@omne-harness/model',
-  name: 'openai-compatible',
-  revision: '1',
-  digest: 'd',
-}
-const unknownTiming = {
-  materialize: { kind: 'unknown' },
-  sendToFirstContent: { kind: 'unknown' },
-  execution: { kind: 'unknown' },
-}
-const dispatch = (fields: Record<string, unknown>) => ({
-  dispatch: 'd-1',
-  revision: '1',
-  adapter,
-  send: 'not-sent',
-  firstContent: 'none-proven',
-  outcome: { kind: 'pending' },
-  timing: unknownTiming,
-  account: { kind: 'unknown', reason: 'not-recorded' },
-  ...fields,
-})
-const modelCall = (fields: Record<string, unknown>) => ({
-  reference: 'ref-1',
-  purpose: 'main',
-  call: { kind: 'found', call: 'call-1', phase: 'settled' },
-  dispatches: [dispatch({})],
-  coverage: 'complete-through-snapshot',
-  reads: [],
-  facts: [],
-  ...fields,
-})
-const run = (fields: Record<string, unknown>) => ({
-  run: 'run-1',
-  entry: 'interactive',
-  execution: 'exec-1',
-  started: { position: '2', at: { kind: 'unknown' } },
-  attempts: {
-    started: '1',
-    released: { ended: '0', bounded: '0', cancelled: '0', released: '0', superseded: '0' },
-    exited: '0',
-  },
-  controls: [],
-  terminal: null,
-  calls: { registered: '1', projected: '1' },
-  modelCalls: [],
-  toolCalls: [],
-  messages: [{ kind: 'message.user', count: '1' }],
-  facts: [],
-  ...fields,
 })
 
 const refused = run({
@@ -161,27 +110,6 @@ const gaps = [
   { source: 'model', subject: 'ref-1', reason: 'not-recorded' },
   { source: 'tool', subject: 'tcall-1', reason: 'unsupported' },
 ]
-
-interface PageBody {
-  readonly runs: readonly unknown[]
-  readonly next: string | null
-  readonly exhausted: boolean
-  readonly scannedThrough: string
-  readonly basis: { readonly upper: string }
-  readonly gaps: readonly unknown[]
-}
-const page = (
-  runs: readonly unknown[],
-  next: string | null,
-  pageGaps: unknown[] = [],
-): PageBody => ({
-  runs,
-  next,
-  exhausted: next === null,
-  scannedThrough: '0',
-  basis: { upper: '9' },
-  gaps: pageGaps,
-})
 
 function diagnosticsService(
   pages: readonly PageBody[],
@@ -295,6 +223,33 @@ describe('read-session-diagnostics', () => {
       expect(lines).toContain(
         '      d-2 openai-compatible: not-sent, first content none-proven, pending, reasoning not-carried',
       )
+    })
+
+    it('says under each dispatch the reasoning effort its request carried and where it came from', async () => {
+      const efforts = run({
+        modelCalls: [
+          modelCall({
+            dispatches: [
+              dispatch({ effort: { value: 'high', basis: 'selection' } }),
+              dispatch({ dispatch: 'd-2', effort: { value: 'medium', basis: 'preference' } }),
+              dispatch({ dispatch: 'd-3', effort: { value: null, basis: 'provider' } }),
+              dispatch({ dispatch: 'd-4', effort: { kind: 'unknown', reason: 'not-recorded' } }),
+              dispatch({ dispatch: 'd-5' }),
+            ],
+          }),
+        ],
+      })
+      const service = await serve(diagnosticsService([page([efforts], null)]))
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      expect(result.code).toBe(0)
+      const said = result.stdout.split('\n').filter(line => line.trimStart().startsWith('effort'))
+      expect(said).toEqual([
+        '        effort: high (session choice)',
+        '        effort: medium (default reasoning effort)',
+        '        effort: provider default',
+        '        effort: unknown (not-recorded)',
+      ])
     })
 
     it('says under each model call which form of each block the model read, and nothing when no block had a reference', async () => {

@@ -118,6 +118,13 @@ export declare const sessionDiagnosticsProtocol: {
                                 };
                                 readonly connectRetries?: readonly ("connect-failed" | "connect-timeout")[];
                                 readonly dispatch: string;
+                                readonly effort?: {
+                                    readonly kind: "unknown";
+                                    readonly reason: "denied" | "not-accepted" | "not-found" | "not-recorded" | "retention-expired" | "unavailable" | "unsupported";
+                                } | {
+                                    readonly basis: "preference" | "provider" | "selection";
+                                    readonly value: "high" | "low" | "max" | "medium" | "none" | "xhigh" | null;
+                                };
                                 readonly firstContent: "none-proven" | "observed" | "uncertain";
                                 readonly instants?: {
                                     readonly ended: {
@@ -162,6 +169,15 @@ export declare const sessionDiagnosticsProtocol: {
                                     readonly cause: string;
                                     readonly kind: "failed";
                                     readonly upstreamStatus: string | null;
+                                };
+                                readonly profile?: {
+                                    readonly kind: "unknown";
+                                    readonly reason: "denied" | "not-accepted" | "not-found" | "not-recorded" | "retention-expired" | "unavailable" | "unsupported";
+                                } | {
+                                    readonly digest: string;
+                                    readonly name: string;
+                                    readonly owner: string;
+                                    readonly revision: string;
                                 };
                                 readonly reasoning?: "carried" | "not-carried" | "unknown";
                                 readonly revision: string;

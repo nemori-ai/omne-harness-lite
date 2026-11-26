@@ -3,7 +3,9 @@ import {
   dispatchSend,
   type Adoption,
   type ContextWindow,
+  type DispatchEffort,
   type ModelDispatchFact,
+  type Parameter,
   type Termination,
 } from '@omne-harness/model-contract'
 import { NO_INSTANTS } from './instants.ts'
@@ -29,6 +31,15 @@ export function dispatchOutcome(terminal: Termination | null): ModelDispatchFact
   }
 }
 
+function effortOf(parameters: readonly Parameter[]): DispatchEffort {
+  const effort = parameters.find(parameter => parameter.kind === 'reasoning-effort')
+  if (effort === undefined) return { value: null, basis: 'provider' }
+  return { value: effort.value, basis: effort.basis === 'preference' ? 'preference' : 'selection' }
+}
+
+const effortField = (request: CallDocument['request']) =>
+  request === null ? {} : { effort: effortOf(request.parameters) }
+
 export function dispatchFactOf(call: CallDocument, dispatch: DispatchDocument): DispatchFactDraft {
   const { record } = dispatch
   return structuredClone({
@@ -44,5 +55,6 @@ export function dispatchFactOf(call: CallDocument, dispatch: DispatchDocument): 
     connectRetries: record.connectRetries?.length ?? 0,
     account: record.account,
     costLookup: costLookupOf(record),
+    ...effortField(call.request),
   })
 }

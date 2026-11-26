@@ -262,10 +262,13 @@ export function createSqlModelDispatchFactsPlugin<P>(
     static readonly inject = [...options.inject]
 
     readonly list
+    readonly ofCall
 
     constructor(ctx: Context) {
       super(ctx)
-      this.list = createSqlModelDispatchFacts<P>(options.resolve(ctx)).list
+      const facts = createSqlModelDispatchFacts<P>(options.resolve(ctx))
+      this.list = facts.list
+      this.ofCall = facts.ofCall
     }
   }
 }

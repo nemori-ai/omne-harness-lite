@@ -14,6 +14,8 @@ export type ModelChoice = Readonly<{
   reasoningEfforts: NonNullable<Listed['reasoningEfforts']>
   /** The effort the tenant set for this model, taken when a session chose none. */
   defaultReasoningEffort?: NonNullable<Listed['defaultReasoningEffort']>
+  /** How many blocks of the session it was listed for this model cannot take. */
+  blocks?: number
 }>
 
 export type ModelChoiceListing =
@@ -22,7 +24,7 @@ export type ModelChoiceListing =
 
 /** The models of a tenant for whoever shows a choice of them. The wording is Model's own. */
 export interface ModelChoices {
-  list(tenant: string): Promise<ModelChoiceListing>
+  list(tenant: string, session?: string): Promise<ModelChoiceListing>
 }
 
 const REASONS: Readonly<Record<Listed['reasons'][number], string>> = {
@@ -37,8 +39,10 @@ const REFUSALS: Readonly<Record<string, string>> = {
 
 // A model that lacks its credential can still be picked; the note says a call cannot go out yet.
 export function noteOf(
-  model: Pick<Listed, 'selectable' | 'reasons' | 'credential' | 'enabled'>,
+  model: Pick<Listed, 'selectable' | 'reasons' | 'credential' | 'enabled' | 'blocks'>,
 ): string | null {
+  if (model.blocks !== undefined)
+    return `不能选：读不了这段会话里的 ${String(model.blocks.length)} 块内容`
   if (!model.selectable) {
     const reasons = [
       ...(model.enabled === false ? ['没有启用'] : []),
@@ -51,12 +55,15 @@ export function noteOf(
 
 export function createModelChoices(client: Client): ModelChoices {
   return {
-    async list(tenant) {
+    async list(tenant, session) {
       const owner = readTenantText(tenant)
       if (owner === undefined) return { kind: 'unavailable', reason: '租户读不懂' }
       let answer: Answer
       try {
-        answer = await client['list-models']({ tenant: owner })
+        answer = await client['list-models']({
+          tenant: owner,
+          ...(session === undefined ? {} : { session }),
+        })
       } catch {
         return { kind: 'unavailable', reason: '没有送达' }
       }
@@ -70,6 +77,7 @@ export function createModelChoices(client: Client): ModelChoices {
         ...(model.defaultReasoningEffort === undefined
           ? {}
           : { defaultReasoningEffort: model.defaultReasoningEffort }),
+        ...(model.blocks === undefined ? {} : { blocks: model.blocks.length }),
       }))
       return { kind: 'listed', choices }
     },

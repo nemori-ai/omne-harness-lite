@@ -94,6 +94,11 @@ export {
 } from './dispatch-facts.ts'
 export { DISPATCH_FACT, FACT_MIGRATION, dispatchFactsMigration } from './fact-schema.ts'
 export {
+  DISPATCH_FACT_WRITTEN,
+  FACT_EFFORT_MIGRATION,
+  dispatchFactEffortMigration,
+} from './fact-effort-schema.ts'
+export {
   DEFAULT_MAX_CLAIMS,
   createSendMirror,
   type SendMirror,

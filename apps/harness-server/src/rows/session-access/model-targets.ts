@@ -4,6 +4,7 @@ import type {
   ModalityRequirement,
   ProfileResolution,
 } from '@omne-harness/model-contract'
+import type { SessionRequirement } from '@omne-harness/model-access'
 import { supportedReasoningEfforts } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
@@ -68,13 +69,22 @@ function requirementOf(needs: NativeRequirement): ModalityRequirement {
   }
 }
 
-async function needsOf(
+function requirementFrom(needs: NativeRequirement): SessionRequirement {
+  return {
+    required: requirementOf(needs),
+    unmetBy: definition =>
+      unmetBy(needs, definition).map(({ message, block }) => ({ message, block })),
+  }
+}
+
+/** What selecting a model in this session judges by; null when its history cannot be read. */
+export async function sessionRequirementOf(
   view: SessionModelView | undefined,
   session: Located,
-): Promise<NativeRequirement | null> {
+): Promise<SessionRequirement | null> {
   try {
     const messages = (await view?.(session)) ?? null
-    return messages === null ? null : nativeRequirement(messages)
+    return messages === null ? null : requirementFrom(nativeRequirement(messages))
   } catch {
     return null
   }
@@ -88,16 +98,18 @@ export function modelTargetsOf(
   return {
     async check({ principal, tenant, route, session }) {
       // A history that cannot be read is not an empty history: the target is not judged without it.
-      const needs = session === undefined ? NOTHING : await needsOf(view, { tenant, session })
-      if (needs === null) return { kind: 'unavailable' }
-      const required = requirementOf(needs)
+      const requirement =
+        session === undefined
+          ? requirementFrom(NOTHING)
+          : await sessionRequirementOf(view, { tenant, session })
+      if (requirement === null) return { kind: 'unavailable' }
+      const { required } = requirement
       const resolved = await profiles.resolve({ principal, tenant, route, required })
       if (!('ok' in resolved)) return { kind: 'unavailable' }
       const target = targetOf(resolved.ok)
       if (resolved.ok.kind !== 'resolved' || target.kind !== 'refused') return target
       if (target.reason !== 'modality') return target
-      const blocks = unmetBy(needs, resolved.ok.profile.definition)
-      return { ...target, blocks: blocks.map(({ message, block }) => ({ message, block })) }
+      return { ...target, blocks: requirement.unmetBy(resolved.ok.profile.definition) }
     },
   }
 }

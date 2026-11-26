@@ -23,6 +23,7 @@ import { toolCallState, type Item, type Part } from '../model/conversation.ts'
 import { isRecord, type Plain } from '../model/plain.ts'
 import {
   BlockSlotContext,
+  ReplySlotContext,
   CallControlContext,
   ToolCallSlotContext,
   type ToolCallPart,
@@ -426,13 +427,20 @@ function Message({ item }: { readonly item: Extract<Item, { kind: 'message' }> }
   return part.draw(drawer, builtIn, { role: item.role, live: item.live === true, content })
 }
 
+function Receipt({ run }: { readonly run: string | undefined }) {
+  const slot = useContext(ReplySlotContext)
+  return slot === null || run === undefined ? null : slot(run)
+}
+
 export const ItemView = memo(function ItemView({
   item,
   failed = false,
+  receipt = false,
 }: {
   readonly item: Item
   /** A marker of a run that failed: its words take the failure colour. */
   readonly failed?: boolean
+  readonly receipt?: boolean
 }) {
   switch (item.kind) {
     case 'message':
@@ -444,7 +452,9 @@ export const ItemView = memo(function ItemView({
         </ProcessLine>
       )
     case 'marker':
-      return (
+      return receipt ? (
+        <Receipt run={item.run} />
+      ) : (
         <div className="omne-marker" data-tone={failed ? 'danger' : undefined}>
           {item.label}
         </div>

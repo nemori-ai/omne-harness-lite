@@ -667,7 +667,8 @@
       "row": "model-access",
       "names": [
         "principalIssuer",
-        "tenantStanding"
+        "tenantStanding",
+        "sessionWorkPrincipals"
       ]
     },
     {

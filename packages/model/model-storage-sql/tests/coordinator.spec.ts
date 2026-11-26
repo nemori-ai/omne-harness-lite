@@ -42,6 +42,7 @@ import {
   callHandler,
   createSqlModelCommands,
   createSqlModelStorage,
+  dispatchFactEffortMigration,
   dispatchFactsMigration,
   modelMigration,
   pendingHandler,
@@ -85,6 +86,7 @@ function sqliteStorage() {
     const db = new DatabaseSync(':memory:')
     modelMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     dispatchFactsMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
+    dispatchFactEffortMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     const domain = { db, receipts: new Map<string, ReceiptV2>() }
     domains.set(name, domain)
     return domain

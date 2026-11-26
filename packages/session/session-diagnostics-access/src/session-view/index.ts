@@ -28,6 +28,7 @@ export { PROJECTED_KINDS } from './project.ts'
 export type {
   DiagnosticPorts,
   ModelAttemptReader,
+  ModelFactReader,
   ModelCallInspector,
   ModelRequestReader,
   RequestBlockChoice,
@@ -128,12 +129,14 @@ async function modelAnswersOf(
   const lookup = await sources.inspectModelCall(reference)
   const call =
     lookup.kind === 'value' && lookup.value.kind === 'found' ? lookup.value.state.call : null
-  if (call === null) return { lookup, attempts: null, dispatches: null, choices: null }
+  if (call === null) return { lookup, attempts: null, dispatches: null, facts: null, choices: null }
   const attempts = await sources.listModelAttempts(call)
   const listed = attempts.kind === 'value' && attempts.value.entries.length > 0
-  const dispatches = listed ? await sources.listModelDispatches(call) : null
+  const [dispatches, facts] = listed
+    ? await Promise.all([sources.listModelDispatches(call), sources.listModelFacts(call)])
+    : [null, null]
   const choices = await sources.readRequestChoices(reference)
-  return { lookup, attempts, dispatches, choices }
+  return { lookup, attempts, dispatches, facts, choices }
 }
 
 async function toolAnswersOf(sources: DiagnosticSources, reference: string): Promise<ToolAnswers> {

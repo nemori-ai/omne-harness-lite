@@ -55,11 +55,40 @@ describe('the fact of one dispatch', () => {
       connectRetries: 2,
       account: null,
       costLookup: 'not-needed',
+      effort: { value: null, basis: 'provider' },
+    })
+  })
+
+  it('takes the reasoning effort the request carried, and where it came from', () => {
+    const effortOf = (parameters: readonly unknown[]) =>
+      dispatchFactOf(callOf({ ...f.admit.request, parameters }), dispatchOf({})).effort
+    expect(effortOf([{ kind: 'reasoning-effort', value: 'high', scale: 'unified' }])).toEqual({
+      value: 'high',
+      basis: 'selection',
+    })
+    const preferred = {
+      kind: 'reasoning-effort',
+      value: 'medium',
+      scale: 'unified',
+      basis: 'preference',
+    }
+    expect(effortOf([{ kind: 'temperature', value: 1 }, preferred])).toEqual({
+      value: 'medium',
+      basis: 'preference',
+    })
+    expect(effortOf([{ kind: 'reasoning-effort', value: 'max' }])).toEqual({
+      value: 'max',
+      basis: 'selection',
+    })
+    expect(effortOf([{ kind: 'temperature', value: 1 }])).toEqual({
+      value: null,
+      basis: 'provider',
     })
   })
 
   it('says no profile and no window once the call released its request, and no moment for an older record', () => {
     const fact = dispatchFactOf(callOf(null), dispatchOf({ send: 'prepared' }))
+    expect('effort' in fact).toBe(false)
     expect(fact.profile).toBeNull()
     expect(fact.contextWindow).toBeNull()
     expect(fact.send).toBe('not-sent')

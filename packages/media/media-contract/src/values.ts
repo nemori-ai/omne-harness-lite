@@ -90,6 +90,7 @@ export interface Uploads {
     upload: string
     mediaType: string
     bytes: number
+    name?: string
   }): MediaReply<UploadStatus, BeginFailure>
   append(input: {
     tenant: TenantId
@@ -122,7 +123,10 @@ export interface Custody {
   describe(input: {
     tenant: TenantId
     ref: ContentReference
-  }): MediaRead<Readonly<{ state: 'staged' | 'held'; facts: MediaFacts }>, InvalidReference>
+  }): MediaRead<
+    Readonly<{ state: 'staged' | 'held'; facts: MediaFacts; name?: string }>,
+    InvalidReference
+  >
   /** Maintenance, for one tenant: expired media first, then what a crash left. */
   sweep(input: {
     tenant: TenantId

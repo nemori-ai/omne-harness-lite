@@ -285,6 +285,55 @@ it('头部三栏放不下：右端只用自己那一栏，留出远端让开的�
   }
 })
 
+it('收进「更多」的型号选择，打开时按这段会话重读列表：读不了这段会话的型号写出原因', async () => {
+  layOut(560)
+  const fake = createFakeClient()
+  const root = await openLong(fake)
+  const asked: unknown[] = []
+  const model = 'test/reasoner'
+  await act(async () => {
+    providerOf(root, TAKEN.modelChoices).attach({
+      list: async (tenant: string, session?: string) => {
+        asked.push(session)
+        const later = asked.length > 1
+        return {
+          kind: 'listed',
+          choices: [
+            { route: model, selectable: true, note: null },
+            later
+              ? {
+                  route: 'text/only',
+                  selectable: false,
+                  note: '不能选：读不了这段会话里的 1 块内容',
+                  blocks: 1,
+                }
+              : { route: 'text/only', selectable: true, note: null },
+          ],
+        }
+      },
+    })
+  })
+  ;(await fake.next('read-model-selection')).answer({
+    outcome: 'succeeded',
+    body: { model, revision: '1' },
+  })
+  ;(await fake.next('read-permission-mode')).answer({
+    outcome: 'succeeded',
+    body: { mode: 'auto_permission', revision: '1' },
+  })
+  await settle()
+  const before = asked.length
+  const menu = await openMore()
+  fireEvent.keyDown(within(menu).getByRole('menuitem', { name: /^模型/ }), { key: 'ArrowRight' })
+  const choices = await screen.findByRole('menu', { name: /^模型/ })
+  await settle()
+  expect(asked.length).toBe(before + 1)
+  expect(asked.at(-1)).toBe(LONG)
+  const stopped = within(choices).getByRole('menuitemradio', { name: /text\/only/u })
+  expect(stopped.getAttribute('aria-disabled')).toBe('true')
+  expect(stopped.textContent).toContain('读不了这段会话里的 1 块内容')
+})
+
 it('收进「更多」的推理强度沿用型号能力，选择后读回会话档位', async () => {
   layOut(560)
   const fake = createFakeClient()

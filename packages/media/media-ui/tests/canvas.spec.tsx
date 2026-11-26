@@ -128,7 +128,7 @@ describe('纸上的媒体对象', () => {
     expect(screen.getByRole('dialog', { name: '图片 4×3' }).querySelector('img')).not.toBeNull()
   })
 
-  it('文件与语音各画一行：种类、媒体类型与大小，和消息里的同一套，不读字节', async () => {
+  it('文件与语音各画一行：文件写媒体类型与大小，语音写时长与大小，和消息里的同一套，不读字节', async () => {
     const media = fakeMedia(4)
     described(media, { kind: 'file' })
     described(media, { kind: 'voice', durationMs: 2000, sampleRate: 16000, channels: 1 })
@@ -145,7 +145,7 @@ describe('纸上的媒体对象', () => {
     const lines = [...document.querySelectorAll('[data-omne-part="media.file"]')]
     expect(lines.map(line => line.textContent)).toEqual([
       '〔file〕application/pdf · 2.0 KB',
-      '〔voice〕audio/wav · 62.5 KB',
+      '〔voice〕2 秒 · 62.5 KB',
     ])
     expect(reads(media)).toEqual([])
   })

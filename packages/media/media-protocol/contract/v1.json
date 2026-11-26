@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:1f42c623564cf38a98a2fd49b951191f8adcd2c0fb0411a4a3e15b578ec4612a",
-    "2": "sha256:bc4bc9d2f5a6dcb6ad35e014a026622a985e8c7aca361562f119fdb4388924a7"
+    "2": "sha256:bc4bc9d2f5a6dcb6ad35e014a026622a985e8c7aca361562f119fdb4388924a7",
+    "3": "sha256:403cc767024ac4e39daf1158f45f2cbb0fb491ebbe829f96f34a36433c41508a"
   },
   "major": 1,
   "name": "media",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {
       "observe-media": {
@@ -192,6 +193,13 @@
               "rule": {
                 "kind": "text"
               }
+            },
+            "name": {
+              "optional": true,
+              "rule": {
+                "kind": "text"
+              },
+              "since": 3
             },
             "tenant": {
               "rule": {
@@ -705,6 +713,13 @@
                     }
                   ]
                 }
+              },
+              "name": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 3
               },
               "preprocess": {
                 "rule": {
